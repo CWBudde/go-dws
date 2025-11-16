@@ -151,13 +151,13 @@ func TestParseLambdaExpressions(t *testing.T) {
 				if tt.firstParamType != "" {
 					if lambdaExpr.Parameters[0].Type == nil {
 						t.Error("expected parameter type, got nil")
-					} else if lambdaExpr.Parameters[0].Type.Name != tt.firstParamType {
+					} else if lambdaExpr.Parameters[0].Type.String() != tt.firstParamType {
 						t.Errorf("first param type: expected %q, got %q",
-							tt.firstParamType, lambdaExpr.Parameters[0].Type.Name)
+							tt.firstParamType, lambdaExpr.Parameters[0].Type.String())
 					}
 				} else {
 					if lambdaExpr.Parameters[0].Type != nil {
-						t.Errorf("expected no parameter type, got %q", lambdaExpr.Parameters[0].Type.Name)
+						t.Errorf("expected no parameter type, got %q", lambdaExpr.Parameters[0].Type.String())
 					}
 				}
 
@@ -171,13 +171,13 @@ func TestParseLambdaExpressions(t *testing.T) {
 			if tt.hasReturnType {
 				if lambdaExpr.ReturnType == nil {
 					t.Error("expected return type, got nil")
-				} else if lambdaExpr.ReturnType.Name != tt.returnTypeName {
+				} else if lambdaExpr.ReturnType.String() != tt.returnTypeName {
 					t.Errorf("return type: expected %q, got %q",
-						tt.returnTypeName, lambdaExpr.ReturnType.Name)
+						tt.returnTypeName, lambdaExpr.ReturnType.String())
 				}
 			} else {
 				if lambdaExpr.ReturnType != nil {
-					t.Errorf("expected no return type, got %q", lambdaExpr.ReturnType.Name)
+					t.Errorf("expected no return type, got %q", lambdaExpr.ReturnType.String())
 				}
 			}
 

@@ -18,7 +18,7 @@ import (
 type SetDecl struct {
 	BaseNode
 	Name        *Identifier
-	ElementType *TypeAnnotation
+	ElementType TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 }
 
 // statementNode implements the Statement interface

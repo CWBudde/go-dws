@@ -32,8 +32,8 @@ func TestSetDecl(t *testing.T) {
 		}
 
 		// Test ElementType
-		if setDecl.ElementType.Name != "TWeekday" {
-			t.Errorf("ElementType.Name = %v, want 'TWeekday'", setDecl.ElementType.Name)
+		if setDecl.ElementType.String() != "TWeekday" {
+			t.Errorf("ElementType.Name = %v, want 'TWeekday'", setDecl.ElementType.String())
 		}
 	})
 

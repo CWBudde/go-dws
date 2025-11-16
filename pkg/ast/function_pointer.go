@@ -20,10 +20,10 @@ import (
 // This is a type annotation node that can appear in type declarations, variable declarations,
 // and parameter lists.
 type FunctionPointerTypeNode struct {
-	Parameters []*Parameter    // Parameter list
-	ReturnType *TypeAnnotation // Return type (nil for procedures)
-	Token      token.Token     // The 'function' or 'procedure' token
-	OfObject   bool            // True for method pointers (procedure/function of object)
+	Parameters []*Parameter   // Parameter list
+	ReturnType TypeExpression // Return type (nil for procedures)
+	Token      token.Token    // The 'function' or 'procedure' token
+	OfObject   bool           // True for method pointers (procedure/function of object)
 	EndPos     token.Position
 }
 

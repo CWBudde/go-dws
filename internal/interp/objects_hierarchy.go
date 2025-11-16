@@ -814,7 +814,7 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 
 			// Apply implicit conversion if parameter has a type and types don't match
 			if param.Type != nil {
-				paramTypeName := param.Type.Name
+				paramTypeName := param.Type.String()
 				if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
 					arg = converted
 				}

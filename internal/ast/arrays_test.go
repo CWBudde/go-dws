@@ -43,8 +43,8 @@ func TestArrayTypeAnnotation(t *testing.T) {
 		}
 
 		// Test ElementType
-		if arrayType.ElementType.Name != "Integer" {
-			t.Errorf("ElementType.Name = %v, want 'Integer'", arrayType.ElementType.Name)
+		if arrayType.ElementType.String() != "Integer" {
+			t.Errorf("ElementType.Name = %v, want 'Integer'", arrayType.ElementType.String())
 		}
 
 		// Test bounds - they should be IntegerLiteral expressions

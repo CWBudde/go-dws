@@ -20,8 +20,8 @@ import (
 type VarDeclStatement struct {
 	BaseNode
 	Value        Expression
-	Names        []*Identifier // Changed from Name to support multi-identifier declarations
-	Type         *TypeAnnotation
+	Names        []*Identifier  // Changed from Name to support multi-identifier declarations
+	Type         TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	ExternalName string
 	IsExternal   bool
 	Inferred     bool // true when the type is inferred from the initializer
@@ -41,14 +41,19 @@ func (vds *VarDeclStatement) String() string {
 	}
 	out.WriteString(strings.Join(names, ", "))
 
+	typeStr := ""
 	if vds.Type != nil {
+		typeStr = vds.Type.String()
+	}
+
+	if typeStr != "" {
 		out.WriteString(": ")
-		out.WriteString(vds.Type.String())
+		out.WriteString(typeStr)
 	}
 
 	if vds.Value != nil {
 		separator := " := "
-		if vds.Inferred && vds.Type == nil {
+		if vds.Inferred && typeStr == "" {
 			separator = " = "
 		}
 		out.WriteString(separator)

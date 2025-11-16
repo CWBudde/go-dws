@@ -22,11 +22,11 @@ type ConstDecl struct {
 	BaseNode
 	Value             Expression
 	Name              *Identifier
-	Type              *TypeAnnotation
-	Visibility        Visibility // For class constants (default: public for global, private for class)
-	DeprecatedMessage string     // Optional message if deprecated
-	IsClassConst      bool       // True if declared with 'class const' keyword
-	IsDeprecated      bool       // True if marked as deprecated
+	Type              TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
+	Visibility        Visibility     // For class constants (default: public for global, private for class)
+	DeprecatedMessage string         // Optional message if deprecated
+	IsClassConst      bool           // True if declared with 'class const' keyword
+	IsDeprecated      bool           // True if marked as deprecated
 }
 
 func (c *ConstDecl) End() token.Position {

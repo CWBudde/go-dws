@@ -171,8 +171,8 @@ end;
 		t.Fatal("method.ReturnType should not be nil")
 	}
 
-	if method.ReturnType.Name != "Integer" {
-		t.Errorf("method.ReturnType.Name not 'Integer'. got=%s", method.ReturnType.Name)
+	if method.ReturnType.String() != "Integer" {
+		t.Errorf("method.ReturnType.String() not 'Integer'. got=%s", method.ReturnType.String())
 	}
 }
 
@@ -229,8 +229,8 @@ end;
 	if method1.ReturnType == nil {
 		t.Fatal("method1.ReturnType should not be nil")
 	}
-	if method1.ReturnType.Name != "Integer" {
-		t.Errorf("method1.ReturnType.Name not 'Integer'. got=%s", method1.ReturnType.Name)
+	if method1.ReturnType.String() != "Integer" {
+		t.Errorf("method1.ReturnType.String() not 'Integer'. got=%s", method1.ReturnType.String())
 	}
 
 	// Test second method declared with 'method' keyword (procedure-style)
@@ -1266,7 +1266,7 @@ end;
 			t.Errorf("Expected ExternalName 'getValue', got %q", method.ExternalName)
 		}
 
-		if method.ReturnType == nil || method.ReturnType.Name != "Integer" {
+		if method.ReturnType == nil || method.ReturnType.String() != "Integer" {
 			t.Error("Expected return type Integer")
 		}
 	})

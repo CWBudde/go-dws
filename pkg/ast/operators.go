@@ -45,10 +45,10 @@ func (k OperatorKind) String() string {
 //	class operator += String uses AppendString;
 type OperatorDecl struct {
 	BaseNode
-	ReturnType     *TypeAnnotation
+	ReturnType     TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	Binding        *Identifier
 	OperatorSymbol string
-	OperandTypes   []*TypeAnnotation
+	OperandTypes   []TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	OperatorToken  token.Token
 	Kind           OperatorKind
 	Arity          int

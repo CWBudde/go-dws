@@ -52,7 +52,7 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 	targetType := i.resolveTypeFromAnnotation(decl.ForType)
 	if targetType == nil {
 		return i.newErrorWithLocation(decl, "unknown target type '%s' for helper '%s'",
-			decl.ForType.Name, decl.Name.Value)
+			decl.ForType.String(), decl.Name.Value)
 	}
 
 	// Create helper info
@@ -105,7 +105,7 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 		propType := i.resolveTypeFromAnnotation(prop.Type)
 		if propType == nil {
 			return i.newErrorWithLocation(prop, "unknown type '%s' for property '%s'",
-				prop.Type.Name, prop.Name.Value)
+				prop.Type.String(), prop.Name.Value)
 		}
 
 		propInfo := &types.PropertyInfo{

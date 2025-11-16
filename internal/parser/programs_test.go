@@ -30,7 +30,7 @@ x := x + y;
 				if varDecl1.Names[0].Value != "x" {
 					t.Errorf("varDecl1.Names[0].Value = %q, want 'x'", varDecl1.Names[0].Value)
 				}
-				if varDecl1.Type == nil || varDecl1.Type.Name != "Integer" {
+				if varDecl1.Type == nil || varDecl1.Type.String() != "Integer" {
 					t.Errorf("varDecl1.Type = %q, want 'Integer'", varDecl1.Type)
 				}
 				if !testIntegerLiteral(t, varDecl1.Value, 5) {

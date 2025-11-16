@@ -101,12 +101,12 @@ func (i *Interpreter) resolveTypeFromExpression(typeExpr ast.TypeExpression) typ
 }
 
 // resolveTypeFromAnnotation resolves a type from an AST TypeAnnotation
-func (i *Interpreter) resolveTypeFromAnnotation(typeAnnot *ast.TypeAnnotation) types.Type {
-	if typeAnnot == nil {
+func (i *Interpreter) resolveTypeFromAnnotation(typeExpr ast.TypeExpression) types.Type {
+	if typeExpr == nil {
 		return nil
 	}
 
-	typeName := typeAnnot.Name
+	typeName := typeExpr.String()
 
 	// Normalize type name to lowercase for case-insensitive comparison
 	// DWScript (like Pascal) is case-insensitive for all identifiers including type names

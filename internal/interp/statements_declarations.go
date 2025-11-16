@@ -79,7 +79,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 		if arrayLit, ok := stmt.Value.(*ast.ArrayLiteralExpression); ok {
 			var expected *types.ArrayType
 			if stmt.Type != nil {
-				arrType, errVal := i.arrayTypeByName(stmt.Type.Name, stmt)
+				arrType, errVal := i.arrayTypeByName(stmt.Type.String(), stmt)
 				if errVal != nil {
 					return errVal
 				}
@@ -94,7 +94,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 			if stmt.Type == nil {
 				return newError("anonymous record literal requires explicit type annotation")
 			}
-			typeName := stmt.Type.Name
+			typeName := stmt.Type.String()
 			// Task 9.225: Normalize to lowercase for case-insensitive lookups
 			recordTypeKey := "__record_type_" + strings.ToLower(typeName)
 			if typeVal, ok := i.env.Get(recordTypeKey); ok {
@@ -124,7 +124,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 
 		// If declaring a subrange variable with an initializer, wrap and validate
 		if stmt.Type != nil {
-			typeName := stmt.Type.Name
+			typeName := stmt.Type.String()
 			// Task 9.225: Normalize to lowercase for case-insensitive lookups
 			subrangeTypeKey := "__subrange_type_" + strings.ToLower(typeName)
 			handledSubrange := false
@@ -166,7 +166,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 	} else {
 		// No initializer - check if we need to initialize based on type
 		if stmt.Type != nil {
-			typeName := stmt.Type.Name
+			typeName := stmt.Type.String()
 
 			// Check for inline array types first
 			// Inline array types have signatures like "array of Integer" or "array[1..10] of Integer"
@@ -274,7 +274,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 			nameValue = value
 			// Task 9.1.6: If the type annotation is an interface type, wrap the value in an InterfaceInstance
 			if stmt.Type != nil {
-				typeName := stmt.Type.Name
+				typeName := stmt.Type.String()
 				if ifaceInfo, exists := i.interfaces[strings.ToLower(typeName)]; exists {
 					// Check if the value is already an InterfaceInstance
 					if _, alreadyInterface := nameValue.(*InterfaceInstance); !alreadyInterface {
@@ -305,24 +305,21 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 
 // createZeroValue creates a zero value for the given type
 // This is used for multi-identifier declarations where each variable needs its own instance
-func (i *Interpreter) createZeroValue(typeAnnotation *ast.TypeAnnotation) Value {
-	if typeAnnotation == nil {
+func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
+	if typeExpr == nil {
 		return &NilValue{}
 	}
 
-	// Check for inline types stored in AST (arrays, function pointers)
-	// Task: Fix negative array bounds - use AST node directly instead of parsing string
-	if typeAnnotation.InlineType != nil {
-		if arrayNode, ok := typeAnnotation.InlineType.(*ast.ArrayTypeNode); ok {
-			arrayType := i.resolveArrayTypeNode(arrayNode)
-			if arrayType != nil {
-				return NewArrayValue(arrayType)
-			}
-			return &NilValue{}
+	// Check for array types
+	if arrayNode, ok := typeExpr.(*ast.ArrayTypeNode); ok {
+		arrayType := i.resolveArrayTypeNode(arrayNode)
+		if arrayType != nil {
+			return NewArrayValue(arrayType)
 		}
+		return &NilValue{}
 	}
 
-	typeName := typeAnnotation.Name
+	typeName := typeExpr.String()
 
 	// Check for inline array types from string (fallback for older code)
 	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
@@ -422,7 +419,7 @@ func (i *Interpreter) evalConstDecl(stmt *ast.ConstDecl) Value {
 		if stmt.Type == nil {
 			return newError("anonymous record literal requires explicit type annotation")
 		}
-		typeName := stmt.Type.Name
+		typeName := stmt.Type.String()
 		// Task 9.225: Normalize to lowercase for case-insensitive lookups
 		recordTypeKey := "__record_type_" + strings.ToLower(typeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {

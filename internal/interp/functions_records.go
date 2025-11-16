@@ -120,7 +120,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 
 		// Apply implicit conversion if parameter has a type and types don't match
 		if param.Type != nil {
-			paramTypeName := param.Type.Name
+			paramTypeName := param.Type.String()
 			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
 				arg = converted
 			}
@@ -137,7 +137,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 		var resultValue = i.getDefaultValue(returnType)
 
 		// Check if return type is a record (overrides default)
-		returnTypeName := method.ReturnType.Name
+		returnTypeName := method.ReturnType.String()
 		// Normalize to lowercase for case-insensitive lookups
 		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
@@ -200,7 +200,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 
 		// Apply implicit conversion if return type doesn't match
 		if returnValue.Type() != "NIL" {
-			expectedReturnType := method.ReturnType.Name
+			expectedReturnType := method.ReturnType.String()
 			if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
 				returnValue = converted
 			}
@@ -324,7 +324,7 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 
 		// Apply implicit conversion if parameter has a type and types don't match
 		if param.Type != nil {
-			paramTypeName := param.Type.Name
+			paramTypeName := param.Type.String()
 			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
 				arg = converted
 			}
@@ -340,7 +340,7 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 		var resultValue = i.getDefaultValue(returnType)
 
 		// Check if return type is a record (overrides default)
-		returnTypeName := method.ReturnType.Name
+		returnTypeName := method.ReturnType.String()
 		// Normalize to lowercase for case-insensitive lookups
 		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
@@ -385,7 +385,7 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 
 		// Apply implicit conversion if return type doesn't match
 		if returnValue.Type() != "NIL" {
-			expectedReturnType := method.ReturnType.Name
+			expectedReturnType := method.ReturnType.String()
 			if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
 				returnValue = converted
 			}

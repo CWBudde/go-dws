@@ -98,7 +98,7 @@ func (rd *RecordDecl) String() string {
 type RecordPropertyDecl struct {
 	BaseNode
 	Name       *Identifier
-	Type       *TypeAnnotation
+	Type       TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	ReadField  string
 	WriteField string
 }

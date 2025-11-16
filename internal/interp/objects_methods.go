@@ -188,7 +188,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 					// Apply implicit conversion if parameter has a type and types don't match
 					if param.Type != nil {
-						paramTypeName := param.Type.Name
+						paramTypeName := param.Type.String()
 						if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
 							arg = converted
 						}
@@ -252,7 +252,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 					// Apply implicit conversion if return type doesn't match (but not for constructors)
 					if instanceMethod.ReturnType != nil && returnValue.Type() != "NIL" {
-						expectedReturnType := instanceMethod.ReturnType.Name
+						expectedReturnType := instanceMethod.ReturnType.String()
 						if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
 							returnValue = converted
 						}
@@ -410,7 +410,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		for idx, param := range constructor.Parameters {
 			arg := args[idx]
 			if param.Type != nil {
-				paramTypeName := param.Type.Name
+				paramTypeName := param.Type.String()
 				if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
 					arg = converted
 				}
@@ -742,7 +742,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		for idx, param := range actualConstructor.Parameters {
 			arg := args[idx]
 			if param.Type != nil {
-				paramTypeName := param.Type.Name
+				paramTypeName := param.Type.String()
 				if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
 					arg = converted
 				}
@@ -797,7 +797,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 		// Apply implicit conversion if parameter has a type and types don't match
 		if param.Type != nil {
-			paramTypeName := param.Type.Name
+			paramTypeName := param.Type.String()
 			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
 				arg = converted
 			}
@@ -861,7 +861,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 		// Apply implicit conversion if return type doesn't match
 		if returnValue.Type() != "NIL" {
-			expectedReturnType := method.ReturnType.Name
+			expectedReturnType := method.ReturnType.String()
 			if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
 				returnValue = converted
 			}
@@ -930,7 +930,7 @@ func (i *Interpreter) executeClassMethod(
 	for idx, param := range classMethod.Parameters {
 		arg := args[idx]
 		if param.Type != nil {
-			paramTypeName := param.Type.Name
+			paramTypeName := param.Type.String()
 			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
 				arg = converted
 			}
@@ -972,7 +972,7 @@ func (i *Interpreter) executeClassMethod(
 		}
 
 		if returnValue.Type() != "NIL" {
-			expectedReturnType := classMethod.ReturnType.Name
+			expectedReturnType := classMethod.ReturnType.String()
 			if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
 				returnValue = converted
 			}

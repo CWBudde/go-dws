@@ -26,7 +26,7 @@ type PropertyDecl struct {
 	ReadSpec        Expression
 	WriteSpec       Expression
 	Name            *Identifier
-	Type            *TypeAnnotation
+	Type            TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	IndexParams     []*Parameter
 	IsDefault       bool
 	IsClassProperty bool

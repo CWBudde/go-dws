@@ -72,8 +72,8 @@ func TestParseConstDeclarationTyped(t *testing.T) {
 		t.Fatal("stmt.Type should not be nil for typed const")
 	}
 
-	if stmt.Type.Name != "Integer" {
-		t.Errorf("stmt.Type.Name not 'Integer'. got=%s", stmt.Type.Name)
+	if stmt.Type.String() != "Integer" {
+		t.Errorf("stmt.Type.String() not 'Integer'. got=%s", stmt.Type.String())
 	}
 
 	intLit, ok := stmt.Value.(*ast.IntegerLiteral)
@@ -370,8 +370,8 @@ func TestParseTypeAlias(t *testing.T) {
 				t.Fatal("stmt.AliasedType should not be nil")
 			}
 
-			if stmt.AliasedType.Name != tt.expectedType {
-				t.Errorf("stmt.AliasedType.Name not %q. got=%s", tt.expectedType, stmt.AliasedType.Name)
+			if stmt.AliasedType.String() != tt.expectedType {
+				t.Errorf("stmt.AliasedType.String() not %q. got=%s", tt.expectedType, stmt.AliasedType.String())
 			}
 		})
 	}
@@ -419,8 +419,8 @@ func TestParseMultipleTypeAliases(t *testing.T) {
 			t.Errorf("stmt.IsAlias should be true for type alias %s", expected.name)
 		}
 
-		if stmt.AliasedType.Name != expected.typ {
-			t.Errorf("stmt.AliasedType.Name not %q. got=%s", expected.typ, stmt.AliasedType.Name)
+		if stmt.AliasedType.String() != expected.typ {
+			t.Errorf("stmt.AliasedType.String() not %q. got=%s", expected.typ, stmt.AliasedType.String())
 		}
 	}
 }
@@ -754,8 +754,8 @@ func TestParseConstDeclarationWithArrayType(t *testing.T) {
 				t.Fatal("stmt.Type should not be nil for typed const")
 			}
 
-			if stmt.Type.Name != tt.expectedTypeName {
-				t.Errorf("stmt.Type.Name not %q. got=%s", tt.expectedTypeName, stmt.Type.Name)
+			if stmt.Type.String() != tt.expectedTypeName {
+				t.Errorf("stmt.Type.String() not %q. got=%s", tt.expectedTypeName, stmt.Type.String())
 			}
 
 			// Verify value is an array literal
@@ -801,8 +801,8 @@ const bad : array [0..13] of Integer =
 		t.Fatal("stmt1.Type should not be nil")
 	}
 
-	if stmt1.Type.Name != "array[0..13] of Integer" {
-		t.Errorf("stmt1.Type.Name not 'array[0..13] of Integer'. got=%s", stmt1.Type.Name)
+	if stmt1.Type.String() != "array[0..13] of Integer" {
+		t.Errorf("stmt1.Type.String() not 'array[0..13] of Integer'. got=%s", stmt1.Type.String())
 	}
 
 	arr1, ok := stmt1.Value.(*ast.ArrayLiteralExpression)
@@ -829,8 +829,8 @@ const bad : array [0..13] of Integer =
 		t.Fatal("stmt2.Type should not be nil")
 	}
 
-	if stmt2.Type.Name != "array[0..13] of Integer" {
-		t.Errorf("stmt2.Type.Name not 'array[0..13] of Integer'. got=%s", stmt2.Type.Name)
+	if stmt2.Type.String() != "array[0..13] of Integer" {
+		t.Errorf("stmt2.Type.String() not 'array[0..13] of Integer'. got=%s", stmt2.Type.String())
 	}
 
 	arr2, ok := stmt2.Value.(*ast.ArrayLiteralExpression)
@@ -873,8 +873,8 @@ func TestParseConstDeclarationWithFunctionPointerType(t *testing.T) {
 
 	// Function pointer type is stored as string representation
 	expectedType := "function(x: Integer): Boolean"
-	if stmt.Type.Name != expectedType {
-		t.Errorf("stmt.Type.Name not %q. got=%s", expectedType, stmt.Type.Name)
+	if stmt.Type.String() != expectedType {
+		t.Errorf("stmt.Type.String() not %q. got=%s", expectedType, stmt.Type.String())
 	}
 }
 

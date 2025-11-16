@@ -72,7 +72,7 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		if !param.ByRef {
 			// Apply implicit conversion if parameter has a type and types don't match
 			if param.Type != nil {
-				paramTypeName := param.Type.Name
+				paramTypeName := param.Type.String()
 				if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
 					arg = converted
 				}
@@ -92,7 +92,7 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		var resultValue = i.getDefaultValue(returnType)
 
 		// Check if return type is a record (overrides default)
-		returnTypeName := fn.ReturnType.Name
+		returnTypeName := fn.ReturnType.String()
 		// Normalize to lowercase for case-insensitive lookups
 		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
@@ -210,7 +210,7 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 
 		// Apply implicit conversion if return type doesn't match
 		if returnValue.Type() != "NIL" {
-			expectedReturnType := fn.ReturnType.Name
+			expectedReturnType := fn.ReturnType.String()
 			if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
 				returnValue = converted
 			}

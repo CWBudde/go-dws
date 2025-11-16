@@ -13,7 +13,7 @@ func TestOperatorDeclString_GlobalBinary(t *testing.T) {
 		OperatorToken:  lexer.Token{Type: lexer.PLUS, Literal: "+"},
 		OperatorSymbol: "+",
 		Arity:          2,
-		OperandTypes: []*TypeAnnotation{
+		OperandTypes: []TypeExpression{
 			NewTestTypeAnnotation("String"),
 			NewTestTypeAnnotation("Integer"),
 		},
@@ -36,7 +36,7 @@ func TestOperatorDeclString_Conversion(t *testing.T) {
 		OperatorToken:  lexer.Token{Type: lexer.IMPLICIT, Literal: "implicit"},
 		OperatorSymbol: "implicit",
 		Arity:          1,
-		OperandTypes: []*TypeAnnotation{
+		OperandTypes: []TypeExpression{
 			NewTestTypeAnnotation("Integer"),
 		},
 		ReturnType: NewTestTypeAnnotation("String"),
@@ -58,7 +58,7 @@ func TestOperatorDeclString_Class(t *testing.T) {
 		OperatorToken:  lexer.Token{Type: lexer.PLUS_ASSIGN, Literal: "+="},
 		OperatorSymbol: "+=",
 		Arity:          1,
-		OperandTypes: []*TypeAnnotation{
+		OperandTypes: []TypeExpression{
 			NewTestTypeAnnotation("String"),
 		},
 		Binding:    NewTestIdentifier("AppendString"),

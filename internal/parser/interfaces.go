@@ -212,13 +212,9 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 				BaseNode: ast.BaseNode{
 					Token: typeToken,
 				},
-				Name:    nameIdent,
-				IsAlias: true,
-				AliasedType: &ast.TypeAnnotation{
-					InlineType: classOfType,
-					Token:      classOfType.Token,
-					Name:       classOfType.String(),
-				},
+				Name:        nameIdent,
+				IsAlias:     true,
+				AliasedType: classOfType,
 			}
 			typeDecl.EndPos = p.endPosFromToken(p.curToken)
 			return typeDecl

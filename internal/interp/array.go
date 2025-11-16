@@ -28,7 +28,7 @@ func (i *Interpreter) evalArrayDeclaration(decl *ast.ArrayDecl) Value {
 	}
 
 	// Resolve the element type
-	elementTypeName := arrayTypeAnnotation.ElementType.Name
+	elementTypeName := arrayTypeAnnotation.ElementType.String()
 	elementType, err := i.resolveType(elementTypeName)
 	if err != nil {
 		return i.newErrorWithLocation(decl, "unknown element type '%s'", elementTypeName)

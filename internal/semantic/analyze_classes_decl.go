@@ -248,10 +248,10 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		if constant.Type != nil {
 			// Explicit type annotation
 			var err error
-			constType, err = a.resolveType(constant.Type.Name)
+			constType, err = a.resolveType(getTypeExpressionName(constant.Type))
 			if err != nil {
 				a.addError("unknown type '%s' for constant '%s' in class '%s' at %s",
-					constant.Type.Name, constantName, className, constant.Token.Pos.String())
+					getTypeExpressionName(constant.Type), constantName, className, constant.Token.Pos.String())
 				continue
 			}
 		} else if constant.Value != nil {
@@ -653,10 +653,10 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 
 	// Add parameters to scope
 	for _, param := range decl.Parameters {
-		paramType, err := a.resolveType(param.Type.Name)
+		paramType, err := a.resolveType(getTypeExpressionName(param.Type))
 		if err != nil {
 			a.addError("unknown type '%s' for parameter '%s' at %s",
-				param.Type.Name, param.Name.Value, param.Token.Pos.String())
+				getTypeExpressionName(param.Type), param.Name.Value, param.Token.Pos.String())
 			continue
 		}
 		a.symbols.Define(param.Name.Value, paramType)
@@ -664,10 +664,10 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 
 	// Add Result variable if function has return type
 	if decl.ReturnType != nil {
-		returnType, err := a.resolveType(decl.ReturnType.Name)
+		returnType, err := a.resolveType(getTypeExpressionName(decl.ReturnType))
 		if err != nil {
 			a.addError("unknown return type '%s' at %s",
-				decl.ReturnType.Name, decl.Token.Pos.String())
+				getTypeExpressionName(decl.ReturnType), decl.Token.Pos.String())
 		} else {
 			a.symbols.Define("Result", returnType)
 			// Method name is also an alias for Result
@@ -716,7 +716,7 @@ func (a *Analyzer) findMatchingOverloadForImplementation(implDecl *ast.FunctionD
 			if param.Type == nil {
 				continue // Allow omitting types in implementation
 			}
-			paramType, err := a.resolveType(param.Type.Name)
+			paramType, err := a.resolveType(getTypeExpressionName(param.Type))
 			if err != nil || !paramType.Equals(overload.Signature.Parameters[i]) {
 				matches = false
 				break
@@ -751,10 +751,10 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 			return
 		}
 
-		paramType, err := a.resolveType(param.Type.Name)
+		paramType, err := a.resolveType(getTypeExpressionName(param.Type))
 		if err != nil {
 			a.addError("unknown parameter type '%s' in method '%s': %v",
-				param.Type.Name, method.Name.Value, err)
+				getTypeExpressionName(param.Type), method.Name.Value, err)
 			return
 		}
 		paramTypes = append(paramTypes, paramType)
@@ -771,7 +771,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	// Auto-detect constructors: methods named "Create" that return the class type
 	// This handles inline constructor declarations like: function Create(...): TClass;
 	if !method.IsConstructor && strings.EqualFold(method.Name.Value, "Create") && method.ReturnType != nil {
-		returnTypeName := method.ReturnType.Name
+		returnTypeName := getTypeExpressionName(method.ReturnType)
 		if strings.EqualFold(returnTypeName, classType.Name) {
 			method.IsConstructor = true
 		}
@@ -786,7 +786,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 			return
 		}
 		// Auto-detected constructors (function Create: TClass) must have matching return type
-		returnTypeName := method.ReturnType.Name
+		returnTypeName := getTypeExpressionName(method.ReturnType)
 		if !strings.EqualFold(returnTypeName, classType.Name) {
 			a.addError("constructor '%s' must return '%s', not '%s' at %s",
 				method.Name.Value, classType.Name, returnTypeName, method.Token.Pos.String())
@@ -798,10 +798,10 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	var returnType types.Type
 	if method.ReturnType != nil {
 		var err error
-		returnType, err = a.resolveType(method.ReturnType.Name)
+		returnType, err = a.resolveType(getTypeExpressionName(method.ReturnType))
 		if err != nil {
 			a.addError("unknown return type '%s' in method '%s': %v",
-				method.ReturnType.Name, method.Name.Value, err)
+				getTypeExpressionName(method.ReturnType), method.Name.Value, err)
 			return
 		}
 	} else if method.IsConstructor {

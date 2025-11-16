@@ -250,8 +250,8 @@ type
 		t.Fatal("aliasDecl.AliasedType is nil")
 	}
 
-	if aliasDecl.AliasedType.Name != "TBase" {
-		t.Errorf("aliasDecl.AliasedType.Name not 'TBase'. got=%q", aliasDecl.AliasedType.Name)
+	if aliasDecl.AliasedType.String() != "TBase" {
+		t.Errorf("aliasDecl.AliasedType.String() not 'TBase'. got=%q", aliasDecl.AliasedType.String())
 	}
 }
 
@@ -293,7 +293,7 @@ type
 	if alias1.AliasedType == nil {
 		t.Fatal("alias1.AliasedType is nil")
 	}
-	if alias1.Name.Value != "TAlias1" || alias1.AliasedType.Name != "TBase" {
+	if alias1.Name.Value != "TAlias1" || alias1.AliasedType.String() != "TBase" {
 		t.Errorf("TAlias1 incorrect")
 	}
 
@@ -306,7 +306,7 @@ type
 	if alias2.AliasedType == nil {
 		t.Fatal("alias2.AliasedType is nil")
 	}
-	if alias2.Name.Value != "TAlias2" || alias2.AliasedType.Name != "TAlias1" {
+	if alias2.Name.Value != "TAlias2" || alias2.AliasedType.String() != "TAlias1" {
 		t.Errorf("TAlias2 incorrect")
 	}
 
@@ -319,7 +319,7 @@ type
 	if alias3.AliasedType == nil {
 		t.Fatal("alias3.AliasedType is nil")
 	}
-	if alias3.Name.Value != "TAlias3" || alias3.AliasedType.Name != "TBase" {
+	if alias3.Name.Value != "TAlias3" || alias3.AliasedType.String() != "TBase" {
 		t.Errorf("TAlias3 incorrect")
 	}
 }

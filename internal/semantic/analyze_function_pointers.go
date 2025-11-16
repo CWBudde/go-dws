@@ -46,10 +46,10 @@ func (a *Analyzer) analyzeFunctionPointerTypeDeclaration(decl *ast.TypeDeclarati
 	// Task 9.159: Validate all parameter types exist
 	paramTypes := make([]types.Type, 0, len(fpType.Parameters))
 	for _, param := range fpType.Parameters {
-		paramType, err := a.resolveType(param.Type.Name)
+		paramType, err := a.resolveType(getTypeExpressionName(param.Type))
 		if err != nil {
 			a.addError("unknown parameter type '%s' in function pointer type at %s",
-				param.Type.Name, param.Type.Token.Pos.String())
+				getTypeExpressionName(param.Type), param.Type.Pos().String())
 			return
 		}
 		paramTypes = append(paramTypes, paramType)
@@ -59,10 +59,10 @@ func (a *Analyzer) analyzeFunctionPointerTypeDeclaration(decl *ast.TypeDeclarati
 	var returnType types.Type
 	if fpType.ReturnType != nil {
 		var err error
-		returnType, err = a.resolveType(fpType.ReturnType.Name)
+		returnType, err = a.resolveType(getTypeExpressionName(fpType.ReturnType))
 		if err != nil {
 			a.addError("unknown return type '%s' in function pointer type at %s",
-				fpType.ReturnType.Name, fpType.ReturnType.Token.Pos.String())
+				getTypeExpressionName(fpType.ReturnType), fpType.ReturnType.Pos().String())
 			return
 		}
 	}

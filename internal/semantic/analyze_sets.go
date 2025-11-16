@@ -28,7 +28,7 @@ func (a *Analyzer) analyzeSetDecl(decl *ast.SetDecl) {
 
 	// Resolve the element type (must be an enum type)
 	// Validate set element types (must be enum or small integer range)
-	elementTypeName := decl.ElementType.Name
+	elementTypeName := getTypeExpressionName(decl.ElementType)
 
 	// First check if it's an enum type
 	// Use lowercase for case-insensitive lookup

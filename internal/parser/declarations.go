@@ -85,38 +85,8 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 			return stmt
 		}
 
-		// Convert TypeExpression to TypeAnnotation
-		// TODO: Update ConstDecl struct to accept TypeExpression instead of TypeAnnotation
-		switch te := typeExpr.(type) {
-		case *ast.TypeAnnotation:
-			stmt.Type = te
-		case *ast.FunctionPointerTypeNode:
-			stmt.Type = &ast.TypeAnnotation{
-				Token:      te.Token,
-				Name:       te.String(),
-				InlineType: te, // Store the AST node for semantic analysis
-			}
-		case *ast.ArrayTypeNode:
-			// Check if Token is nil to prevent panics (defensive programming)
-			if te == nil {
-				p.addError("array type expression is nil in const declaration", ErrInvalidType)
-				return stmt
-			}
-			// Use the array token or create a dummy token if nil
-			token := te.Token
-			if token.Type == 0 || token.Literal == "" {
-				// Create a dummy token to prevent nil pointer issues
-				token = lexer.Token{Type: lexer.ARRAY, Literal: "array", Pos: lexer.Position{}}
-			}
-			stmt.Type = &ast.TypeAnnotation{
-				Token:      token,
-				Name:       te.String(),
-				InlineType: te, // Store the AST node for semantic analysis
-			}
-		default:
-			p.addError("unsupported type expression in const declaration", ErrInvalidType)
-			return stmt
-		}
+		// Directly assign the type expression without creating synthetic wrappers
+		stmt.Type = typeExpr
 	}
 
 	// Expect '=' or ':=' token

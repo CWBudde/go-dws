@@ -71,10 +71,10 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 				param.Name.Value, decl.Name.Value)
 			return
 		}
-		paramType, err := a.resolveType(param.Type.Name)
+		paramType, err := a.resolveType(getTypeExpressionName(param.Type))
 		if err != nil {
 			a.addError("unknown parameter type '%s' in function '%s': %v",
-				param.Type.Name, decl.Name.Value, err)
+				getTypeExpressionName(param.Type), decl.Name.Value, err)
 			return
 		}
 
@@ -110,10 +110,10 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 	var returnType types.Type
 	if decl.ReturnType != nil {
 		var err error
-		returnType, err = a.resolveType(decl.ReturnType.Name)
+		returnType, err = a.resolveType(getTypeExpressionName(decl.ReturnType))
 		if err != nil {
 			a.addError("unknown return type '%s' in function '%s': %v",
-				decl.ReturnType.Name, decl.Name.Value, err)
+				getTypeExpressionName(decl.ReturnType), decl.Name.Value, err)
 			return
 		}
 	} else {
@@ -222,7 +222,7 @@ func (a *Analyzer) analyzeReturn(stmt *ast.ReturnStatement) {
 	if a.currentFunction != nil {
 		if a.currentFunction.ReturnType != nil {
 			var err error
-			expectedType, err = types.TypeFromString(a.currentFunction.ReturnType.Name)
+			expectedType, err = types.TypeFromString(getTypeExpressionName(a.currentFunction.ReturnType))
 			if err != nil {
 				// Error already reported during function declaration analysis
 				return

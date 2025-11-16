@@ -159,8 +159,8 @@ func TestParseRecordWithMethods(t *testing.T) {
 		if recordDecl.Methods[0].Name.Value != "GetDistance" {
 			t.Errorf("Methods[0].Name = %s, want 'GetDistance'", recordDecl.Methods[0].Name.Value)
 		}
-		if recordDecl.Methods[0].ReturnType.Name != "Float" {
-			t.Errorf("Methods[0].ReturnType = %s, want 'Float'", recordDecl.Methods[0].ReturnType.Name)
+		if recordDecl.Methods[0].ReturnType.String() != "Float" {
+			t.Errorf("Methods[0].ReturnType = %s, want 'Float'", recordDecl.Methods[0].ReturnType.String())
 		}
 
 		// Check procedure declaration
@@ -202,8 +202,8 @@ func TestParseRecordWithProperties(t *testing.T) {
 		if recordDecl.Properties[0].Name.Value != "X" {
 			t.Errorf("Properties[0].Name = %s, want 'X'", recordDecl.Properties[0].Name.Value)
 		}
-		if recordDecl.Properties[0].Type.Name != "Integer" {
-			t.Errorf("Properties[0].Type = %s, want 'Integer'", recordDecl.Properties[0].Type.Name)
+		if recordDecl.Properties[0].Type.String() != "Integer" {
+			t.Errorf("Properties[0].Type = %s, want 'Integer'", recordDecl.Properties[0].Type.String())
 		}
 		if recordDecl.Properties[0].ReadField != "FX" {
 			t.Errorf("Properties[0].ReadField = %s, want 'FX'", recordDecl.Properties[0].ReadField)

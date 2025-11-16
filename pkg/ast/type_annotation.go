@@ -77,7 +77,7 @@ type TypedExpression interface {
 type TypeDeclaration struct {
 	BaseNode
 	Name                *Identifier
-	AliasedType         *TypeAnnotation
+	AliasedType         TypeExpression           // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	LowBound            Expression               // For subrange types
 	HighBound           Expression               // For subrange types
 	FunctionPointerType *FunctionPointerTypeNode // For function/procedure pointer types

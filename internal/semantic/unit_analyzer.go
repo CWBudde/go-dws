@@ -219,9 +219,9 @@ func (a *Analyzer) buildFunctionType(decl *ast.FunctionDecl) (*types.FunctionTyp
 			return nil, fmt.Errorf("parameter '%s' missing type", param.Name.Value)
 		}
 
-		paramType, err := a.resolveType(param.Type.Name)
+		paramType, err := a.resolveType(getTypeExpressionName(param.Type))
 		if err != nil {
-			return nil, fmt.Errorf("unknown type '%s' for parameter '%s': %v", param.Type.Name, param.Name.Value, err)
+			return nil, fmt.Errorf("unknown type '%s' for parameter '%s': %v", getTypeExpressionName(param.Type), param.Name.Value, err)
 		}
 
 		funcType.Parameters = append(funcType.Parameters, paramType)
@@ -229,9 +229,9 @@ func (a *Analyzer) buildFunctionType(decl *ast.FunctionDecl) (*types.FunctionTyp
 
 	// Resolve return type
 	if decl.ReturnType != nil {
-		returnType, err := a.resolveType(decl.ReturnType.Name)
+		returnType, err := a.resolveType(getTypeExpressionName(decl.ReturnType))
 		if err != nil {
-			return nil, fmt.Errorf("unknown return type '%s': %v", decl.ReturnType.Name, err)
+			return nil, fmt.Errorf("unknown return type '%s': %v", getTypeExpressionName(decl.ReturnType), err)
 		}
 		funcType.ReturnType = returnType
 	}
@@ -254,17 +254,17 @@ func (a *Analyzer) validateFunctionSignatureMatch(interfaceDecl, implDecl *ast.F
 		implParam := implDecl.Parameters[i]
 
 		// Compare types (case-insensitive)
-		if !strings.EqualFold(interfaceParam.Type.Name, implParam.Type.Name) {
+		if !strings.EqualFold(getTypeExpressionName(interfaceParam.Type), getTypeExpressionName(implParam.Type)) {
 			return fmt.Errorf("parameter %d type mismatch: interface has '%s', implementation has '%s'",
-				i+1, interfaceParam.Type.Name, implParam.Type.Name)
+				i+1, getTypeExpressionName(interfaceParam.Type), getTypeExpressionName(implParam.Type))
 		}
 	}
 
 	// Check return type
 	if interfaceDecl.ReturnType != nil && implDecl.ReturnType != nil {
-		if !strings.EqualFold(interfaceDecl.ReturnType.Name, implDecl.ReturnType.Name) {
+		if !strings.EqualFold(getTypeExpressionName(interfaceDecl.ReturnType), getTypeExpressionName(implDecl.ReturnType)) {
 			return fmt.Errorf("return type mismatch: interface has '%s', implementation has '%s'",
-				interfaceDecl.ReturnType.Name, implDecl.ReturnType.Name)
+				getTypeExpressionName(interfaceDecl.ReturnType), getTypeExpressionName(implDecl.ReturnType))
 		}
 	} else if interfaceDecl.ReturnType != nil || implDecl.ReturnType != nil {
 		return fmt.Errorf("return type mismatch: one has return type, the other doesn't")

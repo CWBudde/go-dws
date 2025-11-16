@@ -119,8 +119,8 @@ func TestTypeDeclaration(t *testing.T) {
 			t.Error("AliasedType should not be nil for type alias")
 		}
 
-		if typeDecl.AliasedType.Name != "Integer" {
-			t.Errorf("AliasedType.Name wrong. expected=%q, got=%q", "Integer", typeDecl.AliasedType.Name)
+		if typeDecl.AliasedType.String() != "Integer" {
+			t.Errorf("AliasedType.Name wrong. expected=%q, got=%q", "Integer", typeDecl.AliasedType.String())
 		}
 	})
 

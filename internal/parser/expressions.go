@@ -1162,7 +1162,7 @@ func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 	}
 
 	// Check for optional type annotation
-	var typeAnnotation *ast.TypeAnnotation
+	var typeExpr ast.TypeExpression
 	if p.peekTokenIs(lexer.COLON) {
 		p.nextToken() // move to ':'
 
@@ -1171,7 +1171,7 @@ func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 			return nil
 		}
 
-		typeAnnotation = &ast.TypeAnnotation{
+		typeExpr = &ast.TypeAnnotation{
 			Token: p.curToken,
 			Name:  p.curToken.Literal,
 		}
@@ -1182,7 +1182,7 @@ func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 		param := &ast.Parameter{
 			Token: name.Token,
 			Name:  name,
-			Type:  typeAnnotation,
+			Type:  typeExpr,
 			ByRef: byRef,
 		}
 		params = append(params, param)

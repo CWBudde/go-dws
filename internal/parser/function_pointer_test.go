@@ -193,8 +193,8 @@ func TestParseFunctionPointerTypeDeclarations(t *testing.T) {
 			if tt.hasReturnType {
 				if funcPtrType.ReturnType == nil {
 					t.Errorf("expected return type, got nil")
-				} else if funcPtrType.ReturnType.Name != tt.returnTypeName {
-					t.Errorf("expected return type %q, got %q", tt.returnTypeName, funcPtrType.ReturnType.Name)
+				} else if funcPtrType.ReturnType.String() != tt.returnTypeName {
+					t.Errorf("expected return type %q, got %q", tt.returnTypeName, funcPtrType.ReturnType.String())
 				}
 			} else {
 				if funcPtrType.ReturnType != nil {
@@ -213,8 +213,8 @@ func TestParseFunctionPointerTypeDeclarations(t *testing.T) {
 				if firstParam.Name.Value != tt.firstParamName {
 					t.Errorf("expected first param name %q, got %q", tt.firstParamName, firstParam.Name.Value)
 				}
-				if firstParam.Type.Name != tt.firstParamType {
-					t.Errorf("expected first param type %q, got %q", tt.firstParamType, firstParam.Type.Name)
+				if firstParam.Type.String() != tt.firstParamType {
+					t.Errorf("expected first param type %q, got %q", tt.firstParamType, firstParam.Type.String())
 				}
 				if firstParam.ByRef != tt.firstParamByRef {
 					t.Errorf("expected first param ByRef=%v, got=%v", tt.firstParamByRef, firstParam.ByRef)

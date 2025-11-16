@@ -420,7 +420,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		// This handles inline constructor declarations like: function Create(...): TClass;
 		// Matches semantic analyzer behavior (analyze_classes_decl.go:576-580)
 		if !method.IsConstructor && strings.EqualFold(method.Name.Value, "Create") && method.ReturnType != nil {
-			returnTypeName := method.ReturnType.Name
+			returnTypeName := method.ReturnType.String()
 			if strings.EqualFold(returnTypeName, cd.Name.Value) {
 				method.IsConstructor = true
 			}
@@ -558,7 +558,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 func (i *Interpreter) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.PropertyInfo {
 	// Resolve property type
 	var propType types.Type
-	switch propDecl.Type.Name {
+	switch propDecl.Type.String() {
 	case "Integer":
 		propType = types.INTEGER
 	case "Float":
@@ -859,7 +859,7 @@ func parametersMatch(params1, params2 []*ast.Parameter) bool {
 	for i := range params1 {
 		// Compare parameter types
 		if params1[i].Type != nil && params2[i].Type != nil {
-			if params1[i].Type.Name != params2[i].Type.Name {
+			if params1[i].Type.String() != params2[i].Type.String() {
 				return false
 			}
 		} else if params1[i].Type != params2[i].Type {

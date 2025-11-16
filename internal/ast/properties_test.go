@@ -28,8 +28,8 @@ func TestPropertyDeclBasic(t *testing.T) {
 		if prop.Name.Value != "Name" {
 			t.Errorf("Expected Name='Name', got '%s'", prop.Name.Value)
 		}
-		if prop.Type.Name != "String" {
-			t.Errorf("Expected Type='String', got '%s'", prop.Type.Name)
+		if prop.Type.String() != "String" {
+			t.Errorf("Expected Type='String', got '%s'", prop.Type.String())
 		}
 		if prop.ReadSpec.(*Identifier).Value != "FName" {
 			t.Errorf("Expected ReadSpec='FName', got '%s'", prop.ReadSpec.(*Identifier).Value)

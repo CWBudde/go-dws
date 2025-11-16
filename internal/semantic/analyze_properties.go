@@ -49,10 +49,10 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 		return
 	}
 
-	propType, err := a.resolveType(prop.Type.Name)
+	propType, err := a.resolveType(getTypeExpressionName(prop.Type))
 	if err != nil {
 		a.addError("unknown type '%s' for property '%s' in class '%s' at %s",
-			prop.Type.Name, propName, classType.Name, prop.Token.Pos.String())
+			getTypeExpressionName(prop.Type), propName, classType.Name, prop.Token.Pos.String())
 		return
 	}
 
@@ -66,10 +66,10 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 					param.Name.Value, propName, prop.Token.Pos.String())
 				return
 			}
-			paramType, err := a.resolveType(param.Type.Name)
+			paramType, err := a.resolveType(getTypeExpressionName(param.Type))
 			if err != nil {
 				a.addError("unknown type '%s' for index parameter '%s' in property '%s' at %s",
-					param.Type.Name, param.Name.Value, propName, prop.Token.Pos.String())
+					getTypeExpressionName(param.Type), param.Name.Value, propName, prop.Token.Pos.String())
 				return
 			}
 			indexParamTypes = append(indexParamTypes, paramType)

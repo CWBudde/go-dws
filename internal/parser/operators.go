@@ -137,7 +137,7 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 			return nil
 		}
 
-		decl.OperandTypes = []*ast.TypeAnnotation{operand}
+		decl.OperandTypes = []ast.TypeExpression{operand}
 		decl.Arity = len(decl.OperandTypes)
 	}
 	if decl.Arity == 0 {
@@ -189,8 +189,8 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 
 // parseOperatorOperandTypes parses the operand type list inside parentheses.
 // Example: (String, Integer)
-func (p *Parser) parseOperatorOperandTypes() []*ast.TypeAnnotation {
-	operandTypes := []*ast.TypeAnnotation{}
+func (p *Parser) parseOperatorOperandTypes() []ast.TypeExpression {
+	operandTypes := []ast.TypeExpression{}
 
 	p.nextToken() // move past '(' to first operand or ')'
 
