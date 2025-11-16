@@ -1,12 +1,7 @@
 package interp
 
 import (
-	"bytes"
 	"testing"
-
-	"github.com/cwbudde/go-dws/internal/lexer"
-	"github.com/cwbudde/go-dws/internal/parser"
-	"github.com/cwbudde/go-dws/internal/semantic"
 )
 
 // ============================================================================
@@ -893,27 +888,4 @@ end.
 	for i := 0; i < b.N; i++ {
 		runProgram(input)
 	}
-}
-
-// ============================================================================
-// Helper Benchmarks
-// ============================================================================
-
-func runProgramBench(input string) {
-	l := lexer.New(input)
-	p := parser.New(l)
-	program := p.ParseProgram()
-	if len(p.Errors()) > 0 {
-		return
-	}
-
-	analyzer := semantic.NewAnalyzer()
-	err := analyzer.Analyze(program)
-	if err != nil {
-		return
-	}
-
-	output := &bytes.Buffer{}
-	interp := New(output)
-	_ = interp.Eval(program)
 }

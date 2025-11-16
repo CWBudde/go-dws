@@ -23,9 +23,10 @@
 //   - Easy to test components in isolation
 //
 // Migration Status:
-//   Phase 3.2.1: Value interfaces defined ✓
-//   Phase 3.2.2: Primitives moved to runtime/ ✓
-//   Phase 3.2.3: Object pooling - IN PROGRESS
+//
+//	Phase 3.2.1: Value interfaces defined ✓
+//	Phase 3.2.2: Primitives moved to runtime/ ✓
+//	Phase 3.2.3: Object pooling ✓
 //
 // For more details, see docs/architecture/interpreter-refactoring.md
 package runtime
