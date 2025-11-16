@@ -524,7 +524,7 @@ if !p.curTokenIs(lexer.END) {
 8. Error recovery: 6-8h (unchanged - but can leverage lexer error patterns)
 9. Documentation: 6-8h (unchanged)
 
-**Time Savings**: ~10-20 hours saved due to lexer providing:
+**Time Savings**: ~6-10 hours saved due to lexer providing:
 - N-token lookahead infrastructure (Peek method)
 - State save/restore capability
 - Error accumulation patterns
