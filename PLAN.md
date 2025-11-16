@@ -1541,15 +1541,26 @@ for i in TMyEnum do  // Iterate over all enum values
 
 **Estimate**: 3-4 hours
 
+**Status**: DONE
+
 **Implementation**:
 1. Add `in` keyword recognition in for loop context
 2. Parse `for identifier in expression` syntax
 3. Support type inference: `for var i in collection`
 4. Create ForInStatement AST node
 
-**Files to Modify**:
-- `internal/parser/parser_statements.go` (parse for-in loops)
-- `pkg/ast/statements.go` (ForInStatement node)
+**Files Modified**:
+- `pkg/ast/control_flow.go` (ForInStatement node, lines 215-245)
+- `internal/parser/control_flow.go` (parseForInLoop function, lines 366-405)
+- `internal/parser/control_flow_loops_test.go` (TestForInStatements)
+- `pkg/token/token.go` (IN keyword token)
+
+**Completed Implementation**:
+- ✅ ForInStatement AST node with Variable, Collection, Body, and InlineVar fields
+- ✅ IN keyword token defined and recognized by lexer
+- ✅ parseForInLoop() parses `for [var] variable in expression do statement` syntax
+- ✅ Support for inline var declaration with `for var x in collection`
+- ✅ Comprehensive tests passing (5 test cases covering various scenarios)
 
 ### 9.9.2 Semantic Analysis for For-In Loops
 
