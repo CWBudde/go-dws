@@ -577,11 +577,11 @@ func (i *Interpreter) castToEnum(val Value, targetEnum *types.EnumType, typeName
 			}
 		}
 
-		// If no matching name found, use the first name or create a placeholder
+		// If no matching name found, create a placeholder name using the ordinal value
 		// (DWScript allows casting any integer to enum, even if not a valid ordinal)
 		if valueName == "" && len(targetEnum.OrderedNames) > 0 {
 			// For out-of-bounds ordinals, we still create an EnumValue
-			// but with an empty name (DWScript behavior)
+			// but with a placeholder name (DWScript behavior)
 			valueName = fmt.Sprintf("$%d", ordinal)
 		}
 

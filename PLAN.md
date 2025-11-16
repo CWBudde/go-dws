@@ -1865,24 +1865,6 @@ end;
 
 **Subtasks**:
 
-### 9.15.1 Parse Enum Modifiers ✓ DONE
-
-**Goal**: Support `scoped`, `flags`, and deprecation modifiers on enums.
-
-**Estimate**: 2 hours
-
-**Status**: Complete - scoped and flags parsing implemented
-
-**Implementation**:
-1. Parse `scoped` keyword after enum declaration
-2. Parse `flags` keyword for bit flag enums
-3. Parse deprecation attributes on enum elements
-4. Store modifiers in EnumDecl AST
-
-**Files to Modify**:
-- `internal/parser/enums.go` (enum modifier parsing)
-- `pkg/ast/enums.go` (Scoped, Flags, Deprecated fields)
-
 ### 9.15.2 Enum Boolean Operations
 
 **Goal**: Support boolean operators with enum operands.
@@ -1898,83 +1880,6 @@ end;
 **Files to Modify**:
 - `internal/semantic/analyze_expressions.go` (enum boolean ops)
 - `internal/interp/expressions_operators.go` (enum in operator)
-
-### 9.15.3 Enum Bounds (Low/High) ✓ DONE
-
-**Goal**: Implement Low() and High() built-in functions for enums.
-
-**Estimate**: 1-2 hours
-
-**Status**: Complete - Low/High properties and methods implemented
-
-**Implementation**:
-1. `Low(EnumType)` returns first enum element
-2. `High(EnumType)` returns last enum element
-3. Semantic analysis: validate enum type argument
-4. Runtime: return enum min/max values
-
-**Files to Modify**:
-- `internal/semantic/builtin_functions.go` (Low/High functions)
-- `internal/interp/builtin_functions.go` (Low/High implementation)
-
-### 9.15.4 EnumByName Function ✓ DONE
-
-**Goal**: Implement EnumByName for string-to-enum conversion.
-
-**Estimate**: 2 hours
-
-**Status**: Complete - ByName() method implemented
-
-**Implementation**:
-1. Parse `EnumByName<TEnumType>('name')` syntax
-2. Semantic analysis: validate generic type parameter and string argument
-3. Runtime: look up enum element by name, return value
-4. Handle qualified names for scoped enums
-
-**Files to Modify**:
-- `internal/semantic/builtin_functions.go` (EnumByName function)
-- `internal/interp/builtin_functions.go` (EnumByName implementation)
-
-### 9.15.5 Scoped Enums ✓ DONE
-
-**Goal**: Enforce scoped enum access (TypeName.Element).
-
-**Estimate**: 2-3 hours
-
-**Status**: Complete - Scoped enum access fully working
-
-**Implementation**:
-1. Scoped enums require type prefix for access
-2. Parse `TScopedEnum.seX` syntax
-3. Semantic analysis: validate scoped enum access
-4. Unscoped enums allow direct element access
-
-**Files to Modify**:
-- `internal/semantic/analyze_enums.go` (scoped enum validation)
-- `internal/parser/expressions.go` (qualified enum access)
-
-### 9.15.6 Enum Type Casting ✓ DONE
-
-**Goal**: Support type casting to/from enum types.
-
-**Estimate**: 2-3 hours
-
-**Status**: Complete - All casting variants working
-
-**Implementation**:
-1. ✓ Flags enums are bit flags (2^n values)
-2. ✓ Parse `TEnum(intValue)` syntax for integer-to-enum cast
-3. ✓ Parse `Integer(enumValue)` syntax for enum-to-integer cast
-4. ✓ Semantic analysis for enum cast expressions (resolveType + isValidCast)
-5. ✓ Runtime evaluation of enum casts (castToEnum function)
-6. ✓ Compile-time constant evaluation for enum casts in const declarations
-
-**Files Modified**:
-- `internal/semantic/analyze_function_calls.go` (type cast detection, resolveType usage)
-- `internal/semantic/analyze_types.go` (evaluateConstantTypeCast for const declarations)
-- `internal/interp/functions_typecast.go` (castToEnum runtime evaluation)
-
-**Tests Passing**: enum_casts (1/1)
 
 ### 9.15.7 Enum Boolean Operators
 
@@ -2109,18 +2014,16 @@ PrintLn(TEnum.eTwo.Value);  // Qualified access works
 - ✓ Low/High properties and methods return enum bounds
 - ✓ ByName() method converts string to enum
 - ✓ .Value property on enum instances returns ordinal value
+- ✓ Enum-to-integer and integer-to-enum casts - DONE
 - ⚠ Enum boolean operations (or, and, xor) - TODO
-- ⚠ Enum-to-integer and integer-to-enum casts - TODO
 - ⚠ Implicit enum-to-integer conversion - TODO
 - ⚠ Constant expressions in enum values - TODO
-- **Progress**: 4/12 tests passing (enum_scoped, enum_flags1, enum_bounds, enum_byname)
+- **Progress**: 8/17 tests passing (enum_scoped, enum_flags1, enum_bounds, enum_byname, enum_value, enum_qualified_access, enum_ord, enum_forin)
 
-**Remaining Work** (see subtasks 9.15.6-9.15.11 for details):
-- 9.15.6: Type casting syntax (TEnum(value), Integer(enumValue))
+**Remaining Work** (see subtasks 9.15.7-9.15.11 for details):
 - 9.15.7: Boolean operators on enum types (or, and, xor for flags)
 - 9.15.8: Implicit conversion from enum to Integer in function calls
 - 9.15.9: Constant expressions in enum value assignments (e.g., Ord('A'))
-- ~~9.15.10: .Value property on enum instances~~ ✓ DONE
 - 9.15.11: Additional edge cases (aliased enums, deprecation, names)
 
 **Testing**:

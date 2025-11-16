@@ -60,9 +60,9 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 			if decl.Flags {
 				// For flags, update bit position based on explicit value
 				// Find the bit position of the explicit value
-				for i := 0; i < 64; i++ {
-					if (1 << i) == ordinalValue {
-						flagBitPosition = i + 1
+				for bitPos := 0; bitPos < 64; bitPos++ {
+					if (1 << bitPos) == ordinalValue {
+						flagBitPosition = bitPos + 1
 						break
 					}
 				}

@@ -38,10 +38,17 @@ func (i *Interpreter) evalEnumDeclaration(decl *ast.EnumDecl) Value {
 			// Explicit value provided
 			ordinalValue = *enumValue.Value
 			if decl.Flags {
+				// For flags, explicit values must be powers of 2
+				if ordinalValue <= 0 || (ordinalValue&(ordinalValue-1)) != 0 {
+					return &ErrorValue{
+						Message: fmt.Sprintf("enum '%s' value '%s' (%d) must be a power of 2 for flags enum",
+							enumName, valueName, ordinalValue),
+					}
+				}
 				// For flags, update bit position based on explicit value
-				for i := 0; i < 64; i++ {
-					if (1 << i) == ordinalValue {
-						flagBitPosition = i + 1
+				for bitPos := 0; bitPos < 64; bitPos++ {
+					if (1 << bitPos) == ordinalValue {
+						flagBitPosition = bitPos + 1
 						break
 					}
 				}

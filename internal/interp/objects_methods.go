@@ -538,7 +538,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 					// Support both simple names ('a') and qualified names ('MyEnum.a')
 					searchName := nameStr.Value
 					if searchName == "" {
-						// Empty string returns 0 (default value)
+						// Empty string returns 0 (DWScript behavior - returns first enum ordinal value)
 						return &IntegerValue{Value: 0}
 					}
 
@@ -556,7 +556,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 						}
 					}
 
-					// Value not found, return 0
+					// Value not found, return 0 (DWScript behavior - returns 0 instead of raising error)
 					return &IntegerValue{Value: 0}
 				}
 			}
