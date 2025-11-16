@@ -87,7 +87,7 @@ func (p *Parser) detectFunctionPointerFullSyntax() bool {
 
 	peekIndex := 0
 	for {
-		tok := p.l.Peek(peekIndex)
+		tok := p.peek(peekIndex)
 
 		switch tok.Type {
 		case lexer.COLON:

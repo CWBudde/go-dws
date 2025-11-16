@@ -499,9 +499,9 @@ func (p *Parser) looksLikeVarDeclaration() bool {
 		return false
 	}
 
-	// Use Peek(0) for 2-token lookahead: check the token after peekToken
-	// peekToken is the IDENT, Peek(0) returns what comes after it
-	tokenAfterIdent := p.l.Peek(0)
+	// Use peek(0) for 2-token lookahead: check the token after peekToken
+	// peekToken is the IDENT, peek(0) returns what comes after it
+	tokenAfterIdent := p.peek(0)
 
 	// Only accept unambiguous var declaration patterns:
 	// - name : Type         (explicit type - always a declaration)
@@ -523,9 +523,9 @@ func (p *Parser) looksLikeConstDeclaration() bool {
 		return false
 	}
 
-	// Use Peek(0) for 2-token lookahead: check the token after peekToken
-	// peekToken is the IDENT, Peek(0) returns what comes after it
-	tokenAfterIdent := p.l.Peek(0)
+	// Use peek(0) for 2-token lookahead: check the token after peekToken
+	// peekToken is the IDENT, peek(0) returns what comes after it
+	tokenAfterIdent := p.peek(0)
 
 	// Const declaration patterns:
 	// - NAME : Type = value  (typed const)
