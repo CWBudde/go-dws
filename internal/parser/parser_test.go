@@ -217,7 +217,7 @@ func TestLookaheadFunctions(t *testing.T) {
 				y : String;
 				z : Boolean;`,
 			shouldParse:   true,
-			expectedStmts: 1, // Block statement containing 3 var declarations
+			expectedStmts: 3, // 3 separate var declarations (unwrapped)
 		},
 		{
 			name: "var declaration with inferred type needs var keyword",
@@ -232,7 +232,7 @@ func TestLookaheadFunctions(t *testing.T) {
 				x, y : Integer;
 				a, b, c : String;`,
 			shouldParse:   true,
-			expectedStmts: 1,
+			expectedStmts: 2, // 2 separate var declarations (unwrapped)
 		},
 		{
 			name: "const declaration continuation with colon",
