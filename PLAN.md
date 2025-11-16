@@ -706,21 +706,10 @@ go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/class_init
 
 ---
 
-- [x] **Task 9.7: Implement Self Keyword in Class Methods** - Add support for the `Self` keyword in class methods. Recognized `Self` as special identifier (case-insensitive), added semantic analysis for typing Self based on method context (instance vs class method), implemented runtime evaluation to bind Self to current instance/class. All subtasks complete (9.7.1-9.7.3). Unlocks 2 failing tests in SimpleScripts. (Estimate: 4-5 hours, 0.5 day) ✅
+
 
 ---
 
-- [x] **Task 9.8: Implement Function Pointer Types** - Add full support for function and method pointer types. Parsed function/procedure pointer type declarations (including `of object`), added FunctionPointerType to type system, implemented semantic analysis for function pointer operations (assignment, calls, parameters), added runtime support for function pointer storage and invocation. All subtasks complete (9.8.1-9.8.4). Unlocks 19 failing tests in SimpleScripts. (Estimate: 16-20 hours, 2-2.5 days) ✅
-
----
-
-- [x] **Task 9.9: Implement For-In Loop Support** - Add support for for-in loop syntax for iterating over collections. Parsed `for variable in collection` syntax with type inference, implemented semantic analysis for type checking and element type inference (enum/array/string/set), added runtime support for enumeration/array/string/set iteration with proper control flow handling. All subtasks complete (9.9.1-9.9.5). Unlocks 15 failing tests in SimpleScripts. (Estimate: 14-18 hours, 1.75-2.25 days) ✅
-
----
-
-- [x] **Task 9.10: Implement Lazy Parameter Evaluation** - Add support for lazy parameter evaluation with the `lazy` keyword to defer evaluation of argument expressions until actually used. Parsed `lazy` parameter modifier, added IsLazy flag to function signatures, implemented runtime lazy evaluation using thunks/closures with re-evaluation on each access. All subtasks complete (9.10.1-9.10.3). Unlocks 3 failing tests in SimpleScripts. (Estimate: 6-8 hours, 0.75-1 day) ✅
-
----
 ## Task 9.16 Introduce Base Structs for AST Nodes
 
 **Goal**: Eliminate code duplication by introducing base structs for common node fields and behavior.
