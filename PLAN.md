@@ -1109,30 +1109,54 @@ PrintLn(b.Test);    // Access via instance
 
 **Estimate**: 3-4 hours
 
+**Status**: PARTIALLY COMPLETE (blocked on Task 9.18)
+
 **Implementation**:
-1. Create global storage for class variables (separate from instances)
-2. Implement class variable initialization
-3. Handle class variable access via class name
-4. Handle class variable access via instance (lookup in class, not instance)
+1. Create global storage for class variables (separate from instances) ✓
+2. Implement class variable initialization ✓
+3. Handle class variable access via class name ✓
+4. Handle class variable access via instance (lookup in class, not instance) ⚠️ PARTIAL
 
-**Files to Modify**:
-- `internal/interp/values.go` (class variable storage)
-- `internal/interp/objects_hierarchy.go` (member access for class vars)
-- `internal/bytecode/vm.go` (bytecode support for class vars)
+**Files Modified**:
+- `internal/interp/declarations.go` (lines 309-352: class var initialization already complete)
+- `internal/interp/objects_hierarchy.go` (lines 51-54, 227-230, 389-391: class var access)
+- `internal/interp/objects_hierarchy.go` (lines 322-348: attempted nil instance access - blocked)
+- `internal/interp/statements_assignments.go` (lines 488-494: class var assignment via class name)
+- `internal/interp/fixture_test.go` (added SetSemanticInfo calls for tests)
+- `internal/interp/class_var_test.go` (new file: runtime tests for class variables)
 
-**Success Criteria**:
-- All 11 class var tests pass
-- `TBase.Test := 123;` sets class variable
-- `var b : TBase; PrintLn(b.Test);` reads class variable through instance
-- Class variables are shared across all instances
-- Child classes inherit parent class variables
-- Initialization of class variables works correctly
+**What Works**:
+- ✓ Class variables stored in `ClassInfo.ClassVars map[string]Value`
+- ✓ Initialization with default values or explicit init expressions
+- ✓ Access via class name: `TBase.Test` (read and write)
+- ✓ Inheritance: `lookupClassVar` recursively checks parent classes
+- ✓ Access via object instances: `obj.Test` where obj is non-nil
+- ✓ Assignment via class name: `TBase.Test := 123`
+- ✓ Tests: `TestClassVariableAccessViaClassNameRuntime` passes
+
+**What's Blocked**:
+- ⚠️ Access via NIL instances: `var b : TBase; PrintLn(b.Test)`
+- **Blocker**: Task 9.18 SemanticInfo migration incomplete
+  - SemanticInfo exists but not populated with type information
+  - Cannot determine class type of nil variables at runtime
+  - Code in place (lines 326-348) but SemanticInfo.GetType() returns nil
+
+**Potential Solutions**:
+1. Complete Task 9.18: Populate SemanticInfo.SetType() in semantic analyzer
+2. Use typed nil values that carry class metadata
+3. Store variable type information in environment alongside values
 
 **Testing**:
 ```bash
+# Works:
+go test -v ./internal/interp -run TestClassVariableAccessViaClassNameRuntime
+
+# Fails (nil instance access):
+go test -v ./internal/interp -run TestClassVariableAccessViaInstanceRuntime
 go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/class_var
-go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/static_class
 ```
+
+**Note**: Significant progress made. Core infrastructure complete. Final piece requires either Task 9.18 completion or alternative type tracking mechanism.
 
 ---
 

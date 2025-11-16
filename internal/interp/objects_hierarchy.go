@@ -319,8 +319,33 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		objVal = intfInst.Object
 	}
 
-	// Check if it's an object instance
+	// Task 9.5.4: Check if we're accessing a class variable on a nil object
+	// When we have `var b : TBase;` (b is nil) and access `b.Test` where Test is a class var,
+	// we need to look up the class variable using the type information from the semantic analyzer
 	obj, ok := AsObject(objVal)
+	if !ok && objVal.Type() == "NIL" && i.semanticInfo != nil {
+		// Object is nil - check if we can get class info from the expression's type annotation
+		// The semantic analyzer stores the expected type in the Object expression
+		if typeAnnotation := i.semanticInfo.GetType(ma.Object); typeAnnotation != nil {
+			// TypeAnnotation.Name contains the class name (e.g., "TBase")
+			className := typeAnnotation.Name
+			if className != "" {
+				// Look up the class by name
+				memberName := ma.Member.Value
+				if classInfo, exists := i.classes[className]; exists {
+					if classVarValue, ownerClass := classInfo.lookupClassVar(memberName); ownerClass != nil {
+						return classVarValue
+					}
+				}
+			}
+		}
+		// TODO(Task 9.5.4): Complete support for nil instance access
+		// Currently blocked on Task 9.18 migration - SemanticInfo not yet populated
+		// Need to either:
+		// 1. Complete Task 9.18 migration (populate SemanticInfo with types), OR
+		// 2. Use typed nil values that carry class information
+	}
+
 	if !ok {
 		// Not an object - check if helpers provide this member
 		helper, helperProp := i.findHelperProperty(objVal, ma.Member.Value)
@@ -385,6 +410,11 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	// Not a property - try direct field access
 	fieldValue := obj.GetField(memberName)
 	if fieldValue == nil {
+		// Task 9.5.4: Try class variables (accessible from instance)
+		if classVarValue, ownerClass := obj.Class.lookupClassVar(memberName); ownerClass != nil {
+			return classVarValue
+		}
+
 		// Task 9.22: Try class constants (accessible from instance)
 		if constValue := i.getClassConstant(obj.Class, memberName, ma); constValue != nil {
 			return constValue
