@@ -983,6 +983,31 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Acceptance: Code organized by category, easy to navigate, tests pass
   - **Completed**: Created 4 visitor files organized by node category (404 lines total), all files well under 500 line limit (largest: 154 lines), clear organization with visitor_*.go naming convention, 48 visitor methods total (6 literals, 22 expressions, 19 statements, 9 declarations), all tests pass
 
+- [ ] 3.5.4 Migrate evaluation logic from Interpreter to Evaluator
+  - Gradually move logic from Interpreter.evalXXX() methods to Evaluator.VisitXXX() methods
+  - Start with simple nodes (literals - already done inline, just formalize)
+  - Move to identifiers and simple expressions (binary, unary, grouped)
+  - Move to complex expressions (call, member access, method call)
+  - Move to statements (if, while, for, try-except)
+  - Move to declarations (function, class, interface, record)
+  - Each migration: run tests, ensure no regressions
+  - Keep adapter active during migration for safety
+  - Files: Update all `evaluator/visitor_*.go` files
+  - Estimated: 2-3 weeks (48 methods to migrate, ~1-2 days per category)
+  - Acceptance: All evaluation logic in Evaluator, Interpreter methods just delegate, all tests pass
+
+- [ ] 3.5.5 Remove adapter pattern and complete migration
+  - Remove InterpreterAdapter interface from evaluator.go
+  - Remove adapter field from Evaluator struct
+  - Remove SetAdapter() method
+  - Remove EvalNode() method from Interpreter
+  - Update Evaluator.Eval() to handle all cases without adapter fallback
+  - Remove Interpreter.Eval() method (or make it just call evaluator)
+  - Verify all evaluation flows through Evaluator only
+  - Files: `evaluator/evaluator.go`, `interpreter.go`
+  - Estimated: 2 days
+  - Acceptance: No adapter pattern, clean architecture, Interpreter is thin orchestrator, all tests pass
+
 ---
 
 ### Phase 3.6: Error Handling Improvements
@@ -1110,8 +1135,10 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
 ---
 
 **Phase 3 Summary**:
-- **Total Tasks**: 27 tasks (9.80 - 9.106)
-- **Estimated Timeline**: 4-6 weeks full-time
+- **Total Tasks**: 29 tasks (3.1.1 - 3.10.2)
+- **Completed Tasks**: 9 tasks (3.1.1, 3.1.2, 3.2.1-3.2.4, 3.3.1-3.3.3, 3.4.1-3.4.2, 3.5.1-3.5.3)
+- **Remaining Tasks**: 20 tasks (3.5.4-3.5.5, 3.6.1-3.6.3, 3.7.1-3.7.2, 3.8.1-3.8.2, 3.9.1-3.9.3, 3.10.1-3.10.2)
+- **Estimated Timeline**: 6-8 weeks full-time (updated with new migration tasks)
 - **Risk**: Medium (comprehensive refactoring, but tests provide safety net)
 - **Dependencies**: None (can be done alongside other work with feature branches)
 - **Rollback Strategy**: Each task is incremental; can stop at any point

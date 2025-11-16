@@ -229,18 +229,35 @@ This ensures:
 
 ---
 
-## Future Work (Not Part of Phase 3.5)
+## Future Work
+
+### Phase 3.5.4-3.5.5: Complete Evaluator Migration (Next Steps)
+
+**Task 3.5.4: Migrate evaluation logic from Interpreter to Evaluator**
+- Gradually move logic from `Interpreter.evalXXX()` methods to `Evaluator.VisitXXX()` methods
+- Start with simple nodes (literals, identifiers, simple expressions)
+- Progress to complex nodes (call expressions, statements, declarations)
+- Run tests after each category migration
+- Estimated: 2-3 weeks
+- **Status**: ✅ Added to PLAN.md, ready for implementation
+
+**Task 3.5.5: Remove adapter pattern and complete migration**
+- Remove InterpreterAdapter interface and adapter field
+- Clean up Interpreter to be thin orchestrator
+- All evaluation flows through Evaluator only
+- Estimated: 2 days
+- **Status**: ✅ Added to PLAN.md, ready for implementation
 
 ### Phase 3.6: Error Handling Improvements
 - Implement consistent error wrapping
 - Create custom error types
 - Add error context (position, expression, values)
 
-### Phase 3.7+: Logic Migration
-- Gradually move evaluation logic from Interpreter methods into visitor methods
-- Start with simple nodes (literals, identifiers)
-- Move to complex nodes (expressions, statements)
-- Remove adapter once migration complete
+### Phase 3.7+: Additional Refactoring
+- Reorganize built-in functions by feature
+- Create built-in function registry
+- Fix circular dependencies
+- Update architecture documentation
 
 ### Phase 4+: Further Optimization
 - Implement bytecode generation from visitor methods
