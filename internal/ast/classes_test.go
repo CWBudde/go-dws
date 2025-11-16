@@ -94,7 +94,7 @@ func TestClassDeclString(t *testing.T) {
 						OperatorToken:  NewTestToken(lexer.LESS_LESS, "<<"),
 						OperatorSymbol: "<<",
 						Arity:          1,
-						OperandTypes: []*TypeAnnotation{
+						OperandTypes: []TypeExpression{
 							NewTestTypeAnnotation("String"),
 						},
 						Binding: NewTestIdentifier("Append"),

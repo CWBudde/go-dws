@@ -41,14 +41,19 @@ func (vds *VarDeclStatement) String() string {
 	}
 	out.WriteString(strings.Join(names, ", "))
 
+	typeStr := ""
 	if vds.Type != nil {
+		typeStr = vds.Type.String()
+	}
+
+	if typeStr != "" {
 		out.WriteString(": ")
-		out.WriteString(vds.Type.String())
+		out.WriteString(typeStr)
 	}
 
 	if vds.Value != nil {
 		separator := " := "
-		if vds.Inferred && vds.Type == nil {
+		if vds.Inferred && typeStr == "" {
 			separator = " = "
 		}
 		out.WriteString(separator)
