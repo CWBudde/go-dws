@@ -117,18 +117,24 @@ func New(input string, opts ...LexerOption) *Lexer {
 }
 
 // readChar advances the lexer to the next character in the input.
-// Properly handles UTF-8 multi-byte sequences.
+// Properly handles UTF-8 multi-byte sequences and detects invalid UTF-8.
 func (l *Lexer) readChar() {
 	if l.readPosition >= len(l.input) {
 		l.ch = 0 // EOF
 		l.position = l.readPosition
+		l.column++
 	} else {
 		r, size := utf8.DecodeRuneInString(l.input[l.readPosition:])
+		// Update state first so currentPos() returns the correct position
 		l.ch = r
 		l.position = l.readPosition
 		l.readPosition += size
+		l.column++
+		// Check for invalid UTF-8 encoding after updating position
+		if r == utf8.RuneError && size == 1 {
+			l.addError("invalid UTF-8 encoding", l.currentPos())
+		}
 	}
-	l.column++
 }
 
 // peekChar returns the next character without advancing the position.
@@ -160,9 +166,28 @@ func (l *Lexer) peekCharN(n int) rune {
 // matchAndConsume checks if the next character matches the expected rune.
 // If it matches, advances the lexer position and returns true.
 // If it doesn't match, leaves the lexer position unchanged and returns false.
+// Optimized to decode the UTF-8 rune only once instead of twice.
 func (l *Lexer) matchAndConsume(expected rune) bool {
-	if l.peekChar() == expected {
-		l.readChar()
+	var r rune
+	var size int
+
+	if l.readPosition >= len(l.input) {
+		r = 0 // EOF
+		size = 0
+	} else {
+		r, size = utf8.DecodeRuneInString(l.input[l.readPosition:])
+	}
+
+	if r == expected {
+		// Update state first so currentPos() returns the correct position
+		l.ch = r
+		l.position = l.readPosition
+		l.readPosition += size
+		l.column++
+		// Check for invalid UTF-8 encoding after updating position (only for non-EOF)
+		if r == utf8.RuneError && size == 1 {
+			l.addError("invalid UTF-8 encoding", l.currentPos())
+		}
 		return true
 	}
 	return false
@@ -601,81 +626,32 @@ func (l *Lexer) skipWhitespace() {
 }
 
 // skipLineComment skips a line comment starting with //.
+// Implemented by calling readLineComment and discarding the result.
 func (l *Lexer) skipLineComment() {
-	// Skip until end of line or EOF
-	for l.ch != '\n' && l.ch != 0 {
-		l.readChar()
-	}
+	_ = l.readLineComment()
 }
 
 // skipBlockComment skips a block comment enclosed in { } or (* *).
 // style: '{' for {} comments, '(' for (* *) comments
 // Adds an error if the comment is not properly terminated.
+// Implemented by calling readBlockComment and discarding the result.
 func (l *Lexer) skipBlockComment(style rune) {
 	startPos := l.currentPos()
-
-	if style == '{' {
-		l.readChar() // skip {
-		for l.ch != 0 {
-			if l.ch == '}' {
-				l.readChar() // skip }
-				return
-			}
-			if l.ch == '\n' {
-				l.line++
-				l.column = 0
-			}
-			l.readChar()
-		}
-		// Unterminated comment
+	_, terminated := l.readBlockComment(style)
+	if !terminated {
 		l.addError("unterminated block comment", startPos)
-		return
 	}
-
-	// style == '(' for (* *)
-	l.readChar() // skip (
-	l.readChar() // skip *
-
-	for l.ch != 0 {
-		if l.ch == '*' && l.peekChar() == ')' {
-			l.readChar() // skip *
-			l.readChar() // skip )
-			return
-		}
-		if l.ch == '\n' {
-			l.line++
-			l.column = 0
-		}
-		l.readChar()
-	}
-
-	// Unterminated comment
-	l.addError("unterminated block comment", startPos)
 }
 
 // skipCStyleComment skips a C-style multi-line comment /* */.
 // Adds an error if the comment is not properly terminated.
+// Implemented by calling readCStyleComment and discarding the result.
 func (l *Lexer) skipCStyleComment() {
 	startPos := l.currentPos()
-
-	l.readChar() // skip /
-	l.readChar() // skip *
-
-	for l.ch != 0 {
-		if l.ch == '*' && l.peekChar() == '/' {
-			l.readChar() // skip *
-			l.readChar() // skip /
-			return
-		}
-		if l.ch == '\n' {
-			l.line++
-			l.column = 0
-		}
-		l.readChar()
+	_, terminated := l.readCStyleComment()
+	if !terminated {
+		l.addError("unterminated C-style comment", startPos)
 	}
-
-	// Unterminated comment
-	l.addError("unterminated C-style comment", startPos)
 }
 
 // readIdentifier reads an identifier or keyword from the input.
@@ -740,11 +716,20 @@ func (l *Lexer) readBinaryNumber(startPos int) (TokenType, string) {
 
 // readHexNumber0x reads a hexadecimal number starting with 0x (e.g., 0xFF).
 func (l *Lexer) readHexNumber0x(startPos int) (TokenType, string) {
-	l.readChar() // skip 0
-	l.readChar() // skip x
+	pos := l.currentPos() // Save position for error reporting
+	l.readChar()          // skip 0
+	l.readChar()          // skip x
+
+	digitStart := l.position
 	for isHexDigit(l.ch) {
 		l.readChar()
 	}
+
+	// Validate that at least one hex digit was present
+	if l.position == digitStart {
+		l.addError("hexadecimal literal requires at least one digit after '0x'", pos)
+	}
+
 	return INT, l.input[startPos:l.position]
 }
 
@@ -1133,7 +1118,10 @@ func (l *Lexer) nextTokenInternal() Token {
 			return tok
 		} else {
 			// Illegal character - add error and emit ILLEGAL token
-			l.addError("illegal character: "+string(l.ch), pos)
+			// Note: Don't report RuneError here, as invalid UTF-8 was already reported by readChar()
+			if l.ch != utf8.RuneError {
+				l.addError("illegal character: "+string(l.ch), pos)
+			}
 			tok = NewToken(ILLEGAL, string(l.ch), pos)
 			l.readChar()
 		}
