@@ -526,6 +526,12 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		var ok bool
 		funcType, ok = sym.Type.(*types.FunctionType)
 		if !ok {
+			// Task 9.15.6: Before reporting error, check if it's a type cast
+			// Type names can be in the symbol table (e.g., enum types, class types)
+			if castType := a.analyzeTypeCast(funcIdent.Value, expr.Arguments, expr); castType != nil {
+				return castType
+			}
+
 			a.addError("'%s' is not a function at %s", funcIdent.Value, expr.Token.Pos.String())
 			return nil
 		}
@@ -829,38 +835,15 @@ func (a *Analyzer) analyzeTypeCast(typeName string, args []ast.Expression, expr 
 		return nil // Not a type cast
 	}
 
-	// Check if typeName is a built-in type
-	var targetType types.Type
+	// Task 9.15.6: Resolve the type name (handles built-in types, classes, enums, type aliases, etc.)
+	targetType, err := a.resolveType(typeName)
+	if err != nil {
+		return nil // Not a type name
+	}
 
-	// Check for built-in types (case-insensitive)
-	switch strings.ToLower(typeName) {
-	case "integer":
-		targetType = types.INTEGER
-	case "float":
-		targetType = types.FLOAT
-	case "string":
-		targetType = types.STRING
-	case "boolean":
-		targetType = types.BOOLEAN
-	case "variant":
-		targetType = types.VARIANT
-	default:
-		// Check if it's a class type (case-insensitive)
-		for name, class := range a.classes {
-			if strings.EqualFold(name, typeName) {
-				targetType = class
-				break
-			}
-		}
-		// If not a class, check in symbol table
-		if targetType == nil {
-			sym, ok := a.symbols.Resolve(typeName)
-			if ok {
-				targetType = sym.Type
-			} else {
-				return nil // Not a type name
-			}
-		}
+	// Unwrap TypeAlias to get the actual type
+	if typeAlias, ok := targetType.(*types.TypeAlias); ok {
+		targetType = typeAlias.AliasedType
 	}
 
 	// Analyze the argument expression

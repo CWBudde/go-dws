@@ -315,13 +315,15 @@ func (a *Analyzer) evaluateConstantFunction(call *ast.CallExpression) (interface
 	// Get function name
 	funcName := ""
 	if ident, ok := call.Function.(*ast.Identifier); ok {
-		funcName = strings.ToLower(ident.Value)
+		funcName = ident.Value
 	} else {
 		return nil, fmt.Errorf("function call is not a compile-time constant")
 	}
 
+	funcNameLower := strings.ToLower(funcName)
+
 	// Only support compile-time evaluable built-in functions
-	switch funcName {
+	switch funcNameLower {
 	case "high":
 		return a.evaluateConstantHigh(call.Arguments)
 	case "low":
@@ -339,6 +341,13 @@ func (a *Analyzer) evaluateConstantFunction(call *ast.CallExpression) (interface
 	case "chr":
 		return a.evaluateConstantChr(call.Arguments)
 	default:
+		// Task 9.15.6: Check if this is a type cast (e.g., TEnum(1), Integer(x))
+		// Type casts with exactly one argument can be compile-time constants
+		if len(call.Arguments) == 1 {
+			if castValue := a.evaluateConstantTypeCast(funcName, call.Arguments[0]); castValue != nil {
+				return castValue, nil
+			}
+		}
 		return nil, fmt.Errorf("function '%s' is not a compile-time constant", funcName)
 	}
 }
@@ -576,6 +585,83 @@ func (a *Analyzer) evaluateConstantChr(args []ast.Expression) (interface{}, erro
 
 	// Return single-character string
 	return string(rune(intVal)), nil
+}
+
+// evaluateConstantTypeCast evaluates a type cast expression at compile time.
+// Task 9.15.6: Support enum type casts in const declarations like const c = TEnum(1);
+// Returns nil if the type cast cannot be evaluated at compile time.
+func (a *Analyzer) evaluateConstantTypeCast(typeName string, arg ast.Expression) interface{} {
+	// Try to resolve the type
+	targetType, err := a.resolveType(typeName)
+	if err != nil {
+		return nil // Not a type name
+	}
+
+	// Unwrap TypeAlias to get the actual type
+	if typeAlias, ok := targetType.(*types.TypeAlias); ok {
+		targetType = typeAlias.AliasedType
+	}
+
+	// Evaluate the argument
+	argVal, err := a.evaluateConstant(arg)
+	if err != nil {
+		return nil // Argument is not a compile-time constant
+	}
+
+	// Handle different type casts
+	switch targetType.(type) {
+	case *types.EnumType:
+		// Cast to enum type
+		switch v := argVal.(type) {
+		case int:
+			// Integer → Enum: Return the integer ordinal
+			// The const will store the ordinal value, which will be converted to EnumValue at runtime
+			return v
+		default:
+			return nil // Can't cast this type to enum at compile time
+		}
+
+	default:
+		// For other types (Integer, Float, String), just return the value
+		// The runtime will handle the actual casting
+		typeLower := strings.ToLower(typeName)
+		switch typeLower {
+		case "integer":
+			// Cast to Integer
+			switch v := argVal.(type) {
+			case int:
+				return v
+			case float64:
+				return int(v)
+			default:
+				return nil
+			}
+		case "float":
+			// Cast to Float
+			switch v := argVal.(type) {
+			case int:
+				return float64(v)
+			case float64:
+				return v
+			default:
+				return nil
+			}
+		case "string":
+			// Cast to String
+			switch v := argVal.(type) {
+			case int:
+				return fmt.Sprintf("%d", v)
+			case float64:
+				return fmt.Sprintf("%g", v)
+			case string:
+				return v
+			default:
+				return nil
+			}
+		}
+	}
+
+	return nil // Type cast not supported at compile time
 }
 
 // analyzeTypeDeclaration analyzes a type declaration statement

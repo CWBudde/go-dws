@@ -512,6 +512,56 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	// Check if it's an object instance
 	obj, ok := AsObject(objVal)
 	if !ok {
+		// Special handling for enum type methods: Low(), High(), and ByName()
+		if tmv, isTypeMeta := objVal.(*TypeMetaValue); isTypeMeta {
+			if enumType, isEnum := tmv.TypeInfo.(*types.EnumType); isEnum {
+				methodName := strings.ToLower(mc.Method.Value)
+				if methodName == "low" {
+					return &IntegerValue{Value: int64(enumType.Low())}
+				} else if methodName == "high" {
+					return &IntegerValue{Value: int64(enumType.High())}
+				} else if methodName == "byname" {
+					// ByName(name: string): Integer
+					if len(mc.Arguments) != 1 {
+						return i.newErrorWithLocation(mc, "ByName expects 1 argument, got %d", len(mc.Arguments))
+					}
+					nameArg := i.Eval(mc.Arguments[0])
+					if isError(nameArg) {
+						return nameArg
+					}
+					nameStr, ok := nameArg.(*StringValue)
+					if !ok {
+						return i.newErrorWithLocation(mc, "ByName expects string argument, got %s", nameArg.Type())
+					}
+
+					// Look up the enum value by name (case-insensitive)
+					// Support both simple names ('a') and qualified names ('MyEnum.a')
+					searchName := nameStr.Value
+					if searchName == "" {
+						// Empty string returns 0 (DWScript behavior - returns first enum ordinal value)
+						return &IntegerValue{Value: 0}
+					}
+
+					// Check for qualified name (TypeName.ValueName)
+					parts := strings.Split(searchName, ".")
+					if len(parts) == 2 {
+						// Use the value name part
+						searchName = parts[1]
+					}
+
+					// Look up the value (case-insensitive)
+					for valueName, ordinalValue := range enumType.Values {
+						if strings.EqualFold(valueName, searchName) {
+							return &IntegerValue{Value: int64(ordinalValue)}
+						}
+					}
+
+					// Value not found, return 0 (DWScript behavior - returns 0 instead of raising error)
+					return &IntegerValue{Value: 0}
+				}
+			}
+		}
+
 		// Task 9.86: Not an object - check if helpers provide this method
 		helper, helperMethod, builtinSpec := i.findHelperMethod(objVal, mc.Method.Value)
 		if helperMethod == nil && builtinSpec == "" {
