@@ -15,16 +15,35 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 	if fn.ClassName != nil {
 		typeName := fn.ClassName.Value
 
-		// Try to find as a class first
-		classInfo, isClass := i.classes[typeName]
+		// Task 9.14.2: DWScript is case-insensitive, so normalize for lookup
+		// Try to find as a class first (case-insensitive)
+		var classInfo *ClassInfo
+		var isClass bool
+		for name, info := range i.classes {
+			if strings.EqualFold(name, typeName) {
+				classInfo = info
+				isClass = true
+				break
+			}
+		}
+
 		if isClass {
 			// Handle class method implementation
 			i.evalClassMethodImplementation(fn, classInfo)
 			return &NilValue{}
 		}
 
-		// Try to find as a record
-		recordInfo, isRecord := i.records[typeName]
+		// Try to find as a record (case-insensitive)
+		var recordInfo *RecordTypeValue
+		var isRecord bool
+		for name, info := range i.records {
+			if strings.EqualFold(name, typeName) {
+				recordInfo = info
+				isRecord = true
+				break
+			}
+		}
+
 		if isRecord {
 			// Handle record method implementation
 			i.evalRecordMethodImplementation(fn, recordInfo)
@@ -155,9 +174,16 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	var parentClass *ClassInfo
 	if cd.Parent != nil {
 		// Explicit parent specified
+		// Task 9.14.2: DWScript is case-insensitive, so use case-insensitive lookup
 		parentName := cd.Parent.Value
 		var exists bool
-		parentClass, exists = i.classes[parentName]
+		for name, info := range i.classes {
+			if strings.EqualFold(name, parentName) {
+				parentClass = info
+				exists = true
+				break
+			}
+		}
 		if !exists {
 			return i.newErrorWithLocation(cd, "parent class '%s' not found", parentName)
 		}
@@ -167,7 +193,14 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		className := cd.Name.Value
 		if !strings.EqualFold(className, "TObject") && !cd.IsExternal {
 			var exists bool
-			parentClass, exists = i.classes["TObject"]
+			// Case-insensitive lookup for TObject
+			for name, info := range i.classes {
+				if strings.EqualFold(name, "TObject") {
+					parentClass = info
+					exists = true
+					break
+				}
+			}
 			if !exists {
 				return i.newErrorWithLocation(cd, "implicit parent class 'TObject' not found")
 			}
