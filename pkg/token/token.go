@@ -8,9 +8,25 @@ import (
 // Position represents a location in the source code.
 // Line and Column are 1-indexed for human readability.
 // Offset is 0-indexed for programmatic access.
+//
+// # Column Position and Unicode
+//
+// The Column field represents the count of Unicode code points (runes) from the
+// start of the line, NOT the byte offset or visual display width.
+//
+// For example:
+//   - ASCII text: "var x" → 'x' is at column 5
+//   - Unicode text: "var Δ" → 'Δ' is at column 5 (Δ is one rune, even though it's multi-byte)
+//   - Emoji: "// 🚀" → '🚀' is at column 4 (even though it may display as 2 cells wide)
+//
+// This means:
+//   - Multi-byte UTF-8 characters count as 1 column
+//   - Display width (terminal cells) may differ from column number
+//   - Error markers may not align visually for wide characters
+//   - But positions are consistent and reproducible across all systems
 type Position struct {
 	Line   int // Line number (1-indexed)
-	Column int // Column number (1-indexed)
+	Column int // Column number (1-indexed, rune count not display width or byte offset)
 	Offset int // Byte offset (0-indexed)
 }
 
