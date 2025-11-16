@@ -4388,9 +4388,28 @@ This phase delivers an auto-formatting pipeline that reuses the existing AST and
 
 - [x] 25.1.1 Capture formatting requirements from upstream DWScript (indent width, begin/end alignment, keyword casing, line-wrapping) and document them in `docs/formatter-style-guide.md`.
 - [x] 25.1.2 Audit current AST nodes for source position fidelity and comment/trivia preservation; list any nodes lacking `Pos` / `EndPos`.
-- [~] 25.1.3 Extend the parser/AST to track leading and trailing trivia (single-line, block comments, blank lines) without disturbing semantic passes.
-  - **Status**: Partially implemented in `pkg/printer` package with basic formatting support
-  - **TODO**: Full comment/trivia preservation in parser (deferred to later)
+- [x] 25.1.3 Extend the parser/AST to track leading and trailing trivia (single-line, block comments, blank lines) without disturbing semantic passes.
+  - **Implemented**: Comment preservation infrastructure (lexer + AST structures)
+  - **Lexer** (`internal/lexer/lexer.go`):
+    - Added `preserveComments` flag to control comment tokenization
+    - New methods: `SetPreserveComments()`, `readLineComment()`, `readBlockComment()`, `readCStyleComment()`
+    - Modified `NextToken()` to return COMMENT tokens when enabled
+    - Supports all 4 comment styles: `//`, `{ }`, `(* *)`, `/* */`
+  - **AST** (`pkg/ast/comment.go`):
+    - `Comment` type with text, position, and style
+    - `CommentGroup` for grouping consecutive comments
+    - `NodeComments` for leading/trailing comments per node
+    - `CommentMap` for mapping nodes to comments (non-intrusive design)
+    - Added `Comments CommentMap` field to `Program` struct
+  - **Tests**:
+    - `internal/lexer/comment_test.go` - 10 comprehensive tests for lexer
+    - `pkg/ast/comment_test.go` - 8 tests for AST comment structures
+  - **Documentation**: `docs/comment-preservation.md` - Complete guide
+  - **Limitations**: Parser integration not yet complete (Phase 25.2.6)
+    - ✅ Lexer can tokenize comments
+    - ✅ Data structures defined
+    - ❌ Parser doesn't attach comments to nodes (future work)
+    - ❌ Printer can't output comments yet (future work)
 - [x] 25.1.4 Define a `format.Options` struct (indent size, max line length, newline style) and default profile matching DWScript conventions.
   - **Implemented**: `pkg/printer/printer.go` defines comprehensive `Options` struct with:
     - Format types: DWScript, Tree, JSON
