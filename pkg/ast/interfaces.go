@@ -22,10 +22,10 @@ import (
 //
 // Note: Interface methods only declare signatures, they have no body.
 type InterfaceMethodDecl struct {
-	BaseNode
+	ReturnType TypeExpression
 	Name       *Identifier
-	ReturnType TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	Parameters []*Parameter
+	BaseNode
 }
 
 func (imd *InterfaceMethodDecl) statementNode() {}
@@ -86,12 +86,12 @@ func (imd *InterfaceMethodDecl) String() string {
 //	  procedure AdditionalMethod;
 //	end;
 type InterfaceDecl struct {
-	BaseNode
 	Name         *Identifier
 	Parent       *Identifier
 	ExternalName string
 	Methods      []*InterfaceMethodDecl
-	IsExternal   bool
+	BaseNode
+	IsExternal bool
 }
 
 func (i *InterfaceDecl) End() token.Position {

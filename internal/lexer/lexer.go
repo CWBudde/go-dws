@@ -34,28 +34,28 @@ import (
 //   - "var Δ" → 'Δ' is at column 5 (5 runes, Δ is a single multi-byte rune)
 //   - "// 🚀" → '🚀' is at column 4 (4 runes: /, /, space, 🚀)
 type Lexer struct {
-	input            string       // The source code being tokenized
-	position         int          // Current byte position in input (points to current char)
-	readPosition     int          // Current reading byte position in input (after current char)
-	ch               rune         // Current character under examination (0 if EOF)
-	line             int          // Current line number (1-indexed)
-	column           int          // Current column number (1-indexed, rune count not display width)
-	errors           []LexerError // Accumulated lexer errors
-	tokenBuffer      []Token      // Buffer for token lookahead (Task 12.3.1)
-	preserveComments bool         // If true, return COMMENT tokens instead of skipping comments
-	tracing          bool         // If true, enable debug tracing output
+	input            string
+	errors           []LexerError
+	tokenBuffer      []Token
+	position         int
+	readPosition     int
+	line             int
+	column           int
+	ch               rune
+	preserveComments bool
+	tracing          bool
 }
 
 // LexerState represents the complete state of the Lexer at a specific point in time.
 // It can be saved and restored to enable backtracking during parsing.
 // This allows for efficient save/restore operations during lookahead.
 type LexerState struct {
-	position     int     // Current position in input
-	readPosition int     // Current reading position
-	ch           rune    // Current character
-	line         int     // Current line number
-	column       int     // Current column number
-	tokenBuffer  []Token // Buffered tokens from Peek() operations
+	tokenBuffer  []Token
+	position     int
+	readPosition int
+	line         int
+	column       int
+	ch           rune
 }
 
 // LexerOption is a function that configures a Lexer.

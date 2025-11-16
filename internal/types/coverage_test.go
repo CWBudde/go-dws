@@ -10,9 +10,9 @@ import (
 
 func TestIsIdentical(t *testing.T) {
 	tests := []struct {
-		name     string
 		a        Type
 		b        Type
+		name     string
 		expected bool
 	}{
 		{

@@ -1729,8 +1729,8 @@ func TestErrorAccumulation(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         string
-		expectedCount int
 		errorMessages []string
+		expectedCount int
 	}{
 		{
 			name:          "Unterminated string - single quote",
@@ -2304,16 +2304,16 @@ func TestPeekMultipleTokens(t *testing.T) {
 	l := New(input)
 
 	tests := []struct {
+		expectedLit  string
 		peekN        int
 		expectedType TokenType
-		expectedLit  string
 	}{
-		{0, VAR, "var"},
-		{1, IDENT, "x"},
-		{2, ASSIGN, ":="},
-		{3, INT, "5"},
-		{4, SEMICOLON, ";"},
-		{5, EOF, ""},
+		{expectedLit: "var", peekN: 0, expectedType: VAR},
+		{expectedLit: "x", peekN: 1, expectedType: IDENT},
+		{expectedLit: ":=", peekN: 2, expectedType: ASSIGN},
+		{expectedLit: "5", peekN: 3, expectedType: INT},
+		{expectedLit: ";", peekN: 4, expectedType: SEMICOLON},
+		{expectedLit: "", peekN: 5, expectedType: EOF},
 	}
 
 	for _, tt := range tests {
@@ -2452,15 +2452,15 @@ func TestPeekPreservesExistingBehavior(t *testing.T) {
 
 	// Consume tokens as usual without using Peek
 	tokens := []struct {
-		typ TokenType
 		lit string
+		typ TokenType
 	}{
-		{VAR, "var"},
-		{IDENT, "x"},
-		{ASSIGN, ":="},
-		{INT, "5"},
-		{SEMICOLON, ";"},
-		{EOF, ""},
+		{lit: "var", typ: VAR},
+		{lit: "x", typ: IDENT},
+		{lit: ":=", typ: ASSIGN},
+		{lit: "5", typ: INT},
+		{lit: ";", typ: SEMICOLON},
+		{lit: "", typ: EOF},
 	}
 
 	for i, expected := range tokens {
@@ -2584,17 +2584,17 @@ func TestOptionsBackwardsCompatibility(t *testing.T) {
 	l := New(input)
 
 	tokens := []struct {
-		typ TokenType
 		lit string
+		typ TokenType
 	}{
-		{VAR, "var"},
-		{IDENT, "x"},
-		{COLON, ":"},
-		{IDENT, "Integer"},
-		{ASSIGN, ":="},
-		{INT, "42"},
-		{SEMICOLON, ";"},
-		{EOF, ""},
+		{lit: "var", typ: VAR},
+		{lit: "x", typ: IDENT},
+		{lit: ":", typ: COLON},
+		{lit: "Integer", typ: IDENT},
+		{lit: ":=", typ: ASSIGN},
+		{lit: "42", typ: INT},
+		{lit: ";", typ: SEMICOLON},
+		{lit: "", typ: EOF},
 	}
 
 	for i, expected := range tokens {

@@ -50,17 +50,17 @@ import (
 //	var s := 'hello';
 //	PrintLn(s.ToUpper());  // Calls TStringHelper.ToUpper with s as Self
 type HelperDecl struct {
+	ForType        TypeExpression
+	Name           *Identifier
+	ParentHelper   *Identifier
+	Methods        []*FunctionDecl
+	Properties     []*PropertyDecl
+	ClassVars      []*FieldDecl
+	ClassConsts    []*ConstDecl
+	PrivateMembers []Statement
+	PublicMembers  []Statement
 	BaseNode
-	Name           *Identifier     // Helper type name (e.g., TStringHelper)
-	ParentHelper   *Identifier     // Parent helper name (optional, for inheritance)
-	ForType        TypeExpression  // Type being extended (e.g., String, Integer, TPoint)
-	Methods        []*FunctionDecl // All methods (functions/procedures)
-	Properties     []*PropertyDecl // All properties
-	ClassVars      []*FieldDecl    // Class variables (static fields)
-	ClassConsts    []*ConstDecl    // Class constants
-	PrivateMembers []Statement     // Members in private section
-	PublicMembers  []Statement     // Members in public section
-	IsRecordHelper bool            // true if "record helper", false if just "helper"
+	IsRecordHelper bool
 }
 
 func (h *HelperDecl) End() token.Position {

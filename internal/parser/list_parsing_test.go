@@ -12,8 +12,8 @@ func TestParseSeparatedListBeforeStart_EmptyList(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		allowEmpty  bool
 		expectCount int
+		allowEmpty  bool
 		expectOk    bool
 	}{
 		{
@@ -152,8 +152,8 @@ func TestParseSeparatedListBeforeStart_TrailingSeparator(t *testing.T) {
 	tests := []struct {
 		name                   string
 		input                  string
-		allowTrailingSeparator bool
 		expectCount            int
+		allowTrailingSeparator bool
 		expectOk               bool
 	}{
 		{
@@ -388,10 +388,10 @@ func TestParseSeparatedList_TrailingSeparatorNoTerminator(t *testing.T) {
 	tests := []struct {
 		name            string
 		input           string
+		expectCurToken  string
 		expectCount     int
-		expectOk        bool
-		expectCurToken  string // What curToken.Literal should be after parsing
 		expectPeekToken lexer.TokenType
+		expectOk        bool
 	}{
 		{
 			name:            "Trailing separator with optional terminator",

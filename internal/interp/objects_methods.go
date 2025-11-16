@@ -516,11 +516,12 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		if tmv, isTypeMeta := objVal.(*TypeMetaValue); isTypeMeta {
 			if enumType, isEnum := tmv.TypeInfo.(*types.EnumType); isEnum {
 				methodName := strings.ToLower(mc.Method.Value)
-				if methodName == "low" {
+				switch methodName {
+				case "low":
 					return &IntegerValue{Value: int64(enumType.Low())}
-				} else if methodName == "high" {
+				case "high":
 					return &IntegerValue{Value: int64(enumType.High())}
-				} else if methodName == "byname" {
+				case "byname":
 					// ByName(name: string): Integer
 					if len(mc.Arguments) != 1 {
 						return i.newErrorWithLocation(mc, "ByName expects 1 argument, got %d", len(mc.Arguments))

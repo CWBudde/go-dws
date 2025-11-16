@@ -13,8 +13,8 @@ func TestEnumScopedAccess(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name: "scoped enum access - TColor.Red",

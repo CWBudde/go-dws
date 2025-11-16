@@ -27,12 +27,12 @@ import (
 //	var squared := Map(numbers, lambda(x: Integer) => x * x);
 //	var printer := lambda() begin PrintLn('Hello'); end;
 type LambdaExpression struct {
-	TypedExpressionBase
-	ReturnType   TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
+	ReturnType   TypeExpression
 	Body         *BlockStatement
 	Parameters   []*Parameter
 	CapturedVars []string
-	IsShorthand  bool
+	TypedExpressionBase
+	IsShorthand bool
 }
 
 // expressionNode marks this as an Expression node

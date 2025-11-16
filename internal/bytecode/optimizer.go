@@ -421,11 +421,11 @@ func (o *chunkOptimizer) propagateConstants() bool {
 // constPropContext holds state for constant propagation optimization.
 type constPropContext struct {
 	optimizer  *chunkOptimizer
+	locals     map[uint16]valueState
 	newCode    []Instruction
 	newLines   []int
 	newMapping []int
 	stack      []valueState
-	locals     map[uint16]valueState
 	changed    bool
 }
 

@@ -22,12 +22,12 @@ import (
 //	property Items[i: Integer]: String read GetItem; default;          // Default property
 //	class property Version: String read GetVersion;                    // Class property (static)
 type PropertyDecl struct {
+	ReadSpec    Expression
+	WriteSpec   Expression
+	Type        TypeExpression
+	Name        *Identifier
+	IndexParams []*Parameter
 	BaseNode
-	ReadSpec        Expression
-	WriteSpec       Expression
-	Name            *Identifier
-	Type            TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
-	IndexParams     []*Parameter
 	IsDefault       bool
 	IsClassProperty bool
 }

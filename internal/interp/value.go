@@ -138,9 +138,9 @@ func (t *TypeMetaValue) String() string {
 //   - TypeOf(TMyClass) returns RTTITypeInfoValue for the class type
 //   - TypeOf(classRef) returns RTTITypeInfoValue for the class reference's type
 type RTTITypeInfoValue struct {
-	TypeID   int        // Unique identifier for this type (for comparison)
-	TypeName string     // The type name for display (e.g., "TMyClass", "Integer")
-	TypeInfo types.Type // The actual type metadata (optional, for advanced RTTI)
+	TypeInfo types.Type
+	TypeName string
+	TypeID   int
 }
 
 // Type returns "RTTI_TYPEINFO".
@@ -657,10 +657,8 @@ type IntRange struct {
 type SetValue struct {
 	SetType  *types.SetType
 	MapStore map[int]bool
+	Ranges   []IntRange
 	Elements uint64
-	// Ranges stores lazy ranges for large integer ranges
-	// Checked separately from MapStore/Elements for membership testing
-	Ranges []IntRange
 }
 
 // Type returns "SET".

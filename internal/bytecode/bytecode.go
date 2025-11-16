@@ -635,8 +635,8 @@ type LineInfo struct {
 
 // FieldMetadata stores metadata for a class field including its initializer.
 type FieldMetadata struct {
+	Initializer *Chunk
 	Name        string
-	Initializer *Chunk // Compiled bytecode for field initializer expression (nil if no initializer)
 }
 
 // ClassMetadata stores metadata for a class including field initializers.
@@ -658,13 +658,13 @@ type RecordMetadata struct {
 // A chunk is the basic unit of compilation - typically one function or script.
 type Chunk struct {
 	tryInfos   map[int]TryInfo
+	Helpers    map[string]*HelperInfo
+	Classes    map[string]*ClassMetadata
+	Records    map[string]*RecordMetadata
 	Name       string
 	Code       []Instruction
 	Constants  []Value
 	Lines      []LineInfo
-	Helpers    map[string]*HelperInfo     // Helper metadata for runtime method resolution
-	Classes    map[string]*ClassMetadata  // Class metadata for field initialization
-	Records    map[string]*RecordMetadata // Record metadata for static methods (Task 9.1)
 	LocalCount int
 }
 

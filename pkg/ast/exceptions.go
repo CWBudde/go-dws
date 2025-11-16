@@ -29,10 +29,10 @@ import (
 //	  Cleanup();
 //	end;
 type TryStatement struct {
-	BaseNode
 	TryBlock      *BlockStatement
 	ExceptClause  *ExceptClause
 	FinallyClause *FinallyClause
+	BaseNode
 }
 
 func (ts *TryStatement) statementNode() {}
@@ -214,8 +214,8 @@ func (eh *ExceptionHandler) String() string {
 //	  Cleanup();
 //	end;
 type FinallyClause struct {
-	BaseNode
 	Block *BlockStatement
+	BaseNode
 }
 
 func (fc *FinallyClause) statementNode() {}
@@ -243,8 +243,8 @@ func (fc *FinallyClause) String() string {
 //	raise new EMyException('custom error');
 //	raise; // re-raise
 type RaiseStatement struct {
-	BaseNode
 	Exception Expression
+	BaseNode
 }
 
 func (rs *RaiseStatement) statementNode() {}

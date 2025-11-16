@@ -69,24 +69,9 @@ import (
 // writes. Typical usage is single-threaded analysis (writes) followed by
 // concurrent interpretation/compilation (reads).
 type SemanticInfo struct {
-	// mu protects concurrent access to the maps below
-	mu sync.RWMutex
-
-	// types maps expression nodes to their inferred type annotations.
-	// This replaces the Type field previously embedded in expression nodes.
-	types map[Expression]*TypeAnnotation
-
-	// symbols maps identifier nodes to their symbol table entries.
-	// This will be populated by the semantic analyzer during name resolution.
-	// Currently stored as interface{} to avoid circular dependency with
-	// internal/semantic package. Will be refined in Task 9.18.4.
+	types   map[Expression]*TypeAnnotation
 	symbols map[*Identifier]interface{}
-
-	// NOTE: Additional metadata may be added in future tasks:
-	// - Constant values for compile-time evaluation
-	// - Scope information for debugging
-	// - Documentation/comment attachments
-	// - Source range for better error reporting
+	mu      sync.RWMutex
 }
 
 // NewSemanticInfo creates a new empty semantic metadata table.

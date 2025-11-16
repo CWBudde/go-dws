@@ -16,9 +16,9 @@ import (
 //   - type TDays = set of TWeekday;
 //   - var s: set of (Mon, Tue, Wed);  // inline with anonymous enum
 type SetDecl struct {
-	BaseNode
+	ElementType TypeExpression
 	Name        *Identifier
-	ElementType TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
+	BaseNode
 }
 
 // statementNode implements the Statement interface
@@ -52,8 +52,8 @@ func (sd *SetDecl) String() string {
 //   - [one..five]              // set with range (not yet implemented)
 //   - []                       // empty set
 type SetLiteral struct {
-	TypedExpressionBase
 	Elements []Expression
+	TypedExpressionBase
 }
 
 // expressionNode implements the Expression interface

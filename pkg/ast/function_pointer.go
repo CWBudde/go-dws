@@ -102,8 +102,8 @@ func (fpt *FunctionPointerTypeNode) typeExpressionNode() {}
 // The @ operator takes a function/procedure identifier and produces a function pointer value
 // that can be assigned to variables, passed as parameters, or stored in data structures.
 type AddressOfExpression struct {
+	Operator Expression
 	TypedExpressionBase
-	Operator Expression // The target function/procedure (usually an Identifier or member access)
 }
 
 func (ao *AddressOfExpression) expressionNode() {}

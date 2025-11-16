@@ -16,8 +16,8 @@ func TestDetectAndDecodeFile(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		data     []byte
 		expected string
+		data     []byte
 	}{
 		{
 			name:     "UTF-8 without BOM",

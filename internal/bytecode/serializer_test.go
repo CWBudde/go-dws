@@ -828,8 +828,8 @@ func TestSerializer_BoundsChecking_ValidMaxValues(t *testing.T) {
 	// Test that values at the maximum allowed bounds still work
 	// This ensures we're not being too restrictive
 	tests := []struct {
-		name      string
 		createFn  func() ([]byte, error)
+		name      string
 		shouldErr bool
 	}{
 		{

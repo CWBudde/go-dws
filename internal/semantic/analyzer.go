@@ -42,8 +42,8 @@ func getTypeExpressionName(typeExpr ast.TypeExpression) string {
 // It validates types, checks for undefined variables, and ensures
 // type compatibility in expressions and statements.
 type Analyzer struct {
-	unitSymbols        map[string]*SymbolTable
-	interfaces         map[string]*types.InterfaceType
+	symbols            *SymbolTable
+	globalOperators    *types.OperatorRegistry
 	subranges          map[string]*types.SubrangeType
 	functionPointers   map[string]*types.FunctionPointerType
 	arrays             map[string]*types.ArrayType
@@ -56,14 +56,15 @@ type Analyzer struct {
 	sets               map[string]*types.SetType
 	conversionRegistry *types.ConversionRegistry
 	typeAliases        map[string]*types.TypeAlias
-	symbols            *SymbolTable
+	interfaces         map[string]*types.InterfaceType
+	semanticInfo       *pkgast.SemanticInfo
+	unitSymbols        map[string]*SymbolTable
 	helpers            map[string][]*types.HelperType
-	globalOperators    *types.OperatorRegistry
-	sourceFile         string
 	sourceCode         string
 	currentProperty    string
-	structuredErrors   []*SemanticError
+	sourceFile         string
 	errors             []string
+	structuredErrors   []*SemanticError
 	loopDepth          int
 	inExceptionHandler bool
 	inFinallyBlock     bool
@@ -71,8 +72,6 @@ type Analyzer struct {
 	inLambda           bool
 	inClassMethod      bool
 	inPropertyExpr     bool
-	// semanticInfo stores type metadata separately from AST nodes (Task 9.18)
-	semanticInfo *pkgast.SemanticInfo
 }
 
 // NewAnalyzer creates a new semantic analyzer

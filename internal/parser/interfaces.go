@@ -314,7 +314,7 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 	hasParentheses := p.peekTokenIs(lexer.LPAREN)
 
 	// Track the last token for EndPos calculation
-	var endToken lexer.Token = funcOrProcToken
+	var endToken = funcOrProcToken
 
 	if hasParentheses {
 		// Advance to opening parenthesis

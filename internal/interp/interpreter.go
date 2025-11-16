@@ -31,38 +31,38 @@ type PropertyEvalContext struct {
 type Interpreter struct {
 	currentNode          ast.Node
 	output               io.Writer
-	handlerException     *ExceptionValue
-	classes              map[string]*ClassInfo
+	unitRegistry         *units.UnitRegistry
+	propContext          *PropertyEvalContext
 	records              map[string]*RecordTypeValue
 	interfaces           map[string]*InterfaceInfo
 	functions            map[string][]*ast.FunctionDecl
 	globalOperators      *runtimeOperatorRegistry
 	conversions          *runtimeConversionRegistry
 	env                  *Environment
-	externalFunctions    *ExternalFunctionRegistry
-	propContext          *PropertyEvalContext
+	handlerException     *ExceptionValue
+	semanticInfo         *pkgast.SemanticInfo
 	exception            *ExceptionValue
 	rand                 *rand.Rand
-	randSeed             int64
+	enumTypeIDRegistry   map[string]int
 	initializedUnits     map[string]bool
-	unitRegistry         *units.UnitRegistry
+	classes              map[string]*ClassInfo
+	recordTypeIDRegistry map[string]int
+	externalFunctions    *ExternalFunctionRegistry
 	helpers              map[string][]*HelperInfo
+	classTypeIDRegistry  map[string]int
 	sourceCode           string
 	sourceFile           string
-	callStack            errors.StackTrace
-	oldValuesStack       []map[string]Value
 	loadedUnits          []string
+	oldValuesStack       []map[string]Value
+	callStack            errors.StackTrace
 	maxRecursionDepth    int
-	semanticInfo         *pkgast.SemanticInfo // Task 9.18: Type metadata from semantic analysis
+	randSeed             int64
+	nextClassTypeID      int
+	nextRecordTypeID     int
+	nextEnumTypeID       int
 	breakSignal          bool
 	continueSignal       bool
 	exitSignal           bool
-	classTypeIDRegistry  map[string]int // Type ID registry for classes
-	recordTypeIDRegistry map[string]int // Type ID registry for records
-	enumTypeIDRegistry   map[string]int // Type ID registry for enums
-	nextClassTypeID      int            // Next available class type ID
-	nextRecordTypeID     int            // Next available record type ID
-	nextEnumTypeID       int            // Next available enum type ID
 }
 
 // New creates a new Interpreter with a fresh global environment.

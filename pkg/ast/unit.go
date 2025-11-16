@@ -26,26 +26,12 @@ import (
 //	  // Cleanup code
 //	end.
 type UnitDeclaration struct {
-	BaseNode
-
-	// Name is the unit's identifier
-	Name *Identifier
-
-	// InterfaceSection contains public declarations (types, functions, etc.)
-	// These symbols are visible to units that use this unit
-	InterfaceSection *BlockStatement
-
-	// ImplementationSection contains private implementation code
-	// These symbols are only visible within this unit
+	Name                  *Identifier
+	InterfaceSection      *BlockStatement
 	ImplementationSection *BlockStatement
-
-	// InitSection contains initialization code (optional)
-	// Runs when the unit is loaded, before the main program
-	InitSection *BlockStatement
-
-	// FinalSection contains finalization code (optional)
-	// Runs when the program exits, in reverse order of initialization
-	FinalSection *BlockStatement
+	InitSection           *BlockStatement
+	FinalSection          *BlockStatement
+	BaseNode
 }
 
 func (ud *UnitDeclaration) statementNode() {}
@@ -113,10 +99,8 @@ func (ud *UnitDeclaration) String() string {
 //	uses System, Math, Graphics;
 //	uses System.Collections, System.IO;
 type UsesClause struct {
-	BaseNode
-
-	// Units is the list of unit names to import
 	Units []*Identifier
+	BaseNode
 }
 
 func (uc *UsesClause) statementNode() {}

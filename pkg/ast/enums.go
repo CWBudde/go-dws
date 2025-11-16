@@ -27,11 +27,11 @@ type EnumValue struct {
 //   - type TEnum = enum (One, Two);      // scoped enum
 //   - type TFlags = flags (a, b, c);     // flags enum (bit flags)
 type EnumDecl struct {
-	BaseNode
 	Name   *Identifier
 	Values []EnumValue
-	Scoped bool // True if declared with 'enum' or 'flags' keyword (requires qualified access)
-	Flags  bool // True if declared with 'flags' keyword (uses power-of-2 values)
+	BaseNode
+	Scoped bool
+	Flags  bool
 }
 
 // statementNode implements the Statement interface

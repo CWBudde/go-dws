@@ -25,32 +25,29 @@ type VirtualMethodEntry struct {
 // It stores information about a class's structure including fields, methods,
 // parent class, and constructor/destructor.
 type ClassInfo struct {
-	Constructor          *ast.FunctionDecl
-	Constructors         map[string]*ast.FunctionDecl
-	ConstructorOverloads map[string][]*ast.FunctionDecl // Overloaded constructors
-	DefaultConstructor   string                         // Name of the constructor marked as 'default' (empty if none)
+	MethodOverloads      map[string][]*ast.FunctionDecl
+	ConstantValues       map[string]Value
+	ConstructorOverloads map[string][]*ast.FunctionDecl
+	VirtualMethodTable   map[string]*VirtualMethodEntry
 	Fields               map[string]types.Type
-	FieldDecls           map[string]*ast.FieldDecl // Field declarations (for initializers)
+	FieldDecls           map[string]*ast.FieldDecl
 	ClassVars            map[string]Value
-	Constants            map[string]*ast.ConstDecl // Class constants
-	ConstantValues       map[string]Value          // Evaluated constant values
-	Methods              map[string]*ast.FunctionDecl
-	MethodOverloads      map[string][]*ast.FunctionDecl // Overloaded instance methods
+	ClassMethodOverloads map[string][]*ast.FunctionDecl
 	ClassMethods         map[string]*ast.FunctionDecl
-	ClassMethodOverloads map[string][]*ast.FunctionDecl // Overloaded class methods
+	Methods              map[string]*ast.FunctionDecl
+	Constructors         map[string]*ast.FunctionDecl
+	Constructor          *ast.FunctionDecl
+	Constants            map[string]*ast.ConstDecl
 	Properties           map[string]*types.PropertyInfo
 	Destructor           *ast.FunctionDecl
 	Parent               *ClassInfo
 	Operators            *runtimeOperatorRegistry
 	ExternalName         string
 	Name                 string
+	DefaultConstructor   string
 	IsExternal           bool
 	IsAbstract           bool
 	IsPartial            bool
-	// Task 9.14: Virtual method dispatch tracking
-	// Maps method signature to the class that introduced the virtual method
-	// and the class that provides the actual implementation for this class
-	VirtualMethodTable map[string]*VirtualMethodEntry
 }
 
 // NewClassInfo creates a new ClassInfo with the given name.

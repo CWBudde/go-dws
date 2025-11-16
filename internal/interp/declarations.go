@@ -894,7 +894,7 @@ func (i *Interpreter) replaceMethodInOverloadList(list []*ast.FunctionDecl, impl
 // inferTypeFromValue infers the type from a runtime value.
 // This is used for type inference when a variable or field is declared without an explicit type.
 func (i *Interpreter) inferTypeFromValue(val Value) types.Type {
-	switch val.(type) {
+	switch val := val.(type) {
 	case *IntegerValue:
 		return types.INTEGER
 	case *FloatValue:
@@ -905,7 +905,7 @@ func (i *Interpreter) inferTypeFromValue(val Value) types.Type {
 		return types.BOOLEAN
 	case *ArrayValue:
 		// For arrays, we could try to infer the element type
-		arrVal := val.(*ArrayValue)
+		arrVal := val
 		if len(arrVal.Elements) > 0 {
 			elemType := i.inferTypeFromValue(arrVal.Elements[0])
 			if elemType != nil {
