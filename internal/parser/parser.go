@@ -164,9 +164,9 @@ type Parser struct {
 // It can be saved and restored to enable speculative parsing and backtracking.
 // This is useful when trying multiple parsing strategies without committing to errors.
 type ParserState struct {
+	errors     []*ParserError
 	curToken   lexer.Token
 	peekToken  lexer.Token
-	errors     []*ParserError
 	lexerState lexer.LexerState
 }
 
@@ -426,9 +426,9 @@ func (p *Parser) saveState() ParserState {
 	copy(errorsCopy, p.errors)
 
 	return ParserState{
+		errors:     errorsCopy,
 		curToken:   p.curToken,
 		peekToken:  p.peekToken,
-		errors:     errorsCopy,
 		lexerState: p.l.SaveState(),
 	}
 }
