@@ -111,7 +111,7 @@ Interpreter (Orchestrator)
 └── Delegates evaluation
 
 Evaluator (Evaluation Engine)
-├── Focused responsibility (8 fields)
+├── Focused responsibility (12 fields)
 ├── Visitor pattern dispatch (48 methods)
 ├── Organized by category (4 files)
 └── Easy to test, extend, maintain
