@@ -27,7 +27,7 @@ const (
 type InterpreterError struct {
 	Category   ErrorCategory     // Error category
 	Message    string            // Human-readable error message
-	Pos        *token.Position    // Position in source code
+	Pos        *token.Position   // Position in source code
 	Expression string            // The expression that failed
 	Values     map[string]string // Runtime values as strings
 	Err        error             // Underlying error (for wrapping)

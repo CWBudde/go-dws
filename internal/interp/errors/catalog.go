@@ -51,8 +51,8 @@ const (
 
 const (
 	// Arithmetic errors
-	ErrMsgDivisionByZero = "division by zero"
-	ErrMsgDivByZero      = "division by zero: %v / %v"
+	ErrMsgDivisionByZero   = "division by zero"
+	ErrMsgDivByZero        = "division by zero: %v / %v"
 	ErrMsgIntegerDivByZero = "integer division by zero: %v div %v"
 	ErrMsgModByZero        = "modulo by zero: %v mod %v"
 	ErrMsgOverflow         = "arithmetic overflow"
@@ -92,9 +92,9 @@ const (
 	ErrMsgFunctionNotFound   = "function or procedure not found: %s"
 
 	// Type errors
-	ErrMsgUndefinedType  = "undefined type: %s"
-	ErrMsgTypeNotFound   = "type not found: %s"
-	ErrMsgUnknownType    = "unknown type: %s"
+	ErrMsgUndefinedType = "undefined type: %s"
+	ErrMsgTypeNotFound  = "type not found: %s"
+	ErrMsgUnknownType   = "unknown type: %s"
 
 	// Member errors
 	ErrMsgUndefinedMember = "undefined member: %s"
@@ -137,14 +137,14 @@ const (
 
 const (
 	// Interpreter errors
-	ErrMsgInternalError  = "internal error: %s"
-	ErrMsgUnknownNode    = "internal error: unknown node type: %T"
-	ErrMsgInvalidState   = "internal error: invalid interpreter state: %s"
-	ErrMsgMissingValue   = "internal error: missing value for: %s"
+	ErrMsgInternalError = "internal error: %s"
+	ErrMsgUnknownNode   = "internal error: unknown node type: %T"
+	ErrMsgInvalidState  = "internal error: invalid interpreter state: %s"
+	ErrMsgMissingValue  = "internal error: missing value for: %s"
 
 	// Unimplemented features
-	ErrMsgNotImplemented       = "not implemented: %s"
-	ErrMsgFeatureNotSupported  = "feature not supported: %s"
+	ErrMsgNotImplemented      = "not implemented: %s"
+	ErrMsgFeatureNotSupported = "feature not supported: %s"
 )
 
 // ============================================================================
