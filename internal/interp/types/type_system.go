@@ -22,15 +22,14 @@ type TypeSystem struct {
 	// Class registry: Task 3.4.2 - using ClassRegistry abstraction
 	classRegistry *ClassRegistry
 
+	// Function registry: Task 3.4.3 - using FunctionRegistry abstraction
+	functionRegistry *FunctionRegistry
+
 	// Record registry: maps lowercase record names to RecordTypeValue
 	records map[string]*RecordTypeValue
 
 	// Interface registry: maps lowercase interface names to InterfaceInfo
 	interfaces map[string]*InterfaceInfo
-
-	// Function registry: maps function names to overload lists
-	// Key is function name (case-insensitive), value is list of overloads
-	functions map[string][]*ast.FunctionDecl
 
 	// Helper registry: maps type names to helper method lists
 	// Key is type name (uppercase), value is list of helper methods
@@ -56,10 +55,10 @@ type TypeSystem struct {
 // NewTypeSystem creates a new TypeSystem with initialized registries.
 func NewTypeSystem() *TypeSystem {
 	return &TypeSystem{
-		classRegistry:    NewClassRegistry(), // Task 3.4.2
+		classRegistry:    NewClassRegistry(),    // Task 3.4.2
+		functionRegistry: NewFunctionRegistry(), // Task 3.4.3
 		records:          make(map[string]*RecordTypeValue),
 		interfaces:       make(map[string]*InterfaceInfo),
-		functions:        make(map[string][]*ast.FunctionDecl),
 		helpers:          make(map[string][]*HelperInfo),
 		operators:        NewOperatorRegistry(),
 		conversions:      NewConversionRegistry(),
@@ -218,32 +217,56 @@ func (ts *TypeSystem) AllInterfaces() map[string]*InterfaceInfo {
 }
 
 // ========== Function Registry ==========
+// Task 3.4.3: Function methods now delegate to FunctionRegistry
 
 // RegisterFunction registers a function overload in the type system.
 // Multiple functions with the same name can be registered (overloading).
 func (ts *TypeSystem) RegisterFunction(name string, fn *ast.FunctionDecl) {
-	if fn == nil {
-		return
-	}
-	ts.functions[name] = append(ts.functions[name], fn)
+	ts.functionRegistry.Register(name, fn)
+}
+
+// RegisterFunctionWithUnit registers a function with an associated unit name.
+// This allows for qualified lookups (UnitName.FunctionName).
+func (ts *TypeSystem) RegisterFunctionWithUnit(unitName, functionName string, fn *ast.FunctionDecl) {
+	ts.functionRegistry.RegisterWithUnit(unitName, functionName, fn)
 }
 
 // LookupFunctions returns all overloads for the given function name.
 // Returns nil if no function with that name exists.
 func (ts *TypeSystem) LookupFunctions(name string) []*ast.FunctionDecl {
-	return ts.functions[name]
+	return ts.functionRegistry.Lookup(name)
+}
+
+// LookupQualifiedFunction returns all overloads for a qualified function name (Unit.Function).
+// The lookup is case-insensitive. Returns nil if no functions found.
+func (ts *TypeSystem) LookupQualifiedFunction(unitName, functionName string) []*ast.FunctionDecl {
+	return ts.functionRegistry.LookupQualified(unitName, functionName)
 }
 
 // HasFunction checks if any function with the given name exists.
 func (ts *TypeSystem) HasFunction(name string) bool {
-	overloads, exists := ts.functions[name]
-	return exists && len(overloads) > 0
+	return ts.functionRegistry.Exists(name)
+}
+
+// HasQualifiedFunction checks if a qualified function exists (Unit.Function).
+func (ts *TypeSystem) HasQualifiedFunction(unitName, functionName string) bool {
+	return ts.functionRegistry.ExistsQualified(unitName, functionName)
 }
 
 // AllFunctions returns the entire function registry.
 // The returned map should not be modified directly.
 func (ts *TypeSystem) AllFunctions() map[string][]*ast.FunctionDecl {
-	return ts.functions
+	return ts.functionRegistry.GetAllFunctions()
+}
+
+// GetFunctionOverloadCount returns the number of overloads for a function.
+func (ts *TypeSystem) GetFunctionOverloadCount(name string) int {
+	return ts.functionRegistry.GetOverloadCount(name)
+}
+
+// Functions returns the FunctionRegistry for direct access to advanced operations.
+func (ts *TypeSystem) Functions() *FunctionRegistry {
+	return ts.functionRegistry
 }
 
 // ========== Helper Registry ==========

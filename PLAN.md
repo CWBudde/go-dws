@@ -734,7 +734,7 @@ if !p.curTokenIs(lexer.END) {
   - Acceptance: ClassRegistry handles all class operations, tests pass
   - **Completed**: Created ClassRegistry with comprehensive methods (Register, Lookup, Exists, LookupHierarchy, IsDescendantOf, GetDepth, FindDescendants), integrated with TypeSystem, 10 unit tests covering all functionality, all tests pass
 
-- [ ] 3.4.3 Create FunctionRegistry with overload support
+- [x] 3.4.3 Create FunctionRegistry with overload support
   - Extract function management to FunctionRegistry
   - Properly handle overloading with signature matching
   - Support qualified name lookup (Unit.Function)
@@ -742,6 +742,7 @@ if !p.curTokenIs(lexer.END) {
   - Files: `internal/interp/types/function_registry.go` (new)
   - Estimated: 3 days
   - Acceptance: FunctionRegistry handles all function operations, tests pass
+  - **Completed**: Created FunctionRegistry with comprehensive overload support (Register, Lookup, LookupQualified, GetOverloadCount, FindByParameterCount, ValidateNoConflicts), unit-qualified name support (Unit.Function), metadata queries, integrated with TypeSystem, 15 unit tests covering all functionality, all tests pass
 
 ---
 
