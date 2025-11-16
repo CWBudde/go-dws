@@ -54,6 +54,7 @@ type (
 	MemberAccessExpression  = pkgast.MemberAccessExpression
 	MethodCallExpression    = pkgast.MethodCallExpression
 	InheritedExpression     = pkgast.InheritedExpression
+	SelfExpression          = pkgast.SelfExpression
 	RecordLiteralExpression = pkgast.RecordLiteralExpression
 	LambdaExpression        = pkgast.LambdaExpression
 	AddressOfExpression     = pkgast.AddressOfExpression

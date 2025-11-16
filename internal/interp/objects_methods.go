@@ -106,113 +106,8 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			}
 
 			if classMethod != nil {
-				// This is a class method - execute it without Self binding
-				// Evaluate method arguments
-				args := make([]Value, len(mc.Arguments))
-				for idx, arg := range mc.Arguments {
-					val := i.Eval(arg)
-					if isError(val) {
-						return val
-					}
-					args[idx] = val
-				}
-
-				// Check argument count matches parameter count
-				if len(args) != len(classMethod.Parameters) {
-					return i.newErrorWithLocation(mc, "wrong number of arguments for class method '%s': expected %d, got %d",
-						mc.Method.Value, len(classMethod.Parameters), len(args))
-				}
-
-				// Create method environment (NO Self binding for class methods)
-				methodEnv := NewEnclosedEnvironment(i.env)
-				savedEnv := i.env
-				i.env = methodEnv
-
-				// Task 9.x: Check recursion depth before pushing to call stack
-				if len(i.callStack) >= i.maxRecursionDepth {
-					i.env = savedEnv // Restore environment before raising exception
-					return i.raiseMaxRecursionExceeded()
-				}
-
-				// Task 9.108: Push method name onto call stack for stack traces
-				fullMethodName := classInfo.Name + "." + mc.Method.Value
-				i.pushCallStack(fullMethodName)
-				defer i.popCallStack()
-
-				// Bind __CurrentClass__ so class variables can be accessed
-				i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
-
-				// Add class constants to method scope so they can be accessed directly
-				i.bindClassConstantsToEnv(classInfo)
-
-				// Bind method parameters to arguments with implicit conversion
-				for idx, param := range classMethod.Parameters {
-					arg := args[idx]
-
-					// Apply implicit conversion if parameter has a type and types don't match
-					if param.Type != nil {
-						paramTypeName := param.Type.Name
-						if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
-							arg = converted
-						}
-					}
-
-					i.env.Define(param.Name.Value, arg)
-				}
-
-				// For functions (not procedures), initialize the Result variable
-				// Task 9.221: Use appropriate default value based on return type
-				if classMethod.ReturnType != nil {
-					returnType := i.resolveTypeFromAnnotation(classMethod.ReturnType)
-					defaultVal := i.getDefaultValue(returnType)
-					i.env.Define("Result", defaultVal)
-					// In DWScript, the method name can be used as an alias for Result
-					i.env.Define(classMethod.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
-				}
-
-				// Execute method body
-				result := i.Eval(classMethod.Body)
-				if isError(result) {
-					i.env = savedEnv
-					return result
-				}
-
-				// Extract return value (same logic as regular functions)
-				var returnValue Value
-				if classMethod.ReturnType != nil {
-					// Check both Result and method name variable
-					resultVal, resultOk := i.env.Get("Result")
-					methodNameVal, methodNameOk := i.env.Get(classMethod.Name.Value)
-
-					// Use whichever variable is not nil, preferring Result if both are set
-					if resultOk && resultVal.Type() != "NIL" {
-						returnValue = resultVal
-					} else if methodNameOk && methodNameVal.Type() != "NIL" {
-						returnValue = methodNameVal
-					} else if resultOk {
-						returnValue = resultVal
-					} else if methodNameOk {
-						returnValue = methodNameVal
-					} else {
-						returnValue = &NilValue{}
-					}
-
-					// Apply implicit conversion if return type doesn't match
-					if returnValue.Type() != "NIL" {
-						expectedReturnType := classMethod.ReturnType.Name
-						if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
-							returnValue = converted
-						}
-					}
-				} else {
-					// Procedure - no return value
-					returnValue = &NilValue{}
-				}
-
-				// Restore environment
-				i.env = savedEnv
-
-				return returnValue
+				// This is a class method - execute it with Self bound to the class
+				return i.executeClassMethod(classInfo, classMethod, mc)
 			} else if instanceMethod != nil {
 				// This is an instance method being called from the class (e.g., TClass.Create())
 				// Create a new instance and call the method on it
@@ -399,6 +294,27 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		return objVal
 	}
 
+	// Task 9.7: Check if it's a ClassInfoValue (Self in a class method)
+	// This handles: Self.Method() where Self is bound to ClassInfoValue in a class method
+	if classInfoVal, ok := objVal.(*ClassInfoValue); ok {
+		classInfo := classInfoVal.ClassInfo
+		// Look for class methods only (class methods on ClassInfoValue)
+		classMethodOverloads := i.getMethodOverloadsInHierarchy(classInfo, mc.Method.Value, true)
+
+		if len(classMethodOverloads) == 0 {
+			return i.newErrorWithLocation(mc, "class method '%s' not found in class '%s'", mc.Method.Value, classInfo.Name)
+		}
+
+		// Resolve overload
+		classMethod, err := i.resolveMethodOverload(classInfo.Name, mc.Method.Value, classMethodOverloads, mc.Arguments)
+		if err != nil {
+			return i.newErrorWithLocation(mc, "%s", err.Error())
+		}
+
+		// Execute class method using helper
+		return i.executeClassMethod(classInfo, classMethod, mc)
+	}
+
 	// Task 9.4.4: Check if it's a metaclass (ClassValue) calling a constructor
 	// This handles: var cls: class of TParent; cls := TChild; obj := cls.Create;
 	if classVal, ok := objVal.(*ClassValue); ok {
@@ -566,6 +482,14 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		objVal = intfInst.Object
 	}
 
+	// Task 9.7: Check if object is nil
+	// When calling o.Method() where o is nil, always raise "Object not instantiated"
+	// Note: Class methods can only be called without error when called directly on
+	// the class name (TClass.Method), not via a nil instance variable (o.Method)
+	if _, isNil := objVal.(*NilValue); isNil {
+		return i.newErrorWithLocation(mc, "Object not instantiated")
+	}
+
 	// Check if it's an object instance
 	obj, ok := AsObject(objVal)
 	if !ok {
@@ -599,14 +523,28 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	// Task 9.67: Resolve method overload based on argument types
 	methodOverloads := i.getMethodOverloadsInHierarchy(obj.Class, mc.Method.Value, false)
 
+	// Task 9.7: Also check class methods (which can be called on instances)
+	classMethodOverloads := i.getMethodOverloadsInHierarchy(obj.Class, mc.Method.Value, true)
+
 	var method *ast.FunctionDecl
 	var err error
+	var isClassMethod bool
 
+	// Try instance methods first
 	if len(methodOverloads) > 0 {
 		method, err = i.resolveMethodOverload(obj.Class.Name, mc.Method.Value, methodOverloads, mc.Arguments)
 		if err != nil {
 			return i.newErrorWithLocation(mc, "%s", err.Error())
 		}
+	}
+
+	// If no instance method found, try class methods
+	if method == nil && len(classMethodOverloads) > 0 {
+		method, err = i.resolveMethodOverload(obj.Class.Name, mc.Method.Value, classMethodOverloads, mc.Arguments)
+		if err != nil {
+			return i.newErrorWithLocation(mc, "%s", err.Error())
+		}
+		isClassMethod = true
 	}
 
 	if method == nil {
@@ -750,8 +688,14 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	i.pushCallStack(fullMethodName)
 	defer i.popCallStack()
 
-	// Bind Self to the object
-	i.env.Define("Self", obj)
+	// Task 9.7: Bind Self appropriately based on method type
+	if isClassMethod {
+		// For class methods, bind Self to the class (not the instance)
+		i.env.Define("Self", &ClassInfoValue{ClassInfo: obj.Class})
+	} else {
+		// For instance methods, bind Self to the object
+		i.env.Define("Self", obj)
+	}
 
 	// Add class constants to method scope so they can be accessed directly
 	i.bindClassConstantsToEnv(obj.Class)
@@ -839,6 +783,115 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	// Restore environment
 	i.env = savedEnv
 
+	return returnValue
+}
+
+// executeClassMethod executes a class method with Self bound to ClassInfo.
+// This is used for both direct class method calls (TClass.Method) and
+// class method calls on Self when Self is already a ClassInfoValue.
+func (i *Interpreter) executeClassMethod(
+	classInfo *ClassInfo,
+	classMethod *ast.FunctionDecl,
+	mc *ast.MethodCallExpression,
+) Value {
+	// Evaluate arguments
+	args := make([]Value, len(mc.Arguments))
+	for idx, arg := range mc.Arguments {
+		val := i.Eval(arg)
+		if isError(val) {
+			return val
+		}
+		args[idx] = val
+	}
+
+	// Check argument count
+	if len(args) != len(classMethod.Parameters) {
+		return i.newErrorWithLocation(mc, "wrong number of arguments for class method '%s': expected %d, got %d",
+			mc.Method.Value, len(classMethod.Parameters), len(args))
+	}
+
+	// Create method environment
+	methodEnv := NewEnclosedEnvironment(i.env)
+	savedEnv := i.env
+	i.env = methodEnv
+
+	// Check recursion depth before pushing to call stack
+	if len(i.callStack) >= i.maxRecursionDepth {
+		i.env = savedEnv
+		return i.raiseMaxRecursionExceeded()
+	}
+
+	// Push method name onto call stack for stack traces
+	fullMethodName := classInfo.Name + "." + mc.Method.Value
+	i.pushCallStack(fullMethodName)
+	defer i.popCallStack()
+
+	// Bind Self to ClassInfo for class methods
+	i.env.Define("Self", &ClassInfoValue{ClassInfo: classInfo})
+
+	// Bind __CurrentClass__
+	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
+
+	// Add class constants to method scope
+	i.bindClassConstantsToEnv(classInfo)
+
+	// Bind method parameters with implicit conversion
+	for idx, param := range classMethod.Parameters {
+		arg := args[idx]
+		if param.Type != nil {
+			paramTypeName := param.Type.Name
+			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+				arg = converted
+			}
+		}
+		i.env.Define(param.Name.Value, arg)
+	}
+
+	// Initialize Result for functions
+	if classMethod.ReturnType != nil {
+		returnType := i.resolveTypeFromAnnotation(classMethod.ReturnType)
+		defaultVal := i.getDefaultValue(returnType)
+		i.env.Define("Result", defaultVal)
+		i.env.Define(classMethod.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+	}
+
+	// Execute method body
+	result := i.Eval(classMethod.Body)
+	if isError(result) {
+		i.env = savedEnv
+		return result
+	}
+
+	// Extract return value
+	var returnValue Value
+	if classMethod.ReturnType != nil {
+		resultVal, resultOk := i.env.Get("Result")
+		methodNameVal, methodNameOk := i.env.Get(classMethod.Name.Value)
+
+		if resultOk && resultVal.Type() != "NIL" {
+			returnValue = resultVal
+		} else if methodNameOk && methodNameVal.Type() != "NIL" {
+			returnValue = methodNameVal
+		} else if resultOk {
+			returnValue = resultVal
+		} else if methodNameOk {
+			returnValue = methodNameVal
+		} else {
+			returnValue = &NilValue{}
+		}
+
+		if returnValue.Type() != "NIL" {
+			expectedReturnType := classMethod.ReturnType.Name
+			if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
+				returnValue = converted
+			}
+		}
+	} else {
+		returnValue = &NilValue{}
+	}
+
+	// Restore environment
+	i.env = savedEnv
 	return returnValue
 }
 

@@ -83,6 +83,7 @@ const (
 	FINAL       = token.FINAL
 	NEW         = token.NEW
 	INHERITED   = token.INHERITED
+	SELF        = token.SELF
 	REINTRODUCE = token.REINTRODUCE
 	OPERATOR    = token.OPERATOR
 	HELPER      = token.HELPER

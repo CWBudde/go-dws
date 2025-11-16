@@ -319,6 +319,12 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		objVal = intfInst.Object
 	}
 
+	// Task 9.7: Check if object is nil
+	// When accessing o.Member where o is nil, always raise "Object not instantiated"
+	if _, isNil := objVal.(*NilValue); isNil {
+		return i.newErrorWithLocation(ma, "Object not instantiated")
+	}
+
 	// Check if it's an object instance
 	obj, ok := AsObject(objVal)
 	if !ok {
@@ -394,13 +400,29 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
 		// Task 9.67: Check MethodOverloads for overloaded methods, not just Methods map
 		methodOverloads := i.getMethodOverloadsInHierarchy(obj.Class, memberName, false)
-		if len(methodOverloads) > 0 {
+
+		// Task 9.7: Also check for class methods (which can be called on instances)
+		classMethodOverloads := i.getMethodOverloadsInHierarchy(obj.Class, memberName, true)
+
+		if len(methodOverloads) > 0 || len(classMethodOverloads) > 0 {
 			// Check if any overload has 0 parameters and can be auto-invoked
 			hasParameterlessOverload := false
+
+			// Check instance methods first
 			for _, overload := range methodOverloads {
 				if len(overload.Parameters) == 0 {
 					hasParameterlessOverload = true
 					break
+				}
+			}
+
+			// If no parameterless instance method, check class methods
+			if !hasParameterlessOverload {
+				for _, overload := range classMethodOverloads {
+					if len(overload.Parameters) == 0 {
+						hasParameterlessOverload = true
+						break
+					}
 				}
 			}
 
@@ -422,7 +444,14 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 			// No parameterless overload - return the first overload as method pointer
 			// (In practice, DWScript requires explicit calls for methods with parameters)
-			method := methodOverloads[0]
+			// Prefer instance methods over class methods
+			var method *ast.FunctionDecl
+			if len(methodOverloads) > 0 {
+				method = methodOverloads[0]
+			} else {
+				method = classMethodOverloads[0]
+			}
+
 			paramTypes := make([]types.Type, len(method.Parameters))
 			for idx, param := range method.Parameters {
 				if param.Type != nil {
@@ -501,6 +530,20 @@ func (i *Interpreter) bindClassConstantsToEnv(classInfo *ClassInfo) {
 	for constName, constValue := range classInfo.ConstantValues {
 		i.env.Define(constName, constValue)
 	}
+}
+
+// evalSelfExpression evaluates a Self expression.
+// Self refers to the current instance (in instance methods) or
+// the current class (in class methods).
+// Task 9.7: Implement Self keyword
+func (i *Interpreter) evalSelfExpression(se *ast.SelfExpression) Value {
+	// Get Self from the environment (should be bound when entering methods)
+	selfVal, exists := i.env.Get("Self")
+	if !exists {
+		return i.newErrorWithLocation(se, "Self can only be used inside a method")
+	}
+
+	return selfVal
 }
 
 // evalInheritedExpression evaluates an inherited method call.
