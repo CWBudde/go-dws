@@ -534,10 +534,17 @@ func (p *Parser) parseAddressOfExpression() ast.Expression {
 	return expression
 }
 
-// parseInfixExpression parses an infix (binary) expression.
-// PRE: curToken is the operator token
-// POST: curToken is last token of right operand
+// parseInfixExpression parses a binary infix expression (dispatcher).
+// PRE: curToken is the operator token (traditional) or cursor at operator (cursor)
+// POST: curToken is last token of right expression (traditional)
 func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
+	return p.parseInfixExpressionTraditional(left)
+}
+
+// parseInfixExpressionTraditional parses a binary infix expression using traditional state.
+// PRE: curToken is the operator token
+// POST: curToken is last token of right expression
+func (p *Parser) parseInfixExpressionTraditional(left ast.Expression) ast.Expression {
 	expression := &ast.BinaryExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
@@ -551,6 +558,58 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	precedence := p.curPrecedence()
 	p.nextToken()
 	expression.Right = p.parseExpression(precedence)
+
+	// Set end position based on the right expression
+	if expression.Right != nil {
+		expression.EndPos = expression.Right.End()
+	} else {
+		expression.EndPos = p.endPosFromToken(expression.Token)
+	}
+
+	return expression
+}
+
+// parseInfixExpressionCursor parses a binary infix expression using cursor navigation.
+// PRE: cursor at operator token
+// POST: cursor position advanced (state mutation needed for now until parseExpression is migrated)
+//
+// Note: This cursor version still calls the traditional parseExpression internally,
+// because full cursor integration requires migrating parseExpression itself (future task).
+// For now, we sync the cursor state with traditional state before/after the recursive call.
+func (p *Parser) parseInfixExpressionCursor(left ast.Expression) ast.Expression {
+	operatorToken := p.cursor.Current()
+
+	expression := &ast.BinaryExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: operatorToken,
+			},
+		},
+		Operator: operatorToken.Literal,
+		Left:     left,
+	}
+
+	// Get precedence based on operator token type
+	precedence := LOWEST
+	if prec, ok := precedences[operatorToken.Type]; ok {
+		precedence = prec
+	}
+
+	// Advance cursor to next token (the start of right expression)
+	p.cursor = p.cursor.Advance()
+
+	// Sync traditional state to cursor for the recursive parseExpression call
+	// This is necessary until parseExpression itself is migrated to cursor mode
+	p.syncCursorToTokens()
+
+	// Parse right expression using traditional parseExpression
+	// TODO: Once parseExpression has a cursor version, call that instead
+	expression.Right = p.parseExpression(precedence)
+
+	// Sync cursor back from traditional state after parseExpression
+	// parseExpression leaves curToken at the last token of the right expression
+	// We need to update cursor to match
+	// Note: This is a temporary workaround until full cursor migration
 
 	// Set end position based on the right expression
 	if expression.Right != nil {
