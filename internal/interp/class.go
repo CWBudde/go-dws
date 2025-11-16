@@ -452,10 +452,10 @@ func AsClassValue(v Value) (*ClassValue, bool) {
 //
 // The VMT tracks which method implementation should be called for each virtual method.
 // Rules:
-// - Virtual methods start a dispatch chain (added to VMT)
-// - Override continues the chain (updates the VMT entry to point to new implementation)
-// - Reintroduce does NOT update parent's VMT entry - parent's virtual method stays in VMT
-//   (the reintroduced method is static and doesn't participate in virtual dispatch)
+//   - Virtual methods start a dispatch chain (added to VMT)
+//   - Override continues the chain (updates the VMT entry to point to new implementation)
+//   - Reintroduce does NOT update parent's VMT entry - parent's virtual method stays in VMT
+//     (the reintroduced method is static and doesn't participate in virtual dispatch)
 func (c *ClassInfo) buildVirtualMethodTable() {
 	// First, copy parent's VMT if we have a parent
 	// This inherits all virtual methods from the parent
