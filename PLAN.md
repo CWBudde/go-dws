@@ -44,150 +44,27 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-### Phase 2.1: Foundation Layer (Weeks 1-2, 80 hours)
+### Phase 2.1: Foundation Layer ✅ **COMPLETED**
 
-Building blocks for modernization: structured errors, context management, benchmarks.
+**Summary**: Built foundational infrastructure for parser modernization including structured errors, context management, and comprehensive benchmarks.
 
----
+**Completed Tasks**:
 
-#### Task 2.1.1: Structured Error Types (Week 1, Days 1-3, ~24 hours)
+- **Task 2.1.1**: Structured Error Types - Created rich, IDE-friendly error types with automatic context capture
+- **Task 2.1.2**: Parse Context Extraction - Consolidated scattered parser state into `ParseContext` type
+- **Task 2.1.3**: Error-Context Integration - Integrated context with errors for detailed error messages
+- **Task 2.1.4**: Benchmark Infrastructure - Established comprehensive benchmark suite with baseline metrics
 
-**Goal**: Replace string-based errors with rich, structured error types for better error messages and IDE/LSP integration.
+**Key Deliverables**:
 
-**Current Problem**: 193 error sites use string concatenation
-```go
-p.addError("expected next token to be " + expected + ", got " + actual, ErrUnexpectedToken)
-```
+- `internal/parser/structured_error.go` - Structured error system (~500 lines with tests)
+- `internal/parser/context.go` - Parse context management (~350 lines with tests)
+- `scripts/bench_compare.sh` - Benchmark comparison tooling
+- `docs/parser-benchmarks.md` - Baseline performance documentation
 
-**Implementation**:
-- [x] Create `internal/parser/structured_error.go` with `StructuredParserError` type
-- [x] Implement error formatting with automatic context inclusion
-- [x] Add `addStructuredError()` method alongside existing `addError()`
-- [x] Migrate 5 high-value parsing functions as proof of concept
-- [x] Add comprehensive tests for error formatting and context
-- [x] Document structured error patterns
+**Impact**: Foundation ready for safe parser modernization with regression detection and rich error reporting.
 
-**Files Created**:
-- `internal/parser/structured_error.go` (~200 lines)
-- `internal/parser/structured_error_test.go` (~300 lines)
-
-**Files Modified**:
-- `internal/parser/parser.go` (~50 lines - new method)
-- `internal/parser/expressions.go` (~30 lines - 5 functions migrated)
-
-**Tests**:
-- Test error type creation and formatting
-- Test context capture
-- Test backward compatibility with old errors
-- Verify error messages are clear and helpful
-
-**Estimate**: 24 hours
-
-**Deliverable**: Working structured error system with proof-of-concept usage
-
----
-
-#### Task 2.1.2: Parse Context Extraction (Week 1, Days 4-5, ~16 hours)
-
-**Goal**: Extract scattered context flags into structured `ParseContext` type.
-
-**Current Problem**: Mixed state throughout Parser struct
-```go
-type Parser struct {
-    enableSemanticAnalysis bool  // Scattered flags
-    parsingPostCondition   bool
-    blockStack             []BlockContext
-}
-```
-
-**Implementation**:
-- [x] Create `internal/parser/context.go` with `ParseContext` type
-- [x] Design `ContextFlags` struct for structured flag management
-- [x] Add `p.context` field to Parser
-- [x] Implement stack operations (PushBlock, PopBlock, CurrentBlock)
-- [x] Create adapter methods for backward compatibility
-- [x] Migrate one parsing function to use new context
-- [x] Add tests for context stack operations
-
-**Files Created**:
-- `internal/parser/context.go` (~150 lines)
-- `internal/parser/context_test.go` (~200 lines)
-
-**Files Modified**:
-- `internal/parser/parser.go` (~30 lines - add context field)
-- `internal/parser/expressions.go` (~20 lines - migrate parseOldExpression)
-
-**Tests**:
-- Test context stack push/pop
-- Test flag management
-- Test context snapshot for errors
-- Verify existing tests pass
-
-**Estimate**: 16 hours
-
-**Deliverable**: Working `ParseContext` with initial usage
-
----
-
-#### Task 2.1.3: Error-Context Integration (Week 2, Days 1-2, ~16 hours)
-
-**Goal**: Integrate `ParseContext` with structured errors for automatic context inclusion in error messages.
-
-**Implementation**:
-- [x] Use `Snapshot()` method from `ParseContext` (implemented in 2.1.2)
-- [x] Update `addStructuredError()` to capture context automatically
-- [x] Enhance error formatting to show block context
-- [x] Test with nested blocks (begin/if/while/etc.)
-- [x] Migrate 10+ error sites to use structured errors with context
-- [x] Document error-context patterns
-
-**Files Modified**:
-- `internal/parser/context.go` (~20 lines)
-- `internal/parser/structured_error.go` (~30 lines)
-- `internal/parser/structured_error_test.go` (~100 lines)
-- `internal/parser/statements.go` (~40 lines - migrate errors)
-- `internal/parser/control_flow.go` (~40 lines - migrate errors)
-
-**Tests**:
-- Test automatic context capture
-- Test error messages include "in begin block starting at line X"
-- Test context survives state save/restore
-- Test nested context reporting
-
-**Estimate**: 16 hours
-
-**Deliverable**: Rich error messages with automatic context throughout parser
-
----
-
-#### Task 2.1.4: Benchmark Infrastructure (Week 2, Days 3-5, ~24 hours)
-
-**Goal**: Establish baseline benchmarks and regression detection before major changes.
-
-**Implementation**:
-- [x] Audit existing benchmarks in `parser_bench_test.go`
-- [x] Add missing benchmarks for common patterns (list parsing, expressions, types, error recovery)
-- [x] Create benchmark comparison script `scripts/bench_compare.sh`
-- [x] Document baseline performance in `docs/parser-benchmarks.md`
-- [x] Set up CI integration for benchmark regression detection
-- [x] Add memory allocation benchmarks
-
-**Files Created**:
-- `scripts/bench_compare.sh` (~50 lines)
-- `docs/parser-benchmarks.md` (~150 lines)
-
-**Files Modified**:
-- `internal/parser/parser_bench_test.go` (~200 lines added)
-
-**Tests**:
-- Comprehensive benchmark coverage (>90% of parsing patterns)
-- Baseline measurements documented
-- Automated comparison script works
-- CI can detect >10% regressions
-
-**Estimate**: 24 hours
-
-**Deliverable**: Complete benchmark suite with baseline measurements
+**Completion Summary**: See [docs/stage2.1-summary.md](docs/stage2.1-summary.md) for detailed completion report.
 
 ---
 
