@@ -2459,7 +2459,7 @@ type IntegerLiteral struct {
 
 **Estimate**: 4-6 hours (0.5-1 day)
 
-**Status**: ✅ COMPLETED (2025-01-15)
+**Status**: ✅ COMPLETED (2025-11-15)
 
 **Impact**: Better separation of concerns, enables multiple output formats, smaller AST code
 
@@ -2566,7 +2566,7 @@ func (cd *ClassDecl) String() string {
 - Smaller AST code (~500 lines reduced)
 - Better separation of concerns
 
-**PR #114 Review Fixes** (2025-01-15):
+**PR #114 Review Fixes** (2025-11-15):
 All critical issues identified by Codex and Copilot reviews were addressed:
 
 1. ✅ **ReturnStatement Token Preservation**: Fixed to use `Token.Literal` instead of hardcoding "result", correctly handling `Result := value`, `FunctionName := value`, and `exit` statements
