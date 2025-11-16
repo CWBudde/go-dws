@@ -170,7 +170,7 @@ func (a *Analyzer) createEnumScopedAccessHelper(enumName string, enumType *types
 	helper.Methods["byname"] = byNameMethod
 
 	// Register the helper for this enum type
-	targetTypeName := enumType.String()
+	targetTypeName := strings.ToLower(enumType.String())
 	if a.helpers[targetTypeName] == nil {
 		a.helpers[targetTypeName] = make([]*types.HelperType, 0)
 	}

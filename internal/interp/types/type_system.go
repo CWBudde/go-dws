@@ -26,14 +26,14 @@ type TypeSystem struct {
 	functionRegistry *FunctionRegistry
 
 	// Record registry: maps lowercase record names to RecordTypeValue
-	records map[string]*RecordTypeValue
+	records map[string]RecordTypeValue
 
 	// Interface registry: maps lowercase interface names to InterfaceInfo
-	interfaces map[string]*InterfaceInfo
+	interfaces map[string]InterfaceInfo
 
 	// Helper registry: maps type names to helper method lists
-	// Key is type name (uppercase), value is list of helper methods
-	helpers map[string][]*HelperInfo
+	// Key is type name (lowercase), value is list of helper methods
+	helpers map[string][]HelperInfo
 
 	// Operator registry: manages operator overloads
 	operators *OperatorRegistry
@@ -57,9 +57,9 @@ func NewTypeSystem() *TypeSystem {
 	return &TypeSystem{
 		classRegistry:    NewClassRegistry(),    // Task 3.4.2
 		functionRegistry: NewFunctionRegistry(), // Task 3.4.3
-		records:          make(map[string]*RecordTypeValue),
-		interfaces:       make(map[string]*InterfaceInfo),
-		helpers:          make(map[string][]*HelperInfo),
+		records:          make(map[string]RecordTypeValue),
+		interfaces:       make(map[string]InterfaceInfo),
+		helpers:          make(map[string][]HelperInfo),
 		operators:        NewOperatorRegistry(),
 		conversions:      NewConversionRegistry(),
 		classTypeIDs:     make(map[string]int),
@@ -76,28 +76,24 @@ func NewTypeSystem() *TypeSystem {
 
 // RegisterClass registers a new class in the type system.
 // The name is stored case-insensitively (converted to lowercase).
-func (ts *TypeSystem) RegisterClass(name string, class *ClassInfo) {
+func (ts *TypeSystem) RegisterClass(name string, class ClassInfo) {
 	ts.classRegistry.Register(name, class)
 }
 
 // RegisterClassWithParent registers a class with an explicit parent name.
 // This allows the ClassRegistry to track inheritance relationships.
-func (ts *TypeSystem) RegisterClassWithParent(name string, class *ClassInfo, parentName string) {
+func (ts *TypeSystem) RegisterClassWithParent(name string, class ClassInfo, parentName string) {
 	ts.classRegistry.RegisterWithParent(name, class, parentName)
 }
 
 // LookupClass returns the ClassInfo for the given name.
 // The lookup is case-insensitive. Returns nil if not found.
-func (ts *TypeSystem) LookupClass(name string) *ClassInfo {
+func (ts *TypeSystem) LookupClass(name string) ClassInfo {
 	info, ok := ts.classRegistry.Lookup(name)
 	if !ok {
 		return nil
 	}
-	// Type assertion from any to *ClassInfo
-	if classInfo, ok := info.(*ClassInfo); ok {
-		return classInfo
-	}
-	return nil
+	return info
 }
 
 // HasClass checks if a class with the given name exists.
@@ -108,33 +104,15 @@ func (ts *TypeSystem) HasClass(name string) bool {
 
 // AllClasses returns a map of all registered classes.
 // Note: The returned map uses lowercase keys.
-func (ts *TypeSystem) AllClasses() map[string]*ClassInfo {
-	allClasses := ts.classRegistry.GetAllClasses()
-	result := make(map[string]*ClassInfo, len(allClasses))
-	for key, info := range allClasses {
-		if classInfo, ok := info.(*ClassInfo); ok {
-			result[key] = classInfo
-		}
-	}
-	return result
+func (ts *TypeSystem) AllClasses() map[string]ClassInfo {
+	return ts.classRegistry.GetAllClasses()
 }
 
 // LookupClassHierarchy returns all classes in the inheritance chain.
 // The result is ordered from most specific (the class itself) to root.
 // Returns nil if the class is not found.
-func (ts *TypeSystem) LookupClassHierarchy(name string) []*ClassInfo {
-	hierarchy := ts.classRegistry.LookupHierarchy(name)
-	if hierarchy == nil {
-		return nil
-	}
-
-	result := make([]*ClassInfo, 0, len(hierarchy))
-	for _, info := range hierarchy {
-		if classInfo, ok := info.(*ClassInfo); ok {
-			result = append(result, classInfo)
-		}
-	}
-	return result
+func (ts *TypeSystem) LookupClassHierarchy(name string) []ClassInfo {
+	return ts.classRegistry.LookupHierarchy(name)
 }
 
 // IsClassDescendantOf checks if descendantName inherits from ancestorName.
@@ -160,7 +138,7 @@ func (ts *TypeSystem) Classes() *ClassRegistry {
 
 // RegisterRecord registers a new record type in the type system.
 // The name is stored case-insensitively (converted to lowercase).
-func (ts *TypeSystem) RegisterRecord(name string, record *RecordTypeValue) {
+func (ts *TypeSystem) RegisterRecord(name string, record RecordTypeValue) {
 	if record == nil {
 		return
 	}
@@ -169,7 +147,7 @@ func (ts *TypeSystem) RegisterRecord(name string, record *RecordTypeValue) {
 
 // LookupRecord returns the RecordTypeValue for the given name.
 // The lookup is case-insensitive. Returns nil if not found.
-func (ts *TypeSystem) LookupRecord(name string) *RecordTypeValue {
+func (ts *TypeSystem) LookupRecord(name string) RecordTypeValue {
 	return ts.records[strings.ToLower(name)]
 }
 
@@ -182,7 +160,7 @@ func (ts *TypeSystem) HasRecord(name string) bool {
 
 // AllRecords returns a map of all registered record types.
 // Note: The returned map uses lowercase keys.
-func (ts *TypeSystem) AllRecords() map[string]*RecordTypeValue {
+func (ts *TypeSystem) AllRecords() map[string]RecordTypeValue {
 	return ts.records
 }
 
@@ -190,7 +168,7 @@ func (ts *TypeSystem) AllRecords() map[string]*RecordTypeValue {
 
 // RegisterInterface registers a new interface in the type system.
 // The name is stored case-insensitively (converted to lowercase).
-func (ts *TypeSystem) RegisterInterface(name string, iface *InterfaceInfo) {
+func (ts *TypeSystem) RegisterInterface(name string, iface InterfaceInfo) {
 	if iface == nil {
 		return
 	}
@@ -199,7 +177,7 @@ func (ts *TypeSystem) RegisterInterface(name string, iface *InterfaceInfo) {
 
 // LookupInterface returns the InterfaceInfo for the given name.
 // The lookup is case-insensitive. Returns nil if not found.
-func (ts *TypeSystem) LookupInterface(name string) *InterfaceInfo {
+func (ts *TypeSystem) LookupInterface(name string) InterfaceInfo {
 	return ts.interfaces[strings.ToLower(name)]
 }
 
@@ -212,7 +190,7 @@ func (ts *TypeSystem) HasInterface(name string) bool {
 
 // AllInterfaces returns a map of all registered interfaces.
 // Note: The returned map uses lowercase keys.
-func (ts *TypeSystem) AllInterfaces() map[string]*InterfaceInfo {
+func (ts *TypeSystem) AllInterfaces() map[string]InterfaceInfo {
 	return ts.interfaces
 }
 
@@ -272,30 +250,30 @@ func (ts *TypeSystem) Functions() *FunctionRegistry {
 // ========== Helper Registry ==========
 
 // RegisterHelper registers a helper method for a type.
-// The type name is stored in uppercase for consistency.
-func (ts *TypeSystem) RegisterHelper(typeName string, helper *HelperInfo) {
+// The type name is stored in lowercase for consistency.
+func (ts *TypeSystem) RegisterHelper(typeName string, helper HelperInfo) {
 	if helper == nil {
 		return
 	}
-	key := strings.ToUpper(typeName)
+	key := strings.ToLower(typeName)
 	ts.helpers[key] = append(ts.helpers[key], helper)
 }
 
 // LookupHelpers returns all helper methods for the given type name.
 // Returns nil if no helpers exist for the type.
-func (ts *TypeSystem) LookupHelpers(typeName string) []*HelperInfo {
-	return ts.helpers[strings.ToUpper(typeName)]
+func (ts *TypeSystem) LookupHelpers(typeName string) []HelperInfo {
+	return ts.helpers[strings.ToLower(typeName)]
 }
 
 // HasHelpers checks if any helper methods exist for the given type.
 func (ts *TypeSystem) HasHelpers(typeName string) bool {
-	helpers, exists := ts.helpers[strings.ToUpper(typeName)]
+	helpers, exists := ts.helpers[strings.ToLower(typeName)]
 	return exists && len(helpers) > 0
 }
 
 // AllHelpers returns the entire helper registry.
 // The returned map should not be modified directly.
-func (ts *TypeSystem) AllHelpers() map[string][]*HelperInfo {
+func (ts *TypeSystem) AllHelpers() map[string][]HelperInfo {
 	return ts.helpers
 }
 
@@ -377,10 +355,10 @@ func (ts *TypeSystem) GetEnumTypeID(enumName string) int {
 // We use 'any' (interface{}) to avoid circular dependencies between packages.
 // The interp package will cast these to the appropriate concrete types.
 
-type ClassInfo = any
-type RecordTypeValue = any
-type InterfaceInfo = any
-type HelperInfo = any
+type ClassInfo = any       // Expected: *interp.ClassInfo
+type RecordTypeValue = any // Expected: *interp.RecordTypeValue
+type InterfaceInfo = any   // Expected: *interp.InterfaceInfo
+type HelperInfo = any      // Expected: *interp.HelperInfo
 
 // ========== Operator Registry ==========
 

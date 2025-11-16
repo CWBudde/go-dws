@@ -97,8 +97,15 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 	source := rand.NewSource(defaultSeed)
 
 	// Phase 3.4.1: Initialize TypeSystem
-	// The TypeSystem is the new centralized type registry.
-	// Old fields are kept for backward compatibility during migration.
+	// The TypeSystem is the new centralized type registry that manages all type information
+	// including classes, records, interfaces, functions, helpers, operators, and conversions.
+	//
+	// Migration Strategy (Gradual Transition):
+	// - The old fields (functions, classes, records, etc.) are kept for backward compatibility
+	// - Existing code continues to work unchanged during the transition period
+	// - New code should use typeSystem methods (e.g., typeSystem.RegisterClass, typeSystem.LookupClass)
+	// - Old code will be gradually refactored to use typeSystem in future tasks
+	// - Once migration is complete, the old fields will be removed (future Phase 4+ work)
 	ts := interptypes.NewTypeSystem()
 
 	interp := &Interpreter{
@@ -112,10 +119,11 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 		callStack:         errors.NewStackTrace(), // Initialize stack trace
 
 		// Phase 3.4.1: TypeSystem (new centralized type registry)
+		// This is the modern API - use this for new code
 		typeSystem: ts,
 
-		// Phase 3.4.1: Keep old fields for backward compatibility
-		// Code will be gradually migrated to use typeSystem instead
+		// Phase 3.4.1: Legacy fields for backward compatibility
+		// These will be removed once migration to typeSystem is complete
 		functions:            make(map[string][]*ast.FunctionDecl), // Task 9.66: Support overloading
 		classes:              make(map[string]*ClassInfo),
 		records:              make(map[string]*RecordTypeValue),
