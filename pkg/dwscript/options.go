@@ -112,3 +112,15 @@ func WithCompileMode(mode CompileMode) Option {
 		return nil
 	}
 }
+
+// GetExternalFunctions returns the external function registry.
+// Task 3.8.1: Implements interp.Options interface to avoid circular dependency.
+func (o *Options) GetExternalFunctions() *interp.ExternalFunctionRegistry {
+	return o.ExternalFunctions
+}
+
+// GetMaxRecursionDepth returns the maximum recursion depth for function calls.
+// Task 3.8.1: Implements interp.Options interface to avoid circular dependency.
+func (o *Options) GetMaxRecursionDepth() int {
+	return o.MaxRecursionDepth
+}
