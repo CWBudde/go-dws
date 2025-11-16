@@ -3,6 +3,7 @@ package token
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 // Position represents a location in the source code.
@@ -61,18 +62,21 @@ func (t Token) String() string {
 	return fmt.Sprintf("%s(%q) at %d:%d", t.Type, t.Literal, t.Pos.Line, t.Pos.Column)
 }
 
-// Length returns the length of the token in characters.
+// Length returns the length of the token in characters (runes).
 // This is useful for error reporting and LSP integration, allowing tools
 // to highlight the exact span of code represented by this token.
+// For byte length, use len(t.Literal).
 func (t Token) Length() int {
-	return len(t.Literal)
+	return utf8.RuneCountInString(t.Literal)
 }
 
 // End returns the position immediately after this token.
+// Column is calculated using rune count to match the lexer's rune-based column tracking.
+// Offset uses byte length for correct byte position in the source.
 func (t Token) End() Position {
 	return Position{
 		Line:   t.Pos.Line,
-		Column: t.Pos.Column + len(t.Literal),
+		Column: t.Pos.Column + utf8.RuneCountInString(t.Literal),
 		Offset: t.Pos.Offset + len(t.Literal),
 	}
 }
