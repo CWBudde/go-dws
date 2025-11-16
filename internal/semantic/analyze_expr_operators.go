@@ -338,31 +338,41 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 
 	// Handle comparison operators
 	if operator == "=" || operator == "<>" || operator == "<" || operator == ">" || operator == "<=" || operator == ">=" {
+		// Task 9.4.1: Allow Variant to be compared with any type
+		leftIsVariant := leftType == types.VARIANT
+		rightIsVariant := rightType == types.VARIANT
+
 		// For equality, types must be comparable
 		if operator == "=" || operator == "<>" {
-			if !types.IsComparableType(leftType) || !types.IsComparableType(rightType) {
-				a.addError("operator %s requires comparable types at %s",
-					operator, expr.Token.Pos.String())
-				return nil
-			}
-			// Types must be compatible
-			if !leftType.Equals(rightType) && !a.canAssign(leftType, rightType) && !a.canAssign(rightType, leftType) {
-				a.addError("cannot compare %s with %s at %s",
-					leftType.String(), rightType.String(), expr.Token.Pos.String())
-				return nil
+			// If either operand is Variant, allow the comparison
+			if !leftIsVariant && !rightIsVariant {
+				if !types.IsComparableType(leftType) || !types.IsComparableType(rightType) {
+					a.addError("operator %s requires comparable types at %s",
+						operator, expr.Token.Pos.String())
+					return nil
+				}
+				// Types must be compatible
+				if !leftType.Equals(rightType) && !a.canAssign(leftType, rightType) && !a.canAssign(rightType, leftType) {
+					a.addError("cannot compare %s with %s at %s",
+						leftType.String(), rightType.String(), expr.Token.Pos.String())
+					return nil
+				}
 			}
 		} else {
 			// For ordering, types must be orderable
-			if !types.IsOrderedType(leftType) || !types.IsOrderedType(rightType) {
-				a.addError("operator %s requires ordered types, got %s and %s at %s",
-					operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
-				return nil
-			}
-			// Types must match (or be compatible)
-			if !leftType.Equals(rightType) && !a.canAssign(leftType, rightType) && !a.canAssign(rightType, leftType) {
-				a.addError("cannot compare %s with %s at %s",
-					leftType.String(), rightType.String(), expr.Token.Pos.String())
-				return nil
+			// Task 9.4.1: Allow Variant in ordering comparisons
+			if !leftIsVariant && !rightIsVariant {
+				if !types.IsOrderedType(leftType) || !types.IsOrderedType(rightType) {
+					a.addError("operator %s requires ordered types, got %s and %s at %s",
+						operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
+					return nil
+				}
+				// Types must match (or be compatible)
+				if !leftType.Equals(rightType) && !a.canAssign(leftType, rightType) && !a.canAssign(rightType, leftType) {
+					a.addError("cannot compare %s with %s at %s",
+						leftType.String(), rightType.String(), expr.Token.Pos.String())
+					return nil
+				}
 			}
 		}
 		return types.BOOLEAN

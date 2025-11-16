@@ -862,6 +862,8 @@ just test
 
 **Estimate**: 3-4 hours
 
+**Status**: DONE
+
 **Implementation**:
 1. Add Null and Unassigned as built-in constants in symbol table
 2. Create special value types in interpreter runtime

@@ -355,6 +355,12 @@ func isFalsey(val Value) bool {
 		return !v.Value
 	case *NilValue:
 		return true
+	case *NullValue:
+		// Task 9.4.1: Null is always falsey
+		return true
+	case *UnassignedValue:
+		// Task 9.4.1: Unassigned is always falsey
+		return true
 	case *ArrayValue:
 		return len(v.Elements) == 0
 	case *VariantValue:
@@ -652,23 +658,37 @@ func (i *Interpreter) evalVariantBinaryOp(op string, left, right Value, node ast
 	leftVal := unwrapVariant(left)
 	rightVal := unwrapVariant(right)
 
-	// Handle nil/unassigned Variants
+	// Task 9.4.1: Check for Null/Unassigned/Nil values
+	// These are all considered equivalent to each other and to falsey values
 	_, leftIsNil := leftVal.(*NilValue)
 	_, rightIsNil := rightVal.(*NilValue)
+	_, leftIsNull := leftVal.(*NullValue)
+	_, rightIsNull := rightVal.(*NullValue)
+	_, leftIsUnassigned := leftVal.(*UnassignedValue)
+	_, rightIsUnassigned := rightVal.(*UnassignedValue)
 
-	// For comparison operators with nil, handle specially
-	if (op == "=" || op == "<>") && (leftIsNil || rightIsNil) {
-		if leftIsNil && rightIsNil {
+	leftIsNullish := leftIsNil || leftIsNull || leftIsUnassigned
+	rightIsNullish := rightIsNil || rightIsNull || rightIsUnassigned
+
+	// For comparison operators, Null/Unassigned/Nil are equal to each other
+	// Task 9.4.1: Null/Unassigned/Nil are only equal to each other, not to other falsey values
+	// (unless the other value is also Null/Unassigned/Nil)
+	if op == "=" || op == "<>" {
+		// If both are nullish, they're equal
+		if leftIsNullish && rightIsNullish {
 			return &BooleanValue{Value: op == "="}
 		}
-		return &BooleanValue{Value: op == "<>"}
+		// If one is nullish and the other is not, they're not equal
+		if leftIsNullish || rightIsNullish {
+			return &BooleanValue{Value: op == "<>"}
+		}
 	}
 
-	// Error if either operand is nil for non-comparison operators
-	if leftIsNil {
+	// Error if either operand is nullish for non-comparison operators
+	if leftIsNullish {
 		return i.newErrorWithLocation(node, "cannot perform operation on unassigned Variant")
 	}
-	if rightIsNil {
+	if rightIsNullish {
 		return i.newErrorWithLocation(node, "cannot perform operation on unassigned Variant")
 	}
 
