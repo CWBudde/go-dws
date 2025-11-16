@@ -89,6 +89,10 @@ func (i *Interpreter) evalClassMethodImplementation(fn *ast.FunctionDecl, classI
 	if fn.IsDestructor {
 		classInfo.Destructor = fn
 	}
+
+	// Task 9.14: Rebuild the VMT after adding method implementation
+	// This ensures the VMT has references to methods with bodies, not just declarations
+	classInfo.buildVirtualMethodTable()
 }
 
 // evalRecordMethodImplementation handles record method implementation registration
@@ -494,8 +498,11 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		}
 	}
 
-	// Note: Class is already registered above (before processing fields)
-	// to allow field initializers to reference the class name
+	// Build virtual method table after all methods and fields are processed
+	classInfo.buildVirtualMethodTable()
+
+	// Register class in registry
+	i.classes[classInfo.Name] = classInfo
 
 	return &NilValue{}
 }
@@ -824,6 +831,13 @@ func (i *Interpreter) replaceMethodInOverloadList(list []*ast.FunctionDecl, impl
 	for idx, decl := range list {
 		// Match by parameter count and types
 		if parametersMatch(decl.Parameters, impl.Parameters) {
+			// Task 9.14: Preserve virtual/override/reintroduce flags from declaration
+			// The implementation doesn't have these keywords, but we need to preserve them
+			impl.IsVirtual = decl.IsVirtual
+			impl.IsOverride = decl.IsOverride
+			impl.IsReintroduce = decl.IsReintroduce
+			impl.IsAbstract = decl.IsAbstract
+
 			// Replace the declaration with the implementation
 			list[idx] = impl
 			return list
