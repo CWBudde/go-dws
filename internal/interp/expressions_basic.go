@@ -44,6 +44,7 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 			return actualVal
 		}
 
+		// Return the value as-is
 		return val
 	}
 
@@ -158,11 +159,12 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 		}
 	}
 
-	// Before returning error, check if this is a parameterless function/procedure call
-	// In DWScript, you can call parameterless procedures without parentheses: "Test;" instead of "Test();"
+	// Before returning error, check if this is a function name
+	// In DWScript, functions can be referenced as values (function pointers)
+	// or called without parentheses if they have zero parameters
 	// DWScript is case-insensitive, so normalize the function name to lowercase
 	if overloads, exists := i.functions[strings.ToLower(node.Value)]; exists && len(overloads) > 0 {
-		// For parameterless call or function pointer, resolve to the no-arg overload
+		// For function pointer or parameterless call, resolve to the appropriate overload
 		var fn *ast.FunctionDecl
 		if len(overloads) == 1 {
 			fn = overloads[0]
@@ -183,6 +185,11 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 		// Check if function has zero parameters
 		if len(fn.Parameters) == 0 {
 			// Auto-invoke the parameterless function/procedure
+			// This allows DWScript code like:
+			//   var n := GetTickCount;
+			//   if TestFlag then ...
+			// to work correctly (calling the function, not creating a pointer)
+			// For explicit function pointer creation, use @ syntax: var fp := @GetTickCount;
 			return i.callUserFunction(fn, []Value{})
 		}
 

@@ -125,6 +125,25 @@ func TestParseFunctionPointerTypeDeclarations(t *testing.T) {
 			hasReturnType: false,
 			ofObject:      true,
 		},
+		{
+			name:          "procedure pointer without parentheses",
+			input:         "type TMyProc = procedure;",
+			expectedName:  "TMyProc",
+			isFunction:    false,
+			paramCount:    0,
+			hasReturnType: false,
+			ofObject:      false,
+		},
+		{
+			name:           "function pointer without parentheses",
+			input:          "type TMyFunc = function: Integer;",
+			expectedName:   "TMyFunc",
+			isFunction:     true,
+			paramCount:     0,
+			hasReturnType:  true,
+			returnTypeName: "Integer",
+			ofObject:       false,
+		},
 	}
 
 	for _, tt := range tests {
