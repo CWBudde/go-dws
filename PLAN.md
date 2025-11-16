@@ -4655,7 +4655,7 @@ This phase delivers an auto-formatting pipeline that reuses the existing AST and
 
 **Benefits**: Consistent code style, automated formatting, editor integration, playground support
 
-### Phase 19.1: Specification & AST/Data Prep (7 tasks)
+### Phase 25.1: Specification & AST/Data Prep (7 tasks)
 
 - [x] 25.1.1 Capture formatting requirements from upstream DWScript (indent width, begin/end alignment, keyword casing, line-wrapping) and document them in `docs/formatter-style-guide.md`.
 - [x] 25.1.2 Audit current AST nodes for source position fidelity and comment/trivia preservation; list any nodes lacking `Pos` / `EndPos`.
@@ -4665,7 +4665,7 @@ This phase delivers an auto-formatting pipeline that reuses the existing AST and
 - [ ] 25.1.6 Add helper APIs to serialize AST back into token streams (e.g., `ast.FormatNode`, `ast.IterChildren`) to keep formatter logic decoupled from parser internals.
 - [ ] 25.1.7 Ensure the semantic/type metadata needed for spacing decisions (e.g., `var` params, attributes) is exposed through lightweight inspector interfaces to avoid circular imports.
 
-### Phase 19.2: Formatter Engine Implementation (10 tasks)
+### Phase 25.2: Formatter Engine Implementation (10 tasks)
 
 - [ ] 25.2.1 Create `formatter` package with a multi-phase pipeline: AST normalization → layout planning → text emission.
 - [ ] 25.2.2 Implement a visitor that emits `format.Node` instructions (indent/dedent, soft break, literal text) for statements and declarations, leveraging AST shape rather than raw tokens.
