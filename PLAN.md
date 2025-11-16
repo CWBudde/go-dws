@@ -369,12 +369,12 @@ if !p.curTokenIs(lexer.END) {
 ```
 
 **Implementation**:
-- [ ] Design synchronization token sets (statement starters, block closers)
-- [ ] Implement `p.synchronize(tokens []TokenType)` method
-- [ ] Track block nesting depth to find matching `end` keywords
-- [ ] Add context to error messages (e.g., "expected 'end' for 'begin' at line 10")
-- [ ] Improve error recovery in expression parsing
-- [ ] Test error recovery with malformed input
+- [x] Design synchronization token sets (statement starters, block closers)
+- [x] Implement `p.synchronize(tokens []TokenType)` method
+- [x] Track block nesting depth to find matching `end` keywords
+- [x] Add context to error messages (e.g., "expected 'end' for 'begin' at line 10")
+- [x] Improve error recovery in expression parsing
+- [x] Test error recovery with malformed input
 
 **Files Modified**:
 - `internal/parser/parser.go` (~80 lines added)
@@ -389,6 +389,34 @@ if !p.curTokenIs(lexer.END) {
 - Verify useful error messages with context
 
 **Estimate**: 6-8 hours
+
+**Status**: ✅ **DONE**
+
+**Actual Implementation**:
+- Implemented BlockContext tracking with blockStack in Parser
+- Created synchronization token sets (statementStarters, blockClosers, declarationStarters)
+- Implemented `synchronize()` method for panic-mode error recovery
+- Added `pushBlockContext()`, `popBlockContext()`, and `currentBlockContext()` methods
+- Implemented `addErrorWithContext()` for context-aware error messages
+- Updated parseBlockStatement() with context tracking and synchronization
+- Updated parseIfStatement() with improved error recovery
+- Updated parseWhileStatement() with improved error recovery
+- Updated parseRepeatStatement() with improved error recovery
+- Updated parseCaseStatement() with improved error recovery
+- Updated ParserState to include blockStack for correct state restoration
+- Created comprehensive error_recovery_test.go with 490 lines of tests
+- All existing parser tests pass (no regressions)
+- Code formatted with `go fmt`
+
+**Files Modified**:
+- `internal/parser/parser.go` (~110 lines added: BlockContext type, blockStack field, synchronize method, context tracking)
+- `internal/parser/statements.go` (~10 lines modified: parseBlockStatement with context)
+- `internal/parser/control_flow.go` (~50 lines modified: if/while/repeat/case statements)
+
+**Files Created**:
+- `internal/parser/error_recovery_test.go` (490 lines with 30+ test cases)
+
+**Actual Time**: ~5 hours (faster than estimated due to clean architecture)
 
 ---
 
