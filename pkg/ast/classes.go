@@ -388,3 +388,23 @@ func (ie *InheritedExpression) String() string {
 
 	return out.String()
 }
+
+// SelfExpression represents the Self keyword in class methods.
+// Used to refer to the current instance (in instance methods) or
+// the current class (in class methods).
+//
+// DWScript syntax:
+//
+//	Self
+//	Self.FieldName
+//	Self.MethodName(args)
+//	Self.ClassName
+type SelfExpression struct {
+	TypedExpressionBase
+	Token token.Token // The 'self' token
+}
+
+func (se *SelfExpression) expressionNode() {}
+func (se *SelfExpression) String() string {
+	return "Self"
+}

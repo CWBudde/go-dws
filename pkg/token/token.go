@@ -155,6 +155,7 @@ const (
 	FINAL       // final
 	NEW         // new
 	INHERITED   // inherited
+	SELF        // self
 	REINTRODUCE // reintroduce
 	OPERATOR    // operator
 	HELPER      // helper
@@ -407,6 +408,7 @@ var tokenTypeStrings = [...]string{
 	FINAL:       "FINAL",
 	NEW:         "NEW",
 	INHERITED:   "INHERITED",
+	SELF:        "SELF",
 	REINTRODUCE: "REINTRODUCE",
 	OPERATOR:    "OPERATOR",
 	HELPER:      "HELPER",
@@ -616,6 +618,7 @@ var keywords = map[string]TokenType{
 	"final":       FINAL,
 	"new":         NEW,
 	"inherited":   INHERITED,
+	"self":        SELF,
 	"reintroduce": REINTRODUCE,
 	"operator":    OPERATOR,
 	"helper":      HELPER,

@@ -935,6 +935,26 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 	return inheritedExpr
 }
 
+// parseSelfExpression parses a self expression.
+// The Self keyword refers to the current instance (in instance methods) or
+// the current class (in class methods).
+// Usage: Self, Self.Field, Self.Method()
+func (p *Parser) parseSelfExpression() ast.Expression {
+	selfExpr := &ast.SelfExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken, // The 'self' keyword
+			},
+		},
+		Token: p.curToken,
+	}
+
+	// Set end position at the Self keyword itself
+	selfExpr.EndPos = p.endPosFromToken(p.curToken)
+
+	return selfExpr
+}
+
 // parseLambdaExpression parses a lambda/anonymous function expression.
 // Supports both full and shorthand syntax:
 //   - Full: lambda(x: Integer): Integer begin Result := x * 2; end

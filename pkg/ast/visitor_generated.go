@@ -136,6 +136,8 @@ func Walk(v Visitor, node Node) {
 		walkRepeatStatement(n, v)
 	case *ReturnStatement:
 		walkReturnStatement(n, v)
+	case *SelfExpression:
+		walkSelfExpression(n, v)
 	case *SetDecl:
 		walkSetDecl(n, v)
 	case *SetLiteral:
@@ -860,6 +862,11 @@ func walkReturnStatement(n *ReturnStatement, v Visitor) {
 	if n.ReturnValue != nil {
 		Walk(v, n.ReturnValue)
 	}
+}
+
+// walkSelfExpression walks a SelfExpression node
+func walkSelfExpression(n *SelfExpression, v Visitor) {
+	// No children to walk
 }
 
 // walkSetDecl walks a SetDecl node

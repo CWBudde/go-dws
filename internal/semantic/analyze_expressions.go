@@ -76,6 +76,9 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 	case *ast.InheritedExpression:
 		// Task 9.161: Handle 'inherited' expressions
 		return a.analyzeInheritedExpression(e)
+	case *ast.SelfExpression:
+		// Task 9.7: Handle 'Self' expressions
+		return a.analyzeSelfExpression(e)
 	case *ast.IsExpression:
 		// Task 9.40: Handle 'is' type checking operator
 		return a.analyzeIsExpression(e)
