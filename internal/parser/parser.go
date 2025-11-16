@@ -363,7 +363,14 @@ func (p *Parser) ParseProgram() *ast.Program {
 
 		stmt := p.parseStatement()
 		if stmt != nil {
-			program.Statements = append(program.Statements, stmt)
+			// If parseVarDeclaration() wrapped multiple declarations in a BlockStatement,
+			// unwrap it to avoid creating an extra nested scope in the semantic analyzer
+			if blockStmt, ok := stmt.(*ast.BlockStatement); ok && p.isVarDeclBlock(blockStmt) {
+				// Add each var declaration individually
+				program.Statements = append(program.Statements, blockStmt.Statements...)
+			} else {
+				program.Statements = append(program.Statements, stmt)
+			}
 		}
 		p.nextToken()
 	}
@@ -372,6 +379,29 @@ func (p *Parser) ParseProgram() *ast.Program {
 	program.EndPos = p.endPosFromToken(p.curToken)
 
 	return program
+}
+
+// isVarDeclBlock checks if a BlockStatement was created by parseVarDeclaration()
+// to wrap multiple var declarations. These should be unwrapped to avoid extra scope nesting.
+// We distinguish them from begin...end blocks by checking the token type:
+// - parseVarDeclaration() uses VAR token
+// - parseBlockStatement() uses BEGIN token
+func (p *Parser) isVarDeclBlock(block *ast.BlockStatement) bool {
+	// Must have VAR token (not BEGIN)
+	if block.Token.Type != lexer.VAR {
+		return false
+	}
+	// Must contain at least one statement
+	if len(block.Statements) == 0 {
+		return false
+	}
+	// All statements must be VarDeclStatement
+	for _, stmt := range block.Statements {
+		if _, ok := stmt.(*ast.VarDeclStatement); !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // parseFieldInitializer parses an optional field initializer (= Value or := Value).

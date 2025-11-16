@@ -287,7 +287,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 				}
 				// If parseVarDeclaration() wrapped multiple declarations in a BlockStatement,
 				// unwrap it to avoid creating an extra nested scope in the semantic analyzer
-				if blockStmt, ok := varDecl.(*ast.BlockStatement); ok {
+				if blockStmt, ok := varDecl.(*ast.BlockStatement); ok && p.isVarDeclBlock(blockStmt) {
 					// Add each var declaration individually
 					fn.Body.Statements = append(fn.Body.Statements, blockStmt.Statements...)
 				} else {
