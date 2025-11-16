@@ -62,9 +62,9 @@ func (p *Parser) looksLikeTypeDeclaration() bool {
 	}
 
 	// Look ahead past peekToken to see if the next token is '='
-	// Since parser is already 1 token ahead (peekToken = IDENT), Peek(0) gives us
+	// Since parser is already 1 token ahead (peekToken = IDENT), peek(0) gives us
 	// the token after peekToken, which should be '='
-	tok := p.l.Peek(0)
+	tok := p.peek(0)
 	return tok.Type == lexer.EQ
 }
 
