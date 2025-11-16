@@ -2643,14 +2643,14 @@ var y := 'valid';
 			errorCol:  1,
 		},
 		{
-			name: "unterminated string mid-line",
-			input: `var x := 42; var s := 'unterminated`,
+			name:      "unterminated string mid-line",
+			input:     `var x := 42; var s := 'unterminated`,
 			errorLine: 1,
 			errorCol:  23,
 		},
 		{
-			name: "unterminated double-quoted string",
-			input: `var x := "unterminated`,
+			name:      "unterminated double-quoted string",
+			input:     `var x := "unterminated`,
 			errorLine: 1,
 			errorCol:  10,
 		},
