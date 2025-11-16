@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -620,17 +621,17 @@ func TestEdgeCases(t *testing.T) {
 		{
 			name:         "unterminated string",
 			input:        "'hello",
-			expectedType: ILLEGAL,
+			expectedType: STRING, // Now returns STRING token with error accumulated
 		},
 		{
 			name:         "unterminated block comment",
 			input:        "{ comment",
-			expectedType: ILLEGAL,
+			expectedType: EOF, // Comments skip to EOF, error is accumulated
 		},
 		{
 			name:         "unterminated C-style comment",
 			input:        "/* comment",
-			expectedType: ILLEGAL,
+			expectedType: EOF, // Comments skip to EOF, error is accumulated
 		},
 	}
 
@@ -642,6 +643,15 @@ func TestEdgeCases(t *testing.T) {
 			if tok.Type != tt.expectedType {
 				t.Fatalf("tokentype wrong. expected=%q, got=%q (literal=%q)",
 					tt.expectedType, tok.Type, tok.Literal)
+			}
+
+			// For error cases, verify error was accumulated (Task 12.1)
+			if tt.name == "unterminated string" || tt.name == "unterminated block comment" ||
+				tt.name == "unterminated C-style comment" || tt.name == "illegal character" {
+				errors := l.Errors()
+				if len(errors) == 0 {
+					t.Errorf("expected error to be accumulated, but got none")
+				}
 			}
 		})
 	}
@@ -1709,5 +1719,756 @@ func TestNotInOperator(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestErrorAccumulation tests that lexer errors are properly accumulated
+// instead of stopping at the first error (Task 12.1)
+func TestErrorAccumulation(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedCount int
+		errorMessages []string
+	}{
+		{
+			name:          "Unterminated string - single quote",
+			input:         `'hello`,
+			expectedCount: 1,
+			errorMessages: []string{"unterminated string literal"},
+		},
+		{
+			name:          "Unterminated string - double quote",
+			input:         `"hello`,
+			expectedCount: 1,
+			errorMessages: []string{"unterminated string literal"},
+		},
+		{
+			name:          "Unterminated block comment - brace style",
+			input:         `{ this is a comment`,
+			expectedCount: 1,
+			errorMessages: []string{"unterminated block comment"},
+		},
+		{
+			name:          "Unterminated block comment - paren style",
+			input:         `(* this is a comment`,
+			expectedCount: 1,
+			errorMessages: []string{"unterminated block comment"},
+		},
+		{
+			name:          "Unterminated C-style comment",
+			input:         `/* this is a comment`,
+			expectedCount: 1,
+			errorMessages: []string{"unterminated C-style comment"},
+		},
+		{
+			name:          "Invalid character literal",
+			input:         `'hello'#XYZ'world'`,
+			expectedCount: 1,
+			errorMessages: []string{"invalid character literal"},
+		},
+		{
+			name:          "Illegal character",
+			input:         `¿`,
+			expectedCount: 1,
+			errorMessages: []string{"illegal character"},
+		},
+		{
+			name:          "Multiple errors - illegal characters",
+			input:         "x := 5; ¿ y := 10; ¡",
+			expectedCount: 2,
+			errorMessages: []string{"illegal character"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+
+			// Consume all tokens
+			for {
+				tok := l.NextToken()
+				if tok.Type == EOF {
+					break
+				}
+			}
+
+			errors := l.Errors()
+			if len(errors) != tt.expectedCount {
+				t.Errorf("expected %d errors, got %d", tt.expectedCount, len(errors))
+				for i, err := range errors {
+					t.Logf("  error[%d]: %s", i, err.Message)
+				}
+				return
+			}
+
+			// Check that expected error messages are present
+			for _, expectedMsg := range tt.errorMessages {
+				found := false
+				for _, err := range errors {
+					if len(err.Message) >= len(expectedMsg) && err.Message[:len(expectedMsg)] == expectedMsg {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected error message containing %q not found", expectedMsg)
+					for i, err := range errors {
+						t.Logf("  error[%d]: %s", i, err.Message)
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestErrorAccumulationPositions tests that error positions are correct
+func TestErrorAccumulationPositions(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		expectedLine int
+		expectedCol  int
+	}{
+		{
+			name:         "Unterminated string at start",
+			input:        `'hello`,
+			expectedLine: 1,
+			expectedCol:  1,
+		},
+		{
+			name:         "Unterminated string on line 2",
+			input:        "x := 5;\n'hello",
+			expectedLine: 2,
+			expectedCol:  1,
+		},
+		{
+			name:         "Unterminated comment on line 3",
+			input:        "x := 5;\ny := 10;\n{ comment",
+			expectedLine: 3,
+			expectedCol:  1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+
+			// Consume all tokens
+			for {
+				tok := l.NextToken()
+				if tok.Type == EOF {
+					break
+				}
+			}
+
+			errors := l.Errors()
+			if len(errors) == 0 {
+				t.Fatal("expected at least one error")
+			}
+
+			err := errors[0]
+			if err.Pos.Line != tt.expectedLine {
+				t.Errorf("error line wrong. expected=%d, got=%d", tt.expectedLine, err.Pos.Line)
+			}
+			if err.Pos.Column != tt.expectedCol {
+				t.Errorf("error column wrong. expected=%d, got=%d", tt.expectedCol, err.Pos.Column)
+			}
+		})
+	}
+}
+
+// TestNoErrorsOnValidInput tests that no errors are accumulated for valid input
+func TestNoErrorsOnValidInput(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "Simple program",
+			input: `var x := 5; x := x + 10;`,
+		},
+		{
+			name:  "String literals",
+			input: `'hello' "world" 'it''s'`,
+		},
+		{
+			name:  "Block comments",
+			input: `{ comment } (* another *) /* c-style */`,
+		},
+		{
+			name:  "Character literals",
+			input: `#13 #10 #$0D #$0A`,
+		},
+		{
+			name:  "String concatenation",
+			input: `'hello'#13#10'world'`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+
+			// Consume all tokens
+			for {
+				tok := l.NextToken()
+				if tok.Type == EOF {
+					break
+				}
+			}
+
+			errors := l.Errors()
+			if len(errors) != 0 {
+				t.Errorf("expected no errors, got %d", len(errors))
+				for i, err := range errors {
+					t.Logf("  error[%d]: %s at %d:%d", i, err.Message, err.Pos.Line, err.Pos.Column)
+				}
+			}
+		})
+	}
+}
+
+// TestPeekCharDoesNotModifyState tests that peekChar() doesn't modify lexer state (Task 12.2.3)
+func TestPeekCharDoesNotModifyState(t *testing.T) {
+	input := "abc"
+	l := New(input)
+
+	// Current character should be 'a'
+	if l.ch != 'a' {
+		t.Fatalf("expected current char 'a', got %c", l.ch)
+	}
+
+	// Peek should return 'b'
+	peeked := l.peekChar()
+	if peeked != 'b' {
+		t.Fatalf("peekChar() expected 'b', got %c", peeked)
+	}
+
+	// Current character should still be 'a'
+	if l.ch != 'a' {
+		t.Fatalf("after peekChar(), expected current char 'a', got %c", l.ch)
+	}
+
+	// Position should not have changed
+	if l.position != 0 {
+		t.Fatalf("after peekChar(), expected position 0, got %d", l.position)
+	}
+}
+
+// TestPeekCharN tests peekCharN() for various N values (Task 12.2.3)
+func TestPeekCharN(t *testing.T) {
+	input := "abcdef"
+	l := New(input)
+
+	tests := []struct {
+		n        int
+		expected rune
+	}{
+		{1, 'b'}, // peek 1 ahead
+		{2, 'c'}, // peek 2 ahead
+		{3, 'd'}, // peek 3 ahead
+		{4, 'e'}, // peek 4 ahead
+		{5, 'f'}, // peek 5 ahead
+		{6, 0},   // peek beyond EOF
+		{10, 0},  // peek way beyond EOF
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("peek_%d", tt.n), func(t *testing.T) {
+			peeked := l.peekCharN(tt.n)
+			if peeked != tt.expected {
+				t.Errorf("peekCharN(%d) expected %q, got %q", tt.n, tt.expected, peeked)
+			}
+
+			// Current character should still be 'a'
+			if l.ch != 'a' {
+				t.Errorf("after peekCharN(%d), expected current char 'a', got %c", tt.n, l.ch)
+			}
+
+			// Position should not have changed
+			if l.position != 0 {
+				t.Errorf("after peekCharN(%d), expected position 0, got %d", tt.n, l.position)
+			}
+		})
+	}
+}
+
+// TestPeekCharNWithUTF8 tests peekCharN() with multi-byte UTF-8 characters (Task 12.2.3)
+func TestPeekCharNWithUTF8(t *testing.T) {
+	input := "aβγδ" // 'a' (1 byte), 'β' (2 bytes), 'γ' (2 bytes), 'δ' (2 bytes)
+	l := New(input)
+
+	tests := []struct {
+		n        int
+		expected rune
+	}{
+		{1, 'β'},
+		{2, 'γ'},
+		{3, 'δ'},
+		{4, 0}, // beyond EOF
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("peek_%d", tt.n), func(t *testing.T) {
+			peeked := l.peekCharN(tt.n)
+			if peeked != tt.expected {
+				t.Errorf("peekCharN(%d) expected %q, got %q", tt.n, tt.expected, peeked)
+			}
+
+			// Current character should still be 'a'
+			if l.ch != 'a' {
+				t.Errorf("after peekCharN(%d), expected current char 'a', got %c", tt.n, l.ch)
+			}
+		})
+	}
+}
+
+// TestSaveRestoreStateSymmetry tests that saveState/restoreState is symmetric (Task 12.2.3)
+func TestSaveRestoreStateSymmetry(t *testing.T) {
+	input := "var x := 5;\ny := 10;"
+	l := New(input)
+
+	// Save initial state
+	state1 := l.saveState()
+
+	// Advance lexer by reading some tokens
+	l.NextToken() // var
+	l.NextToken() // x
+	l.NextToken() // :=
+
+	// Save state after tokens
+	state2 := l.saveState()
+
+	// Advance more
+	l.NextToken() // 5
+	l.NextToken() // ;
+
+	// Check we're at a different position
+	if l.position == state2.position {
+		t.Fatal("lexer should have advanced")
+	}
+
+	// Restore to state2
+	l.restoreState(state2)
+
+	// Verify state matches state2
+	if l.position != state2.position {
+		t.Errorf("position mismatch: expected %d, got %d", state2.position, l.position)
+	}
+	if l.readPosition != state2.readPosition {
+		t.Errorf("readPosition mismatch: expected %d, got %d", state2.readPosition, l.readPosition)
+	}
+	if l.ch != state2.ch {
+		t.Errorf("ch mismatch: expected %c, got %c", state2.ch, l.ch)
+	}
+	if l.line != state2.line {
+		t.Errorf("line mismatch: expected %d, got %d", state2.line, l.line)
+	}
+	if l.column != state2.column {
+		t.Errorf("column mismatch: expected %d, got %d", state2.column, l.column)
+	}
+
+	// Next token should be '5' again
+	tok := l.NextToken()
+	if tok.Type != INT || tok.Literal != "5" {
+		t.Errorf("after restore, expected INT(5), got %s(%s)", tok.Type, tok.Literal)
+	}
+
+	// Restore to initial state
+	l.restoreState(state1)
+
+	// Next token should be 'var' again
+	tok = l.NextToken()
+	if tok.Type != VAR || tok.Literal != "var" {
+		t.Errorf("after restore to initial, expected VAR(var), got %s(%s)", tok.Type, tok.Literal)
+	}
+}
+
+// TestSaveRestoreStatePreservesLineColumn tests that line/column are correctly saved/restored (Task 12.2.3)
+func TestSaveRestoreStatePreservesLineColumn(t *testing.T) {
+	input := "var x := 5;\ny := 10;\nz := 15;"
+	l := New(input)
+
+	// Read some tokens to advance through the input
+	l.NextToken() // var
+	l.NextToken() // x
+	l.NextToken() // :=
+	l.NextToken() // 5
+	l.NextToken() // ;
+
+	// Should be on line 2 now (after the newline)
+	line1 := l.line
+	col1 := l.column
+
+	// Save state
+	state := l.saveState()
+
+	// Read more tokens
+	l.NextToken() // y
+	l.NextToken() // :=
+	l.NextToken() // 10
+	l.NextToken() // ;
+
+	// Should have advanced
+	if l.line == line1 && l.column == col1 {
+		t.Fatal("lexer should have advanced")
+	}
+
+	line2 := l.line
+	col2 := l.column
+
+	// Restore to saved state
+	l.restoreState(state)
+
+	// Should be back at the saved position
+	if l.line != state.line {
+		t.Errorf("after restore, line mismatch: expected %d, got %d", state.line, l.line)
+	}
+	if l.column != state.column {
+		t.Errorf("after restore, column mismatch: expected %d, got %d", state.column, l.column)
+	}
+	if l.line == line2 || l.column == col2 {
+		t.Error("after restore, should not be at the advanced position")
+	}
+}
+
+// TestCharLiteralStandaloneStillWorks tests that isCharLiteralStandalone works after refactoring (Task 12.2.2)
+func TestCharLiteralStandaloneStillWorks(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		isStandalone bool
+	}{
+		{
+			name:         "standalone character literal",
+			input:        "#65",
+			isStandalone: true,
+		},
+		{
+			name:         "character literal followed by space and string",
+			input:        "#65 'hello'",
+			isStandalone: true, // space separates them
+		},
+		{
+			name:         "character literal immediately followed by string",
+			input:        "#65'hello'",
+			isStandalone: false, // no space, part of concatenation
+		},
+		{
+			name:         "character literal followed by another char literal",
+			input:        "#65#66",
+			isStandalone: false, // concatenation
+		},
+		{
+			name:         "hex character literal standalone",
+			input:        "#$41",
+			isStandalone: true,
+		},
+		{
+			name:         "hex character literal in concatenation",
+			input:        "#$41#$42",
+			isStandalone: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+			result := l.isCharLiteralStandalone()
+			if result != tt.isStandalone {
+				t.Errorf("isCharLiteralStandalone() = %v, expected %v", result, tt.isStandalone)
+			}
+
+			// Verify state wasn't changed
+			if l.position != 0 {
+				t.Errorf("isCharLiteralStandalone() changed position to %d, expected 0", l.position)
+			}
+			if l.ch != '#' {
+				t.Errorf("isCharLiteralStandalone() changed ch to %c, expected '#'", l.ch)
+			}
+		})
+	}
+}
+
+// TestMatchAndConsume tests the matchAndConsume helper method (Task 12.5.1)
+func TestMatchAndConsume(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    rune
+		shouldMatch bool
+		expectedPos int  // position after matchAndConsume
+		expectedCh  rune // current char after matchAndConsume
+	}{
+		{
+			name:        "match succeeds",
+			input:       "++",
+			expected:    '+',
+			shouldMatch: true,
+			expectedPos: 1,
+			expectedCh:  '+',
+		},
+		{
+			name:        "match fails",
+			input:       "+=",
+			expected:    '+',
+			shouldMatch: false,
+			expectedPos: 0,
+			expectedCh:  '+',
+		},
+		{
+			name:        "match at end of input",
+			input:       "+",
+			expected:    0, // EOF
+			shouldMatch: true,
+			expectedPos: 1,
+			expectedCh:  0,
+		},
+		{
+			name:        "no match at end of input",
+			input:       "+",
+			expected:    'x',
+			shouldMatch: false,
+			expectedPos: 0,
+			expectedCh:  '+',
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+			result := l.matchAndConsume(tt.expected)
+
+			if result != tt.shouldMatch {
+				t.Errorf("matchAndConsume(%q) = %v, expected %v", tt.expected, result, tt.shouldMatch)
+			}
+
+			if l.position != tt.expectedPos {
+				t.Errorf("after matchAndConsume, position = %d, expected %d", l.position, tt.expectedPos)
+			}
+
+			if l.ch != tt.expectedCh {
+				t.Errorf("after matchAndConsume, ch = %q, expected %q", l.ch, tt.expectedCh)
+			}
+		})
+	}
+}
+
+// TestPeekToken tests basic token peeking functionality (Task 12.3.2)
+func TestPeekToken(t *testing.T) {
+	input := "var x := 5;"
+	l := New(input)
+
+	// Peek at first token without consuming
+	tok := l.Peek(0)
+	if tok.Type != VAR || tok.Literal != "var" {
+		t.Fatalf("Peek(0) expected VAR(var), got %s(%s)", tok.Type, tok.Literal)
+	}
+
+	// Peek again - should get same token
+	tok2 := l.Peek(0)
+	if tok2.Type != VAR || tok2.Literal != "var" {
+		t.Fatalf("Peek(0) second call expected VAR(var), got %s(%s)", tok2.Type, tok2.Literal)
+	}
+
+	// Peek ahead 1 token
+	tok3 := l.Peek(1)
+	if tok3.Type != IDENT || tok3.Literal != "x" {
+		t.Fatalf("Peek(1) expected IDENT(x), got %s(%s)", tok3.Type, tok3.Literal)
+	}
+
+	// First peek should still return var
+	tok4 := l.Peek(0)
+	if tok4.Type != VAR {
+		t.Fatalf("Peek(0) after Peek(1) expected VAR, got %s", tok4.Type)
+	}
+
+	// Now consume the first token
+	consumed := l.NextToken()
+	if consumed.Type != VAR || consumed.Literal != "var" {
+		t.Fatalf("NextToken() expected VAR(var), got %s(%s)", consumed.Type, consumed.Literal)
+	}
+
+	// Peek should now return the next token
+	tok5 := l.Peek(0)
+	if tok5.Type != IDENT || tok5.Literal != "x" {
+		t.Fatalf("Peek(0) after NextToken() expected IDENT(x), got %s(%s)", tok5.Type, tok5.Literal)
+	}
+}
+
+// TestPeekMultipleTokens tests peeking multiple tokens ahead (Task 12.3.2)
+func TestPeekMultipleTokens(t *testing.T) {
+	input := "var x := 5;"
+	l := New(input)
+
+	tests := []struct {
+		peekN        int
+		expectedType TokenType
+		expectedLit  string
+	}{
+		{0, VAR, "var"},
+		{1, IDENT, "x"},
+		{2, ASSIGN, ":="},
+		{3, INT, "5"},
+		{4, SEMICOLON, ";"},
+		{5, EOF, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("Peek(%d)", tt.peekN), func(t *testing.T) {
+			tok := l.Peek(tt.peekN)
+			if tok.Type != tt.expectedType {
+				t.Errorf("Peek(%d) type: expected %s, got %s", tt.peekN, tt.expectedType, tok.Type)
+			}
+			if tok.Literal != tt.expectedLit {
+				t.Errorf("Peek(%d) literal: expected %q, got %q", tt.peekN, tt.expectedLit, tok.Literal)
+			}
+		})
+	}
+
+	// Peek should not consume - first NextToken should still return VAR
+	tok := l.NextToken()
+	if tok.Type != VAR {
+		t.Errorf("After all Peeks, NextToken() expected VAR, got %s", tok.Type)
+	}
+}
+
+// TestPeekAndConsumeInterleaved tests interleaving Peek and NextToken (Task 12.3.2)
+func TestPeekAndConsumeInterleaved(t *testing.T) {
+	input := "a b c d"
+	l := New(input)
+
+	// Peek ahead to 'b'
+	tok := l.Peek(1)
+	if tok.Literal != "b" {
+		t.Fatalf("Peek(1) expected 'b', got %q", tok.Literal)
+	}
+
+	// Consume 'a'
+	tok = l.NextToken()
+	if tok.Literal != "a" {
+		t.Fatalf("NextToken() expected 'a', got %q", tok.Literal)
+	}
+
+	// Peek ahead to 'c'
+	tok = l.Peek(1)
+	if tok.Literal != "c" {
+		t.Fatalf("Peek(1) expected 'c', got %q", tok.Literal)
+	}
+
+	// Peek 0 should be 'b'
+	tok = l.Peek(0)
+	if tok.Literal != "b" {
+		t.Fatalf("Peek(0) expected 'b', got %q", tok.Literal)
+	}
+
+	// Consume 'b'
+	tok = l.NextToken()
+	if tok.Literal != "b" {
+		t.Fatalf("NextToken() expected 'b', got %q", tok.Literal)
+	}
+
+	// Peek 0 should now be 'c'
+	tok = l.Peek(0)
+	if tok.Literal != "c" {
+		t.Fatalf("Peek(0) expected 'c', got %q", tok.Literal)
+	}
+
+	// Peek 1 should now be 'd'
+	tok = l.Peek(1)
+	if tok.Literal != "d" {
+		t.Fatalf("Peek(1) expected 'd', got %q", tok.Literal)
+	}
+}
+
+// TestPeekWithComments tests that Peek handles comments correctly (Task 12.3.2)
+func TestPeekWithComments(t *testing.T) {
+	input := "var // comment\nx := 5"
+	l := New(input)
+
+	// Peek should skip the comment
+	tok := l.Peek(0)
+	if tok.Type != VAR || tok.Literal != "var" {
+		t.Fatalf("Peek(0) expected VAR(var), got %s(%s)", tok.Type, tok.Literal)
+	}
+
+	// Peek 1 should be 'x', skipping the comment
+	tok = l.Peek(1)
+	if tok.Type != IDENT || tok.Literal != "x" {
+		t.Fatalf("Peek(1) expected IDENT(x), got %s(%s)", tok.Type, tok.Literal)
+	}
+
+	// Consume tokens should also skip comments
+	tok = l.NextToken()
+	if tok.Type != VAR {
+		t.Fatalf("NextToken() expected VAR, got %s", tok.Type)
+	}
+
+	tok = l.NextToken()
+	if tok.Type != IDENT {
+		t.Fatalf("NextToken() expected IDENT, got %s", tok.Type)
+	}
+}
+
+// TestNextTokenAfterPeekConsumesBuffer tests that NextToken consumes buffered tokens (Task 12.3.3)
+func TestNextTokenAfterPeekConsumesBuffer(t *testing.T) {
+	input := "a b c"
+	l := New(input)
+
+	// Peek ahead multiple times - this buffers tokens
+	_ = l.Peek(0) // buffers 'a'
+	_ = l.Peek(1) // buffers 'b'
+	_ = l.Peek(2) // buffers 'c'
+
+	// NextToken should consume from buffer
+	tok1 := l.NextToken()
+	if tok1.Literal != "a" {
+		t.Fatalf("NextToken() expected 'a', got %q", tok1.Literal)
+	}
+
+	tok2 := l.NextToken()
+	if tok2.Literal != "b" {
+		t.Fatalf("NextToken() expected 'b', got %q", tok2.Literal)
+	}
+
+	tok3 := l.NextToken()
+	if tok3.Literal != "c" {
+		t.Fatalf("NextToken() expected 'c', got %q", tok3.Literal)
+	}
+
+	// Should be at EOF now
+	tok4 := l.NextToken()
+	if tok4.Type != EOF {
+		t.Fatalf("NextToken() expected EOF, got %s", tok4.Type)
+	}
+}
+
+// TestPeekPreservesExistingBehavior tests that existing code still works (Task 12.3.3)
+func TestPeekPreservesExistingBehavior(t *testing.T) {
+	input := "var x := 5;"
+	l := New(input)
+
+	// Consume tokens as usual without using Peek
+	tokens := []struct {
+		typ TokenType
+		lit string
+	}{
+		{VAR, "var"},
+		{IDENT, "x"},
+		{ASSIGN, ":="},
+		{INT, "5"},
+		{SEMICOLON, ";"},
+		{EOF, ""},
+	}
+
+	for i, expected := range tokens {
+		tok := l.NextToken()
+		if tok.Type != expected.typ {
+			t.Errorf("token[%d] type: expected %s, got %s", i, expected.typ, tok.Type)
+		}
+		if tok.Literal != expected.lit {
+			t.Errorf("token[%d] literal: expected %q, got %q", i, expected.lit, tok.Literal)
+		}
 	}
 }

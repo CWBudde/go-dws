@@ -189,6 +189,12 @@ func (p *Parser) Errors() []*ParserError {
 	return p.errors
 }
 
+// LexerErrors returns all lexer errors accumulated during tokenization.
+// This should be checked in addition to parser errors for complete error reporting.
+func (p *Parser) LexerErrors() []lexer.LexerError {
+	return p.l.Errors()
+}
+
 // EnableSemanticAnalysis enables or disables semantic analysis during parsing.
 func (p *Parser) EnableSemanticAnalysis(enable bool) {
 	p.enableSemanticAnalysis = enable

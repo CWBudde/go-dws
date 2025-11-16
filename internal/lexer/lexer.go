@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -8,12 +9,24 @@ import (
 
 // Lexer represents a lexical scanner for DWScript source code.
 type Lexer struct {
-	input        string // The source code being tokenized
-	position     int    // Current position in input (points to current char)
-	readPosition int    // Current reading position in input (after current char)
-	ch           rune   // Current character under examination (0 if EOF)
-	line         int    // Current line number (1-indexed)
-	column       int    // Current column number (1-indexed)
+	input        string       // The source code being tokenized
+	position     int          // Current position in input (points to current char)
+	readPosition int          // Current reading position in input (after current char)
+	ch           rune         // Current character under examination (0 if EOF)
+	line         int          // Current line number (1-indexed)
+	column       int          // Current column number (1-indexed)
+	errors       []LexerError // Accumulated lexer errors
+	tokenBuffer  []Token      // Buffer for token lookahead (Task 12.3.1)
+}
+
+// lexerState represents the complete state of the lexer at a point in time.
+// This allows for efficient save/restore operations during lookahead.
+type lexerState struct {
+	position     int  // Current position in input
+	readPosition int  // Current reading position
+	ch           rune // Current character
+	line         int  // Current line number
+	column       int  // Current column number
 }
 
 // New creates a new Lexer for the given input string.
@@ -79,6 +92,17 @@ func (l *Lexer) peekCharN(n int) rune {
 	return r
 }
 
+// matchAndConsume checks if the next character matches the expected rune.
+// If it matches, advances the lexer position and returns true.
+// If it doesn't match, leaves the lexer position unchanged and returns false.
+func (l *Lexer) matchAndConsume(expected rune) bool {
+	if l.peekChar() == expected {
+		l.readChar()
+		return true
+	}
+	return false
+}
+
 // currentPos returns the current Position for token creation.
 func (l *Lexer) currentPos() Position {
 	return Position{
@@ -89,10 +113,293 @@ func (l *Lexer) currentPos() Position {
 }
 
 // Input returns the source code being tokenized.
-// This allows parser to create temporary lexers for lookahead.
-// Added for function pointer syntax detection
+//
+// Deprecated: Use Peek(n) for token lookahead instead of creating temporary lexers.
+// This method is kept for backward compatibility but may be removed in a future version.
+// See Task 12.3 for the new Peek() API.
 func (l *Lexer) Input() string {
 	return l.input
+}
+
+// Errors returns all accumulated lexer errors.
+// This allows the parser to check for lexical errors after tokenization.
+func (l *Lexer) Errors() []LexerError {
+	return l.errors
+}
+
+// addError adds a new error to the lexer's error list.
+// This follows the parser's pattern of accumulating errors instead of stopping at the first error.
+func (l *Lexer) addError(msg string, pos Position) {
+	l.errors = append(l.errors, LexerError{
+		Message: msg,
+		Pos:     pos,
+	})
+}
+
+// saveState captures the current lexer state for later restoration.
+// This is useful for lookahead operations that need to be undone.
+func (l *Lexer) saveState() lexerState {
+	return lexerState{
+		position:     l.position,
+		readPosition: l.readPosition,
+		ch:           l.ch,
+		line:         l.line,
+		column:       l.column,
+	}
+}
+
+// restoreState restores the lexer to a previously saved state.
+// This is used after lookahead operations to return to the original position.
+func (l *Lexer) restoreState(s lexerState) {
+	l.position = s.position
+	l.readPosition = s.readPosition
+	l.ch = s.ch
+	l.line = s.line
+	l.column = s.column
+}
+
+// Peek returns the token n positions ahead without consuming it.
+// Peek(0) returns the next token (same as NextToken would return).
+// Peek(1) returns the token after that, etc.
+// Tokens are buffered lazily as needed.
+// This eliminates the need for creating temporary lexers for lookahead.
+func (l *Lexer) Peek(n int) Token {
+	// Ensure we have buffered enough tokens
+	for len(l.tokenBuffer) <= n {
+		// Generate and buffer the next token
+		tok := l.nextTokenInternal()
+		l.tokenBuffer = append(l.tokenBuffer, tok)
+	}
+
+	return l.tokenBuffer[n]
+}
+
+// Operator handler functions (Task 12.4.1 - Arithmetic operators)
+
+// handlePlus handles the '+' operator and its variants (++, +=).
+func (l *Lexer) handlePlus(pos Position) Token {
+	if l.matchAndConsume('+') {
+		tok := NewToken(INC, "++", pos)
+		l.readChar()
+		return tok
+	} else if l.matchAndConsume('=') {
+		tok := NewToken(PLUS_ASSIGN, "+=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(PLUS, "+", pos)
+	l.readChar()
+	return tok
+}
+
+// handleMinus handles the '-' operator and its variants (--, -=).
+func (l *Lexer) handleMinus(pos Position) Token {
+	if l.matchAndConsume('-') {
+		tok := NewToken(DEC, "--", pos)
+		l.readChar()
+		return tok
+	} else if l.matchAndConsume('=') {
+		tok := NewToken(MINUS_ASSIGN, "-=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(MINUS, "-", pos)
+	l.readChar()
+	return tok
+}
+
+// handleAsterisk handles the '*' operator and its variants (**, *=).
+func (l *Lexer) handleAsterisk(pos Position) Token {
+	if l.matchAndConsume('*') {
+		tok := NewToken(POWER, "**", pos)
+		l.readChar()
+		return tok
+	} else if l.matchAndConsume('=') {
+		tok := NewToken(TIMES_ASSIGN, "*=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(ASTERISK, "*", pos)
+	l.readChar()
+	return tok
+}
+
+// handleSlash handles the '/' operator and its variants (//, /*, /=).
+// Note: Comments are handled in nextTokenInternal before calling this.
+func (l *Lexer) handleSlash(pos Position) Token {
+	if l.matchAndConsume('=') {
+		tok := NewToken(DIVIDE_ASSIGN, "/=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(SLASH, "/", pos)
+	l.readChar()
+	return tok
+}
+
+// handlePercent handles the '%' operator and its variants (%=).
+// Also handles binary literals starting with %.
+func (l *Lexer) handlePercent(pos Position) Token {
+	// Could be binary literal or modulo
+	if isDigit(l.peekChar()) && (l.peekChar() == '0' || l.peekChar() == '1') {
+		// Binary literal
+		tokenType, literal := l.readNumber()
+		return NewToken(tokenType, literal, pos)
+	} else if l.matchAndConsume('=') {
+		tok := NewToken(PERCENT_ASSIGN, "%=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(PERCENT, "%", pos)
+	l.readChar()
+	return tok
+}
+
+// Operator handler functions (Task 12.4.2 - Comparison and logical operators)
+
+// handleEquals handles the '=' operator and its variants (==, ===, =>).
+func (l *Lexer) handleEquals(pos Position) Token {
+	if l.matchAndConsume('=') {
+		if l.matchAndConsume('=') {
+			tok := NewToken(EQ_EQ_EQ, "===", pos)
+			l.readChar()
+			return tok
+		}
+		tok := NewToken(EQ_EQ, "==", pos)
+		l.readChar()
+		return tok
+	} else if l.matchAndConsume('>') {
+		tok := NewToken(FAT_ARROW, "=>", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(EQ, "=", pos)
+	l.readChar()
+	return tok
+}
+
+// handleLess handles the '<' operator and its variants (<>, <=, <<).
+func (l *Lexer) handleLess(pos Position) Token {
+	if l.matchAndConsume('>') {
+		tok := NewToken(NOT_EQ, "<>", pos)
+		l.readChar()
+		return tok
+	} else if l.matchAndConsume('=') {
+		tok := NewToken(LESS_EQ, "<=", pos)
+		l.readChar()
+		return tok
+	} else if l.matchAndConsume('<') {
+		tok := NewToken(LESS_LESS, "<<", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(LESS, "<", pos)
+	l.readChar()
+	return tok
+}
+
+// handleGreater handles the '>' operator and its variants (>=, >>).
+func (l *Lexer) handleGreater(pos Position) Token {
+	if l.matchAndConsume('=') {
+		tok := NewToken(GREATER_EQ, ">=", pos)
+		l.readChar()
+		return tok
+	} else if l.matchAndConsume('>') {
+		tok := NewToken(GREATER_GREATER, ">>", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(GREATER, ">", pos)
+	l.readChar()
+	return tok
+}
+
+// handleExclamation handles the '!' operator and its variant (!=).
+func (l *Lexer) handleExclamation(pos Position) Token {
+	if l.matchAndConsume('=') {
+		tok := NewToken(EXCL_EQ, "!=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(EXCLAMATION, "!", pos)
+	l.readChar()
+	return tok
+}
+
+// handleQuestion handles the '?' operator and its variants (??, ?.).
+func (l *Lexer) handleQuestion(pos Position) Token {
+	if l.matchAndConsume('?') {
+		tok := NewToken(QUESTION_QUESTION, "??", pos)
+		l.readChar()
+		return tok
+	} else if l.matchAndConsume('.') {
+		tok := NewToken(QUESTION_DOT, "?.", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(QUESTION, "?", pos)
+	l.readChar()
+	return tok
+}
+
+// handleAmpersand handles the '&' operator and its variant (&&).
+func (l *Lexer) handleAmpersand(pos Position) Token {
+	if l.matchAndConsume('&') {
+		tok := NewToken(AMP_AMP, "&&", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(AMP, "&", pos)
+	l.readChar()
+	return tok
+}
+
+// handlePipe handles the '|' operator and its variant (||).
+func (l *Lexer) handlePipe(pos Position) Token {
+	if l.matchAndConsume('|') {
+		tok := NewToken(PIPE_PIPE, "||", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(PIPE, "|", pos)
+	l.readChar()
+	return tok
+}
+
+// handleCaret handles the '^' operator and its variant (^=).
+func (l *Lexer) handleCaret(pos Position) Token {
+	if l.matchAndConsume('=') {
+		tok := NewToken(CARET_ASSIGN, "^=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(CARET, "^", pos)
+	l.readChar()
+	return tok
+}
+
+// handleAt handles the '@' operator and its variant (@=).
+func (l *Lexer) handleAt(pos Position) Token {
+	if l.matchAndConsume('=') {
+		tok := NewToken(AT_ASSIGN, "@=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(AT, "@", pos)
+	l.readChar()
+	return tok
+}
+
+// handleTilde handles the '~' operator and its variant (~=).
+func (l *Lexer) handleTilde(pos Position) Token {
+	if l.matchAndConsume('=') {
+		tok := NewToken(TILDE_ASSIGN, "~=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(TILDE, "~", pos)
+	l.readChar()
+	return tok
 }
 
 // skipWhitespace skips over whitespace characters (space, tab, newline, carriage return).
@@ -116,14 +423,16 @@ func (l *Lexer) skipLineComment() {
 
 // skipBlockComment skips a block comment enclosed in { } or (* *).
 // style: '{' for {} comments, '(' for (* *) comments
-// Returns true if comment was properly terminated, false otherwise
-func (l *Lexer) skipBlockComment(style rune) bool {
+// Adds an error if the comment is not properly terminated.
+func (l *Lexer) skipBlockComment(style rune) {
+	startPos := l.currentPos()
+
 	if style == '{' {
 		l.readChar() // skip {
 		for l.ch != 0 {
 			if l.ch == '}' {
 				l.readChar() // skip }
-				return true
+				return
 			}
 			if l.ch == '\n' {
 				l.line++
@@ -132,7 +441,8 @@ func (l *Lexer) skipBlockComment(style rune) bool {
 			l.readChar()
 		}
 		// Unterminated comment
-		return false
+		l.addError("unterminated block comment", startPos)
+		return
 	}
 
 	// style == '(' for (* *)
@@ -143,7 +453,7 @@ func (l *Lexer) skipBlockComment(style rune) bool {
 		if l.ch == '*' && l.peekChar() == ')' {
 			l.readChar() // skip *
 			l.readChar() // skip )
-			return true
+			return
 		}
 		if l.ch == '\n' {
 			l.line++
@@ -153,12 +463,14 @@ func (l *Lexer) skipBlockComment(style rune) bool {
 	}
 
 	// Unterminated comment
-	return false
+	l.addError("unterminated block comment", startPos)
 }
 
 // skipCStyleComment skips a C-style multi-line comment /* */.
-// Returns true if comment was properly terminated, false otherwise
-func (l *Lexer) skipCStyleComment() bool {
+// Adds an error if the comment is not properly terminated.
+func (l *Lexer) skipCStyleComment() {
+	startPos := l.currentPos()
+
 	l.readChar() // skip /
 	l.readChar() // skip *
 
@@ -166,7 +478,7 @@ func (l *Lexer) skipCStyleComment() bool {
 		if l.ch == '*' && l.peekChar() == '/' {
 			l.readChar() // skip *
 			l.readChar() // skip /
-			return true
+			return
 		}
 		if l.ch == '\n' {
 			l.line++
@@ -176,7 +488,7 @@ func (l *Lexer) skipCStyleComment() bool {
 	}
 
 	// Unterminated comment
-	return false
+	l.addError("unterminated C-style comment", startPos)
 }
 
 // readIdentifier reads an identifier or keyword from the input.
@@ -273,8 +585,11 @@ func (l *Lexer) readNumber() (TokenType, string) {
 
 // readString reads a string literal enclosed in single or double quotes.
 // DWScript uses single quotes by default, with " as escape for a single quote.
-func (l *Lexer) readString(quote rune) (string, error) {
+// If the string is unterminated, adds an error and returns the partial string.
+func (l *Lexer) readString(quote rune) string {
 	startPos := l.position
+	startLine := l.line
+	startColumn := l.column
 	l.readChar() // skip opening quote
 
 	var builder strings.Builder
@@ -290,7 +605,7 @@ func (l *Lexer) readString(quote rune) (string, error) {
 			}
 			// End of string
 			l.readChar() // skip closing quote
-			return builder.String(), nil
+			return builder.String()
 		}
 
 		if l.ch == '\n' {
@@ -302,11 +617,13 @@ func (l *Lexer) readString(quote rune) (string, error) {
 		l.readChar()
 	}
 
-	// Unterminated string
-	return l.input[startPos:l.position], &LexerError{
-		Message: "unterminated string literal",
-		Pos:     Position{Line: l.line, Column: l.column, Offset: startPos},
-	}
+	// Unterminated string - add error and return partial string
+	l.addError("unterminated string literal", Position{
+		Line:   startLine,
+		Column: startColumn,
+		Offset: startPos,
+	})
+	return builder.String()
 }
 
 // readCharLiteral reads a character literal starting with #.
@@ -336,10 +653,8 @@ func (l *Lexer) readCharLiteral() string {
 // character literal (not part of a string concatenation sequence).
 // Returns true if standalone, false if followed immediately by another string/char literal.
 func (l *Lexer) isCharLiteralStandalone() bool {
-	// Save current state
-	savedPos := l.position
-	savedReadPos := l.readPosition
-	savedCh := l.ch
+	// Save current state for lookahead
+	state := l.saveState()
 
 	// Read the character literal to see what follows
 	_ = l.readCharLiteral()
@@ -347,10 +662,8 @@ func (l *Lexer) isCharLiteralStandalone() bool {
 	// Check if immediately followed by another string/char literal (no whitespace)
 	isStandalone := l.ch != '#' && l.ch != '\'' && l.ch != '"'
 
-	// Restore state
-	l.position = savedPos
-	l.readPosition = savedReadPos
-	l.ch = savedCh
+	// Restore state after lookahead
+	l.restoreState(state)
 
 	return isStandalone
 }
@@ -362,34 +675,22 @@ func charLiteralToRune(literal string) (rune, bool) {
 		return 0, false
 	}
 
-	var value int
+	var numStr string
 	var base int
-	start := 1
 
-	// Check for hex prefix
+	// Check for hex prefix (#$XX) or decimal (#XX)
 	if len(literal) > 2 && literal[1] == '$' {
 		base = 16
-		start = 2
+		numStr = literal[2:] // Skip '#$'
 	} else {
 		base = 10
+		numStr = literal[1:] // Skip '#'
 	}
 
-	// Parse the numeric value
-	for i := start; i < len(literal); i++ {
-		var digit int
-		ch := literal[i]
-
-		if ch >= '0' && ch <= '9' {
-			digit = int(ch - '0')
-		} else if base == 16 && ch >= 'a' && ch <= 'f' {
-			digit = int(ch - 'a' + 10)
-		} else if base == 16 && ch >= 'A' && ch <= 'F' {
-			digit = int(ch - 'A' + 10)
-		} else {
-			return 0, false
-		}
-
-		value = value*base + digit
+	// Parse the numeric value using strconv
+	value, err := strconv.ParseInt(numStr, base, 32)
+	if err != nil {
+		return 0, false
 	}
 
 	return rune(value), true
@@ -399,9 +700,9 @@ func charLiteralToRune(literal string) (rune, bool) {
 // and concatenates them into a single string value.
 // This handles DWScript's implicit concatenation: 'hello'#13#10'world' → "hello\r\nworld"
 // Note: Only truly adjacent literals (no whitespace) are concatenated.
-func (l *Lexer) readStringOrCharSequence() (string, error) {
+// Errors are accumulated in the lexer's error list rather than returned.
+func (l *Lexer) readStringOrCharSequence() string {
 	var builder strings.Builder
-	var lastError error
 
 	for {
 		// Save position for potential error reporting
@@ -411,11 +712,7 @@ func (l *Lexer) readStringOrCharSequence() (string, error) {
 		case '\'', '"':
 			// Read string literal
 			quote := l.ch
-			literal, err := l.readString(quote)
-			if err != nil {
-				lastError = err
-				return builder.String(), err
-			}
+			literal := l.readString(quote)
 			builder.WriteString(literal)
 
 		case '#':
@@ -423,30 +720,44 @@ func (l *Lexer) readStringOrCharSequence() (string, error) {
 			literal := l.readCharLiteral()
 			r, ok := charLiteralToRune(literal)
 			if !ok {
-				lastError = &LexerError{
-					Message: "invalid character literal: " + literal,
-					Pos:     pos,
-				}
-				return builder.String(), lastError
+				l.addError("invalid character literal: "+literal, pos)
+				// Continue processing to consume the invalid literal
+			} else {
+				builder.WriteRune(r)
 			}
-			builder.WriteRune(r)
 
 		default:
 			// No more string/char literals to concatenate
-			return builder.String(), lastError
+			return builder.String()
 		}
 
 		// Check if next token is immediately adjacent (no whitespace allowed)
 		// Only concatenate truly adjacent string/char literals
 		if l.ch != '\'' && l.ch != '"' && l.ch != '#' {
 			// No more adjacent literals
-			return builder.String(), lastError
+			return builder.String()
 		}
 	}
 }
 
 // NextToken returns the next token from the input.
+// If tokens have been buffered by Peek(), it returns from the buffer first.
 func (l *Lexer) NextToken() Token {
+	// Check if we have buffered tokens from Peek()
+	if len(l.tokenBuffer) > 0 {
+		// Return the first buffered token and remove it
+		tok := l.tokenBuffer[0]
+		l.tokenBuffer = l.tokenBuffer[1:]
+		return tok
+	}
+
+	// No buffered tokens, generate the next one
+	return l.nextTokenInternal()
+}
+
+// nextTokenInternal generates the next token from the input.
+// This is the internal tokenization logic, called by both NextToken() and Peek().
+func (l *Lexer) nextTokenInternal() Token {
 	l.skipWhitespace()
 
 	var tok Token
@@ -460,41 +771,25 @@ func (l *Lexer) NextToken() Token {
 	case '/':
 		if l.peekChar() == '/' {
 			l.skipLineComment()
-			return l.NextToken() // Skip comment and get next token
+			return l.nextTokenInternal() // Skip comment and get next token
 		}
 		if l.peekChar() == '*' {
 			// C-style multi-line comment /* */
-			if !l.skipCStyleComment() {
-				tok = NewToken(ILLEGAL, "unterminated C-style comment", pos)
-				return tok
-			}
-			return l.NextToken()
+			l.skipCStyleComment()
+			return l.nextTokenInternal()
 		}
-		if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(DIVIDE_ASSIGN, "/=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(SLASH, "/", pos)
-			l.readChar()
-		}
+		return l.handleSlash(pos)
 
 	case '{':
 		// Block comment or compiler directive - both skip to }
-		if !l.skipBlockComment('{') {
-			tok = NewToken(ILLEGAL, "unterminated block comment", pos)
-			return tok
-		}
-		return l.NextToken()
+		l.skipBlockComment('{')
+		return l.nextTokenInternal()
 
 	case '(':
 		if l.peekChar() == '*' {
 			// Block comment (* *)
-			if !l.skipBlockComment('(') {
-				tok = NewToken(ILLEGAL, "unterminated block comment", pos)
-				return tok
-			}
-			return l.NextToken()
+			l.skipBlockComment('(')
+			return l.nextTokenInternal()
 		}
 		tok = NewToken(LPAREN, "(", pos)
 		l.readChar()
@@ -544,188 +839,46 @@ func (l *Lexer) NextToken() Token {
 		}
 
 	case '+':
-		if l.peekChar() == '+' {
-			l.readChar()
-			tok = NewToken(INC, "++", pos)
-			l.readChar()
-		} else if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(PLUS_ASSIGN, "+=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(PLUS, "+", pos)
-			l.readChar()
-		}
+		return l.handlePlus(pos)
 
 	case '-':
-		if l.peekChar() == '-' {
-			l.readChar()
-			tok = NewToken(DEC, "--", pos)
-			l.readChar()
-		} else if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(MINUS_ASSIGN, "-=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(MINUS, "-", pos)
-			l.readChar()
-		}
+		return l.handleMinus(pos)
 
 	case '*':
-		if l.peekChar() == '*' {
-			l.readChar()
-			tok = NewToken(POWER, "**", pos)
-			l.readChar()
-		} else if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(TIMES_ASSIGN, "*=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(ASTERISK, "*", pos)
-			l.readChar()
-		}
+		return l.handleAsterisk(pos)
 
 	case '%':
-		// Could be binary literal or modulo
-		if isDigit(l.peekChar()) && (l.peekChar() == '0' || l.peekChar() == '1') {
-			// Binary literal
-			tokenType, literal := l.readNumber()
-			tok = NewToken(tokenType, literal, pos)
-		} else if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(PERCENT_ASSIGN, "%=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(PERCENT, "%", pos)
-			l.readChar()
-		}
+		return l.handlePercent(pos)
 
 	case '=':
-		if l.peekChar() == '=' {
-			if l.peekCharN(2) == '=' {
-				l.readChar()
-				l.readChar()
-				tok = NewToken(EQ_EQ_EQ, "===", pos)
-				l.readChar()
-			} else {
-				l.readChar()
-				tok = NewToken(EQ_EQ, "==", pos)
-				l.readChar()
-			}
-		} else if l.peekChar() == '>' {
-			l.readChar()
-			tok = NewToken(FAT_ARROW, "=>", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(EQ, "=", pos)
-			l.readChar()
-		}
+		return l.handleEquals(pos)
 
 	case '<':
-		if l.peekChar() == '>' {
-			l.readChar()
-			tok = NewToken(NOT_EQ, "<>", pos)
-			l.readChar()
-		} else if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(LESS_EQ, "<=", pos)
-			l.readChar()
-		} else if l.peekChar() == '<' {
-			l.readChar()
-			tok = NewToken(LESS_LESS, "<<", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(LESS, "<", pos)
-			l.readChar()
-		}
+		return l.handleLess(pos)
 
 	case '>':
-		if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(GREATER_EQ, ">=", pos)
-			l.readChar()
-		} else if l.peekChar() == '>' {
-			l.readChar()
-			tok = NewToken(GREATER_GREATER, ">>", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(GREATER, ">", pos)
-			l.readChar()
-		}
+		return l.handleGreater(pos)
 
 	case '!':
-		if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(EXCL_EQ, "!=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(EXCLAMATION, "!", pos)
-			l.readChar()
-		}
+		return l.handleExclamation(pos)
 
 	case '?':
-		if l.peekChar() == '?' {
-			l.readChar()
-			tok = NewToken(QUESTION_QUESTION, "??", pos)
-			l.readChar()
-		} else if l.peekChar() == '.' {
-			l.readChar()
-			tok = NewToken(QUESTION_DOT, "?.", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(QUESTION, "?", pos)
-			l.readChar()
-		}
+		return l.handleQuestion(pos)
 
 	case '&':
-		if l.peekChar() == '&' {
-			l.readChar()
-			tok = NewToken(AMP_AMP, "&&", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(AMP, "&", pos)
-			l.readChar()
-		}
+		return l.handleAmpersand(pos)
 
 	case '|':
-		if l.peekChar() == '|' {
-			l.readChar()
-			tok = NewToken(PIPE_PIPE, "||", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(PIPE, "|", pos)
-			l.readChar()
-		}
+		return l.handlePipe(pos)
 
 	case '^':
-		if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(CARET_ASSIGN, "^=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(CARET, "^", pos)
-			l.readChar()
-		}
+		return l.handleCaret(pos)
 
 	case '@':
-		if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(AT_ASSIGN, "@=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(AT, "@", pos)
-			l.readChar()
-		}
+		return l.handleAt(pos)
 
 	case '~':
-		if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(TILDE_ASSIGN, "~=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(TILDE, "~", pos)
-			l.readChar()
-		}
+		return l.handleTilde(pos)
 
 	case '\\':
 		tok = NewToken(BACKSLASH, "\\", pos)
@@ -749,23 +902,15 @@ func (l *Lexer) NextToken() Token {
 			tok = NewToken(CHAR, literal, pos)
 		} else {
 			// Part of string concatenation: 'hello'#13#10 → "hello\r\n"
-			literal, err := l.readStringOrCharSequence()
-			if err != nil {
-				tok = NewToken(ILLEGAL, literal, pos)
-			} else {
-				tok = NewToken(STRING, literal, pos)
-			}
+			literal := l.readStringOrCharSequence()
+			tok = NewToken(STRING, literal, pos)
 		}
 
 	case '\'', '"':
 		// String or character literal (with automatic concatenation)
 		// DWScript concatenates adjacent string/char literals: 'hello'#13#10 → "hello\r\n"
-		literal, err := l.readStringOrCharSequence()
-		if err != nil {
-			tok = NewToken(ILLEGAL, literal, pos)
-		} else {
-			tok = NewToken(STRING, literal, pos)
-		}
+		literal := l.readStringOrCharSequence()
+		tok = NewToken(STRING, literal, pos)
 
 	default:
 		if isLetter(l.ch) {
@@ -780,7 +925,8 @@ func (l *Lexer) NextToken() Token {
 			tok = NewToken(tokenType, literal, pos)
 			return tok
 		} else {
-			// Illegal character
+			// Illegal character - add error and emit ILLEGAL token
+			l.addError("illegal character: "+string(l.ch), pos)
 			tok = NewToken(ILLEGAL, string(l.ch), pos)
 			l.readChar()
 		}
