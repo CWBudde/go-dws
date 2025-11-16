@@ -881,6 +881,8 @@ just test
 
 **Estimate**: 5-6 hours
 
+**Status**: DONE
+
 **Implementation**:
 1. Update semantic analyzer to allow Variant in arithmetic/logical expressions
 2. Implement runtime type coercion for Variant operands
