@@ -15,6 +15,9 @@ import (
 //	  public
 //	    field3: Type;
 //	end;
+//
+// PRE: curToken is CLASS or TYPE; peekToken is class name IDENT
+// POST: curToken is END
 func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 	// This is the old entry point, still used by old code
 	// Expect class name identifier
@@ -46,6 +49,8 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 // parseClassParentAndInterfaces parses optional parent class and interfaces from (...)
 // Can be called multiple times for syntax like: class abstract(TParent)
 // Only updates classDecl if not already set to avoid overwriting previous parse
+// PRE: curToken is token before parent list (CLASS, ABSTRACT, or EXTERNAL)
+// POST: curToken is RPAREN if parentheses present; otherwise unchanged
 func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
 	if !p.peekTokenIs(lexer.LPAREN) {
 		return
@@ -131,6 +136,8 @@ func isBuiltinClass(name string) bool {
 // parseClassDeclarationBody parses the body of a class declaration.
 // Called after 'type Name = class' has already been parsed.
 // Current token should be 'class'.
+// PRE: curToken is CLASS
+// POST: curToken is END
 func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.ClassDecl {
 	classDecl := &ast.ClassDecl{
 		BaseNode: ast.BaseNode{Token: p.curToken}, // 'class' token
@@ -352,6 +359,8 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 // The visibility parameter specifies the access level for this field.
 // Returns a slice of FieldDecl nodes (one per field name) since DWScript supports
 // comma-separated field names with a single type annotation.
+// PRE: curToken is first field name IDENT
+// POST: curToken is SEMICOLON or last token of initialization value
 func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
 	// Collect all field names (comma-separated)
 	var fieldNames []*ast.Identifier
@@ -448,6 +457,8 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 // parseMemberAccess parses member access and method call expressions.
 // Handles obj.field, obj.method(), and TClass.Create() syntax.
 // This is registered as an infix operator for the DOT token.
+// PRE: curToken is DOT
+// POST: curToken is member name IDENT, RPAREN (for method calls), or last token of right operand
 func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 	dotToken := p.curToken // Save the '.' token
 
@@ -539,6 +550,8 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 // Also: class const Name = Value;
 // The visibility parameter specifies the access level for this constant.
 // The isClassConst parameter indicates if it was declared with 'class const'.
+// PRE: curToken is constant name IDENT
+// POST: curToken is last token of value expression
 func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClassConst bool) *ast.ConstDecl {
 	// Current token should be the constant name identifier
 	if !p.curTokenIs(lexer.IDENT) {

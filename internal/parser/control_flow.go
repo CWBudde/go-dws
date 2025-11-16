@@ -22,6 +22,8 @@ func isNilStatement(stmt ast.Statement) bool {
 
 // parseBreakStatement parses a break statement.
 // Syntax: break;
+// PRE: curToken is BREAK
+// POST: curToken is SEMICOLON
 func (p *Parser) parseBreakStatement() *ast.BreakStatement {
 	stmt := &ast.BreakStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
@@ -38,6 +40,8 @@ func (p *Parser) parseBreakStatement() *ast.BreakStatement {
 
 // parseContinueStatement parses a continue statement.
 // Syntax: continue;
+// PRE: curToken is CONTINUE
+// POST: curToken is SEMICOLON
 func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
 	stmt := &ast.ContinueStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
@@ -54,6 +58,8 @@ func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
 
 // parseExitStatement parses an exit statement.
 // Syntax: exit; exit value; or exit(value);
+// PRE: curToken is EXIT
+// POST: curToken is SEMICOLON
 func (p *Parser) parseExitStatement() *ast.ExitStatement {
 	stmt := &ast.ExitStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
@@ -96,6 +102,8 @@ func (p *Parser) parseExitStatement() *ast.ExitStatement {
 
 // parseIfStatement parses an if-then-else statement.
 // Syntax: if <condition> then <statement> [else <statement>]
+// PRE: curToken is IF
+// POST: curToken is last token of consequence or alternative statement
 func (p *Parser) parseIfStatement() *ast.IfStatement {
 	stmt := &ast.IfStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
@@ -146,6 +154,8 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 
 // parseWhileStatement parses a while loop statement.
 // Syntax: while <condition> do <statement>
+// PRE: curToken is WHILE
+// POST: curToken is last token of body statement
 func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 	stmt := &ast.WhileStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
@@ -183,6 +193,8 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 // parseRepeatStatement parses a repeat-until loop statement.
 // Syntax: repeat <statements> until <condition>
 // Note: The body can contain multiple statements
+// PRE: curToken is REPEAT
+// POST: curToken is last token of condition expression
 func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 	stmt := &ast.RepeatStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
@@ -253,6 +265,9 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 //
 //	for <variable> := <start> to|downto <end> [step <step>] do <statement>
 //	for [var] <variable> in <expression> do <statement>
+//
+// PRE: curToken is FOR
+// POST: curToken is last token of body statement
 func (p *Parser) parseForStatement() ast.Statement {
 	forToken := p.curToken
 
@@ -365,6 +380,8 @@ func (p *Parser) parseForStatement() ast.Statement {
 
 // parseForInLoop parses a for-in loop statement.
 // Syntax: for [var] <variable> in <expression> do <statement>
+// PRE: curToken is variable IDENT
+// POST: curToken is last token of body statement
 func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, inlineVar bool) *ast.ForInStatement {
 	stmt := &ast.ForInStatement{
 		BaseNode:  ast.BaseNode{Token: forToken},
@@ -408,6 +425,8 @@ func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, 
 
 // parseCaseStatement parses a case statement.
 // Syntax: case <expression> of <value>: <statement>; ... [else <statement>;] end;
+// PRE: curToken is CASE
+// POST: curToken is END
 func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 	stmt := &ast.CaseStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
@@ -610,6 +629,8 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 // parseIfExpression parses an inline if-then-else conditional expression.
 // Syntax: if <condition> then <expression> [else <expression>]
 // This is similar to a ternary operator: condition ? value1 : value2
+// PRE: curToken is IF
+// POST: curToken is last token of consequence or alternative expression
 func (p *Parser) parseIfExpression() ast.Expression {
 	expr := &ast.IfExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
