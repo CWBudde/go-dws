@@ -2930,3 +2930,115 @@ func TestErrorPositionsWithUnicode(t *testing.T) {
 		})
 	}
 }
+
+// TestSaveRestoreStateWithPeekPreservesTokenBuffer tests that tokenBuffer is correctly saved/restored
+// This is critical for parser backtracking when Peek() is used during speculative parsing.
+// Bug: Before the fix, tokenBuffer was not included in LexerState, causing token duplication/skipping.
+func TestSaveRestoreStateWithPeekPreservesTokenBuffer(t *testing.T) {
+	input := "var x := 5 + 10;"
+	l := New(input)
+
+	// Save initial state (tokenBuffer is empty)
+	state := l.SaveState()
+
+	// Use Peek to fill the tokenBuffer
+	tok0 := l.Peek(0) // var
+	tok1 := l.Peek(1) // x
+	tok2 := l.Peek(2) // :=
+
+	// Verify peeked tokens
+	if tok0.Type != VAR || tok0.Literal != "var" {
+		t.Errorf("Peek(0) expected VAR(var), got %s(%s)", tok0.Type, tok0.Literal)
+	}
+	if tok1.Type != IDENT || tok1.Literal != "x" {
+		t.Errorf("Peek(1) expected IDENT(x), got %s(%s)", tok1.Type, tok1.Literal)
+	}
+	if tok2.Type != ASSIGN || tok2.Literal != ":=" {
+		t.Errorf("Peek(2) expected ASSIGN(:=), got %s(%s)", tok2.Type, tok2.Literal)
+	}
+
+	// At this point, tokenBuffer has 3 tokens: [var, x, :=]
+	// Internal lexer position has advanced past these tokens
+
+	// Restore to initial state
+	// BUG: If tokenBuffer is not restored, it still contains [var, x, :=]
+	// but position is back at start, causing tokens to be consumed from stale buffer
+	l.RestoreState(state)
+
+	// Now consume tokens via NextToken()
+	// With the fix: tokenBuffer is empty, so tokens are generated fresh from position 0
+	// Without the fix: tokenBuffer still has [var, x, :=], consuming them first
+
+	tok := l.NextToken()
+	if tok.Type != VAR || tok.Literal != "var" {
+		t.Errorf("NextToken() after restore expected VAR(var), got %s(%s)", tok.Type, tok.Literal)
+	}
+
+	tok = l.NextToken()
+	if tok.Type != IDENT || tok.Literal != "x" {
+		t.Errorf("NextToken() after restore expected IDENT(x), got %s(%s)", tok.Type, tok.Literal)
+	}
+
+	tok = l.NextToken()
+	if tok.Type != ASSIGN || tok.Literal != ":=" {
+		t.Errorf("NextToken() after restore expected ASSIGN(:=), got %s(%s)", tok.Type, tok.Literal)
+	}
+
+	tok = l.NextToken()
+	if tok.Type != INT || tok.Literal != "5" {
+		t.Errorf("NextToken() after restore expected INT(5), got %s(%s)", tok.Type, tok.Literal)
+	}
+}
+
+// TestSaveRestoreStateWithPeekInMiddle tests save/restore with Peek() at a non-initial position
+// This simulates the actual parser backtracking scenario in parseIsExpression.
+func TestSaveRestoreStateWithPeekInMiddle(t *testing.T) {
+	input := "if obj is function(x: Integer): String then end"
+	l := New(input)
+
+	// Advance to 'is' keyword
+	l.NextToken() // if
+	l.NextToken() // obj
+	l.NextToken() // is
+
+	// Save state at 'is' position
+	state := l.SaveState()
+
+	// Simulate parser's speculative parsing using Peek
+	// This is what detectFunctionPointerFullSyntax does
+	peeked := []Token{
+		l.Peek(0), // function
+		l.Peek(1), // (
+		l.Peek(2), // x
+		l.Peek(3), // :
+		l.Peek(4), // Integer
+	}
+
+	// Verify peeked tokens
+	expectedTypes := []TokenType{FUNCTION, LPAREN, IDENT, COLON, IDENT}
+	for i, expected := range expectedTypes {
+		if peeked[i].Type != expected {
+			t.Errorf("Peek(%d) expected %s, got %s", i, expected, peeked[i].Type)
+		}
+	}
+
+	// Now restore to the saved state (back to 'is' position)
+	l.RestoreState(state)
+
+	// Consume tokens - should start from 'function' again
+	tok := l.NextToken()
+	if tok.Type != FUNCTION || tok.Literal != "function" {
+		t.Errorf("After restore, expected FUNCTION(function), got %s(%s)", tok.Type, tok.Literal)
+	}
+
+	tok = l.NextToken()
+	if tok.Type != LPAREN || tok.Literal != "(" {
+		t.Errorf("After restore, expected LPAREN((), got %s(%s)", tok.Type, tok.Literal)
+	}
+
+	// Continue verifying the sequence is correct
+	tok = l.NextToken()
+	if tok.Type != IDENT || tok.Literal != "x" {
+		t.Errorf("After restore, expected IDENT(x), got %s(%s)", tok.Type, tok.Literal)
+	}
+}

@@ -164,10 +164,12 @@ type Parser struct {
 // It can be saved and restored to enable speculative parsing and backtracking.
 // This is useful when trying multiple parsing strategies without committing to errors.
 type ParserState struct {
-	errors     []*ParserError
-	curToken   lexer.Token
-	peekToken  lexer.Token
-	lexerState lexer.LexerState
+	errors               []*ParserError
+	curToken             lexer.Token
+	peekToken            lexer.Token
+	lexerState           lexer.LexerState
+	parsingPostCondition bool
+	semanticErrors       []string
 }
 
 // New creates a new Parser instance.
@@ -425,11 +427,17 @@ func (p *Parser) saveState() ParserState {
 	errorsCopy := make([]*ParserError, len(p.errors))
 	copy(errorsCopy, p.errors)
 
+	// Make a deep copy of semanticErrors slice
+	semanticErrorsCopy := make([]string, len(p.semanticErrors))
+	copy(semanticErrorsCopy, p.semanticErrors)
+
 	return ParserState{
-		errors:     errorsCopy,
-		curToken:   p.curToken,
-		peekToken:  p.peekToken,
-		lexerState: p.l.SaveState(),
+		errors:               errorsCopy,
+		curToken:             p.curToken,
+		peekToken:            p.peekToken,
+		lexerState:           p.l.SaveState(),
+		parsingPostCondition: p.parsingPostCondition,
+		semanticErrors:       semanticErrorsCopy,
 	}
 }
 
@@ -440,6 +448,8 @@ func (p *Parser) restoreState(state ParserState) {
 	p.curToken = state.curToken
 	p.peekToken = state.peekToken
 	p.errors = state.errors
+	p.parsingPostCondition = state.parsingPostCondition
+	p.semanticErrors = state.semanticErrors
 	p.l.RestoreState(state.lexerState)
 }
 
