@@ -45,7 +45,13 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 	}
 
 	// Handle operations based on operand types
+	// Task 9.4.5: Check for Variant FIRST before type-specific operations
+	// This ensures Variant operations take precedence over type-specific handlers
 	switch {
+	// Handle Variant operations
+	case left.Type() == "VARIANT" || right.Type() == "VARIANT":
+		return i.evalVariantBinaryOp(expr.Operator, left, right, expr)
+
 	case left.Type() == "INTEGER" && right.Type() == "INTEGER":
 		return i.evalIntegerBinaryOp(expr.Operator, left, right)
 
@@ -71,10 +77,6 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 	// Handle Enum comparisons (=, <>, <, >, <=, >=)
 	case left.Type() == "ENUM" && right.Type() == "ENUM":
 		return i.evalEnumBinaryOp(expr.Operator, left, right)
-
-	// Handle Variant operations
-	case left.Type() == "VARIANT" || right.Type() == "VARIANT":
-		return i.evalVariantBinaryOp(expr.Operator, left, right, expr)
 
 	// Handle object and nil comparisons (=, <>)
 	case expr.Operator == "=" || expr.Operator == "<>":

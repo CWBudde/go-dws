@@ -939,6 +939,8 @@ just test
 
 **Estimate**: 4-5 hours
 
+**Status**: DONE
+
 **Implementation**:
 1. Implement `as` operator with Variant
 2. Support implicit conversions in assignments
