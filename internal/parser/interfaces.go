@@ -57,7 +57,7 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 //
 // This method uses lexer.Peek() to look ahead without modifying parser state (Task 12.3.4).
 // PRE: curToken is SEMICOLON (after previous type decl)
-// POST: curToken is SEMICOLON (unchanged)
+// POST: curToken is SEMICOLON (after previous type decl)
 func (p *Parser) looksLikeTypeDeclaration() bool {
 	// After a type declaration, we're typically at a semicolon
 	// The next token should be an identifier (type name)

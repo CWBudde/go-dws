@@ -16,7 +16,7 @@ import (
 //	    field3: Type;
 //	end;
 //
-// PRE: curToken is CLASS or TYPE (when called from parseTypeDeclaration)
+// PRE: curToken is CLASS or TYPE; peekToken is class name IDENT
 // POST: curToken is END
 func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 	// This is the old entry point, still used by old code
@@ -49,8 +49,8 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 // parseClassParentAndInterfaces parses optional parent class and interfaces from (...)
 // Can be called multiple times for syntax like: class abstract(TParent)
 // Only updates classDecl if not already set to avoid overwriting previous parse
-// PRE: curToken is before LPAREN (peekToken is LPAREN)
-// POST: curToken is RPAREN or unchanged if no parentheses
+// PRE: curToken is token before parent list (CLASS, ABSTRACT, or EXTERNAL)
+// POST: curToken is RPAREN if parentheses present; otherwise unchanged
 func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
 	if !p.peekTokenIs(lexer.LPAREN) {
 		return

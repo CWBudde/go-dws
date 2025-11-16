@@ -639,7 +639,7 @@ func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
 //   - Array literals: (1, 2, 3)
 //
 // PRE: curToken is LPAREN
-// POST: curToken is RPAREN or last token of expression
+// POST: curToken is RPAREN
 func (p *Parser) parseGroupedExpression() ast.Expression {
 	lparenToken := p.curToken
 
@@ -712,7 +712,7 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 
 // parseParenthesizedArrayLiteral parses an array literal with parentheses: (expr1, expr2, ...)
 // Called when we've already parsed the first element and detected a comma.
-// PRE: curToken is first element expression, peekToken is COMMA
+// PRE: curToken is last token of first element expression
 // POST: curToken is RPAREN
 func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstElement ast.Expression) ast.Expression {
 	elements := []ast.Expression{firstElement}
@@ -761,7 +761,7 @@ func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstEl
 
 // parseRecordLiteralInline parses a record literal when we're already positioned
 // at the first field name (after detecting the pattern "(IDENT:").
-// PRE: curToken is first field IDENT, peekToken is COLON
+// PRE: curToken is first field name IDENT
 // POST: curToken is RPAREN
 func (p *Parser) parseRecordLiteralInline() *ast.RecordLiteralExpression {
 	// We're currently at the IDENT after '(', and peek is COLON

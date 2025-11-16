@@ -169,7 +169,7 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 //     property X: Integer read FX write FX;
 //     end;
 //
-// PRE: curToken is before RECORD (or TYPE)
+// PRE: curToken is EQ; peekToken is RECORD
 // POST: curToken is SEMICOLON
 func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.RecordDecl {
 	recordDecl := &ast.RecordDecl{

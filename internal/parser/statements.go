@@ -144,7 +144,7 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 
 // parseExpressionStatement parses an expression statement.
 // PRE: curToken is first token of expression
-// POST: curToken is last token of expression (or SEMICOLON if present)
+// POST: curToken is SEMICOLON if present, otherwise last token of expression
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	stmt := &ast.ExpressionStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
