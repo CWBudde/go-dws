@@ -664,7 +664,7 @@ func TestClassMethodCannotAccessSelf(t *testing.T) {
 		end;
 	`
 	// Class methods should not be able to access Self
-	expectError(t, input, "undefined")
+	expectError(t, input, "Self' cannot be used in class methods")
 }
 
 func TestClassMethodCannotAccessInstanceField(t *testing.T) {

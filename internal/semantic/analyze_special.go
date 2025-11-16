@@ -158,8 +158,8 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 }
 
 // analyzeSelfExpression analyzes a Self expression and returns its type.
-// Self refers to the current instance (in instance methods) or
-// the current class (in class methods).
+// Self refers to the current instance in instance methods.
+// Self is NOT allowed in class methods (static methods).
 func (a *Analyzer) analyzeSelfExpression(se *ast.SelfExpression) types.Type {
 	// Validate that we're in a method context
 	if a.currentFunction == nil {
@@ -173,12 +173,10 @@ func (a *Analyzer) analyzeSelfExpression(se *ast.SelfExpression) types.Type {
 		return nil
 	}
 
-	// For class methods, Self has the type of the metaclass (class-of)
+	// Class methods (static methods) cannot access Self
 	if a.inClassMethod {
-		// Return a ClassOf type for the current class
-		return &types.ClassOfType{
-			ClassType: a.currentClass,
-		}
+		a.addError("'Self' cannot be used in class methods (static methods) at %s", se.Token.Pos.String())
+		return nil
 	}
 
 	// For instance methods, Self has the type of the class

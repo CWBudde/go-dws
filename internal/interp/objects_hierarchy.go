@@ -319,39 +319,34 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		objVal = intfInst.Object
 	}
 
-	// Task 9.7: Check if object is nil
-	// When accessing o.Member where o is nil, always raise "Object not instantiated"
-	if _, isNil := objVal.(*NilValue); isNil {
-		return i.newErrorWithLocation(ma, "Object not instantiated")
-	}
-
 	// Check if it's an object instance
 	obj, ok := AsObject(objVal)
-	if !ok && objVal.Type() == "NIL" && i.semanticInfo != nil {
-		// Object is nil - check if we can get class info from the expression's type annotation
-		// The semantic analyzer stores the expected type in the Object expression
-		if typeAnnotation := i.semanticInfo.GetType(ma.Object); typeAnnotation != nil {
-			// TypeAnnotation.Name contains the class name (e.g., "TBase")
-			className := typeAnnotation.Name
-			if className != "" {
-				// Look up the class by name
-				memberName := ma.Member.Value
-				if classInfo, exists := i.classes[className]; exists {
+
+	// Task 9.5.4: Handle class variable access via nil instance
+	// When accessing o.Member where o is nil, check if Member is a class variable first
+	nilVal, isNilValue := objVal.(*NilValue)
+	if !ok && (objVal.Type() == "NIL" || isNilValue) {
+		// Object is nil - check if this is a typed nil value with a ClassType
+		if isNilValue && nilVal.ClassType != "" {
+			memberName := ma.Member.Value
+			className := nilVal.ClassType
+
+			// Look up the class by name (case-insensitive)
+			for registeredClassName, classInfo := range i.classes {
+				if strings.EqualFold(registeredClassName, className) {
+					// Check if this member is a class variable
 					if classVarValue, ownerClass := classInfo.lookupClassVar(memberName); ownerClass != nil {
 						return classVarValue
 					}
+					// Member exists but is not a class variable - fall through to error
+					break
 				}
 			}
 		}
-		// TODO(Task 9.5.4): Complete support for nil instance access
-		// Currently blocked on Task 9.18 migration - SemanticInfo not yet populated
-		// Need to either:
-		// 1. Complete Task 9.18 migration (populate SemanticInfo with types), OR
-		// 2. Use typed nil values that carry class information
-		//
-		// NOTE: Access patterns like `var b: TBase; b.Test` will currently fail at runtime when b is nil,
-		// because class variable lookup via nil instance is not yet supported.
-		// See test case: TestClassVariableAccessViaInstanceRuntime (PLAN.md line 1155).
+
+		// Task 9.7: If we couldn't find a class variable, raise "Object not instantiated"
+		// This happens when accessing instance members on nil objects
+		return i.newErrorWithLocation(ma, "Object not instantiated")
 	}
 
 	if !ok {

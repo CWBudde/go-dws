@@ -241,7 +241,13 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 								// Task 9.227: Initialize Variant with nil/unassigned value
 								value = &VariantValue{Value: nil, ActualType: nil}
 							default:
-								value = &NilValue{}
+								// Task 9.5.4: Check if this is a class type and create a typed nil value
+								// This allows accessing class variables via nil instances: var b: TBase; b.ClassVar
+								if _, exists := i.classes[typeName]; exists {
+									value = &NilValue{ClassType: typeName}
+								} else {
+									value = &NilValue{}
+								}
 							}
 						}
 					}
@@ -365,6 +371,11 @@ func (i *Interpreter) createZeroValue(typeAnnotation *ast.TypeAnnotation) Value 
 		// Task 9.227: Initialize Variant with nil/unassigned value
 		return &VariantValue{Value: nil, ActualType: nil}
 	default:
+		// Task 9.5.4: Check if this is a class type and create a typed nil value
+		// This allows accessing class variables via nil instances: var b: TBase; b.ClassVar
+		if _, exists := i.classes[typeName]; exists {
+			return &NilValue{ClassType: typeName}
+		}
 		return &NilValue{}
 	}
 }
