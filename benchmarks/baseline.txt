@@ -1,0 +1,23 @@
+goos: linux
+goarch: amd64
+pkg: github.com/cwbudde/go-dws/internal/parser
+cpu: Intel(R) Xeon(R) CPU @ 2.60GHz
+BenchmarkParser-16                      	   41596	     57453 ns/op	   27864 B/op	     414 allocs/op
+BenchmarkParserExpressions-16           	  143847	     16578 ns/op	    9824 B/op	     139 allocs/op
+BenchmarkParserFunctions-16             	   85276	     28952 ns/op	   15704 B/op	     244 allocs/op
+BenchmarkParserClasses-16               	   41364	     58301 ns/op	   27680 B/op	     441 allocs/op
+BenchmarkParserControlFlow-16           	   55268	     44146 ns/op	   20592 B/op	     335 allocs/op
+BenchmarkParserTypes-16                 	  101373	     22862 ns/op	   12064 B/op	     198 allocs/op
+BenchmarkParserArrays-16                	   91080	     25457 ns/op	   13768 B/op	     196 allocs/op
+BenchmarkParserStrings-16               	  101664	     24046 ns/op	   13008 B/op	     216 allocs/op
+BenchmarkParserSmallProgram-16          	  216630	      9797 ns/op	    6000 B/op	     106 allocs/op
+BenchmarkParserLargeProgram-16          	   13179	    184645 ns/op	   87600 B/op	    1147 allocs/op
+BenchmarkParserParameterLists-16        	   56272	     42138 ns/op	   22546 B/op	     346 allocs/op
+BenchmarkParserComplexNestedTypes-16    	   46348	     52460 ns/op	   25701 B/op	     393 allocs/op
+BenchmarkParserContracts-16             	   61381	     39681 ns/op	   18399 B/op	     283 allocs/op
+BenchmarkParserMemberAccessChains-16    	   64681	     34949 ns/op	   19168 B/op	     250 allocs/op
+BenchmarkParserErrorRecovery-16         	   91782	     26536 ns/op	   12635 B/op	     193 allocs/op
+BenchmarkParserWithAllocations-16       	   78795	     30115 ns/op	   15000 B/op	     240 allocs/op
+BenchmarkParserExpressionLists-16       	   53347	     41759 ns/op	   22280 B/op	     275 allocs/op
+PASS
+ok  	github.com/cwbudde/go-dws/internal/parser	47.905s

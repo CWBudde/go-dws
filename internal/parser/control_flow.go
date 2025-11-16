@@ -118,14 +118,34 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 	stmt.Condition = p.parseExpression(LOWEST)
 
 	if stmt.Condition == nil {
-		p.addErrorWithContext("expected condition after 'if'", ErrInvalidExpression)
+		// Use structured error for better diagnostics
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidExpression).
+			WithMessage("expected condition after 'if'").
+			WithPosition(p.curToken.Pos, p.curToken.Length()).
+			WithExpectedString("boolean expression").
+			WithSuggestion("add a condition like 'x > 0' or 'flag = true'").
+			WithParsePhase("if statement condition").
+			Build()
+		p.addStructuredError(err)
 		p.synchronize([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
 		return nil
 	}
 
 	// Expect 'then' keyword
 	if !p.expectPeek(lexer.THEN) {
-		p.addErrorWithContext("expected 'then' after if condition", ErrMissingThen)
+		// Use structured error for missing 'then'
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingThen).
+			WithMessage("expected 'then' after if condition").
+			WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+			WithExpected(lexer.THEN).
+			WithActual(p.peekToken.Type, p.peekToken.Literal).
+			WithSuggestion("add 'then' keyword after the condition").
+			WithNote("DWScript if statements require: if <condition> then <statement>").
+			WithParsePhase("if statement").
+			Build()
+		p.addStructuredError(err)
 		p.synchronize([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
 		if !p.curTokenIs(lexer.THEN) {
 			return nil
@@ -137,7 +157,16 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 	stmt.Consequence = p.parseStatement()
 
 	if stmt.Consequence == nil {
-		p.addErrorWithContext("expected statement after 'then'", ErrInvalidSyntax)
+		// Use structured error for missing statement
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidSyntax).
+			WithMessage("expected statement after 'then'").
+			WithPosition(p.curToken.Pos, p.curToken.Length()).
+			WithExpectedString("statement").
+			WithSuggestion("add a statement like a variable assignment or function call").
+			WithParsePhase("if statement consequence").
+			Build()
+		p.addStructuredError(err)
 		p.synchronize([]lexer.TokenType{lexer.ELSE, lexer.END})
 		return nil
 	}
@@ -149,7 +178,16 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 		stmt.Alternative = p.parseStatement()
 
 		if stmt.Alternative == nil {
-			p.addErrorWithContext("expected statement after 'else'", ErrInvalidSyntax)
+			// Use structured error for missing else statement
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidSyntax).
+				WithMessage("expected statement after 'else'").
+				WithPosition(p.curToken.Pos, p.curToken.Length()).
+				WithExpectedString("statement").
+				WithSuggestion("add a statement for the else branch").
+				WithParsePhase("if statement alternative").
+				Build()
+			p.addStructuredError(err)
 			p.synchronize([]lexer.TokenType{lexer.END})
 			return nil
 		}
@@ -181,14 +219,34 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 	stmt.Condition = p.parseExpression(LOWEST)
 
 	if stmt.Condition == nil {
-		p.addErrorWithContext("expected condition after 'while'", ErrInvalidExpression)
+		// Use structured error for better diagnostics
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidExpression).
+			WithMessage("expected condition after 'while'").
+			WithPosition(p.curToken.Pos, p.curToken.Length()).
+			WithExpectedString("boolean expression").
+			WithSuggestion("add a loop condition like 'count < 10'").
+			WithParsePhase("while loop condition").
+			Build()
+		p.addStructuredError(err)
 		p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
 		return nil
 	}
 
 	// Expect 'do' keyword
 	if !p.expectPeek(lexer.DO) {
-		p.addErrorWithContext("expected 'do' after while condition", ErrMissingDo)
+		// Use structured error for missing 'do'
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingDo).
+			WithMessage("expected 'do' after while condition").
+			WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+			WithExpected(lexer.DO).
+			WithActual(p.peekToken.Type, p.peekToken.Literal).
+			WithSuggestion("add 'do' keyword after the condition").
+			WithNote("DWScript while loops require: while <condition> do <statement>").
+			WithParsePhase("while loop").
+			Build()
+		p.addStructuredError(err)
 		p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
 		if !p.curTokenIs(lexer.DO) {
 			return nil
@@ -200,7 +258,16 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 	stmt.Body = p.parseStatement()
 
 	if isNilStatement(stmt.Body) {
-		p.addErrorWithContext("expected statement after 'do'", ErrInvalidSyntax)
+		// Use structured error for missing loop body
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidSyntax).
+			WithMessage("expected statement after 'do'").
+			WithPosition(p.curToken.Pos, p.curToken.Length()).
+			WithExpectedString("statement").
+			WithSuggestion("add a statement for the loop body").
+			WithParsePhase("while loop body").
+			Build()
+		p.addStructuredError(err)
 		p.synchronize([]lexer.TokenType{lexer.END})
 		return nil
 	}
