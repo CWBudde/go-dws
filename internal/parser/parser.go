@@ -234,8 +234,9 @@ func (p *Parser) expectPeek(t lexer.TokenType) bool {
 // isIdentifierToken checks if a token type can be used as an identifier.
 // This includes IDENT and contextual keywords like STEP that are keywords in
 // specific contexts (for loops) but can be used as variable names elsewhere.
+// Also includes SELF which can be the target of member assignments (Self.field := value).
 func (p *Parser) isIdentifierToken(t lexer.TokenType) bool {
-	return t == lexer.IDENT || t == lexer.STEP
+	return t == lexer.IDENT || t == lexer.STEP || t == lexer.SELF
 }
 
 // expectIdentifier checks if the peek token can be used as an identifier and advances if so.
