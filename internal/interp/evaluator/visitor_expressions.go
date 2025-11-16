@@ -38,9 +38,9 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 
 // VisitGroupedExpression evaluates a grouped expression (parenthesized).
 func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Simply evaluate the inner expression
-	// This is one we could move now, but keeping consistent for phase 1
-	return e.Eval(node.Expression, ctx)
+	// Phase 3.5.2: Delegate to interpreter for now
+	// Future: Simply evaluate the inner expression directly
+	return e.adapter.EvalNode(node)
 }
 
 // VisitCallExpression evaluates a function call expression.

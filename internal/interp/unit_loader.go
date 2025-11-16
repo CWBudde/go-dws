@@ -62,6 +62,9 @@ func (i *Interpreter) SetUnitRegistry(registry *units.UnitRegistry) {
 	// Phase 3.5.1: Also update the evaluator's unit registry
 	// (once we move unit loading to evaluator, this will be the only place it's set)
 	// For now, we keep both in sync during the migration
+	if i.evaluatorInstance != nil {
+		i.evaluatorInstance.SetUnitRegistry(registry)
+	}
 }
 
 // SetSource sets the source code and filename for enhanced error messages.

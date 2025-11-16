@@ -985,16 +985,84 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
 
 - [ ] 3.5.4 Migrate evaluation logic from Interpreter to Evaluator
   - Gradually move logic from Interpreter.evalXXX() methods to Evaluator.VisitXXX() methods
-  - Start with simple nodes (literals - already done inline, just formalize)
-  - Move to identifiers and simple expressions (binary, unary, grouped)
-  - Move to complex expressions (call, member access, method call)
-  - Move to statements (if, while, for, try-except)
-  - Move to declarations (function, class, interface, record)
   - Each migration: run tests, ensure no regressions
   - Keep adapter active during migration for safety
   - Files: Update all `evaluator/visitor_*.go` files
-  - Estimated: 2-3 weeks (48 methods to migrate, ~1-2 days per category)
+  - Estimated: 2-3 weeks (48 methods to migrate across 9 batches)
   - Acceptance: All evaluation logic in Evaluator, Interpreter methods just delegate, all tests pass
+
+  **Batch 1: Literals (6 methods)** - 1 day
+  - [ ] 3.5.4.1 IntegerLiteral - Return &IntegerValue from node.Value
+  - [ ] 3.5.4.2 FloatLiteral - Return &FloatValue from node.Value
+  - [ ] 3.5.4.3 StringLiteral - Return &StringValue from node.Value
+  - [ ] 3.5.4.4 BooleanLiteral - Return &BooleanValue from node.Value
+  - [ ] 3.5.4.5 CharLiteral - Return &CharValue from rune(node.Value[0])
+  - [ ] 3.5.4.6 NilLiteral - Return NilValue singleton
+
+  **Batch 2: Basic Expressions (8 methods)** - 2 days
+  - [ ] 3.5.4.7 Identifier - Migrate evalIdentifier() logic (symbol lookup, constants, enums)
+  - [ ] 3.5.4.8 BinaryExpression - Migrate evalBinaryExpression() and operator-specific helpers
+  - [ ] 3.5.4.9 UnaryExpression - Migrate evalUnaryExpression() and operator helpers
+  - [ ] 3.5.4.10 AddressOfExpression - Migrate evalAddressOfExpression() (function pointers)
+  - [ ] 3.5.4.11 GroupedExpression - Just evaluate inner expression (trivial)
+  - [ ] 3.5.4.12 EnumLiteral - Migrate evalEnumLiteral() logic
+  - [ ] 3.5.4.13 IfExpression - Migrate evalIfExpression() (ternary-like conditional)
+  - [ ] 3.5.4.14 IndexExpression - Migrate evalIndexExpression() (array/string indexing)
+
+  **Batch 3: Object-Oriented Expressions (7 methods)** - 3 days
+  - [ ] 3.5.4.15 MemberAccessExpression - Migrate evalMemberAccess() (complex: fields, properties, helpers)
+  - [ ] 3.5.4.16 MethodCallExpression - Migrate evalMethodCall() (class/record method dispatch)
+  - [ ] 3.5.4.17 SelfExpression - Migrate evalSelfExpression() (return current object)
+  - [ ] 3.5.4.18 InheritedExpression - Migrate evalInheritedExpression() (parent method calls)
+  - [ ] 3.5.4.19 NewExpression - Migrate evalNewExpression() (object instantiation)
+  - [ ] 3.5.4.20 IsExpression - Migrate evalIsExpression() (type checking)
+  - [ ] 3.5.4.21 AsExpression - Migrate evalAsExpression() (type casting)
+
+  **Batch 4: Advanced Expressions (6 methods)** - 2 days
+  - [ ] 3.5.4.22 CallExpression - Migrate evalCallExpression() (function calls, built-ins)
+  - [ ] 3.5.4.23 LambdaExpression - Migrate evalLambdaExpression() (anonymous functions)
+  - [ ] 3.5.4.24 ImplementsExpression - Migrate evalImplementsExpression() (interface check)
+  - [ ] 3.5.4.25 ArrayLiteralExpression - Migrate evalArrayLiteral() (array construction)
+  - [ ] 3.5.4.26 RecordLiteralExpression - Migrate evalRecordLiteral() (record construction)
+  - [ ] 3.5.4.27 SetLiteral - Migrate evalSetLiteral() (set construction)
+
+  **Batch 5: Array Expressions (1 method)** - 0.5 days
+  - [ ] 3.5.4.28 NewArrayExpression - Migrate evalNewArrayExpression() (dynamic array creation)
+
+  **Batch 6: Simple Statements (7 methods)** - 2 days
+  - [ ] 3.5.4.29 Program - Migrate evalProgram() (evaluate statement list)
+  - [ ] 3.5.4.30 BlockStatement - Migrate evalBlockStatement() (scoped block execution)
+  - [ ] 3.5.4.31 ExpressionStatement - Just evaluate inner expression (trivial)
+  - [ ] 3.5.4.32 VarDeclStatement - Migrate evalVarDeclStatement() (variable declarations)
+  - [ ] 3.5.4.33 ConstDecl - Migrate evalConstDecl() (constant declarations)
+  - [ ] 3.5.4.34 AssignmentStatement - Migrate evalAssignmentStatement() (all assignment types)
+  - [ ] 3.5.4.35 ReturnStatement - Migrate evalReturnStatement() (function returns)
+
+  **Batch 7: Control Flow (9 methods)** - 3 days
+  - [ ] 3.5.4.36 IfStatement - Migrate evalIfStatement() (if-then-else logic)
+  - [ ] 3.5.4.37 WhileStatement - Migrate evalWhileStatement() (while loops)
+  - [ ] 3.5.4.38 RepeatStatement - Migrate evalRepeatStatement() (repeat-until loops)
+  - [ ] 3.5.4.39 ForStatement - Migrate evalForStatement() (for loops with counter)
+  - [ ] 3.5.4.40 ForInStatement - Migrate evalForInStatement() (for-in iteration)
+  - [ ] 3.5.4.41 CaseStatement - Migrate evalCaseStatement() (switch-case logic)
+  - [ ] 3.5.4.42 BreakStatement - Migrate evalBreakStatement() (loop break)
+  - [ ] 3.5.4.43 ContinueStatement - Migrate evalContinueStatement() (loop continue)
+  - [ ] 3.5.4.44 ExitStatement - Migrate evalExitStatement() (procedure exit)
+
+  **Batch 8: Exception Handling (2 methods)** - 1 day
+  - [ ] 3.5.4.45 TryStatement - Migrate evalTryStatement() (try-except-finally logic)
+  - [ ] 3.5.4.46 RaiseStatement - Migrate evalRaiseStatement() (exception raising)
+
+  **Batch 9: Declarations (9 methods)** - 4 days
+  - [ ] 3.5.4.47 FunctionDecl - Migrate evalFunctionDeclaration() (function registration)
+  - [ ] 3.5.4.48 ClassDecl - Migrate evalClassDeclaration() (class type registration)
+  - [ ] 3.5.4.49 InterfaceDecl - Migrate evalInterfaceDeclaration() (interface registration)
+  - [ ] 3.5.4.50 RecordDecl - Migrate evalRecordDeclaration() (record type registration)
+  - [ ] 3.5.4.51 EnumDecl - Migrate evalEnumDeclaration() (enum type registration)
+  - [ ] 3.5.4.52 HelperDecl - Migrate evalHelperDeclaration() (helper registration)
+  - [ ] 3.5.4.53 OperatorDecl - Migrate evalOperatorDeclaration() (operator overload)
+  - [ ] 3.5.4.54 ArrayDecl - Migrate evalArrayDeclaration() (array type registration)
+  - [ ] 3.5.4.55 TypeDeclaration - Migrate evalTypeDeclaration() (type alias registration)
 
 - [ ] 3.5.5 Remove adapter pattern and complete migration
   - Remove InterpreterAdapter interface from evaluator.go

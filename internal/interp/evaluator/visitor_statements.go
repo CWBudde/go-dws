@@ -124,6 +124,7 @@ func (e *Evaluator) VisitReturnStatement(node *ast.ReturnStatement, ctx *Executi
 // VisitUsesClause evaluates a uses clause.
 // At runtime, uses clauses are no-ops since units are already loaded.
 func (e *Evaluator) VisitUsesClause(node *ast.UsesClause, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: No-op at runtime
-	return nil
+	// Phase 3.5.2: Delegate to interpreter for now (no-op at runtime)
+	// Maintaining consistency with migration strategy
+	return e.adapter.EvalNode(node)
 }

@@ -194,6 +194,12 @@ func (e *Evaluator) UnitRegistry() *units.UnitRegistry {
 	return e.unitRegistry
 }
 
+// SetUnitRegistry sets the unit registry.
+// Phase 3.5.1: Allows Interpreter to update the registry during migration.
+func (e *Evaluator) SetUnitRegistry(registry *units.UnitRegistry) {
+	e.unitRegistry = registry
+}
+
 // InitializedUnits returns the map of initialized units.
 func (e *Evaluator) InitializedUnits() map[string]bool {
 	return e.initializedUnits

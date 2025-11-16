@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 )
 
 // This file contains visitor methods for literal AST nodes.
@@ -12,9 +13,9 @@ import (
 
 // VisitIntegerLiteral evaluates an integer literal node.
 func (e *Evaluator) VisitIntegerLiteral(node *ast.IntegerLiteral, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Direct creation - literals don't need interpreter state
-	// In the future, we'll use runtime value constructors here
-	return e.adapter.EvalNode(node)
+	// Phase 3.5.4.1: Direct creation of IntegerValue from literal
+	// Integer literals are the simplest case - just wrap the parsed value
+	return &runtime.IntegerValue{Value: node.Value}
 }
 
 // VisitFloatLiteral evaluates a float literal node.
