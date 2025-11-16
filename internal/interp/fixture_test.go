@@ -648,6 +648,10 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool) testResult 
 		// No semantic errors, try execution for runtime errors
 		var buf bytes.Buffer
 		interp := New(&buf)
+		// Task 9.5.4: Pass semantic info to interpreter for class variable access
+		if semanticInfo := analyzer.GetSemanticInfo(); semanticInfo != nil {
+			interp.SetSemanticInfo(semanticInfo)
+		}
 		result := interp.Eval(program)
 
 		if result != nil && result.Type() == "ERROR" {
@@ -698,6 +702,10 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool) testResult 
 	// Execute the program
 	var buf bytes.Buffer
 	interp := New(&buf)
+	// Task 9.5.4: Pass semantic info to interpreter for class variable access
+	if semanticInfo := analyzer.GetSemanticInfo(); semanticInfo != nil {
+		interp.SetSemanticInfo(semanticInfo)
+	}
 	result := interp.Eval(program)
 
 	// Check for runtime errors

@@ -347,6 +347,9 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 
 			// Store class variable type in ClassType
 			classType.ClassVars[fieldName] = fieldType
+
+			// Store class variable visibility
+			classType.ClassVarVisibility[fieldName] = int(field.Visibility)
 		} else {
 			// Instance field
 			// Check for duplicate field names

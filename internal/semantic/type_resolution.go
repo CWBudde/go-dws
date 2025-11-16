@@ -902,6 +902,22 @@ func (a *Analyzer) getFieldOwner(class *types.ClassType, fieldName string) *type
 	return a.getFieldOwner(class.Parent, fieldName)
 }
 
+// getClassVarOwner returns the class that declares a class variable, walking up the inheritance chain
+func (a *Analyzer) getClassVarOwner(class *types.ClassType, classVarName string) *types.ClassType {
+	if class == nil {
+		return nil
+	}
+
+	// Check if this class declares the class variable (case-insensitive)
+	lowerClassVarName := strings.ToLower(classVarName)
+	if _, found := class.ClassVars[lowerClassVarName]; found {
+		return class
+	}
+
+	// Check parent classes
+	return a.getClassVarOwner(class.Parent, classVarName)
+}
+
 // getMethodOwner returns the class that declares a method, walking up the inheritance chain
 func (a *Analyzer) getMethodOwner(class *types.ClassType, methodName string) *types.ClassType {
 	if class == nil {

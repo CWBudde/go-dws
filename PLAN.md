@@ -1008,15 +1008,24 @@ PrintLn(b.Test);    // Access via instance
 
 **Estimate**: 3-4 hours
 
+**Status**: DONE
+
 **Implementation**:
 1. Add parsing for `class var` keyword in class body
 2. Create AST node to represent class variables (or flag in existing FieldDeclaration)
 3. Handle multiple class var declarations
 4. Support initialization syntax: `class var Test : Integer := 123;`
 
-**Files to Modify**:
-- `internal/parser/parser_classes.go` (add class var parsing)
-- `pkg/ast/declarations.go` (add IsClassVar flag or new node type)
+**Files Modified**:
+- `internal/parser/classes.go` (lines 229-238: class var parsing already implemented)
+- `pkg/ast/classes.go` (line 196: IsClassVar flag already exists in FieldDecl)
+- `internal/parser/class_var_init_test.go` (comprehensive tests already exist)
+- `internal/parser/parser_classvar_test.go` (added additional verification tests)
+
+**Notes**:
+- Parser implementation for class var was already complete
+- All tests pass, including initialization, type inference, and visibility modifiers
+- Supports both `class var X: Type;` and `class var X: Type := Value;` syntax
 
 ### 9.5.2 Type System Support for Class Variables
 
@@ -1024,15 +1033,38 @@ PrintLn(b.Test);    // Access via instance
 
 **Estimate**: 3-4 hours
 
+**Status**: DONE
+
 **Implementation**:
 1. Add `ClassVars map[string]*types.Type` field to ClassType
 2. During semantic analysis of class declarations, populate ClassVars
 3. Handle class variable inheritance (child classes inherit parent's class vars)
 4. Validate class variable initialization
 
-**Files to Modify**:
-- `internal/types/types.go` (add ClassVars field)
-- `internal/semantic/analyze_classes_decl.go` (capture class vars)
+**Files Already Modified**:
+- `internal/types/types.go` (line 424: ClassVars field already exists)
+- `internal/semantic/analyze_classes_decl.go` (lines 291-349: class var handling already implemented)
+- `internal/semantic/type_resolution.go` (lines 866-883: addParentClassVarsToScope method)
+
+**Notes**:
+- Type system implementation for class vars was already complete
+- ClassType.ClassVars map stores class variable types separately from instance Fields
+- Semantic analyzer properly:
+  - Detects duplicate class variable declarations
+  - Handles explicit type annotations
+  - Supports type inference from initialization values
+  - Validates type compatibility for initializations
+  - Stores class variable types in ClassVars map
+- Class variable inheritance implemented via addParentClassVarsToScope:
+  - Recursively adds parent class variables to method scopes
+  - Allows shadowing (child class vars can hide parent class vars)
+- All semantic analyzer tests pass, including:
+  - TestClassVariable
+  - TestClassVariableWithInvalidType
+  - TestClassVariableAndInstanceField
+  - TestClassMethodAccessingClassVariable
+
+**Remaining Work**: Task 9.5.3 needed for class variable access via class name (e.g., `TBase.Test`)
 
 ### 9.5.3 Semantic Analysis for Class Variable Access
 
@@ -1040,15 +1072,36 @@ PrintLn(b.Test);    // Access via instance
 
 **Estimate**: 3-4 hours
 
+**Status**: DONE
+
 **Implementation**:
 1. In member access expressions, check both instance fields and class vars
 2. For type name access (e.g., `TBase.Test`), look up class vars
 3. Validate read/write access to class variables
 4. Type check assignments to class variables
 
-**Files to Modify**:
-- `internal/semantic/analyze_expressions.go` (member access with class vars)
-- `internal/semantic/analyze_statements.go` (assignments to class vars)
+**Files Modified**:
+- `internal/types/types.go` (lines 689-705: added GetClassVar method to ClassType)
+- `internal/semantic/analyze_classes.go` (lines 310-314: added class var lookup in analyzeMemberAccessExpression)
+- `internal/semantic/class_var_access_test.go` (new file: comprehensive tests for class var access)
+
+**Notes**:
+- Added GetClassVar method to ClassType with inheritance support (recursively checks parent classes)
+- Integrated class variable lookup into member access expression analysis
+- Class variables can now be accessed via:
+  - Class name: `TBase.Test`
+  - Instance: `obj.Test` (even if obj is nil, since class vars belong to the class)
+- Semantic analysis validates:
+  - Class variable existence (with proper error messages)
+  - Type compatibility for assignments
+  - Inheritance (child classes can access parent class variables)
+  - Shadowing (child class vars can override parent class vars)
+- All semantic analyzer tests pass (11 new tests added):
+  - Access via class name and instance
+  - Inheritance and shadowing
+  - Type checking and error handling
+
+**Remaining Work**: Task 9.5.4 needed for runtime execution of class variable access and assignments
 
 ### 9.5.4 Runtime Support for Class Variables
 
@@ -1056,30 +1109,54 @@ PrintLn(b.Test);    // Access via instance
 
 **Estimate**: 3-4 hours
 
+**Status**: PARTIALLY COMPLETE (blocked on Task 9.18)
+
 **Implementation**:
-1. Create global storage for class variables (separate from instances)
-2. Implement class variable initialization
-3. Handle class variable access via class name
-4. Handle class variable access via instance (lookup in class, not instance)
+1. Create global storage for class variables (separate from instances) ✓
+2. Implement class variable initialization ✓
+3. Handle class variable access via class name ✓
+4. Handle class variable access via instance (lookup in class, not instance) ⚠️ PARTIAL
 
-**Files to Modify**:
-- `internal/interp/values.go` (class variable storage)
-- `internal/interp/objects_hierarchy.go` (member access for class vars)
-- `internal/bytecode/vm.go` (bytecode support for class vars)
+**Files Modified**:
+- `internal/interp/declarations.go` (lines 309-352: class var initialization already complete)
+- `internal/interp/objects_hierarchy.go` (lines 51-54, 227-230, 389-391: class var access)
+- `internal/interp/objects_hierarchy.go` (lines 322-348: attempted nil instance access - blocked)
+- `internal/interp/statements_assignments.go` (lines 488-494: class var assignment via class name)
+- `internal/interp/fixture_test.go` (added SetSemanticInfo calls for tests)
+- `internal/interp/class_var_test.go` (new file: runtime tests for class variables)
 
-**Success Criteria**:
-- All 11 class var tests pass
-- `TBase.Test := 123;` sets class variable
-- `var b : TBase; PrintLn(b.Test);` reads class variable through instance
-- Class variables are shared across all instances
-- Child classes inherit parent class variables
-- Initialization of class variables works correctly
+**What Works**:
+- ✓ Class variables stored in `ClassInfo.ClassVars map[string]Value`
+- ✓ Initialization with default values or explicit init expressions
+- ✓ Access via class name: `TBase.Test` (read and write)
+- ✓ Inheritance: `lookupClassVar` recursively checks parent classes
+- ✓ Access via object instances: `obj.Test` where obj is non-nil
+- ✓ Assignment via class name: `TBase.Test := 123`
+- ✓ Tests: `TestClassVariableAccessViaClassNameRuntime` passes
+
+**What's Blocked**:
+- ⚠️ Access via NIL instances: `var b : TBase; PrintLn(b.Test)`
+- **Blocker**: Task 9.18 SemanticInfo migration incomplete
+  - SemanticInfo exists but not populated with type information
+  - Cannot determine class type of nil variables at runtime
+  - Code in place (lines 326-348) but SemanticInfo.GetType() returns nil
+
+**Potential Solutions**:
+1. Complete Task 9.18: Populate SemanticInfo.SetType() in semantic analyzer
+2. Use typed nil values that carry class metadata
+3. Store variable type information in environment alongside values
 
 **Testing**:
 ```bash
+# Works:
+go test -v ./internal/interp -run TestClassVariableAccessViaClassNameRuntime
+
+# Fails (nil instance access):
+go test -v ./internal/interp -run TestClassVariableAccessViaInstanceRuntime
 go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/class_var
-go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/static_class
 ```
+
+**Note**: Significant progress made. Core infrastructure complete. Final piece requires either Task 9.18 completion or alternative type tracking mechanism.
 
 ---
 
