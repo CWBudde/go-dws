@@ -26,6 +26,20 @@ var (
 	bytecodeMode bool
 )
 
+// simpleOptions implements interp.Options for the CLI.
+// Task 3.8.1: Simple implementation for CLI use without pkg/dwscript dependency.
+type simpleOptions struct {
+	MaxRecursionDepth int
+}
+
+func (o *simpleOptions) GetExternalFunctions() *interp.ExternalFunctionRegistry {
+	return nil // CLI doesn't use external functions
+}
+
+func (o *simpleOptions) GetMaxRecursionDepth() int {
+	return o.MaxRecursionDepth
+}
+
 var runCmd = &cobra.Command{
 	Use:   "run [file]",
 	Short: "Run a DWScript file or expression",
@@ -184,9 +198,8 @@ func runScript(_ *cobra.Command, args []string) error {
 
 	// Interpreter: execute the program
 	// Create a simple options struct for passing maxRecursionDepth
-	opts := struct {
-		MaxRecursionDepth int
-	}{
+	// Task 3.8.1: Use simpleOptions to implement interp.Options interface
+	opts := &simpleOptions{
 		MaxRecursionDepth: maxRecursion,
 	}
 	interpreter := interp.NewWithOptions(os.Stdout, opts)

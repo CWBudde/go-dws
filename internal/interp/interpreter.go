@@ -4,7 +4,6 @@ import (
 	"io"
 	"math"
 	"math/rand"
-	"reflect"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/errors"
@@ -96,8 +95,8 @@ func New(output io.Writer) *Interpreter {
 
 // NewWithOptions creates a new Interpreter with options.
 // If options is nil, default options are used.
-// The Options type is defined in pkg/dwscript but passed through here to avoid circular imports.
-func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
+// Task 3.8.1: Uses Options interface to avoid circular dependency and remove reflection hack.
+func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 	env := NewEnvironment()
 	// Initialize random number generator with a default seed
 	// Randomize() can be called to re-seed with current time
@@ -147,32 +146,17 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 		nextEnumTypeID:       300000,               // Task 9.25: Start enum IDs at 300000
 	}
 
-	// Extract external functions and recursion depth from options if provided
+	// Task 3.8.1: Extract external functions and recursion depth from options using interface
+	// This replaces the reflection hack with a clean interface-based approach
 	if opts != nil {
-		// Use reflection to extract fields
-		// We can't import pkg/dwscript here due to circular dependency,
-		// so we use reflection to access the fields
-		val := reflect.ValueOf(opts)
-		if val.Kind() == reflect.Ptr {
-			val = val.Elem()
+		// Extract ExternalFunctions
+		if registry := opts.GetExternalFunctions(); registry != nil {
+			interp.externalFunctions = registry
 		}
-		if val.Kind() == reflect.Struct {
-			// Extract ExternalFunctions
-			field := val.FieldByName("ExternalFunctions")
-			if field.IsValid() && !field.IsNil() {
-				if registry, ok := field.Interface().(*ExternalFunctionRegistry); ok {
-					interp.externalFunctions = registry
-				}
-			}
 
-			// Extract MaxRecursionDepth
-			depthField := val.FieldByName("MaxRecursionDepth")
-			if depthField.IsValid() && depthField.Kind() == reflect.Int {
-				depth := int(depthField.Int())
-				if depth > 0 {
-					interp.maxRecursionDepth = depth
-				}
-			}
+		// Extract MaxRecursionDepth
+		if depth := opts.GetMaxRecursionDepth(); depth > 0 {
+			interp.maxRecursionDepth = depth
 		}
 	}
 
