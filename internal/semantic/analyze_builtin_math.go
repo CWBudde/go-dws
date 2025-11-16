@@ -666,7 +666,7 @@ func (a *Analyzer) analyzeRound(args []ast.Expression, callExpr *ast.CallExpress
 	argType := a.analyzeExpression(args[0])
 	if argType != nil {
 		if argType != types.INTEGER && argType != types.FLOAT && argType != types.VARIANT {
-			a.addError("function 'Round' expects Integer or Float as argument, got %s at %s",
+			a.addError("function 'Round' expects Integer, Float, or Variant as argument, got %s at %s",
 				argType.String(), callExpr.Token.Pos.String())
 		}
 	}

@@ -678,8 +678,10 @@ func (i *Interpreter) evalEnumBinaryOp(op string, left, right Value) Value {
 //   - Support string concatenation with + operator
 //   - Raise runtime error if types are incompatible
 func (i *Interpreter) evalVariantBinaryOp(op string, left, right Value, node ast.Node) Value {
-	// Task 9.4.3: Check if either operand is an unassigned Variant (before unwrapping)
-	// An unassigned variant has Value == nil inside the VariantValue
+	// Task 9.4.3: Check if either operand is an uninitialized Variant (before unwrapping)
+	// An uninitialized variant is a VariantValue with Value == nil.
+	// After unwrapping via unwrapVariant(), this nil becomes an UnassignedValue object.
+	// This is distinct from a VariantValue explicitly containing an UnassignedValue/NullValue/NilValue.
 	leftUnassignedVariant := false
 	rightUnassignedVariant := false
 	if leftVar, ok := left.(*VariantValue); ok && leftVar.Value == nil {
@@ -706,9 +708,11 @@ func (i *Interpreter) evalVariantBinaryOp(op string, left, right Value, node ast
 
 	// For comparison operators
 	// Task 9.4.3: Complex comparison semantics for Null/Unassigned variants:
-	// - Unassigned variant = Null/nil/Unassigned/falsey values -> True
-	// - Variant with value = Null/nil/Unassigned -> False (even if value is falsey like 0)
-	// - Null/nil/Unassigned = each other -> True
+	// - Uninitialized variant (VariantValue with Value==nil): equals falsey values (0, false, '', etc.)
+	//   and also equals other nullish values (Unassigned, Null, Nil).
+	// - Explicit Unassigned/Null/Nil value: only equals other nullish values (Unassigned, Null, Nil),
+	//   does NOT equal falsey values.
+	//   Example: var v: Variant; (uninitialized) will equal 0, but var v: Variant := Unassigned; (explicitly assigned) will NOT equal 0.
 	if op == "=" || op == "<>" {
 		// Case 1: Both are nullish (Null/nil/Unassigned) or unassigned variants -> equal
 		if (leftIsNullish || leftUnassignedVariant) && (rightIsNullish || rightUnassignedVariant) {
