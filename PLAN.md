@@ -900,6 +900,8 @@ just test
 
 **Estimate**: 3-4 hours
 
+**Status**: DONE
+
 **Implementation**:
 1. Allow Variant in comparison expressions (=, <>, <, >, <=, >=)
 2. Implement runtime type coercion for comparisons

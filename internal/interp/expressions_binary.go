@@ -374,6 +374,10 @@ func isFalsey(val Value) bool {
 
 // evalIntegerBinaryOp evaluates binary operations on integers.
 func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
+	// Task 9.4.3: Unwrap Variant values before processing
+	left = unwrapVariant(left)
+	right = unwrapVariant(right)
+
 	// Safe type assertions with error handling
 	leftInt, ok := left.(*IntegerValue)
 	if !ok {
@@ -488,6 +492,10 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 func (i *Interpreter) evalFloatBinaryOp(op string, left, right Value) Value {
 	var leftVal, rightVal float64
 
+	// Task 9.4.3: Unwrap Variant values before processing
+	left = unwrapVariant(left)
+	right = unwrapVariant(right)
+
 	// Convert left operand to float
 	switch v := left.(type) {
 	case *FloatValue:
@@ -548,6 +556,10 @@ func (i *Interpreter) evalFloatBinaryOp(op string, left, right Value) Value {
 
 // evalStringBinaryOp evaluates binary operations on strings.
 func (i *Interpreter) evalStringBinaryOp(op string, left, right Value) Value {
+	// Task 9.4.3: Unwrap Variant values before processing
+	left = unwrapVariant(left)
+	right = unwrapVariant(right)
+
 	// Safe type assertions with error handling
 	leftStr, ok := left.(*StringValue)
 	if !ok {
@@ -583,6 +595,10 @@ func (i *Interpreter) evalStringBinaryOp(op string, left, right Value) Value {
 
 // evalBooleanBinaryOp evaluates binary operations on booleans.
 func (i *Interpreter) evalBooleanBinaryOp(op string, left, right Value) Value {
+	// Task 9.4.3: Unwrap Variant values before processing
+	left = unwrapVariant(left)
+	right = unwrapVariant(right)
+
 	// Safe type assertions with error handling
 	leftBool, ok := left.(*BooleanValue)
 	if !ok {
@@ -654,12 +670,22 @@ func (i *Interpreter) evalEnumBinaryOp(op string, left, right Value) Value {
 //   - Support string concatenation with + operator
 //   - Raise runtime error if types are incompatible
 func (i *Interpreter) evalVariantBinaryOp(op string, left, right Value, node ast.Node) Value {
+	// Task 9.4.3: Check if either operand is an unassigned Variant (before unwrapping)
+	// An unassigned variant has Value == nil inside the VariantValue
+	leftUnassignedVariant := false
+	rightUnassignedVariant := false
+	if leftVar, ok := left.(*VariantValue); ok && leftVar.Value == nil {
+		leftUnassignedVariant = true
+	}
+	if rightVar, ok := right.(*VariantValue); ok && rightVar.Value == nil {
+		rightUnassignedVariant = true
+	}
+
 	// Unwrap Variant values to get the actual runtime values
 	leftVal := unwrapVariant(left)
 	rightVal := unwrapVariant(right)
 
-	// Task 9.4.1: Check for Null/Unassigned/Nil values
-	// These are all considered equivalent to each other and to falsey values
+	// Task 9.4.1: Check for Null/Unassigned/Nil values (after unwrapping)
 	_, leftIsNil := leftVal.(*NilValue)
 	_, rightIsNil := rightVal.(*NilValue)
 	_, leftIsNull := leftVal.(*NullValue)
@@ -670,15 +696,35 @@ func (i *Interpreter) evalVariantBinaryOp(op string, left, right Value, node ast
 	leftIsNullish := leftIsNil || leftIsNull || leftIsUnassigned
 	rightIsNullish := rightIsNil || rightIsNull || rightIsUnassigned
 
-	// For comparison operators, Null/Unassigned/Nil are equal to each other
-	// Task 9.4.1: Null/Unassigned/Nil are only equal to each other, not to other falsey values
-	// (unless the other value is also Null/Unassigned/Nil)
+	// For comparison operators
+	// Task 9.4.3: Complex comparison semantics for Null/Unassigned variants:
+	// - Unassigned variant = Null/nil/Unassigned/falsey values -> True
+	// - Variant with value = Null/nil/Unassigned -> False (even if value is falsey like 0)
+	// - Null/nil/Unassigned = each other -> True
 	if op == "=" || op == "<>" {
-		// If both are nullish, they're equal
-		if leftIsNullish && rightIsNullish {
+		// Case 1: Both are nullish (Null/nil/Unassigned) or unassigned variants -> equal
+		if (leftIsNullish || leftUnassignedVariant) && (rightIsNullish || rightUnassignedVariant) {
 			return &BooleanValue{Value: op == "="}
 		}
-		// If one is nullish and the other is not, they're not equal
+
+		// Case 2: One is an UNASSIGNED variant (not just nullish), check if other is falsey
+		// Only unassigned variants (not Null/nil) equal falsey values
+		if leftUnassignedVariant && !rightIsNullish {
+			result := isFalsey(rightVal)
+			if op == "=" {
+				return &BooleanValue{Value: result}
+			}
+			return &BooleanValue{Value: !result}
+		}
+		if rightUnassignedVariant && !leftIsNullish {
+			result := isFalsey(leftVal)
+			if op == "=" {
+				return &BooleanValue{Value: result}
+			}
+			return &BooleanValue{Value: !result}
+		}
+
+		// Case 3: One is nullish (but not unassigned variant), the other is not -> not equal
 		if leftIsNullish || rightIsNullish {
 			return &BooleanValue{Value: op == "<>"}
 		}
