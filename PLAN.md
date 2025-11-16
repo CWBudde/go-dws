@@ -574,14 +574,15 @@ if !p.curTokenIs(lexer.END) {
   - Acceptance: Context cleanly separated, passed explicitly, tests pass
   - **Completed**: Added ExecutionContext struct with ControlFlow type, initialized in Interpreter constructor, all tests pass
 
-- [ ] 3.3.2 Implement explicit control flow handling
+- [x] 3.3.2 Implement explicit control flow handling
   - Replace boolean flags (breakSignal, continueSignal, etc.) with ControlFlow type
   - Create ControlFlow.Break(), ControlFlow.Continue(), etc. methods
   - Use result types or special return values for control flow
   - Simplify loop and switch statement logic
-  - Files: `internal/interp/evaluator/control_flow.go` (new)
+  - Files: Modified `statements_loops.go`, `functions_user.go`, `functions_records.go`, `functions_pointers.go`, `statements_control.go`, `statements_declarations.go`, `interpreter.go`
   - Estimated: 3 days
   - Acceptance: No more boolean flags, cleaner control flow, tests pass
+  - **Completed**: Replaced all boolean control flow flags with ExecutionContext ControlFlow type, all tests pass
 
 - [ ] 3.3.3 Create CallStack abstraction
   - Extract call stack management from Interpreter

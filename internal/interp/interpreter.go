@@ -38,9 +38,7 @@ type Interpreter struct {
 	callStack        errors.StackTrace  // Phase 3.3: migrating to ctx.CallStack()
 	oldValuesStack   []map[string]Value // Phase 3.3: migrating to ctx.PushOldValues/PopOldValues
 	propContext      *PropertyEvalContext
-	breakSignal      bool // Phase 3.3: migrating to ctx.ControlFlow()
-	continueSignal   bool // Phase 3.3: migrating to ctx.ControlFlow()
-	exitSignal       bool // Phase 3.3: migrating to ctx.ControlFlow()
+	// Phase 3.3.2: Control flow now managed by ctx.ControlFlow() instead of boolean flags
 
 	// Type System (Phase 3.4: will be moved to TypeRegistry)
 	classes              map[string]*ClassInfo

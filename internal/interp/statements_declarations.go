@@ -27,9 +27,9 @@ func (i *Interpreter) evalProgram(program *ast.Program) Value {
 		}
 
 		// Check if exit was called at program level
-		if i.exitSignal {
-			i.exitSignal = false // Clear signal
-			break                // Exit the program
+		if i.ctx.ControlFlow().IsExit() {
+			i.ctx.ControlFlow().Clear()
+			break // Exit the program
 		}
 	}
 

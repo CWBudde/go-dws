@@ -174,8 +174,8 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	}
 
 	// Handle exit signal
-	if i.exitSignal {
-		i.exitSignal = false
+	if i.ctx.ControlFlow().IsExit() {
+		i.ctx.ControlFlow().Clear()
 	}
 
 	// Extract return value
