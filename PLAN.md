@@ -2282,34 +2282,34 @@ PrintLn(s.StartsWith('ba'));      // Helper ✗
   - File: `internal/interp/helpers_conversion.go`
   - Status: DONE
 
-### 9.23.5 Bytecode VM (Bytecode Helper Method Support) ✓
+### 9.23.5 Bytecode VM (Bytecode Helper Method Support)
 
-- [x] 9.23.5.1 Map helper methods to bytecode operations
+- [ ] 9.23.5.1 Map helper methods to bytecode operations
   - Option A: Emit CALL instructions to built-in functions
   - Option B: Add dedicated helper method opcodes (OpCallHelper)
   - Option C: Inline simple helpers (e.g., `.ToUpper` → OpStrUpper)
   - Decision: Use Option A (simplest, reuses existing built-ins)
-  - File: `internal/bytecode/compiler_expressions.go` (compileMemberAccess)
-  - Status: DONE - Uses OpCallMethod for primitive types with helpers
+  - File: `internal/bytecode/compiler.go`
+  - Estimated: 2 hours
 
-- [x] 9.23.5.2 Compile helper method calls to built-in function calls
-  - `s.ToUpper()` → emit `OpCallMethod` with method name index
-  - `s.Copy(2, 3)` → emit `OpCallMethod` with arguments on stack
+- [ ] 9.23.5.2 Compile helper method calls to built-in function calls
+  - `s.ToUpper()` → emit `LOAD_VAR s; CALL UpperCase`
+  - `s.Copy(2, 3)` → emit `LOAD_VAR s; LOAD_CONST 2; LOAD_CONST 3; CALL Copy`
   - Transform method syntax to function call syntax at compile time
-  - File: `internal/bytecode/compiler_expressions.go` (compileMethodCallExpression, compileMemberAccess)
-  - Status: DONE - Compiler emits OpCallMethod for all helper methods
+  - File: `internal/bytecode/compiler.go` (compileMemberExpression)
+  - Estimated: 1.5 hours
 
-- [x] 9.23.5.3 Handle parameter reordering in bytecode
-  - `.IndexOf(substr)` → `PosEx(substr, self, 1)` (params reordered!)
+- [ ] 9.23.5.3 Handle parameter reordering in bytecode
+  - `.IndexOf(substr)` → `Pos(substr, self)` (params reversed!)
   - Emit instructions in correct order for built-in function
-  - File: `internal/bytecode/vm_calls.go` (invokeMethod)
-  - Status: DONE - VM handles parameter transformation at runtime
+  - File: `internal/bytecode/compiler.go`
+  - Estimated: 1 hour
 
-- [x] 9.23.5.4 Test bytecode execution of helper methods
+- [ ] 9.23.5.4 Test bytecode execution of helper methods
   - Verify all helper methods work in bytecode VM
   - Compare results with AST interpreter
-  - File: Tested manually with test scripts
-  - Status: DONE - All helper methods tested and working correctly
+  - File: `internal/bytecode/vm_test.go` or `internal/bytecode/string_helpers_test.go`
+  - Estimated: 1 hour
 
 ### 9.23.6 Testing
 
