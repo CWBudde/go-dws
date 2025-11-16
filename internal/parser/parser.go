@@ -139,6 +139,93 @@
 //   - Try to continue parsing when possible (don't give up at first error)
 //   - Document which errors are recoverable vs. fatal
 //
+// STRUCTURED ERROR REPORTING (Phase 2.1.1):
+//
+// The parser supports both legacy string-based errors and modern structured errors.
+// Structured errors provide richer context, suggestions, and better IDE/LSP integration.
+//
+// Key components:
+//
+//  1. StructuredParserError type (structured_error.go):
+//     - Error kind categorization (syntax, missing, unexpected, invalid, ambiguous)
+//     - Expected vs actual token tracking
+//     - Automatic block context inclusion
+//     - Helpful suggestions for fixing errors
+//     - Related positions for multi-part errors
+//     - Parse phase tracking
+//
+//  2. Error creation methods:
+//     - NewStructuredError(kind): Creates builder with fluent API
+//     - NewUnexpectedTokenError(): Helper for common "expected X, got Y" errors
+//     - NewMissingTokenError(): Helper for missing required tokens
+//     - NewInvalidExpressionError(): Helper for invalid expressions
+//
+//  3. Integration:
+//     - addStructuredError(err): Adds structured error to parser (auto-injects block context)
+//     - Backward compatible: converts to legacy ParserError automatically
+//     - Existing tests continue to work without modification
+//
+// Common patterns:
+//
+//  1. Missing keyword:
+//     if !p.expectPeek(lexer.THEN) {
+//         err := NewStructuredError(ErrKindMissing).
+//             WithCode(ErrMissingThen).
+//             WithMessage("expected 'then' after if condition").
+//             WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+//             WithExpected(lexer.THEN).
+//             WithActual(p.peekToken.Type, p.peekToken.Literal).
+//             WithSuggestion("add 'then' keyword after the condition").
+//             WithNote("DWScript if statements require: if <condition> then <statement>").
+//             Build()
+//         p.addStructuredError(err)
+//         return nil
+//     }
+//
+//  2. Invalid expression:
+//     if stmt.Condition == nil {
+//         err := NewStructuredError(ErrKindInvalid).
+//             WithCode(ErrInvalidExpression).
+//             WithMessage("expected condition after 'if'").
+//             WithPosition(p.curToken.Pos, p.curToken.Length()).
+//             WithExpectedString("boolean expression").
+//             WithSuggestion("add a condition like 'x > 0' or 'flag = true'").
+//             WithParsePhase("if statement condition").
+//             Build()
+//         p.addStructuredError(err)
+//         return nil
+//     }
+//
+//  3. Missing closing delimiter (with related position):
+//     if !p.expectPeek(lexer.RBRACK) {
+//         err := NewStructuredError(ErrKindMissing).
+//             WithCode(ErrMissingRBracket).
+//             WithMessage("expected ']' to close array index").
+//             WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+//             WithExpected(lexer.RBRACK).
+//             WithActual(p.peekToken.Type, p.peekToken.Literal).
+//             WithSuggestion("add ']' to close the array index").
+//             WithRelatedPosition(lbrackToken.Pos, "opening '[' here").
+//             WithParsePhase("array index expression").
+//             Build()
+//         p.addStructuredError(err)
+//         return nil
+//     }
+//
+// Migration strategy:
+//   - New code should use structured errors for better diagnostics
+//   - Legacy addError() and addErrorWithContext() still work
+//   - Gradually migrate existing error sites to structured errors
+//   - See parseIfStatement(), parseWhileStatement(), parseArrayType() for examples
+//
+// Best practices:
+//   - Use appropriate error kind (ErrKindMissing, ErrKindUnexpected, ErrKindInvalid)
+//   - Always provide expected/actual values when applicable
+//   - Add helpful suggestions that guide users to fix the error
+//   - Include related positions for paired delimiters (parentheses, brackets, etc.)
+//   - Set parse phase for better context ("array type", "if statement", etc.)
+//   - Block context is auto-injected by addStructuredError() - no need to add manually
+//
 // PRATT PARSING (Core Architecture):
 //
 // The parser uses a Pratt parser (top-down operator precedence) for expressions.
@@ -477,6 +564,31 @@ func (p *Parser) addError(msg string, code string) {
 		code,
 	)
 	p.errors = append(p.errors, err)
+}
+
+// addStructuredError adds a structured error to the parser's error list.
+// This method provides richer error reporting with context, suggestions, and better formatting.
+// The structured error is automatically enhanced with block context if available.
+//
+// Example usage:
+//
+//	err := NewStructuredError(ErrKindMissing).
+//	    WithCode(ErrMissingRParen).
+//	    WithPosition(p.curToken.Pos, p.curToken.Length()).
+//	    WithExpected(lexer.RPAREN).
+//	    WithSuggestion("add ')' to close the expression").
+//	    Build()
+//	p.addStructuredError(err)
+func (p *Parser) addStructuredError(structErr *StructuredParserError) {
+	// Auto-inject block context if not already set
+	if structErr.BlockContext == nil {
+		structErr.BlockContext = p.currentBlockContext()
+	}
+
+	// Convert to legacy ParserError for backward compatibility
+	// This ensures existing error handling code continues to work
+	legacyErr := structErr.ToParserError()
+	p.errors = append(p.errors, legacyErr)
 }
 
 // addGenericError adds a generic error message with a default error code.

@@ -60,12 +60,12 @@ p.addError("expected next token to be " + expected + ", got " + actual, ErrUnexp
 ```
 
 **Implementation**:
-- [ ] Create `internal/parser/structured_error.go` with `StructuredParserError` type
-- [ ] Implement error formatting with automatic context inclusion
-- [ ] Add `addStructuredError()` method alongside existing `addError()`
-- [ ] Migrate 5 high-value parsing functions as proof of concept
-- [ ] Add comprehensive tests for error formatting and context
-- [ ] Document structured error patterns
+- [x] Create `internal/parser/structured_error.go` with `StructuredParserError` type
+- [x] Implement error formatting with automatic context inclusion
+- [x] Add `addStructuredError()` method alongside existing `addError()`
+- [x] Migrate 5 high-value parsing functions as proof of concept
+- [x] Add comprehensive tests for error formatting and context
+- [x] Document structured error patterns
 
 **Files Created**:
 - `internal/parser/structured_error.go` (~200 lines)

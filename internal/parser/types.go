@@ -337,7 +337,17 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 
 			// Now expect ']'
 			if !p.expectPeek(lexer.RBRACK) {
-				p.addError("expected ']' after array bounds", ErrMissingRBracket)
+				// Use structured error for missing closing bracket
+				err := NewStructuredError(ErrKindMissing).
+					WithCode(ErrMissingRBracket).
+					WithMessage("expected ']' after array bounds").
+					WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+					WithExpected(lexer.RBRACK).
+					WithActual(p.peekToken.Type, p.peekToken.Literal).
+					WithSuggestion("add ']' to close the array bounds").
+					WithParsePhase("array type bounds").
+					Build()
+				p.addStructuredError(err)
 				return nil
 			}
 		}
@@ -345,7 +355,18 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 
 	// Expect 'of' keyword
 	if !p.expectPeek(lexer.OF) {
-		p.addError("expected .of. after .array. or .array[bounds].", ErrMissingOf)
+		// Use structured error for missing 'of'
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingOf).
+			WithMessage("expected 'of' after array declaration").
+			WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+			WithExpected(lexer.OF).
+			WithActual(p.peekToken.Type, p.peekToken.Literal).
+			WithSuggestion("add 'of' keyword after 'array' or 'array[bounds]'").
+			WithNote("DWScript array types use syntax: array [bounds] of ElementType").
+			WithParsePhase("array type").
+			Build()
+		p.addStructuredError(err)
 		return nil
 	}
 
@@ -353,7 +374,16 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 	p.nextToken() // move to element type
 	elementType := p.parseTypeExpression()
 	if elementType == nil {
-		p.addError("expected type expression after .array of.", ErrExpectedType)
+		// Use structured error for missing element type
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrExpectedType).
+			WithMessage("expected type expression after 'array of'").
+			WithPosition(p.curToken.Pos, p.curToken.Length()).
+			WithExpectedString("type name").
+			WithSuggestion("specify the element type, like 'Integer' or 'String'").
+			WithParsePhase("array element type").
+			Build()
+		p.addStructuredError(err)
 		return nil
 	}
 
