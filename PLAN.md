@@ -3238,7 +3238,7 @@ if !p.curTokenIs(lexer.END) {
 
 **Goal**: Refactor the lexer for better maintainability, consistency, and extensibility while preserving all existing functionality.
 
-**Status**: In progress | **Tasks**: 4/20 complete
+**Status**: In progress | **Tasks**: 7/20 complete
 
 **Motivation**: The lexer works well but has technical debt in error handling, state management, and code organization. These improvements will make the codebase easier to maintain and extend.
 
@@ -3290,28 +3290,31 @@ if !p.curTokenIs(lexer.END) {
 
 **Goal**: Add proper state save/restore mechanism to replace manual field copying.
 
-- [ ] 12.2.1 Create lexerState struct
+- [x] 12.2.1 Create lexerState struct
   - Define `lexerState` with all position fields
   - Add `saveState() lexerState` method
   - Add `restoreState(s lexerState)` method
   - File: `internal/lexer/lexer.go` (~25 lines)
   - Estimated: 30 minutes
   - Test: Save/restore preserves exact lexer position
+  - **DONE**: Created lexerState struct with all position fields and save/restore methods
 
-- [ ] 12.2.2 Refactor isCharLiteralStandalone to use state management
+- [x] 12.2.2 Refactor isCharLiteralStandalone to use state management
   - Replace manual field save/restore with `saveState()/restoreState()`
   - Verify behavior unchanged
   - File: `internal/lexer/lexer.go` (~15 lines modified)
   - Estimated: 20 minutes
   - Test: Character literal detection still works
+  - **DONE**: Refactored to use saveState/restoreState, all tests pass
 
-- [ ] 12.2.3 Add peek lookahead tests
+- [x] 12.2.3 Add peek lookahead tests
   - Test peekChar() doesn't modify state
   - Test peekCharN() for various N values
   - Test state save/restore is symmetric
   - File: `internal/lexer/lexer_test.go` (~80 lines)
   - Estimated: 45 minutes
   - Test: All peek operations are side-effect free
+  - **DONE**: Added comprehensive tests for peek operations and state management
 
 ---
 

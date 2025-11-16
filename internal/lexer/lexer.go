@@ -17,6 +17,16 @@ type Lexer struct {
 	errors       []LexerError  // Accumulated lexer errors
 }
 
+// lexerState represents the complete state of the lexer at a point in time.
+// This allows for efficient save/restore operations during lookahead.
+type lexerState struct {
+	position     int  // Current position in input
+	readPosition int  // Current reading position
+	ch           rune // Current character
+	line         int  // Current line number
+	column       int  // Current column number
+}
+
 // New creates a new Lexer for the given input string.
 // Automatically detects and strips UTF-8 BOM (0xEF 0xBB 0xBF) if present at the start.
 // This matches the behavior of the original DWScript which strips BOMs during file reading.
@@ -109,6 +119,28 @@ func (l *Lexer) addError(msg string, pos Position) {
 		Message: msg,
 		Pos:     pos,
 	})
+}
+
+// saveState captures the current lexer state for later restoration.
+// This is useful for lookahead operations that need to be undone.
+func (l *Lexer) saveState() lexerState {
+	return lexerState{
+		position:     l.position,
+		readPosition: l.readPosition,
+		ch:           l.ch,
+		line:         l.line,
+		column:       l.column,
+	}
+}
+
+// restoreState restores the lexer to a previously saved state.
+// This is used after lookahead operations to return to the original position.
+func (l *Lexer) restoreState(s lexerState) {
+	l.position = s.position
+	l.readPosition = s.readPosition
+	l.ch = s.ch
+	l.line = s.line
+	l.column = s.column
 }
 
 // skipWhitespace skips over whitespace characters (space, tab, newline, carriage return).
@@ -362,10 +394,8 @@ func (l *Lexer) readCharLiteral() string {
 // character literal (not part of a string concatenation sequence).
 // Returns true if standalone, false if followed immediately by another string/char literal.
 func (l *Lexer) isCharLiteralStandalone() bool {
-	// Save current state
-	savedPos := l.position
-	savedReadPos := l.readPosition
-	savedCh := l.ch
+	// Save current state for lookahead
+	state := l.saveState()
 
 	// Read the character literal to see what follows
 	_ = l.readCharLiteral()
@@ -373,10 +403,8 @@ func (l *Lexer) isCharLiteralStandalone() bool {
 	// Check if immediately followed by another string/char literal (no whitespace)
 	isStandalone := l.ch != '#' && l.ch != '\'' && l.ch != '"'
 
-	// Restore state
-	l.position = savedPos
-	l.readPosition = savedReadPos
-	l.ch = savedCh
+	// Restore state after lookahead
+	l.restoreState(state)
 
 	return isStandalone
 }

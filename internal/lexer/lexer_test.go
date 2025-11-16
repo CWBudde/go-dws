@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -1923,6 +1924,268 @@ func TestNoErrorsOnValidInput(t *testing.T) {
 				for i, err := range errors {
 					t.Logf("  error[%d]: %s at %d:%d", i, err.Message, err.Pos.Line, err.Pos.Column)
 				}
+			}
+		})
+	}
+}
+
+// TestPeekCharDoesNotModifyState tests that peekChar() doesn't modify lexer state (Task 12.2.3)
+func TestPeekCharDoesNotModifyState(t *testing.T) {
+	input := "abc"
+	l := New(input)
+
+	// Current character should be 'a'
+	if l.ch != 'a' {
+		t.Fatalf("expected current char 'a', got %c", l.ch)
+	}
+
+	// Peek should return 'b'
+	peeked := l.peekChar()
+	if peeked != 'b' {
+		t.Fatalf("peekChar() expected 'b', got %c", peeked)
+	}
+
+	// Current character should still be 'a'
+	if l.ch != 'a' {
+		t.Fatalf("after peekChar(), expected current char 'a', got %c", l.ch)
+	}
+
+	// Position should not have changed
+	if l.position != 0 {
+		t.Fatalf("after peekChar(), expected position 0, got %d", l.position)
+	}
+}
+
+// TestPeekCharN tests peekCharN() for various N values (Task 12.2.3)
+func TestPeekCharN(t *testing.T) {
+	input := "abcdef"
+	l := New(input)
+
+	tests := []struct {
+		n        int
+		expected rune
+	}{
+		{1, 'b'}, // peek 1 ahead
+		{2, 'c'}, // peek 2 ahead
+		{3, 'd'}, // peek 3 ahead
+		{4, 'e'}, // peek 4 ahead
+		{5, 'f'}, // peek 5 ahead
+		{6, 0},   // peek beyond EOF
+		{10, 0},  // peek way beyond EOF
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("peek_%d", tt.n), func(t *testing.T) {
+			peeked := l.peekCharN(tt.n)
+			if peeked != tt.expected {
+				t.Errorf("peekCharN(%d) expected %q, got %q", tt.n, tt.expected, peeked)
+			}
+
+			// Current character should still be 'a'
+			if l.ch != 'a' {
+				t.Errorf("after peekCharN(%d), expected current char 'a', got %c", tt.n, l.ch)
+			}
+
+			// Position should not have changed
+			if l.position != 0 {
+				t.Errorf("after peekCharN(%d), expected position 0, got %d", tt.n, l.position)
+			}
+		})
+	}
+}
+
+// TestPeekCharNWithUTF8 tests peekCharN() with multi-byte UTF-8 characters (Task 12.2.3)
+func TestPeekCharNWithUTF8(t *testing.T) {
+	input := "aβγδ" // 'a' (1 byte), 'β' (2 bytes), 'γ' (2 bytes), 'δ' (2 bytes)
+	l := New(input)
+
+	tests := []struct {
+		n        int
+		expected rune
+	}{
+		{1, 'β'},
+		{2, 'γ'},
+		{3, 'δ'},
+		{4, 0}, // beyond EOF
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("peek_%d", tt.n), func(t *testing.T) {
+			peeked := l.peekCharN(tt.n)
+			if peeked != tt.expected {
+				t.Errorf("peekCharN(%d) expected %q, got %q", tt.n, tt.expected, peeked)
+			}
+
+			// Current character should still be 'a'
+			if l.ch != 'a' {
+				t.Errorf("after peekCharN(%d), expected current char 'a', got %c", tt.n, l.ch)
+			}
+		})
+	}
+}
+
+// TestSaveRestoreStateSymmetry tests that saveState/restoreState is symmetric (Task 12.2.3)
+func TestSaveRestoreStateSymmetry(t *testing.T) {
+	input := "var x := 5;\ny := 10;"
+	l := New(input)
+
+	// Save initial state
+	state1 := l.saveState()
+
+	// Advance lexer by reading some tokens
+	l.NextToken() // var
+	l.NextToken() // x
+	l.NextToken() // :=
+
+	// Save state after tokens
+	state2 := l.saveState()
+
+	// Advance more
+	l.NextToken() // 5
+	l.NextToken() // ;
+
+	// Check we're at a different position
+	if l.position == state2.position {
+		t.Fatal("lexer should have advanced")
+	}
+
+	// Restore to state2
+	l.restoreState(state2)
+
+	// Verify state matches state2
+	if l.position != state2.position {
+		t.Errorf("position mismatch: expected %d, got %d", state2.position, l.position)
+	}
+	if l.readPosition != state2.readPosition {
+		t.Errorf("readPosition mismatch: expected %d, got %d", state2.readPosition, l.readPosition)
+	}
+	if l.ch != state2.ch {
+		t.Errorf("ch mismatch: expected %c, got %c", state2.ch, l.ch)
+	}
+	if l.line != state2.line {
+		t.Errorf("line mismatch: expected %d, got %d", state2.line, l.line)
+	}
+	if l.column != state2.column {
+		t.Errorf("column mismatch: expected %d, got %d", state2.column, l.column)
+	}
+
+	// Next token should be '5' again
+	tok := l.NextToken()
+	if tok.Type != INT || tok.Literal != "5" {
+		t.Errorf("after restore, expected INT(5), got %s(%s)", tok.Type, tok.Literal)
+	}
+
+	// Restore to initial state
+	l.restoreState(state1)
+
+	// Next token should be 'var' again
+	tok = l.NextToken()
+	if tok.Type != VAR || tok.Literal != "var" {
+		t.Errorf("after restore to initial, expected VAR(var), got %s(%s)", tok.Type, tok.Literal)
+	}
+}
+
+// TestSaveRestoreStatePreservesLineColumn tests that line/column are correctly saved/restored (Task 12.2.3)
+func TestSaveRestoreStatePreservesLineColumn(t *testing.T) {
+	input := "var x := 5;\ny := 10;\nz := 15;"
+	l := New(input)
+
+	// Read some tokens to advance through the input
+	l.NextToken() // var
+	l.NextToken() // x
+	l.NextToken() // :=
+	l.NextToken() // 5
+	l.NextToken() // ;
+
+	// Should be on line 2 now (after the newline)
+	line1 := l.line
+	col1 := l.column
+
+	// Save state
+	state := l.saveState()
+
+	// Read more tokens
+	l.NextToken() // y
+	l.NextToken() // :=
+	l.NextToken() // 10
+	l.NextToken() // ;
+
+	// Should have advanced
+	if l.line == line1 && l.column == col1 {
+		t.Fatal("lexer should have advanced")
+	}
+
+	line2 := l.line
+	col2 := l.column
+
+	// Restore to saved state
+	l.restoreState(state)
+
+	// Should be back at the saved position
+	if l.line != state.line {
+		t.Errorf("after restore, line mismatch: expected %d, got %d", state.line, l.line)
+	}
+	if l.column != state.column {
+		t.Errorf("after restore, column mismatch: expected %d, got %d", state.column, l.column)
+	}
+	if l.line == line2 || l.column == col2 {
+		t.Error("after restore, should not be at the advanced position")
+	}
+}
+
+// TestCharLiteralStandaloneStillWorks tests that isCharLiteralStandalone works after refactoring (Task 12.2.2)
+func TestCharLiteralStandaloneStillWorks(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		isStandalone bool
+	}{
+		{
+			name:        "standalone character literal",
+			input:       "#65",
+			isStandalone: true,
+		},
+		{
+			name:        "character literal followed by space and string",
+			input:       "#65 'hello'",
+			isStandalone: true, // space separates them
+		},
+		{
+			name:        "character literal immediately followed by string",
+			input:       "#65'hello'",
+			isStandalone: false, // no space, part of concatenation
+		},
+		{
+			name:        "character literal followed by another char literal",
+			input:       "#65#66",
+			isStandalone: false, // concatenation
+		},
+		{
+			name:        "hex character literal standalone",
+			input:       "#$41",
+			isStandalone: true,
+		},
+		{
+			name:        "hex character literal in concatenation",
+			input:       "#$41#$42",
+			isStandalone: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+			result := l.isCharLiteralStandalone()
+			if result != tt.isStandalone {
+				t.Errorf("isCharLiteralStandalone() = %v, expected %v", result, tt.isStandalone)
+			}
+
+			// Verify state wasn't changed
+			if l.position != 0 {
+				t.Errorf("isCharLiteralStandalone() changed position to %d, expected 0", l.position)
+			}
+			if l.ch != '#' {
+				t.Errorf("isCharLiteralStandalone() changed ch to %c, expected '#'", l.ch)
 			}
 		})
 	}
