@@ -59,6 +59,9 @@ func (i *Interpreter) LoadUnit(name string, searchPaths []string) (*units.Unit, 
 //	interp.SetUnitRegistry(registry)
 func (i *Interpreter) SetUnitRegistry(registry *units.UnitRegistry) {
 	i.unitRegistry = registry
+	// Phase 3.5.1: Also update the evaluator's unit registry
+	// (once we move unit loading to evaluator, this will be the only place it's set)
+	// For now, we keep both in sync during the migration
 }
 
 // SetSource sets the source code and filename for enhanced error messages.
@@ -66,6 +69,13 @@ func (i *Interpreter) SetUnitRegistry(registry *units.UnitRegistry) {
 func (i *Interpreter) SetSource(source, filename string) {
 	i.sourceCode = source
 	i.sourceFile = filename
+
+	// Phase 3.5.1: Also update the evaluator's config
+	if i.evaluatorInstance != nil {
+		cfg := i.evaluatorInstance.Config()
+		cfg.SourceCode = source
+		cfg.SourceFile = filename
+	}
 }
 
 // GetUnitRegistry returns the interpreter's unit registry.
