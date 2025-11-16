@@ -437,7 +437,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 	// Check if it's a set value with built-in methods (Include, Exclude)
 	if setVal, ok := objVal.(*SetValue); ok {
-		methodName := mc.Method.Value
+		methodName := strings.ToLower(mc.Method.Value)  // DWScript is case-insensitive
 
 		// Evaluate method arguments
 		args := make([]Value, len(mc.Arguments))
@@ -449,15 +449,15 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			args[idx] = val
 		}
 
-		// Dispatch to appropriate set method
+		// Dispatch to appropriate set method (case-insensitive)
 		switch methodName {
-		case "Include":
+		case "include":
 			if len(args) != 1 {
 				return i.newErrorWithLocation(mc, "Include expects 1 argument, got %d", len(args))
 			}
 			return i.evalSetInclude(setVal, args[0])
 
-		case "Exclude":
+		case "exclude":
 			if len(args) != 1 {
 				return i.newErrorWithLocation(mc, "Exclude expects 1 argument, got %d", len(args))
 			}
