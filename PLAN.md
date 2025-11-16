@@ -140,7 +140,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 **Key Changes from Original Plan**:
 - ✅ Task 2.1 (Lookahead Buffer) is OBSOLETE - lexer now provides `Peek(n)` method
 - 🆕 New task 2.1: Utilize lexer's lookahead throughout parser
-- 🔄 Tasks 2.3 updated to leverage lexer's state save/restore
+- 🔄 Task 2.3 updated to leverage lexer's state save/restore
 - ❌ Task 2.9 (Debug/Trace Mode) REMOVED - can be added later if needed
 - 📉 Reduced from 10 tasks to 9 tasks
 - ⏱️ Reduced time estimate: 35-50h (was 52-71h) due to lexer infrastructure
