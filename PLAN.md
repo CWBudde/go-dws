@@ -1610,15 +1610,31 @@ for i in TMyEnum do  // Iterate over all enum values
 
 **Estimate**: 2-3 hours
 
+**Status**: DONE
+
 **Implementation**:
 1. Get all values of enumeration type
 2. Iterate from Low(enum) to High(enum)
 3. Assign each value to loop variable
 4. Execute loop body for each value
 
-**Files to Modify**:
-- `internal/interp/statements.go` (execute for-in over enums)
-- `internal/types/types.go` (enum Low/High helpers)
+**Files Modified**:
+- `internal/interp/statements_loops.go` (evalForInStatement, lines 362-406)
+- `internal/interp/value.go` (EnumValue.String() to return ordinal)
+- `internal/interp/builtins_core_test.go` (updated test expectations)
+- `internal/interp/enum_test.go` (updated test expectations)
+- `internal/interp/ordinal_test.go` (updated test expectations)
+
+**Completed Implementation**:
+- ✅ Enum iteration already implemented in evalForInStatement (lines 362-406)
+- ✅ Iterates through enum.OrderedNames to maintain declaration order
+- ✅ Creates EnumValue for each element with correct TypeName, ValueName, and OrdinalValue
+- ✅ Fixed EnumValue.String() to return ordinal value (matching DWScript behavior)
+- ✅ Updated all tests to expect ordinal values when printing enums
+- ✅ Control flow signals (break, continue, exit) properly handled
+- ✅ Verified with official DWScript fixture test (for_in_enum.pas)
+
+**Key Fix**: Changed EnumValue.String() from returning ValueName to returning the ordinal value as a string. In DWScript, when an enum is converted to string (e.g., for Print()), it returns the ordinal value, not the name. This matches the expected output in the official DWScript test suite.
 
 ### 9.9.4 Runtime Support for Array Iteration
 
