@@ -73,8 +73,8 @@ func TestMalformedNumberLiterals(t *testing.T) {
 				tokenType TokenType
 				literal   string
 			}{
-				{INT, "%01"},   // Binary part
-				{INT, "2"},     // Separate decimal number
+				{INT, "%01"}, // Binary part
+				{INT, "2"},   // Separate decimal number
 				{EOF, ""},
 			},
 			expectedErrors: 0, // Two separate tokens - this is valid behavior

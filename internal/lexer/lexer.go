@@ -117,13 +117,17 @@ func New(input string, opts ...LexerOption) *Lexer {
 }
 
 // readChar advances the lexer to the next character in the input.
-// Properly handles UTF-8 multi-byte sequences.
+// Properly handles UTF-8 multi-byte sequences and detects invalid UTF-8.
 func (l *Lexer) readChar() {
 	if l.readPosition >= len(l.input) {
 		l.ch = 0 // EOF
 		l.position = l.readPosition
 	} else {
 		r, size := utf8.DecodeRuneInString(l.input[l.readPosition:])
+		// Check for invalid UTF-8 encoding
+		if r == utf8.RuneError && size == 1 {
+			l.addError("invalid UTF-8 encoding", l.currentPos())
+		}
 		l.ch = r
 		l.position = l.readPosition
 		l.readPosition += size
@@ -160,9 +164,27 @@ func (l *Lexer) peekCharN(n int) rune {
 // matchAndConsume checks if the next character matches the expected rune.
 // If it matches, advances the lexer position and returns true.
 // If it doesn't match, leaves the lexer position unchanged and returns false.
+// Optimized to decode the UTF-8 rune only once instead of twice.
 func (l *Lexer) matchAndConsume(expected rune) bool {
-	if l.peekChar() == expected {
-		l.readChar()
+	var r rune
+	var size int
+
+	if l.readPosition >= len(l.input) {
+		r = 0 // EOF
+		size = 0
+	} else {
+		r, size = utf8.DecodeRuneInString(l.input[l.readPosition:])
+	}
+
+	if r == expected {
+		// Check for invalid UTF-8 encoding (only for non-EOF)
+		if r == utf8.RuneError && size == 1 {
+			l.addError("invalid UTF-8 encoding", l.currentPos())
+		}
+		l.ch = r
+		l.position = l.readPosition
+		l.readPosition += size
+		l.column++
 		return true
 	}
 	return false
@@ -1142,7 +1164,10 @@ func (l *Lexer) nextTokenInternal() Token {
 			return tok
 		} else {
 			// Illegal character - add error and emit ILLEGAL token
-			l.addError("illegal character: "+string(l.ch), pos)
+			// Note: Don't report RuneError here, as invalid UTF-8 was already reported by readChar()
+			if l.ch != utf8.RuneError {
+				l.addError("illegal character: "+string(l.ch), pos)
+			}
 			tok = NewToken(ILLEGAL, string(l.ch), pos)
 			l.readChar()
 		}
