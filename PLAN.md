@@ -991,23 +991,25 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Estimated: 2-3 weeks (48 methods to migrate across 9 batches)
   - Acceptance: All evaluation logic in Evaluator, Interpreter methods just delegate, all tests pass
 
-  **Batch 1: Literals (6 methods)** - 1 day
-  - [ ] 3.5.4.1 IntegerLiteral - Return &IntegerValue from node.Value
-  - [ ] 3.5.4.2 FloatLiteral - Return &FloatValue from node.Value
-  - [ ] 3.5.4.3 StringLiteral - Return &StringValue from node.Value
-  - [ ] 3.5.4.4 BooleanLiteral - Return &BooleanValue from node.Value
-  - [ ] 3.5.4.5 CharLiteral - Return &CharValue from rune(node.Value[0])
-  - [ ] 3.5.4.6 NilLiteral - Return NilValue singleton
+  **Batch 1: Literals (6 methods)** - 1 day ✅ COMPLETED
+  - [x] 3.5.4.1 IntegerLiteral - Return &IntegerValue from node.Value
+  - [x] 3.5.4.2 FloatLiteral - Return &FloatValue from node.Value
+  - [x] 3.5.4.3 StringLiteral - Return &StringValue from node.Value
+  - [x] 3.5.4.4 BooleanLiteral - Return &BooleanValue from node.Value
+  - [x] 3.5.4.5 CharLiteral - Return &CharValue from rune(node.Value[0])
+  - [x] 3.5.4.6 NilLiteral - Return NilValue singleton
 
-  **Batch 2: Basic Expressions (8 methods)** - 2 days
-  - [ ] 3.5.4.7 Identifier - Migrate evalIdentifier() logic (symbol lookup, constants, enums)
-  - [ ] 3.5.4.8 BinaryExpression - Migrate evalBinaryExpression() and operator-specific helpers
-  - [ ] 3.5.4.9 UnaryExpression - Migrate evalUnaryExpression() and operator helpers
-  - [ ] 3.5.4.10 AddressOfExpression - Migrate evalAddressOfExpression() (function pointers)
-  - [ ] 3.5.4.11 GroupedExpression - Just evaluate inner expression (trivial)
-  - [ ] 3.5.4.12 EnumLiteral - Migrate evalEnumLiteral() logic
-  - [ ] 3.5.4.13 IfExpression - Migrate evalIfExpression() (ternary-like conditional)
-  - [ ] 3.5.4.14 IndexExpression - Migrate evalIndexExpression() (array/string indexing)
+  **Batch 2: Basic Expressions (8 methods)** - 2 days - PARTIALLY COMPLETE (2/8 migrated, 6 deferred)
+  - [ ] 3.5.4.7 Identifier - DEFERRED (needs function/class registries refactored to Evaluator first)
+  - [ ] 3.5.4.8 BinaryExpression - DEFERRED (needs operator tables, type coercion)
+  - [ ] 3.5.4.9 UnaryExpression - DEFERRED (needs operator tables)
+  - [ ] 3.5.4.10 AddressOfExpression - DEFERRED (needs function lookup infrastructure)
+  - [x] 3.5.4.11 GroupedExpression - Just evaluate inner expression (trivial)
+  - [x] 3.5.4.12 EnumLiteral - Migrate evalEnumLiteral() logic
+  - [ ] 3.5.4.13 IfExpression - DEFERRED (needs type system for default values)
+  - [ ] 3.5.4.14 IndexExpression - DEFERRED (needs property system)
+
+  **Note on deferred items**: The 6 deferred expressions require significant Interpreter state (function/class tables, operator systems, property infrastructure) to be refactored into the Evaluator first. These should be tackled in a dedicated phase after the infrastructure is ready. The adapter pattern is kept active for these complex cases.
 
   **Batch 3: Object-Oriented Expressions (7 methods)** - 3 days
   - [ ] 3.5.4.15 MemberAccessExpression - Migrate evalMemberAccess() (complex: fields, properties, helpers)

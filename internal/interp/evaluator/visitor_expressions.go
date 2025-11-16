@@ -1,6 +1,8 @@
 package evaluator
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 )
 
@@ -9,6 +11,20 @@ import (
 //
 // Expressions evaluate to values and can be nested (e.g., binary expressions
 // contain left and right sub-expressions).
+
+// ErrorValue represents a runtime error (temporary definition to avoid circular imports).
+type ErrorValue struct {
+	Message string
+}
+
+func (e *ErrorValue) Type() string   { return "ERROR" }
+func (e *ErrorValue) String() string { return "ERROR: " + e.Message }
+
+// newError creates a new error value with optional formatting.
+// TODO: Add location information from node in Phase 3.6 (error handling improvements)
+func (e *Evaluator) newError(_ ast.Node, format string, args ...interface{}) Value {
+	return &ErrorValue{Message: fmt.Sprintf(format, args...)}
+}
 
 // VisitIdentifier evaluates an identifier (variable reference).
 func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext) Value {
@@ -38,9 +54,9 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 
 // VisitGroupedExpression evaluates a grouped expression (parenthesized).
 func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	// Future: Simply evaluate the inner expression directly
-	return e.adapter.EvalNode(node)
+	// Phase 3.5.4.11: Grouped expressions just evaluate their inner expression
+	// Parentheses are only for precedence, they don't change the value
+	return e.Eval(node.Expression, ctx)
 }
 
 // VisitCallExpression evaluates a function call expression.
@@ -83,8 +99,28 @@ func (e *Evaluator) VisitSelfExpression(node *ast.SelfExpression, ctx *Execution
 
 // VisitEnumLiteral evaluates an enum literal (EnumType.Value).
 func (e *Evaluator) VisitEnumLiteral(node *ast.EnumLiteral, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	return e.adapter.EvalNode(node)
+	// Phase 3.5.4.12: Enum literals are looked up in the environment
+	// The semantic analyzer validates enum types and values exist
+	if node == nil {
+		return e.newError(node, "nil enum literal")
+	}
+
+	valueName := node.ValueName
+
+	// Look up the value in the environment
+	val, ok := ctx.Env().Get(valueName)
+	if !ok {
+		return e.newError(node, "undefined enum value '%s'", valueName)
+	}
+
+	// Environment stores interface{}, cast to Value
+	// The semantic analyzer ensures this is a valid enum value
+	if value, ok := val.(Value); ok {
+		return value
+	}
+
+	// Should never happen if semantic analysis passed
+	return e.newError(node, "enum value '%s' has invalid type", valueName)
 }
 
 // VisitRecordLiteralExpression evaluates a record literal expression.

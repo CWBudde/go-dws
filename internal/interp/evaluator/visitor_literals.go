@@ -20,31 +20,33 @@ func (e *Evaluator) VisitIntegerLiteral(node *ast.IntegerLiteral, ctx *Execution
 
 // VisitFloatLiteral evaluates a float literal node.
 func (e *Evaluator) VisitFloatLiteral(node *ast.FloatLiteral, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Direct creation
-	return e.adapter.EvalNode(node)
+	// Phase 3.5.4.2: Direct creation of FloatValue from literal
+	return &runtime.FloatValue{Value: node.Value}
 }
 
 // VisitStringLiteral evaluates a string literal node.
 func (e *Evaluator) VisitStringLiteral(node *ast.StringLiteral, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Direct creation
-	return e.adapter.EvalNode(node)
+	// Phase 3.5.4.3: Direct creation of StringValue from literal
+	return &runtime.StringValue{Value: node.Value}
 }
 
 // VisitBooleanLiteral evaluates a boolean literal node.
 func (e *Evaluator) VisitBooleanLiteral(node *ast.BooleanLiteral, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Direct creation
-	return e.adapter.EvalNode(node)
+	// Phase 3.5.4.4: Direct creation of BooleanValue from literal
+	return &runtime.BooleanValue{Value: node.Value}
 }
 
 // VisitCharLiteral evaluates a character literal node.
 // In DWScript, character literals are treated as single-character strings.
 func (e *Evaluator) VisitCharLiteral(node *ast.CharLiteral, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Convert char to string value
-	return e.adapter.EvalNode(node)
+	// Phase 3.5.4.5: Convert char rune to string value
+	// Character literals in DWScript are syntactic sugar for single-char strings
+	return &runtime.StringValue{Value: string(node.Value)}
 }
 
 // VisitNilLiteral evaluates a nil literal node.
 func (e *Evaluator) VisitNilLiteral(node *ast.NilLiteral, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Return nil value
-	return e.adapter.EvalNode(node)
+	// Phase 3.5.4.6: Return new nil value instance
+	// NilValue can have an associated ClassType, but literals don't specify one
+	return &runtime.NilValue{}
 }
