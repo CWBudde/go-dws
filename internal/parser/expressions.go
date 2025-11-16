@@ -630,7 +630,6 @@ func (p *Parser) advanceToNextItem(end lexer.TokenType) (bool, bool) {
 	return false, false
 }
 
-
 // parseExpressionList parses a comma-separated list of expressions.
 // PRE: curToken is LPAREN (or opening token)
 // POST: curToken is end token (typically RPAREN)
