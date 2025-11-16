@@ -10,8 +10,8 @@ import (
 
 func TestToInteger(t *testing.T) {
 	tests := []struct {
-		input   Value
 		name    string
+		input   Value
 		want    int64
 		wantErr bool
 	}{
@@ -46,8 +46,8 @@ func TestToInteger(t *testing.T) {
 
 func TestToFloat(t *testing.T) {
 	tests := []struct {
-		input   Value
 		name    string
+		input   Value
 		want    float64
 		wantErr bool
 	}{
@@ -108,8 +108,8 @@ func TestToString(t *testing.T) {
 
 func TestToBoolean(t *testing.T) {
 	tests := []struct {
-		input   Value
 		name    string
+		input   Value
 		want    bool
 		wantErr bool
 	}{
@@ -150,10 +150,10 @@ func TestToBoolean(t *testing.T) {
 
 func TestAddNumeric(t *testing.T) {
 	tests := []struct {
+		name    string
 		left    Value
 		right   Value
 		want    Value
-		name    string
 		wantErr bool
 	}{
 		{"int + int", NewInteger(2), NewInteger(3), NewInteger(5), false},
@@ -182,10 +182,10 @@ func TestAddNumeric(t *testing.T) {
 
 func TestSubtractNumeric(t *testing.T) {
 	tests := []struct {
+		name    string
 		left    Value
 		right   Value
 		want    Value
-		name    string
 		wantErr bool
 	}{
 		{"int - int", NewInteger(5), NewInteger(3), NewInteger(2), false},
@@ -211,10 +211,10 @@ func TestSubtractNumeric(t *testing.T) {
 
 func TestMultiplyNumeric(t *testing.T) {
 	tests := []struct {
+		name    string
 		left    Value
 		right   Value
 		want    Value
-		name    string
 		wantErr bool
 	}{
 		{"int * int", NewInteger(2), NewInteger(3), NewInteger(6), false},
@@ -241,10 +241,10 @@ func TestMultiplyNumeric(t *testing.T) {
 
 func TestDivideNumeric(t *testing.T) {
 	tests := []struct {
+		name    string
 		left    Value
 		right   Value
 		want    Value
-		name    string
 		wantErr bool
 	}{
 		{"int / int", NewInteger(6), NewInteger(2), NewFloat(3.0), false},
@@ -270,10 +270,10 @@ func TestDivideNumeric(t *testing.T) {
 
 func TestIntDivideNumeric(t *testing.T) {
 	tests := []struct {
+		name    string
 		left    Value
 		right   Value
 		want    Value
-		name    string
 		wantErr bool
 	}{
 		{"6 div 2", NewInteger(6), NewInteger(2), NewInteger(3), false},
@@ -300,10 +300,10 @@ func TestIntDivideNumeric(t *testing.T) {
 
 func TestModNumeric(t *testing.T) {
 	tests := []struct {
+		name    string
 		left    Value
 		right   Value
 		want    Value
-		name    string
 		wantErr bool
 	}{
 		{"7 mod 3", NewInteger(7), NewInteger(3), NewInteger(1), false},
