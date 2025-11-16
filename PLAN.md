@@ -210,35 +210,37 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 - `parseLambdaParameterList()` (expressions.go:1086-1120)
 
 **Implementation**:
-- [ ] Design generic `parseList` helper with callbacks
-- [ ] Create `parseSeparatedList(sep, term, parseItem)` helper
-- [ ] Create `parseOptionalSeparatedList(sep, term, parseItem)` helper
-- [ ] Refactor expression list parsing to use helper
-- [ ] Refactor parameter list parsing to use helper
-- [ ] Refactor field list parsing to use helper
+- [x] Design generic `parseList` helper with callbacks
+- [x] Create `parseSeparatedList(sep, term, parseItem)` helper
+- [x] Create `parseSeparatedListBeforeStart()` variant helper
+- [x] Refactor expression list parsing to use helper
+- [ ] Refactor parameter list parsing to use helper (deferred for future work)
+- [ ] Refactor field list parsing to use helper (deferred for future work)
 
-**Example API**:
-```go
-func (p *Parser) parseSeparatedList(
-    separator lexer.TokenType,
-    terminator lexer.TokenType,
-    parseItem func() ast.Node,
-) []ast.Node
-```
+**Status**: ✅ **DONE** (core implementation complete)
+
+**Actual Implementation**:
+- Created `ListParseOptions` struct with flexible configuration
+- Implemented `parseSeparatedList()` - main helper (curToken at first item)
+- Implemented `parseSeparatedListBeforeStart()` - variant (curToken before list)
+- Implemented `peekTokenIsSomeOf()` - utility for multiple token types
+- Refactored `parseExpressionList()` as demonstration
+- Added comprehensive test suite (10 test functions, ~480 lines)
 
 **Files Modified**:
-- `internal/parser/parser.go` (~100 lines added for helpers)
-- `internal/parser/expressions.go` (~150 lines simplified)
-- `internal/parser/functions.go` (~80 lines simplified)
-- `internal/parser/types.go` (~60 lines simplified)
+- `internal/parser/parser.go` (+175 lines for helpers)
+- `internal/parser/expressions.go` (-12 lines from refactoring)
+- `internal/parser/list_parsing_test.go` (+482 lines, new file)
 
 **Tests**:
-- Add `internal/parser/list_parsing_test.go` (~200 lines)
-- Test various separator/terminator combinations
-- Test edge cases (empty lists, trailing separators)
-- Verify existing tests still pass
+- ✅ Add `internal/parser/list_parsing_test.go` (~480 lines)
+- ✅ Test various separator/terminator combinations
+- ✅ Test edge cases (empty lists, trailing separators)
+- ✅ Verify existing tests still pass
 
-**Estimate**: 6-8 hours
+**Actual Time**: ~3 hours (faster than estimated)
+
+**Note**: Additional refactoring of `parseParameterList`, `parseArgumentsOrFields`, and other list parsing functions can be done incrementally as follow-up work. The foundation is now established.
 
 ---
 
