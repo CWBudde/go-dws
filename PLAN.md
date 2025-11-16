@@ -110,15 +110,18 @@ Replace mutable parser state with immutable cursor.
 **Goal**: Enable parser to work in both old mode (mutable) and new mode (cursor).
 
 **Implementation**:
-- [ ] Add `cursor` and `useCursor` fields to Parser
-- [ ] Create factory method `NewCursorParser(lexer *Lexer)`
-- [ ] Add feature flag in tests
-- [ ] Set up differential testing (both modes must produce identical AST)
-- [ ] Document dual-mode architecture
+- [x] Add `cursor` and `useCursor` fields to Parser
+- [x] Create factory method `NewCursorParser(lexer *Lexer)`
+- [x] Add feature flag in tests
+- [x] Set up differential testing (both modes must produce identical AST)
+- [x] Document dual-mode architecture
+
+**Files Created**:
+- `internal/parser/dual_mode_test.go` (395 lines)
+- `docs/dual-mode-parser.md` (419 lines)
 
 **Files Modified**:
-- `internal/parser/parser.go` (~40 lines)
-- `internal/parser/parser_test.go` (~60 lines - dual mode tests)
+- `internal/parser/parser.go` (+113 lines - NewCursorParser, syncCursorToTokens, state management)
 
 **Tests**:
 - Test parser works in both modes

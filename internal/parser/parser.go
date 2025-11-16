@@ -393,6 +393,13 @@ type Parser struct {
 	// Consolidates scattered context flags and block stack into a single type.
 	// Old fields above are kept for backward compatibility and are synchronized with ctx.
 	ctx *ParseContext
+
+	// cursor and useCursor enable dual-mode operation (Task 2.2.2)
+	// When useCursor is true, the parser uses the immutable cursor for token navigation
+	// instead of the mutable curToken/peekToken fields.
+	// This allows incremental migration from traditional to cursor-based parsing.
+	cursor    *TokenCursor
+	useCursor bool
 }
 
 // ParserState represents a snapshot of the parser's state at a specific point.
@@ -407,9 +414,12 @@ type ParserState struct {
 	parsingPostCondition bool
 	blockStack           []BlockContext
 	ctx                  *ParseContext // New structured context (Task 2.1.2)
+	cursor               *TokenCursor  // Cursor position (Task 2.2.2, for dual-mode operation)
 }
 
-// New creates a new Parser instance.
+// New creates a new Parser instance in traditional mode.
+// The parser uses mutable token state (curToken/peekToken) for backward compatibility.
+// For cursor-based parsing, use NewCursorParser() instead.
 func New(l *lexer.Lexer) *Parser {
 	p := &Parser{
 		l:                      l,
@@ -420,6 +430,8 @@ func New(l *lexer.Lexer) *Parser {
 		semanticErrors:         []string{},
 		blockStack:             []BlockContext{},
 		ctx:                    NewParseContext(), // Initialize structured context (Task 2.1.2)
+		useCursor:              false,            // Traditional mode (Task 2.2.2)
+		cursor:                 nil,              // No cursor in traditional mode
 	}
 
 	// Register prefix parse functions
@@ -484,6 +496,109 @@ func New(l *lexer.Lexer) *Parser {
 	p.nextToken()
 
 	return p
+}
+
+// NewCursorParser creates a new Parser instance in cursor mode.
+// The parser uses an immutable TokenCursor for token navigation instead of
+// mutable curToken/peekToken state. This enables functional composition,
+// natural backtracking, and eliminates manual nextToken() calls.
+//
+// This is part of the dual-mode architecture (Task 2.2.2) that allows
+// incremental migration from traditional to cursor-based parsing.
+//
+// Usage:
+//
+//	p := parser.NewCursorParser(lexer)
+//	program := p.ParseProgram()  // Uses cursor internally
+//
+// Note: The parser still maintains curToken/peekToken for backward compatibility
+// with existing parsing functions. During migration, the parser synchronizes
+// cursor position with curToken/peekToken.
+func NewCursorParser(l *lexer.Lexer) *Parser {
+	p := &Parser{
+		l:                      l,
+		errors:                 []*ParserError{},
+		prefixParseFns:         make(map[lexer.TokenType]prefixParseFn),
+		infixParseFns:          make(map[lexer.TokenType]infixParseFn),
+		enableSemanticAnalysis: false,
+		semanticErrors:         []string{},
+		blockStack:             []BlockContext{},
+		ctx:                    NewParseContext(), // Initialize structured context (Task 2.1.2)
+		useCursor:              true,             // Cursor mode (Task 2.2.2)
+		cursor:                 NewTokenCursor(l), // Initialize cursor
+	}
+
+	// Register prefix parse functions (same as New())
+	p.registerPrefix(lexer.IDENT, p.parseIdentifier)
+	p.registerPrefix(lexer.INT, p.parseIntegerLiteral)
+	p.registerPrefix(lexer.FLOAT, p.parseFloatLiteral)
+	p.registerPrefix(lexer.STRING, p.parseStringLiteral)
+	p.registerPrefix(lexer.TRUE, p.parseBooleanLiteral)
+	p.registerPrefix(lexer.FALSE, p.parseBooleanLiteral)
+	p.registerPrefix(lexer.NIL, p.parseNilLiteral)
+	p.registerPrefix(lexer.NULL, p.parseNullIdentifier)             // Task 9.4.1: Null as built-in constant
+	p.registerPrefix(lexer.UNASSIGNED, p.parseUnassignedIdentifier) // Task 9.4.1: Unassigned as built-in constant
+	p.registerPrefix(lexer.CHAR, p.parseCharLiteral)
+	p.registerPrefix(lexer.MINUS, p.parsePrefixExpression)
+	p.registerPrefix(lexer.PLUS, p.parsePrefixExpression)
+	p.registerPrefix(lexer.NOT, p.parsePrefixExpression)
+	p.registerPrefix(lexer.LPAREN, p.parseGroupedExpression)
+	p.registerPrefix(lexer.LBRACK, p.parseArrayLiteral)           // Array/Set literals: [a, b]
+	p.registerPrefix(lexer.NEW, p.parseNewExpression)             // new keyword: new Exception('msg')
+	p.registerPrefix(lexer.AT, p.parseAddressOfExpression)        // Address-of operator: @FunctionName
+	p.registerPrefix(lexer.LAMBDA, p.parseLambdaExpression)       // Lambda expressions: lambda(x) => x * 2
+	p.registerPrefix(lexer.OLD, p.parseOldExpression)             // old keyword: old identifier (postconditions only)
+	p.registerPrefix(lexer.INHERITED, p.parseInheritedExpression) // inherited keyword: inherited MethodName(args)
+	p.registerPrefix(lexer.SELF, p.parseSelfExpression)           // self keyword: Self.Field, Self.Method()
+	p.registerPrefix(lexer.IF, p.parseIfExpression)               // if expression: if condition then expr1 else expr2
+
+	// Register keywords that can be used as identifiers in expression context
+	p.registerPrefix(lexer.HELPER, p.parseIdentifier)
+	p.registerPrefix(lexer.STEP, p.parseIdentifier) // 'step' is contextual - keyword in for loops, identifier elsewhere
+
+	// Register infix parse functions (same as New())
+	p.registerInfix(lexer.QUESTION_QUESTION, p.parseInfixExpression) // Coalesce: a ?? b
+	p.registerInfix(lexer.LPAREN, p.parseCallExpression)
+	p.registerInfix(lexer.LBRACK, p.parseIndexExpression) // Array/string indexing: arr[i]
+	p.registerInfix(lexer.PLUS, p.parseInfixExpression)
+	p.registerInfix(lexer.MINUS, p.parseInfixExpression)
+	p.registerInfix(lexer.ASTERISK, p.parseInfixExpression)
+	p.registerInfix(lexer.SLASH, p.parseInfixExpression)
+	p.registerInfix(lexer.DIV, p.parseInfixExpression)
+	p.registerInfix(lexer.MOD, p.parseInfixExpression)
+	p.registerInfix(lexer.SHL, p.parseInfixExpression)
+	p.registerInfix(lexer.SHR, p.parseInfixExpression)
+	p.registerInfix(lexer.SAR, p.parseInfixExpression)
+	p.registerInfix(lexer.EQ, p.parseInfixExpression)
+	p.registerInfix(lexer.NOT_EQ, p.parseInfixExpression)
+	p.registerInfix(lexer.LESS, p.parseInfixExpression)
+	p.registerInfix(lexer.GREATER, p.parseInfixExpression)
+	p.registerInfix(lexer.LESS_EQ, p.parseInfixExpression)
+	p.registerInfix(lexer.GREATER_EQ, p.parseInfixExpression)
+	p.registerInfix(lexer.AND, p.parseInfixExpression)
+	p.registerInfix(lexer.OR, p.parseInfixExpression)
+	p.registerInfix(lexer.XOR, p.parseInfixExpression)
+	p.registerInfix(lexer.IN, p.parseInfixExpression)              // Set membership test
+	p.registerInfix(lexer.IS, p.parseIsExpression)                 // Type checking: obj is TClass
+	p.registerInfix(lexer.AS, p.parseAsExpression)                 // Type casting: obj as IInterface
+	p.registerInfix(lexer.IMPLEMENTS, p.parseImplementsExpression) // Interface check: obj implements IInterface
+	p.registerInfix(lexer.DOT, p.parseMemberAccess)
+
+	// Synchronize cursor position with curToken/peekToken for backward compatibility
+	// This allows existing parsing functions to work while we migrate incrementally
+	p.syncCursorToTokens()
+
+	return p
+}
+
+// syncCursorToTokens synchronizes the cursor position with curToken/peekToken.
+// This is called in cursor mode to maintain backward compatibility with
+// existing parsing functions that still use curToken/peekToken.
+func (p *Parser) syncCursorToTokens() {
+	if p.useCursor && p.cursor != nil {
+		p.curToken = p.cursor.Current()
+		p.peekToken = p.cursor.Peek(1)
+	}
 }
 
 // Errors returns the list of parsing errors.
@@ -708,6 +823,7 @@ func (p *Parser) saveState() ParserState {
 		semanticErrors:       semanticErrorsCopy,
 		blockStack:           blockStackCopy,
 		ctx:                  p.ctx.Snapshot(), // Save context snapshot (Task 2.1.2)
+		cursor:               p.cursor,         // Save cursor position (Task 2.2.2)
 	}
 }
 
@@ -725,6 +841,10 @@ func (p *Parser) restoreState(state ParserState) {
 	// Restore context (Task 2.1.2)
 	// This also restores parsingPostCondition in the context
 	p.ctx.Restore(state.ctx)
+	// Restore cursor (Task 2.2.2)
+	p.cursor = state.cursor
+	// In cursor mode, sync curToken/peekToken with cursor for backward compatibility
+	p.syncCursorToTokens()
 }
 
 // pushBlockContext pushes a new block context onto the stack.
