@@ -623,81 +623,32 @@ func (l *Lexer) skipWhitespace() {
 }
 
 // skipLineComment skips a line comment starting with //.
+// Implemented by calling readLineComment and discarding the result.
 func (l *Lexer) skipLineComment() {
-	// Skip until end of line or EOF
-	for l.ch != '\n' && l.ch != 0 {
-		l.readChar()
-	}
+	_ = l.readLineComment()
 }
 
 // skipBlockComment skips a block comment enclosed in { } or (* *).
 // style: '{' for {} comments, '(' for (* *) comments
 // Adds an error if the comment is not properly terminated.
+// Implemented by calling readBlockComment and discarding the result.
 func (l *Lexer) skipBlockComment(style rune) {
 	startPos := l.currentPos()
-
-	if style == '{' {
-		l.readChar() // skip {
-		for l.ch != 0 {
-			if l.ch == '}' {
-				l.readChar() // skip }
-				return
-			}
-			if l.ch == '\n' {
-				l.line++
-				l.column = 0
-			}
-			l.readChar()
-		}
-		// Unterminated comment
+	_, terminated := l.readBlockComment(style)
+	if !terminated {
 		l.addError("unterminated block comment", startPos)
-		return
 	}
-
-	// style == '(' for (* *)
-	l.readChar() // skip (
-	l.readChar() // skip *
-
-	for l.ch != 0 {
-		if l.ch == '*' && l.peekChar() == ')' {
-			l.readChar() // skip *
-			l.readChar() // skip )
-			return
-		}
-		if l.ch == '\n' {
-			l.line++
-			l.column = 0
-		}
-		l.readChar()
-	}
-
-	// Unterminated comment
-	l.addError("unterminated block comment", startPos)
 }
 
 // skipCStyleComment skips a C-style multi-line comment /* */.
 // Adds an error if the comment is not properly terminated.
+// Implemented by calling readCStyleComment and discarding the result.
 func (l *Lexer) skipCStyleComment() {
 	startPos := l.currentPos()
-
-	l.readChar() // skip /
-	l.readChar() // skip *
-
-	for l.ch != 0 {
-		if l.ch == '*' && l.peekChar() == '/' {
-			l.readChar() // skip *
-			l.readChar() // skip /
-			return
-		}
-		if l.ch == '\n' {
-			l.line++
-			l.column = 0
-		}
-		l.readChar()
+	_, terminated := l.readCStyleComment()
+	if !terminated {
+		l.addError("unterminated C-style comment", startPos)
 	}
-
-	// Unterminated comment
-	l.addError("unterminated C-style comment", startPos)
 }
 
 // readIdentifier reads an identifier or keyword from the input.
