@@ -165,12 +165,12 @@ type Parser struct {
 **Goal**: Establish baseline benchmarks and regression detection before major changes.
 
 **Implementation**:
-- [ ] Audit existing benchmarks in `parser_bench_test.go`
-- [ ] Add missing benchmarks for common patterns (list parsing, expressions, types, error recovery)
-- [ ] Create benchmark comparison script `scripts/bench_compare.sh`
-- [ ] Document baseline performance in `docs/parser-benchmarks.md`
-- [ ] Set up CI integration for benchmark regression detection
-- [ ] Add memory allocation benchmarks
+- [x] Audit existing benchmarks in `parser_bench_test.go`
+- [x] Add missing benchmarks for common patterns (list parsing, expressions, types, error recovery)
+- [x] Create benchmark comparison script `scripts/bench_compare.sh`
+- [x] Document baseline performance in `docs/parser-benchmarks.md`
+- [x] Set up CI integration for benchmark regression detection
+- [x] Add memory allocation benchmarks
 
 **Files Created**:
 - `scripts/bench_compare.sh` (~50 lines)
