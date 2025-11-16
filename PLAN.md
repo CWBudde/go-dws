@@ -16,7 +16,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 **Approach**: Incremental refactoring with full test coverage at each step. No behavior changes, only internal improvements.
 
 **Note**: The lexer implementation has gone BEYOND the original Phase 1 scope, including:
-- ✅ N-token lookahead buffer with `Peek(n)` method (Task 12.3.1)
+- ✅ N-token lookahead buffer with `Peek(n)` method
 - ✅ Comment preservation mode for formatters and documentation tools
 - ✅ Error accumulation pattern matching parser conventions
 - ✅ State save/restore for speculative parsing
