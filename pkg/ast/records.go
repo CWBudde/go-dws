@@ -28,8 +28,8 @@ type RecordDecl struct {
 	Fields     []*FieldDecl
 	Methods    []*FunctionDecl
 	Properties []RecordPropertyDecl
-	Constants  []*ConstDecl  // Record constants
-	ClassVars  []*FieldDecl  // Class variables (shared across all instances)
+	Constants  []*ConstDecl // Record constants
+	ClassVars  []*FieldDecl // Class variables (shared across all instances)
 }
 
 func (rd *RecordDecl) statementNode() {}

@@ -146,8 +146,8 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 		ClassMethods:         make(map[string]*ast.FunctionDecl),
 		ClassMethodOverloads: make(map[string][]*ast.FunctionDecl),
 		MethodOverloads:      make(map[string][]*ast.FunctionDecl),
-		Constants:            constants,  // Task 9.12.2: Record constants
-		ClassVars:            classVars,  // Task 9.12.2: Class variables
+		Constants:            constants, // Task 9.12.2: Record constants
+		ClassVars:            classVars, // Task 9.12.2: Class variables
 	}
 	// Initialize ClassMethods with StaticMethods for compatibility
 	for k, v := range staticMethods {
