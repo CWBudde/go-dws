@@ -78,6 +78,11 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 		// Add field to record type (using lowercase key for case-insensitive lookup)
 		recordType.Fields[lowerFieldName] = fieldType
+
+		// Task 9.12.4: Track which fields have initializers
+		if field.InitValue != nil {
+			recordType.FieldsWithInit[lowerFieldName] = true
+		}
 	}
 
 	// Register the record type early so it's visible in method signatures
@@ -234,6 +239,54 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			}
 			recordType.MethodOverloads[lowerMethodName] = append(
 				recordType.MethodOverloads[lowerMethodName], methodInfo)
+		}
+
+		// Task 9.12.4: Analyze method body if present (inline method)
+		if method.Body != nil {
+			// Create a new scope for the method body
+			oldSymbols := a.symbols
+			a.symbols = NewEnclosedSymbolTable(oldSymbols)
+			defer func() { a.symbols = oldSymbols }()
+
+			// Bind Self to the record type
+			a.symbols.Define("Self", recordType)
+
+			// Bind record fields to scope (accessible without Self prefix)
+			for fieldName, fieldType := range recordType.Fields {
+				a.symbols.Define(fieldName, fieldType)
+			}
+
+			// Task 9.12.4: Bind record constants to scope
+			for constName, constInfo := range recordType.Constants {
+				a.symbols.Define(constName, constInfo.Type)
+			}
+
+			// Task 9.12.4: Bind class variables to scope
+			for varName, varType := range recordType.ClassVars {
+				a.symbols.Define(varName, varType)
+			}
+
+			// Bind method parameters
+			for _, param := range method.Parameters {
+				paramType, err := a.resolveType(param.Type.Name)
+				if err == nil {
+					a.symbols.Define(param.Name.Value, paramType)
+				}
+			}
+
+			// For functions, bind Result variable
+			if method.ReturnType != nil {
+				a.symbols.Define("Result", returnType)
+				a.symbols.Define(methodName, returnType) // Method name is alias for Result
+			}
+
+			// Track current function for return type checking
+			previousFunc := a.currentFunction
+			a.currentFunction = method
+			defer func() { a.currentFunction = previousFunc }()
+
+			// Analyze the method body
+			a.analyzeBlock(method.Body)
 		}
 	}
 

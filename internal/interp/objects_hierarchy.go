@@ -150,6 +150,49 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				return i.newErrorWithLocation(ma, "enum value '%s' not found in enum '%s'", ma.Member.Value, ident.Value)
 			}
 		}
+
+		// Task 9.12.2: Check if this identifier refers to a record type (for static access: TPoint.cOrigin, TPoint.Count)
+		recordTypeKey := "__record_type_" + strings.ToLower(ident.Value)
+		if recordTypeVal, ok := i.env.Get(recordTypeKey); ok {
+			if rtv, ok := recordTypeVal.(*RecordTypeValue); ok {
+				memberName := ma.Member.Value
+
+				// Check constants (case-insensitive)
+				if constValue, exists := rtv.Constants[strings.ToLower(memberName)]; exists {
+					return constValue
+				}
+
+				// Check class variables (case-insensitive)
+				if classVarValue, exists := rtv.ClassVars[strings.ToLower(memberName)]; exists {
+					return classVarValue
+				}
+
+				// Check class methods (case-insensitive)
+				if classMethod, exists := rtv.ClassMethods[strings.ToLower(memberName)]; exists {
+					// Check if parameterless
+					if len(classMethod.Parameters) == 0 {
+						// Auto-invoke the class method
+						methodCall := &ast.MethodCallExpression{
+							TypedExpressionBase: ast.TypedExpressionBase{
+								BaseNode: ast.BaseNode{
+									Token: ma.Token,
+								},
+							},
+							Object:    ma.Object,
+							Method:    ma.Member,
+							Arguments: []ast.Expression{},
+						}
+						return i.evalMethodCall(methodCall)
+					}
+					// Class method has parameters - error (cannot call without parentheses)
+					return i.newErrorWithLocation(ma, "class method '%s' of record '%s' requires %d parameter(s); use parentheses to call",
+						memberName, ident.Value, len(classMethod.Parameters))
+				}
+
+				// Member not found in record type
+				return i.newErrorWithLocation(ma, "member '%s' not found in record type '%s'", memberName, ident.Value)
+			}
+		}
 	}
 
 	// Not static access - evaluate the object expression for instance access
@@ -189,6 +232,22 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				// Method has parameters - cannot auto-invoke without parentheses
 				return i.newErrorWithLocation(ma, "method '%s' of record '%s' requires %d parameter(s); use parentheses to call",
 					ma.Member.Value, recordVal.RecordType.Name, len(methodDecl.Parameters))
+			}
+		}
+
+		// Task 9.12.2: Check if it's a constant (accessible via instance)
+		// Look up the record type value to get constants
+		recordTypeKey := "__record_type_" + strings.ToLower(recordVal.RecordType.Name)
+		if typeVal, ok := i.env.Get(recordTypeKey); ok {
+			if rtv, ok := typeVal.(*RecordTypeValue); ok {
+				// Check constants (case-insensitive)
+				if constValue, exists := rtv.Constants[strings.ToLower(ma.Member.Value)]; exists {
+					return constValue
+				}
+				// Check class variables (case-insensitive)
+				if classVarValue, exists := rtv.ClassVars[strings.ToLower(ma.Member.Value)]; exists {
+					return classVarValue
+				}
 			}
 		}
 

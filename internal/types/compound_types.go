@@ -148,6 +148,7 @@ type RecordType struct {
 	Properties           map[string]*RecordPropertyInfo
 	Constants            map[string]*ConstantInfo // Record constants (regular and class)
 	ClassVars            map[string]Type          // Class variables (shared across instances)
+	FieldsWithInit       map[string]bool          // Fields that have default initializers - Task 9.12.4
 	Name                 string
 }
 
@@ -284,6 +285,7 @@ func NewRecordType(name string, fields map[string]Type) *RecordType {
 		Properties:           make(map[string]*RecordPropertyInfo),
 		Constants:            make(map[string]*ConstantInfo),
 		ClassVars:            make(map[string]Type),
+		FieldsWithInit:       make(map[string]bool),
 	}
 }
 

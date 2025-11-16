@@ -1,0 +1,44 @@
+// Test record field initialization, constants, and class variables
+type
+  TPoint = record
+    X: Integer := 10;  // Field with initializer
+    Y := 20;           // Type inference
+
+    const
+      cOrigin = 0;     // Record constant
+
+    class const
+      cMaxPoints = 100;  // Class constant
+
+    class var
+      Count: Integer;    // Class variable
+
+    function Distance: Float;
+  end;
+
+function TPoint.Distance: Float;
+begin
+  Result := Sqrt(X*X + Y*Y);
+end;
+
+var
+  p1: TPoint;
+  p2: TPoint;
+begin
+  // Test 1: Default initialization
+  p1 := TPoint();  // Should use default values X=10, Y=20
+  PrintLn('p1.X = ' + IntToStr(p1.X));
+  PrintLn('p1.Y = ' + IntToStr(p1.Y));
+
+  // Test 2: Partial initialization (field with initializer can be omitted)
+  p2 := TPoint(Y: 30);  // X should default to 10
+  PrintLn('p2.X = ' + IntToStr(p2.X));
+  PrintLn('p2.Y = ' + IntToStr(p2.Y));
+
+  // Test 3: Access constants
+  PrintLn('cOrigin = ' + IntToStr(TPoint.cOrigin));
+  PrintLn('cMaxPoints = ' + IntToStr(TPoint.cMaxPoints));
+
+  // Test 4: Method call
+  PrintLn('Distance = ' + FloatToStr(p1.Distance));
+end.

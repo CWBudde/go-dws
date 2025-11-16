@@ -81,6 +81,22 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 		i.env.Define(fieldName, fieldValue)
 	}
 
+	// Task 9.12.2: Bind record constants and class variables to environment
+	// Look up the record type value to get constants and class vars
+	recordTypeKey := "__record_type_" + strings.ToLower(recVal.RecordType.Name)
+	if typeVal, ok := i.env.Get(recordTypeKey); ok {
+		if rtv, ok := typeVal.(*RecordTypeValue); ok {
+			// Bind constants (case-sensitive to match declaration)
+			for constName, constValue := range rtv.Constants {
+				i.env.Define(constName, constValue)
+			}
+			// Bind class variables (case-sensitive to match declaration)
+			for varName, varValue := range rtv.ClassVars {
+				i.env.Define(varName, varValue)
+			}
+		}
+	}
+
 	// Check recursion depth before pushing to call stack
 	if len(i.callStack) >= i.maxRecursionDepth {
 		i.env = savedEnv // Restore environment before raising exception
@@ -272,6 +288,16 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 
 	// Bind __CurrentRecord__ so record static methods can be called without qualification
 	i.env.Define("__CurrentRecord__", rtv)
+
+	// Task 9.12.2: Bind record constants and class variables to environment for static methods
+	// Bind constants (case-sensitive to match declaration)
+	for constName, constValue := range rtv.Constants {
+		i.env.Define(constName, constValue)
+	}
+	// Bind class variables (case-sensitive to match declaration)
+	for varName, varValue := range rtv.ClassVars {
+		i.env.Define(varName, varValue)
+	}
 
 	// Bind method parameters to arguments with implicit conversion
 	for idx, param := range method.Parameters {

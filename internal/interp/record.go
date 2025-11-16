@@ -48,11 +48,27 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 	for _, field := range decl.Fields {
 		fieldName := field.Name.Value
 
-		// Resolve field type using type expression
-		// Task 9.170.1: Updated to support inline array types
-		fieldType := i.resolveTypeFromExpression(field.Type)
-		if fieldType == nil {
-			return &ErrorValue{Message: fmt.Sprintf("unknown or invalid type for field '%s' in record '%s'", fieldName, recordName)}
+		// Task 9.12.1: Handle type inference for fields
+		var fieldType types.Type
+		if field.Type != nil {
+			// Explicit type
+			// Task 9.170.1: Updated to support inline array types
+			fieldType = i.resolveTypeFromExpression(field.Type)
+			if fieldType == nil {
+				return &ErrorValue{Message: fmt.Sprintf("unknown or invalid type for field '%s' in record '%s'", fieldName, recordName)}
+			}
+		} else if field.InitValue != nil {
+			// Type inference from initializer
+			initValue := i.Eval(field.InitValue)
+			if isError(initValue) {
+				return initValue
+			}
+			fieldType = i.getValueType(initValue)
+			if fieldType == nil {
+				return &ErrorValue{Message: fmt.Sprintf("cannot infer type for field '%s' in record '%s'", fieldName, recordName)}
+			}
+		} else {
+			return &ErrorValue{Message: fmt.Sprintf("field '%s' in record '%s' must have either a type or initializer", fieldName, recordName)}
 		}
 
 		fields[fieldName] = fieldType
@@ -76,6 +92,46 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 		}
 	}
 
+	// Task 9.12.2: Evaluate record constants
+	constants := make(map[string]Value)
+	for _, constant := range decl.Constants {
+		constName := constant.Name.Value
+		constValue := i.Eval(constant.Value)
+		if isError(constValue) {
+			return constValue
+		}
+		// Normalize to lowercase for case-insensitive access
+		constants[strings.ToLower(constName)] = constValue
+	}
+
+	// Task 9.12.2: Initialize class variables
+	classVars := make(map[string]Value)
+	for _, classVar := range decl.ClassVars {
+		varName := classVar.Name.Value
+		var varValue Value
+
+		if classVar.InitValue != nil {
+			// Evaluate the initializer
+			varValue = i.Eval(classVar.InitValue)
+			if isError(varValue) {
+				return varValue
+			}
+		} else {
+			// Use type to determine zero value
+			var varType types.Type
+			if classVar.Type != nil {
+				varType = i.resolveTypeFromExpression(classVar.Type)
+				if varType == nil {
+					return &ErrorValue{Message: fmt.Sprintf("unknown type for class variable '%s' in record '%s'", varName, recordName)}
+				}
+			}
+			varValue = getZeroValueForType(varType, nil)
+		}
+
+		// Normalize to lowercase for case-insensitive access
+		classVars[strings.ToLower(varName)] = varValue
+	}
+
 	// TODO: Handle properties if needed
 
 	// Store record type metadata in environment with special key
@@ -90,6 +146,8 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 		ClassMethods:         make(map[string]*ast.FunctionDecl),
 		ClassMethodOverloads: make(map[string][]*ast.FunctionDecl),
 		MethodOverloads:      make(map[string][]*ast.FunctionDecl),
+		Constants:            constants,  // Task 9.12.2: Record constants
+		ClassVars:            classVars,  // Task 9.12.2: Class variables
 	}
 	// Initialize ClassMethods with StaticMethods for compatibility
 	for k, v := range staticMethods {
@@ -116,6 +174,7 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 // RecordTypeValue is an internal value type used to store record type metadata
 // in the interpreter's environment.
 // Task 9.7: Extended to include method AST nodes for runtime execution.
+// Task 9.12: Extended to include constants and class variables.
 type RecordTypeValue struct {
 	RecordType           *types.RecordType
 	FieldDecls           map[string]*ast.FieldDecl      // Field declarations (for initializers) - Task 9.5
@@ -124,6 +183,8 @@ type RecordTypeValue struct {
 	ClassMethods         map[string]*ast.FunctionDecl   // Alias for StaticMethods (for compatibility)
 	MethodOverloads      map[string][]*ast.FunctionDecl // Instance method overloads
 	ClassMethodOverloads map[string][]*ast.FunctionDecl // Static method overloads
+	Constants            map[string]Value               // Record constants (evaluated at declaration) - Task 9.12.2
+	ClassVars            map[string]Value               // Class variables (shared across all instances) - Task 9.12.2
 }
 
 // Type returns "RECORD_TYPE".
@@ -241,10 +302,16 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 		recordTypeValue, _ = typeVal.(*RecordTypeValue)
 	}
 
-	// Create the record value
+	// Task 9.12.4: Create the record value with methods
 	recordValue := &RecordValue{
 		RecordType: recordType,
 		Fields:     make(map[string]Value),
+		Methods:    nil, // Will be set below if recordTypeValue is available
+	}
+
+	// Set methods if available
+	if recordTypeValue != nil {
+		recordValue.Methods = recordTypeValue.Methods
 	}
 
 	// Evaluate and assign field values from literal
