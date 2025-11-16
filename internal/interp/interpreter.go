@@ -27,7 +27,15 @@ const DefaultMaxRecursionDepth = 1024
 type PropertyEvalContext = evaluator.PropertyEvalContext
 
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
+//
+// Phase 3.5.1: The Interpreter is being refactored to be a thin orchestrator.
+// The evaluator field contains the evaluation logic and dependencies.
+// Eventually, most of the fields below will be removed and accessed via the evaluator.
 type Interpreter struct {
+	// Phase 3.5.1: Evaluator - the new evaluation engine
+	// This holds all the evaluation logic and dependencies (type system, runtime services, config)
+	evaluatorInstance *evaluator.Evaluator
+
 	// Phase 3.3.1: Execution context (gradually replacing individual state fields)
 	ctx *evaluator.ExecutionContext
 
@@ -182,6 +190,33 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 		interp.maxRecursionDepth,
 	)
 
+	// Phase 3.5.1: Initialize Evaluator
+	// The Evaluator holds evaluation logic and dependencies (type system, runtime services, config)
+	// Note: unitRegistry can be nil initially - it's set via SetUnitRegistry if needed
+
+	// Create evaluator config
+	evalConfig := &evaluator.Config{
+		MaxRecursionDepth: interp.maxRecursionDepth,
+		SourceCode:        "",
+		SourceFile:        "",
+	}
+
+	// Create evaluator instance
+	interp.evaluatorInstance = evaluator.NewEvaluator(
+		ts,
+		output,
+		evalConfig,
+		nil, // unitRegistry is set later via SetUnitRegistry if needed
+	)
+
+	// Set external functions if available
+	if interp.externalFunctions != nil {
+		interp.evaluatorInstance.SetExternalFunctions(interp.externalFunctions)
+	}
+
+	// Set the adapter so the evaluator can delegate back to the interpreter during migration
+	interp.evaluatorInstance.SetAdapter(interp)
+
 	// Register built-in exception classes
 	interp.registerBuiltinExceptions()
 
@@ -228,6 +263,27 @@ func (i *Interpreter) GetException() *ExceptionValue {
 // Task 9.18: Separate type metadata from AST nodes.
 func (i *Interpreter) SetSemanticInfo(info *pkgast.SemanticInfo) {
 	i.semanticInfo = info
+
+	// Phase 3.5.1: Also update the evaluator's semantic info
+	if i.evaluatorInstance != nil {
+		i.evaluatorInstance.SetSemanticInfo(info)
+	}
+}
+
+// GetEvaluator returns the evaluator instance.
+// Phase 3.5.1: This provides access to the evaluation engine for advanced use cases.
+func (i *Interpreter) GetEvaluator() *evaluator.Evaluator {
+	return i.evaluatorInstance
+}
+
+// EvalNode implements the evaluator.InterpreterAdapter interface.
+// This allows the Evaluator to delegate back to the Interpreter during migration.
+// Phase 3.5.1: This is temporary and will be removed once all evaluation logic
+// is moved to the Evaluator.
+func (i *Interpreter) EvalNode(node ast.Node) evaluator.Value {
+	// Delegate to the legacy Eval method
+	// The cast is safe because our Value type matches evaluator.Value interface
+	return i.Eval(node)
 }
 
 // GetCallStack returns a copy of the current call stack.

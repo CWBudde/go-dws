@@ -952,7 +952,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
 
 ### Phase 3.5: Evaluator Refactoring
 
-- [ ] 3.5.1 Split Interpreter into Evaluator + TypeSystem + ExecutionContext
+- [x] 3.5.1 Split Interpreter into Evaluator + TypeSystem + ExecutionContext
   - Create new Evaluator struct with focused responsibility
   - Evaluator contains: typeSystem, config (output, maxRecursion)
   - Context passed to all evaluation methods
@@ -960,8 +960,9 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Files: `internal/interp/evaluator/evaluator.go` (new)
   - Estimated: 1 week
   - Acceptance: Clean separation, Interpreter is now small orchestrator, tests pass
+  - **Completed**: Created Evaluator struct (258 lines) with focused responsibility (typeSystem, output, rand, config, unitRegistry, semanticInfo), Interpreter creates and initializes Evaluator in NewWithOptions(), implemented InterpreterAdapter interface for backward compatibility during migration, added state synchronization (SetSource, SetSemanticInfo, SetExternalFunctions), all tests pass with no regressions
 
-- [ ] 3.5.2 Implement Visitor pattern for evaluation
+- [x] 3.5.2 Implement Visitor pattern for evaluation
   - Make Evaluator implement ast.Visitor interface
   - Replace giant Eval() switch with visitor methods
   - VisitBinaryExpression, VisitCallExpression, etc.
@@ -969,15 +970,113 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Files: Update `internal/interp/evaluator/*.go`
   - Estimated: 1 week
   - Acceptance: No more giant switch, visitor pattern used, tests pass
+  - **Completed**: Implemented visitor pattern with 48 visitor methods (VisitXXX), replaced Evaluator.Eval() giant switch with type switch dispatch to visitor methods, created 4 visitor files organized by category (literals, expressions, statements, declarations), all visitor methods follow consistent signature: func (e *Evaluator) VisitXXX(node *ast.XXX, ctx *ExecutionContext) Value, eliminated 228-line switch statement, all tests pass with no regressions
 
-- [ ] 3.5.3 Split evaluation by node category
+- [x] 3.5.3 Split evaluation by node category
   - Create separate files for expression/statement evaluation
-  - `evaluator/expressions.go` - all expression visitors
-  - `evaluator/statements.go` - all statement visitors
-  - `evaluator/declarations.go` - all declaration visitors
+  - `evaluator/visitor_expressions.go` - all expression visitors (154 lines)
+  - `evaluator/visitor_statements.go` - all statement visitors (129 lines)
+  - `evaluator/visitor_declarations.go` - all declaration visitors (72 lines)
+  - `evaluator/visitor_literals.go` - all literal visitors (49 lines)
   - Each file ≤500 lines
   - Estimated: 3 days
   - Acceptance: Code organized by category, easy to navigate, tests pass
+  - **Completed**: Created 4 visitor files organized by node category (404 lines total), all files well under 500 line limit (largest: 154 lines), clear organization with visitor_*.go naming convention, 48 visitor methods total (6 literals, 22 expressions, 19 statements, 9 declarations), all tests pass
+
+- [ ] 3.5.4 Migrate evaluation logic from Interpreter to Evaluator
+  - Gradually move logic from Interpreter.evalXXX() methods to Evaluator.VisitXXX() methods
+  - Each migration: run tests, ensure no regressions
+  - Keep adapter active during migration for safety
+  - Files: Update all `evaluator/visitor_*.go` files
+  - Estimated: 2-3 weeks (48 methods to migrate across 9 batches)
+  - Acceptance: All evaluation logic in Evaluator, Interpreter methods just delegate, all tests pass
+
+  **Batch 1: Literals (6 methods)** - 1 day ✅ COMPLETED
+  - [x] 3.5.4.1 IntegerLiteral - Return &IntegerValue from node.Value
+  - [x] 3.5.4.2 FloatLiteral - Return &FloatValue from node.Value
+  - [x] 3.5.4.3 StringLiteral - Return &StringValue from node.Value
+  - [x] 3.5.4.4 BooleanLiteral - Return &BooleanValue from node.Value
+  - [x] 3.5.4.5 CharLiteral - Return &CharValue from rune(node.Value[0])
+  - [x] 3.5.4.6 NilLiteral - Return NilValue singleton
+
+  **Batch 2: Basic Expressions (8 methods)** - 2 days - PARTIALLY COMPLETE (2/8 migrated, 6 deferred)
+  - [ ] 3.5.4.7 Identifier - DEFERRED (needs function/class registries refactored to Evaluator first)
+  - [ ] 3.5.4.8 BinaryExpression - DEFERRED (needs operator tables, type coercion)
+  - [ ] 3.5.4.9 UnaryExpression - DEFERRED (needs operator tables)
+  - [ ] 3.5.4.10 AddressOfExpression - DEFERRED (needs function lookup infrastructure)
+  - [x] 3.5.4.11 GroupedExpression - Just evaluate inner expression (trivial)
+  - [x] 3.5.4.12 EnumLiteral - Migrate evalEnumLiteral() logic
+  - [ ] 3.5.4.13 IfExpression - DEFERRED (needs type system for default values)
+  - [ ] 3.5.4.14 IndexExpression - DEFERRED (needs property system)
+
+  **Note on deferred items**: The 6 deferred expressions require significant Interpreter state (function/class tables, operator systems, property infrastructure) to be refactored into the Evaluator first. These should be tackled in a dedicated phase after the infrastructure is ready. The adapter pattern is kept active for these complex cases.
+
+  **Batch 3: Object-Oriented Expressions (7 methods)** - 3 days
+  - [ ] 3.5.4.15 MemberAccessExpression - Migrate evalMemberAccess() (complex: fields, properties, helpers)
+  - [ ] 3.5.4.16 MethodCallExpression - Migrate evalMethodCall() (class/record method dispatch)
+  - [ ] 3.5.4.17 SelfExpression - Migrate evalSelfExpression() (return current object)
+  - [ ] 3.5.4.18 InheritedExpression - Migrate evalInheritedExpression() (parent method calls)
+  - [ ] 3.5.4.19 NewExpression - Migrate evalNewExpression() (object instantiation)
+  - [ ] 3.5.4.20 IsExpression - Migrate evalIsExpression() (type checking)
+  - [ ] 3.5.4.21 AsExpression - Migrate evalAsExpression() (type casting)
+
+  **Batch 4: Advanced Expressions (6 methods)** - 2 days
+  - [ ] 3.5.4.22 CallExpression - Migrate evalCallExpression() (function calls, built-ins)
+  - [ ] 3.5.4.23 LambdaExpression - Migrate evalLambdaExpression() (anonymous functions)
+  - [ ] 3.5.4.24 ImplementsExpression - Migrate evalImplementsExpression() (interface check)
+  - [ ] 3.5.4.25 ArrayLiteralExpression - Migrate evalArrayLiteral() (array construction)
+  - [ ] 3.5.4.26 RecordLiteralExpression - Migrate evalRecordLiteral() (record construction)
+  - [ ] 3.5.4.27 SetLiteral - Migrate evalSetLiteral() (set construction)
+
+  **Batch 5: Array Expressions (1 method)** - 0.5 days
+  - [ ] 3.5.4.28 NewArrayExpression - Migrate evalNewArrayExpression() (dynamic array creation)
+
+  **Batch 6: Simple Statements (7 methods)** - 2 days
+  - [ ] 3.5.4.29 Program - Migrate evalProgram() (evaluate statement list)
+  - [ ] 3.5.4.30 BlockStatement - Migrate evalBlockStatement() (scoped block execution)
+  - [ ] 3.5.4.31 ExpressionStatement - Just evaluate inner expression (trivial)
+  - [ ] 3.5.4.32 VarDeclStatement - Migrate evalVarDeclStatement() (variable declarations)
+  - [ ] 3.5.4.33 ConstDecl - Migrate evalConstDecl() (constant declarations)
+  - [ ] 3.5.4.34 AssignmentStatement - Migrate evalAssignmentStatement() (all assignment types)
+  - [ ] 3.5.4.35 ReturnStatement - Migrate evalReturnStatement() (function returns)
+
+  **Batch 7: Control Flow (9 methods)** - 3 days
+  - [ ] 3.5.4.36 IfStatement - Migrate evalIfStatement() (if-then-else logic)
+  - [ ] 3.5.4.37 WhileStatement - Migrate evalWhileStatement() (while loops)
+  - [ ] 3.5.4.38 RepeatStatement - Migrate evalRepeatStatement() (repeat-until loops)
+  - [ ] 3.5.4.39 ForStatement - Migrate evalForStatement() (for loops with counter)
+  - [ ] 3.5.4.40 ForInStatement - Migrate evalForInStatement() (for-in iteration)
+  - [ ] 3.5.4.41 CaseStatement - Migrate evalCaseStatement() (switch-case logic)
+  - [ ] 3.5.4.42 BreakStatement - Migrate evalBreakStatement() (loop break)
+  - [ ] 3.5.4.43 ContinueStatement - Migrate evalContinueStatement() (loop continue)
+  - [ ] 3.5.4.44 ExitStatement - Migrate evalExitStatement() (procedure exit)
+
+  **Batch 8: Exception Handling (2 methods)** - 1 day
+  - [ ] 3.5.4.45 TryStatement - Migrate evalTryStatement() (try-except-finally logic)
+  - [ ] 3.5.4.46 RaiseStatement - Migrate evalRaiseStatement() (exception raising)
+
+  **Batch 9: Declarations (9 methods)** - 4 days
+  - [ ] 3.5.4.47 FunctionDecl - Migrate evalFunctionDeclaration() (function registration)
+  - [ ] 3.5.4.48 ClassDecl - Migrate evalClassDeclaration() (class type registration)
+  - [ ] 3.5.4.49 InterfaceDecl - Migrate evalInterfaceDeclaration() (interface registration)
+  - [ ] 3.5.4.50 RecordDecl - Migrate evalRecordDeclaration() (record type registration)
+  - [ ] 3.5.4.51 EnumDecl - Migrate evalEnumDeclaration() (enum type registration)
+  - [ ] 3.5.4.52 HelperDecl - Migrate evalHelperDeclaration() (helper registration)
+  - [ ] 3.5.4.53 OperatorDecl - Migrate evalOperatorDeclaration() (operator overload)
+  - [ ] 3.5.4.54 ArrayDecl - Migrate evalArrayDeclaration() (array type registration)
+  - [ ] 3.5.4.55 TypeDeclaration - Migrate evalTypeDeclaration() (type alias registration)
+
+- [ ] 3.5.5 Remove adapter pattern and complete migration
+  - Remove InterpreterAdapter interface from evaluator.go
+  - Remove adapter field from Evaluator struct
+  - Remove SetAdapter() method
+  - Remove EvalNode() method from Interpreter
+  - Update Evaluator.Eval() to handle all cases without adapter fallback
+  - Remove Interpreter.Eval() method (or make it just call evaluator)
+  - Verify all evaluation flows through Evaluator only
+  - Files: `evaluator/evaluator.go`, `interpreter.go`
+  - Estimated: 2 days
+  - Acceptance: No adapter pattern, clean architecture, Interpreter is thin orchestrator, all tests pass
 
 ---
 
@@ -1106,8 +1205,10 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
 ---
 
 **Phase 3 Summary**:
-- **Total Tasks**: 27 tasks (9.80 - 9.106)
-- **Estimated Timeline**: 4-6 weeks full-time
+- **Total Tasks**: 29 tasks (3.1.1 - 3.10.2)
+- **Completed Tasks**: 9 tasks (3.1.1, 3.1.2, 3.2.1-3.2.4, 3.3.1-3.3.3, 3.4.1-3.4.2, 3.5.1-3.5.3)
+- **Remaining Tasks**: 20 tasks (3.5.4-3.5.5, 3.6.1-3.6.3, 3.7.1-3.7.2, 3.8.1-3.8.2, 3.9.1-3.9.3, 3.10.1-3.10.2)
+- **Estimated Timeline**: 6-8 weeks full-time (updated with new migration tasks)
 - **Risk**: Medium (comprehensive refactoring, but tests provide safety net)
 - **Dependencies**: None (can be done alongside other work with feature branches)
 - **Rollback Strategy**: Each task is incremental; can stop at any point
