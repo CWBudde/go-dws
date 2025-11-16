@@ -122,24 +122,24 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 	case *RecordValue:
 		typeName = v.RecordType.Name
 	case *ArrayValue:
-		// First try specific array type (e.g., "array of String"), then generic ARRAY helpers
-		specific := v.ArrayType.String()
+		// First try specific array type (e.g., "array of String"), then generic array helpers
+		specific := strings.ToLower(v.ArrayType.String())
 		var combined []*HelperInfo
 		if h, ok := i.helpers[specific]; ok {
 			combined = append(combined, h...)
 		}
-		if h, ok := i.helpers["ARRAY"]; ok {
+		if h, ok := i.helpers["array"]; ok {
 			combined = append(combined, h...)
 		}
 		return combined
 	case *EnumValue:
-		// First try specific enum type (e.g., "TColor"), then generic ENUM helpers
-		specific := v.TypeName
+		// First try specific enum type (e.g., "TColor"), then generic enum helpers
+		specific := strings.ToLower(v.TypeName)
 		var combined []*HelperInfo
 		if h, ok := i.helpers[specific]; ok {
 			combined = append(combined, h...)
 		}
-		if h, ok := i.helpers["ENUM"]; ok {
+		if h, ok := i.helpers["enum"]; ok {
 			combined = append(combined, h...)
 		}
 		return combined
@@ -149,7 +149,7 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 	}
 
 	// Look up helpers for this type
-	return i.helpers[typeName]
+	return i.helpers[strings.ToLower(typeName)]
 }
 
 // findHelperMethod searches all applicable helpers for a method with the given name

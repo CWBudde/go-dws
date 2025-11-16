@@ -109,7 +109,7 @@ func (a *Analyzer) analyzeHelperDecl(decl *ast.HelperDecl) {
 
 	// Register the helper
 	// Multiple helpers can extend the same type, so we store them in a list
-	targetTypeName = targetType.String()
+	targetTypeName = strings.ToLower(targetType.String())
 	if a.helpers[targetTypeName] == nil {
 		a.helpers[targetTypeName] = make([]*types.HelperType, 0)
 	}
@@ -293,21 +293,21 @@ func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 	}
 
 	// Look up helpers by the type's string representation
-	typeName := typ.String()
+	typeName := strings.ToLower(typ.String())
 	helpers := a.helpers[typeName]
 
-	// Task 9.171: For array types, also include generic ARRAY helpers
+	// Task 9.171: For array types, also include generic array helpers
 	if _, isArray := typ.(*types.ArrayType); isArray {
-		arrayHelpers := a.helpers["ARRAY"]
+		arrayHelpers := a.helpers["array"]
 		if arrayHelpers != nil {
 			// Combine type-specific helpers with generic array helpers
 			helpers = append(helpers, arrayHelpers...)
 		}
 	}
 
-	// Task 9.31: For enum types, also include generic ENUM helpers
+	// Task 9.31: For enum types, also include generic enum helpers
 	if _, isEnum := typ.(*types.EnumType); isEnum {
-		enumHelpers := a.helpers["ENUM"]
+		enumHelpers := a.helpers["enum"]
 		if enumHelpers != nil {
 			// Combine type-specific helpers with generic enum helpers
 			helpers = append(helpers, enumHelpers...)
@@ -498,8 +498,8 @@ func (a *Analyzer) initArrayHelpers() {
 	arrayHelper.Methods["pop"] = types.NewFunctionType([]types.Type{}, types.VARIANT)
 	arrayHelper.BuiltinMethods["pop"] = "__array_pop"
 
-	// Register helper for ARRAY type (generic catch-all)
-	a.helpers["ARRAY"] = append(a.helpers["ARRAY"], arrayHelper)
+	// Register helper for array type (generic catch-all)
+	a.helpers["array"] = append(a.helpers["array"], arrayHelper)
 }
 
 // initIntrinsicHelpers registers built-in helpers for primitive types (Integer, Float, Boolean).
@@ -507,10 +507,11 @@ func (a *Analyzer) initArrayHelpers() {
 func (a *Analyzer) initIntrinsicHelpers() {
 	// Helper registration helper to reduce duplication.
 	register := func(typeName string, helper *types.HelperType) {
-		if a.helpers[typeName] == nil {
-			a.helpers[typeName] = make([]*types.HelperType, 0)
+		key := strings.ToLower(typeName)
+		if a.helpers[key] == nil {
+			a.helpers[key] = make([]*types.HelperType, 0)
 		}
-		a.helpers[typeName] = append(a.helpers[typeName], helper)
+		a.helpers[key] = append(a.helpers[key], helper)
 	}
 
 	// Integer helper: provides ToString method/property (lowercase keys for case-insensitive lookup)
@@ -722,10 +723,10 @@ func (a *Analyzer) initEnumHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Register helper for ENUM type (generic catch-all)
+	// Register helper for enum type (generic catch-all)
 	// This will be checked in getHelpersForType for all enum types
-	if a.helpers["ENUM"] == nil {
-		a.helpers["ENUM"] = make([]*types.HelperType, 0)
+	if a.helpers["enum"] == nil {
+		a.helpers["enum"] = make([]*types.HelperType, 0)
 	}
-	a.helpers["ENUM"] = append(a.helpers["ENUM"], enumHelper)
+	a.helpers["enum"] = append(a.helpers["enum"], enumHelper)
 }
