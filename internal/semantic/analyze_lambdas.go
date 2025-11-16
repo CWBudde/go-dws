@@ -57,10 +57,10 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 			// For now, mark as needing inference
 			paramTypes = append(paramTypes, nil)
 		} else {
-			paramType, err := a.resolveType(param.Type.Name)
+			paramType, err := a.resolveType(getTypeExpressionName(param.Type))
 			if err != nil {
 				a.addError("unknown parameter type '%s' in lambda at %s",
-					param.Type.Name, param.Type.Token.Pos.String())
+					getTypeExpressionName(param.Type), param.Type.Pos().String())
 				return nil
 			}
 			paramTypes = append(paramTypes, paramType)
@@ -99,10 +99,10 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 	if expr.ReturnType != nil {
 		// Explicit return type specified
 		var err error
-		returnType, err = a.resolveType(expr.ReturnType.Name)
+		returnType, err = a.resolveType(getTypeExpressionName(expr.ReturnType))
 		if err != nil {
 			a.addError("unknown return type '%s' in lambda at %s",
-				expr.ReturnType.Name, expr.ReturnType.Token.Pos.String())
+				getTypeExpressionName(expr.ReturnType), expr.ReturnType.Pos().String())
 			return nil
 		}
 		// Add Result variable for lambdas with explicit return type
@@ -210,10 +210,10 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 			}
 		} else {
 			// Explicit type provided - validate it's compatible with expected type
-			paramType, err := a.resolveType(param.Type.Name)
+			paramType, err := a.resolveType(getTypeExpressionName(param.Type))
 			if err != nil {
 				a.addError("unknown parameter type '%s' in lambda at %s",
-					param.Type.Name, param.Type.Token.Pos.String())
+					getTypeExpressionName(param.Type), param.Type.Pos().String())
 				return nil
 			}
 
@@ -253,10 +253,10 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 	if expr.ReturnType != nil {
 		// Explicit return type specified
 		var err error
-		returnType, err = a.resolveType(expr.ReturnType.Name)
+		returnType, err = a.resolveType(getTypeExpressionName(expr.ReturnType))
 		if err != nil {
 			a.addError("unknown return type '%s' in lambda at %s",
-				expr.ReturnType.Name, expr.ReturnType.Token.Pos.String())
+				getTypeExpressionName(expr.ReturnType), expr.ReturnType.Pos().String())
 			return nil
 		}
 

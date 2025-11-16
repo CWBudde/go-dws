@@ -28,7 +28,7 @@ import (
 //	var printer := lambda() begin PrintLn('Hello'); end;
 type LambdaExpression struct {
 	TypedExpressionBase
-	ReturnType   *TypeAnnotation
+	ReturnType   TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	Body         *BlockStatement
 	Parameters   []*Parameter
 	CapturedVars []string

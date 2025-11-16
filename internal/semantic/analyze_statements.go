@@ -103,24 +103,13 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 	var err error
 
 	if stmt.Type != nil {
-		// Explicit type annotation - check for inline type first (arrays, function pointers)
-		// Task: Fix negative array bounds like array[-5..5]
-		if stmt.Type.InlineType != nil {
-			// Use the stored AST node for complex types to avoid string conversion issues
-			varType, err = a.resolveTypeExpression(stmt.Type.InlineType)
-			if err != nil {
-				// Get type name for error message
-				typeName := getTypeExpressionName(stmt.Type.InlineType)
-				a.addError("unknown type '%s' at %s", typeName, stmt.Token.Pos.String())
-				return
-			}
-		} else {
-			// Simple type name (Integer, String, etc.)
-			varType, err = a.resolveType(stmt.Type.Name)
-			if err != nil {
-				a.addError("unknown type '%s' at %s", stmt.Type.Name, stmt.Token.Pos.String())
-				return
-			}
+		// Explicit type annotation - resolve the type expression directly
+		varType, err = a.resolveTypeExpression(stmt.Type)
+		if err != nil {
+			// Get type name for error message
+			typeName := getTypeExpressionName(stmt.Type)
+			a.addError("unknown type '%s' at %s", typeName, stmt.Token.Pos.String())
+			return
 		}
 	}
 
@@ -195,20 +184,9 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 
 	if stmt.Type != nil {
 		// Explicit type annotation
-		// Task 9.21.1: Support inline type expressions (e.g., array[TEnum] of String)
-		if stmt.Type.InlineType != nil {
-			constType, err = a.resolveTypeExpression(stmt.Type.InlineType)
-		} else {
-			constType, err = a.resolveType(stmt.Type.Name)
-		}
+		constType, err = a.resolveTypeExpression(stmt.Type)
 		if err != nil {
-			// Use the appropriate type description based on whether it's an inline type or named type
-			var typeDesc string
-			if stmt.Type.InlineType != nil {
-				typeDesc = getTypeExpressionName(stmt.Type.InlineType)
-			} else {
-				typeDesc = stmt.Type.Name
-			}
+			typeDesc := getTypeExpressionName(stmt.Type)
 			a.addError("unknown type '%s' at %s", typeDesc, stmt.Token.Pos.String())
 			return
 		}
@@ -271,10 +249,10 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			}
 
 			// Get the return type
-			returnType, err := a.resolveType(a.currentFunction.ReturnType.Name)
+			returnType, err := a.resolveType(getTypeExpressionName(a.currentFunction.ReturnType))
 			if err != nil || returnType == nil {
 				a.addError("cannot resolve return type '%s' at %s",
-					a.currentFunction.ReturnType.Name, stmt.Token.Pos.String())
+					getTypeExpressionName(a.currentFunction.ReturnType), stmt.Token.Pos.String())
 				return
 			}
 
@@ -850,7 +828,7 @@ func (a *Analyzer) analyzeExitStatement(stmt *ast.ExitStatement) {
 	var expectedType types.Type = types.VOID
 	if a.currentFunction.ReturnType != nil {
 		var err error
-		expectedType, err = a.resolveType(a.currentFunction.ReturnType.Name)
+		expectedType, err = a.resolveType(getTypeExpressionName(a.currentFunction.ReturnType))
 		if err != nil {
 			a.addError("cannot resolve function return type: %v at %s", err, stmt.Token.Pos.String())
 			return

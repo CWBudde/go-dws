@@ -65,7 +65,7 @@ func (a *Analyzer) analyzeExceptClause(clause *ast.ExceptClause) {
 	for _, handler := range clause.Handlers {
 		// Check for duplicate exception types before analyzing
 		if handler.ExceptionType != nil {
-			typeName := handler.ExceptionType.Name
+			typeName := getTypeExpressionName(handler.ExceptionType)
 			if seenTypes[typeName] {
 				a.addError("duplicate exception handler for type '%s'", typeName)
 			}
@@ -88,9 +88,9 @@ func (a *Analyzer) analyzeExceptionHandler(handler *ast.ExceptionHandler) {
 	var excType types.Type
 	if handler.ExceptionType != nil {
 		var err error
-		excType, err = a.resolveType(handler.ExceptionType.Name)
+		excType, err = a.resolveType(getTypeExpressionName(handler.ExceptionType))
 		if err != nil {
-			a.addError("unknown exception type '%s'", handler.ExceptionType.Name)
+			a.addError("unknown exception type '%s'", getTypeExpressionName(handler.ExceptionType))
 			return
 		}
 

@@ -136,7 +136,7 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 		paramTypes := make([]types.Type, len(decl.FunctionPointerType.Parameters))
 		for idx, param := range decl.FunctionPointerType.Parameters {
 			if param.Type != nil {
-				paramTypes[idx] = i.getTypeByName(param.Type.Name)
+				paramTypes[idx] = i.getTypeByName(param.Type.String())
 			} else {
 				paramTypes[idx] = &types.IntegerType{} // Default
 			}
@@ -145,7 +145,7 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 		// Get return type
 		var returnType types.Type
 		if decl.FunctionPointerType.ReturnType != nil {
-			returnType = i.getTypeByName(decl.FunctionPointerType.ReturnType.Name)
+			returnType = i.getTypeByName(decl.FunctionPointerType.ReturnType.String())
 		}
 
 		// Create the function pointer type (for potential future use)
@@ -165,19 +165,10 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 
 	// Handle type aliases
 	if decl.IsAlias {
-		// Check for inline type expressions (e.g., class of TBase)
-		// For inline types like "class of TBase", we don't need to resolve them at runtime
-		// since the semantic analyzer already validated the types
-		if decl.AliasedType.InlineType != nil {
-			// Inline types (array of X, class of X, etc.) don't need runtime resolution
-			// The semantic analyzer handles type checking, so we just return nil
-			return &NilValue{}
-		}
-
-		// Resolve the aliased type by name
-		aliasedType, err := i.resolveType(decl.AliasedType.Name)
+		// Resolve the aliased type by name (handles both simple and complex types)
+		aliasedType, err := i.resolveType(decl.AliasedType.String())
 		if err != nil {
-			return &ErrorValue{Message: fmt.Sprintf("unknown type '%s' in type alias", decl.AliasedType.Name)}
+			return &ErrorValue{Message: fmt.Sprintf("unknown type '%s' in type alias", decl.AliasedType.String())}
 		}
 
 		// Create TypeAliasValue and register it

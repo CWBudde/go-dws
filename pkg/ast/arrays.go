@@ -52,7 +52,7 @@ func (ad *ArrayDecl) String() string {
 //   - array[1..10] of Integer (static, with bounds)
 //   - array of String (dynamic, no bounds)
 type ArrayTypeAnnotation struct {
-	ElementType *TypeAnnotation
+	ElementType TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	LowBound    Expression
 	HighBound   Expression
 	Token       token.Token

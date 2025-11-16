@@ -34,7 +34,7 @@ func (a *Analyzer) analyzeArrayDecl(decl *ast.ArrayDecl) {
 	}
 
 	// Resolve the element type using resolveType helper
-	elementTypeName := arrayType.ElementType.Name
+	elementTypeName := getTypeExpressionName(arrayType.ElementType)
 	elementType, err := a.resolveType(elementTypeName)
 	if err != nil {
 		a.addError("unknown type '%s' at %s", elementTypeName, decl.Token.Pos.String())

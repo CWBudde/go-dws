@@ -62,10 +62,10 @@ func (a *Analyzer) analyzeInterfaceMethodDecl(method *ast.InterfaceMethodDecl, i
 	// Build parameter types list
 	var paramTypes []types.Type
 	for _, param := range method.Parameters {
-		paramType, err := a.resolveType(param.Type.Name)
+		paramType, err := a.resolveType(getTypeExpressionName(param.Type))
 		if err != nil {
 			a.addError("unknown parameter type '%s' in interface method '%s' at %s",
-				param.Type.Name, methodName, method.Token.Pos.String())
+				getTypeExpressionName(param.Type), methodName, method.Token.Pos.String())
 			return
 		}
 		paramTypes = append(paramTypes, paramType)
@@ -75,10 +75,10 @@ func (a *Analyzer) analyzeInterfaceMethodDecl(method *ast.InterfaceMethodDecl, i
 	var returnType types.Type = types.VOID
 	if method.ReturnType != nil {
 		var err error
-		returnType, err = a.resolveType(method.ReturnType.Name)
+		returnType, err = a.resolveType(getTypeExpressionName(method.ReturnType))
 		if err != nil {
 			a.addError("unknown return type '%s' in interface method '%s' at %s",
-				method.ReturnType.Name, methodName, method.Token.Pos.String())
+				getTypeExpressionName(method.ReturnType), methodName, method.Token.Pos.String())
 			return
 		}
 	}

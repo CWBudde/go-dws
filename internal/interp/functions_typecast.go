@@ -256,7 +256,7 @@ func (i *Interpreter) extractFunctionType(fn *ast.FunctionDecl) *types.FunctionT
 			return nil // Invalid function
 		}
 
-		paramType, err := i.resolveType(param.Type.Name)
+		paramType, err := i.resolveType(param.Type.String())
 		if err != nil {
 			return nil
 		}
@@ -272,7 +272,7 @@ func (i *Interpreter) extractFunctionType(fn *ast.FunctionDecl) *types.FunctionT
 	var returnType types.Type
 	if fn.ReturnType != nil {
 		var err error
-		returnType, err = i.resolveType(fn.ReturnType.Name)
+		returnType, err = i.resolveType(fn.ReturnType.String())
 		if err != nil {
 			returnType = types.VOID
 		}
