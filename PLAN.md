@@ -32,9 +32,9 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Strategy**: Strangler Fig Pattern - build new infrastructure alongside existing code, migrate incrementally, remove old code when safe. Dual-mode operation ensures zero risk.
 
-**Estimate**: 640 hours (12-16 weeks / 3-4 months full-time)
+**Estimate**: 656 hours (12-16 weeks / 3-4 months full-time)
 
-**Status**: NOT STARTED
+**Status**: IN PROGRESS (Phase 2.2 active, 65% complete)
 
 **Priority**: Medium-Low (architectural improvement, optional but valuable)
 
@@ -68,9 +68,12 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-### Phase 2.2: Token Cursor Abstraction (Weeks 3-5, 120 hours)
+### Phase 2.2: Token Cursor Abstraction (Weeks 3-7, 136 hours)
 
 Replace mutable parser state with immutable cursor.
+
+**Progress**: 88 of 136 hours complete (65%)
+**Status**: Tasks 2.2.1-2.2.5a COMPLETE ✓, Tasks 2.2.5b-d remaining
 
 ---
 
@@ -164,42 +167,174 @@ Replace mutable parser state with immutable cursor.
 
 #### Task 2.2.4: Migrate Expression Parsing (Week 4, Days 3-5, ~24 hours)
 
+**Status**: COMPLETE ✓
+
 **Goal**: Migrate core expression parsing to cursor-based approach.
 
 **Targets**:
-- [ ] `parseIdentifier`
-- [ ] `parseStringLiteral`
-- [ ] `parseBooleanLiteral`
-- [ ] `parseFloatLiteral`  
-- [ ] `parseGroupedExpression`
+- [x] `parseIdentifier`
+- [x] `parseStringLiteral`
+- [x] `parseBooleanLiteral`
+- [x] `parseFloatLiteral`
+- [ ] `parseGroupedExpression` (deferred - complex, depends on parseExpression)
+
+**Files Created**:
+- `internal/parser/migration_expressions_test.go` (632 lines)
+- `internal/parser/migration_expressions_bench_test.go` (221 lines)
 
 **Files Modified**:
-- `internal/parser/expressions.go` (~150 lines)
-- `internal/parser/expressions_test.go` (~200 lines)
+- `internal/parser/expressions.go` (+171 lines - Traditional/Cursor versions)
 
-**Estimate**: 24 hours
+**Tests**: All 53 subtests passing ✓
+**Benchmarks**: Cursor overhead <15% (acceptable)
 
-**Deliverable**: Core literals working with cursor
+**Estimate**: 24 hours (actual: ~20 hours)
+
+**Deliverable**: Core literals working with cursor ✓
 
 ---
 
-#### Task 2.2.5: Migrate Infix Expressions (Week 5, ~40 hours)
+#### Task 2.2.5a: Migrate parseInfixExpression (Week 5, Days 1-2, ~8 hours)
 
-**Goal**: Migrate binary/infix expression parsing to cursor.
+**Status**: COMPLETE ✓
+
+**Goal**: Migrate binary infix expression parsing to cursor (proof of concept for complex recursive functions).
 
 **Targets**:
-- [ ] `parseBinaryExpression`
-- [ ] `parseCallExpression`
-- [ ] `parseMemberAccess`
-- [ ] `parseIndexExpression`
+- [x] `parseInfixExpression` (handles all binary operators: +, -, *, /, =, <, >, and, or, etc.)
+
+**Implementation**:
+- [x] Create Traditional and Cursor versions
+- [x] Comprehensive differential tests
+- [x] Document limitations (hybrid mode until parseExpression is migrated)
+- [x] Create status document analyzing blockers and next steps
+
+**Files Created**:
+- `internal/parser/migration_infix_test.go` (263 lines)
+- `docs/task-2.2.5-status.md` (380 lines - analysis and recommendations)
 
 **Files Modified**:
-- `internal/parser/expressions.go` (~200 lines)
-- `internal/parser/operators.go` (~100 lines)
+- `internal/parser/expressions.go` (+86 lines - Traditional/Cursor/Dispatcher)
 
-**Estimate**: 40 hours
+**Tests**: All 17 subtests passing ✓
 
-**Deliverable**: Full expression parsing with cursor
+**Estimate**: 8 hours (actual: ~6 hours)
+
+**Deliverable**: Cursor pattern proven for recursive infix handlers ✓
+
+**Key Finding**: Full cursor integration requires migrating `parseExpression` first (critical path blocker identified).
+
+---
+
+#### Task 2.2.5b: Migrate parseExpression (Week 5-6, ~20 hours)
+
+**Status**: NOT STARTED
+
+**Goal**: Migrate the core expression dispatcher to cursor mode (CRITICAL PATH).
+
+**Rationale**: This is the heart of the Pratt parser. All infix handlers recursively call parseExpression, so migrating it unlocks full cursor mode for all expression parsing.
+
+**Target**: `parseExpression(precedence int) ast.Expression`
+
+**Complexity**: HIGH - ~60 lines with:
+- Prefix/infix function lookup
+- Precedence-based loop
+- Special handling for "not in", "not is", "not as" operators
+- Manual state save/restore for backtracking
+
+**Implementation**:
+- [ ] Create `parseExpressionTraditional` and `parseExpressionCursor`
+- [ ] Migrate prefix function lookup to cursor
+- [ ] Migrate infix loop and precedence handling
+- [ ] Handle "not in/is/as" special cases with cursor
+- [ ] Implement backtracking with Mark/ResetTo
+- [ ] Comprehensive differential tests
+- [ ] Document migration challenges
+
+**Files to Modify**:
+- `internal/parser/expressions.go` (~150 lines)
+
+**Files to Create**:
+- `internal/parser/migration_parse_expression_test.go` (~400 lines)
+- `docs/parse-expression-migration.md` (design doc)
+
+**Dependencies**: None (this unblocks other tasks)
+
+**Estimate**: 20 hours
+
+**Deliverable**: Core expression dispatcher working in cursor mode
+
+**Impact**: Unblocks Tasks 2.2.5c and 2.2.5d, enables pure cursor mode for all infix handlers
+
+---
+
+#### Task 2.2.5c: Migrate Expression Helpers (Week 6, ~16 hours)
+
+**Status**: NOT STARTED
+
+**Goal**: Migrate helper functions that support complex expression parsing.
+
+**Targets**:
+- [ ] `parseExpressionList` - Comma-separated expression lists
+- [ ] `parseArgumentsOrFields` - Disambiguates function args vs record fields
+- [ ] `parseCallOrRecordLiteral` - Handles call vs record literal disambiguation
+- [ ] `parseEmptyCall` - Handles `foo()`
+- [ ] `parseCallWithExpressionList` - Parses argument lists
+
+**Implementation**:
+- [ ] Create Traditional and Cursor versions for each
+- [ ] Update callers to use cursor versions
+- [ ] Comprehensive tests for each helper
+- [ ] Document helper function dependencies
+
+**Files to Modify**:
+- `internal/parser/expressions.go` (~150 lines)
+
+**Files to Create**:
+- `internal/parser/migration_helpers_test.go` (~300 lines)
+
+**Dependencies**: Task 2.2.5b (requires parseExpression cursor version)
+
+**Estimate**: 16 hours
+
+**Deliverable**: All expression helpers working with cursor
+
+---
+
+#### Task 2.2.5d: Complete Infix Handler Migration (Week 7, ~12 hours)
+
+**Status**: NOT STARTED
+
+**Goal**: Complete migration of remaining infix expression handlers.
+
+**Targets**:
+- [ ] `parseCallExpression` - Function calls and typed record literals
+- [ ] `parseMemberAccess` - Member access (obj.field, obj.method())
+- [ ] `parseIndexExpression` - Array/string indexing (arr[i], arr[i,j,k])
+
+**Implementation**:
+- [ ] Create Traditional and Cursor versions
+- [ ] Handle special cases (TClass.Create(), multi-dimensional indexing)
+- [ ] Comprehensive differential tests
+- [ ] Benchmark cursor overhead
+- [ ] Update all call sites to use cursor mode
+
+**Files to Modify**:
+- `internal/parser/expressions.go` (~100 lines)
+- `internal/parser/arrays.go` (~50 lines)
+- `internal/parser/classes.go` (~50 lines)
+
+**Files to Create**:
+- `internal/parser/migration_complex_infix_test.go` (~400 lines)
+- `internal/parser/migration_complex_infix_bench_test.go` (~200 lines)
+
+**Dependencies**: Tasks 2.2.5b and 2.2.5c
+
+**Estimate**: 12 hours
+
+**Deliverable**: Full expression parsing in cursor mode ✓
+
+**Verification**: All existing parser tests pass in cursor mode
 
 ---
 
