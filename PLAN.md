@@ -1952,22 +1952,152 @@ end;
 - `internal/semantic/analyze_enums.go` (scoped enum validation)
 - `internal/parser/expressions.go` (qualified enum access)
 
-### 9.15.6 Enum Flags and Casting
+### 9.15.6 Enum Type Casting (Partial - Flags Done)
 
-**Goal**: Support flags enums and enum-to-integer casts.
+**Goal**: Support type casting to/from enum types.
 
 **Estimate**: 2-3 hours
 
+**Status**: Partial - Flags enums work, need casting syntax
+
 **Implementation**:
-1. Flags enums are bit flags (2^n values)
-2. Integer(enumValue) casts enum to integer
-3. EnumType(intValue) casts integer to enum
-4. Semantic analysis and runtime for casts
+1. ✓ Flags enums are bit flags (2^n values)
+2. Parse `TEnum(intValue)` syntax for integer-to-enum cast
+3. Parse `Integer(enumValue)` syntax for enum-to-integer cast
+4. Semantic analysis for enum cast expressions
+5. Runtime evaluation of enum casts
 
 **Files to Modify**:
-- `internal/semantic/analyze_casts.go` (enum casting)
-- `internal/interp/expressions_casts.go` (enum cast execution)
-- `internal/types/types.go` (flags enum metadata)
+- `internal/parser/expressions.go` (parse type cast syntax)
+- `internal/semantic/analyze_expressions.go` (validate enum casts)
+- `internal/interp/expressions.go` (evaluate enum casts)
+
+### 9.15.7 Enum Boolean Operators
+
+**Goal**: Support boolean/bitwise operators on enum values (for flags).
+
+**Estimate**: 2-3 hours
+
+**Status**: TODO
+
+**Implementation**:
+1. Allow `or`, `and`, `xor` operators on enum operands (especially flags)
+2. Semantic analysis: check enum types are compatible for operators
+3. Runtime: evaluate bitwise operations on enum ordinal values
+4. Return enum type for result (not integer)
+
+**Failing Tests**: enum_bool_op
+
+**Example**:
+```pascal
+type TFlags = flags (flRead, flWrite, flExecute);
+var f1 := TFlags.flRead or TFlags.flWrite;  // Result: 3 (as TFlags)
+var f2 := TFlags.flWrite and TFlags.flRead; // Result: 0 (as TFlags)
+```
+
+**Files to Modify**:
+- `internal/semantic/analyze_expressions.go` (allow enum operands for or/and/xor)
+- `internal/interp/expressions_operators.go` (evaluate enum boolean ops)
+
+### 9.15.8 Implicit Enum-to-Integer Conversion
+
+**Goal**: Allow implicit conversion from enum to Integer in function calls.
+
+**Estimate**: 1-2 hours
+
+**Status**: TODO
+
+**Implementation**:
+1. When calling `func(i: Integer)` with enum argument, auto-convert
+2. Semantic analysis: allow enum-to-integer implicit conversion
+3. Runtime: automatically get ordinal value when passing enum to Integer param
+
+**Failing Tests**: enum_bool_op (PrintInt calls)
+
+**Example**:
+```pascal
+procedure PrintInt(i: Integer);
+type TEnum = flags (Alpha, Beta);
+PrintInt(TEnum.Alpha);  // Should pass 1, not fail with type mismatch
+```
+
+**Files to Modify**:
+- `internal/semantic/analyze_expressions.go` (implicit conversion in canAssign)
+- `internal/interp/expressions.go` (auto-convert enum to integer)
+
+### 9.15.9 Constant Expressions in Enum Values
+
+**Goal**: Support constant expressions (like Ord('A')) in enum value assignments.
+
+**Estimate**: 2-3 hours
+
+**Status**: TODO
+
+**Implementation**:
+1. Parse constant expressions in enum value positions
+2. Evaluate constant expressions at parse/semantic time
+3. Support function calls like `Ord('A')`, `Chr(65)` in enum values
+4. Constant folding for arithmetic expressions
+
+**Failing Tests**: enum_to_integer
+
+**Example**:
+```pascal
+type TEnumAlpha = (eAlpha = Ord('A'), eBeta, eGamma);
+// eAlpha should have value 65 (ASCII 'A')
+```
+
+**Files to Modify**:
+- `internal/parser/enums.go` (parse expressions instead of just integers)
+- `internal/semantic/analyze_enums.go` (evaluate constant expressions)
+- Add constant expression evaluator
+
+### 9.15.10 Enum Instance .Value Property
+
+**Goal**: Support .Value property on enum instances to get ordinal value.
+
+**Estimate**: 1-2 hours
+
+**Status**: TODO
+
+**Implementation**:
+1. Add .Value property to enum values (returns Integer)
+2. Semantic analysis: recognize .Value on enum types
+3. Runtime: return ordinal value when accessing .Value
+4. Also support .ToString() method
+
+**Failing Tests**: enum_to_integer
+
+**Example**:
+```pascal
+var e: TEnum := eOne;
+PrintLn(e.Value);           // Prints ordinal value
+PrintLn(eOne.Value);        // Direct access also works
+PrintLn(TEnum.eTwo.Value);  // Qualified access works
+```
+
+**Files to Modify**:
+- `internal/semantic/analyze_expressions.go` (add .Value property to enum helper)
+- `internal/interp/objects_hierarchy.go` (evaluate .Value member access)
+
+### 9.15.11 Additional Enum Features
+
+**Goal**: Handle remaining edge cases and test failures.
+
+**Estimate**: 2-3 hours
+
+**Status**: TODO
+
+**Implementation**:
+1. Aliased enums (type alias to enum type)
+2. Enum deprecation warnings
+3. Enum names and qualified names functions
+4. For-in loops over enum ranges
+
+**Failing Tests**: aliased_enum, enum_element_deprecated, enumerations, enumerations2, enumerations_names, enumerations_qualifiednames
+
+**Files to Modify**:
+- Various files depending on specific feature
 
 **Success Criteria**:
 - ✓ Scoped enums enforce qualified access (MyEnum.a)
@@ -1980,13 +2110,13 @@ end;
 - ⚠ Constant expressions in enum values - TODO
 - **Progress**: 4/12 tests passing (enum_scoped, enum_flags1, enum_bounds, enum_byname)
 
-**Remaining Work**:
-- Type casting syntax (TEnum(value))
-- Boolean operators on enum types (or, and, xor for flags)
-- Implicit conversion from enum to Integer in function calls
-- Support for constant expressions in enum value assignments (e.g., Ord('A'))
-- .Value property on enum instances
-- Additional edge cases in test files
+**Remaining Work** (see subtasks 9.15.6-9.15.11 for details):
+- 9.15.6: Type casting syntax (TEnum(value), Integer(enumValue))
+- 9.15.7: Boolean operators on enum types (or, and, xor for flags)
+- 9.15.8: Implicit conversion from enum to Integer in function calls
+- 9.15.9: Constant expressions in enum value assignments (e.g., Ord('A'))
+- 9.15.10: .Value property on enum instances
+- 9.15.11: Additional edge cases (aliased enums, deprecation, names)
 
 **Testing**:
 ```bash
