@@ -563,6 +563,8 @@ if !p.curTokenIs(lexer.END) {
 - Stage 2: Basic Parser and AST (original implementation)
 - Task 10.10: Position Tracking (enhanced with better conventions)
 
+---
+
 ## Phase 3: Interpreter Architecture Refactoring
 
 **Goal**: Refactor the interpreter architecture to improve maintainability, testability, and extensibility. Address architectural debt accumulated during rapid feature development.

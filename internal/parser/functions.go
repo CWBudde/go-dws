@@ -285,7 +285,14 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 						BaseNode: ast.BaseNode{Token: p.curToken},
 					}
 				}
-				fn.Body.Statements = append(fn.Body.Statements, varDecl)
+				// If parseVarDeclaration() wrapped multiple declarations in a BlockStatement,
+				// unwrap it to avoid creating an extra nested scope in the semantic analyzer
+				if blockStmt, ok := varDecl.(*ast.BlockStatement); ok {
+					// Add each var declaration individually
+					fn.Body.Statements = append(fn.Body.Statements, blockStmt.Statements...)
+				} else {
+					fn.Body.Statements = append(fn.Body.Statements, varDecl)
+				}
 
 				// parseVarDeclaration() leaves us at the semicolon (cur=`;`)
 				// Check if there's another identifier after the semicolon before advancing
