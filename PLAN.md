@@ -251,12 +251,12 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 **Current Issue**: Functions like `parseCallOrRecordLiteral()` (expressions.go:399-482) have complex branching logic that's hard to follow.
 
 **Implementation**:
-- [ ] Identify functions >100 lines with complex branching
-- [ ] Extract sub-parsers for different syntactic forms
-- [ ] Use dispatch table or strategy pattern for disambiguation
-- [ ] Simplify `parseCallOrRecordLiteral()` into smaller functions
-- [ ] Simplify `parseNewExpression()` dispatch logic
-- [ ] Simplify `parseGroupedExpression()` disambiguation
+- [x] Identify functions >100 lines with complex branching
+- [x] Extract sub-parsers for different syntactic forms
+- [x] Use dispatch table or strategy pattern for disambiguation
+- [x] Simplify `parseCallOrRecordLiteral()` into smaller functions
+- [x] Simplify `parseNewExpression()` dispatch logic (already done in previous tasks)
+- [x] Simplify `parseGroupedExpression()` disambiguation
 
 **Example Refactoring**:
 ```go
@@ -282,6 +282,22 @@ func (p *Parser) parseCallOrRecordLiteral(...) {
 - May add focused unit tests for extracted sub-parsers
 
 **Estimate**: 5-7 hours
+
+**Status**: ✅ **DONE**
+
+**Actual Implementation**:
+- Refactored `parseCallOrRecordLiteral()` (87 lines → 27 lines + 4 helpers)
+- Refactored `parseGroupedExpression()` (68 lines → 16 lines + 3 helpers)
+- Refactored `parseArgumentsOrFields()` (77 lines → 38 lines + 4 helpers)
+- Refactored `parseRecordLiteralInline()` (65 lines → 27 lines, reuses helpers)
+- Created 11 well-documented helper functions with clear preconditions/postconditions
+- All existing tests pass
+- Code formatted with `go fmt`
+
+**Files Modified**:
+- `internal/parser/expressions.go` (~297 lines main functions → ~108 lines + helpers)
+
+**Actual Time**: ~2 hours (faster than estimated due to good test coverage)
 
 ---
 
