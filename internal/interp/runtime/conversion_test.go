@@ -15,15 +15,15 @@ func TestToInteger(t *testing.T) {
 		want    int64
 		wantErr bool
 	}{
-		{"IntegerValue direct", NewInteger(42), 42, false},
-		{"FloatValue truncate", NewFloat(3.14), 3, false},
-		{"FloatValue truncate negative", NewFloat(-3.14), -3, false},
-		{"StringValue valid", NewString("42"), 42, false},
-		{"StringValue negative", NewString("-42"), -42, false},
-		{"StringValue invalid", NewString("not a number"), 0, true},
-		{"BooleanValue true", NewBoolean(true), 1, false},
-		{"BooleanValue false", NewBoolean(false), 0, false},
-		{"nil value", nil, 0, true},
+		{name: "IntegerValue direct", input: NewInteger(42), want: 42, wantErr: false},
+		{name: "FloatValue truncate", input: NewFloat(3.14), want: 3, wantErr: false},
+		{name: "FloatValue truncate negative", input: NewFloat(-3.14), want: -3, wantErr: false},
+		{name: "StringValue valid", input: NewString("42"), want: 42, wantErr: false},
+		{name: "StringValue negative", input: NewString("-42"), want: -42, wantErr: false},
+		{name: "StringValue invalid", input: NewString("not a number"), want: 0, wantErr: true},
+		{name: "BooleanValue true", input: NewBoolean(true), want: 1, wantErr: false},
+		{name: "BooleanValue false", input: NewBoolean(false), want: 0, wantErr: false},
+		{name: "nil value", input: nil, want: 0, wantErr: true},
 	}
 
 	for _, tt := range tests {
@@ -51,13 +51,13 @@ func TestToFloat(t *testing.T) {
 		want    float64
 		wantErr bool
 	}{
-		{"FloatValue direct", NewFloat(3.14), 3.14, false},
-		{"IntegerValue convert", NewInteger(42), 42.0, false},
-		{"StringValue valid", NewString("3.14"), 3.14, false},
-		{"StringValue invalid", NewString("not a number"), 0.0, true},
-		{"BooleanValue true", NewBoolean(true), 1.0, false},
-		{"BooleanValue false", NewBoolean(false), 0.0, false},
-		{"nil value", nil, 0.0, true},
+		{name: "FloatValue direct", input: NewFloat(3.14), want: 3.14, wantErr: false},
+		{name: "IntegerValue convert", input: NewInteger(42), want: 42.0, wantErr: false},
+		{name: "StringValue valid", input: NewString("3.14"), want: 3.14, wantErr: false},
+		{name: "StringValue invalid", input: NewString("not a number"), want: 0.0, wantErr: true},
+		{name: "BooleanValue true", input: NewBoolean(true), want: 1.0, wantErr: false},
+		{name: "BooleanValue false", input: NewBoolean(false), want: 0.0, wantErr: false},
+		{name: "nil value", input: nil, want: 0.0, wantErr: true},
 	}
 
 	for _, tt := range tests {
@@ -113,21 +113,21 @@ func TestToBoolean(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-		{"BooleanValue true", NewBoolean(true), true, false},
-		{"BooleanValue false", NewBoolean(false), false, false},
-		{"IntegerValue non-zero", NewInteger(42), true, false},
-		{"IntegerValue zero", NewInteger(0), false, false},
-		{"FloatValue non-zero", NewFloat(3.14), true, false},
-		{"FloatValue zero", NewFloat(0.0), false, false},
-		{"StringValue true", NewString("true"), true, false},
-		{"StringValue false", NewString("false"), false, false},
-		{"StringValue yes", NewString("yes"), true, false},
-		{"StringValue no", NewString("no"), false, false},
-		{"StringValue 1", NewString("1"), true, false},
-		{"StringValue 0", NewString("0"), false, false},
-		{"StringValue empty", NewString(""), false, false},
-		{"StringValue invalid", NewString("maybe"), false, true},
-		{"nil value", nil, false, true},
+		{name: "BooleanValue true", input: NewBoolean(true), want: true, wantErr: false},
+		{name: "BooleanValue false", input: NewBoolean(false), want: false, wantErr: false},
+		{name: "IntegerValue non-zero", input: NewInteger(42), want: true, wantErr: false},
+		{name: "IntegerValue zero", input: NewInteger(0), want: false, wantErr: false},
+		{name: "FloatValue non-zero", input: NewFloat(3.14), want: true, wantErr: false},
+		{name: "FloatValue zero", input: NewFloat(0.0), want: false, wantErr: false},
+		{name: "StringValue true", input: NewString("true"), want: true, wantErr: false},
+		{name: "StringValue false", input: NewString("false"), want: false, wantErr: false},
+		{name: "StringValue yes", input: NewString("yes"), want: true, wantErr: false},
+		{name: "StringValue no", input: NewString("no"), want: false, wantErr: false},
+		{name: "StringValue 1", input: NewString("1"), want: true, wantErr: false},
+		{name: "StringValue 0", input: NewString("0"), want: false, wantErr: false},
+		{name: "StringValue empty", input: NewString(""), want: false, wantErr: false},
+		{name: "StringValue invalid", input: NewString("maybe"), want: false, wantErr: true},
+		{name: "nil value", input: nil, want: false, wantErr: true},
 	}
 
 	for _, tt := range tests {
@@ -156,12 +156,12 @@ func TestAddNumeric(t *testing.T) {
 		want    Value
 		wantErr bool
 	}{
-		{"int + int", NewInteger(2), NewInteger(3), NewInteger(5), false},
-		{"float + float", NewFloat(2.5), NewFloat(3.5), NewFloat(6.0), false},
-		{"int + float", NewInteger(2), NewFloat(3.5), NewFloat(5.5), false},
-		{"negative numbers", NewInteger(-2), NewInteger(3), NewInteger(1), false},
-		{"non-numeric left", NewString("hello"), NewInteger(3), nil, true},
-		{"non-numeric right", NewInteger(2), NewString("world"), nil, true},
+		{name: "int + int", left: NewInteger(2), right: NewInteger(3), want: NewInteger(5), wantErr: false},
+		{name: "float + float", left: NewFloat(2.5), right: NewFloat(3.5), want: NewFloat(6.0), wantErr: false},
+		{name: "int + float", left: NewInteger(2), right: NewFloat(3.5), want: NewFloat(5.5), wantErr: false},
+		{name: "negative numbers", left: NewInteger(-2), right: NewInteger(3), want: NewInteger(1), wantErr: false},
+		{name: "non-numeric left", left: NewString("hello"), right: NewInteger(3), want: nil, wantErr: true},
+		{name: "non-numeric right", left: NewInteger(2), right: NewString("world"), want: nil, wantErr: true},
 	}
 
 	for _, tt := range tests {
@@ -188,9 +188,9 @@ func TestSubtractNumeric(t *testing.T) {
 		want    Value
 		wantErr bool
 	}{
-		{"int - int", NewInteger(5), NewInteger(3), NewInteger(2), false},
-		{"float - float", NewFloat(5.5), NewFloat(2.5), NewFloat(3.0), false},
-		{"negative result", NewInteger(3), NewInteger(5), NewInteger(-2), false},
+		{name: "int - int", left: NewInteger(5), right: NewInteger(3), want: NewInteger(2), wantErr: false},
+		{name: "float - float", left: NewFloat(5.5), right: NewFloat(2.5), want: NewFloat(3.0), wantErr: false},
+		{name: "negative result", left: NewInteger(3), right: NewInteger(5), want: NewInteger(-2), wantErr: false},
 	}
 
 	for _, tt := range tests {
@@ -217,10 +217,10 @@ func TestMultiplyNumeric(t *testing.T) {
 		want    Value
 		wantErr bool
 	}{
-		{"int * int", NewInteger(2), NewInteger(3), NewInteger(6), false},
-		{"float * float", NewFloat(2.5), NewFloat(4.0), NewFloat(10.0), false},
-		{"zero multiplication", NewInteger(5), NewInteger(0), NewInteger(0), false},
-		{"negative multiplication", NewInteger(-2), NewInteger(3), NewInteger(-6), false},
+		{name: "int * int", left: NewInteger(2), right: NewInteger(3), want: NewInteger(6), wantErr: false},
+		{name: "float * float", left: NewFloat(2.5), right: NewFloat(4.0), want: NewFloat(10.0), wantErr: false},
+		{name: "zero multiplication", left: NewInteger(5), right: NewInteger(0), want: NewInteger(0), wantErr: false},
+		{name: "negative multiplication", left: NewInteger(-2), right: NewInteger(3), want: NewInteger(-6), wantErr: false},
 	}
 
 	for _, tt := range tests {
@@ -247,9 +247,9 @@ func TestDivideNumeric(t *testing.T) {
 		want    Value
 		wantErr bool
 	}{
-		{"int / int", NewInteger(6), NewInteger(2), NewFloat(3.0), false},
-		{"float / float", NewFloat(10.0), NewFloat(2.5), NewFloat(4.0), false},
-		{"division by zero", NewInteger(5), NewInteger(0), nil, true},
+		{name: "int / int", left: NewInteger(6), right: NewInteger(2), want: NewFloat(3.0), wantErr: false},
+		{name: "float / float", left: NewFloat(10.0), right: NewFloat(2.5), want: NewFloat(4.0), wantErr: false},
+		{name: "division by zero", left: NewInteger(5), right: NewInteger(0), want: nil, wantErr: true},
 	}
 
 	for _, tt := range tests {
@@ -276,10 +276,10 @@ func TestIntDivideNumeric(t *testing.T) {
 		want    Value
 		wantErr bool
 	}{
-		{"6 div 2", NewInteger(6), NewInteger(2), NewInteger(3), false},
-		{"7 div 2", NewInteger(7), NewInteger(2), NewInteger(3), false},
-		{"division by zero", NewInteger(5), NewInteger(0), nil, true},
-		{"negative division", NewInteger(-7), NewInteger(2), NewInteger(-3), false},
+		{name: "6 div 2", left: NewInteger(6), right: NewInteger(2), want: NewInteger(3), wantErr: false},
+		{name: "7 div 2", left: NewInteger(7), right: NewInteger(2), want: NewInteger(3), wantErr: false},
+		{name: "division by zero", left: NewInteger(5), right: NewInteger(0), want: nil, wantErr: true},
+		{name: "negative division", left: NewInteger(-7), right: NewInteger(2), want: NewInteger(-3), wantErr: false},
 	}
 
 	for _, tt := range tests {
@@ -306,9 +306,9 @@ func TestModNumeric(t *testing.T) {
 		want    Value
 		wantErr bool
 	}{
-		{"7 mod 3", NewInteger(7), NewInteger(3), NewInteger(1), false},
-		{"10 mod 5", NewInteger(10), NewInteger(5), NewInteger(0), false},
-		{"modulo by zero", NewInteger(5), NewInteger(0), nil, true},
+		{name: "7 mod 3", left: NewInteger(7), right: NewInteger(3), want: NewInteger(1), wantErr: false},
+		{name: "10 mod 5", left: NewInteger(10), right: NewInteger(5), want: NewInteger(0), wantErr: false},
+		{name: "modulo by zero", left: NewInteger(5), right: NewInteger(0), want: nil, wantErr: true},
 	}
 
 	for _, tt := range tests {
