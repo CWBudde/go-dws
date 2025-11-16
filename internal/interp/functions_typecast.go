@@ -509,6 +509,12 @@ func (i *Interpreter) castToClass(val Value, targetClass *ClassInfo, node ast.No
 		val = variantVal.Value
 	}
 
+	// Unwrap TypeCastValue if needed (for successive casts like TBase(obj1) then TObject(obj2))
+	// This preserves support for successive type casts: obj := TObject(child); TBase(obj)
+	if typeCast, ok := val.(*TypeCastValue); ok {
+		val = typeCast.Object
+	}
+
 	// Handle nil - wrap it with the static type for proper class variable access
 	if _, isNil := val.(*NilValue); isNil {
 		// Wrap nil in TypeCastValue to preserve static type information
