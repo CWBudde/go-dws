@@ -1804,7 +1804,7 @@ go test -v ./internal/semantic -run TestInheritance
 
 **Estimate**: 8-12 hours (1-1.5 days)
 
-**Status**: IN PROGRESS (4/12 tests passing, core features complete)
+**Status**: IN PROGRESS (8/17 enum tests passing, type casting complete)
 
 **Impact**: Unlocks 12 failing tests in SimpleScripts
 
@@ -1952,25 +1952,28 @@ end;
 - `internal/semantic/analyze_enums.go` (scoped enum validation)
 - `internal/parser/expressions.go` (qualified enum access)
 
-### 9.15.6 Enum Type Casting (Partial - Flags Done)
+### 9.15.6 Enum Type Casting ✓ DONE
 
 **Goal**: Support type casting to/from enum types.
 
 **Estimate**: 2-3 hours
 
-**Status**: Partial - Flags enums work, need casting syntax
+**Status**: Complete - All casting variants working
 
 **Implementation**:
 1. ✓ Flags enums are bit flags (2^n values)
-2. Parse `TEnum(intValue)` syntax for integer-to-enum cast
-3. Parse `Integer(enumValue)` syntax for enum-to-integer cast
-4. Semantic analysis for enum cast expressions
-5. Runtime evaluation of enum casts
+2. ✓ Parse `TEnum(intValue)` syntax for integer-to-enum cast
+3. ✓ Parse `Integer(enumValue)` syntax for enum-to-integer cast
+4. ✓ Semantic analysis for enum cast expressions (resolveType + isValidCast)
+5. ✓ Runtime evaluation of enum casts (castToEnum function)
+6. ✓ Compile-time constant evaluation for enum casts in const declarations
 
-**Files to Modify**:
-- `internal/parser/expressions.go` (parse type cast syntax)
-- `internal/semantic/analyze_expressions.go` (validate enum casts)
-- `internal/interp/expressions.go` (evaluate enum casts)
+**Files Modified**:
+- `internal/semantic/analyze_function_calls.go` (type cast detection, resolveType usage)
+- `internal/semantic/analyze_types.go` (evaluateConstantTypeCast for const declarations)
+- `internal/interp/functions_typecast.go` (castToEnum runtime evaluation)
+
+**Tests Passing**: enum_casts (1/1)
 
 ### 9.15.7 Enum Boolean Operators
 
