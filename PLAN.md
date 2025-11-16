@@ -562,7 +562,7 @@ if !p.curTokenIs(lexer.END) {
 **Related Tasks**:
 - Phase 1: Lexer enhancements (provides lookahead, state management, error accumulation)
 - Task 10.10: Position Tracking (enhanced with better conventions)
-- Task 12.3: Lexer lookahead buffer (completed in Phase 1)
+- Phase 1: Lexer lookahead buffer (completed)
 
 ---
 
