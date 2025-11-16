@@ -714,7 +714,7 @@ if !p.curTokenIs(lexer.END) {
 
 ### Phase 3.4: Type System Separation
 
-- [ ] 3.4.1 Extract type registries to TypeSystem
+- [x] 3.4.1 Extract type registries to TypeSystem
   - Create TypeSystem struct with all registries
   - Include: classes, records, interfaces, functions, helpers, operators
   - Create TypeRegistry interface for common operations
@@ -722,6 +722,7 @@ if !p.curTokenIs(lexer.END) {
   - Files: `internal/interp/types/type_system.go` (new)
   - Estimated: 4 days
   - Acceptance: All type info in TypeSystem, clean registry APIs, tests pass
+  - **Completed**: Created TypeSystem with all registries (classes, records, interfaces, functions, helpers, operators, conversions, type IDs), clean APIs for registration and lookup, integrated with Interpreter, all tests pass
 
 - [ ] 3.4.2 Create ClassRegistry abstraction
   - Extract class management from map to ClassRegistry type

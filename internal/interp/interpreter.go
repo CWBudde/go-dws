@@ -9,6 +9,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/internal/units"
@@ -40,7 +41,11 @@ type Interpreter struct {
 	propContext      *PropertyEvalContext
 	// Phase 3.3.2: Control flow now managed by ctx.ControlFlow() instead of boolean flags
 
-	// Type System (Phase 3.4: will be moved to TypeRegistry)
+	// Type System (Phase 3.4.1: Extracted to TypeSystem)
+	typeSystem *interptypes.TypeSystem
+
+	// Backward compatibility fields (Phase 3.4.1: point to typeSystem internals)
+	// These will be gradually removed as code is migrated to use typeSystem directly
 	classes              map[string]*ClassInfo
 	records              map[string]*RecordTypeValue
 	interfaces           map[string]*InterfaceInfo
@@ -90,27 +95,40 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 	// Randomize() can be called to re-seed with current time
 	const defaultSeed = int64(1)
 	source := rand.NewSource(defaultSeed)
+
+	// Phase 3.4.1: Initialize TypeSystem
+	// The TypeSystem is the new centralized type registry.
+	// Old fields are kept for backward compatibility during migration.
+	ts := interptypes.NewTypeSystem()
+
 	interp := &Interpreter{
-		env:                  env,
-		output:               output,
+		env:               env,
+		output:            output,
+		rand:              rand.New(source),
+		randSeed:          defaultSeed,
+		loadedUnits:       make([]string, 0),
+		initializedUnits:  make(map[string]bool),
+		maxRecursionDepth: DefaultMaxRecursionDepth,
+		callStack:         errors.NewStackTrace(), // Initialize stack trace
+
+		// Phase 3.4.1: TypeSystem (new centralized type registry)
+		typeSystem: ts,
+
+		// Phase 3.4.1: Keep old fields for backward compatibility
+		// Code will be gradually migrated to use typeSystem instead
 		functions:            make(map[string][]*ast.FunctionDecl), // Task 9.66: Support overloading
 		classes:              make(map[string]*ClassInfo),
 		records:              make(map[string]*RecordTypeValue),
 		interfaces:           make(map[string]*InterfaceInfo),
 		globalOperators:      newRuntimeOperatorRegistry(),
 		conversions:          newRuntimeConversionRegistry(),
-		rand:                 rand.New(source),
-		randSeed:             defaultSeed,
-		loadedUnits:          make([]string, 0),
-		initializedUnits:     make(map[string]bool),
-		maxRecursionDepth:    DefaultMaxRecursionDepth,
-		callStack:            errors.NewStackTrace(), // Initialize stack trace
-		classTypeIDRegistry:  make(map[string]int),   // Task 9.25: RTTI type ID registry
-		recordTypeIDRegistry: make(map[string]int),   // Task 9.25: RTTI type ID registry
-		enumTypeIDRegistry:   make(map[string]int),   // Task 9.25: RTTI type ID registry
-		nextClassTypeID:      1000,                   // Task 9.25: Start class IDs at 1000
-		nextRecordTypeID:     200000,                 // Task 9.25: Start record IDs at 200000
-		nextEnumTypeID:       300000,                 // Task 9.25: Start enum IDs at 300000
+		helpers:              make(map[string][]*HelperInfo),
+		classTypeIDRegistry:  make(map[string]int), // Task 9.25: RTTI type ID registry
+		recordTypeIDRegistry: make(map[string]int), // Task 9.25: RTTI type ID registry
+		enumTypeIDRegistry:   make(map[string]int), // Task 9.25: RTTI type ID registry
+		nextClassTypeID:      1000,                 // Task 9.25: Start class IDs at 1000
+		nextRecordTypeID:     200000,               // Task 9.25: Start record IDs at 200000
+		nextEnumTypeID:       300000,               // Task 9.25: Start enum IDs at 300000
 	}
 
 	// Extract external functions and recursion depth from options if provided
