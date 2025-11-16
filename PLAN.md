@@ -44,8 +44,8 @@ func (p *Parser) looksLikeVarDeclaration() bool {
 
 **Implementation**:
 - [x] Audit all uses of `p.l.Peek()` in parser - document patterns
-- [x] Update `looksLikeVarDeclaration()` to use `p.l.Peek(1)` for 2-token lookahead
-- [x] Update `looksLikeConstDeclaration()` to use `p.l.Peek(1)` for 2-token lookahead
+- [x] Update `looksLikeVarDeclaration()` to use `p.peek(0)` for 2-token lookahead
+- [x] Update `looksLikeConstDeclaration()` to use `p.peek(0)` for 2-token lookahead
 - [x] Find other conservative disambiguation functions and improve them
 - [x] Add helper methods: `p.peek(n int) lexer.Token` wrapper for cleaner syntax
 - [x] Remove any temporary lexer creation workarounds (if they exist)
