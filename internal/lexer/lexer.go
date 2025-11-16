@@ -8,16 +8,42 @@ import (
 )
 
 // Lexer represents a lexical scanner for DWScript source code.
+//
+// # Unicode and Column Positions
+//
+// The lexer handles UTF-8 encoded source code correctly. Column positions are
+// reported as rune counts, not byte offsets or display widths.
+//
+// Important characteristics:
+//   - "column" represents the count of Unicode code points (runes) from the start of the line
+//   - Multi-byte UTF-8 sequences (like emoji 🚀, Greek Δ, or Chinese 中) each count as 1 column
+//   - This differs from display width: emoji may render as 2 cells, but count as 1 column
+//   - Combining characters are counted as separate runes
+//
+// This design choice prioritizes:
+//   - Simplicity: rune counting is straightforward and well-defined
+//   - Performance: no need to calculate complex display widths
+//   - Consistency: same behavior across all Unicode characters
+//
+// Trade-off: Error messages may not align perfectly with visual column positions
+// in terminals when emoji or wide characters are present, but positions are
+// consistent and reproducible.
+//
+// Examples:
+//   - "var x" → 'x' is at column 5 (5 runes: v, a, r, space, x)
+//   - "var Δ" → 'Δ' is at column 5 (5 runes, Δ is a single multi-byte rune)
+//   - "// 🚀" → '🚀' is at column 4 (4 runes: /, /, space, 🚀)
 type Lexer struct {
 	input            string       // The source code being tokenized
-	position         int          // Current position in input (points to current char)
-	readPosition     int          // Current reading position in input (after current char)
+	position         int          // Current byte position in input (points to current char)
+	readPosition     int          // Current reading byte position in input (after current char)
 	ch               rune         // Current character under examination (0 if EOF)
 	line             int          // Current line number (1-indexed)
-	column           int          // Current column number (1-indexed)
+	column           int          // Current column number (1-indexed, rune count not display width)
 	errors           []LexerError // Accumulated lexer errors
 	tokenBuffer      []Token      // Buffer for token lookahead (Task 12.3.1)
 	preserveComments bool         // If true, return COMMENT tokens instead of skipping comments
+	tracing          bool         // If true, enable debug tracing output
 }
 
 // lexerState represents the complete state of the lexer at a point in time.
@@ -30,10 +56,40 @@ type lexerState struct {
 	column       int  // Current column number
 }
 
-// New creates a new Lexer for the given input string.
+// LexerOption is a function that configures a Lexer.
+// Options are applied during lexer creation via New().
+type LexerOption func(*Lexer)
+
+// WithPreserveComments enables or disables comment preservation.
+// When enabled, the lexer will return COMMENT tokens instead of skipping comments.
+// This is useful for formatters and documentation tools that need to preserve comments.
+func WithPreserveComments(preserve bool) LexerOption {
+	return func(l *Lexer) {
+		l.preserveComments = preserve
+	}
+}
+
+// WithTracing enables or disables debug tracing output.
+// When enabled, the lexer may output debug information about its operation.
+// This is useful for debugging lexer behavior during development.
+func WithTracing(trace bool) LexerOption {
+	return func(l *Lexer) {
+		l.tracing = trace
+	}
+}
+
+// New creates a new Lexer for the given input string with optional configuration.
 // Automatically detects and strips UTF-8 BOM (0xEF 0xBB 0xBF) if present at the start.
 // This matches the behavior of the original DWScript which strips BOMs during file reading.
-func New(input string) *Lexer {
+//
+// Options can be provided to configure the lexer:
+//   - WithPreserveComments(true): Return COMMENT tokens instead of skipping them
+//   - WithTracing(true): Enable debug tracing output
+//
+// Example:
+//
+//	l := New(input, WithPreserveComments(true), WithTracing(false))
+func New(input string, opts ...LexerOption) *Lexer {
 	// Strip UTF-8 BOM if present (matches DWScript behavior)
 	// UTF-8 BOM: EF BB BF (239 187 191)
 	if len(input) >= 3 &&
@@ -48,6 +104,12 @@ func New(input string) *Lexer {
 		line:   1,
 		column: 0,
 	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(l)
+	}
+
 	l.readChar() // Initialize first character
 	return l
 }
@@ -267,6 +329,28 @@ func (l *Lexer) readCStyleComment() (string, bool) {
 }
 
 // Operator handler functions (Task 12.4.1 - Arithmetic operators)
+
+// tokenHandler is a function that handles a specific character/operator.
+// It takes the current position and returns the corresponding token.
+type tokenHandler func(*Lexer, Position) Token
+
+// tokenHandlers maps characters to their handler functions.
+// This dispatch table eliminates the need for a large switch statement.
+var tokenHandlers = map[rune]tokenHandler{
+	'+': (*Lexer).handlePlus,
+	'-': (*Lexer).handleMinus,
+	'*': (*Lexer).handleAsterisk,
+	'=': (*Lexer).handleEquals,
+	'<': (*Lexer).handleLess,
+	'>': (*Lexer).handleGreater,
+	'!': (*Lexer).handleExclamation,
+	'?': (*Lexer).handleQuestion,
+	'&': (*Lexer).handleAmpersand,
+	'|': (*Lexer).handlePipe,
+	'^': (*Lexer).handleCaret,
+	'@': (*Lexer).handleAt,
+	'~': (*Lexer).handleTilde,
+}
 
 // handlePlus handles the '+' operator and its variants (++, +=).
 func (l *Lexer) handlePlus(pos Position) Token {
@@ -985,47 +1069,8 @@ func (l *Lexer) nextTokenInternal() Token {
 			l.readChar()
 		}
 
-	case '+':
-		return l.handlePlus(pos)
-
-	case '-':
-		return l.handleMinus(pos)
-
-	case '*':
-		return l.handleAsterisk(pos)
-
 	case '%':
 		return l.handlePercent(pos)
-
-	case '=':
-		return l.handleEquals(pos)
-
-	case '<':
-		return l.handleLess(pos)
-
-	case '>':
-		return l.handleGreater(pos)
-
-	case '!':
-		return l.handleExclamation(pos)
-
-	case '?':
-		return l.handleQuestion(pos)
-
-	case '&':
-		return l.handleAmpersand(pos)
-
-	case '|':
-		return l.handlePipe(pos)
-
-	case '^':
-		return l.handleCaret(pos)
-
-	case '@':
-		return l.handleAt(pos)
-
-	case '~':
-		return l.handleTilde(pos)
 
 	case '\\':
 		tok = NewToken(BACKSLASH, "\\", pos)
@@ -1060,6 +1105,11 @@ func (l *Lexer) nextTokenInternal() Token {
 		tok = NewToken(STRING, literal, pos)
 
 	default:
+		// Check dispatch table for operator handlers
+		if handler, ok := tokenHandlers[l.ch]; ok {
+			return handler(l, pos)
+		}
+
 		if isLetter(l.ch) {
 			// Identifier or keyword
 			literal := l.readIdentifier()

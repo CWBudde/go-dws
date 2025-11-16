@@ -45,21 +45,23 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - Test: All comparison/logical operators work
   - **DONE**: Extracted handleEquals, handleLess, handleGreater, handleExclamation, handleQuestion, handleAmpersand, handlePipe, handleCaret, handleAt, handleTilde
 
-- [ ] 1.1.3 Create operator dispatch table
+- [x] 1.1.3 Create operator dispatch table
   - Define `type tokenHandler func(*Lexer, Position) Token`
   - Create `var tokenHandlers = map[rune]tokenHandler{...}`
   - Update NextToken() to use dispatch table
   - File: `internal/lexer/lexer.go` (~60 lines modified)
   - Estimated: 1 hour
   - Test: All operators still work, performance not degraded
+  - **DONE**: Created tokenHandler type and dispatch table with 13 operators
 
-- [ ] 1.1.4 Benchmark dispatch table vs switch
+- [x] 1.1.4 Benchmark dispatch table vs switch
   - Create benchmark for NextToken() throughput
   - Compare switch vs map dispatch
   - Revert if map is significantly slower (>10%)
   - File: `internal/lexer/lexer_bench_test.go` (new file ~80 lines)
   - Estimated: 45 minutes
   - Test: Performance within acceptable range
+  - **DONE**: Created comprehensive benchmarks, performance is excellent
 
 ---
 
@@ -67,29 +69,32 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Goal**: Improve observability and testing infrastructure.
 
-- [ ] 1.2.1 Add options pattern for Lexer configuration
+- [x] 1.2.1 Add options pattern for Lexer configuration
   - Define `type LexerOption func(*Lexer)`
   - Update `New(input string, opts ...LexerOption)` signature
   - Add `WithTracing(bool)` option for debug output
   - File: `internal/lexer/lexer.go` (~40 lines)
   - Estimated: 45 minutes
   - Test: Options apply correctly, backwards compatible
+  - **DONE**: Added LexerOption type, WithPreserveComments and WithTracing options, fully backwards compatible
 
-- [ ] 1.2.2 Add comprehensive error position tests
+- [x] 1.2.2 Add comprehensive error position tests
   - Test error positions for unterminated strings at various locations
   - Test error positions for illegal characters
   - Test multi-line error reporting
   - File: `internal/lexer/lexer_test.go` (~100 lines)
   - Estimated: 1 hour
   - Test: All error positions accurate
+  - **DONE**: Added 4 comprehensive test suites covering unterminated strings, illegal characters, multi-line errors, and Unicode edge cases
 
-- [ ] 1.2.3 Document column behavior for Unicode
+- [x] 1.2.3 Document column behavior for Unicode
   - Clarify that "column" means rune count, not display width
   - Add comment about display width vs. rune count tradeoff
   - Add examples in tests with emoji and multi-byte chars
   - File: `internal/lexer/lexer.go`, `internal/lexer/lexer_test.go` (~30 lines)
   - Estimated: 30 minutes
   - Test: Unicode handling documented and tested
+  - **DONE**: Added comprehensive documentation to Lexer type and Position type explaining column behavior with examples
 
 ---
 
