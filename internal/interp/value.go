@@ -193,9 +193,11 @@ func (e *EnumValue) Type() string {
 	return "ENUM"
 }
 
-// String returns the enum value name.
+// String returns the enum value's ordinal value as a string.
+// In DWScript, when an enum is converted to string (e.g., for Print()),
+// it returns the ordinal value, not the name.
 func (e *EnumValue) String() string {
-	return e.ValueName
+	return fmt.Sprintf("%d", e.OrdinalValue)
 }
 
 // RecordValue represents a record value in DWScript.

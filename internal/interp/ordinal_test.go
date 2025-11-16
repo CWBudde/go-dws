@@ -1296,7 +1296,7 @@ var c: TColor := Blue;
 var low: TColor := Low(c);
 PrintLn(low);
 `,
-			expected: "Red\n",
+			expected: "0\n",
 		},
 		{
 			name: "Low of enum with middle value",
@@ -1305,7 +1305,7 @@ type TColor = (Red, Green, Blue);
 var c: TColor := Green;
 PrintLn(Low(c));
 `,
-			expected: "Red\n",
+			expected: "0\n",
 		},
 		{
 			name: "Low of enum with explicit values",
@@ -1358,7 +1358,7 @@ var c: TColor := Red;
 var high: TColor := High(c);
 PrintLn(high);
 `,
-			expected: "Blue\n",
+			expected: "2\n",
 		},
 		{
 			name: "High of enum with middle value",
@@ -1367,7 +1367,7 @@ type TColor = (Red, Green, Blue);
 var c: TColor := Green;
 PrintLn(High(c));
 `,
-			expected: "Blue\n",
+			expected: "2\n",
 		},
 		{
 			name: "High of enum with explicit values",
