@@ -3238,7 +3238,7 @@ if !p.curTokenIs(lexer.END) {
 
 **Goal**: Refactor the lexer for better maintainability, consistency, and extensibility while preserving all existing functionality.
 
-**Status**: In progress | **Tasks**: 11/20 complete
+**Status**: In progress | **Tasks**: 13/20 complete
 
 **Motivation**: The lexer works well but has technical debt in error handling, state management, and code organization. These improvements will make the codebase easier to maintain and extend.
 
@@ -3361,19 +3361,21 @@ if !p.curTokenIs(lexer.END) {
 
 **Goal**: Break up the 335-line NextToken() switch statement into maintainable handler functions.
 
-- [ ] 12.4.1 Extract operator handlers (arithmetic)
+- [x] 12.4.1 Extract operator handlers (arithmetic)
   - Create `handlePlus()`, `handleMinus()`, `handleAsterisk()` functions
   - Each handles compound operators (+=, ++, etc.)
   - File: `internal/lexer/lexer.go` (~120 lines, move not add)
   - Estimated: 1 hour
   - Test: All arithmetic operators work
+  - **DONE**: Extracted handlePlus, handleMinus, handleAsterisk, handleSlash, handlePercent
 
-- [ ] 12.4.2 Extract operator handlers (comparison and logical)
+- [x] 12.4.2 Extract operator handlers (comparison and logical)
   - Create `handleEquals()`, `handleLess()`, `handleGreater()` functions
   - Create `handleAmp()`, `handlePipe()`, `handleQuestion()` functions
   - File: `internal/lexer/lexer.go` (~100 lines, move not add)
   - Estimated: 1 hour
   - Test: All comparison/logical operators work
+  - **DONE**: Extracted handleEquals, handleLess, handleGreater, handleExclamation, handleQuestion, handleAmpersand, handlePipe, handleCaret, handleAt, handleTilde
 
 - [ ] 12.4.3 Create operator dispatch table
   - Define `type tokenHandler func(*Lexer, Position) Token`

@@ -162,6 +162,259 @@ func (l *Lexer) Peek(n int) Token {
 	return l.tokenBuffer[n]
 }
 
+// Operator handler functions (Task 12.4.1 - Arithmetic operators)
+
+// handlePlus handles the '+' operator and its variants (++, +=).
+func (l *Lexer) handlePlus(pos Position) Token {
+	if l.peekChar() == '+' {
+		l.readChar()
+		tok := NewToken(INC, "++", pos)
+		l.readChar()
+		return tok
+	} else if l.peekChar() == '=' {
+		l.readChar()
+		tok := NewToken(PLUS_ASSIGN, "+=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(PLUS, "+", pos)
+	l.readChar()
+	return tok
+}
+
+// handleMinus handles the '-' operator and its variants (--, -=).
+func (l *Lexer) handleMinus(pos Position) Token {
+	if l.peekChar() == '-' {
+		l.readChar()
+		tok := NewToken(DEC, "--", pos)
+		l.readChar()
+		return tok
+	} else if l.peekChar() == '=' {
+		l.readChar()
+		tok := NewToken(MINUS_ASSIGN, "-=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(MINUS, "-", pos)
+	l.readChar()
+	return tok
+}
+
+// handleAsterisk handles the '*' operator and its variants (**, *=).
+func (l *Lexer) handleAsterisk(pos Position) Token {
+	if l.peekChar() == '*' {
+		l.readChar()
+		tok := NewToken(POWER, "**", pos)
+		l.readChar()
+		return tok
+	} else if l.peekChar() == '=' {
+		l.readChar()
+		tok := NewToken(TIMES_ASSIGN, "*=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(ASTERISK, "*", pos)
+	l.readChar()
+	return tok
+}
+
+// handleSlash handles the '/' operator and its variants (//, /*, /=).
+// Note: Comments are handled in nextTokenInternal before calling this.
+func (l *Lexer) handleSlash(pos Position) Token {
+	if l.peekChar() == '=' {
+		l.readChar()
+		tok := NewToken(DIVIDE_ASSIGN, "/=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(SLASH, "/", pos)
+	l.readChar()
+	return tok
+}
+
+// handlePercent handles the '%' operator and its variants (%=).
+// Also handles binary literals starting with %.
+func (l *Lexer) handlePercent(pos Position) Token {
+	// Could be binary literal or modulo
+	if isDigit(l.peekChar()) && (l.peekChar() == '0' || l.peekChar() == '1') {
+		// Binary literal
+		tokenType, literal := l.readNumber()
+		return NewToken(tokenType, literal, pos)
+	} else if l.peekChar() == '=' {
+		l.readChar()
+		tok := NewToken(PERCENT_ASSIGN, "%=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(PERCENT, "%", pos)
+	l.readChar()
+	return tok
+}
+
+// Operator handler functions (Task 12.4.2 - Comparison and logical operators)
+
+// handleEquals handles the '=' operator and its variants (==, ===, =>).
+func (l *Lexer) handleEquals(pos Position) Token {
+	if l.peekChar() == '=' {
+		if l.peekCharN(2) == '=' {
+			l.readChar()
+			l.readChar()
+			tok := NewToken(EQ_EQ_EQ, "===", pos)
+			l.readChar()
+			return tok
+		}
+		l.readChar()
+		tok := NewToken(EQ_EQ, "==", pos)
+		l.readChar()
+		return tok
+	} else if l.peekChar() == '>' {
+		l.readChar()
+		tok := NewToken(FAT_ARROW, "=>", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(EQ, "=", pos)
+	l.readChar()
+	return tok
+}
+
+// handleLess handles the '<' operator and its variants (<>, <=, <<).
+func (l *Lexer) handleLess(pos Position) Token {
+	if l.peekChar() == '>' {
+		l.readChar()
+		tok := NewToken(NOT_EQ, "<>", pos)
+		l.readChar()
+		return tok
+	} else if l.peekChar() == '=' {
+		l.readChar()
+		tok := NewToken(LESS_EQ, "<=", pos)
+		l.readChar()
+		return tok
+	} else if l.peekChar() == '<' {
+		l.readChar()
+		tok := NewToken(LESS_LESS, "<<", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(LESS, "<", pos)
+	l.readChar()
+	return tok
+}
+
+// handleGreater handles the '>' operator and its variants (>=, >>).
+func (l *Lexer) handleGreater(pos Position) Token {
+	if l.peekChar() == '=' {
+		l.readChar()
+		tok := NewToken(GREATER_EQ, ">=", pos)
+		l.readChar()
+		return tok
+	} else if l.peekChar() == '>' {
+		l.readChar()
+		tok := NewToken(GREATER_GREATER, ">>", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(GREATER, ">", pos)
+	l.readChar()
+	return tok
+}
+
+// handleExclamation handles the '!' operator and its variant (!=).
+func (l *Lexer) handleExclamation(pos Position) Token {
+	if l.peekChar() == '=' {
+		l.readChar()
+		tok := NewToken(EXCL_EQ, "!=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(EXCLAMATION, "!", pos)
+	l.readChar()
+	return tok
+}
+
+// handleQuestion handles the '?' operator and its variants (??, ?.).
+func (l *Lexer) handleQuestion(pos Position) Token {
+	if l.peekChar() == '?' {
+		l.readChar()
+		tok := NewToken(QUESTION_QUESTION, "??", pos)
+		l.readChar()
+		return tok
+	} else if l.peekChar() == '.' {
+		l.readChar()
+		tok := NewToken(QUESTION_DOT, "?.", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(QUESTION, "?", pos)
+	l.readChar()
+	return tok
+}
+
+// handleAmpersand handles the '&' operator and its variant (&&).
+func (l *Lexer) handleAmpersand(pos Position) Token {
+	if l.peekChar() == '&' {
+		l.readChar()
+		tok := NewToken(AMP_AMP, "&&", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(AMP, "&", pos)
+	l.readChar()
+	return tok
+}
+
+// handlePipe handles the '|' operator and its variant (||).
+func (l *Lexer) handlePipe(pos Position) Token {
+	if l.peekChar() == '|' {
+		l.readChar()
+		tok := NewToken(PIPE_PIPE, "||", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(PIPE, "|", pos)
+	l.readChar()
+	return tok
+}
+
+// handleCaret handles the '^' operator and its variant (^=).
+func (l *Lexer) handleCaret(pos Position) Token {
+	if l.peekChar() == '=' {
+		l.readChar()
+		tok := NewToken(CARET_ASSIGN, "^=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(CARET, "^", pos)
+	l.readChar()
+	return tok
+}
+
+// handleAt handles the '@' operator and its variant (@=).
+func (l *Lexer) handleAt(pos Position) Token {
+	if l.peekChar() == '=' {
+		l.readChar()
+		tok := NewToken(AT_ASSIGN, "@=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(AT, "@", pos)
+	l.readChar()
+	return tok
+}
+
+// handleTilde handles the '~' operator and its variant (~=).
+func (l *Lexer) handleTilde(pos Position) Token {
+	if l.peekChar() == '=' {
+		l.readChar()
+		tok := NewToken(TILDE_ASSIGN, "~=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(TILDE, "~", pos)
+	l.readChar()
+	return tok
+}
+
 // skipWhitespace skips over whitespace characters (space, tab, newline, carriage return).
 func (l *Lexer) skipWhitespace() {
 	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
@@ -550,14 +803,7 @@ func (l *Lexer) nextTokenInternal() Token {
 			l.skipCStyleComment()
 			return l.nextTokenInternal()
 		}
-		if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(DIVIDE_ASSIGN, "/=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(SLASH, "/", pos)
-			l.readChar()
-		}
+		return l.handleSlash(pos)
 
 	case '{':
 		// Block comment or compiler directive - both skip to }
@@ -618,188 +864,46 @@ func (l *Lexer) nextTokenInternal() Token {
 		}
 
 	case '+':
-		if l.peekChar() == '+' {
-			l.readChar()
-			tok = NewToken(INC, "++", pos)
-			l.readChar()
-		} else if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(PLUS_ASSIGN, "+=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(PLUS, "+", pos)
-			l.readChar()
-		}
+		return l.handlePlus(pos)
 
 	case '-':
-		if l.peekChar() == '-' {
-			l.readChar()
-			tok = NewToken(DEC, "--", pos)
-			l.readChar()
-		} else if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(MINUS_ASSIGN, "-=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(MINUS, "-", pos)
-			l.readChar()
-		}
+		return l.handleMinus(pos)
 
 	case '*':
-		if l.peekChar() == '*' {
-			l.readChar()
-			tok = NewToken(POWER, "**", pos)
-			l.readChar()
-		} else if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(TIMES_ASSIGN, "*=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(ASTERISK, "*", pos)
-			l.readChar()
-		}
+		return l.handleAsterisk(pos)
 
 	case '%':
-		// Could be binary literal or modulo
-		if isDigit(l.peekChar()) && (l.peekChar() == '0' || l.peekChar() == '1') {
-			// Binary literal
-			tokenType, literal := l.readNumber()
-			tok = NewToken(tokenType, literal, pos)
-		} else if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(PERCENT_ASSIGN, "%=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(PERCENT, "%", pos)
-			l.readChar()
-		}
+		return l.handlePercent(pos)
 
 	case '=':
-		if l.peekChar() == '=' {
-			if l.peekCharN(2) == '=' {
-				l.readChar()
-				l.readChar()
-				tok = NewToken(EQ_EQ_EQ, "===", pos)
-				l.readChar()
-			} else {
-				l.readChar()
-				tok = NewToken(EQ_EQ, "==", pos)
-				l.readChar()
-			}
-		} else if l.peekChar() == '>' {
-			l.readChar()
-			tok = NewToken(FAT_ARROW, "=>", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(EQ, "=", pos)
-			l.readChar()
-		}
+		return l.handleEquals(pos)
 
 	case '<':
-		if l.peekChar() == '>' {
-			l.readChar()
-			tok = NewToken(NOT_EQ, "<>", pos)
-			l.readChar()
-		} else if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(LESS_EQ, "<=", pos)
-			l.readChar()
-		} else if l.peekChar() == '<' {
-			l.readChar()
-			tok = NewToken(LESS_LESS, "<<", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(LESS, "<", pos)
-			l.readChar()
-		}
+		return l.handleLess(pos)
 
 	case '>':
-		if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(GREATER_EQ, ">=", pos)
-			l.readChar()
-		} else if l.peekChar() == '>' {
-			l.readChar()
-			tok = NewToken(GREATER_GREATER, ">>", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(GREATER, ">", pos)
-			l.readChar()
-		}
+		return l.handleGreater(pos)
 
 	case '!':
-		if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(EXCL_EQ, "!=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(EXCLAMATION, "!", pos)
-			l.readChar()
-		}
+		return l.handleExclamation(pos)
 
 	case '?':
-		if l.peekChar() == '?' {
-			l.readChar()
-			tok = NewToken(QUESTION_QUESTION, "??", pos)
-			l.readChar()
-		} else if l.peekChar() == '.' {
-			l.readChar()
-			tok = NewToken(QUESTION_DOT, "?.", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(QUESTION, "?", pos)
-			l.readChar()
-		}
+		return l.handleQuestion(pos)
 
 	case '&':
-		if l.peekChar() == '&' {
-			l.readChar()
-			tok = NewToken(AMP_AMP, "&&", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(AMP, "&", pos)
-			l.readChar()
-		}
+		return l.handleAmpersand(pos)
 
 	case '|':
-		if l.peekChar() == '|' {
-			l.readChar()
-			tok = NewToken(PIPE_PIPE, "||", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(PIPE, "|", pos)
-			l.readChar()
-		}
+		return l.handlePipe(pos)
 
 	case '^':
-		if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(CARET_ASSIGN, "^=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(CARET, "^", pos)
-			l.readChar()
-		}
+		return l.handleCaret(pos)
 
 	case '@':
-		if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(AT_ASSIGN, "@=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(AT, "@", pos)
-			l.readChar()
-		}
+		return l.handleAt(pos)
 
 	case '~':
-		if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(TILDE_ASSIGN, "~=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(TILDE, "~", pos)
-			l.readChar()
-		}
+		return l.handleTilde(pos)
 
 	case '\\':
 		tok = NewToken(BACKSLASH, "\\", pos)
