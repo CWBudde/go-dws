@@ -251,7 +251,7 @@ func (i *Interpreter) evalUnaryExpression(expr *ast.UnaryExpression) Value {
 	case "not":
 		return i.evalNotUnaryOp(right)
 	default:
-		return newError("unknown operator: %s%s", expr.Operator, right.Type())
+		return i.newTypeError(expr, "unknown operator: %s%s", expr.Operator, right.Type())
 	}
 }
 
@@ -354,7 +354,7 @@ func (i *Interpreter) evalAddressOfExpression(expr *ast.AddressOfExpression) Val
 		return i.evalFunctionPointer(methodName, objectVal, expr)
 
 	default:
-		return newError("address-of operator requires function or method name, got %T", operand)
+		return i.newRuntimeError(expr, "address-of operator requires function or method name, got %T", operand)
 	}
 }
 
@@ -365,7 +365,7 @@ func (i *Interpreter) evalFunctionPointer(name string, selfObject Value, _ ast.N
 	// DWScript is case-insensitive, so normalize the function name to lowercase
 	overloads, exists := i.functions[strings.ToLower(name)]
 	if !exists || len(overloads) == 0 {
-		return newError("undefined function or procedure: %s", name)
+		return i.newUndefinedError(nil, "undefined function or procedure: %s", name)
 	}
 
 	// For overloaded functions, use the first overload

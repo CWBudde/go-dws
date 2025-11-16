@@ -959,7 +959,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
 
 ### Phase 3.6: Error Handling Improvements
 
-- [ ] 3.6.1 Implement consistent error wrapping
+- [x] 3.6.1 Implement consistent error wrapping
   - Replace newError() with proper error wrapping
   - Use fmt.Errorf with %w for error chains
   - Create custom error types for different error categories
@@ -967,8 +967,9 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Files: `internal/interp/errors/errors.go` (new)
   - Estimated: 4 days
   - Acceptance: All errors wrapped properly, error chains work, tests pass
+  - **Completed**: Created 5 error categories (Type, Runtime, Undefined, Contract, Internal), 18 tests passing
 
-- [ ] 3.6.2 Create EvalResult type for cleaner error propagation
+- [x] 3.6.2 Create EvalResult type for cleaner error propagation
   - Define EvalResult struct with value and error
   - Add OrReturn() method for early return pattern
   - Reduce repetitive if isError(val) checks
@@ -976,8 +977,9 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Files: `internal/interp/evaluator/result.go` (new)
   - Estimated: 5 days
   - Acceptance: Less boilerplate, cleaner code, tests pass
+  - **Completed**: 6 error handling patterns (OrReturn, FirstError, AllValues, Map, AndThen, Collect), 19 tests passing
 
-- [ ] 3.6.3 Standardize error messages and error types
+- [x] 3.6.3 Standardize error messages and error types
   - Create error constants for common errors
   - Ensure consistent formatting: "operation failed: reason"
   - Include relevant context in all errors
@@ -985,6 +987,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Files: `internal/interp/errors/catalog.go` (new)
   - Estimated: 2 days
   - Acceptance: Consistent error messages, documented catalog, tests pass
+  - **Completed**: 40+ error constants, 30+ helper functions, 31 tests passing, comprehensive documentation
 
 ---
 

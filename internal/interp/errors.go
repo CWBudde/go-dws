@@ -5,20 +5,29 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/errors"
+	interpErrors "github.com/cwbudde/go-dws/internal/interp/errors"
 	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
-// ErrorValue represents a runtime error.
+// ErrorValue represents a runtime error that implements the Value interface.
+// It wraps an InterpreterError for better error handling and categorization.
 type ErrorValue struct {
 	Message string
+	Err     *interpErrors.InterpreterError // Underlying structured error
 }
 
 func (e *ErrorValue) Type() string   { return "ERROR" }
 func (e *ErrorValue) String() string { return "ERROR: " + e.Message }
 
-// newError creates a new ErrorValue.
+// newError creates a new ErrorValue with an Internal error.
+// Deprecated: Use newTypeError, newRuntimeError, newUndefinedError, or newInternalError instead.
 func newError(format string, args ...interface{}) *ErrorValue {
-	return &ErrorValue{Message: fmt.Sprintf(format, args...)}
+	msg := fmt.Sprintf(format, args...)
+	return &ErrorValue{
+		Message: msg,
+		Err:     interpErrors.NewInternalError(nil, msg, ""),
+	}
 }
 
 // newErrorWithLocation creates a new ErrorValue with location information from a node.
@@ -117,6 +126,124 @@ func isError(val Value) bool {
 		return val.Type() == "ERROR"
 	}
 	return false
+}
+
+// Helper functions for creating categorized errors
+
+// newTypeError creates a type error with position information from a node.
+func (i *Interpreter) newTypeError(node ast.Node, format string, args ...interface{}) *ErrorValue {
+	msg := fmt.Sprintf(format, args...)
+	var pos *token.Position
+	var expr string
+	if node != nil {
+		p := convertLexerToTokenPos(i.getPositionFromNode(node))
+		pos = &p
+		expr = node.String()
+	}
+
+	interpErr := interpErrors.NewTypeError(pos, msg, expr)
+	return &ErrorValue{
+		Message: interpErr.Error(),
+		Err:     interpErr,
+	}
+}
+
+// newRuntimeError creates a runtime error with position information from a node.
+func (i *Interpreter) newRuntimeError(node ast.Node, format string, args ...interface{}) *ErrorValue {
+	msg := fmt.Sprintf(format, args...)
+	var pos *token.Position
+	var expr string
+	if node != nil {
+		p := convertLexerToTokenPos(i.getPositionFromNode(node))
+		pos = &p
+		expr = node.String()
+	}
+
+	interpErr := interpErrors.NewRuntimeError(pos, msg, expr)
+	return &ErrorValue{
+		Message: interpErr.Error(),
+		Err:     interpErr,
+	}
+}
+
+// newRuntimeErrorWithValues creates a runtime error with runtime values for debugging.
+func (i *Interpreter) newRuntimeErrorWithValues(node ast.Node, message string, values map[string]string) *ErrorValue {
+	var pos *token.Position
+	var expr string
+	if node != nil {
+		p := convertLexerToTokenPos(i.getPositionFromNode(node))
+		pos = &p
+		expr = node.String()
+	}
+
+	interpErr := interpErrors.NewRuntimeErrorWithValues(pos, expr, message, values)
+	return &ErrorValue{
+		Message: interpErr.Error(),
+		Err:     interpErr,
+	}
+}
+
+// newUndefinedError creates an undefined entity error with position information from a node.
+func (i *Interpreter) newUndefinedError(node ast.Node, format string, args ...interface{}) *ErrorValue {
+	msg := fmt.Sprintf(format, args...)
+	var pos *token.Position
+	var expr string
+	if node != nil {
+		p := convertLexerToTokenPos(i.getPositionFromNode(node))
+		pos = &p
+		expr = node.String()
+	}
+
+	interpErr := interpErrors.NewUndefinedError(pos, msg, expr)
+	return &ErrorValue{
+		Message: interpErr.Error(),
+		Err:     interpErr,
+	}
+}
+
+// newInternalError creates an internal interpreter error with position information from a node.
+func (i *Interpreter) newInternalError(node ast.Node, format string, args ...interface{}) *ErrorValue {
+	msg := fmt.Sprintf(format, args...)
+	var pos *token.Position
+	var expr string
+	if node != nil {
+		p := convertLexerToTokenPos(i.getPositionFromNode(node))
+		pos = &p
+		expr = node.String()
+	}
+
+	interpErr := interpErrors.NewInternalError(pos, msg, expr)
+	return &ErrorValue{
+		Message: interpErr.Error(),
+		Err:     interpErr,
+	}
+}
+
+// newContractErrorFromInterpreterError creates a contract error with position information.
+func (i *Interpreter) newContractErrorFromInterpreterError(node ast.Node, format string, args ...interface{}) *ErrorValue {
+	msg := fmt.Sprintf(format, args...)
+	var pos *token.Position
+	var expr string
+	if node != nil {
+		p := convertLexerToTokenPos(i.getPositionFromNode(node))
+		pos = &p
+		expr = node.String()
+	}
+
+	interpErr := interpErrors.NewContractError(pos, msg, expr)
+	return &ErrorValue{
+		Message: interpErr.Error(),
+		Err:     interpErr,
+	}
+}
+
+// convertLexerToTokenPos converts a lexer.Position to token.Position.
+func convertLexerToTokenPos(pos lexer.Position) token.Position {
+	return token.Position{
+		Line:   pos.Line,
+		Column: pos.Column,
+		Offset: pos.Offset,
+	}
 }
 
 // RuntimeError represents a structured runtime error with rich context

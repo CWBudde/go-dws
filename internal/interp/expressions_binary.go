@@ -523,7 +523,7 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 	case ">=":
 		return &BooleanValue{Value: leftVal >= rightVal}
 	default:
-		return newError("unknown operator: %s %s %s", left.Type(), op, right.Type())
+		return i.newTypeError(i.currentNode, "unknown operator: %s %s %s", left.Type(), op, right.Type())
 	}
 }
 
@@ -543,7 +543,7 @@ func (i *Interpreter) evalFloatBinaryOp(op string, left, right Value) Value {
 	case *IntegerValue:
 		leftVal = float64(v.Value)
 	default:
-		return newError("type error in float operation")
+		return i.newTypeError(i.currentNode, "type error in float operation: expected FLOAT or INTEGER, got %s", left.Type())
 	}
 
 	// Convert right operand to float
@@ -553,7 +553,7 @@ func (i *Interpreter) evalFloatBinaryOp(op string, left, right Value) Value {
 	case *IntegerValue:
 		rightVal = float64(v.Value)
 	default:
-		return newError("type error in float operation")
+		return i.newTypeError(i.currentNode, "type error in float operation: expected FLOAT or INTEGER, got %s", right.Type())
 	}
 
 	switch op {
@@ -590,7 +590,7 @@ func (i *Interpreter) evalFloatBinaryOp(op string, left, right Value) Value {
 	case ">=":
 		return &BooleanValue{Value: leftVal >= rightVal}
 	default:
-		return newError("unknown operator: %s %s %s", left.Type(), op, right.Type())
+		return i.newTypeError(i.currentNode, "unknown operator: %s %s %s", left.Type(), op, right.Type())
 	}
 }
 
@@ -629,7 +629,7 @@ func (i *Interpreter) evalStringBinaryOp(op string, left, right Value) Value {
 	case ">=":
 		return &BooleanValue{Value: leftVal >= rightVal}
 	default:
-		return newError("unknown operator: %s %s %s", left.Type(), op, right.Type())
+		return i.newTypeError(i.currentNode, "unknown operator: %s %s %s", left.Type(), op, right.Type())
 	}
 }
 
@@ -664,7 +664,7 @@ func (i *Interpreter) evalBooleanBinaryOp(op string, left, right Value) Value {
 	case "<>":
 		return &BooleanValue{Value: leftVal != rightVal}
 	default:
-		return newError("unknown operator: %s %s %s", left.Type(), op, right.Type())
+		return i.newTypeError(i.currentNode, "unknown operator: %s %s %s", left.Type(), op, right.Type())
 	}
 }
 
@@ -698,7 +698,7 @@ func (i *Interpreter) evalEnumBinaryOp(op string, left, right Value) Value {
 	case ">=":
 		return &BooleanValue{Value: leftVal >= rightVal}
 	default:
-		return newError("unknown operator: %s %s %s", left.Type(), op, right.Type())
+		return i.newTypeError(i.currentNode, "unknown operator: %s %s %s", left.Type(), op, right.Type())
 	}
 }
 
