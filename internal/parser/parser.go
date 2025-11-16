@@ -128,7 +128,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(lexer.TRUE, p.parseBooleanLiteral)
 	p.registerPrefix(lexer.FALSE, p.parseBooleanLiteral)
 	p.registerPrefix(lexer.NIL, p.parseNilLiteral)
-	p.registerPrefix(lexer.NULL, p.parseNullIdentifier)       // Task 9.4.1: Null as built-in constant
+	p.registerPrefix(lexer.NULL, p.parseNullIdentifier)             // Task 9.4.1: Null as built-in constant
 	p.registerPrefix(lexer.UNASSIGNED, p.parseUnassignedIdentifier) // Task 9.4.1: Unassigned as built-in constant
 	p.registerPrefix(lexer.CHAR, p.parseCharLiteral)
 	p.registerPrefix(lexer.MINUS, p.parsePrefixExpression)
