@@ -488,31 +488,46 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 // looksLikeVarDeclaration performs lookahead to check if the next tokens form a var declaration.
 // A var declaration pattern is: IDENT followed by either:
 // - COLON (for typed declaration: x : Integer)
-// - ASSIGN or EQ (for inferred type: x := 5)
 // - COMMA (for multi-var declaration: x, y : Integer)
-// This prevents mis-parsing function calls or other statements as var declarations.
+// This prevents mis-parsing function calls or assignments as var declarations.
+// NOTE: We do NOT accept ASSIGN/EQ patterns here because they're ambiguous:
+//   "x := 5" could be a new var declaration OR an assignment to existing var.
+//   To use type inference in var blocks, repeat the 'var' keyword for each declaration.
 func (p *Parser) looksLikeVarDeclaration() bool {
 	if !p.peekTokenIs(lexer.IDENT) {
 		return false
 	}
 
-	// We can't look at token after peek without advancing, but we know common patterns
-	// For now, conservatively return false to avoid the regression
-	// A proper implementation would require a 2-token lookahead buffer
-	return false
+	// Use Peek(0) for 2-token lookahead: check the token after peekToken
+	// peekToken is the IDENT, Peek(0) returns what comes after it
+	tokenAfterIdent := p.l.Peek(0)
+
+	// Only accept unambiguous var declaration patterns:
+	// - name : Type         (explicit type - always a declaration)
+	// - name, name2 : Type  (multi-var declaration)
+	return tokenAfterIdent.Type == lexer.COLON ||
+		tokenAfterIdent.Type == lexer.COMMA
 }
 
 // looksLikeConstDeclaration performs lookahead to check if the next tokens form a const declaration.
 // A const declaration pattern is: IDENT followed by either:
 // - COLON (for typed const: C : Integer = 5)
-// - EQ or ASSIGN (for untyped const: C = 5)
+// - EQ (for untyped const: C = value)
 // This prevents mis-parsing other statements as const declarations.
+// NOTE: We accept EQ but not ASSIGN here. While both can be used for consts,
+//   ASSIGN is more commonly used for var declarations and assignments.
 func (p *Parser) looksLikeConstDeclaration() bool {
 	if !p.peekTokenIs(lexer.IDENT) {
 		return false
 	}
 
-	// For now, conservatively return false to avoid the regression
-	// A proper implementation would require a 2-token lookahead buffer
-	return false
+	// Use Peek(0) for 2-token lookahead: check the token after peekToken
+	// peekToken is the IDENT, Peek(0) returns what comes after it
+	tokenAfterIdent := p.l.Peek(0)
+
+	// Const declaration patterns:
+	// - NAME : Type = value  (typed const)
+	// - NAME = value         (untyped const)
+	return tokenAfterIdent.Type == lexer.COLON ||
+		tokenAfterIdent.Type == lexer.EQ
 }
