@@ -407,15 +407,19 @@ just test
 
 ---
 
+- [x] **Task 9.5: Implement Class Variables (class var)** - Implement full class variable support including parsing, type system, semantic analysis, and runtime execution. Created TypeCastValue wrapper to preserve static types from type casts, ensuring `TBase(child).ClassVar` accesses the base class variable. All subtasks complete (9.5.1-9.5.4). Unlocks 3 passing tests: class_var, class_var_dyn1, static_method3. (Estimate: 12-15 hours) ✅
+
+---
+
 ## Task 9.5: Implement Class Variables (class var)
 
 **Goal**: Add support for class variables (`class var`) in class declarations.
 
 **Estimate**: 12-15 hours (1.5-2 days)
 
-**Status**: NOT STARTED
+**Status**: DONE
 
-**Impact**: Unlocks 11 failing tests in SimpleScripts
+**Impact**: Unlocks 11 failing tests in SimpleScripts (3 now passing: class_var, class_var_dyn1, static_method3)
 
 **Priority**: P0 - CRITICAL (Core OOP feature)
 
@@ -559,21 +563,23 @@ PrintLn(b.Test);    // Access via instance
 
 **Estimate**: 3-4 hours
 
-**Status**: PARTIALLY COMPLETE (blocked on Task 9.18)
+**Status**: DONE
 
 **Implementation**:
 1. Create global storage for class variables (separate from instances) ✓
 2. Implement class variable initialization ✓
 3. Handle class variable access via class name ✓
-4. Handle class variable access via instance (lookup in class, not instance) ⚠️ PARTIAL
+4. Handle class variable access via instance (lookup in class, not instance) ✓
+5. Handle class variable access via type casts (TBase(child).ClassVar) ✓
 
 **Files Modified**:
-- `internal/interp/declarations.go` (lines 309-352: class var initialization already complete)
-- `internal/interp/objects_hierarchy.go` (lines 51-54, 227-230, 389-391: class var access)
-- `internal/interp/objects_hierarchy.go` (lines 322-348: attempted nil instance access - blocked)
+- `internal/interp/declarations.go` (lines 309-352: class var initialization)
+- `internal/interp/objects_hierarchy.go` (lines 51-54, 227-230, 322-365, 417-432: class var access)
 - `internal/interp/statements_assignments.go` (lines 488-494: class var assignment via class name)
 - `internal/interp/fixture_test.go` (added SetSemanticInfo calls for tests)
 - `internal/interp/class_var_test.go` (new file: runtime tests for class variables)
+- `internal/interp/value.go` (lines 620-636: TypeCastValue for preserving static types)
+- `internal/interp/functions_typecast.go` (lines 512-520, 529-535: wrap casts in TypeCastValue)
 
 **What Works**:
 - ✓ Class variables stored in `ClassInfo.ClassVars map[string]Value`
@@ -581,32 +587,26 @@ PrintLn(b.Test);    // Access via instance
 - ✓ Access via class name: `TBase.Test` (read and write)
 - ✓ Inheritance: `lookupClassVar` recursively checks parent classes
 - ✓ Access via object instances: `obj.Test` where obj is non-nil
+- ✓ Access via NIL instances: `var b : TBase; PrintLn(b.Test)` (uses NilValue.ClassType)
+- ✓ Access via type casts: `TBase(child).ClassVar` uses static type, not runtime type
 - ✓ Assignment via class name: `TBase.Test := 123`
-- ✓ Tests: `TestClassVariableAccessViaClassNameRuntime` passes
+- ✓ Tests: `class_var`, `class_var_dyn1`, `static_method3` all pass
 
-**What's Blocked**:
-- ⚠️ Access via NIL instances: `var b : TBase; PrintLn(b.Test)`
-- **Blocker**: Task 9.18 SemanticInfo migration incomplete
-  - SemanticInfo exists but not populated with type information
-  - Cannot determine class type of nil variables at runtime
-  - Code in place (lines 326-348) but SemanticInfo.GetType() returns nil
-
-**Potential Solutions**:
-1. Complete Task 9.18: Populate SemanticInfo.SetType() in semantic analyzer
-2. Use typed nil values that carry class metadata
-3. Store variable type information in environment alongside values
+**Implementation Details**:
+- Created `TypeCastValue` wrapper to preserve static type from type casts
+- Type casts now return `TypeCastValue{Object: obj, StaticType: targetClass}`
+- Member access unwraps `TypeCastValue` and uses `StaticType` for class variable lookup
+- This ensures `TBase(child).ClassVar` accesses `TBase.ClassVar`, not `TChild.ClassVar`
 
 **Testing**:
 ```bash
-# Works:
+# All pass:
 go test -v ./internal/interp -run TestClassVariableAccessViaClassNameRuntime
-
-# Fails (nil instance access):
 go test -v ./internal/interp -run TestClassVariableAccessViaInstanceRuntime
 go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/class_var
 ```
 
-**Note**: Significant progress made. Core infrastructure complete. Final piece requires either Task 9.18 completion or alternative type tracking mechanism.
+**Note**: Task complete! Class variables fully functional including inheritance, nil access, and type cast scenarios. Remaining test failures (class_var_as_prop, static_method1/2, etc.) are due to other unimplemented features (properties with class var specifiers, static method syntax, field shadowing).
 
 ---
 

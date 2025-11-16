@@ -509,9 +509,20 @@ func (i *Interpreter) castToClass(val Value, targetClass *ClassInfo, node ast.No
 		val = variantVal.Value
 	}
 
-	// Handle nil
+	// Unwrap TypeCastValue if needed (for successive casts like TBase(obj1) then TObject(obj2))
+	// This preserves support for successive type casts: obj := TObject(child); TBase(obj)
+	if typeCast, ok := val.(*TypeCastValue); ok {
+		val = typeCast.Object
+	}
+
+	// Handle nil - wrap it with the static type for proper class variable access
 	if _, isNil := val.(*NilValue); isNil {
-		return val // nil can be cast to any class
+		// Wrap nil in TypeCastValue to preserve static type information
+		// This allows TBase(nilChild).ClassVar to access TBase's class variable
+		return &TypeCastValue{
+			Object:     val,
+			StaticType: targetClass,
+		}
 	}
 
 	// Get the object
@@ -526,6 +537,10 @@ func (i *Interpreter) castToClass(val Value, targetClass *ClassInfo, node ast.No
 		return i.newErrorWithLocation(node, "cannot cast %s to %s: incompatible types", obj.Class.Name, targetClass.Name)
 	}
 
-	// Cast is valid - return the same object
-	return val
+	// Cast is valid - return a TypeCastValue that preserves the static type
+	// This is crucial for class variable access: TBase(child).ClassVar should access TBase's class variable
+	return &TypeCastValue{
+		Object:     val,
+		StaticType: targetClass,
+	}
 }
