@@ -1081,7 +1081,7 @@ func TestSetInitializationEratosthenePattern(t *testing.T) {
 		PrintLn(count);
 
 		// Add one element
-		sieve.Include(Low);
+		sieve.Include(TRange.Low);  // Fixed: Use qualified access for scoped enum
 		count := 0;
 		for var e in TRange do begin
 			if e in sieve then
