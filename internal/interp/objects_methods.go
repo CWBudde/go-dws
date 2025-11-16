@@ -437,7 +437,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 	// Check if it's a set value with built-in methods (Include, Exclude)
 	if setVal, ok := objVal.(*SetValue); ok {
-		methodName := strings.ToLower(mc.Method.Value)  // DWScript is case-insensitive
+		methodName := strings.ToLower(mc.Method.Value) // DWScript is case-insensitive
 
 		// Evaluate method arguments
 		args := make([]Value, len(mc.Arguments))

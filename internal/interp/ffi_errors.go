@@ -3,6 +3,7 @@ package interp
 import (
 	"fmt"
 	"runtime"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/errors"
 )
@@ -22,9 +23,10 @@ func (i *Interpreter) raiseGoErrorAsException(err error) {
 	copy(callStack, i.callStack)
 
 	// Look up EHost class; fall back to basic Exception if it is unavailable.
-	hostClass, ok := i.classes["EHost"]
+	// PR #147: Use lowercase key for O(1) case-insensitive lookup
+	hostClass, ok := i.classes[strings.ToLower("EHost")]
 	if !ok {
-		if baseClass, exists := i.classes["Exception"]; exists {
+		if baseClass, exists := i.classes[strings.ToLower("Exception")]; exists {
 			hostClass = baseClass
 		} else {
 			// As a last resort, leave exception unset.
@@ -102,9 +104,10 @@ func (i *Interpreter) raiseGoPanicAsException(panicValue interface{}) {
 	copy(callStack, i.callStack)
 
 	// Reuse exception creation logic.
-	hostClass, ok := i.classes["EHost"]
+	// PR #147: Use lowercase key for O(1) case-insensitive lookup
+	hostClass, ok := i.classes[strings.ToLower("EHost")]
 	if !ok {
-		if baseClass, exists := i.classes["Exception"]; exists {
+		if baseClass, exists := i.classes[strings.ToLower("Exception")]; exists {
 			hostClass = baseClass
 		} else {
 			return

@@ -15,17 +15,9 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 	if fn.ClassName != nil {
 		typeName := fn.ClassName.Value
 
-		// Task 9.14.2: DWScript is case-insensitive, so normalize for lookup
-		// Try to find as a class first (case-insensitive)
-		var classInfo *ClassInfo
-		var isClass bool
-		for name, info := range i.classes {
-			if strings.EqualFold(name, typeName) {
-				classInfo = info
-				isClass = true
-				break
-			}
-		}
+		// Task 9.14.2 & PR #147: DWScript is case-insensitive
+		// Use lowercase key for O(1) lookup instead of O(n) linear search
+		classInfo, isClass := i.classes[strings.ToLower(typeName)]
 
 		if isClass {
 			// Handle class method implementation
@@ -33,16 +25,8 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 			return &NilValue{}
 		}
 
-		// Try to find as a record (case-insensitive)
-		var recordInfo *RecordTypeValue
-		var isRecord bool
-		for name, info := range i.records {
-			if strings.EqualFold(name, typeName) {
-				recordInfo = info
-				isRecord = true
-				break
-			}
-		}
+		// PR #147: Use lowercase key for O(1) lookup instead of O(n) linear search
+		recordInfo, isRecord := i.records[strings.ToLower(typeName)]
 
 		if isRecord {
 			// Handle record method implementation
@@ -112,6 +96,41 @@ func (i *Interpreter) evalClassMethodImplementation(fn *ast.FunctionDecl, classI
 	// Task 9.14: Rebuild the VMT after adding method implementation
 	// This ensures the VMT has references to methods with bodies, not just declarations
 	classInfo.buildVirtualMethodTable()
+
+	// PR #147 Fix: Rebuild VMT for all descendant classes to propagate the change.
+	// When a parent class method implementation is added after child classes exist,
+	// child classes have stale VMT entries pointing to declaration-only methods.
+	// We must rebuild their VMTs to get the new implementation.
+	i.rebuildDescendantVMTs(classInfo)
+}
+
+// rebuildDescendantVMTs rebuilds the virtual method table for all classes that
+// inherit from the given class. This is necessary when a parent class method
+// implementation is added after child classes have been created.
+// PR #147 Fix: Prevents child classes from keeping stale VMT entries.
+func (i *Interpreter) rebuildDescendantVMTs(parentClass *ClassInfo) {
+	// Iterate through all registered classes
+	for _, classInfo := range i.classes {
+		// Check if this class is a descendant of parentClass
+		if i.isDescendantOf(classInfo, parentClass) {
+			// Rebuild this descendant's VMT to pick up the new implementation
+			classInfo.buildVirtualMethodTable()
+		}
+	}
+}
+
+// isDescendantOf checks if childClass is a descendant of ancestorClass.
+// Returns true if childClass inherits from ancestorClass (directly or indirectly).
+func (i *Interpreter) isDescendantOf(childClass, ancestorClass *ClassInfo) bool {
+	// Walk up the parent chain from childClass
+	current := childClass.Parent
+	for current != nil {
+		if current == ancestorClass {
+			return true
+		}
+		current = current.Parent
+	}
+	return false
 }
 
 // evalRecordMethodImplementation handles record method implementation registration
@@ -141,7 +160,8 @@ func (i *Interpreter) evalRecordMethodImplementation(fn *ast.FunctionDecl, recor
 func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Check if this is a partial class declaration
 	var classInfo *ClassInfo
-	existingClass, exists := i.classes[cd.Name.Value]
+	// PR #147: Use lowercase key for O(1) case-insensitive lookup
+	existingClass, exists := i.classes[strings.ToLower(cd.Name.Value)]
 
 	if exists && existingClass.IsPartial && cd.IsPartial {
 		// Merging partial classes - reuse existing ClassInfo
@@ -174,16 +194,11 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	var parentClass *ClassInfo
 	if cd.Parent != nil {
 		// Explicit parent specified
-		// Task 9.14.2: DWScript is case-insensitive, so use case-insensitive lookup
+		// Task 9.14.2 & PR #147: DWScript is case-insensitive
+		// Use lowercase key for O(1) lookup instead of O(n) linear search
 		parentName := cd.Parent.Value
 		var exists bool
-		for name, info := range i.classes {
-			if strings.EqualFold(name, parentName) {
-				parentClass = info
-				exists = true
-				break
-			}
-		}
+		parentClass, exists = i.classes[strings.ToLower(parentName)]
 		if !exists {
 			return i.newErrorWithLocation(cd, "parent class '%s' not found", parentName)
 		}
@@ -192,15 +207,9 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		// (unless this IS TObject or it's an external class)
 		className := cd.Name.Value
 		if !strings.EqualFold(className, "TObject") && !cd.IsExternal {
+			// PR #147: Use lowercase key for O(1) lookup instead of O(n) linear search
 			var exists bool
-			// Case-insensitive lookup for TObject
-			for name, info := range i.classes {
-				if strings.EqualFold(name, "TObject") {
-					parentClass = info
-					exists = true
-					break
-				}
-			}
+			parentClass, exists = i.classes[strings.ToLower("TObject")]
 			if !exists {
 				return i.newErrorWithLocation(cd, "implicit parent class 'TObject' not found")
 			}
@@ -302,7 +311,8 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 
 	// Task 9.6: Register class BEFORE processing fields
 	// This allows field initializers to reference the class name (e.g., FField := TObj.Value)
-	i.classes[classInfo.Name] = classInfo
+	// PR #147 Fix: Use lowercase key for O(1) case-insensitive lookup
+	i.classes[strings.ToLower(classInfo.Name)] = classInfo
 
 	// Add own fields to ClassInfo
 	for _, field := range cd.Fields {
@@ -535,7 +545,8 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	classInfo.buildVirtualMethodTable()
 
 	// Register class in registry
-	i.classes[classInfo.Name] = classInfo
+	// PR #147 Fix: Use lowercase key for O(1) case-insensitive lookup
+	i.classes[strings.ToLower(classInfo.Name)] = classInfo
 
 	return &NilValue{}
 }

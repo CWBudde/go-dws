@@ -136,26 +136,9 @@ func (o *ObjectInstance) SetField(name string, value Value) {
 //   - If a child class defines a method with the same name as a parent class method,
 //     the child's method is returned (overriding).
 //
-// Task 9.14: This now uses the virtual method table for proper virtual dispatch.
+// Note: This performs static method resolution (not virtual dispatch).
+// Virtual dispatch is implemented inline in objects_methods.go where needed.
 func (o *ObjectInstance) GetMethod(name string) *ast.FunctionDecl {
-	return o.Class.lookupMethod(name)
-}
-
-// GetMethodWithVirtualDispatch looks up a method using virtual dispatch rules.
-// Task 9.14: For virtual methods, returns the most derived implementation.
-// For reintroduced methods, returns the static type's method.
-func (o *ObjectInstance) GetMethodWithVirtualDispatch(name string, paramCount int) *ast.FunctionDecl {
-	sig := strings.ToLower(name) + fmt.Sprintf("_%d", paramCount)
-
-	// Check if this is a virtual method
-	if entry, exists := o.Class.VirtualMethodTable[sig]; exists {
-		if entry.IsVirtual && !entry.IsReintroduced {
-			// Use virtual dispatch - return the most derived implementation
-			return entry.Implementation
-		}
-	}
-
-	// Not virtual or is reintroduced - use static lookup
 	return o.Class.lookupMethod(name)
 }
 
@@ -180,30 +163,8 @@ func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
 	return nil
 }
 
-// lookupMethodWithVirtualDispatch looks up a method using the virtual method table.
-// Task 9.14: This implements proper virtual/override/reintroduce semantics.
-// For virtual methods, it returns the most derived implementation.
-// For reintroduced methods, it breaks the virtual dispatch chain.
-func (c *ClassInfo) lookupMethodWithVirtualDispatch(name string, paramCount int) *ast.FunctionDecl {
-	sig := strings.ToLower(name) + fmt.Sprintf("_%d", paramCount)
-
-	// Check VMT first
-	if entry, exists := c.VirtualMethodTable[sig]; exists {
-		// Virtual method found in VMT
-		if entry.IsVirtual && !entry.IsReintroduced {
-			// Use virtual dispatch - return the implementation from VMT
-			return entry.Implementation
-		} else if entry.IsReintroduced {
-			// Reintroduced - use static lookup from this class
-			return c.lookupMethod(name)
-		}
-		// Has entry but not virtual/reintroduced - use the implementation
-		return entry.Implementation
-	}
-
-	// Not in VMT - use regular static lookup
-	return c.lookupMethod(name)
-}
+// PR #147: Removed lookupMethodWithVirtualDispatch - it was never called.
+// Virtual dispatch is implemented inline in objects_methods.go.
 
 // lookupProperty searches for a property in the class hierarchy.
 // It starts with the current class and walks up the parent chain.

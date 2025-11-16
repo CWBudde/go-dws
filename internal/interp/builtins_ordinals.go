@@ -379,7 +379,8 @@ func (i *Interpreter) builtinAssert(args []Value) Value {
 	}
 
 	// Create EAssertionFailed exception
-	assertClass, ok := i.classes["EAssertionFailed"]
+	// PR #147: Use lowercase key for O(1) case-insensitive lookup
+	assertClass, ok := i.classes[strings.ToLower("EAssertionFailed")]
 	if !ok {
 		return i.newErrorWithLocation(i.currentNode, "EAssertionFailed exception class not found")
 	}
