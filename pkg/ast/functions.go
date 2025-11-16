@@ -38,6 +38,30 @@ type Parameter struct {
 	IsConst      bool
 }
 
+func (p *Parameter) statementNode() {}
+
+func (p *Parameter) TokenLiteral() string {
+	return p.Token.Literal
+}
+
+func (p *Parameter) Pos() token.Position {
+	return p.Token.Pos
+}
+
+func (p *Parameter) End() token.Position {
+	if p.EndPos.Line != 0 {
+		return p.EndPos
+	}
+	// End position is after the type, or after default value if present
+	if p.DefaultValue != nil {
+		return p.DefaultValue.End()
+	}
+	if p.Type != nil {
+		return p.Type.End()
+	}
+	return p.Token.Pos
+}
+
 func (p *Parameter) String() string {
 	result := ""
 	if p.IsConst {

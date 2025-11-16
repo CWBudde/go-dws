@@ -109,6 +109,8 @@ type FieldInitializer struct {
 	Value Expression  // Field value expression
 }
 
+func (fi *FieldInitializer) statementNode() {}
+
 // String returns a string representation of the field initializer.
 func (fi *FieldInitializer) String() string {
 	var out bytes.Buffer
