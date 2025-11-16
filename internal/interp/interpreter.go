@@ -165,6 +165,10 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 	env.Define("NaN", &FloatValue{Value: math.NaN()})
 	env.Define("Infinity", &FloatValue{Value: math.Inf(1)})
 
+	// Task 9.4.1: Register Variant special values
+	env.Define("Null", NewNullValue())
+	env.Define("Unassigned", NewUnassignedValue())
+
 	return interp
 }
 

@@ -225,6 +225,34 @@ func (p *Parser) parseNilLiteral() ast.Expression {
 	}
 }
 
+// parseNullIdentifier parses the Null keyword as an identifier.
+// Task 9.4.1: Null is a built-in constant, so we parse it as an identifier.
+func (p *Parser) parseNullIdentifier() ast.Expression {
+	return &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  p.curToken,
+				EndPos: p.endPosFromToken(p.curToken),
+			},
+		},
+		Value: p.curToken.Literal, // "Null" (preserves original casing)
+	}
+}
+
+// parseUnassignedIdentifier parses the Unassigned keyword as an identifier.
+// Task 9.4.1: Unassigned is a built-in constant, so we parse it as an identifier.
+func (p *Parser) parseUnassignedIdentifier() ast.Expression {
+	return &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  p.curToken,
+				EndPos: p.endPosFromToken(p.curToken),
+			},
+		},
+		Value: p.curToken.Literal, // "Unassigned" (preserves original casing)
+	}
+}
+
 // parseCharLiteral parses a character literal (#65, #$41).
 func (p *Parser) parseCharLiteral() ast.Expression {
 	lit := &ast.CharLiteral{

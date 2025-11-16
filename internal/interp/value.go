@@ -98,6 +98,38 @@ func (n *NilValue) String() string {
 	return "nil"
 }
 
+// NullValue represents the special Variant Null value in DWScript.
+// Task 9.4.1: Null is a variant-specific value that represents an explicit null state.
+// It differs from NilValue (used for object references) and from Unassigned (default variant state).
+// In DWScript, Null is used to indicate a variant that explicitly has no value.
+type NullValue struct{}
+
+// Type returns "NULL".
+func (n *NullValue) Type() string {
+	return "NULL"
+}
+
+// String returns "Null".
+func (n *NullValue) String() string {
+	return "Null"
+}
+
+// UnassignedValue represents the special Variant Unassigned value in DWScript.
+// Task 9.4.1: Unassigned is the default state of an uninitialized variant.
+// It represents a variant that has never been assigned a value.
+// In DWScript, Unassigned behaves specially in comparisons and the coalesce operator.
+type UnassignedValue struct{}
+
+// Type returns "UNASSIGNED".
+func (n *UnassignedValue) Type() string {
+	return "UNASSIGNED"
+}
+
+// String returns "Unassigned".
+func (n *UnassignedValue) String() string {
+	return "Unassigned"
+}
+
 // TypeMetaValue represents a type name as a runtime value in DWScript.
 // Task 9.133: DWScript allows type names like `Integer` to be used as values.
 // This is used for reflection and type-based operations like High(Integer), Low(Integer).
@@ -400,6 +432,10 @@ func boxVariant(value Value) *VariantValue {
 		actualType = types.BOOLEAN
 	case "NIL":
 		actualType = nil // nil has no type
+	case "NULL":
+		actualType = nil // Task 9.4.1: Null has no specific type
+	case "UNASSIGNED":
+		actualType = nil // Task 9.4.1: Unassigned has no specific type
 	// Complex types (arrays, records, objects) will be added as needed
 	// For now, we store nil for ActualType and rely on Value.Type()
 	default:
@@ -429,16 +465,18 @@ func unboxVariant(value Value) (Value, bool) {
 
 // unwrapVariant returns the underlying value if input is a Variant, otherwise returns input as-is.
 // Task 9.228: Helper for operations that need to work with the actual value.
+// Task 9.4.1: Updated to return UnassignedValue for uninitialized variants.
 //
 // Unlike unboxVariant, this always returns a valid Value (never nil, false).
 // Examples:
 //   - unwrapVariant(VariantValue{Value: IntegerValue{42}}) → IntegerValue{42}
 //   - unwrapVariant(IntegerValue{42}) → IntegerValue{42}
-//   - unwrapVariant(VariantValue{Value: nil}) → NilValue{}
+//   - unwrapVariant(VariantValue{Value: nil}) → UnassignedValue{}
 func unwrapVariant(value Value) Value {
 	if variant, ok := value.(*VariantValue); ok {
 		if variant.Value == nil {
-			return &NilValue{}
+			// Task 9.4.1: An uninitialized variant (nil value) is Unassigned
+			return &UnassignedValue{}
 		}
 		return variant.Value
 	}
@@ -483,6 +521,18 @@ func NewBooleanValue(v bool) Value {
 // NewNilValue creates a new NilValue.
 func NewNilValue() Value {
 	return &NilValue{}
+}
+
+// NewNullValue creates a new NullValue.
+// Task 9.4.1: Constructor for variant Null value.
+func NewNullValue() Value {
+	return &NullValue{}
+}
+
+// NewUnassignedValue creates a new UnassignedValue.
+// Task 9.4.1: Constructor for variant Unassigned value.
+func NewUnassignedValue() Value {
+	return &UnassignedValue{}
 }
 
 // NewTypeMetaValue creates a new TypeMetaValue.

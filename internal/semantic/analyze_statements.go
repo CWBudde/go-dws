@@ -484,16 +484,16 @@ func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, value
 	// Fall back to built-in type checking
 	switch op {
 	case lexer.PLUS_ASSIGN:
-		// += works with Integer, Float, String (concatenation)
-		if targetType.Equals(types.INTEGER) || targetType.Equals(types.FLOAT) || targetType.Equals(types.STRING) {
+		// += works with Integer, Float, String (concatenation), Variant
+		if targetType.Equals(types.INTEGER) || targetType.Equals(types.FLOAT) || targetType.Equals(types.STRING) || targetType.Equals(types.VARIANT) {
 			return true, false // Valid but doesn't use class operator
 		}
 		a.addError("operator += not supported for type %s at %s", targetType.String(), pos.String())
 		return false, false
 
 	case lexer.MINUS_ASSIGN, lexer.TIMES_ASSIGN, lexer.DIVIDE_ASSIGN:
-		// -=, *=, /= work with Integer, Float only
-		if targetType.Equals(types.INTEGER) || targetType.Equals(types.FLOAT) {
+		// -=, *=, /= work with Integer, Float, Variant
+		if targetType.Equals(types.INTEGER) || targetType.Equals(types.FLOAT) || targetType.Equals(types.VARIANT) {
 			return true, false // Valid but doesn't use class operator
 		}
 		opStr := "operator"

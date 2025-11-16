@@ -112,6 +112,10 @@ func NewAnalyzer() *Analyzer {
 	// Register mathematical constants (for DWScript compatibility)
 	a.symbols.DefineConst("Pi", types.FLOAT, math.Pi)
 
+	// Task 9.4.1: Register Variant special values as built-in constants
+	a.symbols.DefineConst("Null", types.VARIANT, nil)       // Null is a variant special value
+	a.symbols.DefineConst("Unassigned", types.VARIANT, nil) // Unassigned is a variant special value
+
 	return a
 }
 

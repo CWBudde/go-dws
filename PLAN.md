@@ -820,7 +820,7 @@ just test
 
 **Estimate**: 20-24 hours (2.5-3 days)
 
-**Status**: NOT STARTED
+**Status**: DONE
 
 **Impact**: Unlocks 17 failing tests in SimpleScripts
 
@@ -862,6 +862,8 @@ just test
 
 **Estimate**: 3-4 hours
 
+**Status**: DONE
+
 **Implementation**:
 1. Add Null and Unassigned as built-in constants in symbol table
 2. Create special value types in interpreter runtime
@@ -878,6 +880,8 @@ just test
 **Goal**: Support arithmetic and logical operations on Variant types with proper type coercion.
 
 **Estimate**: 5-6 hours
+
+**Status**: DONE
 
 **Implementation**:
 1. Update semantic analyzer to allow Variant in arithmetic/logical expressions
@@ -896,6 +900,8 @@ just test
 
 **Estimate**: 3-4 hours
 
+**Status**: DONE
+
 **Implementation**:
 1. Allow Variant in comparison expressions (=, <>, <, >, <=, >=)
 2. Implement runtime type coercion for comparisons
@@ -910,6 +916,8 @@ just test
 **Goal**: Support the coalesce operator for handling Null/Unassigned values.
 
 **Estimate**: 4-5 hours
+
+**Status**: DONE
 
 **Implementation**:
 1. Add COALESCE token type if not present
@@ -930,6 +938,8 @@ just test
 **Goal**: Support explicit and implicit conversions between Variant and other types.
 
 **Estimate**: 4-5 hours
+
+**Status**: DONE
 
 **Implementation**:
 1. Implement `as` operator with Variant
