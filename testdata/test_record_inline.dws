@@ -1,0 +1,18 @@
+// Test record with inline method
+type
+  TPoint = record
+    X: Integer := 10;
+    Y: Integer := 20;
+
+    function Distance: Float;
+    begin
+      Result := Sqrt(X*X + Y*Y);
+    end;
+  end;
+
+var p: TPoint;
+begin
+  p.X := 3;
+  p.Y := 4;
+  PrintLn('Distance = ' + FloatToStr(p.Distance));
+end.

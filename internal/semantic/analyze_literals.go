@@ -237,9 +237,14 @@ func (a *Analyzer) analyzeRecordLiteral(lit *ast.RecordLiteralExpression, expect
 		}
 	}
 
-	// Check for missing required fields
+	// Task 9.12.4: Check for missing required fields (skip fields with default initializers)
 	for fieldName := range recordType.Fields {
 		if !initializedFields[fieldName] {
+			// Check if the field has a default initializer
+			if recordType.FieldsWithInit != nil && recordType.FieldsWithInit[fieldName] {
+				// Field has a default initializer, so it's not required in the literal
+				continue
+			}
 			a.addError("missing required field '%s' in record literal", fieldName)
 		}
 	}

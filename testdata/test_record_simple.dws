@@ -1,0 +1,20 @@
+// Simpler test for record methods
+type
+  TPoint = record
+    X: Integer;
+    Y: Integer;
+
+    function GetX: Integer;
+  end;
+
+function TPoint.GetX: Integer;
+begin
+  Result := X;
+end;
+
+var p: TPoint;
+begin
+  p.X := 10;
+  p.Y := 20;
+  PrintLn('X = ' + IntToStr(p.GetX));
+end.

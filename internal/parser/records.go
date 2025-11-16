@@ -32,6 +32,8 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 		Fields:     []*ast.FieldDecl{},
 		Methods:    []*ast.FunctionDecl{},
 		Properties: []ast.RecordPropertyDecl{},
+		Constants:  []*ast.ConstDecl{},
+		ClassVars:  []*ast.FieldDecl{},
 	}
 
 	// Track current visibility level (default to public for records)
@@ -54,11 +56,43 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 			continue
 		}
 
-		// Check for 'class function' / 'class procedure' (static methods)
+		// Check for 'const' (record constant)
+		if p.curTokenIs(lexer.CONST) {
+			p.nextToken() // move past 'const'
+			constant := p.parseClassConstantDeclaration(currentVisibility, false)
+			if constant != nil {
+				recordDecl.Constants = append(recordDecl.Constants, constant)
+			}
+			p.nextToken()
+			continue
+		}
+
+		// Check for 'class function' / 'class procedure' / 'class var' / 'class const' (class members)
 		if p.curTokenIs(lexer.CLASS) {
 			p.nextToken() // move past 'class'
 
-			if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) {
+			if p.curTokenIs(lexer.VAR) {
+				// Class variable: class var FieldName: Type;
+				p.nextToken() // move past 'var'
+				fields := p.parseRecordFieldDeclarations(currentVisibility)
+				for _, field := range fields {
+					if field != nil {
+						field.IsClassVar = true // Mark as class variable
+						recordDecl.ClassVars = append(recordDecl.ClassVars, field)
+					}
+				}
+				p.nextToken()
+				continue
+			} else if p.curTokenIs(lexer.CONST) {
+				// Class constant: class const Name = Value;
+				p.nextToken() // move past 'const'
+				constant := p.parseClassConstantDeclaration(currentVisibility, true)
+				if constant != nil {
+					recordDecl.Constants = append(recordDecl.Constants, constant)
+				}
+				p.nextToken()
+				continue
+			} else if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) {
 				// Class method: class function/procedure ...
 				method := p.parseFunctionDeclaration()
 				if method != nil {
@@ -68,7 +102,7 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 				p.nextToken()
 				continue
 			} else {
-				p.addError("expected 'function' or 'procedure' after 'class' keyword in record", ErrUnexpectedToken)
+				p.addError("expected 'var', 'const', 'function' or 'procedure' after 'class' keyword in record", ErrUnexpectedToken)
 				p.nextToken()
 				continue
 			}
@@ -139,6 +173,8 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 		Fields:     []*ast.FieldDecl{},
 		Methods:    []*ast.FunctionDecl{},
 		Properties: []ast.RecordPropertyDecl{},
+		Constants:  []*ast.ConstDecl{},
+		ClassVars:  []*ast.FieldDecl{},
 	}
 
 	// Expect 'record' keyword
@@ -170,11 +206,43 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 			continue
 		}
 
-		// Check for 'class function' / 'class procedure' (static methods)
+		// Check for 'const' (record constant)
+		if p.curTokenIs(lexer.CONST) {
+			p.nextToken() // move past 'const'
+			constant := p.parseClassConstantDeclaration(currentVisibility, false)
+			if constant != nil {
+				recordDecl.Constants = append(recordDecl.Constants, constant)
+			}
+			p.nextToken()
+			continue
+		}
+
+		// Check for 'class function' / 'class procedure' / 'class var' / 'class const' (class members)
 		if p.curTokenIs(lexer.CLASS) {
 			p.nextToken() // move past 'class'
 
-			if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) {
+			if p.curTokenIs(lexer.VAR) {
+				// Class variable: class var FieldName: Type;
+				p.nextToken() // move past 'var'
+				fields := p.parseRecordFieldDeclarations(currentVisibility)
+				for _, field := range fields {
+					if field != nil {
+						field.IsClassVar = true // Mark as class variable
+						recordDecl.ClassVars = append(recordDecl.ClassVars, field)
+					}
+				}
+				p.nextToken()
+				continue
+			} else if p.curTokenIs(lexer.CONST) {
+				// Class constant: class const Name = Value;
+				p.nextToken() // move past 'const'
+				constant := p.parseClassConstantDeclaration(currentVisibility, true)
+				if constant != nil {
+					recordDecl.Constants = append(recordDecl.Constants, constant)
+				}
+				p.nextToken()
+				continue
+			} else if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) {
 				// Class method: class function/procedure ...
 				method := p.parseFunctionDeclaration()
 				if method != nil {
@@ -184,7 +252,7 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 				p.nextToken()
 				continue
 			} else {
-				p.addError("expected 'function' or 'procedure' after 'class' keyword in record", ErrUnexpectedToken)
+				p.addError("expected 'var', 'const', 'function' or 'procedure' after 'class' keyword in record", ErrUnexpectedToken)
 				p.nextToken()
 				continue
 			}
@@ -239,6 +307,7 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 
 // parseRecordFieldDeclarations parses one or more field declarations with the same type.
 // Pattern: Name1, Name2, Name3: Type;
+// OR: Name := Value; (type inferred from initializer)
 // Returns a slice of FieldDecl, one for each field name.
 func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
 	if !p.curTokenIs(lexer.IDENT) {
@@ -273,20 +342,46 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 		})
 	}
 
-	// Expect colon
-	if !p.expectPeek(lexer.COLON) {
-		return nil
-	}
+	var fieldType ast.TypeExpression
+	var initValue ast.Expression
 
-	// Parse type expression (supports simple types, array types, function pointer types)
-	p.nextToken() // move to type
-	fieldType := p.parseTypeExpression()
-	if fieldType == nil {
-		return nil
-	}
+	// Check if this is type inference (Name := Value) or explicit type (Name : Type [= Value])
+	if p.peekTokenIs(lexer.ASSIGN) {
+		// Type inference: Name := Value
+		if len(fieldNames) > 1 {
+			p.addError("type inference not allowed for comma-separated field declarations", ErrInvalidExpression)
+			return nil
+		}
 
-	// Parse optional field initializer
-	initValue := p.parseFieldInitializer(fieldNames)
+		p.nextToken() // move to :=
+		p.nextToken() // move to value expression
+
+		// Parse initialization expression
+		initValue = p.parseExpression(LOWEST)
+		if initValue == nil {
+			p.addError("expected initialization expression after :=", ErrInvalidExpression)
+			return nil
+		}
+
+		// Type will be inferred during semantic analysis (set to nil for now)
+		fieldType = nil
+	} else {
+		// Explicit type: Name : Type [= Value]
+		// Expect colon
+		if !p.expectPeek(lexer.COLON) {
+			return nil
+		}
+
+		// Parse type expression (supports simple types, array types, function pointer types)
+		p.nextToken() // move to type
+		fieldType = p.parseTypeExpression()
+		if fieldType == nil {
+			return nil
+		}
+
+		// Parse optional field initializer
+		initValue = p.parseFieldInitializer(fieldNames)
+	}
 
 	// Expect semicolon
 	if !p.expectPeek(lexer.SEMICOLON) {

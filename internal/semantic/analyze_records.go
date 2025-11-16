@@ -45,20 +45,44 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		}
 		fieldNames[lowerFieldName] = true
 
-		// Resolve field type
-		typeName := getTypeExpressionName(field.Type)
-		fieldType, err := a.resolveType(typeName)
-		if err != nil {
-			a.addError("unknown type '%s' for field '%s' in record '%s' at %s",
-				typeName, fieldName, recordName, field.Token.Pos.String())
+		var fieldType types.Type
+		var err error
+
+		// Check if type is provided or needs inference
+		if field.Type != nil {
+			// Explicit type
+			typeName := getTypeExpressionName(field.Type)
+			fieldType, err = a.resolveType(typeName)
+			if err != nil {
+				a.addError("unknown type '%s' for field '%s' in record '%s' at %s",
+					typeName, fieldName, recordName, field.Token.Pos.String())
+				continue
+			}
+
+			// Validate field initializer if present
+			a.validateFieldInitializer(field, fieldName, fieldType)
+		} else if field.InitValue != nil {
+			// Type inference from initializer
+			initType := a.analyzeExpression(field.InitValue)
+			if initType == nil {
+				a.addError("cannot infer type for field '%s' in record '%s' at %s",
+					fieldName, recordName, field.Token.Pos.String())
+				continue
+			}
+			fieldType = initType
+		} else {
+			a.addError("field '%s' in record '%s' must have either a type or initializer at %s",
+				fieldName, recordName, field.Token.Pos.String())
 			continue
 		}
 
-		// Validate field initializer if present
-		a.validateFieldInitializer(field, fieldName, fieldType)
-
 		// Add field to record type (using lowercase key for case-insensitive lookup)
 		recordType.Fields[lowerFieldName] = fieldType
+
+		// Task 9.12.4: Track which fields have initializers
+		if field.InitValue != nil {
+			recordType.FieldsWithInit[lowerFieldName] = true
+		}
 	}
 
 	// Register the record type early so it's visible in method signatures
@@ -66,6 +90,95 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 	a.records[strings.ToLower(recordName)] = recordType
 	// Also register in symbol table as a type
 	a.symbols.Define(recordName, recordType)
+
+	// Process constants
+	for _, constant := range decl.Constants {
+		constName := constant.Name.Value
+		lowerConstName := strings.ToLower(constName)
+
+		// Analyze the constant value
+		constValueType := a.analyzeExpression(constant.Value)
+		if constValueType == nil {
+			a.addError("cannot evaluate constant '%s' in record '%s' at %s",
+				constName, recordName, constant.Token.Pos.String())
+			continue
+		}
+
+		// If type is specified, check compatibility
+		var constType types.Type
+		if constant.Type != nil {
+			ct, err := a.resolveType(constant.Type.Name)
+			if err != nil {
+				a.addError("unknown type '%s' for constant '%s' in record '%s' at %s",
+					constant.Type.Name, constName, recordName, constant.Token.Pos.String())
+				continue
+			}
+			constType = ct
+
+			// Check if value type is compatible with declared type
+			if !types.IsAssignableFrom(constType, constValueType) {
+				a.addError("constant '%s' type mismatch: expected %s, got %s at %s",
+					constName, constType.String(), constValueType.String(), constant.Token.Pos.String())
+				continue
+			}
+		} else {
+			constType = constValueType
+		}
+
+		// Create constant info (value evaluation will be done at runtime)
+		constInfo := &types.ConstantInfo{
+			Name:         constName,
+			Type:         constType,
+			Value:        nil, // Will be set by interpreter
+			IsClassConst: constant.IsClassConst,
+		}
+
+		recordType.Constants[lowerConstName] = constInfo
+	}
+
+	// Process class variables
+	for _, classVar := range decl.ClassVars {
+		varName := classVar.Name.Value
+		lowerVarName := strings.ToLower(varName)
+
+		var varType types.Type
+		var err error
+
+		// Resolve class variable type
+		if classVar.Type != nil {
+			typeName := getTypeExpressionName(classVar.Type)
+			varType, err = a.resolveType(typeName)
+			if err != nil {
+				a.addError("unknown type '%s' for class variable '%s' in record '%s' at %s",
+					typeName, varName, recordName, classVar.Token.Pos.String())
+				continue
+			}
+		} else if classVar.InitValue != nil {
+			// Type inference from initializer
+			initType := a.analyzeExpression(classVar.InitValue)
+			if initType == nil {
+				a.addError("cannot infer type for class variable '%s' in record '%s' at %s",
+					varName, recordName, classVar.Token.Pos.String())
+				continue
+			}
+			varType = initType
+		} else {
+			a.addError("class variable '%s' in record '%s' must have either a type or initializer at %s",
+				varName, recordName, classVar.Token.Pos.String())
+			continue
+		}
+
+		// Validate initializer if present
+		if classVar.InitValue != nil && classVar.Type != nil {
+			initType := a.analyzeExpression(classVar.InitValue)
+			if initType != nil && !types.IsAssignableFrom(varType, initType) {
+				a.addError("class variable '%s' initializer type mismatch: expected %s, got %s at %s",
+					varName, varType.String(), initType.String(), classVar.Token.Pos.String())
+			}
+		}
+
+		recordType.ClassVars[lowerVarName] = varType
+	}
 
 	// Process methods if any
 	for _, method := range decl.Methods {
@@ -127,6 +240,57 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			recordType.MethodOverloads[lowerMethodName] = append(
 				recordType.MethodOverloads[lowerMethodName], methodInfo)
 		}
+
+		// Task 9.12.4: Analyze method body if present (inline method)
+		if method.Body != nil {
+			// Use IIFE to ensure defer executes per iteration, not per function
+			func() {
+				// Create a new scope for the method body
+				oldSymbols := a.symbols
+				a.symbols = NewEnclosedSymbolTable(oldSymbols)
+				defer func() { a.symbols = oldSymbols }()
+
+				// Bind Self to the record type
+				a.symbols.Define("Self", recordType)
+
+				// Bind record fields to scope (accessible without Self prefix)
+				for fieldName, fieldType := range recordType.Fields {
+					a.symbols.Define(fieldName, fieldType)
+				}
+
+				// Task 9.12.4: Bind record constants to scope
+				for constName, constInfo := range recordType.Constants {
+					a.symbols.Define(constName, constInfo.Type)
+				}
+
+				// Task 9.12.4: Bind class variables to scope
+				for varName, varType := range recordType.ClassVars {
+					a.symbols.Define(varName, varType)
+				}
+
+				// Bind method parameters
+				for _, param := range method.Parameters {
+					paramType, err := a.resolveType(param.Type.Name)
+					if err == nil {
+						a.symbols.Define(param.Name.Value, paramType)
+					}
+				}
+
+				// For functions, bind Result variable
+				if method.ReturnType != nil {
+					a.symbols.Define("Result", returnType)
+					a.symbols.Define(methodName, returnType) // Method name is alias for Result
+				}
+
+				// Track current function for return type checking
+				previousFunc := a.currentFunction
+				a.currentFunction = method
+				defer func() { a.currentFunction = previousFunc }()
+
+				// Analyze the method body
+				a.analyzeBlock(method.Body)
+			}()
+		}
 	}
 
 	// Process properties if any
@@ -176,6 +340,18 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, fieldName string
 		// TODO: Check visibility rules if needed
 		// For now, we allow all field access
 		return fieldType
+	}
+
+	// Check if it's a constant
+	constInfo, constExists := recordType.Constants[fieldName]
+	if constExists {
+		return constInfo.Type
+	}
+
+	// Check if it's a class variable
+	classVarType, classVarExists := recordType.ClassVars[fieldName]
+	if classVarExists {
+		return classVarType
 	}
 
 	// Check if it's an instance method of the record

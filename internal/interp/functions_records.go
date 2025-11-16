@@ -81,6 +81,28 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 		i.env.Define(fieldName, fieldValue)
 	}
 
+	// Task 9.12.2: Bind record constants and class variables to environment
+	// Look up the record type value to get constants and class vars
+	recordTypeKey := "__record_type_" + strings.ToLower(recVal.RecordType.Name)
+	var recordTypeValue *RecordTypeValue // Track for class var write-back
+	var boundClassVars map[string]bool   // Track which class vars we bound
+	if typeVal, ok := i.env.Get(recordTypeKey); ok {
+		if rtv, ok := typeVal.(*RecordTypeValue); ok {
+			recordTypeValue = rtv
+			boundClassVars = make(map[string]bool)
+
+			// Bind constants (keys normalized to lowercase for case-insensitive access)
+			for constName, constValue := range rtv.Constants {
+				i.env.Define(constName, constValue)
+			}
+			// Bind class variables (keys normalized to lowercase for case-insensitive access)
+			for varName, varValue := range rtv.ClassVars {
+				i.env.Define(varName, varValue)
+				boundClassVars[varName] = true
+			}
+		}
+	}
+
 	// Check recursion depth before pushing to call stack
 	if len(i.callStack) >= i.maxRecursionDepth {
 		i.env = savedEnv // Restore environment before raising exception
@@ -209,6 +231,15 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 		}
 	}
 
+	// Write back class variable changes to the record type (shared mutable state)
+	if recordTypeValue != nil && boundClassVars != nil {
+		for varName := range boundClassVars {
+			if updatedVal, exists := i.env.Get(varName); exists {
+				recordTypeValue.ClassVars[varName] = updatedVal
+			}
+		}
+	}
+
 	// Restore environment
 	i.env = savedEnv
 
@@ -272,6 +303,20 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 
 	// Bind __CurrentRecord__ so record static methods can be called without qualification
 	i.env.Define("__CurrentRecord__", rtv)
+
+	// Task 9.12.2: Bind record constants and class variables to environment for static methods
+	// Track which class vars we bound for write-back
+	boundClassVars := make(map[string]bool)
+
+	// Bind constants (keys normalized to lowercase for case-insensitive access)
+	for constName, constValue := range rtv.Constants {
+		i.env.Define(constName, constValue)
+	}
+	// Bind class variables (keys normalized to lowercase for case-insensitive access)
+	for varName, varValue := range rtv.ClassVars {
+		i.env.Define(varName, varValue)
+		boundClassVars[varName] = true
+	}
 
 	// Bind method parameters to arguments with implicit conversion
 	for idx, param := range method.Parameters {
@@ -348,6 +393,13 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 	} else {
 		// Procedure - no return value
 		returnValue = &NilValue{}
+	}
+
+	// Write back class variable changes to the record type (shared mutable state)
+	for varName := range boundClassVars {
+		if updatedVal, exists := i.env.Get(varName); exists {
+			rtv.ClassVars[varName] = updatedVal
+		}
 	}
 
 	// Restore environment
