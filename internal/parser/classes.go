@@ -275,8 +275,9 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 			if constant != nil {
 				classDecl.Constants = append(classDecl.Constants, constant)
 			}
-		} else if p.curToken.Type == lexer.IDENT && (p.peekTokenIs(lexer.COLON) || p.peekTokenIs(lexer.COMMA)) {
+		} else if p.curToken.Type == lexer.IDENT && (p.peekTokenIs(lexer.COLON) || p.peekTokenIs(lexer.COMMA) || p.peekTokenIs(lexer.ASSIGN) || p.peekTokenIs(lexer.EQ)) {
 			// This is a regular instance field declaration (may be comma-separated)
+			// Supports: FieldName: Type; or FieldName := Value; or FieldName = Value; or FieldName: Type := Value;
 			fields := p.parseFieldDeclarations(currentVisibility)
 			for _, field := range fields {
 				if field != nil {
@@ -387,7 +388,7 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 	var fieldType ast.TypeExpression
 	var initValue ast.Expression
 
-	// Check for type annotation (: Type) or initialization (:= Value)
+	// Check for type annotation (: Type) or direct initialization (:= Value)
 	if p.peekTokenIs(lexer.COLON) {
 		p.nextToken() // move to ':'
 		p.nextToken() // move to type
@@ -397,10 +398,27 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 		if fieldType == nil {
 			return nil
 		}
-	}
 
-	// Parse optional field initializer
-	initValue = p.parseFieldInitializer(fieldNames)
+		// Parse optional field initializer after type
+		initValue = p.parseFieldInitializer(fieldNames)
+	} else if p.peekTokenIs(lexer.ASSIGN) || p.peekTokenIs(lexer.EQ) {
+		// Direct field initialization without type annotation: FField := Value; or FField = Value;
+		// This is a shorthand syntax for field initialization from constants
+		if len(fieldNames) > 1 {
+			p.addError("initialization without type annotation not allowed for comma-separated field declarations", ErrInvalidExpression)
+			return nil
+		}
+
+		p.nextToken() // move to ':=' or '='
+		p.nextToken() // move to value expression
+
+		// Parse initialization expression
+		initValue = p.parseExpression(LOWEST)
+		if initValue == nil {
+			p.addError("expected initialization expression after := or =", ErrInvalidExpression)
+			return nil
+		}
+	}
 
 	// Expect semicolon
 	if !p.expectPeek(lexer.SEMICOLON) {
