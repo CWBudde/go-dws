@@ -686,6 +686,24 @@ func (ct *ClassType) GetConstant(name string) (interface{}, bool) {
 	return nil, false
 }
 
+// GetClassVar retrieves a class variable type by name, searching up the inheritance chain.
+// Class variables are static members that belong to the class itself rather than instances.
+// Task 9.5.2: Support for class variable lookup with inheritance.
+func (ct *ClassType) GetClassVar(name string) (Type, bool) {
+	if ct == nil {
+		return nil, false
+	}
+	// Case-insensitive class variable lookup
+	lowerName := strings.ToLower(name)
+	if classVarType, ok := ct.ClassVars[lowerName]; ok {
+		return classVarType, true
+	}
+	if ct.Parent != nil {
+		return ct.Parent.GetClassVar(name)
+	}
+	return nil, false
+}
+
 // ImplementsInterface checks if this class implements the given interface.
 // It checks both the class itself and its parent classes.
 func (ct *ClassType) ImplementsInterface(iface *InterfaceType) bool {

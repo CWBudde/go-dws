@@ -1072,15 +1072,36 @@ PrintLn(b.Test);    // Access via instance
 
 **Estimate**: 3-4 hours
 
+**Status**: DONE
+
 **Implementation**:
 1. In member access expressions, check both instance fields and class vars
 2. For type name access (e.g., `TBase.Test`), look up class vars
 3. Validate read/write access to class variables
 4. Type check assignments to class variables
 
-**Files to Modify**:
-- `internal/semantic/analyze_expressions.go` (member access with class vars)
-- `internal/semantic/analyze_statements.go` (assignments to class vars)
+**Files Modified**:
+- `internal/types/types.go` (lines 689-705: added GetClassVar method to ClassType)
+- `internal/semantic/analyze_classes.go` (lines 310-314: added class var lookup in analyzeMemberAccessExpression)
+- `internal/semantic/class_var_access_test.go` (new file: comprehensive tests for class var access)
+
+**Notes**:
+- Added GetClassVar method to ClassType with inheritance support (recursively checks parent classes)
+- Integrated class variable lookup into member access expression analysis
+- Class variables can now be accessed via:
+  - Class name: `TBase.Test`
+  - Instance: `obj.Test` (even if obj is nil, since class vars belong to the class)
+- Semantic analysis validates:
+  - Class variable existence (with proper error messages)
+  - Type compatibility for assignments
+  - Inheritance (child classes can access parent class variables)
+  - Shadowing (child class vars can override parent class vars)
+- All semantic analyzer tests pass (11 new tests added):
+  - Access via class name and instance
+  - Inheritance and shadowing
+  - Type checking and error handling
+
+**Remaining Work**: Task 9.5.4 needed for runtime execution of class variable access and assignments
 
 ### 9.5.4 Runtime Support for Class Variables
 

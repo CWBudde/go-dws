@@ -307,6 +307,12 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		return fieldType
 	}
 
+	// Task 9.5.3: Look up class variable in class (including inherited class vars)
+	classVarType, foundClassVar := classType.GetClassVar(memberName)
+	if foundClassVar {
+		return classVarType
+	}
+
 	// Task 9.3: Look up property in class (including inherited properties)
 	propInfo, propFound := classType.GetProperty(memberName)
 	if propFound {
