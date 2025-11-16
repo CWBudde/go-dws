@@ -18,6 +18,8 @@ import (
 //	type TRecordName = record
 //	  Field1: Type1;
 //	  Field2: Type2;
+//	  const Origin = 0;               // Record constant
+//	  class var Count: Integer;       // Class variable (shared across all instances)
 //	  function MethodName: ReturnType;
 //	end;
 type RecordDecl struct {
@@ -26,6 +28,8 @@ type RecordDecl struct {
 	Fields     []*FieldDecl
 	Methods    []*FunctionDecl
 	Properties []RecordPropertyDecl
+	Constants  []*ConstDecl // Record constants
+	ClassVars  []*FieldDecl // Class variables (shared across all instances)
 }
 
 func (rd *RecordDecl) statementNode() {}
@@ -35,6 +39,30 @@ func (rd *RecordDecl) String() string {
 	out.WriteString("type ")
 	out.WriteString(rd.Name.String())
 	out.WriteString(" = record\n")
+
+	// Add constants
+	for _, constant := range rd.Constants {
+		out.WriteString("  ")
+		if constant.IsClassConst {
+			out.WriteString("class ")
+		}
+		out.WriteString("const ")
+		out.WriteString(constant.Name.String())
+		if constant.Type != nil {
+			out.WriteString(": ")
+			out.WriteString(constant.Type.String())
+		}
+		out.WriteString(" = ")
+		out.WriteString(constant.Value.String())
+		out.WriteString(";\n")
+	}
+
+	// Add class variables
+	for _, classVar := range rd.ClassVars {
+		out.WriteString("  class var ")
+		out.WriteString(classVar.String())
+		out.WriteString(";\n")
+	}
 
 	// Add fields
 	for _, field := range rd.Fields {

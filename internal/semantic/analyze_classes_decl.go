@@ -625,8 +625,31 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 	defer func() { a.currentRecord = previousRecord }()
 
 	// Create a new scope for the method
-	a.symbols.PushScope()
-	defer a.symbols.PopScope()
+	oldSymbols := a.symbols
+	a.symbols = NewEnclosedSymbolTable(oldSymbols)
+	defer func() { a.symbols = oldSymbols }()
+
+	// Bind Self to the record type
+	a.symbols.Define("Self", recordType)
+
+	// Bind record fields to scope (accessible without Self prefix)
+	for fieldName, fieldType := range recordType.Fields {
+		a.symbols.Define(fieldName, fieldType)
+	}
+
+	// Task 9.12.4: Bind record constants to scope
+	if recordType.Constants != nil {
+		for constName, constInfo := range recordType.Constants {
+			a.symbols.Define(constName, constInfo.Type)
+		}
+	}
+
+	// Task 9.12.4: Bind class variables to scope
+	if recordType.ClassVars != nil {
+		for varName, varType := range recordType.ClassVars {
+			a.symbols.Define(varName, varType)
+		}
+	}
 
 	// Add parameters to scope
 	for _, param := range decl.Parameters {
@@ -647,11 +670,20 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 				decl.ReturnType.Name, decl.Token.Pos.String())
 		} else {
 			a.symbols.Define("Result", returnType)
+			// Method name is also an alias for Result
+			a.symbols.Define(decl.Name.Value, returnType)
 		}
 	}
 
+	// Track current function for return type checking
+	previousFunc := a.currentFunction
+	a.currentFunction = decl
+	defer func() { a.currentFunction = previousFunc }()
+
 	// Analyze the method body
-	a.analyzeBlock(decl.Body)
+	if decl.Body != nil {
+		a.analyzeBlock(decl.Body)
+	}
 }
 
 // findMatchingOverloadForImplementation finds the declared overload that matches the implementation signature

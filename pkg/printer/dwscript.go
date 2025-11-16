@@ -868,13 +868,24 @@ func (p *Printer) printFieldDecl(fd *ast.FieldDecl) {
 	}
 
 	p.printDWScript(fd.Name)
-	p.write(":")
-	p.space()
-	p.printDWScript(fd.Type)
 
-	if fd.InitValue != nil {
+	// Handle type inference syntax (Type is nil, only InitValue present)
+	if fd.Type != nil {
+		// Explicit type: Name: Type [= InitValue]
+		p.write(":")
 		p.space()
-		p.write("=")
+		p.printDWScript(fd.Type)
+
+		if fd.InitValue != nil {
+			p.space()
+			p.write("=")
+			p.space()
+			p.printDWScript(fd.InitValue)
+		}
+	} else if fd.InitValue != nil {
+		// Type inference: Name := InitValue
+		p.space()
+		p.write(":=")
 		p.space()
 		p.printDWScript(fd.InitValue)
 	}
@@ -920,12 +931,83 @@ func (p *Printer) printRecordDecl(rd *ast.RecordDecl) {
 	p.newline()
 
 	p.incIndent()
+
+	// Print constants
+	for _, constant := range rd.Constants {
+		p.writeIndent()
+		if constant.IsClassConst {
+			p.write("class")
+			p.space()
+		}
+		p.write("const")
+		p.space()
+		p.printDWScript(constant.Name)
+		if constant.Type != nil {
+			p.write(":")
+			p.space()
+			p.printDWScript(constant.Type)
+		}
+		p.space()
+		p.write("=")
+		p.space()
+		p.printDWScript(constant.Value)
+		p.write(";")
+		p.newline()
+	}
+
+	// Print class variables
+	for _, classVar := range rd.ClassVars {
+		p.writeIndent()
+		p.write("class")
+		p.space()
+		p.write("var")
+		p.space()
+		p.printFieldDecl(classVar)
+		p.write(";")
+		p.newline()
+	}
+
+	// Print fields
 	for _, field := range rd.Fields {
 		p.writeIndent()
 		p.printFieldDecl(field)
 		p.write(";")
 		p.newline()
 	}
+
+	// Print methods
+	for _, method := range rd.Methods {
+		p.writeIndent()
+		p.printFunctionDecl(method)
+		p.write(";")
+		p.newline()
+	}
+
+	// Print properties
+	for _, property := range rd.Properties {
+		p.writeIndent()
+		p.write("property")
+		p.space()
+		p.printDWScript(property.Name)
+		p.write(":")
+		p.space()
+		p.printDWScript(property.Type)
+		if property.ReadField != "" {
+			p.space()
+			p.write("read")
+			p.space()
+			p.write(property.ReadField)
+		}
+		if property.WriteField != "" {
+			p.space()
+			p.write("write")
+			p.space()
+			p.write(property.WriteField)
+		}
+		p.write(";")
+		p.newline()
+	}
+
 	p.decIndent()
 
 	p.writeIndent()
