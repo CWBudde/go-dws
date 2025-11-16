@@ -70,12 +70,12 @@ var knownNodeTypes = map[string]bool{
 	"FinallyClause":  true,
 
 	// Task 9.20: Helper types that now implement Node interface
-	"Parameter":            true,
-	"CaseBranch":           true,
-	"ExceptClause":         true,
-	"ExceptionHandler":     true,
-	"FieldInitializer":     true,
-	"InterfaceMethodDecl":  true,
+	"Parameter":           true,
+	"CaseBranch":          true,
+	"ExceptClause":        true,
+	"ExceptionHandler":    true,
+	"FieldInitializer":    true,
+	"InterfaceMethodDecl": true,
 }
 
 // knownHelperTypes are types that don't implement Node but contain Node fields

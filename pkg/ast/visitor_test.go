@@ -567,4 +567,3 @@ func TestWalk_HelperTypesAsNodes(t *testing.T) {
 		})
 	}
 }
-
