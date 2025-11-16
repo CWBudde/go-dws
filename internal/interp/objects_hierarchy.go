@@ -395,9 +395,16 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				}
 				pointerType := types.NewFunctionPointerType(paramTypes, returnType)
 
+				// Increment RefCount to keep the object alive while the method pointer exists
+				// This prevents the object from being destroyed if the interface is released
+				underlyingObj.RefCount++
+
 				// Return function pointer bound to the underlying object
 				return NewFunctionPointerValue(method, i.env, underlyingObj, pointerType)
 			}
+			// Method declared in interface but not found in implementing class
+			return i.newErrorWithLocation(ma, "method '%s' declared in interface '%s' but not implemented by class '%s'",
+				memberName, intfInst.Interface.Name, underlyingObj.Class.Name)
 		}
 
 		// Not a method - delegate to the underlying object for field/property access
