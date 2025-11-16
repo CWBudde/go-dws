@@ -616,7 +616,7 @@ go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/class_var
 
 **Estimate**: 6-8 hours (0.75-1 day)
 
-**Status**: NOT STARTED
+**Status**: DONE
 
 **Impact**: Unlocks 7 failing tests in SimpleScripts (complements Task 9.2)
 

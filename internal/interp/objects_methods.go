@@ -66,22 +66,30 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			if len(mc.Arguments) == 0 && hasConstructor && !hasParameterlessConstructor {
 				// Create object with default field values (no constructor body execution)
 				obj := NewObjectInstance(classInfo)
-				for fieldName, fieldType := range classInfo.Fields {
-					var defaultValue Value
-					switch fieldType {
-					case types.INTEGER:
-						defaultValue = &IntegerValue{Value: 0}
-					case types.FLOAT:
-						defaultValue = &FloatValue{Value: 0.0}
-					case types.STRING:
-						defaultValue = &StringValue{Value: ""}
-					case types.BOOLEAN:
-						defaultValue = &BooleanValue{Value: false}
-					default:
-						defaultValue = &NilValue{}
-					}
-					obj.SetField(fieldName, defaultValue)
+
+				// Task 9.6: Initialize all fields with field initializers or default values
+				savedEnv := i.env
+				tempEnv := NewEnclosedEnvironment(i.env)
+				for constName, constValue := range classInfo.ConstantValues {
+					tempEnv.Define(constName, constValue)
 				}
+				i.env = tempEnv
+
+				for fieldName, fieldType := range classInfo.Fields {
+					var fieldValue Value
+					if fieldDecl, hasDecl := classInfo.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
+						fieldValue = i.Eval(fieldDecl.InitValue)
+						if isError(fieldValue) {
+							i.env = savedEnv
+							return fieldValue
+						}
+					} else {
+						fieldValue = getZeroValueForType(fieldType, nil)
+					}
+					obj.SetField(fieldName, fieldValue)
+				}
+
+				i.env = savedEnv
 				return obj
 			}
 
@@ -113,23 +121,34 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				// Create a new instance and call the method on it
 				obj := NewObjectInstance(classInfo)
 
-				// Initialize all fields with default values
-				for fieldName, fieldType := range classInfo.Fields {
-					var defaultValue Value
-					switch fieldType {
-					case types.INTEGER:
-						defaultValue = &IntegerValue{Value: 0}
-					case types.FLOAT:
-						defaultValue = &FloatValue{Value: 0.0}
-					case types.STRING:
-						defaultValue = &StringValue{Value: ""}
-					case types.BOOLEAN:
-						defaultValue = &BooleanValue{Value: false}
-					default:
-						defaultValue = &NilValue{}
-					}
-					obj.SetField(fieldName, defaultValue)
+				// Task 9.6: Initialize all fields with field initializers or default values
+				// Create temporary environment with class constants for field initializer evaluation
+				fieldInitEnv := i.env
+				fieldTempEnv := NewEnclosedEnvironment(i.env)
+				for constName, constValue := range classInfo.ConstantValues {
+					fieldTempEnv.Define(constName, constValue)
 				}
+				i.env = fieldTempEnv
+
+				for fieldName, fieldType := range classInfo.Fields {
+					var fieldValue Value
+					// Check if field has an initializer expression
+					if fieldDecl, hasDecl := classInfo.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
+						// Evaluate the field initializer
+						fieldValue = i.Eval(fieldDecl.InitValue)
+						if isError(fieldValue) {
+							i.env = fieldInitEnv
+							return fieldValue
+						}
+					} else {
+						// Use getZeroValueForType to get appropriate default value
+						fieldValue = getZeroValueForType(fieldType, nil)
+					}
+					obj.SetField(fieldName, fieldValue)
+				}
+
+				// Restore environment
+				i.env = fieldInitEnv
 
 				// Evaluate method arguments
 				args := make([]Value, len(mc.Arguments))

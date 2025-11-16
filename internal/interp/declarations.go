@@ -263,6 +263,10 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		}
 	}
 
+	// Task 9.6: Register class BEFORE processing fields
+	// This allows field initializers to reference the class name (e.g., FField := TObj.Value)
+	i.classes[classInfo.Name] = classInfo
+
 	// Add own fields to ClassInfo
 	for _, field := range cd.Fields {
 		var fieldType types.Type
@@ -490,8 +494,8 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		}
 	}
 
-	// Register class in registry
-	i.classes[classInfo.Name] = classInfo
+	// Note: Class is already registered above (before processing fields)
+	// to allow field initializers to reference the class name
 
 	return &NilValue{}
 }
