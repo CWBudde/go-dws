@@ -1804,7 +1804,7 @@ go test -v ./internal/semantic -run TestInheritance
 
 **Estimate**: 8-12 hours (1-1.5 days)
 
-**Status**: NOT STARTED
+**Status**: IN PROGRESS (4/12 tests passing, core features complete)
 
 **Impact**: Unlocks 12 failing tests in SimpleScripts
 
@@ -1864,11 +1864,13 @@ end;
 
 **Subtasks**:
 
-### 9.15.1 Parse Enum Modifiers
+### 9.15.1 Parse Enum Modifiers ✓ DONE
 
 **Goal**: Support `scoped`, `flags`, and deprecation modifiers on enums.
 
 **Estimate**: 2 hours
+
+**Status**: Complete - scoped and flags parsing implemented
 
 **Implementation**:
 1. Parse `scoped` keyword after enum declaration
@@ -1896,11 +1898,13 @@ end;
 - `internal/semantic/analyze_expressions.go` (enum boolean ops)
 - `internal/interp/expressions_operators.go` (enum in operator)
 
-### 9.15.3 Enum Bounds (Low/High)
+### 9.15.3 Enum Bounds (Low/High) ✓ DONE
 
 **Goal**: Implement Low() and High() built-in functions for enums.
 
 **Estimate**: 1-2 hours
+
+**Status**: Complete - Low/High properties and methods implemented
 
 **Implementation**:
 1. `Low(EnumType)` returns first enum element
@@ -1912,11 +1916,13 @@ end;
 - `internal/semantic/builtin_functions.go` (Low/High functions)
 - `internal/interp/builtin_functions.go` (Low/High implementation)
 
-### 9.15.4 EnumByName Function
+### 9.15.4 EnumByName Function ✓ DONE
 
 **Goal**: Implement EnumByName for string-to-enum conversion.
 
 **Estimate**: 2 hours
+
+**Status**: Complete - ByName() method implemented
 
 **Implementation**:
 1. Parse `EnumByName<TEnumType>('name')` syntax
@@ -1928,11 +1934,13 @@ end;
 - `internal/semantic/builtin_functions.go` (EnumByName function)
 - `internal/interp/builtin_functions.go` (EnumByName implementation)
 
-### 9.15.5 Scoped Enums
+### 9.15.5 Scoped Enums ✓ DONE
 
 **Goal**: Enforce scoped enum access (TypeName.Element).
 
 **Estimate**: 2-3 hours
+
+**Status**: Complete - Scoped enum access fully working
 
 **Implementation**:
 1. Scoped enums require type prefix for access
@@ -1962,14 +1970,23 @@ end;
 - `internal/types/types.go` (flags enum metadata)
 
 **Success Criteria**:
-- Enum boolean operations (in, sets) work
-- Low/High functions return enum bounds
-- EnumByName converts string to enum
-- Scoped enums enforce qualified access
-- Flags enums support bit operations
-- Enum-to-integer and integer-to-enum casts work
-- Enum element deprecation warnings
-- All 12 enum advanced feature tests pass
+- ✓ Scoped enums enforce qualified access (MyEnum.a)
+- ✓ Flags enums use power-of-2 values
+- ✓ Low/High properties and methods return enum bounds
+- ✓ ByName() method converts string to enum
+- ⚠ Enum boolean operations (or, and, xor) - TODO
+- ⚠ Enum-to-integer and integer-to-enum casts - TODO
+- ⚠ Implicit enum-to-integer conversion - TODO
+- ⚠ Constant expressions in enum values - TODO
+- **Progress**: 4/12 tests passing (enum_scoped, enum_flags1, enum_bounds, enum_byname)
+
+**Remaining Work**:
+- Type casting syntax (TEnum(value))
+- Boolean operators on enum types (or, and, xor for flags)
+- Implicit conversion from enum to Integer in function calls
+- Support for constant expressions in enum value assignments (e.g., Ord('A'))
+- .Value property on enum instances
+- Additional edge cases in test files
 
 **Testing**:
 ```bash
