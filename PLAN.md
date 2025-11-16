@@ -820,7 +820,7 @@ just test
 
 **Estimate**: 20-24 hours (2.5-3 days)
 
-**Status**: NOT STARTED
+**Status**: DONE
 
 **Impact**: Unlocks 17 failing tests in SimpleScripts
 
