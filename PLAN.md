@@ -1642,14 +1642,32 @@ for i in TMyEnum do  // Iterate over all enum values
 
 **Estimate**: 2-3 hours
 
+**Status**: DONE
+
 **Implementation**:
 1. Iterate over array elements in order
 2. Support both static and dynamic arrays
 3. Handle empty arrays
 4. Assign each element to loop variable
 
-**Files to Modify**:
-- `internal/interp/statements.go` (execute for-in over arrays)
+**Files Modified**:
+- `internal/interp/statements_loops.go` (evalForInStatement, lines 243-269)
+
+**Completed Implementation**:
+- ✅ Array iteration already implemented in evalForInStatement (lines 243-269)
+- ✅ Iterates over array.Elements using Go's range operator
+- ✅ Supports static arrays with custom bounds (e.g., array [3..6])
+- ✅ Supports dynamic arrays (array of T)
+- ✅ Handles empty arrays correctly (no iterations)
+- ✅ Assigns each element to loop variable in order
+- ✅ Control flow signals (break, continue, exit) properly handled
+- ✅ Works with arrays of any type (Integer, String, objects, etc.)
+- ✅ Verified with comprehensive tests:
+  - Static arrays with custom indices
+  - Dynamic arrays
+  - String arrays
+  - Empty arrays
+  - Break/continue in loops
 
 ### 9.9.5 Runtime Support for String and Set Iteration
 
