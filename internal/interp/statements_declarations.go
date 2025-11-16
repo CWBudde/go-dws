@@ -247,7 +247,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 							default:
 								// Task 9.5.4: Check if this is a class type and create a typed nil value
 								// This allows accessing class variables via nil instances: var b: TBase; b.ClassVar
-								if _, exists := i.classes[typeName]; exists {
+								if _, exists := i.classes[strings.ToLower(typeName)]; exists {
 									value = &NilValue{ClassType: typeName}
 								} else {
 									value = &NilValue{}
@@ -393,7 +393,7 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 	default:
 		// Task 9.5.4: Check if this is a class type and create a typed nil value
 		// This allows accessing class variables via nil instances: var b: TBase; b.ClassVar
-		if _, exists := i.classes[typeName]; exists {
+		if _, exists := i.classes[strings.ToLower(typeName)]; exists {
 			return &NilValue{ClassType: typeName}
 		}
 		return &NilValue{}
