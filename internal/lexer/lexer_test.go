@@ -2191,6 +2191,70 @@ func TestCharLiteralStandaloneStillWorks(t *testing.T) {
 	}
 }
 
+// TestMatchAndConsume tests the matchAndConsume helper method (Task 12.5.1)
+func TestMatchAndConsume(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expected      rune
+		shouldMatch   bool
+		expectedPos   int // position after matchAndConsume
+		expectedCh    rune // current char after matchAndConsume
+	}{
+		{
+			name:        "match succeeds",
+			input:       "++",
+			expected:    '+',
+			shouldMatch: true,
+			expectedPos: 1,
+			expectedCh:  '+',
+		},
+		{
+			name:        "match fails",
+			input:       "+=",
+			expected:    '+',
+			shouldMatch: false,
+			expectedPos: 0,
+			expectedCh:  '+',
+		},
+		{
+			name:        "match at end of input",
+			input:       "+",
+			expected:    0, // EOF
+			shouldMatch: true,
+			expectedPos: 1,
+			expectedCh:  0,
+		},
+		{
+			name:        "no match at end of input",
+			input:       "+",
+			expected:    'x',
+			shouldMatch: false,
+			expectedPos: 0,
+			expectedCh:  '+',
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+			result := l.matchAndConsume(tt.expected)
+
+			if result != tt.shouldMatch {
+				t.Errorf("matchAndConsume(%q) = %v, expected %v", tt.expected, result, tt.shouldMatch)
+			}
+
+			if l.position != tt.expectedPos {
+				t.Errorf("after matchAndConsume, position = %d, expected %d", l.position, tt.expectedPos)
+			}
+
+			if l.ch != tt.expectedCh {
+				t.Errorf("after matchAndConsume, ch = %q, expected %q", l.ch, tt.expectedCh)
+			}
+		})
+	}
+}
+
 // TestPeekToken tests basic token peeking functionality (Task 12.3.2)
 func TestPeekToken(t *testing.T) {
 	input := "var x := 5;"

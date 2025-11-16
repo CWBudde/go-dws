@@ -3238,7 +3238,7 @@ if !p.curTokenIs(lexer.END) {
 
 **Goal**: Refactor the lexer for better maintainability, consistency, and extensibility while preserving all existing functionality.
 
-**Status**: In progress | **Tasks**: 13/20 complete
+**Status**: In progress | **Tasks**: 16/20 complete
 
 **Motivation**: The lexer works well but has technical debt in error handling, state management, and code organization. These improvements will make the codebase easier to maintain and extend.
 
@@ -3399,26 +3399,29 @@ if !p.curTokenIs(lexer.END) {
 
 **Goal**: Add convenient helper methods to reduce code duplication.
 
-- [ ] 12.5.1 Add matchAndConsume helper
+- [x] 12.5.1 Add matchAndConsume helper
   - `func (l *Lexer) matchAndConsume(expected rune) bool`
   - Returns true and advances if next char matches
   - File: `internal/lexer/lexer.go` (~10 lines)
   - Estimated: 20 minutes
   - Test: Match/no-match both work correctly
+  - **DONE**: Added matchAndConsume helper with comprehensive tests
 
-- [ ] 12.5.2 Refactor compound operators to use matchAndConsume
+- [x] 12.5.2 Refactor compound operators to use matchAndConsume
   - Update all `if l.peekChar() == X` patterns
   - Simplify operator handler code
   - File: `internal/lexer/lexer.go` (~80 lines modified)
   - Estimated: 1 hour
   - Test: All compound operators still work
+  - **DONE**: Refactored all 15 operator handlers to use matchAndConsume
 
-- [ ] 12.5.3 Replace charLiteralToRune with strconv
+- [x] 12.5.3 Replace charLiteralToRune with strconv
   - Use `strconv.ParseInt()` instead of manual parsing
   - Handle both decimal and hex formats
   - File: `internal/lexer/lexer.go` (~30 lines deleted, ~15 added)
   - Estimated: 30 minutes
   - Test: All character literals parse correctly
+  - **DONE**: Replaced manual parsing with strconv.ParseInt, reduced from 36 lines to 24 lines
 
 ---
 

@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -91,6 +92,17 @@ func (l *Lexer) peekCharN(n int) rune {
 	return r
 }
 
+// matchAndConsume checks if the next character matches the expected rune.
+// If it matches, advances the lexer position and returns true.
+// If it doesn't match, leaves the lexer position unchanged and returns false.
+func (l *Lexer) matchAndConsume(expected rune) bool {
+	if l.peekChar() == expected {
+		l.readChar()
+		return true
+	}
+	return false
+}
+
 // currentPos returns the current Position for token creation.
 func (l *Lexer) currentPos() Position {
 	return Position{
@@ -166,13 +178,11 @@ func (l *Lexer) Peek(n int) Token {
 
 // handlePlus handles the '+' operator and its variants (++, +=).
 func (l *Lexer) handlePlus(pos Position) Token {
-	if l.peekChar() == '+' {
-		l.readChar()
+	if l.matchAndConsume('+') {
 		tok := NewToken(INC, "++", pos)
 		l.readChar()
 		return tok
-	} else if l.peekChar() == '=' {
-		l.readChar()
+	} else if l.matchAndConsume('=') {
 		tok := NewToken(PLUS_ASSIGN, "+=", pos)
 		l.readChar()
 		return tok
@@ -184,13 +194,11 @@ func (l *Lexer) handlePlus(pos Position) Token {
 
 // handleMinus handles the '-' operator and its variants (--, -=).
 func (l *Lexer) handleMinus(pos Position) Token {
-	if l.peekChar() == '-' {
-		l.readChar()
+	if l.matchAndConsume('-') {
 		tok := NewToken(DEC, "--", pos)
 		l.readChar()
 		return tok
-	} else if l.peekChar() == '=' {
-		l.readChar()
+	} else if l.matchAndConsume('=') {
 		tok := NewToken(MINUS_ASSIGN, "-=", pos)
 		l.readChar()
 		return tok
@@ -202,13 +210,11 @@ func (l *Lexer) handleMinus(pos Position) Token {
 
 // handleAsterisk handles the '*' operator and its variants (**, *=).
 func (l *Lexer) handleAsterisk(pos Position) Token {
-	if l.peekChar() == '*' {
-		l.readChar()
+	if l.matchAndConsume('*') {
 		tok := NewToken(POWER, "**", pos)
 		l.readChar()
 		return tok
-	} else if l.peekChar() == '=' {
-		l.readChar()
+	} else if l.matchAndConsume('=') {
 		tok := NewToken(TIMES_ASSIGN, "*=", pos)
 		l.readChar()
 		return tok
@@ -221,8 +227,7 @@ func (l *Lexer) handleAsterisk(pos Position) Token {
 // handleSlash handles the '/' operator and its variants (//, /*, /=).
 // Note: Comments are handled in nextTokenInternal before calling this.
 func (l *Lexer) handleSlash(pos Position) Token {
-	if l.peekChar() == '=' {
-		l.readChar()
+	if l.matchAndConsume('=') {
 		tok := NewToken(DIVIDE_ASSIGN, "/=", pos)
 		l.readChar()
 		return tok
@@ -240,8 +245,7 @@ func (l *Lexer) handlePercent(pos Position) Token {
 		// Binary literal
 		tokenType, literal := l.readNumber()
 		return NewToken(tokenType, literal, pos)
-	} else if l.peekChar() == '=' {
-		l.readChar()
+	} else if l.matchAndConsume('=') {
 		tok := NewToken(PERCENT_ASSIGN, "%=", pos)
 		l.readChar()
 		return tok
@@ -255,20 +259,16 @@ func (l *Lexer) handlePercent(pos Position) Token {
 
 // handleEquals handles the '=' operator and its variants (==, ===, =>).
 func (l *Lexer) handleEquals(pos Position) Token {
-	if l.peekChar() == '=' {
-		if l.peekCharN(2) == '=' {
-			l.readChar()
-			l.readChar()
+	if l.matchAndConsume('=') {
+		if l.matchAndConsume('=') {
 			tok := NewToken(EQ_EQ_EQ, "===", pos)
 			l.readChar()
 			return tok
 		}
-		l.readChar()
 		tok := NewToken(EQ_EQ, "==", pos)
 		l.readChar()
 		return tok
-	} else if l.peekChar() == '>' {
-		l.readChar()
+	} else if l.matchAndConsume('>') {
 		tok := NewToken(FAT_ARROW, "=>", pos)
 		l.readChar()
 		return tok
@@ -280,18 +280,15 @@ func (l *Lexer) handleEquals(pos Position) Token {
 
 // handleLess handles the '<' operator and its variants (<>, <=, <<).
 func (l *Lexer) handleLess(pos Position) Token {
-	if l.peekChar() == '>' {
-		l.readChar()
+	if l.matchAndConsume('>') {
 		tok := NewToken(NOT_EQ, "<>", pos)
 		l.readChar()
 		return tok
-	} else if l.peekChar() == '=' {
-		l.readChar()
+	} else if l.matchAndConsume('=') {
 		tok := NewToken(LESS_EQ, "<=", pos)
 		l.readChar()
 		return tok
-	} else if l.peekChar() == '<' {
-		l.readChar()
+	} else if l.matchAndConsume('<') {
 		tok := NewToken(LESS_LESS, "<<", pos)
 		l.readChar()
 		return tok
@@ -303,13 +300,11 @@ func (l *Lexer) handleLess(pos Position) Token {
 
 // handleGreater handles the '>' operator and its variants (>=, >>).
 func (l *Lexer) handleGreater(pos Position) Token {
-	if l.peekChar() == '=' {
-		l.readChar()
+	if l.matchAndConsume('=') {
 		tok := NewToken(GREATER_EQ, ">=", pos)
 		l.readChar()
 		return tok
-	} else if l.peekChar() == '>' {
-		l.readChar()
+	} else if l.matchAndConsume('>') {
 		tok := NewToken(GREATER_GREATER, ">>", pos)
 		l.readChar()
 		return tok
@@ -321,8 +316,7 @@ func (l *Lexer) handleGreater(pos Position) Token {
 
 // handleExclamation handles the '!' operator and its variant (!=).
 func (l *Lexer) handleExclamation(pos Position) Token {
-	if l.peekChar() == '=' {
-		l.readChar()
+	if l.matchAndConsume('=') {
 		tok := NewToken(EXCL_EQ, "!=", pos)
 		l.readChar()
 		return tok
@@ -334,13 +328,11 @@ func (l *Lexer) handleExclamation(pos Position) Token {
 
 // handleQuestion handles the '?' operator and its variants (??, ?.).
 func (l *Lexer) handleQuestion(pos Position) Token {
-	if l.peekChar() == '?' {
-		l.readChar()
+	if l.matchAndConsume('?') {
 		tok := NewToken(QUESTION_QUESTION, "??", pos)
 		l.readChar()
 		return tok
-	} else if l.peekChar() == '.' {
-		l.readChar()
+	} else if l.matchAndConsume('.') {
 		tok := NewToken(QUESTION_DOT, "?.", pos)
 		l.readChar()
 		return tok
@@ -352,8 +344,7 @@ func (l *Lexer) handleQuestion(pos Position) Token {
 
 // handleAmpersand handles the '&' operator and its variant (&&).
 func (l *Lexer) handleAmpersand(pos Position) Token {
-	if l.peekChar() == '&' {
-		l.readChar()
+	if l.matchAndConsume('&') {
 		tok := NewToken(AMP_AMP, "&&", pos)
 		l.readChar()
 		return tok
@@ -365,8 +356,7 @@ func (l *Lexer) handleAmpersand(pos Position) Token {
 
 // handlePipe handles the '|' operator and its variant (||).
 func (l *Lexer) handlePipe(pos Position) Token {
-	if l.peekChar() == '|' {
-		l.readChar()
+	if l.matchAndConsume('|') {
 		tok := NewToken(PIPE_PIPE, "||", pos)
 		l.readChar()
 		return tok
@@ -378,8 +368,7 @@ func (l *Lexer) handlePipe(pos Position) Token {
 
 // handleCaret handles the '^' operator and its variant (^=).
 func (l *Lexer) handleCaret(pos Position) Token {
-	if l.peekChar() == '=' {
-		l.readChar()
+	if l.matchAndConsume('=') {
 		tok := NewToken(CARET_ASSIGN, "^=", pos)
 		l.readChar()
 		return tok
@@ -391,8 +380,7 @@ func (l *Lexer) handleCaret(pos Position) Token {
 
 // handleAt handles the '@' operator and its variant (@=).
 func (l *Lexer) handleAt(pos Position) Token {
-	if l.peekChar() == '=' {
-		l.readChar()
+	if l.matchAndConsume('=') {
 		tok := NewToken(AT_ASSIGN, "@=", pos)
 		l.readChar()
 		return tok
@@ -404,8 +392,7 @@ func (l *Lexer) handleAt(pos Position) Token {
 
 // handleTilde handles the '~' operator and its variant (~=).
 func (l *Lexer) handleTilde(pos Position) Token {
-	if l.peekChar() == '=' {
-		l.readChar()
+	if l.matchAndConsume('=') {
 		tok := NewToken(TILDE_ASSIGN, "~=", pos)
 		l.readChar()
 		return tok
@@ -688,34 +675,22 @@ func charLiteralToRune(literal string) (rune, bool) {
 		return 0, false
 	}
 
-	var value int
+	var numStr string
 	var base int
-	start := 1
 
-	// Check for hex prefix
+	// Check for hex prefix (#$XX) or decimal (#XX)
 	if len(literal) > 2 && literal[1] == '$' {
 		base = 16
-		start = 2
+		numStr = literal[2:] // Skip '#$'
 	} else {
 		base = 10
+		numStr = literal[1:] // Skip '#'
 	}
 
-	// Parse the numeric value
-	for i := start; i < len(literal); i++ {
-		var digit int
-		ch := literal[i]
-
-		if ch >= '0' && ch <= '9' {
-			digit = int(ch - '0')
-		} else if base == 16 && ch >= 'a' && ch <= 'f' {
-			digit = int(ch - 'a' + 10)
-		} else if base == 16 && ch >= 'A' && ch <= 'F' {
-			digit = int(ch - 'A' + 10)
-		} else {
-			return 0, false
-		}
-
-		value = value*base + digit
+	// Parse the numeric value using strconv
+	value, err := strconv.ParseInt(numStr, base, 32)
+	if err != nil {
+		return 0, false
 	}
 
 	return rune(value), true
