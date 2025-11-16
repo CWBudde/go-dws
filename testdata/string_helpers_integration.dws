@@ -1,0 +1,128 @@
+// ============================================================================
+// String Helper Methods Integration Tests (Task 9.23.6.5)
+// Tests complex scenarios with string helper methods
+// ============================================================================
+
+PrintLn('=== String Helper Methods Integration Tests ===');
+
+// Test 1: Method chaining and composition
+PrintLn('');
+PrintLn('Test 1: Method chaining');
+var text := 'Hello World Program';
+var upper := text.ToUpper;
+PrintLn(upper);
+var part := upper.Copy(1, 5);
+PrintLn(part);
+var lower := part.ToLower;
+PrintLn(lower);
+
+// Test 2: Helpers with function returns
+PrintLn('');
+PrintLn('Test 2: Helpers with function returns');
+function GetGreeting(): String;
+begin
+  Result := 'hello';
+end;
+
+PrintLn(GetGreeting().ToUpper);
+if GetGreeting().StartsWith('he') then
+  PrintLn('Starts with he');
+
+// Test 3: Helpers with variables and expressions
+PrintLn('');
+PrintLn('Test 3: Helpers in expressions');
+var s1 := 'test';
+var s2 := 'data';
+var combined := (s1 + '_' + s2).ToUpper;
+PrintLn(combined);
+
+// Test 4: Helpers in conditional logic
+PrintLn('');
+PrintLn('Test 4: Helpers in conditionals');
+var email := 'user@example.com';
+if email.Contains('@') then begin
+  var username := email.Before('@');
+  var domain := email.After('@');
+  PrintLn('Username: ' + username);
+  PrintLn('Domain: ' + domain);
+end;
+
+// Test 5: Helpers with arrays
+PrintLn('');
+PrintLn('Test 5: Helpers with arrays');
+var csv := 'apple,banana,cherry';
+var fruits := csv.Split(',');
+var i: Integer;
+PrintLn('Fruits count: ' + IntToStr(fruits.Length));
+for i := 0 to fruits.Length - 1 do
+  PrintLn('  ' + IntToStr(i+1) + '. ' + fruits[i].ToUpper);
+
+// Test 6: Conversion helpers
+PrintLn('');
+PrintLn('Test 6: Conversion helpers');
+var numStr := '42';
+var num := numStr.ToInteger;
+var result := num * 2;
+PrintLn('Result: ' + IntToStr(result));
+
+var floatStr := '3.14';
+var piValue := floatStr.ToFloat;
+PrintLn('Pi: ' + FloatToStr(piValue));
+
+// Test 7: Search and extract operations
+PrintLn('');
+PrintLn('Test 7: Search and extract');
+var log := '[INFO] System started successfully';
+if log.StartsWith('[INFO]') then begin
+  var message := log.After('] ');
+  PrintLn('Log message: ' + message);
+
+  if message.Contains('success') then
+    PrintLn('Status: OK');
+end;
+
+// Test 8: String manipulation pipeline
+PrintLn('');
+PrintLn('Test 8: String manipulation pipeline');
+var input := '  mixed CASE text  ';
+var step1 := input;  // Original
+var step2 := Trim(step1);  // Trim
+var step3 := step2.ToLower;  // Lowercase
+var words := step3.Split(' ');
+PrintLn('Words: ' + IntToStr(words.Length));
+for i := 0 to words.Length - 1 do
+  if words[i] <> '' then
+    PrintLn('  - ' + words[i]);
+
+// Test 9: Validation with helpers
+PrintLn('');
+PrintLn('Test 9: Validation');
+function ValidateEmail(addr: String): Boolean;
+begin
+  Result := addr.Contains('@') and
+            addr.Contains('.') and
+            (Length(addr) > 5);
+end;
+
+var testEmail1 := 'test@example.com';
+var testEmail2 := 'invalid';
+PrintLn(testEmail1 + ' is valid: ' + BoolToStr(ValidateEmail(testEmail1)));
+PrintLn(testEmail2 + ' is valid: ' + BoolToStr(ValidateEmail(testEmail2)));
+
+// Test 10: Complex data processing
+PrintLn('');
+PrintLn('Test 10: Complex data processing');
+var data := 'id:123,name:John Doe,age:30';
+var pairs := data.Split(',');
+for i := 0 to pairs.Length - 1 do begin
+  var pair := pairs[i];
+  var idx := pair.IndexOf(':');
+  if idx > 0 then begin
+    var key := pair.Before(':');
+    var value := pair.After(':');
+    PrintLn(key.ToUpper + ' = ' + value);
+  end;
+end;
+
+PrintLn('');
+PrintLn('=== All tests completed ===');
