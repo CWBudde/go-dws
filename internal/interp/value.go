@@ -8,131 +8,100 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/jsonvalue"
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
+// ============================================================================
+// Value Interface and Type Aliases
+// ============================================================================
+//
+// Phase 3.2 Refactoring: Primitive value types have been moved to the
+// internal/interp/runtime package. For backward compatibility, we provide
+// type aliases here. Code can continue using interp.IntegerValue, etc.
+//
+// Eventually, all code should be updated to import runtime directly.
+// ============================================================================
+
 // Value represents a runtime value in the DWScript interpreter.
 // All runtime values must implement this interface.
-// This interface does NOT use interface{} to ensure type safety.
-type Value interface {
-	// Type returns the type name of the value (e.g., "INTEGER", "STRING")
-	Type() string
-	// String returns the string representation of the value
-	String() string
-}
+//
+// This is aliased from runtime.Value for backward compatibility.
+type Value = runtime.Value
 
-// IntegerValue represents an integer value in DWScript.
-type IntegerValue struct {
-	Value int64
-}
+// Primitive value type aliases (Phase 3.2.2: moved to runtime/)
+type (
+	// IntegerValue represents an integer value in DWScript.
+	// Moved to runtime.IntegerValue in Phase 3.2.
+	IntegerValue = runtime.IntegerValue
 
-// Type returns "INTEGER".
-func (i *IntegerValue) Type() string {
-	return "INTEGER"
-}
+	// FloatValue represents a floating-point value in DWScript.
+	// Moved to runtime.FloatValue in Phase 3.2.
+	FloatValue = runtime.FloatValue
 
-// String returns the string representation of the integer.
-func (i *IntegerValue) String() string {
-	return strconv.FormatInt(i.Value, 10)
-}
+	// StringValue represents a string value in DWScript.
+	// Moved to runtime.StringValue in Phase 3.2.
+	StringValue = runtime.StringValue
 
-// FloatValue represents a floating-point value in DWScript.
-type FloatValue struct {
-	Value float64
-}
+	// BooleanValue represents a boolean value in DWScript.
+	// Moved to runtime.BooleanValue in Phase 3.2.
+	BooleanValue = runtime.BooleanValue
 
-// Type returns "FLOAT".
-func (f *FloatValue) Type() string {
-	return "FLOAT"
-}
+	// NilValue represents a nil/null value in DWScript.
+	// Moved to runtime.NilValue in Phase 3.2.
+	NilValue = runtime.NilValue
 
-// String returns the string representation of the float.
-func (f *FloatValue) String() string {
-	return strconv.FormatFloat(f.Value, 'g', -1, 64)
-}
+	// NullValue represents the special Variant Null value in DWScript.
+	// Task 9.4.1: Null is a variant-specific value that represents an explicit null state.
+	// Moved to runtime.NullValue in Phase 3.2.
+	NullValue = runtime.NullValue
 
-// StringValue represents a string value in DWScript.
-type StringValue struct {
-	Value string
-}
+	// UnassignedValue represents the special Variant Unassigned value in DWScript.
+	// Task 9.4.1: Unassigned is the default state of an uninitialized variant.
+	// Moved to runtime.UnassignedValue in Phase 3.2.
+	UnassignedValue = runtime.UnassignedValue
+)
 
-// Type returns "STRING".
-func (s *StringValue) Type() string {
-	return "STRING"
-}
+// ============================================================================
+// Value interface re-exports for type operations (Phase 3.2.1)
+// ============================================================================
 
-// String returns the string value itself.
-func (s *StringValue) String() string {
-	return s.Value
-}
+// NumericValue represents values that can be used in numeric operations.
+type NumericValue = runtime.NumericValue
 
-// BooleanValue represents a boolean value in DWScript.
-type BooleanValue struct {
-	Value bool
-}
+// ComparableValue represents values that can be compared for equality.
+type ComparableValue = runtime.ComparableValue
 
-// Type returns "BOOLEAN".
-func (b *BooleanValue) Type() string {
-	return "BOOLEAN"
-}
+// OrderableValue represents values that can be ordered.
+type OrderableValue = runtime.OrderableValue
 
-// String returns "True" or "False".
-func (b *BooleanValue) String() string {
-	if b.Value {
-		return "True"
-	}
-	return "False"
-}
+// CopyableValue represents values that can be copied.
+type CopyableValue = runtime.CopyableValue
 
-// NilValue represents a nil/null value in DWScript.
-type NilValue struct {
-	// ClassType stores the expected class type for this nil value (if any).
-	// This allows accessing class variables via nil instances: var b: TBase; b.ClassVar
-	ClassType string // e.g., "TBase"
-}
+// ReferenceType represents reference-type values (not to be confused with ReferenceValue struct).
+type ReferenceType = runtime.ReferenceType
 
-// Type returns "NIL".
-func (n *NilValue) Type() string {
-	return "NIL"
-}
+// IndexableValue represents values that can be indexed.
+type IndexableValue = runtime.IndexableValue
 
-// String returns "nil".
-func (n *NilValue) String() string {
-	return "nil"
-}
+// CallableValue represents values that can be called as functions.
+type CallableValue = runtime.CallableValue
 
-// NullValue represents the special Variant Null value in DWScript.
-// Task 9.4.1: Null is a variant-specific value that represents an explicit null state.
-// It differs from NilValue (used for object references) and from Unassigned (default variant state).
-// In DWScript, Null is used to indicate a variant that explicitly has no value.
-type NullValue struct{}
+// ConvertibleValue represents values that support explicit type conversion.
+type ConvertibleValue = runtime.ConvertibleValue
 
-// Type returns "NULL".
-func (n *NullValue) Type() string {
-	return "NULL"
-}
+// IterableValue represents values that can be iterated over.
+type IterableValue = runtime.IterableValue
 
-// String returns "Null".
-func (n *NullValue) String() string {
-	return "Null"
-}
+// Iterator provides iteration over collection values.
+type Iterator = runtime.Iterator
 
-// UnassignedValue represents the special Variant Unassigned value in DWScript.
-// Task 9.4.1: Unassigned is the default state of an uninitialized variant.
-// It represents a variant that has never been assigned a value.
-// In DWScript, Unassigned behaves specially in comparisons and the coalesce operator.
-type UnassignedValue struct{}
-
-// Type returns "UNASSIGNED".
-func (n *UnassignedValue) Type() string {
-	return "UNASSIGNED"
-}
-
-// String returns "Unassigned".
-func (n *UnassignedValue) String() string {
-	return "Unassigned"
-}
+// ============================================================================
+// Complex Value Types (remaining in interp/ for now)
+// ============================================================================
+// These will be moved to runtime/ in future phases of the refactoring.
+// ============================================================================
 
 // TypeMetaValue represents a type name as a runtime value in DWScript.
 // Task 9.133: DWScript allows type names like `Integer` to be used as values.

@@ -2,6 +2,7 @@ package interp
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -513,8 +514,16 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, value Value, stmt *ast.AssignmentStatement) Value {
 	// Check if the left side is a class identifier (for static assignment: TClass.Variable := value or TClass.Property := value)
 	if ident, ok := target.Object.(*ast.Identifier); ok {
-		// Check if this identifier refers to a class
-		if classInfo, exists := i.classes[ident.Value]; exists {
+		// Check if this identifier refers to a class (case-insensitive lookup to match DWScript semantics)
+		var classInfo *ClassInfo
+		for className, class := range i.classes {
+			if strings.EqualFold(className, ident.Value) {
+				classInfo = class
+				break
+			}
+		}
+
+		if classInfo != nil {
 			memberName := target.Member.Value
 
 			// Check if this is a class property assignment (properties take precedence)
