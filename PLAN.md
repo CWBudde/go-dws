@@ -2429,7 +2429,7 @@ PrintLn(s.StartsWith('ba'));      // Helper ✗
 
 ---
 
-## Phase 9.8: Interpreter Architecture Refactoring 🔄 PLANNED
+## Phase 9.24: Interpreter Architecture Refactoring 🔄 PLANNED
 
 **Goal**: Refactor the interpreter architecture to improve maintainability, testability, and extensibility. Address architectural debt accumulated during rapid feature development.
 
@@ -2461,7 +2461,7 @@ PrintLn(s.StartsWith('ba'));      // Helper ✗
 
 ---
 
-### Phase 9.8.1: Preparation and Analysis
+### Phase 9.24.1: Preparation and Analysis
 
 - [ ] 9.80 Create interpreter refactoring design document
   - Analyze current architecture and identify pain points
@@ -3449,7 +3449,7 @@ if !p.curTokenIs(lexer.END) {
 
 ---
 
-## Phase 10: go-dws API Enhancements for LSP Integration ✅ COMPLETE
+## Phase 13: go-dws API Enhancements for LSP Integration ✅ COMPLETE
 
 **Goal**: Enhanced go-dws library with structured errors, AST access, position metadata, symbol tables, and type information for LSP features.
 
@@ -3457,7 +3457,7 @@ if !p.curTokenIs(lexer.END) {
 
 ---
 
-## Phase 11: Bytecode Compiler & VM Optimizations ✅ MOSTLY COMPLETE
+## Phase 14: Bytecode Compiler & VM Optimizations ✅ MOSTLY COMPLETE
 
 **Status**: Core implementation complete | **Performance**: 5-6x faster than AST interpreter | **Tasks**: 15 complete, 2 pending
 
@@ -3467,92 +3467,92 @@ This phase implements a bytecode virtual machine for DWScript, providing signifi
 
 **Architecture**: AST → Compiler → Bytecode → VM → Output
 
-### Phase 11.1: Bytecode VM Foundation ✅ COMPLETE
+### Phase 14.1: Bytecode VM Foundation ✅ COMPLETE
 
-- [x] 11.1 Research and design bytecode instruction set
+- [x] 14.1 Research and design bytecode instruction set
   - Stack-based VM with 116 opcodes, 32-bit instruction format
   - Documentation: [bytecode-vm-design.md](docs/architecture/bytecode-vm-design.md)
   - Expected Impact: 2-3x speedup over tree-walking interpreter
 
-- [x] 11.2 Implement bytecode data structures
+- [x] 14.2 Implement bytecode data structures
   - Created `internal/bytecode/bytecode.go` with `Chunk` type (bytecode + constants pool)
   - Implemented constant pool for literals with deduplication
   - Added line number mapping with run-length encoding
   - Implemented bytecode disassembler for debugging (79.7% coverage)
 
-- [x] 11.3 Build AST-to-bytecode compiler
+- [x] 14.3 Build AST-to-bytecode compiler
   - Created `internal/bytecode/compiler.go` with visitor pattern
   - Compile expressions: literals, binary ops, unary ops, variables, function calls
   - Compile statements: assignment, if/else, loops, return
   - Handle scoping and variable resolution
   - Optimize constant folding during compilation
 
-- [x] 11.4 Implement bytecode VM core
+- [x] 14.4 Implement bytecode VM core
   - Created `internal/bytecode/vm.go` with instruction dispatch loop
   - Implemented operand stack and call stack
   - Added environment/closure handling with upvalue capture
   - Error handling with structured RuntimeError and stack traces
   - Performance: VM is ~5.6x faster than AST interpreter
 
-- [x] 11.5 Implement arithmetic and logic instructions
+- [x] 14.5 Implement arithmetic and logic instructions
   - ADD, SUB, MUL, DIV, MOD instructions
   - NEGATE, NOT instructions
   - EQ, NE, LT, LE, GT, GE comparisons
   - AND, OR, XOR bitwise operations
   - Type coercion (int ↔ float)
 
-- [x] 11.6 Implement variable and memory instructions
+- [x] 14.6 Implement variable and memory instructions
   - LOAD_CONST / LOAD_LOCAL / STORE_LOCAL
   - LOAD_GLOBAL / STORE_GLOBAL
   - LOAD_UPVALUE / STORE_UPVALUE with closure capture
   - GET_PROPERTY / SET_PROPERTY for member access
 
-- [x] 11.7 Implement control flow instructions
+- [x] 14.7 Implement control flow instructions
   - JUMP, JUMP_IF_FALSE, JUMP_IF_TRUE
   - LOOP (jump backward for while/for loops)
   - Patch jump addresses during compilation
   - Break/continue leverage jump instructions
 
-- [x] 11.8 Implement function call instructions
+- [x] 14.8 Implement function call instructions
   - CALL instruction for named functions
   - RETURN instruction with trailing return guarantee
   - Handle recursion and call stack depth
   - Implement closures and upvalues
   - Support method calls and `Self` context (OpCallMethod, OpGetSelf)
 
-- [x] 11.9 Implement array and object instructions
+- [x] 14.9 Implement array and object instructions
   - GET_INDEX, SET_INDEX for array access
   - NEW_ARRAY, ARRAY_LENGTH
   - NEW_OBJECT for class instantiation
   - INVOKE_METHOD for method dispatch
 
-- [x] 11.10 Add exception handling instructions
+- [x] 14.10 Add exception handling instructions
   - TRY, CATCH, FINALLY, THROW instructions
   - Exception stack unwinding
   - Preserve stack traces across bytecode execution
 
-- [x] 11.11 Optimize bytecode generation
+- [x] 14.11 Optimize bytecode generation
   - Established optimization pipeline with pass manager and toggles
   - Peephole transforms: fold literal push/pop pairs, collapse stack shuffles
   - Dead code elimination: trim after terminators, reflow jump targets
   - Constant propagation: track literal locals/globals, fold arithmetic chains
   - Inline small functions (< 10 instructions)
 
-- [x] 11.12 Integrate bytecode VM into interpreter
+- [x] 14.12 Integrate bytecode VM into interpreter
   - Added `--bytecode` flag to CLI
   - Added `CompileMode` option (AST vs Bytecode) to `pkg/dwscript/options.go`
   - Bytecode compilation/execution paths in `pkg/dwscript/dwscript.go`
   - Unit loading/parsing parity, tracing, diagnostic output
   - Wire bytecode VM to externals (FFI, built-ins, stdout capture)
 
-- [x] 11.13 Create bytecode test suite
+- [x] 14.13 Create bytecode test suite
   - Port existing interpreter tests to bytecode
   - Test bytecode disassembler output
   - Verify identical behavior to AST interpreter
   - Performance benchmarks confirm 5-6x speedup
 
-- [x] 11.14 Add bytecode serialization
-  - [x] 11.14.1 Define bytecode file format (.dwc)
+- [x] 14.14 Add bytecode serialization
+  - [x] 14.14.1 Define bytecode file format (.dwc)
     - **Task**: Design the binary format for bytecode files
     - **Implementation**:
       - Define magic number (e.g., "DWC\x00") for file identification
@@ -3562,7 +3562,7 @@ This phase implements a bytecode virtual machine for DWScript, providing signifi
     - **Files**: `internal/bytecode/serializer.go`
     - **Estimated time**: 0.5 day
 
-  - [x] 11.14.2 Implement Chunk serialization
+  - [x] 14.14.2 Implement Chunk serialization
     - **Task**: Serialize bytecode chunks to binary format
     - **Implementation**:
       - Serialize instructions array
@@ -3572,7 +3572,7 @@ This phase implements a bytecode virtual machine for DWScript, providing signifi
     - **Files**: `internal/bytecode/serializer.go`
     - **Estimated time**: 1 day
 
-  - [x] 11.14.3 Implement Chunk deserialization
+  - [x] 14.14.3 Implement Chunk deserialization
     - **Task**: Deserialize bytecode chunks from binary format
     - **Implementation**:
       - Read and validate magic number and version
@@ -3584,7 +3584,7 @@ This phase implements a bytecode virtual machine for DWScript, providing signifi
     - **Files**: `internal/bytecode/serializer.go`
     - **Estimated time**: 1 day
 
-  - [x] 11.14.4 Add version compatibility checks
+  - [x] 14.14.4 Add version compatibility checks
     - **Task**: Ensure bytecode version compatibility
     - **Implementation**:
       - Check version during deserialization
@@ -3593,7 +3593,7 @@ This phase implements a bytecode virtual machine for DWScript, providing signifi
     - **Files**: `internal/bytecode/serializer.go`
     - **Estimated time**: 0.5 day
 
-  - [x] 11.14.5 Add serialization tests
+  - [x] 14.14.5 Add serialization tests
     - **Task**: Test serialization/deserialization round-trip
     - **Implementation**:
       - Test simple programs serialize correctly
@@ -3603,7 +3603,7 @@ This phase implements a bytecode virtual machine for DWScript, providing signifi
     - **Files**: `internal/bytecode/serializer_test.go`
     - **Estimated time**: 1 day
 
-  - [x] 11.14.6 Add `dwscript compile` command
+  - [x] 14.14.6 Add `dwscript compile` command
     - **Task**: CLI command to compile source to bytecode
     - **Implementation**:
       - Add compile subcommand to CLI
@@ -3613,7 +3613,7 @@ This phase implements a bytecode virtual machine for DWScript, providing signifi
     - **Files**: `cmd/dwscript/main.go`, `cmd/dwscript/compile.go`
     - **Estimated time**: 0.5 day
 
-  - [x] 11.14.7 Update `dwscript run` to load .dwc files
+  - [x] 14.14.7 Update `dwscript run` to load .dwc files
     - **Task**: Allow running precompiled bytecode files
     - **Implementation**:
       - Detect .dwc file extension
@@ -3622,7 +3622,7 @@ This phase implements a bytecode virtual machine for DWScript, providing signifi
     - **Files**: `cmd/dwscript/main.go`, `cmd/dwscript/run.go`
     - **Estimated time**: 0.5 day
 
-  - [x] 11.14.8 Document bytecode serialization
+  - [x] 14.14.8 Document bytecode serialization
     - **Task**: Update documentation for bytecode files
     - **Implementation**:
       - Document .dwc file format in docs/bytecode-vm.md
@@ -3631,7 +3631,7 @@ This phase implements a bytecode virtual machine for DWScript, providing signifi
     - **Files**: `docs/bytecode-vm.md`, `README.md`, `CLAUDE.md`
     - **Estimated time**: 0.5 day
 
-- [x] 11.15 Document bytecode VM
+- [x] 14.15 Document bytecode VM
   - Written `docs/bytecode-vm.md` explaining architecture
   - Documented instruction set and opcodes
   - Provided examples of bytecode output
@@ -3639,130 +3639,130 @@ This phase implements a bytecode virtual machine for DWScript, providing signifi
 
 **Estimated time**: Completed in 12-16 weeks
 
-### Phase 11.2: Future Bytecode Optimizations (DEFERRED)
+## Phase 15: Future Bytecode Optimizations (DEFERRED)
 
-- [ ] 11.16 Advanced peephole optimizations
+- [ ] 15.1 Advanced peephole optimizations
   - [ ] Strength reduction (multiplication → shift)
   - [ ] Common subexpression elimination
   - [ ] Branch prediction hints
 
-- [ ] 11.17 Register allocation improvements
+- [ ] 15.2 Register allocation improvements
   - [ ] Live range analysis
   - [ ] Register coloring for locals
   - [ ] Reduce stack traffic
 
-- [ ] 11.18 Inline caching for method dispatch
+- [ ] 15.3 Inline caching for method dispatch
   - [ ] Cache method lookup results
   - [ ] Invalidate on class redefinition
   - [ ] Benchmark polymorphic call sites
 
-- [ ] 11.19 Bytecode verification
+- [ ] 15.4 Bytecode verification
   - [ ] Static analysis of bytecode correctness
   - [ ] Type safety verification
   - [ ] Stack depth validation
 
 ---
 
-## Phase 12: Performance & Polish
+## Phase 16: Performance & Polish
 
 ### Performance Profiling
 
-- [x] 12.1 Create performance benchmark scripts
-- [x] 12.2 Profile lexer performance: `BenchmarkLexer`
-- [x] 12.3 Profile parser performance: `BenchmarkParser`
-- [x] 12.4 Profile interpreter performance: `BenchmarkInterpreter`
-- [x] 12.5 Identify bottlenecks using `pprof`
-- [ ] 12.6 Document performance baseline
+- [x] 16.1 Create performance benchmark scripts
+- [x] 16.2 Profile lexer performance: `BenchmarkLexer`
+- [x] 16.3 Profile parser performance: `BenchmarkParser`
+- [x] 16.4 Profile interpreter performance: `BenchmarkInterpreter`
+- [x] 16.5 Identify bottlenecks using `pprof`
+- [ ] 16.6 Document performance baseline
 
 ### Optimization - Lexer
 
-- [ ] 12.7 Optimize string handling in lexer (use bytes instead of runes where possible)
-- [ ] 12.8 Reduce allocations in token creation
-- [ ] 12.9 Use string interning for keywords/identifiers
-- [ ] 12.10 Benchmark improvements
+- [ ] 16.7 Optimize string handling in lexer (use bytes instead of runes where possible)
+- [ ] 16.8 Reduce allocations in token creation
+- [ ] 16.9 Use string interning for keywords/identifiers
+- [ ] 16.10 Benchmark improvements
 
 ### Optimization - Parser
 
-- [ ] 12.11 Reduce AST node allocations
-- [ ] 12.12 Pool commonly created nodes
-- [ ] 12.13 Optimize precedence table lookups
-- [ ] 12.14 Benchmark improvements
+- [ ] 16.11 Reduce AST node allocations
+- [ ] 16.12 Pool commonly created nodes
+- [ ] 16.13 Optimize precedence table lookups
+- [ ] 16.14 Benchmark improvements
 
 ### Optimization - Interpreter
 
-- [ ] 12.15 Optimize value representation (avoid interface{} overhead if possible)
-- [ ] 12.16 Use switch statements instead of type assertions where possible
-- [ ] 12.17 Cache frequently accessed symbols
-- [ ] 12.18 Optimize environment lookups
-- [ ] 12.19 Reduce allocations in hot paths
-- [ ] 12.20 Benchmark improvements
+- [ ] 16.15 Optimize value representation (avoid interface{} overhead if possible)
+- [ ] 16.16 Use switch statements instead of type assertions where possible
+- [ ] 16.17 Cache frequently accessed symbols
+- [ ] 16.18 Optimize environment lookups
+- [ ] 16.19 Reduce allocations in hot paths
+- [ ] 16.20 Benchmark improvements
 
 ### Memory Management
 
-- [ ] 12.21 Ensure no memory leaks in long-running scripts
-- [ ] 12.22 Profile memory usage with large programs
-- [ ] 12.23 Optimize object allocation/deallocation
-- [ ] 12.24 Consider object pooling for common types
+- [ ] 16.21 Ensure no memory leaks in long-running scripts
+- [ ] 16.22 Profile memory usage with large programs
+- [ ] 16.23 Optimize object allocation/deallocation
+- [ ] 16.24 Consider object pooling for common types
 
 ### Code Quality Refactoring
 
-- [ ] 12.25 Run `go vet ./...` and fix all issues
-- [ ] 12.26 Run `golangci-lint run` and address warnings
-- [ ] 12.27 Run `gofmt` on all files
-- [ ] 12.28 Run `goimports` to organize imports
-- [ ] 12.29 Review error handling consistency
-- [ ] 12.30 Unify value representation if inconsistent
-- [ ] 12.31 Refactor large functions into smaller ones
-- [ ] 12.32 Extract common patterns into helper functions
-- [ ] 12.33 Improve variable/function naming
-- [ ] 12.34 Add missing error checks
+- [ ] 16.25 Run `go vet ./...` and fix all issues
+- [ ] 16.26 Run `golangci-lint run` and address warnings
+- [ ] 16.27 Run `gofmt` on all files
+- [ ] 16.28 Run `goimports` to organize imports
+- [ ] 16.29 Review error handling consistency
+- [ ] 16.30 Unify value representation if inconsistent
+- [ ] 16.31 Refactor large functions into smaller ones
+- [ ] 16.32 Extract common patterns into helper functions
+- [ ] 16.33 Improve variable/function naming
+- [ ] 16.34 Add missing error checks
 
 ### Documentation
 
-- [ ] 12.35 Write comprehensive GoDoc comments for all exported types/functions
-- [ ] 12.36 Document internal architecture in `docs/architecture.md`
-- [ ] 12.37 Create user guide in `docs/user_guide.md`
-- [ ] 12.38 Document CLI usage with examples
-- [ ] 12.39 Create API documentation for embedding the library
-- [ ] 12.40 Add code examples to documentation
-- [ ] 12.41 Document known limitations
-- [ ] 12.42 Create contribution guidelines in `CONTRIBUTING.md`
+- [ ] 16.35 Write comprehensive GoDoc comments for all exported types/functions
+- [ ] 16.36 Document internal architecture in `docs/architecture.md`
+- [ ] 16.37 Create user guide in `docs/user_guide.md`
+- [ ] 16.38 Document CLI usage with examples
+- [ ] 16.39 Create API documentation for embedding the library
+- [ ] 16.40 Add code examples to documentation
+- [ ] 16.41 Document known limitations
+- [ ] 16.42 Create contribution guidelines in `CONTRIBUTING.md`
 
 ### Example Programs
 
-- [x] 12.43 Create `examples/` directory
-- [x] 12.44 Add example scripts:
+- [x] 16.43 Create `examples/` directory
+- [x] 16.44 Add example scripts:
   - [x] Hello World
   - [x] Fibonacci
   - [x] Factorial
   - [x] Class-based example (Person demo)
   - [x] Algorithm sample (math/loops showcase)
-- [x] 12.45 Add README in examples directory
-- [x] 12.46 Ensure all examples run correctly
+- [x] 16.45 Add README in examples directory
+- [x] 16.46 Ensure all examples run correctly
 
 ### Testing Enhancements
 
-- [ ] 12.47 Add integration tests in `test/integration/`
-- [ ] 12.48 Add fuzzing tests for parser: `FuzzParser`
-- [ ] 12.49 Add fuzzing tests for lexer: `FuzzLexer`
-- [ ] 12.50 Add property-based tests (using testing/quick or gopter)
-- [ ] 12.51 Ensure CI runs all test types
-- [ ] 12.52 Achieve >90% code coverage overall
-- [ ] 12.53 Add regression tests for all fixed bugs
+- [ ] 16.47 Add integration tests in `test/integration/`
+- [ ] 16.48 Add fuzzing tests for parser: `FuzzParser`
+- [ ] 16.49 Add fuzzing tests for lexer: `FuzzLexer`
+- [ ] 16.50 Add property-based tests (using testing/quick or gopter)
+- [ ] 16.51 Ensure CI runs all test types
+- [ ] 16.52 Achieve >90% code coverage overall
+- [ ] 16.53 Add regression tests for all fixed bugs
 
 ### Release Preparation
 
-- [ ] 12.54 Create `CHANGELOG.md`
-- [ ] 12.55 Document version numbering scheme (SemVer)
-- [ ] 12.56 Tag v0.1.0 alpha release
-- [ ] 12.57 Create release binaries for major platforms (Linux, macOS, Windows)
-- [ ] 12.58 Publish release on GitHub
-- [ ] 12.59 Write announcement blog post or README update
-- [ ] 12.60 Share with community for feedback
+- [ ] 16.54 Create `CHANGELOG.md`
+- [ ] 16.55 Document version numbering scheme (SemVer)
+- [ ] 16.56 Tag v0.1.0 alpha release
+- [ ] 16.57 Create release binaries for major platforms (Linux, macOS, Windows)
+- [ ] 16.58 Publish release on GitHub
+- [ ] 16.59 Write announcement blog post or README update
+- [ ] 16.60 Share with community for feedback
 
 ---
 
-## Phase 13: Go Source Code Generation & AOT Compilation [RECOMMENDED]
+## Phase 17: Go Source Code Generation & AOT Compilation [RECOMMENDED]
 
 **Status**: Not started | **Priority**: HIGH | **Estimated Time**: 20-28 weeks (code generation) + 9-13 weeks (CLI)
 
@@ -3776,7 +3776,7 @@ This phase implements ahead-of-time (AOT) compilation by transpiling DWScript so
 
 ### Phase 13.1: Go Source Code Generation (20-28 weeks)
 
-- [ ] 13.1 Design Go code generation architecture
+- [ ] 17.1 Design Go code generation architecture
   - Study similar transpilers (c2go, ast-transpiler)
   - Design AST → Go AST transformation strategy
   - Define runtime library interface
@@ -3784,7 +3784,7 @@ This phase implements ahead-of-time (AOT) compilation by transpiling DWScript so
   - Plan package structure for generated code
   - **Decision**: Use `go/ast` package for Go AST generation
 
-- [ ] 13.2 Create Go code generator foundation
+- [ ] 17.2 Create Go code generator foundation
   - Create `internal/codegen/` package
   - Create `internal/codegen/go_generator.go`
   - Implement `Generator` struct with context tracking
@@ -3792,7 +3792,7 @@ This phase implements ahead-of-time (AOT) compilation by transpiling DWScript so
   - Set up `go/ast` and `go/printer` integration
   - Create unit tests for basic generation
 
-- [ ] 13.3 Implement type system mapping
+- [ ] 17.3 Implement type system mapping
   - Map DWScript primitives to Go types (Integer→int64, Float→float64, String→string, Boolean→bool)
   - Map DWScript arrays to Go slices (dynamic) or arrays (static)
   - Map DWScript records to Go structs
@@ -3800,7 +3800,7 @@ This phase implements ahead-of-time (AOT) compilation by transpiling DWScript so
   - Handle type aliases and subrange types
   - Document type mapping in `docs/codegen-types.md`
 
-- [ ] 13.4 Generate code for expressions
+- [ ] 17.4 Generate code for expressions
   - Generate literals (integer, float, string, boolean, nil)
   - Generate identifiers (variables, constants)
   - Generate binary operations (+, -, *, /, =, <>, <, >, etc.)
@@ -3810,7 +3810,7 @@ This phase implements ahead-of-time (AOT) compilation by transpiling DWScript so
   - Handle operator precedence correctly
   - Add unit tests comparing eval vs generated code
 
-- [ ] 13.5 Generate code for statements
+- [ ] 17.5 Generate code for statements
   - Generate variable declarations (`var x: Integer = 42`)
   - Generate assignments (`x := 10`)
   - Generate if/else statements
@@ -3819,7 +3819,7 @@ This phase implements ahead-of-time (AOT) compilation by transpiling DWScript so
   - Generate begin...end blocks
   - Handle break/continue/exit statements
 
-- [ ] 13.6 Generate code for functions and procedures
+- [ ] 17.6 Generate code for functions and procedures
   - Generate function declarations with parameters and return type
   - Handle by-value and by-reference (var) parameters
   - Generate procedure declarations (no return value)
@@ -3828,7 +3828,7 @@ This phase implements ahead-of-time (AOT) compilation by transpiling DWScript so
   - Handle recursion
   - Generate proper variable scoping
 
-- [ ] 13.7 Generate code for classes and OOP
+- [ ] 17.7 Generate code for classes and OOP
   - Generate Go struct definitions for classes
   - Generate constructor functions (Create)
   - Generate destructor cleanup (Destroy → defer)
@@ -3838,26 +3838,26 @@ This phase implements ahead-of-time (AOT) compilation by transpiling DWScript so
   - Handle class fields and properties
   - Support `Self` keyword (receiver parameter)
 
-- [ ] 13.8 Generate code for interfaces
+- [ ] 17.8 Generate code for interfaces
   - Generate Go interface definitions
   - Implement interface casting and type assertions
   - Generate interface method dispatch
   - Handle interface inheritance
   - Support interface variables and parameters
 
-- [ ] 13.9 Generate code for records
+- [ ] 17.9 Generate code for records
   - Generate Go struct definitions
   - Support record methods (static and instance)
   - Handle record literals and initialization
   - Generate record field access
 
-- [ ] 13.10 Generate code for enums
+- [ ] 17.10 Generate code for enums
   - Generate Go const declarations with iota
   - Support scoped and unscoped enum access
   - Generate Ord() and Integer() conversions
   - Handle explicit enum values
 
-- [ ] 13.11 Generate code for arrays
+- [ ] 17.11 Generate code for arrays
   - Generate static arrays (Go arrays: `[10]int`)
   - Generate dynamic arrays (Go slices: `[]int`)
   - Support array literals
@@ -3865,33 +3865,33 @@ This phase implements ahead-of-time (AOT) compilation by transpiling DWScript so
   - Implement SetLength, High, Low built-ins
   - Handle multi-dimensional arrays
 
-- [ ] 13.12 Generate code for sets
+- [ ] 17.12 Generate code for sets
   - Generate set types as Go map[T]bool or bitsets
   - Support set literals and constructors
   - Generate set operations (union, intersection, difference)
   - Implement `in` operator for set membership
 
-- [ ] 13.13 Generate code for properties
+- [ ] 17.13 Generate code for properties
   - Translate properties to getter/setter methods
   - Generate field-backed properties (direct access)
   - Generate method-backed properties (method calls)
   - Support read-only and write-only properties
   - Handle auto-properties
 
-- [ ] 13.14 Generate code for exceptions
+- [ ] 17.14 Generate code for exceptions
   - Generate try/except/finally as Go defer/recover
   - Map DWScript exceptions to Go error types
   - Generate raise statements (panic)
   - Implement exception class hierarchy
   - Preserve stack traces
 
-- [ ] 13.15 Generate code for operators and conversions
+- [ ] 17.15 Generate code for operators and conversions
   - Generate operator overloads as functions
   - Generate implicit conversions
   - Handle type coercion in expressions
   - Support custom operators
 
-- [ ] 13.16 Create runtime library for generated code
+- [ ] 17.16 Create runtime library for generated code
   - Create `pkg/runtime/` package
   - Implement built-in functions (PrintLn, Length, Copy, etc.)
   - Implement array/string manipulation functions
@@ -3900,14 +3900,14 @@ This phase implements ahead-of-time (AOT) compilation by transpiling DWScript so
   - Provide runtime type information (RTTI) for reflection
   - Support external function calls (FFI)
 
-- [ ] 13.17 Handle units/modules compilation
+- [ ] 17.17 Handle units/modules compilation
   - Generate separate Go packages for each unit
   - Handle unit dependencies and imports
   - Generate initialization/finalization code
   - Support uses clauses
   - Create package manifest
 
-- [ ] 13.18 Implement optimization passes
+- [ ] 17.18 Implement optimization passes
   - Constant folding
   - Dead code elimination
   - Inline small functions
@@ -3915,13 +3915,13 @@ This phase implements ahead-of-time (AOT) compilation by transpiling DWScript so
   - Optimize string concatenation
   - Use Go compiler optimization hints (//go:inline, etc.)
 
-- [ ] 13.19 Add source mapping for debugging
+- [ ] 17.19 Add source mapping for debugging
   - Preserve line number comments in generated code
   - Generate source map files (.map)
   - Add DWScript source file embedding
   - Support stack trace translation (Go → DWScript)
 
-- [ ] 13.20 Test Go code generation
+- [ ] 17.20 Test Go code generation
   - Generate code for all fixture tests
   - Compile and run generated code
   - Compare output with interpreter
@@ -3930,23 +3930,23 @@ This phase implements ahead-of-time (AOT) compilation by transpiling DWScript so
 
 **Expected Results**: 10-50x faster than tree-walking interpreter, near-native Go speed
 
-### Phase 13.2: AOT Compiler CLI (9-13 weeks)
+## Phase 18: AOT Compiler CLI (9-13 weeks)
 
-- [ ] 13.21 Create `dwscript compile` command
+- [ ] 18.1 Create `dwscript compile` command
   - Add `compile` subcommand to CLI
   - Parse input DWScript file(s)
   - Generate Go source code to output directory
   - Invoke `go build` to create executable
   - Support multiple output formats (executable, library, package)
 
-- [ ] 13.22 Implement project compilation mode
+- [ ] 18.2 Implement project compilation mode
   - Support compiling entire projects (multiple units)
   - Generate go.mod file
   - Handle dependencies between units
   - Create main package with entry point
   - Support compilation configuration (optimization level, target platform)
 
-- [ ] 13.23 Add compilation flags and options
+- [ ] 18.3 Add compilation flags and options
   - `--output` or `-o` for output path
   - `--optimize` or `-O` for optimization level (0, 1, 2, 3)
   - `--keep-go-source` to preserve generated Go files
@@ -3954,47 +3954,47 @@ This phase implements ahead-of-time (AOT) compilation by transpiling DWScript so
   - `--static` for static linking
   - `--debug` to include debug symbols
 
-- [ ] 13.24 Implement cross-compilation support
+- [ ] 18.4 Implement cross-compilation support
   - Support GOOS and GOARCH environment variables
   - Generate platform-specific code (if needed)
   - Test compilation for Linux, macOS, Windows, WASM
   - Document platform-specific limitations
 
-- [ ] 13.25 Add incremental compilation
+- [ ] 18.5 Add incremental compilation
   - Cache compiled units
   - Detect file changes (mtime, hash)
   - Recompile only changed units
   - Rebuild dependency graph
   - Speed up repeated compilations
 
-- [ ] 13.26 Create standalone binary builder
+- [ ] 18.6 Create standalone binary builder
   - Generate single-file executable
   - Embed DWScript runtime
   - Strip debug symbols (optional)
   - Compress binary with UPX (optional)
   - Test on different platforms
 
-- [ ] 13.27 Implement library compilation mode
+- [ ] 18.7 Implement library compilation mode
   - Generate Go package (not executable)
   - Export public functions/classes
   - Create Go-friendly API
   - Generate documentation (godoc)
   - Support embedding in other Go projects
 
-- [ ] 13.28 Add compilation error reporting
+- [ ] 18.8 Add compilation error reporting
   - Catch Go compilation errors
   - Translate errors to DWScript source locations
   - Provide helpful error messages
   - Suggest fixes for common issues
 
-- [ ] 13.29 Create compilation test suite
+- [ ] 18.9 Create compilation test suite
   - Test compilation of all fixture tests
   - Verify all executables run correctly
   - Test cross-compilation
   - Benchmark compilation speed
   - Measure binary sizes
 
-- [ ] 13.30 Document AOT compilation
+- [ ] 18.10 Document AOT compilation
   - Write `docs/aot-compilation.md`
   - Explain compilation process
   - Provide usage examples
@@ -4003,7 +4003,7 @@ This phase implements ahead-of-time (AOT) compilation by transpiling DWScript so
 
 ---
 
-## Phase 14: WebAssembly Runtime & Playground ✅ MOSTLY COMPLETE
+## Phase 19: WebAssembly Runtime & Playground ✅ MOSTLY COMPLETE
 
 **Status**: Core implementation complete | **Priority**: HIGH | **Tasks**: 23 complete, 3 pending
 
@@ -4013,147 +4013,147 @@ This phase implements WebAssembly support for running DWScript in browsers, incl
 
 **Architecture**: DWScript → WASM Binary → Browser/Node.js → JavaScript API
 
-### Phase 14.1: Platform Abstraction Layer ✅ COMPLETE
+### Phase 19.1: Platform Abstraction Layer ✅ COMPLETE
 
-- [x] 14.1 Create `pkg/platform/` package with core interfaces
+- [x] 19.1 Create `pkg/platform/` package with core interfaces
   - FileSystem, Console, Platform interfaces
   - Enables native and WebAssembly builds with consistent behavior
 
-- [x] 14.2 Implement `pkg/platform/native/` for standard Go
+- [x] 19.2 Implement `pkg/platform/native/` for standard Go
   - Standard Go implementations for native builds
   - Direct OS filesystem and console access
 
-- [x] 14.3 Implement `pkg/platform/wasm/` with virtual filesystem
+- [x] 19.3 Implement `pkg/platform/wasm/` with virtual filesystem
   - In-memory map for file storage
   - Console bridge to JavaScript console.log
   - Time functions using JavaScript Date API
   - Sleep implementation using setTimeout
 
-- [ ] 14.4 Create feature parity test suite
+- [ ] 19.4 Create feature parity test suite
   - Tests that run on both native and WASM
   - Validate platform abstraction works correctly
 
-- [ ] 14.5 Document platform differences and limitations
+- [ ] 19.5 Document platform differences and limitations
   - Platform-specific behavior documentation
   - Known limitations in WASM environment
 
-### Phase 14.2: WASM Build Infrastructure ✅ COMPLETE
+### Phase 19.2: WASM Build Infrastructure ✅ COMPLETE
 
-- [x] 14.6 Create build infrastructure
+- [x] 19.6 Create build infrastructure
   - `build/wasm/` directory with scripts
   - Justfile targets: `just wasm`, `just wasm-test`, `just wasm-optimize`, etc.
   - `cmd/dwscript-wasm/main.go` entry point with syscall/js exports
 
-- [x] 14.7 Implement build modes support
+- [x] 19.7 Implement build modes support
   - Monolithic, modular, hybrid modes (compile-time flags)
   - `pkg/wasm/` package for WASM bridge code
 
-- [x] 14.8 Add wasm_exec.js and optimization
+- [x] 19.8 Add wasm_exec.js and optimization
   - wasm_exec.js from Go distribution (multi-version support)
   - Integrate wasm-opt (Binaryen) for binary size optimization
   - Size monitoring (warns if >3MB uncompressed)
 
-- [ ] 14.9 Test all build modes
+- [ ] 19.9 Test all build modes
   - Compare sizes and performance
   - Validate each mode works correctly
 
-- [x] 14.10 Document build process
+- [x] 19.10 Document build process
   - `docs/wasm/BUILD.md` with build instructions
   - Configuration options and troubleshooting
 
-### Phase 14.3: JavaScript/Go Bridge ✅ COMPLETE
+### Phase 19.3: JavaScript/Go Bridge ✅ COMPLETE
 
-- [x] 14.11 Implement DWScript class API
+- [x] 19.11 Implement DWScript class API
   - `pkg/wasm/api.go` using syscall/js
   - Export init(), compile(), run(), eval() to JavaScript
 
-- [x] 14.12 Create type conversion utilities
+- [x] 19.12 Create type conversion utilities
   - Go types ↔ js.Value conversion in utils.go
   - Proper handling of DWScript types in JavaScript
 
-- [x] 14.13 Implement callback registration system
+- [x] 19.13 Implement callback registration system
   - `pkg/wasm/callbacks.go` for event handling
   - Virtual filesystem interface for JavaScript
 
-- [x] 14.14 Add error handling across boundary
+- [x] 19.14 Add error handling across boundary
   - Panics → exceptions with recovery
   - Structured error objects for DWScript runtime errors
 
-- [x] 14.15 Add event system
+- [x] 19.15 Add event system
   - on() method for output, error, and custom events
   - Memory management with proper js.Value.Release()
 
-- [x] 14.16 Document JavaScript API
+- [x] 19.16 Document JavaScript API
   - `docs/wasm/API.md` with complete API reference
   - Usage examples for browser and Node.js
 
-### Phase 14.4: Web Playground ✅ COMPLETE
+### Phase 19.4: Web Playground ✅ COMPLETE
 
-- [x] 14.17 Create playground directory structure
+- [x] 19.17 Create playground directory structure
   - `playground/` with HTML/CSS/JS files
   - Monaco Editor integration
 
-- [x] 14.18 Implement syntax highlighting
+- [x] 19.18 Implement syntax highlighting
   - DWScript language definition for Monaco
   - Tokenization rules matching lexer
 
-- [x] 14.19 Build split-pane UI
+- [x] 19.19 Build split-pane UI
   - Code editor + output console
   - Toolbar with Run, Examples, Clear, Share, Theme buttons
 
-- [x] 14.20 Implement URL-based code sharing
+- [x] 19.20 Implement URL-based code sharing
   - Base64 encoded code in fragment
   - Examples dropdown with sample programs
 
-- [x] 14.21 Add localStorage features
+- [x] 19.21 Add localStorage features
   - Auto-save and restore user code
   - Error markers in editor from compilation errors
 
-- [x] 14.22 Set up GitHub Pages deployment
+- [x] 19.22 Set up GitHub Pages deployment
   - GitHub Actions workflow for automated deployment
   - Testing checklist in playground/TESTING.md
 
-- [x] 14.23 Document playground architecture
+- [x] 19.23 Document playground architecture
   - `docs/wasm/PLAYGROUND.md` with architecture details
   - Extension points for future features
 
-### Phase 14.5: NPM Package ✅ MOSTLY COMPLETE
+### Phase 19.5: NPM Package ✅ MOSTLY COMPLETE
 
-- [x] 14.24 Create NPM package structure
+- [x] 19.24 Create NPM package structure
   - `npm/` with package.json
   - TypeScript definitions in `typescript/index.d.ts`
 
-- [x] 14.25 Create dual ESM/CommonJS entry points
+- [x] 19.25 Create dual ESM/CommonJS entry points
   - index.js (ESM) and index.cjs (CommonJS)
   - WASM loader helper for Node.js and browser
 
-- [x] 14.26 Add usage examples
+- [x] 19.26 Add usage examples
   - Node.js, React, Vue, vanilla JS examples
   - Automated NPM publishing via GitHub Actions
 
-- [x] 14.27 Configure for tree-shaking
+- [x] 19.27 Configure for tree-shaking
   - Optimal bundling configuration
   - `npm/README.md` with installation guide
 
-- [ ] 14.28 Publish to npmjs.com
+- [ ] 19.28 Publish to npmjs.com
   - Initial version publication
   - Version management strategy
 
-### Phase 14.6: Testing & Documentation
+### Phase 19.6: Testing & Documentation
 
-- [ ] 14.29 Write WASM-specific tests
+- [ ] 19.29 Write WASM-specific tests
   - GOOS=js GOARCH=wasm go test
   - Node.js integration test suite
 
-- [ ] 14.30 Add browser tests
+- [ ] 19.30 Add browser tests
   - Playwright tests for Chrome, Firefox, Safari
   - CI matrix for cross-browser testing
 
-- [ ] 14.31 Add performance benchmarks
+- [ ] 19.31 Add performance benchmarks
   - Compare WASM vs native speed
   - Bundle size regression monitoring in CI
 
-- [ ] 14.32 Write embedding guide
+- [ ] 19.32 Write embedding guide
   - `docs/wasm/EMBEDDING.md` for web app integration
   - Update main README with WASM section and playground link
 
@@ -4254,7 +4254,7 @@ This phase focuses on building a sustainable open-source community, maintaining 
 
 ---
 
-## Phase 15: MIR Foundation [DEFERRED]
+## Phase 21: MIR Foundation [DEFERRED]
 
 **Status**: Not started | **Priority**: MEDIUM | **Estimated Tasks**: 47 (MIR core, lowering, testing)
 
@@ -4268,83 +4268,83 @@ This phase implements a Mid-level Intermediate Representation (MIR) that serves 
 
 **Note**: JavaScript backend is implemented in Phase 16, LLVM backend in Phase 17.
 
-### Phase 15.1: MIR Foundation (30 tasks)
+### Phase 21.1: MIR Foundation (30 tasks)
 
 **Goal**: Define a complete, verifiable mid-level IR that can represent all DWScript constructs in a target-neutral way.
 
 **Exit Criteria**: MIR spec documented, complete type system, builder API, verifier, AST→MIR lowering for ~80% of constructs, 20+ golden tests, 85%+ coverage
 
-#### 14.1.1: MIR Package Structure and Types (10 tasks)
+#### 21.1.1: MIR Package Structure and Types (10 tasks)
 
-- [ ] 14.1 Create `mir/` package directory
-- [ ] 14.2 Create `mir/types.go` - MIR type system
-- [ ] 14.3 Define `Type` interface with `String()`, `Size()`, `Align()` methods
-- [ ] 14.4 Implement primitive types: `Bool`, `Int8`, `Int16`, `Int32`, `Int64`, `Float32`, `Float64`, `String`
-- [ ] 14.5 Implement composite types: `Array(elemType, size)`, `Record(fields)`, `Pointer(pointeeType)`
-- [ ] 14.6 Implement OOP types: `Class(name, fields, methods, parent)`, `Interface(name, methods)`
-- [ ] 14.7 Implement function types: `Function(params, returnType)`
-- [ ] 14.8 Add `Void` type for procedures
-- [ ] 14.9 Implement type equality and compatibility checking
-- [ ] 14.10 Implement type conversion rules (explicit vs implicit)
+- [ ] 21.1 Create `mir/` package directory
+- [ ] 21.2 Create `mir/types.go` - MIR type system
+- [ ] 21.3 Define `Type` interface with `String()`, `Size()`, `Align()` methods
+- [ ] 21.4 Implement primitive types: `Bool`, `Int8`, `Int16`, `Int32`, `Int64`, `Float32`, `Float64`, `String`
+- [ ] 21.5 Implement composite types: `Array(elemType, size)`, `Record(fields)`, `Pointer(pointeeType)`
+- [ ] 21.6 Implement OOP types: `Class(name, fields, methods, parent)`, `Interface(name, methods)`
+- [ ] 21.7 Implement function types: `Function(params, returnType)`
+- [ ] 21.8 Add `Void` type for procedures
+- [ ] 21.9 Implement type equality and compatibility checking
+- [ ] 21.10 Implement type conversion rules (explicit vs implicit)
 
-#### 14.1.2: MIR Instructions and Control Flow (10 tasks)
+#### 21.1.2: MIR Instructions and Control Flow (10 tasks)
 
-- [ ] 14.11 Create `mir/instruction.go` - MIR instruction set
-- [ ] 14.12 Define `Instruction` interface with `ID()`, `Type()`, `String()` methods
-- [ ] 14.13 Implement arithmetic ops: `Add`, `Sub`, `Mul`, `Div`, `Mod`, `Neg`
-- [ ] 14.14 Implement comparison ops: `Eq`, `Ne`, `Lt`, `Le`, `Gt`, `Ge`
-- [ ] 14.15 Implement logical ops: `And`, `Or`, `Xor`, `Not`
-- [ ] 14.16 Implement memory ops: `Alloca`, `Load`, `Store`
-- [ ] 14.17 Implement constants: `ConstInt`, `ConstFloat`, `ConstString`, `ConstBool`, `ConstNil`
-- [ ] 14.18 Implement conversions: `IntToFloat`, `FloatToInt`, `IntTrunc`, `IntExt`
-- [ ] 14.19 Implement function ops: `Call`, `VirtualCall`
-- [ ] 14.20 Implement array/class ops: `ArrayAlloc`, `ArrayLen`, `ArrayIndex`, `ArraySet`, `FieldGet`, `FieldSet`, `New`
+- [ ] 21.11 Create `mir/instruction.go` - MIR instruction set
+- [ ] 21.12 Define `Instruction` interface with `ID()`, `Type()`, `String()` methods
+- [ ] 21.13 Implement arithmetic ops: `Add`, `Sub`, `Mul`, `Div`, `Mod`, `Neg`
+- [ ] 21.14 Implement comparison ops: `Eq`, `Ne`, `Lt`, `Le`, `Gt`, `Ge`
+- [ ] 21.15 Implement logical ops: `And`, `Or`, `Xor`, `Not`
+- [ ] 21.16 Implement memory ops: `Alloca`, `Load`, `Store`
+- [ ] 21.17 Implement constants: `ConstInt`, `ConstFloat`, `ConstString`, `ConstBool`, `ConstNil`
+- [ ] 21.18 Implement conversions: `IntToFloat`, `FloatToInt`, `IntTrunc`, `IntExt`
+- [ ] 21.19 Implement function ops: `Call`, `VirtualCall`
+- [ ] 21.20 Implement array/class ops: `ArrayAlloc`, `ArrayLen`, `ArrayIndex`, `ArraySet`, `FieldGet`, `FieldSet`, `New`
 
-#### 14.1.3: MIR Control Flow Structures (5 tasks)
+#### 21.1.3: MIR Control Flow Structures (5 tasks)
 
-- [ ] 14.21 Create `mir/block.go` - Basic blocks with `ID`, `Instructions`, `Terminator`
-- [ ] 14.22 Implement control flow terminators: `Phi`, `Br`, `CondBr`, `Return`, `Throw`
-- [ ] 14.23 Implement terminator validation (every block must end with terminator)
-- [ ] 14.24 Implement block predecessors/successors tracking for CFG
-- [ ] 14.25 Create `mir/function.go` - Function representation with `Name`, `Params`, `ReturnType`, `Blocks`, `Locals`
+- [ ] 21.21 Create `mir/block.go` - Basic blocks with `ID`, `Instructions`, `Terminator`
+- [ ] 21.22 Implement control flow terminators: `Phi`, `Br`, `CondBr`, `Return`, `Throw`
+- [ ] 21.23 Implement terminator validation (every block must end with terminator)
+- [ ] 21.24 Implement block predecessors/successors tracking for CFG
+- [ ] 21.25 Create `mir/function.go` - Function representation with `Name`, `Params`, `ReturnType`, `Blocks`, `Locals`
 
-#### 14.1.4: MIR Builder API (3 tasks)
+#### 21.1.4: MIR Builder API (3 tasks)
 
-- [ ] 14.26 Create `mir/builder.go` - Safe MIR construction
-- [ ] 14.27 Implement `Builder` struct with function/block context, `NewFunction()`, `NewBlock()`, `SetInsertPoint()`
-- [ ] 14.28 Implement instruction emission methods: `EmitAdd()`, `EmitLoad()`, `EmitStore()`, etc. with type checking
+- [ ] 21.26 Create `mir/builder.go` - Safe MIR construction
+- [ ] 21.27 Implement `Builder` struct with function/block context, `NewFunction()`, `NewBlock()`, `SetInsertPoint()`
+- [ ] 21.28 Implement instruction emission methods: `EmitAdd()`, `EmitLoad()`, `EmitStore()`, etc. with type checking
 
-#### 14.1.5: MIR Verifier (2 tasks)
+#### 21.1.5: MIR Verifier (2 tasks)
 
-- [ ] 14.29 Create `mir/verifier.go` - MIR correctness checking
-- [ ] 14.30 Implement CFG, type, SSA, and function signature verification with `Verify(fn *Function) []error` API
+- [ ] 21.29 Create `mir/verifier.go` - MIR correctness checking
+- [ ] 21.30 Implement CFG, type, SSA, and function signature verification with `Verify(fn *Function) []error` API
 
 ### Phase 15.2: AST → MIR Lowering (12 tasks)
 
-- [ ] 14.31 Create `mir/lower.go` - AST to MIR translation
-- [ ] 14.32 Implement `LowerProgram(ast *ast.Program) (*mir.Module, error)` entry point
-- [ ] 14.33 Lower expressions: literals → `Const*` instructions
-- [ ] 14.34 Lower binary operations → corresponding MIR ops (handle short-circuit for `and`/`or`)
-- [ ] 14.35 Lower unary operations → `Neg`, `Not`
-- [ ] 14.36 Lower identifier references → `Load` instructions
-- [ ] 14.37 Lower function calls → `Call` instructions
-- [ ] 14.38 Lower array indexing → `ArrayIndex` + bounds check insertion
-- [ ] 14.39 Lower record field access → `FieldGet`/`FieldSet`
-- [ ] 14.40 Lower statements: variable declarations, assignments, if/while/for, return
-- [ ] 14.41 Lower declarations: functions/procedures, records, classes
-- [ ] 14.42 Implement short-circuit evaluation and simple optimizations (constant folding, dead code elimination)
+- [ ] 21.31 Create `mir/lower.go` - AST to MIR translation
+- [ ] 21.32 Implement `LowerProgram(ast *ast.Program) (*mir.Module, error)` entry point
+- [ ] 21.33 Lower expressions: literals → `Const*` instructions
+- [ ] 21.34 Lower binary operations → corresponding MIR ops (handle short-circuit for `and`/`or`)
+- [ ] 21.35 Lower unary operations → `Neg`, `Not`
+- [ ] 21.36 Lower identifier references → `Load` instructions
+- [ ] 21.37 Lower function calls → `Call` instructions
+- [ ] 21.38 Lower array indexing → `ArrayIndex` + bounds check insertion
+- [ ] 21.39 Lower record field access → `FieldGet`/`FieldSet`
+- [ ] 21.40 Lower statements: variable declarations, assignments, if/while/for, return
+- [ ] 21.41 Lower declarations: functions/procedures, records, classes
+- [ ] 21.42 Implement short-circuit evaluation and simple optimizations (constant folding, dead code elimination)
 
 ### Phase 15.3: MIR Debugging and Testing (5 tasks)
 
-- [ ] 14.43 Create `mir/dump.go` - Human-readable MIR output with `Dump(fn *Function) string`
-- [ ] 14.44 Integration with CLI: `./bin/dwscript dump-mir script.dws`
-- [ ] 14.45 Create golden MIR tests: 5+ each for expressions, control flow, functions, advanced features
-- [ ] 14.46 Implement MIR verifier tests: type mismatches, malformed CFG, SSA violations
-- [ ] 14.47 Implement round-trip tests: AST → MIR → verify → dump → compare with golden files
+- [ ] 21.43 Create `mir/dump.go` - Human-readable MIR output with `Dump(fn *Function) string`
+- [ ] 21.44 Integration with CLI: `./bin/dwscript dump-mir script.dws`
+- [ ] 21.45 Create golden MIR tests: 5+ each for expressions, control flow, functions, advanced features
+- [ ] 21.46 Implement MIR verifier tests: type mismatches, malformed CFG, SSA violations
+- [ ] 21.47 Implement round-trip tests: AST → MIR → verify → dump → compare with golden files
 
 ---
 
-## Phase 16: JavaScript Backend [DEFERRED]
+## Phase 22: JavaScript Backend [DEFERRED]
 
 **Status**: Not started | **Priority**: MEDIUM | **Estimated Tasks**: 105 (MVP + feature complete)
 
@@ -4358,162 +4358,162 @@ This phase implements a JavaScript code generator that translates MIR to readabl
 
 **Dependencies**: Requires Phase 15 (MIR Foundation) to be completed first
 
-### Phase 16.1: JS Backend MVP (45 tasks)
+### Phase 22.1: JS Backend MVP (45 tasks)
 
 **Goal**: Implement a JavaScript code generator that can compile basic DWScript programs to readable, runnable JavaScript.
 
 **Exit Criteria**: JS emitter for expressions/control flow/functions, 20+ end-to-end tests (DWScript→JS→execute), golden JS snapshots, 85%+ coverage
 
-#### 12.4.1: JS Emitter Infrastructure (8 tasks)
+#### 22.4.1: JS Emitter Infrastructure (8 tasks)
 
-- [ ] 14.48 Create `codegen/` package with `Backend` interface and `EmitterOptions`
-- [ ] 14.49 Create `codegen/js/` package and `emitter.go`
-- [ ] 14.50 Define `JSEmitter` struct with `out`, `indent`, `opts`, `tmpCounter`
-- [ ] 14.51 Implement helper methods: `emit()`, `emitLine()`, `emitIndent()`, `pushIndent()`, `popIndent()`
-- [ ] 14.52 Implement `newTemp()` for temporary variable naming
-- [ ] 14.53 Implement `NewJSEmitter(opts EmitterOptions)`
-- [ ] 14.54 Implement `Generate(module *mir.Module) (string, error)` entry point
-- [ ] 14.55 Test emitter infrastructure
+- [ ] 22.48 Create `codegen/` package with `Backend` interface and `EmitterOptions`
+- [ ] 22.49 Create `codegen/js/` package and `emitter.go`
+- [ ] 22.50 Define `JSEmitter` struct with `out`, `indent`, `opts`, `tmpCounter`
+- [ ] 22.51 Implement helper methods: `emit()`, `emitLine()`, `emitIndent()`, `pushIndent()`, `popIndent()`
+- [ ] 22.52 Implement `newTemp()` for temporary variable naming
+- [ ] 22.53 Implement `NewJSEmitter(opts EmitterOptions)`
+- [ ] 22.54 Implement `Generate(module *mir.Module) (string, error)` entry point
+- [ ] 22.55 Test emitter infrastructure
 
-#### 14.4.2: Module and Function Emission (6 tasks)
+#### 22.4.2: Module and Function Emission (6 tasks)
 
-- [ ] 14.56 Implement module structure emission: ES Module format with `export`, file header comment
-- [ ] 14.57 Implement optional IIFE fallback via `EmitterOptions`
-- [ ] 14.58 Implement function emission: `function fname(params) { ... }`
-- [ ] 14.59 Map DWScript params to JS params (preserve names)
-- [ ] 14.60 Emit local variable declarations at function top (from `Alloca` instructions)
-- [ ] 14.61 Handle procedures (no return value) as JS functions
+- [ ] 22.56 Implement module structure emission: ES Module format with `export`, file header comment
+- [ ] 22.57 Implement optional IIFE fallback via `EmitterOptions`
+- [ ] 22.58 Implement function emission: `function fname(params) { ... }`
+- [ ] 22.59 Map DWScript params to JS params (preserve names)
+- [ ] 22.60 Emit local variable declarations at function top (from `Alloca` instructions)
+- [ ] 22.61 Handle procedures (no return value) as JS functions
 
-#### 14.4.3: Expression and Instruction Lowering (12 tasks)
+#### 22.4.3: Expression and Instruction Lowering (12 tasks)
 
-- [ ] 14.62 Lower arithmetic operations → JS infix operators: `+`, `-`, `*`, `/`, `%`, unary `-`
-- [ ] 14.63 Lower comparison operations → JS comparisons: `===`, `!==`, `<`, `<=`, `>`, `>=`
-- [ ] 14.64 Lower logical operations → JS boolean ops: `&&`, `||`, `!`
-- [ ] 14.65 Lower constants → JS literals with proper escaping
-- [ ] 14.66 Lower variable operations: `Load` → variable reference, `Store` → assignment
-- [ ] 14.67 Lower function calls: `Call` → `functionName(args)`
-- [ ] 14.68 Implement Phi node lowering with temporary variables at block edges
-- [ ] 14.69 Test expression lowering
-- [ ] 14.70 Test instruction lowering
-- [ ] 14.71 Test temporary variable generation
-- [ ] 14.72 Test type conversions
-- [ ] 14.73 Test complex expressions
+- [ ] 22.62 Lower arithmetic operations → JS infix operators: `+`, `-`, `*`, `/`, `%`, unary `-`
+- [ ] 22.63 Lower comparison operations → JS comparisons: `===`, `!==`, `<`, `<=`, `>`, `>=`
+- [ ] 22.64 Lower logical operations → JS boolean ops: `&&`, `||`, `!`
+- [ ] 22.65 Lower constants → JS literals with proper escaping
+- [ ] 22.66 Lower variable operations: `Load` → variable reference, `Store` → assignment
+- [ ] 22.67 Lower function calls: `Call` → `functionName(args)`
+- [ ] 22.68 Implement Phi node lowering with temporary variables at block edges
+- [ ] 22.69 Test expression lowering
+- [ ] 22.70 Test instruction lowering
+- [ ] 22.71 Test temporary variable generation
+- [ ] 22.72 Test type conversions
+- [ ] 22.73 Test complex expressions
 
-#### 14.4.4: Control Flow Emission (8 tasks)
+#### 22.4.4: Control Flow Emission (8 tasks)
 
-- [ ] 14.74 Implement control flow reconstruction from MIR CFG
-- [ ] 14.75 Detect if/else patterns from `CondBr`
-- [ ] 14.76 Detect while loop patterns (backedge to header)
-- [ ] 14.77 Emit if-else: `if (condition) { ... } else { ... }`
-- [ ] 14.78 Emit while loops: `while (condition) { ... }`
-- [ ] 14.79 Emit for loops if MIR preserves metadata
-- [ ] 14.80 Handle unconditional branches
-- [ ] 14.81 Handle return statements
+- [ ] 22.74 Implement control flow reconstruction from MIR CFG
+- [ ] 22.75 Detect if/else patterns from `CondBr`
+- [ ] 22.76 Detect while loop patterns (backedge to header)
+- [ ] 22.77 Emit if-else: `if (condition) { ... } else { ... }`
+- [ ] 22.78 Emit while loops: `while (condition) { ... }`
+- [ ] 22.79 Emit for loops if MIR preserves metadata
+- [ ] 22.80 Handle unconditional branches
+- [ ] 22.81 Handle return statements
 
-#### 14.4.5: Runtime and Testing (11 tasks)
+#### 22.4.5: Runtime and Testing (11 tasks)
 
-- [ ] 14.82 Create `runtime/js/runtime.js` with `_dws.boundsCheck()`, `_dws.assert()`
-- [ ] 14.83 Emit runtime import in generated JS (if needed)
-- [ ] 14.84 Make runtime usage optional via `EmitterOptions.InsertBoundsChecks`
-- [ ] 14.85 Create `codegen/js/testdata/` with subdirectories
-- [ ] 14.86 Implement golden JS snapshot tests
-- [ ] 14.87 Setup Node.js in CI (GitHub Actions)
-- [ ] 14.88 Implement execution tests: parse → lower → generate → execute → verify
-- [ ] 14.89 Add end-to-end tests for arithmetic, control flow, functions, loops
-- [ ] 14.90 Add unit tests for JS emitter
-- [ ] 14.91 Achieve 85%+ coverage for `codegen/js/` package
-- [ ] 14.92 Add `compile-js` CLI command: `./bin/dwscript compile-js input.dws -o output.js`
+- [ ] 22.82 Create `runtime/js/runtime.js` with `_dws.boundsCheck()`, `_dws.assert()`
+- [ ] 22.83 Emit runtime import in generated JS (if needed)
+- [ ] 22.84 Make runtime usage optional via `EmitterOptions.InsertBoundsChecks`
+- [ ] 22.85 Create `codegen/js/testdata/` with subdirectories
+- [ ] 22.86 Implement golden JS snapshot tests
+- [ ] 22.87 Setup Node.js in CI (GitHub Actions)
+- [ ] 22.88 Implement execution tests: parse → lower → generate → execute → verify
+- [ ] 22.89 Add end-to-end tests for arithmetic, control flow, functions, loops
+- [ ] 22.90 Add unit tests for JS emitter
+- [ ] 22.91 Achieve 85%+ coverage for `codegen/js/` package
+- [ ] 22.92 Add `compile-js` CLI command: `./bin/dwscript compile-js input.dws -o output.js`
 
-### Phase 16.2: JS Feature Complete (60 tasks)
+### Phase 22.2: JS Feature Complete (60 tasks)
 
 **Goal**: Extend JS backend to support all DWScript language features.
 
 **Exit Criteria**: Full OOP, composite types, exceptions, properties, 50+ comprehensive tests, real-world samples work
 
-#### 14.5.1: Records (7 tasks)
+#### 22.5.1: Records (7 tasks)
 
-- [ ] 14.93 Implement MIR support for records
-- [ ] 14.94 Emit records as plain JS objects: `{ x: 0, y: 0 }`
-- [ ] 14.95 Implement constructor functions for records
-- [ ] 14.96 Implement field access/assignment as property access
-- [ ] 14.97 Implement record copy semantics with `_dws.copyRecord()`
-- [ ] 14.98 Test record creation, initialization, field read/write
-- [ ] 14.99 Test nested records and copy semantics
+- [ ] 22.93 Implement MIR support for records
+- [ ] 22.94 Emit records as plain JS objects: `{ x: 0, y: 0 }`
+- [ ] 22.95 Implement constructor functions for records
+- [ ] 22.96 Implement field access/assignment as property access
+- [ ] 22.97 Implement record copy semantics with `_dws.copyRecord()`
+- [ ] 22.98 Test record creation, initialization, field read/write
+- [ ] 22.99 Test nested records and copy semantics
 
-#### 14.5.2: Arrays (10 tasks)
+#### 22.5.2: Arrays (10 tasks)
 
-- [ ] 14.100 Extend MIR for static and dynamic arrays
-- [ ] 14.101 Emit static arrays as JS arrays with fixed size
-- [ ] 14.102 Implement array index access with optional bounds checking
-- [ ] 14.103 Emit dynamic arrays as JS arrays
-- [ ] 14.104 Implement `SetLength` → `arr.length = newLen`
-- [ ] 14.105 Implement `Length` → `arr.length`
-- [ ] 14.106 Support multi-dimensional arrays (nested JS arrays)
-- [ ] 14.107 Implement array operations: copy, concatenation
-- [ ] 14.108 Test static array creation and indexing
-- [ ] 14.109 Test dynamic array operations and bounds checking
+- [ ] 22.100 Extend MIR for static and dynamic arrays
+- [ ] 22.101 Emit static arrays as JS arrays with fixed size
+- [ ] 22.102 Implement array index access with optional bounds checking
+- [ ] 22.103 Emit dynamic arrays as JS arrays
+- [ ] 22.104 Implement `SetLength` → `arr.length = newLen`
+- [ ] 22.105 Implement `Length` → `arr.length`
+- [ ] 22.106 Support multi-dimensional arrays (nested JS arrays)
+- [ ] 22.107 Implement array operations: copy, concatenation
+- [ ] 22.108 Test static array creation and indexing
+- [ ] 22.109 Test dynamic array operations and bounds checking
 
-#### 14.5.3: Classes and Inheritance (15 tasks)
+#### 22.5.3: Classes and Inheritance (15 tasks)
 
-- [ ] 14.110 Extend MIR for classes with fields, methods, parent, vtable
-- [ ] 14.111 Emit ES6 class syntax: `class TAnimal { ... }`
-- [ ] 14.112 Implement field initialization in constructor
-- [ ] 14.113 Implement method emission
-- [ ] 14.114 Implement inheritance with `extends` clause
-- [ ] 14.115 Implement `super()` call in constructor
-- [ ] 14.116 Handle virtual method dispatch (naturally virtual in JS)
-- [ ] 14.117 Handle DWScript `Create` → JS `constructor`
-- [ ] 14.118 Handle multiple constructors (overload dispatch)
-- [ ] 14.119 Document destructor handling (no direct equivalent in JS)
-- [ ] 14.120 Implement static fields and methods
-- [ ] 14.121 Map `Self` → `this`, `inherited` → `super.method()`
-- [ ] 14.122 Test simple classes with fields and methods
-- [ ] 14.123 Test inheritance, virtual method overriding, constructors
-- [ ] 14.124 Test static members and `Self`/`inherited` usage
+- [ ] 22.110 Extend MIR for classes with fields, methods, parent, vtable
+- [ ] 22.111 Emit ES6 class syntax: `class TAnimal { ... }`
+- [ ] 22.112 Implement field initialization in constructor
+- [ ] 22.113 Implement method emission
+- [ ] 22.114 Implement inheritance with `extends` clause
+- [ ] 22.115 Implement `super()` call in constructor
+- [ ] 22.116 Handle virtual method dispatch (naturally virtual in JS)
+- [ ] 22.117 Handle DWScript `Create` → JS `constructor`
+- [ ] 22.118 Handle multiple constructors (overload dispatch)
+- [ ] 22.119 Document destructor handling (no direct equivalent in JS)
+- [ ] 22.120 Implement static fields and methods
+- [ ] 22.121 Map `Self` → `this`, `inherited` → `super.method()`
+- [ ] 22.122 Test simple classes with fields and methods
+- [ ] 22.123 Test inheritance, virtual method overriding, constructors
+- [ ] 22.124 Test static members and `Self`/`inherited` usage
 
-#### 14.5.4: Interfaces (6 tasks)
+#### 22.5.4: Interfaces (6 tasks)
 
-- [ ] 14.125 Extend MIR for interfaces
-- [ ] 14.126 Choose and document JS emission strategy (structural typing vs runtime metadata)
-- [ ] 14.127 If using runtime metadata: emit interface tables, implement `is`/`as` operators
-- [ ] 14.128 Test class implementing interface
-- [ ] 14.129 Test interface method calls
-- [ ] 14.130 Test `is` and `as` with interfaces
+- [ ] 22.125 Extend MIR for interfaces
+- [ ] 22.126 Choose and document JS emission strategy (structural typing vs runtime metadata)
+- [ ] 22.127 If using runtime metadata: emit interface tables, implement `is`/`as` operators
+- [ ] 22.128 Test class implementing interface
+- [ ] 22.129 Test interface method calls
+- [ ] 22.130 Test `is` and `as` with interfaces
 
-#### 14.5.5: Enums and Sets (8 tasks)
+#### 22.5.5: Enums and Sets (8 tasks)
 
-- [ ] 14.131 Extend MIR for enums
-- [ ] 14.132 Emit enums as frozen JS objects: `const TColor = Object.freeze({...})`
-- [ ] 14.133 Support scoped and unscoped enum access
-- [ ] 14.134 Extend MIR for sets
-- [ ] 14.135 Emit small sets (≤32 elements) as bitmasks
-- [ ] 14.136 Emit large sets as JS `Set` objects
-- [ ] 14.137 Implement set operations: union, intersection, difference, inclusion
-- [ ] 14.138 Test enum declaration/usage and set operations
+- [ ] 22.131 Extend MIR for enums
+- [ ] 22.132 Emit enums as frozen JS objects: `const TColor = Object.freeze({...})`
+- [ ] 22.133 Support scoped and unscoped enum access
+- [ ] 22.134 Extend MIR for sets
+- [ ] 22.135 Emit small sets (≤32 elements) as bitmasks
+- [ ] 22.136 Emit large sets as JS `Set` objects
+- [ ] 22.137 Implement set operations: union, intersection, difference, inclusion
+- [ ] 22.138 Test enum declaration/usage and set operations
 
-#### 14.5.6: Exception Handling (8 tasks)
+#### 22.5.6: Exception Handling (8 tasks)
 
-- [ ] 14.139 Extend MIR for exceptions: `Throw`, `Try`, `Catch`, `Finally`
-- [ ] 14.140 Emit `Throw` → `throw new Error()` or custom exception class
-- [ ] 14.141 Emit try-except-finally → JS `try/catch/finally`
-- [ ] 14.142 Create DWScript exception class → JS `Error` subclass
-- [ ] 14.143 Handle `On E: ExceptionType do` with instanceof checks
-- [ ] 14.144 Implement re-raise with exception tracking
-- [ ] 14.145 Test basic try-except, multiple handlers, try-finally
-- [ ] 14.146 Test re-raise and nested exception handling
+- [ ] 22.139 Extend MIR for exceptions: `Throw`, `Try`, `Catch`, `Finally`
+- [ ] 22.140 Emit `Throw` → `throw new Error()` or custom exception class
+- [ ] 22.141 Emit try-except-finally → JS `try/catch/finally`
+- [ ] 22.142 Create DWScript exception class → JS `Error` subclass
+- [ ] 22.143 Handle `On E: ExceptionType do` with instanceof checks
+- [ ] 22.144 Implement re-raise with exception tracking
+- [ ] 22.145 Test basic try-except, multiple handlers, try-finally
+- [ ] 22.146 Test re-raise and nested exception handling
 
-#### 14.5.7: Properties and Advanced Features (6 tasks)
+#### 22.5.7: Properties and Advanced Features (6 tasks)
 
-- [ ] 14.147 Extend MIR for properties with `PropGet`/`PropSet`
-- [ ] 14.148 Emit properties as ES6 getters/setters
-- [ ] 14.149 Handle indexed properties as methods
-- [ ] 14.150 Test read/write properties and indexed properties
-- [ ] 14.151 Implement operator overloading (desugar to method calls)
-- [ ] 14.152 Implement generics support (monomorphization)
+- [ ] 22.147 Extend MIR for properties with `PropGet`/`PropSet`
+- [ ] 22.148 Emit properties as ES6 getters/setters
+- [ ] 22.149 Handle indexed properties as methods
+- [ ] 22.150 Test read/write properties and indexed properties
+- [ ] 22.151 Implement operator overloading (desugar to method calls)
+- [ ] 22.152 Implement generics support (monomorphization)
 
 ---
 
-## Phase 17: LLVM Backend [DEFERRED]
+## Phase 23: LLVM Backend [DEFERRED]
 
 **Status**: Not started | **Priority**: LOW | **Estimated Tasks**: 45
 
@@ -4529,71 +4529,71 @@ This phase implements an LLVM IR backend for native code compilation, consolidat
 
 **Note**: This phase consolidates LLVM JIT (from old Phase 13.2), LLVM AOT (from old Phase 13.4), and LLVM backend (from old Stage 14.6). Given complexity and maintenance burden, this is marked as DEFERRED with LOW priority. The bytecode VM and Go AOT provide sufficient performance for most use cases.
 
-### Phase 17.1: LLVM Infrastructure (8 tasks)
+### Phase 23.1: LLVM Infrastructure (8 tasks)
 
 **Goal**: Set up LLVM bindings, type mapping, and runtime declarations
 
-- [ ] 14.153 Choose LLVM binding: `llir/llvm` (pure Go) vs CGo bindings
-- [ ] 14.154 Create `codegen/llvm/` package with `emitter.go`, `types.go`, `runtime.go`
-- [ ] 14.155 Implement type mapping: DWScript types → LLVM types
-- [ ] 14.156 Map Integer → `i32`/`i64`, Float → `double`, Boolean → `i1`
-- [ ] 14.157 Map String → struct `{i32 len, i8* data}`
-- [ ] 14.158 Map arrays/objects to LLVM structs
-- [ ] 14.159 Emit LLVM module with target triple
-- [ ] 14.160 Declare external runtime functions
+- [ ] 23.153 Choose LLVM binding: `llir/llvm` (pure Go) vs CGo bindings
+- [ ] 23.154 Create `codegen/llvm/` package with `emitter.go`, `types.go`, `runtime.go`
+- [ ] 23.155 Implement type mapping: DWScript types → LLVM types
+- [ ] 23.156 Map Integer → `i32`/`i64`, Float → `double`, Boolean → `i1`
+- [ ] 23.157 Map String → struct `{i32 len, i8* data}`
+- [ ] 23.158 Map arrays/objects to LLVM structs
+- [ ] 23.159 Emit LLVM module with target triple
+- [ ] 23.160 Declare external runtime functions
 
-### Phase 17.2: Runtime Library (12 tasks)
+### Phase 23.2: Runtime Library (12 tasks)
 
-- [ ] 14.161 Create `runtime/dws_runtime.h` - C header for runtime API
-- [ ] 14.162 Declare string operations: `dws_string_new()`, `dws_string_concat()`, `dws_string_len()`
-- [ ] 14.163 Declare array operations: `dws_array_new()`, `dws_array_index()`, `dws_array_len()`
-- [ ] 14.164 Declare memory management: `dws_alloc()`, `dws_free()`
-- [ ] 14.165 Choose and document memory strategy (Boehm GC vs reference counting)
-- [ ] 14.166 Declare object operations: `dws_object_new()`, virtual dispatch helpers
-- [ ] 14.167 Declare exception handling: `dws_throw()`, `dws_catch()`
-- [ ] 14.168 Declare RTTI: `dws_is_instance()`, `dws_as_instance()`
-- [ ] 14.169 Create `runtime/dws_runtime.c` - implement runtime
-- [ ] 14.170 Implement all runtime functions
-- [ ] 14.171 Create `runtime/Makefile` to build `libdws_runtime.a`
-- [ ] 14.172 Add runtime build to CI for Linux/macOS/Windows
+- [ ] 23.161 Create `runtime/dws_runtime.h` - C header for runtime API
+- [ ] 23.162 Declare string operations: `dws_string_new()`, `dws_string_concat()`, `dws_string_len()`
+- [ ] 23.163 Declare array operations: `dws_array_new()`, `dws_array_index()`, `dws_array_len()`
+- [ ] 23.164 Declare memory management: `dws_alloc()`, `dws_free()`
+- [ ] 23.165 Choose and document memory strategy (Boehm GC vs reference counting)
+- [ ] 23.166 Declare object operations: `dws_object_new()`, virtual dispatch helpers
+- [ ] 23.167 Declare exception handling: `dws_throw()`, `dws_catch()`
+- [ ] 23.168 Declare RTTI: `dws_is_instance()`, `dws_as_instance()`
+- [ ] 23.169 Create `runtime/dws_runtime.c` - implement runtime
+- [ ] 23.170 Implement all runtime functions
+- [ ] 23.171 Create `runtime/Makefile` to build `libdws_runtime.a`
+- [ ] 23.172 Add runtime build to CI for Linux/macOS/Windows
 
-### Phase 17.3: LLVM Code Emission (15 tasks)
+### Phase 23.3: LLVM Code Emission (15 tasks)
 
-- [ ] 14.173 Implement LLVM emitter: `Generate(module *mir.Module) (string, error)`
-- [ ] 14.174 Emit function declarations with correct signatures
-- [ ] 14.175 Emit basic blocks for each MIR block
-- [ ] 14.176 Emit arithmetic instructions: `add`, `sub`, `mul`, `sdiv`, `srem`
-- [ ] 14.177 Emit comparison instructions: `icmp eq`, `icmp slt`, etc.
-- [ ] 14.178 Emit logical instructions: `and`, `or`, `xor`
-- [ ] 14.179 Emit memory instructions: `alloca`, `load`, `store`
-- [ ] 14.180 Emit call instructions: `call @function_name(args)`
-- [ ] 14.181 Emit constants: integers, floats, strings
-- [ ] 14.182 Emit control flow: conditional branches, phi nodes
-- [ ] 14.183 Emit runtime calls for strings, arrays, objects
-- [ ] 14.184 Implement type conversions: `sitofp`, `fptosi`
-- [ ] 14.185 Emit struct types for classes and vtables
-- [ ] 14.186 Implement virtual method dispatch
-- [ ] 14.187 Implement exception handling (simple throw/catch or full LLVM EH)
+- [ ] 23.173 Implement LLVM emitter: `Generate(module *mir.Module) (string, error)`
+- [ ] 23.174 Emit function declarations with correct signatures
+- [ ] 23.175 Emit basic blocks for each MIR block
+- [ ] 23.176 Emit arithmetic instructions: `add`, `sub`, `mul`, `sdiv`, `srem`
+- [ ] 23.177 Emit comparison instructions: `icmp eq`, `icmp slt`, etc.
+- [ ] 23.178 Emit logical instructions: `and`, `or`, `xor`
+- [ ] 23.179 Emit memory instructions: `alloca`, `load`, `store`
+- [ ] 23.180 Emit call instructions: `call @function_name(args)`
+- [ ] 23.181 Emit constants: integers, floats, strings
+- [ ] 23.182 Emit control flow: conditional branches, phi nodes
+- [ ] 23.183 Emit runtime calls for strings, arrays, objects
+- [ ] 23.184 Implement type conversions: `sitofp`, `fptosi`
+- [ ] 23.185 Emit struct types for classes and vtables
+- [ ] 23.186 Implement virtual method dispatch
+- [ ] 23.187 Implement exception handling (simple throw/catch or full LLVM EH)
 
-### Phase 17.4: Linking and Testing (7 tasks)
+### Phase 23.4: Linking and Testing (7 tasks)
 
-- [ ] 14.188 Implement compilation pipeline: DWScript → MIR → LLVM IR → object → executable
-- [ ] 14.189 Integrate `llc` to compile .ll → .o
-- [ ] 14.190 Integrate linker to link object + runtime → executable
-- [ ] 14.191 Add `compile-native` CLI command
-- [ ] 14.192 Create 10+ end-to-end tests: DWScript → native → execute → verify
-- [ ] 14.193 Benchmark JS vs native performance
-- [ ] 14.194 Document LLVM backend in `docs/llvm-backend.md`
+- [ ] 23.188 Implement compilation pipeline: DWScript → MIR → LLVM IR → object → executable
+- [ ] 23.189 Integrate `llc` to compile .ll → .o
+- [ ] 23.190 Integrate linker to link object + runtime → executable
+- [ ] 23.191 Add `compile-native` CLI command
+- [ ] 23.192 Create 10+ end-to-end tests: DWScript → native → execute → verify
+- [ ] 23.193 Benchmark JS vs native performance
+- [ ] 23.194 Document LLVM backend in `docs/llvm-backend.md`
 
-### Phase 17.5: Documentation (3 tasks)
+### Phase 23.5: Documentation (3 tasks)
 
-- [ ] 14.195 Create `docs/codegen-architecture.md` - MIR overview, multi-backend design
-- [ ] 14.196 Create `docs/mir-spec.md` - complete MIR reference with examples
-- [ ] 14.197 Create `docs/js-backend.md` - DWScript → JavaScript mapping guide
+- [ ] 23.195 Create `docs/codegen-architecture.md` - MIR overview, multi-backend design
+- [ ] 23.196 Create `docs/mir-spec.md` - complete MIR reference with examples
+- [ ] 23.197 Create `docs/js-backend.md` - DWScript → JavaScript mapping guide
 
 ---
 
-## Phase 18: WebAssembly AOT Compilation [RECOMMENDED]
+## Phase 24: WebAssembly AOT Compilation [RECOMMENDED]
 
 **Status**: Not started | **Priority**: MEDIUM-HIGH | **Estimated Tasks**: 5
 
@@ -4607,33 +4607,33 @@ This phase extends WebAssembly support to generate standalone WASM binaries that
 
 **Dependencies**: Builds on Phase 14 (WebAssembly Runtime & Playground)
 
-### Phase 18.1: Standalone WASM Binaries (5 tasks)
+### Phase 24.1: Standalone WASM Binaries (5 tasks)
 
-- [ ] 18.1 Extend WASM compilation for standalone binaries
+- [ ] 24.1 Extend WASM compilation for standalone binaries
   - Generate WASM modules without JavaScript dependency
   - Use WASI for system calls
   - Support WASM-compatible runtime
   - Test with wasmtime, wasmer, wazero
 
-- [ ] 18.2 Optimize WASM binary size
+- [ ] 24.2 Optimize WASM binary size
   - Use TinyGo compiler (smaller binaries)
   - Enable wasm-opt optimization
   - Strip unnecessary features
   - Measure binary size (target < 1MB)
 
-- [ ] 18.3 Add WASM runtime support
+- [ ] 24.3 Add WASM runtime support
   - Bundle WASM runtime (wasmer-go or wazero)
   - Create launcher executable
   - Support both JIT and AOT WASM execution
   - Test performance
 
-- [ ] 18.4 Test WASM AOT compilation
+- [ ] 24.4 Test WASM AOT compilation
   - Compile fixture tests to WASM
   - Run with different WASM runtimes
   - Measure performance vs native
   - Test browser and server execution
 
-- [ ] 18.5 Document WASM AOT
+- [ ] 24.5 Document WASM AOT
   - Write `docs/wasm-aot.md`
   - Explain WASM compilation process
   - Provide deployment examples
@@ -4643,7 +4643,7 @@ This phase extends WebAssembly support to generate standalone WASM binaries that
 
 ---
 
-## Phase 19: AST-Driven Formatter 🆕 **PLANNED**
+## Phase 25: AST-Driven Formatter 🆕 **PLANNED**
 
 **Status**: Not started | **Priority**: MEDIUM | **Estimated Tasks**: 30
 
@@ -4657,49 +4657,49 @@ This phase delivers an auto-formatting pipeline that reuses the existing AST and
 
 ### Phase 19.1: Specification & AST/Data Prep (7 tasks)
 
-- [x] 19.1.1 Capture formatting requirements from upstream DWScript (indent width, begin/end alignment, keyword casing, line-wrapping) and document them in `docs/formatter-style-guide.md`.
-- [x] 19.1.2 Audit current AST nodes for source position fidelity and comment/trivia preservation; list any nodes lacking `Pos` / `EndPos`.
-- [ ] 19.1.3 Extend the parser/AST to track leading and trailing trivia (single-line, block comments, blank lines) without disturbing semantic passes.
-- [ ] 19.1.4 Define a `format.Options` struct (indent size, max line length, newline style) and default profile matching DWScript conventions.
-- [ ] 19.1.5 Build a formatting test corpus in `testdata/formatter/{input,expected}` with tricky constructs (nested classes, generics, properties, preprocessor).
-- [ ] 19.1.6 Add helper APIs to serialize AST back into token streams (e.g., `ast.FormatNode`, `ast.IterChildren`) to keep formatter logic decoupled from parser internals.
-- [ ] 19.1.7 Ensure the semantic/type metadata needed for spacing decisions (e.g., `var` params, attributes) is exposed through lightweight inspector interfaces to avoid circular imports.
+- [x] 25.1.1 Capture formatting requirements from upstream DWScript (indent width, begin/end alignment, keyword casing, line-wrapping) and document them in `docs/formatter-style-guide.md`.
+- [x] 25.1.2 Audit current AST nodes for source position fidelity and comment/trivia preservation; list any nodes lacking `Pos` / `EndPos`.
+- [ ] 25.1.3 Extend the parser/AST to track leading and trailing trivia (single-line, block comments, blank lines) without disturbing semantic passes.
+- [ ] 25.1.4 Define a `format.Options` struct (indent size, max line length, newline style) and default profile matching DWScript conventions.
+- [ ] 25.1.5 Build a formatting test corpus in `testdata/formatter/{input,expected}` with tricky constructs (nested classes, generics, properties, preprocessor).
+- [ ] 25.1.6 Add helper APIs to serialize AST back into token streams (e.g., `ast.FormatNode`, `ast.IterChildren`) to keep formatter logic decoupled from parser internals.
+- [ ] 25.1.7 Ensure the semantic/type metadata needed for spacing decisions (e.g., `var` params, attributes) is exposed through lightweight inspector interfaces to avoid circular imports.
 
 ### Phase 19.2: Formatter Engine Implementation (10 tasks)
 
-- [ ] 19.2.1 Create `formatter` package with a multi-phase pipeline: AST normalization → layout planning → text emission.
-- [ ] 19.2.2 Implement a visitor that emits `format.Node` instructions (indent/dedent, soft break, literal text) for statements and declarations, leveraging AST shape rather than raw tokens.
-- [ ] 19.2.3 Handle block constructs (`begin...end`, class bodies, `case` arms) with indentation stacks so nested scopes auto-align.
-- [ ] 19.2.4 Add expression formatting that respects operator precedence and inserts parentheses only when required; reuse existing precedence tables.
-- [ ] 19.2.5 Support alignment for parameter lists, generics, array types, and property declarations with configurable wrap points.
-- [ ] 19.2.6 Preserve user comments: attach leading comments before the owning node, keep inline comments after statements, and maintain blank-line intent (max consecutives configurable).
-- [ ] 19.2.7 Implement whitespace normalization rules (single spaces around binary operators, before `do`/`then`, after commas, etc.).
-- [ ] 19.2.8 Provide idempotency guarantees by building a golden test that pipes formatted output back through the formatter and asserts stability.
-- [ ] 19.2.9 Expose a streaming writer that emits `[]byte`/`io.Writer` output to keep the CLI fast and low-memory.
-- [ ] 19.2.10 Benchmark formatting of large fixtures (≥5k LOC) and optimize hot paths (string builder pools, avoiding interface allocations).
+- [ ] 25.2.1 Create `formatter` package with a multi-phase pipeline: AST normalization → layout planning → text emission.
+- [ ] 25.2.2 Implement a visitor that emits `format.Node` instructions (indent/dedent, soft break, literal text) for statements and declarations, leveraging AST shape rather than raw tokens.
+- [ ] 25.2.3 Handle block constructs (`begin...end`, class bodies, `case` arms) with indentation stacks so nested scopes auto-align.
+- [ ] 25.2.4 Add expression formatting that respects operator precedence and inserts parentheses only when required; reuse existing precedence tables.
+- [ ] 25.2.5 Support alignment for parameter lists, generics, array types, and property declarations with configurable wrap points.
+- [ ] 25.2.6 Preserve user comments: attach leading comments before the owning node, keep inline comments after statements, and maintain blank-line intent (max consecutives configurable).
+- [ ] 25.2.7 Implement whitespace normalization rules (single spaces around binary operators, before `do`/`then`, after commas, etc.).
+- [ ] 25.2.8 Provide idempotency guarantees by building a golden test that pipes formatted output back through the formatter and asserts stability.
+- [ ] 25.2.9 Expose a streaming writer that emits `[]byte`/`io.Writer` output to keep the CLI fast and low-memory.
+- [ ] 25.2.10 Benchmark formatting of large fixtures (≥5k LOC) and optimize hot paths (string builder pools, avoiding interface allocations).
 
-### Phase 19.3: Tooling & Playground Integration (7 tasks)
+### Phase 25.3: Tooling & Playground Integration (7 tasks)
 
-- [ ] 19.3.1 Wire a new CLI command `dwscript fmt` (and `fmt -w`) that runs the formatter over files/directories, mirroring `gofmt` UX.
-- [ ] 19.3.2 Update the WASM bridge to expose a `Format(source string) (string, error)` hook exported from Go, reusing the same formatter package.
-- [ ] 19.3.3 Modify `playground/js/playground.js` to call the WASM formatter before falling back to Monaco’s default action, enabling deterministic formatting in the browser.
-- [ ] 19.3.4 Add formatter support to the VSCode extension / LSP stub (if present) so editors can trigger `textDocument/formatting`.
-- [ ] 19.3.5 Ensure the formatter respects partial-range requests (`textDocument/rangeFormatting`) to avoid reformatting entire files when not desired.
-- [ ] 19.3.6 Introduce CI checks (`just fmt-check`) that fail when files are not formatted, and document the workflow in `CONTRIBUTING.md`.
-- [ ] 19.3.7 Provide sample scripts/snippets (e.g., Git hooks) encouraging contributors to run the formatter.
+- [ ] 25.3.1 Wire a new CLI command `dwscript fmt` (and `fmt -w`) that runs the formatter over files/directories, mirroring `gofmt` UX.
+- [ ] 25.3.2 Update the WASM bridge to expose a `Format(source string) (string, error)` hook exported from Go, reusing the same formatter package.
+- [ ] 25.3.3 Modify `playground/js/playground.js` to call the WASM formatter before falling back to Monaco’s default action, enabling deterministic formatting in the browser.
+- [ ] 25.3.4 Add formatter support to the VSCode extension / LSP stub (if present) so editors can trigger `textDocument/formatting`.
+- [ ] 25.3.5 Ensure the formatter respects partial-range requests (`textDocument/rangeFormatting`) to avoid reformatting entire files when not desired.
+- [ ] 25.3.6 Introduce CI checks (`just fmt-check`) that fail when files are not formatted, and document the workflow in `CONTRIBUTING.md`.
+- [ ] 25.3.7 Provide sample scripts/snippets (e.g., Git hooks) encouraging contributors to run the formatter.
 
-### Phase 19.4: Validation, UX, and Docs (6 tasks)
+### Phase 25.4: Validation, UX, and Docs (6 tasks)
 
-- [ ] 19.4.1 Create table-driven unit tests per node type plus integration tests that read `testdata/formatter` fixtures.
-- [ ] 19.4.2 Add fuzz/property tests that compare formatter output against itself round-tripped through the parser → formatter pipeline.
-- [ ] 19.4.3 Document formatter architecture and extension points in `docs/formatter-architecture.md`.
-- [ ] 19.4.4 Update `PLAYGROUND.md`, `README.md`, and release notes to mention the Format button now runs the AST-driven formatter.
-- [ ] 19.4.5 Record known limitations (e.g., preprocessor directives) and track follow-ups in `TEST_ISSUES.md`.
-- [ ] 19.4.6 Gather usability feedback (issue template or telemetry) to prioritize refinements like configurable styles or multi-profile support.
+- [ ] 25.4.1 Create table-driven unit tests per node type plus integration tests that read `testdata/formatter` fixtures.
+- [ ] 25.4.2 Add fuzz/property tests that compare formatter output against itself round-tripped through the parser → formatter pipeline.
+- [ ] 25.4.3 Document formatter architecture and extension points in `docs/formatter-architecture.md`.
+- [ ] 25.4.4 Update `PLAYGROUND.md`, `README.md`, and release notes to mention the Format button now runs the AST-driven formatter.
+- [ ] 25.4.5 Record known limitations (e.g., preprocessor directives) and track follow-ups in `TEST_ISSUES.md`.
+- [ ] 25.4.6 Gather usability feedback (issue template or telemetry) to prioritize refinements like configurable styles or multi-profile support.
 
 ---
 
-## Phase 21: Future Enhancements & Experimental Features [LONG-TERM]
+## Phase 26: Future Enhancements & Experimental Features [LONG-TERM]
 
 **Status**: Not started | **Priority**: LOW | **Tasks**: Variable
 
@@ -4709,35 +4709,35 @@ This phase collects experimental, deferred, and long-term enhancement tasks that
 
 **Note**: Tasks in this phase are marked as DEFERRED or OPTIONAL and should only be pursued after core phases are complete and based on user demand.
 
-### Phase 21.1: Plugin-Based JIT [SKIP - Poor Portability]
+### Phase 26.1: Plugin-Based JIT [SKIP - Poor Portability]
 
 **Status**: SKIP RECOMMENDED | **Limitation**: No Windows support, requires Go toolchain at runtime
 
-- [ ] 21.1 Implement Go code generation from AST
+- [ ] 26.1 Implement Go code generation from AST
   - Create `internal/codegen/go_generator.go`
   - Generate Go source code from DWScript AST
   - Map DWScript types to Go types
   - Generate function declarations and calls
   - Handle closures and scoping
 
-- [ ] 21.2 Implement plugin-based JIT
+- [ ] 26.2 Implement plugin-based JIT
   - Use `go build -buildmode=plugin` to compile generated code
   - Load plugin with `plugin.Open()`
   - Look up compiled function with `plugin.Lookup()`
   - Call compiled function from interpreter
   - Cache plugins to disk
 
-- [ ] 21.3 Add hot path detection for plugin JIT
+- [ ] 26.3 Add hot path detection for plugin JIT
   - Track function execution counts
   - Trigger plugin compilation for hot functions
   - Manage plugin lifecycle (loading/unloading)
 
-- [ ] 21.4 Test plugin-based JIT
+- [ ] 26.4 Test plugin-based JIT
   - Run tests on Linux and macOS only
   - Compare performance with bytecode VM
   - Test plugin caching and reuse
 
-- [ ] 21.5 Document plugin approach
+- [ ] 26.5 Document plugin approach
   - Write `docs/plugin-jit.md`
   - Explain platform limitations
   - Provide usage examples
@@ -4745,75 +4745,75 @@ This phase collects experimental, deferred, and long-term enhancement tasks that
 **Expected Results**: 3-5x faster than tree-walking
 **Recommendation**: SKIP - poor portability, requires Go toolchain
 
-### Phase 21.2: Alternative Compiler Targets [EXPERIMENTAL]
+### Phase 26.2: Alternative Compiler Targets [EXPERIMENTAL]
 
-- [ ] 21.6 C code generation backend
+- [ ] 26.6 C code generation backend
   - Transpile DWScript to C
   - Leverage existing C compilers
   - Test on embedded systems
 
-- [ ] 21.7 Rust code generation backend
+- [ ] 26.7 Rust code generation backend
   - Transpile DWScript to Rust
   - Leverage Rust's memory safety
   - Explore performance characteristics
 
-- [ ] 21.8 Python code generation backend
+- [ ] 26.8 Python code generation backend
   - Transpile DWScript to Python
   - Enable rapid prototyping
   - Integration with Python ecosystem
 
-### Phase 21.3: Advanced Optimization Research [EXPERIMENTAL]
+### Phase 26.3: Advanced Optimization Research [EXPERIMENTAL]
 
-- [ ] 21.9 Profile-guided optimization (PGO)
+- [ ] 26.9 Profile-guided optimization (PGO)
   - Collect runtime profiles
   - Use profiles to guide optimizations
   - Measure performance improvements
 
-- [ ] 21.10 Speculative optimization
+- [ ] 26.10 Speculative optimization
   - Type speculation based on runtime behavior
   - Deoptimization on type changes
   - Guard conditions
 
-- [ ] 21.11 Escape analysis
+- [ ] 26.11 Escape analysis
   - Determine when objects can be stack-allocated
   - Reduce GC pressure
   - Improve performance
 
-- [ ] 21.12 Inline caching for dynamic dispatch
+- [ ] 26.12 Inline caching for dynamic dispatch
   - Cache method lookup results
   - Invalidate on class changes
   - Measure performance impact
 
-### Phase 21.4: Language Extensions [EXPERIMENTAL]
+### Phase 26.4: Language Extensions [EXPERIMENTAL]
 
-- [ ] 21.13 Async/await support
+- [ ] 26.13 Async/await support
   - Design async/await syntax for DWScript
   - Implement coroutine-based execution
   - Test with concurrent workloads
 
-- [ ] 21.14 Pattern matching
+- [ ] 26.14 Pattern matching
   - Extend case statements with pattern matching
   - Support destructuring
   - Type narrowing based on patterns
 
-- [ ] 21.15 Macros/metaprogramming
+- [ ] 26.15 Macros/metaprogramming
   - Design macro system
   - Compile-time code generation
   - Template metaprogramming support
 
-### Phase 21.5: Tooling Enhancements [LOW PRIORITY]
+### Phase 26.5: Tooling Enhancements [LOW PRIORITY]
 
-- [ ] 21.16 IDE integration beyond LSP
+- [ ] 26.16 IDE integration beyond LSP
   - IntelliJ IDEA plugin
   - VS Code enhanced extension
   - Sublime Text package
 
-- [ ] 21.17 Package manager
+- [ ] 26.17 Package manager
   - Design package format
   - Implement dependency resolution
   - Create package registry
 
-- [ ] 21.18 Build system integration
+- [ ] 26.18 Build system integration
   - Make/CMake integration
   - Bazel rules
   - Gradle plugin
@@ -4852,7 +4852,7 @@ This roadmap now spans **~1000+ bite-sized tasks** across **21 phases**, organiz
 
 19. **Phase 19 – AST-Driven Formatter**: [PLANNED] Auto-formatting for CLI, editors, playground
 20. **Phase 20 – Community & Ecosystem**: [ONGOING] REPL, debugging, security, maintenance
-21. **Phase 21 – Future Enhancements**: [LONG-TERM] Experimental features, alternative targets
+21. **Phase 26 – Future Enhancements**: [LONG-TERM] Experimental features, alternative targets
 
 ### Implementation Priorities
 
