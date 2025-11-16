@@ -132,8 +132,8 @@ func TestInterfaceTypeCheckers(t *testing.T) {
 
 func TestIsTruthy(t *testing.T) {
 	tests := []struct {
-		value Value
 		name  string
+		value Value
 		want  bool
 	}{
 		{"nil", nil, false},

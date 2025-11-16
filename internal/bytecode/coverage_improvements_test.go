@@ -743,8 +743,8 @@ func TestCompiler_InferExpressionType(t *testing.T) {
 	compiler := NewCompiler("test")
 
 	tests := []struct {
-		expr ast.Expression
 		name string
+		expr ast.Expression
 	}{
 		{
 			"integer literal",
