@@ -617,6 +617,24 @@ func (c *ClassInfoValue) String() string {
 	return "class " + c.ClassInfo.Name
 }
 
+// TypeCastValue wraps an object with its static type from a type cast.
+// This preserves the static type for member access, particularly for class variables.
+// Example: TBase(childObj).ClassVar should access TBase's class variable, not TChild's.
+type TypeCastValue struct {
+	Object     Value      // The actual object value (ObjectInstance, nil, etc.)
+	StaticType *ClassInfo // The static class type from the cast
+}
+
+// Type returns the static type's name.
+func (t *TypeCastValue) Type() string {
+	return t.StaticType.Name
+}
+
+// String delegates to the wrapped object's String().
+func (t *TypeCastValue) String() string {
+	return t.Object.String()
+}
+
 // GoInt converts a Value to a Go int64. Returns error if not an IntegerValue.
 func GoInt(v Value) (int64, error) {
 	if iv, ok := v.(*IntegerValue); ok {

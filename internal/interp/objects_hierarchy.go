@@ -319,6 +319,14 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		objVal = intfInst.Object
 	}
 
+	// Task 9.5: Check if this is a type cast value (e.g., TBase(child).ClassVar)
+	// For class variables, we must use the static type, not the runtime type
+	var staticClassType *ClassInfo
+	if typeCast, isTypeCast := objVal.(*TypeCastValue); isTypeCast {
+		staticClassType = typeCast.StaticType
+		objVal = typeCast.Object // Unwrap to the actual object
+	}
+
 	// Check if it's an object instance
 	obj, ok := AsObject(objVal)
 
@@ -326,9 +334,16 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	// When accessing o.Member where o is nil, check if Member is a class variable first
 	nilVal, isNilValue := objVal.(*NilValue)
 	if !ok && (objVal.Type() == "NIL" || isNilValue) {
-		// Object is nil - check if this is a typed nil value with a ClassType
-		if isNilValue && nilVal.ClassType != "" {
-			memberName := ma.Member.Value
+		memberName := ma.Member.Value
+
+		// Task 9.5: If we have a static type from a cast (e.g., TBase(nil).ClassVar), use it
+		if staticClassType != nil {
+			// Use the static type from the cast
+			if classVarValue, ownerClass := staticClassType.lookupClassVar(memberName); ownerClass != nil {
+				return classVarValue
+			}
+		} else if isNilValue && nilVal.ClassType != "" {
+			// Object is nil - check if this is a typed nil value with a ClassType
 			className := nilVal.ClassType
 
 			// Look up the class by name (case-insensitive)
@@ -414,7 +429,12 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	fieldValue := obj.GetField(memberName)
 	if fieldValue == nil {
 		// Task 9.5.4: Try class variables (accessible from instance)
-		if classVarValue, ownerClass := obj.Class.lookupClassVar(memberName); ownerClass != nil {
+		// Task 9.5: Use static type from cast if available (e.g., TBase(child).ClassVar)
+		classForLookup := obj.Class
+		if staticClassType != nil {
+			classForLookup = staticClassType
+		}
+		if classVarValue, ownerClass := classForLookup.lookupClassVar(memberName); ownerClass != nil {
 			return classVarValue
 		}
 
