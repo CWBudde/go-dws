@@ -462,6 +462,186 @@ func (p *Parser) endPosFromToken(tok lexer.Token) lexer.Position {
 	return pos
 }
 
+// LIST PARSING HELPERS (Task 2.5)
+//
+// These helpers reduce code duplication by providing reusable patterns for
+// parsing separated lists. Common use cases include:
+//   - Comma-separated expression lists: (expr1, expr2, expr3)
+//   - Semicolon-separated parameter groups: (x: Integer; y: String)
+//   - Field lists, argument lists, etc.
+//
+// Design principles:
+//   - Flexible separator support (single or multiple separator types)
+//   - Optional trailing separator handling
+//   - Proper error recovery
+//   - Works with callbacks to handle different item types
+//
+// The helpers handle the common looping and separator logic, while callers
+// provide item-specific parsing via callbacks.
+
+// ListParseOptions configures how parseSeparatedList behaves.
+type ListParseOptions struct {
+	// Separators are the token types that separate list items (e.g., COMMA, SEMICOLON).
+	// At least one separator must match for the list to continue.
+	Separators []lexer.TokenType
+
+	// Terminator is the token type that ends the list (e.g., RPAREN, RBRACE).
+	Terminator lexer.TokenType
+
+	// AllowTrailingSeparator permits lists like (1, 2, 3,) with separator before terminator.
+	AllowTrailingSeparator bool
+
+	// AllowEmpty permits empty lists (when current token is already the terminator).
+	// If false and list is empty, returns false to indicate failure.
+	AllowEmpty bool
+
+	// RequireTerminator controls whether expectPeek(Terminator) is called at the end.
+	// If true, the list must end with the terminator and an error is added if missing.
+	// If false, the list ends when no separator is found (caller handles terminator).
+	RequireTerminator bool
+}
+
+// parseSeparatedList is a generic helper for parsing lists of items separated by delimiters.
+//
+// This function handles the common pattern of:
+//  1. Check if list is empty (curToken is terminator)
+//  2. Parse first item
+//  3. While peekToken is a separator:
+//     - Consume separator
+//     - Check for trailing separator
+//     - Parse next item
+//  4. Expect terminator (if RequireTerminator is true)
+//
+// Parameters:
+//   - opts: Configuration options (separators, terminator, etc.)
+//   - parseItem: Callback to parse one item. Returns true if successful, false on error.
+//     The callback should NOT consume trailing separators or terminators.
+//
+// Returns:
+//   - itemCount: Number of items successfully parsed
+//   - success: true if parsing completed successfully, false on error
+//
+// Token position on entry:
+//   - curToken should be the first item OR the terminator (for empty lists)
+//
+// Token position on exit:
+//   - If RequireTerminator is true: curToken is the terminator
+//   - If RequireTerminator is false: curToken is the last item, peekToken is first non-separator
+//
+// Example usage (comma-separated expressions):
+//
+//	opts := ListParseOptions{
+//	    Separators:             []lexer.TokenType{lexer.COMMA},
+//	    Terminator:             lexer.RPAREN,
+//	    AllowTrailingSeparator: true,
+//	    AllowEmpty:             true,
+//	    RequireTerminator:      true,
+//	}
+//	exprs := []ast.Expression{}
+//	count, ok := p.parseSeparatedList(opts, func() bool {
+//	    expr := p.parseExpression(LOWEST)
+//	    if expr == nil {
+//	        return false
+//	    }
+//	    exprs = append(exprs, expr)
+//	    return true
+//	})
+//	if !ok {
+//	    return nil
+//	}
+func (p *Parser) parseSeparatedList(opts ListParseOptions, parseItem func() bool) (itemCount int, success bool) {
+	// Handle empty list
+	if p.curTokenIs(opts.Terminator) {
+		if !opts.AllowEmpty {
+			return 0, false
+		}
+		return 0, true
+	}
+
+	// Parse first item
+	if !parseItem() {
+		return 0, false
+	}
+	itemCount = 1
+
+	// Parse remaining items
+	for p.peekTokenIsSomeOf(opts.Separators...) {
+		lastItemToken := p.curToken // Save position of last parsed item
+		p.nextToken()               // consume separator
+
+		// Check for trailing separator
+		if opts.AllowTrailingSeparator && p.peekTokenIs(opts.Terminator) {
+			if opts.RequireTerminator {
+				p.nextToken() // consume terminator
+			} else {
+				// Restore curToken to last item to honor contract:
+				// "If RequireTerminator is false: curToken is the last item"
+				p.curToken = lastItemToken
+			}
+			return itemCount, true
+		}
+
+		p.nextToken() // move to next item
+
+		// Parse the item
+		if !parseItem() {
+			return itemCount, false
+		}
+		itemCount++
+	}
+
+	// Expect terminator
+	if opts.RequireTerminator {
+		if !p.expectPeek(opts.Terminator) {
+			return itemCount, false
+		}
+	}
+
+	return itemCount, true
+}
+
+// peekTokenIsSomeOf checks if peekToken is one of the given types.
+func (p *Parser) peekTokenIsSomeOf(types ...lexer.TokenType) bool {
+	for _, t := range types {
+		if p.peekTokenIs(t) {
+			return true
+		}
+	}
+	return false
+}
+
+// parseSeparatedListBeforeStart is a variant of parseSeparatedList for when
+// the current token is BEFORE the list (e.g., at the opening paren).
+//
+// This helper:
+//  1. Checks if peekToken is terminator (empty list)
+//  2. Advances to first item (nextToken)
+//  3. Calls parseSeparatedList with remaining logic
+//
+// Token position on entry:
+//   - curToken should be BEFORE the first item (e.g., at LPAREN)
+//   - peekToken should be first item OR terminator
+//
+// Token position on exit:
+//   - If RequireTerminator is true: curToken is the terminator
+//   - If RequireTerminator is false: curToken is the last item
+func (p *Parser) parseSeparatedListBeforeStart(opts ListParseOptions, parseItem func() bool) (itemCount int, success bool) {
+	// Check for empty list (peek is terminator)
+	if p.peekTokenIs(opts.Terminator) {
+		if !opts.AllowEmpty {
+			return 0, false
+		}
+		p.nextToken() // consume terminator
+		return 0, true
+	}
+
+	// Advance to first item
+	p.nextToken()
+
+	// Use main helper for the rest
+	return p.parseSeparatedList(opts, parseItem)
+}
+
 // ParseProgram parses the entire program and returns the AST root node.
 func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
