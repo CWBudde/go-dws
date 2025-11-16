@@ -195,6 +195,18 @@ func TestCommentMap(t *testing.T) {
 	if len(nc.Leading.Comments) != 2 {
 		t.Errorf("got %d leading comments, want 2", len(nc.Leading.Comments))
 	}
+
+	// Test HasComments on node not in map (should not panic)
+	nodeNotInMap := &Identifier{Value: "notInMap"}
+	if cm.HasComments(nodeNotInMap) {
+		t.Error("expected node not in map to have no comments")
+	}
+
+	// Test GetComments on node not in map
+	nc = cm.GetComments(nodeNotInMap)
+	if nc != nil {
+		t.Error("expected GetComments to return nil for node not in map")
+	}
 }
 
 func TestExtractCommentText(t *testing.T) {

@@ -34,6 +34,10 @@ var fmtCmd = &cobra.Command{
 The formatter reads DWScript source code, parses it into an AST,
 and then pretty-prints it back to source code with consistent formatting.
 
+⚠️  WARNING: Comment preservation is not yet fully implemented. Comments
+will be stripped from the formatted output. Use -d (diff) or -l (list) to
+preview changes before using -w (write) to avoid losing comments permanently.
+
 Usage:
   dwscript fmt file.dws              # Format to stdout
   dwscript fmt -w file.dws           # Overwrite file with formatted version
@@ -262,6 +266,10 @@ func formatFile(filename string, opts printer.Options) error {
 func formatSource(source string, opts printer.Options) (string, error) {
 	// Tokenize
 	l := lexer.New(source)
+	// Note: Comment preservation is enabled but not yet fully implemented.
+	// The lexer will preserve comments, but the parser and printer don't yet
+	// collect or output them. This is a known limitation being addressed.
+	l.SetPreserveComments(true)
 
 	// Parse
 	p := parser.New(l)

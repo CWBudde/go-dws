@@ -175,7 +175,7 @@ func (cm CommentMap) GetComments(node Node) *NodeComments {
 // HasComments returns true if the node has any comments
 func (cm CommentMap) HasComments(node Node) bool {
 	nc := cm.GetComments(node)
-	return nc.HasComments()
+	return nc != nil && nc.HasComments()
 }
 
 // AddLeadingComment adds a single leading comment to a node
