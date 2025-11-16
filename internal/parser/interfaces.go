@@ -15,6 +15,8 @@ import (
 //
 // This function handles multiple declarations and returns either a single statement
 // or a BlockStatement containing multiple type declarations.
+// PRE: curToken is TYPE
+// POST: curToken is SEMICOLON of last type declaration
 func (p *Parser) parseTypeDeclaration() ast.Statement {
 	typeToken := p.curToken // Save the TYPE token
 	statements := []ast.Statement{}
@@ -54,6 +56,8 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 // Pattern: IDENT EQ (CLASS|INTERFACE|LPAREN|RECORD|SET|ARRAY|ENUM|FUNCTION|PROCEDURE|HELPER|...)
 //
 // This method uses lexer.Peek() to look ahead without modifying parser state (Task 12.3.4).
+// PRE: curToken is SEMICOLON (after previous type decl)
+// POST: curToken is SEMICOLON (after previous type decl)
 func (p *Parser) looksLikeTypeDeclaration() bool {
 	// After a type declaration, we're typically at a semicolon
 	// The next token should be an identifier (type name)
@@ -71,6 +75,8 @@ func (p *Parser) looksLikeTypeDeclaration() bool {
 // parseSingleTypeDeclaration parses a single type declaration.
 // This is the core logic extracted from the original parseTypeDeclaration.
 // Assumes we're already positioned at the identifier (or TYPE token).
+// PRE: curToken is TYPE or type name IDENT
+// POST: curToken is SEMICOLON
 func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement {
 	// Check if we're already at the identifier (type section continuation)
 	// or if we need to advance to it (after 'type' keyword)
@@ -282,6 +288,9 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 //   - type TProc = procedure(msg: String);
 //   - type TCallback = procedure;
 //   - type TEvent = procedure(Sender: TObject) of object;
+//
+// PRE: curToken is FUNCTION or PROCEDURE
+// POST: curToken is SEMICOLON
 func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
 	// Current token is FUNCTION or PROCEDURE
 	funcOrProcToken := p.curToken
@@ -409,6 +418,8 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 // parseInterfaceDeclarationBody parses the body of an interface declaration.
 // Called after 'type Name = interface' has already been parsed.
 // Current token should be 'interface'.
+// PRE: curToken is INTERFACE
+// POST: curToken is SEMICOLON
 func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.InterfaceDecl {
 	interfaceDecl := &ast.InterfaceDecl{
 		BaseNode: ast.BaseNode{
@@ -503,6 +514,9 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 // Syntax: procedure MethodName(params);
 //
 //	function MethodName(params): ReturnType;
+//
+// PRE: curToken is PROCEDURE or FUNCTION
+// POST: curToken is SEMICOLON
 func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {
 	methodDecl := &ast.InterfaceMethodDecl{
 		BaseNode: ast.BaseNode{

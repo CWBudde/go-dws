@@ -21,6 +21,9 @@ func isCallingConvention(literal string) bool {
 // Syntax: function Name(params): Type; begin ... end;
 //
 //	procedure Name(params); begin ... end;
+//
+// PRE: curToken is FUNCTION or PROCEDURE
+// POST: curToken is END or SEMICOLON (forward declaration) or last token of body
 func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	fn := &ast.FunctionDecl{
 		BaseNode: ast.BaseNode{
@@ -382,6 +385,8 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 
 // parseParameterList parses a function parameter list.
 // Syntax: (param: Type; var param: Type; a, b, c: Type)
+// PRE: curToken is LPAREN
+// POST: curToken is RPAREN
 func (p *Parser) parseParameterList() []*ast.Parameter {
 	params := []*ast.Parameter{}
 
@@ -412,6 +417,8 @@ func (p *Parser) parseParameterList() []*ast.Parameter {
 
 // parseParameterGroup parses a group of parameters with the same type.
 // Syntax: name: Type  or  name1, name2, name3: Type  or  var name: Type  or  lazy name: Type  or  const name: Type
+// PRE: curToken is VAR, CONST, LAZY, or first parameter name IDENT
+// POST: curToken is last token of type expression or default value
 func (p *Parser) parseParameterGroup() []*ast.Parameter {
 	params := []*ast.Parameter{}
 
@@ -527,6 +534,8 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 // positioned at the first parameter token (not at LPAREN).
 // This is a wrapper used by function pointer type parsing.
 // Syntax: name: Type; name2: Type; ...
+// PRE: curToken is first parameter token (VAR, CONST, LAZY, or IDENT)
+// POST: curToken is RPAREN
 func (p *Parser) parseParameterListAtToken() []*ast.Parameter {
 	params := []*ast.Parameter{}
 
@@ -570,6 +579,8 @@ func (p *Parser) parseParameterListAtToken() []*ast.Parameter {
 //
 // This format is used in type declarations but not in actual function definitions.
 // Example: type TFunc = function(Integer, String): Boolean;
+// PRE: curToken is first type token or modifier (CONST, VAR, LAZY)
+// POST: curToken is RPAREN
 func (p *Parser) parseTypeOnlyParameterListAtToken() []*ast.Parameter {
 	params := []*ast.Parameter{}
 

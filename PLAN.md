@@ -171,11 +171,11 @@ p.errors = p.errors[:errorCountBefore]
 - `parseBlockStatement()` advances past 'begin'
 
 **Implementation**:
-- [ ] Document convention: "Functions are called WITH curToken at the triggering token"
-- [ ] Audit all 50+ parsing functions for compliance
-- [ ] Refactor non-compliant functions to match convention
-- [ ] Add pre/post-condition comments to each parsing function
-- [ ] Create parser style guide document
+- [x] Document convention: "Functions are called WITH curToken at the triggering token"
+- [x] Audit all 50+ parsing functions for compliance
+- [x] Refactor non-compliant functions to match convention (all functions already compliant)
+- [x] Add pre/post-condition comments to each parsing function
+- [x] Create parser style guide document
 
 **Convention Example**:
 ```go
