@@ -103,8 +103,8 @@ func DefaultOptions() Options {
 
 // Printer formats AST nodes into text output.
 type Printer struct {
-	opts   Options
 	buf    bytes.Buffer
+	opts   Options
 	indent int
 }
 

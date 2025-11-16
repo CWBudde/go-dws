@@ -16,17 +16,17 @@ type BuiltinFunction func(vm *VM, args []Value) (Value, error)
 
 // VM executes bytecode chunks produced by the compiler.
 type VM struct {
-	exceptObject      Value
 	output            io.Writer
 	builtins          map[string]BuiltinFunction
-	helpers           map[string]*HelperInfo // Helper registry for method resolution
+	helpers           map[string]*HelperInfo
+	rand              *rand.Rand
+	exceptObject      Value
 	stack             []Value
 	frames            []callFrame
 	globals           []Value
 	openUpvalues      []*Upvalue
 	exceptionHandlers []exceptionHandler
 	finallyStack      []finallyContext
-	rand              *rand.Rand
 	randSeed          int64
 }
 

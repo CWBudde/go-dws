@@ -115,10 +115,10 @@ func NewStaticArrayType(elementType Type, lowBound, highBound int) *ArrayType {
 
 // ConstantInfo represents a constant (regular or class) in a record or class type
 type ConstantInfo struct {
-	Name         string      // Constant name
-	Type         Type        // Constant type
-	Value        interface{} // Constant value (evaluated at compile time)
-	IsClassConst bool        // True if declared with 'class const'
+	Type         Type
+	Value        interface{}
+	Name         string
+	IsClassConst bool
 }
 
 // RecordPropertyInfo represents a property in a record type

@@ -12,21 +12,21 @@ import (
 // Compiler converts AST nodes into bytecode chunks.
 type Compiler struct {
 	functions       map[string]functionInfo
-	helpers         map[string]*HelperInfo     // Helper registry (keyed by helper name)
-	records         map[string]*RecordMetadata // Record registry (keyed by record name, Task 9.2)
+	helpers         map[string]*HelperInfo
+	records         map[string]*RecordMetadata
 	enclosing       *Compiler
 	globals         map[string]globalVar
 	chunk           *Chunk
-	upvalues        []upvalue
-	loopStack       []*loopContext
+	semanticInfo    *pkgast.SemanticInfo
 	locals          []local
+	loopStack       []*loopContext
 	optimizeOptions []OptimizeOption
+	upvalues        []upvalue
 	scopeDepth      int
 	lastLine        int
 	nextSlot        uint16
 	maxSlot         uint16
 	nextGlobal      uint16
-	semanticInfo    *pkgast.SemanticInfo // Task 9.18: Type metadata from semantic analysis
 }
 
 type local struct {
@@ -56,13 +56,13 @@ type functionInfo struct {
 // HelperInfo stores compile-time information about a helper type.
 // This metadata is used during bytecode compilation and passed to the VM.
 type HelperInfo struct {
-	Name         string            // Helper type name (e.g., TStringHelper)
-	TargetType   string            // Type being extended (e.g., String, Integer)
-	ParentHelper string            // Parent helper name (for inheritance)
-	Methods      map[string]uint16 // Method name -> function global slot
-	Properties   []string          // Property names
-	ClassVars    []string          // Class variable names
-	ClassConsts  map[string]Value  // Class constant values
+	Methods      map[string]uint16
+	ClassConsts  map[string]Value
+	Name         string
+	TargetType   string
+	ParentHelper string
+	Properties   []string
+	ClassVars    []string
 }
 
 type loopKind int

@@ -18,9 +18,9 @@ import (
 //   - type TMyArray = array[1..10] of Integer;
 //   - type TDynamic = array of String;
 type ArrayDecl struct {
-	BaseNode
 	Name      *Identifier
 	ArrayType *ArrayTypeAnnotation
+	BaseNode
 }
 
 // statementNode implements the Statement interface
@@ -118,8 +118,8 @@ func (ata *ArrayTypeAnnotation) IsStatic() bool {
 //   - []               // empty array
 //   - ['a', 'b', 'c']  // array of strings
 type ArrayLiteralExpression struct {
-	TypedExpressionBase
 	Elements []Expression
+	TypedExpressionBase
 }
 
 // expressionNode implements the Expression interface
@@ -153,9 +153,9 @@ func (al *ArrayLiteralExpression) String() string {
 //   - arr[i + 1]  // expression index
 //   - arr[i][j]   // nested indexing
 type IndexExpression struct {
-	TypedExpressionBase
 	Left  Expression
 	Index Expression
+	TypedExpressionBase
 }
 
 // expressionNode implements the Expression interface
@@ -198,9 +198,9 @@ func (ie *IndexExpression) String() string {
 //   - ArrayLiteralExpression: for literal array values ([1, 2, 3])
 //   - ArrayTypeAnnotation: for array type declarations
 type NewArrayExpression struct {
-	TypedExpressionBase
 	ElementTypeName *Identifier
 	Dimensions      []Expression
+	TypedExpressionBase
 }
 
 // expressionNode implements the Expression interface

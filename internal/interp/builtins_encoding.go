@@ -284,19 +284,21 @@ func xmlEncode(s string, mode int) string {
 				b.WriteRune(r)
 			}
 		case '\n':
-			if mode == 1 { // Attribute mode - encode newlines
+			switch mode {
+			case 1: // Attribute mode - encode newlines
 				b.WriteString("&#10;")
-			} else if mode == 2 { // Text mode - preserve
+			case 2: // Text mode - preserve
 				b.WriteRune(r)
-			} else {
+			default:
 				b.WriteRune(r)
 			}
 		case '\r':
-			if mode == 1 { // Attribute mode
+			switch mode {
+			case 1: // Attribute mode
 				b.WriteString("&#13;")
-			} else if mode == 2 { // Text mode - preserve
+			case 2: // Text mode - preserve
 				b.WriteRune(r)
-			} else {
+			default:
 				b.WriteRune(r)
 			}
 		case '\t':

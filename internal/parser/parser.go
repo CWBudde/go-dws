@@ -164,12 +164,12 @@ type Parser struct {
 // It can be saved and restored to enable speculative parsing and backtracking.
 // This is useful when trying multiple parsing strategies without committing to errors.
 type ParserState struct {
+	lexerState           lexer.LexerState
 	errors               []*ParserError
+	semanticErrors       []string
 	curToken             lexer.Token
 	peekToken            lexer.Token
-	lexerState           lexer.LexerState
 	parsingPostCondition bool
-	semanticErrors       []string
 }
 
 // New creates a new Parser instance.
