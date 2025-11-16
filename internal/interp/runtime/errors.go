@@ -98,8 +98,8 @@ func NewComparisonError(left Value, right Value, op string) error {
 // IndexError represents an out-of-bounds index.
 type IndexError struct {
 	Index int64
-	Min   int64 // Minimum valid index
-	Max   int64 // Maximum valid index
+	Min   int64  // Minimum valid index
+	Max   int64  // Maximum valid index
 	Type  string // What was being indexed (array, string, etc.)
 }
 
