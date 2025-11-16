@@ -2429,6 +2429,338 @@ PrintLn(s.StartsWith('ba'));      // Helper ✗
 
 ---
 
+## Phase 9.8: Interpreter Architecture Refactoring 🔄 PLANNED
+
+**Goal**: Refactor the interpreter architecture to improve maintainability, testability, and extensibility. Address architectural debt accumulated during rapid feature development.
+
+**Status**: Planned | **Complexity**: High | **Priority**: Medium | **Estimated**: 4-6 weeks
+
+**Motivation**: The interpreter has grown to 68 files and 80K lines with architectural issues:
+- God object (Interpreter struct with 25+ fields mixing concerns)
+- Giant switch statement in Eval() (230 lines, 30+ cases)
+- Tight coupling between evaluation logic, type system, and runtime
+- Poor separation of concerns (one package mixing values, execution, built-ins, types)
+- Reflection hacks for circular dependency issues
+- Heavy type assertion usage throughout
+- Inconsistent error handling patterns
+- Difficult to test components in isolation
+
+**Benefits**:
+- Improved code maintainability and readability
+- Better testability (unit test individual components)
+- Easier to add new language features
+- Reduced coupling and improved modularity
+- Foundation for future optimizations
+- Consistent patterns and practices throughout
+
+**Non-Goals**:
+- Changing interpreter semantics or behavior
+- Breaking existing tests (all tests must continue passing)
+- Changing public API surface
+- Performance regression (maintain or improve speed)
+
+---
+
+### Phase 9.8.1: Preparation and Analysis
+
+- [ ] 9.80 Create interpreter refactoring design document
+  - Analyze current architecture and identify pain points
+  - Design new architecture with clear component boundaries
+  - Create migration strategy to avoid big-bang refactor
+  - Document new patterns and conventions
+  - File: `docs/architecture/interpreter-refactoring.md`
+  - Estimated: 1 week
+  - Acceptance: Design doc reviewed and approved, migration strategy defined
+
+- [ ] 9.81 Add comprehensive interpreter benchmarks
+  - Create benchmark suite covering all major operations
+  - Benchmark expression evaluation, statement execution, function calls
+  - Benchmark object creation, array operations, property access
+  - Establish performance baseline before refactoring
+  - Files: `internal/interp/*_bench_test.go` (new/expanded)
+  - Estimated: 3 days
+  - Acceptance: 50+ benchmarks covering key operations, baseline documented
+
+- [ ] 9.82 Increase test coverage to 90%+
+  - Add missing tests for edge cases
+  - Ensure all error paths are tested
+  - Add integration tests for complex scenarios
+  - Target: 90%+ coverage on all interp packages
+  - Estimated: 1 week
+  - Acceptance: Coverage report shows 90%+, no critical paths untested
+
+---
+
+### Phase 9.8.2: Value System Refactoring
+
+- [ ] 9.83 Introduce value interfaces for type operations
+  - Create `NumericValue`, `ComparableValue`, `OrderableValue` interfaces
+  - Create `CopyableValue` interface to formalize copy semantics
+  - Create `ReferenceValue` vs `ValueType` distinction
+  - Update existing value types to implement appropriate interfaces
+  - Files: `internal/interp/runtime/value_interfaces.go` (new)
+  - Estimated: 4 days
+  - Acceptance: Interface hierarchy defined, all values implement correct interfaces
+
+- [ ] 9.84 Extract value types to runtime sub-package
+  - Create `internal/interp/runtime/` package
+  - Move all Value type definitions (IntegerValue, StringValue, etc.)
+  - Move value creation helpers (NewIntegerValue, etc.)
+  - Move value conversion helpers (boxVariant, unwrapVariant, etc.)
+  - Update imports throughout interp package
+  - Files: Move `value.go` → `runtime/value.go`, `runtime/numeric.go`, etc.
+  - Estimated: 3 days
+  - Acceptance: All value types in runtime/, clean package structure, tests pass
+
+- [ ] 9.85 Implement value object pooling for performance
+  - Add sync.Pool for frequently allocated types (IntegerValue, FloatValue, BooleanValue)
+  - Update value creation functions to use pools
+  - Add pool statistics for monitoring
+  - Benchmark to ensure no regression
+  - Files: `internal/interp/runtime/pool.go` (new)
+  - Estimated: 2 days
+  - Acceptance: Object pooling working, benchmarks show 10-20% allocation reduction
+
+---
+
+### Phase 9.8.3: Execution Context Separation
+
+- [ ] 9.86 Create ExecutionContext struct
+  - Extract execution state from Interpreter into ExecutionContext
+  - Include: env, callStack, controlFlow (break/continue/exit), exception state
+  - Create ControlFlow helper type for break/continue/exit/return signals
+  - Update Eval methods to accept context parameter
+  - Files: `internal/interp/evaluator/context.go` (new)
+  - Estimated: 5 days
+  - Acceptance: Context cleanly separated, passed explicitly, tests pass
+
+- [ ] 9.87 Implement explicit control flow handling
+  - Replace boolean flags (breakSignal, continueSignal, etc.) with ControlFlow type
+  - Create ControlFlow.Break(), ControlFlow.Continue(), etc. methods
+  - Use result types or special return values for control flow
+  - Simplify loop and switch statement logic
+  - Files: `internal/interp/evaluator/control_flow.go` (new)
+  - Estimated: 3 days
+  - Acceptance: No more boolean flags, cleaner control flow, tests pass
+
+- [ ] 9.88 Create CallStack abstraction
+  - Extract call stack management from Interpreter
+  - Create CallStack type with Push/Pop/Current/Depth methods
+  - Add stack overflow detection
+  - Improve error messages with stack traces
+  - Files: `internal/interp/evaluator/callstack.go` (new)
+  - Estimated: 2 days
+  - Acceptance: CallStack is independent, proper stack traces, tests pass
+
+---
+
+### Phase 9.8.4: Type System Separation
+
+- [ ] 9.89 Extract type registries to TypeSystem
+  - Create TypeSystem struct with all registries
+  - Include: classes, records, interfaces, functions, helpers, operators
+  - Create TypeRegistry interface for common operations
+  - Move registration logic to TypeSystem methods
+  - Files: `internal/interp/types/type_system.go` (new)
+  - Estimated: 4 days
+  - Acceptance: All type info in TypeSystem, clean registry APIs, tests pass
+
+- [ ] 9.90 Create ClassRegistry abstraction
+  - Extract class management from map to ClassRegistry type
+  - Add methods: Register, Lookup, LookupHierarchy, Exists
+  - Support class hierarchy queries efficiently
+  - Move class-related helpers to registry
+  - Files: `internal/interp/types/class_registry.go` (new)
+  - Estimated: 3 days
+  - Acceptance: ClassRegistry handles all class operations, tests pass
+
+- [ ] 9.91 Create FunctionRegistry with overload support
+  - Extract function management to FunctionRegistry
+  - Properly handle overloading with signature matching
+  - Support qualified name lookup (Unit.Function)
+  - Add efficient lookup by signature
+  - Files: `internal/interp/types/function_registry.go` (new)
+  - Estimated: 3 days
+  - Acceptance: FunctionRegistry handles all function operations, tests pass
+
+---
+
+### Phase 9.8.5: Evaluator Refactoring
+
+- [ ] 9.92 Split Interpreter into Evaluator + TypeSystem + ExecutionContext
+  - Create new Evaluator struct with focused responsibility
+  - Evaluator contains: typeSystem, config (output, maxRecursion)
+  - Context passed to all evaluation methods
+  - Remove god object anti-pattern
+  - Files: `internal/interp/evaluator/evaluator.go` (new)
+  - Estimated: 1 week
+  - Acceptance: Clean separation, Interpreter is now small orchestrator, tests pass
+
+- [ ] 9.93 Implement Visitor pattern for evaluation
+  - Make Evaluator implement ast.Visitor interface
+  - Replace giant Eval() switch with visitor methods
+  - VisitBinaryExpression, VisitCallExpression, etc.
+  - Update AST nodes to use Accept() method
+  - Files: Update `internal/interp/evaluator/*.go`
+  - Estimated: 1 week
+  - Acceptance: No more giant switch, visitor pattern used, tests pass
+
+- [ ] 9.94 Split evaluation by node category
+  - Create separate files for expression/statement evaluation
+  - `evaluator/expressions.go` - all expression visitors
+  - `evaluator/statements.go` - all statement visitors
+  - `evaluator/declarations.go` - all declaration visitors
+  - Each file ≤500 lines
+  - Estimated: 3 days
+  - Acceptance: Code organized by category, easy to navigate, tests pass
+
+---
+
+### Phase 9.8.6: Error Handling Improvements
+
+- [ ] 9.95 Implement consistent error wrapping
+  - Replace newError() with proper error wrapping
+  - Use fmt.Errorf with %w for error chains
+  - Create custom error types for different error categories
+  - Add context to all errors (position, expression, values)
+  - Files: `internal/interp/errors/errors.go` (new)
+  - Estimated: 4 days
+  - Acceptance: All errors wrapped properly, error chains work, tests pass
+
+- [ ] 9.96 Create EvalResult type for cleaner error propagation
+  - Define EvalResult struct with value and error
+  - Add OrReturn() method for early return pattern
+  - Reduce repetitive if isError(val) checks
+  - Option: Use monadic approach or keep explicit
+  - Files: `internal/interp/evaluator/result.go` (new)
+  - Estimated: 5 days
+  - Acceptance: Less boilerplate, cleaner code, tests pass
+
+- [ ] 9.97 Standardize error messages and error types
+  - Create error constants for common errors
+  - Ensure consistent formatting: "operation failed: reason"
+  - Include relevant context in all errors
+  - Create error catalog documentation
+  - Files: `internal/interp/errors/catalog.go` (new)
+  - Estimated: 2 days
+  - Acceptance: Consistent error messages, documented catalog, tests pass
+
+---
+
+### Phase 9.8.7: Built-in Function Organization
+
+- [ ] 9.98 Reorganize built-in functions by feature
+  - Merge `builtins_strings_*.go` (3 files) → `builtins/strings.go` (1 file)
+  - Merge `builtins_math_*.go` (4 files) → `builtins/math.go` (1 file)
+  - Merge `builtins_datetime_*.go` (3 files) → `builtins/datetime.go` (1 file)
+  - Create `internal/interp/builtins/` sub-package
+  - Files: Reorganize 15+ files into ~6 files in builtins/
+  - Estimated: 3 days
+  - Acceptance: Cleaner organization, fewer files, easier to find functions, tests pass
+
+- [ ] 9.99 Create built-in function registry
+  - Extract built-in registration to registry pattern
+  - Support categories: math, string, datetime, collections, etc.
+  - Auto-register on init or explicit registration
+  - Support querying available built-ins
+  - Files: `internal/interp/builtins/registry.go` (new)
+  - Estimated: 2 days
+  - Acceptance: Registry manages all built-ins, tests pass
+
+---
+
+### Phase 9.8.8: Dependency and Import Cleanup
+
+- [ ] 9.100 Fix circular dependency with pkg/dwscript
+  - Remove reflection hack in NewWithOptions
+  - Create proper Options interface in internal/interp
+  - Have pkg/dwscript implement the interface
+  - Pass through interface, not concrete type
+  - Files: `internal/interp/options.go` (new)
+  - Estimated: 2 days
+  - Acceptance: No reflection, clean interface, tests pass
+
+- [ ] 9.101 Reduce pkg/ast usage in internal/interp
+  - Minimize imports from pkg/ast to internal/ast
+  - Only use pkg/ast for semantic info (Task 9.18)
+  - Create adapter if needed
+  - Document why pkg/ast is used
+  - Estimated: 2 days
+  - Acceptance: Clear separation, documented rationale, tests pass
+
+---
+
+### Phase 9.8.9: Testing and Documentation
+
+- [ ] 9.102 Add unit tests for new components
+  - Test ExecutionContext independently
+  - Test TypeSystem registries independently
+  - Test Evaluator with mock context
+  - Achieve 95%+ coverage on new code
+  - Estimated: 1 week
+  - Acceptance: All new components fully tested, 95%+ coverage
+
+- [ ] 9.103 Update architecture documentation
+  - Document new architecture in CLAUDE.md
+  - Create architecture diagrams showing components
+  - Document design patterns used (Visitor, Registry, etc.)
+  - Create migration guide for contributors
+  - Files: `docs/architecture/interpreter.md`, update `CLAUDE.md`
+  - Estimated: 3 days
+  - Acceptance: Complete documentation, diagrams, migration guide
+
+- [ ] 9.104 Verify no performance regression
+  - Run benchmark suite on refactored code
+  - Compare with baseline from Task 9.81
+  - Ensure no more than 5% regression
+  - If regression > 5%, investigate and optimize
+  - Estimated: 2 days
+  - Acceptance: Performance maintained or improved, benchmarks documented
+
+---
+
+### Phase 9.8.10: Final Integration
+
+- [ ] 9.105 Update all existing code to use new architecture
+  - Update all evaluation call sites
+  - Remove deprecated code and patterns
+  - Ensure consistent usage of new patterns
+  - Run full test suite
+  - Estimated: 1 week
+  - Acceptance: All code updated, no old patterns remain, tests pass
+
+- [ ] 9.106 Final cleanup and polish
+  - Remove dead code and unused exports
+  - Ensure consistent naming conventions
+  - Add missing godoc comments
+  - Run linters and fix issues
+  - Format all code
+  - Estimated: 2 days
+  - Acceptance: Clean codebase, no warnings, all linters pass
+
+---
+
+**Phase 9.8 Summary**:
+- **Total Tasks**: 27 tasks (9.80 - 9.106)
+- **Estimated Timeline**: 4-6 weeks full-time
+- **Risk**: Medium (comprehensive refactoring, but tests provide safety net)
+- **Dependencies**: None (can be done alongside other work with feature branches)
+- **Rollback Strategy**: Each task is incremental; can stop at any point
+- **Success Metrics**:
+  - All existing tests continue to pass
+  - Test coverage ≥ 90%
+  - No performance regression (≤5%)
+  - Code organization: ≤10 files per package
+  - Reduced coupling: clear component boundaries
+  - Improved maintainability: easier to add features
+
+**Recommended Approach**:
+- Work in feature branch: `refactor/interpreter-architecture`
+- Complete one phase at a time (9.8.1, then 9.8.2, etc.)
+- Keep main branch stable with current architecture
+- Merge when entire phase is complete and tested
+- Use git bisect to identify issues quickly
+- Consider doing tasks 9.80-9.82 first to establish baseline
 ## Task 9.50: Parser Architecture Refactoring
 
 **Goal**: Improve parser maintainability, testability, and extensibility by refactoring core parsing patterns, eliminating technical debt, and establishing clearer conventions.
