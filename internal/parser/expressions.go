@@ -637,6 +637,7 @@ func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
 // Also handles:
 //   - Record literals: (X: 10, Y: 20)
 //   - Array literals: (1, 2, 3)
+//
 // PRE: curToken is LPAREN
 // POST: curToken is RPAREN or last token of expression
 func (p *Parser) parseGroupedExpression() ast.Expression {
@@ -911,6 +912,7 @@ func (p *Parser) parseNewClassExpression(newToken lexer.Token, className *ast.Id
 //   - new Integer[16]
 //   - new String[10, 20]
 //   - new Float[Length(arr)+1]
+//
 // PRE: curToken is element type IDENT
 // POST: curToken is RBRACK
 func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *ast.Identifier) ast.Expression {
@@ -964,6 +966,7 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 //   - inherited                  // Bare inherited (calls same method in parent)
 //   - inherited MethodName       // Call parent method (no args)
 //   - inherited MethodName(args) // Call parent method with args
+//
 // PRE: curToken is INHERITED
 // POST: curToken is INHERITED, method IDENT, or RPAREN (depends on form)
 func (p *Parser) parseInheritedExpression() ast.Expression {
@@ -1035,6 +1038,7 @@ func (p *Parser) parseSelfExpression() ast.Expression {
 // Supports both full and shorthand syntax:
 //   - Full: lambda(x: Integer): Integer begin Result := x * 2; end
 //   - Shorthand: lambda(x) => x * 2
+//
 // PRE: curToken is LAMBDA
 // POST: curToken is last token of lambda body (END for full syntax, expression for shorthand)
 func (p *Parser) parseLambdaExpression() ast.Expression {

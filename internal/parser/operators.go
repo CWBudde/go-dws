@@ -13,6 +13,7 @@ import (
 //	operator + (String, Integer) : String uses StrPlusInt;
 //	operator implicit (Integer) : String uses IntToStr;
 //	operator in (Integer, Float) : Boolean uses DigitInFloat;
+//
 // PRE: curToken is OPERATOR
 // POST: curToken is SEMICOLON
 func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
@@ -96,6 +97,7 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 //
 //	class operator += String uses AppendString;
 //	class operator IN array of Integer uses ContainsArray;
+//
 // PRE: curToken is OPERATOR
 // POST: curToken is SEMICOLON
 func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibility ast.Visibility) *ast.OperatorDecl {

@@ -278,6 +278,7 @@ type dimensionPair struct {
 //
 //	array[0..1, 0..2] of Integer
 //	→ array[0..1] of array[0..2] of Integer
+//
 // PRE: curToken is ARRAY
 // POST: curToken is last token of element type
 func (p *Parser) parseArrayType() *ast.ArrayTypeNode {

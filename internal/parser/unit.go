@@ -20,6 +20,7 @@ import (
 //	finalization
 //	  // cleanup code
 //	end.
+//
 // PRE: curToken is UNIT
 // POST: curToken is DOT
 func (p *Parser) parseUnit() *ast.UnitDeclaration {

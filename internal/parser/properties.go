@@ -16,6 +16,7 @@ import (
 //   - property Items[index: Integer]: Type read GetItem write SetItem; (indexed)
 //   - property Items[i: Integer]: Type read GetItem; default; (default indexed)
 //   - property Name: Type; (auto-property, generates backing field)
+//
 // PRE: curToken is PROPERTY
 // POST: curToken is SEMICOLON
 func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {

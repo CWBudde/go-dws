@@ -200,6 +200,7 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 //   - arr[i][j]   (nested indexing)
 //   - arr[i, j]   (multi-index comma syntax, desugared to arr[i][j])
 //   - arr[i, j, k] (3D comma syntax, desugared to arr[i][j][k])
+//
 // PRE: curToken is LBRACK
 // POST: curToken is RBRACK
 func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
@@ -254,6 +255,7 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 //   - [[1, 2], [3, 4]]
 //   - [x + 1, y * 2, z - 3]
 //   - Supports optional trailing comma and range syntax for set literals ([one..five])
+//
 // PRE: curToken is LBRACK
 // POST: curToken is RBRACK
 func (p *Parser) parseArrayLiteral() ast.Expression {

@@ -172,6 +172,7 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 // Can be called in two contexts:
 //  1. After 'var' keyword: var x: Integer;
 //  2. In a var section without 'var': x: Integer; (curToken is already the IDENT)
+//
 // PRE: curToken is VAR or IDENT
 // POST: curToken is SEMICOLON of last var declaration
 func (p *Parser) parseVarDeclaration() ast.Statement {

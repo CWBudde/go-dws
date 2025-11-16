@@ -15,6 +15,7 @@ import (
 //	raise Exception.Create('error');
 //	raise new EMyException('custom error');
 //	raise;  // re-raise
+//
 // PRE: curToken is RAISE
 // POST: curToken is last token of exception expression (or RAISE for bare raise)
 func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
@@ -64,6 +65,7 @@ func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
 //	finally
 //	  Cleanup();
 //	end;
+//
 // PRE: curToken is TRY
 // POST: curToken is END
 func (p *Parser) parseTryStatement() *ast.TryStatement {
@@ -162,6 +164,7 @@ func (p *Parser) parseBlockStatementForTry() *ast.BlockStatement {
 //	except
 //	  PrintLn('error');  // bare except
 //	end
+//
 // PRE: curToken is EXCEPT
 // POST: curToken is last token before FINALLY or END
 func (p *Parser) parseExceptClause() *ast.ExceptClause {
@@ -285,6 +288,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 //	on E: EMyException do begin
 //	  HandleMyException(E);
 //	end;
+//
 // PRE: curToken is ON
 // POST: curToken is last token after statement
 func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
@@ -362,6 +366,7 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 //	finally
 //	  Cleanup();
 //	end
+//
 // PRE: curToken is FINALLY
 // POST: curToken is END (before END of try)
 func (p *Parser) parseFinallyClause() *ast.FinallyClause {

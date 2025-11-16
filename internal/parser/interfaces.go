@@ -288,6 +288,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 //   - type TProc = procedure(msg: String);
 //   - type TCallback = procedure;
 //   - type TEvent = procedure(Sender: TObject) of object;
+//
 // PRE: curToken is FUNCTION or PROCEDURE
 // POST: curToken is SEMICOLON
 func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
@@ -513,6 +514,7 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 // Syntax: procedure MethodName(params);
 //
 //	function MethodName(params): ReturnType;
+//
 // PRE: curToken is PROCEDURE or FUNCTION
 // POST: curToken is SEMICOLON
 func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {

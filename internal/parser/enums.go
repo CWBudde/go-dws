@@ -17,6 +17,7 @@ import (
 //   - type TEnum = (One = 1, Two = 5);           // unscoped enum with values
 //   - type TEnum = enum (One, Two);              // scoped enum
 //   - type TFlags = flags (a, b, c);             // flags enum (scoped, power-of-2 values)
+//
 // PRE: curToken is LPAREN (or after ENUM/FLAGS, will advance to LPAREN)
 // POST: curToken is SEMICOLON
 func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token, scoped bool, flags bool) *ast.EnumDecl {
