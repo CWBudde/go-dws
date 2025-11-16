@@ -2429,6 +2429,458 @@ PrintLn(s.StartsWith('ba'));      // Helper ✗
 
 ---
 
+## Task 9.50: Parser Architecture Refactoring
+
+**Goal**: Improve parser maintainability, testability, and extensibility by refactoring core parsing patterns, eliminating technical debt, and establishing clearer conventions.
+
+**Motivation**: The current parser (~8,300 LOC across 19 files) works well but has accumulated technical debt: inconsistent token consumption patterns, repeated code, speculative parsing with error rollback, and limited lookahead capability. These issues make the parser harder to maintain, extend, and debug.
+
+**Estimate**: 40-60 hours total (divided into 10 subtasks)
+
+**Status**: NOT STARTED
+
+**Priority**: Medium (technical debt reduction, no user-facing changes)
+
+---
+
+### 9.50.1: Implement Proper Lookahead Buffer
+
+**Goal**: Replace limited 1-token lookahead with configurable N-token lookahead buffer to enable better disambiguation.
+
+**Current Issue**: Functions like `looksLikeVarDeclaration()` and `looksLikeConstDeclaration()` conservatively return `false` due to insufficient lookahead:
+```go
+// statements.go:494-518
+func (p *Parser) looksLikeVarDeclaration() bool {
+    // For now, conservatively return false to avoid the regression
+    // A proper implementation would require a 2-token lookahead buffer
+    return false
+}
+```
+
+**Implementation**:
+- [ ] Design lookahead buffer with configurable depth (3-4 tokens)
+- [ ] Add `peek(n int) lexer.Token` method to look N tokens ahead
+- [ ] Implement circular buffer or slice-based lookahead storage
+- [ ] Update `looksLikeVarDeclaration()` to use 2-token lookahead
+- [ ] Update `looksLikeConstDeclaration()` to use 2-token lookahead
+- [ ] Add unit tests for lookahead edge cases (EOF, buffering, reset)
+
+**Files Modified**:
+- `internal/parser/parser.go` (~50 lines added)
+- `internal/parser/statements.go` (~30 lines modified)
+- `internal/parser/declarations.go` (~20 lines modified)
+
+**Tests**:
+- Add `internal/parser/lookahead_test.go` (~150 lines)
+- Test 2-token, 3-token lookahead patterns
+- Test correct disambiguation of var/const declarations
+
+**Estimate**: 4-6 hours
+
+---
+
+### 9.50.2: Unify Type Representation in AST
+
+**Goal**: Eliminate awkward conversions between `TypeExpression` and `TypeAnnotation` by using a unified type representation throughout the AST.
+
+**Current Issue**: Parser creates synthetic `TypeAnnotation` wrappers for complex types (statements.go:268-314, declarations.go:88-119):
+```go
+case *ast.FunctionPointerTypeNode:
+    stmt.Type = &ast.TypeAnnotation{
+        Token:      te.Token,
+        Name:       te.String(),
+        InlineType: te, // Awkward wrapper
+    }
+```
+
+**Implementation**:
+- [ ] Audit all AST nodes that use `TypeAnnotation`
+- [ ] Design unified `TypeSpec` interface or type
+- [ ] Update `VarDeclStatement`, `ConstDecl`, `Parameter` to use unified type
+- [ ] Modify parser to directly use `TypeExpression` in AST nodes
+- [ ] Update semantic analyzer to work with unified representation
+- [ ] Remove synthetic wrapper creation in parser
+
+**Files Modified**:
+- `pkg/ast/statements.go` (~30 lines)
+- `pkg/ast/declarations.go` (~20 lines)
+- `internal/parser/statements.go` (~60 lines removed/simplified)
+- `internal/parser/declarations.go` (~40 lines removed/simplified)
+- `internal/semantic/analyze_declarations.go` (~40 lines modified)
+
+**Tests**:
+- Update existing tests to use unified type representation
+- Verify semantic analysis still works correctly
+- No new tests needed (refactoring only)
+
+**Estimate**: 6-8 hours
+
+---
+
+### 9.50.3: Replace Speculative Parsing with Backtracking
+
+**Goal**: Replace error count manipulation with proper parser state save/restore mechanism for speculative parsing.
+
+**Current Issue**: Fragile error trimming in `parseIsExpression()` (expressions.go:1405-1415):
+```go
+errorCountBefore := len(p.errors)
+expression.TargetType = p.parseTypeExpression()
+if expression.TargetType != nil {
+    return expression
+}
+// Trim errors back to original count (speculative parsing)
+p.errors = p.errors[:errorCountBefore]
+```
+
+**Implementation**:
+- [ ] Design `ParserState` struct (curToken, peekToken, errors, position)
+- [ ] Implement `p.saveState() ParserState` method
+- [ ] Implement `p.restoreState(state ParserState)` method
+- [ ] Replace error trimming with save/restore in `parseIsExpression()`
+- [ ] Identify other speculative parsing sites and convert them
+- [ ] Add debug logging for backtracking events (optional)
+
+**Files Modified**:
+- `internal/parser/parser.go` (~60 lines added)
+- `internal/parser/expressions.go` (~20 lines modified)
+- `internal/parser/types.go` (~30 lines modified, if other sites exist)
+
+**Tests**:
+- Add `internal/parser/backtracking_test.go` (~100 lines)
+- Test save/restore preserves state correctly
+- Test nested save/restore (save twice, restore in order)
+- Verify existing `is` expression tests still pass
+
+**Estimate**: 5-7 hours
+
+---
+
+### 9.50.4: Standardize Token Consumption Convention
+
+**Goal**: Establish and enforce a clear convention for when parsing functions consume their triggering token.
+
+**Current Issue**: Inconsistent token consumption makes parser hard to follow:
+- `parseNewExpression()` advances past 'new' before parsing type
+- `parseHelperDeclaration()` expects to be AT the HELPER keyword
+- `parseBlockStatement()` advances past 'begin'
+
+**Implementation**:
+- [ ] Document convention: "Functions are called WITH curToken at the triggering token"
+- [ ] Audit all 50+ parsing functions for compliance
+- [ ] Refactor non-compliant functions to match convention
+- [ ] Add pre/post-condition comments to each parsing function
+- [ ] Create parser style guide document
+
+**Convention Example**:
+```go
+// parseBlockStatement parses a begin...end block.
+// PRE: curToken is BEGIN
+// POST: curToken is END
+func (p *Parser) parseBlockStatement() *ast.BlockStatement {
+    // Implementation...
+}
+```
+
+**Files Modified**:
+- All parser files (~200 lines of comments added)
+- ~10-15 parsing functions refactored (~150 lines modified)
+- Create `docs/parser-conventions.md` (~200 lines)
+
+**Tests**:
+- No new tests needed (existing tests verify correctness)
+- Add comments to test cases documenting token positions
+
+**Estimate**: 8-10 hours
+
+---
+
+### 9.50.5: Extract Generic List Parsing Helpers
+
+**Goal**: Reduce code duplication by creating generic helper functions for common parsing patterns.
+
+**Current Issue**: Repeated patterns for comma-separated lists, semicolon-terminated blocks:
+- `parseExpressionList()` (expressions.go:569-602)
+- `parseArgumentsOrFields()` (expressions.go:486-561)
+- `parseLambdaParameterList()` (expressions.go:1086-1120)
+
+**Implementation**:
+- [ ] Design generic `parseList` helper with callbacks
+- [ ] Create `parseSeparatedList(sep, term, parseItem)` helper
+- [ ] Create `parseOptionalSeparatedList(sep, term, parseItem)` helper
+- [ ] Refactor expression list parsing to use helper
+- [ ] Refactor parameter list parsing to use helper
+- [ ] Refactor field list parsing to use helper
+
+**Example API**:
+```go
+func (p *Parser) parseSeparatedList(
+    separator lexer.TokenType,
+    terminator lexer.TokenType,
+    parseItem func() ast.Node,
+) []ast.Node
+```
+
+**Files Modified**:
+- `internal/parser/parser.go` (~100 lines added for helpers)
+- `internal/parser/expressions.go` (~150 lines simplified)
+- `internal/parser/functions.go` (~80 lines simplified)
+- `internal/parser/types.go` (~60 lines simplified)
+
+**Tests**:
+- Add `internal/parser/list_parsing_test.go` (~200 lines)
+- Test various separator/terminator combinations
+- Test edge cases (empty lists, trailing separators)
+- Verify existing tests still pass
+
+**Estimate**: 6-8 hours
+
+---
+
+### 9.50.6: Refactor Complex Parsing Functions
+
+**Goal**: Simplify complex parsing functions by extracting sub-parsers and using strategy pattern where appropriate.
+
+**Current Issue**: Functions like `parseCallOrRecordLiteral()` (expressions.go:399-482) have complex branching logic that's hard to follow.
+
+**Implementation**:
+- [ ] Identify functions >100 lines with complex branching
+- [ ] Extract sub-parsers for different syntactic forms
+- [ ] Use dispatch table or strategy pattern for disambiguation
+- [ ] Simplify `parseCallOrRecordLiteral()` into smaller functions
+- [ ] Simplify `parseNewExpression()` dispatch logic
+- [ ] Simplify `parseGroupedExpression()` disambiguation
+
+**Example Refactoring**:
+```go
+// Before: 80-line function with nested if/else
+func (p *Parser) parseCallOrRecordLiteral(...)
+
+// After: Clean dispatch
+func (p *Parser) parseCallOrRecordLiteral(...) {
+    if p.isRecordLiteral() {
+        return p.parseRecordLiteral(typeName)
+    }
+    return p.parseCallExpression(typeName)
+}
+```
+
+**Files Modified**:
+- `internal/parser/expressions.go` (~200 lines refactored)
+- `internal/parser/records.go` (~50 lines added)
+- `internal/parser/arrays.go` (~40 lines modified)
+
+**Tests**:
+- No new tests needed (existing tests verify correctness)
+- May add focused unit tests for extracted sub-parsers
+
+**Estimate**: 5-7 hours
+
+---
+
+### 9.50.7: Remove Dead Code and TODOs
+
+**Goal**: Clean up dead code, stub functions, and resolve outstanding TODOs in parser.
+
+**Current Issue**: Dead code like `tryParseRecordFields()` (expressions.go:564-567):
+```go
+// Stub functions to avoid compilation errors
+func (p *Parser) tryParseRecordFields() ([]*ast.FieldInitializer, bool) {
+    // This is replaced by parseArgumentsOrFields above
+    return nil, false
+}
+```
+
+**Implementation**:
+- [ ] Identify all stub/dead functions in parser
+- [ ] Remove `tryParseRecordFields()` stub
+- [ ] Audit all TODO comments in parser code
+- [ ] Resolve or create GitHub issues for remaining TODOs
+- [ ] Remove commented-out code blocks
+- [ ] Update function documentation for accuracy
+
+**Files Modified**:
+- `internal/parser/expressions.go` (~50 lines removed)
+- `internal/parser/statements.go` (~20 lines removed)
+- `internal/parser/declarations.go` (~15 lines removed)
+- Other parser files (~30 lines removed)
+
+**Tests**:
+- No new tests needed
+- Verify existing tests still pass after cleanup
+
+**Estimate**: 2-3 hours
+
+---
+
+### 9.50.8: Improve Error Recovery
+
+**Goal**: Implement panic-mode error recovery with synchronization tokens for better error messages.
+
+**Current Issue**: Simple forward scanning in `parseBlockStatement()` (statements.go:128-133):
+```go
+if !p.curTokenIs(lexer.END) {
+    p.addError("expected 'end' to close block", ErrMissingEnd)
+    for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
+        p.nextToken() // Just scan forward
+    }
+}
+```
+
+**Implementation**:
+- [ ] Design synchronization token sets (statement starters, block closers)
+- [ ] Implement `p.synchronize(tokens []TokenType)` method
+- [ ] Track block nesting depth to find matching `end` keywords
+- [ ] Add context to error messages (e.g., "expected 'end' for 'begin' at line 10")
+- [ ] Improve error recovery in expression parsing
+- [ ] Test error recovery with malformed input
+
+**Files Modified**:
+- `internal/parser/parser.go` (~80 lines added)
+- `internal/parser/statements.go` (~40 lines modified)
+- `internal/parser/expressions.go` (~30 lines modified)
+- `internal/parser/control_flow.go` (~40 lines modified)
+
+**Tests**:
+- Add `internal/parser/error_recovery_test.go` (~250 lines)
+- Test recovery from various syntax errors
+- Test multiple errors reported in single pass
+- Verify useful error messages with context
+
+**Estimate**: 6-8 hours
+
+---
+
+### 9.50.9: Add Parser Debug/Trace Mode
+
+**Goal**: Add optional debug mode for parser that logs parsing events to aid debugging.
+
+**Current Issue**: Debugging parser issues requires manual print statements or debugger stepping.
+
+**Implementation**:
+- [ ] Add `debug bool` field to Parser struct
+- [ ] Add `SetDebug(enabled bool)` method
+- [ ] Add trace logging for function entry/exit
+- [ ] Add trace logging for token consumption
+- [ ] Add trace logging for AST node creation
+- [ ] Add trace logging for backtracking events
+- [ ] Make output format configurable (plain text, JSON)
+
+**Example Output**:
+```
+[ENTER] parseStatement() at line 10, col 5 (curToken: BEGIN)
+  [ENTER] parseBlockStatement() at line 10, col 5
+    [TOKEN] consume BEGIN
+    [TOKEN] advance to IDENT
+    [ENTER] parseStatement() at line 11, col 7 (curToken: IDENT)
+      [CREATE] AssignmentStatement
+    [EXIT] parseStatement() -> AssignmentStatement
+  [EXIT] parseBlockStatement() -> BlockStatement
+[EXIT] parseStatement() -> BlockStatement
+```
+
+**Files Modified**:
+- `internal/parser/parser.go` (~100 lines added)
+- Add `internal/parser/trace.go` (~150 lines new file)
+- `cmd/dwscript/main.go` (~20 lines for --debug-parser flag)
+
+**Tests**:
+- Add `internal/parser/trace_test.go` (~100 lines)
+- Test trace output format
+- Test trace filtering options
+- Verify no performance impact when disabled
+
+**Estimate**: 4-6 hours
+
+---
+
+### 9.50.10: Parser Documentation and Style Guide
+
+**Goal**: Create comprehensive documentation for parser architecture, conventions, and contribution guidelines.
+
+**Current Issue**: Limited documentation makes it hard for new contributors to understand parser internals.
+
+**Implementation**:
+- [ ] Create `docs/parser-architecture.md` documenting:
+  - Pratt parsing overview
+  - Precedence levels and their meanings
+  - Prefix/infix function registration
+  - Token consumption conventions
+  - AST node creation patterns
+  - Position tracking requirements
+- [ ] Create `docs/parser-style-guide.md` documenting:
+  - Naming conventions
+  - Function pre/post-conditions
+  - Error handling patterns
+  - Testing requirements
+- [ ] Create `docs/parser-extension-guide.md` documenting:
+  - How to add new expressions
+  - How to add new statements
+  - How to add new operators
+  - Testing checklist
+- [ ] Update `CONTRIBUTING.md` with parser-specific guidelines
+- [ ] Add inline documentation to parser.go explaining key concepts
+
+**Files Created**:
+- `docs/parser-architecture.md` (~400 lines)
+- `docs/parser-style-guide.md` (~300 lines)
+- `docs/parser-extension-guide.md` (~350 lines)
+
+**Files Modified**:
+- `CONTRIBUTING.md` (~50 lines added)
+- `internal/parser/parser.go` (~100 lines of comments added)
+
+**Tests**: N/A (documentation only)
+
+**Estimate**: 6-8 hours
+
+---
+
+### Summary of Task 9.50
+
+**Total Estimate**: 52-71 hours (call it ~60 hours or 1.5-2 weeks)
+
+**Breakdown**:
+1. Lookahead buffer: 4-6h
+2. Unify type representation: 6-8h
+3. Backtracking: 5-7h
+4. Token consumption convention: 8-10h
+5. Generic list helpers: 6-8h
+6. Refactor complex functions: 5-7h
+7. Remove dead code: 2-3h
+8. Error recovery: 6-8h
+9. Debug/trace mode: 4-6h
+10. Documentation: 6-8h
+
+**Benefits**:
+- **Maintainability**: Clearer code, less duplication, easier to understand
+- **Extensibility**: Generic helpers make adding new syntax easier
+- **Debuggability**: Trace mode and better error recovery aid troubleshooting
+- **Onboarding**: Comprehensive docs help new contributors
+- **Quality**: Consistent conventions reduce bugs
+
+**Dependencies**: None (can be done incrementally)
+
+**Testing Strategy**: Each subtask includes tests. Overall regression testing ensures no breakage.
+
+**Acceptance Criteria**:
+- All existing parser tests pass (no regressions)
+- Code coverage maintains or improves (currently 84.5%)
+- Parser files reduced by ~500-800 lines through deduplication
+- All subtasks have associated tests or documentation
+- Parser style guide reviewed and approved
+- No user-facing behavior changes (internal refactoring only)
+
+**Non-Goals**:
+- Performance optimization (focus is maintainability)
+- Adding new language features (pure refactoring)
+- Changing AST structure (except unified types in 9.50.2)
+
+**Related Tasks**:
+- Stage 2: Basic Parser and AST (original implementation)
+- Task 10.10: Position Tracking (enhanced with better conventions)
+
+---
+
 ## Phase 10: go-dws API Enhancements for LSP Integration ✅ COMPLETE
 
 **Goal**: Enhanced go-dws library with structured errors, AST access, position metadata, symbol tables, and type information for LSP features.
