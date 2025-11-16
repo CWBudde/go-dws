@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -2470,5 +2471,462 @@ func TestPeekPreservesExistingBehavior(t *testing.T) {
 		if tok.Literal != expected.lit {
 			t.Errorf("token[%d] literal: expected %q, got %q", i, expected.lit, tok.Literal)
 		}
+	}
+}
+
+// TestLexerOptions tests the options pattern for Lexer configuration.
+func TestLexerOptions(t *testing.T) {
+	input := `var x := 42; // comment
+{ block comment }`
+
+	t.Run("default configuration", func(t *testing.T) {
+		l := New(input)
+		if l.preserveComments {
+			t.Error("preserveComments should be false by default")
+		}
+		if l.tracing {
+			t.Error("tracing should be false by default")
+		}
+	})
+
+	t.Run("WithPreserveComments(true)", func(t *testing.T) {
+		l := New(input, WithPreserveComments(true))
+		if !l.preserveComments {
+			t.Error("preserveComments should be true")
+		}
+
+		// Verify comments are preserved
+		tokens := []TokenType{}
+		for {
+			tok := l.NextToken()
+			tokens = append(tokens, tok.Type)
+			if tok.Type == EOF {
+				break
+			}
+		}
+
+		// Should have COMMENT tokens
+		hasComment := false
+		for _, tt := range tokens {
+			if tt == COMMENT {
+				hasComment = true
+				break
+			}
+		}
+		if !hasComment {
+			t.Error("expected COMMENT token when preserveComments is true")
+		}
+	})
+
+	t.Run("WithPreserveComments(false)", func(t *testing.T) {
+		l := New(input, WithPreserveComments(false))
+		if l.preserveComments {
+			t.Error("preserveComments should be false")
+		}
+
+		// Verify comments are skipped
+		tokens := []TokenType{}
+		for {
+			tok := l.NextToken()
+			tokens = append(tokens, tok.Type)
+			if tok.Type == EOF {
+				break
+			}
+		}
+
+		// Should NOT have COMMENT tokens
+		for _, tt := range tokens {
+			if tt == COMMENT {
+				t.Error("unexpected COMMENT token when preserveComments is false")
+			}
+		}
+	})
+
+	t.Run("WithTracing(true)", func(t *testing.T) {
+		l := New(input, WithTracing(true))
+		if !l.tracing {
+			t.Error("tracing should be true")
+		}
+	})
+
+	t.Run("WithTracing(false)", func(t *testing.T) {
+		l := New(input, WithTracing(false))
+		if l.tracing {
+			t.Error("tracing should be false")
+		}
+	})
+
+	t.Run("multiple options", func(t *testing.T) {
+		l := New(input, WithPreserveComments(true), WithTracing(true))
+		if !l.preserveComments {
+			t.Error("preserveComments should be true")
+		}
+		if !l.tracing {
+			t.Error("tracing should be true")
+		}
+	})
+
+	t.Run("backwards compatibility - no options", func(t *testing.T) {
+		// Should work without any options (backwards compatible)
+		l := New(input)
+		tok := l.NextToken()
+		if tok.Type != VAR {
+			t.Errorf("expected VAR token, got %s", tok.Type)
+		}
+	})
+}
+
+// TestOptionsBackwardsCompatibility ensures that existing code without options still works.
+func TestOptionsBackwardsCompatibility(t *testing.T) {
+	input := `var x: Integer := 42;`
+
+	// Old usage pattern (no options)
+	l := New(input)
+
+	tokens := []struct {
+		typ TokenType
+		lit string
+	}{
+		{VAR, "var"},
+		{IDENT, "x"},
+		{COLON, ":"},
+		{IDENT, "Integer"},
+		{ASSIGN, ":="},
+		{INT, "42"},
+		{SEMICOLON, ";"},
+		{EOF, ""},
+	}
+
+	for i, expected := range tokens {
+		tok := l.NextToken()
+		if tok.Type != expected.typ {
+			t.Errorf("token[%d] type: expected %s, got %s", i, expected.typ, tok.Type)
+		}
+		if tok.Literal != expected.lit {
+			t.Errorf("token[%d] literal: expected %q, got %q", i, expected.lit, tok.Literal)
+		}
+	}
+}
+
+// TestErrorPositionsUnterminatedStrings tests error positions for unterminated strings at various locations.
+func TestErrorPositionsUnterminatedStrings(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		errorLine int
+		errorCol  int
+	}{
+		{
+			name:      "unterminated string at start of file",
+			input:     `'unterminated`,
+			errorLine: 1,
+			errorCol:  1,
+		},
+		{
+			name:      "unterminated string on line 1 after valid token",
+			input:     `var x := 'unterminated`,
+			errorLine: 1,
+			errorCol:  10,
+		},
+		{
+			name: "unterminated string on line 2",
+			input: `var x := 42;
+'unterminated on line 2`,
+			errorLine: 2,
+			errorCol:  1,
+		},
+		{
+			name: "unterminated string on line 3",
+			input: `var x := 42;
+var y := 'valid';
+'unterminated on line 3`,
+			errorLine: 3,
+			errorCol:  1,
+		},
+		{
+			name:      "unterminated string mid-line",
+			input:     `var x := 42; var s := 'unterminated`,
+			errorLine: 1,
+			errorCol:  23,
+		},
+		{
+			name:      "unterminated double-quoted string",
+			input:     `var x := "unterminated`,
+			errorLine: 1,
+			errorCol:  10,
+		},
+		{
+			name: "unterminated multiline string",
+			input: `var x := 'line 1
+line 2
+unterminated`,
+			errorLine: 1,
+			errorCol:  10,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+
+			// Consume all tokens
+			for {
+				tok := l.NextToken()
+				if tok.Type == EOF {
+					break
+				}
+			}
+
+			// Check that we have errors
+			errors := l.Errors()
+			if len(errors) == 0 {
+				t.Fatal("expected at least one error, got none")
+			}
+
+			// Find the unterminated string error
+			found := false
+			for _, err := range errors {
+				if err.Pos.Line == tt.errorLine && err.Pos.Column == tt.errorCol {
+					found = true
+					if !strings.Contains(strings.ToLower(err.Message), "unterminated") {
+						t.Errorf("error message should contain 'unterminated', got: %s", err.Message)
+					}
+				}
+			}
+
+			if !found {
+				t.Errorf("expected error at line %d, column %d, but got errors at:", tt.errorLine, tt.errorCol)
+				for _, err := range errors {
+					t.Logf("  - line %d, column %d: %s", err.Pos.Line, err.Pos.Column, err.Message)
+				}
+			}
+		})
+	}
+}
+
+// TestErrorPositionsIllegalCharacters tests error positions for illegal characters.
+func TestErrorPositionsIllegalCharacters(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		errorLine int
+		errorCol  int
+		char      rune
+	}{
+		{
+			name:      "illegal character at start",
+			input:     "§ var x := 42;",
+			errorLine: 1,
+			errorCol:  1,
+			char:      '§',
+		},
+		{
+			name:      "illegal character mid-line",
+			input:     "var x := 42 § 10;",
+			errorLine: 1,
+			errorCol:  13,
+			char:      '§',
+		},
+		{
+			name: "illegal character on line 2",
+			input: `var x := 42;
+var y := § 10;`,
+			errorLine: 2,
+			errorCol:  10,
+			char:      '§',
+		},
+		{
+			name: "illegal character on line 3",
+			input: `var x := 42;
+var y := 10;
+var z := ¶ 20;`,
+			errorLine: 3,
+			errorCol:  10,
+			char:      '¶',
+		},
+		{
+			name:      "multiple illegal characters",
+			input:     "§ var x := ¶ 42;",
+			errorLine: 1, // Should report first error
+			errorCol:  1,
+			char:      '§',
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+
+			// Consume all tokens
+			for {
+				tok := l.NextToken()
+				if tok.Type == EOF {
+					break
+				}
+			}
+
+			// Check that we have errors
+			errors := l.Errors()
+			if len(errors) == 0 {
+				t.Fatal("expected at least one error, got none")
+			}
+
+			// Find the illegal character error at the expected position
+			found := false
+			for _, err := range errors {
+				if err.Pos.Line == tt.errorLine && err.Pos.Column == tt.errorCol {
+					found = true
+					if !strings.Contains(strings.ToLower(err.Message), "illegal") {
+						t.Errorf("error message should contain 'illegal', got: %s", err.Message)
+					}
+				}
+			}
+
+			if !found {
+				t.Errorf("expected error at line %d, column %d, but got errors at:", tt.errorLine, tt.errorCol)
+				for _, err := range errors {
+					t.Logf("  - line %d, column %d: %s", err.Pos.Line, err.Pos.Column, err.Message)
+				}
+			}
+		})
+	}
+}
+
+// TestErrorPositionsMultiLineErrors tests error reporting across multiple lines.
+func TestErrorPositionsMultiLineErrors(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          string
+		expectedErrors []struct {
+			line int
+			col  int
+		}
+	}{
+		{
+			name: "multiple illegal characters on different lines",
+			input: `var x := 42;
+var y := § 42;
+var z := ¶ 20;`,
+			expectedErrors: []struct{ line, col int }{
+				{2, 10}, // illegal character on line 2
+				{3, 10}, // illegal character on line 3
+			},
+		},
+		{
+			name: "unterminated comment on line 1",
+			input: `{ unterminated comment
+var x := 42;`,
+			expectedErrors: []struct{ line, col int }{
+				{1, 1}, // unterminated comment
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+
+			// Consume all tokens
+			for {
+				tok := l.NextToken()
+				if tok.Type == EOF {
+					break
+				}
+			}
+
+			// Check that we have errors
+			errors := l.Errors()
+			if len(errors) < len(tt.expectedErrors) {
+				t.Errorf("expected at least %d errors, got %d", len(tt.expectedErrors), len(errors))
+				for i, err := range errors {
+					t.Logf("error %d: line %d, column %d: %s", i, err.Pos.Line, err.Pos.Column, err.Message)
+				}
+			}
+
+			// Check each expected error position
+			for _, expected := range tt.expectedErrors {
+				found := false
+				for _, err := range errors {
+					if err.Pos.Line == expected.line && err.Pos.Column == expected.col {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected error at line %d, column %d, but didn't find it", expected.line, expected.col)
+				}
+			}
+		})
+	}
+}
+
+// TestErrorPositionsWithUnicode tests error positions with Unicode characters.
+// This verifies that column positions are reported correctly for multi-byte characters.
+func TestErrorPositionsWithUnicode(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		errorLine int
+		errorCol  int
+	}{
+		{
+			name:      "illegal char after ASCII",
+			input:     "var § x := 42;",
+			errorLine: 1,
+			errorCol:  5,
+		},
+		{
+			name:      "illegal char after Unicode identifier",
+			input:     "var Δ § x := 42;",
+			errorLine: 1,
+			errorCol:  7,
+		},
+		{
+			name:      "unterminated string with Unicode",
+			input:     "var s := 'Hello Δ unterminated",
+			errorLine: 1,
+			errorCol:  10,
+		},
+		{
+			name:      "illegal char after emoji in comment",
+			input:     "// 🚀 comment\nvar x § 42;",
+			errorLine: 2,
+			errorCol:  7,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+
+			// Consume all tokens
+			for {
+				tok := l.NextToken()
+				if tok.Type == EOF {
+					break
+				}
+			}
+
+			// Check that we have errors
+			errors := l.Errors()
+			if len(errors) == 0 {
+				t.Fatal("expected at least one error, got none")
+			}
+
+			// Find error at expected position
+			found := false
+			for _, err := range errors {
+				if err.Pos.Line == tt.errorLine && err.Pos.Column == tt.errorCol {
+					found = true
+				}
+			}
+
+			if !found {
+				t.Errorf("expected error at line %d, column %d (rune count), but got errors at:", tt.errorLine, tt.errorCol)
+				for _, err := range errors {
+					t.Logf("  - line %d, column %d: %s", err.Pos.Line, err.Pos.Column, err.Message)
+				}
+			}
+		})
 	}
 }
