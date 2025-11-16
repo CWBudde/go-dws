@@ -491,8 +491,9 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 // - COMMA (for multi-var declaration: x, y : Integer)
 // This prevents mis-parsing function calls or assignments as var declarations.
 // NOTE: We do NOT accept ASSIGN/EQ patterns here because they're ambiguous:
-//   "x := 5" could be a new var declaration OR an assignment to existing var.
-//   To use type inference in var blocks, repeat the 'var' keyword for each declaration.
+//
+//	"x := 5" could be a new var declaration OR an assignment to existing var.
+//	To use type inference in var blocks, repeat the 'var' keyword for each declaration.
 func (p *Parser) looksLikeVarDeclaration() bool {
 	if !p.peekTokenIs(lexer.IDENT) {
 		return false
@@ -515,7 +516,8 @@ func (p *Parser) looksLikeVarDeclaration() bool {
 // - EQ (for untyped const: C = value)
 // This prevents mis-parsing other statements as const declarations.
 // NOTE: We accept EQ but not ASSIGN here. While both can be used for consts,
-//   ASSIGN is more commonly used for var declarations and assignments.
+//
+//	ASSIGN is more commonly used for var declarations and assignments.
 func (p *Parser) looksLikeConstDeclaration() bool {
 	if !p.peekTokenIs(lexer.IDENT) {
 		return false

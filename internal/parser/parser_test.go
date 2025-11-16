@@ -265,14 +265,14 @@ func TestLookaheadFunctions(t *testing.T) {
 			expectedStmts: 2,
 		},
 		{
-			name: "single var declaration",
-			input: `var x : Integer;`,
+			name:          "single var declaration",
+			input:         `var x : Integer;`,
 			shouldParse:   true,
 			expectedStmts: 1,
 		},
 		{
-			name: "single const declaration",
-			input: `const MAX = 100;`,
+			name:          "single const declaration",
+			input:         `const MAX = 100;`,
 			shouldParse:   true,
 			expectedStmts: 1,
 		},
