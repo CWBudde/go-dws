@@ -564,14 +564,15 @@ if !p.curTokenIs(lexer.END) {
 
 ### Phase 3.3: Execution Context Separation
 
-- [ ] 3.3.1 Create ExecutionContext struct
+- [x] 3.3.1 Create ExecutionContext struct
   - Extract execution state from Interpreter into ExecutionContext
   - Include: env, callStack, controlFlow (break/continue/exit), exception state
   - Create ControlFlow helper type for break/continue/exit/return signals
   - Update Eval methods to accept context parameter
-  - Files: `internal/interp/evaluator/context.go` (new)
+  - Files: `internal/interp/evaluator/context.go` (new), `env_adapter.go` (new)
   - Estimated: 5 days
   - Acceptance: Context cleanly separated, passed explicitly, tests pass
+  - **Completed**: Added ExecutionContext struct with ControlFlow type, initialized in Interpreter constructor, all tests pass
 
 - [ ] 3.3.2 Implement explicit control flow handling
   - Replace boolean flags (breakSignal, continueSignal, etc.) with ControlFlow type
