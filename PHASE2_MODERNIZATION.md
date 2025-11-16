@@ -3,7 +3,7 @@
 **Goal**: Transform the parser from a traditional recursive descent implementation to a modern, maintainable architecture using cursor-based parsing, combinators, and structured errors.
 
 **Current State**:
-- 21 implementation files, ~9,400 lines of code
+- 20 implementation files, ~9,400 lines of code
 - Traditional mutable parser state (curToken, peekToken)
 - 411 explicit `nextToken()` calls throughout codebase
 - 193 error reporting sites with string-based errors
