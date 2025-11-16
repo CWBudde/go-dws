@@ -7,128 +7,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Phase 1: Lexer (Tokenization)
 
-**Goal**: Refactor the lexer for better maintainability, consistency, and extensibility while preserving all existing functionality.
-
-**Status**: MOSTLY COMPLETE | **Tasks**: 18/20 complete
-
-**Motivation**: The lexer works well but has technical debt in error handling, state management, and code organization. These improvements will make the codebase easier to maintain and extend.
-
-**Approach**: Incremental refactoring with full test coverage at each step. No behavior changes, only internal improvements.
-
-**Note**: The lexer implementation has gone BEYOND the original Phase 1 scope, including:
-- ✅ N-token lookahead buffer with `Peek(n)` method
-- ✅ Comment preservation mode for formatters and documentation tools
-- ✅ Error accumulation pattern matching parser conventions
-- ✅ State save/restore for speculative parsing
-- ✅ UTF-8 BOM detection and stripping
-- ✅ String/character literal concatenation sequences
-- ✅ Comprehensive operator handlers extracted
-- ✅ Position tracking with line/column/offset information
-
-### 1.1: Code Organization - Refactor NextToken
-
-**Goal**: Break up the 335-line NextToken() switch statement into maintainable handler functions.
-
-- [x] 1.1.1 Extract operator handlers (arithmetic)
-  - Create `handlePlus()`, `handleMinus()`, `handleAsterisk()` functions
-  - Each handles compound operators (+=, ++, etc.)
-  - File: `internal/lexer/lexer.go` (~120 lines, move not add)
-  - Estimated: 1 hour
-  - Test: All arithmetic operators work
-  - **DONE**: Extracted handlePlus, handleMinus, handleAsterisk, handleSlash, handlePercent
-
-- [x] 1.1.2 Extract operator handlers (comparison and logical)
-  - Create `handleEquals()`, `handleLess()`, `handleGreater()` functions
-  - Create `handleAmp()`, `handlePipe()`, `handleQuestion()` functions
-  - File: `internal/lexer/lexer.go` (~100 lines, move not add)
-  - Estimated: 1 hour
-  - Test: All comparison/logical operators work
-  - **DONE**: Extracted handleEquals, handleLess, handleGreater, handleExclamation, handleQuestion, handleAmpersand, handlePipe, handleCaret, handleAt, handleTilde
-
-- [x] 1.1.3 Create operator dispatch table
-  - Define `type tokenHandler func(*Lexer, Position) Token`
-  - Create `var tokenHandlers = map[rune]tokenHandler{...}`
-  - Update NextToken() to use dispatch table
-  - File: `internal/lexer/lexer.go` (~60 lines modified)
-  - Estimated: 1 hour
-  - Test: All operators still work, performance not degraded
-  - **DONE**: Created tokenHandler type and dispatch table with 13 operators
-
-- [x] 1.1.4 Benchmark dispatch table vs switch
-  - Create benchmark for NextToken() throughput
-  - Compare switch vs map dispatch
-  - Revert if map is significantly slower (>10%)
-  - File: `internal/lexer/lexer_bench_test.go` (new file ~80 lines)
-  - Estimated: 45 minutes
-  - Test: Performance within acceptable range
-  - **DONE**: Created comprehensive benchmarks, performance is excellent
-
----
-
-### 1.2: Documentation and Testing
-
-**Goal**: Improve observability and testing infrastructure.
-
-- [x] 1.2.1 Add options pattern for Lexer configuration
-  - Define `type LexerOption func(*Lexer)`
-  - Update `New(input string, opts ...LexerOption)` signature
-  - Add `WithTracing(bool)` option for debug output
-  - File: `internal/lexer/lexer.go` (~40 lines)
-  - Estimated: 45 minutes
-  - Test: Options apply correctly, backwards compatible
-  - **DONE**: Added LexerOption type, WithPreserveComments and WithTracing options, fully backwards compatible
-
-- [x] 1.2.2 Add comprehensive error position tests
-  - Test error positions for unterminated strings at various locations
-  - Test error positions for illegal characters
-  - Test multi-line error reporting
-  - File: `internal/lexer/lexer_test.go` (~100 lines)
-  - Estimated: 1 hour
-  - Test: All error positions accurate
-  - **DONE**: Added 4 comprehensive test suites covering unterminated strings, illegal characters, multi-line errors, and Unicode edge cases
-
-- [x] 1.2.3 Document column behavior for Unicode
-  - Clarify that "column" means rune count, not display width
-  - Add comment about display width vs. rune count tradeoff
-  - Add examples in tests with emoji and multi-byte chars
-  - File: `internal/lexer/lexer.go`, `internal/lexer/lexer_test.go` (~30 lines)
-  - Estimated: 30 minutes
-  - Test: Unicode handling documented and tested
-  - **DONE**: Added comprehensive documentation to Lexer type and Position type explaining column behavior with examples
-
----
-
-**Files Created**:
-- `internal/lexer/lexer_bench_test.go` (new file ~80 lines) - Performance benchmarks
-
-**Files Modified**:
-- `internal/lexer/lexer.go` (~400 lines modified, net -50 lines from cleanup)
-- `internal/lexer/lexer_test.go` (~180 lines added)
-- `internal/parser/parser.go` (~30 lines modified for error handling)
-
-**Acceptance Criteria**:
-- All existing tests pass (100% backwards compatible)
-- Error handling consistent across lexer (accumulation pattern)
-- State management uses proper save/restore pattern
-- Token lookahead API eliminates parser workarounds
-- NextToken() refactored into maintainable handlers
-- Performance maintained or improved
-- Test coverage remains >95%
-- Documentation updated for Unicode column behavior
-
-**Benefits**:
-- **Maintainability**: Smaller functions easier to understand and modify
-- **Consistency**: Error handling matches parser pattern
-- **Extensibility**: Dispatch table makes adding operators easier
-- **API Quality**: Proper lookahead eliminates workarounds
-- **Code Health**: Removes technical debt for future development
-- **Testing**: Better test infrastructure for edge cases
-
-**Non-Goals** (explicitly out of scope):
-- Changing token types or lexer output format
-- Performance optimization beyond maintaining current speed
-- Adding new language features or syntax
-- Changing public API surface (pkg/token)
+**Completed**
 
 ## Phase 2: Parser Refactoring and Enhancement
 
@@ -141,14 +20,6 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 **Status**: NOT STARTED
 
 **Priority**: Medium (technical debt reduction, enables future development)
-
-**Key Changes from Original Plan**:
-- ✅ Task 2.1 (Lookahead Buffer) is OBSOLETE - lexer now provides `Peek(n)` method
-- 🆕 New task 2.1: Utilize lexer's lookahead throughout parser
-- 🔄 Task 2.3 updated to leverage lexer's state save/restore
-- ❌ Task 2.9 (Debug/Trace Mode) REMOVED - can be added later if needed
-- 📉 Reduced from 10 tasks to 9 tasks
-- ⏱️ Reduced time estimate: 35-50h (was 52-71h) due to lexer infrastructure
 
 ---
 
@@ -192,7 +63,7 @@ func (p *Parser) looksLikeVarDeclaration() bool {
 - Test complex expression disambiguation
 - Verify no performance regression from lookahead usage
 
-**Estimate**: 3-4 hours (reduced from 4-6h since lexer provides infrastructure)
+**Estimate**: 3-4 hours
 
 ---
 

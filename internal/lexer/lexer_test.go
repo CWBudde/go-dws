@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -2687,7 +2688,7 @@ unterminated`,
 			for _, err := range errors {
 				if err.Pos.Line == tt.errorLine && err.Pos.Column == tt.errorCol {
 					found = true
-					if !containsString(err.Message, "unterminated") {
+					if !strings.Contains(strings.ToLower(err.Message), "unterminated") {
 						t.Errorf("error message should contain 'unterminated', got: %s", err.Message)
 					}
 				}
@@ -2775,7 +2776,7 @@ var z := ¶ 20;`,
 			for _, err := range errors {
 				if err.Pos.Line == tt.errorLine && err.Pos.Column == tt.errorCol {
 					found = true
-					if !containsString(err.Message, "illegal") {
+					if !strings.Contains(strings.ToLower(err.Message), "illegal") {
 						t.Errorf("error message should contain 'illegal', got: %s", err.Message)
 					}
 				}
@@ -2928,37 +2929,4 @@ func TestErrorPositionsWithUnicode(t *testing.T) {
 			}
 		})
 	}
-}
-
-// containsString checks if a string contains a substring (case-insensitive).
-func containsString(s, substr string) bool {
-	s = toLower(s)
-	substr = toLower(substr)
-	return len(s) >= len(substr) && indexOfString(s, substr) >= 0
-}
-
-// toLower converts a string to lowercase.
-func toLower(s string) string {
-	result := ""
-	for _, r := range s {
-		if r >= 'A' && r <= 'Z' {
-			result += string(r + 32)
-		} else {
-			result += string(r)
-		}
-	}
-	return result
-}
-
-// indexOfString finds the index of substr in s, or -1 if not found.
-func indexOfString(s, substr string) int {
-	if len(substr) == 0 {
-		return 0
-	}
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return i
-		}
-	}
-	return -1
 }
