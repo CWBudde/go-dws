@@ -515,7 +515,7 @@ type ListParseOptions struct {
 // Parameters:
 //   - opts: Configuration options (separators, terminator, etc.)
 //   - parseItem: Callback to parse one item. Returns true if successful, false on error.
-//               The callback should NOT consume trailing separators or terminators.
+//     The callback should NOT consume trailing separators or terminators.
 //
 // Returns:
 //   - itemCount: Number of items successfully parsed
