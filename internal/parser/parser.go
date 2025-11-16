@@ -52,33 +52,33 @@
 //
 //  1. Disambiguation functions (looksLike* pattern):
 //     func (p *Parser) looksLikeVarDeclaration() bool {
-//         if !p.peekTokenIs(lexer.IDENT) {
-//             return false
-//         }
-//         tokenAfterIdent := p.peek(0)  // Look past the IDENT
-//         return tokenAfterIdent.Type == lexer.COLON ||
-//                tokenAfterIdent.Type == lexer.COMMA
+//     if !p.peekTokenIs(lexer.IDENT) {
+//     return false
+//     }
+//     tokenAfterIdent := p.peek(0)  // Look past the IDENT
+//     return tokenAfterIdent.Type == lexer.COLON ||
+//     tokenAfterIdent.Type == lexer.COMMA
 //     }
 //
 //  2. Scanning for specific tokens:
 //     peekIndex := 0
 //     for {
-//         tok := p.peek(peekIndex)
-//         if tok.Type == lexer.COLON {
-//             return true
-//         }
-//         if tok.Type == lexer.SEMICOLON || tok.Type == lexer.EOF {
-//             return false
-//         }
-//         peekIndex++
+//     tok := p.peek(peekIndex)
+//     if tok.Type == lexer.COLON {
+//     return true
+//     }
+//     if tok.Type == lexer.SEMICOLON || tok.Type == lexer.EOF {
+//     return false
+//     }
+//     peekIndex++
 //     }
 //
 // Best practices:
-//  - Use lookahead sparingly - only when truly needed for disambiguation
-//  - Prefer peek() for direct lookahead, peekAhead() when counting from curToken is clearer
-//  - Always check for EOF when scanning ahead in loops
-//  - Document WHY lookahead is needed (what ambiguity it resolves)
-//  - Keep lookahead functions pure (no side effects, no token consumption)
+//   - Use lookahead sparingly - only when truly needed for disambiguation
+//   - Prefer peek() for direct lookahead, peekAhead() when counting from curToken is clearer
+//   - Always check for EOF when scanning ahead in loops
+//   - Document WHY lookahead is needed (what ambiguity it resolves)
+//   - Keep lookahead functions pure (no side effects, no token consumption)
 package parser
 
 import (
