@@ -380,6 +380,80 @@ func TestParseSeparatedList_NoTerminator(t *testing.T) {
 	}
 }
 
+// TestParseSeparatedList_TrailingSeparatorNoTerminator tests the edge case where
+// AllowTrailingSeparator=true AND RequireTerminator=false with a trailing separator.
+// This is a regression test for the token position bug where curToken was left pointing
+// to the separator instead of the last item.
+func TestParseSeparatedList_TrailingSeparatorNoTerminator(t *testing.T) {
+	tests := []struct {
+		name            string
+		input           string
+		expectCount     int
+		expectOk        bool
+		expectCurToken  string // What curToken.Literal should be after parsing
+		expectPeekToken lexer.TokenType
+	}{
+		{
+			name:            "Trailing separator with optional terminator",
+			input:           "a, b, c,)",
+			expectCount:     3,
+			expectOk:        true,
+			expectCurToken:  "c", // Should be on last item, NOT on the comma
+			expectPeekToken: lexer.RPAREN,
+		},
+		{
+			name:            "No trailing separator with optional terminator",
+			input:           "a, b, c)",
+			expectCount:     3,
+			expectOk:        true,
+			expectCurToken:  "c",
+			expectPeekToken: lexer.RPAREN,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l) // After New(): cur='a'
+
+			opts := ListParseOptions{
+				Separators:             []lexer.TokenType{lexer.COMMA},
+				Terminator:             lexer.RPAREN,
+				AllowTrailingSeparator: true, // Allow trailing separator
+				AllowEmpty:             true,
+				RequireTerminator:      false, // Don't require terminator (caller handles it)
+			}
+
+			items := []string{}
+			count, ok := p.parseSeparatedList(opts, func() bool {
+				if !p.curTokenIs(lexer.IDENT) {
+					return false
+				}
+				items = append(items, p.curToken.Literal)
+				return true
+			})
+
+			if ok != tt.expectOk {
+				t.Errorf("ok = %v, want %v", ok, tt.expectOk)
+			}
+			if count != tt.expectCount {
+				t.Errorf("count = %d, want %d", count, tt.expectCount)
+			}
+
+			// Critical assertion: curToken should be on the last item
+			if !p.curTokenIs(lexer.IDENT) || p.curToken.Literal != tt.expectCurToken {
+				t.Errorf("curToken = %v (type=%s), want %s (type=IDENT)",
+					p.curToken.Literal, p.curToken.Type, tt.expectCurToken)
+			}
+
+			// Verify peekToken is the terminator
+			if !p.peekTokenIs(tt.expectPeekToken) {
+				t.Errorf("peekToken = %s, want %s", p.peekToken.Type, tt.expectPeekToken)
+			}
+		})
+	}
+}
+
 // TestParseSeparatedList_ParseError tests that parse errors are handled correctly.
 func TestParseSeparatedList_ParseError(t *testing.T) {
 	input := "a, +, c)"

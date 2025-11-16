@@ -566,12 +566,17 @@ func (p *Parser) parseSeparatedList(opts ListParseOptions, parseItem func() bool
 
 	// Parse remaining items
 	for p.peekTokenIsSomeOf(opts.Separators...) {
-		p.nextToken() // consume separator
+		lastItemToken := p.curToken // Save position of last parsed item
+		p.nextToken()               // consume separator
 
 		// Check for trailing separator
 		if opts.AllowTrailingSeparator && p.peekTokenIs(opts.Terminator) {
 			if opts.RequireTerminator {
 				p.nextToken() // consume terminator
+			} else {
+				// Restore curToken to last item to honor contract:
+				// "If RequireTerminator is false: curToken is the last item"
+				p.curToken = lastItemToken
 			}
 			return itemCount, true
 		}
