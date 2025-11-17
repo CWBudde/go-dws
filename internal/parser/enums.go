@@ -34,7 +34,7 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 		return nil
 	}
 
-	// Parse enum values
+	// Parse enum values using SeparatedList combinator (Task 2.3.2)
 	p.nextToken() // move to first value
 
 	// Check for empty enum
@@ -43,63 +43,65 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 		return nil
 	}
 
-	for !p.curTokenIs(lexer.RPAREN) && !p.curTokenIs(lexer.EOF) {
-		// Parse enum value name
-		// Allow identifiers and some keywords (like True, False) as enum value names
-		valueName := ""
-		if p.curTokenIs(lexer.IDENT) {
-			valueName = p.curToken.Literal
-		} else if p.curTokenIs(lexer.TRUE) || p.curTokenIs(lexer.FALSE) {
-			// Allow boolean keywords as enum value names
-			valueName = p.curToken.Literal
-		} else {
-			p.addError("expected enum value name, got "+p.curToken.Type.String(), ErrExpectedIdent)
-			return nil
-		}
-
-		enumValue := ast.EnumValue{
-			Name:  valueName,
-			Value: nil, // Default to implicit value
-		}
-
-		// Check for optional 'deprecated' keyword (must come before the value assignment, if any)
-		if p.peekTokenIs(lexer.DEPRECATED) {
-			p.nextToken() // move to 'deprecated'
-			enumValue.IsDeprecated = true
-
-			// Check for optional deprecation message string
-			if p.peekTokenIs(lexer.STRING) {
-				p.nextToken() // move to string
-				enumValue.DeprecatedMessage = p.curToken.Literal
+	count := p.SeparatedList(SeparatorConfig{
+		Sep:           lexer.COMMA,
+		Term:          lexer.RPAREN,
+		AllowEmpty:    false,
+		AllowTrailing: true,
+		RequireTerm:   true,
+		ParseItem: func() bool {
+			// Parse enum value name
+			// Allow identifiers and some keywords (like True, False) as enum value names
+			valueName := ""
+			if p.curTokenIs(lexer.IDENT) {
+				valueName = p.curToken.Literal
+			} else if p.curTokenIs(lexer.TRUE) || p.curTokenIs(lexer.FALSE) {
+				// Allow boolean keywords as enum value names
+				valueName = p.curToken.Literal
+			} else {
+				p.addError("expected enum value name, got "+p.curToken.Type.String(), ErrExpectedIdent)
+				return false
 			}
-		}
 
-		// Check for explicit value: Name [deprecated] = Value
-		if p.peekTokenIs(lexer.EQ) {
-			p.nextToken() // move to '='
-			p.nextToken() // move to value
-
-			// Parse the value (could be negative)
-			value, err := p.parseEnumValue()
-			if err != nil {
-				p.addError("invalid enum value: "+err.Error(), ErrInvalidExpression)
-				return nil
+			enumValue := ast.EnumValue{
+				Name:  valueName,
+				Value: nil, // Default to implicit value
 			}
-			enumValue.Value = &value
-		}
 
-		enumDecl.Values = append(enumDecl.Values, enumValue)
+			// Check for optional 'deprecated' keyword (must come before the value assignment, if any)
+			if p.peekTokenIs(lexer.DEPRECATED) {
+				p.nextToken() // move to 'deprecated'
+				enumValue.IsDeprecated = true
 
-		// Move to next token (comma or closing paren)
-		p.nextToken()
+				// Check for optional deprecation message string
+				if p.peekTokenIs(lexer.STRING) {
+					p.nextToken() // move to string
+					enumValue.DeprecatedMessage = p.curToken.Literal
+				}
+			}
 
-		// If we hit a comma, skip it and continue
-		if p.curTokenIs(lexer.COMMA) {
-			p.nextToken() // move past comma to next value name
-		} else if !p.curTokenIs(lexer.RPAREN) {
-			p.addError("expected ',' or ')' in enum declaration, got "+p.curToken.Type.String(), ErrUnexpectedToken)
-			return nil
-		}
+			// Check for explicit value: Name [deprecated] = Value
+			if p.peekTokenIs(lexer.EQ) {
+				p.nextToken() // move to '='
+				p.nextToken() // move to value
+
+				// Parse the value (could be negative)
+				value, err := p.parseEnumValue()
+				if err != nil {
+					p.addError("invalid enum value: "+err.Error(), ErrInvalidExpression)
+					return false
+				}
+				enumValue.Value = &value
+			}
+
+			enumDecl.Values = append(enumDecl.Values, enumValue)
+			return true
+		},
+	})
+
+	// Check if parsing succeeded
+	if count == -1 {
+		return nil
 	}
 
 	// Expect semicolon after closing paren

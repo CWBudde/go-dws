@@ -432,45 +432,14 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		stmt.Token = p.curToken
 	}
 
-	// Collect comma-separated identifiers
+	// Use IdentifierList combinator to collect comma-separated identifiers (Task 2.3.3)
 	// Parse pattern: IDENT (, IDENT)* : TYPE [:= VALUE]
-	stmt.Names = []*ast.Identifier{}
-	for {
-		if !p.isIdentifierToken(p.curToken.Type) {
-			// Use structured error (Task 2.1.3)
-			err := NewStructuredError(ErrKindMissing).
-				WithCode(ErrExpectedIdent).
-				WithMessage("expected identifier in var declaration").
-				WithPosition(p.curToken.Pos, p.curToken.Length()).
-				WithExpectedString("variable name").
-				WithActual(p.curToken.Type, p.curToken.Literal).
-				WithSuggestion("provide a variable name").
-				WithParsePhase("variable declaration").
-				Build()
-			p.addStructuredError(err)
-			return nil
-		}
-
-		stmt.Names = append(stmt.Names, &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: p.curToken,
-				},
-			},
-			Value: p.curToken.Literal,
-		})
-
-		// Check if there are more names (comma-separated)
-		if p.peekTokenIs(lexer.COMMA) {
-			p.nextToken() // move to ','
-			if !p.expectIdentifier() {
-				return nil
-			}
-			continue
-		}
-
-		// No more names, break to parse type
-		break
+	stmt.Names = p.IdentifierList(IdentifierListConfig{
+		ErrorContext:      "variable declaration",
+		RequireAtLeastOne: true,
+	})
+	if stmt.Names == nil {
+		return nil
 	}
 
 	hasExplicitType := false
