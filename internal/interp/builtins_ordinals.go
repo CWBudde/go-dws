@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // builtinInc implements the Inc() built-in function.
@@ -480,11 +481,17 @@ func (i *Interpreter) evaluateLValue(lvalue ast.Expression) (Value, func(Value) 
 			return nil, nil, fmt.Errorf("array has no type information")
 		}
 
+		// Type assert ArrayType from interface{}
+		arrayType, ok := arr.ArrayType.(*types.ArrayType)
+		if !ok || arrayType == nil {
+			return nil, nil, fmt.Errorf("invalid array type")
+		}
+
 		var physicalIndex int
-		if arr.ArrayType.IsStatic() {
+		if arrayType.IsStatic() {
 			// Static array: check bounds and adjust for low bound
-			lowBound := *arr.ArrayType.LowBound
-			highBound := *arr.ArrayType.HighBound
+			lowBound := *arrayType.LowBound
+			highBound := *arrayType.HighBound
 
 			if index < lowBound || index > highBound {
 				return nil, nil, fmt.Errorf("array index out of bounds: %d (bounds are %d..%d)", index, lowBound, highBound)

@@ -576,29 +576,31 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 
 			if arrVal, ok := arrayVal.(*ArrayValue); ok {
 				// Check if the element type is a record
-				if arrVal.ArrayType != nil && arrVal.ArrayType.ElementType != nil {
-					if recordType, ok := arrVal.ArrayType.ElementType.(*types.RecordType); ok {
-						// Auto-initialize a new record
-						newRecord := &RecordValue{
-							RecordType: recordType,
-							Fields:     make(map[string]Value),
-						}
+				if arrVal.ArrayType != nil {
+					if arrayType, ok := arrVal.ArrayType.(*types.ArrayType); ok && arrayType.ElementType != nil {
+						if recordType, ok := arrayType.ElementType.(*types.RecordType); ok {
+							// Auto-initialize a new record
+							newRecord := &RecordValue{
+								RecordType: recordType,
+								Fields:     make(map[string]Value),
+							}
 
-						// Assign it to the array element using evalIndexAssignment
-						assignStmt := &ast.AssignmentStatement{
-							BaseNode: ast.BaseNode{Token: stmt.Token},
-							Target:   indexExpr,
-							Value:    &ast.Identifier{Value: "__temp__"},
-						}
+							// Assign it to the array element using evalIndexAssignment
+							assignStmt := &ast.AssignmentStatement{
+								BaseNode: ast.BaseNode{Token: stmt.Token},
+								Target:   indexExpr,
+								Value:    &ast.Identifier{Value: "__temp__"},
+							}
 
-						// Temporarily store the record
-						tempResult := i.evalIndexAssignment(indexExpr, newRecord, assignStmt)
-						if isError(tempResult) {
-							return tempResult
-						}
+							// Temporarily store the record
+							tempResult := i.evalIndexAssignment(indexExpr, newRecord, assignStmt)
+							if isError(tempResult) {
+								return tempResult
+							}
 
-						// Now retry the member assignment with the initialized record
-						objVal = newRecord
+							// Now retry the member assignment with the initialized record
+							objVal = newRecord
+						}
 					}
 				}
 			}
@@ -719,11 +721,17 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 		return i.newErrorWithLocation(stmt, "array has no type information")
 	}
 
+	// Type assert ArrayType from interface{}
+	arrayType, ok := arrayValue.ArrayType.(*types.ArrayType)
+	if !ok || arrayType == nil {
+		return i.newErrorWithLocation(stmt, "invalid array type")
+	}
+
 	var physicalIndex int
-	if arrayValue.ArrayType.IsStatic() {
+	if arrayType.IsStatic() {
 		// Static array: check bounds and adjust for low bound
-		lowBound := *arrayValue.ArrayType.LowBound
-		highBound := *arrayValue.ArrayType.HighBound
+		lowBound := *arrayType.LowBound
+		highBound := *arrayType.HighBound
 
 		if index < lowBound || index > highBound {
 			return i.newErrorWithLocation(stmt, "array index out of bounds: %d (bounds are %d..%d)", index, lowBound, highBound)

@@ -221,12 +221,18 @@ func (i *Interpreter) indexArray(arr *ArrayValue, index int, expr *ast.IndexExpr
 		return i.newErrorWithLocation(expr, "array has no type information")
 	}
 
+	// Type assert ArrayType from interface{}
+	arrayType, ok := arr.ArrayType.(*types.ArrayType)
+	if !ok || arrayType == nil {
+		return i.newErrorWithLocation(expr, "invalid array type")
+	}
+
 	// Convert logical index to physical index
 	var physicalIndex int
-	if arr.ArrayType.IsStatic() {
+	if arrayType.IsStatic() {
 		// Static array: check bounds and adjust for low bound
-		lowBound := *arr.ArrayType.LowBound
-		highBound := *arr.ArrayType.HighBound
+		lowBound := *arrayType.LowBound
+		highBound := *arrayType.HighBound
 
 		if index < lowBound || index > highBound {
 			return i.newErrorWithLocation(expr, "index out of bounds: %d (bounds are %d..%d)", index, lowBound, highBound)
@@ -252,7 +258,7 @@ func (i *Interpreter) indexArray(arr *ArrayValue, index int, expr *ast.IndexExpr
 	if elem == nil {
 		// Return properly typed zero value for uninitialized elements
 		// This allows operators like NOT to work correctly with type information
-		return getZeroValueForType(arr.ArrayType.ElementType, nil)
+		return getZeroValueForType(arrayType.ElementType, nil)
 	}
 
 	return elem
