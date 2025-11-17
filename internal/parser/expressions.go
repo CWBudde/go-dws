@@ -607,6 +607,49 @@ func (p *Parser) parseUnassignedIdentifier() ast.Expression {
 	}
 }
 
+// parseNilLiteralCursor parses a nil literal in cursor mode.
+// Task 2.2.12: Cursor mode version
+func (p *Parser) parseNilLiteralCursor() ast.Expression {
+	return &ast.NilLiteral{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  p.cursor.Current(),
+				EndPos: p.endPosFromToken(p.cursor.Current()),
+			},
+		},
+	}
+}
+
+// parseNullIdentifierCursor parses the Null keyword as an identifier in cursor mode.
+// Task 2.2.12: Cursor mode version
+func (p *Parser) parseNullIdentifierCursor() ast.Expression {
+	tok := p.cursor.Current()
+	return &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  tok,
+				EndPos: p.endPosFromToken(tok),
+			},
+		},
+		Value: tok.Literal, // "Null" (preserves original casing)
+	}
+}
+
+// parseUnassignedIdentifierCursor parses the Unassigned keyword as an identifier in cursor mode.
+// Task 2.2.12: Cursor mode version
+func (p *Parser) parseUnassignedIdentifierCursor() ast.Expression {
+	tok := p.cursor.Current()
+	return &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  tok,
+				EndPos: p.endPosFromToken(tok),
+			},
+		},
+		Value: tok.Literal, // "Unassigned" (preserves original casing)
+	}
+}
+
 // parseCharLiteral parses a character literal (#65, #$41).
 // PRE: curToken is CHAR
 // POST: curToken is CHAR (unchanged)
@@ -650,6 +693,49 @@ func (p *Parser) parseCharLiteral() ast.Expression {
 	return lit
 }
 
+// parseCharLiteralCursor parses a character literal (#65, #$41) in cursor mode.
+// Task 2.2.12: Cursor mode version
+func (p *Parser) parseCharLiteralCursor() ast.Expression {
+	tok := p.cursor.Current()
+	lit := &ast.CharLiteral{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  tok,
+				EndPos: p.endPosFromToken(tok),
+			},
+		},
+	}
+
+	// Parse the character value from the token literal
+	// Token literal can be: "#65" (decimal) or "#$41" (hex)
+	literal := tok.Literal
+	if len(literal) < 2 || literal[0] != '#' {
+		msg := fmt.Sprintf("invalid character literal format: %q", literal)
+		p.addError(msg, ErrInvalidExpression)
+		return nil
+	}
+
+	var value int64
+	var err error
+
+	if len(literal) >= 3 && literal[1] == '$' {
+		// Hex format: #$41
+		value, err = strconv.ParseInt(literal[2:], 16, 32)
+	} else {
+		// Decimal format: #65
+		value, err = strconv.ParseInt(literal[1:], 10, 32)
+	}
+
+	if err != nil {
+		msg := fmt.Sprintf("could not parse %q as character literal", literal)
+		p.addError(msg, ErrInvalidExpression)
+		return nil
+	}
+
+	lit.Value = rune(value)
+	return lit
+}
+
 // parsePrefixExpression parses a prefix (unary) expression.
 // PRE: curToken is prefix operator (NOT, MINUS, PLUS, etc.)
 // POST: curToken is last token of right operand
@@ -666,6 +752,38 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 	p.nextToken()
 
 	expression.Right = p.parseExpression(PREFIX)
+
+	// Set end position based on the right expression
+	if expression.Right != nil {
+		expression.EndPos = expression.Right.End()
+	} else {
+		expression.EndPos = p.endPosFromToken(expression.Token)
+	}
+
+	return expression
+}
+
+// Task 2.2.12: parsePrefixExpressionCursor - Cursor mode version of parsePrefixExpression
+// Parses unary prefix operators: -x, +x, not x
+// PRE: cursor is on prefix operator token (MINUS, PLUS, NOT)
+// POST: cursor is at last token of right expression
+func (p *Parser) parsePrefixExpressionCursor() ast.Expression {
+	operatorToken := p.cursor.Current()
+
+	expression := &ast.UnaryExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: operatorToken,
+			},
+		},
+		Operator: operatorToken.Literal,
+	}
+
+	// Advance to operand
+	p.cursor = p.cursor.Advance()
+
+	// Parse the operand expression
+	expression.Right = p.parseExpressionCursor(PREFIX)
 
 	// Set end position based on the right expression
 	if expression.Right != nil {
@@ -1450,6 +1568,76 @@ func (p *Parser) parseExpressionOrArrayLiteral(lparenToken lexer.Token) ast.Expr
 	}
 
 	// Return the expression directly, not wrapped in GroupedExpression
+	// This avoids double parentheses in the string representation
+	return exp
+}
+
+// Task 2.2.12: parseGroupedExpressionCursor - Cursor mode version of parseGroupedExpression
+// Parses grouped expressions in parentheses: (expr)
+// Also handles empty parentheses, array literals, and record literals
+// PRE: cursor is on LPAREN
+// POST: cursor is on RPAREN
+func (p *Parser) parseGroupedExpressionCursor() ast.Expression {
+	lparenToken := p.cursor.Current()
+
+	// Handle empty parentheses: () -> empty array literal
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type == lexer.RPAREN {
+		p.cursor = p.cursor.Advance() // move to RPAREN
+		return &ast.ArrayLiteralExpression{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token:  lparenToken,
+					EndPos: p.cursor.Current().End(),
+				},
+			},
+			Elements: []ast.Expression{},
+		}
+	}
+
+	// Check if this is a record literal: (IDENT : ...)
+	secondToken := p.cursor.Peek(2)
+	if nextToken.Type == lexer.IDENT && secondToken.Type == lexer.COLON {
+		// Fall back to traditional mode for record literals (complex parsing)
+		p.syncCursorToTokens()
+		p.useCursor = false
+		result := p.parseGroupedExpression()
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return result
+	}
+
+	// Move to first expression
+	p.cursor = p.cursor.Advance()
+
+	// Parse first expression
+	exp := p.parseExpressionCursor(LOWEST)
+	if exp == nil {
+		return nil
+	}
+
+	// Check if this is an array literal: (expr, expr, ...)
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type == lexer.COMMA {
+		// Fall back to traditional mode for array literals (complex parsing)
+		p.syncCursorToTokens()
+		p.useCursor = false
+		result := p.parseGroupedExpression()
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return result
+	}
+
+	// Expect closing paren
+	if nextToken.Type != lexer.RPAREN {
+		p.addError(fmt.Sprintf("expected ')', got %s", nextToken.Type), ErrUnexpectedToken)
+		return nil
+	}
+
+	// Advance to RPAREN
+	p.cursor = p.cursor.Advance()
+
+	// Return the expression directly, not wrapped
 	// This avoids double parentheses in the string representation
 	return exp
 }

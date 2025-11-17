@@ -636,6 +636,35 @@ func NewCursorParser(l *lexer.Lexer) *Parser {
 		return p.parseBooleanLiteralCursor()
 	})
 
+	// Task 2.2.12: Prefix expression handlers
+	p.registerPrefixCursor(lexer.NIL, func(tok lexer.Token) ast.Expression {
+		return p.parseNilLiteralCursor()
+	})
+	p.registerPrefixCursor(lexer.NULL, func(tok lexer.Token) ast.Expression {
+		return p.parseNullIdentifierCursor()
+	})
+	p.registerPrefixCursor(lexer.UNASSIGNED, func(tok lexer.Token) ast.Expression {
+		return p.parseUnassignedIdentifierCursor()
+	})
+	p.registerPrefixCursor(lexer.CHAR, func(tok lexer.Token) ast.Expression {
+		return p.parseCharLiteralCursor()
+	})
+	p.registerPrefixCursor(lexer.MINUS, func(tok lexer.Token) ast.Expression {
+		return p.parsePrefixExpressionCursor()
+	})
+	p.registerPrefixCursor(lexer.PLUS, func(tok lexer.Token) ast.Expression {
+		return p.parsePrefixExpressionCursor()
+	})
+	p.registerPrefixCursor(lexer.NOT, func(tok lexer.Token) ast.Expression {
+		return p.parsePrefixExpressionCursor()
+	})
+	p.registerPrefixCursor(lexer.LPAREN, func(tok lexer.Token) ast.Expression {
+		return p.parseGroupedExpressionCursor()
+	})
+	p.registerPrefixCursor(lexer.LBRACK, func(tok lexer.Token) ast.Expression {
+		return p.parseArrayLiteralCursor()
+	})
+
 	// Note: Only functions with true cursor implementations are registered above.
 	// When parseExpressionCursor encounters a token type without a cursor prefix function,
 	// it will gracefully fall back to traditional mode for that expression subtree.
