@@ -233,10 +233,10 @@ func TestMigration_IntegerLiteral_Binary(t *testing.T) {
 // TestMigration_IntegerLiteral_Errors tests error handling in both modes
 func TestMigration_IntegerLiteral_Errors(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       string
-		expectSkip  bool // true if lexer might not produce INT token
-		skipReason  string
+		name       string
+		input      string
+		expectSkip bool // true if lexer might not produce INT token
+		skipReason string
 	}{
 		{
 			name:       "invalid hex digits",

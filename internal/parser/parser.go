@@ -751,8 +751,8 @@ func (p *Parser) syncTokensToCursor() {
 	for i := range p.cursor.tokens {
 		tok := p.cursor.tokens[i]
 		if tok.Type == p.curToken.Type &&
-		   tok.Pos.Offset == p.curToken.Pos.Offset &&
-		   tok.Pos.Line == p.curToken.Pos.Line {
+			tok.Pos.Offset == p.curToken.Pos.Offset &&
+			tok.Pos.Line == p.curToken.Pos.Line {
 			// Found matching token - update cursor to this position
 			p.cursor = &TokenCursor{
 				lexer:   p.cursor.lexer,

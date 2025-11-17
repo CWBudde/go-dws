@@ -276,24 +276,24 @@ func TestTokenCursor_Is(t *testing.T) {
 	cursor := newCursorFromSource(source)
 
 	tests := []struct {
-		name     string
+		name      string
 		checkType token.TokenType
-		want     bool
+		want      bool
 	}{
 		{
-			name:     "matches VAR",
+			name:      "matches VAR",
 			checkType: token.VAR,
-			want:     true,
+			want:      true,
 		},
 		{
-			name:     "doesn't match CONST",
+			name:      "doesn't match CONST",
 			checkType: token.CONST,
-			want:     false,
+			want:      false,
 		},
 		{
-			name:     "doesn't match IDENT",
+			name:      "doesn't match IDENT",
 			checkType: token.IDENT,
-			want:     false,
+			want:      false,
 		},
 	}
 
