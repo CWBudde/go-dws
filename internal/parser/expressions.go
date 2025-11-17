@@ -2203,6 +2203,9 @@ func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 // PRE: curToken is first token of condition expression
 // POST: curToken is last token of condition (message STRING or test expression)
 func (p *Parser) parseCondition() *ast.Condition {
+	// Capture the starting token for position information
+	startToken := p.curToken
+
 	// Parse the test expression (should be boolean, but type checking is done in semantic phase)
 	testExpr := p.parseExpression(LOWEST)
 	if testExpr == nil {
@@ -2210,7 +2213,7 @@ func (p *Parser) parseCondition() *ast.Condition {
 	}
 
 	condition := &ast.Condition{
-		BaseNode: ast.BaseNode{Token: p.curToken},
+		BaseNode: ast.BaseNode{Token: startToken},
 		Test:     testExpr,
 	}
 
