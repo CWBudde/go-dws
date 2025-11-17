@@ -449,8 +449,8 @@ func New(l *lexer.Lexer) *Parser {
 		semanticErrors:         []string{},
 		blockStack:             []BlockContext{},
 		ctx:                    NewParseContext(), // Initialize structured context (Task 2.1.2)
-		useCursor:              false,            // Traditional mode (Task 2.2.2)
-		cursor:                 nil,              // No cursor in traditional mode
+		useCursor:              false,             // Traditional mode (Task 2.2.2)
+		cursor:                 nil,               // No cursor in traditional mode
 	}
 
 	// Register prefix parse functions
@@ -543,7 +543,7 @@ func NewCursorParser(l *lexer.Lexer) *Parser {
 		semanticErrors:         []string{},
 		blockStack:             []BlockContext{},
 		ctx:                    NewParseContext(), // Initialize structured context (Task 2.1.2)
-		useCursor:              true,             // Cursor mode (Task 2.2.2)
+		useCursor:              true,              // Cursor mode (Task 2.2.2)
 		cursor:                 NewTokenCursor(l), // Initialize cursor
 		// Initialize cursor-specific function maps (Task 2.2.6)
 		prefixParseFnsCursor: make(map[lexer.TokenType]prefixParseFnCursor),
