@@ -1,5 +1,5 @@
 Test 1 passed
 Test 2 passed
 Test 3: Caught assertion failure
-Test 4: Assertion failed [line: 17, column: 3] : Math is broken!
+Test 4: Assertion failed [line: 22, column: 3] : Math is broken!
 All basic tests completed
