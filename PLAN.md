@@ -1044,7 +1044,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Acceptance: Registry manages all built-ins, tests pass
   - **Completed**: Created thread-safe registry with case-insensitive lookup, migrated 169/244 functions (69.3%) across 4 categories (Math: 62, String: 56, DateTime: 52, Conversion: 2), removed 336 lines of redundant switch cases (50% reduction), O(1) lookup for registered functions, comprehensive documentation. See `docs/builtin-registry-summary.md` and `docs/builtin-migration-roadmap.md`
 
-- [ ] 3.7.3 Extend Context interface for type-dependent functions
+- [x] 3.7.3 Extend Context interface for type-dependent functions
   - Add type helper methods to Context interface: ToInt64, ToBool, ToFloat64
   - Implement helpers in Interpreter to handle SubrangeValue, EnumValue conversions
   - Migrate basic conversion functions: IntToStr, IntToBin, StrToInt, StrToFloat, FloatToStr, BoolToStr
@@ -1053,14 +1053,16 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Files: `internal/interp/builtins/context.go` (extend), `internal/interp/builtins/conversion.go` (new), `internal/interp/builtins/encoding.go` (new)
   - Estimated: 3 days
   - Acceptance: Context extended with type helpers, 15+ conversion/encoding functions migrated, registry up to 184+ functions, tests pass
+  - **Completed**: Extended Context interface with ToInt64, ToBool, ToFloat64 type helpers. Implemented in Interpreter to handle SubrangeValue and EnumValue conversions. Migrated 13 functions: 8 conversion functions (IntToStr, IntToBin, StrToInt, StrToFloat, FloatToStr, BoolToStr, IntToHex, StrToBool) in CategoryConversion and 5 encoding functions (StrToHtml, StrToHtmlAttribute, StrToJSON, StrToCSSText, StrToXML) in CategoryEncoding. Registry now has 198 total registered functions. All tests passing.
 
-- [ ] 3.7.4 Add I/O support and migrate Print functions
+- [x] 3.7.4 Add I/O support and migrate Print functions
   - Extend Context with GetOutput() io.Writer method
   - Migrate Print and PrintLn to builtins package
   - Register in CategoryIO
   - Files: `internal/interp/builtins/io.go` (new)
   - Estimated: 1 day
   - Acceptance: Print/PrintLn in registry, output correctly written to configured writer, tests pass
+  - **Completed**: Extended Context interface with Write() and WriteLine() methods for I/O operations. Migrated Print and PrintLn functions to builtins package in CategoryIO. Both functions correctly write to configured writer using context methods. All tests passing.
 
 - [ ] 3.7.5 Migrate ordinal and variant functions
   - Extend Context with ordinal helpers: IsEnum, IsSubrange, EnumSucc, EnumPred
