@@ -99,6 +99,9 @@ func NewAnalyzer() *Analyzer {
 	// Register built-in Exception base class
 	a.registerBuiltinExceptionTypes()
 
+	// Register built-in interfaces
+	a.registerBuiltinInterfaces()
+
 	// Register built-in array helpers
 	a.initArrayHelpers()
 
@@ -244,6 +247,22 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 		// Task 9.285: Use lowercase for case-insensitive lookup
 		a.classes[strings.ToLower(excName)] = excClass
 	}
+}
+
+// registerBuiltinInterfaces registers IInterface, the root interface type.
+// IInterface is the root interface available in DWScript for explicit implementation by classes.
+// Note: Interfaces do NOT automatically inherit from IInterface unless explicitly declared.
+func (a *Analyzer) registerBuiltinInterfaces() {
+	// Register IInterface as the root interface type
+	// This is a marker interface with no methods, similar to Go's empty interface
+	iinterface := &types.InterfaceType{
+		Name:    "IInterface",
+		Parent:  nil, // Root of the interface hierarchy
+		Methods: make(map[string]*types.FunctionType),
+	}
+
+	// Task 9.285: Use lowercase for case-insensitive lookup
+	a.interfaces[strings.ToLower("IInterface")] = iinterface
 }
 
 // Analyze performs semantic analysis on a program.
