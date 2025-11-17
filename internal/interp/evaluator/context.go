@@ -142,9 +142,14 @@ type Environment interface {
 // Phase 3.3.1: Initial implementation with basic state separation.
 // The context is passed to Eval methods to make execution state explicit.
 // Phase 3.3.3: Updated to use CallStack abstraction with overflow detection.
+// Phase 3.5.4 - Phase 2D: Added envStack for proper environment scoping.
 type ExecutionContext struct {
 	// env is the current runtime environment (variable bindings).
 	env Environment
+
+	// envStack maintains a stack of environments for proper scoping.
+	// Phase 3.5.4 - Phase 2D: Used by PushEnv/PopEnv for clean scope management.
+	envStack []Environment
 
 	// callStack tracks function call frames with overflow detection.
 	// Phase 3.3.3: Replaced errors.StackTrace with CallStack abstraction.
@@ -172,6 +177,7 @@ type ExecutionContext struct {
 func NewExecutionContext(env Environment) *ExecutionContext {
 	return &ExecutionContext{
 		env:            env,
+		envStack:       make([]Environment, 0),
 		callStack:      NewCallStack(0), // 0 uses default max depth (1024)
 		controlFlow:    NewControlFlow(),
 		propContext:    NewPropertyEvalContext(),
@@ -183,6 +189,7 @@ func NewExecutionContext(env Environment) *ExecutionContext {
 func NewExecutionContextWithMaxDepth(env Environment, maxDepth int) *ExecutionContext {
 	return &ExecutionContext{
 		env:            env,
+		envStack:       make([]Environment, 0),
 		callStack:      NewCallStack(maxDepth),
 		controlFlow:    NewControlFlow(),
 		propContext:    NewPropertyEvalContext(),
@@ -198,6 +205,41 @@ func (ctx *ExecutionContext) Env() Environment {
 // SetEnv updates the runtime environment.
 func (ctx *ExecutionContext) SetEnv(env Environment) {
 	ctx.env = env
+}
+
+// PushEnv creates a new enclosed environment and pushes the current environment onto the stack.
+// This is used for entering a new scope (loops, blocks, try-except handlers).
+// The current environment is saved on the stack, and a new enclosed environment becomes current.
+// Returns the new environment for convenience.
+//
+// Phase 3.5.4 - Phase 2D: Environment Scoping infrastructure.
+func (ctx *ExecutionContext) PushEnv() Environment {
+	// Save the current environment on the stack
+	ctx.envStack = append(ctx.envStack, ctx.env)
+
+	// Create a new enclosed environment
+	newEnv := ctx.env.NewEnclosedEnvironment()
+	ctx.env = newEnv
+
+	return newEnv
+}
+
+// PopEnv restores the previous environment from the stack.
+// This is used for exiting a scope (loops, blocks, try-except handlers).
+// Returns the restored environment, or the current environment if the stack is empty.
+//
+// Phase 3.5.4 - Phase 2D: Environment Scoping infrastructure.
+func (ctx *ExecutionContext) PopEnv() Environment {
+	if len(ctx.envStack) == 0 {
+		// Stack is empty - already at root, nothing to pop
+		return ctx.env
+	}
+
+	// Pop the last environment from the stack
+	ctx.env = ctx.envStack[len(ctx.envStack)-1]
+	ctx.envStack = ctx.envStack[:len(ctx.envStack)-1]
+
+	return ctx.env
 }
 
 // GetCallStack returns the CallStack instance for direct access.
@@ -282,8 +324,13 @@ func (ctx *ExecutionContext) PopOldValues() map[string]interface{} {
 // This is useful when you need to fork execution (e.g., for parallel evaluation).
 // Note: The environment, call stack, and control flow are shared references.
 func (ctx *ExecutionContext) Clone() *ExecutionContext {
+	// Clone the envStack slice
+	envStackCopy := make([]Environment, len(ctx.envStack))
+	copy(envStackCopy, ctx.envStack)
+
 	return &ExecutionContext{
 		env:              ctx.env,
+		envStack:         envStackCopy,
 		callStack:        ctx.callStack,
 		controlFlow:      ctx.controlFlow,
 		exception:        ctx.exception,
@@ -296,6 +343,7 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 // Reset clears the execution context state for reuse.
 // This is useful when you want to reset the context without creating a new one.
 func (ctx *ExecutionContext) Reset() {
+	ctx.envStack = make([]Environment, 0)
 	ctx.callStack.Clear()
 	ctx.controlFlow.Clear()
 	ctx.exception = nil
