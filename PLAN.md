@@ -139,11 +139,11 @@ Build reusable combinator library for common patterns.
 **Goal**: Create reusable parser combinators for common patterns.
 
 **Implementation**:
-- [ ] Create `internal/parser/combinators.go`
-- [ ] Implement core combinators (Optional, Many, Many1, SeparatedList, Between, Choice, Sequence)
-- [ ] Add unit tests for each combinator
-- [ ] Document usage patterns in `docs/parser-combinators.md`
-- [ ] Provide examples for each combinator
+- [x] Create `internal/parser/combinators.go`
+- [x] Implement core combinators (Optional, Many, Many1, SeparatedList, Between, Choice, Sequence)
+- [x] Add unit tests for each combinator
+- [x] Document usage patterns in `docs/parser-combinators.md`
+- [x] Provide examples for each combinator
 
 **Files Created**:
 - `internal/parser/combinators.go` (~300 lines)
