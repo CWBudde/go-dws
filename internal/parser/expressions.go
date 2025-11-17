@@ -9,10 +9,25 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
-// parseExpression parses an expression with the given precedence.
+// parseExpression is a dispatcher that routes to the appropriate implementation
+// based on the parser mode (traditional vs cursor).
+//
+// Task 2.2.7: This dispatcher enables dual-mode operation during migration.
+// Eventually (Phase 2.7), only the cursor version will remain.
+func (p *Parser) parseExpression(precedence int) ast.Expression {
+	if p.useCursor {
+		return p.parseExpressionCursor(precedence)
+	}
+	return p.parseExpressionTraditional(precedence)
+}
+
+// parseExpressionTraditional parses an expression with the given precedence (traditional mode).
 // PRE: curToken is first token of expression
 // POST: curToken is last token of expression
-func (p *Parser) parseExpression(precedence int) ast.Expression {
+//
+// This is the original implementation using mutable parser state (curToken/peekToken).
+// Task 2.2.7: Renamed from parseExpression to enable dual-mode operation.
+func (p *Parser) parseExpressionTraditional(precedence int) ast.Expression {
 	prefix := p.prefixParseFns[p.curToken.Type]
 	if prefix == nil {
 		p.noPrefixParseFnError(p.curToken.Type)
@@ -75,10 +90,166 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 	return leftExp
 }
 
+// parseExpressionCursor parses an expression with the given precedence (cursor mode).
+// PRE: cursor is at first token of expression
+// POST: cursor is at last token of expression
+//
+// This is the cursor-based implementation using immutable cursor navigation.
+// It uses registered cursor prefix/infix functions from prefixParseFnsCursor and
+// infixParseFnsCursor maps. When encountering a token type without a cursor
+// implementation, it gracefully falls back to traditional mode for that expression
+// subtree. This allows incremental migration - as more functions are migrated to
+// cursor mode (in Tasks 2.2.10, 2.2.11), cursor coverage will naturally increase.
+//
+// Currently registered cursor functions:
+// - Prefix: IDENT, INT, FLOAT, STRING, TRUE, FALSE
+// - Infix: +, -, *, /, div, mod, shl, shr, sar, =, <>, <, >, <=, >=, and, or, xor, in, ??
+//
+// Task 2.2.7: New implementation for pure functional parsing.
+func (p *Parser) parseExpressionCursor(precedence int) ast.Expression {
+	// 1. Lookup and call prefix function
+	currentToken := p.cursor.Current()
+	prefixFn, ok := p.prefixParseFnsCursor[currentToken.Type]
+	if !ok {
+		// No cursor version - fall back to traditional mode
+		// DEBUG: Track fallback for debugging cursor sync issues
+		// beforeCursor := p.cursor.Current()
+		p.syncCursorToTokens() // Sync cursor → tokens
+		// beforeCurToken := p.curToken
+		p.useCursor = false
+		result := p.parseExpressionTraditional(precedence)
+		p.useCursor = true
+		// afterCurToken := p.curToken
+		// CRITICAL FIX (Task 2.2.7): Sync tokens → cursor after traditional mode mutates state
+		// Traditional parseExpression advanced curToken/peekToken, but cursor is still at old position.
+		// Update cursor to match the new curToken position to prevent infinite fallback loops.
+		p.syncTokensToCursor()
+		// fmt.Printf("DEBUG: Prefix fallback: beforeCursor=%v beforeCurToken=%v afterCurToken=%v afterCursor=%v\n",
+		// 	beforeCursor.Type, beforeCurToken.Type, afterCurToken.Type, p.cursor.Current().Type)
+		return result
+	}
+	leftExp := prefixFn(currentToken)
+
+	// 2. Main precedence climbing loop
+	for {
+		nextToken := p.cursor.Peek(1)
+
+		// Termination condition 1: semicolon
+		if nextToken.Type == lexer.SEMICOLON {
+			break
+		}
+
+		// Get next token's precedence
+		nextPrec := getPrecedence(nextToken.Type)
+
+		// Termination condition 2: precedence
+		// Special case: allow NOT at EQUALS precedence for "not in/is/as"
+		if precedence >= nextPrec && !(nextToken.Type == lexer.NOT && precedence < EQUALS) {
+			break
+		}
+
+		// 3. Special case: "not in/is/as"
+		if nextToken.Type == lexer.NOT && precedence < EQUALS {
+			leftExp = p.parseNotInIsAsCursor(leftExp)
+			if leftExp == nil {
+				// Not a "not in/is/as" pattern, return what we have
+				break
+			}
+			continue
+		}
+
+		// 4. Normal infix handling
+		infixFn, ok := p.infixParseFnsCursor[nextToken.Type]
+		if !ok {
+			// No cursor version - fall back to traditional mode for rest
+			p.syncCursorToTokens() // Sync cursor → tokens
+			p.useCursor = false
+			result := p.parseExpressionTraditional(precedence)
+			p.useCursor = true
+			// CRITICAL FIX (Task 2.2.7): Sync tokens → cursor after traditional mode mutates state
+			p.syncTokensToCursor()
+			return result
+		}
+
+		// Advance to operator
+		p.cursor = p.cursor.Advance()
+		operatorToken := p.cursor.Current()
+
+		// Sync state for infix function (temporary until all infix functions are pure cursor)
+		p.syncCursorToTokens()
+
+		// Call infix function
+		leftExp = infixFn(leftExp, operatorToken)
+	}
+
+	return leftExp
+}
+
+// parseNotInIsAsCursor handles special "not in", "not is", "not as" operators in cursor mode.
+// Returns the wrapped NOT expression if successful, or nil if this is not a "not in/is/as" pattern.
+//
+// Task 2.2.7: Cursor-based implementation using Mark/ResetTo for backtracking.
+func (p *Parser) parseNotInIsAsCursor(leftExp ast.Expression) ast.Expression {
+	// Mark current position for potential backtracking
+	mark := p.cursor.Mark()
+
+	// Advance to NOT token
+	p.cursor = p.cursor.Advance()
+	notToken := p.cursor.Current()
+
+	// Check if next token is IN, IS, or AS
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.IN && nextToken.Type != lexer.IS && nextToken.Type != lexer.AS {
+		// Not a "not in/is/as" pattern, backtrack
+		p.cursor = p.cursor.ResetTo(mark)
+		p.syncCursorToTokens()
+		return nil
+	}
+
+	// This is "not in", "not is", or "not as"
+	// Advance to IN/IS/AS token
+	p.cursor = p.cursor.Advance()
+	operatorToken := p.cursor.Current()
+
+	// Look up infix function for the operator
+	infixFn, ok := p.infixParseFnsCursor[operatorToken.Type]
+	if !ok {
+		// No infix function, backtrack
+		p.cursor = p.cursor.ResetTo(mark)
+		p.syncCursorToTokens()
+		return nil
+	}
+
+	// Sync state for infix function (temporary until all infix functions are pure cursor)
+	p.syncCursorToTokens()
+
+	// Parse the comparison expression
+	comparisonExp := infixFn(leftExp, operatorToken)
+
+	// Wrap in NOT expression
+	notExp := &ast.UnaryExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  notToken,
+				EndPos: comparisonExp.End(),
+			},
+		},
+		Operator: notToken.Literal,
+		Right:    comparisonExp,
+	}
+
+	return notExp
+}
+
 // parseIdentifier parses an identifier.
-// PRE: curToken is IDENT
+// PRE: curToken is IDENT (traditional) or cursor.Current() is IDENT (cursor)
 // POST: curToken is IDENT (unchanged)
 func (p *Parser) parseIdentifier() ast.Expression {
+	return p.parseIdentifierTraditional()
+}
+
+// parseIdentifierTraditional parses an identifier using traditional state.
+func (p *Parser) parseIdentifierTraditional() ast.Expression {
 	return &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
@@ -90,10 +261,36 @@ func (p *Parser) parseIdentifier() ast.Expression {
 	}
 }
 
+// parseIdentifierCursor parses an identifier using cursor navigation.
+func (p *Parser) parseIdentifierCursor() ast.Expression {
+	currentToken := p.cursor.Current()
+	return &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  currentToken,
+				EndPos: p.endPosFromToken(currentToken),
+			},
+		},
+		Value: currentToken.Literal,
+	}
+}
+
 // parseIntegerLiteral parses an integer literal.
 // PRE: curToken is INT
 // POST: curToken is INT (unchanged)
+//
+// Note: This currently uses the traditional implementation. The cursor-based version
+// (parseIntegerLiteralCursor) exists and is tested, but full integration requires
+// migrating parseExpression first (Task 2.2.4). See migration_integer_literal_test.go
+// for validation that both implementations produce identical results.
 func (p *Parser) parseIntegerLiteral() ast.Expression {
+	return p.parseIntegerLiteralTraditional()
+}
+
+// parseIntegerLiteralTraditional parses an integer literal using traditional mutable state.
+// PRE: curToken is INT
+// POST: curToken is INT (unchanged)
+func (p *Parser) parseIntegerLiteralTraditional() ast.Expression {
 	lit := &ast.IntegerLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
@@ -134,10 +331,68 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 	return lit
 }
 
+// parseIntegerLiteralCursor parses an integer literal using cursor-based navigation.
+// This is the cursor-based version of parseIntegerLiteral (Task 2.2.3).
+//
+// PRE: cursor.Current() is INT
+// POST: cursor position unchanged (parsing functions don't advance cursor)
+//
+// Key differences from traditional version:
+//   - Uses cursor.Current() instead of p.curToken
+//   - No state mutation (immutable cursor)
+//   - Clearer separation of token access from parsing logic
+func (p *Parser) parseIntegerLiteralCursor() ast.Expression {
+	currentToken := p.cursor.Current()
+
+	lit := &ast.IntegerLiteral{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  currentToken,
+				EndPos: p.endPosFromToken(currentToken),
+			},
+		},
+	}
+
+	literal := currentToken.Literal
+
+	var (
+		value int64
+		err   error
+	)
+
+	switch {
+	case len(literal) > 0 && literal[0] == '$':
+		// Hexadecimal with $ prefix (Pascal style)
+		value, err = strconv.ParseInt(literal[1:], 16, 64)
+	case len(literal) > 1 && (literal[0:2] == "0x" || literal[0:2] == "0X"):
+		// Hexadecimal with 0x/0X prefix
+		value, err = strconv.ParseInt(literal[2:], 16, 64)
+	case len(literal) > 0 && literal[0] == '%':
+		// Binary with % prefix
+		value, err = strconv.ParseInt(literal[1:], 2, 64)
+	default:
+		value, err = strconv.ParseInt(literal, 10, 64)
+	}
+
+	if err != nil {
+		msg := fmt.Sprintf("could not parse %q as integer", literal)
+		p.addError(msg, ErrInvalidExpression)
+		return nil
+	}
+
+	lit.Value = value
+	return lit
+}
+
 // parseFloatLiteral parses a floating-point literal.
-// PRE: curToken is FLOAT
+// PRE: curToken is FLOAT (traditional) or cursor.Current() is FLOAT (cursor)
 // POST: curToken is FLOAT (unchanged)
 func (p *Parser) parseFloatLiteral() ast.Expression {
+	return p.parseFloatLiteralTraditional()
+}
+
+// parseFloatLiteralTraditional parses a float literal using traditional state.
+func (p *Parser) parseFloatLiteralTraditional() ast.Expression {
 	lit := &ast.FloatLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
@@ -158,10 +413,39 @@ func (p *Parser) parseFloatLiteral() ast.Expression {
 	return lit
 }
 
+// parseFloatLiteralCursor parses a float literal using cursor navigation.
+func (p *Parser) parseFloatLiteralCursor() ast.Expression {
+	currentToken := p.cursor.Current()
+
+	lit := &ast.FloatLiteral{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  currentToken,
+				EndPos: p.endPosFromToken(currentToken),
+			},
+		},
+	}
+
+	value, err := strconv.ParseFloat(currentToken.Literal, 64)
+	if err != nil {
+		msg := fmt.Sprintf("could not parse %q as float", currentToken.Literal)
+		p.addError(msg, ErrInvalidExpression)
+		return nil
+	}
+
+	lit.Value = value
+	return lit
+}
+
 // parseStringLiteral parses a string literal.
-// PRE: curToken is STRING
+// PRE: curToken is STRING (traditional) or cursor.Current() is STRING (cursor)
 // POST: curToken is STRING (unchanged)
 func (p *Parser) parseStringLiteral() ast.Expression {
+	return p.parseStringLiteralTraditional()
+}
+
+// parseStringLiteralTraditional parses a string literal using traditional state.
+func (p *Parser) parseStringLiteralTraditional() ast.Expression {
 	// The lexer has already processed the string, so we just need to
 	// extract the value without the quotes
 	value := p.curToken.Literal
@@ -182,6 +466,36 @@ func (p *Parser) parseStringLiteral() ast.Expression {
 			BaseNode: ast.BaseNode{
 				Token:  p.curToken,
 				EndPos: p.endPosFromToken(p.curToken),
+			},
+		},
+		Value: value,
+	}
+}
+
+// parseStringLiteralCursor parses a string literal using cursor navigation.
+func (p *Parser) parseStringLiteralCursor() ast.Expression {
+	currentToken := p.cursor.Current()
+
+	// The lexer has already processed the string, so we just need to
+	// extract the value without the quotes
+	value := currentToken.Literal
+
+	// Remove surrounding quotes
+	if len(value) >= 2 {
+		if (value[0] == '\'' && value[len(value)-1] == '\'') ||
+			(value[0] == '"' && value[len(value)-1] == '"') {
+			value = value[1 : len(value)-1]
+		}
+	}
+
+	// Handle escaped quotes ('' -> ')
+	value = unescapeString(value)
+
+	return &ast.StringLiteral{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  currentToken,
+				EndPos: p.endPosFromToken(currentToken),
 			},
 		},
 		Value: value,
@@ -211,9 +525,14 @@ func unescapeString(s string) string {
 }
 
 // parseBooleanLiteral parses a boolean literal.
-// PRE: curToken is TRUE or FALSE
+// PRE: curToken is TRUE or FALSE (traditional) or cursor.Current() is TRUE/FALSE (cursor)
 // POST: curToken is TRUE or FALSE (unchanged)
 func (p *Parser) parseBooleanLiteral() ast.Expression {
+	return p.parseBooleanLiteralTraditional()
+}
+
+// parseBooleanLiteralTraditional parses a boolean literal using traditional state.
+func (p *Parser) parseBooleanLiteralTraditional() ast.Expression {
 	return &ast.BooleanLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
@@ -222,6 +541,20 @@ func (p *Parser) parseBooleanLiteral() ast.Expression {
 			},
 		},
 		Value: p.curTokenIs(lexer.TRUE),
+	}
+}
+
+// parseBooleanLiteralCursor parses a boolean literal using cursor navigation.
+func (p *Parser) parseBooleanLiteralCursor() ast.Expression {
+	currentToken := p.cursor.Current()
+	return &ast.BooleanLiteral{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  currentToken,
+				EndPos: p.endPosFromToken(currentToken),
+			},
+		},
+		Value: currentToken.Type == lexer.TRUE,
 	}
 }
 
@@ -367,10 +700,17 @@ func (p *Parser) parseAddressOfExpression() ast.Expression {
 	return expression
 }
 
-// parseInfixExpression parses an infix (binary) expression.
-// PRE: curToken is the operator token
-// POST: curToken is last token of right operand
+// parseInfixExpression parses a binary infix expression (dispatcher).
+// PRE: curToken is the operator token (traditional) or cursor at operator (cursor)
+// POST: curToken is last token of right expression (traditional)
 func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
+	return p.parseInfixExpressionTraditional(left)
+}
+
+// parseInfixExpressionTraditional parses a binary infix expression using traditional state.
+// PRE: curToken is the operator token
+// POST: curToken is last token of right expression
+func (p *Parser) parseInfixExpressionTraditional(left ast.Expression) ast.Expression {
 	expression := &ast.BinaryExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
@@ -384,6 +724,58 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	precedence := p.curPrecedence()
 	p.nextToken()
 	expression.Right = p.parseExpression(precedence)
+
+	// Set end position based on the right expression
+	if expression.Right != nil {
+		expression.EndPos = expression.Right.End()
+	} else {
+		expression.EndPos = p.endPosFromToken(expression.Token)
+	}
+
+	return expression
+}
+
+// parseInfixExpressionCursor parses a binary infix expression using cursor navigation.
+// PRE: cursor at operator token
+// POST: cursor position advanced (state mutation needed for now until parseExpression is migrated)
+//
+// Note: This cursor version still calls the traditional parseExpression internally,
+// because full cursor integration requires migrating parseExpression itself (future task).
+// For now, we sync the cursor state with traditional state before/after the recursive call.
+func (p *Parser) parseInfixExpressionCursor(left ast.Expression) ast.Expression {
+	operatorToken := p.cursor.Current()
+
+	expression := &ast.BinaryExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: operatorToken,
+			},
+		},
+		Operator: operatorToken.Literal,
+		Left:     left,
+	}
+
+	// Get precedence based on operator token type
+	precedence := LOWEST
+	if prec, ok := precedences[operatorToken.Type]; ok {
+		precedence = prec
+	}
+
+	// Advance cursor to next token (the start of right expression)
+	p.cursor = p.cursor.Advance()
+
+	// Sync traditional state to cursor for the recursive parseExpression call
+	// This is necessary until parseExpression itself is migrated to cursor mode
+	p.syncCursorToTokens()
+
+	// Parse right expression using traditional parseExpression
+	// TODO: Once parseExpression has a cursor version, call that instead
+	expression.Right = p.parseExpression(precedence)
+
+	// Sync cursor back from traditional state after parseExpression
+	// parseExpression leaves curToken at the last token of the right expression
+	// We need to update cursor to match
+	// Note: This is a temporary workaround until full cursor migration
 
 	// Set end position based on the right expression
 	if expression.Right != nil {
