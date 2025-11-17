@@ -272,5 +272,6 @@ func RegisterDateTimeFunctions(r *Registry) {
 func RegisterConversionFunctions(r *Registry) {
 	r.Register("IntToHex", IntToHex, CategoryConversion, "Converts integer to hexadecimal string")
 	r.Register("StrToBool", StrToBool, CategoryConversion, "Converts string to boolean")
-	r.Register("Default", Default, CategoryConversion, "Returns default value for a type")
+	// Default() is now handled specially in evalCallExpression (like type casts)
+	// See functions_typecast.go::evalDefaultFunction()
 }

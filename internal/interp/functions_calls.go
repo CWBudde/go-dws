@@ -379,6 +379,15 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		}
 	}
 
+	// Check if this is Default() function (expects unevaluated type identifier)
+	// Default(Integer) should pass "Integer" as string, not evaluate it
+	// This must be handled before evaluating arguments, similar to type casts
+	if funcName.Value == "Default" && len(expr.Arguments) == 1 {
+		if defaultValue := i.evalDefaultFunction(expr.Arguments[0]); defaultValue != nil {
+			return defaultValue
+		}
+	}
+
 	// Check if this is a type cast (TypeName(expression))
 	// Type casts look like function calls but the "function" name is actually a type name
 	if len(expr.Arguments) == 1 {

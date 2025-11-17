@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -346,9 +348,18 @@ func (a *Analyzer) analyzeDefault(args []ast.Expression, callExpr *ast.CallExpre
 	case "Variant":
 		return types.VARIANT
 	default:
-		// Try to look up the type in the symbol table
-		// For now, assume it's a valid type and return VARIANT
-		return types.VARIANT
+		// Check if it's a valid type in the symbol table
+		// This could be a class, record, enum, or other custom type
+		lowerName := strings.ToLower(typeName)
+		if _, exists := a.symbols.Resolve(lowerName); exists {
+			// Valid custom type - all default to nil/zero values
+			// Return VARIANT as a safe fallback type for analysis
+			return types.VARIANT
+		}
+		// Unknown type - report error instead of silently succeeding
+		a.addError("function 'Default' received unknown type '%s' at %s",
+			typeName, callExpr.Token.Pos.String())
+		return types.NIL
 	}
 }
 

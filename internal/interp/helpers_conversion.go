@@ -507,7 +507,7 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		// Type checking should have been done at semantic analysis
 		valueToAdd := args[0]
 
-		// Task 9.XX: If pushing a record, make a copy to avoid aliasing issues
+		// If pushing a record, make a copy to avoid aliasing issues (commit a53517a)
 		// Records are value types and should be copied when added to collections
 		if recVal, ok := valueToAdd.(*RecordValue); ok {
 			valueToAdd = recVal.Copy()
