@@ -1178,7 +1178,7 @@ var (
 //	    p.synchronize([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
 //	    return nil
 //	}
-func (p *Parser) synchronize(syncTokens []lexer.TokenType) {
+func (p *Parser) synchronize(syncTokens []lexer.TokenType) bool {
 	// Build a map of all synchronization tokens for fast lookup
 	syncMap := make(map[lexer.TokenType]bool)
 	for _, t := range syncTokens {
@@ -1194,10 +1194,12 @@ func (p *Parser) synchronize(syncTokens []lexer.TokenType) {
 	// Advance until we find a synchronization token or EOF
 	for !p.curTokenIs(lexer.EOF) {
 		if syncMap[p.curToken.Type] {
-			return
+			return true // Found a sync token
 		}
 		p.nextToken()
 	}
+
+	return false // Reached EOF without finding a sync token
 }
 
 // addErrorWithContext adds an error with additional context from the block stack.
