@@ -36,27 +36,31 @@ func isError(val Value) bool {
 
 // VisitIdentifier evaluates an identifier (variable reference).
 func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	// Future: Move variable lookup logic here
+	// Phase 3.5.4 - Phase 2B: Type system is available via adapter
+	// (LookupClass, LookupFunction, etc.)
+	// TODO: Migrate identifier lookup logic to use adapter type system methods
 	return e.adapter.EvalNode(node)
 }
 
 // VisitBinaryExpression evaluates a binary expression (e.g., a + b, x == y).
 func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	// Future: Move operator evaluation logic here
+	// Phase 3.5.4 - Phase 2B: Operator registry is available via adapter.GetOperatorRegistry()
+	// Conversion registry available via adapter.GetConversionRegistry()
+	// TODO: Migrate operator evaluation and type coercion logic
 	return e.adapter.EvalNode(node)
 }
 
 // VisitUnaryExpression evaluates a unary expression (e.g., -x, not b).
 func (e *Evaluator) VisitUnaryExpression(node *ast.UnaryExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2B: Operator registry is available via adapter.GetOperatorRegistry()
+	// TODO: Migrate unary operator evaluation logic
 	return e.adapter.EvalNode(node)
 }
 
 // VisitAddressOfExpression evaluates an address-of expression (@funcName).
 func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2A: Function lookup is available via adapter.LookupFunction
+	// TODO: Migrate evalAddressOfExpression logic to use adapter.LookupFunction
 	return e.adapter.EvalNode(node)
 }
 
@@ -69,39 +73,46 @@ func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *Exe
 
 // VisitCallExpression evaluates a function call expression.
 func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	// Future: Move function call logic here
+	// Phase 3.5.4 - Phase 2A: Function call infrastructure is available via adapter
+	// (CallFunctionPointer, CallUserFunction, CallBuiltinFunction, LookupFunction)
+	// TODO: Migrate evalCallExpression logic from Interpreter to use these adapter methods
 	return e.adapter.EvalNode(node)
 }
 
 // VisitNewExpression evaluates a 'new' expression (object instantiation).
 func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2B: Class registry is available via adapter.LookupClass()
+	// TODO: Migrate object instantiation and constructor dispatch logic
 	return e.adapter.EvalNode(node)
 }
 
 // VisitMemberAccessExpression evaluates member access (obj.field, obj.method).
 func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	// Future: Move member access logic here
+	// Phase 3.5.4 - Phase 2C: Property/indexing infrastructure available
+	// PropertyEvalContext accessible via ctx.PropContext() for recursion prevention
+	// Property dispatch uses Phase 2A (function calls) + Phase 2B (type lookups)
+	// TODO: Migrate member access logic (property getters, field access, helper methods)
 	return e.adapter.EvalNode(node)
 }
 
 // VisitMethodCallExpression evaluates a method call (obj.Method(args)).
 func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2A: Function call infrastructure is available via adapter
+	// TODO: Migrate method call logic to use adapter.CallUserFunction
 	return e.adapter.EvalNode(node)
 }
 
 // VisitInheritedExpression evaluates an 'inherited' expression.
 func (e *Evaluator) VisitInheritedExpression(node *ast.InheritedExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2A: Function call infrastructure is available via adapter
+	// TODO: Migrate inherited call logic to use adapter.CallUserFunction
 	return e.adapter.EvalNode(node)
 }
 
 // VisitSelfExpression evaluates a 'Self' expression.
 func (e *Evaluator) VisitSelfExpression(node *ast.SelfExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2A: Self context will be needed for method calls
+	// TODO: Add Self context to ExecutionContext or Environment
 	return e.adapter.EvalNode(node)
 }
 
@@ -133,7 +144,9 @@ func (e *Evaluator) VisitEnumLiteral(node *ast.EnumLiteral, ctx *ExecutionContex
 
 // VisitRecordLiteralExpression evaluates a record literal expression.
 func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2C: Record construction infrastructure available
+	// Record registry accessible via adapter.LookupRecord() (Phase 2B)
+	// TODO: Migrate record literal construction logic
 	return e.adapter.EvalNode(node)
 }
 
@@ -145,13 +158,18 @@ func (e *Evaluator) VisitSetLiteral(node *ast.SetLiteral, ctx *ExecutionContext)
 
 // VisitArrayLiteralExpression evaluates an array literal [1, 2, 3].
 func (e *Evaluator) VisitArrayLiteralExpression(node *ast.ArrayLiteralExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2C: Array construction infrastructure available
+	// Type inference uses Phase 2B type system
+	// TODO: Migrate array literal construction logic with type inference
 	return e.adapter.EvalNode(node)
 }
 
 // VisitIndexExpression evaluates an index expression array[index].
 func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2C: Array/property indexing infrastructure available
+	// Bounds checking and property indexing handled via EvalNode delegation
+	// PropertyEvalContext accessible via ctx.PropContext() for property indexers
+	// TODO: Migrate indexing logic (array bounds checking, property indexers, string indexing)
 	return e.adapter.EvalNode(node)
 }
 
@@ -163,31 +181,36 @@ func (e *Evaluator) VisitNewArrayExpression(node *ast.NewArrayExpression, ctx *E
 
 // VisitLambdaExpression evaluates a lambda expression (closure).
 func (e *Evaluator) VisitLambdaExpression(node *ast.LambdaExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2A: Lambda creation needs to capture closure environment
+	// TODO: Migrate lambda creation logic to create FunctionPointerValue with closure
 	return e.adapter.EvalNode(node)
 }
 
 // VisitIsExpression evaluates an 'is' type checking expression.
 func (e *Evaluator) VisitIsExpression(node *ast.IsExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2B: Class registry available via adapter.LookupClass()
+	// TODO: Migrate class hierarchy checking logic
 	return e.adapter.EvalNode(node)
 }
 
 // VisitAsExpression evaluates an 'as' type casting expression.
 func (e *Evaluator) VisitAsExpression(node *ast.AsExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2B: Type casting infrastructure via adapter
+	// TODO: Migrate type casting logic
 	return e.adapter.EvalNode(node)
 }
 
 // VisitImplementsExpression evaluates an 'implements' interface checking expression.
 func (e *Evaluator) VisitImplementsExpression(node *ast.ImplementsExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2B: Interface registry available via adapter.LookupInterface()
+	// TODO: Migrate interface checking logic
 	return e.adapter.EvalNode(node)
 }
 
 // VisitIfExpression evaluates an inline if-then-else expression.
 func (e *Evaluator) VisitIfExpression(node *ast.IfExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2B: Type system available for default values
+	// TODO: Migrate if expression logic with type defaults
 	return e.adapter.EvalNode(node)
 }
 

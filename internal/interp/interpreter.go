@@ -4,6 +4,7 @@ import (
 	"io"
 	"math"
 	"math/rand"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/errors"
@@ -276,6 +277,176 @@ func (i *Interpreter) EvalNode(node ast.Node) evaluator.Value {
 	// Delegate to the legacy Eval method
 	// The cast is safe because our Value type matches evaluator.Value interface
 	return i.Eval(node)
+}
+
+// Phase 3.5.4 - Phase 2A: Function call system adapter methods
+// These methods implement the InterpreterAdapter interface for function calls.
+
+// convertEvaluatorArgs converts a slice of evaluator.Value to interp.Value.
+// This is used by adapter methods when delegating to internal functions.
+func convertEvaluatorArgs(args []evaluator.Value) []Value {
+	interpArgs := make([]Value, len(args))
+	for idx, arg := range args {
+		interpArgs[idx] = arg
+	}
+	return interpArgs
+}
+
+// CallFunctionPointer executes a function pointer with given arguments.
+func (i *Interpreter) CallFunctionPointer(funcPtr evaluator.Value, args []evaluator.Value, node ast.Node) evaluator.Value {
+	// Convert evaluator.Value to interp.Value (they're the same interface)
+	fp, ok := funcPtr.(*FunctionPointerValue)
+	if !ok {
+		return i.newErrorWithLocation(node, "invalid function pointer type: expected FunctionPointerValue, got %T", funcPtr)
+	}
+
+	return i.callFunctionPointer(fp, convertEvaluatorArgs(args), node)
+}
+
+// CallUserFunction executes a user-defined function.
+func (i *Interpreter) CallUserFunction(fn *ast.FunctionDecl, args []evaluator.Value) evaluator.Value {
+	return i.callUserFunction(fn, convertEvaluatorArgs(args))
+}
+
+// CallBuiltinFunction executes a built-in function by name.
+func (i *Interpreter) CallBuiltinFunction(name string, args []evaluator.Value) evaluator.Value {
+	return i.callBuiltinFunction(name, convertEvaluatorArgs(args))
+}
+
+// LookupFunction finds a function by name in the function registry.
+func (i *Interpreter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
+	// DWScript is case-insensitive, so normalize to lowercase
+	normalizedName := strings.ToLower(name)
+	functions, ok := i.functions[normalizedName]
+	return functions, ok
+}
+
+// Phase 3.5.4 - Phase 2B: Type system access adapter methods
+// These methods implement the InterpreterAdapter interface for type system access.
+
+// ===== Class Registry =====
+
+// LookupClass finds a class by name in the class registry.
+func (i *Interpreter) LookupClass(name string) (any, bool) {
+	normalizedName := strings.ToLower(name)
+	class, ok := i.classes[normalizedName]
+	if !ok {
+		return nil, false
+	}
+	return class, true
+}
+
+// HasClass checks if a class with the given name exists.
+func (i *Interpreter) HasClass(name string) bool {
+	normalizedName := strings.ToLower(name)
+	_, ok := i.classes[normalizedName]
+	return ok
+}
+
+// GetClassTypeID returns the type ID for a class, or 0 if not found.
+func (i *Interpreter) GetClassTypeID(className string) int {
+	normalizedName := strings.ToLower(className)
+	typeID, ok := i.classTypeIDRegistry[normalizedName]
+	if !ok {
+		return 0
+	}
+	return typeID
+}
+
+// ===== Record Registry =====
+
+// LookupRecord finds a record type by name in the record registry.
+func (i *Interpreter) LookupRecord(name string) (any, bool) {
+	normalizedName := strings.ToLower(name)
+	record, ok := i.records[normalizedName]
+	if !ok {
+		return nil, false
+	}
+	return record, true
+}
+
+// HasRecord checks if a record type with the given name exists.
+func (i *Interpreter) HasRecord(name string) bool {
+	normalizedName := strings.ToLower(name)
+	_, ok := i.records[normalizedName]
+	return ok
+}
+
+// GetRecordTypeID returns the type ID for a record type, or 0 if not found.
+func (i *Interpreter) GetRecordTypeID(recordName string) int {
+	normalizedName := strings.ToLower(recordName)
+	typeID, ok := i.recordTypeIDRegistry[normalizedName]
+	if !ok {
+		return 0
+	}
+	return typeID
+}
+
+// ===== Interface Registry =====
+
+// LookupInterface finds an interface by name in the interface registry.
+func (i *Interpreter) LookupInterface(name string) (any, bool) {
+	normalizedName := strings.ToLower(name)
+	iface, ok := i.interfaces[normalizedName]
+	if !ok {
+		return nil, false
+	}
+	return iface, true
+}
+
+// HasInterface checks if an interface with the given name exists.
+func (i *Interpreter) HasInterface(name string) bool {
+	normalizedName := strings.ToLower(name)
+	_, ok := i.interfaces[normalizedName]
+	return ok
+}
+
+// ===== Helper Registry =====
+
+// LookupHelpers finds helper methods for a type by name.
+func (i *Interpreter) LookupHelpers(typeName string) []any {
+	normalizedName := strings.ToLower(typeName)
+	helpers, ok := i.helpers[normalizedName]
+	if !ok {
+		return nil
+	}
+	// Convert []*HelperInfo to []any
+	result := make([]any, len(helpers))
+	for idx, helper := range helpers {
+		result[idx] = helper
+	}
+	return result
+}
+
+// HasHelpers checks if a type has helper methods defined.
+func (i *Interpreter) HasHelpers(typeName string) bool {
+	normalizedName := strings.ToLower(typeName)
+	helpers, ok := i.helpers[normalizedName]
+	return ok && len(helpers) > 0
+}
+
+// ===== Operator & Conversion Registries =====
+
+// GetOperatorRegistry returns the operator registry for operator overload lookups.
+func (i *Interpreter) GetOperatorRegistry() any {
+	return i.globalOperators
+}
+
+// GetConversionRegistry returns the conversion registry for type conversion lookups.
+func (i *Interpreter) GetConversionRegistry() any {
+	return i.conversions
+}
+
+// ===== Enum Type IDs =====
+
+// GetEnumTypeID returns the type ID for an enum type, or 0 if not found.
+func (i *Interpreter) GetEnumTypeID(enumName string) int {
+	normalizedName := strings.ToLower(enumName)
+	typeID, ok := i.enumTypeIDRegistry[normalizedName]
+	if !ok {
+		return 0
+	}
+	return typeID
 }
 
 // GetCallStack returns a copy of the current call stack.
