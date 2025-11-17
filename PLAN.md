@@ -228,23 +228,41 @@ Clean architectural separation.
 
 ---
 
-#### Task 2.5.3: Parser Factory Pattern (Week 10, Days 3-5, ~24 hours)
+#### Task 2.5.3: Parser Factory Pattern (Week 10, Days 3-5, ~24 hours) ✅
 
 **Goal**: Clean up parser construction and configuration.
 
 **Implementation**:
-- [ ] Create `ParserConfig` and `ParserBuilder` types
-- [ ] Implement builder pattern for parser construction
-- [ ] Migrate tests to use builder
-- [ ] Document configuration options
+- [x] Create `ParserConfig` and `ParserBuilder` types
+- [x] Implement builder pattern for parser construction
+- [x] Migrate New() and NewCursorParser() to use builder
+- [x] Document configuration options
+
+**Files Created**:
+- `internal/parser/parser_builder.go` (212 lines)
 
 **Files Modified**:
-- `internal/parser/parser.go` (~100 lines)
-- Test files (~150 lines)
+- `internal/parser/parser.go` (1512 → 1404 lines, eliminated 108 lines of duplication)
 
 **Estimate**: 24 hours
 
-**Deliverable**: ParserBuilder for clean construction
+**Deliverable**: ParserBuilder for clean construction ✅
+
+**Key Features Implemented**:
+- ParserConfig with options (UseCursor, StrictMode, AllowReservedKeywordsAsIdentifiers, MaxRecursionDepth)
+- ParserBuilder with fluent API (WithCursorMode, WithStrictMode, etc.)
+- Centralized parse function registration (eliminates duplication)
+- DefaultConfig() for sensible defaults
+- MustBuild() helper for test code
+- New() refactored from ~80 lines to ~4 lines
+- NewCursorParser() refactored to delegate common code to builder
+
+**Code Reduction**:
+- Eliminated ~100 lines of duplicate parse function registration
+- New() went from ~80 lines to ~4 lines
+- Single source of truth for parse function registration
+
+**Completed**: 2025-11-17
 
 ---
 
