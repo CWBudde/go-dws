@@ -218,9 +218,9 @@ Attempts to match a sequence of token types in order. All must match for success
 
 **Example:**
 ```go
-// Check for assignment operator :=
-if p.Sequence(lexer.COLON, lexer.ASSIGN) {
-    // Both tokens matched and consumed
+// Check for method call chain: . identifier
+if p.Sequence(lexer.DOT, lexer.IDENT) {
+    // Matched a dot followed by an identifier
 }
 ```
 
