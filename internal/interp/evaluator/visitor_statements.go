@@ -262,26 +262,32 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 // VisitExpressionStatement evaluates an expression statement.
 // Special handling for auto-invoking parameterless function pointers.
 func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	// This has special logic for auto-invoking function pointers
+	// Phase 3.5.4 - Phase 2A: Function call infrastructure is available via adapter
+	// This has special logic for auto-invoking parameterless function pointers
+	// TODO: Migrate auto-invoke logic to use adapter.CallFunctionPointer
 	return e.adapter.EvalNode(node)
 }
 
 // VisitVarDeclStatement evaluates a variable declaration statement.
 func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2B: Type system available for array types, type inference
+	// TODO: Migrate variable declaration logic using adapter type system methods
 	return e.adapter.EvalNode(node)
 }
 
 // VisitConstDecl evaluates a constant declaration.
 func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2B: Record type registry available via adapter.LookupRecord()
+	// TODO: Migrate constant declaration logic
 	return e.adapter.EvalNode(node)
 }
 
 // VisitAssignmentStatement evaluates an assignment statement.
 func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2B: Type system available for compound operators
+	// Phase 3.5.4 - Phase 2C: Property setter infrastructure available via PropertyEvalContext
+	// Property setters handled via EvalNode delegation (uses Phase 2A + Phase 2B + ctx.PropContext())
+	// TODO: Migrate assignment logic with operator overloads and property setters
 	return e.adapter.EvalNode(node)
 }
 
