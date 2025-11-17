@@ -607,6 +607,16 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		} else {
 			// Regular parameter: validate type normally
 			argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
+
+			// Special handling for var parameters with array types:
+			// Allow passing dynamic arrays to static array var parameters if element types match
+			if isVar && argType != nil && !a.canAssign(argType, expectedType) {
+				if a.areArrayTypesCompatibleForVarParam(argType, expectedType) {
+					// Types are compatible for var parameter - allow it
+					continue
+				}
+			}
+
 			if argType != nil && !a.canAssign(argType, expectedType) {
 				a.addError("argument %d to function '%s' has type %s, expected %s at %s",
 					i+1, funcIdent.Value, argType.String(), expectedType.String(),

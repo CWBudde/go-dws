@@ -77,6 +77,8 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 		// Uses clauses are handled at runtime by the interpreter
 		// Semantic analyzer just ignores them
 		return
+	case *ast.UnitDeclaration:
+		a.analyzeUnitDeclaration(s)
 	default:
 		// Unknown statement type - this shouldn't happen
 		a.addError("unknown statement type: %T", stmt)
@@ -855,6 +857,44 @@ func (a *Analyzer) analyzeExitStatement(stmt *ast.ExitStatement) {
 	}
 	// Exit without an explicit return value is allowed. Functions rely on the current
 	// Result variable (or their default) in that case, matching DWScript semantics.
+}
+
+// analyzeUnitDeclaration analyzes a unit declaration
+func (a *Analyzer) analyzeUnitDeclaration(unit *ast.UnitDeclaration) {
+	// Create a single shared scope for the entire unit that persists across all sections.
+	// This allows initialization/finalization sections to access symbols defined in
+	// interface/implementation sections, which is required by DWScript semantics.
+	oldSymbols := a.symbols
+	a.symbols = NewEnclosedSymbolTable(oldSymbols)
+	defer func() { a.symbols = oldSymbols }()
+
+	// Analyze interface section declarations (types, functions, etc.)
+	if unit.InterfaceSection != nil {
+		for _, stmt := range unit.InterfaceSection.Statements {
+			a.analyzeStatement(stmt)
+		}
+	}
+
+	// Analyze implementation section (function implementations, etc.)
+	if unit.ImplementationSection != nil {
+		for _, stmt := range unit.ImplementationSection.Statements {
+			a.analyzeStatement(stmt)
+		}
+	}
+
+	// Analyze initialization section
+	if unit.InitSection != nil {
+		for _, stmt := range unit.InitSection.Statements {
+			a.analyzeStatement(stmt)
+		}
+	}
+
+	// Analyze finalization section
+	if unit.FinalSection != nil {
+		for _, stmt := range unit.FinalSection.Statements {
+			a.analyzeStatement(stmt)
+		}
+	}
 }
 
 // ============================================================================

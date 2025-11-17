@@ -853,6 +853,85 @@ func TestSemanticAnalysis_NamespaceConflictResolution(t *testing.T) {
 	}
 }
 
+// TestAnalyzeUnitDeclaration_InitializationAccessesImplementation tests that
+// initialization sections can access symbols defined in implementation sections.
+// This verifies the fix for the bug where each section had its own isolated scope.
+func TestAnalyzeUnitDeclaration_InitializationAccessesImplementation(t *testing.T) {
+	// Create a unit with a procedure in implementation and call it in initialization
+	unitDecl := &ast.UnitDeclaration{
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "TestUnit"},
+				},
+			},
+			Value: "TestUnit",
+		},
+		InterfaceSection: nil, // No interface section
+		ImplementationSection: &ast.BlockStatement{
+			Statements: []ast.Statement{
+				// procedure Foo; begin end;
+				&ast.FunctionDecl{
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"}},
+					Name: &ast.Identifier{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.IDENT, Literal: "Foo"},
+							},
+						},
+						Value: "Foo",
+					},
+					Parameters: nil,
+					ReturnType: nil,
+					Body: &ast.BlockStatement{
+						Statements: []ast.Statement{},
+					},
+				},
+			},
+		},
+		InitSection: &ast.BlockStatement{
+			Statements: []ast.Statement{
+				// Foo;  // Call the procedure defined in implementation
+				&ast.ExpressionStatement{
+					Expression: &ast.CallExpression{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.IDENT, Literal: "Foo"},
+							},
+						},
+						Function: &ast.Identifier{
+							TypedExpressionBase: ast.TypedExpressionBase{
+								BaseNode: ast.BaseNode{
+									Token: lexer.Token{Type: lexer.IDENT, Literal: "Foo"},
+								},
+							},
+							Value: "Foo",
+						},
+						Arguments: []ast.Expression{},
+					},
+				},
+			},
+		},
+		FinalSection: nil,
+	}
+
+	// Analyze using the statement analyzer (which uses analyzeUnitDeclaration)
+	analyzer := NewAnalyzer()
+	analyzer.analyzeUnitDeclaration(unitDecl)
+
+	// Check for errors - should be none if the fix works
+	if len(analyzer.Errors()) > 0 {
+		t.Errorf("Expected no errors, got: %v", analyzer.Errors())
+		for _, err := range analyzer.Errors() {
+			t.Logf("Error: %s", err)
+		}
+	}
+
+	// Verify that Foo was properly defined and accessible
+	// The initialization section should have been able to call it
+}
+
 // Helper function to check if a string contains a substring
 func hasSubstring(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {

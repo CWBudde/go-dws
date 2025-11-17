@@ -633,6 +633,27 @@ func (a *Analyzer) GetFunctionPointers() map[string]*types.FunctionPointerType {
 	return a.functionPointers
 }
 
+// areArrayTypesCompatibleForVarParam checks if an array type can be passed to a var parameter
+// In DWScript, dynamic arrays can be passed to var parameters of static array type if element types match
+func (a *Analyzer) areArrayTypesCompatibleForVarParam(argType, paramType types.Type) bool {
+	// Check if both are array types
+	argArray, argIsArray := argType.(*types.ArrayType)
+	paramArray, paramIsArray := paramType.(*types.ArrayType)
+
+	if !argIsArray || !paramIsArray {
+		return false
+	}
+
+	// Check if element types are compatible
+	if !types.IsCompatible(argArray.ElementType, paramArray.ElementType) {
+		return false
+	}
+
+	// Allow passing dynamic array to static array var parameter
+	// or static array to static array var parameter
+	return true
+}
+
 // validateFieldInitializer validates that a field initializer expression is type-compatible
 // with the field's declared type. Used for both class and record field initializers.
 func (a *Analyzer) validateFieldInitializer(field *ast.FieldDecl, fieldName string, fieldType types.Type) {
