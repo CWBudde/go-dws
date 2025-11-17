@@ -38,7 +38,6 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 	// Register enum values and calculate ordinal values
 	currentOrdinal := 0
 	flagBitPosition := 0               // For flags enums, track the bit position (2^n)
-	usedValues := make(map[int]string) // Track used ordinal values to detect duplicates
 	usedNames := make(map[string]bool) // Track used names to detect duplicates
 
 	for _, enumValue := range decl.Values {
@@ -82,14 +81,6 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 				currentOrdinal++
 			}
 		}
-
-		// Check for duplicate ordinal values
-		if existingName, exists := usedValues[ordinalValue]; exists {
-			a.addError("duplicate enum ordinal value %d in enum '%s' (values '%s' and '%s') at %s",
-				ordinalValue, enumName, existingName, valueName, decl.Token.Pos.String())
-			continue
-		}
-		usedValues[ordinalValue] = valueName
 
 		// Register the enum value
 		enumType.Values[valueName] = ordinalValue
