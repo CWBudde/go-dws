@@ -74,6 +74,44 @@ type Context interface {
 	// Returns the float value and true if successful, 0.0 and false otherwise.
 	// Task 3.7.3: Type helper for conversion functions.
 	ToFloat64(value Value) (float64, bool)
+
+	// ParseJSONString parses a JSON string and returns a Value (typically a Variant containing JSONValue).
+	// Returns an error if the JSON is invalid.
+	// Task 3.7.6: JSON helper for ParseJSON function.
+	ParseJSONString(jsonStr string) (Value, error)
+
+	// ValueToJSON converts a DWScript Value to a JSON string.
+	// If formatted is true, the output is pretty-printed with indentation.
+	// Task 3.7.6: JSON helper for ToJSON and ToJSONFormatted functions.
+	ValueToJSON(value Value, formatted bool) (string, error)
+
+	// GetTypeOf returns the type name of a value (e.g., "INTEGER", "STRING", "TMyClass").
+	// Task 3.7.6: Type introspection helper for TypeOf function.
+	GetTypeOf(value Value) string
+
+	// GetClassOf returns the class name of an object value, or empty string if not an object.
+	// Task 3.7.6: Type introspection helper for TypeOfClass function.
+	GetClassOf(value Value) string
+
+	// JSONHasField checks if a JSON object value has a given field.
+	// Returns false if value is not a JSON object or field doesn't exist.
+	// Task 3.7.6: JSON helper for JSONHasField function.
+	JSONHasField(value Value, fieldName string) bool
+
+	// JSONGetKeys returns the keys of a JSON object in insertion order.
+	// Returns empty array if value is not a JSON object.
+	// Task 3.7.6: JSON helper for JSONKeys function.
+	JSONGetKeys(value Value) []string
+
+	// JSONGetValues returns the values of a JSON object/array.
+	// Returns empty array if value is not a JSON object or array.
+	// Task 3.7.6: JSON helper for JSONValues function.
+	JSONGetValues(value Value) []Value
+
+	// JSONGetLength returns the length of a JSON array or object (number of keys).
+	// Returns 0 if value is not a JSON array or object.
+	// Task 3.7.6: JSON helper for JSONLength function.
+	JSONGetLength(value Value) int
 }
 
 // BuiltinFunc is the signature for all built-in function implementations.

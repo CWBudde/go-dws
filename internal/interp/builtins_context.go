@@ -1,6 +1,7 @@
 package interp
 
 import (
+	"encoding/json"
 	"math/rand"
 
 	"github.com/cwbudde/go-dws/internal/ast"
@@ -114,4 +115,183 @@ func (i *Interpreter) ToFloat64(value builtins.Value) (float64, bool) {
 	default:
 		return 0.0, false
 	}
+}
+
+// ParseJSONString parses a JSON string and returns a Value (Variant containing JSONValue).
+// This implements the builtins.Context interface.
+// Task 3.7.6: JSON helper for ParseJSON function.
+func (i *Interpreter) ParseJSONString(jsonStr string) (builtins.Value, error) {
+	// Parse JSON using the existing helper function
+	jsonVal, err := parseJSONString(jsonStr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to Variant containing JSONValue
+	variant := jsonValueToVariant(jsonVal)
+	return variant, nil
+}
+
+// ValueToJSON converts a DWScript Value to a JSON string.
+// This implements the builtins.Context interface.
+// Task 3.7.6: JSON helper for ToJSON and ToJSONFormatted functions.
+func (i *Interpreter) ValueToJSON(value builtins.Value, formatted bool) (string, error) {
+	// Convert Value to jsonvalue.Value using existing helper
+	jsonVal := valueToJSONValue(value)
+
+	// Serialize to JSON string using encoding/json
+	var jsonBytes []byte
+	var err error
+	if formatted {
+		jsonBytes, err = json.MarshalIndent(jsonVal, "", "  ")
+	} else {
+		jsonBytes, err = json.Marshal(jsonVal)
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	return string(jsonBytes), nil
+}
+
+// GetTypeOf returns the type name of a value.
+// This implements the builtins.Context interface.
+// Task 3.7.6: Type introspection helper for TypeOf function.
+func (i *Interpreter) GetTypeOf(value builtins.Value) string {
+	if value == nil {
+		return "NULL"
+	}
+	return value.Type()
+}
+
+// GetClassOf returns the class name of an object value.
+// This implements the builtins.Context interface.
+// Task 3.7.6: Type introspection helper for TypeOfClass function.
+func (i *Interpreter) GetClassOf(value builtins.Value) string {
+	if objVal, ok := value.(*ObjectInstance); ok {
+		if objVal.Class != nil {
+			return objVal.Class.Name
+		}
+	}
+	return ""
+}
+
+// JSONHasField checks if a JSON object value has a given field.
+// This implements the builtins.Context interface.
+// Task 3.7.6: JSON helper for JSONHasField function.
+func (i *Interpreter) JSONHasField(value builtins.Value, fieldName string) bool {
+	// Unwrap variant
+	val := unwrapVariant(value)
+
+	// Check if it's a JSON value
+	jsonVal, ok := val.(*JSONValue)
+	if !ok {
+		return false
+	}
+
+	// Check if it's an object
+	if jsonVal.Value == nil || jsonVal.Value.Kind() != 2 { // KindObject = 2
+		return false
+	}
+
+	// Check if field exists
+	fieldValue := jsonVal.Value.ObjectGet(fieldName)
+	return fieldValue != nil
+}
+
+// JSONGetKeys returns the keys of a JSON object in insertion order.
+// This implements the builtins.Context interface.
+// Task 3.7.6: JSON helper for JSONKeys function.
+func (i *Interpreter) JSONGetKeys(value builtins.Value) []string {
+	// Unwrap variant
+	val := unwrapVariant(value)
+
+	// Check if it's a JSON value
+	jsonVal, ok := val.(*JSONValue)
+	if !ok {
+		return []string{}
+	}
+
+	// Check if it's an object
+	if jsonVal.Value == nil || jsonVal.Value.Kind() != 2 { // KindObject = 2
+		return []string{}
+	}
+
+	// Get keys
+	return jsonVal.Value.ObjectKeys()
+}
+
+// JSONGetValues returns the values of a JSON object/array.
+// This implements the builtins.Context interface.
+// Task 3.7.6: JSON helper for JSONValues function.
+func (i *Interpreter) JSONGetValues(value builtins.Value) []builtins.Value {
+	// Unwrap variant
+	val := unwrapVariant(value)
+
+	// Check if it's a JSON value
+	jsonVal, ok := val.(*JSONValue)
+	if !ok {
+		return []builtins.Value{}
+	}
+
+	if jsonVal.Value == nil {
+		return []builtins.Value{}
+	}
+
+	// Handle objects
+	if jsonVal.Value.Kind() == 2 { // KindObject = 2
+		keys := jsonVal.Value.ObjectKeys()
+		values := make([]builtins.Value, len(keys))
+		for idx, key := range keys {
+			fieldVal := jsonVal.Value.ObjectGet(key)
+			// Wrap in JSONValue and then Variant
+			values[idx] = jsonValueToVariant(fieldVal)
+		}
+		return values
+	}
+
+	// Handle arrays
+	if jsonVal.Value.Kind() == 1 { // KindArray = 1
+		arrayLen := jsonVal.Value.ArrayLen()
+		values := make([]builtins.Value, arrayLen)
+		for idx := 0; idx < arrayLen; idx++ {
+			elemVal := jsonVal.Value.ArrayGet(idx)
+			// Wrap in JSONValue and then Variant
+			values[idx] = jsonValueToVariant(elemVal)
+		}
+		return values
+	}
+
+	return []builtins.Value{}
+}
+
+// JSONGetLength returns the length of a JSON array or object.
+// This implements the builtins.Context interface.
+// Task 3.7.6: JSON helper for JSONLength function.
+func (i *Interpreter) JSONGetLength(value builtins.Value) int {
+	// Unwrap variant
+	val := unwrapVariant(value)
+
+	// Check if it's a JSON value
+	jsonVal, ok := val.(*JSONValue)
+	if !ok {
+		return 0
+	}
+
+	if jsonVal.Value == nil {
+		return 0
+	}
+
+	// Handle objects - return number of keys
+	if jsonVal.Value.Kind() == 2 { // KindObject = 2
+		return len(jsonVal.Value.ObjectKeys())
+	}
+
+	// Handle arrays - return length
+	if jsonVal.Value.Kind() == 1 { // KindArray = 1
+		return jsonVal.Value.ArrayLen()
+	}
+
+	return 0
 }
