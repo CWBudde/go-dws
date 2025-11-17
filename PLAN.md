@@ -1054,16 +1054,74 @@ parseExpressionCursor
 
 #### Task 2.2.14.8: Break/Continue/Exit Statements (~2 hours)
 
-**Status**: NOT STARTED
+**Status**: ✅ COMPLETE
 
 **Goal**: Migrate simple control transfer statements.
 
 **Targets**:
-- [ ] `parseBreakStatementCursor()` - break
-- [ ] `parseContinueStatementCursor()` - continue
-- [ ] `parseExitStatementCursor()` - exit
+- [x] `parseBreakStatementCursor()` - break
+- [x] `parseContinueStatementCursor()` - continue
+- [x] `parseExitStatementCursor()` - exit
 
-**Dependencies**: Task 2.2.14.1
+**Implementation**:
+- [x] Implemented `parseBreakStatementCursor()` for break statements
+- [x] Implemented `parseContinueStatementCursor()` for continue statements
+- [x] Implemented `parseExitStatementCursor()` for exit statements (bare exit, exit with value, exit with parentheses)
+- [x] Updated `parseStatementCursor()` dispatcher to use cursor implementations
+- [x] Added comprehensive tests (25 test cases total)
+
+**Files Modified**:
+- `internal/parser/control_flow.go` (+145 lines): Added break/continue/exit cursor handlers
+- `internal/parser/statements.go` (+9 lines, -3 lines): Updated dispatcher to use cursor mode
+- `internal/parser/migration_statements_test.go` (+217 lines): Added 25 test cases
+
+**Test Coverage**:
+- ✅ Break statements: 4/4 tests passing
+  - Simple break
+  - Break in begin block
+  - Break in for loop
+  - Break in while loop
+- ✅ Continue statements: 4/4 tests passing
+  - Simple continue
+  - Continue in begin block
+  - Continue in for loop
+  - Continue in while loop
+- ✅ Exit statements: 7/7 tests passing
+  - Simple exit, exit with value
+  - Exit with parentheses (function-call style)
+  - Exit without parentheses (space-separated)
+  - Exit with complex expressions (binary, call)
+  - Exit in begin block
+- ✅ Edge cases: 4/4 tests passing
+  - Multiple breaks/continues in blocks
+  - Exit with different expression types
+  - Control transfer in nested blocks
+- ✅ Integration tests: 6/6 tests passing
+  - Break/continue in control flow
+  - Exit in if statements and begin blocks
+  - Mixed control transfer statements
+  - Complex control flow combinations
+
+**Dependencies**: Task 2.2.14.1 ✓
+
+**Actual Time**: ~2 hours (matching estimate)
+
+**Results**:
+- ✅ All 25 tests passing (100% success rate)
+- ✅ Full semantic equivalence with traditional mode
+- ✅ Proper error handling with structured errors
+- ✅ Support for all break/continue/exit patterns
+- ✅ Exit with and without parentheses works correctly
+- ✅ Exit with complex expressions works correctly
+- ✅ Proper semicolon handling and error reporting
+
+**Deliverable**: Break/continue/exit statements fully migrated to cursor mode ✓
+
+**Benefits**:
+- Complete control transfer statement migration
+- Full support for DWScript control flow syntax
+- Comprehensive error messages with suggestions
+- Seamless integration with other cursor-mode statements
 
 **Estimate**: 2 hours
 

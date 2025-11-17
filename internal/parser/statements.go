@@ -59,31 +59,16 @@ func (p *Parser) parseStatementCursor() ast.Statement {
 		return stmt
 
 	case lexer.BREAK:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		stmt := p.parseBreakStatement()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return stmt
+		// Task 2.2.14.8: Use cursor mode for break statements
+		return p.parseBreakStatementCursor()
 
 	case lexer.CONTINUE:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		stmt := p.parseContinueStatement()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return stmt
+		// Task 2.2.14.8: Use cursor mode for continue statements
+		return p.parseContinueStatementCursor()
 
 	case lexer.EXIT:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		stmt := p.parseExitStatement()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return stmt
+		// Task 2.2.14.8: Use cursor mode for exit statements
+		return p.parseExitStatementCursor()
 
 	case lexer.TRY:
 		// Task 2.2.14.7: Use cursor mode for try statements

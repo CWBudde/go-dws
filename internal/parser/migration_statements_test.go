@@ -1306,3 +1306,226 @@ func TestTryRaiseStatementCursor_Integration(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Task 2.2.14.8: Break/Continue/Exit Statements Tests
+// ============================================================================
+
+// TestBreakStatementCursor tests break statement migration to cursor mode
+func TestBreakStatementCursor(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{"simple break", "break;"},
+		{"break in while", "while true do break;"},
+		{"break in for", "for i := 1 to 10 do break;"},
+		{"break in begin", "begin break; end"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}
+
+// TestContinueStatementCursor tests continue statement migration to cursor mode
+func TestContinueStatementCursor(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{"simple continue", "continue;"},
+		{"continue in while", "while true do continue;"},
+		{"continue in for", "for i := 1 to 10 do continue;"},
+		{"continue in begin", "begin continue; end"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}
+
+// TestExitStatementCursor tests exit statement migration to cursor mode
+func TestExitStatementCursor(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{"simple exit", "exit;"},
+		{"exit with value in parens", "exit(42);"},
+		{"exit with expression in parens", "exit(x + 1);"},
+		{"exit with inline value", "exit 42;"},
+		{"exit with inline expression", "exit x + 1;"},
+		{"exit with identifier", "exit result;"},
+		{"exit in function", "function test(): Integer; begin exit(42); end;"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}
+
+// TestBreakContinueExitStatementCursor_EdgeCases tests edge cases for break/continue/exit
+func TestBreakContinueExitStatementCursor_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		source      string
+		expectError bool
+	}{
+		// Error cases - should produce errors
+		{"break without semicolon", "break", true},
+		{"continue without semicolon", "continue", true},
+		{"exit without semicolon", "exit", true},
+
+		// Valid edge cases
+		{"break with extra semicolons", "break;;", false},
+		{"continue with extra semicolons", "continue;;", false},
+		{"exit with extra semicolons", "exit;;", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			tradErrors := len(tradParser.Errors())
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			cursorErrors := len(cursorParser.Errors())
+
+			// Both should produce the same number of errors
+			if tradErrors != cursorErrors {
+				t.Errorf("Error count mismatch: traditional=%d, cursor=%d",
+					tradErrors, cursorErrors)
+				if tradErrors > 0 {
+					t.Logf("Traditional errors: %v", tradParser.Errors())
+				}
+				if cursorErrors > 0 {
+					t.Logf("Cursor errors: %v", cursorParser.Errors())
+				}
+			}
+
+			// Verify error expectation
+			if tt.expectError && tradErrors == 0 {
+				t.Errorf("Expected errors but got none")
+			}
+
+			// Programs should still be non-nil even with errors
+			if tradProgram == nil {
+				t.Error("Traditional parser returned nil program")
+			}
+			if cursorProgram == nil {
+				t.Error("Cursor parser returned nil program")
+			}
+		})
+	}
+}
+
+// TestBreakContinueExitStatementCursor_Integration tests integration with control flow
+func TestBreakContinueExitStatementCursor_Integration(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{"break in begin block", "begin break; end"},
+		{"continue in begin block", "begin continue; end"},
+		{"exit in begin block", "begin exit(0); end"},
+		{"exit simple", "exit(42);"},
+		{"break with var", "var x: Integer; while x < 10 do break;"},
+		{"continue with const", "const max = 10; for i := 1 to max do continue;"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}
