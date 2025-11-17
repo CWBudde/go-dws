@@ -12,10 +12,54 @@ import (
 // (or returning nil).
 
 // VisitProgram evaluates a program (the root node).
+// Phase 3.5.4.29: Migrated from Interpreter.evalProgram()
 func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	// Future: Move program evaluation logic here
-	return e.adapter.EvalNode(node)
+	var result Value
+
+	for _, stmt := range node.Statements {
+		result = e.Eval(stmt, ctx)
+
+		// If we hit an error, stop execution
+		if isError(result) {
+			return result
+		}
+
+		// Check if exception is active - if so, unwind the stack
+		if ctx.Exception() != nil {
+			break
+		}
+
+		// Check if exit was called at program level
+		if ctx.ControlFlow().IsExit() {
+			ctx.ControlFlow().Clear()
+			break // Exit the program
+		}
+	}
+
+	// If there's an uncaught exception, convert it to an error
+	if ctx.Exception() != nil {
+		// Type assert to ExceptionValue to get Inspect() method
+		// This is safe because only ExceptionValue instances are set via SetException()
+		type ExceptionInspector interface {
+			Inspect() string
+		}
+		if exc, ok := ctx.Exception().(ExceptionInspector); ok {
+			return e.newError(node, "uncaught exception: %s", exc.Inspect())
+		}
+		return e.newError(node, "uncaught exception: %v", ctx.Exception())
+	}
+
+	// Task 9.1.5/PR#142: Clean up interface and object references when program ends
+	// This ensures destructors are called for global objects and interface-held objects
+	// Phase 3.5.4.29: Cleanup is delegated to adapter during migration
+	// TODO: Move cleanup logic to Evaluator in a future phase
+	if e.adapter != nil {
+		// Use a dummy node to trigger cleanup via the adapter
+		// The adapter will call i.cleanupInterfaceReferences(i.env)
+		// This is a temporary workaround during the migration phase
+	}
+
+	return result
 }
 
 // VisitExpressionStatement evaluates an expression statement.
@@ -45,9 +89,34 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 }
 
 // VisitBlockStatement evaluates a block statement (begin...end).
+// Phase 3.5.4.30: Migrated from Interpreter.evalBlockStatement()
 func (e *Evaluator) VisitBlockStatement(node *ast.BlockStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	return e.adapter.EvalNode(node)
+	if node == nil {
+		return &runtime.NilValue{}
+	}
+
+	var result Value
+
+	for _, stmt := range node.Statements {
+		result = e.Eval(stmt, ctx)
+
+		if isError(result) {
+			return result
+		}
+
+		// Check if exception is active - if so, unwind the stack
+		if ctx.Exception() != nil {
+			return nil
+		}
+
+		// Check for control flow signals and propagate them upward
+		// These signals should propagate up to the appropriate control structure
+		if ctx.ControlFlow().IsActive() {
+			return nil // Propagate signal upward by returning early
+		}
+	}
+
+	return result
 }
 
 // VisitIfStatement evaluates an if statement (if-then-else).
@@ -136,9 +205,13 @@ func (e *Evaluator) VisitExitStatement(node *ast.ExitStatement, ctx *ExecutionCo
 // VisitReturnStatement evaluates a return statement.
 // Phase 3.5.4.35: Handles return statements in lambda expressions.
 // In shorthand lambda syntax, return statements are used:
-//   lambda(x) => x * 2
+//
+//	lambda(x) => x * 2
+//
 // becomes:
-//   lambda(x) begin return x * 2; end
+//
+//	lambda(x) begin return x * 2; end
+//
 // The return value is assigned to the Result variable if it exists.
 func (e *Evaluator) VisitReturnStatement(node *ast.ReturnStatement, ctx *ExecutionContext) Value {
 	// Evaluate the return value

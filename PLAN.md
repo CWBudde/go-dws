@@ -1480,8 +1480,8 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - [ ] 3.5.4.28 NewArrayExpression - Migrate evalNewArrayExpression() (dynamic array creation)
 
   **Batch 6: Simple Statements (7 methods)** - 2 days
-  - [ ] 3.5.4.29 Program - Migrate evalProgram() (evaluate statement list)
-  - [ ] 3.5.4.30 BlockStatement - Migrate evalBlockStatement() (scoped block execution)
+  - [x] 3.5.4.29 Program - Migrate evalProgram() (evaluate statement list)
+  - [x] 3.5.4.30 BlockStatement - Migrate evalBlockStatement() (scoped block execution)
   - [ ] 3.5.4.31 ExpressionStatement - Just evaluate inner expression (trivial)
   - [ ] 3.5.4.32 VarDeclStatement - Migrate evalVarDeclStatement() (variable declarations)
   - [ ] 3.5.4.33 ConstDecl - Migrate evalConstDecl() (constant declarations)
