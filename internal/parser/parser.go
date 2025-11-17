@@ -436,81 +436,19 @@ type ParserState struct {
 // New creates a new Parser instance in traditional mode.
 // The parser uses mutable token state (curToken/peekToken) for backward compatibility.
 // For cursor-based parsing, use NewCursorParser() instead.
+//
+// This is a convenience wrapper around the ParserBuilder for the common case
+// of creating a parser with default settings in traditional mode.
+//
+// For more control over parser configuration, use the builder pattern:
+//
+//	parser := NewParserBuilder(lexer).
+//	    WithStrictMode(true).
+//	    Build()
 func New(l *lexer.Lexer) *Parser {
-	p := &Parser{
-		l:              l,
-		errors:         []*ParserError{},
-		prefixParseFns: make(map[lexer.TokenType]prefixParseFn),
-		infixParseFns:  make(map[lexer.TokenType]infixParseFn),
-		blockStack:     []BlockContext{},
-		ctx:            NewParseContext(), // Initialize structured context (Task 2.1.2)
-		useCursor:      false,             // Traditional mode (Task 2.2.2)
-		cursor:         nil,               // No cursor in traditional mode
-	}
-
-	// Register prefix parse functions
-	p.registerPrefix(lexer.IDENT, p.parseIdentifier)
-	p.registerPrefix(lexer.INT, p.parseIntegerLiteral)
-	p.registerPrefix(lexer.FLOAT, p.parseFloatLiteral)
-	p.registerPrefix(lexer.STRING, p.parseStringLiteral)
-	p.registerPrefix(lexer.TRUE, p.parseBooleanLiteral)
-	p.registerPrefix(lexer.FALSE, p.parseBooleanLiteral)
-	p.registerPrefix(lexer.NIL, p.parseNilLiteral)
-	p.registerPrefix(lexer.NULL, p.parseNullIdentifier)             // Task 9.4.1: Null as built-in constant
-	p.registerPrefix(lexer.UNASSIGNED, p.parseUnassignedIdentifier) // Task 9.4.1: Unassigned as built-in constant
-	p.registerPrefix(lexer.CHAR, p.parseCharLiteral)
-	p.registerPrefix(lexer.MINUS, p.parsePrefixExpression)
-	p.registerPrefix(lexer.PLUS, p.parsePrefixExpression)
-	p.registerPrefix(lexer.NOT, p.parsePrefixExpression)
-	p.registerPrefix(lexer.LPAREN, p.parseGroupedExpression)
-	p.registerPrefix(lexer.LBRACK, p.parseArrayLiteral)           // Array/Set literals: [a, b]
-	p.registerPrefix(lexer.NEW, p.parseNewExpression)             // new keyword: new Exception('msg')
-	p.registerPrefix(lexer.DEFAULT, p.parseDefaultExpression)     // default keyword: default(Integer)
-	p.registerPrefix(lexer.AT, p.parseAddressOfExpression)        // Address-of operator: @FunctionName
-	p.registerPrefix(lexer.LAMBDA, p.parseLambdaExpression)       // Lambda expressions: lambda(x) => x * 2
-	p.registerPrefix(lexer.OLD, p.parseOldExpression)             // old keyword: old identifier (postconditions only)
-	p.registerPrefix(lexer.INHERITED, p.parseInheritedExpression) // inherited keyword: inherited MethodName(args)
-	p.registerPrefix(lexer.SELF, p.parseSelfExpression)           // self keyword: Self.Field, Self.Method()
-	p.registerPrefix(lexer.IF, p.parseIfExpression)               // if expression: if condition then expr1 else expr2
-
-	// Register keywords that can be used as identifiers in expression context
-	// In DWScript/Object Pascal, some keywords can be used as identifiers
-	p.registerPrefix(lexer.HELPER, p.parseIdentifier)
-	p.registerPrefix(lexer.STEP, p.parseIdentifier) // 'step' is contextual - keyword in for loops, identifier elsewhere
-
-	// Register infix parse functions
-	p.registerInfix(lexer.QUESTION_QUESTION, p.parseInfixExpression) // Coalesce: a ?? b
-	p.registerInfix(lexer.LPAREN, p.parseCallExpression)
-	p.registerInfix(lexer.LBRACK, p.parseIndexExpression) // Array/string indexing: arr[i]
-	p.registerInfix(lexer.PLUS, p.parseInfixExpression)
-	p.registerInfix(lexer.MINUS, p.parseInfixExpression)
-	p.registerInfix(lexer.ASTERISK, p.parseInfixExpression)
-	p.registerInfix(lexer.SLASH, p.parseInfixExpression)
-	p.registerInfix(lexer.DIV, p.parseInfixExpression)
-	p.registerInfix(lexer.MOD, p.parseInfixExpression)
-	p.registerInfix(lexer.SHL, p.parseInfixExpression)
-	p.registerInfix(lexer.SHR, p.parseInfixExpression)
-	p.registerInfix(lexer.SAR, p.parseInfixExpression)
-	p.registerInfix(lexer.EQ, p.parseInfixExpression)
-	p.registerInfix(lexer.NOT_EQ, p.parseInfixExpression)
-	p.registerInfix(lexer.LESS, p.parseInfixExpression)
-	p.registerInfix(lexer.GREATER, p.parseInfixExpression)
-	p.registerInfix(lexer.LESS_EQ, p.parseInfixExpression)
-	p.registerInfix(lexer.GREATER_EQ, p.parseInfixExpression)
-	p.registerInfix(lexer.AND, p.parseInfixExpression)
-	p.registerInfix(lexer.OR, p.parseInfixExpression)
-	p.registerInfix(lexer.XOR, p.parseInfixExpression)
-	p.registerInfix(lexer.IN, p.parseInfixExpression)              // Set membership test
-	p.registerInfix(lexer.IS, p.parseIsExpression)                 // Type checking: obj is TClass
-	p.registerInfix(lexer.AS, p.parseAsExpression)                 // Type casting: obj as IInterface
-	p.registerInfix(lexer.IMPLEMENTS, p.parseImplementsExpression) // Interface check: obj implements IInterface
-	p.registerInfix(lexer.DOT, p.parseMemberAccess)
-
-	// Read two tokens to initialize curToken and peekToken
-	p.nextToken()
-	p.nextToken()
-
-	return p
+	return NewParserBuilder(l).
+		WithCursorMode(false).
+		Build()
 }
 
 // NewCursorParser creates a new Parser instance in cursor mode.
@@ -529,77 +467,31 @@ func New(l *lexer.Lexer) *Parser {
 // Note: The parser still maintains curToken/peekToken for backward compatibility
 // with existing parsing functions. During migration, the parser synchronizes
 // cursor position with curToken/peekToken.
+//
+// This is a convenience wrapper around the ParserBuilder. The builder handles
+// common parse function registration, and this function adds cursor-specific
+// function registration for the dual-mode architecture.
 func NewCursorParser(l *lexer.Lexer) *Parser {
+	// Use builder to create parser with cursor mode and register common functions
+	// Note: Builder.Build() calls nextToken() twice, but for cursor mode we need syncCursorToTokens() instead.
+	// So we build without calling the final initialization, then do it manually.
+	builder := NewParserBuilder(l).WithCursorMode(true)
+
 	p := &Parser{
 		l:              l,
 		errors:         []*ParserError{},
 		prefixParseFns: make(map[lexer.TokenType]prefixParseFn),
 		infixParseFns:  make(map[lexer.TokenType]infixParseFn),
 		blockStack:     []BlockContext{},
-		ctx:            NewParseContext(), // Initialize structured context (Task 2.1.2)
-		useCursor:      true,              // Cursor mode (Task 2.2.2)
-		cursor:         NewTokenCursor(l), // Initialize cursor
-		// Initialize cursor-specific function maps (Task 2.2.6)
+		ctx:            NewParseContext(),
+		useCursor:      true,
+		cursor:         NewTokenCursor(l),
 		prefixParseFnsCursor: make(map[lexer.TokenType]prefixParseFnCursor),
 		infixParseFnsCursor:  make(map[lexer.TokenType]infixParseFnCursor),
 	}
 
-	// Register prefix parse functions (same as New())
-	p.registerPrefix(lexer.IDENT, p.parseIdentifier)
-	p.registerPrefix(lexer.INT, p.parseIntegerLiteral)
-	p.registerPrefix(lexer.FLOAT, p.parseFloatLiteral)
-	p.registerPrefix(lexer.STRING, p.parseStringLiteral)
-	p.registerPrefix(lexer.TRUE, p.parseBooleanLiteral)
-	p.registerPrefix(lexer.FALSE, p.parseBooleanLiteral)
-	p.registerPrefix(lexer.NIL, p.parseNilLiteral)
-	p.registerPrefix(lexer.NULL, p.parseNullIdentifier)             // Task 9.4.1: Null as built-in constant
-	p.registerPrefix(lexer.UNASSIGNED, p.parseUnassignedIdentifier) // Task 9.4.1: Unassigned as built-in constant
-	p.registerPrefix(lexer.CHAR, p.parseCharLiteral)
-	p.registerPrefix(lexer.MINUS, p.parsePrefixExpression)
-	p.registerPrefix(lexer.PLUS, p.parsePrefixExpression)
-	p.registerPrefix(lexer.NOT, p.parsePrefixExpression)
-	p.registerPrefix(lexer.LPAREN, p.parseGroupedExpression)
-	p.registerPrefix(lexer.LBRACK, p.parseArrayLiteral)           // Array/Set literals: [a, b]
-	p.registerPrefix(lexer.NEW, p.parseNewExpression)             // new keyword: new Exception('msg')
-	p.registerPrefix(lexer.DEFAULT, p.parseDefaultExpression)     // default keyword: default(Integer)
-	p.registerPrefix(lexer.AT, p.parseAddressOfExpression)        // Address-of operator: @FunctionName
-	p.registerPrefix(lexer.LAMBDA, p.parseLambdaExpression)       // Lambda expressions: lambda(x) => x * 2
-	p.registerPrefix(lexer.OLD, p.parseOldExpression)             // old keyword: old identifier (postconditions only)
-	p.registerPrefix(lexer.INHERITED, p.parseInheritedExpression) // inherited keyword: inherited MethodName(args)
-	p.registerPrefix(lexer.SELF, p.parseSelfExpression)           // self keyword: Self.Field, Self.Method()
-	p.registerPrefix(lexer.IF, p.parseIfExpression)               // if expression: if condition then expr1 else expr2
-
-	// Register keywords that can be used as identifiers in expression context
-	p.registerPrefix(lexer.HELPER, p.parseIdentifier)
-	p.registerPrefix(lexer.STEP, p.parseIdentifier) // 'step' is contextual - keyword in for loops, identifier elsewhere
-
-	// Register infix parse functions (same as New())
-	p.registerInfix(lexer.QUESTION_QUESTION, p.parseInfixExpression) // Coalesce: a ?? b
-	p.registerInfix(lexer.LPAREN, p.parseCallExpression)
-	p.registerInfix(lexer.LBRACK, p.parseIndexExpression) // Array/string indexing: arr[i]
-	p.registerInfix(lexer.PLUS, p.parseInfixExpression)
-	p.registerInfix(lexer.MINUS, p.parseInfixExpression)
-	p.registerInfix(lexer.ASTERISK, p.parseInfixExpression)
-	p.registerInfix(lexer.SLASH, p.parseInfixExpression)
-	p.registerInfix(lexer.DIV, p.parseInfixExpression)
-	p.registerInfix(lexer.MOD, p.parseInfixExpression)
-	p.registerInfix(lexer.SHL, p.parseInfixExpression)
-	p.registerInfix(lexer.SHR, p.parseInfixExpression)
-	p.registerInfix(lexer.SAR, p.parseInfixExpression)
-	p.registerInfix(lexer.EQ, p.parseInfixExpression)
-	p.registerInfix(lexer.NOT_EQ, p.parseInfixExpression)
-	p.registerInfix(lexer.LESS, p.parseInfixExpression)
-	p.registerInfix(lexer.GREATER, p.parseInfixExpression)
-	p.registerInfix(lexer.LESS_EQ, p.parseInfixExpression)
-	p.registerInfix(lexer.GREATER_EQ, p.parseInfixExpression)
-	p.registerInfix(lexer.AND, p.parseInfixExpression)
-	p.registerInfix(lexer.OR, p.parseInfixExpression)
-	p.registerInfix(lexer.XOR, p.parseInfixExpression)
-	p.registerInfix(lexer.IN, p.parseInfixExpression)              // Set membership test
-	p.registerInfix(lexer.IS, p.parseIsExpression)                 // Type checking: obj is TClass
-	p.registerInfix(lexer.AS, p.parseAsExpression)                 // Type casting: obj as IInterface
-	p.registerInfix(lexer.IMPLEMENTS, p.parseImplementsExpression) // Interface check: obj implements IInterface
-	p.registerInfix(lexer.DOT, p.parseMemberAccess)
+	// Register common parse functions via builder
+	builder.registerParseFunctions(p)
 
 	// Register cursor-specific parse functions (Task 2.2.6)
 	// These functions take tokens explicitly as parameters instead of accessing parser state.
