@@ -59,6 +59,21 @@ type Context interface {
 	// This allows built-in functions to work with both direct values and Variant-wrapped values.
 	// Task 9.4.5: Support for Variant arguments in built-in functions.
 	UnwrapVariant(value Value) Value
+
+	// ToInt64 converts a Value to int64, handling SubrangeValue and EnumValue.
+	// Returns the integer value and true if successful, 0 and false otherwise.
+	// Task 3.7.3: Type helper for conversion functions.
+	ToInt64(value Value) (int64, bool)
+
+	// ToBool converts a Value to bool.
+	// Returns the boolean value and true if successful, false and false otherwise.
+	// Task 3.7.3: Type helper for conversion functions.
+	ToBool(value Value) (bool, bool)
+
+	// ToFloat64 converts a Value to float64, handling integer types.
+	// Returns the float value and true if successful, 0.0 and false otherwise.
+	// Task 3.7.3: Type helper for conversion functions.
+	ToFloat64(value Value) (float64, bool)
 }
 
 // BuiltinFunc is the signature for all built-in function implementations.

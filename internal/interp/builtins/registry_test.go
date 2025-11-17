@@ -54,6 +54,33 @@ func (m *mockContext) UnwrapVariant(value Value) Value {
 	return value
 }
 
+func (m *mockContext) ToInt64(value Value) (int64, bool) {
+	// Simple mock implementation for testing
+	if iv, ok := value.(*runtime.IntegerValue); ok {
+		return iv.Value, true
+	}
+	return 0, false
+}
+
+func (m *mockContext) ToBool(value Value) (bool, bool) {
+	// Simple mock implementation for testing
+	if bv, ok := value.(*runtime.BooleanValue); ok {
+		return bv.Value, true
+	}
+	return false, false
+}
+
+func (m *mockContext) ToFloat64(value Value) (float64, bool) {
+	// Simple mock implementation for testing
+	if fv, ok := value.(*runtime.FloatValue); ok {
+		return fv.Value, true
+	}
+	if iv, ok := value.(*runtime.IntegerValue); ok {
+		return float64(iv.Value), true
+	}
+	return 0.0, false
+}
+
 func TestNewRegistry(t *testing.T) {
 	r := NewRegistry()
 	if r == nil {

@@ -56,3 +56,62 @@ func (i *Interpreter) UnwrapVariant(value builtins.Value) builtins.Value {
 	}
 	return value
 }
+
+// ToInt64 converts a Value to int64, handling SubrangeValue and EnumValue.
+// This implements the builtins.Context interface.
+// Task 3.7.3: Type helper for conversion functions.
+func (i *Interpreter) ToInt64(value builtins.Value) (int64, bool) {
+	switch v := value.(type) {
+	case *IntegerValue:
+		return v.Value, true
+	case *SubrangeValue:
+		return int64(v.Value), true
+	case *EnumValue:
+		return int64(v.OrdinalValue), true
+	case *BooleanValue:
+		if v.Value {
+			return 1, true
+		}
+		return 0, true
+	case *FloatValue:
+		return int64(v.Value), true
+	default:
+		return 0, false
+	}
+}
+
+// ToBool converts a Value to bool.
+// This implements the builtins.Context interface.
+// Task 3.7.3: Type helper for conversion functions.
+func (i *Interpreter) ToBool(value builtins.Value) (bool, bool) {
+	switch v := value.(type) {
+	case *BooleanValue:
+		return v.Value, true
+	case *IntegerValue:
+		return v.Value != 0, true
+	case *SubrangeValue:
+		return v.Value != 0, true
+	case *EnumValue:
+		return v.OrdinalValue != 0, true
+	default:
+		return false, false
+	}
+}
+
+// ToFloat64 converts a Value to float64, handling integer types.
+// This implements the builtins.Context interface.
+// Task 3.7.3: Type helper for conversion functions.
+func (i *Interpreter) ToFloat64(value builtins.Value) (float64, bool) {
+	switch v := value.(type) {
+	case *FloatValue:
+		return v.Value, true
+	case *IntegerValue:
+		return float64(v.Value), true
+	case *SubrangeValue:
+		return float64(v.Value), true
+	case *EnumValue:
+		return float64(v.OrdinalValue), true
+	default:
+		return 0.0, false
+	}
+}

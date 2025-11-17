@@ -3,27 +3,27 @@ package builtins
 // DefaultRegistry is the default global registry of all built-in functions.
 // It's populated on package initialization with all standard DWScript built-ins.
 //
-// Current status (Phase 3, Task 3.7.2):
-//   - 170+ functions migrated to internal/interp/builtins/ package
-//   - 168 functions registered in categories:
+// Current status (Phase 3, Task 3.7.3):
+//   - 184+ functions migrated to internal/interp/builtins/ package
+//   - 184 functions registered in categories:
 //   - Math: 62 functions (basic, advanced, trig, exponential, special values)
 //   - String: 56 functions (manipulation, search, comparison, formatting)
 //   - DateTime: 52 functions (creation, arithmetic, formatting, parsing, info)
-//   - Conversion: 2 functions (type conversions)
+//   - Conversion: 8 functions (IntToStr, IntToBin, StrToInt, StrToFloat, FloatToStr, BoolToStr, IntToHex, StrToBool)
+//   - Encoding: 5 functions (StrToHtml, StrToHtmlAttribute, StrToJSON, StrToCSSText, StrToXML)
 //
 // Pending migration (still in internal/interp as Interpreter methods):
 //   - I/O: Print, PrintLn (2 functions)
 //   - Array: Length, Copy, IndexOf, Contains, Reverse, Sort, Add, Delete, Low, High, SetLength (11 functions)
 //   - Collections: Map, Filter, Reduce, ForEach, Every, Some, Find, FindIndex, ConcatArrays, Slice (10 functions)
-//   - Conversion: Ord, Integer, IntToStr, StrToInt, FloatToStr, StrToFloat, etc. (10 functions)
+//   - Conversion: Ord, Integer, StrToIntDef, StrToFloatDef (4 functions)
 //   - Ordinals: Inc, Dec, Succ, Pred, Assert (5 functions)
 //   - Variant: VarType, VarIsNull, VarIsEmpty, VarToStr, VarToInt, etc. (12 functions)
 //   - JSON: ParseJSON, ToJSON, JSONHasField, JSONKeys, etc. (7 functions)
 //   - Type: TypeOf, TypeOfClass (2 functions)
-//   - Encoding: StrToHtml, StrToJSON, StrToCSSText, etc. (5 functions)
 //   - Misc: Format, GetStackTrace, Assigned, Swap, etc. (10+ functions)
 //
-// Total: ~170 registered, ~74 pending migration (244 built-in functions total)
+// Total: 184 registered, ~63 pending migration (247 built-in functions total)
 var DefaultRegistry *Registry
 
 func init() {
@@ -40,6 +40,7 @@ func init() {
 //   - CategoryString: String manipulation and formatting
 //   - CategoryDateTime: Date and time operations
 //   - CategoryConversion: Type conversion functions
+//   - CategoryEncoding: Encoding/escaping functions
 //
 // Future categories (when functions are migrated):
 //   - CategoryArray: Array operations
@@ -50,6 +51,7 @@ func RegisterAll(r *Registry) {
 	RegisterStringFunctions(r)
 	RegisterDateTimeFunctions(r)
 	RegisterConversionFunctions(r)
+	RegisterEncodingFunctions(r)
 }
 
 // RegisterMathFunctions registers all mathematical built-in functions.
@@ -270,8 +272,26 @@ func RegisterDateTimeFunctions(r *Registry) {
 
 // RegisterConversionFunctions registers all type conversion built-in functions.
 func RegisterConversionFunctions(r *Registry) {
+	// Basic conversion functions
+	r.Register("IntToStr", IntToStr, CategoryConversion, "Converts integer to string")
+	r.Register("IntToBin", IntToBin, CategoryConversion, "Converts integer to binary string")
+	r.Register("StrToInt", StrToInt, CategoryConversion, "Converts string to integer")
+	r.Register("StrToFloat", StrToFloat, CategoryConversion, "Converts string to float")
+	r.Register("FloatToStr", FloatToStr, CategoryConversion, "Converts float to string")
+	r.Register("BoolToStr", BoolToStr, CategoryConversion, "Converts boolean to string")
+
+	// Hexadecimal conversion
 	r.Register("IntToHex", IntToHex, CategoryConversion, "Converts integer to hexadecimal string")
 	r.Register("StrToBool", StrToBool, CategoryConversion, "Converts string to boolean")
 	// Default() is now handled specially in evalCallExpression (like type casts)
 	// See functions_typecast.go::evalDefaultFunction()
+}
+
+// RegisterEncodingFunctions registers all encoding/escaping built-in functions.
+func RegisterEncodingFunctions(r *Registry) {
+	r.Register("StrToHtml", StrToHtml, CategoryEncoding, "Encodes string for HTML content")
+	r.Register("StrToHtmlAttribute", StrToHtmlAttribute, CategoryEncoding, "Encodes string for HTML attributes")
+	r.Register("StrToJSON", StrToJSON, CategoryEncoding, "Encodes string for JSON")
+	r.Register("StrToCSSText", StrToCSSText, CategoryEncoding, "Encodes string for CSS text")
+	r.Register("StrToXML", StrToXML, CategoryEncoding, "Encodes string for XML")
 }

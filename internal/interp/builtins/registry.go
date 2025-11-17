@@ -22,6 +22,9 @@ const (
 	// CategoryConversion includes type conversion functions (IntToStr, StrToInt, etc.)
 	CategoryConversion Category = "conversion"
 
+	// CategoryEncoding includes encoding/escaping functions (StrToHtml, StrToJSON, etc.)
+	CategoryEncoding Category = "encoding"
+
 	// CategoryArray includes array operations (Length, Copy, Reverse, etc.)
 	CategoryArray Category = "array"
 
