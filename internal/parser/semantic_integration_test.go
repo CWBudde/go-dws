@@ -71,26 +71,23 @@ func TestParserWithSemanticAnalysis(t *testing.T) {
 	}
 }
 
-// TestParserWithoutSemanticAnalysis ensures semantic analysis is optional
+// TestParserWithoutSemanticAnalysis ensures parser and semantic analysis are separate
 func TestParserWithoutSemanticAnalysis(t *testing.T) {
-	input := "var x: Integer := 'hello';" // Type mismatch
+	input := "var x: Integer := 'hello';" // Type mismatch (semantic error, not parser error)
 
 	l := lexer.New(input)
 	p := New(l)
 	program := p.ParseProgram()
 
-	// Should have no parser errors (only semantic error)
+	// Parser should succeed even with semantic errors
 	if len(p.Errors()) > 0 {
 		t.Fatalf("parser errors: %v", p.Errors())
-	}
-
-	// Without running semantic analysis, should have no errors stored
-	semanticErrors := p.SemanticErrors()
-	if len(semanticErrors) > 0 {
-		t.Fatalf("unexpected semantic errors when analysis not run: %v", semanticErrors)
 	}
 
 	if program == nil {
 		t.Fatal("ParseProgram() returned nil")
 	}
+
+	// Parser is now purely syntactic - semantic analysis must be run separately
+	// to detect the type mismatch. This test verifies that separation.
 }
