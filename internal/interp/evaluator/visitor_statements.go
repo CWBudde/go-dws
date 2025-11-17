@@ -1,6 +1,8 @@
 package evaluator
 
 import (
+	"unicode/utf8"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 )
@@ -70,6 +72,135 @@ func variantToBool(val Value) bool {
 			return true
 		}
 	}
+}
+
+// runeLength returns the number of Unicode characters (runes) in a string.
+func runeLength(s string) int {
+	return utf8.RuneCountInString(s)
+}
+
+// runeAt returns the rune at the given 1-based index in the string.
+// Returns the rune and true if the index is valid, or 0 and false otherwise.
+func runeAt(s string, index int) (rune, bool) {
+	if index < 1 {
+		return 0, false
+	}
+
+	runes := []rune(s)
+	if index > len(runes) {
+		return 0, false
+	}
+
+	return runes[index-1], true
+}
+
+// valuesEqual compares two values for equality.
+// This is used by case statements to match values.
+// Phase 3.5.4.41: Migrated from Interpreter.valuesEqual()
+func valuesEqual(left, right Value) bool {
+	// Unwrap VariantValue if present (check by type name since VariantValue is in interp package)
+	// For now, we don't handle Variant unwrapping in the evaluator
+	// This will be handled when Variant types are migrated
+
+	// Handle nil values (uninitialized variants)
+	if left == nil && right == nil {
+		return true // Both uninitialized variants are equal
+	}
+	if left == nil || right == nil {
+		return false // One is nil, the other is not
+	}
+
+	// Handle same type comparisons
+	if left.Type() != right.Type() {
+		return false
+	}
+
+	switch l := left.(type) {
+	case *runtime.IntegerValue:
+		r, ok := right.(*runtime.IntegerValue)
+		if !ok {
+			return false
+		}
+		return l.Value == r.Value
+	case *runtime.FloatValue:
+		r, ok := right.(*runtime.FloatValue)
+		if !ok {
+			return false
+		}
+		return l.Value == r.Value
+	case *runtime.StringValue:
+		r, ok := right.(*runtime.StringValue)
+		if !ok {
+			return false
+		}
+		return l.Value == r.Value
+	case *runtime.BooleanValue:
+		r, ok := right.(*runtime.BooleanValue)
+		if !ok {
+			return false
+		}
+		return l.Value == r.Value
+	case *runtime.NilValue:
+		return true // nil == nil
+	default:
+		// For other types (RecordValue, etc.), use string comparison as fallback
+		// Phase 3.5.4.41: Record comparison delegated to later migration
+		return left.String() == right.String()
+	}
+}
+
+// isInRange checks if value is within the range [start, end] inclusive.
+// Supports Integer, Float, String (character), and Enum values.
+// Phase 3.5.4.41: Migrated from Interpreter.isInRange()
+func isInRange(value, start, end Value) bool {
+	// Unwrap VariantValue if present - delegated to later migration
+	// For now, assume values are not wrapped in Variant
+
+	// Handle nil values (uninitialized variants)
+	if value == nil || start == nil || end == nil {
+		return false // Cannot perform range check with uninitialized variants
+	}
+
+	// Handle different value types
+	switch v := value.(type) {
+	case *runtime.IntegerValue:
+		startInt, startOk := start.(*runtime.IntegerValue)
+		endInt, endOk := end.(*runtime.IntegerValue)
+		if startOk && endOk {
+			return v.Value >= startInt.Value && v.Value <= endInt.Value
+		}
+
+	case *runtime.FloatValue:
+		startFloat, startOk := start.(*runtime.FloatValue)
+		endFloat, endOk := end.(*runtime.FloatValue)
+		if startOk && endOk {
+			return v.Value >= startFloat.Value && v.Value <= endFloat.Value
+		}
+
+	case *runtime.StringValue:
+		// For strings, compare character by character
+		startStr, startOk := start.(*runtime.StringValue)
+		endStr, endOk := end.(*runtime.StringValue)
+		// Use rune-based comparison to handle UTF-8 correctly
+		if startOk && endOk && runeLength(v.Value) == 1 && runeLength(startStr.Value) == 1 && runeLength(endStr.Value) == 1 {
+			// Single character comparison (for 'A'..'Z' style ranges)
+			charVal, _ := runeAt(v.Value, 1)
+			charStart, _ := runeAt(startStr.Value, 1)
+			charEnd, _ := runeAt(endStr.Value, 1)
+			return charVal >= charStart && charVal <= charEnd
+		}
+		// Fall back to string comparison for multi-char strings
+		if startOk && endOk {
+			return v.Value >= startStr.Value && v.Value <= endStr.Value
+		}
+
+	default:
+		// For EnumValue and other types, check by type name
+		// Phase 3.5.4.41: Enum range checking delegated to later migration
+		return false
+	}
+
+	return false
 }
 
 // VisitProgram evaluates a program (the root node).
@@ -310,9 +441,59 @@ func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *Execution
 }
 
 // VisitCaseStatement evaluates a case statement (switch).
+// Phase 3.5.4.41: Migrated from Interpreter.evalCaseStatement()
 func (e *Evaluator) VisitCaseStatement(node *ast.CaseStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	return e.adapter.EvalNode(node)
+	// Evaluate the case expression
+	caseValue := e.Eval(node.Expression, ctx)
+	if isError(caseValue) {
+		return caseValue
+	}
+
+	// Check each case branch in order
+	for _, branch := range node.Cases {
+		// Check each value in this branch
+		for _, branchVal := range branch.Values {
+			// Check if this is a range expression
+			if rangeExpr, isRange := branchVal.(*ast.RangeExpression); isRange {
+				// Evaluate start and end of range
+				startValue := e.Eval(rangeExpr.Start, ctx)
+				if isError(startValue) {
+					return startValue
+				}
+
+				endValue := e.Eval(rangeExpr.RangeEnd, ctx)
+				if isError(endValue) {
+					return endValue
+				}
+
+				// Check if caseValue is within range [start, end]
+				if isInRange(caseValue, startValue, endValue) {
+					// Execute this branch's statement
+					return e.Eval(branch.Statement, ctx)
+				}
+			} else {
+				// Regular value comparison
+				branchValue := e.Eval(branchVal, ctx)
+				if isError(branchValue) {
+					return branchValue
+				}
+
+				// Check if values match
+				if valuesEqual(caseValue, branchValue) {
+					// Execute this branch's statement
+					return e.Eval(branch.Statement, ctx)
+				}
+			}
+		}
+	}
+
+	// No branch matched - execute else clause if present
+	if node.Else != nil {
+		return e.Eval(node.Else, ctx)
+	}
+
+	// No match and no else clause - return nil
+	return &runtime.NilValue{}
 }
 
 // VisitTryStatement evaluates a try-except-finally statement.
