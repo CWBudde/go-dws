@@ -12,7 +12,11 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/internal/units"
-	pkgast "github.com/cwbudde/go-dws/pkg/ast" // Task 9.18
+	// Task 3.8.2: pkg/ast is imported for SemanticInfo, which holds semantic analysis
+	// metadata (type annotations, symbol resolutions). This is separate from the AST
+	// structure itself and is not aliased in internal/ast.
+	// Task 9.18: Separate type metadata from AST nodes.
+	pkgast "github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // DefaultMaxRecursionDepth is the default maximum recursion depth for function calls.

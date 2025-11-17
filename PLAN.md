@@ -1310,11 +1310,12 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Estimated: 2 days
   - Acceptance: No reflection, clean interface, tests pass
 
-- [ ] 3.8.2 Reduce pkg/ast usage in internal/interp
+- [x] 3.8.2 Reduce pkg/ast usage in internal/interp
   - Minimize imports from pkg/ast to internal/ast
   - Only use pkg/ast for semantic info
   - Create adapter if needed
   - Document why pkg/ast is used
+  - Files: `internal/interp/errors/*.go` (updated), documentation added
   - Estimated: 2 days
   - Acceptance: Clear separation, documented rationale, tests pass
 
