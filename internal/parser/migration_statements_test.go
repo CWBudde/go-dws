@@ -1099,7 +1099,6 @@ func TestVarConstDeclarationCursor_Integration(t *testing.T) {
 	}
 }
 
-
 // ============================================================================
 // Task 2.2.14.7: Try/Raise Exception Handling Tests
 // ============================================================================
