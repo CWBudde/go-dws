@@ -400,7 +400,7 @@ func (i *Interpreter) castToInteger(val Value) Value {
 	case *IntegerValue:
 		return v
 	case *FloatValue:
-		return &IntegerValue{Value: int64(math.Round(v.Value))}
+		return &IntegerValue{Value: int64(math.Trunc(v.Value))}
 	case *BooleanValue:
 		if v.Value {
 			return &IntegerValue{Value: 1}
