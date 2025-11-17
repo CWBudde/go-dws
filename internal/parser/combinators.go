@@ -201,8 +201,8 @@ func (p *Parser) Choice(tokenTypes ...lexer.TokenType) bool {
 //
 // Example:
 //
-//	// Match ":=" sequence
-//	if p.Sequence(lexer.COLON, lexer.ASSIGN) {
+//	// Match member access (dot followed by identifier)
+//	if p.Sequence(lexer.DOT, lexer.IDENT) {
 //	    // both tokens matched and consumed
 //	}
 //
