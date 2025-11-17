@@ -110,17 +110,17 @@ func (p *Parameter) String() string {
 //	ensure
 //	   Result >= 0;
 type FunctionDecl struct {
-	ReturnType        TypeExpression
-	ClassName         *Identifier
-	Body              *BlockStatement
-	PreConditions     *PreConditions
-	PostConditions    *PostConditions
-	Name                  *Identifier
-	ExternalName          string
-	CallingConvention     string
-	CallingConventionPos  token.Position // Position of calling convention keyword
-	DeprecatedMessage     string
-	Parameters            []*Parameter
+	ReturnType           TypeExpression
+	ClassName            *Identifier
+	Body                 *BlockStatement
+	PreConditions        *PreConditions
+	PostConditions       *PostConditions
+	Name                 *Identifier
+	ExternalName         string
+	CallingConvention    string
+	CallingConventionPos token.Position // Position of calling convention keyword
+	DeprecatedMessage    string
+	Parameters           []*Parameter
 	BaseNode
 	Visibility    Visibility
 	IsDestructor  bool
