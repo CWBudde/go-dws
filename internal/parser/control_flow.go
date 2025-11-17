@@ -782,3 +782,323 @@ func (p *Parser) parseIfExpression() ast.Expression {
 
 	return expr
 }
+
+// ============================================================================
+// Task 2.2.14.4: Cursor-mode handlers for control flow statements
+// ============================================================================
+
+// parseIfStatementCursor parses an if statement in cursor mode.
+// Task 2.2.14.4: If statement migration
+// Syntax: if <condition> then <statement> [else <statement>]
+// PRE: cursor is on IF token
+// POST: cursor is on last token of statement
+func (p *Parser) parseIfStatementCursor() *ast.IfStatement {
+	ifToken := p.cursor.Current()
+	stmt := &ast.IfStatement{
+		BaseNode: ast.BaseNode{Token: ifToken},
+	}
+
+	// Track block context for better error messages
+	p.pushBlockContext("if", ifToken.Pos)
+	defer p.popBlockContext()
+
+	// Move past 'if' and parse the condition
+	p.cursor = p.cursor.Advance()
+	stmt.Condition = p.parseExpressionCursor(LOWEST)
+
+	if stmt.Condition == nil {
+		// Use structured error for better diagnostics
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidExpression).
+			WithMessage("expected condition after 'if'").
+			WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
+			WithExpectedString("boolean expression").
+			WithSuggestion("add a condition like 'x > 0' or 'flag = true'").
+			WithParsePhase("if statement condition").
+			Build()
+		p.addStructuredError(err)
+		// Synchronize using traditional mode
+		p.syncCursorToTokens()
+		p.useCursor = false
+		p.synchronize([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return nil
+	}
+
+	// Expect 'then' keyword
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.THEN {
+		// Use structured error for missing 'then'
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingThen).
+			WithMessage("expected 'then' after if condition").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpected(lexer.THEN).
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("add 'then' keyword after the condition").
+			WithNote("DWScript if statements require: if <condition> then <statement>").
+			WithParsePhase("if statement").
+			Build()
+		p.addStructuredError(err)
+		// Synchronize using traditional mode
+		p.syncCursorToTokens()
+		p.useCursor = false
+		p.synchronize([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
+		p.useCursor = true
+		p.syncTokensToCursor()
+		if p.cursor.Current().Type != lexer.THEN {
+			return nil
+		}
+	}
+
+	// Advance past 'then'
+	p.cursor = p.cursor.Advance()
+
+	// Parse the consequence (then branch)
+	p.cursor = p.cursor.Advance()
+	stmt.Consequence = p.parseStatementCursor()
+
+	if stmt.Consequence == nil {
+		// Use structured error for missing statement
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidSyntax).
+			WithMessage("expected statement after 'then'").
+			WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
+			WithExpectedString("statement").
+			WithSuggestion("add a statement like a variable assignment or function call").
+			WithParsePhase("if statement consequence").
+			Build()
+		p.addStructuredError(err)
+		// Synchronize using traditional mode
+		p.syncCursorToTokens()
+		p.useCursor = false
+		p.synchronize([]lexer.TokenType{lexer.ELSE, lexer.END})
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return nil
+	}
+
+	// Check for optional 'else' branch
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type == lexer.ELSE {
+		p.cursor = p.cursor.Advance() // move to 'else'
+		p.cursor = p.cursor.Advance() // move to statement after 'else'
+		stmt.Alternative = p.parseStatementCursor()
+
+		if stmt.Alternative == nil {
+			// Use structured error for missing else statement
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidSyntax).
+				WithMessage("expected statement after 'else'").
+				WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
+				WithExpectedString("statement").
+				WithSuggestion("add a statement for the else branch").
+				WithParsePhase("if statement alternative").
+				Build()
+			p.addStructuredError(err)
+			// Synchronize using traditional mode
+			p.syncCursorToTokens()
+			p.useCursor = false
+			p.synchronize([]lexer.TokenType{lexer.END})
+			p.useCursor = true
+			p.syncTokensToCursor()
+			return nil
+		}
+		// End position is after the alternative statement
+		stmt.EndPos = stmt.Alternative.End()
+	} else {
+		// No else branch - end position is after the consequence
+		stmt.EndPos = stmt.Consequence.End()
+	}
+
+	return stmt
+}
+
+// parseWhileStatementCursor parses a while loop statement in cursor mode.
+// Task 2.2.14.4: While statement migration
+// Syntax: while <condition> do <statement>
+// PRE: cursor is on WHILE token
+// POST: cursor is on last token of body statement
+func (p *Parser) parseWhileStatementCursor() *ast.WhileStatement {
+	whileToken := p.cursor.Current()
+	stmt := &ast.WhileStatement{
+		BaseNode: ast.BaseNode{Token: whileToken},
+	}
+
+	// Track block context for better error messages
+	p.pushBlockContext("while", whileToken.Pos)
+	defer p.popBlockContext()
+
+	// Move past 'while' and parse the condition
+	p.cursor = p.cursor.Advance()
+	stmt.Condition = p.parseExpressionCursor(LOWEST)
+
+	if stmt.Condition == nil {
+		// Use structured error for better diagnostics
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidExpression).
+			WithMessage("expected condition after 'while'").
+			WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
+			WithExpectedString("boolean expression").
+			WithSuggestion("add a loop condition like 'count < 10'").
+			WithParsePhase("while loop condition").
+			Build()
+		p.addStructuredError(err)
+		// Synchronize using traditional mode
+		p.syncCursorToTokens()
+		p.useCursor = false
+		p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return nil
+	}
+
+	// Expect 'do' keyword
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.DO {
+		// Use structured error for missing 'do'
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingDo).
+			WithMessage("expected 'do' after while condition").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpected(lexer.DO).
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("add 'do' keyword after the condition").
+			WithNote("DWScript while loops require: while <condition> do <statement>").
+			WithParsePhase("while loop").
+			Build()
+		p.addStructuredError(err)
+		// Synchronize using traditional mode
+		p.syncCursorToTokens()
+		p.useCursor = false
+		p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
+		p.useCursor = true
+		p.syncTokensToCursor()
+		if p.cursor.Current().Type != lexer.DO {
+			return nil
+		}
+	}
+
+	// Advance past 'do'
+	p.cursor = p.cursor.Advance()
+
+	// Parse the body statement
+	p.cursor = p.cursor.Advance()
+	stmt.Body = p.parseStatementCursor()
+
+	if isNilStatement(stmt.Body) {
+		// Use structured error for missing loop body
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidSyntax).
+			WithMessage("expected statement after 'do'").
+			WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
+			WithExpectedString("statement").
+			WithSuggestion("add a statement for the loop body").
+			WithParsePhase("while loop body").
+			Build()
+		p.addStructuredError(err)
+		// Synchronize using traditional mode
+		p.syncCursorToTokens()
+		p.useCursor = false
+		p.synchronize([]lexer.TokenType{lexer.END})
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return nil
+	}
+
+	// End position is after the body statement
+	stmt.EndPos = stmt.Body.End()
+
+	return stmt
+}
+
+// parseRepeatStatementCursor parses a repeat-until loop statement in cursor mode.
+// Task 2.2.14.4: Repeat statement migration
+// Syntax: repeat <statements> until <condition>
+// Note: The body can contain multiple statements
+// PRE: cursor is on REPEAT token
+// POST: cursor is on last token of condition expression
+func (p *Parser) parseRepeatStatementCursor() *ast.RepeatStatement {
+	repeatToken := p.cursor.Current()
+	stmt := &ast.RepeatStatement{
+		BaseNode: ast.BaseNode{Token: repeatToken},
+	}
+
+	// Track block context for better error messages
+	p.pushBlockContext("repeat", repeatToken.Pos)
+	defer p.popBlockContext()
+
+	// Move past 'repeat'
+	p.cursor = p.cursor.Advance()
+
+	// Parse multiple statements until 'until' is encountered
+	block := &ast.BlockStatement{
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
+	}
+	block.Statements = []ast.Statement{}
+
+	for p.cursor.Current().Type != lexer.UNTIL && p.cursor.Current().Type != lexer.EOF {
+		// Skip semicolons
+		if p.cursor.Current().Type == lexer.SEMICOLON {
+			p.cursor = p.cursor.Advance()
+			continue
+		}
+
+		bodyStmt := p.parseStatementCursor()
+		if bodyStmt != nil {
+			block.Statements = append(block.Statements, bodyStmt)
+		}
+
+		p.cursor = p.cursor.Advance()
+
+		// Skip any semicolons after the statement
+		for p.cursor.Current().Type == lexer.SEMICOLON {
+			p.cursor = p.cursor.Advance()
+		}
+	}
+
+	// If only one statement, use it directly; otherwise use the block
+	if len(block.Statements) == 1 {
+		stmt.Body = block.Statements[0]
+	} else if len(block.Statements) > 1 {
+		stmt.Body = block
+	} else {
+		p.addErrorWithContext("expected at least one statement in repeat body", ErrInvalidSyntax)
+		// Synchronize using traditional mode
+		p.syncCursorToTokens()
+		p.useCursor = false
+		p.synchronize([]lexer.TokenType{lexer.UNTIL, lexer.END})
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return nil
+	}
+
+	// Expect 'until' keyword
+	if p.cursor.Current().Type != lexer.UNTIL {
+		p.addErrorWithContext(fmt.Sprintf("expected 'until' after repeat body, got %s instead", p.cursor.Current().Type), ErrUnexpectedToken)
+		// Synchronize using traditional mode
+		p.syncCursorToTokens()
+		p.useCursor = false
+		p.synchronize([]lexer.TokenType{lexer.UNTIL, lexer.END})
+		p.useCursor = true
+		p.syncTokensToCursor()
+		if p.cursor.Current().Type != lexer.UNTIL {
+			return nil
+		}
+	}
+
+	// Parse the condition
+	p.cursor = p.cursor.Advance()
+	stmt.Condition = p.parseExpressionCursor(LOWEST)
+
+	if stmt.Condition == nil {
+		p.addError("expected condition after 'until'", ErrInvalidExpression)
+		return nil
+	}
+
+	// End position is after the condition expression
+	stmt.EndPos = stmt.Condition.End()
+
+	return stmt
+}

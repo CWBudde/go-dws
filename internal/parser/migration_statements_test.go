@@ -596,3 +596,273 @@ func TestBlockStatementIntegration_Traditional_vs_Cursor(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Task 2.2.14.4: Control Flow Statement Tests (If/While/Repeat)
+// ============================================================================
+
+// TestIfStatement_Traditional_vs_Cursor tests if statements
+func TestIfStatement_Traditional_vs_Cursor(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{"simple if-then", "if x > 0 then y := 1"},
+		{"if-then with block", "if x > 0 then begin y := 1 end"},
+		{"if-then-else", "if x > 0 then y := 1 else y := 0"},
+		{"if-then-else blocks", "if x > 0 then begin y := 1 end else begin y := 0 end"},
+		{"nested if", "if x > 0 then if y > 0 then z := 1"},
+		{"if with complex condition", "if (x > 0) and (y < 10) then result := true"},
+		{"if with call", "if IsValid(x) then Process(x)"},
+		{"if-else with assignments", "if flag then a := 1 else a := 2"},
+		{"if with compound", "if x > 0 then count += 1"},
+		{"if-else chain", "if x = 1 then a := 1 else if x = 2 then a := 2 else a := 3"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}
+
+// TestWhileStatement_Traditional_vs_Cursor tests while loops
+func TestWhileStatement_Traditional_vs_Cursor(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{"simple while", "while x > 0 do x := x - 1"},
+		{"while with block", "while x > 0 do begin x := x - 1; y := y + 1 end"},
+		{"while with compound", "while count < 10 do count += 1"},
+		{"while with complex condition", "while (x > 0) and (y < 10) do Process()"},
+		{"nested while", "while x > 0 do while y > 0 do y := y - 1"},
+		{"while with if", "while x > 0 do if x mod 2 = 0 then x := x - 2 else x := x - 1"},
+		// TODO: "while true do break" requires break statement (Task 2.2.14.8)
+		{"while with call", "while HasMore() do value := GetNext()"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}
+
+// TestRepeatStatement_Traditional_vs_Cursor tests repeat-until loops
+func TestRepeatStatement_Traditional_vs_Cursor(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{"simple repeat", "repeat x := x + 1 until x > 10"},
+		{"repeat with multiple statements", "repeat x := x + 1; y := y * 2 until x > 10"},
+		{"repeat with block", "repeat begin x := x + 1; y := y + 1 end until x > 10"},
+		{"repeat with complex condition", "repeat Process() until (x > 10) or Done"},
+		{"nested repeat", "repeat repeat y := y + 1 until y > 5 until x > 10"},
+		{"repeat with if", "repeat if x mod 2 = 0 then x := x / 2 else x := x * 3 + 1 until x = 1"},
+		{"repeat with semicolons", "repeat x := x + 1; until x > 10"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}
+
+// TestControlFlowNested_Traditional_vs_Cursor tests nested control flow
+func TestControlFlowNested_Traditional_vs_Cursor(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{"if in while", "while x > 0 do if x mod 2 = 0 then x := x - 2 else x := x - 1"},
+		{"while in if", "if flag then while count < 10 do count += 1"},
+		{"repeat in if", "if start then repeat x := x + 1 until x > 10"},
+		// TODO: "repeat if x > 5 then break until false" requires break statement (Task 2.2.14.8)
+		{"triple nested", "if a then while b do repeat c := c + 1 until c > 5"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}
+
+// TestControlFlowEdgeCases_Traditional_vs_Cursor tests edge cases
+func TestControlFlowEdgeCases_Traditional_vs_Cursor(t *testing.T) {
+	tests := []struct {
+		name         string
+		source       string
+		expectErrors bool
+	}{
+		{"if missing then", "if x > 0 y := 1", true},
+		{"if missing condition", "if then y := 1", true},
+		{"while missing do", "while x > 0 x := x - 1", true},
+		{"while missing condition", "while do x := x - 1", true},
+		{"repeat missing until", "repeat x := x + 1", true},
+		{"repeat empty body", "repeat until x > 10", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			tradHasErrors := len(tradParser.Errors()) > 0
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			cursorHasErrors := len(cursorParser.Errors()) > 0
+
+			// Both modes should agree on whether there are errors
+			if tradHasErrors != cursorHasErrors {
+				t.Errorf("Error state mismatch: traditional has errors=%v, cursor has errors=%v",
+					tradHasErrors, cursorHasErrors)
+				if tradHasErrors {
+					t.Logf("Traditional errors: %v", tradParser.Errors())
+				}
+				if cursorHasErrors {
+					t.Logf("Cursor errors: %v", cursorParser.Errors())
+				}
+			}
+
+			// If we expect errors, make sure both modes have them
+			if tt.expectErrors && (!tradHasErrors || !cursorHasErrors) {
+				t.Errorf("Expected errors but got: traditional=%v, cursor=%v",
+					tradHasErrors, cursorHasErrors)
+			}
+
+			// For valid programs, compare AST strings
+			if !tt.expectErrors && !tradHasErrors && !cursorHasErrors {
+				if tradProgram.String() != cursorProgram.String() {
+					t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+						tradProgram.String(), cursorProgram.String())
+				}
+			}
+		})
+	}
+}
+
+// TestControlFlowIntegration_Traditional_vs_Cursor tests integration scenarios
+func TestControlFlowIntegration_Traditional_vs_Cursor(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{"if with blocks", "x := 0; if x = 0 then begin y := 1 end; z := 2"},
+		{"while with program", "count := 0; while count < 5 do count += 1; total := count"},
+		{"repeat with program", "x := 1; repeat x := x * 2 until x > 100; result := x"},
+		{"mixed control flow", "if a then begin while b do c := c + 1 end else repeat d := d - 1 until d = 0"},
+		{"control flow sequence", "if x then y := 1; while z do w := w + 1; repeat q := q * 2 until q > 10"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}

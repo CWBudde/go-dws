@@ -39,31 +39,16 @@ func (p *Parser) parseStatementCursor() ast.Statement {
 		return stmt
 
 	case lexer.IF:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		stmt := p.parseIfStatement()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return stmt
+		// Task 2.2.14.4: Use cursor mode for if statements
+		return p.parseIfStatementCursor()
 
 	case lexer.WHILE:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		stmt := p.parseWhileStatement()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return stmt
+		// Task 2.2.14.4: Use cursor mode for while statements
+		return p.parseWhileStatementCursor()
 
 	case lexer.REPEAT:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		stmt := p.parseRepeatStatement()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return stmt
+		// Task 2.2.14.4: Use cursor mode for repeat statements
+		return p.parseRepeatStatementCursor()
 
 	case lexer.FOR:
 		// Fall back to traditional mode for now
