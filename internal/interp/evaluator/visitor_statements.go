@@ -48,6 +48,14 @@ func variantToBool(val Value) bool {
 		return false
 	}
 
+	// First, check if this is a VariantWrapper and unwrap it
+	// This handles *VariantValue without needing to import it (avoids circular dependency)
+	if wrapper, ok := val.(runtime.VariantWrapper); ok {
+		unwrapped := wrapper.UnwrapVariant()
+		// Recursively evaluate the unwrapped value
+		return variantToBool(unwrapped)
+	}
+
 	switch v := val.(type) {
 	case *runtime.BooleanValue:
 		return v.Value
@@ -62,10 +70,7 @@ func variantToBool(val Value) bool {
 	default:
 		// Check by type name for types not in runtime package
 		switch val.Type() {
-		case "NIL":
-			return false
-		case "VARIANT":
-			// Nested variant - shouldn't happen in practice
+		case "NIL", "UNASSIGNED":
 			return false
 		default:
 			// For objects, arrays, records, etc: non-nil → true
