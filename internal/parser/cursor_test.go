@@ -842,3 +842,577 @@ func TestTokenCursor_BufferSharing(t *testing.T) {
 		t.Errorf("cursor2 should be at IDENT")
 	}
 }
+
+// ============================================================================
+// Tests for Declarative Lookahead Utilities (Task 2.6.1)
+// ============================================================================
+
+// TestTokenCursor_LookAhead tests the LookAhead() method
+func TestTokenCursor_LookAhead(t *testing.T) {
+	source := "var x : Integer := 42;"
+	cursor := newCursorFromSource(source)
+
+	tests := []struct {
+		name    string
+		pattern []token.TokenType
+		want    bool
+	}{
+		{
+			name:    "empty pattern (always true)",
+			pattern: []token.TokenType{},
+			want:    true,
+		},
+		{
+			name:    "single token match",
+			pattern: []token.TokenType{token.VAR},
+			want:    true,
+		},
+		{
+			name:    "single token no match",
+			pattern: []token.TokenType{token.CONST},
+			want:    false,
+		},
+		{
+			name:    "two tokens match (VAR IDENT)",
+			pattern: []token.TokenType{token.VAR, token.IDENT},
+			want:    true,
+		},
+		{
+			name:    "two tokens no match",
+			pattern: []token.TokenType{token.VAR, token.CONST},
+			want:    false,
+		},
+		{
+			name:    "var declaration pattern (VAR IDENT COLON)",
+			pattern: []token.TokenType{token.VAR, token.IDENT, token.COLON},
+			want:    true,
+		},
+		{
+			name:    "full pattern match",
+			pattern: []token.TokenType{token.VAR, token.IDENT, token.COLON, token.IDENT, token.ASSIGN, token.INT},
+			want:    true,
+		},
+		{
+			name:    "partial pattern mismatch",
+			pattern: []token.TokenType{token.VAR, token.IDENT, token.EQ}, // EQ instead of COLON
+			want:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := cursor.LookAhead(tt.pattern...)
+			if got != tt.want {
+				t.Errorf("LookAhead(%v) = %v, want %v", tt.pattern, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestTokenCursor_LookAhead_ConstDeclaration tests LookAhead for const declaration patterns
+func TestTokenCursor_LookAhead_ConstDeclaration(t *testing.T) {
+	tests := []struct {
+		name       string
+		source     string
+		pattern    []token.TokenType
+		wantMatch  bool
+	}{
+		{
+			name:       "typed const (CONST IDENT COLON)",
+			source:     "const C : Integer = 5;",
+			pattern:    []token.TokenType{token.CONST, token.IDENT, token.COLON},
+			wantMatch:  true,
+		},
+		{
+			name:       "untyped const (CONST IDENT EQ)",
+			source:     "const C = 5;",
+			pattern:    []token.TokenType{token.CONST, token.IDENT, token.EQ},
+			wantMatch:  true,
+		},
+		{
+			name:       "wrong pattern for untyped const",
+			source:     "const C = 5;",
+			pattern:    []token.TokenType{token.CONST, token.IDENT, token.COLON},
+			wantMatch:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cursor := newCursorFromSource(tt.source)
+			got := cursor.LookAhead(tt.pattern...)
+			if got != tt.wantMatch {
+				t.Errorf("LookAhead(%v) = %v, want %v", tt.pattern, got, tt.wantMatch)
+			}
+		})
+	}
+}
+
+// TestTokenCursor_LookAheadFunc tests the LookAheadFunc() method
+func TestTokenCursor_LookAheadFunc(t *testing.T) {
+	source := "x y z : Integer;"
+	cursor := newCursorFromSource(source)
+
+	tests := []struct {
+		name        string
+		maxDistance int
+		predicate   func(token.Token) bool
+		want        bool
+	}{
+		{
+			name:        "all identifiers (3 tokens)",
+			maxDistance: 3,
+			predicate: func(tok token.Token) bool {
+				return tok.Type == token.IDENT
+			},
+			want: true,
+		},
+		{
+			name:        "all identifiers (4 tokens - includes COLON)",
+			maxDistance: 4,
+			predicate: func(tok token.Token) bool {
+				return tok.Type == token.IDENT
+			},
+			want: false, // 4th token is COLON, not IDENT
+		},
+		{
+			name:        "no EOF in first 5 tokens",
+			maxDistance: 5,
+			predicate: func(tok token.Token) bool {
+				return tok.Type != token.EOF
+			},
+			want: true,
+		},
+		{
+			name:        "check literal length",
+			maxDistance: 3,
+			predicate: func(tok token.Token) bool {
+				return len(tok.Literal) == 1 // x, y, z are all single char
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := cursor.LookAheadFunc(tt.maxDistance, tt.predicate)
+			if got != tt.want {
+				t.Errorf("LookAheadFunc() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestTokenCursor_ScanUntil tests the ScanUntil() method
+func TestTokenCursor_ScanUntil(t *testing.T) {
+	source := "var x : Integer := 42; const Y = 100;"
+	cursor := newCursorFromSource(source)
+
+	tests := []struct {
+		name         string
+		predicate    func(token.Token) bool
+		wantDistance int
+		wantFound    bool
+	}{
+		{
+			name: "find first semicolon",
+			predicate: func(tok token.Token) bool {
+				return tok.Type == token.SEMICOLON
+			},
+			wantDistance: 6, // VAR IDENT COLON IDENT ASSIGN INT SEMICOLON
+			wantFound:    true,
+		},
+		{
+			name: "find CONST keyword",
+			predicate: func(tok token.Token) bool {
+				return tok.Type == token.CONST
+			},
+			wantDistance: 7, // After first semicolon
+			wantFound:    true,
+		},
+		{
+			name: "find INT token",
+			predicate: func(tok token.Token) bool {
+				return tok.Type == token.INT
+			},
+			wantDistance: 5, // 42 is at position 5
+			wantFound:    true,
+		},
+		{
+			name: "search for non-existent FLOAT",
+			predicate: func(tok token.Token) bool {
+				return tok.Type == token.FLOAT
+			},
+			wantFound: false,
+		},
+		{
+			name: "find current token (VAR)",
+			predicate: func(tok token.Token) bool {
+				return tok.Type == token.VAR
+			},
+			wantDistance: 0, // Current position
+			wantFound:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotDistance, gotFound := cursor.ScanUntil(tt.predicate)
+			if gotFound != tt.wantFound {
+				t.Errorf("ScanUntil() found = %v, want %v", gotFound, tt.wantFound)
+			}
+			if tt.wantFound && gotDistance != tt.wantDistance {
+				t.Errorf("ScanUntil() distance = %v, want %v", gotDistance, tt.wantDistance)
+			}
+		})
+	}
+}
+
+// TestTokenCursor_ScanUntilAny tests the ScanUntilAny() method
+func TestTokenCursor_ScanUntilAny(t *testing.T) {
+	source := "var x : Integer := 42; const Y = 100;"
+	cursor := newCursorFromSource(source)
+
+	tests := []struct {
+		name            string
+		types           []token.TokenType
+		wantDistance    int
+		wantFound       bool
+		wantMatchedType token.TokenType
+	}{
+		{
+			name:            "find COLON or ASSIGN (COLON comes first)",
+			types:           []token.TokenType{token.COLON, token.ASSIGN},
+			wantDistance:    2,
+			wantFound:       true,
+			wantMatchedType: token.COLON,
+		},
+		{
+			name:            "find ASSIGN or COLON (COLON still comes first)",
+			types:           []token.TokenType{token.ASSIGN, token.COLON},
+			wantDistance:    2,
+			wantFound:       true,
+			wantMatchedType: token.COLON,
+		},
+		{
+			name:            "find INT or FLOAT (only INT exists)",
+			types:           []token.TokenType{token.INT, token.FLOAT},
+			wantDistance:    5,
+			wantFound:       true,
+			wantMatchedType: token.INT,
+		},
+		{
+			name:            "find SEMICOLON or EOF",
+			types:           []token.TokenType{token.SEMICOLON, token.EOF},
+			wantDistance:    6,
+			wantFound:       true,
+			wantMatchedType: token.SEMICOLON,
+		},
+		{
+			name:            "search for non-existent tokens",
+			types:           []token.TokenType{token.FLOAT, token.CHAR},
+			wantFound:       false,
+			wantMatchedType: token.ILLEGAL,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotDistance, gotFound, gotType := cursor.ScanUntilAny(tt.types...)
+			if gotFound != tt.wantFound {
+				t.Errorf("ScanUntilAny() found = %v, want %v", gotFound, tt.wantFound)
+			}
+			if tt.wantFound {
+				if gotDistance != tt.wantDistance {
+					t.Errorf("ScanUntilAny() distance = %v, want %v", gotDistance, tt.wantDistance)
+				}
+				if gotType != tt.wantMatchedType {
+					t.Errorf("ScanUntilAny() matchedType = %v, want %v", gotType, tt.wantMatchedType)
+				}
+			} else {
+				if gotType != tt.wantMatchedType {
+					t.Errorf("ScanUntilAny() matchedType for not found = %v, want ILLEGAL", gotType)
+				}
+			}
+		})
+	}
+}
+
+// TestTokenCursor_FindNext tests the FindNext() method
+func TestTokenCursor_FindNext(t *testing.T) {
+	source := "var x : Integer := 42; const Y = 100;"
+	cursor := newCursorFromSource(source)
+
+	tests := []struct {
+		name         string
+		tokenType    token.TokenType
+		maxDistance  int
+		wantDistance int
+		wantFound    bool
+	}{
+		{
+			name:         "find SEMICOLON within 10 tokens",
+			tokenType:    token.SEMICOLON,
+			maxDistance:  10,
+			wantDistance: 6,
+			wantFound:    true,
+		},
+		{
+			name:         "find SEMICOLON within exact distance",
+			tokenType:    token.SEMICOLON,
+			maxDistance:  7,
+			wantDistance: 6,
+			wantFound:    true,
+		},
+		{
+			name:         "cannot find SEMICOLON within 5 tokens",
+			tokenType:    token.SEMICOLON,
+			maxDistance:  5,
+			wantFound:    false,
+		},
+		{
+			name:         "find current token (distance 0)",
+			tokenType:    token.VAR,
+			maxDistance:  10,
+			wantDistance: 0,
+			wantFound:    true,
+		},
+		{
+			name:         "find IDENT at distance 1",
+			tokenType:    token.IDENT,
+			maxDistance:  10,
+			wantDistance: 1,
+			wantFound:    true,
+		},
+		{
+			name:         "search for non-existent FLOAT",
+			tokenType:    token.FLOAT,
+			maxDistance:  100,
+			wantFound:    false,
+		},
+		{
+			name:         "maxDistance is 0 (only check current)",
+			tokenType:    token.SEMICOLON,
+			maxDistance:  0,
+			wantFound:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotDistance, gotFound := cursor.FindNext(tt.tokenType, tt.maxDistance)
+			if gotFound != tt.wantFound {
+				t.Errorf("FindNext() found = %v, want %v", gotFound, tt.wantFound)
+			}
+			if tt.wantFound && gotDistance != tt.wantDistance {
+				t.Errorf("FindNext() distance = %v, want %v", gotDistance, tt.wantDistance)
+			}
+		})
+	}
+}
+
+// TestTokenCursor_FindNextAny tests the FindNextAny() method
+func TestTokenCursor_FindNextAny(t *testing.T) {
+	source := "var x : Integer := 42; const Y = 100;"
+	cursor := newCursorFromSource(source)
+
+	tests := []struct {
+		name            string
+		maxDistance     int
+		types           []token.TokenType
+		wantDistance    int
+		wantFound       bool
+		wantMatchedType token.TokenType
+	}{
+		{
+			name:            "find COLON or ASSIGN within 10 (COLON first)",
+			maxDistance:     10,
+			types:           []token.TokenType{token.COLON, token.ASSIGN},
+			wantDistance:    2,
+			wantFound:       true,
+			wantMatchedType: token.COLON,
+		},
+		{
+			name:            "find ASSIGN or SEMICOLON within 10 (ASSIGN first)",
+			maxDistance:     10,
+			types:           []token.TokenType{token.ASSIGN, token.SEMICOLON},
+			wantDistance:    4,
+			wantFound:       true,
+			wantMatchedType: token.ASSIGN,
+		},
+		{
+			name:            "cannot find within limited distance",
+			maxDistance:     3,
+			types:           []token.TokenType{token.ASSIGN, token.SEMICOLON},
+			wantFound:       false,
+			wantMatchedType: token.ILLEGAL,
+		},
+		{
+			name:            "find current token (VAR)",
+			maxDistance:     10,
+			types:           []token.TokenType{token.VAR, token.CONST},
+			wantDistance:    0,
+			wantFound:       true,
+			wantMatchedType: token.VAR,
+		},
+		{
+			name:            "search for non-existent tokens",
+			maxDistance:     100,
+			types:           []token.TokenType{token.FLOAT, token.CHAR},
+			wantFound:       false,
+			wantMatchedType: token.ILLEGAL,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotDistance, gotFound, gotType := cursor.FindNextAny(tt.maxDistance, tt.types...)
+			if gotFound != tt.wantFound {
+				t.Errorf("FindNextAny() found = %v, want %v", gotFound, tt.wantFound)
+			}
+			if tt.wantFound {
+				if gotDistance != tt.wantDistance {
+					t.Errorf("FindNextAny() distance = %v, want %v", gotDistance, tt.wantDistance)
+				}
+				if gotType != tt.wantMatchedType {
+					t.Errorf("FindNextAny() matchedType = %v, want %v", gotType, tt.wantMatchedType)
+				}
+			} else {
+				if gotType != tt.wantMatchedType {
+					t.Errorf("FindNextAny() matchedType for not found = %v, want ILLEGAL", gotType)
+				}
+			}
+		})
+	}
+}
+
+// TestTokenCursor_LookAhead_AfterAdvance tests LookAhead after advancing the cursor
+func TestTokenCursor_LookAhead_AfterAdvance(t *testing.T) {
+	source := "const C = 42;"
+	cursor := newCursorFromSource(source)
+
+	// Initially at CONST
+	if !cursor.LookAhead(token.CONST, token.IDENT, token.EQ) {
+		t.Errorf("should match CONST IDENT EQ pattern")
+	}
+
+	// Advance to IDENT
+	cursor = cursor.Advance()
+	if !cursor.LookAhead(token.IDENT, token.EQ, token.INT) {
+		t.Errorf("after advance, should match IDENT EQ INT pattern")
+	}
+
+	// Advance to EQ
+	cursor = cursor.Advance()
+	if !cursor.LookAhead(token.EQ, token.INT) {
+		t.Errorf("after second advance, should match EQ INT pattern")
+	}
+}
+
+// TestTokenCursor_ScanUntil_WithAdvance tests ScanUntil and advancing to the found position
+func TestTokenCursor_ScanUntil_WithAdvance(t *testing.T) {
+	source := "begin x := 42; y := 100; end;"
+	cursor := newCursorFromSource(source)
+
+	// Find first ASSIGN
+	distance, found := cursor.FindNext(token.ASSIGN, 10)
+	if !found {
+		t.Fatalf("should find ASSIGN")
+	}
+
+	// Advance to ASSIGN
+	cursor = cursor.AdvanceN(distance)
+	if !cursor.Is(token.ASSIGN) {
+		t.Errorf("should be at ASSIGN after AdvanceN, got %v", cursor.Current().Type)
+	}
+
+	// Verify we're at first assignment (42)
+	cursor = cursor.Advance()
+	if !cursor.Is(token.INT) {
+		t.Errorf("after first ASSIGN should be INT, got %v", cursor.Current().Type)
+	}
+	if cursor.Current().Literal != "42" {
+		t.Errorf("first INT should be 42, got %s", cursor.Current().Literal)
+	}
+
+	// Continue to find the second ASSIGN
+	// Start from current position and find next ASSIGN
+	distance2, found2 := cursor.FindNext(token.ASSIGN, 10)
+	if !found2 {
+		t.Fatalf("should find second ASSIGN")
+	}
+
+	// Advance to second ASSIGN
+	cursor = cursor.AdvanceN(distance2)
+	if !cursor.Is(token.ASSIGN) {
+		t.Errorf("should be at second ASSIGN, got %v", cursor.Current().Type)
+	}
+
+	// Verify we're at second assignment (100)
+	cursor = cursor.Advance()
+	if !cursor.Is(token.INT) {
+		t.Errorf("after second ASSIGN should be INT, got %v", cursor.Current().Type)
+	}
+	if cursor.Current().Literal != "100" {
+		t.Errorf("second INT should be 100, got %s", cursor.Current().Literal)
+	}
+}
+
+// TestTokenCursor_DeclarativeLookahead_RealWorldPattern tests realistic usage patterns
+func TestTokenCursor_DeclarativeLookahead_RealWorldPattern(t *testing.T) {
+	tests := []struct {
+		name              string
+		source            string
+		checkFunc         func(*TokenCursor) bool
+		expectedResult    bool
+	}{
+		{
+			name:   "check for typed variable declaration",
+			source: "var x : Integer;",
+			checkFunc: func(c *TokenCursor) bool {
+				// Skip VAR and check pattern after it
+				c = c.Advance()
+				return c.LookAhead(token.IDENT, token.COLON)
+			},
+			expectedResult: true,
+		},
+		{
+			name:   "check for const with explicit type",
+			source: "const C : Integer = 5;",
+			checkFunc: func(c *TokenCursor) bool {
+				c = c.Advance()
+				return c.LookAhead(token.IDENT, token.COLON)
+			},
+			expectedResult: true,
+		},
+		{
+			name:   "check for const with inferred type",
+			source: "const C = 5;",
+			checkFunc: func(c *TokenCursor) bool {
+				c = c.Advance()
+				return c.LookAhead(token.IDENT, token.EQ)
+			},
+			expectedResult: true,
+		},
+		{
+			name:   "distinguish var with type from var with assignment",
+			source: "var x := 5;",
+			checkFunc: func(c *TokenCursor) bool {
+				c = c.Advance()
+				// Should NOT match IDENT COLON pattern
+				return !c.LookAhead(token.IDENT, token.COLON)
+			},
+			expectedResult: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cursor := newCursorFromSource(tt.source)
+			result := tt.checkFunc(cursor)
+			if result != tt.expectedResult {
+				t.Errorf("check function result = %v, want %v", result, tt.expectedResult)
+			}
+		})
+	}
+}

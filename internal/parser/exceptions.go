@@ -420,8 +420,8 @@ func (p *Parser) parseRaiseStatementCursor() *ast.RaiseStatement {
 	}
 
 	// Check if this is a bare raise (no expression)
-	nextToken := p.cursor.Peek(1)
-	if nextToken.Type == lexer.SEMICOLON || nextToken.Type == lexer.EOF {
+	// Use declarative lookahead to check for statement terminators
+	if ok, _ := p.cursor.PeekIsAny(1, lexer.SEMICOLON, lexer.EOF); ok {
 		// Bare raise - re-raise current exception
 		return builder.FinishWithToken(stmt, raiseToken).(*ast.RaiseStatement)
 	}
@@ -771,9 +771,9 @@ func (p *Parser) parseExceptionHandlerCursor() *ast.ExceptionHandler {
 		Value: currentToken.Literal,
 	}
 
-	// Expect ':' token
-	nextToken := p.cursor.Peek(1)
-	if nextToken.Type != lexer.COLON {
+	// Expect ':' token using declarative lookahead
+	if !p.cursor.PeekIs(1, lexer.COLON) {
+		nextToken := p.cursor.Peek(1)
 		// Use structured error
 		err := NewStructuredError(ErrKindMissing).
 			WithCode(ErrMissingColon).
@@ -812,9 +812,9 @@ func (p *Parser) parseExceptionHandlerCursor() *ast.ExceptionHandler {
 		Name:  currentToken.Literal,
 	}
 
-	// Expect 'do' keyword
-	nextToken = p.cursor.Peek(1)
-	if nextToken.Type != lexer.DO {
+	// Expect 'do' keyword using declarative lookahead
+	if !p.cursor.PeekIs(1, lexer.DO) {
+		nextToken := p.cursor.Peek(1)
 		// Use structured error
 		err := NewStructuredError(ErrKindMissing).
 			WithCode(ErrMissingDo).
