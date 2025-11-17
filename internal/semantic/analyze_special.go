@@ -1,10 +1,9 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -155,7 +154,7 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 
 	// Member not found in parent class
 	// If parent is TObject and member not found, treat as "no meaningful parent"
-	isTObjectParent := strings.EqualFold(parentClass.Name, "TObject")
+	isTObjectParent := ident.Equal(parentClass.Name, "TObject")
 	if isTObjectParent {
 		a.addError("'inherited' cannot be used in class '%s' which has no parent class at %s",
 			a.currentClass.Name, ie.Token.Pos.String())

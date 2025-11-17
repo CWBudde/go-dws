@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ident"
 	"github.com/cwbudde/go-dws/pkg/token"
 )
 
@@ -221,7 +222,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		// Low built-in function
 
 		// Assert built-in procedure
-		if strings.EqualFold(funcIdent.Value, "Assert") {
+		if ident.Equal(funcIdent.Value, "Assert") {
 			// Assert takes 1-2 arguments: Boolean condition and optional String message
 			if len(expr.Arguments) < 1 || len(expr.Arguments) > 2 {
 				a.addError("function 'Assert' expects 1-2 arguments, got %d at %s",
@@ -246,7 +247,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Insert built-in procedure
-		if strings.EqualFold(funcIdent.Value, "Insert") {
+		if ident.Equal(funcIdent.Value, "Insert") {
 			if len(expr.Arguments) != 3 {
 				a.addError("function 'Insert' expects 3 arguments, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -276,7 +277,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.227: Higher-order functions for working with lambdas
-		if strings.EqualFold(funcIdent.Value, "Map") {
+		if ident.Equal(funcIdent.Value, "Map") {
 			// Map(array, lambda) -> array
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'Map' expects 2 arguments (array, lambda), got %d at %s",
@@ -293,7 +294,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-		if strings.EqualFold(funcIdent.Value, "Filter") {
+		if ident.Equal(funcIdent.Value, "Filter") {
 			// Filter(array, predicate) -> array
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'Filter' expects 2 arguments (array, predicate), got %d at %s",
@@ -310,7 +311,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-		if strings.EqualFold(funcIdent.Value, "Reduce") {
+		if ident.Equal(funcIdent.Value, "Reduce") {
 			// Reduce(array, lambda, initial) -> value
 			if len(expr.Arguments) != 3 {
 				a.addError("function 'Reduce' expects 3 arguments (array, lambda, initial), got %d at %s",
@@ -325,7 +326,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return initialType
 		}
 
-		if strings.EqualFold(funcIdent.Value, "ForEach") {
+		if ident.Equal(funcIdent.Value, "ForEach") {
 			// ForEach(array, lambda) -> void
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'ForEach' expects 2 arguments (array, lambda), got %d at %s",
@@ -338,7 +339,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-		if strings.EqualFold(funcIdent.Value, "Every") {
+		if ident.Equal(funcIdent.Value, "Every") {
 			// Every(array, predicate) -> Boolean
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'Every' expects 2 arguments (array, predicate), got %d at %s",
@@ -351,7 +352,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.BOOLEAN
 		}
 
-		if strings.EqualFold(funcIdent.Value, "Some") {
+		if ident.Equal(funcIdent.Value, "Some") {
 			// Some(array, predicate) -> Boolean
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'Some' expects 2 arguments (array, predicate), got %d at %s",
@@ -364,7 +365,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.BOOLEAN
 		}
 
-		if strings.EqualFold(funcIdent.Value, "Find") {
+		if ident.Equal(funcIdent.Value, "Find") {
 			// Find(array, predicate) -> Variant
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'Find' expects 2 arguments (array, predicate), got %d at %s",
@@ -381,7 +382,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VARIANT
 		}
 
-		if strings.EqualFold(funcIdent.Value, "FindIndex") {
+		if ident.Equal(funcIdent.Value, "FindIndex") {
 			// FindIndex(array, predicate) -> Integer
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'FindIndex' expects 2 arguments (array, predicate), got %d at %s",
@@ -394,7 +395,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
-		if strings.EqualFold(funcIdent.Value, "Slice") {
+		if ident.Equal(funcIdent.Value, "Slice") {
 			// Slice(array, start, end) -> array
 			if len(expr.Arguments) != 3 {
 				a.addError("function 'Slice' expects 3 arguments (array, start, end), got %d at %s",
@@ -437,7 +438,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		// Task 9.232: Variant introspection functions
 
 		// Task 9.114: GetStackTrace() built-in function
-		if strings.EqualFold(funcIdent.Value, "GetStackTrace") {
+		if ident.Equal(funcIdent.Value, "GetStackTrace") {
 			if len(expr.Arguments) != 0 {
 				a.addError("function 'GetStackTrace' expects 0 arguments, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -447,7 +448,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.116: GetCallStack() built-in function
-		if strings.EqualFold(funcIdent.Value, "GetCallStack") {
+		if ident.Equal(funcIdent.Value, "GetCallStack") {
 			if len(expr.Arguments) != 0 {
 				a.addError("function 'GetCallStack' expects 0 arguments, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())

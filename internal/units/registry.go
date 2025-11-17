@@ -8,6 +8,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // UnitRegistry manages loaded units and handles unit dependencies.
@@ -47,7 +48,7 @@ func NewUnitRegistry(searchPaths []string) *UnitRegistry {
 // RegisterUnit registers a unit in the registry.
 // Returns an error if a unit with the same name (case-insensitive) is already registered.
 func (r *UnitRegistry) RegisterUnit(name string, unit *Unit) error {
-	normalized := strings.ToLower(name)
+	normalized := ident.Normalize(name)
 
 	// Check if already registered
 	if _, exists := r.units[normalized]; exists {
@@ -63,7 +64,7 @@ func (r *UnitRegistry) RegisterUnit(name string, unit *Unit) error {
 // Returns the unit and true if found, nil and false otherwise.
 // The name lookup is case-insensitive.
 func (r *UnitRegistry) GetUnit(name string) (*Unit, bool) {
-	normalized := strings.ToLower(name)
+	normalized := ident.Normalize(name)
 	unit, exists := r.units[normalized]
 	return unit, exists
 }
@@ -76,7 +77,7 @@ func (r *UnitRegistry) GetUnit(name string) (*Unit, bool) {
 //   - A circular dependency is detected
 //   - A dependency cannot be loaded
 func (r *UnitRegistry) LoadUnit(name string, searchPaths []string) (*Unit, error) {
-	normalized := strings.ToLower(name)
+	normalized := ident.Normalize(name)
 
 	// Check if already loaded in registry
 	if unit, exists := r.units[normalized]; exists {
@@ -215,7 +216,7 @@ func (r *UnitRegistry) LoadUnit(name string, searchPaths []string) (*Unit, error
 // UnregisterUnit removes a unit from the registry.
 // This is primarily useful for testing or when reloading a unit.
 func (r *UnitRegistry) UnregisterUnit(name string) {
-	normalized := strings.ToLower(name)
+	normalized := ident.Normalize(name)
 	delete(r.units, normalized)
 }
 
@@ -242,7 +243,7 @@ func (r *UnitRegistry) GetCache() *UnitCache {
 
 // InvalidateCache invalidates a specific unit in the cache
 func (r *UnitRegistry) InvalidateCache(name string) {
-	normalized := strings.ToLower(name)
+	normalized := ident.Normalize(name)
 	r.cache.Invalidate(normalized)
 }
 
@@ -275,7 +276,7 @@ func (r *UnitRegistry) ComputeInitializationOrder() ([]string, error) {
 	// Build the graph
 	for unitName, unit := range r.units {
 		for _, depName := range unit.Uses {
-			normalizedDep := strings.ToLower(depName)
+			normalizedDep := ident.Normalize(depName)
 
 			// Check if the dependency exists
 			if _, exists := r.units[normalizedDep]; !exists {
