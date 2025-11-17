@@ -1102,3 +1102,167 @@ func (p *Parser) parseRepeatStatementCursor() *ast.RepeatStatement {
 
 	return stmt
 }
+
+// ============================================================================
+// Task 2.2.14.8: Cursor-mode control transfer statement handlers
+// ============================================================================
+
+// parseBreakStatementCursor parses a break statement using cursor mode.
+// Task 2.2.14.8: Break statement migration
+// Syntax: break;
+// PRE: cursor is on BREAK token
+// POST: cursor is on SEMICOLON
+func (p *Parser) parseBreakStatementCursor() *ast.BreakStatement {
+	breakToken := p.cursor.Current()
+	stmt := &ast.BreakStatement{
+		BaseNode: ast.BaseNode{Token: breakToken},
+	}
+
+	// Expect semicolon after break
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.SEMICOLON {
+		// Use structured error
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingSemicolon).
+			WithMessage("expected ';' after 'break'").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpectedString("';'").
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("add ';' after the break statement").
+			WithParsePhase("break statement").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	p.cursor = p.cursor.Advance() // move to semicolon
+	stmt.EndPos = p.endPosFromToken(p.cursor.Current())
+	return stmt
+}
+
+// parseContinueStatementCursor parses a continue statement using cursor mode.
+// Task 2.2.14.8: Continue statement migration
+// Syntax: continue;
+// PRE: cursor is on CONTINUE token
+// POST: cursor is on SEMICOLON
+func (p *Parser) parseContinueStatementCursor() *ast.ContinueStatement {
+	continueToken := p.cursor.Current()
+	stmt := &ast.ContinueStatement{
+		BaseNode: ast.BaseNode{Token: continueToken},
+	}
+
+	// Expect semicolon after continue
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.SEMICOLON {
+		// Use structured error
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingSemicolon).
+			WithMessage("expected ';' after 'continue'").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpectedString("';'").
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("add ';' after the continue statement").
+			WithParsePhase("continue statement").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	p.cursor = p.cursor.Advance() // move to semicolon
+	stmt.EndPos = p.endPosFromToken(p.cursor.Current())
+	return stmt
+}
+
+// parseExitStatementCursor parses an exit statement using cursor mode.
+// Task 2.2.14.8: Exit statement migration
+// Syntax: exit; exit value; or exit(value);
+// PRE: cursor is on EXIT token
+// POST: cursor is on SEMICOLON
+func (p *Parser) parseExitStatementCursor() *ast.ExitStatement {
+	exitToken := p.cursor.Current()
+	stmt := &ast.ExitStatement{
+		BaseNode: ast.BaseNode{Token: exitToken},
+	}
+
+	// Check if there's a parenthesized return value: exit(value)
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type == lexer.LPAREN {
+		p.cursor = p.cursor.Advance() // move to '('
+		p.cursor = p.cursor.Advance() // move to expression
+
+		stmt.ReturnValue = p.parseExpressionCursor(LOWEST)
+
+		if stmt.ReturnValue == nil {
+			// Use structured error
+			currentToken := p.cursor.Current()
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidExpression).
+				WithMessage("expected expression after 'exit('").
+				WithPosition(currentToken.Pos, currentToken.Length()).
+				WithSuggestion("provide a return value expression").
+				WithParsePhase("exit statement").
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+
+		nextToken = p.cursor.Peek(1)
+		if nextToken.Type != lexer.RPAREN {
+			// Use structured error
+			err := NewStructuredError(ErrKindMissing).
+				WithCode(ErrMissingRParen).
+				WithMessage("expected ')' after exit expression").
+				WithPosition(nextToken.Pos, nextToken.Length()).
+				WithExpectedString("')'").
+				WithActual(nextToken.Type, nextToken.Literal).
+				WithSuggestion("add ')' to close the exit expression").
+				WithParsePhase("exit statement").
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+		p.cursor = p.cursor.Advance() // move to ')'
+	} else if nextToken.Type != lexer.SEMICOLON {
+		// Check if there's a prefix parse function for the next token (inline expression)
+		// This supports: exit value;
+		if _, ok := p.prefixParseFns[nextToken.Type]; ok {
+			p.cursor = p.cursor.Advance() // move to expression
+			stmt.ReturnValue = p.parseExpressionCursor(LOWEST)
+
+			if stmt.ReturnValue == nil {
+				// Use structured error
+				currentToken := p.cursor.Current()
+				err := NewStructuredError(ErrKindInvalid).
+					WithCode(ErrInvalidExpression).
+					WithMessage("expected expression after 'exit'").
+					WithPosition(currentToken.Pos, currentToken.Length()).
+					WithSuggestion("provide a return value expression").
+					WithParsePhase("exit statement").
+					Build()
+				p.addStructuredError(err)
+				return nil
+			}
+		}
+	}
+
+	// Expect semicolon after exit or exit(value)
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type != lexer.SEMICOLON {
+		// Use structured error
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingSemicolon).
+			WithMessage("expected ';' after 'exit'").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpectedString("';'").
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("add ';' after the exit statement").
+			WithParsePhase("exit statement").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	p.cursor = p.cursor.Advance() // move to semicolon
+	stmt.EndPos = p.endPosFromToken(p.cursor.Current())
+	return stmt
+}
