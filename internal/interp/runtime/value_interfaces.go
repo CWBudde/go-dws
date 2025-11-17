@@ -115,3 +115,12 @@ type Iterator interface {
 	// Reset resets the iterator to the beginning.
 	Reset()
 }
+
+// VariantWrapper represents values that wrap other values (like Variant type).
+// This interface allows unwrapping variant values without circular package dependencies.
+type VariantWrapper interface {
+	Value
+	// UnwrapVariant returns the underlying wrapped value.
+	// Returns the wrapped value, or an unassigned value if the variant is nil/uninitialized.
+	UnwrapVariant() Value
+}

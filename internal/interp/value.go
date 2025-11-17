@@ -372,6 +372,17 @@ func (v *VariantValue) String() string {
 	return v.Value.String()
 }
 
+// UnwrapVariant returns the underlying wrapped value.
+// This method implements the runtime.VariantWrapper interface, allowing
+// the evaluator package to unwrap variants without circular dependencies.
+// Returns UnassignedValue if the variant is nil/uninitialized.
+func (v *VariantValue) UnwrapVariant() Value {
+	if v.Value == nil {
+		return &UnassignedValue{}
+	}
+	return v.Value
+}
+
 // ============================================================================
 // Variant Boxing/Unboxing Helpers
 // ============================================================================
