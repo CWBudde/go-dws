@@ -35,6 +35,11 @@ func IntToStr(ctx Context, args []Value) Value {
 	}
 
 	// First argument must be an integer (or subrange/enum)
+	// Explicitly reject Float values (even though ToInt64 would convert them)
+	if _, ok := args[0].(*runtime.FloatValue); ok {
+		return ctx.NewError("IntToStr() expects integer argument, got %s", args[0].Type())
+	}
+
 	intValue, ok := ctx.ToInt64(args[0])
 	if !ok {
 		return ctx.NewError("IntToStr() expects integer argument, got %s", args[0].Type())
@@ -45,6 +50,11 @@ func IntToStr(ctx Context, args []Value) Value {
 
 	// If second argument is provided, it specifies the base
 	if len(args) == 2 {
+		// Explicitly reject Float values for base argument
+		if _, ok := args[1].(*runtime.FloatValue); ok {
+			return ctx.NewError("IntToStr() expects integer as second argument (base), got %s", args[1].Type())
+		}
+
 		baseValue, ok := ctx.ToInt64(args[1])
 		if !ok {
 			return ctx.NewError("IntToStr() expects integer as second argument (base), got %s", args[1].Type())
