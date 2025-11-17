@@ -65,6 +65,8 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeVarToFloatDef(args, callExpr), true
 	case "chr":
 		return a.analyzeChr(args, callExpr), true
+	case "default":
+		return a.analyzeDefault(args, callExpr), true
 	case "charat":
 		return a.analyzeCharAt(args, callExpr), true
 	case "bytesizetostr":

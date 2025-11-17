@@ -607,3 +607,36 @@ func (i *Interpreter) castToEnum(val Value, targetEnum *types.EnumType, typeName
 		return newError("cannot cast %s to enum %s", val.Type(), typeName)
 	}
 }
+
+// evalDefaultFunction handles the Default() built-in function which expects an unevaluated type identifier.
+// Default(Integer) should pass "Integer" as a string, not evaluate it as a variable.
+// Returns the default/zero value for the specified type, or nil if not a valid type.
+func (i *Interpreter) evalDefaultFunction(arg ast.Expression) Value {
+	// The argument should be a type identifier
+	ident, ok := arg.(*ast.Identifier)
+	if !ok {
+		return i.newErrorWithLocation(arg, "Default() expects a type name as argument")
+	}
+
+	typeName := ident.Value
+	lowerName := strings.ToLower(typeName)
+
+	// Return default values based on type name
+	switch lowerName {
+	case "integer", "int64", "byte", "word", "cardinal", "smallint", "shortint", "longword":
+		return &IntegerValue{Value: 0}
+	case "float", "double", "single", "extended", "currency":
+		return &FloatValue{Value: 0.0}
+	case "string", "unicodestring", "ansistring":
+		return &StringValue{Value: ""}
+	case "boolean":
+		return &BooleanValue{Value: false}
+	case "variant":
+		return &NilValue{}
+	default:
+		// For class types, records, enums, and other reference/complex types, return nil
+		// Check if it's a valid type by looking it up
+		// For now, return nil (which represents the default value for reference types)
+		return &NilValue{}
+	}
+}

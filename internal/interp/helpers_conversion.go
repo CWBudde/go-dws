@@ -506,6 +506,13 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		// For dynamic arrays, just append the element
 		// Type checking should have been done at semantic analysis
 		valueToAdd := args[0]
+
+		// If pushing a record, make a copy to avoid aliasing issues (commit a53517a)
+		// Records are value types and should be copied when added to collections
+		if recVal, ok := valueToAdd.(*RecordValue); ok {
+			valueToAdd = recVal.Copy()
+		}
+
 		arrVal.Elements = append(arrVal.Elements, valueToAdd)
 
 		// Return nil (procedure, not a function)
