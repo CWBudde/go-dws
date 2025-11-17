@@ -968,9 +968,125 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
 
   ---
 
-- [ ] 3.5.5 Remove adapter pattern and complete migration ⏸️ **DEFERRED**
+- [ ] 3.5.5 Add Type System Adapter Methods
+  - Extend InterpreterAdapter interface with type system access methods
+  - **Type Lookups**:
+    - `GetType(name string) (types.Type, error)` - Resolve type by name
+    - `ResolveType(typeAnnotation *ast.TypeAnnotation) (types.Type, error)` - Resolve from AST type
+    - `IsTypeCompatible(from Value, toType types.Type) bool` - Check type compatibility
+  - **Type Inference**:
+    - `InferArrayElementType(elements []Value) (types.Type, error)` - Infer from array literal elements
+    - `InferRecordType(fields map[string]Value) (string, error)` - Infer from record literal
+  - **Type Conversions**:
+    - `ConvertValue(value Value, targetType types.Type) (Value, error)` - Implicit/explicit conversions
+    - `CreateDefaultValue(typeName string) Value` - Create zero value for type
+  - **Type Queries**:
+    - `IsEnumType(typeName string) bool` - Check if name is enum type
+    - `IsRecordType(typeName string) bool` - Check if name is record type
+    - `IsArrayType(typeName string) bool` - Check if name is array type
+  - Files: `evaluator/evaluator.go`, `interpreter.go`
+  - Estimated: 1-2 days
+  - Acceptance: Type system accessible from Evaluator, methods implemented and tested
+  - **Enables**: VarDeclStatement, ConstDecl, Identifier, BinaryExpression, UnaryExpression
+
+- [ ] 3.5.6 Add Array and Collection Adapter Methods
+  - Extend InterpreterAdapter interface with array/set/collection operations
+  - **Array Construction**:
+    - `CreateArray(elementType types.Type, elements []Value) Value` - Create array from elements
+    - `CreateDynamicArray(elementType types.Type, size int) Value` - Allocate dynamic array
+    - `CreateArrayWithExpectedType(elements []Value, expectedType *types.ArrayType) Value` - Type-aware array creation
+  - **Array Access**:
+    - `GetArrayElement(array Value, index Value) (Value, error)` - Array indexing with bounds check
+    - `SetArrayElement(array Value, index Value, value Value) error` - Array element assignment
+    - `GetArrayLength(array Value) int` - Array length
+  - **Set Operations**:
+    - `CreateSet(elementType types.Type, elements []Value) Value` - Create set from elements
+    - `EvaluateSetRange(start Value, end Value) ([]int, error)` - Expand range (1..10) to elements
+    - `AddToSet(set Value, element Value) error` - Add element to set
+  - **String Indexing**:
+    - `GetStringChar(str Value, index Value) (Value, error)` - String character access
+  - Files: `evaluator/evaluator.go`, `interpreter.go`
+  - Estimated: 2-3 days
+  - Acceptance: Array/set operations accessible, all methods tested
+  - **Enables**: ArrayLiteralExpression, NewArrayExpression, IndexExpression, SetLiteral
+
+- [ ] 3.5.7 Add Property, Field, and Member Access Adapter Methods
+  - Extend InterpreterAdapter interface with OOP access operations
+  - **Field Access**:
+    - `GetObjectField(obj Value, fieldName string) (Value, error)` - Object field read
+    - `SetObjectField(obj Value, fieldName string, value Value) error` - Object field write
+    - `GetRecordField(record Value, fieldName string) (Value, error)` - Record field read
+    - `SetRecordField(record Value, fieldName string, value Value) error` - Record field write
+  - **Property Access**:
+    - `GetPropertyValue(obj Value, propName string) (Value, error)` - Property getter
+    - `SetPropertyValue(obj Value, propName string, value Value) error` - Property setter
+    - `GetIndexedProperty(obj Value, propName string, indices []Value) (Value, error)` - Indexed property read
+    - `SetIndexedProperty(obj Value, propName string, indices []Value, value Value) error` - Indexed property write
+  - **Method Calls**:
+    - `CallMethod(obj Value, methodName string, args []Value, node ast.Node) Value` - Method invocation
+    - `CallInheritedMethod(obj Value, methodName string, args []Value) Value` - Parent method call
+  - **Object Operations**:
+    - `CreateObject(className string, args []Value) (Value, error)` - Object instantiation
+    - `CheckType(obj Value, typeName string) bool` - 'is' operator
+    - `CastType(obj Value, typeName string) (Value, error)` - 'as' operator
+  - **Function Pointers**:
+    - `CreateFunctionPointer(fn *ast.FunctionDecl, closure Environment) Value` - Function pointer creation
+    - `CreateLambda(lambda *ast.LambdaExpression, closure Environment) Value` - Lambda creation
+    - `IsFunctionPointer(value Value) bool` - Check if value is function pointer
+    - `GetFunctionPointerParamCount(funcPtr Value) int` - Get parameter count for auto-invoke
+  - **Record Operations**:
+    - `CreateRecord(recordType string, fields map[string]Value) (Value, error)` - Record construction
+  - **Assignment Helpers**:
+    - `SetVariable(name string, value Value, ctx *ExecutionContext) error` - Variable assignment
+    - `CanAssign(target ast.Node) bool` - Check if node is valid lvalue
+  - Files: `evaluator/evaluator.go`, `interpreter.go`
+  - Estimated: 3-4 days
+  - Acceptance: All OOP and complex operations accessible via adapter
+  - **Enables**: MemberAccessExpression, MethodCallExpression, CallExpression, AddressOfExpression, LambdaExpression, NewExpression, IsExpression, AsExpression, RecordLiteralExpression, AssignmentStatement, ExpressionStatement
+
+- [ ] 3.5.8 Migrate All Remaining Methods Using Adapters
+  - Migrate all 24 remaining visitor methods using adapter methods from 3.5.5-3.5.7
+  - **Simple Declarations** (using 3.5.5):
+    - [ ] VisitVarDeclStatement - Variable declarations with type inference
+    - [ ] VisitConstDecl - Constant declarations
+  - **Expressions** (using 3.5.5):
+    - [ ] VisitIdentifier - Variable/type/function references
+    - [ ] VisitBinaryExpression - Binary operators with operator overloading
+    - [ ] VisitUnaryExpression - Unary operators
+  - **Array Operations** (using 3.5.6):
+    - [ ] VisitArrayLiteralExpression - Array construction
+    - [ ] VisitNewArrayExpression - Dynamic array allocation
+    - [ ] VisitIndexExpression - Array/string indexing
+    - [ ] VisitSetLiteral - Set literal construction with ranges
+  - **Member Access** (using 3.5.7):
+    - [ ] VisitMemberAccessExpression - Field/property/method access
+    - [ ] VisitAssignmentStatement - Assignment with lvalue resolution
+  - **Expression Statements** (using 3.5.7):
+    - [ ] VisitExpressionStatement - Expression statements with auto-invoke
+  - **Function Operations** (using 3.5.7):
+    - [ ] VisitCallExpression - Function calls
+    - [ ] VisitAddressOfExpression - Function pointer creation
+    - [ ] VisitLambdaExpression - Lambda/closure creation
+  - **OOP Operations** (using 3.5.7):
+    - [ ] VisitNewExpression - Object instantiation
+    - [ ] VisitMethodCallExpression - Method calls
+    - [ ] VisitInheritedExpression - Parent method calls
+    - [ ] VisitIsExpression - Type checking
+    - [ ] VisitAsExpression - Type casting
+    - [ ] VisitImplementsExpression - Interface checking
+  - **Record Operations** (using 3.5.7):
+    - [ ] VisitRecordLiteralExpression - Record construction
+  - **Exception Handling** (needs adapter extension):
+    - [ ] VisitTryStatement - Try-except-finally blocks
+    - [ ] VisitRaiseStatement - Raise exceptions
+  - Files: All `evaluator/visitor_*.go` files
+  - Estimated: 2-3 weeks (migrate and test all methods)
+  - Acceptance: All 48 visitor methods implemented, all tests passing, 100% migration complete
+  - **Target**: 48/48 methods (100%)
+
+- [ ] 3.5.9 Remove Adapter Pattern and Complete Clean Architecture ⏸️ **DEFERRED**
   - **Status**: Deferred until AST-free runtime types research is complete
-  - **Rationale**: Task 3.5.4 will use adapter pattern extensions to reach 100% completion. Removing the adapter requires architectural refactoring (AST-free value types) which is a separate long-term effort.
+  - **Rationale**: Tasks 3.5.5-3.5.8 use adapter pattern extensions to reach 100% completion. Removing the adapter requires architectural refactoring (AST-free value types) which is a separate long-term effort.
   - **Original Plan**:
     - Remove InterpreterAdapter interface from evaluator.go
     - Remove adapter field from Evaluator struct
