@@ -590,12 +590,51 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - **Completed**: Commit ed7fd2b - 88 benchmarks total, baseline established in docs/
 
 - [ ] 3.1.3 Increase test coverage to 90%+
-  - Add missing tests for edge cases
-  - Ensure all error paths are tested
-  - Add integration tests for complex scenarios
-  - Target: 90%+ coverage on all interp packages
-  - Estimated: 1 week
-  - Acceptance: Coverage report shows 90%+, no critical paths untested
+  - **Current Coverage**: 52.7% overall (as of 2025-11-17)
+  - **Package Breakdown**:
+    - High coverage (>80%): lexer (97.7%), units (90.1%), ast (88.9%), types (83.7%), dwscript (82.9%), errors (81.8%), interp/errors (81.0%), platform/native (79.3%)
+    - Medium coverage (50-80%): parser (77.2%), interp/types (72.8%), jsonvalue (61.2%), semantic (60.4%), bytecode (52.5%), interp/runtime (48.4%), cmd/dwscript/cmd (36.7%)
+    - Low coverage (<50%): ast/pkg (25.1%), printer (23.3%), interp/evaluator (21.9%), interp/builtins (15.2%), token (7.7%), cmd/dwscript (0.0%)
+  - **Subtasks**:
+    - [ ] 3.1.3.1 Improve interp/builtins coverage (15.2% → 80%+)
+      - [x] Add tests for all math functions - Coverage increased to:
+        - math_basic.go: 0% → 69.3% (22 functions tested)
+        - math_advanced.go: 0% → 85.2% (9 functions tested)
+        - math_trig.go: 0% → 72.3% (15 functions tested)
+        - math_convert.go: 0% → 71.5% (11 functions tested)
+      - [x] Add tests for string manipulation functions - Coverage increased to:
+        - strings_basic.go: 3.2% → 66-83% (20 functions tested)
+        - strings_advanced.go: 0% → 75-100% (13 functions tested)
+        - strings_compare.go: 0% → 73-80% (7 functions tested)
+      - [ ] Add tests for variant/type/system functions (currently at 0%)
+        - variant.go: 0% → need 80%+
+        - type.go: 0% → need 80%+
+        - system.go: 0% → need 80%+
+      - [ ] Add tests for array/collections (currently at 0-4.8%)
+        - array.go: 4.8% → need 80%+
+        - collections.go: 0% → need 80%+
+      - **Current Status**: Package coverage 15.2% → 46.5% (+205% improvement)
+      - **Remaining**: Need variant, type, system, array, collection, datetime, json, io, and encoding tests to reach 80%
+    - [ ] 3.1.3.2 Improve interp/evaluator coverage (21.9% → 80%+)
+      - Add tests for complex expression evaluation paths
+      - Test error handling in evaluation
+      - Test edge cases for all expression types
+    - [ ] 3.1.3.3 Improve pkg/printer coverage (23.3% → 80%+)
+      - Add tests for all AST node printing
+      - Test formatting options and edge cases
+    - [ ] 3.1.3.4 Improve pkg/token coverage (7.7% → 80%+)
+      - Add tests for token type methods
+      - Test position tracking and formatting
+    - [ ] 3.1.3.5 Improve bytecode coverage (52.5% → 80%+)
+      - Test serializer edge cases (many at 0% or <50%)
+      - Test compiler edge cases for expressions/statements
+      - Add tests for optimizer paths
+    - [ ] 3.1.3.6 Improve semantic analyzer coverage (60.4% → 80%+)
+      - Test all type checking paths
+      - Test error detection for invalid constructs
+      - Test symbol table edge cases
+  - Estimated: 1-2 weeks
+  - Acceptance: Coverage report shows 80%+ overall, 80%+ on all core packages
   - **Note**: Deferred - fixing failing tests is better done after architecture improvements
 
 ---
