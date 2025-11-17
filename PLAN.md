@@ -755,7 +755,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Acceptance: Code organized by category, easy to navigate, tests pass
   - **Completed**: Created 4 visitor files organized by node category (404 lines total), all files well under 500 line limit (largest: 154 lines), clear organization with visitor_*.go naming convention, 48 visitor methods total (6 literals, 22 expressions, 19 statements, 9 declarations), all tests pass
 
-- [ ] 3.5.4 Migrate evaluation logic from Interpreter to Evaluator ⏳ **IN PROGRESS** (23/48 methods, 47.9%)
+- [ ] 3.5.4 Migrate evaluation logic from Interpreter to Evaluator ⏳ **IN PROGRESS** (24/48 methods, 50.0%)
   - Gradually move logic from Interpreter.evalXXX() methods to Evaluator.VisitXXX() methods
   - Each migration: run tests, ensure no regressions
   - Keep adapter active during migration for safety
@@ -763,7 +763,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Estimated: 2-3 weeks (48 methods to migrate across 9 batches)
   - Acceptance: All evaluation logic in Evaluator, Interpreter methods just delegate, all tests pass
 
-  **Current Status**: Phase 1 complete. Phase 2A-2E infrastructure complete. ForStatement and ForInStatement migrated (Phase 2D ✅ COMPLETE). 4 simple value types migrated to runtime/ (EnumValue, TypeMetaValue, SetValue, ArrayValue). IfExpression migrated (Phase 2B). Remaining 25 methods blocked by complex type dependencies (ExceptionValue, ObjectInstance, ClassInfo, FunctionPointerValue, RecordValue) or require additional infrastructure (array/record literals, type inference).
+  **Current Status**: Phase 1 complete. Phase 2A-2E infrastructure complete. ForStatement and ForInStatement migrated (Phase 2D ✅ COMPLETE). 4 simple value types migrated to runtime/ (EnumValue, TypeMetaValue, SetValue, ArrayValue). IfExpression and OldExpression migrated. Remaining 24 methods blocked by complex type dependencies or require adapter extensions.
 
   **Expansion Plan**: See [`docs/task-3.5.4-expansion-plan.md`](docs/task-3.5.4-expansion-plan.md) for detailed breakdown and phased approach.
 
@@ -771,22 +771,26 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
 
   ### 📋 Phased Migration Roadmap
 
-  **Progress**: 23/48 methods migrated (47.9%) | **Remaining**: 25 methods
+  **Progress**: 24/48 methods migrated (50.0%) | **Remaining**: 24 methods
 
   ---
 
-  #### 🟢 Phase 2.1: Quick Wins (5 methods - ~5 hours)
+  #### 🟢 Phase 2.1: Quick Wins **REVISED** (1 method - ~1 hour) ✅ PARTIAL
 
-  **Goal**: Reach 28/48 (58%) with minimal infrastructure additions
+  **Original Goal**: Reach 28/48 (58%) with minimal infrastructure additions
+  **Reality**: Only 1 truly simple method found
 
-  - [ ] Add `GetOldValue(name string) (Value, bool)` to ExecutionContext
-  - [ ] 3.5.4.56 VisitOldExpression - Postcondition support
-  - [ ] 3.5.4.32 VisitVarDeclStatement - Variable declarations
-  - [ ] 3.5.4.33 VisitConstDecl - Constant declarations
-  - [ ] 3.5.4.31 VisitExpressionStatement - Expression statements
-  - [ ] 3.5.4.27 VisitSetLiteral - Set literal construction
+  **Completed**:
+  - [x] Add `GetOldValue(name string) (Value, bool)` to ExecutionContext
+  - [x] 3.5.4.56 VisitOldExpression - Postcondition support
 
-  **Estimated**: 5 hours | **Deliverable**: 28/48 methods (58%)
+  **Deferred to Phase 2.2** (discovered complexity):
+  - 3.5.4.32 VarDeclStatement - Needs type system (external vars, subranges, type inference)
+  - 3.5.4.33 ConstDecl - Similar to VarDeclStatement
+  - 3.5.4.31 ExpressionStatement - Needs FunctionPointerValue check
+  - 3.5.4.27 SetLiteral - Needs range handling, enum types, array-of-const conversion
+
+  **Achieved**: 24/48 methods (50%) | **Next**: Phase 2.2 adapter extensions
 
   ---
 
@@ -846,15 +850,18 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
 
   ---
 
-  ### 📊 Phase Summary
+  ### 📊 Phase Summary (Revised)
 
-  | Phase | Methods | Hours | Progress Target |
-  |-------|---------|-------|----------------|
-  | **Completed** | 23 | - | 47.9% |
-  | **Phase 2.1** | +5 | 5 | 58% |
-  | **Phase 2.2** | +7 | 22 | 73% |
-  | **Phase 2.3** | +13 | 47 | 100% |
-  | **Total Remaining** | 25 | ~74 | - |
+  | Phase | Methods | Hours | Progress Target | Status |
+  |-------|---------|-------|----------------|--------|
+  | **Completed** | 24 | - | 50.0% | ✅ Done |
+  | **Phase 2.1** | +1 (revised) | 1 | 50% | ✅ Partial |
+  | **Phase 2.2** | +11 (revised) | ~30 | 73% | ⏳ Next |
+  | **Phase 2.3** | +13 | ~47 | 100% | ⏸️ Later |
+  | **Total Remaining** | 24 | ~77 | - | - |
+
+  **Note**: Phase 2.1 was revised after discovering that most "quick win" candidates have
+  significant complexity requiring adapter extensions (type system, function pointers, etc.).
 
   ---
 
