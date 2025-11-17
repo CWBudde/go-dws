@@ -7,6 +7,9 @@ import (
 	"github.com/cwbudde/go-dws/internal/ast"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/units"
+	// Task 3.8.2: pkg/ast is imported for SemanticInfo, which holds semantic analysis
+	// metadata (type annotations, symbol resolutions). This is separate from the AST
+	// structure itself and is not aliased in internal/ast.
 	pkgast "github.com/cwbudde/go-dws/pkg/ast"
 )
 
