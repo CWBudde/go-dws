@@ -160,7 +160,7 @@ See [docs/bytecode-vm.md](docs/bytecode-vm.md) for detailed information on the b
 
 - Compile to bytecode for loops and recursive algorithms (5.6x speedup measured)
 - Use precompiled `.dwc` files to eliminate parsing overhead
-- Small sets (≤64 elements) use optimized bitmask implementation (~4 ns/op)
+- Small sets (≤64 elements) use optimized bitmask implementation (~4.4 ns/op)
 - Primitive values (Integer, Float, Boolean) are automatically pooled to reduce allocations
 
 For detailed benchmarks and optimization techniques, see [docs/architecture/benchmark_summary.md](docs/architecture/benchmark_summary.md).
