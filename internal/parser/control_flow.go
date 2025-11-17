@@ -1274,8 +1274,10 @@ func (p *Parser) parseExitStatementCursor() *ast.ExitStatement {
 // parseForStatementCursor parses a for loop statement in cursor mode.
 // Task 2.2.14.5: For statement migration
 // Syntax:
-//   for <variable> := <start> to|downto <end> [step <step>] do <statement>
-//   for [var] <variable> in <expression> do <statement>
+//
+//	for <variable> := <start> to|downto <end> [step <step>] do <statement>
+//	for [var] <variable> in <expression> do <statement>
+//
 // PRE: cursor is on FOR token
 // POST: cursor is on last token of body statement
 func (p *Parser) parseForStatementCursor() ast.Statement {
