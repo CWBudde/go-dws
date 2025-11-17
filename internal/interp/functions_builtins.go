@@ -16,6 +16,11 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		}
 	}
 
+	// Check the built-in function registry (case-insensitive lookup)
+	if fn, ok := builtins.DefaultRegistry.Lookup(name); ok {
+		return fn(i, args)
+	}
+
 	// Normalize function name for case-insensitive matching (DWScript is case-insensitive)
 	name = normalizeBuiltinName(name)
 
