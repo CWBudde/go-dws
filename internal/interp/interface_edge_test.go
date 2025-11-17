@@ -36,6 +36,7 @@ func TestEdge_EmptyInterface(t *testing.T) {
 
 		// Class with no methods
 		class1 := NewClassInfo("TEmptyClass")
+		class1.Interfaces = append(class1.Interfaces, iface)
 		if !classImplementsInterface(class1, iface) {
 			t.Error("Empty class should implement empty interface")
 		}
@@ -50,6 +51,7 @@ func TestEdge_EmptyInterface(t *testing.T) {
 				Value: "DoSomething",
 			},
 		}
+		class2.Interfaces = append(class2.Interfaces, iface)
 		if !classImplementsInterface(class2, iface) {
 			t.Error("Class with methods should also implement empty interface")
 		}
@@ -136,6 +138,7 @@ func TestEdge_InterfaceWithManyMethods(t *testing.T) {
 			},
 		}
 	}
+	class.Interfaces = append(class.Interfaces, iface)
 
 	// Verify class implements interface
 	if !classImplementsInterface(class, iface) {
@@ -290,6 +293,7 @@ func TestEdge_ConflictingInterfaces(t *testing.T) {
 			Name:  "Integer",
 		},
 	}
+	class.Interfaces = append(class.Interfaces, iface1, iface2)
 
 	// Class implements both interfaces (name match is sufficient)
 	if !classImplementsInterface(class, iface1) {
@@ -424,6 +428,7 @@ func TestEdge_InterfaceInstanceImplementsInterface(t *testing.T) {
 	// Create class that implements iface1 but not iface2
 	class := NewClassInfo("TTest")
 	class.Methods["method1"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method1"}}
+	class.Interfaces = append(class.Interfaces, iface1)
 
 	obj := NewObjectInstance(class)
 	ifaceInstance := NewInterfaceInstance(iface1, obj)

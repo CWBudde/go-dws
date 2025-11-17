@@ -20,7 +20,7 @@ func TestIntegration_InterfaceDeclarationAndUsage(t *testing.T) {
 			end;
 
 		type
-			TDocument = class
+			TDocument = class(TObject, IPrintable)
 				FName: String;
 
 				procedure Print; begin PrintLn('Printing document'); end;
@@ -93,7 +93,7 @@ func TestIntegration_InterfaceInheritanceHierarchy(t *testing.T) {
 			end;
 
 		type
-			TImplementation = class
+			TImplementation = class(TObject, IDerived)
 				procedure BaseMethod; begin PrintLn('Base'); end;
 				procedure MiddleMethod; begin PrintLn('Middle'); end;
 				procedure DerivedMethod; begin PrintLn('Derived'); end;
@@ -206,7 +206,7 @@ func TestIntegration_ClassImplementingMultipleInterfaces(t *testing.T) {
 			end;
 
 		type
-			TFile = class
+			TFile = class(TObject, IReadable, IWritable, ICloseable)
 				FContent: String;
 				FOpen: Boolean;
 
@@ -312,6 +312,7 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 				Value: "DoIt",
 			},
 		}
+		class.Interfaces = append(class.Interfaces, iface)
 
 		// Create object instance
 		obj := NewObjectInstance(class)
