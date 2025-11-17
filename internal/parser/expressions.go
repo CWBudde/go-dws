@@ -175,12 +175,16 @@ func (p *Parser) parseExpressionCursor(precedence int) ast.Expression {
 		p.cursor = p.cursor.Advance()
 		operatorToken := p.cursor.Current()
 
-		// Sync state for infix function (temporary until all infix functions are pure cursor)
-		p.syncCursorToTokens()
-
+		// Task 2.2.9: Call infix function directly without state sync
+		// All registered infix cursor functions now use parseInfixExpressionCursor,
+		// which is pure cursor and recursively calls parseExpressionCursor
 		// Call infix function
 		leftExp = infixFn(leftExp, operatorToken)
 	}
+
+	// Sync cursor position back to curToken/peekToken for backward compatibility
+	// External code (like parseIfStatement) uses curToken/peekToken, not cursor
+	p.syncCursorToTokens()
 
 	return leftExp
 }
@@ -220,9 +224,8 @@ func (p *Parser) parseNotInIsAsCursor(leftExp ast.Expression) ast.Expression {
 		return nil
 	}
 
-	// Sync state for infix function (temporary until all infix functions are pure cursor)
-	p.syncCursorToTokens()
-
+	// Task 2.2.9: Call infix function directly without state sync
+	// Now that parseInfixExpressionCursor is pure cursor, no sync needed
 	// Parse the comparison expression
 	comparisonExp := infixFn(leftExp, operatorToken)
 
@@ -764,18 +767,10 @@ func (p *Parser) parseInfixExpressionCursor(left ast.Expression) ast.Expression 
 	// Advance cursor to next token (the start of right expression)
 	p.cursor = p.cursor.Advance()
 
-	// Sync traditional state to cursor for the recursive parseExpression call
-	// This is necessary until parseExpression itself is migrated to cursor mode
-	p.syncCursorToTokens()
-
-	// Parse right expression using traditional parseExpression
-	// TODO: Once parseExpression has a cursor version, call that instead
-	expression.Right = p.parseExpression(precedence)
-
-	// Sync cursor back from traditional state after parseExpression
-	// parseExpression leaves curToken at the last token of the right expression
-	// We need to update cursor to match
-	// Note: This is a temporary workaround until full cursor migration
+	// Task 2.2.9: Parse right expression using pure cursor mode
+	// Now that parseExpressionCursor is implemented, we can call it directly
+	// for pure cursor-to-cursor recursion without state synchronization
+	expression.Right = p.parseExpressionCursor(precedence)
 
 	// Set end position based on the right expression
 	if expression.Right != nil {
