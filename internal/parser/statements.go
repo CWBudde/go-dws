@@ -17,13 +17,8 @@ func (p *Parser) parseStatementCursor() ast.Statement {
 
 	switch currentToken.Type {
 	case lexer.BEGIN:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		stmt := p.parseBlockStatement()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return stmt
+		// Task 2.2.14.3: Use cursor mode for block statements
+		return p.parseBlockStatementCursor()
 
 	case lexer.VAR:
 		// Fall back to traditional mode for now
@@ -950,4 +945,77 @@ func (p *Parser) parseAssignmentOrExpressionCursor() ast.Statement {
 	}
 
 	return stmt
+}
+
+// ============================================================================
+// Task 2.2.14.3: Cursor-mode handler for block statements
+// ============================================================================
+
+// parseBlockStatementCursor parses a begin...end block in cursor mode.
+// Task 2.2.14.3: Block statement migration
+// PRE: cursor is on BEGIN token
+// POST: cursor is on END token
+func (p *Parser) parseBlockStatementCursor() *ast.BlockStatement {
+	beginToken := p.cursor.Current()
+	block := &ast.BlockStatement{
+		BaseNode: ast.BaseNode{Token: beginToken},
+	}
+	block.Statements = []ast.Statement{}
+
+	// Track block context for better error messages
+	p.pushBlockContext("begin", beginToken.Pos)
+	defer p.popBlockContext()
+
+	// Advance past 'begin'
+	p.cursor = p.cursor.Advance()
+
+	// Parse statements until we hit END, EOF, or ENSURE
+	for {
+		currentToken := p.cursor.Current()
+
+		// Termination conditions
+		if currentToken.Type == lexer.END ||
+		   currentToken.Type == lexer.EOF ||
+		   currentToken.Type == lexer.ENSURE {
+			break
+		}
+
+		// Skip semicolons at statement level
+		if currentToken.Type == lexer.SEMICOLON {
+			p.cursor = p.cursor.Advance()
+			continue
+		}
+
+		// Parse statement using cursor mode
+		// Since we're in cursor mode, parseStatementCursor() will be called
+		stmt := p.parseStatementCursor()
+		if stmt != nil {
+			block.Statements = append(block.Statements, stmt)
+		}
+
+		// Advance to next token
+		p.cursor = p.cursor.Advance()
+
+		// Skip any semicolons after the statement
+		for p.cursor.Current().Type == lexer.SEMICOLON {
+			p.cursor = p.cursor.Advance()
+		}
+	}
+
+	// Check for proper block termination
+	currentToken := p.cursor.Current()
+	if currentToken.Type != lexer.END && currentToken.Type != lexer.ENSURE {
+		p.addErrorWithContext("expected 'end' to close block", ErrMissingEnd)
+		// Synchronize to recover (need to use traditional mode for this)
+		p.syncCursorToTokens()
+		p.useCursor = false
+		p.synchronize([]lexer.TokenType{lexer.END, lexer.ENSURE})
+		p.useCursor = true
+		p.syncTokensToCursor()
+	}
+
+	// Set end position to the END keyword
+	block.EndPos = p.endPosFromToken(p.cursor.Current())
+
+	return block
 }

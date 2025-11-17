@@ -410,3 +410,189 @@ func TestExpressionAssignmentIntegration_Traditional_vs_Cursor(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Task 2.2.14.3: Block Statement Tests
+// ============================================================================
+
+// TestBlockStatement_Traditional_vs_Cursor tests begin/end blocks
+func TestBlockStatement_Traditional_vs_Cursor(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{"empty block", "begin end"},
+		{"single statement", "begin x := 5 end"},
+		{"multiple statements", "begin x := 1; y := 2; z := 3 end"},
+		{"with semicolons", "begin x := 1; y := 2; end"},
+		{"trailing semicolon", "begin x := 5; end"},
+		{"no semicolons", "begin x := 1 y := 2 end"},
+		{"expression in block", "begin Print('hello') end"},
+		{"nested blocks", "begin begin x := 1 end end"},
+		{"deep nesting", "begin begin begin x := 1 end end end"},
+		{"mixed statements", "begin x := 1; Print(x); y := x + 1 end"},
+		{"assignments in block", "begin a := 1; b := 2; c := a + b end"},
+		{"compound in block", "begin x += 1; y *= 2 end"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}
+
+// TestBlockStatementNested_Traditional_vs_Cursor tests nested blocks with mixed statements
+func TestBlockStatementNested_Traditional_vs_Cursor(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{"nested with assignments", "begin x := 1; begin y := 2 end; z := 3 end"},
+		{"triple nesting", "begin a := 1; begin b := 2; begin c := 3 end end end"},
+		{"nested empty blocks", "begin begin end; begin end end"},
+		{"nested with expressions", "begin Print(1); begin Print(2) end end"},
+		{"complex nesting", "begin x := 1; begin y := x + 1; z := y * 2 end; w := z end"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}
+
+// TestBlockStatementEdgeCases_Traditional_vs_Cursor tests edge cases
+func TestBlockStatementEdgeCases_Traditional_vs_Cursor(t *testing.T) {
+	tests := []struct {
+		name         string
+		source       string
+		expectErrors bool
+	}{
+		{"empty block", "begin end", false},
+		{"only semicolons", "begin ; ; ; end", false},
+		{"missing end", "begin x := 1", true},
+		{"nested missing end", "begin begin x := 1 end", true},
+		{"extra end", "begin x := 1 end end", false}, // First end closes block, second is error at program level
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			tradHasErrors := len(tradParser.Errors()) > 0
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			cursorHasErrors := len(cursorParser.Errors()) > 0
+
+			// Both modes should agree on whether there are errors
+			if tradHasErrors != cursorHasErrors {
+				t.Errorf("Error state mismatch: traditional has errors=%v, cursor has errors=%v",
+					tradHasErrors, cursorHasErrors)
+				if tradHasErrors {
+					t.Logf("Traditional errors: %v", tradParser.Errors())
+				}
+				if cursorHasErrors {
+					t.Logf("Cursor errors: %v", cursorParser.Errors())
+				}
+			}
+
+			// If we expect errors, make sure both modes have them
+			if tt.expectErrors && (!tradHasErrors || !cursorHasErrors) {
+				t.Errorf("Expected errors but got: traditional=%v, cursor=%v",
+					tradHasErrors, cursorHasErrors)
+			}
+
+			// For valid programs, compare AST strings
+			if !tt.expectErrors && !tradHasErrors && !cursorHasErrors {
+				if tradProgram.String() != cursorProgram.String() {
+					t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+						tradProgram.String(), cursorProgram.String())
+				}
+			}
+		})
+	}
+}
+
+// TestBlockStatementIntegration_Traditional_vs_Cursor tests integration with other statements
+func TestBlockStatementIntegration_Traditional_vs_Cursor(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{"block with program", "x := 1; begin y := 2 end; z := 3"},
+		{"multiple blocks", "begin x := 1 end; begin y := 2 end"},
+		{"block with expressions", "Print(1); begin x := 2; Print(x) end"},
+		{"nested with mixed", "begin x := 1; Print(x); begin y := 2 end; z := x + y end"},
+		{"complex integration", "a := 1; begin b := a; begin c := b; d := c end; e := d end"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}
