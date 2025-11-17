@@ -143,32 +143,11 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	// Date difference functions
 	// Special date functions
 	// Unix time functions
-	// Variant introspection functions
-	case "VarType":
-		return i.builtinVarType(args)
-	case "VarIsNull":
-		return i.builtinVarIsNull(args)
-	case "VarIsEmpty":
-		return i.builtinVarIsEmpty(args)
-	case "VarIsClear":
-		return i.builtinVarIsClear(args)
-	case "VarIsArray":
-		return i.builtinVarIsArray(args)
-	case "VarIsStr":
-		return i.builtinVarIsStr(args)
-	case "VarIsNumeric":
-		return i.builtinVarIsNumeric(args)
-	// Variant conversion functions
-	case "VarToStr":
-		return i.builtinVarToStr(args)
-	case "VarToInt":
-		return i.builtinVarToInt(args)
-	case "VarToFloat":
-		return i.builtinVarToFloat(args)
-	case "VarAsType":
-		return i.builtinVarAsType(args)
-	case "VarClear":
-		return i.builtinVarClear(args)
+	// Variant introspection functions (Task 3.7.5 - migrated to registry)
+	// VarType, VarIsNull, VarIsEmpty, VarIsClear, VarIsArray, VarIsStr, VarIsNumeric
+	// VarToStr, VarToInt, VarToFloat, VarAsType, VarClear
+	// These are now handled by builtins.DefaultRegistry.Lookup() above
+
 	// JSON parsing functions
 	case "ParseJSON":
 		return i.builtinParseJSON(args)
