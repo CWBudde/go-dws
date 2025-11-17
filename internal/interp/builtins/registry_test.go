@@ -2,6 +2,7 @@ package builtins
 
 import (
 	"math/rand"
+	"strconv"
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/ast"
@@ -55,9 +56,18 @@ func (m *mockContext) UnwrapVariant(value Value) Value {
 }
 
 func (m *mockContext) ToInt64(value Value) (int64, bool) {
-	// Simple mock implementation for testing
+	// Mock implementation for testing
 	if iv, ok := value.(*runtime.IntegerValue); ok {
 		return iv.Value, true
+	}
+	if fv, ok := value.(*runtime.FloatValue); ok {
+		return int64(fv.Value), true
+	}
+	if bv, ok := value.(*runtime.BooleanValue); ok {
+		if bv.Value {
+			return 1, true
+		}
+		return 0, true
 	}
 	return 0, false
 }
@@ -208,8 +218,14 @@ func (m *mockContext) GetCallStackArray() Value {
 }
 
 func (m *mockContext) IsAssigned(value Value) bool {
-	// Simple mock - return true for non-nil values
-	return value != nil
+	// Mock - check if value is assigned (not nil and not NilValue type)
+	if value == nil {
+		return false
+	}
+	if value.Type() == "NIL" {
+		return false
+	}
+	return true
 }
 
 func (m *mockContext) RaiseAssertionFailed(customMessage string) {
@@ -227,18 +243,55 @@ func (m *mockContext) GetEnumPredecessor(enumVal Value) (Value, error) {
 }
 
 func (m *mockContext) ParseInt(s string, base int) (int64, bool) {
-	// Simple mock - return 0 for testing
-	return 0, false
+	// Mock - basic int parsing for testing
+	val, err := strconv.ParseInt(s, base, 64)
+	return val, err == nil
 }
 
 func (m *mockContext) ParseFloat(s string) (float64, bool) {
-	// Simple mock - return 0.0 for testing
-	return 0.0, false
+	// Mock - basic float parsing for testing
+	val, err := strconv.ParseFloat(s, 64)
+	return val, err == nil
 }
 
 func (m *mockContext) FormatString(format string, args []Value) (string, error) {
-	// Simple mock - return empty string for testing
-	return "", nil
+	// Mock - basic sprintf-style formatting for testing
+	// Support %s, %d, %f
+	result := format
+	argIndex := 0
+
+	for i := 0; i < len(result); i++ {
+		if result[i] == '%' && i+1 < len(result) {
+			if argIndex >= len(args) {
+				break
+			}
+
+			specifier := result[i+1]
+			var replacement string
+
+			switch specifier {
+			case 's':
+				replacement = args[argIndex].String()
+			case 'd':
+				if iv, ok := args[argIndex].(*runtime.IntegerValue); ok {
+					replacement = strconv.FormatInt(iv.Value, 10)
+				}
+			case 'f':
+				if fv, ok := args[argIndex].(*runtime.FloatValue); ok {
+					replacement = strconv.FormatFloat(fv.Value, 'f', 2, 64)
+				}
+			default:
+				i++
+				continue
+			}
+
+			result = result[:i] + replacement + result[i+2:]
+			i += len(replacement) - 1
+			argIndex++
+		}
+	}
+
+	return result, nil
 }
 
 // Task 3.7.9 Context methods for polymorphic functions
