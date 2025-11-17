@@ -42,6 +42,7 @@ type ClassInfo struct {
 	Destructor           *ast.FunctionDecl
 	Parent               *ClassInfo
 	Operators            *runtimeOperatorRegistry
+	Interfaces           []*InterfaceInfo // List of interfaces this class implements
 	ExternalName         string
 	Name                 string
 	DefaultConstructor   string

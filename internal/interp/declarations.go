@@ -262,6 +262,24 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		classInfo.Operators = parentClass.Operators.clone()
 	}
 
+	// Process implemented interfaces
+	// Validate that each interface exists and store references
+	for _, ifaceIdent := range cd.Interfaces {
+		ifaceName := ifaceIdent.Value
+		// Look up interface in registry (case-insensitive)
+		iface, exists := i.interfaces[strings.ToLower(ifaceName)]
+		if !exists {
+			return i.newErrorWithLocation(cd, "interface '%s' not found", ifaceName)
+		}
+
+		// Add interface to class's interface list
+		classInfo.Interfaces = append(classInfo.Interfaces, iface)
+
+		// Note: Method implementation validation is deferred until the class methods
+		// are fully processed. For now, we just register that the class claims to
+		// implement the interface. Full validation would happen in semantic analysis.
+	}
+
 	// Register class constants BEFORE processing fields
 	// This allows class vars to reference constants in their initialization expressions
 	// Evaluate constants eagerly in order so they can reference earlier constants
