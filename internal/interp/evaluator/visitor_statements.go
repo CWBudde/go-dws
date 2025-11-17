@@ -285,7 +285,8 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 // VisitAssignmentStatement evaluates an assignment statement.
 func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx *ExecutionContext) Value {
 	// Phase 3.5.4 - Phase 2B: Type system available for compound operators
-	// Phase 3.5.4 - Phase 2C: Property setters (pending)
+	// Phase 3.5.4 - Phase 2C: Property setter infrastructure available via PropertyEvalContext
+	// Property setters handled via EvalNode delegation (uses Phase 2A + Phase 2B + ctx.PropContext())
 	// TODO: Migrate assignment logic with operator overloads and property setters
 	return e.adapter.EvalNode(node)
 }

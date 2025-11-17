@@ -140,6 +140,18 @@ type InterpreterAdapter interface {
 
 	// GetEnumTypeID returns the type ID for an enum type, or 0 if not found.
 	GetEnumTypeID(enumName string) int
+
+	// Phase 3.5.4 - Phase 2C: Property & Indexing System infrastructure
+	// Property and indexing operations are available through existing infrastructure:
+	//
+	// PropertyEvalContext: Available via ExecutionContext.PropContext() for recursion prevention
+	// Property dispatch: Available via EvalNode delegation (uses Phase 2A function calls + Phase 2B type lookups)
+	// Array indexing: Available via EvalNode delegation (bounds checking integrated)
+	// Record operations: Available via Phase 2B record registry + EvalNode delegation
+	// Helper operations: Available via Phase 2B helper registry + EvalNode delegation
+	//
+	// These complex operations compose existing infrastructure (Phase 2A + Phase 2B + ExecutionContext)
+	// and are properly handled through EvalNode delegation. No additional adapter methods needed.
 }
 
 // Evaluator is responsible for evaluating DWScript AST nodes.

@@ -88,8 +88,10 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 
 // VisitMemberAccessExpression evaluates member access (obj.field, obj.method).
 func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	// Future: Move member access logic here
+	// Phase 3.5.4 - Phase 2C: Property/indexing infrastructure available
+	// PropertyEvalContext accessible via ctx.PropContext() for recursion prevention
+	// Property dispatch uses Phase 2A (function calls) + Phase 2B (type lookups)
+	// TODO: Migrate member access logic (property getters, field access, helper methods)
 	return e.adapter.EvalNode(node)
 }
 
@@ -142,7 +144,9 @@ func (e *Evaluator) VisitEnumLiteral(node *ast.EnumLiteral, ctx *ExecutionContex
 
 // VisitRecordLiteralExpression evaluates a record literal expression.
 func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2C: Record construction infrastructure available
+	// Record registry accessible via adapter.LookupRecord() (Phase 2B)
+	// TODO: Migrate record literal construction logic
 	return e.adapter.EvalNode(node)
 }
 
@@ -154,13 +158,18 @@ func (e *Evaluator) VisitSetLiteral(node *ast.SetLiteral, ctx *ExecutionContext)
 
 // VisitArrayLiteralExpression evaluates an array literal [1, 2, 3].
 func (e *Evaluator) VisitArrayLiteralExpression(node *ast.ArrayLiteralExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2C: Array construction infrastructure available
+	// Type inference uses Phase 2B type system
+	// TODO: Migrate array literal construction logic with type inference
 	return e.adapter.EvalNode(node)
 }
 
 // VisitIndexExpression evaluates an index expression array[index].
 func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2C: Array/property indexing infrastructure available
+	// Bounds checking and property indexing handled via EvalNode delegation
+	// PropertyEvalContext accessible via ctx.PropContext() for property indexers
+	// TODO: Migrate indexing logic (array bounds checking, property indexers, string indexing)
 	return e.adapter.EvalNode(node)
 }
 
