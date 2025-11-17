@@ -138,6 +138,11 @@ type Context interface {
 	// Returns (ordinal, true) if the value is an enum, (0, false) otherwise.
 	// Task 3.7.5: Helper for Ord() function.
 	GetEnumOrdinal(value Value) (int64, bool)
+
+	// GetJSONVarType returns the VarType code for a JSON value based on its kind.
+	// Returns (varType, true) if the value is a JSONValue, (0, false) otherwise.
+	// Task 3.7.5: Helper for VarType() function to handle JSON values.
+	GetJSONVarType(value Value) (int64, bool)
 }
 
 // BuiltinFunc is the signature for all built-in function implementations.

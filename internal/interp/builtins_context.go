@@ -173,20 +173,86 @@ func (i *Interpreter) ValueToJSONWithIndent(value builtins.Value, formatted bool
 // Task 3.7.6: Type introspection helper for TypeOf function.
 func (i *Interpreter) GetTypeOf(value builtins.Value) string {
 	if value == nil {
-		return "NULL"
+		return "Null"
 	}
-	return value.Type()
+
+	// Special handling for ObjectInstance - return the class name
+	if objVal, ok := value.(*ObjectInstance); ok {
+		if objVal.Class != nil {
+			return objVal.Class.Name
+		}
+		return "Object"
+	}
+
+	// Special handling for ClassValue - return the class name
+	// ClassValue represents a class reference (e.g., TMyClass as a value)
+	if classVal, ok := value.(*ClassValue); ok {
+		if classVal.ClassInfo != nil {
+			return classVal.ClassInfo.Name
+		}
+		return "Class"
+	}
+
+	// Special handling for ClassInfoValue - return the class name
+	if classInfoVal, ok := value.(*ClassInfoValue); ok {
+		if classInfoVal.ClassInfo != nil {
+			return classInfoVal.ClassInfo.Name
+		}
+		return "Class"
+	}
+
+	typeName := value.Type()
+
+	// Convert internal type names to DWScript format (proper capitalization)
+	// Internal names are uppercase (INTEGER, FLOAT, etc.)
+	// DWScript expects: Integer, Float, String, Boolean, etc.
+	switch typeName {
+	case "INTEGER":
+		return "Integer"
+	case "FLOAT":
+		return "Float"
+	case "STRING":
+		return "String"
+	case "BOOLEAN":
+		return "Boolean"
+	case "NIL", "NULL":
+		return "Null"
+	case "ARRAY":
+		return "Array"
+	case "RECORD":
+		return "Record"
+	default:
+		// For other types (enum names, etc.),
+		// return as-is since they already have the proper capitalization
+		return typeName
+	}
 }
 
 // GetClassOf returns the class name of an object value.
 // This implements the builtins.Context interface.
 // Task 3.7.6: Type introspection helper for TypeOfClass function.
 func (i *Interpreter) GetClassOf(value builtins.Value) string {
+	// Handle ObjectInstance - return the class name
 	if objVal, ok := value.(*ObjectInstance); ok {
 		if objVal.Class != nil {
 			return objVal.Class.Name
 		}
 	}
+
+	// Handle ClassValue - return the class name (for class references like TMyClass)
+	if classVal, ok := value.(*ClassValue); ok {
+		if classVal.ClassInfo != nil {
+			return classVal.ClassInfo.Name
+		}
+	}
+
+	// Handle ClassInfoValue - return the class name
+	if classInfoVal, ok := value.(*ClassInfoValue); ok {
+		if classInfoVal.ClassInfo != nil {
+			return classInfoVal.ClassInfo.Name
+		}
+	}
+
 	return ""
 }
 
@@ -369,4 +435,23 @@ func (i *Interpreter) GetEnumOrdinal(value builtins.Value) (int64, bool) {
 		return int64(enumVal.OrdinalValue), true
 	}
 	return 0, false
+}
+
+// GetJSONVarType returns the VarType code for a JSON value based on its kind.
+// This implements the builtins.Context interface.
+// Task 3.7.5: Helper for VarType() function to handle JSON values.
+func (i *Interpreter) GetJSONVarType(value builtins.Value) (int64, bool) {
+	// Check if it's a JSON value
+	jsonVal, ok := value.(*JSONValue)
+	if !ok {
+		return 0, false
+	}
+
+	// Return VarType code based on JSON kind
+	if jsonVal.Value == nil {
+		return varEmpty, true
+	}
+
+	typeCode := jsonKindToVarType(jsonVal.Value.Kind())
+	return typeCode, true
 }

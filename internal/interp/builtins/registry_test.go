@@ -151,6 +151,15 @@ func (m *mockContext) GetEnumOrdinal(value Value) (int64, bool) {
 	return 0, false
 }
 
+func (m *mockContext) GetJSONVarType(value Value) (int64, bool) {
+	// Simple mock - check type string since we can't import JSONValue
+	if value.Type() == "JSON" {
+		// For testing, return a dummy varType (varJSON = 0x1000)
+		return 0x1000, true
+	}
+	return 0, false
+}
+
 func TestNewRegistry(t *testing.T) {
 	r := NewRegistry()
 	if r == nil {
