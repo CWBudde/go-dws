@@ -86,22 +86,12 @@ func (p *Parser) parseStatementCursor() ast.Statement {
 		return stmt
 
 	case lexer.TRY:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		stmt := p.parseTryStatement()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return stmt
+		// Task 2.2.14.7: Use cursor mode for try statements
+		return p.parseTryStatementCursor()
 
 	case lexer.RAISE:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		stmt := p.parseRaiseStatement()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return stmt
+		// Task 2.2.14.7: Use cursor mode for raise statements
+		return p.parseRaiseStatementCursor()
 
 	case lexer.FUNCTION, lexer.PROCEDURE, lexer.METHOD:
 		// Fall back to traditional mode for now

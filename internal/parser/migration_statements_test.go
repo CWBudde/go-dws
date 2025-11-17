@@ -1099,3 +1099,210 @@ func TestVarConstDeclarationCursor_Integration(t *testing.T) {
 	}
 }
 
+
+// ============================================================================
+// Task 2.2.14.7: Try/Raise Exception Handling Tests
+// ============================================================================
+
+// TestRaiseStatementCursor tests raise statement migration to cursor mode
+func TestRaiseStatementCursor(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		// Bare raise (re-raise)
+		{"bare raise", "raise;"},
+		{"bare raise without semicolon", "raise"},
+
+		// Raise with expression
+		{"raise with identifier", "raise myException;"},
+		{"raise with constructor call", "raise Exception.Create('error');"},
+		{"raise with new", "raise new EMyException('custom error');"},
+		{"raise with method call", "raise CreateException();"},
+		{"raise with complex expression", "raise GetException(code, message);"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}
+
+// TestTryStatementCursor tests try statement migration to cursor mode
+func TestTryStatementCursor(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		// Try with except
+		{"try except simple", "try x := 1 except y := 0 end"},
+		{"try except handler", "try x := 1 except on E: Exception do PrintLn(E.Message) end"},
+		{"try except multiple handlers", "try DoSomething() except on E: EMyError do HandleMyError() on E: Exception do HandleGeneric() end"},
+
+		// Try with finally
+		{"try finally simple", "try x := 1 finally Cleanup() end"},
+		{"try finally multiple statements", "try DoWork() finally Close(); Free() end"},
+
+		// Try with except and finally
+		{"try except finally", "try DoWork() except x := 0 finally Cleanup() end"},
+		{"try except handler finally", "try DoWork() except on E: Exception do Log(E) finally Cleanup() end"},
+
+		// Bare except (catch all)
+		{"bare except", "try DoSomething() except PrintLn('error') end"},
+		{"bare except multiple statements", "try DoWork() except Log('error'); Cleanup() end"},
+
+		// Nested try statements
+		{"nested try", "try try DoInner() except x := 1 end except y := 0 end"},
+
+		// Try with begin blocks
+		{"try with begin", "try begin x := 1; y := 2 end except z := 0 end"},
+		{"try except begin", "try x := 1 except begin Log('error'); Cleanup() end end"},
+		{"try except handler begin", "try DoWork() except on E: Exception do begin Log(E); Cleanup() end end"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}
+
+// TestTryRaiseStatementCursor_EdgeCases tests edge cases for try/raise statements
+func TestTryRaiseStatementCursor_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		source      string
+		expectError bool
+	}{
+		// Error cases - should produce errors
+		{"try without except or finally", "try x := 1 end", true},
+
+		// Valid edge cases
+		{"except without handler or statements", "try x := 1 except end", false},
+		{"raise in begin block", "begin raise; end", false},
+		{"try except with semicolons", "try x := 1; except; y := 0; end", false},
+		{"nested exception handlers", "try try DoWork() except raise end except Log('outer') end", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			tradErrors := len(tradParser.Errors())
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			cursorErrors := len(cursorParser.Errors())
+
+			// Both should produce the same number of errors
+			if tradErrors != cursorErrors {
+				t.Errorf("Error count mismatch: traditional=%d, cursor=%d",
+					tradErrors, cursorErrors)
+				if tradErrors > 0 {
+					t.Logf("Traditional errors: %v", tradParser.Errors())
+				}
+				if cursorErrors > 0 {
+					t.Logf("Cursor errors: %v", cursorParser.Errors())
+				}
+			}
+
+			// Verify error expectation
+			if tt.expectError && tradErrors == 0 {
+				t.Errorf("Expected errors but got none")
+			}
+
+			// Programs should still be non-nil even with errors
+			if tradProgram == nil {
+				t.Error("Traditional parser returned nil program")
+			}
+			if cursorProgram == nil {
+				t.Error("Cursor parser returned nil program")
+			}
+		})
+	}
+}
+
+// TestTryRaiseStatementCursor_Integration tests integration of try/raise with other statements
+func TestTryRaiseStatementCursor_Integration(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{"raise in if", "if error then raise Exception.Create('error')"},
+		{"try with var", "var x: Integer; try x := 1 except x := 0 end"},
+		{"try with const", "const max = 10; try Check(max) except HandleError() end"},
+		{"try in begin", "begin try DoSomething() except Log('error') end; Cleanup() end"},
+		{"complex exception flow", "try var x: Integer; x := GetValue(); if x < 0 then raise EInvalid.Create('negative') except on E: EInvalid do x := 0 end"},
+		{"try finally with control flow", "try if condition then DoWork() finally Cleanup() end"},
+		{"nested try with multiple handlers", "try try DoInner() except on E: EInner do HandleInner() end except on E: EOuter do HandleOuter() finally Cleanup() end"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}

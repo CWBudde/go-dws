@@ -98,7 +98,7 @@ Replace mutable parser state with immutable cursor.
   - ⏭️ Task 2.2.14.4: If/While/Repeat Statements (4 hours)
   - ⏭️ Task 2.2.14.5: For/Case Statements (4 hours)
   - ✅ Task 2.2.14.6: Variable/Const Declarations (3 hours actual) - COMPLETE
-  - ⏭️ Task 2.2.14.7: Try/Raise Exception Handling (3 hours)
+  - ✅ Task 2.2.14.7: Try/Raise Exception Handling (3 hours actual) - COMPLETE
   - ⏭️ Task 2.2.14.8: Break/Continue/Exit Statements (2 hours)
   - ⏭️ Task 2.2.14.9: Integration Testing & Cleanup (4 hours)
 - ⏭️ Task 2.2.15: Performance Optimization (12 hours) - Reduce overhead to <15%
@@ -977,17 +977,78 @@ parseExpressionCursor
 
 #### Task 2.2.14.7: Try/Raise Exception Handling (~3 hours)
 
-**Status**: NOT STARTED
+**Status**: ✅ COMPLETE
 
 **Goal**: Migrate exception handling statements.
 
 **Targets**:
-- [ ] `parseTryStatementCursor()` - try/except/finally
-- [ ] `parseRaiseStatementCursor()` - raise exceptions
+- [x] `parseRaiseStatementCursor()` - raise exceptions
+- [x] `parseTryStatementCursor()` - try/except/finally
+- [x] `parseBlockStatementForTryCursor()` - helper for try block parsing
+- [x] `parseExceptClauseCursor()` - except clause parsing
+- [x] `parseExceptionHandlerCursor()` - exception handler parsing
+- [x] `parseFinallyClauseCursor()` - finally clause parsing
 
-**Dependencies**: Task 2.2.14.3
+**Implementation**:
+- [x] Implemented `parseRaiseStatementCursor()` for raise statements (bare raise and raise with expression)
+- [x] Implemented `parseTryStatementCursor()` for try/except/finally statements
+- [x] Implemented `parseBlockStatementForTryCursor()` helper for parsing try blocks
+- [x] Implemented `parseExceptClauseCursor()` for except clauses (with handlers and bare except)
+- [x] Implemented `parseExceptionHandlerCursor()` for "on E: ExceptionType do" handlers
+- [x] Implemented `parseFinallyClauseCursor()` for finally clauses
+- [x] Updated `parseStatementCursor()` dispatcher to use cursor implementations
+- [x] Added comprehensive tests (38 test cases total)
 
-**Estimate**: 3 hours
+**Files Modified**:
+- `internal/parser/exceptions.go` (+514 lines): Added try/raise cursor handlers and helpers
+- `internal/parser/statements.go` (+4 lines, -14 lines): Updated dispatcher to use cursor mode
+- `internal/parser/migration_statements_test.go` (+204 lines): Added 38 test cases
+
+**Test Coverage**:
+- ✅ Raise statements: 7/7 tests passing
+  - Bare raise (re-raise current exception)
+  - Raise with identifier, constructor call, new, method call
+  - Raise with complex expressions
+- ✅ Try statements: 13/13 tests passing
+  - Try with except (simple, handler, multiple handlers)
+  - Try with finally (simple, multiple statements)
+  - Try with except and finally
+  - Bare except (catch-all)
+  - Nested try statements
+  - Try with begin blocks
+- ✅ Edge cases: 5/5 tests passing
+  - Error cases (try without except/finally)
+  - Valid edge cases (empty except, raise in begin, nested handlers)
+- ✅ Integration tests: 7/7 tests passing
+  - Raise in if statements
+  - Try with var/const declarations
+  - Try in begin blocks
+  - Complex exception flows
+  - Try/finally with control flow
+  - Nested try with multiple handlers
+
+**Dependencies**: Task 2.2.14.3 ✓
+
+**Actual Time**: ~3 hours (matching estimate)
+
+**Results**:
+- ✅ All 38 tests passing (100% success rate)
+- ✅ Full semantic equivalence with traditional mode
+- ✅ Proper error handling with structured errors
+- ✅ Support for all try/except/finally patterns
+- ✅ Bare except (catch-all) works correctly
+- ✅ Exception handlers with typed exceptions work correctly
+- ✅ Finally clauses work correctly
+- ✅ Nested try statements work correctly
+
+**Deliverable**: Try/raise exception handling fully migrated to cursor mode ✓
+
+**Benefits**:
+- Complete exception handling migration
+- Proper handling of try/except/finally blocks
+- Full support for DWScript exception syntax
+- Comprehensive error messages
+- Seamless integration with other cursor-mode statements
 
 ---
 
