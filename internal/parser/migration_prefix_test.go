@@ -98,8 +98,8 @@ func TestParseGroupedExpression_Traditional_vs_Cursor(t *testing.T) {
 		{"nested grouped", "((x))"},
 		{"grouped infix", "(a * b + c)"},
 		{"complex nested", "((x + y) * (z - w))"},
-		{"empty parens", "()"},                          // Empty array literal
-		{"grouped with member", "(obj).Field"},          // Grouped then member access
+		{"empty parens", "()"},                         // Empty array literal
+		{"grouped with member", "(obj).Field"},         // Grouped then member access
 		{"grouped call result", "(GetObj()).Method()"}, // Grouped call then method
 	}
 
@@ -221,10 +221,10 @@ func TestParseSimpleLiterals_Traditional_vs_Cursor(t *testing.T) {
 		{"nil literal", "nil"},
 		{"Null identifier", "Null"},
 		{"Unassigned identifier", "Unassigned"},
-		{"char decimal", "#65"},      // 'A'
+		{"char decimal", "#65"},        // 'A'
 		{"char hex lowercase", "#$41"}, // 'A' in hex
 		{"char hex uppercase", "#$5A"}, // 'Z' in hex
-		{"char space", "#32"},        // Space character
+		{"char space", "#32"},          // Space character
 		{"nil in expression", "x := nil"},
 		{"Null in expression", "y := Null"},
 		{"Unassigned in expression", "z := Unassigned"},
@@ -328,9 +328,9 @@ func TestPrefixIntegration_Traditional_vs_Cursor(t *testing.T) {
 // TestPrefixEdgeCases_Traditional_vs_Cursor tests edge cases and error handling
 func TestPrefixEdgeCases_Traditional_vs_Cursor(t *testing.T) {
 	tests := []struct {
-		name          string
-		source        string
-		expectErrors  bool
+		name         string
+		source       string
+		expectErrors bool
 	}{
 		{"unclosed grouped", "(x + y", true},
 		{"unclosed array", "[1, 2", true},

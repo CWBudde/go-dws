@@ -225,10 +225,10 @@ func TestMigration_ParseExpression_Precedence(t *testing.T) {
 // TestMigration_ParseExpression_NotInIsAs tests "not in", "not is", "not as" special cases.
 func TestMigration_ParseExpression_NotInIsAs(t *testing.T) {
 	tests := []struct {
-		name     string
-		source   string
-		expected string
-		wantNot  bool // Whether we expect a NOT unary expression
+		name       string
+		source     string
+		expected   string
+		wantNot    bool // Whether we expect a NOT unary expression
 		skipCursor bool // Skip cursor test (not yet implemented)
 	}{
 		{
@@ -350,7 +350,7 @@ func TestMigration_ParseExpression_Errors(t *testing.T) {
 		{
 			name:       "invalid token in expression",
 			source:     "3 @ 5", // @ is addressof, not infix
-			wantErrors: false,  // Will parse "3", then stop
+			wantErrors: false,   // Will parse "3", then stop
 		},
 	}
 

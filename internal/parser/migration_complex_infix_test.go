@@ -286,7 +286,7 @@ func TestMigration_ParseIndexExpression(t *testing.T) {
 			name:        "multi-dimensional (3D)",
 			source:      "grid[x, y, z]",
 			dimensions:  3,
-			description:  "Three-dimensional array access",
+			description: "Three-dimensional array access",
 		},
 		{
 			name:        "chained indexing",

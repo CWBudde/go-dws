@@ -222,11 +222,11 @@ func TestTypeOperatorsEdgeCases_Traditional_vs_Cursor(t *testing.T) {
 		{"is missing type", "obj is", true},
 		{"as missing type", "obj as", true},
 		{"implements missing type", "obj implements", true},
-		{"is with expression", "obj is (x + y)", false},          // This parses as boolean comparison
-		{"empty expression", "", false},                          // Empty program, no errors
-		{"whitespace only", "   ", false},                        // Empty program
-		{"is in expression", "result := obj is TClass", false},   // Valid: assignment of boolean
-		{"as assignment", "intf := obj as IInterface", false},    // Valid: interface cast assignment
+		{"is with expression", "obj is (x + y)", false},              // This parses as boolean comparison
+		{"empty expression", "", false},                              // Empty program, no errors
+		{"whitespace only", "   ", false},                            // Empty program
+		{"is in expression", "result := obj is TClass", false},       // Valid: assignment of boolean
+		{"as assignment", "intf := obj as IInterface", false},        // Valid: interface cast assignment
 		{"implements result", "flag := obj implements ITest", false}, // Valid: boolean result
 	}
 

@@ -1346,7 +1346,7 @@ func (p *Parser) parseArgumentsOrFieldsCursor(end lexer.TokenType) ([]*ast.Field
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type == end {
 		p.cursor = p.cursor.Advance() // consume end token
-		return items, true             // empty list
+		return items, true            // empty list
 	}
 
 	// Move to first element
