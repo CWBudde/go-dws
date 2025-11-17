@@ -2,6 +2,28 @@ package builtins
 
 // DefaultRegistry is the default global registry of all built-in functions.
 // It's populated on package initialization with all standard DWScript built-ins.
+//
+// Current status (Phase 3, Task 3.7.2):
+//   - 170+ functions migrated to internal/interp/builtins/ package
+//   - 168 functions registered in categories:
+//     * Math: 62 functions (basic, advanced, trig, exponential, special values)
+//     * String: 56 functions (manipulation, search, comparison, formatting)
+//     * DateTime: 52 functions (creation, arithmetic, formatting, parsing, info)
+//     * Conversion: 2 functions (type conversions)
+//
+// Pending migration (still in internal/interp as Interpreter methods):
+//   - I/O: Print, PrintLn (2 functions)
+//   - Array: Length, Copy, IndexOf, Contains, Reverse, Sort, Add, Delete, Low, High, SetLength (11 functions)
+//   - Collections: Map, Filter, Reduce, ForEach, Every, Some, Find, FindIndex, ConcatArrays, Slice (10 functions)
+//   - Conversion: Ord, Integer, IntToStr, StrToInt, FloatToStr, StrToFloat, etc. (10 functions)
+//   - Ordinals: Inc, Dec, Succ, Pred, Assert (5 functions)
+//   - Variant: VarType, VarIsNull, VarIsEmpty, VarToStr, VarToInt, etc. (12 functions)
+//   - JSON: ParseJSON, ToJSON, JSONHasField, JSONKeys, etc. (7 functions)
+//   - Type: TypeOf, TypeOfClass (2 functions)
+//   - Encoding: StrToHtml, StrToJSON, StrToCSSText, etc. (5 functions)
+//   - Misc: Format, GetStackTrace, Assigned, Swap, etc. (10+ functions)
+//
+// Total: ~170 registered, ~74 pending migration (244 built-in functions total)
 var DefaultRegistry *Registry
 
 func init() {
@@ -11,6 +33,18 @@ func init() {
 
 // RegisterAll registers all built-in functions with the given registry.
 // This allows for creating custom registries with a different set of functions.
+//
+// Functions are organized by category for better discoverability and maintenance.
+// Categories currently implemented:
+//   - CategoryMath: Mathematical operations and functions
+//   - CategoryString: String manipulation and formatting
+//   - CategoryDateTime: Date and time operations
+//   - CategoryConversion: Type conversion functions
+//
+// Future categories (when functions are migrated):
+//   - CategoryArray: Array operations
+//   - CategoryIO: Input/output operations
+//   - CategorySystem: System and runtime functions
 func RegisterAll(r *Registry) {
 	RegisterMathFunctions(r)
 	RegisterStringFunctions(r)
@@ -154,6 +188,7 @@ func RegisterStringFunctions(r *Registry) {
 	r.Register("GetText", GetText, CategoryString, "Localizes text (i18n)")
 	r.Register("CharAt", CharAt, CategoryString, "Returns character at index")
 	r.Register("Underscore", Underscore, CategoryString, "Converts string to underscore_case")
+	r.Register("_", Underscore, CategoryString, "Converts string to underscore_case (alias for Underscore)")
 
 	// String comparison functions
 	r.Register("SameText", SameText, CategoryString, "Case-insensitive string equality")
