@@ -82,13 +82,15 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 	// Task 9.7: Store method AST nodes for runtime invocation
 	// Build maps for instance methods and static methods (class function/procedure)
 	// Task 9.7f: Separate static methods from instance methods
+	// Note: Use lowercase keys for case-insensitive lookup
 	methods := make(map[string]*ast.FunctionDecl)
 	staticMethods := make(map[string]*ast.FunctionDecl)
 	for _, method := range decl.Methods {
+		methodKey := strings.ToLower(method.Name.Value)
 		if method.IsClassMethod {
-			staticMethods[method.Name.Value] = method
+			staticMethods[methodKey] = method
 		} else {
-			methods[method.Name.Value] = method
+			methods[methodKey] = method
 		}
 	}
 
@@ -160,13 +162,12 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 	i.records[strings.ToLower(recordName)] = recordTypeValue
 
 	// Initialize overload lists from method declarations
+	// Note: methodName is already lowercase from the maps above
 	for methodName, methodDecl := range methods {
-		lowerName := strings.ToLower(methodName)
-		recordTypeValue.MethodOverloads[lowerName] = []*ast.FunctionDecl{methodDecl}
+		recordTypeValue.MethodOverloads[methodName] = []*ast.FunctionDecl{methodDecl}
 	}
 	for methodName, methodDecl := range staticMethods {
-		lowerName := strings.ToLower(methodName)
-		recordTypeValue.ClassMethodOverloads[lowerName] = []*ast.FunctionDecl{methodDecl}
+		recordTypeValue.ClassMethodOverloads[methodName] = []*ast.FunctionDecl{methodDecl}
 	}
 
 	return &NilValue{}

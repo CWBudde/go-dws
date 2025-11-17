@@ -11,9 +11,21 @@ import (
 func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *ast.MemberAccessExpression, argExprs []ast.Expression, objExpr ast.Expression) Value {
 	methodName := memberAccess.Member.Value
 
-	// Method resolution - lookup in RecordValue.Methods
+	// Method resolution - lookup in RecordValue.Methods (instance methods)
 	// No inheritance needed for records (unlike classes)
 	if !recVal.HasMethod(methodName) {
+		// Check for class methods (static methods can be called on instances)
+		recordTypeKey := "__record_type_" + strings.ToLower(recVal.RecordType.Name)
+		if typeVal, ok := i.env.Get(recordTypeKey); ok {
+			if rtv, ok := typeVal.(*RecordTypeValue); ok {
+				// Check if this is a class method (case-insensitive)
+				if classMethod, exists := rtv.ClassMethods[strings.ToLower(methodName)]; exists {
+					// Call the class method (static method)
+					return i.callRecordStaticMethod(rtv, classMethod, argExprs, memberAccess)
+				}
+			}
+		}
+
 		// Check if helpers provide this method
 		helper, helperMethod, builtinSpec := i.findHelperMethod(recVal, methodName)
 		if helperMethod == nil && builtinSpec == "" {

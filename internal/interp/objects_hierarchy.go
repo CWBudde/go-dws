@@ -266,17 +266,42 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			}
 		}
 
-		// Task 9.12.2: Check if it's a constant (accessible via instance)
-		// Look up the record type value to get constants
+		// Task 9.12.2: Check for class methods, constants, and class variables (accessible via instance)
+		// Look up the record type value once for all checks
 		recordTypeKey := "__record_type_" + strings.ToLower(recordVal.RecordType.Name)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
+				memberNameLower := strings.ToLower(ma.Member.Value)
+
+				// Check class methods (case-insensitive)
+				if classMethod, exists := rtv.ClassMethods[memberNameLower]; exists {
+					// Check if parameterless
+					if len(classMethod.Parameters) == 0 {
+						// Auto-invoke the class method
+						methodCall := &ast.MethodCallExpression{
+							TypedExpressionBase: ast.TypedExpressionBase{
+								BaseNode: ast.BaseNode{
+									Token: ma.Token,
+								},
+							},
+							Object:    ma.Object,
+							Method:    ma.Member,
+							Arguments: []ast.Expression{},
+						}
+						return i.evalMethodCall(methodCall)
+					}
+					// Class method has parameters - cannot auto-invoke without parentheses
+					return i.newErrorWithLocation(ma, "class method '%s' of record '%s' requires %d parameter(s); use parentheses to call",
+						ma.Member.Value, recordVal.RecordType.Name, len(classMethod.Parameters))
+				}
+
 				// Check constants (case-insensitive)
-				if constValue, exists := rtv.Constants[strings.ToLower(ma.Member.Value)]; exists {
+				if constValue, exists := rtv.Constants[memberNameLower]; exists {
 					return constValue
 				}
+
 				// Check class variables (case-insensitive)
-				if classVarValue, exists := rtv.ClassVars[strings.ToLower(ma.Member.Value)]; exists {
+				if classVarValue, exists := rtv.ClassVars[memberNameLower]; exists {
 					return classVarValue
 				}
 			}
