@@ -434,6 +434,16 @@ func TestCompleteInterfaceWorkflow(t *testing.T) {
 			},
 			Value: "TCounter",
 		},
+		Interfaces: []*ast.Identifier{
+			{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "ICounter"},
+					},
+				},
+				Value: "ICounter",
+			},
+		},
 		Fields: []*ast.FieldDecl{
 			{
 				BaseNode: ast.BaseNode{
@@ -609,6 +619,9 @@ func TestObjectToInterface(t *testing.T) {
 			},
 			Value: "TRectangle",
 		},
+		Interfaces: []*ast.Identifier{
+			{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "IDrawable"},
+		},
 		Methods: []*ast.FunctionDecl{
 			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Draw"}, Body: &ast.BlockStatement{}},
 			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "GetWidth"}, Body: &ast.BlockStatement{}},
@@ -767,6 +780,9 @@ func TestInterfaceInheritance(t *testing.T) {
 			},
 			Value: "TImplementation",
 		},
+		Interfaces: []*ast.Identifier{
+			{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "IDerived"},
+		},
 		Methods: []*ast.FunctionDecl{
 			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "BaseMethod"}, Body: &ast.BlockStatement{}},
 			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "DerivedMethod"}, Body: &ast.BlockStatement{}},
@@ -837,6 +853,10 @@ func TestMultipleInterfaces(t *testing.T) {
 				BaseNode: ast.BaseNode{},
 			},
 			Value: "TFile",
+		},
+		Interfaces: []*ast.Identifier{
+			{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "IReadable"},
+			{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "IWritable"},
 		},
 		Methods: []*ast.FunctionDecl{
 			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Read"}, Body: &ast.BlockStatement{}},
