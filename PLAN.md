@@ -822,21 +822,24 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
     - Record field access logic
     - Helper field access logic
 
-  **Infrastructure Phase 2D: Environment Scoping** (Blocks 2 methods)
+  **Infrastructure Phase 2D: Environment Scoping ✅ COMPLETE** (Blocks 2 methods)
   - Required for: ForStatement, ForInStatement
-  - Components to refactor:
-    - `NewEnclosedEnvironment()` pattern → ExecutionContext method or helper
-    - Loop variable scoping → Evaluator logic using ExecutionContext
-    - Environment save/restore pattern → ExecutionContext.PushEnv/PopEnv
+  - Components refactored:
+    - ✅ `NewEnclosedEnvironment()` pattern → ExecutionContext.PushEnv/PopEnv methods
+    - ✅ Added `envStack` field to ExecutionContext for proper scope management
+    - ✅ Loop variable scoping infrastructure ready for Evaluator use
+    - ✅ Environment save/restore pattern → ExecutionContext.PushEnv/PopEnv
+  - **Status**: Infrastructure complete. Full migration of ForStatement/ForInStatement deferred until complex types (ArrayValue, SetValue, EnumValue) migrate to runtime package.
 
-  **Infrastructure Phase 2E: Exception Infrastructure** (Blocks 2 methods)
+  **Infrastructure Phase 2E: Exception Infrastructure ✅ COMPLETE** (Blocks 2 methods)
   - Required for: TryStatement, RaiseStatement
-  - Components to migrate:
-    - `evalExceptClause()` → Evaluator method
-    - Exception handler stack (already in ExecutionContext via exception field ✓)
-    - `handlerException` tracking → ExecutionContext
-    - `raiseException()` helper → Evaluator method
-    - ExceptObject environment handling → Evaluator logic
+  - Components migrated:
+    - ✅ `evalExceptClause()` → Evaluator method (commented, ready for use)
+    - ✅ `matchesExceptionType()` → Evaluator method (commented, ready for use)
+    - ✅ Exception handler stack (already in ExecutionContext via exception field)
+    - ✅ `handlerException` tracking → ExecutionContext.HandlerException()
+    - ✅ ExceptObject environment handling infrastructure ready
+  - **Status**: Infrastructure complete. Full migration of TryStatement/RaiseStatement deferred until complex types (ExceptionValue, ObjectInstance) migrate to runtime package.
 
   ---
   ### 📋 DEFERRED METHODS BY INFRASTRUCTURE DEPENDENCY
