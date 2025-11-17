@@ -2,6 +2,7 @@ package interp
 
 import (
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/interp/builtins"
 )
 
 // callBuiltin dispatches built-in and external functions by name.
@@ -42,51 +43,51 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	case "Sort":
 		return i.builtinSort(args)
 	case "Pos":
-		return i.builtinPos(args)
+		return builtins.Pos(i, args)
 	case "UpperCase":
-		return i.builtinUpperCase(args)
+		return builtins.UpperCase(i, args)
 	case "LowerCase":
-		return i.builtinLowerCase(args)
+		return builtins.LowerCase(i, args)
 	case "ASCIIUpperCase":
-		return i.builtinASCIIUpperCase(args)
+		return builtins.ASCIIUpperCase(i, args)
 	case "ASCIILowerCase":
-		return i.builtinASCIILowerCase(args)
+		return builtins.ASCIILowerCase(i, args)
 	case "AnsiUpperCase":
-		return i.builtinAnsiUpperCase(args)
+		return builtins.AnsiUpperCase(i, args)
 	case "AnsiLowerCase":
-		return i.builtinAnsiLowerCase(args)
+		return builtins.AnsiLowerCase(i, args)
 	case "Trim":
-		return i.builtinTrim(args)
+		return builtins.Trim(i, args)
 	case "TrimLeft":
-		return i.builtinTrimLeft(args)
+		return builtins.TrimLeft(i, args)
 	case "TrimRight":
-		return i.builtinTrimRight(args)
+		return builtins.TrimRight(i, args)
 	case "StringReplace":
-		return i.builtinStringReplace(args)
+		return builtins.StringReplace(i, args)
 	case "StringOfChar":
-		return i.builtinStringOfChar(args)
+		return builtins.StringOfChar(i, args)
 	case "SubStr":
-		return i.builtinSubStr(args)
+		return builtins.SubStr(i, args)
 	case "SubString":
-		return i.builtinSubString(args)
+		return builtins.SubString(i, args)
 	case "LeftStr":
-		return i.builtinLeftStr(args)
+		return builtins.LeftStr(i, args)
 	case "RightStr":
-		return i.builtinRightStr(args)
+		return builtins.RightStr(i, args)
 	case "MidStr":
-		return i.builtinMidStr(args)
+		return builtins.MidStr(i, args)
 	case "StrBeginsWith":
-		return i.builtinStrBeginsWith(args)
+		return builtins.StrBeginsWith(i, args)
 	case "StrEndsWith":
-		return i.builtinStrEndsWith(args)
+		return builtins.StrEndsWith(i, args)
 	case "StrContains":
-		return i.builtinStrContains(args)
+		return builtins.StrContains(i, args)
 	case "PosEx":
-		return i.builtinPosEx(args)
+		return builtins.PosEx(i, args)
 	case "RevPos":
-		return i.builtinRevPos(args)
+		return builtins.RevPos(i, args)
 	case "StrFind":
-		return i.builtinStrFind(args)
+		return builtins.StrFind(i, args)
 	case "StrSplit":
 		return i.builtinStrSplit(args)
 	case "StrJoin":
@@ -94,87 +95,87 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	case "StrArrayPack":
 		return i.builtinStrArrayPack(args)
 	case "StrBefore":
-		return i.builtinStrBefore(args)
+		return builtins.StrBefore(i, args)
 	case "StrBeforeLast":
-		return i.builtinStrBeforeLast(args)
+		return builtins.StrBeforeLast(i, args)
 	case "StrAfter":
-		return i.builtinStrAfter(args)
+		return builtins.StrAfter(i, args)
 	case "StrAfterLast":
-		return i.builtinStrAfterLast(args)
+		return builtins.StrAfterLast(i, args)
 	case "StrBetween":
-		return i.builtinStrBetween(args)
+		return builtins.StrBetween(i, args)
 	case "IsDelimiter":
-		return i.builtinIsDelimiter(args)
+		return builtins.IsDelimiter(i, args)
 	case "LastDelimiter":
-		return i.builtinLastDelimiter(args)
+		return builtins.LastDelimiter(i, args)
 	case "FindDelimiter":
-		return i.builtinFindDelimiter(args)
+		return builtins.FindDelimiter(i, args)
 	case "PadLeft":
-		return i.builtinPadLeft(args)
+		return builtins.PadLeft(i, args)
 	case "PadRight":
-		return i.builtinPadRight(args)
+		return builtins.PadRight(i, args)
 	case "StrDeleteLeft":
-		return i.builtinStrDeleteLeft(args)
+		return builtins.StrDeleteLeft(i, args)
 	case "DeleteLeft":
-		return i.builtinStrDeleteLeft(args)
+		return builtins.StrDeleteLeft(i, args)
 	case "StrDeleteRight":
-		return i.builtinStrDeleteRight(args)
+		return builtins.StrDeleteRight(i, args)
 	case "DeleteRight":
-		return i.builtinStrDeleteRight(args)
+		return builtins.StrDeleteRight(i, args)
 	case "ReverseString":
-		return i.builtinReverseString(args)
+		return builtins.ReverseString(i, args)
 	case "QuotedStr":
-		return i.builtinQuotedStr(args)
+		return builtins.QuotedStr(i, args)
 	case "StringOfString":
-		return i.builtinStringOfString(args)
+		return builtins.StringOfString(i, args)
 	case "DupeString":
-		return i.builtinDupeString(args)
+		return builtins.DupeString(i, args)
 	case "NormalizeString":
-		return i.builtinNormalizeString(args)
+		return builtins.NormalizeString(i, args)
 	case "Normalize":
-		return i.builtinNormalizeString(args)
+		return builtins.NormalizeString(i, args)
 	case "StripAccents":
-		return i.builtinStripAccents(args)
+		return builtins.StripAccents(i, args)
 	case "SameText":
-		return i.builtinSameText(args)
+		return builtins.SameText(i, args)
 	case "CompareText":
-		return i.builtinCompareText(args)
+		return builtins.CompareText(i, args)
 	case "CompareStr":
-		return i.builtinCompareStr(args)
+		return builtins.CompareStr(i, args)
 	case "AnsiCompareText":
-		return i.builtinAnsiCompareText(args)
+		return builtins.AnsiCompareText(i, args)
 	case "AnsiCompareStr":
-		return i.builtinAnsiCompareStr(args)
+		return builtins.AnsiCompareStr(i, args)
 	case "CompareLocaleStr":
-		return i.builtinCompareLocaleStr(args)
+		return builtins.CompareLocaleStr(i, args)
 	case "StrMatches":
-		return i.builtinStrMatches(args)
+		return builtins.StrMatches(i, args)
 	case "StrIsASCII":
-		return i.builtinStrIsASCII(args)
+		return builtins.StrIsASCII(i, args)
 	case "Format":
 		return i.builtinFormat(args)
 	case "Abs":
-		return i.builtinAbs(args)
+		return builtins.Abs(i, args)
 	case "Min":
-		return i.builtinMin(args)
+		return builtins.Min(i, args)
 	case "Max":
-		return i.builtinMax(args)
+		return builtins.Max(i, args)
 	case "ClampInt":
-		return i.builtinClampInt(args)
+		return builtins.ClampInt(i, args)
 	case "Clamp":
-		return i.builtinClamp(args)
+		return builtins.Clamp(i, args)
 	case "Sqr":
-		return i.builtinSqr(args)
+		return builtins.Sqr(i, args)
 	case "Power":
-		return i.builtinPower(args)
+		return builtins.Power(i, args)
 	case "Sqrt":
-		return i.builtinSqrt(args)
+		return builtins.Sqrt(i, args)
 	case "Sin":
-		return i.builtinSin(args)
+		return builtins.Sin(i, args)
 	case "Cos":
-		return i.builtinCos(args)
+		return builtins.Cos(i, args)
 	case "Tan":
-		return i.builtinTan(args)
+		return builtins.Tan(i, args)
 	case "Random":
 		return i.builtinRandom(args)
 	case "Randomize":
@@ -182,85 +183,85 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	case "SetRandSeed":
 		return i.builtinSetRandSeed(args)
 	case "Pi":
-		return i.builtinPi(args)
+		return builtins.Pi(i, args)
 	case "Sign":
-		return i.builtinSign(args)
+		return builtins.Sign(i, args)
 	case "Odd":
-		return i.builtinOdd(args)
+		return builtins.Odd(i, args)
 	case "Frac":
-		return i.builtinFrac(args)
+		return builtins.Frac(i, args)
 	case "Int":
-		return i.builtinInt(args)
+		return builtins.Int(i, args)
 	case "Log10":
-		return i.builtinLog10(args)
+		return builtins.Log10(i, args)
 	case "LogN":
-		return i.builtinLogN(args)
+		return builtins.LogN(i, args)
 	case "Infinity":
-		return i.builtinInfinity(args)
+		return builtins.Infinity(i, args)
 	case "NaN":
-		return i.builtinNaN(args)
+		return builtins.NaN(i, args)
 	case "IsFinite":
-		return i.builtinIsFinite(args)
+		return builtins.IsFinite(i, args)
 	case "IsInfinite":
-		return i.builtinIsInfinite(args)
+		return builtins.IsInfinite(i, args)
 	case "IntPower":
-		return i.builtinIntPower(args)
+		return builtins.IntPower(i, args)
 	case "RandSeed":
 		return i.builtinRandSeed(args)
 	case "RandG":
 		return i.builtinRandG(args)
 	case "IsNaN":
-		return i.builtinIsNaN(args)
+		return builtins.IsNaN(i, args)
 	case "Exp":
-		return i.builtinExp(args)
+		return builtins.Exp(i, args)
 	case "Ln":
-		return i.builtinLn(args)
+		return builtins.Ln(i, args)
 	case "Log2":
-		return i.builtinLog2(args)
+		return builtins.Log2(i, args)
 	case "Round":
-		return i.builtinRound(args)
+		return builtins.Round(i, args)
 	case "Trunc":
-		return i.builtinTrunc(args)
+		return builtins.Trunc(i, args)
 	case "Ceil":
-		return i.builtinCeil(args)
+		return builtins.Ceil(i, args)
 	case "Floor":
-		return i.builtinFloor(args)
+		return builtins.Floor(i, args)
 	case "RandomInt":
 		return i.builtinRandomInt(args)
 	case "Unsigned32":
-		return i.builtinUnsigned32(args)
+		return builtins.Unsigned32(i, args)
 	case "MaxInt":
-		return i.builtinMaxInt(args)
+		return builtins.MaxInt(i, args)
 	case "MinInt":
-		return i.builtinMinInt(args)
+		return builtins.MinInt(i, args)
 	case "DegToRad":
-		return i.builtinDegToRad(args)
+		return builtins.DegToRad(i, args)
 	case "RadToDeg":
-		return i.builtinRadToDeg(args)
+		return builtins.RadToDeg(i, args)
 	case "ArcSin":
-		return i.builtinArcSin(args)
+		return builtins.ArcSin(i, args)
 	case "ArcCos":
-		return i.builtinArcCos(args)
+		return builtins.ArcCos(i, args)
 	case "ArcTan":
-		return i.builtinArcTan(args)
+		return builtins.ArcTan(i, args)
 	case "ArcTan2":
-		return i.builtinArcTan2(args)
+		return builtins.ArcTan2(i, args)
 	case "CoTan":
-		return i.builtinCoTan(args)
+		return builtins.CoTan(i, args)
 	case "Hypot":
-		return i.builtinHypot(args)
+		return builtins.Hypot(i, args)
 	case "Sinh":
-		return i.builtinSinh(args)
+		return builtins.Sinh(i, args)
 	case "Cosh":
-		return i.builtinCosh(args)
+		return builtins.Cosh(i, args)
 	case "Tanh":
-		return i.builtinTanh(args)
+		return builtins.Tanh(i, args)
 	case "ArcSinh":
-		return i.builtinArcSinh(args)
+		return builtins.ArcSinh(i, args)
 	case "ArcCosh":
-		return i.builtinArcCosh(args)
+		return builtins.ArcCosh(i, args)
 	case "ArcTanh":
-		return i.builtinArcTanh(args)
+		return builtins.ArcTanh(i, args)
 	case "Low":
 		return i.builtinLow(args)
 	case "High":
@@ -277,7 +278,7 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	case "IntToBin":
 		return i.builtinIntToBin(args)
 	case "IntToHex":
-		return i.builtinIntToHex(args)
+		return builtins.IntToHex(i, args)
 	case "StrToInt":
 		return i.builtinStrToInt(args)
 	case "FloatToStr":
@@ -289,7 +290,7 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	case "StrToFloatDef":
 		return i.builtinStrToFloatDef(args)
 	case "StrToBool":
-		return i.builtinStrToBool(args)
+		return builtins.StrToBool(i, args)
 	case "BoolToStr":
 		return i.builtinBoolToStr(args)
 	case "HexToInt":
@@ -301,15 +302,15 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	case "VarToFloatDef":
 		return i.builtinVarToFloatDef(args)
 	case "Chr":
-		return i.builtinChr(args)
+		return builtins.Chr(i, args)
 	case "CharAt":
-		return i.builtinCharAt(args)
+		return builtins.CharAt(i, args)
 	case "ByteSizeToStr":
-		return i.builtinByteSizeToStr(args)
+		return builtins.ByteSizeToStr(i, args)
 	case "GetText":
-		return i.builtinGetText(args)
+		return builtins.GetText(i, args)
 	case "_":
-		return i.builtin_(args)
+		return builtins.Underscore(i, args)
 	case "Succ":
 		return i.builtinSucc(args)
 	case "Pred":
@@ -344,117 +345,117 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinSlice(args)
 	// Current date/time functions
 	case "Now":
-		return i.builtinNow(args)
+		return builtins.Now(i, args)
 	case "Date":
-		return i.builtinDate(args)
+		return builtins.Date(i, args)
 	case "Time":
-		return i.builtinTime(args)
+		return builtins.Time(i, args)
 	case "UTCDateTime":
-		return i.builtinUTCDateTime(args)
+		return builtins.UTCDateTime(i, args)
 	// Date encoding functions
 	case "EncodeDate":
-		return i.builtinEncodeDate(args)
+		return builtins.EncodeDate(i, args)
 	case "EncodeTime":
-		return i.builtinEncodeTime(args)
+		return builtins.EncodeTime(i, args)
 	case "EncodeDateTime":
-		return i.builtinEncodeDateTime(args)
+		return builtins.EncodeDateTime(i, args)
 	// Component extraction functions
 	case "YearOf":
-		return i.builtinYearOf(args)
+		return builtins.YearOf(i, args)
 	case "MonthOf":
-		return i.builtinMonthOf(args)
+		return builtins.MonthOf(i, args)
 	case "DayOf":
-		return i.builtinDayOf(args)
+		return builtins.DayOf(i, args)
 	case "HourOf":
-		return i.builtinHourOf(args)
+		return builtins.HourOf(i, args)
 	case "MinuteOf":
-		return i.builtinMinuteOf(args)
+		return builtins.MinuteOf(i, args)
 	case "SecondOf":
-		return i.builtinSecondOf(args)
+		return builtins.SecondOf(i, args)
 	case "DayOfWeek":
-		return i.builtinDayOfWeek(args)
+		return builtins.DayOfWeek(i, args)
 	case "DayOfTheWeek":
-		return i.builtinDayOfTheWeek(args)
+		return builtins.DayOfTheWeek(i, args)
 	case "DayOfYear":
-		return i.builtinDayOfYear(args)
+		return builtins.DayOfYear(i, args)
 	case "WeekNumber":
-		return i.builtinWeekNumber(args)
+		return builtins.WeekNumber(i, args)
 	case "YearOfWeek":
-		return i.builtinYearOfWeek(args)
+		return builtins.YearOfWeek(i, args)
 	// Formatting functions
 	case "FormatDateTime":
-		return i.builtinFormatDateTime(args)
+		return builtins.FormatDateTime(i, args)
 	case "DateTimeToStr":
-		return i.builtinDateTimeToStr(args)
+		return builtins.DateTimeToStr(i, args)
 	case "DateToStr":
-		return i.builtinDateToStr(args)
+		return builtins.DateToStr(i, args)
 	case "TimeToStr":
-		return i.builtinTimeToStr(args)
+		return builtins.TimeToStr(i, args)
 	case "DateToISO8601":
-		return i.builtinDateToISO8601(args)
+		return builtins.DateToISO8601(i, args)
 	case "DateTimeToISO8601":
-		return i.builtinDateTimeToISO8601(args)
+		return builtins.DateTimeToISO8601(i, args)
 	case "DateTimeToRFC822":
-		return i.builtinDateTimeToRFC822(args)
+		return builtins.DateTimeToRFC822(i, args)
 	// Parsing functions
 	case "StrToDate":
-		return i.builtinStrToDate(args)
+		return builtins.StrToDate(i, args)
 	case "StrToDateTime":
-		return i.builtinStrToDateTime(args)
+		return builtins.StrToDateTime(i, args)
 	case "StrToTime":
-		return i.builtinStrToTime(args)
+		return builtins.StrToTime(i, args)
 	case "ISO8601ToDateTime":
-		return i.builtinISO8601ToDateTime(args)
+		return builtins.ISO8601ToDateTime(i, args)
 	case "RFC822ToDateTime":
-		return i.builtinRFC822ToDateTime(args)
+		return builtins.RFC822ToDateTime(i, args)
 	// Incrementing functions
 	case "IncYear":
-		return i.builtinIncYear(args)
+		return builtins.IncYear(i, args)
 	case "IncMonth":
-		return i.builtinIncMonth(args)
+		return builtins.IncMonth(i, args)
 	case "IncDay":
-		return i.builtinIncDay(args)
+		return builtins.IncDay(i, args)
 	case "IncHour":
-		return i.builtinIncHour(args)
+		return builtins.IncHour(i, args)
 	case "IncMinute":
-		return i.builtinIncMinute(args)
+		return builtins.IncMinute(i, args)
 	case "IncSecond":
-		return i.builtinIncSecond(args)
+		return builtins.IncSecond(i, args)
 	// Date difference functions
 	case "DaysBetween":
-		return i.builtinDaysBetween(args)
+		return builtins.DaysBetween(i, args)
 	case "HoursBetween":
-		return i.builtinHoursBetween(args)
+		return builtins.HoursBetween(i, args)
 	case "MinutesBetween":
-		return i.builtinMinutesBetween(args)
+		return builtins.MinutesBetween(i, args)
 	case "SecondsBetween":
-		return i.builtinSecondsBetween(args)
+		return builtins.SecondsBetween(i, args)
 	// Special date functions
 	case "IsLeapYear":
-		return i.builtinIsLeapYear(args)
+		return builtins.IsLeapYear(i, args)
 	case "FirstDayOfYear":
-		return i.builtinFirstDayOfYear(args)
+		return builtins.FirstDayOfYear(i, args)
 	case "FirstDayOfNextYear":
-		return i.builtinFirstDayOfNextYear(args)
+		return builtins.FirstDayOfNextYear(i, args)
 	case "FirstDayOfMonth":
-		return i.builtinFirstDayOfMonth(args)
+		return builtins.FirstDayOfMonth(i, args)
 	case "FirstDayOfNextMonth":
-		return i.builtinFirstDayOfNextMonth(args)
+		return builtins.FirstDayOfNextMonth(i, args)
 	case "FirstDayOfWeek":
-		return i.builtinFirstDayOfWeek(args)
+		return builtins.FirstDayOfWeek(i, args)
 	// Unix time functions
 	case "UnixTime":
-		return i.builtinUnixTime(args)
+		return builtins.UnixTime(i, args)
 	case "UnixTimeMSec":
-		return i.builtinUnixTimeMSec(args)
+		return builtins.UnixTimeMSec(i, args)
 	case "UnixTimeToDateTime":
-		return i.builtinUnixTimeToDateTime(args)
+		return builtins.UnixTimeToDateTime(i, args)
 	case "DateTimeToUnixTime":
-		return i.builtinDateTimeToUnixTime(args)
+		return builtins.DateTimeToUnixTime(i, args)
 	case "UnixTimeMSecToDateTime":
-		return i.builtinUnixTimeMSecToDateTime(args)
+		return builtins.UnixTimeMSecToDateTime(i, args)
 	case "DateTimeToUnixTimeMSec":
-		return i.builtinDateTimeToUnixTimeMSec(args)
+		return builtins.DateTimeToUnixTimeMSec(i, args)
 	// Variant introspection functions
 	case "VarType":
 		return i.builtinVarType(args)
@@ -518,23 +519,23 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinStrToXML(args)
 	// Advanced Math functions (Phase 9.23)
 	case "Factorial":
-		return i.builtinFactorial(args)
+		return builtins.Factorial(i, args)
 	case "Gcd":
-		return i.builtinGcd(args)
+		return builtins.Gcd(i, args)
 	case "Lcm":
-		return i.builtinLcm(args)
+		return builtins.Lcm(i, args)
 	case "IsPrime":
-		return i.builtinIsPrime(args)
+		return builtins.IsPrime(i, args)
 	case "LeastFactor":
-		return i.builtinLeastFactor(args)
+		return builtins.LeastFactor(i, args)
 	case "PopCount":
-		return i.builtinPopCount(args)
+		return builtins.PopCount(i, args)
 	case "TestBit":
-		return i.builtinTestBit(args)
+		return builtins.TestBit(i, args)
 	case "Haversine":
-		return i.builtinHaversine(args)
+		return builtins.Haversine(i, args)
 	case "CompareNum":
-		return i.builtinCompareNum(args)
+		return builtins.CompareNum(i, args)
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined function: %s", name)
 	}
