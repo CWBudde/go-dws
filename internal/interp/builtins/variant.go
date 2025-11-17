@@ -79,13 +79,19 @@ func VarType(ctx Context, args []Value) Value {
 	}
 
 	// Return type code based on actual type
-	return varTypeFromValue(val)
+	return varTypeFromValue(ctx, val)
 }
 
 // varTypeFromValue returns the VarType code for a runtime Value.
-func varTypeFromValue(val Value) Value {
+func varTypeFromValue(ctx Context, val Value) Value {
 	if val == nil {
 		return &runtime.IntegerValue{Value: varEmpty}
+	}
+
+	// Check if it's a JSON value - must come before Type() switch
+	// because JSON values need special handling based on their kind
+	if typeCode, ok := ctx.GetJSONVarType(val); ok {
+		return &runtime.IntegerValue{Value: typeCode}
 	}
 
 	switch val.Type() {

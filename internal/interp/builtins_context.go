@@ -436,3 +436,22 @@ func (i *Interpreter) GetEnumOrdinal(value builtins.Value) (int64, bool) {
 	}
 	return 0, false
 }
+
+// GetJSONVarType returns the VarType code for a JSON value based on its kind.
+// This implements the builtins.Context interface.
+// Task 3.7.5: Helper for VarType() function to handle JSON values.
+func (i *Interpreter) GetJSONVarType(value builtins.Value) (int64, bool) {
+	// Check if it's a JSON value
+	jsonVal, ok := value.(*JSONValue)
+	if !ok {
+		return 0, false
+	}
+
+	// Return VarType code based on JSON kind
+	if jsonVal.Value == nil {
+		return varEmpty, true
+	}
+
+	typeCode := jsonKindToVarType(jsonVal.Value.Kind())
+	return typeCode, true
+}
