@@ -1788,6 +1788,51 @@ func (p *Parser) parseNewExpression() ast.Expression {
 	}
 }
 
+// parseDefaultExpression parses a Default() call expression.
+// DWScript syntax: Default(TypeName) - returns the default/zero value for the type
+// PRE: curToken is DEFAULT
+// POST: curToken is RPAREN
+func (p *Parser) parseDefaultExpression() ast.Expression {
+	defaultToken := p.curToken // Save the 'default' token position
+
+	// Expect LPAREN
+	if !p.expectPeek(lexer.LPAREN) {
+		return nil
+	}
+
+	// Parse the type name argument
+	p.nextToken() // Move to type name
+
+	// The type name could be an identifier (Integer, String, etc.)
+	typeName := p.parseExpression(LOWEST)
+	if typeName == nil {
+		return nil
+	}
+
+	// Expect RPAREN
+	if !p.expectPeek(lexer.RPAREN) {
+		return nil
+	}
+
+	// Return as a CallExpression with function name "Default"
+	return &ast.CallExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: defaultToken,
+			},
+		},
+		Function: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: defaultToken,
+				},
+			},
+			Value: "Default",
+		},
+		Arguments: []ast.Expression{typeName},
+	}
+}
+
 // parseNewClassExpression parses class instantiation: new ClassName(args)
 // This is the original parseNewExpression logic, now extracted as a helper.
 // PRE: curToken is className IDENT

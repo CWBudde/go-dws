@@ -311,6 +311,47 @@ func (a *Analyzer) analyzeChr(args []ast.Expression, callExpr *ast.CallExpressio
 	return types.STRING
 }
 
+// analyzeDefault analyzes the Default built-in function.
+// Default takes one argument (a type identifier) and returns the default value for that type.
+// Default(Integer) returns 0, Default(String) returns "", Default(Boolean) returns False, etc.
+func (a *Analyzer) analyzeDefault(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'Default' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.NIL
+	}
+
+	// The argument should be a type identifier
+	// For now, we'll handle it as an identifier and look up the type
+	ident, ok := args[0].(*ast.Identifier)
+	if !ok {
+		a.addError("function 'Default' expects a type name as argument at %s",
+			callExpr.Token.Pos.String())
+		return types.NIL
+	}
+
+	// Look up the type by name
+	typeName := ident.Value
+
+	// Return the appropriate type based on the type name
+	switch typeName {
+	case "Integer", "Int64", "Byte", "Word", "Cardinal", "SmallInt", "ShortInt", "LongWord":
+		return types.INTEGER
+	case "Float", "Double", "Single", "Extended", "Currency":
+		return types.FLOAT
+	case "String", "UnicodeString", "AnsiString":
+		return types.STRING
+	case "Boolean":
+		return types.BOOLEAN
+	case "Variant":
+		return types.VARIANT
+	default:
+		// Try to look up the type in the symbol table
+		// For now, assume it's a valid type and return VARIANT
+		return types.VARIANT
+	}
+}
+
 // analyzeStrToIntDef analyzes the StrToIntDef built-in function.
 // StrToIntDef takes two or three arguments (string, default, [base]) and returns an integer.
 // The base parameter is optional and defaults to 10.
