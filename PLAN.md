@@ -180,23 +180,32 @@ Eliminate manual position tracking.
 
 ---
 
-#### Task 2.4.2: Mass Migration to NodeBuilder (Week 8, Days 4-5, ~16 hours)
+#### Task 2.4.2: Mass Migration to NodeBuilder (Week 8, Days 4-5, ~16 hours) ✅
 
 **Goal**: Migrate all parsing functions to use NodeBuilder.
 
 **Implementation**:
-- [ ] Migrate all statement parsing functions
-- [ ] Migrate all expression parsing functions
-- [ ] Migrate all declaration parsing functions
-- [ ] Remove all manual `EndPos` assignments
-- [ ] Verify position tests pass
+- [x] Migrate all statement parsing functions
+- [x] Migrate all expression parsing functions
+- [x] Migrate all declaration parsing functions
+- [x] Remove all manual `EndPos` assignments
+- [x] Verify position tests pass
 
 **Files Modified**:
-- All parser files (~500 lines total changes)
+- 19 parser files (297 insertions, 383 deletions = 86 net lines removed)
 
 **Estimate**: 16 hours
 
 **Deliverable**: Complete NodeBuilder adoption
+
+**Results**:
+- Migrated **78 functions** across **19 parser files**
+- Eliminated **~152 manual EndPos assignments**
+- Files: control_flow.go (14 functions), statements.go (6), expressions.go (21), declarations.go (2), functions.go (1), classes.go (4), interfaces.go (3), types.go (4), exceptions.go (8), enums.go (1), records.go (3), arrays.go (2), sets.go (2), properties.go (1), operators.go (2), helpers.go (1), parser.go (1), combinators.go (1), unit.go (2)
+- All parser tests passing (0.134s)
+- Both traditional and cursor-mode parsers migrated
+- Remaining EndPos assignments (13 total): helper structures (5) and documentation comments (5), test code (3)
+- **Net code reduction**: 86 lines removed while improving maintainability
 
 ---
 
