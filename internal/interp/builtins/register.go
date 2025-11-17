@@ -3,27 +3,27 @@ package builtins
 // DefaultRegistry is the default global registry of all built-in functions.
 // It's populated on package initialization with all standard DWScript built-ins.
 //
-// Current status (Phase 3, Task 3.7.2):
-//   - 170+ functions migrated to internal/interp/builtins/ package
-//   - 168 functions registered in categories:
+// Current status (Phase 3, Task 3.7.6):
+//   - 193 functions migrated to internal/interp/builtins/ package
+//   - 193 functions registered in categories:
 //   - Math: 62 functions (basic, advanced, trig, exponential, special values)
 //   - String: 56 functions (manipulation, search, comparison, formatting)
 //   - DateTime: 52 functions (creation, arithmetic, formatting, parsing, info)
-//   - Conversion: 2 functions (type conversions)
+//   - Conversion: 8 functions (IntToStr, IntToBin, StrToInt, StrToFloat, FloatToStr, BoolToStr, IntToHex, StrToBool)
+//   - Encoding: 5 functions (StrToHtml, StrToHtmlAttribute, StrToJSON, StrToCSSText, StrToXML)
+//   - JSON: 7 functions (ParseJSON, ToJSON, ToJSONFormatted, JSONHasField, JSONKeys, JSONValues, JSONLength)
+//   - Type: 2 functions (TypeOf, TypeOfClass)
 //
 // Pending migration (still in internal/interp as Interpreter methods):
 //   - I/O: Print, PrintLn (2 functions)
 //   - Array: Length, Copy, IndexOf, Contains, Reverse, Sort, Add, Delete, Low, High, SetLength (11 functions)
 //   - Collections: Map, Filter, Reduce, ForEach, Every, Some, Find, FindIndex, ConcatArrays, Slice (10 functions)
-//   - Conversion: Ord, Integer, IntToStr, StrToInt, FloatToStr, StrToFloat, etc. (10 functions)
+//   - Conversion: Ord, Integer, StrToIntDef, StrToFloatDef (4 functions)
 //   - Ordinals: Inc, Dec, Succ, Pred, Assert (5 functions)
 //   - Variant: VarType, VarIsNull, VarIsEmpty, VarToStr, VarToInt, etc. (12 functions)
-//   - JSON: ParseJSON, ToJSON, JSONHasField, JSONKeys, etc. (7 functions)
-//   - Type: TypeOf, TypeOfClass (2 functions)
-//   - Encoding: StrToHtml, StrToJSON, StrToCSSText, etc. (5 functions)
 //   - Misc: Format, GetStackTrace, Assigned, Swap, etc. (10+ functions)
 //
-// Total: ~170 registered, ~74 pending migration (244 built-in functions total)
+// Total: 193 registered, ~54 pending migration (247 built-in functions total)
 var DefaultRegistry *Registry
 
 func init() {
@@ -40,16 +40,23 @@ func init() {
 //   - CategoryString: String manipulation and formatting
 //   - CategoryDateTime: Date and time operations
 //   - CategoryConversion: Type conversion functions
+//   - CategoryEncoding: Encoding/escaping functions
+//   - CategoryJSON: JSON parsing and manipulation
+//   - CategoryType: Type introspection
+//   - CategoryIO: Input/output operations
 //
 // Future categories (when functions are migrated):
 //   - CategoryArray: Array operations
-//   - CategoryIO: Input/output operations
 //   - CategorySystem: System and runtime functions
 func RegisterAll(r *Registry) {
 	RegisterMathFunctions(r)
 	RegisterStringFunctions(r)
 	RegisterDateTimeFunctions(r)
 	RegisterConversionFunctions(r)
+	RegisterEncodingFunctions(r)
+	RegisterJSONFunctions(r)
+	RegisterTypeFunctions(r)
+	RegisterIOFunctions(r)
 }
 
 // RegisterMathFunctions registers all mathematical built-in functions.
@@ -270,8 +277,54 @@ func RegisterDateTimeFunctions(r *Registry) {
 
 // RegisterConversionFunctions registers all type conversion built-in functions.
 func RegisterConversionFunctions(r *Registry) {
+	// Basic conversion functions
+	r.Register("IntToStr", IntToStr, CategoryConversion, "Converts integer to string")
+	r.Register("IntToBin", IntToBin, CategoryConversion, "Converts integer to binary string")
+	r.Register("StrToInt", StrToInt, CategoryConversion, "Converts string to integer")
+	r.Register("StrToFloat", StrToFloat, CategoryConversion, "Converts string to float")
+	r.Register("FloatToStr", FloatToStr, CategoryConversion, "Converts float to string")
+	r.Register("BoolToStr", BoolToStr, CategoryConversion, "Converts boolean to string")
+
+	// Hexadecimal conversion
 	r.Register("IntToHex", IntToHex, CategoryConversion, "Converts integer to hexadecimal string")
 	r.Register("StrToBool", StrToBool, CategoryConversion, "Converts string to boolean")
+
+	// Ordinal conversion (Task 3.7.5)
+	r.Register("Ord", Ord, CategoryConversion, "Returns ordinal value of enum/boolean/char")
+	// Note: Chr is registered in RegisterStringFunctions (strings_basic.go)
+
 	// Default() is now handled specially in evalCallExpression (like type casts)
 	// See functions_typecast.go::evalDefaultFunction()
+}
+
+// RegisterEncodingFunctions registers all encoding/escaping built-in functions.
+func RegisterEncodingFunctions(r *Registry) {
+	r.Register("StrToHtml", StrToHtml, CategoryEncoding, "Encodes string for HTML content")
+	r.Register("StrToHtmlAttribute", StrToHtmlAttribute, CategoryEncoding, "Encodes string for HTML attributes")
+	r.Register("StrToJSON", StrToJSON, CategoryEncoding, "Encodes string for JSON")
+	r.Register("StrToCSSText", StrToCSSText, CategoryEncoding, "Encodes string for CSS text")
+	r.Register("StrToXML", StrToXML, CategoryEncoding, "Encodes string for XML")
+}
+
+// RegisterJSONFunctions registers all JSON manipulation built-in functions.
+func RegisterJSONFunctions(r *Registry) {
+	r.Register("ParseJSON", ParseJSON, CategoryJSON, "Parses JSON string to Variant")
+	r.Register("ToJSON", ToJSON, CategoryJSON, "Converts value to compact JSON string")
+	r.Register("ToJSONFormatted", ToJSONFormatted, CategoryJSON, "Converts value to formatted JSON string")
+	r.Register("JSONHasField", JSONHasField, CategoryJSON, "Checks if JSON object has field")
+	r.Register("JSONKeys", JSONKeys, CategoryJSON, "Returns keys of JSON object")
+	r.Register("JSONValues", JSONValues, CategoryJSON, "Returns values of JSON object/array")
+	r.Register("JSONLength", JSONLength, CategoryJSON, "Returns length of JSON array/object")
+}
+
+// RegisterTypeFunctions registers all type introspection built-in functions.
+func RegisterTypeFunctions(r *Registry) {
+	r.Register("TypeOf", TypeOf, CategoryType, "Returns the type name of a value")
+	r.Register("TypeOfClass", TypeOfClass, CategoryType, "Returns the class name of an object")
+}
+
+// RegisterIOFunctions registers all I/O built-in functions.
+func RegisterIOFunctions(r *Registry) {
+	r.Register("Print", Print, CategoryIO, "Prints arguments without newline")
+	r.Register("PrintLn", PrintLn, CategoryIO, "Prints arguments with newline")
 }
