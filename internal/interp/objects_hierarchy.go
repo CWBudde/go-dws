@@ -227,6 +227,11 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		return objVal
 	}
 
+	// Check if an exception was raised during object evaluation
+	if i.exception != nil {
+		return nil
+	}
+
 	// Check if it's a record value
 	if recordVal, ok := objVal.(*RecordValue); ok {
 		// Access record field

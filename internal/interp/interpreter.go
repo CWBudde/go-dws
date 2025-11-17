@@ -209,6 +209,9 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 	// Register built-in exception classes
 	interp.registerBuiltinExceptions()
 
+	// Register built-in interfaces
+	interp.registerBuiltinInterfaces()
+
 	// Register built-in array helpers
 	interp.initArrayHelpers()
 
