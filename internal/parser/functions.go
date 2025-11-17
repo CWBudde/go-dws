@@ -25,6 +25,8 @@ func isCallingConvention(literal string) bool {
 // PRE: curToken is FUNCTION or PROCEDURE
 // POST: curToken is END or SEMICOLON (forward declaration) or last token of body
 func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
+	builder := p.StartNode()
+
 	fn := &ast.FunctionDecl{
 		BaseNode: ast.BaseNode{
 			Token: p.curToken,
@@ -252,8 +254,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		// This is a forward declaration (or method declaration in class body)
 		// Body will be provided later in implementation
 		// End position is at the last semicolon we consumed
-		fn.EndPos = p.endPosFromToken(p.curToken)
-		return fn
+		return builder.Finish(fn).(*ast.FunctionDecl)
 	}
 
 	// Parse local variable/constant declarations (optional)
@@ -371,17 +372,15 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		fn.PostConditions = p.parsePostConditions()
 		// End position is after the postconditions
 		if fn.PostConditions != nil {
-			fn.EndPos = fn.PostConditions.End()
+			return builder.FinishWithNode(fn, fn.PostConditions).(*ast.FunctionDecl)
 		} else {
 			// Fallback if postconditions failed to parse
-			fn.EndPos = p.endPosFromToken(p.curToken)
+			return builder.Finish(fn).(*ast.FunctionDecl)
 		}
 	} else {
 		// No postconditions - end position is at the semicolon after 'end'
-		fn.EndPos = p.endPosFromToken(p.curToken)
+		return builder.Finish(fn).(*ast.FunctionDecl)
 	}
-
-	return fn
 }
 
 // parseParameterList parses a function parameter list.

@@ -24,6 +24,7 @@ import (
 // PRE: curToken is UNIT
 // POST: curToken is DOT
 func (p *Parser) parseUnit() *ast.UnitDeclaration {
+	builder := p.StartNode()
 	unitDecl := &ast.UnitDeclaration{
 		BaseNode: ast.BaseNode{Token: p.curToken}, // 'unit' token
 	}
@@ -81,10 +82,7 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 		return nil
 	}
 
-	// Set end position to the '.' token
-	unitDecl.EndPos = p.endPosFromToken(p.curToken)
-
-	return unitDecl
+	return builder.Finish(unitDecl).(*ast.UnitDeclaration)
 }
 
 // parseUsesClause parses a uses statement.
@@ -92,6 +90,7 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 // PRE: curToken is USES
 // POST: curToken is SEMICOLON
 func (p *Parser) parseUsesClause() *ast.UsesClause {
+	builder := p.StartNode()
 	usesClause := &ast.UsesClause{
 		BaseNode: ast.BaseNode{Token: p.curToken}, // 'uses' token
 		Units:    []*ast.Identifier{},
@@ -137,11 +136,8 @@ func (p *Parser) parseUsesClause() *ast.UsesClause {
 		return nil
 	}
 
-	// Set end position to the semicolon
-	usesClause.EndPos = p.endPosFromToken(p.curToken)
-
 	// Don't move past semicolon - ParseProgram will do that
-	return usesClause
+	return builder.Finish(usesClause).(*ast.UsesClause)
 }
 
 // parseInterfaceSection parses the interface section of a unit.

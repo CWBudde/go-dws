@@ -139,6 +139,8 @@ func isBuiltinClass(name string) bool {
 // PRE: curToken is CLASS
 // POST: curToken is END
 func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.ClassDecl {
+	builder := p.StartNode()
+
 	classDecl := &ast.ClassDecl{
 		BaseNode: ast.BaseNode{Token: p.curToken}, // 'class' token
 		Name:     nameIdent,
@@ -190,10 +192,9 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 	// forward declarations (slices are nil) and empty classes (slices are empty but initialized).
 	if p.peekTokenIs(lexer.SEMICOLON) {
 		p.nextToken() // move to semicolon
-		classDecl.EndPos = p.endPosFromToken(p.curToken)
 		// Do NOT initialize the slices - leave them as nil so semantic analyzer
 		// can detect this as a forward declaration
-		return classDecl
+		return builder.Finish(classDecl).(*ast.ClassDecl)
 	}
 
 	// Parse class body (fields and methods) until 'end'
@@ -349,9 +350,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 		return nil
 	}
 
-	classDecl.EndPos = p.endPosFromToken(p.curToken)
-
-	return classDecl
+	return builder.Finish(classDecl).(*ast.ClassDecl)
 }
 
 // parseFieldDeclaration parses a field declaration within a class.
@@ -436,6 +435,8 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 // PRE: curToken is DOT
 // POST: curToken is member name IDENT, RPAREN (for method calls), or last token of right operand
 func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
+	builder := p.StartNode()
+
 	dotToken := p.curToken // Save the '.' token
 
 	// Advance to the member name
@@ -480,9 +481,9 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 
 			// Parse arguments (parseExpressionList handles the advancement)
 			newExpr.Arguments = p.parseExpressionList(lexer.RPAREN)
-			newExpr.EndPos = p.endPosFromToken(p.curToken) // p.curToken is now at RPAREN
+			// p.curToken is now at RPAREN
 
-			return newExpr
+			return builder.Finish(newExpr).(*ast.NewExpression)
 		}
 
 		// Regular method call: obj.Method()
@@ -501,9 +502,9 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 
 		// Parse arguments (parseExpressionList handles the advancement)
 		methodCall.Arguments = p.parseExpressionList(lexer.RPAREN)
-		methodCall.EndPos = p.endPosFromToken(p.curToken) // p.curToken is now at RPAREN
+		// p.curToken is now at RPAREN
 
-		return methodCall
+		return builder.Finish(methodCall).(*ast.MethodCallExpression)
 	}
 
 	// Otherwise, this is simple member access: obj.field
@@ -516,9 +517,8 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 		Object: left,
 		Member: memberName,
 	}
-	memberAccess.EndPos = memberName.End() // End position is after the member name
 
-	return memberAccess
+	return builder.FinishWithNode(memberAccess, memberName).(*ast.MemberAccessExpression)
 }
 
 // Task 2.2.11: parseMemberAccessCursor - Cursor mode version of parseMemberAccess
@@ -526,6 +526,8 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 // PRE: cursor is on DOT token
 // POST: cursor is on last token of member access (identifier for field access, RPAREN for method calls)
 func (p *Parser) parseMemberAccessCursor(left ast.Expression) ast.Expression {
+	builder := p.StartNode()
+
 	dotToken := p.cursor.Current() // Save the '.' token
 
 	// Advance to the member name
@@ -572,9 +574,9 @@ func (p *Parser) parseMemberAccessCursor(left ast.Expression) ast.Expression {
 
 			// Parse arguments using cursor version
 			newExpr.Arguments = p.parseExpressionListCursor(lexer.RPAREN)
-			newExpr.EndPos = p.endPosFromToken(p.cursor.Current()) // cursor is now at RPAREN
+			// cursor is now at RPAREN
 
-			return newExpr
+			return builder.Finish(newExpr).(*ast.NewExpression)
 		}
 
 		// Regular method call: obj.Method()
@@ -593,9 +595,9 @@ func (p *Parser) parseMemberAccessCursor(left ast.Expression) ast.Expression {
 
 		// Parse arguments using cursor version
 		methodCall.Arguments = p.parseExpressionListCursor(lexer.RPAREN)
-		methodCall.EndPos = p.endPosFromToken(p.cursor.Current()) // cursor is now at RPAREN
+		// cursor is now at RPAREN
 
-		return methodCall
+		return builder.Finish(methodCall).(*ast.MethodCallExpression)
 	}
 
 	// Otherwise, this is simple member access: obj.field
@@ -608,9 +610,8 @@ func (p *Parser) parseMemberAccessCursor(left ast.Expression) ast.Expression {
 		Object: left,
 		Member: memberName,
 	}
-	memberAccess.EndPos = memberName.End() // End position is after the member name
 
-	return memberAccess
+	return builder.FinishWithNode(memberAccess, memberName).(*ast.MemberAccessExpression)
 }
 
 // parseClassConstantDeclaration parses a constant declaration within a class.
@@ -621,6 +622,8 @@ func (p *Parser) parseMemberAccessCursor(left ast.Expression) ast.Expression {
 // PRE: curToken is constant name IDENT
 // POST: curToken is last token of value expression
 func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClassConst bool) *ast.ConstDecl {
+	builder := p.StartNode()
+
 	// Current token should be the constant name identifier
 	if !p.curTokenIs(lexer.IDENT) {
 		p.addError("expected identifier for constant name", ErrExpectedIdent)
@@ -672,8 +675,7 @@ func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClas
 
 	constant := &ast.ConstDecl{
 		BaseNode: ast.BaseNode{
-			Token:  constToken,
-			EndPos: p.endPosFromToken(p.curToken),
+			Token: constToken,
 		},
 		Name:         nameIdent,
 		Type:         typeAnnotation,
@@ -682,5 +684,5 @@ func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClas
 		IsClassConst: isClassConst,
 	}
 
-	return constant
+	return builder.Finish(constant).(*ast.ConstDecl)
 }

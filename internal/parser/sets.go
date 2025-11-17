@@ -56,6 +56,7 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 // PRE: curToken is SET
 // POST: curToken is last token of element type
 func (p *Parser) parseSetType() *ast.SetTypeNode {
+	builder := p.StartNode()
 	setToken := p.curToken // The 'set' token
 
 	// Expect 'of' keyword
@@ -81,10 +82,8 @@ func (p *Parser) parseSetType() *ast.SetTypeNode {
 		Token:       setToken,
 		ElementType: elementType,
 	}
-	// EndPos is after element type
-	setTypeNode.EndPos = elementType.End()
 
-	return setTypeNode
+	return builder.FinishWithNode(setTypeNode, elementType).(*ast.SetTypeNode)
 }
 
 // parseSetLiteral parses a set literal expression.
@@ -97,6 +96,7 @@ func (p *Parser) parseSetType() *ast.SetTypeNode {
 // PRE: curToken is LBRACK
 // POST: curToken is RBRACK
 func (p *Parser) parseSetLiteral() ast.Expression {
+	builder := p.StartNode()
 	setLit := &ast.SetLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{Token: p.curToken}, // The '[' token
@@ -107,9 +107,7 @@ func (p *Parser) parseSetLiteral() ast.Expression {
 	// Check for empty set: []
 	if p.peekTokenIs(lexer.RBRACK) {
 		p.nextToken() // move to ']'
-		// Set EndPos to after the ']'
-		setLit.EndPos = p.endPosFromToken(p.curToken)
-		return setLit
+		return builder.Finish(setLit).(*ast.SetLiteral)
 	}
 
 	// Parse elements/ranges
@@ -158,7 +156,5 @@ func (p *Parser) parseSetLiteral() ast.Expression {
 		}
 	}
 
-	// Set EndPos to after the ']'
-	setLit.EndPos = p.endPosFromToken(p.curToken)
-	return setLit
+	return builder.Finish(setLit).(*ast.SetLiteral)
 }

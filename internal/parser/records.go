@@ -11,6 +11,7 @@ import (
 // PRE: curToken is EQ, peekToken is RECORD
 // POST: curToken is SEMICOLON
 func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
+	builder := p.StartNode()
 	// Move to RECORD
 	if !p.expectPeek(lexer.RECORD) {
 		return nil
@@ -150,9 +151,7 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 		return nil
 	}
 
-	recordDecl.EndPos = p.endPosFromToken(p.curToken)
-
-	return recordDecl
+	return builder.Finish(recordDecl).(*ast.RecordDecl)
 }
 
 // parseRecordDeclaration parses a record type declaration.
@@ -172,6 +171,7 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 // PRE: curToken is EQ; peekToken is RECORD
 // POST: curToken is SEMICOLON
 func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.RecordDecl {
+	builder := p.StartNode()
 	recordDecl := &ast.RecordDecl{
 		BaseNode:   ast.BaseNode{Token: typeToken}, // The 'type' token
 		Name:       nameIdent,
@@ -305,9 +305,7 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 		return nil
 	}
 
-	recordDecl.EndPos = p.endPosFromToken(p.curToken)
-
-	return recordDecl
+	return builder.Finish(recordDecl).(*ast.RecordDecl)
 }
 
 // parseRecordFieldDeclarations parses one or more field declarations with the same type.
@@ -400,6 +398,7 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 // PRE: curToken is LPAREN
 // POST: curToken is RPAREN
 func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
+	builder := p.StartNode()
 	recordLit := &ast.RecordLiteralExpression{
 		BaseNode: ast.BaseNode{Token: p.curToken}, // '(' token
 		TypeName: nil,                             // Anonymous record (type inferred from context)
@@ -410,8 +409,7 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 	if p.peekTokenIs(lexer.RPAREN) {
 		p.nextToken() // move to ')'
 		// Set EndPos to after the ')'
-		recordLit.EndPos = p.endPosFromToken(p.curToken)
-		return recordLit
+		return builder.Finish(recordLit).(*ast.RecordLiteralExpression)
 	}
 
 	// Move to first element
@@ -475,8 +473,7 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 	}
 
 	// Set EndPos to after the ')'
-	recordLit.EndPos = p.endPosFromToken(p.curToken)
-	return recordLit
+	return builder.Finish(recordLit).(*ast.RecordLiteralExpression)
 }
 
 // parseRecordPropertyDeclaration parses a record property declaration.
