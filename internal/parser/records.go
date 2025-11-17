@@ -478,6 +478,7 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 
 // parseRecordPropertyDeclaration parses a record property declaration.
 // Pattern: property Name: Type read FieldName write FieldName;
+// Also supports array properties: property Name[Index: Type]: Type read GetMethod;
 //
 // Note: This is different from class properties (parsePropertyDeclaration)
 // PRE: curToken is PROPERTY
@@ -498,26 +499,83 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 		Value: p.curToken.Literal,
 	}
 
+	// Parse optional index parameters for array properties
+	// Pattern: property Items[Index: Integer; Key: String]: String
+	var indexParams []*ast.Parameter
+	if p.peekTokenIs(lexer.LBRACK) {
+		p.nextToken() // move to '['
+
+		// Parse parameter list using the same pattern as function parameters
+		for !p.peekTokenIs(lexer.RBRACK) && !p.peekTokenIs(lexer.EOF) {
+			p.nextToken() // move to parameter name
+
+			// Parse parameter name
+			if !p.curTokenIs(lexer.IDENT) {
+				p.addError("expected parameter name in property index", ErrUnexpectedToken)
+				return nil
+			}
+			paramName := &ast.Identifier{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{Token: p.curToken},
+				},
+				Value: p.curToken.Literal,
+			}
+
+			// Expect colon
+			if !p.expectPeek(lexer.COLON) {
+				return nil
+			}
+
+			// Parse type
+			p.nextToken() // move to type
+			paramType := p.parseTypeExpression()
+			if paramType == nil {
+				return nil
+			}
+
+			param := &ast.Parameter{
+				Token: paramName.Token,
+				Name:  paramName,
+				Type:  paramType,
+			}
+			indexParams = append(indexParams, param)
+
+			// Check for more parameters (separated by semicolon or comma)
+			if p.peekTokenIs(lexer.SEMICOLON) || p.peekTokenIs(lexer.COMMA) {
+				p.nextToken() // move to separator
+				continue
+			}
+
+			// No more parameters - expect closing bracket
+			break
+		}
+
+		// Expect closing bracket
+		if !p.expectPeek(lexer.RBRACK) {
+			return nil
+		}
+	}
+
 	// Expect colon
 	if !p.expectPeek(lexer.COLON) {
 		return nil
 	}
 
 	// Expect type
-	if !p.expectPeek(lexer.IDENT) {
+	p.nextToken() // move to type
+	propType := p.parseTypeExpression()
+	if propType == nil {
 		return nil
-	}
-	propType := &ast.TypeAnnotation{
-		Token: p.curToken,
-		Name:  p.curToken.Literal,
 	}
 
 	prop := &ast.RecordPropertyDecl{
-		BaseNode:   ast.BaseNode{Token: propToken},
-		Name:       propName,
-		Type:       propType,
-		ReadField:  "",
-		WriteField: "",
+		BaseNode:    ast.BaseNode{Token: propToken},
+		Name:        propName,
+		Type:        propType,
+		IndexParams: indexParams,
+		ReadField:   "",
+		WriteField:  "",
+		IsDefault:   false,
 	}
 
 	// Parse optional 'read' clause
@@ -538,9 +596,19 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 		prop.WriteField = p.curToken.Literal
 	}
 
-	// Expect semicolon
+	// Expect semicolon first
 	if !p.expectPeek(lexer.SEMICOLON) {
 		return nil
+	}
+
+	// Then check for optional 'default' keyword after the semicolon
+	if p.peekTokenIs(lexer.DEFAULT) {
+		p.nextToken() // move to 'default'
+		prop.IsDefault = true
+		// Expect another semicolon after 'default'
+		if !p.expectPeek(lexer.SEMICOLON) {
+			return nil
+		}
 	}
 
 	return prop

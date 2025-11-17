@@ -638,6 +638,13 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 		a.symbols.Define(fieldName, fieldType)
 	}
 
+	// Bind record properties to scope (accessible without Self prefix)
+	if recordType.Properties != nil {
+		for propName, propInfo := range recordType.Properties {
+			a.symbols.Define(propName, propInfo.Type)
+		}
+	}
+
 	// Task 9.12.4: Bind record constants to scope
 	if recordType.Constants != nil {
 		for constName, constInfo := range recordType.Constants {

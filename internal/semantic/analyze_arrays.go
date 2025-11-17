@@ -113,6 +113,25 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 			return types.VARIANT
 		}
 
+		// Check if this is a record type with a default property
+		if recordType, isRecord := leftType.(*types.RecordType); isRecord {
+			// Look for a default property (marked with IsDefault)
+			var defaultProp *types.RecordPropertyInfo
+			for _, propInfo := range recordType.Properties {
+				if propInfo.IsDefault {
+					defaultProp = propInfo
+					break
+				}
+			}
+
+			if defaultProp != nil {
+				// Analyze the index expression
+				// TODO: Validate index type matches property index parameter types
+				a.analyzeExpression(expr.Index)
+				return defaultProp.Type
+			}
+		}
+
 		a.addError("cannot index non-array type %s at %s",
 			leftType.String(), expr.Token.Pos.String())
 		return nil

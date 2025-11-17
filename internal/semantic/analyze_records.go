@@ -258,6 +258,11 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 					a.symbols.Define(fieldName, fieldType)
 				}
 
+				// Bind record properties to scope (accessible without Self prefix)
+				for propName, propInfo := range recordType.Properties {
+					a.symbols.Define(propName, propInfo.Type)
+				}
+
 				// Task 9.12.4: Bind record constants to scope
 				for constName, constInfo := range recordType.Constants {
 					a.symbols.Define(constName, constInfo.Type)
@@ -296,6 +301,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 	// Process properties if any
 	for _, prop := range decl.Properties {
 		propName := prop.Name.Value
+		lowerPropName := strings.ToLower(propName)
 
 		// Resolve property type
 		propType, err := a.resolveType(getTypeExpressionName(prop.Type))
@@ -311,9 +317,11 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			Type:       propType,
 			ReadField:  prop.ReadField,
 			WriteField: prop.WriteField,
+			IsDefault:  prop.IsDefault,
 		}
 
-		recordType.Properties[propName] = propInfo
+		// Store with lowercase key for case-insensitive lookup
+		recordType.Properties[lowerPropName] = propInfo
 	}
 
 	// Record type already registered above (after fields, before methods)
@@ -334,8 +342,11 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, fieldName string
 		return nil
 	}
 
+	// Normalize field name to lowercase for case-insensitive lookup
+	lowerFieldName := strings.ToLower(fieldName)
+
 	// Check if the field exists
-	fieldType, exists := recordType.Fields[fieldName]
+	fieldType, exists := recordType.Fields[lowerFieldName]
 	if exists {
 		// TODO: Check visibility rules if needed
 		// For now, we allow all field access
@@ -343,19 +354,19 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, fieldName string
 	}
 
 	// Check if it's a constant
-	constInfo, constExists := recordType.Constants[fieldName]
+	constInfo, constExists := recordType.Constants[lowerFieldName]
 	if constExists {
 		return constInfo.Type
 	}
 
 	// Check if it's a class variable
-	classVarType, classVarExists := recordType.ClassVars[fieldName]
+	classVarType, classVarExists := recordType.ClassVars[lowerFieldName]
 	if classVarExists {
 		return classVarType
 	}
 
 	// Check if it's an instance method of the record
-	methodType, methodExists := recordType.Methods[fieldName]
+	methodType, methodExists := recordType.Methods[lowerFieldName]
 	if methodExists {
 		// If method is parameterless, it will be auto-invoked by the interpreter
 		// Return the method's return type, not the method type itself
@@ -369,12 +380,24 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, fieldName string
 		return methodType
 	}
 
-	// Note: Class methods are not accessible via instance.method syntax
-	// They must be called via RecordType.method (handled in analyzeMemberAccessExpression)
+	// Check if it's a class method (can be called on instances)
+	classMethodType, classMethodExists := recordType.ClassMethods[lowerFieldName]
+	if classMethodExists {
+		// Class methods can be accessed on instances
+		// If parameterless, will be auto-invoked
+		if len(classMethodType.Parameters) == 0 {
+			if classMethodType.ReturnType != nil {
+				return classMethodType.ReturnType
+			}
+			return types.VOID
+		}
+		// Method has parameters - return function type
+		return classMethodType
+	}
 
 	// Check if it's a property of the record
 	if recordType.Properties != nil {
-		propInfo, propExists := recordType.Properties[fieldName]
+		propInfo, propExists := recordType.Properties[lowerFieldName]
 		if propExists {
 			return propInfo.Type
 		}

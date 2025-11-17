@@ -474,11 +474,11 @@ func TestHaversine(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
-		name     string
-		args     []Value
-		expected float64 // Using float64 for easier comparison
+		name      string
+		args      []Value
+		expected  float64 // Using float64 for easier comparison
 		tolerance float64
-		isError  bool
+		isError   bool
 	}{
 		{
 			name: "same location",

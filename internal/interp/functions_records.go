@@ -11,9 +11,21 @@ import (
 func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *ast.MemberAccessExpression, argExprs []ast.Expression, objExpr ast.Expression) Value {
 	methodName := memberAccess.Member.Value
 
-	// Method resolution - lookup in RecordValue.Methods
+	// Method resolution - lookup in RecordValue.Methods (instance methods)
 	// No inheritance needed for records (unlike classes)
 	if !recVal.HasMethod(methodName) {
+		// Check for class methods (static methods can be called on instances)
+		recordTypeKey := "__record_type_" + strings.ToLower(recVal.RecordType.Name)
+		if typeVal, ok := i.env.Get(recordTypeKey); ok {
+			if rtv, ok := typeVal.(*RecordTypeValue); ok {
+				// Check if this is a class method (case-insensitive)
+				if classMethod, exists := rtv.ClassMethods[strings.ToLower(methodName)]; exists {
+					// Call the class method (static method)
+					return i.callRecordStaticMethod(rtv, classMethod, argExprs, memberAccess)
+				}
+			}
+		}
+
 		// Check if helpers provide this method
 		helper, helperMethod, builtinSpec := i.findHelperMethod(recVal, methodName)
 		if helperMethod == nil && builtinSpec == "" {
@@ -79,6 +91,18 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	// Similar to how class property expressions bind fields (see objects.go:431-435)
 	for fieldName, fieldValue := range recordCopy.Fields {
 		i.env.Define(fieldName, fieldValue)
+	}
+
+	// Bind properties to environment (for simple field-backed properties)
+	// Properties that use fields as read accessors should be accessible like fields
+	for propName, propInfo := range recVal.RecordType.Properties {
+		if propInfo.ReadField != "" {
+			// Check if the read field is an actual field (use lowercase)
+			if fval, exists := recordCopy.Fields[strings.ToLower(propInfo.ReadField)]; exists {
+				// Bind the property name to the field value
+				i.env.Define(propName, fval)
+			}
+		}
 	}
 
 	// Task 9.12.2: Bind record constants and class variables to environment
@@ -228,6 +252,22 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	for fieldName := range recordCopy.Fields {
 		if updatedVal, exists := i.env.Get(fieldName); exists {
 			recordCopy.Fields[fieldName] = updatedVal
+		}
+	}
+
+	// Also check for property name assignments and copy them back to backing fields
+	// This handles cases where code writes to a property name instead of the field name
+	for propName, propInfo := range recVal.RecordType.Properties {
+		// Only process properties with a write accessor (field name)
+		if propInfo.WriteField != "" {
+			// Check if the property name was assigned in the environment
+			if updatedVal, exists := i.env.Get(propName); exists {
+				// Copy the value to the backing field (use lowercase for field lookup)
+				backingFieldName := strings.ToLower(propInfo.WriteField)
+				if _, fieldExists := recordCopy.Fields[backingFieldName]; fieldExists {
+					recordCopy.Fields[backingFieldName] = updatedVal
+				}
+			}
 		}
 	}
 
