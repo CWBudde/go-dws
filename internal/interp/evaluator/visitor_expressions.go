@@ -285,6 +285,16 @@ func (e *Evaluator) VisitIfExpression(node *ast.IfExpression, ctx *ExecutionCont
 
 // VisitOldExpression evaluates an 'old' expression (used in postconditions).
 func (e *Evaluator) VisitOldExpression(node *ast.OldExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	return e.adapter.EvalNode(node)
+	// Phase 2.1: Migrated old expression evaluation
+	// Get the identifier name from the old expression
+	identName := node.Identifier.Value
+
+	// Look up the old value from the context's old values stack
+	oldValue, found := ctx.GetOldValue(identName)
+	if !found {
+		return e.newError(node, "old value for '%s' not captured (internal error)", identName)
+	}
+
+	// Return the old value (already a Value type)
+	return oldValue.(Value)
 }
