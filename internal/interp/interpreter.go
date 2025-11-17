@@ -1,6 +1,7 @@
 package interp
 
 import (
+	"fmt"
 	"io"
 	"math"
 	"math/rand"
@@ -447,6 +448,175 @@ func (i *Interpreter) GetEnumTypeID(enumName string) int {
 		return 0
 	}
 	return typeID
+}
+
+// ===== Task 3.5.5: Type System Adapter Method Implementations =====
+
+// GetType resolves a type by name using the type system.
+func (i *Interpreter) GetType(name string) (any, error) {
+	typ, err := i.resolveType(name)
+	if err != nil {
+		return nil, err
+	}
+	return typ, nil
+}
+
+// ResolveType resolves a type from an AST type annotation.
+func (i *Interpreter) ResolveType(typeAnnotation *ast.TypeAnnotation) (any, error) {
+	if typeAnnotation == nil {
+		return nil, fmt.Errorf("nil type annotation")
+	}
+	return i.resolveType(typeAnnotation.String())
+}
+
+// IsTypeCompatible checks if a value is compatible with a target type.
+func (i *Interpreter) IsTypeCompatible(from evaluator.Value, toTypeName string) bool {
+	// Convert from evaluator.Value to internal Value
+	internalValue := from.(Value)
+
+	// Try implicit conversion - if it succeeds, types are compatible
+	_, ok := i.tryImplicitConversion(internalValue, toTypeName)
+	return ok
+}
+
+// InferArrayElementType infers the element type from array literal elements.
+func (i *Interpreter) InferArrayElementType(elements []evaluator.Value) (any, error) {
+	if len(elements) == 0 {
+		// Empty array - cannot infer type
+		return nil, fmt.Errorf("cannot infer type from empty array")
+	}
+
+	// Convert first element to internal Value
+	firstInternalValue := elements[0].(Value)
+
+	// Use the type of the first element
+	firstType := i.typeFromValue(firstInternalValue)
+
+	// Verify all elements have compatible types
+	for idx, elem := range elements[1:] {
+		internalElem := elem.(Value)
+		elemType := i.typeFromValue(internalElem)
+		if elemType.String() != firstType.String() {
+			return nil, fmt.Errorf("incompatible types in array: element 0 is %s, element %d is %s",
+				firstType.String(), idx+1, elemType.String())
+		}
+	}
+
+	return firstType, nil
+}
+
+// InferRecordType infers the record type name from field values.
+func (i *Interpreter) InferRecordType(fields map[string]evaluator.Value) (string, error) {
+	// This is complex - for now, we cannot infer record types from values alone
+	// Record type inference typically requires explicit type annotations
+	return "", fmt.Errorf("cannot infer record type from fields (explicit type required)")
+}
+
+// ConvertValue performs implicit or explicit type conversion.
+func (i *Interpreter) ConvertValue(value evaluator.Value, targetTypeName string) (evaluator.Value, error) {
+	// Convert from evaluator.Value to internal Value
+	internalValue := value.(Value)
+
+	// Try implicit conversion first
+	if converted, ok := i.tryImplicitConversion(internalValue, targetTypeName); ok {
+		return converted, nil
+	}
+
+	// Conversion failed
+	return nil, fmt.Errorf("cannot convert %s to %s", value.Type(), targetTypeName)
+}
+
+// CreateDefaultValue creates a zero/default value for a given type name.
+func (i *Interpreter) CreateDefaultValue(typeName string) evaluator.Value {
+	normalizedName := strings.ToLower(typeName)
+
+	// Check for basic types
+	switch normalizedName {
+	case "integer", "int64":
+		return &IntegerValue{Value: 0}
+	case "float", "float64", "double", "real":
+		return &FloatValue{Value: 0.0}
+	case "string":
+		return &StringValue{Value: ""}
+	case "boolean", "bool":
+		return &BooleanValue{Value: false}
+	case "variant":
+		return &VariantValue{} // Unassigned variant
+	}
+
+	// Check for enum types
+	if i.IsEnumType(typeName) {
+		enumTypeKey := "__enum_type_" + normalizedName
+		if typeVal, ok := i.env.Get(enumTypeKey); ok {
+			if etv, ok := typeVal.(*EnumTypeValue); ok {
+				// Return first enum value
+				if len(etv.EnumType.OrderedNames) > 0 {
+					firstValueName := etv.EnumType.OrderedNames[0]
+					firstOrdinal := etv.EnumType.Values[firstValueName]
+					return &EnumValue{
+						TypeName:     etv.EnumType.Name,
+						ValueName:    firstValueName,
+						OrdinalValue: firstOrdinal,
+					}
+				}
+			}
+		}
+	}
+
+	// Check for record types
+	if i.IsRecordType(typeName) {
+		recordTypeKey := "__record_type_" + normalizedName
+		if typeVal, ok := i.env.Get(recordTypeKey); ok {
+			if rtv, ok := typeVal.(*RecordTypeValue); ok {
+				return i.createRecordValue(rtv.RecordType, rtv.Methods)
+			}
+		}
+	}
+
+	// Check for array types
+	if i.IsArrayType(typeName) {
+		arrayTypeKey := "__array_type_" + normalizedName
+		if typeVal, ok := i.env.Get(arrayTypeKey); ok {
+			if atv, ok := typeVal.(*ArrayTypeValue); ok {
+				return NewArrayValue(atv.ArrayType)
+			}
+		}
+	}
+
+	// Check for set types
+	if strings.HasPrefix(normalizedName, "set of ") {
+		setType := i.parseInlineSetType(typeName)
+		if setType != nil {
+			return NewSetValue(setType)
+		}
+	}
+
+	// For unknown types, return nil
+	return &NilValue{}
+}
+
+// IsEnumType checks if a given name refers to an enum type.
+func (i *Interpreter) IsEnumType(typeName string) bool {
+	normalizedName := strings.ToLower(typeName)
+	enumTypeKey := "__enum_type_" + normalizedName
+	_, ok := i.env.Get(enumTypeKey)
+	return ok
+}
+
+// IsRecordType checks if a given name refers to a record type.
+func (i *Interpreter) IsRecordType(typeName string) bool {
+	normalizedName := strings.ToLower(typeName)
+	recordTypeKey := "__record_type_" + normalizedName
+	_, ok := i.env.Get(recordTypeKey)
+	return ok
+}
+
+// IsArrayType checks if a given name refers to an array type.
+func (i *Interpreter) IsArrayType(typeName string) bool {
+	normalizedName := strings.ToLower(typeName)
+	arrayTypeKey := "__array_type_" + normalizedName
+	_, ok := i.env.Get(arrayTypeKey)
+	return ok
 }
 
 // GetCallStack returns a copy of the current call stack.
