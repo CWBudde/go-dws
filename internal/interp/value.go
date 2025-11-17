@@ -61,6 +61,14 @@ type (
 	// Task 9.4.1: Unassigned is the default state of an uninitialized variant.
 	// Moved to runtime.UnassignedValue in Phase 3.2.
 	UnassignedValue = runtime.UnassignedValue
+
+	// EnumValue represents an enumerated value in DWScript.
+	// Moved to runtime.EnumValue in Phase 3.5.4.
+	EnumValue = runtime.EnumValue
+
+	// TypeMetaValue represents a type reference in DWScript.
+	// Moved to runtime.TypeMetaValue in Phase 3.5.4.
+	TypeMetaValue = runtime.TypeMetaValue
 )
 
 // ============================================================================
@@ -103,31 +111,6 @@ type Iterator = runtime.Iterator
 // These will be moved to runtime/ in future phases of the refactoring.
 // ============================================================================
 
-// TypeMetaValue represents a type name as a runtime value in DWScript.
-// Task 9.133: DWScript allows type names like `Integer` to be used as values.
-// This is used for reflection and type-based operations like High(Integer), Low(Integer).
-//
-// Examples:
-//   - High(Integer) where `Integer` is a TypeMetaValue wrapping types.INTEGER
-//   - Low(Boolean) where `Boolean` is a TypeMetaValue wrapping types.BOOLEAN
-//   - High(TColor) where `TColor` is a TypeMetaValue wrapping the enum type
-//
-// See reference/dwscript-original/Source/dwsExprs.pas for type info expressions.
-type TypeMetaValue struct {
-	TypeInfo types.Type // The type metadata (e.g., types.INTEGER, types.FLOAT, enum type)
-	TypeName string     // The type name for display (e.g., "Integer", "TColor")
-}
-
-// Type returns "TYPE_META".
-func (t *TypeMetaValue) Type() string {
-	return "TYPE_META"
-}
-
-// String returns the type name.
-func (t *TypeMetaValue) String() string {
-	return t.TypeName
-}
-
 // RTTITypeInfoValue represents runtime type information in DWScript.
 // Task 9.25: TypeOf(value) returns this value type for RTTI operations.
 // This value serves as a unique identifier for a type that can be compared
@@ -151,26 +134,6 @@ func (r *RTTITypeInfoValue) Type() string {
 // String returns the type name.
 func (r *RTTITypeInfoValue) String() string {
 	return r.TypeName
-}
-
-// EnumValue represents an enum value in DWScript.
-// Store enum values with their ordinal value and type name.
-type EnumValue struct {
-	TypeName     string // Enum type name (e.g., "TColor")
-	ValueName    string // Enum value name (e.g., "Red")
-	OrdinalValue int    // The ordinal value (e.g., 0 for Red if implicit)
-}
-
-// Type returns "ENUM".
-func (e *EnumValue) Type() string {
-	return "ENUM"
-}
-
-// String returns the enum value's ordinal value as a string.
-// In DWScript, when an enum is converted to string (e.g., for Print()),
-// it returns the ordinal value, not the name.
-func (e *EnumValue) String() string {
-	return fmt.Sprintf("%d", e.OrdinalValue)
 }
 
 // RecordValue represents a record value in DWScript.
