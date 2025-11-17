@@ -110,19 +110,20 @@ func (p *Parameter) String() string {
 //	ensure
 //	   Result >= 0;
 type FunctionDecl struct {
+	Name                 *Identifier
 	ReturnType           TypeExpression
 	ClassName            *Identifier
+	Parameters           []*Parameter
 	Body                 *BlockStatement
 	PreConditions        *PreConditions
 	PostConditions       *PostConditions
-	Name                 *Identifier
 	ExternalName         string
 	CallingConvention    string
 	CallingConventionPos token.Position // Position of calling convention keyword
 	DeprecatedMessage    string
-	Parameters           []*Parameter
 	BaseNode
 	Visibility    Visibility
+	IsConstructor bool
 	IsDestructor  bool
 	IsVirtual     bool
 	IsOverride    bool
@@ -132,7 +133,6 @@ type FunctionDecl struct {
 	IsClassMethod bool
 	IsOverload    bool
 	IsForward     bool
-	IsConstructor bool
 	IsDefault     bool
 	IsDeprecated  bool
 }

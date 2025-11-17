@@ -177,6 +177,14 @@ func (i *Interpreter) valuesEqual(left, right Value) bool {
 		right = varVal.Value
 	}
 
+	// Handle nil values (uninitialized variants)
+	if left == nil && right == nil {
+		return true // Both uninitialized variants are equal
+	}
+	if left == nil || right == nil {
+		return false // One is nil, the other is not
+	}
+
 	// Handle same type comparisons
 	if left.Type() != right.Type() {
 		return false
@@ -233,6 +241,11 @@ func (i *Interpreter) isInRange(value, start, end Value) bool {
 	}
 	if varVal, ok := end.(*VariantValue); ok {
 		end = varVal.Value
+	}
+
+	// Handle nil values (uninitialized variants)
+	if value == nil || start == nil || end == nil {
+		return false // Cannot perform range check with uninitialized variants
 	}
 
 	// Handle different value types
