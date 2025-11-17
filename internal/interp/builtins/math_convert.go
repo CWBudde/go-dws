@@ -70,7 +70,7 @@ func Round(ctx Context, args []Value) Value {
 	}
 
 	// Task 9.4.5: Unwrap Variant if necessary
-	arg := unwrapVariant(args[0])
+	arg := ctx.UnwrapVariant(args[0])
 	var value float64
 
 	// Handle Integer - already an integer, just return it
@@ -358,15 +358,3 @@ func IntPower(ctx Context, args []Value) Value {
 	return &runtime.FloatValue{Value: result}
 }
 
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-// unwrapVariant unwraps a VariantValue to its underlying value.
-// If the value is not a VariantValue, it returns the value unchanged.
-// This is needed for Task 9.4.5: Variant support in built-in functions.
-func unwrapVariant(v Value) Value {
-	// TODO: Implement variant unwrapping when VariantValue is available in runtime package
-	// For now, just return the value unchanged
-	return v
-}

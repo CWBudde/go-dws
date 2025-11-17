@@ -54,6 +54,11 @@ type Context interface {
 	// SetRandSeed sets the random number generator seed.
 	// Used by the SetRandSeed() and Randomize() built-in functions.
 	SetRandSeed(seed int64)
+
+	// UnwrapVariant returns the underlying value if input is a Variant, otherwise returns input as-is.
+	// This allows built-in functions to work with both direct values and Variant-wrapped values.
+	// Task 9.4.5: Support for Variant arguments in built-in functions.
+	UnwrapVariant(value Value) Value
 }
 
 // BuiltinFunc is the signature for all built-in function implementations.
