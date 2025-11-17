@@ -596,20 +596,16 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 		prop.WriteField = p.curToken.Literal
 	}
 
-	// Parse optional 'default' keyword (for default array properties)
-	if p.peekTokenIs(lexer.SEMICOLON) {
-		p.nextToken() // move to ';'
-		if p.peekTokenIs(lexer.DEFAULT) {
-			p.nextToken() // move to 'default'
-			prop.IsDefault = true
-			// Expect another semicolon after 'default'
-			if !p.expectPeek(lexer.SEMICOLON) {
-				return nil
-			}
-		}
-		// If no 'default', we're already on the semicolon
-	} else {
-		// Expect semicolon
+	// Expect semicolon first
+	if !p.expectPeek(lexer.SEMICOLON) {
+		return nil
+	}
+
+	// Then check for optional 'default' keyword after the semicolon
+	if p.peekTokenIs(lexer.DEFAULT) {
+		p.nextToken() // move to 'default'
+		prop.IsDefault = true
+		// Expect another semicolon after 'default'
 		if !p.expectPeek(lexer.SEMICOLON) {
 			return nil
 		}

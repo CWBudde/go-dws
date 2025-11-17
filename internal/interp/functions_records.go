@@ -255,6 +255,22 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 		}
 	}
 
+	// Also check for property name assignments and copy them back to backing fields
+	// This handles cases where code writes to a property name instead of the field name
+	for propName, propInfo := range recVal.RecordType.Properties {
+		// Only process properties with a write accessor (field name)
+		if propInfo.WriteField != "" {
+			// Check if the property name was assigned in the environment
+			if updatedVal, exists := i.env.Get(propName); exists {
+				// Copy the value to the backing field (use lowercase for field lookup)
+				backingFieldName := strings.ToLower(propInfo.WriteField)
+				if _, fieldExists := recordCopy.Fields[backingFieldName]; fieldExists {
+					recordCopy.Fields[backingFieldName] = updatedVal
+				}
+			}
+		}
+	}
+
 	// Write back class variable changes to the record type (shared mutable state)
 	if recordTypeValue != nil && boundClassVars != nil {
 		for varName := range boundClassVars {
