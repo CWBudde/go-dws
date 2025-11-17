@@ -323,3 +323,212 @@ func (c *TokenCursor) Position() token.Position {
 func (c *TokenCursor) Length() int {
 	return c.current.Length()
 }
+
+// ============================================================================
+// Declarative Lookahead Utilities (Task 2.6.1)
+// ============================================================================
+
+// LookAhead checks if the tokens starting from the current position match
+// the given pattern of token types. This provides a declarative way to check
+// for token patterns without manually peeking at each position.
+//
+// Returns true if all tokens in the pattern match, false otherwise.
+//
+// Example:
+//
+//	// Check if current token is IDENT followed by COLON
+//	if cursor.LookAhead(token.IDENT, token.COLON) {
+//	    // Pattern matched
+//	}
+//
+//	// Check for const declaration pattern: IDENT followed by COLON or EQ
+//	if cursor.LookAhead(token.IDENT, token.COLON) ||
+//	   cursor.LookAhead(token.IDENT, token.EQ) {
+//	    // Matches typed or untyped const
+//	}
+func (c *TokenCursor) LookAhead(pattern ...token.TokenType) bool {
+	if len(pattern) == 0 {
+		return true
+	}
+
+	// Check each position in the pattern
+	for i, expectedType := range pattern {
+		tok := c.Peek(i)
+		if tok.Type != expectedType {
+			return false
+		}
+	}
+
+	return true
+}
+
+// LookAheadFunc checks if the tokens starting from the current position
+// satisfy the given predicate function. This is a more flexible version of
+// LookAhead that allows custom matching logic.
+//
+// The predicate receives the token at each position (0, 1, 2, ...) and
+// should return true to continue checking or false to fail the match.
+// If the predicate returns true for all positions up to maxDistance,
+// the function returns true.
+//
+// Example:
+//
+//	// Check if next 3 tokens are all identifiers
+//	cursor.LookAheadFunc(3, func(tok token.Token) bool {
+//	    return tok.Type == token.IDENT
+//	})
+func (c *TokenCursor) LookAheadFunc(maxDistance int, predicate func(token.Token) bool) bool {
+	for i := 0; i < maxDistance; i++ {
+		tok := c.Peek(i)
+		if !predicate(tok) {
+			return false
+		}
+	}
+	return true
+}
+
+// ScanUntil scans forward from the current position until the predicate
+// returns true or EOF is reached. Returns the distance to the matching token
+// and whether it was found.
+//
+// This is useful for finding matching delimiters or scanning to a specific
+// context without manually looping.
+//
+// The predicate receives each token starting from Peek(0) and should return
+// true when the desired token is found.
+//
+// Returns:
+//   - distance: Number of positions to advance to reach the matching token
+//   - found: true if the predicate matched, false if EOF was reached
+//
+// Example:
+//
+//	// Find the next semicolon
+//	if distance, found := cursor.ScanUntil(func(t token.Token) bool {
+//	    return t.Type == token.SEMICOLON
+//	}); found {
+//	    // Semicolon found at position 'distance'
+//	}
+//
+//	// Find matching END for BEGIN (simplified - real code needs nesting count)
+//	if distance, found := cursor.ScanUntil(func(t token.Token) bool {
+//	    return t.Type == token.END
+//	}); found {
+//	    cursor = cursor.AdvanceN(distance)
+//	}
+func (c *TokenCursor) ScanUntil(predicate func(token.Token) bool) (distance int, found bool) {
+	for i := 0; ; i++ {
+		tok := c.Peek(i)
+
+		// Check if we've reached EOF
+		if tok.Type == token.EOF {
+			return i, false
+		}
+
+		// Check if predicate matches
+		if predicate(tok) {
+			return i, true
+		}
+	}
+}
+
+// ScanUntilAny scans forward until any of the given token types is found.
+// This is a convenience wrapper around ScanUntil for common token matching.
+//
+// Returns:
+//   - distance: Number of positions to advance to reach the matching token
+//   - found: true if any of the token types matched, false if EOF was reached
+//   - matchedType: The token type that matched (or ILLEGAL if not found)
+//
+// Example:
+//
+//	// Find next semicolon or end keyword
+//	if distance, found, tokType := cursor.ScanUntilAny(token.SEMICOLON, token.END); found {
+//	    // Found token of type 'tokType' at distance 'distance'
+//	}
+func (c *TokenCursor) ScanUntilAny(types ...token.TokenType) (distance int, found bool, matchedType token.TokenType) {
+	dist, ok := c.ScanUntil(func(t token.Token) bool {
+		for _, tokType := range types {
+			if t.Type == tokType {
+				matchedType = tokType
+				return true
+			}
+		}
+		return false
+	})
+	return dist, ok, matchedType
+}
+
+// FindNext searches for the next occurrence of the given token type within
+// maxDistance positions. Returns the distance to the token and whether it
+// was found.
+//
+// This is more efficient than ScanUntil when you know the maximum distance
+// to search, as it stops early.
+//
+// Returns:
+//   - distance: Number of positions to advance to reach the token (0 = current position)
+//   - found: true if the token was found within maxDistance, false otherwise
+//
+// Example:
+//
+//	// Find SEMICOLON within next 10 tokens
+//	if distance, found := cursor.FindNext(token.SEMICOLON, 10); found {
+//	    // Semicolon found at position 'distance'
+//	}
+//
+//	// Check if current token is the target (distance 0)
+//	if distance, found := cursor.FindNext(token.THEN, 5); found && distance == 0 {
+//	    // Current token is THEN
+//	}
+func (c *TokenCursor) FindNext(tokenType token.TokenType, maxDistance int) (distance int, found bool) {
+	for i := 0; i < maxDistance; i++ {
+		tok := c.Peek(i)
+
+		// Stop at EOF
+		if tok.Type == token.EOF {
+			return i, false
+		}
+
+		// Check if we found the target
+		if tok.Type == tokenType {
+			return i, true
+		}
+	}
+
+	return maxDistance, false
+}
+
+// FindNextAny searches for the next occurrence of any of the given token types
+// within maxDistance positions.
+//
+// Returns:
+//   - distance: Number of positions to advance to reach the token
+//   - found: true if any token was found within maxDistance, false otherwise
+//   - matchedType: The token type that matched (or ILLEGAL if not found)
+//
+// Example:
+//
+//	// Find next comma or semicolon within 10 tokens
+//	if distance, found, tokType := cursor.FindNextAny(10, token.COMMA, token.SEMICOLON); found {
+//	    // Found 'tokType' at position 'distance'
+//	}
+func (c *TokenCursor) FindNextAny(maxDistance int, types ...token.TokenType) (distance int, found bool, matchedType token.TokenType) {
+	for i := 0; i < maxDistance; i++ {
+		tok := c.Peek(i)
+
+		// Stop at EOF
+		if tok.Type == token.EOF {
+			return i, false, token.ILLEGAL
+		}
+
+		// Check if we found any of the targets
+		for _, tokType := range types {
+			if tok.Type == tokType {
+				return i, true, tokType
+			}
+		}
+	}
+
+	return maxDistance, false, token.ILLEGAL
+}
