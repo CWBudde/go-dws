@@ -357,8 +357,8 @@ func RegisterVariantFunctions(r *Registry) {
 func RegisterArrayFunctions(r *Registry) {
 	r.Register("Length", Length, CategoryArray, "Returns the number of elements in an array or characters in a string")
 	r.Register("Copy", Copy, CategoryArray, "Creates a deep copy of an array or returns a substring")
-	r.Register("Low", Low, CategoryArray, "Returns the lower bound of an array")
-	r.Register("High", High, CategoryArray, "Returns the upper bound of an array")
+	// Low and High are handled by the interpreter (builtins_type.go) since they need
+	// access to type meta-values and enum metadata which aren't available in the builtins package
 	r.Register("IndexOf", IndexOf, CategoryArray, "Returns the index of the first occurrence of a value")
 	r.Register("Contains", Contains, CategoryArray, "Checks if an array contains a specific value")
 	r.Register("Reverse", Reverse, CategoryArray, "Reverses the elements of an array in place")
@@ -366,7 +366,8 @@ func RegisterArrayFunctions(r *Registry) {
 	r.Register("Add", Add, CategoryArray, "Appends an element to the end of a dynamic array")
 	r.Register("Delete", Delete, CategoryArray, "Removes an element at the specified index from a dynamic array")
 	r.Register("SetLength", SetLength, CategoryArray, "Resizes a dynamic array or string to the specified length")
-	r.Register("Concat", ConcatArrays, CategoryArray, "Concatenates multiple arrays into a new array")
+	// Concat is handled by the interpreter (builtins_strings_basic.go) since it needs to
+	// support both strings and arrays with dynamic dispatch
 	r.Register("Slice", Slice, CategoryArray, "Extracts a portion of an array")
 }
 
