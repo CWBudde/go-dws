@@ -935,3 +935,51 @@ func (i *Interpreter) FormatString(format string, args []builtins.Value) (string
 
 	return result, nil
 }
+
+// GetLowBound returns the lower bound for arrays, enums, or type meta-values.
+// This implements the builtins.Context interface.
+// Task 3.7.9: Support for polymorphic Low() function.
+func (i *Interpreter) GetLowBound(value builtins.Value) (builtins.Value, error) {
+	// Delegate to the existing builtinLow implementation
+	result := i.builtinLow([]Value{value})
+
+	// Check if result is an error
+	if _, isErr := result.(*ErrorValue); isErr {
+		return nil, fmt.Errorf("failed to get low bound")
+	}
+
+	return result, nil
+}
+
+// GetHighBound returns the upper bound for arrays, enums, or type meta-values.
+// This implements the builtins.Context interface.
+// Task 3.7.9: Support for polymorphic High() function.
+func (i *Interpreter) GetHighBound(value builtins.Value) (builtins.Value, error) {
+	// Delegate to the existing builtinHigh implementation
+	result := i.builtinHigh([]Value{value})
+
+	// Check if result is an error
+	if _, isErr := result.(*ErrorValue); isErr {
+		return nil, fmt.Errorf("failed to get high bound")
+	}
+
+	return result, nil
+}
+
+// ConcatStrings concatenates multiple string values into a single string.
+// This implements the builtins.Context interface.
+// Task 3.7.9: Support for polymorphic Concat() function.
+func (i *Interpreter) ConcatStrings(args []builtins.Value) builtins.Value {
+	// Build the concatenated string
+	var result strings.Builder
+
+	for idx, arg := range args {
+		strVal, ok := arg.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(i.currentNode, "Concat() expects string as argument %d, got %s", idx+1, arg.Type())
+		}
+		result.WriteString(strVal.Value)
+	}
+
+	return &StringValue{Value: result.String()}
+}

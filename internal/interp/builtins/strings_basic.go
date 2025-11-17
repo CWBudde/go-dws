@@ -11,10 +11,33 @@ import (
 // Basic String Operations
 // =============================================================================
 
-// TODO: Concat - Requires ArrayValue to be moved to runtime package
-// Original signature: func (i *Interpreter) builtinConcat(args []Value) Value
-// This function dispatches to builtinConcatArrays for array arguments, which
-// requires ArrayValue support.
+// Concat concatenates multiple strings or arrays.
+// It dispatches based on the type of the first argument:
+// - If the first argument is a string, it concatenates strings
+// - If the first argument is an array, it concatenates arrays
+//
+// Signature:
+//   - Concat(str1, str2, ...) -> String
+//   - Concat(arr1, arr2, ...) -> Array
+//
+// Example:
+//
+//	var s := Concat("Hello", " ", "World"); // "Hello World"
+//	var a := Concat([1, 2], [3, 4]); // [1, 2, 3, 4]
+func Concat(ctx Context, args []Value) Value {
+	if len(args) == 0 {
+		return ctx.NewError("Concat() expects at least 1 argument, got 0")
+	}
+
+	// Check if first argument is an array - if so, dispatch to array concatenation
+	if _, ok := args[0].(*runtime.ArrayValue); ok {
+		// Import ConcatArrays from array.go
+		return ConcatArrays(ctx, args)
+	}
+
+	// Otherwise, concatenate strings using the Context helper
+	return ctx.ConcatStrings(args)
+}
 
 // Pos implements the Pos() built-in function.
 // It finds the position of a substring within a string.

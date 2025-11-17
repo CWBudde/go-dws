@@ -3,9 +3,9 @@ package builtins
 // DefaultRegistry is the default global registry of all built-in functions.
 // It's populated on package initialization with all standard DWScript built-ins.
 //
-// Current status (Phase 3, Task 3.7.7):
-//   - 222 functions migrated to internal/interp/builtins/ package
-//   - 222 functions registered in categories:
+// Current status (Phase 3, Task 3.7.9):
+//   - 225 functions migrated to internal/interp/builtins/ package
+//   - 225 functions registered in categories:
 //   - Math: 62 functions (basic, advanced, trig, exponential, special values)
 //   - String: 57 functions (manipulation, search, comparison, formatting - added Format)
 //   - DateTime: 52 functions (creation, arithmetic, formatting, parsing, info)
@@ -13,7 +13,7 @@ package builtins
 //   - Encoding: 5 functions (StrToHtml, StrToHtmlAttribute, StrToJSON, StrToCSSText, StrToXML)
 //   - JSON: 7 functions (ParseJSON, ToJSON, ToJSONFormatted, JSONHasField, JSONKeys, JSONValues, JSONLength)
 //   - Type: 2 functions (TypeOf, TypeOfClass)
-//   - Array: 13 functions (Length, Copy, Low, High, IndexOf, Contains, Reverse, Sort, Add, Delete, SetLength, Concat, Slice)
+//   - Array: 16 functions (Length, Copy, Low, High, IndexOf, Contains, Reverse, Sort, Add, Delete, SetLength, Concat, Slice)
 //   - Collections: 8 functions (Map, Filter, Reduce, ForEach, Every, Some, Find, FindIndex)
 //   - Variant: 10 functions (VarType, VarIsNull, VarIsEmpty, VarToStr, VarToInt, VarToFloat, VarAsType, VarClear, VarIsArray, VarIsStr, VarIsNumeric)
 //   - I/O: 2 functions (Print, PrintLn)
@@ -23,7 +23,7 @@ package builtins
 //   - Var-param functions: Inc, Dec, Swap, DivMod, Insert, Delete, SetLength (7 functions)
 //   - Pending: Random functions, string helpers, etc. (~15 functions)
 //
-// Total: 222 registered, ~22 pending migration (244 built-in functions total)
+// Total: 225 registered (added Low, High, Concat), ~19 pending migration (244 built-in functions total)
 var DefaultRegistry *Registry
 
 func init() {
@@ -357,8 +357,8 @@ func RegisterVariantFunctions(r *Registry) {
 func RegisterArrayFunctions(r *Registry) {
 	r.Register("Length", Length, CategoryArray, "Returns the number of elements in an array or characters in a string")
 	r.Register("Copy", Copy, CategoryArray, "Creates a deep copy of an array or returns a substring")
-	// Low and High are handled by the interpreter (builtins_type.go) since they need
-	// access to type meta-values and enum metadata which aren't available in the builtins package
+	r.Register("Low", Low, CategoryArray, "Returns the lower bound of an array or the lowest value of an enum/type")
+	r.Register("High", High, CategoryArray, "Returns the upper bound of an array or the highest value of an enum/type")
 	r.Register("IndexOf", IndexOf, CategoryArray, "Returns the index of the first occurrence of a value")
 	r.Register("Contains", Contains, CategoryArray, "Checks if an array contains a specific value")
 	r.Register("Reverse", Reverse, CategoryArray, "Reverses the elements of an array in place")
@@ -366,8 +366,7 @@ func RegisterArrayFunctions(r *Registry) {
 	r.Register("Add", Add, CategoryArray, "Appends an element to the end of a dynamic array")
 	r.Register("Delete", Delete, CategoryArray, "Removes an element at the specified index from a dynamic array")
 	r.Register("SetLength", SetLength, CategoryArray, "Resizes a dynamic array or string to the specified length")
-	// Concat is handled by the interpreter (builtins_strings_basic.go) since it needs to
-	// support both strings and arrays with dynamic dispatch
+	r.Register("Concat", Concat, CategoryArray, "Concatenates multiple strings or arrays into a new array/string")
 	r.Register("Slice", Slice, CategoryArray, "Extracts a portion of an array")
 }
 
