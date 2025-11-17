@@ -3,27 +3,27 @@ package builtins
 // DefaultRegistry is the default global registry of all built-in functions.
 // It's populated on package initialization with all standard DWScript built-ins.
 //
-// Current status (Phase 3, Task 3.7.6):
-//   - 193 functions migrated to internal/interp/builtins/ package
-//   - 193 functions registered in categories:
+// Current status (Phase 3, Task 3.7.7):
+//   - 222 functions migrated to internal/interp/builtins/ package
+//   - 222 functions registered in categories:
 //   - Math: 62 functions (basic, advanced, trig, exponential, special values)
-//   - String: 56 functions (manipulation, search, comparison, formatting)
+//   - String: 57 functions (manipulation, search, comparison, formatting - added Format)
 //   - DateTime: 52 functions (creation, arithmetic, formatting, parsing, info)
-//   - Conversion: 8 functions (IntToStr, IntToBin, StrToInt, StrToFloat, FloatToStr, BoolToStr, IntToHex, StrToBool)
+//   - Conversion: 11 functions (IntToStr, IntToBin, StrToInt, StrToFloat, FloatToStr, BoolToStr, IntToHex, StrToBool, Integer, StrToIntDef, StrToFloatDef)
 //   - Encoding: 5 functions (StrToHtml, StrToHtmlAttribute, StrToJSON, StrToCSSText, StrToXML)
 //   - JSON: 7 functions (ParseJSON, ToJSON, ToJSONFormatted, JSONHasField, JSONKeys, JSONValues, JSONLength)
 //   - Type: 2 functions (TypeOf, TypeOfClass)
+//   - Array: 13 functions (Length, Copy, Low, High, IndexOf, Contains, Reverse, Sort, Add, Delete, SetLength, Concat, Slice)
+//   - Collections: 8 functions (Map, Filter, Reduce, ForEach, Every, Some, Find, FindIndex)
+//   - Variant: 10 functions (VarType, VarIsNull, VarIsEmpty, VarToStr, VarToInt, VarToFloat, VarAsType, VarClear, VarIsArray, VarIsStr, VarIsNumeric)
+//   - I/O: 2 functions (Print, PrintLn)
+//   - System: 4 functions (GetStackTrace, GetCallStack, Assigned, Assert)
 //
 // Pending migration (still in internal/interp as Interpreter methods):
-//   - I/O: Print, PrintLn (2 functions)
-//   - Array: Length, Copy, IndexOf, Contains, Reverse, Sort, Add, Delete, Low, High, SetLength (11 functions)
-//   - Collections: Map, Filter, Reduce, ForEach, Every, Some, Find, FindIndex, ConcatArrays, Slice (10 functions)
-//   - Conversion: Ord, Integer, StrToIntDef, StrToFloatDef (4 functions)
-//   - Ordinals: Inc, Dec, Succ, Pred, Assert (5 functions)
-//   - Variant: VarType, VarIsNull, VarIsEmpty, VarToStr, VarToInt, etc. (12 functions)
-//   - Misc: Format, GetStackTrace, Assigned, Swap, etc. (10+ functions)
+//   - Var-param functions: Inc, Dec, Swap, DivMod, Insert, Delete, SetLength (7 functions)
+//   - Pending: Random functions, string helpers, etc. (~15 functions)
 //
-// Total: 193 registered, ~54 pending migration (247 built-in functions total)
+// Total: 222 registered, ~22 pending migration (244 built-in functions total)
 var DefaultRegistry *Registry
 
 func init() {
@@ -58,6 +58,9 @@ func RegisterAll(r *Registry) {
 	RegisterTypeFunctions(r)
 	RegisterIOFunctions(r)
 	RegisterVariantFunctions(r)
+	RegisterArrayFunctions(r)
+	RegisterCollectionFunctions(r)
+	RegisterSystemFunctions(r)
 }
 
 // RegisterMathFunctions registers all mathematical built-in functions.
@@ -347,4 +350,54 @@ func RegisterVariantFunctions(r *Registry) {
 	r.Register("VarToFloat", VarToFloat, CategoryVariant, "Converts Variant to float")
 	r.Register("VarAsType", VarAsType, CategoryVariant, "Converts Variant to specified type code")
 	r.Register("VarClear", VarClear, CategoryVariant, "Clears Variant to unassigned state")
+}
+
+// RegisterArrayFunctions registers all array built-in functions.
+// Task 3.7.7: Array operations (simple functions)
+func RegisterArrayFunctions(r *Registry) {
+	r.Register("Length", Length, CategoryArray, "Returns the number of elements in an array or characters in a string")
+	r.Register("Copy", Copy, CategoryArray, "Creates a deep copy of an array or returns a substring")
+	// Low and High are handled by the interpreter (builtins_type.go) since they need
+	// access to type meta-values and enum metadata which aren't available in the builtins package
+	r.Register("IndexOf", IndexOf, CategoryArray, "Returns the index of the first occurrence of a value")
+	r.Register("Contains", Contains, CategoryArray, "Checks if an array contains a specific value")
+	r.Register("Reverse", Reverse, CategoryArray, "Reverses the elements of an array in place")
+	r.Register("Sort", Sort, CategoryArray, "Sorts the elements of an array in place")
+	r.Register("Add", Add, CategoryArray, "Appends an element to the end of a dynamic array")
+	r.Register("Delete", Delete, CategoryArray, "Removes an element at the specified index from a dynamic array")
+	r.Register("SetLength", SetLength, CategoryArray, "Resizes a dynamic array or string to the specified length")
+	// Concat is handled by the interpreter (builtins_strings_basic.go) since it needs to
+	// support both strings and arrays with dynamic dispatch
+	r.Register("Slice", Slice, CategoryArray, "Extracts a portion of an array")
+}
+
+// RegisterCollectionFunctions registers all collection (higher-order) built-in functions.
+// Task 3.7.7: Collection functions (Map, Filter, Reduce, etc.)
+func RegisterCollectionFunctions(r *Registry) {
+	r.Register("Map", Map, CategoryCollections, "Transforms each element of an array using a callback function")
+	r.Register("Filter", Filter, CategoryCollections, "Creates a new array containing only elements that match a predicate")
+	r.Register("Reduce", Reduce, CategoryCollections, "Reduces an array to a single value using an accumulator function")
+	r.Register("ForEach", ForEach, CategoryCollections, "Executes a function for each element of an array")
+	r.Register("Every", Every, CategoryCollections, "Checks if all elements of an array match a predicate")
+	r.Register("Some", Some, CategoryCollections, "Checks if any element of an array matches a predicate")
+	r.Register("Find", Find, CategoryCollections, "Returns the first element that matches a predicate")
+	r.Register("FindIndex", FindIndex, CategoryCollections, "Returns the index of the first element that matches a predicate")
+}
+
+// RegisterSystemFunctions registers all system and miscellaneous built-in functions.
+// Task 3.7.8: System utilities, runtime introspection, and formatting functions.
+func RegisterSystemFunctions(r *Registry) {
+	// Debug/runtime introspection
+	r.Register("GetStackTrace", GetStackTrace, CategorySystem, "Returns a formatted string representation of the current call stack")
+	r.Register("GetCallStack", GetCallStack, CategorySystem, "Returns the current call stack as an array of records")
+	r.Register("Assigned", Assigned, CategorySystem, "Checks if a value is assigned (not nil)")
+	r.Register("Assert", Assert, CategorySystem, "Validates a condition and raises EAssertionFailed if false")
+
+	// Type conversion
+	r.Register("Integer", Integer, CategoryConversion, "Converts a value to an integer")
+	r.Register("StrToIntDef", StrToIntDef, CategoryConversion, "Converts a string to an integer with a default value")
+	r.Register("StrToFloatDef", StrToFloatDef, CategoryConversion, "Converts a string to a float with a default value")
+
+	// String formatting
+	r.Register("Format", Format, CategoryString, "Formats a string using format specifiers")
 }

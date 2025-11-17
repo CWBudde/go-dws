@@ -143,6 +143,81 @@ type Context interface {
 	// Returns (varType, true) if the value is a JSONValue, (0, false) otherwise.
 	// Task 3.7.5: Helper for VarType() function to handle JSON values.
 	GetJSONVarType(value Value) (int64, bool)
+
+	// GetArrayLength returns the number of elements in an array.
+	// Returns (length, true) if the value is an array, (0, false) otherwise.
+	// Task 3.7.7: Helper for Length() function on arrays.
+	GetArrayLength(value Value) (int64, bool)
+
+	// SetArrayLength resizes a dynamic array to the specified length.
+	// Returns an error if the value is not a dynamic array or the length is invalid.
+	// Task 3.7.7: Helper for SetLength() function on arrays.
+	SetArrayLength(array Value, newLength int) error
+
+	// ArrayCopy creates a deep copy of an array value.
+	// Returns a new array with the same elements and type.
+	// Task 3.7.7: Helper for Copy() function on arrays.
+	ArrayCopy(array Value) Value
+
+	// ArrayReverse reverses the elements of an array in place.
+	// Returns nil on success, or an error value on failure.
+	// Task 3.7.7: Helper for Reverse() function on arrays.
+	ArrayReverse(array Value) Value
+
+	// ArraySort sorts the elements of an array in place using default comparison.
+	// Returns nil on success, or an error value on failure.
+	// Task 3.7.7: Helper for Sort() function on arrays.
+	ArraySort(array Value) Value
+
+	// EvalFunctionPointer calls a function pointer with the given arguments.
+	// Returns the result value from the function call, or an error value on failure.
+	// Task 3.7.7: Helper for collection functions (Map, Filter, Reduce, etc.).
+	EvalFunctionPointer(funcPtr Value, args []Value) Value
+
+	// GetCallStackString returns a formatted string representation of the current call stack.
+	// Task 3.7.8: Helper for GetStackTrace() function.
+	GetCallStackString() string
+
+	// GetCallStackArray returns the current call stack as an array of records.
+	// Each record contains FunctionName, Line, and Column fields.
+	// Task 3.7.8: Helper for GetCallStack() function.
+	GetCallStackArray() Value
+
+	// IsAssigned checks if a value is assigned (not nil).
+	// Returns true for non-nil values, including objects, variants, and other reference types.
+	// Task 3.7.8: Helper for Assigned() function.
+	IsAssigned(value Value) bool
+
+	// RaiseAssertionFailed raises an EAssertionFailed exception with an optional custom message.
+	// The exception includes position information from the current node.
+	// Task 3.7.8: Helper for Assert() function.
+	RaiseAssertionFailed(customMessage string)
+
+	// GetEnumSuccessor returns the successor of an enum value.
+	// Returns (successor value, nil) on success, or (nil, error) if at maximum.
+	// Task 3.7.8: Helper for Succ() function.
+	GetEnumSuccessor(enumVal Value) (Value, error)
+
+	// GetEnumPredecessor returns the predecessor of an enum value.
+	// Returns (predecessor value, nil) on success, or (nil, error) if at minimum.
+	// Task 3.7.8: Helper for Pred() function.
+	GetEnumPredecessor(enumVal Value) (Value, error)
+
+	// ParseInt parses a string to an integer with the specified base (2-36).
+	// Returns (value, true) on success, or (0, false) on error.
+	// Task 3.7.8: Helper for StrToIntDef() function.
+	ParseInt(s string, base int) (int64, bool)
+
+	// ParseFloat parses a string to a float64.
+	// Returns (value, true) on success, or (0.0, false) on error.
+	// Task 3.7.8: Helper for StrToFloatDef() function.
+	ParseFloat(s string) (float64, bool)
+
+	// FormatString formats a string using Go fmt.Sprintf semantics with DWScript values.
+	// Supports %s, %d, %f, %v, %x, %X, %o format verbs.
+	// Returns (formatted string, nil) on success, or ("", error) on formatting error.
+	// Task 3.7.8: Helper for Format() function.
+	FormatString(format string, args []Value) (string, error)
 }
 
 // BuiltinFunc is the signature for all built-in function implementations.

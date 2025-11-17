@@ -719,11 +719,13 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 		return i.newErrorWithLocation(stmt, "array has no type information")
 	}
 
+	arrayType := arrayValue.ArrayType
+
 	var physicalIndex int
-	if arrayValue.ArrayType.IsStatic() {
+	if arrayType.IsStatic() {
 		// Static array: check bounds and adjust for low bound
-		lowBound := *arrayValue.ArrayType.LowBound
-		highBound := *arrayValue.ArrayType.HighBound
+		lowBound := *arrayType.LowBound
+		highBound := *arrayType.HighBound
 
 		if index < lowBound || index > highBound {
 			return i.newErrorWithLocation(stmt, "array index out of bounds: %d (bounds are %d..%d)", index, lowBound, highBound)

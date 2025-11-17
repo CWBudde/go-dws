@@ -845,7 +845,7 @@ begin
 	Reverse(42);
 end
 			`,
-			expectedErr: "Reverse() expects array as argument",
+			expectedErr: "ArrayReverse() expects array",
 		},
 	}
 
