@@ -93,11 +93,11 @@
 //
 // # Performance Considerations
 //
-// - Normalize() allocates a new string if the input isn't all lowercase.
-//   Use it when storing keys, not in hot comparison paths.
+//   - Normalize() allocates a new string if the input isn't all lowercase.
+//     Use it when storing keys, not in hot comparison paths.
 //
-// - Equal() is optimized for comparisons and doesn't allocate.
-//   Use it for one-off checks.
+//   - Equal() is optimized for comparisons and doesn't allocate.
+//     Use it for one-off checks.
 //
 // - Compare() normalizes both strings. Cache the result if sorting repeatedly.
 //
