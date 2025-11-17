@@ -184,6 +184,48 @@ type InterpreterAdapter interface {
 	// The lookup is case-insensitive.
 	IsArrayType(typeName string) bool
 
+	// ===== Task 3.5.6: Array and Collection Adapter Methods =====
+
+	// CreateArray creates an array from a list of elements with a specified element type.
+	// Returns the created array value.
+	CreateArray(elementType any, elements []Value) Value
+
+	// CreateDynamicArray allocates a new dynamic array of a given size and element type.
+	// Returns the created array value.
+	CreateDynamicArray(elementType any, size int) Value
+
+	// CreateArrayWithExpectedType creates an array from elements with type-aware construction.
+	// Uses the expected array type for proper element type inference and coercion.
+	CreateArrayWithExpectedType(elements []Value, expectedType any) Value
+
+	// GetArrayElement retrieves an element from an array at the given index.
+	// Performs bounds checking and returns an error if index is out of range.
+	GetArrayElement(array Value, index Value) (Value, error)
+
+	// SetArrayElement sets an element in an array at the given index.
+	// Performs bounds checking and returns an error if index is out of range.
+	SetArrayElement(array Value, index Value, value Value) error
+
+	// GetArrayLength returns the length of an array.
+	// Returns 0 for non-array values.
+	GetArrayLength(array Value) int
+
+	// CreateSet creates a set from a list of elements with a specified element type.
+	// Returns the created set value.
+	CreateSet(elementType any, elements []Value) Value
+
+	// EvaluateSetRange expands a range expression (e.g., 1..10, 'a'..'z') into ordinal values.
+	// Returns a slice of ordinal values or an error if the range cannot be evaluated.
+	EvaluateSetRange(start Value, end Value) ([]int, error)
+
+	// AddToSet adds an element to a set.
+	// Returns an error if the element cannot be added.
+	AddToSet(set Value, element Value) error
+
+	// GetStringChar retrieves a character from a string at the given index (1-based).
+	// Returns an error if index is out of range.
+	GetStringChar(str Value, index Value) (Value, error)
+
 	// Phase 3.5.4 - Phase 2C: Property & Indexing System infrastructure
 	// Property and indexing operations are available through existing infrastructure:
 	//

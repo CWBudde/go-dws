@@ -988,7 +988,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - **Completed**: Added 10 type system methods to InterpreterAdapter, all implemented and tested
   - **Enables**: VarDeclStatement, ConstDecl, Identifier, BinaryExpression, UnaryExpression
 
-- [ ] 3.5.6 Add Array and Collection Adapter Methods
+- [x] 3.5.6 Add Array and Collection Adapter Methods
   - Extend InterpreterAdapter interface with array/set/collection operations
   - **Array Construction**:
     - `CreateArray(elementType types.Type, elements []Value) Value` - Create array from elements
@@ -1004,9 +1004,9 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
     - `AddToSet(set Value, element Value) error` - Add element to set
   - **String Indexing**:
     - `GetStringChar(str Value, index Value) (Value, error)` - String character access
-  - Files: `evaluator/evaluator.go`, `interpreter.go`
-  - Estimated: 2-3 days
-  - Acceptance: Array/set operations accessible, all methods tested
+  - Files: `evaluator/evaluator.go`, `interpreter.go`, `builtins/context.go`, `builtins_context.go`
+  - **Note**: Renamed existing `GetArrayLength` to `GetBuiltinArrayLength` in builtins.Context interface to avoid conflict with adapter method
+  - Acceptance: ✅ Array/set operations accessible, all methods implemented and tested
   - **Enables**: ArrayLiteralExpression, NewArrayExpression, IndexExpression, SetLiteral
 
 - [ ] 3.5.7 Add Property, Field, and Member Access Adapter Methods

@@ -619,6 +619,311 @@ func (i *Interpreter) IsArrayType(typeName string) bool {
 	return ok
 }
 
+// ===== Task 3.5.6: Array and Collection Adapter Method Implementations =====
+
+// CreateArray creates an array from a list of elements with a specified element type.
+func (i *Interpreter) CreateArray(elementType any, elements []evaluator.Value) evaluator.Value {
+	// Convert elementType to types.Type
+	var typedElementType types.Type
+	if elementType != nil {
+		if t, ok := elementType.(types.Type); ok {
+			typedElementType = t
+		}
+	}
+
+	// Convert evaluator.Value slice to internal Value slice
+	internalElements := make([]Value, len(elements))
+	for idx, elem := range elements {
+		internalElements[idx] = elem.(Value)
+	}
+
+	// Create array type (dynamic array has nil bounds)
+	arrayType := &types.ArrayType{
+		ElementType: typedElementType,
+		LowBound:    nil,
+		HighBound:   nil,
+	}
+
+	// Create array value
+	arrayVal := NewArrayValue(arrayType)
+
+	// Add elements (append to Elements slice)
+	arrayVal.Elements = append(arrayVal.Elements, internalElements...)
+
+	return arrayVal
+}
+
+// CreateDynamicArray allocates a new dynamic array of a given size and element type.
+func (i *Interpreter) CreateDynamicArray(elementType any, size int) evaluator.Value {
+	// Convert elementType to types.Type
+	var typedElementType types.Type
+	if elementType != nil {
+		if t, ok := elementType.(types.Type); ok {
+			typedElementType = t
+		}
+	}
+
+	// Create array type (dynamic array has nil bounds)
+	arrayType := &types.ArrayType{
+		ElementType: typedElementType,
+		LowBound:    nil,
+		HighBound:   nil,
+	}
+
+	// Create array value
+	arrayVal := NewArrayValue(arrayType)
+
+	// Pre-fill with default values if size > 0
+	if size > 0 {
+		defaultVal := i.CreateDefaultValue(typedElementType.String()).(Value)
+		for j := 0; j < size; j++ {
+			arrayVal.Elements = append(arrayVal.Elements, defaultVal)
+		}
+	}
+
+	return arrayVal
+}
+
+// CreateArrayWithExpectedType creates an array from elements with type-aware construction.
+func (i *Interpreter) CreateArrayWithExpectedType(elements []evaluator.Value, expectedType any) evaluator.Value {
+	// Convert expectedType to *types.ArrayType
+	var arrayType *types.ArrayType
+	if expectedType != nil {
+		if at, ok := expectedType.(*types.ArrayType); ok {
+			arrayType = at
+		}
+	}
+
+	// Convert evaluator.Value slice to internal Value slice
+	internalElements := make([]Value, len(elements))
+	for idx, elem := range elements {
+		internalElements[idx] = elem.(Value)
+	}
+
+	// Use existing method that handles type inference and conversion
+	if arrayType != nil {
+		return i.evalArrayLiteralWithExpected(&ast.ArrayLiteralExpression{Elements: nil}, arrayType)
+	}
+
+	// Fallback: create array without expected type
+	if len(internalElements) > 0 {
+		elemType := i.typeFromValue(internalElements[0])
+		return i.CreateArray(elemType, elements)
+	}
+
+	// Empty array with unknown type (dynamic array)
+	return NewArrayValue(&types.ArrayType{LowBound: nil, HighBound: nil})
+}
+
+// GetArrayElement retrieves an element from an array at the given index.
+func (i *Interpreter) GetArrayElement(array evaluator.Value, index evaluator.Value) (evaluator.Value, error) {
+	// Convert to internal types
+	internalArray := array.(Value)
+	internalIndex := index.(Value)
+
+	// Check if it's an array
+	arrayVal, ok := internalArray.(*ArrayValue)
+	if !ok {
+		return nil, fmt.Errorf("not an array: %s", internalArray.Type())
+	}
+
+	// Get index as integer
+	indexInt, ok := internalIndex.(*IntegerValue)
+	if !ok {
+		return nil, fmt.Errorf("array index must be integer, got %s", internalIndex.Type())
+	}
+
+	// Convert to 0-based index (DWScript uses different conventions depending on array type)
+	idx := int(indexInt.Value)
+
+	// Handle low bound offset for static arrays
+	if !arrayVal.ArrayType.IsDynamic() && arrayVal.ArrayType.LowBound != nil {
+		idx = idx - *arrayVal.ArrayType.LowBound
+	}
+
+	// Bounds check
+	if idx < 0 || idx >= len(arrayVal.Elements) {
+		return nil, fmt.Errorf("array index %d out of bounds (0..%d)", idx, len(arrayVal.Elements)-1)
+	}
+
+	return arrayVal.Elements[idx], nil
+}
+
+// SetArrayElement sets an element in an array at the given index.
+func (i *Interpreter) SetArrayElement(array evaluator.Value, index evaluator.Value, value evaluator.Value) error {
+	// Convert to internal types
+	internalArray := array.(Value)
+	internalIndex := index.(Value)
+	internalValue := value.(Value)
+
+	// Check if it's an array
+	arrayVal, ok := internalArray.(*ArrayValue)
+	if !ok {
+		return fmt.Errorf("not an array: %s", internalArray.Type())
+	}
+
+	// Get index as integer
+	indexInt, ok := internalIndex.(*IntegerValue)
+	if !ok {
+		return fmt.Errorf("array index must be integer, got %s", internalIndex.Type())
+	}
+
+	// Convert to 0-based index
+	idx := int(indexInt.Value)
+
+	// Handle low bound offset for static arrays
+	if !arrayVal.ArrayType.IsDynamic() && arrayVal.ArrayType.LowBound != nil {
+		idx = idx - *arrayVal.ArrayType.LowBound
+	}
+
+	// Bounds check
+	if idx < 0 || idx >= len(arrayVal.Elements) {
+		return fmt.Errorf("array index %d out of bounds (0..%d)", idx, len(arrayVal.Elements)-1)
+	}
+
+	// Set element
+	arrayVal.Elements[idx] = internalValue
+
+	return nil
+}
+
+// GetArrayLength returns the length of an array (adapter method for evaluator).
+func (i *Interpreter) GetArrayLength(array evaluator.Value) int {
+	// Convert to internal type
+	internalArray := array.(Value)
+
+	// Check if it's an array
+	arrayVal, ok := internalArray.(*ArrayValue)
+	if !ok {
+		return 0
+	}
+
+	return len(arrayVal.Elements)
+}
+
+// CreateSet creates a set from a list of elements with a specified element type.
+func (i *Interpreter) CreateSet(elementType any, elements []evaluator.Value) evaluator.Value {
+	// Convert elementType to types.Type
+	var typedElementType types.Type
+	if elementType != nil {
+		if t, ok := elementType.(types.Type); ok {
+			typedElementType = t
+		}
+	}
+
+	// Create set type
+	setType := &types.SetType{
+		ElementType: typedElementType,
+	}
+
+	// Create set value
+	setValue := NewSetValue(setType)
+
+	// Add elements
+	for _, elem := range elements {
+		internalElem := elem.(Value)
+
+		// Get ordinal value
+		ordinal, err := GetOrdinalValue(internalElem)
+		if err != nil {
+			// Skip non-ordinal elements
+			continue
+		}
+
+		setValue.AddElement(ordinal)
+	}
+
+	return setValue
+}
+
+// EvaluateSetRange expands a range expression (e.g., 1..10, 'a'..'z') into ordinal values.
+func (i *Interpreter) EvaluateSetRange(start evaluator.Value, end evaluator.Value) ([]int, error) {
+	// Convert to internal types
+	internalStart := start.(Value)
+	internalEnd := end.(Value)
+
+	// Get ordinal values
+	startOrd, err := GetOrdinalValue(internalStart)
+	if err != nil {
+		return nil, fmt.Errorf("range start must be ordinal type: %s", err.Error())
+	}
+
+	endOrd, err := GetOrdinalValue(internalEnd)
+	if err != nil {
+		return nil, fmt.Errorf("range end must be ordinal type: %s", err.Error())
+	}
+
+	// Expand range
+	var ordinals []int
+	if startOrd <= endOrd {
+		for ord := startOrd; ord <= endOrd; ord++ {
+			ordinals = append(ordinals, ord)
+		}
+	} else {
+		// Reverse range
+		for ord := startOrd; ord >= endOrd; ord-- {
+			ordinals = append(ordinals, ord)
+		}
+	}
+
+	return ordinals, nil
+}
+
+// AddToSet adds an element to a set.
+func (i *Interpreter) AddToSet(set evaluator.Value, element evaluator.Value) error {
+	// Convert to internal types
+	internalSet := set.(Value)
+	internalElement := element.(Value)
+
+	// Check if it's a set
+	setValue, ok := internalSet.(*SetValue)
+	if !ok {
+		return fmt.Errorf("not a set: %s", internalSet.Type())
+	}
+
+	// Get ordinal value of element
+	ordinal, err := GetOrdinalValue(internalElement)
+	if err != nil {
+		return fmt.Errorf("cannot add non-ordinal element to set: %s", err.Error())
+	}
+
+	// Add to set
+	setValue.AddElement(ordinal)
+
+	return nil
+}
+
+// GetStringChar retrieves a character from a string at the given index (1-based).
+func (i *Interpreter) GetStringChar(str evaluator.Value, index evaluator.Value) (evaluator.Value, error) {
+	// Convert to internal types
+	internalStr := str.(Value)
+	internalIndex := index.(Value)
+
+	// Get string value
+	strVal, ok := internalStr.(*StringValue)
+	if !ok {
+		return nil, fmt.Errorf("not a string: %s", internalStr.Type())
+	}
+
+	// Get index as integer
+	indexInt, ok := internalIndex.(*IntegerValue)
+	if !ok {
+		return nil, fmt.Errorf("string index must be integer, got %s", internalIndex.Type())
+	}
+
+	// DWScript uses 1-based indexing for strings
+	idx := int(indexInt.Value) - 1
+
+	// Bounds check
+	runes := []rune(strVal.Value)
+	if idx < 0 || idx >= len(runes) {
+		return nil, fmt.Errorf("string index %d out of bounds (1..%d)", int(indexInt.Value), len(runes))
+	}
+
+	// Return character as string
+	return &StringValue{Value: string(runes[idx])}, nil
+}
+
 // GetCallStack returns a copy of the current call stack.
 // Returns stack frames in the order they were called (oldest to newest).
 func (i *Interpreter) GetCallStack() errors.StackTrace {
