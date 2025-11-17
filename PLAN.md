@@ -336,27 +336,45 @@ Advanced lookahead and backtracking with comprehensive documentation.
 
 ### Phase 2.7: Migration Completion (Weeks 12-14, 120 hours)
 
-Complete migration of all parsing code.
+Complete migration of all parsing code to cursor/combinators.
+
+**See**: `docs/phase-2.7-expansion.md` for detailed implementation plan
+
+**Current Progress**: 41% complete (68/164 functions migrated)
+- ✅ Expressions: 90% complete
+- ✅ Control flow: 100% complete
+- ⚠️ Statements: 67% complete
+- ❌ Types: 0% complete
+- ❌ Declarations: 0% complete
 
 ---
 
 #### Task 2.7.1: Statement Parsing Migration (Week 12, ~40 hours)
 
-**Goal**: Migrate all statement parsing to cursor/combinators.
+**Goal**: Migrate all remaining statement parsing to cursor/combinators.
 
-**Targets**:
-- [ ] Control flow (if, while, for, case, etc.)
-- [ ] Declarations (var, const, type)
-- [ ] Blocks (begin...end)
+**Subtasks**:
+- [ ] **2.7.1.1** Complete `statements.go` migration (8h)
+  - parseConstDeclaration, parseTypeDeclarationStatement, parseUnitDeclaration, parseUsesClause
+- [ ] **2.7.1.2** Complete `declarations.go` migration (12h)
+  - Simple declarations, forward declarations, visibility modifiers, declaration blocks
+- [ ] **2.7.1.3** Migrate `operators.go` (6h)
+  - Operator overloading, implicit/explicit conversions
+- [ ] **2.7.1.4** Migrate `sets.go` (4h)
+  - Set declarations, literals, constructors, operations
+- [ ] **2.7.1.5** Complete `arrays.go` migration (6h)
+  - Array declarations, bounds, dynamic arrays
+- [ ] **2.7.1.6** Integration testing (4h)
+  - Complex programs, nested blocks, error recovery
 
 **Files Modified**:
-- `internal/parser/statements.go` (major refactor)
-- `internal/parser/control_flow.go` (major refactor)
-- `internal/parser/declarations.go` (major refactor)
+- `internal/parser/statements.go` (4 functions)
+- `internal/parser/declarations.go` (10 functions)
+- `internal/parser/operators.go` (6 functions)
+- `internal/parser/sets.go` (4 functions)
+- `internal/parser/arrays.go` (5 functions)
 
-**Estimate**: 40 hours
-
-**Deliverable**: Complete statement parsing migration
+**Deliverable**: All statement parsing migrated (~29 functions)
 
 ---
 
@@ -364,21 +382,26 @@ Complete migration of all parsing code.
 
 **Goal**: Migrate type parsing to cursor/combinators.
 
-**Targets**:
-- [ ] Simple types
-- [ ] Function pointer types
-- [ ] Array types
-- [ ] Record types
-- [ ] Class types
+**Subtasks**:
+- [ ] **2.7.2.1** Basic type expressions (8h)
+  - parseTypeExpression, parseSimpleType, parseTypeIdentifier, parseTypeOrExpression
+- [ ] **2.7.2.2** Function pointer types (8h)
+  - parseFunctionPointerType, parseProcedurePointerType, parseMethodPointerType
+- [ ] **2.7.2.3** Array types (6h)
+  - parseArrayType, parseDynamicArrayType
+- [ ] **2.7.2.4** Record types (8h)
+  - parseRecordType, parseHelperType, parseRecordFieldDeclarations, parseRecordPropertyDeclaration
+- [ ] **2.7.2.5** Class types (6h)
+  - parseClassType, parseClassOfType
+- [ ] **2.7.2.6** Enum and set types (4h)
+  - parseEnumType, parseSetType
 
 **Files Modified**:
-- `internal/parser/types.go` (major refactor)
-- `internal/parser/records.go` (~100 lines)
-- `internal/parser/arrays.go` (~80 lines)
+- `internal/parser/types.go` (12 functions)
+- `internal/parser/records.go` (3 functions coordination)
+- `internal/parser/enums.go` (2 functions coordination)
 
-**Estimate**: 40 hours
-
-**Deliverable**: Complete type parsing migration
+**Deliverable**: Complete type parsing migration (~17 functions)
 
 ---
 
@@ -386,20 +409,24 @@ Complete migration of all parsing code.
 
 **Goal**: Migrate complex declaration parsing.
 
-**Targets**:
-- [ ] Function declarations
-- [ ] Class declarations
-- [ ] Interface declarations
-- [ ] Properties and methods
+**Subtasks**:
+- [ ] **2.7.3.1** Function declarations (8h)
+  - parseFunctionDeclaration, parseParameterList, parseParameterGroup, modifiers, calling conventions
+- [ ] **2.7.3.2** Class declarations (10h)
+  - parseClassDeclaration, parseClassDeclarationBody, parseFieldDeclarations, methods, properties, constructors
+- [ ] **2.7.3.3** Interface declarations (4h)
+  - parseInterfaceDeclaration, parseInterfaceDeclarationBody, parseInterfaceMethodDecl
+- [ ] **2.7.3.4** Record and enum declarations (2h)
+  - parseRecordDeclaration, parseEnumDeclaration, parseEnumValue
 
 **Files Modified**:
-- `internal/parser/functions.go` (major refactor)
-- `internal/parser/classes.go` (major refactor)
-- `internal/parser/interfaces.go` (major refactor)
+- `internal/parser/functions.go` (10 functions)
+- `internal/parser/classes.go` (14 functions)
+- `internal/parser/interfaces.go` (4 functions)
+- `internal/parser/records.go` (4 functions)
+- `internal/parser/enums.go` (4 functions)
 
-**Estimate**: 24 hours
-
-**Deliverable**: Complete declaration parsing migration
+**Deliverable**: Complete declaration parsing migration (~36 functions)
 
 ---
 
@@ -407,19 +434,27 @@ Complete migration of all parsing code.
 
 **Goal**: Remove all old mutable parser code.
 
-**Implementation**:
-- [ ] Verify 100% migration complete
-- [ ] Remove `curToken`/`peekToken` fields
-- [ ] Remove `nextToken()` method
-- [ ] Remove old error methods
-- [ ] Clean up imports and dead code
-- [ ] Final test pass
+**Subtasks**:
+- [ ] **2.7.4.1** Verify complete migration (2h)
+  - Automated checks, ensure all functions migrated
+- [ ] **2.7.4.2** Remove Traditional functions (4h)
+  - Remove all `parse*Traditional()` functions (~500 lines)
+  - Rename `parse*Cursor()` to `parse*()`
+- [ ] **2.7.4.3** Remove mutable state fields (3h)
+  - Remove `curToken`, `peekToken` fields
+  - Remove `useCursor` flag
+- [ ] **2.7.4.4** Remove `nextToken()` method (2h)
+  - Replace with cursor advancement in callers
+- [ ] **2.7.4.5** Remove old error methods (1h)
+  - Consolidate through ErrorRecovery module
+- [ ] **2.7.4.6** Clean up imports and dead code (2h)
+  - Remove unused imports, commented code, obsolete helpers
+- [ ] **2.7.4.7** Final test pass (2h)
+  - Unit tests, integration tests, fixture tests, benchmarks
 
 **Files Modified**:
 - `internal/parser/parser.go` (~200 lines removed)
 - All parser files (~500 lines removed total)
-
-**Estimate**: 16 hours
 
 **Deliverable**: Clean, modern parser with zero legacy code
 
