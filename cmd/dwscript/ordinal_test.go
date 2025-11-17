@@ -192,7 +192,8 @@ var c: TColor := Green;
 PrintLn(Low(c));
 PrintLn(High(c));
 			`,
-			wantContains: []string{"Red", "Blue"},
+			// Enums print as ordinal values by default (use .Name for enum names)
+			wantContains: []string{"0", "2"},
 		},
 	}
 
