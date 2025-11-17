@@ -77,6 +77,8 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 		// Uses clauses are handled at runtime by the interpreter
 		// Semantic analyzer just ignores them
 		return
+	case *ast.UnitDeclaration:
+		a.analyzeUnitDeclaration(s)
 	default:
 		// Unknown statement type - this shouldn't happen
 		a.addError("unknown statement type: %T", stmt)
@@ -855,6 +857,29 @@ func (a *Analyzer) analyzeExitStatement(stmt *ast.ExitStatement) {
 	}
 	// Exit without an explicit return value is allowed. Functions rely on the current
 	// Result variable (or their default) in that case, matching DWScript semantics.
+}
+
+// analyzeUnitDeclaration analyzes a unit declaration
+func (a *Analyzer) analyzeUnitDeclaration(unit *ast.UnitDeclaration) {
+	// Analyze interface section declarations (types, functions, etc.)
+	if unit.InterfaceSection != nil {
+		a.analyzeBlock(unit.InterfaceSection)
+	}
+
+	// Analyze implementation section (function implementations, etc.)
+	if unit.ImplementationSection != nil {
+		a.analyzeBlock(unit.ImplementationSection)
+	}
+
+	// Analyze initialization section
+	if unit.InitSection != nil {
+		a.analyzeBlock(unit.InitSection)
+	}
+
+	// Analyze finalization section
+	if unit.FinalSection != nil {
+		a.analyzeBlock(unit.FinalSection)
+	}
 }
 
 // ============================================================================

@@ -159,8 +159,11 @@ func (i *Interpreter) checkPreconditions(funcName string, preConditions *ast.Pre
 
 		// If the condition failed, raise an exception
 		if !boolVal.Value {
-			// Build error message
+			// Build error message - strip outer parentheses from expression
 			message := condition.Test.String()
+			if len(message) > 2 && message[0] == '(' && message[len(message)-1] == ')' {
+				message = message[1 : len(message)-1]
+			}
 
 			// Evaluate custom message if provided
 			if condition.Message != nil {
@@ -175,11 +178,13 @@ func (i *Interpreter) checkPreconditions(funcName string, preConditions *ast.Pre
 
 			// Format the exception message in DWScript format:
 			// "Pre-condition failed in FuncName [line: X, column: Y], condition_expr"
+			// Use Test.Pos() to get the correct column where the test expression starts
+			testPos := condition.Test.Pos()
 			fullMessage := fmt.Sprintf("Pre-condition failed in %s [line: %d, column: %d], %s",
-				funcName, condition.Token.Pos.Line, condition.Token.Pos.Column, message)
+				funcName, testPos.Line, testPos.Column, message)
 
 			// Raise an Exception
-			i.raiseException("Exception", fullMessage, &condition.Token.Pos)
+			i.raiseException("Exception", fullMessage, &testPos)
 			return nil
 		}
 	}
@@ -212,8 +217,11 @@ func (i *Interpreter) checkPostconditions(funcName string, postConditions *ast.P
 
 		// If the condition failed, raise an exception
 		if !boolVal.Value {
-			// Build error message
+			// Build error message - strip outer parentheses from expression
 			message := condition.Test.String()
+			if len(message) > 2 && message[0] == '(' && message[len(message)-1] == ')' {
+				message = message[1 : len(message)-1]
+			}
 
 			// Evaluate custom message if provided
 			if condition.Message != nil {
@@ -228,11 +236,13 @@ func (i *Interpreter) checkPostconditions(funcName string, postConditions *ast.P
 
 			// Format the exception message in DWScript format:
 			// "Post-condition failed in FuncName [line: X, column: Y], condition_expr"
+			// Use Test.Pos() to get the correct column where the test expression starts
+			testPos := condition.Test.Pos()
 			fullMessage := fmt.Sprintf("Post-condition failed in %s [line: %d, column: %d], %s",
-				funcName, condition.Token.Pos.Line, condition.Token.Pos.Column, message)
+				funcName, testPos.Line, testPos.Column, message)
 
 			// Raise an Exception
-			i.raiseException("Exception", fullMessage, &condition.Token.Pos)
+			i.raiseException("Exception", fullMessage, &testPos)
 			return nil
 		}
 	}

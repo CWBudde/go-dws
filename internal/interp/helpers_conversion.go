@@ -132,8 +132,8 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeExpr ast.TypeExpression) typ
 	}
 
 	// Check for class types (stored in i.classes map)
-	// Preserve original case for custom type lookup
-	if classInfo, ok := i.classes[typeName]; ok {
+	// Use lowercase for case-insensitive lookup (PR #147)
+	if classInfo, ok := i.classes[lowerTypeName]; ok {
 		return types.NewClassType(classInfo.Name, nil)
 	}
 
