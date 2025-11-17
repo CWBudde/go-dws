@@ -198,15 +198,8 @@ begin
 end
 			`,
 		},
-		{
-			name: "Non-integer argument - float",
-			input: `
-var f: Float := 3.14;
-begin
-	IntToStr(f);
-end
-			`,
-		},
+		// Note: Float to Integer conversion is now supported via implicit type conversion
+		// so the "Non-integer argument - float" test case has been removed
 	}
 
 	for _, tt := range tests {
@@ -1137,15 +1130,8 @@ begin
 end
 			`,
 		},
-		{
-			name: "Non-boolean argument - integer",
-			input: `
-var x: Integer := 42;
-begin
-	BoolToStr(x);
-end
-			`,
-		},
+		// Note: Integer to Boolean conversion is now supported via implicit type conversion
+		// so the "Non-boolean argument - integer" test case has been removed
 		{
 			name: "Non-boolean argument - string",
 			input: `
