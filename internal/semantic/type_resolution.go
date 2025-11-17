@@ -6,6 +6,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -639,7 +640,7 @@ func (a *Analyzer) getMethodOverloadsInHierarchy(methodName string, classType *t
 	// Task 9.19: Perform case-insensitive constructor lookup
 	var constructorOverloads []*types.MethodInfo
 	for ctorName, overloads := range classType.ConstructorOverloads {
-		if strings.EqualFold(ctorName, methodName) {
+		if ident.Equal(ctorName, methodName) {
 			constructorOverloads = append(constructorOverloads, overloads...)
 		}
 	}
@@ -961,7 +962,7 @@ func (a *Analyzer) findClassConstantWithVisibility(startClass *types.ClassType, 
 	// Check current class and all parent classes for constants
 	for class := startClass; class != nil; class = class.Parent {
 		for constName, constType := range class.ConstantTypes {
-			if strings.EqualFold(constName, name) {
+			if ident.Equal(constName, name) {
 				// Check visibility - find which class owns this constant
 				constantOwner := a.getConstantOwner(startClass, constName)
 				if constantOwner != nil {

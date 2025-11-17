@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	identpkg "github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -47,13 +48,13 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 	// Task 9.6: Handle ClassName identifier in method contexts
 	// ClassName is a built-in property available on all objects (inherited from TObject)
 	// When used as an identifier, it returns the class name as a String
-	if strings.EqualFold(ident.Value, "ClassName") && a.currentClass != nil {
+	if identpkg.Equal(ident.Value, "ClassName") && a.currentClass != nil {
 		return types.STRING
 	}
 
 	// Task 9.7: Handle ClassType identifier in method contexts
 	// ClassType is a built-in property that returns the metaclass reference
-	if strings.EqualFold(ident.Value, "ClassType") && a.currentClass != nil {
+	if identpkg.Equal(ident.Value, "ClassType") && a.currentClass != nil {
 		return types.NewClassOfType(a.currentClass)
 	}
 
@@ -92,9 +93,9 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 			// Also search parent class hierarchy
 			for class := a.currentClass; class != nil; class = class.Parent {
 				for propName, propInfo := range class.Properties {
-					if strings.EqualFold(propName, ident.Value) {
+					if identpkg.Equal(propName, ident.Value) {
 						// Task 9.49: Check for circular reference in property expressions
-						if a.inPropertyExpr && strings.EqualFold(propName, a.currentProperty) {
+						if a.inPropertyExpr && identpkg.Equal(propName, a.currentProperty) {
 							a.addError("property '%s' cannot be read-accessed at %s", ident.Value, ident.Token.Pos.String())
 							return nil
 						}

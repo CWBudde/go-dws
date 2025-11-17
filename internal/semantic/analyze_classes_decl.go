@@ -6,6 +6,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -38,7 +39,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 
 			// Validate that parent class matches if specified in both declarations
 			if decl.Parent != nil && existingClass.Parent != nil {
-				if !strings.EqualFold(decl.Parent.Value, existingClass.Parent.Name) {
+				if !ident.Equal(decl.Parent.Value, existingClass.Parent.Name) {
 					a.addError("partial class '%s' has conflicting parent classes at %s",
 						className, decl.Token.Pos.String())
 					return
@@ -145,7 +146,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		}
 
 		// Handle implicit TObject parent if needed
-		if parentClass == nil && !strings.EqualFold(className, "TObject") && !decl.IsExternal {
+		if parentClass == nil && !ident.Equal(className, "TObject") && !decl.IsExternal {
 			parentClass = a.classes["tobject"]
 			if parentClass == nil {
 				a.addError("implicit parent class 'TObject' not found at %s", decl.Token.Pos.String())
@@ -167,7 +168,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		} else {
 			// Task 9.51: If no explicit parent, implicitly inherit from TObject (unless this IS TObject or external)
 			// External classes can have nil parent (inherit from Object)
-			if !strings.EqualFold(className, "TObject") && !decl.IsExternal {
+			if !ident.Equal(className, "TObject") && !decl.IsExternal {
 				parentClass = a.classes["tobject"]
 				if parentClass == nil {
 					a.addError("implicit parent class 'TObject' not found at %s", decl.Token.Pos.String())
@@ -776,9 +777,9 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 
 	// Auto-detect constructors: methods named "Create" that return the class type
 	// This handles inline constructor declarations like: function Create(...): TClass;
-	if !method.IsConstructor && strings.EqualFold(method.Name.Value, "Create") && method.ReturnType != nil {
+	if !method.IsConstructor && ident.Equal(method.Name.Value, "Create") && method.ReturnType != nil {
 		returnTypeName := getTypeExpressionName(method.ReturnType)
-		if strings.EqualFold(returnTypeName, classType.Name) {
+		if ident.Equal(returnTypeName, classType.Name) {
 			method.IsConstructor = true
 		}
 	}
@@ -793,7 +794,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		}
 		// Auto-detected constructors (function Create: TClass) must have matching return type
 		returnTypeName := getTypeExpressionName(method.ReturnType)
-		if !strings.EqualFold(returnTypeName, classType.Name) {
+		if !ident.Equal(returnTypeName, classType.Name) {
 			a.addError("constructor '%s' must return '%s', not '%s' at %s",
 				method.Name.Value, classType.Name, returnTypeName, method.Token.Pos.String())
 			return
