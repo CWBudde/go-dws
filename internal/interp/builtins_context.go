@@ -943,9 +943,9 @@ func (i *Interpreter) GetLowBound(value builtins.Value) (builtins.Value, error) 
 	// Delegate to the existing builtinLow implementation
 	result := i.builtinLow([]Value{value})
 
-	// Check if result is an error
-	if _, isErr := result.(*ErrorValue); isErr {
-		return nil, fmt.Errorf("failed to get low bound")
+	// Check if result is an error and preserve the original error message
+	if errVal, isErr := result.(*ErrorValue); isErr {
+		return nil, fmt.Errorf("%s", errVal.Message)
 	}
 
 	return result, nil
@@ -958,9 +958,9 @@ func (i *Interpreter) GetHighBound(value builtins.Value) (builtins.Value, error)
 	// Delegate to the existing builtinHigh implementation
 	result := i.builtinHigh([]Value{value})
 
-	// Check if result is an error
-	if _, isErr := result.(*ErrorValue); isErr {
-		return nil, fmt.Errorf("failed to get high bound")
+	// Check if result is an error and preserve the original error message
+	if errVal, isErr := result.(*ErrorValue); isErr {
+		return nil, fmt.Errorf("%s", errVal.Message)
 	}
 
 	return result, nil
