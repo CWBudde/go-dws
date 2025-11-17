@@ -164,25 +164,35 @@ Clean architectural separation.
 
 ---
 
-#### Task 2.5.1: Remove Semantic Analysis (Week 9, ~40 hours)
+#### Task 2.5.1: Remove Semantic Analysis (Week 9, ~40 hours) ✅
 
 **Goal**: Parser should only build AST, not perform type checking.
 
 **Implementation**:
-- [ ] Identify all semantic analysis code in parser
-- [ ] Move to separate `SemanticAnalyzer` type
-- [ ] Remove `enableSemanticAnalysis` and `semanticErrors` from Parser
-- [ ] Update tests to run analysis after parsing
-- [ ] Measure parsing speed improvement
+- [x] Identify all semantic analysis code in parser
+- [x] Move to separate `SemanticAnalyzer` type (already existed in internal/semantic)
+- [x] Remove `enableSemanticAnalysis` and `semanticErrors` from Parser
+- [x] Update tests to run analysis after parsing
+- [x] Measure parsing speed improvement
 
 **Files Modified**:
-- `internal/parser/parser.go` (~50 lines removed)
-- `internal/parser/statements.go` (~80 lines removed)
-- All test files (~100 lines updated)
+- `internal/parser/parser.go` (removed semanticErrors and enableSemanticAnalysis fields, removed 3 methods)
+- `internal/parser/context.go` (removed EnableSemanticAnalysis field and methods)
+- `internal/parser/context_test.go` (updated tests to remove semantic analysis checks)
+- `internal/parser/semantic_integration_test.go` (updated to reflect separation)
+- `cmd/dwscript/cmd/run.go` (removed SetSemanticErrors call)
+- `cmd/dwscript/cmd/compile.go` (removed SetSemanticErrors call)
 
 **Estimate**: 40 hours
 
-**Deliverable**: Clean separation of parsing and semantic analysis
+**Deliverable**: Clean separation of parsing and semantic analysis ✅
+
+**Performance Results**:
+- Small program: 12,486 ns/op, 6,432 B/op, 119 allocs/op
+- Medium program: 38,366 ns/op, 17,192 B/op, 299 allocs/op
+- Large program: 89,678 ns/op, 33,712 B/op, 572 allocs/op
+
+**Completed**: 2025-11-17
 
 ---
 
