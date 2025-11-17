@@ -337,3 +337,210 @@ func BenchmarkTraditional_Memory(b *testing.B) {
 		}
 	}
 }
+
+// ============================================================================
+// Benchmarks for Backtracking Optimization (Task 2.6.2)
+// ============================================================================
+
+// BenchmarkMark_Lightweight benchmarks lightweight mark creation and restoration
+func BenchmarkMark_Lightweight(b *testing.B) {
+	source := "var x: Integer := 42; var y: String := 'hello';"
+	cursor := newCursorFromSource(source)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mark := cursor.Mark()
+		c := cursor.Advance().Advance().Advance()
+		c = c.ResetTo(mark)
+	}
+}
+
+// BenchmarkMark_LightweightExplicit benchmarks explicit MarkLight/ResetToLight
+func BenchmarkMark_LightweightExplicit(b *testing.B) {
+	source := "var x: Integer := 42; var y: String := 'hello';"
+	cursor := newCursorFromSource(source)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mark := cursor.MarkLight()
+		c := cursor.Advance().Advance().Advance()
+		c = c.ResetToLight(mark)
+	}
+}
+
+// BenchmarkMark_Heavyweight benchmarks heavyweight mark creation and restoration
+func BenchmarkMark_Heavyweight(b *testing.B) {
+	source := "var x: Integer := 42; var y: String := 'hello';"
+	p := New(lexer.New(source))
+	p.useCursor = true
+	p.cursor = NewTokenCursor(lexer.New(source))
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mark := p.MarkHeavy()
+		p.cursor = p.cursor.Advance().Advance().Advance()
+		p.ResetToHeavy(mark)
+	}
+}
+
+// BenchmarkMark_HeavyweightWithErrors benchmarks heavyweight mark with error rollback
+func BenchmarkMark_HeavyweightWithErrors(b *testing.B) {
+	source := "var x: Integer := 42; var y: String := 'hello';"
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		p := New(lexer.New(source))
+		p.useCursor = true
+		p.cursor = NewTokenCursor(lexer.New(source))
+
+		mark := p.MarkHeavy()
+
+		// Simulate adding errors during speculative parsing
+		p.addError("test error 1", "ERR001")
+		p.addError("test error 2", "ERR002")
+		p.addError("test error 3", "ERR003")
+
+		// Rollback including errors
+		p.ResetToHeavy(mark)
+	}
+}
+
+// BenchmarkMark_LightweightVsHeavyweight compares both approaches side by side
+func BenchmarkMark_LightweightVsHeavyweight(b *testing.B) {
+	source := "var x: Integer := 42; var y: String := 'hello';"
+
+	b.Run("Lightweight", func(b *testing.B) {
+		cursor := newCursorFromSource(source)
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			mark := cursor.Mark()
+			c := cursor.Advance().Advance()
+			c = c.ResetTo(mark)
+		}
+	})
+
+	b.Run("Heavyweight", func(b *testing.B) {
+		p := New(lexer.New(source))
+		p.useCursor = true
+		p.cursor = NewTokenCursor(lexer.New(source))
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			mark := p.MarkHeavy()
+			p.cursor = p.cursor.Advance().Advance()
+			p.ResetToHeavy(mark)
+		}
+	})
+}
+
+// BenchmarkMark_MultipleBacktracks simulates complex parsing with multiple backtrack points
+func BenchmarkMark_MultipleBacktracks(b *testing.B) {
+	source := `var x: Integer := 42;
+		var y: String := "hello";
+		var z: Float := 3.14;
+		const MAX = 100;`
+
+	b.Run("Lightweight", func(b *testing.B) {
+		cursor := newCursorFromSource(source)
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			c := cursor
+			// First attempt
+			mark1 := c.Mark()
+			c = c.Advance().Advance()
+			c = c.ResetTo(mark1)
+
+			// Second attempt
+			mark2 := c.Mark()
+			c = c.Advance().Advance().Advance()
+			c = c.ResetTo(mark2)
+
+			// Third attempt
+			mark3 := c.Mark()
+			c = c.Advance()
+			c = c.ResetTo(mark3)
+		}
+	})
+
+	b.Run("Heavyweight", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			p := New(lexer.New(source))
+			p.useCursor = true
+			p.cursor = NewTokenCursor(lexer.New(source))
+
+			// First attempt
+			mark1 := p.MarkHeavy()
+			p.cursor = p.cursor.Advance().Advance()
+			p.ResetToHeavy(mark1)
+
+			// Second attempt
+			mark2 := p.MarkHeavy()
+			p.cursor = p.cursor.Advance().Advance().Advance()
+			p.ResetToHeavy(mark2)
+
+			// Third attempt
+			mark3 := p.MarkHeavy()
+			p.cursor = p.cursor.Advance()
+			p.ResetToHeavy(mark3)
+		}
+	})
+}
+
+// BenchmarkMark_MemoryFootprint measures memory overhead of different mark types
+func BenchmarkMark_MemoryFootprint(b *testing.B) {
+	source := "var x: Integer := 42;"
+
+	b.Run("LightweightMarkOnly", func(b *testing.B) {
+		cursor := newCursorFromSource(source)
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = cursor.Mark()
+		}
+	})
+
+	b.Run("HeavyweightMarkOnly", func(b *testing.B) {
+		p := New(lexer.New(source))
+		p.useCursor = true
+		p.cursor = NewTokenCursor(lexer.New(source))
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = p.MarkHeavy()
+		}
+	})
+}
+
+// BenchmarkMark_DeepNesting simulates deeply nested backtracking scenarios
+func BenchmarkMark_DeepNesting(b *testing.B) {
+	source := "var a, b, c, d, e, f, g, h: Integer;"
+	cursor := newCursorFromSource(source)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c := cursor
+		marks := make([]Mark, 10)
+
+		// Create nested marks
+		for j := 0; j < 10; j++ {
+			marks[j] = c.Mark()
+			c = c.Advance()
+		}
+
+		// Restore in reverse order
+		for j := 9; j >= 0; j-- {
+			c = c.ResetTo(marks[j])
+		}
+	}
+}

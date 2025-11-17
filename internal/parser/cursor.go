@@ -248,13 +248,32 @@ func (c *TokenCursor) ExpectAny(types ...token.TokenType) (*TokenCursor, bool, t
 	return c.SkipAny(types...)
 }
 
-// Mark represents a saved cursor position that can be restored later.
-// This enables backtracking and speculative parsing.
+// ============================================================================
+// Backtracking Support (Task 2.6.2: Optimized with Lightweight/Heavyweight marks)
+// ============================================================================
+
+// Mark represents a lightweight saved cursor position that can be restored later.
+// This is the most efficient form of backtracking as it only stores an index.
+//
+// Use LightweightMark (via Mark()) for:
+//   - Simple speculative parsing where errors will be discarded
+//   - Trying alternative parse paths
+//   - Looking ahead to disambiguate syntax
+//
+// Use HeavyweightMark (via parser.MarkHeavy()) for:
+//   - Complex backtracking that needs to restore parser error state
+//   - Multi-level speculation where errors might need to be preserved
+//
+// Performance characteristics:
+//   - Mark creation: O(1) - just copies an int
+//   - ResetTo: O(1) - just restores position
+//   - Memory: 8 bytes (one int)
 type Mark struct {
 	index int
 }
 
 // Mark saves the current cursor position for later restoration.
+// This is a lightweight operation that only saves the token index.
 // Use this for speculative parsing or backtracking.
 //
 // Example:
@@ -263,7 +282,22 @@ type Mark struct {
 //	if !tryParsePattern(cursor) {
 //	    cursor = cursor.ResetTo(mark)  // Backtrack
 //	}
+//
+// Note: This is an alias for MarkLight() for backward compatibility.
 func (c *TokenCursor) Mark() Mark {
+	return c.MarkLight()
+}
+
+// MarkLight creates a lightweight mark that only saves the cursor position.
+// This is the most efficient form of backtracking.
+//
+// Use this when:
+//   - You only need to restore the cursor position
+//   - Any errors encountered during speculation will be discarded
+//   - You're doing simple lookahead/disambiguation
+//
+// Performance: O(1) time, 8 bytes memory
+func (c *TokenCursor) MarkLight() Mark {
 	return Mark{index: c.index}
 }
 
@@ -271,12 +305,26 @@ func (c *TokenCursor) Mark() Mark {
 // This enables backtracking to a previously saved position.
 // The original cursor is unchanged (immutable operation).
 //
+// This only restores cursor position. To restore full parser state
+// (including errors), use Parser.ResetToHeavy() instead.
+//
 // Example:
 //
 //	mark := cursor.Mark()
 //	cursor = cursor.Advance()
 //	cursor = cursor.ResetTo(mark)  // Back to original position
+//
+// Performance: O(1) - just restores position from saved index
 func (c *TokenCursor) ResetTo(mark Mark) *TokenCursor {
+	return c.ResetToLight(mark)
+}
+
+// ResetToLight restores the cursor to a lightweight mark position.
+// This is the most efficient form of backtracking as it only involves
+// restoring the index and updating the current token reference.
+//
+// Performance: O(1) time, no allocations (reuses token buffer)
+func (c *TokenCursor) ResetToLight(mark Mark) *TokenCursor {
 	if mark.index < 0 || mark.index >= len(c.tokens) {
 		// Invalid mark - return current cursor
 		return c
