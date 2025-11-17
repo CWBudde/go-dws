@@ -1529,3 +1529,322 @@ func TestBreakContinueExitStatementCursor_Integration(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Task 2.2.14.9: Integration Testing & Cleanup
+// ============================================================================
+
+// TestStatementMigration_ComprehensiveIntegration tests complex combinations of statement types
+func TestStatementMigration_ComprehensiveIntegration(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{
+			"var with nested control flow",
+			`var x, y: Integer;
+			 x := 0;
+			 while x < 10 do begin
+			   if x mod 2 = 0 then y := y + x;
+			   x := x + 1
+			 end`,
+		},
+		{
+			"const with exception handling",
+			`const MAX = 100;
+			 var value: Integer;
+			 try
+			   value := MAX * 2;
+			   if value > MAX then raise Exception.Create('Too large')
+			 except
+			   on e: Exception do value := 0
+			 end`,
+		},
+		{
+			"nested loops with break continue",
+			`var i, j: Integer;
+			 i := 0;
+			 while i < 10 do begin
+			   j := 0;
+			   while j < 10 do begin
+			     if i = 5 then break;
+			     if j = 3 then continue;
+			     j := j + 1
+			   end;
+			   i := i + 1
+			 end`,
+		},
+		{
+			"try finally with var declarations",
+			`var resource: Integer;
+			 try
+			   resource := OpenResource();
+			   ProcessResource(resource)
+			 finally
+			   CloseResource(resource)
+			 end`,
+		},
+		{
+			"nested exception handlers",
+			`var x: Integer;
+			 try
+			   try
+			     x := RiskyOperation()
+			   except
+			     on e: EInvalidOp do x := 0
+			   end
+			 except
+			   on e: Exception do PrintLn('Error: ' + e.Message)
+			 finally
+			   Cleanup()
+			 end`,
+		},
+		{
+			"nested begin blocks with mixed statements",
+			`begin
+			   var x: Integer := 10;
+			   begin
+			     const Y = 20;
+			     while x > 0 do begin
+			       if x = 5 then break;
+			       x := x - 1
+			     end
+			   end;
+			   PrintLn(x)
+			 end`,
+		},
+		{
+			"multiple var blocks with different types",
+			`var x, y: Integer;
+			 var name: String := 'test';
+			 const PI = 3.14159;
+			 const DEBUG = true;
+			 if DEBUG then PrintLn(name);
+			 x := Round(PI * 10);
+			 y := x + 5`,
+		},
+		{
+			"deeply nested control structures",
+			`var i, j, k: Integer;
+			 i := 0;
+			 while i < 5 do begin
+			   j := 0;
+			   while j < 10 do begin
+			     k := 0;
+			     repeat
+			       if k mod 2 = 0 then continue;
+			       k := k + 1
+			     until k > 5;
+			     j := j + 1
+			   end;
+			   i := i + 1
+			 end`,
+		},
+		{
+			"try except with multiple handlers",
+			`var result: Integer;
+			 const DEF = -1;
+			 try
+			   result := Calculate()
+			 except
+			   on e: EDivByZero do result := DEF;
+			   on e: EOverflow do result := MaxInt;
+			   on e: Exception do result := 0
+			 finally
+			   LogResult(result)
+			 end`,
+		},
+		{
+			"if else chains with multiple statement types",
+			`var score: Integer;
+			 const A_GRADE = 90;
+			 const B_GRADE = 80;
+			 if score >= A_GRADE then
+			   PrintLn('A')
+			 else if score >= B_GRADE then
+			   PrintLn('B')
+			 else begin
+			   PrintLn('C or lower');
+			   if score < 60 then
+			     raise Exception.Create('Failing grade')
+			 end`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}
+
+// TestStatementMigration_AllStatementTypes verifies all migrated statement types work correctly
+func TestStatementMigration_AllStatementTypes(t *testing.T) {
+	tests := []struct {
+		name          string
+		source        string
+		statementType string
+	}{
+		// Expression statements
+		{"expression statement", "42", "expression"},
+		{"function call", "Print('test')", "expression"},
+
+		// Assignment statements
+		{"simple assignment", "x := 5", "assignment"},
+		{"compound assignment", "x += 10", "assignment"},
+
+		// Block statements
+		{"empty block", "begin end", "block"},
+		{"block with statements", "begin x := 1; y := 2 end", "block"},
+
+		// Control flow - if/while/repeat
+		{"if statement", "if x > 0 then y := 1", "if"},
+		{"if/else statement", "if x > 0 then y := 1 else y := -1", "if"},
+		{"while loop", "while x > 0 do x := x - 1", "while"},
+		{"repeat loop", "repeat x := x + 1 until x > 10", "repeat"},
+
+		// Declarations
+		{"var declaration", "var x: Integer;", "var"},
+		{"const declaration", "const PI = 3.14", "const"},
+
+		// Exception handling
+		{"raise statement", "raise Exception.Create('error')", "raise"},
+		{"try/except", "try x := 1 except on e: Exception do x := 0 end", "try"},
+		{"try/finally", "try x := 1 finally Cleanup() end", "try"},
+
+		// Control transfer
+		{"break statement", "while true do break;", "break"},
+		{"continue statement", "while true do continue;", "continue"},
+		{"exit statement", "exit(42);", "exit"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Verify programs match
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Mismatch for %s:\nTraditional: %s\nCursor: %s",
+					tt.statementType, tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Performance Benchmarks
+// ============================================================================
+
+// BenchmarkStatementParsing_Traditional benchmarks traditional mode parsing
+func BenchmarkStatementParsing_Traditional(b *testing.B) {
+	benchmarks := []struct {
+		name   string
+		source string
+	}{
+		{"simple assignment", "x := 42"},
+		{"if statement", "if x > 0 then y := 1"},
+		{"while loop", "while x < 10 do x := x + 1"},
+		{"block", "begin x := 1; y := 2; z := 3 end"},
+		{"var declaration", "var x, y, z: Integer"},
+		{"const declaration", "const PI = 3.14159"},
+		{"try/except", "try x := RiskyOp() except on e: Exception do x := 0 end"},
+		{"complex nested", "var i: Integer := 0; while i < 10 do begin i := i + 1; if i mod 2 = 0 then continue end"},
+	}
+
+	for _, bm := range benchmarks {
+		b.Run(bm.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				parser := New(lexer.New(bm.source))
+				parser.ParseProgram()
+			}
+		})
+	}
+}
+
+// BenchmarkStatementParsing_Cursor benchmarks cursor mode parsing
+func BenchmarkStatementParsing_Cursor(b *testing.B) {
+	benchmarks := []struct {
+		name   string
+		source string
+	}{
+		{"simple assignment", "x := 42"},
+		{"if statement", "if x > 0 then y := 1"},
+		{"while loop", "while x < 10 do x := x + 1"},
+		{"block", "begin x := 1; y := 2; z := 3 end"},
+		{"var declaration", "var x, y, z: Integer"},
+		{"const declaration", "const PI = 3.14159"},
+		{"try/except", "try x := RiskyOp() except on e: Exception do x := 0 end"},
+		{"complex nested", "var i: Integer := 0; while i < 10 do begin i := i + 1; if i mod 2 = 0 then continue end"},
+	}
+
+	for _, bm := range benchmarks {
+		b.Run(bm.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				parser := NewCursorParser(lexer.New(bm.source))
+				parser.ParseProgram()
+			}
+		})
+	}
+}
+
+// BenchmarkStatementParsing_Comparison provides direct comparison
+func BenchmarkStatementParsing_Comparison(b *testing.B) {
+	source := `var count: Integer := 0;
+		const LIMIT = 100;
+		while count < LIMIT do begin
+			if count mod 2 = 0 then begin
+				try
+					Process(count)
+				except
+					on e: Exception do continue
+				end
+			end;
+			count := count + 1
+		end`
+
+	b.Run("traditional", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			parser := New(lexer.New(source))
+			parser.ParseProgram()
+		}
+	})
+
+	b.Run("cursor", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			parser := NewCursorParser(lexer.New(source))
+			parser.ParseProgram()
+		}
+	})
+}
