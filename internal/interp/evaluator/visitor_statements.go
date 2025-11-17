@@ -444,18 +444,140 @@ func (e *Evaluator) VisitRepeatStatement(node *ast.RepeatStatement, ctx *Executi
 }
 
 // VisitForStatement evaluates a for loop statement.
-// Phase 3.5.4 - Phase 2D: Infrastructure ready (PushEnv/PopEnv), full migration pending type migration
+// Phase 3.5.4.39: Migrated from Interpreter.evalForStatement()
+// Uses ExecutionContext.PushEnv/PopEnv for proper loop variable scoping.
 func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionContext) Value {
-	// TODO Phase 3.5.4.39: Full migration pending ArrayValue/SetValue/EnumValue migration to runtime package
-	// Infrastructure is ready (ExecutionContext.PushEnv/PopEnv for scoping)
-	return e.adapter.EvalNode(node)
+	var result Value = &runtime.NilValue{}
+
+	// Evaluate start value
+	startVal := e.Eval(node.Start, ctx)
+	if isError(startVal) {
+		return startVal
+	}
+
+	// Evaluate end value
+	endVal := e.Eval(node.EndValue, ctx)
+	if isError(endVal) {
+		return endVal
+	}
+
+	// Both start and end must be integers for for loops
+	startInt, ok := startVal.(*runtime.IntegerValue)
+	if !ok {
+		return e.newError(node, "for loop start value must be integer, got %s", startVal.Type())
+	}
+
+	endInt, ok := endVal.(*runtime.IntegerValue)
+	if !ok {
+		return e.newError(node, "for loop end value must be integer, got %s", endVal.Type())
+	}
+
+	// Task 9.154: Evaluate step expression if present
+	stepValue := int64(1) // Default step value
+	if node.Step != nil {
+		stepVal := e.Eval(node.Step, ctx)
+		if isError(stepVal) {
+			return stepVal
+		}
+
+		stepInt, ok := stepVal.(*runtime.IntegerValue)
+		if !ok {
+			return e.newError(node, "for loop step value must be integer, got %s", stepVal.Type())
+		}
+
+		// Validate step value is strictly positive
+		if stepInt.Value <= 0 {
+			return e.newError(node, "FOR loop STEP should be strictly positive: %d", stepInt.Value)
+		}
+
+		stepValue = stepInt.Value
+	}
+
+	// Phase 3.5.4 - Phase 2D: Use ExecutionContext.PushEnv/PopEnv for loop variable scoping
+	// Create a new enclosed environment for the loop variable
+	ctx.PushEnv()
+	defer ctx.PopEnv() // Ensure environment is restored even on early return
+
+	// Define the loop variable in the loop environment
+	loopVarName := node.Variable.Value
+
+	// Execute the loop based on direction
+	if node.Direction == ast.ForTo {
+		// Task 9.155: Ascending loop with step support
+		for current := startInt.Value; current <= endInt.Value; current += stepValue {
+			// Set the loop variable to the current value
+			ctx.Env().Define(loopVarName, &runtime.IntegerValue{Value: current})
+
+			// Execute the body
+			result = e.Eval(node.Body, ctx)
+			if isError(result) {
+				return result
+			}
+
+			// Handle control flow signals
+			cf := ctx.ControlFlow()
+			if cf.IsBreak() {
+				cf.Clear()
+				break
+			}
+			if cf.IsContinue() {
+				cf.Clear()
+				continue
+			}
+			// Handle exit signal (exit from function while in loop)
+			if cf.IsExit() {
+				// Don't clear the signal - let the function handle it
+				break
+			}
+		}
+	} else {
+		// Task 9.155: Descending loop with step support
+		for current := startInt.Value; current >= endInt.Value; current -= stepValue {
+			// Set the loop variable to the current value
+			ctx.Env().Define(loopVarName, &runtime.IntegerValue{Value: current})
+
+			// Execute the body
+			result = e.Eval(node.Body, ctx)
+			if isError(result) {
+				return result
+			}
+
+			// Handle control flow signals
+			cf := ctx.ControlFlow()
+			if cf.IsBreak() {
+				cf.Clear()
+				break
+			}
+			if cf.IsContinue() {
+				cf.Clear()
+				continue
+			}
+			// Handle exit signal (exit from function while in loop)
+			if cf.IsExit() {
+				// Don't clear the signal - let the function handle it
+				break
+			}
+		}
+	}
+
+	return result
 }
 
 // VisitForInStatement evaluates a for-in loop statement.
-// Phase 3.5.4 - Phase 2D: Infrastructure ready (PushEnv/PopEnv), full migration pending type migration
+// Phase 3.5.4 - Phase 2D: Infrastructure ready (PushEnv/PopEnv), migration blocked by type dependencies
+//
+// Blocking Dependencies (must migrate to runtime package first):
+//   - ArrayValue (Elements []Value field needed for iteration)
+//   - SetValue (SetType, HasElement() method needed for set iteration)
+//   - EnumValue (TypeName, ValueName, OrdinalValue fields needed)
+//   - TypeMetaValue (TypeInfo field needed for enum type iteration)
+//   - types.EnumType (OrderedNames, Values fields needed for iteration)
+//
+// The iteration logic requires type-specific access to these types' fields and methods,
+// which are not accessible from the evaluator package due to circular dependency constraints.
+// Once these types are migrated to runtime/, this method can be fully implemented here.
 func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *ExecutionContext) Value {
-	// TODO Phase 3.5.4.40: Full migration pending ArrayValue/SetValue/EnumValue migration to runtime package
-	// Infrastructure is ready (ExecutionContext.PushEnv/PopEnv for scoping)
+	// Delegate to adapter until ArrayValue, SetValue, EnumValue, TypeMetaValue migrate to runtime
 	return e.adapter.EvalNode(node)
 }
 
@@ -516,18 +638,36 @@ func (e *Evaluator) VisitCaseStatement(node *ast.CaseStatement, ctx *ExecutionCo
 }
 
 // VisitTryStatement evaluates a try-except-finally statement.
-// Phase 3.5.4 - Phase 2E: Infrastructure ready (exception methods), full migration pending type migration
+// Phase 3.5.4 - Phase 2E: Infrastructure ready (exception methods), migration blocked by type dependencies
+//
+// Blocking Dependencies (must migrate to runtime package first):
+//   - ExceptionValue (ClassInfo, Message, Instance, CallStack fields needed)
+//   - ObjectInstance (Fields map, Class field needed for exception variable binding)
+//   - ClassInfo (Name, Parent fields needed for exception type matching)
+//
+// The exception handling logic requires access to ExceptionValue and ObjectInstance fields
+// for exception matching, variable binding, and ExceptObject management. These types
+// cannot be accessed from the evaluator package due to circular dependency constraints.
+// Once these types are migrated to runtime/, this method can be fully implemented here.
 func (e *Evaluator) VisitTryStatement(node *ast.TryStatement, ctx *ExecutionContext) Value {
-	// TODO Phase 3.5.4.45: Full migration pending ExceptionValue/ObjectInstance migration to runtime package
-	// Infrastructure is ready (ExecutionContext exception methods, evalExceptClause helper)
+	// Delegate to adapter until ExceptionValue, ObjectInstance, ClassInfo migrate to runtime
 	return e.adapter.EvalNode(node)
 }
 
 // VisitRaiseStatement evaluates a raise statement (exception throwing).
-// Phase 3.5.4 - Phase 2E: Infrastructure ready (exception methods), full migration pending type migration
+// Phase 3.5.4 - Phase 2E: Infrastructure ready (exception methods), migration blocked by type dependencies
+//
+// Blocking Dependencies (must migrate to runtime package first):
+//   - ExceptionValue (for creating and setting exceptions)
+//   - ObjectInstance (for extracting exception object and Message field)
+//   - ClassInfo (for exception type information)
+//
+// The raise statement must create ExceptionValue instances and extract fields from ObjectInstance,
+// which are not accessible from the evaluator package due to circular dependency constraints.
+// Additionally, bare raise must access handlerException which is Interpreter-specific state.
+// Once these types are migrated to runtime/, this method can be fully implemented here.
 func (e *Evaluator) VisitRaiseStatement(node *ast.RaiseStatement, ctx *ExecutionContext) Value {
-	// TODO Phase 3.5.4.46: Full migration pending ExceptionValue/ObjectInstance migration to runtime package
-	// Infrastructure is ready (ExecutionContext exception methods)
+	// Delegate to adapter until ExceptionValue, ObjectInstance, ClassInfo migrate to runtime
 	return e.adapter.EvalNode(node)
 }
 
