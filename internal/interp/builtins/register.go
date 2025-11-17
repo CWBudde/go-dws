@@ -288,6 +288,11 @@ func RegisterConversionFunctions(r *Registry) {
 	// Hexadecimal conversion
 	r.Register("IntToHex", IntToHex, CategoryConversion, "Converts integer to hexadecimal string")
 	r.Register("StrToBool", StrToBool, CategoryConversion, "Converts string to boolean")
+
+	// Ordinal conversion (Task 3.7.5)
+	r.Register("Ord", Ord, CategoryConversion, "Returns ordinal value of enum/boolean/char")
+	// Note: Chr is registered in RegisterStringFunctions (strings_basic.go)
+
 	// Default() is now handled specially in evalCallExpression (like type casts)
 	// See functions_typecast.go::evalDefaultFunction()
 }

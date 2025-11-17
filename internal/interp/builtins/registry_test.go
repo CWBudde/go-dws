@@ -137,6 +137,15 @@ func (m *mockContext) WriteLine(s string) {
 	// Simple mock - no-op for testing
 }
 
+func (m *mockContext) GetEnumOrdinal(value Value) (int64, bool) {
+	// Simple mock - check type string since we can't import EnumValue
+	if value.Type() == "ENUM" {
+		// For testing, return a dummy ordinal
+		return 0, true
+	}
+	return 0, false
+}
+
 func TestNewRegistry(t *testing.T) {
 	r := NewRegistry()
 	if r == nil {

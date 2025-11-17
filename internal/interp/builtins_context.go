@@ -348,3 +348,13 @@ func (i *Interpreter) WriteLine(s string) {
 		i.output.Write([]byte(s + "\n"))
 	}
 }
+
+// GetEnumOrdinal returns the ordinal value of an enum Value.
+// This implements the builtins.Context interface.
+// Task 3.7.5: Helper for Ord() function.
+func (i *Interpreter) GetEnumOrdinal(value builtins.Value) (int64, bool) {
+	if enumVal, ok := value.(*EnumValue); ok {
+		return int64(enumVal.OrdinalValue), true
+	}
+	return 0, false
+}

@@ -128,6 +128,11 @@ type Context interface {
 	// WriteLine writes a string to the output followed by a newline.
 	// Task 3.7.4: I/O helper for PrintLn function.
 	WriteLine(s string)
+
+	// GetEnumOrdinal returns the ordinal value of an enum Value.
+	// Returns (ordinal, true) if the value is an enum, (0, false) otherwise.
+	// Task 3.7.5: Helper for Ord() function.
+	GetEnumOrdinal(value Value) (int64, bool)
 }
 
 // BuiltinFunc is the signature for all built-in function implementations.
