@@ -1288,7 +1288,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Acceptance: Cleaner organization, fewer files, easier to find functions, tests pass
   - **Completed**: Created `internal/interp/builtins/` package with Context interface, consolidated 171 functions into 4 files (math.go: 62 functions, strings.go: 56 functions, datetime.go: 52 functions, context.go: interface), eliminated circular dependencies via interface-based design, all tests passing. See `docs/phase3-task3.7.1-summary.md`
 
-- [ ] 3.7.2 Create built-in function registry
+- [x] 3.7.2 Create built-in function registry
   - Extract built-in registration to registry pattern
   - Support categories: math, string, datetime, collections, etc.
   - Auto-register on init or explicit registration
@@ -1296,6 +1296,78 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Files: `internal/interp/builtins/registry.go` (new)
   - Estimated: 2 days
   - Acceptance: Registry manages all built-ins, tests pass
+  - **Completed**: Created thread-safe registry with case-insensitive lookup, migrated 169/244 functions (69.3%) across 4 categories (Math: 62, String: 56, DateTime: 52, Conversion: 2), removed 336 lines of redundant switch cases (50% reduction), O(1) lookup for registered functions, comprehensive documentation. See `docs/builtin-registry-summary.md` and `docs/builtin-migration-roadmap.md`
+
+- [ ] 3.7.3 Extend Context interface for type-dependent functions
+  - Add type helper methods to Context interface: ToInt64, ToBool, ToFloat64
+  - Implement helpers in Interpreter to handle SubrangeValue, EnumValue conversions
+  - Migrate basic conversion functions: IntToStr, IntToBin, StrToInt, StrToFloat, FloatToStr, BoolToStr
+  - Migrate encoding functions: StrToHtml, StrToHtmlAttribute, StrToJSON, StrToCSSText, StrToXML
+  - Register ~15 additional functions in CategoryConversion and CategoryEncoding
+  - Files: `internal/interp/builtins/context.go` (extend), `internal/interp/builtins/conversion.go` (new), `internal/interp/builtins/encoding.go` (new)
+  - Estimated: 3 days
+  - Acceptance: Context extended with type helpers, 15+ conversion/encoding functions migrated, registry up to 184+ functions, tests pass
+
+- [ ] 3.7.4 Add I/O support and migrate Print functions
+  - Extend Context with GetOutput() io.Writer method
+  - Migrate Print and PrintLn to builtins package
+  - Register in CategoryIO
+  - Files: `internal/interp/builtins/io.go` (new)
+  - Estimated: 1 day
+  - Acceptance: Print/PrintLn in registry, output correctly written to configured writer, tests pass
+
+- [ ] 3.7.5 Migrate ordinal and variant functions
+  - Extend Context with ordinal helpers: IsEnum, IsSubrange, EnumSucc, EnumPred
+  - Migrate ordinal functions: Inc, Dec, Succ, Pred, Ord, Integer
+  - Extend Context with variant helpers: IsVariant, VariantType, VariantToValue
+  - Migrate variant functions: VarType, VarIsNull, VarIsEmpty, VarIsClear, VarIsArray, VarIsStr, VarIsNumeric
+  - Migrate variant conversion: VarToStr, VarToInt, VarToFloat, VarAsType, VarClear
+  - Register in CategoryOrdinal and CategoryVariant
+  - Files: `internal/interp/builtins/ordinals.go` (new), `internal/interp/builtins/variant.go` (new)
+  - Estimated: 4 days
+  - Acceptance: 17+ ordinal/variant functions migrated, registry up to 203+ functions, tests pass
+
+- [ ] 3.7.6 Migrate JSON and type introspection functions
+  - Extend Context with JSON helpers: ParseJSONValue, ValueToJSON
+  - Migrate JSON functions: ParseJSON, ToJSON, ToJSONFormatted, JSONHasField, JSONKeys, JSONValues, JSONLength
+  - Extend Context with type introspection: GetTypeOf, GetClassOf
+  - Migrate type functions: TypeOf, TypeOfClass
+  - Register in CategoryJSON and CategoryType
+  - Files: `internal/interp/builtins/json.go` (new), `internal/interp/builtins/type.go` (new)
+  - Estimated: 3 days
+  - Acceptance: 9+ JSON/type functions migrated, registry up to 212+ functions, tests pass
+
+- [ ] 3.7.7 Migrate array and collection functions
+  - Extend Context with array helpers: GetArrayLength, SetArrayLength, ArrayCopy, ArrayReverse, ArraySort
+  - Migrate simple array functions: Length, Copy, Low, High, IndexOf, Contains, Reverse, Sort
+  - Extend Context with callback evaluation: EvalFunctionPointer
+  - Migrate collection functions: Map, Filter, Reduce, ForEach, Every, Some, Find, FindIndex
+  - Migrate array manipulation: Add, Delete, SetLength, ConcatArrays, Slice
+  - Register in CategoryArray and CategoryCollections
+  - Files: `internal/interp/builtins/array.go` (new), `internal/interp/builtins/collections.go` (new)
+  - Estimated: 5 days
+  - Acceptance: 21+ array/collection functions migrated, registry up to 233+ functions, tests pass
+
+- [ ] 3.7.8 Migrate remaining miscellaneous functions
+  - Migrate Format function with extended formatting support
+  - Migrate runtime functions: GetStackTrace, GetCallStack, Assigned, Swap
+  - Migrate remaining utility functions: Assert, DivMod, and any others
+  - Remove all remaining switch cases from functions_builtins.go
+  - Register in CategorySystem
+  - Files: `internal/interp/builtins/system.go` (new)
+  - Estimated: 2 days
+  - Acceptance: All 244 functions in registry, switch statement removed entirely, pure O(1) dispatch, tests pass
+
+- [ ] 3.7.9 Registry enhancement and optimization
+  - Add parameter validation metadata to FunctionInfo
+  - Add return type information to FunctionInfo
+  - Add usage examples to function descriptions
+  - Create registry inspection CLI tool or debug endpoint
+  - Add performance profiling hooks for registry lookups
+  - Update all documentation with final statistics
+  - Files: Various improvements to registry infrastructure
+  - Estimated: 2 days
+  - Acceptance: Enhanced registry with metadata, tooling for inspection, documentation complete
 
 ---
 
