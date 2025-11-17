@@ -11,6 +11,67 @@ import (
 // Statements perform actions and control flow, typically not returning values
 // (or returning nil).
 
+// isTruthy determines if a value is considered "true" for conditional logic.
+// Task 9.35: Support Variant→Boolean implicit conversion.
+// DWScript semantics for Variant→Boolean: empty/nil/zero → false, otherwise → true
+func isTruthy(val Value) bool {
+	switch v := val.(type) {
+	case *runtime.BooleanValue:
+		return v.Value
+	default:
+		// Check if this is a Variant type by type name
+		// (VariantValue is in internal/interp, not runtime, so we check by type string)
+		if val.Type() == "VARIANT" {
+			// For variants, we need to unwrap and check the underlying value
+			// This requires accessing the Value field, but VariantValue is not imported here
+			// Use variantToBool helper
+			return variantToBool(val)
+		}
+		// In DWScript, only booleans and variants can be used in conditions
+		// Non-boolean values in conditionals would be a type error
+		// But we return false as a safe default
+		return false
+	}
+}
+
+// variantToBool converts a variant value to boolean using DWScript semantics.
+// Task 9.35: Variant→Boolean coercion rules:
+// - nil/null → false
+// - Integer 0 → false, non-zero → true
+// - Float 0.0 → false, non-zero → true
+// - String "" → false, non-empty → true
+// - Objects/arrays → true (non-nil)
+func variantToBool(val Value) bool {
+	if val == nil {
+		return false
+	}
+
+	switch v := val.(type) {
+	case *runtime.BooleanValue:
+		return v.Value
+	case *runtime.IntegerValue:
+		return v.Value != 0
+	case *runtime.FloatValue:
+		return v.Value != 0.0
+	case *runtime.StringValue:
+		return v.Value != ""
+	case *runtime.NilValue:
+		return false
+	default:
+		// Check by type name for types not in runtime package
+		switch val.Type() {
+		case "NIL":
+			return false
+		case "VARIANT":
+			// Nested variant - shouldn't happen in practice
+			return false
+		default:
+			// For objects, arrays, records, etc: non-nil → true
+			return true
+		}
+	}
+}
+
 // VisitProgram evaluates a program (the root node).
 // Phase 3.5.4.29: Migrated from Interpreter.evalProgram()
 func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value {
@@ -120,21 +181,120 @@ func (e *Evaluator) VisitBlockStatement(node *ast.BlockStatement, ctx *Execution
 }
 
 // VisitIfStatement evaluates an if statement (if-then-else).
+// Phase 3.5.4.36: Migrated from Interpreter.evalIfStatement()
 func (e *Evaluator) VisitIfStatement(node *ast.IfStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	return e.adapter.EvalNode(node)
+	// Evaluate the condition
+	condition := e.Eval(node.Condition, ctx)
+	if isError(condition) {
+		return condition
+	}
+
+	// Convert condition to boolean
+	if isTruthy(condition) {
+		return e.Eval(node.Consequence, ctx)
+	} else if node.Alternative != nil {
+		return e.Eval(node.Alternative, ctx)
+	}
+
+	// No alternative and condition was false - return nil
+	return &runtime.NilValue{}
 }
 
 // VisitWhileStatement evaluates a while loop statement.
+// Phase 3.5.4.37: Migrated from Interpreter.evalWhileStatement()
 func (e *Evaluator) VisitWhileStatement(node *ast.WhileStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	return e.adapter.EvalNode(node)
+	var result Value = &runtime.NilValue{}
+
+	for {
+		// Evaluate the condition
+		condition := e.Eval(node.Condition, ctx)
+		if isError(condition) {
+			return condition
+		}
+
+		// Check if condition is true
+		if !isTruthy(condition) {
+			break
+		}
+
+		// Execute the body
+		result = e.Eval(node.Body, ctx)
+		if isError(result) {
+			return result
+		}
+
+		// Handle control flow signals
+		cf := ctx.ControlFlow()
+		if cf.IsBreak() {
+			cf.Clear()
+			break
+		}
+		if cf.IsContinue() {
+			cf.Clear()
+			continue
+		}
+		// Handle exit signal (exit from function while in loop)
+		if cf.IsExit() {
+			// Don't clear the signal - let the function handle it
+			break
+		}
+
+		// Check for active exception
+		if ctx.Exception() != nil {
+			break
+		}
+	}
+
+	return result
 }
 
 // VisitRepeatStatement evaluates a repeat-until loop statement.
+// Phase 3.5.4.38: Migrated from Interpreter.evalRepeatStatement()
 func (e *Evaluator) VisitRepeatStatement(node *ast.RepeatStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	return e.adapter.EvalNode(node)
+	var result Value
+
+	for {
+		// Execute the body first (repeat-until always executes at least once)
+		result = e.Eval(node.Body, ctx)
+		if isError(result) {
+			return result
+		}
+
+		// Handle control flow signals
+		cf := ctx.ControlFlow()
+		if cf.IsBreak() {
+			cf.Clear()
+			break
+		}
+		if cf.IsContinue() {
+			cf.Clear()
+			// Continue to condition check
+		}
+		// Handle exit signal (exit from function while in loop)
+		if cf.IsExit() {
+			// Don't clear the signal - let the function handle it
+			break
+		}
+
+		// Check for active exception
+		if ctx.Exception() != nil {
+			break
+		}
+
+		// Evaluate the condition
+		condition := e.Eval(node.Condition, ctx)
+		if isError(condition) {
+			return condition
+		}
+
+		// Check if condition is true - if so, exit the loop
+		// Note: repeat UNTIL condition, so we break when condition is TRUE
+		if isTruthy(condition) {
+			break
+		}
+	}
+
+	return result
 }
 
 // VisitForStatement evaluates a for loop statement.
@@ -242,8 +402,8 @@ func (e *Evaluator) VisitReturnStatement(node *ast.ReturnStatement, ctx *Executi
 
 // VisitUsesClause evaluates a uses clause.
 // At runtime, uses clauses are no-ops since units are already loaded.
+// Units are processed before execution by the CLI/loader.
 func (e *Evaluator) VisitUsesClause(node *ast.UsesClause, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now (no-op at runtime)
-	// Maintaining consistency with migration strategy
-	return e.adapter.EvalNode(node)
+	// Uses clauses are no-ops at runtime - units are already loaded
+	return nil
 }

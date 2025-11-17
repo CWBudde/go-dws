@@ -1489,9 +1489,9 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - [x] 3.5.4.35 ReturnStatement - Migrate evalReturnStatement() (function returns)
 
   **Batch 7: Control Flow (9 methods)** - 3 days
-  - [ ] 3.5.4.36 IfStatement - Migrate evalIfStatement() (if-then-else logic)
-  - [ ] 3.5.4.37 WhileStatement - Migrate evalWhileStatement() (while loops)
-  - [ ] 3.5.4.38 RepeatStatement - Migrate evalRepeatStatement() (repeat-until loops)
+  - [x] 3.5.4.36 IfStatement - Migrate evalIfStatement() (if-then-else logic)
+  - [x] 3.5.4.37 WhileStatement - Migrate evalWhileStatement() (while loops)
+  - [x] 3.5.4.38 RepeatStatement - Migrate evalRepeatStatement() (repeat-until loops)
   - [ ] 3.5.4.39 ForStatement - Migrate evalForStatement() (for loops with counter)
   - [ ] 3.5.4.40 ForInStatement - Migrate evalForInStatement() (for-in iteration)
   - [ ] 3.5.4.41 CaseStatement - Migrate evalCaseStatement() (switch-case logic)
