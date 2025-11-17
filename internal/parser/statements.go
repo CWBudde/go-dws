@@ -5,10 +5,242 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
+// parseStatementCursor parses a single statement in cursor mode.
+// Task 2.2.14.1: Statement parsing infrastructure
+// PRE: cursor is on first token of statement
+// POST: cursor is on last token of statement
+func (p *Parser) parseStatementCursor() ast.Statement {
+	// For now, this is a dispatcher that will call cursor versions when available
+	// As we implement each statement cursor handler, they'll be added here
+
+	currentToken := p.cursor.Current()
+
+	switch currentToken.Type {
+	case lexer.BEGIN:
+		// Task 2.2.14.3: Use cursor mode for block statements
+		return p.parseBlockStatementCursor()
+
+	case lexer.VAR:
+		// Fall back to traditional mode for now
+		p.syncCursorToTokens()
+		p.useCursor = false
+		stmt := p.parseVarDeclaration()
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return stmt
+
+	case lexer.CONST:
+		// Fall back to traditional mode for now
+		p.syncCursorToTokens()
+		p.useCursor = false
+		stmt := p.parseConstDeclaration()
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return stmt
+
+	case lexer.IF:
+		// Task 2.2.14.4: Use cursor mode for if statements
+		return p.parseIfStatementCursor()
+
+	case lexer.WHILE:
+		// Task 2.2.14.4: Use cursor mode for while statements
+		return p.parseWhileStatementCursor()
+
+	case lexer.REPEAT:
+		// Task 2.2.14.4: Use cursor mode for repeat statements
+		return p.parseRepeatStatementCursor()
+
+	case lexer.FOR:
+		// Fall back to traditional mode for now
+		p.syncCursorToTokens()
+		p.useCursor = false
+		stmt := p.parseForStatement()
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return stmt
+
+	case lexer.CASE:
+		// Fall back to traditional mode for now
+		p.syncCursorToTokens()
+		p.useCursor = false
+		stmt := p.parseCaseStatement()
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return stmt
+
+	case lexer.BREAK:
+		// Fall back to traditional mode for now
+		p.syncCursorToTokens()
+		p.useCursor = false
+		stmt := p.parseBreakStatement()
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return stmt
+
+	case lexer.CONTINUE:
+		// Fall back to traditional mode for now
+		p.syncCursorToTokens()
+		p.useCursor = false
+		stmt := p.parseContinueStatement()
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return stmt
+
+	case lexer.EXIT:
+		// Fall back to traditional mode for now
+		p.syncCursorToTokens()
+		p.useCursor = false
+		stmt := p.parseExitStatement()
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return stmt
+
+	case lexer.TRY:
+		// Fall back to traditional mode for now
+		p.syncCursorToTokens()
+		p.useCursor = false
+		stmt := p.parseTryStatement()
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return stmt
+
+	case lexer.RAISE:
+		// Fall back to traditional mode for now
+		p.syncCursorToTokens()
+		p.useCursor = false
+		stmt := p.parseRaiseStatement()
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return stmt
+
+	case lexer.FUNCTION, lexer.PROCEDURE, lexer.METHOD:
+		// Fall back to traditional mode for now
+		p.syncCursorToTokens()
+		p.useCursor = false
+		stmt := p.parseFunctionDeclaration()
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return stmt
+
+	case lexer.OPERATOR:
+		// Fall back to traditional mode for now
+		p.syncCursorToTokens()
+		p.useCursor = false
+		stmt := p.parseOperatorDeclaration()
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return stmt
+
+	case lexer.CLASS:
+		nextToken := p.cursor.Peek(1)
+		if nextToken.Type == lexer.FUNCTION || nextToken.Type == lexer.PROCEDURE || nextToken.Type == lexer.METHOD {
+			// Fall back to traditional mode for now
+			p.syncCursorToTokens()
+			p.useCursor = false
+			p.nextToken() // move to function/procedure/method token
+			fn := p.parseFunctionDeclaration()
+			if fn != nil {
+				fn.IsClassMethod = true
+			}
+			p.useCursor = true
+			p.syncTokensToCursor()
+			return fn
+		}
+		p.addError("expected 'function', 'procedure', or 'method' after 'class'", ErrUnexpectedToken)
+		return nil
+
+	case lexer.CONSTRUCTOR:
+		// Fall back to traditional mode for now
+		p.syncCursorToTokens()
+		p.useCursor = false
+		method := p.parseFunctionDeclaration()
+		if method != nil {
+			method.IsConstructor = true
+		}
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return method
+
+	case lexer.DESTRUCTOR:
+		// Fall back to traditional mode for now
+		p.syncCursorToTokens()
+		p.useCursor = false
+		method := p.parseFunctionDeclaration()
+		if method != nil {
+			method.IsDestructor = true
+		}
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return method
+
+	case lexer.TYPE:
+		// Fall back to traditional mode for now
+		p.syncCursorToTokens()
+		p.useCursor = false
+		stmt := p.parseTypeDeclaration()
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return stmt
+
+	case lexer.USES:
+		// Fall back to traditional mode for now
+		p.syncCursorToTokens()
+		p.useCursor = false
+		stmt := p.parseUsesClause()
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return stmt
+
+	default:
+		// Check for assignment (simple or member assignment)
+		// Handle SELF and INHERITED which can be assignment targets (e.g., Self.X := value)
+		// Task 2.2.14.2: Use cursor mode for expressions and assignments
+		if currentToken.Type == lexer.SELF || currentToken.Type == lexer.INHERITED {
+			// Parse as assignment or expression using cursor mode
+			return p.parseAssignmentOrExpressionCursor()
+		}
+
+		if p.isIdentifierToken(currentToken.Type) {
+			// Could be:
+			// 1. x := value (assignment)
+			// 2. obj.field := value (member assignment)
+			// 3. x: Type; (var declaration without 'var' keyword - part of var section)
+
+			// Check if this is a var declaration (IDENT COLON pattern)
+			nextToken := p.cursor.Peek(1)
+			if nextToken.Type == lexer.COLON {
+				// This is a var declaration in a var section
+				// Treat it like "var x: Type;"
+				// Fall back to traditional mode for var declarations (Task 2.2.14.6)
+				p.syncCursorToTokens()
+				p.useCursor = false
+				stmt := p.parseVarDeclaration()
+				p.useCursor = true
+				p.syncTokensToCursor()
+				return stmt
+			}
+
+			// Otherwise, parse as assignment or expression using cursor mode
+			return p.parseAssignmentOrExpressionCursor()
+		}
+
+		// Expression statement - use cursor mode (expressions are fully migrated)
+		return p.parseExpressionStatementCursor()
+	}
+}
+
 // parseStatement parses a single statement.
 // PRE: curToken is first token of statement
 // POST: curToken is last token of statement
 func (p *Parser) parseStatement() ast.Statement {
+	// Task 2.2.14.2: Dispatch to cursor mode if enabled
+	if p.useCursor {
+		stmt := p.parseStatementCursor()
+		// Sync traditional pointers from cursor after statement parsing
+		p.syncCursorToTokens()
+		return stmt
+	}
+
 	switch p.curToken.Type {
 	case lexer.BEGIN:
 		return p.parseBlockStatement()
@@ -576,4 +808,199 @@ func (p *Parser) looksLikeConstDeclaration() bool {
 	// - NAME = value         (untyped const)
 	return tokenAfterIdent.Type == lexer.COLON ||
 		tokenAfterIdent.Type == lexer.EQ
+}
+
+// ============================================================================
+// Task 2.2.14.2: Cursor-mode statement handlers for expressions and assignments
+// ============================================================================
+
+// parseExpressionStatementCursor parses an expression statement in cursor mode.
+// Task 2.2.14.2: Expression statement migration
+// PRE: cursor is on first token of expression
+// POST: cursor is on last token of statement (possibly SEMICOLON)
+func (p *Parser) parseExpressionStatementCursor() *ast.ExpressionStatement {
+	startToken := p.cursor.Current()
+	stmt := &ast.ExpressionStatement{
+		BaseNode: ast.BaseNode{Token: startToken},
+	}
+
+	// Parse expression using cursor mode (expressions are fully migrated)
+	stmt.Expression = p.parseExpressionCursor(LOWEST)
+
+	// Set end position based on expression
+	if stmt.Expression != nil {
+		stmt.EndPos = stmt.Expression.End()
+	} else {
+		stmt.EndPos = p.endPosFromToken(stmt.Token)
+	}
+
+	// Optional semicolon
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type == lexer.SEMICOLON {
+		p.cursor = p.cursor.Advance()
+		stmt.EndPos = p.endPosFromToken(p.cursor.Current()) // Update to include semicolon
+	}
+
+	return stmt
+}
+
+// parseAssignmentOrExpressionCursor determines if we have an assignment or expression statement.
+// Task 2.2.14.2: Assignment statement migration
+// This handles both simple assignments (x := value), compound assignments (x += value),
+// and member assignments (obj.field := value, arr[i] := value).
+// PRE: cursor is on first token (typically an identifier or expression start)
+// POST: cursor is on last token of statement (possibly SEMICOLON)
+func (p *Parser) parseAssignmentOrExpressionCursor() ast.Statement {
+	startToken := p.cursor.Current()
+
+	// Parse the left side as an expression (could be identifier, member access, or index)
+	left := p.parseExpressionCursor(LOWEST)
+
+	// Check if next token is assignment (simple or compound)
+	nextToken := p.cursor.Peek(1)
+	if isAssignmentOperator(nextToken.Type) {
+		p.cursor = p.cursor.Advance() // Move to assignment operator
+		assignOp := p.cursor.Current().Type
+
+		// Determine what kind of assignment this is
+		switch leftExpr := left.(type) {
+		case *ast.Identifier, *ast.MemberAccessExpression, *ast.IndexExpression:
+			// Valid assignment targets
+			stmt := &ast.AssignmentStatement{
+				BaseNode: ast.BaseNode{Token: p.cursor.Current()},
+				Target:   leftExpr,
+				Operator: assignOp,
+			}
+
+			// Move to value expression
+			p.cursor = p.cursor.Advance()
+
+			// Parse value expression
+			stmt.Value = p.parseExpressionCursor(ASSIGN)
+
+			// Set end position based on value expression
+			if stmt.Value != nil {
+				stmt.EndPos = stmt.Value.End()
+			} else {
+				stmt.EndPos = p.endPosFromToken(p.cursor.Current())
+			}
+
+			// Optional semicolon
+			nextToken := p.cursor.Peek(1)
+			if nextToken.Type == lexer.SEMICOLON {
+				p.cursor = p.cursor.Advance()
+				stmt.EndPos = p.endPosFromToken(p.cursor.Current()) // Update to include semicolon
+			}
+
+			return stmt
+
+		default:
+			// Invalid assignment target - use structured error
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidSyntax).
+				WithMessage("invalid assignment target").
+				WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
+				WithSuggestion("assignment target must be a variable, field access, or array element").
+				WithNote("Valid: x := 10, obj.field := 20, arr[i] := 30").
+				WithParsePhase("assignment statement").
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+	}
+
+	// Not an assignment, treat as expression statement
+	stmt := &ast.ExpressionStatement{
+		BaseNode:   ast.BaseNode{Token: startToken},
+		Expression: left,
+	}
+
+	// Set end position
+	if left != nil {
+		stmt.EndPos = left.End()
+	} else {
+		stmt.EndPos = p.endPosFromToken(startToken)
+	}
+
+	// Optional semicolon
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type == lexer.SEMICOLON {
+		p.cursor = p.cursor.Advance()
+		stmt.EndPos = p.endPosFromToken(p.cursor.Current()) // Update to include semicolon
+	}
+
+	return stmt
+}
+
+// ============================================================================
+// Task 2.2.14.3: Cursor-mode handler for block statements
+// ============================================================================
+
+// parseBlockStatementCursor parses a begin...end block in cursor mode.
+// Task 2.2.14.3: Block statement migration
+// PRE: cursor is on BEGIN token
+// POST: cursor is on END token
+func (p *Parser) parseBlockStatementCursor() *ast.BlockStatement {
+	beginToken := p.cursor.Current()
+	block := &ast.BlockStatement{
+		BaseNode: ast.BaseNode{Token: beginToken},
+	}
+	block.Statements = []ast.Statement{}
+
+	// Track block context for better error messages
+	p.pushBlockContext("begin", beginToken.Pos)
+	defer p.popBlockContext()
+
+	// Advance past 'begin'
+	p.cursor = p.cursor.Advance()
+
+	// Parse statements until we hit END, EOF, or ENSURE
+	for {
+		currentToken := p.cursor.Current()
+
+		// Termination conditions
+		if currentToken.Type == lexer.END ||
+			currentToken.Type == lexer.EOF ||
+			currentToken.Type == lexer.ENSURE {
+			break
+		}
+
+		// Skip semicolons at statement level
+		if currentToken.Type == lexer.SEMICOLON {
+			p.cursor = p.cursor.Advance()
+			continue
+		}
+
+		// Parse statement using cursor mode
+		// Since we're in cursor mode, parseStatementCursor() will be called
+		stmt := p.parseStatementCursor()
+		if stmt != nil {
+			block.Statements = append(block.Statements, stmt)
+		}
+
+		// Advance to next token
+		p.cursor = p.cursor.Advance()
+
+		// Skip any semicolons after the statement
+		for p.cursor.Current().Type == lexer.SEMICOLON {
+			p.cursor = p.cursor.Advance()
+		}
+	}
+
+	// Check for proper block termination
+	currentToken := p.cursor.Current()
+	if currentToken.Type != lexer.END && currentToken.Type != lexer.ENSURE {
+		p.addErrorWithContext("expected 'end' to close block", ErrMissingEnd)
+		// Synchronize to recover (need to use traditional mode for this)
+		p.syncCursorToTokens()
+		p.useCursor = false
+		p.synchronize([]lexer.TokenType{lexer.END, lexer.ENSURE})
+		p.useCursor = true
+		p.syncTokensToCursor()
+	}
+
+	// Set end position to the END keyword
+	block.EndPos = p.endPosFromToken(p.cursor.Current())
+
+	return block
 }

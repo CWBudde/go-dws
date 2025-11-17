@@ -148,6 +148,12 @@ func TestDualMode_VarDeclaration(t *testing.T) {
 			}
 			if cursorStmt == nil {
 				t.Error("Cursor parser returned nil statement")
+				if len(cursorParser.Errors()) > 0 {
+					t.Logf("Cursor parser errors:")
+					for _, err := range cursorParser.Errors() {
+						t.Logf("  %v", err)
+					}
+				}
 			}
 
 			// Both should have same structure
@@ -226,6 +232,18 @@ func TestDualMode_Program(t *testing.T) {
 			if traditionalErrors != cursorErrors {
 				t.Errorf("Error count mismatch: traditional=%d, cursor=%d",
 					traditionalErrors, cursorErrors)
+				if cursorErrors > 0 {
+					t.Logf("Cursor errors:")
+					for _, err := range cursorParser.Errors() {
+						t.Logf("  %v", err)
+					}
+				}
+				if traditionalErrors > 0 {
+					t.Logf("Traditional errors:")
+					for _, err := range traditionalParser.Errors() {
+						t.Logf("  %v", err)
+					}
+				}
 			}
 		})
 	}
