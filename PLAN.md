@@ -602,10 +602,10 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
         - math_advanced.go: 0% → 85.2% (9 functions tested)
         - math_trig.go: 0% → 72.3% (15 functions tested)
         - math_convert.go: 0% → 71.5% (11 functions tested)
-      - [ ] Add tests for string manipulation functions (currently at 0-3.2%)
-        - strings_basic.go: 3.2% → need 80%+
-        - strings_advanced.go: 0% → need 80%+
-        - strings_compare.go: 0% → need 80%+
+      - [x] Add tests for string manipulation functions - Coverage increased to:
+        - strings_basic.go: 3.2% → 66-83% (20 functions tested)
+        - strings_advanced.go: 0% → 75-100% (13 functions tested)
+        - strings_compare.go: 0% → 73-80% (7 functions tested)
       - [ ] Add tests for variant/type/system functions (currently at 0%)
         - variant.go: 0% → need 80%+
         - type.go: 0% → need 80%+
@@ -613,8 +613,8 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
       - [ ] Add tests for array/collections (currently at 0-4.8%)
         - array.go: 4.8% → need 80%+
         - collections.go: 0% → need 80%+
-      - **Current Status**: Package coverage 15.2% → 32.3% (+113% improvement)
-      - **Remaining**: Need string, variant, type, system, array, and collection tests to reach 80%
+      - **Current Status**: Package coverage 15.2% → 46.5% (+205% improvement)
+      - **Remaining**: Need variant, type, system, array, collection, datetime, json, io, and encoding tests to reach 80%
     - [ ] 3.1.3.2 Improve interp/evaluator coverage (21.9% → 80%+)
       - Add tests for complex expression evaluation paths
       - Test error handling in evaluation
