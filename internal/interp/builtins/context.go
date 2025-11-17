@@ -85,6 +85,11 @@ type Context interface {
 	// Task 3.7.6: JSON helper for ToJSON and ToJSONFormatted functions.
 	ValueToJSON(value Value, formatted bool) (string, error)
 
+	// ValueToJSONWithIndent converts a DWScript Value to a JSON string with custom indentation.
+	// If formatted is true, the output is pretty-printed with the specified indent spaces.
+	// Task 3.7.6: JSON helper for ToJSONFormatted function with custom indent.
+	ValueToJSONWithIndent(value Value, formatted bool, indent int) (string, error)
+
 	// GetTypeOf returns the type name of a value (e.g., "INTEGER", "STRING", "TMyClass").
 	// Task 3.7.6: Type introspection helper for TypeOf function.
 	GetTypeOf(value Value) string

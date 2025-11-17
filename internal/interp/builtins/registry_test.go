@@ -92,6 +92,11 @@ func (m *mockContext) ValueToJSON(value Value, formatted bool) (string, error) {
 	return "{}", nil
 }
 
+func (m *mockContext) ValueToJSONWithIndent(value Value, formatted bool, indent int) (string, error) {
+	// Simple mock - not needed for most tests
+	return "{}", nil
+}
+
 func (m *mockContext) GetTypeOf(value Value) string {
 	if value == nil {
 		return "NULL"
