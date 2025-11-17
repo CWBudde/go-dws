@@ -77,28 +77,14 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 		Value: p.curToken.Literal,
 	}
 
-	// Check for optional type annotation (: Type)
-	if p.peekTokenIs(lexer.COLON) {
-		p.nextToken() // move to ':'
+	// Use OptionalTypeAnnotation combinator (Task 2.3.3)
+	stmt.Type = p.OptionalTypeAnnotation()
 
-		// Parse type expression (can be simple type, function pointer, or array type)
-		p.nextToken() // move to type expression
-		typeExpr := p.parseTypeExpression()
-		if typeExpr == nil {
-			p.addError("expected type expression after ':' in const declaration", ErrExpectedType)
-			return stmt
-		}
-
-		// Directly assign the type expression without creating synthetic wrappers
-		stmt.Type = typeExpr
-	}
-
-	// Expect '=' or ':=' token
-	if !p.peekTokenIs(lexer.EQ) && !p.peekTokenIs(lexer.ASSIGN) {
+	// Use Choice combinator for '=' or ':=' (Task 2.3.3)
+	if !p.Choice(lexer.EQ, lexer.ASSIGN) {
 		p.addError("expected '=' or ':=' after const name", ErrMissingAssign)
 		return stmt
 	}
-	p.nextToken() // move to '=' or ':='
 
 	// Parse value expression
 	p.nextToken()

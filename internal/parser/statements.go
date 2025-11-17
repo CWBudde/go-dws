@@ -442,33 +442,10 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		return nil
 	}
 
-	hasExplicitType := false
-	if p.peekTokenIs(lexer.COLON) {
-		hasExplicitType = true
-		p.nextToken() // move to ':'
+	// Use OptionalTypeAnnotation combinator (Task 2.3.3)
+	stmt.Type = p.OptionalTypeAnnotation()
 
-		// Parse type expression (can be simple type, function pointer, or array type)
-		p.nextToken() // move to type expression
-		typeExpr := p.parseTypeExpression()
-		if typeExpr == nil {
-			// Use structured error (Task 2.1.3)
-			err := NewStructuredError(ErrKindMissing).
-				WithCode(ErrExpectedType).
-				WithMessage("expected type expression after ':' in var declaration").
-				WithPosition(p.curToken.Pos, p.curToken.Length()).
-				WithExpectedString("type name").
-				WithSuggestion("specify the variable type, like 'Integer' or 'String'").
-				WithParsePhase("variable declaration type").
-				Build()
-			p.addStructuredError(err)
-			return stmt
-		}
-
-		// Directly assign the type expression without creating synthetic wrappers
-		stmt.Type = typeExpr
-	}
-
-	if hasExplicitType {
+	if stmt.Type != nil {
 		if p.peekTokenIs(lexer.ASSIGN) || p.peekTokenIs(lexer.EQ) {
 			if len(stmt.Names) > 1 {
 				// Use structured error (Task 2.1.3)
@@ -1122,10 +1099,11 @@ func (p *Parser) parseSingleVarDeclarationCursor() *ast.VarDeclStatement {
 		break
 	}
 
-	hasExplicitType := false
+	// Parse optional type annotation
+	// Note: Not using OptionalTypeAnnotation() combinator here because cursor mode
+	// requires careful state management and the combinator is designed for traditional mode.
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type == lexer.COLON {
-		hasExplicitType = true
 		p.cursor = p.cursor.Advance() // move to ':'
 
 		// Parse type expression (can be simple type, function pointer, or array type)
@@ -1158,7 +1136,7 @@ func (p *Parser) parseSingleVarDeclarationCursor() *ast.VarDeclStatement {
 	}
 
 	nextToken = p.cursor.Peek(1)
-	if hasExplicitType {
+	if stmt.Type != nil {
 		if nextToken.Type == lexer.ASSIGN || nextToken.Type == lexer.EQ {
 			if len(stmt.Names) > 1 {
 				// Use structured error (Task 2.1.3)
