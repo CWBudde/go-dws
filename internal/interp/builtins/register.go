@@ -6,10 +6,10 @@ package builtins
 // Current status (Phase 3, Task 3.7.2):
 //   - 170+ functions migrated to internal/interp/builtins/ package
 //   - 168 functions registered in categories:
-//     * Math: 62 functions (basic, advanced, trig, exponential, special values)
-//     * String: 56 functions (manipulation, search, comparison, formatting)
-//     * DateTime: 52 functions (creation, arithmetic, formatting, parsing, info)
-//     * Conversion: 2 functions (type conversions)
+//   - Math: 62 functions (basic, advanced, trig, exponential, special values)
+//   - String: 56 functions (manipulation, search, comparison, formatting)
+//   - DateTime: 52 functions (creation, arithmetic, formatting, parsing, info)
+//   - Conversion: 2 functions (type conversions)
 //
 // Pending migration (still in internal/interp as Interpreter methods):
 //   - I/O: Print, PrintLn (2 functions)

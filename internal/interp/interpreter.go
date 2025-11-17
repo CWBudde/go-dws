@@ -12,6 +12,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/internal/units"
+
 	// Task 3.8.2: pkg/ast is imported for SemanticInfo, which holds semantic analysis
 	// metadata (type annotations, symbol resolutions). This is separate from the AST
 	// structure itself and is not aliased in internal/ast.
