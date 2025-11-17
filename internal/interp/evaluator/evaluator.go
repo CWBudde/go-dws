@@ -75,6 +75,71 @@ type InterpreterAdapter interface {
 	// Returns the function declaration(s) and a boolean indicating success.
 	// Multiple functions may be returned for overloaded functions.
 	LookupFunction(name string) ([]*ast.FunctionDecl, bool)
+
+	// Phase 3.5.4 - Phase 2B: Type system access methods
+	// These methods allow the Evaluator to access type registries during evaluation
+	// without directly accessing Interpreter fields.
+
+	// ===== Class Registry =====
+
+	// LookupClass finds a class by name in the class registry.
+	// Returns the class info (as any/interface{}) and a boolean indicating success.
+	// The lookup is case-insensitive.
+	LookupClass(name string) (any, bool)
+
+	// HasClass checks if a class with the given name exists.
+	HasClass(name string) bool
+
+	// GetClassTypeID returns the type ID for a class, or 0 if not found.
+	GetClassTypeID(className string) int
+
+	// ===== Record Registry =====
+
+	// LookupRecord finds a record type by name in the record registry.
+	// Returns the record type value (as any/interface{}) and a boolean indicating success.
+	// The lookup is case-insensitive.
+	LookupRecord(name string) (any, bool)
+
+	// HasRecord checks if a record type with the given name exists.
+	HasRecord(name string) bool
+
+	// GetRecordTypeID returns the type ID for a record type, or 0 if not found.
+	GetRecordTypeID(recordName string) int
+
+	// ===== Interface Registry =====
+
+	// LookupInterface finds an interface by name in the interface registry.
+	// Returns the interface info (as any/interface{}) and a boolean indicating success.
+	// The lookup is case-insensitive.
+	LookupInterface(name string) (any, bool)
+
+	// HasInterface checks if an interface with the given name exists.
+	HasInterface(name string) bool
+
+	// ===== Helper Registry =====
+
+	// LookupHelpers finds helper methods for a type by name.
+	// Returns a slice of helper info (each element as any/interface{}).
+	// The lookup is case-insensitive.
+	LookupHelpers(typeName string) []any
+
+	// HasHelpers checks if a type has helper methods defined.
+	HasHelpers(typeName string) bool
+
+	// ===== Operator & Conversion Registries =====
+
+	// GetOperatorRegistry returns the operator registry for operator overload lookups.
+	// Returns the registry as any/interface{} to avoid circular dependencies.
+	GetOperatorRegistry() any
+
+	// GetConversionRegistry returns the conversion registry for type conversion lookups.
+	// Returns the registry as any/interface{} to avoid circular dependencies.
+	GetConversionRegistry() any
+
+	// ===== Enum Type IDs =====
+
+	// GetEnumTypeID returns the type ID for an enum type, or 0 if not found.
+	GetEnumTypeID(enumName string) int
 }
 
 // Evaluator is responsible for evaluating DWScript AST nodes.

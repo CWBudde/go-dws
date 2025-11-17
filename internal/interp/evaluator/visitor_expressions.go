@@ -36,21 +36,24 @@ func isError(val Value) bool {
 
 // VisitIdentifier evaluates an identifier (variable reference).
 func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	// Future: Move variable lookup logic here
+	// Phase 3.5.4 - Phase 2B: Type system is available via adapter
+	// (LookupClass, LookupFunction, etc.)
+	// TODO: Migrate identifier lookup logic to use adapter type system methods
 	return e.adapter.EvalNode(node)
 }
 
 // VisitBinaryExpression evaluates a binary expression (e.g., a + b, x == y).
 func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	// Future: Move operator evaluation logic here
+	// Phase 3.5.4 - Phase 2B: Operator registry is available via adapter.GetOperatorRegistry()
+	// Conversion registry available via adapter.GetConversionRegistry()
+	// TODO: Migrate operator evaluation and type coercion logic
 	return e.adapter.EvalNode(node)
 }
 
 // VisitUnaryExpression evaluates a unary expression (e.g., -x, not b).
 func (e *Evaluator) VisitUnaryExpression(node *ast.UnaryExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2B: Operator registry is available via adapter.GetOperatorRegistry()
+	// TODO: Migrate unary operator evaluation logic
 	return e.adapter.EvalNode(node)
 }
 
@@ -78,7 +81,8 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 
 // VisitNewExpression evaluates a 'new' expression (object instantiation).
 func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2B: Class registry is available via adapter.LookupClass()
+	// TODO: Migrate object instantiation and constructor dispatch logic
 	return e.adapter.EvalNode(node)
 }
 
@@ -175,25 +179,29 @@ func (e *Evaluator) VisitLambdaExpression(node *ast.LambdaExpression, ctx *Execu
 
 // VisitIsExpression evaluates an 'is' type checking expression.
 func (e *Evaluator) VisitIsExpression(node *ast.IsExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2B: Class registry available via adapter.LookupClass()
+	// TODO: Migrate class hierarchy checking logic
 	return e.adapter.EvalNode(node)
 }
 
 // VisitAsExpression evaluates an 'as' type casting expression.
 func (e *Evaluator) VisitAsExpression(node *ast.AsExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2B: Type casting infrastructure via adapter
+	// TODO: Migrate type casting logic
 	return e.adapter.EvalNode(node)
 }
 
 // VisitImplementsExpression evaluates an 'implements' interface checking expression.
 func (e *Evaluator) VisitImplementsExpression(node *ast.ImplementsExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2B: Interface registry available via adapter.LookupInterface()
+	// TODO: Migrate interface checking logic
 	return e.adapter.EvalNode(node)
 }
 
 // VisitIfExpression evaluates an inline if-then-else expression.
 func (e *Evaluator) VisitIfExpression(node *ast.IfExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2B: Type system available for default values
+	// TODO: Migrate if expression logic with type defaults
 	return e.adapter.EvalNode(node)
 }
 

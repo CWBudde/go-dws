@@ -270,19 +270,23 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 
 // VisitVarDeclStatement evaluates a variable declaration statement.
 func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2B: Type system available for array types, type inference
+	// TODO: Migrate variable declaration logic using adapter type system methods
 	return e.adapter.EvalNode(node)
 }
 
 // VisitConstDecl evaluates a constant declaration.
 func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2B: Record type registry available via adapter.LookupRecord()
+	// TODO: Migrate constant declaration logic
 	return e.adapter.EvalNode(node)
 }
 
 // VisitAssignmentStatement evaluates an assignment statement.
 func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2B: Type system available for compound operators
+	// Phase 3.5.4 - Phase 2C: Property setters (pending)
+	// TODO: Migrate assignment logic with operator overloads and property setters
 	return e.adapter.EvalNode(node)
 }
 
