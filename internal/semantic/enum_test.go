@@ -60,6 +60,18 @@ func TestEnumDeclaration(t *testing.T) {
 				var s: TSize := Small;
 			`,
 		},
+		{
+			name: "enum with duplicate ordinal values (aliases)",
+			input: `
+				type TStatus = (Ok = 0, Warning = 0, Error = 1);
+			`,
+		},
+		{
+			name: "enum with multiple aliases",
+			input: `
+				type TMonths = (January = 1, February = 2, FirstMonth = 1, SecondMonth = 2);
+			`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -81,13 +93,6 @@ func TestEnumErrors(t *testing.T) {
 				type TColor = (Red, Green, Red);
 			`,
 			expectedError: "duplicate enum value 'Red'",
-		},
-		{
-			name: "duplicate explicit values",
-			input: `
-				type TStatus = (Ok = 0, Warning = 0);
-			`,
-			expectedError: "duplicate enum ordinal value 0",
 		},
 		{
 			name: "undefined enum type",
