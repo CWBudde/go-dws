@@ -81,17 +81,30 @@ func ToJSON(ctx Context, args []Value) Value {
 }
 
 // ToJSONFormatted converts a DWScript value to a pretty-printed JSON string.
-// ToJSONFormatted(value: Variant): String
+// ToJSONFormatted(value: Variant, indent: Integer): String
 //
-// The output is formatted with 2-space indentation for readability.
+// The output is formatted with the specified indentation (default: 2 spaces).
 // This is useful for debugging or displaying JSON in a human-readable format.
 func ToJSONFormatted(ctx Context, args []Value) Value {
-	if len(args) != 1 {
-		return ctx.NewError("ToJSONFormatted() expects exactly 1 argument, got %d", len(args))
+	if len(args) < 1 || len(args) > 2 {
+		return ctx.NewError("ToJSONFormatted() expects 1 or 2 arguments, got %d", len(args))
 	}
 
-	// Convert value to formatted JSON string using Context helper
-	jsonStr, err := ctx.ValueToJSON(args[0], true)
+	// Extract optional indent parameter (default: 2)
+	indent := int64(2)
+	if len(args) == 2 {
+		indentVal, ok := ctx.ToInt64(args[1])
+		if !ok {
+			return ctx.NewError("ToJSONFormatted() expects Integer as second argument, got %s", args[1].Type())
+		}
+		indent = indentVal
+		if indent < 0 {
+			indent = 0
+		}
+	}
+
+	// Convert value to formatted JSON string using Context helper with indent
+	jsonStr, err := ctx.ValueToJSONWithIndent(args[0], true, int(indent))
 	if err != nil {
 		return ctx.NewError("ToJSONFormatted() serialization error: %s", err.Error())
 	}

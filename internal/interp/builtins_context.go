@@ -137,6 +137,13 @@ func (i *Interpreter) ParseJSONString(jsonStr string) (builtins.Value, error) {
 // This implements the builtins.Context interface.
 // Task 3.7.6: JSON helper for ToJSON and ToJSONFormatted functions.
 func (i *Interpreter) ValueToJSON(value builtins.Value, formatted bool) (string, error) {
+	return i.ValueToJSONWithIndent(value, formatted, 2)
+}
+
+// ValueToJSONWithIndent converts a DWScript Value to a JSON string with custom indentation.
+// This implements the builtins.Context interface.
+// Task 3.7.6: JSON helper for ToJSONFormatted function with custom indent.
+func (i *Interpreter) ValueToJSONWithIndent(value builtins.Value, formatted bool, indent int) (string, error) {
 	// Convert Value to jsonvalue.Value using existing helper
 	jsonVal := valueToJSONValue(value)
 
@@ -144,7 +151,12 @@ func (i *Interpreter) ValueToJSON(value builtins.Value, formatted bool) (string,
 	var jsonBytes []byte
 	var err error
 	if formatted {
-		jsonBytes, err = json.MarshalIndent(jsonVal, "", "  ")
+		// Build indent string
+		indentStr := ""
+		for j := 0; j < indent; j++ {
+			indentStr += " "
+		}
+		jsonBytes, err = json.MarshalIndent(jsonVal, "", indentStr)
 	} else {
 		jsonBytes, err = json.Marshal(jsonVal)
 	}
@@ -253,7 +265,7 @@ func (i *Interpreter) JSONGetValues(value builtins.Value) []builtins.Value {
 	}
 
 	// Handle arrays
-	if jsonVal.Value.Kind() == 1 { // KindArray = 1
+	if jsonVal.Value.Kind() == 3 { // KindArray = 3
 		arrayLen := jsonVal.Value.ArrayLen()
 		values := make([]builtins.Value, arrayLen)
 		for idx := 0; idx < arrayLen; idx++ {
@@ -290,7 +302,7 @@ func (i *Interpreter) JSONGetLength(value builtins.Value) int {
 	}
 
 	// Handle arrays - return length
-	if jsonVal.Value.Kind() == 1 { // KindArray = 1
+	if jsonVal.Value.Kind() == 3 { // KindArray = 3
 		return jsonVal.Value.ArrayLen()
 	}
 
