@@ -153,7 +153,7 @@ See [docs/bytecode-vm.md](docs/bytecode-vm.md) for detailed information on the b
 
 - **AST Interpreter**: Use for development, debugging, and single-execution scripts
   ```bash
-  dwscript run script.dws
+  ./bin/dwscript run script.dws
   ```
 
 **Performance Tips**:
