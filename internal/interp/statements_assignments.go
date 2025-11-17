@@ -377,17 +377,20 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 		}
 
 		// Try implicit conversion if types don't match
-		targetType := existingVal.Type()
-		sourceType := value.Type()
-		if targetType != sourceType {
-			if converted, ok := i.tryImplicitConversion(value, targetType); ok {
-				value = converted
+		// Check if value is nil before calling Type() to avoid panic
+		if value != nil {
+			targetType := existingVal.Type()
+			sourceType := value.Type()
+			if targetType != sourceType {
+				if converted, ok := i.tryImplicitConversion(value, targetType); ok {
+					value = converted
+				}
 			}
-		}
 
-		// Task 9.227: Box value if target is a Variant
-		if targetType == "VARIANT" && sourceType != "VARIANT" {
-			value = boxVariant(value)
+			// Task 9.227: Box value if target is a Variant
+			if targetType == "VARIANT" && sourceType != "VARIANT" {
+				value = boxVariant(value)
+			}
 		}
 
 		// Task 9.1.5: Handle object variable assignment - manage ref count
