@@ -912,28 +912,28 @@ func TestTokenCursor_LookAhead(t *testing.T) {
 // TestTokenCursor_LookAhead_ConstDeclaration tests LookAhead for const declaration patterns
 func TestTokenCursor_LookAhead_ConstDeclaration(t *testing.T) {
 	tests := []struct {
-		name       string
-		source     string
-		pattern    []token.TokenType
-		wantMatch  bool
+		name      string
+		source    string
+		pattern   []token.TokenType
+		wantMatch bool
 	}{
 		{
-			name:       "typed const (CONST IDENT COLON)",
-			source:     "const C : Integer = 5;",
-			pattern:    []token.TokenType{token.CONST, token.IDENT, token.COLON},
-			wantMatch:  true,
+			name:      "typed const (CONST IDENT COLON)",
+			source:    "const C : Integer = 5;",
+			pattern:   []token.TokenType{token.CONST, token.IDENT, token.COLON},
+			wantMatch: true,
 		},
 		{
-			name:       "untyped const (CONST IDENT EQ)",
-			source:     "const C = 5;",
-			pattern:    []token.TokenType{token.CONST, token.IDENT, token.EQ},
-			wantMatch:  true,
+			name:      "untyped const (CONST IDENT EQ)",
+			source:    "const C = 5;",
+			pattern:   []token.TokenType{token.CONST, token.IDENT, token.EQ},
+			wantMatch: true,
 		},
 		{
-			name:       "wrong pattern for untyped const",
-			source:     "const C = 5;",
-			pattern:    []token.TokenType{token.CONST, token.IDENT, token.COLON},
-			wantMatch:  false,
+			name:      "wrong pattern for untyped const",
+			source:    "const C = 5;",
+			pattern:   []token.TokenType{token.CONST, token.IDENT, token.COLON},
+			wantMatch: false,
 		},
 	}
 
@@ -1165,10 +1165,10 @@ func TestTokenCursor_FindNext(t *testing.T) {
 			wantFound:    true,
 		},
 		{
-			name:         "cannot find SEMICOLON within 5 tokens",
-			tokenType:    token.SEMICOLON,
-			maxDistance:  5,
-			wantFound:    false,
+			name:        "cannot find SEMICOLON within 5 tokens",
+			tokenType:   token.SEMICOLON,
+			maxDistance: 5,
+			wantFound:   false,
 		},
 		{
 			name:         "find current token (distance 0)",
@@ -1185,16 +1185,16 @@ func TestTokenCursor_FindNext(t *testing.T) {
 			wantFound:    true,
 		},
 		{
-			name:         "search for non-existent FLOAT",
-			tokenType:    token.FLOAT,
-			maxDistance:  100,
-			wantFound:    false,
+			name:        "search for non-existent FLOAT",
+			tokenType:   token.FLOAT,
+			maxDistance: 100,
+			wantFound:   false,
 		},
 		{
-			name:         "maxDistance is 0 (only check current)",
-			tokenType:    token.SEMICOLON,
-			maxDistance:  0,
-			wantFound:    false,
+			name:        "maxDistance is 0 (only check current)",
+			tokenType:   token.SEMICOLON,
+			maxDistance: 0,
+			wantFound:   false,
 		},
 	}
 
@@ -1361,10 +1361,10 @@ func TestTokenCursor_ScanUntil_WithAdvance(t *testing.T) {
 // TestTokenCursor_DeclarativeLookahead_RealWorldPattern tests realistic usage patterns
 func TestTokenCursor_DeclarativeLookahead_RealWorldPattern(t *testing.T) {
 	tests := []struct {
-		name              string
-		source            string
-		checkFunc         func(*TokenCursor) bool
-		expectedResult    bool
+		name           string
+		source         string
+		checkFunc      func(*TokenCursor) bool
+		expectedResult bool
 	}{
 		{
 			name:   "check for typed variable declaration",
