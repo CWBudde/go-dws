@@ -116,9 +116,19 @@ func (b *ParserBuilder) Build() *Parser {
 	// Register all parse functions
 	b.registerParseFunctions(p)
 
-	// Initialize token state (read first two tokens)
-	p.nextToken()
-	p.nextToken()
+	// Initialize token state
+	// In cursor mode, NewTokenCursor already positioned the cursor at the first token,
+	// so we just sync the traditional token pointers to match.
+	// In traditional mode, we need to read the first two tokens from the lexer.
+	if b.config.UseCursor {
+		// Cursor is already at the first token - just sync to traditional pointers
+		p.curToken = p.cursor.Current()
+		p.peekToken = p.cursor.Peek(1)
+	} else {
+		// Traditional mode: read first two tokens
+		p.nextToken()
+		p.nextToken()
+	}
 
 	return p
 }
