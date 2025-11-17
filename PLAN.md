@@ -128,81 +128,16 @@ Overhead:          +4.4% time, +149.2% memory, -28.6% allocations ✓
 **Deliverable**: Production-ready cursor-based parser with optimized performance ✓
 
 ---
-### Phase 2.3: Parser Combinators (Weeks 6-7, 80 hours)
+
+### Phase 2.3: Parser Combinators ✅ (Weeks 6-7, 80 hours)
 
 Build reusable combinator library for common patterns.
 
----
+- [x] **2.3.1**: Core combinators (Optional, Many, SeparatedList, Between, Choice, Sequence) - 16h
+- [x] **2.3.2**: Refactor list parsing (parameters, arguments, fields, enums) - 24h
+- [x] **2.3.3**: Domain-specific combinators (OptionalTypeAnnotation, IdentifierList, StatementBlock, ParameterGroup) - 40h
 
-#### Task 2.3.1: Design Combinator Library (Week 6, Days 1-2, ~16 hours)
-
-**Goal**: Create reusable parser combinators for common patterns.
-
-**Implementation**:
-- [x] Create `internal/parser/combinators.go`
-- [x] Implement core combinators (Optional, Many, Many1, SeparatedList, Between, Choice, Sequence)
-- [x] Add unit tests for each combinator
-- [x] Document usage patterns in `docs/parser-combinators.md`
-- [x] Provide examples for each combinator
-
-**Files Created**:
-- `internal/parser/combinators.go` (~300 lines)
-- `internal/parser/combinators_test.go` (~500 lines)
-- `docs/parser-combinators.md` (~200 lines)
-
-**Estimate**: 16 hours
-
-**Deliverable**: Working combinator library
-
----
-
-#### Task 2.3.2: Refactor List Parsing (Week 6, Days 3-5, ~24 hours) ✅
-
-**Goal**: Replace manual list parsing with combinator-based approach.
-
-**Targets**:
-- [x] `parseParameterList`
-- [x] `parseArgumentList` (already using `parseSeparatedList`)
-- [x] `parseFieldList` (via `parseRecordFieldDeclarations`)
-- [x] `parseEnumValues`
-
-**Files Modified**:
-- `internal/parser/functions.go` (-144 lines)
-- `internal/parser/expressions.go` (no changes - already optimized)
-- `internal/parser/records.go` (-35 lines)
-- `internal/parser/enums.go` (~108 lines modified)
-
-**Actual**: Completed
-
-**Deliverable**: List parsing using combinators ✅
-
----
-
-#### Task 2.3.3: High-Level Combinators (Week 7, ~40 hours) ✅
-
-**Goal**: Build domain-specific combinators for DWScript patterns.
-
-**Implementation**:
-- [x] Create DWScript-specific combinators (OptionalTypeAnnotation, IdentifierList, StatementBlock, ParameterGroup)
-- [x] Refactor existing code to use new combinators
-- [x] Measure code reduction (243 lines removed)
-- [x] Document all combinators
-
-**Files Modified**:
-- `internal/parser/combinators.go` (+383 lines of reusable code)
-- `internal/parser/functions.go` (-144 lines)
-- `internal/parser/statements.go` (-45 lines)
-- `internal/parser/records.go` (-35 lines)
-- `internal/parser/enums.go` (~108 lines modified)
-
-**Code Metrics**:
-- Added 383 lines of reusable combinator code
-- Removed 243 lines of repetitive parsing code
-- Net reduction in parser complexity through abstraction
-
-**Actual**: Completed
-
-**Deliverable**: Rich combinator library for DWScript ✅
+**Results**: Created `internal/parser/combinators.go` (+383 lines reusable code), removed 243 lines of repetitive parsing code across functions.go (-144), statements.go (-45), records.go (-35). Net reduction in complexity through abstraction.
 
 ---
 
