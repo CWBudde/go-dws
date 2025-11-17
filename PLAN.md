@@ -1178,6 +1178,725 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
 
 ## Phase 9: Completion and DWScript Feature Parity
 
+---
+
+## Task 9.1: Optimize Bytecode Value Representation (Architecture Fix)
+
+**Goal**: Replace `interface{}` in bytecode Value type with efficient union representation to eliminate type assertion overhead in VM hot path.
+
+**Estimate**: 20-25 hours (2.5-3 days)
+
+**Status**: NOT STARTED
+
+**Impact**:
+- **5-10% performance improvement** in bytecode VM execution
+- Eliminates type assertions on every arithmetic/comparison operation
+- Zero-allocation representation for primitive types
+- Fixes highest-priority issue identified in interface{} audit
+
+**Priority**: P0 - CRITICAL (Performance)
+
+**Reference**: See `docs/interface-usage-audit.md` - Issue #1 (HIGH PRIORITY)
+
+**Problem**:
+Current bytecode `Value` type uses `Data interface{}` which requires:
+- Heap allocation for every primitive value
+- Type assertion on every operation (`.Data.(int64)`, `.Data.(bool)`, etc.)
+- Significant overhead in VM hot path (every instruction execution)
+
+**Current Implementation** (`internal/bytecode/bytecode.go:11`):
+```go
+type Value struct {
+    Data interface{}  // ← Type assertions on every access
+    Type ValueType
+}
+
+func (v Value) AsInt() int64 {
+    if v.Type == ValueInt {
+        return v.Data.(int64)  // ← Performance overhead
+    }
+    return 0
+}
+```
+
+**Target Design** (zero-copy union):
+```go
+type Value struct {
+    typ  ValueType
+    i64  int64          // for ValueInt
+    f64  float64        // for ValueFloat
+    str  string         // for ValueString (header only, 16 bytes)
+    ptr  unsafe.Pointer // for complex types (*ArrayInstance, etc.)
+}
+
+func (v Value) AsInt() int64 {
+    return v.i64  // ← No allocation, no type assertion
+}
+```
+
+**Benefits**:
+- Primitives stored inline (no heap allocation)
+- Zero runtime type assertions
+- Cache-friendly memory layout
+- Maintains compatibility with existing VM operations
+
+**Subtasks**:
+
+### 9.1.1 Design Union Type Layout
+
+**Goal**: Design memory-efficient union type for Value that avoids allocations.
+
+**Estimate**: 3-4 hours
+
+**Status**: DONE ✅
+
+**Tasks**:
+- [x] Design struct layout with explicit fields for each value type
+- [x] Determine optimal field ordering for cache alignment
+- [x] Plan string storage strategy (inline header vs pointer)
+- [x] Document memory layout and size calculations
+- [x] Verify Go compiler will optimize field access
+
+**Deliverables**:
+- ✅ Design document with struct layout
+- ✅ Memory usage comparison (before/after)
+- ✅ Performance prediction analysis
+
+**Files Created**:
+- ✅ `docs/bytecode-value-optimization.md` (comprehensive design doc, 936 lines)
+
+**Key Decisions**:
+- Struct size: 32 bytes (vs current 40 bytes total)
+- Layout: typ(1) + pad(7) + i64/f64/ptr(8) + str(16)
+- String storage: Separate field (cannot overlap, too large)
+- Expected improvement: 5-10% VM performance
+- Implementation approach: Explicit fields, rely on compiler optimization
+
+---
+
+### 9.1.2 Implement New Value Type
+
+**Goal**: Implement new Value type with union representation.
+
+**Estimate**: 4-5 hours
+
+**Status**: NOT STARTED
+
+**Tasks**:
+- [ ] Define new Value struct with typed fields
+- [ ] Implement constructor functions (IntValue, FloatValue, etc.)
+- [ ] Implement type checking methods (IsInt, IsBool, etc.)
+- [ ] Implement zero-copy accessor methods (AsInt, AsFloat, etc.)
+- [ ] Add documentation and usage examples
+
+**Deliverables**:
+- New `Value` implementation in `internal/bytecode/bytecode.go`
+- Unit tests for all accessor methods
+- Benchmarks comparing old vs new implementation
+
+**Files Modified**:
+- `internal/bytecode/bytecode.go` (Value type definition)
+
+---
+
+### 9.1.3 Update VM Operations
+
+**Goal**: Update all VM operations to use new Value representation.
+
+**Estimate**: 6-7 hours
+
+**Status**: NOT STARTED
+
+**Tasks**:
+- [ ] Update arithmetic operations (OpAdd, OpSub, OpMul, OpDiv)
+- [ ] Update comparison operations (OpEqual, OpLess, OpGreater)
+- [ ] Update logical operations (OpAnd, OpOr, OpNot)
+- [ ] Update array/object operations
+- [ ] Update function call/return value handling
+- [ ] Update constant loading (OpLoadConst)
+- [ ] Update variable access (OpGetLocal, OpSetLocal, OpGetGlobal, OpSetGlobal)
+
+**Deliverables**:
+- All VM operations updated to use typed accessors
+- No performance regression in existing tests
+- All bytecode tests passing
+
+**Files Modified**:
+- `internal/bytecode/vm.go` (main VM loop)
+- `internal/bytecode/vm_ops.go` (operation implementations)
+- `internal/bytecode/vm_builtins.go` (builtin function handling)
+- `internal/bytecode/vm_builtins_*.go` (specialized builtins)
+
+---
+
+### 9.1.4 Update Bytecode Compiler
+
+**Goal**: Update compiler to emit values using new representation.
+
+**Estimate**: 3-4 hours
+
+**Status**: NOT STARTED
+
+**Tasks**:
+- [ ] Update constant emission for literals
+- [ ] Update array/object initialization
+- [ ] Update function compilation
+- [ ] Verify constant pool uses new Value type
+- [ ] Update serialization/deserialization for .dwc files
+
+**Deliverables**:
+- Compiler emits optimized Value representation
+- Bytecode serialization maintains compatibility
+- All compilation tests passing
+
+**Files Modified**:
+- `internal/bytecode/compiler.go` (constant emission)
+- `internal/bytecode/compiler_core.go` (expression compilation)
+- `internal/bytecode/serializer.go` (if Value serialization affected)
+
+---
+
+### 9.1.5 Benchmark and Validate
+
+**Goal**: Measure performance improvement and validate correctness.
+
+**Estimate**: 4-5 hours
+
+**Status**: NOT STARTED
+
+**Tasks**:
+- [ ] Create comprehensive benchmarks for common VM operations
+- [ ] Run benchmarks comparing old vs new implementation
+- [ ] Validate 5-10% improvement target is met
+- [ ] Run full test suite to verify correctness
+- [ ] Run all fixture tests to ensure compatibility
+- [ ] Profile VM to identify any remaining hotspots
+- [ ] Document performance improvements
+
+**Deliverables**:
+- Benchmark results showing performance improvement
+- Performance regression test suite
+- Updated documentation with benchmark data
+- All tests passing
+
+**Files to Create/Modify**:
+- `internal/bytecode/value_bench_test.go` (new benchmarks)
+- `docs/bytecode-value-optimization.md` (add results)
+- `docs/bytecode-vm.md` (update with new Value design)
+
+**Success Criteria**:
+- [ ] All existing tests pass
+- [ ] All fixture tests pass
+- [ ] 5-10% performance improvement in VM benchmarks
+- [ ] No increase in memory usage for common cases
+- [ ] Zero breaking changes to public API
+
+---
+
+## Task 9.2: Eliminate Circular Package Dependencies (Architecture Refactor)
+
+**Goal**: Reorganize package structure to eliminate circular dependencies that force `interface{}` usage and loss of type safety.
+
+**Estimate**: 25-30 hours (3-4 days)
+
+**Status**: NOT STARTED
+
+**Impact**:
+- Eliminates all architectural `interface{}` usage
+- Restores compile-time type safety across codebase
+- Enables better IDE support and refactoring
+- Removes confusing workaround comments
+- Cleaner, more maintainable architecture
+
+**Priority**: P1 - HIGH (Architecture Quality)
+
+**Reference**: See `docs/interface-usage-audit.md` - Issues #2-5
+
+**Problem**:
+Current package structure creates circular dependencies:
+```
+1. AST ↔ Semantic Analysis:
+   pkg/ast → internal/semantic → pkg/ast
+
+2. Interpreter ↔ Type System:
+   internal/interp → internal/interp/types → internal/interp
+
+3. Evaluator ↔ Interpreter:
+   internal/interp/evaluator → internal/interp
+```
+
+**Current Workarounds** (all using `interface{}`):
+- `pkg/ast/metadata.go:73` - Symbol storage: `map[*Identifier]interface{}`
+- `internal/interp/types/type_system.go:355-372` - Type aliases: `type ClassInfo = any`
+- `internal/interp/evaluator/context.go:127` - Environment: `Get() (interface{}, bool)`
+- `internal/interp/evaluator/context.go:162` - Exceptions: `exception interface{}`
+
+**Target Architecture**:
+```
+Create neutral packages for shared types:
+
+    internal/types (neutral)          internal/value (neutral)
+         ↑        ↑                         ↑        ↑
+         |        |                         |        |
+    pkg/ast  internal/semantic    internal/interp  internal/interp/evaluator
+```
+
+**Benefits**:
+- No circular dependencies
+- Full compile-time type safety
+- Better IDE autocomplete and refactoring
+- Clearer separation of concerns
+- Easier to understand and maintain
+
+**Subtasks**:
+
+### 9.2.1 Create internal/types Package
+
+**Goal**: Create neutral package for shared type definitions (ClassInfo, RecordTypeValue, etc.).
+
+**Estimate**: 5-6 hours
+
+**Status**: NOT STARTED
+
+**Tasks**:
+- [ ] Create `internal/types` package structure
+- [ ] Move `ClassInfo` struct from `internal/interp` to `internal/types`
+- [ ] Move `RecordTypeValue` struct to `internal/types`
+- [ ] Move `InterfaceInfo` struct to `internal/types`
+- [ ] Move `HelperInfo` struct to `internal/types`
+- [ ] Ensure no dependencies on `internal/interp` (neutral package)
+- [ ] Update import paths in dependent packages
+- [ ] Verify no circular dependencies introduced
+
+**Deliverables**:
+- New `internal/types` package with core type definitions
+- Zero dependencies on interpreter internals
+- All existing functionality preserved
+
+**Files to Create**:
+- `internal/types/class.go` (ClassInfo and related types)
+- `internal/types/record.go` (RecordTypeValue and related types)
+- `internal/types/interface.go` (InterfaceInfo and related types)
+- `internal/types/helper.go` (HelperInfo and related types)
+- `internal/types/doc.go` (package documentation)
+
+**Files to Modify**:
+- `internal/interp/classes.go` (move ClassInfo out)
+- `internal/interp/records.go` (move RecordTypeValue out)
+- `internal/interp/types/type_system.go` (use concrete types instead of `any`)
+
+---
+
+### 9.2.2 Create internal/value Package
+
+**Goal**: Create neutral package for runtime Value interface and core value types.
+
+**Estimate**: 5-6 hours
+
+**Status**: NOT STARTED
+
+**Tasks**:
+- [ ] Create `internal/value` package structure
+- [ ] Define core `Value` interface (common operations)
+- [ ] Define `ValueType` interface for type information
+- [ ] Move common value operations to interface
+- [ ] Ensure no dependencies on interpreter or evaluator
+- [ ] Update Environment interface to use `value.Value`
+- [ ] Update import paths in dependent packages
+
+**Deliverables**:
+- New `internal/value` package with Value interface
+- Type-safe Environment interface
+- All existing functionality preserved
+
+**Files to Create**:
+- `internal/value/value.go` (Value interface definition)
+- `internal/value/doc.go` (package documentation)
+
+**Example Design**:
+```go
+// internal/value/value.go
+package value
+
+// Value represents any runtime value in the interpreter.
+type Value interface {
+    Type() string
+    String() string
+    IsTruthy() bool
+}
+
+// Environment provides variable storage with typed values.
+type Environment interface {
+    Define(name string, value Value)
+    Get(name string) (Value, bool)
+    Set(name string, value Value) bool
+    NewEnclosedEnvironment() Environment
+}
+```
+
+**Files to Modify**:
+- `internal/interp/evaluator/context.go` (use `value.Value` instead of `interface{}`)
+- `internal/interp/environment.go` (implement `value.Environment`)
+
+---
+
+### 9.2.3 Move Symbol Types to pkg/ast
+
+**Goal**: Define Symbol interface in pkg/ast to break circular dependency with internal/semantic.
+
+**Estimate**: 4-5 hours
+
+**Status**: NOT STARTED
+
+**Tasks**:
+- [ ] Define `Symbol` interface in `pkg/ast`
+- [ ] Define `SymbolKind` enumeration
+- [ ] Update `SemanticInfo` to use typed `Symbol` interface
+- [ ] Update `internal/semantic` to implement Symbol interface
+- [ ] Remove `interface{}` from symbol storage
+- [ ] Update all symbol access to use typed interface
+- [ ] Verify no circular dependency
+
+**Deliverables**:
+- Symbol interface in `pkg/ast`
+- Type-safe symbol storage in SemanticInfo
+- No circular dependencies
+- All semantic tests passing
+
+**Files to Create**:
+- `pkg/ast/symbol.go` (Symbol interface and SymbolKind)
+
+**Example Design**:
+```go
+// pkg/ast/symbol.go
+package ast
+
+// SymbolKind represents the kind of symbol.
+type SymbolKind int
+
+const (
+    SymbolVariable SymbolKind = iota
+    SymbolFunction
+    SymbolClass
+    SymbolInterface
+    SymbolType
+)
+
+// Symbol represents a named entity in the symbol table.
+type Symbol interface {
+    Name() string
+    Kind() SymbolKind
+    Type() *TypeAnnotation
+    Position() *token.Position
+}
+```
+
+**Files to Modify**:
+- `pkg/ast/metadata.go` (use `Symbol` instead of `interface{}`)
+- `internal/semantic/symbol.go` (implement `ast.Symbol` interface)
+
+---
+
+### 9.2.4 Update OperatorEntry to Use Typed Class
+
+**Goal**: Replace `interface{}` in OperatorEntry with concrete ClassInfo type.
+
+**Estimate**: 2-3 hours
+
+**Status**: NOT STARTED
+
+**Tasks**:
+- [ ] Update `OperatorEntry` to use `*types.ClassInfo`
+- [ ] Update all operator registration to use typed class
+- [ ] Remove circular dependency workaround
+- [ ] Verify all operator tests pass
+
+**Deliverables**:
+- Type-safe operator registry
+- No `interface{}` in OperatorEntry
+- All operator tests passing
+
+**Files to Modify**:
+- `internal/interp/types/type_system.go` (OperatorEntry definition)
+- All operator registration sites
+
+---
+
+### 9.2.5 Update Exception Handling to Use Typed Values
+
+**Goal**: Replace `interface{}` exception storage with typed ExceptionValue.
+
+**Estimate**: 3-4 hours
+
+**Status**: NOT STARTED
+
+**Tasks**:
+- [ ] Define ExceptionValue interface in `internal/value` or `internal/types`
+- [ ] Update `ExecutionContext` to use typed exception
+- [ ] Update all exception handling to use typed values
+- [ ] Remove circular dependency workaround
+- [ ] Verify all exception tests pass
+
+**Deliverables**:
+- Type-safe exception handling
+- No `interface{}` in ExecutionContext
+- All exception tests passing
+
+**Files to Modify**:
+- `internal/interp/evaluator/context.go` (exception fields)
+- `internal/interp/exceptions.go` (exception value definition)
+- All exception handling sites
+
+---
+
+### 9.2.6 Validate and Document Architecture
+
+**Goal**: Verify no circular dependencies remain and document new architecture.
+
+**Estimate**: 5-6 hours
+
+**Status**: NOT STARTED
+
+**Tasks**:
+- [ ] Run `go mod graph` to verify no circular dependencies
+- [ ] Create package dependency diagram
+- [ ] Document new package architecture
+- [ ] Update CLAUDE.md with new package structure
+- [ ] Remove all "avoiding circular dependency" comments
+- [ ] Remove all TODO comments about fixing interface{} usage
+- [ ] Run full test suite to verify correctness
+- [ ] Update interface{} audit report with "FIXED" status
+
+**Deliverables**:
+- Zero circular dependencies in codebase
+- Package architecture documentation
+- All tests passing
+- Updated audit report
+
+**Files to Create/Modify**:
+- `docs/package-architecture.md` (new architecture diagram)
+- `CLAUDE.md` (update package structure section)
+- `docs/interface-usage-audit.md` (mark issues as fixed)
+
+**Validation Commands**:
+```bash
+# Check for circular dependencies
+go mod graph | grep -E 'go-dws.*go-dws'
+
+# Build entire project
+go build ./...
+
+# Run all tests
+go test ./...
+
+# Run with race detection
+go test -race ./...
+```
+
+**Success Criteria**:
+- [ ] Zero circular package dependencies
+- [ ] All `interface{}` architectural issues resolved
+- [ ] All tests passing (no regressions)
+- [ ] Documentation updated
+- [ ] No workaround comments remaining
+
+---
+
+## Task 9.3: Migrate to Typed Interfaces (Code Quality Improvement)
+
+**Goal**: Complete migration of remaining `interface{}` uses to proper typed interfaces across the codebase.
+
+**Estimate**: 15-18 hours (2-2.5 days)
+
+**Status**: NOT STARTED
+
+**Impact**:
+- Full type safety throughout codebase
+- Better compile-time error detection
+- Improved IDE support and refactoring
+- Cleaner, more maintainable code
+- Foundation for future optimizations
+
+**Priority**: P2 - MEDIUM (Code Quality)
+
+**Reference**: See `docs/interface-usage-audit.md` - Follow-up improvements
+
+**Description**:
+After completing Task 9.1 (bytecode Value) and Task 9.2 (package restructuring), this task completes the migration by updating all remaining code to use the new typed interfaces. This includes:
+- Migrating all Environment implementations
+- Updating all value consumers (interpreter, evaluator, etc.)
+- Removing temporary compatibility shims
+- Cleaning up migration artifacts
+
+**Dependencies**:
+- Requires Task 9.1 (bytecode Value optimization) to be completed
+- Requires Task 9.2 (package restructuring) to be completed
+
+**Subtasks**:
+
+### 9.3.1 Migrate All Environment Implementations
+
+**Goal**: Update all Environment implementations to use typed `value.Value`.
+
+**Estimate**: 4-5 hours
+
+**Status**: NOT STARTED
+
+**Tasks**:
+- [ ] Update `internal/interp/environment.go` to implement `value.Environment`
+- [ ] Update all `Define()` calls to use `value.Value`
+- [ ] Update all `Get()` calls to use typed returns
+- [ ] Update all `Set()` calls to use `value.Value`
+- [ ] Remove type assertions from environment access
+- [ ] Verify all environment tests pass
+
+**Deliverables**:
+- All environments use typed Value interface
+- Zero type assertions in environment access
+- All environment tests passing
+
+**Files Modified**:
+- `internal/interp/environment.go` (main implementation)
+- `internal/interp/evaluator/context.go` (usage sites)
+- All code accessing environment (widespread changes)
+
+---
+
+### 9.3.2 Update Interpreter Value Handling
+
+**Goal**: Update interpreter to consistently use typed Value interface.
+
+**Estimate**: 5-6 hours
+
+**Status**: NOT STARTED
+
+**Tasks**:
+- [ ] Update all `Eval()` methods to use `value.Value`
+- [ ] Update expression evaluation to use typed values
+- [ ] Update statement execution to use typed values
+- [ ] Update function calls to use typed parameters/returns
+- [ ] Remove remaining type assertions
+- [ ] Verify all interpreter tests pass
+
+**Deliverables**:
+- Interpreter fully uses typed values
+- Zero type assertions in hot paths
+- All interpreter tests passing
+
+**Files Modified**:
+- `internal/interp/interpreter.go` (core evaluation)
+- `internal/interp/expressions*.go` (expression evaluation)
+- `internal/interp/statements.go` (statement execution)
+- `internal/interp/functions*.go` (function handling)
+
+---
+
+### 9.3.3 Update Evaluator Package
+
+**Goal**: Update evaluator package to use typed interfaces throughout.
+
+**Estimate**: 3-4 hours
+
+**Status**: NOT STARTED
+
+**Tasks**:
+- [ ] Update `ExecutionContext` to use typed values
+- [ ] Update `oldValuesStack` to use `map[string]value.Value`
+- [ ] Update all context methods to use typed values
+- [ ] Remove type assertions from evaluator
+- [ ] Verify all evaluator tests pass
+
+**Deliverables**:
+- Evaluator fully type-safe
+- Zero `interface{}` in ExecutionContext (except justified cases)
+- All evaluator tests passing
+
+**Files Modified**:
+- `internal/interp/evaluator/context.go`
+- `internal/interp/evaluator/evaluator.go`
+- `internal/interp/evaluator/*.go` (all evaluator files)
+
+---
+
+### 9.3.4 Clean Up Migration Artifacts
+
+**Goal**: Remove temporary compatibility code and migration comments.
+
+**Estimate**: 2-3 hours
+
+**Status**: NOT STARTED
+
+**Tasks**:
+- [ ] Remove all "TODO: migrate to typed interface" comments
+- [ ] Remove all "temporarily defined here" comments
+- [ ] Remove compatibility shims if any
+- [ ] Remove deprecated type assertions
+- [ ] Clean up any dead code from migration
+- [ ] Update all documentation
+
+**Deliverables**:
+- Clean codebase with no migration artifacts
+- Updated documentation
+- No workaround comments
+
+**Files to Check**:
+- All files modified in Tasks 9.1, 9.2, 9.3
+- Search for: "TODO.*interface", "temporarily", "avoiding.*cycle"
+
+---
+
+### 9.3.5 Performance Validation and Documentation
+
+**Goal**: Validate that typed interface migration doesn't introduce performance regressions.
+
+**Estimate**: 3-4 hours
+
+**Status**: NOT STARTED
+
+**Tasks**:
+- [ ] Run comprehensive benchmarks
+- [ ] Compare performance before/after migration
+- [ ] Verify no regressions in interpreter
+- [ ] Verify bytecode VM improvement (from Task 9.1)
+- [ ] Run all fixture tests
+- [ ] Document final performance improvements
+- [ ] Update architecture documentation
+
+**Deliverables**:
+- Benchmark results showing no regressions
+- Performance improvement documentation
+- Updated architecture docs
+
+**Files to Create/Modify**:
+- `docs/typed-interface-migration.md` (migration summary)
+- `docs/performance.md` (performance results)
+- `docs/interface-usage-audit.md` (final status)
+- `CLAUDE.md` (update architecture section)
+
+**Benchmarks to Run**:
+```bash
+# Before migration
+go test -bench=. -benchmem ./internal/bytecode > before.txt
+go test -bench=. -benchmem ./internal/interp >> before.txt
+
+# After migration
+go test -bench=. -benchmem ./internal/bytecode > after.txt
+go test -bench=. -benchmem ./internal/interp >> after.txt
+
+# Compare
+benchcmp before.txt after.txt
+```
+
+**Success Criteria**:
+- [ ] All tests passing
+- [ ] All fixture tests passing
+- [ ] Bytecode VM 5-10% faster (from Task 9.1)
+- [ ] Interpreter no slower (acceptable: same performance)
+- [ ] Zero architectural `interface{}` usage remaining
+- [ ] Full type safety throughout codebase
+- [ ] Documentation complete
+
+---
 
 ## Task 9.5: Implement Class Variables (class var)
 
