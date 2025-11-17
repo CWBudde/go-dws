@@ -2,6 +2,7 @@ package interp
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
 
 	"github.com/cwbudde/go-dws/internal/ast"
@@ -454,4 +455,98 @@ func (i *Interpreter) GetJSONVarType(value builtins.Value) (int64, bool) {
 
 	typeCode := jsonKindToVarType(jsonVal.Value.Kind())
 	return typeCode, true
+}
+
+// GetArrayLength returns the number of elements in an array.
+// This implements the builtins.Context interface.
+// Task 3.7.7: Helper for Length() function on arrays.
+func (i *Interpreter) GetArrayLength(value builtins.Value) (int64, bool) {
+	arrayVal, ok := value.(*ArrayValue)
+	if !ok {
+		return 0, false
+	}
+	return int64(len(arrayVal.Elements)), true
+}
+
+// SetArrayLength resizes a dynamic array to the specified length.
+// This implements the builtins.Context interface.
+// Task 3.7.7: Helper for SetLength() function on arrays.
+func (i *Interpreter) SetArrayLength(array builtins.Value, newLength int) error {
+	// Handle arrays
+	arrayVal, ok := array.(*ArrayValue)
+	if !ok {
+		return fmt.Errorf("SetArrayLength() expects array, got %s", array.Type())
+	}
+
+	// Check that it's a dynamic array
+	if arrayVal.ArrayType == nil {
+		return fmt.Errorf("array has no type information")
+	}
+
+	if arrayVal.ArrayType.IsStatic() {
+		return fmt.Errorf("SetArrayLength() can only be used with dynamic arrays, not static arrays")
+	}
+
+	currentLength := len(arrayVal.Elements)
+
+	if newLength != currentLength {
+		if newLength < currentLength {
+			// Truncate the slice
+			arrayVal.Elements = arrayVal.Elements[:newLength]
+		} else {
+			// Extend the slice with nil values
+			additional := make([]Value, newLength-currentLength)
+			arrayVal.Elements = append(arrayVal.Elements, additional...)
+		}
+	}
+
+	return nil
+}
+
+// ArrayCopy creates a deep copy of an array value.
+// This implements the builtins.Context interface.
+// Task 3.7.7: Helper for Copy() function on arrays.
+func (i *Interpreter) ArrayCopy(array builtins.Value) builtins.Value {
+	arrayVal, ok := array.(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "ArrayCopy() expects array, got %s", array.Type())
+	}
+
+	return i.builtinArrayCopy(arrayVal)
+}
+
+// ArrayReverse reverses the elements of an array in place.
+// This implements the builtins.Context interface.
+// Task 3.7.7: Helper for Reverse() function on arrays.
+func (i *Interpreter) ArrayReverse(array builtins.Value) builtins.Value {
+	arrayVal, ok := array.(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "ArrayReverse() expects array, got %s", array.Type())
+	}
+
+	return i.builtinArrayReverse(arrayVal)
+}
+
+// ArraySort sorts the elements of an array in place using default comparison.
+// This implements the builtins.Context interface.
+// Task 3.7.7: Helper for Sort() function on arrays.
+func (i *Interpreter) ArraySort(array builtins.Value) builtins.Value {
+	arrayVal, ok := array.(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "ArraySort() expects array, got %s", array.Type())
+	}
+
+	return i.builtinArraySort(arrayVal)
+}
+
+// EvalFunctionPointer calls a function pointer with the given arguments.
+// This implements the builtins.Context interface.
+// Task 3.7.7: Helper for collection functions (Map, Filter, Reduce, etc.).
+func (i *Interpreter) EvalFunctionPointer(funcPtr builtins.Value, args []builtins.Value) builtins.Value {
+	lambdaVal, ok := funcPtr.(*FunctionPointerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "EvalFunctionPointer() expects function pointer, got %s", funcPtr.Type())
+	}
+
+	return i.callFunctionPointer(lambdaVal, args, i.currentNode)
 }

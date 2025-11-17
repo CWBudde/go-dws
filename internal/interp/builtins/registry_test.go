@@ -160,6 +160,41 @@ func (m *mockContext) GetJSONVarType(value Value) (int64, bool) {
 	return 0, false
 }
 
+// Task 3.7.7 Context methods for array and collection functions
+func (m *mockContext) GetArrayLength(value Value) (int64, bool) {
+	// Simple mock - check type string since we can't import ArrayValue
+	if value.Type() == "ARRAY" {
+		// For testing, return a dummy length
+		return 0, true
+	}
+	return 0, false
+}
+
+func (m *mockContext) SetArrayLength(array Value, newLength int) error {
+	// Simple mock - no-op for testing
+	return nil
+}
+
+func (m *mockContext) ArrayCopy(array Value) Value {
+	// Simple mock - return the same value for testing
+	return array
+}
+
+func (m *mockContext) ArrayReverse(array Value) Value {
+	// Simple mock - return nil for testing
+	return &runtime.NilValue{}
+}
+
+func (m *mockContext) ArraySort(array Value) Value {
+	// Simple mock - return nil for testing
+	return &runtime.NilValue{}
+}
+
+func (m *mockContext) EvalFunctionPointer(funcPtr Value, args []Value) Value {
+	// Simple mock - return nil for testing
+	return &runtime.NilValue{}
+}
+
 func TestNewRegistry(t *testing.T) {
 	r := NewRegistry()
 	if r == nil {

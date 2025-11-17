@@ -426,3 +426,73 @@ func (u *UnassignedValue) Equals(other Value) (bool, error) {
 func (u *UnassignedValue) Copy() Value {
 	return &UnassignedValue{}
 }
+
+// =============================================================================
+// Complex Types (Forward Declarations)
+// =============================================================================
+// These types are fully defined in internal/interp/value.go but we provide
+// stub definitions here to avoid circular dependencies in the builtins package.
+// Task 3.7.7: Support for array and function pointer operations in builtins.
+
+// ArrayType represents array type metadata.
+type ArrayType struct {
+	ElementType Value  // Type of elements
+	LowBound    *int   // Lower bound (nil for dynamic arrays)
+	HighBound   *int   // Upper bound (nil for dynamic arrays)
+	IsStaticArr bool   // True for static arrays
+}
+
+// IsStatic returns true for static arrays, false for dynamic arrays.
+func (at *ArrayType) IsStatic() bool {
+	return at.IsStaticArr
+}
+
+// ArrayValue represents an array runtime value.
+// This is a simplified definition - the full definition is in internal/interp/value.go.
+type ArrayValue struct {
+	Elements  []Value
+	ArrayType *ArrayType
+}
+
+// Type returns "ARRAY".
+func (a *ArrayValue) Type() string {
+	return "ARRAY"
+}
+
+// String returns the string representation of the array.
+func (a *ArrayValue) String() string {
+	return "[Array]"
+}
+
+// FunctionPointerValue represents a function pointer runtime value.
+// This is a simplified definition - the full definition is in internal/interp/value.go.
+type FunctionPointerValue struct {
+	FunctionName string
+	// Other fields omitted for simplicity
+}
+
+// Type returns "FUNCTION_POINTER".
+func (f *FunctionPointerValue) Type() string {
+	return "FUNCTION_POINTER"
+}
+
+// String returns the string representation of the function pointer.
+func (f *FunctionPointerValue) String() string {
+	return "[Function]"
+}
+
+// ErrorValue represents an error runtime value.
+// This is a simplified definition - the full definition is in internal/interp/value.go.
+type ErrorValue struct {
+	Message string
+}
+
+// Type returns "ERROR".
+func (e *ErrorValue) Type() string {
+	return "ERROR"
+}
+
+// String returns the error message.
+func (e *ErrorValue) String() string {
+	return e.Message
+}
