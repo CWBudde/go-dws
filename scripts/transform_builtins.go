@@ -88,7 +88,7 @@ func transformLines(lines []string, category string) []string {
 	currentNodeRegex := regexp.MustCompile(`i\.currentNode`)
 	builtinCallRegex := regexp.MustCompile(`i\.(builtin\w+)\(`)
 
-	for i, line := range lines {
+	for _, line := range lines {
 		// Skip package declaration from input
 		if strings.HasPrefix(line, "package interp") {
 			if inFile {
