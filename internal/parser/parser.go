@@ -470,6 +470,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(lexer.LPAREN, p.parseGroupedExpression)
 	p.registerPrefix(lexer.LBRACK, p.parseArrayLiteral)           // Array/Set literals: [a, b]
 	p.registerPrefix(lexer.NEW, p.parseNewExpression)             // new keyword: new Exception('msg')
+	p.registerPrefix(lexer.DEFAULT, p.parseDefaultExpression)     // default keyword: default(Integer)
 	p.registerPrefix(lexer.AT, p.parseAddressOfExpression)        // Address-of operator: @FunctionName
 	p.registerPrefix(lexer.LAMBDA, p.parseLambdaExpression)       // Lambda expressions: lambda(x) => x * 2
 	p.registerPrefix(lexer.OLD, p.parseOldExpression)             // old keyword: old identifier (postconditions only)
@@ -567,6 +568,7 @@ func NewCursorParser(l *lexer.Lexer) *Parser {
 	p.registerPrefix(lexer.LPAREN, p.parseGroupedExpression)
 	p.registerPrefix(lexer.LBRACK, p.parseArrayLiteral)           // Array/Set literals: [a, b]
 	p.registerPrefix(lexer.NEW, p.parseNewExpression)             // new keyword: new Exception('msg')
+	p.registerPrefix(lexer.DEFAULT, p.parseDefaultExpression)     // default keyword: default(Integer)
 	p.registerPrefix(lexer.AT, p.parseAddressOfExpression)        // Address-of operator: @FunctionName
 	p.registerPrefix(lexer.LAMBDA, p.parseLambdaExpression)       // Lambda expressions: lambda(x) => x * 2
 	p.registerPrefix(lexer.OLD, p.parseOldExpression)             // old keyword: old identifier (postconditions only)

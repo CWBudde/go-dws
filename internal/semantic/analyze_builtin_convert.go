@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -309,6 +311,56 @@ func (a *Analyzer) analyzeChr(args []ast.Expression, callExpr *ast.CallExpressio
 			argType.String(), callExpr.Token.Pos.String())
 	}
 	return types.STRING
+}
+
+// analyzeDefault analyzes the Default built-in function.
+// Default takes one argument (a type identifier) and returns the default value for that type.
+// Default(Integer) returns 0, Default(String) returns "", Default(Boolean) returns False, etc.
+func (a *Analyzer) analyzeDefault(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'Default' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.NIL
+	}
+
+	// The argument should be a type identifier
+	// For now, we'll handle it as an identifier and look up the type
+	ident, ok := args[0].(*ast.Identifier)
+	if !ok {
+		a.addError("function 'Default' expects a type name as argument at %s",
+			callExpr.Token.Pos.String())
+		return types.NIL
+	}
+
+	// Look up the type by name
+	typeName := ident.Value
+
+	// Return the appropriate type based on the type name
+	switch typeName {
+	case "Integer", "Int64", "Byte", "Word", "Cardinal", "SmallInt", "ShortInt", "LongWord":
+		return types.INTEGER
+	case "Float", "Double", "Single", "Extended", "Currency":
+		return types.FLOAT
+	case "String", "UnicodeString", "AnsiString":
+		return types.STRING
+	case "Boolean":
+		return types.BOOLEAN
+	case "Variant":
+		return types.VARIANT
+	default:
+		// Check if it's a valid type in the symbol table
+		// This could be a class, record, enum, or other custom type
+		lowerName := strings.ToLower(typeName)
+		if _, exists := a.symbols.Resolve(lowerName); exists {
+			// Valid custom type - all default to nil/zero values
+			// Return VARIANT as a safe fallback type for analysis
+			return types.VARIANT
+		}
+		// Unknown type - report error instead of silently succeeding
+		a.addError("function 'Default' received unknown type '%s' at %s",
+			typeName, callExpr.Token.Pos.String())
+		return types.NIL
+	}
 }
 
 // analyzeStrToIntDef analyzes the StrToIntDef built-in function.
