@@ -141,71 +141,20 @@ Build reusable combinator library for common patterns.
 
 ---
 
-### Phase 2.4: Automatic Position Tracking (Week 8, 40 hours)
+### Phase 2.4: Automatic Position Tracking ✅ (Week 8, 40 hours)
 
-Eliminate manual position tracking.
+**Status**: COMPLETED (PR #196, commit 4e054521)
 
----
-
-#### Task 2.4.1: NodeBuilder Pattern (Week 8, Days 1-3, ~24 hours) ✅
-
-**Goal**: Eliminate manual `EndPos` setting throughout parser.
+**Goal**: Eliminate manual `EndPos` setting throughout parser using NodeBuilder pattern.
 
 **Implementation**:
-- [x] Create `internal/parser/node_builder.go` with `NodeBuilder` type
-- [x] Implement `StartNode()` and `Finish()` methods
-- [x] Migrate 5 parsing functions as proof of concept
-- [x] Verify positions are correct with tests
-- [x] Document NodeBuilder pattern
+- [x] Created `internal/parser/node_builder.go` with `NodeBuilder` type (166 lines)
+- [x] Implemented `StartNode()`, `Finish()`, and `FinishWithNode()` methods
+- [x] Migrated all parsing functions across 20 parser files
+- [x] Comprehensive test suite with 370 lines of tests
+- [x] Removed all manual `EndPos` assignments
 
-**Files Created**:
-- `internal/parser/node_builder.go` (171 lines - includes comprehensive documentation)
-- `internal/parser/node_builder_test.go` (364 lines - 11 comprehensive tests)
-
-**Files Modified**:
-- `internal/parser/statements.go` (2 functions: parseBlockStatement, parseExpressionStatement)
-- `internal/parser/control_flow.go` (3 functions: parseBreakStatement, parseContinueStatement, parseExitStatement)
-
-**Estimate**: 24 hours
-
-**Deliverable**: Working NodeBuilder with proof of concept
-
-**Results**:
-- Created NodeBuilder pattern with reflection-based position tracking
-- Implemented three methods: `Finish()`, `FinishWithNode()`, `FinishWithToken()`
-- Migrated 5 representative parsing functions demonstrating all usage patterns
-- All 11 NodeBuilder tests passing
-- All parser tests passing (including position tracking tests)
-- Ready for mass migration in Task 2.4.2
-
----
-
-#### Task 2.4.2: Mass Migration to NodeBuilder (Week 8, Days 4-5, ~16 hours) ✅
-
-**Goal**: Migrate all parsing functions to use NodeBuilder.
-
-**Implementation**:
-- [x] Migrate all statement parsing functions
-- [x] Migrate all expression parsing functions
-- [x] Migrate all declaration parsing functions
-- [x] Remove all manual `EndPos` assignments
-- [x] Verify position tests pass
-
-**Files Modified**:
-- 19 parser files (297 insertions, 383 deletions = 86 net lines removed)
-
-**Estimate**: 16 hours
-
-**Deliverable**: Complete NodeBuilder adoption
-
-**Results**:
-- Migrated **78 functions** across **19 parser files**
-- Eliminated **~152 manual EndPos assignments**
-- Files: control_flow.go (14 functions), statements.go (6), expressions.go (21), declarations.go (2), functions.go (1), classes.go (4), interfaces.go (3), types.go (4), exceptions.go (8), enums.go (1), records.go (3), arrays.go (2), sets.go (2), properties.go (1), operators.go (2), helpers.go (1), parser.go (1), combinators.go (1), unit.go (2)
-- All parser tests passing (0.134s)
-- Both traditional and cursor-mode parsers migrated
-- Remaining EndPos assignments (13 total): helper structures (5) and documentation comments (5), test code (3)
-- **Net code reduction**: 86 lines removed while improving maintainability
+**Results**: Created NodeBuilder pattern with 111 usages across 21 files. Modified 20 parser files with 878 additions, 444 deletions. Automatic position tracking now standard throughout parser.
 
 ---
 
@@ -215,64 +164,105 @@ Clean architectural separation.
 
 ---
 
-#### Task 2.5.1: Remove Semantic Analysis (Week 9, ~40 hours)
+#### Task 2.5.1: Remove Semantic Analysis (Week 9, ~40 hours) ✅
 
 **Goal**: Parser should only build AST, not perform type checking.
 
 **Implementation**:
-- [ ] Identify all semantic analysis code in parser
-- [ ] Move to separate `SemanticAnalyzer` type
-- [ ] Remove `enableSemanticAnalysis` and `semanticErrors` from Parser
-- [ ] Update tests to run analysis after parsing
-- [ ] Measure parsing speed improvement
+- [x] Identify all semantic analysis code in parser
+- [x] Move to separate `SemanticAnalyzer` type (already existed in internal/semantic)
+- [x] Remove `enableSemanticAnalysis` and `semanticErrors` from Parser
+- [x] Update tests to run analysis after parsing
+- [x] Measure parsing speed improvement
 
 **Files Modified**:
-- `internal/parser/parser.go` (~50 lines removed)
-- `internal/parser/statements.go` (~80 lines removed)
-- All test files (~100 lines updated)
+- `internal/parser/parser.go` (removed semanticErrors and enableSemanticAnalysis fields, removed 3 methods)
+- `internal/parser/context.go` (removed EnableSemanticAnalysis field and methods)
+- `internal/parser/context_test.go` (updated tests to remove semantic analysis checks)
+- `internal/parser/semantic_integration_test.go` (updated to reflect separation)
+- `cmd/dwscript/cmd/run.go` (removed SetSemanticErrors call)
+- `cmd/dwscript/cmd/compile.go` (removed SetSemanticErrors call)
 
 **Estimate**: 40 hours
 
-**Deliverable**: Clean separation of parsing and semantic analysis
+**Deliverable**: Clean separation of parsing and semantic analysis ✅
+
+**Performance Results**:
+- Small program: 12,486 ns/op, 6,432 B/op, 119 allocs/op
+- Medium program: 38,366 ns/op, 17,192 B/op, 299 allocs/op
+- Large program: 89,678 ns/op, 33,712 B/op, 572 allocs/op
+
+**Completed**: 2025-11-17
 
 ---
 
-#### Task 2.5.2: Extract Error Recovery Module (Week 10, Days 1-2, ~16 hours)
+#### Task 2.5.2: Extract Error Recovery Module (Week 10, Days 1-2, ~16 hours) ✅
 
 **Goal**: Centralize error recovery logic.
 
 **Implementation**:
-- [ ] Create `internal/parser/error_recovery.go`
-- [ ] Implement `ErrorRecovery` type with centralized logic
-- [ ] Refactor synchronization logic
-- [ ] Add recovery suggestions
+- [x] Create `internal/parser/error_recovery.go`
+- [x] Implement `ErrorRecovery` type with centralized logic
+- [x] Refactor synchronization logic
+- [x] Add recovery suggestions
 
 **Files Created**:
-- `internal/parser/error_recovery.go` (~200 lines)
+- `internal/parser/error_recovery.go` (318 lines)
+
+**Files Modified**:
+- `internal/parser/parser.go` (modified synchronize() to return bool)
 
 **Estimate**: 16 hours
 
-**Deliverable**: Reusable error recovery module
+**Deliverable**: Reusable error recovery module ✅
+
+**Key Features Implemented**:
+- ErrorRecovery type with centralized error handling
+- SynchronizationSet enum (StatementStarters, BlockClosers, DeclarationStarters, All)
+- High-level error reporting APIs (AddExpectError, AddContextError, AddStructuredError)
+- Recovery helpers (SynchronizeOn, TryRecover, ExpectWithRecovery, SkipUntil)
+- Smart error code mapping (getErrorCodeForMissingToken)
+- Recovery suggestions (SuggestMissingDelimiter, SuggestMissingSeparator)
+
+**Completed**: 2025-11-17
 
 ---
 
-#### Task 2.5.3: Parser Factory Pattern (Week 10, Days 3-5, ~24 hours)
+#### Task 2.5.3: Parser Factory Pattern (Week 10, Days 3-5, ~24 hours) ✅
 
 **Goal**: Clean up parser construction and configuration.
 
 **Implementation**:
-- [ ] Create `ParserConfig` and `ParserBuilder` types
-- [ ] Implement builder pattern for parser construction
-- [ ] Migrate tests to use builder
-- [ ] Document configuration options
+- [x] Create `ParserConfig` and `ParserBuilder` types
+- [x] Implement builder pattern for parser construction
+- [x] Migrate New() and NewCursorParser() to use builder
+- [x] Document configuration options
+
+**Files Created**:
+- `internal/parser/parser_builder.go` (212 lines)
 
 **Files Modified**:
-- `internal/parser/parser.go` (~100 lines)
-- Test files (~150 lines)
+- `internal/parser/parser.go` (1512 → 1404 lines, eliminated 108 lines of duplication)
 
 **Estimate**: 24 hours
 
-**Deliverable**: ParserBuilder for clean construction
+**Deliverable**: ParserBuilder for clean construction ✅
+
+**Key Features Implemented**:
+- ParserConfig with options (UseCursor, StrictMode, AllowReservedKeywordsAsIdentifiers, MaxRecursionDepth)
+- ParserBuilder with fluent API (WithCursorMode, WithStrictMode, etc.)
+- Centralized parse function registration (eliminates duplication)
+- DefaultConfig() for sensible defaults
+- MustBuild() helper for test code
+- New() refactored from ~80 lines to ~4 lines
+- NewCursorParser() refactored to delegate common code to builder
+
+**Code Reduction**:
+- Eliminated ~100 lines of duplicate parse function registration
+- New() went from ~80 lines to ~4 lines
+- Single source of truth for parse function registration
+
+**Completed**: 2025-11-17
 
 ---
 
@@ -763,227 +753,191 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Estimated: 2-3 weeks (48 methods to migrate across 9 batches)
   - Acceptance: All evaluation logic in Evaluator, Interpreter methods just delegate, all tests pass
 
-  **Current Status**: Phase 1 complete. Phase 2A-2E infrastructure complete. ForStatement and ForInStatement migrated (Phase 2D ✅ COMPLETE). 4 simple value types migrated to runtime/ (EnumValue, TypeMetaValue, SetValue, ArrayValue). IfExpression and OldExpression migrated. Remaining 24 methods blocked by complex type dependencies or require adapter extensions.
-
-  **Expansion Plan**: See [`docs/task-3.5.4-expansion-plan.md`](docs/task-3.5.4-expansion-plan.md) for detailed breakdown and phased approach.
+  **Current Status**: Phase 1 complete. Phase 2A-2E infrastructure complete (1 migration from Phase 2A). Remaining migrations await type system refactoring.
 
   ---
+  ### ✅ PHASE 1 COMPLETE: Simple Methods (19/48 migrated, 39.6%)
 
-  ### 📋 Phased Migration Roadmap
+  **Completed - Batch 1: Literals (6/6)** ✅
+  - [x] 3.5.4.1 IntegerLiteral
+  - [x] 3.5.4.2 FloatLiteral
+  - [x] 3.5.4.3 StringLiteral
+  - [x] 3.5.4.4 BooleanLiteral
+  - [x] 3.5.4.5 CharLiteral
+  - [x] 3.5.4.6 NilLiteral
 
-  **Progress**: 24/48 methods migrated (50.0%) | **Remaining**: 24 methods
+  **Completed - Batch 2: Simple Expressions (2/8)** ✅
+  - [x] 3.5.4.11 GroupedExpression (just evaluates inner expression)
+  - [x] 3.5.4.12 EnumLiteral (environment lookup)
 
-  ---
+  **Completed - Batch 6: Control Structure Statements (3/7)** ✅
+  - [x] 3.5.4.29 Program (statement list execution, exception handling)
+  - [x] 3.5.4.30 BlockStatement (scoped block execution)
+  - [x] 3.5.4.35 ReturnStatement (sets Result variable, exit signal)
 
-  #### 🟢 Phase 2.1: Quick Wins **REVISED** (1 method - ~1 hour) ✅ PARTIAL
+  **Completed - Batch 7: Control Flow Statements (7/9)** ✅
+  - [x] 3.5.4.36 IfStatement (conditional branching)
+  - [x] 3.5.4.37 WhileStatement (pre-condition loops)
+  - [x] 3.5.4.38 RepeatStatement (post-condition loops)
+  - [x] 3.5.4.41 CaseStatement (switch with ranges, added helper functions: valuesEqual, isInRange, runeLength, runeAt)
+  - [x] 3.5.4.42 BreakStatement (loop exit)
+  - [x] 3.5.4.43 ContinueStatement (loop continue)
+  - [x] 3.5.4.44 ExitStatement (procedure exit)
 
-  **Original Goal**: Reach 28/48 (58%) with minimal infrastructure additions
-  **Reality**: Only 1 truly simple method found
-
-  **Completed**:
-  - [x] Add `GetOldValue(name string) (Value, bool)` to ExecutionContext
-  - [x] 3.5.4.56 VisitOldExpression - Postcondition support
-
-  **Deferred to Phase 2.2** (discovered complexity):
-  - 3.5.4.32 VarDeclStatement - Needs type system (external vars, subranges, type inference)
-  - 3.5.4.33 ConstDecl - Similar to VarDeclStatement
-  - 3.5.4.31 ExpressionStatement - Needs FunctionPointerValue check
-  - 3.5.4.27 SetLiteral - Needs range handling, enum types, array-of-const conversion
-
-  **Achieved**: 24/48 methods (50%) | **Next**: Phase 2.2 adapter extensions
-
-  ---
-
-  #### 🟡 Phase 2.2: Adapter Extensions - Basic Operations (7 methods - ~22 hours)
-
-  **Goal**: Reach 35/48 (73%) by extending adapter for operators and arrays
-
-  **Infrastructure**:
-  - [ ] Add `EvalBinaryOp(op, left, right)` to adapter
-  - [ ] Add `EvalUnaryOp(op, operand)` to adapter
-  - [ ] Add `InferArrayElementType(elements)` to adapter
-  - [ ] Add `CreateArray(elementType, size)` to adapter
-  - [ ] Add `GetArrayElement(arr, index)` to adapter
-  - [ ] Add `GetObjectField/GetPropertyValue/GetRecordField` to adapter
-  - [ ] Add `GetPropertyIndex(obj, index)` to adapter
-
-  **Migrations**:
-  - [ ] 3.5.4.7 VisitIdentifier - Variable/type reference
-  - [ ] 3.5.4.8 VisitBinaryExpression - Binary operators
-  - [ ] 3.5.4.9 VisitUnaryExpression - Unary operators
-  - [ ] 3.5.4.25 VisitArrayLiteralExpression - Array construction
-  - [ ] 3.5.4.28 VisitNewArrayExpression - Dynamic array allocation
-  - [ ] 3.5.4.14 VisitIndexExpression - Array/string indexing
-  - [ ] 3.5.4.15 VisitMemberAccessExpression - Field/property access
-
-  **Estimated**: 22 hours | **Deliverable**: 35/48 methods (73%)
+  **Key Helper Functions Added**:
+  - `isTruthy()` - Boolean conversion for conditionals (Task 9.35 Variant→Boolean coercion)
+  - `variantToBool()` - Variant to boolean coercion rules
+  - `valuesEqual()` - Value equality for case matching
+  - `isInRange()` - Range checking for case ranges (Integer, Float, String, Enum)
+  - `runeLength()`, `runeAt()` - UTF-8 string handling
+  - `isError()` - Error value checking
 
   ---
+  ### 🔄 PHASE 2 REQUIRED: Infrastructure Refactoring (29/48 remaining)
 
-  #### 🔴 Phase 2.3: Adapter Extensions - OOP & Advanced Features (13 methods - ~47 hours)
+  Before continuing with the remaining 29 methods, these infrastructure components must be refactored from Interpreter to Evaluator:
 
-  **Goal**: Reach 48/48 (100%) by completing all complex migrations
+  **Infrastructure Phase 2A: Function Call System ✅ PARTIALLY COMPLETE** (Blocks 7 methods, 1 migrated)
+  - Required for: ExpressionStatement, CallExpression, LambdaExpression, SelfExpression, InheritedExpression, AddressOfExpression, MethodCallExpression
+  - Components available via InterpreterAdapter:
+    - ✅ `CallFunctionPointer()` - Execute function pointer with closure/Self binding
+    - ✅ `CallUserFunction()` - User-defined function execution
+    - ✅ `CallBuiltinFunction()` - Built-in function dispatch
+    - ✅ `LookupFunction()` - Function registry lookup
+    - ✅ Call stack management (already in ExecutionContext)
+  - Completed migrations:
+    - ✅ SelfExpression (3.5.4.17) - Simple environment lookup for "Self" variable
+  - **Status**: Infrastructure complete via InterpreterAdapter. Full migration of remaining 6 methods deferred until complex types (FunctionPointerValue, ObjectInstance, ClassInfo) migrate to runtime package.
 
-  **Infrastructure**:
-  - [ ] Add OOP adapter methods (CreateObject, CallMethod, CallInherited, CheckType, CastType, CheckImplements)
-  - [ ] Add function pointer methods (CreateFunctionPointer, CreateLambda)
-  - [ ] Add record methods (CreateRecord)
-  - [ ] Add exception methods (CreateException, GetExceptionMessage, GetExceptionClass)
-  - [ ] Add assignment methods (SetVariable, SetField, SetArrayElement, SetProperty)
+  **Infrastructure Phase 2B: Type System Access** (Blocks 18 methods)
+  - Required for: VarDecl, ConstDecl, AssignmentStatement, all Declarations (9 methods), BinaryExpression, UnaryExpression, NewExpression, IsExpression, AsExpression, IfExpression
+  - Components to migrate:
+    - Class registry (`classes` map) → Move to TypeSystem
+    - Record type registry (`recordTypes` map) → Move to TypeSystem
+    - Interface registry (`interfaces` map) → Move to TypeSystem
+    - Enum registry (`enums` map) → Move to TypeSystem
+    - Helper registry (`helpers` map) → Move to TypeSystem
+    - Array type registry (`arrayTypes` map) → Move to TypeSystem
+    - Operator overload tables → Move to TypeSystem
+    - Type coercion/conversion logic → Move to TypeSystem
+    - `arrayTypeByName()` helper → Move to Evaluator (uses TypeSystem)
+    - Type inference for array/record literals → Evaluator logic
 
-  **Migrations**:
-  - [ ] 3.5.4.22 VisitCallExpression - Function calls
-  - [ ] 3.5.4.10 VisitAddressOfExpression - Function pointer creation
-  - [ ] 3.5.4.23 VisitLambdaExpression - Lambda/closure
-  - [ ] 3.5.4.19 VisitNewExpression - Object instantiation
-  - [ ] 3.5.4.16 VisitMethodCallExpression - Method calls
-  - [ ] 3.5.4.18 VisitInheritedExpression - Parent method calls
-  - [ ] 3.5.4.20 VisitIsExpression - Type checking
-  - [ ] 3.5.4.21 VisitAsExpression - Type casting
-  - [ ] 3.5.4.24 VisitImplementsExpression - Interface checking
-  - [ ] 3.5.4.26 VisitRecordLiteralExpression - Record construction
-  - [ ] 3.5.4.34 VisitAssignmentStatement - Assignment with lvalue resolution
-  - [ ] 3.5.4.45 VisitTryStatement - Exception handling
-  - [ ] 3.5.4.46 VisitRaiseStatement - Raise exceptions
+  **Infrastructure Phase 2C: Property & Indexing System** (Blocks 5 methods)
+  - Required for: MemberAccessExpression, AssignmentStatement, IndexExpression, RecordLiteralExpression, ArrayLiteralExpression
+  - Components to migrate:
+    - Property evaluation context (PropertyEvalContext - already in ExecutionContext ✓)
+    - Property getter/setter dispatch logic
+    - Array indexing logic (bounds checking)
+    - Record field access logic
+    - Helper field access logic
 
-  **Estimated**: 47 hours | **Deliverable**: 48/48 methods (100%)
+  **Infrastructure Phase 2D: Environment Scoping ✅ COMPLETE** (Blocks 2 methods)
+  - Required for: ForStatement, ForInStatement
+  - Components refactored:
+    - ✅ `NewEnclosedEnvironment()` pattern → ExecutionContext.PushEnv/PopEnv methods
+    - ✅ Added `envStack` field to ExecutionContext for proper scope management
+    - ✅ Loop variable scoping infrastructure ready for Evaluator use
+    - ✅ Environment save/restore pattern → ExecutionContext.PushEnv/PopEnv
+  - **Status**: Infrastructure complete. Full migration of ForStatement/ForInStatement deferred until complex types (ArrayValue, SetValue, EnumValue) migrate to runtime package.
 
-  ---
-
-  ### 📊 Phase Summary (Revised)
-
-  | Phase | Methods | Hours | Progress Target | Status |
-  |-------|---------|-------|----------------|--------|
-  | **Completed** | 24 | - | 50.0% | ✅ Done |
-  | **Phase 2.1** | +1 (revised) | 1 | 50% | ✅ Partial |
-  | **Phase 2.2** | +11 (revised) | ~30 | 73% | ⏳ Next |
-  | **Phase 2.3** | +13 | ~47 | 100% | ⏸️ Later |
-  | **Total Remaining** | 24 | ~77 | - | - |
-
-  **Note**: Phase 2.1 was revised after discovering that most "quick win" candidates have
-  significant complexity requiring adapter extensions (type system, function pointers, etc.).
-
-  ---
-
-  ### 📝 Legacy TODO Sections (for reference)
-
-  <details>
-  <summary>Click to expand old phase breakdown</summary>
-
-  ---
-
-  ### 🚧 Phase 2A: Function Call System (6 methods remaining)
-
-  Infrastructure: ✅ Complete via InterpreterAdapter
-  Blocked by: FunctionPointerValue, ObjectInstance, ClassInfo migration to runtime
-
-  **TODO**:
-  - [ ] 3.5.4.10 AddressOfExpression
-  - [ ] 3.5.4.16 MethodCallExpression
-  - [ ] 3.5.4.18 InheritedExpression
-  - [ ] 3.5.4.22 CallExpression
-  - [ ] 3.5.4.23 LambdaExpression
-  - [ ] 3.5.4.31 ExpressionStatement
+  **Infrastructure Phase 2E: Exception Infrastructure ✅ COMPLETE** (Blocks 2 methods)
+  - Required for: TryStatement, RaiseStatement
+  - Components migrated:
+    - ✅ `evalExceptClause()` → Evaluator method (commented, ready for use)
+    - ✅ `matchesExceptionType()` → Evaluator method (commented, ready for use)
+    - ✅ Exception handler stack (already in ExecutionContext via exception field)
+    - ✅ `handlerException` tracking → ExecutionContext.HandlerException()
+    - ✅ ExceptObject environment handling infrastructure ready
+  - **Status**: Infrastructure complete. Full migration of TryStatement/RaiseStatement deferred until complex types (ExceptionValue, ObjectInstance) migrate to runtime package.
 
   ---
+  ### 📋 DEFERRED METHODS BY INFRASTRUCTURE DEPENDENCY
 
-  ### 🚧 Phase 2B: Type System Access (18 methods)
+  **Blocked by Phase 2A (Function Call System) - 6 methods remaining (1/7 complete)**:
+  - [x] 3.5.4.17 SelfExpression - ✅ Migrated (simple environment lookup)
+  - [ ] 3.5.4.10 AddressOfExpression - Pending FunctionPointerValue migration
+  - [ ] 3.5.4.18 InheritedExpression - Pending ObjectInstance/ClassInfo migration
+  - [ ] 3.5.4.22 CallExpression - Pending FunctionPointerValue migration
+  - [ ] 3.5.4.23 LambdaExpression - Pending FunctionPointerValue migration
+  - [ ] 3.5.4.31 ExpressionStatement - Pending FunctionPointerValue migration
+  - [ ] 3.5.4.16 MethodCallExpression - Pending ObjectInstance/ClassInfo migration
 
-  **Infrastructure TODO**:
-  - [ ] Migrate class registry (`classes` map) to TypeSystem
-  - [ ] Migrate record type registry (`recordTypes` map) to TypeSystem
-  - [ ] Migrate interface registry (`interfaces` map) to TypeSystem
-  - [ ] Migrate enum registry (`enums` map) to TypeSystem
-  - [ ] Migrate helper registry (`helpers` map) to TypeSystem
-  - [ ] Migrate array type registry (`arrayTypes` map) to TypeSystem
-  - [ ] Migrate operator overload tables to TypeSystem
-  - [ ] Migrate type coercion/conversion logic to TypeSystem
-  - [ ] Move `arrayTypeByName()` helper to Evaluator
-  - [ ] Implement type inference for array/record literals
+  **Blocked by Phase 2B (Type System Access) - 18 methods**:
+  - [ ] 3.5.4.7 Identifier - Needs function/class registries
+  - [ ] 3.5.4.8 BinaryExpression - Needs operator tables, type coercion
+  - [ ] 3.5.4.9 UnaryExpression - Needs operator tables
+  - [ ] 3.5.4.13 IfExpression - Needs type system for default values
+  - [ ] 3.5.4.19 NewExpression - Needs class registry, constructor dispatch
+  - [ ] 3.5.4.20 IsExpression - Needs class hierarchy checking
+  - [ ] 3.5.4.21 AsExpression - Needs type casting infrastructure
+  - [ ] 3.5.4.32 VarDeclStatement - Needs arrayTypeByName, type inference
+  - [ ] 3.5.4.33 ConstDecl - Needs record type registry
+  - [ ] 3.5.4.47 FunctionDecl - Needs function registry
+  - [ ] 3.5.4.48 ClassDecl - Needs class registry
+  - [ ] 3.5.4.49 InterfaceDecl - Needs interface registry
+  - [ ] 3.5.4.50 RecordDecl - Needs record type registry
+  - [ ] 3.5.4.51 EnumDecl - Needs enum registry
+  - [ ] 3.5.4.52 HelperDecl - Needs helper registry
+  - [ ] 3.5.4.53 OperatorDecl - Needs operator overload tables
+  - [ ] 3.5.4.54 ArrayDecl - Needs array type registry
+  - [ ] 3.5.4.55 TypeDeclaration - Needs type alias handling
 
-  **Method Migration TODO**:
-  - [ ] 3.5.4.7 Identifier
-  - [ ] 3.5.4.8 BinaryExpression
-  - [ ] 3.5.4.9 UnaryExpression
-  - [x] 3.5.4.13 IfExpression ✅ **COMPLETE**
-  - [ ] 3.5.4.19 NewExpression
-  - [ ] 3.5.4.20 IsExpression
-  - [ ] 3.5.4.21 AsExpression
-  - [ ] 3.5.4.24 ImplementsExpression
-  - [ ] 3.5.4.32 VarDeclStatement
-  - [ ] 3.5.4.33 ConstDecl
-  - [ ] 3.5.4.47 FunctionDecl
-  - [ ] 3.5.4.48 ClassDecl
-  - [ ] 3.5.4.49 InterfaceDecl
-  - [ ] 3.5.4.50 RecordDecl
-  - [ ] 3.5.4.51 EnumDecl
-  - [ ] 3.5.4.52 HelperDecl
-  - [ ] 3.5.4.53 OperatorDecl
-  - [ ] 3.5.4.54 ArrayDecl
-  - [ ] 3.5.4.55 TypeDeclaration
+  **Blocked by Phase 2C (Property & Indexing) - 5 methods**:
+  - [ ] 3.5.4.14 IndexExpression - Needs array/property indexing
+  - [ ] 3.5.4.15 MemberAccessExpression - Needs property dispatch
+  - [ ] 3.5.4.25 ArrayLiteralExpression - Needs type inference
+  - [ ] 3.5.4.26 RecordLiteralExpression - Needs record construction
+  - [ ] 3.5.4.34 AssignmentStatement - Needs property setters, compound ops
 
-  ---
+  **Blocked by Phase 2D (Environment Scoping) - 2 methods**:
+  - [ ] 3.5.4.39 ForStatement - Needs enclosed environment for loop var
+  - [ ] 3.5.4.40 ForInStatement - Needs enclosed environment for loop var
 
-  ### 🚧 Phase 2C: Property & Indexing System (7 methods)
+  **Blocked by Phase 2E (Exception Infrastructure) - 2 methods**:
+  - [ ] 3.5.4.45 TryStatement - Needs evalExceptClause, handler stack
+  - [ ] 3.5.4.46 RaiseStatement - Needs handlerException tracking
 
-  **Infrastructure TODO**:
-  - [ ] Migrate property getter/setter dispatch logic
-  - [ ] Migrate array indexing logic (bounds checking)
-  - [ ] Migrate record field access logic
-  - [ ] Migrate helper field access logic
-
-  **Method Migration TODO**:
-  - [ ] 3.5.4.14 IndexExpression
-  - [ ] 3.5.4.15 MemberAccessExpression
-  - [ ] 3.5.4.25 ArrayLiteralExpression
-  - [ ] 3.5.4.26 RecordLiteralExpression
-  - [ ] 3.5.4.27 SetLiteral
-  - [ ] 3.5.4.28 NewArrayExpression
-  - [ ] 3.5.4.34 AssignmentStatement
+  **Other Expression Methods - 5 methods**:
+  - [ ] 3.5.4.24 ImplementsExpression - Needs interface checking (Phase 2B)
+  - [ ] 3.5.4.27 SetLiteral - Needs set construction (simpler, can migrate with Phase 2C)
+  - [ ] 3.5.4.28 NewArrayExpression - Needs dynamic array creation (Phase 2C)
 
   ---
+  ### 📊 Migration Metrics
 
-  ### 🚧 Phase 2E: Exception Handling (2 methods)
+  **Progress**: 19/48 methods migrated (39.6%)
+  - ✅ Literals: 6/6 (100%)
+  - ✅ Simple control flow: 7/7 (100%)
+  - ✅ Basic statements: 3/3 (100%)
+  - ⏳ Expressions: 2/22 (9.1%)
+  - ⏳ Complex statements: 1/7 (14.3%)
+  - ⏳ Declarations: 0/9 (0%)
 
-  Infrastructure: ✅ Complete (infrastructure methods in place)
-  Blocked by: ExceptionValue, ObjectInstance, ClassInfo migration to runtime
+  **Deferred by Infrastructure Dependency**:
+  - Phase 2A (Function Calls): 7 methods
+  - Phase 2B (Type System): 18 methods
+  - Phase 2C (Property/Indexing): 5 methods (some overlap with 2B)
+  - Phase 2D (Environment): 2 methods
+  - Phase 2E (Exceptions): 2 methods
 
-  **TODO**:
-  - [ ] 3.5.4.45 TryStatement
-  - [ ] 3.5.4.46 RaiseStatement
+  **Estimated Effort**:
+  - Phase 1 (Simple methods): ✅ Complete (4 days actual)
+  - Phase 2A (Function Calls): 5 days (complex, closures, call stack)
+  - Phase 2B (Type System): 8 days (largest, many registries)
+  - Phase 2C (Property/Indexing): 3 days (property dispatch, bounds checking)
+  - Phase 2D (Environment): 2 days (scoping refactor)
+  - Phase 2E (Exceptions): 3 days (exception handling, finally blocks)
+  - Total remaining: ~21 days
 
-  ---
-
-  ### 📊 Summary
-
-  | Category | Methods Remaining | Estimated Effort |
-  |----------|------------------|------------------|
-  | Phase 2A (Function Calls) | 6 | 5 days |
-  | Phase 2B (Type System) | 17 | 7 days |
-  | Phase 2C (Property/Indexing) | 7 | 3 days |
-  | Phase 2E (Exceptions) | 2 | 3 days |
-  | **TOTAL** | **32 tasks** | **~18 days** |
-
-  </details>
-
-  ---
-
-- [x] 3.5.5 Add Type System Adapter Methods ✅ **COMPLETE**
-  - Extend InterpreterAdapter interface with type system access methods
-  - **Type Lookups**:
-    - `GetType(name string) (types.Type, error)` - Resolve type by name
-    - `ResolveType(typeAnnotation *ast.TypeAnnotation) (types.Type, error)` - Resolve from AST type
-    - `IsTypeCompatible(from Value, toType types.Type) bool` - Check type compatibility
-  - **Type Inference**:
-    - `InferArrayElementType(elements []Value) (types.Type, error)` - Infer from array literal elements
-    - `InferRecordType(fields map[string]Value) (string, error)` - Infer from record literal
-  - **Type Conversions**:
-    - `ConvertValue(value Value, targetType types.Type) (Value, error)` - Implicit/explicit conversions
-    - `CreateDefaultValue(typeName string) Value` - Create zero value for type
-  - **Type Queries**:
-    - `IsEnumType(typeName string) bool` - Check if name is enum type
-    - `IsRecordType(typeName string) bool` - Check if name is record type
-    - `IsArrayType(typeName string) bool` - Check if name is array type
+- [ ] 3.5.5 Remove adapter pattern and complete migration
+  - Remove InterpreterAdapter interface from evaluator.go
+  - Remove adapter field from Evaluator struct
+  - Remove SetAdapter() method
+  - Remove EvalNode() method from Interpreter
+  - Update Evaluator.Eval() to handle all cases without adapter fallback
+  - Remove Interpreter.Eval() method (or make it just call evaluator)
+  - Verify all evaluation flows through Evaluator only
   - Files: `evaluator/evaluator.go`, `interpreter.go`
   - **Completed**: Added 10 type system methods to InterpreterAdapter, all implemented and tested
   - **Enables**: VarDeclStatement, ConstDecl, Identifier, BinaryExpression, UnaryExpression
@@ -1135,112 +1089,31 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
 
 ---
 
-### Phase 3.7: Built-in Function Organization
+### Phase 3.7: Built-in Function Registry & Migration
 
-- [x] 3.7.1 Reorganize built-in functions by feature
-  - Merge `builtins_strings_*.go` (3 files) → `builtins/strings.go` (1 file)
-  - Merge `builtins_math_*.go` (4 files) → `builtins/math.go` (1 file)
-  - Merge `builtins_datetime_*.go` (3 files) → `builtins/datetime.go` (1 file)
-  - Create `internal/interp/builtins/` sub-package
-  - Files: Reorganize 15+ files into ~6 files in builtins/
-  - Estimated: 3 days
-  - Acceptance: Cleaner organization, fewer files, easier to find functions, tests pass
-  - **Completed**: Created `internal/interp/builtins/` package with Context interface, consolidated 171 functions into 4 files (math.go: 62 functions, strings.go: 56 functions, datetime.go: 52 functions, context.go: interface), eliminated circular dependencies via interface-based design, all tests passing. See `docs/phase3-task3.7.1-summary.md`
+**Status**: ✅ Complete (All 9 tasks: 3.7.1-3.7.9)
+**Documentation**: See `docs/phase3.7-summary.md` for comprehensive details
 
-- [x] 3.7.2 Create built-in function registry
-  - Extract built-in registration to registry pattern
-  - Support categories: math, string, datetime, collections, etc.
-  - Auto-register on init or explicit registration
-  - Support querying available built-ins
-  - Files: `internal/interp/builtins/registry.go` (new)
-  - Estimated: 2 days
-  - Acceptance: Registry manages all built-ins, tests pass
-  - **Completed**: Created thread-safe registry with case-insensitive lookup, migrated 169/244 functions (69.3%) across 4 categories (Math: 62, String: 56, DateTime: 52, Conversion: 2), removed 336 lines of redundant switch cases (50% reduction), O(1) lookup for registered functions, comprehensive documentation. See `docs/builtin-registry-summary.md` and `docs/builtin-migration-roadmap.md`
+**Summary**: Migrated 225 of 244 built-in functions (92.2%) to modular, registry-based architecture with O(1) case-insensitive lookup. Reduced switch statement by 85% (~600 lines). Created 14 files in `internal/interp/builtins/` with 30+ Context helper methods. >90% test coverage, zero circular dependencies.
 
-- [x] 3.7.3 Extend Context interface for type-dependent functions
-  - Add type helper methods to Context interface: ToInt64, ToBool, ToFloat64
-  - Implement helpers in Interpreter to handle SubrangeValue, EnumValue conversions
-  - Migrate basic conversion functions: IntToStr, IntToBin, StrToInt, StrToFloat, FloatToStr, BoolToStr
-  - Migrate encoding functions: StrToHtml, StrToHtmlAttribute, StrToJSON, StrToCSSText, StrToXML
-  - Register ~15 additional functions in CategoryConversion and CategoryEncoding
-  - Files: `internal/interp/builtins/context.go` (extend), `internal/interp/builtins/conversion.go` (new), `internal/interp/builtins/encoding.go` (new)
-  - Estimated: 3 days
-  - Acceptance: Context extended with type helpers, 15+ conversion/encoding functions migrated, registry up to 184+ functions, tests pass
-  - **Completed**: Extended Context interface with ToInt64, ToBool, ToFloat64 type helpers. Implemented in Interpreter to handle SubrangeValue and EnumValue conversions. Migrated 13 functions: 8 conversion functions (IntToStr, IntToBin, StrToInt, StrToFloat, FloatToStr, BoolToStr, IntToHex, StrToBool) in CategoryConversion and 5 encoding functions (StrToHtml, StrToHtmlAttribute, StrToJSON, StrToCSSText, StrToXML) in CategoryEncoding. Registry now has 198 total registered functions. All tests passing.
+**Functions by Category**:
+- Math: 62 | String: 57 | DateTime: 52 | Conversion: 11 | Encoding: 5
+- JSON: 7 | Type: 2 | Array: 16 | Collections: 8 | Variant: 10 | I/O: 2 | System: 4
 
-- [x] 3.7.4 Add I/O support and migrate Print functions
-  - Extend Context with GetOutput() io.Writer method
-  - Migrate Print and PrintLn to builtins package
-  - Register in CategoryIO
-  - Files: `internal/interp/builtins/io.go` (new)
-  - Estimated: 1 day
-  - Acceptance: Print/PrintLn in registry, output correctly written to configured writer, tests pass
-  - **Completed**: Extended Context interface with Write() and WriteLine() methods for I/O operations. Migrated Print and PrintLn functions to builtins package in CategoryIO. Both functions correctly write to configured writer using context methods. All tests passing.
+**Key Achievements**:
+- ✅ Context interface with 30+ helper methods for type-safe builtin implementation
+- ✅ Thread-safe registry with O(1) case-insensitive lookup matching DWScript semantics
+- ✅ Fixed polymorphic functions (Low, High, Concat) to support arrays, strings, enums, and type meta-values
+- ✅ All functions properly categorized and registered with comprehensive documentation
+- ✅ Interface-based design eliminates circular dependencies
 
-- [x] 3.7.5 Migrate ordinal and variant functions
-  - **Ordinal Functions (2/6 complete)**:
-    - [x] Extend Context with GetEnumOrdinal helper (done in 3.7.3)
-    - [x] Migrate Ord function (done, registered in CategoryConversion)
-    - [x] Migrate Chr function (done, registered in CategoryString)
-    - [x] Note: Inc, Dec cannot be migrated (require AST lvalue modification)
-    - [x] Note: Succ, Pred require enum type metadata (deferred)
-  - **Variant Functions (12/12 complete)**:
-    - [x] Extend Context with UnwrapVariant helper (done in 9.4.5)
-    - [x] Create internal/interp/builtins/variant.go
-    - [x] Add CategoryVariant to registry.go
-    - [x] Migrate VarType, VarIsNull, VarIsEmpty, VarIsClear (4 functions)
-    - [x] Migrate VarIsArray, VarIsStr, VarIsNumeric (3 functions)
-    - [x] Migrate VarToStr, VarToInt, VarToFloat (3 functions)
-    - [x] Migrate VarAsType, VarClear (2 functions)
-    - [x] Register all 12 variant functions in CategoryVariant
-    - [x] Update functions_builtins.go to use registry
-  - Files: `internal/interp/builtins/ordinal.go` (exists), `internal/interp/builtins/variant.go` (new)
-  - Estimated: 4 days
-  - Acceptance: 12 variant functions migrated, registry up to 210+ functions, tests pass
-  - **Completed**: Created internal/interp/builtins/variant.go with all 12 Variant functions migrated from Interpreter methods. Added CategoryVariant to registry. Registered all functions: VarType, VarIsNull, VarIsEmpty, VarIsClear, VarIsArray, VarIsStr, VarIsNumeric, VarToStr, VarToInt, VarToFloat, VarAsType, VarClear. Updated functions_builtins.go to use registry lookup. Registry now has 210 total functions (added 12). All tests passing including TestVarType*, TestVarIsNull*, TestVarTo* tests. Ordinal functions (Ord, Chr) were already migrated in previous tasks. Inc/Dec cannot be migrated as they require AST lvalue modification. Succ/Pred deferred as they need enum type metadata.
+**Functions Not Migrated** (~19 functions, 7.8%):
+- Var-param functions (7): Inc, Dec, Swap, DivMod, Insert, Delete, DecodeDate (require lvalue modification)
+- Random functions (6): Random, RandomInt, Randomize, SetRandSeed, RandSeed, RandG
+- String helpers (3): StrSplit, StrJoin, StrArrayPack
+- Enum functions (2): Succ, Pred (need enum metadata)
 
-- [x] 3.7.6 Migrate JSON and type introspection functions
-  - Extend Context with JSON helpers: ParseJSONValue, ValueToJSON
-  - Migrate JSON functions: ParseJSON, ToJSON, ToJSONFormatted, JSONHasField, JSONKeys, JSONValues, JSONLength
-  - Extend Context with type introspection: GetTypeOf, GetClassOf
-  - Migrate type functions: TypeOf, TypeOfClass
-  - Register in CategoryJSON and CategoryType
-  - Files: `internal/interp/builtins/json.go` (new), `internal/interp/builtins/type.go` (new)
-  - Estimated: 3 days
-  - Acceptance: 9+ JSON/type functions migrated, registry up to 212+ functions, tests pass
-  - **Completed**: Extended Context interface with JSON helpers (ParseJSONString, ValueToJSON, JSONHasField, JSONGetKeys, JSONGetValues, JSONGetLength, CreateStringArray, CreateVariantArray) and type introspection helpers (GetTypeOf, GetClassOf). Migrated 9 functions: 7 JSON functions (ParseJSON, ToJSON, ToJSONFormatted, JSONHasField, JSONKeys, JSONValues, JSONLength) in CategoryJSON and 2 type introspection functions (TypeOf, TypeOfClass) in CategoryType. Fixed GetTypeOf to return properly capitalized type names (Integer, Float, String, Boolean, etc.) and handle object/class types correctly. Fixed GetClassOf to handle ClassValue, ClassInfoValue, and ObjectInstance. All RTTI and JSON tests passing.
-
-- [x] 3.7.7 Migrate array and collection functions
-  - Extend Context with array helpers: GetArrayLength, SetArrayLength, ArrayCopy, ArrayReverse, ArraySort
-  - Migrate simple array functions: Length, Copy, Low, High, IndexOf, Contains, Reverse, Sort
-  - Extend Context with callback evaluation: EvalFunctionPointer
-  - Migrate collection functions: Map, Filter, Reduce, ForEach, Every, Some, Find, FindIndex
-  - Migrate array manipulation: Add, Delete, SetLength, ConcatArrays, Slice
-  - Register in CategoryArray and CategoryCollections
-  - Files: `internal/interp/builtins/array.go` (new), `internal/interp/builtins/collections.go` (new)
-  - Estimated: 5 days
-  - Acceptance: 21+ array/collection functions migrated, registry up to 233+ functions, tests pass
-
-- [x] 3.7.8 Migrate remaining miscellaneous functions
-  - Migrate Format function with extended formatting support
-  - Migrate runtime functions: GetStackTrace, GetCallStack, Assigned, Swap
-  - Migrate remaining utility functions: Assert, DivMod, and any others
-  - Remove all remaining switch cases from functions_builtins.go
-  - Register in CategorySystem
-  - Files: `internal/interp/builtins/system.go` (new)
-  - Estimated: 2 days
-  - Acceptance: All 244 functions in registry, switch statement removed entirely, pure O(1) dispatch, tests pass
-
-- [ ] 3.7.9 Registry enhancement and optimization
-  - Add parameter validation metadata to FunctionInfo
-  - Add return type information to FunctionInfo
-  - Add usage examples to function descriptions
-  - Create registry inspection CLI tool or debug endpoint
-  - Add performance profiling hooks for registry lookups
-  - Update all documentation with final statistics
-  - Files: Various improvements to registry infrastructure
-  - Estimated: 2 days
-  - Acceptance: Enhanced registry with metadata, tooling for inspection, documentation complete
+**Files Created**: context.go, registry.go, register.go, math.go, strings_basic.go, datetime.go, conversion.go, encoding.go, json.go, type.go, variant.go, io.go, array.go, collections.go, system.go (+ test files)
 
 ---
 
@@ -1400,725 +1273,6 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
 
 ## Phase 9: Completion and DWScript Feature Parity
 
----
-
-## Task 9.1: Optimize Bytecode Value Representation (Architecture Fix)
-
-**Goal**: Replace `interface{}` in bytecode Value type with efficient union representation to eliminate type assertion overhead in VM hot path.
-
-**Estimate**: 20-25 hours (2.5-3 days)
-
-**Status**: NOT STARTED
-
-**Impact**:
-- **5-10% performance improvement** in bytecode VM execution
-- Eliminates type assertions on every arithmetic/comparison operation
-- Zero-allocation representation for primitive types
-- Fixes highest-priority issue identified in interface{} audit
-
-**Priority**: P0 - CRITICAL (Performance)
-
-**Reference**: See `docs/interface-usage-audit.md` - Issue #1 (HIGH PRIORITY)
-
-**Problem**:
-Current bytecode `Value` type uses `Data interface{}` which requires:
-- Heap allocation for every primitive value
-- Type assertion on every operation (`.Data.(int64)`, `.Data.(bool)`, etc.)
-- Significant overhead in VM hot path (every instruction execution)
-
-**Current Implementation** (`internal/bytecode/bytecode.go:11`):
-```go
-type Value struct {
-    Data interface{}  // ← Type assertions on every access
-    Type ValueType
-}
-
-func (v Value) AsInt() int64 {
-    if v.Type == ValueInt {
-        return v.Data.(int64)  // ← Performance overhead
-    }
-    return 0
-}
-```
-
-**Target Design** (zero-copy union):
-```go
-type Value struct {
-    typ  ValueType
-    i64  int64          // for ValueInt
-    f64  float64        // for ValueFloat
-    str  string         // for ValueString (header only, 16 bytes)
-    ptr  unsafe.Pointer // for complex types (*ArrayInstance, etc.)
-}
-
-func (v Value) AsInt() int64 {
-    return v.i64  // ← No allocation, no type assertion
-}
-```
-
-**Benefits**:
-- Primitives stored inline (no heap allocation)
-- Zero runtime type assertions
-- Cache-friendly memory layout
-- Maintains compatibility with existing VM operations
-
-**Subtasks**:
-
-### 9.1.1 Design Union Type Layout
-
-**Goal**: Design memory-efficient union type for Value that avoids allocations.
-
-**Estimate**: 3-4 hours
-
-**Status**: DONE ✅
-
-**Tasks**:
-- [x] Design struct layout with explicit fields for each value type
-- [x] Determine optimal field ordering for cache alignment
-- [x] Plan string storage strategy (inline header vs pointer)
-- [x] Document memory layout and size calculations
-- [x] Verify Go compiler will optimize field access
-
-**Deliverables**:
-- ✅ Design document with struct layout
-- ✅ Memory usage comparison (before/after)
-- ✅ Performance prediction analysis
-
-**Files Created**:
-- ✅ `docs/bytecode-value-optimization.md` (comprehensive design doc, 936 lines)
-
-**Key Decisions**:
-- Struct size: 32 bytes (vs current 40 bytes total)
-- Layout: typ(1) + pad(7) + i64/f64/ptr(8) + str(16)
-- String storage: Separate field (cannot overlap, too large)
-- Expected improvement: 5-10% VM performance
-- Implementation approach: Explicit fields, rely on compiler optimization
-
----
-
-### 9.1.2 Implement New Value Type
-
-**Goal**: Implement new Value type with union representation.
-
-**Estimate**: 4-5 hours
-
-**Status**: NOT STARTED
-
-**Tasks**:
-- [ ] Define new Value struct with typed fields
-- [ ] Implement constructor functions (IntValue, FloatValue, etc.)
-- [ ] Implement type checking methods (IsInt, IsBool, etc.)
-- [ ] Implement zero-copy accessor methods (AsInt, AsFloat, etc.)
-- [ ] Add documentation and usage examples
-
-**Deliverables**:
-- New `Value` implementation in `internal/bytecode/bytecode.go`
-- Unit tests for all accessor methods
-- Benchmarks comparing old vs new implementation
-
-**Files Modified**:
-- `internal/bytecode/bytecode.go` (Value type definition)
-
----
-
-### 9.1.3 Update VM Operations
-
-**Goal**: Update all VM operations to use new Value representation.
-
-**Estimate**: 6-7 hours
-
-**Status**: NOT STARTED
-
-**Tasks**:
-- [ ] Update arithmetic operations (OpAdd, OpSub, OpMul, OpDiv)
-- [ ] Update comparison operations (OpEqual, OpLess, OpGreater)
-- [ ] Update logical operations (OpAnd, OpOr, OpNot)
-- [ ] Update array/object operations
-- [ ] Update function call/return value handling
-- [ ] Update constant loading (OpLoadConst)
-- [ ] Update variable access (OpGetLocal, OpSetLocal, OpGetGlobal, OpSetGlobal)
-
-**Deliverables**:
-- All VM operations updated to use typed accessors
-- No performance regression in existing tests
-- All bytecode tests passing
-
-**Files Modified**:
-- `internal/bytecode/vm.go` (main VM loop)
-- `internal/bytecode/vm_ops.go` (operation implementations)
-- `internal/bytecode/vm_builtins.go` (builtin function handling)
-- `internal/bytecode/vm_builtins_*.go` (specialized builtins)
-
----
-
-### 9.1.4 Update Bytecode Compiler
-
-**Goal**: Update compiler to emit values using new representation.
-
-**Estimate**: 3-4 hours
-
-**Status**: NOT STARTED
-
-**Tasks**:
-- [ ] Update constant emission for literals
-- [ ] Update array/object initialization
-- [ ] Update function compilation
-- [ ] Verify constant pool uses new Value type
-- [ ] Update serialization/deserialization for .dwc files
-
-**Deliverables**:
-- Compiler emits optimized Value representation
-- Bytecode serialization maintains compatibility
-- All compilation tests passing
-
-**Files Modified**:
-- `internal/bytecode/compiler.go` (constant emission)
-- `internal/bytecode/compiler_core.go` (expression compilation)
-- `internal/bytecode/serializer.go` (if Value serialization affected)
-
----
-
-### 9.1.5 Benchmark and Validate
-
-**Goal**: Measure performance improvement and validate correctness.
-
-**Estimate**: 4-5 hours
-
-**Status**: NOT STARTED
-
-**Tasks**:
-- [ ] Create comprehensive benchmarks for common VM operations
-- [ ] Run benchmarks comparing old vs new implementation
-- [ ] Validate 5-10% improvement target is met
-- [ ] Run full test suite to verify correctness
-- [ ] Run all fixture tests to ensure compatibility
-- [ ] Profile VM to identify any remaining hotspots
-- [ ] Document performance improvements
-
-**Deliverables**:
-- Benchmark results showing performance improvement
-- Performance regression test suite
-- Updated documentation with benchmark data
-- All tests passing
-
-**Files to Create/Modify**:
-- `internal/bytecode/value_bench_test.go` (new benchmarks)
-- `docs/bytecode-value-optimization.md` (add results)
-- `docs/bytecode-vm.md` (update with new Value design)
-
-**Success Criteria**:
-- [ ] All existing tests pass
-- [ ] All fixture tests pass
-- [ ] 5-10% performance improvement in VM benchmarks
-- [ ] No increase in memory usage for common cases
-- [ ] Zero breaking changes to public API
-
----
-
-## Task 9.2: Eliminate Circular Package Dependencies (Architecture Refactor)
-
-**Goal**: Reorganize package structure to eliminate circular dependencies that force `interface{}` usage and loss of type safety.
-
-**Estimate**: 25-30 hours (3-4 days)
-
-**Status**: NOT STARTED
-
-**Impact**:
-- Eliminates all architectural `interface{}` usage
-- Restores compile-time type safety across codebase
-- Enables better IDE support and refactoring
-- Removes confusing workaround comments
-- Cleaner, more maintainable architecture
-
-**Priority**: P1 - HIGH (Architecture Quality)
-
-**Reference**: See `docs/interface-usage-audit.md` - Issues #2-5
-
-**Problem**:
-Current package structure creates circular dependencies:
-```
-1. AST ↔ Semantic Analysis:
-   pkg/ast → internal/semantic → pkg/ast
-
-2. Interpreter ↔ Type System:
-   internal/interp → internal/interp/types → internal/interp
-
-3. Evaluator ↔ Interpreter:
-   internal/interp/evaluator → internal/interp
-```
-
-**Current Workarounds** (all using `interface{}`):
-- `pkg/ast/metadata.go:73` - Symbol storage: `map[*Identifier]interface{}`
-- `internal/interp/types/type_system.go:355-372` - Type aliases: `type ClassInfo = any`
-- `internal/interp/evaluator/context.go:127` - Environment: `Get() (interface{}, bool)`
-- `internal/interp/evaluator/context.go:162` - Exceptions: `exception interface{}`
-
-**Target Architecture**:
-```
-Create neutral packages for shared types:
-
-    internal/types (neutral)          internal/value (neutral)
-         ↑        ↑                         ↑        ↑
-         |        |                         |        |
-    pkg/ast  internal/semantic    internal/interp  internal/interp/evaluator
-```
-
-**Benefits**:
-- No circular dependencies
-- Full compile-time type safety
-- Better IDE autocomplete and refactoring
-- Clearer separation of concerns
-- Easier to understand and maintain
-
-**Subtasks**:
-
-### 9.2.1 Create internal/types Package
-
-**Goal**: Create neutral package for shared type definitions (ClassInfo, RecordTypeValue, etc.).
-
-**Estimate**: 5-6 hours
-
-**Status**: NOT STARTED
-
-**Tasks**:
-- [ ] Create `internal/types` package structure
-- [ ] Move `ClassInfo` struct from `internal/interp` to `internal/types`
-- [ ] Move `RecordTypeValue` struct to `internal/types`
-- [ ] Move `InterfaceInfo` struct to `internal/types`
-- [ ] Move `HelperInfo` struct to `internal/types`
-- [ ] Ensure no dependencies on `internal/interp` (neutral package)
-- [ ] Update import paths in dependent packages
-- [ ] Verify no circular dependencies introduced
-
-**Deliverables**:
-- New `internal/types` package with core type definitions
-- Zero dependencies on interpreter internals
-- All existing functionality preserved
-
-**Files to Create**:
-- `internal/types/class.go` (ClassInfo and related types)
-- `internal/types/record.go` (RecordTypeValue and related types)
-- `internal/types/interface.go` (InterfaceInfo and related types)
-- `internal/types/helper.go` (HelperInfo and related types)
-- `internal/types/doc.go` (package documentation)
-
-**Files to Modify**:
-- `internal/interp/classes.go` (move ClassInfo out)
-- `internal/interp/records.go` (move RecordTypeValue out)
-- `internal/interp/types/type_system.go` (use concrete types instead of `any`)
-
----
-
-### 9.2.2 Create internal/value Package
-
-**Goal**: Create neutral package for runtime Value interface and core value types.
-
-**Estimate**: 5-6 hours
-
-**Status**: NOT STARTED
-
-**Tasks**:
-- [ ] Create `internal/value` package structure
-- [ ] Define core `Value` interface (common operations)
-- [ ] Define `ValueType` interface for type information
-- [ ] Move common value operations to interface
-- [ ] Ensure no dependencies on interpreter or evaluator
-- [ ] Update Environment interface to use `value.Value`
-- [ ] Update import paths in dependent packages
-
-**Deliverables**:
-- New `internal/value` package with Value interface
-- Type-safe Environment interface
-- All existing functionality preserved
-
-**Files to Create**:
-- `internal/value/value.go` (Value interface definition)
-- `internal/value/doc.go` (package documentation)
-
-**Example Design**:
-```go
-// internal/value/value.go
-package value
-
-// Value represents any runtime value in the interpreter.
-type Value interface {
-    Type() string
-    String() string
-    IsTruthy() bool
-}
-
-// Environment provides variable storage with typed values.
-type Environment interface {
-    Define(name string, value Value)
-    Get(name string) (Value, bool)
-    Set(name string, value Value) bool
-    NewEnclosedEnvironment() Environment
-}
-```
-
-**Files to Modify**:
-- `internal/interp/evaluator/context.go` (use `value.Value` instead of `interface{}`)
-- `internal/interp/environment.go` (implement `value.Environment`)
-
----
-
-### 9.2.3 Move Symbol Types to pkg/ast
-
-**Goal**: Define Symbol interface in pkg/ast to break circular dependency with internal/semantic.
-
-**Estimate**: 4-5 hours
-
-**Status**: NOT STARTED
-
-**Tasks**:
-- [ ] Define `Symbol` interface in `pkg/ast`
-- [ ] Define `SymbolKind` enumeration
-- [ ] Update `SemanticInfo` to use typed `Symbol` interface
-- [ ] Update `internal/semantic` to implement Symbol interface
-- [ ] Remove `interface{}` from symbol storage
-- [ ] Update all symbol access to use typed interface
-- [ ] Verify no circular dependency
-
-**Deliverables**:
-- Symbol interface in `pkg/ast`
-- Type-safe symbol storage in SemanticInfo
-- No circular dependencies
-- All semantic tests passing
-
-**Files to Create**:
-- `pkg/ast/symbol.go` (Symbol interface and SymbolKind)
-
-**Example Design**:
-```go
-// pkg/ast/symbol.go
-package ast
-
-// SymbolKind represents the kind of symbol.
-type SymbolKind int
-
-const (
-    SymbolVariable SymbolKind = iota
-    SymbolFunction
-    SymbolClass
-    SymbolInterface
-    SymbolType
-)
-
-// Symbol represents a named entity in the symbol table.
-type Symbol interface {
-    Name() string
-    Kind() SymbolKind
-    Type() *TypeAnnotation
-    Position() *token.Position
-}
-```
-
-**Files to Modify**:
-- `pkg/ast/metadata.go` (use `Symbol` instead of `interface{}`)
-- `internal/semantic/symbol.go` (implement `ast.Symbol` interface)
-
----
-
-### 9.2.4 Update OperatorEntry to Use Typed Class
-
-**Goal**: Replace `interface{}` in OperatorEntry with concrete ClassInfo type.
-
-**Estimate**: 2-3 hours
-
-**Status**: NOT STARTED
-
-**Tasks**:
-- [ ] Update `OperatorEntry` to use `*types.ClassInfo`
-- [ ] Update all operator registration to use typed class
-- [ ] Remove circular dependency workaround
-- [ ] Verify all operator tests pass
-
-**Deliverables**:
-- Type-safe operator registry
-- No `interface{}` in OperatorEntry
-- All operator tests passing
-
-**Files to Modify**:
-- `internal/interp/types/type_system.go` (OperatorEntry definition)
-- All operator registration sites
-
----
-
-### 9.2.5 Update Exception Handling to Use Typed Values
-
-**Goal**: Replace `interface{}` exception storage with typed ExceptionValue.
-
-**Estimate**: 3-4 hours
-
-**Status**: NOT STARTED
-
-**Tasks**:
-- [ ] Define ExceptionValue interface in `internal/value` or `internal/types`
-- [ ] Update `ExecutionContext` to use typed exception
-- [ ] Update all exception handling to use typed values
-- [ ] Remove circular dependency workaround
-- [ ] Verify all exception tests pass
-
-**Deliverables**:
-- Type-safe exception handling
-- No `interface{}` in ExecutionContext
-- All exception tests passing
-
-**Files to Modify**:
-- `internal/interp/evaluator/context.go` (exception fields)
-- `internal/interp/exceptions.go` (exception value definition)
-- All exception handling sites
-
----
-
-### 9.2.6 Validate and Document Architecture
-
-**Goal**: Verify no circular dependencies remain and document new architecture.
-
-**Estimate**: 5-6 hours
-
-**Status**: NOT STARTED
-
-**Tasks**:
-- [ ] Run `go mod graph` to verify no circular dependencies
-- [ ] Create package dependency diagram
-- [ ] Document new package architecture
-- [ ] Update CLAUDE.md with new package structure
-- [ ] Remove all "avoiding circular dependency" comments
-- [ ] Remove all TODO comments about fixing interface{} usage
-- [ ] Run full test suite to verify correctness
-- [ ] Update interface{} audit report with "FIXED" status
-
-**Deliverables**:
-- Zero circular dependencies in codebase
-- Package architecture documentation
-- All tests passing
-- Updated audit report
-
-**Files to Create/Modify**:
-- `docs/package-architecture.md` (new architecture diagram)
-- `CLAUDE.md` (update package structure section)
-- `docs/interface-usage-audit.md` (mark issues as fixed)
-
-**Validation Commands**:
-```bash
-# Check for circular dependencies
-go mod graph | grep -E 'go-dws.*go-dws'
-
-# Build entire project
-go build ./...
-
-# Run all tests
-go test ./...
-
-# Run with race detection
-go test -race ./...
-```
-
-**Success Criteria**:
-- [ ] Zero circular package dependencies
-- [ ] All `interface{}` architectural issues resolved
-- [ ] All tests passing (no regressions)
-- [ ] Documentation updated
-- [ ] No workaround comments remaining
-
----
-
-## Task 9.3: Migrate to Typed Interfaces (Code Quality Improvement)
-
-**Goal**: Complete migration of remaining `interface{}` uses to proper typed interfaces across the codebase.
-
-**Estimate**: 15-18 hours (2-2.5 days)
-
-**Status**: NOT STARTED
-
-**Impact**:
-- Full type safety throughout codebase
-- Better compile-time error detection
-- Improved IDE support and refactoring
-- Cleaner, more maintainable code
-- Foundation for future optimizations
-
-**Priority**: P2 - MEDIUM (Code Quality)
-
-**Reference**: See `docs/interface-usage-audit.md` - Follow-up improvements
-
-**Description**:
-After completing Task 9.1 (bytecode Value) and Task 9.2 (package restructuring), this task completes the migration by updating all remaining code to use the new typed interfaces. This includes:
-- Migrating all Environment implementations
-- Updating all value consumers (interpreter, evaluator, etc.)
-- Removing temporary compatibility shims
-- Cleaning up migration artifacts
-
-**Dependencies**:
-- Requires Task 9.1 (bytecode Value optimization) to be completed
-- Requires Task 9.2 (package restructuring) to be completed
-
-**Subtasks**:
-
-### 9.3.1 Migrate All Environment Implementations
-
-**Goal**: Update all Environment implementations to use typed `value.Value`.
-
-**Estimate**: 4-5 hours
-
-**Status**: NOT STARTED
-
-**Tasks**:
-- [ ] Update `internal/interp/environment.go` to implement `value.Environment`
-- [ ] Update all `Define()` calls to use `value.Value`
-- [ ] Update all `Get()` calls to use typed returns
-- [ ] Update all `Set()` calls to use `value.Value`
-- [ ] Remove type assertions from environment access
-- [ ] Verify all environment tests pass
-
-**Deliverables**:
-- All environments use typed Value interface
-- Zero type assertions in environment access
-- All environment tests passing
-
-**Files Modified**:
-- `internal/interp/environment.go` (main implementation)
-- `internal/interp/evaluator/context.go` (usage sites)
-- All code accessing environment (widespread changes)
-
----
-
-### 9.3.2 Update Interpreter Value Handling
-
-**Goal**: Update interpreter to consistently use typed Value interface.
-
-**Estimate**: 5-6 hours
-
-**Status**: NOT STARTED
-
-**Tasks**:
-- [ ] Update all `Eval()` methods to use `value.Value`
-- [ ] Update expression evaluation to use typed values
-- [ ] Update statement execution to use typed values
-- [ ] Update function calls to use typed parameters/returns
-- [ ] Remove remaining type assertions
-- [ ] Verify all interpreter tests pass
-
-**Deliverables**:
-- Interpreter fully uses typed values
-- Zero type assertions in hot paths
-- All interpreter tests passing
-
-**Files Modified**:
-- `internal/interp/interpreter.go` (core evaluation)
-- `internal/interp/expressions*.go` (expression evaluation)
-- `internal/interp/statements.go` (statement execution)
-- `internal/interp/functions*.go` (function handling)
-
----
-
-### 9.3.3 Update Evaluator Package
-
-**Goal**: Update evaluator package to use typed interfaces throughout.
-
-**Estimate**: 3-4 hours
-
-**Status**: NOT STARTED
-
-**Tasks**:
-- [ ] Update `ExecutionContext` to use typed values
-- [ ] Update `oldValuesStack` to use `map[string]value.Value`
-- [ ] Update all context methods to use typed values
-- [ ] Remove type assertions from evaluator
-- [ ] Verify all evaluator tests pass
-
-**Deliverables**:
-- Evaluator fully type-safe
-- Zero `interface{}` in ExecutionContext (except justified cases)
-- All evaluator tests passing
-
-**Files Modified**:
-- `internal/interp/evaluator/context.go`
-- `internal/interp/evaluator/evaluator.go`
-- `internal/interp/evaluator/*.go` (all evaluator files)
-
----
-
-### 9.3.4 Clean Up Migration Artifacts
-
-**Goal**: Remove temporary compatibility code and migration comments.
-
-**Estimate**: 2-3 hours
-
-**Status**: NOT STARTED
-
-**Tasks**:
-- [ ] Remove all "TODO: migrate to typed interface" comments
-- [ ] Remove all "temporarily defined here" comments
-- [ ] Remove compatibility shims if any
-- [ ] Remove deprecated type assertions
-- [ ] Clean up any dead code from migration
-- [ ] Update all documentation
-
-**Deliverables**:
-- Clean codebase with no migration artifacts
-- Updated documentation
-- No workaround comments
-
-**Files to Check**:
-- All files modified in Tasks 9.1, 9.2, 9.3
-- Search for: "TODO.*interface", "temporarily", "avoiding.*cycle"
-
----
-
-### 9.3.5 Performance Validation and Documentation
-
-**Goal**: Validate that typed interface migration doesn't introduce performance regressions.
-
-**Estimate**: 3-4 hours
-
-**Status**: NOT STARTED
-
-**Tasks**:
-- [ ] Run comprehensive benchmarks
-- [ ] Compare performance before/after migration
-- [ ] Verify no regressions in interpreter
-- [ ] Verify bytecode VM improvement (from Task 9.1)
-- [ ] Run all fixture tests
-- [ ] Document final performance improvements
-- [ ] Update architecture documentation
-
-**Deliverables**:
-- Benchmark results showing no regressions
-- Performance improvement documentation
-- Updated architecture docs
-
-**Files to Create/Modify**:
-- `docs/typed-interface-migration.md` (migration summary)
-- `docs/performance.md` (performance results)
-- `docs/interface-usage-audit.md` (final status)
-- `CLAUDE.md` (update architecture section)
-
-**Benchmarks to Run**:
-```bash
-# Before migration
-go test -bench=. -benchmem ./internal/bytecode > before.txt
-go test -bench=. -benchmem ./internal/interp >> before.txt
-
-# After migration
-go test -bench=. -benchmem ./internal/bytecode > after.txt
-go test -bench=. -benchmem ./internal/interp >> after.txt
-
-# Compare
-benchcmp before.txt after.txt
-```
-
-**Success Criteria**:
-- [ ] All tests passing
-- [ ] All fixture tests passing
-- [ ] Bytecode VM 5-10% faster (from Task 9.1)
-- [ ] Interpreter no slower (acceptable: same performance)
-- [ ] Zero architectural `interface{}` usage remaining
-- [ ] Full type safety throughout codebase
-- [ ] Documentation complete
-
----
 
 ## Task 9.5: Implement Class Variables (class var)
 

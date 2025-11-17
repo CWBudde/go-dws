@@ -14,10 +14,6 @@ func TestNewParseContext(t *testing.T) {
 		t.Fatal("NewParseContext() returned nil")
 	}
 
-	if ctx.EnableSemanticAnalysis() {
-		t.Error("expected EnableSemanticAnalysis to be false by default")
-	}
-
 	if ctx.ParsingPostCondition() {
 		t.Error("expected ParsingPostCondition to be false by default")
 	}
@@ -33,15 +29,10 @@ func TestNewParseContext(t *testing.T) {
 
 func TestNewParseContextWithFlags(t *testing.T) {
 	flags := ContextFlags{
-		EnableSemanticAnalysis: true,
-		ParsingPostCondition:   true,
+		ParsingPostCondition: true,
 	}
 
 	ctx := NewParseContextWithFlags(flags)
-
-	if !ctx.EnableSemanticAnalysis() {
-		t.Error("expected EnableSemanticAnalysis to be true")
-	}
 
 	if !ctx.ParsingPostCondition() {
 		t.Error("expected ParsingPostCondition to be true")
@@ -50,21 +41,6 @@ func TestNewParseContextWithFlags(t *testing.T) {
 
 func TestContextFlags(t *testing.T) {
 	ctx := NewParseContext()
-
-	// Test EnableSemanticAnalysis
-	if ctx.EnableSemanticAnalysis() {
-		t.Error("expected EnableSemanticAnalysis to be false initially")
-	}
-
-	ctx.SetEnableSemanticAnalysis(true)
-	if !ctx.EnableSemanticAnalysis() {
-		t.Error("expected EnableSemanticAnalysis to be true after setting")
-	}
-
-	ctx.SetEnableSemanticAnalysis(false)
-	if ctx.EnableSemanticAnalysis() {
-		t.Error("expected EnableSemanticAnalysis to be false after unsetting")
-	}
 
 	// Test ParsingPostCondition
 	if ctx.ParsingPostCondition() {
@@ -87,23 +63,19 @@ func TestContextFlagsGetSet(t *testing.T) {
 
 	// Set flags via SetFlags
 	newFlags := ContextFlags{
-		EnableSemanticAnalysis: true,
-		ParsingPostCondition:   true,
+		ParsingPostCondition: true,
 	}
 	ctx.SetFlags(newFlags)
 
 	// Get flags via Flags()
 	flags := ctx.Flags()
-	if !flags.EnableSemanticAnalysis {
-		t.Error("expected EnableSemanticAnalysis to be true")
-	}
 	if !flags.ParsingPostCondition {
 		t.Error("expected ParsingPostCondition to be true")
 	}
 
 	// Modify returned flags should not affect context (it's a copy)
-	flags.EnableSemanticAnalysis = false
-	if !ctx.EnableSemanticAnalysis() {
+	flags.ParsingPostCondition = false
+	if !ctx.ParsingPostCondition() {
 		t.Error("modifying returned flags should not affect context")
 	}
 }
@@ -223,7 +195,6 @@ func TestBlockStackCopy(t *testing.T) {
 
 func TestSnapshot(t *testing.T) {
 	ctx := NewParseContext()
-	ctx.SetEnableSemanticAnalysis(true)
 	ctx.SetParsingPostCondition(true)
 
 	pos1 := lexer.Position{Line: 1, Column: 1, Offset: 0}
@@ -241,9 +212,6 @@ func TestSnapshot(t *testing.T) {
 	}
 
 	// Verify snapshot has same state
-	if !snapshot.EnableSemanticAnalysis() {
-		t.Error("snapshot should have EnableSemanticAnalysis true")
-	}
 	if !snapshot.ParsingPostCondition() {
 		t.Error("snapshot should have ParsingPostCondition true")
 	}
@@ -252,20 +220,20 @@ func TestSnapshot(t *testing.T) {
 	}
 
 	// Modify original
-	ctx.SetEnableSemanticAnalysis(false)
+	ctx.SetParsingPostCondition(false)
 	ctx.PopBlock()
 
 	// Snapshot should be unchanged
-	if !snapshot.EnableSemanticAnalysis() {
-		t.Error("snapshot should still have EnableSemanticAnalysis true")
+	if !snapshot.ParsingPostCondition() {
+		t.Error("snapshot should still have ParsingPostCondition true")
 	}
 	if snapshot.BlockDepth() != 2 {
 		t.Errorf("snapshot should still have depth 2, got %d", snapshot.BlockDepth())
 	}
 
 	// Original should be modified
-	if ctx.EnableSemanticAnalysis() {
-		t.Error("original should have EnableSemanticAnalysis false")
+	if ctx.ParsingPostCondition() {
+		t.Error("original should have ParsingPostCondition false")
 	}
 	if ctx.BlockDepth() != 1 {
 		t.Errorf("original should have depth 1, got %d", ctx.BlockDepth())
@@ -274,7 +242,6 @@ func TestSnapshot(t *testing.T) {
 
 func TestRestore(t *testing.T) {
 	ctx := NewParseContext()
-	ctx.SetEnableSemanticAnalysis(true)
 
 	pos := lexer.Position{Line: 1, Column: 1, Offset: 0}
 	ctx.PushBlock("begin", pos)
@@ -283,15 +250,11 @@ func TestRestore(t *testing.T) {
 	snapshot := ctx.Snapshot()
 
 	// Modify context
-	ctx.SetEnableSemanticAnalysis(false)
 	ctx.SetParsingPostCondition(true)
 	ctx.PushBlock("if", lexer.Position{Line: 2, Column: 1, Offset: 10})
 	ctx.PushBlock("while", lexer.Position{Line: 3, Column: 1, Offset: 20})
 
 	// Verify modifications
-	if ctx.EnableSemanticAnalysis() {
-		t.Error("expected EnableSemanticAnalysis to be false")
-	}
 	if !ctx.ParsingPostCondition() {
 		t.Error("expected ParsingPostCondition to be true")
 	}
@@ -303,9 +266,6 @@ func TestRestore(t *testing.T) {
 	ctx.Restore(snapshot)
 
 	// Verify restoration
-	if !ctx.EnableSemanticAnalysis() {
-		t.Error("expected EnableSemanticAnalysis to be restored to true")
-	}
 	if ctx.ParsingPostCondition() {
 		t.Error("expected ParsingPostCondition to be restored to false")
 	}
@@ -319,7 +279,7 @@ func TestRestore(t *testing.T) {
 
 func TestClone(t *testing.T) {
 	ctx := NewParseContext()
-	ctx.SetEnableSemanticAnalysis(true)
+	ctx.SetParsingPostCondition(true)
 
 	pos := lexer.Position{Line: 5, Column: 10, Offset: 50}
 	ctx.PushBlock("for", pos)
@@ -331,8 +291,8 @@ func TestClone(t *testing.T) {
 		t.Error("clone should be a different instance")
 	}
 
-	if !clone.EnableSemanticAnalysis() {
-		t.Error("clone should have EnableSemanticAnalysis true")
+	if !clone.ParsingPostCondition() {
+		t.Error("clone should have ParsingPostCondition true")
 	}
 
 	if clone.BlockDepth() != 1 {
@@ -350,7 +310,6 @@ func TestClone(t *testing.T) {
 
 func TestReset(t *testing.T) {
 	ctx := NewParseContext()
-	ctx.SetEnableSemanticAnalysis(true)
 	ctx.SetParsingPostCondition(true)
 
 	pos := lexer.Position{Line: 1, Column: 1, Offset: 0}
@@ -361,9 +320,6 @@ func TestReset(t *testing.T) {
 	ctx.Reset()
 
 	// Verify reset state
-	if ctx.EnableSemanticAnalysis() {
-		t.Error("expected EnableSemanticAnalysis to be false after reset")
-	}
 	if ctx.ParsingPostCondition() {
 		t.Error("expected ParsingPostCondition to be false after reset")
 	}

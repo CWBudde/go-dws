@@ -129,71 +129,56 @@ func Copy(ctx Context, args []Value) Value {
 
 // Low returns the lower bound of an array or the lowest value of an enum/type.
 //
-// Signature: Low(arr) -> Integer
+// Signature: Low(arr/enum/type) -> Value
 // - arr: Array value
+// - enum: Enum value
+// - type: Type meta-value (e.g., Integer, Boolean)
 //
-// Returns: Lower bound (0 for dynamic arrays, LowBound for static arrays)
+// Returns: Lower bound (0 for dynamic arrays, LowBound for static arrays, lowest enum value, or type minimum)
 //
 // Example:
 //
 //	var arr: array [1..5] of Integer;
 //	PrintLn(Low(arr)); // Output: 1
+//	PrintLn(Low(Integer)); // Output: -9223372036854775808
 func Low(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("Low() expects exactly 1 argument, got %d", len(args))
 	}
 
-	arg := args[0]
-
-	// Handle arrays
-	if arrayVal, ok := arg.(*runtime.ArrayValue); ok {
-		// For dynamic arrays, Low is 0
-		// For static arrays, Low is the LowBound from the type
-		if arrayVal.ArrayType != nil && arrayVal.ArrayType.LowBound != nil {
-			return &runtime.IntegerValue{Value: int64(*arrayVal.ArrayType.LowBound)}
-		}
-		return &runtime.IntegerValue{Value: 0}
+	// Use the Context helper which handles arrays, enums, and type meta-values
+	result, err := ctx.GetLowBound(args[0])
+	if err != nil {
+		return ctx.NewError("Low() failed: %v", err)
 	}
-
-	// For other types (enums, etc.), this would need type metadata
-	// which is not available in the builtins package context
-	return ctx.NewError("Low() expects array, got %T", arg)
+	return result
 }
 
 // High returns the upper bound of an array or the highest value of an enum/type.
 //
-// Signature: High(arr) -> Integer
+// Signature: High(arr/enum/type) -> Value
 // - arr: Array value
+// - enum: Enum value
+// - type: Type meta-value (e.g., Integer, Boolean)
 //
-// Returns: Upper bound (Length-1 for dynamic arrays, HighBound for static arrays)
+// Returns: Upper bound (Length-1 for dynamic arrays, HighBound for static arrays, highest enum value, or type maximum)
 //
 // Example:
 //
 //	var arr: array [1..5] of Integer;
 //	PrintLn(High(arr)); // Output: 5
+//	PrintLn(High(Boolean)); // Output: true
 func High(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("High() expects exactly 1 argument, got %d", len(args))
 	}
 
-	arg := args[0]
-
-	// Handle arrays
-	if arrayVal, ok := arg.(*runtime.ArrayValue); ok {
-		// For static arrays, return HighBound from type
-		if arrayVal.ArrayType != nil && arrayVal.ArrayType.IsStatic() && arrayVal.ArrayType.HighBound != nil {
-			return &runtime.IntegerValue{Value: int64(*arrayVal.ArrayType.HighBound)}
-		}
-		// For dynamic arrays, High = Length - 1
-		length := int64(len(arrayVal.Elements))
-		if length == 0 {
-			return &runtime.IntegerValue{Value: -1}
-		}
-		return &runtime.IntegerValue{Value: length - 1}
+	// Use the Context helper which handles arrays, enums, and type meta-values
+	result, err := ctx.GetHighBound(args[0])
+	if err != nil {
+		return ctx.NewError("High() failed: %v", err)
 	}
-
-	// For other types (enums, etc.), this would need type metadata
-	return ctx.NewError("High() expects array, got %T", arg)
+	return result
 }
 
 // IndexOf returns the index of the first occurrence of a value in an array.
@@ -345,6 +330,18 @@ func Sort(ctx Context, args []Value) Value {
 	comparator, ok := args[1].(*runtime.FunctionPointerValue)
 	if !ok {
 		return ctx.NewError("Sort() expects function pointer as second argument, got %T", args[1])
+	}
+
+	// Validate comparator signature - must accept exactly 2 parameters
+	var paramCount int
+	if comparator.Function != nil {
+		paramCount = len(comparator.Function.Parameters)
+	} else if comparator.Lambda != nil {
+		paramCount = len(comparator.Lambda.Parameters)
+	}
+
+	if paramCount != 2 {
+		return ctx.NewError("Sort() comparator must accept 2 parameters, got %d", paramCount)
 	}
 
 	// Sort with custom comparator using bubble sort

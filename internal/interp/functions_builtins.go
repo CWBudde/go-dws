@@ -31,20 +31,6 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinPrint(args)
 	case "Ord":
 		return i.builtinOrd(args)
-	case "Length":
-		return i.builtinLength(args)
-	case "Copy":
-		return i.builtinCopy(args)
-	case "Concat":
-		return i.builtinConcat(args)
-	case "IndexOf":
-		return i.builtinIndexOf(args)
-	case "Contains":
-		return i.builtinContains(args)
-	case "Reverse":
-		return i.builtinReverse(args)
-	case "Sort":
-		return i.builtinSort(args)
 	case "StrSplit":
 		return i.builtinStrSplit(args)
 	case "StrJoin":
@@ -63,10 +49,6 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinRandG(args)
 	case "RandomInt":
 		return i.builtinRandomInt(args)
-	case "Low":
-		return i.builtinLow(args)
-	case "High":
-		return i.builtinHigh(args)
 	case "SetLength":
 		// SetLength is a var-param function, shouldn't be called with evaluated args
 		return i.newErrorWithLocation(i.currentNode, "SetLength should be called as var-param function")

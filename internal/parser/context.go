@@ -35,10 +35,6 @@ type ParseContext struct {
 // ContextFlags holds structured boolean flags that control parsing behavior.
 // This replaces scattered boolean fields throughout the Parser struct.
 type ContextFlags struct {
-	// EnableSemanticAnalysis enables type checking and semantic validation
-	// during parsing (vs. deferring to a separate analysis phase)
-	EnableSemanticAnalysis bool
-
 	// ParsingPostCondition is true when parsing postconditions in contracts.
 	// This allows the 'old' keyword to reference pre-state values.
 	ParsingPostCondition bool
@@ -74,16 +70,6 @@ func (ctx *ParseContext) Flags() ContextFlags {
 // SetFlags updates the context flags.
 func (ctx *ParseContext) SetFlags(flags ContextFlags) {
 	ctx.flags = flags
-}
-
-// EnableSemanticAnalysis returns whether semantic analysis is enabled.
-func (ctx *ParseContext) EnableSemanticAnalysis() bool {
-	return ctx.flags.EnableSemanticAnalysis
-}
-
-// SetEnableSemanticAnalysis sets the semantic analysis flag.
-func (ctx *ParseContext) SetEnableSemanticAnalysis(enable bool) {
-	ctx.flags.EnableSemanticAnalysis = enable
 }
 
 // ParsingPostCondition returns whether we're currently parsing a postcondition.

@@ -241,6 +241,28 @@ func (m *mockContext) FormatString(format string, args []Value) (string, error) 
 	return "", nil
 }
 
+// Task 3.7.9 Context methods for polymorphic functions
+func (m *mockContext) GetLowBound(value Value) (Value, error) {
+	// Simple mock - return 0 for testing
+	return &runtime.IntegerValue{Value: 0}, nil
+}
+
+func (m *mockContext) GetHighBound(value Value) (Value, error) {
+	// Simple mock - return 0 for testing
+	return &runtime.IntegerValue{Value: 0}, nil
+}
+
+func (m *mockContext) ConcatStrings(args []Value) Value {
+	// Simple mock - return concatenated string for testing
+	result := ""
+	for _, arg := range args {
+		if strVal, ok := arg.(*runtime.StringValue); ok {
+			result += strVal.Value
+		}
+	}
+	return &runtime.StringValue{Value: result}
+}
+
 func TestNewRegistry(t *testing.T) {
 	r := NewRegistry()
 	if r == nil {
