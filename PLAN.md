@@ -1479,13 +1479,13 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   **Batch 5: Array Expressions (1 method)** - 0.5 days
   - [ ] 3.5.4.28 NewArrayExpression - Migrate evalNewArrayExpression() (dynamic array creation)
 
-  **Batch 6: Simple Statements (7 methods)** - 2 days
+  **Batch 6: Simple Statements (7 methods)** - 2 days - PARTIALLY COMPLETE (3/7 migrated, 4 deferred)
   - [x] 3.5.4.29 Program - Migrate evalProgram() (evaluate statement list)
   - [x] 3.5.4.30 BlockStatement - Migrate evalBlockStatement() (scoped block execution)
-  - [ ] 3.5.4.31 ExpressionStatement - Just evaluate inner expression (trivial)
-  - [ ] 3.5.4.32 VarDeclStatement - Migrate evalVarDeclStatement() (variable declarations)
-  - [ ] 3.5.4.33 ConstDecl - Migrate evalConstDecl() (constant declarations)
-  - [ ] 3.5.4.34 AssignmentStatement - Migrate evalAssignmentStatement() (all assignment types)
+  - [ ] 3.5.4.31 ExpressionStatement - DEFERRED (needs callFunctionPointer, callLambda, callUserFunction infrastructure for function pointer auto-invoke)
+  - [ ] 3.5.4.32 VarDeclStatement - DEFERRED (needs type system arrayTypeByName, env.Define, external var handling)
+  - [ ] 3.5.4.33 ConstDecl - DEFERRED (needs record type registry lookups for anonymous record literals)
+  - [ ] 3.5.4.34 AssignmentStatement - DEFERRED (needs property/indexing system, compound operators, array/record literal inference)
   - [x] 3.5.4.35 ReturnStatement - Migrate evalReturnStatement() (function returns)
 
   **Batch 7: Control Flow (9 methods)** - 3 days
@@ -1499,9 +1499,18 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - [x] 3.5.4.43 ContinueStatement - Migrate evalContinueStatement() (loop continue)
   - [x] 3.5.4.44 ExitStatement - Migrate evalExitStatement() (procedure exit)
 
-  **Batch 8: Exception Handling (2 methods)** - 1 day
-  - [ ] 3.5.4.45 TryStatement - Migrate evalTryStatement() (try-except-finally logic)
-  - [ ] 3.5.4.46 RaiseStatement - Migrate evalRaiseStatement() (exception raising)
+  **Batch 8: Exception Handling (2 methods)** - 1 day - DEFERRED (both require exception infrastructure)
+  - [ ] 3.5.4.45 TryStatement - DEFERRED (needs evalExceptClause, exception state management, defer/finally infrastructure, ExceptObject env handling)
+  - [ ] 3.5.4.46 RaiseStatement - DEFERRED (needs handlerException tracking, ObjectInstance type checks, class info access)
+
+  **Note on remaining simple statements**: All "low-hanging fruit" statements have been migrated (19/48 methods, 39.6%). The remaining statements in Batches 6-8 require significant infrastructure:
+  - **Function call infrastructure**: callFunctionPointer, callLambda, callUserFunction for ExpressionStatement
+  - **Environment scoping**: NewEnclosedEnvironment pattern for For loops
+  - **Type system access**: arrayTypeByName, record type registries for VarDecl/ConstDecl
+  - **Property/indexing system**: For AssignmentStatement property and array indexing
+  - **Exception infrastructure**: handlerException tracking, evalExceptClause for Try/Raise statements
+
+  These should be tackled in dedicated infrastructure migration phases before continuing with the remaining batches.
 
   **Batch 9: Declarations (9 methods)** - 4 days
   - [ ] 3.5.4.47 FunctionDecl - Migrate evalFunctionDeclaration() (function registration)
