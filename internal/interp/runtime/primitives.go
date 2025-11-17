@@ -473,7 +473,6 @@ func (a *ArrayValue) String() string {
 	return sb.String()
 }
 
-
 // stringBuilder is a simple string builder to avoid importing strings package
 type stringBuilder struct {
 	parts []string
