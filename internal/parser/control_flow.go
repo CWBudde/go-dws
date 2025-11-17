@@ -25,6 +25,8 @@ func isNilStatement(stmt ast.Statement) bool {
 // PRE: curToken is BREAK
 // POST: curToken is SEMICOLON
 func (p *Parser) parseBreakStatement() *ast.BreakStatement {
+	builder := p.StartNode()
+
 	stmt := &ast.BreakStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
@@ -34,8 +36,7 @@ func (p *Parser) parseBreakStatement() *ast.BreakStatement {
 		return nil
 	}
 
-	stmt.EndPos = p.endPosFromToken(p.curToken) // p.curToken is now at SEMICOLON
-	return stmt
+	return builder.Finish(stmt).(*ast.BreakStatement)
 }
 
 // parseContinueStatement parses a continue statement.
@@ -43,6 +44,8 @@ func (p *Parser) parseBreakStatement() *ast.BreakStatement {
 // PRE: curToken is CONTINUE
 // POST: curToken is SEMICOLON
 func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
+	builder := p.StartNode()
+
 	stmt := &ast.ContinueStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
@@ -52,8 +55,7 @@ func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
 		return nil
 	}
 
-	stmt.EndPos = p.endPosFromToken(p.curToken) // p.curToken is now at SEMICOLON
-	return stmt
+	return builder.Finish(stmt).(*ast.ContinueStatement)
 }
 
 // parseExitStatement parses an exit statement.
@@ -61,6 +63,8 @@ func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
 // PRE: curToken is EXIT
 // POST: curToken is SEMICOLON
 func (p *Parser) parseExitStatement() *ast.ExitStatement {
+	builder := p.StartNode()
+
 	stmt := &ast.ExitStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
@@ -96,8 +100,7 @@ func (p *Parser) parseExitStatement() *ast.ExitStatement {
 		return nil
 	}
 
-	stmt.EndPos = p.endPosFromToken(p.curToken) // p.curToken is now at SEMICOLON
-	return stmt
+	return builder.Finish(stmt).(*ast.ExitStatement)
 }
 
 // parseIfStatement parses an if-then-else statement.
@@ -105,6 +108,8 @@ func (p *Parser) parseExitStatement() *ast.ExitStatement {
 // PRE: curToken is IF
 // POST: curToken is last token of consequence or alternative statement
 func (p *Parser) parseIfStatement() *ast.IfStatement {
+	builder := p.StartNode()
+
 	stmt := &ast.IfStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
@@ -191,14 +196,12 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 			p.synchronize([]lexer.TokenType{lexer.END})
 			return nil
 		}
-		// End position is after the alternative statement
-		stmt.EndPos = stmt.Alternative.End()
-	} else {
-		// No else branch - end position is after the consequence
-		stmt.EndPos = stmt.Consequence.End()
+		// End at alternative statement
+		return builder.FinishWithNode(stmt, stmt.Alternative).(*ast.IfStatement)
 	}
 
-	return stmt
+	// No else branch - end at consequence
+	return builder.FinishWithNode(stmt, stmt.Consequence).(*ast.IfStatement)
 }
 
 // parseWhileStatement parses a while loop statement.
@@ -206,6 +209,8 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 // PRE: curToken is WHILE
 // POST: curToken is last token of body statement
 func (p *Parser) parseWhileStatement() *ast.WhileStatement {
+	builder := p.StartNode()
+
 	stmt := &ast.WhileStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
@@ -272,10 +277,7 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 		return nil
 	}
 
-	// End position is after the body statement
-	stmt.EndPos = stmt.Body.End()
-
-	return stmt
+	return builder.FinishWithNode(stmt, stmt.Body).(*ast.WhileStatement)
 }
 
 // parseRepeatStatement parses a repeat-until loop statement.
@@ -284,6 +286,8 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 // PRE: curToken is REPEAT
 // POST: curToken is last token of condition expression
 func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
+	builder := p.StartNode()
+
 	stmt := &ast.RepeatStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
@@ -350,10 +354,7 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 		return nil
 	}
 
-	// End position is after the condition expression
-	stmt.EndPos = stmt.Condition.End()
-
-	return stmt
+	return builder.FinishWithNode(stmt, stmt.Condition).(*ast.RepeatStatement)
 }
 
 // parseForStatement parses a for loop statement.
@@ -365,6 +366,7 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 // PRE: curToken is FOR
 // POST: curToken is last token of body statement
 func (p *Parser) parseForStatement() ast.Statement {
+	builder := p.StartNode()
 	forToken := p.curToken
 
 	// Move past 'for' and parse optional inline var declaration
@@ -468,10 +470,7 @@ func (p *Parser) parseForStatement() ast.Statement {
 		return nil
 	}
 
-	// End position is after the body statement
-	stmt.EndPos = stmt.Body.End()
-
-	return stmt
+	return builder.FinishWithNode(stmt, stmt.Body).(*ast.ForStatement)
 }
 
 // parseForInLoop parses a for-in loop statement.
@@ -479,6 +478,8 @@ func (p *Parser) parseForStatement() ast.Statement {
 // PRE: curToken is variable IDENT
 // POST: curToken is last token of body statement
 func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, inlineVar bool) *ast.ForInStatement {
+	builder := p.StartNode()
+
 	stmt := &ast.ForInStatement{
 		BaseNode:  ast.BaseNode{Token: forToken},
 		Variable:  variable,
@@ -513,10 +514,7 @@ func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, 
 		return nil
 	}
 
-	// End position is after the body statement
-	stmt.EndPos = stmt.Body.End()
-
-	return stmt
+	return builder.FinishWithNode(stmt, stmt.Body).(*ast.ForInStatement)
 }
 
 // parseCaseStatement parses a case statement.
@@ -524,6 +522,8 @@ func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, 
 // PRE: curToken is CASE
 // POST: curToken is END
 func (p *Parser) parseCaseStatement() *ast.CaseStatement {
+	builder := p.StartNode()
+
 	stmt := &ast.CaseStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
@@ -721,10 +721,7 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 		return nil
 	}
 
-	// End position is at the 'end' keyword
-	stmt.EndPos = p.endPosFromToken(p.curToken)
-
-	return stmt
+	return builder.Finish(stmt).(*ast.CaseStatement)
 }
 
 // parseIfExpression parses an inline if-then-else conditional expression.
@@ -733,6 +730,8 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 // PRE: curToken is IF
 // POST: curToken is last token of consequence or alternative expression
 func (p *Parser) parseIfExpression() ast.Expression {
+	builder := p.StartNode()
+
 	expr := &ast.IfExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{Token: p.curToken},
@@ -772,15 +771,11 @@ func (p *Parser) parseIfExpression() ast.Expression {
 			p.addError("expected expression after 'else'", ErrInvalidSyntax)
 			return nil
 		}
-		// End position is after the alternative expression
-		expr.EndPos = expr.Alternative.End()
-	} else {
-		// No else branch - end position is after the consequence
-		// The else clause is optional; if omitted, default value is returned
-		expr.EndPos = expr.Consequence.End()
+		return builder.FinishWithNode(expr, expr.Alternative).(*ast.IfExpression)
 	}
 
-	return expr
+	// No else branch - end at consequence
+	return builder.FinishWithNode(expr, expr.Consequence).(*ast.IfExpression)
 }
 
 // ============================================================================
@@ -793,6 +788,8 @@ func (p *Parser) parseIfExpression() ast.Expression {
 // PRE: cursor is on IF token
 // POST: cursor is on last token of statement
 func (p *Parser) parseIfStatementCursor() *ast.IfStatement {
+	builder := p.StartNode()
+
 	ifToken := p.cursor.Current()
 	stmt := &ast.IfStatement{
 		BaseNode: ast.BaseNode{Token: ifToken},
@@ -905,14 +902,11 @@ func (p *Parser) parseIfStatementCursor() *ast.IfStatement {
 			p.syncTokensToCursor()
 			return nil
 		}
-		// End position is after the alternative statement
-		stmt.EndPos = stmt.Alternative.End()
-	} else {
-		// No else branch - end position is after the consequence
-		stmt.EndPos = stmt.Consequence.End()
+		return builder.FinishWithNode(stmt, stmt.Alternative).(*ast.IfStatement)
 	}
 
-	return stmt
+	// No else branch - end at consequence
+	return builder.FinishWithNode(stmt, stmt.Consequence).(*ast.IfStatement)
 }
 
 // parseWhileStatementCursor parses a while loop statement in cursor mode.
@@ -921,6 +915,8 @@ func (p *Parser) parseIfStatementCursor() *ast.IfStatement {
 // PRE: cursor is on WHILE token
 // POST: cursor is on last token of body statement
 func (p *Parser) parseWhileStatementCursor() *ast.WhileStatement {
+	builder := p.StartNode()
+
 	whileToken := p.cursor.Current()
 	stmt := &ast.WhileStatement{
 		BaseNode: ast.BaseNode{Token: whileToken},
@@ -1007,10 +1003,7 @@ func (p *Parser) parseWhileStatementCursor() *ast.WhileStatement {
 		return nil
 	}
 
-	// End position is after the body statement
-	stmt.EndPos = stmt.Body.End()
-
-	return stmt
+	return builder.FinishWithNode(stmt, stmt.Body).(*ast.WhileStatement)
 }
 
 // parseRepeatStatementCursor parses a repeat-until loop statement in cursor mode.
@@ -1020,6 +1013,8 @@ func (p *Parser) parseWhileStatementCursor() *ast.WhileStatement {
 // PRE: cursor is on REPEAT token
 // POST: cursor is on last token of condition expression
 func (p *Parser) parseRepeatStatementCursor() *ast.RepeatStatement {
+	builder := p.StartNode()
+
 	repeatToken := p.cursor.Current()
 	stmt := &ast.RepeatStatement{
 		BaseNode: ast.BaseNode{Token: repeatToken},
@@ -1097,10 +1092,7 @@ func (p *Parser) parseRepeatStatementCursor() *ast.RepeatStatement {
 		return nil
 	}
 
-	// End position is after the condition expression
-	stmt.EndPos = stmt.Condition.End()
-
-	return stmt
+	return builder.FinishWithNode(stmt, stmt.Condition).(*ast.RepeatStatement)
 }
 
 // ============================================================================
@@ -1113,6 +1105,8 @@ func (p *Parser) parseRepeatStatementCursor() *ast.RepeatStatement {
 // PRE: cursor is on BREAK token
 // POST: cursor is on SEMICOLON
 func (p *Parser) parseBreakStatementCursor() *ast.BreakStatement {
+	builder := p.StartNode()
+
 	breakToken := p.cursor.Current()
 	stmt := &ast.BreakStatement{
 		BaseNode: ast.BaseNode{Token: breakToken},
@@ -1136,8 +1130,7 @@ func (p *Parser) parseBreakStatementCursor() *ast.BreakStatement {
 	}
 
 	p.cursor = p.cursor.Advance() // move to semicolon
-	stmt.EndPos = p.endPosFromToken(p.cursor.Current())
-	return stmt
+	return builder.Finish(stmt).(*ast.BreakStatement)
 }
 
 // parseContinueStatementCursor parses a continue statement using cursor mode.
@@ -1146,6 +1139,8 @@ func (p *Parser) parseBreakStatementCursor() *ast.BreakStatement {
 // PRE: cursor is on CONTINUE token
 // POST: cursor is on SEMICOLON
 func (p *Parser) parseContinueStatementCursor() *ast.ContinueStatement {
+	builder := p.StartNode()
+
 	continueToken := p.cursor.Current()
 	stmt := &ast.ContinueStatement{
 		BaseNode: ast.BaseNode{Token: continueToken},
@@ -1169,8 +1164,7 @@ func (p *Parser) parseContinueStatementCursor() *ast.ContinueStatement {
 	}
 
 	p.cursor = p.cursor.Advance() // move to semicolon
-	stmt.EndPos = p.endPosFromToken(p.cursor.Current())
-	return stmt
+	return builder.Finish(stmt).(*ast.ContinueStatement)
 }
 
 // parseExitStatementCursor parses an exit statement using cursor mode.
@@ -1179,6 +1173,8 @@ func (p *Parser) parseContinueStatementCursor() *ast.ContinueStatement {
 // PRE: cursor is on EXIT token
 // POST: cursor is on SEMICOLON
 func (p *Parser) parseExitStatementCursor() *ast.ExitStatement {
+	builder := p.StartNode()
+
 	exitToken := p.cursor.Current()
 	stmt := &ast.ExitStatement{
 		BaseNode: ast.BaseNode{Token: exitToken},
@@ -1263,8 +1259,7 @@ func (p *Parser) parseExitStatementCursor() *ast.ExitStatement {
 	}
 
 	p.cursor = p.cursor.Advance() // move to semicolon
-	stmt.EndPos = p.endPosFromToken(p.cursor.Current())
-	return stmt
+	return builder.Finish(stmt).(*ast.ExitStatement)
 }
 
 // ============================================================================
@@ -1281,6 +1276,8 @@ func (p *Parser) parseExitStatementCursor() *ast.ExitStatement {
 // PRE: cursor is on FOR token
 // POST: cursor is on last token of body statement
 func (p *Parser) parseForStatementCursor() ast.Statement {
+	builder := p.StartNode()
+
 	forToken := p.cursor.Current()
 
 	// Move past 'for' and parse optional inline var declaration
@@ -1472,10 +1469,7 @@ func (p *Parser) parseForStatementCursor() ast.Statement {
 		return nil
 	}
 
-	// End position is after the body statement
-	stmt.EndPos = stmt.Body.End()
-
-	return stmt
+	return builder.FinishWithNode(stmt, stmt.Body).(*ast.ForStatement)
 }
 
 // parseForInLoopCursor parses a for-in loop statement in cursor mode.
@@ -1484,6 +1478,8 @@ func (p *Parser) parseForStatementCursor() ast.Statement {
 // PRE: cursor is on variable IDENT, forToken and variable already parsed
 // POST: cursor is on last token of body statement
 func (p *Parser) parseForInLoopCursor(forToken lexer.Token, variable *ast.Identifier, inlineVar bool) *ast.ForInStatement {
+	builder := p.StartNode()
+
 	stmt := &ast.ForInStatement{
 		BaseNode:  ast.BaseNode{Token: forToken},
 		Variable:  variable,
@@ -1564,10 +1560,7 @@ func (p *Parser) parseForInLoopCursor(forToken lexer.Token, variable *ast.Identi
 		return nil
 	}
 
-	// End position is after the body statement
-	stmt.EndPos = stmt.Body.End()
-
-	return stmt
+	return builder.FinishWithNode(stmt, stmt.Body).(*ast.ForInStatement)
 }
 
 // parseCaseValueOrRangeCursor parses a single case value or range expression in cursor mode.
@@ -1620,6 +1613,8 @@ func (p *Parser) parseCaseValueOrRangeCursor(value ast.Expression) ast.Expressio
 // PRE: cursor is on CASE token
 // POST: cursor is on END token
 func (p *Parser) parseCaseStatementCursor() *ast.CaseStatement {
+	builder := p.StartNode()
+
 	caseToken := p.cursor.Current()
 	stmt := &ast.CaseStatement{
 		BaseNode: ast.BaseNode{Token: caseToken},
@@ -1875,8 +1870,5 @@ func (p *Parser) parseCaseStatementCursor() *ast.CaseStatement {
 		return nil
 	}
 
-	// End position is at the 'end' keyword
-	stmt.EndPos = p.endPosFromToken(p.cursor.Current())
-
-	return stmt
+	return builder.Finish(stmt).(*ast.CaseStatement)
 }

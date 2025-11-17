@@ -669,6 +669,7 @@ type StatementBlockConfig struct {
 //	    RequireClose: true,
 //	})
 func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement {
+	builder := p.StartNode()
 	block := &ast.BlockStatement{
 		BaseNode:   ast.BaseNode{Token: p.curToken},
 		Statements: []ast.Statement{},
@@ -719,9 +720,6 @@ func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement
 		p.nextToken()
 	}
 
-	// Set end position
-	block.EndPos = p.endPosFromToken(p.curToken)
-
 	// Verify we ended at the expected close token if required
 	if config.RequireClose && !p.curTokenIs(config.CloseToken) {
 		// Check if we hit an additional terminator instead
@@ -746,7 +744,7 @@ func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement
 		}
 	}
 
-	return block
+	return builder.Finish(block).(*ast.BlockStatement)
 }
 
 // ParameterGroupConfig configures the ParameterGroup combinator.

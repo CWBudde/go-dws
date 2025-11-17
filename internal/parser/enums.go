@@ -21,6 +21,7 @@ import (
 // PRE: curToken is LPAREN (or after ENUM/FLAGS, will advance to LPAREN)
 // POST: curToken is SEMICOLON
 func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token, scoped bool, flags bool) *ast.EnumDecl {
+	builder := p.StartNode()
 	enumDecl := &ast.EnumDecl{
 		BaseNode: ast.BaseNode{Token: typeToken}, // The 'type' token
 		Name:     nameIdent,
@@ -110,9 +111,7 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 	}
 
 	// End position is at the semicolon
-	enumDecl.EndPos = p.endPosFromToken(p.curToken)
-
-	return enumDecl
+	return builder.Finish(enumDecl).(*ast.EnumDecl)
 }
 
 // parseEnumValue parses an enum value (integer, possibly negative)

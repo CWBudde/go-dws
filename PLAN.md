@@ -147,47 +147,65 @@ Eliminate manual position tracking.
 
 ---
 
-#### Task 2.4.1: NodeBuilder Pattern (Week 8, Days 1-3, ~24 hours)
+#### Task 2.4.1: NodeBuilder Pattern (Week 8, Days 1-3, ~24 hours) ✅
 
 **Goal**: Eliminate manual `EndPos` setting throughout parser.
 
 **Implementation**:
-- [ ] Create `internal/parser/node_builder.go` with `NodeBuilder` type
-- [ ] Implement `StartNode()` and `Finish()` methods
-- [ ] Migrate 5 parsing functions as proof of concept
-- [ ] Verify positions are correct with tests
-- [ ] Document NodeBuilder pattern
+- [x] Create `internal/parser/node_builder.go` with `NodeBuilder` type
+- [x] Implement `StartNode()` and `Finish()` methods
+- [x] Migrate 5 parsing functions as proof of concept
+- [x] Verify positions are correct with tests
+- [x] Document NodeBuilder pattern
 
 **Files Created**:
-- `internal/parser/node_builder.go` (~150 lines)
-- `internal/parser/node_builder_test.go` (~200 lines)
+- `internal/parser/node_builder.go` (171 lines - includes comprehensive documentation)
+- `internal/parser/node_builder_test.go` (364 lines - 11 comprehensive tests)
 
 **Files Modified**:
-- `internal/parser/statements.go` (~50 lines)
+- `internal/parser/statements.go` (2 functions: parseBlockStatement, parseExpressionStatement)
+- `internal/parser/control_flow.go` (3 functions: parseBreakStatement, parseContinueStatement, parseExitStatement)
 
 **Estimate**: 24 hours
 
 **Deliverable**: Working NodeBuilder with proof of concept
 
+**Results**:
+- Created NodeBuilder pattern with reflection-based position tracking
+- Implemented three methods: `Finish()`, `FinishWithNode()`, `FinishWithToken()`
+- Migrated 5 representative parsing functions demonstrating all usage patterns
+- All 11 NodeBuilder tests passing
+- All parser tests passing (including position tracking tests)
+- Ready for mass migration in Task 2.4.2
+
 ---
 
-#### Task 2.4.2: Mass Migration to NodeBuilder (Week 8, Days 4-5, ~16 hours)
+#### Task 2.4.2: Mass Migration to NodeBuilder (Week 8, Days 4-5, ~16 hours) ✅
 
 **Goal**: Migrate all parsing functions to use NodeBuilder.
 
 **Implementation**:
-- [ ] Migrate all statement parsing functions
-- [ ] Migrate all expression parsing functions
-- [ ] Migrate all declaration parsing functions
-- [ ] Remove all manual `EndPos` assignments
-- [ ] Verify position tests pass
+- [x] Migrate all statement parsing functions
+- [x] Migrate all expression parsing functions
+- [x] Migrate all declaration parsing functions
+- [x] Remove all manual `EndPos` assignments
+- [x] Verify position tests pass
 
 **Files Modified**:
-- All parser files (~500 lines total changes)
+- 19 parser files (297 insertions, 383 deletions = 86 net lines removed)
 
 **Estimate**: 16 hours
 
 **Deliverable**: Complete NodeBuilder adoption
+
+**Results**:
+- Migrated **78 functions** across **19 parser files**
+- Eliminated **~152 manual EndPos assignments**
+- Files: control_flow.go (14 functions), statements.go (6), expressions.go (21), declarations.go (2), functions.go (1), classes.go (4), interfaces.go (3), types.go (4), exceptions.go (8), enums.go (1), records.go (3), arrays.go (2), sets.go (2), properties.go (1), operators.go (2), helpers.go (1), parser.go (1), combinators.go (1), unit.go (2)
+- All parser tests passing (0.134s)
+- Both traditional and cursor-mode parsers migrated
+- Remaining EndPos assignments (13 total): helper structures (5) and documentation comments (5), test code (3)
+- **Net code reduction**: 86 lines removed while improving maintainability
 
 ---
 
@@ -1045,7 +1063,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Acceptance: 9+ JSON/type functions migrated, registry up to 212+ functions, tests pass
   - **Completed**: Extended Context interface with JSON helpers (ParseJSONString, ValueToJSON, JSONHasField, JSONGetKeys, JSONGetValues, JSONGetLength, CreateStringArray, CreateVariantArray) and type introspection helpers (GetTypeOf, GetClassOf). Migrated 9 functions: 7 JSON functions (ParseJSON, ToJSON, ToJSONFormatted, JSONHasField, JSONKeys, JSONValues, JSONLength) in CategoryJSON and 2 type introspection functions (TypeOf, TypeOfClass) in CategoryType. Fixed GetTypeOf to return properly capitalized type names (Integer, Float, String, Boolean, etc.) and handle object/class types correctly. Fixed GetClassOf to handle ClassValue, ClassInfoValue, and ObjectInstance. All RTTI and JSON tests passing.
 
-- [ ] 3.7.7 Migrate array and collection functions
+- [x] 3.7.7 Migrate array and collection functions
   - Extend Context with array helpers: GetArrayLength, SetArrayLength, ArrayCopy, ArrayReverse, ArraySort
   - Migrate simple array functions: Length, Copy, Low, High, IndexOf, Contains, Reverse, Sort
   - Extend Context with callback evaluation: EvalFunctionPointer
@@ -1056,7 +1074,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Estimated: 5 days
   - Acceptance: 21+ array/collection functions migrated, registry up to 233+ functions, tests pass
 
-- [ ] 3.7.8 Migrate remaining miscellaneous functions
+- [x] 3.7.8 Migrate remaining miscellaneous functions
   - Migrate Format function with extended formatting support
   - Migrate runtime functions: GetStackTrace, GetCallStack, Assigned, Swap
   - Migrate remaining utility functions: Assert, DivMod, and any others

@@ -20,6 +20,7 @@ import (
 // PRE: curToken is PROPERTY
 // POST: curToken is SEMICOLON
 func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
+	builder := p.StartNode()
 	propToken := p.curToken // 'property' token
 
 	// Parse property name
@@ -191,10 +192,7 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 		}
 	}
 
-	// Set EndPos to the position after the final semicolon
-	prop.EndPos = p.endPosFromToken(p.curToken)
-
-	return prop
+	return builder.Finish(prop).(*ast.PropertyDecl)
 }
 
 // parseIndexedPropertyParameterGroup parses a group of indexed property parameters with the same type.

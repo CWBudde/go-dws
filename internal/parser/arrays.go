@@ -206,6 +206,7 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 // PRE: curToken is LBRACK
 // POST: curToken is RBRACK
 func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
+	builder := p.StartNode()
 	lbrackToken := p.curToken // Save the '[' token for error reporting
 
 	indexExpr := &ast.IndexExpression{
@@ -256,10 +257,7 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 		return nil
 	}
 
-	// Set end position to after the ']'
-	result.EndPos = p.endPosFromToken(p.curToken) // p.curToken is now at RBRACK
-
-	return result
+	return builder.Finish(result).(*ast.IndexExpression)
 }
 
 // Task 2.2.11: parseIndexExpressionCursor - Cursor mode version of parseIndexExpression
@@ -268,6 +266,7 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 // PRE: cursor is on LBRACK
 // POST: cursor is on RBRACK
 func (p *Parser) parseIndexExpressionCursor(left ast.Expression) ast.Expression {
+	builder := p.StartNode()
 	lbrackToken := p.cursor.Current() // Save the '[' token for error reporting
 
 	indexExpr := &ast.IndexExpression{
@@ -327,10 +326,7 @@ func (p *Parser) parseIndexExpressionCursor(left ast.Expression) ast.Expression 
 	// Advance to RBRACK
 	p.cursor = p.cursor.Advance()
 
-	// Set end position to after the ']'
-	result.EndPos = p.endPosFromToken(p.cursor.Current()) // cursor is now at RBRACK
-
-	return result
+	return builder.FinishWithToken(result, p.cursor.Current()).(*ast.IndexExpression)
 }
 
 // Task 2.2.12: parseArrayLiteralCursor - Cursor mode version of parseArrayLiteral

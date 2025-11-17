@@ -734,6 +734,7 @@ func (p *Parser) parseCharLiteralCursor() ast.Expression {
 // PRE: curToken is prefix operator (NOT, MINUS, PLUS, etc.)
 // POST: curToken is last token of right operand
 func (p *Parser) parsePrefixExpression() ast.Expression {
+	builder := p.StartNode()
 	expression := &ast.UnaryExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
@@ -747,14 +748,8 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 
 	expression.Right = p.parseExpression(PREFIX)
 
-	// Set end position based on the right expression
-	if expression.Right != nil {
-		expression.EndPos = expression.Right.End()
-	} else {
-		expression.EndPos = p.endPosFromToken(expression.Token)
-	}
-
-	return expression
+	// End at right expression (FinishWithNode handles nil by falling back to current token)
+	return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
 }
 
 // Task 2.2.12: parsePrefixExpressionCursor - Cursor mode version of parsePrefixExpression
@@ -762,6 +757,7 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 // PRE: cursor is on prefix operator token (MINUS, PLUS, NOT)
 // POST: cursor is at last token of right expression
 func (p *Parser) parsePrefixExpressionCursor() ast.Expression {
+	builder := p.StartNode()
 	operatorToken := p.cursor.Current()
 
 	expression := &ast.UnaryExpression{
@@ -779,14 +775,8 @@ func (p *Parser) parsePrefixExpressionCursor() ast.Expression {
 	// Parse the operand expression
 	expression.Right = p.parseExpressionCursor(PREFIX)
 
-	// Set end position based on the right expression
-	if expression.Right != nil {
-		expression.EndPos = expression.Right.End()
-	} else {
-		expression.EndPos = p.endPosFromToken(expression.Token)
-	}
-
-	return expression
+	// End at right expression (FinishWithNode handles nil by falling back to current token)
+	return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
 }
 
 // parseAddressOfExpression parses the address-of operator (@) applied to a function or procedure.
@@ -794,6 +784,7 @@ func (p *Parser) parsePrefixExpressionCursor() ast.Expression {
 // PRE: curToken is AT
 // POST: curToken is last token of target expression
 func (p *Parser) parseAddressOfExpression() ast.Expression {
+	builder := p.StartNode()
 	expression := &ast.AddressOfExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{Token: p.curToken}, // The @ token
@@ -805,14 +796,8 @@ func (p *Parser) parseAddressOfExpression() ast.Expression {
 	// Parse the target expression (function/procedure name or member access)
 	expression.Operator = p.parseExpression(PREFIX)
 
-	// Set end position based on the target expression
-	if expression.Operator != nil {
-		expression.EndPos = expression.Operator.End()
-	} else {
-		expression.EndPos = p.endPosFromToken(expression.Token)
-	}
-
-	return expression
+	// End at operator expression (FinishWithNode handles nil by falling back to current token)
+	return builder.FinishWithNode(expression, expression.Operator).(ast.Expression)
 }
 
 // parseInfixExpression parses a binary infix expression (dispatcher).
@@ -826,6 +811,7 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 // PRE: curToken is the operator token
 // POST: curToken is last token of right expression
 func (p *Parser) parseInfixExpressionTraditional(left ast.Expression) ast.Expression {
+	builder := p.StartNode()
 	expression := &ast.BinaryExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
@@ -840,14 +826,8 @@ func (p *Parser) parseInfixExpressionTraditional(left ast.Expression) ast.Expres
 	p.nextToken()
 	expression.Right = p.parseExpression(precedence)
 
-	// Set end position based on the right expression
-	if expression.Right != nil {
-		expression.EndPos = expression.Right.End()
-	} else {
-		expression.EndPos = p.endPosFromToken(expression.Token)
-	}
-
-	return expression
+	// End at right expression (FinishWithNode handles nil by falling back to current token)
+	return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
 }
 
 // parseInfixExpressionCursor parses a binary infix expression using cursor navigation.
@@ -858,6 +838,7 @@ func (p *Parser) parseInfixExpressionTraditional(left ast.Expression) ast.Expres
 // because full cursor integration requires migrating parseExpression itself (future task).
 // For now, we sync the cursor state with traditional state before/after the recursive call.
 func (p *Parser) parseInfixExpressionCursor(left ast.Expression) ast.Expression {
+	builder := p.StartNode()
 	operatorToken := p.cursor.Current()
 
 	expression := &ast.BinaryExpression{
@@ -884,14 +865,8 @@ func (p *Parser) parseInfixExpressionCursor(left ast.Expression) ast.Expression 
 	// for pure cursor-to-cursor recursion without state synchronization
 	expression.Right = p.parseExpressionCursor(precedence)
 
-	// Set end position based on the right expression
-	if expression.Right != nil {
-		expression.EndPos = expression.Right.End()
-	} else {
-		expression.EndPos = p.endPosFromToken(expression.Token)
-	}
-
-	return expression
+	// End at right expression (FinishWithNode handles nil by falling back to current token)
+	return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
 }
 
 // parseCallExpression parses a function call expression.
@@ -907,6 +882,7 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	}
 
 	// Normal function call (non-identifier function)
+	builder := p.StartNode()
 	exp := &ast.CallExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{Token: p.curToken},
@@ -915,9 +891,7 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	}
 
 	exp.Arguments = p.parseExpressionList(lexer.RPAREN)
-	exp.EndPos = p.endPosFromToken(p.curToken) // p.curToken is now at RPAREN
-
-	return exp
+	return builder.Finish(exp).(ast.Expression) // p.curToken is now at RPAREN
 }
 
 // Task 2.2.11: parseCallExpressionCursor - Cursor mode version of parseCallExpression
@@ -933,6 +907,7 @@ func (p *Parser) parseCallExpressionCursor(function ast.Expression) ast.Expressi
 	}
 
 	// Normal function call (non-identifier function)
+	builder := p.StartNode()
 	lparenToken := p.cursor.Current()
 
 	exp := &ast.CallExpression{
@@ -943,9 +918,7 @@ func (p *Parser) parseCallExpressionCursor(function ast.Expression) ast.Expressi
 	}
 
 	exp.Arguments = p.parseExpressionListCursor(lexer.RPAREN)
-	exp.EndPos = p.endPosFromToken(p.cursor.Current()) // cursor is now at RPAREN
-
-	return exp
+	return builder.Finish(exp).(ast.Expression) // cursor is now at RPAREN
 }
 
 // parseCallOrRecordLiteral parses either a function call or a typed record literal.
@@ -1015,20 +988,21 @@ func (p *Parser) parseCallWithExpressionList(typeName *ast.Identifier) *ast.Call
 //
 // Task 2.2.10 Phase 2: Cursor version of parseEmptyCall.
 func (p *Parser) parseEmptyCallCursor(typeName *ast.Identifier) *ast.CallExpression {
+	builder := p.StartNode()
 	// Advance to RPAREN
 	p.cursor = p.cursor.Advance()
 	rparenToken := p.cursor.Current()
 
-	return &ast.CallExpression{
+	exp := &ast.CallExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token:  rparenToken,
-				EndPos: p.endPosFromToken(rparenToken),
+				Token: rparenToken,
 			},
 		},
 		Function:  typeName,
 		Arguments: []ast.Expression{},
 	}
+	return builder.Finish(exp).(*ast.CallExpression)
 }
 
 // parseCallWithExpressionListCursor parses a function call using the cursor expression list parser.
@@ -1038,6 +1012,7 @@ func (p *Parser) parseEmptyCallCursor(typeName *ast.Identifier) *ast.CallExpress
 // Task 2.2.10 Phase 2: Cursor version of parseCallWithExpressionList.
 // Uses parseExpressionListCursor instead of parseExpressionList.
 func (p *Parser) parseCallWithExpressionListCursor(typeName *ast.Identifier) *ast.CallExpression {
+	builder := p.StartNode()
 	lparenToken := p.cursor.Current()
 
 	exp := &ast.CallExpression{
@@ -1053,9 +1028,7 @@ func (p *Parser) parseCallWithExpressionListCursor(typeName *ast.Identifier) *as
 	exp.Arguments = p.parseExpressionListCursor(lexer.RPAREN)
 
 	// Set end position to RPAREN
-	exp.EndPos = p.cursor.Current().End()
-
-	return exp
+	return builder.Finish(exp).(*ast.CallExpression)
 }
 
 // buildRecordLiteral creates a record literal expression from field initializers.
@@ -1918,6 +1891,7 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 // PRE: curToken is INHERITED
 // POST: curToken is INHERITED, method IDENT, or RPAREN (depends on form)
 func (p *Parser) parseInheritedExpression() ast.Expression {
+	builder := p.StartNode()
 	inheritedExpr := &ast.InheritedExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
@@ -1947,17 +1921,15 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 			// Parse arguments
 			inheritedExpr.Arguments = p.parseExpressionList(lexer.RPAREN)
 			// Set end position after closing parenthesis (p.curToken is now at RPAREN)
-			inheritedExpr.EndPos = p.endPosFromToken(p.curToken)
+			return builder.Finish(inheritedExpr).(ast.Expression)
 		} else {
 			// No call, just method name - end at method identifier
-			inheritedExpr.EndPos = inheritedExpr.Method.End()
+			return builder.FinishWithNode(inheritedExpr, inheritedExpr.Method).(ast.Expression)
 		}
 	} else {
 		// Bare 'inherited' keyword - end at the keyword itself
-		inheritedExpr.EndPos = p.endPosFromToken(inheritedExpr.Token)
+		return builder.Finish(inheritedExpr).(ast.Expression)
 	}
-
-	return inheritedExpr
 }
 
 // parseSelfExpression parses a self expression.
@@ -1967,6 +1939,7 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 // PRE: curToken is SELF
 // POST: curToken is SELF (unchanged)
 func (p *Parser) parseSelfExpression() ast.Expression {
+	builder := p.StartNode()
 	selfExpr := &ast.SelfExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
@@ -1977,9 +1950,7 @@ func (p *Parser) parseSelfExpression() ast.Expression {
 	}
 
 	// Set end position at the Self keyword itself
-	selfExpr.EndPos = p.endPosFromToken(p.curToken)
-
-	return selfExpr
+	return builder.Finish(selfExpr).(ast.Expression)
 }
 
 // parseLambdaExpression parses a lambda/anonymous function expression.
@@ -1990,6 +1961,7 @@ func (p *Parser) parseSelfExpression() ast.Expression {
 // PRE: curToken is LAMBDA
 // POST: curToken is last token of lambda body (END for full syntax, expression for shorthand)
 func (p *Parser) parseLambdaExpression() ast.Expression {
+	builder := p.StartNode()
 	lambdaExpr := &ast.LambdaExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{Token: p.curToken}, // The 'lambda' keyword
@@ -2049,9 +2021,9 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 
 		// Set end position based on expression
 		if expr != nil {
-			lambdaExpr.EndPos = expr.End()
+			return builder.FinishWithNode(lambdaExpr, expr).(ast.Expression)
 		} else {
-			lambdaExpr.EndPos = p.endPosFromToken(p.curToken)
+			return builder.Finish(lambdaExpr).(ast.Expression)
 		}
 
 	} else if p.peekTokenIs(lexer.BEGIN) {
@@ -2064,17 +2036,15 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 
 		// Set end position based on body block
 		if lambdaExpr.Body != nil {
-			lambdaExpr.EndPos = lambdaExpr.Body.End()
+			return builder.FinishWithNode(lambdaExpr, lambdaExpr.Body).(ast.Expression)
 		} else {
-			lambdaExpr.EndPos = p.endPosFromToken(p.curToken)
+			return builder.Finish(lambdaExpr).(ast.Expression)
 		}
 
 	} else {
 		p.addError("expected '=>' or 'begin' after lambda parameters", ErrUnexpectedToken)
 		return nil
 	}
-
-	return lambdaExpr
 }
 
 // parseLambdaParameterList parses the parameter list for a lambda expression.
@@ -2203,6 +2173,7 @@ func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 // PRE: curToken is first token of condition expression
 // POST: curToken is last token of condition (message STRING or test expression)
 func (p *Parser) parseCondition() *ast.Condition {
+	builder := p.StartNode()
 	// Capture the starting token for position information
 	startToken := p.curToken
 
@@ -2236,13 +2207,11 @@ func (p *Parser) parseCondition() *ast.Condition {
 			Value: p.curToken.Literal,
 		}
 		// EndPos is the end of the message string literal
-		condition.EndPos = p.endPosFromToken(p.curToken)
+		return builder.Finish(condition).(*ast.Condition)
 	} else {
 		// EndPos is the end of the test expression
-		condition.EndPos = testExpr.End()
+		return builder.FinishWithNode(condition, testExpr).(*ast.Condition)
 	}
-
-	return condition
 }
 
 // parseOldExpression parses an 'old' expression for contract postconditions.
@@ -2293,6 +2262,7 @@ func (p *Parser) parseOldExpression() ast.Expression {
 // PRE: curToken is REQUIRE
 // POST: curToken is last token of last condition
 func (p *Parser) parsePreConditions() *ast.PreConditions {
+	builder := p.StartNode()
 	requireToken := p.curToken // the REQUIRE token
 
 	// Advance to the first condition
@@ -2336,7 +2306,7 @@ func (p *Parser) parsePreConditions() *ast.PreConditions {
 
 	// EndPos is the end of the last condition
 	if len(conditions) > 0 {
-		preConditions.EndPos = conditions[len(conditions)-1].End()
+		return builder.FinishWithNode(preConditions, conditions[len(conditions)-1]).(*ast.PreConditions)
 	}
 
 	return preConditions
@@ -2349,6 +2319,7 @@ func (p *Parser) parsePreConditions() *ast.PreConditions {
 // PRE: curToken is ENSURE
 // POST: curToken is last token of last condition
 func (p *Parser) parsePostConditions() *ast.PostConditions {
+	builder := p.StartNode()
 	ensureToken := p.curToken // the ENSURE token
 
 	// Enable 'old' keyword parsing
@@ -2403,7 +2374,7 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 
 	// EndPos is the end of the last condition
 	if len(conditions) > 0 {
-		postConditions.EndPos = conditions[len(conditions)-1].End()
+		return builder.FinishWithNode(postConditions, conditions[len(conditions)-1]).(*ast.PostConditions)
 	}
 
 	return postConditions
@@ -2416,6 +2387,7 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 // PRE: curToken is IS
 // POST: curToken is last token of type or right expression
 func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
+	builder := p.StartNode()
 	expression := &ast.IsExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{Token: p.curToken}, // The 'is' token
@@ -2430,8 +2402,7 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 	state := p.saveState()
 	expression.TargetType = p.parseTypeExpression()
 	if expression.TargetType != nil {
-		expression.EndPos = expression.TargetType.End()
-		return expression
+		return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
 	}
 
 	// If type parsing failed, restore state and try as boolean expression
@@ -2445,9 +2416,7 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 		p.addError("expected expression after 'is' operator", ErrInvalidExpression)
 		return expression
 	}
-	expression.EndPos = expression.Right.End()
-
-	return expression
+	return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
 }
 
 // parseAsExpression parses the 'as' type casting operator.
@@ -2457,6 +2426,7 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 // PRE: curToken is AS
 // POST: curToken is last token of target type
 func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
+	builder := p.StartNode()
 	expression := &ast.AsExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{Token: p.curToken}, // The 'as' token
@@ -2474,9 +2444,7 @@ func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 	}
 
 	// Set end position based on the target type
-	expression.EndPos = expression.TargetType.End()
-
-	return expression
+	return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
 }
 
 // parseImplementsExpression parses the 'implements' operator.
@@ -2486,6 +2454,7 @@ func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 // PRE: curToken is IMPLEMENTS
 // POST: curToken is last token of target type
 func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
+	builder := p.StartNode()
 	expression := &ast.ImplementsExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{Token: p.curToken}, // The 'implements' token
@@ -2503,9 +2472,7 @@ func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
 	}
 
 	// Set end position based on the target type
-	expression.EndPos = expression.TargetType.End()
-
-	return expression
+	return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
 }
 
 // parseIsExpressionCursor parses the 'is' operator in cursor mode.
@@ -2514,6 +2481,7 @@ func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
 // PRE: cursor is on IS token
 // POST: cursor is on last token of type/expression
 func (p *Parser) parseIsExpressionCursor(left ast.Expression) ast.Expression {
+	builder := p.StartNode()
 	isToken := p.cursor.Current()
 	expression := &ast.IsExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -2533,10 +2501,9 @@ func (p *Parser) parseIsExpressionCursor(left ast.Expression) ast.Expression {
 	state := p.saveState()
 	expression.TargetType = p.parseTypeExpression()
 	if expression.TargetType != nil {
-		expression.EndPos = expression.TargetType.End()
 		p.useCursor = true
 		p.syncTokensToCursor()
-		return expression
+		return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
 	}
 
 	// If type parsing failed, restore state and try as boolean expression
@@ -2553,9 +2520,7 @@ func (p *Parser) parseIsExpressionCursor(left ast.Expression) ast.Expression {
 		p.addError("expected expression after 'is' operator", ErrInvalidExpression)
 		return expression
 	}
-	expression.EndPos = expression.Right.End()
-
-	return expression
+	return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
 }
 
 // parseAsExpressionCursor parses the 'as' type casting operator in cursor mode.
@@ -2564,6 +2529,7 @@ func (p *Parser) parseIsExpressionCursor(left ast.Expression) ast.Expression {
 // PRE: cursor is on AS token
 // POST: cursor is on last token of target type
 func (p *Parser) parseAsExpressionCursor(left ast.Expression) ast.Expression {
+	builder := p.StartNode()
 	asToken := p.cursor.Current()
 	expression := &ast.AsExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -2588,13 +2554,10 @@ func (p *Parser) parseAsExpressionCursor(left ast.Expression) ast.Expression {
 	}
 
 	// Set end position based on the target type
-	expression.EndPos = expression.TargetType.End()
-
-	// Return to cursor mode
 	p.useCursor = true
 	p.syncTokensToCursor()
 
-	return expression
+	return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
 }
 
 // parseImplementsExpressionCursor parses the 'implements' operator in cursor mode.
@@ -2603,6 +2566,7 @@ func (p *Parser) parseAsExpressionCursor(left ast.Expression) ast.Expression {
 // PRE: cursor is on IMPLEMENTS token
 // POST: cursor is on last token of target type
 func (p *Parser) parseImplementsExpressionCursor(left ast.Expression) ast.Expression {
+	builder := p.StartNode()
 	implementsToken := p.cursor.Current()
 	expression := &ast.ImplementsExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -2627,11 +2591,8 @@ func (p *Parser) parseImplementsExpressionCursor(left ast.Expression) ast.Expres
 	}
 
 	// Set end position based on the target type
-	expression.EndPos = expression.TargetType.End()
-
-	// Return to cursor mode
 	p.useCursor = true
 	p.syncTokensToCursor()
 
-	return expression
+	return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
 }
