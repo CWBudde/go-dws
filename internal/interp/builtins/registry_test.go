@@ -195,6 +195,51 @@ func (m *mockContext) EvalFunctionPointer(funcPtr Value, args []Value) Value {
 	return &runtime.NilValue{}
 }
 
+// Task 3.7.8 Context methods for system functions
+func (m *mockContext) GetCallStackString() string {
+	// Simple mock - return empty string for testing
+	return ""
+}
+
+func (m *mockContext) GetCallStackArray() Value {
+	// Simple mock - return empty array for testing
+	return &runtime.StringValue{Value: "[]"}
+}
+
+func (m *mockContext) IsAssigned(value Value) bool {
+	// Simple mock - return true for non-nil values
+	return value != nil
+}
+
+func (m *mockContext) RaiseAssertionFailed(customMessage string) {
+	// Simple mock - no-op for testing
+}
+
+func (m *mockContext) GetEnumSuccessor(enumVal Value) (Value, error) {
+	// Simple mock - return nil for testing
+	return &runtime.NilValue{}, nil
+}
+
+func (m *mockContext) GetEnumPredecessor(enumVal Value) (Value, error) {
+	// Simple mock - return nil for testing
+	return &runtime.NilValue{}, nil
+}
+
+func (m *mockContext) ParseInt(s string, base int) (int64, bool) {
+	// Simple mock - return 0 for testing
+	return 0, false
+}
+
+func (m *mockContext) ParseFloat(s string) (float64, bool) {
+	// Simple mock - return 0.0 for testing
+	return 0.0, false
+}
+
+func (m *mockContext) FormatString(format string, args []Value) (string, error) {
+	// Simple mock - return empty string for testing
+	return "", nil
+}
+
 func TestNewRegistry(t *testing.T) {
 	r := NewRegistry()
 	if r == nil {

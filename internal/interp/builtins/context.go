@@ -173,6 +173,51 @@ type Context interface {
 	// Returns the result value from the function call, or an error value on failure.
 	// Task 3.7.7: Helper for collection functions (Map, Filter, Reduce, etc.).
 	EvalFunctionPointer(funcPtr Value, args []Value) Value
+
+	// GetCallStackString returns a formatted string representation of the current call stack.
+	// Task 3.7.8: Helper for GetStackTrace() function.
+	GetCallStackString() string
+
+	// GetCallStackArray returns the current call stack as an array of records.
+	// Each record contains FunctionName, Line, and Column fields.
+	// Task 3.7.8: Helper for GetCallStack() function.
+	GetCallStackArray() Value
+
+	// IsAssigned checks if a value is assigned (not nil).
+	// Returns true for non-nil values, including objects, variants, and other reference types.
+	// Task 3.7.8: Helper for Assigned() function.
+	IsAssigned(value Value) bool
+
+	// RaiseAssertionFailed raises an EAssertionFailed exception with an optional custom message.
+	// The exception includes position information from the current node.
+	// Task 3.7.8: Helper for Assert() function.
+	RaiseAssertionFailed(customMessage string)
+
+	// GetEnumSuccessor returns the successor of an enum value.
+	// Returns (successor value, nil) on success, or (nil, error) if at maximum.
+	// Task 3.7.8: Helper for Succ() function.
+	GetEnumSuccessor(enumVal Value) (Value, error)
+
+	// GetEnumPredecessor returns the predecessor of an enum value.
+	// Returns (predecessor value, nil) on success, or (nil, error) if at minimum.
+	// Task 3.7.8: Helper for Pred() function.
+	GetEnumPredecessor(enumVal Value) (Value, error)
+
+	// ParseInt parses a string to an integer with the specified base (2-36).
+	// Returns (value, true) on success, or (0, false) on error.
+	// Task 3.7.8: Helper for StrToIntDef() function.
+	ParseInt(s string, base int) (int64, bool)
+
+	// ParseFloat parses a string to a float64.
+	// Returns (value, true) on success, or (0.0, false) on error.
+	// Task 3.7.8: Helper for StrToFloatDef() function.
+	ParseFloat(s string) (float64, bool)
+
+	// FormatString formats a string using Go fmt.Sprintf semantics with DWScript values.
+	// Supports %s, %d, %f, %v, %x, %X, %o format verbs.
+	// Returns (formatted string, nil) on success, or ("", error) on formatting error.
+	// Task 3.7.8: Helper for Format() function.
+	FormatString(format string, args []Value) (string, error)
 }
 
 // BuiltinFunc is the signature for all built-in function implementations.

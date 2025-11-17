@@ -3,13 +3,13 @@ package builtins
 // DefaultRegistry is the default global registry of all built-in functions.
 // It's populated on package initialization with all standard DWScript built-ins.
 //
-// Current status (Phase 3, Task 3.7.7):
-//   - 214 functions migrated to internal/interp/builtins/ package
-//   - 214 functions registered in categories:
+// Current status (Phase 3, Task 3.7.8):
+//   - 222 functions migrated to internal/interp/builtins/ package
+//   - 222 functions registered in categories:
 //   - Math: 62 functions (basic, advanced, trig, exponential, special values)
-//   - String: 56 functions (manipulation, search, comparison, formatting)
+//   - String: 57 functions (manipulation, search, comparison, formatting - added Format)
 //   - DateTime: 52 functions (creation, arithmetic, formatting, parsing, info)
-//   - Conversion: 8 functions (IntToStr, IntToBin, StrToInt, StrToFloat, FloatToStr, BoolToStr, IntToHex, StrToBool)
+//   - Conversion: 11 functions (IntToStr, IntToBin, StrToInt, StrToFloat, FloatToStr, BoolToStr, IntToHex, StrToBool, Integer, StrToIntDef, StrToFloatDef)
 //   - Encoding: 5 functions (StrToHtml, StrToHtmlAttribute, StrToJSON, StrToCSSText, StrToXML)
 //   - JSON: 7 functions (ParseJSON, ToJSON, ToJSONFormatted, JSONHasField, JSONKeys, JSONValues, JSONLength)
 //   - Type: 2 functions (TypeOf, TypeOfClass)
@@ -17,13 +17,13 @@ package builtins
 //   - Collections: 8 functions (Map, Filter, Reduce, ForEach, Every, Some, Find, FindIndex)
 //   - Variant: 10 functions (VarType, VarIsNull, VarIsEmpty, VarToStr, VarToInt, VarToFloat, VarAsType, VarClear, VarIsArray, VarIsStr, VarIsNumeric)
 //   - I/O: 2 functions (Print, PrintLn)
+//   - System: 4 functions (GetStackTrace, GetCallStack, Assigned, Assert)
 //
 // Pending migration (still in internal/interp as Interpreter methods):
-//   - Conversion: Ord, Integer, StrToIntDef, StrToFloatDef (4 functions)
-//   - Ordinals: Inc, Dec, Succ, Pred, Assert (5 functions)
-//   - Misc: Format, GetStackTrace, Assigned, Swap, etc. (10+ functions)
+//   - Var-param functions: Inc, Dec, Swap, DivMod, Insert, Delete, SetLength (7 functions)
+//   - Pending: Random functions, string helpers, etc. (~15 functions)
 //
-// Total: 214 registered, ~19 pending migration (233 built-in functions total)
+// Total: 222 registered, ~22 pending migration (244 built-in functions total)
 var DefaultRegistry *Registry
 
 func init() {
@@ -60,6 +60,7 @@ func RegisterAll(r *Registry) {
 	RegisterVariantFunctions(r)
 	RegisterArrayFunctions(r)
 	RegisterCollectionFunctions(r)
+	RegisterSystemFunctions(r)
 }
 
 // RegisterMathFunctions registers all mathematical built-in functions.
@@ -380,4 +381,22 @@ func RegisterCollectionFunctions(r *Registry) {
 	r.Register("Some", Some, CategoryCollections, "Checks if any element of an array matches a predicate")
 	r.Register("Find", Find, CategoryCollections, "Returns the first element that matches a predicate")
 	r.Register("FindIndex", FindIndex, CategoryCollections, "Returns the index of the first element that matches a predicate")
+}
+
+// RegisterSystemFunctions registers all system and miscellaneous built-in functions.
+// Task 3.7.8: System utilities, runtime introspection, and formatting functions.
+func RegisterSystemFunctions(r *Registry) {
+	// Debug/runtime introspection
+	r.Register("GetStackTrace", GetStackTrace, CategorySystem, "Returns a formatted string representation of the current call stack")
+	r.Register("GetCallStack", GetCallStack, CategorySystem, "Returns the current call stack as an array of records")
+	r.Register("Assigned", Assigned, CategorySystem, "Checks if a value is assigned (not nil)")
+	r.Register("Assert", Assert, CategorySystem, "Validates a condition and raises EAssertionFailed if false")
+
+	// Type conversion
+	r.Register("Integer", Integer, CategoryConversion, "Converts a value to an integer")
+	r.Register("StrToIntDef", StrToIntDef, CategoryConversion, "Converts a string to an integer with a default value")
+	r.Register("StrToFloatDef", StrToFloatDef, CategoryConversion, "Converts a string to a float with a default value")
+
+	// String formatting
+	r.Register("Format", Format, CategoryString, "Formats a string using format specifiers")
 }
