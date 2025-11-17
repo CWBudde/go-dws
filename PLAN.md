@@ -765,11 +765,103 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
 
   **Current Status**: Phase 1 complete. Phase 2A-2E infrastructure complete. ForStatement and ForInStatement migrated (Phase 2D ✅ COMPLETE). 4 simple value types migrated to runtime/ (EnumValue, TypeMetaValue, SetValue, ArrayValue). IfExpression migrated (Phase 2B). Remaining 25 methods blocked by complex type dependencies (ExceptionValue, ObjectInstance, ClassInfo, FunctionPointerValue, RecordValue) or require additional infrastructure (array/record literals, type inference).
 
+  **Expansion Plan**: See [`docs/task-3.5.4-expansion-plan.md`](docs/task-3.5.4-expansion-plan.md) for detailed breakdown and phased approach.
+
   ---
 
-  ### 📋 TODO: Remaining Evaluator Migration Work
+  ### 📋 Phased Migration Roadmap
 
   **Progress**: 23/48 methods migrated (47.9%) | **Remaining**: 25 methods
+
+  ---
+
+  #### 🟢 Phase 2.1: Quick Wins (5 methods - ~5 hours)
+
+  **Goal**: Reach 28/48 (58%) with minimal infrastructure additions
+
+  - [ ] Add `GetOldValue(name string) (Value, bool)` to ExecutionContext
+  - [ ] 3.5.4.56 VisitOldExpression - Postcondition support
+  - [ ] 3.5.4.32 VisitVarDeclStatement - Variable declarations
+  - [ ] 3.5.4.33 VisitConstDecl - Constant declarations
+  - [ ] 3.5.4.31 VisitExpressionStatement - Expression statements
+  - [ ] 3.5.4.27 VisitSetLiteral - Set literal construction
+
+  **Estimated**: 5 hours | **Deliverable**: 28/48 methods (58%)
+
+  ---
+
+  #### 🟡 Phase 2.2: Adapter Extensions - Basic Operations (7 methods - ~22 hours)
+
+  **Goal**: Reach 35/48 (73%) by extending adapter for operators and arrays
+
+  **Infrastructure**:
+  - [ ] Add `EvalBinaryOp(op, left, right)` to adapter
+  - [ ] Add `EvalUnaryOp(op, operand)` to adapter
+  - [ ] Add `InferArrayElementType(elements)` to adapter
+  - [ ] Add `CreateArray(elementType, size)` to adapter
+  - [ ] Add `GetArrayElement(arr, index)` to adapter
+  - [ ] Add `GetObjectField/GetPropertyValue/GetRecordField` to adapter
+  - [ ] Add `GetPropertyIndex(obj, index)` to adapter
+
+  **Migrations**:
+  - [ ] 3.5.4.7 VisitIdentifier - Variable/type reference
+  - [ ] 3.5.4.8 VisitBinaryExpression - Binary operators
+  - [ ] 3.5.4.9 VisitUnaryExpression - Unary operators
+  - [ ] 3.5.4.25 VisitArrayLiteralExpression - Array construction
+  - [ ] 3.5.4.28 VisitNewArrayExpression - Dynamic array allocation
+  - [ ] 3.5.4.14 VisitIndexExpression - Array/string indexing
+  - [ ] 3.5.4.15 VisitMemberAccessExpression - Field/property access
+
+  **Estimated**: 22 hours | **Deliverable**: 35/48 methods (73%)
+
+  ---
+
+  #### 🔴 Phase 2.3: Adapter Extensions - OOP & Advanced Features (13 methods - ~47 hours)
+
+  **Goal**: Reach 48/48 (100%) by completing all complex migrations
+
+  **Infrastructure**:
+  - [ ] Add OOP adapter methods (CreateObject, CallMethod, CallInherited, CheckType, CastType, CheckImplements)
+  - [ ] Add function pointer methods (CreateFunctionPointer, CreateLambda)
+  - [ ] Add record methods (CreateRecord)
+  - [ ] Add exception methods (CreateException, GetExceptionMessage, GetExceptionClass)
+  - [ ] Add assignment methods (SetVariable, SetField, SetArrayElement, SetProperty)
+
+  **Migrations**:
+  - [ ] 3.5.4.22 VisitCallExpression - Function calls
+  - [ ] 3.5.4.10 VisitAddressOfExpression - Function pointer creation
+  - [ ] 3.5.4.23 VisitLambdaExpression - Lambda/closure
+  - [ ] 3.5.4.19 VisitNewExpression - Object instantiation
+  - [ ] 3.5.4.16 VisitMethodCallExpression - Method calls
+  - [ ] 3.5.4.18 VisitInheritedExpression - Parent method calls
+  - [ ] 3.5.4.20 VisitIsExpression - Type checking
+  - [ ] 3.5.4.21 VisitAsExpression - Type casting
+  - [ ] 3.5.4.24 VisitImplementsExpression - Interface checking
+  - [ ] 3.5.4.26 VisitRecordLiteralExpression - Record construction
+  - [ ] 3.5.4.34 VisitAssignmentStatement - Assignment with lvalue resolution
+  - [ ] 3.5.4.45 VisitTryStatement - Exception handling
+  - [ ] 3.5.4.46 VisitRaiseStatement - Raise exceptions
+
+  **Estimated**: 47 hours | **Deliverable**: 48/48 methods (100%)
+
+  ---
+
+  ### 📊 Phase Summary
+
+  | Phase | Methods | Hours | Progress Target |
+  |-------|---------|-------|----------------|
+  | **Completed** | 23 | - | 47.9% |
+  | **Phase 2.1** | +5 | 5 | 58% |
+  | **Phase 2.2** | +7 | 22 | 73% |
+  | **Phase 2.3** | +13 | 47 | 100% |
+  | **Total Remaining** | 25 | ~74 | - |
+
+  ---
+
+  ### 📝 Legacy TODO Sections (for reference)
+
+  <details>
+  <summary>Click to expand old phase breakdown</summary>
 
   ---
 
@@ -865,17 +957,25 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   | Phase 2E (Exceptions) | 2 | 3 days |
   | **TOTAL** | **32 tasks** | **~18 days** |
 
-- [ ] 3.5.5 Remove adapter pattern and complete migration
-  - Remove InterpreterAdapter interface from evaluator.go
-  - Remove adapter field from Evaluator struct
-  - Remove SetAdapter() method
-  - Remove EvalNode() method from Interpreter
-  - Update Evaluator.Eval() to handle all cases without adapter fallback
-  - Remove Interpreter.Eval() method (or make it just call evaluator)
-  - Verify all evaluation flows through Evaluator only
+  </details>
+
+  ---
+
+- [ ] 3.5.5 Remove adapter pattern and complete migration ⏸️ **DEFERRED**
+  - **Status**: Deferred until AST-free runtime types research is complete
+  - **Rationale**: Task 3.5.4 will use adapter pattern extensions to reach 100% completion. Removing the adapter requires architectural refactoring (AST-free value types) which is a separate long-term effort.
+  - **Original Plan**:
+    - Remove InterpreterAdapter interface from evaluator.go
+    - Remove adapter field from Evaluator struct
+    - Remove SetAdapter() method
+    - Remove EvalNode() method from Interpreter
+    - Update Evaluator.Eval() to handle all cases without adapter fallback
+    - Remove Interpreter.Eval() method (or make it just call evaluator)
+    - Verify all evaluation flows through Evaluator only
   - Files: `evaluator/evaluator.go`, `interpreter.go`
-  - Estimated: 2 days
+  - Estimated: 2 days (after architectural refactoring)
   - Acceptance: No adapter pattern, clean architecture, Interpreter is thin orchestrator, all tests pass
+  - **Future Work**: See Phase 3 in `docs/task-3.5.4-expansion-plan.md` for AST-free runtime types approach
 
 ---
 
