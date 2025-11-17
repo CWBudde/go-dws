@@ -436,10 +436,10 @@ func (u *UnassignedValue) Copy() Value {
 
 // ArrayType represents array type metadata.
 type ArrayType struct {
-	ElementType Value  // Type of elements
-	LowBound    *int   // Lower bound (nil for dynamic arrays)
-	HighBound   *int   // Upper bound (nil for dynamic arrays)
-	IsStaticArr bool   // True for static arrays
+	ElementType Value // Type of elements
+	LowBound    *int  // Lower bound (nil for dynamic arrays)
+	HighBound   *int  // Upper bound (nil for dynamic arrays)
+	IsStaticArr bool  // True for static arrays
 }
 
 // IsStatic returns true for static arrays, false for dynamic arrays.

@@ -1,4 +1,5 @@
 package builtins
+
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 )
