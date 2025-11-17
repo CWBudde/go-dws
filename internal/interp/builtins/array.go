@@ -332,6 +332,18 @@ func Sort(ctx Context, args []Value) Value {
 		return ctx.NewError("Sort() expects function pointer as second argument, got %T", args[1])
 	}
 
+	// Validate comparator signature - must accept exactly 2 parameters
+	var paramCount int
+	if comparator.Function != nil {
+		paramCount = len(comparator.Function.Parameters)
+	} else if comparator.Lambda != nil {
+		paramCount = len(comparator.Lambda.Parameters)
+	}
+
+	if paramCount != 2 {
+		return ctx.NewError("Sort() comparator must accept 2 parameters, got %d", paramCount)
+	}
+
 	// Sort with custom comparator using bubble sort
 	// (This is simple but not the most efficient; can optimize later)
 	elements := arr.Elements
