@@ -1,14 +1,18 @@
 // transform_builtins.go - Helper script to transform builtin methods to functions
 //
 // This script transforms builtin methods from:
-//   func (i *Interpreter) builtinXxx(args []Value) Value
+//
+//	func (i *Interpreter) builtinXxx(args []Value) Value
+//
 // to:
-//   func Xxx(ctx Context, args []Value) Value
+//
+//	func Xxx(ctx Context, args []Value) Value
 //
 // And replaces:
-//   i.newErrorWithLocation(i.currentNode, ...) → ctx.NewError(...)
-//   i.currentNode → ctx.CurrentNode()
-//   *StringValue → *runtime.StringValue
+//
+//	i.newErrorWithLocation(i.currentNode, ...) → ctx.NewError(...)
+//	i.currentNode → ctx.CurrentNode()
+//	*StringValue → *runtime.StringValue
 package main
 
 import (
