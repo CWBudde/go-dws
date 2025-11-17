@@ -264,11 +264,11 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 }
 
 // VisitExpressionStatement evaluates an expression statement.
+// Phase 3.5.4 - Phase 2A: Infrastructure ready, full migration pending type migration
 // Special handling for auto-invoking parameterless function pointers.
 func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2A: Function call infrastructure is available via adapter
-	// This has special logic for auto-invoking parameterless function pointers
-	// TODO: Migrate auto-invoke logic to use adapter.CallFunctionPointer
+	// TODO Phase 3.5.4.31: Auto-invoke logic via adapter.CallFunctionPointer()
+	// Full migration pending FunctionPointerValue migration to runtime package
 	return e.adapter.EvalNode(node)
 }
 
