@@ -58,9 +58,10 @@ func (e *Evaluator) VisitUnaryExpression(node *ast.UnaryExpression, ctx *Executi
 }
 
 // VisitAddressOfExpression evaluates an address-of expression (@funcName).
+// Phase 3.5.4 - Phase 2A: Infrastructure ready, full migration pending type migration
 func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2A: Function lookup is available via adapter.LookupFunction
-	// TODO: Migrate evalAddressOfExpression logic to use adapter.LookupFunction
+	// TODO Phase 3.5.4.10: Function lookup available via adapter.LookupFunction()
+	// Full migration pending FunctionPointerValue migration to runtime package
 	return e.adapter.EvalNode(node)
 }
 
@@ -72,10 +73,11 @@ func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *Exe
 }
 
 // VisitCallExpression evaluates a function call expression.
+// Phase 3.5.4 - Phase 2A: Infrastructure ready, full migration pending type migration
 func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2A: Function call infrastructure is available via adapter
+	// TODO Phase 3.5.4.22: Function call methods available via adapter
 	// (CallFunctionPointer, CallUserFunction, CallBuiltinFunction, LookupFunction)
-	// TODO: Migrate evalCallExpression logic from Interpreter to use these adapter methods
+	// Full migration pending FunctionPointerValue migration to runtime package
 	return e.adapter.EvalNode(node)
 }
 
@@ -96,24 +98,39 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 }
 
 // VisitMethodCallExpression evaluates a method call (obj.Method(args)).
+// Phase 3.5.4 - Phase 2A: Infrastructure ready, full migration pending type migration
 func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2A: Function call infrastructure is available via adapter
-	// TODO: Migrate method call logic to use adapter.CallUserFunction
+	// TODO Phase 3.5.4.16: Method call via adapter.CallUserFunction()
+	// Full migration pending ObjectInstance/ClassInfo migration to runtime package
 	return e.adapter.EvalNode(node)
 }
 
 // VisitInheritedExpression evaluates an 'inherited' expression.
+// Phase 3.5.4 - Phase 2A: Infrastructure ready, full migration pending type migration
 func (e *Evaluator) VisitInheritedExpression(node *ast.InheritedExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2A: Function call infrastructure is available via adapter
-	// TODO: Migrate inherited call logic to use adapter.CallUserFunction
+	// TODO Phase 3.5.4.18: Parent method dispatch via adapter.CallUserFunction()
+	// Full migration pending ObjectInstance/ClassInfo migration to runtime package
 	return e.adapter.EvalNode(node)
 }
 
 // VisitSelfExpression evaluates a 'Self' expression.
+// Phase 3.5.4.17: Migrated from Interpreter.evalSelfExpression()
+// Self refers to the current instance (in instance methods) or the current class (in class methods).
+// Task 9.7: Implement Self keyword
 func (e *Evaluator) VisitSelfExpression(node *ast.SelfExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2A: Self context will be needed for method calls
-	// TODO: Add Self context to ExecutionContext or Environment
-	return e.adapter.EvalNode(node)
+	// Get Self from the environment (should be bound when entering methods)
+	selfVal, exists := ctx.Env().Get("Self")
+	if !exists {
+		return e.newError(node, "Self used outside method context")
+	}
+
+	// Convert interface{} to Value
+	val, ok := selfVal.(Value)
+	if !ok {
+		return e.newError(node, "Self has invalid type")
+	}
+
+	return val
 }
 
 // VisitEnumLiteral evaluates an enum literal (EnumType.Value).
@@ -180,9 +197,10 @@ func (e *Evaluator) VisitNewArrayExpression(node *ast.NewArrayExpression, ctx *E
 }
 
 // VisitLambdaExpression evaluates a lambda expression (closure).
+// Phase 3.5.4 - Phase 2A: Infrastructure ready, full migration pending type migration
 func (e *Evaluator) VisitLambdaExpression(node *ast.LambdaExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2A: Lambda creation needs to capture closure environment
-	// TODO: Migrate lambda creation logic to create FunctionPointerValue with closure
+	// TODO Phase 3.5.4.23: Lambda creation with closure environment capture
+	// Full migration pending FunctionPointerValue migration to runtime package
 	return e.adapter.EvalNode(node)
 }
 

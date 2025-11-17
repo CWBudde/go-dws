@@ -7,6 +7,10 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 )
 
+// Phase 3.5.4 - Phase 2E: Imports for future use (commented out for now)
+// import "fmt" // For exception error messages
+// import "github.com/cwbudde/go-dws/internal/errors" // For exception stack traces
+
 // This file contains visitor methods for statement AST nodes.
 // Phase 3.5.2: Visitor pattern implementation for statements.
 //
@@ -260,11 +264,11 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 }
 
 // VisitExpressionStatement evaluates an expression statement.
+// Phase 3.5.4 - Phase 2A: Infrastructure ready, full migration pending type migration
 // Special handling for auto-invoking parameterless function pointers.
 func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2A: Function call infrastructure is available via adapter
-	// This has special logic for auto-invoking parameterless function pointers
-	// TODO: Migrate auto-invoke logic to use adapter.CallFunctionPointer
+	// TODO Phase 3.5.4.31: Auto-invoke logic via adapter.CallFunctionPointer()
+	// Full migration pending FunctionPointerValue migration to runtime package
 	return e.adapter.EvalNode(node)
 }
 
@@ -440,14 +444,18 @@ func (e *Evaluator) VisitRepeatStatement(node *ast.RepeatStatement, ctx *Executi
 }
 
 // VisitForStatement evaluates a for loop statement.
+// Phase 3.5.4 - Phase 2D: Infrastructure ready (PushEnv/PopEnv), full migration pending type migration
 func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// TODO Phase 3.5.4.39: Full migration pending ArrayValue/SetValue/EnumValue migration to runtime package
+	// Infrastructure is ready (ExecutionContext.PushEnv/PopEnv for scoping)
 	return e.adapter.EvalNode(node)
 }
 
 // VisitForInStatement evaluates a for-in loop statement.
+// Phase 3.5.4 - Phase 2D: Infrastructure ready (PushEnv/PopEnv), full migration pending type migration
 func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// TODO Phase 3.5.4.40: Full migration pending ArrayValue/SetValue/EnumValue migration to runtime package
+	// Infrastructure is ready (ExecutionContext.PushEnv/PopEnv for scoping)
 	return e.adapter.EvalNode(node)
 }
 
@@ -508,14 +516,18 @@ func (e *Evaluator) VisitCaseStatement(node *ast.CaseStatement, ctx *ExecutionCo
 }
 
 // VisitTryStatement evaluates a try-except-finally statement.
+// Phase 3.5.4 - Phase 2E: Infrastructure ready (exception methods), full migration pending type migration
 func (e *Evaluator) VisitTryStatement(node *ast.TryStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// TODO Phase 3.5.4.45: Full migration pending ExceptionValue/ObjectInstance migration to runtime package
+	// Infrastructure is ready (ExecutionContext exception methods, evalExceptClause helper)
 	return e.adapter.EvalNode(node)
 }
 
 // VisitRaiseStatement evaluates a raise statement (exception throwing).
+// Phase 3.5.4 - Phase 2E: Infrastructure ready (exception methods), full migration pending type migration
 func (e *Evaluator) VisitRaiseStatement(node *ast.RaiseStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// TODO Phase 3.5.4.46: Full migration pending ExceptionValue/ObjectInstance migration to runtime package
+	// Infrastructure is ready (ExecutionContext exception methods)
 	return e.adapter.EvalNode(node)
 }
 
@@ -599,3 +611,11 @@ func (e *Evaluator) VisitUsesClause(node *ast.UsesClause, ctx *ExecutionContext)
 	// Uses clauses are no-ops at runtime - units are already loaded
 	return nil
 }
+
+// ============================================================================
+// Exception Handling Helpers
+// Phase 3.5.4 - Phase 2E: Exception Infrastructure (ready for future use)
+// ============================================================================
+
+// TODO: Implement evalExceptClause() and matchesExceptionType() when Phase 3.5.4.45 (TryStatement migration) completes
+// Reference implementation available in internal/interp/exceptions.go (lines 215-315)
