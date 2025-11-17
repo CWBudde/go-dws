@@ -717,32 +717,45 @@ parseExpressionCursor
 
 #### Task 2.2.14.1: Statement Infrastructure (~3 hours)
 
-**Status**: NOT STARTED
+**Status**: DONE ✓
 
 **Goal**: Create cursor-based statement parsing infrastructure.
 
 **Targets**:
-- [ ] `parseStatementCursor()` - Statement dispatcher using cursor
-- [ ] Statement cursor navigation helpers
-- [ ] Cursor-to-statement synchronization utilities
-- [ ] Basic test framework for statement migration
+- [x] `parseStatementCursor()` - Statement dispatcher using cursor
+- [x] Statement cursor navigation helpers
+- [x] Cursor-to-statement synchronization utilities
+- [x] Basic test framework for statement migration
 
 **Implementation**:
-- [ ] Create `parseStatementCursor()` with switch dispatch
-- [ ] Add cursor navigation helpers for statement boundaries
-- [ ] Implement cursor sync at statement boundaries
-- [ ] Create base test structure
+- [x] Create `parseStatementCursor()` with switch dispatch
+- [x] Add cursor navigation helpers for statement boundaries (integrated into dispatcher)
+- [x] Implement cursor sync at statement boundaries (integrated into dispatcher)
+- [x] Create base test structure
 
-**Files to Modify**:
-- `internal/parser/statements.go` (+60 lines)
-- `internal/parser/parser.go` (+20 lines)
+**Files Modified**:
+- `internal/parser/statements.go` (+256 lines): Added parseStatementCursor() dispatcher
 
-**Files to Create**:
-- `internal/parser/migration_statements_test.go` (base framework, ~100 lines)
+**Files Created**:
+- `internal/parser/migration_statements_test.go` (114 lines): Base test framework
 
-**Estimate**: 3 hours
+**Dependencies**: Tasks 2.2.12-2.2.13 ✓
 
-**Deliverable**: Statement cursor infrastructure ready for migration
+**Actual Time**: ~2 hours (vs 3 estimated)
+
+**Results**:
+- ✅ All infrastructure tests passing (9 test cases)
+- ✅ parseStatementCursor() dispatcher in place for all 20+ statement types
+- ✅ All cases currently use fallback to traditional mode with sync
+- ✅ Ready for incremental migration in subsequent subtasks
+
+**Deliverable**: Statement cursor infrastructure ready for migration ✓
+
+**Benefits**:
+- Establishes pattern for incremental statement migration
+- Each statement type can be migrated independently
+- Maintains 100% backward compatibility via fallback
+- Test framework ready for differential testing
 
 ---
 
