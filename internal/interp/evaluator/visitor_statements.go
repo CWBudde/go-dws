@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // Phase 3.5.4 - Phase 2E: Imports for future use (commented out for now)
@@ -444,19 +445,315 @@ func (e *Evaluator) VisitRepeatStatement(node *ast.RepeatStatement, ctx *Executi
 }
 
 // VisitForStatement evaluates a for loop statement.
-// Phase 3.5.4 - Phase 2D: Infrastructure ready (PushEnv/PopEnv), full migration pending type migration
+// Phase 3.5.4.39: Migrated from Interpreter.evalForStatement()
+// Uses ExecutionContext.PushEnv/PopEnv for proper loop variable scoping.
 func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionContext) Value {
-	// TODO Phase 3.5.4.39: Full migration pending ArrayValue/SetValue/EnumValue migration to runtime package
-	// Infrastructure is ready (ExecutionContext.PushEnv/PopEnv for scoping)
-	return e.adapter.EvalNode(node)
+	var result Value = &runtime.NilValue{}
+
+	// Evaluate start value
+	startVal := e.Eval(node.Start, ctx)
+	if isError(startVal) {
+		return startVal
+	}
+
+	// Evaluate end value
+	endVal := e.Eval(node.EndValue, ctx)
+	if isError(endVal) {
+		return endVal
+	}
+
+	// Both start and end must be integers for for loops
+	startInt, ok := startVal.(*runtime.IntegerValue)
+	if !ok {
+		return e.newError(node, "for loop start value must be integer, got %s", startVal.Type())
+	}
+
+	endInt, ok := endVal.(*runtime.IntegerValue)
+	if !ok {
+		return e.newError(node, "for loop end value must be integer, got %s", endVal.Type())
+	}
+
+	// Task 9.154: Evaluate step expression if present
+	stepValue := int64(1) // Default step value
+	if node.Step != nil {
+		stepVal := e.Eval(node.Step, ctx)
+		if isError(stepVal) {
+			return stepVal
+		}
+
+		stepInt, ok := stepVal.(*runtime.IntegerValue)
+		if !ok {
+			return e.newError(node, "for loop step value must be integer, got %s", stepVal.Type())
+		}
+
+		// Validate step value is strictly positive
+		if stepInt.Value <= 0 {
+			return e.newError(node, "FOR loop STEP should be strictly positive: %d", stepInt.Value)
+		}
+
+		stepValue = stepInt.Value
+	}
+
+	// Phase 3.5.4 - Phase 2D: Use ExecutionContext.PushEnv/PopEnv for loop variable scoping
+	// Create a new enclosed environment for the loop variable
+	ctx.PushEnv()
+	defer ctx.PopEnv() // Ensure environment is restored even on early return
+
+	// Define the loop variable in the loop environment
+	loopVarName := node.Variable.Value
+
+	// Execute the loop based on direction
+	if node.Direction == ast.ForTo {
+		// Task 9.155: Ascending loop with step support
+		for current := startInt.Value; current <= endInt.Value; current += stepValue {
+			// Set the loop variable to the current value
+			ctx.Env().Define(loopVarName, &runtime.IntegerValue{Value: current})
+
+			// Execute the body
+			result = e.Eval(node.Body, ctx)
+			if isError(result) {
+				return result
+			}
+
+			// Handle control flow signals
+			cf := ctx.ControlFlow()
+			if cf.IsBreak() {
+				cf.Clear()
+				break
+			}
+			if cf.IsContinue() {
+				cf.Clear()
+				continue
+			}
+			// Handle exit signal (exit from function while in loop)
+			if cf.IsExit() {
+				// Don't clear the signal - let the function handle it
+				break
+			}
+		}
+	} else {
+		// Task 9.155: Descending loop with step support
+		for current := startInt.Value; current >= endInt.Value; current -= stepValue {
+			// Set the loop variable to the current value
+			ctx.Env().Define(loopVarName, &runtime.IntegerValue{Value: current})
+
+			// Execute the body
+			result = e.Eval(node.Body, ctx)
+			if isError(result) {
+				return result
+			}
+
+			// Handle control flow signals
+			cf := ctx.ControlFlow()
+			if cf.IsBreak() {
+				cf.Clear()
+				break
+			}
+			if cf.IsContinue() {
+				cf.Clear()
+				continue
+			}
+			// Handle exit signal (exit from function while in loop)
+			if cf.IsExit() {
+				// Don't clear the signal - let the function handle it
+				break
+			}
+		}
+	}
+
+	return result
 }
 
 // VisitForInStatement evaluates a for-in loop statement.
-// Phase 3.5.4 - Phase 2D: Infrastructure ready (PushEnv/PopEnv), full migration pending type migration
+// Phase 3.5.4.40: Migrated from Interpreter.evalForInStatement()
+// Uses ExecutionContext.PushEnv/PopEnv for loop variable scoping.
+// Iterates over arrays, sets, strings, and enum types.
 func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *ExecutionContext) Value {
-	// TODO Phase 3.5.4.40: Full migration pending ArrayValue/SetValue/EnumValue migration to runtime package
-	// Infrastructure is ready (ExecutionContext.PushEnv/PopEnv for scoping)
-	return e.adapter.EvalNode(node)
+	var result Value = &runtime.NilValue{}
+
+	// Evaluate the collection expression
+	collectionVal := e.Eval(node.Collection, ctx)
+	if isError(collectionVal) {
+		return collectionVal
+	}
+
+	// Phase 3.5.4 - Phase 2D: Use ExecutionContext.PushEnv/PopEnv for loop variable scoping
+	ctx.PushEnv()
+	defer ctx.PopEnv() // Ensure environment is restored even on early return
+
+	loopVarName := node.Variable.Value
+
+	// Type-switch on the collection type to determine iteration strategy
+	switch col := collectionVal.(type) {
+	case *runtime.ArrayValue:
+		// Iterate over array elements
+		for _, element := range col.Elements {
+			// Assign the current element to the loop variable
+			ctx.Env().Define(loopVarName, element)
+
+			// Execute the body
+			result = e.Eval(node.Body, ctx)
+			if isError(result) {
+				return result
+			}
+
+			// Handle control flow signals (break, continue, exit)
+			cf := ctx.ControlFlow()
+			if cf.IsBreak() {
+				cf.Clear()
+				break
+			}
+			if cf.IsContinue() {
+				cf.Clear()
+				continue
+			}
+			if cf.IsExit() {
+				// Don't clear the signal - let the function handle it
+				break
+			}
+		}
+
+	case *runtime.SetValue:
+		// Iterate over set elements
+		// Sets contain enum values; we iterate through the enum's ordered names
+		// and check which ones are present in the set
+		if col.SetType == nil || col.SetType.ElementType == nil {
+			return e.newError(node, "invalid set type for iteration")
+		}
+
+		// Task 9.226: Handle iteration over different set element types
+		elementType := col.SetType.ElementType
+
+		// For enum sets, iterate through enum values in their defined order
+		if enumType, ok := elementType.(*types.EnumType); ok {
+			for _, name := range enumType.OrderedNames {
+				ordinal := enumType.Values[name]
+				// Check if this enum value is in the set
+				if col.HasElement(ordinal) {
+					// Create an enum value for this element
+					enumVal := &runtime.EnumValue{
+						TypeName:     enumType.Name,
+						ValueName:    name,
+						OrdinalValue: ordinal,
+					}
+
+					// Assign the enum value to the loop variable
+					ctx.Env().Define(loopVarName, enumVal)
+
+					// Execute the body
+					result = e.Eval(node.Body, ctx)
+					if isError(result) {
+						return result
+					}
+
+					// Handle control flow signals (break, continue, exit)
+					cf := ctx.ControlFlow()
+					if cf.IsBreak() {
+						cf.Clear()
+						break
+					}
+					if cf.IsContinue() {
+						cf.Clear()
+						continue
+					}
+					if cf.IsExit() {
+						// Don't clear the signal - let the function handle it
+						break
+					}
+				}
+			}
+		} else {
+			// For non-enum sets (Integer, String, Boolean), iterate over ordinal values
+			// This is less common but supported for completeness
+			return e.newError(node, "iteration over non-enum sets not yet implemented")
+		}
+
+	case *runtime.StringValue:
+		// Iterate over string characters
+		// Each character becomes a single-character string
+		// Use runes to handle UTF-8 correctly
+		runes := []rune(col.Value)
+		for idx := 0; idx < len(runes); idx++ {
+			// Create a single-character string for this iteration
+			charVal := &runtime.StringValue{Value: string(runes[idx])}
+
+			// Assign the character to the loop variable
+			ctx.Env().Define(loopVarName, charVal)
+
+			// Execute the body
+			result = e.Eval(node.Body, ctx)
+			if isError(result) {
+				return result
+			}
+
+			// Handle control flow signals (break, continue, exit)
+			cf := ctx.ControlFlow()
+			if cf.IsBreak() {
+				cf.Clear()
+				break
+			}
+			if cf.IsContinue() {
+				cf.Clear()
+				continue
+			}
+			if cf.IsExit() {
+				// Don't clear the signal - let the function handle it
+				break
+			}
+		}
+
+	case *runtime.TypeMetaValue:
+		// Task 9.213: Iterate over enum type values
+		// When iterating over an enum type directly (e.g., for var e in TColor do),
+		// we iterate over all values of the enum type in declaration order.
+		// This is similar to set iteration but without checking membership.
+		enumType, ok := col.TypeInfo.(*types.EnumType)
+		if !ok {
+			return e.newError(node, "for-in loop: can only iterate over enum types, got %s", col.TypeName)
+		}
+
+		// Iterate through enum values in their defined order
+		for _, name := range enumType.OrderedNames {
+			ordinal := enumType.Values[name]
+			// Create an enum value for this element
+			enumVal := &runtime.EnumValue{
+				TypeName:     enumType.Name,
+				ValueName:    name,
+				OrdinalValue: ordinal,
+			}
+
+			// Assign the enum value to the loop variable
+			ctx.Env().Define(loopVarName, enumVal)
+
+			// Execute the body
+			result = e.Eval(node.Body, ctx)
+			if isError(result) {
+				return result
+			}
+
+			// Handle control flow signals (break, continue, exit)
+			cf := ctx.ControlFlow()
+			if cf.IsBreak() {
+				cf.Clear()
+				break
+			}
+			if cf.IsContinue() {
+				cf.Clear()
+				continue
+			}
+			if cf.IsExit() {
+				// Don't clear the signal - let the function handle it
+				break
+			}
+		}
+
+	default:
+		// If we reach here, the semantic analyzer missed something
+		// This is defensive programming
+		return e.newError(node, "for-in loop: cannot iterate over %s", collectionVal.Type())
+	}
+
+	return result
 }
 
 // VisitCaseStatement evaluates a case statement (switch).
@@ -516,18 +813,36 @@ func (e *Evaluator) VisitCaseStatement(node *ast.CaseStatement, ctx *ExecutionCo
 }
 
 // VisitTryStatement evaluates a try-except-finally statement.
-// Phase 3.5.4 - Phase 2E: Infrastructure ready (exception methods), full migration pending type migration
+// Phase 3.5.4 - Phase 2E: Infrastructure ready (exception methods), migration blocked by type dependencies
+//
+// Blocking Dependencies (must migrate to runtime package first):
+//   - ExceptionValue (ClassInfo, Message, Instance, CallStack fields needed)
+//   - ObjectInstance (Fields map, Class field needed for exception variable binding)
+//   - ClassInfo (Name, Parent fields needed for exception type matching)
+//
+// The exception handling logic requires access to ExceptionValue and ObjectInstance fields
+// for exception matching, variable binding, and ExceptObject management. These types
+// cannot be accessed from the evaluator package due to circular dependency constraints.
+// Once these types are migrated to runtime/, this method can be fully implemented here.
 func (e *Evaluator) VisitTryStatement(node *ast.TryStatement, ctx *ExecutionContext) Value {
-	// TODO Phase 3.5.4.45: Full migration pending ExceptionValue/ObjectInstance migration to runtime package
-	// Infrastructure is ready (ExecutionContext exception methods, evalExceptClause helper)
+	// Delegate to adapter until ExceptionValue, ObjectInstance, ClassInfo migrate to runtime
 	return e.adapter.EvalNode(node)
 }
 
 // VisitRaiseStatement evaluates a raise statement (exception throwing).
-// Phase 3.5.4 - Phase 2E: Infrastructure ready (exception methods), full migration pending type migration
+// Phase 3.5.4 - Phase 2E: Infrastructure ready (exception methods), migration blocked by type dependencies
+//
+// Blocking Dependencies (must migrate to runtime package first):
+//   - ExceptionValue (for creating and setting exceptions)
+//   - ObjectInstance (for extracting exception object and Message field)
+//   - ClassInfo (for exception type information)
+//
+// The raise statement must create ExceptionValue instances and extract fields from ObjectInstance,
+// which are not accessible from the evaluator package due to circular dependency constraints.
+// Additionally, bare raise must access handlerException which is Interpreter-specific state.
+// Once these types are migrated to runtime/, this method can be fully implemented here.
 func (e *Evaluator) VisitRaiseStatement(node *ast.RaiseStatement, ctx *ExecutionContext) Value {
-	// TODO Phase 3.5.4.46: Full migration pending ExceptionValue/ObjectInstance migration to runtime package
-	// Infrastructure is ready (ExecutionContext exception methods)
+	// Delegate to adapter until ExceptionValue, ObjectInstance, ClassInfo migrate to runtime
 	return e.adapter.EvalNode(node)
 }
 
