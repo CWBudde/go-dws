@@ -141,24 +141,55 @@ func (ii *InterfaceInstance) ImplementsInterface(iface *InterfaceInfo) bool {
 // Helper Functions
 // ============================================================================
 
-// classImplementsInterface checks if a class implements all methods of an interface.
-// This includes checking inherited methods from parent classes.
-// Returns true if the class has all required methods with matching signatures.
+// classImplementsInterface checks if a class explicitly declares that it implements an interface.
+// In DWScript, a class must explicitly declare interface implementation in its class declaration.
+// This is checked by looking at the class's Interfaces list (and inherited through parent classes).
+// Returns true if the class or any of its parents explicitly declares implementation of the interface.
 func classImplementsInterface(class *ClassInfo, iface *InterfaceInfo) bool {
-	// Get all methods required by the interface (including inherited)
-	requiredMethods := iface.AllMethods()
-
-	// Check that the class has each required method
-	for methodName := range requiredMethods {
-		// Check in current class's methods
-		if !classHasMethod(class, methodName) {
-			return false
-		}
-		// Note: Full signature matching would be done in semantic analysis
-		// At runtime, we just check method existence
+	// Defensive check: nil class doesn't implement any interface
+	if class == nil {
+		return false
 	}
 
-	return true
+	// Check if this class explicitly declares the interface
+	for _, implementedIface := range class.Interfaces {
+		// Direct match: class declares this exact interface
+		if implementedIface == iface {
+			return true
+		}
+
+		// Check if the declared interface inherits from the target interface
+		// (interface inheritance compatibility check)
+		if interfaceInheritsFrom(implementedIface, iface) {
+			return true
+		}
+	}
+
+	// Check parent class (interfaces are inherited)
+	if class.Parent != nil {
+		return classImplementsInterface(class.Parent, iface)
+	}
+
+	return false
+}
+
+// interfaceInheritsFrom checks if sourceIface inherits from targetIface.
+// Returns true if sourceIface is a descendant of targetIface in the interface hierarchy.
+func interfaceInheritsFrom(sourceIface *InterfaceInfo, targetIface *InterfaceInfo) bool {
+	if sourceIface == nil {
+		return false
+	}
+
+	// Walk up the interface hierarchy
+	current := sourceIface.Parent
+	for current != nil {
+		if current == targetIface {
+			return true
+		}
+		current = current.Parent
+	}
+
+	return false
 }
 
 // classHasMethod checks if a class or its parents have a method with the given name.
@@ -289,4 +320,22 @@ func (i *Interpreter) cleanupInterfaceReferences(env *Environment) {
 			}
 		}
 	}
+}
+
+// ============================================================================
+// Built-in Interface Registration
+// ============================================================================
+
+// registerBuiltinInterfaces registers the IInterface base interface.
+// IInterface is the root interface in DWScript, similar to how TObject is the root class.
+// All interfaces implicitly inherit from IInterface.
+func (i *Interpreter) registerBuiltinInterfaces() {
+	// Register IInterface as the root base interface for all interfaces
+	// This is required for DWScript compatibility - all interfaces ultimately inherit from IInterface
+	// IInterface is an empty interface with no methods, serving as a marker interface
+	iinterface := NewInterfaceInfo("IInterface")
+	iinterface.Parent = nil // Root of the interface hierarchy
+
+	// Register with lowercase key for case-insensitive lookup
+	i.interfaces[strings.ToLower("IInterface")] = iinterface
 }

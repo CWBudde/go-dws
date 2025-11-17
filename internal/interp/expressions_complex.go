@@ -199,13 +199,18 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 			// Interface-to-interface casting
 			underlyingObj := intfInst.Object
 			if underlyingObj == nil {
-				return i.newErrorWithLocation(expr, "cannot cast nil interface to interface '%s'", targetIface.Name)
+				message := fmt.Sprintf("Cannot cast nil interface to interface \"%s\" [line: %d, column: %d]",
+					targetIface.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
+				i.raiseException("Exception", message, &expr.Token.Pos)
+				return nil
 			}
 
 			// Check if the underlying object's class implements the target interface
 			if !classImplementsInterface(underlyingObj.Class, targetIface) {
-				return i.newErrorWithLocation(expr, "interface of class '%s' does not implement interface '%s'",
-					underlyingObj.Class.Name, targetIface.Name)
+				message := fmt.Sprintf("Cannot cast interface of \"%s\" to interface \"%s\" [line: %d, column: %d]",
+					underlyingObj.Class.Name, targetIface.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
+				i.raiseException("Exception", message, &expr.Token.Pos)
+				return nil
 			}
 
 			// Create and return new interface instance
@@ -267,8 +272,10 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 
 	// Validate that the object's class implements the interface
 	if !classImplementsInterface(obj.Class, iface) {
-		return i.newErrorWithLocation(expr, "class '%s' does not implement interface '%s'",
-			obj.Class.Name, iface.Name)
+		message := fmt.Sprintf("Class \"%s\" does not implement interface \"%s\" [line: %d, column: %d]",
+			obj.Class.Name, iface.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
+		i.raiseException("Exception", message, &expr.Token.Pos)
+		return nil
 	}
 
 	// Create and return the interface instance
