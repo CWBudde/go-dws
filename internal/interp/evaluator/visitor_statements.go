@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // Phase 3.5.4 - Phase 2E: Imports for future use (commented out for now)
@@ -564,21 +565,195 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 }
 
 // VisitForInStatement evaluates a for-in loop statement.
-// Phase 3.5.4 - Phase 2D: Infrastructure ready (PushEnv/PopEnv), migration blocked by type dependencies
-//
-// Blocking Dependencies (must migrate to runtime package first):
-//   - ArrayValue (Elements []Value field needed for iteration)
-//   - SetValue (SetType, HasElement() method needed for set iteration)
-//   - EnumValue (TypeName, ValueName, OrdinalValue fields needed)
-//   - TypeMetaValue (TypeInfo field needed for enum type iteration)
-//   - types.EnumType (OrderedNames, Values fields needed for iteration)
-//
-// The iteration logic requires type-specific access to these types' fields and methods,
-// which are not accessible from the evaluator package due to circular dependency constraints.
-// Once these types are migrated to runtime/, this method can be fully implemented here.
+// Phase 3.5.4.40: Migrated from Interpreter.evalForInStatement()
+// Uses ExecutionContext.PushEnv/PopEnv for loop variable scoping.
+// Iterates over arrays, sets, strings, and enum types.
 func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *ExecutionContext) Value {
-	// Delegate to adapter until ArrayValue, SetValue, EnumValue, TypeMetaValue migrate to runtime
-	return e.adapter.EvalNode(node)
+	var result Value = &runtime.NilValue{}
+
+	// Evaluate the collection expression
+	collectionVal := e.Eval(node.Collection, ctx)
+	if isError(collectionVal) {
+		return collectionVal
+	}
+
+	// Phase 3.5.4 - Phase 2D: Use ExecutionContext.PushEnv/PopEnv for loop variable scoping
+	ctx.PushEnv()
+	defer ctx.PopEnv() // Ensure environment is restored even on early return
+
+	loopVarName := node.Variable.Value
+
+	// Type-switch on the collection type to determine iteration strategy
+	switch col := collectionVal.(type) {
+	case *runtime.ArrayValue:
+		// Iterate over array elements
+		for _, element := range col.Elements {
+			// Assign the current element to the loop variable
+			ctx.Env().Define(loopVarName, element)
+
+			// Execute the body
+			result = e.Eval(node.Body, ctx)
+			if isError(result) {
+				return result
+			}
+
+			// Handle control flow signals (break, continue, exit)
+			cf := ctx.ControlFlow()
+			if cf.IsBreak() {
+				cf.Clear()
+				break
+			}
+			if cf.IsContinue() {
+				cf.Clear()
+				continue
+			}
+			if cf.IsExit() {
+				// Don't clear the signal - let the function handle it
+				break
+			}
+		}
+
+	case *runtime.SetValue:
+		// Iterate over set elements
+		// Sets contain enum values; we iterate through the enum's ordered names
+		// and check which ones are present in the set
+		if col.SetType == nil || col.SetType.ElementType == nil {
+			return e.newError(node, "invalid set type for iteration")
+		}
+
+		// Task 9.226: Handle iteration over different set element types
+		elementType := col.SetType.ElementType
+
+		// For enum sets, iterate through enum values in their defined order
+		if enumType, ok := elementType.(*types.EnumType); ok {
+			for _, name := range enumType.OrderedNames {
+				ordinal := enumType.Values[name]
+				// Check if this enum value is in the set
+				if col.HasElement(ordinal) {
+					// Create an enum value for this element
+					enumVal := &runtime.EnumValue{
+						TypeName:     enumType.Name,
+						ValueName:    name,
+						OrdinalValue: ordinal,
+					}
+
+					// Assign the enum value to the loop variable
+					ctx.Env().Define(loopVarName, enumVal)
+
+					// Execute the body
+					result = e.Eval(node.Body, ctx)
+					if isError(result) {
+						return result
+					}
+
+					// Handle control flow signals (break, continue, exit)
+					cf := ctx.ControlFlow()
+					if cf.IsBreak() {
+						cf.Clear()
+						break
+					}
+					if cf.IsContinue() {
+						cf.Clear()
+						continue
+					}
+					if cf.IsExit() {
+						// Don't clear the signal - let the function handle it
+						break
+					}
+				}
+			}
+		} else {
+			// For non-enum sets (Integer, String, Boolean), iterate over ordinal values
+			// This is less common but supported for completeness
+			return e.newError(node, "iteration over non-enum sets not yet implemented")
+		}
+
+	case *runtime.StringValue:
+		// Iterate over string characters
+		// Each character becomes a single-character string
+		// Use runes to handle UTF-8 correctly
+		runes := []rune(col.Value)
+		for idx := 0; idx < len(runes); idx++ {
+			// Create a single-character string for this iteration
+			charVal := &runtime.StringValue{Value: string(runes[idx])}
+
+			// Assign the character to the loop variable
+			ctx.Env().Define(loopVarName, charVal)
+
+			// Execute the body
+			result = e.Eval(node.Body, ctx)
+			if isError(result) {
+				return result
+			}
+
+			// Handle control flow signals (break, continue, exit)
+			cf := ctx.ControlFlow()
+			if cf.IsBreak() {
+				cf.Clear()
+				break
+			}
+			if cf.IsContinue() {
+				cf.Clear()
+				continue
+			}
+			if cf.IsExit() {
+				// Don't clear the signal - let the function handle it
+				break
+			}
+		}
+
+	case *runtime.TypeMetaValue:
+		// Task 9.213: Iterate over enum type values
+		// When iterating over an enum type directly (e.g., for var e in TColor do),
+		// we iterate over all values of the enum type in declaration order.
+		// This is similar to set iteration but without checking membership.
+		enumType, ok := col.TypeInfo.(*types.EnumType)
+		if !ok {
+			return e.newError(node, "for-in loop: can only iterate over enum types, got %s", col.TypeName)
+		}
+
+		// Iterate through enum values in their defined order
+		for _, name := range enumType.OrderedNames {
+			ordinal := enumType.Values[name]
+			// Create an enum value for this element
+			enumVal := &runtime.EnumValue{
+				TypeName:     enumType.Name,
+				ValueName:    name,
+				OrdinalValue: ordinal,
+			}
+
+			// Assign the enum value to the loop variable
+			ctx.Env().Define(loopVarName, enumVal)
+
+			// Execute the body
+			result = e.Eval(node.Body, ctx)
+			if isError(result) {
+				return result
+			}
+
+			// Handle control flow signals (break, continue, exit)
+			cf := ctx.ControlFlow()
+			if cf.IsBreak() {
+				cf.Clear()
+				break
+			}
+			if cf.IsContinue() {
+				cf.Clear()
+				continue
+			}
+			if cf.IsExit() {
+				// Don't clear the signal - let the function handle it
+				break
+			}
+		}
+
+	default:
+		// If we reach here, the semantic analyzer missed something
+		// This is defensive programming
+		return e.newError(node, "for-in loop: cannot iterate over %s", collectionVal.Type())
+	}
+
+	return result
 }
 
 // VisitCaseStatement evaluates a case statement (switch).
