@@ -112,6 +112,14 @@ type Context interface {
 	// Returns 0 if value is not a JSON array or object.
 	// Task 3.7.6: JSON helper for JSONLength function.
 	JSONGetLength(value Value) int
+
+	// CreateStringArray creates an array of strings from a slice of string values.
+	// Task 3.7.6: Helper for creating string arrays in JSON functions.
+	CreateStringArray(values []string) Value
+
+	// CreateVariantArray creates an array of Variants from a slice of values.
+	// Task 3.7.6: Helper for creating variant arrays in JSON functions.
+	CreateVariantArray(values []Value) Value
 }
 
 // BuiltinFunc is the signature for all built-in function implementations.

@@ -6,6 +6,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/interp/builtins"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // Ensure Interpreter implements builtins.Context interface at compile time.
@@ -294,4 +295,36 @@ func (i *Interpreter) JSONGetLength(value builtins.Value) int {
 	}
 
 	return 0
+}
+
+// CreateStringArray creates an array of strings from a slice of string values.
+// This implements the builtins.Context interface.
+// Task 3.7.6: Helper for creating string arrays in JSON functions.
+func (i *Interpreter) CreateStringArray(values []string) builtins.Value {
+	// Convert strings to StringValue elements
+	elements := make([]Value, len(values))
+	for idx, str := range values {
+		elements[idx] = &StringValue{Value: str}
+	}
+
+	// Create array type: array of String
+	arrayType := types.NewDynamicArrayType(types.STRING)
+
+	return &ArrayValue{
+		Elements:  elements,
+		ArrayType: arrayType,
+	}
+}
+
+// CreateVariantArray creates an array of Variants from a slice of values.
+// This implements the builtins.Context interface.
+// Task 3.7.6: Helper for creating variant arrays in JSON functions.
+func (i *Interpreter) CreateVariantArray(values []builtins.Value) builtins.Value {
+	// Create array type: array of Variant
+	arrayType := types.NewDynamicArrayType(types.VARIANT)
+
+	return &ArrayValue{
+		Elements:  values,
+		ArrayType: arrayType,
+	}
 }

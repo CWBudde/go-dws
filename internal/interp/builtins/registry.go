@@ -25,6 +25,12 @@ const (
 	// CategoryEncoding includes encoding/escaping functions (StrToHtml, StrToJSON, etc.)
 	CategoryEncoding Category = "encoding"
 
+	// CategoryJSON includes JSON parsing and manipulation functions
+	CategoryJSON Category = "json"
+
+	// CategoryType includes type introspection functions (TypeOf, TypeOfClass)
+	CategoryType Category = "type"
+
 	// CategoryArray includes array operations (Length, Copy, Reverse, etc.)
 	CategoryArray Category = "array"
 

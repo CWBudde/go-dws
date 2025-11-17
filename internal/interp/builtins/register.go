@@ -3,14 +3,16 @@ package builtins
 // DefaultRegistry is the default global registry of all built-in functions.
 // It's populated on package initialization with all standard DWScript built-ins.
 //
-// Current status (Phase 3, Task 3.7.3):
-//   - 184+ functions migrated to internal/interp/builtins/ package
-//   - 184 functions registered in categories:
+// Current status (Phase 3, Task 3.7.6):
+//   - 193 functions migrated to internal/interp/builtins/ package
+//   - 193 functions registered in categories:
 //   - Math: 62 functions (basic, advanced, trig, exponential, special values)
 //   - String: 56 functions (manipulation, search, comparison, formatting)
 //   - DateTime: 52 functions (creation, arithmetic, formatting, parsing, info)
 //   - Conversion: 8 functions (IntToStr, IntToBin, StrToInt, StrToFloat, FloatToStr, BoolToStr, IntToHex, StrToBool)
 //   - Encoding: 5 functions (StrToHtml, StrToHtmlAttribute, StrToJSON, StrToCSSText, StrToXML)
+//   - JSON: 7 functions (ParseJSON, ToJSON, ToJSONFormatted, JSONHasField, JSONKeys, JSONValues, JSONLength)
+//   - Type: 2 functions (TypeOf, TypeOfClass)
 //
 // Pending migration (still in internal/interp as Interpreter methods):
 //   - I/O: Print, PrintLn (2 functions)
@@ -19,11 +21,9 @@ package builtins
 //   - Conversion: Ord, Integer, StrToIntDef, StrToFloatDef (4 functions)
 //   - Ordinals: Inc, Dec, Succ, Pred, Assert (5 functions)
 //   - Variant: VarType, VarIsNull, VarIsEmpty, VarToStr, VarToInt, etc. (12 functions)
-//   - JSON: ParseJSON, ToJSON, JSONHasField, JSONKeys, etc. (7 functions)
-//   - Type: TypeOf, TypeOfClass (2 functions)
 //   - Misc: Format, GetStackTrace, Assigned, Swap, etc. (10+ functions)
 //
-// Total: 184 registered, ~63 pending migration (247 built-in functions total)
+// Total: 193 registered, ~54 pending migration (247 built-in functions total)
 var DefaultRegistry *Registry
 
 func init() {
@@ -41,6 +41,8 @@ func init() {
 //   - CategoryDateTime: Date and time operations
 //   - CategoryConversion: Type conversion functions
 //   - CategoryEncoding: Encoding/escaping functions
+//   - CategoryJSON: JSON parsing and manipulation
+//   - CategoryType: Type introspection
 //
 // Future categories (when functions are migrated):
 //   - CategoryArray: Array operations
@@ -52,6 +54,8 @@ func RegisterAll(r *Registry) {
 	RegisterDateTimeFunctions(r)
 	RegisterConversionFunctions(r)
 	RegisterEncodingFunctions(r)
+	RegisterJSONFunctions(r)
+	RegisterTypeFunctions(r)
 }
 
 // RegisterMathFunctions registers all mathematical built-in functions.
@@ -294,4 +298,21 @@ func RegisterEncodingFunctions(r *Registry) {
 	r.Register("StrToJSON", StrToJSON, CategoryEncoding, "Encodes string for JSON")
 	r.Register("StrToCSSText", StrToCSSText, CategoryEncoding, "Encodes string for CSS text")
 	r.Register("StrToXML", StrToXML, CategoryEncoding, "Encodes string for XML")
+}
+
+// RegisterJSONFunctions registers all JSON manipulation built-in functions.
+func RegisterJSONFunctions(r *Registry) {
+	r.Register("ParseJSON", ParseJSON, CategoryJSON, "Parses JSON string to Variant")
+	r.Register("ToJSON", ToJSON, CategoryJSON, "Converts value to compact JSON string")
+	r.Register("ToJSONFormatted", ToJSONFormatted, CategoryJSON, "Converts value to formatted JSON string")
+	r.Register("JSONHasField", JSONHasField, CategoryJSON, "Checks if JSON object has field")
+	r.Register("JSONKeys", JSONKeys, CategoryJSON, "Returns keys of JSON object")
+	r.Register("JSONValues", JSONValues, CategoryJSON, "Returns values of JSON object/array")
+	r.Register("JSONLength", JSONLength, CategoryJSON, "Returns length of JSON array/object")
+}
+
+// RegisterTypeFunctions registers all type introspection built-in functions.
+func RegisterTypeFunctions(r *Registry) {
+	r.Register("TypeOf", TypeOf, CategoryType, "Returns the type name of a value")
+	r.Register("TypeOfClass", TypeOfClass, CategoryType, "Returns the class name of an object")
 }
