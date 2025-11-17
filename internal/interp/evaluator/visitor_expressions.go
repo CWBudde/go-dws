@@ -26,6 +26,14 @@ func (e *Evaluator) newError(_ ast.Node, format string, args ...interface{}) Val
 	return &ErrorValue{Message: fmt.Sprintf(format, args...)}
 }
 
+// isError checks if a value is an error.
+func isError(val Value) bool {
+	if val != nil {
+		return val.Type() == "ERROR"
+	}
+	return false
+}
+
 // VisitIdentifier evaluates an identifier (variable reference).
 func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext) Value {
 	// Phase 3.5.2: Delegate to interpreter for now

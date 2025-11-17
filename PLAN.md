@@ -1486,7 +1486,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - [ ] 3.5.4.32 VarDeclStatement - Migrate evalVarDeclStatement() (variable declarations)
   - [ ] 3.5.4.33 ConstDecl - Migrate evalConstDecl() (constant declarations)
   - [ ] 3.5.4.34 AssignmentStatement - Migrate evalAssignmentStatement() (all assignment types)
-  - [ ] 3.5.4.35 ReturnStatement - Migrate evalReturnStatement() (function returns)
+  - [x] 3.5.4.35 ReturnStatement - Migrate evalReturnStatement() (function returns)
 
   **Batch 7: Control Flow (9 methods)** - 3 days
   - [ ] 3.5.4.36 IfStatement - Migrate evalIfStatement() (if-then-else logic)
@@ -1495,9 +1495,9 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - [ ] 3.5.4.39 ForStatement - Migrate evalForStatement() (for loops with counter)
   - [ ] 3.5.4.40 ForInStatement - Migrate evalForInStatement() (for-in iteration)
   - [ ] 3.5.4.41 CaseStatement - Migrate evalCaseStatement() (switch-case logic)
-  - [ ] 3.5.4.42 BreakStatement - Migrate evalBreakStatement() (loop break)
-  - [ ] 3.5.4.43 ContinueStatement - Migrate evalContinueStatement() (loop continue)
-  - [ ] 3.5.4.44 ExitStatement - Migrate evalExitStatement() (procedure exit)
+  - [x] 3.5.4.42 BreakStatement - Migrate evalBreakStatement() (loop break)
+  - [x] 3.5.4.43 ContinueStatement - Migrate evalContinueStatement() (loop continue)
+  - [x] 3.5.4.44 ExitStatement - Migrate evalExitStatement() (procedure exit)
 
   **Batch 8: Exception Handling (2 methods)** - 1 day
   - [ ] 3.5.4.45 TryStatement - Migrate evalTryStatement() (try-except-finally logic)
