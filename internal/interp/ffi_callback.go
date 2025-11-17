@@ -56,7 +56,11 @@ func (i *Interpreter) callDWScriptFunction(
 	var result Value
 	if funcPtr.Lambda != nil {
 		// Lambda expression with captured closure
-		result = i.callLambda(funcPtr.Lambda, funcPtr.Closure, dwsArgs, nil)
+		closure, ok := funcPtr.Closure.(*Environment)
+		if !ok {
+			return nil, fmt.Errorf("invalid closure type in function pointer")
+		}
+		result = i.callLambda(funcPtr.Lambda, closure, dwsArgs, nil)
 	} else if funcPtr.Function != nil {
 		// Regular function pointer
 		result = i.callFunctionPointer(funcPtr, dwsArgs, nil)

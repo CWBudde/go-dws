@@ -2,6 +2,7 @@ package builtins
 
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // Array built-in functions for DWScript.
@@ -534,7 +535,7 @@ func ConcatArrays(ctx Context, args []Value) Value {
 
 	// Collect all elements from all arrays
 	var resultElements []Value
-	var firstArrayType *runtime.ArrayType
+	var firstArrayType *types.ArrayType
 
 	for argIdx, arg := range args {
 		// Each argument must be an array

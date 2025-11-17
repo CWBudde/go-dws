@@ -838,7 +838,7 @@ func (i *Interpreter) FormatString(format string, args []builtins.Value) (string
 
 	iStr := 0
 	for iStr < len(format) {
-		ch := rune(format[iStr])
+		ch := format[iStr]
 		if ch == '%' {
 			if iStr+1 < len(format) && format[iStr+1] == '%' {
 				// %% - literal percent sign
@@ -849,8 +849,8 @@ func (i *Interpreter) FormatString(format string, args []builtins.Value) (string
 			iStr++
 			// Skip width/precision/flags
 			for iStr < len(format) {
-				ch := format[iStr]
-				if (ch >= '0' && ch <= '9') || ch == '.' || ch == '+' || ch == '-' || ch == ' ' || ch == '#' {
+				b := format[iStr]
+				if (b >= '0' && b <= '9') || b == '.' || b == '+' || b == '-' || b == ' ' || b == '#' {
 					iStr++
 					continue
 				}

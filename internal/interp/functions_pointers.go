@@ -14,7 +14,11 @@ func (i *Interpreter) callFunctionPointer(funcPtr *FunctionPointerValue, args []
 	// Check if this is a lambda or a regular function pointer
 	if funcPtr.Lambda != nil {
 		// Lambda closure - call with closure environment
-		return i.callLambda(funcPtr.Lambda, funcPtr.Closure, args, node)
+		closure, ok := funcPtr.Closure.(*Environment)
+		if !ok {
+			return i.newErrorWithLocation(node, "invalid closure type in function pointer")
+		}
+		return i.callLambda(funcPtr.Lambda, closure, args, node)
 	}
 
 	// Regular function pointer

@@ -3,7 +3,7 @@ package builtins
 // DefaultRegistry is the default global registry of all built-in functions.
 // It's populated on package initialization with all standard DWScript built-ins.
 //
-// Current status (Phase 3, Task 3.7.8):
+// Current status (Phase 3, Task 3.7.7):
 //   - 222 functions migrated to internal/interp/builtins/ package
 //   - 222 functions registered in categories:
 //   - Math: 62 functions (basic, advanced, trig, exponential, special values)
