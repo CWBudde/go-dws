@@ -54,6 +54,98 @@ func (m *mockContext) UnwrapVariant(value Value) Value {
 	return value
 }
 
+func (m *mockContext) ToInt64(value Value) (int64, bool) {
+	// Simple mock implementation for testing
+	if iv, ok := value.(*runtime.IntegerValue); ok {
+		return iv.Value, true
+	}
+	return 0, false
+}
+
+func (m *mockContext) ToBool(value Value) (bool, bool) {
+	// Simple mock implementation for testing
+	if bv, ok := value.(*runtime.BooleanValue); ok {
+		return bv.Value, true
+	}
+	return false, false
+}
+
+func (m *mockContext) ToFloat64(value Value) (float64, bool) {
+	// Simple mock implementation for testing
+	if fv, ok := value.(*runtime.FloatValue); ok {
+		return fv.Value, true
+	}
+	if iv, ok := value.(*runtime.IntegerValue); ok {
+		return float64(iv.Value), true
+	}
+	return 0.0, false
+}
+
+// Task 3.7.6 Context methods
+func (m *mockContext) ParseJSONString(jsonStr string) (Value, error) {
+	// Simple mock - not needed for most tests
+	return nil, nil
+}
+
+func (m *mockContext) ValueToJSON(value Value, formatted bool) (string, error) {
+	// Simple mock - not needed for most tests
+	return "{}", nil
+}
+
+func (m *mockContext) GetTypeOf(value Value) string {
+	if value == nil {
+		return "NULL"
+	}
+	return value.Type()
+}
+
+func (m *mockContext) GetClassOf(value Value) string {
+	return ""
+}
+
+func (m *mockContext) JSONHasField(value Value, fieldName string) bool {
+	return false
+}
+
+func (m *mockContext) JSONGetKeys(value Value) []string {
+	return []string{}
+}
+
+func (m *mockContext) JSONGetValues(value Value) []Value {
+	return []Value{}
+}
+
+func (m *mockContext) JSONGetLength(value Value) int {
+	return 0
+}
+
+func (m *mockContext) CreateStringArray(values []string) Value {
+	// Simple mock - return a dummy value for testing
+	return &runtime.StringValue{Value: "mock array"}
+}
+
+func (m *mockContext) CreateVariantArray(values []Value) Value {
+	// Simple mock - return a dummy value for testing
+	return &runtime.StringValue{Value: "mock array"}
+}
+
+func (m *mockContext) Write(s string) {
+	// Simple mock - no-op for testing
+}
+
+func (m *mockContext) WriteLine(s string) {
+	// Simple mock - no-op for testing
+}
+
+func (m *mockContext) GetEnumOrdinal(value Value) (int64, bool) {
+	// Simple mock - check type string since we can't import EnumValue
+	if value.Type() == "ENUM" {
+		// For testing, return a dummy ordinal
+		return 0, true
+	}
+	return 0, false
+}
+
 func TestNewRegistry(t *testing.T) {
 	r := NewRegistry()
 	if r == nil {
