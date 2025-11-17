@@ -156,9 +156,6 @@ func runScript(_ *cobra.Command, args []string) error {
 		analyzer.SetSource(input, filename)
 
 		if err := analyzer.Analyze(program); err != nil {
-			// Set errors on parser for compatibility
-			p.SetSemanticErrors(analyzer.Errors())
-
 			// Use structured errors if available, fall back to string errors
 			var compilerErrors []*errors.CompilerError
 			if len(analyzer.StructuredErrors()) > 0 {
