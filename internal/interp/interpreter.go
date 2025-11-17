@@ -282,6 +282,16 @@ func (i *Interpreter) EvalNode(node ast.Node) evaluator.Value {
 // Phase 3.5.4 - Phase 2A: Function call system adapter methods
 // These methods implement the InterpreterAdapter interface for function calls.
 
+// convertEvaluatorArgs converts a slice of evaluator.Value to interp.Value.
+// This is used by adapter methods when delegating to internal functions.
+func convertEvaluatorArgs(args []evaluator.Value) []Value {
+	interpArgs := make([]Value, len(args))
+	for idx, arg := range args {
+		interpArgs[idx] = arg
+	}
+	return interpArgs
+}
+
 // CallFunctionPointer executes a function pointer with given arguments.
 func (i *Interpreter) CallFunctionPointer(funcPtr evaluator.Value, args []evaluator.Value, node ast.Node) evaluator.Value {
 	// Convert evaluator.Value to interp.Value (they're the same interface)
@@ -290,35 +300,17 @@ func (i *Interpreter) CallFunctionPointer(funcPtr evaluator.Value, args []evalua
 		return i.newErrorWithLocation(node, "invalid function pointer type: expected FunctionPointerValue, got %T", funcPtr)
 	}
 
-	// Convert args from evaluator.Value to interp.Value
-	interpArgs := make([]Value, len(args))
-	for idx, arg := range args {
-		interpArgs[idx] = arg
-	}
-
-	return i.callFunctionPointer(fp, interpArgs, node)
+	return i.callFunctionPointer(fp, convertEvaluatorArgs(args), node)
 }
 
 // CallUserFunction executes a user-defined function.
 func (i *Interpreter) CallUserFunction(fn *ast.FunctionDecl, args []evaluator.Value) evaluator.Value {
-	// Convert args from evaluator.Value to interp.Value
-	interpArgs := make([]Value, len(args))
-	for idx, arg := range args {
-		interpArgs[idx] = arg
-	}
-
-	return i.callUserFunction(fn, interpArgs)
+	return i.callUserFunction(fn, convertEvaluatorArgs(args))
 }
 
 // CallBuiltinFunction executes a built-in function by name.
 func (i *Interpreter) CallBuiltinFunction(name string, args []evaluator.Value) evaluator.Value {
-	// Convert args from evaluator.Value to interp.Value
-	interpArgs := make([]Value, len(args))
-	for idx, arg := range args {
-		interpArgs[idx] = arg
-	}
-
-	return i.callBuiltinFunction(name, interpArgs)
+	return i.callBuiltinFunction(name, convertEvaluatorArgs(args))
 }
 
 // LookupFunction finds a function by name in the function registry.
