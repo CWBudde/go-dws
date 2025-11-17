@@ -1266,3 +1266,631 @@ func (p *Parser) parseExitStatementCursor() *ast.ExitStatement {
 	stmt.EndPos = p.endPosFromToken(p.cursor.Current())
 	return stmt
 }
+
+// ============================================================================
+// Task 2.2.14.5: Cursor-mode for/case statement handlers
+// ============================================================================
+
+// parseForStatementCursor parses a for loop statement in cursor mode.
+// Task 2.2.14.5: For statement migration
+// Syntax:
+//   for <variable> := <start> to|downto <end> [step <step>] do <statement>
+//   for [var] <variable> in <expression> do <statement>
+// PRE: cursor is on FOR token
+// POST: cursor is on last token of body statement
+func (p *Parser) parseForStatementCursor() ast.Statement {
+	forToken := p.cursor.Current()
+
+	// Move past 'for' and parse optional inline var declaration
+	inlineVar := false
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type == lexer.VAR {
+		p.cursor = p.cursor.Advance() // move to 'var'
+		inlineVar = true
+	}
+
+	// Expect loop variable identifier
+	nextToken = p.cursor.Peek(1)
+	if !p.isIdentifierToken(nextToken.Type) {
+		// Use structured error
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrExpectedIdent).
+			WithMessage("expected identifier after 'for'").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpectedString("loop variable name").
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("provide a variable name for the loop").
+			WithParsePhase("for loop").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	p.cursor = p.cursor.Advance() // move to identifier
+	variable := &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.cursor.Current(),
+			},
+		},
+		Value: p.cursor.Current().Literal,
+	}
+
+	// Check if this is a for-in loop (IN) or for-to/downto loop (:=)
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type == lexer.IN {
+		// Parse for-in loop: for [var] x in collection do statement
+		return p.parseForInLoopCursor(forToken, variable, inlineVar)
+	}
+
+	// Parse traditional for-to/downto loop
+	stmt := &ast.ForStatement{
+		BaseNode:  ast.BaseNode{Token: forToken},
+		Variable:  variable,
+		InlineVar: inlineVar,
+	}
+
+	// Expect ':=' assignment operator
+	if nextToken.Type != lexer.ASSIGN {
+		// Use structured error
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingAssign).
+			WithMessage("expected ':=' after for loop variable").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpectedString("':='").
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("add ':=' to assign the start value").
+			WithParsePhase("for loop").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	p.cursor = p.cursor.Advance() // move to ':='
+
+	// Parse the start expression
+	p.cursor = p.cursor.Advance()
+	stmt.Start = p.parseExpressionCursor(LOWEST)
+
+	if stmt.Start == nil {
+		// Use structured error
+		currentToken := p.cursor.Current()
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidExpression).
+			WithMessage("expected start expression in for loop").
+			WithPosition(currentToken.Pos, currentToken.Length()).
+			WithSuggestion("provide a start value for the loop").
+			WithParsePhase("for loop start").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	// Parse direction keyword ('to' or 'downto')
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type != lexer.TO && nextToken.Type != lexer.DOWNTO {
+		// Use structured error
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingTo).
+			WithMessage("expected 'to' or 'downto' in for loop").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpectedString("'to' or 'downto'").
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("add 'to' for ascending or 'downto' for descending loop").
+			WithParsePhase("for loop").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	p.cursor = p.cursor.Advance() // Move to TO or DOWNTO
+
+	// Set direction based on token
+	currentToken := p.cursor.Current()
+	if currentToken.Type == lexer.TO {
+		stmt.Direction = ast.ForTo
+	} else if currentToken.Type == lexer.DOWNTO {
+		stmt.Direction = ast.ForDownto
+	}
+
+	// Parse the end expression
+	p.cursor = p.cursor.Advance()
+	stmt.EndValue = p.parseExpressionCursor(LOWEST)
+
+	if stmt.EndValue == nil {
+		// Use structured error
+		currentToken = p.cursor.Current()
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidExpression).
+			WithMessage("expected end expression in for loop").
+			WithPosition(currentToken.Pos, currentToken.Length()).
+			WithSuggestion("provide an end value for the loop").
+			WithParsePhase("for loop end").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	// Check for optional 'step' keyword
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type == lexer.STEP {
+		p.cursor = p.cursor.Advance() // move to 'step'
+		p.cursor = p.cursor.Advance() // move to step expression
+		stmt.Step = p.parseExpressionCursor(LOWEST)
+
+		if stmt.Step == nil {
+			// Use structured error
+			currentToken = p.cursor.Current()
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidExpression).
+				WithMessage("expected expression after 'step'").
+				WithPosition(currentToken.Pos, currentToken.Length()).
+				WithSuggestion("provide a step value for the loop").
+				WithParsePhase("for loop step").
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+	}
+
+	// Expect 'do' keyword
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type != lexer.DO {
+		// Use structured error
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingDo).
+			WithMessage("expected 'do' after for loop parameters").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpectedString("'do'").
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("add 'do' keyword before the loop body").
+			WithParsePhase("for loop").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	p.cursor = p.cursor.Advance() // move to 'do'
+
+	// Parse the body statement
+	p.cursor = p.cursor.Advance()
+	stmt.Body = p.parseStatementCursor()
+
+	if isNilStatement(stmt.Body) {
+		// Use structured error
+		currentToken = p.cursor.Current()
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidSyntax).
+			WithMessage("expected statement after 'do'").
+			WithPosition(currentToken.Pos, currentToken.Length()).
+			WithSuggestion("add a statement for the loop body").
+			WithParsePhase("for loop body").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	// End position is after the body statement
+	stmt.EndPos = stmt.Body.End()
+
+	return stmt
+}
+
+// parseForInLoopCursor parses a for-in loop statement in cursor mode.
+// Task 2.2.14.5: For-in loop migration
+// Syntax: for [var] <variable> in <expression> do <statement>
+// PRE: cursor is on variable IDENT, forToken and variable already parsed
+// POST: cursor is on last token of body statement
+func (p *Parser) parseForInLoopCursor(forToken lexer.Token, variable *ast.Identifier, inlineVar bool) *ast.ForInStatement {
+	stmt := &ast.ForInStatement{
+		BaseNode:  ast.BaseNode{Token: forToken},
+		Variable:  variable,
+		InlineVar: inlineVar,
+	}
+
+	// Move past variable to 'in' keyword
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.IN {
+		// Use structured error
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingIn).
+			WithMessage("expected 'in' after for loop variable").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpectedString("'in'").
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("add 'in' keyword to specify the collection").
+			WithParsePhase("for-in loop").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	p.cursor = p.cursor.Advance() // move to 'in'
+
+	// Parse the collection expression
+	p.cursor = p.cursor.Advance()
+	stmt.Collection = p.parseExpressionCursor(LOWEST)
+
+	if stmt.Collection == nil {
+		// Use structured error
+		currentToken := p.cursor.Current()
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidExpression).
+			WithMessage("expected expression after 'in'").
+			WithPosition(currentToken.Pos, currentToken.Length()).
+			WithSuggestion("provide a collection to iterate over").
+			WithParsePhase("for-in loop collection").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	// Expect 'do' keyword
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type != lexer.DO {
+		// Use structured error
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingDo).
+			WithMessage("expected 'do' after for-in collection").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpectedString("'do'").
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("add 'do' keyword before the loop body").
+			WithParsePhase("for-in loop").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	p.cursor = p.cursor.Advance() // move to 'do'
+
+	// Parse the body statement
+	p.cursor = p.cursor.Advance()
+	stmt.Body = p.parseStatementCursor()
+
+	if isNilStatement(stmt.Body) {
+		// Use structured error
+		currentToken := p.cursor.Current()
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidSyntax).
+			WithMessage("expected statement after 'do'").
+			WithPosition(currentToken.Pos, currentToken.Length()).
+			WithSuggestion("add a statement for the loop body").
+			WithParsePhase("for-in loop body").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	// End position is after the body statement
+	stmt.EndPos = stmt.Body.End()
+
+	return stmt
+}
+
+// parseCaseStatementCursor parses a case statement in cursor mode.
+// Task 2.2.14.5: Case statement migration
+// Syntax: case <expression> of <value>: <statement>; ... [else <statement>;] end;
+// PRE: cursor is on CASE token
+// POST: cursor is on END token
+func (p *Parser) parseCaseStatementCursor() *ast.CaseStatement {
+	caseToken := p.cursor.Current()
+	stmt := &ast.CaseStatement{
+		BaseNode: ast.BaseNode{Token: caseToken},
+	}
+
+	// Track block context for better error messages
+	p.pushBlockContext("case", caseToken.Pos)
+	defer p.popBlockContext()
+
+	// Move past 'case' and parse the case expression
+	p.cursor = p.cursor.Advance()
+	stmt.Expression = p.parseExpressionCursor(LOWEST)
+
+	if stmt.Expression == nil {
+		// Use structured error
+		currentToken := p.cursor.Current()
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidExpression).
+			WithMessage("expected expression after 'case'").
+			WithPosition(currentToken.Pos, currentToken.Length()).
+			WithSuggestion("provide an expression to match against").
+			WithParsePhase("case statement").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	// Expect 'of' keyword
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.OF {
+		// Use structured error
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingOf).
+			WithMessage("expected 'of' after case expression").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpectedString("'of'").
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("add 'of' keyword before case branches").
+			WithParsePhase("case statement").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	p.cursor = p.cursor.Advance() // move to 'of'
+
+	// Parse case branches
+	stmt.Cases = []*ast.CaseBranch{}
+
+	// Move past 'of'
+	p.cursor = p.cursor.Advance()
+
+	// Parse case branches until we hit 'else' or 'end'
+	for p.cursor.Current().Type != lexer.ELSE &&
+		p.cursor.Current().Type != lexer.END &&
+		p.cursor.Current().Type != lexer.EOF {
+
+		// Skip any leading semicolons
+		if p.cursor.Current().Type == lexer.SEMICOLON {
+			p.cursor = p.cursor.Advance()
+			continue
+		}
+
+		// Save the token of the first value for position tracking
+		firstValueToken := p.cursor.Current()
+		branch := &ast.CaseBranch{
+			Token: firstValueToken, // First value token for position tracking
+		}
+
+		// Parse comma-separated value list (with range support)
+		branch.Values = []ast.Expression{}
+
+		// Parse first value or range
+		value := p.parseExpressionCursor(LOWEST)
+		if value == nil {
+			// Use structured error
+			currentToken := p.cursor.Current()
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidExpression).
+				WithMessage("expected value in case branch").
+				WithPosition(currentToken.Pos, currentToken.Length()).
+				WithSuggestion("provide a value or range to match").
+				WithParsePhase("case branch").
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+
+		// Check for range operator (..)
+		nextToken = p.cursor.Peek(1)
+		if nextToken.Type == lexer.DOTDOT {
+			p.cursor = p.cursor.Advance() // move to '..'
+			rangeToken := p.cursor.Current()
+
+			p.cursor = p.cursor.Advance() // move to end expression
+			endValue := p.parseExpressionCursor(LOWEST)
+			if endValue == nil {
+				// Use structured error
+				currentToken := p.cursor.Current()
+				err := NewStructuredError(ErrKindInvalid).
+					WithCode(ErrInvalidExpression).
+					WithMessage("expected expression after '..' in case range").
+					WithPosition(currentToken.Pos, currentToken.Length()).
+					WithSuggestion("provide the end value for the range").
+					WithParsePhase("case range").
+					Build()
+				p.addStructuredError(err)
+				return nil
+			}
+
+			// Create RangeExpression
+			rangeExpr := &ast.RangeExpression{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: rangeToken,
+					},
+				},
+				Start:    value,
+				RangeEnd: endValue,
+			}
+			branch.Values = append(branch.Values, rangeExpr)
+		} else {
+			// Simple value (not a range)
+			branch.Values = append(branch.Values, value)
+		}
+
+		// Parse additional comma-separated values/ranges
+		for {
+			nextToken = p.cursor.Peek(1)
+			if nextToken.Type != lexer.COMMA {
+				break
+			}
+
+			p.cursor = p.cursor.Advance() // move to comma
+			p.cursor = p.cursor.Advance() // move to next value
+
+			value := p.parseExpressionCursor(LOWEST)
+			if value == nil {
+				// Use structured error
+				currentToken := p.cursor.Current()
+				err := NewStructuredError(ErrKindInvalid).
+					WithCode(ErrInvalidExpression).
+					WithMessage("expected value after comma in case branch").
+					WithPosition(currentToken.Pos, currentToken.Length()).
+					WithSuggestion("provide a value or range to match").
+					WithParsePhase("case branch").
+					Build()
+				p.addStructuredError(err)
+				return nil
+			}
+
+			// Check for range
+			nextToken = p.cursor.Peek(1)
+			if nextToken.Type == lexer.DOTDOT {
+				p.cursor = p.cursor.Advance() // move to '..'
+				rangeToken := p.cursor.Current()
+
+				p.cursor = p.cursor.Advance() // move to end expression
+				endValue := p.parseExpressionCursor(LOWEST)
+				if endValue == nil {
+					// Use structured error
+					currentToken := p.cursor.Current()
+					err := NewStructuredError(ErrKindInvalid).
+						WithCode(ErrInvalidExpression).
+						WithMessage("expected expression after '..' in case range").
+						WithPosition(currentToken.Pos, currentToken.Length()).
+						WithSuggestion("provide the end value for the range").
+						WithParsePhase("case range").
+						Build()
+					p.addStructuredError(err)
+					return nil
+				}
+
+				rangeExpr := &ast.RangeExpression{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: rangeToken,
+						},
+					},
+					Start:    value,
+					RangeEnd: endValue,
+				}
+				branch.Values = append(branch.Values, rangeExpr)
+			} else {
+				branch.Values = append(branch.Values, value)
+			}
+		}
+
+		// Expect ':' after value(s)
+		nextToken = p.cursor.Peek(1)
+		if nextToken.Type != lexer.COLON {
+			// Use structured error
+			err := NewStructuredError(ErrKindMissing).
+				WithCode(ErrMissingColon).
+				WithMessage("expected ':' after case value").
+				WithPosition(nextToken.Pos, nextToken.Length()).
+				WithExpectedString("':'").
+				WithActual(nextToken.Type, nextToken.Literal).
+				WithSuggestion("add ':' before the branch statement").
+				WithParsePhase("case branch").
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+
+		p.cursor = p.cursor.Advance() // move to ':'
+
+		// Parse the statement for this branch
+		p.cursor = p.cursor.Advance()
+		branch.Statement = p.parseStatementCursor()
+
+		if branch.Statement == nil {
+			// Use structured error
+			currentToken := p.cursor.Current()
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidSyntax).
+				WithMessage("expected statement after ':' in case branch").
+				WithPosition(currentToken.Pos, currentToken.Length()).
+				WithSuggestion("add a statement for this case").
+				WithParsePhase("case branch").
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+
+		// Set EndPos to the end of the statement
+		if branch.Statement != nil {
+			branch.EndPos = branch.Statement.End()
+		}
+
+		stmt.Cases = append(stmt.Cases, branch)
+
+		// Move to next token (could be semicolon, else, or end)
+		p.cursor = p.cursor.Advance()
+
+		// Skip any trailing semicolons
+		for p.cursor.Current().Type == lexer.SEMICOLON {
+			p.cursor = p.cursor.Advance()
+		}
+	}
+
+	// Check for optional 'else' branch
+	if p.cursor.Current().Type == lexer.ELSE {
+		p.cursor = p.cursor.Advance() // move past 'else'
+
+		// Parse multiple statements until 'end' is encountered (like repeat-until)
+		// DWScript allows multiple statements in else clause without begin-end
+		block := &ast.BlockStatement{
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()},
+		}
+		block.Statements = []ast.Statement{}
+
+		for p.cursor.Current().Type != lexer.END && p.cursor.Current().Type != lexer.EOF {
+			// Skip semicolons
+			if p.cursor.Current().Type == lexer.SEMICOLON {
+				p.cursor = p.cursor.Advance()
+				continue
+			}
+
+			elseStmt := p.parseStatementCursor()
+			if elseStmt != nil {
+				block.Statements = append(block.Statements, elseStmt)
+			}
+
+			p.cursor = p.cursor.Advance()
+
+			// Skip any semicolons after the statement
+			for p.cursor.Current().Type == lexer.SEMICOLON {
+				p.cursor = p.cursor.Advance()
+			}
+		}
+
+		// If only one statement, use it directly; otherwise use the block
+		if len(block.Statements) == 1 {
+			stmt.Else = block.Statements[0]
+		} else if len(block.Statements) > 1 {
+			stmt.Else = block
+		} else {
+			// Use structured error
+			currentToken := p.cursor.Current()
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidSyntax).
+				WithMessage("expected statement after 'else' in case statement").
+				WithPosition(currentToken.Pos, currentToken.Length()).
+				WithSuggestion("add a statement for the else branch").
+				WithParsePhase("case else").
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+	}
+
+	// Expect 'end' keyword
+	if p.cursor.Current().Type != lexer.END {
+		// Use structured error
+		currentToken := p.cursor.Current()
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingEnd).
+			WithMessage("expected 'end' to close case statement").
+			WithPosition(currentToken.Pos, currentToken.Length()).
+			WithExpectedString("'end'").
+			WithActual(currentToken.Type, currentToken.Literal).
+			WithSuggestion("add 'end' to close the case statement").
+			WithParsePhase("case statement").
+			Build()
+		p.addStructuredError(err)
+		// Synchronize using traditional mode
+		p.syncCursorToTokens()
+		p.useCursor = false
+		p.synchronize([]lexer.TokenType{lexer.END})
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return nil
+	}
+
+	// End position is at the 'end' keyword
+	stmt.EndPos = p.endPosFromToken(p.cursor.Current())
+
+	return stmt
+}

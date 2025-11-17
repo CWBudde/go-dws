@@ -41,22 +41,12 @@ func (p *Parser) parseStatementCursor() ast.Statement {
 		return p.parseRepeatStatementCursor()
 
 	case lexer.FOR:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		stmt := p.parseForStatement()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return stmt
+		// Task 2.2.14.5: Use cursor mode for for statements
+		return p.parseForStatementCursor()
 
 	case lexer.CASE:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		stmt := p.parseCaseStatement()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return stmt
+		// Task 2.2.14.5: Use cursor mode for case statements
+		return p.parseCaseStatementCursor()
 
 	case lexer.BREAK:
 		// Task 2.2.14.8: Use cursor mode for break statements
