@@ -2465,3 +2465,131 @@ func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
 
 	return expression
 }
+
+// parseIsExpressionCursor parses the 'is' operator in cursor mode.
+// Task 2.2.13: Cursor mode version
+// Example: obj is TClass  -> Boolean
+// PRE: cursor is on IS token
+// POST: cursor is on last token of type/expression
+func (p *Parser) parseIsExpressionCursor(left ast.Expression) ast.Expression {
+	isToken := p.cursor.Current()
+	expression := &ast.IsExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: isToken},
+		},
+		Left: left,
+	}
+
+	p.cursor = p.cursor.Advance()
+
+	// For type parsing, fall back to traditional mode since parseTypeExpression
+	// is complex and doesn't have a cursor version yet
+	p.syncCursorToTokens()
+	p.useCursor = false
+
+	// Try to parse as type expression first (speculatively)
+	state := p.saveState()
+	expression.TargetType = p.parseTypeExpression()
+	if expression.TargetType != nil {
+		expression.EndPos = expression.TargetType.End()
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return expression
+	}
+
+	// If type parsing failed, restore state and try as boolean expression
+	p.restoreState(state)
+
+	// Back to cursor mode for expression parsing
+	p.useCursor = true
+	p.syncTokensToCursor()
+
+	// Parse as value expression (boolean comparison)
+	// Use EQUALS precedence to prevent consuming following logical operators
+	expression.Right = p.parseExpressionCursor(EQUALS)
+	if expression.Right == nil {
+		p.addError("expected expression after 'is' operator", ErrInvalidExpression)
+		return expression
+	}
+	expression.EndPos = expression.Right.End()
+
+	return expression
+}
+
+// parseAsExpressionCursor parses the 'as' type casting operator in cursor mode.
+// Task 2.2.13: Cursor mode version
+// Example: obj as IMyInterface
+// PRE: cursor is on AS token
+// POST: cursor is on last token of target type
+func (p *Parser) parseAsExpressionCursor(left ast.Expression) ast.Expression {
+	asToken := p.cursor.Current()
+	expression := &ast.AsExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: asToken},
+		},
+		Left: left,
+	}
+
+	p.cursor = p.cursor.Advance()
+
+	// Fall back to traditional mode for type parsing
+	p.syncCursorToTokens()
+	p.useCursor = false
+
+	// Parse the target type (should be an interface type)
+	expression.TargetType = p.parseTypeExpression()
+	if expression.TargetType == nil {
+		p.addError("expected type after 'as' operator", ErrExpectedType)
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return expression
+	}
+
+	// Set end position based on the target type
+	expression.EndPos = expression.TargetType.End()
+
+	// Return to cursor mode
+	p.useCursor = true
+	p.syncTokensToCursor()
+
+	return expression
+}
+
+// parseImplementsExpressionCursor parses the 'implements' operator in cursor mode.
+// Task 2.2.13: Cursor mode version
+// Example: obj implements IMyInterface  -> Boolean
+// PRE: cursor is on IMPLEMENTS token
+// POST: cursor is on last token of target type
+func (p *Parser) parseImplementsExpressionCursor(left ast.Expression) ast.Expression {
+	implementsToken := p.cursor.Current()
+	expression := &ast.ImplementsExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: implementsToken},
+		},
+		Left: left,
+	}
+
+	p.cursor = p.cursor.Advance()
+
+	// Fall back to traditional mode for type parsing
+	p.syncCursorToTokens()
+	p.useCursor = false
+
+	// Parse the target type (should be an interface type)
+	expression.TargetType = p.parseTypeExpression()
+	if expression.TargetType == nil {
+		p.addError("expected type after 'implements' operator", ErrExpectedType)
+		p.useCursor = true
+		p.syncTokensToCursor()
+		return expression
+	}
+
+	// Set end position based on the target type
+	expression.EndPos = expression.TargetType.End()
+
+	// Return to cursor mode
+	p.useCursor = true
+	p.syncTokensToCursor()
+
+	return expression
+}

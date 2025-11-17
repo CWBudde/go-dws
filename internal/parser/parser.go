@@ -743,6 +743,17 @@ func NewCursorParser(l *lexer.Lexer) *Parser {
 		return p.parseIndexExpressionCursor(left)
 	})
 
+	// Task 2.2.13: Type checking and casting expressions
+	p.registerInfixCursor(lexer.IS, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseIsExpressionCursor(left)
+	})
+	p.registerInfixCursor(lexer.AS, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseAsExpressionCursor(left)
+	})
+	p.registerInfixCursor(lexer.IMPLEMENTS, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseImplementsExpressionCursor(left)
+	})
+
 	// Note: Only infix functions with true cursor implementations are registered above.
 	// When parseExpressionCursor encounters an infix token type without a cursor function,
 	// it will gracefully fall back to traditional mode for that expression subtree.
