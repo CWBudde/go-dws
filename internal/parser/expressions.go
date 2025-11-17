@@ -9,10 +9,25 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
-// parseExpression parses an expression with the given precedence.
+// parseExpression is a dispatcher that routes to the appropriate implementation
+// based on the parser mode (traditional vs cursor).
+//
+// Task 2.2.7: This dispatcher enables dual-mode operation during migration.
+// Eventually (Phase 2.7), only the cursor version will remain.
+func (p *Parser) parseExpression(precedence int) ast.Expression {
+	if p.useCursor {
+		return p.parseExpressionCursor(precedence)
+	}
+	return p.parseExpressionTraditional(precedence)
+}
+
+// parseExpressionTraditional parses an expression with the given precedence (traditional mode).
 // PRE: curToken is first token of expression
 // POST: curToken is last token of expression
-func (p *Parser) parseExpression(precedence int) ast.Expression {
+//
+// This is the original implementation using mutable parser state (curToken/peekToken).
+// Task 2.2.7: Renamed from parseExpression to enable dual-mode operation.
+func (p *Parser) parseExpressionTraditional(precedence int) ast.Expression {
 	prefix := p.prefixParseFns[p.curToken.Type]
 	if prefix == nil {
 		p.noPrefixParseFnError(p.curToken.Type)
@@ -73,6 +88,145 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 	}
 
 	return leftExp
+}
+
+// parseExpressionCursor parses an expression with the given precedence (cursor mode).
+// PRE: cursor is at first token of expression
+// POST: cursor is at last token of expression
+//
+// This is the cursor-based implementation using immutable cursor navigation.
+// It uses registered cursor prefix/infix functions from prefixParseFnsCursor and
+// infixParseFnsCursor maps. When encountering a token type without a cursor
+// implementation, it gracefully falls back to traditional mode for that expression
+// subtree. This allows incremental migration - as more functions are migrated to
+// cursor mode (in Tasks 2.2.10, 2.2.11), cursor coverage will naturally increase.
+//
+// Currently registered cursor functions:
+// - Prefix: IDENT, INT, FLOAT, STRING, TRUE, FALSE
+// - Infix: +, -, *, /, div, mod, shl, shr, sar, =, <>, <, >, <=, >=, and, or, xor, in, ??
+//
+// Task 2.2.7: New implementation for pure functional parsing.
+func (p *Parser) parseExpressionCursor(precedence int) ast.Expression {
+	// 1. Lookup and call prefix function
+	currentToken := p.cursor.Current()
+	prefixFn, ok := p.prefixParseFnsCursor[currentToken.Type]
+	if !ok {
+		// No cursor version - fall back to traditional mode
+		p.syncCursorToTokens()
+		p.useCursor = false
+		result := p.parseExpressionTraditional(precedence)
+		p.useCursor = true
+		return result
+	}
+	leftExp := prefixFn(currentToken)
+
+	// 2. Main precedence climbing loop
+	for {
+		nextToken := p.cursor.Peek(1)
+
+		// Termination condition 1: semicolon
+		if nextToken.Type == lexer.SEMICOLON {
+			break
+		}
+
+		// Get next token's precedence
+		nextPrec := getPrecedence(nextToken.Type)
+
+		// Termination condition 2: precedence
+		// Special case: allow NOT at EQUALS precedence for "not in/is/as"
+		if precedence >= nextPrec && !(nextToken.Type == lexer.NOT && precedence < EQUALS) {
+			break
+		}
+
+		// 3. Special case: "not in/is/as"
+		if nextToken.Type == lexer.NOT && precedence < EQUALS {
+			leftExp = p.parseNotInIsAsCursor(leftExp)
+			if leftExp == nil {
+				// Not a "not in/is/as" pattern, return what we have
+				break
+			}
+			continue
+		}
+
+		// 4. Normal infix handling
+		infixFn, ok := p.infixParseFnsCursor[nextToken.Type]
+		if !ok {
+			// No cursor version - fall back to traditional mode for rest
+			p.syncCursorToTokens()
+			p.useCursor = false
+			result := p.parseExpressionTraditional(precedence)
+			p.useCursor = true
+			return result
+		}
+
+		// Advance to operator
+		p.cursor = p.cursor.Advance()
+		operatorToken := p.cursor.Current()
+
+		// Sync state for infix function (temporary until all infix functions are pure cursor)
+		p.syncCursorToTokens()
+
+		// Call infix function
+		leftExp = infixFn(leftExp, operatorToken)
+	}
+
+	return leftExp
+}
+
+// parseNotInIsAsCursor handles special "not in", "not is", "not as" operators in cursor mode.
+// Returns the wrapped NOT expression if successful, or nil if this is not a "not in/is/as" pattern.
+//
+// Task 2.2.7: Cursor-based implementation using Mark/ResetTo for backtracking.
+func (p *Parser) parseNotInIsAsCursor(leftExp ast.Expression) ast.Expression {
+	// Mark current position for potential backtracking
+	mark := p.cursor.Mark()
+
+	// Advance to NOT token
+	p.cursor = p.cursor.Advance()
+	notToken := p.cursor.Current()
+
+	// Check if next token is IN, IS, or AS
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.IN && nextToken.Type != lexer.IS && nextToken.Type != lexer.AS {
+		// Not a "not in/is/as" pattern, backtrack
+		p.cursor = p.cursor.ResetTo(mark)
+		p.syncCursorToTokens()
+		return nil
+	}
+
+	// This is "not in", "not is", or "not as"
+	// Advance to IN/IS/AS token
+	p.cursor = p.cursor.Advance()
+	operatorToken := p.cursor.Current()
+
+	// Look up infix function for the operator
+	infixFn, ok := p.infixParseFnsCursor[operatorToken.Type]
+	if !ok {
+		// No infix function, backtrack
+		p.cursor = p.cursor.ResetTo(mark)
+		p.syncCursorToTokens()
+		return nil
+	}
+
+	// Sync state for infix function (temporary until all infix functions are pure cursor)
+	p.syncCursorToTokens()
+
+	// Parse the comparison expression
+	comparisonExp := infixFn(leftExp, operatorToken)
+
+	// Wrap in NOT expression
+	notExp := &ast.UnaryExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  notToken,
+				EndPos: comparisonExp.End(),
+			},
+		},
+		Operator: notToken.Literal,
+		Right:    comparisonExp,
+	}
+
+	return notExp
 }
 
 // parseIdentifier parses an identifier.

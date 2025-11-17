@@ -615,7 +615,8 @@ func NewCursorParser(l *lexer.Lexer) *Parser {
 	// allows us to establish the infrastructure for pure functional parsing.
 	// Later tasks will refactor the actual functions to take tokens as parameters.
 
-	// Prefix functions - wrap existing cursor implementations
+	// Prefix functions - wrap existing implementations
+	// Some have cursor versions (parseIdentifierCursor, etc.), others use traditional mode
 	p.registerPrefixCursor(lexer.IDENT, func(tok lexer.Token) ast.Expression {
 		return p.parseIdentifierCursor()
 	})
@@ -634,6 +635,11 @@ func NewCursorParser(l *lexer.Lexer) *Parser {
 	p.registerPrefixCursor(lexer.FALSE, func(tok lexer.Token) ast.Expression {
 		return p.parseBooleanLiteralCursor()
 	})
+
+	// Note: Only functions with true cursor implementations are registered above.
+	// When parseExpressionCursor encounters a token type without a cursor prefix function,
+	// it will gracefully fall back to traditional mode for that expression subtree.
+	// Additional functions will be registered here as they are migrated to cursor mode.
 
 	// Infix functions - wrap existing cursor implementations
 	p.registerInfixCursor(lexer.PLUS, func(left ast.Expression, tok lexer.Token) ast.Expression {
@@ -696,6 +702,11 @@ func NewCursorParser(l *lexer.Lexer) *Parser {
 	p.registerInfixCursor(lexer.QUESTION_QUESTION, func(left ast.Expression, tok lexer.Token) ast.Expression {
 		return p.parseInfixExpressionCursor(left)
 	})
+
+	// Note: Only infix functions with true cursor implementations are registered above.
+	// When parseExpressionCursor encounters an infix token type without a cursor function,
+	// it will gracefully fall back to traditional mode for that expression subtree.
+	// Additional infix functions will be registered here as they are migrated to cursor mode.
 
 	// Synchronize cursor position with curToken/peekToken for backward compatibility
 	// This allows existing parsing functions to work while we migrate incrementally
