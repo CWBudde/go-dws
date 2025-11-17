@@ -144,10 +144,11 @@ type Context interface {
 	// Task 3.7.5: Helper for VarType() function to handle JSON values.
 	GetJSONVarType(value Value) (int64, bool)
 
-	// GetArrayLength returns the number of elements in an array.
+	// GetBuiltinArrayLength returns the number of elements in an array.
 	// Returns (length, true) if the value is an array, (0, false) otherwise.
 	// Task 3.7.7: Helper for Length() function on arrays.
-	GetArrayLength(value Value) (int64, bool)
+	// Note: Renamed from GetArrayLength to avoid conflict with task 3.5.6 adapter method.
+	GetBuiltinArrayLength(value Value) (int64, bool)
 
 	// SetArrayLength resizes a dynamic array to the specified length.
 	// Returns an error if the value is not a dynamic array or the length is invalid.

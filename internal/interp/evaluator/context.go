@@ -320,6 +320,18 @@ func (ctx *ExecutionContext) PopOldValues() map[string]interface{} {
 	return top
 }
 
+// GetOldValue retrieves an old value by name from the current old values map.
+// This is used for 'old' expressions in postconditions.
+// Returns the value and true if found, nil and false otherwise.
+func (ctx *ExecutionContext) GetOldValue(name string) (interface{}, bool) {
+	if len(ctx.oldValuesStack) == 0 {
+		return nil, false
+	}
+	top := ctx.oldValuesStack[len(ctx.oldValuesStack)-1]
+	val, ok := top[name]
+	return val, ok
+}
+
 // Clone creates a shallow copy of the execution context.
 // This is useful when you need to fork execution (e.g., for parallel evaluation).
 // Note: The environment, call stack, and control flow are shared references.

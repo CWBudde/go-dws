@@ -141,6 +141,91 @@ type InterpreterAdapter interface {
 	// GetEnumTypeID returns the type ID for an enum type, or 0 if not found.
 	GetEnumTypeID(enumName string) int
 
+	// ===== Task 3.5.5: Type System Access Methods =====
+
+	// GetType resolves a type by name.
+	// Returns the resolved type and an error if the type is not found.
+	// The lookup is case-insensitive.
+	GetType(name string) (any, error)
+
+	// ResolveType resolves a type from an AST type annotation.
+	// Returns the resolved type and an error if the type cannot be resolved.
+	ResolveType(typeAnnotation *ast.TypeAnnotation) (any, error)
+
+	// IsTypeCompatible checks if a value is compatible with a target type.
+	// This is used for type checking in assignments and parameter passing.
+	IsTypeCompatible(from Value, toTypeName string) bool
+
+	// InferArrayElementType infers the element type from array literal elements.
+	// Returns the inferred type or an error if elements have incompatible types.
+	InferArrayElementType(elements []Value) (any, error)
+
+	// InferRecordType infers the record type name from field values.
+	// Returns the record type name or an error if it cannot be inferred.
+	InferRecordType(fields map[string]Value) (string, error)
+
+	// ConvertValue performs implicit or explicit type conversion.
+	// Returns the converted value or an error if conversion is not possible.
+	ConvertValue(value Value, targetTypeName string) (Value, error)
+
+	// CreateDefaultValue creates a zero/default value for a given type name.
+	// Returns the default value or nil if the type is not recognized.
+	CreateDefaultValue(typeName string) Value
+
+	// IsEnumType checks if a given name refers to an enum type.
+	// The lookup is case-insensitive.
+	IsEnumType(typeName string) bool
+
+	// IsRecordType checks if a given name refers to a record type.
+	// The lookup is case-insensitive.
+	IsRecordType(typeName string) bool
+
+	// IsArrayType checks if a given name refers to an array type.
+	// The lookup is case-insensitive.
+	IsArrayType(typeName string) bool
+
+	// ===== Task 3.5.6: Array and Collection Adapter Methods =====
+
+	// CreateArray creates an array from a list of elements with a specified element type.
+	// Returns the created array value.
+	CreateArray(elementType any, elements []Value) Value
+
+	// CreateDynamicArray allocates a new dynamic array of a given size and element type.
+	// Returns the created array value.
+	CreateDynamicArray(elementType any, size int) Value
+
+	// CreateArrayWithExpectedType creates an array from elements with type-aware construction.
+	// Uses the expected array type for proper element type inference and coercion.
+	CreateArrayWithExpectedType(elements []Value, expectedType any) Value
+
+	// GetArrayElement retrieves an element from an array at the given index.
+	// Performs bounds checking and returns an error if index is out of range.
+	GetArrayElement(array Value, index Value) (Value, error)
+
+	// SetArrayElement sets an element in an array at the given index.
+	// Performs bounds checking and returns an error if index is out of range.
+	SetArrayElement(array Value, index Value, value Value) error
+
+	// GetArrayLength returns the length of an array.
+	// Returns 0 for non-array values.
+	GetArrayLength(array Value) int
+
+	// CreateSet creates a set from a list of elements with a specified element type.
+	// Returns the created set value.
+	CreateSet(elementType any, elements []Value) Value
+
+	// EvaluateSetRange expands a range expression (e.g., 1..10, 'a'..'z') into ordinal values.
+	// Returns a slice of ordinal values or an error if the range cannot be evaluated.
+	EvaluateSetRange(start Value, end Value) ([]int, error)
+
+	// AddToSet adds an element to a set.
+	// Returns an error if the element cannot be added.
+	AddToSet(set Value, element Value) error
+
+	// GetStringChar retrieves a character from a string at the given index (1-based).
+	// Returns an error if index is out of range.
+	GetStringChar(str Value, index Value) (Value, error)
+
 	// Phase 3.5.4 - Phase 2C: Property & Indexing System infrastructure
 	// Property and indexing operations are available through existing infrastructure:
 	//

@@ -459,10 +459,10 @@ func (i *Interpreter) GetJSONVarType(value builtins.Value) (int64, bool) {
 	return typeCode, true
 }
 
-// GetArrayLength returns the number of elements in an array.
+// GetBuiltinArrayLength returns the length of an array for builtin functions.
 // This implements the builtins.Context interface.
 // Task 3.7.7: Helper for Length() function on arrays.
-func (i *Interpreter) GetArrayLength(value builtins.Value) (int64, bool) {
+func (i *Interpreter) GetBuiltinArrayLength(value builtins.Value) (int64, bool) {
 	arrayVal, ok := value.(*ArrayValue)
 	if !ok {
 		return 0, false

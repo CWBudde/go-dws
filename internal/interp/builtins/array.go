@@ -31,7 +31,7 @@ func Length(ctx Context, args []Value) Value {
 	arg := args[0]
 
 	// Handle arrays via Context helper
-	if length, ok := ctx.GetArrayLength(arg); ok {
+	if length, ok := ctx.GetBuiltinArrayLength(arg); ok {
 		// Return integer value
 		return &runtime.IntegerValue{Value: length}
 	}
