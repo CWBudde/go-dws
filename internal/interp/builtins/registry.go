@@ -35,6 +35,9 @@ const (
 	// CategoryArray includes array operations (Length, Copy, Reverse, etc.)
 	CategoryArray Category = "array"
 
+	// CategoryCollections includes higher-order collection functions (Map, Filter, Reduce, etc.)
+	CategoryCollections Category = "collections"
+
 	// CategoryIO includes input/output functions (Print, PrintLn)
 	CategoryIO Category = "io"
 

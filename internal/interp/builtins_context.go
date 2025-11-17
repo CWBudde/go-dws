@@ -2,7 +2,10 @@ package interp
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
+	"strconv"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/interp/builtins"
@@ -454,4 +457,481 @@ func (i *Interpreter) GetJSONVarType(value builtins.Value) (int64, bool) {
 
 	typeCode := jsonKindToVarType(jsonVal.Value.Kind())
 	return typeCode, true
+}
+
+// GetArrayLength returns the number of elements in an array.
+// This implements the builtins.Context interface.
+// Task 3.7.7: Helper for Length() function on arrays.
+func (i *Interpreter) GetArrayLength(value builtins.Value) (int64, bool) {
+	arrayVal, ok := value.(*ArrayValue)
+	if !ok {
+		return 0, false
+	}
+	return int64(len(arrayVal.Elements)), true
+}
+
+// SetArrayLength resizes a dynamic array to the specified length.
+// This implements the builtins.Context interface.
+// Task 3.7.7: Helper for SetLength() function on arrays.
+func (i *Interpreter) SetArrayLength(array builtins.Value, newLength int) error {
+	// Handle arrays
+	arrayVal, ok := array.(*ArrayValue)
+	if !ok {
+		return fmt.Errorf("SetArrayLength() expects array, got %s", array.Type())
+	}
+
+	// Check that it's a dynamic array
+	if arrayVal.ArrayType == nil {
+		return fmt.Errorf("array has no type information")
+	}
+
+	if arrayVal.ArrayType.IsStatic() {
+		return fmt.Errorf("SetArrayLength() can only be used with dynamic arrays, not static arrays")
+	}
+
+	currentLength := len(arrayVal.Elements)
+
+	if newLength != currentLength {
+		if newLength < currentLength {
+			// Truncate the slice
+			arrayVal.Elements = arrayVal.Elements[:newLength]
+		} else {
+			// Extend the slice with nil values
+			additional := make([]Value, newLength-currentLength)
+			arrayVal.Elements = append(arrayVal.Elements, additional...)
+		}
+	}
+
+	return nil
+}
+
+// ArrayCopy creates a deep copy of an array value.
+// This implements the builtins.Context interface.
+// Task 3.7.7: Helper for Copy() function on arrays.
+func (i *Interpreter) ArrayCopy(array builtins.Value) builtins.Value {
+	arrayVal, ok := array.(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "ArrayCopy() expects array, got %s", array.Type())
+	}
+
+	return i.builtinArrayCopy(arrayVal)
+}
+
+// ArrayReverse reverses the elements of an array in place.
+// This implements the builtins.Context interface.
+// Task 3.7.7: Helper for Reverse() function on arrays.
+func (i *Interpreter) ArrayReverse(array builtins.Value) builtins.Value {
+	arrayVal, ok := array.(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "ArrayReverse() expects array, got %s", array.Type())
+	}
+
+	return i.builtinArrayReverse(arrayVal)
+}
+
+// ArraySort sorts the elements of an array in place using default comparison.
+// This implements the builtins.Context interface.
+// Task 3.7.7: Helper for Sort() function on arrays.
+func (i *Interpreter) ArraySort(array builtins.Value) builtins.Value {
+	arrayVal, ok := array.(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "ArraySort() expects array, got %s", array.Type())
+	}
+
+	return i.builtinArraySort(arrayVal)
+}
+
+// EvalFunctionPointer calls a function pointer with the given arguments.
+// This implements the builtins.Context interface.
+// Task 3.7.7: Helper for collection functions (Map, Filter, Reduce, etc.).
+func (i *Interpreter) EvalFunctionPointer(funcPtr builtins.Value, args []builtins.Value) builtins.Value {
+	lambdaVal, ok := funcPtr.(*FunctionPointerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "EvalFunctionPointer() expects function pointer, got %s", funcPtr.Type())
+	}
+
+	return i.callFunctionPointer(lambdaVal, args, i.currentNode)
+}
+
+// GetCallStackString returns a formatted string representation of the current call stack.
+// This implements the builtins.Context interface.
+// Task 3.7.8: Helper for GetStackTrace() function.
+func (i *Interpreter) GetCallStackString() string {
+	return i.callStack.String()
+}
+
+// GetCallStackArray returns the current call stack as an array of records.
+// This implements the builtins.Context interface.
+// Task 3.7.8: Helper for GetCallStack() function.
+func (i *Interpreter) GetCallStackArray() builtins.Value {
+	// Create an array of records
+	elements := make([]Value, len(i.callStack))
+
+	for idx, frame := range i.callStack {
+		// Create a record with FunctionName, Line, Column fields
+		fields := make(map[string]Value)
+		fields["FunctionName"] = &StringValue{Value: frame.FunctionName}
+
+		// Extract line and column from Position
+		if frame.Position != nil {
+			fields["Line"] = &IntegerValue{Value: int64(frame.Position.Line)}
+			fields["Column"] = &IntegerValue{Value: int64(frame.Position.Column)}
+		} else {
+			fields["Line"] = &IntegerValue{Value: 0}
+			fields["Column"] = &IntegerValue{Value: 0}
+		}
+
+		record := &RecordValue{
+			Fields:     fields,
+			RecordType: nil, // No type metadata needed for this simple record
+		}
+
+		elements[idx] = record
+	}
+
+	// Helper to create int pointers
+	lowBound := 0
+	highBound := len(elements) - 1
+
+	// Create and return the array
+	return &ArrayValue{
+		Elements: elements,
+		ArrayType: &types.ArrayType{
+			ElementType: nil, // Variant or unspecified type
+			LowBound:    &lowBound,
+			HighBound:   &highBound,
+		},
+	}
+}
+
+// IsAssigned checks if a value is assigned (not nil).
+// This implements the builtins.Context interface.
+// Task 3.7.8: Helper for Assigned() function.
+func (i *Interpreter) IsAssigned(value builtins.Value) bool {
+	// Handle nil
+	if value == nil {
+		return false
+	}
+
+	// Handle NilValue
+	if _, ok := value.(*NilValue); ok {
+		return false
+	}
+
+	// Handle objects
+	if objVal, ok := value.(*ObjectInstance); ok {
+		return objVal != nil
+	}
+
+	// Handle Variant values - unwrap and check
+	if varVal, ok := value.(*VariantValue); ok {
+		// Unwrap the variant and recursively check
+		return i.IsAssigned(varVal.Value)
+	}
+
+	// All other values are considered assigned
+	return true
+}
+
+// RaiseAssertionFailed raises an EAssertionFailed exception with an optional custom message.
+// This implements the builtins.Context interface.
+// Task 3.7.8: Helper for Assert() function.
+func (i *Interpreter) RaiseAssertionFailed(customMessage string) {
+	// Build the assertion message with position information
+	var message string
+	if i.currentNode != nil {
+		pos := i.currentNode.Pos()
+		message = fmt.Sprintf("Assertion failed [line: %d, column: %d]", pos.Line, pos.Column)
+	} else {
+		message = "Assertion failed"
+	}
+
+	// If custom message provided, append it
+	if customMessage != "" {
+		message = message + " : " + customMessage
+	}
+
+	// Create EAssertionFailed exception
+	// PR #147: Use lowercase key for O(1) case-insensitive lookup
+	assertClass, ok := i.classes[strings.ToLower("EAssertionFailed")]
+	if !ok {
+		// Fallback: raise EAssertionFailed as a simple error if class not found
+		// This should not happen in normal execution
+		i.exception = &ExceptionValue{
+			ClassInfo: nil,
+			Message:   message,
+			Instance:  nil,
+			Position:  nil,
+			CallStack: nil,
+		}
+		return
+	}
+
+	// Create exception instance
+	instance := &ObjectInstance{
+		Class:  assertClass,
+		Fields: make(map[string]Value),
+	}
+
+	// Set the Message field
+	instance.Fields["Message"] = &StringValue{Value: message}
+
+	// Create exception value and set it
+	i.exception = &ExceptionValue{
+		ClassInfo: assertClass,
+		Message:   message,
+		Instance:  instance,
+		Position:  nil,
+		CallStack: nil,
+	}
+}
+
+// GetEnumSuccessor returns the successor of an enum value.
+// This implements the builtins.Context interface.
+// Task 3.7.8: Helper for Succ() function.
+func (i *Interpreter) GetEnumSuccessor(enumVal builtins.Value) (builtins.Value, error) {
+	val, ok := enumVal.(*EnumValue)
+	if !ok {
+		return nil, fmt.Errorf("expected EnumValue, got %T", enumVal)
+	}
+
+	// Normalize to lowercase for case-insensitive lookups
+	enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
+	enumTypeVal, ok := i.env.Get(enumTypeKey)
+	if !ok {
+		return nil, fmt.Errorf("enum type metadata not found for %s", val.TypeName)
+	}
+
+	enumTypeWrapper, ok := enumTypeVal.(*EnumTypeValue)
+	if !ok {
+		return nil, fmt.Errorf("invalid enum type metadata for %s", val.TypeName)
+	}
+
+	enumType := enumTypeWrapper.EnumType
+
+	// Find current value's position in OrderedNames
+	currentPos := -1
+	for idx, name := range enumType.OrderedNames {
+		if name == val.ValueName {
+			currentPos = idx
+			break
+		}
+	}
+
+	if currentPos == -1 {
+		return nil, fmt.Errorf("enum value '%s' not found in type '%s'", val.ValueName, val.TypeName)
+	}
+
+	// Check if we can increment (not at the end)
+	if currentPos >= len(enumType.OrderedNames)-1 {
+		return nil, fmt.Errorf("cannot get successor of maximum enum value")
+	}
+
+	// Get next value
+	nextValueName := enumType.OrderedNames[currentPos+1]
+	nextOrdinal := enumType.Values[nextValueName]
+
+	// Create new enum value
+	return &EnumValue{
+		TypeName:     val.TypeName,
+		ValueName:    nextValueName,
+		OrdinalValue: nextOrdinal,
+	}, nil
+}
+
+// GetEnumPredecessor returns the predecessor of an enum value.
+// This implements the builtins.Context interface.
+// Task 3.7.8: Helper for Pred() function.
+func (i *Interpreter) GetEnumPredecessor(enumVal builtins.Value) (builtins.Value, error) {
+	val, ok := enumVal.(*EnumValue)
+	if !ok {
+		return nil, fmt.Errorf("expected EnumValue, got %T", enumVal)
+	}
+
+	// Normalize to lowercase for case-insensitive lookups
+	enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
+	enumTypeVal, ok := i.env.Get(enumTypeKey)
+	if !ok {
+		return nil, fmt.Errorf("enum type metadata not found for %s", val.TypeName)
+	}
+
+	enumTypeWrapper, ok := enumTypeVal.(*EnumTypeValue)
+	if !ok {
+		return nil, fmt.Errorf("invalid enum type metadata for %s", val.TypeName)
+	}
+
+	enumType := enumTypeWrapper.EnumType
+
+	// Find current value's position in OrderedNames
+	currentPos := -1
+	for idx, name := range enumType.OrderedNames {
+		if name == val.ValueName {
+			currentPos = idx
+			break
+		}
+	}
+
+	if currentPos == -1 {
+		return nil, fmt.Errorf("enum value '%s' not found in type '%s'", val.ValueName, val.TypeName)
+	}
+
+	// Check if we can decrement (not at the beginning)
+	if currentPos <= 0 {
+		return nil, fmt.Errorf("cannot get predecessor of minimum enum value")
+	}
+
+	// Get previous value
+	prevValueName := enumType.OrderedNames[currentPos-1]
+	prevOrdinal := enumType.Values[prevValueName]
+
+	// Create new enum value
+	return &EnumValue{
+		TypeName:     val.TypeName,
+		ValueName:    prevValueName,
+		OrdinalValue: prevOrdinal,
+	}, nil
+}
+
+// ParseInt parses a string to an integer with the specified base (2-36).
+// This implements the builtins.Context interface.
+// Task 3.7.8: Helper for StrToIntDef() function.
+func (i *Interpreter) ParseInt(s string, base int) (int64, bool) {
+	// Use strings.TrimSpace to handle leading/trailing whitespace
+	s = strings.TrimSpace(s)
+
+	// Use strconv.ParseInt for strict parsing
+	intValue, err := strconv.ParseInt(s, base, 64)
+	if err != nil {
+		return 0, false
+	}
+
+	return intValue, true
+}
+
+// ParseFloat parses a string to a float64.
+// This implements the builtins.Context interface.
+// Task 3.7.8: Helper for StrToFloatDef() function.
+func (i *Interpreter) ParseFloat(s string) (float64, bool) {
+	// Use strings.TrimSpace to handle leading/trailing whitespace
+	s = strings.TrimSpace(s)
+
+	// Use strconv.ParseFloat for strict parsing
+	floatValue, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0.0, false
+	}
+
+	return floatValue, true
+}
+
+// FormatString formats a string using Go fmt.Sprintf semantics with DWScript values.
+// This implements the builtins.Context interface.
+// Task 3.7.8: Helper for Format() function.
+func (i *Interpreter) FormatString(format string, args []builtins.Value) (string, error) {
+	// Parse format string to extract format specifiers
+	type formatSpec struct {
+		verb  rune
+		index int
+	}
+	var specs []formatSpec
+	argIndex := 0
+
+	iStr := 0
+	for iStr < len(format) {
+		ch := format[iStr]
+		if ch == '%' {
+			if iStr+1 < len(format) && format[iStr+1] == '%' {
+				// %% - literal percent sign
+				iStr += 2
+				continue
+			}
+			// Parse format specifier
+			iStr++
+			// Skip width/precision/flags
+			for iStr < len(format) {
+				b := format[iStr]
+				if (b >= '0' && b <= '9') || b == '.' || b == '+' || b == '-' || b == ' ' || b == '#' {
+					iStr++
+					continue
+				}
+				break
+			}
+			// Get the verb
+			if iStr < len(format) {
+				verb := rune(format[iStr])
+				if verb == 's' || verb == 'd' || verb == 'f' || verb == 'v' || verb == 'x' || verb == 'X' || verb == 'o' {
+					specs = append(specs, formatSpec{verb: verb, index: argIndex})
+					argIndex++
+				}
+				iStr++
+			}
+		} else {
+			iStr++
+		}
+	}
+
+	// Validate that we have the right number of arguments
+	if len(specs) != len(args) {
+		return "", fmt.Errorf("expects %d arguments for format string, got %d", len(specs), len(args))
+	}
+
+	// Validate types and convert DWScript values to Go interface{} values
+	goArgs := make([]interface{}, len(args))
+	for idx, elem := range args {
+		if idx >= len(specs) {
+			break
+		}
+		spec := specs[idx]
+
+		// Unbox Variant values for Format() function
+		unwrapped := unwrapVariant(elem)
+
+		switch v := unwrapped.(type) {
+		case *IntegerValue:
+			// %d, %x, %X, %o, %v are valid for integers
+			switch spec.verb {
+			case 'd', 'x', 'X', 'o', 'v':
+				goArgs[idx] = v.Value
+			case 's':
+				// Allow integer to string conversion for %s
+				goArgs[idx] = fmt.Sprintf("%d", v.Value)
+			default:
+				return "", fmt.Errorf("cannot use %%%c with Integer value at index %d", spec.verb, idx)
+			}
+		case *FloatValue:
+			// %f, %v are valid for floats
+			switch spec.verb {
+			case 'f', 'v':
+				goArgs[idx] = v.Value
+			case 's':
+				// Allow float to string conversion for %s
+				goArgs[idx] = fmt.Sprintf("%f", v.Value)
+			default:
+				return "", fmt.Errorf("cannot use %%%c with Float value at index %d", spec.verb, idx)
+			}
+		case *StringValue:
+			// %s, %v are valid for strings
+			switch spec.verb {
+			case 's', 'v':
+				goArgs[idx] = v.Value
+			case 'd', 'x', 'X', 'o':
+				// String cannot be used with integer format specifiers
+				return "", fmt.Errorf("cannot use %%%c with String value at index %d", spec.verb, idx)
+			case 'f':
+				// String cannot be used with float format specifiers
+				return "", fmt.Errorf("cannot use %%%c with String value at index %d", spec.verb, idx)
+			default:
+				goArgs[idx] = v.Value
+			}
+		case *BooleanValue:
+			goArgs[idx] = v.Value
+		default:
+			return "", fmt.Errorf("cannot format value of type %s at index %d", unwrapped.Type(), idx)
+		}
+	}
+
+	// Format the string
+	result := fmt.Sprintf(format, goArgs...)
+
+	return result, nil
 }

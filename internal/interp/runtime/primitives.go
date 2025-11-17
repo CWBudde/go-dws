@@ -3,6 +3,9 @@ package runtime
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // ============================================================================
@@ -425,4 +428,161 @@ func (u *UnassignedValue) Equals(other Value) (bool, error) {
 // Copy returns a copy of the unassigned value.
 func (u *UnassignedValue) Copy() Value {
 	return &UnassignedValue{}
+}
+
+// ============================================================================
+// ArrayValue - Runtime representation for array types
+// ============================================================================
+// Task 3.7.7: Moved from internal/interp/value.go to consolidate runtime types.
+
+// ArrayValue represents an array value in DWScript.
+// DWScript supports both static arrays (with fixed bounds) and dynamic arrays (resizable).
+// Examples:
+//   - Static: array[1..10] of Integer
+//   - Dynamic: array of String
+type ArrayValue struct {
+	ArrayType *types.ArrayType // The array type metadata
+	Elements  []Value          // The runtime elements (slice)
+}
+
+// Type returns "ARRAY".
+func (a *ArrayValue) Type() string {
+	return "ARRAY"
+}
+
+// String returns the string representation of the array.
+// Format: [element1, element2, ...] or [] for empty array
+func (a *ArrayValue) String() string {
+	if len(a.Elements) == 0 {
+		return "[]"
+	}
+
+	var sb stringBuilder
+	sb.WriteString("[")
+	for i, elem := range a.Elements {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		if elem != nil {
+			sb.WriteString(elem.String())
+		} else {
+			sb.WriteString("nil")
+		}
+	}
+	sb.WriteString("]")
+	return sb.String()
+}
+
+// stringBuilder is a simple string builder to avoid importing strings package
+type stringBuilder struct {
+	parts []string
+}
+
+func (sb *stringBuilder) WriteString(s string) {
+	sb.parts = append(sb.parts, s)
+}
+
+func (sb *stringBuilder) String() string {
+	result := ""
+	for _, p := range sb.parts {
+		result += p
+	}
+	return result
+}
+
+// ============================================================================
+// FunctionPointerValue - Runtime representation for function/method pointers
+// ============================================================================
+// Task 3.7.7: Moved from internal/interp/value.go to consolidate runtime types.
+
+// FunctionPointerValue represents a function or procedure pointer in DWScript.
+// Task 9.164: Create runtime representation for function pointers.
+// Task 9.221: Extended to support lambda expressions/anonymous methods.
+//
+// Function pointers store a reference to a callable function/procedure along with
+// its closure environment. Method pointers additionally capture the Self object.
+// Lambdas are also represented using this type, with Lambda field set instead of Function.
+//
+// Examples:
+//   - Function pointer: var f: TFunc; f := @MyFunction;
+//   - Method pointer: var m: TMethod; m := @obj.MyMethod; (captures obj as Self)
+//   - Lambda: var f := lambda(x: Integer): Integer begin Result := x * 2; end;
+//
+// NOTE: Closure field uses interface{} to avoid circular import with interp.Environment.
+// At runtime, this will be *Environment.
+type FunctionPointerValue struct {
+	// Function is the AST node of the function/procedure being pointed to
+	// Either Function OR Lambda will be set, never both
+	Function *ast.FunctionDecl
+
+	// Lambda is the AST node of the lambda expression (anonymous method)
+	// Either Function OR Lambda will be set, never both
+	// Task 9.221: Added for lambda/closure support
+	Lambda *ast.LambdaExpression
+
+	// Closure is the environment where the function/lambda was defined
+	// For lambdas, this captures all variables from outer scopes
+	// For functions, this is typically the global environment
+	// Uses interface{} to avoid circular import - will be *Environment at runtime
+	Closure interface{}
+
+	// SelfObject is the object instance for method pointers (nil for regular functions)
+	// When non-nil, this function pointer is a method pointer ("of object")
+	SelfObject Value
+
+	// PointerType is the function pointer type information
+	PointerType *types.FunctionPointerType
+}
+
+// Type returns "FUNCTION_POINTER", "METHOD_POINTER", or "LAMBDA" (closure).
+// Task 9.221: Updated to distinguish lambdas.
+func (f *FunctionPointerValue) Type() string {
+	if f.SelfObject != nil {
+		return "METHOD_POINTER"
+	}
+	if f.Lambda != nil {
+		return "LAMBDA"
+	}
+	return "FUNCTION_POINTER"
+}
+
+// String returns the string representation of the function pointer.
+// Format: @FunctionName, @Object.MethodName, or <lambda> for closures
+// Task 9.221: Updated to handle lambdas.
+func (f *FunctionPointerValue) String() string {
+	// Lambda closures
+	if f.Lambda != nil {
+		return "<lambda>"
+	}
+
+	// Regular function/method pointers
+	if f.Function == nil {
+		return "@<nil>"
+	}
+
+	if f.SelfObject != nil {
+		return "@" + f.SelfObject.String() + "." + f.Function.Name.Value
+	}
+
+	return "@" + f.Function.Name.Value
+}
+
+// ============================================================================
+// ErrorValue - Runtime representation for error values
+// ============================================================================
+// Task 3.7.7: Simple error value type for builtin functions.
+
+// ErrorValue represents an error runtime value returned by builtin functions.
+type ErrorValue struct {
+	Message string
+}
+
+// Type returns "ERROR".
+func (e *ErrorValue) Type() string {
+	return "ERROR"
+}
+
+// String returns the error message.
+func (e *ErrorValue) String() string {
+	return e.Message
 }

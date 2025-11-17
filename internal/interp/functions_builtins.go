@@ -31,8 +31,6 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinPrint(args)
 	case "Ord":
 		return i.builtinOrd(args)
-	case "Integer":
-		return i.builtinInteger(args)
 	case "Length":
 		return i.builtinLength(args)
 	case "Copy":
@@ -53,8 +51,6 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinStrJoin(args)
 	case "StrArrayPack":
 		return i.builtinStrArrayPack(args)
-	case "Format":
-		return i.builtinFormat(args)
 	case "Random":
 		return i.builtinRandom(args)
 	case "Randomize":
@@ -88,10 +84,6 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinFloatToStr(args)
 	case "StrToFloat":
 		return i.builtinStrToFloat(args)
-	case "StrToIntDef":
-		return i.builtinStrToIntDef(args)
-	case "StrToFloatDef":
-		return i.builtinStrToFloatDef(args)
 	case "BoolToStr":
 		return i.builtinBoolToStr(args)
 	case "HexToInt":
@@ -106,10 +98,6 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinSucc(args)
 	case "Pred":
 		return i.builtinPred(args)
-	case "Assert":
-		return i.builtinAssert(args)
-	case "Assigned":
-		return i.builtinAssigned(args)
 	// RTTI functions
 	case "TypeOf":
 		return i.builtinTypeOf(args)
@@ -166,12 +154,6 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	// JSON array length function
 	case "JSONLength":
 		return i.builtinJSONLength(args)
-	// Exception Enhancements - GetStackTrace() built-in
-	case "GetStackTrace":
-		return i.builtinGetStackTrace(args)
-	// Debugging Information - GetCallStack() built-in
-	case "GetCallStack":
-		return i.builtinGetCallStack(args)
 	// Encoding/Escaping functions (Phase 9.17.6)
 	case "StrToHtml":
 		return i.builtinStrToHtml(args)

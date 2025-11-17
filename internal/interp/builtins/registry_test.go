@@ -160,6 +160,86 @@ func (m *mockContext) GetJSONVarType(value Value) (int64, bool) {
 	return 0, false
 }
 
+// Task 3.7.7 Context methods for array and collection functions
+func (m *mockContext) GetArrayLength(value Value) (int64, bool) {
+	// Simple mock - check type string since we can't import ArrayValue
+	if value.Type() == "ARRAY" {
+		// For testing, return a dummy length
+		return 0, true
+	}
+	return 0, false
+}
+
+func (m *mockContext) SetArrayLength(array Value, newLength int) error {
+	// Simple mock - no-op for testing
+	return nil
+}
+
+func (m *mockContext) ArrayCopy(array Value) Value {
+	// Simple mock - return the same value for testing
+	return array
+}
+
+func (m *mockContext) ArrayReverse(array Value) Value {
+	// Simple mock - return nil for testing
+	return &runtime.NilValue{}
+}
+
+func (m *mockContext) ArraySort(array Value) Value {
+	// Simple mock - return nil for testing
+	return &runtime.NilValue{}
+}
+
+func (m *mockContext) EvalFunctionPointer(funcPtr Value, args []Value) Value {
+	// Simple mock - return nil for testing
+	return &runtime.NilValue{}
+}
+
+// Task 3.7.8 Context methods for system functions
+func (m *mockContext) GetCallStackString() string {
+	// Simple mock - return empty string for testing
+	return ""
+}
+
+func (m *mockContext) GetCallStackArray() Value {
+	// Simple mock - return empty array for testing
+	return &runtime.StringValue{Value: "[]"}
+}
+
+func (m *mockContext) IsAssigned(value Value) bool {
+	// Simple mock - return true for non-nil values
+	return value != nil
+}
+
+func (m *mockContext) RaiseAssertionFailed(customMessage string) {
+	// Simple mock - no-op for testing
+}
+
+func (m *mockContext) GetEnumSuccessor(enumVal Value) (Value, error) {
+	// Simple mock - return nil for testing
+	return &runtime.NilValue{}, nil
+}
+
+func (m *mockContext) GetEnumPredecessor(enumVal Value) (Value, error) {
+	// Simple mock - return nil for testing
+	return &runtime.NilValue{}, nil
+}
+
+func (m *mockContext) ParseInt(s string, base int) (int64, bool) {
+	// Simple mock - return 0 for testing
+	return 0, false
+}
+
+func (m *mockContext) ParseFloat(s string) (float64, bool) {
+	// Simple mock - return 0.0 for testing
+	return 0.0, false
+}
+
+func (m *mockContext) FormatString(format string, args []Value) (string, error) {
+	// Simple mock - return empty string for testing
+	return "", nil
+}
+
 func TestNewRegistry(t *testing.T) {
 	r := NewRegistry()
 	if r == nil {

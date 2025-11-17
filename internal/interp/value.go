@@ -839,40 +839,10 @@ func NewSetValue(setType *types.SetType) *SetValue {
 // ============================================================================
 // ArrayValue - Runtime representation for array types
 // ============================================================================
+// Task 3.7.7: This is now an alias to runtime.ArrayValue for backward compatibility.
+// The canonical definition is in internal/interp/runtime/primitives.go.
 
-// ArrayValue represents an array value in DWScript.
-// DWScript supports both static arrays (with fixed bounds) and dynamic arrays (resizable).
-// Examples:
-//   - Static: array[1..10] of Integer
-//   - Dynamic: array of String
-type ArrayValue struct {
-	ArrayType *types.ArrayType // The array type metadata
-	Elements  []Value          // The runtime elements (slice)
-}
-
-// Type returns "ARRAY".
-func (a *ArrayValue) Type() string {
-	return "ARRAY"
-}
-
-// String returns the string representation of the array.
-// Format: [element1, element2, ...] or [] for empty array
-func (a *ArrayValue) String() string {
-	if len(a.Elements) == 0 {
-		return "[]"
-	}
-
-	var elements []string
-	for _, elem := range a.Elements {
-		if elem != nil {
-			elements = append(elements, elem.String())
-		} else {
-			elements = append(elements, "nil")
-		}
-	}
-
-	return "[" + strings.Join(elements, ", ") + "]"
-}
+type ArrayValue = runtime.ArrayValue
 
 // NewArrayValue creates a new ArrayValue with the given array type.
 // For static arrays, pre-allocates elements (initialized to nil).
@@ -913,74 +883,10 @@ func NewArrayValue(arrayType *types.ArrayType) *ArrayValue {
 // ============================================================================
 // FunctionPointerValue - Runtime representation for function/method pointers
 // ============================================================================
+// Task 3.7.7: This is now an alias to runtime.FunctionPointerValue for backward compatibility.
+// The canonical definition is in internal/interp/runtime/primitives.go.
 
-// FunctionPointerValue represents a function or procedure pointer in DWScript.
-// Task 9.164: Create runtime representation for function pointers.
-// Task 9.221: Extended to support lambda expressions/anonymous methods.
-//
-// Function pointers store a reference to a callable function/procedure along with
-// its closure environment. Method pointers additionally capture the Self object.
-// Lambdas are also represented using this type, with Lambda field set instead of Function.
-//
-// Examples:
-//   - Function pointer: var f: TFunc; f := @MyFunction;
-//   - Method pointer: var m: TMethod; m := @obj.MyMethod; (captures obj as Self)
-//   - Lambda: var f := lambda(x: Integer): Integer begin Result := x * 2; end;
-type FunctionPointerValue struct {
-	// Function is the AST node of the function/procedure being pointed to
-	// Either Function OR Lambda will be set, never both
-	Function *ast.FunctionDecl
-
-	// Lambda is the AST node of the lambda expression (anonymous method)
-	// Either Function OR Lambda will be set, never both
-	// Task 9.221: Added for lambda/closure support
-	Lambda *ast.LambdaExpression
-
-	// Closure is the environment where the function/lambda was defined
-	// For lambdas, this captures all variables from outer scopes
-	// For functions, this is typically the global environment
-	Closure *Environment
-
-	// SelfObject is the object instance for method pointers (nil for regular functions)
-	// When non-nil, this function pointer is a method pointer ("of object")
-	SelfObject Value
-
-	// PointerType is the function pointer type information
-	PointerType *types.FunctionPointerType
-}
-
-// Type returns "FUNCTION_POINTER", "METHOD_POINTER", or "LAMBDA" (closure).
-// Task 9.221: Updated to distinguish lambdas.
-func (f *FunctionPointerValue) Type() string {
-	if f.SelfObject != nil {
-		return "METHOD_POINTER"
-	}
-	if f.Lambda != nil {
-		return "LAMBDA"
-	}
-	return "FUNCTION_POINTER"
-}
-
-// String returns the string representation of the function pointer.
-// Format: @FunctionName, @Object.MethodName, or <lambda> for closures
-// Task 9.221: Updated to handle lambdas.
-func (f *FunctionPointerValue) String() string {
-	// Lambda closures
-	if f.Lambda != nil {
-		return "<lambda>"
-	}
-
-	// Regular function/method pointers
-	if f.Function == nil {
-		return "@<nil>"
-	}
-
-	if f.SelfObject != nil {
-		return "@" + f.SelfObject.String() + "." + f.Function.Name.Value
-	}
-
-	return "@" + f.Function.Name.Value
-}
+type FunctionPointerValue = runtime.FunctionPointerValue
 
 // NewFunctionPointerValue creates a new function pointer value.
 // For regular functions, selfObject should be nil.
