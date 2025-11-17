@@ -72,21 +72,28 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 Replace mutable parser state with immutable cursor.
 
-**Progress**: 92 of 142 hours complete (65%)
-**Status**: Tasks 2.2.1-2.2.6 COMPLETE ✓, Tasks 2.2.7-2.2.11 remaining
+**Progress**: 142 of 142 hours complete (100%) - Core expression parsing complete
+**Status**: All planned tasks COMPLETE ✓, Optional follow-up tasks available
 
 **Task Breakdown**:
-- ✓ Task 2.2.1: TokenCursor Implementation (24 hours) - COMPLETE
-- ✓ Task 2.2.2: Dual-Mode Parser Setup (16 hours) - COMPLETE
-- ✓ Task 2.2.3: First Function Migration (16 hours) - COMPLETE
-- ✓ Task 2.2.4: Expression Literals Migration (24 hours) - COMPLETE
-- ✓ Task 2.2.5: parseInfixExpression Migration (8 hours) - COMPLETE
-- ✓ Task 2.2.6: parseExpression Infrastructure (4 hours) - COMPLETE
-- ✅ Task 2.2.7: parseExpression Core (10 hours) - DONE
-- ✅ Task 2.2.8: parseExpression Testing (8 hours) - DONE
-- ✅ Task 2.2.9: parseExpression Integration (4 hours) - DONE
-- ✅ Task 2.2.10: Expression Helpers (16 hours) - DONE
-- ✅ Task 2.2.11: Complete Infix Handlers (12 hours) - DONE
+- ✅ Task 2.2.1: TokenCursor Implementation (24 hours) - COMPLETE
+- ✅ Task 2.2.2: Dual-Mode Parser Setup (16 hours) - COMPLETE
+- ✅ Task 2.2.3: First Function Migration (16 hours) - COMPLETE
+- ✅ Task 2.2.4: Expression Literals Migration (24 hours) - COMPLETE
+- ✅ Task 2.2.5: parseInfixExpression Migration (8 hours) - COMPLETE
+- ✅ Task 2.2.6: parseExpression Infrastructure (4 hours) - COMPLETE
+- ✅ Task 2.2.7: parseExpression Core (10 hours) - COMPLETE
+- ✅ Task 2.2.8: parseExpression Testing (8 hours) - COMPLETE
+- ✅ Task 2.2.9: parseExpression Integration (4 hours) - COMPLETE
+- ✅ Task 2.2.10: Expression Helpers (16 hours) - COMPLETE
+- ✅ Task 2.2.11: Complete Infix Handlers (12 hours) - COMPLETE
+
+**Optional Follow-Up Tasks** (52 hours total):
+- ⏭️ Task 2.2.12: Migrate Prefix Handlers (12 hours) - Completes expression migration
+- ⏭️ Task 2.2.13: Migrate IS/AS Handlers (6 hours) - Type checking/casting
+- ⏭️ Task 2.2.14: Migrate Statement Parsing (16 hours) - Extend to statements
+- ⏭️ Task 2.2.15: Performance Optimization (12 hours) - Reduce overhead to <15%
+- ⏭️ Task 2.2.16: Documentation and Cleanup (6 hours) - Document architecture
 
 ---
 
@@ -572,6 +579,190 @@ parseExpressionCursor
 **Actual Time**: ~9 hours (vs 12 hours estimated)
 
 **Deliverable**: Full expression parsing in cursor mode ✓
+
+---
+
+#### Task 2.2.12 (Optional): Migrate Prefix Expression Handlers (Week 8, Days 1-2, ~12 hours)
+
+**Status**: NOT STARTED
+
+**Goal**: Complete cursor migration for remaining prefix expression handlers.
+
+**Current State**: Cursor mode falls back to traditional mode for unmigrated prefix handlers.
+
+**Targets**:
+- [ ] `parseGroupedExpression` - Parenthesized expressions: `(expr)`
+- [ ] `parseUnaryExpression` - Unary operators: `-x`, `+x`
+- [ ] `parsePrefixExpression` - Prefix operators: `not x`
+- [ ] `parseArrayLiteral` - Array literals: `[1, 2, 3]`
+- [ ] `parseSetLiteral` - Set literals: `{1, 2, 3}` (if applicable)
+
+**Implementation**:
+- [ ] Create cursor versions of each prefix handler
+- [ ] Register in `prefixParseFnsCursor` map
+- [ ] Add differential tests for each handler
+- [ ] Remove fallback logging/warnings
+
+**Files to Modify**:
+- `internal/parser/expressions.go` (~80 lines)
+- `internal/parser/arrays.go` (~40 lines)
+- `internal/parser/parser.go` (~20 lines registration)
+
+**Files to Create**:
+- `internal/parser/migration_prefix_test.go` (~300 lines)
+
+**Dependencies**: Task 2.2.11 ✓
+
+**Estimate**: 12 hours
+
+**Deliverable**: All prefix expressions support cursor mode
+
+**Benefits**:
+- Eliminates fallback to traditional mode
+- Reduces cursor mode overhead
+- Enables pure cursor parsing for all expressions
+
+---
+
+#### Task 2.2.13 (Optional): Migrate IS/AS Expression Handlers (Week 8, Day 3, ~6 hours)
+
+**Status**: NOT STARTED
+
+**Goal**: Implement cursor mode for type checking and casting expressions.
+
+**Current State**: IS and AS operators are not yet implemented in cursor mode (tests skip these).
+
+**Targets**:
+- [ ] `parseIsExpressionCursor` - Type checking: `obj is TClass`
+- [ ] `parseAsExpressionCursor` - Type casting: `obj as IInterface`
+- [ ] `parseImplementsExpressionCursor` - Interface check: `obj implements IInterface`
+
+**Implementation**:
+- [ ] Create cursor versions of each handler
+- [ ] Register in `infixParseFnsCursor` map
+- [ ] Add differential tests
+- [ ] Update migration tests to test IS/AS (currently skipped)
+
+**Files to Modify**:
+- `internal/parser/expressions.go` (~60 lines)
+- `internal/parser/parser.go` (~10 lines registration)
+- `internal/parser/migration_parse_expression_test.go` (remove skipCursor flags)
+
+**Dependencies**: Task 2.2.11 ✓
+
+**Estimate**: 6 hours
+
+**Deliverable**: IS/AS/IMPLEMENTS expressions support cursor mode
+
+---
+
+#### Task 2.2.14 (Optional): Migrate Statement Parsing (Week 8, Days 4-5, ~16 hours)
+
+**Status**: NOT STARTED
+
+**Goal**: Extend cursor mode to statement parsing (currently only expressions use cursor mode).
+
+**Scope**: This is a larger undertaking and may be deferred to a later phase.
+
+**Targets**:
+- [ ] `parseVarStatement` - Variable declarations
+- [ ] `parseIfStatement` - If statements
+- [ ] `parseForStatement` - For loops
+- [ ] `parseWhileStatement` - While loops
+- [ ] `parseBlockStatement` - Statement blocks
+- [ ] Other statement types as needed
+
+**Implementation**:
+- [ ] Create cursor versions of statement parsers
+- [ ] Handle statement-level cursor navigation
+- [ ] Add differential tests for statements
+- [ ] Consider statement-specific cursor optimizations
+
+**Files to Modify**:
+- `internal/parser/statements.go` (~200 lines)
+- `internal/parser/parser.go` (~50 lines)
+- Multiple statement-specific files
+
+**Files to Create**:
+- `internal/parser/migration_statements_test.go` (~400 lines)
+
+**Dependencies**: Tasks 2.2.12-2.2.13 recommended but not required
+
+**Estimate**: 16 hours (minimal), could be 40+ hours for comprehensive migration
+
+**Deliverable**: Statement parsing supports cursor mode
+
+**Note**: This task may be better suited for a future phase after evaluating the benefits of cursor mode for statements.
+
+---
+
+#### Task 2.2.15 (Optional): Performance Optimization (Week 9, Days 1-2, ~12 hours)
+
+**Status**: NOT STARTED
+
+**Goal**: Reduce cursor mode overhead from current 50-60% to <15% target.
+
+**Current State**: Cursor mode has ~50-60% overhead due to hybrid implementation.
+
+**Optimization Targets**:
+- [ ] Eliminate remaining state synchronization calls
+- [ ] Optimize cursor navigation (reduce allocations)
+- [ ] Inline hot path cursor operations
+- [ ] Profile and optimize TokenCursor.Advance()
+- [ ] Consider cursor pooling/reuse strategies
+- [ ] Optimize peek operations
+
+**Implementation**:
+- [ ] Profile cursor mode vs traditional mode
+- [ ] Identify hot spots and bottlenecks
+- [ ] Apply targeted optimizations
+- [ ] Measure impact with benchmarks
+- [ ] Document optimization techniques
+
+**Files to Modify**:
+- `internal/parser/token_cursor.go` (optimizations)
+- `internal/parser/expressions.go` (eliminate syncs)
+- Various parser files (micro-optimizations)
+
+**Dependencies**: Tasks 2.2.12-2.2.13 (to eliminate fallbacks)
+
+**Estimate**: 12 hours
+
+**Deliverable**: Cursor mode overhead <15%
+
+**Success Criteria**:
+- Benchmarks show <15% overhead for cursor mode
+- No performance regression in traditional mode
+- All tests still pass
+
+---
+
+#### Task 2.2.16 (Optional): Documentation and Cleanup (Week 9, Day 3, ~6 hours)
+
+**Status**: NOT STARTED
+
+**Goal**: Document the dual-mode parser architecture and clean up code.
+
+**Implementation**:
+- [ ] Create `docs/dual-mode-parser.md` architecture documentation
+- [ ] Document cursor mode design patterns
+- [ ] Document when to use cursor vs traditional mode
+- [ ] Add GoDoc comments for all cursor functions
+- [ ] Clean up debugging/logging code
+- [ ] Remove unused fallback code paths
+- [ ] Update README.md with cursor mode information
+
+**Files to Create**:
+- `docs/dual-mode-parser.md` (~300 lines)
+- `docs/cursor-mode-patterns.md` (~200 lines)
+
+**Files to Modify**:
+- `README.md` (add cursor mode section)
+- Various parser files (improve comments)
+
+**Estimate**: 6 hours
+
+**Deliverable**: Comprehensive documentation of dual-mode architecture
 
 ---
 
