@@ -46,6 +46,15 @@ func NewEnclosedEnvironment(outer *Environment) *Environment {
 	}
 }
 
+// NewEnclosed creates a new enclosed environment with this environment as the parent.
+// This method is used by EnvironmentAdapter to break the circular import dependency.
+// It allows the evaluator package to create proper scopes without needing to import interp.
+//
+// Phase 3.5.4 - Phase 2D: Added to fix loop variable scoping in evaluator.
+func (e *Environment) NewEnclosed() interface{} {
+	return NewEnclosedEnvironment(e)
+}
+
 // Get retrieves a variable value by name. It searches the current environment
 // first, then recursively searches outer (parent) environments if not found.
 // DWScript is case-insensitive, so names are normalized using ident.Normalize().
