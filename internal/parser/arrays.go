@@ -260,6 +260,77 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 	return result
 }
 
+// Task 2.2.11: parseIndexExpressionCursor - Cursor mode version of parseIndexExpression
+// Parses array/string indexing expressions using cursor navigation.
+// Handles multi-dimensional indexing: arr[i, j, k] → nested IndexExpression
+// PRE: cursor is on LBRACK
+// POST: cursor is on RBRACK
+func (p *Parser) parseIndexExpressionCursor(left ast.Expression) ast.Expression {
+	lbrackToken := p.cursor.Current() // Save the '[' token for error reporting
+
+	indexExpr := &ast.IndexExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: lbrackToken},
+		},
+		Left: left,
+	}
+
+	// Move to index expression
+	p.cursor = p.cursor.Advance()
+
+	// Parse the first index expression
+	indexExpr.Index = p.parseExpressionCursor(LOWEST)
+
+	// Handle comma-separated indices: arr[i, j, k]
+	// Desugar to nested IndexExpression nodes: ((arr[i])[j])[k]
+	result := indexExpr
+	for {
+		nextToken := p.cursor.Peek(1)
+		if nextToken.Type != lexer.COMMA {
+			break
+		}
+
+		p.cursor = p.cursor.Advance() // consume the comma
+		p.cursor = p.cursor.Advance() // move to next index expression
+
+		// Create a new IndexExpression with the previous result as the Left
+		nextIndex := &ast.IndexExpression{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{Token: lbrackToken},
+			},
+			Left:  result,
+			Index: p.parseExpressionCursor(LOWEST),
+		}
+		result = nextIndex
+	}
+
+	// Expect ']'
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.RBRACK {
+		// Use structured error for missing closing bracket
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingRBracket).
+			WithMessage("expected ']' to close array index").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpected(lexer.RBRACK).
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("add ']' to close the array index").
+			WithRelatedPosition(lbrackToken.Pos, "opening '[' here").
+			WithParsePhase("array index expression").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	// Advance to RBRACK
+	p.cursor = p.cursor.Advance()
+
+	// Set end position to after the ']'
+	result.EndPos = p.endPosFromToken(p.cursor.Current()) // cursor is now at RBRACK
+
+	return result
+}
+
 // parseArrayLiteral parses an array literal expression.
 // Syntax:
 //   - [expr1, expr2, expr3]

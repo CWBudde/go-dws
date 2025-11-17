@@ -545,6 +545,98 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 	return memberAccess
 }
 
+// Task 2.2.11: parseMemberAccessCursor - Cursor mode version of parseMemberAccess
+// Parses member access expressions (obj.field, obj.method(), TClass.Create()) using cursor navigation.
+// PRE: cursor is on DOT token
+// POST: cursor is on last token of member access (identifier for field access, RPAREN for method calls)
+func (p *Parser) parseMemberAccessCursor(left ast.Expression) ast.Expression {
+	dotToken := p.cursor.Current() // Save the '.' token
+
+	// Advance to the member name
+	p.cursor = p.cursor.Advance()
+	memberToken := p.cursor.Current()
+
+	// The member name can be an identifier or a keyword (DWScript allows keywords as member names)
+	// But it cannot be operators, numbers, or other invalid tokens
+	if memberToken.Type == lexer.SEMICOLON || memberToken.Type == lexer.INT ||
+		memberToken.Type == lexer.FLOAT || memberToken.Type == lexer.STRING ||
+		memberToken.Type == lexer.LPAREN || memberToken.Type == lexer.RPAREN ||
+		memberToken.Type == lexer.LBRACK || memberToken.Type == lexer.RBRACK ||
+		memberToken.Type == lexer.COMMA || memberToken.Type == lexer.EOF {
+		p.addError("expected identifier after '.'", ErrExpectedIdent)
+		return nil
+	}
+
+	memberName := &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: memberToken,
+			},
+		},
+		Value: memberToken.Literal,
+	}
+
+	// Check if this is a method call (followed by '(')
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type == lexer.LPAREN {
+		// Check if this is object creation: TClass.Create()
+		if ident, ok := left.(*ast.Identifier); ok && memberName.Value == "Create" {
+			// This is a NewExpression
+			p.cursor = p.cursor.Advance() // move to '('
+
+			newExpr := &ast.NewExpression{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: ident.Token,
+					},
+				},
+				ClassName: ident,
+				Arguments: []ast.Expression{},
+			}
+
+			// Parse arguments using cursor version
+			newExpr.Arguments = p.parseExpressionListCursor(lexer.RPAREN)
+			newExpr.EndPos = p.endPosFromToken(p.cursor.Current()) // cursor is now at RPAREN
+
+			return newExpr
+		}
+
+		// Regular method call: obj.Method()
+		p.cursor = p.cursor.Advance() // move to '('
+
+		methodCall := &ast.MethodCallExpression{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: dotToken,
+				},
+			},
+			Object:    left,
+			Method:    memberName,
+			Arguments: []ast.Expression{},
+		}
+
+		// Parse arguments using cursor version
+		methodCall.Arguments = p.parseExpressionListCursor(lexer.RPAREN)
+		methodCall.EndPos = p.endPosFromToken(p.cursor.Current()) // cursor is now at RPAREN
+
+		return methodCall
+	}
+
+	// Otherwise, this is simple member access: obj.field
+	memberAccess := &ast.MemberAccessExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: dotToken,
+			},
+		},
+		Object: left,
+		Member: memberName,
+	}
+	memberAccess.EndPos = memberName.End() // End position is after the member name
+
+	return memberAccess
+}
+
 // parseClassConstantDeclaration parses a constant declaration within a class.
 // Syntax: const Name = Value; or const Name: Type = Value;
 // Also: class const Name = Value;

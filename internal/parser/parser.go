@@ -703,6 +703,17 @@ func NewCursorParser(l *lexer.Lexer) *Parser {
 		return p.parseInfixExpressionCursor(left)
 	})
 
+	// Task 2.2.11: Complex infix expressions (function calls, member access, indexing)
+	p.registerInfixCursor(lexer.LPAREN, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseCallExpressionCursor(left)
+	})
+	p.registerInfixCursor(lexer.DOT, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseMemberAccessCursor(left)
+	})
+	p.registerInfixCursor(lexer.LBRACK, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseIndexExpressionCursor(left)
+	})
+
 	// Note: Only infix functions with true cursor implementations are registered above.
 	// When parseExpressionCursor encounters an infix token type without a cursor function,
 	// it will gracefully fall back to traditional mode for that expression subtree.

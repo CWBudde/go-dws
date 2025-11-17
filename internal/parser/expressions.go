@@ -808,6 +808,34 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	return exp
 }
 
+// Task 2.2.11: parseCallExpressionCursor - Cursor mode version of parseCallExpression
+// Parses function call expressions and typed record literals using cursor navigation.
+// PRE: cursor is on LPAREN
+// POST: cursor is on RPAREN
+func (p *Parser) parseCallExpressionCursor(function ast.Expression) ast.Expression {
+	// Check if this might be a typed record literal
+	// Pattern: Identifier(Identifier:Expression, ...)
+	if ident, ok := function.(*ast.Identifier); ok {
+		// Parse the arguments, but check if they're all colon-based field initializers
+		return p.parseCallOrRecordLiteralCursor(ident)
+	}
+
+	// Normal function call (non-identifier function)
+	lparenToken := p.cursor.Current()
+
+	exp := &ast.CallExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: lparenToken},
+		},
+		Function: function,
+	}
+
+	exp.Arguments = p.parseExpressionListCursor(lexer.RPAREN)
+	exp.EndPos = p.endPosFromToken(p.cursor.Current()) // cursor is now at RPAREN
+
+	return exp
+}
+
 // parseCallOrRecordLiteral parses either a function call or a typed record literal.
 // They have the same syntax initially: Identifier(...)
 // The difference is whether the arguments are field initializers (name: value) or expressions.
