@@ -397,21 +397,21 @@ func (p *Parser) parseParameterList() []*ast.Parameter {
 		return params
 	}
 
-	for {
-		// Parse one parameter group (may have multiple names with same type)
-		groupParams := p.parseParameterGroup()
-		params = append(params, groupParams...)
-
-		if !p.peekTokenIs(lexer.SEMICOLON) {
-			break
-		}
-		p.nextToken() // move to ';'
-		p.nextToken() // move past ';'
-	}
-
-	if !p.expectPeek(lexer.RPAREN) {
-		return params
-	}
+	// Use SeparatedList combinator (Task 2.3.2)
+	p.SeparatedList(SeparatorConfig{
+		Sep:         lexer.SEMICOLON,
+		Term:        lexer.RPAREN,
+		AllowEmpty:  true,
+		RequireTerm: true,
+		ParseItem: func() bool {
+			groupParams := p.parseParameterGroup()
+			if groupParams != nil {
+				params = append(params, groupParams...)
+				return true
+			}
+			return false
+		},
+	})
 
 	return params
 }
@@ -421,114 +421,12 @@ func (p *Parser) parseParameterList() []*ast.Parameter {
 // PRE: curToken is VAR, CONST, LAZY, or first parameter name IDENT
 // POST: curToken is last token of type expression or default value
 func (p *Parser) parseParameterGroup() []*ast.Parameter {
-	params := []*ast.Parameter{}
-
-	// Check for 'const' keyword (pass by const-reference)
-	isConst := false
-	if p.curTokenIs(lexer.CONST) {
-		isConst = true
-		p.nextToken() // move past 'const'
-	}
-
-	// Check for 'lazy' keyword (expression capture)
-	isLazy := false
-	if p.curTokenIs(lexer.LAZY) {
-		isLazy = true
-		p.nextToken() // move past 'lazy'
-	}
-
-	// Check for 'var' keyword (pass by reference)
-	byRef := false
-	if p.curTokenIs(lexer.VAR) {
-		byRef = true
-		p.nextToken() // move past 'var'
-	}
-
-	// Check for mutually exclusive modifiers
-	if (isLazy && byRef) || (isConst && byRef) || (isConst && isLazy) {
-		p.addError("parameter modifiers are mutually exclusive", ErrInvalidSyntax)
-		return nil
-	}
-
-	// Collect parameter names separated by commas
-	names := []*ast.Identifier{}
-
-	for {
-		// Parse parameter name (can be IDENT or contextual keywords like STEP)
-		if !p.isIdentifierToken(p.curToken.Type) {
-			p.addError("expected parameter name", ErrExpectedIdent)
-			return nil
-		}
-
-		names = append(names, &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: p.curToken,
-				},
-			},
-			Value: p.curToken.Literal,
-		})
-
-		// Check if there are more names (comma-separated)
-		if p.peekTokenIs(lexer.COMMA) {
-			p.nextToken() // move to ','
-			p.nextToken() // move past ','
-			continue
-		}
-
-		// No more names, expect ':' and type
-		break
-	}
-
-	// Expect ':' and type
-	if !p.expectPeek(lexer.COLON) {
-		return nil
-	}
-
-	// Parse type expression (can be simple type, function pointer, or array type)
-	p.nextToken() // move past COLON to type expression start token
-	typeExpr := p.parseTypeExpression()
-	if typeExpr == nil {
-		p.addError("expected type expression after ':'", ErrExpectedType)
-		return nil
-	}
-
-	// Check for default value (optional parameter)
-	// Syntax: param: Type = defaultValue
-	var defaultValue ast.Expression
-	if p.peekTokenIs(lexer.EQ) {
-		// Validate that optional parameters don't have modifiers (lazy, var, const)
-		if isLazy || byRef || isConst {
-			p.addError("optional parameters cannot have lazy, var, or const modifiers", ErrInvalidSyntax)
-			return nil
-		}
-
-		p.nextToken() // move to '='
-		p.nextToken() // move past '=' to expression
-
-		// Parse default value expression
-		defaultValue = p.parseExpression(LOWEST)
-		if defaultValue == nil {
-			p.addError("expected default value expression after '='", ErrInvalidExpression)
-			return nil
-		}
-	}
-
-	// Create a parameter for each name with the same type
-	for _, name := range names {
-		param := &ast.Parameter{
-			Token:        name.Token,
-			Name:         name,
-			Type:         typeExpr,
-			DefaultValue: defaultValue,
-			IsLazy:       isLazy,
-			ByRef:        byRef,
-			IsConst:      isConst,
-		}
-		params = append(params, param)
-	}
-
-	return params
+	// Use the ParameterGroup combinator (Task 2.3.3)
+	return p.ParameterGroup(ParameterGroupConfig{
+		AllowModifiers: true,
+		AllowDefaults:  true,
+		ErrorContext:   "function parameter",
+	})
 }
 
 // parseParameterListAtToken parses a full parameter list with names when already

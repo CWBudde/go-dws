@@ -69,28 +69,20 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 		unitDecl.FinalSection = p.parseFinalizationSection()
 	}
 
-	// 'end.' is optional - unit can end at EOF or with explicit 'end.'
-	if p.curTokenIs(lexer.END) {
-		// Expect '.' after 'end'
-		if !p.expectPeek(lexer.DOT) {
-			p.addError("expected '.' after 'end' in unit declaration", ErrUnexpectedToken)
-			return nil
-		}
-		// Set end position to the '.' token
-		unitDecl.EndPos = p.endPosFromToken(p.curToken)
-	} else if p.curTokenIs(lexer.EOF) {
-		// Unit ends at EOF without explicit 'end.'
-		unitDecl.EndPos = p.endPosFromToken(p.curToken)
-	} else {
-		// If we have implementation section, set end position from it
-		if unitDecl.ImplementationSection != nil {
-			unitDecl.EndPos = unitDecl.ImplementationSection.End()
-		} else if unitDecl.InterfaceSection != nil {
-			unitDecl.EndPos = unitDecl.InterfaceSection.End()
-		} else {
-			unitDecl.EndPos = unitDecl.Name.End()
-		}
+	// Expect 'end.' to close the unit
+	if !p.curTokenIs(lexer.END) {
+		p.addError("expected 'end' to close unit declaration", ErrMissingEnd)
+		return nil
 	}
+
+	// Expect '.' after 'end'
+	if !p.expectPeek(lexer.DOT) {
+		p.addError("expected '.' after 'end' in unit declaration", ErrUnexpectedToken)
+		return nil
+	}
+
+	// Set end position to the '.' token
+	unitDecl.EndPos = p.endPosFromToken(p.curToken)
 
 	return unitDecl
 }
