@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -25,7 +26,7 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 
 	//  Check for duplicate property names within class
 	for existingName := range classType.Properties {
-		if strings.EqualFold(existingName, propName) {
+		if ident.Equal(existingName, propName) {
 			a.addError("duplicate property '%s' in class '%s' at %s",
 				propName, classType.Name, prop.Token.Pos.String())
 			return
@@ -439,7 +440,7 @@ func (a *Analyzer) getConstantType(classType *types.ClassType, constantName stri
 	for current != nil {
 		// Case-insensitive constant lookup
 		for existingName, constType := range current.ConstantTypes {
-			if strings.EqualFold(existingName, constantName) {
+			if ident.Equal(existingName, constantName) {
 				return constType, true
 			}
 		}

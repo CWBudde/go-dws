@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // FunctionRegistry manages function declarations including overloads and
@@ -20,10 +21,10 @@ import (
 // - Qualified name support (Unit.Function)
 // - Efficient lookup operations
 type FunctionRegistry struct {
-	// functions maps lowercase function names to overload lists
+	// functions maps normalized function names to overload lists
 	functions map[string][]*FunctionEntry
 
-	// qualifiedFunctions maps "unitname.functionname" (lowercase) to overload lists
+	// qualifiedFunctions maps "unitname.functionname" (normalized) to overload lists
 	// This supports explicit unit qualification (e.g., Math.Abs)
 	qualifiedFunctions map[string][]*FunctionEntry
 }
@@ -62,7 +63,7 @@ func (r *FunctionRegistry) Register(name string, fn *ast.FunctionDecl) {
 		Name:     name,
 	}
 
-	key := strings.ToLower(name)
+	key := ident.Normalize(name)
 	r.functions[key] = append(r.functions[key], entry)
 }
 
@@ -81,18 +82,18 @@ func (r *FunctionRegistry) RegisterWithUnit(unitName, functionName string, fn *a
 	}
 
 	// Register in global namespace
-	funcKey := strings.ToLower(functionName)
+	funcKey := ident.Normalize(functionName)
 	r.functions[funcKey] = append(r.functions[funcKey], entry)
 
 	// Register in qualified namespace
-	qualifiedKey := strings.ToLower(unitName + "." + functionName)
+	qualifiedKey := ident.Normalize(unitName + "." + functionName)
 	r.qualifiedFunctions[qualifiedKey] = append(r.qualifiedFunctions[qualifiedKey], entry)
 }
 
 // Lookup returns all overloads for the given function name.
 // The lookup is case-insensitive. Returns nil if no functions found.
 func (r *FunctionRegistry) Lookup(name string) []*ast.FunctionDecl {
-	entries := r.functions[strings.ToLower(name)]
+	entries := r.functions[ident.Normalize(name)]
 	if len(entries) == 0 {
 		return nil
 	}
@@ -107,7 +108,7 @@ func (r *FunctionRegistry) Lookup(name string) []*ast.FunctionDecl {
 // LookupQualified returns all overloads for a qualified function name (Unit.Function).
 // The lookup is case-insensitive. Returns nil if no functions found.
 func (r *FunctionRegistry) LookupQualified(unitName, functionName string) []*ast.FunctionDecl {
-	qualifiedKey := strings.ToLower(unitName + "." + functionName)
+	qualifiedKey := ident.Normalize(unitName + "." + functionName)
 	entries := r.qualifiedFunctions[qualifiedKey]
 	if len(entries) == 0 {
 		return nil
@@ -123,14 +124,14 @@ func (r *FunctionRegistry) LookupQualified(unitName, functionName string) []*ast
 // Exists checks if any function with the given name exists in the registry.
 // The check is case-insensitive.
 func (r *FunctionRegistry) Exists(name string) bool {
-	_, exists := r.functions[strings.ToLower(name)]
+	_, exists := r.functions[ident.Normalize(name)]
 	return exists
 }
 
 // ExistsQualified checks if a qualified function exists (Unit.Function).
 // The check is case-insensitive.
 func (r *FunctionRegistry) ExistsQualified(unitName, functionName string) bool {
-	qualifiedKey := strings.ToLower(unitName + "." + functionName)
+	qualifiedKey := ident.Normalize(unitName + "." + functionName)
 	_, exists := r.qualifiedFunctions[qualifiedKey]
 	return exists
 }
@@ -138,18 +139,18 @@ func (r *FunctionRegistry) ExistsQualified(unitName, functionName string) bool {
 // GetOverloadCount returns the number of overloads for the given function name.
 // Returns 0 if the function doesn't exist.
 func (r *FunctionRegistry) GetOverloadCount(name string) int {
-	return len(r.functions[strings.ToLower(name)])
+	return len(r.functions[ident.Normalize(name)])
 }
 
 // GetOverloadCountQualified returns the number of overloads for a qualified function.
 // Returns 0 if the function doesn't exist.
 func (r *FunctionRegistry) GetOverloadCountQualified(unitName, functionName string) int {
-	qualifiedKey := strings.ToLower(unitName + "." + functionName)
+	qualifiedKey := ident.Normalize(unitName + "." + functionName)
 	return len(r.qualifiedFunctions[qualifiedKey])
 }
 
 // GetAllFunctions returns a map of all registered functions.
-// The map uses lowercase keys and contains all overloads for each function.
+// The map uses normalized keys and contains all overloads for each function.
 // The returned map should not be modified directly.
 func (r *FunctionRegistry) GetAllFunctions() map[string][]*ast.FunctionDecl {
 	result := make(map[string][]*ast.FunctionDecl, len(r.functions))
@@ -173,9 +174,9 @@ func (r *FunctionRegistry) GetFunctionNames() []string {
 	for _, entries := range r.functions {
 		if len(entries) > 0 {
 			name := entries[0].Name
-			if !seen[strings.ToLower(name)] {
+			if !seen[ident.Normalize(name)] {
 				names = append(names, name)
-				seen[strings.ToLower(name)] = true
+				seen[ident.Normalize(name)] = true
 			}
 		}
 	}
@@ -184,20 +185,20 @@ func (r *FunctionRegistry) GetFunctionNames() []string {
 }
 
 // GetFunctionsInUnit returns all function names that belong to a specific unit.
-// Returns a map of lowercase function names to overload lists.
+// Returns a map of normalized function names to overload lists.
 func (r *FunctionRegistry) GetFunctionsInUnit(unitName string) map[string][]*ast.FunctionDecl {
 	result := make(map[string][]*ast.FunctionDecl)
-	unitLower := strings.ToLower(unitName)
+	unitNormalized := ident.Normalize(unitName)
 
 	for _, entries := range r.functions {
 		var unitFuncs []*ast.FunctionDecl
 		for _, entry := range entries {
-			if strings.ToLower(entry.UnitName) == unitLower {
+			if ident.Normalize(entry.UnitName) == unitNormalized {
 				unitFuncs = append(unitFuncs, entry.Decl)
 			}
 		}
 		if len(unitFuncs) > 0 && len(entries) > 0 {
-			funcKey := strings.ToLower(entries[0].Name)
+			funcKey := ident.Normalize(entries[0].Name)
 			result[funcKey] = unitFuncs
 		}
 	}
@@ -231,14 +232,14 @@ func (r *FunctionRegistry) Clear() {
 // The removal is case-insensitive.
 // Returns true if the function was found and removed, false otherwise.
 func (r *FunctionRegistry) RemoveFunction(name string) bool {
-	key := strings.ToLower(name)
+	key := ident.Normalize(name)
 	if _, exists := r.functions[key]; exists {
 		delete(r.functions, key)
 
 		// Also remove from qualified namespace
 		for qualKey := range r.qualifiedFunctions {
 			parts := strings.Split(qualKey, ".")
-			if len(parts) == 2 && strings.ToLower(parts[1]) == key {
+			if len(parts) == 2 && ident.Normalize(parts[1]) == key {
 				delete(r.qualifiedFunctions, qualKey)
 			}
 		}
@@ -270,7 +271,7 @@ func (r *FunctionRegistry) FindFunctionsByParameterCount(paramCount int) map[str
 // GetFunctionMetadata returns metadata about a function without returning the AST.
 // This is useful for introspection without pulling in full declarations.
 func (r *FunctionRegistry) GetFunctionMetadata(name string) []FunctionMetadata {
-	entries := r.functions[strings.ToLower(name)]
+	entries := r.functions[ident.Normalize(name)]
 	if len(entries) == 0 {
 		return nil
 	}
@@ -299,7 +300,7 @@ type FunctionMetadata struct {
 // This is a helper for semantic analysis.
 // Returns nil if no conflicts, or an error describing the conflict.
 func (r *FunctionRegistry) ValidateNoConflicts(name string, paramCount int, hasOverloadDirective bool) error {
-	entries := r.functions[strings.ToLower(name)]
+	entries := r.functions[ident.Normalize(name)]
 
 	if len(entries) == 0 {
 		// No existing function, no conflict

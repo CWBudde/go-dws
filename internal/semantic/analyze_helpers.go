@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -15,7 +16,7 @@ import (
 // Task 9.217: Support case-insensitive helper property lookup
 func findPropertyCaseInsensitive(props map[string]*types.PropertyInfo, name string) *types.PropertyInfo {
 	for key, prop := range props {
-		if strings.EqualFold(key, name) {
+		if ident.Equal(key, name) {
 			return prop
 		}
 	}
@@ -26,7 +27,7 @@ func findPropertyCaseInsensitive(props map[string]*types.PropertyInfo, name stri
 // Task 9.217: Support case-insensitive helper method lookup
 func findMethodCaseInsensitive(methods map[string]*types.FunctionType, name string) *types.FunctionType {
 	for key, method := range methods {
-		if strings.EqualFold(key, name) {
+		if ident.Equal(key, name) {
 			return method
 		}
 	}

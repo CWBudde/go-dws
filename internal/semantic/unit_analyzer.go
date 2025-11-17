@@ -6,6 +6,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // AnalyzeUnit performs semantic analysis on a unit declaration without dependencies.
@@ -254,7 +255,7 @@ func (a *Analyzer) validateFunctionSignatureMatch(interfaceDecl, implDecl *ast.F
 		implParam := implDecl.Parameters[i]
 
 		// Compare types (case-insensitive)
-		if !strings.EqualFold(getTypeExpressionName(interfaceParam.Type), getTypeExpressionName(implParam.Type)) {
+		if !ident.Equal(getTypeExpressionName(interfaceParam.Type), getTypeExpressionName(implParam.Type)) {
 			return fmt.Errorf("parameter %d type mismatch: interface has '%s', implementation has '%s'",
 				i+1, getTypeExpressionName(interfaceParam.Type), getTypeExpressionName(implParam.Type))
 		}
@@ -262,7 +263,7 @@ func (a *Analyzer) validateFunctionSignatureMatch(interfaceDecl, implDecl *ast.F
 
 	// Check return type
 	if interfaceDecl.ReturnType != nil && implDecl.ReturnType != nil {
-		if !strings.EqualFold(getTypeExpressionName(interfaceDecl.ReturnType), getTypeExpressionName(implDecl.ReturnType)) {
+		if !ident.Equal(getTypeExpressionName(interfaceDecl.ReturnType), getTypeExpressionName(implDecl.ReturnType)) {
 			return fmt.Errorf("return type mismatch: interface has '%s', implementation has '%s'",
 				getTypeExpressionName(interfaceDecl.ReturnType), getTypeExpressionName(implDecl.ReturnType))
 		}

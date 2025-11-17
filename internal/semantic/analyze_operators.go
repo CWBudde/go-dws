@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -83,7 +84,7 @@ func (a *Analyzer) analyzeOperatorDecl(decl *ast.OperatorDecl) {
 		}
 
 		kind := types.ConversionExplicit
-		if strings.EqualFold(decl.OperatorSymbol, "implicit") {
+		if ident.Equal(decl.OperatorSymbol, "implicit") {
 			kind = types.ConversionImplicit
 		}
 
@@ -193,7 +194,7 @@ func (a *Analyzer) registerClassOperators(classType *types.ClassType, decl *ast.
 		}
 
 		if !includesClass {
-			if strings.EqualFold(opDecl.OperatorSymbol, "in") {
+			if ident.Equal(opDecl.OperatorSymbol, "in") {
 				operandTypes = append(operandTypes, classType)
 			} else {
 				operandTypes = append([]types.Type{classType}, operandTypes...)

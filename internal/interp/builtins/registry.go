@@ -2,8 +2,9 @@ package builtins
 
 import (
 	"sort"
-	"strings"
 	"sync"
+
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // Category represents a category of built-in functions.
@@ -64,7 +65,7 @@ type FunctionInfo struct {
 type Registry struct {
 	mu sync.RWMutex
 
-	// functions maps normalized (lowercase) names to FunctionInfo
+	// functions maps normalized names to FunctionInfo
 	functions map[string]*FunctionInfo
 
 	// categories maps category names to lists of function names
@@ -87,7 +88,7 @@ func (r *Registry) Register(name string, fn BuiltinFunc, category Category, desc
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	normalizedName := strings.ToLower(name)
+	normalizedName := ident.Normalize(name)
 
 	// Check if already registered to prevent duplicate category entries
 	if _, exists := r.functions[normalizedName]; exists {
@@ -108,7 +109,7 @@ func (r *Registry) Register(name string, fn BuiltinFunc, category Category, desc
 		Description: description,
 	}
 
-	// Store with normalized (lowercase) key for case-insensitive lookup
+	// Store with normalized key for case-insensitive lookup
 	r.functions[normalizedName] = info
 
 	// Add to category list (only for new registrations)
@@ -134,7 +135,7 @@ func (r *Registry) Lookup(name string) (BuiltinFunc, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	normalizedName := strings.ToLower(name)
+	normalizedName := ident.Normalize(name)
 	if info, ok := r.functions[normalizedName]; ok {
 		return info.Function, true
 	}
@@ -147,7 +148,7 @@ func (r *Registry) Get(name string) (*FunctionInfo, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	normalizedName := strings.ToLower(name)
+	normalizedName := ident.Normalize(name)
 	info, ok := r.functions[normalizedName]
 	return info, ok
 }
@@ -162,7 +163,7 @@ func (r *Registry) GetByCategory(category Category) []*FunctionInfo {
 	result := make([]*FunctionInfo, 0, len(names))
 
 	for _, name := range names {
-		normalizedName := strings.ToLower(name)
+		normalizedName := ident.Normalize(name)
 		if info, ok := r.functions[normalizedName]; ok {
 			result = append(result, info)
 		}
@@ -231,7 +232,7 @@ func (r *Registry) Has(name string) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	normalizedName := strings.ToLower(name)
+	normalizedName := ident.Normalize(name)
 	_, ok := r.functions[normalizedName]
 	return ok
 }

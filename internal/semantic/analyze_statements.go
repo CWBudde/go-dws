@@ -1,11 +1,10 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -242,7 +241,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 		// Special case: In DWScript, you can assign to the function name to set the return value
 		// Check if we're inside a function and the target matches the function name
-		if a.currentFunction != nil && strings.EqualFold(target.Value, a.currentFunction.Name.Value) {
+		if a.currentFunction != nil && ident.Equal(target.Value, a.currentFunction.Name.Value) {
 			// Assigning to function name - treat it as assigning to Result
 			if a.currentFunction.ReturnType == nil {
 				a.addError("cannot assign to procedure name '%s' (procedures have no return value) at %s",
@@ -300,7 +299,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			// Also search parent class hierarchy
 			for class := a.currentClass; class != nil; class = class.Parent {
 				for propName, propInfo := range class.Properties {
-					if strings.EqualFold(propName, target.Value) {
+					if ident.Equal(propName, target.Value) {
 						// Check if property is writable
 						if propInfo.WriteKind == types.PropAccessNone {
 							a.addError("property '%s' is read-only at %s", target.Value, stmt.Token.Pos.String())
