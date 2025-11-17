@@ -69,6 +69,18 @@ type (
 	// TypeMetaValue represents a type reference in DWScript.
 	// Moved to runtime.TypeMetaValue in Phase 3.5.4.
 	TypeMetaValue = runtime.TypeMetaValue
+
+	// SetValue represents a set value in DWScript.
+	// Moved to runtime.SetValue in Phase 3.5.4.
+	SetValue = runtime.SetValue
+
+	// IntRange represents an integer range for lazy set storage.
+	// Moved to runtime.IntRange in Phase 3.5.4.
+	IntRange = runtime.IntRange
+
+	// ArrayValue represents an array value in DWScript.
+	// Moved to runtime.ArrayValue in Phase 3.5.4.
+	ArrayValue = runtime.ArrayValue
 )
 
 // ============================================================================
@@ -478,6 +490,13 @@ func NewNullValue() Value {
 	return &NullValue{}
 }
 
+// NewSetValue creates a new empty SetValue with the given set type.
+// Task 9.8: Initializes the appropriate storage backend (bitmask or map).
+// Phase 3.5.4: Forwarding function to runtime.NewSetValue.
+func NewSetValue(setType *types.SetType) *SetValue {
+	return runtime.NewSetValue(setType)
+}
+
 // NewUnassignedValue creates a new UnassignedValue.
 // Task 9.4.1: Constructor for variant Unassigned value.
 func NewUnassignedValue() Value {
@@ -610,237 +629,25 @@ func GoBool(v Value) (bool, error) {
 	return false, fmt.Errorf("value is not a boolean: %s", v.Type())
 }
 
-// ============================================================================
-// SetValue - Runtime representation for set types
-// ============================================================================
-
-// SetValue represents a set value in DWScript.
-// Sets are based on enum types and use hybrid storage for efficiency.
-// Task 9.8: Support both small and large enums:
-//   - Small enums (≤64 values): uint64 bitset (fast, 8 bytes)
-//   - Large enums (>64 values): map[int]bool (unlimited size)
-//
-// The storage strategy is determined by SetType.StorageKind.
-// IntRange represents a lazy integer range in a set (e.g., 1..100000000)
-// Stored without expanding to individual values for memory efficiency.
-type IntRange struct {
-	Start int
-	End   int
-}
-
-type SetValue struct {
-	SetType  *types.SetType
-	MapStore map[int]bool
-	Ranges   []IntRange
-	Elements uint64
-}
-
-// Type returns "SET".
-func (s *SetValue) Type() string {
-	return "SET"
-}
-
-// String returns the string representation of the set.
-// Format: [element1, element2, ...] or [] for empty set
-// Task 9.8: Works with both bitmask and map storage.
-func (s *SetValue) String() string {
-	// Quick check for empty set (both storage types)
-	if s.SetType.StorageKind == types.SetStorageBitmask && s.Elements == 0 {
-		return "[]"
-	}
-	if s.SetType.StorageKind == types.SetStorageMap && len(s.MapStore) == 0 {
-		return "[]"
-	}
-
-	var elements []string
-
-	// Task 9.226: Handle different element types for display
-	if s.SetType != nil && s.SetType.ElementType != nil {
-		// For enum sets, show enum names in order
-		if enumType, ok := s.SetType.ElementType.(*types.EnumType); ok {
-			for _, name := range enumType.OrderedNames {
-				ordinal := enumType.Values[name]
-				if s.HasElement(ordinal) {
-					elements = append(elements, name)
-				}
-			}
-		} else {
-			// For non-enum sets (Integer, String, Boolean), show ordinal values
-			// Collect ordinals that are in the set
-			ordinals := make([]int, 0)
-
-			switch s.SetType.StorageKind {
-			case types.SetStorageBitmask:
-				// Extract ordinals from bitmask
-				for i := 0; i < 64; i++ {
-					if s.HasElement(i) {
-						ordinals = append(ordinals, i)
-					}
-				}
-			case types.SetStorageMap:
-				// Extract ordinals from map
-				for ordinal := range s.MapStore {
-					ordinals = append(ordinals, ordinal)
-				}
-				sort.Ints(ordinals)
-			}
-
-			// Convert ordinals to strings based on element type
-			for _, ord := range ordinals {
-				elements = append(elements, fmt.Sprintf("%d", ord))
-			}
-		}
-	}
-
-	if len(elements) == 0 {
-		return "[]"
-	}
-
-	return "[" + strings.Join(elements, ", ") + "]"
-}
-
-// HasElement checks if an element with the given ordinal value is in the set.
-// Task 9.8: Supports both bitmask and map storage.
-// Also checks lazy ranges for large integer ranges.
-func (s *SetValue) HasElement(ordinal int) bool {
-	if ordinal < 0 {
-		return false // Negative ordinals are invalid
-	}
-
-	// First check lazy ranges (most common for large sets)
-	for _, r := range s.Ranges {
-		if r.Start <= r.End {
-			// Forward range
-			if ordinal >= r.Start && ordinal <= r.End {
-				return true
-			}
-		} else {
-			// Reverse range
-			if ordinal >= r.End && ordinal <= r.Start {
-				return true
-			}
-		}
-	}
-
-	// Choose storage backend based on set type
-	switch s.SetType.StorageKind {
-	case types.SetStorageBitmask:
-		if ordinal >= 64 {
-			return false // Out of range for bitset
-		}
-		mask := uint64(1) << uint(ordinal)
-		return (s.Elements & mask) != 0
-
-	case types.SetStorageMap:
-		return s.MapStore[ordinal]
-
-	default:
-		return false
-	}
-}
-
-// AddElement adds an element with the given ordinal value to the set.
-// This mutates the set in place (used for Include).
-// Task 9.8: Supports both bitmask and map storage.
-func (s *SetValue) AddElement(ordinal int) {
-	if ordinal < 0 {
-		return // Negative ordinals are invalid
-	}
-
-	// Choose storage backend based on set type
-	switch s.SetType.StorageKind {
-	case types.SetStorageBitmask:
-		if ordinal >= 64 {
-			return // Out of range for bitset
-		}
-		mask := uint64(1) << uint(ordinal)
-		s.Elements |= mask
-
-	case types.SetStorageMap:
-		s.MapStore[ordinal] = true
-	}
-}
-
-// RemoveElement removes an element with the given ordinal value from the set.
-// This mutates the set in place (used for Exclude).
-// Task 9.8: Supports both bitmask and map storage.
-func (s *SetValue) RemoveElement(ordinal int) {
-	if ordinal < 0 {
-		return // Negative ordinals are invalid
-	}
-
-	// Choose storage backend based on set type
-	switch s.SetType.StorageKind {
-	case types.SetStorageBitmask:
-		if ordinal >= 64 {
-			return // Out of range for bitset
-		}
-		mask := uint64(1) << uint(ordinal)
-		s.Elements &^= mask // AND NOT to clear the bit
-
-	case types.SetStorageMap:
-		delete(s.MapStore, ordinal)
-	}
-}
-
-// NewSetValue creates a new empty SetValue with the given set type.
-// Task 9.8: Initializes the appropriate storage backend (bitmask or map).
-func NewSetValue(setType *types.SetType) *SetValue {
-	sv := &SetValue{
-		SetType:  setType,
-		Elements: 0,
-	}
-
-	// Initialize map storage if needed for large enums
-	if setType.StorageKind == types.SetStorageMap {
-		sv.MapStore = make(map[int]bool)
-	}
-
-	return sv
-}
-
-// ============================================================================
-// ArrayValue - Runtime representation for array types
-// ============================================================================
-// Task 3.7.7: This is now an alias to runtime.ArrayValue for backward compatibility.
-// The canonical definition is in internal/interp/runtime/primitives.go.
-
-type ArrayValue = runtime.ArrayValue
-
 // NewArrayValue creates a new ArrayValue with the given array type.
 // For static arrays, pre-allocates elements (initialized to nil).
 // For dynamic arrays, creates an empty array.
+// Phase 3.5.4: Forwarding function to runtime.NewArrayValue with initializer.
 func NewArrayValue(arrayType *types.ArrayType) *ArrayValue {
-	var elements []Value
-
-	if arrayType.IsStatic() {
-		// Static array: pre-allocate with size
-		size := arrayType.Size()
-		elements = make([]Value, size)
-
+	// Create an initializer that handles nested arrays and records
+	initializer := func(elementType types.Type, index int) Value {
 		// Task 9.56: For nested arrays, initialize each element as an array
-		// Task 9.36: For record elements, initialize each element as a record
-		if arrayType.ElementType != nil {
-			if nestedArrayType, ok := arrayType.ElementType.(*types.ArrayType); ok {
-				for i := 0; i < size; i++ {
-					elements[i] = NewArrayValue(nestedArrayType)
-				}
-			} else if recordType, ok := arrayType.ElementType.(*types.RecordType); ok {
-				for i := 0; i < size; i++ {
-					elements[i] = NewRecordValue(recordType, nil)
-				}
-			}
+		if nestedArrayType, ok := elementType.(*types.ArrayType); ok {
+			return NewArrayValue(nestedArrayType)
 		}
-		// Otherwise elements are nil (will be filled with zero values or explicit assignments)
-	} else {
-		// Dynamic array: start empty
-		elements = make([]Value, 0)
+		// Task 9.36: For record elements, initialize each element as a record
+		if recordType, ok := elementType.(*types.RecordType); ok {
+			return NewRecordValue(recordType, nil)
+		}
+		return nil
 	}
 
-	return &ArrayValue{
-		ArrayType: arrayType,
-		Elements:  elements,
-	}
+	return runtime.NewArrayValue(arrayType, initializer)
 }
 
 // ============================================================================
