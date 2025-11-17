@@ -21,22 +21,12 @@ func (p *Parser) parseStatementCursor() ast.Statement {
 		return p.parseBlockStatementCursor()
 
 	case lexer.VAR:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		stmt := p.parseVarDeclaration()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return stmt
+		// Task 2.2.14.6: Use cursor mode for var declarations
+		return p.parseVarDeclarationCursor()
 
 	case lexer.CONST:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		stmt := p.parseConstDeclaration()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return stmt
+		// Task 2.2.14.6: Use cursor mode for const declarations
+		return p.parseConstDeclarationCursor()
 
 	case lexer.IF:
 		// Task 2.2.14.4: Use cursor mode for if statements
@@ -1003,4 +993,343 @@ func (p *Parser) parseBlockStatementCursor() *ast.BlockStatement {
 	block.EndPos = p.endPosFromToken(p.cursor.Current())
 
 	return block
+}
+
+// ============================================================================
+// Task 2.2.14.6: Cursor-mode variable and constant declaration handlers
+// ============================================================================
+
+// looksLikeVarDeclarationCursor performs lookahead using cursor to check if
+// the next tokens form a var declaration.
+// A var declaration pattern is: IDENT followed by either:
+// - COLON (for typed declaration: x : Integer)
+// - COMMA (for multi-var declaration: x, y : Integer)
+// This prevents mis-parsing function calls or assignments as var declarations.
+func (p *Parser) looksLikeVarDeclarationCursor(cursor *TokenCursor) bool {
+	nextToken := cursor.Peek(1)
+	if !p.isIdentifierToken(nextToken.Type) {
+		return false
+	}
+
+	// Check the token after the identifier
+	tokenAfterIdent := cursor.Peek(2)
+
+	// Only accept unambiguous var declaration patterns:
+	// - name : Type         (explicit type - always a declaration)
+	// - name, name2 : Type  (multi-var declaration)
+	return tokenAfterIdent.Type == lexer.COLON ||
+		tokenAfterIdent.Type == lexer.COMMA
+}
+
+// looksLikeConstDeclarationCursor performs lookahead using cursor to check if
+// the next tokens form a const declaration.
+// A const declaration pattern is: IDENT followed by either:
+// - COLON (for typed const: C : Integer = 5)
+// - EQ (for untyped const: C = value)
+// This prevents mis-parsing other statements as const declarations.
+func (p *Parser) looksLikeConstDeclarationCursor(cursor *TokenCursor) bool {
+	nextToken := cursor.Peek(1)
+	if !p.isIdentifierToken(nextToken.Type) {
+		return false
+	}
+
+	// Check the token after the identifier
+	tokenAfterIdent := cursor.Peek(2)
+
+	// Const declaration patterns:
+	// - NAME : Type = value  (typed const)
+	// - NAME = value         (untyped const)
+	return tokenAfterIdent.Type == lexer.COLON ||
+		tokenAfterIdent.Type == lexer.EQ
+}
+
+// parseVarDeclarationCursor parses one or more variable declarations in a var block.
+// Task 2.2.14.6: Variable declaration migration
+// Syntax: var NAME : TYPE; or var NAME := VALUE; or var NAME : TYPE := VALUE;
+// DWScript allows block syntax: var V1 : Integer; V2 : String; (one var keyword, multiple declarations)
+// This function returns a BlockStatement containing all var declarations in the block.
+// PRE: cursor is on VAR token
+// POST: cursor is on last token of last declaration
+func (p *Parser) parseVarDeclarationCursor() ast.Statement {
+	blockToken := p.cursor.Current() // Save the initial VAR token for the block
+	statements := []ast.Statement{}
+
+	// Parse first var declaration
+	firstStmt := p.parseSingleVarDeclarationCursor()
+	if firstStmt == nil {
+		return nil
+	}
+	statements = append(statements, firstStmt)
+
+	// Continue parsing additional var declarations without the 'var' keyword
+	// As long as the next line looks like a var declaration (not just any identifier)
+	for p.looksLikeVarDeclarationCursor(p.cursor) {
+		p.cursor = p.cursor.Advance() // move to identifier
+		varStmt := p.parseSingleVarDeclarationCursor()
+		if varStmt == nil {
+			break
+		}
+		statements = append(statements, varStmt)
+	}
+
+	// If only one declaration, return it directly
+	if len(statements) == 1 {
+		return statements[0]
+	}
+
+	// Multiple declarations: wrap in a BlockStatement
+	return &ast.BlockStatement{
+		BaseNode:   ast.BaseNode{Token: blockToken},
+		Statements: statements,
+	}
+}
+
+// parseSingleVarDeclarationCursor parses a single variable declaration using cursor mode.
+// Task 2.2.14.6: Variable declaration migration
+// Assumes we're already positioned at the identifier (or just before it).
+// PRE: cursor is on VAR or variable name IDENT
+// POST: cursor is on SEMICOLON
+func (p *Parser) parseSingleVarDeclarationCursor() *ast.VarDeclStatement {
+	stmt := &ast.VarDeclStatement{}
+
+	// Check if we're already at the identifier (var section continuation)
+	// or if we need to advance to it (after 'var' keyword)
+	currentToken := p.cursor.Current()
+	if currentToken.Type == lexer.VAR {
+		stmt.Token = currentToken
+		// After 'var' keyword, expect identifier next
+		p.cursor = p.cursor.Advance()
+		currentToken = p.cursor.Current()
+		if !p.isIdentifierToken(currentToken.Type) {
+			// Use structured error (Task 2.1.3)
+			err := NewStructuredError(ErrKindMissing).
+				WithCode(ErrExpectedIdent).
+				WithMessage("expected identifier in var declaration").
+				WithPosition(currentToken.Pos, currentToken.Length()).
+				WithExpectedString("variable name").
+				WithActual(currentToken.Type, currentToken.Literal).
+				WithSuggestion("provide a variable name after 'var'").
+				WithParsePhase("variable declaration").
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+	} else if !p.isIdentifierToken(currentToken.Type) {
+		// Should already be at an identifier
+		// Use structured error (Task 2.1.3)
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrExpectedIdent).
+			WithMessage("expected identifier in var declaration").
+			WithPosition(currentToken.Pos, currentToken.Length()).
+			WithExpectedString("variable name").
+			WithActual(currentToken.Type, currentToken.Literal).
+			WithSuggestion("provide a variable name after 'var'").
+			WithParsePhase("variable declaration").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	} else {
+		stmt.Token = currentToken
+	}
+
+	// Collect comma-separated identifiers
+	// Parse pattern: IDENT (, IDENT)* : TYPE [:= VALUE]
+	stmt.Names = []*ast.Identifier{}
+	for {
+		currentToken = p.cursor.Current()
+		if !p.isIdentifierToken(currentToken.Type) {
+			// Use structured error (Task 2.1.3)
+			err := NewStructuredError(ErrKindMissing).
+				WithCode(ErrExpectedIdent).
+				WithMessage("expected identifier in var declaration").
+				WithPosition(currentToken.Pos, currentToken.Length()).
+				WithExpectedString("variable name").
+				WithActual(currentToken.Type, currentToken.Literal).
+				WithSuggestion("provide a variable name").
+				WithParsePhase("variable declaration").
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+
+		stmt.Names = append(stmt.Names, &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: currentToken,
+				},
+			},
+			Value: currentToken.Literal,
+		})
+
+		// Check if there are more names (comma-separated)
+		nextToken := p.cursor.Peek(1)
+		if nextToken.Type == lexer.COMMA {
+			p.cursor = p.cursor.Advance() // move to ','
+			p.cursor = p.cursor.Advance() // move to next identifier
+			currentToken = p.cursor.Current()
+			if !p.isIdentifierToken(currentToken.Type) {
+				// Use structured error
+				err := NewStructuredError(ErrKindMissing).
+					WithCode(ErrExpectedIdent).
+					WithMessage("expected identifier after comma in var declaration").
+					WithPosition(currentToken.Pos, currentToken.Length()).
+					WithExpectedString("variable name").
+					WithActual(currentToken.Type, currentToken.Literal).
+					WithSuggestion("provide a variable name after ','").
+					WithParsePhase("variable declaration").
+					Build()
+				p.addStructuredError(err)
+				return nil
+			}
+			continue
+		}
+
+		// No more names, break to parse type
+		break
+	}
+
+	hasExplicitType := false
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type == lexer.COLON {
+		hasExplicitType = true
+		p.cursor = p.cursor.Advance() // move to ':'
+
+		// Parse type expression (can be simple type, function pointer, or array type)
+		p.cursor = p.cursor.Advance() // move to type expression
+
+		// Temporarily sync to use parseTypeExpression (which uses traditional mode)
+		p.syncCursorToTokens()
+		p.useCursor = false
+		typeExpr := p.parseTypeExpression()
+		p.useCursor = true
+		p.syncTokensToCursor()
+
+		if typeExpr == nil {
+			// Use structured error (Task 2.1.3)
+			currentToken = p.cursor.Current()
+			err := NewStructuredError(ErrKindMissing).
+				WithCode(ErrExpectedType).
+				WithMessage("expected type expression after ':' in var declaration").
+				WithPosition(currentToken.Pos, currentToken.Length()).
+				WithExpectedString("type name").
+				WithSuggestion("specify the variable type, like 'Integer' or 'String'").
+				WithParsePhase("variable declaration type").
+				Build()
+			p.addStructuredError(err)
+			return stmt
+		}
+
+		// Directly assign the type expression without creating synthetic wrappers
+		stmt.Type = typeExpr
+	}
+
+	nextToken = p.cursor.Peek(1)
+	if hasExplicitType {
+		if nextToken.Type == lexer.ASSIGN || nextToken.Type == lexer.EQ {
+			if len(stmt.Names) > 1 {
+				// Use structured error (Task 2.1.3)
+				err := NewStructuredError(ErrKindInvalid).
+					WithCode(ErrInvalidSyntax).
+					WithMessage("cannot use initializer with multiple variable names").
+					WithPosition(nextToken.Pos, nextToken.Length()).
+					WithSuggestion("declare variables separately or use the same value for all").
+					WithNote("DWScript requires: var x, y: Integer (no initializer) or var x: Integer := 10").
+					WithParsePhase("variable declaration").
+					Build()
+				p.addStructuredError(err)
+				return stmt
+			}
+
+			p.cursor = p.cursor.Advance() // move to assignment operator
+			p.cursor = p.cursor.Advance() // move to value expression
+			stmt.Value = p.parseExpressionCursor(ASSIGN)
+		}
+	} else {
+		if nextToken.Type == lexer.ASSIGN || nextToken.Type == lexer.EQ {
+			if len(stmt.Names) > 1 {
+				// Use structured error (Task 2.1.3)
+				err := NewStructuredError(ErrKindInvalid).
+					WithCode(ErrInvalidSyntax).
+					WithMessage("cannot use initializer with multiple variable names").
+					WithPosition(nextToken.Pos, nextToken.Length()).
+					WithSuggestion("declare variables separately when using initializers").
+					WithNote("DWScript requires separate declarations with initializers").
+					WithParsePhase("variable declaration").
+					Build()
+				p.addStructuredError(err)
+				return stmt
+			}
+
+			p.cursor = p.cursor.Advance() // move to assignment operator
+			stmt.Inferred = true
+			p.cursor = p.cursor.Advance() // move to value expression
+			stmt.Value = p.parseExpressionCursor(ASSIGN)
+		} else {
+			nextToken = p.cursor.Peek(1)
+			if nextToken.Type == lexer.SEMICOLON || nextToken.Type == lexer.EXTERNAL {
+				// Use structured error (Task 2.1.3)
+				currentToken = p.cursor.Current()
+				err := NewStructuredError(ErrKindInvalid).
+					WithCode(ErrInvalidSyntax).
+					WithMessage("variable declaration requires a type or initializer").
+					WithPosition(currentToken.Pos, currentToken.Length()).
+					WithSuggestion("add ': TypeName' or ':= value' after the variable name").
+					WithNote("Examples: 'var x: Integer' or 'var x := 10'").
+					WithParsePhase("variable declaration").
+					Build()
+				p.addStructuredError(err)
+			} else {
+				// Use structured error (Task 2.1.3)
+				err := NewStructuredError(ErrKindMissing).
+					WithCode(ErrMissingColon).
+					WithMessage("expected ':', ':=' or '=' in variable declaration").
+					WithPosition(nextToken.Pos, nextToken.Length()).
+					WithExpectedString("':' or ':='").
+					WithActual(nextToken.Type, nextToken.Literal).
+					WithSuggestion("add ':' for type declaration or ':=' for type inference").
+					WithParsePhase("variable declaration").
+					Build()
+				p.addStructuredError(err)
+			}
+		}
+	}
+
+	// Check for 'external' keyword
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type == lexer.EXTERNAL {
+		p.cursor = p.cursor.Advance() // move to 'external'
+		stmt.IsExternal = true
+
+		// Check for optional external name: external 'customName'
+		nextToken = p.cursor.Peek(1)
+		if nextToken.Type == lexer.STRING {
+			p.cursor = p.cursor.Advance() // move to string literal
+			stmt.ExternalName = p.cursor.Current().Literal
+		}
+	}
+
+	// Expect semicolon
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type != lexer.SEMICOLON {
+		// Use structured error
+		currentToken = p.cursor.Current()
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingSemicolon).
+			WithMessage("expected ';' after variable declaration").
+			WithPosition(currentToken.Pos, currentToken.Length()).
+			WithExpectedString("';'").
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("add ';' at the end of the declaration").
+			WithParsePhase("variable declaration").
+			Build()
+		p.addStructuredError(err)
+		return stmt
+	}
+
+	p.cursor = p.cursor.Advance() // move to semicolon
+
+	// End position is at the semicolon
+	stmt.EndPos = p.endPosFromToken(p.cursor.Current())
+
+	return stmt
 }

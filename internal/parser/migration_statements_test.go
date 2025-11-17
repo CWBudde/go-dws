@@ -866,3 +866,236 @@ func TestControlFlowIntegration_Traditional_vs_Cursor(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Task 2.2.14.6: Variable and Constant Declaration Tests
+// ============================================================================
+
+// TestVarDeclarationCursor tests variable declaration migration to cursor mode
+func TestVarDeclarationCursor(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		// Simple var declarations
+		{"simple var with type", "var x: Integer;"},
+		{"simple var with initializer", "var x := 42;"},
+		{"var with type and initializer", "var x: Integer := 42;"},
+		{"var with string type", "var s: String;"},
+		{"var with float type", "var f: Float;"},
+		{"var with boolean type", "var b: Boolean;"},
+
+		// Multi-variable declarations (comma-separated)
+		{"multi-var declaration", "var x, y: Integer;"},
+		{"multi-var with three variables", "var x, y, z: String;"},
+
+		// Multiple var declarations in a block
+		{"multiple var declarations", "var x: Integer; y: String;"},
+		{"var block with three declarations", "var x: Integer; y: String; z: Float;"},
+
+		// Var with external
+		{"var with external", "var x: Integer external;"},
+		{"var with external name", "var x: Integer external 'custom_name';"},
+
+		// Inferred types
+		{"inferred from integer", "var x := 42;"},
+		{"inferred from string", "var s := 'hello';"},
+		{"inferred from boolean", "var b := true;"},
+		{"inferred from float", "var f := 3.14;"},
+
+		// Var in program context
+		{"var in begin block", "begin var x: Integer; x := 5 end"},
+		{"var with usage", "var x: Integer; x := 42"},
+		{"multiple vars with usage", "var x, y: Integer; x := 1; y := 2"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}
+
+// TestConstDeclarationCursor tests constant declaration migration to cursor mode
+func TestConstDeclarationCursor(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		// Simple const declarations
+		{"simple const", "const x = 42;"},
+		{"const with type", "const x: Integer = 42;"},
+		{"const with string", "const s = 'hello';"},
+		{"const with float", "const pi = 3.14159;"},
+		{"const with boolean", "const b = true;"},
+
+		// Using := instead of =
+		{"const with assign operator", "const x := 42;"},
+		{"const with type and assign", "const x: String := 'test';"},
+
+		// Multiple const declarations in a block
+		{"multiple const declarations", "const x = 1; y = 2;"},
+		{"const block with three", "const a = 1; b = 2; c = 3;"},
+
+		// Const with deprecated
+		{"const with deprecated", "const x = 42 deprecated;"},
+		{"const with deprecated message", "const x = 42 deprecated 'use y instead';"},
+
+		// Const expressions
+		{"const with expression", "const x = 10 + 20;"},
+		{"const with multiplication", "const x = 5 * 8;"},
+		{"const with complex expression", "const x = (10 + 5) * 2;"},
+
+		// Const in program context
+		{"const in begin block", "begin const x = 42; var y: Integer; y := x end"},
+		{"const with usage", "const x = 42; var y: Integer; y := x"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}
+
+// TestVarConstDeclarationCursor_EdgeCases tests edge cases for var/const declaration migration
+func TestVarConstDeclarationCursor_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		source      string
+		expectError bool
+	}{
+		// Error cases - should produce errors
+		{"var without type or initializer", "var x;", true},
+		{"const without value", "const x;", true},
+		{"var multi with initializer", "var x, y := 5;", true},
+
+		// Valid edge cases
+		{"empty program with var", "var x: Integer;", false},
+		{"var followed by semicolon", "var x: Integer;;", false},
+		{"const followed by semicolon", "const x = 1;;", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			tradErrors := len(tradParser.Errors())
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			cursorErrors := len(cursorParser.Errors())
+
+			// Both should produce the same number of errors
+			if tradErrors != cursorErrors {
+				t.Errorf("Error count mismatch: traditional=%d, cursor=%d",
+					tradErrors, cursorErrors)
+				if tradErrors > 0 {
+					t.Logf("Traditional errors: %v", tradParser.Errors())
+				}
+				if cursorErrors > 0 {
+					t.Logf("Cursor errors: %v", cursorParser.Errors())
+				}
+			}
+
+			// Verify error expectation
+			if tt.expectError && tradErrors == 0 {
+				t.Errorf("Expected errors but got none")
+			}
+
+			// Programs should still be non-nil even with errors
+			if tradProgram == nil {
+				t.Error("Traditional parser returned nil program")
+			}
+			if cursorProgram == nil {
+				t.Error("Cursor parser returned nil program")
+			}
+		})
+	}
+}
+
+// TestVarConstDeclarationCursor_Integration tests integration of var/const with other statements
+func TestVarConstDeclarationCursor_Integration(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{"var with if", "var x: Integer; if x > 0 then x := 1"},
+		{"const with if", "const max = 100; var x: Integer; if x < max then x := x + 1"},
+		{"var in begin block", "begin var x: Integer; x := 5; var y: Integer; y := x end"},
+		{"multiple declarations", "var x: Integer; const max = 10; x := max"},
+		{"complex program", "const pi = 3.14; var r: Float; r := 5.0; var area: Float; area := pi * r * r"},
+		{"nested begin with var", "begin var x: Integer; begin var y: Integer; y := 5; x := y end end"},
+		{"var with while", "var x: Integer; x := 0; while x < 10 do x := x + 1"},
+		{"const with repeat", "const max = 5; var i: Integer; i := 0; repeat i := i + 1 until i = max"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Traditional mode
+			tradParser := New(lexer.New(tt.source))
+			tradProgram := tradParser.ParseProgram()
+			checkParserErrors(t, tradParser)
+
+			// Cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+			checkParserErrors(t, cursorParser)
+
+			// Compare programs
+			if len(tradProgram.Statements) != len(cursorProgram.Statements) {
+				t.Fatalf("Statement count mismatch: traditional=%d, cursor=%d",
+					len(tradProgram.Statements), len(cursorProgram.Statements))
+			}
+
+			// Program strings should match (semantic equivalence)
+			if tradProgram.String() != cursorProgram.String() {
+				t.Errorf("Program String mismatch:\nTraditional: %s\nCursor: %s",
+					tradProgram.String(), cursorProgram.String())
+			}
+		})
+	}
+}
+
