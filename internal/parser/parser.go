@@ -389,14 +389,14 @@ type BlockContext struct {
 
 // Parser represents the DWScript parser.
 type Parser struct {
-	l                      *lexer.Lexer
-	prefixParseFns         map[lexer.TokenType]prefixParseFn
-	infixParseFns          map[lexer.TokenType]infixParseFn
-	errors                 []*ParserError
-	curToken               lexer.Token
-	peekToken              lexer.Token
-	parsingPostCondition   bool           // True when parsing postconditions (for 'old' keyword)
-	blockStack             []BlockContext // Stack of nested block contexts for error messages
+	l                    *lexer.Lexer
+	prefixParseFns       map[lexer.TokenType]prefixParseFn
+	infixParseFns        map[lexer.TokenType]infixParseFn
+	errors               []*ParserError
+	curToken             lexer.Token
+	peekToken            lexer.Token
+	parsingPostCondition bool           // True when parsing postconditions (for 'old' keyword)
+	blockStack           []BlockContext // Stack of nested block contexts for error messages
 
 	// ctx is the new structured parsing context (Task 2.1.2)
 	// Consolidates scattered context flags and block stack into a single type.
@@ -478,14 +478,14 @@ func NewCursorParser(l *lexer.Lexer) *Parser {
 	builder := NewParserBuilder(l).WithCursorMode(true)
 
 	p := &Parser{
-		l:              l,
-		errors:         []*ParserError{},
-		prefixParseFns: make(map[lexer.TokenType]prefixParseFn),
-		infixParseFns:  make(map[lexer.TokenType]infixParseFn),
-		blockStack:     []BlockContext{},
-		ctx:            NewParseContext(),
-		useCursor:      true,
-		cursor:         NewTokenCursor(l),
+		l:                    l,
+		errors:               []*ParserError{},
+		prefixParseFns:       make(map[lexer.TokenType]prefixParseFn),
+		infixParseFns:        make(map[lexer.TokenType]infixParseFn),
+		blockStack:           []BlockContext{},
+		ctx:                  NewParseContext(),
+		useCursor:            true,
+		cursor:               NewTokenCursor(l),
 		prefixParseFnsCursor: make(map[lexer.TokenType]prefixParseFnCursor),
 		infixParseFnsCursor:  make(map[lexer.TokenType]infixParseFnCursor),
 	}
