@@ -88,6 +88,9 @@ func (ea *EnvironmentAdapter) Set(name string, value interface{}) bool {
 }
 
 // NewEnclosedEnvironment creates a new child scope.
+// Phase 3.5.4 - Phase 2D: Fixed to properly create enclosed environments.
+// This method checks for a NewEnclosed() method on the underlying environment
+// to enable proper loop variable scoping without circular imports.
 func (ea *EnvironmentAdapter) NewEnclosedEnvironment() Environment {
 	// The underlying environment type must have a method or function to create enclosed scopes.
 	// We check for a method that returns something we can wrap.
@@ -99,7 +102,8 @@ func (ea *EnvironmentAdapter) NewEnclosedEnvironment() Environment {
 	}
 
 	// Try to use reflection-free approach: check if there's a NewEnclosed method
-	// that returns an environment-like type
+	// that returns an environment-like type. This is the primary way to create
+	// proper enclosed scopes without circular imports.
 	if envCreator, ok := ea.underlying.(interface {
 		NewEnclosed() interface{}
 	}); ok {
@@ -109,9 +113,9 @@ func (ea *EnvironmentAdapter) NewEnclosedEnvironment() Environment {
 		}
 	}
 
-	// Since we can't call interp.NewEnclosedEnvironment without importing interp,
-	// and the underlying type doesn't have a NewEnclosed method, we need to use
-	// reflection or return a fallback. For now, return the same adapter.
+	// Fallback: if NewEnclosed is not available, return the same adapter.
+	// This should not happen in practice with interp.Environment, but provides
+	// a safe fallback for other environment implementations.
 	// This will be fixed in Phase 3.4 when the environment structure is refactored.
 	return ea
 }

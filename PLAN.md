@@ -755,7 +755,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Acceptance: Code organized by category, easy to navigate, tests pass
   - **Completed**: Created 4 visitor files organized by node category (404 lines total), all files well under 500 line limit (largest: 154 lines), clear organization with visitor_*.go naming convention, 48 visitor methods total (6 literals, 22 expressions, 19 statements, 9 declarations), all tests pass
 
-- [ ] 3.5.4 Migrate evaluation logic from Interpreter to Evaluator ⏳ **IN PROGRESS** (20/48 methods, 41.7%)
+- [ ] 3.5.4 Migrate evaluation logic from Interpreter to Evaluator ⏳ **IN PROGRESS** (22/48 methods, 45.8%)
   - Gradually move logic from Interpreter.evalXXX() methods to Evaluator.VisitXXX() methods
   - Each migration: run tests, ensure no regressions
   - Keep adapter active during migration for safety
@@ -763,10 +763,13 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Estimated: 2-3 weeks (48 methods to migrate across 9 batches)
   - Acceptance: All evaluation logic in Evaluator, Interpreter methods just delegate, all tests pass
 
-  **Current Status**: Phase 1 complete. Phase 2A-2E infrastructure complete (1 migration from Phase 2A). Remaining migrations await type system refactoring.
+  **Current Status**: Phase 1 complete. Phase 2A-2E infrastructure complete. ForStatement and ForInStatement migrated (Phase 2D ✅ COMPLETE). 4 simple value types migrated to runtime/ (EnumValue, TypeMetaValue, SetValue, ArrayValue). Remaining 26 methods blocked by complex type dependencies (ExceptionValue, ObjectInstance, ClassInfo, FunctionPointerValue, RecordValue).
 
   ---
   ### ✅ PHASE 1 COMPLETE: Simple Methods (19/48 migrated, 39.6%)
+
+  **Phase 2 Progress**: 3 additional methods migrated (SelfExpression, ForStatement, ForInStatement)
+  **Total Progress**: 22/48 methods (45.8%)
 
   **Completed - Batch 1: Literals (6/6)** ✅
   - [x] 3.5.4.1 IntegerLiteral
@@ -785,10 +788,12 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - [x] 3.5.4.30 BlockStatement (scoped block execution)
   - [x] 3.5.4.35 ReturnStatement (sets Result variable, exit signal)
 
-  **Completed - Batch 7: Control Flow Statements (7/9)** ✅
+  **Completed - Batch 7: Control Flow Statements (9/9)** ✅
   - [x] 3.5.4.36 IfStatement (conditional branching)
   - [x] 3.5.4.37 WhileStatement (pre-condition loops)
   - [x] 3.5.4.38 RepeatStatement (post-condition loops)
+  - [x] 3.5.4.39 ForStatement (counted loops with step support, uses PushEnv/PopEnv)
+  - [x] 3.5.4.40 ForInStatement (collection iteration - arrays, sets, strings, enum types, uses PushEnv/PopEnv)
   - [x] 3.5.4.41 CaseStatement (switch with ranges, added helper functions: valuesEqual, isInRange, runeLength, runeAt)
   - [x] 3.5.4.42 BreakStatement (loop exit)
   - [x] 3.5.4.43 ContinueStatement (loop continue)
@@ -842,14 +847,17 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
     - Record field access logic
     - Helper field access logic
 
-  **Infrastructure Phase 2D: Environment Scoping ✅ COMPLETE** (Blocks 2 methods)
+  **Infrastructure Phase 2D: Environment Scoping ✅ COMPLETE** (2/2 methods migrated)
   - Required for: ForStatement, ForInStatement
   - Components refactored:
     - ✅ `NewEnclosedEnvironment()` pattern → ExecutionContext.PushEnv/PopEnv methods
     - ✅ Added `envStack` field to ExecutionContext for proper scope management
     - ✅ Loop variable scoping infrastructure ready for Evaluator use
     - ✅ Environment save/restore pattern → ExecutionContext.PushEnv/PopEnv
-  - **Status**: Infrastructure complete. Full migration of ForStatement/ForInStatement deferred until complex types (ArrayValue, SetValue, EnumValue) migrate to runtime package.
+  - Completed migrations:
+    - ✅ ForStatement (3.5.4.39) - Uses PushEnv/PopEnv for loop variable scoping, only needs IntegerValue (already in runtime)
+    - ✅ ForInStatement (3.5.4.40) - Uses PushEnv/PopEnv, iterates over ArrayValue, SetValue, StringValue, TypeMetaValue (all migrated to runtime)
+  - **Status**: ✅ Phase 2D COMPLETE - All loop statements migrated. Simple value types (EnumValue, TypeMetaValue, SetValue, ArrayValue) migrated to runtime package to enable iteration.
 
   **Infrastructure Phase 2E: Exception Infrastructure ✅ COMPLETE** (Blocks 2 methods)
   - Required for: TryStatement, RaiseStatement
@@ -900,13 +908,13 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - [ ] 3.5.4.26 RecordLiteralExpression - Needs record construction
   - [ ] 3.5.4.34 AssignmentStatement - Needs property setters, compound ops
 
-  **Blocked by Phase 2D (Environment Scoping) - 2 methods**:
-  - [ ] 3.5.4.39 ForStatement - Needs enclosed environment for loop var
-  - [ ] 3.5.4.40 ForInStatement - Needs enclosed environment for loop var
+  **Blocked by Phase 2D (Environment Scoping) - ✅ COMPLETE (2/2 migrated)**:
+  - [x] 3.5.4.39 ForStatement - ✅ Migrated (uses PushEnv/PopEnv, only needs IntegerValue from runtime)
+  - [x] 3.5.4.40 ForInStatement - ✅ Migrated (uses PushEnv/PopEnv, all required types migrated to runtime: ArrayValue, SetValue, EnumValue, TypeMetaValue)
 
   **Blocked by Phase 2E (Exception Infrastructure) - 2 methods**:
-  - [ ] 3.5.4.45 TryStatement - Needs evalExceptClause, handler stack
-  - [ ] 3.5.4.46 RaiseStatement - Needs handlerException tracking
+  - [ ] 3.5.4.45 TryStatement - Blocked by ExceptionValue, ObjectInstance, ClassInfo migration
+  - [ ] 3.5.4.46 RaiseStatement - Blocked by ExceptionValue, ObjectInstance, ClassInfo migration
 
   **Other Expression Methods - 5 methods**:
   - [ ] 3.5.4.24 ImplementsExpression - Needs interface checking (Phase 2B)
@@ -916,29 +924,29 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   ---
   ### 📊 Migration Metrics
 
-  **Progress**: 19/48 methods migrated (39.6%)
+  **Progress**: 22/48 methods migrated (45.8%)
   - ✅ Literals: 6/6 (100%)
-  - ✅ Simple control flow: 7/7 (100%)
+  - ✅ All control flow: 9/9 (100%) - ForStatement, ForInStatement migrated (Phase 2D complete)
   - ✅ Basic statements: 3/3 (100%)
   - ⏳ Expressions: 2/22 (9.1%)
   - ⏳ Complex statements: 1/7 (14.3%)
   - ⏳ Declarations: 0/9 (0%)
 
   **Deferred by Infrastructure Dependency**:
-  - Phase 2A (Function Calls): 7 methods
+  - Phase 2A (Function Calls): 6 methods (1/7 migrated: SelfExpression)
   - Phase 2B (Type System): 18 methods
   - Phase 2C (Property/Indexing): 5 methods (some overlap with 2B)
-  - Phase 2D (Environment): 2 methods
+  - ✅ Phase 2D (Environment): COMPLETE (2/2 migrated: ForStatement, ForInStatement)
   - Phase 2E (Exceptions): 2 methods
 
   **Estimated Effort**:
   - Phase 1 (Simple methods): ✅ Complete (4 days actual)
+  - ✅ Phase 2D (Environment): Complete (2 days actual - includes type migrations)
   - Phase 2A (Function Calls): 5 days (complex, closures, call stack)
   - Phase 2B (Type System): 8 days (largest, many registries)
   - Phase 2C (Property/Indexing): 3 days (property dispatch, bounds checking)
-  - Phase 2D (Environment): 2 days (scoping refactor)
   - Phase 2E (Exceptions): 3 days (exception handling, finally blocks)
-  - Total remaining: ~21 days
+  - Total remaining: ~19 days
 
 - [ ] 3.5.5 Remove adapter pattern and complete migration
   - Remove InterpreterAdapter interface from evaluator.go

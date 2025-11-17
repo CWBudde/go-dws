@@ -431,66 +431,6 @@ func (u *UnassignedValue) Copy() Value {
 }
 
 // ============================================================================
-// ArrayValue - Runtime representation for array types
-// ============================================================================
-// Task 3.7.7: Moved from internal/interp/value.go to consolidate runtime types.
-
-// ArrayValue represents an array value in DWScript.
-// DWScript supports both static arrays (with fixed bounds) and dynamic arrays (resizable).
-// Examples:
-//   - Static: array[1..10] of Integer
-//   - Dynamic: array of String
-type ArrayValue struct {
-	ArrayType *types.ArrayType // The array type metadata
-	Elements  []Value          // The runtime elements (slice)
-}
-
-// Type returns "ARRAY".
-func (a *ArrayValue) Type() string {
-	return "ARRAY"
-}
-
-// String returns the string representation of the array.
-// Format: [element1, element2, ...] or [] for empty array
-func (a *ArrayValue) String() string {
-	if len(a.Elements) == 0 {
-		return "[]"
-	}
-
-	var sb stringBuilder
-	sb.WriteString("[")
-	for i, elem := range a.Elements {
-		if i > 0 {
-			sb.WriteString(", ")
-		}
-		if elem != nil {
-			sb.WriteString(elem.String())
-		} else {
-			sb.WriteString("nil")
-		}
-	}
-	sb.WriteString("]")
-	return sb.String()
-}
-
-// stringBuilder is a simple string builder to avoid importing strings package
-type stringBuilder struct {
-	parts []string
-}
-
-func (sb *stringBuilder) WriteString(s string) {
-	sb.parts = append(sb.parts, s)
-}
-
-func (sb *stringBuilder) String() string {
-	result := ""
-	for _, p := range sb.parts {
-		result += p
-	}
-	return result
-}
-
-// ============================================================================
 // FunctionPointerValue - Runtime representation for function/method pointers
 // ============================================================================
 // Task 3.7.7: Moved from internal/interp/value.go to consolidate runtime types.
