@@ -169,6 +169,14 @@ func (i *Interpreter) evalCaseStatement(stmt *ast.CaseStatement) Value {
 // valuesEqual compares two values for equality.
 // This is used by case statements to match values.
 func (i *Interpreter) valuesEqual(left, right Value) bool {
+	// Unwrap VariantValue if present
+	if varVal, ok := left.(*VariantValue); ok {
+		left = varVal.Value
+	}
+	if varVal, ok := right.(*VariantValue); ok {
+		right = varVal.Value
+	}
+
 	// Handle same type comparisons
 	if left.Type() != right.Type() {
 		return false
@@ -216,6 +224,17 @@ func (i *Interpreter) valuesEqual(left, right Value) bool {
 // isInRange checks if value is within the range [start, end] inclusive.
 // Supports Integer, Float, String (character), and Enum values.
 func (i *Interpreter) isInRange(value, start, end Value) bool {
+	// Unwrap VariantValue if present
+	if varVal, ok := value.(*VariantValue); ok {
+		value = varVal.Value
+	}
+	if varVal, ok := start.(*VariantValue); ok {
+		start = varVal.Value
+	}
+	if varVal, ok := end.(*VariantValue); ok {
+		end = varVal.Value
+	}
+
 	// Handle different value types
 	switch v := value.(type) {
 	case *IntegerValue:

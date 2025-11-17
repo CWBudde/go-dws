@@ -115,11 +115,12 @@ type FunctionDecl struct {
 	Body              *BlockStatement
 	PreConditions     *PreConditions
 	PostConditions    *PostConditions
-	Name              *Identifier
-	ExternalName      string
-	CallingConvention string
-	DeprecatedMessage string
-	Parameters        []*Parameter
+	Name                  *Identifier
+	ExternalName          string
+	CallingConvention     string
+	CallingConventionPos  token.Position // Position of calling convention keyword
+	DeprecatedMessage     string
+	Parameters            []*Parameter
 	BaseNode
 	Visibility    Visibility
 	IsDestructor  bool

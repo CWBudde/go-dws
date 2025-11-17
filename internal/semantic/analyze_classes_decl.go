@@ -734,6 +734,12 @@ func (a *Analyzer) findMatchingOverloadForImplementation(implDecl *ast.FunctionD
 
 // analyzeMethodDecl analyzes a method declaration within a class
 func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.ClassType) {
+	// Check for unsupported calling conventions and emit hints
+	if method.CallingConvention != "" {
+		a.addHint("Call convention \"%s\" is not supported and ignored [line: %d, column: %d]",
+			method.CallingConvention, method.CallingConventionPos.Line, method.CallingConventionPos.Column)
+	}
+
 	// Convert parameter types and extract metadata
 	// Task 9.21.4.3: Extract parameter metadata including variadic detection
 	// Task 9.1: Extract default values for optional parameters
