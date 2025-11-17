@@ -1,0 +1,70 @@
+// Test case statements with uninitialized variants
+// This tests the fix for the nil dereference bug in valuesEqual
+
+var v: Variant;
+var matched: Boolean := False;
+
+// Test 1: Case with uninitialized variant (should not match anything)
+case v of
+  1: PrintLn('Matched 1');
+  'hello': PrintLn('Matched hello');
+  True: PrintLn('Matched True');
+else
+  matched := True;
+  PrintLn('No match (expected)');
+end;
+
+if not matched then
+  raise Exception.Create('Test 1 failed: should not have matched');
+
+// Test 2: Two uninitialized variants should be equal
+var v2: Variant;
+matched := False;
+
+case v of
+  v2:
+    begin
+      matched := True;
+      PrintLn('Two uninitialized variants are equal (expected)');
+    end;
+else
+  PrintLn('Did not match');
+end;
+
+if not matched then
+  raise Exception.Create('Test 2 failed: two uninitialized variants should match');
+
+// Test 3: Initialize variant, then test case matching
+v := 42;
+matched := False;
+
+case v of
+  42:
+    begin
+      matched := True;
+      PrintLn('Matched 42 (expected)');
+    end;
+  'hello': PrintLn('Matched hello');
+else
+  PrintLn('No match');
+end;
+
+if not matched then
+  raise Exception.Create('Test 3 failed: should have matched 42');
+
+// Test 4: Case with range and uninitialized variant
+v := Unassigned;  // Explicitly set to unassigned
+matched := False;
+
+case v of
+  1..10: PrintLn('In range 1..10');
+  'a'..'z': PrintLn('In range a..z');
+else
+  matched := True;
+  PrintLn('Not in any range (expected)');
+end;
+
+if not matched then
+  raise Exception.Create('Test 4 failed: uninitialized variant should not be in range');
+
+PrintLn('All tests passed!');

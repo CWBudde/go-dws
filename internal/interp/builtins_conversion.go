@@ -2,6 +2,7 @@ package interp
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -70,9 +71,9 @@ func (i *Interpreter) builtinInteger(args []Value) Value {
 		return intVal
 	}
 
-	// Handle float values (truncate)
+	// Handle float values (round to nearest integer)
 	if floatVal, ok := arg.(*FloatValue); ok {
-		return &IntegerValue{Value: int64(floatVal.Value)}
+		return &IntegerValue{Value: int64(math.Round(floatVal.Value))}
 	}
 
 	// Handle boolean values
