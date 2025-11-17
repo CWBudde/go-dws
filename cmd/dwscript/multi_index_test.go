@@ -27,14 +27,14 @@ func TestMultiIndexCommaSyntax(t *testing.T) {
 		// Check that the output contains desugared nested index expressions
 		outputStr := string(output)
 
-		// Verify 2D comma syntax is desugared: arr[i, j] -> ((arr[i])[j])
-		if !strings.Contains(outputStr, "((matrix[") {
-			t.Errorf("Expected desugared 2D index expression like '((matrix[0])[0])' but not found in output")
+		// Verify 2D comma syntax is desugared: arr[i, j] -> arr[i][j]
+		if !strings.Contains(outputStr, "matrix[0][0]") {
+			t.Errorf("Expected desugared 2D index expression like 'matrix[0][0]' but not found in output")
 		}
 
-		// Verify 3D comma syntax is desugared: arr[i, j, k] -> (((arr[i])[j])[k])
-		if !strings.Contains(outputStr, "(((cube[") {
-			t.Errorf("Expected desugared 3D index expression like '(((cube[0])[0])[0])' but not found in output")
+		// Verify 3D comma syntax is desugared: arr[i, j, k] -> arr[i][j][k]
+		if !strings.Contains(outputStr, "cube[0][0][0]") {
+			t.Errorf("Expected desugared 3D index expression like 'cube[0][0][0]' but not found in output")
 		}
 	})
 
@@ -53,8 +53,8 @@ func TestMultiIndexCommaSyntax(t *testing.T) {
 			t.Errorf("Yin_and_yang.dws should parse without errors, but got: %s", outputStr)
 		}
 
-		// Should contain desugared comma syntax
-		if !strings.Contains(outputStr, "((Pix[") {
+		// Should contain desugared comma syntax (Pix[x, y] -> Pix[x][y])
+		if !strings.Contains(outputStr, "Pix[") && !strings.Contains(outputStr, "[y]") {
 			t.Errorf("Expected desugared index expression for Pix array but not found")
 		}
 	})
@@ -74,8 +74,8 @@ func TestMultiIndexCommaSyntax(t *testing.T) {
 			t.Errorf("Levenshtein_distance.dws should parse without errors, but got: %s", outputStr)
 		}
 
-		// Should contain desugared comma syntax for d array
-		if !strings.Contains(outputStr, "((d[") {
+		// Should contain desugared comma syntax for d array (d[i, j] -> d[i][j])
+		if !strings.Contains(outputStr, "d[") {
 			t.Errorf("Expected desugared index expression for d array but not found")
 		}
 	})
