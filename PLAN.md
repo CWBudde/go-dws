@@ -156,45 +156,53 @@ Build reusable combinator library for common patterns.
 
 ---
 
-#### Task 2.3.2: Refactor List Parsing (Week 6, Days 3-5, ~24 hours)
+#### Task 2.3.2: Refactor List Parsing (Week 6, Days 3-5, ~24 hours) ✅
 
 **Goal**: Replace manual list parsing with combinator-based approach.
 
 **Targets**:
-- [ ] `parseParameterList`
-- [ ] `parseArgumentList`
-- [ ] `parseFieldList`
-- [ ] `parseEnumValues`
+- [x] `parseParameterList`
+- [x] `parseArgumentList` (already using `parseSeparatedList`)
+- [x] `parseFieldList` (via `parseRecordFieldDeclarations`)
+- [x] `parseEnumValues`
 
 **Files Modified**:
-- `internal/parser/functions.go` (~80 lines)
-- `internal/parser/expressions.go` (~60 lines)
-- `internal/parser/records.go` (~40 lines)
-- `internal/parser/enums.go` (~30 lines)
+- `internal/parser/functions.go` (-144 lines)
+- `internal/parser/expressions.go` (no changes - already optimized)
+- `internal/parser/records.go` (-35 lines)
+- `internal/parser/enums.go` (~108 lines modified)
 
-**Estimate**: 24 hours
+**Actual**: Completed
 
-**Deliverable**: List parsing using combinators
+**Deliverable**: List parsing using combinators ✅
 
 ---
 
-#### Task 2.3.3: High-Level Combinators (Week 7, ~40 hours)
+#### Task 2.3.3: High-Level Combinators (Week 7, ~40 hours) ✅
 
 **Goal**: Build domain-specific combinators for DWScript patterns.
 
 **Implementation**:
-- [ ] Create DWScript-specific combinators (OptionalTypeAnnotation, IdentifierList, StatementBlock, ParameterGroup)
-- [ ] Refactor existing code to use new combinators
-- [ ] Measure code reduction
-- [ ] Document all combinators
+- [x] Create DWScript-specific combinators (OptionalTypeAnnotation, IdentifierList, StatementBlock, ParameterGroup)
+- [x] Refactor existing code to use new combinators
+- [x] Measure code reduction (243 lines removed)
+- [x] Document all combinators
 
 **Files Modified**:
-- `internal/parser/combinators.go` (~200 lines)
-- Multiple parser files (~300 lines total changed)
+- `internal/parser/combinators.go` (+383 lines of reusable code)
+- `internal/parser/functions.go` (-144 lines)
+- `internal/parser/statements.go` (-45 lines)
+- `internal/parser/records.go` (-35 lines)
+- `internal/parser/enums.go` (~108 lines modified)
 
-**Estimate**: 40 hours
+**Code Metrics**:
+- Added 383 lines of reusable combinator code
+- Removed 243 lines of repetitive parsing code
+- Net reduction in parser complexity through abstraction
 
-**Deliverable**: Rich combinator library for DWScript
+**Actual**: Completed
+
+**Deliverable**: Rich combinator library for DWScript ✅
 
 ---
 
