@@ -137,10 +137,8 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 				}
 
 				// Methods with parameters cannot be called without parentheses
-				// This is an error - the user must provide arguments
-				a.addError("method '%s' requires %d argument(s) at %s",
-					ident.Value, len(methodType.Parameters), ident.Token.Pos.String())
-				return nil
+				// Return a method pointer type for deferred invocation
+				return types.NewMethodPointerType(methodType.Parameters, methodType.ReturnType)
 			}
 		}
 
