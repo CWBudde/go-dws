@@ -112,10 +112,20 @@ func (p *Parser) parseExpressionCursor(precedence int) ast.Expression {
 	prefixFn, ok := p.prefixParseFnsCursor[currentToken.Type]
 	if !ok {
 		// No cursor version - fall back to traditional mode
-		p.syncCursorToTokens()
+		// DEBUG: Track fallback for debugging cursor sync issues
+		// beforeCursor := p.cursor.Current()
+		p.syncCursorToTokens() // Sync cursor → tokens
+		// beforeCurToken := p.curToken
 		p.useCursor = false
 		result := p.parseExpressionTraditional(precedence)
 		p.useCursor = true
+		// afterCurToken := p.curToken
+		// CRITICAL FIX (Task 2.2.7): Sync tokens → cursor after traditional mode mutates state
+		// Traditional parseExpression advanced curToken/peekToken, but cursor is still at old position.
+		// Update cursor to match the new curToken position to prevent infinite fallback loops.
+		p.syncTokensToCursor()
+		// fmt.Printf("DEBUG: Prefix fallback: beforeCursor=%v beforeCurToken=%v afterCurToken=%v afterCursor=%v\n",
+		// 	beforeCursor.Type, beforeCurToken.Type, afterCurToken.Type, p.cursor.Current().Type)
 		return result
 	}
 	leftExp := prefixFn(currentToken)
@@ -152,10 +162,12 @@ func (p *Parser) parseExpressionCursor(precedence int) ast.Expression {
 		infixFn, ok := p.infixParseFnsCursor[nextToken.Type]
 		if !ok {
 			// No cursor version - fall back to traditional mode for rest
-			p.syncCursorToTokens()
+			p.syncCursorToTokens() // Sync cursor → tokens
 			p.useCursor = false
 			result := p.parseExpressionTraditional(precedence)
 			p.useCursor = true
+			// CRITICAL FIX (Task 2.2.7): Sync tokens → cursor after traditional mode mutates state
+			p.syncTokensToCursor()
 			return result
 		}
 

@@ -725,6 +725,67 @@ func (p *Parser) syncCursorToTokens() {
 	}
 }
 
+// syncTokensToCursor updates the cursor to match curToken after traditional mode parsing.
+// This is the reverse of syncCursorToTokens() - it synchronizes FROM traditional state TO cursor.
+//
+// Called after fallback to traditional mode to keep cursor position consistent with
+// the tokens consumed by traditional parsing functions.
+//
+// Algorithm:
+//  1. Search cursor's buffered tokens for a token matching curToken's position
+//  2. If found, update cursor index to that position
+//  3. If not found (traditional mode advanced beyond buffer), extend cursor until match
+//
+// This prevents infinite loops where cursor stays at old position while traditional
+// state has advanced, causing repeated fallbacks on the same token.
+//
+// Task 2.2.7: Critical fix for dual-mode cursor synchronization.
+func (p *Parser) syncTokensToCursor() {
+	if !p.useCursor || p.cursor == nil {
+		return
+	}
+
+	// Strategy 1: Find curToken in existing buffer (fast path)
+	// Search the buffered tokens for one matching curToken's position
+	// Use both Type and Pos for matching to handle cases where positions might be equal
+	for i := range p.cursor.tokens {
+		tok := p.cursor.tokens[i]
+		if tok.Type == p.curToken.Type &&
+		   tok.Pos.Offset == p.curToken.Pos.Offset &&
+		   tok.Pos.Line == p.curToken.Pos.Line {
+			// Found matching token - update cursor to this position
+			p.cursor = &TokenCursor{
+				lexer:   p.cursor.lexer,
+				current: tok,
+				tokens:  p.cursor.tokens,
+				index:   i,
+			}
+			return
+		}
+	}
+
+	// Strategy 2: curToken is beyond buffer - advance cursor to match (slow path)
+	// This happens when traditional mode consumed many tokens beyond the cursor's buffer
+	// Limit iterations to prevent infinite loops
+	maxIterations := 1000
+	iterations := 0
+	for !p.cursor.IsEOF() && iterations < maxIterations {
+		iterations++
+		if p.cursor.Current().Type == p.curToken.Type &&
+			p.cursor.Current().Pos.Offset == p.curToken.Pos.Offset &&
+			p.cursor.Current().Pos.Line == p.curToken.Pos.Line {
+			return
+		}
+		p.cursor = p.cursor.Advance()
+	}
+
+	// If we get here, we couldn't sync - this is a critical error
+	// Log it but don't panic to allow error recovery
+	if iterations >= maxIterations {
+		p.addError("internal error: cursor sync exceeded iteration limit", ErrInvalidSyntax)
+	}
+}
+
 // Errors returns the list of parsing errors.
 func (p *Parser) Errors() []*ParserError {
 	return p.errors
@@ -755,6 +816,16 @@ func (p *Parser) SetSemanticErrors(errors []string) {
 func (p *Parser) nextToken() {
 	p.curToken = p.peekToken
 	p.peekToken = p.l.NextToken()
+
+	// Task 2.2.7: Also advance cursor in cursor mode to keep it synchronized
+	// This is critical for dual-mode operation - when ParseProgram or other top-level
+	// code calls nextToken(), the cursor must also advance to stay in sync.
+	if p.useCursor && p.cursor != nil {
+		p.cursor = p.cursor.Advance()
+		// Keep curToken/peekToken in sync with cursor (cursor is authoritative in cursor mode)
+		p.curToken = p.cursor.Current()
+		p.peekToken = p.cursor.Peek(1)
+	}
 }
 
 // curTokenIs checks if the current token is of the given type.
