@@ -37,6 +37,7 @@ import (
 // PRE: curToken is HELPER
 // POST: curToken is SEMICOLON
 func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token, isRecordHelper bool) *ast.HelperDecl {
+	builder := p.StartNode()
 	helperDecl := &ast.HelperDecl{
 		BaseNode: ast.BaseNode{
 			Token: p.curToken, // The HELPER token
@@ -199,8 +200,5 @@ func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lex
 		return nil
 	}
 
-	// Set EndPos to the position after the semicolon
-	helperDecl.EndPos = p.endPosFromToken(p.curToken)
-
-	return helperDecl
+	return builder.Finish(helperDecl).(*ast.HelperDecl)
 }

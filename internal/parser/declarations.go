@@ -50,6 +50,8 @@ func (p *Parser) parseConstDeclaration() ast.Statement {
 // PRE: curToken is CONST or IDENT
 // POST: curToken is last token of value expression
 func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
+	builder := p.StartNode()
+
 	// If we're at CONST token, advance to identifier
 	if p.curTokenIs(lexer.CONST) {
 		if !p.expectPeek(lexer.IDENT) {
@@ -106,16 +108,14 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 	if p.peekTokenIs(lexer.SEMICOLON) {
 		p.nextToken()
 		// End position is at the semicolon
-		stmt.EndPos = p.endPosFromToken(p.curToken)
+		return builder.Finish(stmt).(*ast.ConstDecl)
 	} else if stmt.Value != nil {
 		// No semicolon - end position is after the value expression
-		stmt.EndPos = stmt.Value.End()
+		return builder.FinishWithNode(stmt, stmt.Value).(*ast.ConstDecl)
 	} else {
 		// Fallback - use current token
-		stmt.EndPos = p.endPosFromToken(p.curToken)
+		return builder.Finish(stmt).(*ast.ConstDecl)
 	}
-
-	return stmt
 }
 
 // parseProgramDeclaration parses an optional program declaration at the start of a file.
@@ -200,6 +200,8 @@ func (p *Parser) parseConstDeclarationCursor() ast.Statement {
 // PRE: cursor is on CONST or IDENT token
 // POST: cursor is on last token of value expression or SEMICOLON
 func (p *Parser) parseSingleConstDeclarationCursor() *ast.ConstDecl {
+	builder := p.StartNode()
+
 	// If we're at CONST token, advance to identifier
 	currentToken := p.cursor.Current()
 	if currentToken.Type == lexer.CONST {
@@ -312,14 +314,12 @@ func (p *Parser) parseSingleConstDeclarationCursor() *ast.ConstDecl {
 	if nextToken.Type == lexer.SEMICOLON {
 		p.cursor = p.cursor.Advance() // move to semicolon
 		// End position is at the semicolon
-		stmt.EndPos = p.endPosFromToken(p.cursor.Current())
+		return builder.Finish(stmt).(*ast.ConstDecl)
 	} else if stmt.Value != nil {
 		// No semicolon - end position is after the value expression
-		stmt.EndPos = stmt.Value.End()
+		return builder.FinishWithNode(stmt, stmt.Value).(*ast.ConstDecl)
 	} else {
 		// Fallback - use current token
-		stmt.EndPos = p.endPosFromToken(p.cursor.Current())
+		return builder.Finish(stmt).(*ast.ConstDecl)
 	}
-
-	return stmt
 }

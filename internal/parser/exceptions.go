@@ -19,6 +19,7 @@ import (
 // PRE: curToken is RAISE
 // POST: curToken is last token of exception expression (or RAISE for bare raise)
 func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
+	builder := p.StartNode()
 	stmt := &ast.RaiseStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
@@ -26,8 +27,7 @@ func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
 	// Check if this is a bare raise (no expression)
 	if p.peekTokenIs(lexer.SEMICOLON) || p.peekTokenIs(lexer.EOF) {
 		// Bare raise - re-raise current exception
-		stmt.EndPos = p.endPosFromToken(p.curToken)
-		return stmt
+		return builder.Finish(stmt).(*ast.RaiseStatement)
 	}
 
 	// Parse the exception expression
@@ -40,9 +40,7 @@ func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
 	}
 
 	// End position is after the exception expression
-	stmt.EndPos = stmt.Exception.End()
-
-	return stmt
+	return builder.FinishWithNode(stmt, stmt.Exception).(*ast.RaiseStatement)
 }
 
 // parseTryStatement parses a try...except...finally...end statement.
@@ -69,6 +67,7 @@ func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
 // PRE: curToken is TRY
 // POST: curToken is END
 func (p *Parser) parseTryStatement() *ast.TryStatement {
+	builder := p.StartNode()
 	stmt := &ast.TryStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
@@ -111,9 +110,7 @@ func (p *Parser) parseTryStatement() *ast.TryStatement {
 	}
 
 	// End position is at the 'end' keyword
-	stmt.EndPos = p.endPosFromToken(p.curToken)
-
-	return stmt
+	return builder.Finish(stmt).(*ast.TryStatement)
 }
 
 // parseBlockStatementForTry parses statements until 'except', 'finally', or 'end'
@@ -168,6 +165,7 @@ func (p *Parser) parseBlockStatementForTry() *ast.BlockStatement {
 // PRE: curToken is EXCEPT
 // POST: curToken is last token before FINALLY or END
 func (p *Parser) parseExceptClause() *ast.ExceptClause {
+	builder := p.StartNode()
 	exceptToken := p.curToken // Save 'except' token before moving past it
 	clause := &ast.ExceptClause{
 		Token: exceptToken, // 'except' keyword token
@@ -220,6 +218,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 		// Create a synthetic handler for bare except (catches all)
 		// Handler with nil Variable and nil ExceptionType catches everything
 		if len(bareBlock.Statements) > 0 {
+			handlerBuilder := p.StartNode()
 			bareHandler := &ast.ExceptionHandler{
 				Token:         exceptToken, // Use the 'except' token for synthetic handler
 				Variable:      nil,         // No exception variable
@@ -227,7 +226,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 				Statement:     bareBlock,
 			}
 			if bareBlock != nil {
-				bareHandler.EndPos = bareBlock.End()
+				handlerBuilder.FinishWithNode(bareHandler, bareBlock)
 			}
 			clause.Handlers = append(clause.Handlers, bareHandler)
 		}
@@ -265,16 +264,14 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 
 	// Set EndPos based on what was parsed last
 	if clause.ElseBlock != nil {
-		clause.EndPos = clause.ElseBlock.End()
+		return builder.FinishWithNode(clause, clause.ElseBlock).(*ast.ExceptClause)
 	} else if len(clause.Handlers) > 0 {
 		lastHandler := clause.Handlers[len(clause.Handlers)-1]
-		clause.EndPos = lastHandler.End()
+		return builder.FinishWithNode(clause, lastHandler).(*ast.ExceptClause)
 	} else {
 		// No handlers or else block - use current position
-		clause.EndPos = p.endPosFromToken(p.curToken)
+		return builder.Finish(clause).(*ast.ExceptClause)
 	}
-
-	return clause
 }
 
 // parseExceptionHandler parses an exception handler.
@@ -292,6 +289,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 // PRE: curToken is ON
 // POST: curToken is last token after statement
 func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
+	builder := p.StartNode()
 	onToken := p.curToken // Save 'on' token before moving past it
 	handler := &ast.ExceptionHandler{
 		Token: onToken, // 'on' keyword token
@@ -346,16 +344,12 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 		return nil
 	}
 
-	// Set EndPos to the end of the statement
-	if handler.Statement != nil {
-		handler.EndPos = handler.Statement.End()
-	}
-
 	// After parsing the statement, advance to the next token
 	// This handles both block statements (begin...end) and single statements
 	p.nextToken()
 
-	return handler
+	// Set EndPos to the end of the statement
+	return builder.FinishWithNode(handler, handler.Statement).(*ast.ExceptionHandler)
 }
 
 // parseFinallyClause parses a finally clause.
@@ -419,6 +413,7 @@ func (p *Parser) parseFinallyClause() *ast.FinallyClause {
 // PRE: cursor is on RAISE token
 // POST: cursor is on last token of exception expression (or RAISE for bare raise)
 func (p *Parser) parseRaiseStatementCursor() *ast.RaiseStatement {
+	builder := p.StartNode()
 	raiseToken := p.cursor.Current()
 	stmt := &ast.RaiseStatement{
 		BaseNode: ast.BaseNode{Token: raiseToken},
@@ -428,8 +423,7 @@ func (p *Parser) parseRaiseStatementCursor() *ast.RaiseStatement {
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type == lexer.SEMICOLON || nextToken.Type == lexer.EOF {
 		// Bare raise - re-raise current exception
-		stmt.EndPos = p.endPosFromToken(raiseToken)
-		return stmt
+		return builder.FinishWithToken(stmt, raiseToken).(*ast.RaiseStatement)
 	}
 
 	// Parse the exception expression
@@ -451,9 +445,7 @@ func (p *Parser) parseRaiseStatementCursor() *ast.RaiseStatement {
 	}
 
 	// End position is after the exception expression
-	stmt.EndPos = stmt.Exception.End()
-
-	return stmt
+	return builder.FinishWithNode(stmt, stmt.Exception).(*ast.RaiseStatement)
 }
 
 // parseTryStatementCursor parses a try...except...finally...end statement using cursor mode.
@@ -466,6 +458,7 @@ func (p *Parser) parseRaiseStatementCursor() *ast.RaiseStatement {
 // PRE: cursor is on TRY token
 // POST: cursor is on END token
 func (p *Parser) parseTryStatementCursor() *ast.TryStatement {
+	builder := p.StartNode()
 	tryToken := p.cursor.Current()
 	stmt := &ast.TryStatement{
 		BaseNode: ast.BaseNode{Token: tryToken},
@@ -546,9 +539,7 @@ func (p *Parser) parseTryStatementCursor() *ast.TryStatement {
 	}
 
 	// End position is at the 'end' keyword
-	stmt.EndPos = p.endPosFromToken(currentToken)
-
-	return stmt
+	return builder.FinishWithToken(stmt, currentToken).(*ast.TryStatement)
 }
 
 // parseBlockStatementForTryCursor parses statements until 'except', 'finally', or 'end' using cursor mode.
@@ -606,6 +597,7 @@ func (p *Parser) parseBlockStatementForTryCursor() *ast.BlockStatement {
 // PRE: cursor is on EXCEPT token
 // POST: cursor is on token before FINALLY or END
 func (p *Parser) parseExceptClauseCursor() *ast.ExceptClause {
+	builder := p.StartNode()
 	exceptToken := p.cursor.Current() // Save 'except' token before moving past it
 	clause := &ast.ExceptClause{
 		Token: exceptToken, // 'except' keyword token
@@ -668,6 +660,7 @@ func (p *Parser) parseExceptClauseCursor() *ast.ExceptClause {
 
 		// Create a synthetic handler for bare except (catches all)
 		if len(bareBlock.Statements) > 0 {
+			handlerBuilder := p.StartNode()
 			bareHandler := &ast.ExceptionHandler{
 				Token:         exceptToken, // Use the 'except' token for synthetic handler
 				Variable:      nil,         // No exception variable
@@ -675,7 +668,7 @@ func (p *Parser) parseExceptClauseCursor() *ast.ExceptClause {
 				Statement:     bareBlock,
 			}
 			if bareBlock != nil {
-				bareHandler.EndPos = bareBlock.End()
+				bareHandler = handlerBuilder.FinishWithNode(bareHandler, bareBlock).(*ast.ExceptionHandler)
 			}
 			clause.Handlers = append(clause.Handlers, bareHandler)
 		}
@@ -726,16 +719,14 @@ func (p *Parser) parseExceptClauseCursor() *ast.ExceptClause {
 
 	// Set EndPos based on what was parsed last
 	if clause.ElseBlock != nil {
-		clause.EndPos = clause.ElseBlock.End()
+		return builder.FinishWithNode(clause, clause.ElseBlock).(*ast.ExceptClause)
 	} else if len(clause.Handlers) > 0 {
 		lastHandler := clause.Handlers[len(clause.Handlers)-1]
-		clause.EndPos = lastHandler.End()
+		return builder.FinishWithNode(clause, lastHandler).(*ast.ExceptClause)
 	} else {
 		// No handlers or else block - use current position
-		clause.EndPos = p.endPosFromToken(p.cursor.Current())
+		return builder.FinishWithToken(clause, p.cursor.Current()).(*ast.ExceptClause)
 	}
-
-	return clause
 }
 
 // parseExceptionHandlerCursor parses an exception handler using cursor mode.
@@ -745,6 +736,7 @@ func (p *Parser) parseExceptClauseCursor() *ast.ExceptClause {
 // PRE: cursor is on ON token
 // POST: cursor is on last token of handler statement
 func (p *Parser) parseExceptionHandlerCursor() *ast.ExceptionHandler {
+	builder := p.StartNode()
 	onToken := p.cursor.Current() // Save 'on' token before moving past it
 	handler := &ast.ExceptionHandler{
 		Token: onToken, // 'on' keyword token
@@ -856,16 +848,12 @@ func (p *Parser) parseExceptionHandlerCursor() *ast.ExceptionHandler {
 		return nil
 	}
 
-	// Set EndPos to the end of the statement
-	if handler.Statement != nil {
-		handler.EndPos = handler.Statement.End()
-	}
-
 	// After parsing the statement, advance to the next token
 	// This handles both block statements (begin...end) and single statements
 	p.cursor = p.cursor.Advance()
 
-	return handler
+	// Set EndPos to the end of the statement
+	return builder.FinishWithNode(handler, handler.Statement).(*ast.ExceptionHandler)
 }
 
 // parseFinallyClauseCursor parses a finally clause using cursor mode.

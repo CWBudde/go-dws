@@ -78,6 +78,8 @@ func (p *Parser) looksLikeTypeDeclaration() bool {
 // PRE: curToken is TYPE or type name IDENT
 // POST: curToken is SEMICOLON
 func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement {
+	builder := p.StartNode()
+
 	// Check if we're already at the identifier (type section continuation)
 	// or if we need to advance to it (after 'type' keyword)
 	var nameIdent *ast.Identifier
@@ -151,8 +153,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 				LowBound:   lowBound,
 				HighBound:  highBound,
 			}
-			typeDecl.EndPos = p.endPosFromToken(p.curToken)
-			return typeDecl
+			return builder.Finish(typeDecl).(*ast.TypeDeclaration)
 		}
 		// Not a subrange, fall through to error
 		p.addError("unexpected expression after '=' in type declaration (expected type name or subrange)", ErrUnexpectedToken)
@@ -178,8 +179,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 			IsAlias:     true,
 			AliasedType: aliasedType,
 		}
-		typeDecl.EndPos = p.endPosFromToken(p.curToken)
-		return typeDecl
+		return builder.Finish(typeDecl).(*ast.TypeDeclaration)
 	} else if p.peekTokenIs(lexer.INTERFACE) {
 		p.nextToken() // move to INTERFACE
 		return p.parseInterfaceDeclarationBody(nameIdent)
@@ -222,8 +222,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 				IsAlias:     true,
 				AliasedType: classOfType,
 			}
-			typeDecl.EndPos = p.endPosFromToken(p.curToken)
-			return typeDecl
+			return builder.Finish(typeDecl).(*ast.TypeDeclaration)
 		}
 		// Check if followed by 'partial': type TMyClass = class partial ... end;
 		if p.peekTokenIs(lexer.PARTIAL) {
@@ -292,6 +291,8 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 // PRE: curToken is FUNCTION or PROCEDURE
 // POST: curToken is SEMICOLON
 func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
+	builder := p.StartNode()
+
 	// Current token is FUNCTION or PROCEDURE
 	funcOrProcToken := p.curToken
 	isFunction := funcOrProcToken.Type == lexer.FUNCTION
@@ -411,8 +412,7 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 		FunctionPointerType: funcPtrType,
 		IsFunctionPointer:   true,
 	}
-	typeDecl.EndPos = p.endPosFromToken(p.curToken)
-	return typeDecl
+	return builder.Finish(typeDecl).(*ast.TypeDeclaration)
 }
 
 // parseInterfaceDeclarationBody parses the body of an interface declaration.
@@ -421,6 +421,8 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 // PRE: curToken is INTERFACE
 // POST: curToken is SEMICOLON
 func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.InterfaceDecl {
+	builder := p.StartNode()
+
 	interfaceDecl := &ast.InterfaceDecl{
 		BaseNode: ast.BaseNode{
 			Token: p.curToken, // 'interface' token
@@ -463,8 +465,7 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 	// Check for forward declaration: type IForward = interface;
 	if p.peekTokenIs(lexer.SEMICOLON) {
 		p.nextToken() // move to semicolon
-		interfaceDecl.EndPos = p.endPosFromToken(p.curToken)
-		return interfaceDecl
+		return builder.Finish(interfaceDecl).(*ast.InterfaceDecl)
 	}
 
 	// Parse interface body (method declarations) until 'end'
@@ -505,9 +506,7 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 		return nil
 	}
 
-	interfaceDecl.EndPos = p.endPosFromToken(p.curToken)
-
-	return interfaceDecl
+	return builder.Finish(interfaceDecl).(*ast.InterfaceDecl)
 }
 
 // parseInterfaceMethodDecl parses a method declaration within an interface.

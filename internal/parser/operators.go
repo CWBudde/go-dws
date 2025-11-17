@@ -17,6 +17,7 @@ import (
 // PRE: curToken is OPERATOR
 // POST: curToken is SEMICOLON
 func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
+	builder := p.StartNode()
 	decl := &ast.OperatorDecl{
 		BaseNode:   ast.BaseNode{Token: p.curToken},
 		Kind:       ast.OperatorKindGlobal,
@@ -86,10 +87,7 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 		return nil
 	}
 
-	// Set EndPos to the position after the semicolon
-	decl.EndPos = p.endPosFromToken(p.curToken)
-
-	return decl
+	return builder.Finish(decl).(*ast.OperatorDecl)
 }
 
 // parseClassOperatorDeclaration parses a class operator declared within a class body.
@@ -101,6 +99,7 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 // PRE: curToken is OPERATOR
 // POST: curToken is SEMICOLON
 func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibility ast.Visibility) *ast.OperatorDecl {
+	builder := p.StartNode()
 	if !p.curTokenIs(lexer.OPERATOR) {
 		p.addError("expected 'operator' after 'class'", ErrUnexpectedToken)
 		return nil
@@ -187,10 +186,7 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 		return nil
 	}
 
-	// Set EndPos to the position after the semicolon
-	decl.EndPos = p.endPosFromToken(p.curToken)
-
-	return decl
+	return builder.Finish(decl).(*ast.OperatorDecl)
 }
 
 // parseOperatorOperandTypes parses the operand type list inside parentheses.

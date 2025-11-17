@@ -1431,6 +1431,7 @@ func (p *Parser) parseSeparatedListBeforeStart(opts ListParseOptions, parseItem 
 
 // ParseProgram parses the entire program and returns the AST root node.
 func (p *Parser) ParseProgram() *ast.Program {
+	builder := p.StartNode()
 	program := &ast.Program{}
 	program.Statements = []ast.Statement{}
 
@@ -1478,10 +1479,7 @@ func (p *Parser) ParseProgram() *ast.Program {
 		p.nextToken()
 	}
 
-	// Set end position to the last token processed
-	program.EndPos = p.endPosFromToken(p.curToken)
-
-	return program
+	return builder.Finish(program).(*ast.Program)
 }
 
 // isVarDeclBlock checks if a BlockStatement was created by parseVarDeclaration()

@@ -290,6 +290,8 @@ func (p *Parser) parseStatement() ast.Statement {
 // PRE: curToken is BEGIN
 // POST: curToken is END
 func (p *Parser) parseBlockStatement() *ast.BlockStatement {
+	builder := p.StartNode()
+
 	block := &ast.BlockStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
@@ -326,36 +328,30 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 		p.synchronize([]lexer.TokenType{lexer.END, lexer.ENSURE})
 	}
 
-	// Set end position to the END keyword
-	block.EndPos = p.endPosFromToken(p.curToken)
-
-	return block
+	return builder.Finish(block).(*ast.BlockStatement)
 }
 
 // parseExpressionStatement parses an expression statement.
 // PRE: curToken is first token of expression
 // POST: curToken is SEMICOLON if present, otherwise last token of expression
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
+	builder := p.StartNode()
+
 	stmt := &ast.ExpressionStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
 
 	stmt.Expression = p.parseExpression(LOWEST)
 
-	// Set end position based on expression
-	if stmt.Expression != nil {
-		stmt.EndPos = stmt.Expression.End()
-	} else {
-		stmt.EndPos = p.endPosFromToken(stmt.Token)
-	}
-
 	// Optional semicolon
 	if p.peekTokenIs(lexer.SEMICOLON) {
 		p.nextToken()
-		stmt.EndPos = p.endPosFromToken(p.curToken) // Update to include semicolon
+		// End at semicolon
+		return builder.Finish(stmt).(*ast.ExpressionStatement)
 	}
 
-	return stmt
+	// End at expression
+	return builder.FinishWithNode(stmt, stmt.Expression).(*ast.ExpressionStatement)
 }
 
 // parseVarDeclaration parses a variable declaration statement.
@@ -404,6 +400,7 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 // PRE: curToken is VAR or variable name IDENT
 // POST: curToken is SEMICOLON
 func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
+	builder := p.StartNode()
 	stmt := &ast.VarDeclStatement{}
 
 	// Check if we're already at the identifier (var section continuation)
@@ -527,10 +524,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		return nil
 	}
 
-	// End position is at the semicolon
-	stmt.EndPos = p.endPosFromToken(p.curToken)
-
-	return stmt
+	return builder.Finish(stmt).(*ast.VarDeclStatement)
 }
 
 // isAssignmentOperator checks if the given token type is an assignment operator.
@@ -546,6 +540,8 @@ func isAssignmentOperator(t lexer.TokenType) bool {
 // This handles both simple assignments (x := value), compound assignments (x += value),
 // and member assignments (obj.field := value).
 func (p *Parser) parseAssignmentOrExpression() ast.Statement {
+	builder := p.StartNode()
+
 	// Save starting position
 	startToken := p.curToken
 
@@ -569,19 +565,14 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 			p.nextToken()
 			stmt.Value = p.parseExpression(ASSIGN)
 
-			// Set end position based on value expression
-			if stmt.Value != nil {
-				stmt.EndPos = stmt.Value.End()
-			} else {
-				stmt.EndPos = p.endPosFromToken(p.curToken)
-			}
-
 			// Optional semicolon
 			if p.peekTokenIs(lexer.SEMICOLON) {
 				p.nextToken()
-				stmt.EndPos = p.endPosFromToken(p.curToken) // Update to include semicolon
+				return builder.Finish(stmt).(*ast.AssignmentStatement)
 			}
-			return stmt
+
+			// End at value expression (FinishWithNode handles nil by falling back to current token)
+			return builder.FinishWithNode(stmt, stmt.Value).(*ast.AssignmentStatement)
 
 		case *ast.MemberAccessExpression:
 			// Member assignment: obj.field := value, obj.field += value
@@ -594,19 +585,14 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 			p.nextToken()
 			stmt.Value = p.parseExpression(ASSIGN)
 
-			// Set end position based on value expression
-			if stmt.Value != nil {
-				stmt.EndPos = stmt.Value.End()
-			} else {
-				stmt.EndPos = p.endPosFromToken(p.curToken)
-			}
-
 			// Optional semicolon
 			if p.peekTokenIs(lexer.SEMICOLON) {
 				p.nextToken()
-				stmt.EndPos = p.endPosFromToken(p.curToken) // Update to include semicolon
+				return builder.Finish(stmt).(*ast.AssignmentStatement)
 			}
-			return stmt
+
+			// End at value expression (FinishWithNode handles nil by falling back to current token)
+			return builder.FinishWithNode(stmt, stmt.Value).(*ast.AssignmentStatement)
 
 		case *ast.IndexExpression:
 			// Array index assignment: arr[i] := value, arr[i] += value
@@ -619,19 +605,14 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 			p.nextToken()
 			stmt.Value = p.parseExpression(ASSIGN)
 
-			// Set end position based on value expression
-			if stmt.Value != nil {
-				stmt.EndPos = stmt.Value.End()
-			} else {
-				stmt.EndPos = p.endPosFromToken(p.curToken)
-			}
-
 			// Optional semicolon
 			if p.peekTokenIs(lexer.SEMICOLON) {
 				p.nextToken()
-				stmt.EndPos = p.endPosFromToken(p.curToken) // Update to include semicolon
+				return builder.Finish(stmt).(*ast.AssignmentStatement)
 			}
-			return stmt
+
+			// End at value expression (FinishWithNode handles nil by falling back to current token)
+			return builder.FinishWithNode(stmt, stmt.Value).(*ast.AssignmentStatement)
 
 		default:
 			// Use structured error (Task 2.1.3)
@@ -657,9 +638,11 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 	// Optional semicolon
 	if p.peekTokenIs(lexer.SEMICOLON) {
 		p.nextToken()
+		return builder.Finish(stmt).(*ast.ExpressionStatement)
 	}
 
-	return stmt
+	// End at expression
+	return builder.FinishWithNode(stmt, left).(*ast.ExpressionStatement)
 }
 
 // looksLikeVarDeclaration performs lookahead to check if the next tokens form a var declaration.
@@ -720,6 +703,8 @@ func (p *Parser) looksLikeConstDeclaration() bool {
 // PRE: cursor is on first token of expression
 // POST: cursor is on last token of statement (possibly SEMICOLON)
 func (p *Parser) parseExpressionStatementCursor() *ast.ExpressionStatement {
+	builder := p.StartNode()
+
 	startToken := p.cursor.Current()
 	stmt := &ast.ExpressionStatement{
 		BaseNode: ast.BaseNode{Token: startToken},
@@ -728,21 +713,18 @@ func (p *Parser) parseExpressionStatementCursor() *ast.ExpressionStatement {
 	// Parse expression using cursor mode (expressions are fully migrated)
 	stmt.Expression = p.parseExpressionCursor(LOWEST)
 
-	// Set end position based on expression
-	if stmt.Expression != nil {
-		stmt.EndPos = stmt.Expression.End()
-	} else {
-		stmt.EndPos = p.endPosFromToken(stmt.Token)
-	}
-
 	// Optional semicolon
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type == lexer.SEMICOLON {
 		p.cursor = p.cursor.Advance()
-		stmt.EndPos = p.endPosFromToken(p.cursor.Current()) // Update to include semicolon
+		return builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.ExpressionStatement)
 	}
 
-	return stmt
+	// End at expression or current token
+	if stmt.Expression != nil {
+		return builder.FinishWithNode(stmt, stmt.Expression).(*ast.ExpressionStatement)
+	}
+	return builder.FinishWithToken(stmt, startToken).(*ast.ExpressionStatement)
 }
 
 // parseAssignmentOrExpressionCursor determines if we have an assignment or expression statement.
@@ -752,6 +734,8 @@ func (p *Parser) parseExpressionStatementCursor() *ast.ExpressionStatement {
 // PRE: cursor is on first token (typically an identifier or expression start)
 // POST: cursor is on last token of statement (possibly SEMICOLON)
 func (p *Parser) parseAssignmentOrExpressionCursor() ast.Statement {
+	builder := p.StartNode()
+
 	startToken := p.cursor.Current()
 
 	// Parse the left side as an expression (could be identifier, member access, or index)
@@ -779,21 +763,18 @@ func (p *Parser) parseAssignmentOrExpressionCursor() ast.Statement {
 			// Parse value expression
 			stmt.Value = p.parseExpressionCursor(ASSIGN)
 
-			// Set end position based on value expression
-			if stmt.Value != nil {
-				stmt.EndPos = stmt.Value.End()
-			} else {
-				stmt.EndPos = p.endPosFromToken(p.cursor.Current())
-			}
-
 			// Optional semicolon
 			nextToken := p.cursor.Peek(1)
 			if nextToken.Type == lexer.SEMICOLON {
 				p.cursor = p.cursor.Advance()
-				stmt.EndPos = p.endPosFromToken(p.cursor.Current()) // Update to include semicolon
+				return builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.AssignmentStatement)
 			}
 
-			return stmt
+			// End at value expression or current token
+			if stmt.Value != nil {
+				return builder.FinishWithNode(stmt, stmt.Value).(*ast.AssignmentStatement)
+			}
+			return builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.AssignmentStatement)
 
 		default:
 			// Invalid assignment target - use structured error
@@ -816,21 +797,18 @@ func (p *Parser) parseAssignmentOrExpressionCursor() ast.Statement {
 		Expression: left,
 	}
 
-	// Set end position
-	if left != nil {
-		stmt.EndPos = left.End()
-	} else {
-		stmt.EndPos = p.endPosFromToken(startToken)
-	}
-
 	// Optional semicolon
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type == lexer.SEMICOLON {
 		p.cursor = p.cursor.Advance()
-		stmt.EndPos = p.endPosFromToken(p.cursor.Current()) // Update to include semicolon
+		return builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.ExpressionStatement)
 	}
 
-	return stmt
+	// End at expression or start token
+	if left != nil {
+		return builder.FinishWithNode(stmt, left).(*ast.ExpressionStatement)
+	}
+	return builder.FinishWithToken(stmt, startToken).(*ast.ExpressionStatement)
 }
 
 // ============================================================================
@@ -842,6 +820,8 @@ func (p *Parser) parseAssignmentOrExpressionCursor() ast.Statement {
 // PRE: cursor is on BEGIN token
 // POST: cursor is on END token
 func (p *Parser) parseBlockStatementCursor() *ast.BlockStatement {
+	builder := p.StartNode()
+
 	beginToken := p.cursor.Current()
 	block := &ast.BlockStatement{
 		BaseNode: ast.BaseNode{Token: beginToken},
@@ -900,10 +880,7 @@ func (p *Parser) parseBlockStatementCursor() *ast.BlockStatement {
 		p.syncTokensToCursor()
 	}
 
-	// Set end position to the END keyword
-	block.EndPos = p.endPosFromToken(p.cursor.Current())
-
-	return block
+	return builder.FinishWithToken(block, p.cursor.Current()).(*ast.BlockStatement)
 }
 
 // ============================================================================
@@ -1001,6 +978,7 @@ func (p *Parser) parseVarDeclarationCursor() ast.Statement {
 // PRE: cursor is on VAR or variable name IDENT
 // POST: cursor is on SEMICOLON
 func (p *Parser) parseSingleVarDeclarationCursor() *ast.VarDeclStatement {
+	builder := p.StartNode()
 	stmt := &ast.VarDeclStatement{}
 
 	// Check if we're already at the identifier (var section continuation)
@@ -1240,8 +1218,5 @@ func (p *Parser) parseSingleVarDeclarationCursor() *ast.VarDeclStatement {
 
 	p.cursor = p.cursor.Advance() // move to semicolon
 
-	// End position is at the semicolon
-	stmt.EndPos = p.endPosFromToken(p.cursor.Current())
-
-	return stmt
+	return builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.VarDeclStatement)
 }

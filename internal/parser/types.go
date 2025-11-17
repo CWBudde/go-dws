@@ -23,6 +23,7 @@ import (
 // PRE: curToken is first token of type (IDENT, CONST, FUNCTION, PROCEDURE, ARRAY, SET, CLASS)
 // POST: curToken is last token of type expression
 func (p *Parser) parseTypeExpression() ast.TypeExpression {
+	builder := p.StartNode()
 	switch p.curToken.Type {
 	case lexer.IDENT:
 		// Simple type identifier
@@ -31,8 +32,7 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 			Name:  p.curToken.Literal,
 		}
 		// EndPos is after the type identifier token
-		typeAnnotation.EndPos = p.endPosFromToken(p.curToken)
-		return typeAnnotation
+		return builder.Finish(typeAnnotation).(*ast.TypeAnnotation)
 
 	case lexer.CONST:
 		// Special case: "const" can be used as a type in "array of const"
@@ -43,8 +43,7 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 			Name:  "const", // This will be interpreted as Variant type by semantic analyzer
 		}
 		// EndPos is after the const token
-		typeAnnotation.EndPos = p.endPosFromToken(p.curToken)
-		return typeAnnotation
+		return builder.Finish(typeAnnotation).(*ast.TypeAnnotation)
 
 	case lexer.FUNCTION, lexer.PROCEDURE:
 		// Inline function or procedure pointer type
@@ -127,6 +126,7 @@ func (p *Parser) detectFunctionPointerFullSyntax() bool {
 // PRE: curToken is FUNCTION or PROCEDURE
 // POST: curToken is last token of function pointer type (OBJECT, return type, or RPAREN)
 func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
+	builder := p.StartNode()
 	// Current token is FUNCTION or PROCEDURE
 	funcOrProcToken := p.curToken
 	isFunction := funcOrProcToken.Type == lexer.FUNCTION
@@ -237,16 +237,14 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 		}
 		funcPtrType.OfObject = true
 		// EndPos is after "object" token
-		funcPtrType.EndPos = p.endPosFromToken(p.curToken)
+		return builder.Finish(funcPtrType).(*ast.FunctionPointerTypeNode)
 	} else if funcPtrType.ReturnType != nil {
 		// EndPos is after return type for functions
-		funcPtrType.EndPos = funcPtrType.ReturnType.End()
+		return builder.FinishWithNode(funcPtrType, funcPtrType.ReturnType).(*ast.FunctionPointerTypeNode)
 	} else {
 		// EndPos is after closing paren (if present) or function/procedure keyword
-		funcPtrType.EndPos = p.endPosFromToken(endToken)
+		return builder.FinishWithToken(funcPtrType, endToken).(*ast.FunctionPointerTypeNode)
 	}
-
-	return funcPtrType
 }
 
 // dimensionPair represents a single dimension of an array with low and high bounds.
@@ -282,6 +280,7 @@ type dimensionPair struct {
 // PRE: curToken is ARRAY
 // POST: curToken is last token of element type
 func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
+	builder := p.StartNode()
 	// Current token is ARRAY
 	arrayToken := p.curToken
 
@@ -302,11 +301,11 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 			// Check if next token is ']' (enum-indexed) or something else
 			if p.peekTokenIs(lexer.RBRACK) {
 				// This is an enum-indexed array: array[TEnum] of Type
-				indexType = &ast.TypeAnnotation{
-					Token:  p.curToken,
-					Name:   p.curToken.Literal,
-					EndPos: p.endPosFromToken(p.curToken),
-				}
+				typeBuilder := p.StartNode()
+				indexType = typeBuilder.Finish(&ast.TypeAnnotation{
+					Token: p.curToken,
+					Name:  p.curToken.Literal,
+				}).(*ast.TypeAnnotation)
 
 				// Move to ']'
 				p.nextToken()
@@ -397,8 +396,7 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 			HighBound:   nil,
 		}
 		// EndPos is after element type
-		arrayNode.EndPos = elementType.End()
-		return arrayNode
+		return builder.FinishWithNode(arrayNode, elementType).(*ast.ArrayTypeNode)
 	}
 
 	// If no dimensions, return simple dynamic array
@@ -410,8 +408,7 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 			HighBound:   nil,
 		}
 		// EndPos is after element type
-		arrayNode.EndPos = elementType.End()
-		return arrayNode
+		return builder.FinishWithNode(arrayNode, elementType).(*ast.ArrayTypeNode)
 	}
 
 	// Build nested array types from innermost to outermost
@@ -419,6 +416,7 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 	//           into: array[0..1] of (array[0..2] of Integer)
 	result := elementType
 	for i := len(dimensions) - 1; i >= 0; i-- {
+		dimBuilder := p.StartNode()
 		arrayNode := &ast.ArrayTypeNode{
 			Token:       arrayToken,
 			ElementType: result,
@@ -426,8 +424,7 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 			HighBound:   dimensions[i].high,
 		}
 		// EndPos is after the element type (which could be nested)
-		arrayNode.EndPos = result.End()
-		result = arrayNode
+		result = dimBuilder.FinishWithNode(arrayNode, result).(*ast.ArrayTypeNode)
 	}
 
 	return result.(*ast.ArrayTypeNode)
@@ -544,6 +541,7 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 // PRE: curToken is CLASS
 // POST: curToken is class type IDENT
 func (p *Parser) parseClassOfType() *ast.ClassOfTypeNode {
+	builder := p.StartNode()
 	classToken := p.curToken // The 'class' token
 
 	// Expect 'of' keyword
@@ -567,7 +565,5 @@ func (p *Parser) parseClassOfType() *ast.ClassOfTypeNode {
 	}
 
 	// EndPos is after the class type
-	classOfNode.EndPos = classType.End()
-
-	return classOfNode
+	return builder.FinishWithNode(classOfNode, classType).(*ast.ClassOfTypeNode)
 }
