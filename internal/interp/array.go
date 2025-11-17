@@ -191,7 +191,7 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 							tempName := fmt.Sprintf("__temp_index_%d__", idx)
 							i.env.Define(tempName, indexVal)
 							methodCall.Arguments[idx] = &ast.Identifier{
-								Value:                tempName,
+								Value:               tempName,
 								TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: expr.Token}},
 							}
 						}
@@ -254,8 +254,8 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 						TypedExpressionBase: ast.TypedExpressionBase{
 							BaseNode: ast.BaseNode{Token: expr.Token},
 						},
-						Object:    expr.Left,
-						Method:    &ast.Identifier{Value: defaultProp.ReadField, TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: expr.Token}}},
+						Object: expr.Left,
+						Method: &ast.Identifier{Value: defaultProp.ReadField, TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: expr.Token}}},
 						Arguments: []ast.Expression{
 							&ast.Identifier{Value: "__temp_default_index__", TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: expr.Token}}},
 						},

@@ -671,12 +671,12 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 						},
 						Object: target.Object,
 						Method: &ast.Identifier{
-							Value:                propInfo.WriteField,
+							Value:               propInfo.WriteField,
 							TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: stmt.Token}},
 						},
 						Arguments: []ast.Expression{
 							&ast.Identifier{
-								Value:                "__temp_write_value__",
+								Value:               "__temp_write_value__",
 								TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: stmt.Token}},
 							},
 						},
