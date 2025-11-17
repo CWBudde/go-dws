@@ -15,9 +15,9 @@ func TestSin(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
-		name     string
-		args     []Value
-		expected float64
+		name      string
+		args      []Value
+		expected  float64
 		tolerance float64
 	}{
 		{
