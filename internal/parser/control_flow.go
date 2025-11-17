@@ -1570,6 +1570,50 @@ func (p *Parser) parseForInLoopCursor(forToken lexer.Token, variable *ast.Identi
 	return stmt
 }
 
+// parseCaseValueOrRangeCursor parses a single case value or range expression in cursor mode.
+// If the value is followed by '..' it creates a RangeExpression, otherwise returns the value as-is.
+// PRE: value expression has been parsed, cursor is on the last token of the value
+// POST: cursor is on the last token of the value or range end expression
+func (p *Parser) parseCaseValueOrRangeCursor(value ast.Expression) ast.Expression {
+	// Check for range operator (..)
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type == lexer.DOTDOT {
+		p.cursor = p.cursor.Advance() // move to '..'
+		rangeToken := p.cursor.Current()
+
+		p.cursor = p.cursor.Advance() // move to end expression
+		endValue := p.parseExpressionCursor(LOWEST)
+		if endValue == nil {
+			// Use structured error
+			currentToken := p.cursor.Current()
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidExpression).
+				WithMessage("expected expression after '..' in case range").
+				WithPosition(currentToken.Pos, currentToken.Length()).
+				WithSuggestion("provide the end value for the range").
+				WithParsePhase("case range").
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+
+		// Create RangeExpression
+		rangeExpr := &ast.RangeExpression{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: rangeToken,
+				},
+			},
+			Start:    value,
+			RangeEnd: endValue,
+		}
+		return rangeExpr
+	}
+
+	// Simple value (not a range)
+	return value
+}
+
 // parseCaseStatementCursor parses a case statement in cursor mode.
 // Task 2.2.14.5: Case statement migration
 // Syntax: case <expression> of <value>: <statement>; ... [else <statement>;] end;
@@ -1664,43 +1708,12 @@ func (p *Parser) parseCaseStatementCursor() *ast.CaseStatement {
 			return nil
 		}
 
-		// Check for range operator (..)
-		nextToken = p.cursor.Peek(1)
-		if nextToken.Type == lexer.DOTDOT {
-			p.cursor = p.cursor.Advance() // move to '..'
-			rangeToken := p.cursor.Current()
-
-			p.cursor = p.cursor.Advance() // move to end expression
-			endValue := p.parseExpressionCursor(LOWEST)
-			if endValue == nil {
-				// Use structured error
-				currentToken := p.cursor.Current()
-				err := NewStructuredError(ErrKindInvalid).
-					WithCode(ErrInvalidExpression).
-					WithMessage("expected expression after '..' in case range").
-					WithPosition(currentToken.Pos, currentToken.Length()).
-					WithSuggestion("provide the end value for the range").
-					WithParsePhase("case range").
-					Build()
-				p.addStructuredError(err)
-				return nil
-			}
-
-			// Create RangeExpression
-			rangeExpr := &ast.RangeExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: rangeToken,
-					},
-				},
-				Start:    value,
-				RangeEnd: endValue,
-			}
-			branch.Values = append(branch.Values, rangeExpr)
-		} else {
-			// Simple value (not a range)
-			branch.Values = append(branch.Values, value)
+		// Check for range operator and create RangeExpression if needed
+		valueOrRange := p.parseCaseValueOrRangeCursor(value)
+		if valueOrRange == nil {
+			return nil
 		}
+		branch.Values = append(branch.Values, valueOrRange)
 
 		// Parse additional comma-separated values/ranges
 		for {
@@ -1727,41 +1740,12 @@ func (p *Parser) parseCaseStatementCursor() *ast.CaseStatement {
 				return nil
 			}
 
-			// Check for range
-			nextToken = p.cursor.Peek(1)
-			if nextToken.Type == lexer.DOTDOT {
-				p.cursor = p.cursor.Advance() // move to '..'
-				rangeToken := p.cursor.Current()
-
-				p.cursor = p.cursor.Advance() // move to end expression
-				endValue := p.parseExpressionCursor(LOWEST)
-				if endValue == nil {
-					// Use structured error
-					currentToken := p.cursor.Current()
-					err := NewStructuredError(ErrKindInvalid).
-						WithCode(ErrInvalidExpression).
-						WithMessage("expected expression after '..' in case range").
-						WithPosition(currentToken.Pos, currentToken.Length()).
-						WithSuggestion("provide the end value for the range").
-						WithParsePhase("case range").
-						Build()
-					p.addStructuredError(err)
-					return nil
-				}
-
-				rangeExpr := &ast.RangeExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: rangeToken,
-						},
-					},
-					Start:    value,
-					RangeEnd: endValue,
-				}
-				branch.Values = append(branch.Values, rangeExpr)
-			} else {
-				branch.Values = append(branch.Values, value)
+			// Check for range operator and create RangeExpression if needed
+			valueOrRange := p.parseCaseValueOrRangeCursor(value)
+			if valueOrRange == nil {
+				return nil
 			}
+			branch.Values = append(branch.Values, valueOrRange)
 		}
 
 		// Expect ':' after value(s)
