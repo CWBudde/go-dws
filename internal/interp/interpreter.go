@@ -4,6 +4,7 @@ import (
 	"io"
 	"math"
 	"math/rand"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/errors"
@@ -276,6 +277,56 @@ func (i *Interpreter) EvalNode(node ast.Node) evaluator.Value {
 	// Delegate to the legacy Eval method
 	// The cast is safe because our Value type matches evaluator.Value interface
 	return i.Eval(node)
+}
+
+// Phase 3.5.4 - Phase 2A: Function call system adapter methods
+// These methods implement the InterpreterAdapter interface for function calls.
+
+// CallFunctionPointer executes a function pointer with given arguments.
+func (i *Interpreter) CallFunctionPointer(funcPtr evaluator.Value, args []evaluator.Value, node ast.Node) evaluator.Value {
+	// Convert evaluator.Value to interp.Value (they're the same interface)
+	fp, ok := funcPtr.(*FunctionPointerValue)
+	if !ok {
+		return i.newErrorWithLocation(node, "invalid function pointer type: expected FunctionPointerValue, got %T", funcPtr)
+	}
+
+	// Convert args from evaluator.Value to interp.Value
+	interpArgs := make([]Value, len(args))
+	for idx, arg := range args {
+		interpArgs[idx] = arg
+	}
+
+	return i.callFunctionPointer(fp, interpArgs, node)
+}
+
+// CallUserFunction executes a user-defined function.
+func (i *Interpreter) CallUserFunction(fn *ast.FunctionDecl, args []evaluator.Value) evaluator.Value {
+	// Convert args from evaluator.Value to interp.Value
+	interpArgs := make([]Value, len(args))
+	for idx, arg := range args {
+		interpArgs[idx] = arg
+	}
+
+	return i.callUserFunction(fn, interpArgs)
+}
+
+// CallBuiltinFunction executes a built-in function by name.
+func (i *Interpreter) CallBuiltinFunction(name string, args []evaluator.Value) evaluator.Value {
+	// Convert args from evaluator.Value to interp.Value
+	interpArgs := make([]Value, len(args))
+	for idx, arg := range args {
+		interpArgs[idx] = arg
+	}
+
+	return i.callBuiltinFunction(name, interpArgs)
+}
+
+// LookupFunction finds a function by name in the function registry.
+func (i *Interpreter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
+	// DWScript is case-insensitive, so normalize to lowercase
+	normalizedName := strings.ToLower(name)
+	functions, ok := i.functions[normalizedName]
+	return functions, ok
 }
 
 // GetCallStack returns a copy of the current call stack.

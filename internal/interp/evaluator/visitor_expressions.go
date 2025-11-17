@@ -56,7 +56,8 @@ func (e *Evaluator) VisitUnaryExpression(node *ast.UnaryExpression, ctx *Executi
 
 // VisitAddressOfExpression evaluates an address-of expression (@funcName).
 func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2A: Function lookup is available via adapter.LookupFunction
+	// TODO: Migrate evalAddressOfExpression logic to use adapter.LookupFunction
 	return e.adapter.EvalNode(node)
 }
 
@@ -69,8 +70,9 @@ func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *Exe
 
 // VisitCallExpression evaluates a function call expression.
 func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	// Future: Move function call logic here
+	// Phase 3.5.4 - Phase 2A: Function call infrastructure is available via adapter
+	// (CallFunctionPointer, CallUserFunction, CallBuiltinFunction, LookupFunction)
+	// TODO: Migrate evalCallExpression logic from Interpreter to use these adapter methods
 	return e.adapter.EvalNode(node)
 }
 
@@ -89,19 +91,22 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 // VisitMethodCallExpression evaluates a method call (obj.Method(args)).
 func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2A: Function call infrastructure is available via adapter
+	// TODO: Migrate method call logic to use adapter.CallUserFunction
 	return e.adapter.EvalNode(node)
 }
 
 // VisitInheritedExpression evaluates an 'inherited' expression.
 func (e *Evaluator) VisitInheritedExpression(node *ast.InheritedExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2A: Function call infrastructure is available via adapter
+	// TODO: Migrate inherited call logic to use adapter.CallUserFunction
 	return e.adapter.EvalNode(node)
 }
 
 // VisitSelfExpression evaluates a 'Self' expression.
 func (e *Evaluator) VisitSelfExpression(node *ast.SelfExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2A: Self context will be needed for method calls
+	// TODO: Add Self context to ExecutionContext or Environment
 	return e.adapter.EvalNode(node)
 }
 
@@ -163,7 +168,8 @@ func (e *Evaluator) VisitNewArrayExpression(node *ast.NewArrayExpression, ctx *E
 
 // VisitLambdaExpression evaluates a lambda expression (closure).
 func (e *Evaluator) VisitLambdaExpression(node *ast.LambdaExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
+	// Phase 3.5.4 - Phase 2A: Lambda creation needs to capture closure environment
+	// TODO: Migrate lambda creation logic to create FunctionPointerValue with closure
 	return e.adapter.EvalNode(node)
 }
 

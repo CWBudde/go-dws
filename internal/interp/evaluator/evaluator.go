@@ -52,9 +52,29 @@ type ExternalFunctionRegistry interface {
 // InterpreterAdapter is a temporary interface to allow the Evaluator to delegate
 // back to the Interpreter during the migration process.
 // Phase 3.5.1: This will be removed once all evaluation logic is moved to Evaluator.
+// Phase 3.5.4 - Phase 2A: Extended to include function call methods.
 type InterpreterAdapter interface {
 	// EvalNode evaluates a node using the legacy Interpreter.Eval method.
 	EvalNode(node ast.Node) Value
+
+	// Phase 3.5.4 - Phase 2A: Function call system methods
+	// These methods allow the Evaluator to call functions during evaluation
+	// without directly accessing Interpreter fields.
+
+	// CallFunctionPointer executes a function pointer with given arguments.
+	// The funcPtr should be a FunctionPointerValue containing the function/lambda and closure.
+	CallFunctionPointer(funcPtr Value, args []Value, node ast.Node) Value
+
+	// CallUserFunction executes a user-defined function.
+	CallUserFunction(fn *ast.FunctionDecl, args []Value) Value
+
+	// CallBuiltinFunction executes a built-in function by name.
+	CallBuiltinFunction(name string, args []Value) Value
+
+	// LookupFunction finds a function by name in the function registry.
+	// Returns the function declaration(s) and a boolean indicating success.
+	// Multiple functions may be returned for overloaded functions.
+	LookupFunction(name string) ([]*ast.FunctionDecl, bool)
 }
 
 // Evaluator is responsible for evaluating DWScript AST nodes.

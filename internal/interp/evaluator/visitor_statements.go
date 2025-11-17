@@ -262,8 +262,9 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 // VisitExpressionStatement evaluates an expression statement.
 // Special handling for auto-invoking parameterless function pointers.
 func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	// This has special logic for auto-invoking function pointers
+	// Phase 3.5.4 - Phase 2A: Function call infrastructure is available via adapter
+	// This has special logic for auto-invoking parameterless function pointers
+	// TODO: Migrate auto-invoke logic to use adapter.CallFunctionPointer
 	return e.adapter.EvalNode(node)
 }
 
