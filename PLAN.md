@@ -34,7 +34,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Estimate**: 656 hours (12-16 weeks / 3-4 months full-time)
 
-**Status**: IN PROGRESS (Phase 2.2 complete, Phase 2.3 pending)
+**Status**: IN PROGRESS (Phases 2.1-2.5 complete, Phase 2.6 pending)
 
 **Priority**: Medium-Low (architectural improvement, optional but valuable)
 
@@ -158,7 +158,9 @@ Build reusable combinator library for common patterns.
 
 ---
 
-### Phase 2.5: Separation of Concerns (Weeks 9-10, 80 hours)
+### Phase 2.5: Separation of Concerns ✅ (Weeks 9-10, 80 hours)
+
+**Status**: COMPLETED
 
 Clean architectural separation.
 
