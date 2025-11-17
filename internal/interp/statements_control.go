@@ -169,6 +169,22 @@ func (i *Interpreter) evalCaseStatement(stmt *ast.CaseStatement) Value {
 // valuesEqual compares two values for equality.
 // This is used by case statements to match values.
 func (i *Interpreter) valuesEqual(left, right Value) bool {
+	// Unwrap VariantValue if present
+	if varVal, ok := left.(*VariantValue); ok {
+		left = varVal.Value
+	}
+	if varVal, ok := right.(*VariantValue); ok {
+		right = varVal.Value
+	}
+
+	// Handle nil values (uninitialized variants)
+	if left == nil && right == nil {
+		return true // Both uninitialized variants are equal
+	}
+	if left == nil || right == nil {
+		return false // One is nil, the other is not
+	}
+
 	// Handle same type comparisons
 	if left.Type() != right.Type() {
 		return false
@@ -216,6 +232,22 @@ func (i *Interpreter) valuesEqual(left, right Value) bool {
 // isInRange checks if value is within the range [start, end] inclusive.
 // Supports Integer, Float, String (character), and Enum values.
 func (i *Interpreter) isInRange(value, start, end Value) bool {
+	// Unwrap VariantValue if present
+	if varVal, ok := value.(*VariantValue); ok {
+		value = varVal.Value
+	}
+	if varVal, ok := start.(*VariantValue); ok {
+		start = varVal.Value
+	}
+	if varVal, ok := end.(*VariantValue); ok {
+		end = varVal.Value
+	}
+
+	// Handle nil values (uninitialized variants)
+	if value == nil || start == nil || end == nil {
+		return false // Cannot perform range check with uninitialized variants
+	}
+
 	// Handle different value types
 	switch v := value.(type) {
 	case *IntegerValue:

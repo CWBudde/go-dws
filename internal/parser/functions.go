@@ -214,6 +214,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			// Note: These are contextual identifiers, not reserved keywords
 			p.nextToken() // move to calling convention
 			fn.CallingConvention = strings.ToLower(p.curToken.Literal)
+			fn.CallingConventionPos = p.curToken.Pos
 			if !p.expectPeek(lexer.SEMICOLON) {
 				return nil
 			}

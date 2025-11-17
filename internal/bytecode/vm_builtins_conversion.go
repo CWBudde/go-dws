@@ -2,6 +2,7 @@ package bytecode
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -127,7 +128,7 @@ func builtinInteger(vm *VM, args []Value) (Value, error) {
 	case ValueInt:
 		return arg, nil
 	case ValueFloat:
-		return IntValue(int64(arg.AsFloat())), nil
+		return IntValue(int64(math.Round(arg.AsFloat()))), nil
 	case ValueBool:
 		if arg.AsBool() {
 			return IntValue(1), nil

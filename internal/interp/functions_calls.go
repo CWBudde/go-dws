@@ -398,6 +398,9 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		args[idx] = val
 	}
 
+	// Set currentNode to the function name (which has the position of the call)
+	// This ensures that built-in functions like Assert() report the correct position
+	i.currentNode = funcName
 	return i.callBuiltin(funcName.Value, args)
 }
 

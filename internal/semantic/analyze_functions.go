@@ -17,6 +17,12 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 		return
 	}
 
+	// Check for unsupported calling conventions and emit hints
+	if decl.CallingConvention != "" {
+		a.addHint("Call convention \"%s\" is not supported and ignored [line: %d, column: %d]",
+			decl.CallingConvention, decl.CallingConventionPos.Line, decl.CallingConventionPos.Column)
+	}
+
 	// This is a regular function (not a method implementation)
 	// Convert parameter types and return type
 	// Task 9.102: Use resolveType to support user-defined types like subranges

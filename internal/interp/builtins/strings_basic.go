@@ -459,7 +459,8 @@ func StrToBool(ctx Context, args []Value) Value {
 	case "false", "0", "no", "f", "n":
 		return &runtime.BooleanValue{Value: false}
 	default:
-		return ctx.NewError("StrToBool() invalid boolean string: '%s'", strVal.Value)
+		// For invalid strings, return false (DWScript behavior)
+		return &runtime.BooleanValue{Value: false}
 	}
 }
 
