@@ -993,7 +993,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
 
 ### Phase 3.7: Built-in Function Organization
 
-- [ ] 3.7.1 Reorganize built-in functions by feature
+- [x] 3.7.1 Reorganize built-in functions by feature
   - Merge `builtins_strings_*.go` (3 files) → `builtins/strings.go` (1 file)
   - Merge `builtins_math_*.go` (4 files) → `builtins/math.go` (1 file)
   - Merge `builtins_datetime_*.go` (3 files) → `builtins/datetime.go` (1 file)
@@ -1001,6 +1001,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Files: Reorganize 15+ files into ~6 files in builtins/
   - Estimated: 3 days
   - Acceptance: Cleaner organization, fewer files, easier to find functions, tests pass
+  - **Completed**: Created `internal/interp/builtins/` package with Context interface, consolidated 171 functions into 4 files (math.go: 62 functions, strings.go: 56 functions, datetime.go: 52 functions, context.go: interface), eliminated circular dependencies via interface-based design, all tests passing. See `docs/phase3-task3.7.1-summary.md`
 
 - [ ] 3.7.2 Create built-in function registry
   - Extract built-in registration to registry pattern
