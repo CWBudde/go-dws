@@ -748,12 +748,8 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 
 	expression.Right = p.parseExpression(PREFIX)
 
-	// Set end position based on the right expression
-	if expression.Right != nil {
-		return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
-	} else {
-		return builder.Finish(expression).(ast.Expression)
-	}
+	// End at right expression (FinishWithNode handles nil by falling back to current token)
+	return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
 }
 
 // Task 2.2.12: parsePrefixExpressionCursor - Cursor mode version of parsePrefixExpression
@@ -779,12 +775,8 @@ func (p *Parser) parsePrefixExpressionCursor() ast.Expression {
 	// Parse the operand expression
 	expression.Right = p.parseExpressionCursor(PREFIX)
 
-	// Set end position based on the right expression
-	if expression.Right != nil {
-		return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
-	} else {
-		return builder.Finish(expression).(ast.Expression)
-	}
+	// End at right expression (FinishWithNode handles nil by falling back to current token)
+	return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
 }
 
 // parseAddressOfExpression parses the address-of operator (@) applied to a function or procedure.
@@ -804,12 +796,8 @@ func (p *Parser) parseAddressOfExpression() ast.Expression {
 	// Parse the target expression (function/procedure name or member access)
 	expression.Operator = p.parseExpression(PREFIX)
 
-	// Set end position based on the target expression
-	if expression.Operator != nil {
-		return builder.FinishWithNode(expression, expression.Operator).(ast.Expression)
-	} else {
-		return builder.Finish(expression).(ast.Expression)
-	}
+	// End at operator expression (FinishWithNode handles nil by falling back to current token)
+	return builder.FinishWithNode(expression, expression.Operator).(ast.Expression)
 }
 
 // parseInfixExpression parses a binary infix expression (dispatcher).
@@ -838,12 +826,8 @@ func (p *Parser) parseInfixExpressionTraditional(left ast.Expression) ast.Expres
 	p.nextToken()
 	expression.Right = p.parseExpression(precedence)
 
-	// Set end position based on the right expression
-	if expression.Right != nil {
-		return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
-	} else {
-		return builder.Finish(expression).(ast.Expression)
-	}
+	// End at right expression (FinishWithNode handles nil by falling back to current token)
+	return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
 }
 
 // parseInfixExpressionCursor parses a binary infix expression using cursor navigation.
@@ -881,12 +865,8 @@ func (p *Parser) parseInfixExpressionCursor(left ast.Expression) ast.Expression 
 	// for pure cursor-to-cursor recursion without state synchronization
 	expression.Right = p.parseExpressionCursor(precedence)
 
-	// Set end position based on the right expression
-	if expression.Right != nil {
-		return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
-	} else {
-		return builder.Finish(expression).(ast.Expression)
-	}
+	// End at right expression (FinishWithNode handles nil by falling back to current token)
+	return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
 }
 
 // parseCallExpression parses a function call expression.

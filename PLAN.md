@@ -1063,7 +1063,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Acceptance: 9+ JSON/type functions migrated, registry up to 212+ functions, tests pass
   - **Completed**: Extended Context interface with JSON helpers (ParseJSONString, ValueToJSON, JSONHasField, JSONGetKeys, JSONGetValues, JSONGetLength, CreateStringArray, CreateVariantArray) and type introspection helpers (GetTypeOf, GetClassOf). Migrated 9 functions: 7 JSON functions (ParseJSON, ToJSON, ToJSONFormatted, JSONHasField, JSONKeys, JSONValues, JSONLength) in CategoryJSON and 2 type introspection functions (TypeOf, TypeOfClass) in CategoryType. Fixed GetTypeOf to return properly capitalized type names (Integer, Float, String, Boolean, etc.) and handle object/class types correctly. Fixed GetClassOf to handle ClassValue, ClassInfoValue, and ObjectInstance. All RTTI and JSON tests passing.
 
-- [ ] 3.7.7 Migrate array and collection functions
+- [x] 3.7.7 Migrate array and collection functions
   - Extend Context with array helpers: GetArrayLength, SetArrayLength, ArrayCopy, ArrayReverse, ArraySort
   - Migrate simple array functions: Length, Copy, Low, High, IndexOf, Contains, Reverse, Sort
   - Extend Context with callback evaluation: EvalFunctionPointer
@@ -1074,7 +1074,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Estimated: 5 days
   - Acceptance: 21+ array/collection functions migrated, registry up to 233+ functions, tests pass
 
-- [ ] 3.7.8 Migrate remaining miscellaneous functions
+- [x] 3.7.8 Migrate remaining miscellaneous functions
   - Migrate Format function with extended formatting support
   - Migrate runtime functions: GetStackTrace, GetCallStack, Assigned, Swap
   - Migrate remaining utility functions: Assert, DivMod, and any others

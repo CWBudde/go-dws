@@ -115,6 +115,22 @@ func (nb *NodeBuilder) StartToken() lexer.Token {
 // This function uses reflection to avoid needing to know the exact type of the node.
 // While reflection has some overhead, it's only used during parsing (not runtime
 // execution), and the simplicity and maintainability benefits outweigh the cost.
+//
+// Expected node structures:
+//   - Statements: Direct BaseNode embedding (e.g., IfStatement, ForStatement)
+//   - Expressions: TypedExpressionBase.BaseNode embedding (e.g., BinaryExpression, Identifier)
+//
+// Silent failure behavior:
+// The function returns silently without setting EndPos when:
+//   - The node is nil
+//   - The node doesn't have a BaseNode field (direct embedding)
+//   - The node doesn't have TypedExpressionBase.BaseNode (expression embedding)
+//   - The BaseNode or EndPos fields are unexported or cannot be set
+//
+// This silent failure is intentional - it allows the NodeBuilder to be used uniformly
+// across all node types without requiring type-specific handling. Nodes that don't
+// conform to the expected structure simply won't have their EndPos set via reflection,
+// which is acceptable since position tracking is primarily for error reporting.
 func setEndPos(node ast.Node, pos lexer.Position) {
 	if node == nil {
 		return

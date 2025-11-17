@@ -479,9 +479,8 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 				Arguments: []ast.Expression{},
 			}
 
-			// Parse arguments (parseExpressionList handles the advancement)
+			// Parse arguments - curToken will be at RPAREN after parseExpressionList
 			newExpr.Arguments = p.parseExpressionList(lexer.RPAREN)
-			// p.curToken is now at RPAREN
 
 			return builder.Finish(newExpr).(*ast.NewExpression)
 		}
@@ -500,9 +499,8 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 			Arguments: []ast.Expression{},
 		}
 
-		// Parse arguments (parseExpressionList handles the advancement)
+		// Parse arguments - curToken will be at RPAREN after parseExpressionList
 		methodCall.Arguments = p.parseExpressionList(lexer.RPAREN)
-		// p.curToken is now at RPAREN
 
 		return builder.Finish(methodCall).(*ast.MethodCallExpression)
 	}
@@ -572,9 +570,8 @@ func (p *Parser) parseMemberAccessCursor(left ast.Expression) ast.Expression {
 				Arguments: []ast.Expression{},
 			}
 
-			// Parse arguments using cursor version
+			// Parse arguments - cursor will be at RPAREN after parseExpressionListCursor
 			newExpr.Arguments = p.parseExpressionListCursor(lexer.RPAREN)
-			// cursor is now at RPAREN
 
 			return builder.Finish(newExpr).(*ast.NewExpression)
 		}
@@ -593,9 +590,8 @@ func (p *Parser) parseMemberAccessCursor(left ast.Expression) ast.Expression {
 			Arguments: []ast.Expression{},
 		}
 
-		// Parse arguments using cursor version
+		// Parse arguments - cursor will be at RPAREN after parseExpressionListCursor
 		methodCall.Arguments = p.parseExpressionListCursor(lexer.RPAREN)
-		// cursor is now at RPAREN
 
 		return builder.Finish(methodCall).(*ast.MethodCallExpression)
 	}

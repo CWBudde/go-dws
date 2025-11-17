@@ -226,7 +226,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 				Statement:     bareBlock,
 			}
 			if bareBlock != nil {
-				bareHandler = handlerBuilder.FinishWithNode(bareHandler, bareBlock).(*ast.ExceptionHandler)
+				handlerBuilder.FinishWithNode(bareHandler, bareBlock)
 			}
 			clause.Handlers = append(clause.Handlers, bareHandler)
 		}

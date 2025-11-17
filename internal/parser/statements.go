@@ -571,11 +571,8 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 				return builder.Finish(stmt).(*ast.AssignmentStatement)
 			}
 
-			// End at value expression or current token
-			if stmt.Value != nil {
-				return builder.FinishWithNode(stmt, stmt.Value).(*ast.AssignmentStatement)
-			}
-			return builder.Finish(stmt).(*ast.AssignmentStatement)
+			// End at value expression (FinishWithNode handles nil by falling back to current token)
+			return builder.FinishWithNode(stmt, stmt.Value).(*ast.AssignmentStatement)
 
 		case *ast.MemberAccessExpression:
 			// Member assignment: obj.field := value, obj.field += value
@@ -594,11 +591,8 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 				return builder.Finish(stmt).(*ast.AssignmentStatement)
 			}
 
-			// End at value expression or current token
-			if stmt.Value != nil {
-				return builder.FinishWithNode(stmt, stmt.Value).(*ast.AssignmentStatement)
-			}
-			return builder.Finish(stmt).(*ast.AssignmentStatement)
+			// End at value expression (FinishWithNode handles nil by falling back to current token)
+			return builder.FinishWithNode(stmt, stmt.Value).(*ast.AssignmentStatement)
 
 		case *ast.IndexExpression:
 			// Array index assignment: arr[i] := value, arr[i] += value
@@ -617,11 +611,8 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 				return builder.Finish(stmt).(*ast.AssignmentStatement)
 			}
 
-			// End at value expression or current token
-			if stmt.Value != nil {
-				return builder.FinishWithNode(stmt, stmt.Value).(*ast.AssignmentStatement)
-			}
-			return builder.Finish(stmt).(*ast.AssignmentStatement)
+			// End at value expression (FinishWithNode handles nil by falling back to current token)
+			return builder.FinishWithNode(stmt, stmt.Value).(*ast.AssignmentStatement)
 
 		default:
 			// Use structured error (Task 2.1.3)
