@@ -960,8 +960,8 @@ func (p *Parser) parseBlockStatementCursor() *ast.BlockStatement {
 
 		// Termination conditions
 		if currentToken.Type == lexer.END ||
-		   currentToken.Type == lexer.EOF ||
-		   currentToken.Type == lexer.ENSURE {
+			currentToken.Type == lexer.EOF ||
+			currentToken.Type == lexer.ENSURE {
 			break
 		}
 
