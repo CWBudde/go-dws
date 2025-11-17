@@ -737,7 +737,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Acceptance: Code organized by category, easy to navigate, tests pass
   - **Completed**: Created 4 visitor files organized by node category (404 lines total), all files well under 500 line limit (largest: 154 lines), clear organization with visitor_*.go naming convention, 48 visitor methods total (6 literals, 22 expressions, 19 statements, 9 declarations), all tests pass
 
-- [ ] 3.5.4 Migrate evaluation logic from Interpreter to Evaluator ⏳ **IN PROGRESS** (19/48 methods, 39.6%)
+- [ ] 3.5.4 Migrate evaluation logic from Interpreter to Evaluator ⏳ **IN PROGRESS** (20/48 methods, 41.7%)
   - Gradually move logic from Interpreter.evalXXX() methods to Evaluator.VisitXXX() methods
   - Each migration: run tests, ensure no regressions
   - Keep adapter active during migration for safety
@@ -745,7 +745,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Estimated: 2-3 weeks (48 methods to migrate across 9 batches)
   - Acceptance: All evaluation logic in Evaluator, Interpreter methods just delegate, all tests pass
 
-  **Current Status**: Phase 1 complete - all "low-hanging fruit" methods migrated. Phase 2 requires infrastructure refactoring.
+  **Current Status**: Phase 1 complete. Phase 2A-2E infrastructure complete (1 migration from Phase 2A). Remaining migrations await type system refactoring.
 
   ---
   ### ✅ PHASE 1 COMPLETE: Simple Methods (19/48 migrated, 39.6%)
@@ -789,15 +789,17 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
 
   Before continuing with the remaining 29 methods, these infrastructure components must be refactored from Interpreter to Evaluator:
 
-  **Infrastructure Phase 2A: Function Call System** (Blocks 7 methods)
+  **Infrastructure Phase 2A: Function Call System ✅ PARTIALLY COMPLETE** (Blocks 7 methods, 1 migrated)
   - Required for: ExpressionStatement, CallExpression, LambdaExpression, SelfExpression, InheritedExpression, AddressOfExpression, MethodCallExpression
-  - Components to migrate:
-    - `callFunctionPointer()` - Execute function pointer with closure/Self binding
-    - `callLambda()` - Execute lambda with captured environment
-    - `callUserFunction()` - User-defined function execution
-    - `callBuiltinFunction()` - Built-in function dispatch
-    - Function registry (`functions` map) → Move to Evaluator or TypeSystem
-    - Call stack management (already in ExecutionContext ✓)
+  - Components available via InterpreterAdapter:
+    - ✅ `CallFunctionPointer()` - Execute function pointer with closure/Self binding
+    - ✅ `CallUserFunction()` - User-defined function execution
+    - ✅ `CallBuiltinFunction()` - Built-in function dispatch
+    - ✅ `LookupFunction()` - Function registry lookup
+    - ✅ Call stack management (already in ExecutionContext)
+  - Completed migrations:
+    - ✅ SelfExpression (3.5.4.17) - Simple environment lookup for "Self" variable
+  - **Status**: Infrastructure complete via InterpreterAdapter. Full migration of remaining 6 methods deferred until complex types (FunctionPointerValue, ObjectInstance, ClassInfo) migrate to runtime package.
 
   **Infrastructure Phase 2B: Type System Access** (Blocks 18 methods)
   - Required for: VarDecl, ConstDecl, AssignmentStatement, all Declarations (9 methods), BinaryExpression, UnaryExpression, NewExpression, IsExpression, AsExpression, IfExpression
@@ -844,14 +846,14 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   ---
   ### 📋 DEFERRED METHODS BY INFRASTRUCTURE DEPENDENCY
 
-  **Blocked by Phase 2A (Function Call System) - 7 methods**:
-  - [ ] 3.5.4.10 AddressOfExpression - Needs function lookup
-  - [ ] 3.5.4.17 SelfExpression - Needs current object context
-  - [ ] 3.5.4.18 InheritedExpression - Needs parent method dispatch
-  - [ ] 3.5.4.22 CallExpression - Needs callUserFunction, callBuiltinFunction
-  - [ ] 3.5.4.23 LambdaExpression - Needs callLambda, closure creation
-  - [ ] 3.5.4.31 ExpressionStatement - Needs callFunctionPointer for auto-invoke
-  - [ ] 3.5.4.16 MethodCallExpression - Needs method dispatch
+  **Blocked by Phase 2A (Function Call System) - 6 methods remaining (1/7 complete)**:
+  - [x] 3.5.4.17 SelfExpression - ✅ Migrated (simple environment lookup)
+  - [ ] 3.5.4.10 AddressOfExpression - Pending FunctionPointerValue migration
+  - [ ] 3.5.4.18 InheritedExpression - Pending ObjectInstance/ClassInfo migration
+  - [ ] 3.5.4.22 CallExpression - Pending FunctionPointerValue migration
+  - [ ] 3.5.4.23 LambdaExpression - Pending FunctionPointerValue migration
+  - [ ] 3.5.4.31 ExpressionStatement - Pending FunctionPointerValue migration
+  - [ ] 3.5.4.16 MethodCallExpression - Pending ObjectInstance/ClassInfo migration
 
   **Blocked by Phase 2B (Type System Access) - 18 methods**:
   - [ ] 3.5.4.7 Identifier - Needs function/class registries
