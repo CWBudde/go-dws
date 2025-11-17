@@ -362,37 +362,13 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 // PRE: curToken is first field name IDENT
 // POST: curToken is SEMICOLON or last token of initialization value
 func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
-	// Collect all field names (comma-separated)
-	var fieldNames []*ast.Identifier
-
-	// Current token should be the first field name identifier
-	fieldNames = append(fieldNames, &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: p.curToken,
-			},
-		},
-		Value: p.curToken.Literal,
+	// Parse comma-separated field names using combinator
+	fieldNames := p.IdentifierList(IdentifierListConfig{
+		ErrorContext:      "field declaration",
+		RequireAtLeastOne: true,
 	})
-
-	// Check for comma-separated field names
-	for p.peekTokenIs(lexer.COMMA) {
-		p.nextToken() // consume comma
-		p.nextToken() // move to next field name
-
-		if p.curToken.Type != lexer.IDENT {
-			p.addError("expected identifier after comma in field declaration", ErrExpectedIdent)
-			return nil
-		}
-
-		fieldNames = append(fieldNames, &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: p.curToken,
-				},
-			},
-			Value: p.curToken.Literal,
-		})
+	if fieldNames == nil {
+		return nil
 	}
 
 	// Parse optional type and/or initialization
