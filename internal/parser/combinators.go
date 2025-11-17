@@ -506,3 +506,386 @@ func (p *Parser) SkipPast(tokenTypes ...lexer.TokenType) bool {
 	}
 	return false
 }
+
+// ========================================================================
+// High-Level DWScript-Specific Combinators
+// ========================================================================
+//
+// These combinators encapsulate common DWScript language patterns and provide
+// higher-level abstractions than the basic combinators above. They combine
+// multiple basic combinators to handle domain-specific parsing tasks.
+
+// OptionalTypeAnnotation parses an optional type annotation (: Type).
+// Returns the type expression if present, nil otherwise.
+// Does not consume tokens if no type annotation is present.
+//
+// Syntax: [: TypeExpression]
+//
+// PRE: curToken is the token before potential colon
+// POST: curToken is last token of type expression if present; otherwise unchanged
+//
+// Example:
+//
+//	// Parse optional type annotation in variable declaration
+//	typeExpr := p.OptionalTypeAnnotation()
+//	if typeExpr != nil {
+//	    // Type annotation was present
+//	}
+func (p *Parser) OptionalTypeAnnotation() ast.TypeExpression {
+	if !p.peekTokenIs(lexer.COLON) {
+		return nil
+	}
+
+	p.nextToken() // move to ':'
+	p.nextToken() // move to type expression
+
+	typeExpr := p.parseTypeExpression()
+	if typeExpr == nil {
+		// Error already reported by parseTypeExpression
+		return nil
+	}
+
+	return typeExpr
+}
+
+// IdentifierListConfig configures the IdentifierList combinator.
+type IdentifierListConfig struct {
+	// ErrorContext provides context for error messages (e.g., "parameter declaration", "var declaration")
+	ErrorContext string
+
+	// AllowEmpty permits empty lists (returns empty slice instead of nil)
+	AllowEmpty bool
+
+	// RequireAtLeastOne ensures at least one identifier is parsed
+	RequireAtLeastOne bool
+}
+
+// IdentifierList parses a comma-separated list of identifiers.
+// Returns a slice of Identifier nodes, or nil if parsing fails.
+//
+// Syntax: IDENT (, IDENT)*
+//
+// PRE: curToken is first identifier (or error token if invalid)
+// POST: curToken is last identifier
+//
+// Example:
+//
+//	// Parse identifier list: a, b, c
+//	ids := p.IdentifierList(IdentifierListConfig{
+//	    ErrorContext: "variable declaration",
+//	    RequireAtLeastOne: true,
+//	})
+func (p *Parser) IdentifierList(config IdentifierListConfig) []*ast.Identifier {
+	identifiers := []*ast.Identifier{}
+
+	// Check first identifier
+	if !p.isIdentifierToken(p.curToken.Type) {
+		if config.RequireAtLeastOne {
+			context := config.ErrorContext
+			if context == "" {
+				context = "identifier list"
+			}
+			err := NewStructuredError(ErrKindMissing).
+				WithCode(ErrExpectedIdent).
+				WithMessage("expected identifier in "+context).
+				WithPosition(p.curToken.Pos, p.curToken.Length()).
+				WithExpectedString("identifier").
+				WithActual(p.curToken.Type, p.curToken.Literal).
+				WithParsePhase(context).
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+		if config.AllowEmpty {
+			return identifiers
+		}
+		return nil
+	}
+
+	// Parse identifiers separated by commas
+	for {
+		identifiers = append(identifiers, &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: p.curToken,
+				},
+			},
+			Value: p.curToken.Literal,
+		})
+
+		// Check for comma separator
+		if !p.peekTokenIs(lexer.COMMA) {
+			break
+		}
+
+		p.nextToken() // move to ','
+
+		// Expect identifier after comma
+		if !p.expectIdentifier() {
+			// Error already reported by expectIdentifier
+			return identifiers // Return what we have so far
+		}
+	}
+
+	return identifiers
+}
+
+// StatementBlockConfig configures the StatementBlock combinator.
+type StatementBlockConfig struct {
+	// OpenToken is the token that starts the block (e.g., BEGIN, TRY)
+	OpenToken lexer.TokenType
+
+	// CloseToken is the token that ends the block (e.g., END)
+	CloseToken lexer.TokenType
+
+	// AdditionalTerminators are additional tokens that can end the block
+	// (e.g., EXCEPT and FINALLY for TRY blocks)
+	AdditionalTerminators []lexer.TokenType
+
+	// SkipSemicolons controls whether to automatically skip semicolons
+	SkipSemicolons bool
+
+	// ContextName provides context for error messages (e.g., "try block", "function body")
+	ContextName string
+
+	// RequireClose controls whether the closing token is required
+	RequireClose bool
+}
+
+// StatementBlock parses a block of statements with configurable delimiters.
+// Returns a BlockStatement node or nil if parsing fails.
+//
+// PRE: curToken is the opening token (BEGIN, TRY, etc.)
+// POST: curToken is the closing token (END, etc.) if RequireClose is true
+//
+// Example:
+//
+//	// Parse begin...end block
+//	block := p.StatementBlock(StatementBlockConfig{
+//	    OpenToken: lexer.BEGIN,
+//	    CloseToken: lexer.END,
+//	    SkipSemicolons: true,
+//	    ContextName: "begin block",
+//	    RequireClose: true,
+//	})
+func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement {
+	block := &ast.BlockStatement{
+		BaseNode:   ast.BaseNode{Token: p.curToken},
+		Statements: []ast.Statement{},
+	}
+
+	// Track block context for better error messages
+	contextName := config.ContextName
+	if contextName == "" {
+		contextName = config.OpenToken.String()
+	}
+	p.pushBlockContext(contextName, p.curToken.Pos)
+	defer p.popBlockContext()
+
+	p.nextToken() // advance past opening token
+
+	// Build list of terminator tokens
+	terminators := []lexer.TokenType{config.CloseToken, lexer.EOF}
+	if len(config.AdditionalTerminators) > 0 {
+		terminators = append([]lexer.TokenType{config.CloseToken, lexer.EOF}, config.AdditionalTerminators...)
+	}
+
+	// Parse statements until we hit a terminator
+	for {
+		// Check for terminators
+		isTerminator := false
+		for _, term := range terminators {
+			if p.curTokenIs(term) {
+				isTerminator = true
+				break
+			}
+		}
+		if isTerminator {
+			break
+		}
+
+		// Skip semicolons if configured
+		if config.SkipSemicolons && p.curTokenIs(lexer.SEMICOLON) {
+			p.nextToken()
+			continue
+		}
+
+		// Parse statement
+		stmt := p.parseStatement()
+		if stmt != nil {
+			block.Statements = append(block.Statements, stmt)
+		}
+
+		p.nextToken()
+	}
+
+	// Set end position
+	block.EndPos = p.endPosFromToken(p.curToken)
+
+	// Verify we ended at the expected close token if required
+	if config.RequireClose && !p.curTokenIs(config.CloseToken) {
+		// Check if we hit an additional terminator instead
+		hitAdditionalTerm := false
+		for _, term := range config.AdditionalTerminators {
+			if p.curTokenIs(term) {
+				hitAdditionalTerm = true
+				break
+			}
+		}
+
+		if !hitAdditionalTerm {
+			err := NewStructuredError(ErrKindMissing).
+				WithCode(ErrUnexpectedToken).
+				WithMessage("expected '"+config.CloseToken.String()+"' to close "+contextName).
+				WithPosition(p.curToken.Pos, p.curToken.Length()).
+				WithExpected(config.CloseToken).
+				WithActual(p.curToken.Type, p.curToken.Literal).
+				WithParsePhase(contextName).
+				Build()
+			p.addStructuredError(err)
+		}
+	}
+
+	return block
+}
+
+// ParameterGroupConfig configures the ParameterGroup combinator.
+type ParameterGroupConfig struct {
+	// AllowModifiers controls whether modifiers (var, const, lazy) are allowed
+	AllowModifiers bool
+
+	// AllowDefaults controls whether default values are allowed
+	AllowDefaults bool
+
+	// ErrorContext provides context for error messages
+	ErrorContext string
+}
+
+// ParameterGroup parses a parameter group with shared type.
+// Returns a slice of Parameter nodes or nil if parsing fails.
+//
+// Syntax: [modifier] name1, name2: Type [= default]
+// Where modifier is one of: var, const, lazy
+//
+// PRE: curToken is first token (modifier keyword or identifier)
+// POST: curToken is last token of type/default expression
+//
+// Example:
+//
+//	// Parse parameter group: var a, b: Integer
+//	params := p.ParameterGroup(ParameterGroupConfig{
+//	    AllowModifiers: true,
+//	    AllowDefaults: false,
+//	    ErrorContext: "function parameter",
+//	})
+func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
+	params := []*ast.Parameter{}
+
+	// Parse optional modifiers
+	isConst := false
+	isLazy := false
+	byRef := false
+
+	if config.AllowModifiers {
+		// Check for 'const' keyword (pass by const-reference)
+		if p.curTokenIs(lexer.CONST) {
+			isConst = true
+			p.nextToken() // move past 'const'
+		}
+
+		// Check for 'lazy' keyword (expression capture)
+		if p.curTokenIs(lexer.LAZY) {
+			isLazy = true
+			p.nextToken() // move past 'lazy'
+		}
+
+		// Check for 'var' keyword (pass by reference)
+		if p.curTokenIs(lexer.VAR) {
+			byRef = true
+			p.nextToken() // move past 'var'
+		}
+
+		// Check for mutually exclusive modifiers
+		if (isLazy && byRef) || (isConst && byRef) || (isConst && isLazy) {
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidSyntax).
+				WithMessage("parameter modifiers are mutually exclusive").
+				WithPosition(p.curToken.Pos, p.curToken.Length()).
+				WithSuggestion("use only one of: var, const, or lazy").
+				WithParsePhase(config.ErrorContext).
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+	}
+
+	// Parse identifier list
+	names := p.IdentifierList(IdentifierListConfig{
+		ErrorContext:      config.ErrorContext,
+		RequireAtLeastOne: true,
+	})
+	if names == nil {
+		return nil
+	}
+
+	// Expect ':' and type
+	if !p.expectPeek(lexer.COLON) {
+		return nil
+	}
+
+	p.nextToken() // move past COLON to type expression start token
+
+	typeExpr := p.parseTypeExpression()
+	if typeExpr == nil {
+		// Error already reported by parseTypeExpression
+		return nil
+	}
+
+	// Parse optional default value
+	var defaultValue ast.Expression
+	if config.AllowDefaults && p.peekTokenIs(lexer.EQ) {
+		// Validate that optional parameters don't have modifiers (lazy, var, const)
+		if isLazy || byRef || isConst {
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidSyntax).
+				WithMessage("optional parameters cannot have lazy, var, or const modifiers").
+				WithPosition(p.curToken.Pos, p.curToken.Length()).
+				WithSuggestion("remove the modifier or remove the default value").
+				WithParsePhase(config.ErrorContext).
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+
+		p.nextToken() // move to '='
+		p.nextToken() // move past '='
+		defaultValue = p.parseExpression(LOWEST)
+		if defaultValue == nil {
+			err := NewStructuredError(ErrKindMissing).
+				WithCode(ErrInvalidExpression).
+				WithMessage("expected default value expression after '='").
+				WithPosition(p.curToken.Pos, p.curToken.Length()).
+				WithExpectedString("expression").
+				WithParsePhase(config.ErrorContext).
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+	}
+
+	// Create parameter nodes for each name
+	for _, name := range names {
+		param := &ast.Parameter{
+			Token:        name.Token,
+			Name:         name,
+			Type:         typeExpr,
+			ByRef:        byRef,
+			IsConst:      isConst,
+			IsLazy:       isLazy,
+			DefaultValue: defaultValue,
+		}
+		params = append(params, param)
+	}
+
+	return params
+}

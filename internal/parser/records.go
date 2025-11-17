@@ -317,36 +317,13 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 // PRE: curToken is field name IDENT
 // POST: curToken is SEMICOLON
 func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
-	if !p.curTokenIs(lexer.IDENT) {
-		p.addError("expected field name", ErrExpectedIdent)
-		return nil
-	}
-
-	// Collect all field names
-	var fieldNames []*ast.Identifier
-	fieldNames = append(fieldNames, &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: p.curToken,
-			},
-		},
-		Value: p.curToken.Literal,
+	// Use IdentifierList combinator to parse comma-separated field names (Task 2.3.3)
+	fieldNames := p.IdentifierList(IdentifierListConfig{
+		ErrorContext:      "record field declaration",
+		RequireAtLeastOne: true,
 	})
-
-	// Check for comma-separated names
-	for p.peekTokenIs(lexer.COMMA) {
-		p.nextToken() // move to comma
-		if !p.expectPeek(lexer.IDENT) {
-			return nil
-		}
-		fieldNames = append(fieldNames, &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: p.curToken,
-				},
-			},
-			Value: p.curToken.Literal,
-		})
+	if fieldNames == nil {
+		return nil
 	}
 
 	var fieldType ast.TypeExpression
