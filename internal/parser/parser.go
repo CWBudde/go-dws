@@ -393,10 +393,8 @@ type Parser struct {
 	prefixParseFns         map[lexer.TokenType]prefixParseFn
 	infixParseFns          map[lexer.TokenType]infixParseFn
 	errors                 []*ParserError
-	semanticErrors         []string
 	curToken               lexer.Token
 	peekToken              lexer.Token
-	enableSemanticAnalysis bool
 	parsingPostCondition   bool           // True when parsing postconditions (for 'old' keyword)
 	blockStack             []BlockContext // Stack of nested block contexts for error messages
 
@@ -427,7 +425,6 @@ type Parser struct {
 type ParserState struct {
 	lexerState           lexer.LexerState
 	errors               []*ParserError
-	semanticErrors       []string
 	curToken             lexer.Token
 	peekToken            lexer.Token
 	parsingPostCondition bool
@@ -441,16 +438,14 @@ type ParserState struct {
 // For cursor-based parsing, use NewCursorParser() instead.
 func New(l *lexer.Lexer) *Parser {
 	p := &Parser{
-		l:                      l,
-		errors:                 []*ParserError{},
-		prefixParseFns:         make(map[lexer.TokenType]prefixParseFn),
-		infixParseFns:          make(map[lexer.TokenType]infixParseFn),
-		enableSemanticAnalysis: false,
-		semanticErrors:         []string{},
-		blockStack:             []BlockContext{},
-		ctx:                    NewParseContext(), // Initialize structured context (Task 2.1.2)
-		useCursor:              false,             // Traditional mode (Task 2.2.2)
-		cursor:                 nil,               // No cursor in traditional mode
+		l:              l,
+		errors:         []*ParserError{},
+		prefixParseFns: make(map[lexer.TokenType]prefixParseFn),
+		infixParseFns:  make(map[lexer.TokenType]infixParseFn),
+		blockStack:     []BlockContext{},
+		ctx:            NewParseContext(), // Initialize structured context (Task 2.1.2)
+		useCursor:      false,             // Traditional mode (Task 2.2.2)
+		cursor:         nil,               // No cursor in traditional mode
 	}
 
 	// Register prefix parse functions
@@ -536,16 +531,14 @@ func New(l *lexer.Lexer) *Parser {
 // cursor position with curToken/peekToken.
 func NewCursorParser(l *lexer.Lexer) *Parser {
 	p := &Parser{
-		l:                      l,
-		errors:                 []*ParserError{},
-		prefixParseFns:         make(map[lexer.TokenType]prefixParseFn),
-		infixParseFns:          make(map[lexer.TokenType]infixParseFn),
-		enableSemanticAnalysis: false,
-		semanticErrors:         []string{},
-		blockStack:             []BlockContext{},
-		ctx:                    NewParseContext(), // Initialize structured context (Task 2.1.2)
-		useCursor:              true,              // Cursor mode (Task 2.2.2)
-		cursor:                 NewTokenCursor(l), // Initialize cursor
+		l:              l,
+		errors:         []*ParserError{},
+		prefixParseFns: make(map[lexer.TokenType]prefixParseFn),
+		infixParseFns:  make(map[lexer.TokenType]infixParseFn),
+		blockStack:     []BlockContext{},
+		ctx:            NewParseContext(), // Initialize structured context (Task 2.1.2)
+		useCursor:      true,              // Cursor mode (Task 2.2.2)
+		cursor:         NewTokenCursor(l), // Initialize cursor
 		// Initialize cursor-specific function maps (Task 2.2.6)
 		prefixParseFnsCursor: make(map[lexer.TokenType]prefixParseFnCursor),
 		infixParseFnsCursor:  make(map[lexer.TokenType]infixParseFnCursor),
@@ -851,21 +844,6 @@ func (p *Parser) LexerErrors() []lexer.LexerError {
 	return p.l.Errors()
 }
 
-// EnableSemanticAnalysis enables or disables semantic analysis during parsing.
-func (p *Parser) EnableSemanticAnalysis(enable bool) {
-	p.enableSemanticAnalysis = enable
-}
-
-// SemanticErrors returns the list of semantic errors (if semantic analysis was enabled).
-func (p *Parser) SemanticErrors() []string {
-	return p.semanticErrors
-}
-
-// SetSemanticErrors sets the semantic errors (called by external semantic analyzer).
-func (p *Parser) SetSemanticErrors(errors []string) {
-	p.semanticErrors = errors
-}
-
 // nextToken advances both curToken and peekToken.
 func (p *Parser) nextToken() {
 	// Task 2.2.7: In cursor mode, use cursor for token navigation
@@ -1083,10 +1061,6 @@ func (p *Parser) saveState() ParserState {
 	errorsCopy := make([]*ParserError, len(p.errors))
 	copy(errorsCopy, p.errors)
 
-	// Make a deep copy of semanticErrors slice
-	semanticErrorsCopy := make([]string, len(p.semanticErrors))
-	copy(semanticErrorsCopy, p.semanticErrors)
-
 	// Make a deep copy of blockStack
 	blockStackCopy := make([]BlockContext, len(p.blockStack))
 	copy(blockStackCopy, p.blockStack)
@@ -1097,7 +1071,6 @@ func (p *Parser) saveState() ParserState {
 		peekToken:            p.peekToken,
 		lexerState:           p.l.SaveState(),
 		parsingPostCondition: p.parsingPostCondition,
-		semanticErrors:       semanticErrorsCopy,
 		blockStack:           blockStackCopy,
 		ctx:                  p.ctx.Snapshot(), // Save context snapshot (Task 2.1.2)
 		cursor:               p.cursor,         // Save cursor position (Task 2.2.2)
@@ -1112,7 +1085,6 @@ func (p *Parser) restoreState(state ParserState) {
 	p.peekToken = state.peekToken
 	p.errors = state.errors
 	p.parsingPostCondition = state.parsingPostCondition
-	p.semanticErrors = state.semanticErrors
 	p.blockStack = state.blockStack
 	p.l.RestoreState(state.lexerState)
 	// Restore context (Task 2.1.2)

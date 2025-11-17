@@ -125,8 +125,6 @@ func compileScript(_ *cobra.Command, args []string) error {
 		analyzer.SetSource(input, filename)
 
 		if err := analyzer.Analyze(program); err != nil {
-			p.SetSemanticErrors(analyzer.Errors())
-
 			var compilerErrors []*errors.CompilerError
 			if len(analyzer.StructuredErrors()) > 0 {
 				for _, semErr := range analyzer.StructuredErrors() {
