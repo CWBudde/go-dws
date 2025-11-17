@@ -1301,7 +1301,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
 
 ### Phase 3.8: Dependency and Import Cleanup
 
-- [ ] 3.8.1 Fix circular dependency with pkg/dwscript
+- [x] 3.8.1 Fix circular dependency with pkg/dwscript
   - Remove reflection hack in NewWithOptions
   - Create proper Options interface in internal/interp
   - Have pkg/dwscript implement the interface
