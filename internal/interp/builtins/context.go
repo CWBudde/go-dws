@@ -120,6 +120,14 @@ type Context interface {
 	// CreateVariantArray creates an array of Variants from a slice of values.
 	// Task 3.7.6: Helper for creating variant arrays in JSON functions.
 	CreateVariantArray(values []Value) Value
+
+	// Write writes a string to the output without a newline.
+	// Task 3.7.4: I/O helper for Print function.
+	Write(s string)
+
+	// WriteLine writes a string to the output followed by a newline.
+	// Task 3.7.4: I/O helper for PrintLn function.
+	WriteLine(s string)
 }
 
 // BuiltinFunc is the signature for all built-in function implementations.

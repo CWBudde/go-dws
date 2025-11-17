@@ -43,10 +43,10 @@ func init() {
 //   - CategoryEncoding: Encoding/escaping functions
 //   - CategoryJSON: JSON parsing and manipulation
 //   - CategoryType: Type introspection
+//   - CategoryIO: Input/output operations
 //
 // Future categories (when functions are migrated):
 //   - CategoryArray: Array operations
-//   - CategoryIO: Input/output operations
 //   - CategorySystem: System and runtime functions
 func RegisterAll(r *Registry) {
 	RegisterMathFunctions(r)
@@ -56,6 +56,7 @@ func RegisterAll(r *Registry) {
 	RegisterEncodingFunctions(r)
 	RegisterJSONFunctions(r)
 	RegisterTypeFunctions(r)
+	RegisterIOFunctions(r)
 }
 
 // RegisterMathFunctions registers all mathematical built-in functions.
@@ -315,4 +316,10 @@ func RegisterJSONFunctions(r *Registry) {
 func RegisterTypeFunctions(r *Registry) {
 	r.Register("TypeOf", TypeOf, CategoryType, "Returns the type name of a value")
 	r.Register("TypeOfClass", TypeOfClass, CategoryType, "Returns the class name of an object")
+}
+
+// RegisterIOFunctions registers all I/O built-in functions.
+func RegisterIOFunctions(r *Registry) {
+	r.Register("Print", Print, CategoryIO, "Prints arguments without newline")
+	r.Register("PrintLn", PrintLn, CategoryIO, "Prints arguments with newline")
 }

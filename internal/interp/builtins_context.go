@@ -328,3 +328,23 @@ func (i *Interpreter) CreateVariantArray(values []builtins.Value) builtins.Value
 		ArrayType: arrayType,
 	}
 }
+
+// Write writes a string to the output without a newline.
+// This implements the builtins.Context interface.
+// Task 3.7.4: I/O helper for Print function.
+func (i *Interpreter) Write(s string) {
+	// If output is nil, silently discard output (some tests use New(nil))
+	if i.output != nil {
+		i.output.Write([]byte(s))
+	}
+}
+
+// WriteLine writes a string to the output followed by a newline.
+// This implements the builtins.Context interface.
+// Task 3.7.4: I/O helper for PrintLn function.
+func (i *Interpreter) WriteLine(s string) {
+	// If output is nil, silently discard output (some tests use New(nil))
+	if i.output != nil {
+		i.output.Write([]byte(s + "\n"))
+	}
+}

@@ -129,6 +129,14 @@ func (m *mockContext) CreateVariantArray(values []Value) Value {
 	return &runtime.StringValue{Value: "mock array"}
 }
 
+func (m *mockContext) Write(s string) {
+	// Simple mock - no-op for testing
+}
+
+func (m *mockContext) WriteLine(s string) {
+	// Simple mock - no-op for testing
+}
+
 func TestNewRegistry(t *testing.T) {
 	r := NewRegistry()
 	if r == nil {
