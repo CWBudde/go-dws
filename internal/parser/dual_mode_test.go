@@ -148,6 +148,12 @@ func TestDualMode_VarDeclaration(t *testing.T) {
 			}
 			if cursorStmt == nil {
 				t.Error("Cursor parser returned nil statement")
+				if len(cursorParser.Errors()) > 0 {
+					t.Logf("Cursor parser errors:")
+					for _, err := range cursorParser.Errors() {
+						t.Logf("  %v", err)
+					}
+				}
 			}
 
 			// Both should have same structure

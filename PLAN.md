@@ -287,23 +287,23 @@ Replace mutable parser state with immutable cursor.
 
 ---
 
-#### Task 2.2.7: parseExpression Core Implementation (Week 5-6, ~10 hours)
+#### Task 2.2.7: parseExpression Core Implementation (Week 5-6, ~10 hours) ✓
 
-**Status**: NOT STARTED
+**Status**: DONE
 
 **Goal**: Implement cursor-based parseExpression (Phase 2 of parseExpression migration).
 
 **Complexity**: HIGH - Core Pratt parser logic (~100 lines)
 
 **Implementation**:
-- [ ] Rename existing `parseExpression` to `parseExpressionTraditional`
-- [ ] Create `parseExpressionCursor(precedence int) ast.Expression`
+- [x] Rename existing `parseExpression` to `parseExpressionTraditional`
+- [x] Create `parseExpressionCursor(precedence int) ast.Expression`
   - Lookup prefix function from cursor maps
   - Call prefix function with current token
   - Main precedence climbing loop
   - Check termination conditions (semicolon, precedence)
   - Lookup and call infix functions from cursor maps
-- [ ] Create `parseExpression` dispatcher
+- [x] Create `parseExpression` dispatcher
   ```go
   func (p *Parser) parseExpression(precedence int) ast.Expression {
       if p.useCursor {
@@ -312,22 +312,26 @@ Replace mutable parser state with immutable cursor.
       return p.parseExpressionTraditional(precedence)
   }
   ```
-- [ ] Implement `parseNotInIsAsCursor` helper
+- [x] Implement `parseNotInIsAsCursor` helper
   - Handle "not in", "not is", "not as" operators
   - Use cursor Mark/ResetTo for backtracking
   - Cleaner than traditional manual state save/restore
+- [x] Fix `nextToken()` to properly handle cursor mode without desynchronizing lexer
 
-**Files to Modify**:
-- `internal/parser/expressions.go` (~150 lines)
+**Files Modified**:
+- `internal/parser/expressions.go` - parseExpression dispatcher, cursor implementation, parseNotInIsAsCursor
+- `internal/parser/parser.go` - Fixed nextToken() cursor synchronization (critical fix)
 
-**Files to Create**:
-- `internal/parser/parse_expression_cursor.go` (~120 lines - new file for clarity)
+**Files Created**:
+- Implementation integrated into `expressions.go` instead of separate file
 
 **Dependencies**: Task 2.2.6 (infrastructure)
 
-**Estimate**: 10 hours
+**Actual Time**: ~3 hours (completion + critical bug fix)
 
-**Deliverable**: parseExpressionCursor implementation ✓
+**Deliverable**: parseExpressionCursor implementation with full dual-mode support ✓
+
+**Testing**: All dual mode tests pass, including expressions, statements, and full programs
 
 **Note**: Will use hybrid approach initially (cursor calls traditional for unmigrated functions)
 

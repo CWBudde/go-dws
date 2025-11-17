@@ -814,17 +814,18 @@ func (p *Parser) SetSemanticErrors(errors []string) {
 
 // nextToken advances both curToken and peekToken.
 func (p *Parser) nextToken() {
-	p.curToken = p.peekToken
-	p.peekToken = p.l.NextToken()
-
-	// Task 2.2.7: Also advance cursor in cursor mode to keep it synchronized
-	// This is critical for dual-mode operation - when ParseProgram or other top-level
-	// code calls nextToken(), the cursor must also advance to stay in sync.
+	// Task 2.2.7: In cursor mode, use cursor for token navigation
+	// The cursor manages its own buffer and lexer calls, so we skip
+	// the traditional lexer calls to avoid desynchronization.
 	if p.useCursor && p.cursor != nil {
 		p.cursor = p.cursor.Advance()
 		// Keep curToken/peekToken in sync with cursor (cursor is authoritative in cursor mode)
 		p.curToken = p.cursor.Current()
 		p.peekToken = p.cursor.Peek(1)
+	} else {
+		// Traditional mode: advance tokens using lexer directly
+		p.curToken = p.peekToken
+		p.peekToken = p.l.NextToken()
 	}
 }
 
