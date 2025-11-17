@@ -88,10 +88,19 @@ Replace mutable parser state with immutable cursor.
 - ✅ Task 2.2.10: Expression Helpers (16 hours) - COMPLETE
 - ✅ Task 2.2.11: Complete Infix Handlers (12 hours) - COMPLETE
 
-**Optional Follow-Up Tasks** (52 hours total):
+**Optional Follow-Up Tasks** (80 hours total):
 - ✅ Task 2.2.12: Migrate Prefix Handlers (8 hours actual) - COMPLETE
 - ✅ Task 2.2.13: Migrate IS/AS Handlers (4 hours actual) - COMPLETE
-- ⏭️ Task 2.2.14: Migrate Statement Parsing (16 hours) - Extend to statements
+- 🚧 Task 2.2.14: Migrate Statement Parsing (28 hours, 9 subtasks) - IN PROGRESS
+  - ⏭️ Task 2.2.14.1: Statement Infrastructure (3 hours)
+  - ⏭️ Task 2.2.14.2: Expression & Assignment Statements (2 hours)
+  - ⏭️ Task 2.2.14.3: Block Statements (2 hours)
+  - ⏭️ Task 2.2.14.4: If/While/Repeat Statements (4 hours)
+  - ⏭️ Task 2.2.14.5: For/Case Statements (4 hours)
+  - ⏭️ Task 2.2.14.6: Variable/Const Declarations (4 hours)
+  - ⏭️ Task 2.2.14.7: Try/Raise Exception Handling (3 hours)
+  - ⏭️ Task 2.2.14.8: Break/Continue/Exit Statements (2 hours)
+  - ⏭️ Task 2.2.14.9: Integration Testing & Cleanup (4 hours)
 - ⏭️ Task 2.2.15: Performance Optimization (12 hours) - Reduce overhead to <15%
 - ⏭️ Task 2.2.16: Documentation and Cleanup (6 hours) - Document architecture
 
@@ -681,43 +690,196 @@ parseExpressionCursor
 
 ---
 
-#### Task 2.2.14 (Optional): Migrate Statement Parsing (Week 8, Days 4-5, ~16 hours)
+#### Task 2.2.14: Migrate Statement Parsing (Broken into Subtasks)
 
-**Status**: NOT STARTED
+**Status**: IN PROGRESS
 
 **Goal**: Extend cursor mode to statement parsing (currently only expressions use cursor mode).
 
-**Scope**: This is a larger undertaking and may be deferred to a later phase.
+**Strategy**: Break down into 9 manageable subtasks, each focusing on a specific category of statements.
+
+**Subtasks**:
+- ⏭️ Task 2.2.14.1: Statement Infrastructure (3 hours) - parseStatementCursor dispatcher
+- ⏭️ Task 2.2.14.2: Expression & Assignment Statements (2 hours)
+- ⏭️ Task 2.2.14.3: Block Statements (2 hours) - begin/end
+- ⏭️ Task 2.2.14.4: If/While/Repeat Statements (4 hours)
+- ⏭️ Task 2.2.14.5: For/Case Statements (4 hours)
+- ⏭️ Task 2.2.14.6: Variable/Const Declarations (4 hours)
+- ⏭️ Task 2.2.14.7: Try/Raise Exception Handling (3 hours)
+- ⏭️ Task 2.2.14.8: Break/Continue/Exit Statements (2 hours)
+- ⏭️ Task 2.2.14.9: Integration Testing & Cleanup (4 hours)
+
+**Total Estimate**: 28 hours (phased approach)
+
+**Dependencies**: Tasks 2.2.12-2.2.13 ✓
+
+---
+
+#### Task 2.2.14.1: Statement Infrastructure (~3 hours)
+
+**Status**: NOT STARTED
+
+**Goal**: Create cursor-based statement parsing infrastructure.
 
 **Targets**:
-- [ ] `parseVarStatement` - Variable declarations
-- [ ] `parseIfStatement` - If statements
-- [ ] `parseForStatement` - For loops
-- [ ] `parseWhileStatement` - While loops
-- [ ] `parseBlockStatement` - Statement blocks
-- [ ] Other statement types as needed
+- [ ] `parseStatementCursor()` - Statement dispatcher using cursor
+- [ ] Statement cursor navigation helpers
+- [ ] Cursor-to-statement synchronization utilities
+- [ ] Basic test framework for statement migration
 
 **Implementation**:
-- [ ] Create cursor versions of statement parsers
-- [ ] Handle statement-level cursor navigation
-- [ ] Add differential tests for statements
-- [ ] Consider statement-specific cursor optimizations
+- [ ] Create `parseStatementCursor()` with switch dispatch
+- [ ] Add cursor navigation helpers for statement boundaries
+- [ ] Implement cursor sync at statement boundaries
+- [ ] Create base test structure
 
 **Files to Modify**:
-- `internal/parser/statements.go` (~200 lines)
-- `internal/parser/parser.go` (~50 lines)
-- Multiple statement-specific files
+- `internal/parser/statements.go` (+60 lines)
+- `internal/parser/parser.go` (+20 lines)
 
 **Files to Create**:
-- `internal/parser/migration_statements_test.go` (~400 lines)
+- `internal/parser/migration_statements_test.go` (base framework, ~100 lines)
 
-**Dependencies**: Tasks 2.2.12-2.2.13 recommended but not required
+**Estimate**: 3 hours
 
-**Estimate**: 16 hours (minimal), could be 40+ hours for comprehensive migration
+**Deliverable**: Statement cursor infrastructure ready for migration
 
-**Deliverable**: Statement parsing supports cursor mode
+---
 
-**Note**: This task may be better suited for a future phase after evaluating the benefits of cursor mode for statements.
+#### Task 2.2.14.2: Expression & Assignment Statements (~2 hours)
+
+**Status**: NOT STARTED
+
+**Goal**: Migrate expression and assignment statement parsing.
+
+**Targets**:
+- [ ] `parseExpressionStatementCursor()` - Expression as statement
+- [ ] `parseAssignmentStatementCursor()` - x := value
+- [ ] Handle assignment operators (+=, -=, etc.)
+
+**Dependencies**: Task 2.2.14.1
+
+**Estimate**: 2 hours
+
+---
+
+#### Task 2.2.14.3: Block Statements (~2 hours)
+
+**Status**: NOT STARTED
+
+**Goal**: Migrate block statement parsing (begin/end).
+
+**Targets**:
+- [ ] `parseBlockStatementCursor()` - begin...end blocks
+- [ ] Handle nested blocks
+- [ ] Statement list parsing in cursor mode
+
+**Dependencies**: Task 2.2.14.1, 2.2.14.2
+
+**Estimate**: 2 hours
+
+---
+
+#### Task 2.2.14.4: If/While/Repeat Statements (~4 hours)
+
+**Status**: NOT STARTED
+
+**Goal**: Migrate basic control flow statements.
+
+**Targets**:
+- [ ] `parseIfStatementCursor()` - if/then/else
+- [ ] `parseWhileStatementCursor()` - while/do
+- [ ] `parseRepeatStatementCursor()` - repeat/until
+
+**Dependencies**: Task 2.2.14.3
+
+**Estimate**: 4 hours
+
+---
+
+#### Task 2.2.14.5: For/Case Statements (~4 hours)
+
+**Status**: NOT STARTED
+
+**Goal**: Migrate complex control flow statements.
+
+**Targets**:
+- [ ] `parseForStatementCursor()` - for loops (to/downto)
+- [ ] `parseCaseStatementCursor()` - case/of/else
+
+**Dependencies**: Task 2.2.14.4
+
+**Estimate**: 4 hours
+
+---
+
+#### Task 2.2.14.6: Variable/Const Declarations (~4 hours)
+
+**Status**: NOT STARTED
+
+**Goal**: Migrate declaration statements.
+
+**Targets**:
+- [ ] `parseVarDeclarationCursor()` - var declarations
+- [ ] `parseConstDeclarationCursor()` - const declarations
+- [ ] Handle multi-var declarations
+
+**Dependencies**: Task 2.2.14.1
+
+**Estimate**: 4 hours
+
+---
+
+#### Task 2.2.14.7: Try/Raise Exception Handling (~3 hours)
+
+**Status**: NOT STARTED
+
+**Goal**: Migrate exception handling statements.
+
+**Targets**:
+- [ ] `parseTryStatementCursor()` - try/except/finally
+- [ ] `parseRaiseStatementCursor()` - raise exceptions
+
+**Dependencies**: Task 2.2.14.3
+
+**Estimate**: 3 hours
+
+---
+
+#### Task 2.2.14.8: Break/Continue/Exit Statements (~2 hours)
+
+**Status**: NOT STARTED
+
+**Goal**: Migrate simple control transfer statements.
+
+**Targets**:
+- [ ] `parseBreakStatementCursor()` - break
+- [ ] `parseContinueStatementCursor()` - continue
+- [ ] `parseExitStatementCursor()` - exit
+
+**Dependencies**: Task 2.2.14.1
+
+**Estimate**: 2 hours
+
+---
+
+#### Task 2.2.14.9: Integration Testing & Cleanup (~4 hours)
+
+**Status**: NOT STARTED
+
+**Goal**: Comprehensive testing and documentation.
+
+**Targets**:
+- [ ] Complete statement migration test suite
+- [ ] Integration tests combining multiple statement types
+- [ ] Performance benchmarks for statement parsing
+- [ ] Update documentation
+
+**Dependencies**: Tasks 2.2.14.1-2.2.14.8
+
+**Estimate**: 4 hours
+
+**Deliverable**: Complete statement parsing migration with full test coverage
 
 ---
 
