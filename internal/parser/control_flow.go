@@ -25,6 +25,8 @@ func isNilStatement(stmt ast.Statement) bool {
 // PRE: curToken is BREAK
 // POST: curToken is SEMICOLON
 func (p *Parser) parseBreakStatement() *ast.BreakStatement {
+	builder := p.StartNode()
+
 	stmt := &ast.BreakStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
@@ -34,8 +36,7 @@ func (p *Parser) parseBreakStatement() *ast.BreakStatement {
 		return nil
 	}
 
-	stmt.EndPos = p.endPosFromToken(p.curToken) // p.curToken is now at SEMICOLON
-	return stmt
+	return builder.Finish(stmt).(*ast.BreakStatement)
 }
 
 // parseContinueStatement parses a continue statement.
@@ -43,6 +44,8 @@ func (p *Parser) parseBreakStatement() *ast.BreakStatement {
 // PRE: curToken is CONTINUE
 // POST: curToken is SEMICOLON
 func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
+	builder := p.StartNode()
+
 	stmt := &ast.ContinueStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
@@ -52,8 +55,7 @@ func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
 		return nil
 	}
 
-	stmt.EndPos = p.endPosFromToken(p.curToken) // p.curToken is now at SEMICOLON
-	return stmt
+	return builder.Finish(stmt).(*ast.ContinueStatement)
 }
 
 // parseExitStatement parses an exit statement.
@@ -61,6 +63,8 @@ func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
 // PRE: curToken is EXIT
 // POST: curToken is SEMICOLON
 func (p *Parser) parseExitStatement() *ast.ExitStatement {
+	builder := p.StartNode()
+
 	stmt := &ast.ExitStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
@@ -96,8 +100,7 @@ func (p *Parser) parseExitStatement() *ast.ExitStatement {
 		return nil
 	}
 
-	stmt.EndPos = p.endPosFromToken(p.curToken) // p.curToken is now at SEMICOLON
-	return stmt
+	return builder.Finish(stmt).(*ast.ExitStatement)
 }
 
 // parseIfStatement parses an if-then-else statement.

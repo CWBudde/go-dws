@@ -290,6 +290,8 @@ func (p *Parser) parseStatement() ast.Statement {
 // PRE: curToken is BEGIN
 // POST: curToken is END
 func (p *Parser) parseBlockStatement() *ast.BlockStatement {
+	builder := p.StartNode()
+
 	block := &ast.BlockStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
@@ -326,36 +328,30 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 		p.synchronize([]lexer.TokenType{lexer.END, lexer.ENSURE})
 	}
 
-	// Set end position to the END keyword
-	block.EndPos = p.endPosFromToken(p.curToken)
-
-	return block
+	return builder.Finish(block).(*ast.BlockStatement)
 }
 
 // parseExpressionStatement parses an expression statement.
 // PRE: curToken is first token of expression
 // POST: curToken is SEMICOLON if present, otherwise last token of expression
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
+	builder := p.StartNode()
+
 	stmt := &ast.ExpressionStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
 
 	stmt.Expression = p.parseExpression(LOWEST)
 
-	// Set end position based on expression
-	if stmt.Expression != nil {
-		stmt.EndPos = stmt.Expression.End()
-	} else {
-		stmt.EndPos = p.endPosFromToken(stmt.Token)
-	}
-
 	// Optional semicolon
 	if p.peekTokenIs(lexer.SEMICOLON) {
 		p.nextToken()
-		stmt.EndPos = p.endPosFromToken(p.curToken) // Update to include semicolon
+		// End at semicolon
+		return builder.Finish(stmt).(*ast.ExpressionStatement)
 	}
 
-	return stmt
+	// End at expression
+	return builder.FinishWithNode(stmt, stmt.Expression).(*ast.ExpressionStatement)
 }
 
 // parseVarDeclaration parses a variable declaration statement.

@@ -147,27 +147,36 @@ Eliminate manual position tracking.
 
 ---
 
-#### Task 2.4.1: NodeBuilder Pattern (Week 8, Days 1-3, ~24 hours)
+#### Task 2.4.1: NodeBuilder Pattern (Week 8, Days 1-3, ~24 hours) ✅
 
 **Goal**: Eliminate manual `EndPos` setting throughout parser.
 
 **Implementation**:
-- [ ] Create `internal/parser/node_builder.go` with `NodeBuilder` type
-- [ ] Implement `StartNode()` and `Finish()` methods
-- [ ] Migrate 5 parsing functions as proof of concept
-- [ ] Verify positions are correct with tests
-- [ ] Document NodeBuilder pattern
+- [x] Create `internal/parser/node_builder.go` with `NodeBuilder` type
+- [x] Implement `StartNode()` and `Finish()` methods
+- [x] Migrate 5 parsing functions as proof of concept
+- [x] Verify positions are correct with tests
+- [x] Document NodeBuilder pattern
 
 **Files Created**:
-- `internal/parser/node_builder.go` (~150 lines)
-- `internal/parser/node_builder_test.go` (~200 lines)
+- `internal/parser/node_builder.go` (171 lines - includes comprehensive documentation)
+- `internal/parser/node_builder_test.go` (364 lines - 11 comprehensive tests)
 
 **Files Modified**:
-- `internal/parser/statements.go` (~50 lines)
+- `internal/parser/statements.go` (2 functions: parseBlockStatement, parseExpressionStatement)
+- `internal/parser/control_flow.go` (3 functions: parseBreakStatement, parseContinueStatement, parseExitStatement)
 
 **Estimate**: 24 hours
 
 **Deliverable**: Working NodeBuilder with proof of concept
+
+**Results**:
+- Created NodeBuilder pattern with reflection-based position tracking
+- Implemented three methods: `Finish()`, `FinishWithNode()`, `FinishWithToken()`
+- Migrated 5 representative parsing functions demonstrating all usage patterns
+- All 11 NodeBuilder tests passing
+- All parser tests passing (including position tracking tests)
+- Ready for mass migration in Task 2.4.2
 
 ---
 
