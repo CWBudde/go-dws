@@ -143,7 +143,8 @@ func (ii *InterfaceInstance) ImplementsInterface(iface *InterfaceInfo) bool {
 
 // classImplementsInterface checks if a class explicitly declares that it implements an interface.
 // In DWScript, a class must explicitly declare interface implementation in its class declaration.
-// This is checked by looking at the class's Interfaces list (and inherited through parent classes).
+// This function checks the class's Interfaces list and recursively checks parent classes in the
+// class hierarchy, since interface implementations are inherited from parent classes to child classes.
 // Returns true if the class or any of its parents explicitly declares implementation of the interface.
 func classImplementsInterface(class *ClassInfo, iface *InterfaceInfo) bool {
 	// Defensive check: nil class doesn't implement any interface
@@ -327,12 +328,13 @@ func (i *Interpreter) cleanupInterfaceReferences(env *Environment) {
 // ============================================================================
 
 // registerBuiltinInterfaces registers the IInterface base interface.
-// IInterface is the root interface in DWScript, similar to how TObject is the root class.
-// All interfaces implicitly inherit from IInterface.
+// IInterface is the root interface type in DWScript, similar to how TObject is the root class.
+// Note: Interfaces do NOT automatically inherit from IInterface unless explicitly declared.
+// Classes that want to be castable to IInterface must explicitly list it in their interface declarations.
 func (i *Interpreter) registerBuiltinInterfaces() {
-	// Register IInterface as the root base interface for all interfaces
-	// This is required for DWScript compatibility - all interfaces ultimately inherit from IInterface
+	// Register IInterface as the root interface available for explicit implementation
 	// IInterface is an empty interface with no methods, serving as a marker interface
+	// Classes implementing any interface should typically also explicitly declare IInterface
 	iinterface := NewInterfaceInfo("IInterface")
 	iinterface.Parent = nil // Root of the interface hierarchy
 
