@@ -766,187 +766,104 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   **Current Status**: Phase 1 complete. Phase 2A-2E infrastructure complete. ForStatement and ForInStatement migrated (Phase 2D ✅ COMPLETE). 4 simple value types migrated to runtime/ (EnumValue, TypeMetaValue, SetValue, ArrayValue). Remaining 26 methods blocked by complex type dependencies (ExceptionValue, ObjectInstance, ClassInfo, FunctionPointerValue, RecordValue).
 
   ---
-  ### ✅ PHASE 1 COMPLETE: Simple Methods (19/48 migrated, 39.6%)
 
-  **Phase 2 Progress**: 3 additional methods migrated (SelfExpression, ForStatement, ForInStatement)
-  **Total Progress**: 22/48 methods (45.8%)
+  ### 📋 TODO: Remaining Evaluator Migration Work
 
-  **Completed - Batch 1: Literals (6/6)** ✅
-  - [x] 3.5.4.1 IntegerLiteral
-  - [x] 3.5.4.2 FloatLiteral
-  - [x] 3.5.4.3 StringLiteral
-  - [x] 3.5.4.4 BooleanLiteral
-  - [x] 3.5.4.5 CharLiteral
-  - [x] 3.5.4.6 NilLiteral
-
-  **Completed - Batch 2: Simple Expressions (2/8)** ✅
-  - [x] 3.5.4.11 GroupedExpression (just evaluates inner expression)
-  - [x] 3.5.4.12 EnumLiteral (environment lookup)
-
-  **Completed - Batch 6: Control Structure Statements (3/7)** ✅
-  - [x] 3.5.4.29 Program (statement list execution, exception handling)
-  - [x] 3.5.4.30 BlockStatement (scoped block execution)
-  - [x] 3.5.4.35 ReturnStatement (sets Result variable, exit signal)
-
-  **Completed - Batch 7: Control Flow Statements (9/9)** ✅
-  - [x] 3.5.4.36 IfStatement (conditional branching)
-  - [x] 3.5.4.37 WhileStatement (pre-condition loops)
-  - [x] 3.5.4.38 RepeatStatement (post-condition loops)
-  - [x] 3.5.4.39 ForStatement (counted loops with step support, uses PushEnv/PopEnv)
-  - [x] 3.5.4.40 ForInStatement (collection iteration - arrays, sets, strings, enum types, uses PushEnv/PopEnv)
-  - [x] 3.5.4.41 CaseStatement (switch with ranges, added helper functions: valuesEqual, isInRange, runeLength, runeAt)
-  - [x] 3.5.4.42 BreakStatement (loop exit)
-  - [x] 3.5.4.43 ContinueStatement (loop continue)
-  - [x] 3.5.4.44 ExitStatement (procedure exit)
-
-  **Key Helper Functions Added**:
-  - `isTruthy()` - Boolean conversion for conditionals (Task 9.35 Variant→Boolean coercion)
-  - `variantToBool()` - Variant to boolean coercion rules
-  - `valuesEqual()` - Value equality for case matching
-  - `isInRange()` - Range checking for case ranges (Integer, Float, String, Enum)
-  - `runeLength()`, `runeAt()` - UTF-8 string handling
-  - `isError()` - Error value checking
+  **Progress**: 22/48 methods migrated (45.8%) | **Remaining**: 26 methods
 
   ---
-  ### 🔄 PHASE 2 REQUIRED: Infrastructure Refactoring (29/48 remaining)
 
-  Before continuing with the remaining 29 methods, these infrastructure components must be refactored from Interpreter to Evaluator:
+  ### 🚧 Phase 2A: Function Call System (6 methods remaining)
 
-  **Infrastructure Phase 2A: Function Call System ✅ PARTIALLY COMPLETE** (Blocks 7 methods, 1 migrated)
-  - Required for: ExpressionStatement, CallExpression, LambdaExpression, SelfExpression, InheritedExpression, AddressOfExpression, MethodCallExpression
-  - Components available via InterpreterAdapter:
-    - ✅ `CallFunctionPointer()` - Execute function pointer with closure/Self binding
-    - ✅ `CallUserFunction()` - User-defined function execution
-    - ✅ `CallBuiltinFunction()` - Built-in function dispatch
-    - ✅ `LookupFunction()` - Function registry lookup
-    - ✅ Call stack management (already in ExecutionContext)
-  - Completed migrations:
-    - ✅ SelfExpression (3.5.4.17) - Simple environment lookup for "Self" variable
-  - **Status**: Infrastructure complete via InterpreterAdapter. Full migration of remaining 6 methods deferred until complex types (FunctionPointerValue, ObjectInstance, ClassInfo) migrate to runtime package.
+  Infrastructure: ✅ Complete via InterpreterAdapter
+  Blocked by: FunctionPointerValue, ObjectInstance, ClassInfo migration to runtime
 
-  **Infrastructure Phase 2B: Type System Access** (Blocks 18 methods)
-  - Required for: VarDecl, ConstDecl, AssignmentStatement, all Declarations (9 methods), BinaryExpression, UnaryExpression, NewExpression, IsExpression, AsExpression, IfExpression
-  - Components to migrate:
-    - Class registry (`classes` map) → Move to TypeSystem
-    - Record type registry (`recordTypes` map) → Move to TypeSystem
-    - Interface registry (`interfaces` map) → Move to TypeSystem
-    - Enum registry (`enums` map) → Move to TypeSystem
-    - Helper registry (`helpers` map) → Move to TypeSystem
-    - Array type registry (`arrayTypes` map) → Move to TypeSystem
-    - Operator overload tables → Move to TypeSystem
-    - Type coercion/conversion logic → Move to TypeSystem
-    - `arrayTypeByName()` helper → Move to Evaluator (uses TypeSystem)
-    - Type inference for array/record literals → Evaluator logic
-
-  **Infrastructure Phase 2C: Property & Indexing System** (Blocks 5 methods)
-  - Required for: MemberAccessExpression, AssignmentStatement, IndexExpression, RecordLiteralExpression, ArrayLiteralExpression
-  - Components to migrate:
-    - Property evaluation context (PropertyEvalContext - already in ExecutionContext ✓)
-    - Property getter/setter dispatch logic
-    - Array indexing logic (bounds checking)
-    - Record field access logic
-    - Helper field access logic
-
-  **Infrastructure Phase 2D: Environment Scoping ✅ COMPLETE** (2/2 methods migrated)
-  - Required for: ForStatement, ForInStatement
-  - Components refactored:
-    - ✅ `NewEnclosedEnvironment()` pattern → ExecutionContext.PushEnv/PopEnv methods
-    - ✅ Added `envStack` field to ExecutionContext for proper scope management
-    - ✅ Loop variable scoping infrastructure ready for Evaluator use
-    - ✅ Environment save/restore pattern → ExecutionContext.PushEnv/PopEnv
-  - Completed migrations:
-    - ✅ ForStatement (3.5.4.39) - Uses PushEnv/PopEnv for loop variable scoping, only needs IntegerValue (already in runtime)
-    - ✅ ForInStatement (3.5.4.40) - Uses PushEnv/PopEnv, iterates over ArrayValue, SetValue, StringValue, TypeMetaValue (all migrated to runtime)
-  - **Status**: ✅ Phase 2D COMPLETE - All loop statements migrated. Simple value types (EnumValue, TypeMetaValue, SetValue, ArrayValue) migrated to runtime package to enable iteration.
-
-  **Infrastructure Phase 2E: Exception Infrastructure ✅ COMPLETE** (Blocks 2 methods)
-  - Required for: TryStatement, RaiseStatement
-  - Components migrated:
-    - ✅ `evalExceptClause()` → Evaluator method (commented, ready for use)
-    - ✅ `matchesExceptionType()` → Evaluator method (commented, ready for use)
-    - ✅ Exception handler stack (already in ExecutionContext via exception field)
-    - ✅ `handlerException` tracking → ExecutionContext.HandlerException()
-    - ✅ ExceptObject environment handling infrastructure ready
-  - **Status**: Infrastructure complete. Full migration of TryStatement/RaiseStatement deferred until complex types (ExceptionValue, ObjectInstance) migrate to runtime package.
+  **TODO**:
+  - [ ] 3.5.4.10 AddressOfExpression
+  - [ ] 3.5.4.16 MethodCallExpression
+  - [ ] 3.5.4.18 InheritedExpression
+  - [ ] 3.5.4.22 CallExpression
+  - [ ] 3.5.4.23 LambdaExpression
+  - [ ] 3.5.4.31 ExpressionStatement
 
   ---
-  ### 📋 DEFERRED METHODS BY INFRASTRUCTURE DEPENDENCY
 
-  **Blocked by Phase 2A (Function Call System) - 6 methods remaining (1/7 complete)**:
-  - [x] 3.5.4.17 SelfExpression - ✅ Migrated (simple environment lookup)
-  - [ ] 3.5.4.10 AddressOfExpression - Pending FunctionPointerValue migration
-  - [ ] 3.5.4.18 InheritedExpression - Pending ObjectInstance/ClassInfo migration
-  - [ ] 3.5.4.22 CallExpression - Pending FunctionPointerValue migration
-  - [ ] 3.5.4.23 LambdaExpression - Pending FunctionPointerValue migration
-  - [ ] 3.5.4.31 ExpressionStatement - Pending FunctionPointerValue migration
-  - [ ] 3.5.4.16 MethodCallExpression - Pending ObjectInstance/ClassInfo migration
+  ### 🚧 Phase 2B: Type System Access (18 methods)
 
-  **Blocked by Phase 2B (Type System Access) - 18 methods**:
-  - [ ] 3.5.4.7 Identifier - Needs function/class registries
-  - [ ] 3.5.4.8 BinaryExpression - Needs operator tables, type coercion
-  - [ ] 3.5.4.9 UnaryExpression - Needs operator tables
-  - [ ] 3.5.4.13 IfExpression - Needs type system for default values
-  - [ ] 3.5.4.19 NewExpression - Needs class registry, constructor dispatch
-  - [ ] 3.5.4.20 IsExpression - Needs class hierarchy checking
-  - [ ] 3.5.4.21 AsExpression - Needs type casting infrastructure
-  - [ ] 3.5.4.32 VarDeclStatement - Needs arrayTypeByName, type inference
-  - [ ] 3.5.4.33 ConstDecl - Needs record type registry
-  - [ ] 3.5.4.47 FunctionDecl - Needs function registry
-  - [ ] 3.5.4.48 ClassDecl - Needs class registry
-  - [ ] 3.5.4.49 InterfaceDecl - Needs interface registry
-  - [ ] 3.5.4.50 RecordDecl - Needs record type registry
-  - [ ] 3.5.4.51 EnumDecl - Needs enum registry
-  - [ ] 3.5.4.52 HelperDecl - Needs helper registry
-  - [ ] 3.5.4.53 OperatorDecl - Needs operator overload tables
-  - [ ] 3.5.4.54 ArrayDecl - Needs array type registry
-  - [ ] 3.5.4.55 TypeDeclaration - Needs type alias handling
+  **Infrastructure TODO**:
+  - [ ] Migrate class registry (`classes` map) to TypeSystem
+  - [ ] Migrate record type registry (`recordTypes` map) to TypeSystem
+  - [ ] Migrate interface registry (`interfaces` map) to TypeSystem
+  - [ ] Migrate enum registry (`enums` map) to TypeSystem
+  - [ ] Migrate helper registry (`helpers` map) to TypeSystem
+  - [ ] Migrate array type registry (`arrayTypes` map) to TypeSystem
+  - [ ] Migrate operator overload tables to TypeSystem
+  - [ ] Migrate type coercion/conversion logic to TypeSystem
+  - [ ] Move `arrayTypeByName()` helper to Evaluator
+  - [ ] Implement type inference for array/record literals
 
-  **Blocked by Phase 2C (Property & Indexing) - 5 methods**:
-  - [ ] 3.5.4.14 IndexExpression - Needs array/property indexing
-  - [ ] 3.5.4.15 MemberAccessExpression - Needs property dispatch
-  - [ ] 3.5.4.25 ArrayLiteralExpression - Needs type inference
-  - [ ] 3.5.4.26 RecordLiteralExpression - Needs record construction
-  - [ ] 3.5.4.34 AssignmentStatement - Needs property setters, compound ops
-
-  **Blocked by Phase 2D (Environment Scoping) - ✅ COMPLETE (2/2 migrated)**:
-  - [x] 3.5.4.39 ForStatement - ✅ Migrated (uses PushEnv/PopEnv, only needs IntegerValue from runtime)
-  - [x] 3.5.4.40 ForInStatement - ✅ Migrated (uses PushEnv/PopEnv, all required types migrated to runtime: ArrayValue, SetValue, EnumValue, TypeMetaValue)
-
-  **Blocked by Phase 2E (Exception Infrastructure) - 2 methods**:
-  - [ ] 3.5.4.45 TryStatement - Blocked by ExceptionValue, ObjectInstance, ClassInfo migration
-  - [ ] 3.5.4.46 RaiseStatement - Blocked by ExceptionValue, ObjectInstance, ClassInfo migration
-
-  **Other Expression Methods - 5 methods**:
-  - [ ] 3.5.4.24 ImplementsExpression - Needs interface checking (Phase 2B)
-  - [ ] 3.5.4.27 SetLiteral - Needs set construction (simpler, can migrate with Phase 2C)
-  - [ ] 3.5.4.28 NewArrayExpression - Needs dynamic array creation (Phase 2C)
+  **Method Migration TODO**:
+  - [ ] 3.5.4.7 Identifier
+  - [ ] 3.5.4.8 BinaryExpression
+  - [ ] 3.5.4.9 UnaryExpression
+  - [ ] 3.5.4.13 IfExpression
+  - [ ] 3.5.4.19 NewExpression
+  - [ ] 3.5.4.20 IsExpression
+  - [ ] 3.5.4.21 AsExpression
+  - [ ] 3.5.4.24 ImplementsExpression
+  - [ ] 3.5.4.32 VarDeclStatement
+  - [ ] 3.5.4.33 ConstDecl
+  - [ ] 3.5.4.47 FunctionDecl
+  - [ ] 3.5.4.48 ClassDecl
+  - [ ] 3.5.4.49 InterfaceDecl
+  - [ ] 3.5.4.50 RecordDecl
+  - [ ] 3.5.4.51 EnumDecl
+  - [ ] 3.5.4.52 HelperDecl
+  - [ ] 3.5.4.53 OperatorDecl
+  - [ ] 3.5.4.54 ArrayDecl
+  - [ ] 3.5.4.55 TypeDeclaration
 
   ---
-  ### 📊 Migration Metrics
 
-  **Progress**: 22/48 methods migrated (45.8%)
-  - ✅ Literals: 6/6 (100%)
-  - ✅ All control flow: 9/9 (100%) - ForStatement, ForInStatement migrated (Phase 2D complete)
-  - ✅ Basic statements: 3/3 (100%)
-  - ⏳ Expressions: 2/22 (9.1%)
-  - ⏳ Complex statements: 1/7 (14.3%)
-  - ⏳ Declarations: 0/9 (0%)
+  ### 🚧 Phase 2C: Property & Indexing System (7 methods)
 
-  **Deferred by Infrastructure Dependency**:
-  - Phase 2A (Function Calls): 6 methods (1/7 migrated: SelfExpression)
-  - Phase 2B (Type System): 18 methods
-  - Phase 2C (Property/Indexing): 5 methods (some overlap with 2B)
-  - ✅ Phase 2D (Environment): COMPLETE (2/2 migrated: ForStatement, ForInStatement)
-  - Phase 2E (Exceptions): 2 methods
+  **Infrastructure TODO**:
+  - [ ] Migrate property getter/setter dispatch logic
+  - [ ] Migrate array indexing logic (bounds checking)
+  - [ ] Migrate record field access logic
+  - [ ] Migrate helper field access logic
 
-  **Estimated Effort**:
-  - Phase 1 (Simple methods): ✅ Complete (4 days actual)
-  - ✅ Phase 2D (Environment): Complete (2 days actual - includes type migrations)
-  - Phase 2A (Function Calls): 5 days (complex, closures, call stack)
-  - Phase 2B (Type System): 8 days (largest, many registries)
-  - Phase 2C (Property/Indexing): 3 days (property dispatch, bounds checking)
-  - Phase 2E (Exceptions): 3 days (exception handling, finally blocks)
-  - Total remaining: ~19 days
+  **Method Migration TODO**:
+  - [ ] 3.5.4.14 IndexExpression
+  - [ ] 3.5.4.15 MemberAccessExpression
+  - [ ] 3.5.4.25 ArrayLiteralExpression
+  - [ ] 3.5.4.26 RecordLiteralExpression
+  - [ ] 3.5.4.27 SetLiteral
+  - [ ] 3.5.4.28 NewArrayExpression
+  - [ ] 3.5.4.34 AssignmentStatement
+
+  ---
+
+  ### 🚧 Phase 2E: Exception Handling (2 methods)
+
+  Infrastructure: ✅ Complete (infrastructure methods in place)
+  Blocked by: ExceptionValue, ObjectInstance, ClassInfo migration to runtime
+
+  **TODO**:
+  - [ ] 3.5.4.45 TryStatement
+  - [ ] 3.5.4.46 RaiseStatement
+
+  ---
+
+  ### 📊 Summary
+
+  | Category | Methods Remaining | Estimated Effort |
+  |----------|------------------|------------------|
+  | Phase 2A (Function Calls) | 6 | 5 days |
+  | Phase 2B (Type System) | 18 | 8 days |
+  | Phase 2C (Property/Indexing) | 7 | 3 days |
+  | Phase 2E (Exceptions) | 2 | 3 days |
+  | **TOTAL** | **33 tasks** | **~19 days** |
 
 - [ ] 3.5.5 Remove adapter pattern and complete migration
   - Remove InterpreterAdapter interface from evaluator.go
