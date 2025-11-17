@@ -93,6 +93,18 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 		i.env.Define(fieldName, fieldValue)
 	}
 
+	// Bind properties to environment (for simple field-backed properties)
+	// Properties that use fields as read accessors should be accessible like fields
+	for propName, propInfo := range recVal.RecordType.Properties {
+		if propInfo.ReadField != "" {
+			// Check if the read field is an actual field (use lowercase)
+			if fval, exists := recordCopy.Fields[strings.ToLower(propInfo.ReadField)]; exists {
+				// Bind the property name to the field value
+				i.env.Define(propName, fval)
+			}
+		}
+	}
+
 	// Task 9.12.2: Bind record constants and class variables to environment
 	// Look up the record type value to get constants and class vars
 	recordTypeKey := "__record_type_" + strings.ToLower(recVal.RecordType.Name)

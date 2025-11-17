@@ -234,10 +234,46 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 	// Check if it's a record value
 	if recordVal, ok := objVal.(*RecordValue); ok {
-		// Access record field
-		fieldValue, exists := recordVal.Fields[ma.Member.Value]
+		// Access record field (case-insensitive - use lowercase key)
+		fieldValue, exists := recordVal.Fields[strings.ToLower(ma.Member.Value)]
 		if exists {
 			return fieldValue
+		}
+
+		// Check for properties, class methods, constants, and class variables
+		memberNameLower := strings.ToLower(ma.Member.Value)
+
+		// Check if this member is a property
+		if propInfo, exists := recordVal.RecordType.Properties[memberNameLower]; exists {
+			// Property found - evaluate read access
+			if propInfo.ReadField != "" {
+				// Check if ReadField is a field name or method name
+				// First try as a field (use lowercase key)
+				if fieldVal, exists := recordVal.Fields[strings.ToLower(propInfo.ReadField)]; exists {
+					return fieldVal
+				}
+
+				// Not a field - try as a method (getter)
+				if getterMethod := recordVal.GetMethod(propInfo.ReadField); getterMethod != nil {
+					// Call the getter method
+					methodCall := &ast.MethodCallExpression{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: ma.Token,
+							},
+						},
+						Object:    ma.Object,
+						Method:    &ast.Identifier{Value: propInfo.ReadField, TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: ma.Token}}},
+						Arguments: []ast.Expression{},
+					}
+					return i.evalMethodCall(methodCall)
+				}
+
+				return i.newErrorWithLocation(ma, "property '%s' read accessor '%s' not found in record '%s'",
+					ma.Member.Value, propInfo.ReadField, recordVal.RecordType.Name)
+			}
+			// Property is write-only
+			return i.newErrorWithLocation(ma, "property '%s' is write-only", ma.Member.Value)
 		}
 
 		// Task 9.37: Check if it's a record method
@@ -271,8 +307,6 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		recordTypeKey := "__record_type_" + strings.ToLower(recordVal.RecordType.Name)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
-				memberNameLower := strings.ToLower(ma.Member.Value)
-
 				// Check class methods (case-insensitive)
 				if classMethod, exists := rtv.ClassMethods[memberNameLower]; exists {
 					// Check if parameterless

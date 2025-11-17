@@ -1,6 +1,7 @@
 package interp
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
@@ -155,6 +156,55 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 				return i.evalIndexedPropertyRead(obj, propInfo, indexVals, expr)
 			}
 		}
+
+		// Check if it's a record instance with an indexed property
+		if recordVal, ok := objVal.(*RecordValue); ok {
+			memberNameLower := strings.ToLower(memberAccess.Member.Value)
+			if propInfo, exists := recordVal.RecordType.Properties[memberNameLower]; exists {
+				// This is an array property access
+				if propInfo.ReadField != "" {
+					// Evaluate all indices
+					indexVals := make([]Value, len(indices))
+					for idx, indexExpr := range indices {
+						indexVals[idx] = i.Eval(indexExpr)
+						if isError(indexVals[idx]) {
+							return indexVals[idx]
+						}
+					}
+
+					// Check if ReadField is a method (getter with parameters)
+					if getterMethod := recordVal.GetMethod(propInfo.ReadField); getterMethod != nil {
+						// Call the getter method with indices as arguments
+						methodCall := &ast.MethodCallExpression{
+							TypedExpressionBase: ast.TypedExpressionBase{
+								BaseNode: ast.BaseNode{
+									Token: expr.Token,
+								},
+							},
+							Object:    memberAccess.Object,
+							Method:    &ast.Identifier{Value: propInfo.ReadField, TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: expr.Token}}},
+							Arguments: make([]ast.Expression, len(indexVals)),
+						}
+
+						// Create temporary identifiers for each index value
+						for idx, indexVal := range indexVals {
+							tempName := fmt.Sprintf("__temp_index_%d__", idx)
+							i.env.Define(tempName, indexVal)
+							methodCall.Arguments[idx] = &ast.Identifier{
+								Value:                tempName,
+								TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: expr.Token}},
+							}
+						}
+
+						return i.evalMethodCall(methodCall)
+					}
+
+					return i.newErrorWithLocation(expr, "array property '%s' read accessor '%s' is not a method",
+						memberAccess.Member.Value, propInfo.ReadField)
+				}
+				return i.newErrorWithLocation(expr, "property '%s' is write-only", memberAccess.Member.Value)
+			}
+		}
 	}
 
 	// Not a property access - this is regular array/string indexing
@@ -180,6 +230,42 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 			// For now, we only support single-index default properties
 			// Multi-index would need to collect all indices from nested IndexExpressions
 			return i.evalIndexedPropertyRead(obj, defaultProp, []Value{indexVal}, expr)
+		}
+	}
+
+	// Check if left side is a record with a default property
+	// This allows record[index] to be equivalent to record.DefaultProperty[index]
+	if recordVal, ok := leftVal.(*RecordValue); ok {
+		// Find the default property
+		var defaultProp *types.RecordPropertyInfo
+		for _, propInfo := range recordVal.RecordType.Properties {
+			if propInfo.IsDefault {
+				defaultProp = propInfo
+				break
+			}
+		}
+
+		if defaultProp != nil {
+			// Call the getter method with the index
+			if defaultProp.ReadField != "" {
+				if getterMethod := recordVal.GetMethod(defaultProp.ReadField); getterMethod != nil {
+					// Call the getter method with index as argument
+					methodCall := &ast.MethodCallExpression{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{Token: expr.Token},
+						},
+						Object:    expr.Left,
+						Method:    &ast.Identifier{Value: defaultProp.ReadField, TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: expr.Token}}},
+						Arguments: []ast.Expression{
+							&ast.Identifier{Value: "__temp_default_index__", TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: expr.Token}}},
+						},
+					}
+					i.env.Define("__temp_default_index__", indexVal)
+					return i.evalMethodCall(methodCall)
+				}
+				return i.newErrorWithLocation(expr, "default property read accessor '%s' is not a method", defaultProp.ReadField)
+			}
+			return i.newErrorWithLocation(expr, "default property is write-only")
 		}
 	}
 

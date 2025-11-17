@@ -71,9 +71,11 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 			return &ErrorValue{Message: fmt.Sprintf("field '%s' in record '%s' must have either a type or initializer", fieldName, recordName)}
 		}
 
-		fields[fieldName] = fieldType
-		// Task 9.5: Store field declaration
-		fieldDecls[fieldName] = field
+		// Use lowercase key for case-insensitive access
+		fieldNameLower := strings.ToLower(fieldName)
+		fields[fieldNameLower] = fieldType
+		// Task 9.5: Store field declaration (use lowercase key)
+		fieldDecls[fieldNameLower] = field
 	}
 
 	// Create the record type
@@ -134,7 +136,29 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 		classVars[strings.ToLower(varName)] = varValue
 	}
 
-	// TODO: Handle properties if needed
+	// Process properties
+	for _, prop := range decl.Properties {
+		propName := prop.Name.Value
+		propNameLower := strings.ToLower(propName)
+
+		// Resolve property type
+		propType := i.resolveTypeFromExpression(prop.Type)
+		if propType == nil {
+			return &ErrorValue{Message: fmt.Sprintf("unknown type for property '%s' in record '%s'", propName, recordName)}
+		}
+
+		// Create property info
+		propInfo := &types.RecordPropertyInfo{
+			Name:       propName,
+			Type:       propType,
+			ReadField:  prop.ReadField,
+			WriteField: prop.WriteField,
+			IsDefault:  prop.IsDefault,
+		}
+
+		// Store in recordType.Properties (case-insensitive)
+		recordType.Properties[propNameLower] = propInfo
+	}
 
 	// Store record type metadata in environment with special key
 	// This allows variable declarations to resolve the type
@@ -324,9 +348,10 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 		}
 
 		fieldName := field.Name.Value
+		fieldNameLower := strings.ToLower(fieldName)
 
-		// Check if field exists in record type
-		if _, exists := recordType.Fields[fieldName]; !exists {
+		// Check if field exists in record type (use lowercase key)
+		if _, exists := recordType.Fields[fieldNameLower]; !exists {
 			return &ErrorValue{Message: fmt.Sprintf("field '%s' does not exist in record type '%s'", fieldName, recordType.Name)}
 		}
 
@@ -336,8 +361,8 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 			return fieldValue
 		}
 
-		// Store the field value
-		recordValue.Fields[fieldName] = fieldValue
+		// Store the field value (use lowercase key)
+		recordValue.Fields[fieldNameLower] = fieldValue
 	}
 
 	// Task 9.5: Initialize remaining fields with field initializers or default values
