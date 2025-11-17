@@ -861,24 +861,39 @@ func (a *Analyzer) analyzeExitStatement(stmt *ast.ExitStatement) {
 
 // analyzeUnitDeclaration analyzes a unit declaration
 func (a *Analyzer) analyzeUnitDeclaration(unit *ast.UnitDeclaration) {
+	// Create a single shared scope for the entire unit that persists across all sections.
+	// This allows initialization/finalization sections to access symbols defined in
+	// interface/implementation sections, which is required by DWScript semantics.
+	oldSymbols := a.symbols
+	a.symbols = NewEnclosedSymbolTable(oldSymbols)
+	defer func() { a.symbols = oldSymbols }()
+
 	// Analyze interface section declarations (types, functions, etc.)
 	if unit.InterfaceSection != nil {
-		a.analyzeBlock(unit.InterfaceSection)
+		for _, stmt := range unit.InterfaceSection.Statements {
+			a.analyzeStatement(stmt)
+		}
 	}
 
 	// Analyze implementation section (function implementations, etc.)
 	if unit.ImplementationSection != nil {
-		a.analyzeBlock(unit.ImplementationSection)
+		for _, stmt := range unit.ImplementationSection.Statements {
+			a.analyzeStatement(stmt)
+		}
 	}
 
 	// Analyze initialization section
 	if unit.InitSection != nil {
-		a.analyzeBlock(unit.InitSection)
+		for _, stmt := range unit.InitSection.Statements {
+			a.analyzeStatement(stmt)
+		}
 	}
 
 	// Analyze finalization section
 	if unit.FinalSection != nil {
-		a.analyzeBlock(unit.FinalSection)
+		for _, stmt := range unit.FinalSection.Statements {
+			a.analyzeStatement(stmt)
+		}
 	}
 }
 
