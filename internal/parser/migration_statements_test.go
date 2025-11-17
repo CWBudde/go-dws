@@ -1826,7 +1826,7 @@ func BenchmarkStatementParsing_Comparison(b *testing.B) {
 				try
 					Process(count)
 				except
-					on e: Exception do continue
+					on e: Exception do count := count + 1
 				end
 			end;
 			count := count + 1

@@ -1200,42 +1200,80 @@ parseExpressionCursor
 
 #### Task 2.2.15 (Optional): Performance Optimization (Week 9, Days 1-2, ~12 hours)
 
-**Status**: NOT STARTED
+**Status**: ⏸️ DEFERRED (Requires major refactoring effort)
 
-**Goal**: Reduce cursor mode overhead from current 50-60% to <15% target.
+**Goal**: Reduce cursor mode overhead from current ~100% to <15% target.
 
-**Current State**: Cursor mode has ~50-60% overhead due to hybrid implementation.
+**Current State Assessment**:
+- ✅ Baseline benchmarks established
+- ⚠️ Actual overhead significantly higher than initially estimated
 
-**Optimization Targets**:
-- [ ] Eliminate remaining state synchronization calls
-- [ ] Optimize cursor navigation (reduce allocations)
+**Baseline Performance (Measured 2025-11-17)**:
+Traditional mode:
+- Time: 14,559 ns/op
+- Memory: 8,664 B/op
+- Allocations: 132 allocs/op
+
+Cursor mode:
+- Time: 29,038 ns/op
+- Memory: 25,320 B/op
+- Allocations: 253 allocs/op
+
+**Current Overhead**:
+- ⚠️ Time: **99.4%** (2x slower) - Target: <15%
+- ⚠️ Memory: **192.2%** (3x more) - No target set
+- ⚠️ Allocations: **91.6%** (2x more) - No target set
+
+**Root Causes Identified**:
+1. **State synchronization overhead**: syncCursorToTokens/syncTokensToCursor calls in hybrid mode
+2. **Cursor immutability**: Every Advance() and Peek() creates new TokenCursor instances
+3. **Type expression fallback**: Still using traditional mode for type expressions with sync overhead
+4. **Memory allocations**: Immutable cursor creates allocation pressure
+
+**Optimization Targets** (for future work):
+- [ ] Eliminate all remaining state synchronization calls
+- [ ] Make TokenCursor mutable OR implement object pooling
 - [ ] Inline hot path cursor operations
 - [ ] Profile and optimize TokenCursor.Advance()
+- [ ] Optimize peek operations (currently allocates new cursor)
+- [ ] Migrate type expression parsing to cursor mode
 - [ ] Consider cursor pooling/reuse strategies
-- [ ] Optimize peek operations
 
-**Implementation**:
-- [ ] Profile cursor mode vs traditional mode
-- [ ] Identify hot spots and bottlenecks
-- [ ] Apply targeted optimizations
-- [ ] Measure impact with benchmarks
+**Implementation Plan** (for future sprint):
+- [ ] Deep profiling with pprof to identify exact hotspots
+- [ ] Refactor TokenCursor to reduce allocations (mutable or pooled)
+- [ ] Eliminate all sync calls by completing expression migration
+- [ ] Benchmark each optimization incrementally
 - [ ] Document optimization techniques
 
 **Files to Modify**:
-- `internal/parser/token_cursor.go` (optimizations)
-- `internal/parser/expressions.go` (eliminate syncs)
+- `internal/parser/token_cursor.go` (major refactoring)
+- `internal/parser/expressions.go` (complete migration, eliminate syncs)
+- `internal/parser/statements.go` (eliminate syncs)
+- `internal/parser/declarations.go` (migrate type expressions)
 - Various parser files (micro-optimizations)
 
-**Dependencies**: Tasks 2.2.12-2.2.13 (to eliminate fallbacks)
+**Dependencies**:
+- Tasks 2.2.12-2.2.13 ✓ (cursor infrastructure complete)
+- Tasks 2.2.14.1-2.2.14.9 ✓ (statement migration complete)
 
-**Estimate**: 12 hours
+**Revised Estimate**: 20-30 hours (vs 12 original)
 
-**Deliverable**: Cursor mode overhead <15%
+**Rationale for Deferral**:
+- Current implementation is **functionally correct** (100% tests passing)
+- Performance optimization requires **major architectural changes**
+- Effort significantly exceeds original estimate
+- Should be tackled as dedicated optimization sprint
+- Cursor mode provides correctness benefits (immutability, better error handling)
 
-**Success Criteria**:
-- Benchmarks show <15% overhead for cursor mode
+**Deliverable**: Cursor mode overhead <15% (DEFERRED)
+
+**Success Criteria** (when implemented):
+- Benchmarks show <15% time overhead for cursor mode
 - No performance regression in traditional mode
-- All tests still pass
+- All tests still pass (100% coverage maintained)
+- Memory overhead reduced to <30%
+- Allocation overhead reduced to <25%
 
 ---
 
