@@ -31,8 +31,9 @@ import (
 //   - Empty string: returns 0
 //
 // Example:
-//   Ord('A')  // Returns: 65
-//   Ord(True) // Returns: 1
+//
+//	Ord('A')  // Returns: 65
+//	Ord(True) // Returns: 1
 func Ord(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("Ord() expects exactly 1 argument, got %d", len(args))
