@@ -755,7 +755,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Acceptance: Code organized by category, easy to navigate, tests pass
   - **Completed**: Created 4 visitor files organized by node category (404 lines total), all files well under 500 line limit (largest: 154 lines), clear organization with visitor_*.go naming convention, 48 visitor methods total (6 literals, 22 expressions, 19 statements, 9 declarations), all tests pass
 
-- [ ] 3.5.4 Migrate evaluation logic from Interpreter to Evaluator ⏳ **IN PROGRESS** (22/48 methods, 45.8%)
+- [ ] 3.5.4 Migrate evaluation logic from Interpreter to Evaluator ⏳ **IN PROGRESS** (23/48 methods, 47.9%)
   - Gradually move logic from Interpreter.evalXXX() methods to Evaluator.VisitXXX() methods
   - Each migration: run tests, ensure no regressions
   - Keep adapter active during migration for safety
@@ -763,13 +763,13 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Estimated: 2-3 weeks (48 methods to migrate across 9 batches)
   - Acceptance: All evaluation logic in Evaluator, Interpreter methods just delegate, all tests pass
 
-  **Current Status**: Phase 1 complete. Phase 2A-2E infrastructure complete. ForStatement and ForInStatement migrated (Phase 2D ✅ COMPLETE). 4 simple value types migrated to runtime/ (EnumValue, TypeMetaValue, SetValue, ArrayValue). Remaining 26 methods blocked by complex type dependencies (ExceptionValue, ObjectInstance, ClassInfo, FunctionPointerValue, RecordValue).
+  **Current Status**: Phase 1 complete. Phase 2A-2E infrastructure complete. ForStatement and ForInStatement migrated (Phase 2D ✅ COMPLETE). 4 simple value types migrated to runtime/ (EnumValue, TypeMetaValue, SetValue, ArrayValue). IfExpression migrated (Phase 2B). Remaining 25 methods blocked by complex type dependencies (ExceptionValue, ObjectInstance, ClassInfo, FunctionPointerValue, RecordValue) or require additional infrastructure (array/record literals, type inference).
 
   ---
 
   ### 📋 TODO: Remaining Evaluator Migration Work
 
-  **Progress**: 22/48 methods migrated (45.8%) | **Remaining**: 26 methods
+  **Progress**: 23/48 methods migrated (47.9%) | **Remaining**: 25 methods
 
   ---
 
@@ -806,7 +806,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - [ ] 3.5.4.7 Identifier
   - [ ] 3.5.4.8 BinaryExpression
   - [ ] 3.5.4.9 UnaryExpression
-  - [ ] 3.5.4.13 IfExpression
+  - [x] 3.5.4.13 IfExpression ✅ **COMPLETE**
   - [ ] 3.5.4.19 NewExpression
   - [ ] 3.5.4.20 IsExpression
   - [ ] 3.5.4.21 AsExpression
@@ -860,10 +860,10 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   | Category | Methods Remaining | Estimated Effort |
   |----------|------------------|------------------|
   | Phase 2A (Function Calls) | 6 | 5 days |
-  | Phase 2B (Type System) | 18 | 8 days |
+  | Phase 2B (Type System) | 17 | 7 days |
   | Phase 2C (Property/Indexing) | 7 | 3 days |
   | Phase 2E (Exceptions) | 2 | 3 days |
-  | **TOTAL** | **33 tasks** | **~19 days** |
+  | **TOTAL** | **32 tasks** | **~18 days** |
 
 - [ ] 3.5.5 Remove adapter pattern and complete migration
   - Remove InterpreterAdapter interface from evaluator.go
