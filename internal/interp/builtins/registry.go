@@ -37,6 +37,9 @@ const (
 	// CategoryIO includes input/output functions (Print, PrintLn)
 	CategoryIO Category = "io"
 
+	// CategoryVariant includes Variant introspection and conversion functions
+	CategoryVariant Category = "variant"
+
 	// CategorySystem includes system and miscellaneous functions
 	CategorySystem Category = "system"
 )

@@ -57,6 +57,7 @@ func RegisterAll(r *Registry) {
 	RegisterJSONFunctions(r)
 	RegisterTypeFunctions(r)
 	RegisterIOFunctions(r)
+	RegisterVariantFunctions(r)
 }
 
 // RegisterMathFunctions registers all mathematical built-in functions.
@@ -327,4 +328,23 @@ func RegisterTypeFunctions(r *Registry) {
 func RegisterIOFunctions(r *Registry) {
 	r.Register("Print", Print, CategoryIO, "Prints arguments without newline")
 	r.Register("PrintLn", PrintLn, CategoryIO, "Prints arguments with newline")
+}
+
+// RegisterVariantFunctions registers all Variant introspection and conversion built-in functions.
+func RegisterVariantFunctions(r *Registry) {
+	// Variant type checking
+	r.Register("VarType", VarType, CategoryVariant, "Returns the type code of a Variant")
+	r.Register("VarIsNull", VarIsNull, CategoryVariant, "Checks if Variant is unassigned")
+	r.Register("VarIsEmpty", VarIsEmpty, CategoryVariant, "Checks if Variant is empty (alias for VarIsNull)")
+	r.Register("VarIsClear", VarIsClear, CategoryVariant, "Checks if Variant is cleared (alias for VarIsNull)")
+	r.Register("VarIsArray", VarIsArray, CategoryVariant, "Checks if Variant holds an array")
+	r.Register("VarIsStr", VarIsStr, CategoryVariant, "Checks if Variant holds a string")
+	r.Register("VarIsNumeric", VarIsNumeric, CategoryVariant, "Checks if Variant holds a numeric value")
+
+	// Variant conversion
+	r.Register("VarToStr", VarToStr, CategoryVariant, "Converts Variant to string")
+	r.Register("VarToInt", VarToInt, CategoryVariant, "Converts Variant to integer")
+	r.Register("VarToFloat", VarToFloat, CategoryVariant, "Converts Variant to float")
+	r.Register("VarAsType", VarAsType, CategoryVariant, "Converts Variant to specified type code")
+	r.Register("VarClear", VarClear, CategoryVariant, "Clears Variant to unassigned state")
 }
