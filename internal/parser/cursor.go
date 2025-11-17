@@ -248,20 +248,49 @@ func (c *TokenCursor) ExpectAny(types ...token.TokenType) (*TokenCursor, bool, t
 	return c.SkipAny(types...)
 }
 
-// Mark represents a saved cursor position that can be restored later.
-// This enables backtracking and speculative parsing.
+// Mark represents a lightweight saved cursor position that can be restored later.
+// This enables backtracking and speculative parsing with minimal overhead.
+//
+// LIGHTWEIGHT vs HEAVYWEIGHT MARKS:
+//
+// Use Mark (lightweight) when you need to:
+//   - Save/restore cursor position only
+//   - Backtrack within a single parsing function
+//   - Minimal state (just 1 integer - very fast)
+//   - No error state or parser context needed
+//
+// Use Parser.saveState()/restoreState() (heavyweight) when you need to:
+//   - Save/restore full parser state (errors, context, lexer state)
+//   - Backtrack across multiple parsing functions
+//   - Speculative parsing that might add errors
+//   - More state saved (slower, but comprehensive)
+//
+// Performance: Mark is extremely lightweight (just copies one int).
+// Use it liberally for cursor-level backtracking.
 type Mark struct {
 	index int
 }
 
 // Mark saves the current cursor position for later restoration.
-// Use this for speculative parsing or backtracking.
+// This is a LIGHTWEIGHT operation that only saves the cursor position (1 integer).
+// For full parser state backtracking, use Parser.saveState() instead.
 //
-// Example:
+// Use this for speculative parsing or backtracking at the cursor level.
+//
+// Example - try parsing a pattern, backtrack if it fails:
 //
 //	mark := cursor.Mark()
 //	if !tryParsePattern(cursor) {
-//	    cursor = cursor.ResetTo(mark)  // Backtrack
+//	    cursor = cursor.ResetTo(mark)  // Backtrack to saved position
+//	}
+//
+// Example - lookahead to check pattern without consuming:
+//
+//	mark := cursor.Mark()
+//	pattern := scanPattern(cursor)
+//	cursor = cursor.ResetTo(mark)  // Restore position after lookahead
+//	if pattern.matches {
+//	    // Now parse for real
 //	}
 func (c *TokenCursor) Mark() Mark {
 	return Mark{index: c.index}
@@ -322,4 +351,110 @@ func (c *TokenCursor) Position() token.Position {
 // This is useful for error reporting.
 func (c *TokenCursor) Length() int {
 	return c.current.Length()
+}
+
+// LookAhead scans forward from the current position to find a token matching
+// the given predicate. Returns the matching token, its distance from current
+// position, and true if found. Returns (zero token, 0, false) if not found
+// before EOF.
+//
+// This makes lookahead declarative instead of imperative.
+//
+// Example - find next closing paren:
+//
+//	tok, distance, found := cursor.LookAhead(func(t token.Token) bool {
+//	    return t.Type == token.RPAREN
+//	})
+//
+// Example - find next statement terminator:
+//
+//	tok, distance, found := cursor.LookAhead(func(t token.Token) bool {
+//	    return t.Type == token.SEMICOLON || t.Type == token.END
+//	})
+func (c *TokenCursor) LookAhead(predicate func(token.Token) bool) (token.Token, int, bool) {
+	// Scan forward up to a reasonable limit (100 tokens)
+	// This prevents infinite loops on malformed input
+	const maxLookahead = 100
+
+	for distance := 0; distance < maxLookahead; distance++ {
+		tok := c.Peek(distance)
+
+		// Stop at EOF
+		if tok.Type == token.EOF {
+			return token.Token{}, 0, false
+		}
+
+		// Check if predicate matches
+		if predicate(tok) {
+			return tok, distance, true
+		}
+	}
+
+	return token.Token{}, 0, false
+}
+
+// ScanUntil collects tokens from the current position until the stop predicate
+// returns true. Returns the collected tokens (not including the stop token).
+// If EOF is reached before the stop condition, returns all tokens up to EOF.
+//
+// This is useful for gathering tokens within a delimited region.
+//
+// Example - collect tokens until semicolon:
+//
+//	tokens := cursor.ScanUntil(func(t token.Token) bool {
+//	    return t.Type == token.SEMICOLON
+//	})
+//
+// Example - collect tokens until end of parameter list:
+//
+//	tokens := cursor.ScanUntil(func(t token.Token) bool {
+//	    return t.Type == token.RPAREN || t.Type == token.EOF
+//	})
+func (c *TokenCursor) ScanUntil(stop func(token.Token) bool) []token.Token {
+	const maxScan = 100
+	collected := make([]token.Token, 0, 16)
+
+	for i := 0; i < maxScan; i++ {
+		tok := c.Peek(i)
+
+		// Stop at EOF
+		if tok.Type == token.EOF {
+			break
+		}
+
+		// Check stop condition
+		if stop(tok) {
+			break
+		}
+
+		collected = append(collected, tok)
+	}
+
+	return collected
+}
+
+// FindNext searches forward for the next occurrence of the given token type.
+// Returns the distance to the token and true if found, or (0, false) if not
+// found before EOF.
+//
+// This is a convenience wrapper around LookAhead for the common case of
+// searching for a specific token type.
+//
+// Example - find distance to next comma:
+//
+//	distance, found := cursor.FindNext(token.COMMA)
+//	if found {
+//	    cursor = cursor.AdvanceN(distance)
+//	}
+//
+// Example - check if there's a semicolon in the next 5 tokens:
+//
+//	if distance, found := cursor.FindNext(token.SEMICOLON); found && distance < 5 {
+//	    // semicolon is nearby
+//	}
+func (c *TokenCursor) FindNext(t token.TokenType) (int, bool) {
+	_, distance, found := c.LookAhead(func(tok token.Token) bool {
+		return tok.Type == t
+	})
+	return distance, found
 }

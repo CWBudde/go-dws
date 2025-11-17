@@ -419,9 +419,35 @@ type Parser struct {
 	infixParseFnsCursor  map[lexer.TokenType]infixParseFnCursor
 }
 
-// ParserState represents a snapshot of the parser's state at a specific point.
-// It can be saved and restored to enable speculative parsing and backtracking.
-// This is useful when trying multiple parsing strategies without committing to errors.
+// ParserState represents a HEAVYWEIGHT snapshot of the parser's complete state.
+// It can be saved and restored to enable speculative parsing and backtracking
+// with full error and context preservation.
+//
+// LIGHTWEIGHT vs HEAVYWEIGHT BACKTRACKING:
+//
+// Use ParserState (heavyweight) via saveState()/restoreState() when you need to:
+//   - Save/restore full parser state (errors, context, lexer state)
+//   - Backtrack across multiple parsing functions
+//   - Try multiple parsing strategies speculatively
+//   - Preserve or discard error states
+//   - More comprehensive but slower than cursor.Mark()
+//
+// Use cursor.Mark()/ResetTo() (lightweight) when you need to:
+//   - Save/restore cursor position only
+//   - Backtrack within a single parsing function
+//   - Minimal overhead (just 1 integer)
+//   - No error state changes during backtracking
+//
+// Performance: ParserState copies significant state (errors slice, block stack, etc).
+// Use it only when you need full state preservation, prefer cursor.Mark() otherwise.
+//
+// Example - try multiple parsing strategies:
+//
+//	state := p.saveState()
+//	if !tryFirstStrategy(p) {
+//	    p.restoreState(state)  // Discard errors and backtrack
+//	    trySecondStrategy(p)
+//	}
 type ParserState struct {
 	lexerState           lexer.LexerState
 	errors               []*ParserError

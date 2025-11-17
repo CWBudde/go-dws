@@ -842,3 +842,302 @@ func TestTokenCursor_BufferSharing(t *testing.T) {
 		t.Errorf("cursor2 should be at IDENT")
 	}
 }
+
+// TestTokenCursor_LookAhead tests the LookAhead method with predicates
+func TestTokenCursor_LookAhead(t *testing.T) {
+	tests := []struct {
+		name      string
+		source    string
+		predicate func(token.Token) bool
+		wantType  token.TokenType
+		wantDist  int
+		wantFound bool
+	}{
+		{
+			name:   "find semicolon",
+			source: "var x: Integer;",
+			predicate: func(tok token.Token) bool {
+				return tok.Type == token.SEMICOLON
+			},
+			wantType:  token.SEMICOLON,
+			wantDist:  4,
+			wantFound: true,
+		},
+		{
+			name:   "find closing paren",
+			source: "(a + b)",
+			predicate: func(tok token.Token) bool {
+				return tok.Type == token.RPAREN
+			},
+			wantType:  token.RPAREN,
+			wantDist:  4,
+			wantFound: true,
+		},
+		{
+			name:   "find first identifier",
+			source: "begin x := 42",
+			predicate: func(tok token.Token) bool {
+				return tok.Type == token.IDENT
+			},
+			wantType:  token.IDENT,
+			wantDist:  1,
+			wantFound: true,
+		},
+		{
+			name:   "not found - EOF reached",
+			source: "var x",
+			predicate: func(tok token.Token) bool {
+				return tok.Type == token.SEMICOLON
+			},
+			wantType:  token.EOF,
+			wantDist:  0,
+			wantFound: false,
+		},
+		{
+			name:   "find statement terminator",
+			source: "x := 42; y := 43",
+			predicate: func(tok token.Token) bool {
+				return tok.Type == token.SEMICOLON || tok.Type == token.END
+			},
+			wantType:  token.SEMICOLON,
+			wantDist:  3,
+			wantFound: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cursor := newCursorFromSource(tt.source)
+			tok, dist, found := cursor.LookAhead(tt.predicate)
+
+			if found != tt.wantFound {
+				t.Errorf("LookAhead() found = %v, want %v", found, tt.wantFound)
+			}
+
+			if found {
+				if tok.Type != tt.wantType {
+					t.Errorf("LookAhead() token type = %v, want %v", tok.Type, tt.wantType)
+				}
+				if dist != tt.wantDist {
+					t.Errorf("LookAhead() distance = %d, want %d", dist, tt.wantDist)
+				}
+			}
+		})
+	}
+}
+
+// TestTokenCursor_ScanUntil tests the ScanUntil method
+func TestTokenCursor_ScanUntil(t *testing.T) {
+	tests := []struct {
+		name      string
+		source    string
+		stop      func(token.Token) bool
+		wantCount int
+		wantTypes []token.TokenType
+	}{
+		{
+			name:   "scan until semicolon",
+			source: "x := 42;",
+			stop: func(tok token.Token) bool {
+				return tok.Type == token.SEMICOLON
+			},
+			wantCount: 3,
+			wantTypes: []token.TokenType{token.IDENT, token.ASSIGN, token.INT},
+		},
+		{
+			name:   "scan until closing paren",
+			source: "(a, b, c)",
+			stop: func(tok token.Token) bool {
+				return tok.Type == token.RPAREN
+			},
+			wantCount: 6,
+			wantTypes: []token.TokenType{token.LPAREN, token.IDENT, token.COMMA, token.IDENT, token.COMMA, token.IDENT},
+		},
+		{
+			name:   "scan until EOF",
+			source: "var x",
+			stop: func(tok token.Token) bool {
+				return tok.Type == token.SEMICOLON
+			},
+			wantCount: 2,
+			wantTypes: []token.TokenType{token.VAR, token.IDENT},
+		},
+		{
+			name:   "empty result - immediate match",
+			source: "; rest",
+			stop: func(tok token.Token) bool {
+				return tok.Type == token.SEMICOLON
+			},
+			wantCount: 0,
+			wantTypes: []token.TokenType{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cursor := newCursorFromSource(tt.source)
+			tokens := cursor.ScanUntil(tt.stop)
+
+			if len(tokens) != tt.wantCount {
+				t.Errorf("ScanUntil() returned %d tokens, want %d", len(tokens), tt.wantCount)
+			}
+
+			for i, wantType := range tt.wantTypes {
+				if i >= len(tokens) {
+					break
+				}
+				if tokens[i].Type != wantType {
+					t.Errorf("ScanUntil() token[%d] = %v, want %v", i, tokens[i].Type, wantType)
+				}
+			}
+		})
+	}
+}
+
+// TestTokenCursor_FindNext tests the FindNext method
+func TestTokenCursor_FindNext(t *testing.T) {
+	tests := []struct {
+		name      string
+		source    string
+		tokenType token.TokenType
+		wantDist  int
+		wantFound bool
+	}{
+		{
+			name:      "find semicolon",
+			source:    "var x: Integer;",
+			tokenType: token.SEMICOLON,
+			wantDist:  4,
+			wantFound: true,
+		},
+		{
+			name:      "find comma",
+			source:    "var x, y: Integer",
+			tokenType: token.COMMA,
+			wantDist:  2,
+			wantFound: true,
+		},
+		{
+			name:      "find assignment",
+			source:    "x := 42",
+			tokenType: token.ASSIGN,
+			wantDist:  1,
+			wantFound: true,
+		},
+		{
+			name:      "not found",
+			source:    "var x",
+			tokenType: token.SEMICOLON,
+			wantDist:  0,
+			wantFound: false,
+		},
+		{
+			name:      "find at current position",
+			source:    "var x",
+			tokenType: token.VAR,
+			wantDist:  0,
+			wantFound: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cursor := newCursorFromSource(tt.source)
+			dist, found := cursor.FindNext(tt.tokenType)
+
+			if found != tt.wantFound {
+				t.Errorf("FindNext() found = %v, want %v", found, tt.wantFound)
+			}
+
+			if found && dist != tt.wantDist {
+				t.Errorf("FindNext() distance = %d, want %d", dist, tt.wantDist)
+			}
+		})
+	}
+}
+
+// TestTokenCursor_LookAheadPerformance ensures lookahead doesn't hang on malformed input
+func TestTokenCursor_LookAheadPerformance(t *testing.T) {
+	// Create input with many tokens but no match
+	source := "var "
+	for i := 0; i < 50; i++ {
+		source += "x" + string(rune('0'+i%10)) + ", "
+	}
+
+	cursor := newCursorFromSource(source)
+
+	// This should complete quickly (not hang) even with no match
+	_, _, found := cursor.LookAhead(func(tok token.Token) bool {
+		return tok.Type == token.END // Won't be found
+	})
+
+	if found {
+		t.Errorf("LookAhead() should not find END in var list")
+	}
+}
+
+// TestTokenCursor_DeclarativeLookaheadIntegration tests declarative lookahead in realistic scenarios
+func TestTokenCursor_DeclarativeLookaheadIntegration(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		test   func(*testing.T, *TokenCursor)
+	}{
+		{
+			name:   "find type annotation in var declaration",
+			source: "var x: Integer := 42",
+			test: func(t *testing.T, cursor *TokenCursor) {
+				// Find the colon
+				dist, found := cursor.FindNext(token.COLON)
+				if !found {
+					t.Error("should find colon in var declaration")
+				}
+				if dist != 2 {
+					t.Errorf("colon should be at distance 2, got %d", dist)
+				}
+			},
+		},
+		{
+			name:   "scan parameter list",
+			source: "function foo(x: Integer, y: String): Boolean",
+			test: func(t *testing.T, cursor *TokenCursor) {
+				// Advance to opening paren
+				cursor = cursor.AdvanceN(2)
+				// Scan until closing paren
+				tokens := cursor.ScanUntil(func(tok token.Token) bool {
+					return tok.Type == token.RPAREN
+				})
+				// Should get: x, :, Integer, ,, y, :, String
+				if len(tokens) < 7 {
+					t.Errorf("should scan at least 7 tokens in parameter list, got %d", len(tokens))
+				}
+			},
+		},
+		{
+			name:   "find end of statement",
+			source: "begin x := 42; y := 43 end",
+			test: func(t *testing.T, cursor *TokenCursor) {
+				// Look for next semicolon or end
+				tok, dist, found := cursor.LookAhead(func(tok token.Token) bool {
+					return tok.Type == token.SEMICOLON || tok.Type == token.END
+				})
+				if !found {
+					t.Error("should find statement terminator")
+				}
+				if tok.Type != token.SEMICOLON {
+					t.Errorf("first terminator should be semicolon, got %v", tok.Type)
+				}
+				if dist != 4 {
+					t.Errorf("semicolon should be at distance 4, got %d", dist)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cursor := newCursorFromSource(tt.source)
+			tt.test(t, cursor)
+		})
+	}
+}
