@@ -364,6 +364,70 @@ func TestRegisterBatch(t *testing.T) {
 	}
 }
 
+func TestDuplicateRegistration(t *testing.T) {
+	r := NewRegistry()
+
+	mockFunc1 := func(ctx Context, args []Value) Value {
+		return &runtime.IntegerValue{Value: 42}
+	}
+
+	mockFunc2 := func(ctx Context, args []Value) Value {
+		return &runtime.IntegerValue{Value: 99}
+	}
+
+	// Register a function
+	r.Register("TestFunc", mockFunc1, CategoryMath, "First registration")
+
+	// Verify initial state
+	if r.Count() != 1 {
+		t.Errorf("Expected 1 function after first registration, got %d", r.Count())
+	}
+
+	if r.CategoryCount(CategoryMath) != 1 {
+		t.Errorf("Expected 1 math function after first registration, got %d", r.CategoryCount(CategoryMath))
+	}
+
+	// Register the same function name again (should replace, not duplicate)
+	r.Register("TestFunc", mockFunc2, CategoryMath, "Second registration")
+
+	// Verify no duplicates were created
+	if r.Count() != 1 {
+		t.Errorf("Expected 1 function after duplicate registration, got %d", r.Count())
+	}
+
+	if r.CategoryCount(CategoryMath) != 1 {
+		t.Errorf("Expected 1 math function after duplicate registration, got %d (duplicate category entry created)", r.CategoryCount(CategoryMath))
+	}
+
+	// Verify the function was replaced (should return 99, not 42)
+	fn, ok := r.Lookup("TestFunc")
+	if !ok {
+		t.Fatal("Function not found after duplicate registration")
+	}
+
+	result := fn(newMockContext(), []Value{})
+	if intVal, ok := result.(*runtime.IntegerValue); !ok || intVal.Value != 99 {
+		t.Errorf("Expected function to be replaced with new implementation returning 99, got %v", result)
+	}
+
+	// Verify case-insensitive duplicate registration
+	r.Register("testfunc", mockFunc1, CategoryMath, "Third registration (different case)")
+
+	if r.Count() != 1 {
+		t.Errorf("Expected 1 function after case-insensitive duplicate, got %d", r.Count())
+	}
+
+	if r.CategoryCount(CategoryMath) != 1 {
+		t.Errorf("Expected 1 math function after case-insensitive duplicate, got %d", r.CategoryCount(CategoryMath))
+	}
+
+	// Verify GetByCategory doesn't return duplicates
+	mathFuncs := r.GetByCategory(CategoryMath)
+	if len(mathFuncs) != 1 {
+		t.Errorf("GetByCategory should return 1 function, got %d (duplicates in category list)", len(mathFuncs))
+	}
+}
+
 func TestConcurrency(t *testing.T) {
 	r := NewRegistry()
 

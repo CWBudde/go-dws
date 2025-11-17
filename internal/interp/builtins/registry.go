@@ -69,9 +69,25 @@ func NewRegistry() *Registry {
 
 // Register adds a built-in function to the registry.
 // The name lookup will be case-insensitive (DWScript is case-insensitive).
+// If a function with the same name is already registered, it will be replaced,
+// but the category list will not contain duplicate entries.
 func (r *Registry) Register(name string, fn BuiltinFunc, category Category, description string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	normalizedName := strings.ToLower(name)
+
+	// Check if already registered to prevent duplicate category entries
+	if _, exists := r.functions[normalizedName]; exists {
+		// Update the function but don't add to category list again
+		r.functions[normalizedName] = &FunctionInfo{
+			Name:        name,
+			Function:    fn,
+			Category:    category,
+			Description: description,
+		}
+		return
+	}
 
 	info := &FunctionInfo{
 		Name:        name,
@@ -81,10 +97,9 @@ func (r *Registry) Register(name string, fn BuiltinFunc, category Category, desc
 	}
 
 	// Store with normalized (lowercase) key for case-insensitive lookup
-	normalizedName := strings.ToLower(name)
 	r.functions[normalizedName] = info
 
-	// Add to category list
+	// Add to category list (only for new registrations)
 	r.categories[category] = append(r.categories[category], name)
 }
 
