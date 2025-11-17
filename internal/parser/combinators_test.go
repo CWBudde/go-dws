@@ -714,18 +714,18 @@ func TestSeparatedListMultiSep(t *testing.T) {
 // TestTryParse tests the TryParse combinator
 func TestTryParse(t *testing.T) {
 	tests := []struct {
-		name         string
-		input        string
+		name          string
+		input         string
 		shouldSucceed bool
 	}{
 		{
-			name:         "successful parse",
-			input:        ": Integer",
+			name:          "successful parse",
+			input:         ": Integer",
 			shouldSucceed: true,
 		},
 		{
-			name:         "failed parse",
-			input:        "42",
+			name:          "failed parse",
+			input:         "42",
 			shouldSucceed: false,
 		},
 	}
