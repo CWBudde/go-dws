@@ -2,8 +2,10 @@ package evaluator
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 )
 
 // This file contains visitor methods for expression AST nodes.
@@ -227,13 +229,72 @@ func (e *Evaluator) VisitImplementsExpression(node *ast.ImplementsExpression, ct
 
 // VisitIfExpression evaluates an inline if-then-else expression.
 func (e *Evaluator) VisitIfExpression(node *ast.IfExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2B: Type system available for default values
-	// TODO: Migrate if expression logic with type defaults
-	return e.adapter.EvalNode(node)
+	// Phase 3.5.4.13: Migrated if expression evaluation with type defaults
+	// Evaluate the condition
+	condition := e.Eval(node.Condition, ctx)
+	if isError(condition) {
+		return condition
+	}
+
+	// Use isTruthy to support Variant→Boolean implicit conversion
+	// If condition is true, evaluate and return consequence
+	if isTruthy(condition) {
+		result := e.Eval(node.Consequence, ctx)
+		if isError(result) {
+			return result
+		}
+		return result
+	}
+
+	// Condition is false
+	if node.Alternative != nil {
+		// Evaluate and return alternative
+		result := e.Eval(node.Alternative, ctx)
+		if isError(result) {
+			return result
+		}
+		return result
+	}
+
+	// No else clause - return default value for the consequence type
+	// The type should have been set during semantic analysis
+	var typeAnnot *ast.TypeAnnotation
+	if e.semanticInfo != nil {
+		typeAnnot = e.semanticInfo.GetType(node)
+	}
+	if typeAnnot == nil {
+		return e.newError(node, "if expression missing type annotation")
+	}
+
+	// Return default value based on type name
+	typeName := strings.ToLower(typeAnnot.Name)
+	switch typeName {
+	case "integer", "int64":
+		return &runtime.IntegerValue{Value: 0}
+	case "float", "float64", "double", "real":
+		return &runtime.FloatValue{Value: 0.0}
+	case "string":
+		return &runtime.StringValue{Value: ""}
+	case "boolean", "bool":
+		return &runtime.BooleanValue{Value: false}
+	default:
+		// For class types and other reference types, return nil
+		return &runtime.NilValue{}
+	}
 }
 
 // VisitOldExpression evaluates an 'old' expression (used in postconditions).
 func (e *Evaluator) VisitOldExpression(node *ast.OldExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.2: Delegate to interpreter for now
-	return e.adapter.EvalNode(node)
+	// Phase 2.1: Migrated old expression evaluation
+	// Get the identifier name from the old expression
+	identName := node.Identifier.Value
+
+	// Look up the old value from the context's old values stack
+	oldValue, found := ctx.GetOldValue(identName)
+	if !found {
+		return e.newError(node, "old value for '%s' not captured (internal error)", identName)
+	}
+
+	// Return the old value (already a Value type)
+	return oldValue.(Value)
 }
