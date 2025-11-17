@@ -82,6 +82,9 @@ const (
 	// ErrMissingTo indicates a missing 'to' or 'downto' keyword
 	ErrMissingTo = "E_MISSING_TO"
 
+	// ErrMissingIn indicates a missing 'in' keyword
+	ErrMissingIn = "E_MISSING_IN"
+
 	// ErrMissingColon indicates a missing colon
 	ErrMissingColon = "E_MISSING_COLON"
 

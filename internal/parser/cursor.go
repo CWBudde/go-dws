@@ -41,10 +41,14 @@ type TokenCursor struct {
 func NewTokenCursor(l *lexer.Lexer) *TokenCursor {
 	// Read the first token
 	firstToken := l.NextToken()
+	// Pre-allocate tokens slice with capacity to reduce reallocations
+	// Most expressions have 20-50 tokens, so 32 is a good starting point
+	tokens := make([]token.Token, 1, 32)
+	tokens[0] = firstToken
 	return &TokenCursor{
 		lexer:   l,
 		current: firstToken,
-		tokens:  []token.Token{firstToken},
+		tokens:  tokens,
 		index:   0,
 	}
 }
@@ -70,12 +74,28 @@ func (c *TokenCursor) Peek(n int) token.Token {
 	targetIndex := c.index + n
 
 	// Ensure we have enough tokens buffered
-	for len(c.tokens) <= targetIndex {
-		nextTok := c.lexer.NextToken()
-		c.tokens = append(c.tokens, nextTok)
-		if nextTok.Type == token.EOF {
-			// Don't fetch beyond EOF
-			break
+	// Grow slice capacity aggressively to reduce reallocations
+	if targetIndex >= len(c.tokens) {
+		// Calculate how many tokens we need to fetch
+		tokensNeeded := targetIndex - len(c.tokens) + 1
+
+		// If we need to grow significantly, pre-allocate extra capacity
+		if targetIndex >= cap(c.tokens) {
+			// Grow by 1.5x or to target+16, whichever is larger
+			newCap := max(targetIndex+16, cap(c.tokens)*3/2)
+			newTokens := make([]token.Token, len(c.tokens), newCap)
+			copy(newTokens, c.tokens)
+			c.tokens = newTokens
+		}
+
+		// Fetch the needed tokens
+		for i := 0; i < tokensNeeded; i++ {
+			nextTok := c.lexer.NextToken()
+			c.tokens = append(c.tokens, nextTok)
+			if nextTok.Type == token.EOF {
+				// Don't fetch beyond EOF
+				break
+			}
 		}
 	}
 
@@ -85,6 +105,14 @@ func (c *TokenCursor) Peek(n int) token.Token {
 	}
 	// Return last token (should be EOF)
 	return c.tokens[len(c.tokens)-1]
+}
+
+// max returns the larger of two integers
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // Advance returns a new cursor positioned at the next token.
