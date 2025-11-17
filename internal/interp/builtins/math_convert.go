@@ -357,4 +357,3 @@ func IntPower(ctx Context, args []Value) Value {
 
 	return &runtime.FloatValue{Value: result}
 }
-
