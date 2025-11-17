@@ -513,6 +513,69 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 	return newError("undefined variable: %s", target.Value)
 }
 
+// evalRecordPropertyWrite handles property assignment for record values.
+// This helper extracts common logic for property writes (both direct and after auto-initialization).
+// Returns the assigned value on success, or an error Value.
+func (i *Interpreter) evalRecordPropertyWrite(recordVal *RecordValue, fieldName string, value Value, stmt *ast.AssignmentStatement, target *ast.MemberAccessExpression) Value {
+	fieldNameLower := strings.ToLower(fieldName)
+
+	// Check if this is a property assignment (properties take precedence over fields)
+	if propInfo, exists := recordVal.RecordType.Properties[fieldNameLower]; exists {
+		if propInfo.WriteField != "" {
+			// Check if WriteField is a field name or method name
+			// First try as a method (setter)
+			if setterMethod := recordVal.GetMethod(propInfo.WriteField); setterMethod != nil {
+				// Call the setter method with the value
+				methodCall := &ast.MethodCallExpression{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: stmt.Token,
+						},
+					},
+					Object: target.Object,
+					Method: &ast.Identifier{
+						Value: propInfo.WriteField,
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{Token: stmt.Token},
+						},
+					},
+					Arguments: []ast.Expression{
+						&ast.Identifier{
+							Value: "__temp_write_value__",
+							TypedExpressionBase: ast.TypedExpressionBase{
+								BaseNode: ast.BaseNode{Token: stmt.Token},
+							},
+						},
+					},
+				}
+				// Temporarily bind the value for the method call
+				i.env.Define("__temp_write_value__", value)
+				result := i.evalMethodCall(methodCall)
+				if isError(result) {
+					return result
+				}
+				return value
+			}
+
+			// Not a method - try as a field name (direct field assignment, use lowercase)
+			recordVal.Fields[strings.ToLower(propInfo.WriteField)] = value
+			return value
+		}
+		// Property is read-only
+		return i.newErrorWithLocation(stmt, "property '%s' is read-only", fieldName)
+	}
+
+	// Not a property - try direct field assignment
+	// Verify field exists in the record type (case-insensitive)
+	if _, exists := recordVal.RecordType.Fields[fieldNameLower]; !exists {
+		return i.newErrorWithLocation(stmt, "field '%s' not found in record '%s'", fieldName, recordVal.RecordType.Name)
+	}
+
+	// Set the field value (use lowercase key)
+	recordVal.Fields[fieldNameLower] = value
+	return value
+}
+
 // evalMemberAssignment handles member assignment: obj.field := value or TClass.Variable := value
 func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, value Value, stmt *ast.AssignmentStatement) Value {
 	// Check if the left side is a class identifier (for static assignment: TClass.Variable := value or TClass.Property := value)
@@ -552,15 +615,7 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 
 	// Check if it's a record value
 	if recordVal, ok := objVal.(*RecordValue); ok {
-		fieldName := target.Member.Value
-		// Verify field exists in the record type
-		if _, exists := recordVal.RecordType.Fields[fieldName]; !exists {
-			return i.newErrorWithLocation(stmt, "field '%s' not found in record '%s'", fieldName, recordVal.RecordType.Name)
-		}
-
-		// Set the field value
-		recordVal.Fields[fieldName] = value
-		return value
+		return i.evalRecordPropertyWrite(recordVal, target.Member.Value, value, stmt, target)
 	}
 
 	// Special case: If objVal is NilValue and target.Object is an IndexExpression,
@@ -607,15 +662,7 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 
 	// Re-check if it's a record value after potential initialization
 	if recordVal, ok := objVal.(*RecordValue); ok {
-		fieldName := target.Member.Value
-		// Verify field exists in the record type
-		if _, exists := recordVal.RecordType.Fields[fieldName]; !exists {
-			return i.newErrorWithLocation(stmt, "field '%s' not found in record '%s'", fieldName, recordVal.RecordType.Name)
-		}
-
-		// Set the field value
-		recordVal.Fields[fieldName] = value
-		return value
+		return i.evalRecordPropertyWrite(recordVal, target.Member.Value, value, stmt, target)
 	}
 
 	// Check if it's an object instance

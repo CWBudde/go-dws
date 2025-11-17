@@ -94,12 +94,15 @@ func (rd *RecordDecl) String() string {
 
 // RecordPropertyDecl represents a property declaration in a record.
 // DWScript syntax: property Name: Type read Field write Field;
+// Also supports array properties: property Name[Index: Type]: Type read Field;
 // Note: Renamed from PropertyDecl to avoid conflict with class PropertyDecl
 type RecordPropertyDecl struct {
-	Type       TypeExpression
-	Name       *Identifier
-	ReadField  string
-	WriteField string
+	Type        TypeExpression
+	Name        *Identifier
+	IndexParams []*Parameter // For array properties: property Items[Index: Integer]: String
+	ReadField   string
+	WriteField  string
+	IsDefault   bool // True if this is a default array property
 	BaseNode
 }
 
@@ -108,6 +111,19 @@ func (pd RecordPropertyDecl) String() string {
 
 	out.WriteString("property ")
 	out.WriteString(pd.Name.String())
+
+	// Add index parameters for array properties
+	if len(pd.IndexParams) > 0 {
+		out.WriteString("[")
+		for i, param := range pd.IndexParams {
+			if i > 0 {
+				out.WriteString("; ")
+			}
+			out.WriteString(param.String())
+		}
+		out.WriteString("]")
+	}
+
 	out.WriteString(": ")
 	out.WriteString(pd.Type.String())
 
@@ -119,6 +135,10 @@ func (pd RecordPropertyDecl) String() string {
 	if pd.WriteField != "" {
 		out.WriteString(" write ")
 		out.WriteString(pd.WriteField)
+	}
+
+	if pd.IsDefault {
+		out.WriteString("; default")
 	}
 
 	return out.String()
