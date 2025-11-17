@@ -218,6 +218,21 @@ type Context interface {
 	// Returns (formatted string, nil) on success, or ("", error) on formatting error.
 	// Task 3.7.8: Helper for Format() function.
 	FormatString(format string, args []Value) (string, error)
+
+	// GetLowBound returns the lower bound for arrays, enums, or type meta-values.
+	// Returns (low value, nil) on success, or (nil, error) on failure.
+	// Task 3.7.9: Helper for Low() function with polymorphic type support.
+	GetLowBound(value Value) (Value, error)
+
+	// GetHighBound returns the upper bound for arrays, enums, or type meta-values.
+	// Returns (high value, nil) on success, or (nil, error) on failure.
+	// Task 3.7.9: Helper for High() function with polymorphic type support.
+	GetHighBound(value Value) (Value, error)
+
+	// ConcatStrings concatenates multiple string values into a single string.
+	// Returns the concatenated string value.
+	// Task 3.7.9: Helper for Concat() function with string support.
+	ConcatStrings(args []Value) Value
 }
 
 // BuiltinFunc is the signature for all built-in function implementations.
