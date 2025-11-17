@@ -587,7 +587,7 @@ func (p *Parser) IdentifierList(config IdentifierListConfig) []*ast.Identifier {
 			}
 			err := NewStructuredError(ErrKindMissing).
 				WithCode(ErrExpectedIdent).
-				WithMessage("expected identifier in " + context).
+				WithMessage("expected identifier in "+context).
 				WithPosition(p.curToken.Pos, p.curToken.Length()).
 				WithExpectedString("identifier").
 				WithActual(p.curToken.Type, p.curToken.Literal).
@@ -736,7 +736,7 @@ func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement
 		if !hitAdditionalTerm {
 			err := NewStructuredError(ErrKindMissing).
 				WithCode(ErrUnexpectedToken).
-				WithMessage("expected '" + config.CloseToken.String() + "' to close " + contextName).
+				WithMessage("expected '"+config.CloseToken.String()+"' to close "+contextName).
 				WithPosition(p.curToken.Pos, p.curToken.Length()).
 				WithExpected(config.CloseToken).
 				WithActual(p.curToken.Type, p.curToken.Literal).
