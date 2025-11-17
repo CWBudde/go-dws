@@ -153,8 +153,8 @@ func (i *Interpreter) builtinStrBefore(args []Value) Value {
 	// Find the first occurrence of delimiter
 	index := strings.Index(str, delim)
 	if index == -1 {
-		// Delimiter not found - return the full string
-		return &StringValue{Value: str}
+		// Delimiter not found - return empty string
+		return &StringValue{Value: ""}
 	}
 
 	// Return substring before delimiter
@@ -192,8 +192,8 @@ func (i *Interpreter) builtinStrBeforeLast(args []Value) Value {
 	// Find the last occurrence of delimiter
 	index := strings.LastIndex(str, delim)
 	if index == -1 {
-		// Delimiter not found - return the full string
-		return &StringValue{Value: str}
+		// Delimiter not found - return empty string
+		return &StringValue{Value: ""}
 	}
 
 	// Return substring before last delimiter
