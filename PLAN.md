@@ -82,10 +82,10 @@ Replace mutable parser state with immutable cursor.
 - ✓ Task 2.2.4: Expression Literals Migration (24 hours) - COMPLETE
 - ✓ Task 2.2.5: parseInfixExpression Migration (8 hours) - COMPLETE
 - ✓ Task 2.2.6: parseExpression Infrastructure (4 hours) - COMPLETE
-- ⏭️ Task 2.2.7: parseExpression Core (10 hours)
-- ⏭️ Task 2.2.8: parseExpression Testing (8 hours)
-- ⏭️ Task 2.2.9: parseExpression Integration (4 hours)
-- ⏭️ Task 2.2.10: Expression Helpers (16 hours)
+- ✅ Task 2.2.7: parseExpression Core (10 hours) - DONE
+- ✅ Task 2.2.8: parseExpression Testing (8 hours) - DONE
+- ✅ Task 2.2.9: parseExpression Integration (4 hours) - DONE
+- ✅ Task 2.2.10: Expression Helpers (16 hours) - DONE
 - ⏭️ Task 2.2.11: Complete Infix Handlers (12 hours)
 
 ---
@@ -455,37 +455,61 @@ parseExpressionCursor
 
 ---
 
-#### Task 2.2.10: Migrate Expression Helpers (Week 7, Days 1-3, ~16 hours)
+#### Task 2.2.10: Migrate Expression Helpers (Week 7, Days 1-3, ~16 hours) ✓
 
-**Status**: NOT STARTED
+**Status**: DONE
 
-**Goal**: Migrate helper functions that support complex expression parsing.
+**Goal**: Migrate helper functions that support complex expression parsing to cursor mode.
 
 **Targets**:
-- [ ] `parseExpressionList` - Comma-separated expression lists
-- [ ] `parseArgumentsOrFields` - Disambiguates function args vs record fields
-- [ ] `parseCallOrRecordLiteral` - Handles call vs record literal disambiguation
-- [ ] `parseEmptyCall` - Handles `foo()`
-- [ ] `parseCallWithExpressionList` - Parses argument lists
+- [x] `parseExpressionListCursor` - Comma-separated expression lists (Phase 1)
+- [x] `parseEmptyCallCursor` - Handles `foo()` (Phase 2)
+- [x] `parseCallWithExpressionListCursor` - Parses argument lists (Phase 2)
+- [x] `parseNamedFieldInitializerCursor` - Parses `name: value` (Phase 3)
+- [x] `parseArgumentAsFieldInitializerCursor` - Parses plain expressions (Phase 3)
+- [x] `parseSingleArgumentOrFieldCursor` - Dispatcher (Phase 3)
+- [x] `advanceToNextItemCursor` - List navigation (Phase 3)
+- [x] `parseArgumentsOrFieldsCursor` - Disambiguates function args vs record fields (Phase 4)
+- [x] `parseCallOrRecordLiteralCursor` - Handles call vs record literal disambiguation (Phase 5)
 
 **Implementation**:
-- [ ] Create Traditional and Cursor versions for each
-- [ ] Register cursor versions in cursor maps
-- [ ] Update callers to use cursor versions
-- [ ] Comprehensive tests for each helper
-- [ ] Document helper function dependencies
+- [x] Created detailed 6-phase implementation plan (`docs/task-2.2.10-implementation-plan.md`)
+- [x] Implemented all 9 cursor helper functions (~240 lines)
+- [x] Pure cursor-to-cursor recursion (no state syncing between helpers)
+- [x] Comprehensive differential tests (6 test categories, 42 test cases)
+- [x] Performance benchmarks (14 benchmark pairs)
+- [x] All tests pass in both traditional and cursor modes
 
-**Files to Modify**:
-- `internal/parser/expressions.go` (~150 lines)
+**Files Modified**:
+- `internal/parser/expressions.go` (+240 lines)
+  - Phase 1: parseExpressionListCursor (65 lines)
+  - Phase 2: parseEmptyCallCursor, parseCallWithExpressionListCursor (34 lines)
+  - Phase 3: Field initializer helpers (88 lines)
+  - Phase 4: parseArgumentsOrFieldsCursor (43 lines)
+  - Phase 5: parseCallOrRecordLiteralCursor (28 lines)
 
-**Files to Create**:
-- `internal/parser/migration_helpers_test.go` (~300 lines)
+**Files Created**:
+- `docs/task-2.2.10-implementation-plan.md` (213 lines) - Detailed roadmap
+- `internal/parser/migration_helpers_test.go` (499 lines) - Comprehensive tests
+- `internal/parser/migration_helpers_bench_test.go` (228 lines) - Performance benchmarks
 
-**Dependencies**: Task 2.2.9 (requires parseExpressionCursor integrated)
+**Test Results**:
+- All 42 migration test cases pass ✓
+- All dual mode tests pass ✓
+- All existing parser tests pass ✓
+- Function calls correctly parsed
+- Record literals correctly parsed
+- Edge cases (trailing commas, nested calls) handled
 
-**Estimate**: 16 hours
+**Performance**:
+- Expected overhead: ~50-60% (hybrid implementation with fallbacks)
+- Final performance will improve after completing all migrations
 
-**Deliverable**: All expression helpers working with cursor ✓
+**Dependencies**: Task 2.2.9 (parseExpression integration) ✓
+
+**Actual Time**: ~12 hours (vs 16 hours estimated)
+
+**Deliverable**: All expression helper functions migrated to cursor mode with full test coverage ✓
 
 ---
 
