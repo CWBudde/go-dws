@@ -759,8 +759,9 @@ func NewCursorParser(l *lexer.Lexer) *Parser {
 	// it will gracefully fall back to traditional mode for that expression subtree.
 	// Additional infix functions will be registered here as they are migrated to cursor mode.
 
-	// Synchronize cursor position with curToken/peekToken for backward compatibility
-	// This allows existing parsing functions to work while we migrate incrementally
+	// Task 2.2.14.2: Initialize curToken and peekToken from cursor
+	// The cursor is already positioned at the first token by NewTokenCursor()
+	// We need to sync the traditional token pointers to match the cursor
 	p.syncCursorToTokens()
 
 	return p

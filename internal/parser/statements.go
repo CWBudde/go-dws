@@ -214,14 +214,10 @@ func (p *Parser) parseStatementCursor() ast.Statement {
 	default:
 		// Check for assignment (simple or member assignment)
 		// Handle SELF and INHERITED which can be assignment targets (e.g., Self.X := value)
+		// Task 2.2.14.2: Use cursor mode for expressions and assignments
 		if currentToken.Type == lexer.SELF || currentToken.Type == lexer.INHERITED {
-			// Fall back to traditional mode for now
-			p.syncCursorToTokens()
-			p.useCursor = false
-			stmt := p.parseAssignmentOrExpression()
-			p.useCursor = true
-			p.syncTokensToCursor()
-			return stmt
+			// Parse as assignment or expression using cursor mode
+			return p.parseAssignmentOrExpressionCursor()
 		}
 
 		if p.isIdentifierToken(currentToken.Type) {
@@ -235,6 +231,7 @@ func (p *Parser) parseStatementCursor() ast.Statement {
 			if nextToken.Type == lexer.COLON {
 				// This is a var declaration in a var section
 				// Treat it like "var x: Type;"
+				// Fall back to traditional mode for var declarations (Task 2.2.14.6)
 				p.syncCursorToTokens()
 				p.useCursor = false
 				stmt := p.parseVarDeclaration()
@@ -243,22 +240,12 @@ func (p *Parser) parseStatementCursor() ast.Statement {
 				return stmt
 			}
 
-			// Otherwise, parse as assignment or expression
-			p.syncCursorToTokens()
-			p.useCursor = false
-			stmt := p.parseAssignmentOrExpression()
-			p.useCursor = true
-			p.syncTokensToCursor()
-			return stmt
+			// Otherwise, parse as assignment or expression using cursor mode
+			return p.parseAssignmentOrExpressionCursor()
 		}
 
-		// Expression statement - use cursor mode since expressions are fully migrated
-		p.syncCursorToTokens()
-		p.useCursor = false
-		stmt := p.parseExpressionStatement()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return stmt
+		// Expression statement - use cursor mode (expressions are fully migrated)
+		return p.parseExpressionStatementCursor()
 	}
 }
 
@@ -266,6 +253,14 @@ func (p *Parser) parseStatementCursor() ast.Statement {
 // PRE: curToken is first token of statement
 // POST: curToken is last token of statement
 func (p *Parser) parseStatement() ast.Statement {
+	// Task 2.2.14.2: Dispatch to cursor mode if enabled
+	if p.useCursor {
+		stmt := p.parseStatementCursor()
+		// Sync traditional pointers from cursor after statement parsing
+		p.syncCursorToTokens()
+		return stmt
+	}
+
 	switch p.curToken.Type {
 	case lexer.BEGIN:
 		return p.parseBlockStatement()
@@ -833,4 +828,126 @@ func (p *Parser) looksLikeConstDeclaration() bool {
 	// - NAME = value         (untyped const)
 	return tokenAfterIdent.Type == lexer.COLON ||
 		tokenAfterIdent.Type == lexer.EQ
+}
+
+// ============================================================================
+// Task 2.2.14.2: Cursor-mode statement handlers for expressions and assignments
+// ============================================================================
+
+// parseExpressionStatementCursor parses an expression statement in cursor mode.
+// Task 2.2.14.2: Expression statement migration
+// PRE: cursor is on first token of expression
+// POST: cursor is on last token of statement (possibly SEMICOLON)
+func (p *Parser) parseExpressionStatementCursor() *ast.ExpressionStatement {
+	startToken := p.cursor.Current()
+	stmt := &ast.ExpressionStatement{
+		BaseNode: ast.BaseNode{Token: startToken},
+	}
+
+	// Parse expression using cursor mode (expressions are fully migrated)
+	stmt.Expression = p.parseExpressionCursor(LOWEST)
+
+	// Set end position based on expression
+	if stmt.Expression != nil {
+		stmt.EndPos = stmt.Expression.End()
+	} else {
+		stmt.EndPos = p.endPosFromToken(stmt.Token)
+	}
+
+	// Optional semicolon
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type == lexer.SEMICOLON {
+		p.cursor = p.cursor.Advance()
+		stmt.EndPos = p.endPosFromToken(p.cursor.Current()) // Update to include semicolon
+	}
+
+	return stmt
+}
+
+// parseAssignmentOrExpressionCursor determines if we have an assignment or expression statement.
+// Task 2.2.14.2: Assignment statement migration
+// This handles both simple assignments (x := value), compound assignments (x += value),
+// and member assignments (obj.field := value, arr[i] := value).
+// PRE: cursor is on first token (typically an identifier or expression start)
+// POST: cursor is on last token of statement (possibly SEMICOLON)
+func (p *Parser) parseAssignmentOrExpressionCursor() ast.Statement {
+	startToken := p.cursor.Current()
+
+	// Parse the left side as an expression (could be identifier, member access, or index)
+	left := p.parseExpressionCursor(LOWEST)
+
+	// Check if next token is assignment (simple or compound)
+	nextToken := p.cursor.Peek(1)
+	if isAssignmentOperator(nextToken.Type) {
+		p.cursor = p.cursor.Advance() // Move to assignment operator
+		assignOp := p.cursor.Current().Type
+
+		// Determine what kind of assignment this is
+		switch leftExpr := left.(type) {
+		case *ast.Identifier, *ast.MemberAccessExpression, *ast.IndexExpression:
+			// Valid assignment targets
+			stmt := &ast.AssignmentStatement{
+				BaseNode: ast.BaseNode{Token: p.cursor.Current()},
+				Target:   leftExpr,
+				Operator: assignOp,
+			}
+
+			// Move to value expression
+			p.cursor = p.cursor.Advance()
+
+			// Parse value expression
+			stmt.Value = p.parseExpressionCursor(ASSIGN)
+
+			// Set end position based on value expression
+			if stmt.Value != nil {
+				stmt.EndPos = stmt.Value.End()
+			} else {
+				stmt.EndPos = p.endPosFromToken(p.cursor.Current())
+			}
+
+			// Optional semicolon
+			nextToken := p.cursor.Peek(1)
+			if nextToken.Type == lexer.SEMICOLON {
+				p.cursor = p.cursor.Advance()
+				stmt.EndPos = p.endPosFromToken(p.cursor.Current()) // Update to include semicolon
+			}
+
+			return stmt
+
+		default:
+			// Invalid assignment target - use structured error
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidSyntax).
+				WithMessage("invalid assignment target").
+				WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
+				WithSuggestion("assignment target must be a variable, field access, or array element").
+				WithNote("Valid: x := 10, obj.field := 20, arr[i] := 30").
+				WithParsePhase("assignment statement").
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+	}
+
+	// Not an assignment, treat as expression statement
+	stmt := &ast.ExpressionStatement{
+		BaseNode:   ast.BaseNode{Token: startToken},
+		Expression: left,
+	}
+
+	// Set end position
+	if left != nil {
+		stmt.EndPos = left.End()
+	} else {
+		stmt.EndPos = p.endPosFromToken(startToken)
+	}
+
+	// Optional semicolon
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type == lexer.SEMICOLON {
+		p.cursor = p.cursor.Advance()
+		stmt.EndPos = p.endPosFromToken(p.cursor.Current()) // Update to include semicolon
+	}
+
+	return stmt
 }
