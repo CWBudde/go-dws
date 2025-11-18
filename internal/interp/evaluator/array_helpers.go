@@ -1,8 +1,6 @@
 package evaluator
 
 import (
-	"fmt"
-
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -151,11 +149,7 @@ func (e *Evaluator) validateCoercion(val Value, targetType types.Type, node ast.
 		if isReferenceType(targetType) {
 			return nil
 		}
-		return e.newError(node, fmt.Sprintf(
-			"element %d: cannot use nil in array of %s",
-			index,
-			targetType.String(),
-		))
+		return e.newError(node, "element %d: cannot use nil in array of %s", index, targetType.String())
 	}
 
 	// Get the source type
@@ -176,11 +170,7 @@ func (e *Evaluator) validateCoercion(val Value, targetType types.Type, node ast.
 			return nil // Valid - Integer can be promoted to Float
 		}
 		// Other types → Float requires explicit conversion
-		return e.newError(node, fmt.Sprintf(
-			"element %d: cannot coerce %s to Float in array literal",
-			index,
-			sourceType.String(),
-		))
+		return e.newError(node, "element %d: cannot coerce %s to Float in array literal", index, sourceType.String())
 
 	case "VARIANT":
 		// Any type → Variant is always valid (wrapping)
@@ -190,20 +180,12 @@ func (e *Evaluator) validateCoercion(val Value, targetType types.Type, node ast.
 		// For other types, check if source type is compatible
 		if sourceType == nil {
 			// Nil without a known type
-			return e.newError(node, fmt.Sprintf(
-				"element %d: cannot use nil in array of %s",
-				index,
-				targetType.String(),
-			))
+			return e.newError(node, "element %d: cannot use nil in array of %s", index, targetType.String())
 		}
 
 		// Types don't match and no coercion rule applies
-		return e.newError(node, fmt.Sprintf(
-			"element %d: cannot coerce %s to %s in array literal",
-			index,
-			sourceType.String(),
-			targetType.String(),
-		))
+		return e.newError(node, "element %d: cannot coerce %s to %s in array literal",
+			index, sourceType.String(), targetType.String())
 	}
 }
 
@@ -243,12 +225,8 @@ func (e *Evaluator) validateArrayLiteralSize(arrayType *types.ArrayType, element
 	expectedSize := arrayType.Size()
 
 	if elementCount != expectedSize {
-		return e.newError(node, fmt.Sprintf(
-			"array literal has %d elements, but type %s requires %d elements",
-			elementCount,
-			arrayType.String(),
-			expectedSize,
-		))
+		return e.newError(node, "array literal has %d elements, but type %s requires %d elements",
+			elementCount, arrayType.String(), expectedSize)
 	}
 
 	return nil
