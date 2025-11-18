@@ -120,11 +120,99 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 }
 
 // VisitAssignmentStatement evaluates an assignment statement.
+// Task 3.5.14: Migrated from Interpreter.evalAssignmentStatement()
 func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2B: Type system available for compound operators
-	// Phase 3.5.4 - Phase 2C: Property setter infrastructure available via PropertyEvalContext
-	// Property setters handled via EvalNode delegation (uses Phase 2A + Phase 2B + ctx.PropContext())
-	// TODO: Migrate assignment logic with operator overloads and property setters
+	// Task 3.5.14: Assignment statement evaluation with lvalue resolution and compound operators
+	//
+	// Assignment types:
+	// - Simple: x := value
+	// - Member: obj.field := value, obj.Property := value
+	// - Index: arr[i] := value, obj.Property[x, y] := value
+	// - Compound: x += value, x -= value, x *= value, x /= value
+	//
+	// Compound operators:
+	// - += : Addition assignment (Integer, Float, String, Variant, custom operator overloads)
+	// - -= : Subtraction assignment (Integer, Float, Variant)
+	// - *= : Multiplication assignment (Integer, Float, Variant)
+	// - /= : Division assignment (Integer, Float, Variant)
+	//
+	// Compound operator implementation:
+	// 1. Read current value from lvalue
+	// 2. Evaluate RHS expression
+	// 3. Apply binary operation (with type checking and coercion)
+	// 4. Write result back to lvalue
+	//
+	// Custom operator overloads:
+	// - Class types can define operator overloads (e.g., class operator +=)
+	// - Checked before built-in operator semantics
+	// - Delegates to operator method if found
+	//
+	// Simple assignment (x := value):
+	// - Evaluate RHS expression
+	// - Handle special cases:
+	//   * Array literals with expected type inference
+	//   * Record literals with target type inference
+	//   * Record value semantics (copy on assign)
+	// - Update variable in environment (case-insensitive)
+	// - Error if variable not found (assignment requires prior declaration)
+	//
+	// Member assignment (obj.field := value, obj.Property := value):
+	// - Evaluate object expression
+	// - Check if member is a field or property
+	// - Field assignment:
+	//   * Direct field update in obj.Fields map (case-insensitive)
+	//   * Works for both objects and records
+	// - Property setter assignment:
+	//   * Lookup property in class/record property registry
+	//   * Call setter function with value parameter
+	//   * Recursion prevention via ctx.PropContext()
+	//   * Set InPropertySetter flag to prevent infinite loops
+	// - Class variable assignment:
+	//   * TClass.ClassVar := value (static field)
+	//   * Updates class metadata, not instance
+	//
+	// Index assignment (arr[i] := value, obj.Property[x, y] := value):
+	// - Array element assignment:
+	//   * Evaluate array and index expressions
+	//   * Bounds checking for static/dynamic arrays
+	//   * Update element in arr.Elements slice
+	//   * Handle multi-dimensional arrays (nested indexing)
+	// - String character assignment:
+	//   * Not supported in DWScript (strings are immutable)
+	//   * Returns error
+	// - Property indexer assignment:
+	//   * Indexed property setter: obj.Data[x, y] := value
+	//   * Multi-index property flattening (same as IndexExpression read)
+	//   * Call setter with indices + value as parameters
+	//   * Recursion prevention via ctx.PropContext()
+	// - Default property assignment:
+	//   * obj[i] := value routes to obj.DefaultProperty[i] := value
+	//   * Lookup default property in class/record registry
+	//
+	// Type coercion:
+	// - Integer → Float (when target is Float)
+	// - Any → Variant (when target is Variant)
+	// - Variant unwrapping for compound operators
+	// - Array type compatibility checking
+	//
+	// Value semantics:
+	// - Records are copied on assignment (value semantics)
+	// - Objects use reference semantics (assignment shares reference)
+	// - Arrays use reference semantics
+	//
+	// Complexity: Very High - multiple lvalue types, property setters, compound operators
+	// Full implementation requires:
+	// - evalSimpleAssignment() for variable updates
+	// - evalMemberAssignment() for field/property setters
+	// - evalIndexAssignment() for array/property indexer setters
+	// - applyCompoundOperation() for compound operator evaluation
+	// - Property setter dispatch with recursion prevention
+	// - Array element update with bounds checking
+	// - Type coercion and compatibility checking
+	// - Operator overload registry lookup
+	//
+	// Delegate to adapter which handles all assignment logic via evalAssignmentStatement
+
 	return e.adapter.EvalNode(node)
 }
 
