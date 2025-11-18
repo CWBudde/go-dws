@@ -1519,7 +1519,7 @@ func (i *Interpreter) CreateRecord(recordType string, fields map[string]evaluato
 }
 
 // SetVariable assigns a value to a variable in the execution context.
-// Task 3.5.7: Adapter method for variable assignment.
+// Task 3.5.8: Adapter method for variable assignment.
 func (i *Interpreter) SetVariable(name string, value evaluator.Value, ctx *evaluator.ExecutionContext) error {
 	// Convert to internal type
 	internalValue := value.(Value)
