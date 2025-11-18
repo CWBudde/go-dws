@@ -495,12 +495,21 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 	return builder.Finish(typeDecl).(*ast.TypeDeclaration)
 }
 
-// parseInterfaceDeclarationBody parses the body of an interface declaration.
+// parseInterfaceDeclarationBody parses the body of an interface declaration (dual-mode dispatcher).
+// Called after 'type Name = interface' has already been parsed.
+func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.InterfaceDecl {
+	if p.useCursor {
+		return p.parseInterfaceDeclarationBodyCursor(nameIdent)
+	}
+	return p.parseInterfaceDeclarationBodyTraditional(nameIdent)
+}
+
+// parseInterfaceDeclarationBodyTraditional parses the body of an interface declaration (traditional mode).
 // Called after 'type Name = interface' has already been parsed.
 // Current token should be 'interface'.
 // PRE: curToken is INTERFACE
 // POST: curToken is SEMICOLON
-func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.InterfaceDecl {
+func (p *Parser) parseInterfaceDeclarationBodyTraditional(nameIdent *ast.Identifier) *ast.InterfaceDecl {
 	builder := p.StartNode()
 
 	interfaceDecl := &ast.InterfaceDecl{
@@ -589,14 +598,137 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 	return builder.Finish(interfaceDecl).(*ast.InterfaceDecl)
 }
 
-// parseInterfaceMethodDecl parses a method declaration within an interface.
+// parseInterfaceDeclarationBodyCursor parses the body of an interface declaration (cursor mode).
+// Called after 'type Name = interface' has already been parsed.
+// PRE: cursor is at INTERFACE
+// POST: cursor is at SEMICOLON
+func (p *Parser) parseInterfaceDeclarationBodyCursor(nameIdent *ast.Identifier) *ast.InterfaceDecl {
+	builder := p.StartNode()
+	cursor := p.cursor
+
+	interfaceDecl := &ast.InterfaceDecl{
+		BaseNode: ast.BaseNode{
+			Token: cursor.Current(), // 'interface' token
+		},
+		Name: nameIdent,
+	}
+
+	// Check for optional parent interface (IDerived = interface(IBase))
+	if cursor.Peek(1).Type == lexer.LPAREN {
+		cursor = cursor.Advance() // move to '('
+		p.cursor = cursor
+
+		if cursor.Peek(1).Type != lexer.IDENT {
+			p.addError("expected identifier for parent interface", ErrExpectedIdent)
+			return nil
+		}
+		cursor = cursor.Advance() // move to IDENT
+		p.cursor = cursor
+
+		interfaceDecl.Parent = &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: cursor.Current(),
+				},
+			},
+			Value: cursor.Current().Literal,
+		}
+
+		if cursor.Peek(1).Type != lexer.RPAREN {
+			p.addError("expected ')' after parent interface", ErrMissingRParen)
+			return nil
+		}
+		cursor = cursor.Advance() // move to ')'
+		p.cursor = cursor
+	}
+
+	// Check for 'external' keyword
+	if cursor.Peek(1).Type == lexer.EXTERNAL {
+		cursor = cursor.Advance() // move to 'external'
+		p.cursor = cursor
+		interfaceDecl.IsExternal = true
+
+		// Check for optional external name string
+		if cursor.Peek(1).Type == lexer.STRING {
+			cursor = cursor.Advance() // move to string
+			p.cursor = cursor
+			interfaceDecl.ExternalName = cursor.Current().Literal
+		}
+	}
+
+	// Check for forward declaration: type IForward = interface;
+	if cursor.Peek(1).Type == lexer.SEMICOLON {
+		cursor = cursor.Advance() // move to semicolon
+		p.cursor = cursor
+		return builder.Finish(interfaceDecl).(*ast.InterfaceDecl)
+	}
+
+	// Parse interface body (method declarations) until 'end'
+	cursor = cursor.Advance() // move past 'interface' or ')' or external name
+	p.cursor = cursor
+
+	interfaceDecl.Methods = []*ast.InterfaceMethodDecl{}
+
+	for cursor.Current().Type != lexer.END && cursor.Current().Type != lexer.EOF {
+		// Skip semicolons
+		if cursor.Current().Type == lexer.SEMICOLON {
+			cursor = cursor.Advance()
+			p.cursor = cursor
+			continue
+		}
+
+		// Parse method declaration (procedure or function)
+		if cursor.Current().Type == lexer.PROCEDURE || cursor.Current().Type == lexer.FUNCTION {
+			method := p.parseInterfaceMethodDecl()
+			if method != nil {
+				interfaceDecl.Methods = append(interfaceDecl.Methods, method)
+			}
+			cursor = p.cursor
+		} else {
+			// Unknown token in interface body, skip it
+			cursor = cursor.Advance()
+			p.cursor = cursor
+			continue
+		}
+
+		cursor = cursor.Advance()
+		p.cursor = cursor
+	}
+
+	// Expect 'end'
+	if cursor.Current().Type != lexer.END {
+		p.addError("expected 'end' to close interface declaration", ErrMissingEnd)
+		return nil
+	}
+
+	// Expect terminating semicolon
+	if cursor.Peek(1).Type != lexer.SEMICOLON {
+		p.addError("expected ';' after 'end'", ErrMissingSemicolon)
+		return nil
+	}
+	cursor = cursor.Advance() // move to SEMICOLON
+	p.cursor = cursor
+
+	return builder.Finish(interfaceDecl).(*ast.InterfaceDecl)
+}
+
+// parseInterfaceMethodDecl parses a method declaration within an interface (dual-mode dispatcher).
+// Syntax: procedure MethodName(params); or function MethodName(params): ReturnType;
+func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {
+	if p.useCursor {
+		return p.parseInterfaceMethodDeclCursor()
+	}
+	return p.parseInterfaceMethodDeclTraditional()
+}
+
+// parseInterfaceMethodDeclTraditional parses a method declaration within an interface (traditional mode).
 // Syntax: procedure MethodName(params);
 //
 //	function MethodName(params): ReturnType;
 //
 // PRE: curToken is PROCEDURE or FUNCTION
 // POST: curToken is SEMICOLON
-func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {
+func (p *Parser) parseInterfaceMethodDeclTraditional() *ast.InterfaceMethodDecl {
 	methodDecl := &ast.InterfaceMethodDecl{
 		BaseNode: ast.BaseNode{
 			Token: p.curToken,
@@ -652,6 +784,93 @@ func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {
 	// Error if body is present (interfaces are abstract)
 	// If we see 'begin' next, it's an error
 	if p.peekTokenIs(lexer.BEGIN) {
+		p.addError("interface methods cannot have a body", ErrInvalidSyntax)
+		return nil
+	}
+
+	return methodDecl
+}
+
+// parseInterfaceMethodDeclCursor parses a method declaration within an interface (cursor mode).
+// Syntax: procedure MethodName(params);
+//
+//	function MethodName(params): ReturnType;
+//
+// PRE: cursor is at PROCEDURE or FUNCTION
+// POST: cursor is at SEMICOLON
+func (p *Parser) parseInterfaceMethodDeclCursor() *ast.InterfaceMethodDecl {
+	cursor := p.cursor
+
+	methodDecl := &ast.InterfaceMethodDecl{
+		BaseNode: ast.BaseNode{
+			Token: cursor.Current(),
+		},
+	}
+
+	// Determine if this is a procedure or function
+	isProcedure := cursor.Current().Type == lexer.PROCEDURE
+
+	// Expect method name identifier
+	if cursor.Peek(1).Type != lexer.IDENT {
+		p.addError("expected identifier for method name", ErrExpectedIdent)
+		return nil
+	}
+	cursor = cursor.Advance() // move to IDENT
+	p.cursor = cursor
+
+	methodDecl.Name = &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: cursor.Current(),
+			},
+		},
+		Value: cursor.Current().Literal,
+	}
+
+	// Parse parameter list if present
+	methodDecl.Parameters = []*ast.Parameter{}
+	if cursor.Peek(1).Type == lexer.LPAREN {
+		cursor = cursor.Advance() // move to '('
+		p.cursor = cursor
+		methodDecl.Parameters = p.parseParameterList()
+		cursor = p.cursor
+	}
+
+	// Parse return type for functions
+	if !isProcedure {
+		// Expect ':' for return type
+		if cursor.Peek(1).Type != lexer.COLON {
+			p.addError("expected ':' for function return type", ErrMissingColon)
+			return nil
+		}
+		cursor = cursor.Advance() // move to ':'
+		p.cursor = cursor
+
+		// Expect type identifier
+		if cursor.Peek(1).Type != lexer.IDENT {
+			p.addError("expected type identifier for return type", ErrExpectedIdent)
+			return nil
+		}
+		cursor = cursor.Advance() // move to type IDENT
+		p.cursor = cursor
+
+		methodDecl.ReturnType = &ast.TypeAnnotation{
+			Token: cursor.Current(),
+			Name:  cursor.Current().Literal,
+		}
+	}
+
+	// Expect semicolon (interface methods have no body)
+	if cursor.Peek(1).Type != lexer.SEMICOLON {
+		p.addError("expected ';' after interface method declaration", ErrMissingSemicolon)
+		return nil
+	}
+	cursor = cursor.Advance() // move to SEMICOLON
+	p.cursor = cursor
+
+	// Error if body is present (interfaces are abstract)
+	// If we see 'begin' next, it's an error
+	if cursor.Peek(1).Type == lexer.BEGIN {
 		p.addError("interface methods cannot have a body", ErrInvalidSyntax)
 		return nil
 	}
