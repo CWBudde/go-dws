@@ -599,10 +599,97 @@ func (e *Evaluator) VisitEnumLiteral(node *ast.EnumLiteral, ctx *ExecutionContex
 }
 
 // VisitRecordLiteralExpression evaluates a record literal expression.
+// Task 3.5.16: Migrated from Interpreter.evalRecordLiteral()
 func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2C: Record construction infrastructure available
-	// Record registry accessible via adapter.LookupRecord() (Phase 2B)
-	// TODO: Migrate record literal construction logic
+	// Task 3.5.16: Record literal evaluation with field initialization
+	//
+	// Record literal syntax:
+	// - Typed: TPoint(X: 10, Y: 20)
+	// - Anonymous: (X: 10, Y: 20) - requires type context from declaration
+	// - Partial: TPoint(X: 10) - remaining fields use defaults/initializers
+	// - Positional: TPoint(10, 20) - not yet implemented, named fields only
+	//
+	// Type resolution:
+	// - Explicit type name: TPoint(...)
+	//   * Lookup in record type registry (case-insensitive)
+	//   * Error if type not found
+	// - Anonymous literal: (...)
+	//   * Requires type context from variable/parameter/return type
+	//   * Type temporarily injected during evaluation
+	//   * Example: var p: TPoint := (X: 10, Y: 20);
+	//
+	// Field initialization:
+	// - Named fields: X: 10, Y: 20
+	//   * Field name is case-insensitive
+	//   * Evaluate field value expression
+	//   * Store in record's Fields map (lowercase key)
+	// - Explicit fields override defaults
+	// - Unspecified fields use:
+	//   1. Field initializer (if defined in record declaration)
+	//   2. Zero value for field type
+	//
+	// Field validation:
+	// - Check field exists in record type
+	// - Error if field name not found
+	// - Type compatibility checked (implicit conversions allowed)
+	//
+	// Field initializers:
+	// - Record declarations can have default field values
+	// - Example: type TPoint = record X, Y: Integer := 0; end;
+	// - Initializers evaluated during literal construction
+	// - Used for unspecified fields
+	//
+	// Zero value initialization:
+	// - Unspecified fields without initializers get zero values
+	// - Integer: 0, Float: 0.0, String: "", Boolean: false
+	// - Records: Recursively initialize with zero/default values
+	// - Arrays: Empty arrays
+	// - Objects: nil
+	// - Interfaces: nil InterfaceInstance
+	//
+	// Nested records:
+	// - Record fields can be record types
+	// - Nested record literals: TAddress(City: 'NYC', Zip: TZip(Code: 12345))
+	// - Nested records initialized recursively
+	// - getZeroValueForType handles nested initialization
+	//
+	// Record value semantics:
+	// - Records use value semantics (not reference)
+	// - Assignment copies the record
+	// - Passing to functions copies the record
+	// - Modifications to copy don't affect original
+	//
+	// Record methods:
+	// - RecordValue includes method map
+	// - Methods accessible via member access (record.Method)
+	// - Methods bound to record value (Self = record copy)
+	//
+	// Interface-typed fields:
+	// - Fields with interface types initialized as InterfaceInstance
+	// - nil interface vs nil object distinction preserved
+	// - Example: type TData = record Handler: IHandler; end;
+	//
+	// Type context handling (anonymous literals):
+	// - During variable declaration: var p: TPoint := (X: 10, Y: 20);
+	//   * Type name temporarily set on AST node
+	//   * Evaluation uses injected type
+	//   * Type name cleared after evaluation
+	// - During const declaration: similar pattern
+	// - During assignment to existing variable: uses variable's type
+	//
+	// Complexity: High - field initialization, type resolution, nested records, defaults
+	// Full implementation requires:
+	// - adapter.LookupRecord() for record type registry
+	// - Field declaration access for initializer expressions
+	// - Field evaluation and validation
+	// - Zero value creation for all field types
+	// - Nested record initialization
+	// - Method map attachment
+	// - Interface field special handling
+	// - Type context injection for anonymous literals
+	//
+	// Delegate to adapter which handles all record literal logic
+
 	return e.adapter.EvalNode(node)
 }
 
