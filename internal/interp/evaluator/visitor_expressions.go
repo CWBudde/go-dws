@@ -63,7 +63,7 @@ func (e *Evaluator) VisitUnaryExpression(node *ast.UnaryExpression, ctx *Executi
 // Phase 3.5.4 - Phase 2A: Infrastructure ready, full migration pending type migration
 func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx *ExecutionContext) Value {
 	// TODO Phase 3.5.4.10: Function lookup available via adapter.LookupFunction()
-	// Full migration pending FunctionPointerValue migration to runtime package
+	// Full migration pending - complex logic for method pointers and function overloading
 	return e.adapter.EvalNode(node)
 }
 
@@ -199,24 +199,24 @@ func (e *Evaluator) VisitNewArrayExpression(node *ast.NewArrayExpression, ctx *E
 }
 
 // VisitLambdaExpression evaluates a lambda expression (closure).
-// Phase 3.5.4 - Phase 2A: Infrastructure ready, full migration pending type migration
+// Task 3.5.8: Migrated using adapter.CreateLambda()
 func (e *Evaluator) VisitLambdaExpression(node *ast.LambdaExpression, ctx *ExecutionContext) Value {
-	// TODO Phase 3.5.4.23: Lambda creation with closure environment capture
-	// Full migration pending FunctionPointerValue migration to runtime package
-	return e.adapter.EvalNode(node)
+	// Create lambda with current environment as closure
+	// The lambda captures the current scope
+	return e.adapter.CreateLambda(node, ctx.Env())
 }
 
 // VisitIsExpression evaluates an 'is' type checking expression.
 func (e *Evaluator) VisitIsExpression(node *ast.IsExpression, ctx *ExecutionContext) Value {
 	// Phase 3.5.4 - Phase 2B: Class registry available via adapter.LookupClass()
-	// TODO: Migrate class hierarchy checking logic
+	// TODO: Migrate class hierarchy checking logic - complex with boolean comparison mode
 	return e.adapter.EvalNode(node)
 }
 
 // VisitAsExpression evaluates an 'as' type casting expression.
 func (e *Evaluator) VisitAsExpression(node *ast.AsExpression, ctx *ExecutionContext) Value {
 	// Phase 3.5.4 - Phase 2B: Type casting infrastructure via adapter
-	// TODO: Migrate type casting logic
+	// TODO: Migrate type casting logic - complex with interface handling
 	return e.adapter.EvalNode(node)
 }
 

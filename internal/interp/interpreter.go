@@ -1408,6 +1408,154 @@ func (i *Interpreter) CheckType(obj evaluator.Value, typeName string) bool {
 	return false
 }
 
+// CastType performs type casting (implements 'as' operator).
+// Task 3.5.7: Adapter method for type casting.
+func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.Value, error) {
+	// Convert to internal type
+	internalObj := obj.(Value)
+
+	// Check if the cast is valid
+	if i.CheckType(obj, typeName) {
+		return obj, nil
+	}
+
+	// Invalid cast - return error
+	return nil, fmt.Errorf("cannot cast %s to %s", internalObj.Type(), typeName)
+}
+
+// CreateFunctionPointer creates a function pointer value from a function declaration.
+// Task 3.5.7: Adapter method for function pointer creation.
+func (i *Interpreter) CreateFunctionPointer(fn *ast.FunctionDecl, closure any) evaluator.Value {
+	// Convert closure to Environment
+	var env *Environment
+	if closure != nil {
+		env = closure.(*Environment)
+	}
+
+	return &FunctionPointerValue{
+		Function: fn,
+		Closure:  env,
+	}
+}
+
+// CreateLambda creates a lambda/closure value from a lambda expression.
+// Task 3.5.7: Adapter method for lambda creation.
+func (i *Interpreter) CreateLambda(lambda *ast.LambdaExpression, closure any) evaluator.Value {
+	// Convert closure to Environment
+	var env *Environment
+	if closure != nil {
+		env = closure.(*Environment)
+	}
+
+	return &FunctionPointerValue{
+		Lambda:  lambda,
+		Closure: env,
+	}
+}
+
+// IsFunctionPointer checks if a value is a function pointer.
+// Task 3.5.7: Adapter method for function pointer type checking.
+func (i *Interpreter) IsFunctionPointer(value evaluator.Value) bool {
+	_, ok := value.(*FunctionPointerValue)
+	return ok
+}
+
+// GetFunctionPointerParamCount returns the number of parameters a function pointer expects.
+// Task 3.5.7: Adapter method for function pointer parameter count.
+func (i *Interpreter) GetFunctionPointerParamCount(funcPtr evaluator.Value) int {
+	fp, ok := funcPtr.(*FunctionPointerValue)
+	if !ok {
+		return 0
+	}
+
+	if fp.Function != nil {
+		return len(fp.Function.Parameters)
+	} else if fp.Lambda != nil {
+		return len(fp.Lambda.Parameters)
+	}
+
+	return 0
+}
+
+// CreateRecord creates a record value from field values.
+// Task 3.5.7: Adapter method for record construction.
+func (i *Interpreter) CreateRecord(recordType string, fields map[string]evaluator.Value) (evaluator.Value, error) {
+	// Look up the record type
+	recordTypeKey := "__record_type_" + strings.ToLower(recordType)
+	typeVal, ok := i.env.Get(recordTypeKey)
+	if !ok {
+		return nil, fmt.Errorf("unknown record type '%s'", recordType)
+	}
+
+	rtv, ok := typeVal.(*RecordTypeValue)
+	if !ok {
+		return nil, fmt.Errorf("'%s' is not a record type", recordType)
+	}
+
+	// Convert field values to internal types
+	internalFields := make(map[string]Value)
+	for name, val := range fields {
+		internalFields[name] = val.(Value)
+	}
+
+	// Create record value
+	return &RecordValue{
+		RecordType: rtv.RecordType,
+		Fields:     internalFields,
+		Methods:    rtv.Methods,
+	}, nil
+}
+
+// SetVariable assigns a value to a variable in the execution context.
+// Task 3.5.7: Adapter method for variable assignment.
+func (i *Interpreter) SetVariable(name string, value evaluator.Value, ctx *evaluator.ExecutionContext) error {
+	// Convert to internal type
+	internalValue := value.(Value)
+
+	// Set the variable in the environment
+	env := ctx.Env()
+	envAdapter, ok := env.(interface{ SetInternal(string, Value) bool })
+	if !ok {
+		return fmt.Errorf("cannot set variable '%s'", name)
+	}
+
+	if !envAdapter.SetInternal(name, internalValue) {
+		return fmt.Errorf("undefined variable '%s'", name)
+	}
+
+	return nil
+}
+
+// CanAssign checks if an AST node can be used as an lvalue (assignment target).
+// Task 3.5.7: Adapter method for lvalue validation.
+func (i *Interpreter) CanAssign(target ast.Node) bool {
+	switch target.(type) {
+	case *ast.Identifier:
+		return true
+	case *ast.MemberAccessExpression:
+		return true
+	case *ast.IndexExpression:
+		return true
+	default:
+		return false
+	}
+}
+
+// RaiseException raises an exception with the given class name and message.
+// Task 3.5.8: Adapter method for exception handling.
+func (i *Interpreter) RaiseException(className string, message string, pos any) {
+	// Convert pos to lexer.Position if provided
+	var position *lexer.Position
+	if pos != nil {
+		if p, ok := pos.(*lexer.Position); ok {
+			position = p
+		}
+	}
+
+	// Call the internal raiseException method
+	i.raiseException(className, message, position)
+}
+
 // GetCallStack returns a copy of the current call stack.
 // Returns stack frames in the order they were called (oldest to newest).
 func (i *Interpreter) GetCallStack() errors.StackTrace {

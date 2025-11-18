@@ -284,6 +284,51 @@ type InterpreterAdapter interface {
 	// Returns true if the object is compatible with the specified type name.
 	CheckType(obj Value, typeName string) bool
 
+	// CastType performs type casting (implements 'as' operator).
+	// Returns the casted value and an error if the cast fails.
+	CastType(obj Value, typeName string) (Value, error)
+
+	// ===== Function Pointers (Task 3.5.7) =====
+
+	// CreateFunctionPointer creates a function pointer value from a function declaration.
+	// The closure parameter is the environment where the function pointer is created.
+	// Returns the function pointer value.
+	CreateFunctionPointer(fn *ast.FunctionDecl, closure any) Value
+
+	// CreateLambda creates a lambda/closure value from a lambda expression.
+	// The closure parameter is the environment where the lambda is created.
+	// Returns the lambda value.
+	CreateLambda(lambda *ast.LambdaExpression, closure any) Value
+
+	// IsFunctionPointer checks if a value is a function pointer.
+	IsFunctionPointer(value Value) bool
+
+	// GetFunctionPointerParamCount returns the number of parameters a function pointer expects.
+	// Returns 0 for non-function-pointer values.
+	GetFunctionPointerParamCount(funcPtr Value) int
+
+	// ===== Record Operations (Task 3.5.7) =====
+
+	// CreateRecord creates a record value from field values.
+	// Returns the record value and an error if the record type doesn't exist or fields are invalid.
+	CreateRecord(recordType string, fields map[string]Value) (Value, error)
+
+	// ===== Assignment Helpers (Task 3.5.7) =====
+
+	// SetVariable assigns a value to a variable in the execution context.
+	// Returns an error if the assignment fails.
+	SetVariable(name string, value Value, ctx *ExecutionContext) error
+
+	// CanAssign checks if an AST node can be used as an lvalue (assignment target).
+	// Returns true if the node is a valid lvalue.
+	CanAssign(target ast.Node) bool
+
+	// ===== Exception Handling (Task 3.5.8) =====
+
+	// RaiseException raises an exception with the given class name and message.
+	// The pos parameter provides source location information for error reporting.
+	RaiseException(className string, message string, pos any)
+
 	// Phase 3.5.4 - Phase 2C: Property & Indexing System infrastructure
 	// Property and indexing operations are available through existing infrastructure:
 	//

@@ -794,9 +794,19 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
 
 - [ ] 3.5.8 Migrate All Remaining Methods Using Adapters
   - Migrate all 24 remaining visitor methods using adapter methods from 3.5.5-3.5.7
+  - **Adapter Methods Added** (Task 3.5.7 completion):
+    - Added `CastType` - Type casting ('as' operator)
+    - Added `CreateFunctionPointer` - Function pointer creation
+    - Added `CreateLambda` - Lambda/closure creation
+    - Added `IsFunctionPointer` - Function pointer type check
+    - Added `GetFunctionPointerParamCount` - Parameter count for auto-invoke
+    - Added `CreateRecord` - Record construction
+    - Added `SetVariable` - Variable assignment
+    - Added `CanAssign` - Lvalue validation
+    - Added `RaiseException` - Exception raising
   - **Simple Declarations** (using 3.5.5):
-    - [ ] VisitVarDeclStatement - Variable declarations with type inference
-    - [ ] VisitConstDecl - Constant declarations
+    - [ ] VisitVarDeclStatement - Variable declarations with type inference (complex - 300+ lines)
+    - [ ] VisitConstDecl - Constant declarations (complex - record literal handling)
   - **Expressions** (using 3.5.5):
     - [ ] VisitIdentifier - Variable/type/function references
     - [ ] VisitBinaryExpression - Binary operators with operator overloading
@@ -810,27 +820,30 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
     - [ ] VisitMemberAccessExpression - Field/property/method access
     - [ ] VisitAssignmentStatement - Assignment with lvalue resolution
   - **Expression Statements** (using 3.5.7):
-    - [ ] VisitExpressionStatement - Expression statements with auto-invoke
+    - [x] VisitExpressionStatement - Expression statements with auto-invoke (✅ Migrated)
   - **Function Operations** (using 3.5.7):
     - [ ] VisitCallExpression - Function calls
-    - [ ] VisitAddressOfExpression - Function pointer creation
-    - [ ] VisitLambdaExpression - Lambda/closure creation
+    - [ ] VisitAddressOfExpression - Function pointer creation (complex - method pointers)
+    - [x] VisitLambdaExpression - Lambda/closure creation (✅ Migrated)
   - **OOP Operations** (using 3.5.7):
     - [ ] VisitNewExpression - Object instantiation
     - [ ] VisitMethodCallExpression - Method calls
     - [ ] VisitInheritedExpression - Parent method calls
-    - [ ] VisitIsExpression - Type checking
-    - [ ] VisitAsExpression - Type casting
+    - [ ] VisitIsExpression - Type checking (complex - boolean comparison mode + class hierarchy)
+    - [ ] VisitAsExpression - Type casting (complex - interface handling)
     - [ ] VisitImplementsExpression - Interface checking
   - **Record Operations** (using 3.5.7):
     - [ ] VisitRecordLiteralExpression - Record construction
-  - **Exception Handling** (needs adapter extension):
-    - [ ] VisitTryStatement - Try-except-finally blocks
-    - [ ] VisitRaiseStatement - Raise exceptions
-  - Files: All `evaluator/visitor_*.go` files
+  - **Exception Handling** (adapter method added):
+    - [ ] VisitTryStatement - Try-except-finally blocks (very complex - defer handling)
+    - [ ] VisitRaiseStatement - Raise exceptions (complex - handler exception state)
+  - Files: All `evaluator/visitor_*.go` files, `evaluator.go`, `interpreter.go`
   - Estimated: 2-3 weeks (migrate and test all methods)
   - Acceptance: All 48 visitor methods implemented, all tests passing, 100% migration complete
+  - **Progress**: 22/48 methods migrated (45.8%) from task 3.5.4; 2/24 new methods migrated (8.3%)
   - **Target**: 48/48 methods (100%)
+  - **Status**: IN PROGRESS - Added missing adapter methods, migrated ExpressionStatement and LambdaExpression
+  - **Complexity Notes**: Most remaining methods involve substantial logic (100-300+ lines) with many edge cases (nil handling, type conversion, interface support, class hierarchies). Simple adapter method calls are insufficient - full logic migration required.
 
 - [ ] 3.5.9 Remove Adapter Pattern and Complete Clean Architecture ⏸️ **DEFERRED**
   - **Status**: Deferred until AST-free runtime types research is complete

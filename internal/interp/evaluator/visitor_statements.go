@@ -265,12 +265,32 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 }
 
 // VisitExpressionStatement evaluates an expression statement.
-// Phase 3.5.4 - Phase 2A: Infrastructure ready, full migration pending type migration
+// Task 3.5.8: Migrated from Interpreter.Eval switch case for *ast.ExpressionStatement
 // Special handling for auto-invoking parameterless function pointers.
 func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx *ExecutionContext) Value {
-	// TODO Phase 3.5.4.31: Auto-invoke logic via adapter.CallFunctionPointer()
-	// Full migration pending FunctionPointerValue migration to runtime package
-	return e.adapter.EvalNode(node)
+	// Evaluate the expression
+	val := e.Eval(node.Expression, ctx)
+	if isError(val) {
+		return val
+	}
+
+	// Auto-invoke parameterless function pointers stored in variables
+	// In DWScript, when a variable holds a function pointer with no parameters
+	// and is used as a statement, it's automatically invoked
+	// Example: var fp := @SomeProc; fp; // auto-invokes SomeProc
+	if e.adapter.IsFunctionPointer(val) {
+		// Determine parameter count
+		paramCount := e.adapter.GetFunctionPointerParamCount(val)
+
+		// If it has zero parameters, auto-invoke it
+		if paramCount == 0 {
+			// The adapter will handle checking if the function pointer is nil
+			// and raising the appropriate exception
+			return e.adapter.CallFunctionPointer(val, []Value{}, node)
+		}
+	}
+
+	return val
 }
 
 // VisitVarDeclStatement evaluates a variable declaration statement.
