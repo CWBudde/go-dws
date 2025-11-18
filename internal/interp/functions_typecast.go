@@ -550,7 +550,7 @@ func (i *Interpreter) castToClass(val Value, targetClass *ClassInfo, node ast.No
 	// The object must be an instance of the target class or a derived class
 	if !obj.IsInstanceOf(targetClass) {
 		pos := node.Pos()
-		message := fmt.Sprintf("cannot cast instance of type \"%s\" to class \"%s\" [line: %d, column: %d]",
+		message := fmt.Sprintf("instance of type \"%s\" cannot be cast to class \"%s\" [line: %d, column: %d]",
 			obj.Class.Name, targetClass.Name, pos.Line, pos.Column)
 		i.raiseException("Exception", message, &pos)
 		return nil
