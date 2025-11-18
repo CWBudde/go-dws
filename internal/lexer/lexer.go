@@ -713,10 +713,19 @@ func (l *Lexer) readHexNumber(startPos int) (TokenType, string) {
 
 // readBinaryNumber reads a binary number starting with % (e.g., %1010).
 func (l *Lexer) readBinaryNumber(startPos int) (TokenType, string) {
-	l.readChar() // skip %
+	pos := l.currentPos() // Save position for error reporting
+	l.readChar()          // skip %
+
+	digitStart := l.position
 	for l.ch == '0' || l.ch == '1' || l.ch == '_' {
 		l.readChar()
 	}
+
+	// Validate that at least one binary digit was present
+	if l.position == digitStart {
+		l.addError("binary literal requires at least one digit after '%'", pos)
+	}
+
 	return INT, l.input[startPos:l.position]
 }
 

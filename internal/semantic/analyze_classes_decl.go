@@ -246,17 +246,21 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 
 		// Task 9.17: Determine and store the constant's type
 		var constType types.Type
-		typeName := getTypeExpressionName(constant.Type)
-		if constant.Type != nil && typeName != "" {
-			// Explicit type annotation
-			var err error
-			constType, err = a.resolveType(typeName)
-			if err != nil {
-				a.addError("unknown type '%s' for constant '%s' in class '%s' at %s",
-					typeName, constantName, className, constant.Token.Pos.String())
-				continue
+		if constant.Type != nil {
+			typeName := getTypeExpressionName(constant.Type)
+			if typeName != "" {
+				// Explicit type annotation
+				var err error
+				constType, err = a.resolveType(typeName)
+				if err != nil {
+					a.addError("unknown type '%s' for constant '%s' in class '%s' at %s",
+						typeName, constantName, className, constant.Token.Pos.String())
+					continue
+				}
 			}
-		} else if constant.Value != nil {
+		}
+
+		if constType == nil && constant.Value != nil {
 			// Infer type from value expression
 			constType = a.analyzeExpression(constant.Value)
 			if constType == nil {
