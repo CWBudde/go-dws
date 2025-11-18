@@ -276,7 +276,7 @@ func (p *Parser) parseUsesClauseCursor() *ast.UsesClause {
 	}
 	p.cursor = p.cursor.Advance() // move to semicolon
 
-	// Don't move past semicolon - caller will do that
+	// Cursor is now on semicolon as expected by POST condition
 	return builder.Finish(usesClause).(*ast.UsesClause)
 }
 

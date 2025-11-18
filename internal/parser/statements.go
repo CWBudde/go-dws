@@ -361,7 +361,6 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 //
 // PRE: curToken is VAR or IDENT
 // POST: curToken is SEMICOLON of last var declaration
-// parseVarDeclaration parses one or more variable declarations in a var block.
 // Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseVarDeclaration() ast.Statement {
 	if p.useCursor {
