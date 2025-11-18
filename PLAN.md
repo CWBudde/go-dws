@@ -251,20 +251,24 @@ Complete migration of all parsing code to cursor/combinators.
   - parseFunctionPointerType, parseProcedurePointerType, parseMethodPointerType
 - [x] **2.7.2.3** Array types (6h)
   - parseArrayType, parseDynamicArrayType
-- [ ] **2.7.2.4** Record types (8h)
-  - parseRecordType, parseHelperType, parseRecordFieldDeclarations, parseRecordPropertyDeclaration
-  - Note: Record declaration parsing completed in task 2.7.3.4
+- [x] **2.7.2.4** Record types (8h)
+  - ~~parseRecordType~~, ~~parseHelperType~~ (not needed - DWScript doesn't support inline record/helper types)
+  - parseRecordFieldDeclarations, parseRecordPropertyDeclaration (completed in 2.7.3.4)
 - [x] **2.7.2.5** Class types (6h)
   - parseClassType, parseClassOfType
 - [x] **2.7.2.6** Enum and set types (4h)
-  - parseEnumType, parseSetType
+  - parseEnumType (enum declarations), parseSetType
 
 **Files Modified**:
-- `internal/parser/types.go` (12 functions)
-- `internal/parser/records.go` (3 functions coordination)
-- `internal/parser/enums.go` (2 functions coordination)
+- `internal/parser/types.go` (4 type parsing functions: parseTypeExpression, parseFunctionPointerType, parseArrayType, parseClassOfType)
+- `internal/parser/sets.go` (parseSetType)
+- `internal/parser/enums.go` (parseEnumDeclaration, parseEnumValue)
+- `internal/parser/records.go` (parseRecordFieldDeclarations, parseRecordPropertyDeclaration - completed in 2.7.3.4)
+- `internal/parser/helpers.go` (parseHelperDeclaration - completed in 2.7.3.4)
 
-**Deliverable**: Complete type parsing migration (~17 functions)
+**Deliverable**: Complete type parsing migration - all type expression parsing functions now have cursor implementations
+
+**Status**: ✅ COMPLETE - All existing type parsing functions have been migrated to cursor/combinator style
 
 ---
 
