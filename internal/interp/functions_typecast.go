@@ -2,7 +2,6 @@ package interp
 
 import (
 	"fmt"
-	"math"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
@@ -400,7 +399,8 @@ func (i *Interpreter) castToInteger(val Value) Value {
 	case *IntegerValue:
 		return v
 	case *FloatValue:
-		return &IntegerValue{Value: int64(math.Round(v.Value))}
+		// DWScript Integer() truncates toward zero
+		return &IntegerValue{Value: int64(v.Value)}
 	case *BooleanValue:
 		if v.Value {
 			return &IntegerValue{Value: 1}
@@ -550,7 +550,7 @@ func (i *Interpreter) castToClass(val Value, targetClass *ClassInfo, node ast.No
 	// The object must be an instance of the target class or a derived class
 	if !obj.IsInstanceOf(targetClass) {
 		pos := node.Pos()
-		message := fmt.Sprintf("Cannot cast instance of type \"%s\" to class \"%s\" [line: %d, column: %d]",
+		message := fmt.Sprintf("cannot cast instance of type \"%s\" to class \"%s\" [line: %d, column: %d]",
 			obj.Class.Name, targetClass.Name, pos.Line, pos.Column)
 		i.raiseException("Exception", message, &pos)
 		return nil
