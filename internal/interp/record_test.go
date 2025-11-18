@@ -58,8 +58,8 @@ func TestRecordValueCreation(t *testing.T) {
 
 		// Set some field values
 		if rv, ok := recordVal.(*RecordValue); ok {
-			rv.Fields["X"] = &IntegerValue{Value: 10}
-			rv.Fields["Y"] = &IntegerValue{Value: 20}
+			rv.Fields["x"] = &IntegerValue{Value: 10}
+			rv.Fields["y"] = &IntegerValue{Value: 20}
 		}
 
 		// String should show record type and fields
@@ -417,7 +417,7 @@ func TestRecordCopying(t *testing.T) {
 		// Get p1 - should be unchanged
 		p1Val, _ := interp.env.Get("p1")
 		p1Record := p1Val.(*RecordValue)
-		p1X := p1Record.Fields["X"].(*IntegerValue)
+		p1X := p1Record.Fields["x"].(*IntegerValue)
 		if p1X.Value != 10 {
 			t.Errorf("p1.X = %d, want 10 (should not be affected by p2 modification)", p1X.Value)
 		}
@@ -425,7 +425,7 @@ func TestRecordCopying(t *testing.T) {
 		// Get p2 - should have modified value
 		p2Val, _ := interp.env.Get("p2")
 		p2Record := p2Val.(*RecordValue)
-		p2X := p2Record.Fields["X"].(*IntegerValue)
+		p2X := p2Record.Fields["x"].(*IntegerValue)
 		if p2X.Value != 99 {
 			t.Errorf("p2.X = %d, want 99", p2X.Value)
 		}
@@ -470,8 +470,8 @@ func TestRecordCopying(t *testing.T) {
 		// p3 should be unaffected by changes to p1 and p2
 		p3Val, _ := interp.env.Get("p3")
 		p3Record := p3Val.(*RecordValue)
-		p3X := p3Record.Fields["X"].(*IntegerValue)
-		p3Y := p3Record.Fields["Y"].(*IntegerValue)
+		p3X := p3Record.Fields["x"].(*IntegerValue)
+		p3Y := p3Record.Fields["y"].(*IntegerValue)
 
 		if p3X.Value != 1 {
 			t.Errorf("p3.X = %d, want 1 (original value)", p3X.Value)

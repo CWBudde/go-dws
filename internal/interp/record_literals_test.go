@@ -241,7 +241,7 @@ func TestEvalRecordLiteral_NestedRecords(t *testing.T) {
 	}
 
 	// Verify TopLeft field
-	topLeftVal, ok := rectRec.Fields["TopLeft"]
+	topLeftVal, ok := rectRec.Fields["topleft"]
 	if !ok {
 		t.Fatal("field 'TopLeft' not found")
 	}
@@ -254,7 +254,7 @@ func TestEvalRecordLiteral_NestedRecords(t *testing.T) {
 	}
 
 	// Verify BottomRight field
-	bottomRightVal, ok := rectRec.Fields["BottomRight"]
+	bottomRightVal, ok := rectRec.Fields["bottomright"]
 	if !ok {
 		t.Fatal("field 'BottomRight' not found")
 	}
