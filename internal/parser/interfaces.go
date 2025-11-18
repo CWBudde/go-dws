@@ -497,6 +497,8 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 
 // parseInterfaceDeclarationBody parses the body of an interface declaration (dual-mode dispatcher).
 // Called after 'type Name = interface' has already been parsed.
+//
+// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.InterfaceDecl {
 	if p.useCursor {
 		return p.parseInterfaceDeclarationBodyCursor(nameIdent)
@@ -714,6 +716,8 @@ func (p *Parser) parseInterfaceDeclarationBodyCursor(nameIdent *ast.Identifier) 
 
 // parseInterfaceMethodDecl parses a method declaration within an interface (dual-mode dispatcher).
 // Syntax: procedure MethodName(params); or function MethodName(params): ReturnType;
+//
+// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {
 	if p.useCursor {
 		return p.parseInterfaceMethodDeclCursor()

@@ -20,7 +20,7 @@ func isCallingConvention(literal string) bool {
 // parseFunctionDeclaration is a dispatcher that routes to the appropriate implementation
 // based on the parser mode (traditional vs cursor).
 //
-// Task 2.7.3: This dispatcher enables dual-mode operation during migration.
+// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	if p.useCursor {
 		return p.parseFunctionDeclarationCursor()
@@ -35,7 +35,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 //
 // PRE: curToken is FUNCTION or PROCEDURE
 // POST: curToken is END or SEMICOLON (forward declaration) or last token of body
-// Task 2.7.3: Renamed to enable dual-mode operation
+// Task 2.7.2: Renamed to enable dual-mode operation
 func (p *Parser) parseFunctionDeclarationTraditional() *ast.FunctionDecl {
 	builder := p.StartNode()
 
@@ -399,7 +399,7 @@ func (p *Parser) parseFunctionDeclarationTraditional() *ast.FunctionDecl {
 // PRE: cursor is at FUNCTION or PROCEDURE
 // POST: cursor is at END or SEMICOLON or last token of postconditions
 //
-// Task 2.7.3: New cursor-based implementation for immutable parsing.
+// Task 2.7.2: New cursor-based implementation for immutable parsing.
 func (p *Parser) parseFunctionDeclarationCursor() *ast.FunctionDecl {
 	cursor := p.cursor
 	builder := p.StartNode()
@@ -853,7 +853,7 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 // parseParameterListAtToken is a dispatcher that routes to the appropriate implementation
 // based on the parser mode (traditional vs cursor).
 //
-// Task 2.7.3: This dispatcher enables dual-mode operation during migration.
+// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseParameterListAtToken() []*ast.Parameter {
 	if p.useCursor {
 		return p.parseParameterListAtTokenCursor()
@@ -867,7 +867,7 @@ func (p *Parser) parseParameterListAtToken() []*ast.Parameter {
 // Syntax: name: Type; name2: Type; ...
 // PRE: curToken is first parameter token (VAR, CONST, LAZY, or IDENT)
 // POST: curToken is RPAREN
-// Task 2.7.3: Renamed to enable dual-mode operation
+// Task 2.7.2: Renamed to enable dual-mode operation
 func (p *Parser) parseParameterListAtTokenTraditional() []*ast.Parameter {
 	params := []*ast.Parameter{}
 
@@ -902,7 +902,7 @@ func (p *Parser) parseParameterListAtTokenTraditional() []*ast.Parameter {
 // PRE: cursor is at first parameter token (VAR, CONST, LAZY, or IDENT)
 // POST: cursor is at RPAREN
 //
-// Task 2.7.3: New cursor-based implementation for immutable parsing.
+// Task 2.7.2: New cursor-based implementation for immutable parsing.
 func (p *Parser) parseParameterListAtTokenCursor() []*ast.Parameter {
 	params := []*ast.Parameter{}
 
@@ -946,7 +946,7 @@ func (p *Parser) parseParameterListAtTokenCursor() []*ast.Parameter {
 // parseTypeOnlyParameterListAtToken is a dispatcher that routes to the appropriate implementation
 // based on the parser mode (traditional vs cursor).
 //
-// Task 2.7.3: This dispatcher enables dual-mode operation during migration.
+// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseTypeOnlyParameterListAtToken() []*ast.Parameter {
 	if p.useCursor {
 		return p.parseTypeOnlyParameterListAtTokenCursor()
@@ -969,7 +969,7 @@ func (p *Parser) parseTypeOnlyParameterListAtToken() []*ast.Parameter {
 // Example: type TFunc = function(Integer, String): Boolean;
 // PRE: curToken is first type token or modifier (CONST, VAR, LAZY)
 // POST: curToken is RPAREN
-// Task 2.7.3: Renamed to enable dual-mode operation
+// Task 2.7.2: Renamed to enable dual-mode operation
 func (p *Parser) parseTypeOnlyParameterListAtTokenTraditional() []*ast.Parameter {
 	params := []*ast.Parameter{}
 
@@ -1071,7 +1071,7 @@ func (p *Parser) parseTypeOnlyParameterListAtTokenTraditional() []*ast.Parameter
 // PRE: cursor is at first type token or modifier (CONST, VAR, LAZY)
 // POST: cursor is at RPAREN
 //
-// Task 2.7.3: New cursor-based implementation for immutable parsing.
+// Task 2.7.2: New cursor-based implementation for immutable parsing.
 func (p *Parser) parseTypeOnlyParameterListAtTokenCursor() []*ast.Parameter {
 	params := []*ast.Parameter{}
 	cursor := p.cursor

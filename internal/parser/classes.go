@@ -7,6 +7,8 @@ import (
 
 // parseClassDeclaration parses a class declaration (dual-mode dispatcher).
 // Syntax: type ClassName = class(Parent) ... end;
+//
+// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 	if p.useCursor {
 		return p.parseClassDeclarationCursor()
@@ -110,6 +112,8 @@ func (p *Parser) parseClassDeclarationCursor() *ast.ClassDecl {
 // parseClassParentAndInterfaces parses optional parent class and interfaces (dual-mode dispatcher).
 // Can be called multiple times for syntax like: class abstract(TParent)
 // Only updates classDecl if not already set to avoid overwriting previous parse
+//
+// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
 	if p.useCursor {
 		p.parseClassParentAndInterfacesCursor(classDecl)
@@ -283,6 +287,8 @@ func isBuiltinClass(name string) bool {
 
 // parseClassDeclarationBody parses the body of a class declaration (dual-mode dispatcher).
 // Called after 'type Name = class' has already been parsed.
+//
+// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.ClassDecl {
 	if p.useCursor {
 		return p.parseClassDeclarationBodyCursor(nameIdent)
@@ -752,6 +758,8 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 // Syntax: FieldName: Type; or FieldName1, FieldName2, FieldName3: Type;
 // Returns a slice of FieldDecl nodes (one per field name) since DWScript supports
 // comma-separated field names with a single type annotation.
+//
+// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
 	if p.useCursor {
 		return p.parseFieldDeclarationsCursor(visibility)
@@ -924,6 +932,8 @@ func (p *Parser) parseFieldDeclarationsCursor(visibility ast.Visibility) []*ast.
 // parseMemberAccess parses member access and method call expressions (dual-mode dispatcher).
 // Handles obj.field, obj.method(), and TClass.Create() syntax.
 // This is registered as an infix operator for the DOT token.
+//
+// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 	if p.useCursor {
 		return p.parseMemberAccessCursor(left)
@@ -1115,6 +1125,8 @@ func (p *Parser) parseMemberAccessCursor(left ast.Expression) ast.Expression {
 // parseClassConstantDeclaration parses a constant declaration within a class (dual-mode dispatcher).
 // Syntax: const Name = Value; or const Name: Type = Value;
 // Also: class const Name = Value;
+//
+// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClassConst bool) *ast.ConstDecl {
 	if p.useCursor {
 		return p.parseClassConstantDeclarationCursor(visibility, isClassConst)

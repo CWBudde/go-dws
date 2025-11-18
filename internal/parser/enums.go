@@ -11,6 +11,8 @@ import (
 // parseEnumDeclaration parses an enum type declaration (dual-mode dispatcher).
 // Called after 'type Name =' has already been parsed.
 //
+// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
+//
 // Syntax:
 //   - type TColor = (Red, Green, Blue);          // unscoped enum
 //   - type TEnum = (One = 1, Two = 5);           // unscoped enum with values
@@ -246,6 +248,8 @@ func (p *Parser) parseEnumDeclarationCursor(nameIdent *ast.Identifier, typeToken
 
 // parseEnumValue parses an enum value (dual-mode dispatcher).
 // Integer, possibly negative.
+//
+// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseEnumValue() (int, error) {
 	if p.useCursor {
 		return p.parseEnumValueCursor()
