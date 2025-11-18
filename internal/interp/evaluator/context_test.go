@@ -460,3 +460,279 @@ func TestControlFlow_StateTransitions(t *testing.T) {
 		t.Errorf("Clear() failed")
 	}
 }
+
+// TestExecutionContext_NewExecutionContextWithMaxDepth tests creating a context with custom max depth.
+func TestExecutionContext_NewExecutionContextWithMaxDepth(t *testing.T) {
+	env := newMockEnvironment()
+	maxDepth := 512
+
+	ctx := NewExecutionContextWithMaxDepth(env, maxDepth)
+
+	if ctx.Env() != env {
+		t.Errorf("NewExecutionContextWithMaxDepth() env mismatch")
+	}
+
+	// Verify the max depth is set correctly
+	callStack := ctx.GetCallStack()
+	if callStack.MaxDepth() != maxDepth {
+		t.Errorf("NewExecutionContextWithMaxDepth() max depth = %d, want %d", callStack.MaxDepth(), maxDepth)
+	}
+
+	if ctx.CallStackDepth() != 0 {
+		t.Errorf("NewExecutionContextWithMaxDepth() call stack depth = %d, want 0", ctx.CallStackDepth())
+	}
+}
+
+// TestExecutionContext_GetCallStack tests getting the CallStack instance.
+func TestExecutionContext_GetCallStack(t *testing.T) {
+	env := newMockEnvironment()
+	ctx := NewExecutionContext(env)
+
+	callStack := ctx.GetCallStack()
+	if callStack == nil {
+		t.Fatalf("GetCallStack() returned nil")
+	}
+
+	// Verify it's the same instance
+	callStack2 := ctx.GetCallStack()
+	if callStack != callStack2 {
+		t.Errorf("GetCallStack() returns different instances")
+	}
+
+	// Verify we can use it directly
+	if callStack.Depth() != 0 {
+		t.Errorf("GetCallStack().Depth() = %d, want 0", callStack.Depth())
+	}
+
+	// Push a frame and verify
+	err := callStack.Push("testFunc", "test.dws", &lexer.Position{Line: 1, Column: 1})
+	if err != nil {
+		t.Errorf("GetCallStack().Push() error = %v", err)
+	}
+
+	if callStack.Depth() != 1 {
+		t.Errorf("GetCallStack().Depth() after push = %d, want 1", callStack.Depth())
+	}
+}
+
+// TestExecutionContext_CallStack_Deprecated tests the deprecated CallStack() method.
+func TestExecutionContext_CallStack_Deprecated(t *testing.T) {
+	env := newMockEnvironment()
+	ctx := NewExecutionContext(env)
+
+	// Push some frames
+	pos := lexer.Position{Line: 1, Column: 1}
+	ctx.PushCallStack(errors.NewStackFrame("func1", "file1.dws", &pos))
+	ctx.PushCallStack(errors.NewStackFrame("func2", "file2.dws", &pos))
+
+	// Use deprecated CallStack() method
+	frames := ctx.CallStack()
+
+	if len(frames) != 2 {
+		t.Errorf("CallStack() returned %d frames, want 2", len(frames))
+	}
+
+	// Verify the frames are returned in correct order
+	if frames[0].FunctionName != "func1" {
+		t.Errorf("CallStack()[0].FunctionName = %s, want func1", frames[0].FunctionName)
+	}
+	if frames[1].FunctionName != "func2" {
+		t.Errorf("CallStack()[1].FunctionName = %s, want func2", frames[1].FunctionName)
+	}
+}
+
+// TestExecutionContext_PushEnv tests pushing a new environment.
+func TestExecutionContext_PushEnv(t *testing.T) {
+	env := newMockEnvironment()
+	env.Define("x", 10)
+
+	ctx := NewExecutionContext(env)
+
+	// Push a new environment
+	newEnv := ctx.PushEnv()
+
+	if newEnv == nil {
+		t.Fatalf("PushEnv() returned nil")
+	}
+
+	// The current environment should be the new one
+	if ctx.Env() != newEnv {
+		t.Errorf("PushEnv() did not set current environment to new environment")
+	}
+
+	// The new environment should be enclosed by the original
+	// Define a variable in the new environment
+	newEnv.Define("y", 20)
+
+	// Should be able to access parent variable
+	val, ok := newEnv.Get("x")
+	if !ok || val != 10 {
+		t.Errorf("PushEnv() new environment cannot access parent variable x")
+	}
+
+	// Should be able to access new variable
+	val, ok = newEnv.Get("y")
+	if !ok || val != 20 {
+		t.Errorf("PushEnv() new environment cannot access its own variable y")
+	}
+}
+
+// TestExecutionContext_PopEnv tests popping an environment.
+func TestExecutionContext_PopEnv(t *testing.T) {
+	env := newMockEnvironment()
+	env.Define("x", 10)
+
+	ctx := NewExecutionContext(env)
+
+	// Push a new environment
+	newEnv := ctx.PushEnv()
+	newEnv.Define("y", 20)
+
+	// Pop the environment
+	restored := ctx.PopEnv()
+
+	if restored != env {
+		t.Errorf("PopEnv() did not restore original environment")
+	}
+
+	if ctx.Env() != env {
+		t.Errorf("PopEnv() did not set current environment to restored environment")
+	}
+
+	// Original environment should still have x
+	val, ok := env.Get("x")
+	if !ok || val != 10 {
+		t.Errorf("PopEnv() corrupted original environment")
+	}
+
+	// Original environment should not have y (was only in child)
+	_, ok = env.Get("y")
+	if ok {
+		t.Errorf("PopEnv() leaked child variable to parent")
+	}
+}
+
+// TestExecutionContext_PushPopEnv_Multiple tests multiple push/pop operations.
+func TestExecutionContext_PushPopEnv_Multiple(t *testing.T) {
+	env := newMockEnvironment()
+	env.Define("level", 0)
+
+	ctx := NewExecutionContext(env)
+
+	// Push multiple environments
+	env1 := ctx.PushEnv()
+	env1.Define("level", 1)
+
+	env2 := ctx.PushEnv()
+	env2.Define("level", 2)
+
+	env3 := ctx.PushEnv()
+	env3.Define("level", 3)
+
+	// Verify we're at level 3
+	val, _ := ctx.Env().Get("level")
+	if val != 3 {
+		t.Errorf("After 3 pushes, level = %v, want 3", val)
+	}
+
+	// Pop back to level 2
+	ctx.PopEnv()
+	val, _ = ctx.Env().Get("level")
+	if val != 2 {
+		t.Errorf("After 1 pop, level = %v, want 2", val)
+	}
+
+	// Pop back to level 1
+	ctx.PopEnv()
+	val, _ = ctx.Env().Get("level")
+	if val != 1 {
+		t.Errorf("After 2 pops, level = %v, want 1", val)
+	}
+
+	// Pop back to level 0
+	ctx.PopEnv()
+	val, _ = ctx.Env().Get("level")
+	if val != 0 {
+		t.Errorf("After 3 pops, level = %v, want 0", val)
+	}
+
+	// Verify we're back at the original environment
+	if ctx.Env() != env {
+		t.Errorf("After all pops, not back to original environment")
+	}
+}
+
+// TestExecutionContext_PopEnv_Empty tests popping when stack is empty.
+func TestExecutionContext_PopEnv_Empty(t *testing.T) {
+	env := newMockEnvironment()
+	ctx := NewExecutionContext(env)
+
+	// Pop without pushing should return current environment
+	restored := ctx.PopEnv()
+
+	if restored != env {
+		t.Errorf("PopEnv() on empty stack should return current environment")
+	}
+
+	if ctx.Env() != env {
+		t.Errorf("PopEnv() on empty stack changed current environment")
+	}
+}
+
+// TestExecutionContext_GetOldValue tests retrieving old values.
+func TestExecutionContext_GetOldValue(t *testing.T) {
+	env := newMockEnvironment()
+	ctx := NewExecutionContext(env)
+
+	// Getting old value from empty stack should return nil, false
+	val, ok := ctx.GetOldValue("x")
+	if ok || val != nil {
+		t.Errorf("GetOldValue() on empty stack = (%v, %v), want (nil, false)", val, ok)
+	}
+
+	// Push old values
+	oldVals1 := map[string]interface{}{"x": 10, "y": 20}
+	ctx.PushOldValues(oldVals1)
+
+	// Get existing value
+	val, ok = ctx.GetOldValue("x")
+	if !ok || val != 10 {
+		t.Errorf("GetOldValue(\"x\") = (%v, %v), want (10, true)", val, ok)
+	}
+
+	val, ok = ctx.GetOldValue("y")
+	if !ok || val != 20 {
+		t.Errorf("GetOldValue(\"y\") = (%v, %v), want (20, true)", val, ok)
+	}
+
+	// Get non-existing value
+	val, ok = ctx.GetOldValue("z")
+	if ok || val != nil {
+		t.Errorf("GetOldValue(\"z\") = (%v, %v), want (nil, false)", val, ok)
+	}
+
+	// Push another set of old values
+	oldVals2 := map[string]interface{}{"a": 100, "b": 200}
+	ctx.PushOldValues(oldVals2)
+
+	// Should get from top of stack (most recent)
+	val, ok = ctx.GetOldValue("a")
+	if !ok || val != 100 {
+		t.Errorf("GetOldValue(\"a\") from top of stack = (%v, %v), want (100, true)", val, ok)
+	}
+
+	// Should not get from previous frame
+	val, ok = ctx.GetOldValue("x")
+	if ok {
+		t.Errorf("GetOldValue(\"x\") should not find value from previous frame")
+	}
+
+	// Pop the top frame
+	ctx.PopOldValues()
+
+	// Now should get from the first frame again
+	val, ok = ctx.GetOldValue("x")
+	if !ok || val != 10 {
+		t.Errorf("GetOldValue(\"x\") after pop = (%v, %v), want (10, true)", val, ok)
+	}
+}
