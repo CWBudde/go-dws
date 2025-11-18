@@ -37,42 +37,178 @@ func isError(val Value) bool {
 }
 
 // VisitIdentifier evaluates an identifier (variable reference).
-// Task 3.5.10: Partial migration - basic variable lookups via adapter.GetVariable.
-// Complex cases still delegated (Self context, properties, lazy params, etc.).
+// Task 3.5.22: Migration of identifier evaluation with comprehensive dispatch logic.
+//
+// This function handles all DWScript identifier patterns in a specific order
+// (matching the original Interpreter.evalIdentifier logic):
+//
+// 1. Self keyword - Special identifier for current object instance
+// 2. Environment lookup - Variables in current scope:
+//    a. External variables (ExternalVarValue) - Error
+//    b. Lazy parameters (LazyThunk) - Force evaluation
+//    c. Var parameters (ReferenceValue) - Dereference
+//    d. Regular variables - Return value
+// 3. Instance context (Self is bound):
+//    a. Instance fields - obj.Field
+//    b. Class variables - obj.Class.ClassVar
+//    c. Properties - obj.Property (with recursion prevention)
+//    d. Methods - Auto-invoke if zero params, else function pointer
+//    e. ClassName identifier - Class name as string
+//    f. ClassType identifier - Class metadata
+// 4. Class method context (__CurrentClass__ is bound):
+//    a. ClassName identifier
+//    b. ClassType identifier
+//    c. Class variables
+// 5. Function references:
+//    a. User functions - Auto-invoke if zero params, else function pointer
+//    b. Built-in functions - Auto-invoke with zero args
+// 6. Class name metaclass references - Class metadata
+// 7. Undefined identifier - Error
+//
+// Complexity: Very High (220+ lines in original, many complex lookup paths)
+// Migration status: Partial - using adapter for complex cases that require infrastructure
+//                   not yet migrated (LazyThunk, ReferenceValue, property dispatch, etc.)
 func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext) Value {
-	// Try simple variable lookup first using the new environment adapter
+	// ===== IDENTIFIER TYPE 1: Self Keyword =====
+	// Special case for Self keyword - refers to current object instance
+	if node.Value == "Self" {
+		val, ok := ctx.Env().Get("Self")
+		if !ok {
+			return e.newError(node, "Self used outside method context")
+		}
+		// Environment stores interface{}, cast to Value
+		if selfVal, ok := val.(Value); ok {
+			return selfVal
+		}
+		return e.newError(node, "Self has invalid type")
+	}
+
+	// ===== IDENTIFIER TYPE 2: Environment Lookup =====
+	// Try to find identifier in current environment (variables, parameters, constants)
 	val, ok := e.adapter.GetVariable(node.Value, ctx)
 	if ok {
-		// Got a value from environment
-		// However, it might be a special value type that needs processing:
-		// - ExternalVarValue (should error)
-		// - LazyThunk (needs evaluation)
-		// - ReferenceValue (needs dereferencing)
-		// For now, return as-is. The adapter.EvalNode fallback below will handle
-		// these special cases if the value doesn't work as expected.
-
-		// Simple optimization: if it's a basic value type, return immediately
+		// Variable found in environment
+		// Simple optimization: if it's a basic primitive value type, return immediately
 		switch val.(type) {
 		case *runtime.IntegerValue, *runtime.FloatValue, *runtime.StringValue, *runtime.BooleanValue, *runtime.NilValue:
 			return val
 		}
 
 		// For complex value types, delegate to adapter for full processing
-		// This handles LazyThunk, ReferenceValue, ExternalVarValue, etc.
+		// This handles:
+		// - ExternalVarValue (returns error: "Unsupported external variable access")
+		// - LazyThunk (force evaluation on each access)
+		// - ReferenceValue (dereference to get actual value)
+		// - Other complex types (arrays, objects, records, etc.)
+		//
+		// Full migration blocked by:
+		// - LazyThunk type and Evaluate() method
+		// - ReferenceValue type and Dereference() method
+		// - ExternalVarValue type and error handling
 		return e.adapter.EvalNode(node)
 	}
 
-	// Variable not found in environment
-	// Could be:
-	// - Self keyword (method context)
-	// - Instance field/property (implicit Self)
-	// - Class variable (__CurrentClass__ context)
-	// - Function reference (with possible auto-invoke)
-	// - Built-in function
-	// - Class name (metaclass reference)
+	// ===== IDENTIFIER TYPE 3: Instance Context (Self is bound) =====
+	// Variable not found in environment - check if we're in an instance method context
+	// When Self is bound, identifiers can refer to:
+	// - Instance fields (obj.Field without "Self." prefix)
+	// - Class variables (shared across all instances)
+	// - Properties (getter/setter methods)
+	// - Methods (auto-invoke if zero params)
 	// - ClassName/ClassType special identifiers
-	// All these cases require complex context that hasn't been migrated yet
-	// Delegate to adapter for full Interpreter.evalIdentifier logic
+	if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk {
+		// We're in an instance method context
+		// Delegate to adapter for:
+		// - Instance field lookup (obj.GetField)
+		// - Class variable lookup (obj.Class.ClassVars)
+		// - Property lookup and dispatch (obj.Class.lookupProperty, evalPropertyRead)
+		// - Method lookup and auto-invoke (obj.Class.Methods, callUserFunction)
+		// - ClassName/ClassType identifier handling
+		//
+		// Full migration blocked by:
+		// - Object field/property/method lookup infrastructure
+		// - Property recursion prevention (propContext)
+		// - Method auto-invoke logic
+		// - Function pointer creation for methods with parameters
+		if _, ok := selfRaw.(Value); ok {
+			// Delegate to adapter for all Self-context identifier resolution
+			return e.adapter.EvalNode(node)
+		}
+	}
+
+	// ===== IDENTIFIER TYPE 4: Class Method Context (__CurrentClass__ is bound) =====
+	// Check if we're in a class method context (static methods)
+	// When __CurrentClass__ is bound, identifiers can refer to:
+	// - ClassName identifier (class name as string)
+	// - ClassType identifier (class metadata)
+	// - Class variables (static fields shared across all instances)
+	if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
+		// We're in a class method context
+		// Delegate to adapter for:
+		// - ClassName identifier check
+		// - ClassType identifier check
+		// - Class variable lookup
+		//
+		// Full migration blocked by:
+		// - ClassInfoValue type
+		// - Class variable registry access
+		if _, ok := currentClassRaw.(Value); ok {
+			// Delegate to adapter for all class method context identifier resolution
+			return e.adapter.EvalNode(node)
+		}
+	}
+
+	// ===== IDENTIFIER TYPE 5: Function References =====
+	// Check if this identifier is a user-defined function name
+	// In DWScript, functions can be:
+	// - Auto-invoked if they have zero parameters (e.g., var x := GetCount;)
+	// - Converted to function pointers if they have parameters
+	funcNameLower := strings.ToLower(node.Value)
+	if overloads, exists := e.adapter.LookupFunction(funcNameLower); exists && len(overloads) > 0 {
+		// Found user function(s)
+		// Delegate to adapter for:
+		// - Overload resolution (zero params vs. multiple overloads)
+		// - Auto-invoke for parameterless functions
+		// - Function pointer creation for functions with parameters
+		//
+		// Full migration blocked by:
+		// - Overload resolution logic
+		// - CallUserFunction for auto-invoke
+		// - Function pointer value creation
+		return e.adapter.EvalNode(node)
+	}
+
+	// ===== IDENTIFIER TYPE 6: Built-in Function References =====
+	// Check if this is a parameterless built-in function
+	// Built-in functions can be called without parentheses (auto-invoke)
+	// Delegate to adapter for:
+	// - Built-in function lookup (isBuiltinFunction)
+	// - Built-in function call with zero arguments
+	//
+	// Full migration blocked by:
+	// - Built-in function registry lookup
+	// - Built-in auto-invoke logic
+	// We can't easily check if it's a built-in without the registry,
+	// so we delegate and let the adapter handle it or fall through to error
+
+	// ===== IDENTIFIER TYPE 7: Class Name Metaclass References =====
+	// Check if this identifier is a class name
+	// Class names can be used as values: var meta: class of TBase; meta := TBase;
+	// Delegate to adapter for:
+	// - Class registry lookup (case-insensitive)
+	// - ClassValue creation for metaclass references
+	//
+	// Full migration blocked by:
+	// - Class registry access
+	if e.adapter.HasClass(node.Value) {
+		// This is a class name - return metaclass reference
+		return e.adapter.EvalNode(node)
+	}
+
+	// ===== IDENTIFIER TYPE 8: Undefined Identifier =====
+	// Still not found - could be a built-in function or truly undefined
+	// Delegate to adapter one final time to check for built-ins
+	// If truly undefined, adapter will return error
 	return e.adapter.EvalNode(node)
 }
 
