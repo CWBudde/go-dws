@@ -11,7 +11,18 @@ import (
 // This function returns a BlockStatement containing all const declarations in the block.
 // PRE: curToken is CONST
 // POST: curToken is last token of value expression in last declaration
+// Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseConstDeclaration() ast.Statement {
+	if p.useCursor {
+		return p.parseConstDeclarationCursor()
+	}
+	return p.parseConstDeclarationTraditional()
+}
+
+// parseConstDeclarationTraditional parses const declarations using traditional mode.
+// PRE: curToken is CONST
+// POST: curToken is last token of value expression in last declaration
+func (p *Parser) parseConstDeclarationTraditional() ast.Statement {
 	blockToken := p.curToken // Save the initial CONST token for the block
 	statements := []ast.Statement{}
 
@@ -124,7 +135,19 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 // It is parsed and then discarded (not added to the AST).
 // PRE: curToken is PROGRAM
 // POST: curToken is SEMICOLON
+// Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseProgramDeclaration() {
+	if p.useCursor {
+		p.parseProgramDeclarationCursor()
+		return
+	}
+	p.parseProgramDeclarationTraditional()
+}
+
+// parseProgramDeclarationTraditional parses program declaration using traditional mode.
+// PRE: curToken is PROGRAM
+// POST: curToken is SEMICOLON
+func (p *Parser) parseProgramDeclarationTraditional() {
 	// We're on the PROGRAM token
 	if !p.curTokenIs(lexer.PROGRAM) {
 		return
@@ -144,6 +167,58 @@ func (p *Parser) parseProgramDeclaration() {
 		p.addError("expected ';' after program name", ErrMissingSemicolon)
 		return
 	}
+
+	// Successfully parsed program declaration
+	// The program name is not stored in the AST as it doesn't affect execution
+}
+
+// parseProgramDeclarationCursor parses program declaration using cursor mode.
+// Task 2.7.1.2: Program declaration migration
+// PRE: cursor is on PROGRAM token
+// POST: cursor is on SEMICOLON token
+func (p *Parser) parseProgramDeclarationCursor() {
+	// We're on the PROGRAM token
+	currentToken := p.cursor.Current()
+	if currentToken.Type != lexer.PROGRAM {
+		return
+	}
+
+	// Expect identifier (program name)
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.IDENT {
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrExpectedIdent).
+			WithMessage("expected program name after 'program' keyword").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpectedString("program name").
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("provide a program name after 'program'").
+			WithParsePhase("program declaration").
+			Build()
+		p.addStructuredError(err)
+		return
+	}
+	p.cursor = p.cursor.Advance() // move to program name
+
+	// Note: We could store the program name if needed, but DWScript ignores it
+	// programName := p.cursor.Current().Literal
+
+	// Expect semicolon
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type != lexer.SEMICOLON {
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingSemicolon).
+			WithMessage("expected ';' after program name").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpectedString("';'").
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("add ';' after program name").
+			WithParsePhase("program declaration").
+			Build()
+		p.addStructuredError(err)
+		return
+	}
+	p.cursor = p.cursor.Advance() // move to semicolon
 
 	// Successfully parsed program declaration
 	// The program name is not stored in the AST as it doesn't affect execution
