@@ -14,7 +14,18 @@ import (
 //
 // PRE: curToken is SET
 // POST: curToken is SEMICOLON
+// Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.SetDecl {
+	if p.useCursor {
+		return p.parseSetDeclarationCursor(nameIdent, typeToken)
+	}
+	return p.parseSetDeclarationTraditional(nameIdent, typeToken)
+}
+
+// parseSetDeclarationTraditional parses set declaration using traditional mode.
+// PRE: curToken is SET
+// POST: curToken is SEMICOLON
+func (p *Parser) parseSetDeclarationTraditional(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.SetDecl {
 	setDecl := &ast.SetDecl{
 		BaseNode: ast.BaseNode{Token: typeToken}, // The 'type' token
 		Name:     nameIdent,
@@ -45,6 +56,77 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 	return setDecl
 }
 
+// parseSetDeclarationCursor parses set declaration using cursor mode.
+// Task 2.7.1.4: Set declaration migration
+// PRE: cursor is on SET token
+// POST: cursor is on SEMICOLON token
+func (p *Parser) parseSetDeclarationCursor(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.SetDecl {
+	setDecl := &ast.SetDecl{
+		BaseNode: ast.BaseNode{Token: typeToken}, // The 'type' token
+		Name:     nameIdent,
+	}
+
+	// Current token is 'set', expect 'of'
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.OF {
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingOf).
+			WithMessage("expected 'of' after 'set' in set declaration").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpectedString("'of'").
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("add 'of' after 'set'").
+			WithParsePhase("set declaration").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+	p.cursor = p.cursor.Advance() // move to 'of'
+
+	// Expect type identifier
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type != lexer.IDENT {
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrExpectedType).
+			WithMessage("expected type identifier after 'of' in set declaration").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpectedString("type name").
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("provide a type name after 'of'").
+			WithParsePhase("set declaration").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+	p.cursor = p.cursor.Advance() // move to type identifier
+
+	// Parse the element type
+	currentToken := p.cursor.Current()
+	setDecl.ElementType = &ast.TypeAnnotation{
+		Token: currentToken,
+		Name:  currentToken.Literal,
+	}
+
+	// Expect semicolon
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type != lexer.SEMICOLON {
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingSemicolon).
+			WithMessage("expected ';' after set declaration").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpectedString("';'").
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("add ';' after set declaration").
+			WithParsePhase("set declaration").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+	p.cursor = p.cursor.Advance() // move to semicolon
+
+	return setDecl
+}
+
 // parseSetType parses an inline set type expression.
 // Called when we encounter 'set' in a type context.
 // Current token should be 'set'.
@@ -55,7 +137,18 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 //
 // PRE: curToken is SET
 // POST: curToken is last token of element type
+// Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseSetType() *ast.SetTypeNode {
+	if p.useCursor {
+		return p.parseSetTypeCursor()
+	}
+	return p.parseSetTypeTraditional()
+}
+
+// parseSetTypeTraditional parses set type using traditional mode.
+// PRE: curToken is SET
+// POST: curToken is last token of element type
+func (p *Parser) parseSetTypeTraditional() *ast.SetTypeNode {
 	builder := p.StartNode()
 	setToken := p.curToken // The 'set' token
 
@@ -86,6 +179,21 @@ func (p *Parser) parseSetType() *ast.SetTypeNode {
 	return builder.FinishWithNode(setTypeNode, elementType).(*ast.SetTypeNode)
 }
 
+// parseSetTypeCursor parses set type using cursor mode.
+// Task 2.7.1.4: Set type migration
+// PRE: cursor is on SET token
+// POST: cursor is on last token of element type
+func (p *Parser) parseSetTypeCursor() *ast.SetTypeNode {
+	// For now, delegate to traditional mode
+	// This avoids synchronization with parseTypeExpression
+	p.syncCursorToTokens()
+	p.useCursor = false
+	result := p.parseSetTypeTraditional()
+	p.useCursor = true
+	p.syncTokensToCursor()
+	return result
+}
+
 // parseSetLiteral parses a set literal expression.
 // Syntax:
 //   - [one, two, three]       // elements
@@ -95,7 +203,18 @@ func (p *Parser) parseSetType() *ast.SetTypeNode {
 //
 // PRE: curToken is LBRACK
 // POST: curToken is RBRACK
+// Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseSetLiteral() ast.Expression {
+	if p.useCursor {
+		return p.parseSetLiteralCursor()
+	}
+	return p.parseSetLiteralTraditional()
+}
+
+// parseSetLiteralTraditional parses set literal using traditional mode.
+// PRE: curToken is LBRACK
+// POST: curToken is RBRACK
+func (p *Parser) parseSetLiteralTraditional() ast.Expression {
 	builder := p.StartNode()
 	setLit := &ast.SetLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -157,4 +276,19 @@ func (p *Parser) parseSetLiteral() ast.Expression {
 	}
 
 	return builder.Finish(setLit).(*ast.SetLiteral)
+}
+
+// parseSetLiteralCursor parses set literal using cursor mode.
+// Task 2.7.1.4: Set literal migration
+// PRE: cursor is on LBRACK token
+// POST: cursor is on RBRACK token
+func (p *Parser) parseSetLiteralCursor() ast.Expression {
+	// For now, delegate to traditional mode
+	// This avoids synchronization with parseExpression
+	p.syncCursorToTokens()
+	p.useCursor = false
+	result := p.parseSetLiteralTraditional()
+	p.useCursor = true
+	p.syncTokensToCursor()
+	return result
 }

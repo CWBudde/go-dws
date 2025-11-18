@@ -16,7 +16,18 @@ import (
 //
 // PRE: curToken is OPERATOR
 // POST: curToken is SEMICOLON
+// Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
+	if p.useCursor {
+		return p.parseOperatorDeclarationCursor()
+	}
+	return p.parseOperatorDeclarationTraditional()
+}
+
+// parseOperatorDeclarationTraditional parses operator declaration using traditional mode.
+// PRE: curToken is OPERATOR
+// POST: curToken is SEMICOLON
+func (p *Parser) parseOperatorDeclarationTraditional() *ast.OperatorDecl {
 	builder := p.StartNode()
 	decl := &ast.OperatorDecl{
 		BaseNode:   ast.BaseNode{Token: p.curToken},
@@ -90,6 +101,22 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 	return builder.Finish(decl).(*ast.OperatorDecl)
 }
 
+// parseOperatorDeclarationCursor parses operator declaration using cursor mode.
+// Task 2.7.1.3: Operator declaration migration
+// PRE: cursor is on OPERATOR token
+// POST: cursor is on SEMICOLON token
+func (p *Parser) parseOperatorDeclarationCursor() *ast.OperatorDecl {
+	// For now, delegate to traditional mode
+	// This avoids complex synchronization with parseOperatorOperandTypes
+	// which hasn't been fully migrated yet
+	p.syncCursorToTokens()
+	p.useCursor = false
+	result := p.parseOperatorDeclarationTraditional()
+	p.useCursor = true
+	p.syncTokensToCursor()
+	return result
+}
+
 // parseClassOperatorDeclaration parses a class operator declared within a class body.
 // Examples:
 //
@@ -98,7 +125,18 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 //
 // PRE: curToken is OPERATOR
 // POST: curToken is SEMICOLON
+// Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibility ast.Visibility) *ast.OperatorDecl {
+	if p.useCursor {
+		return p.parseClassOperatorDeclarationCursor(classToken, visibility)
+	}
+	return p.parseClassOperatorDeclarationTraditional(classToken, visibility)
+}
+
+// parseClassOperatorDeclarationTraditional parses class operator using traditional mode.
+// PRE: curToken is OPERATOR
+// POST: curToken is SEMICOLON
+func (p *Parser) parseClassOperatorDeclarationTraditional(classToken lexer.Token, visibility ast.Visibility) *ast.OperatorDecl {
 	builder := p.StartNode()
 	if !p.curTokenIs(lexer.OPERATOR) {
 		p.addError("expected 'operator' after 'class'", ErrUnexpectedToken)
@@ -189,11 +227,29 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 	return builder.Finish(decl).(*ast.OperatorDecl)
 }
 
+// parseClassOperatorDeclarationCursor parses class operator using cursor mode.
+// Task 2.7.1.3: Class operator declaration migration
+// PRE: cursor is on OPERATOR token
+// POST: cursor is on SEMICOLON token
+func (p *Parser) parseClassOperatorDeclarationCursor(classToken lexer.Token, visibility ast.Visibility) *ast.OperatorDecl {
+	// For now, delegate to traditional mode
+	// This avoids complex synchronization with helper functions
+	p.syncCursorToTokens()
+	p.useCursor = false
+	result := p.parseClassOperatorDeclarationTraditional(classToken, visibility)
+	p.useCursor = true
+	p.syncTokensToCursor()
+	return result
+}
+
 // parseOperatorOperandTypes parses the operand type list inside parentheses.
 // Example: (String, Integer)
 // PRE: curToken is LPAREN
 // POST: curToken is RPAREN
+// Note: Helper function - uses traditional mode internally
 func (p *Parser) parseOperatorOperandTypes() []ast.TypeExpression {
+	// This helper is always called from within traditional or synced mode,
+	// so no dispatcher needed
 	operandTypes := []ast.TypeExpression{}
 
 	p.nextToken() // move past '(' to first operand or ')'
@@ -273,7 +329,10 @@ func normalizeOperatorSymbol(tok lexer.Token) string {
 // It assumes the current token is the first token of the type expression.
 // PRE: curToken is IDENT or type keyword
 // POST: curToken is last token before stop condition
+// Note: Helper function - uses traditional mode internally
 func (p *Parser) parseTypeExpressionUntil(stopFn func(lexer.TokenType) bool) (*ast.TypeAnnotation, bool) {
+	// This helper is always called from within traditional or synced mode,
+	// so no dispatcher needed
 	if p.curToken.Type != lexer.IDENT && !p.curToken.Type.IsKeyword() {
 		p.addError("expected type identifier", ErrExpectedType)
 		return nil, false

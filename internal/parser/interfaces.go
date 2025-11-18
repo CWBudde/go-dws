@@ -17,7 +17,18 @@ import (
 // or a BlockStatement containing multiple type declarations.
 // PRE: curToken is TYPE
 // POST: curToken is SEMICOLON of last type declaration
+// Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseTypeDeclaration() ast.Statement {
+	if p.useCursor {
+		return p.parseTypeDeclarationCursor()
+	}
+	return p.parseTypeDeclarationTraditional()
+}
+
+// parseTypeDeclarationTraditional parses type declarations using traditional mode.
+// PRE: curToken is TYPE
+// POST: curToken is SEMICOLON of last type declaration
+func (p *Parser) parseTypeDeclarationTraditional() ast.Statement {
 	typeToken := p.curToken // Save the TYPE token
 	statements := []ast.Statement{}
 
@@ -33,6 +44,57 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 	for p.looksLikeTypeDeclaration() {
 		p.nextToken() // move to identifier
 		typeStmt := p.parseSingleTypeDeclaration(typeToken)
+		if typeStmt == nil {
+			break
+		}
+		statements = append(statements, typeStmt)
+	}
+
+	// If only one declaration, return it directly
+	if len(statements) == 1 {
+		return statements[0]
+	}
+
+	// Multiple declarations: wrap in a BlockStatement
+	return &ast.BlockStatement{
+		BaseNode:   ast.BaseNode{Token: typeToken},
+		Statements: statements,
+	}
+}
+
+// parseTypeDeclarationCursor parses one or more type declarations using cursor mode.
+// Task 2.7.1.1: Type declaration migration
+// PRE: cursor is on TYPE token
+// POST: cursor is on SEMICOLON of last type declaration
+func (p *Parser) parseTypeDeclarationCursor() ast.Statement {
+	typeToken := p.cursor.Current() // Save the TYPE token
+	statements := []ast.Statement{}
+
+	// Parse first type declaration
+	// Temporarily sync to traditional mode for single type declaration
+	p.syncCursorToTokens()
+	p.useCursor = false
+	firstStmt := p.parseSingleTypeDeclaration(typeToken)
+	p.useCursor = true
+	p.syncTokensToCursor()
+
+	if firstStmt == nil {
+		return nil
+	}
+	statements = append(statements, firstStmt)
+
+	// Continue parsing additional type declarations without the 'type' keyword
+	// As long as the next line looks like a type declaration
+	for p.looksLikeTypeDeclarationCursor() {
+		p.cursor = p.cursor.Advance() // move to identifier
+
+		// Temporarily sync to traditional mode for single type declaration
+		p.syncCursorToTokens()
+		p.useCursor = false
+		typeStmt := p.parseSingleTypeDeclaration(typeToken)
+		p.useCursor = true
+		p.syncTokensToCursor()
+
 		if typeStmt == nil {
 			break
 		}
@@ -70,6 +132,24 @@ func (p *Parser) looksLikeTypeDeclaration() bool {
 	// the token after peekToken, which should be '='
 	tok := p.peek(0)
 	return tok.Type == lexer.EQ
+}
+
+// looksLikeTypeDeclarationCursor checks if the current position looks like the start of
+// a type declaration using cursor mode.
+// Pattern: IDENT EQ (CLASS|INTERFACE|LPAREN|RECORD|SET|ARRAY|ENUM|FUNCTION|PROCEDURE|HELPER|...)
+// PRE: cursor is on SEMICOLON (after previous type decl)
+// POST: cursor is on SEMICOLON (after previous type decl)
+func (p *Parser) looksLikeTypeDeclarationCursor() bool {
+	// After a type declaration, we're typically at a semicolon
+	// The next token should be an identifier (type name)
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.IDENT {
+		return false
+	}
+
+	// Look ahead to see if the token after the identifier is '='
+	tokenAfterIdent := p.cursor.Peek(2)
+	return tokenAfterIdent.Type == lexer.EQ
 }
 
 // parseSingleTypeDeclaration parses a single type declaration.
