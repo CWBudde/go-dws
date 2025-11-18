@@ -1,0 +1,88 @@
+// Test: Binary operators should only evaluate operands once
+// This tests the fix for PR #219 - double evaluation bug
+
+// Test 1: Variant binary operations
+var callCount1 := 0;
+function incrementAndReturn1(): Integer;
+begin
+  callCount1 := callCount1 + 1;
+  Result := callCount1;
+end;
+
+var x: Variant := incrementAndReturn1() + incrementAndReturn1();
+PrintLn('Test 1 - Variant addition: callCount=' + IntToStr(callCount1) + ' (expected: 2)');
+if callCount1 <> 2 then
+  raise Exception.Create('FAIL: Test 1 - operands evaluated ' + IntToStr(callCount1) + ' times instead of 2');
+
+// Test 2: 'in' operator
+var callCount2 := 0;
+function getValue2(): Integer;
+begin
+  callCount2 := callCount2 + 1;
+  Result := 5;
+end;
+
+var arr: array of Integer := [1, 2, 3, 4, 5];
+var result2 := getValue2() in arr;
+PrintLn('Test 2 - in operator: callCount=' + IntToStr(callCount2) + ' (expected: 1)');
+if callCount2 <> 1 then
+  raise Exception.Create('FAIL: Test 2 - operand evaluated ' + IntToStr(callCount2) + ' times instead of 1');
+
+// Test 3: Equality comparison with objects
+type TCounter = class
+  Count: Integer;
+  function Increment(): TCounter;
+end;
+
+function TCounter.Increment(): TCounter;
+begin
+  Count := Count + 1;
+  Result := Self;
+end;
+
+var counter3 := TCounter.Create;
+counter3.Count := 0;
+var obj1 := counter3.Increment();
+var initialCount := counter3.Count;
+var result3 := counter3.Increment() = obj1;
+PrintLn('Test 3 - object equality: incrementCount=' + IntToStr(counter3.Count - initialCount) + ' (expected: 1)');
+if (counter3.Count - initialCount) <> 1 then
+  raise Exception.Create('FAIL: Test 3 - operand evaluated ' + IntToStr(counter3.Count - initialCount) + ' times instead of 1');
+
+// Test 4: Short-circuit AND operator (should only evaluate right if left is true)
+var callCount4 := 0;
+function alwaysFalse4(): Boolean;
+begin
+  Result := False;
+end;
+
+function incrementAndReturnTrue4(): Boolean;
+begin
+  callCount4 := callCount4 + 1;
+  Result := True;
+end;
+
+var result4 := alwaysFalse4() and incrementAndReturnTrue4();
+PrintLn('Test 4 - short-circuit AND: callCount=' + IntToStr(callCount4) + ' (expected: 0)');
+if callCount4 <> 0 then
+  raise Exception.Create('FAIL: Test 4 - right operand evaluated when left was false');
+
+// Test 5: Short-circuit OR operator (should only evaluate right if left is false)
+var callCount5 := 0;
+function alwaysTrue5(): Boolean;
+begin
+  Result := True;
+end;
+
+function incrementAndReturnFalse5(): Boolean;
+begin
+  callCount5 := callCount5 + 1;
+  Result := False;
+end;
+
+var result5 := alwaysTrue5() or incrementAndReturnFalse5();
+PrintLn('Test 5 - short-circuit OR: callCount=' + IntToStr(callCount5) + ' (expected: 0)');
+if callCount5 <> 0 then
+  raise Exception.Create('FAIL: Test 5 - right operand evaluated when left was true');
+
+PrintLn('All tests passed!');

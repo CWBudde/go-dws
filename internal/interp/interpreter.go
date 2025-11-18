@@ -1604,6 +1604,131 @@ func (i *Interpreter) CreateEnclosedEnvironment(ctx *evaluator.ExecutionContext)
 	return newCtx
 }
 
+// ===== Task 3.5.19: Binary Operator Adapter Methods (Fix for PR #219) =====
+//
+// These adapter methods delegate to the Interpreter's binary operator implementation
+// WITHOUT re-evaluating the operands. This fixes the double-evaluation bug where
+// operands with side effects (function calls, increments, etc.) were executed twice.
+
+// EvalVariantBinaryOp handles binary operations with Variant operands using pre-evaluated values.
+func (i *Interpreter) EvalVariantBinaryOp(op string, left, right evaluator.Value, node ast.Node) evaluator.Value {
+	// The Interpreter's evalVariantBinaryOp already works with pre-evaluated values
+	return i.evalVariantBinaryOp(op, left, right, node)
+}
+
+// EvalInOperator evaluates the 'in' operator for membership testing using pre-evaluated values.
+func (i *Interpreter) EvalInOperator(value, container evaluator.Value, node ast.Node) evaluator.Value {
+	// The Interpreter's evalInOperator already works with pre-evaluated values
+	return i.evalInOperator(value, container, node)
+}
+
+// EvalEqualityComparison handles = and <> operators for complex types using pre-evaluated values.
+func (i *Interpreter) EvalEqualityComparison(op string, left, right evaluator.Value, node ast.Node) evaluator.Value {
+	// This is extracted from eval BinaryExpression to handle complex type comparisons
+	// with pre-evaluated operands (fixing double-evaluation bug in PR #219)
+
+	// Check if either operand is nil or an object instance
+	_, leftIsNil := left.(*NilValue)
+	_, rightIsNil := right.(*NilValue)
+	_, leftIsObj := left.(*ObjectInstance)
+	_, rightIsObj := right.(*ObjectInstance)
+	leftIntf, leftIsIntf := left.(*InterfaceInstance)
+	rightIntf, rightIsIntf := right.(*InterfaceInstance)
+	leftClass, leftIsClass := left.(*ClassValue)
+	rightClass, rightIsClass := right.(*ClassValue)
+
+	// Handle RTTITypeInfoValue comparisons (for TypeOf results)
+	leftRTTI, leftIsRTTI := left.(*RTTITypeInfoValue)
+	rightRTTI, rightIsRTTI := right.(*RTTITypeInfoValue)
+	if leftIsRTTI && rightIsRTTI {
+		// Compare by TypeID (unique identifier for each type)
+		result := leftRTTI.TypeID == rightRTTI.TypeID
+		if op == "=" {
+			return &BooleanValue{Value: result}
+		}
+		return &BooleanValue{Value: !result}
+	}
+
+	// Handle ClassValue (metaclass) comparisons
+	if leftIsClass || rightIsClass {
+		// Both are ClassValue - compare by ClassInfo identity
+		if leftIsClass && rightIsClass {
+			result := leftClass.ClassInfo == rightClass.ClassInfo
+			if op == "=" {
+				return &BooleanValue{Value: result}
+			}
+			return &BooleanValue{Value: !result}
+		}
+		// One is ClassValue, one is nil
+		if leftIsNil || rightIsNil {
+			if op == "=" {
+				return &BooleanValue{Value: false}
+			}
+			return &BooleanValue{Value: true}
+		}
+	}
+
+	// Handle InterfaceInstance comparisons
+	if leftIsIntf || rightIsIntf {
+		// Both are interfaces - compare underlying objects
+		if leftIsIntf && rightIsIntf {
+			result := leftIntf.Object == rightIntf.Object
+			if op == "=" {
+				return &BooleanValue{Value: result}
+			}
+			return &BooleanValue{Value: !result}
+		}
+		// One is interface, one is nil
+		if leftIsNil || rightIsNil {
+			var intfIsNil bool
+			if leftIsIntf {
+				intfIsNil = leftIntf.Object == nil
+			} else {
+				intfIsNil = rightIntf.Object == nil
+			}
+			if op == "=" {
+				return &BooleanValue{Value: intfIsNil}
+			}
+			return &BooleanValue{Value: !intfIsNil}
+		}
+	}
+
+	// If either is nil or an object, do object identity comparison
+	if leftIsNil || rightIsNil || leftIsObj || rightIsObj {
+		// Both nil
+		if leftIsNil && rightIsNil {
+			if op == "=" {
+				return &BooleanValue{Value: true}
+			}
+			return &BooleanValue{Value: false}
+		}
+
+		// One is nil, one is not
+		if leftIsNil || rightIsNil {
+			if op == "=" {
+				return &BooleanValue{Value: false}
+			}
+			return &BooleanValue{Value: true}
+		}
+
+		// Both are objects - compare by identity
+		if op == "=" {
+			return &BooleanValue{Value: left == right}
+		}
+		return &BooleanValue{Value: left != right}
+	}
+
+	// Check if both are records
+	if _, leftIsRecord := left.(*RecordValue); leftIsRecord {
+		if _, rightIsRecord := right.(*RecordValue); rightIsRecord {
+			return i.evalRecordBinaryOp(op, left, right)
+		}
+	}
+
+	// Not a supported equality comparison type
+	return i.newErrorWithLocation(node, "type mismatch: %s %s %s", left.Type(), op, right.Type())
+}
+
 // GetCallStack returns a copy of the current call stack.
 // Returns stack frames in the order they were called (oldest to newest).
 func (i *Interpreter) GetCallStack() errors.StackTrace {

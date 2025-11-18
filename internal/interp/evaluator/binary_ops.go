@@ -439,9 +439,9 @@ func (e *Evaluator) evalEnumBinaryOp(op string, left, right Value, node ast.Node
 // Supports: nil, objects, interfaces, classes, RTTI, sets, arrays, records.
 func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node ast.Node) Value {
 	// This handles object/interface/class/RTTI/set/array/record comparisons
-	// Delegate to adapter for now since these types are still in interp package
-	// Full migration requires all these value types in runtime package
-	return e.adapter.EvalNode(node)
+	// Task 3.5.19 (PR #219 fix): Use adapter method that accepts pre-evaluated values
+	// to prevent double-evaluation of operands with side effects
+	return e.adapter.EvalEqualityComparison(op, left, right, node)
 }
 
 // ============================================================================
@@ -467,8 +467,9 @@ func (e *Evaluator) evalInOperator(value, container Value, node ast.Node) Value 
 	// - Set membership: x in setVar
 	// - String substring: 'ab' in 'abc'
 	// - Subrange checking: 5 in [1..10]
-	// Delegate to adapter for now since these types are still in interp package
-	return e.adapter.EvalNode(node)
+	// Task 3.5.19 (PR #219 fix): Use adapter method that accepts pre-evaluated values
+	// to prevent double-evaluation of operands with side effects
+	return e.adapter.EvalInOperator(value, container, node)
 }
 
 // evalVariantBinaryOp handles binary operations with Variant operands.
@@ -480,8 +481,9 @@ func (e *Evaluator) evalVariantBinaryOp(op string, left, right Value, node ast.N
 	// - Apply type coercion rules
 	// - Perform operation on unwrapped values
 	// - Special handling for nil/unassigned variants
-	// Delegate to adapter for now since VariantValue is in interp package
-	return e.adapter.EvalNode(node)
+	// Task 3.5.19 (PR #219 fix): Use adapter method that accepts pre-evaluated values
+	// to prevent double-evaluation of operands with side effects
+	return e.adapter.EvalVariantBinaryOp(op, left, right, node)
 }
 
 // ============================================================================
