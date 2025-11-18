@@ -181,17 +181,43 @@ func (p *Parser) parseSetTypeTraditional() *ast.SetTypeNode {
 
 // parseSetTypeCursor parses set type using cursor mode.
 // Task 2.7.1.4: Set type migration
+// Task 2.7.2: Completed full cursor implementation
 // PRE: cursor is on SET token
 // POST: cursor is on last token of element type
 func (p *Parser) parseSetTypeCursor() *ast.SetTypeNode {
-	// For now, delegate to traditional mode
-	// This avoids synchronization with parseTypeExpression
-	p.syncCursorToTokens()
-	p.useCursor = false
-	result := p.parseSetTypeTraditional()
-	p.useCursor = true
-	p.syncTokensToCursor()
-	return result
+	cursor := p.cursor
+	builder := p.StartNode()
+
+	setToken := cursor.Current() // The 'set' token
+
+	// Expect 'of' keyword
+	if cursor.Peek(1).Type != lexer.OF {
+		p.addError("expected 'of' after 'set' in set type", ErrMissingOf)
+		return nil
+	}
+	cursor = cursor.Advance() // move to OF
+	p.cursor = cursor
+
+	// Parse element type
+	cursor = cursor.Advance() // move to element type
+	p.cursor = cursor
+
+	// Element type can be:
+	// 1. Simple identifier: TEnum
+	// 2. Inline anonymous enum: (A, B, C) - would be handled by parseTypeExpression
+	// 3. Subrange: 1..100 - might need special handling in future
+	elementType := p.parseTypeExpression()
+	if elementType == nil {
+		p.addError("expected type expression after 'set of'", ErrExpectedType)
+		return nil
+	}
+
+	setTypeNode := &ast.SetTypeNode{
+		Token:       setToken,
+		ElementType: elementType,
+	}
+
+	return builder.FinishWithNode(setTypeNode, elementType).(*ast.SetTypeNode)
 }
 
 // parseSetLiteral parses a set literal expression.
