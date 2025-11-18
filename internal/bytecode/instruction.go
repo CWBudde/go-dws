@@ -616,7 +616,7 @@ const (
 	// Stack: [int] -> [float]
 	OpIntToFloat
 
-	// OpFloatToInt converts float to integer (truncates).
+	// OpFloatToInt converts float to integer (rounds to nearest).
 	// Format: [OpFloatToInt][unused][unused]
 	// Stack: [float] -> [int]
 	OpFloatToInt

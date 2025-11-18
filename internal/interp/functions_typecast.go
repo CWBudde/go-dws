@@ -400,7 +400,7 @@ func (i *Interpreter) castToInteger(val Value) Value {
 	case *IntegerValue:
 		return v
 	case *FloatValue:
-		return &IntegerValue{Value: int64(math.Trunc(v.Value))}
+		return &IntegerValue{Value: int64(math.Round(v.Value))}
 	case *BooleanValue:
 		if v.Value {
 			return &IntegerValue{Value: 1}
@@ -549,7 +549,11 @@ func (i *Interpreter) castToClass(val Value, targetClass *ClassInfo, node ast.No
 	// Check if the object's class is compatible with the target class
 	// The object must be an instance of the target class or a derived class
 	if !obj.IsInstanceOf(targetClass) {
-		return i.newErrorWithLocation(node, "cannot cast %s to %s: incompatible types", obj.Class.Name, targetClass.Name)
+		pos := node.Pos()
+		message := fmt.Sprintf("Cannot cast instance of type \"%s\" to class \"%s\" [line: %d, column: %d]",
+			obj.Class.Name, targetClass.Name, pos.Line, pos.Column)
+		i.raiseException("Exception", message, &pos)
+		return nil
 	}
 
 	// Cast is valid - return a TypeCastValue that preserves the static type
