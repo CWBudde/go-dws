@@ -487,7 +487,7 @@ func TestVM_TypeConversions(t *testing.T) {
 		chunk.Write(OpReturn, 1, 0, 1)
 
 		result := runChunk(t, chunk)
-		expected := IntValue(3)
+		expected := IntValue(4) // 3.75 rounds to 4
 		if !valueEqual(result, expected) {
 			t.Fatalf("VM value = %v, want %v", result, expected)
 		}

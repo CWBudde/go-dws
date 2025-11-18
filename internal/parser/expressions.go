@@ -307,15 +307,18 @@ func (p *Parser) parseIntegerLiteralTraditional() ast.Expression {
 	switch {
 	case len(literal) > 0 && literal[0] == '$':
 		// Hexadecimal with $ prefix (Pascal style)
-		value, err = strconv.ParseInt(literal[1:], 16, 64)
+		value, err = strconv.ParseInt(strings.ReplaceAll(literal[1:], "_", ""), 16, 64)
 	case len(literal) > 1 && (literal[0:2] == "0x" || literal[0:2] == "0X"):
 		// Hexadecimal with 0x/0X prefix
-		value, err = strconv.ParseInt(literal[2:], 16, 64)
+		value, err = strconv.ParseInt(strings.ReplaceAll(literal[2:], "_", ""), 16, 64)
 	case len(literal) > 0 && literal[0] == '%':
 		// Binary with % prefix
-		value, err = strconv.ParseInt(literal[1:], 2, 64)
+		value, err = strconv.ParseInt(strings.ReplaceAll(literal[1:], "_", ""), 2, 64)
+	case len(literal) > 1 && (literal[0:2] == "0b" || literal[0:2] == "0B"):
+		// Binary with 0b/0B prefix
+		value, err = strconv.ParseInt(strings.ReplaceAll(literal[2:], "_", ""), 2, 64)
 	default:
-		value, err = strconv.ParseInt(literal, 10, 64)
+		value, err = strconv.ParseInt(strings.ReplaceAll(literal, "_", ""), 10, 64)
 	}
 
 	if err != nil {
@@ -360,15 +363,18 @@ func (p *Parser) parseIntegerLiteralCursor() ast.Expression {
 	switch {
 	case len(literal) > 0 && literal[0] == '$':
 		// Hexadecimal with $ prefix (Pascal style)
-		value, err = strconv.ParseInt(literal[1:], 16, 64)
+		value, err = strconv.ParseInt(strings.ReplaceAll(literal[1:], "_", ""), 16, 64)
 	case len(literal) > 1 && (literal[0:2] == "0x" || literal[0:2] == "0X"):
 		// Hexadecimal with 0x/0X prefix
-		value, err = strconv.ParseInt(literal[2:], 16, 64)
+		value, err = strconv.ParseInt(strings.ReplaceAll(literal[2:], "_", ""), 16, 64)
 	case len(literal) > 0 && literal[0] == '%':
 		// Binary with % prefix
-		value, err = strconv.ParseInt(literal[1:], 2, 64)
+		value, err = strconv.ParseInt(strings.ReplaceAll(literal[1:], "_", ""), 2, 64)
+	case len(literal) > 1 && (literal[0:2] == "0b" || literal[0:2] == "0B"):
+		// Binary with 0b/0B prefix
+		value, err = strconv.ParseInt(strings.ReplaceAll(literal[2:], "_", ""), 2, 64)
 	default:
-		value, err = strconv.ParseInt(literal, 10, 64)
+		value, err = strconv.ParseInt(strings.ReplaceAll(literal, "_", ""), 10, 64)
 	}
 
 	if err != nil {
@@ -399,7 +405,7 @@ func (p *Parser) parseFloatLiteralTraditional() ast.Expression {
 		},
 	}
 
-	value, err := strconv.ParseFloat(p.curToken.Literal, 64)
+	value, err := strconv.ParseFloat(strings.ReplaceAll(p.curToken.Literal, "_", ""), 64)
 	if err != nil {
 		msg := fmt.Sprintf("could not parse %q as float", p.curToken.Literal)
 		p.addError(msg, ErrInvalidExpression)
@@ -423,7 +429,7 @@ func (p *Parser) parseFloatLiteralCursor() ast.Expression {
 		},
 	}
 
-	value, err := strconv.ParseFloat(currentToken.Literal, 64)
+	value, err := strconv.ParseFloat(strings.ReplaceAll(currentToken.Literal, "_", ""), 64)
 	if err != nil {
 		msg := fmt.Sprintf("could not parse %q as float", currentToken.Literal)
 		p.addError(msg, ErrInvalidExpression)

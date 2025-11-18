@@ -254,8 +254,10 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 
 		// If the object's runtime type doesn't match or derive from target, the cast is invalid
 		if !isCompatible {
-			return i.newErrorWithLocation(expr, "invalid cast: object of type '%s' cannot be cast to '%s'",
-				obj.Class.Name, targetClass.Name)
+			message := fmt.Sprintf("Cannot cast instance of type \"%s\" to class \"%s\" [line: %d, column: %d]",
+				obj.Class.Name, targetClass.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
+			i.raiseException("Exception", message, &expr.Token.Pos)
+			return nil
 		}
 
 		// Cast is valid - return the same object

@@ -673,7 +673,7 @@ func (l *Lexer) readIdentifier() string {
 }
 
 // readNumber reads a numeric literal (integer or float).
-// Supports: decimal (123), hexadecimal ($FF or 0x), binary (%1010), and floats (123.45, 1.5e10)
+// Supports: decimal (123), hexadecimal ($FF or 0x), binary (%1010 or 0b), and floats (123.45, 1.5e10)
 func (l *Lexer) readNumber() (TokenType, string) {
 	startPos := l.position
 
@@ -687,9 +687,15 @@ func (l *Lexer) readNumber() (TokenType, string) {
 		return l.readBinaryNumber(startPos)
 	}
 
-	// Check for hex with 0x prefix
-	if l.ch == '0' && (l.peekChar() == 'x' || l.peekChar() == 'X') {
-		return l.readHexNumber0x(startPos)
+	// Check for hex with 0x prefix or binary with 0b prefix
+	if l.ch == '0' {
+		nextCh := l.peekChar()
+		if nextCh == 'x' || nextCh == 'X' {
+			return l.readHexNumber0x(startPos)
+		}
+		if nextCh == 'b' || nextCh == 'B' {
+			return l.readBinaryNumber0b(startPos)
+		}
 	}
 
 	// Read decimal number (may be float)
@@ -699,7 +705,7 @@ func (l *Lexer) readNumber() (TokenType, string) {
 // readHexNumber reads a hexadecimal number starting with $ (e.g., $FF).
 func (l *Lexer) readHexNumber(startPos int) (TokenType, string) {
 	l.readChar() // skip $
-	for isHexDigit(l.ch) {
+	for isHexDigit(l.ch) || l.ch == '_' {
 		l.readChar()
 	}
 	return INT, l.input[startPos:l.position]
@@ -707,10 +713,38 @@ func (l *Lexer) readHexNumber(startPos int) (TokenType, string) {
 
 // readBinaryNumber reads a binary number starting with % (e.g., %1010).
 func (l *Lexer) readBinaryNumber(startPos int) (TokenType, string) {
-	l.readChar() // skip %
-	for l.ch == '0' || l.ch == '1' {
+	pos := l.currentPos() // Save position for error reporting
+	l.readChar()          // skip %
+
+	digitStart := l.position
+	for l.ch == '0' || l.ch == '1' || l.ch == '_' {
 		l.readChar()
 	}
+
+	// Validate that at least one binary digit was present
+	if l.position == digitStart {
+		l.addError("binary literal requires at least one digit after '%'", pos)
+	}
+
+	return INT, l.input[startPos:l.position]
+}
+
+// readBinaryNumber0b reads a binary number starting with 0b (e.g., 0b1010).
+func (l *Lexer) readBinaryNumber0b(startPos int) (TokenType, string) {
+	pos := l.currentPos() // Save position for error reporting
+	l.readChar()          // skip 0
+	l.readChar()          // skip b
+
+	digitStart := l.position
+	for l.ch == '0' || l.ch == '1' || l.ch == '_' {
+		l.readChar()
+	}
+
+	// Validate that at least one binary digit was present
+	if l.position == digitStart {
+		l.addError("binary literal requires at least one digit after '0b'", pos)
+	}
+
 	return INT, l.input[startPos:l.position]
 }
 
@@ -721,7 +755,7 @@ func (l *Lexer) readHexNumber0x(startPos int) (TokenType, string) {
 	l.readChar()          // skip x
 
 	digitStart := l.position
-	for isHexDigit(l.ch) {
+	for isHexDigit(l.ch) || l.ch == '_' {
 		l.readChar()
 	}
 
@@ -736,7 +770,7 @@ func (l *Lexer) readHexNumber0x(startPos int) (TokenType, string) {
 // readDecimalNumber reads a decimal number, potentially with float components.
 func (l *Lexer) readDecimalNumber(startPos int) (TokenType, string) {
 	// Read decimal digits
-	for isDigit(l.ch) {
+	for isDigit(l.ch) || l.ch == '_' {
 		l.readChar()
 	}
 
@@ -747,7 +781,7 @@ func (l *Lexer) readDecimalNumber(startPos int) (TokenType, string) {
 	if l.ch == '.' && isDigit(l.peekChar()) {
 		isFloat = true
 		l.readChar() // skip .
-		for isDigit(l.ch) {
+		for isDigit(l.ch) || l.ch == '_' {
 			l.readChar()
 		}
 	}
@@ -763,7 +797,7 @@ func (l *Lexer) readDecimalNumber(startPos int) (TokenType, string) {
 		}
 
 		// Exponent digits
-		for isDigit(l.ch) {
+		for isDigit(l.ch) || l.ch == '_' {
 			l.readChar()
 		}
 	}

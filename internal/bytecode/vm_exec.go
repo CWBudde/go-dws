@@ -1193,7 +1193,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				return NilValue(), vm.typeError("FLOAT_TO_INT", "Number", val.Type.String())
 			}
 			f := val.AsFloat()
-			vm.push(IntValue(int64(math.Trunc(f))))
+			vm.push(IntValue(int64(math.Round(f))))
 		case OpToBool:
 			val, err := vm.pop()
 			if err != nil {
