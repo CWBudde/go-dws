@@ -1527,7 +1527,7 @@ func (i *Interpreter) SetVariable(name string, value evaluator.Value, ctx *evalu
 }
 
 // CanAssign checks if an AST node can be used as an lvalue (assignment target).
-// Task 3.5.7: Adapter method for lvalue validation.
+// Task 3.5.8: Adapter method for lvalue validation.
 func (i *Interpreter) CanAssign(target ast.Node) bool {
 	switch target.(type) {
 	case *ast.Identifier:
