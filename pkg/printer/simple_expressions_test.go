@@ -54,7 +54,7 @@ func TestUnaryExpression(t *testing.T) {
 					Value: true,
 				},
 			},
-			expected: "nottrue",
+			expected: "not true",
 		},
 	}
 
