@@ -288,7 +288,7 @@ type InterpreterAdapter interface {
 	// Returns the casted value and an error if the cast fails.
 	CastType(obj Value, typeName string) (Value, error)
 
-	// ===== Function Pointers (Task 3.5.7) =====
+	// ===== Function Pointers (Task 3.5.8) =====
 
 	// CreateFunctionPointer creates a function pointer value from a function declaration.
 	// The closure parameter is the environment where the function pointer is created.
