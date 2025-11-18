@@ -448,7 +448,7 @@ func (p *Parser) parseFunctionDeclarationCursor() *ast.FunctionDecl {
 		cursor = cursor.Advance() // move to '('
 		p.cursor = cursor
 
-		fn.Parameters = p.parseParameterList()
+		fn.Parameters = p.parseParameterListCursor()
 		cursor = p.cursor
 
 		if cursor.Current().Type != lexer.RPAREN {
@@ -837,6 +837,61 @@ func (p *Parser) parseParameterList() []*ast.Parameter {
 	return params
 }
 
+// parseParameterListCursor parses a function parameter list (cursor mode).
+// Syntax: (param: Type; var param: Type; a, b, c: Type)
+// PRE: cursor is at LPAREN
+// POST: cursor is at RPAREN
+//
+// Task 2.7.4: Created to fix bug in parseFunctionDeclarationCursor parameter parsing
+func (p *Parser) parseParameterListCursor() []*ast.Parameter {
+	cursor := p.cursor
+	params := []*ast.Parameter{}
+
+	cursor = cursor.Advance() // move past '('
+	p.cursor = cursor
+
+	// Check for empty parameter list
+	if cursor.Current().Type == lexer.RPAREN {
+		return params
+	}
+
+	// Parse first parameter group
+	groupParams := p.parseParameterGroupCursor()
+	if groupParams == nil {
+		return nil
+	}
+	params = append(params, groupParams...)
+
+	// Update cursor after parameter group parsing
+	cursor = p.cursor
+
+	// Parse remaining parameter groups separated by semicolons
+	for cursor.Peek(1).Type == lexer.SEMICOLON {
+		cursor = cursor.Advance() // move to ';'
+		cursor = cursor.Advance() // move past ';'
+		p.cursor = cursor
+
+		groupParams = p.parseParameterGroupCursor()
+		if groupParams == nil {
+			return nil
+		}
+		params = append(params, groupParams...)
+
+		// Update cursor after parameter group parsing
+		cursor = p.cursor
+	}
+
+	// Expect closing parenthesis
+	if cursor.Peek(1).Type != lexer.RPAREN {
+		p.addError("expected ')' after parameter list", ErrMissingRParen)
+		return nil
+	}
+	cursor = cursor.Advance() // move to RPAREN
+	p.cursor = cursor
+
+	return params
+}
+
 // parseParameterGroup parses a group of parameters with the same type.
 // Syntax: name: Type  or  name1, name2, name3: Type  or  var name: Type  or  lazy name: Type  or  const name: Type
 // PRE: curToken is VAR, CONST, LAZY, or first parameter name IDENT
@@ -848,6 +903,168 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 		AllowDefaults:  true,
 		ErrorContext:   "function parameter",
 	})
+}
+
+// parseParameterGroupCursor parses a group of parameters with the same type (cursor mode).
+// Syntax: name: Type  or  name1, name2, name3: Type  or  var name: Type  or  lazy name: Type  or  const name: Type
+// PRE: cursor is at VAR, CONST, LAZY, or first parameter name IDENT
+// POST: cursor is at last token of type expression or default value
+//
+// Task 2.7.4: Created to fix bug in parseFunctionDeclarationCursor parameter parsing
+func (p *Parser) parseParameterGroupCursor() []*ast.Parameter {
+	cursor := p.cursor
+	params := []*ast.Parameter{}
+
+	// Parse optional modifiers
+	isConst := false
+	isLazy := false
+	byRef := false
+
+	// Check for 'const' keyword (pass by const-reference)
+	if cursor.Current().Type == lexer.CONST {
+		isConst = true
+		cursor = cursor.Advance() // move past 'const'
+		p.cursor = cursor
+	}
+
+	// Check for 'lazy' keyword (expression capture)
+	if cursor.Current().Type == lexer.LAZY {
+		isLazy = true
+		cursor = cursor.Advance() // move past 'lazy'
+		p.cursor = cursor
+	}
+
+	// Check for 'var' keyword (pass by reference)
+	if cursor.Current().Type == lexer.VAR {
+		byRef = true
+		cursor = cursor.Advance() // move past 'var'
+		p.cursor = cursor
+	}
+
+	// Check for mutually exclusive modifiers
+	if (isLazy && byRef) || (isConst && byRef) || (isConst && isLazy) {
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidSyntax).
+			WithMessage("parameter modifiers are mutually exclusive").
+			WithPosition(cursor.Current().Pos, cursor.Current().Length()).
+			WithSuggestion("use only one of: var, const, or lazy").
+			WithParsePhase("function parameter").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	// Parse identifier list (name1, name2, name3)
+	names := []*ast.Identifier{}
+
+	// First identifier
+	if cursor.Current().Type != lexer.IDENT {
+		p.addError("expected parameter name", ErrExpectedIdent)
+		return nil
+	}
+
+	name := &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: cursor.Current(),
+			},
+		},
+		Value: cursor.Current().Literal,
+	}
+	names = append(names, name)
+
+	// Additional identifiers separated by commas
+	for cursor.Peek(1).Type == lexer.COMMA {
+		cursor = cursor.Advance() // move to comma
+		cursor = cursor.Advance() // move past comma
+		p.cursor = cursor
+
+		if cursor.Current().Type != lexer.IDENT {
+			p.addError("expected parameter name after ','", ErrExpectedIdent)
+			return nil
+		}
+
+		name = &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: cursor.Current(),
+				},
+			},
+			Value: cursor.Current().Literal,
+		}
+		names = append(names, name)
+	}
+
+	// Expect ':' and type
+	if cursor.Peek(1).Type != lexer.COLON {
+		p.addError("expected ':' after parameter name(s)", ErrMissingColon)
+		return nil
+	}
+	cursor = cursor.Advance() // move to ':'
+	cursor = cursor.Advance() // move past ':' to type expression
+	p.cursor = cursor
+
+	typeExpr := p.parseTypeExpression()
+	if typeExpr == nil {
+		// Error already reported by parseTypeExpression
+		return nil
+	}
+
+	// Update cursor after type parsing
+	cursor = p.cursor
+
+	// Parse optional default value
+	var defaultValue ast.Expression
+	if cursor.Peek(1).Type == lexer.EQ {
+		// Validate that optional parameters don't have modifiers (lazy, var, const)
+		if isLazy || byRef || isConst {
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidSyntax).
+				WithMessage("optional parameters cannot have lazy, var, or const modifiers").
+				WithPosition(cursor.Current().Pos, cursor.Current().Length()).
+				WithSuggestion("remove the modifier or remove the default value").
+				WithParsePhase("function parameter").
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+
+		cursor = cursor.Advance() // move to '='
+		cursor = cursor.Advance() // move past '='
+		p.cursor = cursor
+
+		defaultValue = p.parseExpression(LOWEST)
+		if defaultValue == nil {
+			err := NewStructuredError(ErrKindMissing).
+				WithCode(ErrInvalidExpression).
+				WithMessage("expected default value expression after '='").
+				WithPosition(cursor.Current().Pos, cursor.Current().Length()).
+				WithExpectedString("expression").
+				WithParsePhase("function parameter").
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+
+		// Update cursor after default value parsing
+		cursor = p.cursor
+	}
+
+	// Create parameter nodes for each name
+	for _, name := range names {
+		param := &ast.Parameter{
+			Token:        name.Token,
+			Name:         name,
+			Type:         typeExpr,
+			ByRef:        byRef,
+			IsConst:      isConst,
+			IsLazy:       isLazy,
+			DefaultValue: defaultValue,
+		}
+		params = append(params, param)
+	}
+
+	return params
 }
 
 // parseParameterListAtToken is a dispatcher that routes to the appropriate implementation
@@ -903,11 +1120,12 @@ func (p *Parser) parseParameterListAtTokenTraditional() []*ast.Parameter {
 // POST: cursor is at RPAREN
 //
 // Task 2.7.2: New cursor-based implementation for immutable parsing.
+// Task 2.7.4: Fixed to use parseParameterGroupCursor() instead of parseParameterGroup()
 func (p *Parser) parseParameterListAtTokenCursor() []*ast.Parameter {
 	params := []*ast.Parameter{}
 
 	// Parse first parameter group (we're already at first token)
-	groupParams := p.parseParameterGroup()
+	groupParams := p.parseParameterGroupCursor()
 	if groupParams == nil {
 		return nil
 	}
@@ -922,7 +1140,7 @@ func (p *Parser) parseParameterListAtTokenCursor() []*ast.Parameter {
 		cursor = cursor.Advance() // move past ';'
 		p.cursor = cursor
 
-		groupParams = p.parseParameterGroup()
+		groupParams = p.parseParameterGroupCursor()
 		if groupParams == nil {
 			return nil
 		}
