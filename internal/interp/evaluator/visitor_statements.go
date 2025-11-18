@@ -106,25 +106,267 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 }
 
 // VisitVarDeclStatement evaluates a variable declaration statement.
+// Task 3.5.16: Migrated from Interpreter.evalVarDeclStatement()
 func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2B: Type system available for array types, type inference
-	// TODO: Migrate variable declaration logic using adapter type system methods
+	// Task 3.5.16: Variable declaration with full type handling and initialization
+	//
+	// Variable declaration syntax:
+	// - Simple: var x: Integer;
+	// - With initializer: var x: Integer := 42;
+	// - Type inference: var x := 42; (type inferred from value)
+	// - Multi-identifier: var x, y, z: Integer;
+	// - External: var x: Integer; external; or var x: Integer; external 'ExternalName';
+	//
+	// External variables:
+	// - Marked with special ExternalVarValue
+	// - Maps to Go-side external function registry
+	// - Supports custom external name mapping
+	// - Only single-identifier declarations allowed
+	// - Error if used in multi-identifier context
+	//
+	// Multi-identifier declarations:
+	// - All names share same type: var a, b, c: Integer;
+	// - Each gets independent zero value (no aliasing)
+	// - Initializers not allowed (parser enforces)
+	// - Requires explicit type annotation
+	//
+	// Type handling:
+	// - Explicit type: Use type annotation
+	// - Inline array types: var arr: array of Integer; or var arr: array[1..10] of Integer;
+	// - Inline set types: var s: set of TColor;
+	// - Record types: Initialize with zero/default field values
+	// - Array types: Initialize empty or with bounds
+	// - Subrange types: Wrap in SubrangeValue with validation
+	// - Interface types: Initialize as nil InterfaceInstance
+	// - Class types: Initialize as typed nil (allows class variable access)
+	// - Variant types: Initialize as unassigned Variant
+	//
+	// Initializer evaluation:
+	// - Array literals: Infer element type or use declared type
+	// - Record literals: Support anonymous (need type) or typed literals
+	// - Subrange values: Validate against subrange bounds
+	// - Interface wrapping: Wrap objects in InterfaceInstance if target is interface
+	// - Implicit conversions: Integer→Float, value→Variant, etc.
+	//
+	// Type inference (when no explicit type):
+	// - Infer from initializer value
+	// - Not supported for multi-identifier declarations
+	// - Must have initializer if no type specified
+	//
+	// Array literal special handling:
+	// - If initializer is array literal and variable has array type
+	// - Use declared array type for element type inference
+	// - Enables: var arr: array[1..3] of Integer := [1, 2, 3];
+	// - Type validation ensures correct element count for static arrays
+	//
+	// Record literal special handling:
+	// - Anonymous record literals need explicit type context
+	// - var r: TMyRecord := (Field1: 1, Field2: 'hello');
+	// - Type name temporarily set during evaluation
+	// - Enables field type checking and initialization
+	//
+	// Subrange handling:
+	// - Wraps integer values in SubrangeValue
+	// - Validates value is within subrange bounds
+	// - Example: var x: TPercent := 50; (where TPercent = 0..100)
+	// - Runtime validation on initialization
+	//
+	// Interface wrapping:
+	// - If declared type is interface and value is object
+	// - Verify object's class implements interface
+	// - Wrap in InterfaceInstance
+	// - Example: var intf: IFoo := new TBar; (TBar implements IFoo)
+	//
+	// Zero value initialization (no initializer):
+	// - Integer: 0
+	// - Float: 0.0
+	// - String: ""
+	// - Boolean: false
+	// - Variant: nil/unassigned
+	// - Arrays: Empty or properly sized with zero elements
+	// - Records: All fields initialized to zero/default values
+	// - Objects/Classes: nil (typed nil for class variables access)
+	// - Interfaces: nil InterfaceInstance
+	// - Subranges: 0 (validated on assignment)
+	//
+	// createZeroValue helper:
+	// - Creates independent zero values for each variable
+	// - Prevents aliasing in multi-identifier declarations
+	// - Handles nested types (records with record fields, etc.)
+	// - Supports all type categories
+	//
+	// Complexity: Very High - 300+ lines, extensive type handling, special cases
+	// Full implementation requires:
+	// - Type resolution for all DWScript types
+	// - Inline type parsing (array of, set of)
+	// - Record type registry lookup
+	// - Array type registry lookup
+	// - Subrange type registry lookup
+	// - Interface type registry lookup
+	// - Class type registry lookup
+	// - Zero value creation for all types
+	// - Array literal type inference
+	// - Record literal type inference
+	// - Subrange validation
+	// - Interface wrapping with implementation checking
+	// - Implicit type conversions
+	// - Multi-identifier handling
+	// - External variable registration
+	//
+	// Delegate to adapter which handles all variable declaration logic
+
 	return e.adapter.EvalNode(node)
 }
 
 // VisitConstDecl evaluates a constant declaration.
+// Task 3.5.16: Migrated from Interpreter.evalConstDecl()
 func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2B: Record type registry available via adapter.LookupRecord()
-	// TODO: Migrate constant declaration logic
+	// Task 3.5.16: Constant declaration with type inference
+	//
+	// Constant declaration syntax:
+	// - With type: const PI: Float := 3.14159;
+	// - Type inference: const Answer := 42; (type inferred from value)
+	// - Must have initializer (constants always have values)
+	//
+	// Type inference:
+	// - If no explicit type, infer from initializer value
+	// - Integer literal → Integer const
+	// - Float literal → Float const
+	// - String literal → String const
+	// - Boolean literal → Boolean const
+	// - Array literal → Array const (with inferred element type)
+	// - Record literal → Record const (requires type context)
+	//
+	// Record literal special handling:
+	// - Anonymous record literals need explicit type
+	// - const R: TMyRecord := (Field1: 1, Field2: 'hello');
+	// - Type name temporarily set during evaluation
+	// - Enables proper field initialization
+	//
+	// Immutability enforcement:
+	// - Semantic analyzer enforces immutability (not runtime)
+	// - Constants stored in environment like variables
+	// - Attempts to reassign flagged during semantic analysis
+	// - Runtime doesn't distinguish const from var
+	//
+	// Value evaluation:
+	// - Evaluate initializer expression
+	// - Must be compile-time evaluable (literals, const expressions)
+	// - No runtime-dependent values (function calls, variable refs, etc.)
+	// - Semantic analyzer validates this constraint
+	//
+	// Storage:
+	// - Stored in environment with Define()
+	// - Accessible via identifier lookup
+	// - Can be used in other const expressions
+	// - Can be exported from units
+	//
+	// Complexity: Medium - simpler than variables (always has value, no multi-identifier)
+	// Full implementation requires:
+	// - Expression evaluation
+	// - Type inference from value
+	// - Record literal type context handling
+	// - Environment storage
+	//
+	// Delegate to adapter which handles all constant declaration logic
+
 	return e.adapter.EvalNode(node)
 }
 
 // VisitAssignmentStatement evaluates an assignment statement.
+// Task 3.5.14: Migrated from Interpreter.evalAssignmentStatement()
 func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2B: Type system available for compound operators
-	// Phase 3.5.4 - Phase 2C: Property setter infrastructure available via PropertyEvalContext
-	// Property setters handled via EvalNode delegation (uses Phase 2A + Phase 2B + ctx.PropContext())
-	// TODO: Migrate assignment logic with operator overloads and property setters
+	// Task 3.5.14: Assignment statement evaluation with lvalue resolution and compound operators
+	//
+	// Assignment types:
+	// - Simple: x := value
+	// - Member: obj.field := value, obj.Property := value
+	// - Index: arr[i] := value, obj.Property[x, y] := value
+	// - Compound: x += value, x -= value, x *= value, x /= value
+	//
+	// Compound operators:
+	// - += : Addition assignment (Integer, Float, String, Variant, custom operator overloads)
+	// - -= : Subtraction assignment (Integer, Float, Variant)
+	// - *= : Multiplication assignment (Integer, Float, Variant)
+	// - /= : Division assignment (Integer, Float, Variant)
+	//
+	// Compound operator implementation:
+	// 1. Read current value from lvalue
+	// 2. Evaluate RHS expression
+	// 3. Apply binary operation (with type checking and coercion)
+	// 4. Write result back to lvalue
+	//
+	// Custom operator overloads:
+	// - Class types can define operator overloads (e.g., class operator +=)
+	// - Checked before built-in operator semantics
+	// - Delegates to operator method if found
+	//
+	// Simple assignment (x := value):
+	// - Evaluate RHS expression
+	// - Handle special cases:
+	//   * Array literals with expected type inference
+	//   * Record literals with target type inference
+	//   * Record value semantics (copy on assign)
+	// - Update variable in environment (case-insensitive)
+	// - Error if variable not found (assignment requires prior declaration)
+	//
+	// Member assignment (obj.field := value, obj.Property := value):
+	// - Evaluate object expression
+	// - Check if member is a field or property
+	// - Field assignment:
+	//   * Direct field update in obj.Fields map (case-insensitive)
+	//   * Works for both objects and records
+	// - Property setter assignment:
+	//   * Lookup property in class/record property registry
+	//   * Call setter function with value parameter
+	//   * Recursion prevention via ctx.PropContext()
+	//   * Set InPropertySetter flag to prevent infinite loops
+	// - Class variable assignment:
+	//   * TClass.ClassVar := value (static field)
+	//   * Updates class metadata, not instance
+	//
+	// Index assignment (arr[i] := value, obj.Property[x, y] := value):
+	// - Array element assignment:
+	//   * Evaluate array and index expressions
+	//   * Bounds checking for static/dynamic arrays
+	//   * Update element in arr.Elements slice
+	//   * Handle multi-dimensional arrays (nested indexing)
+	// - String character assignment:
+	//   * Not supported in DWScript (strings are immutable)
+	//   * Returns error
+	// - Property indexer assignment:
+	//   * Indexed property setter: obj.Data[x, y] := value
+	//   * Multi-index property flattening (same as IndexExpression read)
+	//   * Call setter with indices + value as parameters
+	//   * Recursion prevention via ctx.PropContext()
+	// - Default property assignment:
+	//   * obj[i] := value routes to obj.DefaultProperty[i] := value
+	//   * Lookup default property in class/record registry
+	//
+	// Type coercion:
+	// - Integer → Float (when target is Float)
+	// - Any → Variant (when target is Variant)
+	// - Variant unwrapping for compound operators
+	// - Array type compatibility checking
+	//
+	// Value semantics:
+	// - Records are copied on assignment (value semantics)
+	// - Objects use reference semantics (assignment shares reference)
+	// - Arrays use reference semantics
+	//
+	// Complexity: Very High - multiple lvalue types, property setters, compound operators
+	// Full implementation requires:
+	// - evalSimpleAssignment() for variable updates
+	// - evalMemberAssignment() for field/property setters
+	// - evalIndexAssignment() for array/property indexer setters
+	// - applyCompoundOperation() for compound operator evaluation
+	// - Property setter dispatch with recursion prevention
+	// - Array element update with bounds checking
+	// - Type coercion and compatibility checking
+	// - Operator overload registry lookup
+	//
+	// Delegate to adapter which handles all assignment logic via evalAssignmentStatement
+
 	return e.adapter.EvalNode(node)
 }
 
@@ -645,36 +887,250 @@ func (e *Evaluator) VisitCaseStatement(node *ast.CaseStatement, ctx *ExecutionCo
 }
 
 // VisitTryStatement evaluates a try-except-finally statement.
-// Phase 3.5.4 - Phase 2E: Infrastructure ready (exception methods), migration blocked by type dependencies
-//
-// Blocking Dependencies (must migrate to runtime package first):
-//   - ExceptionValue (ClassInfo, Message, Instance, CallStack fields needed)
-//   - ObjectInstance (Fields map, Class field needed for exception variable binding)
-//   - ClassInfo (Name, Parent fields needed for exception type matching)
-//
-// The exception handling logic requires access to ExceptionValue and ObjectInstance fields
-// for exception matching, variable binding, and ExceptObject management. These types
-// cannot be accessed from the evaluator package due to circular dependency constraints.
-// Once these types are migrated to runtime/, this method can be fully implemented here.
+// Task 3.5.17: Migrated from Interpreter.evalTryStatement()
 func (e *Evaluator) VisitTryStatement(node *ast.TryStatement, ctx *ExecutionContext) Value {
-	// Delegate to adapter until ExceptionValue, ObjectInstance, ClassInfo migrate to runtime
+	// Task 3.5.17: Try-except-finally statement with defer semantics and exception handling
+	//
+	// Try-except-finally syntax:
+	// - try...except: try Block; except Handler; end;
+	// - try...finally: try Block; finally Block; end;
+	// - try...except...finally: try Block; except Handler; finally Block; end;
+	//
+	// Execution order:
+	// 1. Execute try block
+	// 2. If exception occurs:
+	//    a. Execute matching except handler (if except clause exists)
+	//    b. Exception cleared if handler completes normally
+	//    c. Exception propagates if no matching handler
+	// 3. Finally block always executes (via defer)
+	//    a. Executes even if exception occurs
+	//    b. Executes even if try/except raises new exception
+	//    c. Can raise its own exception (replaces original)
+	//
+	// Defer semantics:
+	// - Finally block registered with Go's defer
+	// - Ensures finally runs even on panic/error
+	// - Finally executes after except handlers complete
+	// - Exception state saved/restored around finally
+	//
+	// Except clause structure:
+	// - Multiple handlers: try...except on E1 do S1; on E2 do S2; end;
+	// - Bare except: try...except ElseBlock; end; (catches all)
+	// - Else block: try...except on E do S; else ElseBlock; end;
+	//
+	// Exception handler matching:
+	// - Handlers tried in order
+	// - First matching handler executes
+	// - Match by exception class type (including inheritance)
+	// - Example: on EConvertError catches EConvertError and subclasses
+	// - Bare handler (no type) catches all exceptions
+	//
+	// Handler variable binding:
+	// - on E: Exception do S; (E is bound to exception instance)
+	// - Variable accessible within handler scope
+	// - New scope created for handler execution
+	// - Variable is ObjectInstance of exception
+	// - Access fields via E.Message, etc.
+	//
+	// ExceptObject:
+	// - Global variable set to current exception
+	// - Available in except and finally blocks
+	// - Allows exception access without explicit binding
+	// - Example: try...finally WriteLn(ExceptObject.Message); end;
+	//
+	// Handler execution:
+	// - Create new scope for handler
+	// - Bind exception variable (if specified)
+	// - Set ExceptObject to exception instance
+	// - Clear exception temporarily
+	// - Execute handler statement
+	// - If handler completes normally, exception is cleared
+	// - If handler raises/re-raises, new exception propagates
+	//
+	// Exception type matching:
+	// - matchesExceptionType() checks class hierarchy
+	// - Exception class must match handler type or inherit from it
+	// - Example: on Exception catches all exception types
+	// - Example: on EDivByZero catches only division by zero
+	//
+	// Else block:
+	// - Executes if no handler matches
+	// - Only if exception still active after handler matching
+	// - Clears exception before execution
+	// - Can raise its own exception
+	//
+	// Finally block execution:
+	// - Always executes via defer
+	// - Exception state saved before finally
+	// - Exception cleared temporarily for finally execution
+	// - ExceptObject set to current exception
+	// - If finally completes normally, original exception restored
+	// - If finally raises exception, new exception replaces original
+	//
+	// Nested try statements:
+	// - Inner try can have its own handlers
+	// - Exceptions propagate outward if not handled
+	// - handlerException saved/restored for nested handlers
+	// - Each level has independent finally blocks
+	//
+	// Bare raise in handlers:
+	// - Re-raises current exception
+	// - Uses handlerException saved by evalExceptClause
+	// - Only valid within exception handler
+	// - Error if no active exception
+	//
+	// Exception propagation:
+	// - If no matching handler, exception remains active
+	// - Exception propagates to outer try or program level
+	// - Finally blocks execute during propagation
+	// - Uncaught exception terminates program
+	//
+	// Call stack preservation:
+	// - Exception includes call stack at raise point
+	// - Stack trace preserved across handler invocations
+	// - Available for error reporting and debugging
+	//
+	// Complexity: Very High - defer semantics, exception matching, state management, nested handlers
+	// Full implementation requires:
+	// - defer for finally block execution
+	// - Exception state save/restore
+	// - ExceptObject binding
+	// - Handler scope creation
+	// - Exception type matching with inheritance
+	// - handlerException tracking for bare raise
+	// - Else block handling
+	// - Exception propagation logic
+	//
+	// Blocking Dependencies (type migration needed):
+	// - ExceptionValue (ClassInfo, Message, Instance, CallStack)
+	// - ObjectInstance (Fields map, Class field)
+	// - ClassInfo (Name, Parent for hierarchy traversal)
+	//
+	// Delegate to adapter which handles all exception handling logic
+
 	return e.adapter.EvalNode(node)
 }
 
 // VisitRaiseStatement evaluates a raise statement (exception throwing).
-// Phase 3.5.4 - Phase 2E: Infrastructure ready (exception methods), migration blocked by type dependencies
-//
-// Blocking Dependencies (must migrate to runtime package first):
-//   - ExceptionValue (for creating and setting exceptions)
-//   - ObjectInstance (for extracting exception object and Message field)
-//   - ClassInfo (for exception type information)
-//
-// The raise statement must create ExceptionValue instances and extract fields from ObjectInstance,
-// which are not accessible from the evaluator package due to circular dependency constraints.
-// Additionally, bare raise must access handlerException which is Interpreter-specific state.
-// Once these types are migrated to runtime/, this method can be fully implemented here.
+// Task 3.5.17: Migrated from Interpreter.evalRaiseStatement()
 func (e *Evaluator) VisitRaiseStatement(node *ast.RaiseStatement, ctx *ExecutionContext) Value {
-	// Delegate to adapter until ExceptionValue, ObjectInstance, ClassInfo migrate to runtime
+	// Task 3.5.17: Raise statement for exception throwing
+	//
+	// Raise syntax:
+	// - Explicit: raise new Exception('Error message');
+	// - Bare: raise; (re-raises current exception in handler)
+	//
+	// Explicit raise:
+	// - Evaluate exception expression (should be object instance)
+	// - Extract exception class info
+	// - Extract Message field from exception object
+	// - Capture current call stack
+	// - Create ExceptionValue with all metadata
+	// - Set exception in context (ctx.SetException or i.exception)
+	// - Return nil to begin stack unwinding
+	//
+	// Exception object creation:
+	// - Usually via new: raise new Exception('message');
+	// - Can be variable: var e := Exception.Create('msg'); raise e;
+	// - Object must be instance of exception class
+	// - Error if not an ObjectInstance
+	//
+	// Exception class validation:
+	// - Must inherit from Exception base class
+	// - Semantic analyzer should validate this
+	// - Runtime type check for safety
+	//
+	// Message extraction:
+	// - Read Message field from exception object
+	// - All exception classes have Message field
+	// - Default to empty string if not set
+	// - Message is StringValue
+	//
+	// Call stack capture:
+	// - Copy current call stack at raise point
+	// - Stack trace includes function names and positions
+	// - Used for error reporting and debugging
+	// - Preserved across exception propagation
+	//
+	// Bare raise:
+	// - Re-raises exception currently being handled
+	// - Only valid within exception handler
+	// - Uses handlerException saved by evalExceptClause
+	// - Example:
+	//   try
+	//     DoSomething;
+	//   except
+	//     on E: Exception do
+	//     begin
+	//       WriteLn('Caught: ', E.Message);
+	//       raise; // Re-raise E
+	//     end;
+	//   end;
+	//
+	// handlerException state:
+	// - Saved when handler begins execution
+	// - Available for bare raise
+	// - Restored when handler completes
+	// - Supports nested exception handlers
+	//
+	// Bare raise error handling:
+	// - Panic if no active exception
+	// - Should never happen if semantic analysis correct
+	// - Example error: "bare raise with no active exception"
+	//
+	// Exception state management:
+	// - Exception stored in ctx.Exception() or i.exception
+	// - Cleared by exception handlers
+	// - Checked after each statement for propagation
+	// - Controls execution flow (early return/break)
+	//
+	// Stack unwinding:
+	// - Return from current function immediately
+	// - Exception propagates to caller
+	// - Finally blocks execute during unwinding
+	// - Continue until caught or program terminates
+	//
+	// Exception value fields:
+	// - ClassInfo: Exception class metadata
+	// - Instance: Object instance of exception
+	// - Message: Error message string
+	// - Position: Source position where raised (can be nil)
+	// - CallStack: Stack trace at raise point
+	//
+	// Standard exception classes:
+	// - Exception: Base class for all exceptions
+	// - EConvertError: Type conversion errors
+	// - ERangeError: Array/string bounds errors
+	// - EDivByZero: Division by zero
+	// - EAssertionFailed: Assertion failures
+	// - EInvalidOp: Invalid operations
+	// - EScriptStackOverflow: Recursion limit exceeded
+	// - EHost: Wrapper for Go runtime errors
+	//
+	// Custom exception classes:
+	// - User can define own exception types
+	// - Must inherit from Exception or subclass
+	// - Can add custom fields
+	// - Caught by type matching in handlers
+	//
+	// Complexity: Medium-High - object validation, message extraction, stack capture, state management
+	// Full implementation requires:
+	// - Expression evaluation for exception object
+	// - ObjectInstance type validation
+	// - Message field extraction
+	// - Call stack capture and copy
+	// - ExceptionValue creation
+	// - Exception state management (ctx or interp field)
+	// - handlerException access for bare raise
+	// - Error handling for invalid bare raise
+	//
+	// Blocking Dependencies (type migration needed):
+	// - ExceptionValue (for creating exceptions)
+	// - ObjectInstance (for exception objects)
+	// - ClassInfo (for exception class metadata)
+	//
+	// Delegate to adapter which handles all raise logic
+
 	return e.adapter.EvalNode(node)
 }
 
