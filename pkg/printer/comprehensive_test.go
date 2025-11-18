@@ -2007,7 +2007,7 @@ func TestPrintEnumLiteral(t *testing.T) {
 		{
 			name: "simple enum value",
 			node: &ast.EnumLiteral{
-				Token: token.Token{Type: token.IDENT, Literal: "Red"},
+				Token:     token.Token{Type: token.IDENT, Literal: "Red"},
 				ValueName: "Red",
 			},
 			expected: "Red",
@@ -2015,7 +2015,7 @@ func TestPrintEnumLiteral(t *testing.T) {
 		{
 			name: "qualified enum value",
 			node: &ast.EnumLiteral{
-				Token: token.Token{Type: token.IDENT, Literal: "TColor"},
+				Token:     token.Token{Type: token.IDENT, Literal: "TColor"},
 				EnumName:  "TColor",
 				ValueName: "Red",
 			},
@@ -2235,7 +2235,7 @@ func TestPrintArrayTypeNode(t *testing.T) {
 		{
 			name: "indexed array type",
 			node: &ast.ArrayTypeNode{
-				IndexType: &ast.TypeAnnotation{Name: "TColor"},
+				IndexType:   &ast.TypeAnnotation{Name: "TColor"},
 				ElementType: &ast.TypeAnnotation{Name: "String"},
 			},
 			expected: "array[TColor]ofString",
