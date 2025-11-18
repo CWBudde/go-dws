@@ -516,10 +516,10 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - **Completed**: Commit ed7fd2b - 88 benchmarks total, baseline established in docs/
 
 - [ ] 3.1.3 Increase test coverage to 90%+
-  - **Current Coverage**: 57.8% overall (as of 2025-11-18, latest update)
+  - **Current Coverage**: 57.9% overall (as of 2025-11-18, latest update)
   - **Package Breakdown**:
     - High coverage (>80%): ident (100.0%), token (100.0%), lexer (97.4%), units (90.1%), ast (88.9%), types (83.7%), dwscript (82.9%), interp/builtins (82.0%), errors (81.8%), interp/errors (81.0%), platform/native (79.3%)
-    - Medium coverage (50-80%): interp/types (72.8%), parser (63.9%), bytecode (62.3%), jsonvalue (61.2%), semantic (60.2%), interp/runtime (48.4%), cmd/dwscript/cmd (36.7%)
+    - Medium coverage (50-80%): interp/types (72.8%), parser (63.9%), bytecode (63.0%), jsonvalue (61.2%), semantic (60.2%), interp/runtime (48.4%), cmd/dwscript/cmd (36.7%)
     - Low coverage (<50%): printer (32.4%), ast/pkg (24.9%), interp/evaluator (22.8%), cmd/dwscript (0.0%)
   - **Subtasks**:
     - [x] 3.1.3.1 Improve interp/builtins coverage (15.2% → 80%+)
@@ -564,10 +564,13 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
       - [x] Add tests for conversion builtin functions (26-36% → 76-89%)
         - IntToStr/FloatToStr, StrToInt/StrToFloat, StrToIntDef/StrToFloatDef
         - Integer/Float/String/Boolean type casts - all branches tested
+      - [x] Add tests for misc and math builtin functions (25-58% → 77-100%)
+        - Print/PrintLn (25% → 100%), Length (80% → 100%)
+        - Log10/LogN, IsFinite/IsInfinite, LeastFactor, CompareNum
       - [ ] Test serializer edge cases (many at 0% or <50%)
       - [ ] Test compiler edge cases for expressions/statements
       - [ ] Add tests for optimizer paths
-      - **Current Status**: Package coverage 52.5% → 62.3% (+9.8%, need 17.7% more)
+      - **Current Status**: Package coverage 52.5% → 63.0% (+10.5%, need 17.0% more)
     - [ ] 3.1.3.6 Improve semantic analyzer coverage (60.4% → 80%+)
       - Test all type checking paths
       - Test error detection for invalid constructs
