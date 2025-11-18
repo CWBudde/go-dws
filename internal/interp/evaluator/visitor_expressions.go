@@ -37,42 +37,179 @@ func isError(val Value) bool {
 }
 
 // VisitIdentifier evaluates an identifier (variable reference).
-// Task 3.5.10: Partial migration - basic variable lookups via adapter.GetVariable.
-// Complex cases still delegated (Self context, properties, lazy params, etc.).
+// Task 3.5.22: Migration of identifier evaluation with comprehensive dispatch logic.
+//
+// This function handles all DWScript identifier patterns in a specific order
+// (matching the original Interpreter.evalIdentifier logic):
+//
+//  1. Self keyword - Special identifier for current object instance
+//  2. Environment lookup - Variables in current scope:
+//     a. External variables (ExternalVarValue) - Error
+//     b. Lazy parameters (LazyThunk) - Force evaluation
+//     c. Var parameters (ReferenceValue) - Dereference
+//     d. Regular variables - Return value
+//  3. Instance context (Self is bound):
+//     a. Instance fields - obj.Field
+//     b. Class variables - obj.Class.ClassVar
+//     c. Properties - obj.Property (with recursion prevention)
+//     d. Methods - Auto-invoke if zero params, else function pointer
+//     e. ClassName identifier - Class name as string
+//     f. ClassType identifier - Class metadata
+//  4. Class method context (__CurrentClass__ is bound):
+//     a. ClassName identifier
+//     b. ClassType identifier
+//     c. Class variables
+//  5. Function references:
+//     a. User functions - Auto-invoke if zero params, else function pointer
+//     b. Built-in functions - Auto-invoke with zero args
+//  6. Class name metaclass references - Class metadata
+//  7. Undefined identifier - Error
+//
+// Complexity: Very High (220+ lines in original, many complex lookup paths)
+// Migration status: Partial - using adapter for complex cases that require infrastructure
+//
+//	not yet migrated (LazyThunk, ReferenceValue, property dispatch, etc.)
 func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext) Value {
-	// Try simple variable lookup first using the new environment adapter
+	// ===== IDENTIFIER TYPE 1: Self Keyword =====
+	// Special case for Self keyword - refers to current object instance
+	if node.Value == "Self" {
+		val, ok := ctx.Env().Get("Self")
+		if !ok {
+			return e.newError(node, "Self used outside method context")
+		}
+		// Environment stores interface{}, cast to Value
+		if selfVal, ok := val.(Value); ok {
+			return selfVal
+		}
+		return e.newError(node, "Self has invalid type")
+	}
+
+	// ===== IDENTIFIER TYPE 2: Environment Lookup =====
+	// Try to find identifier in current environment (variables, parameters, constants)
 	val, ok := e.adapter.GetVariable(node.Value, ctx)
 	if ok {
-		// Got a value from environment
-		// However, it might be a special value type that needs processing:
-		// - ExternalVarValue (should error)
-		// - LazyThunk (needs evaluation)
-		// - ReferenceValue (needs dereferencing)
-		// For now, return as-is. The adapter.EvalNode fallback below will handle
-		// these special cases if the value doesn't work as expected.
-
-		// Simple optimization: if it's a basic value type, return immediately
+		// Variable found in environment
+		// Simple optimization: if it's a basic primitive value type, return immediately
 		switch val.(type) {
 		case *runtime.IntegerValue, *runtime.FloatValue, *runtime.StringValue, *runtime.BooleanValue, *runtime.NilValue:
 			return val
 		}
 
 		// For complex value types, delegate to adapter for full processing
-		// This handles LazyThunk, ReferenceValue, ExternalVarValue, etc.
+		// This handles:
+		// - ExternalVarValue (returns error: "Unsupported external variable access")
+		// - LazyThunk (force evaluation on each access)
+		// - ReferenceValue (dereference to get actual value)
+		// - Other complex types (arrays, objects, records, etc.)
+		//
+		// Full migration blocked by:
+		// - LazyThunk type and Evaluate() method
+		// - ReferenceValue type and Dereference() method
+		// - ExternalVarValue type and error handling
 		return e.adapter.EvalNode(node)
 	}
 
-	// Variable not found in environment
-	// Could be:
-	// - Self keyword (method context)
-	// - Instance field/property (implicit Self)
-	// - Class variable (__CurrentClass__ context)
-	// - Function reference (with possible auto-invoke)
-	// - Built-in function
-	// - Class name (metaclass reference)
+	// ===== IDENTIFIER TYPE 3: Instance Context (Self is bound) =====
+	// Variable not found in environment - check if we're in an instance method context
+	// When Self is bound, identifiers can refer to:
+	// - Instance fields (obj.Field without "Self." prefix)
+	// - Class variables (shared across all instances)
+	// - Properties (getter/setter methods)
+	// - Methods (auto-invoke if zero params)
 	// - ClassName/ClassType special identifiers
-	// All these cases require complex context that hasn't been migrated yet
-	// Delegate to adapter for full Interpreter.evalIdentifier logic
+	if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk {
+		// We're in an instance method context
+		// Delegate to adapter for:
+		// - Instance field lookup (obj.GetField)
+		// - Class variable lookup (obj.Class.ClassVars)
+		// - Property lookup and dispatch (obj.Class.lookupProperty, evalPropertyRead)
+		// - Method lookup and auto-invoke (obj.Class.Methods, callUserFunction)
+		// - ClassName/ClassType identifier handling
+		//
+		// Full migration blocked by:
+		// - Object field/property/method lookup infrastructure
+		// - Property recursion prevention (propContext)
+		// - Method auto-invoke logic
+		// - Function pointer creation for methods with parameters
+		if _, ok := selfRaw.(Value); ok {
+			// Delegate to adapter for all Self-context identifier resolution
+			return e.adapter.EvalNode(node)
+		}
+	}
+
+	// ===== IDENTIFIER TYPE 4: Class Method Context (__CurrentClass__ is bound) =====
+	// Check if we're in a class method context (static methods)
+	// When __CurrentClass__ is bound, identifiers can refer to:
+	// - ClassName identifier (class name as string)
+	// - ClassType identifier (class metadata)
+	// - Class variables (static fields shared across all instances)
+	if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
+		// We're in a class method context
+		// Delegate to adapter for:
+		// - ClassName identifier check
+		// - ClassType identifier check
+		// - Class variable lookup
+		//
+		// Full migration blocked by:
+		// - ClassInfoValue type
+		// - Class variable registry access
+		if _, ok := currentClassRaw.(Value); ok {
+			// Delegate to adapter for all class method context identifier resolution
+			return e.adapter.EvalNode(node)
+		}
+	}
+
+	// ===== IDENTIFIER TYPE 5: Function References =====
+	// Check if this identifier is a user-defined function name
+	// In DWScript, functions can be:
+	// - Auto-invoked if they have zero parameters (e.g., var x := GetCount;)
+	// - Converted to function pointers if they have parameters
+	funcNameLower := strings.ToLower(node.Value)
+	if overloads, exists := e.adapter.LookupFunction(funcNameLower); exists && len(overloads) > 0 {
+		// Found user function(s)
+		// Delegate to adapter for:
+		// - Overload resolution (zero params vs. multiple overloads)
+		// - Auto-invoke for parameterless functions
+		// - Function pointer creation for functions with parameters
+		//
+		// Full migration blocked by:
+		// - Overload resolution logic
+		// - CallUserFunction for auto-invoke
+		// - Function pointer value creation
+		return e.adapter.EvalNode(node)
+	}
+
+	// ===== IDENTIFIER TYPE 6: Built-in Function References =====
+	// Check if this is a parameterless built-in function
+	// Built-in functions can be called without parentheses (auto-invoke)
+	// Delegate to adapter for:
+	// - Built-in function lookup (isBuiltinFunction)
+	// - Built-in function call with zero arguments
+	//
+	// Full migration blocked by:
+	// - Built-in function registry lookup
+	// - Built-in auto-invoke logic
+	// We can't easily check if it's a built-in without the registry,
+	// so we delegate and let the adapter handle it or fall through to error
+
+	// ===== IDENTIFIER TYPE 7: Class Name Metaclass References =====
+	// Check if this identifier is a class name
+	// Class names can be used as values: var meta: class of TBase; meta := TBase;
+	// Delegate to adapter for:
+	// - Class registry lookup (case-insensitive)
+	// - ClassValue creation for metaclass references
+	//
+	// Full migration blocked by:
+	// - Class registry access
+	if e.adapter.HasClass(node.Value) {
+		// This is a class name - return metaclass reference
+		return e.adapter.EvalNode(node)
+	}
+
+	// ===== IDENTIFIER TYPE 8: Undefined Identifier =====
+	// Still not found - could be a built-in function or truly undefined
+	// Delegate to adapter one final time to check for built-ins
+	// If truly undefined, adapter will return error
 	return e.adapter.EvalNode(node)
 }
 
@@ -135,7 +272,7 @@ func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *Execu
 
 	// Allow string concatenation with RTTI_TYPEINFO
 	case (left.Type() == "STRING" && right.Type() == "RTTI_TYPEINFO") ||
-	     (left.Type() == "RTTI_TYPEINFO" && right.Type() == "STRING"):
+		(left.Type() == "RTTI_TYPEINFO" && right.Type() == "STRING"):
 		if node.Operator == "+" {
 			return &runtime.StringValue{Value: left.String() + right.String()}
 		}
@@ -242,33 +379,237 @@ func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *Exe
 }
 
 // VisitCallExpression evaluates a function call expression.
-// Task 3.5.11: Partial migration - demonstrates adapter pattern for simple cases.
-// Complex cases delegated (400+ lines with 11+ call types in Interpreter).
+// Task 3.5.21: Migration of function call evaluation with 11 distinct call types.
+//
+// This function handles all DWScript function call patterns in a specific order
+// (matching the original Interpreter.evalCallExpression logic):
+//
+//  1. Function pointer calls - Identifier resolving to FunctionPointerValue
+//  2. Member access calls (detected by CallExpression.Function being MemberAccessExpression):
+//     a. Record method calls (obj.Method where obj is RecordValue)
+//     b. Interface method calls (intf.Method where intf is InterfaceInstance)
+//     c. Unit-qualified function calls (UnitName.FunctionName)
+//     d. Class constructor calls (TClassName.Create)
+//  3. User-defined function calls - Regular function with overload resolution
+//  4. Implicit Self method calls - MethodName() within class context
+//  5. Record static method calls - MethodName() within record context (__CurrentRecord__)
+//  6. Built-in functions with var parameters - Inc, Dec, Insert, Delete, etc.
+//  7. External functions with var parameters - External Go functions
+//  8. Default() function - Special handling for Default(TypeName)
+//  9. Type casts - TypeName(expression)
+//  10. Regular built-in functions - All other built-in functions
+//
+// The order matters because some patterns overlap:
+// - "TClass.Create()" could be a member access OR a class constructor
+// - "FuncName()" could be a user function OR a built-in OR an implicit Self method
+// - "Integer(x)" could be a type cast OR a user function named "Integer"
+//
+// Complexity: Very High (400+ lines in original, 11 distinct paths)
+// Migration status: Partial - using adapter for complex cases that require infrastructure
+//
+//	not yet migrated (lazy/var params, overload resolution, etc.)
 func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *ExecutionContext) Value {
-	// CallExpression in the Interpreter handles many complex cases:
-	// 1. Function pointer calls (with lazy/var parameter handling)
-	// 2. Record method calls
-	// 3. Interface method calls
-	// 4. Unit-qualified function calls (UnitName.FunctionName)
-	// 5. Class constructor calls (TClass.Create)
-	// 6. User-defined function calls with overload resolution
-	// 7. Implicit Self method calls (within class/record context)
-	// 8. Record static method calls (__CurrentRecord__ context)
-	// 9. Built-in functions with var parameters
-	// 10. External functions with var parameters
-	// 11. Regular built-in function calls
-	//
-	// Each case requires specialized handling of:
-	// - Argument evaluation (lazy thunks, references, values)
-	// - Overload resolution
-	// - Context switching (Self, units, records)
-	// - Type checking and coercion
-	//
-	// Full migration requires extensive adapter infrastructure not yet available.
-	// For now, delegate to adapter for complete functionality.
-	// Future tasks will incrementally migrate specific call types.
+	// ===== CALL TYPE 1: Function Pointer Calls =====
+	// Check if the function expression is an identifier that resolves to a FunctionPointerValue
+	// Function pointers require special handling for lazy and var parameters
+	if funcIdent, ok := node.Function.(*ast.Identifier); ok {
+		if val, exists := e.adapter.GetVariable(funcIdent.Value, ctx); exists {
+			// Check if it's a function pointer type
+			if val.Type() == "FUNCTION_POINTER" || val.Type() == "LAMBDA" {
+				// Delegate to adapter for function pointer calls
+				// This requires handling lazy parameters (LazyThunk creation),
+				// var parameters (ReferenceValue creation), and closure environment management
+				// Full migration blocked by: LazyThunk, ReferenceValue, and closure infrastructure
+				return e.adapter.EvalNode(node)
+			}
+		}
+	}
 
-	return e.adapter.EvalNode(node)
+	// ===== CALL TYPE 2: Member Access Calls =====
+	// Check if this is a member access pattern: obj.Method(), UnitName.Func(), TClass.Create()
+	if memberAccess, ok := node.Function.(*ast.MemberAccessExpression); ok {
+		// Evaluate the left side (object, unit, or class identifier)
+		objVal := e.Eval(memberAccess.Object, ctx)
+		if isError(objVal) {
+			return objVal
+		}
+
+		// Check for record method calls: record.Method(args)
+		if objVal.Type() == "RECORD" {
+			// Record methods use value semantics (Self is a copy)
+			// For mutating methods, copy-back semantics are needed
+			// Delegate to adapter which handles record method dispatch
+			return e.adapter.EvalNode(node)
+		}
+
+		// Check for interface method calls: interface.Method(args)
+		if objVal.Type() == "INTERFACE" {
+			// Interface method calls unwrap to underlying object and dispatch to its method
+			// Requires interface unwrapping and object method lookup
+			// Delegate to adapter for interface method dispatch
+			return e.adapter.EvalNode(node)
+		}
+
+		// Check for object method calls: object.Method(args)
+		if objVal.Type() == "OBJECT" {
+			// Object method calls require method lookup and dispatch
+			// Delegate to adapter for object method resolution
+			return e.adapter.EvalNode(node)
+		}
+
+		// Check for unit-qualified function calls: UnitName.FunctionName(args)
+		// This requires checking if the left side is a unit identifier
+		if ident, ok := memberAccess.Object.(*ast.Identifier); ok {
+			// Check if this identifier is a unit name
+			// Unit-qualified calls require unitRegistry lookup
+			// Delegate to adapter for unit-qualified function resolution and calling
+			// Full migration blocked by: unitRegistry access, qualified function resolution
+			if e.unitRegistry != nil {
+				// Potential unit-qualified call - delegate to adapter
+				return e.adapter.EvalNode(node)
+			}
+
+			// Check for class constructor calls: TClassName.Create(args)
+			// This requires checking if the identifier is a class name
+			if e.adapter.HasClass(ident.Value) {
+				// This is a class constructor/method call
+				// Convert to MethodCallExpression and delegate
+				// Full migration blocked by: MethodCallExpression evaluation
+				return e.adapter.EvalNode(node)
+			}
+		}
+
+		// Not a recognized member access pattern
+		return e.newError(node, "cannot call member expression that is not a method or unit-qualified function")
+	}
+
+	// ===== CALL TYPE 3-11: Simple Identifier Calls =====
+	// All remaining call types have the function as a simple identifier
+	funcName, ok := node.Function.(*ast.Identifier)
+	if !ok {
+		return e.newError(node, "function call requires identifier or qualified name, got %T", node.Function)
+	}
+
+	// ===== CALL TYPE 3: User-Defined Function Calls =====
+	// Check if this is a user-defined function (with potential overloading)
+	// User functions are stored in a case-insensitive function registry
+	funcNameLower := strings.ToLower(funcName.Value)
+	if overloads, exists := e.adapter.LookupFunction(funcNameLower); exists && len(overloads) > 0 {
+		// Found user-defined function(s)
+		// Overload resolution requires evaluating arguments and matching types
+		// Lazy/var parameter handling requires special argument preparation
+		// Delegate to adapter for overload resolution and function calling
+		// Full migration blocked by: resolveOverload, lazy/var parameter infrastructure
+		return e.adapter.EvalNode(node)
+	}
+
+	// ===== CALL TYPE 4: Implicit Self Method Calls =====
+	// Check if we're in a class/object context and this is a method call
+	// Within a method, "MethodName()" is shorthand for "Self.MethodName()"
+	if selfRaw, ok := ctx.Env().Get("Self"); ok {
+		// We have a Self context - check if the function name is a method
+		// This requires object method lookup
+		// Delegate to adapter for implicit Self method resolution
+		// Full migration blocked by: Object method lookup, MethodCallExpression conversion
+		// Note: We only check this AFTER user function lookup to match original behavior
+		if selfVal, ok := selfRaw.(Value); ok {
+			if selfVal.Type() == "OBJECT" || selfVal.Type() == "CLASS" {
+				return e.adapter.EvalNode(node)
+			}
+		}
+	}
+
+	// ===== CALL TYPE 5: Record Static Method Calls =====
+	// Check if we're in a record context and this is a static method call
+	// Within a record method, static methods can be called directly
+	if recordRaw, ok := ctx.Env().Get("__CurrentRecord__"); ok {
+		// We have a __CurrentRecord__ context - check if function name is a static method
+		// Delegate to adapter for record static method resolution
+		// Full migration blocked by: Record method registry lookup
+		if recordVal, ok := recordRaw.(Value); ok {
+			if recordVal.Type() == "RECORD_TYPE" {
+				return e.adapter.EvalNode(node)
+			}
+		}
+	}
+
+	// ===== CALL TYPE 6: Built-in Functions with Var Parameters =====
+	// Check for built-in functions that need var parameter handling
+	// These functions modify their arguments in place (Inc, Dec, SetLength, etc.)
+	switch funcNameLower {
+	case "inc", "dec", "insert", "decodedate", "decodetime",
+		"swap", "divmod", "trystrtoint", "trystrtofloat", "setlength":
+		// These built-ins need special var parameter handling
+		// Delegate to adapter for built-in var parameter functions
+		// Full migration blocked by: ReferenceValue creation for var parameters
+		return e.adapter.EvalNode(node)
+	case "delete":
+		// Delete has two forms: Delete(array, index) and Delete(string, index, count)
+		// Only the 3-parameter form needs var parameter handling
+		if len(node.Arguments) == 3 {
+			return e.adapter.EvalNode(node)
+		}
+	}
+
+	// ===== CALL TYPE 7: External Functions with Var Parameters =====
+	// Check if this is an external (Go) function registered via externalFunctions
+	// External functions may have var parameters that need ReferenceValue wrapping
+	// Delegate to adapter for external function lookup and calling
+	// Full migration blocked by: externalFunctions registry access, var parameter handling
+	// Note: We check this before Default()/TypeCast to match original behavior
+	if e.externalFunctions != nil {
+		return e.adapter.EvalNode(node)
+	}
+
+	// ===== CALL TYPE 8: Default() Function =====
+	// Check for Default(TypeName) function which expects unevaluated type identifier
+	// Default(Integer) should pass "Integer" as string, not evaluate it
+	if funcNameLower == "default" && len(node.Arguments) == 1 {
+		// Delegate to adapter for Default() function evaluation
+		// Full migration blocked by: type resolution for default value creation
+		return e.adapter.EvalNode(node)
+	}
+
+	// ===== CALL TYPE 9: Type Casts =====
+	// Check if this is a type cast: TypeName(expression)
+	// Type casts look like function calls but the "function" is a type name
+	// Only single-argument calls can be type casts
+	if len(node.Arguments) == 1 {
+		// Try type cast evaluation (returns nil if not a valid type cast)
+		// Delegate to adapter for type cast evaluation
+		// Full migration blocked by: type registry lookup, type conversion logic
+		// Note: The adapter returns nil if this isn't a type cast, so we check below
+		result := e.adapter.EvalNode(node)
+		// If type cast succeeded or there's an exception, return the result
+		// If it returned an error about unknown function, fall through to built-ins
+		if result != nil && !isError(result) {
+			return result
+		}
+		if isError(result) {
+			// Check if this is "unknown function" error - if so, fall through
+			// Otherwise, it's a real error from type casting
+			if !strings.Contains(result.String(), "unknown function") &&
+				!strings.Contains(result.String(), "undefined identifier") {
+				return result
+			}
+		}
+	}
+
+	// ===== CALL TYPE 10: Regular Built-in Functions =====
+	// Try built-in functions
+	// Evaluate all arguments first (no lazy/var parameter handling needed for regular built-ins)
+	args := make([]Value, len(node.Arguments))
+	for idx, arg := range node.Arguments {
+		val := e.Eval(arg, ctx)
+		if isError(val) {
+			return val
+		}
+		args[idx] = val
+	}
+
+	// Call built-in function via adapter
+	// The adapter handles case-insensitive lookup and dispatches to the appropriate built-in
+	return e.adapter.CallBuiltinFunction(funcName.Value, args)
 }
 
 // VisitNewExpression evaluates a 'new' expression (object instantiation).
@@ -732,41 +1073,119 @@ func (e *Evaluator) VisitSetLiteral(node *ast.SetLiteral, ctx *ExecutionContext)
 }
 
 // VisitArrayLiteralExpression evaluates an array literal [1, 2, 3].
-// Task 3.5.13: Migrated from Interpreter.evalArrayLiteral()
+// Task 3.5.23: Migration of array literal evaluation with type inference and coercion.
+//
+// This function handles all DWScript array literal patterns:
+//
+// 1. Empty arrays - [] (requires type context or errors)
+// 2. Typed arrays - var x: array of Integer := [1, 2, 3]
+// 3. Type-inferred arrays - [1, 2, 3] (infers array of Integer)
+// 4. Mixed type coercion - [1, 2.5] (infers array of Float)
+// 5. Variant arrays - [1, "hello", true] (infers array of Variant)
+// 6. Nested arrays - [[1, 2], [3, 4]] (infers array of array of Integer)
+// 7. Static arrays - array[1..3] of Integer := [10, 20, 30]
+// 8. Dynamic arrays - array of Integer := [10, 20, 30]
+//
+// Array literal evaluation process:
+// 1. Evaluate all element expressions to values
+// 2. Determine array type (from annotation or inference)
+// 3. Coerce elements to target element type if needed
+// 4. Validate bounds for static arrays
+// 5. Construct ArrayValue with proper type metadata
+//
+// Type annotation sources (in priority order):
+// - Semantic analyzer type annotation (from variable declaration)
+// - Explicit array type in expression context
+// - Type inference from element values
+//
+// Type inference rules:
+// - All same type → array of that type
+// - Integer + Float → array of Float (numeric coercion)
+// - Integer + String → error (incompatible types)
+// - Mixed incompatible → error (unless Variant)
+// - All nil → array of Variant (default for empty-ish arrays)
+//
+// Element coercion:
+// - Integer → Float (when target is Float)
+// - Any → Variant (when target is Variant)
+// - Nil → compatible with class/interface/array/string types
+// - No implicit narrowing (Float → Integer is error)
+//
+// Static arrays (fixed bounds):
+// - array[1..10] of Integer (bounds: 1 to 10, size: 10)
+// - Element count must exactly match size
+// - Error if fewer or more elements provided
+//
+// Dynamic arrays (variable length):
+// - array of Integer (no bounds, any size)
+// - Element count determines actual size
+// - Can be empty, resized with SetLength
+//
+// Complexity: Very High (250+ lines in original, multiple helper functions)
+// Migration status: Partial - using adapter for complex type system operations
 func (e *Evaluator) VisitArrayLiteralExpression(node *ast.ArrayLiteralExpression, ctx *ExecutionContext) Value {
-	// Task 3.5.13: Array literal evaluation with type inference and coercion
+	if node == nil {
+		return e.newError(node, "nil array literal")
+	}
+
+	// Empty array check - requires type context
+	if len(node.Elements) == 0 {
+		// Empty arrays need type annotation to determine element type
+		// Without it, we can't create a properly typed array
+		// Delegate to adapter for type annotation lookup and empty array creation
+		// Full migration blocked by: semantic info access, array type construction
+		return e.adapter.EvalNode(node)
+	}
+
+	// ===== STEP 1: Evaluate all element expressions =====
+	// Evaluate each element expression to get runtime values
+	// This also checks for errors in element expressions
+	elementCount := len(node.Elements)
+	evaluatedElements := make([]Value, elementCount)
+
+	for idx, elem := range node.Elements {
+		val := e.Eval(elem, ctx)
+		if isError(val) {
+			return val
+		}
+		evaluatedElements[idx] = val
+	}
+
+	// ===== STEP 2-5: Type Resolution, Inference, Coercion, and Array Construction =====
+	// The remaining steps require complex type system operations:
 	//
-	// Array literals can be:
-	// - Typed: var x: array of Integer := [1, 2, 3]
-	// - Type-inferred: [1, 2, 3] (infers array of Integer)
-	// - Mixed types with coercion: [1, 2.5] (infers array of Float)
-	// - Variant arrays: [1, "hello", true] (infers array of Variant)
-	// - Nested arrays: [[1, 2], [3, 4]] (infers array of array of Integer)
+	// Step 2: Determine array type
+	// - Check semantic info for type annotation (arrayTypeFromLiteral)
+	// - If no annotation, infer from element values (inferArrayTypeFromValues)
+	// - Requires: SemanticInfo access, type system, type inference logic
 	//
-	// Type inference rules:
-	// - If type annotation exists (from semantic analyzer), use it
-	// - Otherwise, infer from element types:
-	//   * All same type → array of that type
-	//   * Integer + Float → array of Float
-	//   * Mixed incompatible → error
+	// Step 3: Get element types
+	// - Convert each Value to its corresponding types.Type (typeFromValue)
+	// - Handle special cases: nil, Variant, nested arrays
+	// - Requires: Type system, value-to-type conversion
 	//
-	// Element coercion:
-	// - Integer → Float (when target is Float)
-	// - Any → Variant (when target is Variant)
-	// - Nil → compatible with class/interface/array types
+	// Step 4: Coerce elements to target type
+	// - Coerce each element to match array's element type (coerceArrayElements)
+	// - Integer → Float, Any → Variant, type compatibility checks
+	// - Requires: Type system, coercion logic, compatibility checking
 	//
-	// Static vs Dynamic arrays:
-	// - Type annotation determines if static (with bounds) or dynamic
-	// - Static arrays validate element count matches bounds
+	// Step 5: Validate and construct array
+	// - For static arrays: validate element count matches bounds
+	// - Construct ArrayValue with proper ArrayType metadata
+	// - Requires: ArrayValue construction, type metadata attachment
 	//
-	// Complexity: Medium-High - type inference, element coercion, bounds checking
-	// Full implementation requires:
-	// - Semantic info access for type annotations
-	// - Type system for inference and compatibility checking
-	// - Element-by-element evaluation and coercion
-	// - Array value construction with proper type metadata
+	// All these operations require infrastructure not yet migrated to Evaluator:
+	// - SemanticInfo for type annotations
+	// - Type system for inference, compatibility, coercion
+	// - ArrayType construction and validation
+	// - ArrayValue construction with type metadata
 	//
-	// Delegate to adapter which handles all array literal logic via evalArrayLiteral
+	// Delegate to adapter which handles:
+	// - arrayTypeFromLiteral (semantic info lookup)
+	// - inferArrayTypeFromValues (type inference algorithm)
+	// - coerceArrayElements (element coercion logic)
+	// - ArrayValue construction (with proper type metadata)
+	// - Static array bounds validation
 
 	return e.adapter.EvalNode(node)
 }
