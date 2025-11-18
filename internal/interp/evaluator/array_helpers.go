@@ -102,6 +102,121 @@ func (e *Evaluator) inferArrayTypeFromValues(values []Value, node *ast.ArrayLite
 	return types.NewDynamicArrayType(commonElementType)
 }
 
+// coerceArrayElements validates that all array elements can be coerced to the target element type.
+// This implements type compatibility checking for array literals.
+//
+// Coercion rules:
+//   1. Integer → Float: Numeric promotion for mixed numeric arrays
+//   2. Any → Variant: Wrap heterogeneous types in Variant
+//   3. Same type: No coercion needed
+//   4. Incompatible: Return error
+//
+// Examples:
+//   - [1, 2, 3] with target Integer → valid (no coercion)
+//   - [1, 2.5] with target Float → valid (Integer→Float promotion)
+//   - [1, "hello"] with target Variant → valid (wrap in Variant)
+//   - [1, "hello"] with target Integer → ERROR (incompatible types)
+//
+// Note: This function validates type compatibility. The actual value coercion
+// (creating FloatValue, VariantValue) is delegated to the adapter when constructing
+// the ArrayValue in task 3.5.26. This avoids circular import issues with value types.
+//
+// Returns:
+//   - nil if all elements can be coerced to target type
+//   - error Value if coercion is not possible
+func (e *Evaluator) coerceArrayElements(elements []Value, targetElementType types.Type, node ast.Node) Value {
+	if targetElementType == nil {
+		// No target type - nothing to validate
+		return nil
+	}
+
+	// Validate each element can be coerced to the target type
+	for i, elem := range elements {
+		if err := e.validateCoercion(elem, targetElementType, node, i); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validateCoercion checks if a value can be coerced to the target type.
+// Returns nil if coercion is valid, or an error Value otherwise.
+//
+// This validates type compatibility without performing the actual coercion.
+// The actual value transformation happens in ArrayValue construction.
+func (e *Evaluator) validateCoercion(val Value, targetType types.Type, node ast.Node, index int) Value {
+	if val == nil {
+		// Nil is compatible with all reference types
+		if isReferenceType(targetType) {
+			return nil
+		}
+		return e.newError(node, fmt.Sprintf(
+			"element %d: cannot use nil in array of %s",
+			index,
+			targetType.String(),
+		))
+	}
+
+	// Get the source type
+	sourceType := GetValueType(val)
+
+	// If types match, no coercion needed
+	if sourceType != nil && sourceType.Equals(targetType) {
+		return nil // Valid - no coercion needed
+	}
+
+	// Handle specific coercion cases
+	targetKind := targetType.TypeKind()
+
+	switch targetKind {
+	case "FLOAT":
+		// Integer → Float promotion is valid
+		if sourceType != nil && sourceType.TypeKind() == "INTEGER" {
+			return nil // Valid - Integer can be promoted to Float
+		}
+		// Other types → Float requires explicit conversion
+		return e.newError(node, fmt.Sprintf(
+			"element %d: cannot coerce %s to Float in array literal",
+			index,
+			sourceType.String(),
+		))
+
+	case "VARIANT":
+		// Any type → Variant is always valid (wrapping)
+		return nil
+
+	default:
+		// For other types, check if source type is compatible
+		if sourceType == nil {
+			// Nil without a known type
+			return e.newError(node, fmt.Sprintf(
+				"element %d: cannot use nil in array of %s",
+				index,
+				targetType.String(),
+			))
+		}
+
+		// Types don't match and no coercion rule applies
+		return e.newError(node, fmt.Sprintf(
+			"element %d: cannot coerce %s to %s in array literal",
+			index,
+			sourceType.String(),
+			targetType.String(),
+		))
+	}
+}
+
+// isReferenceType checks if a type is a reference type (class, interface, etc.)
+// Reference types can be nil.
+func isReferenceType(t types.Type) bool {
+	if t == nil {
+		return false
+	}
+	kind := t.TypeKind()
+	return kind == "CLASS" || kind == "INTERFACE" || kind == "ARRAY" || kind == "STRING"
+}
+
 // validateArrayLiteralSize checks if the number of elements matches the expected size
 // for static arrays.
 //
