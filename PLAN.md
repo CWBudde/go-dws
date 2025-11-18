@@ -245,17 +245,18 @@ Complete migration of all parsing code to cursor/combinators.
 **Goal**: Migrate type parsing to cursor/combinators.
 
 **Subtasks**:
-- [ ] **2.7.2.1** Basic type expressions (8h)
+- [x] **2.7.2.1** Basic type expressions (8h)
   - parseTypeExpression, parseSimpleType, parseTypeIdentifier, parseTypeOrExpression
-- [ ] **2.7.2.2** Function pointer types (8h)
+- [x] **2.7.2.2** Function pointer types (8h)
   - parseFunctionPointerType, parseProcedurePointerType, parseMethodPointerType
-- [ ] **2.7.2.3** Array types (6h)
+- [x] **2.7.2.3** Array types (6h)
   - parseArrayType, parseDynamicArrayType
 - [ ] **2.7.2.4** Record types (8h)
   - parseRecordType, parseHelperType, parseRecordFieldDeclarations, parseRecordPropertyDeclaration
-- [ ] **2.7.2.5** Class types (6h)
+  - Note: Record declaration parsing completed in task 2.7.3.4
+- [x] **2.7.2.5** Class types (6h)
   - parseClassType, parseClassOfType
-- [ ] **2.7.2.6** Enum and set types (4h)
+- [x] **2.7.2.6** Enum and set types (4h)
   - parseEnumType, parseSetType
 
 **Files Modified**:
@@ -272,14 +273,15 @@ Complete migration of all parsing code to cursor/combinators.
 **Goal**: Migrate complex declaration parsing.
 
 **Subtasks**:
-- [ ] **2.7.3.1** Function declarations (8h)
+- [x] **2.7.3.1** Function declarations (8h)
   - parseFunctionDeclaration, parseParameterList, parseParameterGroup, modifiers, calling conventions
-- [ ] **2.7.3.2** Class declarations (10h)
+- [x] **2.7.3.2** Class declarations (10h)
   - parseClassDeclaration, parseClassDeclarationBody, parseFieldDeclarations, methods, properties, constructors
-- [ ] **2.7.3.3** Interface declarations (4h)
+- [x] **2.7.3.3** Interface declarations (4h)
   - parseInterfaceDeclaration, parseInterfaceDeclarationBody, parseInterfaceMethodDecl
-- [ ] **2.7.3.4** Record and enum declarations (2h)
+- [x] **2.7.3.4** Record and enum declarations (2h)
   - parseRecordDeclaration, parseEnumDeclaration, parseEnumValue
+  - Completed: Added cursor versions for all record/helper parsing functions
 
 **Files Modified**:
 - `internal/parser/functions.go` (10 functions)
