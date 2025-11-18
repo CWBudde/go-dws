@@ -1043,21 +1043,215 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
     - `VisitRaiseStatement`: Documents explicit and bare raise, exception object validation, message extraction, call stack capture, handlerException state management
   - **Note**: Blocking dependencies noted for future full migration (ExceptionValue, ObjectInstance, ClassInfo must migrate to runtime package first)
 
-- [ ] 3.5.18 Remove Adapter Pattern and Complete Clean Architecture ⏸️ **DEFERRED**
-  - **Status**: Deferred until AST-free runtime types research is complete
-  - **Rationale**: Tasks 3.5.5-3.5.8 use adapter pattern extensions to reach 100% completion. Removing the adapter requires architectural refactoring (AST-free value types) which is a separate long-term effort.
-  - **Original Plan**:
-    - Remove InterpreterAdapter interface from evaluator.go
-    - Remove adapter field from Evaluator struct
-    - Remove SetAdapter() method
-    - Remove EvalNode() method from Interpreter
-    - Update Evaluator.Eval() to handle all cases without adapter fallback
-    - Remove Interpreter.Eval() method (or make it just call evaluator)
-    - Verify all evaluation flows through Evaluator only
-  - Files: `evaluator/evaluator.go`, `interpreter.go`
-  - Estimated: 2 days (after architectural refactoring)
-  - Acceptance: No adapter pattern, clean architecture, Interpreter is thin orchestrator, all tests pass
-  - **Future Work**: See Phase 3 in `docs/task-3.5.4-expansion-plan.md` for AST-free runtime types approach
+### Category A: Operator Evaluation (High Priority)
+
+- [ ] **3.5.19** Migrate Binary Operators (`VisitBinaryExpression`)
+  - **Complexity**: Very High (843 lines in original implementation)
+  - **Requirements**:
+    - Build operator overloading registry
+    - Implement type coercion system
+    - Add short-circuit evaluation framework (??/and/or)
+    - Create 13+ type-specific handlers (Variant, Integer, Float, String, Boolean, Enum, Object, Interface, Class, RTTI, Set, Array, Record)
+    - Handle special operators (in, div, mod, shl, shr, xor)
+  - **Effort**: 3-4 weeks
+
+- [ ] **3.5.20** Migrate Unary Operators (`VisitUnaryExpression`)
+  - **Complexity**: Medium
+  - **Requirements**:
+    - Operator overloading registry (from 3.5.19)
+    - Type coercion system (from 3.5.19)
+  - **Effort**: 1 week
+
+---
+
+### Category B: Function Calls (High Priority)
+
+- [ ] **3.5.21** Migrate Function Call Expression (`VisitCallExpression`)
+  - **Complexity**: Very High (400+ lines, 11 distinct call types)
+  - **Requirements**:
+    - Function pointer call infrastructure
+    - Overload resolution system
+    - Lazy/var parameter handling
+    - Context switching (Self, units, records)
+  - **Call Types**: Function pointers, record methods, interface methods, unit-qualified calls, class constructors, user functions, implicit Self, record static methods, built-ins with var params, external functions
+  - **Effort**: 3-4 weeks
+
+- [ ] **3.5.22** Complete Identifier Migration (`VisitIdentifier`)
+  - **Complexity**: High (currently partial migration)
+  - **Remaining Cases**:
+    - Self keyword and method context
+    - Instance fields/properties (implicit Self)
+    - Lazy parameters (LazyThunk evaluation)
+    - Var parameters (ReferenceValue dereferencing)
+    - External variables (error handling)
+    - Class variables (__CurrentClass__ context)
+    - Function references (with auto-invoke logic)
+    - Built-in function calls
+    - Class name metaclass references
+    - ClassName/ClassType special identifiers
+  - **Effort**: 2-3 weeks
+
+---
+
+### Category C: Array & Collection Operations (Medium Priority)
+
+- [ ] **3.5.23** Migrate Array Literal Expression (`VisitArrayLiteralExpression`)
+  - **Requirements**: Type inference, element coercion, static vs. dynamic arrays
+  - **Effort**: 1 week
+
+- [ ] **3.5.24** Migrate New Array Expression (`VisitNewArrayExpression`)
+  - **Requirements**: Dynamic allocation, multi-dimensional support, element initialization
+  - **Effort**: 1 week
+
+- [ ] **3.5.25** Migrate Index Expression (`VisitIndexExpression`)
+  - **Requirements**: Array/string/property/JSON indexing, multi-index flattening, bounds checking
+  - **Effort**: 1-2 weeks
+
+- [ ] **3.5.26** Migrate Set Literal Expression (`VisitSetLiteral`)
+  - **Requirements**: Range expansion, storage strategies
+  - **Effort**: 3-5 days
+
+---
+
+### Category D: OOP Operations (Medium Priority)
+
+- [ ] **3.5.27** Migrate Member Access (`VisitMemberAccessExpression`)
+  - **Complexity**: High
+  - **Requirements**: Static/unit/instance/property/helper method access modes
+  - **Effort**: 2 weeks
+
+- [ ] **3.5.28** Migrate Method Calls (`VisitMethodCallExpression`)
+  - **Complexity**: Very High
+  - **Requirements**: Virtual dispatch, overload resolution, Self binding
+  - **Effort**: 2-3 weeks
+
+- [ ] **3.5.29** Migrate Object Instantiation (`VisitNewExpression`)
+  - **Requirements**: Constructor dispatch, field initialization, class inheritance
+  - **Effort**: 1-2 weeks
+
+- [ ] **3.5.30** Migrate Inherited Expression (`VisitInheritedExpression`)
+  - **Requirements**: Parent method resolution, argument passing
+  - **Effort**: 1 week
+
+- [ ] **3.5.31** Migrate Type Checking (`VisitIsExpression`)
+  - **Requirements**: Runtime type checking, class hierarchy traversal
+  - **Effort**: 1 week
+
+- [ ] **3.5.32** Migrate Type Casting (`VisitAsExpression`)
+  - **Requirements**: Type casting with interface wrapping/unwrapping
+  - **Effort**: 1 week
+
+- [ ] **3.5.33** Migrate Interface Checking (`VisitImplementsExpression`)
+  - **Requirements**: Interface implementation verification
+  - **Effort**: 3-5 days
+
+- [ ] **3.5.34** Migrate Method Pointers (`VisitAddressOfExpression`)
+  - **Requirements**: Function/method pointer creation, overload resolution
+  - **Effort**: 1 week
+
+---
+
+### Category E: Declarations & Records (Medium Priority)
+
+- [ ] **3.5.35** Migrate Variable Declarations (`VisitVarDeclStatement`)
+  - **Complexity**: Very High (300+ lines)
+  - **Requirements**:
+    - External variable handling
+    - Multi-identifier declarations
+    - Inline type definitions (array of, set of)
+    - Subrange type wrapping
+    - Interface wrapping
+    - Zero value initialization for all types
+  - **Effort**: 2-3 weeks
+
+- [ ] **3.5.36** Migrate Constant Declarations (`VisitConstDecl`)
+  - **Requirements**: Type inference from initializer
+  - **Effort**: 1 week
+
+- [ ] **3.5.37** Migrate Record Literals (`VisitRecordLiteralExpression`)
+  - **Requirements**: Typed/anonymous record construction, field initialization, nested records
+  - **Effort**: 1-2 weeks
+
+---
+
+### Category F: Control Flow & Statements (Medium Priority)
+
+- [ ] **3.5.38** Migrate Assignment Statement (`VisitAssignmentStatement`)
+  - **Complexity**: High
+  - **Requirements**: Lvalue resolution, simple/member/index assignments, compound operators (+=, -=, etc.)
+  - **Effort**: 1-2 weeks
+
+- [ ] **3.5.39** Migrate Try Statement (`VisitTryStatement`)
+  - **Complexity**: Very High
+  - **Requirements**: Defer semantics, exception matching, handler variable binding, ExceptObject management, nested handlers, bare raise support
+  - **Effort**: 2-3 weeks
+
+- [ ] **3.5.40** Migrate Raise Statement (`VisitRaiseStatement`)
+  - **Requirements**: Explicit/bare raise, exception object validation, message extraction, call stack capture
+  - **Effort**: 1 week
+
+---
+
+### Category G: Remaining Expression Methods (~12 methods)
+
+- [ ] **3.5.41** Migrate IfExpression
+- [ ] **3.5.42** Migrate ParenthesizedExpression (if not already covered)
+- [ ] **3.5.43** Migrate TypeOfExpression
+- [ ] **3.5.44** Migrate SizeOfExpression
+- [ ] **3.5.45** Migrate DefaultExpression
+- [ ] **3.5.46** Migrate OldExpression (postconditions)
+- [ ] **3.5.47** Migrate ResultExpression
+- [ ] **3.5.48** Migrate ConditionalDefinedExpression
+- [ ] **3.5.49** Migrate DeclaredExpression
+- [ ] **3.5.50** Migrate DefinedExpression
+- [ ] **3.5.51** Migrate Other remaining expression types
+- [ ] **3.5.52** Final expression cleanup and edge cases
+
+**Effort**: 2-4 weeks (combined)
+
+---
+
+### Category H: Infrastructure Tasks
+
+- [ ] **3.5.53** Enhance Test Coverage
+  - **Current State**: All existing tests pass, zero regressions
+  - **Needed**:
+    - Unit tests for individual visitor methods
+    - Tests for adapter infrastructure methods
+    - Edge case coverage for migrated methods
+    - Performance benchmarks for visitor dispatch
+  - **Target**: 95%+ coverage on evaluator package
+  - **Effort**: 2-3 weeks (ongoing)
+
+- [ ] **3.5.54** Performance Optimization
+  - **Tasks**:
+    - Benchmark visitor pattern vs. original switch
+    - Optimize hot paths (binary ops, function calls)
+    - Profile memory allocations
+    - Consider inline optimizations
+    - Evaluate caching opportunities
+  - **Target**: No more than 5% performance regression vs. baseline
+  - **Effort**: 1-2 weeks
+
+- [ ] **3.5.55** Update Documentation
+  - **Tasks**:
+    - Update CLAUDE.md with new architecture
+    - Create architecture diagrams
+    - Document visitor pattern usage
+    - Create migration guide for contributors
+  - **Files**: `docs/architecture/interpreter.md`, `CLAUDE.md`
+  - **Effort**: 3-5 days
+
+- [ ] **3.5.56** Remove Adapter Pattern ⏸️ **DEFERRED**
+  - **Status**: Blocked on AST-free runtime types architecture
+  - **Steps** (when unblocked):
+    - Remove `InterpreterAdapter` interface
+    - Remove `adapter` field from Evaluator
+    - Remove `EvalNode()` fallback calls
+    - Make Interpreter thin orchestrator only
+  - **Blocker**: Requires AST-free runtime types (separate long-term effort)
+  - **Future Work**: See `docs/task-3.5.4-expansion-plan.md` Phase 3
+  - **Effort**: 2 days (after blocker resolved)
 
 ---
 
