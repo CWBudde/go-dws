@@ -42,32 +42,33 @@ func isError(val Value) bool {
 // This function handles all DWScript identifier patterns in a specific order
 // (matching the original Interpreter.evalIdentifier logic):
 //
-// 1. Self keyword - Special identifier for current object instance
-// 2. Environment lookup - Variables in current scope:
-//    a. External variables (ExternalVarValue) - Error
-//    b. Lazy parameters (LazyThunk) - Force evaluation
-//    c. Var parameters (ReferenceValue) - Dereference
-//    d. Regular variables - Return value
-// 3. Instance context (Self is bound):
-//    a. Instance fields - obj.Field
-//    b. Class variables - obj.Class.ClassVar
-//    c. Properties - obj.Property (with recursion prevention)
-//    d. Methods - Auto-invoke if zero params, else function pointer
-//    e. ClassName identifier - Class name as string
-//    f. ClassType identifier - Class metadata
-// 4. Class method context (__CurrentClass__ is bound):
-//    a. ClassName identifier
-//    b. ClassType identifier
-//    c. Class variables
-// 5. Function references:
-//    a. User functions - Auto-invoke if zero params, else function pointer
-//    b. Built-in functions - Auto-invoke with zero args
-// 6. Class name metaclass references - Class metadata
-// 7. Undefined identifier - Error
+//  1. Self keyword - Special identifier for current object instance
+//  2. Environment lookup - Variables in current scope:
+//     a. External variables (ExternalVarValue) - Error
+//     b. Lazy parameters (LazyThunk) - Force evaluation
+//     c. Var parameters (ReferenceValue) - Dereference
+//     d. Regular variables - Return value
+//  3. Instance context (Self is bound):
+//     a. Instance fields - obj.Field
+//     b. Class variables - obj.Class.ClassVar
+//     c. Properties - obj.Property (with recursion prevention)
+//     d. Methods - Auto-invoke if zero params, else function pointer
+//     e. ClassName identifier - Class name as string
+//     f. ClassType identifier - Class metadata
+//  4. Class method context (__CurrentClass__ is bound):
+//     a. ClassName identifier
+//     b. ClassType identifier
+//     c. Class variables
+//  5. Function references:
+//     a. User functions - Auto-invoke if zero params, else function pointer
+//     b. Built-in functions - Auto-invoke with zero args
+//  6. Class name metaclass references - Class metadata
+//  7. Undefined identifier - Error
 //
 // Complexity: Very High (220+ lines in original, many complex lookup paths)
 // Migration status: Partial - using adapter for complex cases that require infrastructure
-//                   not yet migrated (LazyThunk, ReferenceValue, property dispatch, etc.)
+//
+//	not yet migrated (LazyThunk, ReferenceValue, property dispatch, etc.)
 func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext) Value {
 	// ===== IDENTIFIER TYPE 1: Self Keyword =====
 	// Special case for Self keyword - refers to current object instance
@@ -271,7 +272,7 @@ func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *Execu
 
 	// Allow string concatenation with RTTI_TYPEINFO
 	case (left.Type() == "STRING" && right.Type() == "RTTI_TYPEINFO") ||
-	     (left.Type() == "RTTI_TYPEINFO" && right.Type() == "STRING"):
+		(left.Type() == "RTTI_TYPEINFO" && right.Type() == "STRING"):
 		if node.Operator == "+" {
 			return &runtime.StringValue{Value: left.String() + right.String()}
 		}
@@ -383,20 +384,20 @@ func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *Exe
 // This function handles all DWScript function call patterns in a specific order
 // (matching the original Interpreter.evalCallExpression logic):
 //
-// 1. Function pointer calls - Identifier resolving to FunctionPointerValue
-// 2. Member access calls (detected by CallExpression.Function being MemberAccessExpression):
-//    a. Record method calls (obj.Method where obj is RecordValue)
-//    b. Interface method calls (intf.Method where intf is InterfaceInstance)
-//    c. Unit-qualified function calls (UnitName.FunctionName)
-//    d. Class constructor calls (TClassName.Create)
-// 3. User-defined function calls - Regular function with overload resolution
-// 4. Implicit Self method calls - MethodName() within class context
-// 5. Record static method calls - MethodName() within record context (__CurrentRecord__)
-// 6. Built-in functions with var parameters - Inc, Dec, Insert, Delete, etc.
-// 7. External functions with var parameters - External Go functions
-// 8. Default() function - Special handling for Default(TypeName)
-// 9. Type casts - TypeName(expression)
-// 10. Regular built-in functions - All other built-in functions
+//  1. Function pointer calls - Identifier resolving to FunctionPointerValue
+//  2. Member access calls (detected by CallExpression.Function being MemberAccessExpression):
+//     a. Record method calls (obj.Method where obj is RecordValue)
+//     b. Interface method calls (intf.Method where intf is InterfaceInstance)
+//     c. Unit-qualified function calls (UnitName.FunctionName)
+//     d. Class constructor calls (TClassName.Create)
+//  3. User-defined function calls - Regular function with overload resolution
+//  4. Implicit Self method calls - MethodName() within class context
+//  5. Record static method calls - MethodName() within record context (__CurrentRecord__)
+//  6. Built-in functions with var parameters - Inc, Dec, Insert, Delete, etc.
+//  7. External functions with var parameters - External Go functions
+//  8. Default() function - Special handling for Default(TypeName)
+//  9. Type casts - TypeName(expression)
+//  10. Regular built-in functions - All other built-in functions
 //
 // The order matters because some patterns overlap:
 // - "TClass.Create()" could be a member access OR a class constructor
@@ -405,7 +406,8 @@ func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *Exe
 //
 // Complexity: Very High (400+ lines in original, 11 distinct paths)
 // Migration status: Partial - using adapter for complex cases that require infrastructure
-//                   not yet migrated (lazy/var params, overload resolution, etc.)
+//
+//	not yet migrated (lazy/var params, overload resolution, etc.)
 func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *ExecutionContext) Value {
 	// ===== CALL TYPE 1: Function Pointer Calls =====
 	// Check if the function expression is an identifier that resolves to a FunctionPointerValue
