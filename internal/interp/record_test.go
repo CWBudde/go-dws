@@ -58,8 +58,8 @@ func TestRecordValueCreation(t *testing.T) {
 
 		// Set some field values
 		if rv, ok := recordVal.(*RecordValue); ok {
-			rv.Fields["X"] = &IntegerValue{Value: 10}
-			rv.Fields["Y"] = &IntegerValue{Value: 20}
+			rv.Fields["x"] = &IntegerValue{Value: 10}
+			rv.Fields["y"] = &IntegerValue{Value: 20}
 		}
 
 		// String should show record type and fields
@@ -118,9 +118,9 @@ func TestEvalRecordLiteral(t *testing.T) {
 		}
 
 		// Check field values
-		xVal, ok := recordVal.Fields["X"]
+		xVal, ok := recordVal.Fields["x"]
 		if !ok {
-			t.Fatal("Field 'X' not found")
+			t.Fatal("Field 'x' not found")
 		}
 		if intVal, ok := xVal.(*IntegerValue); ok {
 			if intVal.Value != 10 {
@@ -130,9 +130,9 @@ func TestEvalRecordLiteral(t *testing.T) {
 			t.Errorf("X is not an IntegerValue, got %T", xVal)
 		}
 
-		yVal, ok := recordVal.Fields["Y"]
+		yVal, ok := recordVal.Fields["y"]
 		if !ok {
-			t.Fatal("Field 'Y' not found")
+			t.Fatal("Field 'y' not found")
 		}
 		if intVal, ok := yVal.(*IntegerValue); ok {
 			if intVal.Value != 20 {
@@ -174,12 +174,12 @@ func TestEvalRecordLiteral(t *testing.T) {
 		pVal, _ := interp.env.Get("p")
 		recordVal := pVal.(*RecordValue)
 
-		xVal := recordVal.Fields["X"].(*IntegerValue)
+		xVal := recordVal.Fields["x"].(*IntegerValue)
 		if xVal.Value != 10 {
 			t.Errorf("X = %d, want 10", xVal.Value)
 		}
 
-		yVal := recordVal.Fields["Y"].(*IntegerValue)
+		yVal := recordVal.Fields["y"].(*IntegerValue)
 		if yVal.Value != 20 {
 			t.Errorf("Y = %d, want 20", yVal.Value)
 		}
@@ -322,12 +322,12 @@ func TestRecordFieldAssignment(t *testing.T) {
 			t.Fatalf("Expected RecordValue, got %T", pVal)
 		}
 
-		xVal := recordVal.Fields["X"].(*IntegerValue)
+		xVal := recordVal.Fields["x"].(*IntegerValue)
 		if xVal.Value != 30 {
 			t.Errorf("p.X = %d, want 30", xVal.Value)
 		}
 
-		yVal := recordVal.Fields["Y"].(*IntegerValue)
+		yVal := recordVal.Fields["y"].(*IntegerValue)
 		if yVal.Value != 20 {
 			t.Errorf("p.Y = %d, want 20 (should be unchanged)", yVal.Value)
 		}
@@ -365,12 +365,12 @@ func TestRecordFieldAssignment(t *testing.T) {
 		pVal, _ := interp.env.Get("p")
 		recordVal := pVal.(*RecordValue)
 
-		xVal := recordVal.Fields["X"].(*IntegerValue)
+		xVal := recordVal.Fields["x"].(*IntegerValue)
 		if xVal.Value != 10 {
 			t.Errorf("p.X = %d, want 10", xVal.Value)
 		}
 
-		yVal := recordVal.Fields["Y"].(*IntegerValue)
+		yVal := recordVal.Fields["y"].(*IntegerValue)
 		if yVal.Value != 15 {
 			t.Errorf("p.Y = %d, want 15", yVal.Value)
 		}
@@ -417,7 +417,7 @@ func TestRecordCopying(t *testing.T) {
 		// Get p1 - should be unchanged
 		p1Val, _ := interp.env.Get("p1")
 		p1Record := p1Val.(*RecordValue)
-		p1X := p1Record.Fields["X"].(*IntegerValue)
+		p1X := p1Record.Fields["x"].(*IntegerValue)
 		if p1X.Value != 10 {
 			t.Errorf("p1.X = %d, want 10 (should not be affected by p2 modification)", p1X.Value)
 		}
@@ -425,7 +425,7 @@ func TestRecordCopying(t *testing.T) {
 		// Get p2 - should have modified value
 		p2Val, _ := interp.env.Get("p2")
 		p2Record := p2Val.(*RecordValue)
-		p2X := p2Record.Fields["X"].(*IntegerValue)
+		p2X := p2Record.Fields["x"].(*IntegerValue)
 		if p2X.Value != 99 {
 			t.Errorf("p2.X = %d, want 99", p2X.Value)
 		}
@@ -470,8 +470,8 @@ func TestRecordCopying(t *testing.T) {
 		// p3 should be unaffected by changes to p1 and p2
 		p3Val, _ := interp.env.Get("p3")
 		p3Record := p3Val.(*RecordValue)
-		p3X := p3Record.Fields["X"].(*IntegerValue)
-		p3Y := p3Record.Fields["Y"].(*IntegerValue)
+		p3X := p3Record.Fields["x"].(*IntegerValue)
+		p3Y := p3Record.Fields["y"].(*IntegerValue)
 
 		if p3X.Value != 1 {
 			t.Errorf("p3.X = %d, want 1 (original value)", p3X.Value)

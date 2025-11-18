@@ -49,9 +49,9 @@ func TestEvalRecordLiteral_TypedSimple(t *testing.T) {
 	}
 
 	// Verify field values
-	xVal, ok := recordVal.Fields["X"]
+	xVal, ok := recordVal.Fields["x"]
 	if !ok {
-		t.Fatal("field 'X' not found")
+		t.Fatal("field 'x' not found")
 	}
 	if intVal, ok := xVal.(*IntegerValue); ok {
 		if intVal.Value != 10 {
@@ -61,9 +61,9 @@ func TestEvalRecordLiteral_TypedSimple(t *testing.T) {
 		t.Errorf("X is not IntegerValue, got %T", xVal)
 	}
 
-	yVal, ok := recordVal.Fields["Y"]
+	yVal, ok := recordVal.Fields["y"]
 	if !ok {
-		t.Fatal("field 'Y' not found")
+		t.Fatal("field 'y' not found")
 	}
 	if intVal, ok := yVal.(*IntegerValue); ok {
 		if intVal.Value != 20 {
@@ -105,12 +105,12 @@ func TestEvalRecordLiteral_AnonymousWithTypeAnnotation(t *testing.T) {
 	}
 
 	// Verify field values
-	xVal := recordVal.Fields["X"].(*IntegerValue)
+	xVal := recordVal.Fields["x"].(*IntegerValue)
 	if xVal.Value != 5 {
 		t.Errorf("X = %d, want 5", xVal.Value)
 	}
 
-	yVal := recordVal.Fields["Y"].(*IntegerValue)
+	yVal := recordVal.Fields["y"].(*IntegerValue)
 	if yVal.Value != 15 {
 		t.Errorf("Y = %d, want 15", yVal.Value)
 	}
@@ -241,7 +241,7 @@ func TestEvalRecordLiteral_NestedRecords(t *testing.T) {
 	}
 
 	// Verify TopLeft field
-	topLeftVal, ok := rectRec.Fields["TopLeft"]
+	topLeftVal, ok := rectRec.Fields["topleft"]
 	if !ok {
 		t.Fatal("field 'TopLeft' not found")
 	}
@@ -254,7 +254,7 @@ func TestEvalRecordLiteral_NestedRecords(t *testing.T) {
 	}
 
 	// Verify BottomRight field
-	bottomRightVal, ok := rectRec.Fields["BottomRight"]
+	bottomRightVal, ok := rectRec.Fields["bottomright"]
 	if !ok {
 		t.Fatal("field 'BottomRight' not found")
 	}
@@ -296,12 +296,12 @@ func TestEvalRecordLiteral_WithExpressions(t *testing.T) {
 
 	// Verify field values are computed correctly
 	recordVal := pVal.(*RecordValue)
-	xVal := recordVal.Fields["X"].(*IntegerValue)
+	xVal := recordVal.Fields["x"].(*IntegerValue)
 	if xVal.Value != 10 { // x + 5 = 5 + 5 = 10
 		t.Errorf("X = %d, want 10", xVal.Value)
 	}
 
-	yVal := recordVal.Fields["Y"].(*IntegerValue)
+	yVal := recordVal.Fields["y"].(*IntegerValue)
 	if yVal.Value != 20 { // y * 2 = 10 * 2 = 20
 		t.Errorf("Y = %d, want 20", yVal.Value)
 	}

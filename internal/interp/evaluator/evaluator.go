@@ -226,6 +226,64 @@ type InterpreterAdapter interface {
 	// Returns an error if index is out of range.
 	GetStringChar(str Value, index Value) (Value, error)
 
+	// ===== Task 3.5.7: Property, Field, and Member Access Adapter Methods =====
+
+	// ===== Field Access =====
+
+	// GetObjectField retrieves a field value from an object.
+	// Returns the field value and an error if the field does not exist.
+	GetObjectField(obj Value, fieldName string) (Value, error)
+
+	// SetObjectField sets a field value in an object.
+	// Returns an error if the field does not exist or the value is incompatible.
+	SetObjectField(obj Value, fieldName string, value Value) error
+
+	// GetRecordField retrieves a field value from a record.
+	// Returns the field value and an error if the field does not exist.
+	GetRecordField(record Value, fieldName string) (Value, error)
+
+	// SetRecordField sets a field value in a record.
+	// Returns an error if the field does not exist or the value is incompatible.
+	SetRecordField(record Value, fieldName string, value Value) error
+
+	// ===== Property Access =====
+
+	// GetPropertyValue retrieves a property value from an object.
+	// Returns the property value and an error if the property does not exist.
+	GetPropertyValue(obj Value, propName string) (Value, error)
+
+	// SetPropertyValue sets a property value in an object.
+	// Returns an error if the property does not exist or the value is incompatible.
+	SetPropertyValue(obj Value, propName string, value Value) error
+
+	// GetIndexedProperty retrieves an indexed property value from an object.
+	// Returns the property value and an error if the property does not exist or indices are invalid.
+	GetIndexedProperty(obj Value, propName string, indices []Value) (Value, error)
+
+	// SetIndexedProperty sets an indexed property value in an object.
+	// Returns an error if the property does not exist, indices are invalid, or value is incompatible.
+	SetIndexedProperty(obj Value, propName string, indices []Value, value Value) error
+
+	// ===== Method Calls =====
+
+	// CallMethod executes a method on an object with the given arguments.
+	// Returns the method result value.
+	CallMethod(obj Value, methodName string, args []Value, node ast.Node) Value
+
+	// CallInheritedMethod executes an inherited (parent) method with the given arguments.
+	// Returns the method result value.
+	CallInheritedMethod(obj Value, methodName string, args []Value) Value
+
+	// ===== Object Operations =====
+
+	// CreateObject creates a new object instance of the specified class with constructor arguments.
+	// Returns the created object value and an error if the class does not exist or construction fails.
+	CreateObject(className string, args []Value) (Value, error)
+
+	// CheckType checks if an object is of a specified type (implements 'is' operator).
+	// Returns true if the object is compatible with the specified type name.
+	CheckType(obj Value, typeName string) bool
+
 	// Phase 3.5.4 - Phase 2C: Property & Indexing System infrastructure
 	// Property and indexing operations are available through existing infrastructure:
 	//
