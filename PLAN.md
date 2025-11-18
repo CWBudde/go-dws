@@ -812,21 +812,26 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Acceptance: Adapter methods implemented, tests pass
   - **Status**: ✅ COMPLETE - 2/24 methods migrated (8.3%), tests passing
 
-- [ ] 3.5.9 Create Environment Adapter and Migrate Helper Functions
+- [x] 3.5.9 Create Environment Adapter and Migrate Helper Functions
   - Add Environment adapter methods to reduce direct Environment access
-  - **Environment Adapter Methods**:
+  - **Environment Adapter Methods Added**:
     - `GetVariable(name string, ctx *ExecutionContext) (Value, bool)` - Variable lookup
     - `DefineVariable(name string, value Value, ctx *ExecutionContext)` - Variable definition
     - `CreateEnclosedEnvironment(ctx *ExecutionContext) *ExecutionContext` - New scope
-  - **Migrate Helper Functions** from evaluator to be reusable:
-    - Move `isTruthy`, `variantToBool` to shared helpers
-    - Move `valuesEqual`, `isInRange` to shared helpers
-    - Move `runeLength`, `runeAt` to string utilities
-  - Create `internal/interp/evaluator/helpers.go` with shared utilities
-  - Files: `evaluator/evaluator.go`, `evaluator/helpers.go`, `interpreter.go`
+  - **Helper Functions Migrated** to `helpers.go`:
+    - `IsTruthy`, `VariantToBool` - Boolean conversion for conditionals
+    - `ValuesEqual`, `IsInRange` - Value comparison and range checking
+    - `RuneLength`, `RuneAt` - String/rune utilities
+  - **Refactoring**:
+    - Created `internal/interp/evaluator/helpers.go` with 6 exported helper functions
+    - Removed 200+ lines of duplicate helper code from `visitor_statements.go`
+    - Updated all references to use capitalized (exported) versions
+    - Updated test files to use new helper names
+  - Files: `evaluator/evaluator.go`, `evaluator/helpers.go`, `evaluator/visitor_statements.go`, `evaluator/visitor_expressions.go`, `evaluator/variant_bool_test.go`, `interpreter.go`
   - Estimated: 2-3 days
-  - Acceptance: Environment abstraction complete, helper functions reusable, tests pass
-  - **Enables**: Cleaner variable access in visitor methods
+  - Acceptance: ✅ Environment abstraction complete, helper functions reusable, all tests pass
+  - **Status**: ✅ COMPLETE - 3 adapter methods added, 6 helper functions extracted and reused
+  - **Enables**: Cleaner variable access in visitor methods for task 3.5.10
 
 - [ ] 3.5.10 Migrate Identifier and Simple Variable Lookups
   - Migrate `VisitIdentifier` using environment adapter
