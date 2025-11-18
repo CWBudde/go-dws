@@ -216,17 +216,17 @@ Complete migration of all parsing code to cursor/combinators.
 **Goal**: Migrate all remaining statement parsing to cursor/combinators.
 
 **Subtasks**:
-- [ ] **2.7.1.1** Complete `statements.go` migration (8h)
+- [x] **2.7.1.1** Complete `statements.go` migration (8h)
   - parseConstDeclaration, parseTypeDeclarationStatement, parseUnitDeclaration, parseUsesClause
-- [ ] **2.7.1.2** Complete `declarations.go` migration (12h)
+- [x] **2.7.1.2** Complete `declarations.go` migration (12h)
   - Simple declarations, forward declarations, visibility modifiers, declaration blocks
-- [ ] **2.7.1.3** Migrate `operators.go` (6h)
+- [x] **2.7.1.3** Migrate `operators.go` (6h)
   - Operator overloading, implicit/explicit conversions
-- [ ] **2.7.1.4** Migrate `sets.go` (4h)
+- [x] **2.7.1.4** Migrate `sets.go` (4h)
   - Set declarations, literals, constructors, operations
-- [ ] **2.7.1.5** Complete `arrays.go` migration (6h)
+- [x] **2.7.1.5** Complete `arrays.go` migration (6h)
   - Array declarations, bounds, dynamic arrays
-- [ ] **2.7.1.6** Integration testing (4h)
+- [x] **2.7.1.6** Integration testing (4h)
   - Complex programs, nested blocks, error recovery
 
 **Files Modified**:

@@ -90,8 +90,14 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 
 		// If it has zero parameters, auto-invoke it
 		if paramCount == 0 {
-			// The adapter will handle checking if the function pointer is nil
-			// and raising the appropriate exception
+			// Check if the function pointer is nil (not assigned) BEFORE invoking.
+			// We check this here to raise a catchable DWScript exception instead of
+			// returning an ErrorValue that would bypass exception handlers.
+			if e.adapter.IsFunctionPointerNil(val) {
+				// Raise a catchable exception (sets ctx.Exception())
+				e.adapter.RaiseException("Exception", "Function pointer is nil", &node.Token.Pos)
+				return &runtime.NilValue{}
+			}
 			return e.adapter.CallFunctionPointer(val, []Value{}, node)
 		}
 	}

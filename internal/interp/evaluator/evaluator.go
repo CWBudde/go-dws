@@ -307,6 +307,10 @@ type InterpreterAdapter interface {
 	// Returns 0 for non-function-pointer values.
 	GetFunctionPointerParamCount(funcPtr Value) int
 
+	// IsFunctionPointerNil checks if a function pointer is nil (unassigned).
+	// Returns true if the function pointer has no function or lambda assigned.
+	IsFunctionPointerNil(funcPtr Value) bool
+
 	// ===== Record Operations (Task 3.5.7) =====
 
 	// CreateRecord creates a record value from field values.

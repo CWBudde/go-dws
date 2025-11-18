@@ -1409,7 +1409,7 @@ func (i *Interpreter) CheckType(obj evaluator.Value, typeName string) bool {
 }
 
 // CastType performs type casting (implements 'as' operator).
-// Task 3.5.7: Adapter method for type casting.
+// Task 3.5.8: Adapter method for type casting.
 func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.Value, error) {
 	// Convert to internal type
 	internalObj := obj.(Value)
@@ -1424,7 +1424,7 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 }
 
 // CreateFunctionPointer creates a function pointer value from a function declaration.
-// Task 3.5.7: Adapter method for function pointer creation.
+// Task 3.5.8: Adapter method for function pointer creation.
 func (i *Interpreter) CreateFunctionPointer(fn *ast.FunctionDecl, closure any) evaluator.Value {
 	// Convert closure to Environment
 	var env *Environment
@@ -1439,7 +1439,7 @@ func (i *Interpreter) CreateFunctionPointer(fn *ast.FunctionDecl, closure any) e
 }
 
 // CreateLambda creates a lambda/closure value from a lambda expression.
-// Task 3.5.7: Adapter method for lambda creation.
+// Task 3.5.8: Adapter method for lambda creation.
 func (i *Interpreter) CreateLambda(lambda *ast.LambdaExpression, closure any) evaluator.Value {
 	// Convert closure to Environment
 	var env *Environment
@@ -1454,14 +1454,14 @@ func (i *Interpreter) CreateLambda(lambda *ast.LambdaExpression, closure any) ev
 }
 
 // IsFunctionPointer checks if a value is a function pointer.
-// Task 3.5.7: Adapter method for function pointer type checking.
+// Task 3.5.8: Adapter method for function pointer type checking.
 func (i *Interpreter) IsFunctionPointer(value evaluator.Value) bool {
 	_, ok := value.(*FunctionPointerValue)
 	return ok
 }
 
 // GetFunctionPointerParamCount returns the number of parameters a function pointer expects.
-// Task 3.5.7: Adapter method for function pointer parameter count.
+// Task 3.5.8: Adapter method for function pointer parameter count.
 func (i *Interpreter) GetFunctionPointerParamCount(funcPtr evaluator.Value) int {
 	fp, ok := funcPtr.(*FunctionPointerValue)
 	if !ok {
@@ -1477,8 +1477,20 @@ func (i *Interpreter) GetFunctionPointerParamCount(funcPtr evaluator.Value) int 
 	return 0
 }
 
+// IsFunctionPointerNil checks if a function pointer is nil (unassigned).
+// Task 3.5.8: Adapter method for function pointer nil checking.
+func (i *Interpreter) IsFunctionPointerNil(funcPtr evaluator.Value) bool {
+	fp, ok := funcPtr.(*FunctionPointerValue)
+	if !ok {
+		return false
+	}
+
+	// A function pointer is nil if both Function and Lambda are nil
+	return fp.Function == nil && fp.Lambda == nil
+}
+
 // CreateRecord creates a record value from field values.
-// Task 3.5.7: Adapter method for record construction.
+// Task 3.5.8: Adapter method for record construction.
 func (i *Interpreter) CreateRecord(recordType string, fields map[string]evaluator.Value) (evaluator.Value, error) {
 	// Look up the record type
 	recordTypeKey := "__record_type_" + strings.ToLower(recordType)
