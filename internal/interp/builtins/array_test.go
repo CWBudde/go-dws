@@ -99,9 +99,9 @@ func TestArrayCopy(t *testing.T) {
 	tests := []struct {
 		name     string
 		str      string
+		expected string
 		index    int64
 		count    int64
-		expected string
 	}{
 		{
 			name:     "first 3 characters",
@@ -244,36 +244,36 @@ func TestIndexOf(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
 		array      *runtime.ArrayValue
-		value      Value
 		startIndex *int64
+		value      Value
+		name       string
 		expected   int64
 		isError    bool
 	}{
 		{
-			name:     "find first occurrence",
 			array:    testArray,
 			value:    &runtime.IntegerValue{Value: 20},
+			name:     "find first occurrence",
 			expected: 1,
 		},
 		{
-			name:       "find from index 2",
 			array:      testArray,
 			value:      &runtime.IntegerValue{Value: 20},
+			name:       "find from index 2",
 			startIndex: ptr(int64(2)),
 			expected:   3,
 		},
 		{
-			name:     "value not found",
 			array:    testArray,
 			value:    &runtime.IntegerValue{Value: 99},
+			name:     "value not found",
 			expected: -1,
 		},
 		{
-			name:       "start index out of bounds",
 			array:      testArray,
 			value:      &runtime.IntegerValue{Value: 20},
+			name:       "start index out of bounds",
 			startIndex: ptr(int64(10)),
 			expected:   -1,
 		},

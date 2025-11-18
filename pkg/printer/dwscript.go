@@ -24,9 +24,9 @@ func (p *Printer) printBinaryExpression(be *ast.BinaryExpression) {
 
 func (p *Printer) printUnaryExpression(ue *ast.UnaryExpression) {
 	p.write(ue.Operator)
-	// Add space for keyword operators
+	// Add space for keyword operators (required for parsing)
 	if ue.Operator == "not" {
-		p.space()
+		p.requiredSpace()
 	}
 	p.printDWScript(ue.Right)
 }

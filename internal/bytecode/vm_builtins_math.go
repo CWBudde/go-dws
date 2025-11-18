@@ -9,6 +9,7 @@ import (
 
 // registerMathBuiltins registers all math functions
 func (vm *VM) registerMathBuiltins() {
+	vm.builtins["Pi"] = builtinPi
 	vm.builtins["Sign"] = builtinSign
 	vm.builtins["Odd"] = builtinOdd
 	vm.builtins["Frac"] = builtinFrac
