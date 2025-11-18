@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cwbudde/go-dws/pkg/ast"
 	pkgast "github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -34,21 +33,21 @@ func TestCompiler_SetSemanticInfo(t *testing.T) {
 func TestCompiler_CompileHelperDecl(t *testing.T) {
 	tests := []struct {
 		name        string
-		decl        *ast.HelperDecl
+		decl        *pkgast.HelperDecl
 		expectError bool
 		checkFunc   func(*testing.T, *Compiler)
 	}{
 		{
 			name: "simple_helper",
-			decl: &ast.HelperDecl{
-				Name: &ast.Identifier{Value: "TStringHelper"},
-				ForType: &ast.TypeAnnotation{
+			decl: &pkgast.HelperDecl{
+				Name: &pkgast.Identifier{Value: "TStringHelper"},
+				ForType: &pkgast.TypeAnnotation{
 					Name: "String",
 				},
-				Methods:     []*ast.FunctionDecl{},
-				Properties:  []*ast.PropertyDecl{},
-				ClassVars:   []*ast.FieldDecl{},
-				ClassConsts: []*ast.ConstDecl{},
+				Methods:     []*pkgast.FunctionDecl{},
+				Properties:  []*pkgast.PropertyDecl{},
+				ClassVars:   []*pkgast.FieldDecl{},
+				ClassConsts: []*pkgast.ConstDecl{},
 			},
 			expectError: false,
 			checkFunc: func(t *testing.T, c *Compiler) {
@@ -66,18 +65,18 @@ func TestCompiler_CompileHelperDecl(t *testing.T) {
 		},
 		{
 			name: "helper_with_methods",
-			decl: &ast.HelperDecl{
-				Name: &ast.Identifier{Value: "TIntHelper"},
-				ForType: &ast.TypeAnnotation{
+			decl: &pkgast.HelperDecl{
+				Name: &pkgast.Identifier{Value: "TIntHelper"},
+				ForType: &pkgast.TypeAnnotation{
 					Name: "Integer",
 				},
-				Methods: []*ast.FunctionDecl{
-					{Name: &ast.Identifier{Value: "ToString"}},
-					{Name: &ast.Identifier{Value: "ToHex"}},
+				Methods: []*pkgast.FunctionDecl{
+					{Name: &pkgast.Identifier{Value: "ToString"}},
+					{Name: &pkgast.Identifier{Value: "ToHex"}},
 				},
-				Properties:  []*ast.PropertyDecl{},
-				ClassVars:   []*ast.FieldDecl{},
-				ClassConsts: []*ast.ConstDecl{},
+				Properties:  []*pkgast.PropertyDecl{},
+				ClassVars:   []*pkgast.FieldDecl{},
+				ClassConsts: []*pkgast.ConstDecl{},
 			},
 			expectError: false,
 			checkFunc: func(t *testing.T, c *Compiler) {
@@ -98,18 +97,18 @@ func TestCompiler_CompileHelperDecl(t *testing.T) {
 		},
 		{
 			name: "helper_with_properties",
-			decl: &ast.HelperDecl{
-				Name: &ast.Identifier{Value: "TStringHelper"},
-				ForType: &ast.TypeAnnotation{
+			decl: &pkgast.HelperDecl{
+				Name: &pkgast.Identifier{Value: "TStringHelper"},
+				ForType: &pkgast.TypeAnnotation{
 					Name: "String",
 				},
-				Methods: []*ast.FunctionDecl{},
-				Properties: []*ast.PropertyDecl{
-					{Name: &ast.Identifier{Value: "Length"}},
-					{Name: &ast.Identifier{Value: "Chars"}},
+				Methods: []*pkgast.FunctionDecl{},
+				Properties: []*pkgast.PropertyDecl{
+					{Name: &pkgast.Identifier{Value: "Length"}},
+					{Name: &pkgast.Identifier{Value: "Chars"}},
 				},
-				ClassVars:   []*ast.FieldDecl{},
-				ClassConsts: []*ast.ConstDecl{},
+				ClassVars:   []*pkgast.FieldDecl{},
+				ClassConsts: []*pkgast.ConstDecl{},
 			},
 			expectError: false,
 			checkFunc: func(t *testing.T, c *Compiler) {
@@ -124,18 +123,18 @@ func TestCompiler_CompileHelperDecl(t *testing.T) {
 		},
 		{
 			name: "helper_with_class_vars",
-			decl: &ast.HelperDecl{
-				Name: &ast.Identifier{Value: "THelper"},
-				ForType: &ast.TypeAnnotation{
+			decl: &pkgast.HelperDecl{
+				Name: &pkgast.Identifier{Value: "THelper"},
+				ForType: &pkgast.TypeAnnotation{
 					Name: "Integer",
 				},
-				Methods:    []*ast.FunctionDecl{},
-				Properties: []*ast.PropertyDecl{},
-				ClassVars: []*ast.FieldDecl{
-					{Name: &ast.Identifier{Value: "GlobalVar1"}},
-					{Name: &ast.Identifier{Value: "GlobalVar2"}},
+				Methods:    []*pkgast.FunctionDecl{},
+				Properties: []*pkgast.PropertyDecl{},
+				ClassVars: []*pkgast.FieldDecl{
+					{Name: &pkgast.Identifier{Value: "GlobalVar1"}},
+					{Name: &pkgast.Identifier{Value: "GlobalVar2"}},
 				},
-				ClassConsts: []*ast.ConstDecl{},
+				ClassConsts: []*pkgast.ConstDecl{},
 			},
 			expectError: false,
 			checkFunc: func(t *testing.T, c *Compiler) {
@@ -150,22 +149,22 @@ func TestCompiler_CompileHelperDecl(t *testing.T) {
 		},
 		{
 			name: "helper_with_class_consts",
-			decl: &ast.HelperDecl{
-				Name: &ast.Identifier{Value: "THelper"},
-				ForType: &ast.TypeAnnotation{
+			decl: &pkgast.HelperDecl{
+				Name: &pkgast.Identifier{Value: "THelper"},
+				ForType: &pkgast.TypeAnnotation{
 					Name: "Integer",
 				},
-				Methods:    []*ast.FunctionDecl{},
-				Properties: []*ast.PropertyDecl{},
-				ClassVars:  []*ast.FieldDecl{},
-				ClassConsts: []*ast.ConstDecl{
+				Methods:    []*pkgast.FunctionDecl{},
+				Properties: []*pkgast.PropertyDecl{},
+				ClassVars:  []*pkgast.FieldDecl{},
+				ClassConsts: []*pkgast.ConstDecl{
 					{
-						Name:  &ast.Identifier{Value: "MaxValue"},
-						Value: &ast.IntegerLiteral{Value: 100},
+						Name:  &pkgast.Identifier{Value: "MaxValue"},
+						Value: &pkgast.IntegerLiteral{Value: 100},
 					},
 					{
-						Name:  &ast.Identifier{Value: "MinValue"},
-						Value: &ast.IntegerLiteral{Value: 0},
+						Name:  &pkgast.Identifier{Value: "MinValue"},
+						Value: &pkgast.IntegerLiteral{Value: 0},
 					},
 				},
 			},
@@ -187,16 +186,16 @@ func TestCompiler_CompileHelperDecl(t *testing.T) {
 		},
 		{
 			name: "helper_with_parent",
-			decl: &ast.HelperDecl{
-				Name: &ast.Identifier{Value: "TChildHelper"},
-				ForType: &ast.TypeAnnotation{
+			decl: &pkgast.HelperDecl{
+				Name: &pkgast.Identifier{Value: "TChildHelper"},
+				ForType: &pkgast.TypeAnnotation{
 					Name: "String",
 				},
-				ParentHelper: &ast.Identifier{Value: "TStringHelper"},
-				Methods:      []*ast.FunctionDecl{},
-				Properties:   []*ast.PropertyDecl{},
-				ClassVars:    []*ast.FieldDecl{},
-				ClassConsts:  []*ast.ConstDecl{},
+				ParentHelper: &pkgast.Identifier{Value: "TStringHelper"},
+				Methods:      []*pkgast.FunctionDecl{},
+				Properties:   []*pkgast.PropertyDecl{},
+				ClassVars:    []*pkgast.FieldDecl{},
+				ClassConsts:  []*pkgast.ConstDecl{},
 			},
 			expectError: false,
 			checkFunc: func(t *testing.T, c *Compiler) {
@@ -238,17 +237,17 @@ func TestCompiler_CompileHelperDecl(t *testing.T) {
 func TestCompiler_CompileRecordDecl(t *testing.T) {
 	tests := []struct {
 		name        string
-		decl        *ast.RecordDecl
+		decl        *pkgast.RecordDecl
 		expectError bool
 		checkFunc   func(*testing.T, *Compiler)
 	}{
 		{
 			name: "simple_record",
-			decl: &ast.RecordDecl{
-				Name: &ast.Identifier{Value: "TPoint"},
-				Fields: []*ast.FieldDecl{
-					{Name: &ast.Identifier{Value: "x"}},
-					{Name: &ast.Identifier{Value: "y"}},
+			decl: &pkgast.RecordDecl{
+				Name: &pkgast.Identifier{Value: "TPoint"},
+				Fields: []*pkgast.FieldDecl{
+					{Name: &pkgast.Identifier{Value: "x"}},
+					{Name: &pkgast.Identifier{Value: "y"}},
 				},
 			},
 			expectError: false,
@@ -264,13 +263,13 @@ func TestCompiler_CompileRecordDecl(t *testing.T) {
 		},
 		{
 			name: "record_stored_in_chunk",
-			decl: &ast.RecordDecl{
-				Name: &ast.Identifier{Value: "TRect"},
-				Fields: []*ast.FieldDecl{
-					{Name: &ast.Identifier{Value: "left"}},
-					{Name: &ast.Identifier{Value: "top"}},
-					{Name: &ast.Identifier{Value: "right"}},
-					{Name: &ast.Identifier{Value: "bottom"}},
+			decl: &pkgast.RecordDecl{
+				Name: &pkgast.Identifier{Value: "TRect"},
+				Fields: []*pkgast.FieldDecl{
+					{Name: &pkgast.Identifier{Value: "left"}},
+					{Name: &pkgast.Identifier{Value: "top"}},
+					{Name: &pkgast.Identifier{Value: "right"}},
+					{Name: &pkgast.Identifier{Value: "bottom"}},
 				},
 			},
 			expectError: false,
@@ -313,17 +312,17 @@ func TestCompiler_CompileRecordDecl(t *testing.T) {
 func TestCompiler_CompileClassDecl(t *testing.T) {
 	tests := []struct {
 		name        string
-		decl        *ast.ClassDecl
+		decl        *pkgast.ClassDecl
 		expectError bool
 		checkFunc   func(*testing.T, *Compiler)
 	}{
 		{
 			name: "simple_class",
-			decl: &ast.ClassDecl{
-				Name: &ast.Identifier{Value: "TMyClass"},
-				Fields: []*ast.FieldDecl{
-					{Name: &ast.Identifier{Value: "field1"}},
-					{Name: &ast.Identifier{Value: "field2"}},
+			decl: &pkgast.ClassDecl{
+				Name: &pkgast.Identifier{Value: "TMyClass"},
+				Fields: []*pkgast.FieldDecl{
+					{Name: &pkgast.Identifier{Value: "field1"}},
+					{Name: &pkgast.Identifier{Value: "field2"}},
 				},
 			},
 			expectError: false,
@@ -342,12 +341,12 @@ func TestCompiler_CompileClassDecl(t *testing.T) {
 		},
 		{
 			name: "class_with_field_initializer",
-			decl: &ast.ClassDecl{
-				Name: &ast.Identifier{Value: "TConfig"},
-				Fields: []*ast.FieldDecl{
+			decl: &pkgast.ClassDecl{
+				Name: &pkgast.Identifier{Value: "TConfig"},
+				Fields: []*pkgast.FieldDecl{
 					{
-						Name:      &ast.Identifier{Value: "timeout"},
-						InitValue: &ast.IntegerLiteral{Value: 30},
+						Name:      &pkgast.Identifier{Value: "timeout"},
+						InitValue: &pkgast.IntegerLiteral{Value: 30},
 					},
 				},
 			},
@@ -379,19 +378,19 @@ func TestCompiler_CompileClassDecl(t *testing.T) {
 		},
 		{
 			name: "class_with_multiple_initializers",
-			decl: &ast.ClassDecl{
-				Name: &ast.Identifier{Value: "TPerson"},
-				Fields: []*ast.FieldDecl{
+			decl: &pkgast.ClassDecl{
+				Name: &pkgast.Identifier{Value: "TPerson"},
+				Fields: []*pkgast.FieldDecl{
 					{
-						Name:      &ast.Identifier{Value: "name"},
-						InitValue: &ast.StringLiteral{Value: "Unknown"},
+						Name:      &pkgast.Identifier{Value: "name"},
+						InitValue: &pkgast.StringLiteral{Value: "Unknown"},
 					},
 					{
-						Name:      &ast.Identifier{Value: "age"},
-						InitValue: &ast.IntegerLiteral{Value: 0},
+						Name:      &pkgast.Identifier{Value: "age"},
+						InitValue: &pkgast.IntegerLiteral{Value: 0},
 					},
 					{
-						Name: &ast.Identifier{Value: "email"},
+						Name: &pkgast.Identifier{Value: "email"},
 						// No initializer
 					},
 				},
@@ -447,20 +446,20 @@ func TestCompiler_CompileClassDecl(t *testing.T) {
 func TestCompiler_CompileCoalesceExpression(t *testing.T) {
 	tests := []struct {
 		name     string
-		left     ast.Expression
-		right    ast.Expression
+		left     pkgast.Expression
+		right    pkgast.Expression
 		expected string
 	}{
 		{
 			name:     "int_coalesce",
-			left:     &ast.IntegerLiteral{Value: 42},
-			right:    &ast.IntegerLiteral{Value: 0},
+			left:     &pkgast.IntegerLiteral{Value: 42},
+			right:    &pkgast.IntegerLiteral{Value: 0},
 			expected: "42",
 		},
 		{
 			name:     "string_coalesce",
-			left:     &ast.StringLiteral{Value: "hello"},
-			right:    &ast.StringLiteral{Value: "world"},
+			left:     &pkgast.StringLiteral{Value: "hello"},
+			right:    &pkgast.StringLiteral{Value: "world"},
 			expected: "hello",
 		},
 	}
@@ -468,7 +467,7 @@ func TestCompiler_CompileCoalesceExpression(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := NewCompiler("test")
-			expr := &ast.BinaryExpression{
+			expr := &pkgast.BinaryExpression{
 				Left:     tt.left,
 				Operator: "??",
 				Right:    tt.right,
@@ -510,23 +509,23 @@ func TestCompiler_CompileCoalesceExpression(t *testing.T) {
 func TestCompiler_CompileIfExpression(t *testing.T) {
 	tests := []struct {
 		name        string
-		expr        *ast.IfExpression
+		expr        *pkgast.IfExpression
 		expectError bool
 	}{
 		{
 			name: "if_with_else",
-			expr: &ast.IfExpression{
-				Condition:   &ast.BooleanLiteral{Value: true},
-				Consequence: &ast.IntegerLiteral{Value: 1},
-				Alternative: &ast.IntegerLiteral{Value: 2},
+			expr: &pkgast.IfExpression{
+				Condition:   &pkgast.BooleanLiteral{Value: true},
+				Consequence: &pkgast.IntegerLiteral{Value: 1},
+				Alternative: &pkgast.IntegerLiteral{Value: 2},
 			},
 			expectError: false,
 		},
 		{
 			name: "if_without_else_needs_semantic_info",
-			expr: &ast.IfExpression{
-				Condition:   &ast.BooleanLiteral{Value: true},
-				Consequence: &ast.IntegerLiteral{Value: 1},
+			expr: &pkgast.IfExpression{
+				Condition:   &pkgast.BooleanLiteral{Value: true},
+				Consequence: &pkgast.IntegerLiteral{Value: 1},
 				Alternative: nil,
 			},
 			expectError: true, // Will fail because emitDefaultValue needs semantic info
@@ -601,13 +600,13 @@ func TestCompiler_EmitDefaultValue(t *testing.T) {
 
 			// Create semantic info with type annotation
 			semanticInfo := pkgast.NewSemanticInfo()
-			ifExpr := &ast.IfExpression{
-				Condition:   &ast.BooleanLiteral{Value: true},
-				Consequence: &ast.IntegerLiteral{Value: 1},
+			ifExpr := &pkgast.IfExpression{
+				Condition:   &pkgast.BooleanLiteral{Value: true},
+				Consequence: &pkgast.IntegerLiteral{Value: 1},
 			}
 
 			// Set type annotation
-			semanticInfo.SetType(ifExpr, &ast.TypeAnnotation{
+			semanticInfo.SetType(ifExpr, &pkgast.TypeAnnotation{
 				Name: tt.typeName,
 			})
 
@@ -640,22 +639,22 @@ func TestCompiler_EmitDefaultValue(t *testing.T) {
 func TestCompiler_CompileRecordLiteralExpression(t *testing.T) {
 	tests := []struct {
 		name        string
-		expr        *ast.RecordLiteralExpression
+		expr        *pkgast.RecordLiteralExpression
 		expectError bool
 		checkFunc   func(*testing.T, *Compiler)
 	}{
 		{
 			name: "simple_record_literal",
-			expr: &ast.RecordLiteralExpression{
-				TypeName: &ast.Identifier{Value: "TPoint"},
-				Fields: []*ast.FieldInitializer{
+			expr: &pkgast.RecordLiteralExpression{
+				TypeName: &pkgast.Identifier{Value: "TPoint"},
+				Fields: []*pkgast.FieldInitializer{
 					{
-						Name:  &ast.Identifier{Value: "x"},
-						Value: &ast.IntegerLiteral{Value: 10},
+						Name:  &pkgast.Identifier{Value: "x"},
+						Value: &pkgast.IntegerLiteral{Value: 10},
 					},
 					{
-						Name:  &ast.Identifier{Value: "y"},
-						Value: &ast.IntegerLiteral{Value: 20},
+						Name:  &pkgast.Identifier{Value: "y"},
+						Value: &pkgast.IntegerLiteral{Value: 20},
 					},
 				},
 			},
@@ -676,9 +675,9 @@ func TestCompiler_CompileRecordLiteralExpression(t *testing.T) {
 		},
 		{
 			name: "record_literal_without_fields",
-			expr: &ast.RecordLiteralExpression{
-				TypeName: &ast.Identifier{Value: "TEmpty"},
-				Fields:   []*ast.FieldInitializer{},
+			expr: &pkgast.RecordLiteralExpression{
+				TypeName: &pkgast.Identifier{Value: "TEmpty"},
+				Fields:   []*pkgast.FieldInitializer{},
 			},
 			expectError: false,
 			checkFunc: func(t *testing.T, c *Compiler) {
@@ -724,20 +723,20 @@ func TestCompiler_CompileRecordLiteralExpression(t *testing.T) {
 func TestTypeFromTypeExpression(t *testing.T) {
 	tests := []struct {
 		name     string
-		expr     ast.TypeExpression
+		expr     pkgast.TypeExpression
 		expected string // Expected type name or "nil" for nil types
 	}{
 		{
 			name: "simple_type",
-			expr: &ast.TypeAnnotation{
+			expr: &pkgast.TypeAnnotation{
 				Name: "Integer",
 			},
 			expected: "Integer",
 		},
 		{
 			name: "array_type",
-			expr: &ast.ArrayTypeNode{
-				ElementType: &ast.TypeAnnotation{
+			expr: &pkgast.ArrayTypeNode{
+				ElementType: &pkgast.TypeAnnotation{
 					Name: "Integer",
 				},
 			},
