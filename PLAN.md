@@ -196,18 +196,24 @@ Advanced lookahead and backtracking with comprehensive documentation.
 
 ---
 
-### Phase 2.7: Migration Completion (Weeks 12-14, 120 hours)
+### Phase 2.7: Migration Completion (Weeks 12-15, 144 hours)
 
-Complete migration of all parsing code to cursor/combinators.
+Complete migration of all parsing code to cursor/combinators and remove legacy code.
 
 **See**: `docs/phase-2.7-expansion.md` for detailed implementation plan
 
-**Current Progress**: 41% complete (68/164 functions migrated)
-- ✅ Expressions: 90% complete
-- ✅ Control flow: 100% complete
-- ⚠️ Statements: 67% complete
-- ❌ Types: 0% complete
-- ❌ Declarations: 0% complete
+**Current Progress**: Tasks 2.7.1-2.7.3 complete (all functions have Cursor equivalents)
+- ✅ **2.7.1**: Statement parsing migration (40h) - COMPLETE
+- ✅ **2.7.2**: Type parsing migration (40h) - COMPLETE
+- ✅ **2.7.3**: Declaration parsing migration (24h) - COMPLETE
+- ⚠️ **2.7.4**: Complete Cursor implementations - eliminate 75 delegation points (8h)
+- ⚠️ **2.7.5**: Switch to Cursor-only mode (4h)
+- ⚠️ **2.7.6**: Comprehensive testing (12h)
+- ⚠️ **2.7.7**: Update call sites (4h)
+- ⚠️ **2.7.8**: Remove dual-mode infrastructure (4h)
+- ⚠️ **2.7.9**: Remove legacy Traditional functions (8h)
+
+**Status**: All 41 Traditional functions now have Cursor equivalents, but 75 delegation points remain where Cursor functions temporarily switch to Traditional mode. Tasks 2.7.4-2.7.9 will complete the migration and remove all legacy code.
 
 ---
 
@@ -298,43 +304,161 @@ Complete migration of all parsing code to cursor/combinators.
 
 ---
 
-#### Task 2.7.4: Remove Legacy Code (Week 14, Days 4-5, ~16 hours)
+#### Task 2.7.4: Complete Cursor Implementations (Week 14, Day 4, ~8 hours)
 
-**Goal**: Remove all old mutable parser code.
+**Goal**: Eliminate all remaining delegation from Cursor to Traditional functions.
+
+**Current State**: 75 delegation points across 7 files where Cursor functions temporarily switch to Traditional mode via `syncCursorToTokens()`/`syncTokensToCursor()`.
 
 **Subtasks**:
-- [ ] **2.7.4.1** Verify complete migration (2h)
-  - Automated checks, ensure all functions migrated
-- [ ] **2.7.4.2** Remove Traditional functions (4h)
-  - Remove all `parse*Traditional()` functions (~500 lines)
-  - Rename `parse*Cursor()` to `parse*()`
-- [ ] **2.7.4.3** Remove mutable state fields (3h)
-  - Remove `curToken`, `peekToken` fields
-  - Remove `useCursor` flag
-- [ ] **2.7.4.4** Remove `nextToken()` method (2h)
-  - Replace with cursor advancement in callers
-- [ ] **2.7.4.5** Remove old error methods (1h)
-  - Consolidate through ErrorRecovery module
-- [ ] **2.7.4.6** Clean up imports and dead code (2h)
-  - Remove unused imports, commented code, obsolete helpers
-- [ ] **2.7.4.7** Final test pass (2h)
-  - Unit tests, integration tests, fixture tests, benchmarks
+- [ ] **2.7.4.1** statements.go (21 delegation points) (3h)
+  - Complete full Cursor implementation for all statement parsing
+- [ ] **2.7.4.2** expressions.go (20 delegation points) (2h)
+  - Complete full Cursor implementation for complex expression parsing
+- [ ] **2.7.4.3** control_flow.go (20 delegation points) (2h)
+  - Complete full Cursor implementation for control flow statements
+- [ ] **2.7.4.4** Other files (14 delegation points) (1h)
+  - parser.go (6), interfaces.go (4), unit.go (2), declarations.go (2)
 
 **Files Modified**:
-- `internal/parser/parser.go` (~200 lines removed)
-- All parser files (~500 lines removed total)
+- `internal/parser/statements.go`
+- `internal/parser/expressions.go`
+- `internal/parser/control_flow.go`
+- `internal/parser/parser.go`
+- `internal/parser/interfaces.go`
+- `internal/parser/unit.go`
+- `internal/parser/declarations.go`
 
-**Deliverable**: Clean, modern parser with zero legacy code
+**Verification**: Run `grep -r "syncCursorToTokens\|syncTokensToCursor" internal/parser/*.go | grep -v "_test.go"` - should return 0 results.
+
+**Deliverable**: All Cursor functions fully independent, no more delegation to Traditional mode.
 
 ---
 
-### Phase 2.8: Optimization & Polish (Weeks 15-16, 80 hours)
+#### Task 2.7.5: Switch to Cursor-Only Mode (Week 14, Day 5, ~4 hours)
+
+**Goal**: Make Cursor mode the default and only mode.
+
+**Subtasks**:
+- [ ] **2.7.5.1** Update default mode (1h)
+  - Change `useCursor` default to `true` in parser initialization
+  - Remove `useCursor` parameter from ParserBuilder
+- [ ] **2.7.5.2** Update dispatcher functions (2h)
+  - Replace all `if p.useCursor { ... } else { ... }` with direct Cursor calls
+  - Remove 123 useCursor checks across 20 files
+- [ ] **2.7.5.3** Run full test suite (1h)
+  - Ensure all tests pass with Cursor-only mode
+  - Fix any failures
+
+**Files Modified**:
+- All parser files with dispatcher functions (~20 files)
+
+**Deliverable**: Parser always uses Cursor mode, Traditional code unreachable.
+
+---
+
+#### Task 2.7.6: Comprehensive Testing (Week 15, Days 1-2, ~12 hours)
+
+**Goal**: Validate Cursor-only parser with extensive testing.
+
+**Subtasks**:
+- [ ] **2.7.6.1** Unit test verification (3h)
+  - Run all unit tests, ensure 100% pass rate
+  - Add missing tests for edge cases
+- [ ] **2.7.6.2** Integration tests (3h)
+  - Complex programs, nested structures, error recovery
+  - Real-world DWScript code samples
+- [ ] **2.7.6.3** Fixture test suite (4h)
+  - Run complete DWScript test suite (~2,100 tests)
+  - Document any failures, fix critical issues
+- [ ] **2.7.6.4** Performance benchmarks (2h)
+  - Compare Cursor vs Traditional performance
+  - Ensure within 5% of baseline
+
+**Deliverable**: High confidence in Cursor-only parser correctness and performance.
+
+---
+
+#### Task 2.7.7: Update Call Sites (Week 15, Day 3, ~4 hours)
+
+**Goal**: Clean up internal call patterns.
+
+**Subtasks**:
+- [ ] **2.7.7.1** Remove dispatch wrappers (2h)
+  - Update direct callers to call Cursor functions
+  - Eliminate unnecessary indirection
+- [ ] **2.7.7.2** Simplify test helpers (1h)
+  - Update test helpers to assume Cursor mode
+  - Remove dual-mode test utilities
+- [ ] **2.7.7.3** Code cleanup (1h)
+  - Remove commented-out Traditional calls
+  - Clean up temporary variables
+
+**Deliverable**: Cleaner internal code structure.
+
+---
+
+#### Task 2.7.8: Remove Dual-Mode Infrastructure (Week 15, Day 4, ~4 hours)
+
+**Goal**: Remove useCursor flag and synchronization code.
+
+**Subtasks**:
+- [ ] **2.7.8.1** Remove useCursor field (1h)
+  - Remove from Parser struct
+  - Remove from all test code
+- [ ] **2.7.8.2** Remove synchronization methods (1h)
+  - Delete `syncCursorToTokens()` and `syncTokensToCursor()`
+  - Remove related helper code
+- [ ] **2.7.8.3** Clean up test infrastructure (2h)
+  - Remove dual-mode test utilities
+  - Simplify migration benchmark code
+
+**Files Modified**:
+- `internal/parser/parser.go`
+- `internal/parser/parser_builder.go`
+- All test files
+
+**Deliverable**: Parser struct simplified, no dual-mode overhead.
+
+---
+
+#### Task 2.7.9: Remove Legacy Code (Week 15, Day 5, ~8 hours)
+
+**Goal**: Remove all Traditional parsing functions.
+
+**Subtasks**:
+- [ ] **2.7.9.1** Verify readiness (1h)
+  - Automated checks, confirm zero Traditional calls
+  - Verify all tests pass
+- [ ] **2.7.9.2** Remove Traditional functions (3h)
+  - Remove all `parse*Traditional()` functions (41 functions, ~500 lines)
+  - Document which functions were removed
+- [ ] **2.7.9.3** Rename Cursor functions (2h)
+  - Rename `parse*Cursor()` to `parse*()`
+  - Update all call sites
+- [ ] **2.7.9.4** Final cleanup (1h)
+  - Remove unused imports
+  - Remove obsolete comments
+  - Run linter
+- [ ] **2.7.9.5** Final test pass (1h)
+  - Unit tests, integration tests, fixture tests, benchmarks
+  - Verify code coverage maintained
+
+**Files Modified**:
+- All parser files (~700 lines removed total)
+- `internal/parser/parser.go` (~200 lines removed)
+
+**Deliverable**: Clean, modern parser with zero legacy code.
+
+---
+
+### Phase 2.8: Optimization & Polish (Weeks 16-17, 80 hours)
 
 Performance tuning and documentation.
 
 ---
 
-#### Task 2.8.1: Performance Tuning (Week 15, ~40 hours)
+#### Task 2.8.1: Performance Tuning (Week 16, ~40 hours)
 
 **Goal**: Ensure new parser is as fast as old parser.
 
@@ -352,7 +476,7 @@ Performance tuning and documentation.
 
 ---
 
-#### Task 2.8.2: Documentation Updates (Week 16, Days 1-2, ~16 hours)
+#### Task 2.8.2: Documentation Updates (Week 17, Days 1-2, ~16 hours)
 
 **Goal**: Update all documentation for new architecture.
 
@@ -369,7 +493,7 @@ Performance tuning and documentation.
 
 ---
 
-#### Task 2.8.3: Migration Guide (Week 16, Days 3-4, ~8 hours)
+#### Task 2.8.3: Migration Guide (Week 17, Days 3-4, ~8 hours)
 
 **Goal**: Document the migration for future reference.
 
@@ -386,7 +510,7 @@ Performance tuning and documentation.
 
 ---
 
-#### Task 2.8.4: Final Validation (Week 16, Day 5, ~8 hours)
+#### Task 2.8.4: Final Validation (Week 17, Day 5, ~8 hours)
 
 **Goal**: Comprehensive validation of new parser.
 
@@ -405,7 +529,7 @@ Performance tuning and documentation.
 
 ### Summary of Phase 2: Parser Modernization
 
-**Total Estimate**: 640 hours (12-16 weeks / 3-4 months full-time)
+**Total Estimate**: 664 hours (12-17 weeks / 3-4 months full-time)
 
 **Breakdown by Phase**:
 1. Foundation (Weeks 1-2): 80 hours
@@ -414,8 +538,8 @@ Performance tuning and documentation.
 4. Position Tracking (Week 8): 40 hours
 5. Separation (Weeks 9-10): 80 hours
 6. Advanced Features (Week 11): 40 hours
-7. Migration (Weeks 12-14): 120 hours
-8. Polish (Weeks 15-16): 80 hours
+7. Migration (Weeks 12-15): 144 hours
+8. Polish (Weeks 16-17): 80 hours
 
 **Benefits**:
 - **Maintainability**: 20-30% code reduction, declarative combinators, no manual token tracking
