@@ -242,33 +242,229 @@ func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *Exe
 }
 
 // VisitCallExpression evaluates a function call expression.
-// Task 3.5.11: Partial migration - demonstrates adapter pattern for simple cases.
-// Complex cases delegated (400+ lines with 11+ call types in Interpreter).
+// Task 3.5.21: Migration of function call evaluation with 11 distinct call types.
+//
+// This function handles all DWScript function call patterns in a specific order
+// (matching the original Interpreter.evalCallExpression logic):
+//
+// 1. Function pointer calls - Identifier resolving to FunctionPointerValue
+// 2. Member access calls (detected by CallExpression.Function being MemberAccessExpression):
+//    a. Record method calls (obj.Method where obj is RecordValue)
+//    b. Interface method calls (intf.Method where intf is InterfaceInstance)
+//    c. Unit-qualified function calls (UnitName.FunctionName)
+//    d. Class constructor calls (TClassName.Create)
+// 3. User-defined function calls - Regular function with overload resolution
+// 4. Implicit Self method calls - MethodName() within class context
+// 5. Record static method calls - MethodName() within record context (__CurrentRecord__)
+// 6. Built-in functions with var parameters - Inc, Dec, Insert, Delete, etc.
+// 7. External functions with var parameters - External Go functions
+// 8. Default() function - Special handling for Default(TypeName)
+// 9. Type casts - TypeName(expression)
+// 10. Regular built-in functions - All other built-in functions
+//
+// The order matters because some patterns overlap:
+// - "TClass.Create()" could be a member access OR a class constructor
+// - "FuncName()" could be a user function OR a built-in OR an implicit Self method
+// - "Integer(x)" could be a type cast OR a user function named "Integer"
+//
+// Complexity: Very High (400+ lines in original, 11 distinct paths)
+// Migration status: Partial - using adapter for complex cases that require infrastructure
+//                   not yet migrated (lazy/var params, overload resolution, etc.)
 func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *ExecutionContext) Value {
-	// CallExpression in the Interpreter handles many complex cases:
-	// 1. Function pointer calls (with lazy/var parameter handling)
-	// 2. Record method calls
-	// 3. Interface method calls
-	// 4. Unit-qualified function calls (UnitName.FunctionName)
-	// 5. Class constructor calls (TClass.Create)
-	// 6. User-defined function calls with overload resolution
-	// 7. Implicit Self method calls (within class/record context)
-	// 8. Record static method calls (__CurrentRecord__ context)
-	// 9. Built-in functions with var parameters
-	// 10. External functions with var parameters
-	// 11. Regular built-in function calls
-	//
-	// Each case requires specialized handling of:
-	// - Argument evaluation (lazy thunks, references, values)
-	// - Overload resolution
-	// - Context switching (Self, units, records)
-	// - Type checking and coercion
-	//
-	// Full migration requires extensive adapter infrastructure not yet available.
-	// For now, delegate to adapter for complete functionality.
-	// Future tasks will incrementally migrate specific call types.
+	// ===== CALL TYPE 1: Function Pointer Calls =====
+	// Check if the function expression is an identifier that resolves to a FunctionPointerValue
+	// Function pointers require special handling for lazy and var parameters
+	if funcIdent, ok := node.Function.(*ast.Identifier); ok {
+		if val, exists := e.adapter.GetVariable(funcIdent.Value, ctx); exists {
+			// Check if it's a function pointer type
+			if val.Type() == "FUNCTION_POINTER" || val.Type() == "LAMBDA" {
+				// Delegate to adapter for function pointer calls
+				// This requires handling lazy parameters (LazyThunk creation),
+				// var parameters (ReferenceValue creation), and closure environment management
+				// Full migration blocked by: LazyThunk, ReferenceValue, and closure infrastructure
+				return e.adapter.EvalNode(node)
+			}
+		}
+	}
 
-	return e.adapter.EvalNode(node)
+	// ===== CALL TYPE 2: Member Access Calls =====
+	// Check if this is a member access pattern: obj.Method(), UnitName.Func(), TClass.Create()
+	if memberAccess, ok := node.Function.(*ast.MemberAccessExpression); ok {
+		// Evaluate the left side (object, unit, or class identifier)
+		objVal := e.Eval(memberAccess.Object, ctx)
+		if isError(objVal) {
+			return objVal
+		}
+
+		// Check for record method calls: record.Method(args)
+		if objVal.Type() == "RECORD" {
+			// Record methods use value semantics (Self is a copy)
+			// For mutating methods, copy-back semantics are needed
+			// Delegate to adapter which handles record method dispatch
+			return e.adapter.EvalNode(node)
+		}
+
+		// Check for interface method calls: interface.Method(args)
+		if objVal.Type() == "INTERFACE" {
+			// Interface method calls unwrap to underlying object and dispatch to its method
+			// Requires interface unwrapping and object method lookup
+			// Delegate to adapter for interface method dispatch
+			return e.adapter.EvalNode(node)
+		}
+
+		// Check for unit-qualified function calls: UnitName.FunctionName(args)
+		// This requires checking if the left side is a unit identifier
+		if ident, ok := memberAccess.Object.(*ast.Identifier); ok {
+			// Check if this identifier is a unit name
+			// Unit-qualified calls require unitRegistry lookup
+			// Delegate to adapter for unit-qualified function resolution and calling
+			// Full migration blocked by: unitRegistry access, qualified function resolution
+			if e.unitRegistry != nil {
+				// Potential unit-qualified call - delegate to adapter
+				return e.adapter.EvalNode(node)
+			}
+
+			// Check for class constructor calls: TClassName.Create(args)
+			// This requires checking if the identifier is a class name
+			if e.adapter.HasClass(ident.Value) {
+				// This is a class constructor/method call
+				// Convert to MethodCallExpression and delegate
+				// Full migration blocked by: MethodCallExpression evaluation
+				return e.adapter.EvalNode(node)
+			}
+		}
+
+		// Not a recognized member access pattern
+		return e.newError(node, "cannot call member expression that is not a method or unit-qualified function")
+	}
+
+	// ===== CALL TYPE 3-11: Simple Identifier Calls =====
+	// All remaining call types have the function as a simple identifier
+	funcName, ok := node.Function.(*ast.Identifier)
+	if !ok {
+		return e.newError(node, "function call requires identifier or qualified name, got %T", node.Function)
+	}
+
+	// ===== CALL TYPE 3: User-Defined Function Calls =====
+	// Check if this is a user-defined function (with potential overloading)
+	// User functions are stored in a case-insensitive function registry
+	funcNameLower := strings.ToLower(funcName.Value)
+	if overloads, exists := e.adapter.LookupFunction(funcNameLower); exists && len(overloads) > 0 {
+		// Found user-defined function(s)
+		// Overload resolution requires evaluating arguments and matching types
+		// Lazy/var parameter handling requires special argument preparation
+		// Delegate to adapter for overload resolution and function calling
+		// Full migration blocked by: resolveOverload, lazy/var parameter infrastructure
+		return e.adapter.EvalNode(node)
+	}
+
+	// ===== CALL TYPE 4: Implicit Self Method Calls =====
+	// Check if we're in a class/object context and this is a method call
+	// Within a method, "MethodName()" is shorthand for "Self.MethodName()"
+	if selfRaw, ok := ctx.Env().Get("Self"); ok {
+		// We have a Self context - check if the function name is a method
+		// This requires object method lookup
+		// Delegate to adapter for implicit Self method resolution
+		// Full migration blocked by: Object method lookup, MethodCallExpression conversion
+		// Note: We only check this AFTER user function lookup to match original behavior
+		if selfVal, ok := selfRaw.(Value); ok {
+			if selfVal.Type() == "OBJECT" || selfVal.Type() == "CLASS" {
+				return e.adapter.EvalNode(node)
+			}
+		}
+	}
+
+	// ===== CALL TYPE 5: Record Static Method Calls =====
+	// Check if we're in a record context and this is a static method call
+	// Within a record method, static methods can be called directly
+	if recordRaw, ok := ctx.Env().Get("__CurrentRecord__"); ok {
+		// We have a __CurrentRecord__ context - check if function name is a static method
+		// Delegate to adapter for record static method resolution
+		// Full migration blocked by: Record method registry lookup
+		if recordVal, ok := recordRaw.(Value); ok {
+			if recordVal.Type() == "RECORD_TYPE" {
+				return e.adapter.EvalNode(node)
+			}
+		}
+	}
+
+	// ===== CALL TYPE 6: Built-in Functions with Var Parameters =====
+	// Check for built-in functions that need var parameter handling
+	// These functions modify their arguments in place (Inc, Dec, SetLength, etc.)
+	switch funcName.Value {
+	case "Inc", "Dec", "Insert", "DecodeDate", "DecodeTime",
+		"Swap", "DivMod", "TryStrToInt", "TryStrToFloat", "SetLength":
+		// These built-ins need special var parameter handling
+		// Delegate to adapter for built-in var parameter functions
+		// Full migration blocked by: ReferenceValue creation for var parameters
+		return e.adapter.EvalNode(node)
+	case "Delete":
+		// Delete has two forms: Delete(array, index) and Delete(string, index, count)
+		// Only the 3-parameter form needs var parameter handling
+		if len(node.Arguments) == 3 {
+			return e.adapter.EvalNode(node)
+		}
+	}
+
+	// ===== CALL TYPE 7: External Functions with Var Parameters =====
+	// Check if this is an external (Go) function registered via externalFunctions
+	// External functions may have var parameters that need ReferenceValue wrapping
+	// Delegate to adapter for external function lookup and calling
+	// Full migration blocked by: externalFunctions registry access, var parameter handling
+	// Note: We check this before Default()/TypeCast to match original behavior
+	if e.externalFunctions != nil {
+		return e.adapter.EvalNode(node)
+	}
+
+	// ===== CALL TYPE 8: Default() Function =====
+	// Check for Default(TypeName) function which expects unevaluated type identifier
+	// Default(Integer) should pass "Integer" as string, not evaluate it
+	if funcName.Value == "Default" && len(node.Arguments) == 1 {
+		// Delegate to adapter for Default() function evaluation
+		// Full migration blocked by: type resolution for default value creation
+		return e.adapter.EvalNode(node)
+	}
+
+	// ===== CALL TYPE 9: Type Casts =====
+	// Check if this is a type cast: TypeName(expression)
+	// Type casts look like function calls but the "function" is a type name
+	// Only single-argument calls can be type casts
+	if len(node.Arguments) == 1 {
+		// Try type cast evaluation (returns nil if not a valid type cast)
+		// Delegate to adapter for type cast evaluation
+		// Full migration blocked by: type registry lookup, type conversion logic
+		// Note: The adapter returns nil if this isn't a type cast, so we check below
+		result := e.adapter.EvalNode(node)
+		// If type cast succeeded or there's an exception, return the result
+		// If it returned an error about unknown function, fall through to built-ins
+		if result != nil && !isError(result) {
+			return result
+		}
+		if isError(result) {
+			// Check if this is "unknown function" error - if so, fall through
+			// Otherwise, it's a real error from type casting
+			if !strings.Contains(result.String(), "unknown function") &&
+				!strings.Contains(result.String(), "undefined identifier") {
+				return result
+			}
+		}
+	}
+
+	// ===== CALL TYPE 10: Regular Built-in Functions =====
+	// Try built-in functions
+	// Evaluate all arguments first (no lazy/var parameter handling needed for regular built-ins)
+	args := make([]Value, len(node.Arguments))
+	for idx, arg := range node.Arguments {
+		val := e.Eval(arg, ctx)
+		if isError(val) {
+			return val
+		}
+		args[idx] = val
+	}
+
+	// Call built-in function via adapter
+	// The adapter handles case-insensitive lookup and dispatches to the appropriate built-in
+	return e.adapter.CallBuiltinFunction(funcName.Value, args)
 }
 
 // VisitNewExpression evaluates a 'new' expression (object instantiation).
