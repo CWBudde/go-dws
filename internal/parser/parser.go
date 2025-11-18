@@ -1099,6 +1099,37 @@ func (p *Parser) synchronize(syncTokens []lexer.TokenType) bool {
 	return false // Reached EOF without finding a sync token
 }
 
+// synchronizeCursor performs panic-mode error recovery using cursor.
+// It advances the cursor until it finds a synchronization point.
+//
+// Parameters:
+//   - syncTokens: specific tokens to synchronize on (in addition to statement starters/block closers)
+//
+// Returns the new cursor position and whether a sync token was found.
+func (p *Parser) synchronizeCursor(syncTokens []lexer.TokenType) bool {
+	// Build a map of all synchronization tokens for fast lookup
+	syncMap := make(map[lexer.TokenType]bool)
+	for _, t := range syncTokens {
+		syncMap[t] = true
+	}
+	for _, t := range statementStarters {
+		syncMap[t] = true
+	}
+	for _, t := range blockClosers {
+		syncMap[t] = true
+	}
+
+	// Advance until we find a synchronization token or EOF
+	for p.cursor.Current().Type != lexer.EOF {
+		if syncMap[p.cursor.Current().Type] {
+			return true // Found a sync token
+		}
+		p.cursor = p.cursor.Advance()
+	}
+
+	return false // Reached EOF without finding a sync token
+}
+
 // addErrorWithContext adds an error with additional context from the block stack.
 // This provides better error messages by including information about which block
 // the error occurred in.

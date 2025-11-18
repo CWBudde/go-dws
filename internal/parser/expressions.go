@@ -111,16 +111,8 @@ func (p *Parser) parseExpressionCursor(precedence int) ast.Expression {
 	currentToken := p.cursor.Current()
 	prefixFn, ok := p.prefixParseFnsCursor[currentToken.Type]
 	if !ok {
-		// No cursor version - fall back to traditional mode
-		p.syncCursorToTokens() // Sync cursor → tokens
-		p.useCursor = false
-		result := p.parseExpressionTraditional(precedence)
-		p.useCursor = true
-		// CRITICAL FIX (Task 2.2.7): Sync tokens → cursor after traditional mode mutates state
-		// Traditional parseExpression advanced curToken/peekToken, but cursor is still at old position.
-		// Update cursor to match the new curToken position to prevent infinite fallback loops.
-		p.syncTokensToCursor()
-		return result
+		p.noPrefixParseFnError(currentToken.Type)
+		return nil
 	}
 	leftExp := prefixFn(currentToken)
 
@@ -155,14 +147,8 @@ func (p *Parser) parseExpressionCursor(precedence int) ast.Expression {
 		// 4. Normal infix handling
 		infixFn, ok := p.infixParseFnsCursor[nextToken.Type]
 		if !ok {
-			// No cursor version - fall back to traditional mode for rest
-			p.syncCursorToTokens() // Sync cursor → tokens
-			p.useCursor = false
-			result := p.parseExpressionTraditional(precedence)
-			p.useCursor = true
-			// CRITICAL FIX (Task 2.2.7): Sync tokens → cursor after traditional mode mutates state
-			p.syncTokensToCursor()
-			return result
+			// No infix handler for this token type, stop parsing
+			break
 		}
 
 		// Advance to operator
@@ -1571,13 +1557,36 @@ func (p *Parser) parseGroupedExpressionCursor() ast.Expression {
 	// Check if this is a record literal: (IDENT : ...)
 	secondToken := p.cursor.Peek(2)
 	if nextToken.Type == lexer.IDENT && secondToken.Type == lexer.COLON {
-		// Fall back to traditional mode for record literals (complex parsing)
-		p.syncCursorToTokens()
-		p.useCursor = false
-		result := p.parseGroupedExpression()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return result
+		// Parse record literal inline
+		recordLit := &ast.RecordLiteralExpression{
+			BaseNode: ast.BaseNode{Token: lparenToken},
+			TypeName: nil, // Anonymous record
+			Fields:   []*ast.FieldInitializer{},
+		}
+
+		// Move to first field name
+		p.cursor = p.cursor.Advance()
+
+		// Parse fields in a loop
+		for p.cursor.Current().Type != lexer.RPAREN && p.cursor.Current().Type != lexer.EOF {
+			field := p.parseNamedFieldInitializerCursor()
+			if field == nil {
+				return nil
+			}
+			recordLit.Fields = append(recordLit.Fields, field)
+
+			// Check if we should continue to next field
+			shouldContinue, ok := p.advanceToNextItemCursor(lexer.RPAREN)
+			if !ok {
+				return nil
+			}
+			if !shouldContinue {
+				break
+			}
+		}
+
+		recordLit.EndPos = p.cursor.Current().End()
+		return recordLit
 	}
 
 	// Move to first expression
@@ -1592,13 +1601,51 @@ func (p *Parser) parseGroupedExpressionCursor() ast.Expression {
 	// Check if this is an array literal: (expr, expr, ...)
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type == lexer.COMMA {
-		// Fall back to traditional mode for array literals (complex parsing)
-		p.syncCursorToTokens()
-		p.useCursor = false
-		result := p.parseGroupedExpression()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return result
+		// Parse array literal inline
+		elements := []ast.Expression{exp}
+
+		// Parse remaining elements
+		for p.cursor.Peek(1).Type == lexer.COMMA {
+			p.cursor = p.cursor.Advance() // move to COMMA
+			p.cursor = p.cursor.Advance() // move to next element or RPAREN
+
+			// Allow trailing comma: (1, 2, )
+			if p.cursor.Current().Type == lexer.RPAREN {
+				return &ast.ArrayLiteralExpression{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token:  lparenToken,
+							EndPos: p.cursor.Current().End(),
+						},
+					},
+					Elements: elements,
+				}
+			}
+
+			elementExpr := p.parseExpressionCursor(LOWEST)
+			if elementExpr == nil {
+				return nil
+			}
+			elements = append(elements, elementExpr)
+		}
+
+		// Expect closing paren
+		if p.cursor.Peek(1).Type != lexer.RPAREN {
+			p.addError(fmt.Sprintf("expected ')', got %s", p.cursor.Peek(1).Type), ErrUnexpectedToken)
+			return nil
+		}
+
+		p.cursor = p.cursor.Advance() // move to RPAREN
+
+		return &ast.ArrayLiteralExpression{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token:  lparenToken,
+					EndPos: p.cursor.Current().End(),
+				},
+			},
+			Elements: elements,
+		}
 	}
 
 	// Expect closing paren
@@ -2498,26 +2545,15 @@ func (p *Parser) parseIsExpressionCursor(left ast.Expression) ast.Expression {
 
 	p.cursor = p.cursor.Advance()
 
-	// For type parsing, fall back to traditional mode since parseTypeExpression
-	// is complex and doesn't have a cursor version yet
-	p.syncCursorToTokens()
-	p.useCursor = false
-
 	// Try to parse as type expression first (speculatively)
-	state := p.saveState()
-	expression.TargetType = p.parseTypeExpression()
+	mark := p.cursor.Mark()
+	expression.TargetType = p.parseTypeExpressionCursor()
 	if expression.TargetType != nil {
-		p.useCursor = true
-		p.syncTokensToCursor()
 		return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
 	}
 
-	// If type parsing failed, restore state and try as boolean expression
-	p.restoreState(state)
-
-	// Back to cursor mode for expression parsing
-	p.useCursor = true
-	p.syncTokensToCursor()
+	// If type parsing failed, restore cursor and try as boolean expression
+	p.cursor = p.cursor.ResetTo(mark)
 
 	// Parse as value expression (boolean comparison)
 	// Use EQUALS precedence to prevent consuming following logical operators
@@ -2546,22 +2582,12 @@ func (p *Parser) parseAsExpressionCursor(left ast.Expression) ast.Expression {
 
 	p.cursor = p.cursor.Advance()
 
-	// Fall back to traditional mode for type parsing
-	p.syncCursorToTokens()
-	p.useCursor = false
-
 	// Parse the target type (should be an interface type)
-	expression.TargetType = p.parseTypeExpression()
+	expression.TargetType = p.parseTypeExpressionCursor()
 	if expression.TargetType == nil {
 		p.addError("expected type after 'as' operator", ErrExpectedType)
-		p.useCursor = true
-		p.syncTokensToCursor()
 		return expression
 	}
-
-	// Set end position based on the target type
-	p.useCursor = true
-	p.syncTokensToCursor()
 
 	return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
 }
@@ -2583,22 +2609,12 @@ func (p *Parser) parseImplementsExpressionCursor(left ast.Expression) ast.Expres
 
 	p.cursor = p.cursor.Advance()
 
-	// Fall back to traditional mode for type parsing
-	p.syncCursorToTokens()
-	p.useCursor = false
-
 	// Parse the target type (should be an interface type)
-	expression.TargetType = p.parseTypeExpression()
+	expression.TargetType = p.parseTypeExpressionCursor()
 	if expression.TargetType == nil {
 		p.addError("expected type after 'implements' operator", ErrExpectedType)
-		p.useCursor = true
-		p.syncTokensToCursor()
 		return expression
 	}
-
-	// Set end position based on the target type
-	p.useCursor = true
-	p.syncTokensToCursor()
 
 	return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
 }

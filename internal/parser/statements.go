@@ -69,82 +69,43 @@ func (p *Parser) parseStatementCursor() ast.Statement {
 		return p.parseRaiseStatementCursor()
 
 	case lexer.FUNCTION, lexer.PROCEDURE, lexer.METHOD:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		stmt := p.parseFunctionDeclaration()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return stmt
+		return p.parseFunctionDeclarationCursor()
 
 	case lexer.OPERATOR:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		stmt := p.parseOperatorDeclaration()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return stmt
+		return p.parseOperatorDeclarationCursor()
 
 	case lexer.CLASS:
 		nextToken := p.cursor.Peek(1)
 		if nextToken.Type == lexer.FUNCTION || nextToken.Type == lexer.PROCEDURE || nextToken.Type == lexer.METHOD {
-			// Fall back to traditional mode for now
-			p.syncCursorToTokens()
-			p.useCursor = false
-			p.nextToken() // move to function/procedure/method token
-			fn := p.parseFunctionDeclaration()
+			p.cursor = p.cursor.Advance() // move to function/procedure/method token
+			fn := p.parseFunctionDeclarationCursor()
 			if fn != nil {
 				fn.IsClassMethod = true
 			}
-			p.useCursor = true
-			p.syncTokensToCursor()
 			return fn
 		}
 		p.addError("expected 'function', 'procedure', or 'method' after 'class'", ErrUnexpectedToken)
 		return nil
 
 	case lexer.CONSTRUCTOR:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		method := p.parseFunctionDeclaration()
+		method := p.parseFunctionDeclarationCursor()
 		if method != nil {
 			method.IsConstructor = true
 		}
-		p.useCursor = true
-		p.syncTokensToCursor()
 		return method
 
 	case lexer.DESTRUCTOR:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		method := p.parseFunctionDeclaration()
+		method := p.parseFunctionDeclarationCursor()
 		if method != nil {
 			method.IsDestructor = true
 		}
-		p.useCursor = true
-		p.syncTokensToCursor()
 		return method
 
 	case lexer.TYPE:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		stmt := p.parseTypeDeclaration()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return stmt
+		return p.parseTypeDeclarationCursor()
 
 	case lexer.USES:
-		// Fall back to traditional mode for now
-		p.syncCursorToTokens()
-		p.useCursor = false
-		stmt := p.parseUsesClause()
-		p.useCursor = true
-		p.syncTokensToCursor()
-		return stmt
+		return p.parseUsesClauseCursor()
 
 	default:
 		// Check for assignment (simple or member assignment)
@@ -166,13 +127,7 @@ func (p *Parser) parseStatementCursor() ast.Statement {
 			if nextToken.Type == lexer.COLON {
 				// This is a var declaration in a var section
 				// Treat it like "var x: Type;"
-				// Fall back to traditional mode for var declarations (Task 2.2.14.6)
-				p.syncCursorToTokens()
-				p.useCursor = false
-				stmt := p.parseVarDeclaration()
-				p.useCursor = true
-				p.syncTokensToCursor()
-				return stmt
+				return p.parseVarDeclarationCursor()
 			}
 
 			// Otherwise, parse as assignment or expression using cursor mode
@@ -881,12 +836,8 @@ func (p *Parser) parseBlockStatementCursor() *ast.BlockStatement {
 	currentToken := p.cursor.Current()
 	if currentToken.Type != lexer.END && currentToken.Type != lexer.ENSURE {
 		p.addErrorWithContext("expected 'end' to close block", ErrMissingEnd)
-		// Synchronize to recover (need to use traditional mode for this)
-		p.syncCursorToTokens()
-		p.useCursor = false
-		p.synchronize([]lexer.TokenType{lexer.END, lexer.ENSURE})
-		p.useCursor = true
-		p.syncTokensToCursor()
+		// Synchronize to recover
+		p.synchronizeCursor([]lexer.TokenType{lexer.END, lexer.ENSURE})
 	}
 
 	return builder.FinishWithToken(block, p.cursor.Current()).(*ast.BlockStatement)
@@ -1096,12 +1047,7 @@ func (p *Parser) parseSingleVarDeclarationCursor() *ast.VarDeclStatement {
 		// Parse type expression (can be simple type, function pointer, or array type)
 		p.cursor = p.cursor.Advance() // move to type expression
 
-		// Temporarily sync to use parseTypeExpression (which uses traditional mode)
-		p.syncCursorToTokens()
-		p.useCursor = false
-		typeExpr := p.parseTypeExpression()
-		p.useCursor = true
-		p.syncTokensToCursor()
+		typeExpr := p.parseTypeExpressionCursor()
 
 		if typeExpr == nil {
 			// Use structured error (Task 2.1.3)
