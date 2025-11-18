@@ -77,17 +77,99 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 }
 
 // VisitBinaryExpression evaluates a binary expression (e.g., a + b, x == y).
+// Task 3.5.12: Documentation-only migration (843 lines of complexity in Interpreter).
 func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2B: Operator registry is available via adapter.GetOperatorRegistry()
-	// Conversion registry available via adapter.GetConversionRegistry()
-	// TODO: Migrate operator evaluation and type coercion logic
+	// Binary expression evaluation in Interpreter is extremely complex (843 lines):
+	//
+	// Short-Circuit Operators (special evaluation order):
+	// - ?? (coalesce) - don't evaluate right if left is not nil
+	// - and - don't evaluate right if left is false
+	// - or - don't evaluate right if left is true
+	//
+	// Operator Overloading:
+	// - tryBinaryOperator() checks custom operator definitions
+	// - Object types can define custom operator behavior
+	// - Global operator registry for type-specific operations
+	//
+	// Type-Specific Handlers:
+	// - Variant operations (with complex coercion rules)
+	// - Integer operations (+, -, *, div, mod, shl, shr, =, <>, <, >, <=, >=)
+	// - Float operations (with int→float promotion)
+	// - String operations (+, =, <>, <, >, <=, >=, in)
+	// - Boolean operations (and, or, xor, not, =, <>)
+	// - Enum operations (comparisons with ordinal values)
+	// - Object comparisons (=, <> with nil handling)
+	// - Interface comparisons (unwrapping to underlying objects)
+	// - Class metaclass comparisons (ClassValue identity)
+	// - RTTI type info comparisons (TypeOf results)
+	// - Set operations (in, +, -, *, =, <>, <=, >=)
+	// - Array operations (=, <>)
+	// - Record operations (=, <>)
+	//
+	// Special Operators:
+	// - in (membership testing for arrays, sets, strings, subranges)
+	// - div/mod (integer division/modulo)
+	// - shl/shr (bit shifting)
+	// - xor (boolean/bitwise exclusive or)
+	//
+	// Type Coercion:
+	// - Integer → Float promotion
+	// - Variant unwrapping and conversion
+	// - Interface unwrapping
+	// - Implicit conversions per DWScript semantics
+	//
+	// Error Handling:
+	// - Nil operand checking
+	// - Type mismatch errors
+	// - Division by zero
+	// - Invalid operator for type combinations
+	//
+	// Full migration requires extensive infrastructure:
+	// - Type coercion system adapter
+	// - Operator overloading registry adapter
+	// - Short-circuit evaluation framework
+	// - Variant handling system
+	// - Complex type checking and promotion logic
+	//
+	// For now, delegate to adapter for complete functionality.
+	// Future: Break into focused sub-tasks per operator category.
+
 	return e.adapter.EvalNode(node)
 }
 
 // VisitUnaryExpression evaluates a unary expression (e.g., -x, not b).
+// Task 3.5.12: Documentation-only migration (unary ops in expressions_basic.go).
 func (e *Evaluator) VisitUnaryExpression(node *ast.UnaryExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2B: Operator registry is available via adapter.GetOperatorRegistry()
-	// TODO: Migrate unary operator evaluation logic
+	// Unary expression evaluation handles:
+	//
+	// Operator Overloading:
+	// - tryUnaryOperator() checks custom operator definitions
+	// - Object types can define custom unary operator behavior
+	// - Global operator registry for type-specific operations
+	//
+	// Unary Operators:
+	// - Minus (-): Negation for Integer and Float (with Variant support)
+	// - Plus (+): Identity for Integer and Float (with Variant support)
+	// - Not (not): Boolean/bitwise negation (with Variant support)
+	//
+	// Type-Specific Behavior:
+	// - Integer: -x, +x, not x (bitwise not)
+	// - Float: -x, +x
+	// - Boolean: not x
+	// - Variant: Unwrap and apply operator to underlying value
+	//
+	// Error Handling:
+	// - Type mismatch errors (e.g., not on non-boolean)
+	// - Nil operand checking
+	// - Variant unwrapping errors
+	//
+	// Requires:
+	// - Operator overloading registry access
+	// - Variant unwrapping system
+	// - Type checking infrastructure
+	//
+	// For now, delegate to adapter for complete functionality.
+
 	return e.adapter.EvalNode(node)
 }
 
