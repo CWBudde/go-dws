@@ -37,10 +37,42 @@ func isError(val Value) bool {
 }
 
 // VisitIdentifier evaluates an identifier (variable reference).
+// Task 3.5.10: Partial migration - basic variable lookups via adapter.GetVariable.
+// Complex cases still delegated (Self context, properties, lazy params, etc.).
 func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2B: Type system is available via adapter
-	// (LookupClass, LookupFunction, etc.)
-	// TODO: Migrate identifier lookup logic to use adapter type system methods
+	// Try simple variable lookup first using the new environment adapter
+	val, ok := e.adapter.GetVariable(node.Value, ctx)
+	if ok {
+		// Got a value from environment
+		// However, it might be a special value type that needs processing:
+		// - ExternalVarValue (should error)
+		// - LazyThunk (needs evaluation)
+		// - ReferenceValue (needs dereferencing)
+		// For now, return as-is. The adapter.EvalNode fallback below will handle
+		// these special cases if the value doesn't work as expected.
+
+		// Simple optimization: if it's a basic value type, return immediately
+		switch val.(type) {
+		case *runtime.IntegerValue, *runtime.FloatValue, *runtime.StringValue, *runtime.BooleanValue, *runtime.NilValue:
+			return val
+		}
+
+		// For complex value types, delegate to adapter for full processing
+		// This handles LazyThunk, ReferenceValue, ExternalVarValue, etc.
+		return e.adapter.EvalNode(node)
+	}
+
+	// Variable not found in environment
+	// Could be:
+	// - Self keyword (method context)
+	// - Instance field/property (implicit Self)
+	// - Class variable (__CurrentClass__ context)
+	// - Function reference (with possible auto-invoke)
+	// - Built-in function
+	// - Class name (metaclass reference)
+	// - ClassName/ClassType special identifiers
+	// All these cases require complex context that hasn't been migrated yet
+	// Delegate to adapter for full Interpreter.evalIdentifier logic
 	return e.adapter.EvalNode(node)
 }
 
