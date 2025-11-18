@@ -173,10 +173,9 @@ func (m *mockContext) GetJSONVarType(value Value) (int64, bool) {
 // Task 3.7.7 Context methods for array and collection functions
 // Note: Renamed from GetArrayLength to avoid conflict with task 3.5.6 adapter method.
 func (m *mockContext) GetBuiltinArrayLength(value Value) (int64, bool) {
-	// Simple mock - check type string since we can't import ArrayValue
-	if value.Type() == "ARRAY" {
-		// For testing, return a dummy length
-		return 0, true
+	// Return actual length for runtime.ArrayValue so array-related tests behave realistically
+	if arr, ok := value.(*runtime.ArrayValue); ok {
+		return int64(len(arr.Elements)), true
 	}
 	return 0, false
 }
