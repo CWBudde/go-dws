@@ -145,9 +145,9 @@ func TestIsTruthy_Variants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := isTruthy(tt.value)
+			result := IsTruthy(tt.value)
 			if result != tt.expected {
-				t.Errorf("isTruthy(%s) = %v, expected %v",
+				t.Errorf("IsTruthy(%s) = %v, expected %v",
 					tt.name, result, tt.expected)
 			}
 		})
@@ -234,9 +234,9 @@ func TestVariantToBool(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := variantToBool(tt.value)
+			result := VariantToBool(tt.value)
 			if result != tt.expected {
-				t.Errorf("variantToBool(%s) = %v, expected %v",
+				t.Errorf("VariantToBool(%s) = %v, expected %v",
 					tt.name, result, tt.expected)
 			}
 		})
@@ -268,8 +268,8 @@ func TestDebugVariantUnwrapping(t *testing.T) {
 	}
 
 	// Now test variantToBool
-	result := variantToBool(variant)
-	t.Logf("variantToBool(variant) = %v (expected false)", result)
+	result := VariantToBool(variant)
+	t.Logf("VariantToBool(variant) = %v (expected false)", result)
 }
 
 // TestVariantBooleanCoercionBugFix verifies the fix for the PR #178 bug
@@ -281,7 +281,7 @@ func TestVariantBooleanCoercionBugFix(t *testing.T) {
 		variant := &mockVariantValue{
 			wrapped: &runtime.BooleanValue{Value: true},
 		}
-		result := isTruthy(variant)
+		result := IsTruthy(variant)
 		if !result {
 			t.Error("BUG: Variant wrapping True should be truthy, but got false")
 		}
@@ -293,7 +293,7 @@ func TestVariantBooleanCoercionBugFix(t *testing.T) {
 		variant := &mockVariantValue{
 			wrapped: &runtime.IntegerValue{Value: 42},
 		}
-		result := isTruthy(variant)
+		result := IsTruthy(variant)
 		if !result {
 			t.Error("BUG: Variant wrapping non-zero integer should be truthy, but got false")
 		}
@@ -303,7 +303,7 @@ func TestVariantBooleanCoercionBugFix(t *testing.T) {
 		variant := &mockVariantValue{
 			wrapped: &runtime.IntegerValue{Value: 0},
 		}
-		result := isTruthy(variant)
+		result := IsTruthy(variant)
 		if result {
 			t.Error("Variant wrapping zero should be falsy, but got true")
 		}

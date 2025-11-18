@@ -1556,6 +1556,42 @@ func (i *Interpreter) RaiseException(className string, message string, pos any) 
 	i.raiseException(className, message, position)
 }
 
+// GetVariable retrieves a variable value from the execution context.
+// Task 3.5.9: Adapter method for environment access.
+func (i *Interpreter) GetVariable(name string, ctx *evaluator.ExecutionContext) (evaluator.Value, bool) {
+	// Get the value from the context's environment
+	val, found := ctx.Env().Get(name)
+	if !found {
+		return nil, false
+	}
+
+	// Convert to evaluator.Value type
+	return val.(evaluator.Value), true
+}
+
+// DefineVariable defines a new variable in the execution context.
+// Task 3.5.9: Adapter method for environment access.
+func (i *Interpreter) DefineVariable(name string, value evaluator.Value, ctx *evaluator.ExecutionContext) {
+	// Convert to internal Value type
+	internalValue := value.(Value)
+
+	// Define in the context's environment
+	ctx.Env().Define(name, internalValue)
+}
+
+// CreateEnclosedEnvironment creates a new execution context with an enclosed environment.
+// Task 3.5.9: Adapter method for environment access.
+func (i *Interpreter) CreateEnclosedEnvironment(ctx *evaluator.ExecutionContext) *evaluator.ExecutionContext {
+	// Get the current environment from the context and create an enclosed scope
+	currentEnv := ctx.Env()
+	newEnv := currentEnv.NewEnclosedEnvironment()
+
+	// Create a new execution context with the enclosed environment
+	newCtx := evaluator.NewExecutionContext(newEnv)
+
+	return newCtx
+}
+
 // GetCallStack returns a copy of the current call stack.
 // Returns stack frames in the order they were called (oldest to newest).
 func (i *Interpreter) GetCallStack() errors.StackTrace {

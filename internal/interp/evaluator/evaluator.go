@@ -329,6 +329,21 @@ type InterpreterAdapter interface {
 	// The pos parameter provides source location information for error reporting.
 	RaiseException(className string, message string, pos any)
 
+	// ===== Environment Access (Task 3.5.9) =====
+
+	// GetVariable retrieves a variable value from the execution context.
+	// Returns the value and true if found, nil and false otherwise.
+	GetVariable(name string, ctx *ExecutionContext) (Value, bool)
+
+	// DefineVariable defines a new variable in the execution context.
+	// This creates a new binding in the current scope.
+	DefineVariable(name string, value Value, ctx *ExecutionContext)
+
+	// CreateEnclosedEnvironment creates a new execution context with an enclosed environment.
+	// The new environment has the current environment as its parent (for scoping).
+	// Returns a new ExecutionContext with the enclosed environment.
+	CreateEnclosedEnvironment(ctx *ExecutionContext) *ExecutionContext
+
 	// Phase 3.5.4 - Phase 2C: Property & Indexing System infrastructure
 	// Property and indexing operations are available through existing infrastructure:
 	//

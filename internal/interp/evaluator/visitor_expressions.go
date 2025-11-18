@@ -238,7 +238,7 @@ func (e *Evaluator) VisitIfExpression(node *ast.IfExpression, ctx *ExecutionCont
 
 	// Use isTruthy to support Variant→Boolean implicit conversion
 	// If condition is true, evaluate and return consequence
-	if isTruthy(condition) {
+	if IsTruthy(condition) {
 		result := e.Eval(node.Consequence, ctx)
 		if isError(result) {
 			return result
