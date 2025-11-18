@@ -1064,41 +1064,119 @@ func (e *Evaluator) VisitSetLiteral(node *ast.SetLiteral, ctx *ExecutionContext)
 }
 
 // VisitArrayLiteralExpression evaluates an array literal [1, 2, 3].
-// Task 3.5.13: Migrated from Interpreter.evalArrayLiteral()
+// Task 3.5.23: Migration of array literal evaluation with type inference and coercion.
+//
+// This function handles all DWScript array literal patterns:
+//
+// 1. Empty arrays - [] (requires type context or errors)
+// 2. Typed arrays - var x: array of Integer := [1, 2, 3]
+// 3. Type-inferred arrays - [1, 2, 3] (infers array of Integer)
+// 4. Mixed type coercion - [1, 2.5] (infers array of Float)
+// 5. Variant arrays - [1, "hello", true] (infers array of Variant)
+// 6. Nested arrays - [[1, 2], [3, 4]] (infers array of array of Integer)
+// 7. Static arrays - array[1..3] of Integer := [10, 20, 30]
+// 8. Dynamic arrays - array of Integer := [10, 20, 30]
+//
+// Array literal evaluation process:
+// 1. Evaluate all element expressions to values
+// 2. Determine array type (from annotation or inference)
+// 3. Coerce elements to target element type if needed
+// 4. Validate bounds for static arrays
+// 5. Construct ArrayValue with proper type metadata
+//
+// Type annotation sources (in priority order):
+// - Semantic analyzer type annotation (from variable declaration)
+// - Explicit array type in expression context
+// - Type inference from element values
+//
+// Type inference rules:
+// - All same type → array of that type
+// - Integer + Float → array of Float (numeric coercion)
+// - Integer + String → error (incompatible types)
+// - Mixed incompatible → error (unless Variant)
+// - All nil → array of Variant (default for empty-ish arrays)
+//
+// Element coercion:
+// - Integer → Float (when target is Float)
+// - Any → Variant (when target is Variant)
+// - Nil → compatible with class/interface/array/string types
+// - No implicit narrowing (Float → Integer is error)
+//
+// Static arrays (fixed bounds):
+// - array[1..10] of Integer (bounds: 1 to 10, size: 10)
+// - Element count must exactly match size
+// - Error if fewer or more elements provided
+//
+// Dynamic arrays (variable length):
+// - array of Integer (no bounds, any size)
+// - Element count determines actual size
+// - Can be empty, resized with SetLength
+//
+// Complexity: Very High (250+ lines in original, multiple helper functions)
+// Migration status: Partial - using adapter for complex type system operations
 func (e *Evaluator) VisitArrayLiteralExpression(node *ast.ArrayLiteralExpression, ctx *ExecutionContext) Value {
-	// Task 3.5.13: Array literal evaluation with type inference and coercion
+	if node == nil {
+		return e.newError(node, "nil array literal")
+	}
+
+	// Empty array check - requires type context
+	if len(node.Elements) == 0 {
+		// Empty arrays need type annotation to determine element type
+		// Without it, we can't create a properly typed array
+		// Delegate to adapter for type annotation lookup and empty array creation
+		// Full migration blocked by: semantic info access, array type construction
+		return e.adapter.EvalNode(node)
+	}
+
+	// ===== STEP 1: Evaluate all element expressions =====
+	// Evaluate each element expression to get runtime values
+	// This also checks for errors in element expressions
+	elementCount := len(node.Elements)
+	evaluatedElements := make([]Value, elementCount)
+
+	for idx, elem := range node.Elements {
+		val := e.Eval(elem, ctx)
+		if isError(val) {
+			return val
+		}
+		evaluatedElements[idx] = val
+	}
+
+	// ===== STEP 2-5: Type Resolution, Inference, Coercion, and Array Construction =====
+	// The remaining steps require complex type system operations:
 	//
-	// Array literals can be:
-	// - Typed: var x: array of Integer := [1, 2, 3]
-	// - Type-inferred: [1, 2, 3] (infers array of Integer)
-	// - Mixed types with coercion: [1, 2.5] (infers array of Float)
-	// - Variant arrays: [1, "hello", true] (infers array of Variant)
-	// - Nested arrays: [[1, 2], [3, 4]] (infers array of array of Integer)
+	// Step 2: Determine array type
+	// - Check semantic info for type annotation (arrayTypeFromLiteral)
+	// - If no annotation, infer from element values (inferArrayTypeFromValues)
+	// - Requires: SemanticInfo access, type system, type inference logic
 	//
-	// Type inference rules:
-	// - If type annotation exists (from semantic analyzer), use it
-	// - Otherwise, infer from element types:
-	//   * All same type → array of that type
-	//   * Integer + Float → array of Float
-	//   * Mixed incompatible → error
+	// Step 3: Get element types
+	// - Convert each Value to its corresponding types.Type (typeFromValue)
+	// - Handle special cases: nil, Variant, nested arrays
+	// - Requires: Type system, value-to-type conversion
 	//
-	// Element coercion:
-	// - Integer → Float (when target is Float)
-	// - Any → Variant (when target is Variant)
-	// - Nil → compatible with class/interface/array types
+	// Step 4: Coerce elements to target type
+	// - Coerce each element to match array's element type (coerceArrayElements)
+	// - Integer → Float, Any → Variant, type compatibility checks
+	// - Requires: Type system, coercion logic, compatibility checking
 	//
-	// Static vs Dynamic arrays:
-	// - Type annotation determines if static (with bounds) or dynamic
-	// - Static arrays validate element count matches bounds
+	// Step 5: Validate and construct array
+	// - For static arrays: validate element count matches bounds
+	// - Construct ArrayValue with proper ArrayType metadata
+	// - Requires: ArrayValue construction, type metadata attachment
 	//
-	// Complexity: Medium-High - type inference, element coercion, bounds checking
-	// Full implementation requires:
-	// - Semantic info access for type annotations
-	// - Type system for inference and compatibility checking
-	// - Element-by-element evaluation and coercion
-	// - Array value construction with proper type metadata
+	// All these operations require infrastructure not yet migrated to Evaluator:
+	// - SemanticInfo for type annotations
+	// - Type system for inference, compatibility, coercion
+	// - ArrayType construction and validation
+	// - ArrayValue construction with type metadata
 	//
-	// Delegate to adapter which handles all array literal logic via evalArrayLiteral
+	// Delegate to adapter which handles:
+	// - arrayTypeFromLiteral (semantic info lookup)
+	// - inferArrayTypeFromValues (type inference algorithm)
+	// - coerceArrayElements (element coercion logic)
+	// - ArrayValue construction (with proper type metadata)
+	// - Static array bounds validation
 
 	return e.adapter.EvalNode(node)
 }
