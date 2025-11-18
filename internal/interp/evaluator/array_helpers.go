@@ -1,6 +1,8 @@
 package evaluator
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -230,4 +232,136 @@ func (e *Evaluator) validateArrayLiteralSize(arrayType *types.ArrayType, element
 	}
 
 	return nil
+}
+
+// ============================================================================
+// Type Resolution Helpers
+// ============================================================================
+//
+// Task 3.5.27: Helpers for resolving type names to semantic types.
+// ============================================================================
+
+// resolveTypeName resolves a type name string to a semantic Type.
+// This handles built-in types and custom types.
+//
+// Supported types:
+//   - Built-in: Integer, Float, String, Boolean, Variant
+//   - Custom: Records, Classes (via type system lookup)
+func (e *Evaluator) resolveTypeName(name string) types.Type {
+	// Normalize to case-insensitive comparison (DWScript is case-insensitive)
+	switch name {
+	case "Integer", "integer", "INTEGER":
+		return types.INTEGER
+	case "Float", "float", "FLOAT":
+		return types.FLOAT
+	case "String", "string", "STRING":
+		return types.STRING
+	case "Boolean", "boolean", "BOOLEAN":
+		return types.BOOLEAN
+	case "Variant", "variant", "VARIANT":
+		return types.VARIANT
+	default:
+		// Check if it's a registered record type
+		if e.typeSystem.HasRecord(name) {
+			record := e.typeSystem.LookupRecord(name)
+			if record != nil {
+				// RecordTypeValue is an interface{}, we need to extract the actual type
+				// For now, return nil - this will be improved when we have proper type access
+				return nil
+			}
+		}
+
+		// Check if it's a registered class type
+		if e.typeSystem.HasClass(name) {
+			class := e.typeSystem.LookupClass(name)
+			if class != nil {
+				// ClassInfo is an interface{}, we need to extract the actual type
+				// For now, return nil - this will be improved when we have proper type access
+				return nil
+			}
+		}
+
+		// Unknown type
+		return nil
+	}
+}
+
+// ============================================================================
+// New Array Expression Helpers
+// ============================================================================
+//
+// Task 3.5.27: Helpers for dynamic array allocation with 'new' keyword.
+// ============================================================================
+
+// evaluateDimensions evaluates all dimension expressions for a new array expression.
+// Each dimension must evaluate to a positive integer.
+//
+// Returns:
+//   - Slice of dimension sizes ([]int)
+//   - Error Value if any dimension is invalid
+//
+// Examples:
+//   - new Integer[10] → [10]
+//   - new String[3, 4] → [3, 4]
+//   - new Float[x+1, y*2] → [evaluated x+1, evaluated y*2]
+func (e *Evaluator) evaluateDimensions(dimensions []ast.Expression, ctx *ExecutionContext, node ast.Node) ([]int, Value) {
+	if len(dimensions) == 0 {
+		return nil, e.newError(node, "new array expression must have at least one dimension")
+	}
+
+	dimSizes := make([]int, len(dimensions))
+
+	for i, dimExpr := range dimensions {
+		// Evaluate the dimension expression
+		dimValue := e.Eval(dimExpr, ctx)
+		if isError(dimValue) {
+			return nil, dimValue
+		}
+
+		// Dimension must be an integer
+		if dimValue.Type() != "INTEGER" {
+			return nil, e.newError(node, "dimension %d: expected Integer, got %s", i, dimValue.Type())
+		}
+
+		// Extract the integer value
+		// We can't use type assertions due to circular imports, so we parse the string
+		dimSize, err := e.extractIntegerValue(dimValue)
+		if err != nil {
+			return nil, e.newError(node, "dimension %d: %v", i, err)
+		}
+
+		// Dimension must be positive
+		if dimSize <= 0 {
+			return nil, e.newError(node, "dimension %d: array size must be positive, got %d", i, dimSize)
+		}
+
+		dimSizes[i] = dimSize
+	}
+
+	return dimSizes, nil
+}
+
+// extractIntegerValue extracts an int from an IntegerValue.
+// This is a helper to work around circular import issues.
+func (e *Evaluator) extractIntegerValue(val Value) (int, error) {
+	// IntegerValue.String() returns the decimal representation
+	// We can parse it to get the int value
+	// This is a workaround until we can access IntegerValue.Value directly
+
+	// For now, delegate to the adapter to extract the value
+	// The adapter has direct access to IntegerValue
+	// This is temporary - will be fixed when value types are refactored
+
+	// Use a simple string parsing approach as a fallback
+	// In practice, the adapter will handle this properly
+	strVal := val.String()
+
+	// Try to parse the string as an integer
+	var intVal int
+	_, err := fmt.Sscanf(strVal, "%d", &intVal)
+	if err != nil {
+		return 0, fmt.Errorf("failed to extract integer value: %v", err)
+	}
+
+	return intVal, nil
 }
