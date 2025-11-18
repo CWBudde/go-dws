@@ -516,13 +516,13 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - **Completed**: Commit ed7fd2b - 88 benchmarks total, baseline established in docs/
 
 - [ ] 3.1.3 Increase test coverage to 90%+
-  - **Current Coverage**: 52.7% overall (as of 2025-11-17)
+  - **Current Coverage**: 57.3% overall (as of 2025-11-18)
   - **Package Breakdown**:
-    - High coverage (>80%): lexer (97.7%), units (90.1%), ast (88.9%), types (83.7%), dwscript (82.9%), errors (81.8%), interp/errors (81.0%), platform/native (79.3%)
-    - Medium coverage (50-80%): parser (77.2%), interp/types (72.8%), jsonvalue (61.2%), semantic (60.4%), bytecode (52.5%), interp/runtime (48.4%), cmd/dwscript/cmd (36.7%)
-    - Low coverage (<50%): ast/pkg (25.1%), printer (23.3%), interp/evaluator (21.9%), interp/builtins (15.2%), token (7.7%), cmd/dwscript (0.0%)
+    - High coverage (>80%): ident (100.0%), token (100.0%), lexer (97.4%), units (90.1%), ast (88.9%), types (83.7%), dwscript (82.9%), interp/builtins (82.0%), errors (81.8%), interp/errors (81.0%), platform/native (79.3%)
+    - Medium coverage (50-80%): interp/types (72.8%), parser (63.9%), jsonvalue (61.2%), semantic (60.2%), bytecode (58.3%), interp/runtime (48.4%), cmd/dwscript/cmd (36.7%)
+    - Low coverage (<50%): printer (32.4%), ast/pkg (24.9%), interp/evaluator (22.8%), cmd/dwscript (0.0%)
   - **Subtasks**:
-    - [ ] 3.1.3.1 Improve interp/builtins coverage (15.2% → 80%+)
+    - [x] 3.1.3.1 Improve interp/builtins coverage (15.2% → 80%+)
       - [x] Add tests for all math functions - Coverage increased to:
         - math_basic.go: 0% → 69.3% (22 functions tested)
         - math_advanced.go: 0% → 85.2% (9 functions tested)
@@ -532,33 +532,43 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
         - strings_basic.go: 3.2% → 66-83% (20 functions tested)
         - strings_advanced.go: 0% → 75-100% (13 functions tested)
         - strings_compare.go: 0% → 73-80% (7 functions tested)
-      - [ ] Add tests for variant/type/system functions (currently at 0%)
-        - variant.go: 0% → need 80%+
-        - type.go: 0% → need 80%+
-        - system.go: 0% → need 80%+
-      - [ ] Add tests for array/collections (currently at 0-4.8%)
-        - array.go: 4.8% → need 80%+
-        - collections.go: 0% → need 80%+
-      - **Current Status**: Package coverage 15.2% → 46.5% (+205% improvement)
-      - **Remaining**: Need variant, type, system, array, collection, datetime, json, io, and encoding tests to reach 80%
+      - [x] Add tests for variant/type/system functions:
+        - variant.go: 0% → 85.7% (all VarType, VarCast, VarIsType functions tested)
+        - type.go: 0% → 100.0% (all TypeOf functions tested)
+        - system.go: 0% → 100.0% (all Ord, Chr, High, Low functions tested)
+      - [x] Add tests for array/collections:
+        - array.go: 4.8% → 90.9% (all array functions tested, 1 test failure)
+        - collections.go: 0% → 93.3% (all collection functions tested)
+      - [x] Add tests for datetime/json/io/encoding:
+        - datetime_*.go: 0% → 70-100% (comprehensive datetime coverage)
+        - json.go: 0% → 100.0% (all JSON functions tested)
+        - io.go: 0% → 100.0% (all I/O functions tested)
+        - encoding.go: 0% → 91.7% (all encoding functions tested)
+      - **Final Status**: Package coverage 15.2% → 82.0% (+440% improvement, TARGET EXCEEDED!)
+      - **Note**: One failing test in array.go (Length function) needs investigation
     - [ ] 3.1.3.2 Improve interp/evaluator coverage (21.9% → 80%+)
       - Add tests for complex expression evaluation paths
       - Test error handling in evaluation
       - Test edge cases for all expression types
+      - **Current Status**: Package coverage 21.9% → 22.8% (minimal progress, need 57.2% more)
     - [ ] 3.1.3.3 Improve pkg/printer coverage (23.3% → 80%+)
       - Add tests for all AST node printing
       - Test formatting options and edge cases
-    - [ ] 3.1.3.4 Improve pkg/token coverage (7.7% → 80%+)
-      - Add tests for token type methods
-      - Test position tracking and formatting
+      - **Current Status**: Package coverage 23.3% → 32.4% (good progress, need 47.6% more)
+    - [x] 3.1.3.4 Improve pkg/token coverage (7.7% → 80%+)
+      - [x] Add tests for token type methods
+      - [x] Test position tracking and formatting
+      - **Final Status**: Package coverage 7.7% → 100.0% (TARGET EXCEEDED!)
     - [ ] 3.1.3.5 Improve bytecode coverage (52.5% → 80%+)
       - Test serializer edge cases (many at 0% or <50%)
       - Test compiler edge cases for expressions/statements
       - Add tests for optimizer paths
+      - **Current Status**: Package coverage 52.5% → 58.3% (progress made, need 21.7% more)
     - [ ] 3.1.3.6 Improve semantic analyzer coverage (60.4% → 80%+)
       - Test all type checking paths
       - Test error detection for invalid constructs
       - Test symbol table edge cases
+      - **Current Status**: Package coverage 60.4% → 60.2% (stable, need 19.8% more)
   - Estimated: 1-2 weeks
   - Acceptance: Coverage report shows 80%+ overall, 80%+ on all core packages
   - **Note**: Deferred - fixing failing tests is better done after architecture improvements
