@@ -159,164 +159,206 @@ Created `helpers.go` with reusable evaluation utilities:
 
 ## What Remains To Be Done
 
-### Task 1: Migrate Complex Expression Evaluation
+**Total Remaining**: 33 visitor methods + infrastructure tasks
 
-**Priority**: High | **Complexity**: Very High
+### Category A: Operator Evaluation (High Priority)
 
-Migrate actual implementation for 33 documentation-only methods:
+#### 1. Migrate Binary Operators (`VisitBinaryExpression`)
+- **Complexity**: Very High (843 lines in original implementation)
+- **Requirements**:
+  - Build operator overloading registry
+  - Implement type coercion system
+  - Add short-circuit evaluation framework (??/and/or)
+  - Create 13+ type-specific handlers (Variant, Integer, Float, String, Boolean, Enum, Object, Interface, Class, RTTI, Set, Array, Record)
+  - Handle special operators (in, div, mod, shl, shr, xor)
+- **Effort**: 3-4 weeks
 
-**Binary & Unary Operators**:
-1. Implement `VisitBinaryExpression` - 843 lines, requires:
-   - Operator overloading registry
-   - Type coercion system
-   - Short-circuit evaluation framework
-   - 13+ type-specific handlers
-   - Variant handling system
-
-2. Implement `VisitUnaryExpression` - requires:
-   - Operator overloading registry
-   - Type coercion system
-
-**Function Calls**:
-3. Implement `VisitCallExpression` - 400+ lines, requires:
-   - Function pointer call infrastructure
-   - Overload resolution system
-   - Lazy/var parameter handling
-   - Context switching (Self, units, records)
-   - 11 distinct call types
-
-**Array Operations**:
-4. Implement `VisitArrayLiteralExpression` - Type inference, element coercion
-5. Implement `VisitNewArrayExpression` - Dynamic allocation, bounds
-6. Implement `VisitIndexExpression` - Multi-index support, bounds checking
-7. Implement `VisitSetLiteral` - Range expansion
-
-**OOP Operations**:
-8. Implement `VisitMemberAccessExpression` - Property dispatch, helper methods
-9. Implement `VisitMethodCallExpression` - Virtual dispatch, overload resolution
-10. Implement `VisitNewExpression` - Constructor dispatch, field initialization
-11. Implement `VisitInheritedExpression` - Parent method resolution
-12. Implement `VisitIsExpression` - Type hierarchy traversal
-13. Implement `VisitAsExpression` - Interface wrapping/unwrapping
-14. Implement `VisitImplementsExpression` - Interface checking
-15. Implement `VisitAddressOfExpression` - Method pointer creation
-
-**Declarations & Records**:
-16. Implement `VisitVarDeclStatement` - 300+ lines, extensive type handling
-17. Implement `VisitConstDecl` - Type inference
-18. Implement `VisitRecordLiteralExpression` - Field initialization
-
-**Exception Handling**:
-19. Implement `VisitTryStatement` - Defer semantics, handler selection
-20. Implement `VisitRaiseStatement` - Exception state management
-
-**Assignment**:
-21. Implement `VisitAssignmentStatement` - Lvalue resolution, compound ops
-
-**Remaining Complex Methods**: ~12 additional methods
-
-**Estimated Effort**: 8-12 weeks (iterative migration by category)
+#### 2. Migrate Unary Operators (`VisitUnaryExpression`)
+- **Complexity**: Medium
+- **Requirements**:
+  - Operator overloading registry (from Task 1)
+  - Type coercion system (from Task 1)
+- **Effort**: 1 week
 
 ---
 
-### Task 2: Complete Identifier Migration
+### Category B: Function Calls (High Priority)
 
-**Priority**: Medium | **Complexity**: High
+#### 3. Migrate Function Call Expression (`VisitCallExpression`)
+- **Complexity**: Very High (400+ lines, 11 distinct call types)
+- **Requirements**:
+  - Function pointer call infrastructure
+  - Overload resolution system
+  - Lazy/var parameter handling
+  - Context switching (Self, units, records)
+- **Call Types**: Function pointers, record methods, interface methods, unit-qualified calls, class constructors, user functions, implicit Self, record static methods, built-ins with var params, external functions
+- **Effort**: 3-4 weeks
 
-Finish `VisitIdentifier` migration (currently partial):
-
-**Currently Delegated Cases**:
-- Self keyword and method context
-- Instance fields/properties (implicit Self)
-- Lazy parameters (LazyThunk evaluation)
-- Var parameters (ReferenceValue dereferencing)
-- External variables (error handling)
-- Class variables (__CurrentClass__ context)
-- Function references (with auto-invoke logic)
-- Built-in function calls
-- Class name metaclass references
-- ClassName/ClassType special identifiers
-
-**Requires**:
-- Context management infrastructure
-- LazyThunk/ReferenceValue handling
-- Metaclass reference system
-
-**Estimated Effort**: 2-3 weeks
-
----
-
-### Task 3: Remove Adapter Pattern (Deferred)
-
-**Priority**: Low | **Status**: ⏸️ Deferred
-
-Originally task 3.5.18, deferred until architectural refactoring:
-
-**Blocker**: Requires AST-free runtime types (separate long-term effort)
-
-**Steps** (when unblocked):
-- Remove `InterpreterAdapter` interface
-- Remove `adapter` field from Evaluator
-- Remove `EvalNode()` fallback calls
-- Make Interpreter thin orchestrator only
-- All evaluation flows through Evaluator
-
-**Estimated Effort**: 2 days (after architectural refactoring complete)
-
-**Future Work**: See `docs/task-3.5.4-expansion-plan.md` Phase 3 for AST-free runtime types approach
+#### 4. Complete Identifier Migration (`VisitIdentifier`)
+- **Complexity**: High (currently partial migration)
+- **Remaining Cases**:
+  - Self keyword and method context
+  - Instance fields/properties (implicit Self)
+  - Lazy parameters (LazyThunk evaluation)
+  - Var parameters (ReferenceValue dereferencing)
+  - External variables (error handling)
+  - Class variables (__CurrentClass__ context)
+  - Function references (with auto-invoke logic)
+  - Built-in function calls
+  - Class name metaclass references
+  - ClassName/ClassType special identifiers
+- **Effort**: 2-3 weeks
 
 ---
 
-### Task 4: Enhance Test Coverage
+### Category C: Array & Collection Operations (Medium Priority)
 
-**Priority**: Medium | **Complexity**: Medium
+#### 5. Migrate Array Literal Expression (`VisitArrayLiteralExpression`)
+- **Requirements**: Type inference, element coercion, static vs. dynamic arrays
+- **Effort**: 1 week
 
-**Current State**: All existing tests pass, zero regressions
+#### 6. Migrate New Array Expression (`VisitNewArrayExpression`)
+- **Requirements**: Dynamic allocation, multi-dimensional support, element initialization
+- **Effort**: 1 week
 
-**Needed**:
-1. Unit tests for individual visitor methods
-2. Tests for adapter infrastructure methods
-3. Tests for helper functions (✅ some exist)
-4. Edge case coverage for migrated methods
-5. Performance benchmarks for visitor dispatch
+#### 7. Migrate Index Expression (`VisitIndexExpression`)
+- **Requirements**: Array/string/property/JSON indexing, multi-index flattening, bounds checking
+- **Effort**: 1-2 weeks
 
-**Target**: 95%+ coverage on evaluator package
-
-**Estimated Effort**: 2-3 weeks
-
----
-
-### Task 5: Performance Optimization
-
-**Priority**: Low | **Complexity**: Medium
-
-**Needed**:
-1. Benchmark visitor pattern vs. original switch
-2. Optimize hot paths (binary ops, function calls)
-3. Profile memory allocations
-4. Consider inline optimizations
-5. Evaluate caching opportunities
-
-**Target**: No more than 5% performance regression vs. baseline
-
-**Estimated Effort**: 1-2 weeks
+#### 8. Migrate Set Literal Expression (`VisitSetLiteral`)
+- **Requirements**: Range expansion, storage strategies
+- **Effort**: 3-5 days
 
 ---
 
-### Task 6: Update Documentation
+### Category D: OOP Operations (Medium Priority)
 
-**Priority**: Low | **Complexity**: Low
+#### 9. Migrate Member Access (`VisitMemberAccessExpression`)
+- **Complexity**: High
+- **Requirements**: Static/unit/instance/property/helper method access modes
+- **Effort**: 2 weeks
 
-**Needed**:
-1. Update CLAUDE.md with new architecture
-2. Create architecture diagrams
-3. Document visitor pattern usage
-4. Create migration guide for contributors
-5. Update completion summary documents
+#### 10. Migrate Method Calls (`VisitMethodCallExpression`)
+- **Complexity**: Very High
+- **Requirements**: Virtual dispatch, overload resolution, Self binding
+- **Effort**: 2-3 weeks
 
-**Files**: `docs/architecture/interpreter.md`, `CLAUDE.md`
+#### 11. Migrate Object Instantiation (`VisitNewExpression`)
+- **Requirements**: Constructor dispatch, field initialization, class inheritance
+- **Effort**: 1-2 weeks
 
-**Estimated Effort**: 3-5 days
+#### 12. Migrate Inherited Expression (`VisitInheritedExpression`)
+- **Requirements**: Parent method resolution, argument passing
+- **Effort**: 1 week
+
+#### 13. Migrate Type Checking (`VisitIsExpression`)
+- **Requirements**: Runtime type checking, class hierarchy traversal
+- **Effort**: 1 week
+
+#### 14. Migrate Type Casting (`VisitAsExpression`)
+- **Requirements**: Type casting with interface wrapping/unwrapping
+- **Effort**: 1 week
+
+#### 15. Migrate Interface Checking (`VisitImplementsExpression`)
+- **Requirements**: Interface implementation verification
+- **Effort**: 3-5 days
+
+#### 16. Migrate Method Pointers (`VisitAddressOfExpression`)
+- **Requirements**: Function/method pointer creation, overload resolution
+- **Effort**: 1 week
+
+---
+
+### Category E: Declarations & Records (Medium Priority)
+
+#### 17. Migrate Variable Declarations (`VisitVarDeclStatement`)
+- **Complexity**: Very High (300+ lines)
+- **Requirements**:
+  - External variable handling
+  - Multi-identifier declarations
+  - Inline type definitions (array of, set of)
+  - Subrange type wrapping
+  - Interface wrapping
+  - Zero value initialization for all types
+- **Effort**: 2-3 weeks
+
+#### 18. Migrate Constant Declarations (`VisitConstDecl`)
+- **Requirements**: Type inference from initializer
+- **Effort**: 1 week
+
+#### 19. Migrate Record Literals (`VisitRecordLiteralExpression`)
+- **Requirements**: Typed/anonymous record construction, field initialization, nested records
+- **Effort**: 1-2 weeks
+
+---
+
+### Category F: Control Flow & Statements (Medium Priority)
+
+#### 20. Migrate Assignment Statement (`VisitAssignmentStatement`)
+- **Complexity**: High
+- **Requirements**: Lvalue resolution, simple/member/index assignments, compound operators (+=, -=, etc.)
+- **Effort**: 1-2 weeks
+
+#### 21. Migrate Try Statement (`VisitTryStatement`)
+- **Complexity**: Very High
+- **Requirements**: Defer semantics, exception matching, handler variable binding, ExceptObject management, nested handlers, bare raise support
+- **Effort**: 2-3 weeks
+
+#### 22. Migrate Raise Statement (`VisitRaiseStatement`)
+- **Requirements**: Explicit/bare raise, exception object validation, message extraction, call stack capture
+- **Effort**: 1 week
+
+---
+
+### Category G: Remaining Expression Methods (~12 methods)
+
+#### 23-34. Migrate Remaining Complex Expressions
+- Including: IfExpression variants, type-specific operations, etc.
+- **Effort**: 2-4 weeks (combined)
+
+---
+
+### Category H: Infrastructure Tasks
+
+#### 35. Enhance Test Coverage
+- **Current State**: All existing tests pass, zero regressions
+- **Needed**:
+  - Unit tests for individual visitor methods
+  - Tests for adapter infrastructure methods
+  - Edge case coverage for migrated methods
+  - Performance benchmarks for visitor dispatch
+- **Target**: 95%+ coverage on evaluator package
+- **Effort**: 2-3 weeks (ongoing)
+
+#### 36. Performance Optimization
+- **Tasks**:
+  - Benchmark visitor pattern vs. original switch
+  - Optimize hot paths (binary ops, function calls)
+  - Profile memory allocations
+  - Consider inline optimizations
+  - Evaluate caching opportunities
+- **Target**: No more than 5% performance regression vs. baseline
+- **Effort**: 1-2 weeks
+
+#### 37. Update Documentation
+- **Tasks**:
+  - Update CLAUDE.md with new architecture
+  - Create architecture diagrams
+  - Document visitor pattern usage
+  - Create migration guide for contributors
+- **Files**: `docs/architecture/interpreter.md`, `CLAUDE.md`
+- **Effort**: 3-5 days
+
+#### 38. Remove Adapter Pattern ⏸️ **DEFERRED**
+- **Status**: Blocked on AST-free runtime types architecture
+- **Steps** (when unblocked):
+  - Remove `InterpreterAdapter` interface
+  - Remove `adapter` field from Evaluator
+  - Remove `EvalNode()` fallback calls
+  - Make Interpreter thin orchestrator only
+- **Blocker**: Requires AST-free runtime types (separate long-term effort)
+- **Future Work**: See `docs/task-3.5.4-expansion-plan.md` Phase 3
+- **Effort**: 2 days (after blocker resolved)
 
 ---
 
@@ -336,25 +378,47 @@ Originally task 3.5.18, deferred until architectural refactoring:
 
 ### Next Steps (Recommended Priority)
 
-1. **High Priority**: Migrate complex expression evaluation (Task 1)
-   - Start with binary/unary operators
-   - Then function calls
-   - Then OOP operations
+**Phase 1 - High Priority** (Start here):
+1. **Tasks 1-2**: Migrate binary/unary operators
+   - Build operator overloading registry
+   - Implement type coercion system
+   - Estimated: 4-5 weeks
 
-2. **Medium Priority**: Complete identifier migration (Task 2)
-   - Finish special cases (Self, class variables, etc.)
+2. **Tasks 3-4**: Migrate function calls and identifier lookups
+   - Function pointer infrastructure
+   - Overload resolution
+   - Context management
+   - Estimated: 5-7 weeks
 
-3. **Medium Priority**: Enhance test coverage (Task 4)
-   - Add unit tests for newly migrated methods
+**Phase 2 - Medium Priority** (After Phase 1):
+3. **Tasks 5-8**: Array and collection operations
+   - Estimated: 3-4 weeks
 
-4. **Low Priority**: Performance optimization (Task 5)
+4. **Tasks 9-16**: OOP operations (member access, method calls, type checking)
+   - Estimated: 8-12 weeks
+
+5. **Tasks 17-19**: Declarations and records
+   - Estimated: 4-6 weeks
+
+6. **Tasks 20-22**: Control flow and statements (assignment, exceptions)
+   - Estimated: 4-6 weeks
+
+**Phase 3 - Ongoing**:
+7. **Task 35**: Enhance test coverage (ongoing throughout)
+   - Add tests as methods are migrated
+
+**Phase 4 - Final Tasks**:
+8. **Task 36**: Performance optimization
    - After major migrations complete
 
-5. **Low Priority**: Update documentation (Task 6)
+9. **Task 37**: Update documentation
    - Continuously update as work progresses
 
-6. **Deferred**: Remove adapter pattern (Task 3)
+**Deferred**:
+10. **Task 38**: Remove adapter pattern
    - Wait for AST-free runtime types architecture
+
+**Total Estimated Effort**: 28-52 weeks for full migration (highly parallelizable by category)
 
 ---
 
