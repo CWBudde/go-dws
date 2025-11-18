@@ -118,9 +118,9 @@ func TestEvalRecordLiteral(t *testing.T) {
 		}
 
 		// Check field values
-		xVal, ok := recordVal.Fields["X"]
+		xVal, ok := recordVal.Fields["x"]
 		if !ok {
-			t.Fatal("Field 'X' not found")
+			t.Fatal("Field 'x' not found")
 		}
 		if intVal, ok := xVal.(*IntegerValue); ok {
 			if intVal.Value != 10 {
@@ -130,9 +130,9 @@ func TestEvalRecordLiteral(t *testing.T) {
 			t.Errorf("X is not an IntegerValue, got %T", xVal)
 		}
 
-		yVal, ok := recordVal.Fields["Y"]
+		yVal, ok := recordVal.Fields["y"]
 		if !ok {
-			t.Fatal("Field 'Y' not found")
+			t.Fatal("Field 'y' not found")
 		}
 		if intVal, ok := yVal.(*IntegerValue); ok {
 			if intVal.Value != 20 {
@@ -174,12 +174,12 @@ func TestEvalRecordLiteral(t *testing.T) {
 		pVal, _ := interp.env.Get("p")
 		recordVal := pVal.(*RecordValue)
 
-		xVal := recordVal.Fields["X"].(*IntegerValue)
+		xVal := recordVal.Fields["x"].(*IntegerValue)
 		if xVal.Value != 10 {
 			t.Errorf("X = %d, want 10", xVal.Value)
 		}
 
-		yVal := recordVal.Fields["Y"].(*IntegerValue)
+		yVal := recordVal.Fields["y"].(*IntegerValue)
 		if yVal.Value != 20 {
 			t.Errorf("Y = %d, want 20", yVal.Value)
 		}
@@ -322,12 +322,12 @@ func TestRecordFieldAssignment(t *testing.T) {
 			t.Fatalf("Expected RecordValue, got %T", pVal)
 		}
 
-		xVal := recordVal.Fields["X"].(*IntegerValue)
+		xVal := recordVal.Fields["x"].(*IntegerValue)
 		if xVal.Value != 30 {
 			t.Errorf("p.X = %d, want 30", xVal.Value)
 		}
 
-		yVal := recordVal.Fields["Y"].(*IntegerValue)
+		yVal := recordVal.Fields["y"].(*IntegerValue)
 		if yVal.Value != 20 {
 			t.Errorf("p.Y = %d, want 20 (should be unchanged)", yVal.Value)
 		}
@@ -365,12 +365,12 @@ func TestRecordFieldAssignment(t *testing.T) {
 		pVal, _ := interp.env.Get("p")
 		recordVal := pVal.(*RecordValue)
 
-		xVal := recordVal.Fields["X"].(*IntegerValue)
+		xVal := recordVal.Fields["x"].(*IntegerValue)
 		if xVal.Value != 10 {
 			t.Errorf("p.X = %d, want 10", xVal.Value)
 		}
 
-		yVal := recordVal.Fields["Y"].(*IntegerValue)
+		yVal := recordVal.Fields["y"].(*IntegerValue)
 		if yVal.Value != 15 {
 			t.Errorf("p.Y = %d, want 15", yVal.Value)
 		}

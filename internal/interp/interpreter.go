@@ -958,8 +958,14 @@ func (i *Interpreter) SetObjectField(obj evaluator.Value, fieldName string, valu
 		return fmt.Errorf("not an object: %s", internalObj.Type())
 	}
 
+	// Verify field exists in class definition (case-insensitive)
+	fieldNameLower := strings.ToLower(fieldName)
+	if _, exists := objVal.Class.Fields[fieldNameLower]; !exists {
+		return fmt.Errorf("field '%s' not found in class '%s'", fieldName, objVal.Class.Name)
+	}
+
 	// Set field value (case-insensitive)
-	objVal.Fields[strings.ToLower(fieldName)] = internalValue
+	objVal.Fields[fieldNameLower] = internalValue
 	return nil
 }
 
@@ -995,8 +1001,16 @@ func (i *Interpreter) SetRecordField(record evaluator.Value, fieldName string, v
 		return fmt.Errorf("not a record: %s", internalRecord.Type())
 	}
 
+	// Verify field exists in record type definition (case-insensitive)
+	fieldNameLower := strings.ToLower(fieldName)
+	if recVal.RecordType != nil {
+		if _, exists := recVal.RecordType.Fields[fieldNameLower]; !exists {
+			return fmt.Errorf("field '%s' not found in record type '%s'", fieldName, recVal.RecordType.Name)
+		}
+	}
+
 	// Set field value (case-insensitive)
-	recVal.Fields[strings.ToLower(fieldName)] = internalValue
+	recVal.Fields[fieldNameLower] = internalValue
 	return nil
 }
 
@@ -1241,23 +1255,8 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		panic("object has no class information")
 	}
 
-	// Find method (case-insensitive) in the method map
-	methodNameLower := strings.ToLower(methodName)
-	var method *ast.FunctionDecl
-
-	// Look in Methods map first
-	if m, exists := classInfo.Methods[methodNameLower]; exists {
-		method = m
-	}
-
-	// If not found, check parent class
-	if method == nil && classInfo.Parent != nil {
-		parentInfo := classInfo.Parent
-		if m, exists := parentInfo.Methods[methodNameLower]; exists {
-			method = m
-		}
-	}
-
+	// Find method (case-insensitive) using the existing helper
+	method := classInfo.lookupMethod(methodName)
 	if method == nil {
 		panic(fmt.Sprintf("method '%s' not found in class '%s'", methodName, classInfo.Name))
 	}
@@ -1360,9 +1359,14 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 		tempEnv.Define("Self", obj)
 		i.env = tempEnv
 
-		i.callUserFunction(constructor, internalArgs)
+		result := i.callUserFunction(constructor, internalArgs)
 
 		i.env = savedEnv
+
+		// Propagate constructor errors
+		if isError(result) {
+			return nil, fmt.Errorf("constructor failed: %v", result)
+		}
 	} else if len(internalArgs) > 0 {
 		return nil, fmt.Errorf("no constructor found for class '%s' with %d arguments", className, len(internalArgs))
 	}
