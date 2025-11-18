@@ -68,201 +68,63 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-### Phase 2.2: Token Cursor Abstraction & Statement Migration (222 hours)
+### Phase 2.2: Token Cursor Abstraction & Statement Migration ✅ **COMPLETED**
 
-**Status**: ✅ 100% COMPLETE (All 16 tasks complete)
+**Summary**: Replaced mutable parser state with immutable TokenCursor, achieving production-ready performance (4.4% overhead, under 15% target).
 
-**Goal**: Replaced mutable parser state with immutable TokenCursor, migrated all expressions and statements to cursor mode, optimized performance to production-ready levels.
+**Completed Tasks**: 16 tasks (2.2.1-2.2.16) covering cursor infrastructure, expression/statement migration, and performance optimization.
 
-**Total Effort**: 222 hours (142 core + 80 optional tasks)
-
-**Task Summary**:
-- ✅ Tasks 2.2.1-2.2.11: Core cursor infrastructure & expression migration (142 hours)
-- ✅ Tasks 2.2.12-2.2.13: Prefix/IS/AS handlers (12 hours)
-- ✅ Task 2.2.14: Statement parsing migration (28 hours, 9 subtasks all complete)
-  - 2.2.14.1-9: Expression, Block, Control Flow, Declarations, Exceptions, For/Case statements
-- ✅ Task 2.2.15: Performance optimization (12 hours) - **4.4% overhead achieved** (target: <15%)
-- ✅ Task 2.2.16: Documentation and cleanup (6 hours)
-
-**Key Accomplishments**:
-- **13+ cursor handlers** implemented across expressions and statements
-- **TokenCursor optimization**: Reduced overhead from 25.1% to 4.4% via strategic pre-allocation
-  - Performance: 12.4% faster execution
-  - Memory: 25.6% reduction in allocations
-  - Allocations: 8.3% fewer total allocations
-- **Complete statement coverage**: For, Case, If, While, Repeat, Try, Var, Const, Break, Continue, Exit
-- **Dual-mode architecture**: Traditional and cursor modes coexist during transition
-- **Zero regressions**: All 1907 parser tests passing (100% success rate)
-
-**Architecture**:
-```
-Parser
-├── Traditional Mode (mutable): curToken, peekToken, nextToken()
-└── Cursor Mode (immutable): TokenCursor with Advance() → new cursor
-    ├── Benefits: No shared state, better errors, clean abstraction
-    └── Performance: 4.4% overhead (production-ready)
-```
-
-**Files Modified**:
-- `internal/parser/cursor.go`: TokenCursor with optimized Peek() and pre-allocation
-- `internal/parser/control_flow.go`: For/Case/If/While/Repeat/Break/Continue/Exit handlers
-- `internal/parser/statements.go`: Statement dispatcher and expression/assignment handlers
-- `internal/parser/expressions.go`: All expression literals and operators
-- `internal/parser/declarations.go`: Var/Const declarations
-- `internal/parser/exceptions.go`: Try/Raise exception handling
-- `docs/token-cursor.md`, `docs/dual-mode-parser.md`: Architecture documentation
-
-**Test Coverage**:
-- **1907 parser tests** passing (100% success rate)
-- **Differential testing** validates AST equivalence between modes
-- **Performance benchmarks** verify <15% overhead target met
-- **Integration tests** cover complex nested scenarios
-
-**Performance Metrics** (Final, Task 2.2.15):
-```
-Traditional Mode:  8,573 ns/op,  3,528 B/op,  77 allocs/op
-Cursor Mode:       8,953 ns/op,  8,792 B/op,  55 allocs/op
-Overhead:          +4.4% time, +149.2% memory, -28.6% allocations ✓
-```
+**Key Achievements**:
+- 13+ cursor handlers for all expressions and statements
+- Performance optimized: 4.4% overhead via strategic pre-allocation
+- Dual-mode architecture supporting gradual migration
+- 1907 parser tests passing (100% success rate)
 
 **Deliverable**: Production-ready cursor-based parser with optimized performance ✓
 
 ---
 
-### Phase 2.3: Parser Combinators ✅ (Weeks 6-7, 80 hours)
+### Phase 2.3: Parser Combinators ✅ **COMPLETED**
 
-Build reusable combinator library for common patterns.
+**Summary**: Built reusable combinator library for common parsing patterns, reducing code duplication.
 
-- [x] **2.3.1**: Core combinators (Optional, Many, SeparatedList, Between, Choice, Sequence) - 16h
-- [x] **2.3.2**: Refactor list parsing (parameters, arguments, fields, enums) - 24h
-- [x] **2.3.3**: Domain-specific combinators (OptionalTypeAnnotation, IdentifierList, StatementBlock, ParameterGroup) - 40h
+**Completed Tasks**: 3 tasks (2.3.1-2.3.3) covering core combinators, list parsing refactoring, and domain-specific combinators.
 
-**Results**: Created `internal/parser/combinators.go` (+383 lines reusable code), removed 243 lines of repetitive parsing code across functions.go (-144), statements.go (-45), records.go (-35). Net reduction in complexity through abstraction.
-
----
-
-### Phase 2.4: Automatic Position Tracking ✅ (Week 8, 40 hours)
-
-**Status**: COMPLETED (PR #196, commit 4e054521)
-
-**Goal**: Eliminate manual `EndPos` setting throughout parser using NodeBuilder pattern.
-
-**Implementation**:
-- [x] Created `internal/parser/node_builder.go` with `NodeBuilder` type (166 lines)
-- [x] Implemented `StartNode()`, `Finish()`, and `FinishWithNode()` methods
-- [x] Migrated all parsing functions across 20 parser files
-- [x] Comprehensive test suite with 370 lines of tests
-- [x] Removed all manual `EndPos` assignments
-
-**Results**: Created NodeBuilder pattern with 111 usages across 21 files. Modified 20 parser files with 878 additions, 444 deletions. Automatic position tracking now standard throughout parser.
+**Key Deliverables**:
+- `internal/parser/combinators.go` (+383 lines reusable code)
+- Removed 243 lines of repetitive parsing code across multiple files
+- Net reduction in complexity through abstraction
 
 ---
 
-### Phase 2.5: Separation of Concerns ✅ (Weeks 9-10, 80 hours)
+### Phase 2.4: Automatic Position Tracking ✅ **COMPLETED**
 
-**Status**: COMPLETED
+**Summary**: Eliminated manual `EndPos` setting throughout parser using NodeBuilder pattern.
 
-Clean architectural separation.
+**Completed Tasks**: Created `internal/parser/node_builder.go` with `NodeBuilder` type and migrated all parsing functions across 20 parser files.
 
----
+**Key Deliverables**:
+- NodeBuilder pattern with 111 usages across 21 files
+- 370 lines of tests for automatic position tracking
+- Removed all manual `EndPos` assignments
 
-#### Task 2.5.1: Remove Semantic Analysis (Week 9, ~40 hours) ✅
-
-**Goal**: Parser should only build AST, not perform type checking.
-
-**Implementation**:
-- [x] Identify all semantic analysis code in parser
-- [x] Move to separate `SemanticAnalyzer` type (already existed in internal/semantic)
-- [x] Remove `enableSemanticAnalysis` and `semanticErrors` from Parser
-- [x] Update tests to run analysis after parsing
-- [x] Measure parsing speed improvement
-
-**Files Modified**:
-- `internal/parser/parser.go` (removed semanticErrors and enableSemanticAnalysis fields, removed 3 methods)
-- `internal/parser/context.go` (removed EnableSemanticAnalysis field and methods)
-- `internal/parser/context_test.go` (updated tests to remove semantic analysis checks)
-- `internal/parser/semantic_integration_test.go` (updated to reflect separation)
-- `cmd/dwscript/cmd/run.go` (removed SetSemanticErrors call)
-- `cmd/dwscript/cmd/compile.go` (removed SetSemanticErrors call)
-
-**Estimate**: 40 hours
-
-**Deliverable**: Clean separation of parsing and semantic analysis ✅
-
-**Performance Results**:
-- Small program: 12,486 ns/op, 6,432 B/op, 119 allocs/op
-- Medium program: 38,366 ns/op, 17,192 B/op, 299 allocs/op
-- Large program: 89,678 ns/op, 33,712 B/op, 572 allocs/op
-
-**Completed**: 2025-11-17
+**Completed**: PR #196, commit 4e054521
 
 ---
 
-#### Task 2.5.2: Extract Error Recovery Module (Week 10, Days 1-2, ~16 hours) ✅
+### Phase 2.5: Separation of Concerns ✅ **COMPLETED**
 
-**Goal**: Centralize error recovery logic.
+**Summary**: Achieved clean architectural separation by removing semantic analysis from parser, centralizing error recovery, and implementing factory pattern.
 
-**Implementation**:
-- [x] Create `internal/parser/error_recovery.go`
-- [x] Implement `ErrorRecovery` type with centralized logic
-- [x] Refactor synchronization logic
-- [x] Add recovery suggestions
+**Completed Tasks**: 3 tasks (2.5.1-2.5.3)
+- **2.5.1**: Separated semantic analysis from parser (parser only builds AST)
+- **2.5.2**: Extracted error recovery module with centralized logic (318 lines)
+- **2.5.3**: Created ParserBuilder factory pattern (eliminated ~100 lines of duplication)
 
-**Files Created**:
-- `internal/parser/error_recovery.go` (318 lines)
-
-**Files Modified**:
-- `internal/parser/parser.go` (modified synchronize() to return bool)
-
-**Estimate**: 16 hours
-
-**Deliverable**: Reusable error recovery module ✅
-
-**Key Features Implemented**:
-- ErrorRecovery type with centralized error handling
-- SynchronizationSet enum (StatementStarters, BlockClosers, DeclarationStarters, All)
-- High-level error reporting APIs (AddExpectError, AddContextError, AddStructuredError)
-- Recovery helpers (SynchronizeOn, TryRecover, ExpectWithRecovery, SkipUntil)
-- Smart error code mapping (getErrorCodeForMissingToken)
-- Recovery suggestions (SuggestMissingDelimiter, SuggestMissingSeparator)
-
-**Completed**: 2025-11-17
-
----
-
-#### Task 2.5.3: Parser Factory Pattern (Week 10, Days 3-5, ~24 hours) ✅
-
-**Goal**: Clean up parser construction and configuration.
-
-**Implementation**:
-- [x] Create `ParserConfig` and `ParserBuilder` types
-- [x] Implement builder pattern for parser construction
-- [x] Migrate New() and NewCursorParser() to use builder
-- [x] Document configuration options
-
-**Files Created**:
-- `internal/parser/parser_builder.go` (212 lines)
-
-**Files Modified**:
-- `internal/parser/parser.go` (1512 → 1404 lines, eliminated 108 lines of duplication)
-
-**Estimate**: 24 hours
-
-**Deliverable**: ParserBuilder for clean construction ✅
-
-**Key Features Implemented**:
-- ParserConfig with options (UseCursor, StrictMode, AllowReservedKeywordsAsIdentifiers, MaxRecursionDepth)
-- ParserBuilder with fluent API (WithCursorMode, WithStrictMode, etc.)
-- Centralized parse function registration (eliminates duplication)
-- DefaultConfig() for sensible defaults
-- MustBuild() helper for test code
-- New() refactored from ~80 lines to ~4 lines
-- NewCursorParser() refactored to delegate common code to builder
-
-**Code Reduction**:
-- Eliminated ~100 lines of duplicate parse function registration
-- New() went from ~80 lines to ~4 lines
-- Single source of truth for parse function registration
+**Key Deliverables**:
+- Clean parser/semantic separation
+- `internal/parser/error_recovery.go` with ErrorRecovery type
+- `internal/parser/parser_builder.go` with fluent builder API
 
 **Completed**: 2025-11-17
 
