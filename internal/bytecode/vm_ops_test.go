@@ -231,10 +231,10 @@ func TestResolveValueType(t *testing.T) {
 		{"bool", ValueBool},
 		{"BOOL", ValueBool},
 		{"unknown", ValueNil}, // Unknown types default to nil
-		{"", ValueNil},         // Empty string defaults to nil
-		{"random", ValueNil},   // Random string defaults to nil
-		{"Array", ValueNil},    // Complex types default to nil
-		{"Object", ValueNil},   // Complex types default to nil
+		{"", ValueNil},        // Empty string defaults to nil
+		{"random", ValueNil},  // Random string defaults to nil
+		{"Array", ValueNil},   // Complex types default to nil
+		{"Object", ValueNil},  // Complex types default to nil
 	}
 
 	for _, tt := range tests {
