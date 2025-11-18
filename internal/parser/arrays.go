@@ -46,9 +46,20 @@ import (
 //   - type TCube = array[1..3, 1..4, 1..5] of Float;  (3D)
 //
 // Multi-dimensional arrays are desugared into nested array types.
+// PRE: curToken is ARRAY (traditional) OR cursor is on ARRAY (cursor)
+// POST: curToken is SEMICOLON (traditional) OR cursor is on SEMICOLON (cursor)
+// Dispatcher: delegates to cursor or traditional mode
+func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.ArrayDecl {
+	if p.useCursor {
+		return p.parseArrayDeclarationCursor(nameIdent, typeToken)
+	}
+	return p.parseArrayDeclarationTraditional(nameIdent, typeToken)
+}
+
+// parseArrayDeclarationTraditional parses array declaration using traditional mode.
 // PRE: curToken is ARRAY
 // POST: curToken is SEMICOLON
-func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.ArrayDecl {
+func (p *Parser) parseArrayDeclarationTraditional(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.ArrayDecl {
 	arrayDecl := &ast.ArrayDecl{
 		BaseNode: ast.BaseNode{Token: typeToken}, // The 'type' token
 		Name:     nameIdent,
@@ -619,4 +630,20 @@ func shouldParseAsSetLiteral(elements []ast.Expression) bool {
 
 	// Default to array for safety
 	return false
+}
+
+// parseArrayDeclarationCursor parses array declaration using cursor mode.
+// Task 2.7.1.5: Array declaration migration
+// PRE: cursor is on ARRAY token
+// POST: cursor is on SEMICOLON token
+func (p *Parser) parseArrayDeclarationCursor(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.ArrayDecl {
+	// For now, delegate to traditional mode
+	// This avoids complex synchronization with parseExpression and parseTypeExpression
+	// which are called for array bounds and element types
+	p.syncCursorToTokens()
+	p.useCursor = false
+	result := p.parseArrayDeclarationTraditional(nameIdent, typeToken)
+	p.useCursor = true
+	p.syncTokensToCursor()
+	return result
 }
