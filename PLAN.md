@@ -253,7 +253,7 @@ Complete migration of all parsing code to cursor/combinators.
   - parseArrayType, parseDynamicArrayType
 - [x] **2.7.2.4** Record types (8h)
   - ~~parseRecordType~~, ~~parseHelperType~~ (not needed - DWScript doesn't support inline record/helper types)
-  - parseRecordFieldDeclarations, parseRecordPropertyDeclaration (completed in 2.7.3.4)
+  - parseRecordFieldDeclarations, parseRecordPropertyDeclaration (traditional versions completed here; cursor versions added in 2.7.3.4)
 - [x] **2.7.2.5** Class types (6h)
   - parseClassType, parseClassOfType
 - [x] **2.7.2.6** Enum and set types (4h)

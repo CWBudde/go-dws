@@ -204,118 +204,9 @@ func (p *Parser) parseRecordOrHelperDeclarationCursor(nameIdent *ast.Identifier,
 	// Track current visibility level (default to public for records)
 	currentVisibility := ast.VisibilityPublic
 
-	// Parse record body until 'end'
-	for cursor.Current().Type != lexer.END && cursor.Current().Type != lexer.EOF {
-		// Check for visibility modifiers
-		if cursor.Current().Type == lexer.PRIVATE {
-			currentVisibility = ast.VisibilityPrivate
-			cursor = cursor.Advance()
-			p.cursor = cursor
-			continue
-		} else if cursor.Current().Type == lexer.PUBLIC {
-			currentVisibility = ast.VisibilityPublic
-			cursor = cursor.Advance()
-			p.cursor = cursor
-			continue
-		} else if cursor.Current().Type == lexer.PUBLISHED {
-			currentVisibility = ast.VisibilityPublic
-			cursor = cursor.Advance()
-			p.cursor = cursor
-			continue
-		}
-
-		// Check for 'const' (record constant)
-		if cursor.Current().Type == lexer.CONST {
-			cursor = cursor.Advance() // move past 'const'
-			p.cursor = cursor
-			constant := p.parseClassConstantDeclaration(currentVisibility, false)
-			if constant != nil {
-				recordDecl.Constants = append(recordDecl.Constants, constant)
-			}
-			cursor = p.cursor.Advance()
-			p.cursor = cursor
-			continue
-		}
-
-		// Check for 'class function' / 'class procedure' / 'class var' / 'class const'
-		if cursor.Current().Type == lexer.CLASS {
-			cursor = cursor.Advance() // move past 'class'
-			p.cursor = cursor
-
-			if cursor.Current().Type == lexer.VAR {
-				// Class variable: class var FieldName: Type;
-				cursor = cursor.Advance() // move past 'var'
-				p.cursor = cursor
-				fields := p.parseRecordFieldDeclarations(currentVisibility)
-				for _, field := range fields {
-					if field != nil {
-						field.IsClassVar = true
-						recordDecl.ClassVars = append(recordDecl.ClassVars, field)
-					}
-				}
-				cursor = p.cursor.Advance()
-				p.cursor = cursor
-				continue
-			} else if cursor.Current().Type == lexer.CONST {
-				// Class constant: class const Name = Value;
-				cursor = cursor.Advance() // move past 'const'
-				p.cursor = cursor
-				constant := p.parseClassConstantDeclaration(currentVisibility, true)
-				if constant != nil {
-					recordDecl.Constants = append(recordDecl.Constants, constant)
-				}
-				cursor = p.cursor.Advance()
-				p.cursor = cursor
-				continue
-			} else if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE {
-				// Class method
-				method := p.parseFunctionDeclaration()
-				if method != nil {
-					method.IsClassMethod = true
-					recordDecl.Methods = append(recordDecl.Methods, method)
-				}
-				cursor = p.cursor.Advance()
-				p.cursor = cursor
-				continue
-			} else {
-				p.addError("expected 'var', 'const', 'function' or 'procedure' after 'class' keyword in record", ErrUnexpectedToken)
-				cursor = cursor.Advance()
-				p.cursor = cursor
-				continue
-			}
-		}
-
-		// Check for method declarations (instance methods)
-		if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE {
-			method := p.parseFunctionDeclaration()
-			if method != nil {
-				recordDecl.Methods = append(recordDecl.Methods, method)
-			}
-			cursor = p.cursor.Advance()
-			p.cursor = cursor
-			continue
-		}
-
-		// Check for property declarations
-		if cursor.Current().Type == lexer.PROPERTY {
-			prop := p.parseRecordPropertyDeclaration()
-			if prop != nil {
-				recordDecl.Properties = append(recordDecl.Properties, *prop)
-			}
-			cursor = p.cursor.Advance()
-			p.cursor = cursor
-			continue
-		}
-
-		// Parse field declaration(s)
-		fields := p.parseRecordFieldDeclarations(currentVisibility)
-		if fields != nil {
-			recordDecl.Fields = append(recordDecl.Fields, fields...)
-		}
-
-		cursor = p.cursor.Advance()
-		p.cursor = cursor
-	}
+	// Parse record body using shared helper
+	currentVisibility = p.parseRecordBodyCursor(recordDecl, currentVisibility)
+	cursor = p.cursor
 
 	// Expect 'end' keyword
 	if cursor.Current().Type != lexer.END {
@@ -530,6 +421,35 @@ func (p *Parser) parseRecordDeclarationCursor(nameIdent *ast.Identifier, typeTok
 	// Track current visibility level (default to public for records)
 	currentVisibility := ast.VisibilityPublic
 
+	// Parse record body using shared helper
+	currentVisibility = p.parseRecordBodyCursor(recordDecl, currentVisibility)
+	cursor = p.cursor
+
+	// Expect 'end' keyword
+	if cursor.Current().Type != lexer.END {
+		p.addError("expected 'end' to close record declaration", ErrMissingEnd)
+		return nil
+	}
+
+	// Expect semicolon after 'end'
+	if cursor.Peek(1).Type != lexer.SEMICOLON {
+		p.addError("expected ';' after 'end'", ErrMissingSemicolon)
+		return nil
+	}
+	cursor = cursor.Advance() // move to SEMICOLON
+	p.cursor = cursor
+
+	return builder.Finish(recordDecl).(*ast.RecordDecl)
+}
+
+// parseRecordBodyCursor parses the body of a record declaration (cursor mode).
+// This helper function extracts the common record body parsing logic used by both
+// parseRecordOrHelperDeclarationCursor and parseRecordDeclarationCursor.
+// PRE: cursor is positioned at the first token inside the record body
+// POST: cursor is positioned at END keyword
+func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibility ast.Visibility) ast.Visibility {
+	cursor := p.cursor
+
 	// Parse record body until 'end'
 	for cursor.Current().Type != lexer.END && cursor.Current().Type != lexer.EOF {
 		// Check for visibility modifiers
@@ -640,26 +560,11 @@ func (p *Parser) parseRecordDeclarationCursor(nameIdent *ast.Identifier, typeTok
 			recordDecl.Fields = append(recordDecl.Fields, fields...)
 		}
 
-		// Move to next declaration
 		cursor = p.cursor.Advance()
 		p.cursor = cursor
 	}
 
-	// Expect 'end' keyword
-	if cursor.Current().Type != lexer.END {
-		p.addError("expected 'end' to close record declaration", ErrMissingEnd)
-		return nil
-	}
-
-	// Expect semicolon after 'end'
-	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' after 'end'", ErrMissingSemicolon)
-		return nil
-	}
-	cursor = cursor.Advance() // move to SEMICOLON
-	p.cursor = cursor
-
-	return builder.Finish(recordDecl).(*ast.RecordDecl)
+	return currentVisibility
 }
 
 // parseRecordFieldDeclarations parses one or more field declarations (dispatcher).
@@ -788,6 +693,8 @@ func (p *Parser) parseRecordFieldDeclarationsCursor(visibility ast.Visibility) [
 			p.addError("expected initialization expression after :=", ErrInvalidExpression)
 			return nil
 		}
+
+		cursor = p.cursor // synchronize cursor after parseExpression
 
 		// Type will be inferred during semantic analysis (set to nil for now)
 		fieldType = nil
