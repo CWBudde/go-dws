@@ -260,10 +260,8 @@ func TestCompoundAssignment_Traditional_vs_Cursor(t *testing.T) {
 }
 
 // TestMemberAssignment_Traditional_vs_Cursor tests member and index assignments
-// TODO(Task 2.2.14.2): Known issue with cursor sync for member access in assignment LHS
-// Skipping until cursor synchronization is debugged
+// Task 2.7.4 Fix: Re-enabled after implementing missing cursor prefix functions
 func TestMemberAssignment_Traditional_vs_Cursor(t *testing.T) {
-	t.Skip("Known cursor sync issue with member access - needs investigation")
 	tests := []struct {
 		name   string
 		source string

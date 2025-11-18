@@ -778,6 +778,64 @@ func (p *Parser) parseIfExpression() ast.Expression {
 	return builder.FinishWithNode(expr, expr.Consequence).(*ast.IfExpression)
 }
 
+// parseIfExpressionCursor parses an if expression in cursor mode.
+// DWScript syntax: if <condition> then <expression> [else <expression>]
+// PRE: cursor is on IF token
+// POST: cursor is on last token of expression
+func (p *Parser) parseIfExpressionCursor() ast.Expression {
+	builder := p.StartNode()
+	currentToken := p.cursor.Current()
+
+	expr := &ast.IfExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: currentToken},
+		},
+	}
+
+	// Move past 'if' and parse the condition
+	p.cursor = p.cursor.Advance()
+	expr.Condition = p.parseExpressionCursor(LOWEST)
+
+	if expr.Condition == nil {
+		p.addError("expected condition after 'if'", ErrInvalidExpression)
+		return nil
+	}
+
+	// Expect 'then' keyword
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.THEN {
+		p.addError("expected 'then' after if condition", ErrUnexpectedToken)
+		return nil
+	}
+	p.cursor = p.cursor.Advance() // move to 'then'
+
+	// Parse the consequence (then branch) as an expression
+	p.cursor = p.cursor.Advance() // move past 'then'
+	expr.Consequence = p.parseExpressionCursor(LOWEST)
+
+	if expr.Consequence == nil {
+		p.addError("expected expression after 'then'", ErrInvalidSyntax)
+		return nil
+	}
+
+	// Check for optional 'else' branch
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type == lexer.ELSE {
+		p.cursor = p.cursor.Advance() // move to 'else'
+		p.cursor = p.cursor.Advance() // move to expression after 'else'
+		expr.Alternative = p.parseExpressionCursor(LOWEST)
+
+		if expr.Alternative == nil {
+			p.addError("expected expression after 'else'", ErrInvalidSyntax)
+			return nil
+		}
+		return builder.FinishWithNode(expr, expr.Alternative).(*ast.IfExpression)
+	}
+
+	// No else branch - end at consequence
+	return builder.FinishWithNode(expr, expr.Consequence).(*ast.IfExpression)
+}
+
 // ============================================================================
 // Task 2.2.14.4: Cursor-mode handlers for control flow statements
 // ============================================================================
@@ -814,12 +872,8 @@ func (p *Parser) parseIfStatementCursor() *ast.IfStatement {
 			WithParsePhase("if statement condition").
 			Build()
 		p.addStructuredError(err)
-		// Synchronize using traditional mode
-		p.syncCursorToTokens()
-		p.useCursor = false
-		p.synchronize([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
-		p.useCursor = true
-		p.syncTokensToCursor()
+		// Synchronize to recover
+		p.synchronizeCursor([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
 		return nil
 	}
 
@@ -838,12 +892,8 @@ func (p *Parser) parseIfStatementCursor() *ast.IfStatement {
 			WithParsePhase("if statement").
 			Build()
 		p.addStructuredError(err)
-		// Synchronize using traditional mode
-		p.syncCursorToTokens()
-		p.useCursor = false
-		p.synchronize([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
-		p.useCursor = true
-		p.syncTokensToCursor()
+		// Synchronize to recover
+		p.synchronizeCursor([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
 		if p.cursor.Current().Type != lexer.THEN {
 			return nil
 		}
@@ -867,12 +917,8 @@ func (p *Parser) parseIfStatementCursor() *ast.IfStatement {
 			WithParsePhase("if statement consequence").
 			Build()
 		p.addStructuredError(err)
-		// Synchronize using traditional mode
-		p.syncCursorToTokens()
-		p.useCursor = false
-		p.synchronize([]lexer.TokenType{lexer.ELSE, lexer.END})
-		p.useCursor = true
-		p.syncTokensToCursor()
+		// Synchronize to recover
+		p.synchronizeCursor([]lexer.TokenType{lexer.ELSE, lexer.END})
 		return nil
 	}
 
@@ -894,12 +940,8 @@ func (p *Parser) parseIfStatementCursor() *ast.IfStatement {
 				WithParsePhase("if statement alternative").
 				Build()
 			p.addStructuredError(err)
-			// Synchronize using traditional mode
-			p.syncCursorToTokens()
-			p.useCursor = false
-			p.synchronize([]lexer.TokenType{lexer.END})
-			p.useCursor = true
-			p.syncTokensToCursor()
+			// Synchronize to recover
+			p.synchronizeCursor([]lexer.TokenType{lexer.END})
 			return nil
 		}
 		return builder.FinishWithNode(stmt, stmt.Alternative).(*ast.IfStatement)
@@ -941,12 +983,8 @@ func (p *Parser) parseWhileStatementCursor() *ast.WhileStatement {
 			WithParsePhase("while loop condition").
 			Build()
 		p.addStructuredError(err)
-		// Synchronize using traditional mode
-		p.syncCursorToTokens()
-		p.useCursor = false
-		p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
-		p.useCursor = true
-		p.syncTokensToCursor()
+		// Synchronize to recover
+		p.synchronizeCursor([]lexer.TokenType{lexer.DO, lexer.END})
 		return nil
 	}
 
@@ -965,12 +1003,8 @@ func (p *Parser) parseWhileStatementCursor() *ast.WhileStatement {
 			WithParsePhase("while loop").
 			Build()
 		p.addStructuredError(err)
-		// Synchronize using traditional mode
-		p.syncCursorToTokens()
-		p.useCursor = false
-		p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
-		p.useCursor = true
-		p.syncTokensToCursor()
+		// Synchronize to recover
+		p.synchronizeCursor([]lexer.TokenType{lexer.DO, lexer.END})
 		if p.cursor.Current().Type != lexer.DO {
 			return nil
 		}
@@ -994,12 +1028,8 @@ func (p *Parser) parseWhileStatementCursor() *ast.WhileStatement {
 			WithParsePhase("while loop body").
 			Build()
 		p.addStructuredError(err)
-		// Synchronize using traditional mode
-		p.syncCursorToTokens()
-		p.useCursor = false
-		p.synchronize([]lexer.TokenType{lexer.END})
-		p.useCursor = true
-		p.syncTokensToCursor()
+		// Synchronize to recover
+		p.synchronizeCursor([]lexer.TokenType{lexer.END})
 		return nil
 	}
 
@@ -1060,24 +1090,16 @@ func (p *Parser) parseRepeatStatementCursor() *ast.RepeatStatement {
 		stmt.Body = block
 	} else {
 		p.addErrorWithContext("expected at least one statement in repeat body", ErrInvalidSyntax)
-		// Synchronize using traditional mode
-		p.syncCursorToTokens()
-		p.useCursor = false
-		p.synchronize([]lexer.TokenType{lexer.UNTIL, lexer.END})
-		p.useCursor = true
-		p.syncTokensToCursor()
+		// Synchronize to recover
+		p.synchronizeCursor([]lexer.TokenType{lexer.UNTIL, lexer.END})
 		return nil
 	}
 
 	// Expect 'until' keyword
 	if p.cursor.Current().Type != lexer.UNTIL {
 		p.addErrorWithContext(fmt.Sprintf("expected 'until' after repeat body, got %s instead", p.cursor.Current().Type), ErrUnexpectedToken)
-		// Synchronize using traditional mode
-		p.syncCursorToTokens()
-		p.useCursor = false
-		p.synchronize([]lexer.TokenType{lexer.UNTIL, lexer.END})
-		p.useCursor = true
-		p.syncTokensToCursor()
+		// Synchronize to recover
+		p.synchronizeCursor([]lexer.TokenType{lexer.UNTIL, lexer.END})
 		if p.cursor.Current().Type != lexer.UNTIL {
 			return nil
 		}
@@ -1861,12 +1883,8 @@ func (p *Parser) parseCaseStatementCursor() *ast.CaseStatement {
 			WithParsePhase("case statement").
 			Build()
 		p.addStructuredError(err)
-		// Synchronize using traditional mode
-		p.syncCursorToTokens()
-		p.useCursor = false
-		p.synchronize([]lexer.TokenType{lexer.END})
-		p.useCursor = true
-		p.syncTokensToCursor()
+		// Synchronize to recover
+		p.synchronizeCursor([]lexer.TokenType{lexer.END})
 		return nil
 	}
 
