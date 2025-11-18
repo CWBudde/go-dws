@@ -391,7 +391,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 	// Check if this is a type cast (TypeName(expression))
 	// Type casts look like function calls but the "function" name is actually a type name
 	if len(expr.Arguments) == 1 {
-		if castValue := i.evalTypeCast(funcName.Value, expr.Arguments[0]); castValue != nil {
+		if castValue := i.evalTypeCast(funcName.Value, expr.Arguments[0]); castValue != nil || i.exception != nil {
 			return castValue
 		}
 	}
