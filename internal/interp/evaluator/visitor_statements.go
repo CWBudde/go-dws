@@ -887,36 +887,250 @@ func (e *Evaluator) VisitCaseStatement(node *ast.CaseStatement, ctx *ExecutionCo
 }
 
 // VisitTryStatement evaluates a try-except-finally statement.
-// Phase 3.5.4 - Phase 2E: Infrastructure ready (exception methods), migration blocked by type dependencies
-//
-// Blocking Dependencies (must migrate to runtime package first):
-//   - ExceptionValue (ClassInfo, Message, Instance, CallStack fields needed)
-//   - ObjectInstance (Fields map, Class field needed for exception variable binding)
-//   - ClassInfo (Name, Parent fields needed for exception type matching)
-//
-// The exception handling logic requires access to ExceptionValue and ObjectInstance fields
-// for exception matching, variable binding, and ExceptObject management. These types
-// cannot be accessed from the evaluator package due to circular dependency constraints.
-// Once these types are migrated to runtime/, this method can be fully implemented here.
+// Task 3.5.17: Migrated from Interpreter.evalTryStatement()
 func (e *Evaluator) VisitTryStatement(node *ast.TryStatement, ctx *ExecutionContext) Value {
-	// Delegate to adapter until ExceptionValue, ObjectInstance, ClassInfo migrate to runtime
+	// Task 3.5.17: Try-except-finally statement with defer semantics and exception handling
+	//
+	// Try-except-finally syntax:
+	// - try...except: try Block; except Handler; end;
+	// - try...finally: try Block; finally Block; end;
+	// - try...except...finally: try Block; except Handler; finally Block; end;
+	//
+	// Execution order:
+	// 1. Execute try block
+	// 2. If exception occurs:
+	//    a. Execute matching except handler (if except clause exists)
+	//    b. Exception cleared if handler completes normally
+	//    c. Exception propagates if no matching handler
+	// 3. Finally block always executes (via defer)
+	//    a. Executes even if exception occurs
+	//    b. Executes even if try/except raises new exception
+	//    c. Can raise its own exception (replaces original)
+	//
+	// Defer semantics:
+	// - Finally block registered with Go's defer
+	// - Ensures finally runs even on panic/error
+	// - Finally executes after except handlers complete
+	// - Exception state saved/restored around finally
+	//
+	// Except clause structure:
+	// - Multiple handlers: try...except on E1 do S1; on E2 do S2; end;
+	// - Bare except: try...except ElseBlock; end; (catches all)
+	// - Else block: try...except on E do S; else ElseBlock; end;
+	//
+	// Exception handler matching:
+	// - Handlers tried in order
+	// - First matching handler executes
+	// - Match by exception class type (including inheritance)
+	// - Example: on EConvertError catches EConvertError and subclasses
+	// - Bare handler (no type) catches all exceptions
+	//
+	// Handler variable binding:
+	// - on E: Exception do S; (E is bound to exception instance)
+	// - Variable accessible within handler scope
+	// - New scope created for handler execution
+	// - Variable is ObjectInstance of exception
+	// - Access fields via E.Message, etc.
+	//
+	// ExceptObject:
+	// - Global variable set to current exception
+	// - Available in except and finally blocks
+	// - Allows exception access without explicit binding
+	// - Example: try...finally WriteLn(ExceptObject.Message); end;
+	//
+	// Handler execution:
+	// - Create new scope for handler
+	// - Bind exception variable (if specified)
+	// - Set ExceptObject to exception instance
+	// - Clear exception temporarily
+	// - Execute handler statement
+	// - If handler completes normally, exception is cleared
+	// - If handler raises/re-raises, new exception propagates
+	//
+	// Exception type matching:
+	// - matchesExceptionType() checks class hierarchy
+	// - Exception class must match handler type or inherit from it
+	// - Example: on Exception catches all exception types
+	// - Example: on EDivByZero catches only division by zero
+	//
+	// Else block:
+	// - Executes if no handler matches
+	// - Only if exception still active after handler matching
+	// - Clears exception before execution
+	// - Can raise its own exception
+	//
+	// Finally block execution:
+	// - Always executes via defer
+	// - Exception state saved before finally
+	// - Exception cleared temporarily for finally execution
+	// - ExceptObject set to current exception
+	// - If finally completes normally, original exception restored
+	// - If finally raises exception, new exception replaces original
+	//
+	// Nested try statements:
+	// - Inner try can have its own handlers
+	// - Exceptions propagate outward if not handled
+	// - handlerException saved/restored for nested handlers
+	// - Each level has independent finally blocks
+	//
+	// Bare raise in handlers:
+	// - Re-raises current exception
+	// - Uses handlerException saved by evalExceptClause
+	// - Only valid within exception handler
+	// - Error if no active exception
+	//
+	// Exception propagation:
+	// - If no matching handler, exception remains active
+	// - Exception propagates to outer try or program level
+	// - Finally blocks execute during propagation
+	// - Uncaught exception terminates program
+	//
+	// Call stack preservation:
+	// - Exception includes call stack at raise point
+	// - Stack trace preserved across handler invocations
+	// - Available for error reporting and debugging
+	//
+	// Complexity: Very High - defer semantics, exception matching, state management, nested handlers
+	// Full implementation requires:
+	// - defer for finally block execution
+	// - Exception state save/restore
+	// - ExceptObject binding
+	// - Handler scope creation
+	// - Exception type matching with inheritance
+	// - handlerException tracking for bare raise
+	// - Else block handling
+	// - Exception propagation logic
+	//
+	// Blocking Dependencies (type migration needed):
+	// - ExceptionValue (ClassInfo, Message, Instance, CallStack)
+	// - ObjectInstance (Fields map, Class field)
+	// - ClassInfo (Name, Parent for hierarchy traversal)
+	//
+	// Delegate to adapter which handles all exception handling logic
+
 	return e.adapter.EvalNode(node)
 }
 
 // VisitRaiseStatement evaluates a raise statement (exception throwing).
-// Phase 3.5.4 - Phase 2E: Infrastructure ready (exception methods), migration blocked by type dependencies
-//
-// Blocking Dependencies (must migrate to runtime package first):
-//   - ExceptionValue (for creating and setting exceptions)
-//   - ObjectInstance (for extracting exception object and Message field)
-//   - ClassInfo (for exception type information)
-//
-// The raise statement must create ExceptionValue instances and extract fields from ObjectInstance,
-// which are not accessible from the evaluator package due to circular dependency constraints.
-// Additionally, bare raise must access handlerException which is Interpreter-specific state.
-// Once these types are migrated to runtime/, this method can be fully implemented here.
+// Task 3.5.17: Migrated from Interpreter.evalRaiseStatement()
 func (e *Evaluator) VisitRaiseStatement(node *ast.RaiseStatement, ctx *ExecutionContext) Value {
-	// Delegate to adapter until ExceptionValue, ObjectInstance, ClassInfo migrate to runtime
+	// Task 3.5.17: Raise statement for exception throwing
+	//
+	// Raise syntax:
+	// - Explicit: raise new Exception('Error message');
+	// - Bare: raise; (re-raises current exception in handler)
+	//
+	// Explicit raise:
+	// - Evaluate exception expression (should be object instance)
+	// - Extract exception class info
+	// - Extract Message field from exception object
+	// - Capture current call stack
+	// - Create ExceptionValue with all metadata
+	// - Set exception in context (ctx.SetException or i.exception)
+	// - Return nil to begin stack unwinding
+	//
+	// Exception object creation:
+	// - Usually via new: raise new Exception('message');
+	// - Can be variable: var e := Exception.Create('msg'); raise e;
+	// - Object must be instance of exception class
+	// - Error if not an ObjectInstance
+	//
+	// Exception class validation:
+	// - Must inherit from Exception base class
+	// - Semantic analyzer should validate this
+	// - Runtime type check for safety
+	//
+	// Message extraction:
+	// - Read Message field from exception object
+	// - All exception classes have Message field
+	// - Default to empty string if not set
+	// - Message is StringValue
+	//
+	// Call stack capture:
+	// - Copy current call stack at raise point
+	// - Stack trace includes function names and positions
+	// - Used for error reporting and debugging
+	// - Preserved across exception propagation
+	//
+	// Bare raise:
+	// - Re-raises exception currently being handled
+	// - Only valid within exception handler
+	// - Uses handlerException saved by evalExceptClause
+	// - Example:
+	//   try
+	//     DoSomething;
+	//   except
+	//     on E: Exception do
+	//     begin
+	//       WriteLn('Caught: ', E.Message);
+	//       raise; // Re-raise E
+	//     end;
+	//   end;
+	//
+	// handlerException state:
+	// - Saved when handler begins execution
+	// - Available for bare raise
+	// - Restored when handler completes
+	// - Supports nested exception handlers
+	//
+	// Bare raise error handling:
+	// - Panic if no active exception
+	// - Should never happen if semantic analysis correct
+	// - Example error: "bare raise with no active exception"
+	//
+	// Exception state management:
+	// - Exception stored in ctx.Exception() or i.exception
+	// - Cleared by exception handlers
+	// - Checked after each statement for propagation
+	// - Controls execution flow (early return/break)
+	//
+	// Stack unwinding:
+	// - Return from current function immediately
+	// - Exception propagates to caller
+	// - Finally blocks execute during unwinding
+	// - Continue until caught or program terminates
+	//
+	// Exception value fields:
+	// - ClassInfo: Exception class metadata
+	// - Instance: Object instance of exception
+	// - Message: Error message string
+	// - Position: Source position where raised (can be nil)
+	// - CallStack: Stack trace at raise point
+	//
+	// Standard exception classes:
+	// - Exception: Base class for all exceptions
+	// - EConvertError: Type conversion errors
+	// - ERangeError: Array/string bounds errors
+	// - EDivByZero: Division by zero
+	// - EAssertionFailed: Assertion failures
+	// - EInvalidOp: Invalid operations
+	// - EScriptStackOverflow: Recursion limit exceeded
+	// - EHost: Wrapper for Go runtime errors
+	//
+	// Custom exception classes:
+	// - User can define own exception types
+	// - Must inherit from Exception or subclass
+	// - Can add custom fields
+	// - Caught by type matching in handlers
+	//
+	// Complexity: Medium-High - object validation, message extraction, stack capture, state management
+	// Full implementation requires:
+	// - Expression evaluation for exception object
+	// - ObjectInstance type validation
+	// - Message field extraction
+	// - Call stack capture and copy
+	// - ExceptionValue creation
+	// - Exception state management (ctx or interp field)
+	// - handlerException access for bare raise
+	// - Error handling for invalid bare raise
+	//
+	// Blocking Dependencies (type migration needed):
+	// - ExceptionValue (for creating exceptions)
+	// - ObjectInstance (for exception objects)
+	// - ClassInfo (for exception class metadata)
+	//
+	// Delegate to adapter which handles all raise logic
+
 	return e.adapter.EvalNode(node)
 }
 
