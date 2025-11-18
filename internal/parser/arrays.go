@@ -637,13 +637,165 @@ func shouldParseAsSetLiteral(elements []ast.Expression) bool {
 // PRE: cursor is on ARRAY token
 // POST: cursor is on SEMICOLON token
 func (p *Parser) parseArrayDeclarationCursor(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.ArrayDecl {
-	// For now, delegate to traditional mode
-	// This avoids complex synchronization with parseExpression and parseTypeExpression
-	// which are called for array bounds and element types
-	p.syncCursorToTokens()
-	p.useCursor = false
-	result := p.parseArrayDeclarationTraditional(nameIdent, typeToken)
-	p.useCursor = true
-	p.syncTokensToCursor()
-	return result
+	cursor := p.cursor
+
+	arrayDecl := &ast.ArrayDecl{
+		BaseNode: ast.BaseNode{Token: typeToken}, // The 'type' token
+		Name:     nameIdent,
+	}
+
+	arrayToken := cursor.Current() // Save 'array' token
+
+	// Collect all dimensions (comma-separated)
+	type dimensionPair struct {
+		low, high ast.Expression
+	}
+	var dimensions []dimensionPair
+
+	if cursor.Peek(1).Type == lexer.LBRACK {
+		cursor = cursor.Advance() // move to '['
+
+		// Parse first dimension
+		cursor = cursor.Advance() // move to start of expression
+		p.cursor = cursor
+		lowBound := p.parseExpression(LOWEST)
+		cursor = p.cursor // Update cursor after parseExpression
+		if lowBound == nil {
+			p.addError("invalid array lower bound expression", ErrInvalidExpression)
+			return nil
+		}
+
+		// Expect '..'
+		if cursor.Peek(1).Type != lexer.DOTDOT {
+			p.addError("expected '..' in array bounds", ErrUnexpectedToken)
+			return nil
+		}
+		cursor = cursor.Advance() // move to '..'
+
+		// Parse high bound expression
+		cursor = cursor.Advance() // move to start of expression
+		p.cursor = cursor
+		highBound := p.parseExpression(LOWEST)
+		cursor = p.cursor // Update cursor after parseExpression
+		if highBound == nil {
+			p.addError("invalid array upper bound expression", ErrInvalidExpression)
+			return nil
+		}
+
+		dimensions = append(dimensions, dimensionPair{lowBound, highBound})
+
+		// Parse additional dimensions (comma-separated)
+		for cursor.Peek(1).Type == lexer.COMMA {
+			cursor = cursor.Advance() // consume comma
+			cursor = cursor.Advance() // move to next low bound
+			p.cursor = cursor
+			lowBound := p.parseExpression(LOWEST)
+			cursor = p.cursor // Update cursor after parseExpression
+			if lowBound == nil {
+				p.addError("invalid array lower bound expression in multi-dimensional array", ErrInvalidExpression)
+				return nil
+			}
+
+			if cursor.Peek(1).Type != lexer.DOTDOT {
+				p.addError("expected '..' in array bounds", ErrUnexpectedToken)
+				return nil
+			}
+			cursor = cursor.Advance() // move to '..'
+
+			cursor = cursor.Advance() // move to high bound
+			p.cursor = cursor
+			highBound := p.parseExpression(LOWEST)
+			cursor = p.cursor // Update cursor after parseExpression
+			if highBound == nil {
+				p.addError("invalid array upper bound expression in multi-dimensional array", ErrInvalidExpression)
+				return nil
+			}
+
+			dimensions = append(dimensions, dimensionPair{lowBound, highBound})
+		}
+
+		// Expect ']'
+		if cursor.Peek(1).Type != lexer.RBRACK {
+			p.addError("expected ']' after array bounds", ErrUnexpectedToken)
+			return nil
+		}
+		cursor = cursor.Advance() // move to ']'
+	}
+
+	// Expect 'of'
+	if cursor.Peek(1).Type != lexer.OF {
+		p.addError("expected 'of' after 'array'", ErrUnexpectedToken)
+		return nil
+	}
+	cursor = cursor.Advance() // move to 'of'
+
+	// Parse element type (can be any type expression, including nested arrays)
+	cursor = cursor.Advance() // move to element type
+	p.cursor = cursor
+	elementTypeExpr := p.parseTypeExpression()
+	cursor = p.cursor // Update cursor after parseTypeExpression
+	if elementTypeExpr == nil {
+		p.addError("expected type expression after 'array of'", ErrExpectedType)
+		return nil
+	}
+
+	// Convert TypeExpression to string representation for TypeAnnotation
+	// This allows the semantic analyzer to resolve it via resolveInlineArrayType
+	elementType := &ast.TypeAnnotation{
+		Token: cursor.Current(),
+		Name:  elementTypeExpr.String(),
+	}
+
+	// Build nested array type annotations if we have dimensions
+	// This desugars: array[0..1, 0..2] of Integer
+	//           into: array[0..1] of (array[0..2] of Integer)
+	var arrayType *ast.ArrayTypeAnnotation
+	if len(dimensions) == 0 {
+		// Dynamic array without bounds
+		arrayType = &ast.ArrayTypeAnnotation{
+			Token:       arrayToken,
+			ElementType: elementType,
+			LowBound:    nil,
+			HighBound:   nil,
+		}
+	} else {
+		// Build from innermost to outermost
+		// Start with the element type
+		currentElementType := elementType
+
+		// For each dimension (starting from the last), create an array type annotation
+		for i := len(dimensions) - 1; i >= 0; i-- {
+			// Create a new array type annotation with the current element type
+			newArrayType := &ast.ArrayTypeAnnotation{
+				Token:       arrayToken,
+				ElementType: currentElementType,
+				LowBound:    dimensions[i].low,
+				HighBound:   dimensions[i].high,
+			}
+
+			// For the next iteration, wrap this array type as a TypeAnnotation
+			if i > 0 {
+				// Create a wrapper TypeAnnotation pointing to this array type
+				currentElementType = &ast.TypeAnnotation{
+					Token: arrayToken,
+					Name:  newArrayType.String(),
+				}
+			} else {
+				// This is the outermost dimension, use it directly
+				arrayType = newArrayType
+			}
+		}
+	}
+
+	arrayDecl.ArrayType = arrayType
+
+	// Expect semicolon
+	if cursor.Peek(1).Type != lexer.SEMICOLON {
+		p.addError("expected ';' after array declaration", ErrUnexpectedToken)
+		return nil
+	}
+	cursor = cursor.Advance() // move to ';'
+
+	p.cursor = cursor
+	return arrayDecl
 }
