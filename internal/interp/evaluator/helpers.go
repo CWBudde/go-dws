@@ -203,3 +203,59 @@ func RuneAt(s string, index int) (rune, bool) {
 
 	return runes[index-1], true
 }
+
+// isFalsey determines if a value is "falsey" (default/zero value for its type).
+// Task 3.5.19: Helper for coalesce operator (??) evaluation.
+func isFalsey(val Value) bool {
+	// Handle nil (from unassigned variants)
+	if val == nil {
+		return true
+	}
+
+	switch v := val.(type) {
+	case *runtime.IntegerValue:
+		return v.Value == 0
+	case *runtime.FloatValue:
+		return v.Value == 0.0
+	case *runtime.StringValue:
+		return v.Value == ""
+	case *runtime.BooleanValue:
+		return !v.Value
+	case *runtime.NilValue:
+		return true
+	default:
+		// Check by type name for types not in runtime package
+		switch val.Type() {
+		case "NIL", "UNASSIGNED", "NULL":
+			return true
+		case "ARRAY":
+			// Empty arrays are falsey (check via type name to avoid import)
+			// This requires adapter access for full implementation
+			return false
+		case "VARIANT":
+			// Variant values need to be unwrapped
+			if wrapper, ok := val.(runtime.VariantWrapper); ok {
+				return isFalsey(wrapper.UnwrapVariant())
+			}
+			return false
+		default:
+			// Other types (objects, classes, etc.) are truthy if non-nil
+			return false
+		}
+	}
+}
+
+// unwrapVariant unwraps a Variant value to its underlying value.
+// Task 3.5.19: Helper for variant type coercion in binary operations.
+func unwrapVariant(value Value) Value {
+	// Check if this is a VariantWrapper (runtime.VariantWrapper interface)
+	if wrapper, ok := value.(runtime.VariantWrapper); ok {
+		unwrapped := wrapper.UnwrapVariant()
+		if unwrapped == nil {
+			// Uninitialized variant becomes nil value
+			return &runtime.NilValue{}
+		}
+		return unwrapped
+	}
+	return value
+}
