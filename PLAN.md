@@ -245,25 +245,30 @@ Complete migration of all parsing code to cursor/combinators.
 **Goal**: Migrate type parsing to cursor/combinators.
 
 **Subtasks**:
-- [ ] **2.7.2.1** Basic type expressions (8h)
+- [x] **2.7.2.1** Basic type expressions (8h)
   - parseTypeExpression, parseSimpleType, parseTypeIdentifier, parseTypeOrExpression
-- [ ] **2.7.2.2** Function pointer types (8h)
+- [x] **2.7.2.2** Function pointer types (8h)
   - parseFunctionPointerType, parseProcedurePointerType, parseMethodPointerType
-- [ ] **2.7.2.3** Array types (6h)
+- [x] **2.7.2.3** Array types (6h)
   - parseArrayType, parseDynamicArrayType
-- [ ] **2.7.2.4** Record types (8h)
-  - parseRecordType, parseHelperType, parseRecordFieldDeclarations, parseRecordPropertyDeclaration
-- [ ] **2.7.2.5** Class types (6h)
+- [x] **2.7.2.4** Record types (8h)
+  - ~~parseRecordType~~, ~~parseHelperType~~ (not needed - DWScript doesn't support inline record/helper types)
+  - parseRecordFieldDeclarations, parseRecordPropertyDeclaration (traditional versions completed here; cursor versions added in 2.7.3.4)
+- [x] **2.7.2.5** Class types (6h)
   - parseClassType, parseClassOfType
-- [ ] **2.7.2.6** Enum and set types (4h)
-  - parseEnumType, parseSetType
+- [x] **2.7.2.6** Enum and set types (4h)
+  - parseEnumType (enum declarations), parseSetType
 
 **Files Modified**:
-- `internal/parser/types.go` (12 functions)
-- `internal/parser/records.go` (3 functions coordination)
-- `internal/parser/enums.go` (2 functions coordination)
+- `internal/parser/types.go` (4 type parsing functions: parseTypeExpression, parseFunctionPointerType, parseArrayType, parseClassOfType)
+- `internal/parser/sets.go` (parseSetType)
+- `internal/parser/enums.go` (parseEnumDeclaration, parseEnumValue)
+- `internal/parser/records.go` (parseRecordFieldDeclarations, parseRecordPropertyDeclaration - completed in 2.7.3.4)
+- `internal/parser/helpers.go` (parseHelperDeclaration - completed in 2.7.3.4)
 
-**Deliverable**: Complete type parsing migration (~17 functions)
+**Deliverable**: Complete type parsing migration - all type expression parsing functions now have cursor implementations
+
+**Status**: ✅ COMPLETE - All existing type parsing functions have been migrated to cursor/combinator style
 
 ---
 
@@ -272,14 +277,15 @@ Complete migration of all parsing code to cursor/combinators.
 **Goal**: Migrate complex declaration parsing.
 
 **Subtasks**:
-- [ ] **2.7.3.1** Function declarations (8h)
+- [x] **2.7.3.1** Function declarations (8h)
   - parseFunctionDeclaration, parseParameterList, parseParameterGroup, modifiers, calling conventions
-- [ ] **2.7.3.2** Class declarations (10h)
+- [x] **2.7.3.2** Class declarations (10h)
   - parseClassDeclaration, parseClassDeclarationBody, parseFieldDeclarations, methods, properties, constructors
-- [ ] **2.7.3.3** Interface declarations (4h)
+- [x] **2.7.3.3** Interface declarations (4h)
   - parseInterfaceDeclaration, parseInterfaceDeclarationBody, parseInterfaceMethodDecl
-- [ ] **2.7.3.4** Record and enum declarations (2h)
+- [x] **2.7.3.4** Record and enum declarations (2h)
   - parseRecordDeclaration, parseEnumDeclaration, parseEnumValue
+  - Completed: Added cursor versions for all record/helper parsing functions
 
 **Files Modified**:
 - `internal/parser/functions.go` (10 functions)
