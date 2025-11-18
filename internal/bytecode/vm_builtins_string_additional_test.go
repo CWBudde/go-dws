@@ -144,15 +144,15 @@ func TestBuiltinStringFunctionsAdditional(t *testing.T) {
 
 	t.Run("StrFind found", func(t *testing.T) {
 		result, err := builtinStrFind(vm, []Value{
-			StringValue("World"),
 			StringValue("Hello, World!"),
+			StringValue("World"),
 			IntValue(1),
 		})
 		if err != nil {
 			t.Fatalf("builtinStrFind() error = %v", err)
 		}
 		if result.AsInt() != 8 {
-			t.Errorf("builtinStrFind('World', 'Hello, World!', 1) = %v, want 8", result.AsInt())
+			t.Errorf("builtinStrFind('Hello, World!', 'World', 1) = %v, want 8", result.AsInt())
 		}
 	})
 
@@ -189,9 +189,16 @@ func TestBuiltinStringFunctionsAdditional(t *testing.T) {
 	})
 
 	t.Run("StrArrayPack basic", func(t *testing.T) {
+		// StrArrayPack takes an array and removes empty strings
+		arr := NewArrayInstance([]Value{
+			StringValue("abc"),
+			StringValue(""),
+			StringValue("def"),
+			StringValue(""),
+			StringValue("ghi"),
+		})
 		result, err := builtinStrArrayPack(vm, []Value{
-			StringValue("abc def ghi"),
-			StringValue(" "),
+			ArrayValue(arr),
 		})
 		if err != nil {
 			t.Fatalf("builtinStrArrayPack() error = %v", err)
@@ -199,75 +206,75 @@ func TestBuiltinStringFunctionsAdditional(t *testing.T) {
 		if !result.IsArray() {
 			t.Fatalf("builtinStrArrayPack() should return array")
 		}
-		arr := result.Data.(*ArrayInstance)
-		if arr.Length() != 3 {
-			t.Errorf("builtinStrArrayPack() returned array with %d elements, want 3", arr.Length())
+		packed := result.AsArray()
+		if packed.Length() != 3 {
+			t.Errorf("builtinStrArrayPack() returned array with %d elements, want 3", packed.Length())
 		}
 	})
 
 	t.Run("StrBeforeLast found", func(t *testing.T) {
 		result, err := builtinStrBeforeLast(vm, []Value{
-			StringValue("o"),
 			StringValue("Hello, World!"),
+			StringValue("o"),
 		})
 		if err != nil {
 			t.Fatalf("builtinStrBeforeLast() error = %v", err)
 		}
 		if result.AsString() != "Hello, W" {
-			t.Errorf("builtinStrBeforeLast('o', 'Hello, World!') = %v, want 'Hello, W'", result.AsString())
+			t.Errorf("builtinStrBeforeLast('Hello, World!', 'o') = %v, want 'Hello, W'", result.AsString())
 		}
 	})
 
 	t.Run("StrBeforeLast not found", func(t *testing.T) {
 		result, err := builtinStrBeforeLast(vm, []Value{
-			StringValue("x"),
 			StringValue("Hello, World!"),
+			StringValue("x"),
 		})
 		if err != nil {
 			t.Fatalf("builtinStrBeforeLast() error = %v", err)
 		}
-		if result.AsString() != "Hello, World!" {
-			t.Errorf("builtinStrBeforeLast('x', 'Hello, World!') = %v, want 'Hello, World!'", result.AsString())
+		if result.AsString() != "" {
+			t.Errorf("builtinStrBeforeLast('Hello, World!', 'x') = %v, want ''", result.AsString())
 		}
 	})
 
 	t.Run("StrAfterLast found", func(t *testing.T) {
 		result, err := builtinStrAfterLast(vm, []Value{
-			StringValue("o"),
 			StringValue("Hello, World!"),
+			StringValue("o"),
 		})
 		if err != nil {
 			t.Fatalf("builtinStrAfterLast() error = %v", err)
 		}
 		if result.AsString() != "rld!" {
-			t.Errorf("builtinStrAfterLast('o', 'Hello, World!') = %v, want 'rld!'", result.AsString())
+			t.Errorf("builtinStrAfterLast('Hello, World!', 'o') = %v, want 'rld!'", result.AsString())
 		}
 	})
 
 	t.Run("StrAfterLast not found", func(t *testing.T) {
 		result, err := builtinStrAfterLast(vm, []Value{
-			StringValue("x"),
 			StringValue("Hello, World!"),
+			StringValue("x"),
 		})
 		if err != nil {
 			t.Fatalf("builtinStrAfterLast() error = %v", err)
 		}
 		if result.AsString() != "" {
-			t.Errorf("builtinStrAfterLast('x', 'Hello, World!') = %v, want ''", result.AsString())
+			t.Errorf("builtinStrAfterLast('Hello, World!', 'x') = %v, want ''", result.AsString())
 		}
 	})
 
 	t.Run("StrBetween found", func(t *testing.T) {
 		result, err := builtinStrBetween(vm, []Value{
+			StringValue("This is <example> text"),
 			StringValue("<"),
 			StringValue(">"),
-			StringValue("This is <example> text"),
 		})
 		if err != nil {
 			t.Fatalf("builtinStrBetween() error = %v", err)
 		}
 		if result.AsString() != "example" {
-			t.Errorf("builtinStrBetween('<', '>', 'This is <example> text') = %v, want 'example'", result.AsString())
+			t.Errorf("builtinStrBetween('This is <example> text', '<', '>') = %v, want 'example'", result.AsString())
 		}
 	})
 
