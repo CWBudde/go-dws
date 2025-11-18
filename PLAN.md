@@ -1072,22 +1072,102 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
 
 - [x] **3.5.19** Migrate Binary Operators (`VisitBinaryExpression`)
   - **Complexity**: Very High (843 lines in original implementation)
-  - **Status**: ✅ COMPLETE - Core operators migrated with adapter delegation for complex types
-  - **Implementation**:
-    - ✅ Short-circuit evaluation (??/and/or operators) fully implemented
-    - ✅ Integer binary operations (all operators: +, -, *, /, div, mod, shl, shr, sar, and, or, xor, comparisons)
-    - ✅ Float binary operations (arithmetic, comparisons, int→float promotion)
-    - ✅ String binary operations (concatenation, comparisons)
-    - ✅ Boolean binary operations (and, or, xor, comparisons)
-    - ⚠️ Enum/Variant/Object/Set/Array/Record operations: delegated to adapter (requires runtime package migration)
-    - ⚠️ Operator overloading registry: delegated to adapter (requires ObjectInstance migration)
-    - ⚠️ 'in' operator: delegated to adapter (complex membership testing)
-  - **Files**:
-    - `evaluator/visitor_expressions.go` - Main VisitBinaryExpression dispatcher
-    - `evaluator/binary_ops.go` - Type-specific operation handlers (new file, 500+ lines)
-    - `evaluator/helpers.go` - isFalsey/unwrapVariant helpers
-  - **Note**: Hybrid approach - core types fully migrated, complex types delegate to adapter pending value type migrations
-  - **Effort**: 1 week (core operators), 2-3 weeks remaining for full migration
+  - **Status**: ✅ PHASE 1 COMPLETE - Core primitive operators fully migrated (~65% of functionality)
+  - **Acceptance**: Core operators (Integer, Float, String, Boolean) working, tests passing
+
+  **✅ COMPLETED - Fully Implemented in Evaluator:**
+  - **Short-circuit operators** (`evalCoalesceOp`, `evalAndOp`, `evalOrOp`):
+    - `??` (coalesce) - returns left if truthy, else evaluates right
+    - `and` - short-circuit for booleans, bitwise for integers
+    - `or` - short-circuit for booleans, bitwise for integers
+    - Helper: `isFalsey()` for falsey value detection
+
+  - **Integer operations** (`evalIntegerBinaryOp`) - ALL operators:
+    - Arithmetic: `+`, `-`, `*`, `/` (→float), `div` (integer), `mod`
+    - Bitwise: `and`, `or`, `xor`, `shl`, `shr`, `sar`
+    - Comparisons: `=`, `<>`, `<`, `>`, `<=`, `>=`
+    - Error handling: division by zero, negative shifts
+
+  - **Float operations** (`evalFloatBinaryOp`):
+    - Arithmetic: `+`, `-`, `*`, `/`
+    - Comparisons: `=`, `<>`, `<`, `>`, `<=`, `>=`
+    - Automatic Integer→Float promotion for mixed operations
+
+  - **String operations** (`evalStringBinaryOp`):
+    - Concatenation: `+`
+    - Comparisons: `=`, `<>`, `<`, `>`, `<=`, `>=`
+
+  - **Boolean operations** (`evalBooleanBinaryOp`):
+    - Logical: `and`, `or`, `xor`
+    - Comparisons: `=`, `<>`
+
+  - **Helper functions**:
+    - `unwrapVariant()` - unwraps Variant values for type checking
+    - `isFalsey()` - determines zero/default values for coalesce
+
+  **⚠️ REMAINING - Currently Delegated to Adapter:**
+
+  *These require value type migrations to runtime package first:*
+
+  - **Enum operations** (`evalEnumBinaryOp` - stub):
+    - Comparisons by ordinal value: `=`, `<>`, `<`, `>`, `<=`, `>=`
+    - **Blocker**: `EnumValue` in `internal/interp`, needs migration to `runtime`
+
+  - **Variant operations** (`evalVariantBinaryOp` - stub):
+    - Type coercion and unwrapping for all operators
+    - Numeric promotion (Integer→Float)
+    - String conversions
+    - **Blocker**: `VariantValue` in `internal/interp`, needs migration to `runtime`
+
+  - **Object/Interface/Class comparisons** (`evalEqualityComparison` - stub):
+    - Identity comparisons: `=`, `<>` for objects
+    - nil comparisons
+    - Interface unwrapping
+    - ClassValue (metaclass) comparisons
+    - RTTITypeInfoValue comparisons
+    - **Blocker**: `ObjectInstance`, `InterfaceInstance`, `ClassValue`, `RTTITypeInfoValue` in `internal/interp`
+
+  - **Set operations** (delegated to adapter):
+    - Set operations: `+` (union), `-` (difference), `*` (intersection)
+    - Comparisons: `=`, `<>`, `<=` (subset), `>=` (superset)
+    - **Blocker**: `SetValue` in `internal/interp`
+
+  - **Array operations** (delegated to adapter):
+    - Comparisons: `=`, `<>` (element-wise)
+    - **Blocker**: `ArrayValue` in `internal/interp`
+
+  - **Record operations** (delegated to adapter):
+    - Comparisons: `=`, `<>` (field-wise)
+    - **Blocker**: `RecordValue` in `internal/interp`
+
+  - **Operator overloading** (`tryBinaryOperator` - stub):
+    - Custom operators for classes: `ObjectInstance.Class.lookupOperator()`
+    - Global operator registry
+    - **Blocker**: `ObjectInstance`, `ClassInfo`, `globalOperators` in `internal/interp`
+
+  - **'in' operator** (`evalInOperator` - stub):
+    - Array membership: `x in arrayVar`
+    - Set membership: `x in setVar`
+    - String substring: `'ab' in 'abc'`
+    - Subrange checking: `5 in [1..10]`
+    - **Blocker**: Complex logic requiring array/set/string special handling
+
+  **Files Modified:**
+  - `internal/interp/evaluator/visitor_expressions.go` - Main dispatcher (80 lines)
+  - `internal/interp/evaluator/binary_ops.go` - Type handlers (NEW, 500+ lines)
+  - `internal/interp/evaluator/helpers.go` - Helpers (60 lines added)
+  - `PLAN.md` - Status documentation
+
+  **Future Work (Phase 2):**
+  1. Migrate value types to runtime package (EnumValue, VariantValue, SetValue, etc.)
+  2. Implement remaining type-specific handlers in evaluator
+  3. Migrate operator overloading registry
+  4. Implement 'in' operator logic
+  5. Remove adapter delegation, complete 100% migration
+
+  **Estimated Effort:**
+  - Phase 1 (core operators): 1 week ✅ COMPLETE
+  - Phase 2 (complex types): 2-3 weeks 🔜 PENDING value type migrations
 
 - [ ] **3.5.20** Migrate Unary Operators (`VisitUnaryExpression`)
   - **Complexity**: Medium
