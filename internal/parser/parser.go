@@ -560,6 +560,32 @@ func NewCursorParser(l *lexer.Lexer) *Parser {
 		return p.parseArrayLiteralCursor()
 	})
 
+	// Task 2.7.4 Fix: Register missing cursor prefix functions
+	p.registerPrefixCursor(lexer.SELF, func(tok lexer.Token) ast.Expression {
+		return p.parseSelfExpressionCursor()
+	})
+	p.registerPrefixCursor(lexer.INHERITED, func(tok lexer.Token) ast.Expression {
+		return p.parseInheritedExpressionCursor()
+	})
+	p.registerPrefixCursor(lexer.NEW, func(tok lexer.Token) ast.Expression {
+		return p.parseNewExpressionCursor()
+	})
+	p.registerPrefixCursor(lexer.IF, func(tok lexer.Token) ast.Expression {
+		return p.parseIfExpressionCursor()
+	})
+	p.registerPrefixCursor(lexer.LAMBDA, func(tok lexer.Token) ast.Expression {
+		return p.parseLambdaExpressionCursor()
+	})
+	p.registerPrefixCursor(lexer.AT, func(tok lexer.Token) ast.Expression {
+		return p.parseAddressOfExpressionCursor()
+	})
+	p.registerPrefixCursor(lexer.DEFAULT, func(tok lexer.Token) ast.Expression {
+		return p.parseDefaultExpressionCursor()
+	})
+	p.registerPrefixCursor(lexer.OLD, func(tok lexer.Token) ast.Expression {
+		return p.parseOldExpressionCursor()
+	})
+
 	// Note: Only functions with true cursor implementations are registered above.
 	// When parseExpressionCursor encounters a token type without a cursor prefix function,
 	// it will gracefully fall back to traditional mode for that expression subtree.

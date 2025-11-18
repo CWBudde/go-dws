@@ -2618,3 +2618,447 @@ func (p *Parser) parseImplementsExpressionCursor(left ast.Expression) ast.Expres
 
 	return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
 }
+
+// ============================================================================
+// Task 2.7.4 Fix: Cursor versions of missing prefix parse functions
+// ============================================================================
+
+// parseSelfExpressionCursor parses a self expression in cursor mode.
+// The Self keyword refers to the current instance (in instance methods) or
+// the current class (in class methods).
+// Usage: Self, Self.Field, Self.Method()
+// PRE: cursor is on SELF token
+// POST: cursor unchanged (SELF token only)
+func (p *Parser) parseSelfExpressionCursor() ast.Expression {
+	builder := p.StartNode()
+	currentToken := p.cursor.Current()
+	selfExpr := &ast.SelfExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: currentToken, // The 'self' keyword
+			},
+		},
+		Token: currentToken,
+	}
+
+	// Set end position at the Self keyword itself
+	return builder.Finish(selfExpr).(ast.Expression)
+}
+
+// parseInheritedExpressionCursor parses an inherited expression in cursor mode.
+// DWScript syntax: inherited [Method[(args)]]
+// Examples:
+//   - inherited          (call parent constructor/destructor)
+//   - inherited.Method   (access parent method)
+//   - inherited Method(args) (call parent method with args)
+//
+// PRE: cursor is on INHERITED token
+// POST: cursor is on last token of expression
+func (p *Parser) parseInheritedExpressionCursor() ast.Expression {
+	builder := p.StartNode()
+	currentToken := p.cursor.Current()
+	inheritedExpr := &ast.InheritedExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: currentToken, // The 'inherited' keyword
+			},
+		},
+	}
+
+	// Check if there's a method name following
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type == lexer.IDENT {
+		p.cursor = p.cursor.Advance() // move to identifier
+		methodToken := p.cursor.Current()
+		inheritedExpr.Method = &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: methodToken,
+				},
+			},
+			Value: methodToken.Literal,
+		}
+		inheritedExpr.IsMember = true
+
+		// Check if there's a call (parentheses)
+		nextToken = p.cursor.Peek(1)
+		if nextToken.Type == lexer.LPAREN {
+			p.cursor = p.cursor.Advance() // move to '('
+			inheritedExpr.IsCall = true
+
+			// Parse arguments
+			inheritedExpr.Arguments = p.parseExpressionListCursor(lexer.RPAREN)
+			// Set end position after closing parenthesis (cursor is now at RPAREN)
+			return builder.Finish(inheritedExpr).(ast.Expression)
+		} else {
+			// No call, just method name - end at method identifier
+			return builder.FinishWithNode(inheritedExpr, inheritedExpr.Method).(ast.Expression)
+		}
+	} else {
+		// Bare 'inherited' keyword - end at the keyword itself
+		return builder.Finish(inheritedExpr).(ast.Expression)
+	}
+}
+
+// parseNewExpressionCursor parses a new expression in cursor mode.
+// DWScript syntax: new ClassName[(args)] or new array [size] of Type
+// PRE: cursor is on NEW token
+// POST: cursor is on last token of expression
+func (p *Parser) parseNewExpressionCursor() ast.Expression {
+	newToken := p.cursor.Current() // Save the 'new' token position
+
+	// Expect a type name (identifier)
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.IDENT {
+		p.addError("expected type name after 'new'", ErrExpectedIdent)
+		return nil
+	}
+
+	p.cursor = p.cursor.Advance() // move to identifier
+	typeToken := p.cursor.Current()
+	typeName := &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: typeToken,
+			},
+		},
+		Value: typeToken.Literal,
+	}
+
+	// Check what follows: '(' for class, '[' for array, or nothing for zero-arg constructor
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type == lexer.LBRACK {
+		// Array instantiation: new TypeName[size, ...]
+		return p.parseNewArrayExpressionCursor(newToken, typeName)
+	} else if nextToken.Type == lexer.LPAREN {
+		// Class instantiation: new ClassName(args)
+		return p.parseNewClassExpressionCursor(newToken, typeName)
+	} else {
+		// No parentheses - treat as zero-argument constructor
+		// DWScript allows: new TTest (equivalent to new TTest())
+		return &ast.NewExpression{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: newToken,
+				},
+			},
+			ClassName: typeName,
+			Arguments: []ast.Expression{},
+		}
+	}
+}
+
+// parseNewClassExpressionCursor parses class instantiation in cursor mode: new ClassName(args)
+// PRE: cursor is on className IDENT
+// POST: cursor is on RPAREN
+func (p *Parser) parseNewClassExpressionCursor(newToken lexer.Token, className *ast.Identifier) ast.Expression {
+	// Create NewExpression
+	newExpr := &ast.NewExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: newToken,
+			},
+		},
+		ClassName: className,
+	}
+
+	// Move to LPAREN
+	p.cursor = p.cursor.Advance()
+
+	// Parse constructor arguments
+	newExpr.Arguments = p.parseExpressionListCursor(lexer.RPAREN)
+
+	return newExpr
+}
+
+// parseNewArrayExpressionCursor parses array instantiation in cursor mode: new TypeName[size1, size2, ...]
+// Supports both single-dimensional and multi-dimensional arrays.
+// PRE: cursor is on type name identifier
+// POST: cursor is on RBRACK
+func (p *Parser) parseNewArrayExpressionCursor(newToken lexer.Token, elementTypeName *ast.Identifier) ast.Expression {
+	// Move to '['
+	p.cursor = p.cursor.Advance()
+
+	// Parse dimension sizes (comma-separated)
+	dimensions := p.parseExpressionListCursor(lexer.RBRACK)
+
+	return &ast.NewArrayExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: newToken,
+			},
+		},
+		ElementTypeName: elementTypeName,
+		Dimensions:      dimensions,
+	}
+}
+
+// parseDefaultExpressionCursor parses a Default() call expression in cursor mode.
+// DWScript syntax: Default(TypeName) - returns the default/zero value for the type
+// PRE: cursor is on DEFAULT token
+// POST: cursor is on RPAREN
+func (p *Parser) parseDefaultExpressionCursor() ast.Expression {
+	defaultToken := p.cursor.Current() // Save the 'default' token position
+
+	// Expect LPAREN
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.LPAREN {
+		p.addError("expected '(' after 'default'", ErrUnexpectedToken)
+		return nil
+	}
+	p.cursor = p.cursor.Advance() // move to '('
+
+	// Parse the type name argument
+	p.cursor = p.cursor.Advance() // Move to type name
+
+	// The type name could be an identifier (Integer, String, etc.)
+	typeName := p.parseExpressionCursor(LOWEST)
+	if typeName == nil {
+		return nil
+	}
+
+	// Expect RPAREN
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type != lexer.RPAREN {
+		p.addError("expected ')' after type name", ErrUnexpectedToken)
+		return nil
+	}
+	p.cursor = p.cursor.Advance() // move to ')'
+
+	// Return as a CallExpression with function name "Default"
+	return &ast.CallExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: defaultToken,
+			},
+		},
+		Function: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: defaultToken,
+				},
+			},
+			Value: "Default",
+		},
+		Arguments: []ast.Expression{typeName},
+	}
+}
+
+// parseAddressOfExpressionCursor parses an address-of expression in cursor mode.
+// DWScript syntax: @variable or @function
+// PRE: cursor is on AT token
+// POST: cursor is on last token of target expression
+func (p *Parser) parseAddressOfExpressionCursor() ast.Expression {
+	builder := p.StartNode()
+	currentToken := p.cursor.Current()
+	expression := &ast.AddressOfExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: currentToken}, // The @ token
+		},
+	}
+
+	p.cursor = p.cursor.Advance() // advance to the target
+
+	// Parse the target expression (function/procedure name or member access)
+	expression.Operator = p.parseExpressionCursor(PREFIX)
+
+	// End at operator expression (FinishWithNode handles nil by falling back to current token)
+	return builder.FinishWithNode(expression, expression.Operator).(ast.Expression)
+}
+
+// parseLambdaExpressionCursor parses a lambda/anonymous function expression in cursor mode.
+// Supports both full and shorthand syntax:
+//   - Full: lambda(x: Integer): Integer begin Result := x * 2; end
+//   - Shorthand: lambda(x) => x * 2
+//
+// PRE: cursor is on LAMBDA token
+// POST: cursor is on last token of lambda body (END for full syntax, expression for shorthand)
+func (p *Parser) parseLambdaExpressionCursor() ast.Expression {
+	builder := p.StartNode()
+	currentToken := p.cursor.Current()
+	lambdaExpr := &ast.LambdaExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: currentToken}, // The 'lambda' keyword
+		},
+	}
+
+	// Expect opening parenthesis
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.LPAREN {
+		p.addError("expected '(' after 'lambda'", ErrUnexpectedToken)
+		return nil
+	}
+	p.cursor = p.cursor.Advance() // move to '('
+
+	// Parse parameter list (may be empty)
+	lambdaExpr.Parameters = p.parseLambdaParameterListCursor()
+
+	// Check for return type annotation (optional)
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type == lexer.COLON {
+		p.cursor = p.cursor.Advance() // move to ':'
+
+		// Parse return type
+		nextToken = p.cursor.Peek(1)
+		if nextToken.Type != lexer.IDENT {
+			p.addError("expected return type after ':'", ErrExpectedType)
+			return nil
+		}
+		p.cursor = p.cursor.Advance() // move to type
+		typeToken := p.cursor.Current()
+
+		lambdaExpr.ReturnType = &ast.TypeAnnotation{
+			Token: typeToken,
+			Name:  typeToken.Literal,
+		}
+	}
+
+	// Check which syntax is being used: shorthand (=>) or full (begin/end)
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type == lexer.FAT_ARROW {
+		// Shorthand syntax: lambda(x) => expression
+		p.cursor = p.cursor.Advance() // move to '=>'
+		p.cursor = p.cursor.Advance() // move past '=>' to expression
+
+		// Parse the expression
+		expr := p.parseExpressionCursor(LOWEST)
+		if expr == nil {
+			p.addError("expected expression after '=>'", ErrInvalidExpression)
+			return nil
+		}
+
+		// Desugar shorthand to full syntax: wrap expression in return statement
+		lambdaExpr.Body = &ast.BlockStatement{
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()}, // Use current token for position tracking
+			Statements: []ast.Statement{
+				&ast.ReturnStatement{
+					BaseNode: ast.BaseNode{
+						Token: p.cursor.Current(),
+					},
+					ReturnValue: expr,
+				},
+			},
+		}
+		lambdaExpr.IsShorthand = true
+
+		// Set end position based on expression
+		if expr != nil {
+			return builder.FinishWithNode(lambdaExpr, expr).(ast.Expression)
+		} else {
+			return builder.Finish(lambdaExpr).(ast.Expression)
+		}
+
+	} else if nextToken.Type == lexer.BEGIN {
+		// Full syntax: lambda(x: Integer) begin ... end
+		p.cursor = p.cursor.Advance() // move to 'begin'
+
+		// Parse block statement
+		lambdaExpr.Body = p.parseBlockStatementCursor()
+		lambdaExpr.IsShorthand = false
+
+		// Set end position based on body block
+		if lambdaExpr.Body != nil {
+			return builder.FinishWithNode(lambdaExpr, lambdaExpr.Body).(ast.Expression)
+		} else {
+			return builder.Finish(lambdaExpr).(ast.Expression)
+		}
+
+	} else {
+		p.addError("expected '=>' or 'begin' after lambda parameters", ErrUnexpectedToken)
+		return nil
+	}
+}
+
+// parseLambdaParameterListCursor parses the parameter list for a lambda expression in cursor mode.
+// Lambda parameters follow the same syntax as function parameters:
+//   - Semicolon-separated groups: lambda(x: Integer; y: Integer)
+//   - Comma-separated names with shared type: lambda(x, y: Integer)
+//   - Mixed groups: lambda(x, y: Integer; z: String)
+//   - Supports by-ref: lambda(var x: Integer; y: Integer)
+//
+// Note: Lambda parameters use semicolons between groups, matching DWScript function syntax.
+// PRE: cursor is on LPAREN
+// POST: cursor is on RPAREN
+func (p *Parser) parseLambdaParameterListCursor() []*ast.Parameter {
+	params := []*ast.Parameter{}
+
+	// Check if empty parameter list
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type == lexer.RPAREN {
+		p.cursor = p.cursor.Advance() // move to ')'
+		return params
+	}
+
+	// Parse first parameter group
+	p.cursor = p.cursor.Advance() // move past '(' to first parameter
+	groupParams := p.parseParameterGroup()
+	params = append(params, groupParams...)
+
+	// Parse additional parameter groups separated by semicolons
+	for {
+		nextToken = p.cursor.Peek(1)
+		if nextToken.Type == lexer.EOF {
+			break
+		}
+		if nextToken.Type == lexer.SEMICOLON {
+			p.cursor = p.cursor.Advance() // move to ';'
+			p.cursor = p.cursor.Advance() // move past ';' to next parameter
+			groupParams = p.parseParameterGroup()
+			params = append(params, groupParams...)
+		} else if nextToken.Type == lexer.RPAREN {
+			p.cursor = p.cursor.Advance() // move to ')'
+			break
+		} else {
+			p.addError(fmt.Sprintf("expected ';' or ')' in parameter list, got %s", nextToken.Literal), ErrUnexpectedToken)
+			break
+		}
+	}
+
+	return params
+}
+
+// parseOldExpressionCursor parses an 'old' expression in cursor mode.
+// The 'old' keyword refers to the value of a variable before function execution (in postconditions).
+// DWScript syntax: old(identifier)
+// PRE: cursor is on OLD token
+// POST: cursor is on identifier
+func (p *Parser) parseOldExpressionCursor() ast.Expression {
+	currentToken := p.cursor.Current() // the OLD token
+
+	// Validate that we're in a postcondition context
+	// Use new context API (Task 2.1.2) instead of direct field access
+	if !p.ctx.ParsingPostCondition() {
+		msg := fmt.Sprintf("'old' keyword can only be used in postconditions at line %d, column %d",
+			currentToken.Pos.Line, currentToken.Pos.Column)
+		p.addError(msg, ErrInvalidSyntax)
+		return nil
+	}
+
+	// Expect an identifier after 'old'
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.IDENT {
+		p.addError("expected identifier after 'old'", ErrExpectedIdent)
+		return nil
+	}
+	p.cursor = p.cursor.Advance() // move to identifier
+	identToken := p.cursor.Current()
+
+	identifier := &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: identToken,
+			},
+		},
+		Value: identToken.Literal,
+	}
+
+	return &ast.OldExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  currentToken,
+				EndPos: identifier.End(),
+			},
+		},
+		Identifier: identifier,
+	}
+}

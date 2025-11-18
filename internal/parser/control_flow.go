@@ -778,6 +778,64 @@ func (p *Parser) parseIfExpression() ast.Expression {
 	return builder.FinishWithNode(expr, expr.Consequence).(*ast.IfExpression)
 }
 
+// parseIfExpressionCursor parses an if expression in cursor mode.
+// DWScript syntax: if <condition> then <expression> [else <expression>]
+// PRE: cursor is on IF token
+// POST: cursor is on last token of expression
+func (p *Parser) parseIfExpressionCursor() ast.Expression {
+	builder := p.StartNode()
+	currentToken := p.cursor.Current()
+
+	expr := &ast.IfExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: currentToken},
+		},
+	}
+
+	// Move past 'if' and parse the condition
+	p.cursor = p.cursor.Advance()
+	expr.Condition = p.parseExpressionCursor(LOWEST)
+
+	if expr.Condition == nil {
+		p.addError("expected condition after 'if'", ErrInvalidExpression)
+		return nil
+	}
+
+	// Expect 'then' keyword
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.THEN {
+		p.addError("expected 'then' after if condition", ErrUnexpectedToken)
+		return nil
+	}
+	p.cursor = p.cursor.Advance() // move to 'then'
+
+	// Parse the consequence (then branch) as an expression
+	p.cursor = p.cursor.Advance() // move past 'then'
+	expr.Consequence = p.parseExpressionCursor(LOWEST)
+
+	if expr.Consequence == nil {
+		p.addError("expected expression after 'then'", ErrInvalidSyntax)
+		return nil
+	}
+
+	// Check for optional 'else' branch
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type == lexer.ELSE {
+		p.cursor = p.cursor.Advance() // move to 'else'
+		p.cursor = p.cursor.Advance() // move to expression after 'else'
+		expr.Alternative = p.parseExpressionCursor(LOWEST)
+
+		if expr.Alternative == nil {
+			p.addError("expected expression after 'else'", ErrInvalidSyntax)
+			return nil
+		}
+		return builder.FinishWithNode(expr, expr.Alternative).(*ast.IfExpression)
+	}
+
+	// No else branch - end at consequence
+	return builder.FinishWithNode(expr, expr.Consequence).(*ast.IfExpression)
+}
+
 // ============================================================================
 // Task 2.2.14.4: Cursor-mode handlers for control flow statements
 // ============================================================================
