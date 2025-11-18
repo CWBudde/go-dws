@@ -254,7 +254,7 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 
 		// If the object's runtime type doesn't match or derive from target, the cast is invalid
 		if !isCompatible {
-			message := fmt.Sprintf("Cannot cast instance of type \"%s\" to class \"%s\" [line: %d, column: %d]",
+			message := fmt.Sprintf("instance of type \"%s\" cannot be cast to class \"%s\" [line: %d, column: %d]",
 				obj.Class.Name, targetClass.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
 			i.raiseException("Exception", message, &expr.Token.Pos)
 			return nil
@@ -274,7 +274,7 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 
 	// Validate that the object's class implements the interface
 	if !classImplementsInterface(obj.Class, iface) {
-		message := fmt.Sprintf("Class \"%s\" does not implement interface \"%s\" [line: %d, column: %d]",
+		message := fmt.Sprintf("class \"%s\" cannot be cast to interface \"%s\" [line: %d, column: %d]",
 			obj.Class.Name, iface.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
 		i.raiseException("Exception", message, &expr.Token.Pos)
 		return nil
