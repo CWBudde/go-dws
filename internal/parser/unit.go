@@ -101,12 +101,13 @@ func (p *Parser) parseUnitTraditional() *ast.UnitDeclaration {
 // PRE: cursor is on UNIT token
 // POST: cursor is on DOT token
 //
-// Note: This function currently delegates most of the work to traditional mode
-// because the section parsers (parseInterfaceSection, parseImplementationSection, etc.)
-// haven't been migrated to cursor mode yet. This will be improved in future tasks.
+// Note: This function currently delegates to traditional mode because the section parsers
+// (parseInterfaceSection, parseImplementationSection, etc.) use traditional mode internally.
+// A full cursor-mode implementation would require migrating all section parsers first.
+// For now, we use delegation to maintain compatibility.
 func (p *Parser) parseUnitCursor() *ast.UnitDeclaration {
-	// For now, delegate to traditional mode after verifying the header
-	// This avoids synchronization issues with unmigrated section parsers
+	// Delegate to traditional mode
+	// Section parsers aren't yet migrated, so full cursor implementation would be complex
 	p.syncCursorToTokens()
 	p.useCursor = false
 	result := p.parseUnitTraditional()

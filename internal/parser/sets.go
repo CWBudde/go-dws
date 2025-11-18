@@ -309,12 +309,75 @@ func (p *Parser) parseSetLiteralTraditional() ast.Expression {
 // PRE: cursor is on LBRACK token
 // POST: cursor is on RBRACK token
 func (p *Parser) parseSetLiteralCursor() ast.Expression {
-	// For now, delegate to traditional mode
-	// This avoids synchronization with parseExpression
-	p.syncCursorToTokens()
-	p.useCursor = false
-	result := p.parseSetLiteralTraditional()
-	p.useCursor = true
-	p.syncTokensToCursor()
-	return result
+	builder := p.StartNode()
+	cursor := p.cursor
+
+	setLit := &ast.SetLiteral{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: cursor.Current()}, // The '[' token
+		},
+		Elements: []ast.Expression{},
+	}
+
+	// Check for empty set: []
+	if cursor.Peek(1).Type == lexer.RBRACK {
+		cursor = cursor.Advance() // move to ']'
+		p.cursor = cursor
+		return builder.Finish(setLit).(*ast.SetLiteral)
+	}
+
+	// Parse elements/ranges
+	cursor = cursor.Advance() // move to first element
+	p.cursor = cursor
+
+	for cursor.Current().Type != lexer.RBRACK && cursor.Current().Type != lexer.EOF {
+		// Parse an element (could be a simple identifier or a range)
+		start := p.parseExpression(LOWEST)
+		cursor = p.cursor // Update cursor after parseExpression
+
+		// Check if this is a range (element..element)
+		if cursor.Peek(1).Type == lexer.DOTDOT {
+			cursor = cursor.Advance() // move to '..'
+			rangeToken := cursor.Current()
+
+			cursor = cursor.Advance() // move to end expression
+			p.cursor = cursor
+			end := p.parseExpression(LOWEST)
+			cursor = p.cursor // Update cursor after parseExpression
+
+			// Create a RangeExpression
+			rangeExpr := &ast.RangeExpression{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token:  rangeToken,
+						EndPos: end.End(),
+					},
+				},
+				Start:    start,
+				RangeEnd: end,
+			}
+			setLit.Elements = append(setLit.Elements, rangeExpr)
+		} else {
+			// Simple element (not a range)
+			setLit.Elements = append(setLit.Elements, start)
+		}
+
+		// Check for comma (more elements) or closing bracket
+		if cursor.Peek(1).Type == lexer.COMMA {
+			cursor = cursor.Advance() // move to comma
+			cursor = cursor.Advance() // move to next element
+			p.cursor = cursor
+		} else if cursor.Peek(1).Type == lexer.RBRACK {
+			cursor = cursor.Advance() // move to ']'
+			p.cursor = cursor
+			break
+		} else {
+			// Unexpected token
+			p.addError("expected ',' or ']' in set literal", ErrUnexpectedToken)
+			return nil
+		}
+	}
+
+	p.cursor = cursor
+	return builder.Finish(setLit).(*ast.SetLiteral)
 }
