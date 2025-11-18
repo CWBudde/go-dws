@@ -924,6 +924,490 @@ func (i *Interpreter) GetStringChar(str evaluator.Value, index evaluator.Value) 
 	return &StringValue{Value: string(runes[idx])}, nil
 }
 
+// ===== Task 3.5.7: Property, Field, and Member Access Adapter Methods =====
+
+// GetObjectField retrieves a field value from an object.
+func (i *Interpreter) GetObjectField(obj evaluator.Value, fieldName string) (evaluator.Value, error) {
+	// Convert to internal type
+	internalObj := obj.(Value)
+
+	// Get object instance
+	objVal, ok := internalObj.(*ObjectInstance)
+	if !ok {
+		return nil, fmt.Errorf("not an object: %s", internalObj.Type())
+	}
+
+	// Look up field value
+	fieldValue, exists := objVal.Fields[strings.ToLower(fieldName)]
+	if !exists {
+		return nil, fmt.Errorf("field '%s' not found in object", fieldName)
+	}
+
+	return fieldValue, nil
+}
+
+// SetObjectField sets a field value in an object.
+func (i *Interpreter) SetObjectField(obj evaluator.Value, fieldName string, value evaluator.Value) error {
+	// Convert to internal types
+	internalObj := obj.(Value)
+	internalValue := value.(Value)
+
+	// Get object instance
+	objVal, ok := internalObj.(*ObjectInstance)
+	if !ok {
+		return fmt.Errorf("not an object: %s", internalObj.Type())
+	}
+
+	// Verify field exists in class definition (case-insensitive)
+	fieldNameLower := strings.ToLower(fieldName)
+	if _, exists := objVal.Class.Fields[fieldNameLower]; !exists {
+		return fmt.Errorf("field '%s' not found in class '%s'", fieldName, objVal.Class.Name)
+	}
+
+	// Set field value (case-insensitive)
+	objVal.Fields[fieldNameLower] = internalValue
+	return nil
+}
+
+// GetRecordField retrieves a field value from a record.
+func (i *Interpreter) GetRecordField(record evaluator.Value, fieldName string) (evaluator.Value, error) {
+	// Convert to internal type
+	internalRecord := record.(Value)
+
+	// Get record value
+	recVal, ok := internalRecord.(*RecordValue)
+	if !ok {
+		return nil, fmt.Errorf("not a record: %s", internalRecord.Type())
+	}
+
+	// Look up field value
+	fieldValue, exists := recVal.Fields[strings.ToLower(fieldName)]
+	if !exists {
+		return nil, fmt.Errorf("field '%s' not found in record", fieldName)
+	}
+
+	return fieldValue, nil
+}
+
+// SetRecordField sets a field value in a record.
+func (i *Interpreter) SetRecordField(record evaluator.Value, fieldName string, value evaluator.Value) error {
+	// Convert to internal types
+	internalRecord := record.(Value)
+	internalValue := value.(Value)
+
+	// Get record value
+	recVal, ok := internalRecord.(*RecordValue)
+	if !ok {
+		return fmt.Errorf("not a record: %s", internalRecord.Type())
+	}
+
+	// Verify field exists in record type definition (case-insensitive)
+	fieldNameLower := strings.ToLower(fieldName)
+	if recVal.RecordType != nil {
+		if _, exists := recVal.RecordType.Fields[fieldNameLower]; !exists {
+			return fmt.Errorf("field '%s' not found in record type '%s'", fieldName, recVal.RecordType.Name)
+		}
+	}
+
+	// Set field value (case-insensitive)
+	recVal.Fields[fieldNameLower] = internalValue
+	return nil
+}
+
+// GetPropertyValue retrieves a property value from an object.
+func (i *Interpreter) GetPropertyValue(obj evaluator.Value, propName string) (evaluator.Value, error) {
+	// Convert to internal type
+	internalObj := obj.(Value)
+
+	// Get object instance
+	objVal, ok := internalObj.(*ObjectInstance)
+	if !ok {
+		return nil, fmt.Errorf("not an object: %s", internalObj.Type())
+	}
+
+	// Get class info
+	classInfo := objVal.Class
+	if classInfo == nil {
+		return nil, fmt.Errorf("object has no class information")
+	}
+
+	// Find property (case-insensitive)
+	propNameLower := strings.ToLower(propName)
+	prop, exists := classInfo.Properties[propNameLower]
+	if !exists {
+		return nil, fmt.Errorf("property '%s' not found in class '%s'", propName, classInfo.Name)
+	}
+
+	// Delegate to existing property read infrastructure
+	result := i.evalPropertyRead(objVal, prop, nil)
+	if isError(result) {
+		return nil, fmt.Errorf("property read failed: %v", result)
+	}
+
+	return result, nil
+}
+
+// SetPropertyValue sets a property value in an object.
+func (i *Interpreter) SetPropertyValue(obj evaluator.Value, propName string, value evaluator.Value) error {
+	// Convert to internal types
+	internalObj := obj.(Value)
+	internalValue := value.(Value)
+
+	// Get object instance
+	objVal, ok := internalObj.(*ObjectInstance)
+	if !ok {
+		return fmt.Errorf("not an object: %s", internalObj.Type())
+	}
+
+	// Get class info
+	classInfo := objVal.Class
+	if classInfo == nil {
+		return fmt.Errorf("object has no class information")
+	}
+
+	// Find property (case-insensitive)
+	propNameLower := strings.ToLower(propName)
+	prop, exists := classInfo.Properties[propNameLower]
+	if !exists {
+		return fmt.Errorf("property '%s' not found in class '%s'", propName, classInfo.Name)
+	}
+
+	// Check if property is read-only
+	if prop.WriteKind == types.PropAccessNone {
+		return fmt.Errorf("property '%s' is read-only", propName)
+	}
+
+	// Handle property write based on WriteKind
+	switch prop.WriteKind {
+	case types.PropAccessField:
+		// Direct field assignment
+		objVal.Fields[strings.ToLower(prop.WriteSpec)] = internalValue
+		return nil
+
+	case types.PropAccessMethod:
+		// Call setter method
+		method := objVal.Class.lookupMethod(prop.WriteSpec)
+		if method == nil {
+			return fmt.Errorf("property '%s' setter method '%s' not found", propName, prop.WriteSpec)
+		}
+
+		savedEnv := i.env
+		tempEnv := NewEnclosedEnvironment(i.env)
+		tempEnv.Define("Self", objVal)
+		i.env = tempEnv
+
+		args := []Value{internalValue}
+		result := i.callUserFunction(method, args)
+
+		i.env = savedEnv
+
+		if isError(result) {
+			return fmt.Errorf("property setter failed: %v", result)
+		}
+		return nil
+
+	default:
+		return fmt.Errorf("property '%s' has unsupported write access kind", propName)
+	}
+}
+
+// GetIndexedProperty retrieves an indexed property value from an object.
+func (i *Interpreter) GetIndexedProperty(obj evaluator.Value, propName string, indices []evaluator.Value) (evaluator.Value, error) {
+	// Convert to internal type
+	internalObj := obj.(Value)
+
+	// Convert indices
+	internalIndices := make([]Value, len(indices))
+	for idx, index := range indices {
+		internalIndices[idx] = index.(Value)
+	}
+
+	// Get object instance
+	objVal, ok := internalObj.(*ObjectInstance)
+	if !ok {
+		return nil, fmt.Errorf("not an object: %s", internalObj.Type())
+	}
+
+	// Get class info
+	classInfo := objVal.Class
+	if classInfo == nil {
+		return nil, fmt.Errorf("object has no class information")
+	}
+
+	// Find indexed property (case-insensitive)
+	propNameLower := strings.ToLower(propName)
+	prop, exists := classInfo.Properties[propNameLower]
+	if !exists {
+		return nil, fmt.Errorf("property '%s' not found in class '%s'", propName, classInfo.Name)
+	}
+
+	if !prop.IsIndexed {
+		return nil, fmt.Errorf("property '%s' is not an indexed property", propName)
+	}
+
+	// Call getter method with indices
+	if prop.ReadKind == types.PropAccessMethod {
+		method := objVal.Class.lookupMethod(prop.ReadSpec)
+		if method == nil {
+			return nil, fmt.Errorf("indexed property '%s' getter method '%s' not found", propName, prop.ReadSpec)
+		}
+
+		savedEnv := i.env
+		tempEnv := NewEnclosedEnvironment(i.env)
+		tempEnv.Define("Self", objVal)
+		i.env = tempEnv
+
+		result := i.callUserFunction(method, internalIndices)
+
+		i.env = savedEnv
+
+		if isError(result) {
+			return nil, fmt.Errorf("indexed property getter failed: %v", result)
+		}
+		return result, nil
+	}
+
+	return nil, fmt.Errorf("indexed property '%s' has unsupported read access kind", propName)
+}
+
+// SetIndexedProperty sets an indexed property value in an object.
+func (i *Interpreter) SetIndexedProperty(obj evaluator.Value, propName string, indices []evaluator.Value, value evaluator.Value) error {
+	// Convert to internal types
+	internalObj := obj.(Value)
+	internalValue := value.(Value)
+
+	// Convert indices
+	internalIndices := make([]Value, len(indices))
+	for idx, index := range indices {
+		internalIndices[idx] = index.(Value)
+	}
+
+	// Get object instance
+	objVal, ok := internalObj.(*ObjectInstance)
+	if !ok {
+		return fmt.Errorf("not an object: %s", internalObj.Type())
+	}
+
+	// Get class info
+	classInfo := objVal.Class
+	if classInfo == nil {
+		return fmt.Errorf("object has no class information")
+	}
+
+	// Find indexed property (case-insensitive)
+	propNameLower := strings.ToLower(propName)
+	prop, exists := classInfo.Properties[propNameLower]
+	if !exists {
+		return fmt.Errorf("property '%s' not found in class '%s'", propName, classInfo.Name)
+	}
+
+	if !prop.IsIndexed {
+		return fmt.Errorf("property '%s' is not an indexed property", propName)
+	}
+
+	// Check if property is read-only
+	if prop.WriteKind == types.PropAccessNone {
+		return fmt.Errorf("indexed property '%s' is read-only", propName)
+	}
+
+	// Call setter method with indices + value
+	if prop.WriteKind == types.PropAccessMethod {
+		method := objVal.Class.lookupMethod(prop.WriteSpec)
+		if method == nil {
+			return fmt.Errorf("indexed property '%s' setter method '%s' not found", propName, prop.WriteSpec)
+		}
+
+		savedEnv := i.env
+		tempEnv := NewEnclosedEnvironment(i.env)
+		tempEnv.Define("Self", objVal)
+		i.env = tempEnv
+
+		// Append value to indices for setter call
+		args := append(internalIndices, internalValue)
+		result := i.callUserFunction(method, args)
+
+		i.env = savedEnv
+
+		if isError(result) {
+			return fmt.Errorf("indexed property setter failed: %v", result)
+		}
+		return nil
+	}
+
+	return fmt.Errorf("indexed property '%s' has unsupported write access kind", propName)
+}
+
+// CallMethod executes a method on an object with the given arguments.
+func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []evaluator.Value, node ast.Node) evaluator.Value {
+	// Convert to internal types
+	internalObj := obj.(Value)
+	internalArgs := convertEvaluatorArgs(args)
+
+	// Get object instance
+	objVal, ok := internalObj.(*ObjectInstance)
+	if !ok {
+		panic(fmt.Sprintf("not an object: %s", internalObj.Type()))
+	}
+
+	// Get class info
+	classInfo := objVal.Class
+	if classInfo == nil {
+		panic("object has no class information")
+	}
+
+	// Find method (case-insensitive) using the existing helper
+	method := classInfo.lookupMethod(methodName)
+	if method == nil {
+		panic(fmt.Sprintf("method '%s' not found in class '%s'", methodName, classInfo.Name))
+	}
+
+	// Call the method using existing infrastructure
+	savedEnv := i.env
+	tempEnv := NewEnclosedEnvironment(i.env)
+	tempEnv.Define("Self", objVal)
+	i.env = tempEnv
+
+	result := i.callUserFunction(method, internalArgs)
+
+	i.env = savedEnv
+	return result
+}
+
+// CallInheritedMethod executes an inherited (parent) method with the given arguments.
+func (i *Interpreter) CallInheritedMethod(obj evaluator.Value, methodName string, args []evaluator.Value) evaluator.Value {
+	// Convert to internal types
+	internalObj := obj.(Value)
+	internalArgs := convertEvaluatorArgs(args)
+
+	// Get object instance
+	objVal, ok := internalObj.(*ObjectInstance)
+	if !ok {
+		panic(fmt.Sprintf("not an object: %s", internalObj.Type()))
+	}
+
+	// Get class info
+	classInfo := objVal.Class
+	if classInfo == nil {
+		panic("object has no class information")
+	}
+
+	// Check parent class
+	if classInfo.Parent == nil {
+		panic(fmt.Sprintf("class '%s' has no parent", classInfo.Name))
+	}
+
+	parentInfo := classInfo.Parent
+
+	// Find method in parent (case-insensitive)
+	methodNameLower := strings.ToLower(methodName)
+	method, exists := parentInfo.Methods[methodNameLower]
+	if !exists {
+		panic(fmt.Sprintf("inherited method '%s' not found in parent class '%s'", methodName, parentInfo.Name))
+	}
+
+	// Call the method using existing infrastructure
+	savedEnv := i.env
+	tempEnv := NewEnclosedEnvironment(i.env)
+	tempEnv.Define("Self", objVal)
+	i.env = tempEnv
+
+	result := i.callUserFunction(method, internalArgs)
+
+	i.env = savedEnv
+	return result
+}
+
+// CreateObject creates a new object instance of the specified class with constructor arguments.
+func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (evaluator.Value, error) {
+	// Convert arguments
+	internalArgs := convertEvaluatorArgs(args)
+
+	// Look up class (case-insensitive)
+	classInfo, exists := i.classes[strings.ToLower(className)]
+	if !exists {
+		return nil, fmt.Errorf("class '%s' not found", className)
+	}
+
+	// Create new object instance
+	obj := NewObjectInstance(classInfo)
+
+	// Initialize fields with default values
+	savedEnv := i.env
+	tempEnv := NewEnclosedEnvironment(i.env)
+	i.env = tempEnv
+
+	for fieldName, fieldType := range classInfo.Fields {
+		var fieldValue Value
+		if fieldDecl, hasDecl := classInfo.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
+			fieldValue = i.Eval(fieldDecl.InitValue)
+			if isError(fieldValue) {
+				i.env = savedEnv
+				return nil, fmt.Errorf("failed to initialize field '%s': %v", fieldName, fieldValue)
+			}
+		} else {
+			fieldValue = getZeroValueForType(fieldType, nil)
+		}
+		obj.SetField(fieldName, fieldValue)
+	}
+
+	i.env = savedEnv
+
+	// Call constructor if it exists
+	constructorNameLower := strings.ToLower("Create")
+	if constructor, exists := classInfo.Constructors[constructorNameLower]; exists {
+		tempEnv := NewEnclosedEnvironment(i.env)
+		tempEnv.Define("Self", obj)
+		i.env = tempEnv
+
+		result := i.callUserFunction(constructor, internalArgs)
+
+		i.env = savedEnv
+
+		// Propagate constructor errors
+		if isError(result) {
+			return nil, fmt.Errorf("constructor failed: %v", result)
+		}
+	} else if len(internalArgs) > 0 {
+		return nil, fmt.Errorf("no constructor found for class '%s' with %d arguments", className, len(internalArgs))
+	}
+
+	return obj, nil
+}
+
+// CheckType checks if an object is of a specified type (implements 'is' operator).
+func (i *Interpreter) CheckType(obj evaluator.Value, typeName string) bool {
+	// Convert to internal type
+	internalObj := obj.(Value)
+
+	// Check if it's an object
+	objVal, ok := internalObj.(*ObjectInstance)
+	if !ok {
+		return false
+	}
+
+	// Get class info
+	classInfo := objVal.Class
+	if classInfo == nil {
+		return false
+	}
+
+	// Check if the object's class matches (case-insensitive)
+	if strings.EqualFold(classInfo.Name, typeName) {
+		return true
+	}
+
+	// Check parent class hierarchy
+	current := classInfo.Parent
+	for current != nil {
+		if strings.EqualFold(current.Name, typeName) {
+			return true
+		}
+		current = current.Parent
+	}
+
+	return false
+}
+
 // GetCallStack returns a copy of the current call stack.
 // Returns stack frames in the order they were called (oldest to newest).
 func (i *Interpreter) GetCallStack() errors.StackTrace {

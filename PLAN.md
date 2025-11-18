@@ -896,7 +896,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Acceptance: ✅ Array/set operations accessible, all methods implemented and tested
   - **Enables**: ArrayLiteralExpression, NewArrayExpression, IndexExpression, SetLiteral
 
-- [ ] 3.5.7 Add Property, Field, and Member Access Adapter Methods
+- [x] 3.5.7 Add Property, Field, and Member Access Adapter Methods
   - Extend InterpreterAdapter interface with OOP access operations
   - **Field Access**:
     - `GetObjectField(obj Value, fieldName string) (Value, error)` - Object field read
