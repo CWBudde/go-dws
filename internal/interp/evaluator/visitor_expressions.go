@@ -77,100 +77,111 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 }
 
 // VisitBinaryExpression evaluates a binary expression (e.g., a + b, x == y).
-// Task 3.5.12: Documentation-only migration (843 lines of complexity in Interpreter).
+// Task 3.5.19: Full migration of binary operator evaluation.
 func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *ExecutionContext) Value {
-	// Binary expression evaluation in Interpreter is extremely complex (843 lines):
-	//
-	// Short-Circuit Operators (special evaluation order):
-	// - ?? (coalesce) - don't evaluate right if left is not nil
-	// - and - don't evaluate right if left is false
-	// - or - don't evaluate right if left is true
-	//
-	// Operator Overloading:
-	// - tryBinaryOperator() checks custom operator definitions
-	// - Object types can define custom operator behavior
-	// - Global operator registry for type-specific operations
-	//
-	// Type-Specific Handlers:
-	// - Variant operations (with complex coercion rules)
-	// - Integer operations (+, -, *, div, mod, shl, shr, =, <>, <, >, <=, >=)
-	// - Float operations (with int→float promotion)
-	// - String operations (+, =, <>, <, >, <=, >=, in)
-	// - Boolean operations (and, or, xor, not, =, <>)
-	// - Enum operations (comparisons with ordinal values)
-	// - Object comparisons (=, <> with nil handling)
-	// - Interface comparisons (unwrapping to underlying objects)
-	// - Class metaclass comparisons (ClassValue identity)
-	// - RTTI type info comparisons (TypeOf results)
-	// - Set operations (in, +, -, *, =, <>, <=, >=)
-	// - Array operations (=, <>)
-	// - Record operations (=, <>)
-	//
-	// Special Operators:
-	// - in (membership testing for arrays, sets, strings, subranges)
-	// - div/mod (integer division/modulo)
-	// - shl/shr (bit shifting)
-	// - xor (boolean/bitwise exclusive or)
-	//
-	// Type Coercion:
-	// - Integer → Float promotion
-	// - Variant unwrapping and conversion
-	// - Interface unwrapping
-	// - Implicit conversions per DWScript semantics
-	//
-	// Error Handling:
-	// - Nil operand checking
-	// - Type mismatch errors
-	// - Division by zero
-	// - Invalid operator for type combinations
-	//
-	// Full migration requires extensive infrastructure:
-	// - Type coercion system adapter
-	// - Operator overloading registry adapter
-	// - Short-circuit evaluation framework
-	// - Variant handling system
-	// - Complex type checking and promotion logic
-	//
-	// For now, delegate to adapter for complete functionality.
-	// Future: Break into focused sub-tasks per operator category.
+	// Handle short-circuit operators first (special evaluation order)
+	switch node.Operator {
+	case "??":
+		return e.evalCoalesceOp(node, ctx)
+	case "and":
+		return e.evalAndOp(node, ctx)
+	case "or":
+		return e.evalOrOp(node, ctx)
+	}
 
-	return e.adapter.EvalNode(node)
+	// Evaluate both operands for non-short-circuit operators
+	left := e.Eval(node.Left, ctx)
+	if isError(left) {
+		return left
+	}
+	if left == nil {
+		return e.newError(node.Left, "left operand evaluated to nil")
+	}
+
+	right := e.Eval(node.Right, ctx)
+	if isError(right) {
+		return right
+	}
+	if right == nil {
+		return e.newError(node.Right, "right operand evaluated to nil")
+	}
+
+	// Try operator overloading first (custom operators for objects)
+	if result, ok := e.tryBinaryOperator(node.Operator, left, right, node); ok {
+		return result
+	}
+
+	// Handle 'in' operator (membership testing)
+	if node.Operator == "in" {
+		return e.evalInOperator(left, right, node)
+	}
+
+	// Handle operations based on operand types
+	// Check for Variant FIRST (Variant operations take precedence)
+	if left.Type() == "VARIANT" || right.Type() == "VARIANT" {
+		return e.evalVariantBinaryOp(node.Operator, left, right, node)
+	}
+
+	// Type-specific binary operations
+	switch {
+	case left.Type() == "INTEGER" && right.Type() == "INTEGER":
+		return e.evalIntegerBinaryOp(node.Operator, left, right, node)
+
+	case left.Type() == "FLOAT" || right.Type() == "FLOAT":
+		return e.evalFloatBinaryOp(node.Operator, left, right, node)
+
+	case left.Type() == "STRING" && right.Type() == "STRING":
+		return e.evalStringBinaryOp(node.Operator, left, right, node)
+
+	// Allow string concatenation with RTTI_TYPEINFO
+	case (left.Type() == "STRING" && right.Type() == "RTTI_TYPEINFO") ||
+	     (left.Type() == "RTTI_TYPEINFO" && right.Type() == "STRING"):
+		if node.Operator == "+" {
+			return &runtime.StringValue{Value: left.String() + right.String()}
+		}
+		return e.newError(node, "type mismatch: %s %s %s", left.Type(), node.Operator, right.Type())
+
+	case left.Type() == "BOOLEAN" && right.Type() == "BOOLEAN":
+		return e.evalBooleanBinaryOp(node.Operator, left, right, node)
+
+	// Enum comparisons
+	case left.Type() == "ENUM" && right.Type() == "ENUM":
+		return e.evalEnumBinaryOp(node.Operator, left, right, node)
+
+	// Object, interface, class, and nil comparisons (= and <>)
+	case node.Operator == "=" || node.Operator == "<>":
+		return e.evalEqualityComparison(node.Operator, left, right, node)
+
+	default:
+		return e.newError(node, "type mismatch: %s %s %s", left.Type(), node.Operator, right.Type())
+	}
 }
 
 // VisitUnaryExpression evaluates a unary expression (e.g., -x, not b).
-// Task 3.5.12: Documentation-only migration (unary ops in expressions_basic.go).
+// Task 3.5.20: Full migration of unary operator evaluation.
 func (e *Evaluator) VisitUnaryExpression(node *ast.UnaryExpression, ctx *ExecutionContext) Value {
-	// Unary expression evaluation handles:
-	//
-	// Operator Overloading:
-	// - tryUnaryOperator() checks custom operator definitions
-	// - Object types can define custom unary operator behavior
-	// - Global operator registry for type-specific operations
-	//
-	// Unary Operators:
-	// - Minus (-): Negation for Integer and Float (with Variant support)
-	// - Plus (+): Identity for Integer and Float (with Variant support)
-	// - Not (not): Boolean/bitwise negation (with Variant support)
-	//
-	// Type-Specific Behavior:
-	// - Integer: -x, +x, not x (bitwise not)
-	// - Float: -x, +x
-	// - Boolean: not x
-	// - Variant: Unwrap and apply operator to underlying value
-	//
-	// Error Handling:
-	// - Type mismatch errors (e.g., not on non-boolean)
-	// - Nil operand checking
-	// - Variant unwrapping errors
-	//
-	// Requires:
-	// - Operator overloading registry access
-	// - Variant unwrapping system
-	// - Type checking infrastructure
-	//
-	// For now, delegate to adapter for complete functionality.
+	// Evaluate the operand
+	operand := e.Eval(node.Right, ctx)
+	if isError(operand) {
+		return operand
+	}
 
-	return e.adapter.EvalNode(node)
+	// Try operator overloading first (custom operators for objects)
+	if result, ok := e.tryUnaryOperator(node.Operator, operand, node); ok {
+		return result
+	}
+
+	// Handle standard unary operators
+	switch node.Operator {
+	case "-":
+		return e.evalMinusUnaryOp(operand, node)
+	case "+":
+		return e.evalPlusUnaryOp(operand, node)
+	case "not":
+		return e.evalNotUnaryOp(operand, node)
+	default:
+		return e.newError(node, "unknown operator: %s%s", node.Operator, operand.Type())
+	}
 }
 
 // VisitAddressOfExpression evaluates an address-of expression (@funcName).

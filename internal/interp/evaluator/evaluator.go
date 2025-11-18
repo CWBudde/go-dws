@@ -359,6 +359,24 @@ type InterpreterAdapter interface {
 	//
 	// These complex operations compose existing infrastructure (Phase 2A + Phase 2B + ExecutionContext)
 	// and are properly handled through EvalNode delegation. No additional adapter methods needed.
+
+	// ===== Task 3.5.19: Binary Operator Adapter Methods (Fix for PR #219) =====
+	//
+	// These methods delegate binary operator evaluation to the Interpreter WITHOUT re-evaluating operands.
+	// This fixes the double-evaluation bug where operands were evaluated once in the Evaluator,
+	// then re-evaluated again when calling adapter.EvalNode(node).
+
+	// EvalVariantBinaryOp handles binary operations with Variant operands using pre-evaluated values.
+	// This prevents double-evaluation of operands with side effects.
+	EvalVariantBinaryOp(op string, left, right Value, node ast.Node) Value
+
+	// EvalInOperator evaluates the 'in' operator for membership testing using pre-evaluated values.
+	// This prevents double-evaluation of operands with side effects.
+	EvalInOperator(value, container Value, node ast.Node) Value
+
+	// EvalEqualityComparison handles = and <> operators for complex types using pre-evaluated values.
+	// This prevents double-evaluation of operands with side effects.
+	EvalEqualityComparison(op string, left, right Value, node ast.Node) Value
 }
 
 // Evaluator is responsible for evaluating DWScript AST nodes.
