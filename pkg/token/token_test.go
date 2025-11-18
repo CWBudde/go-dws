@@ -436,10 +436,10 @@ func TestTokenTypeCategories(t *testing.T) {
 	t.Run("categories are mutually exclusive", func(t *testing.T) {
 		// Sample a few tokens from each category
 		samples := []TokenType{
-			IDENT, INT, STRING,  // literals
-			BEGIN, IF, CLASS,    // keywords
-			PLUS, EQ, ASSIGN,    // operators
-			LPAREN, COMMA, DOT,  // delimiters
+			IDENT, INT, STRING, // literals
+			BEGIN, IF, CLASS, // keywords
+			PLUS, EQ, ASSIGN, // operators
+			LPAREN, COMMA, DOT, // delimiters
 		}
 
 		for _, tt := range samples {
