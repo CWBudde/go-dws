@@ -450,6 +450,13 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 			return e.adapter.EvalNode(node)
 		}
 
+		// Check for object method calls: object.Method(args)
+		if objVal.Type() == "OBJECT" {
+			// Object method calls require method lookup and dispatch
+			// Delegate to adapter for object method resolution
+			return e.adapter.EvalNode(node)
+		}
+
 		// Check for unit-qualified function calls: UnitName.FunctionName(args)
 		// This requires checking if the left side is a unit identifier
 		if ident, ok := memberAccess.Object.(*ast.Identifier); ok {
@@ -529,14 +536,14 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	// ===== CALL TYPE 6: Built-in Functions with Var Parameters =====
 	// Check for built-in functions that need var parameter handling
 	// These functions modify their arguments in place (Inc, Dec, SetLength, etc.)
-	switch funcName.Value {
-	case "Inc", "Dec", "Insert", "DecodeDate", "DecodeTime",
-		"Swap", "DivMod", "TryStrToInt", "TryStrToFloat", "SetLength":
+	switch funcNameLower {
+	case "inc", "dec", "insert", "decodedate", "decodetime",
+		"swap", "divmod", "trystrtoint", "trystrtofloat", "setlength":
 		// These built-ins need special var parameter handling
 		// Delegate to adapter for built-in var parameter functions
 		// Full migration blocked by: ReferenceValue creation for var parameters
 		return e.adapter.EvalNode(node)
-	case "Delete":
+	case "delete":
 		// Delete has two forms: Delete(array, index) and Delete(string, index, count)
 		// Only the 3-parameter form needs var parameter handling
 		if len(node.Arguments) == 3 {
@@ -557,7 +564,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	// ===== CALL TYPE 8: Default() Function =====
 	// Check for Default(TypeName) function which expects unevaluated type identifier
 	// Default(Integer) should pass "Integer" as string, not evaluate it
-	if funcName.Value == "Default" && len(node.Arguments) == 1 {
+	if funcNameLower == "default" && len(node.Arguments) == 1 {
 		// Delegate to adapter for Default() function evaluation
 		// Full migration blocked by: type resolution for default value creation
 		return e.adapter.EvalNode(node)
