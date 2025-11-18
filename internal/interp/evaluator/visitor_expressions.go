@@ -158,39 +158,30 @@ func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *Execu
 }
 
 // VisitUnaryExpression evaluates a unary expression (e.g., -x, not b).
-// Task 3.5.12: Documentation-only migration (unary ops in expressions_basic.go).
+// Task 3.5.20: Full migration of unary operator evaluation.
 func (e *Evaluator) VisitUnaryExpression(node *ast.UnaryExpression, ctx *ExecutionContext) Value {
-	// Unary expression evaluation handles:
-	//
-	// Operator Overloading:
-	// - tryUnaryOperator() checks custom operator definitions
-	// - Object types can define custom unary operator behavior
-	// - Global operator registry for type-specific operations
-	//
-	// Unary Operators:
-	// - Minus (-): Negation for Integer and Float (with Variant support)
-	// - Plus (+): Identity for Integer and Float (with Variant support)
-	// - Not (not): Boolean/bitwise negation (with Variant support)
-	//
-	// Type-Specific Behavior:
-	// - Integer: -x, +x, not x (bitwise not)
-	// - Float: -x, +x
-	// - Boolean: not x
-	// - Variant: Unwrap and apply operator to underlying value
-	//
-	// Error Handling:
-	// - Type mismatch errors (e.g., not on non-boolean)
-	// - Nil operand checking
-	// - Variant unwrapping errors
-	//
-	// Requires:
-	// - Operator overloading registry access
-	// - Variant unwrapping system
-	// - Type checking infrastructure
-	//
-	// For now, delegate to adapter for complete functionality.
+	// Evaluate the operand
+	operand := e.Eval(node.Right, ctx)
+	if isError(operand) {
+		return operand
+	}
 
-	return e.adapter.EvalNode(node)
+	// Try operator overloading first (custom operators for objects)
+	if result, ok := e.tryUnaryOperator(node.Operator, operand, node); ok {
+		return result
+	}
+
+	// Handle standard unary operators
+	switch node.Operator {
+	case "-":
+		return e.evalMinusUnaryOp(operand, node)
+	case "+":
+		return e.evalPlusUnaryOp(operand, node)
+	case "not":
+		return e.evalNotUnaryOp(operand, node)
+	default:
+		return e.newError(node, "unknown operator: %s%s", node.Operator, operand.Type())
+	}
 }
 
 // VisitAddressOfExpression evaluates an address-of expression (@funcName).

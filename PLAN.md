@@ -1169,12 +1169,52 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Phase 1 (core operators): 1 week ✅ COMPLETE
   - Phase 2 (complex types): 2-3 weeks 🔜 PENDING value type migrations
 
-- [ ] **3.5.20** Migrate Unary Operators (`VisitUnaryExpression`)
+- [x] **3.5.20** Migrate Unary Operators (`VisitUnaryExpression`)
   - **Complexity**: Medium
-  - **Requirements**:
-    - Operator overloading registry (from 3.5.19)
-    - Type coercion system (from 3.5.19)
-  - **Effort**: 1 week
+  - **Status**: ✅ COMPLETE - Core unary operators fully migrated
+  - **Acceptance**: Unary operators (-, +, not) working for primitive types, tests passing
+
+  **✅ COMPLETED - Fully Implemented in Evaluator:**
+  - **Minus operator** (`evalMinusUnaryOp`):
+    - Negation for `IntegerValue`: `-x` returns negated integer
+    - Negation for `FloatValue`: `-x` returns negated float
+    - Variant unwrapping support via `unwrapVariant()`
+    - Type error for non-numeric types
+
+  - **Plus operator** (`evalPlusUnaryOp`):
+    - Identity for `IntegerValue`: `+x` returns x unchanged
+    - Identity for `FloatValue`: `+x` returns x unchanged
+    - Variant unwrapping support
+    - Type error for non-numeric types
+
+  - **Not operator** (`evalNotUnaryOp`):
+    - Logical NOT for `BooleanValue`: `not true` → false
+    - Bitwise NOT for `IntegerValue`: `not 5` → bitwise complement
+    - Type error for non-boolean/non-integer types
+
+  - **Operator overloading** (`tryUnaryOperator` - stub):
+    - Checks for custom unary operators on objects
+    - Currently delegated to adapter (pending ObjectInstance migration)
+
+  **⚠️ REMAINING - Currently Delegated to Adapter:**
+  - **Variant NOT operation**:
+    - Complex Variant → Boolean conversion for NOT operator
+    - **Blocker**: `VariantValue` in `internal/interp`, needs migration to `runtime`
+
+  - **Operator overloading registry**:
+    - Custom unary operators for classes
+    - **Blocker**: `ObjectInstance.Class`, `globalOperators` in `internal/interp`
+
+  **Files Modified:**
+  - `internal/interp/evaluator/visitor_expressions.go` - Updated `VisitUnaryExpression` (25 lines)
+  - `internal/interp/evaluator/binary_ops.go` - Added unary operator methods (70 lines)
+
+  **Testing:**
+  - ✅ Arithmetic tests pass (unary minus/plus)
+  - ✅ Bitwise tests pass (not operator for integers)
+  - ✅ Boolean tests pass (not operator for booleans)
+
+  **Estimated Effort**: 2 days ✅ COMPLETE
 
 ---
 

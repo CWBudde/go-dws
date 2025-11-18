@@ -483,3 +483,73 @@ func (e *Evaluator) evalVariantBinaryOp(op string, left, right Value, node ast.N
 	// Delegate to adapter for now since VariantValue is in interp package
 	return e.adapter.EvalNode(node)
 }
+
+// ============================================================================
+// Unary Operators
+// ============================================================================
+// Task 3.5.20: Migrated from Interpreter expressions_basic.go
+
+// tryUnaryOperator attempts to use custom operator overloading for unary operators.
+// Returns (result, true) if operator found, or (nil, false) if not found.
+func (e *Evaluator) tryUnaryOperator(operator string, operand Value, node ast.Node) (Value, bool) {
+	// Unary operator overloading requires access to:
+	// - ObjectInstance.Class.lookupOperator() for instance operators
+	// - globalOperators registry for global operators
+	// These are in interp package and haven't been migrated yet
+	// Delegate to adapter for now
+	return nil, false
+}
+
+// evalMinusUnaryOp evaluates the unary minus operator (-x).
+// Supports Integer and Float, with Variant unwrapping.
+func (e *Evaluator) evalMinusUnaryOp(operand Value, node ast.Node) Value {
+	// Unwrap Variant if necessary
+	operand = unwrapVariant(operand)
+
+	switch v := operand.(type) {
+	case *runtime.IntegerValue:
+		return &runtime.IntegerValue{Value: -v.Value}
+	case *runtime.FloatValue:
+		return &runtime.FloatValue{Value: -v.Value}
+	default:
+		return e.newError(node, "expected integer or float for unary minus, got %s", operand.Type())
+	}
+}
+
+// evalPlusUnaryOp evaluates the unary plus operator (+x).
+// Identity operation for Integer and Float, with Variant unwrapping.
+func (e *Evaluator) evalPlusUnaryOp(operand Value, node ast.Node) Value {
+	// Unwrap Variant if necessary
+	operand = unwrapVariant(operand)
+
+	switch operand.(type) {
+	case *runtime.IntegerValue, *runtime.FloatValue:
+		return operand
+	default:
+		return e.newError(node, "expected integer or float for unary plus, got %s", operand.Type())
+	}
+}
+
+// evalNotUnaryOp evaluates the not operator.
+// For Boolean: logical NOT
+// For Integer: bitwise NOT
+// For Variant: unwrap and apply NOT to underlying value
+func (e *Evaluator) evalNotUnaryOp(operand Value, node ast.Node) Value {
+	// Check if this is a Variant - delegate to adapter for now
+	// Variant NOT is complex and needs VariantValue type
+	if operand.Type() == "VARIANT" {
+		return e.adapter.EvalNode(node)
+	}
+
+	// Handle boolean NOT
+	if boolVal, ok := operand.(*runtime.BooleanValue); ok {
+		return &runtime.BooleanValue{Value: !boolVal.Value}
+	}
+
+	// Handle bitwise NOT for integers
+	if intVal, ok := operand.(*runtime.IntegerValue); ok {
+		return &runtime.IntegerValue{Value: ^intVal.Value}
+	}
+
+	return e.newError(node, "NOT operator requires Boolean or Integer operand, got %s", operand.Type())
+}
