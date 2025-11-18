@@ -792,9 +792,9 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Acceptance: All OOP and complex operations accessible via adapter
   - **Enables**: MemberAccessExpression, MethodCallExpression, CallExpression, AddressOfExpression, LambdaExpression, NewExpression, IsExpression, AsExpression, RecordLiteralExpression, AssignmentStatement, ExpressionStatement
 
-- [ ] 3.5.8 Migrate All Remaining Methods Using Adapters
-  - Migrate all 24 remaining visitor methods using adapter methods from 3.5.5-3.5.7
-  - **Adapter Methods Added** (Task 3.5.7 completion):
+- [x] 3.5.8 Add Missing Adapter Methods and Initial Migration
+  - **Completed**: Added 9 missing adapter methods from task 3.5.7
+  - **Adapter Methods Added**:
     - Added `CastType` - Type casting ('as' operator)
     - Added `CreateFunctionPointer` - Function pointer creation
     - Added `CreateLambda` - Lambda/closure creation
@@ -804,48 +804,132 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
     - Added `SetVariable` - Variable assignment
     - Added `CanAssign` - Lvalue validation
     - Added `RaiseException` - Exception raising
-  - **Simple Declarations** (using 3.5.5):
-    - [ ] VisitVarDeclStatement - Variable declarations with type inference (complex - 300+ lines)
-    - [ ] VisitConstDecl - Constant declarations (complex - record literal handling)
-  - **Expressions** (using 3.5.5):
-    - [ ] VisitIdentifier - Variable/type/function references
-    - [ ] VisitBinaryExpression - Binary operators with operator overloading
-    - [ ] VisitUnaryExpression - Unary operators
-  - **Array Operations** (using 3.5.6):
-    - [ ] VisitArrayLiteralExpression - Array construction
-    - [ ] VisitNewArrayExpression - Dynamic array allocation
-    - [ ] VisitIndexExpression - Array/string indexing
-    - [ ] VisitSetLiteral - Set literal construction with ranges
-  - **Member Access** (using 3.5.7):
-    - [ ] VisitMemberAccessExpression - Field/property/method access
-    - [ ] VisitAssignmentStatement - Assignment with lvalue resolution
-  - **Expression Statements** (using 3.5.7):
-    - [x] VisitExpressionStatement - Expression statements with auto-invoke (✅ Migrated)
-  - **Function Operations** (using 3.5.7):
-    - [ ] VisitCallExpression - Function calls
-    - [ ] VisitAddressOfExpression - Function pointer creation (complex - method pointers)
-    - [x] VisitLambdaExpression - Lambda/closure creation (✅ Migrated)
-  - **OOP Operations** (using 3.5.7):
-    - [ ] VisitNewExpression - Object instantiation
-    - [ ] VisitMethodCallExpression - Method calls
-    - [ ] VisitInheritedExpression - Parent method calls
-    - [ ] VisitIsExpression - Type checking (complex - boolean comparison mode + class hierarchy)
-    - [ ] VisitAsExpression - Type casting (complex - interface handling)
-    - [ ] VisitImplementsExpression - Interface checking
-  - **Record Operations** (using 3.5.7):
-    - [ ] VisitRecordLiteralExpression - Record construction
-  - **Exception Handling** (adapter method added):
-    - [ ] VisitTryStatement - Try-except-finally blocks (very complex - defer handling)
-    - [ ] VisitRaiseStatement - Raise exceptions (complex - handler exception state)
-  - Files: All `evaluator/visitor_*.go` files, `evaluator.go`, `interpreter.go`
-  - Estimated: 2-3 weeks (migrate and test all methods)
-  - Acceptance: All 48 visitor methods implemented, all tests passing, 100% migration complete
-  - **Progress**: 22/48 methods migrated (45.8%) from task 3.5.4; 2/24 new methods migrated (8.3%)
-  - **Target**: 48/48 methods (100%)
-  - **Status**: IN PROGRESS - Added missing adapter methods, migrated ExpressionStatement and LambdaExpression
-  - **Complexity Notes**: Most remaining methods involve substantial logic (100-300+ lines) with many edge cases (nil handling, type conversion, interface support, class hierarchies). Simple adapter method calls are insufficient - full logic migration required.
+  - **Migrated Visitor Methods** (2 of 24):
+    - [x] VisitExpressionStatement - Expression statements with auto-invoke
+    - [x] VisitLambdaExpression - Lambda/closure creation
+  - Files: `evaluator/evaluator.go`, `evaluator/visitor_statements.go`, `evaluator/visitor_expressions.go`, `interpreter.go`
+  - Estimated: 2-3 days
+  - Acceptance: Adapter methods implemented, tests pass
+  - **Status**: ✅ COMPLETE - 2/24 methods migrated (8.3%), tests passing
 
-- [ ] 3.5.9 Remove Adapter Pattern and Complete Clean Architecture ⏸️ **DEFERRED**
+- [ ] 3.5.9 Create Environment Adapter and Migrate Helper Functions
+  - Add Environment adapter methods to reduce direct Environment access
+  - **Environment Adapter Methods**:
+    - `GetVariable(name string, ctx *ExecutionContext) (Value, bool)` - Variable lookup
+    - `DefineVariable(name string, value Value, ctx *ExecutionContext)` - Variable definition
+    - `CreateEnclosedEnvironment(ctx *ExecutionContext) *ExecutionContext` - New scope
+  - **Migrate Helper Functions** from evaluator to be reusable:
+    - Move `isTruthy`, `variantToBool` to shared helpers
+    - Move `valuesEqual`, `isInRange` to shared helpers
+    - Move `runeLength`, `runeAt` to string utilities
+  - Create `internal/interp/evaluator/helpers.go` with shared utilities
+  - Files: `evaluator/evaluator.go`, `evaluator/helpers.go`, `interpreter.go`
+  - Estimated: 2-3 days
+  - Acceptance: Environment abstraction complete, helper functions reusable, tests pass
+  - **Enables**: Cleaner variable access in visitor methods
+
+- [ ] 3.5.10 Migrate Identifier and Simple Variable Lookups
+  - Migrate `VisitIdentifier` using environment adapter
+  - Handle variable lookups, type references, function references
+  - Handle enum value lookups, class references
+  - Special handling for `Result` keyword in functions
+  - Files: `evaluator/visitor_expressions.go`
+  - Estimated: 3-4 days
+  - Acceptance: VisitIdentifier migrated, all identifier tests pass
+  - **Complexity**: Medium - multiple lookup paths for different identifier types
+
+- [ ] 3.5.11 Migrate Function Call Expression
+  - Migrate `VisitCallExpression` using adapter methods
+  - Handle function pointer calls, built-in function calls, user function calls
+  - Handle function overloading resolution
+  - Handle default parameters, var parameters
+  - Handle lazy parameter evaluation
+  - Files: `evaluator/visitor_expressions.go`
+  - Estimated: 4-5 days
+  - Acceptance: VisitCallExpression migrated, all function call tests pass
+  - **Complexity**: High - function overloading, parameter handling, multiple call types
+
+- [ ] 3.5.12 Migrate Binary and Unary Expressions
+  - Migrate `VisitBinaryExpression` with operator registry
+  - Migrate `VisitUnaryExpression` with operator registry
+  - Handle operator overloading for custom types
+  - Handle implicit type conversions
+  - Handle short-circuit evaluation for `and`/`or`
+  - Handle comparison operators with type coercion
+  - Files: `evaluator/visitor_expressions.go`
+  - Estimated: 5-6 days
+  - Acceptance: Binary/unary expressions migrated, all operator tests pass
+  - **Complexity**: High - operator overloading, type conversions, short-circuit logic
+
+- [ ] 3.5.13 Migrate Array Operations
+  - Migrate `VisitArrayLiteralExpression` with type inference
+  - Migrate `VisitNewArrayExpression` with dynamic allocation
+  - Migrate `VisitIndexExpression` with bounds checking
+  - Migrate `VisitSetLiteral` with range expansion
+  - Handle multi-dimensional arrays
+  - Handle static vs dynamic arrays
+  - Files: `evaluator/visitor_expressions.go`
+  - Estimated: 4-5 days
+  - Acceptance: Array operations migrated, all array tests pass
+  - **Complexity**: Medium-High - type inference, bounds checking, set ranges
+
+- [ ] 3.5.14 Migrate Member Access and Assignment
+  - Migrate `VisitMemberAccessExpression` for field/property/method access
+  - Migrate `VisitAssignmentStatement` with lvalue resolution
+  - Handle property getters/setters with recursion prevention
+  - Handle indexed properties
+  - Handle helper method access
+  - Handle compound assignment operators (+=, -=, etc.)
+  - Files: `evaluator/visitor_expressions.go`, `evaluator/visitor_statements.go`
+  - Estimated: 5-6 days
+  - Acceptance: Member access and assignment migrated, all property/field tests pass
+  - **Complexity**: High - property recursion, helper methods, compound operators
+
+- [ ] 3.5.15 Migrate OOP Operations
+  - Migrate `VisitNewExpression` for object instantiation
+  - Migrate `VisitMethodCallExpression` for method invocation
+  - Migrate `VisitInheritedExpression` for parent method calls
+  - Migrate `VisitIsExpression` for type checking (with boolean mode)
+  - Migrate `VisitAsExpression` for type casting (with interface handling)
+  - Migrate `VisitImplementsExpression` for interface checking
+  - Migrate `VisitAddressOfExpression` for method pointers
+  - Handle constructor overloading
+  - Handle class inheritance and virtual methods
+  - Handle interface instance wrapping
+  - Files: `evaluator/visitor_expressions.go`
+  - Estimated: 6-7 days
+  - Acceptance: OOP operations migrated, all class/interface tests pass
+  - **Complexity**: Very High - inheritance, interfaces, virtual dispatch, method pointers
+
+- [ ] 3.5.16 Migrate Declarations and Record Operations
+  - Migrate `VisitVarDeclStatement` with full type handling
+  - Migrate `VisitConstDecl` with type inference
+  - Migrate `VisitRecordLiteralExpression` for record construction
+  - Handle external variables
+  - Handle subrange types
+  - Handle inline type definitions (array of, set of)
+  - Handle anonymous record literals
+  - Handle interface wrapping in variable declarations
+  - Handle multi-identifier declarations
+  - Files: `evaluator/visitor_statements.go`, `evaluator/visitor_expressions.go`
+  - Estimated: 7-8 days
+  - Acceptance: Declarations and records migrated, all declaration tests pass
+  - **Complexity**: Very High - 300+ lines, extensive type handling, multiple special cases
+  - **Note**: This is the most complex migration - consider breaking into sub-tasks
+
+- [ ] 3.5.17 Migrate Exception Handling
+  - Migrate `VisitTryStatement` with defer handling
+  - Migrate `VisitRaiseStatement` with exception state
+  - Handle finally clause execution
+  - Handle exception matching and handler selection
+  - Handle bare raise (re-raise)
+  - Handle ExceptObject variable binding
+  - Files: `evaluator/visitor_statements.go`
+  - Estimated: 4-5 days
+  - Acceptance: Exception handling migrated, all exception tests pass
+  - **Complexity**: Very High - defer semantics, exception state management, nested handlers
+
+- [ ] 3.5.18 Remove Adapter Pattern and Complete Clean Architecture ⏸️ **DEFERRED**
   - **Status**: Deferred until AST-free runtime types research is complete
   - **Rationale**: Tasks 3.5.5-3.5.8 use adapter pattern extensions to reach 100% completion. Removing the adapter requires architectural refactoring (AST-free value types) which is a separate long-term effort.
   - **Original Plan**:
