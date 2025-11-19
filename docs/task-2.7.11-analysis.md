@@ -75,8 +75,28 @@ Complete task 2.7.11.3 (code cleanup) now, then:
 
 - `docs/task-2.7.11-analysis.md` (this file)
 
+## Attempted Implementation (2025-11-19)
+
+**Attempt**: Updated 113 call sites from `p.parseExpression(` to `p.parseExpressionCursor(` across 15 files.
+
+**Result**: FAILED - Tests failed due to dual-mode functions not having cursor properly initialized.
+
+**Root Cause**: Many functions use both `p.curToken` (traditional state) and call parse functions. When these functions call `p.parseExpressionCursor()`, the cursor isn't synchronized with curToken, causing failures.
+
+**Example Failures**:
+- Array literal parsing: cursor not at expected position
+- New array expressions: dual-mode positioning issues
+- Class field declarations: curToken/cursor mismatch
+- Record declarations: synchronization problems
+
+**Conclusion**: Task 2.7.11.1 MUST wait for tasks 2.7.5-2.7.8 to complete. Those tasks will:
+1. Convert all ~308 curToken/peekToken references to cursor equivalents
+2. Eliminate dual-mode functions
+3. Ensure all functions use cursor exclusively
+
 ## Next Steps
 
 1. ✅ Complete task 2.7.11.3 (code cleanup)
-2. ⚠️ Skip task 2.7.11.1 for now (blocked by earlier tasks)
-3. ✅ Mark task 2.7.11.2 as complete (already done)
+2. ⚠️ Complete tasks 2.7.5-2.7.8 FIRST (convert curToken/peekToken to cursor)
+3. ⚠️ Then complete task 2.7.11.1 (remove dispatch wrappers)
+4. ✅ Mark task 2.7.11.2 as complete (already done)
