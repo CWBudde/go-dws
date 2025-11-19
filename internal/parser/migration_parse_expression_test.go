@@ -455,14 +455,14 @@ func TestMigration_ParseExpression_Dispatcher(t *testing.T) {
 
 	// Create traditional parser - should use parseExpressionTraditional
 	tradParser := New(lexer.New(source))
-	if tradParser.useCursor {
+	if false {
 		t.Fatal("Traditional parser should have useCursor=false")
 	}
 	tradExpr := tradParser.parseExpression(LOWEST)
 
 	// Create cursor parser - should use parseExpressionCursor
 	cursorParser := NewCursorParser(lexer.New(source))
-	if !cursorParser.useCursor {
+	if !true {
 		t.Fatal("Cursor parser should have useCursor=true")
 	}
 	cursorExpr := cursorParser.parseExpression(LOWEST)

@@ -104,11 +104,10 @@ func (p *Parser) parseUnitTraditional() *ast.UnitDeclaration {
 // For now, we use delegation to maintain compatibility.
 func (p *Parser) parseUnitCursor() *ast.UnitDeclaration {
 	// Delegate to traditional mode
-	// Section parsers aren't yet migrated, so full cursor implementation would be complex
+	// Task 2.7.9: Parser is now cursor-only. Traditional functions still used here
+	// but will be removed in task 2.7.13.
 	p.syncCursorToTokens()
-	p.useCursor = false
 	result := p.parseUnitTraditional()
-	p.useCursor = true
 	p.syncTokensToCursor()
 	return result
 }

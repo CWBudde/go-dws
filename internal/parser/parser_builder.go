@@ -8,10 +8,8 @@ import (
 // ParserConfig holds configuration options for the parser.
 // This separates parser configuration from parser state, making it easier
 // to create parsers with different configurations.
+// Task 2.7.9: UseCursor removed - parser is now cursor-only.
 type ParserConfig struct {
-	// UseCursor enables cursor-based parsing mode (vs. traditional mode)
-	UseCursor bool
-
 	// AllowReservedKeywordsAsIdentifiers allows using reserved keywords as identifiers
 	// in contexts where they're unambiguous (e.g., 'step' as a variable name)
 	AllowReservedKeywordsAsIdentifiers bool
@@ -25,10 +23,9 @@ type ParserConfig struct {
 }
 
 // DefaultConfig returns a ParserConfig with default settings.
-// Task 2.7.9: Cursor mode is now the default and only mode.
+// Task 2.7.9: Parser is now cursor-only (no mode selection).
 func DefaultConfig() ParserConfig {
 	return ParserConfig{
-		UseCursor:                          true, // Task 2.7.9: Cursor mode is now default
 		AllowReservedKeywordsAsIdentifiers: true,
 		StrictMode:                         false,
 		MaxRecursionDepth:                  1000,
@@ -37,18 +34,18 @@ func DefaultConfig() ParserConfig {
 
 // ParserBuilder provides a fluent API for constructing Parser instances.
 // It reduces code duplication and makes parser configuration more explicit.
+// Task 2.7.9: Parser is now cursor-only.
 //
 // Example usage:
 //
 //	parser := NewParserBuilder(lexer).
-//	    WithCursorMode(true).
 //	    WithStrictMode(false).
 //	    Build()
 //
 // For simple cases, use the convenience constructors:
 //
-//	parser := New(lexer)          // Traditional mode with defaults
-//	parser := NewCursorParser(lexer)  // Cursor mode with defaults
+//	parser := New(lexer)              // Default settings
+//	parser := NewCursorParser(lexer)  // Alias for New()
 type ParserBuilder struct {
 	lexer  *lexer.Lexer
 	config ParserConfig
@@ -65,12 +62,6 @@ func NewParserBuilder(l *lexer.Lexer) *ParserBuilder {
 // WithConfig sets the entire configuration at once.
 func (b *ParserBuilder) WithConfig(config ParserConfig) *ParserBuilder {
 	b.config = config
-	return b
-}
-
-// WithCursorMode enables or disables cursor-based parsing.
-func (b *ParserBuilder) WithCursorMode(enabled bool) *ParserBuilder {
-	b.config.UseCursor = enabled
 	return b
 }
 
@@ -94,6 +85,7 @@ func (b *ParserBuilder) WithMaxRecursionDepth(depth int) *ParserBuilder {
 
 // Build constructs and returns a configured Parser instance.
 // This is the main entry point for creating parsers via the builder pattern.
+// Task 2.7.9: Parser is now cursor-only.
 func (b *ParserBuilder) Build() *Parser {
 	// Create parser with basic configuration
 	p := &Parser{
@@ -103,10 +95,9 @@ func (b *ParserBuilder) Build() *Parser {
 		infixParseFns:  make(map[lexer.TokenType]infixParseFn),
 		blockStack:     []BlockContext{},
 		ctx:            NewParseContext(),
-		useCursor:      b.config.UseCursor,
 	}
 
-	// Task 2.7.9: Always use cursor mode (traditional mode removed)
+	// Task 2.7.9: Always use cursor mode
 	p.cursor = NewTokenCursor(b.lexer)
 	p.prefixParseFnsCursor = make(map[lexer.TokenType]prefixParseFnCursor)
 	p.infixParseFnsCursor = make(map[lexer.TokenType]infixParseFnCursor)

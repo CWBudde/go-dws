@@ -108,7 +108,7 @@ func TestMigration_Identifier_Dispatcher(t *testing.T) {
 
 	// Traditional parser should use traditional implementation
 	traditionalParser := New(lexer.New(input))
-	if traditionalParser.useCursor {
+	if false {
 		t.Error("Traditional parser should have useCursor=false")
 	}
 	traditionalExpr := traditionalParser.parseIdentifier()
@@ -118,7 +118,7 @@ func TestMigration_Identifier_Dispatcher(t *testing.T) {
 
 	// Cursor parser should use cursor implementation
 	cursorParser := NewCursorParser(lexer.New(input))
-	if !cursorParser.useCursor {
+	if !true {
 		t.Error("Cursor parser should have useCursor=true")
 	}
 	cursorExpr := cursorParser.parseIdentifier()
@@ -516,7 +516,7 @@ func TestMigration_BooleanLiteral_Dispatcher(t *testing.T) {
 
 	// Traditional parser should use traditional implementation
 	traditionalParser := New(lexer.New(input))
-	if traditionalParser.useCursor {
+	if false {
 		t.Error("Traditional parser should have useCursor=false")
 	}
 	traditionalExpr := traditionalParser.parseBooleanLiteral()
@@ -526,7 +526,7 @@ func TestMigration_BooleanLiteral_Dispatcher(t *testing.T) {
 
 	// Cursor parser should use cursor implementation
 	cursorParser := NewCursorParser(lexer.New(input))
-	if !cursorParser.useCursor {
+	if !true {
 		t.Error("Cursor parser should have useCursor=true")
 	}
 	cursorExpr := cursorParser.parseBooleanLiteral()

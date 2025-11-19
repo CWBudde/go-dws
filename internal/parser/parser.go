@@ -403,12 +403,10 @@ type Parser struct {
 	// Old fields above are kept for backward compatibility and are synchronized with ctx.
 	ctx *ParseContext
 
-	// cursor and useCursor enable dual-mode operation (Task 2.2.2)
-	// When useCursor is true, the parser uses the immutable cursor for token navigation
-	// instead of the mutable curToken/peekToken fields.
-	// This allows incremental migration from traditional to cursor-based parsing.
-	cursor    *TokenCursor
-	useCursor bool
+	// cursor enables cursor-based parsing (Task 2.7.9: cursor-only mode)
+	// The parser uses the immutable cursor for token navigation.
+	// The mutable curToken/peekToken fields are synced from cursor for backward compatibility.
+	cursor *TokenCursor
 
 	// prefixParseFnsCursor and infixParseFnsCursor are cursor-specific function maps (Task 2.2.6)
 	// These enable gradual migration to cursor mode via the Strangler Fig pattern.
@@ -459,12 +457,11 @@ type ParserState struct {
 	cursor               *TokenCursor  // Cursor position (Task 2.2.2, for dual-mode operation)
 }
 
-// New creates a new Parser instance in traditional mode.
-// The parser uses mutable token state (curToken/peekToken) for backward compatibility.
-// For cursor-based parsing, use NewCursorParser() instead.
+// New creates a new Parser instance.
+// Task 2.7.9: Parser is now cursor-only.
 //
 // This is a convenience wrapper around the ParserBuilder for the common case
-// of creating a parser with default settings in traditional mode.
+// of creating a parser with default settings.
 //
 // For more control over parser configuration, use the builder pattern:
 //
@@ -472,34 +469,22 @@ type ParserState struct {
 //	    WithStrictMode(true).
 //	    Build()
 func New(l *lexer.Lexer) *Parser {
-	return NewParserBuilder(l).
-		WithCursorMode(false).
-		Build()
+	return NewParserBuilder(l).Build()
 }
 
-// NewCursorParser creates a new Parser instance in cursor mode.
-// The parser uses an immutable TokenCursor for token navigation instead of
-// mutable curToken/peekToken state. This enables functional composition,
-// natural backtracking, and eliminates manual nextToken() calls.
-//
-// This is part of the dual-mode architecture (Task 2.2.2) that allows
-// incremental migration from traditional to cursor-based parsing.
+// NewCursorParser creates a new Parser instance.
+// Task 2.7.9: This is now an alias for New() since the parser is cursor-only.
+// Maintained for backward compatibility.
 //
 // Usage:
 //
 //	p := parser.NewCursorParser(lexer)
-//	program := p.ParseProgram()  // Uses cursor internally
+//	program := p.ParseProgram()
 //
-// Note: The parser still maintains curToken/peekToken for backward compatibility
-// with existing parsing functions. During migration, the parser synchronizes
-// cursor position with curToken/peekToken.
-//
-// This is a convenience wrapper around the ParserBuilder. The builder handles
-// common parse function registration, and this function adds cursor-specific
-// function registration for the dual-mode architecture.
+// This is a convenience wrapper around the ParserBuilder.
 func NewCursorParser(l *lexer.Lexer) *Parser {
-	// Use builder to create parser with cursor mode and register common functions
-	p := NewParserBuilder(l).WithCursorMode(true).Build()
+	// Task 2.7.9: Just use the builder, which always creates cursor-mode parsers
+	p := NewParserBuilder(l).Build()
 
 	// Register cursor-specific parse functions (Task 2.2.6)
 	// These functions take tokens explicitly as parameters instead of accessing parser state.
@@ -685,21 +670,21 @@ func NewCursorParser(l *lexer.Lexer) *Parser {
 	return p
 }
 
-// syncCursorToTokens synchronizes the cursor position with curToken/peekToken.
-// This is called in cursor mode to maintain backward compatibility with
-// existing parsing functions that still use curToken/peekToken.
+// syncCursorToTokens synchronizes curToken/peekToken from cursor.
+// Called to maintain backward compatibility with code that still uses curToken/peekToken.
+// Task 2.7.9: Always uses cursor (cursor-only mode).
 func (p *Parser) syncCursorToTokens() {
-	if p.useCursor && p.cursor != nil {
+	if p.cursor != nil {
 		p.curToken = p.cursor.Current()
 		p.peekToken = p.cursor.Peek(1)
 	}
 }
 
-// syncTokensToCursor updates the cursor to match curToken after traditional mode parsing.
+// syncTokensToCursor updates the cursor to match curToken after Traditional function calls.
 // This is the reverse of syncCursorToTokens() - it synchronizes FROM traditional state TO cursor.
 //
-// Called after fallback to traditional mode to keep cursor position consistent with
-// the tokens consumed by traditional parsing functions.
+// Called after Traditional functions execute to keep cursor position consistent with
+// the tokens consumed by those functions.
 //
 // Algorithm:
 //  1. Search cursor's buffered tokens for a token matching curToken's position
@@ -709,9 +694,9 @@ func (p *Parser) syncCursorToTokens() {
 // This prevents infinite loops where cursor stays at old position while traditional
 // state has advanced, causing repeated fallbacks on the same token.
 //
-// Task 2.2.7: Critical fix for dual-mode cursor synchronization.
+// Task 2.7.9: Cursor-only mode - only needed for Traditional function compatibility.
 func (p *Parser) syncTokensToCursor() {
-	if !p.useCursor || p.cursor == nil {
+	if p.cursor == nil {
 		return
 	}
 
