@@ -9,9 +9,6 @@ import (
 // Syntax: type ClassName = class(Parent) ... end;
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
-func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
-	return p.parseClassDeclarationCursor()
-}
 
 // parseClassDeclarationTraditional parses a class declaration with visibility sections (traditional mode).
 // Syntax: type ClassName = class(Parent)
@@ -26,7 +23,7 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 //
 // PRE: curToken is CLASS or TYPE; peekToken is class name IDENT
 // POST: curToken is END
-func (p *Parser) parseClassDeclarationCursor() *ast.ClassDecl {
+func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 	cursor := p.cursor
 
 	// Expect class name identifier
@@ -62,7 +59,7 @@ func (p *Parser) parseClassDeclarationCursor() *ast.ClassDecl {
 	cursor = cursor.Advance() // move to CLASS
 	p.cursor = cursor
 
-	return p.parseClassDeclarationBodyCursor(nameIdent)
+	return p.parseClassDeclarationBody(nameIdent)
 }
 
 // parseClassParentAndInterfaces parses optional parent class and interfaces (dual-mode dispatcher).
@@ -70,16 +67,13 @@ func (p *Parser) parseClassDeclarationCursor() *ast.ClassDecl {
 // Only updates classDecl if not already set to avoid overwriting previous parse
 //
 // Task 2.7.9: Cursor mode is now the only mode - dispatcher removed.
-func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
-	p.parseClassParentAndInterfacesCursor(classDecl)
-}
 
 // parseClassParentAndInterfacesTraditional parses optional parent class and interfaces from (...) (traditional mode).
 // Can be called multiple times for syntax like: class abstract(TParent)
 // Only updates classDecl if not already set to avoid overwriting previous parse
 // PRE: curToken is token before parent list (CLASS, ABSTRACT, or EXTERNAL)
 // POST: curToken is RPAREN if parentheses present; otherwise unchanged
-func (p *Parser) parseClassParentAndInterfacesCursor(classDecl *ast.ClassDecl) {
+func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
 	cursor := p.cursor
 
 	if cursor.Peek(1).Type != lexer.LPAREN {
@@ -175,16 +169,13 @@ func isBuiltinClass(name string) bool {
 // Called after 'type Name = class' has already been parsed.
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
-func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.ClassDecl {
-	return p.parseClassDeclarationBodyCursor(nameIdent)
-}
 
 // parseClassDeclarationBodyTraditional parses the body of a class declaration (traditional mode).
 // Called after 'type Name = class' has already been parsed.
 // Current token should be 'class'.
 // PRE: curToken is CLASS
 // POST: curToken is END
-func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast.ClassDecl {
+func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.ClassDecl {
 	builder := p.StartNode()
 	cursor := p.cursor
 
@@ -196,7 +187,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 	// Check for optional parent class and/or interfaces
 	classDecl.Interfaces = []*ast.Identifier{}
 
-	p.parseClassParentAndInterfacesCursor(classDecl)
+	p.parseClassParentAndInterfaces(classDecl)
 	cursor = p.cursor
 
 	// Check for 'abstract' keyword
@@ -205,7 +196,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 		p.cursor = cursor
 		classDecl.IsAbstract = true
 		// Check again for parent/interfaces after abstract
-		p.parseClassParentAndInterfacesCursor(classDecl)
+		p.parseClassParentAndInterfaces(classDecl)
 		cursor = p.cursor
 	}
 
@@ -222,7 +213,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 			classDecl.ExternalName = cursor.Current().Literal
 		}
 		// Check again for parent/interfaces after external
-		p.parseClassParentAndInterfacesCursor(classDecl)
+		p.parseClassParentAndInterfaces(classDecl)
 		cursor = p.cursor
 	}
 
@@ -284,7 +275,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 				// Class variable: class var FieldName: Type;
 				cursor = cursor.Advance() // move past 'var'
 				p.cursor = cursor
-				fields := p.parseFieldDeclarationsCursor(currentVisibility)
+				fields := p.parseFieldDeclarations(currentVisibility)
 				for _, field := range fields {
 					if field != nil {
 						field.IsClassVar = true // Mark as class variable
@@ -296,7 +287,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 				// Class constant: class const Name = Value;
 				cursor = cursor.Advance() // move past 'const'
 				p.cursor = cursor
-				constant := p.parseClassConstantDeclarationCursor(currentVisibility, true)
+				constant := p.parseClassConstantDeclaration(currentVisibility, true)
 				if constant != nil {
 					classDecl.Constants = append(classDecl.Constants, constant)
 				}
@@ -310,14 +301,14 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 				}
 				cursor = p.cursor
 			} else if cursor.Current().Type == lexer.OPERATOR {
-				operator := p.parseClassOperatorDeclarationCursor(classToken, currentVisibility)
+				operator := p.parseClassOperatorDeclaration(classToken, currentVisibility)
 				if operator != nil {
 					classDecl.Operators = append(classDecl.Operators, operator)
 				}
 				cursor = p.cursor
 			} else if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE || cursor.Current().Type == lexer.METHOD {
 				// Class method: class function/procedure/method ...
-				method := p.parseFunctionDeclarationCursor()
+				method := p.parseFunctionDeclaration()
 				if method != nil {
 					method.IsClassMethod = true // Mark as class method
 					method.Visibility = currentVisibility
@@ -334,7 +325,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 			// Regular class constant: const Name = Value;
 			cursor = cursor.Advance() // move past 'const'
 			p.cursor = cursor
-			constant := p.parseClassConstantDeclarationCursor(currentVisibility, false)
+			constant := p.parseClassConstantDeclaration(currentVisibility, false)
 			if constant != nil {
 				classDecl.Constants = append(classDecl.Constants, constant)
 			}
@@ -342,7 +333,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 		} else if cursor.Current().Type == lexer.IDENT && (cursor.Peek(1).Type == lexer.COLON || cursor.Peek(1).Type == lexer.COMMA || cursor.Peek(1).Type == lexer.ASSIGN || cursor.Peek(1).Type == lexer.EQ) {
 			// This is a regular instance field declaration (may be comma-separated)
 			// Supports: FieldName: Type; or FieldName := Value; or FieldName = Value; or FieldName: Type := Value;
-			fields := p.parseFieldDeclarationsCursor(currentVisibility)
+			fields := p.parseFieldDeclarations(currentVisibility)
 			for _, field := range fields {
 				if field != nil {
 					classDecl.Fields = append(classDecl.Fields, field)
@@ -351,7 +342,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 			cursor = p.cursor
 		} else if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE || cursor.Current().Type == lexer.METHOD {
 			// This is a regular instance method declaration
-			method := p.parseFunctionDeclarationCursor()
+			method := p.parseFunctionDeclaration()
 			if method != nil {
 				method.Visibility = currentVisibility
 				classDecl.Methods = append(classDecl.Methods, method)
@@ -359,7 +350,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 			cursor = p.cursor
 		} else if cursor.Current().Type == lexer.CONSTRUCTOR {
 			// This is a constructor declaration
-			method := p.parseFunctionDeclarationCursor()
+			method := p.parseFunctionDeclaration()
 			if method != nil {
 				method.IsConstructor = true
 				method.Visibility = currentVisibility
@@ -368,7 +359,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 			cursor = p.cursor
 		} else if cursor.Current().Type == lexer.DESTRUCTOR {
 			// This is a destructor declaration
-			method := p.parseFunctionDeclarationCursor()
+			method := p.parseFunctionDeclaration()
 			if method != nil {
 				method.IsDestructor = true
 				method.Visibility = currentVisibility
@@ -424,9 +415,6 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 // comma-separated field names with a single type annotation.
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
-func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
-	return p.parseFieldDeclarationsCursor(visibility)
-}
 
 // parseFieldDeclarationsTraditional parses a field declaration within a class (traditional mode).
 // Syntax: FieldName: Type; or FieldName1, FieldName2, FieldName3: Type;
@@ -435,7 +423,7 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 // comma-separated field names with a single type annotation.
 // PRE: curToken is first field name IDENT
 // POST: curToken is SEMICOLON or last token of initialization value
-func (p *Parser) parseFieldDeclarationsCursor(visibility ast.Visibility) []*ast.FieldDecl {
+func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
 	// Parse comma-separated field names using combinator
 	// Note: IdentifierList uses parser state, so it should work with synced cursor
 	fieldNames := p.IdentifierList(IdentifierListConfig{
@@ -458,7 +446,7 @@ func (p *Parser) parseFieldDeclarationsCursor(visibility ast.Visibility) []*ast.
 		p.cursor = cursor
 
 		// Parse type expression (supports simple types, array types, function pointer types)
-		fieldType = p.parseTypeExpressionCursor()
+		fieldType = p.parseTypeExpression()
 		if fieldType == nil {
 			return nil
 		}
@@ -480,7 +468,7 @@ func (p *Parser) parseFieldDeclarationsCursor(visibility ast.Visibility) []*ast.
 		p.cursor = cursor
 
 		// Parse initialization expression
-		initValue = p.parseExpressionCursor(LOWEST)
+		initValue = p.parseExpression(LOWEST)
 		if initValue == nil {
 			p.addError("expected initialization expression after := or =", ErrInvalidExpression)
 			return nil
@@ -519,16 +507,13 @@ func (p *Parser) parseFieldDeclarationsCursor(visibility ast.Visibility) []*ast.
 // This is registered as an infix operator for the DOT token.
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
-func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
-	return p.parseMemberAccessCursor(left)
-}
 
 // parseMemberAccessTraditional parses member access and method call expressions (traditional mode).
 // Handles obj.field, obj.method(), and TClass.Create() syntax.
 // This is registered as an infix operator for the DOT token.
 // PRE: curToken is DOT
 // POST: curToken is member name IDENT, RPAREN (for method calls), or last token of right operand
-func (p *Parser) parseMemberAccessCursor(left ast.Expression) ast.Expression {
+func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 	builder := p.StartNode()
 
 	dotToken := p.cursor.Current() // Save the '.' token
@@ -575,8 +560,8 @@ func (p *Parser) parseMemberAccessCursor(left ast.Expression) ast.Expression {
 				Arguments: []ast.Expression{},
 			}
 
-			// Parse arguments - cursor will be at RPAREN after parseExpressionListCursor
-			newExpr.Arguments = p.parseExpressionListCursor(lexer.RPAREN)
+			// Parse arguments - cursor will be at RPAREN after parseExpressionList
+			newExpr.Arguments = p.parseExpressionList(lexer.RPAREN)
 
 			return builder.Finish(newExpr).(*ast.NewExpression)
 		}
@@ -595,8 +580,8 @@ func (p *Parser) parseMemberAccessCursor(left ast.Expression) ast.Expression {
 			Arguments: []ast.Expression{},
 		}
 
-		// Parse arguments - cursor will be at RPAREN after parseExpressionListCursor
-		methodCall.Arguments = p.parseExpressionListCursor(lexer.RPAREN)
+		// Parse arguments - cursor will be at RPAREN after parseExpressionList
+		methodCall.Arguments = p.parseExpressionList(lexer.RPAREN)
 
 		return builder.Finish(methodCall).(*ast.MethodCallExpression)
 	}
@@ -620,9 +605,6 @@ func (p *Parser) parseMemberAccessCursor(left ast.Expression) ast.Expression {
 // Also: class const Name = Value;
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
-func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClassConst bool) *ast.ConstDecl {
-	return p.parseClassConstantDeclarationCursor(visibility, isClassConst)
-}
 
 // parseClassConstantDeclarationTraditional parses a constant declaration within a class (traditional mode).
 // Syntax: const Name = Value; or const Name: Type = Value;
@@ -631,7 +613,7 @@ func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClas
 // The isClassConst parameter indicates if it was declared with 'class const'.
 // PRE: curToken is constant name IDENT
 // POST: curToken is last token of value expression
-func (p *Parser) parseClassConstantDeclarationCursor(visibility ast.Visibility, isClassConst bool) *ast.ConstDecl {
+func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClassConst bool) *ast.ConstDecl {
 	builder := p.StartNode()
 	cursor := p.cursor
 
@@ -658,7 +640,7 @@ func (p *Parser) parseClassConstantDeclarationCursor(visibility ast.Visibility, 
 		cursor = cursor.Advance() // move to type
 		p.cursor = cursor
 
-		typeExpr := p.parseTypeExpressionCursor()
+		typeExpr := p.parseTypeExpression()
 		if typeExpr != nil {
 			cursor = p.cursor
 			typeAnnotation = &ast.TypeAnnotation{
@@ -680,7 +662,7 @@ func (p *Parser) parseClassConstantDeclarationCursor(visibility ast.Visibility, 
 	cursor = cursor.Advance() // move to value expression
 	p.cursor = cursor
 
-	value := p.parseExpressionCursor(LOWEST)
+	value := p.parseExpression(LOWEST)
 	if value == nil {
 		p.addError("expected constant value expression", ErrInvalidExpression)
 		return nil

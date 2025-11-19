@@ -15,14 +15,11 @@ import (
 // PRE: curToken is SET
 // POST: curToken is SEMICOLON
 // Dispatcher: delegates to cursor or traditional mode
-func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.SetDecl {
-	return p.parseSetDeclarationCursor(nameIdent, typeToken)
-}
 
 // parseSetDeclarationTraditional parses set declaration using traditional mode.
 // PRE: curToken is SET
 // POST: curToken is SEMICOLON
-func (p *Parser) parseSetDeclarationCursor(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.SetDecl {
+func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.SetDecl {
 	setDecl := &ast.SetDecl{
 		BaseNode: ast.BaseNode{Token: typeToken}, // The 'type' token
 		Name:     nameIdent,
@@ -100,14 +97,11 @@ func (p *Parser) parseSetDeclarationCursor(nameIdent *ast.Identifier, typeToken 
 // PRE: curToken is SET
 // POST: curToken is last token of element type
 // Dispatcher: delegates to cursor or traditional mode
-func (p *Parser) parseSetType() *ast.SetTypeNode {
-	return p.parseSetTypeCursor()
-}
 
 // parseSetTypeTraditional parses set type using traditional mode.
 // PRE: curToken is SET
 // POST: curToken is last token of element type
-func (p *Parser) parseSetTypeCursor() *ast.SetTypeNode {
+func (p *Parser) parseSetType() *ast.SetTypeNode {
 	cursor := p.cursor
 	builder := p.StartNode()
 
@@ -129,7 +123,7 @@ func (p *Parser) parseSetTypeCursor() *ast.SetTypeNode {
 	// 1. Simple identifier: TEnum
 	// 2. Inline anonymous enum: (A, B, C) - would be handled by parseTypeExpression
 	// 3. Subrange: 1..100 - might need special handling in future
-	elementType := p.parseTypeExpressionCursor()
+	elementType := p.parseTypeExpression()
 	if elementType == nil {
 		p.addError("expected type expression after 'set of'", ErrExpectedType)
 		return nil
@@ -153,14 +147,11 @@ func (p *Parser) parseSetTypeCursor() *ast.SetTypeNode {
 // PRE: curToken is LBRACK
 // POST: curToken is RBRACK
 // Dispatcher: delegates to cursor or traditional mode
-func (p *Parser) parseSetLiteral() ast.Expression {
-	return p.parseSetLiteralCursor()
-}
 
 // parseSetLiteralTraditional parses set literal using traditional mode.
 // PRE: curToken is LBRACK
 // POST: curToken is RBRACK
-func (p *Parser) parseSetLiteralCursor() ast.Expression {
+func (p *Parser) parseSetLiteral() ast.Expression {
 	builder := p.StartNode()
 	cursor := p.cursor
 
@@ -184,7 +175,7 @@ func (p *Parser) parseSetLiteralCursor() ast.Expression {
 
 	for cursor.Current().Type != lexer.RBRACK && cursor.Current().Type != lexer.EOF {
 		// Parse an element (could be a simple identifier or a range)
-		start := p.parseExpressionCursor(LOWEST)
+		start := p.parseExpression(LOWEST)
 		cursor = p.cursor // Update cursor after parseExpression
 
 		// Check if this is a range (element..element)
@@ -194,7 +185,7 @@ func (p *Parser) parseSetLiteralCursor() ast.Expression {
 
 			cursor = cursor.Advance() // move to end expression
 			p.cursor = cursor
-			end := p.parseExpressionCursor(LOWEST)
+			end := p.parseExpression(LOWEST)
 			cursor = p.cursor // Update cursor after parseExpression
 
 			// Create a RangeExpression

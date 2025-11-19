@@ -128,7 +128,7 @@ func TestParseLambdaExpressions(t *testing.T) {
 			p := New(l)
 
 			// Parse as expression
-			expr := p.parseExpressionCursor(LOWEST)
+			expr := p.parseExpression(LOWEST)
 			checkParserErrors(t, p)
 
 			lambdaExpr, ok := expr.(*ast.LambdaExpression)
@@ -282,7 +282,7 @@ func TestParseLambdaEdgeCases(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			l := lexer.New(tt.input)
 			p := New(l)
-			_ = p.parseExpressionCursor(LOWEST)
+			_ = p.parseExpression(LOWEST)
 
 			hasErrors := len(p.Errors()) > 0
 			if hasErrors != tt.expectError {
@@ -324,7 +324,7 @@ func TestParseLambdaComplexCases(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			l := lexer.New(tt.input)
 			p := New(l)
-			expr := p.parseExpressionCursor(LOWEST)
+			expr := p.parseExpression(LOWEST)
 			checkParserErrors(t, p)
 
 			if _, ok := expr.(*ast.LambdaExpression); !ok {

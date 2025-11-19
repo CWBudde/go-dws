@@ -10,9 +10,9 @@ import (
 // Task 2.2.13: Test IS/AS/IMPLEMENTS expression handler migration to cursor mode
 //
 // This file tests the migration of type checking and casting expression handlers:
-// - parseIsExpressionCursor: obj is TClass
-// - parseAsExpressionCursor: obj as IInterface
-// - parseImplementsExpressionCursor: obj implements IInterface
+// - parseIsExpression: obj is TClass
+// - parseAsExpression: obj as IInterface
+// - parseImplementsExpression: obj implements IInterface
 //
 // Each test parses the same source in both traditional and cursor modes,
 // then compares the resulting ASTs using String() representation to verify

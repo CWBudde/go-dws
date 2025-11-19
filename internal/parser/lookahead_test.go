@@ -154,7 +154,7 @@ func TestLooksLikeVarDeclaration(t *testing.T) {
 			p := New(l)
 			// After New(), curToken = VAR, peekToken = IDENT or other
 
-			result := p.looksLikeVarDeclaration()
+			result := p.looksLikeVarDeclaration(p.cursor)
 			if result != tt.expected {
 				t.Errorf("looksLikeVarDeclaration() = %v, want %v for input: %s",
 					result, tt.expected, tt.input)
@@ -198,7 +198,7 @@ func TestLooksLikeConstDeclaration(t *testing.T) {
 			p := New(l)
 			// After New(), curToken = CONST, peekToken = IDENT or other
 
-			result := p.looksLikeConstDeclaration()
+			result := p.looksLikeConstDeclaration(p.cursor)
 			if result != tt.expected {
 				t.Errorf("looksLikeConstDeclaration() = %v, want %v for input: %s",
 					result, tt.expected, tt.input)
@@ -242,7 +242,7 @@ func TestLooksLikeTypeDeclaration(t *testing.T) {
 			p := New(l)
 			// After New(), curToken = TYPE, peekToken = IDENT or other
 
-			result := p.looksLikeTypeDeclaration()
+			result := p.looksLikeTypeDeclaration(p.cursor)
 			if result != tt.expected {
 				t.Errorf("looksLikeTypeDeclaration() = %v, want %v for input: %s",
 					result, tt.expected, tt.input)

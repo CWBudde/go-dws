@@ -18,9 +18,6 @@ import (
 //   - type TEnum = (One = 1, Two = 5);           // unscoped enum with values
 //   - type TEnum = enum (One, Two);              // scoped enum
 //   - type TFlags = flags (a, b, c);             // flags enum (scoped, power-of-2 values)
-func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token, scoped bool, flags bool) *ast.EnumDecl {
-	return p.parseEnumDeclarationCursor(nameIdent, typeToken, scoped, flags)
-}
 
 // parseEnumDeclarationTraditional parses an enum type declaration (traditional mode).
 // Called after 'type Name =' has already been parsed.
@@ -34,7 +31,7 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 //
 // PRE: curToken is LPAREN (or after ENUM/FLAGS, will advance to LPAREN)
 // POST: curToken is SEMICOLON
-func (p *Parser) parseEnumDeclarationCursor(nameIdent *ast.Identifier, typeToken lexer.Token, scoped bool, flags bool) *ast.EnumDecl {
+func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token, scoped bool, flags bool) *ast.EnumDecl {
 	builder := p.StartNode()
 	cursor := p.cursor
 
@@ -107,7 +104,7 @@ func (p *Parser) parseEnumDeclarationCursor(nameIdent *ast.Identifier, typeToken
 				p.nextToken() // move to value
 
 				// Parse the value (could be negative)
-				value, err := p.parseEnumValueCursor()
+				value, err := p.parseEnumValue()
 				if err != nil {
 					p.addError("invalid enum value: "+err.Error(), ErrInvalidExpression)
 					return false
@@ -142,14 +139,11 @@ func (p *Parser) parseEnumDeclarationCursor(nameIdent *ast.Identifier, typeToken
 // Integer, possibly negative.
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
-func (p *Parser) parseEnumValue() (int, error) {
-	return p.parseEnumValueCursor()
-}
 
 // parseEnumValueTraditional parses an enum value (integer, possibly negative) (traditional mode).
 // PRE: curToken is first token of value (INT or MINUS)
 // POST: curToken is INT
-func (p *Parser) parseEnumValueCursor() (int, error) {
+func (p *Parser) parseEnumValue() (int, error) {
 	cursor := p.cursor
 
 	// Handle negative values

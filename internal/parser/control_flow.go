@@ -24,394 +24,32 @@ func isNilStatement(stmt ast.Statement) bool {
 // Syntax: break;
 // PRE: curToken is BREAK
 // POST: curToken is SEMICOLON
-func (p *Parser) parseBreakStatement() *ast.BreakStatement {
-	builder := p.StartNode()
-
-	stmt := &ast.BreakStatement{
-		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
-	}
-
-	// Expect semicolon after break
-	if !p.expectPeek(lexer.SEMICOLON) {
-		return nil
-	}
-
-	return builder.Finish(stmt).(*ast.BreakStatement)
-}
 
 // parseContinueStatement parses a continue statement.
 // Syntax: continue;
 // PRE: curToken is CONTINUE
 // POST: curToken is SEMICOLON
-func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
-	builder := p.StartNode()
-
-	stmt := &ast.ContinueStatement{
-		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
-	}
-
-	// Expect semicolon after continue
-	if !p.expectPeek(lexer.SEMICOLON) {
-		return nil
-	}
-
-	return builder.Finish(stmt).(*ast.ContinueStatement)
-}
 
 // parseExitStatement parses an exit statement.
 // Syntax: exit; exit value; or exit(value);
 // PRE: curToken is EXIT
 // POST: curToken is SEMICOLON
-func (p *Parser) parseExitStatement() *ast.ExitStatement {
-	builder := p.StartNode()
-
-	stmt := &ast.ExitStatement{
-		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
-	}
-
-	// Check if there's a parenthesized return value: exit(value)
-	if p.peekTokenIs(lexer.LPAREN) {
-		p.nextToken() // move to '('
-		p.nextToken() // move to expression
-
-		stmt.ReturnValue = p.parseExpressionCursor(LOWEST)
-
-		if stmt.ReturnValue == nil {
-			p.addError("expected expression after 'exit('", ErrInvalidExpression)
-			return nil
-		}
-
-		if !p.expectPeek(lexer.RPAREN) {
-			return nil
-		}
-	} else if _, ok := p.prefixParseFns[p.cursor.Peek(1).Type]; ok && !p.peekTokenIs(lexer.SEMICOLON) {
-		// Support exit with inline expression: exit value;
-		p.nextToken()
-		stmt.ReturnValue = p.parseExpressionCursor(LOWEST)
-
-		if stmt.ReturnValue == nil {
-			p.addError("expected expression after 'exit'", ErrInvalidExpression)
-			return nil
-		}
-	}
-
-	// Expect semicolon after exit or exit(value)
-	if !p.expectPeek(lexer.SEMICOLON) {
-		return nil
-	}
-
-	return builder.Finish(stmt).(*ast.ExitStatement)
-}
 
 // parseIfStatement parses an if-then-else statement.
 // Syntax: if <condition> then <statement> [else <statement>]
 // PRE: curToken is IF
 // POST: curToken is last token of consequence or alternative statement
-func (p *Parser) parseIfStatement() *ast.IfStatement {
-	builder := p.StartNode()
-
-	stmt := &ast.IfStatement{
-		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
-	}
-
-	// Track block context for better error messages
-	p.pushBlockContext("if", p.cursor.Current().Pos)
-	defer p.popBlockContext()
-
-	// Move past 'if' and parse the condition
-	p.nextToken()
-	stmt.Condition = p.parseExpressionCursor(LOWEST)
-
-	if stmt.Condition == nil {
-		// Task 2.7.7: Dual-mode - get current token for error reporting
-		var curTok lexer.Token
-		if p.cursor != nil {
-			curTok = p.cursor.Current()
-		} else {
-			curTok = p.cursor.Current()
-		}
-
-		// Use structured error for better diagnostics
-		err := NewStructuredError(ErrKindInvalid).
-			WithCode(ErrInvalidExpression).
-			WithMessage("expected condition after 'if'").
-			WithPosition(curTok.Pos, curTok.Length()).
-			WithExpectedString("boolean expression").
-			WithSuggestion("add a condition like 'x > 0' or 'flag = true'").
-			WithParsePhase("if statement condition").
-			Build()
-		p.addStructuredError(err)
-		p.synchronize([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
-		return nil
-	}
-
-	// Expect 'then' keyword
-	if !p.expectPeek(lexer.THEN) {
-		// Task 2.7.7: Dual-mode - get peek token for error reporting
-		var peekTok lexer.Token
-		if p.cursor != nil {
-			peekTok = p.cursor.Peek(1)
-		} else {
-			peekTok = p.cursor.Peek(1)
-		}
-
-		// Use structured error for missing 'then'
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingThen).
-			WithMessage("expected 'then' after if condition").
-			WithPosition(peekTok.Pos, peekTok.Length()).
-			WithExpected(lexer.THEN).
-			WithActual(peekTok.Type, peekTok.Literal).
-			WithSuggestion("add 'then' keyword after the condition").
-			WithNote("DWScript if statements require: if <condition> then <statement>").
-			WithParsePhase("if statement").
-			Build()
-		p.addStructuredError(err)
-		p.synchronize([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
-		if !p.curTokenIs(lexer.THEN) {
-			return nil
-		}
-	}
-
-	// Parse the consequence (then branch)
-	p.nextToken()
-	stmt.Consequence = p.parseStatementCursor()
-
-	if stmt.Consequence == nil {
-		// Task 2.7.7: Dual-mode - get current token for error reporting
-		var curTok lexer.Token
-		if p.cursor != nil {
-			curTok = p.cursor.Current()
-		} else {
-			curTok = p.cursor.Current()
-		}
-
-		// Use structured error for missing statement
-		err := NewStructuredError(ErrKindInvalid).
-			WithCode(ErrInvalidSyntax).
-			WithMessage("expected statement after 'then'").
-			WithPosition(curTok.Pos, curTok.Length()).
-			WithExpectedString("statement").
-			WithSuggestion("add a statement like a variable assignment or function call").
-			WithParsePhase("if statement consequence").
-			Build()
-		p.addStructuredError(err)
-		p.synchronize([]lexer.TokenType{lexer.ELSE, lexer.END})
-		return nil
-	}
-
-	// Check for optional 'else' branch
-	if p.peekTokenIs(lexer.ELSE) {
-		p.nextToken() // move to 'else'
-		p.nextToken() // move to statement after 'else'
-		stmt.Alternative = p.parseStatementCursor()
-
-		if stmt.Alternative == nil {
-			// Task 2.7.7: Dual-mode - get current token for error reporting
-			var curTok lexer.Token
-			if p.cursor != nil {
-				curTok = p.cursor.Current()
-			} else {
-				curTok = p.cursor.Current()
-			}
-
-			// Use structured error for missing else statement
-			err := NewStructuredError(ErrKindInvalid).
-				WithCode(ErrInvalidSyntax).
-				WithMessage("expected statement after 'else'").
-				WithPosition(curTok.Pos, curTok.Length()).
-				WithExpectedString("statement").
-				WithSuggestion("add a statement for the else branch").
-				WithParsePhase("if statement alternative").
-				Build()
-			p.addStructuredError(err)
-			p.synchronize([]lexer.TokenType{lexer.END})
-			return nil
-		}
-		// End at alternative statement
-		return builder.FinishWithNode(stmt, stmt.Alternative).(*ast.IfStatement)
-	}
-
-	// No else branch - end at consequence
-	return builder.FinishWithNode(stmt, stmt.Consequence).(*ast.IfStatement)
-}
 
 // parseWhileStatement parses a while loop statement.
 // Syntax: while <condition> do <statement>
 // PRE: curToken is WHILE
 // POST: curToken is last token of body statement
-func (p *Parser) parseWhileStatement() *ast.WhileStatement {
-	builder := p.StartNode()
-
-	stmt := &ast.WhileStatement{
-		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
-	}
-
-	// Track block context for better error messages
-	p.pushBlockContext("while", p.cursor.Current().Pos)
-	defer p.popBlockContext()
-
-	// Move past 'while' and parse the condition
-	p.nextToken()
-	stmt.Condition = p.parseExpressionCursor(LOWEST)
-
-	if stmt.Condition == nil {
-		// Task 2.7.7: Dual-mode - get current token for error reporting
-		var curTok lexer.Token
-		if p.cursor != nil {
-			curTok = p.cursor.Current()
-		} else {
-			curTok = p.cursor.Current()
-		}
-
-		// Use structured error for better diagnostics
-		err := NewStructuredError(ErrKindInvalid).
-			WithCode(ErrInvalidExpression).
-			WithMessage("expected condition after 'while'").
-			WithPosition(curTok.Pos, curTok.Length()).
-			WithExpectedString("boolean expression").
-			WithSuggestion("add a loop condition like 'count < 10'").
-			WithParsePhase("while loop condition").
-			Build()
-		p.addStructuredError(err)
-		p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
-		return nil
-	}
-
-	// Expect 'do' keyword
-	if !p.expectPeek(lexer.DO) {
-		// Task 2.7.7: Dual-mode - get peek token for error reporting
-		var peekTok lexer.Token
-		if p.cursor != nil {
-			peekTok = p.cursor.Peek(1)
-		} else {
-			peekTok = p.cursor.Peek(1)
-		}
-
-		// Use structured error for missing 'do'
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingDo).
-			WithMessage("expected 'do' after while condition").
-			WithPosition(peekTok.Pos, peekTok.Length()).
-			WithExpected(lexer.DO).
-			WithActual(peekTok.Type, peekTok.Literal).
-			WithSuggestion("add 'do' keyword after the condition").
-			WithNote("DWScript while loops require: while <condition> do <statement>").
-			WithParsePhase("while loop").
-			Build()
-		p.addStructuredError(err)
-		p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
-		if !p.curTokenIs(lexer.DO) {
-			return nil
-		}
-	}
-
-	// Parse the body statement
-	p.nextToken()
-	stmt.Body = p.parseStatementCursor()
-
-	if isNilStatement(stmt.Body) {
-		// Task 2.7.7: Dual-mode - get current token for error reporting
-		var curTok lexer.Token
-		if p.cursor != nil {
-			curTok = p.cursor.Current()
-		} else {
-			curTok = p.cursor.Current()
-		}
-
-		// Use structured error for missing loop body
-		err := NewStructuredError(ErrKindInvalid).
-			WithCode(ErrInvalidSyntax).
-			WithMessage("expected statement after 'do'").
-			WithPosition(curTok.Pos, curTok.Length()).
-			WithExpectedString("statement").
-			WithSuggestion("add a statement for the loop body").
-			WithParsePhase("while loop body").
-			Build()
-		p.addStructuredError(err)
-		p.synchronize([]lexer.TokenType{lexer.END})
-		return nil
-	}
-
-	return builder.FinishWithNode(stmt, stmt.Body).(*ast.WhileStatement)
-}
 
 // parseRepeatStatement parses a repeat-until loop statement.
 // Syntax: repeat <statements> until <condition>
 // Note: The body can contain multiple statements
 // PRE: curToken is REPEAT
 // POST: curToken is last token of condition expression
-func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
-	builder := p.StartNode()
-
-	stmt := &ast.RepeatStatement{
-		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
-	}
-
-	// Track block context for better error messages
-	p.pushBlockContext("repeat", p.cursor.Current().Pos)
-	defer p.popBlockContext()
-
-	// Move past 'repeat'
-	p.nextToken()
-
-	// Parse multiple statements until 'until' is encountered
-	block := &ast.BlockStatement{
-		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
-	}
-	block.Statements = []ast.Statement{}
-
-	for !p.curTokenIs(lexer.UNTIL) && !p.curTokenIs(lexer.EOF) {
-		// Skip semicolons
-		if p.curTokenIs(lexer.SEMICOLON) {
-			p.nextToken()
-			continue
-		}
-
-		bodyStmt := p.parseStatementCursor()
-		if bodyStmt != nil {
-			block.Statements = append(block.Statements, bodyStmt)
-		}
-
-		p.nextToken()
-
-		// Skip any semicolons after the statement
-		for p.curTokenIs(lexer.SEMICOLON) {
-			p.nextToken()
-		}
-	}
-
-	// If only one statement, use it directly; otherwise use the block
-	if len(block.Statements) == 1 {
-		stmt.Body = block.Statements[0]
-	} else if len(block.Statements) > 1 {
-		stmt.Body = block
-	} else {
-		p.addErrorWithContext("expected at least one statement in repeat body", ErrInvalidSyntax)
-		p.synchronize([]lexer.TokenType{lexer.UNTIL, lexer.END})
-		return nil
-	}
-
-	// Expect 'until' keyword
-	if !p.curTokenIs(lexer.UNTIL) {
-		p.addErrorWithContext(fmt.Sprintf("expected 'until' after repeat body, got %s instead", p.cursor.Current().Type), ErrUnexpectedToken)
-		p.synchronize([]lexer.TokenType{lexer.UNTIL, lexer.END})
-		if !p.curTokenIs(lexer.UNTIL) {
-			return nil
-		}
-	}
-
-	// Parse the condition
-	p.nextToken()
-	stmt.Condition = p.parseExpressionCursor(LOWEST)
-
-	if stmt.Condition == nil {
-		p.addError("expected condition after 'until'", ErrInvalidExpression)
-		return nil
-	}
-
-	return builder.FinishWithNode(stmt, stmt.Condition).(*ast.RepeatStatement)
-}
 
 // parseForStatement parses a for loop statement.
 // Syntax:
@@ -421,424 +59,28 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 //
 // PRE: curToken is FOR
 // POST: curToken is last token of body statement
-func (p *Parser) parseForStatement() ast.Statement {
-	builder := p.StartNode()
-	forToken := p.cursor.Current()
-
-	// Move past 'for' and parse optional inline var declaration
-	inlineVar := false
-	if p.peekTokenIs(lexer.VAR) {
-		p.nextToken() // move to 'var'
-		inlineVar = true
-	}
-
-	// Expect loop variable identifier
-	if !p.expectPeek(lexer.IDENT) {
-		return nil
-	}
-
-	variable := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: p.cursor.Current(),
-			},
-		},
-		Value: p.cursor.Current().Literal,
-	}
-
-	// Check if this is a for-in loop (IN) or for-to/downto loop (:=)
-	if p.peekTokenIs(lexer.IN) {
-		// Parse for-in loop: for [var] x in collection do statement
-		return p.parseForInLoop(forToken, variable, inlineVar)
-	}
-
-	// Parse traditional for-to/downto loop
-	stmt := &ast.ForStatement{
-		BaseNode:  ast.BaseNode{Token: forToken},
-		Variable:  variable,
-		InlineVar: inlineVar,
-	}
-
-	// Expect ':=' assignment operator
-	if !p.expectPeek(lexer.ASSIGN) {
-		return nil
-	}
-
-	// Parse the start expression
-	p.nextToken()
-	stmt.Start = p.parseExpressionCursor(LOWEST)
-
-	if stmt.Start == nil {
-		p.addError("expected start expression in for loop", ErrInvalidExpression)
-		return nil
-	}
-
-	// Parse direction keyword ('to' or 'downto')
-	// We need to check the peek token and advance if it's either TO or DOWNTO
-	if !p.peekTokenIs(lexer.TO) && !p.peekTokenIs(lexer.DOWNTO) {
-		p.addError("expected 'to' or 'downto' in for loop", ErrMissingTo)
-		return nil
-	}
-	p.nextToken() // Move to TO or DOWNTO
-
-	// Set direction based on token
-	if p.curTokenIs(lexer.TO) {
-		stmt.Direction = ast.ForTo
-	} else if p.curTokenIs(lexer.DOWNTO) {
-		stmt.Direction = ast.ForDownto
-	} else {
-		p.addError("expected 'to' or 'downto' in for loop", ErrMissingTo)
-		return nil
-	}
-
-	// Parse the end expression
-	p.nextToken()
-	stmt.EndValue = p.parseExpressionCursor(LOWEST)
-
-	if stmt.EndValue == nil {
-		p.addError("expected end expression in for loop", ErrInvalidExpression)
-		return nil
-	}
-
-	// Check for optional 'step' keyword
-	if p.peekTokenIs(lexer.STEP) {
-		p.nextToken() // move to 'step'
-		p.nextToken() // move to step expression
-		stmt.Step = p.parseExpressionCursor(LOWEST)
-
-		if stmt.Step == nil {
-			p.addError("expected expression after 'step'", ErrInvalidExpression)
-			return nil
-		}
-	}
-
-	// Expect 'do' keyword
-	if !p.expectPeek(lexer.DO) {
-		return nil
-	}
-
-	// Parse the body statement
-	p.nextToken()
-	stmt.Body = p.parseStatementCursor()
-
-	if isNilStatement(stmt.Body) {
-		p.addError("expected statement after 'do'", ErrInvalidSyntax)
-		return nil
-	}
-
-	return builder.FinishWithNode(stmt, stmt.Body).(*ast.ForStatement)
-}
 
 // parseForInLoop parses a for-in loop statement.
 // Syntax: for [var] <variable> in <expression> do <statement>
 // PRE: curToken is variable IDENT
 // POST: curToken is last token of body statement
-func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, inlineVar bool) *ast.ForInStatement {
-	builder := p.StartNode()
-
-	stmt := &ast.ForInStatement{
-		BaseNode:  ast.BaseNode{Token: forToken},
-		Variable:  variable,
-		InlineVar: inlineVar,
-	}
-
-	// Move past variable to 'in' keyword
-	if !p.expectPeek(lexer.IN) {
-		return nil
-	}
-
-	// Parse the collection expression
-	p.nextToken()
-	stmt.Collection = p.parseExpressionCursor(LOWEST)
-
-	if stmt.Collection == nil {
-		p.addError("expected expression after 'in'", ErrInvalidExpression)
-		return nil
-	}
-
-	// Expect 'do' keyword
-	if !p.expectPeek(lexer.DO) {
-		return nil
-	}
-
-	// Parse the body statement
-	p.nextToken()
-	stmt.Body = p.parseStatementCursor()
-
-	if isNilStatement(stmt.Body) {
-		p.addError("expected statement after 'do'", ErrInvalidSyntax)
-		return nil
-	}
-
-	return builder.FinishWithNode(stmt, stmt.Body).(*ast.ForInStatement)
-}
 
 // parseCaseStatement parses a case statement.
 // Syntax: case <expression> of <value>: <statement>; ... [else <statement>;] end;
 // PRE: curToken is CASE
 // POST: curToken is END
-func (p *Parser) parseCaseStatement() *ast.CaseStatement {
-	builder := p.StartNode()
-
-	stmt := &ast.CaseStatement{
-		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
-	}
-
-	// Track block context for better error messages
-	p.pushBlockContext("case", p.cursor.Current().Pos)
-	defer p.popBlockContext()
-
-	// Move past 'case' and parse the case expression
-	p.nextToken()
-	stmt.Expression = p.parseExpressionCursor(LOWEST)
-
-	if stmt.Expression == nil {
-		p.addErrorWithContext("expected expression after 'case'", ErrInvalidExpression)
-		return nil
-	}
-
-	// Expect 'of' keyword
-	if !p.expectPeek(lexer.OF) {
-		return nil
-	}
-
-	// Parse case branches
-	stmt.Cases = []*ast.CaseBranch{}
-
-	// Move past 'of'
-	p.nextToken()
-
-	// Parse case branches until we hit 'else' or 'end'
-	for !p.curTokenIs(lexer.ELSE) && !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
-		// Skip any leading semicolons
-		if p.curTokenIs(lexer.SEMICOLON) {
-			p.nextToken()
-			continue
-		}
-
-		// Save the token of the first value for position tracking
-		firstValueToken := p.cursor.Current()
-		branch := &ast.CaseBranch{
-			Token: firstValueToken, // First value token for position tracking
-		}
-
-		// Parse comma-separated value list (with range support)
-		branch.Values = []ast.Expression{}
-
-		// Parse first value or range
-		value := p.parseExpressionCursor(LOWEST)
-		if value == nil {
-			p.addError("expected value in case branch", ErrInvalidExpression)
-			return nil
-		}
-
-		// Check for range operator (..)
-		if p.peekTokenIs(lexer.DOTDOT) {
-			p.nextToken() // move to '..'
-			rangeToken := p.cursor.Current()
-
-			p.nextToken() // move to end expression
-			endValue := p.parseExpressionCursor(LOWEST)
-			if endValue == nil {
-				p.addError("expected expression after '..' in case range", ErrInvalidExpression)
-				return nil
-			}
-
-			// Create RangeExpression
-			rangeExpr := &ast.RangeExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: rangeToken,
-					},
-				},
-				Start:    value,
-				RangeEnd: endValue,
-			}
-			branch.Values = append(branch.Values, rangeExpr)
-		} else {
-			// Simple value (not a range)
-			branch.Values = append(branch.Values, value)
-		}
-
-		// Parse additional comma-separated values/ranges
-		for p.peekTokenIs(lexer.COMMA) {
-			p.nextToken() // move to comma
-			p.nextToken() // move to next value
-
-			value := p.parseExpressionCursor(LOWEST)
-			if value == nil {
-				p.addError("expected value after comma in case branch", ErrInvalidExpression)
-				return nil
-			}
-
-			// Check for range
-			if p.peekTokenIs(lexer.DOTDOT) {
-				p.nextToken() // move to '..'
-				rangeToken := p.cursor.Current()
-
-				p.nextToken() // move to end expression
-				endValue := p.parseExpressionCursor(LOWEST)
-				if endValue == nil {
-					p.addError("expected expression after '..' in case range", ErrInvalidExpression)
-					return nil
-				}
-
-				rangeExpr := &ast.RangeExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: rangeToken,
-						},
-					},
-					Start:    value,
-					RangeEnd: endValue,
-				}
-				branch.Values = append(branch.Values, rangeExpr)
-			} else {
-				branch.Values = append(branch.Values, value)
-			}
-		}
-
-		// Expect ':' after value(s)
-		if !p.expectPeek(lexer.COLON) {
-			return nil
-		}
-
-		// Parse the statement for this branch
-		p.nextToken()
-		branch.Statement = p.parseStatementCursor()
-
-		if branch.Statement == nil {
-			p.addError("expected statement after ':' in case branch", ErrInvalidSyntax)
-			return nil
-		}
-
-		// Set EndPos to the end of the statement
-		if branch.Statement != nil {
-			branch.EndPos = branch.Statement.End()
-		}
-
-		stmt.Cases = append(stmt.Cases, branch)
-
-		// Move to next token (could be semicolon, else, or end)
-		p.nextToken()
-
-		// Skip any trailing semicolons
-		for p.curTokenIs(lexer.SEMICOLON) {
-			p.nextToken()
-		}
-	}
-
-	// Check for optional 'else' branch
-	if p.curTokenIs(lexer.ELSE) {
-		p.nextToken() // move past 'else'
-
-		// Parse multiple statements until 'end' is encountered (like repeat-until)
-		// DWScript allows multiple statements in else clause without begin-end
-		block := &ast.BlockStatement{
-			BaseNode: ast.BaseNode{Token: p.cursor.Current()},
-		}
-		block.Statements = []ast.Statement{}
-
-		for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
-			// Skip semicolons
-			if p.curTokenIs(lexer.SEMICOLON) {
-				p.nextToken()
-				continue
-			}
-
-			elseStmt := p.parseStatementCursor()
-			if elseStmt != nil {
-				block.Statements = append(block.Statements, elseStmt)
-			}
-
-			p.nextToken()
-
-			// Skip any semicolons after the statement
-			for p.curTokenIs(lexer.SEMICOLON) {
-				p.nextToken()
-			}
-		}
-
-		// If only one statement, use it directly; otherwise use the block
-		if len(block.Statements) == 1 {
-			stmt.Else = block.Statements[0]
-		} else if len(block.Statements) > 1 {
-			stmt.Else = block
-		} else {
-			p.addError("expected statement after 'else' in case statement", ErrInvalidSyntax)
-			return nil
-		}
-	}
-
-	// Expect 'end' keyword
-	if !p.curTokenIs(lexer.END) {
-		p.addErrorWithContext("expected 'end' to close case statement", ErrMissingEnd)
-		p.synchronize([]lexer.TokenType{lexer.END})
-		return nil
-	}
-
-	return builder.Finish(stmt).(*ast.CaseStatement)
-}
 
 // parseIfExpression parses an inline if-then-else conditional expression.
 // Syntax: if <condition> then <expression> [else <expression>]
 // This is similar to a ternary operator: condition ? value1 : value2
 // PRE: curToken is IF
 // POST: curToken is last token of consequence or alternative expression
-func (p *Parser) parseIfExpression() ast.Expression {
-	builder := p.StartNode()
 
-	expr := &ast.IfExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.cursor.Current()},
-		},
-	}
-
-	// Move past 'if' and parse the condition
-	p.nextToken()
-	expr.Condition = p.parseExpressionCursor(LOWEST)
-
-	if expr.Condition == nil {
-		p.addError("expected condition after 'if'", ErrInvalidExpression)
-		return nil
-	}
-
-	// Expect 'then' keyword
-	if !p.expectPeek(lexer.THEN) {
-		return nil
-	}
-
-	// Parse the consequence (then branch) as an expression
-	p.nextToken()
-	expr.Consequence = p.parseExpressionCursor(LOWEST)
-
-	if expr.Consequence == nil {
-		p.addError("expected expression after 'then'", ErrInvalidSyntax)
-		return nil
-	}
-
-	// Check for optional 'else' branch
-	if p.peekTokenIs(lexer.ELSE) {
-		p.nextToken() // move to 'else'
-		p.nextToken() // move to expression after 'else'
-		expr.Alternative = p.parseExpressionCursor(LOWEST)
-
-		if expr.Alternative == nil {
-			p.addError("expected expression after 'else'", ErrInvalidSyntax)
-			return nil
-		}
-		return builder.FinishWithNode(expr, expr.Alternative).(*ast.IfExpression)
-	}
-
-	// No else branch - end at consequence
-	return builder.FinishWithNode(expr, expr.Consequence).(*ast.IfExpression)
-}
-
-// parseIfExpressionCursor parses an if expression in cursor mode.
+// parseIfExpression parses an if expression in cursor mode.
 // DWScript syntax: if <condition> then <expression> [else <expression>]
 // PRE: cursor is on IF token
 // POST: cursor is on last token of expression
-func (p *Parser) parseIfExpressionCursor() ast.Expression {
+func (p *Parser) parseIfExpression() ast.Expression {
 	builder := p.StartNode()
 	currentToken := p.cursor.Current()
 
@@ -850,7 +92,7 @@ func (p *Parser) parseIfExpressionCursor() ast.Expression {
 
 	// Move past 'if' and parse the condition
 	p.cursor = p.cursor.Advance()
-	expr.Condition = p.parseExpressionCursor(LOWEST)
+	expr.Condition = p.parseExpression(LOWEST)
 
 	if expr.Condition == nil {
 		p.addError("expected condition after 'if'", ErrInvalidExpression)
@@ -867,7 +109,7 @@ func (p *Parser) parseIfExpressionCursor() ast.Expression {
 
 	// Parse the consequence (then branch) as an expression
 	p.cursor = p.cursor.Advance() // move past 'then'
-	expr.Consequence = p.parseExpressionCursor(LOWEST)
+	expr.Consequence = p.parseExpression(LOWEST)
 
 	if expr.Consequence == nil {
 		p.addError("expected expression after 'then'", ErrInvalidSyntax)
@@ -879,7 +121,7 @@ func (p *Parser) parseIfExpressionCursor() ast.Expression {
 	if nextToken.Type == lexer.ELSE {
 		p.cursor = p.cursor.Advance() // move to 'else'
 		p.cursor = p.cursor.Advance() // move to expression after 'else'
-		expr.Alternative = p.parseExpressionCursor(LOWEST)
+		expr.Alternative = p.parseExpression(LOWEST)
 
 		if expr.Alternative == nil {
 			p.addError("expected expression after 'else'", ErrInvalidSyntax)
@@ -896,12 +138,12 @@ func (p *Parser) parseIfExpressionCursor() ast.Expression {
 // Task 2.2.14.4: Cursor-mode handlers for control flow statements
 // ============================================================================
 
-// parseIfStatementCursor parses an if statement in cursor mode.
+// parseIfStatement parses an if statement in cursor mode.
 // Task 2.2.14.4: If statement migration
 // Syntax: if <condition> then <statement> [else <statement>]
 // PRE: cursor is on IF token
 // POST: cursor is on last token of statement
-func (p *Parser) parseIfStatementCursor() *ast.IfStatement {
+func (p *Parser) parseIfStatement() *ast.IfStatement {
 	builder := p.StartNode()
 
 	ifToken := p.cursor.Current()
@@ -915,7 +157,7 @@ func (p *Parser) parseIfStatementCursor() *ast.IfStatement {
 
 	// Move past 'if' and parse the condition
 	p.cursor = p.cursor.Advance()
-	stmt.Condition = p.parseExpressionCursor(LOWEST)
+	stmt.Condition = p.parseExpression(LOWEST)
 
 	if stmt.Condition == nil {
 		// Use structured error for better diagnostics
@@ -929,7 +171,7 @@ func (p *Parser) parseIfStatementCursor() *ast.IfStatement {
 			Build()
 		p.addStructuredError(err)
 		// Synchronize to recover
-		p.synchronizeCursor([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
+		p.synchronize([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
 		return nil
 	}
 
@@ -949,7 +191,7 @@ func (p *Parser) parseIfStatementCursor() *ast.IfStatement {
 			Build()
 		p.addStructuredError(err)
 		// Synchronize to recover
-		p.synchronizeCursor([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
+		p.synchronize([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
 		if p.cursor.Current().Type != lexer.THEN {
 			return nil
 		}
@@ -960,7 +202,7 @@ func (p *Parser) parseIfStatementCursor() *ast.IfStatement {
 
 	// Parse the consequence (then branch)
 	p.cursor = p.cursor.Advance()
-	stmt.Consequence = p.parseStatementCursor()
+	stmt.Consequence = p.parseStatement()
 
 	if stmt.Consequence == nil {
 		// Use structured error for missing statement
@@ -974,7 +216,7 @@ func (p *Parser) parseIfStatementCursor() *ast.IfStatement {
 			Build()
 		p.addStructuredError(err)
 		// Synchronize to recover
-		p.synchronizeCursor([]lexer.TokenType{lexer.ELSE, lexer.END})
+		p.synchronize([]lexer.TokenType{lexer.ELSE, lexer.END})
 		return nil
 	}
 
@@ -983,7 +225,7 @@ func (p *Parser) parseIfStatementCursor() *ast.IfStatement {
 	if nextToken.Type == lexer.ELSE {
 		p.cursor = p.cursor.Advance() // move to 'else'
 		p.cursor = p.cursor.Advance() // move to statement after 'else'
-		stmt.Alternative = p.parseStatementCursor()
+		stmt.Alternative = p.parseStatement()
 
 		if stmt.Alternative == nil {
 			// Use structured error for missing else statement
@@ -997,7 +239,7 @@ func (p *Parser) parseIfStatementCursor() *ast.IfStatement {
 				Build()
 			p.addStructuredError(err)
 			// Synchronize to recover
-			p.synchronizeCursor([]lexer.TokenType{lexer.END})
+			p.synchronize([]lexer.TokenType{lexer.END})
 			return nil
 		}
 		return builder.FinishWithNode(stmt, stmt.Alternative).(*ast.IfStatement)
@@ -1007,12 +249,12 @@ func (p *Parser) parseIfStatementCursor() *ast.IfStatement {
 	return builder.FinishWithNode(stmt, stmt.Consequence).(*ast.IfStatement)
 }
 
-// parseWhileStatementCursor parses a while loop statement in cursor mode.
+// parseWhileStatement parses a while loop statement in cursor mode.
 // Task 2.2.14.4: While statement migration
 // Syntax: while <condition> do <statement>
 // PRE: cursor is on WHILE token
 // POST: cursor is on last token of body statement
-func (p *Parser) parseWhileStatementCursor() *ast.WhileStatement {
+func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 	builder := p.StartNode()
 
 	whileToken := p.cursor.Current()
@@ -1026,7 +268,7 @@ func (p *Parser) parseWhileStatementCursor() *ast.WhileStatement {
 
 	// Move past 'while' and parse the condition
 	p.cursor = p.cursor.Advance()
-	stmt.Condition = p.parseExpressionCursor(LOWEST)
+	stmt.Condition = p.parseExpression(LOWEST)
 
 	if stmt.Condition == nil {
 		// Use structured error for better diagnostics
@@ -1040,7 +282,7 @@ func (p *Parser) parseWhileStatementCursor() *ast.WhileStatement {
 			Build()
 		p.addStructuredError(err)
 		// Synchronize to recover
-		p.synchronizeCursor([]lexer.TokenType{lexer.DO, lexer.END})
+		p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
 		return nil
 	}
 
@@ -1060,7 +302,7 @@ func (p *Parser) parseWhileStatementCursor() *ast.WhileStatement {
 			Build()
 		p.addStructuredError(err)
 		// Synchronize to recover
-		p.synchronizeCursor([]lexer.TokenType{lexer.DO, lexer.END})
+		p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
 		if p.cursor.Current().Type != lexer.DO {
 			return nil
 		}
@@ -1071,7 +313,7 @@ func (p *Parser) parseWhileStatementCursor() *ast.WhileStatement {
 
 	// Parse the body statement
 	p.cursor = p.cursor.Advance()
-	stmt.Body = p.parseStatementCursor()
+	stmt.Body = p.parseStatement()
 
 	if isNilStatement(stmt.Body) {
 		// Use structured error for missing loop body
@@ -1085,20 +327,20 @@ func (p *Parser) parseWhileStatementCursor() *ast.WhileStatement {
 			Build()
 		p.addStructuredError(err)
 		// Synchronize to recover
-		p.synchronizeCursor([]lexer.TokenType{lexer.END})
+		p.synchronize([]lexer.TokenType{lexer.END})
 		return nil
 	}
 
 	return builder.FinishWithNode(stmt, stmt.Body).(*ast.WhileStatement)
 }
 
-// parseRepeatStatementCursor parses a repeat-until loop statement in cursor mode.
+// parseRepeatStatement parses a repeat-until loop statement in cursor mode.
 // Task 2.2.14.4: Repeat statement migration
 // Syntax: repeat <statements> until <condition>
 // Note: The body can contain multiple statements
 // PRE: cursor is on REPEAT token
 // POST: cursor is on last token of condition expression
-func (p *Parser) parseRepeatStatementCursor() *ast.RepeatStatement {
+func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 	builder := p.StartNode()
 
 	repeatToken := p.cursor.Current()
@@ -1126,7 +368,7 @@ func (p *Parser) parseRepeatStatementCursor() *ast.RepeatStatement {
 			continue
 		}
 
-		bodyStmt := p.parseStatementCursor()
+		bodyStmt := p.parseStatement()
 		if bodyStmt != nil {
 			block.Statements = append(block.Statements, bodyStmt)
 		}
@@ -1147,7 +389,7 @@ func (p *Parser) parseRepeatStatementCursor() *ast.RepeatStatement {
 	} else {
 		p.addErrorWithContext("expected at least one statement in repeat body", ErrInvalidSyntax)
 		// Synchronize to recover
-		p.synchronizeCursor([]lexer.TokenType{lexer.UNTIL, lexer.END})
+		p.synchronize([]lexer.TokenType{lexer.UNTIL, lexer.END})
 		return nil
 	}
 
@@ -1155,7 +397,7 @@ func (p *Parser) parseRepeatStatementCursor() *ast.RepeatStatement {
 	if p.cursor.Current().Type != lexer.UNTIL {
 		p.addErrorWithContext(fmt.Sprintf("expected 'until' after repeat body, got %s instead", p.cursor.Current().Type), ErrUnexpectedToken)
 		// Synchronize to recover
-		p.synchronizeCursor([]lexer.TokenType{lexer.UNTIL, lexer.END})
+		p.synchronize([]lexer.TokenType{lexer.UNTIL, lexer.END})
 		if p.cursor.Current().Type != lexer.UNTIL {
 			return nil
 		}
@@ -1163,7 +405,7 @@ func (p *Parser) parseRepeatStatementCursor() *ast.RepeatStatement {
 
 	// Parse the condition
 	p.cursor = p.cursor.Advance()
-	stmt.Condition = p.parseExpressionCursor(LOWEST)
+	stmt.Condition = p.parseExpression(LOWEST)
 
 	if stmt.Condition == nil {
 		p.addError("expected condition after 'until'", ErrInvalidExpression)
@@ -1177,12 +419,12 @@ func (p *Parser) parseRepeatStatementCursor() *ast.RepeatStatement {
 // Task 2.2.14.8: Cursor-mode control transfer statement handlers
 // ============================================================================
 
-// parseBreakStatementCursor parses a break statement using cursor mode.
+// parseBreakStatement parses a break statement using cursor mode.
 // Task 2.2.14.8: Break statement migration
 // Syntax: break;
 // PRE: cursor is on BREAK token
 // POST: cursor is on SEMICOLON
-func (p *Parser) parseBreakStatementCursor() *ast.BreakStatement {
+func (p *Parser) parseBreakStatement() *ast.BreakStatement {
 	builder := p.StartNode()
 
 	breakToken := p.cursor.Current()
@@ -1211,12 +453,12 @@ func (p *Parser) parseBreakStatementCursor() *ast.BreakStatement {
 	return builder.Finish(stmt).(*ast.BreakStatement)
 }
 
-// parseContinueStatementCursor parses a continue statement using cursor mode.
+// parseContinueStatement parses a continue statement using cursor mode.
 // Task 2.2.14.8: Continue statement migration
 // Syntax: continue;
 // PRE: cursor is on CONTINUE token
 // POST: cursor is on SEMICOLON
-func (p *Parser) parseContinueStatementCursor() *ast.ContinueStatement {
+func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
 	builder := p.StartNode()
 
 	continueToken := p.cursor.Current()
@@ -1245,12 +487,12 @@ func (p *Parser) parseContinueStatementCursor() *ast.ContinueStatement {
 	return builder.Finish(stmt).(*ast.ContinueStatement)
 }
 
-// parseExitStatementCursor parses an exit statement using cursor mode.
+// parseExitStatement parses an exit statement using cursor mode.
 // Task 2.2.14.8: Exit statement migration
 // Syntax: exit; exit value; or exit(value);
 // PRE: cursor is on EXIT token
 // POST: cursor is on SEMICOLON
-func (p *Parser) parseExitStatementCursor() *ast.ExitStatement {
+func (p *Parser) parseExitStatement() *ast.ExitStatement {
 	builder := p.StartNode()
 
 	exitToken := p.cursor.Current()
@@ -1264,7 +506,7 @@ func (p *Parser) parseExitStatementCursor() *ast.ExitStatement {
 		p.cursor = p.cursor.Advance() // move to '('
 		p.cursor = p.cursor.Advance() // move to expression
 
-		stmt.ReturnValue = p.parseExpressionCursor(LOWEST)
+		stmt.ReturnValue = p.parseExpression(LOWEST)
 
 		if stmt.ReturnValue == nil {
 			// Use structured error
@@ -1301,7 +543,7 @@ func (p *Parser) parseExitStatementCursor() *ast.ExitStatement {
 		// This supports: exit value;
 		if _, ok := p.prefixParseFns[nextToken.Type]; ok {
 			p.cursor = p.cursor.Advance() // move to expression
-			stmt.ReturnValue = p.parseExpressionCursor(LOWEST)
+			stmt.ReturnValue = p.parseExpression(LOWEST)
 
 			if stmt.ReturnValue == nil {
 				// Use structured error
@@ -1344,7 +586,7 @@ func (p *Parser) parseExitStatementCursor() *ast.ExitStatement {
 // Task 2.2.14.5: Cursor-mode for/case statement handlers
 // ============================================================================
 
-// parseForStatementCursor parses a for loop statement in cursor mode.
+// parseForStatement parses a for loop statement in cursor mode.
 // Task 2.2.14.5: For statement migration
 // Syntax:
 //
@@ -1353,7 +595,7 @@ func (p *Parser) parseExitStatementCursor() *ast.ExitStatement {
 //
 // PRE: cursor is on FOR token
 // POST: cursor is on last token of body statement
-func (p *Parser) parseForStatementCursor() ast.Statement {
+func (p *Parser) parseForStatement() ast.Statement {
 	builder := p.StartNode()
 
 	forToken := p.cursor.Current()
@@ -1397,7 +639,7 @@ func (p *Parser) parseForStatementCursor() ast.Statement {
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type == lexer.IN {
 		// Parse for-in loop: for [var] x in collection do statement
-		return p.parseForInLoopCursor(forToken, variable, inlineVar)
+		return p.parseForInLoop(forToken, variable, inlineVar)
 	}
 
 	// Parse traditional for-to/downto loop
@@ -1427,7 +669,7 @@ func (p *Parser) parseForStatementCursor() ast.Statement {
 
 	// Parse the start expression
 	p.cursor = p.cursor.Advance()
-	stmt.Start = p.parseExpressionCursor(LOWEST)
+	stmt.Start = p.parseExpression(LOWEST)
 
 	if stmt.Start == nil {
 		// Use structured error
@@ -1472,7 +714,7 @@ func (p *Parser) parseForStatementCursor() ast.Statement {
 
 	// Parse the end expression
 	p.cursor = p.cursor.Advance()
-	stmt.EndValue = p.parseExpressionCursor(LOWEST)
+	stmt.EndValue = p.parseExpression(LOWEST)
 
 	if stmt.EndValue == nil {
 		// Use structured error
@@ -1493,7 +735,7 @@ func (p *Parser) parseForStatementCursor() ast.Statement {
 	if nextToken.Type == lexer.STEP {
 		p.cursor = p.cursor.Advance() // move to 'step'
 		p.cursor = p.cursor.Advance() // move to step expression
-		stmt.Step = p.parseExpressionCursor(LOWEST)
+		stmt.Step = p.parseExpression(LOWEST)
 
 		if stmt.Step == nil {
 			// Use structured error
@@ -1531,7 +773,7 @@ func (p *Parser) parseForStatementCursor() ast.Statement {
 
 	// Parse the body statement
 	p.cursor = p.cursor.Advance()
-	stmt.Body = p.parseStatementCursor()
+	stmt.Body = p.parseStatement()
 
 	if isNilStatement(stmt.Body) {
 		// Use structured error
@@ -1550,12 +792,12 @@ func (p *Parser) parseForStatementCursor() ast.Statement {
 	return builder.FinishWithNode(stmt, stmt.Body).(*ast.ForStatement)
 }
 
-// parseForInLoopCursor parses a for-in loop statement in cursor mode.
+// parseForInLoop parses a for-in loop statement in cursor mode.
 // Task 2.2.14.5: For-in loop migration
 // Syntax: for [var] <variable> in <expression> do <statement>
 // PRE: cursor is on variable IDENT, forToken and variable already parsed
 // POST: cursor is on last token of body statement
-func (p *Parser) parseForInLoopCursor(forToken lexer.Token, variable *ast.Identifier, inlineVar bool) *ast.ForInStatement {
+func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, inlineVar bool) *ast.ForInStatement {
 	builder := p.StartNode()
 
 	stmt := &ast.ForInStatement{
@@ -1585,7 +827,7 @@ func (p *Parser) parseForInLoopCursor(forToken lexer.Token, variable *ast.Identi
 
 	// Parse the collection expression
 	p.cursor = p.cursor.Advance()
-	stmt.Collection = p.parseExpressionCursor(LOWEST)
+	stmt.Collection = p.parseExpression(LOWEST)
 
 	if stmt.Collection == nil {
 		// Use structured error
@@ -1622,7 +864,7 @@ func (p *Parser) parseForInLoopCursor(forToken lexer.Token, variable *ast.Identi
 
 	// Parse the body statement
 	p.cursor = p.cursor.Advance()
-	stmt.Body = p.parseStatementCursor()
+	stmt.Body = p.parseStatement()
 
 	if isNilStatement(stmt.Body) {
 		// Use structured error
@@ -1641,11 +883,11 @@ func (p *Parser) parseForInLoopCursor(forToken lexer.Token, variable *ast.Identi
 	return builder.FinishWithNode(stmt, stmt.Body).(*ast.ForInStatement)
 }
 
-// parseCaseValueOrRangeCursor parses a single case value or range expression in cursor mode.
+// parseCaseValueOrRange parses a single case value or range expression in cursor mode.
 // If the value is followed by '..' it creates a RangeExpression, otherwise returns the value as-is.
 // PRE: value expression has been parsed, cursor is on the last token of the value
 // POST: cursor is on the last token of the value or range end expression
-func (p *Parser) parseCaseValueOrRangeCursor(value ast.Expression) ast.Expression {
+func (p *Parser) parseCaseValueOrRange(value ast.Expression) ast.Expression {
 	// Check for range operator (..)
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type == lexer.DOTDOT {
@@ -1653,7 +895,7 @@ func (p *Parser) parseCaseValueOrRangeCursor(value ast.Expression) ast.Expressio
 		rangeToken := p.cursor.Current()
 
 		p.cursor = p.cursor.Advance() // move to end expression
-		endValue := p.parseExpressionCursor(LOWEST)
+		endValue := p.parseExpression(LOWEST)
 		if endValue == nil {
 			// Use structured error
 			currentToken := p.cursor.Current()
@@ -1685,12 +927,12 @@ func (p *Parser) parseCaseValueOrRangeCursor(value ast.Expression) ast.Expressio
 	return value
 }
 
-// parseCaseStatementCursor parses a case statement in cursor mode.
+// parseCaseStatement parses a case statement in cursor mode.
 // Task 2.2.14.5: Case statement migration
 // Syntax: case <expression> of <value>: <statement>; ... [else <statement>;] end;
 // PRE: cursor is on CASE token
 // POST: cursor is on END token
-func (p *Parser) parseCaseStatementCursor() *ast.CaseStatement {
+func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 	builder := p.StartNode()
 
 	caseToken := p.cursor.Current()
@@ -1704,7 +946,7 @@ func (p *Parser) parseCaseStatementCursor() *ast.CaseStatement {
 
 	// Move past 'case' and parse the case expression
 	p.cursor = p.cursor.Advance()
-	stmt.Expression = p.parseExpressionCursor(LOWEST)
+	stmt.Expression = p.parseExpression(LOWEST)
 
 	if stmt.Expression == nil {
 		// Use structured error
@@ -1766,7 +1008,7 @@ func (p *Parser) parseCaseStatementCursor() *ast.CaseStatement {
 		branch.Values = []ast.Expression{}
 
 		// Parse first value or range
-		value := p.parseExpressionCursor(LOWEST)
+		value := p.parseExpression(LOWEST)
 		if value == nil {
 			// Use structured error
 			currentToken := p.cursor.Current()
@@ -1782,7 +1024,7 @@ func (p *Parser) parseCaseStatementCursor() *ast.CaseStatement {
 		}
 
 		// Check for range operator and create RangeExpression if needed
-		valueOrRange := p.parseCaseValueOrRangeCursor(value)
+		valueOrRange := p.parseCaseValueOrRange(value)
 		if valueOrRange == nil {
 			return nil
 		}
@@ -1798,7 +1040,7 @@ func (p *Parser) parseCaseStatementCursor() *ast.CaseStatement {
 			p.cursor = p.cursor.Advance() // move to comma
 			p.cursor = p.cursor.Advance() // move to next value
 
-			value := p.parseExpressionCursor(LOWEST)
+			value := p.parseExpression(LOWEST)
 			if value == nil {
 				// Use structured error
 				currentToken := p.cursor.Current()
@@ -1814,7 +1056,7 @@ func (p *Parser) parseCaseStatementCursor() *ast.CaseStatement {
 			}
 
 			// Check for range operator and create RangeExpression if needed
-			valueOrRange := p.parseCaseValueOrRangeCursor(value)
+			valueOrRange := p.parseCaseValueOrRange(value)
 			if valueOrRange == nil {
 				return nil
 			}
@@ -1842,7 +1084,7 @@ func (p *Parser) parseCaseStatementCursor() *ast.CaseStatement {
 
 		// Parse the statement for this branch
 		p.cursor = p.cursor.Advance()
-		branch.Statement = p.parseStatementCursor()
+		branch.Statement = p.parseStatement()
 
 		if branch.Statement == nil {
 			// Use structured error
@@ -1892,7 +1134,7 @@ func (p *Parser) parseCaseStatementCursor() *ast.CaseStatement {
 				continue
 			}
 
-			elseStmt := p.parseStatementCursor()
+			elseStmt := p.parseStatement()
 			if elseStmt != nil {
 				block.Statements = append(block.Statements, elseStmt)
 			}
@@ -1940,7 +1182,7 @@ func (p *Parser) parseCaseStatementCursor() *ast.CaseStatement {
 			Build()
 		p.addStructuredError(err)
 		// Synchronize to recover
-		p.synchronizeCursor([]lexer.TokenType{lexer.END})
+		p.synchronize([]lexer.TokenType{lexer.END})
 		return nil
 	}
 

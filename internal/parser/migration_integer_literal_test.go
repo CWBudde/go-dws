@@ -40,11 +40,11 @@ func TestMigration_IntegerLiteral_Decimal(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test traditional mode
 			traditionalParser := New(lexer.New(tt.input))
-			traditionalExpr := traditionalParser.parseIntegerLiteralCursor()
+			traditionalExpr := traditionalParser.parseIntegerLiteral()
 
 			// Test cursor mode
 			cursorParser := NewCursorParser(lexer.New(tt.input))
-			cursorExpr := cursorParser.parseIntegerLiteralCursor()
+			cursorExpr := cursorParser.parseIntegerLiteral()
 
 			// Both should succeed
 			if traditionalExpr == nil {
@@ -129,11 +129,11 @@ func TestMigration_IntegerLiteral_Hexadecimal(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test traditional mode
 			traditionalParser := New(lexer.New(tt.input))
-			traditionalExpr := traditionalParser.parseIntegerLiteralCursor()
+			traditionalExpr := traditionalParser.parseIntegerLiteral()
 
 			// Test cursor mode
 			cursorParser := NewCursorParser(lexer.New(tt.input))
-			cursorExpr := cursorParser.parseIntegerLiteralCursor()
+			cursorExpr := cursorParser.parseIntegerLiteral()
 
 			// Extract values
 			var traditionalValue, cursorValue int64
@@ -198,11 +198,11 @@ func TestMigration_IntegerLiteral_Binary(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test traditional mode
 			traditionalParser := New(lexer.New(tt.input))
-			traditionalExpr := traditionalParser.parseIntegerLiteralCursor()
+			traditionalExpr := traditionalParser.parseIntegerLiteral()
 
 			// Test cursor mode
 			cursorParser := NewCursorParser(lexer.New(tt.input))
-			cursorExpr := cursorParser.parseIntegerLiteralCursor()
+			cursorExpr := cursorParser.parseIntegerLiteral()
 
 			// Extract values
 			var traditionalValue, cursorValue int64
@@ -273,7 +273,7 @@ func TestMigration_IntegerLiteral_Errors(t *testing.T) {
 				}
 			}
 
-			traditionalExpr := traditionalParser.parseIntegerLiteralCursor()
+			traditionalExpr := traditionalParser.parseIntegerLiteral()
 
 			// Test cursor mode
 			cursorParser := NewCursorParser(lexer.New(tt.input))
@@ -287,7 +287,7 @@ func TestMigration_IntegerLiteral_Errors(t *testing.T) {
 				}
 			}
 
-			cursorExpr := cursorParser.parseIntegerLiteralCursor()
+			cursorExpr := cursorParser.parseIntegerLiteral()
 
 			// Both should return nil on error
 			if traditionalExpr != nil {
@@ -336,14 +336,14 @@ func TestMigration_IntegerLiteral_PartialParse(t *testing.T) {
 			if traditionalParser.cursor.Current().Type != lexer.INT {
 				t.Skip("Lexer did not produce INT token")
 			}
-			traditionalExpr := traditionalParser.parseIntegerLiteralCursor()
+			traditionalExpr := traditionalParser.parseIntegerLiteral()
 
 			// Test cursor mode
 			cursorParser := NewCursorParser(lexer.New(tt.input))
 			if cursorParser.cursor.Current().Type != lexer.INT {
 				t.Skip("Lexer did not produce INT token")
 			}
-			cursorExpr := cursorParser.parseIntegerLiteralCursor()
+			cursorExpr := cursorParser.parseIntegerLiteral()
 
 			// Both should succeed (not nil)
 			if traditionalExpr == nil {
@@ -421,10 +421,10 @@ func TestMigration_IntegerLiteral_Position(t *testing.T) {
 	input := "  42  " // With leading/trailing whitespace
 
 	traditionalParser := New(lexer.New(input))
-	traditionalExpr := traditionalParser.parseIntegerLiteralCursor()
+	traditionalExpr := traditionalParser.parseIntegerLiteral()
 
 	cursorParser := NewCursorParser(lexer.New(input))
-	cursorExpr := cursorParser.parseIntegerLiteralCursor()
+	cursorExpr := cursorParser.parseIntegerLiteral()
 
 	// Both should track position correctly
 	if traditionalLit, ok := traditionalExpr.(*ast.IntegerLiteral); ok {

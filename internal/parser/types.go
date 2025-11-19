@@ -23,7 +23,7 @@ import (
 // Task 2.7.2: Renamed from parseTypeExpression to enable dual-mode operation
 // PRE: curToken is first token of type (IDENT, CONST, FUNCTION, PROCEDURE, ARRAY, SET, CLASS)
 // POST: curToken is last token of type expression
-func (p *Parser) parseTypeExpressionCursor() ast.TypeExpression {
+func (p *Parser) parseTypeExpression() ast.TypeExpression {
 	cursor := p.cursor
 	builder := p.StartNode()
 	currentToken := cursor.Current()
@@ -49,19 +49,19 @@ func (p *Parser) parseTypeExpressionCursor() ast.TypeExpression {
 
 	case lexer.FUNCTION, lexer.PROCEDURE:
 		// Inline function or procedure pointer type
-		return p.parseFunctionPointerTypeCursor()
+		return p.parseFunctionPointerType()
 
 	case lexer.ARRAY:
 		// Array type: array of ElementType
-		return p.parseArrayTypeCursor()
+		return p.parseArrayType()
 
 	case lexer.SET:
 		// Set type: set of ElementType
-		return p.parseSetTypeCursor()
+		return p.parseSetType()
 
 	case lexer.CLASS:
 		// Metaclass type: class of ClassName
-		return p.parseClassOfTypeCursor()
+		return p.parseClassOfType()
 
 	default:
 		p.addError("expected type expression, got "+currentToken.Literal, ErrExpectedType)
@@ -116,9 +116,6 @@ func (p *Parser) detectFunctionPointerFullSyntax() bool {
 // based on the parser mode (traditional vs cursor).
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
-func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
-	return p.parseFunctionPointerTypeCursor()
-}
 
 // parseFunctionPointerTypeTraditional parses an inline function or procedure pointer type (traditional mode).
 // This is the reusable version extracted from parseFunctionPointerTypeDeclaration.
@@ -134,7 +131,7 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 // Task 2.7.2: Renamed to enable dual-mode operation
 // PRE: curToken is FUNCTION or PROCEDURE
 // POST: curToken is last token of function pointer type (OBJECT, return type, or RPAREN)
-func (p *Parser) parseFunctionPointerTypeCursor() *ast.FunctionPointerTypeNode {
+func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 	cursor := p.cursor
 	builder := p.StartNode()
 
@@ -219,7 +216,7 @@ func (p *Parser) parseFunctionPointerTypeCursor() *ast.FunctionPointerTypeNode {
 		cursor = cursor.Advance() // move to return type
 		p.cursor = cursor
 
-		returnTypeExpr := p.parseTypeExpressionCursor()
+		returnTypeExpr := p.parseTypeExpression()
 		if returnTypeExpr == nil {
 			return nil
 		}
@@ -267,9 +264,6 @@ type dimensionPair struct {
 // based on the parser mode (traditional vs cursor).
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
-func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
-	return p.parseArrayTypeCursor()
-}
 
 // parseArrayTypeTraditional parses an array type expression (traditional mode).
 // Supports both dynamic and static arrays:
@@ -299,7 +293,7 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 //
 // PRE: curToken is ARRAY
 // POST: curToken is last token of element type
-func (p *Parser) parseArrayTypeCursor() *ast.ArrayTypeNode {
+func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 	cursor := p.cursor
 	builder := p.StartNode()
 
@@ -406,7 +400,7 @@ func (p *Parser) parseArrayTypeCursor() *ast.ArrayTypeNode {
 	cursor = cursor.Advance() // move to element type
 	p.cursor = cursor
 
-	elementType := p.parseTypeExpressionCursor()
+	elementType := p.parseTypeExpression()
 	if elementType == nil {
 		// Use structured error for missing element type
 		err := NewStructuredError(ErrKindInvalid).
@@ -494,7 +488,7 @@ func (p *Parser) parseArrayBound() ast.Expression {
 	// - Unary expressions: -5
 	// - Identifiers: size
 	// - Binary expressions: size - 1
-	return p.parseExpressionCursor(LOWEST)
+	return p.parseExpression(LOWEST)
 }
 
 // parseArrayBoundsFromCurrent parses array dimensions starting from the current token.
@@ -563,9 +557,6 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 // based on the parser mode (traditional vs cursor).
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
-func (p *Parser) parseClassOfType() *ast.ClassOfTypeNode {
-	return p.parseClassOfTypeCursor()
-}
 
 // parseClassOfTypeTraditional parses a metaclass type expression (traditional mode).
 //
@@ -584,7 +575,7 @@ func (p *Parser) parseClassOfType() *ast.ClassOfTypeNode {
 // Task 2.7.2: Renamed to enable dual-mode operation
 // PRE: curToken is CLASS
 // POST: curToken is class type IDENT
-func (p *Parser) parseClassOfTypeCursor() *ast.ClassOfTypeNode {
+func (p *Parser) parseClassOfType() *ast.ClassOfTypeNode {
 	cursor := p.cursor
 	builder := p.StartNode()
 
@@ -602,7 +593,7 @@ func (p *Parser) parseClassOfTypeCursor() *ast.ClassOfTypeNode {
 	cursor = cursor.Advance() // move to class type
 	p.cursor = cursor
 
-	classType := p.parseTypeExpressionCursor()
+	classType := p.parseTypeExpression()
 	if classType == nil {
 		p.addError("expected class type after 'class of'", ErrExpectedType)
 		return nil

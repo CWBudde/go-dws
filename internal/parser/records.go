@@ -7,16 +7,13 @@ import (
 
 // parseRecordOrHelperDeclaration determines if this is a record or helper declaration (dispatcher).
 // Task 2.7.3: Dual-mode dispatcher for record/helper parsing.
-func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
-	return p.parseRecordOrHelperDeclarationCursor(nameIdent, typeToken)
-}
 
 // parseRecordOrHelperDeclarationTraditional determines if this is a record or helper declaration.
 // Called when we see 'type Name = record' - need to check if followed by 'helper'.
 // Current token is positioned at '=' and peek token is 'record'.
 // PRE: curToken is EQ, peekToken is RECORD
 // POST: curToken is SEMICOLON
-func (p *Parser) parseRecordOrHelperDeclarationCursor(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
+func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
 	builder := p.StartNode()
 	cursor := p.cursor
 
@@ -32,7 +29,7 @@ func (p *Parser) parseRecordOrHelperDeclarationCursor(nameIdent *ast.Identifier,
 	if cursor.Peek(1).Type == lexer.HELPER {
 		cursor = cursor.Advance() // move to HELPER
 		p.cursor = cursor
-		return p.parseHelperDeclarationCursor(nameIdent, typeToken, true)
+		return p.parseHelperDeclaration(nameIdent, typeToken, true)
 	}
 
 	// It's a regular record declaration - advance to first token inside record
@@ -54,7 +51,7 @@ func (p *Parser) parseRecordOrHelperDeclarationCursor(nameIdent *ast.Identifier,
 	currentVisibility := ast.VisibilityPublic
 
 	// Parse record body using shared helper
-	currentVisibility = p.parseRecordBodyCursor(recordDecl, currentVisibility)
+	currentVisibility = p.parseRecordBody(recordDecl, currentVisibility)
 	cursor = p.cursor
 
 	// Expect 'end' keyword
@@ -76,9 +73,6 @@ func (p *Parser) parseRecordOrHelperDeclarationCursor(nameIdent *ast.Identifier,
 
 // parseRecordDeclaration parses a record type declaration (dispatcher).
 // Task 2.7.3: Dual-mode dispatcher for record parsing.
-func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.RecordDecl {
-	return p.parseRecordDeclarationCursor(nameIdent, typeToken)
-}
 
 // parseRecordDeclarationTraditional parses a record type declaration.
 // Called after 'type Name =' has already been parsed.
@@ -96,7 +90,7 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 //
 // PRE: curToken is EQ; peekToken is RECORD
 // POST: curToken is SEMICOLON
-func (p *Parser) parseRecordDeclarationCursor(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.RecordDecl {
+func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.RecordDecl {
 	builder := p.StartNode()
 	cursor := p.cursor
 
@@ -126,7 +120,7 @@ func (p *Parser) parseRecordDeclarationCursor(nameIdent *ast.Identifier, typeTok
 	currentVisibility := ast.VisibilityPublic
 
 	// Parse record body using shared helper
-	currentVisibility = p.parseRecordBodyCursor(recordDecl, currentVisibility)
+	currentVisibility = p.parseRecordBody(recordDecl, currentVisibility)
 	cursor = p.cursor
 
 	// Expect 'end' keyword
@@ -146,12 +140,12 @@ func (p *Parser) parseRecordDeclarationCursor(nameIdent *ast.Identifier, typeTok
 	return builder.Finish(recordDecl).(*ast.RecordDecl)
 }
 
-// parseRecordBodyCursor parses the body of a record declaration (cursor mode).
+// parseRecordBody parses the body of a record declaration (cursor mode).
 // This helper function extracts the common record body parsing logic used by both
-// parseRecordOrHelperDeclarationCursor and parseRecordDeclarationCursor.
+// parseRecordOrHelperDeclaration and parseRecordDeclaration.
 // PRE: cursor is positioned at the first token inside the record body
 // POST: cursor is positioned at END keyword
-func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibility ast.Visibility) ast.Visibility {
+func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility ast.Visibility) ast.Visibility {
 	cursor := p.cursor
 
 	// Parse record body until 'end'
@@ -179,7 +173,7 @@ func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibi
 		if cursor.Current().Type == lexer.CONST {
 			cursor = cursor.Advance() // move past 'const'
 			p.cursor = cursor
-			constant := p.parseClassConstantDeclarationCursor(currentVisibility, false)
+			constant := p.parseClassConstantDeclaration(currentVisibility, false)
 			if constant != nil {
 				recordDecl.Constants = append(recordDecl.Constants, constant)
 			}
@@ -197,7 +191,7 @@ func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibi
 				// Class variable: class var FieldName: Type;
 				cursor = cursor.Advance() // move past 'var'
 				p.cursor = cursor
-				fields := p.parseRecordFieldDeclarationsCursor(currentVisibility)
+				fields := p.parseRecordFieldDeclarations(currentVisibility)
 				for _, field := range fields {
 					if field != nil {
 						field.IsClassVar = true
@@ -211,7 +205,7 @@ func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibi
 				// Class constant: class const Name = Value;
 				cursor = cursor.Advance() // move past 'const'
 				p.cursor = cursor
-				constant := p.parseClassConstantDeclarationCursor(currentVisibility, true)
+				constant := p.parseClassConstantDeclaration(currentVisibility, true)
 				if constant != nil {
 					recordDecl.Constants = append(recordDecl.Constants, constant)
 				}
@@ -220,7 +214,7 @@ func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibi
 				continue
 			} else if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE {
 				// Class method
-				method := p.parseFunctionDeclarationCursor()
+				method := p.parseFunctionDeclaration()
 				if method != nil {
 					method.IsClassMethod = true
 					recordDecl.Methods = append(recordDecl.Methods, method)
@@ -238,7 +232,7 @@ func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibi
 
 		// Check for method declarations (instance methods)
 		if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE {
-			method := p.parseFunctionDeclarationCursor()
+			method := p.parseFunctionDeclaration()
 			if method != nil {
 				recordDecl.Methods = append(recordDecl.Methods, method)
 			}
@@ -249,7 +243,7 @@ func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibi
 
 		// Check for property declarations
 		if cursor.Current().Type == lexer.PROPERTY {
-			prop := p.parseRecordPropertyDeclarationCursor()
+			prop := p.parseRecordPropertyDeclaration()
 			if prop != nil {
 				recordDecl.Properties = append(recordDecl.Properties, *prop)
 			}
@@ -259,7 +253,7 @@ func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibi
 		}
 
 		// Parse field declaration(s)
-		fields := p.parseRecordFieldDeclarationsCursor(currentVisibility)
+		fields := p.parseRecordFieldDeclarations(currentVisibility)
 		if fields != nil {
 			recordDecl.Fields = append(recordDecl.Fields, fields...)
 		}
@@ -273,9 +267,6 @@ func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibi
 
 // parseRecordFieldDeclarations parses one or more field declarations (dispatcher).
 // Task 2.7.3: Dual-mode dispatcher for record field parsing.
-func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
-	return p.parseRecordFieldDeclarationsCursor(visibility)
-}
 
 // parseRecordFieldDeclarationsTraditional parses one or more field declarations with the same type.
 // Pattern: Name1, Name2, Name3: Type;
@@ -283,7 +274,7 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 // Returns a slice of FieldDecl, one for each field name.
 // PRE: curToken is field name IDENT
 // POST: curToken is SEMICOLON
-func (p *Parser) parseRecordFieldDeclarationsCursor(visibility ast.Visibility) []*ast.FieldDecl {
+func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
 	cursor := p.cursor
 
 	// Use IdentifierList combinator to parse comma-separated field names
@@ -312,7 +303,7 @@ func (p *Parser) parseRecordFieldDeclarationsCursor(visibility ast.Visibility) [
 		p.cursor = cursor
 
 		// Parse initialization expression
-		initValue = p.parseExpressionCursor(LOWEST)
+		initValue = p.parseExpression(LOWEST)
 		if initValue == nil {
 			p.addError("expected initialization expression after :=", ErrInvalidExpression)
 			return nil
@@ -334,7 +325,7 @@ func (p *Parser) parseRecordFieldDeclarationsCursor(visibility ast.Visibility) [
 		p.cursor = cursor
 
 		// Parse type expression
-		fieldType = p.parseTypeExpressionCursor()
+		fieldType = p.parseTypeExpression()
 		if fieldType == nil {
 			return nil
 		}
@@ -434,7 +425,7 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 			p.nextToken() // move to value expression
 
 			// Parse value expression
-			value := p.parseExpressionCursor(LOWEST)
+			value := p.parseExpression(LOWEST)
 			if value == nil {
 				p.addError("expected expression after ':' in record literal field", ErrInvalidExpression)
 				return nil
@@ -478,9 +469,6 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 
 // parseRecordPropertyDeclaration parses a record property declaration (dispatcher).
 // Task 2.7.3: Dual-mode dispatcher for record property parsing.
-func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
-	return p.parseRecordPropertyDeclarationCursor()
-}
 
 // parseRecordPropertyDeclarationTraditional parses a record property declaration.
 // Pattern: property Name: Type read FieldName write FieldName;
@@ -489,7 +477,7 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 // Note: This is different from class properties (parsePropertyDeclaration)
 // PRE: curToken is PROPERTY
 // POST: curToken is SEMICOLON
-func (p *Parser) parseRecordPropertyDeclarationCursor() *ast.RecordPropertyDecl {
+func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 	cursor := p.cursor
 	propToken := cursor.Current() // 'property' token
 
@@ -543,7 +531,7 @@ func (p *Parser) parseRecordPropertyDeclarationCursor() *ast.RecordPropertyDecl 
 			p.cursor = cursor
 
 			// Parse type
-			paramType := p.parseTypeExpressionCursor()
+			paramType := p.parseTypeExpression()
 			if paramType == nil {
 				return nil
 			}
@@ -587,7 +575,7 @@ func (p *Parser) parseRecordPropertyDeclarationCursor() *ast.RecordPropertyDecl 
 	p.cursor = cursor
 
 	// Parse type
-	propType := p.parseTypeExpressionCursor()
+	propType := p.parseTypeExpression()
 	if propType == nil {
 		return nil
 	}

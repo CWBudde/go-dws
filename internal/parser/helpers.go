@@ -7,9 +7,6 @@ import (
 
 // parseHelperDeclaration parses a helper type declaration (dispatcher).
 // Task 2.7.3: Dual-mode dispatcher for helper parsing.
-func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token, isRecordHelper bool) *ast.HelperDecl {
-	return p.parseHelperDeclarationCursor(nameIdent, typeToken, isRecordHelper)
-}
 
 // parseHelperDeclarationTraditional parses a helper type declaration.
 // Helper syntax variants:
@@ -42,7 +39,7 @@ func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lex
 //
 // PRE: curToken is HELPER
 // POST: curToken is SEMICOLON
-func (p *Parser) parseHelperDeclarationCursor(nameIdent *ast.Identifier, typeToken lexer.Token, isRecordHelper bool) *ast.HelperDecl {
+func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token, isRecordHelper bool) *ast.HelperDecl {
 	builder := p.StartNode()
 	cursor := p.cursor
 
@@ -148,7 +145,7 @@ func (p *Parser) parseHelperDeclarationCursor(nameIdent *ast.Identifier, typeTok
 		if cursor.Current().Type == lexer.CLASS && cursor.Peek(1).Type == lexer.CONST {
 			cursor = cursor.Advance() // Move to CONST
 			p.cursor = cursor
-			classConstStmt := p.parseConstDeclarationCursor()
+			classConstStmt := p.parseConstDeclaration()
 			if classConstStmt != nil {
 				if classConst, ok := classConstStmt.(*ast.ConstDecl); ok {
 					helperDecl.ClassConsts = append(helperDecl.ClassConsts, classConst)
@@ -169,7 +166,7 @@ func (p *Parser) parseHelperDeclarationCursor(nameIdent *ast.Identifier, typeTok
 			p.cursor = cursor
 
 			// Parse field declarations (can be comma-separated)
-			fields := p.parseFieldDeclarationsCursor(currentVisibility)
+			fields := p.parseFieldDeclarations(currentVisibility)
 			if fields != nil {
 				for _, field := range fields {
 					field.IsClassVar = true
@@ -186,7 +183,7 @@ func (p *Parser) parseHelperDeclarationCursor(nameIdent *ast.Identifier, typeTok
 
 		// Check for method declarations (function/procedure)
 		if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE {
-			method := p.parseFunctionDeclarationCursor()
+			method := p.parseFunctionDeclaration()
 			if method != nil {
 				helperDecl.Methods = append(helperDecl.Methods, method)
 				if currentSection != nil {

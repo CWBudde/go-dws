@@ -10,13 +10,13 @@ import (
 // Task 2.2.12: Test prefix expression handler migration to cursor mode
 //
 // This file tests the migration of prefix expression handlers to cursor mode:
-// - parsePrefixExpressionCursor: -x, +x, not x
-// - parseGroupedExpressionCursor: (expr), ()
-// - parseArrayLiteralCursor: [1, 2, 3], [], [one..five]
-// - parseNilLiteralCursor: nil
-// - parseNullIdentifierCursor: Null
-// - parseUnassignedIdentifierCursor: Unassigned
-// - parseCharLiteralCursor: #65, #$41
+// - parsePrefixExpression: -x, +x, not x
+// - parseGroupedExpression: (expr), ()
+// - parseArrayLiteral: [1, 2, 3], [], [one..five]
+// - parseNilLiteral: nil
+// - parseNullIdentifier: Null
+// - parseUnassignedIdentifier: Unassigned
+// - parseCharLiteral: #65, #$41
 //
 // Each test parses the same source in both traditional and cursor modes,
 // then compares the resulting ASTs using String() representation to verify

@@ -13,7 +13,7 @@ func Benchmark_Identifier_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseIdentifierCursor()
+		_ = p.parseIdentifier()
 	}
 }
 
@@ -24,7 +24,7 @@ func Benchmark_Identifier_Cursor(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		_ = p.parseIdentifierCursor()
+		_ = p.parseIdentifier()
 	}
 }
 
@@ -35,7 +35,7 @@ func Benchmark_FloatLiteral_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseFloatLiteralCursor()
+		_ = p.parseFloatLiteral()
 	}
 }
 
@@ -46,7 +46,7 @@ func Benchmark_FloatLiteral_Cursor(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		_ = p.parseFloatLiteralCursor()
+		_ = p.parseFloatLiteral()
 	}
 }
 
@@ -57,7 +57,7 @@ func Benchmark_FloatLiteral_Scientific_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseFloatLiteralCursor()
+		_ = p.parseFloatLiteral()
 	}
 }
 
@@ -68,7 +68,7 @@ func Benchmark_FloatLiteral_Scientific_Cursor(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		_ = p.parseFloatLiteralCursor()
+		_ = p.parseFloatLiteral()
 	}
 }
 
@@ -79,7 +79,7 @@ func Benchmark_StringLiteral_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseStringLiteralCursor()
+		_ = p.parseStringLiteral()
 	}
 }
 
@@ -90,7 +90,7 @@ func Benchmark_StringLiteral_Cursor(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		_ = p.parseStringLiteralCursor()
+		_ = p.parseStringLiteral()
 	}
 }
 
@@ -101,7 +101,7 @@ func Benchmark_StringLiteral_Escaped_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseStringLiteralCursor()
+		_ = p.parseStringLiteral()
 	}
 }
 
@@ -112,7 +112,7 @@ func Benchmark_StringLiteral_Escaped_Cursor(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		_ = p.parseStringLiteralCursor()
+		_ = p.parseStringLiteral()
 	}
 }
 
@@ -123,7 +123,7 @@ func Benchmark_BooleanLiteral_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseBooleanLiteralCursor()
+		_ = p.parseBooleanLiteral()
 	}
 }
 
@@ -134,7 +134,7 @@ func Benchmark_BooleanLiteral_Cursor(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		_ = p.parseBooleanLiteralCursor()
+		_ = p.parseBooleanLiteral()
 	}
 }
 
@@ -158,15 +158,15 @@ func Benchmark_AllExpressions_Traditional(b *testing.B) {
 				p := New(lexer.New(tt.source))
 				switch tt.name {
 				case "identifier":
-					_ = p.parseIdentifierCursor()
+					_ = p.parseIdentifier()
 				case "integer":
-					_ = p.parseIntegerLiteralCursor()
+					_ = p.parseIntegerLiteral()
 				case "float":
-					_ = p.parseFloatLiteralCursor()
+					_ = p.parseFloatLiteral()
 				case "string":
-					_ = p.parseStringLiteralCursor()
+					_ = p.parseStringLiteral()
 				case "boolean":
-					_ = p.parseBooleanLiteralCursor()
+					_ = p.parseBooleanLiteral()
 				}
 			}
 		})
@@ -193,15 +193,15 @@ func Benchmark_AllExpressions_Cursor(b *testing.B) {
 				p := NewCursorParser(lexer.New(tt.source))
 				switch tt.name {
 				case "identifier":
-					_ = p.parseIdentifierCursor()
+					_ = p.parseIdentifier()
 				case "integer":
-					_ = p.parseIntegerLiteralCursor()
+					_ = p.parseIntegerLiteral()
 				case "float":
-					_ = p.parseFloatLiteralCursor()
+					_ = p.parseFloatLiteral()
 				case "string":
-					_ = p.parseStringLiteralCursor()
+					_ = p.parseStringLiteral()
 				case "boolean":
-					_ = p.parseBooleanLiteralCursor()
+					_ = p.parseBooleanLiteral()
 				}
 			}
 		})

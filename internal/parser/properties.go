@@ -117,7 +117,7 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 		// Check if read spec is an expression in parentheses
 		if p.curTokenIs(lexer.LPAREN) {
 			// Parse expression-based read spec
-			readExpr := p.parseExpressionCursor(LOWEST)
+			readExpr := p.parseExpression(LOWEST)
 			prop.ReadSpec = readExpr
 		} else if p.curTokenIs(lexer.IDENT) {
 			// Simple identifier (field or method name)

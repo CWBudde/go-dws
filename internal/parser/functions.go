@@ -21,9 +21,6 @@ func isCallingConvention(literal string) bool {
 // based on the parser mode (traditional vs cursor).
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
-func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
-	return p.parseFunctionDeclarationCursor()
-}
 
 // parseFunctionDeclarationTraditional parses a function or procedure declaration.
 // Syntax: function Name(params): Type; begin ... end;
@@ -33,7 +30,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 // PRE: curToken is FUNCTION or PROCEDURE
 // POST: curToken is END or SEMICOLON (forward declaration) or last token of body
 // Task 2.7.2: Renamed to enable dual-mode operation
-func (p *Parser) parseFunctionDeclarationCursor() *ast.FunctionDecl {
+func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	cursor := p.cursor
 	builder := p.StartNode()
 
@@ -81,7 +78,7 @@ func (p *Parser) parseFunctionDeclarationCursor() *ast.FunctionDecl {
 		cursor = cursor.Advance() // move to '('
 		p.cursor = cursor
 
-		fn.Parameters = p.parseParameterListCursor()
+		fn.Parameters = p.parseParameterList()
 		cursor = p.cursor
 
 		if cursor.Current().Type != lexer.RPAREN {
@@ -96,7 +93,7 @@ func (p *Parser) parseFunctionDeclarationCursor() *ast.FunctionDecl {
 		cursor = cursor.Advance() // move past ':' to type expression
 		p.cursor = cursor
 
-		typeExpr := p.parseTypeExpressionCursor()
+		typeExpr := p.parseTypeExpression()
 		if typeExpr == nil {
 			p.addError("expected return type after ':'", ErrExpectedType)
 			return nil
@@ -330,7 +327,7 @@ func (p *Parser) parseFunctionDeclarationCursor() *ast.FunctionDecl {
 					break
 				}
 
-				varDecl := p.parseVarDeclarationCursor()
+				varDecl := p.parseVarDeclaration()
 				if varDecl == nil {
 					break
 				}
@@ -356,7 +353,7 @@ func (p *Parser) parseFunctionDeclarationCursor() *ast.FunctionDecl {
 				p.cursor = cursor
 			}
 		} else if cursor.Current().Type == lexer.CONST {
-			constDecl := p.parseConstDeclarationCursor()
+			constDecl := p.parseConstDeclaration()
 			if constDecl != nil {
 				if fn.Body == nil {
 					fn.Body = &ast.BlockStatement{
@@ -442,41 +439,14 @@ func (p *Parser) parseFunctionDeclarationCursor() *ast.FunctionDecl {
 // Syntax: (param: Type; var param: Type; a, b, c: Type)
 // PRE: curToken is LPAREN
 // POST: curToken is RPAREN
-func (p *Parser) parseParameterList() []*ast.Parameter {
-	params := []*ast.Parameter{}
 
-	p.nextToken() // move past '('
-
-	if p.curTokenIs(lexer.RPAREN) {
-		return params
-	}
-
-	// Use SeparatedList combinator (Task 2.3.2)
-	p.SeparatedList(SeparatorConfig{
-		Sep:         lexer.SEMICOLON,
-		Term:        lexer.RPAREN,
-		AllowEmpty:  true,
-		RequireTerm: true,
-		ParseItem: func() bool {
-			groupParams := p.parseParameterGroup()
-			if groupParams != nil {
-				params = append(params, groupParams...)
-				return true
-			}
-			return false
-		},
-	})
-
-	return params
-}
-
-// parseParameterListCursor parses a function parameter list (cursor mode).
+// parseParameterList parses a function parameter list (cursor mode).
 // Syntax: (param: Type; var param: Type; a, b, c: Type)
 // PRE: cursor is at LPAREN
 // POST: cursor is at RPAREN
 //
-// Task 2.7.4: Created to fix bug in parseFunctionDeclarationCursor parameter parsing
-func (p *Parser) parseParameterListCursor() []*ast.Parameter {
+// Task 2.7.4: Created to fix bug in parseFunctionDeclaration parameter parsing
+func (p *Parser) parseParameterList() []*ast.Parameter {
 	cursor := p.cursor
 	params := []*ast.Parameter{}
 
@@ -489,7 +459,7 @@ func (p *Parser) parseParameterListCursor() []*ast.Parameter {
 	}
 
 	// Parse first parameter group
-	groupParams := p.parseParameterGroupCursor()
+	groupParams := p.parseParameterGroup()
 	if groupParams == nil {
 		return nil
 	}
@@ -504,7 +474,7 @@ func (p *Parser) parseParameterListCursor() []*ast.Parameter {
 		cursor = cursor.Advance() // move past ';'
 		p.cursor = cursor
 
-		groupParams = p.parseParameterGroupCursor()
+		groupParams = p.parseParameterGroup()
 		if groupParams == nil {
 			return nil
 		}
@@ -529,22 +499,14 @@ func (p *Parser) parseParameterListCursor() []*ast.Parameter {
 // Syntax: name: Type  or  name1, name2, name3: Type  or  var name: Type  or  lazy name: Type  or  const name: Type
 // PRE: curToken is VAR, CONST, LAZY, or first parameter name IDENT
 // POST: curToken is last token of type expression or default value
-func (p *Parser) parseParameterGroup() []*ast.Parameter {
-	// Use the ParameterGroup combinator (Task 2.3.3)
-	return p.ParameterGroup(ParameterGroupConfig{
-		AllowModifiers: true,
-		AllowDefaults:  true,
-		ErrorContext:   "function parameter",
-	})
-}
 
-// parseParameterGroupCursor parses a group of parameters with the same type (cursor mode).
+// parseParameterGroup parses a group of parameters with the same type (cursor mode).
 // Syntax: name: Type  or  name1, name2, name3: Type  or  var name: Type  or  lazy name: Type  or  const name: Type
 // PRE: cursor is at VAR, CONST, LAZY, or first parameter name IDENT
 // POST: cursor is at last token of type expression or default value
 //
-// Task 2.7.4: Created to fix bug in parseFunctionDeclarationCursor parameter parsing
-func (p *Parser) parseParameterGroupCursor() []*ast.Parameter {
+// Task 2.7.4: Created to fix bug in parseFunctionDeclaration parameter parsing
+func (p *Parser) parseParameterGroup() []*ast.Parameter {
 	cursor := p.cursor
 	params := []*ast.Parameter{}
 
@@ -637,7 +599,7 @@ func (p *Parser) parseParameterGroupCursor() []*ast.Parameter {
 	cursor = cursor.Advance() // move past ':' to type expression
 	p.cursor = cursor
 
-	typeExpr := p.parseTypeExpressionCursor()
+	typeExpr := p.parseTypeExpression()
 	if typeExpr == nil {
 		// Error already reported by parseTypeExpression
 		return nil
@@ -666,7 +628,7 @@ func (p *Parser) parseParameterGroupCursor() []*ast.Parameter {
 		cursor = cursor.Advance() // move past '='
 		p.cursor = cursor
 
-		defaultValue = p.parseExpressionCursor(LOWEST)
+		defaultValue = p.parseExpression(LOWEST)
 		if defaultValue == nil {
 			err := NewStructuredError(ErrKindMissing).
 				WithCode(ErrInvalidExpression).
@@ -704,9 +666,6 @@ func (p *Parser) parseParameterGroupCursor() []*ast.Parameter {
 // based on the parser mode (traditional vs cursor).
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
-func (p *Parser) parseParameterListAtToken() []*ast.Parameter {
-	return p.parseParameterListAtTokenCursor()
-}
 
 // parseParameterListAtTokenTraditional parses a full parameter list with names when already
 // positioned at the first parameter token (not at LPAREN).
@@ -715,11 +674,11 @@ func (p *Parser) parseParameterListAtToken() []*ast.Parameter {
 // PRE: curToken is first parameter token (VAR, CONST, LAZY, or IDENT)
 // POST: curToken is RPAREN
 // Task 2.7.2: Renamed to enable dual-mode operation
-func (p *Parser) parseParameterListAtTokenCursor() []*ast.Parameter {
+func (p *Parser) parseParameterListAtToken() []*ast.Parameter {
 	params := []*ast.Parameter{}
 
 	// Parse first parameter group (we're already at first token)
-	groupParams := p.parseParameterGroupCursor()
+	groupParams := p.parseParameterGroup()
 	if groupParams == nil {
 		return nil
 	}
@@ -734,7 +693,7 @@ func (p *Parser) parseParameterListAtTokenCursor() []*ast.Parameter {
 		cursor = cursor.Advance() // move past ';'
 		p.cursor = cursor
 
-		groupParams = p.parseParameterGroupCursor()
+		groupParams = p.parseParameterGroup()
 		if groupParams == nil {
 			return nil
 		}
@@ -759,9 +718,6 @@ func (p *Parser) parseParameterListAtTokenCursor() []*ast.Parameter {
 // based on the parser mode (traditional vs cursor).
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
-func (p *Parser) parseTypeOnlyParameterListAtToken() []*ast.Parameter {
-	return p.parseTypeOnlyParameterListAtTokenCursor()
-}
 
 // parseTypeOnlyParameterListAtTokenTraditional parses a parameter list with only types (no names).
 // Used for shorthand function pointer syntax: function(Integer, String): Boolean
@@ -779,7 +735,7 @@ func (p *Parser) parseTypeOnlyParameterListAtToken() []*ast.Parameter {
 // PRE: curToken is first type token or modifier (CONST, VAR, LAZY)
 // POST: curToken is RPAREN
 // Task 2.7.2: Renamed to enable dual-mode operation
-func (p *Parser) parseTypeOnlyParameterListAtTokenCursor() []*ast.Parameter {
+func (p *Parser) parseTypeOnlyParameterListAtToken() []*ast.Parameter {
 	params := []*ast.Parameter{}
 	cursor := p.cursor
 
@@ -807,7 +763,7 @@ func (p *Parser) parseTypeOnlyParameterListAtTokenCursor() []*ast.Parameter {
 		}
 
 		// Parse type expression (could be complex like "array of Integer" or "function(Integer): Integer")
-		typeExpr := p.parseTypeExpressionCursor()
+		typeExpr := p.parseTypeExpression()
 		if typeExpr == nil {
 			p.addError("expected type in function pointer parameter list", ErrExpectedType)
 			return nil

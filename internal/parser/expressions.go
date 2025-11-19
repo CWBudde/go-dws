@@ -15,7 +15,7 @@ import (
 //
 // This is the original implementation using mutable parser state (curToken/peekToken).
 // Task 2.2.7: Renamed from parseExpression to enable dual-mode operation.
-func (p *Parser) parseExpressionCursor(precedence int) ast.Expression {
+func (p *Parser) parseExpression(precedence int) ast.Expression {
 	// 1. Lookup and call prefix function
 	currentToken := p.cursor.Current()
 	prefixFn, ok := p.prefixParseFnsCursor[currentToken.Type]
@@ -45,7 +45,7 @@ func (p *Parser) parseExpressionCursor(precedence int) ast.Expression {
 
 		// 3. Special case: "not in/is/as"
 		if nextToken.Type == lexer.NOT && precedence < EQUALS {
-			leftExp = p.parseNotInIsAsCursor(leftExp)
+			leftExp = p.parseNotInIsAs(leftExp)
 			if leftExp == nil {
 				// Not a "not in/is/as" pattern, return what we have
 				break
@@ -65,8 +65,8 @@ func (p *Parser) parseExpressionCursor(precedence int) ast.Expression {
 		operatorToken := p.cursor.Current()
 
 		// Task 2.2.9: Call infix function directly without state sync
-		// All registered infix cursor functions now use parseInfixExpressionCursor,
-		// which is pure cursor and recursively calls parseExpressionCursor
+		// All registered infix cursor functions now use parseInfixExpression,
+		// which is pure cursor and recursively calls parseExpression
 		// Call infix function
 		leftExp = infixFn(leftExp, operatorToken)
 	}
@@ -77,11 +77,11 @@ func (p *Parser) parseExpressionCursor(precedence int) ast.Expression {
 	return leftExp
 }
 
-// parseNotInIsAsCursor handles special "not in", "not is", "not as" operators in cursor mode.
+// parseNotInIsAs handles special "not in", "not is", "not as" operators in cursor mode.
 // Returns the wrapped NOT expression if successful, or nil if this is not a "not in/is/as" pattern.
 //
 // Task 2.2.7: Cursor-based implementation using Mark/ResetTo for backtracking.
-func (p *Parser) parseNotInIsAsCursor(leftExp ast.Expression) ast.Expression {
+func (p *Parser) parseNotInIsAs(leftExp ast.Expression) ast.Expression {
 	// Mark current position for potential backtracking
 	mark := p.cursor.Mark()
 
@@ -111,7 +111,7 @@ func (p *Parser) parseNotInIsAsCursor(leftExp ast.Expression) ast.Expression {
 	}
 
 	// Task 2.2.9: Call infix function directly without state sync
-	// Now that parseInfixExpressionCursor is pure cursor, no sync needed
+	// Now that parseInfixExpression is pure cursor, no sync needed
 	// Parse the comparison expression
 	comparisonExp := infixFn(leftExp, operatorToken)
 
@@ -133,12 +133,9 @@ func (p *Parser) parseNotInIsAsCursor(leftExp ast.Expression) ast.Expression {
 // parseIdentifier parses an identifier.
 // PRE: curToken is IDENT (traditional) or cursor.Current() is IDENT (cursor)
 // POST: curToken is IDENT (unchanged)
-func (p *Parser) parseIdentifier() ast.Expression {
-	return p.parseIdentifierCursor()
-}
 
 // parseIdentifierTraditional parses an identifier using traditional state.
-func (p *Parser) parseIdentifierCursor() ast.Expression {
+func (p *Parser) parseIdentifier() ast.Expression {
 	currentToken := p.cursor.Current()
 	return &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -156,17 +153,14 @@ func (p *Parser) parseIdentifierCursor() ast.Expression {
 // POST: curToken is INT (unchanged)
 //
 // Note: This currently uses the traditional implementation. The cursor-based version
-// (parseIntegerLiteralCursor) exists and is tested, but full integration requires
+// (parseIntegerLiteral) exists and is tested, but full integration requires
 // migrating parseExpression first (Task 2.2.4). See migration_integer_literal_test.go
 // for validation that both implementations produce identical results.
-func (p *Parser) parseIntegerLiteral() ast.Expression {
-	return p.parseIntegerLiteralCursor()
-}
 
 // parseIntegerLiteralTraditional parses an integer literal using traditional mutable state.
 // PRE: curToken is INT
 // POST: curToken is INT (unchanged)
-func (p *Parser) parseIntegerLiteralCursor() ast.Expression {
+func (p *Parser) parseIntegerLiteral() ast.Expression {
 	currentToken := p.cursor.Current()
 
 	lit := &ast.IntegerLiteral{
@@ -215,12 +209,9 @@ func (p *Parser) parseIntegerLiteralCursor() ast.Expression {
 // parseFloatLiteral parses a floating-point literal.
 // PRE: curToken is FLOAT (traditional) or cursor.Current() is FLOAT (cursor)
 // POST: curToken is FLOAT (unchanged)
-func (p *Parser) parseFloatLiteral() ast.Expression {
-	return p.parseFloatLiteralCursor()
-}
 
 // parseFloatLiteralTraditional parses a float literal using traditional state.
-func (p *Parser) parseFloatLiteralCursor() ast.Expression {
+func (p *Parser) parseFloatLiteral() ast.Expression {
 	currentToken := p.cursor.Current()
 
 	lit := &ast.FloatLiteral{
@@ -246,12 +237,9 @@ func (p *Parser) parseFloatLiteralCursor() ast.Expression {
 // parseStringLiteral parses a string literal.
 // PRE: curToken is STRING (traditional) or cursor.Current() is STRING (cursor)
 // POST: curToken is STRING (unchanged)
-func (p *Parser) parseStringLiteral() ast.Expression {
-	return p.parseStringLiteralCursor()
-}
 
 // parseStringLiteralTraditional parses a string literal using traditional state.
-func (p *Parser) parseStringLiteralCursor() ast.Expression {
+func (p *Parser) parseStringLiteral() ast.Expression {
 	currentToken := p.cursor.Current()
 
 	// The lexer has already processed the string, so we just need to
@@ -305,12 +293,9 @@ func unescapeString(s string) string {
 // parseBooleanLiteral parses a boolean literal.
 // PRE: curToken is TRUE or FALSE (traditional) or cursor.Current() is TRUE/FALSE (cursor)
 // POST: curToken is TRUE or FALSE (unchanged)
-func (p *Parser) parseBooleanLiteral() ast.Expression {
-	return p.parseBooleanLiteralCursor()
-}
 
 // parseBooleanLiteralTraditional parses a boolean literal using traditional state.
-func (p *Parser) parseBooleanLiteralCursor() ast.Expression {
+func (p *Parser) parseBooleanLiteral() ast.Expression {
 	currentToken := p.cursor.Current()
 	return &ast.BooleanLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -326,6 +311,19 @@ func (p *Parser) parseBooleanLiteralCursor() ast.Expression {
 // parseNilLiteral parses a nil literal.
 // PRE: curToken is NIL
 // POST: curToken is NIL (unchanged)
+
+// parseNullIdentifier parses the Null keyword as an identifier.
+// Task 9.4.1: Null is a built-in constant, so we parse it as an identifier.
+// PRE: curToken is NULL
+// POST: curToken is NULL (unchanged)
+
+// parseUnassignedIdentifier parses the Unassigned keyword as an identifier.
+// Task 9.4.1: Unassigned is a built-in constant, so we parse it as an identifier.
+// PRE: curToken is UNASSIGNED
+// POST: curToken is UNASSIGNED (unchanged)
+
+// parseNilLiteral parses a nil literal in cursor mode.
+// Task 2.2.12: Cursor mode version
 func (p *Parser) parseNilLiteral() ast.Expression {
 	return &ast.NilLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -337,54 +335,9 @@ func (p *Parser) parseNilLiteral() ast.Expression {
 	}
 }
 
-// parseNullIdentifier parses the Null keyword as an identifier.
-// Task 9.4.1: Null is a built-in constant, so we parse it as an identifier.
-// PRE: curToken is NULL
-// POST: curToken is NULL (unchanged)
+// parseNullIdentifier parses the Null keyword as an identifier in cursor mode.
+// Task 2.2.12: Cursor mode version
 func (p *Parser) parseNullIdentifier() ast.Expression {
-	return &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  p.cursor.Current(),
-				EndPos: p.endPosFromToken(p.cursor.Current()),
-			},
-		},
-		Value: p.cursor.Current().Literal, // "Null" (preserves original casing)
-	}
-}
-
-// parseUnassignedIdentifier parses the Unassigned keyword as an identifier.
-// Task 9.4.1: Unassigned is a built-in constant, so we parse it as an identifier.
-// PRE: curToken is UNASSIGNED
-// POST: curToken is UNASSIGNED (unchanged)
-func (p *Parser) parseUnassignedIdentifier() ast.Expression {
-	return &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  p.cursor.Current(),
-				EndPos: p.endPosFromToken(p.cursor.Current()),
-			},
-		},
-		Value: p.cursor.Current().Literal, // "Unassigned" (preserves original casing)
-	}
-}
-
-// parseNilLiteralCursor parses a nil literal in cursor mode.
-// Task 2.2.12: Cursor mode version
-func (p *Parser) parseNilLiteralCursor() ast.Expression {
-	return &ast.NilLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  p.cursor.Current(),
-				EndPos: p.endPosFromToken(p.cursor.Current()),
-			},
-		},
-	}
-}
-
-// parseNullIdentifierCursor parses the Null keyword as an identifier in cursor mode.
-// Task 2.2.12: Cursor mode version
-func (p *Parser) parseNullIdentifierCursor() ast.Expression {
 	tok := p.cursor.Current()
 	return &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -397,9 +350,9 @@ func (p *Parser) parseNullIdentifierCursor() ast.Expression {
 	}
 }
 
-// parseUnassignedIdentifierCursor parses the Unassigned keyword as an identifier in cursor mode.
+// parseUnassignedIdentifier parses the Unassigned keyword as an identifier in cursor mode.
 // Task 2.2.12: Cursor mode version
-func (p *Parser) parseUnassignedIdentifierCursor() ast.Expression {
+func (p *Parser) parseUnassignedIdentifier() ast.Expression {
 	tok := p.cursor.Current()
 	return &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -415,49 +368,10 @@ func (p *Parser) parseUnassignedIdentifierCursor() ast.Expression {
 // parseCharLiteral parses a character literal (#65, #$41).
 // PRE: curToken is CHAR
 // POST: curToken is CHAR (unchanged)
-func (p *Parser) parseCharLiteral() ast.Expression {
-	lit := &ast.CharLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  p.cursor.Current(),
-				EndPos: p.endPosFromToken(p.cursor.Current()),
-			},
-		},
-	}
 
-	// Parse the character value from the token literal
-	// Token literal can be: "#65" (decimal) or "#$41" (hex)
-	literal := p.cursor.Current().Literal
-	if len(literal) < 2 || literal[0] != '#' {
-		msg := fmt.Sprintf("invalid character literal format: %q", literal)
-		p.addError(msg, ErrInvalidExpression)
-		return nil
-	}
-
-	var value int64
-	var err error
-
-	if len(literal) >= 3 && literal[1] == '$' {
-		// Hex format: #$41
-		value, err = strconv.ParseInt(literal[2:], 16, 32)
-	} else {
-		// Decimal format: #65
-		value, err = strconv.ParseInt(literal[1:], 10, 32)
-	}
-
-	if err != nil {
-		msg := fmt.Sprintf("could not parse %q as character literal", literal)
-		p.addError(msg, ErrInvalidExpression)
-		return nil
-	}
-
-	lit.Value = rune(value)
-	return lit
-}
-
-// parseCharLiteralCursor parses a character literal (#65, #$41) in cursor mode.
+// parseCharLiteral parses a character literal (#65, #$41) in cursor mode.
 // Task 2.2.12: Cursor mode version
-func (p *Parser) parseCharLiteralCursor() ast.Expression {
+func (p *Parser) parseCharLiteral() ast.Expression {
 	tok := p.cursor.Current()
 	lit := &ast.CharLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -501,30 +415,12 @@ func (p *Parser) parseCharLiteralCursor() ast.Expression {
 // parsePrefixExpression parses a prefix (unary) expression.
 // PRE: curToken is prefix operator (NOT, MINUS, PLUS, etc.)
 // POST: curToken is last token of right operand
-func (p *Parser) parsePrefixExpression() ast.Expression {
-	builder := p.StartNode()
-	expression := &ast.UnaryExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: p.cursor.Current(),
-			},
-		},
-		Operator: p.cursor.Current().Literal,
-	}
 
-	p.nextToken()
-
-	expression.Right = p.parseExpressionCursor(PREFIX)
-
-	// End at right expression (FinishWithNode handles nil by falling back to current token)
-	return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
-}
-
-// Task 2.2.12: parsePrefixExpressionCursor - Cursor mode version of parsePrefixExpression
+// Task 2.2.12: parsePrefixExpression - Cursor mode version of parsePrefixExpression
 // Parses unary prefix operators: -x, +x, not x
 // PRE: cursor is on prefix operator token (MINUS, PLUS, NOT)
 // POST: cursor is at last token of right expression
-func (p *Parser) parsePrefixExpressionCursor() ast.Expression {
+func (p *Parser) parsePrefixExpression() ast.Expression {
 	builder := p.StartNode()
 	operatorToken := p.cursor.Current()
 
@@ -541,7 +437,7 @@ func (p *Parser) parsePrefixExpressionCursor() ast.Expression {
 	p.cursor = p.cursor.Advance()
 
 	// Parse the operand expression
-	expression.Right = p.parseExpressionCursor(PREFIX)
+	expression.Right = p.parseExpression(PREFIX)
 
 	// End at right expression (FinishWithNode handles nil by falling back to current token)
 	return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
@@ -551,34 +447,15 @@ func (p *Parser) parsePrefixExpressionCursor() ast.Expression {
 // Examples: @MyFunction, @TMyClass.MyMethod
 // PRE: curToken is AT
 // POST: curToken is last token of target expression
-func (p *Parser) parseAddressOfExpression() ast.Expression {
-	builder := p.StartNode()
-	expression := &ast.AddressOfExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.cursor.Current()}, // The @ token
-		},
-	}
-
-	p.nextToken() // advance to the target
-
-	// Parse the target expression (function/procedure name or member access)
-	expression.Operator = p.parseExpressionCursor(PREFIX)
-
-	// End at operator expression (FinishWithNode handles nil by falling back to current token)
-	return builder.FinishWithNode(expression, expression.Operator).(ast.Expression)
-}
 
 // parseInfixExpression parses a binary infix expression (dispatcher).
 // PRE: curToken is the operator token (traditional) or cursor at operator (cursor)
 // POST: curToken is last token of right expression (traditional)
-func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
-	return p.parseInfixExpressionCursor(left)
-}
 
 // parseInfixExpressionTraditional parses a binary infix expression using traditional state.
 // PRE: curToken is the operator token
 // POST: curToken is last token of right expression
-func (p *Parser) parseInfixExpressionCursor(left ast.Expression) ast.Expression {
+func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	builder := p.StartNode()
 	operatorToken := p.cursor.Current()
 
@@ -602,9 +479,9 @@ func (p *Parser) parseInfixExpressionCursor(left ast.Expression) ast.Expression 
 	p.cursor = p.cursor.Advance()
 
 	// Task 2.2.9: Parse right expression using pure cursor mode
-	// Now that parseExpressionCursor is implemented, we can call it directly
+	// Now that parseExpression is implemented, we can call it directly
 	// for pure cursor-to-cursor recursion without state synchronization
-	expression.Right = p.parseExpressionCursor(precedence)
+	expression.Right = p.parseExpression(precedence)
 
 	// End at right expression (FinishWithNode handles nil by falling back to current token)
 	return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
@@ -614,37 +491,17 @@ func (p *Parser) parseInfixExpressionCursor(left ast.Expression) ast.Expression 
 // Also handles typed record literals: TypeName(field: value)
 // PRE: curToken is LPAREN
 // POST: curToken is RPAREN
+
+// Task 2.2.11: parseCallExpression - Cursor mode version of parseCallExpression
+// Parses function call expressions and typed record literals using cursor navigation.
+// PRE: cursor is on LPAREN
+// POST: cursor is on RPAREN
 func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	// Check if this might be a typed record literal
 	// Pattern: Identifier(Identifier:Expression, ...)
 	if ident, ok := function.(*ast.Identifier); ok {
 		// Parse the arguments, but check if they're all colon-based field initializers
 		return p.parseCallOrRecordLiteral(ident)
-	}
-
-	// Normal function call (non-identifier function)
-	builder := p.StartNode()
-	exp := &ast.CallExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.cursor.Current()},
-		},
-		Function: function,
-	}
-
-	exp.Arguments = p.parseExpressionList(lexer.RPAREN)
-	return builder.Finish(exp).(ast.Expression) // p.cursor.Current() is now at RPAREN
-}
-
-// Task 2.2.11: parseCallExpressionCursor - Cursor mode version of parseCallExpression
-// Parses function call expressions and typed record literals using cursor navigation.
-// PRE: cursor is on LPAREN
-// POST: cursor is on RPAREN
-func (p *Parser) parseCallExpressionCursor(function ast.Expression) ast.Expression {
-	// Check if this might be a typed record literal
-	// Pattern: Identifier(Identifier:Expression, ...)
-	if ident, ok := function.(*ast.Identifier); ok {
-		// Parse the arguments, but check if they're all colon-based field initializers
-		return p.parseCallOrRecordLiteralCursor(ident)
 	}
 
 	// Normal function call (non-identifier function)
@@ -658,7 +515,7 @@ func (p *Parser) parseCallExpressionCursor(function ast.Expression) ast.Expressi
 		Function: function,
 	}
 
-	exp.Arguments = p.parseExpressionListCursor(lexer.RPAREN)
+	exp.Arguments = p.parseExpressionList(lexer.RPAREN)
 	return builder.Finish(exp).(ast.Expression) // cursor is now at RPAREN
 }
 
@@ -671,64 +528,21 @@ func (p *Parser) parseCallExpressionCursor(function ast.Expression) ast.Expressi
 // DWScript syntax allows both: TypeName(args) for calls and TypeName(field: value) for records.
 // PRE: curToken is LPAREN
 // POST: curToken is RPAREN
-func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expression {
-	// Empty parentheses -> function call
-	if p.peekTokenIs(lexer.RPAREN) {
-		return p.parseEmptyCall(typeName)
-	}
-
-	// Non-identifier first element -> must be function call
-	if !p.peekTokenIs(lexer.IDENT) {
-		return p.parseCallWithExpressionList(typeName)
-	}
-
-	// We have: TypeName(IDENT ...
-	// Parse arguments/fields and determine type based on whether ALL have colons
-	items, allHaveColons := p.parseArgumentsOrFields(lexer.RPAREN)
-
-	if allHaveColons {
-		// All items were field initializers -> record literal
-		return p.buildRecordLiteral(typeName, items)
-	}
-
-	// Some or no items had colons -> function call
-	return p.buildCallExpressionFromFields(typeName, items)
-}
 
 // parseEmptyCall creates a call expression with no arguments.
 // PRE: peekToken is RPAREN
 // POST: curToken is RPAREN
-func (p *Parser) parseEmptyCall(typeName *ast.Identifier) *ast.CallExpression {
-	p.nextToken() // consume ')'
-	return &ast.CallExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.cursor.Current()},
-		},
-		Function:  typeName,
-		Arguments: []ast.Expression{},
-	}
-}
 
 // parseCallWithExpressionList parses a function call using the standard expression list parser.
 // PRE: curToken is LPAREN, peekToken is not RPAREN
 // POST: curToken is RPAREN
-func (p *Parser) parseCallWithExpressionList(typeName *ast.Identifier) *ast.CallExpression {
-	exp := &ast.CallExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.cursor.Current()},
-		},
-		Function: typeName,
-	}
-	exp.Arguments = p.parseExpressionList(lexer.RPAREN)
-	return exp
-}
 
-// parseEmptyCallCursor creates a call expression with no arguments in cursor mode.
+// parseEmptyCall creates a call expression with no arguments in cursor mode.
 // PRE: cursor.Peek(1) is RPAREN
 // POST: cursor is at RPAREN
 //
 // Task 2.2.10 Phase 2: Cursor version of parseEmptyCall.
-func (p *Parser) parseEmptyCallCursor(typeName *ast.Identifier) *ast.CallExpression {
+func (p *Parser) parseEmptyCall(typeName *ast.Identifier) *ast.CallExpression {
 	builder := p.StartNode()
 	// Advance to RPAREN
 	p.cursor = p.cursor.Advance()
@@ -746,13 +560,13 @@ func (p *Parser) parseEmptyCallCursor(typeName *ast.Identifier) *ast.CallExpress
 	return builder.Finish(exp).(*ast.CallExpression)
 }
 
-// parseCallWithExpressionListCursor parses a function call using the cursor expression list parser.
+// parseCallWithExpressionList parses a function call using the cursor expression list parser.
 // PRE: cursor is at LPAREN, cursor.Peek(1) is not RPAREN
 // POST: cursor is at RPAREN
 //
 // Task 2.2.10 Phase 2: Cursor version of parseCallWithExpressionList.
-// Uses parseExpressionListCursor instead of parseExpressionList.
-func (p *Parser) parseCallWithExpressionListCursor(typeName *ast.Identifier) *ast.CallExpression {
+// Uses parseExpressionList instead of parseExpressionList.
+func (p *Parser) parseCallWithExpressionList(typeName *ast.Identifier) *ast.CallExpression {
 	builder := p.StartNode()
 	lparenToken := p.cursor.Current()
 
@@ -766,7 +580,7 @@ func (p *Parser) parseCallWithExpressionListCursor(typeName *ast.Identifier) *as
 	}
 
 	// Parse argument list using cursor version
-	exp.Arguments = p.parseExpressionListCursor(lexer.RPAREN)
+	exp.Arguments = p.parseExpressionList(lexer.RPAREN)
 
 	// Set end position to RPAREN
 	return builder.Finish(exp).(*ast.CallExpression)
@@ -807,125 +621,27 @@ func (p *Parser) buildCallExpressionFromFields(typeName *ast.Identifier, items [
 // Returns the parsed items and whether ALL of them were colon-based fields.
 // PRE: curToken is LPAREN
 // POST: curToken is end token
-func (p *Parser) parseArgumentsOrFields(end lexer.TokenType) ([]*ast.FieldInitializer, bool) {
-	var items []*ast.FieldInitializer
-	allHaveColons := true
-
-	if p.peekTokenIs(end) {
-		p.nextToken()
-		return items, true // empty list
-	}
-
-	p.nextToken() // move to first element
-
-	for {
-		// Parse either a field initializer (name: value) or plain expression
-		item, hasColon := p.parseSingleArgumentOrField()
-		if item == nil {
-			return items, false
-		}
-
-		if !hasColon {
-			allHaveColons = false
-		}
-
-		items = append(items, item)
-
-		// Check if we should continue to next item
-		shouldContinue, ok := p.advanceToNextItem(end)
-		if !ok {
-			return items, false
-		}
-		if !shouldContinue {
-			break
-		}
-	}
-
-	return items, allHaveColons
-}
 
 // parseSingleArgumentOrField parses either a field initializer (name: value) or plain expression.
 // Returns the item and whether it had a colon (i.e., was a field initializer).
-func (p *Parser) parseSingleArgumentOrField() (*ast.FieldInitializer, bool) {
-	if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON) {
-		return p.parseNamedFieldInitializer(), true
-	}
-	return p.parseArgumentAsFieldInitializer(), false
-}
 
 // parseNamedFieldInitializer parses a field initializer: name : value
 // PRE: curToken is IDENT, peekToken is COLON
-func (p *Parser) parseNamedFieldInitializer() *ast.FieldInitializer {
-	fieldName := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: p.cursor.Current(),
-			},
-		},
-		Value: p.cursor.Current().Literal,
-	}
-
-	p.nextToken() // move to ':'
-	p.nextToken() // move to value
-
-	value := p.parseExpressionCursor(LOWEST)
-	if value == nil {
-		return nil
-	}
-
-	return &ast.FieldInitializer{
-		BaseNode: ast.BaseNode{Token: fieldName.Token},
-		Name:     fieldName,
-		Value:    value,
-	}
-}
 
 // parseArgumentAsFieldInitializer parses a plain expression as a field initializer (without name).
 // Used to represent function arguments in the same data structure as record fields.
-func (p *Parser) parseArgumentAsFieldInitializer() *ast.FieldInitializer {
-	expr := p.parseExpressionCursor(LOWEST)
-	if expr == nil {
-		return nil
-	}
-
-	return &ast.FieldInitializer{
-		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
-		Name:     nil, // no name means regular argument
-		Value:    expr,
-	}
-}
 
 // advanceToNextItem handles separator logic and advances to next item if needed.
 // Returns (shouldContinue, ok) where:
 // - shouldContinue: true if there's another item to parse
 // - ok: true if no error occurred
-func (p *Parser) advanceToNextItem(end lexer.TokenType) (bool, bool) {
-	if p.peekTokenIs(lexer.COMMA) || p.peekTokenIs(lexer.SEMICOLON) {
-		p.nextToken() // consume separator
-		if p.peekTokenIs(end) {
-			// Trailing separator
-			p.nextToken()
-			return false, true
-		}
-		p.nextToken() // move to next item
-		return true, true
-	}
 
-	if p.peekTokenIs(end) {
-		p.nextToken()
-		return false, true
-	}
-
-	p.addError("expected ',' or ')' in argument list", ErrUnexpectedToken)
-	return false, false
-}
-
-// parseNamedFieldInitializerCursor parses a field initializer: name : value (cursor mode).
+// parseNamedFieldInitializer parses a field initializer: name : value (cursor mode).
 // PRE: cursor is at IDENT, cursor.Peek(1) is COLON
 // POST: cursor is at value expression
 //
 // Task 2.2.10 Phase 3: Cursor version of parseNamedFieldInitializer.
-func (p *Parser) parseNamedFieldInitializerCursor() *ast.FieldInitializer {
+func (p *Parser) parseNamedFieldInitializer() *ast.FieldInitializer {
 	identToken := p.cursor.Current()
 
 	fieldName := &ast.Identifier{
@@ -945,7 +661,7 @@ func (p *Parser) parseNamedFieldInitializerCursor() *ast.FieldInitializer {
 	p.cursor = p.cursor.Advance()
 
 	// Parse value using cursor mode
-	value := p.parseExpressionCursor(LOWEST)
+	value := p.parseExpression(LOWEST)
 	if value == nil {
 		return nil
 	}
@@ -960,16 +676,16 @@ func (p *Parser) parseNamedFieldInitializerCursor() *ast.FieldInitializer {
 	}
 }
 
-// parseArgumentAsFieldInitializerCursor parses a plain expression as a field initializer (cursor mode).
+// parseArgumentAsFieldInitializer parses a plain expression as a field initializer (cursor mode).
 // Used to represent function arguments in the same data structure as record fields.
 // PRE: cursor is at start of expression
 // POST: cursor is at end of expression
 //
 // Task 2.2.10 Phase 3: Cursor version of parseArgumentAsFieldInitializer.
-func (p *Parser) parseArgumentAsFieldInitializerCursor() *ast.FieldInitializer {
+func (p *Parser) parseArgumentAsFieldInitializer() *ast.FieldInitializer {
 	exprStart := p.cursor.Current()
 
-	expr := p.parseExpressionCursor(LOWEST)
+	expr := p.parseExpression(LOWEST)
 	if expr == nil {
 		return nil
 	}
@@ -984,26 +700,26 @@ func (p *Parser) parseArgumentAsFieldInitializerCursor() *ast.FieldInitializer {
 	}
 }
 
-// parseSingleArgumentOrFieldCursor parses either a field initializer (name: value) or plain expression (cursor mode).
+// parseSingleArgumentOrField parses either a field initializer (name: value) or plain expression (cursor mode).
 // Returns the item and whether it had a colon (i.e., was a field initializer).
 // PRE: cursor is at start of argument/field
 // POST: cursor is at end of argument/field
 //
 // Task 2.2.10 Phase 3: Cursor version of parseSingleArgumentOrField.
-func (p *Parser) parseSingleArgumentOrFieldCursor() (*ast.FieldInitializer, bool) {
+func (p *Parser) parseSingleArgumentOrField() (*ast.FieldInitializer, bool) {
 	currentToken := p.cursor.Current()
 	nextToken := p.cursor.Peek(1)
 
 	// Check for field initializer pattern: IDENT COLON
 	if currentToken.Type == lexer.IDENT && nextToken.Type == lexer.COLON {
-		return p.parseNamedFieldInitializerCursor(), true
+		return p.parseNamedFieldInitializer(), true
 	}
 
 	// Otherwise, parse as plain argument
-	return p.parseArgumentAsFieldInitializerCursor(), false
+	return p.parseArgumentAsFieldInitializer(), false
 }
 
-// advanceToNextItemCursor handles separator logic and advances to next item if needed (cursor mode).
+// advanceToNextItem handles separator logic and advances to next item if needed (cursor mode).
 // Returns (shouldContinue, ok) where:
 // - shouldContinue: true if there's another item to parse
 // - ok: true if no error occurred
@@ -1011,7 +727,7 @@ func (p *Parser) parseSingleArgumentOrFieldCursor() (*ast.FieldInitializer, bool
 // POST: cursor is at next item (if shouldContinue), or at terminator (if !shouldContinue)
 //
 // Task 2.2.10 Phase 3: Cursor version of advanceToNextItem.
-func (p *Parser) advanceToNextItemCursor(end lexer.TokenType) (bool, bool) {
+func (p *Parser) advanceToNextItem(end lexer.TokenType) (bool, bool) {
 	nextToken := p.cursor.Peek(1)
 
 	// Check for separator (comma or semicolon)
@@ -1041,12 +757,12 @@ func (p *Parser) advanceToNextItemCursor(end lexer.TokenType) (bool, bool) {
 	return false, false
 }
 
-// Task 2.2.10 Phase 4: parseArgumentsOrFieldsCursor
-// parseArgumentsOrFieldsCursor parses a list that could be either function arguments or record fields.
+// Task 2.2.10 Phase 4: parseArgumentsOrFields
+// parseArgumentsOrFields parses a list that could be either function arguments or record fields.
 // Returns the parsed items and whether ALL of them were colon-based fields.
 // PRE: cursor is on LPAREN
 // POST: cursor is on end token
-func (p *Parser) parseArgumentsOrFieldsCursor(end lexer.TokenType) ([]*ast.FieldInitializer, bool) {
+func (p *Parser) parseArgumentsOrFields(end lexer.TokenType) ([]*ast.FieldInitializer, bool) {
 	var items []*ast.FieldInitializer
 	allHaveColons := true
 
@@ -1062,7 +778,7 @@ func (p *Parser) parseArgumentsOrFieldsCursor(end lexer.TokenType) ([]*ast.Field
 
 	for {
 		// Parse either a field initializer (name: value) or plain expression
-		item, hasColon := p.parseSingleArgumentOrFieldCursor()
+		item, hasColon := p.parseSingleArgumentOrField()
 		if item == nil {
 			return items, false
 		}
@@ -1074,7 +790,7 @@ func (p *Parser) parseArgumentsOrFieldsCursor(end lexer.TokenType) ([]*ast.Field
 		items = append(items, item)
 
 		// Check if we should continue to next item
-		shouldContinue, ok := p.advanceToNextItemCursor(end)
+		shouldContinue, ok := p.advanceToNextItem(end)
 		if !ok {
 			return items, false
 		}
@@ -1086,26 +802,26 @@ func (p *Parser) parseArgumentsOrFieldsCursor(end lexer.TokenType) ([]*ast.Field
 	return items, allHaveColons
 }
 
-// Task 2.2.10 Phase 5: parseCallOrRecordLiteralCursor
-// parseCallOrRecordLiteralCursor orchestrates the disambiguation between function calls
+// Task 2.2.10 Phase 5: parseCallOrRecordLiteral
+// parseCallOrRecordLiteral orchestrates the disambiguation between function calls
 // and record literals using cursor mode.
 // PRE: cursor is on LPAREN
 // POST: cursor is on RPAREN
-func (p *Parser) parseCallOrRecordLiteralCursor(typeName *ast.Identifier) ast.Expression {
+func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expression {
 	// Empty parentheses -> function call
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type == lexer.RPAREN {
-		return p.parseEmptyCallCursor(typeName)
+		return p.parseEmptyCall(typeName)
 	}
 
 	// Non-identifier first element -> must be function call
 	if nextToken.Type != lexer.IDENT {
-		return p.parseCallWithExpressionListCursor(typeName)
+		return p.parseCallWithExpressionList(typeName)
 	}
 
 	// We have: TypeName(IDENT ...
 	// Parse arguments/fields and determine type based on whether ALL have colons
-	items, allHaveColons := p.parseArgumentsOrFieldsCursor(lexer.RPAREN)
+	items, allHaveColons := p.parseArgumentsOrFields(lexer.RPAREN)
 
 	if allHaveColons {
 		// All items were field initializers -> record literal
@@ -1119,36 +835,14 @@ func (p *Parser) parseCallOrRecordLiteralCursor(typeName *ast.Identifier) ast.Ex
 // parseExpressionList parses a comma-separated list of expressions.
 // PRE: curToken is LPAREN (or opening token)
 // POST: curToken is end token (typically RPAREN)
-func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
-	list := []ast.Expression{}
 
-	opts := ListParseOptions{
-		Separators:             []lexer.TokenType{lexer.COMMA},
-		Terminator:             end,
-		AllowTrailingSeparator: true,
-		AllowEmpty:             true,
-		RequireTerminator:      true,
-	}
-
-	_, _ = p.parseSeparatedListBeforeStart(opts, func() bool {
-		exp := p.parseExpressionCursor(LOWEST)
-		if exp != nil {
-			list = append(list, exp)
-			return true
-		}
-		return false
-	})
-
-	return list
-}
-
-// parseExpressionListCursor parses a comma-separated list of expressions in cursor mode.
+// parseExpressionList parses a comma-separated list of expressions in cursor mode.
 // PRE: cursor is before the list (at opening delimiter)
 // POST: cursor is at terminator (closing delimiter)
 //
 // Task 2.2.10 Phase 1: Cursor version of parseExpressionList.
-// Uses parseExpressionCursor for each element instead of parseExpression.
-func (p *Parser) parseExpressionListCursor(end lexer.TokenType) []ast.Expression {
+// Uses parseExpression for each element instead of parseExpression.
+func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
 	list := []ast.Expression{}
 
 	// Check for empty list
@@ -1162,7 +856,7 @@ func (p *Parser) parseExpressionListCursor(end lexer.TokenType) []ast.Expression
 	p.cursor = p.cursor.Advance()
 
 	// Parse first expression
-	expr := p.parseExpressionCursor(LOWEST)
+	expr := p.parseExpression(LOWEST)
 	if expr != nil {
 		list = append(list, expr)
 	}
@@ -1192,7 +886,7 @@ func (p *Parser) parseExpressionListCursor(end lexer.TokenType) []ast.Expression
 			p.cursor = p.cursor.Advance()
 
 			// Parse next expression
-			expr = p.parseExpressionCursor(LOWEST)
+			expr = p.parseExpression(LOWEST)
 			if expr != nil {
 				list = append(list, expr)
 			}
@@ -1214,23 +908,6 @@ func (p *Parser) parseExpressionListCursor(end lexer.TokenType) []ast.Expression
 //
 // PRE: curToken is LPAREN
 // POST: curToken is RPAREN
-func (p *Parser) parseGroupedExpression() ast.Expression {
-	lparenToken := p.cursor.Current()
-
-	// Handle empty parentheses: () -> empty array literal
-	if p.peekTokenIs(lexer.RPAREN) {
-		return p.parseEmptyArrayLiteral(lparenToken)
-	}
-
-	// Check if this is a record literal: (IDENT : ...)
-	if p.isRecordLiteralPattern() {
-		p.nextToken() // advance to IDENT
-		return p.parseRecordLiteralInline()
-	}
-
-	// Parse first expression, then determine if it's an array literal or grouped expression
-	return p.parseExpressionOrArrayLiteral(lparenToken)
-}
 
 // parseEmptyArrayLiteral creates an empty array literal from empty parentheses.
 // PRE: curToken is LPAREN, peekToken is RPAREN
@@ -1270,7 +947,7 @@ func (p *Parser) isRecordLiteralPattern() bool {
 func (p *Parser) parseExpressionOrArrayLiteral(lparenToken lexer.Token) ast.Expression {
 	p.nextToken() // move to first expression
 
-	exp := p.parseExpressionCursor(LOWEST)
+	exp := p.parseExpression(LOWEST)
 	if exp == nil {
 		return nil
 	}
@@ -1289,12 +966,12 @@ func (p *Parser) parseExpressionOrArrayLiteral(lparenToken lexer.Token) ast.Expr
 	return exp
 }
 
-// Task 2.2.12: parseGroupedExpressionCursor - Cursor mode version of parseGroupedExpression
+// Task 2.2.12: parseGroupedExpression - Cursor mode version of parseGroupedExpression
 // Parses grouped expressions in parentheses: (expr)
 // Also handles empty parentheses, array literals, and record literals
 // PRE: cursor is on LPAREN
 // POST: cursor is on RPAREN
-func (p *Parser) parseGroupedExpressionCursor() ast.Expression {
+func (p *Parser) parseGroupedExpression() ast.Expression {
 	lparenToken := p.cursor.Current()
 
 	// Handle empty parentheses: () -> empty array literal
@@ -1327,14 +1004,14 @@ func (p *Parser) parseGroupedExpressionCursor() ast.Expression {
 
 		// Parse fields in a loop
 		for p.cursor.Current().Type != lexer.RPAREN && p.cursor.Current().Type != lexer.EOF {
-			field := p.parseNamedFieldInitializerCursor()
+			field := p.parseNamedFieldInitializer()
 			if field == nil {
 				return nil
 			}
 			recordLit.Fields = append(recordLit.Fields, field)
 
 			// Check if we should continue to next field
-			shouldContinue, ok := p.advanceToNextItemCursor(lexer.RPAREN)
+			shouldContinue, ok := p.advanceToNextItem(lexer.RPAREN)
 			if !ok {
 				return nil
 			}
@@ -1351,7 +1028,7 @@ func (p *Parser) parseGroupedExpressionCursor() ast.Expression {
 	p.cursor = p.cursor.Advance()
 
 	// Parse first expression
-	exp := p.parseExpressionCursor(LOWEST)
+	exp := p.parseExpression(LOWEST)
 	if exp == nil {
 		return nil
 	}
@@ -1380,7 +1057,7 @@ func (p *Parser) parseGroupedExpressionCursor() ast.Expression {
 				}
 			}
 
-			elementExpr := p.parseExpressionCursor(LOWEST)
+			elementExpr := p.parseExpression(LOWEST)
 			if elementExpr == nil {
 				return nil
 			}
@@ -1454,7 +1131,7 @@ func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstEl
 			}
 		}
 
-		elementExpr := p.parseExpressionCursor(LOWEST)
+		elementExpr := p.parseExpression(LOWEST)
 		if elementExpr == nil {
 			return nil
 		}
@@ -1551,130 +1228,16 @@ func (p *Parser) parseRecordField() *ast.FieldInitializer {
 // following the type name: '(' for classes, '[' for arrays.
 // PRE: curToken is NEW
 // POST: curToken is last token of new expression (RPAREN, RBRACK, or IDENT for zero-arg)
-func (p *Parser) parseNewExpression() ast.Expression {
-	// Task 2.7.6: Dual-mode - save 'new' token
-	var newToken lexer.Token
-	if p.cursor != nil {
-		newToken = p.cursor.Current()
-	} else {
-		newToken = p.cursor.Current()
-	}
-
-	// Expect a type name (identifier)
-	if !p.expectPeek(lexer.IDENT) {
-		return nil
-	}
-
-	// Task 2.7.6: Dual-mode - get current token for type name
-	var curTok lexer.Token
-	if p.cursor != nil {
-		curTok = p.cursor.Current()
-	} else {
-		curTok = p.cursor.Current()
-	}
-
-	typeName := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: curTok,
-			},
-		},
-		Value: curTok.Literal,
-	}
-
-	// Check what follows: '(' for class, '[' for array, or nothing for zero-arg constructor
-	if p.peekTokenIs(lexer.LBRACK) {
-		// Array instantiation: new TypeName[size, ...]
-		return p.parseNewArrayExpression(newToken, typeName)
-	} else if p.peekTokenIs(lexer.LPAREN) {
-		// Class instantiation: new ClassName(args)
-		return p.parseNewClassExpression(newToken, typeName)
-	} else {
-		// No parentheses - treat as zero-argument constructor
-		// DWScript allows: new TTest (equivalent to new TTest())
-		return &ast.NewExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: newToken,
-				},
-			},
-			ClassName: typeName,
-			Arguments: []ast.Expression{},
-		}
-	}
-}
 
 // parseDefaultExpression parses a Default() call expression.
 // DWScript syntax: Default(TypeName) - returns the default/zero value for the type
 // PRE: curToken is DEFAULT
 // POST: curToken is RPAREN
-func (p *Parser) parseDefaultExpression() ast.Expression {
-	defaultToken := p.cursor.Current() // Save the 'default' token position
-
-	// Expect LPAREN
-	if !p.expectPeek(lexer.LPAREN) {
-		return nil
-	}
-
-	// Parse the type name argument
-	p.nextToken() // Move to type name
-
-	// The type name could be an identifier (Integer, String, etc.)
-	typeName := p.parseExpressionCursor(LOWEST)
-	if typeName == nil {
-		return nil
-	}
-
-	// Expect RPAREN
-	if !p.expectPeek(lexer.RPAREN) {
-		return nil
-	}
-
-	// Return as a CallExpression with function name "Default"
-	return &ast.CallExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: defaultToken,
-			},
-		},
-		Function: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: defaultToken,
-				},
-			},
-			Value: "Default",
-		},
-		Arguments: []ast.Expression{typeName},
-	}
-}
 
 // parseNewClassExpression parses class instantiation: new ClassName(args)
 // This is the original parseNewExpression logic, now extracted as a helper.
 // PRE: curToken is className IDENT
 // POST: curToken is RPAREN
-func (p *Parser) parseNewClassExpression(newToken lexer.Token, className *ast.Identifier) ast.Expression {
-	// Create NewExpression
-	newExpr := &ast.NewExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: newToken,
-			},
-		},
-		ClassName: className,
-		Arguments: []ast.Expression{},
-	}
-
-	// Expect opening parenthesis
-	if !p.expectPeek(lexer.LPAREN) {
-		return nil
-	}
-
-	// Parse arguments
-	newExpr.Arguments = p.parseExpressionList(lexer.RPAREN)
-
-	return newExpr
-}
 
 // parseNewArrayExpression parses array instantiation: new TypeName[size1, size2, ...]
 // Supports both single-dimensional and multi-dimensional arrays.
@@ -1685,51 +1248,6 @@ func (p *Parser) parseNewClassExpression(newToken lexer.Token, className *ast.Id
 //
 // PRE: curToken is element type IDENT
 // POST: curToken is RBRACK
-func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *ast.Identifier) ast.Expression {
-	// Expect opening bracket
-	if !p.expectPeek(lexer.LBRACK) {
-		return nil
-	}
-
-	dimensions := []ast.Expression{}
-
-	// Parse first dimension expression
-	p.nextToken()
-	firstDim := p.parseExpressionCursor(LOWEST)
-	if firstDim == nil {
-		p.addError(fmt.Sprintf("expected expression for array dimension at %d:%d",
-			p.cursor.Current().Pos.Line, p.cursor.Current().Pos.Column), ErrInvalidExpression)
-		return nil
-	}
-	dimensions = append(dimensions, firstDim)
-
-	// Parse additional dimensions (comma-separated)
-	for p.peekTokenIs(lexer.COMMA) {
-		p.nextToken() // consume comma
-		p.nextToken() // move to dimension expression
-
-		dim := p.parseExpressionCursor(LOWEST)
-		if dim == nil {
-			p.addError(fmt.Sprintf("expected expression for array dimension at %d:%d",
-				p.cursor.Current().Pos.Line, p.cursor.Current().Pos.Column), ErrInvalidExpression)
-			return nil
-		}
-		dimensions = append(dimensions, dim)
-	}
-
-	// Expect closing bracket
-	if !p.expectPeek(lexer.RBRACK) {
-		return nil
-	}
-
-	return &ast.NewArrayExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: newToken},
-		},
-		ElementTypeName: elementTypeName,
-		Dimensions:      dimensions,
-	}
-}
 
 // parseInheritedExpression parses an inherited expression.
 // Supports three forms:
@@ -1739,47 +1257,6 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 //
 // PRE: curToken is INHERITED
 // POST: curToken is INHERITED, method IDENT, or RPAREN (depends on form)
-func (p *Parser) parseInheritedExpression() ast.Expression {
-	builder := p.StartNode()
-	inheritedExpr := &ast.InheritedExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: p.cursor.Current(), // The 'inherited' keyword
-			},
-		},
-	}
-
-	// Check if there's a method name following
-	if p.peekTokenIs(lexer.IDENT) {
-		p.nextToken() // move to identifier
-		inheritedExpr.Method = &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: p.cursor.Current(),
-				},
-			},
-			Value: p.cursor.Current().Literal,
-		}
-		inheritedExpr.IsMember = true
-
-		// Check if there's a call (parentheses)
-		if p.peekTokenIs(lexer.LPAREN) {
-			p.nextToken() // move to '('
-			inheritedExpr.IsCall = true
-
-			// Parse arguments
-			inheritedExpr.Arguments = p.parseExpressionList(lexer.RPAREN)
-			// Set end position after closing parenthesis (p.cursor.Current() is now at RPAREN)
-			return builder.Finish(inheritedExpr).(ast.Expression)
-		} else {
-			// No call, just method name - end at method identifier
-			return builder.FinishWithNode(inheritedExpr, inheritedExpr.Method).(ast.Expression)
-		}
-	} else {
-		// Bare 'inherited' keyword - end at the keyword itself
-		return builder.Finish(inheritedExpr).(ast.Expression)
-	}
-}
 
 // parseSelfExpression parses a self expression.
 // The Self keyword refers to the current instance (in instance methods) or
@@ -1787,20 +1264,6 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 // Usage: Self, Self.Field, Self.Method()
 // PRE: curToken is SELF
 // POST: curToken is SELF (unchanged)
-func (p *Parser) parseSelfExpression() ast.Expression {
-	builder := p.StartNode()
-	selfExpr := &ast.SelfExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: p.cursor.Current(), // The 'self' keyword
-			},
-		},
-		Token: p.cursor.Current(),
-	}
-
-	// Set end position at the Self keyword itself
-	return builder.Finish(selfExpr).(ast.Expression)
-}
 
 // parseLambdaExpression parses a lambda/anonymous function expression.
 // Supports both full and shorthand syntax:
@@ -1809,92 +1272,6 @@ func (p *Parser) parseSelfExpression() ast.Expression {
 //
 // PRE: curToken is LAMBDA
 // POST: curToken is last token of lambda body (END for full syntax, expression for shorthand)
-func (p *Parser) parseLambdaExpression() ast.Expression {
-	builder := p.StartNode()
-	lambdaExpr := &ast.LambdaExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.cursor.Current()}, // The 'lambda' keyword
-		},
-	}
-
-	// Expect opening parenthesis
-	if !p.expectPeek(lexer.LPAREN) {
-		return nil
-	}
-
-	// Parse parameter list (may be empty)
-	lambdaExpr.Parameters = p.parseLambdaParameterList()
-
-	// Check for return type annotation (optional)
-	if p.peekTokenIs(lexer.COLON) {
-		p.nextToken() // move to ':'
-
-		// Parse return type
-		if !p.expectPeek(lexer.IDENT) {
-			p.addError("expected return type after ':'", ErrExpectedType)
-			return nil
-		}
-
-		lambdaExpr.ReturnType = &ast.TypeAnnotation{
-			Token: p.cursor.Current(),
-			Name:  p.cursor.Current().Literal,
-		}
-	}
-
-	// Check which syntax is being used: shorthand (=>) or full (begin/end)
-	if p.peekTokenIs(lexer.FAT_ARROW) {
-		// Shorthand syntax: lambda(x) => expression
-		p.nextToken() // move to '=>'
-		p.nextToken() // move past '=>' to expression
-
-		// Parse the expression
-		expr := p.parseExpressionCursor(LOWEST)
-		if expr == nil {
-			p.addError("expected expression after '=>'", ErrInvalidExpression)
-			return nil
-		}
-
-		// Desugar shorthand to full syntax: wrap expression in return statement
-		lambdaExpr.Body = &ast.BlockStatement{
-			BaseNode: ast.BaseNode{Token: p.cursor.Current()}, // Use current token for position tracking
-			Statements: []ast.Statement{
-				&ast.ReturnStatement{
-					BaseNode: ast.BaseNode{
-						Token: p.cursor.Current(),
-					},
-					ReturnValue: expr,
-				},
-			},
-		}
-		lambdaExpr.IsShorthand = true
-
-		// Set end position based on expression
-		if expr != nil {
-			return builder.FinishWithNode(lambdaExpr, expr).(ast.Expression)
-		} else {
-			return builder.Finish(lambdaExpr).(ast.Expression)
-		}
-
-	} else if p.peekTokenIs(lexer.BEGIN) {
-		// Full syntax: lambda(x: Integer) begin ... end
-		p.nextToken() // move to 'begin'
-
-		// Parse block statement
-		lambdaExpr.Body = p.parseBlockStatement()
-		lambdaExpr.IsShorthand = false
-
-		// Set end position based on body block
-		if lambdaExpr.Body != nil {
-			return builder.FinishWithNode(lambdaExpr, lambdaExpr.Body).(ast.Expression)
-		} else {
-			return builder.Finish(lambdaExpr).(ast.Expression)
-		}
-
-	} else {
-		p.addError("expected '=>' or 'begin' after lambda parameters", ErrUnexpectedToken)
-		return nil
-	}
-}
 
 // parseLambdaParameterList parses the parameter list for a lambda expression.
 // Lambda parameters follow the same syntax as function parameters:
@@ -1906,41 +1283,6 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 // Note: Lambda parameters use semicolons between groups, matching DWScript function syntax.
 // PRE: curToken is LAMBDA
 // POST: curToken is RPAREN
-func (p *Parser) parseLambdaParameterList() []*ast.Parameter {
-	params := []*ast.Parameter{}
-
-	p.nextToken() // move past '('
-
-	// Empty parameter list
-	if p.curTokenIs(lexer.RPAREN) {
-		return params
-	}
-
-	// Parse parameter groups separated by semicolons
-	for {
-		// Parse a parameter group (one or more names with shared type)
-		group := p.parseLambdaParameterGroup()
-		if group == nil {
-			return params
-		}
-		params = append(params, group...)
-
-		// Check for more parameter groups
-		if p.peekTokenIs(lexer.SEMICOLON) {
-			p.nextToken() // move to ';'
-			p.nextToken() // move past ';'
-			continue
-		}
-
-		// No more groups, expect ')'
-		if !p.expectPeek(lexer.RPAREN) {
-			return params
-		}
-		break
-	}
-
-	return params
-}
 
 // parseLambdaParameterGroup parses a group of lambda parameters with the same type.
 // Syntax: name: Type  or  name1, name2: Type  or  var name: Type  or  name (optional type)
@@ -2049,7 +1391,7 @@ func (p *Parser) parseCondition() *ast.Condition {
 	}
 
 	// Parse the test expression (should be boolean, but type checking is done in semantic phase)
-	testExpr := p.parseExpressionCursor(LOWEST)
+	testExpr := p.parseExpression(LOWEST)
 	if testExpr == nil {
 		return nil
 	}
@@ -2098,42 +1440,6 @@ func (p *Parser) parseCondition() *ast.Condition {
 // The 'old' keyword can only be used in postconditions to reference pre-execution values.
 // PRE: curToken is OLD
 // POST: curToken is IDENT (identifier)
-func (p *Parser) parseOldExpression() ast.Expression {
-	token := p.cursor.Current() // the OLD token
-
-	// Validate that we're in a postcondition context
-	// Use new context API (Task 2.1.2) instead of direct field access
-	if !p.ctx.ParsingPostCondition() {
-		msg := fmt.Sprintf("'old' keyword can only be used in postconditions at line %d, column %d",
-			token.Pos.Line, token.Pos.Column)
-		p.addError(msg, ErrInvalidSyntax)
-		return nil
-	}
-
-	// Expect an identifier after 'old'
-	if !p.expectPeek(lexer.IDENT) {
-		return nil
-	}
-
-	identifier := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: p.cursor.Current(),
-			},
-		},
-		Value: p.cursor.Current().Literal,
-	}
-
-	return &ast.OldExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  token,
-				EndPos: identifier.End(),
-			},
-		},
-		Identifier: identifier,
-	}
-}
 
 // parsePreConditions parses function preconditions (require block).
 // Syntax: require condition1; condition2; ...
@@ -2279,38 +1585,6 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 // This creates an IsExpression AST node that will be evaluated at runtime.
 // PRE: curToken is IS
 // POST: curToken is last token of type or right expression
-func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
-	builder := p.StartNode()
-	expression := &ast.IsExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.cursor.Current()}, // The 'is' token
-		},
-		Left: left,
-	}
-
-	p.nextToken()
-
-	// Try to parse as type expression first (speculatively)
-	// Save state before attempting, so we can cleanly backtrack if it fails
-	state := p.saveState()
-	expression.TargetType = p.parseTypeExpressionCursor()
-	if expression.TargetType != nil {
-		return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
-	}
-
-	// If type parsing failed, restore state and try as boolean expression
-	// This removes any errors from the speculative parse
-	p.restoreState(state)
-
-	// Parse as value expression (boolean comparison)
-	// Use EQUALS precedence to prevent consuming following logical operators
-	expression.Right = p.parseExpressionCursor(EQUALS)
-	if expression.Right == nil {
-		p.addError("expected expression after 'is' operator", ErrInvalidExpression)
-		return expression
-	}
-	return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
-}
 
 // parseAsExpression parses the 'as' type casting operator.
 // Example: obj as IMyInterface
@@ -2318,27 +1592,6 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 // to wrap an object instance in an InterfaceInstance.
 // PRE: curToken is AS
 // POST: curToken is last token of target type
-func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
-	builder := p.StartNode()
-	expression := &ast.AsExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.cursor.Current()}, // The 'as' token
-		},
-		Left: left,
-	}
-
-	p.nextToken()
-
-	// Parse the target type (should be an interface type)
-	expression.TargetType = p.parseTypeExpressionCursor()
-	if expression.TargetType == nil {
-		p.addError("expected type after 'as' operator", ErrExpectedType)
-		return expression
-	}
-
-	// Set end position based on the target type
-	return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
-}
 
 // parseImplementsExpression parses the 'implements' operator.
 // Example: obj implements IMyInterface  -> Boolean
@@ -2346,34 +1599,13 @@ func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 // to check whether the object's class implements the interface.
 // PRE: curToken is IMPLEMENTS
 // POST: curToken is last token of target type
-func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
-	builder := p.StartNode()
-	expression := &ast.ImplementsExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.cursor.Current()}, // The 'implements' token
-		},
-		Left: left,
-	}
 
-	p.nextToken()
-
-	// Parse the target type (should be an interface type)
-	expression.TargetType = p.parseTypeExpressionCursor()
-	if expression.TargetType == nil {
-		p.addError("expected type after 'implements' operator", ErrExpectedType)
-		return expression
-	}
-
-	// Set end position based on the target type
-	return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
-}
-
-// parseIsExpressionCursor parses the 'is' operator in cursor mode.
+// parseIsExpression parses the 'is' operator in cursor mode.
 // Task 2.2.13: Cursor mode version
 // Example: obj is TClass  -> Boolean
 // PRE: cursor is on IS token
 // POST: cursor is on last token of type/expression
-func (p *Parser) parseIsExpressionCursor(left ast.Expression) ast.Expression {
+func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 	builder := p.StartNode()
 	isToken := p.cursor.Current()
 	expression := &ast.IsExpression{
@@ -2388,7 +1620,7 @@ func (p *Parser) parseIsExpressionCursor(left ast.Expression) ast.Expression {
 	// Try to parse as type expression first (speculatively)
 	// Save full parser state including errors for clean backtracking
 	state := p.saveState()
-	expression.TargetType = p.parseTypeExpressionCursor()
+	expression.TargetType = p.parseTypeExpression()
 	if expression.TargetType != nil {
 		return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
 	}
@@ -2399,7 +1631,7 @@ func (p *Parser) parseIsExpressionCursor(left ast.Expression) ast.Expression {
 
 	// Parse as value expression (boolean comparison)
 	// Use EQUALS precedence to prevent consuming following logical operators
-	expression.Right = p.parseExpressionCursor(EQUALS)
+	expression.Right = p.parseExpression(EQUALS)
 	if expression.Right == nil {
 		p.addError("expected expression after 'is' operator", ErrInvalidExpression)
 		return expression
@@ -2407,12 +1639,12 @@ func (p *Parser) parseIsExpressionCursor(left ast.Expression) ast.Expression {
 	return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
 }
 
-// parseAsExpressionCursor parses the 'as' type casting operator in cursor mode.
+// parseAsExpression parses the 'as' type casting operator in cursor mode.
 // Task 2.2.13: Cursor mode version
 // Example: obj as IMyInterface
 // PRE: cursor is on AS token
 // POST: cursor is on last token of target type
-func (p *Parser) parseAsExpressionCursor(left ast.Expression) ast.Expression {
+func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 	builder := p.StartNode()
 	asToken := p.cursor.Current()
 	expression := &ast.AsExpression{
@@ -2425,7 +1657,7 @@ func (p *Parser) parseAsExpressionCursor(left ast.Expression) ast.Expression {
 	p.cursor = p.cursor.Advance()
 
 	// Parse the target type (should be an interface type)
-	expression.TargetType = p.parseTypeExpressionCursor()
+	expression.TargetType = p.parseTypeExpression()
 	if expression.TargetType == nil {
 		p.addError("expected type after 'as' operator", ErrExpectedType)
 		return expression
@@ -2434,12 +1666,12 @@ func (p *Parser) parseAsExpressionCursor(left ast.Expression) ast.Expression {
 	return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
 }
 
-// parseImplementsExpressionCursor parses the 'implements' operator in cursor mode.
+// parseImplementsExpression parses the 'implements' operator in cursor mode.
 // Task 2.2.13: Cursor mode version
 // Example: obj implements IMyInterface  -> Boolean
 // PRE: cursor is on IMPLEMENTS token
 // POST: cursor is on last token of target type
-func (p *Parser) parseImplementsExpressionCursor(left ast.Expression) ast.Expression {
+func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
 	builder := p.StartNode()
 	implementsToken := p.cursor.Current()
 	expression := &ast.ImplementsExpression{
@@ -2452,7 +1684,7 @@ func (p *Parser) parseImplementsExpressionCursor(left ast.Expression) ast.Expres
 	p.cursor = p.cursor.Advance()
 
 	// Parse the target type (should be an interface type)
-	expression.TargetType = p.parseTypeExpressionCursor()
+	expression.TargetType = p.parseTypeExpression()
 	if expression.TargetType == nil {
 		p.addError("expected type after 'implements' operator", ErrExpectedType)
 		return expression
@@ -2465,13 +1697,13 @@ func (p *Parser) parseImplementsExpressionCursor(left ast.Expression) ast.Expres
 // Task 2.7.4 Fix: Cursor versions of missing prefix parse functions
 // ============================================================================
 
-// parseSelfExpressionCursor parses a self expression in cursor mode.
+// parseSelfExpression parses a self expression in cursor mode.
 // The Self keyword refers to the current instance (in instance methods) or
 // the current class (in class methods).
 // Usage: Self, Self.Field, Self.Method()
 // PRE: cursor is on SELF token
 // POST: cursor unchanged (SELF token only)
-func (p *Parser) parseSelfExpressionCursor() ast.Expression {
+func (p *Parser) parseSelfExpression() ast.Expression {
 	builder := p.StartNode()
 	currentToken := p.cursor.Current()
 	selfExpr := &ast.SelfExpression{
@@ -2487,7 +1719,7 @@ func (p *Parser) parseSelfExpressionCursor() ast.Expression {
 	return builder.Finish(selfExpr).(ast.Expression)
 }
 
-// parseInheritedExpressionCursor parses an inherited expression in cursor mode.
+// parseInheritedExpression parses an inherited expression in cursor mode.
 // DWScript syntax: inherited [Method[(args)]]
 // Examples:
 //   - inherited          (call parent constructor/destructor)
@@ -2496,7 +1728,7 @@ func (p *Parser) parseSelfExpressionCursor() ast.Expression {
 //
 // PRE: cursor is on INHERITED token
 // POST: cursor is on last token of expression
-func (p *Parser) parseInheritedExpressionCursor() ast.Expression {
+func (p *Parser) parseInheritedExpression() ast.Expression {
 	builder := p.StartNode()
 	currentToken := p.cursor.Current()
 	inheritedExpr := &ast.InheritedExpression{
@@ -2529,7 +1761,7 @@ func (p *Parser) parseInheritedExpressionCursor() ast.Expression {
 			inheritedExpr.IsCall = true
 
 			// Parse arguments
-			inheritedExpr.Arguments = p.parseExpressionListCursor(lexer.RPAREN)
+			inheritedExpr.Arguments = p.parseExpressionList(lexer.RPAREN)
 			// Set end position after closing parenthesis (cursor is now at RPAREN)
 			return builder.Finish(inheritedExpr).(ast.Expression)
 		} else {
@@ -2542,11 +1774,11 @@ func (p *Parser) parseInheritedExpressionCursor() ast.Expression {
 	}
 }
 
-// parseNewExpressionCursor parses a new expression in cursor mode.
+// parseNewExpression parses a new expression in cursor mode.
 // DWScript syntax: new ClassName[(args)] or new array [size] of Type
 // PRE: cursor is on NEW token
 // POST: cursor is on last token of expression
-func (p *Parser) parseNewExpressionCursor() ast.Expression {
+func (p *Parser) parseNewExpression() ast.Expression {
 	newToken := p.cursor.Current() // Save the 'new' token position
 
 	// Expect a type name (identifier)
@@ -2571,10 +1803,10 @@ func (p *Parser) parseNewExpressionCursor() ast.Expression {
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type == lexer.LBRACK {
 		// Array instantiation: new TypeName[size, ...]
-		return p.parseNewArrayExpressionCursor(newToken, typeName)
+		return p.parseNewArrayExpression(newToken, typeName)
 	} else if nextToken.Type == lexer.LPAREN {
 		// Class instantiation: new ClassName(args)
-		return p.parseNewClassExpressionCursor(newToken, typeName)
+		return p.parseNewClassExpression(newToken, typeName)
 	} else {
 		// No parentheses - treat as zero-argument constructor
 		// DWScript allows: new TTest (equivalent to new TTest())
@@ -2590,10 +1822,10 @@ func (p *Parser) parseNewExpressionCursor() ast.Expression {
 	}
 }
 
-// parseNewClassExpressionCursor parses class instantiation in cursor mode: new ClassName(args)
+// parseNewClassExpression parses class instantiation in cursor mode: new ClassName(args)
 // PRE: cursor is on className IDENT
 // POST: cursor is on RPAREN
-func (p *Parser) parseNewClassExpressionCursor(newToken lexer.Token, className *ast.Identifier) ast.Expression {
+func (p *Parser) parseNewClassExpression(newToken lexer.Token, className *ast.Identifier) ast.Expression {
 	// Create NewExpression
 	newExpr := &ast.NewExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -2608,21 +1840,21 @@ func (p *Parser) parseNewClassExpressionCursor(newToken lexer.Token, className *
 	p.cursor = p.cursor.Advance()
 
 	// Parse constructor arguments
-	newExpr.Arguments = p.parseExpressionListCursor(lexer.RPAREN)
+	newExpr.Arguments = p.parseExpressionList(lexer.RPAREN)
 
 	return newExpr
 }
 
-// parseNewArrayExpressionCursor parses array instantiation in cursor mode: new TypeName[size1, size2, ...]
+// parseNewArrayExpression parses array instantiation in cursor mode: new TypeName[size1, size2, ...]
 // Supports both single-dimensional and multi-dimensional arrays.
 // PRE: cursor is on type name identifier
 // POST: cursor is on RBRACK
-func (p *Parser) parseNewArrayExpressionCursor(newToken lexer.Token, elementTypeName *ast.Identifier) ast.Expression {
+func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *ast.Identifier) ast.Expression {
 	// Move to '['
 	p.cursor = p.cursor.Advance()
 
 	// Parse dimension sizes (comma-separated)
-	dimensions := p.parseExpressionListCursor(lexer.RBRACK)
+	dimensions := p.parseExpressionList(lexer.RBRACK)
 
 	return &ast.NewArrayExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -2635,11 +1867,11 @@ func (p *Parser) parseNewArrayExpressionCursor(newToken lexer.Token, elementType
 	}
 }
 
-// parseDefaultExpressionCursor parses a Default() call expression in cursor mode.
+// parseDefaultExpression parses a Default() call expression in cursor mode.
 // DWScript syntax: Default(TypeName) - returns the default/zero value for the type
 // PRE: cursor is on DEFAULT token
 // POST: cursor is on RPAREN
-func (p *Parser) parseDefaultExpressionCursor() ast.Expression {
+func (p *Parser) parseDefaultExpression() ast.Expression {
 	defaultToken := p.cursor.Current() // Save the 'default' token position
 
 	// Expect LPAREN
@@ -2654,7 +1886,7 @@ func (p *Parser) parseDefaultExpressionCursor() ast.Expression {
 	p.cursor = p.cursor.Advance() // Move to type name
 
 	// The type name could be an identifier (Integer, String, etc.)
-	typeName := p.parseExpressionCursor(LOWEST)
+	typeName := p.parseExpression(LOWEST)
 	if typeName == nil {
 		return nil
 	}
@@ -2686,11 +1918,11 @@ func (p *Parser) parseDefaultExpressionCursor() ast.Expression {
 	}
 }
 
-// parseAddressOfExpressionCursor parses an address-of expression in cursor mode.
+// parseAddressOfExpression parses an address-of expression in cursor mode.
 // DWScript syntax: @variable or @function
 // PRE: cursor is on AT token
 // POST: cursor is on last token of target expression
-func (p *Parser) parseAddressOfExpressionCursor() ast.Expression {
+func (p *Parser) parseAddressOfExpression() ast.Expression {
 	builder := p.StartNode()
 	currentToken := p.cursor.Current()
 	expression := &ast.AddressOfExpression{
@@ -2702,20 +1934,20 @@ func (p *Parser) parseAddressOfExpressionCursor() ast.Expression {
 	p.cursor = p.cursor.Advance() // advance to the target
 
 	// Parse the target expression (function/procedure name or member access)
-	expression.Operator = p.parseExpressionCursor(PREFIX)
+	expression.Operator = p.parseExpression(PREFIX)
 
 	// End at operator expression (FinishWithNode handles nil by falling back to current token)
 	return builder.FinishWithNode(expression, expression.Operator).(ast.Expression)
 }
 
-// parseLambdaExpressionCursor parses a lambda/anonymous function expression in cursor mode.
+// parseLambdaExpression parses a lambda/anonymous function expression in cursor mode.
 // Supports both full and shorthand syntax:
 //   - Full: lambda(x: Integer): Integer begin Result := x * 2; end
 //   - Shorthand: lambda(x) => x * 2
 //
 // PRE: cursor is on LAMBDA token
 // POST: cursor is on last token of lambda body (END for full syntax, expression for shorthand)
-func (p *Parser) parseLambdaExpressionCursor() ast.Expression {
+func (p *Parser) parseLambdaExpression() ast.Expression {
 	builder := p.StartNode()
 	currentToken := p.cursor.Current()
 	lambdaExpr := &ast.LambdaExpression{
@@ -2733,7 +1965,7 @@ func (p *Parser) parseLambdaExpressionCursor() ast.Expression {
 	p.cursor = p.cursor.Advance() // move to '('
 
 	// Parse parameter list (may be empty)
-	lambdaExpr.Parameters = p.parseLambdaParameterListCursor()
+	lambdaExpr.Parameters = p.parseLambdaParameterList()
 
 	// Check for return type annotation (optional)
 	nextToken = p.cursor.Peek(1)
@@ -2763,7 +1995,7 @@ func (p *Parser) parseLambdaExpressionCursor() ast.Expression {
 		p.cursor = p.cursor.Advance() // move past '=>' to expression
 
 		// Parse the expression
-		expr := p.parseExpressionCursor(LOWEST)
+		expr := p.parseExpression(LOWEST)
 		if expr == nil {
 			p.addError("expected expression after '=>'", ErrInvalidExpression)
 			return nil
@@ -2795,7 +2027,7 @@ func (p *Parser) parseLambdaExpressionCursor() ast.Expression {
 		p.cursor = p.cursor.Advance() // move to 'begin'
 
 		// Parse block statement
-		lambdaExpr.Body = p.parseBlockStatementCursor()
+		lambdaExpr.Body = p.parseBlockStatement()
 		lambdaExpr.IsShorthand = false
 
 		// Set end position based on body block
@@ -2811,7 +2043,7 @@ func (p *Parser) parseLambdaExpressionCursor() ast.Expression {
 	}
 }
 
-// parseLambdaParameterListCursor parses the parameter list for a lambda expression in cursor mode.
+// parseLambdaParameterList parses the parameter list for a lambda expression in cursor mode.
 // Lambda parameters follow the same syntax as function parameters:
 //   - Semicolon-separated groups: lambda(x: Integer; y: Integer)
 //   - Comma-separated names with shared type: lambda(x, y: Integer)
@@ -2821,7 +2053,7 @@ func (p *Parser) parseLambdaExpressionCursor() ast.Expression {
 // Note: Lambda parameters use semicolons between groups, matching DWScript function syntax.
 // PRE: cursor is on LPAREN
 // POST: cursor is on RPAREN
-func (p *Parser) parseLambdaParameterListCursor() []*ast.Parameter {
+func (p *Parser) parseLambdaParameterList() []*ast.Parameter {
 	params := []*ast.Parameter{}
 
 	// Check if empty parameter list
@@ -2859,12 +2091,12 @@ func (p *Parser) parseLambdaParameterListCursor() []*ast.Parameter {
 	return params
 }
 
-// parseOldExpressionCursor parses an 'old' expression in cursor mode.
+// parseOldExpression parses an 'old' expression in cursor mode.
 // The 'old' keyword refers to the value of a variable before function execution (in postconditions).
 // DWScript syntax: old(identifier)
 // PRE: cursor is on OLD token
 // POST: cursor is on identifier
-func (p *Parser) parseOldExpressionCursor() ast.Expression {
+func (p *Parser) parseOldExpression() ast.Expression {
 	currentToken := p.cursor.Current() // the OLD token
 
 	// Validate that we're in a postcondition context

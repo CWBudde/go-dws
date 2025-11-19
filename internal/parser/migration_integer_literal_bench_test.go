@@ -13,7 +13,7 @@ func BenchmarkIntegerLiteral_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseIntegerLiteralCursor()
+		_ = p.parseIntegerLiteral()
 	}
 }
 
@@ -24,7 +24,7 @@ func BenchmarkIntegerLiteral_Cursor(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		_ = p.parseIntegerLiteralCursor()
+		_ = p.parseIntegerLiteral()
 	}
 }
 
@@ -57,7 +57,7 @@ func BenchmarkIntegerLiteral_Hex_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseIntegerLiteralCursor()
+		_ = p.parseIntegerLiteral()
 	}
 }
 
@@ -68,7 +68,7 @@ func BenchmarkIntegerLiteral_Hex_Cursor(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		_ = p.parseIntegerLiteralCursor()
+		_ = p.parseIntegerLiteral()
 	}
 }
 
@@ -79,7 +79,7 @@ func BenchmarkIntegerLiteral_Binary_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseIntegerLiteralCursor()
+		_ = p.parseIntegerLiteral()
 	}
 }
 
@@ -90,7 +90,7 @@ func BenchmarkIntegerLiteral_Binary_Cursor(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		_ = p.parseIntegerLiteralCursor()
+		_ = p.parseIntegerLiteral()
 	}
 }
 
@@ -101,7 +101,7 @@ func BenchmarkIntegerLiteral_Large_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseIntegerLiteralCursor()
+		_ = p.parseIntegerLiteral()
 	}
 }
 
@@ -112,7 +112,7 @@ func BenchmarkIntegerLiteral_Large_Cursor(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		_ = p.parseIntegerLiteralCursor()
+		_ = p.parseIntegerLiteral()
 	}
 }
 
@@ -124,7 +124,7 @@ func BenchmarkIntegerLiteral_Memory_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseIntegerLiteralCursor()
+		_ = p.parseIntegerLiteral()
 	}
 }
 
@@ -136,6 +136,6 @@ func BenchmarkIntegerLiteral_Memory_Cursor(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		_ = p.parseIntegerLiteralCursor()
+		_ = p.parseIntegerLiteral()
 	}
 }

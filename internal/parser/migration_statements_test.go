@@ -11,7 +11,7 @@ import (
 // This file provides the test framework for migrating statement parsing to cursor mode.
 // Tests will be added incrementally as each statement type is migrated.
 
-// TestStatementInfrastructure_Basic tests that parseStatementCursor exists and can be called
+// TestStatementInfrastructure_Basic tests that parseStatement exists and can be called
 func TestStatementInfrastructure_Basic(t *testing.T) {
 	tests := []struct {
 		name   string

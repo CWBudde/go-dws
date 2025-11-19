@@ -10,14 +10,14 @@ import (
 // Task 2.2.11: Comprehensive tests for complex infix expression migration
 //
 // This file tests the cursor-mode migration of complex infix expression handlers:
-// - parseCallExpressionCursor - Function calls and typed record literals
-// - parseMemberAccessCursor - Member access (obj.field, obj.method(), TClass.Create())
-// - parseIndexExpressionCursor - Array/string indexing (arr[i], arr[i,j,k])
+// - parseCallExpression - Function calls and typed record literals
+// - parseMemberAccess - Member access (obj.field, obj.method(), TClass.Create())
+// - parseIndexExpression - Array/string indexing (arr[i], arr[i,j,k])
 //
 // All tests use differential testing: run in both traditional and cursor mode,
 // compare results for equality.
 
-// TestMigration_ParseCallExpression tests parseCallExpressionCursor
+// TestMigration_ParseCallExpression tests parseCallExpression
 func TestMigration_ParseCallExpression(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -126,7 +126,7 @@ func TestMigration_ParseCallExpression(t *testing.T) {
 	}
 }
 
-// TestMigration_ParseMemberAccess tests parseMemberAccessCursor
+// TestMigration_ParseMemberAccess tests parseMemberAccess
 func TestMigration_ParseMemberAccess(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -249,7 +249,7 @@ func getOutermost(expr ast.Expression) ast.Expression {
 	return expr
 }
 
-// TestMigration_ParseIndexExpression tests parseIndexExpressionCursor
+// TestMigration_ParseIndexExpression tests parseIndexExpression
 func TestMigration_ParseIndexExpression(t *testing.T) {
 	tests := []struct {
 		name        string

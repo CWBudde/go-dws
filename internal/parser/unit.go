@@ -24,15 +24,12 @@ import (
 // PRE: curToken is UNIT
 // POST: curToken is DOT
 // Dispatcher: delegates to cursor or traditional mode
-func (p *Parser) parseUnit() *ast.UnitDeclaration {
-	return p.parseUnitCursor()
-}
 
-// parseUnitCursor parses a complete unit declaration using cursor mode.
+// parseUnit parses a complete unit declaration using cursor mode.
 // Task 2.7.13: Inlined from parseUnitTraditional since Traditional functions removed.
 // PRE: curToken is UNIT
 // POST: curToken is DOT
-func (p *Parser) parseUnitCursor() *ast.UnitDeclaration {
+func (p *Parser) parseUnit() *ast.UnitDeclaration {
 	builder := p.StartNode()
 	unitDecl := &ast.UnitDeclaration{
 		BaseNode: ast.BaseNode{Token: p.cursor.Current()}, // 'unit' token
@@ -99,15 +96,12 @@ func (p *Parser) parseUnitCursor() *ast.UnitDeclaration {
 // PRE: curToken is USES
 // POST: curToken is SEMICOLON
 // Dispatcher: delegates to cursor or traditional mode
-func (p *Parser) parseUsesClause() *ast.UsesClause {
-	return p.parseUsesClauseCursor()
-}
 
 // parseUsesClauseTraditional parses a uses statement using traditional mode.
 // Syntax: uses Unit1, Unit2, Unit3;
 // PRE: curToken is USES
 // POST: curToken is SEMICOLON
-func (p *Parser) parseUsesClauseCursor() *ast.UsesClause {
+func (p *Parser) parseUsesClause() *ast.UsesClause {
 	builder := p.StartNode()
 	currentToken := p.cursor.Current() // Store USES token
 
@@ -214,7 +208,7 @@ func (p *Parser) parseInterfaceSection() *ast.BlockStatement {
 
 	// Parse uses clause if present
 	if p.curTokenIs(lexer.USES) {
-		usesClause := p.parseUsesClauseCursor()
+		usesClause := p.parseUsesClause()
 		if usesClause != nil {
 			block.Statements = append(block.Statements, usesClause)
 		}
@@ -233,7 +227,7 @@ func (p *Parser) parseInterfaceSection() *ast.BlockStatement {
 			continue
 		}
 
-		stmt := p.parseStatementCursor()
+		stmt := p.parseStatement()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
@@ -257,7 +251,7 @@ func (p *Parser) parseImplementationSection() *ast.BlockStatement {
 
 	// Parse uses clause if present
 	if p.curTokenIs(lexer.USES) {
-		usesClause := p.parseUsesClauseCursor()
+		usesClause := p.parseUsesClause()
 		if usesClause != nil {
 			block.Statements = append(block.Statements, usesClause)
 		}
@@ -275,7 +269,7 @@ func (p *Parser) parseImplementationSection() *ast.BlockStatement {
 			continue
 		}
 
-		stmt := p.parseStatementCursor()
+		stmt := p.parseStatement()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
@@ -308,7 +302,7 @@ func (p *Parser) parseInitializationSection() *ast.BlockStatement {
 			continue
 		}
 
-		stmt := p.parseStatementCursor()
+		stmt := p.parseStatement()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
@@ -338,7 +332,7 @@ func (p *Parser) parseFinalizationSection() *ast.BlockStatement {
 			continue
 		}
 
-		stmt := p.parseStatementCursor()
+		stmt := p.parseStatement()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}

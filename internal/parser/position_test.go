@@ -66,7 +66,7 @@ func TestLiteralPositions(t *testing.T) {
 		t.Run(tt.input, func(t *testing.T) {
 			l := lexer.New(tt.input)
 			p := New(l)
-			expr := p.parseExpressionCursor(LOWEST)
+			expr := p.parseExpression(LOWEST)
 
 			if expr == nil {
 				t.Fatal("Failed to parse expression")
@@ -94,7 +94,7 @@ func TestBinaryExpressionPositions(t *testing.T) {
 
 	l := lexer.New(input)
 	p := New(l)
-	expr := p.parseExpressionCursor(LOWEST)
+	expr := p.parseExpression(LOWEST)
 
 	if expr == nil {
 		t.Fatal("Failed to parse expression")

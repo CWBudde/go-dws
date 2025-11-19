@@ -12,81 +12,10 @@ import (
 // PRE: curToken is CONST
 // POST: curToken is last token of value expression in last declaration
 // Dispatcher: delegates to cursor or traditional mode
-func (p *Parser) parseConstDeclaration() ast.Statement {
-	return p.parseConstDeclarationCursor()
-}
 
 // parseConstDeclarationTraditional parses const declarations using traditional mode.
 // PRE: curToken is CONST
 // POST: curToken is last token of value expression in last declaration
-func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
-	builder := p.StartNode()
-
-	// If we're at CONST token, advance to identifier
-	if p.curTokenIs(lexer.CONST) {
-		if !p.expectPeek(lexer.IDENT) {
-			return nil
-		}
-	}
-
-	// We should now be at the identifier
-	if !p.isIdentifierToken(p.cursor.Current().Type) {
-		p.addError("expected identifier in const declaration", ErrExpectedIdent)
-		return nil
-	}
-
-	stmt := &ast.ConstDecl{
-		BaseNode: ast.BaseNode{
-			Token: p.cursor.Current(),
-		},
-	}
-	stmt.Name = &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: p.cursor.Current(),
-			},
-		},
-		Value: p.cursor.Current().Literal,
-	}
-
-	// Use OptionalTypeAnnotation combinator (Task 2.3.3)
-	stmt.Type = p.OptionalTypeAnnotation()
-
-	// Use Choice combinator for '=' or ':=' (Task 2.3.3)
-	if !p.Choice(lexer.EQ, lexer.ASSIGN) {
-		p.addError("expected '=' or ':=' after const name", ErrMissingAssign)
-		return stmt
-	}
-
-	// Parse value expression
-	p.nextToken()
-	stmt.Value = p.parseExpressionCursor(ASSIGN)
-
-	// Check for optional 'deprecated' keyword
-	if p.peekTokenIs(lexer.DEPRECATED) {
-		p.nextToken() // move to 'deprecated'
-		stmt.IsDeprecated = true
-
-		// Check for optional deprecation message string
-		if p.peekTokenIs(lexer.STRING) {
-			p.nextToken() // move to string
-			stmt.DeprecatedMessage = p.cursor.Current().Literal
-		}
-	}
-
-	// Expect semicolon
-	if p.peekTokenIs(lexer.SEMICOLON) {
-		p.nextToken()
-		// End position is at the semicolon
-		return builder.Finish(stmt).(*ast.ConstDecl)
-	} else if stmt.Value != nil {
-		// No semicolon - end position is after the value expression
-		return builder.FinishWithNode(stmt, stmt.Value).(*ast.ConstDecl)
-	} else {
-		// Fallback - use current token
-		return builder.Finish(stmt).(*ast.ConstDecl)
-	}
-}
 
 // parseProgramDeclaration parses an optional program declaration at the start of a file.
 // Syntax: program ProgramName;
@@ -95,14 +24,11 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 // PRE: curToken is PROGRAM
 // POST: curToken is SEMICOLON
 // Task 2.7.9: Cursor mode is now the only mode - dispatcher removed.
-func (p *Parser) parseProgramDeclaration() {
-	p.parseProgramDeclarationCursor()
-}
 
 // parseProgramDeclarationTraditional parses program declaration using traditional mode.
 // PRE: curToken is PROGRAM
 // POST: curToken is SEMICOLON
-func (p *Parser) parseProgramDeclarationCursor() {
+func (p *Parser) parseProgramDeclaration() {
 	// We're on the PROGRAM token
 	currentToken := p.cursor.Current()
 	if currentToken.Type != lexer.PROGRAM {
@@ -154,19 +80,19 @@ func (p *Parser) parseProgramDeclarationCursor() {
 // Task 2.2.14.6: Cursor-mode constant declaration handlers
 // ============================================================================
 
-// parseConstDeclarationCursor parses one or more constant declarations in a const block using cursor mode.
+// parseConstDeclaration parses one or more constant declarations in a const block using cursor mode.
 // Task 2.2.14.6: Constant declaration migration
 // Syntax: const NAME = VALUE; or const NAME := VALUE; or const NAME: TYPE = VALUE;
 // DWScript allows block syntax: const C1 = 1; C2 = 2; (one const keyword, multiple declarations)
 // This function returns a BlockStatement containing all const declarations in the block.
 // PRE: cursor is on CONST token
 // POST: cursor is on last token of last declaration
-func (p *Parser) parseConstDeclarationCursor() ast.Statement {
+func (p *Parser) parseConstDeclaration() ast.Statement {
 	blockToken := p.cursor.Current() // Save the initial CONST token for the block
 	statements := []ast.Statement{}
 
 	// Parse first const declaration
-	firstStmt := p.parseSingleConstDeclarationCursor()
+	firstStmt := p.parseSingleConstDeclaration()
 	if firstStmt == nil {
 		return nil
 	}
@@ -174,9 +100,9 @@ func (p *Parser) parseConstDeclarationCursor() ast.Statement {
 
 	// Continue parsing additional const declarations without the 'const' keyword
 	// As long as the next line looks like a const declaration (not just any identifier)
-	for p.looksLikeConstDeclarationCursor(p.cursor) {
+	for p.looksLikeConstDeclaration(p.cursor) {
 		p.cursor = p.cursor.Advance() // move to identifier
-		constStmt := p.parseSingleConstDeclarationCursor()
+		constStmt := p.parseSingleConstDeclaration()
 		if constStmt == nil {
 			break
 		}
@@ -195,12 +121,12 @@ func (p *Parser) parseConstDeclarationCursor() ast.Statement {
 	}
 }
 
-// parseSingleConstDeclarationCursor parses a single constant declaration using cursor mode.
+// parseSingleConstDeclaration parses a single constant declaration using cursor mode.
 // Task 2.2.14.6: Constant declaration migration
 // Assumes we're already positioned at the identifier (or just before it).
 // PRE: cursor is on CONST or IDENT token
 // POST: cursor is on last token of value expression or SEMICOLON
-func (p *Parser) parseSingleConstDeclarationCursor() *ast.ConstDecl {
+func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 	builder := p.StartNode()
 
 	// If we're at CONST token, advance to identifier
@@ -249,7 +175,7 @@ func (p *Parser) parseSingleConstDeclarationCursor() *ast.ConstDecl {
 		p.cursor = p.cursor.Advance() // move to type expression
 
 		// Task 2.7.4: Use cursor mode directly
-		typeExpr := p.parseTypeExpressionCursor()
+		typeExpr := p.parseTypeExpression()
 
 		if typeExpr == nil {
 			// Use structured error
@@ -290,7 +216,7 @@ func (p *Parser) parseSingleConstDeclarationCursor() *ast.ConstDecl {
 
 	// Parse value expression
 	p.cursor = p.cursor.Advance() // move to value expression
-	stmt.Value = p.parseExpressionCursor(ASSIGN)
+	stmt.Value = p.parseExpression(ASSIGN)
 
 	// Check for optional 'deprecated' keyword
 	nextToken = p.cursor.Peek(1)
