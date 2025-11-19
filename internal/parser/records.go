@@ -761,7 +761,7 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 
 	recordLit := &ast.RecordLiteralExpression{
 		BaseNode: ast.BaseNode{Token: lparenTok}, // '(' token
-		TypeName: nil,                             // Anonymous record (type inferred from context)
+		TypeName: nil,                            // Anonymous record (type inferred from context)
 		Fields:   []*ast.FieldInitializer{},
 	}
 
