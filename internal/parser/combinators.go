@@ -579,7 +579,7 @@ func (p *Parser) IdentifierList(config IdentifierListConfig) []*ast.Identifier {
 	identifiers := []*ast.Identifier{}
 
 	// Check first identifier
-	if !p.isIdentifierToken(p.curToken.Type) {
+	if !p.isIdentifierToken(p.cursor.Current().Type) {
 		if config.RequireAtLeastOne {
 			context := config.ErrorContext
 			if context == "" {

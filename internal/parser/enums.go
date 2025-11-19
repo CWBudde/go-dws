@@ -180,12 +180,12 @@ func (p *Parser) parseEnumDeclarationCursor(nameIdent *ast.Identifier, typeToken
 			// Allow identifiers and some keywords (like True, False) as enum value names
 			valueName := ""
 			if p.curTokenIs(lexer.IDENT) {
-				valueName = p.curToken.Literal
+				valueName = p.cursor.Current().Literal
 			} else if p.curTokenIs(lexer.TRUE) || p.curTokenIs(lexer.FALSE) {
 				// Allow boolean keywords as enum value names
-				valueName = p.curToken.Literal
+				valueName = p.cursor.Current().Literal
 			} else {
-				p.addError("expected enum value name, got "+p.curToken.Type.String(), ErrExpectedIdent)
+				p.addError("expected enum value name, got "+p.cursor.Current().Type.String(), ErrExpectedIdent)
 				return false
 			}
 
@@ -202,7 +202,7 @@ func (p *Parser) parseEnumDeclarationCursor(nameIdent *ast.Identifier, typeToken
 				// Check for optional deprecation message string
 				if p.peekTokenIs(lexer.STRING) {
 					p.nextToken() // move to string
-					enumValue.DeprecatedMessage = p.curToken.Literal
+					enumValue.DeprecatedMessage = p.cursor.Current().Literal
 				}
 			}
 

@@ -21,7 +21,7 @@ import (
 func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
 	builder := p.StartNode()
 	stmt := &ast.RaiseStatement{
-		BaseNode: ast.BaseNode{Token: p.curToken},
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 	}
 
 	// Check if this is a bare raise (no expression)
@@ -69,7 +69,7 @@ func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
 func (p *Parser) parseTryStatement() *ast.TryStatement {
 	builder := p.StartNode()
 	stmt := &ast.TryStatement{
-		BaseNode: ast.BaseNode{Token: p.curToken},
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 	}
 
 	// Parse try block
@@ -118,7 +118,7 @@ func (p *Parser) parseTryStatement() *ast.TryStatement {
 // POST: curToken is EXCEPT, FINALLY, or END
 func (p *Parser) parseBlockStatementForTry() *ast.BlockStatement {
 	block := &ast.BlockStatement{
-		BaseNode: ast.BaseNode{Token: p.curToken},
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 	}
 	block.Statements = []ast.Statement{}
 
@@ -192,7 +192,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 	if len(clause.Handlers) == 0 {
 		// Parse bare except statements into a block
 		bareBlock := &ast.BlockStatement{
-			BaseNode: ast.BaseNode{Token: p.curToken},
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 		}
 		bareBlock.Statements = []ast.Statement{}
 
@@ -237,7 +237,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 		p.nextToken()
 		// Parse else block statements until finally or end
 		elseBlock := &ast.BlockStatement{
-			BaseNode: ast.BaseNode{Token: p.curToken},
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 		}
 		elseBlock.Statements = []ast.Statement{}
 
@@ -307,10 +307,10 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 	handler.Variable = &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token: p.curToken,
+				Token: p.cursor.Current(),
 			},
 		},
-		Value: p.curToken.Literal,
+		Value: p.cursor.Current().Literal,
 	}
 
 	// Expect ':' token
@@ -326,8 +326,8 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 	}
 
 	handler.ExceptionType = &ast.TypeAnnotation{
-		Token: p.curToken,
-		Name:  p.curToken.Literal,
+		Token: p.cursor.Current(),
+		Name:  p.cursor.Current().Literal,
 	}
 
 	// Expect 'do' keyword
@@ -365,14 +365,14 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 // POST: curToken is END (before END of try)
 func (p *Parser) parseFinallyClause() *ast.FinallyClause {
 	clause := &ast.FinallyClause{
-		BaseNode: ast.BaseNode{Token: p.curToken},
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 	}
 
 	p.nextToken() // move past 'finally'
 
 	// Parse finally block statements until 'end'
 	block := &ast.BlockStatement{
-		BaseNode: ast.BaseNode{Token: p.curToken},
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 	}
 	block.Statements = []ast.Statement{}
 

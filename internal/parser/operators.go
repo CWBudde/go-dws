@@ -415,18 +415,18 @@ func (p *Parser) parseOperatorOperandTypes() []ast.TypeExpression {
 
 	for !p.curTokenIs(lexer.RPAREN) {
 
-		startToken := p.curToken
-		nameParts := []string{p.curToken.Literal}
+		startToken := p.cursor.Current()
+		nameParts := []string{p.cursor.Current().Literal}
 
 		// Collect tokens that belong to this type until ',' or ')'
 		for !p.peekTokenIs(lexer.COMMA) && !p.peekTokenIs(lexer.RPAREN) {
 			p.nextToken()
-			nameParts = append(nameParts, p.curToken.Literal)
+			nameParts = append(nameParts, p.cursor.Current().Literal)
 		}
 
 		if !p.curTokenIs(lexer.IDENT) {
 			// Allow keywords like 'array' or 'set' in operator operand types.
-			if !p.curToken.Type.IsKeyword() {
+			if !p.cursor.Current().Type.IsKeyword() {
 				p.addError("expected type identifier in operator operand list", ErrExpectedType)
 				return operandTypes
 			}
@@ -552,17 +552,17 @@ func normalizeOperatorSymbol(tok lexer.Token) string {
 func (p *Parser) parseTypeExpressionUntil(stopFn func(lexer.TokenType) bool) (*ast.TypeAnnotation, bool) {
 	// This helper is always called from within traditional or synced mode,
 	// so no dispatcher needed
-	if p.curToken.Type != lexer.IDENT && !p.curToken.Type.IsKeyword() {
+	if p.cursor.Current().Type != lexer.IDENT && !p.cursor.Current().Type.IsKeyword() {
 		p.addError("expected type identifier", ErrExpectedType)
 		return nil, false
 	}
 
-	startToken := p.curToken
-	parts := []string{p.curToken.Literal}
+	startToken := p.cursor.Current()
+	parts := []string{p.cursor.Current().Literal}
 
-	for !stopFn(p.peekToken.Type) {
+	for !stopFn(p.cursor.Peek(1).Type) {
 		p.nextToken()
-		parts = append(parts, p.curToken.Literal)
+		parts = append(parts, p.cursor.Current().Literal)
 	}
 
 	return &ast.TypeAnnotation{
