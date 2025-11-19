@@ -122,65 +122,7 @@ func (p *Parser) parseUnitCursor() *ast.UnitDeclaration {
 // POST: curToken is SEMICOLON
 // Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseUsesClause() *ast.UsesClause {
-	if p.useCursor {
-		return p.parseUsesClauseCursor()
-	}
-	return p.parseUsesClauseTraditional()
-}
-
-// parseUsesClauseTraditional parses a uses statement using traditional mode.
-// Syntax: uses Unit1, Unit2, Unit3;
-// PRE: curToken is USES
-// POST: curToken is SEMICOLON
-func (p *Parser) parseUsesClauseTraditional() *ast.UsesClause {
-	builder := p.StartNode()
-	usesClause := &ast.UsesClause{
-		BaseNode: ast.BaseNode{Token: p.curToken}, // 'uses' token
-		Units:    []*ast.Identifier{},
-	}
-
-	// Expect at least one unit name
-	if !p.expectPeek(lexer.IDENT) {
-		return nil
-	}
-
-	// Add first unit
-	usesClause.Units = append(usesClause.Units, &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: p.curToken,
-			},
-		},
-		Value: p.curToken.Literal,
-	})
-
-	// Parse remaining units (comma-separated)
-	for p.peekTokenIs(lexer.COMMA) {
-		p.nextToken() // move to comma
-		p.nextToken() // move to next unit name
-
-		if !p.curTokenIs(lexer.IDENT) {
-			p.addError("expected unit name after comma in uses clause", ErrExpectedIdent)
-			return nil
-		}
-
-		usesClause.Units = append(usesClause.Units, &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: p.curToken,
-				},
-			},
-			Value: p.curToken.Literal,
-		})
-	}
-
-	// Expect semicolon
-	if !p.expectPeek(lexer.SEMICOLON) {
-		return nil
-	}
-
-	// Don't move past semicolon - ParseProgram will do that
-	return builder.Finish(usesClause).(*ast.UsesClause)
+	return p.parseUsesClauseCursor()
 }
 
 // parseUsesClauseCursor parses a uses statement using cursor mode.
