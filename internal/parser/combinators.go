@@ -585,12 +585,21 @@ func (p *Parser) IdentifierList(config IdentifierListConfig) []*ast.Identifier {
 			if context == "" {
 				context = "identifier list"
 			}
+
+			// Task 2.7.7: Dual-mode - get current token for error reporting
+			var curTok lexer.Token
+			if p.cursor != nil {
+				curTok = p.cursor.Current()
+			} else {
+				curTok = p.curToken
+			}
+
 			err := NewStructuredError(ErrKindMissing).
 				WithCode(ErrExpectedIdent).
 				WithMessage("expected identifier in "+context).
-				WithPosition(p.curToken.Pos, p.curToken.Length()).
+				WithPosition(curTok.Pos, curTok.Length()).
 				WithExpectedString("identifier").
-				WithActual(p.curToken.Type, p.curToken.Literal).
+				WithActual(curTok.Type, curTok.Literal).
 				WithParsePhase(context).
 				Build()
 			p.addStructuredError(err)
@@ -732,12 +741,20 @@ func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement
 		}
 
 		if !hitAdditionalTerm {
+			// Task 2.7.7: Dual-mode - get current token for error reporting
+			var curTok lexer.Token
+			if p.cursor != nil {
+				curTok = p.cursor.Current()
+			} else {
+				curTok = p.curToken
+			}
+
 			err := NewStructuredError(ErrKindMissing).
 				WithCode(ErrUnexpectedToken).
 				WithMessage("expected '"+config.CloseToken.String()+"' to close "+contextName).
-				WithPosition(p.curToken.Pos, p.curToken.Length()).
+				WithPosition(curTok.Pos, curTok.Length()).
 				WithExpected(config.CloseToken).
-				WithActual(p.curToken.Type, p.curToken.Literal).
+				WithActual(curTok.Type, curTok.Literal).
 				WithParsePhase(contextName).
 				Build()
 			p.addStructuredError(err)
@@ -805,10 +822,18 @@ func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 
 		// Check for mutually exclusive modifiers
 		if (isLazy && byRef) || (isConst && byRef) || (isConst && isLazy) {
+			// Task 2.7.7: Dual-mode - get current token for error reporting
+			var curTok lexer.Token
+			if p.cursor != nil {
+				curTok = p.cursor.Current()
+			} else {
+				curTok = p.curToken
+			}
+
 			err := NewStructuredError(ErrKindInvalid).
 				WithCode(ErrInvalidSyntax).
 				WithMessage("parameter modifiers are mutually exclusive").
-				WithPosition(p.curToken.Pos, p.curToken.Length()).
+				WithPosition(curTok.Pos, curTok.Length()).
 				WithSuggestion("use only one of: var, const, or lazy").
 				WithParsePhase(config.ErrorContext).
 				Build()
@@ -844,10 +869,18 @@ func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 	if config.AllowDefaults && p.peekTokenIs(lexer.EQ) {
 		// Validate that optional parameters don't have modifiers (lazy, var, const)
 		if isLazy || byRef || isConst {
+			// Task 2.7.7: Dual-mode - get current token for error reporting
+			var curTok lexer.Token
+			if p.cursor != nil {
+				curTok = p.cursor.Current()
+			} else {
+				curTok = p.curToken
+			}
+
 			err := NewStructuredError(ErrKindInvalid).
 				WithCode(ErrInvalidSyntax).
 				WithMessage("optional parameters cannot have lazy, var, or const modifiers").
-				WithPosition(p.curToken.Pos, p.curToken.Length()).
+				WithPosition(curTok.Pos, curTok.Length()).
 				WithSuggestion("remove the modifier or remove the default value").
 				WithParsePhase(config.ErrorContext).
 				Build()
@@ -859,10 +892,18 @@ func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 		p.nextToken() // move past '='
 		defaultValue = p.parseExpression(LOWEST)
 		if defaultValue == nil {
+			// Task 2.7.7: Dual-mode - get current token for error reporting
+			var curTok lexer.Token
+			if p.cursor != nil {
+				curTok = p.cursor.Current()
+			} else {
+				curTok = p.curToken
+			}
+
 			err := NewStructuredError(ErrKindMissing).
 				WithCode(ErrInvalidExpression).
 				WithMessage("expected default value expression after '='").
-				WithPosition(p.curToken.Pos, p.curToken.Length()).
+				WithPosition(curTok.Pos, curTok.Length()).
 				WithExpectedString("expression").
 				WithParsePhase(config.ErrorContext).
 				Build()

@@ -253,13 +253,21 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 
 	// Expect ']'
 	if !p.expectPeek(lexer.RBRACK) {
+		// Task 2.7.7: Dual-mode - get peek token for error reporting
+		var peekTok lexer.Token
+		if p.cursor != nil {
+			peekTok = p.cursor.Peek(1)
+		} else {
+			peekTok = p.peekToken
+		}
+
 		// Use structured error for missing closing bracket
 		err := NewStructuredError(ErrKindMissing).
 			WithCode(ErrMissingRBracket).
 			WithMessage("expected ']' to close array index").
-			WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+			WithPosition(peekTok.Pos, peekTok.Length()).
 			WithExpected(lexer.RBRACK).
-			WithActual(p.peekToken.Type, p.peekToken.Literal).
+			WithActual(peekTok.Type, peekTok.Literal).
 			WithSuggestion("add ']' to close the array index").
 			WithRelatedPosition(lbrackToken.Pos, "opening '[' here").
 			WithParsePhase("array index expression").

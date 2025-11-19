@@ -553,13 +553,21 @@ func (p *Parser) parseArrayTypeTraditional() *ast.ArrayTypeNode {
 
 			// Now expect ']'
 			if !p.expectPeek(lexer.RBRACK) {
+				// Task 2.7.7: Dual-mode - get peek token for error reporting
+				var peekTok lexer.Token
+				if p.cursor != nil {
+					peekTok = p.cursor.Peek(1)
+				} else {
+					peekTok = p.peekToken
+				}
+
 				// Use structured error for missing closing bracket
 				err := NewStructuredError(ErrKindMissing).
 					WithCode(ErrMissingRBracket).
 					WithMessage("expected ']' after array bounds").
-					WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+					WithPosition(peekTok.Pos, peekTok.Length()).
 					WithExpected(lexer.RBRACK).
-					WithActual(p.peekToken.Type, p.peekToken.Literal).
+					WithActual(peekTok.Type, peekTok.Literal).
 					WithSuggestion("add ']' to close the array bounds").
 					WithParsePhase("array type bounds").
 					Build()
@@ -571,13 +579,21 @@ func (p *Parser) parseArrayTypeTraditional() *ast.ArrayTypeNode {
 
 	// Expect 'of' keyword
 	if !p.expectPeek(lexer.OF) {
+		// Task 2.7.7: Dual-mode - get peek token for error reporting
+		var peekTok lexer.Token
+		if p.cursor != nil {
+			peekTok = p.cursor.Peek(1)
+		} else {
+			peekTok = p.peekToken
+		}
+
 		// Use structured error for missing 'of'
 		err := NewStructuredError(ErrKindMissing).
 			WithCode(ErrMissingOf).
 			WithMessage("expected 'of' after array declaration").
-			WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+			WithPosition(peekTok.Pos, peekTok.Length()).
 			WithExpected(lexer.OF).
-			WithActual(p.peekToken.Type, p.peekToken.Literal).
+			WithActual(peekTok.Type, peekTok.Literal).
 			WithSuggestion("add 'of' keyword after 'array' or 'array[bounds]'").
 			WithNote("DWScript array types use syntax: array [bounds] of ElementType").
 			WithParsePhase("array type").
@@ -590,11 +606,19 @@ func (p *Parser) parseArrayTypeTraditional() *ast.ArrayTypeNode {
 	p.nextToken() // move to element type
 	elementType := p.parseTypeExpression()
 	if elementType == nil {
+		// Task 2.7.7: Dual-mode - get current token for error reporting
+		var curTok lexer.Token
+		if p.cursor != nil {
+			curTok = p.cursor.Current()
+		} else {
+			curTok = p.curToken
+		}
+
 		// Use structured error for missing element type
 		err := NewStructuredError(ErrKindInvalid).
 			WithCode(ErrExpectedType).
 			WithMessage("expected type expression after 'array of'").
-			WithPosition(p.curToken.Pos, p.curToken.Length()).
+			WithPosition(curTok.Pos, curTok.Length()).
 			WithExpectedString("type name").
 			WithSuggestion("specify the element type, like 'Integer' or 'String'").
 			WithParsePhase("array element type").
