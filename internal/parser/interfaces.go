@@ -475,8 +475,15 @@ func (p *Parser) parseSingleTypeDeclarationCursor(typeToken lexer.Token) ast.Sta
 func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
 	builder := p.StartNode()
 
+	// Task 2.7.6: Dual-mode - save the FUNCTION or PROCEDURE token
+	var funcOrProcToken lexer.Token
+	if p.cursor != nil {
+		funcOrProcToken = p.cursor.Current()
+	} else {
+		funcOrProcToken = p.curToken
+	}
+
 	// Current token is FUNCTION or PROCEDURE
-	funcOrProcToken := p.curToken
 	isFunction := funcOrProcToken.Type == lexer.FUNCTION
 
 	// Create the function pointer type node
@@ -540,8 +547,12 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 			return nil
 		}
 
-		// Save RPAREN token for EndPos calculation
-		endToken = p.curToken
+		// Task 2.7.6: Dual-mode - save RPAREN token for EndPos calculation
+		if p.cursor != nil {
+			endToken = p.cursor.Current()
+		} else {
+			endToken = p.curToken
+		}
 	}
 
 	// Parse return type for functions (not procedures)
@@ -555,14 +566,23 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 		if !p.expectPeek(lexer.IDENT) {
 			return nil
 		}
+
+		// Task 2.7.6: Dual-mode - get current token for return type
+		var retTypeTok lexer.Token
+		if p.cursor != nil {
+			retTypeTok = p.cursor.Current()
+		} else {
+			retTypeTok = p.curToken
+		}
+
 		returnType := &ast.TypeAnnotation{
-			Token: p.curToken,
-			Name:  p.curToken.Literal,
+			Token: retTypeTok,
+			Name:  retTypeTok.Literal,
 		}
 		// EndPos is after the type identifier token
-		returnType.EndPos = p.endPosFromToken(p.curToken)
+		returnType.EndPos = p.endPosFromToken(retTypeTok)
 		funcPtrType.ReturnType = returnType
-		endToken = p.curToken
+		endToken = retTypeTok
 	}
 
 	// Check for "of object" clause (method pointers)
@@ -572,9 +592,16 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 			return nil
 		}
 		funcPtrType.OfObject = true
-		endToken = p.curToken
+
+		// Task 2.7.6: Dual-mode - save OBJECT token for EndPos calculation
+		if p.cursor != nil {
+			endToken = p.cursor.Current()
+		} else {
+			endToken = p.curToken
+		}
+
 		// EndPos is after "object" token
-		funcPtrType.EndPos = p.endPosFromToken(p.curToken)
+		funcPtrType.EndPos = p.endPosFromToken(endToken)
 	} else {
 		// EndPos is after the last significant token (return type, RPAREN, or function/procedure keyword)
 		funcPtrType.EndPos = p.endPosFromToken(endToken)
