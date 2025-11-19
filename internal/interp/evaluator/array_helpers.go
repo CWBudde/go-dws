@@ -106,10 +106,10 @@ func (e *Evaluator) inferArrayTypeFromValues(values []Value, node *ast.ArrayLite
 // This implements type compatibility checking for array literals.
 //
 // Coercion rules:
-//   1. Integer → Float: Numeric promotion for mixed numeric arrays
-//   2. Any → Variant: Wrap heterogeneous types in Variant
-//   3. Same type: No coercion needed
-//   4. Incompatible: Return error
+//  1. Integer → Float: Numeric promotion for mixed numeric arrays
+//  2. Any → Variant: Wrap heterogeneous types in Variant
+//  3. Same type: No coercion needed
+//  4. Incompatible: Return error
 //
 // Examples:
 //   - [1, 2, 3] with target Integer → valid (no coercion)
