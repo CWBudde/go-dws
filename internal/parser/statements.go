@@ -318,45 +318,7 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 // POST: curToken is SEMICOLON of last var declaration
 // Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseVarDeclaration() ast.Statement {
-	if p.useCursor {
-		return p.parseVarDeclarationCursor()
-	}
-	return p.parseVarDeclarationTraditional()
-}
-
-// parseVarDeclarationTraditional parses var declarations using traditional mode.
-func (p *Parser) parseVarDeclarationTraditional() ast.Statement {
-	blockToken := p.curToken // Save the initial VAR token for the block
-	statements := []ast.Statement{}
-
-	// Parse first var declaration
-	firstStmt := p.parseSingleVarDeclaration()
-	if firstStmt == nil {
-		return nil
-	}
-	statements = append(statements, firstStmt)
-
-	// Continue parsing additional var declarations without the 'var' keyword
-	// As long as the next line looks like a var declaration (not just any identifier)
-	for p.looksLikeVarDeclaration() {
-		p.nextToken() // move to identifier
-		varStmt := p.parseSingleVarDeclaration()
-		if varStmt == nil {
-			break
-		}
-		statements = append(statements, varStmt)
-	}
-
-	// If only one declaration, return it directly
-	if len(statements) == 1 {
-		return statements[0]
-	}
-
-	// Multiple declarations: wrap in a BlockStatement
-	return &ast.BlockStatement{
-		BaseNode:   ast.BaseNode{Token: blockToken},
-		Statements: statements,
-	}
+	return p.parseVarDeclarationCursor()
 }
 
 // parseSingleVarDeclaration parses a single variable declaration.
