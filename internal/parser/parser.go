@@ -785,12 +785,20 @@ func (p *Parser) nextToken() {
 }
 
 // curTokenIs checks if the current token is of the given type.
+// Task 2.7.5: Dual-mode helper - uses cursor when available, falls back to curToken.
 func (p *Parser) curTokenIs(t lexer.TokenType) bool {
+	if p.cursor != nil {
+		return p.cursor.Current().Type == t
+	}
 	return p.curToken.Type == t
 }
 
 // peekTokenIs checks if the peek token is of the given type.
+// Task 2.7.5: Dual-mode helper - uses cursor when available, falls back to peekToken.
 func (p *Parser) peekTokenIs(t lexer.TokenType) bool {
+	if p.cursor != nil {
+		return p.cursor.Peek(1).Type == t
+	}
 	return p.peekToken.Type == t
 }
 
@@ -809,12 +817,20 @@ func (p *Parser) peek(n int) lexer.Token {
 // peekAhead is an alternative helper that looks N tokens ahead from curToken.
 // n=1 returns peekToken, n=2 returns the token after peekToken, etc.
 // This provides a more intuitive interface where n represents "tokens ahead from curToken".
+// Task 2.7.5: Dual-mode helper - uses cursor when available, falls back to traditional.
 //
 // Example usage:
-//   - To look 1 token ahead: p.peekAhead(1) (same as p.peekToken)
-//   - To look 2 tokens ahead: p.peekAhead(2) (same as p.peek(0))
-//   - To look 3 tokens ahead: p.peekAhead(3) (same as p.peek(1))
+//   - To look 1 token ahead: p.peekAhead(1) (same as cursor.Peek(1) or peekToken)
+//   - To look 2 tokens ahead: p.peekAhead(2) (same as cursor.Peek(2) or p.peek(0))
+//   - To look 3 tokens ahead: p.peekAhead(3) (same as cursor.Peek(3) or p.peek(1))
 func (p *Parser) peekAhead(n int) lexer.Token {
+	if p.cursor != nil {
+		if n <= 0 {
+			return p.cursor.Current()
+		}
+		return p.cursor.Peek(n)
+	}
+	// Traditional mode
 	if n <= 0 {
 		return p.curToken
 	}
@@ -826,6 +842,7 @@ func (p *Parser) peekAhead(n int) lexer.Token {
 
 // expectPeek checks if the peek token is of the given type and advances if so.
 // Returns true if the token matches, false otherwise (and adds an error).
+// Task 2.7.5: Now uses cursor-based peekTokenIs (which uses cursor internally).
 func (p *Parser) expectPeek(t lexer.TokenType) bool {
 	if p.peekTokenIs(t) {
 		p.nextToken()
@@ -846,8 +863,16 @@ func (p *Parser) isIdentifierToken(t lexer.TokenType) bool {
 // expectIdentifier checks if the peek token can be used as an identifier and advances if so.
 // Returns true if the token is valid as an identifier, false otherwise (and adds an error).
 // This allows contextual keywords like 'step' to be used as variable names.
+// Task 2.7.5: Dual-mode helper - uses cursor when available, falls back to peekToken.
 func (p *Parser) expectIdentifier() bool {
-	if p.isIdentifierToken(p.peekToken.Type) {
+	var peekType lexer.TokenType
+	if p.cursor != nil {
+		peekType = p.cursor.Peek(1).Type
+	} else {
+		peekType = p.peekToken.Type
+	}
+
+	if p.isIdentifierToken(peekType) {
 		p.nextToken()
 		return true
 	}
@@ -856,11 +881,19 @@ func (p *Parser) expectIdentifier() bool {
 }
 
 // peekError adds an error about an unexpected peek token.
+// Task 2.7.5: Dual-mode helper - uses cursor when available, falls back to peekToken.
 func (p *Parser) peekError(t lexer.TokenType) {
-	msg := fmt.Sprintf("expected next token to be %s, got %s instead", t, p.peekToken.Type)
+	var peekTok lexer.Token
+	if p.cursor != nil {
+		peekTok = p.cursor.Peek(1)
+	} else {
+		peekTok = p.peekToken
+	}
+
+	msg := fmt.Sprintf("expected next token to be %s, got %s instead", t, peekTok.Type)
 	err := NewParserError(
-		p.peekToken.Pos,
-		p.peekToken.Length(),
+		peekTok.Pos,
+		peekTok.Length(),
 		msg,
 		ErrUnexpectedToken,
 	)
@@ -868,10 +901,18 @@ func (p *Parser) peekError(t lexer.TokenType) {
 }
 
 // addError adds a generic error message with the specified error code.
+// Task 2.7.5: Dual-mode helper - uses cursor when available, falls back to curToken.
 func (p *Parser) addError(msg string, code string) {
+	var curTok lexer.Token
+	if p.cursor != nil {
+		curTok = p.cursor.Current()
+	} else {
+		curTok = p.curToken
+	}
+
 	err := NewParserError(
-		p.curToken.Pos,
-		p.curToken.Length(),
+		curTok.Pos,
+		curTok.Length(),
 		msg,
 		code,
 	)
@@ -937,16 +978,32 @@ func (p *Parser) registerInfixCursor(tokenType lexer.TokenType, fn infixParseFnC
 }
 
 // peekPrecedence returns the precedence of the peek token.
+// Task 2.7.5: Dual-mode helper - uses cursor when available, falls back to peekToken.
 func (p *Parser) peekPrecedence() int {
-	if prec, ok := precedences[p.peekToken.Type]; ok {
+	var tokenType lexer.TokenType
+	if p.cursor != nil {
+		tokenType = p.cursor.Peek(1).Type
+	} else {
+		tokenType = p.peekToken.Type
+	}
+
+	if prec, ok := precedences[tokenType]; ok {
 		return prec
 	}
 	return LOWEST
 }
 
 // curPrecedence returns the precedence of the current token.
+// Task 2.7.5: Dual-mode helper - uses cursor when available, falls back to curToken.
 func (p *Parser) curPrecedence() int {
-	if prec, ok := precedences[p.curToken.Type]; ok {
+	var tokenType lexer.TokenType
+	if p.cursor != nil {
+		tokenType = p.cursor.Current().Type
+	} else {
+		tokenType = p.curToken.Type
+	}
+
+	if prec, ok := precedences[tokenType]; ok {
 		return prec
 	}
 	return LOWEST
