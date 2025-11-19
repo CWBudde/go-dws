@@ -11,8 +11,8 @@ func TestMalformedNumberLiterals(t *testing.T) {
 		name           string
 		input          string
 		expectedTokens []struct {
-			tokenType TokenType
 			literal   string
+			tokenType TokenType
 		}
 		expectedErrors int // number of expected lexer errors
 	}{
@@ -20,11 +20,11 @@ func TestMalformedNumberLiterals(t *testing.T) {
 			name:  "hex literal with no digits: $",
 			input: "$",
 			expectedTokens: []struct {
-				tokenType TokenType
 				literal   string
+				tokenType TokenType
 			}{
-				{DOLLAR, "$"},
-				{EOF, ""},
+				{"$", DOLLAR},
+				{"", EOF},
 			},
 			expectedErrors: 0, // Currently no error, but should there be?
 		},
@@ -32,12 +32,12 @@ func TestMalformedNumberLiterals(t *testing.T) {
 			name:  "hex literal with invalid continuation: $FFG",
 			input: "$FFG",
 			expectedTokens: []struct {
-				tokenType TokenType
 				literal   string
+				tokenType TokenType
 			}{
-				{INT, "$FF"},
-				{IDENT, "G"},
-				{EOF, ""},
+				{"$FF", INT},
+				{"G", IDENT},
+				{"", EOF},
 			},
 			expectedErrors: 0, // This is actually valid - two tokens
 		},
@@ -45,11 +45,11 @@ func TestMalformedNumberLiterals(t *testing.T) {
 			name:  "binary literal with no digits: %",
 			input: "%",
 			expectedTokens: []struct {
-				tokenType TokenType
 				literal   string
+				tokenType TokenType
 			}{
-				{PERCENT, "%"},
-				{EOF, ""},
+				{"%", PERCENT},
+				{"", EOF},
 			},
 			expectedErrors: 0, // Treated as modulo operator
 		},
@@ -57,12 +57,12 @@ func TestMalformedNumberLiterals(t *testing.T) {
 			name:  "binary literal with invalid digit: %2",
 			input: "%2",
 			expectedTokens: []struct {
-				tokenType TokenType
 				literal   string
+				tokenType TokenType
 			}{
-				{PERCENT, "%"},
-				{INT, "2"},
-				{EOF, ""},
+				{"%", PERCENT},
+				{"2", INT},
+				{"", EOF},
 			},
 			expectedErrors: 0, // % is modulo, 2 is separate number
 		},
@@ -70,12 +70,12 @@ func TestMalformedNumberLiterals(t *testing.T) {
 			name:  "binary literal with mixed digits: %012",
 			input: "%012",
 			expectedTokens: []struct {
-				tokenType TokenType
 				literal   string
+				tokenType TokenType
 			}{
-				{INT, "%01"}, // Binary part
-				{INT, "2"},   // Separate decimal number
-				{EOF, ""},
+				{"%01", INT}, // Binary part
+				{"2", INT},   // Separate decimal number
+				{"", EOF},
 			},
 			expectedErrors: 0, // Two separate tokens - this is valid behavior
 		},
@@ -83,11 +83,11 @@ func TestMalformedNumberLiterals(t *testing.T) {
 			name:  "0x hex with no digits: 0x",
 			input: "0x",
 			expectedTokens: []struct {
-				tokenType TokenType
 				literal   string
+				tokenType TokenType
 			}{
-				{INT, "0x"}, // Empty hex literal - invalid!
-				{EOF, ""},
+				{"0x", INT}, // Empty hex literal - invalid!
+				{"", EOF},
 			},
 			expectedErrors: 1, // Should error: hex literal requires at least one digit
 		},
@@ -95,12 +95,12 @@ func TestMalformedNumberLiterals(t *testing.T) {
 			name:  "0x hex with invalid continuation: 0xFFG",
 			input: "0xFFG",
 			expectedTokens: []struct {
-				tokenType TokenType
 				literal   string
+				tokenType TokenType
 			}{
-				{INT, "0xFF"},
-				{IDENT, "G"},
-				{EOF, ""},
+				{"0xFF", INT},
+				{"G", IDENT},
+				{"", EOF},
 			},
 			expectedErrors: 0, // Valid - two tokens
 		},
@@ -108,12 +108,12 @@ func TestMalformedNumberLiterals(t *testing.T) {
 			name:  "$ followed by non-hex: $Z",
 			input: "$Z",
 			expectedTokens: []struct {
-				tokenType TokenType
 				literal   string
+				tokenType TokenType
 			}{
-				{DOLLAR, "$"},
-				{IDENT, "Z"},
-				{EOF, ""},
+				{"$", DOLLAR},
+				{"Z", IDENT},
+				{"", EOF},
 			},
 			expectedErrors: 0, // $ is a valid token (address-of operator)
 		},
@@ -121,14 +121,14 @@ func TestMalformedNumberLiterals(t *testing.T) {
 			name:  "multiple $ in expression: x $$ y",
 			input: "x $$ y",
 			expectedTokens: []struct {
-				tokenType TokenType
 				literal   string
+				tokenType TokenType
 			}{
-				{IDENT, "x"},
-				{DOLLAR, "$"},
-				{DOLLAR, "$"},
-				{IDENT, "y"},
-				{EOF, ""},
+				{"x", IDENT},
+				{"$", DOLLAR},
+				{"$", DOLLAR},
+				{"y", IDENT},
+				{"", EOF},
 			},
 			expectedErrors: 0,
 		},
@@ -166,38 +166,38 @@ func TestValidNumberLiterals(t *testing.T) {
 	tests := []struct {
 		name      string
 		input     string
-		tokenType TokenType
 		literal   string
+		tokenType TokenType
 	}{
 		{
 			name:      "valid hex $FF",
 			input:     "$FF",
-			tokenType: INT,
 			literal:   "$FF",
+			tokenType: INT,
 		},
 		{
 			name:      "valid hex 0xFF",
 			input:     "0xFF",
-			tokenType: INT,
 			literal:   "0xFF",
+			tokenType: INT,
 		},
 		{
 			name:      "valid binary %1010",
 			input:     "%1010",
-			tokenType: INT,
 			literal:   "%1010",
+			tokenType: INT,
 		},
 		{
 			name:      "valid decimal 42",
 			input:     "42",
-			tokenType: INT,
 			literal:   "42",
+			tokenType: INT,
 		},
 		{
 			name:      "valid float 3.14",
 			input:     "3.14",
-			tokenType: FLOAT,
 			literal:   "3.14",
+			tokenType: FLOAT,
 		},
 	}
 
