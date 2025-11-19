@@ -615,18 +615,70 @@ grep -rn "p\.curToken\|p\.peekToken" internal/parser/*.go | grep -v "_test.go" |
 
 **Goal**: Clean up internal call patterns.
 
-**Subtasks**:
-- [ ] **2.7.11.1** Remove dispatch wrappers (2h)
-  - Update direct callers to call Cursor functions
-  - Eliminate unnecessary indirection
-- [ ] **2.7.11.2** Simplify test helpers (1h)
-  - Update test helpers to assume Cursor mode
-  - Remove dual-mode test utilities
-- [ ] **2.7.11.3** Code cleanup (1h)
-  - Remove commented-out Traditional calls
-  - Clean up temporary variables
+**Prerequisites**: Tasks 2.7.5-2.7.10 must be complete (convert curToken/peekToken to cursor, switch to Cursor-only mode)
 
-**Deliverable**: Cleaner internal code structure.
+**Status**: Partially complete
+- ✅ **2.7.11.2**: Test helpers already assume Cursor mode (no dual-mode utilities found)
+- ✅ **2.7.11.3**: Code cleanup complete (no temp/debug code found)
+- ⚠️ **2.7.11.1**: Blocked by tasks 2.7.5-2.7.10 (see `docs/task-2.7.11-analysis.md`)
+
+**Subtasks**:
+- [ ] **2.7.11.1** Remove dispatch wrappers - 35 wrappers total (2h)
+  - **2.7.11.1a** Core parsing wrappers (30 min)
+    - `parseExpression` → direct calls to `parseExpressionCursor` (expressions.go)
+    - `parseStatement` → direct calls to `parseStatementCursor` (statements.go)
+    - `parseTypeExpression` → direct calls to `parseTypeExpressionCursor` (types.go)
+    - `parseUnit` → direct calls to `parseUnitCursor` (unit.go)
+  - **2.7.11.1b** Declaration wrappers (20 min)
+    - `parseVarDeclaration`, `parseConstDeclaration` (statements.go, declarations.go)
+    - `parseFunctionDeclaration` (functions.go)
+    - `parseTypeDeclaration` (interfaces.go)
+    - `parseUsesClause` (unit.go)
+  - **2.7.11.1c** Type system wrappers (20 min)
+    - `parseArrayType`, `parseFunctionPointerType`, `parseClassOfType`, `parseSetType` (types.go, sets.go)
+    - `parseArrayDeclaration`, `parseSetDeclaration` (arrays.go, sets.go)
+  - **2.7.11.1d** Class/Record/Interface wrappers (30 min)
+    - `parseClassDeclaration`, `parseClassDeclarationBody`, `parseClassParentAndInterfaces` (classes.go)
+    - `parseFieldDeclarations`, `parseClassConstantDeclaration` (classes.go)
+    - `parseRecordOrHelperDeclaration`, `parseRecordDeclaration`, `parseRecordFieldDeclarations` (records.go)
+    - `parseRecordPropertyDeclaration`, `parseHelperDeclaration` (records.go, helpers.go)
+    - `parseInterfaceDeclarationBody`, `parseInterfaceMethodDecl` (interfaces.go)
+  - **2.7.11.1e** Enum/Operator/Expression wrappers (20 min)
+    - `parseEnumDeclaration`, `parseEnumValue` (enums.go)
+    - `parseOperatorDeclaration`, `parseClassOperatorDeclaration` (operators.go)
+    - `parseMemberAccess`, `parseSetLiteral` (classes.go, sets.go)
+    - `parseParameterListAtToken`, `parseTypeOnlyParameterListAtToken` (functions.go)
+  - **2.7.11.1f** Remove wrapper function definitions (10 min)
+    - Delete all 35 wrapper functions after call sites updated
+    - Run tests to verify no regressions
+- [x] **2.7.11.2** Simplify test helpers (1h) - COMPLETE
+  - ✅ Test helpers already assume Cursor mode
+  - ✅ No dual-mode test utilities found
+- [x] **2.7.11.3** Code cleanup (1h) - COMPLETE
+  - ✅ No commented-out Traditional calls found
+  - ✅ No temporary variables or debug code found
+
+**Files to Modify** (for 2.7.11.1):
+- `internal/parser/arrays.go` (1 wrapper)
+- `internal/parser/classes.go` (7 wrappers)
+- `internal/parser/declarations.go` (1 wrapper)
+- `internal/parser/enums.go` (2 wrappers)
+- `internal/parser/expressions.go` (1 wrapper)
+- `internal/parser/functions.go` (3 wrappers)
+- `internal/parser/helpers.go` (1 wrapper)
+- `internal/parser/interfaces.go` (3 wrappers)
+- `internal/parser/operators.go` (2 wrappers)
+- `internal/parser/records.go` (4 wrappers)
+- `internal/parser/sets.go` (3 wrappers)
+- `internal/parser/statements.go` (2 wrappers)
+- `internal/parser/types.go` (4 wrappers)
+- `internal/parser/unit.go` (2 wrappers)
+
+**Verification**:
+- Run `grep -r "^func (p \*Parser) parse[A-Z].*() .* {$" internal/parser/*.go | grep -v Cursor | grep -v Traditional | wc -l` should return 0
+- All tests should pass with no regressions
+
+**Deliverable**: All dispatch wrappers removed, direct Cursor function calls throughout codebase.
 
 ---
 
