@@ -28,10 +28,11 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 	return p.parseUnitCursor()
 }
 
-// parseUnitTraditional parses a complete unit declaration using traditional mode.
+// parseUnitCursor parses a complete unit declaration using cursor mode.
+// Task 2.7.13: Inlined from parseUnitTraditional since Traditional functions removed.
 // PRE: curToken is UNIT
 // POST: curToken is DOT
-func (p *Parser) parseUnitTraditional() *ast.UnitDeclaration {
+func (p *Parser) parseUnitCursor() *ast.UnitDeclaration {
 	builder := p.StartNode()
 	unitDecl := &ast.UnitDeclaration{
 		BaseNode: ast.BaseNode{Token: p.curToken}, // 'unit' token
@@ -93,25 +94,6 @@ func (p *Parser) parseUnitTraditional() *ast.UnitDeclaration {
 	return builder.Finish(unitDecl).(*ast.UnitDeclaration)
 }
 
-// parseUnitCursor parses a complete unit declaration using cursor mode.
-// Task 2.7.1.1: Unit declaration migration
-// PRE: cursor is on UNIT token
-// POST: cursor is on DOT token
-//
-// Note: This function currently delegates to traditional mode because the section parsers
-// (parseInterfaceSection, parseImplementationSection, etc.) use traditional mode internally.
-// A full cursor-mode implementation would require migrating all section parsers first.
-// For now, we use delegation to maintain compatibility.
-func (p *Parser) parseUnitCursor() *ast.UnitDeclaration {
-	// Delegate to traditional mode
-	// Task 2.7.9: Parser is now cursor-only. Traditional functions still used here
-	// but will be removed in task 2.7.13.
-	p.syncCursorToTokens()
-	result := p.parseUnitTraditional()
-	p.syncTokensToCursor()
-	return result
-}
-
 // parseUsesClause parses a uses statement.
 // Syntax: uses Unit1, Unit2, Unit3;
 // PRE: curToken is USES
@@ -125,62 +107,6 @@ func (p *Parser) parseUsesClause() *ast.UsesClause {
 // Syntax: uses Unit1, Unit2, Unit3;
 // PRE: curToken is USES
 // POST: curToken is SEMICOLON
-func (p *Parser) parseUsesClauseTraditional() *ast.UsesClause {
-	builder := p.StartNode()
-	usesClause := &ast.UsesClause{
-		BaseNode: ast.BaseNode{Token: p.curToken}, // 'uses' token
-		Units:    []*ast.Identifier{},
-	}
-
-	// Expect at least one unit name
-	if !p.expectPeek(lexer.IDENT) {
-		return nil
-	}
-
-	// Add first unit
-	usesClause.Units = append(usesClause.Units, &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: p.cursor.Current(),
-			},
-		},
-		Value: p.cursor.Current().Literal,
-	})
-
-	// Parse remaining units (comma-separated)
-	for p.peekTokenIs(lexer.COMMA) {
-		p.nextToken() // move to comma
-		p.nextToken() // move to next unit name
-
-		if !p.curTokenIs(lexer.IDENT) {
-			p.addError("expected unit name after comma in uses clause", ErrExpectedIdent)
-			return nil
-		}
-
-		usesClause.Units = append(usesClause.Units, &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: p.cursor.Current(),
-				},
-			},
-			Value: p.cursor.Current().Literal,
-		})
-	}
-
-	// Expect semicolon
-	if !p.expectPeek(lexer.SEMICOLON) {
-		return nil
-	}
-
-	// Don't move past semicolon - ParseProgram will do that
-	return builder.Finish(usesClause).(*ast.UsesClause)
-}
-
-// parseUsesClauseCursor parses a uses statement using cursor mode.
-// Task 2.7.1.1: Uses clause migration
-// Syntax: uses Unit1, Unit2, Unit3;
-// PRE: cursor is on USES token
-// POST: cursor is on SEMICOLON token
 func (p *Parser) parseUsesClauseCursor() *ast.UsesClause {
 	builder := p.StartNode()
 	currentToken := p.cursor.Current() // Store USES token

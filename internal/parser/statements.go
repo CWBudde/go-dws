@@ -220,44 +220,6 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 }
 
 // parseVarDeclarationTraditional parses var declarations using traditional mode.
-func (p *Parser) parseVarDeclarationTraditional() ast.Statement {
-	blockToken := p.curToken // Save the initial VAR token for the block
-	statements := []ast.Statement{}
-
-	// Parse first var declaration
-	firstStmt := p.parseSingleVarDeclaration()
-	if firstStmt == nil {
-		return nil
-	}
-	statements = append(statements, firstStmt)
-
-	// Continue parsing additional var declarations without the 'var' keyword
-	// As long as the next line looks like a var declaration (not just any identifier)
-	for p.looksLikeVarDeclaration() {
-		p.nextToken() // move to identifier
-		varStmt := p.parseSingleVarDeclaration()
-		if varStmt == nil {
-			break
-		}
-		statements = append(statements, varStmt)
-	}
-
-	// If only one declaration, return it directly
-	if len(statements) == 1 {
-		return statements[0]
-	}
-
-	// Multiple declarations: wrap in a BlockStatement
-	return &ast.BlockStatement{
-		BaseNode:   ast.BaseNode{Token: blockToken},
-		Statements: statements,
-	}
-}
-
-// parseSingleVarDeclaration parses a single variable declaration.
-// Assumes we're already positioned at the identifier (or just before it).
-// PRE: curToken is VAR or variable name IDENT
-// POST: curToken is SEMICOLON
 func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 	builder := p.StartNode()
 	stmt := &ast.VarDeclStatement{}

@@ -51,7 +51,7 @@ func TestMigration_Identifier_Basic(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test traditional mode
 			traditionalParser := New(lexer.New(tt.input))
-			traditionalExpr := traditionalParser.parseIdentifierTraditional()
+			traditionalExpr := traditionalParser.parseIdentifierCursor()
 
 			// Test cursor mode
 			cursorParser := NewCursorParser(lexer.New(tt.input))
@@ -142,7 +142,7 @@ func TestMigration_Identifier_Position(t *testing.T) {
 	input := "  myVar  " // With leading/trailing whitespace
 
 	traditionalParser := New(lexer.New(input))
-	traditionalExpr := traditionalParser.parseIdentifierTraditional()
+	traditionalExpr := traditionalParser.parseIdentifierCursor()
 
 	cursorParser := NewCursorParser(lexer.New(input))
 	cursorExpr := cursorParser.parseIdentifierCursor()
@@ -216,7 +216,7 @@ func TestMigration_FloatLiteral_Basic(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test traditional mode
 			traditionalParser := New(lexer.New(tt.input))
-			traditionalExpr := traditionalParser.parseFloatLiteralTraditional()
+			traditionalExpr := traditionalParser.parseFloatLiteralCursor()
 
 			// Test cursor mode
 			cursorParser := NewCursorParser(lexer.New(tt.input))
@@ -289,7 +289,7 @@ func TestMigration_FloatLiteral_Errors(t *testing.T) {
 			if traditionalParser.curToken.Type != lexer.FLOAT {
 				t.Skip("Lexer did not produce FLOAT token")
 			}
-			traditionalExpr := traditionalParser.parseFloatLiteralTraditional()
+			traditionalExpr := traditionalParser.parseFloatLiteralCursor()
 
 			// Test cursor mode
 			cursorParser := NewCursorParser(lexer.New(tt.input))
@@ -365,7 +365,7 @@ func TestMigration_StringLiteral_Basic(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test traditional mode
 			traditionalParser := New(lexer.New(tt.input))
-			traditionalExpr := traditionalParser.parseStringLiteralTraditional()
+			traditionalExpr := traditionalParser.parseStringLiteralCursor()
 
 			// Test cursor mode
 			cursorParser := NewCursorParser(lexer.New(tt.input))
@@ -451,7 +451,7 @@ func TestMigration_BooleanLiteral_Basic(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test traditional mode
 			traditionalParser := New(lexer.New(tt.input))
-			traditionalExpr := traditionalParser.parseBooleanLiteralTraditional()
+			traditionalExpr := traditionalParser.parseBooleanLiteralCursor()
 
 			// Test cursor mode
 			cursorParser := NewCursorParser(lexer.New(tt.input))

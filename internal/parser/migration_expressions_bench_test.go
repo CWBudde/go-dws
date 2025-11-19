@@ -13,7 +13,7 @@ func Benchmark_Identifier_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseIdentifierTraditional()
+		_ = p.parseIdentifierCursor()
 	}
 }
 
@@ -35,7 +35,7 @@ func Benchmark_FloatLiteral_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseFloatLiteralTraditional()
+		_ = p.parseFloatLiteralCursor()
 	}
 }
 
@@ -57,7 +57,7 @@ func Benchmark_FloatLiteral_Scientific_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseFloatLiteralTraditional()
+		_ = p.parseFloatLiteralCursor()
 	}
 }
 
@@ -79,7 +79,7 @@ func Benchmark_StringLiteral_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseStringLiteralTraditional()
+		_ = p.parseStringLiteralCursor()
 	}
 }
 
@@ -101,7 +101,7 @@ func Benchmark_StringLiteral_Escaped_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseStringLiteralTraditional()
+		_ = p.parseStringLiteralCursor()
 	}
 }
 
@@ -123,7 +123,7 @@ func Benchmark_BooleanLiteral_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseBooleanLiteralTraditional()
+		_ = p.parseBooleanLiteralCursor()
 	}
 }
 
@@ -158,15 +158,15 @@ func Benchmark_AllExpressions_Traditional(b *testing.B) {
 				p := New(lexer.New(tt.source))
 				switch tt.name {
 				case "identifier":
-					_ = p.parseIdentifierTraditional()
+					_ = p.parseIdentifierCursor()
 				case "integer":
-					_ = p.parseIntegerLiteralTraditional()
+					_ = p.parseIntegerLiteralCursor()
 				case "float":
-					_ = p.parseFloatLiteralTraditional()
+					_ = p.parseFloatLiteralCursor()
 				case "string":
-					_ = p.parseStringLiteralTraditional()
+					_ = p.parseStringLiteralCursor()
 				case "boolean":
-					_ = p.parseBooleanLiteralTraditional()
+					_ = p.parseBooleanLiteralCursor()
 				}
 			}
 		})

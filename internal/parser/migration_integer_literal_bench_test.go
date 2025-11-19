@@ -13,7 +13,7 @@ func BenchmarkIntegerLiteral_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseIntegerLiteralTraditional()
+		_ = p.parseIntegerLiteralCursor()
 	}
 }
 
@@ -57,7 +57,7 @@ func BenchmarkIntegerLiteral_Hex_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseIntegerLiteralTraditional()
+		_ = p.parseIntegerLiteralCursor()
 	}
 }
 
@@ -79,7 +79,7 @@ func BenchmarkIntegerLiteral_Binary_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseIntegerLiteralTraditional()
+		_ = p.parseIntegerLiteralCursor()
 	}
 }
 
@@ -101,7 +101,7 @@ func BenchmarkIntegerLiteral_Large_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseIntegerLiteralTraditional()
+		_ = p.parseIntegerLiteralCursor()
 	}
 }
 
@@ -124,7 +124,7 @@ func BenchmarkIntegerLiteral_Memory_Traditional(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		_ = p.parseIntegerLiteralTraditional()
+		_ = p.parseIntegerLiteralCursor()
 	}
 }
 
