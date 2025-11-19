@@ -217,7 +217,13 @@ Complete migration of all parsing code to cursor/combinators and remove legacy c
 - ⚠️ **2.7.12**: Remove dual-mode infrastructure (4h)
 - ⚠️ **2.7.13**: Remove legacy Traditional functions (8h)
 
-**Status**: All 41 Traditional functions now have Cursor equivalents. Task 2.7.4 revealed that sync calls cannot be removed until ~308 curToken references are converted to use p.cursor instead. Tasks 2.7.5-2.7.8 will systematically convert all curToken/peekToken usage to cursor-based equivalents, making sync calls no-ops. Tasks 2.7.9-2.7.13 will then complete the migration and remove all legacy code. See `docs/sync-call-analysis.md` for detailed analysis.
+**Status**: All 41 Traditional functions now have Cursor equivalents. Task 2.7.4 revealed that sync calls cannot be removed until curToken references are converted. **Revised analysis (2025-11-19)**: Found **756 curToken/peekToken references** (not 308 as originally estimated) across 23 parser files. Tasks 2.7.5-2.7.8 will systematically convert all usage to cursor-based equivalents. Tasks 2.7.9-2.7.13 will then complete the migration and remove all legacy code.
+
+**DETAILED IMPLEMENTATION PLAN**: See `docs/task-2.7.5-8-detailed-plan.md` for comprehensive file-by-file conversion plan with:
+- Current state analysis (756 refs across 23 files)
+- File-by-file breakdown with reference counts
+- Revised effort estimates (101h vs original 80h)
+- Execution strategy and success criteria
 
 ---
 
@@ -351,218 +357,203 @@ Complete migration of all parsing code to cursor/combinators and remove legacy c
 
 #### Task 2.7.5: Convert Helper Functions to Use Cursors (Week 15, Days 1-2, ~8 hours)
 
-**Goal**: Convert ~50 helper function calls from using `p.curToken`/`p.peekToken` to using `p.cursor.Current()`/`p.cursor.Peek(1)`.
+**Goal**: Convert ~72 helper and utility file references from using `p.curToken`/`p.peekToken` to using `p.cursor.Current()`/`p.cursor.Peek(1)`.
 
-**Background**: Task 2.7.4 revealed that sync calls cannot be removed because 308 active uses of `p.curToken` remain. Helper functions account for ~50 of these uses. This task systematically converts them to cursor-based equivalents.
+**Background**: Revised analysis found 756 total references (not 308). Start with small utility files to establish conversion patterns. See `docs/task-2.7.5-8-detailed-plan.md` for complete file-by-file breakdown.
 
 **Subtasks**:
-- [ ] **2.7.5.1** Convert token checking helpers (3h)
-  - `curTokenIs()` → use `p.cursor.Current().Type`
-  - `peekTokenIs()` → use `p.cursor.Peek(1).Type`
-  - `curTokenOneOf()` → iterate over `p.cursor.Current().Type`
-  - Update ~15 call sites across all parser files
+- [ ] **2.7.5.1** helpers.go (16 refs) - 1.5h
+  - Convert all helper function implementations
+  - `curTokenIs()`, `peekTokenIs()`, `expectPeek()`, etc.
 
-- [ ] **2.7.5.2** Convert expectPeek and related (3h)
-  - `expectPeek()` → check `p.cursor.Peek(1)`, then `p.cursor.Advance()`
-  - `expectCurrent()` → check `p.cursor.Current()`
-  - `expectSemicolon()` → cursor-based implementation
-  - Update ~20 call sites
+- [ ] **2.7.5.2** Utility files (12 refs) - 1.5h
+  - node_builder.go (4), cursor.go (4), context.go (2), parser_builder.go (2)
 
-- [ ] **2.7.5.3** Convert position helpers (2h)
-  - Functions using `p.curToken.Pos` → use `p.cursor.Current().Pos`
-  - Functions using `p.peekToken.Pos` → use `p.cursor.Peek(1).Pos`
-  - Update ~15 call sites
+- [ ] **2.7.5.3** Small parser files (44 refs) - 3h
+  - sets.go (10), declarations.go (12), arrays.go (22)
+  - Focus on non-Traditional functions only
+
+- [ ] **2.7.5.4** Test and fix - 2h
+  - Run full test suite after each file
+  - Fix breakages immediately
 
 **Files Modified**:
-- `internal/parser/helpers.go` - helper function implementations
-- `internal/parser/parser.go` - core helper usage
-- `internal/parser/expressions.go` - expression helper usage
-- `internal/parser/statements.go` - statement helper usage
-- `internal/parser/control_flow.go` - control flow helper usage
+- `internal/parser/helpers.go` (16 refs)
+- `internal/parser/node_builder.go` (4 refs)
+- `internal/parser/cursor.go` (4 refs)
+- `internal/parser/context.go` (2 refs)
+- `internal/parser/parser_builder.go` (2 refs)
+- `internal/parser/sets.go` (10 refs)
+- `internal/parser/declarations.go` (12 refs)
+- `internal/parser/arrays.go` (22 refs)
 
 **Verification**:
 ```bash
-# Count remaining curToken uses in helpers
-grep -n "p\.curToken\|p\.peekToken" internal/parser/helpers.go
-# Should show significant reduction from baseline
+# Should return 0 for each converted file
+grep -c "p\.curToken\|p\.peekToken" internal/parser/helpers.go
+grep -c "p\.curToken\|p\.peekToken" internal/parser/sets.go
 ```
 
-**Deliverable**: All helper functions use cursor-based token access, eliminating ~50 curToken references.
+**Deliverable**: 72 references converted (756 → 684). Conversion patterns established for larger files.
 
 ---
 
-#### Task 2.7.6: Convert Traditional Parse Functions to Use Cursors (Week 15, Days 3-5, ~16 hours)
+#### Task 2.7.6: Convert Medium Parser Files (Week 15, Days 3-5, ~16 hours)
 
-**Goal**: Convert ~100 traditional parse function uses from `p.curToken`/`p.peekToken` to cursor equivalents.
+**Goal**: Convert ~169 references from medium-complexity parser files.
 
-**Background**: Many traditional parse functions that haven't been fully migrated still reference `p.curToken` for state checks, type comparisons, and control flow. This task completes their migration.
+**Background**: After helpers/utilities (task 2.7.5), tackle medium-sized parser files. Skip all Traditional functions. See `docs/task-2.7.5-8-detailed-plan.md` for details.
 
 **Subtasks**:
-- [ ] **2.7.6.1** Audit remaining traditional functions (2h)
-  - Identify all functions still using curToken/peekToken
-  - Categorize by conversion complexity (simple/medium/complex)
-  - Create detailed conversion checklist
+- [ ] **2.7.6.1** enums.go (22 refs) - 2h
+  - Skip Traditional functions, convert Cursor functions only
 
-- [ ] **2.7.6.2** Convert simple traditional functions (4h)
-  - Functions with <10 curToken references
-  - Straightforward 1:1 replacements
-  - Estimate ~30 functions
+- [ ] **2.7.6.2** types.go (22 refs) - 2h
+  - Skip Traditional type parsing, convert Cursor implementations
 
-- [ ] **2.7.6.3** Convert medium traditional functions (6h)
-  - Functions with 10-20 curToken references
-  - May require local cursor state management
-  - Estimate ~15 functions
+- [ ] **2.7.6.3** properties.go (24 refs) - 2h
+  - Convert property accessor/mutator parsing
 
-- [ ] **2.7.6.4** Convert complex traditional functions (4h)
-  - Functions with >20 curToken references or complex state
-  - May require refactoring for cursor patterns
-  - Estimate ~5 functions
+- [ ] **2.7.6.4** combinators.go (31 refs) - 3h
+  - Convert combinator helpers (used everywhere - careful testing!)
+
+- [ ] **2.7.6.5** operators.go (34 refs) - 3h
+  - Skip Traditional, convert operator dispatch and precedence
+
+- [ ] **2.7.6.6** exceptions.go (36 refs) - 2h
+  - Convert try/catch/finally, careful with error recovery
+
+- [ ] **2.7.6.7** Test and fix - 2h
+  - Test after each file, fix immediately
 
 **Files Modified**:
-- `internal/parser/types.go` - type parsing functions
-- `internal/parser/declarations.go` - declaration parsing
-- `internal/parser/functions.go` - function parsing
-- `internal/parser/classes.go` - class parsing
-- `internal/parser/interfaces.go` - interface parsing
-- Other parser files as needed
+- `internal/parser/enums.go` (22 refs)
+- `internal/parser/types.go` (22 refs)
+- `internal/parser/properties.go` (24 refs)
+- `internal/parser/combinators.go` (31 refs)
+- `internal/parser/operators.go` (34 refs)
+- `internal/parser/exceptions.go` (36 refs)
 
 **Verification**:
 ```bash
-# Count curToken uses per file
-for f in internal/parser/*.go; do
-  echo "$f: $(grep -c 'p\.curToken\|p\.peekToken' $f)";
+# Each file should show significant reduction (excluding Traditional functions)
+for f in enums.go types.go properties.go combinators.go operators.go exceptions.go; do
+  echo "$f: $(grep -c 'p\.curToken\|p\.peekToken' internal/parser/$f)"
 done
 ```
 
-**Deliverable**: All traditional parse functions use cursor-based token access, eliminating ~100 curToken references.
+**Deliverable**: 169 references converted (684 → 515).
 
 ---
 
-#### Task 2.7.7: Convert Error Reporting to Use Cursors (Week 16, Days 1-2, ~12 hours)
+#### Task 2.7.7: Convert Large Parser Files Part 1 (Week 16, Days 1-2, ~12 hours)
 
-**Goal**: Convert ~80 error reporting calls from using `p.curToken.Pos` to `p.cursor.Current().Pos`.
+**Goal**: Convert ~123 references from first batch of large parser files (statements, unit, records).
 
-**Background**: Error messages throughout the parser reference `curToken.Pos` for position information. These must be converted to cursor equivalents.
+**Background**: Tackle large files systematically. Skip all Traditional functions. See `docs/task-2.7.5-8-detailed-plan.md` for details.
 
 **Subtasks**:
-- [ ] **2.7.7.1** Audit error reporting patterns (2h)
-  - Find all `addError()`, `peekError()`, and direct error creation
-  - Identify patterns: curToken.Pos, peekToken.Pos, curToken.Literal
-  - Create conversion templates for common patterns
+- [ ] **2.7.7.1** statements.go (37 refs) - 3h
+  - Skip Traditional functions
+  - Convert statement dispatch, var/const declarations
 
-- [ ] **2.7.7.2** Convert expression error reporting (3h)
-  - Update `internal/parser/expressions.go` error messages
-  - Update `internal/parser/operators.go` error messages
-  - Estimate ~25 error sites
+- [ ] **2.7.7.2** unit.go (38 refs) - 3h
+  - Skip Traditional functions
+  - Convert unit section parsing, uses clauses
+  - Note: parseUnitCursor currently delegates to Traditional
 
-- [ ] **2.7.7.3** Convert statement error reporting (3h)
-  - Update `internal/parser/statements.go` error messages
-  - Update `internal/parser/control_flow.go` error messages
-  - Estimate ~25 error sites
+- [ ] **2.7.7.3** records.go (48 refs) - 3h
+  - Skip all Traditional functions (multiple)
+  - Convert Cursor record/field/method/property parsing
+  - Complex file - proceed carefully
 
-- [ ] **2.7.7.4** Convert declaration error reporting (2h)
-  - Update declaration-related files
-  - Estimate ~15 error sites
-
-- [ ] **2.7.7.5** Convert type parsing error reporting (2h)
-  - Update type parsing error messages
-  - Estimate ~15 error sites
+- [ ] **2.7.7.4** Test and fix - 3h
+  - Comprehensive testing after each file
+  - Fix regressions immediately
 
 **Files Modified**:
-- All parser files with error reporting
-- `internal/parser/errors.go` (if error helper functions exist)
-
-**Common Conversions**:
-```go
-// Before
-p.addError(p.curToken.Pos, "unexpected token")
-p.peekError(expectedType)
-
-// After
-p.addError(p.cursor.Current().Pos, "unexpected token")
-p.addError(p.cursor.Peek(1).Pos, fmt.Sprintf("expected %s", expectedType))
-```
+- `internal/parser/statements.go` (37 refs)
+- `internal/parser/unit.go` (38 refs)
+- `internal/parser/records.go` (48 refs)
 
 **Verification**:
 ```bash
-# Find remaining curToken.Pos references
-grep -rn "curToken\.Pos\|peekToken\.Pos" internal/parser/*.go | grep -v "_test.go"
+# Should show significant reduction for each file
+for f in statements.go unit.go records.go; do
+  echo "$f: $(grep -c 'p\.curToken\|p\.peekToken' internal/parser/$f)"
+done
 ```
 
-**Deliverable**: All error reporting uses cursor-based position tracking, eliminating ~80 curToken references.
+**Deliverable**: 123 references converted (515 → 392).
 
 ---
 
-#### Task 2.7.8: Convert Dispatchers and Type Checking to Use Cursors (Week 16, Day 3, ~12 hours)
+#### Task 2.7.8: Convert Large Parser Files Part 2 (Week 16, Days 3-5, ~33 hours)
 
-**Goal**: Convert ~78 dispatcher and type checking uses from `p.curToken.Type` to `p.cursor.Current().Type`.
+**Goal**: Convert all remaining ~392 references from the largest, most complex parser files.
 
-**Background**: Dispatcher functions and type checking code frequently check `curToken.Type` to determine parsing strategy. These are the final category of curToken usage.
+**Background**: Final conversion push. Includes expressions.go (126 refs - the largest file). Skip all Traditional functions. See `docs/task-2.7.5-8-detailed-plan.md` for details.
 
 **Subtasks**:
-- [ ] **2.7.8.1** Convert dispatcher functions (6h)
-  - Main parse dispatchers (parseStatement, parseExpression, etc.)
-  - Switch statements on curToken.Type
-  - Estimate ~30 dispatcher sites
-  - Example files:
-    - `internal/parser/parser.go` - main dispatchers
-    - `internal/parser/statements.go` - statement dispatch
-    - `internal/parser/expressions.go` - expression dispatch
+- [ ] **2.7.8.1** functions.go (49 refs) - 4h
+  - Skip Traditional functions
+  - Convert Cursor function parsing, parameters, signatures
 
-- [ ] **2.7.8.2** Convert type checking logic (4h)
-  - Type comparison: `p.curToken.Type == token.XYZ`
-  - Type matching in conditionals
-  - Estimate ~30 type check sites
+- [ ] **2.7.8.2** classes.go (50 refs) - 4h
+  - Skip Traditional class functions
+  - Convert Cursor class parsing, fields/methods/properties
 
-- [ ] **2.7.8.3** Convert token literal extraction (2h)
-  - Uses of `p.curToken.Literal` for values
-  - Uses of `p.peekToken.Literal` for lookahead
-  - Estimate ~18 literal access sites
+- [ ] **2.7.8.3** interfaces.go (54 refs) - 4h
+  - Skip Traditional interface functions
+  - Convert interface parsing, method declarations
+  - Note: Has 2 sync delegation points currently
+
+- [ ] **2.7.8.4** parser.go (55 refs) - 5h
+  - Core parser infrastructure
+  - Convert main parse loop, error recovery
+  - Critical file - extensive testing required
+
+- [ ] **2.7.8.5** control_flow.go (56 refs) - 4h
+  - Convert if/while/for/case statements
+  - Update conditional and loop handling
+  - Already mostly Cursor-based
+
+- [ ] **2.7.8.6** expressions.go (126 refs) - 8h
+  - **LARGEST FILE - MOST COMPLEX**
+  - Skip all Traditional expression functions
+  - Phase 1: Literal parsing (2h)
+  - Phase 2: Binary/unary operators (2h)
+  - Phase 3: Call/index/member (2h)
+  - Phase 4: Complex expressions (2h)
+
+- [ ] **2.7.8.7** Final testing - 4h
+  - Complete test suite
+  - Fixture tests
+  - Performance benchmarking
 
 **Files Modified**:
-- `internal/parser/parser.go` - main dispatchers
-- `internal/parser/statements.go` - statement dispatching
-- `internal/parser/expressions.go` - expression dispatching
-- `internal/parser/types.go` - type expression dispatching
-- Other parser files with dispatch logic
-
-**Common Conversions**:
-```go
-// Before
-switch p.curToken.Type {
-case token.IF:
-  return p.parseIfStatement()
-}
-
-// After
-switch p.cursor.Current().Type {
-case token.IF:
-  return p.parseIfStatement()
-}
-
-// Before
-if p.curToken.Type == token.IDENT {
-  name := p.curToken.Literal
-}
-
-// After
-if p.cursor.Current().Type == token.IDENT {
-  name := p.cursor.Current().Literal
-}
-```
+- `internal/parser/functions.go` (49 refs)
+- `internal/parser/classes.go` (50 refs)
+- `internal/parser/interfaces.go` (54 refs)
+- `internal/parser/parser.go` (55 refs)
+- `internal/parser/control_flow.go` (56 refs)
+- `internal/parser/expressions.go` (126 refs - LARGEST)
 
 **Verification**:
 ```bash
-# Should show ~0 remaining (excluding test files)
+# Should show ~50 remaining (only Traditional functions)
 grep -rn "p\.curToken\|p\.peekToken" internal/parser/*.go | grep -v "_test.go" | wc -l
+
+# Traditional functions should be the only remaining curToken users
+grep -rn "p\.curToken\|p\.peekToken" internal/parser/*.go | grep -v "_test.go" | grep Traditional | wc -l
 ```
 
-**Deliverable**: All dispatchers and type checking use cursor-based token access, eliminating ~78 curToken references. At this point, sync calls become no-ops and can be safely removed.
+**Deliverable**: All 392 references converted (392 → ~50 Traditional-only). All non-Traditional code now uses cursor exclusively. Sync calls become no-ops. Ready for task 2.7.9.
 
 **Success Criteria**:
-- All ~308 curToken/peekToken references converted to cursor equivalents
-- Tests continue to pass (377/448 baseline maintained)
-- Sync calls can be removed without breaking tests
+- All ~706 non-Traditional curToken/peekToken references converted (756 - 50 Traditional)
+- Only Traditional functions still use curToken/peekToken
+- Tests continue to pass
 - Ready to proceed to Task 2.7.9 (Switch to Cursor-Only Mode)
 
 ---
