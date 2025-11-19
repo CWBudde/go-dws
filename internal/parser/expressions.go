@@ -9,16 +9,10 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
-// parseExpression is a dispatcher that routes to the appropriate implementation
-// based on the parser mode (traditional vs cursor).
-//
-// Task 2.2.7: This dispatcher enables dual-mode operation during migration.
-// Eventually (Phase 2.7), only the cursor version will remain.
+// parseExpression parses an expression with the given precedence.
+// Task 2.7.9: Cursor mode is now the only mode - dispatcher removed.
 func (p *Parser) parseExpression(precedence int) ast.Expression {
-	if p.useCursor {
-		return p.parseExpressionCursor(precedence)
-	}
-	return p.parseExpressionTraditional(precedence)
+	return p.parseExpressionCursor(precedence)
 }
 
 // parseExpressionTraditional parses an expression with the given precedence (traditional mode).

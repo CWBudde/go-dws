@@ -13,10 +13,7 @@ import (
 // POST: curToken is last token of value expression in last declaration
 // Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseConstDeclaration() ast.Statement {
-	if p.useCursor {
-		return p.parseConstDeclarationCursor()
-	}
-	return p.parseConstDeclarationTraditional()
+	return p.parseConstDeclarationCursor()
 }
 
 // parseConstDeclarationTraditional parses const declarations using traditional mode.
@@ -135,13 +132,9 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 // It is parsed and then discarded (not added to the AST).
 // PRE: curToken is PROGRAM
 // POST: curToken is SEMICOLON
-// Dispatcher: delegates to cursor or traditional mode
+// Task 2.7.9: Cursor mode is now the only mode - dispatcher removed.
 func (p *Parser) parseProgramDeclaration() {
-	if p.useCursor {
-		p.parseProgramDeclarationCursor()
-		return
-	}
-	p.parseProgramDeclarationTraditional()
+	p.parseProgramDeclarationCursor()
 }
 
 // parseProgramDeclarationTraditional parses program declaration using traditional mode.

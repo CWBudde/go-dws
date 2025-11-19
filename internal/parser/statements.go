@@ -140,105 +140,11 @@ func (p *Parser) parseStatementCursor() ast.Statement {
 }
 
 // parseStatement parses a single statement.
-// PRE: curToken is first token of statement
-// POST: curToken is last token of statement
+// Task 2.7.9: Cursor mode is now the only mode - dispatcher removed.
+// PRE: cursor is on first token of statement
+// POST: cursor is on last token of statement
 func (p *Parser) parseStatement() ast.Statement {
-	// Task 2.2.14.2: Dispatch to cursor mode if enabled
-	if p.useCursor {
-		stmt := p.parseStatementCursor()
-		// Sync traditional pointers from cursor after statement parsing
-		p.syncCursorToTokens()
-		return stmt
-	}
-
-	switch p.curToken.Type {
-	case lexer.BEGIN:
-		return p.parseBlockStatement()
-	case lexer.VAR:
-		return p.parseVarDeclaration()
-	case lexer.CONST:
-		return p.parseConstDeclaration()
-	case lexer.IF:
-		return p.parseIfStatement()
-	case lexer.WHILE:
-		return p.parseWhileStatement()
-	case lexer.REPEAT:
-		return p.parseRepeatStatement()
-	case lexer.FOR:
-		return p.parseForStatement()
-	case lexer.CASE:
-		return p.parseCaseStatement()
-	case lexer.BREAK:
-		return p.parseBreakStatement()
-	case lexer.CONTINUE:
-		return p.parseContinueStatement()
-	case lexer.EXIT:
-		return p.parseExitStatement()
-	case lexer.TRY:
-		return p.parseTryStatement()
-	case lexer.RAISE:
-		return p.parseRaiseStatement()
-	case lexer.FUNCTION, lexer.PROCEDURE, lexer.METHOD:
-		return p.parseFunctionDeclaration()
-	case lexer.OPERATOR:
-		return p.parseOperatorDeclaration()
-	case lexer.CLASS:
-		if p.peekTokenIs(lexer.FUNCTION) || p.peekTokenIs(lexer.PROCEDURE) || p.peekTokenIs(lexer.METHOD) {
-			p.nextToken() // move to function/procedure/method token
-			fn := p.parseFunctionDeclaration()
-			if fn != nil {
-				fn.IsClassMethod = true
-			}
-			return fn
-		}
-		p.addError("expected 'function', 'procedure', or 'method' after 'class'", ErrUnexpectedToken)
-		return nil
-	case lexer.CONSTRUCTOR:
-		// Parse constructor implementation outside class body
-		method := p.parseFunctionDeclaration()
-		if method != nil {
-			method.IsConstructor = true
-		}
-		return method
-	case lexer.DESTRUCTOR:
-		// Parse destructor implementation outside class body
-		method := p.parseFunctionDeclaration()
-		if method != nil {
-			method.IsDestructor = true
-		}
-		return method
-	case lexer.TYPE:
-		// Dispatch to class or interface parser
-		// Both parsers will handle the full parsing starting from TYPE token
-		return p.parseTypeDeclaration()
-	case lexer.USES:
-		// Parse uses clause at program level
-		return p.parseUsesClause()
-	default:
-		// Check for assignment (simple or member assignment)
-		// Handle SELF and INHERITED which can be assignment targets (e.g., Self.X := value)
-		if p.curToken.Type == lexer.SELF || p.curToken.Type == lexer.INHERITED {
-			return p.parseAssignmentOrExpression()
-		}
-
-		if p.isIdentifierToken(p.curToken.Type) {
-			// Could be:
-			// 1. x := value (assignment)
-			// 2. obj.field := value (member assignment)
-			// 3. x: Type; (var declaration without 'var' keyword - part of var section)
-
-			// Check if this is a var declaration (IDENT COLON pattern)
-			if p.peekTokenIs(lexer.COLON) {
-				// This is a var declaration in a var section
-				// Treat it like "var x: Type;"
-				return p.parseVarDeclaration()
-			}
-
-			// Otherwise, parse as assignment or expression
-			return p.parseAssignmentOrExpression()
-		}
-		return p.parseExpressionStatement()
-	}
+	return p.parseStatementCursor()
 }
 
 // parseBlockStatement parses a begin...end block.
@@ -318,10 +224,7 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 // POST: curToken is SEMICOLON of last var declaration
 // Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseVarDeclaration() ast.Statement {
-	if p.useCursor {
-		return p.parseVarDeclarationCursor()
-	}
-	return p.parseVarDeclarationTraditional()
+	return p.parseVarDeclarationCursor()
 }
 
 // parseVarDeclarationTraditional parses var declarations using traditional mode.

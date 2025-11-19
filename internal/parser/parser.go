@@ -767,20 +767,14 @@ func (p *Parser) LexerErrors() []lexer.LexerError {
 	return p.l.Errors()
 }
 
-// nextToken advances both curToken and peekToken.
+// nextToken advances the cursor and updates curToken/peekToken.
+// Task 2.7.9: Simplified to cursor-only mode.
 func (p *Parser) nextToken() {
-	// Task 2.2.7: In cursor mode, use cursor for token navigation
-	// The cursor manages its own buffer and lexer calls, so we skip
-	// the traditional lexer calls to avoid desynchronization.
-	if p.useCursor && p.cursor != nil {
+	if p.cursor != nil {
 		p.cursor = p.cursor.Advance()
-		// Keep curToken/peekToken in sync with cursor (cursor is authoritative in cursor mode)
+		// Keep curToken/peekToken in sync with cursor for dual-mode helpers
 		p.curToken = p.cursor.Current()
 		p.peekToken = p.cursor.Peek(1)
-	} else {
-		// Traditional mode: advance tokens using lexer directly
-		p.curToken = p.peekToken
-		p.peekToken = p.l.NextToken()
 	}
 }
 

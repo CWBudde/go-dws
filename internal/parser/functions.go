@@ -22,10 +22,7 @@ func isCallingConvention(literal string) bool {
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
-	if p.useCursor {
-		return p.parseFunctionDeclarationCursor()
-	}
-	return p.parseFunctionDeclarationTraditional()
+	return p.parseFunctionDeclarationCursor()
 }
 
 // parseFunctionDeclarationTraditional parses a function or procedure declaration.
@@ -1072,10 +1069,7 @@ func (p *Parser) parseParameterGroupCursor() []*ast.Parameter {
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseParameterListAtToken() []*ast.Parameter {
-	if p.useCursor {
-		return p.parseParameterListAtTokenCursor()
-	}
-	return p.parseParameterListAtTokenTraditional()
+	return p.parseParameterListAtTokenCursor()
 }
 
 // parseParameterListAtTokenTraditional parses a full parameter list with names when already
@@ -1166,10 +1160,7 @@ func (p *Parser) parseParameterListAtTokenCursor() []*ast.Parameter {
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseTypeOnlyParameterListAtToken() []*ast.Parameter {
-	if p.useCursor {
-		return p.parseTypeOnlyParameterListAtTokenCursor()
-	}
-	return p.parseTypeOnlyParameterListAtTokenTraditional()
+	return p.parseTypeOnlyParameterListAtTokenCursor()
 }
 
 // parseTypeOnlyParameterListAtTokenTraditional parses a parameter list with only types (no names).

@@ -19,10 +19,7 @@ import (
 // POST: curToken is SEMICOLON of last type declaration
 // Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseTypeDeclaration() ast.Statement {
-	if p.useCursor {
-		return p.parseTypeDeclarationCursor()
-	}
-	return p.parseTypeDeclarationTraditional()
+	return p.parseTypeDeclarationCursor()
 }
 
 // parseTypeDeclarationTraditional parses type declarations using traditional mode.
@@ -395,17 +392,19 @@ func (p *Parser) parseSingleTypeDeclarationCursor(typeToken lexer.Token) ast.Sta
 		return nil
 	}
 	cursor = cursor.Advance() // move to '='
-	cursor = cursor.Advance() // move past '=' to type
 	p.cursor = cursor
 
-	// Check what kind of type declaration this is
-	nextToken := cursor.Current()
+	// Check what kind of type declaration this is by peeking at the next token
+	nextToken := cursor.Peek(1)
 
 	// Type alias: type TUserID = Integer;
 	if nextToken.Type == lexer.IDENT {
+		cursor = cursor.Advance() // move past '=' to type name
+		p.cursor = cursor
+		currentToken := cursor.Current()
 		aliasedType := &ast.TypeAnnotation{
-			Token: nextToken,
-			Name:  nextToken.Literal,
+			Token: currentToken,
+			Name:  currentToken.Literal,
 		}
 
 		// Expect semicolon
@@ -427,37 +426,106 @@ func (p *Parser) parseSingleTypeDeclarationCursor(typeToken lexer.Token) ast.Sta
 		return builder.Finish(typeDecl).(*ast.TypeDeclaration)
 	}
 
-	// For other type declarations (class, interface, enum, etc.), delegate to traditional mode
-	// These will be migrated to cursor mode in future tasks
-	// TODO: Complete cursor mode migration and remove this fallback
+	// For other type declarations (class, interface, enum, etc.), handle each type
+	// Task 2.7.9: Full cursor mode implementation for all type declarations
+	// Match traditional mode's pattern: advance for most types, but not for LPAREN
+	if nextToken.Type == lexer.INTERFACE {
+		// Interface declaration: type IMyInterface = interface ... end;
+		cursor = cursor.Advance() // move to INTERFACE
+		p.cursor = cursor
+		return p.parseInterfaceDeclarationBody(nameIdent)
+	} else if nextToken.Type == lexer.CLASS {
+		cursor = cursor.Advance() // move to CLASS
+		p.cursor = cursor
 
-	// IMPORTANT: Restore parser state to the identifier position before delegating.
-	// The traditional parser expects curToken to be on the identifier, not the type keyword.
-	// We saved the identifier in nameIdent.Token, so restore to that position.
-	p.curToken = nameIdent.Token
-	// The traditional parser will call nextToken() to get to '=', so set peekToken accordingly
-	// We need to manually find the '=' token - it should be 1 position after the identifier
-	// Since cursor has already moved past '=', we can search the cursor's token buffer
-	for i, tok := range p.cursor.tokens {
-		if tok.Type == nameIdent.Token.Type &&
-			tok.Pos.Offset == nameIdent.Token.Pos.Offset &&
-			i+1 < len(p.cursor.tokens) {
-			// Found the identifier, set peekToken to next token (should be '=')
-			p.peekToken = p.cursor.tokens[i+1]
-			break
+		// Check if this is a metaclass type alias: type TBaseClass = class of TBase;
+		// or a class declaration: type TMyClass = class ... end;
+		if cursor.Peek(1).Type == lexer.OF {
+			// Metaclass type alias: type TBaseClass = class of TBase;
+			// Parse as type expression (class of ...)
+			classOfType := p.parseClassOfType()
+			if classOfType == nil {
+				return nil
+			}
+
+			// Expect semicolon
+			if p.cursor.Peek(1).Type != lexer.SEMICOLON {
+				p.addError("expected ';' after class of type", ErrMissingSemicolon)
+				return nil
+			}
+			p.cursor = p.cursor.Advance() // move to SEMICOLON
+
+			// Create a type declaration with the metaclass type as an inline type
+			typeDecl := &ast.TypeDeclaration{
+				BaseNode: ast.BaseNode{
+					Token: typeToken,
+				},
+				Name:        nameIdent,
+				IsAlias:     true,
+				AliasedType: classOfType,
+			}
+			return builder.Finish(typeDecl).(*ast.TypeDeclaration)
 		}
+		// Check if followed by 'partial': type TMyClass = class partial ... end;
+		if cursor.Peek(1).Type == lexer.PARTIAL {
+			p.cursor = p.cursor.Advance() // move to PARTIAL
+			classDecl := p.parseClassDeclarationBody(nameIdent)
+			if classDecl != nil {
+				classDecl.IsPartial = true
+			}
+			return classDecl
+		}
+		// Regular class declaration: type TMyClass = class ... end;
+		return p.parseClassDeclarationBody(nameIdent)
+	} else if nextToken.Type == lexer.RECORD {
+		// Could be either:
+		//   - Record declaration: type TPoint = record X, Y: Integer; end;
+		//   - Record helper: type THelper = record helper for TypeName ... end;
+		cursor = cursor.Advance() // move to RECORD
+		p.cursor = cursor
+		return p.parseRecordOrHelperDeclaration(nameIdent, typeToken)
+	} else if nextToken.Type == lexer.SET {
+		// Set declaration: type TDays = set of TWeekday;
+		cursor = cursor.Advance() // move to SET
+		p.cursor = cursor
+		return p.parseSetDeclaration(nameIdent, typeToken)
+	} else if nextToken.Type == lexer.ARRAY {
+		// Array declaration: type TMyArray = array[1..10] of Integer;
+		cursor = cursor.Advance() // move to ARRAY
+		p.cursor = cursor
+		return p.parseArrayDeclaration(nameIdent, typeToken)
+	} else if nextToken.Type == lexer.LPAREN {
+		// Enum declaration: type TColor = (Red, Green, Blue);
+		// Do NOT advance - parseEnumDeclaration expects cursor to be on '='
+		return p.parseEnumDeclaration(nameIdent, typeToken, false, false)
+	} else if nextToken.Type == lexer.ENUM {
+		// Scoped enum: type TEnum = enum (One, Two);
+		cursor = cursor.Advance() // move to ENUM
+		p.cursor = cursor
+		return p.parseEnumDeclaration(nameIdent, typeToken, true, false)
+	} else if nextToken.Type == lexer.FLAGS {
+		// Flags enum: type TFlags = flags (a, b, c);
+		cursor = cursor.Advance() // move to FLAGS
+		p.cursor = cursor
+		return p.parseEnumDeclaration(nameIdent, typeToken, true, true)
+	} else if nextToken.Type == lexer.FUNCTION || nextToken.Type == lexer.PROCEDURE {
+		// Function pointer: type TFunc = function(x: Integer): Boolean;
+		// Procedure pointer: type TProc = procedure(msg: String);
+		// Method pointer: type TEvent = procedure(Sender: TObject) of object;
+		cursor = cursor.Advance() // move to FUNCTION or PROCEDURE
+		p.cursor = cursor
+		return p.parseFunctionPointerTypeDeclaration(nameIdent, typeToken)
+	} else if nextToken.Type == lexer.HELPER {
+		// Helper declaration (without "record" keyword):
+		// type THelper = helper for TypeName ... end;
+		cursor = cursor.Advance() // move to HELPER
+		p.cursor = cursor
+		return p.parseHelperDeclaration(nameIdent, typeToken, false)
 	}
 
-	wasUsingCursor := p.useCursor
-	p.useCursor = false
-
-	result := p.parseSingleTypeDeclaration(typeToken)
-
-	p.useCursor = wasUsingCursor
-	// After traditional parsing, sync the cursor to match the new curToken position
-	p.syncTokensToCursor()
-
-	return result
+	// Unknown type declaration
+	p.addError("expected 'class', 'interface', 'enum', 'record', 'set', 'array', 'function', 'procedure', 'helper', or '(' after '=' in type declaration", ErrUnexpectedToken)
+	return nil
 }
 
 // parseFunctionPointerTypeDeclaration parses a function or procedure pointer type declaration.
@@ -629,10 +697,7 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.InterfaceDecl {
-	if p.useCursor {
-		return p.parseInterfaceDeclarationBodyCursor(nameIdent)
-	}
-	return p.parseInterfaceDeclarationBodyTraditional(nameIdent)
+	return p.parseInterfaceDeclarationBodyCursor(nameIdent)
 }
 
 // parseInterfaceDeclarationBodyTraditional parses the body of an interface declaration (traditional mode).
@@ -848,10 +913,7 @@ func (p *Parser) parseInterfaceDeclarationBodyCursor(nameIdent *ast.Identifier) 
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {
-	if p.useCursor {
-		return p.parseInterfaceMethodDeclCursor()
-	}
-	return p.parseInterfaceMethodDeclTraditional()
+	return p.parseInterfaceMethodDeclCursor()
 }
 
 // parseInterfaceMethodDeclTraditional parses a method declaration within an interface (traditional mode).

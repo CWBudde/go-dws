@@ -25,10 +25,7 @@ import (
 // POST: curToken is DOT
 // Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseUnit() *ast.UnitDeclaration {
-	if p.useCursor {
-		return p.parseUnitCursor()
-	}
-	return p.parseUnitTraditional()
+	return p.parseUnitCursor()
 }
 
 // parseUnitTraditional parses a complete unit declaration using traditional mode.
@@ -122,10 +119,7 @@ func (p *Parser) parseUnitCursor() *ast.UnitDeclaration {
 // POST: curToken is SEMICOLON
 // Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseUsesClause() *ast.UsesClause {
-	if p.useCursor {
-		return p.parseUsesClauseCursor()
-	}
-	return p.parseUsesClauseTraditional()
+	return p.parseUsesClauseCursor()
 }
 
 // parseUsesClauseTraditional parses a uses statement using traditional mode.

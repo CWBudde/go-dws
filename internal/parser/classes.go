@@ -10,10 +10,7 @@ import (
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
-	if p.useCursor {
-		return p.parseClassDeclarationCursor()
-	}
-	return p.parseClassDeclarationTraditional()
+	return p.parseClassDeclarationCursor()
 }
 
 // parseClassDeclarationTraditional parses a class declaration with visibility sections (traditional mode).
@@ -113,13 +110,9 @@ func (p *Parser) parseClassDeclarationCursor() *ast.ClassDecl {
 // Can be called multiple times for syntax like: class abstract(TParent)
 // Only updates classDecl if not already set to avoid overwriting previous parse
 //
-// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
+// Task 2.7.9: Cursor mode is now the only mode - dispatcher removed.
 func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
-	if p.useCursor {
-		p.parseClassParentAndInterfacesCursor(classDecl)
-	} else {
-		p.parseClassParentAndInterfacesTraditional(classDecl)
-	}
+	p.parseClassParentAndInterfacesCursor(classDecl)
 }
 
 // parseClassParentAndInterfacesTraditional parses optional parent class and interfaces from (...) (traditional mode).
@@ -290,10 +283,7 @@ func isBuiltinClass(name string) bool {
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.ClassDecl {
-	if p.useCursor {
-		return p.parseClassDeclarationBodyCursor(nameIdent)
-	}
-	return p.parseClassDeclarationBodyTraditional(nameIdent)
+	return p.parseClassDeclarationBodyCursor(nameIdent)
 }
 
 // parseClassDeclarationBodyTraditional parses the body of a class declaration (traditional mode).
@@ -761,10 +751,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
-	if p.useCursor {
-		return p.parseFieldDeclarationsCursor(visibility)
-	}
-	return p.parseFieldDeclarationsTraditional(visibility)
+	return p.parseFieldDeclarationsCursor(visibility)
 }
 
 // parseFieldDeclarationsTraditional parses a field declaration within a class (traditional mode).
@@ -935,10 +922,7 @@ func (p *Parser) parseFieldDeclarationsCursor(visibility ast.Visibility) []*ast.
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
-	if p.useCursor {
-		return p.parseMemberAccessCursor(left)
-	}
-	return p.parseMemberAccessTraditional(left)
+	return p.parseMemberAccessCursor(left)
 }
 
 // parseMemberAccessTraditional parses member access and method call expressions (traditional mode).
@@ -1128,10 +1112,7 @@ func (p *Parser) parseMemberAccessCursor(left ast.Expression) ast.Expression {
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClassConst bool) *ast.ConstDecl {
-	if p.useCursor {
-		return p.parseClassConstantDeclarationCursor(visibility, isClassConst)
-	}
-	return p.parseClassConstantDeclarationTraditional(visibility, isClassConst)
+	return p.parseClassConstantDeclarationCursor(visibility, isClassConst)
 }
 
 // parseClassConstantDeclarationTraditional parses a constant declaration within a class (traditional mode).

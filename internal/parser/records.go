@@ -8,10 +8,7 @@ import (
 // parseRecordOrHelperDeclaration determines if this is a record or helper declaration (dispatcher).
 // Task 2.7.3: Dual-mode dispatcher for record/helper parsing.
 func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
-	if p.useCursor {
-		return p.parseRecordOrHelperDeclarationCursor(nameIdent, typeToken)
-	}
-	return p.parseRecordOrHelperDeclarationTraditional(nameIdent, typeToken)
+	return p.parseRecordOrHelperDeclarationCursor(nameIdent, typeToken)
 }
 
 // parseRecordOrHelperDeclarationTraditional determines if this is a record or helper declaration.
@@ -228,10 +225,7 @@ func (p *Parser) parseRecordOrHelperDeclarationCursor(nameIdent *ast.Identifier,
 // parseRecordDeclaration parses a record type declaration (dispatcher).
 // Task 2.7.3: Dual-mode dispatcher for record parsing.
 func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.RecordDecl {
-	if p.useCursor {
-		return p.parseRecordDeclarationCursor(nameIdent, typeToken)
-	}
-	return p.parseRecordDeclarationTraditional(nameIdent, typeToken)
+	return p.parseRecordDeclarationCursor(nameIdent, typeToken)
 }
 
 // parseRecordDeclarationTraditional parses a record type declaration.
@@ -570,10 +564,7 @@ func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibi
 // parseRecordFieldDeclarations parses one or more field declarations (dispatcher).
 // Task 2.7.3: Dual-mode dispatcher for record field parsing.
 func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
-	if p.useCursor {
-		return p.parseRecordFieldDeclarationsCursor(visibility)
-	}
-	return p.parseRecordFieldDeclarationsTraditional(visibility)
+	return p.parseRecordFieldDeclarationsCursor(visibility)
 }
 
 // parseRecordFieldDeclarationsTraditional parses one or more field declarations with the same type.
@@ -855,10 +846,7 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 // parseRecordPropertyDeclaration parses a record property declaration (dispatcher).
 // Task 2.7.3: Dual-mode dispatcher for record property parsing.
 func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
-	if p.useCursor {
-		return p.parseRecordPropertyDeclarationCursor()
-	}
-	return p.parseRecordPropertyDeclarationTraditional()
+	return p.parseRecordPropertyDeclarationCursor()
 }
 
 // parseRecordPropertyDeclarationTraditional parses a record property declaration.

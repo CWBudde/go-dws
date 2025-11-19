@@ -13,10 +13,7 @@ import (
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 // Eventually (Phase 2.7), only the cursor version will remain.
 func (p *Parser) parseTypeExpression() ast.TypeExpression {
-	if p.useCursor {
-		return p.parseTypeExpressionCursor()
-	}
-	return p.parseTypeExpressionTraditional()
+	return p.parseTypeExpressionCursor()
 }
 
 // parseTypeExpressionTraditional parses a type expression (traditional mode).
@@ -181,10 +178,7 @@ func (p *Parser) detectFunctionPointerFullSyntax() bool {
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
-	if p.useCursor {
-		return p.parseFunctionPointerTypeCursor()
-	}
-	return p.parseFunctionPointerTypeTraditional()
+	return p.parseFunctionPointerTypeCursor()
 }
 
 // parseFunctionPointerTypeTraditional parses an inline function or procedure pointer type (traditional mode).
@@ -462,10 +456,7 @@ type dimensionPair struct {
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
-	if p.useCursor {
-		return p.parseArrayTypeCursor()
-	}
-	return p.parseArrayTypeTraditional()
+	return p.parseArrayTypeCursor()
 }
 
 // parseArrayTypeTraditional parses an array type expression (traditional mode).
@@ -941,10 +932,7 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseClassOfType() *ast.ClassOfTypeNode {
-	if p.useCursor {
-		return p.parseClassOfTypeCursor()
-	}
-	return p.parseClassOfTypeTraditional()
+	return p.parseClassOfTypeCursor()
 }
 
 // parseClassOfTypeTraditional parses a metaclass type expression (traditional mode).

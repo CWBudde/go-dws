@@ -47,13 +47,10 @@ import (
 //
 // Multi-dimensional arrays are desugared into nested array types.
 // PRE: curToken is ARRAY (traditional) OR cursor is on ARRAY (cursor)
-// POST: curToken is SEMICOLON (traditional) OR cursor is on SEMICOLON (cursor)
-// Dispatcher: delegates to cursor or traditional mode
+// POST: cursor is on SEMICOLON
+// Task 2.7.9: Cursor mode is now the only mode - dispatcher removed.
 func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.ArrayDecl {
-	if p.useCursor {
-		return p.parseArrayDeclarationCursor(nameIdent, typeToken)
-	}
-	return p.parseArrayDeclarationTraditional(nameIdent, typeToken)
+	return p.parseArrayDeclarationCursor(nameIdent, typeToken)
 }
 
 // parseArrayDeclarationTraditional parses array declaration using traditional mode.
@@ -437,6 +434,20 @@ func (p *Parser) parseArrayLiteralCursor() ast.Expression {
 		// Unexpected token between elements
 		p.addError(fmt.Sprintf("expected ',' or ']', got %s", nextToken.Type), ErrUnexpectedToken)
 		return nil
+	}
+
+	// Determine if this should be treated as a set literal (all elements are identifiers or ranges)
+	if shouldParseAsSetLiteral(elements) {
+		setLit := &ast.SetLiteral{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token:  lbrackToken,
+					EndPos: p.cursor.Current().End(),
+				},
+			},
+			Elements: elements,
+		}
+		return setLit
 	}
 
 	return &ast.ArrayLiteralExpression{
