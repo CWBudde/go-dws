@@ -8,10 +8,7 @@ import (
 // parseRecordOrHelperDeclaration determines if this is a record or helper declaration (dispatcher).
 // Task 2.7.3: Dual-mode dispatcher for record/helper parsing.
 func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
-	if p.useCursor {
-		return p.parseRecordOrHelperDeclarationCursor(nameIdent, typeToken)
-	}
-	return p.parseRecordOrHelperDeclarationTraditional(nameIdent, typeToken)
+	return p.parseRecordOrHelperDeclarationCursor(nameIdent, typeToken)
 }
 
 // parseRecordOrHelperDeclarationTraditional determines if this is a record or helper declaration.
@@ -228,10 +225,7 @@ func (p *Parser) parseRecordOrHelperDeclarationCursor(nameIdent *ast.Identifier,
 // parseRecordDeclaration parses a record type declaration (dispatcher).
 // Task 2.7.3: Dual-mode dispatcher for record parsing.
 func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.RecordDecl {
-	if p.useCursor {
-		return p.parseRecordDeclarationCursor(nameIdent, typeToken)
-	}
-	return p.parseRecordDeclarationTraditional(nameIdent, typeToken)
+	return p.parseRecordDeclarationCursor(nameIdent, typeToken)
 }
 
 // parseRecordDeclarationTraditional parses a record type declaration.
@@ -570,10 +564,7 @@ func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibi
 // parseRecordFieldDeclarations parses one or more field declarations (dispatcher).
 // Task 2.7.3: Dual-mode dispatcher for record field parsing.
 func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
-	if p.useCursor {
-		return p.parseRecordFieldDeclarationsCursor(visibility)
-	}
-	return p.parseRecordFieldDeclarationsTraditional(visibility)
+	return p.parseRecordFieldDeclarationsCursor(visibility)
 }
 
 // parseRecordFieldDeclarationsTraditional parses one or more field declarations with the same type.
@@ -759,9 +750,18 @@ func (p *Parser) parseRecordFieldDeclarationsCursor(visibility ast.Visibility) [
 // POST: curToken is RPAREN
 func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 	builder := p.StartNode()
+
+	// Task 2.7.6: Dual-mode - get current token for '(' lparen
+	var lparenTok lexer.Token
+	if p.cursor != nil {
+		lparenTok = p.cursor.Current()
+	} else {
+		lparenTok = p.curToken
+	}
+
 	recordLit := &ast.RecordLiteralExpression{
-		BaseNode: ast.BaseNode{Token: p.curToken}, // '(' token
-		TypeName: nil,                             // Anonymous record (type inferred from context)
+		BaseNode: ast.BaseNode{Token: lparenTok}, // '(' token
+		TypeName: nil,                            // Anonymous record (type inferred from context)
 		Fields:   []*ast.FieldInitializer{},
 	}
 
@@ -779,8 +779,15 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 		// Check if this is named field initialization (Name: Value)
 		// We need to look ahead to see if there's a colon
 		if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON) {
+			// Task 2.7.6: Dual-mode - get current token for field name
+			var fieldNameToken lexer.Token
+			if p.cursor != nil {
+				fieldNameToken = p.cursor.Current()
+			} else {
+				fieldNameToken = p.curToken
+			}
+
 			// Named field initialization
-			fieldNameToken := p.curToken
 			fieldName := &ast.Identifier{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
@@ -839,10 +846,7 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 // parseRecordPropertyDeclaration parses a record property declaration (dispatcher).
 // Task 2.7.3: Dual-mode dispatcher for record property parsing.
 func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
-	if p.useCursor {
-		return p.parseRecordPropertyDeclarationCursor()
-	}
-	return p.parseRecordPropertyDeclarationTraditional()
+	return p.parseRecordPropertyDeclarationCursor()
 }
 
 // parseRecordPropertyDeclarationTraditional parses a record property declaration.

@@ -8,10 +8,7 @@ import (
 // parseHelperDeclaration parses a helper type declaration (dispatcher).
 // Task 2.7.3: Dual-mode dispatcher for helper parsing.
 func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token, isRecordHelper bool) *ast.HelperDecl {
-	if p.useCursor {
-		return p.parseHelperDeclarationCursor(nameIdent, typeToken, isRecordHelper)
-	}
-	return p.parseHelperDeclarationTraditional(nameIdent, typeToken, isRecordHelper)
+	return p.parseHelperDeclarationCursor(nameIdent, typeToken, isRecordHelper)
 }
 
 // parseHelperDeclarationTraditional parses a helper type declaration.
