@@ -2546,14 +2546,16 @@ func (p *Parser) parseIsExpressionCursor(left ast.Expression) ast.Expression {
 	p.cursor = p.cursor.Advance()
 
 	// Try to parse as type expression first (speculatively)
-	mark := p.cursor.Mark()
+	// Save full parser state including errors for clean backtracking
+	state := p.saveState()
 	expression.TargetType = p.parseTypeExpressionCursor()
 	if expression.TargetType != nil {
 		return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
 	}
 
-	// If type parsing failed, restore cursor and try as boolean expression
-	p.cursor = p.cursor.ResetTo(mark)
+	// If type parsing failed, restore full state (errors + cursor) and try as boolean expression
+	// Note: cursor is already positioned at the token after IS from the saved state
+	p.restoreState(state)
 
 	// Parse as value expression (boolean comparison)
 	// Use EQUALS precedence to prevent consuming following logical operators

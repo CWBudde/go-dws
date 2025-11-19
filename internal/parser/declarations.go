@@ -322,12 +322,8 @@ func (p *Parser) parseSingleConstDeclarationCursor() *ast.ConstDecl {
 		// Parse type expression (can be simple type, function pointer, or array type)
 		p.cursor = p.cursor.Advance() // move to type expression
 
-		// Temporarily sync to use parseTypeExpression (which uses traditional mode)
-		p.syncCursorToTokens()
-		p.useCursor = false
-		typeExpr := p.parseTypeExpression()
-		p.useCursor = true
-		p.syncTokensToCursor()
+		// Task 2.7.4: Use cursor mode directly
+		typeExpr := p.parseTypeExpressionCursor()
 
 		if typeExpr == nil {
 			// Use structured error

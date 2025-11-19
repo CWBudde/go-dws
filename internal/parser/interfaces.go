@@ -64,6 +64,7 @@ func (p *Parser) parseTypeDeclarationTraditional() ast.Statement {
 
 // parseTypeDeclarationCursor parses one or more type declarations using cursor mode.
 // Task 2.7.1.1: Type declaration migration
+// Task 2.7.4: Implemented cursor-based version
 // PRE: cursor is on TYPE token
 // POST: cursor is on SEMICOLON of last type declaration
 func (p *Parser) parseTypeDeclarationCursor() ast.Statement {
@@ -71,13 +72,7 @@ func (p *Parser) parseTypeDeclarationCursor() ast.Statement {
 	statements := []ast.Statement{}
 
 	// Parse first type declaration
-	// Temporarily sync to traditional mode for single type declaration
-	p.syncCursorToTokens()
-	p.useCursor = false
-	firstStmt := p.parseSingleTypeDeclaration(typeToken)
-	p.useCursor = true
-	p.syncTokensToCursor()
-
+	firstStmt := p.parseSingleTypeDeclarationCursor(typeToken)
 	if firstStmt == nil {
 		return nil
 	}
@@ -87,14 +82,7 @@ func (p *Parser) parseTypeDeclarationCursor() ast.Statement {
 	// As long as the next line looks like a type declaration
 	for p.looksLikeTypeDeclarationCursor() {
 		p.cursor = p.cursor.Advance() // move to identifier
-
-		// Temporarily sync to traditional mode for single type declaration
-		p.syncCursorToTokens()
-		p.useCursor = false
-		typeStmt := p.parseSingleTypeDeclaration(typeToken)
-		p.useCursor = true
-		p.syncTokensToCursor()
-
+		typeStmt := p.parseSingleTypeDeclarationCursor(typeToken)
 		if typeStmt == nil {
 			break
 		}
@@ -356,6 +344,120 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 	// Unknown type declaration
 	p.addError("expected 'class', 'interface', 'enum', 'record', 'set', 'array', 'function', 'procedure', 'helper', or '(' after '=' in type declaration", ErrUnexpectedToken)
 	return nil
+}
+
+// parseSingleTypeDeclarationCursor parses a single type declaration (cursor mode).
+// Task 2.7.4: Cursor-based version for clean migration
+// PRE: cursor is at TYPE or type name IDENT
+// POST: cursor is at SEMICOLON
+func (p *Parser) parseSingleTypeDeclarationCursor(typeToken lexer.Token) ast.Statement {
+	builder := p.StartNode()
+	cursor := p.cursor
+
+	// Check if we're already at the identifier (type section continuation)
+	// or if we need to advance to it (after 'type' keyword)
+	var nameIdent *ast.Identifier
+
+	if cursor.Current().Type == lexer.TYPE {
+		// After 'type' keyword, expect identifier next
+		if !p.isIdentifierToken(cursor.Peek(1).Type) {
+			p.addError("expected identifier after 'type'", ErrExpectedIdent)
+			return nil
+		}
+		cursor = cursor.Advance() // move to identifier
+		p.cursor = cursor
+		nameIdent = &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: cursor.Current(),
+				},
+			},
+			Value: cursor.Current().Literal,
+		}
+	} else if !p.isIdentifierToken(cursor.Current().Type) {
+		// Should already be at an identifier
+		p.addError("expected identifier in type declaration", ErrExpectedIdent)
+		return nil
+	} else {
+		nameIdent = &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: cursor.Current(),
+				},
+			},
+			Value: cursor.Current().Literal,
+		}
+	}
+
+	// Expect '=' after type name
+	if cursor.Peek(1).Type != lexer.EQ {
+		p.addError("expected '=' after type name", ErrUnexpectedToken)
+		return nil
+	}
+	cursor = cursor.Advance() // move to '='
+	cursor = cursor.Advance() // move past '=' to type
+	p.cursor = cursor
+
+	// Check what kind of type declaration this is
+	nextToken := cursor.Current()
+
+	// Type alias: type TUserID = Integer;
+	if nextToken.Type == lexer.IDENT {
+		aliasedType := &ast.TypeAnnotation{
+			Token: nextToken,
+			Name:  nextToken.Literal,
+		}
+
+		// Expect semicolon
+		if cursor.Peek(1).Type != lexer.SEMICOLON {
+			p.addError("expected ';' after type declaration", ErrMissingSemicolon)
+			return nil
+		}
+		cursor = cursor.Advance() // move to SEMICOLON
+		p.cursor = cursor
+
+		typeDecl := &ast.TypeDeclaration{
+			BaseNode: ast.BaseNode{
+				Token: typeToken,
+			},
+			Name:        nameIdent,
+			IsAlias:     true,
+			AliasedType: aliasedType,
+		}
+		return builder.Finish(typeDecl).(*ast.TypeDeclaration)
+	}
+
+	// For other type declarations (class, interface, enum, etc.), delegate to traditional mode
+	// These will be migrated to cursor mode in future tasks
+	// TODO: Complete cursor mode migration and remove this fallback
+
+	// IMPORTANT: Restore parser state to the identifier position before delegating.
+	// The traditional parser expects curToken to be on the identifier, not the type keyword.
+	// We saved the identifier in nameIdent.Token, so restore to that position.
+	p.curToken = nameIdent.Token
+	// The traditional parser will call nextToken() to get to '=', so set peekToken accordingly
+	// We need to manually find the '=' token - it should be 1 position after the identifier
+	// Since cursor has already moved past '=', we can search the cursor's token buffer
+	for i, tok := range p.cursor.tokens {
+		if tok.Type == nameIdent.Token.Type &&
+		   tok.Pos.Offset == nameIdent.Token.Pos.Offset &&
+		   i+1 < len(p.cursor.tokens) {
+			// Found the identifier, set peekToken to next token (should be '=')
+			p.peekToken = p.cursor.tokens[i+1]
+			break
+		}
+	}
+
+	wasUsingCursor := p.useCursor
+	p.useCursor = false
+
+	result := p.parseSingleTypeDeclaration(typeToken)
+
+	p.useCursor = wasUsingCursor
+	// After traditional parsing, sync the cursor to match the new curToken position
+	p.syncTokensToCursor()
+
+	return result
 }
 
 // parseFunctionPointerTypeDeclaration parses a function or procedure pointer type declaration.
