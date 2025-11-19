@@ -491,22 +491,24 @@ func (l *Lexer) handleEquals(pos Position) Token {
 
 // handleLess handles the '<' operator and its variants (<>, <=, <<).
 func (l *Lexer) handleLess(pos Position) Token {
-	//nolint:gocritic:ifelsechain
-	if l.matchAndConsume('>') {
-		tok := NewToken(NOT_EQ, "<>", pos)
+	var tok Token
+	switch l.peekChar() {
+	case '>':
 		l.readChar()
-		return tok
-	} else if l.matchAndConsume('=') {
-		tok := NewToken(LESS_EQ, "<=", pos)
+		tok = NewToken(NOT_EQ, "<>", pos)
 		l.readChar()
-		return tok
-	} else if l.matchAndConsume('<') {
-		tok := NewToken(LESS_LESS, "<<", pos)
+	case '=':
 		l.readChar()
-		return tok
+		tok = NewToken(LESS_EQ, "<=", pos)
+		l.readChar()
+	case '<':
+		l.readChar()
+		tok = NewToken(LESS_LESS, "<<", pos)
+		l.readChar()
+	default:
+		tok = NewToken(LESS, "<", pos)
+		l.readChar()
 	}
-	tok := NewToken(LESS, "<", pos)
-	l.readChar()
 	return tok
 }
 
@@ -982,186 +984,208 @@ func (l *Lexer) NextToken() Token {
 	return l.nextTokenInternal()
 }
 
+// handleSimpleToken creates a simple token and advances the lexer.
+func (l *Lexer) handleSimpleToken(tokenType TokenType, literal string, pos Position) Token {
+	tok := NewToken(tokenType, literal, pos)
+	l.readChar()
+	return tok
+}
+
+// handleString handles string or character literals with automatic concatenation.
+func (l *Lexer) handleString(pos Position) Token {
+	// DWScript concatenates adjacent string/char literals: 'hello'#13#10 → "hello\r\n"
+	literal := l.readStringOrCharSequence()
+	return NewToken(STRING, literal, pos)
+}
+
+// handleDefault handles characters not matched by specific cases.
+// It checks the dispatch table, then handles identifiers, numbers, or illegal characters.
+func (l *Lexer) handleDefault(pos Position) Token {
+	// Check dispatch table for operator handlers
+	if handler, ok := tokenHandlers[l.ch]; ok {
+		return handler(l, pos)
+	}
+
+	switch {
+	case isLetter(l.ch):
+		// Identifier or keyword
+		literal := l.readIdentifier()
+		tokenType := LookupIdent(literal)
+		return NewToken(tokenType, literal, pos)
+	case isDigit(l.ch):
+		// Number literal
+		tokenType, literal := l.readNumber()
+		return NewToken(tokenType, literal, pos)
+	default:
+		// Illegal character - add error and emit ILLEGAL token
+		// Note: Don't report RuneError here, as invalid UTF-8 was already reported by readChar()
+		if l.ch != utf8.RuneError {
+			l.addError("illegal character: "+string(l.ch), pos)
+		}
+		tok := NewToken(ILLEGAL, string(l.ch), pos)
+		l.readChar()
+		return tok
+	}
+}
+
+// handleDot handles the '.' character which could be a single dot or range (..).
+func (l *Lexer) handleDot(pos Position) Token {
+	if l.peekChar() == '.' {
+		l.readChar()
+		tok := NewToken(DOTDOT, "..", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(DOT, ".", pos)
+	l.readChar()
+	return tok
+}
+
+// handleColon handles the ':' character which could be a colon or assignment (:=).
+func (l *Lexer) handleColon(pos Position) Token {
+	if l.peekChar() == '=' {
+		l.readChar()
+		tok := NewToken(ASSIGN, ":=", pos)
+		l.readChar()
+		return tok
+	}
+	tok := NewToken(COLON, ":", pos)
+	l.readChar()
+	return tok
+}
+
+// handleDollar handles the '$' character which could be a hex literal or address-of operator.
+func (l *Lexer) handleDollar(pos Position) Token {
+	// Check if followed by hex digit for hex literal
+	if isHexDigit(l.peekChar()) {
+		tokenType, literal := l.readNumber()
+		return NewToken(tokenType, literal, pos)
+	}
+	tok := NewToken(DOLLAR, "$", pos)
+	l.readChar()
+	return tok
+}
+
+// handleHash handles the '#' character for character literals or string concatenation.
+func (l *Lexer) handleHash(pos Position) Token {
+	// Character literal - check if standalone or part of concatenation
+	if l.isCharLiteralStandalone() {
+		// Standalone character literal: emit CHAR token
+		literal := l.readCharLiteral()
+		return NewToken(CHAR, literal, pos)
+	}
+	// Part of string concatenation: 'hello'#13#10 → "hello\r\n"
+	literal := l.readStringOrCharSequence()
+	return NewToken(STRING, literal, pos)
+}
+
+// handleSlashToken handles the '/' character which could be division, comment, or compound assignment.
+func (l *Lexer) handleSlashToken(pos Position) Token {
+	switch l.peekChar() {
+	case '/':
+		if l.preserveComments {
+			text := l.readLineComment()
+			return NewToken(COMMENT, text, pos)
+		}
+		l.skipLineComment()
+		return l.nextTokenInternal() // Skip comment and get next token
+	case '*':
+		// C-style multi-line comment /* */
+		if l.preserveComments {
+			text, ok := l.readCStyleComment()
+			if !ok {
+				return NewToken(ILLEGAL, "unterminated C-style comment", pos)
+			}
+			return NewToken(COMMENT, text, pos)
+		}
+		l.skipCStyleComment()
+		return l.nextTokenInternal()
+	default:
+		return l.handleSlash(pos)
+	}
+}
+
+// handleCurlyBrace handles '{' which could be a block comment or would be handled by the dispatch table.
+func (l *Lexer) handleCurlyBrace(pos Position) Token {
+	// Block comment or compiler directive - both skip to }
+	if l.preserveComments {
+		text, ok := l.readBlockComment('{')
+		if !ok {
+			return NewToken(ILLEGAL, "unterminated block comment", pos)
+		}
+		return NewToken(COMMENT, text, pos)
+	}
+	l.skipBlockComment('{')
+	return l.nextTokenInternal()
+}
+
+// handleLeftParen handles '(' which could be a block comment (* *) or just a left parenthesis.
+func (l *Lexer) handleLeftParen(pos Position) Token {
+	if l.peekChar() == '*' {
+		// Block comment (* *)
+		if l.preserveComments {
+			text, ok := l.readBlockComment('(')
+			if !ok {
+				return NewToken(ILLEGAL, "unterminated block comment", pos)
+			}
+			return NewToken(COMMENT, text, pos)
+		}
+		l.skipBlockComment('(')
+		return l.nextTokenInternal()
+	}
+	tok := NewToken(LPAREN, "(", pos)
+	l.readChar()
+	return tok
+}
+
 // nextTokenInternal generates the next token from the input.
 // This is the internal tokenization logic, called by both NextToken() and Peek().
 func (l *Lexer) nextTokenInternal() Token {
 	l.skipWhitespace()
-
-	var tok Token
 	pos := l.currentPos()
 
 	switch l.ch {
 	case 0:
-		tok = NewToken(EOF, "", pos)
-
-	// Comments
+		return NewToken(EOF, "", pos)
 	case '/':
-		if l.peekChar() == '/' {
-			if l.preserveComments {
-				text := l.readLineComment()
-				tok = NewToken(COMMENT, text, pos)
-			} else {
-				l.skipLineComment()
-				return l.nextTokenInternal() // Skip comment and get next token
-			}
-		} else if l.peekChar() == '*' {
-			// C-style multi-line comment /* */
-			if l.preserveComments {
-				text, ok := l.readCStyleComment()
-				if !ok {
-					tok = NewToken(ILLEGAL, "unterminated C-style comment", pos)
-					return tok
-				}
-				tok = NewToken(COMMENT, text, pos)
-			} else {
-				l.skipCStyleComment()
-				return l.nextTokenInternal()
-			}
-		} else {
-			return l.handleSlash(pos)
-		}
-
+		return l.handleSlashToken(pos)
 	case '{':
-		// Block comment or compiler directive - both skip to }
-		if l.preserveComments {
-			text, ok := l.readBlockComment('{')
-			if !ok {
-				tok = NewToken(ILLEGAL, "unterminated block comment", pos)
-				return tok
-			}
-			tok = NewToken(COMMENT, text, pos)
-		} else {
-			l.skipBlockComment('{')
-			return l.nextTokenInternal()
-		}
+		return l.handleCurlyBrace(pos)
 
 	case '(':
-		if l.peekChar() == '*' {
-			// Block comment (* *)
-			if l.preserveComments {
-				text, ok := l.readBlockComment('(')
-				if !ok {
-					tok = NewToken(ILLEGAL, "unterminated block comment", pos)
-					return tok
-				}
-				tok = NewToken(COMMENT, text, pos)
-			} else {
-				l.skipBlockComment('(')
-				return l.nextTokenInternal()
-			}
-		} else {
-			tok = NewToken(LPAREN, "(", pos)
-			l.readChar()
-		}
-
+		return l.handleLeftParen(pos)
 	case ')':
-		tok = NewToken(RPAREN, ")", pos)
-		l.readChar()
-
+		return l.handleSimpleToken(RPAREN, ")", pos)
 	case '[':
-		tok = NewToken(LBRACK, "[", pos)
-		l.readChar()
-
+		return l.handleSimpleToken(LBRACK, "[", pos)
 	case ']':
-		tok = NewToken(RBRACK, "]", pos)
-		l.readChar()
-
+		return l.handleSimpleToken(RBRACK, "]", pos)
 	case '}':
-		tok = NewToken(RBRACE, "}", pos)
-		l.readChar()
-
+		return l.handleSimpleToken(RBRACE, "}", pos)
 	case ';':
-		tok = NewToken(SEMICOLON, ";", pos)
-		l.readChar()
-
+		return l.handleSimpleToken(SEMICOLON, ";", pos)
 	case ',':
-		tok = NewToken(COMMA, ",", pos)
-		l.readChar()
-
+		return l.handleSimpleToken(COMMA, ",", pos)
 	case '.':
-		if l.peekChar() == '.' {
-			l.readChar()
-			tok = NewToken(DOTDOT, "..", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(DOT, ".", pos)
-			l.readChar()
-		}
-
+		return l.handleDot(pos)
 	case ':':
-		if l.peekChar() == '=' {
-			l.readChar()
-			tok = NewToken(ASSIGN, ":=", pos)
-			l.readChar()
-		} else {
-			tok = NewToken(COLON, ":", pos)
-			l.readChar()
-		}
-
+		return l.handleColon(pos)
 	case '%':
 		return l.handlePercent(pos)
-
 	case '\\':
-		tok = NewToken(BACKSLASH, "\\", pos)
-		l.readChar()
-
+		return l.handleSimpleToken(BACKSLASH, "\\", pos)
 	case '$':
-		// Check if followed by hex digit for hex literal
-		if isHexDigit(l.peekChar()) {
-			tokenType, literal := l.readNumber()
-			tok = NewToken(tokenType, literal, pos)
-		} else {
-			tok = NewToken(DOLLAR, "$", pos)
-			l.readChar()
-		}
+		return l.handleDollar(pos)
 
 	case '#':
-		// Character literal - check if standalone or part of concatenation
-		if l.isCharLiteralStandalone() {
-			// Standalone character literal: emit CHAR token
-			literal := l.readCharLiteral()
-			tok = NewToken(CHAR, literal, pos)
-		} else {
-			// Part of string concatenation: 'hello'#13#10 → "hello\r\n"
-			literal := l.readStringOrCharSequence()
-			tok = NewToken(STRING, literal, pos)
-		}
+		return l.handleHash(pos)
 
 	case '\'', '"':
-		// String or character literal (with automatic concatenation)
-		// DWScript concatenates adjacent string/char literals: 'hello'#13#10 → "hello\r\n"
-		literal := l.readStringOrCharSequence()
-		tok = NewToken(STRING, literal, pos)
+		return l.handleString(pos)
 
 	default:
-		// Check dispatch table for operator handlers
-		if handler, ok := tokenHandlers[l.ch]; ok {
-			return handler(l, pos)
-		}
-
-		if isLetter(l.ch) {
-			// Identifier or keyword
-			literal := l.readIdentifier()
-			tokenType := LookupIdent(literal)
-			tok = NewToken(tokenType, literal, pos)
-			return tok
-		} else if isDigit(l.ch) {
-			// Number literal
-			tokenType, literal := l.readNumber()
-			tok = NewToken(tokenType, literal, pos)
-			return tok
-		} else {
-			// Illegal character - add error and emit ILLEGAL token
-			// Note: Don't report RuneError here, as invalid UTF-8 was already reported by readChar()
-			if l.ch != utf8.RuneError {
-				l.addError("illegal character: "+string(l.ch), pos)
-			}
-			tok = NewToken(ILLEGAL, string(l.ch), pos)
-			l.readChar()
-		}
+		return l.handleDefault(pos)
 	}
-
-	return tok
 }
 
 // Helper functions
