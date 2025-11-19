@@ -387,6 +387,7 @@ func (p *Parser) parseSingleTypeDeclarationCursor(typeToken lexer.Token) ast.Sta
 
 	// Handle other type declarations using cursor mode
 	if nextToken.Type == lexer.INTERFACE {
+		p.syncCursorToTokens()
 		return p.parseInterfaceDeclarationBody(nameIdent)
 	} else if nextToken.Type == lexer.PARTIAL {
 		// Partial class: type TMyClass = partial class ... end;
@@ -396,6 +397,7 @@ func (p *Parser) parseSingleTypeDeclarationCursor(typeToken lexer.Token) ast.Sta
 		}
 		cursor = cursor.Advance() // move to CLASS
 		p.cursor = cursor
+		p.syncCursorToTokens()
 		classDecl := p.parseClassDeclarationBody(nameIdent)
 		if classDecl != nil {
 			classDecl.IsPartial = true
@@ -406,6 +408,7 @@ func (p *Parser) parseSingleTypeDeclarationCursor(typeToken lexer.Token) ast.Sta
 		// or a class declaration: type TMyClass = class ... end;
 		if cursor.Peek(1).Type == lexer.OF {
 			// Metaclass type alias: type TBaseClass = class of TBase;
+			p.syncCursorToTokens()
 			classOfType := p.parseClassOfType()
 			if classOfType == nil {
 				return nil
@@ -432,6 +435,7 @@ func (p *Parser) parseSingleTypeDeclarationCursor(typeToken lexer.Token) ast.Sta
 		if cursor.Peek(1).Type == lexer.PARTIAL {
 			cursor = cursor.Advance() // move to PARTIAL
 			p.cursor = cursor
+			p.syncCursorToTokens()
 			classDecl := p.parseClassDeclarationBody(nameIdent)
 			if classDecl != nil {
 				classDecl.IsPartial = true
@@ -439,35 +443,44 @@ func (p *Parser) parseSingleTypeDeclarationCursor(typeToken lexer.Token) ast.Sta
 			return classDecl
 		}
 		// Regular class declaration: type TMyClass = class ... end;
+		p.syncCursorToTokens()
 		return p.parseClassDeclarationBody(nameIdent)
 	} else if nextToken.Type == lexer.RECORD {
 		// Could be either:
 		//   - Record declaration: type TPoint = record X, Y: Integer; end;
 		//   - Record helper: type THelper = record helper for TypeName ... end;
+		p.syncCursorToTokens()
 		return p.parseRecordOrHelperDeclaration(nameIdent, typeToken)
 	} else if nextToken.Type == lexer.SET {
 		// Set declaration: type TDays = set of TWeekday;
+		p.syncCursorToTokens()
 		return p.parseSetDeclaration(nameIdent, typeToken)
 	} else if nextToken.Type == lexer.ARRAY {
 		// Array declaration: type TMyArray = array[1..10] of Integer;
+		p.syncCursorToTokens()
 		return p.parseArrayDeclaration(nameIdent, typeToken)
 	} else if nextToken.Type == lexer.LPAREN {
 		// Enum declaration: type TColor = (Red, Green, Blue);
+		p.syncCursorToTokens()
 		return p.parseEnumDeclaration(nameIdent, typeToken, false, false)
 	} else if nextToken.Type == lexer.ENUM {
 		// Scoped enum: type TEnum = enum (One, Two);
+		p.syncCursorToTokens()
 		return p.parseEnumDeclaration(nameIdent, typeToken, true, false)
 	} else if nextToken.Type == lexer.FLAGS {
 		// Flags enum: type TFlags = flags (a, b, c);
+		p.syncCursorToTokens()
 		return p.parseEnumDeclaration(nameIdent, typeToken, true, true)
 	} else if nextToken.Type == lexer.FUNCTION || nextToken.Type == lexer.PROCEDURE {
 		// Function pointer: type TFunc = function(x: Integer): Boolean;
 		// Procedure pointer: type TProc = procedure(msg: String);
 		// Method pointer: type TEvent = procedure(Sender: TObject) of object;
+		p.syncCursorToTokens()
 		return p.parseFunctionPointerTypeDeclaration(nameIdent, typeToken)
 	} else if nextToken.Type == lexer.HELPER {
 		// Helper declaration (without "record" keyword):
 		// type THelper = helper for TypeName ... end;
+		p.syncCursorToTokens()
 		return p.parseHelperDeclaration(nameIdent, typeToken, false)
 	}
 
