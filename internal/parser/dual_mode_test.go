@@ -395,6 +395,112 @@ func TestDualMode_ModeFlag(t *testing.T) {
 	}
 }
 
+// TestDualMode_TypeDeclarations tests that both modes parse type declarations identically
+// This test covers Bug #1 (contextual keywords as type names) and Bug #2 (non-alias type declarations)
+func TestDualMode_TypeDeclarations(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{
+			name:   "type alias",
+			source: "type TUserID = Integer;",
+		},
+		{
+			name:   "class declaration",
+			source: "type TMyClass = class end;",
+		},
+		{
+			name:   "class with fields",
+			source: "type TPoint = class X, Y: Integer; end;",
+		},
+		{
+			name:   "record declaration",
+			source: "type TPoint = record X, Y: Integer; end;",
+		},
+		{
+			name:   "interface declaration",
+			source: "type ITest = interface end;",
+		},
+		{
+			name:   "set declaration",
+			source: "type TDays = set of Integer;",
+		},
+		{
+			name:   "array declaration",
+			source: "type TArr = array[1..5] of Integer;",
+		},
+		{
+			name:   "dynamic array",
+			source: "type TDynArray = array of String;",
+		},
+		{
+			name:   "contextual keyword as type name (STEP)",
+			source: "type Step = Integer;",
+		},
+		{
+			name:   "contextual keyword as type name (SELF)",
+			source: "type Self = String;",
+		},
+		{
+			name:   "multiple type declarations",
+			source: "type TInt = Integer; type TStr = String;",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Parse with traditional parser
+			traditionalParser := New(lexer.New(tt.source))
+			traditionalProgram := traditionalParser.ParseProgram()
+
+			// Parse with cursor parser
+			cursorParser := NewCursorParser(lexer.New(tt.source))
+			cursorProgram := cursorParser.ParseProgram()
+
+			// Check for errors
+			traditionalErrors := traditionalParser.Errors()
+			cursorErrors := cursorParser.Errors()
+
+			// Both should succeed (no errors)
+			if len(traditionalErrors) > 0 {
+				t.Errorf("Traditional parser has errors:")
+				for _, err := range traditionalErrors {
+					t.Logf("  %v", err)
+				}
+			}
+			if len(cursorErrors) > 0 {
+				t.Errorf("Cursor parser has errors:")
+				for _, err := range cursorErrors {
+					t.Logf("  %v", err)
+				}
+			}
+
+			// Both should produce non-nil programs
+			if traditionalProgram == nil {
+				t.Error("Traditional parser returned nil program")
+			}
+			if cursorProgram == nil {
+				t.Error("Cursor parser returned nil program")
+			}
+
+			// Both should have same number of statements
+			if traditionalProgram != nil && cursorProgram != nil {
+				if len(traditionalProgram.Statements) != len(cursorProgram.Statements) {
+					t.Errorf("Statement count mismatch: traditional=%d, cursor=%d",
+						len(traditionalProgram.Statements), len(cursorProgram.Statements))
+				}
+
+				// Both should have same structure
+				if !astEqual(traditionalProgram, cursorProgram) {
+					t.Errorf("AST mismatch:\nTraditional: %#v\nCursor: %#v",
+						traditionalProgram, cursorProgram)
+				}
+			}
+		})
+	}
+}
+
 // astEqual performs a deep comparison of two AST nodes.
 // This is a simplified version - in practice you might use reflect.DeepEqual
 // or a custom comparison that handles position info appropriately.

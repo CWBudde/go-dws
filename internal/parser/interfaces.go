@@ -360,7 +360,7 @@ func (p *Parser) parseSingleTypeDeclarationCursor(typeToken lexer.Token) ast.Sta
 
 	if cursor.Current().Type == lexer.TYPE {
 		// After 'type' keyword, expect identifier next
-		if cursor.Peek(1).Type != lexer.IDENT {
+		if !p.isIdentifierToken(cursor.Peek(1).Type) {
 			p.addError("expected identifier after 'type'", ErrExpectedIdent)
 			return nil
 		}
@@ -429,14 +429,33 @@ func (p *Parser) parseSingleTypeDeclarationCursor(typeToken lexer.Token) ast.Sta
 
 	// For other type declarations (class, interface, enum, etc.), delegate to traditional mode
 	// These will be migrated to cursor mode in future tasks
-	p.syncCursorToTokens()
+	// TODO: Complete cursor mode migration and remove this fallback
+
+	// IMPORTANT: Restore parser state to the identifier position before delegating.
+	// The traditional parser expects curToken to be on the identifier, not the type keyword.
+	// We saved the identifier in nameIdent.Token, so restore to that position.
+	p.curToken = nameIdent.Token
+	// The traditional parser will call nextToken() to get to '=', so set peekToken accordingly
+	// We need to manually find the '=' token - it should be 1 position after the identifier
+	// Since cursor has already moved past '=', we can search the cursor's token buffer
+	for i, tok := range p.cursor.tokens {
+		if tok.Type == nameIdent.Token.Type &&
+		   tok.Pos.Offset == nameIdent.Token.Pos.Offset &&
+		   i+1 < len(p.cursor.tokens) {
+			// Found the identifier, set peekToken to next token (should be '=')
+			p.peekToken = p.cursor.tokens[i+1]
+			break
+		}
+	}
+
 	wasUsingCursor := p.useCursor
 	p.useCursor = false
 
 	result := p.parseSingleTypeDeclaration(typeToken)
 
 	p.useCursor = wasUsingCursor
-	p.syncCursorToTokens()
+	// After traditional parsing, sync the cursor to match the new curToken position
+	p.syncTokensToCursor()
 
 	return result
 }
