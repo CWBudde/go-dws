@@ -459,12 +459,11 @@ type ParserState struct {
 	cursor               *TokenCursor  // Cursor position (Task 2.2.2, for dual-mode operation)
 }
 
-// New creates a new Parser instance in traditional mode.
-// The parser uses mutable token state (curToken/peekToken) for backward compatibility.
-// For cursor-based parsing, use NewCursorParser() instead.
+// New creates a new Parser instance.
+// The parser uses an immutable TokenCursor for token navigation.
 //
 // This is a convenience wrapper around the ParserBuilder for the common case
-// of creating a parser with default settings in traditional mode.
+// of creating a parser with default settings.
 //
 // For more control over parser configuration, use the builder pattern:
 //
@@ -473,7 +472,7 @@ type ParserState struct {
 //	    Build()
 func New(l *lexer.Lexer) *Parser {
 	return NewParserBuilder(l).
-		WithCursorMode(false).
+		WithCursorMode(true).
 		Build()
 }
 
