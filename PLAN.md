@@ -345,6 +345,132 @@ Complete migration of all parsing code to cursor/combinators and remove legacy c
 
 ---
 
+#### Task 2.7.4 - Detailed Expansion: Legacy Code Removal (Tasks 2.7.5-2.7.9 Breakdown)
+
+The following provides a granular breakdown of tasks 2.7.5-2.7.9, organized as sequential steps for removing all legacy Traditional parsing code and dual-mode infrastructure.
+
+##### 2.7.4.1: Verify Complete Migration (2 hours)
+
+- [ ] **2.7.4.1.1** Run automated grep to find remaining Traditional functions
+  - Search for all `parse*Traditional()` functions
+  - Identify any remaining delegation points
+- [ ] **2.7.4.1.2** Search for direct curToken/peekToken access in parse functions
+  - Find any remaining mutable state usage
+  - Verify no direct access outside of legacy code
+- [ ] **2.7.4.1.3** Verify all Cursor versions exist for all parse functions
+  - Ensure complete coverage of Cursor implementations
+  - Validate all dispatchers route to Cursor versions
+- [ ] **2.7.4.1.4** Run all tests in cursor mode to verify they pass
+  - Execute full test suite with Cursor-only mode
+  - Document any failures for investigation
+- [ ] **2.7.4.1.5** Run performance benchmarks for baseline comparison
+  - Establish performance baseline before removal
+  - Target: <5% regression from Traditional mode
+
+##### 2.7.4.2: Remove Traditional Functions (4 hours)
+
+- [ ] **2.7.4.2.1** Create git commit before removing Traditional functions
+  - Safety checkpoint for easy rollback if needed
+  - Tag commit for reference
+- [ ] **2.7.4.2.2** Remove all parse*Traditional() functions from parser files
+  - Remove ~500 lines of Traditional function code
+  - Process one file at a time for safety
+- [ ] **2.7.4.2.3** Rename all parse*Cursor() functions to parse*()
+  - Remove "Cursor" suffix from all function names
+  - Update function documentation
+- [ ] **2.7.4.2.4** Update all internal function calls to use new names
+  - Update callers to use renamed functions
+  - Remove any Cursor suffix from call sites
+- [ ] **2.7.4.2.5** Run tests after Traditional function removal
+  - Validate all tests still pass
+  - Fix any breakage immediately
+
+##### 2.7.4.3: Remove Mutable State Fields (3 hours)
+
+- [ ] **2.7.4.3.1** Remove curToken and peekToken field declarations from Parser struct
+  - Delete mutable token fields
+  - Keep only cursor field
+- [ ] **2.7.4.3.2** Remove curToken/peekToken initialization in New() constructor
+  - Clean up Parser initialization code
+  - Remove from builder pattern as well
+- [ ] **2.7.4.3.3** Remove useCursor flag and all dual-mode logic
+  - Delete useCursor field from Parser struct
+  - Remove all conditional branches on useCursor (~123 checks)
+- [ ] **2.7.4.3.4** Update Parser struct documentation comments
+  - Document cursor-only architecture
+  - Update examples in comments
+- [ ] **2.7.4.3.5** Run tests after removing mutable state fields
+  - Ensure no breakage from field removal
+  - Verify compilation succeeds
+
+##### 2.7.4.4: Remove nextToken() Method (2 hours)
+
+- [ ] **2.7.4.4.1** Search for all p.nextToken() calls in parser code
+  - Find all remaining nextToken() invocations
+  - Document locations for replacement
+- [ ] **2.7.4.4.2** Replace p.nextToken() calls with p.cursor = p.cursor.Advance()
+  - Update to immutable cursor advancement
+  - Ensure cursor state is properly updated
+- [ ] **2.7.4.4.3** Remove nextToken() method definition from parser
+  - Delete the nextToken() function entirely
+  - Remove related helper methods
+- [ ] **2.7.4.4.4** Verify no nextToken() calls remain in codebase
+  - Final grep check for any missed calls
+  - Confirm clean removal
+
+##### 2.7.4.5: Remove Old Error Methods (1 hour)
+
+- [ ] **2.7.4.5.1** Review old error methods that assume curToken/peekToken
+  - Identify error handling code using mutable state
+  - Check for duplicate error handling
+- [ ] **2.7.4.5.2** Consolidate error handling through error_recovery.go
+  - Use ErrorRecovery from Phase 2.5
+  - Remove redundant error methods
+
+##### 2.7.4.6: Clean Up Imports and Dead Code (2 hours)
+
+- [ ] **2.7.4.6.1** Remove unused imports from parser files
+  - Clean up import statements
+  - Run goimports
+- [ ] **2.7.4.6.2** Remove commented-out code from parser files
+  - Delete old commented Traditional code
+  - Remove obsolete TODO comments
+- [ ] **2.7.4.6.3** Remove obsolete helper functions
+  - Identify and remove unused utility functions
+  - Clean up dead code paths
+- [ ] **2.7.4.6.4** Run goimports and golangci-lint to clean up code
+  - Format all parser files
+  - Fix any linting issues
+
+##### 2.7.4.7: Final Test Pass (2 hours)
+
+- [ ] **2.7.4.7.1** Run all unit tests for parser package
+  - Execute: `go test ./internal/parser/... -v`
+  - Target: 100% pass rate
+- [ ] **2.7.4.7.2** Run integration tests
+  - Execute: `go test ./... -run Integration`
+  - Verify end-to-end functionality
+- [ ] **2.7.4.7.3** Run DWScript fixture tests
+  - Execute: `go test ./internal/interp -run TestDWScriptFixtures`
+  - Validate against ~2,100 test cases
+- [ ] **2.7.4.7.4** Run performance benchmarks and verify within 5% of baseline
+  - Execute: `go test ./internal/parser -bench=. -benchmem`
+  - Compare against baseline from 2.7.4.1.5
+
+##### 2.7.4.8: Final Commit and Push (0.5 hours)
+
+- [ ] **2.7.4.8** Create final commit and push to feature branch
+  - Commit all changes with descriptive message
+  - Push to `claude/expand-task-2-7-4-01SzZBsedS4hZGv43mnnzoVR`
+
+**Total Estimated Time**: ~16.5 hours
+
+**Files Affected**: All parser files (~700 lines removed total)
+
+**Deliverable**: Clean, modern parser with zero legacy code, 100% cursor-based architecture
+
+---
+
 #### Task 2.7.5: Switch to Cursor-Only Mode (Week 14, Day 5, ~4 hours)
 
 **Goal**: Make Cursor mode the default and only mode.
