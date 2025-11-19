@@ -491,22 +491,24 @@ func (l *Lexer) handleEquals(pos Position) Token {
 
 // handleLess handles the '<' operator and its variants (<>, <=, <<).
 func (l *Lexer) handleLess(pos Position) Token {
-	//nolint:gocritic:ifelsechain
-	if l.matchAndConsume('>') {
-		tok := NewToken(NOT_EQ, "<>", pos)
+	var tok Token
+	switch l.peekChar() {
+	case '>':
 		l.readChar()
-		return tok
-	} else if l.matchAndConsume('=') {
-		tok := NewToken(LESS_EQ, "<=", pos)
+		tok = NewToken(NOT_EQ, "<>", pos)
 		l.readChar()
-		return tok
-	} else if l.matchAndConsume('<') {
-		tok := NewToken(LESS_LESS, "<<", pos)
+	case '=':
 		l.readChar()
-		return tok
+		tok = NewToken(LESS_EQ, "<=", pos)
+		l.readChar()
+	case '<':
+		l.readChar()
+		tok = NewToken(LESS_LESS, "<<", pos)
+		l.readChar()
+	default:
+		tok = NewToken(LESS, "<", pos)
+		l.readChar()
 	}
-	tok := NewToken(LESS, "<", pos)
-	l.readChar()
 	return tok
 }
 
@@ -996,7 +998,8 @@ func (l *Lexer) nextTokenInternal() Token {
 
 	// Comments
 	case '/':
-		if l.peekChar() == '/' {
+		switch l.peekChar() {
+		case '/':
 			if l.preserveComments {
 				text := l.readLineComment()
 				tok = NewToken(COMMENT, text, pos)
@@ -1004,7 +1007,7 @@ func (l *Lexer) nextTokenInternal() Token {
 				l.skipLineComment()
 				return l.nextTokenInternal() // Skip comment and get next token
 			}
-		} else if l.peekChar() == '*' {
+		case '*':
 			// C-style multi-line comment /* */
 			if l.preserveComments {
 				text, ok := l.readCStyleComment()
@@ -1017,7 +1020,7 @@ func (l *Lexer) nextTokenInternal() Token {
 				l.skipCStyleComment()
 				return l.nextTokenInternal()
 			}
-		} else {
+		default:
 			return l.handleSlash(pos)
 		}
 
@@ -1139,18 +1142,19 @@ func (l *Lexer) nextTokenInternal() Token {
 			return handler(l, pos)
 		}
 
-		if isLetter(l.ch) {
+		switch {
+		case isLetter(l.ch):
 			// Identifier or keyword
 			literal := l.readIdentifier()
 			tokenType := LookupIdent(literal)
 			tok = NewToken(tokenType, literal, pos)
 			return tok
-		} else if isDigit(l.ch) {
+		case isDigit(l.ch):
 			// Number literal
 			tokenType, literal := l.readNumber()
 			tok = NewToken(tokenType, literal, pos)
 			return tok
-		} else {
+		default:
 			// Illegal character - add error and emit ILLEGAL token
 			// Note: Don't report RuneError here, as invalid UTF-8 was already reported by readChar()
 			if l.ch != utf8.RuneError {

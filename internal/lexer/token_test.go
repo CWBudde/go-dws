@@ -353,8 +353,8 @@ func TestIsKeyword(t *testing.T) {
 			if !IsKeyword(upper) {
 				t.Errorf("IsKeyword(%q) = false, want true", upper)
 			}
-			// Test mixed case
-			mixed := strings.Title(kw)
+			// Test mixed case (capitalize first letter)
+			mixed := strings.ToUpper(kw[:1]) + kw[1:]
 			if !IsKeyword(mixed) {
 				t.Errorf("IsKeyword(%q) = false, want true", mixed)
 			}
