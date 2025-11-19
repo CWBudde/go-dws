@@ -1685,12 +1685,20 @@ func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstEl
 
 		// Allow trailing comma: (1, 2, )
 		if p.curTokenIs(lexer.RPAREN) {
+			// Task 2.7.6: Dual-mode - get current token for EndPos
+			var currentTok lexer.Token
+			if p.cursor != nil {
+				currentTok = p.cursor.Current()
+			} else {
+				currentTok = p.curToken
+			}
+
 			// Already at the closing paren, just return
 			return &ast.ArrayLiteralExpression{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
 						Token:  lparenToken,
-						EndPos: p.curToken.End(),
+						EndPos: currentTok.End(),
 					},
 				},
 				Elements: elements,
@@ -1709,11 +1717,19 @@ func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstEl
 		return nil
 	}
 
+	// Task 2.7.6: Dual-mode - get current token for EndPos
+	var currentTok lexer.Token
+	if p.cursor != nil {
+		currentTok = p.cursor.Current()
+	} else {
+		currentTok = p.curToken
+	}
+
 	return &ast.ArrayLiteralExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
 				Token:  lparenToken,
-				EndPos: p.curToken.End(),
+				EndPos: currentTok.End(),
 			},
 		},
 		Elements: elements,
@@ -1728,8 +1744,16 @@ func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstEl
 // PRE: curToken is IDENT (first field name), peekToken is COLON
 // POST: curToken is RPAREN
 func (p *Parser) parseRecordLiteralInline() *ast.RecordLiteralExpression {
+	// Task 2.7.6: Dual-mode - get current token for first field name
+	var currentTok lexer.Token
+	if p.cursor != nil {
+		currentTok = p.cursor.Current()
+	} else {
+		currentTok = p.curToken
+	}
+
 	recordLit := &ast.RecordLiteralExpression{
-		BaseNode: ast.BaseNode{Token: p.curToken}, // The first field name token
+		BaseNode: ast.BaseNode{Token: currentTok}, // The first field name token
 		TypeName: nil,                             // Anonymous record
 		Fields:   []*ast.FieldInitializer{},
 	}
@@ -2193,13 +2217,21 @@ func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 			return nil
 		}
 
+		// Task 2.7.6: Dual-mode - get current token for parameter name
+		var nameTok lexer.Token
+		if p.cursor != nil {
+			nameTok = p.cursor.Current()
+		} else {
+			nameTok = p.curToken
+		}
+
 		names = append(names, &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
-					Token: p.curToken,
+					Token: nameTok,
 				},
 			},
-			Value: p.curToken.Literal,
+			Value: nameTok.Literal,
 		})
 
 		// Check if there are more names (comma-separated)
@@ -2223,9 +2255,17 @@ func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 			return nil
 		}
 
+		// Task 2.7.6: Dual-mode - get current token for type annotation
+		var typeTok lexer.Token
+		if p.cursor != nil {
+			typeTok = p.cursor.Current()
+		} else {
+			typeTok = p.curToken
+		}
+
 		typeExpr = &ast.TypeAnnotation{
-			Token: p.curToken,
-			Name:  p.curToken.Literal,
+			Token: typeTok,
+			Name:  typeTok.Literal,
 		}
 	}
 
@@ -2250,8 +2290,14 @@ func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 // POST: curToken is last token of condition (message STRING or test expression)
 func (p *Parser) parseCondition() *ast.Condition {
 	builder := p.StartNode()
-	// Capture the starting token for position information
-	startToken := p.curToken
+
+	// Task 2.7.6: Dual-mode - capture the starting token for position information
+	var startToken lexer.Token
+	if p.cursor != nil {
+		startToken = p.cursor.Current()
+	} else {
+		startToken = p.curToken
+	}
 
 	// Parse the test expression (should be boolean, but type checking is done in semantic phase)
 	testExpr := p.parseExpression(LOWEST)
@@ -2274,13 +2320,21 @@ func (p *Parser) parseCondition() *ast.Condition {
 			return nil
 		}
 
+		// Task 2.7.6: Dual-mode - get current token for message string
+		var msgToken lexer.Token
+		if p.cursor != nil {
+			msgToken = p.cursor.Current()
+		} else {
+			msgToken = p.curToken
+		}
+
 		condition.Message = &ast.StringLiteral{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
-					Token: p.curToken,
+					Token: msgToken,
 				},
 			},
-			Value: p.curToken.Literal,
+			Value: msgToken.Literal,
 		}
 		// EndPos is the end of the message string literal
 		return builder.Finish(condition).(*ast.Condition)
@@ -2339,7 +2393,14 @@ func (p *Parser) parseOldExpression() ast.Expression {
 // POST: curToken is last token of last condition
 func (p *Parser) parsePreConditions() *ast.PreConditions {
 	builder := p.StartNode()
-	requireToken := p.curToken // the REQUIRE token
+
+	// Task 2.7.6: Dual-mode - save the REQUIRE token
+	var requireToken lexer.Token
+	if p.cursor != nil {
+		requireToken = p.cursor.Current()
+	} else {
+		requireToken = p.curToken
+	}
 
 	// Advance to the first condition
 	p.nextToken()
@@ -2396,7 +2457,14 @@ func (p *Parser) parsePreConditions() *ast.PreConditions {
 // POST: curToken is last token of last condition
 func (p *Parser) parsePostConditions() *ast.PostConditions {
 	builder := p.StartNode()
-	ensureToken := p.curToken // the ENSURE token
+
+	// Task 2.7.6: Dual-mode - save the ENSURE token
+	var ensureToken lexer.Token
+	if p.cursor != nil {
+		ensureToken = p.cursor.Current()
+	} else {
+		ensureToken = p.curToken
+	}
 
 	// Enable 'old' keyword parsing
 	// Synchronize both old field and new context (Task 2.1.2)

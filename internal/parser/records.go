@@ -759,8 +759,17 @@ func (p *Parser) parseRecordFieldDeclarationsCursor(visibility ast.Visibility) [
 // POST: curToken is RPAREN
 func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 	builder := p.StartNode()
+
+	// Task 2.7.6: Dual-mode - get current token for '(' lparen
+	var lparenTok lexer.Token
+	if p.cursor != nil {
+		lparenTok = p.cursor.Current()
+	} else {
+		lparenTok = p.curToken
+	}
+
 	recordLit := &ast.RecordLiteralExpression{
-		BaseNode: ast.BaseNode{Token: p.curToken}, // '(' token
+		BaseNode: ast.BaseNode{Token: lparenTok}, // '(' token
 		TypeName: nil,                             // Anonymous record (type inferred from context)
 		Fields:   []*ast.FieldInitializer{},
 	}
@@ -779,8 +788,15 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 		// Check if this is named field initialization (Name: Value)
 		// We need to look ahead to see if there's a colon
 		if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON) {
+			// Task 2.7.6: Dual-mode - get current token for field name
+			var fieldNameToken lexer.Token
+			if p.cursor != nil {
+				fieldNameToken = p.cursor.Current()
+			} else {
+				fieldNameToken = p.curToken
+			}
+
 			// Named field initialization
-			fieldNameToken := p.curToken
 			fieldName := &ast.Identifier{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
