@@ -4,6 +4,36 @@ import (
 	"testing"
 )
 
+// Helper functions for TestLexerOptions
+
+func checkBoolField(t *testing.T, actual bool, expected bool, fieldName string) {
+	t.Helper()
+	if actual != expected {
+		t.Errorf("%s should be %v", fieldName, expected)
+	}
+}
+
+func collectTokens(l *Lexer) []TokenType {
+	tokens := []TokenType{}
+	for {
+		tok := l.NextToken()
+		tokens = append(tokens, tok.Type)
+		if tok.Type == EOF {
+			break
+		}
+	}
+	return tokens
+}
+
+func hasCommentToken(tokens []TokenType) bool {
+	for _, tt := range tokens {
+		if tt == COMMENT {
+			return true
+		}
+	}
+	return false
+}
+
 // TestLexerOptions tests the options pattern for Lexer configuration.
 func TestLexerOptions(t *testing.T) {
 	input := `var x := 42; // comment
@@ -11,89 +41,46 @@ func TestLexerOptions(t *testing.T) {
 
 	t.Run("default configuration", func(t *testing.T) {
 		l := New(input)
-		if l.preserveComments {
-			t.Error("preserveComments should be false by default")
-		}
-		if l.tracing {
-			t.Error("tracing should be false by default")
-		}
+		checkBoolField(t, l.preserveComments, false, "preserveComments")
+		checkBoolField(t, l.tracing, false, "tracing")
 	})
 
 	t.Run("WithPreserveComments(true)", func(t *testing.T) {
 		l := New(input, WithPreserveComments(true))
-		if !l.preserveComments {
-			t.Error("preserveComments should be true")
-		}
+		checkBoolField(t, l.preserveComments, true, "preserveComments")
 
 		// Verify comments are preserved
-		tokens := []TokenType{}
-		for {
-			tok := l.NextToken()
-			tokens = append(tokens, tok.Type)
-			if tok.Type == EOF {
-				break
-			}
-		}
-
-		// Should have COMMENT tokens
-		hasComment := false
-		for _, tt := range tokens {
-			if tt == COMMENT {
-				hasComment = true
-				break
-			}
-		}
-		if !hasComment {
+		tokens := collectTokens(l)
+		if !hasCommentToken(tokens) {
 			t.Error("expected COMMENT token when preserveComments is true")
 		}
 	})
 
 	t.Run("WithPreserveComments(false)", func(t *testing.T) {
 		l := New(input, WithPreserveComments(false))
-		if l.preserveComments {
-			t.Error("preserveComments should be false")
-		}
+		checkBoolField(t, l.preserveComments, false, "preserveComments")
 
 		// Verify comments are skipped
-		tokens := []TokenType{}
-		for {
-			tok := l.NextToken()
-			tokens = append(tokens, tok.Type)
-			if tok.Type == EOF {
-				break
-			}
-		}
-
-		// Should NOT have COMMENT tokens
-		for _, tt := range tokens {
-			if tt == COMMENT {
-				t.Error("unexpected COMMENT token when preserveComments is false")
-			}
+		tokens := collectTokens(l)
+		if hasCommentToken(tokens) {
+			t.Error("unexpected COMMENT token when preserveComments is false")
 		}
 	})
 
 	t.Run("WithTracing(true)", func(t *testing.T) {
 		l := New(input, WithTracing(true))
-		if !l.tracing {
-			t.Error("tracing should be true")
-		}
+		checkBoolField(t, l.tracing, true, "tracing")
 	})
 
 	t.Run("WithTracing(false)", func(t *testing.T) {
 		l := New(input, WithTracing(false))
-		if l.tracing {
-			t.Error("tracing should be false")
-		}
+		checkBoolField(t, l.tracing, false, "tracing")
 	})
 
 	t.Run("multiple options", func(t *testing.T) {
 		l := New(input, WithPreserveComments(true), WithTracing(true))
-		if !l.preserveComments {
-			t.Error("preserveComments should be true")
-		}
-		if !l.tracing {
-			t.Error("tracing should be true")
-		}
+		checkBoolField(t, l.preserveComments, true, "preserveComments")
+		checkBoolField(t, l.tracing, true, "tracing")
 	})
 
 	t.Run("backwards compatibility - no options", func(t *testing.T) {

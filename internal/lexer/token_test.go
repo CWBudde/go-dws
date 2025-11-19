@@ -40,71 +40,50 @@ func TestTokenTypeString(t *testing.T) {
 	}
 }
 
+// Helper function to check predicate results for a set of token types
+func checkPredicateResults(t *testing.T, tokens []TokenType, predicate func(TokenType) bool, predicateName string, expected bool) {
+	t.Helper()
+	for _, tt := range tokens {
+		result := predicate(tt)
+		if result != expected {
+			t.Errorf("%s.%s() = %v, want %v", tt, predicateName, result, expected)
+		}
+	}
+}
+
 func TestTokenTypePredicates(t *testing.T) {
 	t.Run("IsLiteral", func(t *testing.T) {
 		literals := []TokenType{IDENT, INT, FLOAT, STRING, CHAR}
-		for _, tt := range literals {
-			if !tt.IsLiteral() {
-				t.Errorf("%s.IsLiteral() = false, want true", tt)
-			}
-		}
+		checkPredicateResults(t, literals, TokenType.IsLiteral, "IsLiteral", true)
 
 		// TRUE, FALSE, NIL are keywords that represent literal values,
 		// but IsLiteral() is for non-keyword literals (numbers, strings, identifiers)
 		nonLiterals := []TokenType{ILLEGAL, EOF, TRUE, FALSE, NIL, BEGIN, END, PLUS, LPAREN}
-		for _, tt := range nonLiterals {
-			if tt.IsLiteral() {
-				t.Errorf("%s.IsLiteral() = true, want false", tt)
-			}
-		}
+		checkPredicateResults(t, nonLiterals, TokenType.IsLiteral, "IsLiteral", false)
 	})
 
 	t.Run("IsKeyword", func(t *testing.T) {
 		keywords := []TokenType{BEGIN, END, IF, THEN, ELSE, WHILE, FOR, FUNCTION, CLASS, VAR, CONST, TRUE, FALSE, NIL}
-		for _, tt := range keywords {
-			if !tt.IsKeyword() {
-				t.Errorf("%s.IsKeyword() = false, want true", tt)
-			}
-		}
+		checkPredicateResults(t, keywords, TokenType.IsKeyword, "IsKeyword", true)
 
 		nonKeywords := []TokenType{ILLEGAL, EOF, IDENT, INT, STRING, PLUS, LPAREN}
-		for _, tt := range nonKeywords {
-			if tt.IsKeyword() {
-				t.Errorf("%s.IsKeyword() = true, want false", tt)
-			}
-		}
+		checkPredicateResults(t, nonKeywords, TokenType.IsKeyword, "IsKeyword", false)
 	})
 
 	t.Run("IsOperator", func(t *testing.T) {
 		operators := []TokenType{PLUS, MINUS, ASTERISK, SLASH, EQ, NOT_EQ, LESS, GREATER, ASSIGN}
-		for _, tt := range operators {
-			if !tt.IsOperator() {
-				t.Errorf("%s.IsOperator() = false, want true", tt)
-			}
-		}
+		checkPredicateResults(t, operators, TokenType.IsOperator, "IsOperator", true)
 
 		nonOperators := []TokenType{ILLEGAL, EOF, IDENT, INT, BEGIN, END, LPAREN}
-		for _, tt := range nonOperators {
-			if tt.IsOperator() {
-				t.Errorf("%s.IsOperator() = true, want false", tt)
-			}
-		}
+		checkPredicateResults(t, nonOperators, TokenType.IsOperator, "IsOperator", false)
 	})
 
 	t.Run("IsDelimiter", func(t *testing.T) {
 		delimiters := []TokenType{LPAREN, RPAREN, LBRACK, RBRACK, LBRACE, RBRACE, SEMICOLON, COMMA, DOT, COLON}
-		for _, tt := range delimiters {
-			if !tt.IsDelimiter() {
-				t.Errorf("%s.IsDelimiter() = false, want true", tt)
-			}
-		}
+		checkPredicateResults(t, delimiters, TokenType.IsDelimiter, "IsDelimiter", true)
 
 		nonDelimiters := []TokenType{ILLEGAL, EOF, IDENT, INT, BEGIN, PLUS}
-		for _, tt := range nonDelimiters {
-			if tt.IsDelimiter() {
-				t.Errorf("%s.IsDelimiter() = true, want false", tt)
-			}
-		}
+		checkPredicateResults(t, nonDelimiters, TokenType.IsDelimiter, "IsDelimiter", false)
 	})
 }
 
