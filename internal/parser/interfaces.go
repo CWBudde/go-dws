@@ -496,7 +496,7 @@ func (p *Parser) parseSingleTypeDeclarationCursor(typeToken lexer.Token) ast.Sta
 		return p.parseArrayDeclaration(nameIdent, typeToken)
 	} else if nextToken.Type == lexer.LPAREN {
 		// Enum declaration: type TColor = (Red, Green, Blue);
-		// Do NOT advance - parseEnumDeclaration expects cursor to be on '='
+		// Do NOT advance past '=' - parseEnumDeclaration expects cursor on '=', will peek ahead for LPAREN
 		return p.parseEnumDeclaration(nameIdent, typeToken, false, false)
 	} else if nextToken.Type == lexer.ENUM {
 		// Scoped enum: type TEnum = enum (One, Two);

@@ -140,9 +140,9 @@ func (p *Parser) parseStatementCursor() ast.Statement {
 }
 
 // parseStatement parses a single statement.
-// Task 2.7.9: Cursor mode is now the only mode - dispatcher removed.
-// PRE: cursor is on first token of statement
-// POST: cursor is on last token of statement
+// Task 2.7.9: Cursor mode is now the only mode - this wrapper delegates to cursor implementation.
+// PRE: cursor is on first token of statement (same as parseStatementCursor)
+// POST: cursor is on last token of statement (same as parseStatementCursor)
 func (p *Parser) parseStatement() ast.Statement {
 	return p.parseStatementCursor()
 }
