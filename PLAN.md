@@ -776,11 +776,12 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - **Completed**: Commit ed7fd2b - 88 benchmarks total, baseline established in docs/
 
 - [ ] 3.1.3 Increase test coverage to 90%+
-  - **Current Coverage**: 57.9% overall (as of 2025-11-18, latest update)
+  - **Current Coverage**: 59.3% overall (as of 2025-11-18, latest update)
+  - **Progress**: +2.6% improvement from 56.7% baseline
   - **Package Breakdown**:
-    - High coverage (>80%): ident (100.0%), token (100.0%), lexer (97.4%), units (90.1%), ast (88.9%), types (83.7%), dwscript (82.9%), interp/builtins (82.0%), errors (81.8%), interp/errors (81.0%), platform/native (79.3%)
-    - Medium coverage (50-80%): interp/types (72.8%), parser (63.9%), bytecode (63.5%), jsonvalue (61.2%), semantic (60.2%), interp/runtime (48.4%), cmd/dwscript/cmd (36.7%)
-    - Low coverage (<50%): printer (32.4%), ast/pkg (24.9%), interp/evaluator (22.8%), cmd/dwscript (0.0%)
+    - High coverage (>80%): ident (100.0%), token (100.0%), lexer (97.4%), units (90.1%), printer (85.9%), ast (88.9%), types (83.7%), dwscript (82.9%), interp/builtins (82.0%), errors (81.8%), interp/errors (81.0%), platform/native (79.3%)
+    - Medium coverage (50-80%): interp/types (72.8%), bytecode (72.5%), parser (58.4%), jsonvalue (61.2%), semantic (60.2%), interp/runtime (48.4%), cmd/dwscript/cmd (36.7%)
+    - Low coverage (<50%): ast/pkg (24.9%), interp/evaluator (16.4%), cmd/dwscript (0.0%)
   - **Subtasks**:
     - [x] 3.1.3.1 Improve interp/builtins coverage (15.2% → 80%+)
       - [x] Add tests for all math functions - Coverage increased to:
@@ -811,15 +812,22 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
       - Test error handling in evaluation
       - Test edge cases for all expression types
       - **Current Status**: Package coverage 21.9% → 22.8% (minimal progress, need 57.2% more)
-    - [ ] 3.1.3.3 Improve pkg/printer coverage (23.3% → 80%+)
-      - Add tests for all AST node printing
-      - Test formatting options and edge cases
-      - **Current Status**: Package coverage 23.3% → 32.4% (good progress, need 47.6% more)
+    - [x] 3.1.3.3 Improve pkg/printer coverage (32.4% → 80%+)
+      - [x] Add tests for all AST node printing
+      - [x] Test formatting options and edge cases
+      - [x] Created comprehensive_test.go (2,505 lines, 100+ test cases)
+      - [x] Created coverage_boost_test.go (682 lines)
+      - [x] Tested all statement types (while, repeat, for, for-in, case, try-except, raise)
+      - [x] Tested all declaration types (record, enum, class, interface, helper, type)
+      - [x] Tested all expression types (lambda, if-expression, old-expression, record literals)
+      - [x] Tested type annotations (array, set, class-of, function-pointer)
+      - **Final Status**: Package coverage 32.4% → 85.9% (+53.5%, TARGET EXCEEDED!)
+      - **Result**: 19 functions went from 0% to 100%, 4 functions from 0% to 90%+
     - [x] 3.1.3.4 Improve pkg/token coverage (7.7% → 80%+)
       - [x] Add tests for token type methods
       - [x] Test position tracking and formatting
       - **Final Status**: Package coverage 7.7% → 100.0% (TARGET EXCEEDED!)
-    - [ ] 3.1.3.5 Improve bytecode coverage (52.5% → 80%+)
+    - [ ] 3.1.3.5 Improve bytecode coverage (63.5% → 80%+)
       - [x] Add tests for uncovered string builtin functions (SubString, LeftStr, RightStr, MidStr, etc.)
       - [x] Add tests for conversion builtin functions (26-36% → 76-89%)
         - IntToStr/FloatToStr, StrToInt/StrToFloat, StrToIntDef/StrToFloatDef
@@ -828,11 +836,26 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
         - Print/PrintLn (25% → 100%), Length (80% → 100%)
         - Log10/LogN, IsFinite/IsInfinite, LeastFactor, CompareNum
       - [x] Add tests for VM operations (valuesEqual, requireArray, requireInt, resolveValueType)
-        - Coverage for low-level VM operations improved
-      - [ ] Test serializer edge cases (many at 0% or <50%)
-      - [ ] Test compiler edge cases for expressions/statements
-      - [ ] Add tests for optimizer paths
-      - **Current Status**: Package coverage 52.5% → 63.5% (+11.0%, need 16.5% more)
+      - [x] Add comprehensive string builtin tests (vm_builtins_string_comprehensive_test.go, 494 lines)
+        - All 29 previously uncovered functions now tested (60-100% coverage each)
+        - StrDeleteLeft, StrDeleteRight, ReverseString, QuotedStr, CompareLocaleStr, etc.
+      - [x] Add Value and data structure tests (bytecode_value_test.go, 635 lines)
+        - Record-related functions (IsRecord, AsRecord) - 100% coverage
+        - Variant functions (IsVariant, AsVariant) - 100% coverage
+        - Value.String() method - 83.3% coverage
+        - ArrayInstance, ObjectInstance, Upvalue methods - 100% coverage
+      - [x] Add optimizer fold tests (optimizer_fold_test.go, 643 lines)
+        - All fold functions now at 100% coverage (foldFloatOp, foldEqualityOp, foldComparisonOp)
+      - [x] Add serializer metadata tests (serializer_metadata_test.go)
+        - Class, field, and record metadata serialization/deserialization
+      - [x] Add compiler coverage tests (compiler_coverage_test.go)
+        - SetSemanticInfo, compileHelperDecl, compileRecordDecl, compileClassDecl
+        - compileCoalesceExpression, compileIfExpression, emitDefaultValue, compileRecordLiteralExpression
+      - [x] Add disassembler tests (disasm_coverage_test.go)
+        - tryDisassembleMiscOp, invokeInstruction, DisassembleRange
+      - [x] Add VM initializer tests (vm_initializer_test.go)
+        - executeInitializer with field initializer execution
+      - **Current Status**: Package coverage 63.5% → 72.5% (+9.0%, need 7.5% more for 80%)
     - [ ] 3.1.3.6 Improve semantic analyzer coverage (60.4% → 80%+)
       - Test all type checking paths
       - Test error detection for invalid constructs

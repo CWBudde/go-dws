@@ -10,26 +10,26 @@ func TestInvalidUTF8Detection(t *testing.T) {
 	tests := []struct {
 		name           string
 		input          string
-		expectedErrors int
 		errorContains  string
+		expectedErrors int
 	}{
 		{
 			name:           "invalid UTF-8 byte sequence",
 			input:          "var x\xff:= 5", // \xff is invalid UTF-8
-			expectedErrors: 1,
 			errorContains:  "invalid UTF-8",
+			expectedErrors: 1,
 		},
 		{
 			name:           "invalid UTF-8 in identifier",
 			input:          "myVar\xfe\xffTest", // \xfe\xff is invalid
-			expectedErrors: 2,                   // Two invalid bytes
 			errorContains:  "invalid UTF-8",
+			expectedErrors: 2, // Two invalid bytes
 		},
 		{
 			name:           "multiple invalid UTF-8 sequences",
 			input:          "\xff\xfe\xfd", // Three invalid bytes
-			expectedErrors: 3,
 			errorContains:  "invalid UTF-8",
+			expectedErrors: 3,
 		},
 	}
 
