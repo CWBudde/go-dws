@@ -436,19 +436,17 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 // PRE: curToken is first field name IDENT
 // POST: curToken is SEMICOLON or last token of initialization value
 func (p *Parser) parseFieldDeclarationsCursor(visibility ast.Visibility) []*ast.FieldDecl {
-	// Sync cursor to Traditional state before calling Traditional-mode helpers
-	p.syncCursorToTokens()
+	cursor := p.cursor
 
-	// Parse comma-separated field names using combinator
-	// Note: IdentifierList uses parser state, so it should work with synced cursor
-	fieldNames := p.IdentifierList(IdentifierListConfig{
+	// Parse comma-separated field names using cursor-based combinator
+	fieldNames, newCursor := p.IdentifierListCursor(cursor, IdentifierListConfig{
 		ErrorContext:      "field declaration",
 		RequireAtLeastOne: true,
 	})
 	if fieldNames == nil {
 		return nil
 	}
-	cursor := p.cursor
+	cursor = newCursor
 
 	// Parse optional type and/or initialization
 	var fieldType ast.TypeExpression

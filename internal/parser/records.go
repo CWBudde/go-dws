@@ -286,8 +286,8 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 func (p *Parser) parseRecordFieldDeclarationsCursor(visibility ast.Visibility) []*ast.FieldDecl {
 	cursor := p.cursor
 
-	// Use IdentifierList combinator to parse comma-separated field names
-	fieldNames := p.IdentifierList(IdentifierListConfig{
+	// Use cursor-based IdentifierList combinator to parse comma-separated field names
+	fieldNames, newCursor := p.IdentifierListCursor(cursor, IdentifierListConfig{
 		ErrorContext:      "record field declaration",
 		RequireAtLeastOne: true,
 	})
@@ -295,7 +295,7 @@ func (p *Parser) parseRecordFieldDeclarationsCursor(visibility ast.Visibility) [
 		return nil
 	}
 
-	cursor = p.cursor // Update cursor after IdentifierList
+	cursor = newCursor
 	var fieldType ast.TypeExpression
 	var initValue ast.Expression
 
