@@ -13,47 +13,7 @@ import (
 // POST: curToken is last token of value expression in last declaration
 // Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseConstDeclaration() ast.Statement {
-	if p.useCursor {
-		return p.parseConstDeclarationCursor()
-	}
-	return p.parseConstDeclarationTraditional()
-}
-
-// parseConstDeclarationTraditional parses const declarations using traditional mode.
-// PRE: curToken is CONST
-// POST: curToken is last token of value expression in last declaration
-func (p *Parser) parseConstDeclarationTraditional() ast.Statement {
-	blockToken := p.curToken // Save the initial CONST token for the block
-	statements := []ast.Statement{}
-
-	// Parse first const declaration
-	firstStmt := p.parseSingleConstDeclaration()
-	if firstStmt == nil {
-		return nil
-	}
-	statements = append(statements, firstStmt)
-
-	// Continue parsing additional const declarations without the 'const' keyword
-	// As long as the next line looks like a const declaration (not just any identifier)
-	for p.looksLikeConstDeclaration() {
-		p.nextToken() // move to identifier
-		constStmt := p.parseSingleConstDeclaration()
-		if constStmt == nil {
-			break
-		}
-		statements = append(statements, constStmt)
-	}
-
-	// If only one declaration, return it directly
-	if len(statements) == 1 {
-		return statements[0]
-	}
-
-	// Multiple declarations: wrap in a BlockStatement
-	return &ast.BlockStatement{
-		BaseNode:   ast.BaseNode{Token: blockToken},
-		Statements: statements,
-	}
+	return p.parseConstDeclarationCursor()
 }
 
 // parseSingleConstDeclaration parses a single constant declaration.
@@ -137,43 +97,10 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 // POST: curToken is SEMICOLON
 // Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseProgramDeclaration() {
-	if p.useCursor {
-		p.parseProgramDeclarationCursor()
-		return
-	}
-	p.parseProgramDeclarationTraditional()
-}
-
-// parseProgramDeclarationTraditional parses program declaration using traditional mode.
-// PRE: curToken is PROGRAM
-// POST: curToken is SEMICOLON
-func (p *Parser) parseProgramDeclarationTraditional() {
-	// We're on the PROGRAM token
-	if !p.curTokenIs(lexer.PROGRAM) {
-		return
-	}
-
-	// Expect identifier (program name)
-	if !p.expectPeek(lexer.IDENT) {
-		p.addError("expected program name after 'program' keyword", ErrExpectedIdent)
-		return
-	}
-
-	// Note: We could store the program name if needed, but DWScript ignores it
-	// programName := p.curToken.Literal
-
-	// Expect semicolon
-	if !p.expectPeek(lexer.SEMICOLON) {
-		p.addError("expected ';' after program name", ErrMissingSemicolon)
-		return
-	}
-
-	// Successfully parsed program declaration
-	// The program name is not stored in the AST as it doesn't affect execution
+	p.parseProgramDeclarationCursor()
 }
 
 // parseProgramDeclarationCursor parses program declaration using cursor mode.
-// Task 2.7.1.2: Program declaration migration
 // PRE: cursor is on PROGRAM token
 // POST: cursor is on SEMICOLON token
 func (p *Parser) parseProgramDeclarationCursor() {
