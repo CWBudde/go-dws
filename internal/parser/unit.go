@@ -44,10 +44,10 @@ func (p *Parser) parseUnitTraditional() *ast.UnitDeclaration {
 	unitDecl.Name = &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token: p.curToken,
+				Token: p.cursor.Current(),
 			},
 		},
-		Value: p.curToken.Literal,
+		Value: p.cursor.Current().Literal,
 	}
 
 	// Expect semicolon after unit name
@@ -142,10 +142,10 @@ func (p *Parser) parseUsesClauseTraditional() *ast.UsesClause {
 	usesClause.Units = append(usesClause.Units, &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token: p.curToken,
+				Token: p.cursor.Current(),
 			},
 		},
-		Value: p.curToken.Literal,
+		Value: p.cursor.Current().Literal,
 	})
 
 	// Parse remaining units (comma-separated)
@@ -161,10 +161,10 @@ func (p *Parser) parseUsesClauseTraditional() *ast.UsesClause {
 		usesClause.Units = append(usesClause.Units, &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
-					Token: p.curToken,
+					Token: p.cursor.Current(),
 				},
 			},
-			Value: p.curToken.Literal,
+			Value: p.cursor.Current().Literal,
 		})
 	}
 

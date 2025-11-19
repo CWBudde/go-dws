@@ -866,10 +866,10 @@ func (p *Parser) parseRecordPropertyDeclarationTraditional() *ast.RecordProperty
 	propName := &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token: p.curToken,
+				Token: p.cursor.Current(),
 			},
 		},
-		Value: p.curToken.Literal,
+		Value: p.cursor.Current().Literal,
 	}
 
 	// Parse optional index parameters for array properties
@@ -889,9 +889,9 @@ func (p *Parser) parseRecordPropertyDeclarationTraditional() *ast.RecordProperty
 			}
 			paramName := &ast.Identifier{
 				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{Token: p.curToken},
+					BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 				},
-				Value: p.curToken.Literal,
+				Value: p.cursor.Current().Literal,
 			}
 
 			// Expect colon
@@ -957,7 +957,7 @@ func (p *Parser) parseRecordPropertyDeclarationTraditional() *ast.RecordProperty
 		if !p.expectPeek(lexer.IDENT) {
 			return nil
 		}
-		prop.ReadField = p.curToken.Literal
+		prop.ReadField = p.cursor.Current().Literal
 	}
 
 	// Parse optional 'write' clause
@@ -966,7 +966,7 @@ func (p *Parser) parseRecordPropertyDeclarationTraditional() *ast.RecordProperty
 		if !p.expectPeek(lexer.IDENT) {
 			return nil
 		}
-		prop.WriteField = p.curToken.Literal
+		prop.WriteField = p.cursor.Current().Literal
 	}
 
 	// Expect semicolon first

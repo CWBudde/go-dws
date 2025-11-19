@@ -154,12 +154,12 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 	builder := p.StartNode()
 
 	block := &ast.BlockStatement{
-		BaseNode: ast.BaseNode{Token: p.curToken},
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 	}
 	block.Statements = []ast.Statement{}
 
 	// Track block context for better error messages
-	p.pushBlockContext("begin", p.curToken.Pos)
+	p.pushBlockContext("begin", p.cursor.Current().Pos)
 	defer p.popBlockContext()
 
 	p.nextToken() // advance past 'begin'
@@ -273,19 +273,19 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 	// Check if we're already at the identifier (var section continuation)
 	// or if we need to advance to it (after 'var' keyword)
 	if p.curTokenIs(lexer.VAR) {
-		stmt.Token = p.curToken
+		stmt.Token = p.cursor.Current()
 		// After 'var' keyword, expect identifier next
 		if !p.expectIdentifier() {
 			return nil
 		}
-	} else if !p.isIdentifierToken(p.curToken.Type) {
+	} else if !p.isIdentifierToken(p.cursor.Current().Type) {
 		// Should already be at an identifier
 		// Task 2.7.7: Dual-mode - get current token for error reporting
 		var curTok lexer.Token
 		if p.cursor != nil {
 			curTok = p.cursor.Current()
 		} else {
-			curTok = p.curToken
+			curTok = p.cursor.Current()
 		}
 
 		// Use structured error (Task 2.1.3)
@@ -423,7 +423,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		// Check for optional external name: external 'customName'
 		if p.peekTokenIs(lexer.STRING) {
 			p.nextToken() // move to string literal
-			stmt.ExternalName = p.curToken.Literal
+			stmt.ExternalName = p.cursor.Current().Literal
 		}
 	}
 
@@ -456,16 +456,16 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 	left := p.parseExpression(LOWEST)
 
 	// Check if next token is assignment (simple or compound)
-	if isAssignmentOperator(p.peekToken.Type) {
+	if isAssignmentOperator(p.cursor.Peek(1).Type) {
 		p.nextToken() // move to assignment operator
-		assignOp := p.curToken.Type
+		assignOp := p.cursor.Current().Type
 
 		// Determine what kind of assignment this is
 		switch leftExpr := left.(type) {
 		case *ast.Identifier:
 			// Simple or compound assignment: x := value, x += value
 			stmt := &ast.AssignmentStatement{
-				BaseNode: ast.BaseNode{Token: p.curToken},
+				BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 				Target:   leftExpr,
 				Operator: assignOp,
 			}
