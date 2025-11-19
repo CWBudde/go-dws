@@ -630,6 +630,90 @@ func (p *Parser) IdentifierList(config IdentifierListConfig) []*ast.Identifier {
 	return identifiers
 }
 
+// IdentifierListCursor parses a comma-separated list of identifiers using cursor.
+// Returns a slice of Identifier nodes and the new cursor position, or (nil, cursor) if parsing fails.
+//
+// Syntax: IDENT (, IDENT)*
+//
+// PRE: cursor is at first identifier (or error token if invalid)
+// POST: cursor is at last identifier
+//
+// Example:
+//
+//	// Parse identifier list: a, b, c
+//	ids, newCursor := p.IdentifierListCursor(cursor, IdentifierListConfig{
+//	    ErrorContext: "variable declaration",
+//	    RequireAtLeastOne: true,
+//	})
+//	p.cursor = newCursor
+func (p *Parser) IdentifierListCursor(cursor *TokenCursor, config IdentifierListConfig) ([]*ast.Identifier, *TokenCursor) {
+	identifiers := []*ast.Identifier{}
+	currentToken := cursor.Current()
+
+	// Check first identifier
+	if !p.isIdentifierToken(currentToken.Type) {
+		if config.RequireAtLeastOne {
+			context := config.ErrorContext
+			if context == "" {
+				context = "identifier list"
+			}
+			err := NewStructuredError(ErrKindMissing).
+				WithCode(ErrExpectedIdent).
+				WithMessage("expected identifier in "+context).
+				WithPosition(currentToken.Pos, currentToken.Length()).
+				WithExpectedString("identifier").
+				WithActual(currentToken.Type, currentToken.Literal).
+				WithParsePhase(context).
+				Build()
+			p.addStructuredError(err)
+			return nil, cursor
+		}
+		if config.AllowEmpty {
+			return identifiers, cursor
+		}
+		return nil, cursor
+	}
+
+	// Parse identifiers separated by commas
+	for {
+		currentToken = cursor.Current()
+		identifiers = append(identifiers, &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: currentToken,
+				},
+			},
+			Value: currentToken.Literal,
+		})
+
+		// Check for comma separator
+		nextToken := cursor.Peek(1)
+		if nextToken.Type != lexer.COMMA {
+			break
+		}
+
+		cursor = cursor.Advance() // move to ','
+		cursor = cursor.Advance() // move to next identifier
+
+		// Expect identifier after comma
+		currentToken = cursor.Current()
+		if !p.isIdentifierToken(currentToken.Type) {
+			err := NewStructuredError(ErrKindMissing).
+				WithCode(ErrExpectedIdent).
+				WithMessage("expected identifier after comma in "+config.ErrorContext).
+				WithPosition(currentToken.Pos, currentToken.Length()).
+				WithExpectedString("identifier").
+				WithActual(currentToken.Type, currentToken.Literal).
+				WithParsePhase(config.ErrorContext).
+				Build()
+			p.addStructuredError(err)
+			return identifiers, cursor // Return what we have so far
+		}
+	}
+
+	return identifiers, cursor
+}
+
 // StatementBlockConfig configures the StatementBlock combinator.
 type StatementBlockConfig struct {
 	// OpenToken is the token that starts the block (e.g., BEGIN, TRY)
