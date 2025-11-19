@@ -440,8 +440,8 @@ func (p *Parser) parseSingleTypeDeclarationCursor(typeToken lexer.Token) ast.Sta
 	// Since cursor has already moved past '=', we can search the cursor's token buffer
 	for i, tok := range p.cursor.tokens {
 		if tok.Type == nameIdent.Token.Type &&
-		   tok.Pos.Offset == nameIdent.Token.Pos.Offset &&
-		   i+1 < len(p.cursor.tokens) {
+			tok.Pos.Offset == nameIdent.Token.Pos.Offset &&
+			i+1 < len(p.cursor.tokens) {
 			// Found the identifier, set peekToken to next token (should be '=')
 			p.peekToken = p.cursor.tokens[i+1]
 			break
