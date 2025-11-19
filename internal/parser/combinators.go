@@ -613,13 +613,21 @@ func (p *Parser) IdentifierList(config IdentifierListConfig) []*ast.Identifier {
 
 	// Parse identifiers separated by commas
 	for {
+		// Task 2.7.8: Dual-mode - get current token for AST node creation
+		var curTok lexer.Token
+		if p.cursor != nil {
+			curTok = p.cursor.Current()
+		} else {
+			curTok = p.curToken
+		}
+
 		identifiers = append(identifiers, &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
-					Token: p.curToken,
+					Token: curTok,
 				},
 			},
-			Value: p.curToken.Literal,
+			Value: curTok.Literal,
 		})
 
 		// Check for comma separator
@@ -679,8 +687,17 @@ type StatementBlockConfig struct {
 //	})
 func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement {
 	builder := p.StartNode()
+
+	// Task 2.7.8: Dual-mode - get current token for AST node creation and context tracking
+	var curTok lexer.Token
+	if p.cursor != nil {
+		curTok = p.cursor.Current()
+	} else {
+		curTok = p.curToken
+	}
+
 	block := &ast.BlockStatement{
-		BaseNode:   ast.BaseNode{Token: p.curToken},
+		BaseNode:   ast.BaseNode{Token: curTok},
 		Statements: []ast.Statement{},
 	}
 
@@ -689,7 +706,7 @@ func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement
 	if contextName == "" {
 		contextName = config.OpenToken.String()
 	}
-	p.pushBlockContext(contextName, p.curToken.Pos)
+	p.pushBlockContext(contextName, curTok.Pos)
 	defer p.popBlockContext()
 
 	p.nextToken() // advance past opening token
