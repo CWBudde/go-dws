@@ -38,7 +38,7 @@ func (p *Parser) parseClassDeclarationTraditional() *ast.ClassDecl {
 				Token: p.curToken,
 			},
 		},
-		Value: p.curToken.Literal,
+		Value: p.cursor.Current().Literal,
 	}
 
 	// Expect '='
@@ -140,7 +140,7 @@ func (p *Parser) parseClassParentAndInterfacesTraditional(classDecl *ast.ClassDe
 					Token: p.curToken,
 				},
 			},
-			Value: p.curToken.Literal,
+			Value: p.cursor.Current().Literal,
 		})
 
 		// Check for comma (more items) or closing paren
@@ -331,7 +331,7 @@ func (p *Parser) parseClassDeclarationBodyTraditional(nameIdent *ast.Identifier)
 		// Check for optional external name string
 		if p.peekTokenIs(lexer.STRING) {
 			p.nextToken() // move to string
-			classDecl.ExternalName = p.curToken.Literal
+			classDecl.ExternalName = p.cursor.Current().Literal
 		}
 		// Check again for parent/interfaces after external
 		p.parseClassParentAndInterfaces(classDecl)
@@ -438,7 +438,7 @@ func (p *Parser) parseClassDeclarationBodyTraditional(nameIdent *ast.Identifier)
 			if constant != nil {
 				classDecl.Constants = append(classDecl.Constants, constant)
 			}
-		} else if p.curToken.Type == lexer.IDENT && (p.peekTokenIs(lexer.COLON) || p.peekTokenIs(lexer.COMMA) || p.peekTokenIs(lexer.ASSIGN) || p.peekTokenIs(lexer.EQ)) {
+		} else if p.cursor.Current().Type == lexer.IDENT && (p.peekTokenIs(lexer.COLON) || p.peekTokenIs(lexer.COMMA) || p.peekTokenIs(lexer.ASSIGN) || p.peekTokenIs(lexer.EQ)) {
 			// This is a regular instance field declaration (may be comma-separated)
 			// Supports: FieldName: Type; or FieldName := Value; or FieldName = Value; or FieldName: Type := Value;
 			fields := p.parseFieldDeclarations(currentVisibility)
@@ -447,14 +447,14 @@ func (p *Parser) parseClassDeclarationBodyTraditional(nameIdent *ast.Identifier)
 					classDecl.Fields = append(classDecl.Fields, field)
 				}
 			}
-		} else if p.curToken.Type == lexer.FUNCTION || p.curToken.Type == lexer.PROCEDURE || p.curToken.Type == lexer.METHOD {
+		} else if p.cursor.Current().Type == lexer.FUNCTION || p.cursor.Current().Type == lexer.PROCEDURE || p.cursor.Current().Type == lexer.METHOD {
 			// This is a regular instance method declaration
 			method := p.parseFunctionDeclaration()
 			if method != nil {
 				method.Visibility = currentVisibility
 				classDecl.Methods = append(classDecl.Methods, method)
 			}
-		} else if p.curToken.Type == lexer.CONSTRUCTOR {
+		} else if p.cursor.Current().Type == lexer.CONSTRUCTOR {
 			// This is a constructor declaration
 			method := p.parseFunctionDeclaration()
 			if method != nil {
@@ -462,7 +462,7 @@ func (p *Parser) parseClassDeclarationBodyTraditional(nameIdent *ast.Identifier)
 				method.Visibility = currentVisibility
 				classDecl.Methods = append(classDecl.Methods, method)
 			}
-		} else if p.curToken.Type == lexer.DESTRUCTOR {
+		} else if p.cursor.Current().Type == lexer.DESTRUCTOR {
 			// This is a destructor declaration
 			method := p.parseFunctionDeclaration()
 			if method != nil {
@@ -470,7 +470,7 @@ func (p *Parser) parseClassDeclarationBodyTraditional(nameIdent *ast.Identifier)
 				method.Visibility = currentVisibility
 				classDecl.Methods = append(classDecl.Methods, method)
 			}
-		} else if p.curToken.Type == lexer.PROPERTY {
+		} else if p.cursor.Current().Type == lexer.PROPERTY {
 			// This is a property declaration
 			property := p.parsePropertyDeclaration()
 			if property != nil {
@@ -478,7 +478,7 @@ func (p *Parser) parseClassDeclarationBodyTraditional(nameIdent *ast.Identifier)
 				// For now, properties are parsed without explicit visibility tracking
 				classDecl.Properties = append(classDecl.Properties, property)
 			}
-		} else if p.curToken.Type == lexer.IDENT {
+		} else if p.cursor.Current().Type == lexer.IDENT {
 			// Unexpected identifier in class body - likely a field missing its type declaration
 			p.addError("expected ':' after field name or method/property declaration keyword", ErrMissingColon)
 			p.nextToken()
@@ -940,11 +940,11 @@ func (p *Parser) parseMemberAccessTraditional(left ast.Expression) ast.Expressio
 
 	// The member name can be an identifier or a keyword (DWScript allows keywords as member names)
 	// But it cannot be operators, numbers, or other invalid tokens
-	if p.curToken.Type == lexer.SEMICOLON || p.curToken.Type == lexer.INT ||
-		p.curToken.Type == lexer.FLOAT || p.curToken.Type == lexer.STRING ||
-		p.curToken.Type == lexer.LPAREN || p.curToken.Type == lexer.RPAREN ||
-		p.curToken.Type == lexer.LBRACK || p.curToken.Type == lexer.RBRACK ||
-		p.curToken.Type == lexer.COMMA || p.curToken.Type == lexer.EOF {
+	if p.cursor.Current().Type == lexer.SEMICOLON || p.cursor.Current().Type == lexer.INT ||
+		p.cursor.Current().Type == lexer.FLOAT || p.cursor.Current().Type == lexer.STRING ||
+		p.cursor.Current().Type == lexer.LPAREN || p.cursor.Current().Type == lexer.RPAREN ||
+		p.cursor.Current().Type == lexer.LBRACK || p.cursor.Current().Type == lexer.RBRACK ||
+		p.cursor.Current().Type == lexer.COMMA || p.cursor.Current().Type == lexer.EOF {
 		p.addError("expected identifier after '.'", ErrExpectedIdent)
 		return nil
 	}
@@ -955,7 +955,7 @@ func (p *Parser) parseMemberAccessTraditional(left ast.Expression) ast.Expressio
 				Token: p.curToken,
 			},
 		},
-		Value: p.curToken.Literal,
+		Value: p.cursor.Current().Literal,
 	}
 
 	// Check if this is a method call (followed by '(')
@@ -1138,7 +1138,7 @@ func (p *Parser) parseClassConstantDeclarationTraditional(visibility ast.Visibil
 				Token: p.curToken,
 			},
 		},
-		Value: p.curToken.Literal,
+		Value: p.cursor.Current().Literal,
 	}
 
 	// Check for optional type annotation: const Name: Type = Value;

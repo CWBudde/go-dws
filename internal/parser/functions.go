@@ -49,10 +49,10 @@ func (p *Parser) parseFunctionDeclarationTraditional() *ast.FunctionDecl {
 	firstIdent := &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token: p.curToken,
+				Token: p.cursor.Current(),
 			},
 		},
-		Value: p.curToken.Literal,
+		Value: p.cursor.Current().Literal,
 	}
 
 	// Check for qualified name (ClassName.MethodName for method implementations)
@@ -65,10 +65,10 @@ func (p *Parser) parseFunctionDeclarationTraditional() *ast.FunctionDecl {
 		fn.Name = &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
-					Token: p.curToken,
+					Token: p.cursor.Current(),
 				},
 			},
-			Value: p.curToken.Literal,
+			Value: p.cursor.Current().Literal,
 		}
 	} else {
 		// Simple function name (not a method implementation)
@@ -195,7 +195,7 @@ func (p *Parser) parseFunctionDeclarationTraditional() *ast.FunctionDecl {
 			// Check for optional external name string
 			if p.peekTokenIs(lexer.STRING) {
 				p.nextToken() // move to string
-				fn.ExternalName = p.curToken.Literal
+				fn.ExternalName = p.cursor.Current().Literal
 			}
 
 			if !p.expectPeek(lexer.SEMICOLON) {
@@ -219,13 +219,13 @@ func (p *Parser) parseFunctionDeclarationTraditional() *ast.FunctionDecl {
 			}
 			// Forward declarations have no body, so we can return early
 			// But continue to allow combined directives like "overload; forward;"
-		} else if p.peekToken.Type == lexer.IDENT && isCallingConvention(p.peekToken.Literal) {
+		} else if p.cursor.Peek(1).Type == lexer.IDENT && isCallingConvention(p.cursor.Peek(1).Literal) {
 			// Calling convention directives: register, pascal, cdecl, safecall, stdcall, fastcall, reference
 			// Syntax: procedure Test; register;
 			// Note: These are contextual identifiers, not reserved keywords
 			p.nextToken() // move to calling convention
-			fn.CallingConvention = strings.ToLower(p.curToken.Literal)
-			fn.CallingConventionPos = p.curToken.Pos
+			fn.CallingConvention = strings.ToLower(p.cursor.Current().Literal)
+			fn.CallingConventionPos = p.cursor.Current().Pos
 			if !p.expectPeek(lexer.SEMICOLON) {
 				return nil
 			}
@@ -238,7 +238,7 @@ func (p *Parser) parseFunctionDeclarationTraditional() *ast.FunctionDecl {
 			// Check for optional deprecation message string
 			if p.peekTokenIs(lexer.STRING) {
 				p.nextToken() // move to string
-				fn.DeprecatedMessage = p.curToken.Literal
+				fn.DeprecatedMessage = p.cursor.Current().Literal
 			}
 
 			if !p.expectPeek(lexer.SEMICOLON) {

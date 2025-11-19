@@ -1126,7 +1126,7 @@ func (p *Parser) synchronize(syncTokens []lexer.TokenType) bool {
 
 	// Advance until we find a synchronization token or EOF
 	for !p.curTokenIs(lexer.EOF) {
-		if syncMap[p.curToken.Type] {
+		if syncMap[p.cursor.Current().Type] {
 			return true // Found a sync token
 		}
 		p.nextToken()

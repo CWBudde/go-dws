@@ -234,7 +234,7 @@ func (p *Parser) parseIdentifierTraditional() ast.Expression {
 				EndPos: p.endPosFromToken(p.curToken),
 			},
 		},
-		Value: p.curToken.Literal,
+		Value: p.cursor.Current().Literal,
 	}
 }
 
@@ -277,7 +277,7 @@ func (p *Parser) parseIntegerLiteralTraditional() ast.Expression {
 		},
 	}
 
-	literal := p.curToken.Literal
+	literal := p.cursor.Current().Literal
 
 	var (
 		value int64
@@ -567,7 +567,7 @@ func (p *Parser) parseNullIdentifier() ast.Expression {
 				EndPos: p.endPosFromToken(p.curToken),
 			},
 		},
-		Value: p.curToken.Literal, // "Null" (preserves original casing)
+		Value: p.cursor.Current().Literal, // "Null" (preserves original casing)
 	}
 }
 
@@ -583,7 +583,7 @@ func (p *Parser) parseUnassignedIdentifier() ast.Expression {
 				EndPos: p.endPosFromToken(p.curToken),
 			},
 		},
-		Value: p.curToken.Literal, // "Unassigned" (preserves original casing)
+		Value: p.cursor.Current().Literal, // "Unassigned" (preserves original casing)
 	}
 }
 
@@ -645,7 +645,7 @@ func (p *Parser) parseCharLiteral() ast.Expression {
 
 	// Parse the character value from the token literal
 	// Token literal can be: "#65" (decimal) or "#$41" (hex)
-	literal := p.curToken.Literal
+	literal := p.cursor.Current().Literal
 	if len(literal) < 2 || literal[0] != '#' {
 		msg := fmt.Sprintf("invalid character literal format: %q", literal)
 		p.addError(msg, ErrInvalidExpression)
@@ -727,7 +727,7 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 				Token: p.curToken,
 			},
 		},
-		Operator: p.curToken.Literal,
+		Operator: p.cursor.Current().Literal,
 	}
 
 	p.nextToken()
@@ -804,7 +804,7 @@ func (p *Parser) parseInfixExpressionTraditional(left ast.Expression) ast.Expres
 				Token: p.curToken,
 			},
 		},
-		Operator: p.curToken.Literal,
+		Operator: p.cursor.Current().Literal,
 		Left:     left,
 	}
 
@@ -1107,7 +1107,7 @@ func (p *Parser) parseNamedFieldInitializer() *ast.FieldInitializer {
 				Token: p.curToken,
 			},
 		},
-		Value: p.curToken.Literal,
+		Value: p.cursor.Current().Literal,
 	}
 
 	p.nextToken() // move to ':'
@@ -1943,7 +1943,7 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 	firstDim := p.parseExpression(LOWEST)
 	if firstDim == nil {
 		p.addError(fmt.Sprintf("expected expression for array dimension at %d:%d",
-			p.curToken.Pos.Line, p.curToken.Pos.Column), ErrInvalidExpression)
+			p.cursor.Current().Pos.Line, p.cursor.Current().Pos.Column), ErrInvalidExpression)
 		return nil
 	}
 	dimensions = append(dimensions, firstDim)
@@ -1956,7 +1956,7 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 		dim := p.parseExpression(LOWEST)
 		if dim == nil {
 			p.addError(fmt.Sprintf("expected expression for array dimension at %d:%d",
-				p.curToken.Pos.Line, p.curToken.Pos.Column), ErrInvalidExpression)
+				p.cursor.Current().Pos.Line, p.cursor.Current().Pos.Column), ErrInvalidExpression)
 			return nil
 		}
 		dimensions = append(dimensions, dim)
@@ -2003,7 +2003,7 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 					Token: p.curToken,
 				},
 			},
-			Value: p.curToken.Literal,
+			Value: p.cursor.Current().Literal,
 		}
 		inheritedExpr.IsMember = true
 
@@ -2082,7 +2082,7 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 
 		lambdaExpr.ReturnType = &ast.TypeAnnotation{
 			Token: p.curToken,
-			Name:  p.curToken.Literal,
+			Name:  p.cursor.Current().Literal,
 		}
 	}
 
@@ -2366,7 +2366,7 @@ func (p *Parser) parseOldExpression() ast.Expression {
 				Token: p.curToken,
 			},
 		},
-		Value: p.curToken.Literal,
+		Value: p.cursor.Current().Literal,
 	}
 
 	return &ast.OldExpression{

@@ -84,7 +84,7 @@ func (p *Parser) parseExitStatement() *ast.ExitStatement {
 		if !p.expectPeek(lexer.RPAREN) {
 			return nil
 		}
-	} else if _, ok := p.prefixParseFns[p.peekToken.Type]; ok && !p.peekTokenIs(lexer.SEMICOLON) {
+	} else if _, ok := p.prefixParseFns[p.cursor.Peek(1).Type]; ok && !p.peekTokenIs(lexer.SEMICOLON) {
 		// Support exit with inline expression: exit value;
 		p.nextToken()
 		stmt.ReturnValue = p.parseExpression(LOWEST)
@@ -115,7 +115,7 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 	}
 
 	// Track block context for better error messages
-	p.pushBlockContext("if", p.curToken.Pos)
+	p.pushBlockContext("if", p.cursor.Current().Pos)
 	defer p.popBlockContext()
 
 	// Move past 'if' and parse the condition
@@ -248,7 +248,7 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 	}
 
 	// Track block context for better error messages
-	p.pushBlockContext("while", p.curToken.Pos)
+	p.pushBlockContext("while", p.cursor.Current().Pos)
 	defer p.popBlockContext()
 
 	// Move past 'while' and parse the condition
@@ -349,7 +349,7 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 	}
 
 	// Track block context for better error messages
-	p.pushBlockContext("repeat", p.curToken.Pos)
+	p.pushBlockContext("repeat", p.cursor.Current().Pos)
 	defer p.popBlockContext()
 
 	// Move past 'repeat'
@@ -394,7 +394,7 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 
 	// Expect 'until' keyword
 	if !p.curTokenIs(lexer.UNTIL) {
-		p.addErrorWithContext(fmt.Sprintf("expected 'until' after repeat body, got %s instead", p.curToken.Type), ErrUnexpectedToken)
+		p.addErrorWithContext(fmt.Sprintf("expected 'until' after repeat body, got %s instead", p.cursor.Current().Type), ErrUnexpectedToken)
 		p.synchronize([]lexer.TokenType{lexer.UNTIL, lexer.END})
 		if !p.curTokenIs(lexer.UNTIL) {
 			return nil
@@ -440,10 +440,10 @@ func (p *Parser) parseForStatement() ast.Statement {
 	variable := &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token: p.curToken,
+				Token: p.cursor.Current(),
 			},
 		},
-		Value: p.curToken.Literal,
+		Value: p.cursor.Current().Literal,
 	}
 
 	// Check if this is a for-in loop (IN) or for-to/downto loop (:=)
@@ -585,7 +585,7 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 	}
 
 	// Track block context for better error messages
-	p.pushBlockContext("case", p.curToken.Pos)
+	p.pushBlockContext("case", p.cursor.Current().Pos)
 	defer p.popBlockContext()
 
 	// Move past 'case' and parse the case expression

@@ -160,9 +160,9 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 					Token: p.curToken,
 				},
 			},
-			Value: p.curToken.Literal,
+			Value: p.cursor.Current().Literal,
 		}
-	} else if !p.isIdentifierToken(p.curToken.Type) {
+	} else if !p.isIdentifierToken(p.cursor.Current().Type) {
 		// Should already be at an identifier
 		p.addError("expected identifier in type declaration", ErrExpectedIdent)
 		return nil
@@ -173,7 +173,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 					Token: p.curToken,
 				},
 			},
-			Value: p.curToken.Literal,
+			Value: p.cursor.Current().Literal,
 		}
 	}
 
@@ -228,7 +228,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 		p.nextToken() // move to aliased type identifier
 		aliasedType := &ast.TypeAnnotation{
 			Token: p.curToken,
-			Name:  p.curToken.Literal,
+			Name:  p.cursor.Current().Literal,
 		}
 
 		// Expect semicolon
@@ -727,7 +727,7 @@ func (p *Parser) parseInterfaceDeclarationBodyTraditional(nameIdent *ast.Identif
 					Token: p.curToken,
 				},
 			},
-			Value: p.curToken.Literal,
+			Value: p.cursor.Current().Literal,
 		}
 
 		if !p.expectPeek(lexer.RPAREN) {
@@ -743,7 +743,7 @@ func (p *Parser) parseInterfaceDeclarationBodyTraditional(nameIdent *ast.Identif
 		// Check for optional external name string
 		if p.peekTokenIs(lexer.STRING) {
 			p.nextToken() // move to string
-			interfaceDecl.ExternalName = p.curToken.Literal
+			interfaceDecl.ExternalName = p.cursor.Current().Literal
 		}
 	}
 
@@ -943,7 +943,7 @@ func (p *Parser) parseInterfaceMethodDeclTraditional() *ast.InterfaceMethodDecl 
 				Token: p.curToken,
 			},
 		},
-		Value: p.curToken.Literal,
+		Value: p.cursor.Current().Literal,
 	}
 
 	// Parse parameter list if present
@@ -967,7 +967,7 @@ func (p *Parser) parseInterfaceMethodDeclTraditional() *ast.InterfaceMethodDecl 
 
 		methodDecl.ReturnType = &ast.TypeAnnotation{
 			Token: p.curToken,
-			Name:  p.curToken.Literal,
+			Name:  p.cursor.Current().Literal,
 		}
 	}
 
