@@ -1488,11 +1488,20 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 // POST: curToken is RPAREN
 func (p *Parser) parseEmptyArrayLiteral(lparenToken lexer.Token) *ast.ArrayLiteralExpression {
 	p.nextToken() // consume ')'
+
+	// Task 2.7.6: Dual-mode - get current token
+	var currentTok lexer.Token
+	if p.cursor != nil {
+		currentTok = p.cursor.Current()
+	} else {
+		currentTok = p.curToken
+	}
+
 	return &ast.ArrayLiteralExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
 				Token:  lparenToken,
-				EndPos: p.curToken.End(),
+				EndPos: currentTok.End(),
 			},
 		},
 		Elements: []ast.Expression{},
@@ -1770,20 +1779,34 @@ func (p *Parser) parseRecordField() *ast.FieldInitializer {
 // PRE: curToken is NEW
 // POST: curToken is last token of new expression (RPAREN, RBRACK, or IDENT for zero-arg)
 func (p *Parser) parseNewExpression() ast.Expression {
-	newToken := p.curToken // Save the 'new' token position
+	// Task 2.7.6: Dual-mode - save 'new' token
+	var newToken lexer.Token
+	if p.cursor != nil {
+		newToken = p.cursor.Current()
+	} else {
+		newToken = p.curToken
+	}
 
 	// Expect a type name (identifier)
 	if !p.expectPeek(lexer.IDENT) {
 		return nil
 	}
 
+	// Task 2.7.6: Dual-mode - get current token for type name
+	var curTok lexer.Token
+	if p.cursor != nil {
+		curTok = p.cursor.Current()
+	} else {
+		curTok = p.curToken
+	}
+
 	typeName := &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token: p.curToken,
+				Token: curTok,
 			},
 		},
-		Value: p.curToken.Literal,
+		Value: curTok.Literal,
 	}
 
 	// Check what follows: '(' for class, '[' for array, or nothing for zero-arg constructor
