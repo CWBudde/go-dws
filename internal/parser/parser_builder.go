@@ -27,7 +27,7 @@ type ParserConfig struct {
 // DefaultConfig returns a ParserConfig with default settings.
 func DefaultConfig() ParserConfig {
 	return ParserConfig{
-		UseCursor:                          false,
+		UseCursor:                          true, // Cursor mode is now the standard (Task 2.7.4.2)
 		AllowReservedKeywordsAsIdentifiers: true,
 		StrictMode:                         false,
 		MaxRecursionDepth:                  1000,
@@ -153,6 +153,9 @@ func (b *ParserBuilder) registerParseFunctions(p *Parser) {
 	p.registerPrefix(lexer.CHAR, p.parseCharLiteral)
 
 	// Also register in cursor map for pure cursor mode operation
+	// TODO(Task 2.7.5): These wrapper functions ignore the tok parameter and call traditional
+	// implementations. They should be replaced with pure cursor-mode implementations that
+	// accept and use the token parameter directly, eliminating the need for closures.
 	p.registerPrefixCursor(lexer.IDENT, func(tok lexer.Token) ast.Expression { return p.parseIdentifier() })
 	p.registerPrefixCursor(lexer.INT, func(tok lexer.Token) ast.Expression { return p.parseIntegerLiteral() })
 	p.registerPrefixCursor(lexer.FLOAT, func(tok lexer.Token) ast.Expression { return p.parseFloatLiteral() })
@@ -169,6 +172,7 @@ func (b *ParserBuilder) registerParseFunctions(p *Parser) {
 	p.registerPrefix(lexer.PLUS, p.parsePrefixExpression)
 	p.registerPrefix(lexer.NOT, p.parsePrefixExpression)
 
+	// TODO(Task 2.7.5): Same issue - wrapper ignores tok parameter
 	p.registerPrefixCursor(lexer.MINUS, func(tok lexer.Token) ast.Expression { return p.parsePrefixExpression() })
 	p.registerPrefixCursor(lexer.PLUS, func(tok lexer.Token) ast.Expression { return p.parsePrefixExpression() })
 	p.registerPrefixCursor(lexer.NOT, func(tok lexer.Token) ast.Expression { return p.parsePrefixExpression() })
@@ -177,6 +181,7 @@ func (b *ParserBuilder) registerParseFunctions(p *Parser) {
 	p.registerPrefix(lexer.LPAREN, p.parseGroupedExpression)
 	p.registerPrefix(lexer.LBRACK, p.parseArrayLiteral)
 
+	// TODO(Task 2.7.5): Same issue - wrapper ignores tok parameter
 	p.registerPrefixCursor(lexer.LPAREN, func(tok lexer.Token) ast.Expression { return p.parseGroupedExpression() })
 	p.registerPrefixCursor(lexer.LBRACK, func(tok lexer.Token) ast.Expression { return p.parseArrayLiteral() })
 
@@ -190,6 +195,7 @@ func (b *ParserBuilder) registerParseFunctions(p *Parser) {
 	p.registerPrefix(lexer.SELF, p.parseSelfExpression)
 	p.registerPrefix(lexer.IF, p.parseIfExpression)
 
+	// TODO(Task 2.7.5): Same issue - wrapper ignores tok parameter
 	p.registerPrefixCursor(lexer.NEW, func(tok lexer.Token) ast.Expression { return p.parseNewExpression() })
 	p.registerPrefixCursor(lexer.DEFAULT, func(tok lexer.Token) ast.Expression { return p.parseDefaultExpression() })
 	p.registerPrefixCursor(lexer.AT, func(tok lexer.Token) ast.Expression { return p.parseAddressOfExpression() })
@@ -219,6 +225,8 @@ func (b *ParserBuilder) registerParseFunctions(p *Parser) {
 	p.registerInfix(lexer.SHR, p.parseInfixExpression)
 	p.registerInfix(lexer.SAR, p.parseInfixExpression)
 
+	// TODO(Task 2.7.5): All infix cursor registrations below also ignore the tok parameter.
+	// They should be refactored to use pure cursor-mode implementations.
 	p.registerInfixCursor(lexer.QUESTION_QUESTION, func(left ast.Expression, tok lexer.Token) ast.Expression { return p.parseInfixExpression(left) })
 	p.registerInfixCursor(lexer.PLUS, func(left ast.Expression, tok lexer.Token) ast.Expression { return p.parseInfixExpression(left) })
 	p.registerInfixCursor(lexer.MINUS, func(left ast.Expression, tok lexer.Token) ast.Expression { return p.parseInfixExpression(left) })

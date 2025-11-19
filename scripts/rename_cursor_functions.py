@@ -6,7 +6,6 @@ This implements Subtask 2.7.4.2 Step 2: Rename all parse*Cursor() to parse*()
 """
 
 import re
-import sys
 from pathlib import Path
 
 def find_dispatchers(content):
@@ -140,7 +139,9 @@ def process_file(filepath):
     return len(dispatchers)
 
 def main():
-    parser_dir = Path("/home/user/go-dws/internal/parser")
+    # Use path relative to script location for portability
+    script_dir = Path(__file__).parent
+    parser_dir = script_dir.parent / "internal" / "parser"
 
     # Get all .go files except tests
     go_files = sorted([
