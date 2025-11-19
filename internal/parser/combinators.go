@@ -75,6 +75,15 @@ func (p *Parser) Optional(tokenType lexer.TokenType) bool {
 	return false
 }
 
+// OptionalCursor attempts to consume the given token type using cursor.
+// Returns (true, newCursor) if the next token matches, (false, cursor) otherwise.
+func (p *Parser) OptionalCursor(cursor *TokenCursor, tokenType lexer.TokenType) (bool, *TokenCursor) {
+	if cursor.Peek(1).Type == tokenType {
+		return true, cursor.Advance()
+	}
+	return false, cursor
+}
+
 // OptionalOneOf attempts to consume one of the given token types.
 // If the peek token matches any of them, it consumes it and returns the matched type.
 // Otherwise, it returns lexer.ILLEGAL.
@@ -94,6 +103,18 @@ func (p *Parser) OptionalOneOf(tokenTypes ...lexer.TokenType) lexer.TokenType {
 		}
 	}
 	return lexer.ILLEGAL
+}
+
+// OptionalOneOfCursor attempts to consume one of the given token types using cursor.
+// Returns (matchedType, newCursor) if a token matches, (lexer.ILLEGAL, cursor) otherwise.
+func (p *Parser) OptionalOneOfCursor(cursor *TokenCursor, tokenTypes ...lexer.TokenType) (lexer.TokenType, *TokenCursor) {
+	nextToken := cursor.Peek(1)
+	for _, tt := range tokenTypes {
+		if nextToken.Type == tt {
+			return tt, cursor.Advance()
+		}
+	}
+	return lexer.ILLEGAL, cursor
 }
 
 // Many repeatedly applies the parse function until it fails or returns false.
@@ -490,6 +511,21 @@ func (p *Parser) SkipUntil(tokenTypes ...lexer.TokenType) bool {
 	return false
 }
 
+// SkipUntilCursor advances cursor until it finds one of the given token types.
+// Returns (true, newCursor) if found, (false, cursor) if EOF reached.
+// The cursor will be positioned AT the found token (not past it).
+func (p *Parser) SkipUntilCursor(cursor *TokenCursor, tokenTypes ...lexer.TokenType) (bool, *TokenCursor) {
+	for cursor.Current().Type != lexer.EOF {
+		for _, tt := range tokenTypes {
+			if cursor.Current().Type == tt {
+				return true, cursor
+			}
+		}
+		cursor = cursor.Advance()
+	}
+	return false, cursor
+}
+
 // SkipPast advances the parser until it finds and consumes one of the given token types.
 // Returns true if a token was found and consumed, false if EOF was reached.
 //
@@ -505,6 +541,17 @@ func (p *Parser) SkipPast(tokenTypes ...lexer.TokenType) bool {
 		return true
 	}
 	return false
+}
+
+// SkipPastCursor advances cursor until it finds and consumes one of the given token types.
+// Returns (true, newCursor) if found and consumed, (false, cursor) if EOF reached.
+// The cursor will be positioned AFTER the found token.
+func (p *Parser) SkipPastCursor(cursor *TokenCursor, tokenTypes ...lexer.TokenType) (bool, *TokenCursor) {
+	found, newCursor := p.SkipUntilCursor(cursor, tokenTypes...)
+	if found {
+		return true, newCursor.Advance() // consume the found token
+	}
+	return false, cursor
 }
 
 // ========================================================================
@@ -546,6 +593,32 @@ func (p *Parser) OptionalTypeAnnotation() ast.TypeExpression {
 	}
 
 	return typeExpr
+}
+
+// OptionalTypeAnnotationCursor parses an optional type annotation (: Type) using cursor.
+// Returns (typeExpr, newCursor) if present, (nil, cursor) otherwise.
+// Does not consume tokens if no type annotation is present.
+//
+// Syntax: [: TypeExpression]
+//
+// PRE: cursor is at the token before potential colon
+// POST: cursor is at last token of type expression if present; otherwise unchanged
+func (p *Parser) OptionalTypeAnnotationCursor(cursor *TokenCursor) (ast.TypeExpression, *TokenCursor) {
+	if cursor.Peek(1).Type != lexer.COLON {
+		return nil, cursor
+	}
+
+	cursor = cursor.Advance() // move to ':'
+	cursor = cursor.Advance() // move to type expression
+	p.cursor = cursor
+
+	typeExpr := p.parseTypeExpressionCursor()
+	if typeExpr == nil {
+		// Error already reported by parseTypeExpression
+		return nil, p.cursor
+	}
+
+	return typeExpr, p.cursor
 }
 
 // IdentifierListConfig configures the IdentifierList combinator.
