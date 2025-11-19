@@ -13,13 +13,10 @@ import (
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 // Eventually (Phase 2.7), only the cursor version will remain.
 func (p *Parser) parseTypeExpression() ast.TypeExpression {
-	if p.useCursor {
-		return p.parseTypeExpressionCursor()
-	}
-	return p.parseTypeExpressionTraditional()
+	return p.parseTypeExpressionCursor()
 }
 
-// parseTypeExpressionTraditional parses a type expression (traditional mode).
+// parseTypeExpressionCursor parses a type expression using cursor mode.
 // Type expressions can be:
 //   - Simple types: Integer, String, TMyType
 //   - Function pointer types: function(x: Integer): String
@@ -32,61 +29,9 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 // without requiring type aliases.
 //
 // Task 9.49: Created to support inline type expressions
-// Task 2.7.2: Renamed from parseTypeExpression to enable dual-mode operation
-// PRE: curToken is first token of type (IDENT, CONST, FUNCTION, PROCEDURE, ARRAY, SET, CLASS)
-// POST: curToken is last token of type expression
-func (p *Parser) parseTypeExpressionTraditional() ast.TypeExpression {
-	builder := p.StartNode()
-	switch p.curToken.Type {
-	case lexer.IDENT:
-		// Simple type identifier
-		typeAnnotation := &ast.TypeAnnotation{
-			Token: p.curToken,
-			Name:  p.curToken.Literal,
-		}
-		// EndPos is after the type identifier token
-		return builder.Finish(typeAnnotation).(*ast.TypeAnnotation)
-
-	case lexer.CONST:
-		// Special case: "const" can be used as a type in "array of const"
-		// This represents a variant/heterogeneous array type
-		// Task 9.21.4: Support variadic parameters with array of const
-		typeAnnotation := &ast.TypeAnnotation{
-			Token: p.curToken,
-			Name:  "const", // This will be interpreted as Variant type by semantic analyzer
-		}
-		// EndPos is after the const token
-		return builder.Finish(typeAnnotation).(*ast.TypeAnnotation)
-
-	case lexer.FUNCTION, lexer.PROCEDURE:
-		// Inline function or procedure pointer type
-		return p.parseFunctionPointerType()
-
-	case lexer.ARRAY:
-		// Array type: array of ElementType
-		return p.parseArrayType()
-
-	case lexer.SET:
-		// Set type: set of ElementType
-		// Task 9.213: Parse inline set type expressions
-		return p.parseSetType()
-
-	case lexer.CLASS:
-		// Metaclass type: class of ClassName
-		// Task 9.70: Parse metaclass type syntax
-		return p.parseClassOfType()
-
-	default:
-		p.addError("expected type expression, got "+p.curToken.Literal, ErrExpectedType)
-		return nil
-	}
-}
-
-// parseTypeExpressionCursor parses a type expression (cursor mode).
-// PRE: cursor is at first token of type
-// POST: cursor is at last token of type expression
-//
-// Task 2.7.2: New cursor-based implementation for immutable parsing.
+// Task 2.7.2: Migrated to cursor mode
+// PRE: cursor is on first token of type (IDENT, CONST, FUNCTION, PROCEDURE, ARRAY, SET, CLASS)
+// POST: cursor is on last token of type expression
 func (p *Parser) parseTypeExpressionCursor() ast.TypeExpression {
 	cursor := p.cursor
 	builder := p.StartNode()
@@ -181,13 +126,10 @@ func (p *Parser) detectFunctionPointerFullSyntax() bool {
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
-	if p.useCursor {
-		return p.parseFunctionPointerTypeCursor()
-	}
-	return p.parseFunctionPointerTypeTraditional()
+	return p.parseFunctionPointerTypeCursor()
 }
 
-// parseFunctionPointerTypeTraditional parses an inline function or procedure pointer type (traditional mode).
+// parseFunctionPointerTypeCursor parses an inline function or procedure pointer type using cursor mode.
 // This is the reusable version extracted from parseFunctionPointerTypeDeclaration.
 //
 // Syntax:
@@ -198,136 +140,9 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 //	procedure(...) of object
 //
 // Task 9.50: Refactored from parseFunctionPointerTypeDeclaration
-// Task 2.7.2: Renamed to enable dual-mode operation
-// PRE: curToken is FUNCTION or PROCEDURE
-// POST: curToken is last token of function pointer type (OBJECT, return type, or RPAREN)
-func (p *Parser) parseFunctionPointerTypeTraditional() *ast.FunctionPointerTypeNode {
-	builder := p.StartNode()
-	// Current token is FUNCTION or PROCEDURE
-	funcOrProcToken := p.curToken
-	isFunction := funcOrProcToken.Type == lexer.FUNCTION
-
-	// Create the function pointer type node
-	funcPtrType := &ast.FunctionPointerTypeNode{
-		Token:      funcOrProcToken,
-		Parameters: []*ast.Parameter{},
-		OfObject:   false,
-	}
-
-	// Check if parameter list is present (optional in DWScript)
-	// Function pointer types can be:
-	//   procedure - no parameters, no parentheses
-	//   procedure() - no parameters, with parentheses
-	//   procedure(x: Integer) - with parameters
-	//   function : Integer - no parameters, no parentheses
-	//   function() : Integer - no parameters, with parentheses
-	//   function(x: Integer) : Integer - with parameters
-	hasParentheses := p.peekTokenIs(lexer.LPAREN)
-
-	// Track the token for EndPos calculation
-	var endToken lexer.Token
-
-	if hasParentheses {
-		// Parameter list present with parentheses
-		p.nextToken() // move to LPAREN
-
-		// Check if there are parameters (not just empty parens)
-		if !p.peekTokenIs(lexer.RPAREN) {
-			// Detect syntax type: full (with names) vs shorthand (types only)
-			// We need to determine if we have:
-			//   Full syntax: "name: Type" or "name1, name2: Type"
-			//   Shorthand: "Type" or "Type1, Type2"
-			//
-			// Strategy: Use simple lookahead WITHOUT advancing parser state.
-			// After we detect, advance once and parse accordingly.
-
-			isFullSyntax := p.detectFunctionPointerFullSyntax()
-
-			// Now advance to first parameter/type token
-			p.nextToken()
-
-			if isFullSyntax {
-				// Full syntax with parameter names
-				funcPtrType.Parameters = p.parseParameterListAtToken()
-			} else {
-				// Shorthand syntax with only types
-				funcPtrType.Parameters = p.parseTypeOnlyParameterListAtToken()
-			}
-
-			if funcPtrType.Parameters == nil {
-				return nil
-			}
-		} else {
-			// Empty parameter list
-			p.nextToken() // move to RPAREN
-		}
-
-		// Expect closing parenthesis
-		if !p.curTokenIs(lexer.RPAREN) {
-			p.addError("expected ')' after parameter list in function pointer type", ErrMissingRParen)
-			return nil
-		}
-
-		// Save RPAREN token for EndPos calculation
-		endToken = p.curToken
-	} else {
-		// No parentheses - parameterless function/procedure pointer
-		// Current token is still FUNCTION or PROCEDURE
-		// Save the function/procedure token for EndPos
-		endToken = funcOrProcToken
-	}
-
-	// Parse return type for functions (not procedures)
-	if isFunction {
-		// Expect colon and return type
-		if !p.expectPeek(lexer.COLON) {
-			p.addError("expected ':' after ')' in function pointer type", ErrMissingColon)
-			return nil
-		}
-
-		// Parse return type (can be any type expression)
-		p.nextToken() // move to return type
-		returnTypeExpr := p.parseTypeExpression()
-		if returnTypeExpr == nil {
-			return nil
-		}
-
-		// Convert type expression to TypeAnnotation
-		// For now, we only support simple types as return types
-		// TODO: Support complex return types (arrays, function pointers)
-		switch rt := returnTypeExpr.(type) {
-		case *ast.TypeAnnotation:
-			funcPtrType.ReturnType = rt
-		default:
-			p.addError("complex return types not yet supported in function pointers", ErrInvalidType)
-			return nil
-		}
-	}
-
-	// Check for "of object" clause (method pointers)
-	if p.peekTokenIs(lexer.OF) {
-		p.nextToken() // move to OF
-		if !p.expectPeek(lexer.OBJECT) {
-			p.addError("expected 'object' after 'of' in function pointer type", ErrUnexpectedToken)
-			return nil
-		}
-		funcPtrType.OfObject = true
-		// EndPos is after "object" token
-		return builder.Finish(funcPtrType).(*ast.FunctionPointerTypeNode)
-	} else if funcPtrType.ReturnType != nil {
-		// EndPos is after return type for functions
-		return builder.FinishWithNode(funcPtrType, funcPtrType.ReturnType).(*ast.FunctionPointerTypeNode)
-	} else {
-		// EndPos is after closing paren (if present) or function/procedure keyword
-		return builder.FinishWithToken(funcPtrType, endToken).(*ast.FunctionPointerTypeNode)
-	}
-}
-
-// parseFunctionPointerTypeCursor parses an inline function or procedure pointer type (cursor mode).
-// PRE: cursor is at FUNCTION or PROCEDURE
-// POST: cursor is at last token of function pointer type
-//
-// Task 2.7.2: New cursor-based implementation for immutable parsing.
+// Task 2.7.2: Migrated to cursor mode
+// PRE: cursor is on FUNCTION or PROCEDURE token
+// POST: cursor is on last token of function pointer type (OBJECT, return type, or RPAREN)
 func (p *Parser) parseFunctionPointerTypeCursor() *ast.FunctionPointerTypeNode {
 	cursor := p.cursor
 	builder := p.StartNode()
@@ -462,13 +277,10 @@ type dimensionPair struct {
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
-	if p.useCursor {
-		return p.parseArrayTypeCursor()
-	}
-	return p.parseArrayTypeTraditional()
+	return p.parseArrayTypeCursor()
 }
 
-// parseArrayTypeTraditional parses an array type expression (traditional mode).
+// parseArrayTypeCursor parses an array type expression using cursor mode.
 // Supports both dynamic and static arrays:
 //   - Dynamic: array of ElementType
 //   - Static: array[low..high] of ElementType
@@ -482,7 +294,7 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 // Task 9.51: Created to support array of Type syntax
 // Task 9.54: Extended to support static array bounds
 // Task 9.212: Extended to support comma-separated multidimensional arrays
-// Task 2.7.2: Renamed to enable dual-mode operation
+// Task 2.7.2: Migrated to cursor mode
 //
 // Supports both single and multi-dimensional syntax:
 //   - array[0..10] of Integer         (single dimension)
@@ -494,164 +306,8 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 //	array[0..1, 0..2] of Integer
 //	→ array[0..1] of array[0..2] of Integer
 //
-// PRE: curToken is ARRAY
-// POST: curToken is last token of element type
-func (p *Parser) parseArrayTypeTraditional() *ast.ArrayTypeNode {
-	builder := p.StartNode()
-	// Current token is ARRAY
-	arrayToken := p.curToken
-
-	// Collect all dimensions (comma-separated)
-	var dimensions []dimensionPair
-
-	var indexType ast.TypeExpression
-
-	if p.peekTokenIs(lexer.LBRACK) {
-		p.nextToken() // move to '['
-
-		// Check for enum-indexed array: array[TEnum] of Type
-		// This is when we have an identifier followed directly by ']' (no '..')
-		// Task 9.21.1: Support enum-indexed arrays
-		if p.peekTokenIs(lexer.IDENT) {
-			p.nextToken() // move to identifier
-
-			// Check if next token is ']' (enum-indexed) or something else
-			if p.peekTokenIs(lexer.RBRACK) {
-				// This is an enum-indexed array: array[TEnum] of Type
-				typeBuilder := p.StartNode()
-				indexType = typeBuilder.Finish(&ast.TypeAnnotation{
-					Token: p.curToken,
-					Name:  p.curToken.Literal,
-				}).(*ast.TypeAnnotation)
-
-				// Move to ']'
-				p.nextToken()
-			} else {
-				// Not enum-indexed, restore and parse as normal bounds
-				// We've already moved to the identifier, so this will be the low bound
-				dimensions = p.parseArrayBoundsFromCurrent()
-				if dimensions == nil {
-					return nil
-				}
-
-				// Now expect ']'
-				if !p.expectPeek(lexer.RBRACK) {
-					p.addError("expected ']' after array bounds", ErrMissingRBracket)
-					return nil
-				}
-			}
-		} else {
-			// Not starting with identifier, parse normally
-			p.nextToken() // move to low bound
-			dimensions = p.parseArrayBoundsFromCurrent()
-			if dimensions == nil {
-				return nil
-			}
-
-			// Note: Bounds validation is now deferred to semantic analysis phase
-			// since bounds may be constant expressions that need evaluation
-
-			// Now expect ']'
-			if !p.expectPeek(lexer.RBRACK) {
-				// Use structured error for missing closing bracket
-				err := NewStructuredError(ErrKindMissing).
-					WithCode(ErrMissingRBracket).
-					WithMessage("expected ']' after array bounds").
-					WithPosition(p.peekToken.Pos, p.peekToken.Length()).
-					WithExpected(lexer.RBRACK).
-					WithActual(p.peekToken.Type, p.peekToken.Literal).
-					WithSuggestion("add ']' to close the array bounds").
-					WithParsePhase("array type bounds").
-					Build()
-				p.addStructuredError(err)
-				return nil
-			}
-		}
-	}
-
-	// Expect 'of' keyword
-	if !p.expectPeek(lexer.OF) {
-		// Use structured error for missing 'of'
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingOf).
-			WithMessage("expected 'of' after array declaration").
-			WithPosition(p.peekToken.Pos, p.peekToken.Length()).
-			WithExpected(lexer.OF).
-			WithActual(p.peekToken.Type, p.peekToken.Literal).
-			WithSuggestion("add 'of' keyword after 'array' or 'array[bounds]'").
-			WithNote("DWScript array types use syntax: array [bounds] of ElementType").
-			WithParsePhase("array type").
-			Build()
-		p.addStructuredError(err)
-		return nil
-	}
-
-	// Parse element type
-	p.nextToken() // move to element type
-	elementType := p.parseTypeExpression()
-	if elementType == nil {
-		// Use structured error for missing element type
-		err := NewStructuredError(ErrKindInvalid).
-			WithCode(ErrExpectedType).
-			WithMessage("expected type expression after 'array of'").
-			WithPosition(p.curToken.Pos, p.curToken.Length()).
-			WithExpectedString("type name").
-			WithSuggestion("specify the element type, like 'Integer' or 'String'").
-			WithParsePhase("array element type").
-			Build()
-		p.addStructuredError(err)
-		return nil
-	}
-
-	// If enum-indexed array, return with IndexType
-	if indexType != nil {
-		arrayNode := &ast.ArrayTypeNode{
-			Token:       arrayToken,
-			ElementType: elementType,
-			IndexType:   indexType,
-			LowBound:    nil,
-			HighBound:   nil,
-		}
-		// EndPos is after element type
-		return builder.FinishWithNode(arrayNode, elementType).(*ast.ArrayTypeNode)
-	}
-
-	// If no dimensions, return simple dynamic array
-	if len(dimensions) == 0 {
-		arrayNode := &ast.ArrayTypeNode{
-			Token:       arrayToken,
-			ElementType: elementType,
-			LowBound:    nil,
-			HighBound:   nil,
-		}
-		// EndPos is after element type
-		return builder.FinishWithNode(arrayNode, elementType).(*ast.ArrayTypeNode)
-	}
-
-	// Build nested array types from innermost to outermost
-	// This desugars: array[0..1, 0..2] of Integer
-	//           into: array[0..1] of (array[0..2] of Integer)
-	result := elementType
-	for i := len(dimensions) - 1; i >= 0; i-- {
-		dimBuilder := p.StartNode()
-		arrayNode := &ast.ArrayTypeNode{
-			Token:       arrayToken,
-			ElementType: result,
-			LowBound:    dimensions[i].low,
-			HighBound:   dimensions[i].high,
-		}
-		// EndPos is after the element type (which could be nested)
-		result = dimBuilder.FinishWithNode(arrayNode, result).(*ast.ArrayTypeNode)
-	}
-
-	return result.(*ast.ArrayTypeNode)
-}
-
-// parseArrayTypeCursor parses an array type expression (cursor mode).
-// PRE: cursor is at ARRAY
-// POST: cursor is at last token of element type
-//
-// Task 2.7.2: New cursor-based implementation for immutable parsing.
+// PRE: cursor is on ARRAY token
+// POST: cursor is on last token of element type
 func (p *Parser) parseArrayTypeCursor() *ast.ArrayTypeNode {
 	cursor := p.cursor
 	builder := p.StartNode()
@@ -917,13 +573,10 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseClassOfType() *ast.ClassOfTypeNode {
-	if p.useCursor {
-		return p.parseClassOfTypeCursor()
-	}
-	return p.parseClassOfTypeTraditional()
+	return p.parseClassOfTypeCursor()
 }
 
-// parseClassOfTypeTraditional parses a metaclass type expression (traditional mode).
+// parseClassOfTypeCursor parses a metaclass type expression using cursor mode.
 //
 // Syntax:
 //
@@ -937,42 +590,9 @@ func (p *Parser) parseClassOfType() *ast.ClassOfTypeNode {
 // Current token should be CLASS.
 //
 // Task 9.70: Parse metaclass type syntax
-// Task 2.7.2: Renamed to enable dual-mode operation
-// PRE: curToken is CLASS
-// POST: curToken is class type IDENT
-func (p *Parser) parseClassOfTypeTraditional() *ast.ClassOfTypeNode {
-	builder := p.StartNode()
-	classToken := p.curToken // The 'class' token
-
-	// Expect 'of' keyword
-	if !p.expectPeek(lexer.OF) {
-		p.addError("expected 'of' after 'class' in metaclass type", ErrMissingOf)
-		return nil
-	}
-
-	// Parse class type (typically a simple identifier like TMyClass)
-	p.nextToken() // move to class type
-
-	classType := p.parseTypeExpression()
-	if classType == nil {
-		p.addError("expected class type after 'class of'", ErrExpectedType)
-		return nil
-	}
-
-	classOfNode := &ast.ClassOfTypeNode{
-		Token:     classToken,
-		ClassType: classType,
-	}
-
-	// EndPos is after the class type
-	return builder.FinishWithNode(classOfNode, classType).(*ast.ClassOfTypeNode)
-}
-
-// parseClassOfTypeCursor parses a metaclass type expression (cursor mode).
-// PRE: cursor is at CLASS
-// POST: cursor is at class type token
-//
-// Task 2.7.2: New cursor-based implementation for immutable parsing.
+// Task 2.7.2: Migrated to cursor mode
+// PRE: cursor is on CLASS token
+// POST: cursor is on class type IDENT
 func (p *Parser) parseClassOfTypeCursor() *ast.ClassOfTypeNode {
 	cursor := p.cursor
 	builder := p.StartNode()
