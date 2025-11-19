@@ -42,10 +42,10 @@ func TestParserBuilderWithCursorMode(t *testing.T) {
 	if p.cursor == nil {
 		t.Errorf("Cursor not initialized - parser should always use cursor mode")
 	}
-	if p.prefixParseFnsCursor == nil {
+	if p.prefixParseFns == nil {
 		t.Errorf("Cursor prefix parse functions not initialized")
 	}
-	if p.infixParseFnsCursor == nil {
+	if p.infixParseFns == nil {
 		t.Errorf("Cursor infix parse functions not initialized")
 	}
 }
@@ -351,11 +351,11 @@ func TestNewCursorParserUsesBuilder(t *testing.T) {
 	}
 
 	// Verify cursor-specific parse functions are registered
-	if len(p.prefixParseFnsCursor) == 0 {
+	if len(p.prefixParseFns) == 0 {
 		t.Errorf("NewCursorParser did not register cursor prefix parse functions")
 	}
 
-	if len(p.infixParseFnsCursor) == 0 {
+	if len(p.infixParseFns) == 0 {
 		t.Errorf("NewCursorParser did not register cursor infix parse functions")
 	}
 }

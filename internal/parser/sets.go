@@ -12,13 +12,11 @@ import (
 // Syntax:
 //   - type TDays = set of TWeekday;
 //
-// PRE: curToken is SET
-// POST: curToken is SEMICOLON
-// Dispatcher: delegates to cursor or traditional mode
+// PRE: cursor is SET
+// POST: cursor is SEMICOLON
 
-// parseSetDeclarationTraditional parses set declaration using traditional mode.
-// PRE: curToken is SET
-// POST: curToken is SEMICOLON
+// PRE: cursor is SET
+// POST: cursor is SEMICOLON
 func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.SetDecl {
 	setDecl := &ast.SetDecl{
 		BaseNode: ast.BaseNode{Token: typeToken}, // The 'type' token
@@ -94,13 +92,11 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 //   - set of TypeName
 //   - set of (A, B, C)  // inline anonymous enum (if supported)
 //
-// PRE: curToken is SET
-// POST: curToken is last token of element type
-// Dispatcher: delegates to cursor or traditional mode
+// PRE: cursor is SET
+// POST: cursor is last token of element type
 
-// parseSetTypeTraditional parses set type using traditional mode.
-// PRE: curToken is SET
-// POST: curToken is last token of element type
+// PRE: cursor is SET
+// POST: cursor is last token of element type
 func (p *Parser) parseSetType() *ast.SetTypeNode {
 	cursor := p.cursor
 	builder := p.StartNode()
@@ -144,13 +140,11 @@ func (p *Parser) parseSetType() *ast.SetTypeNode {
 //   - [one, three..five]      // mixed
 //   - []                      // empty set
 //
-// PRE: curToken is LBRACK
-// POST: curToken is RBRACK
-// Dispatcher: delegates to cursor or traditional mode
+// PRE: cursor is LBRACK
+// POST: cursor is RBRACK
 
-// parseSetLiteralTraditional parses set literal using traditional mode.
-// PRE: curToken is LBRACK
-// POST: curToken is RBRACK
+// PRE: cursor is LBRACK
+// POST: cursor is RBRACK
 func (p *Parser) parseSetLiteral() ast.Expression {
 	builder := p.StartNode()
 	cursor := p.cursor

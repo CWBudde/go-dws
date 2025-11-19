@@ -16,8 +16,8 @@ import (
 //	raise new EMyException('custom error');
 //	raise;  // re-raise
 //
-// PRE: curToken is RAISE
-// POST: curToken is last token of exception expression (or RAISE for bare raise)
+// PRE: cursor is RAISE
+// POST: cursor is last token of exception expression (or RAISE for bare raise)
 
 // parseTryStatement parses a try...except...finally...end statement.
 // Syntax:
@@ -40,12 +40,12 @@ import (
 //	  Cleanup();
 //	end;
 //
-// PRE: curToken is TRY
-// POST: curToken is END
+// PRE: cursor is TRY
+// POST: cursor is END
 
 // parseBlockStatementForTry parses statements until 'except', 'finally', or 'end'
-// PRE: curToken is first statement token
-// POST: curToken is EXCEPT, FINALLY, or END
+// PRE: cursor is first statement token
+// POST: cursor is EXCEPT, FINALLY, or END
 
 // parseExceptClause parses an except clause.
 // Syntax:
@@ -63,8 +63,8 @@ import (
 //	  PrintLn('error');  // bare except
 //	end
 //
-// PRE: curToken is EXCEPT
-// POST: curToken is last token before FINALLY or END
+// PRE: cursor is EXCEPT
+// POST: cursor is last token before FINALLY or END
 
 // parseExceptionHandler parses an exception handler.
 // Syntax: on <variable>: <type> do <statement>
@@ -78,8 +78,8 @@ import (
 //	  HandleMyException(E);
 //	end;
 //
-// PRE: curToken is ON
-// POST: curToken is last token after statement
+// PRE: cursor is ON
+// POST: cursor is last token after statement
 
 // parseFinallyClause parses a finally clause.
 // Syntax: finally <statements> end
@@ -90,15 +90,12 @@ import (
 //	  Cleanup();
 //	end
 //
-// PRE: curToken is FINALLY
-// POST: curToken is END (before END of try)
+// PRE: cursor is FINALLY
+// POST: cursor is END (before END of try)
 
 // ============================================================================
-// Task 2.2.14.7: Cursor-mode exception handling statement handlers
 // ============================================================================
 
-// parseRaiseStatement parses a raise statement using cursor mode.
-// Task 2.2.14.7: Raise statement migration
 // Syntax:
 //   - raise <expression>;  (raise new exception)
 //   - raise;               (re-raise current exception, only valid in except block)
@@ -141,8 +138,6 @@ func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
 	return builder.FinishWithNode(stmt, stmt.Exception).(*ast.RaiseStatement)
 }
 
-// parseTryStatement parses a try...except...finally...end statement using cursor mode.
-// Task 2.2.14.7: Try statement migration
 // Syntax:
 //   - try <statements> except <handlers> end;
 //   - try <statements> finally <statements> end;
@@ -235,8 +230,6 @@ func (p *Parser) parseTryStatement() *ast.TryStatement {
 	return builder.FinishWithToken(stmt, currentToken).(*ast.TryStatement)
 }
 
-// parseBlockStatementForTry parses statements until 'except', 'finally', or 'end' using cursor mode.
-// Task 2.2.14.7: Helper for try block parsing
 // PRE: cursor is on first statement token
 // POST: cursor is on EXCEPT, FINALLY, or END
 func (p *Parser) parseBlockStatementForTry() *ast.BlockStatement {
@@ -263,7 +256,6 @@ func (p *Parser) parseBlockStatementForTry() *ast.BlockStatement {
 			continue
 		}
 
-		// Parse statement using cursor mode
 		stmt := p.parseStatement()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
@@ -281,8 +273,6 @@ func (p *Parser) parseBlockStatementForTry() *ast.BlockStatement {
 	return block
 }
 
-// parseExceptClause parses an except clause using cursor mode.
-// Task 2.2.14.7: Exception handler clause migration
 // Syntax:
 //   - except <handlers> end
 //   - except <handlers> else <statements> end
@@ -422,8 +412,6 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 	}
 }
 
-// parseExceptionHandler parses an exception handler using cursor mode.
-// Task 2.2.14.7: Exception handler migration
 // Syntax: on <variable>: <type> do <statement>
 //
 // PRE: cursor is on ON token
@@ -549,8 +537,6 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 	return builder.FinishWithNode(handler, handler.Statement).(*ast.ExceptionHandler)
 }
 
-// parseFinallyClause parses a finally clause using cursor mode.
-// Task 2.2.14.7: Finally clause migration
 // Syntax: finally <statements> end
 //
 // PRE: cursor is on FINALLY token

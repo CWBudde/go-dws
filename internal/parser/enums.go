@@ -8,10 +8,8 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
-// parseEnumDeclaration parses an enum type declaration (dual-mode dispatcher).
 // Called after 'type Name =' has already been parsed.
 //
-// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 //
 // Syntax:
 //   - type TColor = (Red, Green, Blue);          // unscoped enum
@@ -19,7 +17,6 @@ import (
 //   - type TEnum = enum (One, Two);              // scoped enum
 //   - type TFlags = flags (a, b, c);             // flags enum (scoped, power-of-2 values)
 
-// parseEnumDeclarationTraditional parses an enum type declaration (traditional mode).
 // Called after 'type Name =' has already been parsed.
 // Current token should be '(' or 'enum' or 'flags'.
 //
@@ -29,8 +26,8 @@ import (
 //   - type TEnum = enum (One, Two);              // scoped enum
 //   - type TFlags = flags (a, b, c);             // flags enum (scoped, power-of-2 values)
 //
-// PRE: curToken is LPAREN (or after ENUM/FLAGS, will advance to LPAREN)
-// POST: curToken is SEMICOLON
+// PRE: cursor is LPAREN (or after ENUM/FLAGS, will advance to LPAREN)
+// POST: cursor is SEMICOLON
 func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token, scoped bool, flags bool) *ast.EnumDecl {
 	builder := p.StartNode()
 	cursor := p.cursor
@@ -135,14 +132,11 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 	return builder.Finish(enumDecl).(*ast.EnumDecl)
 }
 
-// parseEnumValue parses an enum value (dual-mode dispatcher).
 // Integer, possibly negative.
 //
-// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 
-// parseEnumValueTraditional parses an enum value (integer, possibly negative) (traditional mode).
-// PRE: curToken is first token of value (INT or MINUS)
-// POST: curToken is INT
+// PRE: cursor is first token of value (INT or MINUS)
+// POST: cursor is INT
 func (p *Parser) parseEnumValue() (int, error) {
 	cursor := p.cursor
 

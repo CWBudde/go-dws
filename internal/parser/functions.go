@@ -17,19 +17,15 @@ func isCallingConvention(literal string) bool {
 		lower == "reference"
 }
 
-// parseFunctionDeclaration is a dispatcher that routes to the appropriate implementation
 // based on the parser mode (traditional vs cursor).
 //
-// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 
-// parseFunctionDeclarationTraditional parses a function or procedure declaration.
 // Syntax: function Name(params): Type; begin ... end;
 //
 //	procedure Name(params); begin ... end;
 //
-// PRE: curToken is FUNCTION or PROCEDURE
-// POST: curToken is END or SEMICOLON (forward declaration) or last token of body
-// Task 2.7.2: Renamed to enable dual-mode operation
+// PRE: cursor is FUNCTION or PROCEDURE
+// POST: cursor is END or SEMICOLON (forward declaration) or last token of body
 func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	cursor := p.cursor
 	builder := p.StartNode()
@@ -437,15 +433,12 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 
 // parseParameterList parses a function parameter list.
 // Syntax: (param: Type; var param: Type; a, b, c: Type)
-// PRE: curToken is LPAREN
-// POST: curToken is RPAREN
+// PRE: cursor is LPAREN
+// POST: cursor is RPAREN
 
-// parseParameterList parses a function parameter list (cursor mode).
 // Syntax: (param: Type; var param: Type; a, b, c: Type)
 // PRE: cursor is at LPAREN
 // POST: cursor is at RPAREN
-//
-// Task 2.7.4: Created to fix bug in parseFunctionDeclaration parameter parsing
 func (p *Parser) parseParameterList() []*ast.Parameter {
 	cursor := p.cursor
 	params := []*ast.Parameter{}
@@ -497,15 +490,12 @@ func (p *Parser) parseParameterList() []*ast.Parameter {
 
 // parseParameterGroup parses a group of parameters with the same type.
 // Syntax: name: Type  or  name1, name2, name3: Type  or  var name: Type  or  lazy name: Type  or  const name: Type
-// PRE: curToken is VAR, CONST, LAZY, or first parameter name IDENT
-// POST: curToken is last token of type expression or default value
+// PRE: cursor is VAR, CONST, LAZY, or first parameter name IDENT
+// POST: cursor is last token of type expression or default value
 
-// parseParameterGroup parses a group of parameters with the same type (cursor mode).
 // Syntax: name: Type  or  name1, name2, name3: Type  or  var name: Type  or  lazy name: Type  or  const name: Type
 // PRE: cursor is at VAR, CONST, LAZY, or first parameter name IDENT
 // POST: cursor is at last token of type expression or default value
-//
-// Task 2.7.4: Created to fix bug in parseFunctionDeclaration parameter parsing
 func (p *Parser) parseParameterGroup() []*ast.Parameter {
 	cursor := p.cursor
 	params := []*ast.Parameter{}
@@ -662,18 +652,14 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 	return params
 }
 
-// parseParameterListAtToken is a dispatcher that routes to the appropriate implementation
 // based on the parser mode (traditional vs cursor).
 //
-// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 
-// parseParameterListAtTokenTraditional parses a full parameter list with names when already
 // positioned at the first parameter token (not at LPAREN).
 // This is a wrapper used by function pointer type parsing.
 // Syntax: name: Type; name2: Type; ...
-// PRE: curToken is first parameter token (VAR, CONST, LAZY, or IDENT)
-// POST: curToken is RPAREN
-// Task 2.7.2: Renamed to enable dual-mode operation
+// PRE: cursor is first parameter token (VAR, CONST, LAZY, or IDENT)
+// POST: cursor is RPAREN
 func (p *Parser) parseParameterListAtToken() []*ast.Parameter {
 	params := []*ast.Parameter{}
 
@@ -714,12 +700,9 @@ func (p *Parser) parseParameterListAtToken() []*ast.Parameter {
 	return params
 }
 
-// parseTypeOnlyParameterListAtToken is a dispatcher that routes to the appropriate implementation
 // based on the parser mode (traditional vs cursor).
 //
-// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 
-// parseTypeOnlyParameterListAtTokenTraditional parses a parameter list with only types (no names).
 // Used for shorthand function pointer syntax: function(Integer, String): Boolean
 //
 // Syntax:
@@ -732,9 +715,8 @@ func (p *Parser) parseParameterListAtToken() []*ast.Parameter {
 //
 // This format is used in type declarations but not in actual function definitions.
 // Example: type TFunc = function(Integer, String): Boolean;
-// PRE: curToken is first type token or modifier (CONST, VAR, LAZY)
-// POST: curToken is RPAREN
-// Task 2.7.2: Renamed to enable dual-mode operation
+// PRE: cursor is first type token or modifier (CONST, VAR, LAZY)
+// POST: cursor is RPAREN
 func (p *Parser) parseTypeOnlyParameterListAtToken() []*ast.Parameter {
 	params := []*ast.Parameter{}
 	cursor := p.cursor

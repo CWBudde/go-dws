@@ -5,67 +5,51 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
-// parseStatement parses a single statement in cursor mode.
-// Task 2.2.14.1: Statement parsing infrastructure
 // PRE: cursor is on first token of statement
 // POST: cursor is on last token of statement
 func (p *Parser) parseStatement() ast.Statement {
-	// For now, this is a dispatcher that will call cursor versions when available
 	// As we implement each statement cursor handler, they'll be added here
 
 	currentToken := p.cursor.Current()
 
 	switch currentToken.Type {
 	case lexer.BEGIN:
-		// Task 2.2.14.3: Use cursor mode for block statements
 		return p.parseBlockStatement()
 
 	case lexer.VAR:
-		// Task 2.2.14.6: Use cursor mode for var declarations
 		return p.parseVarDeclaration()
 
 	case lexer.CONST:
-		// Task 2.2.14.6: Use cursor mode for const declarations
 		return p.parseConstDeclaration()
 
 	case lexer.IF:
-		// Task 2.2.14.4: Use cursor mode for if statements
 		return p.parseIfStatement()
 
 	case lexer.WHILE:
-		// Task 2.2.14.4: Use cursor mode for while statements
 		return p.parseWhileStatement()
 
 	case lexer.REPEAT:
-		// Task 2.2.14.4: Use cursor mode for repeat statements
 		return p.parseRepeatStatement()
 
 	case lexer.FOR:
-		// Task 2.2.14.5: Use cursor mode for for statements
 		return p.parseForStatement()
 
 	case lexer.CASE:
-		// Task 2.2.14.5: Use cursor mode for case statements
 		return p.parseCaseStatement()
 
 	case lexer.BREAK:
-		// Task 2.2.14.8: Use cursor mode for break statements
 		return p.parseBreakStatement()
 
 	case lexer.CONTINUE:
-		// Task 2.2.14.8: Use cursor mode for continue statements
 		return p.parseContinueStatement()
 
 	case lexer.EXIT:
-		// Task 2.2.14.8: Use cursor mode for exit statements
 		return p.parseExitStatement()
 
 	case lexer.TRY:
-		// Task 2.2.14.7: Use cursor mode for try statements
 		return p.parseTryStatement()
 
 	case lexer.RAISE:
-		// Task 2.2.14.7: Use cursor mode for raise statements
 		return p.parseRaiseStatement()
 
 	case lexer.FUNCTION, lexer.PROCEDURE, lexer.METHOD:
@@ -110,9 +94,7 @@ func (p *Parser) parseStatement() ast.Statement {
 	default:
 		// Check for assignment (simple or member assignment)
 		// Handle SELF and INHERITED which can be assignment targets (e.g., Self.X := value)
-		// Task 2.2.14.2: Use cursor mode for expressions and assignments
 		if currentToken.Type == lexer.SELF || currentToken.Type == lexer.INHERITED {
-			// Parse as assignment or expression using cursor mode
 			return p.parseAssignmentOrExpression()
 		}
 
@@ -130,33 +112,28 @@ func (p *Parser) parseStatement() ast.Statement {
 				return p.parseVarDeclaration()
 			}
 
-			// Otherwise, parse as assignment or expression using cursor mode
 			return p.parseAssignmentOrExpression()
 		}
 
-		// Expression statement - use cursor mode (expressions are fully migrated)
 		return p.parseExpressionStatement()
 	}
 }
 
 // parseBlockStatement parses a begin...end block.
-// PRE: curToken is BEGIN
-// POST: curToken is END
+// PRE: cursor is BEGIN
+// POST: cursor is END
 
 // parseExpressionStatement parses an expression statement.
-// PRE: curToken is first token of expression
-// POST: curToken is SEMICOLON if present, otherwise last token of expression
+// PRE: cursor is first token of expression
+// POST: cursor is SEMICOLON if present, otherwise last token of expression
 
 // parseVarDeclaration parses a variable declaration statement.
 // Can be called in two contexts:
 //  1. After 'var' keyword: var x: Integer;
 //  2. In a var section without 'var': x: Integer; (curToken is already the IDENT)
 //
-// PRE: curToken is VAR or IDENT
-// POST: curToken is SEMICOLON of last var declaration
-// Dispatcher: delegates to cursor or traditional mode
-
-// parseVarDeclarationTraditional parses var declarations using traditional mode.
+// PRE: cursor is VAR or IDENT
+// POST: cursor is SEMICOLON of last var declaration
 
 // isAssignmentOperator checks if the given token type is an assignment operator.
 func isAssignmentOperator(t lexer.TokenType) bool {
@@ -191,11 +168,8 @@ func isAssignmentOperator(t lexer.TokenType) bool {
 //	ASSIGN is more commonly used for var declarations and assignments.
 
 // ============================================================================
-// Task 2.2.14.2: Cursor-mode statement handlers for expressions and assignments
 // ============================================================================
 
-// parseExpressionStatement parses an expression statement in cursor mode.
-// Task 2.2.14.2: Expression statement migration
 // PRE: cursor is on first token of expression
 // POST: cursor is on last token of statement (possibly SEMICOLON)
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
@@ -206,7 +180,6 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 		BaseNode: ast.BaseNode{Token: startToken},
 	}
 
-	// Parse expression using cursor mode (expressions are fully migrated)
 	stmt.Expression = p.parseExpression(LOWEST)
 
 	// Optional semicolon
@@ -224,7 +197,6 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 }
 
 // parseAssignmentOrExpression determines if we have an assignment or expression statement.
-// Task 2.2.14.2: Assignment statement migration
 // This handles both simple assignments (x := value), compound assignments (x += value),
 // and member assignments (obj.field := value, arr[i] := value).
 // PRE: cursor is on first token (typically an identifier or expression start)
@@ -308,11 +280,8 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 }
 
 // ============================================================================
-// Task 2.2.14.3: Cursor-mode handler for block statements
 // ============================================================================
 
-// parseBlockStatement parses a begin...end block in cursor mode.
-// Task 2.2.14.3: Block statement migration
 // PRE: cursor is on BEGIN token
 // POST: cursor is on END token
 func (p *Parser) parseBlockStatement() *ast.BlockStatement {
@@ -348,8 +317,6 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 			continue
 		}
 
-		// Parse statement using cursor mode
-		// Since we're in cursor mode, parseStatement() will be called
 		stmt := p.parseStatement()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
@@ -376,7 +343,6 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 }
 
 // ============================================================================
-// Task 2.2.14.6: Cursor-mode variable and constant declaration handlers
 // ============================================================================
 
 // looksLikeVarDeclaration performs lookahead using cursor to check if
@@ -424,7 +390,6 @@ func (p *Parser) looksLikeConstDeclaration(cursor *TokenCursor) bool {
 }
 
 // parseVarDeclaration parses one or more variable declarations in a var block.
-// Task 2.2.14.6: Variable declaration migration
 // Syntax: var NAME : TYPE; or var NAME := VALUE; or var NAME : TYPE := VALUE;
 // DWScript allows block syntax: var V1 : Integer; V2 : String; (one var keyword, multiple declarations)
 // This function returns a BlockStatement containing all var declarations in the block.
@@ -464,8 +429,6 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 	}
 }
 
-// parseSingleVarDeclaration parses a single variable declaration using cursor mode.
-// Task 2.2.14.6: Variable declaration migration
 // Assumes we're already positioned at the identifier (or just before it).
 // PRE: cursor is on VAR or variable name IDENT
 // POST: cursor is on SEMICOLON
@@ -570,8 +533,6 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 	}
 
 	// Parse optional type annotation
-	// Note: Not using OptionalTypeAnnotation() combinator here because cursor mode
-	// requires careful state management and the combinator is designed for traditional mode.
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type == lexer.COLON {
 		p.cursor = p.cursor.Advance() // move to ':'

@@ -6,13 +6,11 @@ import (
 )
 
 // parseRecordOrHelperDeclaration determines if this is a record or helper declaration (dispatcher).
-// Task 2.7.3: Dual-mode dispatcher for record/helper parsing.
 
-// parseRecordOrHelperDeclarationTraditional determines if this is a record or helper declaration.
 // Called when we see 'type Name = record' - need to check if followed by 'helper'.
 // Current token is positioned at '=' and peek token is 'record'.
-// PRE: curToken is EQ, peekToken is RECORD
-// POST: curToken is SEMICOLON
+// PRE: cursor is EQ, peekToken is RECORD
+// POST: cursor is SEMICOLON
 func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
 	builder := p.StartNode()
 	cursor := p.cursor
@@ -72,9 +70,7 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 }
 
 // parseRecordDeclaration parses a record type declaration (dispatcher).
-// Task 2.7.3: Dual-mode dispatcher for record parsing.
 
-// parseRecordDeclarationTraditional parses a record type declaration.
 // Called after 'type Name =' has already been parsed.
 // Current token should be 'record'.
 //
@@ -88,8 +84,8 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 //     property X: Integer read FX write FX;
 //     end;
 //
-// PRE: curToken is EQ; peekToken is RECORD
-// POST: curToken is SEMICOLON
+// PRE: cursor is EQ; peekToken is RECORD
+// POST: cursor is SEMICOLON
 func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.RecordDecl {
 	builder := p.StartNode()
 	cursor := p.cursor
@@ -140,7 +136,6 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 	return builder.Finish(recordDecl).(*ast.RecordDecl)
 }
 
-// parseRecordBody parses the body of a record declaration (cursor mode).
 // This helper function extracts the common record body parsing logic used by both
 // parseRecordOrHelperDeclaration and parseRecordDeclaration.
 // PRE: cursor is positioned at the first token inside the record body
@@ -266,14 +261,12 @@ func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility a
 }
 
 // parseRecordFieldDeclarations parses one or more field declarations (dispatcher).
-// Task 2.7.3: Dual-mode dispatcher for record field parsing.
 
-// parseRecordFieldDeclarationsTraditional parses one or more field declarations with the same type.
 // Pattern: Name1, Name2, Name3: Type;
 // OR: Name := Value; (type inferred from initializer)
 // Returns a slice of FieldDecl, one for each field name.
-// PRE: curToken is field name IDENT
-// POST: curToken is SEMICOLON
+// PRE: cursor is field name IDENT
+// POST: cursor is SEMICOLON
 func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
 	cursor := p.cursor
 
@@ -370,12 +363,11 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 //
 // Called when we see '(' and need to determine if it's a record literal or grouped expression.
 // This is called from parseGroupedExpression when it detects a record literal pattern.
-// PRE: curToken is LPAREN
-// POST: curToken is RPAREN
+// PRE: cursor is LPAREN
+// POST: cursor is RPAREN
 func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 	builder := p.StartNode()
 
-	// Task 2.7.6: Dual-mode - get current token for '(' lparen
 	var lparenTok lexer.Token
 	if p.cursor != nil {
 		lparenTok = p.cursor.Current()
@@ -403,7 +395,6 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 		// Check if this is named field initialization (Name: Value)
 		// We need to look ahead to see if there's a colon
 		if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON) {
-			// Task 2.7.6: Dual-mode - get current token for field name
 			var fieldNameToken lexer.Token
 			if p.cursor != nil {
 				fieldNameToken = p.cursor.Current()
@@ -468,15 +459,13 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 }
 
 // parseRecordPropertyDeclaration parses a record property declaration (dispatcher).
-// Task 2.7.3: Dual-mode dispatcher for record property parsing.
 
-// parseRecordPropertyDeclarationTraditional parses a record property declaration.
 // Pattern: property Name: Type read FieldName write FieldName;
 // Also supports array properties: property Name[Index: Type]: Type read GetMethod;
 //
 // Note: This is different from class properties (parsePropertyDeclaration)
-// PRE: curToken is PROPERTY
-// POST: curToken is SEMICOLON
+// PRE: cursor is PROPERTY
+// POST: cursor is SEMICOLON
 func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 	cursor := p.cursor
 	propToken := cursor.Current() // 'property' token

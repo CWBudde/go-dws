@@ -22,34 +22,34 @@ func isNilStatement(stmt ast.Statement) bool {
 
 // parseBreakStatement parses a break statement.
 // Syntax: break;
-// PRE: curToken is BREAK
-// POST: curToken is SEMICOLON
+// PRE: cursor is BREAK
+// POST: cursor is SEMICOLON
 
 // parseContinueStatement parses a continue statement.
 // Syntax: continue;
-// PRE: curToken is CONTINUE
-// POST: curToken is SEMICOLON
+// PRE: cursor is CONTINUE
+// POST: cursor is SEMICOLON
 
 // parseExitStatement parses an exit statement.
 // Syntax: exit; exit value; or exit(value);
-// PRE: curToken is EXIT
-// POST: curToken is SEMICOLON
+// PRE: cursor is EXIT
+// POST: cursor is SEMICOLON
 
 // parseIfStatement parses an if-then-else statement.
 // Syntax: if <condition> then <statement> [else <statement>]
-// PRE: curToken is IF
-// POST: curToken is last token of consequence or alternative statement
+// PRE: cursor is IF
+// POST: cursor is last token of consequence or alternative statement
 
 // parseWhileStatement parses a while loop statement.
 // Syntax: while <condition> do <statement>
-// PRE: curToken is WHILE
-// POST: curToken is last token of body statement
+// PRE: cursor is WHILE
+// POST: cursor is last token of body statement
 
 // parseRepeatStatement parses a repeat-until loop statement.
 // Syntax: repeat <statements> until <condition>
 // Note: The body can contain multiple statements
-// PRE: curToken is REPEAT
-// POST: curToken is last token of condition expression
+// PRE: cursor is REPEAT
+// POST: cursor is last token of condition expression
 
 // parseForStatement parses a for loop statement.
 // Syntax:
@@ -57,26 +57,25 @@ func isNilStatement(stmt ast.Statement) bool {
 //	for <variable> := <start> to|downto <end> [step <step>] do <statement>
 //	for [var] <variable> in <expression> do <statement>
 //
-// PRE: curToken is FOR
-// POST: curToken is last token of body statement
+// PRE: cursor is FOR
+// POST: cursor is last token of body statement
 
 // parseForInLoop parses a for-in loop statement.
 // Syntax: for [var] <variable> in <expression> do <statement>
-// PRE: curToken is variable IDENT
-// POST: curToken is last token of body statement
+// PRE: cursor is variable IDENT
+// POST: cursor is last token of body statement
 
 // parseCaseStatement parses a case statement.
 // Syntax: case <expression> of <value>: <statement>; ... [else <statement>;] end;
-// PRE: curToken is CASE
-// POST: curToken is END
+// PRE: cursor is CASE
+// POST: cursor is END
 
 // parseIfExpression parses an inline if-then-else conditional expression.
 // Syntax: if <condition> then <expression> [else <expression>]
 // This is similar to a ternary operator: condition ? value1 : value2
-// PRE: curToken is IF
-// POST: curToken is last token of consequence or alternative expression
+// PRE: cursor is IF
+// POST: cursor is last token of consequence or alternative expression
 
-// parseIfExpression parses an if expression in cursor mode.
 // DWScript syntax: if <condition> then <expression> [else <expression>]
 // PRE: cursor is on IF token
 // POST: cursor is on last token of expression
@@ -135,11 +134,8 @@ func (p *Parser) parseIfExpression() ast.Expression {
 }
 
 // ============================================================================
-// Task 2.2.14.4: Cursor-mode handlers for control flow statements
 // ============================================================================
 
-// parseIfStatement parses an if statement in cursor mode.
-// Task 2.2.14.4: If statement migration
 // Syntax: if <condition> then <statement> [else <statement>]
 // PRE: cursor is on IF token
 // POST: cursor is on last token of statement
@@ -249,8 +245,6 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 	return builder.FinishWithNode(stmt, stmt.Consequence).(*ast.IfStatement)
 }
 
-// parseWhileStatement parses a while loop statement in cursor mode.
-// Task 2.2.14.4: While statement migration
 // Syntax: while <condition> do <statement>
 // PRE: cursor is on WHILE token
 // POST: cursor is on last token of body statement
@@ -334,8 +328,6 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 	return builder.FinishWithNode(stmt, stmt.Body).(*ast.WhileStatement)
 }
 
-// parseRepeatStatement parses a repeat-until loop statement in cursor mode.
-// Task 2.2.14.4: Repeat statement migration
 // Syntax: repeat <statements> until <condition>
 // Note: The body can contain multiple statements
 // PRE: cursor is on REPEAT token
@@ -416,11 +408,8 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 }
 
 // ============================================================================
-// Task 2.2.14.8: Cursor-mode control transfer statement handlers
 // ============================================================================
 
-// parseBreakStatement parses a break statement using cursor mode.
-// Task 2.2.14.8: Break statement migration
 // Syntax: break;
 // PRE: cursor is on BREAK token
 // POST: cursor is on SEMICOLON
@@ -453,8 +442,6 @@ func (p *Parser) parseBreakStatement() *ast.BreakStatement {
 	return builder.Finish(stmt).(*ast.BreakStatement)
 }
 
-// parseContinueStatement parses a continue statement using cursor mode.
-// Task 2.2.14.8: Continue statement migration
 // Syntax: continue;
 // PRE: cursor is on CONTINUE token
 // POST: cursor is on SEMICOLON
@@ -487,8 +474,6 @@ func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
 	return builder.Finish(stmt).(*ast.ContinueStatement)
 }
 
-// parseExitStatement parses an exit statement using cursor mode.
-// Task 2.2.14.8: Exit statement migration
 // Syntax: exit; exit value; or exit(value);
 // PRE: cursor is on EXIT token
 // POST: cursor is on SEMICOLON
@@ -583,11 +568,8 @@ func (p *Parser) parseExitStatement() *ast.ExitStatement {
 }
 
 // ============================================================================
-// Task 2.2.14.5: Cursor-mode for/case statement handlers
 // ============================================================================
 
-// parseForStatement parses a for loop statement in cursor mode.
-// Task 2.2.14.5: For statement migration
 // Syntax:
 //
 //	for <variable> := <start> to|downto <end> [step <step>] do <statement>
@@ -792,8 +774,6 @@ func (p *Parser) parseForStatement() ast.Statement {
 	return builder.FinishWithNode(stmt, stmt.Body).(*ast.ForStatement)
 }
 
-// parseForInLoop parses a for-in loop statement in cursor mode.
-// Task 2.2.14.5: For-in loop migration
 // Syntax: for [var] <variable> in <expression> do <statement>
 // PRE: cursor is on variable IDENT, forToken and variable already parsed
 // POST: cursor is on last token of body statement
@@ -883,7 +863,6 @@ func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, 
 	return builder.FinishWithNode(stmt, stmt.Body).(*ast.ForInStatement)
 }
 
-// parseCaseValueOrRange parses a single case value or range expression in cursor mode.
 // If the value is followed by '..' it creates a RangeExpression, otherwise returns the value as-is.
 // PRE: value expression has been parsed, cursor is on the last token of the value
 // POST: cursor is on the last token of the value or range end expression
@@ -927,8 +906,6 @@ func (p *Parser) parseCaseValueOrRange(value ast.Expression) ast.Expression {
 	return value
 }
 
-// parseCaseStatement parses a case statement in cursor mode.
-// Task 2.2.14.5: Case statement migration
 // Syntax: case <expression> of <value>: <statement>; ... [else <statement>;] end;
 // PRE: cursor is on CASE token
 // POST: cursor is on END token

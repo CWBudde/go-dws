@@ -8,7 +8,6 @@ import (
 // ParserConfig holds configuration options for the parser.
 // This separates parser configuration from parser state, making it easier
 // to create parsers with different configurations.
-// Task 2.7.9: UseCursor removed - parser is now cursor-only.
 type ParserConfig struct {
 	// AllowReservedKeywordsAsIdentifiers allows using reserved keywords as identifiers
 	// in contexts where they're unambiguous (e.g., 'step' as a variable name)
@@ -23,7 +22,6 @@ type ParserConfig struct {
 }
 
 // DefaultConfig returns a ParserConfig with default settings.
-// Task 2.7.9: Parser is now cursor-only (no mode selection).
 func DefaultConfig() ParserConfig {
 	return ParserConfig{
 		AllowReservedKeywordsAsIdentifiers: true,
@@ -34,7 +32,6 @@ func DefaultConfig() ParserConfig {
 
 // ParserBuilder provides a fluent API for constructing Parser instances.
 // It reduces code duplication and makes parser configuration more explicit.
-// Task 2.7.9: Parser is now cursor-only.
 //
 // Example usage:
 //
@@ -85,7 +82,6 @@ func (b *ParserBuilder) WithMaxRecursionDepth(depth int) *ParserBuilder {
 
 // Build constructs and returns a configured Parser instance.
 // This is the main entry point for creating parsers via the builder pattern.
-// Task 2.7.9: Parser is now cursor-only.
 func (b *ParserBuilder) Build() *Parser {
 	// Create parser with basic configuration
 	p := &Parser{
@@ -97,18 +93,14 @@ func (b *ParserBuilder) Build() *Parser {
 		ctx:            NewParseContext(),
 	}
 
-	// Task 2.7.9: Always use cursor mode
 	p.cursor = NewTokenCursor(b.lexer)
-	p.prefixParseFnsCursor = make(map[lexer.TokenType]prefixParseFn)
-	p.infixParseFnsCursor = make(map[lexer.TokenType]infixParseFn)
+	p.prefixParseFns = make(map[lexer.TokenType]prefixParseFn)
+	p.infixParseFns = make(map[lexer.TokenType]infixParseFn)
 
 	// Register all parse functions
 	b.registerParseFunctions(p)
 
-	// Task 2.7.9: Register cursor-specific parse functions
 	b.registerCursorParseFunctions(p)
-
-	// Task 2.7.13.3: No token state initialization needed - cursor-only mode
 
 	return p
 }
@@ -203,9 +195,7 @@ func (b *ParserBuilder) MustBuild() *Parser {
 }
 
 // registerCursorParseFunctions registers cursor-specific parse functions.
-// Task 2.7.9: Extracted from NewCursorParser() to ensure Build() registers cursor functions.
 func (b *ParserBuilder) registerCursorParseFunctions(p *Parser) {
-	// Register prefix parse functions for cursor mode
 	p.registerPrefix(lexer.IDENT, func(tok lexer.Token) ast.Expression {
 		return p.parseIdentifier()
 	})
@@ -276,7 +266,6 @@ func (b *ParserBuilder) registerCursorParseFunctions(p *Parser) {
 		return p.parseOldExpression()
 	})
 
-	// Register infix parse functions for cursor mode
 	p.registerInfix(lexer.PLUS, func(left ast.Expression, tok lexer.Token) ast.Expression {
 		return p.parseInfixExpression(left)
 	})

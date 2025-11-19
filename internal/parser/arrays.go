@@ -46,15 +46,11 @@ import (
 //   - type TCube = array[1..3, 1..4, 1..5] of Float;  (3D)
 //
 // Multi-dimensional arrays are desugared into nested array types.
-// PRE: curToken is ARRAY (traditional) OR cursor is on ARRAY (cursor)
 // POST: cursor is on SEMICOLON
-// Task 2.7.9: Cursor mode is now the only mode - dispatcher removed.
 
-// parseArrayDeclarationTraditional parses array declaration using traditional mode.
-// PRE: curToken is ARRAY
-// POST: curToken is SEMICOLON
+// PRE: cursor is ARRAY
+// POST: cursor is SEMICOLON
 
-// Task 2.2.11: parseIndexExpression - Cursor mode version of parseIndexExpression
 // Parses array/string indexing expressions using cursor navigation.
 // Handles multi-dimensional indexing: arr[i, j, k] → nested IndexExpression
 // PRE: cursor is on LBRACK
@@ -123,7 +119,6 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 	return builder.FinishWithToken(result, p.cursor.Current()).(*ast.IndexExpression)
 }
 
-// Task 2.2.12: parseArrayLiteral - Cursor mode version of parseArrayLiteral
 // Parses array literal expressions: [expr1, expr2, expr3]
 // PRE: cursor is on LBRACK
 // POST: cursor is on RBRACK
@@ -247,8 +242,8 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 //   - [x + 1, y * 2, z - 3]
 //   - Supports optional trailing comma and range syntax for set literals ([one..five])
 //
-// PRE: curToken is LBRACK
-// POST: curToken is RBRACK
+// PRE: cursor is LBRACK
+// POST: cursor is RBRACK
 
 // shouldParseAsSetLiteral determines if the parsed elements represent a set literal.
 // We conservatively treat literals that contain only identifiers and range expressions as sets
@@ -308,8 +303,6 @@ func shouldParseAsSetLiteral(elements []ast.Expression) bool {
 	return false
 }
 
-// parseArrayDeclaration parses array declaration using cursor mode.
-// Task 2.7.1.5: Array declaration migration
 // PRE: cursor is on ARRAY token
 // POST: cursor is on SEMICOLON token
 func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.ArrayDecl {

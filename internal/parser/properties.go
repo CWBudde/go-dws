@@ -17,8 +17,8 @@ import (
 //   - property Items[i: Integer]: Type read GetItem; default; (default indexed)
 //   - property Name: Type; (auto-property, generates backing field)
 //
-// PRE: curToken is PROPERTY
-// POST: curToken is SEMICOLON
+// PRE: cursor is PROPERTY
+// POST: cursor is SEMICOLON
 func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 	builder := p.StartNode()
 	propToken := p.cursor.Current() // 'property' token
@@ -198,8 +198,8 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 // parseIndexedPropertyParameterGroup parses a group of indexed property parameters with the same type.
 // Syntax: name: Type  or  name1, name2: Type
 // Similar to parseParameterGroup but without 'var' keyword support.
-// PRE: curToken is parameter name IDENT
-// POST: curToken is type IDENT
+// PRE: cursor is parameter name IDENT
+// POST: cursor is type IDENT
 func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
 	params := []*ast.Parameter{}
 

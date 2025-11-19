@@ -7,7 +7,6 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
-// parseTypeExpressionTraditional parses a type expression (traditional mode).
 // Type expressions can be:
 //   - Simple types: Integer, String, TMyType
 //   - Function pointer types: function(x: Integer): String
@@ -20,9 +19,8 @@ import (
 // without requiring type aliases.
 //
 // Task 9.49: Created to support inline type expressions
-// Task 2.7.2: Renamed from parseTypeExpression to enable dual-mode operation
-// PRE: curToken is first token of type (IDENT, CONST, FUNCTION, PROCEDURE, ARRAY, SET, CLASS)
-// POST: curToken is last token of type expression
+// PRE: cursor is first token of type (IDENT, CONST, FUNCTION, PROCEDURE, ARRAY, SET, CLASS)
+// POST: cursor is last token of type expression
 func (p *Parser) parseTypeExpression() ast.TypeExpression {
 	cursor := p.cursor
 	builder := p.StartNode()
@@ -80,8 +78,8 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 //
 // Strategy: Use lexer.Peek() to look ahead without modifying state.
 // Task 12.3.4: Refactored to use Peek() instead of creating temporary lexer
-// PRE: curToken is LPAREN
-// POST: curToken is LPAREN (unchanged)
+// PRE: cursor is LPAREN
+// POST: cursor is LPAREN (unchanged)
 func (p *Parser) detectFunctionPointerFullSyntax() bool {
 	// Use Peek() to look ahead through tokens
 	// Peek(0) gives the token after peekToken
@@ -112,12 +110,9 @@ func (p *Parser) detectFunctionPointerFullSyntax() bool {
 	}
 }
 
-// parseFunctionPointerType is a dispatcher that routes to the appropriate implementation
 // based on the parser mode (traditional vs cursor).
 //
-// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 
-// parseFunctionPointerTypeTraditional parses an inline function or procedure pointer type (traditional mode).
 // This is the reusable version extracted from parseFunctionPointerTypeDeclaration.
 //
 // Syntax:
@@ -128,9 +123,8 @@ func (p *Parser) detectFunctionPointerFullSyntax() bool {
 //	procedure(...) of object
 //
 // Task 9.50: Refactored from parseFunctionPointerTypeDeclaration
-// Task 2.7.2: Renamed to enable dual-mode operation
-// PRE: curToken is FUNCTION or PROCEDURE
-// POST: curToken is last token of function pointer type (OBJECT, return type, or RPAREN)
+// PRE: cursor is FUNCTION or PROCEDURE
+// POST: cursor is last token of function pointer type (OBJECT, return type, or RPAREN)
 func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 	cursor := p.cursor
 	builder := p.StartNode()
@@ -260,12 +254,9 @@ type dimensionPair struct {
 	low, high ast.Expression
 }
 
-// parseArrayType is a dispatcher that routes to the appropriate implementation
 // based on the parser mode (traditional vs cursor).
 //
-// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 
-// parseArrayTypeTraditional parses an array type expression (traditional mode).
 // Supports both dynamic and static arrays:
 //   - Dynamic: array of ElementType
 //   - Static: array[low..high] of ElementType
@@ -279,7 +270,6 @@ type dimensionPair struct {
 // Task 9.51: Created to support array of Type syntax
 // Task 9.54: Extended to support static array bounds
 // Task 9.212: Extended to support comma-separated multidimensional arrays
-// Task 2.7.2: Renamed to enable dual-mode operation
 //
 // Supports both single and multi-dimensional syntax:
 //   - array[0..10] of Integer         (single dimension)
@@ -291,8 +281,8 @@ type dimensionPair struct {
 //	array[0..1, 0..2] of Integer
 //	→ array[0..1] of array[0..2] of Integer
 //
-// PRE: curToken is ARRAY
-// POST: curToken is last token of element type
+// PRE: cursor is ARRAY
+// POST: cursor is last token of element type
 func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 	cursor := p.cursor
 	builder := p.StartNode()
@@ -479,8 +469,8 @@ func parseInt(s string) (int, error) {
 // Returns the parsed expression or nil on error.
 //
 // Task 9.205: Changed to return ast.Expression instead of int to support const expressions
-// PRE: curToken is first token of bound expression
-// POST: curToken is last token of bound expression
+// PRE: cursor is first token of bound expression
+// POST: cursor is last token of bound expression
 func (p *Parser) parseArrayBound() ast.Expression {
 	// Parse as a general expression
 	// This handles:
@@ -496,8 +486,8 @@ func (p *Parser) parseArrayBound() ast.Expression {
 // Returns a slice of dimension pairs (low, high) or nil on error.
 //
 // This helper function extracts the common array bound parsing logic to avoid duplication.
-// PRE: curToken is first token of low bound expression
-// POST: curToken is last token of last dimension's high bound
+// PRE: cursor is first token of low bound expression
+// POST: cursor is last token of last dimension's high bound
 func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 	var dimensions []dimensionPair
 
@@ -553,13 +543,9 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 	return dimensions
 }
 
-// parseClassOfType is a dispatcher that routes to the appropriate implementation
 // based on the parser mode (traditional vs cursor).
 //
-// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 
-// parseClassOfTypeTraditional parses a metaclass type expression (traditional mode).
-//
 // Syntax:
 //
 //	class of ClassName
@@ -572,9 +558,8 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 // Current token should be CLASS.
 //
 // Task 9.70: Parse metaclass type syntax
-// Task 2.7.2: Renamed to enable dual-mode operation
-// PRE: curToken is CLASS
-// POST: curToken is class type IDENT
+// PRE: cursor is CLASS
+// POST: cursor is class type IDENT
 func (p *Parser) parseClassOfType() *ast.ClassOfTypeNode {
 	cursor := p.cursor
 	builder := p.StartNode()

@@ -5,12 +5,9 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
-// parseClassDeclaration parses a class declaration (dual-mode dispatcher).
 // Syntax: type ClassName = class(Parent) ... end;
 //
-// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 
-// parseClassDeclarationTraditional parses a class declaration with visibility sections (traditional mode).
 // Syntax: type ClassName = class(Parent)
 //
 //	  private
@@ -21,8 +18,8 @@ import (
 //	    field3: Type;
 //	end;
 //
-// PRE: curToken is CLASS or TYPE; peekToken is class name IDENT
-// POST: curToken is END
+// PRE: cursor is CLASS or TYPE; peekToken is class name IDENT
+// POST: cursor is END
 func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 	cursor := p.cursor
 
@@ -62,17 +59,14 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 	return p.parseClassDeclarationBody(nameIdent)
 }
 
-// parseClassParentAndInterfaces parses optional parent class and interfaces (dual-mode dispatcher).
 // Can be called multiple times for syntax like: class abstract(TParent)
 // Only updates classDecl if not already set to avoid overwriting previous parse
 //
-// Task 2.7.9: Cursor mode is now the only mode - dispatcher removed.
 
-// parseClassParentAndInterfacesTraditional parses optional parent class and interfaces from (...) (traditional mode).
 // Can be called multiple times for syntax like: class abstract(TParent)
 // Only updates classDecl if not already set to avoid overwriting previous parse
-// PRE: curToken is token before parent list (CLASS, ABSTRACT, or EXTERNAL)
-// POST: curToken is RPAREN if parentheses present; otherwise unchanged
+// PRE: cursor is token before parent list (CLASS, ABSTRACT, or EXTERNAL)
+// POST: cursor is RPAREN if parentheses present; otherwise unchanged
 func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
 	cursor := p.cursor
 
@@ -165,16 +159,13 @@ func isBuiltinClass(name string) bool {
 	return false
 }
 
-// parseClassDeclarationBody parses the body of a class declaration (dual-mode dispatcher).
 // Called after 'type Name = class' has already been parsed.
 //
-// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 
-// parseClassDeclarationBodyTraditional parses the body of a class declaration (traditional mode).
 // Called after 'type Name = class' has already been parsed.
 // Current token should be 'class'.
-// PRE: curToken is CLASS
-// POST: curToken is END
+// PRE: cursor is CLASS
+// POST: cursor is END
 func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.ClassDecl {
 	builder := p.StartNode()
 	cursor := p.cursor
@@ -409,20 +400,17 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 	return builder.Finish(classDecl).(*ast.ClassDecl)
 }
 
-// parseFieldDeclaration parses a field declaration within a class (dual-mode dispatcher).
 // Syntax: FieldName: Type; or FieldName1, FieldName2, FieldName3: Type;
 // Returns a slice of FieldDecl nodes (one per field name) since DWScript supports
 // comma-separated field names with a single type annotation.
 //
-// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 
-// parseFieldDeclarationsTraditional parses a field declaration within a class (traditional mode).
 // Syntax: FieldName: Type; or FieldName1, FieldName2, FieldName3: Type;
 // The visibility parameter specifies the access level for this field.
 // Returns a slice of FieldDecl nodes (one per field name) since DWScript supports
 // comma-separated field names with a single type annotation.
-// PRE: curToken is first field name IDENT
-// POST: curToken is SEMICOLON or last token of initialization value
+// PRE: cursor is first field name IDENT
+// POST: cursor is SEMICOLON or last token of initialization value
 func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
 	// Parse comma-separated field names using combinator
 	// Note: IdentifierList uses parser state, so it should work with synced cursor
@@ -502,17 +490,14 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 	return fields
 }
 
-// parseMemberAccess parses member access and method call expressions (dual-mode dispatcher).
 // Handles obj.field, obj.method(), and TClass.Create() syntax.
 // This is registered as an infix operator for the DOT token.
 //
-// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 
-// parseMemberAccessTraditional parses member access and method call expressions (traditional mode).
 // Handles obj.field, obj.method(), and TClass.Create() syntax.
 // This is registered as an infix operator for the DOT token.
-// PRE: curToken is DOT
-// POST: curToken is member name IDENT, RPAREN (for method calls), or last token of right operand
+// PRE: cursor is DOT
+// POST: cursor is member name IDENT, RPAREN (for method calls), or last token of right operand
 func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 	builder := p.StartNode()
 
@@ -600,19 +585,16 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 	return builder.FinishWithNode(memberAccess, memberName).(*ast.MemberAccessExpression)
 }
 
-// parseClassConstantDeclaration parses a constant declaration within a class (dual-mode dispatcher).
 // Syntax: const Name = Value; or const Name: Type = Value;
 // Also: class const Name = Value;
 //
-// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 
-// parseClassConstantDeclarationTraditional parses a constant declaration within a class (traditional mode).
 // Syntax: const Name = Value; or const Name: Type = Value;
 // Also: class const Name = Value;
 // The visibility parameter specifies the access level for this constant.
 // The isClassConst parameter indicates if it was declared with 'class const'.
-// PRE: curToken is constant name IDENT
-// POST: curToken is last token of value expression
+// PRE: cursor is constant name IDENT
+// POST: cursor is last token of value expression
 func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClassConst bool) *ast.ConstDecl {
 	builder := p.StartNode()
 	cursor := p.cursor

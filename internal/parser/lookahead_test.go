@@ -242,7 +242,7 @@ func TestLooksLikeTypeDeclaration(t *testing.T) {
 			p := New(l)
 			// After New(), curToken = TYPE, peekToken = IDENT or other
 
-			result := p.looksLikeTypeDeclaration(p.cursor)
+			result := p.looksLikeTypeDeclaration()
 			if result != tt.expected {
 				t.Errorf("looksLikeTypeDeclaration() = %v, want %v for input: %s",
 					result, tt.expected, tt.input)

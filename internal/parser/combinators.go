@@ -521,8 +521,8 @@ func (p *Parser) SkipPast(tokenTypes ...lexer.TokenType) bool {
 //
 // Syntax: [: TypeExpression]
 //
-// PRE: curToken is the token before potential colon
-// POST: curToken is last token of type expression if present; otherwise unchanged
+// PRE: cursor is the token before potential colon
+// POST: cursor is last token of type expression if present; otherwise unchanged
 //
 // Example:
 //
@@ -565,8 +565,8 @@ type IdentifierListConfig struct {
 //
 // Syntax: IDENT (, IDENT)*
 //
-// PRE: curToken is first identifier (or error token if invalid)
-// POST: curToken is last identifier
+// PRE: cursor is first identifier (or error token if invalid)
+// POST: cursor is last identifier
 //
 // Example:
 //
@@ -586,7 +586,6 @@ func (p *Parser) IdentifierList(config IdentifierListConfig) []*ast.Identifier {
 				context = "identifier list"
 			}
 
-			// Task 2.7.7: Dual-mode - get current token for error reporting
 			var curTok lexer.Token
 			if p.cursor != nil {
 				curTok = p.cursor.Current()
@@ -613,7 +612,6 @@ func (p *Parser) IdentifierList(config IdentifierListConfig) []*ast.Identifier {
 
 	// Parse identifiers separated by commas
 	for {
-		// Task 2.7.8: Dual-mode - get current token for AST node creation
 		var curTok lexer.Token
 		if p.cursor != nil {
 			curTok = p.cursor.Current()
@@ -672,8 +670,8 @@ type StatementBlockConfig struct {
 // StatementBlock parses a block of statements with configurable delimiters.
 // Returns a BlockStatement node or nil if parsing fails.
 //
-// PRE: curToken is the opening token (BEGIN, TRY, etc.)
-// POST: curToken is the closing token (END, etc.) if RequireClose is true
+// PRE: cursor is the opening token (BEGIN, TRY, etc.)
+// POST: cursor is the closing token (END, etc.) if RequireClose is true
 //
 // Example:
 //
@@ -688,7 +686,6 @@ type StatementBlockConfig struct {
 func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement {
 	builder := p.StartNode()
 
-	// Task 2.7.8: Dual-mode - get current token for AST node creation and context tracking
 	var curTok lexer.Token
 	if p.cursor != nil {
 		curTok = p.cursor.Current()
@@ -758,7 +755,6 @@ func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement
 		}
 
 		if !hitAdditionalTerm {
-			// Task 2.7.7: Dual-mode - get current token for error reporting
 			var curTok lexer.Token
 			if p.cursor != nil {
 				curTok = p.cursor.Current()
@@ -799,8 +795,8 @@ type ParameterGroupConfig struct {
 // Syntax: [modifier] name1, name2: Type [= default]
 // Where modifier is one of: var, const, lazy
 //
-// PRE: curToken is first token (modifier keyword or identifier)
-// POST: curToken is last token of type/default expression
+// PRE: cursor is first token (modifier keyword or identifier)
+// POST: cursor is last token of type/default expression
 //
 // Example:
 //
@@ -839,7 +835,6 @@ func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 
 		// Check for mutually exclusive modifiers
 		if (isLazy && byRef) || (isConst && byRef) || (isConst && isLazy) {
-			// Task 2.7.7: Dual-mode - get current token for error reporting
 			var curTok lexer.Token
 			if p.cursor != nil {
 				curTok = p.cursor.Current()
@@ -886,7 +881,6 @@ func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 	if config.AllowDefaults && p.peekTokenIs(lexer.EQ) {
 		// Validate that optional parameters don't have modifiers (lazy, var, const)
 		if isLazy || byRef || isConst {
-			// Task 2.7.7: Dual-mode - get current token for error reporting
 			var curTok lexer.Token
 			if p.cursor != nil {
 				curTok = p.cursor.Current()
@@ -909,7 +903,6 @@ func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 		p.nextToken() // move past '='
 		defaultValue = p.parseExpression(LOWEST)
 		if defaultValue == nil {
-			// Task 2.7.7: Dual-mode - get current token for error reporting
 			var curTok lexer.Token
 			if p.cursor != nil {
 				curTok = p.cursor.Current()

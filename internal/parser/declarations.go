@@ -9,25 +9,21 @@ import (
 // Syntax: const NAME = VALUE; or const NAME := VALUE; or const NAME: TYPE = VALUE;
 // DWScript allows block syntax: const C1 = 1; C2 = 2; (one const keyword, multiple declarations)
 // This function returns a BlockStatement containing all const declarations in the block.
-// PRE: curToken is CONST
-// POST: curToken is last token of value expression in last declaration
-// Dispatcher: delegates to cursor or traditional mode
+// PRE: cursor is CONST
+// POST: cursor is last token of value expression in last declaration
 
-// parseConstDeclarationTraditional parses const declarations using traditional mode.
-// PRE: curToken is CONST
-// POST: curToken is last token of value expression in last declaration
+// PRE: cursor is CONST
+// POST: cursor is last token of value expression in last declaration
 
 // parseProgramDeclaration parses an optional program declaration at the start of a file.
 // Syntax: program ProgramName;
 // The program declaration is optional in DWScript and doesn't affect execution.
 // It is parsed and then discarded (not added to the AST).
-// PRE: curToken is PROGRAM
-// POST: curToken is SEMICOLON
-// Task 2.7.9: Cursor mode is now the only mode - dispatcher removed.
+// PRE: cursor is PROGRAM
+// POST: cursor is SEMICOLON
 
-// parseProgramDeclarationTraditional parses program declaration using traditional mode.
-// PRE: curToken is PROGRAM
-// POST: curToken is SEMICOLON
+// PRE: cursor is PROGRAM
+// POST: cursor is SEMICOLON
 func (p *Parser) parseProgramDeclaration() {
 	// We're on the PROGRAM token
 	currentToken := p.cursor.Current()
@@ -77,11 +73,8 @@ func (p *Parser) parseProgramDeclaration() {
 }
 
 // ============================================================================
-// Task 2.2.14.6: Cursor-mode constant declaration handlers
 // ============================================================================
 
-// parseConstDeclaration parses one or more constant declarations in a const block using cursor mode.
-// Task 2.2.14.6: Constant declaration migration
 // Syntax: const NAME = VALUE; or const NAME := VALUE; or const NAME: TYPE = VALUE;
 // DWScript allows block syntax: const C1 = 1; C2 = 2; (one const keyword, multiple declarations)
 // This function returns a BlockStatement containing all const declarations in the block.
@@ -121,8 +114,6 @@ func (p *Parser) parseConstDeclaration() ast.Statement {
 	}
 }
 
-// parseSingleConstDeclaration parses a single constant declaration using cursor mode.
-// Task 2.2.14.6: Constant declaration migration
 // Assumes we're already positioned at the identifier (or just before it).
 // PRE: cursor is on CONST or IDENT token
 // POST: cursor is on last token of value expression or SEMICOLON
@@ -174,7 +165,6 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 		// Parse type expression (can be simple type, function pointer, or array type)
 		p.cursor = p.cursor.Advance() // move to type expression
 
-		// Task 2.7.4: Use cursor mode directly
 		typeExpr := p.parseTypeExpression()
 
 		if typeExpr == nil {

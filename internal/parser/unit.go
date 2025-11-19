@@ -21,14 +21,11 @@ import (
 //	  // cleanup code
 //	end.
 //
-// PRE: curToken is UNIT
-// POST: curToken is DOT
-// Dispatcher: delegates to cursor or traditional mode
+// PRE: cursor is UNIT
+// POST: cursor is DOT
 
-// parseUnit parses a complete unit declaration using cursor mode.
-// Task 2.7.13: Inlined from parseUnitTraditional since Traditional functions removed.
-// PRE: curToken is UNIT
-// POST: curToken is DOT
+// PRE: cursor is UNIT
+// POST: cursor is DOT
 func (p *Parser) parseUnit() *ast.UnitDeclaration {
 	builder := p.StartNode()
 	unitDecl := &ast.UnitDeclaration{
@@ -93,14 +90,12 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 
 // parseUsesClause parses a uses statement.
 // Syntax: uses Unit1, Unit2, Unit3;
-// PRE: curToken is USES
-// POST: curToken is SEMICOLON
-// Dispatcher: delegates to cursor or traditional mode
+// PRE: cursor is USES
+// POST: cursor is SEMICOLON
 
-// parseUsesClauseTraditional parses a uses statement using traditional mode.
 // Syntax: uses Unit1, Unit2, Unit3;
-// PRE: curToken is USES
-// POST: curToken is SEMICOLON
+// PRE: cursor is USES
+// POST: cursor is SEMICOLON
 func (p *Parser) parseUsesClause() *ast.UsesClause {
 	builder := p.StartNode()
 	currentToken := p.cursor.Current() // Store USES token
@@ -196,8 +191,8 @@ func (p *Parser) parseUsesClause() *ast.UsesClause {
 
 // parseInterfaceSection parses the interface section of a unit.
 // The interface section contains public declarations.
-// PRE: curToken is INTERFACE
-// POST: curToken is IMPLEMENTATION, INITIALIZATION, FINALIZATION, or END
+// PRE: cursor is INTERFACE
+// POST: cursor is IMPLEMENTATION, INITIALIZATION, FINALIZATION, or END
 func (p *Parser) parseInterfaceSection() *ast.BlockStatement {
 	block := &ast.BlockStatement{
 		BaseNode:   ast.BaseNode{Token: p.cursor.Current()}, // 'interface' token
@@ -239,8 +234,8 @@ func (p *Parser) parseInterfaceSection() *ast.BlockStatement {
 
 // parseImplementationSection parses the implementation section of a unit.
 // The implementation section contains private declarations and function implementations.
-// PRE: curToken is IMPLEMENTATION
-// POST: curToken is INITIALIZATION, FINALIZATION, or END
+// PRE: cursor is IMPLEMENTATION
+// POST: cursor is INITIALIZATION, FINALIZATION, or END
 func (p *Parser) parseImplementationSection() *ast.BlockStatement {
 	block := &ast.BlockStatement{
 		BaseNode:   ast.BaseNode{Token: p.cursor.Current()}, // 'implementation' token
@@ -281,8 +276,8 @@ func (p *Parser) parseImplementationSection() *ast.BlockStatement {
 
 // parseInitializationSection parses the initialization section of a unit.
 // The initialization section contains code that runs when the unit is loaded.
-// PRE: curToken is INITIALIZATION
-// POST: curToken is FINALIZATION or END
+// PRE: cursor is INITIALIZATION
+// POST: cursor is FINALIZATION or END
 func (p *Parser) parseInitializationSection() *ast.BlockStatement {
 	block := &ast.BlockStatement{
 		BaseNode:   ast.BaseNode{Token: p.cursor.Current()}, // 'initialization' token
@@ -314,8 +309,8 @@ func (p *Parser) parseInitializationSection() *ast.BlockStatement {
 
 // parseFinalizationSection parses the finalization section of a unit.
 // The finalization section contains cleanup code that runs when the program exits.
-// PRE: curToken is FINALIZATION
-// POST: curToken is END
+// PRE: cursor is FINALIZATION
+// POST: cursor is END
 func (p *Parser) parseFinalizationSection() *ast.BlockStatement {
 	block := &ast.BlockStatement{
 		BaseNode:   ast.BaseNode{Token: p.cursor.Current()}, // 'finalization' token

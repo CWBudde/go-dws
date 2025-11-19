@@ -31,7 +31,6 @@ type NodeBuilder struct {
 
 // StartNode creates a new NodeBuilder that captures the current token position.
 // Call this at the beginning of any parsing function that creates an AST node.
-// Task 2.7.5.2: Cursor-only - always uses cursor.
 //
 // Example:
 //
@@ -50,7 +49,6 @@ func (p *Parser) StartNode() *NodeBuilder {
 
 // Finish sets the EndPos on a node to the current token's end position.
 // This should be called after all parsing for the node is complete.
-// Task 2.7.5.2: Cursor-only - always uses cursor.
 //
 // The EndPos is calculated as: current token position + token length
 //

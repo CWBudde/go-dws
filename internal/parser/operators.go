@@ -14,13 +14,11 @@ import (
 //	operator implicit (Integer) : String uses IntToStr;
 //	operator in (Integer, Float) : Boolean uses DigitInFloat;
 //
-// PRE: curToken is OPERATOR
-// POST: curToken is SEMICOLON
-// Dispatcher: delegates to cursor or traditional mode
+// PRE: cursor is OPERATOR
+// POST: cursor is SEMICOLON
 
-// parseOperatorDeclarationTraditional parses operator declaration using traditional mode.
-// PRE: curToken is OPERATOR
-// POST: curToken is SEMICOLON
+// PRE: cursor is OPERATOR
+// POST: cursor is SEMICOLON
 func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 	builder := p.StartNode()
 	cursor := p.cursor
@@ -113,13 +111,11 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 //	class operator += String uses AppendString;
 //	class operator IN array of Integer uses ContainsArray;
 //
-// PRE: curToken is OPERATOR
-// POST: curToken is SEMICOLON
-// Dispatcher: delegates to cursor or traditional mode
+// PRE: cursor is OPERATOR
+// POST: cursor is SEMICOLON
 
-// parseClassOperatorDeclarationTraditional parses class operator using traditional mode.
-// PRE: curToken is OPERATOR
-// POST: curToken is SEMICOLON
+// PRE: cursor is OPERATOR
+// POST: cursor is SEMICOLON
 func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibility ast.Visibility) *ast.OperatorDecl {
 	builder := p.StartNode()
 	cursor := p.cursor
@@ -224,11 +220,9 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 
 // parseOperatorOperandTypes parses the operand type list inside parentheses.
 // Example: (String, Integer)
-// PRE: curToken is LPAREN
-// POST: curToken is RPAREN
-// Note: Helper function - uses traditional mode internally
+// PRE: cursor is LPAREN
+// POST: cursor is RPAREN
 
-// parseOperatorOperandTypes parses operator operand types using cursor mode.
 // PRE: cursor is on LPAREN token
 // POST: cursor is on RPAREN token
 func (p *Parser) parseOperatorOperandTypes() []ast.TypeExpression {
@@ -314,11 +308,9 @@ func normalizeOperatorSymbol(tok lexer.Token) string {
 
 // parseTypeExpressionUntil parses a type expression until the stop condition is met.
 // It assumes the current token is the first token of the type expression.
-// PRE: curToken is IDENT or type keyword
-// POST: curToken is last token before stop condition
-// Note: Helper function - uses traditional mode internally
+// PRE: cursor is IDENT or type keyword
+// POST: cursor is last token before stop condition
 
-// parseTypeExpressionUntil parses a type expression until the stop condition is met (cursor mode).
 // PRE: cursor is on IDENT or type keyword
 // POST: cursor is on last token before stop condition
 func (p *Parser) parseTypeExpressionUntil(stopFn func(lexer.TokenType) bool) (*ast.TypeAnnotation, bool) {

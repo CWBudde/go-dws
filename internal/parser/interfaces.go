@@ -15,13 +15,11 @@ import (
 //
 // This function handles multiple declarations and returns either a single statement
 // or a BlockStatement containing multiple type declarations.
-// PRE: curToken is TYPE
-// POST: curToken is SEMICOLON of last type declaration
-// Dispatcher: delegates to cursor or traditional mode
+// PRE: cursor is TYPE
+// POST: cursor is SEMICOLON of last type declaration
 
-// parseTypeDeclarationTraditional parses type declarations using traditional mode.
-// PRE: curToken is TYPE
-// POST: curToken is SEMICOLON of last type declaration
+// PRE: cursor is TYPE
+// POST: cursor is SEMICOLON of last type declaration
 func (p *Parser) parseTypeDeclaration() ast.Statement {
 	typeToken := p.cursor.Current() // Save the TYPE token
 	statements := []ast.Statement{}
@@ -61,11 +59,10 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 // Pattern: IDENT EQ (CLASS|INTERFACE|LPAREN|RECORD|SET|ARRAY|ENUM|FUNCTION|PROCEDURE|HELPER|...)
 //
 // This method uses lexer.Peek() to look ahead without modifying parser state (Task 12.3.4).
-// PRE: curToken is SEMICOLON (after previous type decl)
-// POST: curToken is SEMICOLON (after previous type decl)
+// PRE: cursor is SEMICOLON (after previous type decl)
+// POST: cursor is SEMICOLON (after previous type decl)
 
 // looksLikeTypeDeclaration checks if the current position looks like the start of
-// a type declaration using cursor mode.
 // Pattern: IDENT EQ (CLASS|INTERFACE|LPAREN|RECORD|SET|ARRAY|ENUM|FUNCTION|PROCEDURE|HELPER|...)
 // PRE: cursor is on SEMICOLON (after previous type decl)
 // POST: cursor is on SEMICOLON (after previous type decl)
@@ -85,11 +82,9 @@ func (p *Parser) looksLikeTypeDeclaration() bool {
 // parseSingleTypeDeclaration parses a single type declaration.
 // This is the core logic extracted from the original parseTypeDeclaration.
 // Assumes we're already positioned at the identifier (or TYPE token).
-// PRE: curToken is TYPE or type name IDENT
-// POST: curToken is SEMICOLON
+// PRE: cursor is TYPE or type name IDENT
+// POST: cursor is SEMICOLON
 
-// parseSingleTypeDeclaration parses a single type declaration (cursor mode).
-// Task 2.7.4: Cursor-based version for clean migration
 // PRE: cursor is at TYPE or type name IDENT
 // POST: cursor is at SEMICOLON
 func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement {
@@ -172,8 +167,6 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 	}
 
 	// For other type declarations (class, interface, enum, etc.), handle each type
-	// Task 2.7.9: Full cursor mode implementation for all type declarations
-	// Match traditional mode's pattern: advance for most types, but not for LPAREN
 	if nextToken.Type == lexer.INTERFACE {
 		// Interface declaration: type IMyInterface = interface ... end;
 		cursor = cursor.Advance() // move to INTERFACE
@@ -283,12 +276,11 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 //   - type TCallback = procedure;
 //   - type TEvent = procedure(Sender: TObject) of object;
 //
-// PRE: curToken is FUNCTION or PROCEDURE
-// POST: curToken is SEMICOLON
+// PRE: cursor is FUNCTION or PROCEDURE
+// POST: cursor is SEMICOLON
 func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
 	builder := p.StartNode()
 
-	// Task 2.7.6: Dual-mode - save the FUNCTION or PROCEDURE token
 	var funcOrProcToken lexer.Token
 	if p.cursor != nil {
 		funcOrProcToken = p.cursor.Current()
@@ -360,7 +352,6 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 			return nil
 		}
 
-		// Task 2.7.6: Dual-mode - save RPAREN token for EndPos calculation
 		if p.cursor != nil {
 			endToken = p.cursor.Current()
 		} else {
@@ -380,7 +371,6 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 			return nil
 		}
 
-		// Task 2.7.6: Dual-mode - get current token for return type
 		var retTypeTok lexer.Token
 		if p.cursor != nil {
 			retTypeTok = p.cursor.Current()
@@ -406,7 +396,6 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 		}
 		funcPtrType.OfObject = true
 
-		// Task 2.7.6: Dual-mode - save OBJECT token for EndPos calculation
 		if p.cursor != nil {
 			endToken = p.cursor.Current()
 		} else {
@@ -437,16 +426,13 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 	return builder.Finish(typeDecl).(*ast.TypeDeclaration)
 }
 
-// parseInterfaceDeclarationBody parses the body of an interface declaration (dual-mode dispatcher).
 // Called after 'type Name = interface' has already been parsed.
 //
-// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 
-// parseInterfaceDeclarationBodyTraditional parses the body of an interface declaration (traditional mode).
 // Called after 'type Name = interface' has already been parsed.
 // Current token should be 'interface'.
-// PRE: curToken is INTERFACE
-// POST: curToken is SEMICOLON
+// PRE: cursor is INTERFACE
+// POST: cursor is SEMICOLON
 func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.InterfaceDecl {
 	builder := p.StartNode()
 	cursor := p.cursor
@@ -557,18 +543,15 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 	return builder.Finish(interfaceDecl).(*ast.InterfaceDecl)
 }
 
-// parseInterfaceMethodDecl parses a method declaration within an interface (dual-mode dispatcher).
 // Syntax: procedure MethodName(params); or function MethodName(params): ReturnType;
 //
-// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 
-// parseInterfaceMethodDeclTraditional parses a method declaration within an interface (traditional mode).
 // Syntax: procedure MethodName(params);
 //
 //	function MethodName(params): ReturnType;
 //
-// PRE: curToken is PROCEDURE or FUNCTION
-// POST: curToken is SEMICOLON
+// PRE: cursor is PROCEDURE or FUNCTION
+// POST: cursor is SEMICOLON
 func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {
 	cursor := p.cursor
 

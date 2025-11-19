@@ -6,9 +6,7 @@ import (
 )
 
 // parseHelperDeclaration parses a helper type declaration (dispatcher).
-// Task 2.7.3: Dual-mode dispatcher for helper parsing.
 
-// parseHelperDeclarationTraditional parses a helper type declaration.
 // Helper syntax variants:
 //   - type THelper = record helper for TypeName ... end;
 //   - type THelper = helper for TypeName ... end;
@@ -37,8 +35,8 @@ import (
 //   - Class constants (class const)
 //   - Visibility sections (private/public)
 //
-// PRE: curToken is HELPER
-// POST: curToken is SEMICOLON
+// PRE: cursor is HELPER
+// POST: cursor is SEMICOLON
 func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token, isRecordHelper bool) *ast.HelperDecl {
 	builder := p.StartNode()
 	cursor := p.cursor
