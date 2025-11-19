@@ -98,7 +98,7 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 
 	// Parse value expression
 	p.nextToken()
-	stmt.Value = p.parseExpression(ASSIGN)
+	stmt.Value = p.parseExpressionCursor(ASSIGN)
 
 	// Check for optional 'deprecated' keyword
 	if p.peekTokenIs(lexer.DEPRECATED) {

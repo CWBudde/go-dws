@@ -139,14 +139,6 @@ func (p *Parser) parseStatementCursor() ast.Statement {
 	}
 }
 
-// parseStatement parses a single statement.
-// Task 2.7.9: Cursor mode is now the only mode - this wrapper delegates to cursor implementation.
-// PRE: cursor is on first token of statement (same as parseStatementCursor)
-// POST: cursor is on last token of statement (same as parseStatementCursor)
-func (p *Parser) parseStatement() ast.Statement {
-	return p.parseStatementCursor()
-}
-
 // parseBlockStatement parses a begin...end block.
 // PRE: curToken is BEGIN
 // POST: curToken is END
@@ -170,7 +162,7 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 			continue
 		}
 
-		stmt := p.parseStatement()
+		stmt := p.parseStatementCursor()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
@@ -202,7 +194,7 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
 
-	stmt.Expression = p.parseExpression(LOWEST)
+	stmt.Expression = p.parseExpressionCursor(LOWEST)
 
 	// Optional semicolon
 	if p.peekTokenIs(lexer.SEMICOLON) {
@@ -343,7 +335,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 
 			p.nextToken() // move to assignment operator
 			p.nextToken()
-			stmt.Value = p.parseExpression(ASSIGN)
+			stmt.Value = p.parseExpressionCursor(ASSIGN)
 		}
 	} else {
 		if p.peekTokenIs(lexer.ASSIGN) || p.peekTokenIs(lexer.EQ) {
@@ -372,7 +364,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 			p.nextToken() // move to assignment operator
 			stmt.Inferred = true
 			p.nextToken()
-			stmt.Value = p.parseExpression(ASSIGN)
+			stmt.Value = p.parseExpressionCursor(ASSIGN)
 		} else if p.peekTokenIs(lexer.SEMICOLON) || p.peekTokenIs(lexer.EXTERNAL) {
 			// Task 2.7.7: Dual-mode - get current token for error reporting
 			var curTok lexer.Token
@@ -453,7 +445,7 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 	startToken := p.curToken
 
 	// Parse the left side as an expression (could be identifier or member access)
-	left := p.parseExpression(LOWEST)
+	left := p.parseExpressionCursor(LOWEST)
 
 	// Check if next token is assignment (simple or compound)
 	if isAssignmentOperator(p.cursor.Peek(1).Type) {
@@ -470,7 +462,7 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 				Operator: assignOp,
 			}
 			p.nextToken()
-			stmt.Value = p.parseExpression(ASSIGN)
+			stmt.Value = p.parseExpressionCursor(ASSIGN)
 
 			// Optional semicolon
 			if p.peekTokenIs(lexer.SEMICOLON) {
@@ -490,7 +482,7 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 			}
 
 			p.nextToken()
-			stmt.Value = p.parseExpression(ASSIGN)
+			stmt.Value = p.parseExpressionCursor(ASSIGN)
 
 			// Optional semicolon
 			if p.peekTokenIs(lexer.SEMICOLON) {
@@ -510,7 +502,7 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 			}
 
 			p.nextToken()
-			stmt.Value = p.parseExpression(ASSIGN)
+			stmt.Value = p.parseExpressionCursor(ASSIGN)
 
 			// Optional semicolon
 			if p.peekTokenIs(lexer.SEMICOLON) {

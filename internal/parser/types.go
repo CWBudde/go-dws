@@ -7,15 +7,6 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
-// parseTypeExpression is a dispatcher that routes to the appropriate implementation
-// based on the parser mode (traditional vs cursor).
-//
-// Task 2.7.2: This dispatcher enables dual-mode operation during migration.
-// Eventually (Phase 2.7), only the cursor version will remain.
-func (p *Parser) parseTypeExpression() ast.TypeExpression {
-	return p.parseTypeExpressionCursor()
-}
-
 // parseTypeExpressionTraditional parses a type expression (traditional mode).
 // Type expressions can be:
 //   - Simple types: Integer, String, TMyType
@@ -57,21 +48,21 @@ func (p *Parser) parseTypeExpressionTraditional() ast.TypeExpression {
 
 	case lexer.FUNCTION, lexer.PROCEDURE:
 		// Inline function or procedure pointer type
-		return p.parseFunctionPointerType()
+		return p.parseFunctionPointerTypeCursor()
 
 	case lexer.ARRAY:
 		// Array type: array of ElementType
-		return p.parseArrayType()
+		return p.parseArrayTypeCursor()
 
 	case lexer.SET:
 		// Set type: set of ElementType
 		// Task 9.213: Parse inline set type expressions
-		return p.parseSetType()
+		return p.parseSetTypeCursor()
 
 	case lexer.CLASS:
 		// Metaclass type: class of ClassName
 		// Task 9.70: Parse metaclass type syntax
-		return p.parseClassOfType()
+		return p.parseClassOfTypeCursor()
 
 	default:
 		p.addError("expected type expression, got "+p.curToken.Literal, ErrExpectedType)
@@ -110,19 +101,19 @@ func (p *Parser) parseTypeExpressionCursor() ast.TypeExpression {
 
 	case lexer.FUNCTION, lexer.PROCEDURE:
 		// Inline function or procedure pointer type
-		return p.parseFunctionPointerType()
+		return p.parseFunctionPointerTypeCursor()
 
 	case lexer.ARRAY:
 		// Array type: array of ElementType
-		return p.parseArrayType()
+		return p.parseArrayTypeCursor()
 
 	case lexer.SET:
 		// Set type: set of ElementType
-		return p.parseSetType()
+		return p.parseSetTypeCursor()
 
 	case lexer.CLASS:
 		// Metaclass type: class of ClassName
-		return p.parseClassOfType()
+		return p.parseClassOfTypeCursor()
 
 	default:
 		p.addError("expected type expression, got "+currentToken.Literal, ErrExpectedType)
@@ -281,7 +272,7 @@ func (p *Parser) parseFunctionPointerTypeTraditional() *ast.FunctionPointerTypeN
 
 		// Parse return type (can be any type expression)
 		p.nextToken() // move to return type
-		returnTypeExpr := p.parseTypeExpression()
+		returnTypeExpr := p.parseTypeExpressionCursor()
 		if returnTypeExpr == nil {
 			return nil
 		}
@@ -407,7 +398,7 @@ func (p *Parser) parseFunctionPointerTypeCursor() *ast.FunctionPointerTypeNode {
 		cursor = cursor.Advance() // move to return type
 		p.cursor = cursor
 
-		returnTypeExpr := p.parseTypeExpression()
+		returnTypeExpr := p.parseTypeExpressionCursor()
 		if returnTypeExpr == nil {
 			return nil
 		}
@@ -595,7 +586,7 @@ func (p *Parser) parseArrayTypeTraditional() *ast.ArrayTypeNode {
 
 	// Parse element type
 	p.nextToken() // move to element type
-	elementType := p.parseTypeExpression()
+	elementType := p.parseTypeExpressionCursor()
 	if elementType == nil {
 		// Task 2.7.7: Dual-mode - get current token for error reporting
 		var curTok lexer.Token
@@ -774,7 +765,7 @@ func (p *Parser) parseArrayTypeCursor() *ast.ArrayTypeNode {
 	cursor = cursor.Advance() // move to element type
 	p.cursor = cursor
 
-	elementType := p.parseTypeExpression()
+	elementType := p.parseTypeExpressionCursor()
 	if elementType == nil {
 		// Use structured error for missing element type
 		err := NewStructuredError(ErrKindInvalid).
@@ -862,7 +853,7 @@ func (p *Parser) parseArrayBound() ast.Expression {
 	// - Unary expressions: -5
 	// - Identifiers: size
 	// - Binary expressions: size - 1
-	return p.parseExpression(LOWEST)
+	return p.parseExpressionCursor(LOWEST)
 }
 
 // parseArrayBoundsFromCurrent parses array dimensions starting from the current token.
@@ -965,7 +956,7 @@ func (p *Parser) parseClassOfTypeTraditional() *ast.ClassOfTypeNode {
 	// Parse class type (typically a simple identifier like TMyClass)
 	p.nextToken() // move to class type
 
-	classType := p.parseTypeExpression()
+	classType := p.parseTypeExpressionCursor()
 	if classType == nil {
 		p.addError("expected class type after 'class of'", ErrExpectedType)
 		return nil
@@ -1003,7 +994,7 @@ func (p *Parser) parseClassOfTypeCursor() *ast.ClassOfTypeNode {
 	cursor = cursor.Advance() // move to class type
 	p.cursor = cursor
 
-	classType := p.parseTypeExpression()
+	classType := p.parseTypeExpressionCursor()
 	if classType == nil {
 		p.addError("expected class type after 'class of'", ErrExpectedType)
 		return nil

@@ -19,7 +19,7 @@
 //
 // Example:
 //
-//	stmt.Expression = p.parseExpression(LOWEST)
+//	stmt.Expression = p.parseExpressionCursor(LOWEST)
 //	stmt.EndPos = stmt.Expression.End()
 //	if p.peekTokenIs(lexer.SEMICOLON) {
 //	    p.nextToken()
@@ -110,7 +110,7 @@
 //	    defer p.popBlockContext()
 //
 //	    // Parse condition
-//	    stmt.Condition = p.parseExpression(LOWEST)
+//	    stmt.Condition = p.parseExpressionCursor(LOWEST)
 //	    if stmt.Condition == nil {
 //	        p.addErrorWithContext("expected condition", ErrInvalidExpression)
 //	        p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
@@ -1249,7 +1249,7 @@ type ListParseOptions struct {
 //	}
 //	exprs := []ast.Expression{}
 //	count, ok := p.parseSeparatedList(opts, func() bool {
-//	    expr := p.parseExpression(LOWEST)
+//	    expr := p.parseExpressionCursor(LOWEST)
 //	    if expr == nil {
 //	        return false
 //	    }
@@ -1360,7 +1360,7 @@ func (p *Parser) ParseProgram() *ast.Program {
 
 	// If the file starts with 'unit', parse it as a unit
 	if p.curTokenIs(lexer.UNIT) {
-		unit := p.parseUnit()
+		unit := p.parseUnitCursor()
 		if unit != nil {
 			program.Statements = append(program.Statements, unit)
 		}
@@ -1388,7 +1388,7 @@ func (p *Parser) ParseProgram() *ast.Program {
 			break         // end of program
 		}
 
-		stmt := p.parseStatement()
+		stmt := p.parseStatementCursor()
 		if stmt != nil {
 			// If parseVarDeclaration() wrapped multiple declarations in a BlockStatement,
 			// unwrap it to avoid creating an extra nested scope in the semantic analyzer
@@ -1448,7 +1448,7 @@ func (p *Parser) parseFieldInitializer(fieldNames []*ast.Identifier) ast.Express
 		p.nextToken() // move to value expression
 
 		// Parse initialization expression
-		initValue := p.parseExpression(LOWEST)
+		initValue := p.parseExpressionCursor(LOWEST)
 		if initValue == nil {
 			p.addError("expected initialization expression after = or :=", ErrInvalidExpression)
 			return nil

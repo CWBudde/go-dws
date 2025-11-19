@@ -93,7 +93,7 @@ func (p *Parser) parseFunctionDeclarationTraditional() *ast.FunctionDecl {
 
 		// Support inline array types in return types
 		// Parse type expression (can be simple type, function pointer, or array type)
-		typeExpr := p.parseTypeExpression()
+		typeExpr := p.parseTypeExpressionCursor()
 		if typeExpr == nil {
 			p.addError("expected return type after ':'", ErrExpectedType)
 			return nil
@@ -289,7 +289,7 @@ func (p *Parser) parseFunctionDeclarationTraditional() *ast.FunctionDecl {
 				}
 
 				// Parse one variable declaration
-				varDecl := p.parseVarDeclaration()
+				varDecl := p.parseVarDeclarationCursor()
 				if varDecl == nil {
 					break
 				}
@@ -322,7 +322,7 @@ func (p *Parser) parseFunctionDeclarationTraditional() *ast.FunctionDecl {
 			}
 		} else if p.curTokenIs(lexer.CONST) {
 			// Parse constant declaration
-			constDecl := p.parseConstDeclaration()
+			constDecl := p.parseConstDeclarationCursor()
 			if constDecl != nil {
 				if fn.Body == nil {
 					fn.Body = &ast.BlockStatement{
@@ -460,7 +460,7 @@ func (p *Parser) parseFunctionDeclarationCursor() *ast.FunctionDecl {
 		cursor = cursor.Advance() // move past ':' to type expression
 		p.cursor = cursor
 
-		typeExpr := p.parseTypeExpression()
+		typeExpr := p.parseTypeExpressionCursor()
 		if typeExpr == nil {
 			p.addError("expected return type after ':'", ErrExpectedType)
 			return nil
@@ -694,7 +694,7 @@ func (p *Parser) parseFunctionDeclarationCursor() *ast.FunctionDecl {
 					break
 				}
 
-				varDecl := p.parseVarDeclaration()
+				varDecl := p.parseVarDeclarationCursor()
 				if varDecl == nil {
 					break
 				}
@@ -720,7 +720,7 @@ func (p *Parser) parseFunctionDeclarationCursor() *ast.FunctionDecl {
 				p.cursor = cursor
 			}
 		} else if cursor.Current().Type == lexer.CONST {
-			constDecl := p.parseConstDeclaration()
+			constDecl := p.parseConstDeclarationCursor()
 			if constDecl != nil {
 				if fn.Body == nil {
 					fn.Body = &ast.BlockStatement{
@@ -1001,7 +1001,7 @@ func (p *Parser) parseParameterGroupCursor() []*ast.Parameter {
 	cursor = cursor.Advance() // move past ':' to type expression
 	p.cursor = cursor
 
-	typeExpr := p.parseTypeExpression()
+	typeExpr := p.parseTypeExpressionCursor()
 	if typeExpr == nil {
 		// Error already reported by parseTypeExpression
 		return nil
@@ -1030,7 +1030,7 @@ func (p *Parser) parseParameterGroupCursor() []*ast.Parameter {
 		cursor = cursor.Advance() // move past '='
 		p.cursor = cursor
 
-		defaultValue = p.parseExpression(LOWEST)
+		defaultValue = p.parseExpressionCursor(LOWEST)
 		if defaultValue == nil {
 			err := NewStructuredError(ErrKindMissing).
 				WithCode(ErrInvalidExpression).
@@ -1203,7 +1203,7 @@ func (p *Parser) parseTypeOnlyParameterListAtTokenTraditional() []*ast.Parameter
 		}
 
 		// Parse type expression (could be complex like "array of Integer" or "function(Integer): Integer")
-		typeExpr := p.parseTypeExpression()
+		typeExpr := p.parseTypeExpressionCursor()
 		if typeExpr == nil {
 			p.addError("expected type in function pointer parameter list", ErrExpectedType)
 			return nil
@@ -1309,7 +1309,7 @@ func (p *Parser) parseTypeOnlyParameterListAtTokenCursor() []*ast.Parameter {
 		}
 
 		// Parse type expression (could be complex like "array of Integer" or "function(Integer): Integer")
-		typeExpr := p.parseTypeExpression()
+		typeExpr := p.parseTypeExpressionCursor()
 		if typeExpr == nil {
 			p.addError("expected type in function pointer parameter list", ErrExpectedType)
 			return nil

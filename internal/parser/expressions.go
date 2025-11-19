@@ -9,12 +9,6 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
-// parseExpression parses an expression with the given precedence.
-// Task 2.7.9: Cursor mode is now the only mode - dispatcher removed.
-func (p *Parser) parseExpression(precedence int) ast.Expression {
-	return p.parseExpressionCursor(precedence)
-}
-
 // parseExpressionTraditional parses an expression with the given precedence (traditional mode).
 // PRE: curToken is first token of expression
 // POST: curToken is last token of expression
@@ -732,7 +726,7 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 
 	p.nextToken()
 
-	expression.Right = p.parseExpression(PREFIX)
+	expression.Right = p.parseExpressionCursor(PREFIX)
 
 	// End at right expression (FinishWithNode handles nil by falling back to current token)
 	return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
@@ -780,7 +774,7 @@ func (p *Parser) parseAddressOfExpression() ast.Expression {
 	p.nextToken() // advance to the target
 
 	// Parse the target expression (function/procedure name or member access)
-	expression.Operator = p.parseExpression(PREFIX)
+	expression.Operator = p.parseExpressionCursor(PREFIX)
 
 	// End at operator expression (FinishWithNode handles nil by falling back to current token)
 	return builder.FinishWithNode(expression, expression.Operator).(ast.Expression)
@@ -810,7 +804,7 @@ func (p *Parser) parseInfixExpressionTraditional(left ast.Expression) ast.Expres
 
 	precedence := p.curPrecedence()
 	p.nextToken()
-	expression.Right = p.parseExpression(precedence)
+	expression.Right = p.parseExpressionCursor(precedence)
 
 	// End at right expression (FinishWithNode handles nil by falling back to current token)
 	return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
@@ -1113,7 +1107,7 @@ func (p *Parser) parseNamedFieldInitializer() *ast.FieldInitializer {
 	p.nextToken() // move to ':'
 	p.nextToken() // move to value
 
-	value := p.parseExpression(LOWEST)
+	value := p.parseExpressionCursor(LOWEST)
 	if value == nil {
 		return nil
 	}
@@ -1128,7 +1122,7 @@ func (p *Parser) parseNamedFieldInitializer() *ast.FieldInitializer {
 // parseArgumentAsFieldInitializer parses a plain expression as a field initializer (without name).
 // Used to represent function arguments in the same data structure as record fields.
 func (p *Parser) parseArgumentAsFieldInitializer() *ast.FieldInitializer {
-	expr := p.parseExpression(LOWEST)
+	expr := p.parseExpressionCursor(LOWEST)
 	if expr == nil {
 		return nil
 	}
@@ -1376,7 +1370,7 @@ func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
 	}
 
 	_, _ = p.parseSeparatedListBeforeStart(opts, func() bool {
-		exp := p.parseExpression(LOWEST)
+		exp := p.parseExpressionCursor(LOWEST)
 		if exp != nil {
 			list = append(list, exp)
 			return true
@@ -1515,7 +1509,7 @@ func (p *Parser) isRecordLiteralPattern() bool {
 func (p *Parser) parseExpressionOrArrayLiteral(lparenToken lexer.Token) ast.Expression {
 	p.nextToken() // move to first expression
 
-	exp := p.parseExpression(LOWEST)
+	exp := p.parseExpressionCursor(LOWEST)
 	if exp == nil {
 		return nil
 	}
@@ -1699,7 +1693,7 @@ func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstEl
 			}
 		}
 
-		elementExpr := p.parseExpression(LOWEST)
+		elementExpr := p.parseExpressionCursor(LOWEST)
 		if elementExpr == nil {
 			return nil
 		}
@@ -1865,7 +1859,7 @@ func (p *Parser) parseDefaultExpression() ast.Expression {
 	p.nextToken() // Move to type name
 
 	// The type name could be an identifier (Integer, String, etc.)
-	typeName := p.parseExpression(LOWEST)
+	typeName := p.parseExpressionCursor(LOWEST)
 	if typeName == nil {
 		return nil
 	}
@@ -1940,7 +1934,7 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 
 	// Parse first dimension expression
 	p.nextToken()
-	firstDim := p.parseExpression(LOWEST)
+	firstDim := p.parseExpressionCursor(LOWEST)
 	if firstDim == nil {
 		p.addError(fmt.Sprintf("expected expression for array dimension at %d:%d",
 			p.cursor.Current().Pos.Line, p.cursor.Current().Pos.Column), ErrInvalidExpression)
@@ -1953,7 +1947,7 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 		p.nextToken() // consume comma
 		p.nextToken() // move to dimension expression
 
-		dim := p.parseExpression(LOWEST)
+		dim := p.parseExpressionCursor(LOWEST)
 		if dim == nil {
 			p.addError(fmt.Sprintf("expected expression for array dimension at %d:%d",
 				p.cursor.Current().Pos.Line, p.cursor.Current().Pos.Column), ErrInvalidExpression)
@@ -2093,7 +2087,7 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 		p.nextToken() // move past '=>' to expression
 
 		// Parse the expression
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			p.addError("expected expression after '=>'", ErrInvalidExpression)
 			return nil
@@ -2294,7 +2288,7 @@ func (p *Parser) parseCondition() *ast.Condition {
 	}
 
 	// Parse the test expression (should be boolean, but type checking is done in semantic phase)
-	testExpr := p.parseExpression(LOWEST)
+	testExpr := p.parseExpressionCursor(LOWEST)
 	if testExpr == nil {
 		return nil
 	}
@@ -2538,7 +2532,7 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 	// Try to parse as type expression first (speculatively)
 	// Save state before attempting, so we can cleanly backtrack if it fails
 	state := p.saveState()
-	expression.TargetType = p.parseTypeExpression()
+	expression.TargetType = p.parseTypeExpressionCursor()
 	if expression.TargetType != nil {
 		return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
 	}
@@ -2549,7 +2543,7 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 
 	// Parse as value expression (boolean comparison)
 	// Use EQUALS precedence to prevent consuming following logical operators
-	expression.Right = p.parseExpression(EQUALS)
+	expression.Right = p.parseExpressionCursor(EQUALS)
 	if expression.Right == nil {
 		p.addError("expected expression after 'is' operator", ErrInvalidExpression)
 		return expression
@@ -2575,7 +2569,7 @@ func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 	p.nextToken()
 
 	// Parse the target type (should be an interface type)
-	expression.TargetType = p.parseTypeExpression()
+	expression.TargetType = p.parseTypeExpressionCursor()
 	if expression.TargetType == nil {
 		p.addError("expected type after 'as' operator", ErrExpectedType)
 		return expression
@@ -2603,7 +2597,7 @@ func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
 	p.nextToken()
 
 	// Parse the target type (should be an interface type)
-	expression.TargetType = p.parseTypeExpression()
+	expression.TargetType = p.parseTypeExpressionCursor()
 	if expression.TargetType == nil {
 		p.addError("expected type after 'implements' operator", ErrExpectedType)
 		return expression

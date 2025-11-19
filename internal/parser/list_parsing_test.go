@@ -260,7 +260,7 @@ func TestParseSeparatedListBeforeStart_WithExpressions(t *testing.T) {
 
 	exprs := []ast.Expression{}
 	count, ok := p.parseSeparatedListBeforeStart(opts, func() bool {
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			return false
 		}

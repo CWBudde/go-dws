@@ -159,7 +159,7 @@ func (p *Parser) parseSetTypeTraditional() *ast.SetTypeNode {
 	// 1. Simple identifier: TEnum
 	// 2. Inline anonymous enum: (A, B, C) - would be handled by parseTypeExpression
 	// 3. Subrange: 1..100 - might need special handling in future
-	elementType := p.parseTypeExpression()
+	elementType := p.parseTypeExpressionCursor()
 	if elementType == nil {
 		p.addError("expected type expression after 'set of'", ErrExpectedType)
 		return nil
@@ -200,7 +200,7 @@ func (p *Parser) parseSetTypeCursor() *ast.SetTypeNode {
 	// 1. Simple identifier: TEnum
 	// 2. Inline anonymous enum: (A, B, C) - would be handled by parseTypeExpression
 	// 3. Subrange: 1..100 - might need special handling in future
-	elementType := p.parseTypeExpression()
+	elementType := p.parseTypeExpressionCursor()
 	if elementType == nil {
 		p.addError("expected type expression after 'set of'", ErrExpectedType)
 		return nil
@@ -251,7 +251,7 @@ func (p *Parser) parseSetLiteralTraditional() ast.Expression {
 
 	for !p.curTokenIs(lexer.RBRACK) && !p.curTokenIs(lexer.EOF) {
 		// Parse an element (could be a simple identifier or a range)
-		start := p.parseExpression(LOWEST)
+		start := p.parseExpressionCursor(LOWEST)
 
 		// Check if this is a range (element..element)
 		if p.peekTokenIs(lexer.DOTDOT) {
@@ -259,7 +259,7 @@ func (p *Parser) parseSetLiteralTraditional() ast.Expression {
 			rangeToken := p.curToken
 
 			p.nextToken() // move to end expression
-			end := p.parseExpression(LOWEST)
+			end := p.parseExpressionCursor(LOWEST)
 
 			// Create a RangeExpression
 			rangeExpr := &ast.RangeExpression{
@@ -323,7 +323,7 @@ func (p *Parser) parseSetLiteralCursor() ast.Expression {
 
 	for cursor.Current().Type != lexer.RBRACK && cursor.Current().Type != lexer.EOF {
 		// Parse an element (could be a simple identifier or a range)
-		start := p.parseExpression(LOWEST)
+		start := p.parseExpressionCursor(LOWEST)
 		cursor = p.cursor // Update cursor after parseExpression
 
 		// Check if this is a range (element..element)
@@ -333,7 +333,7 @@ func (p *Parser) parseSetLiteralCursor() ast.Expression {
 
 			cursor = cursor.Advance() // move to end expression
 			p.cursor = cursor
-			end := p.parseExpression(LOWEST)
+			end := p.parseExpressionCursor(LOWEST)
 			cursor = p.cursor // Update cursor after parseExpression
 
 			// Create a RangeExpression

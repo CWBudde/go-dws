@@ -51,7 +51,7 @@ func (p *Parser) parseClassDeclarationTraditional() *ast.ClassDecl {
 		return nil
 	}
 
-	return p.parseClassDeclarationBody(nameIdent)
+	return p.parseClassDeclarationBodyCursor(nameIdent)
 }
 
 // parseClassDeclarationCursor parses a class declaration with visibility sections (cursor mode).
@@ -103,7 +103,7 @@ func (p *Parser) parseClassDeclarationCursor() *ast.ClassDecl {
 	cursor = cursor.Advance() // move to CLASS
 	p.cursor = cursor
 
-	return p.parseClassDeclarationBody(nameIdent)
+	return p.parseClassDeclarationBodyCursor(nameIdent)
 }
 
 // parseClassParentAndInterfaces parses optional parent class and interfaces (dual-mode dispatcher).
@@ -308,7 +308,7 @@ func (p *Parser) parseClassDeclarationBodyTraditional(nameIdent *ast.Identifier)
 	// OR: class(IInterface1, IInterface2) - no parent, just interfaces
 	classDecl.Interfaces = []*ast.Identifier{}
 
-	p.parseClassParentAndInterfaces(classDecl)
+	p.parseClassParentAndInterfacesCursor(classDecl)
 
 	// Check for 'abstract' keyword
 	// Syntax: type TShape = class abstract
@@ -317,7 +317,7 @@ func (p *Parser) parseClassDeclarationBodyTraditional(nameIdent *ast.Identifier)
 		p.nextToken() // move to 'abstract'
 		classDecl.IsAbstract = true
 		// Check again for parent/interfaces after abstract
-		p.parseClassParentAndInterfaces(classDecl)
+		p.parseClassParentAndInterfacesCursor(classDecl)
 	}
 
 	// Check for 'external' keyword
@@ -334,7 +334,7 @@ func (p *Parser) parseClassDeclarationBodyTraditional(nameIdent *ast.Identifier)
 			classDecl.ExternalName = p.cursor.Current().Literal
 		}
 		// Check again for parent/interfaces after external
-		p.parseClassParentAndInterfaces(classDecl)
+		p.parseClassParentAndInterfacesCursor(classDecl)
 	}
 
 	// Check for forward declaration: type TForward = class;
@@ -392,7 +392,7 @@ func (p *Parser) parseClassDeclarationBodyTraditional(nameIdent *ast.Identifier)
 			if p.curTokenIs(lexer.VAR) {
 				// Class variable: class var FieldName: Type;
 				p.nextToken() // move past 'var'
-				fields := p.parseFieldDeclarations(currentVisibility)
+				fields := p.parseFieldDeclarationsCursor(currentVisibility)
 				for _, field := range fields {
 					if field != nil {
 						field.IsClassVar = true // Mark as class variable
@@ -402,7 +402,7 @@ func (p *Parser) parseClassDeclarationBodyTraditional(nameIdent *ast.Identifier)
 			} else if p.curTokenIs(lexer.CONST) {
 				// Class constant: class const Name = Value;
 				p.nextToken() // move past 'const'
-				constant := p.parseClassConstantDeclaration(currentVisibility, true)
+				constant := p.parseClassConstantDeclarationCursor(currentVisibility, true)
 				if constant != nil {
 					classDecl.Constants = append(classDecl.Constants, constant)
 				}
@@ -414,13 +414,13 @@ func (p *Parser) parseClassDeclarationBodyTraditional(nameIdent *ast.Identifier)
 					classDecl.Properties = append(classDecl.Properties, property)
 				}
 			} else if p.curTokenIs(lexer.OPERATOR) {
-				operator := p.parseClassOperatorDeclaration(classToken, currentVisibility)
+				operator := p.parseClassOperatorDeclarationCursor(classToken, currentVisibility)
 				if operator != nil {
 					classDecl.Operators = append(classDecl.Operators, operator)
 				}
 			} else if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) || p.curTokenIs(lexer.METHOD) {
 				// Class method: class function/procedure/method ...
-				method := p.parseFunctionDeclaration()
+				method := p.parseFunctionDeclarationCursor()
 				if method != nil {
 					method.IsClassMethod = true // Mark as class method
 					method.Visibility = currentVisibility
@@ -434,14 +434,14 @@ func (p *Parser) parseClassDeclarationBodyTraditional(nameIdent *ast.Identifier)
 		} else if p.curTokenIs(lexer.CONST) {
 			// Regular class constant: const Name = Value;
 			p.nextToken() // move past 'const'
-			constant := p.parseClassConstantDeclaration(currentVisibility, false)
+			constant := p.parseClassConstantDeclarationCursor(currentVisibility, false)
 			if constant != nil {
 				classDecl.Constants = append(classDecl.Constants, constant)
 			}
 		} else if p.cursor.Current().Type == lexer.IDENT && (p.peekTokenIs(lexer.COLON) || p.peekTokenIs(lexer.COMMA) || p.peekTokenIs(lexer.ASSIGN) || p.peekTokenIs(lexer.EQ)) {
 			// This is a regular instance field declaration (may be comma-separated)
 			// Supports: FieldName: Type; or FieldName := Value; or FieldName = Value; or FieldName: Type := Value;
-			fields := p.parseFieldDeclarations(currentVisibility)
+			fields := p.parseFieldDeclarationsCursor(currentVisibility)
 			for _, field := range fields {
 				if field != nil {
 					classDecl.Fields = append(classDecl.Fields, field)
@@ -449,14 +449,14 @@ func (p *Parser) parseClassDeclarationBodyTraditional(nameIdent *ast.Identifier)
 			}
 		} else if p.cursor.Current().Type == lexer.FUNCTION || p.cursor.Current().Type == lexer.PROCEDURE || p.cursor.Current().Type == lexer.METHOD {
 			// This is a regular instance method declaration
-			method := p.parseFunctionDeclaration()
+			method := p.parseFunctionDeclarationCursor()
 			if method != nil {
 				method.Visibility = currentVisibility
 				classDecl.Methods = append(classDecl.Methods, method)
 			}
 		} else if p.cursor.Current().Type == lexer.CONSTRUCTOR {
 			// This is a constructor declaration
-			method := p.parseFunctionDeclaration()
+			method := p.parseFunctionDeclarationCursor()
 			if method != nil {
 				method.IsConstructor = true
 				method.Visibility = currentVisibility
@@ -464,7 +464,7 @@ func (p *Parser) parseClassDeclarationBodyTraditional(nameIdent *ast.Identifier)
 			}
 		} else if p.cursor.Current().Type == lexer.DESTRUCTOR {
 			// This is a destructor declaration
-			method := p.parseFunctionDeclaration()
+			method := p.parseFunctionDeclarationCursor()
 			if method != nil {
 				method.IsDestructor = true
 				method.Visibility = currentVisibility
@@ -522,7 +522,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 	// Check for optional parent class and/or interfaces
 	classDecl.Interfaces = []*ast.Identifier{}
 
-	p.parseClassParentAndInterfaces(classDecl)
+	p.parseClassParentAndInterfacesCursor(classDecl)
 	cursor = p.cursor
 
 	// Check for 'abstract' keyword
@@ -531,7 +531,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 		p.cursor = cursor
 		classDecl.IsAbstract = true
 		// Check again for parent/interfaces after abstract
-		p.parseClassParentAndInterfaces(classDecl)
+		p.parseClassParentAndInterfacesCursor(classDecl)
 		cursor = p.cursor
 	}
 
@@ -548,7 +548,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 			classDecl.ExternalName = cursor.Current().Literal
 		}
 		// Check again for parent/interfaces after external
-		p.parseClassParentAndInterfaces(classDecl)
+		p.parseClassParentAndInterfacesCursor(classDecl)
 		cursor = p.cursor
 	}
 
@@ -610,7 +610,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 				// Class variable: class var FieldName: Type;
 				cursor = cursor.Advance() // move past 'var'
 				p.cursor = cursor
-				fields := p.parseFieldDeclarations(currentVisibility)
+				fields := p.parseFieldDeclarationsCursor(currentVisibility)
 				for _, field := range fields {
 					if field != nil {
 						field.IsClassVar = true // Mark as class variable
@@ -622,7 +622,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 				// Class constant: class const Name = Value;
 				cursor = cursor.Advance() // move past 'const'
 				p.cursor = cursor
-				constant := p.parseClassConstantDeclaration(currentVisibility, true)
+				constant := p.parseClassConstantDeclarationCursor(currentVisibility, true)
 				if constant != nil {
 					classDecl.Constants = append(classDecl.Constants, constant)
 				}
@@ -636,14 +636,14 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 				}
 				cursor = p.cursor
 			} else if cursor.Current().Type == lexer.OPERATOR {
-				operator := p.parseClassOperatorDeclaration(classToken, currentVisibility)
+				operator := p.parseClassOperatorDeclarationCursor(classToken, currentVisibility)
 				if operator != nil {
 					classDecl.Operators = append(classDecl.Operators, operator)
 				}
 				cursor = p.cursor
 			} else if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE || cursor.Current().Type == lexer.METHOD {
 				// Class method: class function/procedure/method ...
-				method := p.parseFunctionDeclaration()
+				method := p.parseFunctionDeclarationCursor()
 				if method != nil {
 					method.IsClassMethod = true // Mark as class method
 					method.Visibility = currentVisibility
@@ -660,7 +660,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 			// Regular class constant: const Name = Value;
 			cursor = cursor.Advance() // move past 'const'
 			p.cursor = cursor
-			constant := p.parseClassConstantDeclaration(currentVisibility, false)
+			constant := p.parseClassConstantDeclarationCursor(currentVisibility, false)
 			if constant != nil {
 				classDecl.Constants = append(classDecl.Constants, constant)
 			}
@@ -668,7 +668,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 		} else if cursor.Current().Type == lexer.IDENT && (cursor.Peek(1).Type == lexer.COLON || cursor.Peek(1).Type == lexer.COMMA || cursor.Peek(1).Type == lexer.ASSIGN || cursor.Peek(1).Type == lexer.EQ) {
 			// This is a regular instance field declaration (may be comma-separated)
 			// Supports: FieldName: Type; or FieldName := Value; or FieldName = Value; or FieldName: Type := Value;
-			fields := p.parseFieldDeclarations(currentVisibility)
+			fields := p.parseFieldDeclarationsCursor(currentVisibility)
 			for _, field := range fields {
 				if field != nil {
 					classDecl.Fields = append(classDecl.Fields, field)
@@ -677,7 +677,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 			cursor = p.cursor
 		} else if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE || cursor.Current().Type == lexer.METHOD {
 			// This is a regular instance method declaration
-			method := p.parseFunctionDeclaration()
+			method := p.parseFunctionDeclarationCursor()
 			if method != nil {
 				method.Visibility = currentVisibility
 				classDecl.Methods = append(classDecl.Methods, method)
@@ -685,7 +685,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 			cursor = p.cursor
 		} else if cursor.Current().Type == lexer.CONSTRUCTOR {
 			// This is a constructor declaration
-			method := p.parseFunctionDeclaration()
+			method := p.parseFunctionDeclarationCursor()
 			if method != nil {
 				method.IsConstructor = true
 				method.Visibility = currentVisibility
@@ -694,7 +694,7 @@ func (p *Parser) parseClassDeclarationBodyCursor(nameIdent *ast.Identifier) *ast
 			cursor = p.cursor
 		} else if cursor.Current().Type == lexer.DESTRUCTOR {
 			// This is a destructor declaration
-			method := p.parseFunctionDeclaration()
+			method := p.parseFunctionDeclarationCursor()
 			if method != nil {
 				method.IsDestructor = true
 				method.Visibility = currentVisibility
@@ -781,7 +781,7 @@ func (p *Parser) parseFieldDeclarationsTraditional(visibility ast.Visibility) []
 		p.nextToken() // move to type
 
 		// Parse type expression (supports simple types, array types, function pointer types)
-		fieldType = p.parseTypeExpression()
+		fieldType = p.parseTypeExpressionCursor()
 		if fieldType == nil {
 			return nil
 		}
@@ -800,7 +800,7 @@ func (p *Parser) parseFieldDeclarationsTraditional(visibility ast.Visibility) []
 		p.nextToken() // move to value expression
 
 		// Parse initialization expression
-		initValue = p.parseExpression(LOWEST)
+		initValue = p.parseExpressionCursor(LOWEST)
 		if initValue == nil {
 			p.addError("expected initialization expression after := or =", ErrInvalidExpression)
 			return nil
@@ -860,7 +860,7 @@ func (p *Parser) parseFieldDeclarationsCursor(visibility ast.Visibility) []*ast.
 		p.cursor = cursor
 
 		// Parse type expression (supports simple types, array types, function pointer types)
-		fieldType = p.parseTypeExpression()
+		fieldType = p.parseTypeExpressionCursor()
 		if fieldType == nil {
 			return nil
 		}
@@ -882,7 +882,7 @@ func (p *Parser) parseFieldDeclarationsCursor(visibility ast.Visibility) []*ast.
 		p.cursor = cursor
 
 		// Parse initialization expression
-		initValue = p.parseExpression(LOWEST)
+		initValue = p.parseExpressionCursor(LOWEST)
 		if initValue == nil {
 			p.addError("expected initialization expression after := or =", ErrInvalidExpression)
 			return nil
@@ -1147,7 +1147,7 @@ func (p *Parser) parseClassConstantDeclarationTraditional(visibility ast.Visibil
 		p.nextToken() // move to ':'
 		p.nextToken() // move to type
 
-		typeExpr := p.parseTypeExpression()
+		typeExpr := p.parseTypeExpressionCursor()
 		if typeExpr != nil {
 			typeAnnotation = &ast.TypeAnnotation{
 				Token:      p.curToken,
@@ -1163,7 +1163,7 @@ func (p *Parser) parseClassConstantDeclarationTraditional(visibility ast.Visibil
 
 	// Parse the constant value expression
 	p.nextToken()
-	value := p.parseExpression(LOWEST)
+	value := p.parseExpressionCursor(LOWEST)
 	if value == nil {
 		p.addError("expected constant value expression", ErrInvalidExpression)
 		return nil
@@ -1222,7 +1222,7 @@ func (p *Parser) parseClassConstantDeclarationCursor(visibility ast.Visibility, 
 		cursor = cursor.Advance() // move to type
 		p.cursor = cursor
 
-		typeExpr := p.parseTypeExpression()
+		typeExpr := p.parseTypeExpressionCursor()
 		if typeExpr != nil {
 			cursor = p.cursor
 			typeAnnotation = &ast.TypeAnnotation{
@@ -1244,7 +1244,7 @@ func (p *Parser) parseClassConstantDeclarationCursor(visibility ast.Visibility, 
 	cursor = cursor.Advance() // move to value expression
 	p.cursor = cursor
 
-	value := p.parseExpression(LOWEST)
+	value := p.parseExpressionCursor(LOWEST)
 	if value == nil {
 		p.addError("expected constant value expression", ErrInvalidExpression)
 		return nil

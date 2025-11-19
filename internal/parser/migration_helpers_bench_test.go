@@ -17,7 +17,7 @@ func BenchmarkParseExpressionList_Traditional_Empty(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			b.Fatal("parseExpression returned nil")
 		}
@@ -30,7 +30,7 @@ func BenchmarkParseExpressionList_Cursor_Empty(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			b.Fatal("parseExpression returned nil")
 		}
@@ -43,7 +43,7 @@ func BenchmarkParseExpressionList_Traditional_SingleArg(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			b.Fatal("parseExpression returned nil")
 		}
@@ -56,7 +56,7 @@ func BenchmarkParseExpressionList_Cursor_SingleArg(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			b.Fatal("parseExpression returned nil")
 		}
@@ -69,7 +69,7 @@ func BenchmarkParseExpressionList_Traditional_MultipleArgs(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			b.Fatal("parseExpression returned nil")
 		}
@@ -82,7 +82,7 @@ func BenchmarkParseExpressionList_Cursor_MultipleArgs(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			b.Fatal("parseExpression returned nil")
 		}
@@ -95,7 +95,7 @@ func BenchmarkParseCallOrRecordLiteral_Traditional_FunctionCall(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			b.Fatal("parseExpression returned nil")
 		}
@@ -108,7 +108,7 @@ func BenchmarkParseCallOrRecordLiteral_Cursor_FunctionCall(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			b.Fatal("parseExpression returned nil")
 		}
@@ -121,7 +121,7 @@ func BenchmarkParseCallOrRecordLiteral_Traditional_RecordLiteral(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			b.Fatal("parseExpression returned nil")
 		}
@@ -134,7 +134,7 @@ func BenchmarkParseCallOrRecordLiteral_Cursor_RecordLiteral(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			b.Fatal("parseExpression returned nil")
 		}
@@ -147,7 +147,7 @@ func BenchmarkParseCallOrRecordLiteral_Traditional_ComplexCall(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			b.Fatal("parseExpression returned nil")
 		}
@@ -160,7 +160,7 @@ func BenchmarkParseCallOrRecordLiteral_Cursor_ComplexCall(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			b.Fatal("parseExpression returned nil")
 		}
@@ -173,7 +173,7 @@ func BenchmarkParseCallOrRecordLiteral_Traditional_ComplexRecord(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			b.Fatal("parseExpression returned nil")
 		}
@@ -186,7 +186,7 @@ func BenchmarkParseCallOrRecordLiteral_Cursor_ComplexRecord(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			b.Fatal("parseExpression returned nil")
 		}
@@ -199,7 +199,7 @@ func BenchmarkParseCallOrRecordLiteral_Traditional_NestedCalls(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			b.Fatal("parseExpression returned nil")
 		}
@@ -212,7 +212,7 @@ func BenchmarkParseCallOrRecordLiteral_Cursor_NestedCalls(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			b.Fatal("parseExpression returned nil")
 		}
@@ -225,7 +225,7 @@ func BenchmarkParseCallOrRecordLiteral_Traditional_LargeArgList(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := New(lexer.New(source))
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			b.Fatal("parseExpression returned nil")
 		}
@@ -238,7 +238,7 @@ func BenchmarkParseCallOrRecordLiteral_Cursor_LargeArgList(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		p := NewCursorParser(lexer.New(source))
-		expr := p.parseExpression(LOWEST)
+		expr := p.parseExpressionCursor(LOWEST)
 		if expr == nil {
 			b.Fatal("parseExpression returned nil")
 		}

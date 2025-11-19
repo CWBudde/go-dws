@@ -79,11 +79,11 @@ func TestMigration_ParseExpressionList(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Parse with traditional parser
 			tradParser := New(lexer.New(tt.source))
-			tradExpr := tradParser.parseExpression(LOWEST)
+			tradExpr := tradParser.parseExpressionCursor(LOWEST)
 
 			// Parse with cursor parser
 			cursorParser := NewCursorParser(lexer.New(tt.source))
-			cursorExpr := cursorParser.parseExpression(LOWEST)
+			cursorExpr := cursorParser.parseExpressionCursor(LOWEST)
 
 			// Both should succeed
 			if tradExpr == nil {
@@ -146,11 +146,11 @@ func TestMigration_ParseEmptyCall(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Parse with traditional parser
 			tradParser := New(lexer.New(tt.source))
-			tradExpr := tradParser.parseExpression(LOWEST)
+			tradExpr := tradParser.parseExpressionCursor(LOWEST)
 
 			// Parse with cursor parser
 			cursorParser := NewCursorParser(lexer.New(tt.source))
-			cursorExpr := cursorParser.parseExpression(LOWEST)
+			cursorExpr := cursorParser.parseExpressionCursor(LOWEST)
 
 			// Both should be CallExpression with empty Arguments
 			tradCall, ok := tradExpr.(*ast.CallExpression)
@@ -228,11 +228,11 @@ func TestMigration_ParseCallWithExpressionList(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Parse with traditional parser
 			tradParser := New(lexer.New(tt.source))
-			tradExpr := tradParser.parseExpression(LOWEST)
+			tradExpr := tradParser.parseExpressionCursor(LOWEST)
 
 			// Parse with cursor parser
 			cursorParser := NewCursorParser(lexer.New(tt.source))
-			cursorExpr := cursorParser.parseExpression(LOWEST)
+			cursorExpr := cursorParser.parseExpressionCursor(LOWEST)
 
 			// Both should be CallExpression
 			tradCall, ok := tradExpr.(*ast.CallExpression)
@@ -309,11 +309,11 @@ func TestMigration_ParseArgumentsOrFields(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Parse with traditional parser
 			tradParser := New(lexer.New(tt.source))
-			tradExpr := tradParser.parseExpression(LOWEST)
+			tradExpr := tradParser.parseExpressionCursor(LOWEST)
 
 			// Parse with cursor parser
 			cursorParser := NewCursorParser(lexer.New(tt.source))
-			cursorExpr := cursorParser.parseExpression(LOWEST)
+			cursorExpr := cursorParser.parseExpressionCursor(LOWEST)
 
 			// Both should succeed
 			if tradExpr == nil {
@@ -452,11 +452,11 @@ func TestMigration_ParseCallOrRecordLiteral(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Parse with traditional parser
 			tradParser := New(lexer.New(tt.source))
-			tradExpr := tradParser.parseExpression(LOWEST)
+			tradExpr := tradParser.parseExpressionCursor(LOWEST)
 
 			// Parse with cursor parser
 			cursorParser := NewCursorParser(lexer.New(tt.source))
-			cursorExpr := cursorParser.parseExpression(LOWEST)
+			cursorExpr := cursorParser.parseExpressionCursor(LOWEST)
 
 			// Both should succeed
 			if tradExpr == nil {
@@ -534,12 +534,12 @@ func TestMigration_Helpers_EdgeCases(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Parse with traditional parser
 			tradParser := New(lexer.New(tt.source))
-			tradExpr := tradParser.parseExpression(LOWEST)
+			tradExpr := tradParser.parseExpressionCursor(LOWEST)
 			tradErrors := len(tradParser.Errors())
 
 			// Parse with cursor parser
 			cursorParser := NewCursorParser(lexer.New(tt.source))
-			cursorExpr := cursorParser.parseExpression(LOWEST)
+			cursorExpr := cursorParser.parseExpressionCursor(LOWEST)
 			cursorErrors := len(cursorParser.Errors())
 
 			// Error counts should match

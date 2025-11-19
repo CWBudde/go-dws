@@ -131,7 +131,7 @@ func (p *Parser) parseHelperDeclarationTraditional(nameIdent *ast.Identifier, ty
 		// Check for 'class const' declarations
 		if p.curTokenIs(lexer.CLASS) && p.peekTokenIs(lexer.CONST) {
 			p.nextToken() // Move to CONST
-			classConstStmt := p.parseConstDeclaration()
+			classConstStmt := p.parseConstDeclarationCursor()
 			if classConstStmt != nil {
 				if classConst, ok := classConstStmt.(*ast.ConstDecl); ok {
 					helperDecl.ClassConsts = append(helperDecl.ClassConsts, classConst)
@@ -150,7 +150,7 @@ func (p *Parser) parseHelperDeclarationTraditional(nameIdent *ast.Identifier, ty
 			p.nextToken() // Move to identifier
 
 			// Parse field declarations (can be comma-separated)
-			fields := p.parseFieldDeclarations(currentVisibility)
+			fields := p.parseFieldDeclarationsCursor(currentVisibility)
 			if fields != nil {
 				for _, field := range fields {
 					field.IsClassVar = true
@@ -166,7 +166,7 @@ func (p *Parser) parseHelperDeclarationTraditional(nameIdent *ast.Identifier, ty
 
 		// Check for method declarations (function/procedure)
 		if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) {
-			method := p.parseFunctionDeclaration()
+			method := p.parseFunctionDeclarationCursor()
 			if method != nil {
 				helperDecl.Methods = append(helperDecl.Methods, method)
 				if currentSection != nil {
@@ -319,7 +319,7 @@ func (p *Parser) parseHelperDeclarationCursor(nameIdent *ast.Identifier, typeTok
 		if cursor.Current().Type == lexer.CLASS && cursor.Peek(1).Type == lexer.CONST {
 			cursor = cursor.Advance() // Move to CONST
 			p.cursor = cursor
-			classConstStmt := p.parseConstDeclaration()
+			classConstStmt := p.parseConstDeclarationCursor()
 			if classConstStmt != nil {
 				if classConst, ok := classConstStmt.(*ast.ConstDecl); ok {
 					helperDecl.ClassConsts = append(helperDecl.ClassConsts, classConst)
@@ -340,7 +340,7 @@ func (p *Parser) parseHelperDeclarationCursor(nameIdent *ast.Identifier, typeTok
 			p.cursor = cursor
 
 			// Parse field declarations (can be comma-separated)
-			fields := p.parseFieldDeclarations(currentVisibility)
+			fields := p.parseFieldDeclarationsCursor(currentVisibility)
 			if fields != nil {
 				for _, field := range fields {
 					field.IsClassVar = true
@@ -357,7 +357,7 @@ func (p *Parser) parseHelperDeclarationCursor(nameIdent *ast.Identifier, typeTok
 
 		// Check for method declarations (function/procedure)
 		if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE {
-			method := p.parseFunctionDeclaration()
+			method := p.parseFunctionDeclarationCursor()
 			if method != nil {
 				helperDecl.Methods = append(helperDecl.Methods, method)
 				if currentSection != nil {

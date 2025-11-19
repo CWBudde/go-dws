@@ -74,7 +74,7 @@ func (p *Parser) parseExitStatement() *ast.ExitStatement {
 		p.nextToken() // move to '('
 		p.nextToken() // move to expression
 
-		stmt.ReturnValue = p.parseExpression(LOWEST)
+		stmt.ReturnValue = p.parseExpressionCursor(LOWEST)
 
 		if stmt.ReturnValue == nil {
 			p.addError("expected expression after 'exit('", ErrInvalidExpression)
@@ -87,7 +87,7 @@ func (p *Parser) parseExitStatement() *ast.ExitStatement {
 	} else if _, ok := p.prefixParseFns[p.cursor.Peek(1).Type]; ok && !p.peekTokenIs(lexer.SEMICOLON) {
 		// Support exit with inline expression: exit value;
 		p.nextToken()
-		stmt.ReturnValue = p.parseExpression(LOWEST)
+		stmt.ReturnValue = p.parseExpressionCursor(LOWEST)
 
 		if stmt.ReturnValue == nil {
 			p.addError("expected expression after 'exit'", ErrInvalidExpression)
@@ -120,7 +120,7 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 
 	// Move past 'if' and parse the condition
 	p.nextToken()
-	stmt.Condition = p.parseExpression(LOWEST)
+	stmt.Condition = p.parseExpressionCursor(LOWEST)
 
 	if stmt.Condition == nil {
 		// Task 2.7.7: Dual-mode - get current token for error reporting
@@ -175,7 +175,7 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 
 	// Parse the consequence (then branch)
 	p.nextToken()
-	stmt.Consequence = p.parseStatement()
+	stmt.Consequence = p.parseStatementCursor()
 
 	if stmt.Consequence == nil {
 		// Task 2.7.7: Dual-mode - get current token for error reporting
@@ -204,7 +204,7 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 	if p.peekTokenIs(lexer.ELSE) {
 		p.nextToken() // move to 'else'
 		p.nextToken() // move to statement after 'else'
-		stmt.Alternative = p.parseStatement()
+		stmt.Alternative = p.parseStatementCursor()
 
 		if stmt.Alternative == nil {
 			// Task 2.7.7: Dual-mode - get current token for error reporting
@@ -253,7 +253,7 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 
 	// Move past 'while' and parse the condition
 	p.nextToken()
-	stmt.Condition = p.parseExpression(LOWEST)
+	stmt.Condition = p.parseExpressionCursor(LOWEST)
 
 	if stmt.Condition == nil {
 		// Task 2.7.7: Dual-mode - get current token for error reporting
@@ -308,7 +308,7 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 
 	// Parse the body statement
 	p.nextToken()
-	stmt.Body = p.parseStatement()
+	stmt.Body = p.parseStatementCursor()
 
 	if isNilStatement(stmt.Body) {
 		// Task 2.7.7: Dual-mode - get current token for error reporting
@@ -368,7 +368,7 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 			continue
 		}
 
-		bodyStmt := p.parseStatement()
+		bodyStmt := p.parseStatementCursor()
 		if bodyStmt != nil {
 			block.Statements = append(block.Statements, bodyStmt)
 		}
@@ -403,7 +403,7 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 
 	// Parse the condition
 	p.nextToken()
-	stmt.Condition = p.parseExpression(LOWEST)
+	stmt.Condition = p.parseExpressionCursor(LOWEST)
 
 	if stmt.Condition == nil {
 		p.addError("expected condition after 'until'", ErrInvalidExpression)
@@ -466,7 +466,7 @@ func (p *Parser) parseForStatement() ast.Statement {
 
 	// Parse the start expression
 	p.nextToken()
-	stmt.Start = p.parseExpression(LOWEST)
+	stmt.Start = p.parseExpressionCursor(LOWEST)
 
 	if stmt.Start == nil {
 		p.addError("expected start expression in for loop", ErrInvalidExpression)
@@ -493,7 +493,7 @@ func (p *Parser) parseForStatement() ast.Statement {
 
 	// Parse the end expression
 	p.nextToken()
-	stmt.EndValue = p.parseExpression(LOWEST)
+	stmt.EndValue = p.parseExpressionCursor(LOWEST)
 
 	if stmt.EndValue == nil {
 		p.addError("expected end expression in for loop", ErrInvalidExpression)
@@ -504,7 +504,7 @@ func (p *Parser) parseForStatement() ast.Statement {
 	if p.peekTokenIs(lexer.STEP) {
 		p.nextToken() // move to 'step'
 		p.nextToken() // move to step expression
-		stmt.Step = p.parseExpression(LOWEST)
+		stmt.Step = p.parseExpressionCursor(LOWEST)
 
 		if stmt.Step == nil {
 			p.addError("expected expression after 'step'", ErrInvalidExpression)
@@ -519,7 +519,7 @@ func (p *Parser) parseForStatement() ast.Statement {
 
 	// Parse the body statement
 	p.nextToken()
-	stmt.Body = p.parseStatement()
+	stmt.Body = p.parseStatementCursor()
 
 	if isNilStatement(stmt.Body) {
 		p.addError("expected statement after 'do'", ErrInvalidSyntax)
@@ -549,7 +549,7 @@ func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, 
 
 	// Parse the collection expression
 	p.nextToken()
-	stmt.Collection = p.parseExpression(LOWEST)
+	stmt.Collection = p.parseExpressionCursor(LOWEST)
 
 	if stmt.Collection == nil {
 		p.addError("expected expression after 'in'", ErrInvalidExpression)
@@ -563,7 +563,7 @@ func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, 
 
 	// Parse the body statement
 	p.nextToken()
-	stmt.Body = p.parseStatement()
+	stmt.Body = p.parseStatementCursor()
 
 	if isNilStatement(stmt.Body) {
 		p.addError("expected statement after 'do'", ErrInvalidSyntax)
@@ -590,7 +590,7 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 
 	// Move past 'case' and parse the case expression
 	p.nextToken()
-	stmt.Expression = p.parseExpression(LOWEST)
+	stmt.Expression = p.parseExpressionCursor(LOWEST)
 
 	if stmt.Expression == nil {
 		p.addErrorWithContext("expected expression after 'case'", ErrInvalidExpression)
@@ -626,7 +626,7 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 		branch.Values = []ast.Expression{}
 
 		// Parse first value or range
-		value := p.parseExpression(LOWEST)
+		value := p.parseExpressionCursor(LOWEST)
 		if value == nil {
 			p.addError("expected value in case branch", ErrInvalidExpression)
 			return nil
@@ -638,7 +638,7 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 			rangeToken := p.curToken
 
 			p.nextToken() // move to end expression
-			endValue := p.parseExpression(LOWEST)
+			endValue := p.parseExpressionCursor(LOWEST)
 			if endValue == nil {
 				p.addError("expected expression after '..' in case range", ErrInvalidExpression)
 				return nil
@@ -665,7 +665,7 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 			p.nextToken() // move to comma
 			p.nextToken() // move to next value
 
-			value := p.parseExpression(LOWEST)
+			value := p.parseExpressionCursor(LOWEST)
 			if value == nil {
 				p.addError("expected value after comma in case branch", ErrInvalidExpression)
 				return nil
@@ -677,7 +677,7 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 				rangeToken := p.curToken
 
 				p.nextToken() // move to end expression
-				endValue := p.parseExpression(LOWEST)
+				endValue := p.parseExpressionCursor(LOWEST)
 				if endValue == nil {
 					p.addError("expected expression after '..' in case range", ErrInvalidExpression)
 					return nil
@@ -705,7 +705,7 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 
 		// Parse the statement for this branch
 		p.nextToken()
-		branch.Statement = p.parseStatement()
+		branch.Statement = p.parseStatementCursor()
 
 		if branch.Statement == nil {
 			p.addError("expected statement after ':' in case branch", ErrInvalidSyntax)
@@ -746,7 +746,7 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 				continue
 			}
 
-			elseStmt := p.parseStatement()
+			elseStmt := p.parseStatementCursor()
 			if elseStmt != nil {
 				block.Statements = append(block.Statements, elseStmt)
 			}
@@ -796,7 +796,7 @@ func (p *Parser) parseIfExpression() ast.Expression {
 
 	// Move past 'if' and parse the condition
 	p.nextToken()
-	expr.Condition = p.parseExpression(LOWEST)
+	expr.Condition = p.parseExpressionCursor(LOWEST)
 
 	if expr.Condition == nil {
 		p.addError("expected condition after 'if'", ErrInvalidExpression)
@@ -810,7 +810,7 @@ func (p *Parser) parseIfExpression() ast.Expression {
 
 	// Parse the consequence (then branch) as an expression
 	p.nextToken()
-	expr.Consequence = p.parseExpression(LOWEST)
+	expr.Consequence = p.parseExpressionCursor(LOWEST)
 
 	if expr.Consequence == nil {
 		p.addError("expected expression after 'then'", ErrInvalidSyntax)
@@ -821,7 +821,7 @@ func (p *Parser) parseIfExpression() ast.Expression {
 	if p.peekTokenIs(lexer.ELSE) {
 		p.nextToken() // move to 'else'
 		p.nextToken() // move to expression after 'else'
-		expr.Alternative = p.parseExpression(LOWEST)
+		expr.Alternative = p.parseExpressionCursor(LOWEST)
 
 		if expr.Alternative == nil {
 			p.addError("expected expression after 'else'", ErrInvalidSyntax)

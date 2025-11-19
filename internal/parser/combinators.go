@@ -19,14 +19,14 @@
 //
 //  2. Repeated items:
 //     count := p.Many(func() bool {
-//         return p.parseStatement() != nil
+//         return p.parseStatementCursor() != nil
 //     })
 //
 //  3. Separated lists:
 //     items := p.SeparatedList(SeparatorConfig{
 //         Sep: lexer.COMMA,
 //         Term: lexer.RPAREN,
-//         ParseItem: func() bool { return p.parseExpression(LOWEST) != nil },
+//         ParseItem: func() bool { return p.parseExpressionCursor(LOWEST) != nil },
 //     })
 //
 //  4. Choice between alternatives:
@@ -36,7 +36,7 @@
 //
 //  5. Bracketed expressions:
 //     expr := p.Between(lexer.LPAREN, lexer.RPAREN, func() ast.Expression {
-//         return p.parseExpression(LOWEST)
+//         return p.parseExpressionCursor(LOWEST)
 //     })
 
 package parser
@@ -104,7 +104,7 @@ func (p *Parser) OptionalOneOf(tokenTypes ...lexer.TokenType) lexer.TokenType {
 //
 //	// Parse zero or more statements
 //	count := p.Many(func() bool {
-//	    stmt := p.parseStatement()
+//	    stmt := p.parseStatementCursor()
 //	    if stmt != nil {
 //	        statements = append(statements, stmt)
 //	        return true
@@ -156,7 +156,7 @@ func (p *Parser) Many1(parseFn ParserFunc) int {
 //
 //	// Parse statements until 'end' keyword
 //	count := p.ManyUntil(lexer.END, func() bool {
-//	    stmt := p.parseStatement()
+//	    stmt := p.parseStatementCursor()
 //	    if stmt != nil {
 //	        statements = append(statements, stmt)
 //	        return true
@@ -239,7 +239,7 @@ func (p *Parser) Sequence(tokenTypes ...lexer.TokenType) bool {
 //
 //	// Parse parenthesized expression: (expr)
 //	expr := p.Between(lexer.LPAREN, lexer.RPAREN, func() ast.Expression {
-//	    return p.parseExpression(LOWEST)
+//	    return p.parseExpressionCursor(LOWEST)
 //	})
 func (p *Parser) Between(opening, closing lexer.TokenType, parseFn ExpressionParserFunc) ast.Expression {
 	if !p.expectPeek(opening) {
@@ -411,7 +411,7 @@ func (p *Parser) Guard(guardFn func() bool, parseFn ParserFunc) bool {
 //	typeAnnotation := p.TryParse(func() ast.Expression {
 //	    if p.peekTokenIs(lexer.COLON) {
 //	        p.nextToken()
-//	        return p.parseTypeExpression()
+//	        return p.parseTypeExpressionCursor()
 //	    }
 //	    return nil
 //	})
@@ -539,7 +539,7 @@ func (p *Parser) OptionalTypeAnnotation() ast.TypeExpression {
 	p.nextToken() // move to ':'
 	p.nextToken() // move to type expression
 
-	typeExpr := p.parseTypeExpression()
+	typeExpr := p.parseTypeExpressionCursor()
 	if typeExpr == nil {
 		// Error already reported by parseTypeExpression
 		return nil
@@ -738,7 +738,7 @@ func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement
 		}
 
 		// Parse statement
-		stmt := p.parseStatement()
+		stmt := p.parseStatementCursor()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
@@ -875,7 +875,7 @@ func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 
 	p.nextToken() // move past COLON to type expression start token
 
-	typeExpr := p.parseTypeExpression()
+	typeExpr := p.parseTypeExpressionCursor()
 	if typeExpr == nil {
 		// Error already reported by parseTypeExpression
 		return nil
@@ -907,7 +907,7 @@ func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 
 		p.nextToken() // move to '='
 		p.nextToken() // move past '='
-		defaultValue = p.parseExpression(LOWEST)
+		defaultValue = p.parseExpressionCursor(LOWEST)
 		if defaultValue == nil {
 			// Task 2.7.7: Dual-mode - get current token for error reporting
 			var curTok lexer.Token

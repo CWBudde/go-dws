@@ -101,7 +101,7 @@ func (p *Parser) parseEnumDeclarationTraditional(nameIdent *ast.Identifier, type
 				p.nextToken() // move to value
 
 				// Parse the value (could be negative)
-				value, err := p.parseEnumValue()
+				value, err := p.parseEnumValueCursor()
 				if err != nil {
 					p.addError("invalid enum value: "+err.Error(), ErrInvalidExpression)
 					return false
@@ -212,7 +212,7 @@ func (p *Parser) parseEnumDeclarationCursor(nameIdent *ast.Identifier, typeToken
 				p.nextToken() // move to value
 
 				// Parse the value (could be negative)
-				value, err := p.parseEnumValue()
+				value, err := p.parseEnumValueCursor()
 				if err != nil {
 					p.addError("invalid enum value: "+err.Error(), ErrInvalidExpression)
 					return false

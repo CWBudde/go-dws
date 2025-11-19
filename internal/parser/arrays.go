@@ -75,7 +75,7 @@ func (p *Parser) parseArrayDeclarationTraditional(nameIdent *ast.Identifier, typ
 
 		// Parse first dimension
 		p.nextToken() // move to start of expression
-		lowBound := p.parseExpression(LOWEST)
+		lowBound := p.parseExpressionCursor(LOWEST)
 		if lowBound == nil {
 			p.addError("invalid array lower bound expression", ErrInvalidExpression)
 			return nil
@@ -89,7 +89,7 @@ func (p *Parser) parseArrayDeclarationTraditional(nameIdent *ast.Identifier, typ
 
 		// Parse high bound expression
 		p.nextToken() // move to start of expression
-		highBound := p.parseExpression(LOWEST)
+		highBound := p.parseExpressionCursor(LOWEST)
 		if highBound == nil {
 			p.addError("invalid array upper bound expression", ErrInvalidExpression)
 			return nil
@@ -101,7 +101,7 @@ func (p *Parser) parseArrayDeclarationTraditional(nameIdent *ast.Identifier, typ
 		for p.peekTokenIs(lexer.COMMA) {
 			p.nextToken() // consume comma
 			p.nextToken() // move to next low bound
-			lowBound := p.parseExpression(LOWEST)
+			lowBound := p.parseExpressionCursor(LOWEST)
 			if lowBound == nil {
 				p.addError("invalid array lower bound expression in multi-dimensional array", ErrInvalidExpression)
 				return nil
@@ -113,7 +113,7 @@ func (p *Parser) parseArrayDeclarationTraditional(nameIdent *ast.Identifier, typ
 			}
 
 			p.nextToken() // move to high bound
-			highBound := p.parseExpression(LOWEST)
+			highBound := p.parseExpressionCursor(LOWEST)
 			if highBound == nil {
 				p.addError("invalid array upper bound expression in multi-dimensional array", ErrInvalidExpression)
 				return nil
@@ -135,7 +135,7 @@ func (p *Parser) parseArrayDeclarationTraditional(nameIdent *ast.Identifier, typ
 
 	// Parse element type (can be any type expression, including nested arrays)
 	p.nextToken() // move to element type
-	elementTypeExpr := p.parseTypeExpression()
+	elementTypeExpr := p.parseTypeExpressionCursor()
 	if elementTypeExpr == nil {
 		p.addError("expected type expression after 'array of'", ErrExpectedType)
 		return nil
@@ -228,7 +228,7 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 	p.nextToken()
 
 	// Parse the first index expression
-	indexExpr.Index = p.parseExpression(LOWEST)
+	indexExpr.Index = p.parseExpressionCursor(LOWEST)
 
 	// Handle comma-separated indices: arr[i, j, k]
 	// Desugar to nested IndexExpression nodes: ((arr[i])[j])[k]
@@ -243,7 +243,7 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 				BaseNode: ast.BaseNode{Token: lbrackToken},
 			},
 			Left:  result,
-			Index: p.parseExpression(LOWEST),
+			Index: p.parseExpressionCursor(LOWEST),
 		}
 		result = nextIndex
 	}
@@ -491,7 +491,7 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 	p.nextToken()
 
 	for !p.curTokenIs(lexer.RBRACK) && !p.curTokenIs(lexer.EOF) {
-		elementExpr := p.parseExpression(LOWEST)
+		elementExpr := p.parseExpressionCursor(LOWEST)
 		if elementExpr == nil {
 			return nil
 		}
@@ -504,7 +504,7 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 			rangeToken := p.curToken
 
 			p.nextToken() // move to end expression
-			endExpr := p.parseExpression(LOWEST)
+			endExpr := p.parseExpressionCursor(LOWEST)
 			if endExpr == nil {
 				return nil
 			}
@@ -677,7 +677,7 @@ func (p *Parser) parseArrayDeclarationCursor(nameIdent *ast.Identifier, typeToke
 		// Parse first dimension
 		cursor = cursor.Advance() // move to start of expression
 		p.cursor = cursor
-		lowBound := p.parseExpression(LOWEST)
+		lowBound := p.parseExpressionCursor(LOWEST)
 		cursor = p.cursor // Update cursor after parseExpression
 		if lowBound == nil {
 			p.addError("invalid array lower bound expression", ErrInvalidExpression)
@@ -694,7 +694,7 @@ func (p *Parser) parseArrayDeclarationCursor(nameIdent *ast.Identifier, typeToke
 		// Parse high bound expression
 		cursor = cursor.Advance() // move to start of expression
 		p.cursor = cursor
-		highBound := p.parseExpression(LOWEST)
+		highBound := p.parseExpressionCursor(LOWEST)
 		cursor = p.cursor // Update cursor after parseExpression
 		if highBound == nil {
 			p.addError("invalid array upper bound expression", ErrInvalidExpression)
@@ -708,7 +708,7 @@ func (p *Parser) parseArrayDeclarationCursor(nameIdent *ast.Identifier, typeToke
 			cursor = cursor.Advance() // consume comma
 			cursor = cursor.Advance() // move to next low bound
 			p.cursor = cursor
-			lowBound := p.parseExpression(LOWEST)
+			lowBound := p.parseExpressionCursor(LOWEST)
 			cursor = p.cursor // Update cursor after parseExpression
 			if lowBound == nil {
 				p.addError("invalid array lower bound expression in multi-dimensional array", ErrInvalidExpression)
@@ -723,7 +723,7 @@ func (p *Parser) parseArrayDeclarationCursor(nameIdent *ast.Identifier, typeToke
 
 			cursor = cursor.Advance() // move to high bound
 			p.cursor = cursor
-			highBound := p.parseExpression(LOWEST)
+			highBound := p.parseExpressionCursor(LOWEST)
 			cursor = p.cursor // Update cursor after parseExpression
 			if highBound == nil {
 				p.addError("invalid array upper bound expression in multi-dimensional array", ErrInvalidExpression)
@@ -751,7 +751,7 @@ func (p *Parser) parseArrayDeclarationCursor(nameIdent *ast.Identifier, typeToke
 	// Parse element type (can be any type expression, including nested arrays)
 	cursor = cursor.Advance() // move to element type
 	p.cursor = cursor
-	elementTypeExpr := p.parseTypeExpression()
+	elementTypeExpr := p.parseTypeExpressionCursor()
 	cursor = p.cursor // Update cursor after parseTypeExpression
 	if elementTypeExpr == nil {
 		p.addError("expected type expression after 'array of'", ErrExpectedType)

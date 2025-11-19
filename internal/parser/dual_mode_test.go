@@ -72,11 +72,11 @@ func TestDualMode_SimpleExpression(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Parse with traditional parser
 			traditionalParser := New(lexer.New(tt.source))
-			traditionalExpr := traditionalParser.parseExpression(LOWEST)
+			traditionalExpr := traditionalParser.parseExpressionCursor(LOWEST)
 
 			// Parse with cursor parser
 			cursorParser := NewCursorParser(lexer.New(tt.source))
-			cursorExpr := cursorParser.parseExpression(LOWEST)
+			cursorExpr := cursorParser.parseExpressionCursor(LOWEST)
 
 			// Both should succeed
 			if traditionalExpr == nil {
@@ -131,11 +131,11 @@ func TestDualMode_VarDeclaration(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Parse with traditional parser
 			traditionalParser := New(lexer.New(tt.source))
-			traditionalStmt := traditionalParser.parseStatement()
+			traditionalStmt := traditionalParser.parseStatementCursor()
 
 			// Parse with cursor parser
 			cursorParser := NewCursorParser(lexer.New(tt.source))
-			cursorStmt := cursorParser.parseStatement()
+			cursorStmt := cursorParser.parseStatementCursor()
 
 			// Both should succeed
 			if traditionalStmt == nil {
@@ -304,7 +304,7 @@ func TestDualMode_StateManagement(t *testing.T) {
 		state := p.saveState()
 
 		// Parse something
-		_ = p.parseStatement()
+		_ = p.parseStatementCursor()
 
 		// Restore state
 		p.restoreState(state)
@@ -327,7 +327,7 @@ func TestDualMode_StateManagement(t *testing.T) {
 		}
 
 		// Parse something
-		_ = p.parseStatement()
+		_ = p.parseStatementCursor()
 
 		// Restore state
 		p.restoreState(state)

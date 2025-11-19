@@ -288,7 +288,7 @@ func (p *Parser) parseInterfaceSection() *ast.BlockStatement {
 
 	// Parse uses clause if present
 	if p.curTokenIs(lexer.USES) {
-		usesClause := p.parseUsesClause()
+		usesClause := p.parseUsesClauseCursor()
 		if usesClause != nil {
 			block.Statements = append(block.Statements, usesClause)
 		}
@@ -307,7 +307,7 @@ func (p *Parser) parseInterfaceSection() *ast.BlockStatement {
 			continue
 		}
 
-		stmt := p.parseStatement()
+		stmt := p.parseStatementCursor()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
@@ -331,7 +331,7 @@ func (p *Parser) parseImplementationSection() *ast.BlockStatement {
 
 	// Parse uses clause if present
 	if p.curTokenIs(lexer.USES) {
-		usesClause := p.parseUsesClause()
+		usesClause := p.parseUsesClauseCursor()
 		if usesClause != nil {
 			block.Statements = append(block.Statements, usesClause)
 		}
@@ -349,7 +349,7 @@ func (p *Parser) parseImplementationSection() *ast.BlockStatement {
 			continue
 		}
 
-		stmt := p.parseStatement()
+		stmt := p.parseStatementCursor()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
@@ -382,7 +382,7 @@ func (p *Parser) parseInitializationSection() *ast.BlockStatement {
 			continue
 		}
 
-		stmt := p.parseStatement()
+		stmt := p.parseStatementCursor()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
@@ -412,7 +412,7 @@ func (p *Parser) parseFinalizationSection() *ast.BlockStatement {
 			continue
 		}
 
-		stmt := p.parseStatement()
+		stmt := p.parseStatementCursor()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}

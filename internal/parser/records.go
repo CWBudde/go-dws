@@ -27,7 +27,7 @@ func (p *Parser) parseRecordOrHelperDeclarationTraditional(nameIdent *ast.Identi
 	if p.peekTokenIs(lexer.HELPER) {
 		// It's a helper declaration!
 		p.nextToken() // Move to HELPER
-		return p.parseHelperDeclaration(nameIdent, typeToken, true)
+		return p.parseHelperDeclarationCursor(nameIdent, typeToken, true)
 	}
 
 	// It's a regular record declaration
@@ -68,7 +68,7 @@ func (p *Parser) parseRecordOrHelperDeclarationTraditional(nameIdent *ast.Identi
 		// Check for 'const' (record constant)
 		if p.curTokenIs(lexer.CONST) {
 			p.nextToken() // move past 'const'
-			constant := p.parseClassConstantDeclaration(currentVisibility, false)
+			constant := p.parseClassConstantDeclarationCursor(currentVisibility, false)
 			if constant != nil {
 				recordDecl.Constants = append(recordDecl.Constants, constant)
 			}
@@ -83,7 +83,7 @@ func (p *Parser) parseRecordOrHelperDeclarationTraditional(nameIdent *ast.Identi
 			if p.curTokenIs(lexer.VAR) {
 				// Class variable: class var FieldName: Type;
 				p.nextToken() // move past 'var'
-				fields := p.parseRecordFieldDeclarations(currentVisibility)
+				fields := p.parseRecordFieldDeclarationsCursor(currentVisibility)
 				for _, field := range fields {
 					if field != nil {
 						field.IsClassVar = true // Mark as class variable
@@ -95,7 +95,7 @@ func (p *Parser) parseRecordOrHelperDeclarationTraditional(nameIdent *ast.Identi
 			} else if p.curTokenIs(lexer.CONST) {
 				// Class constant: class const Name = Value;
 				p.nextToken() // move past 'const'
-				constant := p.parseClassConstantDeclaration(currentVisibility, true)
+				constant := p.parseClassConstantDeclarationCursor(currentVisibility, true)
 				if constant != nil {
 					recordDecl.Constants = append(recordDecl.Constants, constant)
 				}
@@ -103,7 +103,7 @@ func (p *Parser) parseRecordOrHelperDeclarationTraditional(nameIdent *ast.Identi
 				continue
 			} else if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) {
 				// Class method: class function/procedure ...
-				method := p.parseFunctionDeclaration()
+				method := p.parseFunctionDeclarationCursor()
 				if method != nil {
 					method.IsClassMethod = true // Mark as static method
 					recordDecl.Methods = append(recordDecl.Methods, method)
@@ -119,7 +119,7 @@ func (p *Parser) parseRecordOrHelperDeclarationTraditional(nameIdent *ast.Identi
 
 		// Check for method declarations (instance methods)
 		if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) {
-			method := p.parseFunctionDeclaration()
+			method := p.parseFunctionDeclarationCursor()
 			if method != nil {
 				recordDecl.Methods = append(recordDecl.Methods, method)
 			}
@@ -129,7 +129,7 @@ func (p *Parser) parseRecordOrHelperDeclarationTraditional(nameIdent *ast.Identi
 
 		// Check for property declarations
 		if p.curTokenIs(lexer.PROPERTY) {
-			prop := p.parseRecordPropertyDeclaration()
+			prop := p.parseRecordPropertyDeclarationCursor()
 			if prop != nil {
 				recordDecl.Properties = append(recordDecl.Properties, *prop)
 			}
@@ -138,7 +138,7 @@ func (p *Parser) parseRecordOrHelperDeclarationTraditional(nameIdent *ast.Identi
 		}
 
 		// Parse field declaration(s)
-		fields := p.parseRecordFieldDeclarations(currentVisibility)
+		fields := p.parseRecordFieldDeclarationsCursor(currentVisibility)
 		if fields != nil {
 			recordDecl.Fields = append(recordDecl.Fields, fields...)
 		}
@@ -180,7 +180,7 @@ func (p *Parser) parseRecordOrHelperDeclarationCursor(nameIdent *ast.Identifier,
 	if cursor.Peek(1).Type == lexer.HELPER {
 		cursor = cursor.Advance() // move to HELPER
 		p.cursor = cursor
-		return p.parseHelperDeclaration(nameIdent, typeToken, true)
+		return p.parseHelperDeclarationCursor(nameIdent, typeToken, true)
 	}
 
 	// It's a regular record declaration - advance to first token inside record
@@ -288,7 +288,7 @@ func (p *Parser) parseRecordDeclarationTraditional(nameIdent *ast.Identifier, ty
 		// Check for 'const' (record constant)
 		if p.curTokenIs(lexer.CONST) {
 			p.nextToken() // move past 'const'
-			constant := p.parseClassConstantDeclaration(currentVisibility, false)
+			constant := p.parseClassConstantDeclarationCursor(currentVisibility, false)
 			if constant != nil {
 				recordDecl.Constants = append(recordDecl.Constants, constant)
 			}
@@ -303,7 +303,7 @@ func (p *Parser) parseRecordDeclarationTraditional(nameIdent *ast.Identifier, ty
 			if p.curTokenIs(lexer.VAR) {
 				// Class variable: class var FieldName: Type;
 				p.nextToken() // move past 'var'
-				fields := p.parseRecordFieldDeclarations(currentVisibility)
+				fields := p.parseRecordFieldDeclarationsCursor(currentVisibility)
 				for _, field := range fields {
 					if field != nil {
 						field.IsClassVar = true // Mark as class variable
@@ -315,7 +315,7 @@ func (p *Parser) parseRecordDeclarationTraditional(nameIdent *ast.Identifier, ty
 			} else if p.curTokenIs(lexer.CONST) {
 				// Class constant: class const Name = Value;
 				p.nextToken() // move past 'const'
-				constant := p.parseClassConstantDeclaration(currentVisibility, true)
+				constant := p.parseClassConstantDeclarationCursor(currentVisibility, true)
 				if constant != nil {
 					recordDecl.Constants = append(recordDecl.Constants, constant)
 				}
@@ -323,7 +323,7 @@ func (p *Parser) parseRecordDeclarationTraditional(nameIdent *ast.Identifier, ty
 				continue
 			} else if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) {
 				// Class method: class function/procedure ...
-				method := p.parseFunctionDeclaration()
+				method := p.parseFunctionDeclarationCursor()
 				if method != nil {
 					method.IsClassMethod = true // Mark as static method
 					recordDecl.Methods = append(recordDecl.Methods, method)
@@ -339,7 +339,7 @@ func (p *Parser) parseRecordDeclarationTraditional(nameIdent *ast.Identifier, ty
 
 		// Check for method declarations (instance methods)
 		if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) {
-			method := p.parseFunctionDeclaration()
+			method := p.parseFunctionDeclarationCursor()
 			if method != nil {
 				recordDecl.Methods = append(recordDecl.Methods, method)
 			}
@@ -349,7 +349,7 @@ func (p *Parser) parseRecordDeclarationTraditional(nameIdent *ast.Identifier, ty
 
 		// Check for property declarations
 		if p.curTokenIs(lexer.PROPERTY) {
-			prop := p.parseRecordPropertyDeclaration()
+			prop := p.parseRecordPropertyDeclarationCursor()
 			if prop != nil {
 				recordDecl.Properties = append(recordDecl.Properties, *prop)
 			}
@@ -359,7 +359,7 @@ func (p *Parser) parseRecordDeclarationTraditional(nameIdent *ast.Identifier, ty
 
 		// Parse field declaration(s)
 		// Pattern: Name1, Name2: Type; or Name: Type;
-		fields := p.parseRecordFieldDeclarations(currentVisibility)
+		fields := p.parseRecordFieldDeclarationsCursor(currentVisibility)
 		if fields != nil {
 			recordDecl.Fields = append(recordDecl.Fields, fields...)
 		}
@@ -469,7 +469,7 @@ func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibi
 		if cursor.Current().Type == lexer.CONST {
 			cursor = cursor.Advance() // move past 'const'
 			p.cursor = cursor
-			constant := p.parseClassConstantDeclaration(currentVisibility, false)
+			constant := p.parseClassConstantDeclarationCursor(currentVisibility, false)
 			if constant != nil {
 				recordDecl.Constants = append(recordDecl.Constants, constant)
 			}
@@ -487,7 +487,7 @@ func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibi
 				// Class variable: class var FieldName: Type;
 				cursor = cursor.Advance() // move past 'var'
 				p.cursor = cursor
-				fields := p.parseRecordFieldDeclarations(currentVisibility)
+				fields := p.parseRecordFieldDeclarationsCursor(currentVisibility)
 				for _, field := range fields {
 					if field != nil {
 						field.IsClassVar = true
@@ -501,7 +501,7 @@ func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibi
 				// Class constant: class const Name = Value;
 				cursor = cursor.Advance() // move past 'const'
 				p.cursor = cursor
-				constant := p.parseClassConstantDeclaration(currentVisibility, true)
+				constant := p.parseClassConstantDeclarationCursor(currentVisibility, true)
 				if constant != nil {
 					recordDecl.Constants = append(recordDecl.Constants, constant)
 				}
@@ -510,7 +510,7 @@ func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibi
 				continue
 			} else if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE {
 				// Class method
-				method := p.parseFunctionDeclaration()
+				method := p.parseFunctionDeclarationCursor()
 				if method != nil {
 					method.IsClassMethod = true
 					recordDecl.Methods = append(recordDecl.Methods, method)
@@ -528,7 +528,7 @@ func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibi
 
 		// Check for method declarations (instance methods)
 		if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE {
-			method := p.parseFunctionDeclaration()
+			method := p.parseFunctionDeclarationCursor()
 			if method != nil {
 				recordDecl.Methods = append(recordDecl.Methods, method)
 			}
@@ -539,7 +539,7 @@ func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibi
 
 		// Check for property declarations
 		if cursor.Current().Type == lexer.PROPERTY {
-			prop := p.parseRecordPropertyDeclaration()
+			prop := p.parseRecordPropertyDeclarationCursor()
 			if prop != nil {
 				recordDecl.Properties = append(recordDecl.Properties, *prop)
 			}
@@ -549,7 +549,7 @@ func (p *Parser) parseRecordBodyCursor(recordDecl *ast.RecordDecl, currentVisibi
 		}
 
 		// Parse field declaration(s)
-		fields := p.parseRecordFieldDeclarations(currentVisibility)
+		fields := p.parseRecordFieldDeclarationsCursor(currentVisibility)
 		if fields != nil {
 			recordDecl.Fields = append(recordDecl.Fields, fields...)
 		}
@@ -598,7 +598,7 @@ func (p *Parser) parseRecordFieldDeclarationsTraditional(visibility ast.Visibili
 		p.nextToken() // move to value expression
 
 		// Parse initialization expression
-		initValue = p.parseExpression(LOWEST)
+		initValue = p.parseExpressionCursor(LOWEST)
 		if initValue == nil {
 			p.addError("expected initialization expression after :=", ErrInvalidExpression)
 			return nil
@@ -615,7 +615,7 @@ func (p *Parser) parseRecordFieldDeclarationsTraditional(visibility ast.Visibili
 
 		// Parse type expression (supports simple types, array types, function pointer types)
 		p.nextToken() // move to type
-		fieldType = p.parseTypeExpression()
+		fieldType = p.parseTypeExpressionCursor()
 		if fieldType == nil {
 			return nil
 		}
@@ -679,7 +679,7 @@ func (p *Parser) parseRecordFieldDeclarationsCursor(visibility ast.Visibility) [
 		p.cursor = cursor
 
 		// Parse initialization expression
-		initValue = p.parseExpression(LOWEST)
+		initValue = p.parseExpressionCursor(LOWEST)
 		if initValue == nil {
 			p.addError("expected initialization expression after :=", ErrInvalidExpression)
 			return nil
@@ -701,7 +701,7 @@ func (p *Parser) parseRecordFieldDeclarationsCursor(visibility ast.Visibility) [
 		p.cursor = cursor
 
 		// Parse type expression
-		fieldType = p.parseTypeExpression()
+		fieldType = p.parseTypeExpressionCursor()
 		if fieldType == nil {
 			return nil
 		}
@@ -801,7 +801,7 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 			p.nextToken() // move to value expression
 
 			// Parse value expression
-			value := p.parseExpression(LOWEST)
+			value := p.parseExpressionCursor(LOWEST)
 			if value == nil {
 				p.addError("expected expression after ':' in record literal field", ErrInvalidExpression)
 				return nil
@@ -901,7 +901,7 @@ func (p *Parser) parseRecordPropertyDeclarationTraditional() *ast.RecordProperty
 
 			// Parse type
 			p.nextToken() // move to type
-			paramType := p.parseTypeExpression()
+			paramType := p.parseTypeExpressionCursor()
 			if paramType == nil {
 				return nil
 			}
@@ -936,7 +936,7 @@ func (p *Parser) parseRecordPropertyDeclarationTraditional() *ast.RecordProperty
 
 	// Expect type
 	p.nextToken() // move to type
-	propType := p.parseTypeExpression()
+	propType := p.parseTypeExpressionCursor()
 	if propType == nil {
 		return nil
 	}
@@ -1045,7 +1045,7 @@ func (p *Parser) parseRecordPropertyDeclarationCursor() *ast.RecordPropertyDecl 
 			p.cursor = cursor
 
 			// Parse type
-			paramType := p.parseTypeExpression()
+			paramType := p.parseTypeExpressionCursor()
 			if paramType == nil {
 				return nil
 			}
@@ -1089,7 +1089,7 @@ func (p *Parser) parseRecordPropertyDeclarationCursor() *ast.RecordPropertyDecl 
 	p.cursor = cursor
 
 	// Parse type
-	propType := p.parseTypeExpression()
+	propType := p.parseTypeExpressionCursor()
 	if propType == nil {
 		return nil
 	}

@@ -32,7 +32,7 @@ func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
 
 	// Parse the exception expression
 	p.nextToken()
-	stmt.Exception = p.parseExpression(LOWEST)
+	stmt.Exception = p.parseExpressionCursor(LOWEST)
 
 	if stmt.Exception == nil {
 		p.addError("expected exception expression after 'raise'", ErrInvalidExpression)
@@ -130,7 +130,7 @@ func (p *Parser) parseBlockStatementForTry() *ast.BlockStatement {
 			continue
 		}
 
-		stmt := p.parseStatement()
+		stmt := p.parseStatementCursor()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
@@ -204,7 +204,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 				continue
 			}
 
-			stmt := p.parseStatement()
+			stmt := p.parseStatementCursor()
 			if stmt != nil {
 				bareBlock.Statements = append(bareBlock.Statements, stmt)
 			}
@@ -247,7 +247,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 				continue
 			}
 
-			stmt := p.parseStatement()
+			stmt := p.parseStatementCursor()
 			if stmt != nil {
 				elseBlock.Statements = append(elseBlock.Statements, stmt)
 			}
@@ -337,7 +337,7 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 
 	// Parse handler statement
 	p.nextToken()
-	handler.Statement = p.parseStatement()
+	handler.Statement = p.parseStatementCursor()
 
 	if handler.Statement == nil {
 		p.addError("expected statement after 'do'", ErrInvalidSyntax)
@@ -382,7 +382,7 @@ func (p *Parser) parseFinallyClause() *ast.FinallyClause {
 			continue
 		}
 
-		stmt := p.parseStatement()
+		stmt := p.parseStatementCursor()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}

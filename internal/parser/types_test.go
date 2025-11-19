@@ -41,7 +41,7 @@ func TestParseTypeExpression_SimpleType(t *testing.T) {
 			p := New(l)
 			// Note: New() already calls nextToken() twice, so curToken is ready
 
-			typeExpr := p.parseTypeExpression()
+			typeExpr := p.parseTypeExpressionCursor()
 
 			if tt.wantErr {
 				if len(p.Errors()) == 0 {
@@ -124,7 +124,7 @@ func TestParseTypeExpression_FunctionPointer(t *testing.T) {
 			p := New(l)
 			// Note: New() already calls nextToken() twice, so curToken is ready
 
-			typeExpr := p.parseTypeExpression()
+			typeExpr := p.parseTypeExpressionCursor()
 
 			if tt.wantErr {
 				if len(p.Errors()) == 0 {
@@ -247,7 +247,7 @@ func TestParseTypeExpression_ArrayType(t *testing.T) {
 			p := New(l)
 			// Note: New() already calls nextToken() twice, so curToken is ready
 
-			typeExpr := p.parseTypeExpression()
+			typeExpr := p.parseTypeExpressionCursor()
 
 			if tt.wantErr {
 				if len(p.Errors()) == 0 {
@@ -436,7 +436,7 @@ func TestFunctionPointerSyntaxDetection(t *testing.T) {
 			p := New(l)
 			// Note: New() already calls nextToken() twice, so curToken is ready
 
-			typeExpr := p.parseTypeExpression()
+			typeExpr := p.parseTypeExpressionCursor()
 
 			if tt.wantErr {
 				if len(p.Errors()) == 0 {
@@ -516,7 +516,7 @@ func TestParseTypeExpression_ErrorCases(t *testing.T) {
 			p := New(l)
 			p.nextToken() // Initialize parser
 
-			typeExpr := p.parseTypeExpression()
+			typeExpr := p.parseTypeExpressionCursor()
 
 			// Should have errors
 			if len(p.Errors()) == 0 {

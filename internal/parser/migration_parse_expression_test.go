@@ -31,11 +31,11 @@ func TestMigration_ParseExpression_SimpleLiterals(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Parse with traditional mode
 			tradParser := New(lexer.New(tt.source))
-			tradExpr := tradParser.parseExpression(LOWEST)
+			tradExpr := tradParser.parseExpressionCursor(LOWEST)
 
 			// Parse with cursor mode
 			cursorParser := NewCursorParser(lexer.New(tt.source))
-			cursorExpr := cursorParser.parseExpression(LOWEST)
+			cursorExpr := cursorParser.parseExpressionCursor(LOWEST)
 
 			// Both should succeed
 			if tradExpr == nil {
@@ -98,11 +98,11 @@ func TestMigration_ParseExpression_BinaryOperators(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Parse with traditional mode
 			tradParser := New(lexer.New(tt.source))
-			tradExpr := tradParser.parseExpression(LOWEST)
+			tradExpr := tradParser.parseExpressionCursor(LOWEST)
 
 			// Parse with cursor mode
 			cursorParser := NewCursorParser(lexer.New(tt.source))
-			cursorExpr := cursorParser.parseExpression(LOWEST)
+			cursorExpr := cursorParser.parseExpressionCursor(LOWEST)
 
 			// Both should succeed
 			if tradExpr == nil {
@@ -186,11 +186,11 @@ func TestMigration_ParseExpression_Precedence(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Parse with traditional mode
 			tradParser := New(lexer.New(tt.source))
-			tradExpr := tradParser.parseExpression(LOWEST)
+			tradExpr := tradParser.parseExpressionCursor(LOWEST)
 
 			// Parse with cursor mode
 			cursorParser := NewCursorParser(lexer.New(tt.source))
-			cursorExpr := cursorParser.parseExpression(LOWEST)
+			cursorExpr := cursorParser.parseExpressionCursor(LOWEST)
 
 			// Both should succeed
 			if tradExpr == nil {
@@ -266,7 +266,7 @@ func TestMigration_ParseExpression_NotInIsAs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Parse with traditional mode
 			tradParser := New(lexer.New(tt.source))
-			tradExpr := tradParser.parseExpression(LOWEST)
+			tradExpr := tradParser.parseExpressionCursor(LOWEST)
 
 			// Traditional should succeed
 			if tradExpr == nil {
@@ -302,7 +302,7 @@ func TestMigration_ParseExpression_NotInIsAs(t *testing.T) {
 
 			// Parse with cursor mode
 			cursorParser := NewCursorParser(lexer.New(tt.source))
-			cursorExpr := cursorParser.parseExpression(LOWEST)
+			cursorExpr := cursorParser.parseExpressionCursor(LOWEST)
 
 			// Cursor should succeed
 			if cursorExpr == nil {
@@ -354,12 +354,12 @@ func TestMigration_ParseExpression_Errors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Parse with traditional mode
 			tradParser := New(lexer.New(tt.source))
-			tradExpr := tradParser.parseExpression(LOWEST)
+			tradExpr := tradParser.parseExpressionCursor(LOWEST)
 			tradErrors := len(tradParser.Errors())
 
 			// Parse with cursor mode
 			cursorParser := NewCursorParser(lexer.New(tt.source))
-			cursorExpr := cursorParser.parseExpression(LOWEST)
+			cursorExpr := cursorParser.parseExpressionCursor(LOWEST)
 			cursorErrors := len(cursorParser.Errors())
 
 			// Check error expectations
@@ -418,11 +418,11 @@ func TestMigration_ParseExpression_Position(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Parse with traditional mode
 			tradParser := New(lexer.New(tt.source))
-			tradExpr := tradParser.parseExpression(LOWEST)
+			tradExpr := tradParser.parseExpressionCursor(LOWEST)
 
 			// Parse with cursor mode
 			cursorParser := NewCursorParser(lexer.New(tt.source))
-			cursorExpr := cursorParser.parseExpression(LOWEST)
+			cursorExpr := cursorParser.parseExpressionCursor(LOWEST)
 
 			if tradExpr == nil || cursorExpr == nil {
 				t.Fatal("Parser returned nil")
@@ -458,14 +458,14 @@ func TestMigration_ParseExpression_Dispatcher(t *testing.T) {
 	if false {
 		t.Fatal("Traditional parser should have useCursor=false")
 	}
-	tradExpr := tradParser.parseExpression(LOWEST)
+	tradExpr := tradParser.parseExpressionCursor(LOWEST)
 
 	// Create cursor parser - should use parseExpressionCursor
 	cursorParser := NewCursorParser(lexer.New(source))
 	if !true {
 		t.Fatal("Cursor parser should have useCursor=true")
 	}
-	cursorExpr := cursorParser.parseExpression(LOWEST)
+	cursorExpr := cursorParser.parseExpressionCursor(LOWEST)
 
 	// Both should succeed
 	if tradExpr == nil {
@@ -530,10 +530,10 @@ func TestMigration_ParseExpression_Integration(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Parse with both modes
 			tradParser := New(lexer.New(tt.source))
-			tradExpr := tradParser.parseExpression(LOWEST)
+			tradExpr := tradParser.parseExpressionCursor(LOWEST)
 
 			cursorParser := NewCursorParser(lexer.New(tt.source))
-			cursorExpr := cursorParser.parseExpression(LOWEST)
+			cursorExpr := cursorParser.parseExpressionCursor(LOWEST)
 
 			// Both should succeed
 			if tradExpr == nil {
@@ -581,11 +581,11 @@ func TestMigration_ParseExpression_CursorFallback(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Parse with cursor mode (may fallback internally)
 			cursorParser := NewCursorParser(lexer.New(tt.source))
-			cursorExpr := cursorParser.parseExpression(LOWEST)
+			cursorExpr := cursorParser.parseExpressionCursor(LOWEST)
 
 			// Parse with traditional mode (baseline)
 			tradParser := New(lexer.New(tt.source))
-			tradExpr := tradParser.parseExpression(LOWEST)
+			tradExpr := tradParser.parseExpressionCursor(LOWEST)
 
 			// Both should succeed
 			if cursorExpr == nil {

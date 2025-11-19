@@ -494,7 +494,7 @@ func TestPropertyAccessInExpression(t *testing.T) {
 	l := lexer.New(input)
 	p := New(l)
 
-	expr := p.parseExpression(LOWEST)
+	expr := p.parseExpressionCursor(LOWEST)
 
 	errors := p.Errors()
 	if len(errors) != 0 {
@@ -522,7 +522,7 @@ func TestPropertyAssignment(t *testing.T) {
 	l := lexer.New(input)
 	p := New(l)
 
-	stmt := p.parseStatement()
+	stmt := p.parseStatementCursor()
 
 	errors := p.Errors()
 	if len(errors) != 0 {
