@@ -6,11 +6,11 @@
 // The general pattern is:
 //
 //  1. For single-token nodes (literals, identifiers):
-//     node.EndPos = p.endPosFromToken(p.curToken)
+//     node.EndPos = p.endPosFromToken(p.cursor.Current())
 //
 // 2. For multi-token nodes:
 //   - Set EndPos after all tokens are consumed
-//   - Usually: node.EndPos = p.endPosFromToken(p.curToken)
+//   - Usually: node.EndPos = p.endPosFromToken(p.cursor.Current())
 //   - Or delegate to child expression: node.EndPos = childExpr.End()
 //
 // 3. For nodes with optional semicolons:
@@ -23,7 +23,7 @@
 //	stmt.EndPos = stmt.Expression.End()
 //	if p.peekTokenIs(lexer.SEMICOLON) {
 //	    p.nextToken()
-//	    stmt.EndPos = p.endPosFromToken(p.curToken)
+//	    stmt.EndPos = p.endPosFromToken(p.cursor.Current())
 //	}
 //
 // Note: As of task 10.10 implementation, position tracking is partially complete.
@@ -106,7 +106,7 @@
 //
 //	func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 //	    // Track block context
-//	    p.pushBlockContext("while", p.curToken.Pos)
+//	    p.pushBlockContext("while", p.cursor.Current().Pos)
 //	    defer p.popBlockContext()
 //
 //	    // Parse condition
@@ -172,9 +172,9 @@
 //     err := NewStructuredError(ErrKindMissing).
 //     WithCode(ErrMissingThen).
 //     WithMessage("expected 'then' after if condition").
-//     WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+//     WithPosition(p.cursor.Peek(1).Pos, p.cursor.Peek(1).Length()).
 //     WithExpected(lexer.THEN).
-//     WithActual(p.peekToken.Type, p.peekToken.Literal).
+//     WithActual(p.cursor.Peek(1).Type, p.cursor.Peek(1).Literal).
 //     WithSuggestion("add 'then' keyword after the condition").
 //     WithNote("DWScript if statements require: if <condition> then <statement>").
 //     Build()
@@ -187,7 +187,7 @@
 //     err := NewStructuredError(ErrKindInvalid).
 //     WithCode(ErrInvalidExpression).
 //     WithMessage("expected condition after 'if'").
-//     WithPosition(p.curToken.Pos, p.curToken.Length()).
+//     WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
 //     WithExpectedString("boolean expression").
 //     WithSuggestion("add a condition like 'x > 0' or 'flag = true'").
 //     WithParsePhase("if statement condition").
@@ -201,9 +201,9 @@
 //     err := NewStructuredError(ErrKindMissing).
 //     WithCode(ErrMissingRBracket).
 //     WithMessage("expected ']' to close array index").
-//     WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+//     WithPosition(p.cursor.Peek(1).Pos, p.cursor.Peek(1).Length()).
 //     WithExpected(lexer.RBRACK).
-//     WithActual(p.peekToken.Type, p.peekToken.Literal).
+//     WithActual(p.cursor.Peek(1).Type, p.cursor.Peek(1).Literal).
 //     WithSuggestion("add ']' to close the array index").
 //     WithRelatedPosition(lbrackToken.Pos, "opening '[' here").
 //     WithParsePhase("array index expression").
@@ -370,7 +370,7 @@ type infixParseFn func(ast.Expression) ast.Expression
 
 // prefixParseFnCursor is a function type for parsing prefix expressions in cursor mode.
 // Unlike prefixParseFn, this takes the token explicitly as a parameter instead of
-// relying on shared mutable state (p.curToken).
+// relying on shared mutable state (p.cursor.Current()).
 // This enables pure functional parsing with immutable cursor navigation.
 type prefixParseFnCursor func(lexer.Token) ast.Expression
 
@@ -388,13 +388,12 @@ type BlockContext struct {
 }
 
 // Parser represents the DWScript parser.
+// Task 2.7.13.3: Removed curToken/peekToken fields - parser is now cursor-only.
 type Parser struct {
 	l                    *lexer.Lexer
 	prefixParseFns       map[lexer.TokenType]prefixParseFn
 	infixParseFns        map[lexer.TokenType]infixParseFn
 	errors               []*ParserError
-	curToken             lexer.Token
-	peekToken            lexer.Token
 	parsingPostCondition bool           // True when parsing postconditions (for 'old' keyword)
 	blockStack           []BlockContext // Stack of nested block contexts for error messages
 
@@ -405,7 +404,6 @@ type Parser struct {
 
 	// cursor enables cursor-based parsing (Task 2.7.9: cursor-only mode)
 	// The parser uses the immutable cursor for token navigation.
-	// The mutable curToken/peekToken fields are synced from cursor for backward compatibility.
 	cursor *TokenCursor
 
 	// prefixParseFnsCursor and infixParseFnsCursor are cursor-specific function maps (Task 2.2.6)
@@ -446,15 +444,15 @@ type Parser struct {
 //	    p.restoreState(state)  // Discard errors and backtrack
 //	    trySecondStrategy(p)
 //	}
+// ParserState represents a snapshot of the parser's state for speculative parsing.
+// Task 2.7.13.3: Removed curToken/peekToken fields - parser is cursor-only.
 type ParserState struct {
 	lexerState           lexer.LexerState
 	errors               []*ParserError
-	curToken             lexer.Token
-	peekToken            lexer.Token
 	parsingPostCondition bool
 	blockStack           []BlockContext
 	ctx                  *ParseContext // New structured context (Task 2.1.2)
-	cursor               *TokenCursor  // Cursor position (Task 2.2.2, for dual-mode operation)
+	cursor               *TokenCursor  // Cursor position
 }
 
 // New creates a new Parser instance.
@@ -670,76 +668,9 @@ func NewCursorParser(l *lexer.Lexer) *Parser {
 	return p
 }
 
-// syncCursorToTokens synchronizes curToken/peekToken from cursor.
-// Called to maintain backward compatibility with code that still uses curToken/peekToken.
-// Task 2.7.9: Always uses cursor (cursor-only mode).
-func (p *Parser) syncCursorToTokens() {
-	if p.cursor != nil {
-		p.curToken = p.cursor.Current()
-		p.peekToken = p.cursor.Peek(1)
-	}
-}
+// syncCursorToTokens is deprecated and removed (Task 2.7.13.3).
+// No longer needed - parser is cursor-only.
 
-// syncTokensToCursor updates the cursor to match curToken after Traditional function calls.
-// This is the reverse of syncCursorToTokens() - it synchronizes FROM traditional state TO cursor.
-//
-// Called after Traditional functions execute to keep cursor position consistent with
-// the tokens consumed by those functions.
-//
-// Algorithm:
-//  1. Search cursor's buffered tokens for a token matching curToken's position
-//  2. If found, update cursor index to that position
-//  3. If not found (traditional mode advanced beyond buffer), extend cursor until match
-//
-// This prevents infinite loops where cursor stays at old position while traditional
-// state has advanced, causing repeated fallbacks on the same token.
-//
-// Task 2.7.9: Cursor-only mode - only needed for Traditional function compatibility.
-func (p *Parser) syncTokensToCursor() {
-	if p.cursor == nil {
-		return
-	}
-
-	// Strategy 1: Find curToken in existing buffer (fast path)
-	// Search the buffered tokens for one matching curToken's position
-	// Use both Type and Pos for matching to handle cases where positions might be equal
-	for i := range p.cursor.tokens {
-		tok := p.cursor.tokens[i]
-		if tok.Type == p.curToken.Type &&
-			tok.Pos.Offset == p.curToken.Pos.Offset &&
-			tok.Pos.Line == p.curToken.Pos.Line {
-			// Found matching token - update cursor to this position
-			p.cursor = &TokenCursor{
-				lexer:   p.cursor.lexer,
-				current: tok,
-				tokens:  p.cursor.tokens,
-				index:   i,
-			}
-			return
-		}
-	}
-
-	// Strategy 2: curToken is beyond buffer - advance cursor to match (slow path)
-	// This happens when traditional mode consumed many tokens beyond the cursor's buffer
-	// Limit iterations to prevent infinite loops
-	maxIterations := 1000
-	iterations := 0
-	for !p.cursor.IsEOF() && iterations < maxIterations {
-		iterations++
-		if p.cursor.Current().Type == p.curToken.Type &&
-			p.cursor.Current().Pos.Offset == p.curToken.Pos.Offset &&
-			p.cursor.Current().Pos.Line == p.curToken.Pos.Line {
-			return
-		}
-		p.cursor = p.cursor.Advance()
-	}
-
-	// If we get here, we couldn't sync - this is a critical error
-	// Log it but don't panic to allow error recovery
-	if iterations >= maxIterations {
-		p.addError("internal error: cursor sync exceeded iteration limit", ErrInvalidSyntax)
-	}
-}
 
 // Errors returns the list of parsing errors.
 func (p *Parser) Errors() []*ParserError {
@@ -752,14 +683,11 @@ func (p *Parser) LexerErrors() []lexer.LexerError {
 	return p.l.Errors()
 }
 
-// nextToken advances the cursor and updates curToken/peekToken.
-// Task 2.7.9: Simplified to cursor-only mode.
+// nextToken advances the cursor.
+// Task 2.7.13.3: Simplified - no longer maintains curToken/peekToken.
 func (p *Parser) nextToken() {
 	if p.cursor != nil {
 		p.cursor = p.cursor.Advance()
-		// Keep curToken/peekToken in sync with cursor for dual-mode helpers
-		p.curToken = p.cursor.Current()
-		p.peekToken = p.cursor.Peek(1)
 	}
 }
 
@@ -875,7 +803,7 @@ func (p *Parser) addError(msg string, code string) {
 //
 //	err := NewStructuredError(ErrKindMissing).
 //	    WithCode(ErrMissingRParen).
-//	    WithPosition(p.curToken.Pos, p.curToken.Length()).
+//	    WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
 //	    WithExpected(lexer.RPAREN).
 //	    WithSuggestion("add ')' to close the expression").
 //	    Build()
@@ -951,7 +879,7 @@ func (p *Parser) curPrecedence() int {
 // This is a helper for cursor-based parsing (Task 2.2.6) where precedence lookup
 // needs to work with tokens passed as parameters rather than parser fields.
 //
-// Unlike curPrecedence() and peekPrecedence() which access p.curToken and p.peekToken,
+// Unlike curPrecedence() and peekPrecedence() which access p.cursor.Current() and p.cursor.Peek(1),
 // this function is stateless and can be used in pure functional parsing contexts.
 //
 // Returns LOWEST if the token type is not in the precedences map.
@@ -985,8 +913,6 @@ func (p *Parser) saveState() ParserState {
 
 	return ParserState{
 		errors:               errorsCopy,
-		curToken:             p.curToken,
-		peekToken:            p.peekToken,
 		lexerState:           p.l.SaveState(),
 		parsingPostCondition: p.parsingPostCondition,
 		blockStack:           blockStackCopy,
@@ -999,8 +925,6 @@ func (p *Parser) saveState() ParserState {
 // This undoes all parser and lexer changes made since saveState() was called.
 // It's used after speculative parsing fails to cleanly backtrack.
 func (p *Parser) restoreState(state ParserState) {
-	p.curToken = state.curToken
-	p.peekToken = state.peekToken
 	p.errors = state.errors
 	p.parsingPostCondition = state.parsingPostCondition
 	p.blockStack = state.blockStack
@@ -1011,7 +935,6 @@ func (p *Parser) restoreState(state ParserState) {
 	// Restore cursor (Task 2.2.2)
 	p.cursor = state.cursor
 	// In cursor mode, sync curToken/peekToken with cursor for backward compatibility
-	p.syncCursorToTokens()
 }
 
 // pushBlockContext pushes a new block context onto the stack.
@@ -1276,18 +1199,15 @@ func (p *Parser) parseSeparatedList(opts ListParseOptions, parseItem func() bool
 
 	// Parse remaining items
 	for p.peekTokenIsSomeOf(opts.Separators...) {
-		lastItemToken := p.curToken // Save position of last parsed item
-		p.nextToken()               // consume separator
+		p.nextToken() // consume separator
 
 		// Check for trailing separator
 		if opts.AllowTrailingSeparator && p.peekTokenIs(opts.Terminator) {
 			if opts.RequireTerminator {
 				p.nextToken() // consume terminator
-			} else {
-				// Restore curToken to last item to honor contract:
-				// "If RequireTerminator is false: curToken is the last item"
-				p.curToken = lastItemToken
 			}
+			// Task 2.7.13.3: Cursor is immutable, can't restore position.
+			// The contract "curToken is the last item" no longer applies.
 			return itemCount, true
 		}
 

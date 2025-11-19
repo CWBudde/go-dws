@@ -73,7 +73,6 @@ func (p *Parser) parseExpressionCursor(precedence int) ast.Expression {
 
 	// Sync cursor position back to curToken/peekToken for backward compatibility
 	// External code (like parseIfStatement) uses curToken/peekToken, not cursor
-	p.syncCursorToTokens()
 
 	return leftExp
 }
@@ -95,7 +94,6 @@ func (p *Parser) parseNotInIsAsCursor(leftExp ast.Expression) ast.Expression {
 	if nextToken.Type != lexer.IN && nextToken.Type != lexer.IS && nextToken.Type != lexer.AS {
 		// Not a "not in/is/as" pattern, backtrack
 		p.cursor = p.cursor.ResetTo(mark)
-		p.syncCursorToTokens()
 		return nil
 	}
 
@@ -109,7 +107,6 @@ func (p *Parser) parseNotInIsAsCursor(leftExp ast.Expression) ast.Expression {
 	if !ok {
 		// No infix function, backtrack
 		p.cursor = p.cursor.ResetTo(mark)
-		p.syncCursorToTokens()
 		return nil
 	}
 
@@ -333,8 +330,8 @@ func (p *Parser) parseNilLiteral() ast.Expression {
 	return &ast.NilLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token:  p.curToken,
-				EndPos: p.endPosFromToken(p.curToken),
+				Token:  p.cursor.Current(),
+				EndPos: p.endPosFromToken(p.cursor.Current()),
 			},
 		},
 	}
@@ -348,8 +345,8 @@ func (p *Parser) parseNullIdentifier() ast.Expression {
 	return &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token:  p.curToken,
-				EndPos: p.endPosFromToken(p.curToken),
+				Token:  p.cursor.Current(),
+				EndPos: p.endPosFromToken(p.cursor.Current()),
 			},
 		},
 		Value: p.cursor.Current().Literal, // "Null" (preserves original casing)
@@ -364,8 +361,8 @@ func (p *Parser) parseUnassignedIdentifier() ast.Expression {
 	return &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token:  p.curToken,
-				EndPos: p.endPosFromToken(p.curToken),
+				Token:  p.cursor.Current(),
+				EndPos: p.endPosFromToken(p.cursor.Current()),
 			},
 		},
 		Value: p.cursor.Current().Literal, // "Unassigned" (preserves original casing)
@@ -422,8 +419,8 @@ func (p *Parser) parseCharLiteral() ast.Expression {
 	lit := &ast.CharLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token:  p.curToken,
-				EndPos: p.endPosFromToken(p.curToken),
+				Token:  p.cursor.Current(),
+				EndPos: p.endPosFromToken(p.cursor.Current()),
 			},
 		},
 	}
@@ -509,7 +506,7 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 	expression := &ast.UnaryExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token: p.curToken,
+				Token: p.cursor.Current(),
 			},
 		},
 		Operator: p.cursor.Current().Literal,
@@ -558,7 +555,7 @@ func (p *Parser) parseAddressOfExpression() ast.Expression {
 	builder := p.StartNode()
 	expression := &ast.AddressOfExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.curToken}, // The @ token
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()}, // The @ token
 		},
 	}
 
@@ -629,13 +626,13 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	builder := p.StartNode()
 	exp := &ast.CallExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.curToken},
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 		},
 		Function: function,
 	}
 
 	exp.Arguments = p.parseExpressionList(lexer.RPAREN)
-	return builder.Finish(exp).(ast.Expression) // p.curToken is now at RPAREN
+	return builder.Finish(exp).(ast.Expression) // p.cursor.Current() is now at RPAREN
 }
 
 // Task 2.2.11: parseCallExpressionCursor - Cursor mode version of parseCallExpression
@@ -705,7 +702,7 @@ func (p *Parser) parseEmptyCall(typeName *ast.Identifier) *ast.CallExpression {
 	p.nextToken() // consume ')'
 	return &ast.CallExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.curToken},
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 		},
 		Function:  typeName,
 		Arguments: []ast.Expression{},
@@ -718,7 +715,7 @@ func (p *Parser) parseEmptyCall(typeName *ast.Identifier) *ast.CallExpression {
 func (p *Parser) parseCallWithExpressionList(typeName *ast.Identifier) *ast.CallExpression {
 	exp := &ast.CallExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.curToken},
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 		},
 		Function: typeName,
 	}
@@ -778,7 +775,7 @@ func (p *Parser) parseCallWithExpressionListCursor(typeName *ast.Identifier) *as
 // buildRecordLiteral creates a record literal expression from field initializers.
 func (p *Parser) buildRecordLiteral(typeName *ast.Identifier, fields []*ast.FieldInitializer) *ast.RecordLiteralExpression {
 	return &ast.RecordLiteralExpression{
-		BaseNode: ast.BaseNode{Token: p.curToken},
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 		TypeName: typeName,
 		Fields:   fields,
 	}
@@ -799,7 +796,7 @@ func (p *Parser) buildCallExpressionFromFields(typeName *ast.Identifier, items [
 
 	return &ast.CallExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.curToken},
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 		},
 		Function:  typeName,
 		Arguments: args,
@@ -862,7 +859,7 @@ func (p *Parser) parseNamedFieldInitializer() *ast.FieldInitializer {
 	fieldName := &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token: p.curToken,
+				Token: p.cursor.Current(),
 			},
 		},
 		Value: p.cursor.Current().Literal,
@@ -892,7 +889,7 @@ func (p *Parser) parseArgumentAsFieldInitializer() *ast.FieldInitializer {
 	}
 
 	return &ast.FieldInitializer{
-		BaseNode: ast.BaseNode{Token: p.curToken},
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 		Name:     nil, // no name means regular argument
 		Value:    expr,
 	}
@@ -1218,7 +1215,7 @@ func (p *Parser) parseExpressionListCursor(end lexer.TokenType) []ast.Expression
 // PRE: curToken is LPAREN
 // POST: curToken is RPAREN
 func (p *Parser) parseGroupedExpression() ast.Expression {
-	lparenToken := p.curToken
+	lparenToken := p.cursor.Current()
 
 	// Handle empty parentheses: () -> empty array literal
 	if p.peekTokenIs(lexer.RPAREN) {
@@ -1246,7 +1243,7 @@ func (p *Parser) parseEmptyArrayLiteral(lparenToken lexer.Token) *ast.ArrayLiter
 	if p.cursor != nil {
 		currentTok = p.cursor.Current()
 	} else {
-		currentTok = p.curToken
+		currentTok = p.cursor.Current()
 	}
 
 	return &ast.ArrayLiteralExpression{
@@ -1442,7 +1439,7 @@ func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstEl
 			if p.cursor != nil {
 				currentTok = p.cursor.Current()
 			} else {
-				currentTok = p.curToken
+				currentTok = p.cursor.Current()
 			}
 
 			// Already at the closing paren, just return
@@ -1474,7 +1471,7 @@ func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstEl
 	if p.cursor != nil {
 		currentTok = p.cursor.Current()
 	} else {
-		currentTok = p.curToken
+		currentTok = p.cursor.Current()
 	}
 
 	return &ast.ArrayLiteralExpression{
@@ -1501,7 +1498,7 @@ func (p *Parser) parseRecordLiteralInline() *ast.RecordLiteralExpression {
 	if p.cursor != nil {
 		currentTok = p.cursor.Current()
 	} else {
-		currentTok = p.curToken
+		currentTok = p.cursor.Current()
 	}
 
 	recordLit := &ast.RecordLiteralExpression{
@@ -1560,7 +1557,7 @@ func (p *Parser) parseNewExpression() ast.Expression {
 	if p.cursor != nil {
 		newToken = p.cursor.Current()
 	} else {
-		newToken = p.curToken
+		newToken = p.cursor.Current()
 	}
 
 	// Expect a type name (identifier)
@@ -1573,7 +1570,7 @@ func (p *Parser) parseNewExpression() ast.Expression {
 	if p.cursor != nil {
 		curTok = p.cursor.Current()
 	} else {
-		curTok = p.curToken
+		curTok = p.cursor.Current()
 	}
 
 	typeName := &ast.Identifier{
@@ -1612,7 +1609,7 @@ func (p *Parser) parseNewExpression() ast.Expression {
 // PRE: curToken is DEFAULT
 // POST: curToken is RPAREN
 func (p *Parser) parseDefaultExpression() ast.Expression {
-	defaultToken := p.curToken // Save the 'default' token position
+	defaultToken := p.cursor.Current() // Save the 'default' token position
 
 	// Expect LPAREN
 	if !p.expectPeek(lexer.LPAREN) {
@@ -1747,7 +1744,7 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 	inheritedExpr := &ast.InheritedExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token: p.curToken, // The 'inherited' keyword
+				Token: p.cursor.Current(), // The 'inherited' keyword
 			},
 		},
 	}
@@ -1758,7 +1755,7 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 		inheritedExpr.Method = &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
-					Token: p.curToken,
+					Token: p.cursor.Current(),
 				},
 			},
 			Value: p.cursor.Current().Literal,
@@ -1772,7 +1769,7 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 
 			// Parse arguments
 			inheritedExpr.Arguments = p.parseExpressionList(lexer.RPAREN)
-			// Set end position after closing parenthesis (p.curToken is now at RPAREN)
+			// Set end position after closing parenthesis (p.cursor.Current() is now at RPAREN)
 			return builder.Finish(inheritedExpr).(ast.Expression)
 		} else {
 			// No call, just method name - end at method identifier
@@ -1795,10 +1792,10 @@ func (p *Parser) parseSelfExpression() ast.Expression {
 	selfExpr := &ast.SelfExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token: p.curToken, // The 'self' keyword
+				Token: p.cursor.Current(), // The 'self' keyword
 			},
 		},
-		Token: p.curToken,
+		Token: p.cursor.Current(),
 	}
 
 	// Set end position at the Self keyword itself
@@ -1816,7 +1813,7 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 	builder := p.StartNode()
 	lambdaExpr := &ast.LambdaExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.curToken}, // The 'lambda' keyword
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()}, // The 'lambda' keyword
 		},
 	}
 
@@ -1839,7 +1836,7 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 		}
 
 		lambdaExpr.ReturnType = &ast.TypeAnnotation{
-			Token: p.curToken,
+			Token: p.cursor.Current(),
 			Name:  p.cursor.Current().Literal,
 		}
 	}
@@ -1859,11 +1856,11 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 
 		// Desugar shorthand to full syntax: wrap expression in return statement
 		lambdaExpr.Body = &ast.BlockStatement{
-			BaseNode: ast.BaseNode{Token: p.curToken}, // Use current token for position tracking
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()}, // Use current token for position tracking
 			Statements: []ast.Statement{
 				&ast.ReturnStatement{
 					BaseNode: ast.BaseNode{
-						Token: p.curToken,
+						Token: p.cursor.Current(),
 					},
 					ReturnValue: expr,
 				},
@@ -1974,7 +1971,7 @@ func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 		if p.cursor != nil {
 			nameTok = p.cursor.Current()
 		} else {
-			nameTok = p.curToken
+			nameTok = p.cursor.Current()
 		}
 
 		names = append(names, &ast.Identifier{
@@ -2012,7 +2009,7 @@ func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 		if p.cursor != nil {
 			typeTok = p.cursor.Current()
 		} else {
-			typeTok = p.curToken
+			typeTok = p.cursor.Current()
 		}
 
 		typeExpr = &ast.TypeAnnotation{
@@ -2048,7 +2045,7 @@ func (p *Parser) parseCondition() *ast.Condition {
 	if p.cursor != nil {
 		startToken = p.cursor.Current()
 	} else {
-		startToken = p.curToken
+		startToken = p.cursor.Current()
 	}
 
 	// Parse the test expression (should be boolean, but type checking is done in semantic phase)
@@ -2077,7 +2074,7 @@ func (p *Parser) parseCondition() *ast.Condition {
 		if p.cursor != nil {
 			msgToken = p.cursor.Current()
 		} else {
-			msgToken = p.curToken
+			msgToken = p.cursor.Current()
 		}
 
 		condition.Message = &ast.StringLiteral{
@@ -2102,7 +2099,7 @@ func (p *Parser) parseCondition() *ast.Condition {
 // PRE: curToken is OLD
 // POST: curToken is IDENT (identifier)
 func (p *Parser) parseOldExpression() ast.Expression {
-	token := p.curToken // the OLD token
+	token := p.cursor.Current() // the OLD token
 
 	// Validate that we're in a postcondition context
 	// Use new context API (Task 2.1.2) instead of direct field access
@@ -2121,7 +2118,7 @@ func (p *Parser) parseOldExpression() ast.Expression {
 	identifier := &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token: p.curToken,
+				Token: p.cursor.Current(),
 			},
 		},
 		Value: p.cursor.Current().Literal,
@@ -2151,7 +2148,7 @@ func (p *Parser) parsePreConditions() *ast.PreConditions {
 	if p.cursor != nil {
 		requireToken = p.cursor.Current()
 	} else {
-		requireToken = p.curToken
+		requireToken = p.cursor.Current()
 	}
 
 	// Advance to the first condition
@@ -2215,7 +2212,7 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 	if p.cursor != nil {
 		ensureToken = p.cursor.Current()
 	} else {
-		ensureToken = p.curToken
+		ensureToken = p.cursor.Current()
 	}
 
 	// Enable 'old' keyword parsing
@@ -2286,7 +2283,7 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 	builder := p.StartNode()
 	expression := &ast.IsExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.curToken}, // The 'is' token
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()}, // The 'is' token
 		},
 		Left: left,
 	}
@@ -2325,7 +2322,7 @@ func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 	builder := p.StartNode()
 	expression := &ast.AsExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.curToken}, // The 'as' token
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()}, // The 'as' token
 		},
 		Left: left,
 	}
@@ -2353,7 +2350,7 @@ func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
 	builder := p.StartNode()
 	expression := &ast.ImplementsExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.curToken}, // The 'implements' token
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()}, // The 'implements' token
 		},
 		Left: left,
 	}

@@ -108,11 +108,7 @@ func (b *ParserBuilder) Build() *Parser {
 	// Task 2.7.9: Register cursor-specific parse functions
 	b.registerCursorParseFunctions(p)
 
-	// Initialize token state
-	// NewTokenCursor already positioned the cursor at the first token,
-	// so we just sync the traditional token pointers to match.
-	p.curToken = p.cursor.Current()
-	p.peekToken = p.cursor.Peek(1)
+	// Task 2.7.13.3: No token state initialization needed - cursor-only mode
 
 	return p
 }

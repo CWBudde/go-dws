@@ -58,7 +58,7 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 // POST: curToken is SEMICOLON
 func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 	builder := p.StartNode()
-	lbrackToken := p.curToken // Save the '[' token for error reporting
+	lbrackToken := p.cursor.Current() // Save the '[' token for error reporting
 
 	indexExpr := &ast.IndexExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -98,7 +98,7 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 		if p.cursor != nil {
 			peekTok = p.cursor.Peek(1)
 		} else {
-			peekTok = p.peekToken
+			peekTok = p.cursor.Peek(1)
 		}
 
 		// Use structured error for missing closing bracket
@@ -315,7 +315,7 @@ func (p *Parser) parseArrayLiteralCursor() ast.Expression {
 // PRE: curToken is LBRACK
 // POST: curToken is RBRACK
 func (p *Parser) parseArrayLiteral() ast.Expression {
-	lbrackToken := p.curToken
+	lbrackToken := p.cursor.Current()
 
 	// Handle empty literal: []
 	if p.peekTokenIs(lexer.RBRACK) {
@@ -344,7 +344,7 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 		// Handle range syntax for set literals: [one..five]
 		if p.peekTokenIs(lexer.DOTDOT) {
 			p.nextToken() // move to '..'
-			rangeToken := p.curToken
+			rangeToken := p.cursor.Current()
 
 			p.nextToken() // move to end expression
 			endExpr := p.parseExpressionCursor(LOWEST)
@@ -416,7 +416,7 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
 					Token:  lbrackToken,
-					EndPos: p.endPosFromToken(p.curToken),
+					EndPos: p.endPosFromToken(p.cursor.Current()),
 				},
 			},
 			Elements: elements,
@@ -428,7 +428,7 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
 				Token:  lbrackToken,
-				EndPos: p.endPosFromToken(p.curToken),
+				EndPos: p.endPosFromToken(p.cursor.Current()),
 			},
 		},
 		Elements: elements,

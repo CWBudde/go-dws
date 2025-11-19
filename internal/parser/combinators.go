@@ -182,7 +182,7 @@ func (p *Parser) ManyUntil(terminator lexer.TokenType, parseFn ParserFunc) int {
 //
 //	// Match either '+' or '-'
 //	if p.Choice(lexer.PLUS, lexer.MINUS) {
-//	    operator := p.curToken.Literal
+//	    operator := p.cursor.Current().Literal
 //	    // ... parse unary expression
 //	}
 func (p *Parser) Choice(tokenTypes ...lexer.TokenType) bool {
@@ -213,7 +213,7 @@ func (p *Parser) Sequence(tokenTypes ...lexer.TokenType) bool {
 	for i, tt := range tokenTypes {
 		var checkToken lexer.Token
 		if i == 0 {
-			checkToken = p.peekToken
+			checkToken = p.cursor.Peek(1)
 		} else {
 			checkToken = p.peek(i - 1)
 		}
@@ -591,7 +591,7 @@ func (p *Parser) IdentifierList(config IdentifierListConfig) []*ast.Identifier {
 			if p.cursor != nil {
 				curTok = p.cursor.Current()
 			} else {
-				curTok = p.curToken
+				curTok = p.cursor.Current()
 			}
 
 			err := NewStructuredError(ErrKindMissing).
@@ -618,7 +618,7 @@ func (p *Parser) IdentifierList(config IdentifierListConfig) []*ast.Identifier {
 		if p.cursor != nil {
 			curTok = p.cursor.Current()
 		} else {
-			curTok = p.curToken
+			curTok = p.cursor.Current()
 		}
 
 		identifiers = append(identifiers, &ast.Identifier{
@@ -693,7 +693,7 @@ func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement
 	if p.cursor != nil {
 		curTok = p.cursor.Current()
 	} else {
-		curTok = p.curToken
+		curTok = p.cursor.Current()
 	}
 
 	block := &ast.BlockStatement{
@@ -763,7 +763,7 @@ func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement
 			if p.cursor != nil {
 				curTok = p.cursor.Current()
 			} else {
-				curTok = p.curToken
+				curTok = p.cursor.Current()
 			}
 
 			err := NewStructuredError(ErrKindMissing).
@@ -844,7 +844,7 @@ func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 			if p.cursor != nil {
 				curTok = p.cursor.Current()
 			} else {
-				curTok = p.curToken
+				curTok = p.cursor.Current()
 			}
 
 			err := NewStructuredError(ErrKindInvalid).
@@ -891,7 +891,7 @@ func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 			if p.cursor != nil {
 				curTok = p.cursor.Current()
 			} else {
-				curTok = p.curToken
+				curTok = p.cursor.Current()
 			}
 
 			err := NewStructuredError(ErrKindInvalid).
@@ -914,7 +914,7 @@ func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 			if p.cursor != nil {
 				curTok = p.cursor.Current()
 			} else {
-				curTok = p.curToken
+				curTok = p.cursor.Current()
 			}
 
 			err := NewStructuredError(ErrKindMissing).

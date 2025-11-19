@@ -191,7 +191,7 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	builder := p.StartNode()
 
 	stmt := &ast.ExpressionStatement{
-		BaseNode: ast.BaseNode{Token: p.curToken},
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 	}
 
 	stmt.Expression = p.parseExpressionCursor(LOWEST)
@@ -255,7 +255,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		p.addStructuredError(err)
 		return nil
 	} else {
-		stmt.Token = p.curToken
+		stmt.Token = p.cursor.Current()
 	}
 
 	// Use IdentifierList combinator to collect comma-separated identifiers (Task 2.3.3)
@@ -279,7 +279,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 				if p.cursor != nil {
 					peekTok = p.cursor.Peek(1)
 				} else {
-					peekTok = p.peekToken
+					peekTok = p.cursor.Peek(1)
 				}
 
 				// Use structured error (Task 2.1.3)
@@ -307,7 +307,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 				if p.cursor != nil {
 					peekTok = p.cursor.Peek(1)
 				} else {
-					peekTok = p.peekToken
+					peekTok = p.cursor.Peek(1)
 				}
 
 				// Use structured error (Task 2.1.3)
@@ -333,7 +333,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 			if p.cursor != nil {
 				curTok = p.cursor.Current()
 			} else {
-				curTok = p.curToken
+				curTok = p.cursor.Current()
 			}
 
 			// Use structured error (Task 2.1.3)
@@ -352,7 +352,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 			if p.cursor != nil {
 				peekTok = p.cursor.Peek(1)
 			} else {
-				peekTok = p.peekToken
+				peekTok = p.cursor.Peek(1)
 			}
 
 			// Use structured error (Task 2.1.3)
@@ -404,7 +404,7 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 	builder := p.StartNode()
 
 	// Save starting position
-	startToken := p.curToken
+	startToken := p.cursor.Current()
 
 	// Parse the left side as an expression (could be identifier or member access)
 	left := p.parseExpressionCursor(LOWEST)
@@ -438,7 +438,7 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 		case *ast.MemberAccessExpression:
 			// Member assignment: obj.field := value, obj.field += value
 			stmt := &ast.AssignmentStatement{
-				BaseNode: ast.BaseNode{Token: p.curToken},
+				BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 				Target:   leftExpr,
 				Operator: assignOp,
 			}
@@ -458,7 +458,7 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 		case *ast.IndexExpression:
 			// Array index assignment: arr[i] := value, arr[i] += value
 			stmt := &ast.AssignmentStatement{
-				BaseNode: ast.BaseNode{Token: p.curToken},
+				BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 				Target:   leftExpr,
 				Operator: assignOp,
 			}
@@ -481,7 +481,7 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 			if p.cursor != nil {
 				curTok = p.cursor.Current()
 			} else {
-				curTok = p.curToken
+				curTok = p.cursor.Current()
 			}
 
 			// Use structured error (Task 2.1.3)

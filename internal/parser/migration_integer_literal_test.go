@@ -265,11 +265,11 @@ func TestMigration_IntegerLiteral_Errors(t *testing.T) {
 			traditionalParser := New(lexer.New(tt.input))
 
 			// Check if lexer produced INT token
-			if traditionalParser.curToken.Type != lexer.INT {
+			if traditionalParser.cursor.Current().Type != lexer.INT {
 				if tt.expectSkip {
 					t.Skipf("Lexer did not produce INT token: %s", tt.skipReason)
 				} else {
-					t.Fatalf("Expected lexer to produce INT token, got %v", traditionalParser.curToken.Type)
+					t.Fatalf("Expected lexer to produce INT token, got %v", traditionalParser.cursor.Current().Type)
 				}
 			}
 
@@ -333,7 +333,7 @@ func TestMigration_IntegerLiteral_PartialParse(t *testing.T) {
 
 			// Test traditional mode
 			traditionalParser := New(lexer.New(tt.input))
-			if traditionalParser.curToken.Type != lexer.INT {
+			if traditionalParser.cursor.Current().Type != lexer.INT {
 				t.Skip("Lexer did not produce INT token")
 			}
 			traditionalExpr := traditionalParser.parseIntegerLiteralCursor()

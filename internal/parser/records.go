@@ -389,7 +389,7 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 	if p.cursor != nil {
 		lparenTok = p.cursor.Current()
 	} else {
-		lparenTok = p.curToken
+		lparenTok = p.cursor.Current()
 	}
 
 	recordLit := &ast.RecordLiteralExpression{
@@ -417,7 +417,7 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 			if p.cursor != nil {
 				fieldNameToken = p.cursor.Current()
 			} else {
-				fieldNameToken = p.curToken
+				fieldNameToken = p.cursor.Current()
 			}
 
 			// Named field initialization

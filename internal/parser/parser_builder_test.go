@@ -174,16 +174,16 @@ func TestParserBuilderTraditionalModeTokenInitialization(t *testing.T) {
 	p := NewParserBuilder(l).Build()
 
 	// Parser should be positioned at first token
-	if p.curToken.Type != lexer.IDENT {
-		t.Errorf("curToken.Type = %v, want IDENT", p.curToken.Type)
+	if p.cursor.Current().Type != lexer.IDENT {
+		t.Errorf("curToken.Type = %v, want IDENT", p.cursor.Current().Type)
 	}
-	if p.curToken.Literal != "x" {
-		t.Errorf("curToken.Literal = %v, want 'x'", p.curToken.Literal)
+	if p.cursor.Current().Literal != "x" {
+		t.Errorf("curToken.Literal = %v, want 'x'", p.cursor.Current().Literal)
 	}
 
 	// peekToken should be the second token
-	if p.peekToken.Type != lexer.ASSIGN {
-		t.Errorf("peekToken.Type = %v, want ASSIGN", p.peekToken.Type)
+	if p.cursor.Peek(1).Type != lexer.ASSIGN {
+		t.Errorf("peekToken.Type = %v, want ASSIGN", p.cursor.Peek(1).Type)
 	}
 }
 
@@ -198,16 +198,16 @@ func TestParserBuilderCursorModeTokenInitialization(t *testing.T) {
 	p := NewParserBuilder(l).Build()
 
 	// In cursor mode, parser should be positioned at first token (not third!)
-	if p.curToken.Type != lexer.IDENT {
-		t.Errorf("Cursor mode: curToken.Type = %v, want IDENT", p.curToken.Type)
+	if p.cursor.Current().Type != lexer.IDENT {
+		t.Errorf("Cursor mode: curToken.Type = %v, want IDENT", p.cursor.Current().Type)
 	}
-	if p.curToken.Literal != "x" {
-		t.Errorf("Cursor mode: curToken.Literal = %v, want 'x'", p.curToken.Literal)
+	if p.cursor.Current().Literal != "x" {
+		t.Errorf("Cursor mode: curToken.Literal = %v, want 'x'", p.cursor.Current().Literal)
 	}
 
 	// peekToken should be the second token
-	if p.peekToken.Type != lexer.ASSIGN {
-		t.Errorf("Cursor mode: peekToken.Type = %v, want ASSIGN", p.peekToken.Type)
+	if p.cursor.Peek(1).Type != lexer.ASSIGN {
+		t.Errorf("Cursor mode: peekToken.Type = %v, want ASSIGN", p.cursor.Peek(1).Type)
 	}
 
 	// Verify cursor is also at the first token
@@ -302,14 +302,14 @@ func TestParserBuilderCursorModeDoesNotSkipTokens(t *testing.T) {
 			l := lexer.New(tt.input)
 			p := NewParserBuilder(l).Build()
 
-			if p.curToken.Type != tt.expectedFirst {
+			if p.cursor.Current().Type != tt.expectedFirst {
 				t.Errorf("Parser started at wrong token: got %v (%s), want %v (%s)",
-					p.curToken.Type, p.curToken.Literal, tt.expectedFirst, tt.expectedLit)
+					p.cursor.Current().Type, p.cursor.Current().Literal, tt.expectedFirst, tt.expectedLit)
 			}
 
-			if p.curToken.Literal != tt.expectedLit {
+			if p.cursor.Current().Literal != tt.expectedLit {
 				t.Errorf("Parser started at wrong token literal: got %q, want %q",
-					p.curToken.Literal, tt.expectedLit)
+					p.cursor.Current().Literal, tt.expectedLit)
 			}
 		})
 	}
@@ -333,12 +333,12 @@ func TestNewCursorParserUsesBuilder(t *testing.T) {
 		t.Errorf("NewCursorParser did not initialize cursor")
 	}
 
-	if p.curToken.Type != lexer.IDENT {
-		t.Errorf("NewCursorParser: curToken.Type = %v, want IDENT", p.curToken.Type)
+	if p.cursor.Current().Type != lexer.IDENT {
+		t.Errorf("NewCursorParser: curToken.Type = %v, want IDENT", p.cursor.Current().Type)
 	}
 
-	if p.curToken.Literal != "x" {
-		t.Errorf("NewCursorParser: curToken.Literal = %v, want 'x'", p.curToken.Literal)
+	if p.cursor.Current().Literal != "x" {
+		t.Errorf("NewCursorParser: curToken.Literal = %v, want 'x'", p.cursor.Current().Literal)
 	}
 
 	// Verify parse functions are registered

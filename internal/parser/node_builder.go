@@ -94,7 +94,7 @@ func (nb *NodeBuilder) FinishWithNode(node ast.Node, lastChild ast.Node) ast.Nod
 // Example:
 //
 //	builder := p.StartNode()
-//	endToken := p.curToken  // Save the END keyword
+//	endToken := p.cursor.Current()  // Save the END keyword
 //	p.nextToken()
 //	block := &ast.BlockStatement{...}
 //	return builder.FinishWithToken(block, endToken).(*ast.BlockStatement)

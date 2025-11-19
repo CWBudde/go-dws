@@ -166,7 +166,7 @@ func (p *Parser) parseBlockStatementForTry() *ast.BlockStatement {
 // POST: curToken is last token before FINALLY or END
 func (p *Parser) parseExceptClause() *ast.ExceptClause {
 	builder := p.StartNode()
-	exceptToken := p.curToken // Save 'except' token before moving past it
+	exceptToken := p.cursor.Current() // Save 'except' token before moving past it
 	clause := &ast.ExceptClause{
 		Token: exceptToken, // 'except' keyword token
 	}
@@ -290,7 +290,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 // POST: curToken is last token after statement
 func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 	builder := p.StartNode()
-	onToken := p.curToken // Save 'on' token before moving past it
+	onToken := p.cursor.Current() // Save 'on' token before moving past it
 	handler := &ast.ExceptionHandler{
 		Token: onToken, // 'on' keyword token
 	}

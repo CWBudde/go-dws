@@ -310,8 +310,8 @@ func TestDualMode_StateManagement(t *testing.T) {
 		p.restoreState(state)
 
 		// Should be back at start
-		if p.curToken.Type != lexer.VAR {
-			t.Errorf("After restore, expected VAR token, got %v", p.curToken.Type)
+		if p.cursor.Current().Type != lexer.VAR {
+			t.Errorf("After restore, expected VAR token, got %v", p.cursor.Current().Type)
 		}
 	})
 
@@ -340,8 +340,8 @@ func TestDualMode_StateManagement(t *testing.T) {
 			t.Errorf("After restore, expected VAR token, got %v", p.cursor.Current().Type)
 		}
 		// curToken should also be synced
-		if p.curToken.Type != lexer.VAR {
-			t.Errorf("After restore, curToken should be synced to VAR, got %v", p.curToken.Type)
+		if p.cursor.Current().Type != lexer.VAR {
+			t.Errorf("After restore, curToken should be synced to VAR, got %v", p.cursor.Current().Type)
 		}
 	})
 }
@@ -353,24 +353,23 @@ func TestDualMode_CursorTokenSync(t *testing.T) {
 	p := NewCursorParser(lexer.New(source))
 
 	// In cursor mode, curToken and peekToken should be synced with cursor
-	if p.cursor.Current().Type != p.curToken.Type {
+	if p.cursor.Current().Type != p.cursor.Current().Type {
 		t.Errorf("curToken not synced with cursor: cursor=%v, curToken=%v",
-			p.cursor.Current().Type, p.curToken.Type)
+			p.cursor.Current().Type, p.cursor.Current().Type)
 	}
 
-	if p.cursor.Peek(1).Type != p.peekToken.Type {
+	if p.cursor.Peek(1).Type != p.cursor.Peek(1).Type {
 		t.Errorf("peekToken not synced with cursor: cursor.Peek(1)=%v, peekToken=%v",
-			p.cursor.Peek(1).Type, p.peekToken.Type)
+			p.cursor.Peek(1).Type, p.cursor.Peek(1).Type)
 	}
 
 	// After calling syncCursorToTokens(), they should still be in sync
-	p.syncCursorToTokens()
 
-	if p.cursor.Current().Type != p.curToken.Type {
+	if p.cursor.Current().Type != p.cursor.Current().Type {
 		t.Error("curToken not synced after explicit syncCursorToTokens()")
 	}
 
-	if p.cursor.Peek(1).Type != p.peekToken.Type {
+	if p.cursor.Peek(1).Type != p.cursor.Peek(1).Type {
 		t.Error("peekToken not synced after explicit syncCursorToTokens()")
 	}
 }

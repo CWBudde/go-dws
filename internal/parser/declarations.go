@@ -30,23 +30,23 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 	}
 
 	// We should now be at the identifier
-	if !p.isIdentifierToken(p.curToken.Type) {
+	if !p.isIdentifierToken(p.cursor.Current().Type) {
 		p.addError("expected identifier in const declaration", ErrExpectedIdent)
 		return nil
 	}
 
 	stmt := &ast.ConstDecl{
 		BaseNode: ast.BaseNode{
-			Token: p.curToken,
+			Token: p.cursor.Current(),
 		},
 	}
 	stmt.Name = &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token: p.curToken,
+				Token: p.cursor.Current(),
 			},
 		},
-		Value: p.curToken.Literal,
+		Value: p.cursor.Current().Literal,
 	}
 
 	// Use OptionalTypeAnnotation combinator (Task 2.3.3)
@@ -70,7 +70,7 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 		// Check for optional deprecation message string
 		if p.peekTokenIs(lexer.STRING) {
 			p.nextToken() // move to string
-			stmt.DeprecatedMessage = p.curToken.Literal
+			stmt.DeprecatedMessage = p.cursor.Current().Literal
 		}
 	}
 

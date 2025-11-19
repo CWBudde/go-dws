@@ -338,9 +338,9 @@ func TestPeekConsistency(t *testing.T) {
 	p := New(l)
 
 	// peekAhead(1) should equal peekToken
-	if p.peekAhead(1).Type != p.peekToken.Type {
+	if p.peekAhead(1).Type != p.cursor.Peek(1).Type {
 		t.Errorf("peekAhead(1) = %s, but peekToken = %s",
-			p.peekAhead(1).Type, p.peekToken.Type)
+			p.peekAhead(1).Type, p.cursor.Peek(1).Type)
 	}
 
 	// peekAhead(2) should equal peek(0)

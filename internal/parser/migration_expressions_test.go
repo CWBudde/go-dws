@@ -286,7 +286,7 @@ func TestMigration_FloatLiteral_Errors(t *testing.T) {
 
 			// Test traditional mode
 			traditionalParser := New(lexer.New(tt.input))
-			if traditionalParser.curToken.Type != lexer.FLOAT {
+			if traditionalParser.cursor.Current().Type != lexer.FLOAT {
 				t.Skip("Lexer did not produce FLOAT token")
 			}
 			traditionalExpr := traditionalParser.parseFloatLiteralCursor()

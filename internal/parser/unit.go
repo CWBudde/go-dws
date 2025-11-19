@@ -35,7 +35,7 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 func (p *Parser) parseUnitCursor() *ast.UnitDeclaration {
 	builder := p.StartNode()
 	unitDecl := &ast.UnitDeclaration{
-		BaseNode: ast.BaseNode{Token: p.curToken}, // 'unit' token
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()}, // 'unit' token
 	}
 
 	// Expect unit name
@@ -206,7 +206,7 @@ func (p *Parser) parseUsesClauseCursor() *ast.UsesClause {
 // POST: curToken is IMPLEMENTATION, INITIALIZATION, FINALIZATION, or END
 func (p *Parser) parseInterfaceSection() *ast.BlockStatement {
 	block := &ast.BlockStatement{
-		BaseNode:   ast.BaseNode{Token: p.curToken}, // 'interface' token
+		BaseNode:   ast.BaseNode{Token: p.cursor.Current()}, // 'interface' token
 		Statements: []ast.Statement{},
 	}
 
@@ -249,7 +249,7 @@ func (p *Parser) parseInterfaceSection() *ast.BlockStatement {
 // POST: curToken is INITIALIZATION, FINALIZATION, or END
 func (p *Parser) parseImplementationSection() *ast.BlockStatement {
 	block := &ast.BlockStatement{
-		BaseNode:   ast.BaseNode{Token: p.curToken}, // 'implementation' token
+		BaseNode:   ast.BaseNode{Token: p.cursor.Current()}, // 'implementation' token
 		Statements: []ast.Statement{},
 	}
 
@@ -291,7 +291,7 @@ func (p *Parser) parseImplementationSection() *ast.BlockStatement {
 // POST: curToken is FINALIZATION or END
 func (p *Parser) parseInitializationSection() *ast.BlockStatement {
 	block := &ast.BlockStatement{
-		BaseNode:   ast.BaseNode{Token: p.curToken}, // 'initialization' token
+		BaseNode:   ast.BaseNode{Token: p.cursor.Current()}, // 'initialization' token
 		Statements: []ast.Statement{},
 	}
 
@@ -324,7 +324,7 @@ func (p *Parser) parseInitializationSection() *ast.BlockStatement {
 // POST: curToken is END
 func (p *Parser) parseFinalizationSection() *ast.BlockStatement {
 	block := &ast.BlockStatement{
-		BaseNode:   ast.BaseNode{Token: p.curToken}, // 'finalization' token
+		BaseNode:   ast.BaseNode{Token: p.cursor.Current()}, // 'finalization' token
 		Statements: []ast.Statement{},
 	}
 

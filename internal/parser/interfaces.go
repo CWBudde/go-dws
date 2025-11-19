@@ -118,7 +118,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 		nameIdent = &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
-					Token: p.curToken,
+					Token: p.cursor.Current(),
 				},
 			},
 			Value: p.cursor.Current().Literal,
@@ -131,7 +131,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 		nameIdent = &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
-					Token: p.curToken,
+					Token: p.cursor.Current(),
 				},
 			},
 			Value: p.cursor.Current().Literal,
@@ -188,7 +188,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 		// Type alias: type TUserID = Integer;
 		p.nextToken() // move to aliased type identifier
 		aliasedType := &ast.TypeAnnotation{
-			Token: p.curToken,
+			Token: p.cursor.Current(),
 			Name:  p.cursor.Current().Literal,
 		}
 
@@ -509,7 +509,7 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 	if p.cursor != nil {
 		funcOrProcToken = p.cursor.Current()
 	} else {
-		funcOrProcToken = p.curToken
+		funcOrProcToken = p.cursor.Current()
 	}
 
 	// Current token is FUNCTION or PROCEDURE
@@ -580,7 +580,7 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 		if p.cursor != nil {
 			endToken = p.cursor.Current()
 		} else {
-			endToken = p.curToken
+			endToken = p.cursor.Current()
 		}
 	}
 
@@ -601,7 +601,7 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 		if p.cursor != nil {
 			retTypeTok = p.cursor.Current()
 		} else {
-			retTypeTok = p.curToken
+			retTypeTok = p.cursor.Current()
 		}
 
 		returnType := &ast.TypeAnnotation{
@@ -626,7 +626,7 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 		if p.cursor != nil {
 			endToken = p.cursor.Current()
 		} else {
-			endToken = p.curToken
+			endToken = p.cursor.Current()
 		}
 
 		// EndPos is after "object" token

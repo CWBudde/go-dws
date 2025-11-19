@@ -47,10 +47,10 @@ func TestParseSeparatedListBeforeStart_EmptyList(t *testing.T) {
 
 			items := []string{}
 			count, ok := p.parseSeparatedListBeforeStart(opts, func() bool {
-				if !p.curTokenIs(lexer.IDENT) {
+				if !p.cursor.Is(lexer.IDENT) {
 					return false
 				}
-				items = append(items, p.curToken.Literal)
+				items = append(items, p.cursor.Current().Literal)
 				return true
 			})
 
@@ -83,10 +83,10 @@ func TestParseSeparatedListBeforeStart_SingleItem(t *testing.T) {
 
 	items := []string{}
 	count, ok := p.parseSeparatedListBeforeStart(opts, func() bool {
-		if !p.curTokenIs(lexer.IDENT) {
+		if !p.cursor.Is(lexer.IDENT) {
 			return false
 		}
-		items = append(items, p.curToken.Literal)
+		items = append(items, p.cursor.Current().Literal)
 		return true
 	})
 
@@ -99,8 +99,8 @@ func TestParseSeparatedListBeforeStart_SingleItem(t *testing.T) {
 	if len(items) != 1 || items[0] != "x" {
 		t.Errorf("items = %v, want [x]", items)
 	}
-	if !p.curTokenIs(lexer.RPAREN) {
-		t.Errorf("curToken = %s, want RPAREN", p.curToken.Type)
+	if !p.cursor.Is(lexer.RPAREN) {
+		t.Errorf("curToken = %s, want RPAREN", p.cursor.Current().Type)
 	}
 }
 
@@ -120,10 +120,10 @@ func TestParseSeparatedListBeforeStart_MultipleItems(t *testing.T) {
 
 	items := []string{}
 	count, ok := p.parseSeparatedListBeforeStart(opts, func() bool {
-		if !p.curTokenIs(lexer.IDENT) {
+		if !p.cursor.Is(lexer.IDENT) {
 			return false
 		}
-		items = append(items, p.curToken.Literal)
+		items = append(items, p.cursor.Current().Literal)
 		return true
 	})
 
@@ -142,8 +142,8 @@ func TestParseSeparatedListBeforeStart_MultipleItems(t *testing.T) {
 			t.Errorf("items[%d] = %s, want %s", i, items[i], want)
 		}
 	}
-	if !p.curTokenIs(lexer.RPAREN) {
-		t.Errorf("curToken = %s, want RPAREN", p.curToken.Type)
+	if !p.cursor.Is(lexer.RPAREN) {
+		t.Errorf("curToken = %s, want RPAREN", p.cursor.Current().Type)
 	}
 }
 
@@ -187,10 +187,10 @@ func TestParseSeparatedListBeforeStart_TrailingSeparator(t *testing.T) {
 
 			items := []string{}
 			count, ok := p.parseSeparatedListBeforeStart(opts, func() bool {
-				if !p.curTokenIs(lexer.IDENT) {
+				if !p.cursor.Is(lexer.IDENT) {
 					return false
 				}
-				items = append(items, p.curToken.Literal)
+				items = append(items, p.cursor.Current().Literal)
 				return true
 			})
 
@@ -220,10 +220,10 @@ func TestParseSeparatedListBeforeStart_MultipleSeparators(t *testing.T) {
 
 	items := []string{}
 	count, ok := p.parseSeparatedListBeforeStart(opts, func() bool {
-		if !p.curTokenIs(lexer.IDENT) {
+		if !p.cursor.Is(lexer.IDENT) {
 			return false
 		}
-		items = append(items, p.curToken.Literal)
+		items = append(items, p.cursor.Current().Literal)
 		return true
 	})
 
@@ -306,10 +306,10 @@ func TestParseSeparatedList_Direct(t *testing.T) {
 
 	items := []string{}
 	count, ok := p.parseSeparatedList(opts, func() bool {
-		if !p.curTokenIs(lexer.IDENT) {
+		if !p.cursor.Is(lexer.IDENT) {
 			return false
 		}
-		items = append(items, p.curToken.Literal)
+		items = append(items, p.cursor.Current().Literal)
 		return true
 	})
 
@@ -328,8 +328,8 @@ func TestParseSeparatedList_Direct(t *testing.T) {
 			t.Errorf("items[%d] = %s, want %s", i, items[i], want)
 		}
 	}
-	if !p.curTokenIs(lexer.RPAREN) {
-		t.Errorf("curToken = %s, want RPAREN", p.curToken.Type)
+	if !p.cursor.Is(lexer.RPAREN) {
+		t.Errorf("curToken = %s, want RPAREN", p.cursor.Current().Type)
 	}
 }
 
@@ -349,10 +349,10 @@ func TestParseSeparatedList_NoTerminator(t *testing.T) {
 
 	items := []string{}
 	count, ok := p.parseSeparatedList(opts, func() bool {
-		if !p.curTokenIs(lexer.IDENT) {
+		if !p.cursor.Is(lexer.IDENT) {
 			return false
 		}
-		items = append(items, p.curToken.Literal)
+		items = append(items, p.cursor.Current().Literal)
 		return true
 	})
 
@@ -372,11 +372,11 @@ func TestParseSeparatedList_NoTerminator(t *testing.T) {
 		}
 	}
 	// Should be positioned on last item when RequireTerminator is false
-	if !p.curTokenIs(lexer.IDENT) || p.curToken.Literal != "c" {
-		t.Errorf("curToken = %v, want c", p.curToken)
+	if !p.cursor.Is(lexer.IDENT) || p.cursor.Current().Literal != "c" {
+		t.Errorf("curToken = %v, want c", p.cursor.Current())
 	}
-	if !p.peekTokenIs(lexer.SEMICOLON) {
-		t.Errorf("peekToken = %s, want SEMICOLON", p.peekToken.Type)
+	if !p.cursor.PeekIs(1, lexer.SEMICOLON) {
+		t.Errorf("peekToken = %s, want SEMICOLON", p.cursor.Peek(1).Type)
 	}
 }
 
@@ -426,10 +426,10 @@ func TestParseSeparatedList_TrailingSeparatorNoTerminator(t *testing.T) {
 
 			items := []string{}
 			count, ok := p.parseSeparatedList(opts, func() bool {
-				if !p.curTokenIs(lexer.IDENT) {
+				if !p.cursor.Is(lexer.IDENT) {
 					return false
 				}
-				items = append(items, p.curToken.Literal)
+				items = append(items, p.cursor.Current().Literal)
 				return true
 			})
 
@@ -441,14 +441,14 @@ func TestParseSeparatedList_TrailingSeparatorNoTerminator(t *testing.T) {
 			}
 
 			// Critical assertion: curToken should be on the last item
-			if !p.curTokenIs(lexer.IDENT) || p.curToken.Literal != tt.expectCurToken {
+			if !p.cursor.Is(lexer.IDENT) || p.cursor.Current().Literal != tt.expectCurToken {
 				t.Errorf("curToken = %v (type=%s), want %s (type=IDENT)",
-					p.curToken.Literal, p.curToken.Type, tt.expectCurToken)
+					p.cursor.Current().Literal, p.cursor.Current().Type, tt.expectCurToken)
 			}
 
 			// Verify peekToken is the terminator
-			if !p.peekTokenIs(tt.expectPeekToken) {
-				t.Errorf("peekToken = %s, want %s", p.peekToken.Type, tt.expectPeekToken)
+			if !p.cursor.PeekIs(1, tt.expectPeekToken) {
+				t.Errorf("peekToken = %s, want %s", p.cursor.Peek(1).Type, tt.expectPeekToken)
 			}
 		})
 	}
@@ -471,10 +471,10 @@ func TestParseSeparatedList_ParseError(t *testing.T) {
 	items := []string{}
 	count, ok := p.parseSeparatedList(opts, func() bool {
 		// Only accept identifiers
-		if !p.curTokenIs(lexer.IDENT) {
+		if !p.cursor.Is(lexer.IDENT) {
 			return false
 		}
-		items = append(items, p.curToken.Literal)
+		items = append(items, p.cursor.Current().Literal)
 		return true
 	})
 
@@ -535,10 +535,10 @@ func TestPeekTokenIsSomeOf(t *testing.T) {
 			l := lexer.New(tt.input)
 			p := New(l) // After New(): cur='x'
 
-			result := p.peekTokenIsSomeOf(tt.types...)
+			result, _ := p.cursor.PeekIsAny(1, tt.types...)
 			if result != tt.expect {
 				t.Errorf("peekTokenIsSomeOf() = %v, want %v (peekToken = %s)",
-					result, tt.expect, p.peekToken.Type)
+					result, tt.expect, p.cursor.Peek(1).Type)
 			}
 		})
 	}

@@ -88,7 +88,7 @@ func TestNodeBuilderFinishWithNode(t *testing.T) {
 	childExpr := &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token: p.curToken,
+				Token: p.cursor.Current(),
 			},
 		},
 		Value: "y",
@@ -147,7 +147,7 @@ func TestNodeBuilderFinishWithToken(t *testing.T) {
 
 	builder := p.StartNode()
 	p.nextToken() // move to 'end'
-	endToken := p.curToken
+	endToken := p.cursor.Current()
 
 	block := &ast.BlockStatement{
 		BaseNode: ast.BaseNode{
@@ -170,7 +170,7 @@ func TestNodeBuilderStartToken(t *testing.T) {
 	input := "x := 42"
 	p := New(lexer.New(input))
 
-	startToken := p.curToken
+	startToken := p.cursor.Current()
 	builder := p.StartNode()
 
 	// Advance parser
@@ -194,7 +194,7 @@ func TestNodeBuilderMultipleNodes(t *testing.T) {
 
 	// Inner builder for condition
 	innerBuilder := p.StartNode()
-	condToken := p.curToken
+	condToken := p.cursor.Current()
 
 	condition := &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -263,14 +263,14 @@ func TestNodeBuilderRealWorldIfStatement(t *testing.T) {
 	builder := p.StartNode()
 
 	// Parse the if keyword
-	if !p.curTokenIs(lexer.IF) {
+	if !p.cursor.Is(lexer.IF) {
 		t.Fatal("expected IF token")
 	}
 	p.nextToken()
 
 	// Parse condition (simplified - just consume tokens until 'then')
-	condStart := p.curToken
-	for p.curToken.Type != lexer.THEN {
+	condStart := p.cursor.Current()
+	for p.cursor.Current().Type != lexer.THEN {
 		p.nextToken()
 	}
 	condition := &ast.Identifier{
@@ -286,7 +286,7 @@ func TestNodeBuilderRealWorldIfStatement(t *testing.T) {
 	p.nextToken() // move past 'then'
 
 	// Parse consequence (simplified - consume until semicolon)
-	for p.curToken.Type != lexer.SEMICOLON {
+	for p.cursor.Current().Type != lexer.SEMICOLON {
 		p.nextToken()
 	}
 

@@ -28,7 +28,7 @@ func (p *Parser) parseBreakStatement() *ast.BreakStatement {
 	builder := p.StartNode()
 
 	stmt := &ast.BreakStatement{
-		BaseNode: ast.BaseNode{Token: p.curToken},
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 	}
 
 	// Expect semicolon after break
@@ -47,7 +47,7 @@ func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
 	builder := p.StartNode()
 
 	stmt := &ast.ContinueStatement{
-		BaseNode: ast.BaseNode{Token: p.curToken},
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 	}
 
 	// Expect semicolon after continue
@@ -66,7 +66,7 @@ func (p *Parser) parseExitStatement() *ast.ExitStatement {
 	builder := p.StartNode()
 
 	stmt := &ast.ExitStatement{
-		BaseNode: ast.BaseNode{Token: p.curToken},
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 	}
 
 	// Check if there's a parenthesized return value: exit(value)
@@ -111,7 +111,7 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 	builder := p.StartNode()
 
 	stmt := &ast.IfStatement{
-		BaseNode: ast.BaseNode{Token: p.curToken},
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 	}
 
 	// Track block context for better error messages
@@ -128,7 +128,7 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 		if p.cursor != nil {
 			curTok = p.cursor.Current()
 		} else {
-			curTok = p.curToken
+			curTok = p.cursor.Current()
 		}
 
 		// Use structured error for better diagnostics
@@ -152,7 +152,7 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 		if p.cursor != nil {
 			peekTok = p.cursor.Peek(1)
 		} else {
-			peekTok = p.peekToken
+			peekTok = p.cursor.Peek(1)
 		}
 
 		// Use structured error for missing 'then'
@@ -183,7 +183,7 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 		if p.cursor != nil {
 			curTok = p.cursor.Current()
 		} else {
-			curTok = p.curToken
+			curTok = p.cursor.Current()
 		}
 
 		// Use structured error for missing statement
@@ -212,7 +212,7 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 			if p.cursor != nil {
 				curTok = p.cursor.Current()
 			} else {
-				curTok = p.curToken
+				curTok = p.cursor.Current()
 			}
 
 			// Use structured error for missing else statement
@@ -244,7 +244,7 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 	builder := p.StartNode()
 
 	stmt := &ast.WhileStatement{
-		BaseNode: ast.BaseNode{Token: p.curToken},
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 	}
 
 	// Track block context for better error messages
@@ -261,7 +261,7 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 		if p.cursor != nil {
 			curTok = p.cursor.Current()
 		} else {
-			curTok = p.curToken
+			curTok = p.cursor.Current()
 		}
 
 		// Use structured error for better diagnostics
@@ -285,7 +285,7 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 		if p.cursor != nil {
 			peekTok = p.cursor.Peek(1)
 		} else {
-			peekTok = p.peekToken
+			peekTok = p.cursor.Peek(1)
 		}
 
 		// Use structured error for missing 'do'
@@ -316,7 +316,7 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 		if p.cursor != nil {
 			curTok = p.cursor.Current()
 		} else {
-			curTok = p.curToken
+			curTok = p.cursor.Current()
 		}
 
 		// Use structured error for missing loop body
@@ -345,7 +345,7 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 	builder := p.StartNode()
 
 	stmt := &ast.RepeatStatement{
-		BaseNode: ast.BaseNode{Token: p.curToken},
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 	}
 
 	// Track block context for better error messages
@@ -357,7 +357,7 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 
 	// Parse multiple statements until 'until' is encountered
 	block := &ast.BlockStatement{
-		BaseNode: ast.BaseNode{Token: p.curToken},
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 	}
 	block.Statements = []ast.Statement{}
 
@@ -423,7 +423,7 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 // POST: curToken is last token of body statement
 func (p *Parser) parseForStatement() ast.Statement {
 	builder := p.StartNode()
-	forToken := p.curToken
+	forToken := p.cursor.Current()
 
 	// Move past 'for' and parse optional inline var declaration
 	inlineVar := false
@@ -581,7 +581,7 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 	builder := p.StartNode()
 
 	stmt := &ast.CaseStatement{
-		BaseNode: ast.BaseNode{Token: p.curToken},
+		BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 	}
 
 	// Track block context for better error messages
@@ -617,7 +617,7 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 		}
 
 		// Save the token of the first value for position tracking
-		firstValueToken := p.curToken
+		firstValueToken := p.cursor.Current()
 		branch := &ast.CaseBranch{
 			Token: firstValueToken, // First value token for position tracking
 		}
@@ -635,7 +635,7 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 		// Check for range operator (..)
 		if p.peekTokenIs(lexer.DOTDOT) {
 			p.nextToken() // move to '..'
-			rangeToken := p.curToken
+			rangeToken := p.cursor.Current()
 
 			p.nextToken() // move to end expression
 			endValue := p.parseExpressionCursor(LOWEST)
@@ -674,7 +674,7 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 			// Check for range
 			if p.peekTokenIs(lexer.DOTDOT) {
 				p.nextToken() // move to '..'
-				rangeToken := p.curToken
+				rangeToken := p.cursor.Current()
 
 				p.nextToken() // move to end expression
 				endValue := p.parseExpressionCursor(LOWEST)
@@ -735,7 +735,7 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 		// Parse multiple statements until 'end' is encountered (like repeat-until)
 		// DWScript allows multiple statements in else clause without begin-end
 		block := &ast.BlockStatement{
-			BaseNode: ast.BaseNode{Token: p.curToken},
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 		}
 		block.Statements = []ast.Statement{}
 
@@ -790,7 +790,7 @@ func (p *Parser) parseIfExpression() ast.Expression {
 
 	expr := &ast.IfExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.curToken},
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()},
 		},
 	}
 
