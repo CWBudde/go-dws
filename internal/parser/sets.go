@@ -16,10 +16,7 @@ import (
 // POST: curToken is SEMICOLON
 // Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.SetDecl {
-	if p.useCursor {
-		return p.parseSetDeclarationCursor(nameIdent, typeToken)
-	}
-	return p.parseSetDeclarationTraditional(nameIdent, typeToken)
+	return p.parseSetDeclarationCursor(nameIdent, typeToken)
 }
 
 // parseSetDeclarationTraditional parses set declaration using traditional mode.
@@ -139,10 +136,7 @@ func (p *Parser) parseSetDeclarationCursor(nameIdent *ast.Identifier, typeToken 
 // POST: curToken is last token of element type
 // Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseSetType() *ast.SetTypeNode {
-	if p.useCursor {
-		return p.parseSetTypeCursor()
-	}
-	return p.parseSetTypeTraditional()
+	return p.parseSetTypeCursor()
 }
 
 // parseSetTypeTraditional parses set type using traditional mode.
@@ -231,10 +225,7 @@ func (p *Parser) parseSetTypeCursor() *ast.SetTypeNode {
 // POST: curToken is RBRACK
 // Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseSetLiteral() ast.Expression {
-	if p.useCursor {
-		return p.parseSetLiteralCursor()
-	}
-	return p.parseSetLiteralTraditional()
+	return p.parseSetLiteralCursor()
 }
 
 // parseSetLiteralTraditional parses set literal using traditional mode.

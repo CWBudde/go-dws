@@ -15,7 +15,7 @@ func TestDefaultConfig(t *testing.T) {
 		got      interface{}
 		expected interface{}
 	}{
-		{"UseCursor", config.UseCursor, false},
+		{"UseCursor", config.UseCursor, true}, // Task 2.7.9: Cursor mode is now the default
 		{"AllowReservedKeywordsAsIdentifiers", config.AllowReservedKeywordsAsIdentifiers, true},
 		{"StrictMode", config.StrictMode, false},
 		{"MaxRecursionDepth", config.MaxRecursionDepth, 1000},
@@ -31,6 +31,8 @@ func TestDefaultConfig(t *testing.T) {
 }
 
 // TestParserBuilderWithCursorMode tests the WithCursorMode builder method.
+// Task 2.7.9: Cursor mode is now always enabled. The WithCursorMode(false) option
+// is deprecated but retained for API compatibility.
 func TestParserBuilderWithCursorMode(t *testing.T) {
 	input := "var x: Integer := 42;"
 	l := lexer.New(input)
@@ -51,15 +53,17 @@ func TestParserBuilderWithCursorMode(t *testing.T) {
 		t.Errorf("WithCursorMode(true) did not initialize cursor infix parse functions")
 	}
 
-	// Test disabling cursor mode
+	// Task 2.7.9: Cursor mode is always on now. WithCursorMode(false) is ignored.
+	// The parser always initializes cursor mode regardless of the config setting.
 	l2 := lexer.New(input)
 	p2 := NewParserBuilder(l2).WithCursorMode(false).Build()
 
-	if p2.useCursor {
-		t.Errorf("WithCursorMode(false) did not disable cursor mode")
+	// Even with WithCursorMode(false), cursor is now always initialized
+	if p2.cursor == nil {
+		t.Errorf("Cursor should always be initialized in Task 2.7.9+")
 	}
-	if p2.cursor != nil {
-		t.Errorf("WithCursorMode(false) should not initialize cursor")
+	if p2.prefixParseFnsCursor == nil {
+		t.Errorf("Cursor parse functions should always be initialized in Task 2.7.9+")
 	}
 }
 

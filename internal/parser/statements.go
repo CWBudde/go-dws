@@ -140,105 +140,11 @@ func (p *Parser) parseStatementCursor() ast.Statement {
 }
 
 // parseStatement parses a single statement.
-// PRE: curToken is first token of statement
-// POST: curToken is last token of statement
+// Task 2.7.9: Cursor mode is now the only mode - this wrapper delegates to cursor implementation.
+// PRE: cursor is on first token of statement (same as parseStatementCursor)
+// POST: cursor is on last token of statement (same as parseStatementCursor)
 func (p *Parser) parseStatement() ast.Statement {
-	// Task 2.2.14.2: Dispatch to cursor mode if enabled
-	if p.useCursor {
-		stmt := p.parseStatementCursor()
-		// Sync traditional pointers from cursor after statement parsing
-		p.syncCursorToTokens()
-		return stmt
-	}
-
-	switch p.curToken.Type {
-	case lexer.BEGIN:
-		return p.parseBlockStatement()
-	case lexer.VAR:
-		return p.parseVarDeclaration()
-	case lexer.CONST:
-		return p.parseConstDeclaration()
-	case lexer.IF:
-		return p.parseIfStatement()
-	case lexer.WHILE:
-		return p.parseWhileStatement()
-	case lexer.REPEAT:
-		return p.parseRepeatStatement()
-	case lexer.FOR:
-		return p.parseForStatement()
-	case lexer.CASE:
-		return p.parseCaseStatement()
-	case lexer.BREAK:
-		return p.parseBreakStatement()
-	case lexer.CONTINUE:
-		return p.parseContinueStatement()
-	case lexer.EXIT:
-		return p.parseExitStatement()
-	case lexer.TRY:
-		return p.parseTryStatement()
-	case lexer.RAISE:
-		return p.parseRaiseStatement()
-	case lexer.FUNCTION, lexer.PROCEDURE, lexer.METHOD:
-		return p.parseFunctionDeclaration()
-	case lexer.OPERATOR:
-		return p.parseOperatorDeclaration()
-	case lexer.CLASS:
-		if p.peekTokenIs(lexer.FUNCTION) || p.peekTokenIs(lexer.PROCEDURE) || p.peekTokenIs(lexer.METHOD) {
-			p.nextToken() // move to function/procedure/method token
-			fn := p.parseFunctionDeclaration()
-			if fn != nil {
-				fn.IsClassMethod = true
-			}
-			return fn
-		}
-		p.addError("expected 'function', 'procedure', or 'method' after 'class'", ErrUnexpectedToken)
-		return nil
-	case lexer.CONSTRUCTOR:
-		// Parse constructor implementation outside class body
-		method := p.parseFunctionDeclaration()
-		if method != nil {
-			method.IsConstructor = true
-		}
-		return method
-	case lexer.DESTRUCTOR:
-		// Parse destructor implementation outside class body
-		method := p.parseFunctionDeclaration()
-		if method != nil {
-			method.IsDestructor = true
-		}
-		return method
-	case lexer.TYPE:
-		// Dispatch to class or interface parser
-		// Both parsers will handle the full parsing starting from TYPE token
-		return p.parseTypeDeclaration()
-	case lexer.USES:
-		// Parse uses clause at program level
-		return p.parseUsesClause()
-	default:
-		// Check for assignment (simple or member assignment)
-		// Handle SELF and INHERITED which can be assignment targets (e.g., Self.X := value)
-		if p.curToken.Type == lexer.SELF || p.curToken.Type == lexer.INHERITED {
-			return p.parseAssignmentOrExpression()
-		}
-
-		if p.isIdentifierToken(p.curToken.Type) {
-			// Could be:
-			// 1. x := value (assignment)
-			// 2. obj.field := value (member assignment)
-			// 3. x: Type; (var declaration without 'var' keyword - part of var section)
-
-			// Check if this is a var declaration (IDENT COLON pattern)
-			if p.peekTokenIs(lexer.COLON) {
-				// This is a var declaration in a var section
-				// Treat it like "var x: Type;"
-				return p.parseVarDeclaration()
-			}
-
-			// Otherwise, parse as assignment or expression
-			return p.parseAssignmentOrExpression()
-		}
-		return p.parseExpressionStatement()
-	}
+	return p.parseStatementCursor()
 }
 
 // parseBlockStatement parses a begin...end block.
@@ -318,10 +224,7 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 // POST: curToken is SEMICOLON of last var declaration
 // Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseVarDeclaration() ast.Statement {
-	if p.useCursor {
-		return p.parseVarDeclarationCursor()
-	}
-	return p.parseVarDeclarationTraditional()
+	return p.parseVarDeclarationCursor()
 }
 
 // parseVarDeclarationTraditional parses var declarations using traditional mode.
@@ -377,13 +280,21 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		}
 	} else if !p.isIdentifierToken(p.curToken.Type) {
 		// Should already be at an identifier
+		// Task 2.7.7: Dual-mode - get current token for error reporting
+		var curTok lexer.Token
+		if p.cursor != nil {
+			curTok = p.cursor.Current()
+		} else {
+			curTok = p.curToken
+		}
+
 		// Use structured error (Task 2.1.3)
 		err := NewStructuredError(ErrKindMissing).
 			WithCode(ErrExpectedIdent).
 			WithMessage("expected identifier in var declaration").
-			WithPosition(p.curToken.Pos, p.curToken.Length()).
+			WithPosition(curTok.Pos, curTok.Length()).
 			WithExpectedString("variable name").
-			WithActual(p.curToken.Type, p.curToken.Literal).
+			WithActual(curTok.Type, curTok.Literal).
 			WithSuggestion("provide a variable name after 'var'").
 			WithParsePhase("variable declaration").
 			Build()
@@ -409,11 +320,19 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 	if stmt.Type != nil {
 		if p.peekTokenIs(lexer.ASSIGN) || p.peekTokenIs(lexer.EQ) {
 			if len(stmt.Names) > 1 {
+				// Task 2.7.7: Dual-mode - get peek token for error reporting
+				var peekTok lexer.Token
+				if p.cursor != nil {
+					peekTok = p.cursor.Peek(1)
+				} else {
+					peekTok = p.peekToken
+				}
+
 				// Use structured error (Task 2.1.3)
 				err := NewStructuredError(ErrKindInvalid).
 					WithCode(ErrInvalidSyntax).
 					WithMessage("cannot use initializer with multiple variable names").
-					WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+					WithPosition(peekTok.Pos, peekTok.Length()).
 					WithSuggestion("declare variables separately or use the same value for all").
 					WithNote("DWScript requires: var x, y: Integer (no initializer) or var x: Integer := 10").
 					WithParsePhase("variable declaration").
@@ -429,11 +348,19 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 	} else {
 		if p.peekTokenIs(lexer.ASSIGN) || p.peekTokenIs(lexer.EQ) {
 			if len(stmt.Names) > 1 {
+				// Task 2.7.7: Dual-mode - get peek token for error reporting
+				var peekTok lexer.Token
+				if p.cursor != nil {
+					peekTok = p.cursor.Peek(1)
+				} else {
+					peekTok = p.peekToken
+				}
+
 				// Use structured error (Task 2.1.3)
 				err := NewStructuredError(ErrKindInvalid).
 					WithCode(ErrInvalidSyntax).
 					WithMessage("cannot use initializer with multiple variable names").
-					WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+					WithPosition(peekTok.Pos, peekTok.Length()).
 					WithSuggestion("declare variables separately when using initializers").
 					WithNote("DWScript requires separate declarations with initializers").
 					WithParsePhase("variable declaration").
@@ -447,24 +374,40 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 			p.nextToken()
 			stmt.Value = p.parseExpression(ASSIGN)
 		} else if p.peekTokenIs(lexer.SEMICOLON) || p.peekTokenIs(lexer.EXTERNAL) {
+			// Task 2.7.7: Dual-mode - get current token for error reporting
+			var curTok lexer.Token
+			if p.cursor != nil {
+				curTok = p.cursor.Current()
+			} else {
+				curTok = p.curToken
+			}
+
 			// Use structured error (Task 2.1.3)
 			err := NewStructuredError(ErrKindInvalid).
 				WithCode(ErrInvalidSyntax).
 				WithMessage("variable declaration requires a type or initializer").
-				WithPosition(p.curToken.Pos, p.curToken.Length()).
+				WithPosition(curTok.Pos, curTok.Length()).
 				WithSuggestion("add ': TypeName' or ':= value' after the variable name").
 				WithNote("Examples: 'var x: Integer' or 'var x := 10'").
 				WithParsePhase("variable declaration").
 				Build()
 			p.addStructuredError(err)
 		} else {
+			// Task 2.7.7: Dual-mode - get peek token for error reporting
+			var peekTok lexer.Token
+			if p.cursor != nil {
+				peekTok = p.cursor.Peek(1)
+			} else {
+				peekTok = p.peekToken
+			}
+
 			// Use structured error (Task 2.1.3)
 			err := NewStructuredError(ErrKindMissing).
 				WithCode(ErrMissingColon).
 				WithMessage("expected ':', ':=' or '=' in variable declaration").
-				WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+				WithPosition(peekTok.Pos, peekTok.Length()).
 				WithExpectedString("':' or ':='").
-				WithActual(p.peekToken.Type, p.peekToken.Literal).
+				WithActual(peekTok.Type, peekTok.Literal).
 				WithSuggestion("add ':' for type declaration or ':=' for type inference").
 				WithParsePhase("variable declaration").
 				Build()
@@ -579,11 +522,19 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 			return builder.FinishWithNode(stmt, stmt.Value).(*ast.AssignmentStatement)
 
 		default:
+			// Task 2.7.7: Dual-mode - get current token for error reporting
+			var curTok lexer.Token
+			if p.cursor != nil {
+				curTok = p.cursor.Current()
+			} else {
+				curTok = p.curToken
+			}
+
 			// Use structured error (Task 2.1.3)
 			err := NewStructuredError(ErrKindInvalid).
 				WithCode(ErrInvalidSyntax).
 				WithMessage("invalid assignment target").
-				WithPosition(p.curToken.Pos, p.curToken.Length()).
+				WithPosition(curTok.Pos, curTok.Length()).
 				WithSuggestion("assignment target must be a variable, field access, or array element").
 				WithNote("Valid: x := 10, obj.field := 20, arr[i] := 30").
 				WithParsePhase("assignment statement").

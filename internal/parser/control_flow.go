@@ -123,11 +123,19 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 	stmt.Condition = p.parseExpression(LOWEST)
 
 	if stmt.Condition == nil {
+		// Task 2.7.7: Dual-mode - get current token for error reporting
+		var curTok lexer.Token
+		if p.cursor != nil {
+			curTok = p.cursor.Current()
+		} else {
+			curTok = p.curToken
+		}
+
 		// Use structured error for better diagnostics
 		err := NewStructuredError(ErrKindInvalid).
 			WithCode(ErrInvalidExpression).
 			WithMessage("expected condition after 'if'").
-			WithPosition(p.curToken.Pos, p.curToken.Length()).
+			WithPosition(curTok.Pos, curTok.Length()).
 			WithExpectedString("boolean expression").
 			WithSuggestion("add a condition like 'x > 0' or 'flag = true'").
 			WithParsePhase("if statement condition").
@@ -139,13 +147,21 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 
 	// Expect 'then' keyword
 	if !p.expectPeek(lexer.THEN) {
+		// Task 2.7.7: Dual-mode - get peek token for error reporting
+		var peekTok lexer.Token
+		if p.cursor != nil {
+			peekTok = p.cursor.Peek(1)
+		} else {
+			peekTok = p.peekToken
+		}
+
 		// Use structured error for missing 'then'
 		err := NewStructuredError(ErrKindMissing).
 			WithCode(ErrMissingThen).
 			WithMessage("expected 'then' after if condition").
-			WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+			WithPosition(peekTok.Pos, peekTok.Length()).
 			WithExpected(lexer.THEN).
-			WithActual(p.peekToken.Type, p.peekToken.Literal).
+			WithActual(peekTok.Type, peekTok.Literal).
 			WithSuggestion("add 'then' keyword after the condition").
 			WithNote("DWScript if statements require: if <condition> then <statement>").
 			WithParsePhase("if statement").
@@ -162,11 +178,19 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 	stmt.Consequence = p.parseStatement()
 
 	if stmt.Consequence == nil {
+		// Task 2.7.7: Dual-mode - get current token for error reporting
+		var curTok lexer.Token
+		if p.cursor != nil {
+			curTok = p.cursor.Current()
+		} else {
+			curTok = p.curToken
+		}
+
 		// Use structured error for missing statement
 		err := NewStructuredError(ErrKindInvalid).
 			WithCode(ErrInvalidSyntax).
 			WithMessage("expected statement after 'then'").
-			WithPosition(p.curToken.Pos, p.curToken.Length()).
+			WithPosition(curTok.Pos, curTok.Length()).
 			WithExpectedString("statement").
 			WithSuggestion("add a statement like a variable assignment or function call").
 			WithParsePhase("if statement consequence").
@@ -183,11 +207,19 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 		stmt.Alternative = p.parseStatement()
 
 		if stmt.Alternative == nil {
+			// Task 2.7.7: Dual-mode - get current token for error reporting
+			var curTok lexer.Token
+			if p.cursor != nil {
+				curTok = p.cursor.Current()
+			} else {
+				curTok = p.curToken
+			}
+
 			// Use structured error for missing else statement
 			err := NewStructuredError(ErrKindInvalid).
 				WithCode(ErrInvalidSyntax).
 				WithMessage("expected statement after 'else'").
-				WithPosition(p.curToken.Pos, p.curToken.Length()).
+				WithPosition(curTok.Pos, curTok.Length()).
 				WithExpectedString("statement").
 				WithSuggestion("add a statement for the else branch").
 				WithParsePhase("if statement alternative").
@@ -224,11 +256,19 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 	stmt.Condition = p.parseExpression(LOWEST)
 
 	if stmt.Condition == nil {
+		// Task 2.7.7: Dual-mode - get current token for error reporting
+		var curTok lexer.Token
+		if p.cursor != nil {
+			curTok = p.cursor.Current()
+		} else {
+			curTok = p.curToken
+		}
+
 		// Use structured error for better diagnostics
 		err := NewStructuredError(ErrKindInvalid).
 			WithCode(ErrInvalidExpression).
 			WithMessage("expected condition after 'while'").
-			WithPosition(p.curToken.Pos, p.curToken.Length()).
+			WithPosition(curTok.Pos, curTok.Length()).
 			WithExpectedString("boolean expression").
 			WithSuggestion("add a loop condition like 'count < 10'").
 			WithParsePhase("while loop condition").
@@ -240,13 +280,21 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 
 	// Expect 'do' keyword
 	if !p.expectPeek(lexer.DO) {
+		// Task 2.7.7: Dual-mode - get peek token for error reporting
+		var peekTok lexer.Token
+		if p.cursor != nil {
+			peekTok = p.cursor.Peek(1)
+		} else {
+			peekTok = p.peekToken
+		}
+
 		// Use structured error for missing 'do'
 		err := NewStructuredError(ErrKindMissing).
 			WithCode(ErrMissingDo).
 			WithMessage("expected 'do' after while condition").
-			WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+			WithPosition(peekTok.Pos, peekTok.Length()).
 			WithExpected(lexer.DO).
-			WithActual(p.peekToken.Type, p.peekToken.Literal).
+			WithActual(peekTok.Type, peekTok.Literal).
 			WithSuggestion("add 'do' keyword after the condition").
 			WithNote("DWScript while loops require: while <condition> do <statement>").
 			WithParsePhase("while loop").
@@ -263,11 +311,19 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 	stmt.Body = p.parseStatement()
 
 	if isNilStatement(stmt.Body) {
+		// Task 2.7.7: Dual-mode - get current token for error reporting
+		var curTok lexer.Token
+		if p.cursor != nil {
+			curTok = p.cursor.Current()
+		} else {
+			curTok = p.curToken
+		}
+
 		// Use structured error for missing loop body
 		err := NewStructuredError(ErrKindInvalid).
 			WithCode(ErrInvalidSyntax).
 			WithMessage("expected statement after 'do'").
-			WithPosition(p.curToken.Pos, p.curToken.Length()).
+			WithPosition(curTok.Pos, curTok.Length()).
 			WithExpectedString("statement").
 			WithSuggestion("add a statement for the loop body").
 			WithParsePhase("while loop body").

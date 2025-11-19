@@ -18,10 +18,7 @@ import (
 // POST: curToken is SEMICOLON
 // Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
-	if p.useCursor {
-		return p.parseOperatorDeclarationCursor()
-	}
-	return p.parseOperatorDeclarationTraditional()
+	return p.parseOperatorDeclarationCursor()
 }
 
 // parseOperatorDeclarationTraditional parses operator declaration using traditional mode.
@@ -201,10 +198,7 @@ func (p *Parser) parseOperatorDeclarationCursor() *ast.OperatorDecl {
 // POST: curToken is SEMICOLON
 // Dispatcher: delegates to cursor or traditional mode
 func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibility ast.Visibility) *ast.OperatorDecl {
-	if p.useCursor {
-		return p.parseClassOperatorDeclarationCursor(classToken, visibility)
-	}
-	return p.parseClassOperatorDeclarationTraditional(classToken, visibility)
+	return p.parseClassOperatorDeclarationCursor(classToken, visibility)
 }
 
 // parseClassOperatorDeclarationTraditional parses class operator using traditional mode.

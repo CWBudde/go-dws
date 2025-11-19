@@ -19,10 +19,7 @@ import (
 //   - type TEnum = enum (One, Two);              // scoped enum
 //   - type TFlags = flags (a, b, c);             // flags enum (scoped, power-of-2 values)
 func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token, scoped bool, flags bool) *ast.EnumDecl {
-	if p.useCursor {
-		return p.parseEnumDeclarationCursor(nameIdent, typeToken, scoped, flags)
-	}
-	return p.parseEnumDeclarationTraditional(nameIdent, typeToken, scoped, flags)
+	return p.parseEnumDeclarationCursor(nameIdent, typeToken, scoped, flags)
 }
 
 // parseEnumDeclarationTraditional parses an enum type declaration (traditional mode).
@@ -251,10 +248,7 @@ func (p *Parser) parseEnumDeclarationCursor(nameIdent *ast.Identifier, typeToken
 //
 // Task 2.7.2: This dispatcher enables dual-mode operation during migration.
 func (p *Parser) parseEnumValue() (int, error) {
-	if p.useCursor {
-		return p.parseEnumValueCursor()
-	}
-	return p.parseEnumValueTraditional()
+	return p.parseEnumValueCursor()
 }
 
 // parseEnumValueTraditional parses an enum value (integer, possibly negative) (traditional mode).

@@ -47,13 +47,10 @@ import (
 //
 // Multi-dimensional arrays are desugared into nested array types.
 // PRE: curToken is ARRAY (traditional) OR cursor is on ARRAY (cursor)
-// POST: curToken is SEMICOLON (traditional) OR cursor is on SEMICOLON (cursor)
-// Dispatcher: delegates to cursor or traditional mode
+// POST: cursor is on SEMICOLON
+// Task 2.7.9: Cursor mode is now the only mode - dispatcher removed.
 func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.ArrayDecl {
-	if p.useCursor {
-		return p.parseArrayDeclarationCursor(nameIdent, typeToken)
-	}
-	return p.parseArrayDeclarationTraditional(nameIdent, typeToken)
+	return p.parseArrayDeclarationCursor(nameIdent, typeToken)
 }
 
 // parseArrayDeclarationTraditional parses array declaration using traditional mode.
@@ -253,13 +250,21 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 
 	// Expect ']'
 	if !p.expectPeek(lexer.RBRACK) {
+		// Task 2.7.7: Dual-mode - get peek token for error reporting
+		var peekTok lexer.Token
+		if p.cursor != nil {
+			peekTok = p.cursor.Peek(1)
+		} else {
+			peekTok = p.peekToken
+		}
+
 		// Use structured error for missing closing bracket
 		err := NewStructuredError(ErrKindMissing).
 			WithCode(ErrMissingRBracket).
 			WithMessage("expected ']' to close array index").
-			WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+			WithPosition(peekTok.Pos, peekTok.Length()).
 			WithExpected(lexer.RBRACK).
-			WithActual(p.peekToken.Type, p.peekToken.Literal).
+			WithActual(peekTok.Type, peekTok.Literal).
 			WithSuggestion("add ']' to close the array index").
 			WithRelatedPosition(lbrackToken.Pos, "opening '[' here").
 			WithParsePhase("array index expression").
@@ -429,6 +434,20 @@ func (p *Parser) parseArrayLiteralCursor() ast.Expression {
 		// Unexpected token between elements
 		p.addError(fmt.Sprintf("expected ',' or ']', got %s", nextToken.Type), ErrUnexpectedToken)
 		return nil
+	}
+
+	// Determine if this should be treated as a set literal (all elements are identifiers or ranges)
+	if shouldParseAsSetLiteral(elements) {
+		setLit := &ast.SetLiteral{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token:  lbrackToken,
+					EndPos: p.cursor.Current().End(),
+				},
+			},
+			Elements: elements,
+		}
+		return setLit
 	}
 
 	return &ast.ArrayLiteralExpression{
