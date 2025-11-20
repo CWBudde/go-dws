@@ -85,9 +85,9 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - [ ] **2.8.2a**: Add tests for OptionalTypeAnnotation, StatementBlock, ParameterGroup combinators
   - Estimated: 2-3 hours
 
-- [x] **2.8.3**: Add tests for untested parsing functions
-  - Test parseClassDeclaration edge cases
-  - Test parseInt with various inputs
+- [ ] **2.8.3**: Add tests for untested parsing functions
+  - [ ] Test parseClassDeclaration edge cases
+  - [x] Test parseInt with various inputs
   - Estimated: 2-4 hours
 
 **Target**: 85%+ coverage (currently 73.4%, need +11.6%)
