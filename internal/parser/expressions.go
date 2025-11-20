@@ -1769,7 +1769,10 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 	p.cursor = p.cursor.Advance()
 
 	// Parse dimension sizes (comma-separated)
-	dimensions := p.parseExpressionList(lexer.RBRACK)
+	dimensions, ok := p.parseArrayDimensions(lexer.RBRACK)
+	if !ok {
+		return nil
+	}
 
 	return &ast.NewArrayExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -1779,6 +1782,57 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 		},
 		ElementTypeName: elementTypeName,
 		Dimensions:      dimensions,
+	}
+}
+
+// parseArrayDimensions parses the dimension list for a 'new' array expression.
+// It disallows empty brackets and trailing commas to ensure each dimension
+// has a corresponding expression.
+// PRE: cursor is on '['
+// POST: cursor is on ']'
+func (p *Parser) parseArrayDimensions(end lexer.TokenType) ([]ast.Expression, bool) {
+	dimensions := []ast.Expression{}
+
+	// Empty brackets are not allowed
+	if p.cursor.Peek(1).Type == end {
+		p.addError("expected expression for array dimension", ErrInvalidExpression)
+		p.cursor = p.cursor.Advance() // consume ']'
+		return dimensions, false
+	}
+
+	// Move to first dimension
+	p.cursor = p.cursor.Advance()
+
+	for {
+		// Parse dimension expression
+		expr := p.parseExpression(LOWEST)
+		if expr == nil {
+			return dimensions, false
+		}
+		dimensions = append(dimensions, expr)
+
+		nextToken := p.cursor.Peek(1)
+		switch nextToken.Type {
+		case lexer.COMMA:
+			p.cursor = p.cursor.Advance() // move to ','
+
+			// Trailing comma before closing bracket is invalid
+			if p.cursor.Peek(1).Type == end {
+				p.addError("expected expression for array dimension", ErrInvalidExpression)
+				p.cursor = p.cursor.Advance() // consume ']'
+				return dimensions, false
+			}
+
+			p.cursor = p.cursor.Advance() // move to next dimension
+
+		case end:
+			p.cursor = p.cursor.Advance() // consume ']'
+			return dimensions, true
+
+		default:
+			p.addError(fmt.Sprintf("expected ',' or '%s', got %s", end, nextToken.Type), ErrUnexpectedToken)
+			return dimensions, false
+		}
 	}
 }
 

@@ -534,7 +534,7 @@ func TestParseOperatorDeclaration_Errors(t *testing.T) {
 		{
 			name:          "missing operand types",
 			input:         `operator + : String uses Foo;`,
-			expectedError: "expected next token to be LPAREN",
+			expectedError: "expected '(' after operator symbol",
 		},
 		{
 			name:          "empty operand list",

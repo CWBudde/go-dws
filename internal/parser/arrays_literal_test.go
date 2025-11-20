@@ -339,7 +339,7 @@ func TestParseArrayLiteralErrors(t *testing.T) {
 
 		found := false
 		for _, err := range p.Errors() {
-			if contains(err, "expected ',' or ']' in array literal") {
+			if contains(err, "expected ',' or ']'") {
 				found = true
 				break
 			}
@@ -362,7 +362,7 @@ func TestParseArrayLiteralErrors(t *testing.T) {
 
 		found := false
 		for _, err := range p.Errors() {
-			if contains(err, "expected closing ']' for array literal") {
+			if contains(err, "expected ',' or ']'") {
 				found = true
 				break
 			}

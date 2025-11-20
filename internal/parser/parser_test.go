@@ -26,12 +26,12 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:          "missing semicolon after var declaration",
 			input:         "var x: Integer",
-			expectedError: "expected next token to be SEMICOLON",
+			expectedError: "expected ';' after variable declaration",
 		},
 		{
 			name:          "unclosed parentheses",
 			input:         "(3 + 5",
-			expectedError: "expected next token to be RPAREN",
+			expectedError: "expected ')', got EOF",
 		},
 		{
 			name:          "invalid prefix operator",
@@ -41,7 +41,7 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:          "missing identifier in var declaration",
 			input:         "var ;",
-			expectedError: "expected next token to be IDENT",
+			expectedError: "expected identifier in var declaration",
 		},
 		{
 			name:          "missing expression in if condition",
@@ -51,12 +51,12 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:          "missing then keyword in if",
 			input:         "if x > 0 x := 1;",
-			expectedError: "expected next token to be THEN",
+			expectedError: "expected 'then' after if condition",
 		},
 		{
 			name:          "missing do keyword in while",
 			input:         "while x < 10 x := x + 1;",
-			expectedError: "expected next token to be DO",
+			expectedError: "expected 'do' after while condition",
 		},
 		{
 			name:          "missing until keyword in repeat",
@@ -66,12 +66,12 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:          "missing identifier in for loop",
 			input:         "for := 1 to 10 do PrintLn(i);",
-			expectedError: "expected next token to be IDENT",
+			expectedError: "expected identifier after 'for'",
 		},
 		{
 			name:          "missing assign in for loop",
 			input:         "for i = 1 to 10 do PrintLn(i);",
-			expectedError: "expected next token to be ASSIGN",
+			expectedError: "expected ':=' after for loop variable",
 		},
 		{
 			name:          "missing direction in for loop",
@@ -86,12 +86,12 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:          "missing of keyword in case",
 			input:         "case x 1: x := 1; end;",
-			expectedError: "expected next token to be OF",
+			expectedError: "expected 'of' after case expression",
 		},
 		{
 			name:          "missing colon in case branch",
 			input:         "case x of 1 x := 1; end;",
-			expectedError: "expected next token to be COLON",
+			expectedError: "expected ':' after case value",
 		},
 		{
 			name:          "missing end keyword in case",

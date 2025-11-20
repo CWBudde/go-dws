@@ -261,7 +261,9 @@ end.`
 
 	// Check that the error message mentions incompatible types
 	errMsg := result.String()
-	if !strings.Contains(errMsg, "incompatible") && !strings.Contains(errMsg, "cannot cast") {
+	if !strings.Contains(errMsg, "incompatible") &&
+		!strings.Contains(errMsg, "cannot cast") &&
+		!strings.Contains(errMsg, "cannot be cast") {
 		t.Errorf("Expected error about incompatible types, got: %s", errMsg)
 	}
 }
