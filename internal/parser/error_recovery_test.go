@@ -504,9 +504,9 @@ func TestNewErrorRecovery(t *testing.T) {
 // TestGetSyncTokens tests synchronization token sets
 func TestGetSyncTokens(t *testing.T) {
 	tests := []struct {
-		name     string
-		set      SynchronizationSet
-		contains []lexer.TokenType
+		name        string
+		set         SynchronizationSet
+		contains    []lexer.TokenType
 		shouldBeNil bool
 	}{
 		{
@@ -589,7 +589,7 @@ func TestSynchronizeOn(t *testing.T) {
 		},
 		{
 			name:       "reach EOF without finding token",
-			input:      "10 + 20",  // Only numbers and operators, no sync points
+			input:      "10 + 20", // Only numbers and operators, no sync points
 			syncTokens: []lexer.TokenType{lexer.THEN},
 			shouldFind: false,
 		},
@@ -622,11 +622,11 @@ func TestSynchronizeOn(t *testing.T) {
 // TestSynchronizeOnSet tests synchronization with predefined sets
 func TestSynchronizeOnSet(t *testing.T) {
 	tests := []struct {
-		name              string
-		input             string
-		set               SynchronizationSet
-		additionalTokens  []lexer.TokenType
-		shouldFind        bool
+		name             string
+		input            string
+		set              SynchronizationSet
+		additionalTokens []lexer.TokenType
+		shouldFind       bool
 	}{
 		{
 			name:       "sync on statement starters",
@@ -855,23 +855,23 @@ func TestTryRecover(t *testing.T) {
 // TestExpectWithRecovery tests combined expect and recovery
 func TestExpectWithRecovery(t *testing.T) {
 	tests := []struct {
-		name       string
-		input      string
-		expected   lexer.TokenType
-		context    string
-		syncTokens []lexer.TokenType
+		name          string
+		input         string
+		expected      lexer.TokenType
+		context       string
+		syncTokens    []lexer.TokenType
 		shouldSucceed bool
 	}{
 		{
 			name:          "successful expect",
-			input:         "x then",  // Need something before THEN so THEN is in peek position
+			input:         "x then", // Need something before THEN so THEN is in peek position
 			expected:      lexer.THEN,
 			context:       "test",
 			shouldSucceed: true,
 		},
 		{
 			name:          "failed expect with recovery",
-			input:         "invalid other then",  // THEN is not in peek position (peek is "other")
+			input:         "invalid other then", // THEN is not in peek position (peek is "other")
 			expected:      lexer.THEN,
 			context:       "test",
 			syncTokens:    []lexer.TokenType{lexer.THEN},
@@ -907,29 +907,29 @@ func TestExpectWithRecovery(t *testing.T) {
 // TestExpectOneOf tests expecting one of multiple tokens
 func TestExpectOneOf(t *testing.T) {
 	tests := []struct {
-		name       string
-		input      string
-		expected   []lexer.TokenType
-		context    string
+		name        string
+		input       string
+		expected    []lexer.TokenType
+		context     string
 		shouldMatch lexer.TokenType
 	}{
 		{
 			name:        "match first option",
-			input:       "x if",  // Need something before so IF is in peek position
+			input:       "x if", // Need something before so IF is in peek position
 			expected:    []lexer.TokenType{lexer.IF, lexer.WHILE},
 			context:     "test",
 			shouldMatch: lexer.IF,
 		},
 		{
 			name:        "match second option",
-			input:       "x while",  // Need something before so WHILE is in peek position
+			input:       "x while", // Need something before so WHILE is in peek position
 			expected:    []lexer.TokenType{lexer.IF, lexer.WHILE},
 			context:     "test",
 			shouldMatch: lexer.WHILE,
 		},
 		{
 			name:        "no match",
-			input:       "x invalid",  // Need something before so IDENT is in peek position
+			input:       "x invalid", // Need something before so IDENT is in peek position
 			expected:    []lexer.TokenType{lexer.IF, lexer.WHILE},
 			context:     "test",
 			shouldMatch: lexer.ILLEGAL,
@@ -1028,7 +1028,7 @@ func TestIsAtSyncPoint(t *testing.T) {
 		},
 		{
 			name:     "at number (not sync point)",
-			input:    "42 + 10",  // Numbers and operators are not sync points
+			input:    "42 + 10", // Numbers and operators are not sync points
 			skipTo:   0,
 			expected: false,
 		},
