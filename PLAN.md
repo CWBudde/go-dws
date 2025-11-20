@@ -232,11 +232,16 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
       - [x] Add VM initializer tests (vm_initializer_test.go)
         - executeInitializer with field initializer execution
       - **Current Status**: Package coverage 63.5% → 72.5% (+9.0%, need 7.5% more for 80%)
-    - [ ] 3.1.3.6 Improve semantic analyzer coverage (60.4% → 80%+)
-      - Test all type checking paths
-      - Test error detection for invalid constructs
-      - Test symbol table edge cases
-      - **Current Status**: Package coverage 60.4% → 60.2% (stable, need 19.8% more)
+    - [x] 3.1.3.6 Improve semantic analyzer coverage (60.2% → 62.4%)
+      - Added coverage tests for built-in convert functions (9 functions: 0% → 84-100%)
+        - analyzeDefault, analyzeStrToIntDef, analyzeStrToFloatDef, analyzeTryStrToInt
+        - analyzeTryStrToFloat, analyzeHexToInt, analyzeBinToInt, analyzeVarToIntDef, analyzeVarToFloatDef
+      - Added coverage tests for built-in encoding functions (5 functions: 0% → 85-100%)
+        - analyzeStrToHtml, analyzeStrToHtmlAttribute, analyzeStrToJSON, analyzeStrToCSSText, analyzeStrToXML
+      - Added coverage tests for type resolution functions
+        - resolveClassOfTypeNode (0% → 70%)
+      - **Current Status**: Package coverage 60.2% → 62.4% (+2.2%, need 17.6% more for 80%)
+      - **Test Files Added**: analyze_builtin_convert_coverage_test.go, analyze_builtin_encoding_coverage_test.go, type_resolution_coverage_test.go
   - Estimated: 1-2 weeks
   - Acceptance: Coverage report shows 80%+ overall, 80%+ on all core packages
   - **Note**: Deferred - fixing failing tests is better done after architecture improvements

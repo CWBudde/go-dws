@@ -365,12 +365,7 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 	builder := p.StartNode()
 
-	var lparenTok lexer.Token
-	if p.cursor != nil {
-		lparenTok = p.cursor.Current()
-	} else {
-		lparenTok = p.cursor.Current()
-	}
+	lparenTok := p.cursor.Current()
 
 	recordLit := &ast.RecordLiteralExpression{
 		BaseNode: ast.BaseNode{Token: lparenTok}, // '(' token
@@ -392,12 +387,7 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 		// Check if this is named field initialization (Name: Value)
 		// We need to look ahead to see if there's a colon
 		if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON) {
-			var fieldNameToken lexer.Token
-			if p.cursor != nil {
-				fieldNameToken = p.cursor.Current()
-			} else {
-				fieldNameToken = p.cursor.Current()
-			}
+			fieldNameToken := p.cursor.Current()
 
 			// Named field initialization
 			fieldName := &ast.Identifier{

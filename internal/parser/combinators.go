@@ -586,12 +586,7 @@ func (p *Parser) IdentifierList(config IdentifierListConfig) []*ast.Identifier {
 				context = "identifier list"
 			}
 
-			var curTok lexer.Token
-			if p.cursor != nil {
-				curTok = p.cursor.Current()
-			} else {
-				curTok = p.cursor.Current()
-			}
+			curTok := p.cursor.Current()
 
 			err := NewStructuredError(ErrKindMissing).
 				WithCode(ErrExpectedIdent).
@@ -612,12 +607,7 @@ func (p *Parser) IdentifierList(config IdentifierListConfig) []*ast.Identifier {
 
 	// Parse identifiers separated by commas
 	for {
-		var curTok lexer.Token
-		if p.cursor != nil {
-			curTok = p.cursor.Current()
-		} else {
-			curTok = p.cursor.Current()
-		}
+		curTok := p.cursor.Current()
 
 		identifiers = append(identifiers, &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
@@ -686,12 +676,7 @@ type StatementBlockConfig struct {
 func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement {
 	builder := p.StartNode()
 
-	var curTok lexer.Token
-	if p.cursor != nil {
-		curTok = p.cursor.Current()
-	} else {
-		curTok = p.cursor.Current()
-	}
+	curTok := p.cursor.Current()
 
 	block := &ast.BlockStatement{
 		BaseNode:   ast.BaseNode{Token: curTok},
@@ -755,12 +740,7 @@ func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement
 		}
 
 		if !hitAdditionalTerm {
-			var curTok lexer.Token
-			if p.cursor != nil {
-				curTok = p.cursor.Current()
-			} else {
-				curTok = p.cursor.Current()
-			}
+			curTok := p.cursor.Current()
 
 			err := NewStructuredError(ErrKindMissing).
 				WithCode(ErrUnexpectedToken).
@@ -835,12 +815,7 @@ func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 
 		// Check for mutually exclusive modifiers
 		if (isLazy && byRef) || (isConst && byRef) || (isConst && isLazy) {
-			var curTok lexer.Token
-			if p.cursor != nil {
-				curTok = p.cursor.Current()
-			} else {
-				curTok = p.cursor.Current()
-			}
+			curTok := p.cursor.Current()
 
 			err := NewStructuredError(ErrKindInvalid).
 				WithCode(ErrInvalidSyntax).
@@ -881,12 +856,7 @@ func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 	if config.AllowDefaults && p.peekTokenIs(lexer.EQ) {
 		// Validate that optional parameters don't have modifiers (lazy, var, const)
 		if isLazy || byRef || isConst {
-			var curTok lexer.Token
-			if p.cursor != nil {
-				curTok = p.cursor.Current()
-			} else {
-				curTok = p.cursor.Current()
-			}
+			curTok := p.cursor.Current()
 
 			err := NewStructuredError(ErrKindInvalid).
 				WithCode(ErrInvalidSyntax).
@@ -903,12 +873,7 @@ func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 		p.nextToken() // move past '='
 		defaultValue = p.parseExpression(LOWEST)
 		if defaultValue == nil {
-			var curTok lexer.Token
-			if p.cursor != nil {
-				curTok = p.cursor.Current()
-			} else {
-				curTok = p.cursor.Current()
-			}
+			curTok := p.cursor.Current()
 
 			err := NewStructuredError(ErrKindMissing).
 				WithCode(ErrInvalidExpression).
