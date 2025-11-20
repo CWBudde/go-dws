@@ -252,36 +252,78 @@ Final cleanup and modernization:
 
 ---
 
-#### Task 2.7.6: Remaining Work
+#### Task 2.7.6: Fix Parser Test Regressions (24h) ⏳
 
-**Goal**: Complete final validation and address any remaining gaps.
+**Goal**: Fix all parser test failures introduced during cursor migration from traditional parser.
 
-**Pending Items**:
+**Context**: At commit `1747aea` (2025-11-18), all parser tests were passing. After completing the cursor-only migration (tasks 2.7.1-2.7.5), 34 parser tests are now failing. These failures indicate bugs introduced during the conversion from the traditional token-based parser to the cursor-based parser.
 
-- [ ] **Comprehensive Test Pass** (12h)
-  - Run complete fixture test suite (~2,100 DWScript tests)
-  - Verify all unit tests pass with cursor-only mode
-  - Performance benchmarking vs baseline
-  - Integration testing with real-world DWScript code
-  - **Current status**: Basic tests passing, fixture suite not yet run
+**Current Status**: 34 failing tests across 8 functional areas
 
-- [ ] **Performance Validation** (8h)
-  - Benchmark cursor operations vs original baseline
-  - Profile hot paths and optimize if needed
-  - Verify <5% overhead target maintained
-  - Document performance characteristics
-  - **Current status**: Basic benchmarks show good performance, comprehensive profiling pending
+**Subtasks**:
 
-- [ ] **Documentation Updates** (8h)
-  - Update CLAUDE.md with cursor-only architecture
-  - Document cursor patterns and best practices
-  - Update parser extension guide
-  - Create migration retrospective
-  - **Current status**: Implementation-focused docs complete, architectural docs need updates
+- [ ] **2.7.6.1: Fix Peek/Lookahead Semantics** (4h)
+  - **Tests failing**: `TestPeekHelper` (5 subtests), `TestPeekConsistency`
+  - **Issue**: `peek(n)` offset is incorrect - `peek(0)` returns wrong token relative to cursor position
+  - **Root cause**: Likely off-by-one error in cursor.Peek() implementation or misunderstanding of peek semantics between traditional parser (peek relative to peekToken) vs cursor parser (peek relative to current position)
+  - **Files**: `internal/parser/cursor.go`, `internal/parser/lookahead_test.go`
 
-**Total Remaining**: ~28 hours
+- [ ] **2.7.6.2: Fix Partial Class Parsing** (3h)
+  - **Tests failing**: `TestPartialClassDeclaration`, `TestMultiplePartialClassDeclarations`, `TestPartialClassWithParent`, `TestPartialClassString`, `TestPartialClassWithAbstract` (5 tests)
+  - **Issue**: Parser doesn't recognize `PARTIAL` keyword in type declarations after `=`
+  - **Error**: "expected 'class', 'interface', 'enum', 'record'... after '=' in type declaration" / "no prefix parse function for PARTIAL found"
+  - **Root cause**: Partial class parsing logic not ported to cursor implementation or parseTypeDeclaration() doesn't handle PARTIAL modifier
+  - **Files**: `internal/parser/classes.go`, `internal/parser/types.go`
 
-**Notes**: Core migration is functionally complete. Remaining work is validation, optimization, and documentation to ensure production readiness.
+- [ ] **2.7.6.3: Fix Subrange Type Parsing** (3h)
+  - **Tests failing**: `TestParseSubrangeType` (5 subtests), `TestParseMultipleSubrangeTypes`, `TestParseMixedTypeDeclarations`
+  - **Issue**: Parser doesn't handle subrange syntax (e.g., `type Digit = 0..9;`)
+  - **Error**: "expected 'class', 'interface'... after '=' in type declaration" / "no prefix parse function for DOTDOT found"
+  - **Root cause**: Subrange type parsing (integer..integer) not implemented in cursor-based type parser
+  - **Files**: `internal/parser/types.go`
+
+- [ ] **2.7.6.4: Fix Record Declaration Parsing** (4h)
+  - **Tests failing**: `TestParseRecordDeclaration`, `TestParseRecordWithVisibility`, `TestParseRecordWithMethods`, `TestParseRecordWithProperties`, `TestRecordFieldInitializerWithEquals`, `TestRecordFieldWithoutInitializer`, `TestDualMode_TypeDeclarations/record_declaration`
+  - **Issue**: Record field parsing broken - "expected 'record' keyword" / "no prefix parse function for COMMA found"
+  - **Root cause**: Record member parsing likely has cursor position management issue when parsing field lists with commas
+  - **Files**: `internal/parser/records.go`
+
+- [ ] **2.7.6.5: Fix Helper Declaration Parsing** (3h)
+  - **Tests failing**: `TestParseHelperDeclaration` (3 subtests), `TestParseHelperErrors`, `TestParseRecordVsHelper` (2 subtests), `TestParseHelperInheritance`
+  - **Issue**: Helper declaration parsing broken (helper types extend other types)
+  - **Root cause**: Helper parsing logic not correctly ported to cursor implementation
+  - **Files**: `internal/parser/helpers.go`, `internal/parser/types.go`
+
+- [ ] **2.7.6.6: Fix Lambda Expression Parsing** (4h)
+  - **Tests failing**: `TestParseLambdaExpressions`, `TestParseLambdaInExpressionContext`, `TestParseLambdaEdgeCases`, `TestParseLambdaComplexCases`
+  - **Issue**: Lambda expressions (anonymous functions) not parsing correctly
+  - **Root cause**: Lambda parsing (both shorthand `x => expr` and full `function(x) begin ... end`) likely has issues with cursor state management during parameter list parsing
+  - **Files**: `internal/parser/functions.go` or dedicated lambda parser
+
+- [ ] **2.7.6.7: Fix Error Handling Tests** (3h)
+  - **Tests failing**: `TestParseArrayLiteralErrors` (2 subtests), `TestParseNewArrayExpressionErrors` (4 subtests), `TestParseConstDeclarationErrors`, `TestParseOperatorDeclaration_Errors`, `TestParserErrors`
+  - **Issue**: Error message text has changed, error detection missing for some invalid syntax
+  - **Examples**: Expected "expected next token to be RBRACK" but got "expected ',' or 'RBRACK'", some errors not detected at all (empty brackets, trailing commas)
+  - **Root cause**: Cursor-based error reporting may use different messages, or error checks were lost during migration
+  - **Files**: Various parser files, error handling in cursor methods
+
+- [ ] **2.7.6.8: Fix Miscellaneous Parsing Issues** (3h)
+  - **Tests failing**: `TestContextualKeywordStep`, `TestOverloadDirectiveComprehensive`, `TestParseSeparatedList_TrailingSeparatorNoTerminator`, `TestMultipleTypeDeclarationsInOneTypeSection`
+  - **Issue**: Various edge cases and contextual keyword handling
+  - **Root cause**: Context-aware parsing logic (keywords that can be identifiers) may have been lost
+  - **Files**: `internal/parser/combinators.go`, `internal/parser/types.go`, `internal/parser/functions.go`
+
+**Verification**:
+- After each subtask, run: `go test ./internal/parser -v -run <TestName>`
+- Final validation: `go test ./internal/parser` should show 0 failures
+- Compare against baseline commit `1747aea` to ensure parity
+
+**Total Estimate**: 24 hours
+
+**Notes**:
+- Priority order: Fix peek semantics first (2.7.6.1) as it may be causing cascading failures
+- Use git diff between current code and commit `1747aea` to identify what changed in each parsing function
+- Consider using git bisect if needed to find exact commit where each test started failing
 
 ### Phase 2.8: Optimization & Polish (Weeks 18-19, 80 hours)
 
