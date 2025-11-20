@@ -644,9 +644,7 @@ func (p *Parser) LexerErrors() []lexer.LexerError {
 
 // nextToken advances the cursor.
 func (p *Parser) nextToken() {
-	if p.cursor != nil {
-		p.cursor = p.cursor.Advance()
-	}
+	p.cursor = p.cursor.Advance()
 }
 
 // curTokenIs checks if the current token is of the given type.
