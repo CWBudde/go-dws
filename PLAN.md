@@ -76,11 +76,14 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - Test synchronization behavior
   - Estimated: 8-12 hours
 
-- [x] **2.8.2**: Add tests for untested combinators (Target: 90%+ coverage)
-  - Test BetweenStatement, TryParseStatement
-  - Test Peek*Is lookahead helpers
-  - Test OptionalTypeAnnotation, StatementBlock, ParameterGroup
+- [~] **2.8.2**: Add tests for untested combinators (Target: 90%+ coverage)
+  - ✅ Test BetweenStatement, TryParseStatement
+  - ✅ Test Peek*Is lookahead helpers
+  - ❌ Test OptionalTypeAnnotation, StatementBlock, ParameterGroup (not yet implemented)
   - Estimated: 4-6 hours
+  - **Note:** Remaining combinator tests for OptionalTypeAnnotation, StatementBlock, and ParameterGroup to be added in follow-up task.
+- [ ] **2.8.2a**: Add tests for OptionalTypeAnnotation, StatementBlock, ParameterGroup combinators
+  - Estimated: 2-3 hours
 
 - [x] **2.8.3**: Add tests for untested parsing functions
   - Test parseClassDeclaration edge cases
