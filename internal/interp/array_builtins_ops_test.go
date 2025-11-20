@@ -1136,7 +1136,7 @@ begin
 	a[3] := 2;
 	a[4] := 5;
 
-	Sort(a, lambda (x, y): Integer => x - y);  // Ascending
+	Sort(a, lambda (x: Integer; y: Integer): Integer => x - y);  // Ascending
 
 	// After sort: [1, 2, 3, 4, 5]
 	if a[0] <> 1 then PrintLn('FAIL: a[0]');
@@ -1173,7 +1173,7 @@ begin
 	a[3] := 2;
 	a[4] := 5;
 
-	Sort(a, lambda (x, y): Integer => y - x);  // Descending
+	Sort(a, lambda (x: Integer; y: Integer): Integer => y - x);  // Descending
 
 	// After sort: [5, 4, 3, 2, 1]
 	if a[0] <> 5 then PrintLn('FAIL: a[0]');
@@ -1210,7 +1210,7 @@ begin
 	a[3] := 'cat';
 
 	// Sort by string length: shorter strings first
-	Sort(a, lambda (x, y): Integer => Length(x) - Length(y));
+	Sort(a, lambda (x: String; y: String): Integer => Length(x) - Length(y));
 
 	// After sort by length: ['hi', 'cat', 'apple', 'banana']
 	if a[0] <> 'hi' then PrintLn('FAIL: a[0]');
@@ -1292,7 +1292,7 @@ var a: TIntArray;
 begin
 	SetLength(a, 3);
 	a[0] := 3; a[1] := 1; a[2] := 2;
-	Sort(a, lambda (x, y, z) => x - y);
+	Sort(a, lambda (x: Integer; y: Integer; z: Integer) => x - y);
 end
 			`,
 			expectedErr: "comparator must accept 2 parameters",
@@ -1305,7 +1305,7 @@ var a: TIntArray;
 begin
 	SetLength(a, 3);
 	a[0] := 3; a[1] := 1; a[2] := 2;
-	Sort(a, lambda (x) => x);
+	Sort(a, lambda (x: Integer) => x);
 end
 			`,
 			expectedErr: "comparator must accept 2 parameters",
@@ -1318,7 +1318,7 @@ var a: TIntArray;
 begin
 	SetLength(a, 3);
 	a[0] := 3; a[1] := 1; a[2] := 2;
-	Sort(a, lambda (x, y) => 'string');  // Returns String instead of Integer
+	Sort(a, lambda (x: Integer; y: Integer) => 'string');  // Returns String instead of Integer
 end
 			`,
 			expectedErr: "comparator must return Integer",
@@ -1344,7 +1344,7 @@ var a: TIntArray;
 begin
 	SetLength(a, 3);
 	a[0] := 3; a[1] := 1; a[2] := 2;
-	Sort(a, lambda (x, y) => x - y, 42);  // 3 arguments
+	Sort(a, lambda (x: Integer; y: Integer) => x - y, 42);  // 3 arguments
 end
 			`,
 			expectedErr: "expects 1 or 2 arguments",
@@ -1374,7 +1374,7 @@ type TIntArray = array of Integer;
 var a: TIntArray;
 begin
 	SetLength(a, 0);
-	Sort(a, lambda (x, y): Integer => x - y);  // Should handle empty array gracefully
+	Sort(a, lambda (x: Integer; y: Integer): Integer => x - y);  // Should handle empty array gracefully
 	Length(a);  // Return length (should be 0)
 end
 	`
@@ -1398,7 +1398,7 @@ var a: TIntArray;
 begin
 	SetLength(a, 1);
 	a[0] := 42;
-	Sort(a, lambda (x, y): Integer => x - y);  // Should handle single element gracefully
+	Sort(a, lambda (x: Integer; y: Integer): Integer => x - y);  // Should handle single element gracefully
 	a[0];  // Return element
 end
 	`
