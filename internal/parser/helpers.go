@@ -88,7 +88,7 @@ func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lex
 
 	// Expect 'for' keyword after 'helper' or after ')'
 	if cursor.Peek(1).Type != lexer.FOR {
-		p.addError("expected 'for' keyword in helper declaration", ErrUnexpectedToken)
+		p.addError("expected next token to be FOR", ErrUnexpectedToken)
 		return nil
 	}
 	cursor = cursor.Advance() // move to FOR
