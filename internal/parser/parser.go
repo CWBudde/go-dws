@@ -668,7 +668,10 @@ func (p *Parser) peekTokenIs(t lexer.TokenType) bool {
 //   - To look 2 tokens ahead of curToken: p.peek(0).Type == lexer.COLON
 //   - To look 3 tokens ahead of curToken: p.peek(1).Type == lexer.ASSIGN
 func (p *Parser) peek(n int) lexer.Token {
-	return p.l.Peek(n)
+	// peek(n) returns the token N positions after peekToken.
+	// Since cursor.Peek(0) = curToken and cursor.Peek(1) = peekToken,
+	// peek(n) should return cursor.Peek(n + 2).
+	return p.cursor.Peek(n + 2)
 }
 
 // peekAhead is an alternative helper that looks N tokens ahead from curToken.

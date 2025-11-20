@@ -542,8 +542,8 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 	// Parse identifier list (name1, name2, name3)
 	names := []*ast.Identifier{}
 
-	// First identifier
-	if cursor.Current().Type != lexer.IDENT {
+	// First identifier (allow contextual keywords like STEP)
+	if !p.isIdentifierToken(cursor.Current().Type) {
 		p.addError("expected parameter name", ErrExpectedIdent)
 		return nil
 	}
@@ -564,7 +564,7 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 		cursor = cursor.Advance() // move past comma
 		p.cursor = cursor
 
-		if cursor.Current().Type != lexer.IDENT {
+		if !p.isIdentifierToken(cursor.Current().Type) {
 			p.addError("expected parameter name after ','", ErrExpectedIdent)
 			return nil
 		}
@@ -580,23 +580,23 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 		names = append(names, name)
 	}
 
-	// Expect ':' and type
-	if cursor.Peek(1).Type != lexer.COLON {
-		p.addError("expected ':' after parameter name(s)", ErrMissingColon)
-		return nil
-	}
-	cursor = cursor.Advance() // move to ':'
-	cursor = cursor.Advance() // move past ':' to type expression
-	p.cursor = cursor
+	// Check for ':' and type (optional for lambda parameters)
+	var typeExpr ast.TypeExpression
+	if cursor.Peek(1).Type == lexer.COLON {
+		cursor = cursor.Advance() // move to ':'
+		cursor = cursor.Advance() // move past ':' to type expression
+		p.cursor = cursor
 
-	typeExpr := p.parseTypeExpression()
-	if typeExpr == nil {
-		// Error already reported by parseTypeExpression
-		return nil
-	}
+		typeExpr = p.parseTypeExpression()
+		if typeExpr == nil {
+			// Error already reported by parseTypeExpression
+			return nil
+		}
 
-	// Update cursor after type parsing
-	cursor = p.cursor
+		// Update cursor after type parsing
+		cursor = p.cursor
+	}
+	// If no colon, typeExpr remains nil (valid for lambda parameters)
 
 	// Parse optional default value
 	var defaultValue ast.Expression

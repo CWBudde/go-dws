@@ -8,20 +8,17 @@ import (
 // parseRecordOrHelperDeclaration determines if this is a record or helper declaration (dispatcher).
 
 // Called when we see 'type Name = record' - need to check if followed by 'helper'.
-// Current token is positioned at '=' and peek token is 'record'.
-// PRE: cursor is EQ, peekToken is RECORD
+// PRE: cursor is RECORD (already advanced in parseSingleTypeDeclaration)
 // POST: cursor is SEMICOLON
 func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
 	builder := p.StartNode()
 	cursor := p.cursor
 
-	// Expect RECORD token
-	if cursor.Peek(1).Type != lexer.RECORD {
+	// Cursor should already be on RECORD token
+	if cursor.Current().Type != lexer.RECORD {
 		p.addError("expected 'record' keyword", ErrUnexpectedToken)
 		return nil
 	}
-	cursor = cursor.Advance() // move to RECORD
-	p.cursor = cursor
 
 	// Check if next token is HELPER
 	if cursor.Peek(1).Type == lexer.HELPER {
