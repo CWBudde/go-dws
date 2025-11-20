@@ -54,14 +54,14 @@ func NewTokenCursor(l *lexer.Lexer) *TokenCursor {
 }
 
 // Current returns the token at the current cursor position.
-// This replaces the old `p.curToken` field.
+// This replaces the old `p.cursor.Current()` field.
 func (c *TokenCursor) Current() token.Token {
 	return c.current
 }
 
 // Peek returns the token N positions ahead of the current position.
 // Peek(0) returns the current token (same as Current()).
-// Peek(1) returns the next token (replaces old `p.peekToken`).
+// Peek(1) returns the next token (replaces old `p.cursor.Peek(1)`).
 // Peek(2) returns the token after next, etc.
 //
 // This method buffers tokens as needed to support arbitrary lookahead.

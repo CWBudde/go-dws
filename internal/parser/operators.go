@@ -14,95 +14,12 @@ import (
 //	operator implicit (Integer) : String uses IntToStr;
 //	operator in (Integer, Float) : Boolean uses DigitInFloat;
 //
-// PRE: curToken is OPERATOR
-// POST: curToken is SEMICOLON
-// Dispatcher: delegates to cursor or traditional mode
+// PRE: cursor is OPERATOR
+// POST: cursor is SEMICOLON
+
+// PRE: cursor is OPERATOR
+// POST: cursor is SEMICOLON
 func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
-	return p.parseOperatorDeclarationCursor()
-}
-
-// parseOperatorDeclarationTraditional parses operator declaration using traditional mode.
-// PRE: curToken is OPERATOR
-// POST: curToken is SEMICOLON
-func (p *Parser) parseOperatorDeclarationTraditional() *ast.OperatorDecl {
-	builder := p.StartNode()
-	decl := &ast.OperatorDecl{
-		BaseNode:   ast.BaseNode{Token: p.curToken},
-		Kind:       ast.OperatorKindGlobal,
-		Visibility: ast.VisibilityPublic,
-	}
-
-	// Advance to the operator symbol/keyword (e.g., '+', 'in', 'implicit')
-	p.nextToken()
-	if !isOperatorSymbolToken(p.curToken.Type) {
-		p.addError("expected operator symbol after 'operator'", ErrExpectedOperator)
-		return nil
-	}
-
-	decl.OperatorToken = p.curToken
-	decl.OperatorSymbol = normalizeOperatorSymbol(p.curToken)
-
-	// Conversion operators use the IMPLICIT / EXPLICIT keywords
-	if p.curToken.Type == lexer.IMPLICIT || p.curToken.Type == lexer.EXPLICIT {
-		decl.Kind = ast.OperatorKindConversion
-	}
-
-	// Parse operand type list (enclosed in parentheses)
-	if !p.expectPeek(lexer.LPAREN) {
-		return nil
-	}
-	decl.OperandTypes = p.parseOperatorOperandTypes()
-	decl.Arity = len(decl.OperandTypes)
-	if decl.Arity == 0 {
-		p.addError("operator declaration requires at least one operand type", ErrInvalidSyntax)
-		return nil
-	}
-
-	// Optional return type
-	if p.peekTokenIs(lexer.COLON) {
-		p.nextToken() // move to ':'
-		if !p.expectPeek(lexer.IDENT) {
-			p.addError("expected return type after ':' in operator declaration", ErrExpectedType)
-			return nil
-		}
-		decl.ReturnType = &ast.TypeAnnotation{
-			Token: p.curToken,
-			Name:  p.curToken.Literal,
-		}
-	}
-
-	// Expect 'uses' clause
-	if !p.expectPeek(lexer.USES) {
-		p.addError("expected 'uses' in operator declaration", ErrUnexpectedToken)
-		return nil
-	}
-	if !p.expectPeek(lexer.IDENT) {
-		p.addError("expected identifier after 'uses' in operator declaration", ErrExpectedIdent)
-		return nil
-	}
-
-	decl.Binding = &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: p.curToken,
-			},
-		},
-		Value: p.curToken.Literal,
-	}
-
-	// Expect terminating semicolon
-	if !p.expectPeek(lexer.SEMICOLON) {
-		return nil
-	}
-
-	return builder.Finish(decl).(*ast.OperatorDecl)
-}
-
-// parseOperatorDeclarationCursor parses operator declaration using cursor mode.
-// Task 2.7.1.3: Operator declaration migration
-// PRE: cursor is on OPERATOR token
-// POST: cursor is on SEMICOLON token
-func (p *Parser) parseOperatorDeclarationCursor() *ast.OperatorDecl {
 	builder := p.StartNode()
 	cursor := p.cursor
 
@@ -134,7 +51,7 @@ func (p *Parser) parseOperatorDeclarationCursor() *ast.OperatorDecl {
 	}
 	cursor = cursor.Advance() // move to '('
 	p.cursor = cursor
-	decl.OperandTypes = p.parseOperatorOperandTypesCursor()
+	decl.OperandTypes = p.parseOperatorOperandTypes()
 	cursor = p.cursor // Update cursor after helper
 	decl.Arity = len(decl.OperandTypes)
 	if decl.Arity == 0 {
@@ -194,112 +111,12 @@ func (p *Parser) parseOperatorDeclarationCursor() *ast.OperatorDecl {
 //	class operator += String uses AppendString;
 //	class operator IN array of Integer uses ContainsArray;
 //
-// PRE: curToken is OPERATOR
-// POST: curToken is SEMICOLON
-// Dispatcher: delegates to cursor or traditional mode
+// PRE: cursor is OPERATOR
+// POST: cursor is SEMICOLON
+
+// PRE: cursor is OPERATOR
+// POST: cursor is SEMICOLON
 func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibility ast.Visibility) *ast.OperatorDecl {
-	return p.parseClassOperatorDeclarationCursor(classToken, visibility)
-}
-
-// parseClassOperatorDeclarationTraditional parses class operator using traditional mode.
-// PRE: curToken is OPERATOR
-// POST: curToken is SEMICOLON
-func (p *Parser) parseClassOperatorDeclarationTraditional(classToken lexer.Token, visibility ast.Visibility) *ast.OperatorDecl {
-	builder := p.StartNode()
-	if !p.curTokenIs(lexer.OPERATOR) {
-		p.addError("expected 'operator' after 'class'", ErrUnexpectedToken)
-		return nil
-	}
-
-	decl := &ast.OperatorDecl{
-		BaseNode:   ast.BaseNode{Token: classToken},
-		Kind:       ast.OperatorKindClass,
-		Visibility: visibility,
-	}
-
-	// Advance to operator symbol
-	p.nextToken()
-	if !isOperatorSymbolToken(p.curToken.Type) {
-		p.addError("expected operator symbol after 'class operator'", ErrExpectedOperator)
-		return nil
-	}
-
-	decl.OperatorToken = p.curToken
-	decl.OperatorSymbol = normalizeOperatorSymbol(p.curToken)
-
-	// Parse operand type(s)
-	if p.peekTokenIs(lexer.LPAREN) {
-		if !p.expectPeek(lexer.LPAREN) {
-			return nil
-		}
-		decl.OperandTypes = p.parseOperatorOperandTypes()
-		decl.Arity = len(decl.OperandTypes)
-	} else {
-		if p.peekTokenIs(lexer.USES) || p.peekTokenIs(lexer.SEMICOLON) || p.peekTokenIs(lexer.COLON) {
-			p.addError("expected operand type in class operator declaration", ErrExpectedType)
-			return nil
-		}
-
-		p.nextToken() // move to first operand token
-		operand, ok := p.parseTypeExpressionUntil(func(tt lexer.TokenType) bool {
-			return tt == lexer.USES || tt == lexer.COLON || tt == lexer.SEMICOLON
-		})
-		if !ok {
-			return nil
-		}
-
-		decl.OperandTypes = []ast.TypeExpression{operand}
-		decl.Arity = len(decl.OperandTypes)
-	}
-	if decl.Arity == 0 {
-		p.addError("class operator declaration requires at least one operand type", ErrInvalidSyntax)
-		return nil
-	}
-
-	// Optional return type
-	if p.peekTokenIs(lexer.COLON) {
-		p.nextToken() // move to ':'
-		p.nextToken() // move to first return type token
-		returnType, ok := p.parseTypeExpressionUntil(func(tt lexer.TokenType) bool {
-			return tt == lexer.USES || tt == lexer.SEMICOLON
-		})
-		if !ok {
-			return nil
-		}
-		decl.ReturnType = returnType
-	}
-
-	// Expect 'uses' clause
-	if !p.expectPeek(lexer.USES) {
-		p.addError("expected 'uses' in class operator declaration", ErrUnexpectedToken)
-		return nil
-	}
-	if !p.expectPeek(lexer.IDENT) {
-		p.addError("expected identifier after 'uses' in class operator declaration", ErrExpectedIdent)
-		return nil
-	}
-
-	decl.Binding = &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: p.curToken,
-			},
-		},
-		Value: p.curToken.Literal,
-	}
-
-	if !p.expectPeek(lexer.SEMICOLON) {
-		return nil
-	}
-
-	return builder.Finish(decl).(*ast.OperatorDecl)
-}
-
-// parseClassOperatorDeclarationCursor parses class operator using cursor mode.
-// Task 2.7.1.3: Class operator declaration migration
-// PRE: cursor is on OPERATOR token
-// POST: cursor is on SEMICOLON token
-func (p *Parser) parseClassOperatorDeclarationCursor(classToken lexer.Token, visibility ast.Visibility) *ast.OperatorDecl {
 	builder := p.StartNode()
 	cursor := p.cursor
 
@@ -328,7 +145,7 @@ func (p *Parser) parseClassOperatorDeclarationCursor(classToken lexer.Token, vis
 	if cursor.Peek(1).Type == lexer.LPAREN {
 		cursor = cursor.Advance() // move to '('
 		p.cursor = cursor
-		decl.OperandTypes = p.parseOperatorOperandTypesCursor()
+		decl.OperandTypes = p.parseOperatorOperandTypes()
 		cursor = p.cursor // Update cursor after helper
 		decl.Arity = len(decl.OperandTypes)
 	} else {
@@ -339,7 +156,7 @@ func (p *Parser) parseClassOperatorDeclarationCursor(classToken lexer.Token, vis
 
 		cursor = cursor.Advance() // move to first operand token
 		p.cursor = cursor
-		operand, ok := p.parseTypeExpressionUntilCursor(func(tt lexer.TokenType) bool {
+		operand, ok := p.parseTypeExpressionUntil(func(tt lexer.TokenType) bool {
 			return tt == lexer.USES || tt == lexer.COLON || tt == lexer.SEMICOLON
 		})
 		if !ok {
@@ -360,7 +177,7 @@ func (p *Parser) parseClassOperatorDeclarationCursor(classToken lexer.Token, vis
 		cursor = cursor.Advance() // move to ':'
 		cursor = cursor.Advance() // move to first return type token
 		p.cursor = cursor
-		returnType, ok := p.parseTypeExpressionUntilCursor(func(tt lexer.TokenType) bool {
+		returnType, ok := p.parseTypeExpressionUntil(func(tt lexer.TokenType) bool {
 			return tt == lexer.USES || tt == lexer.SEMICOLON
 		})
 		if !ok {
@@ -403,67 +220,12 @@ func (p *Parser) parseClassOperatorDeclarationCursor(classToken lexer.Token, vis
 
 // parseOperatorOperandTypes parses the operand type list inside parentheses.
 // Example: (String, Integer)
-// PRE: curToken is LPAREN
-// POST: curToken is RPAREN
-// Note: Helper function - uses traditional mode internally
-func (p *Parser) parseOperatorOperandTypes() []ast.TypeExpression {
-	// This helper is always called from within traditional or synced mode,
-	// so no dispatcher needed
-	operandTypes := []ast.TypeExpression{}
+// PRE: cursor is LPAREN
+// POST: cursor is RPAREN
 
-	p.nextToken() // move past '(' to first operand or ')'
-
-	for !p.curTokenIs(lexer.RPAREN) {
-
-		startToken := p.curToken
-		nameParts := []string{p.curToken.Literal}
-
-		// Collect tokens that belong to this type until ',' or ')'
-		for !p.peekTokenIs(lexer.COMMA) && !p.peekTokenIs(lexer.RPAREN) {
-			p.nextToken()
-			nameParts = append(nameParts, p.curToken.Literal)
-		}
-
-		if !p.curTokenIs(lexer.IDENT) {
-			// Allow keywords like 'array' or 'set' in operator operand types.
-			if !p.curToken.Type.IsKeyword() {
-				p.addError("expected type identifier in operator operand list", ErrExpectedType)
-				return operandTypes
-			}
-		}
-
-		operandTypes = append(operandTypes, &ast.TypeAnnotation{
-			Token: startToken,
-			Name:  strings.Join(nameParts, " "),
-		})
-
-		if p.peekTokenIs(lexer.COMMA) {
-			p.nextToken() // move to ','
-			p.nextToken() // move past ',' to next type
-			continue
-		}
-
-		if p.peekTokenIs(lexer.RPAREN) {
-			p.nextToken() // move to ')'
-			break
-		}
-
-		if p.peekTokenIs(lexer.EOF) {
-			p.addError("unterminated operator operand list", ErrMissingRParen)
-			return operandTypes
-		}
-
-		p.addError("expected ',' or ')' in operator operand list", ErrUnexpectedToken)
-		return operandTypes
-	}
-
-	return operandTypes
-}
-
-// parseOperatorOperandTypesCursor parses operator operand types using cursor mode.
 // PRE: cursor is on LPAREN token
 // POST: cursor is on RPAREN token
-func (p *Parser) parseOperatorOperandTypesCursor() []ast.TypeExpression {
+func (p *Parser) parseOperatorOperandTypes() []ast.TypeExpression {
 	operandTypes := []ast.TypeExpression{}
 	cursor := p.cursor
 
@@ -546,35 +308,12 @@ func normalizeOperatorSymbol(tok lexer.Token) string {
 
 // parseTypeExpressionUntil parses a type expression until the stop condition is met.
 // It assumes the current token is the first token of the type expression.
-// PRE: curToken is IDENT or type keyword
-// POST: curToken is last token before stop condition
-// Note: Helper function - uses traditional mode internally
-func (p *Parser) parseTypeExpressionUntil(stopFn func(lexer.TokenType) bool) (*ast.TypeAnnotation, bool) {
-	// This helper is always called from within traditional or synced mode,
-	// so no dispatcher needed
-	if p.curToken.Type != lexer.IDENT && !p.curToken.Type.IsKeyword() {
-		p.addError("expected type identifier", ErrExpectedType)
-		return nil, false
-	}
+// PRE: cursor is IDENT or type keyword
+// POST: cursor is last token before stop condition
 
-	startToken := p.curToken
-	parts := []string{p.curToken.Literal}
-
-	for !stopFn(p.peekToken.Type) {
-		p.nextToken()
-		parts = append(parts, p.curToken.Literal)
-	}
-
-	return &ast.TypeAnnotation{
-		Token: startToken,
-		Name:  strings.Join(parts, " "),
-	}, true
-}
-
-// parseTypeExpressionUntilCursor parses a type expression until the stop condition is met (cursor mode).
 // PRE: cursor is on IDENT or type keyword
 // POST: cursor is on last token before stop condition
-func (p *Parser) parseTypeExpressionUntilCursor(stopFn func(lexer.TokenType) bool) (*ast.TypeAnnotation, bool) {
+func (p *Parser) parseTypeExpressionUntil(stopFn func(lexer.TokenType) bool) (*ast.TypeAnnotation, bool) {
 	cursor := p.cursor
 
 	if cursor.Current().Type != lexer.IDENT && !cursor.Current().Type.IsKeyword() {

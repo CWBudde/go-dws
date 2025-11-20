@@ -56,10 +56,10 @@ func TestOptional(t *testing.T) {
 			}
 			// Verify token was consumed if match
 			if result && tt.expected {
-				if p.curToken.Type == tt.tokenType {
+				if p.cursor.Current().Type == tt.tokenType {
 					// Correctly consumed
 				} else {
-					t.Errorf("Token not consumed: curToken = %v", p.curToken.Type)
+					t.Errorf("Token not consumed: curToken = %v", p.cursor.Current().Type)
 				}
 			}
 		})
@@ -143,7 +143,7 @@ func TestMany(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := newTestParser(tt.input)
 			count := p.Many(func() bool {
-				if p.peekTokenIs(lexer.INT) {
+				if p.cursor.PeekIs(1, lexer.INT) {
 					p.nextToken()
 					return true
 				}
@@ -188,7 +188,7 @@ func TestMany1(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := newTestParser(tt.input)
 			count := p.Many1(func() bool {
-				if p.peekTokenIs(lexer.INT) {
+				if p.cursor.PeekIs(1, lexer.INT) {
 					p.nextToken()
 					return true
 				}
@@ -237,7 +237,7 @@ func TestManyUntil(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := newTestParser(tt.input)
 			count := p.ManyUntil(tt.terminator, func() bool {
-				if p.peekTokenIs(lexer.INT) {
+				if p.cursor.PeekIs(1, lexer.INT) {
 					p.nextToken()
 					return true
 				}
@@ -289,8 +289,8 @@ func TestChoice(t *testing.T) {
 			if result != tt.expected {
 				t.Errorf("Choice() = %v, want %v", result, tt.expected)
 			}
-			if result && p.curToken.Type != tt.matchedTok {
-				t.Errorf("Expected token %v, got %v", tt.matchedTok, p.curToken.Type)
+			if result && p.cursor.Current().Type != tt.matchedTok {
+				t.Errorf("Expected token %v, got %v", tt.matchedTok, p.cursor.Current().Type)
 			}
 		})
 	}
@@ -391,7 +391,7 @@ func TestBetween(t *testing.T) {
 				lit := &ast.IntegerLiteral{
 					Value: 42,
 				}
-				lit.Token = p.curToken
+				lit.Token = p.cursor.Current()
 				return lit
 			})
 			if (result != nil) != tt.expected {
@@ -464,7 +464,7 @@ func TestSeparatedList(t *testing.T) {
 
 			var items []int
 			tt.config.ParseItem = func() bool {
-				if p.curTokenIs(lexer.INT) {
+				if p.cursor.Is(lexer.INT) {
 					items = append(items, 1)
 					return true
 				}
@@ -505,7 +505,7 @@ func TestGuard(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := newTestParser(tt.input)
 			result := p.Guard(
-				func() bool { return p.curTokenIs(lexer.VAR) },
+				func() bool { return p.cursor.Is(lexer.VAR) },
 				func() bool {
 					p.nextToken()
 					return true
@@ -607,8 +607,8 @@ func TestSkipUntil(t *testing.T) {
 			if result != tt.expected {
 				t.Errorf("SkipUntil() = %v, want %v", result, tt.expected)
 			}
-			if p.curToken.Type != tt.finalTok {
-				t.Errorf("Final token = %v, want %v", p.curToken.Type, tt.finalTok)
+			if p.cursor.Current().Type != tt.finalTok {
+				t.Errorf("Final token = %v, want %v", p.cursor.Current().Type, tt.finalTok)
 			}
 		})
 	}
@@ -646,8 +646,8 @@ func TestSkipPast(t *testing.T) {
 			if result != tt.expected {
 				t.Errorf("SkipPast() = %v, want %v", result, tt.expected)
 			}
-			if p.curToken.Type != tt.finalTok {
-				t.Errorf("Final token = %v, want %v", p.curToken.Type, tt.finalTok)
+			if p.cursor.Current().Type != tt.finalTok {
+				t.Errorf("Final token = %v, want %v", p.cursor.Current().Type, tt.finalTok)
 			}
 		})
 	}
@@ -693,7 +693,7 @@ func TestSeparatedListMultiSep(t *testing.T) {
 				tt.separators,
 				lexer.RPAREN,
 				func() bool {
-					if p.curTokenIs(lexer.INT) {
+					if p.cursor.Is(lexer.INT) {
 						items = append(items, 1)
 						return true
 					}
@@ -734,12 +734,12 @@ func TestTryParse(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := newTestParser(tt.input)
 			result := p.TryParse(func() ast.Expression {
-				if p.curTokenIs(lexer.COLON) {
+				if p.cursor.Is(lexer.COLON) {
 					if p.expectPeek(lexer.IDENT) {
 						ident := &ast.Identifier{
-							Value: p.curToken.Literal,
+							Value: p.cursor.Current().Literal,
 						}
-						ident.Token = p.curToken
+						ident.Token = p.cursor.Current()
 						return ident
 					}
 				}
@@ -772,7 +772,7 @@ func BenchmarkMany(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		p := newTestParser(input)
 		p.Many(func() bool {
-			if p.peekTokenIs(lexer.INT) {
+			if p.cursor.PeekIs(1, lexer.INT) {
 				p.nextToken()
 				return true
 			}

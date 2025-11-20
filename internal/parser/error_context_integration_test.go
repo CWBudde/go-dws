@@ -30,7 +30,7 @@ end`
 	err := NewStructuredError(ErrKindMissing).
 		WithCode(ErrMissingEnd).
 		WithMessage("test error").
-		WithPosition(p.curToken.Pos, p.curToken.Length()).
+		WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
 		Build()
 
 	// Add the error - this should auto-inject block context
@@ -86,7 +86,7 @@ end`
 	err := NewStructuredError(ErrKindMissing).
 		WithCode(ErrMissingDo).
 		WithMessage("expected 'do' after while condition").
-		WithPosition(p.curToken.Pos, p.curToken.Length()).
+		WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
 		Build()
 
 	p.addStructuredError(err)
@@ -173,7 +173,7 @@ func TestMultipleErrorsWithDifferentContexts(t *testing.T) {
 
 	err1 := NewStructuredError(ErrKindInvalid).
 		WithMessage("error in begin").
-		WithPosition(p.curToken.Pos, 1).
+		WithPosition(p.cursor.Current().Pos, 1).
 		Build()
 	p.addStructuredError(err1)
 
@@ -182,7 +182,7 @@ func TestMultipleErrorsWithDifferentContexts(t *testing.T) {
 
 	err2 := NewStructuredError(ErrKindMissing).
 		WithMessage("error in if").
-		WithPosition(p.curToken.Pos, 1).
+		WithPosition(p.cursor.Current().Pos, 1).
 		Build()
 	p.addStructuredError(err2)
 
@@ -191,7 +191,7 @@ func TestMultipleErrorsWithDifferentContexts(t *testing.T) {
 
 	err3 := NewStructuredError(ErrKindInvalid).
 		WithMessage("error back in begin").
-		WithPosition(p.curToken.Pos, 1).
+		WithPosition(p.cursor.Current().Pos, 1).
 		Build()
 	p.addStructuredError(err3)
 
@@ -231,7 +231,7 @@ func TestErrorWithoutBlockContext(t *testing.T) {
 	err := NewStructuredError(ErrKindMissing).
 		WithCode(ErrMissingSemicolon).
 		WithMessage("missing semicolon").
-		WithPosition(p.curToken.Pos, p.curToken.Length()).
+		WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
 		Build()
 
 	p.addStructuredError(err)
@@ -273,7 +273,7 @@ func TestStructuredErrorPreservesExplicitContext(t *testing.T) {
 
 	err := NewStructuredError(ErrKindInvalid).
 		WithMessage("test error").
-		WithPosition(p.curToken.Pos, 1).
+		WithPosition(p.cursor.Current().Pos, 1).
 		WithBlockContext(explicitCtx).
 		Build()
 

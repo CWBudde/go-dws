@@ -17,8 +17,8 @@ func TestParserStatePreservation(t *testing.T) {
 	p.nextToken()
 
 	// Record initial state
-	initialCur := p.curToken
-	initialPeek := p.peekToken
+	initialCur := p.cursor.Current()
+	initialPeek := p.cursor.Peek(1)
 	initialErrorCount := len(p.errors)
 
 	// Save state
@@ -30,7 +30,7 @@ func TestParserStatePreservation(t *testing.T) {
 	p.addError("test error", ErrInvalidExpression)
 
 	// Verify state changed
-	if p.curToken.Type == initialCur.Type {
+	if p.cursor.Current().Type == initialCur.Type {
 		t.Error("curToken should have changed")
 	}
 	if len(p.errors) == initialErrorCount {
@@ -41,11 +41,11 @@ func TestParserStatePreservation(t *testing.T) {
 	p.restoreState(state)
 
 	// Verify restoration
-	if p.curToken.Type != initialCur.Type {
-		t.Errorf("curToken not restored: got %v, want %v", p.curToken.Type, initialCur.Type)
+	if p.cursor.Current().Type != initialCur.Type {
+		t.Errorf("curToken not restored: got %v, want %v", p.cursor.Current().Type, initialCur.Type)
 	}
-	if p.peekToken.Type != initialPeek.Type {
-		t.Errorf("peekToken not restored: got %v, want %v", p.peekToken.Type, initialPeek.Type)
+	if p.cursor.Peek(1).Type != initialPeek.Type {
+		t.Errorf("peekToken not restored: got %v, want %v", p.cursor.Peek(1).Type, initialPeek.Type)
 	}
 	if len(p.errors) != initialErrorCount {
 		t.Errorf("errors not restored: got %d errors, want %d", len(p.errors), initialErrorCount)
@@ -62,7 +62,7 @@ func TestNestedSaveRestore(t *testing.T) {
 
 	// Save first state
 	state1 := p.saveState()
-	tok1 := p.curToken
+	tok1 := p.cursor.Current()
 
 	// Advance
 	p.nextToken()
@@ -70,32 +70,32 @@ func TestNestedSaveRestore(t *testing.T) {
 
 	// Save second state
 	state2 := p.saveState()
-	tok2 := p.curToken
+	tok2 := p.cursor.Current()
 
 	// Advance more
 	p.nextToken()
 	p.nextToken()
 
 	// Verify we're at third position
-	if p.curToken.Type == tok2.Type {
+	if p.cursor.Current().Type == tok2.Type {
 		t.Error("should have advanced past second state")
 	}
 
 	// Restore to second state
 	p.restoreState(state2)
-	if p.curToken.Type != tok2.Type {
-		t.Errorf("failed to restore to state2: got %v, want %v", p.curToken.Type, tok2.Type)
+	if p.cursor.Current().Type != tok2.Type {
+		t.Errorf("failed to restore to state2: got %v, want %v", p.cursor.Current().Type, tok2.Type)
 	}
 
 	// Restore to first state
 	p.restoreState(state1)
-	if p.curToken.Type != tok1.Type {
-		t.Errorf("failed to restore to state1: got %v, want %v", p.curToken.Type, tok1.Type)
+	if p.cursor.Current().Type != tok1.Type {
+		t.Errorf("failed to restore to state1: got %v, want %v", p.cursor.Current().Type, tok1.Type)
 	}
 
 	// Verify we can still advance normally
 	p.nextToken()
-	if p.curToken.Type == tok1.Type {
+	if p.cursor.Current().Type == tok1.Type {
 		t.Error("nextToken should advance after restore")
 	}
 }
@@ -120,10 +120,10 @@ func TestPeekAfterRestore(t *testing.T) {
 	p.restoreState(state)
 
 	// Verify peek still works
-	peekType := p.peekToken.Type
+	peekType := p.cursor.Peek(1).Type
 	p.nextToken()
-	if p.curToken.Type != peekType {
-		t.Errorf("peek token mismatch after restore: peeked %v, got %v", peekType, p.curToken.Type)
+	if p.cursor.Current().Type != peekType {
+		t.Errorf("peek token mismatch after restore: peeked %v, got %v", peekType, p.cursor.Current().Type)
 	}
 }
 

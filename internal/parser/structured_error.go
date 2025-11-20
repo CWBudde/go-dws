@@ -40,9 +40,9 @@ const (
 //	err := NewStructuredError(ErrKindMissing).
 //	    WithMessage("missing closing parenthesis").
 //	    WithCode(ErrMissingRParen).
-//	    WithPosition(p.curToken.Pos, p.curToken.Length()).
+//	    WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
 //	    WithExpected(lexer.RPAREN).
-//	    WithActual(p.curToken.Type, p.curToken.Literal).
+//	    WithActual(p.cursor.Current().Type, p.cursor.Current().Literal).
 //	    WithSuggestion("add ')' to close the expression").
 //	    Build()
 type StructuredParserError struct {

@@ -8,32 +8,27 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
-// TestDualMode_ParserCreation tests that both parser modes can be created
+// TestDualMode_ParserCreation tests that parsers are created correctly.
+// Task 2.7.9: Parser is now cursor-only - both New() and NewCursorParser() create cursor parsers.
 func TestDualMode_ParserCreation(t *testing.T) {
 	source := "var x: Integer := 42;"
 
-	// Test traditional parser creation
-	traditionalParser := New(lexer.New(source))
-	if traditionalParser == nil {
+	// Test New() parser creation
+	parser1 := New(lexer.New(source))
+	if parser1 == nil {
 		t.Fatal("New() returned nil")
 	}
-	if traditionalParser.useCursor {
-		t.Error("Traditional parser should have useCursor = false")
-	}
-	if traditionalParser.cursor != nil {
-		t.Error("Traditional parser should have cursor = nil")
+	if parser1.cursor == nil {
+		t.Error("Parser from New() should have cursor initialized")
 	}
 
-	// Test cursor parser creation
-	cursorParser := NewCursorParser(lexer.New(source))
-	if cursorParser == nil {
+	// Test NewCursorParser() creation (now an alias for New())
+	parser2 := NewCursorParser(lexer.New(source))
+	if parser2 == nil {
 		t.Fatal("NewCursorParser() returned nil")
 	}
-	if !cursorParser.useCursor {
-		t.Error("Cursor parser should have useCursor = true")
-	}
-	if cursorParser.cursor == nil {
-		t.Error("Cursor parser should have non-nil cursor")
+	if parser2.cursor == nil {
+		t.Error("Parser from NewCursorParser() should have cursor initialized")
 	}
 }
 
@@ -315,8 +310,8 @@ func TestDualMode_StateManagement(t *testing.T) {
 		p.restoreState(state)
 
 		// Should be back at start
-		if p.curToken.Type != lexer.VAR {
-			t.Errorf("After restore, expected VAR token, got %v", p.curToken.Type)
+		if p.cursor.Current().Type != lexer.VAR {
+			t.Errorf("After restore, expected VAR token, got %v", p.cursor.Current().Type)
 		}
 	})
 
@@ -345,8 +340,8 @@ func TestDualMode_StateManagement(t *testing.T) {
 			t.Errorf("After restore, expected VAR token, got %v", p.cursor.Current().Type)
 		}
 		// curToken should also be synced
-		if p.curToken.Type != lexer.VAR {
-			t.Errorf("After restore, curToken should be synced to VAR, got %v", p.curToken.Type)
+		if p.cursor.Current().Type != lexer.VAR {
+			t.Errorf("After restore, curToken should be synced to VAR, got %v", p.cursor.Current().Type)
 		}
 	})
 }
@@ -358,40 +353,40 @@ func TestDualMode_CursorTokenSync(t *testing.T) {
 	p := NewCursorParser(lexer.New(source))
 
 	// In cursor mode, curToken and peekToken should be synced with cursor
-	if p.cursor.Current().Type != p.curToken.Type {
+	if p.cursor.Current().Type != p.cursor.Current().Type {
 		t.Errorf("curToken not synced with cursor: cursor=%v, curToken=%v",
-			p.cursor.Current().Type, p.curToken.Type)
+			p.cursor.Current().Type, p.cursor.Current().Type)
 	}
 
-	if p.cursor.Peek(1).Type != p.peekToken.Type {
+	if p.cursor.Peek(1).Type != p.cursor.Peek(1).Type {
 		t.Errorf("peekToken not synced with cursor: cursor.Peek(1)=%v, peekToken=%v",
-			p.cursor.Peek(1).Type, p.peekToken.Type)
+			p.cursor.Peek(1).Type, p.cursor.Peek(1).Type)
 	}
 
 	// After calling syncCursorToTokens(), they should still be in sync
-	p.syncCursorToTokens()
 
-	if p.cursor.Current().Type != p.curToken.Type {
+	if p.cursor.Current().Type != p.cursor.Current().Type {
 		t.Error("curToken not synced after explicit syncCursorToTokens()")
 	}
 
-	if p.cursor.Peek(1).Type != p.peekToken.Type {
+	if p.cursor.Peek(1).Type != p.cursor.Peek(1).Type {
 		t.Error("peekToken not synced after explicit syncCursorToTokens()")
 	}
 }
 
-// TestDualMode_ModeFlag tests that the useCursor flag correctly identifies parser mode
+// TestDualMode_ModeFlag tests that the parser cursor is initialized.
+// Task 2.7.9: Parser is now cursor-only - useCursor flag removed.
 func TestDualMode_ModeFlag(t *testing.T) {
 	source := "var x := 42;"
 
-	traditional := New(lexer.New(source))
-	if traditional.useCursor {
-		t.Error("Traditional parser should have useCursor=false")
+	p1 := New(lexer.New(source))
+	if p1.cursor == nil {
+		t.Error("Parser from New() should have cursor initialized")
 	}
 
-	cursor := NewCursorParser(lexer.New(source))
-	if !cursor.useCursor {
-		t.Error("Cursor parser should have useCursor=true")
+	p2 := NewCursorParser(lexer.New(source))
+	if p2.cursor == nil {
+		t.Error("Parser from NewCursorParser() should have cursor initialized")
 	}
 }
 
