@@ -70,19 +70,19 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
    - `parseInt` (types.go:454) - 0%
 
 **Tasks**:
-- [ ] **2.8.1**: Add tests for error_recovery.go functions (Target: 80%+ coverage)
+- [x] **2.8.1**: Add tests for error_recovery.go functions (Target: 80%+ coverage)
   - Test error recovery with sync points
   - Test expectation errors with suggestions
   - Test synchronization behavior
   - Estimated: 8-12 hours
 
-- [ ] **2.8.2**: Add tests for untested combinators (Target: 90%+ coverage)
+- [x] **2.8.2**: Add tests for untested combinators (Target: 90%+ coverage)
   - Test BetweenStatement, TryParseStatement
   - Test Peek*Is lookahead helpers
   - Test OptionalTypeAnnotation, StatementBlock, ParameterGroup
   - Estimated: 4-6 hours
 
-- [ ] **2.8.3**: Add tests for untested parsing functions
+- [x] **2.8.3**: Add tests for untested parsing functions
   - Test parseClassDeclaration edge cases
   - Test parseInt with various inputs
   - Estimated: 2-4 hours
