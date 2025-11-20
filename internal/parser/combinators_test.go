@@ -969,7 +969,7 @@ func TestPeek3Is(t *testing.T) {
 		{
 			name:      "match IDENT at position 3",
 			input:     "foo bar ; qux",
-			tokenType: lexer.IDENT,  // peek(1) sees "qux" (IDENT)
+			tokenType: lexer.IDENT,
 			expected:  true,
 		},
 		{
