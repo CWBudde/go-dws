@@ -855,6 +855,7 @@ func (p *Parser) saveState() ParserState {
 		parsingPostCondition: p.parsingPostCondition,
 		blockStack:           blockStackCopy,
 		ctx:                  p.ctx.Snapshot(), // Save context snapshot (Task 2.1.2)
+		cursor:               p.cursor,
 	}
 }
 
