@@ -51,34 +51,11 @@ func (i *Interpreter) newErrorWithLocation(node ast.Node, format string, args ..
 
 // getLocationFromNode extracts location information from an AST node
 func (i *Interpreter) getLocationFromNode(node ast.Node) string {
-	// Try to extract token information from various node types
-	switch n := node.(type) {
-	case *ast.Identifier:
-		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
-	case *ast.IntegerLiteral:
-		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
-	case *ast.FloatLiteral:
-		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
-	case *ast.StringLiteral:
-		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
-	case *ast.BooleanLiteral:
-		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
-	case *ast.BinaryExpression:
-		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
-	case *ast.UnaryExpression:
-		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
-	case *ast.CallExpression:
-		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
-	case *ast.VarDeclStatement:
-		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
-	case *ast.AssignmentStatement:
-		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
-	case *ast.MemberAccessExpression:
-		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
-	case *ast.MethodCallExpression:
-		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
+	if node == nil {
+		return ""
 	}
-	return ""
+	pos := node.Pos()
+	return fmt.Sprintf("line: %d, column: %d", pos.Line, pos.Column)
 }
 
 // ContractFailureError represents a contract violation (precondition or postcondition failure).
@@ -239,11 +216,7 @@ func (i *Interpreter) newContractErrorFromInterpreterError(node ast.Node, format
 
 // convertLexerToTokenPos converts a lexer.Position to token.Position.
 func convertLexerToTokenPos(pos lexer.Position) token.Position {
-	return token.Position{
-		Line:   pos.Line,
-		Column: pos.Column,
-		Offset: pos.Offset,
-	}
+	return pos
 }
 
 // RuntimeError represents a structured runtime error with rich context
@@ -315,28 +288,8 @@ func (i *Interpreter) NewRuntimeError(node ast.Node, errorType, message string, 
 
 // getPositionFromNode extracts position from an AST node
 func (i *Interpreter) getPositionFromNode(node ast.Node) lexer.Position {
-	// Try to extract token information from various node types
-	switch n := node.(type) {
-	case *ast.Identifier:
-		return n.Token.Pos
-	case *ast.IntegerLiteral:
-		return n.Token.Pos
-	case *ast.FloatLiteral:
-		return n.Token.Pos
-	case *ast.StringLiteral:
-		return n.Token.Pos
-	case *ast.BooleanLiteral:
-		return n.Token.Pos
-	case *ast.BinaryExpression:
-		return n.Token.Pos
-	case *ast.UnaryExpression:
-		return n.Token.Pos
-	case *ast.CallExpression:
-		return n.Token.Pos
-	case *ast.VarDeclStatement:
-		return n.Token.Pos
-	case *ast.AssignmentStatement:
-		return n.Token.Pos
+	if node == nil {
+		return lexer.Position{}
 	}
-	return lexer.Position{}
+	return node.Pos()
 }
