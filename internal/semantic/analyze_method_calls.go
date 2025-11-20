@@ -158,6 +158,30 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			return method.ReturnType
 		}
 
+		// Handle set types with built-in methods (Include/Exclude) without helpers
+		if setType, isSet := types.GetUnderlyingType(objectType).(*types.SetType); isSet {
+			switch methodNameLower {
+			case "include", "exclude":
+				if len(expr.Arguments) != 1 {
+					a.addError("set method '%s' expects 1 argument, got %d at %s",
+						methodName, len(expr.Arguments), expr.Token.Pos.String())
+					return types.VOID
+				}
+
+				expectedElemType := setType.ElementType
+				argType := a.analyzeExpressionWithExpectedType(expr.Arguments[0], expectedElemType)
+				if argType != nil && expectedElemType != nil && !a.canAssign(argType, expectedElemType) {
+					a.addError("argument 1 to set method '%s' has type %s, expected %s at %s",
+						methodName, argType.String(), expectedElemType.String(), expr.Token.Pos.String())
+				}
+				return types.VOID
+			default:
+				a.addError("method call on type %s requires a helper, got no helper with method '%s' at %s",
+					objectType.String(), methodName, expr.Token.Pos.String())
+				return nil
+			}
+		}
+
 		// Task 9.83: For non-class, non-record types, check if helpers provide this method
 		_, helperMethod := a.hasHelperMethod(objectType, methodName)
 		if helperMethod == nil {

@@ -592,10 +592,22 @@ func (a *Analyzer) analyzeFor(stmt *ast.ForStatement) {
 	if stmt.Step != nil {
 		stepType := a.analyzeExpression(stmt.Step)
 
-		// Validate step expression type is Integer
-		if stepType != nil && stepType != types.INTEGER {
-			a.addError("for loop step must be Integer, got %s at %s",
-				stepType.String(), stmt.Token.Pos.String())
+		if stepType != nil {
+			underlyingStep := types.GetUnderlyingType(stepType)
+			underlyingStart := types.GetUnderlyingType(startType)
+
+			// Allow Integer steps for any ordinal loop and matching ordinal types.
+			isOrdinalStep := types.IsOrdinalType(underlyingStep) &&
+				underlyingStep.TypeKind() != "STRING" &&
+				underlyingStep.TypeKind() != "BOOLEAN"
+			if !isOrdinalStep {
+				a.addError("for loop step must be Integer, got %s at %s",
+					stepType.String(), stmt.Token.Pos.String())
+			} else if underlyingStep.TypeKind() != "INTEGER" && underlyingStart != nil &&
+				underlyingStart.TypeKind() != underlyingStep.TypeKind() {
+				a.addError("for loop step type %s is not compatible with loop variable type %s at %s",
+					stepType.String(), startType.String(), stmt.Token.Pos.String())
+			}
 		}
 
 		// Optional optimization: check constant step values at compile time

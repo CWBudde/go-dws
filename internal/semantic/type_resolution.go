@@ -21,6 +21,11 @@ func (a *Analyzer) resolveTypeExpression(typeExpr ast.TypeExpression) (types.Typ
 		return nil, fmt.Errorf("nil type expression")
 	}
 
+	// Handle SetTypeNode directly to validate element type without string round-tripping
+	if setNode, ok := typeExpr.(*ast.SetTypeNode); ok {
+		return a.resolveSetTypeNode(setNode)
+	}
+
 	// Handle ArrayTypeNode directly to avoid string conversion issues
 	if arrayNode, ok := typeExpr.(*ast.ArrayTypeNode); ok {
 		return a.resolveArrayTypeNode(arrayNode)
@@ -59,6 +64,31 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 	// Examples: "array of Integer", "array[1..10] of String", "array of array of Integer"
 	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
 		return a.resolveInlineArrayType(typeName)
+	}
+
+	// Check for inline set types: "set of TEnum", "set of Integer", etc.
+	lowerName := strings.ToLower(typeName)
+	if strings.HasPrefix(lowerName, "set of ") {
+		elemName := strings.TrimSpace(typeName[len("set of "):])
+		if elemName == "" {
+			return nil, fmt.Errorf("unknown type: %s", typeName)
+		}
+		elementType, err := a.resolveType(elemName)
+		if err != nil {
+			return nil, fmt.Errorf("unknown element type '%s' in set type", elemName)
+		}
+		if !types.IsOrdinalType(elementType) {
+			return nil, fmt.Errorf("set element type must be ordinal, got %s", elementType.String())
+		}
+
+		// Cache inline set types by their normalized signature to keep lookups consistent
+		if cached, ok := a.sets[lowerName]; ok {
+			return cached, nil
+		}
+
+		setType := types.NewSetType(elementType)
+		a.sets[lowerName] = setType
+		return setType, nil
 	}
 
 	// Normalize type name for case-insensitive lookup
@@ -427,6 +457,34 @@ func (a *Analyzer) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) (types.Typ
 	}
 
 	return types.NewStaticArrayType(elementType, lowBound, highBound), nil
+}
+
+// resolveSetTypeNode resolves a SetTypeNode directly from the AST.
+// Validates that the element type is ordinal (enum, subrange, integer/char/boolean).
+func (a *Analyzer) resolveSetTypeNode(setNode *ast.SetTypeNode) (types.Type, error) {
+	if setNode == nil {
+		return nil, fmt.Errorf("nil set type node")
+	}
+
+	elementType, err := a.resolveTypeExpression(setNode.ElementType)
+	if err != nil {
+		return nil, fmt.Errorf("unknown set element type '%s': %w",
+			getTypeExpressionName(setNode.ElementType), err)
+	}
+
+	if !types.IsOrdinalType(elementType) {
+		return nil, fmt.Errorf("set element type must be ordinal, got %s", elementType.String())
+	}
+
+	setType := types.NewSetType(elementType)
+
+	// Cache inline set types by their string representation for consistent reuse
+	normalizedName := strings.ToLower(setNode.String())
+	if _, exists := a.sets[normalizedName]; !exists {
+		a.sets[normalizedName] = setType
+	}
+
+	return setType, nil
 }
 
 // resolveOperatorType resolves type annotations used in operator declarations.
