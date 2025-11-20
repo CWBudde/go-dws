@@ -7,11 +7,11 @@ import (
 // TestFoldFloatOp tests constant folding for floating-point operations
 func TestFoldFloatOp(t *testing.T) {
 	tests := []struct {
-		name      string
-		op        OpCode
 		left      Value
 		right     Value
 		wantValue Value
+		name      string
+		op        OpCode
 		wantOk    bool
 	}{
 		{
@@ -139,11 +139,11 @@ func TestFoldFloatOp(t *testing.T) {
 // TestFoldEqualityOp tests constant folding for equality operations
 func TestFoldEqualityOp(t *testing.T) {
 	tests := []struct {
-		name      string
-		op        OpCode
 		left      Value
 		right     Value
 		wantValue Value
+		name      string
+		op        OpCode
 		wantOk    bool
 	}{
 		{
@@ -295,11 +295,11 @@ func TestFoldEqualityOp(t *testing.T) {
 // TestFoldComparisonOp tests constant folding for comparison operations
 func TestFoldComparisonOp(t *testing.T) {
 	tests := []struct {
-		name      string
-		op        OpCode
 		left      Value
 		right     Value
 		wantValue Value
+		name      string
+		op        OpCode
 		wantOk    bool
 	}{
 		{
@@ -459,11 +459,11 @@ func TestFoldComparisonOp(t *testing.T) {
 // TestFoldIntegerOp tests constant folding for integer operations
 func TestFoldIntegerOp(t *testing.T) {
 	tests := []struct {
-		name      string
-		op        OpCode
 		left      Value
 		right     Value
 		wantValue Value
+		name      string
+		op        OpCode
 		wantOk    bool
 	}{
 		{

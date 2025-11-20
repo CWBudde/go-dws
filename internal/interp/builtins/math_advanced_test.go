@@ -14,9 +14,9 @@ func TestFactorial(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -83,9 +83,9 @@ func TestGcd(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -160,9 +160,9 @@ func TestLcm(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -229,9 +229,9 @@ func TestIsPrime(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 	}{
 		{
 			name:     "2 is prime",
@@ -295,9 +295,9 @@ func TestLeastFactor(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 	}{
 		{
 			name:     "least factor of 1",
@@ -346,9 +346,9 @@ func TestPopCount(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 	}{
 		{
 			name:     "popcount of 0",
@@ -397,9 +397,9 @@ func TestTestBit(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -564,9 +564,9 @@ func TestCompareNum(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{

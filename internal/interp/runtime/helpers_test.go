@@ -132,8 +132,8 @@ func TestInterfaceTypeCheckers(t *testing.T) {
 
 func TestIsTruthy(t *testing.T) {
 	tests := []struct {
-		name  string
 		value Value
+		name  string
 		want  bool
 	}{
 		{name: "nil", value: nil, want: false},
@@ -162,8 +162,8 @@ func TestIsTruthy(t *testing.T) {
 
 func TestIsFalsy(t *testing.T) {
 	tests := []struct {
-		name  string
 		value Value
+		name  string
 		want  bool
 	}{
 		{name: "nil", value: nil, want: true},
@@ -189,9 +189,9 @@ func TestIsFalsy(t *testing.T) {
 
 func TestEqual(t *testing.T) {
 	tests := []struct {
-		name    string
 		left    Value
 		right   Value
+		name    string
 		want    bool
 		wantErr bool
 	}{
@@ -221,9 +221,9 @@ func TestEqual(t *testing.T) {
 
 func TestLessThan(t *testing.T) {
 	tests := []struct {
-		name    string
 		left    Value
 		right   Value
+		name    string
 		want    bool
 		wantErr bool
 	}{
@@ -250,9 +250,9 @@ func TestLessThan(t *testing.T) {
 
 func TestGreaterThan(t *testing.T) {
 	tests := []struct {
-		name    string
 		left    Value
 		right   Value
+		name    string
 		want    bool
 		wantErr bool
 	}{

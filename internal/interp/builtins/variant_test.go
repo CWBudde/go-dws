@@ -328,8 +328,8 @@ func TestVarToStr(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name:     "integer to string",
@@ -517,10 +517,10 @@ func TestVarAsType(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
-		name        string
 		value       Value
-		targetType  int64
 		expectedVal interface{}
+		name        string
+		targetType  int64
 		isError     bool
 	}{
 		{

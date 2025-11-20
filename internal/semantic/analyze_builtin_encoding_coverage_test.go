@@ -9,8 +9,8 @@ func TestAnalyzeStrToHtml(t *testing.T) {
 	tests := []struct {
 		name        string
 		code        string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name:        "StrToHtml with correct argument",
@@ -49,8 +49,8 @@ func TestAnalyzeStrToHtmlAttribute(t *testing.T) {
 	tests := []struct {
 		name        string
 		code        string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name:        "StrToHtmlAttribute with correct argument",
@@ -89,8 +89,8 @@ func TestAnalyzeStrToJSON(t *testing.T) {
 	tests := []struct {
 		name        string
 		code        string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name:        "StrToJSON with correct argument",
@@ -129,8 +129,8 @@ func TestAnalyzeStrToCSSText(t *testing.T) {
 	tests := []struct {
 		name        string
 		code        string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name:        "StrToCSSText with correct argument",
@@ -169,8 +169,8 @@ func TestAnalyzeStrToXML(t *testing.T) {
 	tests := []struct {
 		name        string
 		code        string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name:        "StrToXML with 1 argument",

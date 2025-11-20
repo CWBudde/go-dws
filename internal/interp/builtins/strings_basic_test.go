@@ -15,8 +15,8 @@ func TestConcat(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 		isError  bool
 	}{
 		{
@@ -134,8 +134,8 @@ func TestUpperCase(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name:     "lowercase to uppercase",
@@ -178,8 +178,8 @@ func TestLowerCase(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name:     "uppercase to lowercase",
@@ -217,8 +217,8 @@ func TestTrim(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name:     "trim spaces",
@@ -261,8 +261,8 @@ func TestTrimLeft(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name:     "trim left spaces",
@@ -295,8 +295,8 @@ func TestTrimRight(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name:     "trim right spaces",
@@ -329,8 +329,8 @@ func TestStringReplace(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name: "replace all occurrences",
@@ -380,8 +380,8 @@ func TestStringOfChar(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 		isError  bool
 	}{
 		{
@@ -445,8 +445,8 @@ func TestSubStr(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name: "normal substring",
@@ -496,8 +496,8 @@ func TestIntToHex(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name: "255 with width 0",
@@ -606,8 +606,8 @@ func TestSubString(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name: "substring from position",
@@ -648,8 +648,8 @@ func TestLeftStr(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name: "left 5 chars",
@@ -696,8 +696,8 @@ func TestRightStr(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name: "right 5 chars",
@@ -939,8 +939,8 @@ func TestByteSizeToStr(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name:     "bytes",

@@ -15,9 +15,9 @@ func TestAbs(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -84,9 +84,9 @@ func TestMin(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -173,9 +173,9 @@ func TestMax(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -255,9 +255,9 @@ func TestSqr(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -314,9 +314,9 @@ func TestPower(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -396,9 +396,9 @@ func TestSqrt(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -455,9 +455,9 @@ func TestExp(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -504,9 +504,9 @@ func TestLn(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -558,9 +558,9 @@ func TestLog2(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -607,9 +607,9 @@ func TestLog10(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -656,9 +656,9 @@ func TestLogN(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -725,9 +725,9 @@ func TestUnsigned32(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -774,9 +774,9 @@ func TestMaxInt(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -839,9 +839,9 @@ func TestMinInt(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -896,9 +896,9 @@ func TestIsNaN(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 	}{
 		{
 			name:     "NaN value",
@@ -954,9 +954,9 @@ func TestSign(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 	}{
 		{
 			name:     "positive integer",
@@ -1000,9 +1000,9 @@ func TestOdd(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 		isError  bool
 	}{
 		{
@@ -1092,9 +1092,9 @@ func TestIsFinite(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 	}{
 		{
 			name:     "normal float",
@@ -1138,9 +1138,9 @@ func TestIsInfinite(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 	}{
 		{
 			name:     "positive infinity",

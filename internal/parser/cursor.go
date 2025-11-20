@@ -31,9 +31,9 @@ import (
 //	}
 type TokenCursor struct {
 	lexer   *lexer.Lexer
+	tokens  []token.Token
 	current token.Token
-	tokens  []token.Token // Buffered tokens for backtracking
-	index   int           // Current position in buffered tokens
+	index   int
 }
 
 // NewTokenCursor creates a new TokenCursor from a lexer.

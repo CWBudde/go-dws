@@ -141,8 +141,8 @@ func TestOrd_ErrorCases(t *testing.T) {
 func TestChr(t *testing.T) {
 	tests := []struct {
 		name     string
-		code     int64
 		expected string
+		code     int64
 	}{
 		{
 			name:     "Character code for 'A'",

@@ -10,8 +10,8 @@ import (
 func TestFormatString(t *testing.T) {
 	tests := []struct {
 		name     string
-		format   printer.Format
 		expected string
+		format   printer.Format
 	}{
 		{"FormatDWScript", printer.FormatDWScript, "dwscript"},
 		{"FormatTree", printer.FormatTree, "tree"},
@@ -33,8 +33,8 @@ func TestFormatString(t *testing.T) {
 func TestStyleString(t *testing.T) {
 	tests := []struct {
 		name     string
-		style    printer.Style
 		expected string
+		style    printer.Style
 	}{
 		{"StyleDetailed", printer.StyleDetailed, "detailed"},
 		{"StyleCompact", printer.StyleCompact, "compact"},
@@ -179,8 +179,8 @@ func TestMultilinePrinter(t *testing.T) {
 func TestPrinterHelpers(t *testing.T) {
 	// Create printers to ensure they work
 	printers := []struct {
-		name string
 		p    *printer.Printer
+		name string
 	}{
 		{"CompactPrinter", printer.CompactPrinter()},
 		{"DetailedPrinter", printer.DetailedPrinter()},

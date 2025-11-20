@@ -15,8 +15,8 @@ func TestStrBefore(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name: "text before delimiter",
@@ -63,8 +63,8 @@ func TestStrAfter(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name: "text after delimiter",
@@ -111,8 +111,8 @@ func TestStrBeforeLast(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name: "text before last delimiter",
@@ -151,8 +151,8 @@ func TestStrAfterLast(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name: "text after last delimiter",
@@ -191,8 +191,8 @@ func TestStrBetween(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name: "text between delimiters",
@@ -284,8 +284,8 @@ func TestPadLeft(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name: "pad with spaces",
@@ -333,8 +333,8 @@ func TestPadRight(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name: "pad with spaces",
@@ -382,8 +382,8 @@ func TestStrDeleteLeft(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name: "delete left 5 chars",
@@ -430,8 +430,8 @@ func TestStrDeleteRight(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name: "delete right 5 chars",
@@ -478,8 +478,8 @@ func TestReverseString(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name:     "simple string",
@@ -522,8 +522,8 @@ func TestQuotedStr(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name:     "simple string",
@@ -561,8 +561,8 @@ func TestDupeString(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name: "duplicate 3 times",

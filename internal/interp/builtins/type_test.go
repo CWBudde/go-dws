@@ -15,8 +15,8 @@ func TestTypeOf(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name:     "integer type",
@@ -74,8 +74,8 @@ func TestTypeOfClass(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name:     "non-object value returns empty string",

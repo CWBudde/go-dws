@@ -99,11 +99,11 @@ func (rd *RecordDecl) String() string {
 type RecordPropertyDecl struct {
 	Type        TypeExpression
 	Name        *Identifier
-	IndexParams []*Parameter // For array properties: property Items[Index: Integer]: String
 	ReadField   string
 	WriteField  string
-	IsDefault   bool // True if this is a default array property
+	IndexParams []*Parameter
 	BaseNode
+	IsDefault bool
 }
 
 func (pd RecordPropertyDecl) String() string {

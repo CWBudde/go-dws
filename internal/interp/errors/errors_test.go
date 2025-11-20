@@ -295,9 +295,9 @@ func TestErrorWithoutPosition(t *testing.T) {
 
 func TestPositionFromNode(t *testing.T) {
 	tests := []struct {
-		name     string
 		node     ast.Node
 		expected *token.Position
+		name     string
 	}{
 		{
 			name: "Identifier",

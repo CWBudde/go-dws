@@ -11,8 +11,8 @@ func TestStrToHtml(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 		isError  bool
 	}{
 		{
@@ -85,8 +85,8 @@ func TestStrToHtmlAttribute(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 		isError  bool
 	}{
 		{
@@ -144,8 +144,8 @@ func TestStrToJSON(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 		isError  bool
 	}{
 		{
@@ -208,8 +208,8 @@ func TestStrToCSSText(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 		isError  bool
 	}{
 		{
@@ -257,8 +257,8 @@ func TestStrToXML(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 		isError  bool
 	}{
 		{

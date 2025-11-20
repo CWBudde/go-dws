@@ -11,8 +11,8 @@ func TestIntToStr(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 		isError  bool
 	}{
 		{
@@ -80,8 +80,8 @@ func TestIntToBin(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 		isError  bool
 	}{
 		{
@@ -252,8 +252,8 @@ func TestFloatToStr(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 		isError  bool
 	}{
 		{
@@ -301,8 +301,8 @@ func TestBoolToStr(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 		isError  bool
 	}{
 		{

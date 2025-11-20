@@ -32,10 +32,10 @@ func TestCompiler_SetSemanticInfo(t *testing.T) {
 // TestCompiler_CompileHelperDecl tests compiling helper declarations
 func TestCompiler_CompileHelperDecl(t *testing.T) {
 	tests := []struct {
-		name        string
 		decl        *pkgast.HelperDecl
-		expectError bool
 		checkFunc   func(*testing.T, *Compiler)
+		name        string
+		expectError bool
 	}{
 		{
 			name: "simple_helper",
@@ -236,10 +236,10 @@ func TestCompiler_CompileHelperDecl(t *testing.T) {
 // TestCompiler_CompileRecordDecl tests compiling record declarations
 func TestCompiler_CompileRecordDecl(t *testing.T) {
 	tests := []struct {
-		name        string
 		decl        *pkgast.RecordDecl
-		expectError bool
 		checkFunc   func(*testing.T, *Compiler)
+		name        string
+		expectError bool
 	}{
 		{
 			name: "simple_record",
@@ -311,10 +311,10 @@ func TestCompiler_CompileRecordDecl(t *testing.T) {
 // TestCompiler_CompileClassDecl tests compiling class declarations
 func TestCompiler_CompileClassDecl(t *testing.T) {
 	tests := []struct {
-		name        string
 		decl        *pkgast.ClassDecl
-		expectError bool
 		checkFunc   func(*testing.T, *Compiler)
+		name        string
+		expectError bool
 	}{
 		{
 			name: "simple_class",
@@ -508,8 +508,8 @@ func TestCompiler_CompileCoalesceExpression(t *testing.T) {
 // TestCompiler_CompileIfExpression tests compiling if expressions
 func TestCompiler_CompileIfExpression(t *testing.T) {
 	tests := []struct {
-		name        string
 		expr        *pkgast.IfExpression
+		name        string
 		expectError bool
 	}{
 		{
@@ -638,10 +638,10 @@ func TestCompiler_EmitDefaultValue(t *testing.T) {
 // TestCompiler_CompileRecordLiteralExpression tests compiling record literals
 func TestCompiler_CompileRecordLiteralExpression(t *testing.T) {
 	tests := []struct {
-		name        string
 		expr        *pkgast.RecordLiteralExpression
-		expectError bool
 		checkFunc   func(*testing.T, *Compiler)
+		name        string
+		expectError bool
 	}{
 		{
 			name: "simple_record_literal",

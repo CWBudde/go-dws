@@ -131,8 +131,8 @@ func TestDateTimeToStr(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 		isError  bool
 	}{
 		{
@@ -187,8 +187,8 @@ func TestDateToStr(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 		isError  bool
 	}{
 		{
@@ -238,8 +238,8 @@ func TestTimeToStr(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 		isError  bool
 	}{
 		{
@@ -289,8 +289,8 @@ func TestDateToISO8601(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 		isError  bool
 	}{
 		{
@@ -340,8 +340,8 @@ func TestDateTimeToISO8601(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 		isError  bool
 	}{
 		{

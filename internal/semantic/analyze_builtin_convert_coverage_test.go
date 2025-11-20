@@ -50,8 +50,8 @@ func TestAnalyzeDefault(t *testing.T) {
 	tests := []struct {
 		name        string
 		code        string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name:        "Default with Integer type",
@@ -124,8 +124,8 @@ func TestAnalyzeStrToIntDef(t *testing.T) {
 	tests := []struct {
 		name        string
 		code        string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name:        "StrToIntDef with 2 arguments",
@@ -187,8 +187,8 @@ func TestAnalyzeStrToFloatDef(t *testing.T) {
 	tests := []struct {
 		name        string
 		code        string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name:        "StrToFloatDef with correct arguments",
@@ -239,8 +239,8 @@ func TestAnalyzeTryStrToInt(t *testing.T) {
 	tests := []struct {
 		name        string
 		code        string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name:        "TryStrToInt with 2 arguments",
@@ -308,8 +308,8 @@ func TestAnalyzeTryStrToFloat(t *testing.T) {
 	tests := []struct {
 		name        string
 		code        string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name:        "TryStrToFloat with correct arguments",
@@ -360,8 +360,8 @@ func TestAnalyzeHexToInt(t *testing.T) {
 	tests := []struct {
 		name        string
 		code        string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name:        "HexToInt with correct argument",
@@ -400,8 +400,8 @@ func TestAnalyzeBinToInt(t *testing.T) {
 	tests := []struct {
 		name        string
 		code        string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name:        "BinToInt with correct argument",
@@ -440,8 +440,8 @@ func TestAnalyzeVarToIntDef(t *testing.T) {
 	tests := []struct {
 		name        string
 		code        string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name:        "VarToIntDef with correct arguments",
@@ -491,8 +491,8 @@ func TestAnalyzeVarToFloatDef(t *testing.T) {
 	tests := []struct {
 		name        string
 		code        string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name:        "VarToFloatDef with correct arguments",
