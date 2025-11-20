@@ -853,12 +853,7 @@ func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
 func (p *Parser) parseEmptyArrayLiteral(lparenToken lexer.Token) *ast.ArrayLiteralExpression {
 	p.nextToken() // consume ')'
 
-	var currentTok lexer.Token
-	if p.cursor != nil {
-		currentTok = p.cursor.Current()
-	} else {
-		currentTok = p.cursor.Current()
-	}
+	currentTok := p.cursor.Current()
 
 	return &ast.ArrayLiteralExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -1047,12 +1042,7 @@ func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstEl
 
 		// Allow trailing comma: (1, 2, )
 		if p.curTokenIs(lexer.RPAREN) {
-			var currentTok lexer.Token
-			if p.cursor != nil {
-				currentTok = p.cursor.Current()
-			} else {
-				currentTok = p.cursor.Current()
-			}
+			currentTok := p.cursor.Current()
 
 			// Already at the closing paren, just return
 			return &ast.ArrayLiteralExpression{
@@ -1078,12 +1068,7 @@ func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstEl
 		return nil
 	}
 
-	var currentTok lexer.Token
-	if p.cursor != nil {
-		currentTok = p.cursor.Current()
-	} else {
-		currentTok = p.cursor.Current()
-	}
+	currentTok := p.cursor.Current()
 
 	return &ast.ArrayLiteralExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -1104,12 +1089,7 @@ func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstEl
 // PRE: cursor is IDENT (first field name), peekToken is COLON
 // POST: cursor is RPAREN
 func (p *Parser) parseRecordLiteralInline() *ast.RecordLiteralExpression {
-	var currentTok lexer.Token
-	if p.cursor != nil {
-		currentTok = p.cursor.Current()
-	} else {
-		currentTok = p.cursor.Current()
-	}
+	currentTok := p.cursor.Current()
 
 	recordLit := &ast.RecordLiteralExpression{
 		BaseNode: ast.BaseNode{Token: currentTok}, // The first field name token
@@ -1241,12 +1221,7 @@ func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 			return nil
 		}
 
-		var nameTok lexer.Token
-		if p.cursor != nil {
-			nameTok = p.cursor.Current()
-		} else {
-			nameTok = p.cursor.Current()
-		}
+		nameTok := p.cursor.Current()
 
 		names = append(names, &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
@@ -1278,12 +1253,7 @@ func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 			return nil
 		}
 
-		var typeTok lexer.Token
-		if p.cursor != nil {
-			typeTok = p.cursor.Current()
-		} else {
-			typeTok = p.cursor.Current()
-		}
+		typeTok := p.cursor.Current()
 
 		typeExpr = &ast.TypeAnnotation{
 			Token: typeTok,
@@ -1313,12 +1283,7 @@ func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 func (p *Parser) parseCondition() *ast.Condition {
 	builder := p.StartNode()
 
-	var startToken lexer.Token
-	if p.cursor != nil {
-		startToken = p.cursor.Current()
-	} else {
-		startToken = p.cursor.Current()
-	}
+	startToken := p.cursor.Current()
 
 	// Parse the test expression (should be boolean, but type checking is done in semantic phase)
 	testExpr := p.parseExpression(LOWEST)
@@ -1341,12 +1306,7 @@ func (p *Parser) parseCondition() *ast.Condition {
 			return nil
 		}
 
-		var msgToken lexer.Token
-		if p.cursor != nil {
-			msgToken = p.cursor.Current()
-		} else {
-			msgToken = p.cursor.Current()
-		}
+		msgToken := p.cursor.Current()
 
 		condition.Message = &ast.StringLiteral{
 			TypedExpressionBase: ast.TypedExpressionBase{
@@ -1378,12 +1338,7 @@ func (p *Parser) parseCondition() *ast.Condition {
 func (p *Parser) parsePreConditions() *ast.PreConditions {
 	builder := p.StartNode()
 
-	var requireToken lexer.Token
-	if p.cursor != nil {
-		requireToken = p.cursor.Current()
-	} else {
-		requireToken = p.cursor.Current()
-	}
+	requireToken := p.cursor.Current()
 
 	// Advance to the first condition
 	p.nextToken()
@@ -1441,12 +1396,7 @@ func (p *Parser) parsePreConditions() *ast.PreConditions {
 func (p *Parser) parsePostConditions() *ast.PostConditions {
 	builder := p.StartNode()
 
-	var ensureToken lexer.Token
-	if p.cursor != nil {
-		ensureToken = p.cursor.Current()
-	} else {
-		ensureToken = p.cursor.Current()
-	}
+	ensureToken := p.cursor.Current()
 
 	// Enable 'old' keyword parsing
 	// Synchronize both old field and new context (Task 2.1.2)
