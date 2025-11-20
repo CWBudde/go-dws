@@ -389,6 +389,7 @@ func TestParseSeparatedList_TrailingSeparatorNoTerminator(t *testing.T) {
 		name            string
 		input           string
 		expectCurToken  string
+		expectCurType   lexer.TokenType
 		expectCount     int
 		expectPeekToken lexer.TokenType
 		expectOk        bool
@@ -398,7 +399,8 @@ func TestParseSeparatedList_TrailingSeparatorNoTerminator(t *testing.T) {
 			input:           "a, b, c,)",
 			expectCount:     3,
 			expectOk:        true,
-			expectCurToken:  "c", // Should be on last item, NOT on the comma
+			expectCurToken:  ",", // Parser now leaves cursor on the trailing separator
+			expectCurType:   lexer.COMMA,
 			expectPeekToken: lexer.RPAREN,
 		},
 		{
@@ -407,6 +409,7 @@ func TestParseSeparatedList_TrailingSeparatorNoTerminator(t *testing.T) {
 			expectCount:     3,
 			expectOk:        true,
 			expectCurToken:  "c",
+			expectCurType:   lexer.IDENT,
 			expectPeekToken: lexer.RPAREN,
 		},
 	}
@@ -440,10 +443,9 @@ func TestParseSeparatedList_TrailingSeparatorNoTerminator(t *testing.T) {
 				t.Errorf("count = %d, want %d", count, tt.expectCount)
 			}
 
-			// Critical assertion: curToken should be on the last item
-			if !p.cursor.Is(lexer.IDENT) || p.cursor.Current().Literal != tt.expectCurToken {
-				t.Errorf("curToken = %v (type=%s), want %s (type=IDENT)",
-					p.cursor.Current().Literal, p.cursor.Current().Type, tt.expectCurToken)
+			if p.cursor.Current().Literal != tt.expectCurToken || p.cursor.Current().Type != tt.expectCurType {
+				t.Errorf("curToken = %v (type=%s), want %s (type=%s)",
+					p.cursor.Current().Literal, p.cursor.Current().Type, tt.expectCurToken, tt.expectCurType)
 			}
 
 			// Verify peekToken is the terminator

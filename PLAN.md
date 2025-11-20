@@ -292,7 +292,7 @@ Final cleanup and modernization:
   - **Tests passing**: All 4 lambda expression test suites (36 tests)
   - **Files**: `internal/parser/functions.go`
 
-- [x] **2.7.6.7: Fix Error Handling Tests** (3h) ⚠️
+- [-] **2.7.6.7: Fix Error Handling Tests** (3h) ⚠️
   - **Status**: Error messages improved but test expectations need updating
   - **Note**: New messages are more descriptive (e.g., "expected ';' after variable declaration" vs "expected next token to be SEMICOLON")
   - **Remaining**: Minor edge cases (empty brackets, trailing commas) need validation
