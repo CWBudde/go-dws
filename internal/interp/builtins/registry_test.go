@@ -20,8 +20,8 @@ func (e *mockErrorValue) String() string { return "ERROR: " + e.Message }
 
 // mockContext implements the Context interface for testing
 type mockContext struct {
-	randSeed int64
 	rng      *rand.Rand
+	randSeed int64
 }
 
 func newMockContext() *mockContext {
@@ -301,11 +301,12 @@ func (m *mockContext) FormatString(format string, args []Value) (string, error) 
 		spec := specs[idx]
 		switch v := arg.(type) {
 		case *runtime.IntegerValue:
-			if spec.verb == 'f' {
+			switch spec.verb {
+			case 'f':
 				goArgs[idx] = float64(v.Value)
-			} else if spec.verb == 's' {
+			case 's':
 				goArgs[idx] = fmt.Sprintf("%d", v.Value)
-			} else {
+			default:
 				goArgs[idx] = v.Value
 			}
 		case *runtime.FloatValue:

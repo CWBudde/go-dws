@@ -13,8 +13,8 @@ import (
 // ErrorValue represents a runtime error that implements the Value interface.
 // It wraps an InterpreterError for better error handling and categorization.
 type ErrorValue struct {
+	Err     *interpErrors.InterpreterError
 	Message string
-	Err     *interpErrors.InterpreterError // Underlying structured error
 }
 
 func (e *ErrorValue) Type() string   { return "ERROR" }

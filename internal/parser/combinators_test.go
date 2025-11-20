@@ -116,8 +116,8 @@ func TestMany(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
-		expected int
 		desc     string
+		expected int
 	}{
 		{
 			name:     "zero matches",
@@ -161,8 +161,8 @@ func TestMany1(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
-		expected int
 		desc     string
+		expected int
 	}{
 		{
 			name:     "no match returns 0",
@@ -206,9 +206,9 @@ func TestManyUntil(t *testing.T) {
 	tests := []struct {
 		name       string
 		input      string
+		desc       string
 		terminator lexer.TokenType
 		expected   int
-		desc       string
 	}{
 		{
 			name:       "parse until semicolon",

@@ -6,8 +6,8 @@ import (
 
 // MockClassInfo is a simple mock for testing ClassRegistry
 type MockClassInfo struct {
-	Name   string
 	Parent *MockClassInfo
+	Name   string
 }
 
 func TestClassRegistry_RegisterAndLookup(t *testing.T) {

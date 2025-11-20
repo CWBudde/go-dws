@@ -331,9 +331,9 @@ func TestContains(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		array    *runtime.ArrayValue
 		value    Value
+		array    *runtime.ArrayValue
+		name     string
 		expected bool
 	}{
 		{

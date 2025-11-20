@@ -7,12 +7,12 @@ import (
 // TestVM_ExecuteInitializer tests the executeInitializer function
 func TestVM_ExecuteInitializer(t *testing.T) {
 	tests := []struct {
-		name          string
 		createChunk   func() *Chunk
 		setupParentVM func(*VM)
 		expectedValue Value
-		expectError   bool
+		name          string
 		errorContains string
+		expectError   bool
 	}{
 		{
 			name: "simple_integer_initializer",

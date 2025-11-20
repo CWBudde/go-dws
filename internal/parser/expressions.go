@@ -35,7 +35,7 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 
 		// Termination condition 2: precedence
 		// Special case: allow NOT at EQUALS precedence for "not in/is/as"
-		if precedence >= nextPrec && !(nextToken.Type == lexer.NOT && precedence < EQUALS) {
+		if precedence >= nextPrec && (nextToken.Type != lexer.NOT || precedence >= EQUALS) {
 			break
 		}
 
@@ -1668,13 +1668,14 @@ func (p *Parser) parseNewExpression() ast.Expression {
 
 	// Check what follows: '(' for class, '[' for array, or nothing for zero-arg constructor
 	nextToken = p.cursor.Peek(1)
-	if nextToken.Type == lexer.LBRACK {
+	switch nextToken.Type {
+	case lexer.LBRACK:
 		// Array instantiation: new TypeName[size, ...]
 		return p.parseNewArrayExpression(newToken, typeName)
-	} else if nextToken.Type == lexer.LPAREN {
+	case lexer.LPAREN:
 		// Class instantiation: new ClassName(args)
 		return p.parseNewClassExpression(newToken, typeName)
-	} else {
+	default:
 		// No parentheses - treat as zero-argument constructor
 		// DWScript allows: new TTest (equivalent to new TTest())
 		return &ast.NewExpression{
@@ -1905,7 +1906,8 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 
 	// Check which syntax is being used: shorthand (=>) or full (begin/end)
 	nextToken = p.cursor.Peek(1)
-	if nextToken.Type == lexer.FAT_ARROW {
+	switch nextToken.Type {
+	case lexer.FAT_ARROW:
 		// Shorthand syntax: lambda(x) => expression
 		p.cursor = p.cursor.Advance() // move to '=>'
 		p.cursor = p.cursor.Advance() // move past '=>' to expression
@@ -1938,7 +1940,7 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 			return builder.Finish(lambdaExpr).(ast.Expression)
 		}
 
-	} else if nextToken.Type == lexer.BEGIN {
+	case lexer.BEGIN:
 		// Full syntax: lambda(x: Integer) begin ... end
 		p.cursor = p.cursor.Advance() // move to 'begin'
 
@@ -1953,7 +1955,7 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 			return builder.Finish(lambdaExpr).(ast.Expression)
 		}
 
-	} else {
+	default:
 		p.addError("expected '=>' or 'begin' after lambda parameters", ErrUnexpectedToken)
 		return nil
 	}

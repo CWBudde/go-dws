@@ -113,9 +113,9 @@ func TestRound(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 	}{
 		{
 			name:     "round 3.4",
@@ -159,9 +159,9 @@ func TestTrunc(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 	}{
 		{
 			name:     "trunc 3.9",
@@ -195,9 +195,9 @@ func TestCeil(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 	}{
 		{
 			name:     "ceil 3.1",
@@ -231,9 +231,9 @@ func TestFloor(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 	}{
 		{
 			name:     "floor 3.9",
@@ -267,9 +267,9 @@ func TestClampInt(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
+		expected Value
 		name     string
 		args     []Value
-		expected Value
 	}{
 		{
 			name: "within range",

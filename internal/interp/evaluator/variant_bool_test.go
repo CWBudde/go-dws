@@ -38,8 +38,8 @@ func (m *mockUnassignedValue) String() string { return "Unassigned" }
 
 func TestIsTruthy_Variants(t *testing.T) {
 	tests := []struct {
-		name     string
 		value    Value
+		name     string
 		expected bool
 	}{
 		// Variant wrapping boolean values
@@ -156,8 +156,8 @@ func TestIsTruthy_Variants(t *testing.T) {
 
 func TestVariantToBool(t *testing.T) {
 	tests := []struct {
-		name     string
 		value    Value
+		name     string
 		expected bool
 	}{
 		// Direct runtime values (already unwrapped)

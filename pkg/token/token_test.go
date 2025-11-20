@@ -8,8 +8,8 @@ import (
 func TestPositionString(t *testing.T) {
 	tests := []struct {
 		name     string
-		pos      Position
 		expected string
+		pos      Position
 	}{
 		{"simple position", Position{Line: 1, Column: 5}, "1:5"},
 		{"larger numbers", Position{Line: 123, Column: 456}, "123:456"},
@@ -55,8 +55,8 @@ func TestPositionIsValid(t *testing.T) {
 func TestTokenString(t *testing.T) {
 	tests := []struct {
 		name     string
-		token    Token
 		expected string
+		token    Token
 	}{
 		{
 			"simple identifier",
@@ -120,8 +120,8 @@ func TestNewToken(t *testing.T) {
 func TestTokenTypeString(t *testing.T) {
 	tests := []struct {
 		name     string
-		tt       TokenType
 		expected string
+		tt       TokenType
 	}{
 		{"ILLEGAL", ILLEGAL, "ILLEGAL"},
 		{"EOF", EOF, "EOF"},

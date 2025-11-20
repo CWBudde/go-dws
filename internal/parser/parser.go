@@ -385,16 +385,11 @@ type Parser struct {
 	l                    *lexer.Lexer
 	prefixParseFns       map[lexer.TokenType]prefixParseFn
 	infixParseFns        map[lexer.TokenType]infixParseFn
+	ctx                  *ParseContext
+	cursor               *TokenCursor
 	errors               []*ParserError
-	parsingPostCondition bool           // True when parsing postconditions (for 'old' keyword)
-	blockStack           []BlockContext // Stack of nested block contexts for error messages
-
-	// ctx is the new structured parsing context (Task 2.1.2)
-	// Consolidates scattered context flags and block stack into a single type.
-	ctx *ParseContext
-
-	// The parser uses the immutable cursor for token navigation.
-	cursor *TokenCursor
+	blockStack           []BlockContext
+	parsingPostCondition bool
 }
 
 // ParserState represents a HEAVYWEIGHT snapshot of the parser's complete state.
@@ -429,12 +424,12 @@ type Parser struct {
 //
 // ParserState represents a snapshot of the parser's state for speculative parsing.
 type ParserState struct {
-	lexerState           lexer.LexerState
+	ctx                  *ParseContext
+	cursor               *TokenCursor
 	errors               []*ParserError
-	parsingPostCondition bool
 	blockStack           []BlockContext
-	ctx                  *ParseContext // New structured context (Task 2.1.2)
-	cursor               *TokenCursor  // Cursor position
+	lexerState           lexer.LexerState
+	parsingPostCondition bool
 }
 
 // New creates a new Parser instance.

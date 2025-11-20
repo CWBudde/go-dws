@@ -298,8 +298,8 @@ func TestCharAt(t *testing.T) {
 	tests := []struct {
 		name     string
 		str      string
-		index    int64
 		expected string
+		index    int64
 		isError  bool
 	}{
 		{

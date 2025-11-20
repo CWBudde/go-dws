@@ -688,9 +688,10 @@ func (p *Parser) parseForStatement() ast.Statement {
 
 	// Set direction based on token
 	currentToken := p.cursor.Current()
-	if currentToken.Type == lexer.TO {
+	switch currentToken.Type {
+	case lexer.TO:
 		stmt.Direction = ast.ForTo
-	} else if currentToken.Type == lexer.DOWNTO {
+	case lexer.DOWNTO:
 		stmt.Direction = ast.ForDownto
 	}
 

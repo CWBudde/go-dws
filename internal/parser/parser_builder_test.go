@@ -12,9 +12,9 @@ func TestDefaultConfig(t *testing.T) {
 	config := DefaultConfig()
 
 	tests := []struct {
-		name     string
 		got      interface{}
 		expected interface{}
+		name     string
 	}{
 		{"AllowReservedKeywordsAsIdentifiers", config.AllowReservedKeywordsAsIdentifiers, true},
 		{"StrictMode", config.StrictMode, false},
@@ -274,8 +274,8 @@ func TestParserBuilderCursorModeDoesNotSkipTokens(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         string
-		expectedFirst lexer.TokenType
 		expectedLit   string
+		expectedFirst lexer.TokenType
 	}{
 		{
 			name:          "simple assignment",

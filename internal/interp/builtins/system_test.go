@@ -389,8 +389,8 @@ func TestFormat(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 		isError  bool
 	}{
 		{

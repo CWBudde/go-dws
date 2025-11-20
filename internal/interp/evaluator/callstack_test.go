@@ -317,8 +317,8 @@ func TestCallStack_GetFrameAt(t *testing.T) {
 	cs.Push("func3", "test.dws", &pos)
 
 	tests := []struct {
-		index    int
 		wantName string
+		index    int
 		wantNil  bool
 	}{
 		{0, "func1", false},

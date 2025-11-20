@@ -10,8 +10,8 @@ import (
 func TestDisassembler_TryDisassembleMiscOp(t *testing.T) {
 	tests := []struct {
 		name           string
-		inst           Instruction
 		expectedOutput string
+		inst           Instruction
 		expectedResult bool
 	}{
 		{
@@ -68,8 +68,8 @@ func TestDisassembler_TryDisassembleMiscOp(t *testing.T) {
 func TestDisassembler_InvokeInstruction(t *testing.T) {
 	tests := []struct {
 		name           string
-		inst           Instruction
 		expectedOutput []string
+		inst           Instruction
 	}{
 		{
 			name: "invoke_with_1_arg",
@@ -212,8 +212,8 @@ func TestDisassembler_CallInstruction(t *testing.T) {
 func TestDisassembler_ReturnInstruction(t *testing.T) {
 	tests := []struct {
 		name           string
-		inst           Instruction
 		expectedOutput string
+		inst           Instruction
 	}{
 		{
 			name:           "return_with_value",
@@ -350,8 +350,8 @@ func TestDisassembler_ConstantInstruction(t *testing.T) {
 func TestDisassembler_SimpleInstruction(t *testing.T) {
 	tests := []struct {
 		name           string
-		inst           Instruction
 		expectedOutput string
+		inst           Instruction
 	}{
 		{
 			name:           "OpLoadNil",

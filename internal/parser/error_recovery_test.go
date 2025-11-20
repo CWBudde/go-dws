@@ -12,8 +12,8 @@ func TestErrorRecoveryBlockStatement(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         string
-		expectErrors  int
 		errorContains []string
+		expectErrors  int
 	}{
 		{
 			name: "missing end keyword",
@@ -94,8 +94,8 @@ func TestErrorRecoveryIfStatement(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         string
-		expectErrors  int
 		errorContains []string
+		expectErrors  int
 	}{
 		{
 			name: "missing then keyword",
@@ -181,8 +181,8 @@ func TestErrorRecoveryWhileStatement(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         string
-		expectErrors  int
 		errorContains []string
+		expectErrors  int
 	}{
 		{
 			name: "missing do keyword",
@@ -256,8 +256,8 @@ func TestErrorRecoveryRepeatStatement(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         string
-		expectErrors  int
 		errorContains []string
+		expectErrors  int
 	}{
 		{
 			name: "missing until keyword",
@@ -323,8 +323,8 @@ func TestErrorRecoveryCaseStatement(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         string
-		expectErrors  int
 		errorContains []string
+		expectErrors  int
 	}{
 		{
 			name: "missing end keyword",
@@ -505,8 +505,8 @@ func TestNewErrorRecovery(t *testing.T) {
 func TestGetSyncTokens(t *testing.T) {
 	tests := []struct {
 		name        string
-		set         SynchronizationSet
 		contains    []lexer.TokenType
+		set         SynchronizationSet
 		shouldBeNil bool
 	}{
 		{
@@ -624,8 +624,8 @@ func TestSynchronizeOnSet(t *testing.T) {
 	tests := []struct {
 		name             string
 		input            string
-		set              SynchronizationSet
 		additionalTokens []lexer.TokenType
+		set              SynchronizationSet
 		shouldFind       bool
 	}{
 		{
@@ -672,8 +672,8 @@ func TestAddExpectError(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		expected    lexer.TokenType
 		context     string
+		expected    lexer.TokenType
 		shouldError bool
 	}{
 		{
@@ -857,9 +857,9 @@ func TestExpectWithRecovery(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         string
-		expected      lexer.TokenType
 		context       string
 		syncTokens    []lexer.TokenType
+		expected      lexer.TokenType
 		shouldSucceed bool
 	}{
 		{
@@ -909,8 +909,8 @@ func TestExpectOneOf(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		expected    []lexer.TokenType
 		context     string
+		expected    []lexer.TokenType
 		shouldMatch lexer.TokenType
 	}{
 		{
@@ -1095,8 +1095,8 @@ func TestSuggestMissingSeparator(t *testing.T) {
 // TestGetErrorCodeForMissingToken tests error code mapping
 func TestGetErrorCodeForMissingToken(t *testing.T) {
 	tests := []struct {
-		token        lexer.TokenType
 		expectedCode string
+		token        lexer.TokenType
 	}{
 		{lexer.THEN, ErrMissingThen},
 		{lexer.DO, ErrMissingDo},

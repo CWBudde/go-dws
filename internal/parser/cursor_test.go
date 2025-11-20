@@ -18,8 +18,8 @@ func TestTokenCursor_NewAndCurrent(t *testing.T) {
 	tests := []struct {
 		name     string
 		source   string
-		wantType token.TokenType
 		wantLit  string
+		wantType token.TokenType
 	}{
 		{
 			name:     "simple integer",
@@ -69,9 +69,9 @@ func TestTokenCursor_Peek(t *testing.T) {
 
 	tests := []struct {
 		name     string
+		wantLit  string
 		peekN    int
 		wantType token.TokenType
-		wantLit  string
 	}{
 		{
 			name:     "peek 0 (current)",
@@ -411,10 +411,10 @@ func TestTokenCursor_PeekIsAny(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		peekN     int
 		types     []token.TokenType
-		wantMatch bool
+		peekN     int
 		wantType  token.TokenType
+		wantMatch bool
 	}{
 		{
 			name:      "peek 1 matches IDENT",
@@ -846,9 +846,9 @@ func TestTokenCursor_BufferSharing(t *testing.T) {
 // TestTokenCursor_LookAhead tests the LookAhead method with predicates
 func TestTokenCursor_LookAhead(t *testing.T) {
 	tests := []struct {
+		predicate func(token.Token) bool
 		name      string
 		source    string
-		predicate func(token.Token) bool
 		wantType  token.TokenType
 		wantDist  int
 		wantFound bool
@@ -929,11 +929,11 @@ func TestTokenCursor_LookAhead(t *testing.T) {
 // TestTokenCursor_ScanUntil tests the ScanUntil method
 func TestTokenCursor_ScanUntil(t *testing.T) {
 	tests := []struct {
+		stop      func(token.Token) bool
 		name      string
 		source    string
-		stop      func(token.Token) bool
-		wantCount int
 		wantTypes []token.TokenType
+		wantCount int
 	}{
 		{
 			name:   "scan until semicolon",
@@ -1079,9 +1079,9 @@ func TestTokenCursor_LookAheadPerformance(t *testing.T) {
 // TestTokenCursor_DeclarativeLookaheadIntegration tests declarative lookahead in realistic scenarios
 func TestTokenCursor_DeclarativeLookaheadIntegration(t *testing.T) {
 	tests := []struct {
+		test   func(*testing.T, *TokenCursor)
 		name   string
 		source string
-		test   func(*testing.T, *TokenCursor)
 	}{
 		{
 			name:   "find type annotation in var declaration",

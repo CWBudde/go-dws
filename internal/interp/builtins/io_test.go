@@ -30,8 +30,8 @@ func (m *mockIOContext) WriteLine(s string) {
 func TestPrint(t *testing.T) {
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name:     "Single string",
@@ -93,8 +93,8 @@ func TestPrint(t *testing.T) {
 func TestPrintLn(t *testing.T) {
 	tests := []struct {
 		name     string
-		args     []Value
 		expected string
+		args     []Value
 	}{
 		{
 			name:     "Single string",

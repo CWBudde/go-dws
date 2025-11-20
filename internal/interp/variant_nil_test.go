@@ -11,9 +11,9 @@ func TestValuesEqualWithNilVariants(t *testing.T) {
 	interp := New(&buf)
 
 	tests := []struct {
-		name     string
 		left     Value
 		right    Value
+		name     string
 		expected bool
 	}{
 		{
@@ -82,10 +82,10 @@ func TestIsInRangeWithNilVariants(t *testing.T) {
 	interp := New(&buf)
 
 	tests := []struct {
-		name     string
 		value    Value
 		start    Value
 		end      Value
+		name     string
 		expected bool
 	}{
 		{

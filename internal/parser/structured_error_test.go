@@ -9,11 +9,11 @@ import (
 
 func TestStructuredErrorBuilder(t *testing.T) {
 	tests := []struct {
-		name     string
 		builder  func() *StructuredParserError
+		checks   func(*testing.T, *StructuredParserError)
+		name     string
 		wantCode string
 		wantKind ErrorKind
-		checks   func(*testing.T, *StructuredParserError)
 	}{
 		{
 			name: "basic error with message",

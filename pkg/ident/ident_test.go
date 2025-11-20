@@ -143,7 +143,7 @@ func TestCompare(t *testing.T) {
 
 			// Test antisymmetry: Compare(a, b) = -Compare(b, a)
 			reverse := Compare(tt.b, tt.a)
-			if result != -reverse && !(result == 0 && reverse == 0) {
+			if result != -reverse && (result != 0 || reverse != 0) {
 				t.Errorf("Compare not antisymmetric: Compare(%q, %q) = %d, Compare(%q, %q) = %d",
 					tt.a, tt.b, result, tt.b, tt.a, reverse)
 			}
@@ -175,8 +175,8 @@ func TestCompareSort(t *testing.T) {
 func TestContains(t *testing.T) {
 	tests := []struct {
 		name     string
-		slice    []string
 		search   string
+		slice    []string
 		expected bool
 	}{
 		{"found exact", []string{"abc", "def", "ghi"}, "def", true},
@@ -204,8 +204,8 @@ func TestContains(t *testing.T) {
 func TestIndex(t *testing.T) {
 	tests := []struct {
 		name     string
-		slice    []string
 		search   string
+		slice    []string
 		expected int
 	}{
 		{"found at 0", []string{"abc", "def", "ghi"}, "abc", 0},

@@ -25,27 +25,27 @@ type VirtualMethodEntry struct {
 // It stores information about a class's structure including fields, methods,
 // parent class, and constructor/destructor.
 type ClassInfo struct {
-	MethodOverloads      map[string][]*ast.FunctionDecl
-	ConstantValues       map[string]Value
+	Constants            map[string]*ast.ConstDecl
+	ClassVars            map[string]Value
 	ConstructorOverloads map[string][]*ast.FunctionDecl
 	VirtualMethodTable   map[string]*VirtualMethodEntry
 	Fields               map[string]types.Type
 	FieldDecls           map[string]*ast.FieldDecl
-	ClassVars            map[string]Value
+	Constructor          *ast.FunctionDecl
 	ClassMethodOverloads map[string][]*ast.FunctionDecl
 	ClassMethods         map[string]*ast.FunctionDecl
 	Methods              map[string]*ast.FunctionDecl
+	ConstantValues       map[string]Value
 	Constructors         map[string]*ast.FunctionDecl
-	Constructor          *ast.FunctionDecl
-	Constants            map[string]*ast.ConstDecl
+	Operators            *runtimeOperatorRegistry
 	Properties           map[string]*types.PropertyInfo
 	Destructor           *ast.FunctionDecl
 	Parent               *ClassInfo
-	Operators            *runtimeOperatorRegistry
-	Interfaces           []*InterfaceInfo // List of interfaces this class implements
+	MethodOverloads      map[string][]*ast.FunctionDecl
 	ExternalName         string
 	Name                 string
 	DefaultConstructor   string
+	Interfaces           []*InterfaceInfo
 	IsExternal           bool
 	IsAbstract           bool
 	IsPartial            bool
