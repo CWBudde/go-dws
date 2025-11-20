@@ -1098,19 +1098,19 @@ func TestGetErrorCodeForMissingToken(t *testing.T) {
 		expectedCode string
 		token        lexer.TokenType
 	}{
-		{lexer.THEN, ErrMissingThen},
-		{lexer.DO, ErrMissingDo},
-		{lexer.END, ErrMissingEnd},
-		{lexer.SEMICOLON, ErrMissingSemicolon},
-		{lexer.COLON, ErrMissingColon},
-		{lexer.RPAREN, ErrMissingRParen},
-		{lexer.RBRACE, ErrMissingRBrace},
-		{lexer.RBRACK, ErrMissingRBracket},
-		{lexer.ASSIGN, ErrMissingAssign},
-		{lexer.OF, ErrMissingOf},
-		{lexer.TO, ErrMissingTo},
-		{lexer.DOWNTO, ErrMissingTo},
-		{lexer.IDENT, ErrUnexpectedToken}, // Default case
+		{token: lexer.THEN, expectedCode: ErrMissingThen},
+		{token: lexer.DO, expectedCode: ErrMissingDo},
+		{token: lexer.END, expectedCode: ErrMissingEnd},
+		{token: lexer.SEMICOLON, expectedCode: ErrMissingSemicolon},
+		{token: lexer.COLON, expectedCode: ErrMissingColon},
+		{token: lexer.RPAREN, expectedCode: ErrMissingRParen},
+		{token: lexer.RBRACE, expectedCode: ErrMissingRBrace},
+		{token: lexer.RBRACK, expectedCode: ErrMissingRBracket},
+		{token: lexer.ASSIGN, expectedCode: ErrMissingAssign},
+		{token: lexer.OF, expectedCode: ErrMissingOf},
+		{token: lexer.TO, expectedCode: ErrMissingTo},
+		{token: lexer.DOWNTO, expectedCode: ErrMissingTo},
+		{token: lexer.IDENT, expectedCode: ErrUnexpectedToken}, // Default case
 	}
 
 	for _, tt := range tests {

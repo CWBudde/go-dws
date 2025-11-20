@@ -11,10 +11,10 @@ func TestPositionString(t *testing.T) {
 		expected string
 		pos      Position
 	}{
-		{"simple position", Position{Line: 1, Column: 5}, "1:5"},
-		{"larger numbers", Position{Line: 123, Column: 456}, "123:456"},
-		{"zero position", Position{Line: 0, Column: 0}, "0:0"},
-		{"with offset", Position{Line: 10, Column: 20, Offset: 100}, "10:20"},
+		{name: "simple position", pos: Position{Line: 1, Column: 5}, expected: "1:5"},
+		{name: "larger numbers", pos: Position{Line: 123, Column: 456}, expected: "123:456"},
+		{name: "zero position", pos: Position{Line: 0, Column: 0}, expected: "0:0"},
+		{name: "with offset", pos: Position{Line: 10, Column: 20, Offset: 100}, expected: "10:20"},
 	}
 
 	for _, tt := range tests {
@@ -59,34 +59,34 @@ func TestTokenString(t *testing.T) {
 		token    Token
 	}{
 		{
-			"simple identifier",
-			Token{Type: IDENT, Literal: "foo", Pos: Position{Line: 1, Column: 5}},
-			`IDENT("foo") at 1:5`,
+			name:     "simple identifier",
+			token:    Token{Type: IDENT, Literal: "foo", Pos: Position{Line: 1, Column: 5}},
+			expected: `IDENT("foo") at 1:5`,
 		},
 		{
-			"keyword",
-			Token{Type: BEGIN, Literal: "begin", Pos: Position{Line: 2, Column: 1}},
-			`BEGIN("begin") at 2:1`,
+			name:     "keyword",
+			token:    Token{Type: BEGIN, Literal: "begin", Pos: Position{Line: 2, Column: 1}},
+			expected: `BEGIN("begin") at 2:1`,
 		},
 		{
-			"EOF token",
-			Token{Type: EOF, Literal: "", Pos: Position{Line: 10, Column: 20}},
-			`EOF at 10:20`,
+			name:     "EOF token",
+			token:    Token{Type: EOF, Literal: "", Pos: Position{Line: 10, Column: 20}},
+			expected: `EOF at 10:20`,
 		},
 		{
-			"long literal truncated",
-			Token{Type: STRING, Literal: "this is a very long string literal that will be truncated", Pos: Position{Line: 5, Column: 10}},
-			`STRING("this is a very long "...) at 5:10`,
+			name:     "long literal truncated",
+			token:    Token{Type: STRING, Literal: "this is a very long string literal that will be truncated", Pos: Position{Line: 5, Column: 10}},
+			expected: `STRING("this is a very long "...) at 5:10`,
 		},
 		{
-			"operator",
-			Token{Type: PLUS, Literal: "+", Pos: Position{Line: 3, Column: 7}},
-			`PLUS("+") at 3:7`,
+			name:     "operator",
+			token:    Token{Type: PLUS, Literal: "+", Pos: Position{Line: 3, Column: 7}},
+			expected: `PLUS("+") at 3:7`,
 		},
 		{
-			"integer literal",
-			Token{Type: INT, Literal: "42", Pos: Position{Line: 1, Column: 1}},
-			`INT("42") at 1:1`,
+			name:     "integer literal",
+			token:    Token{Type: INT, Literal: "42", Pos: Position{Line: 1, Column: 1}},
+			expected: `INT("42") at 1:1`,
 		},
 	}
 
@@ -123,27 +123,27 @@ func TestTokenTypeString(t *testing.T) {
 		expected string
 		tt       TokenType
 	}{
-		{"ILLEGAL", ILLEGAL, "ILLEGAL"},
-		{"EOF", EOF, "EOF"},
-		{"IDENT", IDENT, "IDENT"},
-		{"INT", INT, "INT"},
-		{"FLOAT", FLOAT, "FLOAT"},
-		{"STRING", STRING, "STRING"},
-		{"BEGIN", BEGIN, "BEGIN"},
-		{"END", END, "END"},
-		{"IF", IF, "IF"},
-		{"WHILE", WHILE, "WHILE"},
-		{"CLASS", CLASS, "CLASS"},
-		{"FUNCTION", FUNCTION, "FUNCTION"},
-		{"PLUS", PLUS, "PLUS"},
-		{"MINUS", MINUS, "MINUS"},
-		{"LPAREN", LPAREN, "LPAREN"},
-		{"RPAREN", RPAREN, "RPAREN"},
-		{"ASSIGN", ASSIGN, "ASSIGN"},
-		{"EQ", EQ, "EQ"},
-		{"NOT_EQ", NOT_EQ, "NOT_EQ"},
-		{"SWITCH", SWITCH, "SWITCH"},
-		{"unknown type", TokenType(9999), "UNKNOWN"},
+		{name: "ILLEGAL", tt: ILLEGAL, expected: "ILLEGAL"},
+		{name: "EOF", tt: EOF, expected: "EOF"},
+		{name: "IDENT", tt: IDENT, expected: "IDENT"},
+		{name: "INT", tt: INT, expected: "INT"},
+		{name: "FLOAT", tt: FLOAT, expected: "FLOAT"},
+		{name: "STRING", tt: STRING, expected: "STRING"},
+		{name: "BEGIN", tt: BEGIN, expected: "BEGIN"},
+		{name: "END", tt: END, expected: "END"},
+		{name: "IF", tt: IF, expected: "IF"},
+		{name: "WHILE", tt: WHILE, expected: "WHILE"},
+		{name: "CLASS", tt: CLASS, expected: "CLASS"},
+		{name: "FUNCTION", tt: FUNCTION, expected: "FUNCTION"},
+		{name: "PLUS", tt: PLUS, expected: "PLUS"},
+		{name: "MINUS", tt: MINUS, expected: "MINUS"},
+		{name: "LPAREN", tt: LPAREN, expected: "LPAREN"},
+		{name: "RPAREN", tt: RPAREN, expected: "RPAREN"},
+		{name: "ASSIGN", tt: ASSIGN, expected: "ASSIGN"},
+		{name: "EQ", tt: EQ, expected: "EQ"},
+		{name: "NOT_EQ", tt: NOT_EQ, expected: "NOT_EQ"},
+		{name: "SWITCH", tt: SWITCH, expected: "SWITCH"},
+		{name: "unknown type", tt: TokenType(9999), expected: "UNKNOWN"},
 	}
 
 	for _, tt := range tests {
