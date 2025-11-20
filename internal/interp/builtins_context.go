@@ -3,6 +3,7 @@ package interp
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -838,6 +839,13 @@ func (i *Interpreter) FormatString(format string, args []builtins.Value) (string
 		verb  rune
 		index int
 	}
+	normalizeFloat := func(f float64) float64 {
+		// Clamp tiny magnitudes to zero to avoid "-0.00" artifacts when formatting.
+		if math.Abs(f) < 1e-12 || (f == 0 && math.Signbit(f)) {
+			return 0
+		}
+		return f
+	}
 	var specs []formatSpec
 	argIndex := 0
 
@@ -897,6 +905,9 @@ func (i *Interpreter) FormatString(format string, args []builtins.Value) (string
 			switch spec.verb {
 			case 'd', 'x', 'X', 'o', 'v':
 				goArgs[idx] = v.Value
+			case 'f':
+				// Allow integers with %f by promoting to float64 (Delphi-compatible)
+				goArgs[idx] = normalizeFloat(float64(v.Value))
 			case 's':
 				// Allow integer to string conversion for %s
 				goArgs[idx] = fmt.Sprintf("%d", v.Value)
@@ -907,7 +918,7 @@ func (i *Interpreter) FormatString(format string, args []builtins.Value) (string
 			// %f, %v are valid for floats
 			switch spec.verb {
 			case 'f', 'v':
-				goArgs[idx] = v.Value
+				goArgs[idx] = normalizeFloat(v.Value)
 			case 's':
 				// Allow float to string conversion for %s
 				goArgs[idx] = fmt.Sprintf("%f", v.Value)
