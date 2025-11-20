@@ -8,6 +8,43 @@ import (
 	"github.com/cwbudde/go-dws/internal/parser"
 )
 
+// runBuiltinTest is a helper function that parses, analyzes, and verifies test expectations
+func runBuiltinTest(t *testing.T, code string, expectError bool, errorMsg string) {
+	t.Helper()
+
+	l := lexer.New(code)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("Parser errors: %v", p.Errors())
+	}
+
+	analyzer := NewAnalyzer()
+	analyzer.Analyze(program)
+
+	if expectError {
+		if len(analyzer.errors) == 0 {
+			t.Errorf("expected error containing '%s', got no errors", errorMsg)
+		} else if errorMsg != "" {
+			found := false
+			for _, err := range analyzer.errors {
+				if strings.Contains(strings.ToLower(err), strings.ToLower(errorMsg)) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("expected error containing '%s', got: %v", errorMsg, analyzer.errors)
+			}
+		}
+	} else {
+		if len(analyzer.errors) > 0 {
+			t.Errorf("unexpected errors: %v", analyzer.errors)
+		}
+	}
+}
+
 // TestAnalyzeDefault tests the Default() built-in function
 func TestAnalyzeDefault(t *testing.T) {
 	tests := []struct {
@@ -77,37 +114,7 @@ func TestAnalyzeDefault(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := lexer.New(tt.code)
-			p := parser.New(l)
-			program := p.ParseProgram()
-
-			if len(p.Errors()) > 0 {
-				t.Fatalf("Parser errors: %v", p.Errors())
-			}
-
-			analyzer := NewAnalyzer()
-			analyzer.Analyze(program)
-
-			if tt.expectError {
-				if len(analyzer.errors) == 0 {
-					t.Errorf("expected error containing '%s', got no errors", tt.errorMsg)
-				} else if tt.errorMsg != "" {
-					found := false
-					for _, err := range analyzer.errors {
-						if strings.Contains(strings.ToLower(err), strings.ToLower(tt.errorMsg)) {
-							found = true
-							break
-						}
-					}
-					if !found {
-						t.Errorf("expected error containing '%s', got: %v", tt.errorMsg, analyzer.errors)
-					}
-				}
-			} else {
-				if len(analyzer.errors) > 0 {
-					t.Errorf("unexpected errors: %v", analyzer.errors)
-				}
-			}
+			runBuiltinTest(t, tt.code, tt.expectError, tt.errorMsg)
 		})
 	}
 }
@@ -170,37 +177,7 @@ func TestAnalyzeStrToIntDef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := lexer.New(tt.code)
-			p := parser.New(l)
-			program := p.ParseProgram()
-
-			if len(p.Errors()) > 0 {
-				t.Fatalf("Parser errors: %v", p.Errors())
-			}
-
-			analyzer := NewAnalyzer()
-			analyzer.Analyze(program)
-
-			if tt.expectError {
-				if len(analyzer.errors) == 0 {
-					t.Errorf("expected error containing '%s', got no errors", tt.errorMsg)
-				} else if tt.errorMsg != "" {
-					found := false
-					for _, err := range analyzer.errors {
-						if strings.Contains(strings.ToLower(err), strings.ToLower(tt.errorMsg)) {
-							found = true
-							break
-						}
-					}
-					if !found {
-						t.Errorf("expected error containing '%s', got: %v", tt.errorMsg, analyzer.errors)
-					}
-				}
-			} else {
-				if len(analyzer.errors) > 0 {
-					t.Errorf("unexpected errors: %v", analyzer.errors)
-				}
-			}
+			runBuiltinTest(t, tt.code, tt.expectError, tt.errorMsg)
 		})
 	}
 }
@@ -252,37 +229,7 @@ func TestAnalyzeStrToFloatDef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := lexer.New(tt.code)
-			p := parser.New(l)
-			program := p.ParseProgram()
-
-			if len(p.Errors()) > 0 {
-				t.Fatalf("Parser errors: %v", p.Errors())
-			}
-
-			analyzer := NewAnalyzer()
-			analyzer.Analyze(program)
-
-			if tt.expectError {
-				if len(analyzer.errors) == 0 {
-					t.Errorf("expected error containing '%s', got no errors", tt.errorMsg)
-				} else if tt.errorMsg != "" {
-					found := false
-					for _, err := range analyzer.errors {
-						if strings.Contains(strings.ToLower(err), strings.ToLower(tt.errorMsg)) {
-							found = true
-							break
-						}
-					}
-					if !found {
-						t.Errorf("expected error containing '%s', got: %v", tt.errorMsg, analyzer.errors)
-					}
-				}
-			} else {
-				if len(analyzer.errors) > 0 {
-					t.Errorf("unexpected errors: %v", analyzer.errors)
-				}
-			}
+			runBuiltinTest(t, tt.code, tt.expectError, tt.errorMsg)
 		})
 	}
 }
@@ -351,37 +298,7 @@ func TestAnalyzeTryStrToInt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := lexer.New(tt.code)
-			p := parser.New(l)
-			program := p.ParseProgram()
-
-			if len(p.Errors()) > 0 {
-				t.Fatalf("Parser errors: %v", p.Errors())
-			}
-
-			analyzer := NewAnalyzer()
-			analyzer.Analyze(program)
-
-			if tt.expectError {
-				if len(analyzer.errors) == 0 {
-					t.Errorf("expected error containing '%s', got no errors", tt.errorMsg)
-				} else if tt.errorMsg != "" {
-					found := false
-					for _, err := range analyzer.errors {
-						if strings.Contains(strings.ToLower(err), strings.ToLower(tt.errorMsg)) {
-							found = true
-							break
-						}
-					}
-					if !found {
-						t.Errorf("expected error containing '%s', got: %v", tt.errorMsg, analyzer.errors)
-					}
-				}
-			} else {
-				if len(analyzer.errors) > 0 {
-					t.Errorf("unexpected errors: %v", analyzer.errors)
-				}
-			}
+			runBuiltinTest(t, tt.code, tt.expectError, tt.errorMsg)
 		})
 	}
 }
@@ -433,37 +350,7 @@ func TestAnalyzeTryStrToFloat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := lexer.New(tt.code)
-			p := parser.New(l)
-			program := p.ParseProgram()
-
-			if len(p.Errors()) > 0 {
-				t.Fatalf("Parser errors: %v", p.Errors())
-			}
-
-			analyzer := NewAnalyzer()
-			analyzer.Analyze(program)
-
-			if tt.expectError {
-				if len(analyzer.errors) == 0 {
-					t.Errorf("expected error containing '%s', got no errors", tt.errorMsg)
-				} else if tt.errorMsg != "" {
-					found := false
-					for _, err := range analyzer.errors {
-						if strings.Contains(strings.ToLower(err), strings.ToLower(tt.errorMsg)) {
-							found = true
-							break
-						}
-					}
-					if !found {
-						t.Errorf("expected error containing '%s', got: %v", tt.errorMsg, analyzer.errors)
-					}
-				}
-			} else {
-				if len(analyzer.errors) > 0 {
-					t.Errorf("unexpected errors: %v", analyzer.errors)
-				}
-			}
+			runBuiltinTest(t, tt.code, tt.expectError, tt.errorMsg)
 		})
 	}
 }
@@ -503,37 +390,7 @@ func TestAnalyzeHexToInt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := lexer.New(tt.code)
-			p := parser.New(l)
-			program := p.ParseProgram()
-
-			if len(p.Errors()) > 0 {
-				t.Fatalf("Parser errors: %v", p.Errors())
-			}
-
-			analyzer := NewAnalyzer()
-			analyzer.Analyze(program)
-
-			if tt.expectError {
-				if len(analyzer.errors) == 0 {
-					t.Errorf("expected error containing '%s', got no errors", tt.errorMsg)
-				} else if tt.errorMsg != "" {
-					found := false
-					for _, err := range analyzer.errors {
-						if strings.Contains(strings.ToLower(err), strings.ToLower(tt.errorMsg)) {
-							found = true
-							break
-						}
-					}
-					if !found {
-						t.Errorf("expected error containing '%s', got: %v", tt.errorMsg, analyzer.errors)
-					}
-				}
-			} else {
-				if len(analyzer.errors) > 0 {
-					t.Errorf("unexpected errors: %v", analyzer.errors)
-				}
-			}
+			runBuiltinTest(t, tt.code, tt.expectError, tt.errorMsg)
 		})
 	}
 }
@@ -573,37 +430,7 @@ func TestAnalyzeBinToInt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := lexer.New(tt.code)
-			p := parser.New(l)
-			program := p.ParseProgram()
-
-			if len(p.Errors()) > 0 {
-				t.Fatalf("Parser errors: %v", p.Errors())
-			}
-
-			analyzer := NewAnalyzer()
-			analyzer.Analyze(program)
-
-			if tt.expectError {
-				if len(analyzer.errors) == 0 {
-					t.Errorf("expected error containing '%s', got no errors", tt.errorMsg)
-				} else if tt.errorMsg != "" {
-					found := false
-					for _, err := range analyzer.errors {
-						if strings.Contains(strings.ToLower(err), strings.ToLower(tt.errorMsg)) {
-							found = true
-							break
-						}
-					}
-					if !found {
-						t.Errorf("expected error containing '%s', got: %v", tt.errorMsg, analyzer.errors)
-					}
-				}
-			} else {
-				if len(analyzer.errors) > 0 {
-					t.Errorf("unexpected errors: %v", analyzer.errors)
-				}
-			}
+			runBuiltinTest(t, tt.code, tt.expectError, tt.errorMsg)
 		})
 	}
 }
@@ -654,37 +481,7 @@ func TestAnalyzeVarToIntDef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := lexer.New(tt.code)
-			p := parser.New(l)
-			program := p.ParseProgram()
-
-			if len(p.Errors()) > 0 {
-				t.Fatalf("Parser errors: %v", p.Errors())
-			}
-
-			analyzer := NewAnalyzer()
-			analyzer.Analyze(program)
-
-			if tt.expectError {
-				if len(analyzer.errors) == 0 {
-					t.Errorf("expected error containing '%s', got no errors", tt.errorMsg)
-				} else if tt.errorMsg != "" {
-					found := false
-					for _, err := range analyzer.errors {
-						if strings.Contains(strings.ToLower(err), strings.ToLower(tt.errorMsg)) {
-							found = true
-							break
-						}
-					}
-					if !found {
-						t.Errorf("expected error containing '%s', got: %v", tt.errorMsg, analyzer.errors)
-					}
-				}
-			} else {
-				if len(analyzer.errors) > 0 {
-					t.Errorf("unexpected errors: %v", analyzer.errors)
-				}
-			}
+			runBuiltinTest(t, tt.code, tt.expectError, tt.errorMsg)
 		})
 	}
 }
@@ -735,37 +532,7 @@ func TestAnalyzeVarToFloatDef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := lexer.New(tt.code)
-			p := parser.New(l)
-			program := p.ParseProgram()
-
-			if len(p.Errors()) > 0 {
-				t.Fatalf("Parser errors: %v", p.Errors())
-			}
-
-			analyzer := NewAnalyzer()
-			analyzer.Analyze(program)
-
-			if tt.expectError {
-				if len(analyzer.errors) == 0 {
-					t.Errorf("expected error containing '%s', got no errors", tt.errorMsg)
-				} else if tt.errorMsg != "" {
-					found := false
-					for _, err := range analyzer.errors {
-						if strings.Contains(strings.ToLower(err), strings.ToLower(tt.errorMsg)) {
-							found = true
-							break
-						}
-					}
-					if !found {
-						t.Errorf("expected error containing '%s', got: %v", tt.errorMsg, analyzer.errors)
-					}
-				}
-			} else {
-				if len(analyzer.errors) > 0 {
-					t.Errorf("unexpected errors: %v", analyzer.errors)
-				}
-			}
+			runBuiltinTest(t, tt.code, tt.expectError, tt.errorMsg)
 		})
 	}
 }
