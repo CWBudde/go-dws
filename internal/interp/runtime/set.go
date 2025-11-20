@@ -62,32 +62,17 @@ func (s *SetValue) String() string {
 	if s.SetType != nil && s.SetType.ElementType != nil {
 		// For enum sets, show enum names in order
 		if enumType, ok := s.SetType.ElementType.(*types.EnumType); ok {
-			for _, name := range enumType.OrderedNames {
-				ordinal := enumType.Values[name]
-				if s.HasElement(ordinal) {
+			for _, ordinal := range s.Ordinals() {
+				if name := enumType.GetEnumName(ordinal); name != "" {
 					elements = append(elements, name)
+				} else {
+					elements = append(elements, fmt.Sprintf("%d", ordinal))
 				}
 			}
 		} else {
 			// For non-enum sets (Integer, String, Boolean), show ordinal values
 			// Collect ordinals that are in the set
-			ordinals := make([]int, 0)
-
-			switch s.SetType.StorageKind {
-			case types.SetStorageBitmask:
-				// Extract ordinals from bitmask
-				for i := 0; i < 64; i++ {
-					if s.HasElement(i) {
-						ordinals = append(ordinals, i)
-					}
-				}
-			case types.SetStorageMap:
-				// Extract ordinals from map
-				for ordinal := range s.MapStore {
-					ordinals = append(ordinals, ordinal)
-				}
-				sort.Ints(ordinals)
-			}
+			ordinals := s.Ordinals()
 
 			// Convert ordinals to strings based on element type
 			for _, ord := range ordinals {
@@ -101,6 +86,44 @@ func (s *SetValue) String() string {
 	}
 
 	return "[" + strings.Join(elements, ", ") + "]"
+}
+
+// Ordinals returns a sorted slice of all ordinal values stored in the set.
+// Works for both bitmask and map storage and expands lazy ranges.
+func (s *SetValue) Ordinals() []int {
+	seen := make(map[int]bool)
+
+	switch s.SetType.StorageKind {
+	case types.SetStorageBitmask:
+		for i := 0; i < 64; i++ {
+			if s.HasElement(i) {
+				seen[i] = true
+			}
+		}
+	case types.SetStorageMap:
+		for ordinal := range s.MapStore {
+			seen[ordinal] = true
+		}
+	}
+
+	for _, r := range s.Ranges {
+		if r.Start <= r.End {
+			for v := r.Start; v <= r.End; v++ {
+				seen[v] = true
+			}
+		} else {
+			for v := r.Start; v >= r.End; v-- {
+				seen[v] = true
+			}
+		}
+	}
+
+	ordinals := make([]int, 0, len(seen))
+	for ord := range seen {
+		ordinals = append(ordinals, ord)
+	}
+	sort.Ints(ordinals)
+	return ordinals
 }
 
 // HasElement checks if an element with the given ordinal value is in the set.

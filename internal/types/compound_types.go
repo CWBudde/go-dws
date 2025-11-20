@@ -374,14 +374,17 @@ func NewSetType(elementType Type) *SetType {
 	if elementType != nil {
 		switch et := elementType.(type) {
 		case *EnumType:
-			// Use map storage for large enums (>64 values)
-			if len(et.OrderedNames) > 64 {
+			// Use map storage for enums whose ordinal span doesn't fit in a 64-bit mask
+			minOrd := et.MinOrdinal()
+			maxOrd := et.MaxOrdinal()
+			span := maxOrd - minOrd + 1
+			if minOrd < 0 || maxOrd >= 64 || span > 64 {
 				storageKind = SetStorageMap
 			}
 		case *SubrangeType:
 			// Use map storage for large subranges (>64 values)
 			rangeSize := et.HighBound - et.LowBound + 1
-			if rangeSize > 64 {
+			if et.LowBound < 0 || et.HighBound >= 64 || rangeSize > 64 {
 				storageKind = SetStorageMap
 			}
 		case *IntegerType, *StringType:

@@ -1,6 +1,8 @@
 package interp
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -114,15 +116,14 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 		return endVal
 	}
 
-	// Both start and end must be integers for for loops
-	startInt, ok := startVal.(*IntegerValue)
-	if !ok {
-		return newError("for loop start value must be integer, got %s", startVal.Type())
+	// Convert start/end to ordinal values
+	startOrd, err := GetOrdinalValue(startVal)
+	if err != nil {
+		return newError("for loop start value must be ordinal, got %s", startVal.Type())
 	}
-
-	endInt, ok := endVal.(*IntegerValue)
-	if !ok {
-		return newError("for loop end value must be integer, got %s", endVal.Type())
+	endOrd, err := GetOrdinalValue(endVal)
+	if err != nil {
+		return newError("for loop end value must be ordinal, got %s", endVal.Type())
 	}
 
 	// Task 9.154: Evaluate step expression if present
@@ -133,17 +134,17 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 			return stepVal
 		}
 
-		stepInt, ok := stepVal.(*IntegerValue)
-		if !ok {
-			return newError("for loop step value must be integer, got %s", stepVal.Type())
+		stepOrd, err := GetOrdinalValue(stepVal)
+		if err != nil {
+			return newError("for loop step value must be ordinal, got %s", stepVal.Type())
 		}
 
 		// Validate step value is strictly positive
-		if stepInt.Value <= 0 {
-			return newError("FOR loop STEP should be strictly positive: %d", stepInt.Value)
+		if stepOrd <= 0 {
+			return newError("FOR loop STEP should be strictly positive: %d", stepOrd)
 		}
 
-		stepValue = stepInt.Value
+		stepValue = int64(stepOrd)
 	}
 
 	// Create a new enclosed environment for the loop variable
@@ -155,12 +156,49 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 	// Define the loop variable in the loop environment
 	loopVarName := stmt.Variable.Value
 
+	// Helper to rebuild loop variable values with the correct runtime type
+	var makeLoopValue func(int64) Value
+	switch v := startVal.(type) {
+	case *EnumValue:
+		// Look up enum metadata to preserve type name and optional value names
+		enumType := func(typeName string) *types.EnumType {
+			typeVal, ok := i.env.Get("__enum_type_" + strings.ToLower(typeName))
+			if !ok {
+				return nil
+			}
+			if etv, ok := typeVal.(*EnumTypeValue); ok {
+				return etv.EnumType
+			}
+			return nil
+		}(v.TypeName)
+
+		makeLoopValue = func(ord int64) Value {
+			valueName := ""
+			if enumType != nil {
+				valueName = enumType.GetEnumName(int(ord))
+			}
+			return &EnumValue{
+				TypeName:     v.TypeName,
+				ValueName:    valueName,
+				OrdinalValue: int(ord),
+			}
+		}
+	case *IntegerValue:
+		makeLoopValue = func(ord int64) Value { return &IntegerValue{Value: ord} }
+	case *BooleanValue:
+		makeLoopValue = func(ord int64) Value { return &BooleanValue{Value: ord != 0} }
+	case *StringValue:
+		makeLoopValue = func(ord int64) Value { return &StringValue{Value: string(rune(ord))} }
+	default:
+		return newError("for loop start value must be ordinal, got %s", startVal.Type())
+	}
+
 	// Execute the loop based on direction
 	if stmt.Direction == ast.ForTo {
 		// Task 9.155: Ascending loop with step support
-		for current := startInt.Value; current <= endInt.Value; current += stepValue {
+		for current := int64(startOrd); current <= int64(endOrd); current += stepValue {
 			// Set the loop variable to the current value
-			i.env.Define(loopVarName, &IntegerValue{Value: current})
+			i.env.Define(loopVarName, makeLoopValue(current))
 
 			// Execute the body
 			result = i.Eval(stmt.Body)
@@ -187,9 +225,9 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 		}
 	} else {
 		// Task 9.155: Descending loop with step support
-		for current := startInt.Value; current >= endInt.Value; current -= stepValue {
+		for current := int64(startOrd); current >= int64(endOrd); current -= stepValue {
 			// Set the loop variable to the current value
-			i.env.Define(loopVarName, &IntegerValue{Value: current})
+			i.env.Define(loopVarName, makeLoopValue(current))
 
 			// Execute the body
 			result = i.Eval(stmt.Body)
@@ -284,51 +322,83 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 
 		// Task 9.226: Handle iteration over different set element types
 		elementType := col.SetType.ElementType
+		ordinals := col.Ordinals()
 
-		// For enum sets, iterate through enum values in their defined order
+		// For enum sets, iterate through all ordinals present
 		if enumType, ok := elementType.(*types.EnumType); ok {
-			for _, name := range enumType.OrderedNames {
-				ordinal := enumType.Values[name]
-				// Check if this enum value is in the set
-				if col.HasElement(ordinal) {
-					// Create an enum value for this element
-					enumVal := &EnumValue{
-						TypeName:     enumType.Name,
-						ValueName:    name,
-						OrdinalValue: ordinal,
-					}
+			for _, ordinal := range ordinals {
+				// Create an enum value for this element
+				enumVal := &EnumValue{
+					TypeName:     enumType.Name,
+					ValueName:    enumType.GetEnumName(ordinal),
+					OrdinalValue: ordinal,
+				}
 
-					// Assign the enum value to the loop variable
-					i.env.Define(loopVarName, enumVal)
+				// Assign the enum value to the loop variable
+				i.env.Define(loopVarName, enumVal)
 
-					// Execute the body
-					result = i.Eval(stmt.Body)
-					if isError(result) {
-						i.env = savedEnv // Restore environment before returning
-						return result
-					}
+				// Execute the body
+				result = i.Eval(stmt.Body)
+				if isError(result) {
+					i.env = savedEnv // Restore environment before returning
+					return result
+				}
 
-					// Handle control flow signals (break, continue, exit)
-					cf := i.ctx.ControlFlow()
-					if cf.IsBreak() {
-						cf.Clear()
-						break
-					}
-					if cf.IsContinue() {
-						cf.Clear()
-						continue
-					}
-					if cf.IsExit() {
-						// Don't clear the signal - let the function handle it
-						break
-					}
+				// Handle control flow signals (break, continue, exit)
+				cf := i.ctx.ControlFlow()
+				if cf.IsBreak() {
+					cf.Clear()
+					break
+				}
+				if cf.IsContinue() {
+					cf.Clear()
+					continue
+				}
+				if cf.IsExit() {
+					// Don't clear the signal - let the function handle it
+					break
 				}
 			}
 		} else {
 			// For non-enum sets (Integer, String, Boolean), iterate over ordinal values
-			// This is less common but supported for completeness
-			i.env = savedEnv
-			return newError("iteration over non-enum sets not yet implemented")
+			for _, ordinal := range ordinals {
+				var loopVal Value
+				switch elementType.TypeKind() {
+				case "INTEGER", "SUBRANGE":
+					loopVal = &IntegerValue{Value: int64(ordinal)}
+				case "STRING":
+					loopVal = &StringValue{Value: string(rune(ordinal))}
+				case "BOOLEAN":
+					loopVal = &BooleanValue{Value: ordinal != 0}
+				default:
+					i.env = savedEnv
+					return newError("for-in loop: cannot iterate over set of %s", elementType.String())
+				}
+
+				i.env.Define(loopVarName, loopVal)
+
+				// Execute the body
+				result = i.Eval(stmt.Body)
+				if isError(result) {
+					i.env = savedEnv // Restore environment before returning
+					return result
+				}
+
+				// Handle control flow signals (break, continue, exit)
+				cf := i.ctx.ControlFlow()
+				if cf.IsBreak() {
+					cf.Clear()
+					break
+				}
+				if cf.IsContinue() {
+					cf.Clear()
+					continue
+				}
+				if cf.IsExit() {
+					// Don't clear the signal - let the function handle it
+					break
+				}
+			}
 		}
 
 	case *StringValue:
@@ -377,13 +447,13 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 			return newError("for-in loop: can only iterate over enum types, got %s", col.TypeName)
 		}
 
-		// Iterate through enum values in their defined order
-		for _, name := range enumType.OrderedNames {
-			ordinal := enumType.Values[name]
+		// Iterate through enum ordinal range (inclusive)
+		for ordinal := enumType.MinOrdinal(); ordinal <= enumType.MaxOrdinal(); ordinal++ {
+			valueName := enumType.GetEnumName(ordinal)
 			// Create an enum value for this element
 			enumVal := &EnumValue{
 				TypeName:     enumType.Name,
-				ValueName:    name,
+				ValueName:    valueName,
 				OrdinalValue: ordinal,
 			}
 
