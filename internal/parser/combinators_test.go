@@ -787,7 +787,7 @@ func TestBetweenStatement(t *testing.T) {
 	}{
 		{
 			name:          "successful between statement",
-			input:         "x begin var x: Integer; end",  // Need something before BEGIN so it's in peek position
+			input:         "x begin var x: Integer; end", // Need something before BEGIN so it's in peek position
 			shouldSucceed: true,
 		},
 		{
@@ -883,10 +883,10 @@ func TestTryParseStatement(t *testing.T) {
 // TestPeek1Is tests the Peek1Is combinator
 func TestPeek1Is(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
+		name      string
+		input     string
 		tokenType lexer.TokenType
-		expected bool
+		expected  bool
 	}{
 		{
 			name:      "match next token",
@@ -916,10 +916,10 @@ func TestPeek1Is(t *testing.T) {
 // TestPeek2Is tests the Peek2Is combinator
 func TestPeek2Is(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
+		name      string
+		input     string
 		tokenType lexer.TokenType
-		expected bool
+		expected  bool
 	}{
 		{
 			name:      "match token 2 ahead",
@@ -955,10 +955,10 @@ func TestPeek2Is(t *testing.T) {
 // TestPeek3Is tests the Peek3Is combinator
 func TestPeek3Is(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
+		name      string
+		input     string
 		tokenType lexer.TokenType
-		expected bool
+		expected  bool
 	}{
 		{
 			name:      "match token 3 ahead",
