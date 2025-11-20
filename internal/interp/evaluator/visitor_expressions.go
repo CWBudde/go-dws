@@ -9,12 +9,12 @@ import (
 )
 
 // This file contains visitor methods for expression AST nodes.
-// Phase 3.5.2: Visitor pattern implementation for expressions.
+// Visitor pattern implementation for expressions.
 //
 // Expressions evaluate to values and can be nested (e.g., binary expressions
 // contain left and right sub-expressions).
 
-// ErrorValue represents a runtime error (temporary definition to avoid circular imports).
+// ErrorValue represents a runtime error.
 type ErrorValue struct {
 	Message string
 }
@@ -23,7 +23,6 @@ func (e *ErrorValue) Type() string   { return "ERROR" }
 func (e *ErrorValue) String() string { return "ERROR: " + e.Message }
 
 // newError creates a new error value with optional formatting.
-// TODO: Add location information from node in Phase 3.6 (error handling improvements)
 func (e *Evaluator) newError(_ ast.Node, format string, args ...interface{}) Value {
 	return &ErrorValue{Message: fmt.Sprintf(format, args...)}
 }
@@ -37,41 +36,8 @@ func isError(val Value) bool {
 }
 
 // VisitIdentifier evaluates an identifier (variable reference).
-// Task 3.5.22: Migration of identifier evaluation with comprehensive dispatch logic.
-//
-// This function handles all DWScript identifier patterns in a specific order
-// (matching the original Interpreter.evalIdentifier logic):
-//
-//  1. Self keyword - Special identifier for current object instance
-//  2. Environment lookup - Variables in current scope:
-//     a. External variables (ExternalVarValue) - Error
-//     b. Lazy parameters (LazyThunk) - Force evaluation
-//     c. Var parameters (ReferenceValue) - Dereference
-//     d. Regular variables - Return value
-//  3. Instance context (Self is bound):
-//     a. Instance fields - obj.Field
-//     b. Class variables - obj.Class.ClassVar
-//     c. Properties - obj.Property (with recursion prevention)
-//     d. Methods - Auto-invoke if zero params, else function pointer
-//     e. ClassName identifier - Class name as string
-//     f. ClassType identifier - Class metadata
-//  4. Class method context (__CurrentClass__ is bound):
-//     a. ClassName identifier
-//     b. ClassType identifier
-//     c. Class variables
-//  5. Function references:
-//     a. User functions - Auto-invoke if zero params, else function pointer
-//     b. Built-in functions - Auto-invoke with zero args
-//  6. Class name metaclass references - Class metadata
-//  7. Undefined identifier - Error
-//
-// Complexity: Very High (220+ lines in original, many complex lookup paths)
-// Migration status: Partial - using adapter for complex cases that require infrastructure
-//
-//	not yet migrated (LazyThunk, ReferenceValue, property dispatch, etc.)
 func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext) Value {
-	// ===== IDENTIFIER TYPE 1: Self Keyword =====
-	// Special case for Self keyword - refers to current object instance
+	// Self keyword refers to current object instance
 	if node.Value == "Self" {
 		val, ok := ctx.Env().Get("Self")
 		if !ok {
@@ -84,137 +50,54 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		return e.newError(node, "Self has invalid type")
 	}
 
-	// ===== IDENTIFIER TYPE 2: Environment Lookup =====
 	// Try to find identifier in current environment (variables, parameters, constants)
 	val, ok := e.adapter.GetVariable(node.Value, ctx)
 	if ok {
-		// Variable found in environment
-		// Simple optimization: if it's a basic primitive value type, return immediately
+		// Variable found - return immediately for basic primitives
 		switch val.(type) {
 		case *runtime.IntegerValue, *runtime.FloatValue, *runtime.StringValue, *runtime.BooleanValue, *runtime.NilValue:
 			return val
 		}
 
-		// For complex value types, delegate to adapter for full processing
-		// This handles:
-		// - ExternalVarValue (returns error: "Unsupported external variable access")
-		// - LazyThunk (force evaluation on each access)
-		// - ReferenceValue (dereference to get actual value)
-		// - Other complex types (arrays, objects, records, etc.)
-		//
-		// Full migration blocked by:
-		// - LazyThunk type and Evaluate() method
-		// - ReferenceValue type and Dereference() method
-		// - ExternalVarValue type and error handling
+		// For complex value types (ExternalVarValue, LazyThunk, ReferenceValue, arrays, objects, records),
+		// delegate to adapter for full processing
 		return e.adapter.EvalNode(node)
 	}
 
-	// ===== IDENTIFIER TYPE 3: Instance Context (Self is bound) =====
-	// Variable not found in environment - check if we're in an instance method context
-	// When Self is bound, identifiers can refer to:
-	// - Instance fields (obj.Field without "Self." prefix)
-	// - Class variables (shared across all instances)
-	// - Properties (getter/setter methods)
-	// - Methods (auto-invoke if zero params)
-	// - ClassName/ClassType special identifiers
+	// Check if we're in an instance method context (Self is bound)
+	// When Self is bound, identifiers can refer to instance fields, class variables,
+	// properties, methods (auto-invoked if zero params), or ClassName/ClassType
 	if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk {
-		// We're in an instance method context
-		// Delegate to adapter for:
-		// - Instance field lookup (obj.GetField)
-		// - Class variable lookup (obj.Class.ClassVars)
-		// - Property lookup and dispatch (obj.Class.lookupProperty, evalPropertyRead)
-		// - Method lookup and auto-invoke (obj.Class.Methods, callUserFunction)
-		// - ClassName/ClassType identifier handling
-		//
-		// Full migration blocked by:
-		// - Object field/property/method lookup infrastructure
-		// - Property recursion prevention (propContext)
-		// - Method auto-invoke logic
-		// - Function pointer creation for methods with parameters
 		if _, ok := selfRaw.(Value); ok {
-			// Delegate to adapter for all Self-context identifier resolution
 			return e.adapter.EvalNode(node)
 		}
 	}
 
-	// ===== IDENTIFIER TYPE 4: Class Method Context (__CurrentClass__ is bound) =====
-	// Check if we're in a class method context (static methods)
-	// When __CurrentClass__ is bound, identifiers can refer to:
-	// - ClassName identifier (class name as string)
-	// - ClassType identifier (class metadata)
-	// - Class variables (static fields shared across all instances)
+	// Check if we're in a class method context (__CurrentClass__ is bound)
+	// Identifiers can refer to ClassName, ClassType, or class variables
 	if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
-		// We're in a class method context
-		// Delegate to adapter for:
-		// - ClassName identifier check
-		// - ClassType identifier check
-		// - Class variable lookup
-		//
-		// Full migration blocked by:
-		// - ClassInfoValue type
-		// - Class variable registry access
 		if _, ok := currentClassRaw.(Value); ok {
-			// Delegate to adapter for all class method context identifier resolution
 			return e.adapter.EvalNode(node)
 		}
 	}
 
-	// ===== IDENTIFIER TYPE 5: Function References =====
 	// Check if this identifier is a user-defined function name
-	// In DWScript, functions can be:
-	// - Auto-invoked if they have zero parameters (e.g., var x := GetCount;)
-	// - Converted to function pointers if they have parameters
+	// Functions are auto-invoked if they have zero parameters, or converted to function pointers if they have parameters
 	funcNameLower := strings.ToLower(node.Value)
 	if overloads, exists := e.adapter.LookupFunction(funcNameLower); exists && len(overloads) > 0 {
-		// Found user function(s)
-		// Delegate to adapter for:
-		// - Overload resolution (zero params vs. multiple overloads)
-		// - Auto-invoke for parameterless functions
-		// - Function pointer creation for functions with parameters
-		//
-		// Full migration blocked by:
-		// - Overload resolution logic
-		// - CallUserFunction for auto-invoke
-		// - Function pointer value creation
 		return e.adapter.EvalNode(node)
 	}
 
-	// ===== IDENTIFIER TYPE 6: Built-in Function References =====
-	// Check if this is a parameterless built-in function
-	// Built-in functions can be called without parentheses (auto-invoke)
-	// Delegate to adapter for:
-	// - Built-in function lookup (isBuiltinFunction)
-	// - Built-in function call with zero arguments
-	//
-	// Full migration blocked by:
-	// - Built-in function registry lookup
-	// - Built-in auto-invoke logic
-	// We can't easily check if it's a built-in without the registry,
-	// so we delegate and let the adapter handle it or fall through to error
-
-	// ===== IDENTIFIER TYPE 7: Class Name Metaclass References =====
-	// Check if this identifier is a class name
-	// Class names can be used as values: var meta: class of TBase; meta := TBase;
-	// Delegate to adapter for:
-	// - Class registry lookup (case-insensitive)
-	// - ClassValue creation for metaclass references
-	//
-	// Full migration blocked by:
-	// - Class registry access
+	// Check if this identifier is a class name (metaclass reference)
 	if e.adapter.HasClass(node.Value) {
-		// This is a class name - return metaclass reference
 		return e.adapter.EvalNode(node)
 	}
 
-	// ===== IDENTIFIER TYPE 8: Undefined Identifier =====
-	// Still not found - could be a built-in function or truly undefined
-	// Delegate to adapter one final time to check for built-ins
-	// If truly undefined, adapter will return error
+	// Final check: delegate to adapter for built-in functions or error if undefined
 	return e.adapter.EvalNode(node)
 }
 
 // VisitBinaryExpression evaluates a binary expression (e.g., a + b, x == y).
-// Task 3.5.19: Full migration of binary operator evaluation.
 func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *ExecutionContext) Value {
 	// Handle short-circuit operators first (special evaluation order)
 	switch node.Operator {
@@ -295,7 +178,6 @@ func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *Execu
 }
 
 // VisitUnaryExpression evaluates a unary expression (e.g., -x, not b).
-// Task 3.5.20: Full migration of unary operator evaluation.
 func (e *Evaluator) VisitUnaryExpression(node *ast.UnaryExpression, ctx *ExecutionContext) Value {
 	// Evaluate the operand
 	operand := e.Eval(node.Right, ctx)
@@ -322,196 +204,65 @@ func (e *Evaluator) VisitUnaryExpression(node *ast.UnaryExpression, ctx *Executi
 }
 
 // VisitAddressOfExpression evaluates an address-of expression (@funcName).
-// Task 3.5.15: Migrated from Interpreter.evalAddressOfExpression()
+// Creates function/method pointers that can be called later or assigned to variables.
 func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx *ExecutionContext) Value {
-	// Task 3.5.15: Address-of expression evaluation for function/method pointers
-	//
-	// Address-of creates function pointers:
-	// - Function pointers: @FunctionName
-	// - Method pointers: @obj.MethodName, @TClass.MethodName
-	// - Overloaded function resolution: @OverloadedFunc (requires signature matching)
-	//
-	// Function pointer types:
-	// - Standalone functions: Simple function pointer with no bound context
-	// - Instance methods: Method pointer bound to specific object instance
-	// - Class methods: Method pointer requiring class/instance at call time
-	// - Record methods: Method pointer bound to record value (by-value semantics)
-	//
-	// Operand evaluation:
-	// - For @FunctionName: Looks up function in function registry
-	// - For @obj.Method: Evaluates obj, then binds method to the instance
-	// - For @TClass.Method: Looks up class, creates unbound method pointer
-	//
-	// Function overload resolution:
-	// - Multiple functions with same name → requires context for resolution
-	// - In assignment context: var fp: function(x: Integer): Integer := @Func
-	// - Type annotation determines which overload to select
-	// - Without context: error if multiple overloads exist
-	//
-	// Method pointer binding:
-	// - Instance methods capture 'Self' reference
-	// - Calling the pointer later uses captured instance
-	// - Record methods copy the record value (value semantics)
-	//
-	// Function pointer value:
-	// - Contains function declaration AST node
-	// - Contains closure environment (for lambdas/nested functions)
-	// - Contains bound instance (for method pointers)
-	// - Callable via function pointer invocation
-	//
-	// Complexity: High - function lookup, overload resolution, method binding
-	// Full implementation requires:
-	// - adapter.LookupFunction() for function registry access
-	// - Overload resolution based on type context
-	// - Method binding with instance capture
-	// - Function pointer value construction
-	//
-	// Delegate to adapter which handles all address-of logic
-
 	return e.adapter.EvalNode(node)
 }
 
 // VisitGroupedExpression evaluates a grouped expression (parenthesized).
 func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *ExecutionContext) Value {
-	// Phase 3.5.4.11: Grouped expressions just evaluate their inner expression
+	// Grouped expressions just evaluate their inner expression
 	// Parentheses are only for precedence, they don't change the value
 	return e.Eval(node.Expression, ctx)
 }
 
 // VisitCallExpression evaluates a function call expression.
-// Task 3.5.21: Migration of function call evaluation with 11 distinct call types.
-//
-// This function handles all DWScript function call patterns in a specific order
-// (matching the original Interpreter.evalCallExpression logic):
-//
-//  1. Function pointer calls - Identifier resolving to FunctionPointerValue
-//  2. Member access calls (detected by CallExpression.Function being MemberAccessExpression):
-//     a. Record method calls (obj.Method where obj is RecordValue)
-//     b. Interface method calls (intf.Method where intf is InterfaceInstance)
-//     c. Unit-qualified function calls (UnitName.FunctionName)
-//     d. Class constructor calls (TClassName.Create)
-//  3. User-defined function calls - Regular function with overload resolution
-//  4. Implicit Self method calls - MethodName() within class context
-//  5. Record static method calls - MethodName() within record context (__CurrentRecord__)
-//  6. Built-in functions with var parameters - Inc, Dec, Insert, Delete, etc.
-//  7. External functions with var parameters - External Go functions
-//  8. Default() function - Special handling for Default(TypeName)
-//  9. Type casts - TypeName(expression)
-//  10. Regular built-in functions - All other built-in functions
-//
-// The order matters because some patterns overlap:
-// - "TClass.Create()" could be a member access OR a class constructor
-// - "FuncName()" could be a user function OR a built-in OR an implicit Self method
-// - "Integer(x)" could be a type cast OR a user function named "Integer"
-//
-// Complexity: Very High (400+ lines in original, 11 distinct paths)
-// Migration status: Partial - using adapter for complex cases that require infrastructure
-//
-//	not yet migrated (lazy/var params, overload resolution, etc.)
 func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *ExecutionContext) Value {
-	// ===== CALL TYPE 1: Function Pointer Calls =====
-	// Check if the function expression is an identifier that resolves to a FunctionPointerValue
-	// Function pointers require special handling for lazy and var parameters
+	// Check for function pointer calls (require special handling for lazy and var parameters)
 	if funcIdent, ok := node.Function.(*ast.Identifier); ok {
 		if val, exists := e.adapter.GetVariable(funcIdent.Value, ctx); exists {
-			// Check if it's a function pointer type
 			if val.Type() == "FUNCTION_POINTER" || val.Type() == "LAMBDA" {
-				// Delegate to adapter for function pointer calls
-				// This requires handling lazy parameters (LazyThunk creation),
-				// var parameters (ReferenceValue creation), and closure environment management
-				// Full migration blocked by: LazyThunk, ReferenceValue, and closure infrastructure
 				return e.adapter.EvalNode(node)
 			}
 		}
 	}
 
-	// ===== CALL TYPE 2: Member Access Calls =====
-	// Check if this is a member access pattern: obj.Method(), UnitName.Func(), TClass.Create()
+	// Check for member access calls: obj.Method(), UnitName.Func(), TClass.Create()
 	if memberAccess, ok := node.Function.(*ast.MemberAccessExpression); ok {
-		// Evaluate the left side (object, unit, or class identifier)
 		objVal := e.Eval(memberAccess.Object, ctx)
 		if isError(objVal) {
 			return objVal
 		}
 
-		// Check for record method calls: record.Method(args)
-		if objVal.Type() == "RECORD" {
-			// Record methods use value semantics (Self is a copy)
-			// For mutating methods, copy-back semantics are needed
-			// Delegate to adapter which handles record method dispatch
+		// Delegate record, interface, and object method calls to adapter
+		if objVal.Type() == "RECORD" || objVal.Type() == "INTERFACE" || objVal.Type() == "OBJECT" {
 			return e.adapter.EvalNode(node)
 		}
 
-		// Check for interface method calls: interface.Method(args)
-		if objVal.Type() == "INTERFACE" {
-			// Interface method calls unwrap to underlying object and dispatch to its method
-			// Requires interface unwrapping and object method lookup
-			// Delegate to adapter for interface method dispatch
-			return e.adapter.EvalNode(node)
-		}
-
-		// Check for object method calls: object.Method(args)
-		if objVal.Type() == "OBJECT" {
-			// Object method calls require method lookup and dispatch
-			// Delegate to adapter for object method resolution
-			return e.adapter.EvalNode(node)
-		}
-
-		// Check for unit-qualified function calls: UnitName.FunctionName(args)
-		// This requires checking if the left side is a unit identifier
+		// Check for unit-qualified or class constructor calls
 		if ident, ok := memberAccess.Object.(*ast.Identifier); ok {
-			// Check if this identifier is a unit name
-			// Unit-qualified calls require unitRegistry lookup
-			// Delegate to adapter for unit-qualified function resolution and calling
-			// Full migration blocked by: unitRegistry access, qualified function resolution
-			if e.unitRegistry != nil {
-				// Potential unit-qualified call - delegate to adapter
-				return e.adapter.EvalNode(node)
-			}
-
-			// Check for class constructor calls: TClassName.Create(args)
-			// This requires checking if the identifier is a class name
-			if e.adapter.HasClass(ident.Value) {
-				// This is a class constructor/method call
-				// Convert to MethodCallExpression and delegate
-				// Full migration blocked by: MethodCallExpression evaluation
+			if e.unitRegistry != nil || e.adapter.HasClass(ident.Value) {
 				return e.adapter.EvalNode(node)
 			}
 		}
 
-		// Not a recognized member access pattern
 		return e.newError(node, "cannot call member expression that is not a method or unit-qualified function")
 	}
 
-	// ===== CALL TYPE 3-11: Simple Identifier Calls =====
-	// All remaining call types have the function as a simple identifier
+	// Remaining call types require a simple identifier
 	funcName, ok := node.Function.(*ast.Identifier)
 	if !ok {
 		return e.newError(node, "function call requires identifier or qualified name, got %T", node.Function)
 	}
 
-	// ===== CALL TYPE 3: User-Defined Function Calls =====
-	// Check if this is a user-defined function (with potential overloading)
-	// User functions are stored in a case-insensitive function registry
+	// Check for user-defined functions (with potential overloading)
 	funcNameLower := strings.ToLower(funcName.Value)
 	if overloads, exists := e.adapter.LookupFunction(funcNameLower); exists && len(overloads) > 0 {
-		// Found user-defined function(s)
-		// Overload resolution requires evaluating arguments and matching types
-		// Lazy/var parameter handling requires special argument preparation
-		// Delegate to adapter for overload resolution and function calling
-		// Full migration blocked by: resolveOverload, lazy/var parameter infrastructure
 		return e.adapter.EvalNode(node)
 	}
 
-	// ===== CALL TYPE 4: Implicit Self Method Calls =====
-	// Check if we're in a class/object context and this is a method call
-	// Within a method, "MethodName()" is shorthand for "Self.MethodName()"
+	// Check for implicit Self method calls (MethodName() is shorthand for Self.MethodName())
 	if selfRaw, ok := ctx.Env().Get("Self"); ok {
-		// We have a Self context - check if the function name is a method
-		// This requires object method lookup
-		// Delegate to adapter for implicit Self method resolution
-		// Full migration blocked by: Object method lookup, MethodCallExpression conversion
-		// Note: We only check this AFTER user function lookup to match original behavior
 		if selfVal, ok := selfRaw.(Value); ok {
 			if selfVal.Type() == "OBJECT" || selfVal.Type() == "CLASS" {
 				return e.adapter.EvalNode(node)
@@ -519,13 +270,8 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		}
 	}
 
-	// ===== CALL TYPE 5: Record Static Method Calls =====
-	// Check if we're in a record context and this is a static method call
-	// Within a record method, static methods can be called directly
+	// Check for record static method calls
 	if recordRaw, ok := ctx.Env().Get("__CurrentRecord__"); ok {
-		// We have a __CurrentRecord__ context - check if function name is a static method
-		// Delegate to adapter for record static method resolution
-		// Full migration blocked by: Record method registry lookup
 		if recordVal, ok := recordRaw.(Value); ok {
 			if recordVal.Type() == "RECORD_TYPE" {
 				return e.adapter.EvalNode(node)
@@ -533,61 +279,36 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		}
 	}
 
-	// ===== CALL TYPE 6: Built-in Functions with Var Parameters =====
-	// Check for built-in functions that need var parameter handling
-	// These functions modify their arguments in place (Inc, Dec, SetLength, etc.)
+	// Check for built-in functions that need var parameter handling (modify arguments in place)
 	switch funcNameLower {
 	case "inc", "dec", "insert", "decodedate", "decodetime",
 		"swap", "divmod", "trystrtoint", "trystrtofloat", "setlength":
-		// These built-ins need special var parameter handling
-		// Delegate to adapter for built-in var parameter functions
-		// Full migration blocked by: ReferenceValue creation for var parameters
 		return e.adapter.EvalNode(node)
 	case "delete":
-		// Delete has two forms: Delete(array, index) and Delete(string, index, count)
 		// Only the 3-parameter form needs var parameter handling
 		if len(node.Arguments) == 3 {
 			return e.adapter.EvalNode(node)
 		}
 	}
 
-	// ===== CALL TYPE 7: External Functions with Var Parameters =====
-	// Check if this is an external (Go) function registered via externalFunctions
-	// External functions may have var parameters that need ReferenceValue wrapping
-	// Delegate to adapter for external function lookup and calling
-	// Full migration blocked by: externalFunctions registry access, var parameter handling
-	// Note: We check this before Default()/TypeCast to match original behavior
+	// Check for external (Go) functions that may need var parameter handling
 	if e.externalFunctions != nil {
 		return e.adapter.EvalNode(node)
 	}
 
-	// ===== CALL TYPE 8: Default() Function =====
 	// Check for Default(TypeName) function which expects unevaluated type identifier
-	// Default(Integer) should pass "Integer" as string, not evaluate it
 	if funcNameLower == "default" && len(node.Arguments) == 1 {
-		// Delegate to adapter for Default() function evaluation
-		// Full migration blocked by: type resolution for default value creation
 		return e.adapter.EvalNode(node)
 	}
 
-	// ===== CALL TYPE 9: Type Casts =====
-	// Check if this is a type cast: TypeName(expression)
-	// Type casts look like function calls but the "function" is a type name
-	// Only single-argument calls can be type casts
+	// Try type cast for single-argument calls: TypeName(expression)
 	if len(node.Arguments) == 1 {
-		// Try type cast evaluation (returns nil if not a valid type cast)
-		// Delegate to adapter for type cast evaluation
-		// Full migration blocked by: type registry lookup, type conversion logic
-		// Note: The adapter returns nil if this isn't a type cast, so we check below
 		result := e.adapter.EvalNode(node)
-		// If type cast succeeded or there's an exception, return the result
-		// If it returned an error about unknown function, fall through to built-ins
+		// If type cast succeeded or there's a real error (not "unknown function"), return it
 		if result != nil && !isError(result) {
 			return result
 		}
 		if isError(result) {
-			// Check if this is "unknown function" error - if so, fall through
-			// Otherwise, it's a real error from type casting
 			if !strings.Contains(result.String(), "unknown function") &&
 				!strings.Contains(result.String(), "undefined identifier") {
 				return result
@@ -595,9 +316,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		}
 	}
 
-	// ===== CALL TYPE 10: Regular Built-in Functions =====
-	// Try built-in functions
-	// Evaluate all arguments first (no lazy/var parameter handling needed for regular built-ins)
+	// Try built-in functions - evaluate all arguments first
 	args := make([]Value, len(node.Arguments))
 	for idx, arg := range node.Arguments {
 		val := e.Eval(arg, ctx)
@@ -613,7 +332,6 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 }
 
 // VisitNewExpression evaluates a 'new' expression (object instantiation).
-// Task 3.5.15: Migrated from Interpreter.evalNewExpression()
 func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionContext) Value {
 	// Task 3.5.15: New expression evaluation for object instantiation
 	//
@@ -680,7 +398,6 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 }
 
 // VisitMemberAccessExpression evaluates member access (obj.field, obj.method).
-// Task 3.5.14: Migrated from Interpreter.evalMemberAccess()
 func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression, ctx *ExecutionContext) Value {
 	// Task 3.5.14: Member access evaluation with property/field/helper method support
 	//
