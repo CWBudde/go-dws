@@ -199,10 +199,8 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 			// Interface-to-interface casting
 			underlyingObj := intfInst.Object
 			if underlyingObj == nil {
-				message := fmt.Sprintf("Cannot cast nil interface to interface \"%s\" [line: %d, column: %d]",
-					targetIface.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
-				i.raiseException("Exception", message, &expr.Token.Pos)
-				return nil
+				// DWScript: nil interface cast to interface yields nil (no exception)
+				return &InterfaceInstance{Interface: targetIface, Object: nil}
 			}
 
 			// Check if the underlying object's class implements the target interface
@@ -274,7 +272,7 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 
 	// Validate that the object's class implements the interface
 	if !classImplementsInterface(obj.Class, iface) {
-		message := fmt.Sprintf("class \"%s\" cannot be cast to interface \"%s\" [line: %d, column: %d]",
+		message := fmt.Sprintf("Class \"%s\" does not implement interface \"%s\" [line: %d, column: %d]",
 			obj.Class.Name, iface.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
 		i.raiseException("Exception", message, &expr.Token.Pos)
 		return nil

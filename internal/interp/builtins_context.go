@@ -618,6 +618,11 @@ func (i *Interpreter) IsAssigned(value builtins.Value) bool {
 		return false
 	}
 
+	// Handle interfaces
+	if intfVal, ok := value.(*InterfaceInstance); ok {
+		return intfVal.Object != nil
+	}
+
 	// Handle objects
 	if objVal, ok := value.(*ObjectInstance); ok {
 		return objVal != nil
