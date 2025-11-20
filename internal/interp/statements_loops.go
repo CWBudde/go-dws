@@ -447,9 +447,10 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 			return newError("for-in loop: can only iterate over enum types, got %s", col.TypeName)
 		}
 
-		// Iterate through enum ordinal range (inclusive)
-		for ordinal := enumType.MinOrdinal(); ordinal <= enumType.MaxOrdinal(); ordinal++ {
-			valueName := enumType.GetEnumName(ordinal)
+		// Iterate through enum values in their defined order
+		// Use OrderedNames to only iterate over declared values, not the full ordinal range
+		for _, valueName := range enumType.OrderedNames {
+			ordinal := enumType.Values[valueName]
 			// Create an enum value for this element
 			enumVal := &EnumValue{
 				TypeName:     enumType.Name,

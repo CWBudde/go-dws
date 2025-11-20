@@ -16,9 +16,9 @@ func TestDefaultConfig(t *testing.T) {
 		expected interface{}
 		name     string
 	}{
-		{"AllowReservedKeywordsAsIdentifiers", config.AllowReservedKeywordsAsIdentifiers, true},
-		{"StrictMode", config.StrictMode, false},
-		{"MaxRecursionDepth", config.MaxRecursionDepth, 1000},
+		{name: "AllowReservedKeywordsAsIdentifiers", got: config.AllowReservedKeywordsAsIdentifiers, expected: true},
+		{name: "StrictMode", got: config.StrictMode, expected: false},
+		{name: "MaxRecursionDepth", got: config.MaxRecursionDepth, expected: 1000},
 	}
 
 	for _, tt := range tests {

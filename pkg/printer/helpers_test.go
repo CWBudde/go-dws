@@ -13,10 +13,10 @@ func TestFormatString(t *testing.T) {
 		expected string
 		format   printer.Format
 	}{
-		{"FormatDWScript", printer.FormatDWScript, "dwscript"},
-		{"FormatTree", printer.FormatTree, "tree"},
-		{"FormatJSON", printer.FormatJSON, "json"},
-		{"unknown format", printer.Format(999), "unknown"},
+		{name: "FormatDWScript", format: printer.FormatDWScript, expected: "dwscript"},
+		{name: "FormatTree", format: printer.FormatTree, expected: "tree"},
+		{name: "FormatJSON", format: printer.FormatJSON, expected: "json"},
+		{name: "unknown format", format: printer.Format(999), expected: "unknown"},
 	}
 
 	for _, tt := range tests {
@@ -36,10 +36,10 @@ func TestStyleString(t *testing.T) {
 		expected string
 		style    printer.Style
 	}{
-		{"StyleDetailed", printer.StyleDetailed, "detailed"},
-		{"StyleCompact", printer.StyleCompact, "compact"},
-		{"StyleMultiline", printer.StyleMultiline, "multiline"},
-		{"unknown style", printer.Style(999), "unknown"},
+		{name: "StyleDetailed", style: printer.StyleDetailed, expected: "detailed"},
+		{name: "StyleCompact", style: printer.StyleCompact, expected: "compact"},
+		{name: "StyleMultiline", style: printer.StyleMultiline, expected: "multiline"},
+		{name: "unknown style", style: printer.Style(999), expected: "unknown"},
 	}
 
 	for _, tt := range tests {
@@ -182,11 +182,11 @@ func TestPrinterHelpers(t *testing.T) {
 		p    *printer.Printer
 		name string
 	}{
-		{"CompactPrinter", printer.CompactPrinter()},
-		{"DetailedPrinter", printer.DetailedPrinter()},
-		{"MultilinePrinter", printer.MultilinePrinter()},
-		{"TreePrinter", printer.TreePrinter()},
-		{"JSONPrinter", printer.JSONPrinter()},
+		{name: "CompactPrinter", p: printer.CompactPrinter()},
+		{name: "DetailedPrinter", p: printer.DetailedPrinter()},
+		{name: "MultilinePrinter", p: printer.MultilinePrinter()},
+		{name: "TreePrinter", p: printer.TreePrinter()},
+		{name: "JSONPrinter", p: printer.JSONPrinter()},
 	}
 
 	for _, test := range printers {

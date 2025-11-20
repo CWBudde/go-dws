@@ -179,15 +179,15 @@ func TestContains(t *testing.T) {
 		slice    []string
 		expected bool
 	}{
-		{"found exact", []string{"abc", "def", "ghi"}, "def", true},
-		{"found case insensitive", []string{"abc", "def", "ghi"}, "DEF", true},
-		{"not found", []string{"abc", "def", "ghi"}, "xyz", false},
-		{"empty slice", []string{}, "abc", false},
-		{"empty search in empty", []string{}, "", false},
-		{"empty search in non-empty", []string{"abc"}, "", false},
-		{"found first", []string{"abc", "def"}, "ABC", true},
-		{"found last", []string{"abc", "def"}, "DEF", true},
-		{"partial match not found", []string{"variable"}, "var", false},
+		{name: "found exact", slice: []string{"abc", "def", "ghi"}, search: "def", expected: true},
+		{name: "found case insensitive", slice: []string{"abc", "def", "ghi"}, search: "DEF", expected: true},
+		{name: "not found", slice: []string{"abc", "def", "ghi"}, search: "xyz", expected: false},
+		{name: "empty slice", slice: []string{}, search: "abc", expected: false},
+		{name: "empty search in empty", slice: []string{}, search: "", expected: false},
+		{name: "empty search in non-empty", slice: []string{"abc"}, search: "", expected: false},
+		{name: "found first", slice: []string{"abc", "def"}, search: "ABC", expected: true},
+		{name: "found last", slice: []string{"abc", "def"}, search: "DEF", expected: true},
+		{name: "partial match not found", slice: []string{"variable"}, search: "var", expected: false},
 	}
 
 	for _, tt := range tests {
@@ -208,13 +208,13 @@ func TestIndex(t *testing.T) {
 		slice    []string
 		expected int
 	}{
-		{"found at 0", []string{"abc", "def", "ghi"}, "abc", 0},
-		{"found at 1", []string{"abc", "def", "ghi"}, "def", 1},
-		{"found at 2", []string{"abc", "def", "ghi"}, "ghi", 2},
-		{"case insensitive", []string{"abc", "def", "ghi"}, "DEF", 1},
-		{"not found", []string{"abc", "def", "ghi"}, "xyz", -1},
-		{"empty slice", []string{}, "abc", -1},
-		{"duplicates returns first", []string{"abc", "def", "abc"}, "ABC", 0},
+		{name: "found at 0", slice: []string{"abc", "def", "ghi"}, search: "abc", expected: 0},
+		{name: "found at 1", slice: []string{"abc", "def", "ghi"}, search: "def", expected: 1},
+		{name: "found at 2", slice: []string{"abc", "def", "ghi"}, search: "ghi", expected: 2},
+		{name: "case insensitive", slice: []string{"abc", "def", "ghi"}, search: "DEF", expected: 1},
+		{name: "not found", slice: []string{"abc", "def", "ghi"}, search: "xyz", expected: -1},
+		{name: "empty slice", slice: []string{}, search: "abc", expected: -1},
+		{name: "duplicates returns first", slice: []string{"abc", "def", "abc"}, search: "ABC", expected: 0},
 	}
 
 	for _, tt := range tests {
