@@ -430,6 +430,18 @@ func TestFormat(t *testing.T) {
 			},
 			expected: "Count: 10",
 		},
+		{
+			name: "integer with float verb",
+			args: []Value{
+				&runtime.StringValue{Value: "%.2f"},
+				&runtime.ArrayValue{
+					Elements: []Value{
+						&runtime.IntegerValue{Value: 5},
+					},
+				},
+			},
+			expected: "5.00",
+		},
 	}
 
 	for _, tt := range tests {

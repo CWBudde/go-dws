@@ -1,6 +1,7 @@
 package builtins
 
 import (
+	"fmt"
 	"math/rand"
 	"strconv"
 	"testing"
@@ -254,43 +255,71 @@ func (m *mockContext) ParseFloat(s string) (float64, bool) {
 }
 
 func (m *mockContext) FormatString(format string, args []Value) (string, error) {
-	// Mock - basic sprintf-style formatting for testing
-	// Support %s, %d, %f
-	result := format
-	argIndex := 0
-
-	for i := 0; i < len(result); i++ {
-		if result[i] == '%' && i+1 < len(result) {
-			if argIndex >= len(args) {
-				break
-			}
-
-			specifier := result[i+1]
-			var replacement string
-
-			switch specifier {
-			case 's':
-				replacement = args[argIndex].String()
-			case 'd':
-				if iv, ok := args[argIndex].(*runtime.IntegerValue); ok {
-					replacement = strconv.FormatInt(iv.Value, 10)
-				}
-			case 'f':
-				if fv, ok := args[argIndex].(*runtime.FloatValue); ok {
-					replacement = strconv.FormatFloat(fv.Value, 'f', 2, 64)
-				}
-			default:
-				i++
+	// Minimal parser to mirror interpreter FormatString behavior for tests.
+	type formatSpec struct {
+		verb rune
+	}
+	var specs []formatSpec
+	i := 0
+	for i < len(format) {
+		ch := format[i]
+		if ch == '%' {
+			if i+1 < len(format) && format[i+1] == '%' {
+				i += 2
 				continue
 			}
-
-			result = result[:i] + replacement + result[i+2:]
-			i += len(replacement) - 1
-			argIndex++
+			i++
+			for i < len(format) {
+				b := format[i]
+				if (b >= '0' && b <= '9') || b == '.' || b == '+' || b == '-' || b == ' ' || b == '#' {
+					i++
+					continue
+				}
+				break
+			}
+			if i < len(format) {
+				verb := rune(format[i])
+				if verb == 's' || verb == 'd' || verb == 'f' || verb == 'v' || verb == 'x' || verb == 'X' || verb == 'o' {
+					specs = append(specs, formatSpec{verb: verb})
+				}
+				i++
+			}
+		} else {
+			i++
 		}
 	}
 
-	return result, nil
+	if len(specs) != len(args) {
+		return "", fmt.Errorf("expects %d arguments for format string, got %d", len(specs), len(args))
+	}
+
+	goArgs := make([]interface{}, len(args))
+	for idx, arg := range args {
+		if idx >= len(specs) {
+			break
+		}
+		spec := specs[idx]
+		switch v := arg.(type) {
+		case *runtime.IntegerValue:
+			if spec.verb == 'f' {
+				goArgs[idx] = float64(v.Value)
+			} else if spec.verb == 's' {
+				goArgs[idx] = fmt.Sprintf("%d", v.Value)
+			} else {
+				goArgs[idx] = v.Value
+			}
+		case *runtime.FloatValue:
+			goArgs[idx] = v.Value
+		case *runtime.StringValue:
+			goArgs[idx] = v.Value
+		case *runtime.BooleanValue:
+			goArgs[idx] = v.Value
+		default:
+			goArgs[idx] = arg.String()
+		}
+	}
+
+	return fmt.Sprintf(format, goArgs...), nil
 }
 
 // Task 3.7.9 Context methods for polymorphic functions
