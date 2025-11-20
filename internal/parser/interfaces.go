@@ -137,6 +137,53 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 	// Check what kind of type declaration this is by peeking at the next token
 	nextToken := cursor.Peek(1)
 
+	// Subrange type: type TDigit = 0..9; or type TTemperature = -40..50;
+	// Check if it starts with a number or minus (for negative ranges)
+	if nextToken.Type == lexer.INT || nextToken.Type == lexer.MINUS {
+		cursor = cursor.Advance() // move past '='
+		p.cursor = cursor
+
+		// Parse the low bound expression
+		lowBound := p.parseExpression(LOWEST)
+		if lowBound == nil {
+			p.addError("expected expression for subrange low bound", ErrUnexpectedToken)
+			return nil
+		}
+
+		// Check for '..' operator
+		if p.cursor.Peek(1).Type != lexer.DOTDOT {
+			p.addError("expected '..' in subrange type", ErrUnexpectedToken)
+			return nil
+		}
+		p.cursor = p.cursor.Advance() // move to DOTDOT
+		p.cursor = p.cursor.Advance() // move past DOTDOT
+
+		// Parse the high bound expression
+		highBound := p.parseExpression(LOWEST)
+		if highBound == nil {
+			p.addError("expected expression for subrange high bound", ErrUnexpectedToken)
+			return nil
+		}
+
+		// Expect semicolon
+		if p.cursor.Peek(1).Type != lexer.SEMICOLON {
+			p.addError("expected ';' after subrange type declaration", ErrMissingSemicolon)
+			return nil
+		}
+		p.cursor = p.cursor.Advance() // move to SEMICOLON
+
+		typeDecl := &ast.TypeDeclaration{
+			BaseNode: ast.BaseNode{
+				Token: typeToken,
+			},
+			Name:       nameIdent,
+			IsSubrange: true,
+			LowBound:   lowBound,
+			HighBound:  highBound,
+		}
+		return builder.Finish(typeDecl).(*ast.TypeDeclaration)
+	}
+
 	// Type alias: type TUserID = Integer;
 	if nextToken.Type == lexer.IDENT {
 		cursor = cursor.Advance() // move past '=' to type name
@@ -172,6 +219,24 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 		cursor = cursor.Advance() // move to INTERFACE
 		p.cursor = cursor
 		return p.parseInterfaceDeclarationBody(nameIdent)
+	} else if nextToken.Type == lexer.PARTIAL {
+		// Partial class declaration: type TMyClass = partial class ... end;
+		cursor = cursor.Advance() // move to PARTIAL
+		p.cursor = cursor
+
+		// Expect CLASS after PARTIAL
+		if cursor.Peek(1).Type != lexer.CLASS {
+			p.addError("expected 'class' after 'partial'", ErrUnexpectedToken)
+			return nil
+		}
+		cursor = cursor.Advance() // move to CLASS
+		p.cursor = cursor
+
+		classDecl := p.parseClassDeclarationBody(nameIdent)
+		if classDecl != nil {
+			classDecl.IsPartial = true
+		}
+		return classDecl
 	} else if nextToken.Type == lexer.CLASS {
 		cursor = cursor.Advance() // move to CLASS
 		p.cursor = cursor
@@ -262,7 +327,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 	}
 
 	// Unknown type declaration
-	p.addError("expected 'class', 'interface', 'enum', 'record', 'set', 'array', 'function', 'procedure', 'helper', or '(' after '=' in type declaration", ErrUnexpectedToken)
+	p.addError("expected 'class', 'partial', 'interface', 'enum', 'record', 'set', 'array', 'function', 'procedure', 'helper', or '(' after '=' in type declaration", ErrUnexpectedToken)
 	return nil
 }
 
