@@ -930,7 +930,7 @@ func TestPeek2Is(t *testing.T) {
 		{
 			name:      "match IDENT at position 2",
 			input:     "foo ; bar",
-			tokenType: lexer.IDENT,  // peek(0) sees "bar" (IDENT)
+			tokenType: lexer.IDENT,
 			expected:  true,
 		},
 		{
