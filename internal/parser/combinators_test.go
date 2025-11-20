@@ -231,6 +231,13 @@ func TestManyUntil(t *testing.T) {
 			expected:   3,
 			desc:       "reaches EOF",
 		},
+		{
+			name:       "parser function returns false",
+			input:      "begin foo 1 2 ;",
+			terminator: lexer.SEMICOLON,
+			expected:   0,
+			desc:       "parser function fails immediately",
+		},
 	}
 
 	for _, tt := range tests {
@@ -377,6 +384,13 @@ func TestBetween(t *testing.T) {
 			opening:  lexer.LBRACK,
 			closing:  lexer.RBRACK,
 			expected: true,
+		},
+		{
+			name:     "nil result from parser",
+			input:    "x ( foo )",
+			opening:  lexer.LPAREN,
+			closing:  lexer.RPAREN,
+			expected: false,
 		},
 	}
 
@@ -679,6 +693,12 @@ func TestSeparatedListMultiSep(t *testing.T) {
 			separators: []lexer.TokenType{lexer.COMMA, lexer.SEMICOLON},
 			expected:   3,
 		},
+		{
+			name:       "empty list",
+			input:      "( )",
+			separators: []lexer.TokenType{lexer.COMMA},
+			expected:   0,
+		},
 	}
 
 	for _, tt := range tests {
@@ -753,6 +773,219 @@ func TestTryParse(t *testing.T) {
 			// Verify errors are rolled back on failure
 			if !tt.shouldSucceed && len(p.errors) > 0 {
 				t.Errorf("Expected no errors after failed TryParse, got %d", len(p.errors))
+			}
+		})
+	}
+}
+
+// TestBetweenStatement tests the BetweenStatement combinator
+func TestBetweenStatement(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		shouldSucceed bool
+	}{
+		{
+			name:          "successful between statement",
+			input:         "x begin var x: Integer; end",  // Need something before BEGIN so it's in peek position
+			shouldSucceed: true,
+		},
+		{
+			name:          "missing opening delimiter",
+			input:         "x var x: Integer; end",
+			shouldSucceed: false,
+		},
+		{
+			name:          "missing closing delimiter",
+			input:         "x begin var x: Integer;",
+			shouldSucceed: false,
+		},
+		{
+			name:          "nil result from parse function",
+			input:         "x begin end",
+			shouldSucceed: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := newTestParser(tt.input)
+			result := p.BetweenStatement(lexer.BEGIN, lexer.END, func() ast.Statement {
+				// After BEGIN is consumed, we need to advance to the first token inside
+				p.nextToken()
+				// Simple parser that returns a statement if there's a VAR token
+				if p.curTokenIs(lexer.VAR) {
+					stmt := &ast.ExpressionStatement{
+						BaseNode: ast.BaseNode{Token: p.cursor.Current()},
+					}
+					// Skip to END
+					for !p.cursor.PeekIs(1, lexer.END) && !p.cursor.PeekIs(1, lexer.EOF) {
+						p.nextToken()
+					}
+					return stmt
+				}
+				return nil
+			})
+
+			if (result != nil) != tt.shouldSucceed {
+				t.Errorf("BetweenStatement() success = %v, want %v", result != nil, tt.shouldSucceed)
+			}
+		})
+	}
+}
+
+// TestTryParseStatement tests the TryParseStatement combinator
+func TestTryParseStatement(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		shouldSucceed bool
+	}{
+		{
+			name:          "successful statement parse",
+			input:         "var x: Integer;",
+			shouldSucceed: true,
+		},
+		{
+			name:          "failed statement parse",
+			input:         "42",
+			shouldSucceed: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := newTestParser(tt.input)
+			result := p.TryParseStatement(func() ast.Statement {
+				if p.cursor.Is(lexer.VAR) {
+					stmt := &ast.ExpressionStatement{
+						BaseNode: ast.BaseNode{Token: p.cursor.Current()},
+					}
+					return stmt
+				}
+				// Add an error to test error rollback
+				p.addError("test error", "TEST")
+				return nil
+			})
+
+			if (result != nil) != tt.shouldSucceed {
+				t.Errorf("TryParseStatement() success = %v, want %v", result != nil, tt.shouldSucceed)
+			}
+
+			// Verify errors are rolled back on failure
+			if !tt.shouldSucceed && len(p.errors) > 0 {
+				t.Errorf("Expected no errors after failed TryParseStatement, got %d", len(p.errors))
+			}
+		})
+	}
+}
+
+// TestPeek1Is tests the Peek1Is combinator
+func TestPeek1Is(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		tokenType lexer.TokenType
+		expected bool
+	}{
+		{
+			name:      "match next token",
+			input:     "foo bar",
+			tokenType: lexer.IDENT,
+			expected:  true,
+		},
+		{
+			name:      "no match",
+			input:     "foo ;",
+			tokenType: lexer.IDENT,
+			expected:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := newTestParser(tt.input)
+			result := p.Peek1Is(tt.tokenType)
+			if result != tt.expected {
+				t.Errorf("Peek1Is() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestPeek2Is tests the Peek2Is combinator
+func TestPeek2Is(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		tokenType lexer.TokenType
+		expected bool
+	}{
+		{
+			name:      "match token 2 ahead",
+			input:     "foo bar baz",
+			tokenType: lexer.IDENT,
+			expected:  true,
+		},
+		{
+			name:      "match IDENT at position 2",
+			input:     "foo ; bar",
+			tokenType: lexer.IDENT,  // peek(0) sees "bar" (IDENT)
+			expected:  true,
+		},
+		{
+			name:      "no match - expecting INT",
+			input:     "foo ; bar",
+			tokenType: lexer.INT,
+			expected:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := newTestParser(tt.input)
+			result := p.Peek2Is(tt.tokenType)
+			if result != tt.expected {
+				t.Errorf("Peek2Is() = %v, want %v (peek(0) = %s)", result, tt.expected, p.peek(0).Type)
+			}
+		})
+	}
+}
+
+// TestPeek3Is tests the Peek3Is combinator
+func TestPeek3Is(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		tokenType lexer.TokenType
+		expected bool
+	}{
+		{
+			name:      "match token 3 ahead",
+			input:     "foo bar baz qux",
+			tokenType: lexer.IDENT,
+			expected:  true,
+		},
+		{
+			name:      "match IDENT at position 3",
+			input:     "foo bar ; qux",
+			tokenType: lexer.IDENT,  // peek(1) sees "qux" (IDENT)
+			expected:  true,
+		},
+		{
+			name:      "no match - expecting INT",
+			input:     "foo bar baz qux",
+			tokenType: lexer.INT,
+			expected:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := newTestParser(tt.input)
+			result := p.Peek3Is(tt.tokenType)
+			if result != tt.expected {
+				t.Errorf("Peek3Is() = %v, want %v (peek(1) = %s)", result, tt.expected, p.peek(1).Type)
 			}
 		})
 	}
