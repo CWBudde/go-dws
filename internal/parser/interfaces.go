@@ -346,12 +346,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
 	builder := p.StartNode()
 
-	var funcOrProcToken lexer.Token
-	if p.cursor != nil {
-		funcOrProcToken = p.cursor.Current()
-	} else {
-		funcOrProcToken = p.cursor.Current()
-	}
+	funcOrProcToken := p.cursor.Current()
 
 	// Current token is FUNCTION or PROCEDURE
 	isFunction := funcOrProcToken.Type == lexer.FUNCTION
@@ -417,11 +412,7 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 			return nil
 		}
 
-		if p.cursor != nil {
-			endToken = p.cursor.Current()
-		} else {
-			endToken = p.cursor.Current()
-		}
+		endToken = p.cursor.Current()
 	}
 
 	// Parse return type for functions (not procedures)
@@ -436,12 +427,7 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 			return nil
 		}
 
-		var retTypeTok lexer.Token
-		if p.cursor != nil {
-			retTypeTok = p.cursor.Current()
-		} else {
-			retTypeTok = p.cursor.Current()
-		}
+		retTypeTok := p.cursor.Current()
 
 		returnType := &ast.TypeAnnotation{
 			Token: retTypeTok,
@@ -461,11 +447,7 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 		}
 		funcPtrType.OfObject = true
 
-		if p.cursor != nil {
-			endToken = p.cursor.Current()
-		} else {
-			endToken = p.cursor.Current()
-		}
+		endToken = p.cursor.Current()
 
 		// EndPos is after "object" token
 		funcPtrType.EndPos = p.endPosFromToken(endToken)
