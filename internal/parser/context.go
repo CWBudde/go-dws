@@ -87,7 +87,7 @@ func (ctx *ParseContext) SetParsingPostCondition(parsing bool) {
 //
 // Example:
 //
-//	ctx.PushBlock("if", p.curToken.Pos)
+//	ctx.PushBlock("if", p.cursor.Current().Pos)
 //	defer ctx.PopBlock()
 func (ctx *ParseContext) PushBlock(blockType string, startPos lexer.Position) {
 	ctx.blockStack = append(ctx.blockStack, BlockContext{
@@ -179,7 +179,7 @@ func (ctx *ParseContext) Reset() {
 //
 // Example:
 //
-//	err := ctx.WithBlock("if", p.curToken.Pos, func() error {
+//	err := ctx.WithBlock("if", p.cursor.Current().Pos, func() error {
 //	    // ... parse if statement ...
 //	    return nil
 //	})

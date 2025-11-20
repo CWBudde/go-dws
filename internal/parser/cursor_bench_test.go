@@ -154,12 +154,12 @@ func BenchmarkTraditional_FullParse(b *testing.B) {
 		p := New(lexer.New(source))
 
 		// Simulate typical parsing operations
-		for p.curToken.Type != token.EOF {
+		for p.cursor.Current().Type != token.EOF {
 			// Check current token
-			_ = p.curTokenIs(token.VAR)
+			_ = p.cursor.Is(token.VAR)
 
 			// Check peek token
-			_ = p.peekTokenIs(token.IDENT)
+			_ = p.cursor.PeekIs(1, token.IDENT)
 
 			// Advance
 			p.nextToken()
@@ -247,9 +247,9 @@ func BenchmarkTraditional_NavigationPattern(b *testing.B) {
 		p := New(lexer.New(source))
 
 		// Typical pattern: check, advance, peek, check
-		if p.curTokenIs(token.VAR) {
+		if p.cursor.Is(token.VAR) {
 			p.nextToken()
-			if p.peekTokenIs(token.COLON) {
+			if p.cursor.PeekIs(1, token.COLON) {
 				p.nextToken()
 				p.nextToken()
 			}

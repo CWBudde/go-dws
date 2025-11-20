@@ -6,11 +6,11 @@
 // The general pattern is:
 //
 //  1. For single-token nodes (literals, identifiers):
-//     node.EndPos = p.endPosFromToken(p.curToken)
+//     node.EndPos = p.endPosFromToken(p.cursor.Current())
 //
 // 2. For multi-token nodes:
 //   - Set EndPos after all tokens are consumed
-//   - Usually: node.EndPos = p.endPosFromToken(p.curToken)
+//   - Usually: node.EndPos = p.endPosFromToken(p.cursor.Current())
 //   - Or delegate to child expression: node.EndPos = childExpr.End()
 //
 // 3. For nodes with optional semicolons:
@@ -23,7 +23,7 @@
 //	stmt.EndPos = stmt.Expression.End()
 //	if p.peekTokenIs(lexer.SEMICOLON) {
 //	    p.nextToken()
-//	    stmt.EndPos = p.endPosFromToken(p.curToken)
+//	    stmt.EndPos = p.endPosFromToken(p.cursor.Current())
 //	}
 //
 // Note: As of task 10.10 implementation, position tracking is partially complete.
@@ -106,7 +106,7 @@
 //
 //	func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 //	    // Track block context
-//	    p.pushBlockContext("while", p.curToken.Pos)
+//	    p.pushBlockContext("while", p.cursor.Current().Pos)
 //	    defer p.popBlockContext()
 //
 //	    // Parse condition
@@ -172,9 +172,9 @@
 //     err := NewStructuredError(ErrKindMissing).
 //     WithCode(ErrMissingThen).
 //     WithMessage("expected 'then' after if condition").
-//     WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+//     WithPosition(p.cursor.Peek(1).Pos, p.cursor.Peek(1).Length()).
 //     WithExpected(lexer.THEN).
-//     WithActual(p.peekToken.Type, p.peekToken.Literal).
+//     WithActual(p.cursor.Peek(1).Type, p.cursor.Peek(1).Literal).
 //     WithSuggestion("add 'then' keyword after the condition").
 //     WithNote("DWScript if statements require: if <condition> then <statement>").
 //     Build()
@@ -187,7 +187,7 @@
 //     err := NewStructuredError(ErrKindInvalid).
 //     WithCode(ErrInvalidExpression).
 //     WithMessage("expected condition after 'if'").
-//     WithPosition(p.curToken.Pos, p.curToken.Length()).
+//     WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
 //     WithExpectedString("boolean expression").
 //     WithSuggestion("add a condition like 'x > 0' or 'flag = true'").
 //     WithParsePhase("if statement condition").
@@ -201,9 +201,9 @@
 //     err := NewStructuredError(ErrKindMissing).
 //     WithCode(ErrMissingRBracket).
 //     WithMessage("expected ']' to close array index").
-//     WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+//     WithPosition(p.cursor.Peek(1).Pos, p.cursor.Peek(1).Length()).
 //     WithExpected(lexer.RBRACK).
-//     WithActual(p.peekToken.Type, p.peekToken.Literal).
+//     WithActual(p.cursor.Peek(1).Type, p.cursor.Peek(1).Literal).
 //     WithSuggestion("add ']' to close the array index").
 //     WithRelatedPosition(lbrackToken.Pos, "opening '[' here").
 //     WithParsePhase("array index expression").
@@ -363,21 +363,14 @@ var precedences = map[lexer.TokenType]int{
 }
 
 // prefixParseFn is a function type for parsing prefix expressions.
-type prefixParseFn func() ast.Expression
+// Takes the token explicitly as a parameter instead of relying on shared mutable state.
+// This enables pure functional parsing with immutable cursor navigation.
+type prefixParseFn func(lexer.Token) ast.Expression
 
 // infixParseFn is a function type for parsing infix expressions.
-type infixParseFn func(ast.Expression) ast.Expression
-
-// prefixParseFnCursor is a function type for parsing prefix expressions in cursor mode.
-// Unlike prefixParseFn, this takes the token explicitly as a parameter instead of
-// relying on shared mutable state (p.curToken).
+// Takes both the left expression and the operator token explicitly.
 // This enables pure functional parsing with immutable cursor navigation.
-type prefixParseFnCursor func(lexer.Token) ast.Expression
-
-// infixParseFnCursor is a function type for parsing infix expressions in cursor mode.
-// Unlike infixParseFn, this takes both the left expression and the operator token explicitly.
-// This enables pure functional parsing with immutable cursor navigation.
-type infixParseFnCursor func(ast.Expression, lexer.Token) ast.Expression
+type infixParseFn func(ast.Expression, lexer.Token) ast.Expression
 
 // BlockContext represents the context of a block being parsed.
 // Used for better error messages and error recovery.
@@ -393,30 +386,15 @@ type Parser struct {
 	prefixParseFns       map[lexer.TokenType]prefixParseFn
 	infixParseFns        map[lexer.TokenType]infixParseFn
 	errors               []*ParserError
-	curToken             lexer.Token
-	peekToken            lexer.Token
 	parsingPostCondition bool           // True when parsing postconditions (for 'old' keyword)
 	blockStack           []BlockContext // Stack of nested block contexts for error messages
 
 	// ctx is the new structured parsing context (Task 2.1.2)
 	// Consolidates scattered context flags and block stack into a single type.
-	// Old fields above are kept for backward compatibility and are synchronized with ctx.
 	ctx *ParseContext
 
-	// cursor and useCursor enable dual-mode operation (Task 2.2.2)
-	// When useCursor is true, the parser uses the immutable cursor for token navigation
-	// instead of the mutable curToken/peekToken fields.
-	// This allows incremental migration from traditional to cursor-based parsing.
-	cursor    *TokenCursor
-	useCursor bool
-
-	// prefixParseFnsCursor and infixParseFnsCursor are cursor-specific function maps (Task 2.2.6)
-	// These enable gradual migration to cursor mode via the Strangler Fig pattern.
-	// Unlike the traditional maps above, cursor functions take tokens explicitly as parameters.
-	// This allows parseExpressionCursor to operate in pure functional mode.
-	// Eventually (Phase 2.7), these will replace the traditional maps entirely.
-	prefixParseFnsCursor map[lexer.TokenType]prefixParseFnCursor
-	infixParseFnsCursor  map[lexer.TokenType]infixParseFnCursor
+	// The parser uses the immutable cursor for token navigation.
+	cursor *TokenCursor
 }
 
 // ParserState represents a HEAVYWEIGHT snapshot of the parser's complete state.
@@ -448,23 +426,21 @@ type Parser struct {
 //	    p.restoreState(state)  // Discard errors and backtrack
 //	    trySecondStrategy(p)
 //	}
+//
+// ParserState represents a snapshot of the parser's state for speculative parsing.
 type ParserState struct {
 	lexerState           lexer.LexerState
 	errors               []*ParserError
-	curToken             lexer.Token
-	peekToken            lexer.Token
 	parsingPostCondition bool
 	blockStack           []BlockContext
 	ctx                  *ParseContext // New structured context (Task 2.1.2)
-	cursor               *TokenCursor  // Cursor position (Task 2.2.2, for dual-mode operation)
+	cursor               *TokenCursor  // Cursor position
 }
 
-// New creates a new Parser instance in traditional mode.
-// The parser uses mutable token state (curToken/peekToken) for backward compatibility.
-// For cursor-based parsing, use NewCursorParser() instead.
+// New creates a new Parser instance.
 //
 // This is a convenience wrapper around the ParserBuilder for the common case
-// of creating a parser with default settings in traditional mode.
+// of creating a parser with default settings.
 //
 // For more control over parser configuration, use the builder pattern:
 //
@@ -472,38 +448,22 @@ type ParserState struct {
 //	    WithStrictMode(true).
 //	    Build()
 func New(l *lexer.Lexer) *Parser {
-	return NewParserBuilder(l).
-		WithCursorMode(false).
-		Build()
+	return NewParserBuilder(l).Build()
 }
 
-// NewCursorParser creates a new Parser instance in cursor mode.
-// The parser uses an immutable TokenCursor for token navigation instead of
-// mutable curToken/peekToken state. This enables functional composition,
-// natural backtracking, and eliminates manual nextToken() calls.
-//
-// This is part of the dual-mode architecture (Task 2.2.2) that allows
-// incremental migration from traditional to cursor-based parsing.
+// NewCursorParser creates a new Parser instance.
+// Maintained for backward compatibility.
 //
 // Usage:
 //
 //	p := parser.NewCursorParser(lexer)
-//	program := p.ParseProgram()  // Uses cursor internally
+//	program := p.ParseProgram()
 //
-// Note: The parser still maintains curToken/peekToken for backward compatibility
-// with existing parsing functions. During migration, the parser synchronizes
-// cursor position with curToken/peekToken.
-//
-// This is a convenience wrapper around the ParserBuilder. The builder handles
-// common parse function registration, and this function adds cursor-specific
-// function registration for the dual-mode architecture.
+// This is a convenience wrapper around the ParserBuilder.
 func NewCursorParser(l *lexer.Lexer) *Parser {
-	// Use builder to create parser with cursor mode and register common functions
-	p := NewParserBuilder(l).WithCursorMode(true).Build()
+	p := NewParserBuilder(l).Build()
 
-	// Register cursor-specific parse functions (Task 2.2.6)
 	// These functions take tokens explicitly as parameters instead of accessing parser state.
-	// Eventually (Task 2.2.7+), parseExpressionCursor will use these maps instead of the traditional ones.
 	//
 	// Note: For now, these are adapters that wrap existing cursor functions.
 	// The existing functions still access p.cursor internally, but the adapter pattern
@@ -511,249 +471,164 @@ func NewCursorParser(l *lexer.Lexer) *Parser {
 	// Later tasks will refactor the actual functions to take tokens as parameters.
 
 	// Prefix functions - wrap existing implementations
-	// Some have cursor versions (parseIdentifierCursor, etc.), others use traditional mode
-	p.registerPrefixCursor(lexer.IDENT, func(tok lexer.Token) ast.Expression {
-		return p.parseIdentifierCursor()
+	p.registerPrefix(lexer.IDENT, func(tok lexer.Token) ast.Expression {
+		return p.parseIdentifier()
 	})
-	p.registerPrefixCursor(lexer.INT, func(tok lexer.Token) ast.Expression {
-		return p.parseIntegerLiteralCursor()
+	p.registerPrefix(lexer.INT, func(tok lexer.Token) ast.Expression {
+		return p.parseIntegerLiteral()
 	})
-	p.registerPrefixCursor(lexer.FLOAT, func(tok lexer.Token) ast.Expression {
-		return p.parseFloatLiteralCursor()
+	p.registerPrefix(lexer.FLOAT, func(tok lexer.Token) ast.Expression {
+		return p.parseFloatLiteral()
 	})
-	p.registerPrefixCursor(lexer.STRING, func(tok lexer.Token) ast.Expression {
-		return p.parseStringLiteralCursor()
+	p.registerPrefix(lexer.STRING, func(tok lexer.Token) ast.Expression {
+		return p.parseStringLiteral()
 	})
-	p.registerPrefixCursor(lexer.TRUE, func(tok lexer.Token) ast.Expression {
-		return p.parseBooleanLiteralCursor()
+	p.registerPrefix(lexer.TRUE, func(tok lexer.Token) ast.Expression {
+		return p.parseBooleanLiteral()
 	})
-	p.registerPrefixCursor(lexer.FALSE, func(tok lexer.Token) ast.Expression {
-		return p.parseBooleanLiteralCursor()
-	})
-
-	// Task 2.2.12: Prefix expression handlers
-	p.registerPrefixCursor(lexer.NIL, func(tok lexer.Token) ast.Expression {
-		return p.parseNilLiteralCursor()
-	})
-	p.registerPrefixCursor(lexer.NULL, func(tok lexer.Token) ast.Expression {
-		return p.parseNullIdentifierCursor()
-	})
-	p.registerPrefixCursor(lexer.UNASSIGNED, func(tok lexer.Token) ast.Expression {
-		return p.parseUnassignedIdentifierCursor()
-	})
-	p.registerPrefixCursor(lexer.CHAR, func(tok lexer.Token) ast.Expression {
-		return p.parseCharLiteralCursor()
-	})
-	p.registerPrefixCursor(lexer.MINUS, func(tok lexer.Token) ast.Expression {
-		return p.parsePrefixExpressionCursor()
-	})
-	p.registerPrefixCursor(lexer.PLUS, func(tok lexer.Token) ast.Expression {
-		return p.parsePrefixExpressionCursor()
-	})
-	p.registerPrefixCursor(lexer.NOT, func(tok lexer.Token) ast.Expression {
-		return p.parsePrefixExpressionCursor()
-	})
-	p.registerPrefixCursor(lexer.LPAREN, func(tok lexer.Token) ast.Expression {
-		return p.parseGroupedExpressionCursor()
-	})
-	p.registerPrefixCursor(lexer.LBRACK, func(tok lexer.Token) ast.Expression {
-		return p.parseArrayLiteralCursor()
+	p.registerPrefix(lexer.FALSE, func(tok lexer.Token) ast.Expression {
+		return p.parseBooleanLiteral()
 	})
 
-	// Task 2.7.4 Fix: Register missing cursor prefix functions
-	p.registerPrefixCursor(lexer.SELF, func(tok lexer.Token) ast.Expression {
-		return p.parseSelfExpressionCursor()
+	p.registerPrefix(lexer.NIL, func(tok lexer.Token) ast.Expression {
+		return p.parseNilLiteral()
 	})
-	p.registerPrefixCursor(lexer.INHERITED, func(tok lexer.Token) ast.Expression {
-		return p.parseInheritedExpressionCursor()
+	p.registerPrefix(lexer.NULL, func(tok lexer.Token) ast.Expression {
+		return p.parseNullIdentifier()
 	})
-	p.registerPrefixCursor(lexer.NEW, func(tok lexer.Token) ast.Expression {
-		return p.parseNewExpressionCursor()
+	p.registerPrefix(lexer.UNASSIGNED, func(tok lexer.Token) ast.Expression {
+		return p.parseUnassignedIdentifier()
 	})
-	p.registerPrefixCursor(lexer.IF, func(tok lexer.Token) ast.Expression {
-		return p.parseIfExpressionCursor()
+	p.registerPrefix(lexer.CHAR, func(tok lexer.Token) ast.Expression {
+		return p.parseCharLiteral()
 	})
-	p.registerPrefixCursor(lexer.LAMBDA, func(tok lexer.Token) ast.Expression {
-		return p.parseLambdaExpressionCursor()
+	p.registerPrefix(lexer.MINUS, func(tok lexer.Token) ast.Expression {
+		return p.parsePrefixExpression()
 	})
-	p.registerPrefixCursor(lexer.AT, func(tok lexer.Token) ast.Expression {
-		return p.parseAddressOfExpressionCursor()
+	p.registerPrefix(lexer.PLUS, func(tok lexer.Token) ast.Expression {
+		return p.parsePrefixExpression()
 	})
-	p.registerPrefixCursor(lexer.DEFAULT, func(tok lexer.Token) ast.Expression {
-		return p.parseDefaultExpressionCursor()
+	p.registerPrefix(lexer.NOT, func(tok lexer.Token) ast.Expression {
+		return p.parsePrefixExpression()
 	})
-	p.registerPrefixCursor(lexer.OLD, func(tok lexer.Token) ast.Expression {
-		return p.parseOldExpressionCursor()
+	p.registerPrefix(lexer.LPAREN, func(tok lexer.Token) ast.Expression {
+		return p.parseGroupedExpression()
+	})
+	p.registerPrefix(lexer.LBRACK, func(tok lexer.Token) ast.Expression {
+		return p.parseArrayLiteral()
+	})
+
+	p.registerPrefix(lexer.SELF, func(tok lexer.Token) ast.Expression {
+		return p.parseSelfExpression()
+	})
+	p.registerPrefix(lexer.INHERITED, func(tok lexer.Token) ast.Expression {
+		return p.parseInheritedExpression()
+	})
+	p.registerPrefix(lexer.NEW, func(tok lexer.Token) ast.Expression {
+		return p.parseNewExpression()
+	})
+	p.registerPrefix(lexer.IF, func(tok lexer.Token) ast.Expression {
+		return p.parseIfExpression()
+	})
+	p.registerPrefix(lexer.LAMBDA, func(tok lexer.Token) ast.Expression {
+		return p.parseLambdaExpression()
+	})
+	p.registerPrefix(lexer.AT, func(tok lexer.Token) ast.Expression {
+		return p.parseAddressOfExpression()
+	})
+	p.registerPrefix(lexer.DEFAULT, func(tok lexer.Token) ast.Expression {
+		return p.parseDefaultExpression()
+	})
+	p.registerPrefix(lexer.OLD, func(tok lexer.Token) ast.Expression {
+		return p.parseOldExpression()
 	})
 
 	// Note: Only functions with true cursor implementations are registered above.
-	// When parseExpressionCursor encounters a token type without a cursor prefix function,
-	// it will gracefully fall back to traditional mode for that expression subtree.
-	// Additional functions will be registered here as they are migrated to cursor mode.
+	// When parseExpression encounters a token type without a cursor prefix function,
 
 	// Infix functions - wrap existing cursor implementations
-	p.registerInfixCursor(lexer.PLUS, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.PLUS, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.MINUS, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.MINUS, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.ASTERISK, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.ASTERISK, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.SLASH, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.SLASH, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.DIV, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.DIV, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.MOD, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.MOD, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.SHL, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.SHL, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.SHR, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.SHR, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.SAR, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.SAR, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.EQ, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.EQ, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.NOT_EQ, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.NOT_EQ, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.LESS, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.LESS, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.GREATER, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.GREATER, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.LESS_EQ, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.LESS_EQ, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.GREATER_EQ, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.GREATER_EQ, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.AND, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.AND, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.OR, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.OR, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.XOR, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.XOR, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.IN, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
+	p.registerInfix(lexer.IN, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
-	p.registerInfixCursor(lexer.QUESTION_QUESTION, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseInfixExpressionCursor(left)
-	})
-
-	// Task 2.2.11: Complex infix expressions (function calls, member access, indexing)
-	p.registerInfixCursor(lexer.LPAREN, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseCallExpressionCursor(left)
-	})
-	p.registerInfixCursor(lexer.DOT, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseMemberAccessCursor(left)
-	})
-	p.registerInfixCursor(lexer.LBRACK, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseIndexExpressionCursor(left)
+	p.registerInfix(lexer.QUESTION_QUESTION, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseInfixExpression(left)
 	})
 
-	// Task 2.2.13: Type checking and casting expressions
-	p.registerInfixCursor(lexer.IS, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseIsExpressionCursor(left)
+	p.registerInfix(lexer.LPAREN, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseCallExpression(left)
 	})
-	p.registerInfixCursor(lexer.AS, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseAsExpressionCursor(left)
+	p.registerInfix(lexer.DOT, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseMemberAccess(left)
 	})
-	p.registerInfixCursor(lexer.IMPLEMENTS, func(left ast.Expression, tok lexer.Token) ast.Expression {
-		return p.parseImplementsExpressionCursor(left)
+	p.registerInfix(lexer.LBRACK, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseIndexExpression(left)
 	})
 
-	// Note: Only infix functions with true cursor implementations are registered above.
-	// When parseExpressionCursor encounters an infix token type without a cursor function,
-	// it will gracefully fall back to traditional mode for that expression subtree.
-	// Additional infix functions will be registered here as they are migrated to cursor mode.
-
-	// Note: Token initialization (curToken/peekToken sync) is now handled by ParserBuilder.Build()
+	p.registerInfix(lexer.IS, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseIsExpression(left)
+	})
+	p.registerInfix(lexer.AS, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseAsExpression(left)
+	})
+	p.registerInfix(lexer.IMPLEMENTS, func(left ast.Expression, tok lexer.Token) ast.Expression {
+		return p.parseImplementsExpression(left)
+	})
 
 	return p
-}
-
-// syncCursorToTokens synchronizes the cursor position with curToken/peekToken.
-// This is called in cursor mode to maintain backward compatibility with
-// existing parsing functions that still use curToken/peekToken.
-func (p *Parser) syncCursorToTokens() {
-	if p.useCursor && p.cursor != nil {
-		p.curToken = p.cursor.Current()
-		p.peekToken = p.cursor.Peek(1)
-	}
-}
-
-// syncTokensToCursor updates the cursor to match curToken after traditional mode parsing.
-// This is the reverse of syncCursorToTokens() - it synchronizes FROM traditional state TO cursor.
-//
-// Called after fallback to traditional mode to keep cursor position consistent with
-// the tokens consumed by traditional parsing functions.
-//
-// Algorithm:
-//  1. Search cursor's buffered tokens for a token matching curToken's position
-//  2. If found, update cursor index to that position
-//  3. If not found (traditional mode advanced beyond buffer), extend cursor until match
-//
-// This prevents infinite loops where cursor stays at old position while traditional
-// state has advanced, causing repeated fallbacks on the same token.
-//
-// Task 2.2.7: Critical fix for dual-mode cursor synchronization.
-func (p *Parser) syncTokensToCursor() {
-	if !p.useCursor || p.cursor == nil {
-		return
-	}
-
-	// Strategy 1: Find curToken in existing buffer (fast path)
-	// Search the buffered tokens for one matching curToken's position
-	// Use both Type and Pos for matching to handle cases where positions might be equal
-	for i := range p.cursor.tokens {
-		tok := p.cursor.tokens[i]
-		if tok.Type == p.curToken.Type &&
-			tok.Pos.Offset == p.curToken.Pos.Offset &&
-			tok.Pos.Line == p.curToken.Pos.Line {
-			// Found matching token - update cursor to this position
-			p.cursor = &TokenCursor{
-				lexer:   p.cursor.lexer,
-				current: tok,
-				tokens:  p.cursor.tokens,
-				index:   i,
-			}
-			return
-		}
-	}
-
-	// Strategy 2: curToken is beyond buffer - advance cursor to match (slow path)
-	// This happens when traditional mode consumed many tokens beyond the cursor's buffer
-	// Limit iterations to prevent infinite loops
-	maxIterations := 1000
-	iterations := 0
-	for !p.cursor.IsEOF() && iterations < maxIterations {
-		iterations++
-		if p.cursor.Current().Type == p.curToken.Type &&
-			p.cursor.Current().Pos.Offset == p.curToken.Pos.Offset &&
-			p.cursor.Current().Pos.Line == p.curToken.Pos.Line {
-			return
-		}
-		p.cursor = p.cursor.Advance()
-	}
-
-	// If we get here, we couldn't sync - this is a critical error
-	// Log it but don't panic to allow error recovery
-	if iterations >= maxIterations {
-		p.addError("internal error: cursor sync exceeded iteration limit", ErrInvalidSyntax)
-	}
 }
 
 // Errors returns the list of parsing errors.
@@ -767,33 +642,21 @@ func (p *Parser) LexerErrors() []lexer.LexerError {
 	return p.l.Errors()
 }
 
-// nextToken advances the cursor and updates curToken/peekToken.
-// Task 2.7.9: Simplified to cursor-only mode.
+// nextToken advances the cursor.
 func (p *Parser) nextToken() {
 	if p.cursor != nil {
 		p.cursor = p.cursor.Advance()
-		// Keep curToken/peekToken in sync with cursor for dual-mode helpers
-		p.curToken = p.cursor.Current()
-		p.peekToken = p.cursor.Peek(1)
 	}
 }
 
 // curTokenIs checks if the current token is of the given type.
-// Task 2.7.5: Dual-mode helper - uses cursor when available, falls back to curToken.
 func (p *Parser) curTokenIs(t lexer.TokenType) bool {
-	if p.cursor != nil {
-		return p.cursor.Current().Type == t
-	}
-	return p.curToken.Type == t
+	return p.cursor.Current().Type == t
 }
 
 // peekTokenIs checks if the peek token is of the given type.
-// Task 2.7.5: Dual-mode helper - uses cursor when available, falls back to peekToken.
 func (p *Parser) peekTokenIs(t lexer.TokenType) bool {
-	if p.cursor != nil {
-		return p.cursor.Peek(1).Type == t
-	}
-	return p.peekToken.Type == t
+	return p.cursor.Peek(1).Type == t
 }
 
 // peek provides N-token lookahead using the lexer's Peek() method.
@@ -811,32 +674,20 @@ func (p *Parser) peek(n int) lexer.Token {
 // peekAhead is an alternative helper that looks N tokens ahead from curToken.
 // n=1 returns peekToken, n=2 returns the token after peekToken, etc.
 // This provides a more intuitive interface where n represents "tokens ahead from curToken".
-// Task 2.7.5: Dual-mode helper - uses cursor when available, falls back to traditional.
 //
 // Example usage:
-//   - To look 1 token ahead: p.peekAhead(1) (same as cursor.Peek(1) or peekToken)
-//   - To look 2 tokens ahead: p.peekAhead(2) (same as cursor.Peek(2) or p.peek(0))
-//   - To look 3 tokens ahead: p.peekAhead(3) (same as cursor.Peek(3) or p.peek(1))
+//   - To look 1 token ahead: p.peekAhead(1) (same as cursor.Peek(1))
+//   - To look 2 tokens ahead: p.peekAhead(2) (same as cursor.Peek(2))
+//   - To look 3 tokens ahead: p.peekAhead(3) (same as cursor.Peek(3))
 func (p *Parser) peekAhead(n int) lexer.Token {
-	if p.cursor != nil {
-		if n <= 0 {
-			return p.cursor.Current()
-		}
-		return p.cursor.Peek(n)
-	}
-	// Traditional mode
 	if n <= 0 {
-		return p.curToken
+		return p.cursor.Current()
 	}
-	if n == 1 {
-		return p.peekToken
-	}
-	return p.l.Peek(n - 2)
+	return p.cursor.Peek(n)
 }
 
 // expectPeek checks if the peek token is of the given type and advances if so.
 // Returns true if the token matches, false otherwise (and adds an error).
-// Task 2.7.5: Now uses cursor-based peekTokenIs (which uses cursor internally).
 func (p *Parser) expectPeek(t lexer.TokenType) bool {
 	if p.peekTokenIs(t) {
 		p.nextToken()
@@ -857,14 +708,8 @@ func (p *Parser) isIdentifierToken(t lexer.TokenType) bool {
 // expectIdentifier checks if the peek token can be used as an identifier and advances if so.
 // Returns true if the token is valid as an identifier, false otherwise (and adds an error).
 // This allows contextual keywords like 'step' to be used as variable names.
-// Task 2.7.5: Dual-mode helper - uses cursor when available, falls back to peekToken.
 func (p *Parser) expectIdentifier() bool {
-	var peekType lexer.TokenType
-	if p.cursor != nil {
-		peekType = p.cursor.Peek(1).Type
-	} else {
-		peekType = p.peekToken.Type
-	}
+	peekType := p.cursor.Peek(1).Type
 
 	if p.isIdentifierToken(peekType) {
 		p.nextToken()
@@ -875,14 +720,8 @@ func (p *Parser) expectIdentifier() bool {
 }
 
 // peekError adds an error about an unexpected peek token.
-// Task 2.7.5: Dual-mode helper - uses cursor when available, falls back to peekToken.
 func (p *Parser) peekError(t lexer.TokenType) {
-	var peekTok lexer.Token
-	if p.cursor != nil {
-		peekTok = p.cursor.Peek(1)
-	} else {
-		peekTok = p.peekToken
-	}
+	peekTok := p.cursor.Peek(1)
 
 	msg := fmt.Sprintf("expected next token to be %s, got %s instead", t, peekTok.Type)
 	err := NewParserError(
@@ -895,14 +734,8 @@ func (p *Parser) peekError(t lexer.TokenType) {
 }
 
 // addError adds a generic error message with the specified error code.
-// Task 2.7.5: Dual-mode helper - uses cursor when available, falls back to curToken.
 func (p *Parser) addError(msg string, code string) {
-	var curTok lexer.Token
-	if p.cursor != nil {
-		curTok = p.cursor.Current()
-	} else {
-		curTok = p.curToken
-	}
+	curTok := p.cursor.Current()
 
 	err := NewParserError(
 		curTok.Pos,
@@ -921,7 +754,7 @@ func (p *Parser) addError(msg string, code string) {
 //
 //	err := NewStructuredError(ErrKindMissing).
 //	    WithCode(ErrMissingRParen).
-//	    WithPosition(p.curToken.Pos, p.curToken.Length()).
+//	    WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
 //	    WithExpected(lexer.RPAREN).
 //	    WithSuggestion("add ')' to close the expression").
 //	    Build()
@@ -950,36 +783,20 @@ func (p *Parser) noPrefixParseFnError(t lexer.TokenType) {
 }
 
 // registerPrefix registers a prefix parse function for a token type.
+
+// registerInfix registers an infix parse function for a token type.
+
 func (p *Parser) registerPrefix(tokenType lexer.TokenType, fn prefixParseFn) {
 	p.prefixParseFns[tokenType] = fn
 }
 
-// registerInfix registers an infix parse function for a token type.
 func (p *Parser) registerInfix(tokenType lexer.TokenType, fn infixParseFn) {
 	p.infixParseFns[tokenType] = fn
 }
 
-// registerPrefixCursor registers a cursor-mode prefix parse function for a token type (Task 2.2.6).
-// This is part of the dual function map infrastructure that enables gradual migration to cursor mode.
-func (p *Parser) registerPrefixCursor(tokenType lexer.TokenType, fn prefixParseFnCursor) {
-	p.prefixParseFnsCursor[tokenType] = fn
-}
-
-// registerInfixCursor registers a cursor-mode infix parse function for a token type (Task 2.2.6).
-// This is part of the dual function map infrastructure that enables gradual migration to cursor mode.
-func (p *Parser) registerInfixCursor(tokenType lexer.TokenType, fn infixParseFnCursor) {
-	p.infixParseFnsCursor[tokenType] = fn
-}
-
 // peekPrecedence returns the precedence of the peek token.
-// Task 2.7.5: Dual-mode helper - uses cursor when available, falls back to peekToken.
 func (p *Parser) peekPrecedence() int {
-	var tokenType lexer.TokenType
-	if p.cursor != nil {
-		tokenType = p.cursor.Peek(1).Type
-	} else {
-		tokenType = p.peekToken.Type
-	}
+	tokenType := p.cursor.Peek(1).Type
 
 	if prec, ok := precedences[tokenType]; ok {
 		return prec
@@ -988,14 +805,8 @@ func (p *Parser) peekPrecedence() int {
 }
 
 // curPrecedence returns the precedence of the current token.
-// Task 2.7.5: Dual-mode helper - uses cursor when available, falls back to curToken.
 func (p *Parser) curPrecedence() int {
-	var tokenType lexer.TokenType
-	if p.cursor != nil {
-		tokenType = p.cursor.Current().Type
-	} else {
-		tokenType = p.curToken.Type
-	}
+	tokenType := p.cursor.Current().Type
 
 	if prec, ok := precedences[tokenType]; ok {
 		return prec
@@ -1004,10 +815,9 @@ func (p *Parser) curPrecedence() int {
 }
 
 // getPrecedence returns the precedence of a token type without relying on parser state.
-// This is a helper for cursor-based parsing (Task 2.2.6) where precedence lookup
 // needs to work with tokens passed as parameters rather than parser fields.
 //
-// Unlike curPrecedence() and peekPrecedence() which access p.curToken and p.peekToken,
+// Unlike curPrecedence() and peekPrecedence() which access p.cursor.Current() and p.cursor.Peek(1),
 // this function is stateless and can be used in pure functional parsing contexts.
 //
 // Returns LOWEST if the token type is not in the precedences map.
@@ -1041,13 +851,10 @@ func (p *Parser) saveState() ParserState {
 
 	return ParserState{
 		errors:               errorsCopy,
-		curToken:             p.curToken,
-		peekToken:            p.peekToken,
 		lexerState:           p.l.SaveState(),
 		parsingPostCondition: p.parsingPostCondition,
 		blockStack:           blockStackCopy,
 		ctx:                  p.ctx.Snapshot(), // Save context snapshot (Task 2.1.2)
-		cursor:               p.cursor,         // Save cursor position (Task 2.2.2)
 	}
 }
 
@@ -1055,8 +862,6 @@ func (p *Parser) saveState() ParserState {
 // This undoes all parser and lexer changes made since saveState() was called.
 // It's used after speculative parsing fails to cleanly backtrack.
 func (p *Parser) restoreState(state ParserState) {
-	p.curToken = state.curToken
-	p.peekToken = state.peekToken
 	p.errors = state.errors
 	p.parsingPostCondition = state.parsingPostCondition
 	p.blockStack = state.blockStack
@@ -1064,10 +869,7 @@ func (p *Parser) restoreState(state ParserState) {
 	// Restore context (Task 2.1.2)
 	// This also restores parsingPostCondition in the context
 	p.ctx.Restore(state.ctx)
-	// Restore cursor (Task 2.2.2)
 	p.cursor = state.cursor
-	// In cursor mode, sync curToken/peekToken with cursor for backward compatibility
-	p.syncCursorToTokens()
 }
 
 // pushBlockContext pushes a new block context onto the stack.
@@ -1152,38 +954,15 @@ var (
 //	    p.synchronize([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
 //	    return nil
 //	}
-func (p *Parser) synchronize(syncTokens []lexer.TokenType) bool {
-	// Build a map of all synchronization tokens for fast lookup
-	syncMap := make(map[lexer.TokenType]bool)
-	for _, t := range syncTokens {
-		syncMap[t] = true
-	}
-	for _, t := range statementStarters {
-		syncMap[t] = true
-	}
-	for _, t := range blockClosers {
-		syncMap[t] = true
-	}
 
-	// Advance until we find a synchronization token or EOF
-	for !p.curTokenIs(lexer.EOF) {
-		if syncMap[p.curToken.Type] {
-			return true // Found a sync token
-		}
-		p.nextToken()
-	}
-
-	return false // Reached EOF without finding a sync token
-}
-
-// synchronizeCursor performs panic-mode error recovery using cursor.
+// synchronize performs panic-mode error recovery using cursor.
 // It advances the cursor until it finds a synchronization point.
 //
 // Parameters:
 //   - syncTokens: specific tokens to synchronize on (in addition to statement starters/block closers)
 //
 // Returns the new cursor position and whether a sync token was found.
-func (p *Parser) synchronizeCursor(syncTokens []lexer.TokenType) bool {
+func (p *Parser) synchronize(syncTokens []lexer.TokenType) bool {
 	// Build a map of all synchronization tokens for fast lookup
 	syncMap := make(map[lexer.TokenType]bool)
 	for _, t := range syncTokens {
@@ -1332,18 +1111,14 @@ func (p *Parser) parseSeparatedList(opts ListParseOptions, parseItem func() bool
 
 	// Parse remaining items
 	for p.peekTokenIsSomeOf(opts.Separators...) {
-		lastItemToken := p.curToken // Save position of last parsed item
-		p.nextToken()               // consume separator
+		p.nextToken() // consume separator
 
 		// Check for trailing separator
 		if opts.AllowTrailingSeparator && p.peekTokenIs(opts.Terminator) {
 			if opts.RequireTerminator {
 				p.nextToken() // consume terminator
-			} else {
-				// Restore curToken to last item to honor contract:
-				// "If RequireTerminator is false: curToken is the last item"
-				p.curToken = lastItemToken
 			}
+			// The contract "curToken is the last item" no longer applies.
 			return itemCount, true
 		}
 
@@ -1487,8 +1262,8 @@ func (p *Parser) isVarDeclBlock(block *ast.BlockStatement) bool {
 // parseFieldInitializer parses an optional field initializer (= Value or := Value).
 // Returns the initialization expression if present, or nil if not.
 // Should be called when curToken is the type token, and peekToken might be '=' or ':='.
-// PRE: curToken is last token of type annotation
-// POST: curToken is last token of initialization expression if present; otherwise unchanged
+// PRE: cursor is last token of type annotation
+// POST: cursor is last token of initialization expression if present; otherwise unchanged
 func (p *Parser) parseFieldInitializer(fieldNames []*ast.Identifier) ast.Expression {
 	// Check for initialization (= Value or := Value)
 	// DWScript uses '=' for field initializers: Field : String = 'hello';

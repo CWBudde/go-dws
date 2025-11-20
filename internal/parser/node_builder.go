@@ -43,7 +43,7 @@ type NodeBuilder struct {
 func (p *Parser) StartNode() *NodeBuilder {
 	return &NodeBuilder{
 		p:          p,
-		startToken: p.curToken,
+		startToken: p.cursor.Current(),
 	}
 }
 
@@ -60,7 +60,7 @@ func (p *Parser) StartNode() *NodeBuilder {
 //
 // Returns the node for convenient chaining and type assertion.
 func (nb *NodeBuilder) Finish(node ast.Node) ast.Node {
-	setEndPos(node, nb.p.endPosFromToken(nb.p.curToken))
+	setEndPos(node, nb.p.endPosFromToken(nb.p.cursor.Current()))
 	return node
 }
 
@@ -80,7 +80,7 @@ func (nb *NodeBuilder) FinishWithNode(node ast.Node, lastChild ast.Node) ast.Nod
 	if lastChild != nil {
 		setEndPos(node, lastChild.End())
 	} else {
-		setEndPos(node, nb.p.endPosFromToken(nb.p.curToken))
+		setEndPos(node, nb.p.endPosFromToken(nb.p.cursor.Current()))
 	}
 	return node
 }
@@ -92,7 +92,7 @@ func (nb *NodeBuilder) FinishWithNode(node ast.Node, lastChild ast.Node) ast.Nod
 // Example:
 //
 //	builder := p.StartNode()
-//	endToken := p.curToken  // Save the END keyword
+//	endToken := p.cursor.Current()  // Save the END keyword
 //	p.nextToken()
 //	block := &ast.BlockStatement{...}
 //	return builder.FinishWithToken(block, endToken).(*ast.BlockStatement)

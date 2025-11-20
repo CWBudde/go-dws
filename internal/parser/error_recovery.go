@@ -108,16 +108,16 @@ func (er *ErrorRecovery) AddExpectError(expected lexer.TokenType, context string
 	var msg string
 	if context != "" {
 		msg = fmt.Sprintf("expected %s %s, got %s instead",
-			expected, context, er.parser.peekToken.Type)
+			expected, context, er.parser.cursor.Peek(1).Type)
 	} else {
 		msg = fmt.Sprintf("expected %s, got %s instead",
-			expected, er.parser.peekToken.Type)
+			expected, er.parser.cursor.Peek(1).Type)
 	}
 
 	code := getErrorCodeForMissingToken(expected)
 	err := NewParserError(
-		er.parser.peekToken.Pos,
-		er.parser.peekToken.Length(),
+		er.parser.cursor.Peek(1).Pos,
+		er.parser.cursor.Peek(1).Length(),
 		msg,
 		code,
 	)
@@ -128,9 +128,9 @@ func (er *ErrorRecovery) AddExpectError(expected lexer.TokenType, context string
 func (er *ErrorRecovery) AddExpectErrorWithSuggestion(expected lexer.TokenType, context string, suggestion string) {
 	structErr := NewStructuredError(ErrKindMissing).
 		WithCode(getErrorCodeForMissingToken(expected)).
-		WithPosition(er.parser.peekToken.Pos, er.parser.peekToken.Length()).
+		WithPosition(er.parser.cursor.Peek(1).Pos, er.parser.cursor.Peek(1).Length()).
 		WithExpected(expected).
-		WithActual(er.parser.peekToken.Type, er.parser.peekToken.Literal).
+		WithActual(er.parser.cursor.Peek(1).Type, er.parser.cursor.Peek(1).Literal).
 		WithSuggestion(suggestion)
 
 	if context != "" {
@@ -169,7 +169,7 @@ func (er *ErrorRecovery) AddStructuredError(err *StructuredParserError) {
 func (er *ErrorRecovery) TryRecover(specificTokens ...lexer.TokenType) bool {
 	// First, try to find specific tokens
 	if er.SynchronizeOn(specificTokens...) {
-		return !er.parser.curTokenIs(lexer.EOF)
+		return !er.parser.cursor.Is(lexer.EOF)
 	}
 	return false
 }
@@ -187,7 +187,7 @@ func (er *ErrorRecovery) TryRecover(specificTokens ...lexer.TokenType) bool {
 //	    return nil  // Error already reported and synchronized
 //	}
 func (er *ErrorRecovery) ExpectWithRecovery(expected lexer.TokenType, context string, syncTokens ...lexer.TokenType) bool {
-	if er.parser.peekTokenIs(expected) {
+	if er.parser.cursor.PeekIs(1, expected) {
 		er.parser.nextToken()
 		return true
 	}
@@ -209,7 +209,7 @@ func (er *ErrorRecovery) ExpectWithRecovery(expected lexer.TokenType, context st
 //   - lexer.ILLEGAL if none matched
 func (er *ErrorRecovery) ExpectOneOf(expected []lexer.TokenType, context string, syncTokens ...lexer.TokenType) lexer.TokenType {
 	for _, t := range expected {
-		if er.parser.peekTokenIs(t) {
+		if er.parser.cursor.PeekIs(1, t) {
 			er.parser.nextToken()
 			return t
 		}
@@ -226,7 +226,7 @@ func (er *ErrorRecovery) ExpectOneOf(expected []lexer.TokenType, context string,
 	if context != "" {
 		msg += " " + context
 	}
-	msg += fmt.Sprintf(", got %s instead", er.parser.peekToken.Type)
+	msg += fmt.Sprintf(", got %s instead", er.parser.cursor.Peek(1).Type)
 
 	er.parser.addError(msg, ErrUnexpectedToken)
 	er.SynchronizeOn(syncTokens...)
@@ -243,8 +243,8 @@ func (er *ErrorRecovery) SkipUntil(tokens ...lexer.TokenType) bool {
 		tokenMap[t] = true
 	}
 
-	for !er.parser.curTokenIs(lexer.EOF) {
-		if tokenMap[er.parser.curToken.Type] {
+	for !er.parser.cursor.Is(lexer.EOF) {
+		if tokenMap[er.parser.cursor.Current().Type] {
 			return true
 		}
 		er.parser.nextToken()
@@ -256,7 +256,7 @@ func (er *ErrorRecovery) SkipUntil(tokens ...lexer.TokenType) bool {
 // IsAtSyncPoint checks if the current token is a synchronization point.
 // This is useful for deciding whether to continue parsing or give up.
 func (er *ErrorRecovery) IsAtSyncPoint() bool {
-	curType := er.parser.curToken.Type
+	curType := er.parser.cursor.Current().Type
 
 	// Check if current token is a statement starter
 	for _, t := range statementStarters {

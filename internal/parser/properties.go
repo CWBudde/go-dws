@@ -17,11 +17,11 @@ import (
 //   - property Items[i: Integer]: Type read GetItem; default; (default indexed)
 //   - property Name: Type; (auto-property, generates backing field)
 //
-// PRE: curToken is PROPERTY
-// POST: curToken is SEMICOLON
+// PRE: cursor is PROPERTY
+// POST: cursor is SEMICOLON
 func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 	builder := p.StartNode()
-	propToken := p.curToken // 'property' token
+	propToken := p.cursor.Current() // 'property' token
 
 	// Parse property name
 	if !p.expectPeek(lexer.IDENT) {
@@ -30,10 +30,10 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 	propName := &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
-				Token: p.curToken,
+				Token: p.cursor.Current(),
 			},
 		},
-		Value: p.curToken.Literal,
+		Value: p.cursor.Current().Literal,
 	}
 
 	// Check for indexed property parameters: property Items[index: Integer]
@@ -92,8 +92,8 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 		return nil
 	}
 	propType := &ast.TypeAnnotation{
-		Token: p.curToken,
-		Name:  p.curToken.Literal,
+		Token: p.cursor.Current(),
+		Name:  p.cursor.Current().Literal,
 	}
 
 	prop := &ast.PropertyDecl{
@@ -124,10 +124,10 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 			prop.ReadSpec = &ast.Identifier{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
-						Token: p.curToken,
+						Token: p.cursor.Current(),
 					},
 				},
-				Value: p.curToken.Literal,
+				Value: p.cursor.Current().Literal,
 			}
 		} else {
 			p.addError("expected identifier or expression after 'read'", ErrExpectedIdent)
@@ -149,10 +149,10 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 		prop.WriteSpec = &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
-					Token: p.curToken,
+					Token: p.cursor.Current(),
 				},
 			},
-			Value: p.curToken.Literal,
+			Value: p.cursor.Current().Literal,
 		}
 	}
 
@@ -198,8 +198,8 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 // parseIndexedPropertyParameterGroup parses a group of indexed property parameters with the same type.
 // Syntax: name: Type  or  name1, name2: Type
 // Similar to parseParameterGroup but without 'var' keyword support.
-// PRE: curToken is parameter name IDENT
-// POST: curToken is type IDENT
+// PRE: cursor is parameter name IDENT
+// POST: cursor is type IDENT
 func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
 	params := []*ast.Parameter{}
 
@@ -216,10 +216,10 @@ func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
 		names = append(names, &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
-					Token: p.curToken,
+					Token: p.cursor.Current(),
 				},
 			},
-			Value: p.curToken.Literal,
+			Value: p.cursor.Current().Literal,
 		})
 
 		// Check if there are more names (comma-separated)
@@ -243,8 +243,8 @@ func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
 	}
 
 	paramType := &ast.TypeAnnotation{
-		Token: p.curToken,
-		Name:  p.curToken.Literal,
+		Token: p.cursor.Current(),
+		Name:  p.cursor.Current().Literal,
 	}
 
 	// Create parameter for each name

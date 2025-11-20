@@ -154,7 +154,7 @@ func TestLooksLikeVarDeclaration(t *testing.T) {
 			p := New(l)
 			// After New(), curToken = VAR, peekToken = IDENT or other
 
-			result := p.looksLikeVarDeclaration()
+			result := p.looksLikeVarDeclaration(p.cursor)
 			if result != tt.expected {
 				t.Errorf("looksLikeVarDeclaration() = %v, want %v for input: %s",
 					result, tt.expected, tt.input)
@@ -198,7 +198,7 @@ func TestLooksLikeConstDeclaration(t *testing.T) {
 			p := New(l)
 			// After New(), curToken = CONST, peekToken = IDENT or other
 
-			result := p.looksLikeConstDeclaration()
+			result := p.looksLikeConstDeclaration(p.cursor)
 			if result != tt.expected {
 				t.Errorf("looksLikeConstDeclaration() = %v, want %v for input: %s",
 					result, tt.expected, tt.input)
@@ -338,9 +338,9 @@ func TestPeekConsistency(t *testing.T) {
 	p := New(l)
 
 	// peekAhead(1) should equal peekToken
-	if p.peekAhead(1).Type != p.peekToken.Type {
+	if p.peekAhead(1).Type != p.cursor.Peek(1).Type {
 		t.Errorf("peekAhead(1) = %s, but peekToken = %s",
-			p.peekAhead(1).Type, p.peekToken.Type)
+			p.peekAhead(1).Type, p.cursor.Peek(1).Type)
 	}
 
 	// peekAhead(2) should equal peek(0)

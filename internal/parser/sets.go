@@ -12,52 +12,12 @@ import (
 // Syntax:
 //   - type TDays = set of TWeekday;
 //
-// PRE: curToken is SET
-// POST: curToken is SEMICOLON
-// Dispatcher: delegates to cursor or traditional mode
+// PRE: cursor is SET
+// POST: cursor is SEMICOLON
+
+// PRE: cursor is SET
+// POST: cursor is SEMICOLON
 func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.SetDecl {
-	return p.parseSetDeclarationCursor(nameIdent, typeToken)
-}
-
-// parseSetDeclarationTraditional parses set declaration using traditional mode.
-// PRE: curToken is SET
-// POST: curToken is SEMICOLON
-func (p *Parser) parseSetDeclarationTraditional(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.SetDecl {
-	setDecl := &ast.SetDecl{
-		BaseNode: ast.BaseNode{Token: typeToken}, // The 'type' token
-		Name:     nameIdent,
-	}
-
-	// Current token is 'set', advance to 'of'
-	if !p.expectPeek(lexer.OF) {
-		return nil
-	}
-
-	// Advance to type identifier
-	if !p.expectPeek(lexer.IDENT) {
-		p.addError("expected type identifier after 'of' in set declaration", ErrExpectedType)
-		return nil
-	}
-
-	// Parse the element type
-	setDecl.ElementType = &ast.TypeAnnotation{
-		Token: p.curToken,
-		Name:  p.curToken.Literal,
-	}
-
-	// Expect semicolon
-	if !p.expectPeek(lexer.SEMICOLON) {
-		return nil
-	}
-
-	return setDecl
-}
-
-// parseSetDeclarationCursor parses set declaration using cursor mode.
-// Task 2.7.1.4: Set declaration migration
-// PRE: cursor is on SET token
-// POST: cursor is on SEMICOLON token
-func (p *Parser) parseSetDeclarationCursor(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.SetDecl {
 	setDecl := &ast.SetDecl{
 		BaseNode: ast.BaseNode{Token: typeToken}, // The 'type' token
 		Name:     nameIdent,
@@ -132,53 +92,12 @@ func (p *Parser) parseSetDeclarationCursor(nameIdent *ast.Identifier, typeToken 
 //   - set of TypeName
 //   - set of (A, B, C)  // inline anonymous enum (if supported)
 //
-// PRE: curToken is SET
-// POST: curToken is last token of element type
-// Dispatcher: delegates to cursor or traditional mode
+// PRE: cursor is SET
+// POST: cursor is last token of element type
+
+// PRE: cursor is SET
+// POST: cursor is last token of element type
 func (p *Parser) parseSetType() *ast.SetTypeNode {
-	return p.parseSetTypeCursor()
-}
-
-// parseSetTypeTraditional parses set type using traditional mode.
-// PRE: curToken is SET
-// POST: curToken is last token of element type
-func (p *Parser) parseSetTypeTraditional() *ast.SetTypeNode {
-	builder := p.StartNode()
-	setToken := p.curToken // The 'set' token
-
-	// Expect 'of' keyword
-	if !p.expectPeek(lexer.OF) {
-		p.addError("expected 'of' after 'set' in set type", ErrMissingOf)
-		return nil
-	}
-
-	// Parse element type
-	p.nextToken() // move to element type
-
-	// Element type can be:
-	// 1. Simple identifier: TEnum
-	// 2. Inline anonymous enum: (A, B, C) - would be handled by parseTypeExpression
-	// 3. Subrange: 1..100 - might need special handling in future
-	elementType := p.parseTypeExpression()
-	if elementType == nil {
-		p.addError("expected type expression after 'set of'", ErrExpectedType)
-		return nil
-	}
-
-	setTypeNode := &ast.SetTypeNode{
-		Token:       setToken,
-		ElementType: elementType,
-	}
-
-	return builder.FinishWithNode(setTypeNode, elementType).(*ast.SetTypeNode)
-}
-
-// parseSetTypeCursor parses set type using cursor mode.
-// Task 2.7.1.4: Set type migration
-// Task 2.7.2: Completed full cursor implementation
-// PRE: cursor is on SET token
-// POST: cursor is on last token of element type
-func (p *Parser) parseSetTypeCursor() *ast.SetTypeNode {
 	cursor := p.cursor
 	builder := p.StartNode()
 
@@ -221,85 +140,12 @@ func (p *Parser) parseSetTypeCursor() *ast.SetTypeNode {
 //   - [one, three..five]      // mixed
 //   - []                      // empty set
 //
-// PRE: curToken is LBRACK
-// POST: curToken is RBRACK
-// Dispatcher: delegates to cursor or traditional mode
+// PRE: cursor is LBRACK
+// POST: cursor is RBRACK
+
+// PRE: cursor is LBRACK
+// POST: cursor is RBRACK
 func (p *Parser) parseSetLiteral() ast.Expression {
-	return p.parseSetLiteralCursor()
-}
-
-// parseSetLiteralTraditional parses set literal using traditional mode.
-// PRE: curToken is LBRACK
-// POST: curToken is RBRACK
-func (p *Parser) parseSetLiteralTraditional() ast.Expression {
-	builder := p.StartNode()
-	setLit := &ast.SetLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.curToken}, // The '[' token
-		},
-		Elements: []ast.Expression{},
-	}
-
-	// Check for empty set: []
-	if p.peekTokenIs(lexer.RBRACK) {
-		p.nextToken() // move to ']'
-		return builder.Finish(setLit).(*ast.SetLiteral)
-	}
-
-	// Parse elements/ranges
-	p.nextToken() // move to first element
-
-	for !p.curTokenIs(lexer.RBRACK) && !p.curTokenIs(lexer.EOF) {
-		// Parse an element (could be a simple identifier or a range)
-		start := p.parseExpression(LOWEST)
-
-		// Check if this is a range (element..element)
-		if p.peekTokenIs(lexer.DOTDOT) {
-			p.nextToken() // move to '..'
-			rangeToken := p.curToken
-
-			p.nextToken() // move to end expression
-			end := p.parseExpression(LOWEST)
-
-			// Create a RangeExpression
-			rangeExpr := &ast.RangeExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token:  rangeToken,
-						EndPos: end.End(),
-					},
-				},
-				Start:    start,
-				RangeEnd: end,
-			}
-			setLit.Elements = append(setLit.Elements, rangeExpr)
-		} else {
-			// Simple element (not a range)
-			setLit.Elements = append(setLit.Elements, start)
-		}
-
-		// Check for comma (more elements) or closing bracket
-		if p.peekTokenIs(lexer.COMMA) {
-			p.nextToken() // move to comma
-			p.nextToken() // move to next element
-		} else if p.peekTokenIs(lexer.RBRACK) {
-			p.nextToken() // move to ']'
-			break
-		} else {
-			// Unexpected token
-			p.addError("expected ',' or ']' in set literal", ErrUnexpectedToken)
-			return nil
-		}
-	}
-
-	return builder.Finish(setLit).(*ast.SetLiteral)
-}
-
-// parseSetLiteralCursor parses set literal using cursor mode.
-// Task 2.7.1.4: Set literal migration
-// PRE: cursor is on LBRACK token
-// POST: cursor is on RBRACK token
-func (p *Parser) parseSetLiteralCursor() ast.Expression {
 	builder := p.StartNode()
 	cursor := p.cursor
 
