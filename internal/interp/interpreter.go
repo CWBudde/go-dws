@@ -38,60 +38,40 @@ type PropertyEvalContext = evaluator.PropertyEvalContext
 // The evaluator field contains the evaluation logic and dependencies.
 // Eventually, most of the fields below will be removed and accessed via the evaluator.
 type Interpreter struct {
-	// Phase 3.5.1: Evaluator - the new evaluation engine
-	// This holds all the evaluation logic and dependencies (type system, runtime services, config)
-	evaluatorInstance *evaluator.Evaluator
-
-	// Phase 3.3.1: Execution context (gradually replacing individual state fields)
-	ctx *evaluator.ExecutionContext
-
-	// Execution state (Phase 3.3: will be moved to ExecutionContext)
-	currentNode      ast.Node
-	env              *Environment       // Phase 3.3: migrating to ctx.Env()
-	exception        *ExceptionValue    // Phase 3.3: migrating to ctx.Exception()
-	handlerException *ExceptionValue    // Phase 3.3: migrating to ctx.HandlerException()
-	callStack        errors.StackTrace  // Phase 3.3: migrating to ctx.CallStack()
-	oldValuesStack   []map[string]Value // Phase 3.3: migrating to ctx.PushOldValues/PopOldValues
-	propContext      *PropertyEvalContext
-	// Phase 3.3.2: Control flow now managed by ctx.ControlFlow() instead of boolean flags
-
-	// Type System (Phase 3.4.1: Extracted to TypeSystem)
-	typeSystem *interptypes.TypeSystem
-
-	// Backward compatibility fields (Phase 3.4.1: point to typeSystem internals)
-	// These will be gradually removed as code is migrated to use typeSystem directly
-	classes              map[string]*ClassInfo
+	currentNode          ast.Node
+	output               io.Writer
+	helpers              map[string][]*HelperInfo
+	enumTypeIDRegistry   map[string]int
+	exception            *ExceptionValue
+	handlerException     *ExceptionValue
+	semanticInfo         *pkgast.SemanticInfo
+	unitRegistry         *units.UnitRegistry
+	propContext          *PropertyEvalContext
+	typeSystem           *interptypes.TypeSystem
+	recordTypeIDRegistry map[string]int
 	records              map[string]*RecordTypeValue
 	interfaces           map[string]*InterfaceInfo
 	functions            map[string][]*ast.FunctionDecl
 	globalOperators      *runtimeOperatorRegistry
 	conversions          *runtimeConversionRegistry
-	helpers              map[string][]*HelperInfo
-	classTypeIDRegistry  map[string]int // Type ID registry for classes
-	recordTypeIDRegistry map[string]int // Type ID registry for records
-	enumTypeIDRegistry   map[string]int // Type ID registry for enums
-	nextClassTypeID      int            // Next available class type ID
-	nextRecordTypeID     int            // Next available record type ID
-	nextEnumTypeID       int            // Next available enum type ID
-
-	// Runtime Services (Phase 3.4: will be moved to RuntimeServices)
-	output            io.Writer
-	rand              *rand.Rand
-	randSeed          int64
-	externalFunctions *ExternalFunctionRegistry
-
-	// Configuration
-	maxRecursionDepth int
-	sourceCode        string
-	sourceFile        string
-
-	// Unit System
-	initializedUnits map[string]bool
-	unitRegistry     *units.UnitRegistry
-	loadedUnits      []string
-
-	// Semantic Analysis
-	semanticInfo *pkgast.SemanticInfo // Task 9.18: Type metadata from semantic analysis
+	env                  *Environment
+	evaluatorInstance    *evaluator.Evaluator
+	classes              map[string]*ClassInfo
+	classTypeIDRegistry  map[string]int
+	initializedUnits     map[string]bool
+	externalFunctions    *ExternalFunctionRegistry
+	rand                 *rand.Rand
+	ctx                  *evaluator.ExecutionContext
+	sourceCode           string
+	sourceFile           string
+	oldValuesStack       []map[string]Value
+	loadedUnits          []string
+	callStack            errors.StackTrace
+	nextEnumTypeID       int
+	randSeed             int64
+	nextRecordTypeID     int
+	maxRecursionDepth    int
+	nextClassTypeID      int
 }
 
 // New creates a new Interpreter with a fresh global environment.

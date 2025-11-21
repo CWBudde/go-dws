@@ -578,8 +578,8 @@ func TestFunctionObject(t *testing.T) {
 // TestZeroValueForType tests zeroValueForType helper
 func TestZeroValueForType(t *testing.T) {
 	tests := []struct {
-		vt   ValueType
 		want Value
+		vt   ValueType
 	}{
 		{ValueInt, IntValue(0)},
 		{ValueFloat, FloatValue(0.0)},
@@ -603,8 +603,8 @@ func TestZeroValueForType(t *testing.T) {
 // TestValueTypeString tests ValueType.String() method
 func TestValueTypeString(t *testing.T) {
 	tests := []struct {
-		vt   ValueType
 		want string
+		vt   ValueType
 	}{
 		{ValueNil, "nil"},
 		{ValueBool, "bool"},

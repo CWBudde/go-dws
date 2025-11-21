@@ -52,8 +52,8 @@ func (e *mockEnvironment) NewEnclosedEnvironment() Environment {
 func TestControlFlow_Kind(t *testing.T) {
 	tests := []struct {
 		name     string
-		kind     ControlFlowKind
 		expected string
+		kind     ControlFlowKind
 	}{
 		{"none", FlowNone, "none"},
 		{"break", FlowBreak, "break"},

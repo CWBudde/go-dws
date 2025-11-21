@@ -19,17 +19,8 @@ import (
 //	defer ctx.PopBlock()
 //	// ... parse if statement ...
 type ParseContext struct {
-	// flags contains structured boolean flags for parsing behavior
-	flags ContextFlags
-
-	// blockStack tracks nested block contexts for error reporting
-	// Managed via PushBlock/PopBlock methods
 	blockStack []BlockContext
-
-	// Future extensibility examples (not planned features, just illustrative):
-	// - loopDepth int (for break/continue validation)
-	// - functionScope *FunctionContext (for return type checking)
-	// - classScope *ClassContext (for member access validation)
+	flags      ContextFlags
 }
 
 // ContextFlags holds structured boolean flags that control parsing behavior.

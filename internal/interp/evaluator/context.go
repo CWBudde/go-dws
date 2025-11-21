@@ -144,32 +144,14 @@ type Environment interface {
 // Phase 3.3.3: Updated to use CallStack abstraction with overflow detection.
 // Phase 3.5.4 - Phase 2D: Added envStack for proper environment scoping.
 type ExecutionContext struct {
-	// env is the current runtime environment (variable bindings).
-	env Environment
-
-	// envStack maintains a stack of environments for proper scoping.
-	// Phase 3.5.4 - Phase 2D: Used by PushEnv/PopEnv for clean scope management.
-	envStack []Environment
-
-	// callStack tracks function call frames with overflow detection.
-	// Phase 3.3.3: Replaced errors.StackTrace with CallStack abstraction.
-	callStack *CallStack
-
-	// controlFlow manages break/continue/exit/return signals.
-	controlFlow *ControlFlow
-
-	// exception holds the currently active exception (if any).
-	exception interface{} // *ExceptionValue, but avoiding import cycles
-
-	// handlerException holds the exception being handled in a try-except block.
-	handlerException interface{} // *ExceptionValue, but avoiding import cycles
-
-	// oldValuesStack tracks previous values for nested function calls.
-	// This is used for parameter passing and local variable shadowing.
-	oldValuesStack []map[string]interface{}
-
-	// propContext tracks property evaluation state to prevent infinite recursion.
-	propContext *PropertyEvalContext
+	env              Environment
+	exception        interface{}
+	handlerException interface{}
+	callStack        *CallStack
+	controlFlow      *ControlFlow
+	propContext      *PropertyEvalContext
+	envStack         []Environment
+	oldValuesStack   []map[string]interface{}
 }
 
 // NewExecutionContext creates a new execution context with the given environment.

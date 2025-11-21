@@ -324,9 +324,9 @@ func TestCallStack_GetFrameAt(t *testing.T) {
 		{wantName: "func1", index: 0, wantNil: false},
 		{wantName: "func2", index: 1, wantNil: false},
 		{wantName: "func3", index: 2, wantNil: false},
-		{wantName: "", index: 3, wantNil: true},   // Out of bounds
-		{wantName: "", index: -1, wantNil: true},  // Negative index
-		{wantName: "", index: 10, wantNil: true},  // Way out of bounds
+		{wantName: "", index: 3, wantNil: true},  // Out of bounds
+		{wantName: "", index: -1, wantNil: true}, // Negative index
+		{wantName: "", index: 10, wantNil: true}, // Way out of bounds
 	}
 
 	for _, tt := range tests {
