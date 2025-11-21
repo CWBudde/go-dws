@@ -519,15 +519,46 @@ func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, value
 
 // analyzeBlock analyzes a block statement
 func (a *Analyzer) analyzeBlock(stmt *ast.BlockStatement) {
-	// Create a new scope for the block
-	oldSymbols := a.symbols
-	a.symbols = NewEnclosedSymbolTable(oldSymbols)
-	defer func() { a.symbols = oldSymbols }()
+	// Check if this block contains only type declarations
+	// (enum, class, interface, record, set, array type, type alias, etc.)
+	// If so, don't create a new scope - type declarations should be visible
+	// at the program level, not scoped to the type section block
+	isTypeDeclarationBlock := a.isTypeDeclarationBlock(stmt)
+
+	// Create a new scope for the block (unless it's a type declaration block)
+	var oldSymbols *SymbolTable
+	if !isTypeDeclarationBlock {
+		oldSymbols = a.symbols
+		a.symbols = NewEnclosedSymbolTable(oldSymbols)
+		defer func() { a.symbols = oldSymbols }()
+	}
 
 	// Analyze each statement in the block
 	for _, s := range stmt.Statements {
 		a.analyzeStatement(s)
 	}
+}
+
+// isTypeDeclarationBlock checks if a block statement contains only type declarations
+func (a *Analyzer) isTypeDeclarationBlock(stmt *ast.BlockStatement) bool {
+	if len(stmt.Statements) == 0 {
+		return false
+	}
+
+	for _, s := range stmt.Statements {
+		switch s.(type) {
+		case *ast.EnumDecl, *ast.ClassDecl, *ast.InterfaceDecl, *ast.RecordDecl,
+			*ast.SetDecl, *ast.ArrayDecl, *ast.TypeDeclaration, *ast.HelperDecl,
+			*ast.OperatorDecl:
+			// These are type declarations
+			continue
+		default:
+			// Found a non-type declaration, so this is not a type declaration block
+			return false
+		}
+	}
+
+	return true
 }
 
 // analyzeIf analyzes an if statement

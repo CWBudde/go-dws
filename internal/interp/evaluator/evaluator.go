@@ -675,6 +675,8 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 		return e.VisitOperatorDecl(n, ctx)
 	case *ast.EnumDecl:
 		return e.VisitEnumDecl(n, ctx)
+	case *ast.SetDecl:
+		return e.VisitSetDecl(n, ctx)
 	case *ast.RecordDecl:
 		return e.VisitRecordDecl(n, ctx)
 	case *ast.HelperDecl:
