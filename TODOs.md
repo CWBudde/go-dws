@@ -194,7 +194,7 @@
 - [x] Handle edge cases (empty string, empty delimiter)
 - [x] Registered in builtins registry
 
-**Implementation Location**: `internal/interp/builtins/strings_basic.go:947`
+**Implementation Location**: `internal/interp/builtins/strings_basic.go:948`
 
 ---
 
