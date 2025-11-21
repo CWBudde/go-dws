@@ -380,10 +380,10 @@ func TestGetTypeByName(t *testing.T) {
 		typeName string
 		wantType string
 	}{
-		{"integer type", "Integer", "INTEGER"},
-		{"float type", "Float", "FLOAT"},
-		{"string type", "String", "STRING"},
-		{"boolean type", "Boolean", "BOOLEAN"},
+		{name: "integer type", typeName: "Integer", wantType: "Integer"},
+		{name: "float type", typeName: "Float", wantType: "Float"},
+		{name: "string type", typeName: "String", wantType: "String"},
+		{name: "boolean type", typeName: "Boolean", wantType: "Boolean"},
 	}
 
 	for _, tt := range tests {
@@ -401,18 +401,18 @@ func TestGetTypeByName(t *testing.T) {
 // TestIsFalsey tests the isFalsey helper function
 func TestIsFalsey(t *testing.T) {
 	tests := []struct {
-		name     string
 		value    Value
+		name     string
 		expected bool
 	}{
-		{"nil is falsey", nil, true},
-		{"zero integer is falsey", &IntegerValue{Value: 0}, true},
-		{"non-zero integer is truthy", &IntegerValue{Value: 5}, false},
-		{"zero float is falsey", &FloatValue{Value: 0.0}, true},
-		{"empty string is falsey", &StringValue{Value: ""}, true},
-		{"false boolean is falsey", &BooleanValue{Value: false}, true},
-		{"true boolean is truthy", &BooleanValue{Value: true}, false},
-		{"nil value is falsey", &NilValue{}, true},
+		{nil, "nil is falsey", true},
+		{&IntegerValue{Value: 0}, "zero integer is falsey", true},
+		{&IntegerValue{Value: 5}, "non-zero integer is truthy", false},
+		{&FloatValue{Value: 0.0}, "zero float is falsey", true},
+		{&StringValue{Value: ""}, "empty string is falsey", true},
+		{&BooleanValue{Value: false}, "false boolean is falsey", true},
+		{&BooleanValue{Value: true}, "true boolean is truthy", false},
+		{&NilValue{}, "nil value is falsey", true},
 	}
 
 	for _, tt := range tests {

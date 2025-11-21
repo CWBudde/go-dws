@@ -361,16 +361,33 @@ func (i *Interpreter) evalAddressOfExpression(expr *ast.AddressOfExpression) Val
 // evalFunctionPointer creates a function pointer value for the named function.
 // If selfObject is non-nil, creates a method pointer.
 func (i *Interpreter) evalFunctionPointer(name string, selfObject Value, _ ast.Node) Value {
-	// Look up the function in the function registry
-	// DWScript is case-insensitive, so normalize the function name to lowercase
-	overloads, exists := i.functions[strings.ToLower(name)]
-	if !exists || len(overloads) == 0 {
-		return i.newUndefinedError(nil, "undefined function or procedure: %s", name)
-	}
+	var function *ast.FunctionDecl
 
-	// For overloaded functions, use the first overload
-	// Note: Function pointers cannot represent overload sets, only single functions
-	function := overloads[0]
+	// If selfObject is provided, this is a method pointer - look up in the class
+	if selfObject != nil {
+		// Extract the object instance
+		obj, ok := AsObject(selfObject)
+		if !ok {
+			return i.newRuntimeError(nil, "method pointer requires an object instance, got %s", selfObject.Type())
+		}
+
+		// Look up the method in the class hierarchy
+		function = obj.Class.lookupMethod(name)
+		if function == nil {
+			return i.newUndefinedError(nil, "undefined method: %s.%s", obj.Class.Name, name)
+		}
+	} else {
+		// Look up the function in the function registry
+		// DWScript is case-insensitive, so normalize the function name to lowercase
+		overloads, exists := i.functions[strings.ToLower(name)]
+		if !exists || len(overloads) == 0 {
+			return i.newUndefinedError(nil, "undefined function or procedure: %s", name)
+		}
+
+		// For overloaded functions, use the first overload
+		// Note: Function pointers cannot represent overload sets, only single functions
+		function = overloads[0]
+	}
 
 	// Get the function pointer type from the semantic analyzer's type information
 	// For now, create a basic function pointer type from the function signature

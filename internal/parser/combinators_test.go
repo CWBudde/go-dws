@@ -1408,9 +1408,9 @@ func TestStatementBlock(t *testing.T) {
 func TestParameterGroup(t *testing.T) {
 	tests := []struct {
 		checkModifier func(*testing.T, *ast.Parameter)
-		config        ParameterGroupConfig
 		name          string
 		input         string
+		config        ParameterGroupConfig
 		paramCount    int
 		expectNil     bool
 		expectError   bool
