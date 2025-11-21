@@ -55,11 +55,11 @@ func TestControlFlow_Kind(t *testing.T) {
 		expected string
 		kind     ControlFlowKind
 	}{
-		{"none", FlowNone, "none"},
-		{"break", FlowBreak, "break"},
-		{"continue", FlowContinue, "continue"},
-		{"exit", FlowExit, "exit"},
-		{"return", FlowReturn, "return"},
+		{name: "none", expected: "none", kind: FlowNone},
+		{name: "break", expected: "break", kind: FlowBreak},
+		{name: "continue", expected: "continue", kind: FlowContinue},
+		{name: "exit", expected: "exit", kind: FlowExit},
+		{name: "return", expected: "return", kind: FlowReturn},
 	}
 
 	for _, tt := range tests {

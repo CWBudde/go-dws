@@ -581,13 +581,13 @@ func TestZeroValueForType(t *testing.T) {
 		want Value
 		vt   ValueType
 	}{
-		{ValueInt, IntValue(0)},
-		{ValueFloat, FloatValue(0.0)},
-		{ValueString, StringValue("")},
-		{ValueBool, BoolValue(false)},
-		{ValueNil, NilValue()},
-		{ValueArray, NilValue()},
-		{ValueObject, NilValue()},
+		{vt: ValueInt, want: IntValue(0)},
+		{vt: ValueFloat, want: FloatValue(0.0)},
+		{vt: ValueString, want: StringValue("")},
+		{vt: ValueBool, want: BoolValue(false)},
+		{vt: ValueNil, want: NilValue()},
+		{vt: ValueArray, want: NilValue()},
+		{vt: ValueObject, want: NilValue()},
 	}
 
 	for _, tt := range tests {
@@ -606,18 +606,18 @@ func TestValueTypeString(t *testing.T) {
 		want string
 		vt   ValueType
 	}{
-		{ValueNil, "nil"},
-		{ValueBool, "bool"},
-		{ValueInt, "int"},
-		{ValueFloat, "float"},
-		{ValueString, "string"},
-		{ValueArray, "array"},
-		{ValueObject, "object"},
-		{ValueRecord, "record"},
-		{ValueFunction, "function"},
-		{ValueClosure, "closure"},
-		{ValueBuiltin, "builtin"},
-		{ValueVariant, "variant"},
+		{vt: ValueNil, want: "nil"},
+		{vt: ValueBool, want: "bool"},
+		{vt: ValueInt, want: "int"},
+		{vt: ValueFloat, want: "float"},
+		{vt: ValueString, want: "string"},
+		{vt: ValueArray, want: "array"},
+		{vt: ValueObject, want: "object"},
+		{vt: ValueRecord, want: "record"},
+		{vt: ValueFunction, want: "function"},
+		{vt: ValueClosure, want: "closure"},
+		{vt: ValueBuiltin, want: "builtin"},
+		{vt: ValueVariant, want: "variant"},
 	}
 
 	for _, tt := range tests {
