@@ -1057,10 +1057,7 @@ func TestSeparatedListMultiSep_FailureCase(t *testing.T) {
 			p.nextToken()
 
 			var items []int
-			allowTrailing := false
-			if tt.name == "trailing separator allowed" {
-				allowTrailing = true
-			}
+			allowTrailing := tt.name == "trailing separator allowed"
 
 			count := p.SeparatedListMultiSep(
 				[]lexer.TokenType{lexer.COMMA},
@@ -1407,13 +1404,13 @@ func TestStatementBlock(t *testing.T) {
 // TestParameterGroup tests the ParameterGroup combinator
 func TestParameterGroup(t *testing.T) {
 	tests := []struct {
-		name         string
-		input        string
-		config       ParameterGroupConfig
-		expectNil    bool
-		expectError  bool
-		paramCount   int
 		checkModifier func(*testing.T, *ast.Parameter)
+		config        ParameterGroupConfig
+		name          string
+		input         string
+		paramCount    int
+		expectNil     bool
+		expectError   bool
 	}{
 		{
 			name:  "simple parameter without modifiers",

@@ -1955,15 +1955,14 @@ end;
 	}
 }
 
-
 // TestParseClassDeclaration tests the parseClassDeclaration function directly
 func TestParseClassDeclaration(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
+		checkName   string
 		expectNil   bool
 		expectError bool
-		checkName   string
 	}{
 		{
 			name:        "valid class declaration",
@@ -2015,12 +2014,12 @@ func TestParseClassDeclaration(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			l := lexer.New(tt.input)
 			p := New(l)
-			
+
 			// parseClassDeclaration expects cursor to be positioned
 			// at the token BEFORE the class name identifier
 			// In this case, we position at TYPE token
 			// (cursor is already at TYPE after New())
-			
+
 			result := p.parseClassDeclaration()
 
 			if tt.expectNil && result != nil {
