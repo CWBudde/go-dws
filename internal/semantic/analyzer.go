@@ -688,11 +688,13 @@ func (a *Analyzer) GetArrayTypes() map[string]*types.ArrayType {
 
 // GetTypeAliases returns the analyzer's type alias map.
 // Task 6.1.1.3: Build map from TypeRegistry
+// Note: We iterate through all types and check for type aliases via type assertion
+// because TypeAlias.TypeKind() returns the underlying type's kind (for compatibility),
+// not "ALIAS", so TypesByKind("ALIAS") would return nothing.
 func (a *Analyzer) GetTypeAliases() map[string]*types.TypeAlias {
 	result := make(map[string]*types.TypeAlias)
-	aliasNames := a.typeRegistry.TypesByKind("ALIAS")
-	for _, name := range aliasNames {
-		if aliasType := a.getTypeAlias(name); aliasType != nil {
+	for name, typ := range a.typeRegistry.AllTypes() {
+		if aliasType, ok := typ.(*types.TypeAlias); ok {
 			result[strings.ToLower(name)] = aliasType
 		}
 	}

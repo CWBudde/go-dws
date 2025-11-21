@@ -449,3 +449,114 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 		t.Fatalf("bytecode value = %v, want %v", v, expected)
 	}
 }
+
+// TestCompiler_BuiltinShadowing tests that local variables can shadow builtin function names.
+// This is a regression test for the bug where the builtin fast-path would fire even when
+// a local/upvalue variable with the same name exists.
+func TestCompiler_BuiltinShadowing(t *testing.T) {
+	// Create a program: var abs := 42; <call to abs>
+	// The variable "abs" shadows the builtin Abs() function
+	// When we call abs, it should use OpCallIndirect (indirect call), not OpCall with a builtin
+
+	absIdent := &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "abs", Pos: pos(1, 5)},
+			},
+		},
+		Value: "abs",
+	}
+
+	// Create a lambda that returns 42
+	lambda := &ast.LambdaExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos(1, 12)},
+			},
+		},
+		ReturnType: &ast.TypeAnnotation{Name: "Integer"},
+		Body: &ast.BlockStatement{
+			BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
+			Statements: []ast.Statement{
+				&ast.ReturnStatement{
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(2, 3)},
+					},
+					ReturnValue: &ast.IntegerLiteral{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.INT, Literal: "42", Pos: pos(2, 13)},
+							},
+						},
+						Value: 42,
+					},
+				},
+			},
+		},
+	}
+
+	// Create call expression: abs()
+	callAbs := &ast.CallExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.LPAREN, Literal: "(", Pos: pos(3, 4)},
+			},
+		},
+		Function: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "abs", Pos: pos(3, 1)},
+				},
+			},
+			Value: "abs",
+		},
+		Arguments: []ast.Expression{},
+	}
+
+	program := &ast.Program{
+		Statements: []ast.Statement{
+			&ast.VarDeclStatement{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+				},
+				Names: []*ast.Identifier{absIdent},
+				Value: lambda,
+			},
+			&ast.ExpressionStatement{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "abs", Pos: pos(3, 1)},
+				},
+				Expression: callAbs,
+			},
+		},
+	}
+
+	chunk := compileProgram(t, program)
+
+	// Check that the bytecode uses OpCallIndirect (not OpCall with builtin)
+	// because the local variable "abs" shadows the builtin function
+	hasCallIndirect := false
+	hasBuiltinCall := false
+	for _, inst := range chunk.Code {
+		switch inst.OpCode() {
+		case OpCallIndirect:
+			hasCallIndirect = true
+		case OpCall:
+			// Check if this is calling a builtin named "abs"
+			// OpCall B() is a constant index - we need to check if it's a BuiltinValue
+			constIdx := inst.B()
+			if int(constIdx) < len(chunk.Constants) {
+				if chunk.Constants[constIdx].Type == ValueBuiltin {
+					hasBuiltinCall = true
+				}
+			}
+		}
+	}
+
+	if !hasCallIndirect {
+		t.Errorf("expected OpCallIndirect for shadowed builtin call, but found none")
+	}
+	if hasBuiltinCall {
+		t.Errorf("did not expect OpCall with builtin constant - local variable should shadow builtin")
+	}
+}
