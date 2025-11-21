@@ -337,9 +337,205 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 }
 
 // VisitMemberAccessExpression evaluates member access (obj.field, obj.method).
-// Handles static access, unit-qualified access, instance fields, properties, helper methods,
-// class metadata, and enum values.
+//
+// **COMPLEXITY**: Very High (700+ lines in original implementation)
+// **STATUS**: Documentation-only migration with full adapter delegation
+//
+// **11 DISTINCT ACCESS MODES** (evaluated in this order):
+//
+// **1. UNIT-QUALIFIED ACCESS** (UnitName.Symbol)
+//   - Pattern: `Math.PI`, `System.Print`
+//   - Evaluation order:
+//     a. Check if left side is a registered unit name (via unitRegistry)
+//     b. Try to resolve as qualified variable/constant (ResolveQualifiedVariable)
+//     c. If not a variable, it might be a function reference (handled in VisitCallExpression)
+//   - Error: "qualified name 'Unit.Symbol' cannot be used as a value (functions must be called)"
+//   - Implementation: ~14 lines in original
+//
+// **2. STATIC CLASS ACCESS** (TClass.Member)
+//   - Pattern: `TMyClass.ClassVar`, `TMyClass.Create`, `TMyClass.ClassName`
+//   - Lookup order (case-insensitive):
+//     a. Built-in properties: `ClassName` (string), `ClassType` (metaclass reference)
+//     b. Class variables (lookupClassVar) - inherited from parent classes
+//     c. Class constants (getClassConstant) - lazy evaluation with caching
+//     d. Class properties (lookupProperty) - if IsClassProperty or uses class-level read specs
+//     e. Constructors (HasConstructor) - auto-invoke with 0 arguments if no parentheses
+//        * Supports constructor overloading and inheritance
+//        * Falls back to implicit parameterless constructor if needed
+//     f. Class methods (lookupClassMethodInHierarchy) - static methods
+//        * Parameterless: auto-invoke via VisitMethodCallExpression
+//        * With parameters: return as FunctionPointerValue
+//   - Error: "member 'X' not found in class 'Y'"
+//   - Implementation: ~100 lines in original
+//
+// **3. ENUM TYPE ACCESS** (TColor.Red, TColor.Low, TColor.High)
+//   - Pattern: `TColor.Red`, `TMyEnum.Low`, `TMyEnum.High`
+//   - Lookup in environment: `__enum_type_` + lowercase(enumTypeName)
+//   - For scoped enums:
+//     a. Look up enum value in EnumType.Values (takes precedence over properties)
+//     b. Check for special properties: `Low` (lowest ordinal), `High` (highest ordinal)
+//   - For unscoped enums: also check environment for value name
+//   - Returns: EnumValue or IntegerValue (for Low/High)
+//   - Error: "enum value 'X' not found in enum 'Y'"
+//   - Implementation: ~45 lines in original
+//
+// **4. RECORD TYPE STATIC ACCESS** (TPoint.cOrigin, TPoint.Count)
+//   - Pattern: `TPoint.cOrigin`, `TRecord.ClassMethod()`
+//   - Lookup in environment: `__record_type_` + lowercase(recordTypeName)
+//   - Lookup order (case-insensitive):
+//     a. Constants (RecordTypeValue.Constants)
+//     b. Class variables (RecordTypeValue.ClassVars)
+//     c. Class methods (RecordTypeValue.ClassMethods)
+//        * Parameterless: auto-invoke via VisitMethodCallExpression
+//        * With parameters: error (requires parentheses to call)
+//   - Error: "member 'X' not found in record type 'Y'"
+//   - Implementation: ~40 lines in original
+//
+// **5. RECORD INSTANCE ACCESS** (record.Field, record.Method)
+//   - Pattern: `point.X`, `point.GetLength()`, `point.Prop`
+//   - Object type: RecordValue
+//   - Lookup order (case-insensitive):
+//     a. Direct field access (RecordValue.Fields)
+//     b. Properties (RecordType.Properties):
+//        * ReadField: field name → direct access, method name → call getter
+//        * Write-only: error "property 'X' is write-only"
+//     c. Instance methods (RecordValue.Methods):
+//        * Parameterless: auto-invoke via VisitMethodCallExpression
+//        * With parameters: error "method 'X' requires N parameter(s); use parentheses"
+//     d. Class methods (from RecordTypeValue, accessible via instance)
+//     e. Constants (from RecordTypeValue, accessible via instance)
+//     f. Class variables (from RecordTypeValue, accessible via instance)
+//     g. Helper properties (findHelperProperty → evalHelperPropertyRead)
+//   - Error: "field 'X' not found in record 'Y'"
+//   - Implementation: ~115 lines in original
+//
+// **6. CLASS/METACLASS ACCESS** (ClassInfoValue/ClassValue.Member)
+//   - Pattern: When a class name is evaluated to ClassInfoValue or ClassValue
+//   - Example: `var c := TMyClass; c.Create()`
+//   - Lookup order (same as static class access #2):
+//     a. Built-in properties: `ClassName`, `ClassType`
+//     b. Class variables, constants, properties, constructors, class methods
+//   - Returns: String/ClassValue/field value/method pointer
+//   - Implementation: ~95 lines in original
+//
+// **7. INTERFACE INSTANCE ACCESS** (interface.Method, interface.Property)
+//   - Pattern: `intfVar.Hello`, `intfVar.SomeMethod`
+//   - Object type: InterfaceInstance
+//   - Validation: Verify member exists in interface definition (HasMethod)
+//   - For methods:
+//     * Look up implementation in underlying object's class (getMethodOverloadsInHierarchy)
+//     * Return FunctionPointerValue bound to underlying object (NO auto-invoke)
+//     * Enables method delegate assignment: `var h : procedure := i.Hello;`
+//   - For properties/fields: delegate to underlying object (without validation currently)
+//   - Unwrap interface to underlying object and continue evaluation
+//   - Error: "Interface is nil" or "method 'X' declared in interface 'Y' but not implemented"
+//   - Implementation: ~50 lines in original
+//
+// **8. TYPE CAST VALUE HANDLING** (TBase(child).ClassVar)
+//   - Pattern: Accessing members through a type cast expression
+//   - Object type: TypeCastValue
+//   - Extracts: StaticType (for class variable lookup), Object (actual instance)
+//   - Purpose: Class variables use static type, not runtime type
+//   - Unwraps to actual object and continues evaluation with static type context
+//   - Implementation: ~5 lines in original
+//
+// **9. NIL OBJECT HANDLING** (nil.ClassVar)
+//   - Pattern: `var o: TMyClass := nil; o.ClassVar`
+//   - Object type: NilValue (with ClassType field) or nil evaluation result
+//   - Special case: Accessing class variables on nil instances is allowed
+//   - Lookup:
+//     a. If staticClassType from cast (TBase(nil).ClassVar): use static type
+//     b. If NilValue.ClassType set: look up class and check for class variable
+//   - Success: Return class variable value
+//   - Failure: Error "Object not instantiated" (for instance members)
+//   - Implementation: ~35 lines in original
+//
+// **10. ENUM VALUE PROPERTIES** (enumVal.Value)
+//   - Pattern: `TColor.Red.Value` (returns ordinal as integer)
+//   - Object type: EnumValue
+//   - Supported properties:
+//     a. `.Value` (case-insensitive): returns OrdinalValue as IntegerValue
+//     b. `.ToString`: handled by helpers (if available)
+//   - Fallback: Check helpers for additional properties
+//   - Implementation: ~10 lines in original
+//
+// **11. OBJECT INSTANCE ACCESS** (obj.Field, obj.Method, obj.Property)
+//   - Pattern: `myObj.Name`, `myObj.GetValue()`, `myObj.Count`
+//   - Object type: ObjectInstance
+//   - Built-in properties (inherited from TObject, case-insensitive):
+//     a. `ClassName`: returns obj.Class.Name (runtime type)
+//     b. `ClassType`: returns ClassValue (metaclass for runtime type)
+//   - Lookup order (case-insensitive):
+//     a. Properties (Class.lookupProperty) - takes precedence over fields
+//        * Call evalPropertyRead for read accessor (field, method, or expression)
+//     b. Direct field access (obj.GetField) - instance fields
+//     c. Class variables (lookupClassVar) - accessible from instance
+//        * Uses static type from cast if available (e.g., TBase(child).ClassVar)
+//     d. Class constants (getClassConstant) - accessible from instance
+//     e. Instance methods (getMethodOverloadsInHierarchy):
+//        * Check all overloads for parameterless variants
+//        * Parameterless: auto-invoke via VisitMethodCallExpression
+//        * With parameters: return first overload as FunctionPointerValue
+//     f. Class methods (getMethodOverloadsInHierarchy with classMethod=true)
+//        * Same logic as instance methods (auto-invoke or function pointer)
+//     g. Helper properties (findHelperProperty → evalHelperPropertyRead)
+//   - Error: "field 'X' not found in class 'Y'"
+//   - Implementation: ~115 lines in original
+//
+// **SPECIAL BEHAVIORS**:
+// - **Auto-invocation**: Parameterless methods/properties auto-invoke when accessed without ()
+// - **Case-insensitive**: All name lookups are case-insensitive (DWScript spec)
+// - **Inheritance**: Class variables, constants, properties, methods searched up hierarchy
+// - **Helper support**: Type helpers can add properties/methods to any type
+// - **Function pointers**: Methods with parameters return FunctionPointerValue
+// - **Lazy evaluation**: Class constants evaluated once and cached on first access
+// - **Type safety**: Static types respected for class variable access through casts
+//
+// **DEPENDENCIES** (blockers for full migration):
+// - RecordValue, RecordTypeValue - in internal/interp (needs migration to runtime)
+// - ObjectInstance, ClassInfo, ClassValue - in internal/interp (needs migration to runtime)
+// - InterfaceInstance - in internal/interp (needs migration to runtime)
+// - EnumValue, EnumTypeValue - in internal/interp (needs migration to runtime)
+// - FunctionPointerValue - in internal/interp (needs migration to runtime)
+// - TypeCastValue - in internal/interp (needs migration to runtime)
+// - ClassInfoValue - in internal/interp (needs migration to runtime)
+// - Helper infrastructure - findHelperProperty, findHelperMethod (needs adapter methods)
+// - Method call infrastructure - evalMethodCall (delegated to VisitMethodCallExpression)
+// - Property read infrastructure - evalPropertyRead, evalHelperPropertyRead (needs adapter)
+// - Class hierarchy - lookupClassVar, lookupProperty, getMethodOverloadsInHierarchy (needs adapter)
+// - Unit registry - ResolveQualifiedVariable (already in Evaluator via unitRegistry)
+//
+// **TESTING**:
+// - Unit-qualified access (Math.PI, System.WriteLine)
+// - Static class access (TMyClass.ClassVar, TMyClass.Create, TMyClass.ClassName)
+// - Enum type access (TColor.Red, TColor.Low, TColor.High)
+// - Record type static access (TPoint.cOrigin, TPoint.Count)
+// - Record instance access (point.X, point.GetLength())
+// - Object instance access (obj.Name, obj.GetValue(), obj.Count)
+// - Interface method access (intf.Hello)
+// - Type cast access (TBase(child).ClassVar)
+// - Nil object access (nil.ClassVar, nil.Name → error)
+// - Enum value properties (TColor.Red.Value)
+// - Helper properties/methods (arr.Length, str.ToUpper)
+// - Auto-invocation (obj.Method without parentheses for parameterless)
+// - Function pointers (obj.Method with parameters returns pointer)
+//
+// **IMPLEMENTATION SUMMARY**:
+// - Original implementation: 706 lines (objects_hierarchy.go:13-719)
+// - Handles 11 distinct access modes with complex precedence rules
+// - Supports case-insensitive lookups, inheritance, helpers, auto-invocation
+// - Requires extensive value type infrastructure not yet in runtime package
+// - Full migration deferred - will be broken into category-specific sub-tasks
+//
+// **MIGRATION STRATEGY**:
+// - Phase 1 (this task): Comprehensive documentation of all access modes
+// - Phase 2 (future): Migrate simple cases (built-in properties, direct field access)
+// - Phase 3 (future): Migrate class/record static access after type system migration
+// - Phase 4 (future): Migrate helper infrastructure after helper system migration
+// - Phase 5 (future): Migrate method/property dispatch after OOP infrastructure migration
 func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression, ctx *ExecutionContext) Value {
+	// All 11 access modes delegated to adapter for now
+	// See comprehensive documentation above for detailed behavior
 	return e.adapter.EvalNode(node)
 }
 
