@@ -1186,9 +1186,15 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Effort**: 3-5 days
   - **Done**: Migrated `VisitImplementsExpression` to the evaluator with full interface implementation checking
 
-- [ ] **3.5.37** Migrate Method Pointers (`VisitAddressOfExpression`)
+- [x] **3.5.37** Migrate Method Pointers (`VisitAddressOfExpression`)
   - **Requirements**: Function/method pointer creation, overload resolution
   - **Effort**: 1 week
+  - **Done**: Migrated `VisitAddressOfExpression` to the evaluator with full support for:
+    - `@FunctionName` - Creates function pointers from named functions (with type info)
+    - `@object.MethodName` - Creates method pointers bound to object instances (of object)
+    - Added `CreateMethodPointer` and `CreateFunctionPointerFromName` adapter methods
+    - Proper handling of overloaded functions (uses first overload)
+    - Environment closure capture for function pointers
 
 ---
 
