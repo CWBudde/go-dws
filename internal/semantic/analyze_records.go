@@ -21,7 +21,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 	// Check if record is already declared
 	// Use lowercase for case-insensitive duplicate check
-	if _, exists := a.records[strings.ToLower(recordName)]; exists {
+	if a.hasType(recordName) {
 		a.addError("record type '%s' already declared at %s", recordName, decl.Token.Pos.String())
 		return
 	}
@@ -87,7 +87,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 	// Register the record type early so it's visible in method signatures
 	// Use lowercase key for case-insensitive lookup
-	a.records[strings.ToLower(recordName)] = recordType
+	a.registerTypeWithPos(recordName, recordType, decl.Token.Pos)
 	// Also register in symbol table as a type
 	a.symbols.Define(recordName, recordType)
 

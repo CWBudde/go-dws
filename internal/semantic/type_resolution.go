@@ -82,12 +82,13 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 		}
 
 		// Cache inline set types by their normalized signature to keep lookups consistent
-		if cached, ok := a.sets[lowerName]; ok {
+		// Task 6.1.1.3: Use TypeRegistry for set type caching
+		if cached := a.getSetType(lowerName); cached != nil {
 			return cached, nil
 		}
 
 		setType := types.NewSetType(elementType)
-		a.sets[lowerName] = setType
+		a.registerType(lowerName, setType)
 		return setType, nil
 	}
 
@@ -101,39 +102,10 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 		return basicType, nil
 	}
 
-	// Try class types
-	if classType, found := a.classes[normalizedName]; found {
-		return classType, nil
-	}
-
-	// Try interface types
-	if interfaceType, found := a.interfaces[normalizedName]; found {
-		return interfaceType, nil
-	}
-
-	// Try enum types
-	if enumType, found := a.enums[normalizedName]; found {
-		return enumType, nil
-	}
-
-	// Try record types
-	if recordType, found := a.records[normalizedName]; found {
-		return recordType, nil
-	}
-
-	// Try set types
-	if setType, found := a.sets[normalizedName]; found {
-		return setType, nil
-	}
-
-	// Try array types
-	if arrayType, found := a.arrays[normalizedName]; found {
-		return arrayType, nil
-	}
-
-	// Try type aliases
-	if typeAlias, found := a.typeAliases[normalizedName]; found {
-		return typeAlias, nil
+	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
+	// Try user-defined types (classes, interfaces, enums, records, sets, arrays, aliases)
+	if userType, found := a.lookupType(typeName); found {
+		return userType, nil
 	}
 
 	// Try subrange types
@@ -479,9 +451,10 @@ func (a *Analyzer) resolveSetTypeNode(setNode *ast.SetTypeNode) (types.Type, err
 	setType := types.NewSetType(elementType)
 
 	// Cache inline set types by their string representation for consistent reuse
+	// Task 6.1.1.3: Use TypeRegistry for set type caching
 	normalizedName := strings.ToLower(setNode.String())
-	if _, exists := a.sets[normalizedName]; !exists {
-		a.sets[normalizedName] = setType
+	if !a.hasType(normalizedName) {
+		a.registerType(normalizedName, setType)
 	}
 
 	return setType, nil

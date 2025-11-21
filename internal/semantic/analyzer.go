@@ -8,6 +8,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 	pkgast "github.com/cwbudde/go-dws/pkg/ast" // Task 9.18
+	"github.com/cwbudde/go-dws/pkg/token"      // Task 6.1.1.3: for TypeRegistry
 )
 
 // ============================================================================
@@ -50,19 +51,13 @@ func getTypeExpressionName(typeExpr ast.TypeExpression) string {
 type Analyzer struct {
 	symbols            *SymbolTable
 	globalOperators    *types.OperatorRegistry
+	typeRegistry       *TypeRegistry // Task 6.1.1: Unified type registry (replaces 7 scattered maps)
 	subranges          map[string]*types.SubrangeType
 	functionPointers   map[string]*types.FunctionPointerType
-	arrays             map[string]*types.ArrayType
 	currentFunction    *ast.FunctionDecl
-	classes            map[string]*types.ClassType
 	currentClass       *types.ClassType
 	currentRecord      *types.RecordType
-	enums              map[string]*types.EnumType
-	records            map[string]*types.RecordType
-	sets               map[string]*types.SetType
 	conversionRegistry *types.ConversionRegistry
-	typeAliases        map[string]*types.TypeAlias
-	interfaces         map[string]*types.InterfaceType
 	semanticInfo       *pkgast.SemanticInfo
 	unitSymbols        map[string]*SymbolTable
 	helpers            map[string][]*types.HelperType
@@ -84,16 +79,10 @@ type Analyzer struct {
 func NewAnalyzer() *Analyzer {
 	a := &Analyzer{
 		symbols:            NewSymbolTable(),
+		typeRegistry:       NewTypeRegistry(), // Task 6.1.1: Unified type registry
 		unitSymbols:        make(map[string]*SymbolTable),
 		errors:             make([]string, 0),
 		structuredErrors:   make([]*SemanticError, 0), // Task 9.110
-		classes:            make(map[string]*types.ClassType),
-		interfaces:         make(map[string]*types.InterfaceType),
-		enums:              make(map[string]*types.EnumType),
-		records:            make(map[string]*types.RecordType),
-		sets:               make(map[string]*types.SetType),
-		arrays:             make(map[string]*types.ArrayType),
-		typeAliases:        make(map[string]*types.TypeAlias),
 		subranges:          make(map[string]*types.SubrangeType),
 		functionPointers:   make(map[string]*types.FunctionPointerType), // Task 9.159
 		helpers:            make(map[string][]*types.HelperType),        // Task 9.82
@@ -165,7 +154,8 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 	}
 
 	// Task 9.285: Use lowercase for case-insensitive lookup
-	a.classes["tobject"] = objectClass
+	// Task 6.1.1.3: Use TypeRegistry instead of scattered maps
+	a.registerBuiltinType("TObject", objectClass)
 
 	// Register TClass as a type alias for "class of TObject"
 	// TClass is a built-in metaclass type in DWScript
@@ -173,7 +163,7 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 		Name:        "TClass",
 		AliasedType: types.NewClassOfType(objectClass),
 	}
-	a.typeAliases["tclass"] = tclassAlias
+	a.registerBuiltinType("TClass", tclassAlias)
 
 	// Define Exception base class
 	exceptionClass := &types.ClassType{
@@ -208,7 +198,8 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 	})
 
 	// Task 9.285: Use lowercase for case-insensitive lookup
-	a.classes["exception"] = exceptionClass
+	// Task 6.1.1.3: Use TypeRegistry instead of scattered maps
+	a.registerBuiltinType("Exception", exceptionClass)
 
 	// Define standard exception types
 	standardExceptions := []string{
@@ -251,7 +242,8 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 		})
 
 		// Task 9.285: Use lowercase for case-insensitive lookup
-		a.classes[strings.ToLower(excName)] = excClass
+		// Task 6.1.1.3: Use TypeRegistry instead of scattered maps
+		a.registerBuiltinType(excName, excClass)
 	}
 }
 
@@ -268,7 +260,8 @@ func (a *Analyzer) registerBuiltinInterfaces() {
 	}
 
 	// Task 9.285: Use lowercase for case-insensitive lookup
-	a.interfaces[strings.ToLower("IInterface")] = iinterface
+	// Task 6.1.1.3: Use TypeRegistry instead of scattered maps
+	a.registerBuiltinType("IInterface", iinterface)
 }
 
 // Analyze performs semantic analysis on a program.
@@ -313,8 +306,10 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 // Task 9.284: Post-analysis validation for missing method implementations
 func (a *Analyzer) validateMethodImplementations() {
 	// Iterate through all classes
-	// Note: className is the lowercase map key, use classType.Name for original case
-	for _, classType := range a.classes {
+	// Task 6.1.1.3: Use TypeRegistry to iterate all class types
+	classNames := a.typeRegistry.TypesByKind("CLASS")
+	for _, className := range classNames {
+		classType := a.getClassType(className)
 		// Check each method and constructor in ForwardedMethods
 		// Task 9.16.1: ForwardedMethods now uses lowercase keys
 		for methodName, isForwarded := range classType.ForwardedMethods {
@@ -417,7 +412,10 @@ func (a *Analyzer) validateFunctionImplementationsInScope(scope *SymbolTable) {
 // Task 9.4: Updated error message to match DWScript format
 func (a *Analyzer) validateClassForwardDeclarations() {
 	// Iterate through all classes
-	for _, classType := range a.classes {
+	// Task 6.1.1.3: Use TypeRegistry to iterate all class types
+	classNames := a.typeRegistry.TypesByKind("CLASS")
+	for _, className := range classNames {
+		classType := a.getClassType(className)
 		// Check if this class is still marked as forward (not implemented)
 		if classType.IsForward {
 			// This class was forward declared but never implemented
@@ -624,33 +622,81 @@ func (a *Analyzer) GetSymbolTable() *SymbolTable {
 }
 
 // GetClasses returns the analyzer's class type map.
+// Task 6.1.1.3: Build map from TypeRegistry
 func (a *Analyzer) GetClasses() map[string]*types.ClassType {
-	return a.classes
+	result := make(map[string]*types.ClassType)
+	classNames := a.typeRegistry.TypesByKind("CLASS")
+	for _, name := range classNames {
+		if classType := a.getClassType(name); classType != nil {
+			result[strings.ToLower(name)] = classType
+		}
+	}
+	return result
 }
 
 // GetInterfaces returns the analyzer's interface type map.
+// Task 6.1.1.3: Build map from TypeRegistry
 func (a *Analyzer) GetInterfaces() map[string]*types.InterfaceType {
-	return a.interfaces
+	result := make(map[string]*types.InterfaceType)
+	interfaceNames := a.typeRegistry.TypesByKind("INTERFACE")
+	for _, name := range interfaceNames {
+		if interfaceType := a.getInterfaceType(name); interfaceType != nil {
+			result[strings.ToLower(name)] = interfaceType
+		}
+	}
+	return result
 }
 
 // GetEnums returns the analyzer's enum type map.
+// Task 6.1.1.3: Build map from TypeRegistry
 func (a *Analyzer) GetEnums() map[string]*types.EnumType {
-	return a.enums
+	result := make(map[string]*types.EnumType)
+	enumNames := a.typeRegistry.TypesByKind("ENUM")
+	for _, name := range enumNames {
+		if enumType := a.getEnumType(name); enumType != nil {
+			result[strings.ToLower(name)] = enumType
+		}
+	}
+	return result
 }
 
 // GetRecords returns the analyzer's record type map.
+// Task 6.1.1.3: Build map from TypeRegistry
 func (a *Analyzer) GetRecords() map[string]*types.RecordType {
-	return a.records
+	result := make(map[string]*types.RecordType)
+	recordNames := a.typeRegistry.TypesByKind("RECORD")
+	for _, name := range recordNames {
+		if recordType := a.getRecordType(name); recordType != nil {
+			result[strings.ToLower(name)] = recordType
+		}
+	}
+	return result
 }
 
 // GetArrayTypes returns the analyzer's array type map.
+// Task 6.1.1.3: Build map from TypeRegistry
 func (a *Analyzer) GetArrayTypes() map[string]*types.ArrayType {
-	return a.arrays
+	result := make(map[string]*types.ArrayType)
+	arrayNames := a.typeRegistry.TypesByKind("ARRAY")
+	for _, name := range arrayNames {
+		if arrayType := a.getArrayType(name); arrayType != nil {
+			result[strings.ToLower(name)] = arrayType
+		}
+	}
+	return result
 }
 
 // GetTypeAliases returns the analyzer's type alias map.
+// Task 6.1.1.3: Build map from TypeRegistry
 func (a *Analyzer) GetTypeAliases() map[string]*types.TypeAlias {
-	return a.typeAliases
+	result := make(map[string]*types.TypeAlias)
+	aliasNames := a.typeRegistry.TypesByKind("ALIAS")
+	for _, name := range aliasNames {
+		if aliasType := a.getTypeAlias(name); aliasType != nil {
+			result[strings.ToLower(name)] = aliasType
+		}
+	}
+	return result
 }
 
 // GetFunctionPointers returns the analyzer's function pointer type map.
@@ -692,4 +738,147 @@ func (a *Analyzer) validateFieldInitializer(field *ast.FieldDecl, fieldName stri
 			}
 		}
 	}
+}
+
+// ============================================================================
+// Type Registry Helper Methods (Task 6.1.1.3)
+// ============================================================================
+// These methods provide a convenient interface to the TypeRegistry for
+// backward compatibility during migration from the old scattered type maps.
+
+// registerType registers a user-defined type with the registry.
+// Uses position 0:0 and private visibility (0) as defaults when position is not available.
+func (a *Analyzer) registerType(name string, typ types.Type) {
+	pos := token.Position{Line: 0, Column: 0, Offset: 0}
+	visibility := 0 // private by default
+	if err := a.typeRegistry.Register(name, typ, pos, visibility); err != nil {
+		// If registration fails (e.g., duplicate), add an error
+		a.addError("failed to register type '%s': %v", name, err)
+	}
+}
+
+// registerTypeWithPos registers a type with explicit position information.
+// Uses private visibility (0) as default.
+func (a *Analyzer) registerTypeWithPos(name string, typ types.Type, pos token.Position) {
+	visibility := 0 // private by default
+	if err := a.typeRegistry.Register(name, typ, pos, visibility); err != nil {
+		a.addError("failed to register type '%s' at %s: %v", name, pos, err)
+	}
+}
+
+// registerBuiltinType registers a built-in type with public visibility.
+// Uses the RegisterBuiltIn convenience method.
+func (a *Analyzer) registerBuiltinType(name string, typ types.Type) {
+	if err := a.typeRegistry.RegisterBuiltIn(name, typ); err != nil {
+		a.addError("failed to register built-in type '%s': %v", name, err)
+	}
+}
+
+// lookupType looks up a type by name (case-insensitive).
+// Returns the type and true if found, nil and false otherwise.
+func (a *Analyzer) lookupType(name string) (types.Type, bool) {
+	return a.typeRegistry.Resolve(name)
+}
+
+// hasType checks if a type with the given name exists (case-insensitive).
+func (a *Analyzer) hasType(name string) bool {
+	return a.typeRegistry.Has(name)
+}
+
+// getClassType looks up a class type by name and returns it as *ClassType.
+// Returns nil if not found or if the type is not a class.
+func (a *Analyzer) getClassType(name string) *types.ClassType {
+	typ, ok := a.typeRegistry.Resolve(name)
+	if !ok {
+		return nil
+	}
+	classType, ok := typ.(*types.ClassType)
+	if !ok {
+		return nil
+	}
+	return classType
+}
+
+// getInterfaceType looks up an interface type by name and returns it as *InterfaceType.
+// Returns nil if not found or if the type is not an interface.
+func (a *Analyzer) getInterfaceType(name string) *types.InterfaceType {
+	typ, ok := a.typeRegistry.Resolve(name)
+	if !ok {
+		return nil
+	}
+	interfaceType, ok := typ.(*types.InterfaceType)
+	if !ok {
+		return nil
+	}
+	return interfaceType
+}
+
+// getEnumType looks up an enum type by name and returns it as *EnumType.
+// Returns nil if not found or if the type is not an enum.
+func (a *Analyzer) getEnumType(name string) *types.EnumType {
+	typ, ok := a.typeRegistry.Resolve(name)
+	if !ok {
+		return nil
+	}
+	enumType, ok := typ.(*types.EnumType)
+	if !ok {
+		return nil
+	}
+	return enumType
+}
+
+// getRecordType looks up a record type by name and returns it as *RecordType.
+// Returns nil if not found or if the type is not a record.
+func (a *Analyzer) getRecordType(name string) *types.RecordType {
+	typ, ok := a.typeRegistry.Resolve(name)
+	if !ok {
+		return nil
+	}
+	recordType, ok := typ.(*types.RecordType)
+	if !ok {
+		return nil
+	}
+	return recordType
+}
+
+// getSetType looks up a set type by name and returns it as *SetType.
+// Returns nil if not found or if the type is not a set.
+func (a *Analyzer) getSetType(name string) *types.SetType {
+	typ, ok := a.typeRegistry.Resolve(name)
+	if !ok {
+		return nil
+	}
+	setType, ok := typ.(*types.SetType)
+	if !ok {
+		return nil
+	}
+	return setType
+}
+
+// getArrayType looks up an array type by name and returns it as *ArrayType.
+// Returns nil if not found or if the type is not an array.
+func (a *Analyzer) getArrayType(name string) *types.ArrayType {
+	typ, ok := a.typeRegistry.Resolve(name)
+	if !ok {
+		return nil
+	}
+	arrayType, ok := typ.(*types.ArrayType)
+	if !ok {
+		return nil
+	}
+	return arrayType
+}
+
+// getTypeAlias looks up a type alias by name and returns it as *TypeAlias.
+// Returns nil if not found or if the type is not an alias.
+func (a *Analyzer) getTypeAlias(name string) *types.TypeAlias {
+	typ, ok := a.typeRegistry.Resolve(name)
+	if !ok {
+		return nil
+	}
+	aliasType, ok := typ.(*types.TypeAlias)
+	if !ok {
+		return nil
+	}
+	return aliasType
 }

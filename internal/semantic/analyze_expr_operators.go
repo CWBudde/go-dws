@@ -29,7 +29,8 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 
 	// Task 9.161: Handle user-defined enum type names as type meta-values
 	// This allows enum type names to be used in expressions like High(TColor)
-	if enumType, exists := a.enums[ident.Value]; exists {
+	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
+	if enumType := a.getEnumType(ident.Value); enumType != nil {
 		return enumType
 	}
 
@@ -38,7 +39,8 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 	if ident.Value == "ExceptObject" {
 		// ExceptObject is always of type Exception (the base exception class)
 		// Task 9.285: Use lowercase for case-insensitive lookup
-		if exceptionClass, exists := a.classes["exception"]; exists {
+		// Task 6.1.1.3: Use TypeRegistry for unified type lookup
+		if exceptionClass := a.getClassType("Exception"); exceptionClass != nil {
 			return exceptionClass
 		}
 		// If Exception class doesn't exist (shouldn't happen), return nil
@@ -64,7 +66,8 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 		// Task 9.285: Use lowercase for case-insensitive lookup
 		// Task 9.73.5: When a class name is used as an identifier in expressions,
 		// it should be treated as a metaclass reference (class of ClassName)
-		if classType, exists := a.classes[strings.ToLower(ident.Value)]; exists {
+		// Task 6.1.1.3: Use TypeRegistry for unified type lookup
+		if classType := a.getClassType(ident.Value); classType != nil {
 			// Return ClassOfType (metaclass) instead of ClassType
 			// This allows: var meta: class of TBase; meta := TBase;
 			return &types.ClassOfType{ClassType: classType}
