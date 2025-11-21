@@ -201,20 +201,3 @@ func (si *SemanticInfo) Clear() {
 	si.types = make(map[Expression]*TypeAnnotation)
 	si.symbols = make(map[*Identifier]interface{})
 }
-
-// ============================================================================
-// Migration Support (Temporary)
-// ============================================================================
-//
-// These helper functions support gradual migration from node.GetType() to
-// semanticInfo.GetType(node). They will be removed in Task 9.18.9 after
-// migration is complete.
-
-// TODO(9.18.9): Remove after migration complete
-// TypedExpression is the legacy interface that expression nodes implemented.
-// This will be removed once all code migrates to SemanticInfo.
-// type TypedExpression interface {
-//     Expression
-//     GetType() *TypeAnnotation
-//     SetType(typ *TypeAnnotation)
-// }
