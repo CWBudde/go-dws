@@ -1308,6 +1308,16 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 		return nil, fmt.Errorf("class '%s' not found", className)
 	}
 
+	// Check if trying to instantiate an abstract class
+	if classInfo.IsAbstract {
+		return nil, fmt.Errorf("Trying to create an instance of an abstract class")
+	}
+
+	// Check if trying to instantiate an external class
+	if classInfo.IsExternal {
+		return nil, fmt.Errorf("cannot instantiate external class '%s' - external classes are not supported", className)
+	}
+
 	// Create new object instance
 	obj := NewObjectInstance(classInfo)
 
