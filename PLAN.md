@@ -1552,7 +1552,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 **Priority**: P0 - CRITICAL (Foundation for other refactorings)
 
 **Current Problem**:
-The `Analyzer` struct currently has 7 separate type maps (analyzer.go:53-62):
+The `Analyzer` struct currently has 7 separate type maps (in analyzer.go):
 - `classes map[string]*types.ClassType`
 - `interfaces map[string]*types.InterfaceType`
 - `enums map[string]*types.EnumType`
