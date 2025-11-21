@@ -3,7 +3,7 @@ package parser
 import (
 	"testing"
 
-	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 func TestCompleteSimplePrograms(t *testing.T) {

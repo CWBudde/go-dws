@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/interp"
 	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 func TestVM_RunArithmeticProgram(t *testing.T) {

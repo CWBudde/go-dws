@@ -1,7 +1,7 @@
 package interp
 
 import (
-	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 func (i *Interpreter) invokeRuntimeOperator(entry *runtimeOperatorEntry, operands []Value, node ast.Node) Value {

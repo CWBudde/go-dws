@@ -3,8 +3,8 @@ package bytecode
 import (
 	"testing"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // TestCompiler_UnaryExpressions tests compilation of unary expressions

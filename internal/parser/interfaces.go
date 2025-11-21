@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // parseTypeDeclaration parses one or more type declarations in a type section.

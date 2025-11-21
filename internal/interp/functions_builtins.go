@@ -1,8 +1,8 @@
 package interp
 
 import (
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/interp/builtins"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // callBuiltin dispatches built-in and external functions by name.
