@@ -309,7 +309,7 @@ func (c *Compiler) expandConstantRange(rangeExpr *ast.RangeExpression) ([]Value,
 		}
 		result := make([]Value, count)
 		for i := 0; i < count; i++ {
-			result[i] = StringValue(string(rune(startChar) + rune(i)))
+			result[i] = StringValue(string(startChar + rune(i)))
 		}
 		return result, nil
 	}

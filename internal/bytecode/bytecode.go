@@ -595,7 +595,12 @@ func (s *SetInstance) String() string {
 			builder.WriteString(", ")
 		}
 		first = false
-		builder.WriteString(key)
+		// Strip the type prefix (e.g., "i:1" -> "1", "s:a" -> "a")
+		if idx := strings.IndexByte(key, ':'); idx >= 0 {
+			builder.WriteString(key[idx+1:])
+		} else {
+			builder.WriteString(key)
+		}
 	}
 	builder.WriteByte(']')
 	return builder.String()
