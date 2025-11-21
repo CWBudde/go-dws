@@ -1365,9 +1365,15 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 }
 
 // CheckType checks if an object is of a specified type (implements 'is' operator).
+// Task 3.5.34: Extended to support both class hierarchy and interface implementation checking.
 func (i *Interpreter) CheckType(obj evaluator.Value, typeName string) bool {
 	// Convert to internal type
 	internalObj := obj.(Value)
+
+	// Handle nil - nil is not an instance of any type
+	if _, isNil := internalObj.(*NilValue); isNil {
+		return false
+	}
 
 	// Check if it's an object
 	objVal, ok := internalObj.(*ObjectInstance)
@@ -1393,6 +1399,11 @@ func (i *Interpreter) CheckType(obj evaluator.Value, typeName string) bool {
 			return true
 		}
 		current = current.Parent
+	}
+
+	// Task 3.5.34: Check if the target is an interface and if the object's class implements it
+	if iface, exists := i.interfaces[strings.ToLower(typeName)]; exists {
+		return classImplementsInterface(objVal.Class, iface)
 	}
 
 	return false

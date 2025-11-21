@@ -1337,9 +1337,65 @@ func (e *Evaluator) VisitLambdaExpression(node *ast.LambdaExpression, ctx *Execu
 }
 
 // VisitIsExpression evaluates an 'is' type checking expression.
-// Performs runtime type checking with class hierarchy and interface support.
+// Task 3.5.34: Runtime type checking with class hierarchy and interface support.
+//
+// The 'is' operator has two modes:
+// 1. Type checking: `obj is TMyClass` or `obj is IMyInterface`
+//   - Returns true if obj is an instance of the class (or derived class)
+//   - Returns true if obj's class implements the interface
+//   - Returns false for nil objects
+//
+// 2. Boolean value comparison: `boolExpr is True` or `boolExpr is False`
+//   - This variant uses Right expression instead of TargetType
+//   - Compares two values as booleans using variant-to-bool coercion
 func (e *Evaluator) VisitIsExpression(node *ast.IsExpression, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNode(node)
+	// Check if this is a boolean value comparison (expr.Right is set)
+	// or a type check (expr.TargetType is set)
+	if node.Right != nil {
+		// Boolean value comparison: left is right
+		// This is essentially checking if left == right for boolean values
+		left := e.Eval(node.Left, ctx)
+		if isError(left) {
+			return left
+		}
+
+		right := e.Eval(node.Right, ctx)
+		if isError(right) {
+			return right
+		}
+
+		// Convert both to boolean values using VariantToBool
+		leftBool := VariantToBool(left)
+		rightBool := VariantToBool(right)
+
+		return &runtime.BooleanValue{Value: leftBool == rightBool}
+	}
+
+	// Type checking mode
+	// Evaluate the left expression (the object to check)
+	left := e.Eval(node.Left, ctx)
+	if isError(left) {
+		return left
+	}
+
+	// Handle nil - nil is not an instance of any type
+	if left == nil || left.Type() == "NIL" {
+		return &runtime.BooleanValue{Value: false}
+	}
+
+	// Get the target type name from the type expression
+	targetTypeName := ""
+	if typeAnnotation, ok := node.TargetType.(*ast.TypeAnnotation); ok {
+		targetTypeName = typeAnnotation.Name
+	} else {
+		return e.newError(node, "cannot determine target type")
+	}
+
+	// Use the adapter's CheckType method which handles:
+	// - Class hierarchy traversal (obj is TMyClass checks class and parent classes)
+	// - Interface implementation checking (obj is IMyInterface checks if class implements it)
+	result := e.adapter.CheckType(left, targetTypeName)
+	return &runtime.BooleanValue{Value: result}
 }
 
 // VisitAsExpression evaluates an 'as' type casting expression.
