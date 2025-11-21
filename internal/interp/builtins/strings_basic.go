@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // =============================================================================
@@ -390,9 +391,7 @@ func SubStr(ctx Context, args []Value) Value {
 	return &runtime.StringValue{Value: result}
 }
 
-// TODO: Format - Requires ArrayValue to be moved to runtime package
-// Original signature: func (i *Interpreter) builtinFormat(args []Value) Value
-// This function expects an array of values as the second argument.
+// NOTE: Format() is implemented below in the "Advanced String Operations" section.
 
 // TODO: Insert - Requires special handling (takes []ast.Expression, modifies variable in-place)
 // Original signature: func (i *Interpreter) builtinInsert(args []ast.Expression) Value
@@ -934,14 +933,136 @@ func CharAt(ctx Context, args []Value) Value {
 // Advanced String Operations
 // =============================================================================
 
-// TODO: StrSplit - Requires ArrayValue to be moved to runtime package
-// Original signature: func (i *Interpreter) builtinStrSplit(args []Value) Value
-// This function returns an ArrayValue.
+// StrSplit implements the StrSplit() built-in function.
+// It splits a string into an array of strings using a delimiter.
+// If the delimiter is empty, returns an array with the original string as the sole element.
+//
+// Signature: StrSplit(str, delimiter) -> array of String
+//
+// Example:
+//
+//	var parts := StrSplit("a,b,c", ","); // ["a", "b", "c"]
+func StrSplit(ctx Context, args []Value) Value {
+	if len(args) != 2 {
+		return ctx.NewError("StrSplit() expects exactly 2 arguments, got %d", len(args))
+	}
 
-// TODO: StrJoin - Requires ArrayValue to be moved to runtime package
-// Original signature: func (i *Interpreter) builtinStrJoin(args []Value) Value
-// This function takes an ArrayValue as the first argument.
+	// First argument: string to split
+	strVal, ok := args[0].(*runtime.StringValue)
+	if !ok {
+		return ctx.NewError("StrSplit() expects string as first argument, got %s", args[0].Type())
+	}
 
-// TODO: StrArrayPack - Requires ArrayValue to be moved to runtime package
-// Original signature: func (i *Interpreter) builtinStrArrayPack(args []Value) Value
-// This function takes and returns an ArrayValue.
+	// Second argument: delimiter
+	delimVal, ok := args[1].(*runtime.StringValue)
+	if !ok {
+		return ctx.NewError("StrSplit() expects string as second argument, got %s", args[1].Type())
+	}
+
+	str := strVal.Value
+	delim := delimVal.Value
+
+	// Handle empty delimiter - return array with single element (the original string)
+	if len(delim) == 0 {
+		elements := []Value{&runtime.StringValue{Value: str}}
+		return &runtime.ArrayValue{
+			Elements:  elements,
+			ArrayType: types.NewDynamicArrayType(types.STRING),
+		}
+	}
+
+	// Split the string
+	parts := strings.Split(str, delim)
+
+	// Convert to array of StringValue
+	elements := make([]Value, len(parts))
+	for idx, part := range parts {
+		elements[idx] = &runtime.StringValue{Value: part}
+	}
+
+	return &runtime.ArrayValue{
+		Elements:  elements,
+		ArrayType: types.NewDynamicArrayType(types.STRING),
+	}
+}
+
+// StrJoin implements the StrJoin() built-in function.
+// It joins an array of strings into a single string using a delimiter.
+//
+// Signature: StrJoin(array, delimiter) -> String
+//
+// Example:
+//
+//	var s := StrJoin(["a", "b", "c"], ","); // "a,b,c"
+func StrJoin(ctx Context, args []Value) Value {
+	if len(args) != 2 {
+		return ctx.NewError("StrJoin() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: array of strings
+	arrVal, ok := args[0].(*runtime.ArrayValue)
+	if !ok {
+		return ctx.NewError("StrJoin() expects array as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: delimiter
+	delimVal, ok := args[1].(*runtime.StringValue)
+	if !ok {
+		return ctx.NewError("StrJoin() expects string as second argument, got %s", args[1].Type())
+	}
+
+	delim := delimVal.Value
+
+	// Convert array elements to strings
+	parts := make([]string, len(arrVal.Elements))
+	for idx, elem := range arrVal.Elements {
+		strElem, ok := elem.(*runtime.StringValue)
+		if !ok {
+			return ctx.NewError("StrJoin() expects array of strings, got %s at index %d", elem.Type(), idx)
+		}
+		parts[idx] = strElem.Value
+	}
+
+	// Join the strings
+	result := strings.Join(parts, delim)
+	return &runtime.StringValue{Value: result}
+}
+
+// StrArrayPack implements the StrArrayPack() built-in function.
+// It removes empty strings from an array.
+//
+// Signature: StrArrayPack(array) -> array of String
+//
+// Example:
+//
+//	var packed := StrArrayPack(["a", "", "b", "", "c"]); // ["a", "b", "c"]
+func StrArrayPack(ctx Context, args []Value) Value {
+	if len(args) != 1 {
+		return ctx.NewError("StrArrayPack() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// First argument: array of strings
+	arrVal, ok := args[0].(*runtime.ArrayValue)
+	if !ok {
+		return ctx.NewError("StrArrayPack() expects array as argument, got %s", args[0].Type())
+	}
+
+	// Filter out empty strings
+	var packed []Value
+	for _, elem := range arrVal.Elements {
+		strElem, ok := elem.(*runtime.StringValue)
+		if !ok {
+			return ctx.NewError("StrArrayPack() expects array of strings, got %s", elem.Type())
+		}
+		if strElem.Value != "" {
+			packed = append(packed, strElem)
+		}
+	}
+
+	return &runtime.ArrayValue{
+		Elements:  packed,
+		ArrayType: types.NewDynamicArrayType(types.STRING),
+	}
+}
+
+// NOTE: Format() is implemented in system.go and registered there.
