@@ -294,7 +294,7 @@ func TestEvalShortCircuitAnd(t *testing.T) {
 			sideEffect := sideEffect + 1;
 			Result := True;
 		end;
-		var result := False and HasSideEffect;
+		var result := False and HasSideEffect();
 		PrintLn(result);
 		PrintLn(sideEffect);
 	`
@@ -314,7 +314,7 @@ func TestEvalShortCircuitOr(t *testing.T) {
 			sideEffect := sideEffect + 1;
 			Result := False;
 		end;
-		var result := True or HasSideEffect;
+		var result := True or HasSideEffect();
 		PrintLn(result);
 		PrintLn(sideEffect);
 	`

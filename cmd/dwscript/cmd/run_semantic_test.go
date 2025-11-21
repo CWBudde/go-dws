@@ -25,7 +25,7 @@ func TestRunWithSemanticErrors(t *testing.T) {
 			name:          "undefined variable error",
 			input:         "var x: Integer := y;",
 			expectError:   true,
-			errorContains: "undefined variable 'y'",
+			errorContains: "Unknown name \"y\"",
 		},
 		{
 			name:        "valid program",

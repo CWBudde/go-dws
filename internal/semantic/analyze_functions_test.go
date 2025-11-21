@@ -131,7 +131,7 @@ func TestFunctionCallWrongArgumentType(t *testing.T) {
 
 		var x := Add(5, 'hello');
 	`
-	expectError(t, input, "has type String, expected Integer")
+	expectError(t, input, "expects type \"Integer\" instead of \"String\"")
 }
 
 func TestFunctionCallWithCoercion(t *testing.T) {

@@ -103,7 +103,7 @@ func (t *NilType) Equals(other Type) bool {
 // VoidType represents the void type (for procedures with no return value)
 type VoidType struct{}
 
-func (t *VoidType) String() string   { return "void" }
+func (t *VoidType) String() string   { return "Void" }
 func (t *VoidType) TypeKind() string { return "VOID" }
 func (t *VoidType) Equals(other Type) bool {
 	// Resolve type aliases before comparison

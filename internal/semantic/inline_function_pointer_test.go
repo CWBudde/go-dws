@@ -1,7 +1,6 @@
 package semantic
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -231,7 +230,7 @@ func TestInlineFunctionPointerTypeErrors(t *testing.T) {
 				return
 			}
 
-			if !strings.Contains(err.Error(), tt.expectedErr) {
+			if !ErrorMatches(err.Error(), tt.expectedErr) {
 				t.Errorf("expected error containing '%s', got: %v", tt.expectedErr, err)
 			}
 		})
@@ -395,7 +394,7 @@ func TestInlineFunctionPointerAssignmentErrors(t *testing.T) {
 				return
 			}
 
-			if !strings.Contains(err.Error(), tt.expectedErr) {
+			if !ErrorMatches(err.Error(), tt.expectedErr) {
 				t.Errorf("expected error containing '%s', got: %v", tt.expectedErr, err)
 			}
 		})
@@ -539,7 +538,7 @@ func TestInlineFunctionPointerCallErrors(t *testing.T) {
 				return
 			}
 
-			if !strings.Contains(err.Error(), tt.expectedErr) {
+			if !ErrorMatches(err.Error(), tt.expectedErr) {
 				t.Errorf("expected error containing '%s', got: %v", tt.expectedErr, err)
 			}
 		})
