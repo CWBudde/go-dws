@@ -449,6 +449,176 @@ func TestTypeRegistry_GetTypeDependencies_NonExistent(t *testing.T) {
 }
 
 // ============================================================================
+// Alias Resolution Tests
+// ============================================================================
+
+func TestTypeRegistry_ResolveUnderlying_SimpleAlias(t *testing.T) {
+	registry := NewTypeRegistry()
+
+	// Register base type and alias
+	registry.Register("Integer", &types.IntegerType{}, makePosition(1, 1), 2)
+	alias := &types.TypeAlias{
+		Name:        "MyInt",
+		AliasedType: &types.IntegerType{},
+	}
+	registry.Register("MyInt", alias, makePosition(2, 1), 0)
+
+	// Resolve the alias to underlying type
+	underlying, ok := registry.ResolveUnderlying("MyInt")
+	if !ok {
+		t.Fatal("Expected to resolve MyInt")
+	}
+
+	// Should get IntegerType, not TypeAlias
+	if _, isAlias := underlying.(*types.TypeAlias); isAlias {
+		t.Error("Expected underlying type to not be an alias")
+	}
+	if _, isInt := underlying.(*types.IntegerType); !isInt {
+		t.Errorf("Expected IntegerType, got %T", underlying)
+	}
+}
+
+func TestTypeRegistry_ResolveUnderlying_ChainedAliases(t *testing.T) {
+	registry := NewTypeRegistry()
+
+	// Create a chain of aliases: C -> B -> A -> Integer
+	intType := &types.IntegerType{}
+	aliasA := &types.TypeAlias{Name: "A", AliasedType: intType}
+	aliasB := &types.TypeAlias{Name: "B", AliasedType: aliasA}
+	aliasC := &types.TypeAlias{Name: "C", AliasedType: aliasB}
+
+	registry.Register("Integer", intType, makePosition(1, 1), 2)
+	registry.Register("A", aliasA, makePosition(2, 1), 0)
+	registry.Register("B", aliasB, makePosition(3, 1), 0)
+	registry.Register("C", aliasC, makePosition(4, 1), 0)
+
+	// Resolve through the chain
+	underlying, ok := registry.ResolveUnderlying("C")
+	if !ok {
+		t.Fatal("Expected to resolve C")
+	}
+
+	// Should get IntegerType at the end of the chain
+	if _, isInt := underlying.(*types.IntegerType); !isInt {
+		t.Errorf("Expected IntegerType, got %T", underlying)
+	}
+}
+
+func TestTypeRegistry_ResolveUnderlying_NonAlias(t *testing.T) {
+	registry := NewTypeRegistry()
+
+	// Register a non-alias type
+	intType := &types.IntegerType{}
+	registry.Register("Integer", intType, makePosition(1, 1), 2)
+
+	// Resolve should just return the type itself
+	underlying, ok := registry.ResolveUnderlying("Integer")
+	if !ok {
+		t.Fatal("Expected to resolve Integer")
+	}
+
+	if !underlying.Equals(intType) {
+		t.Errorf("Expected same type, got %v", underlying)
+	}
+}
+
+func TestTypeRegistry_ResolveUnderlying_NonExistent(t *testing.T) {
+	registry := NewTypeRegistry()
+
+	underlying, ok := registry.ResolveUnderlying("NonExistent")
+	if ok {
+		t.Fatal("Expected not to resolve non-existent type")
+	}
+	if underlying != nil {
+		t.Errorf("Expected nil type, got %v", underlying)
+	}
+}
+
+// ============================================================================
+// Helper Method Tests
+// ============================================================================
+
+func TestTypeRegistry_Has(t *testing.T) {
+	registry := NewTypeRegistry()
+
+	registry.Register("MyType", &types.IntegerType{}, makePosition(1, 1), 0)
+
+	// Check existing type
+	if !registry.Has("MyType") {
+		t.Error("Expected Has to return true for MyType")
+	}
+
+	// Check case-insensitive
+	if !registry.Has("mytype") {
+		t.Error("Expected Has to be case-insensitive")
+	}
+
+	// Check non-existent type
+	if registry.Has("NonExistent") {
+		t.Error("Expected Has to return false for non-existent type")
+	}
+}
+
+func TestTypeRegistry_RegisterBuiltIn(t *testing.T) {
+	registry := NewTypeRegistry()
+
+	// Register a built-in type
+	err := registry.RegisterBuiltIn("Integer", &types.IntegerType{})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// Verify it was registered
+	typ, ok := registry.Resolve("Integer")
+	if !ok {
+		t.Fatal("Expected to find Integer")
+	}
+	if _, isInt := typ.(*types.IntegerType); !isInt {
+		t.Errorf("Expected IntegerType, got %T", typ)
+	}
+
+	// Verify descriptor has correct properties
+	desc, ok := registry.ResolveDescriptor("Integer")
+	if !ok {
+		t.Fatal("Expected to find Integer descriptor")
+	}
+	if desc.Position.Line != 0 || desc.Position.Column != 0 {
+		t.Errorf("Expected position 0:0 for built-in, got %d:%d", desc.Position.Line, desc.Position.Column)
+	}
+	if desc.Visibility != 2 {
+		t.Errorf("Expected visibility 2 (public) for built-in, got %d", desc.Visibility)
+	}
+}
+
+func TestTypeRegistry_MustRegisterBuiltIn(t *testing.T) {
+	registry := NewTypeRegistry()
+
+	// Should not panic for valid registration
+	registry.MustRegisterBuiltIn("Integer", &types.IntegerType{})
+
+	// Verify it was registered
+	if !registry.Has("Integer") {
+		t.Error("Expected Integer to be registered")
+	}
+}
+
+func TestTypeRegistry_MustRegisterBuiltIn_Panic(t *testing.T) {
+	registry := NewTypeRegistry()
+
+	// Register first type
+	registry.MustRegisterBuiltIn("Integer", &types.IntegerType{})
+
+	// Try to register duplicate - should panic
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Expected panic for duplicate built-in type")
+		}
+	}()
+
+	registry.MustRegisterBuiltIn("Integer", &types.StringType{})
+}
+
+// ============================================================================
 // Utility Method Tests
 // ============================================================================
 

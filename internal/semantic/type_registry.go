@@ -134,6 +134,24 @@ func (r *TypeRegistry) MustResolve(name string) types.Type {
 	return typ
 }
 
+// ResolveUnderlying looks up a type by name and resolves through any type aliases
+// to get the ultimate underlying type. This is useful when you need the actual
+// concrete type behind potentially multiple layers of aliases.
+//
+// For example:
+//   - type MyInt = Integer;      // ResolveUnderlying("MyInt") -> IntegerType
+//   - type A = Integer; type B = A;  // ResolveUnderlying("B") -> IntegerType
+//
+// Returns the underlying type and true if found, nil and false otherwise.
+func (r *TypeRegistry) ResolveUnderlying(name string) (types.Type, bool) {
+	typ, ok := r.Resolve(name)
+	if !ok {
+		return nil, false
+	}
+	// Use the existing GetUnderlyingType to follow the alias chain
+	return types.GetUnderlyingType(typ), true
+}
+
 // ============================================================================
 // Query and Iteration
 // ============================================================================
@@ -295,4 +313,26 @@ func (r *TypeRegistry) Unregister(name string) bool {
 		return true
 	}
 	return false
+}
+
+// Has checks if a type with the given name is registered (case-insensitive).
+// This is useful for checking existence without retrieving the type.
+func (r *TypeRegistry) Has(name string) bool {
+	lowerName := strings.ToLower(name)
+	_, exists := r.types[lowerName]
+	return exists
+}
+
+// RegisterBuiltIn is a convenience method for registering built-in types
+// that don't have a source position. It uses position 0:0 and public visibility (2).
+func (r *TypeRegistry) RegisterBuiltIn(name string, typ types.Type) error {
+	return r.Register(name, typ, token.Position{Line: 0, Column: 0, Offset: 0}, 2)
+}
+
+// MustRegisterBuiltIn registers a built-in type and panics if registration fails.
+// This should only be used during initialization when built-in types are guaranteed to be unique.
+func (r *TypeRegistry) MustRegisterBuiltIn(name string, typ types.Type) {
+	if err := r.RegisterBuiltIn(name, typ); err != nil {
+		panic(fmt.Sprintf("failed to register built-in type '%s': %v", name, err))
+	}
 }
