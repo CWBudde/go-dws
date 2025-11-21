@@ -1410,18 +1410,112 @@ func (i *Interpreter) CheckType(obj evaluator.Value, typeName string) bool {
 }
 
 // CastType performs type casting (implements 'as' operator).
-// Task 3.5.8: Adapter method for type casting.
+// Task 3.5.35: Extended to fully support type casting with interface wrapping/unwrapping.
+//
+// Handles the following cases:
+// 1. nil → any type: returns nil
+// 2. interface → class: extracts underlying object (with type check)
+// 3. interface → interface: creates new interface wrapper (with implementation check)
+// 4. object → class: validates class hierarchy
+// 5. object → interface: creates interface wrapper (with implementation check)
 func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.Value, error) {
 	// Convert to internal type
 	internalObj := obj.(Value)
 
-	// Check if the cast is valid
-	if i.CheckType(obj, typeName) {
-		return obj, nil
+	// Handle nil - nil can be cast to any type
+	if _, isNil := internalObj.(*NilValue); isNil {
+		return &NilValue{}, nil
 	}
 
-	// Invalid cast - return error
-	return nil, fmt.Errorf("cannot cast %s to %s", internalObj.Type(), typeName)
+	// Handle interface-to-object/interface casting
+	if intfInst, ok := internalObj.(*InterfaceInstance); ok {
+		// Check if target is a class
+		if targetClass, isClass := i.classes[strings.ToLower(typeName)]; isClass {
+			// Interface-to-class casting: extract the underlying object
+			underlyingObj := intfInst.Object
+			if underlyingObj == nil {
+				return nil, fmt.Errorf("cannot cast nil interface to class '%s'", targetClass.Name)
+			}
+
+			// Check if the underlying object's class is compatible with the target class
+			currentClass := underlyingObj.Class
+			isCompatible := false
+			for currentClass != nil {
+				if strings.EqualFold(currentClass.Name, targetClass.Name) {
+					isCompatible = true
+					break
+				}
+				currentClass = currentClass.Parent
+			}
+
+			if !isCompatible {
+				return nil, fmt.Errorf("cannot cast interface of '%s' to class '%s'", underlyingObj.Class.Name, targetClass.Name)
+			}
+
+			// Cast is valid - return the underlying object
+			return underlyingObj, nil
+		}
+
+		// Check if target is an interface
+		if targetIface, isInterface := i.interfaces[strings.ToLower(typeName)]; isInterface {
+			// Interface-to-interface casting
+			underlyingObj := intfInst.Object
+			if underlyingObj == nil {
+				// DWScript: nil interface cast to interface yields nil interface wrapper
+				return &InterfaceInstance{Interface: targetIface, Object: nil}, nil
+			}
+
+			// Check if the underlying object's class implements the target interface
+			if !classImplementsInterface(underlyingObj.Class, targetIface) {
+				return nil, fmt.Errorf("cannot cast interface of '%s' to interface '%s'", underlyingObj.Class.Name, targetIface.Name)
+			}
+
+			// Create and return new interface instance
+			return NewInterfaceInstance(targetIface, underlyingObj), nil
+		}
+
+		return nil, fmt.Errorf("type '%s' not found (neither class nor interface)", typeName)
+	}
+
+	// Handle object casting
+	objVal, ok := internalObj.(*ObjectInstance)
+	if !ok {
+		return nil, fmt.Errorf("'as' operator requires object instance, got %s", internalObj.Type())
+	}
+
+	// Try class-to-class casting first
+	if targetClass, isClass := i.classes[strings.ToLower(typeName)]; isClass {
+		// Validate that the object's actual runtime type is compatible with the target
+		currentClass := objVal.Class
+		isCompatible := false
+		for currentClass != nil {
+			if strings.EqualFold(currentClass.Name, targetClass.Name) {
+				isCompatible = true
+				break
+			}
+			currentClass = currentClass.Parent
+		}
+
+		if !isCompatible {
+			return nil, fmt.Errorf("instance of type '%s' cannot be cast to class '%s'", objVal.Class.Name, targetClass.Name)
+		}
+
+		// Cast is valid - return the same object
+		return objVal, nil
+	}
+
+	// Try interface casting
+	if iface, exists := i.interfaces[strings.ToLower(typeName)]; exists {
+		// Validate that the object's class implements the interface
+		if !classImplementsInterface(objVal.Class, iface) {
+			return nil, fmt.Errorf("class '%s' does not implement interface '%s'", objVal.Class.Name, iface.Name)
+		}
+
+		// Create and return the interface instance
+		return NewInterfaceInstance(iface, objVal), nil
+	}
+
+	return nil, fmt.Errorf("type '%s' not found (neither class nor interface)", typeName)
 }
 
 // CreateFunctionPointer creates a function pointer value from a function declaration.

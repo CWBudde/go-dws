@@ -1176,9 +1176,10 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Effort**: 1 week
   - **Done**: Migrated `VisitIsExpression` to the evaluator with proper class hierarchy and interface implementation checking
 
-- [ ] **3.5.35** Migrate Type Casting (`VisitAsExpression`)
+- [x] **3.5.35** Migrate Type Casting (`VisitAsExpression`)
   - **Requirements**: Type casting with interface wrapping/unwrapping
   - **Effort**: 1 week
+  - **Done**: Migrated `VisitAsExpression` to the evaluator with full interface wrapping/unwrapping support
 
 - [ ] **3.5.36** Migrate Interface Checking (`VisitImplementsExpression`)
   - **Requirements**: Interface implementation verification
