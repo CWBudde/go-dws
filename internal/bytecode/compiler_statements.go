@@ -446,7 +446,9 @@ func (c *Compiler) compileFunctionDecl(fn *ast.FunctionDecl) error {
 	child := c.newChildCompiler(fn.Name.Value)
 	child.beginScope()
 
-	for _, param := range fn.Parameters {
+	// Task 1.3.7.6: Track var parameters for the function
+	varParams := make([]bool, len(fn.Parameters))
+	for i, param := range fn.Parameters {
 		if param == nil || param.Name == nil {
 			return c.errorf(fn, "function parameter missing identifier")
 		}
@@ -454,6 +456,7 @@ func (c *Compiler) compileFunctionDecl(fn *ast.FunctionDecl) error {
 		if _, err := child.declareLocal(param.Name, paramType); err != nil {
 			return err
 		}
+		varParams[i] = param.ByRef
 	}
 
 	if fn.Body == nil {
@@ -469,7 +472,8 @@ func (c *Compiler) compileFunctionDecl(fn *ast.FunctionDecl) error {
 	child.ensureFunctionReturn(lineOf(fn))
 	child.chunk.Optimize()
 
-	functionObject := NewFunctionObject(fn.Name.Value, child.chunk, len(fn.Parameters))
+	// Task 1.3.7.6: Create function object with var parameter info
+	functionObject := NewFunctionObjectWithVarParams(fn.Name.Value, child.chunk, len(fn.Parameters), varParams)
 	functionObject.UpvalueDefs = child.buildUpvalueDefs()
 
 	fnConstIndex := c.chunk.AddConstant(FunctionValue(functionObject))
