@@ -306,8 +306,10 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 // Task 9.284: Post-analysis validation for missing method implementations
 func (a *Analyzer) validateMethodImplementations() {
 	// Iterate through all classes
-	// Note: className is the lowercase map key, use classType.Name for original case
-	for _, classType := range a.classes {
+	// Task 6.1.1.3: Use TypeRegistry to iterate all class types
+	classNames := a.typeRegistry.TypesByKind("CLASS")
+	for _, className := range classNames {
+		classType := a.getClassType(className)
 		// Check each method and constructor in ForwardedMethods
 		// Task 9.16.1: ForwardedMethods now uses lowercase keys
 		for methodName, isForwarded := range classType.ForwardedMethods {
@@ -410,7 +412,10 @@ func (a *Analyzer) validateFunctionImplementationsInScope(scope *SymbolTable) {
 // Task 9.4: Updated error message to match DWScript format
 func (a *Analyzer) validateClassForwardDeclarations() {
 	// Iterate through all classes
-	for _, classType := range a.classes {
+	// Task 6.1.1.3: Use TypeRegistry to iterate all class types
+	classNames := a.typeRegistry.TypesByKind("CLASS")
+	for _, className := range classNames {
+		classType := a.getClassType(className)
 		// Check if this class is still marked as forward (not implemented)
 		if classType.IsForward {
 			// This class was forward declared but never implemented
@@ -617,33 +622,81 @@ func (a *Analyzer) GetSymbolTable() *SymbolTable {
 }
 
 // GetClasses returns the analyzer's class type map.
+// Task 6.1.1.3: Build map from TypeRegistry
 func (a *Analyzer) GetClasses() map[string]*types.ClassType {
-	return a.classes
+	result := make(map[string]*types.ClassType)
+	classNames := a.typeRegistry.TypesByKind("CLASS")
+	for _, name := range classNames {
+		if classType := a.getClassType(name); classType != nil {
+			result[strings.ToLower(name)] = classType
+		}
+	}
+	return result
 }
 
 // GetInterfaces returns the analyzer's interface type map.
+// Task 6.1.1.3: Build map from TypeRegistry
 func (a *Analyzer) GetInterfaces() map[string]*types.InterfaceType {
-	return a.interfaces
+	result := make(map[string]*types.InterfaceType)
+	interfaceNames := a.typeRegistry.TypesByKind("INTERFACE")
+	for _, name := range interfaceNames {
+		if interfaceType := a.getInterfaceType(name); interfaceType != nil {
+			result[strings.ToLower(name)] = interfaceType
+		}
+	}
+	return result
 }
 
 // GetEnums returns the analyzer's enum type map.
+// Task 6.1.1.3: Build map from TypeRegistry
 func (a *Analyzer) GetEnums() map[string]*types.EnumType {
-	return a.enums
+	result := make(map[string]*types.EnumType)
+	enumNames := a.typeRegistry.TypesByKind("ENUM")
+	for _, name := range enumNames {
+		if enumType := a.getEnumType(name); enumType != nil {
+			result[strings.ToLower(name)] = enumType
+		}
+	}
+	return result
 }
 
 // GetRecords returns the analyzer's record type map.
+// Task 6.1.1.3: Build map from TypeRegistry
 func (a *Analyzer) GetRecords() map[string]*types.RecordType {
-	return a.records
+	result := make(map[string]*types.RecordType)
+	recordNames := a.typeRegistry.TypesByKind("RECORD")
+	for _, name := range recordNames {
+		if recordType := a.getRecordType(name); recordType != nil {
+			result[strings.ToLower(name)] = recordType
+		}
+	}
+	return result
 }
 
 // GetArrayTypes returns the analyzer's array type map.
+// Task 6.1.1.3: Build map from TypeRegistry
 func (a *Analyzer) GetArrayTypes() map[string]*types.ArrayType {
-	return a.arrays
+	result := make(map[string]*types.ArrayType)
+	arrayNames := a.typeRegistry.TypesByKind("ARRAY")
+	for _, name := range arrayNames {
+		if arrayType := a.getArrayType(name); arrayType != nil {
+			result[strings.ToLower(name)] = arrayType
+		}
+	}
+	return result
 }
 
 // GetTypeAliases returns the analyzer's type alias map.
+// Task 6.1.1.3: Build map from TypeRegistry
 func (a *Analyzer) GetTypeAliases() map[string]*types.TypeAlias {
-	return a.typeAliases
+	result := make(map[string]*types.TypeAlias)
+	aliasNames := a.typeRegistry.TypesByKind("ALIAS")
+	for _, name := range aliasNames {
+		if aliasType := a.getTypeAlias(name); aliasType != nil {
+			result[strings.ToLower(name)] = aliasType
+		}
+	}
+	return result
 }
 
 // GetFunctionPointers returns the analyzer's function pointer type map.

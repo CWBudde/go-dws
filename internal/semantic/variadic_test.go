@@ -176,7 +176,7 @@ func TestVariadicMethodDeclaration(t *testing.T) {
 	}
 
 	// Look up the class type
-	classType, exists := analyzer.classes["tlogger"]
+	classType, exists := analyzer.GetClasses()["tlogger"]
 	if !exists {
 		t.Fatal("class 'TLogger' not found")
 	}
