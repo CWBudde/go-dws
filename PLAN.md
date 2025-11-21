@@ -169,7 +169,22 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
         - tryDisassembleMiscOp, invokeInstruction, DisassembleRange
       - [x] Add VM initializer tests (vm_initializer_test.go)
         - executeInitializer with field initializer execution
-      - **Current Status**: Package coverage 63.5% → 72.5% (+9.0%, need 7.5% more for 80%)
+      - [x] Add binary operation coverage tests (coverage_boost_test.go, ~500 lines)
+        - binaryFloatOpChecked: 0% → 84.6% (complete error path coverage)
+        - binaryIntOpChecked: 61.5% → 84.6% (division by zero, type errors)
+        - binaryIntOp/binaryFloatOp: 70-80% (type error branches)
+        - evaluateBinaryComparison: improved (float/string comparison folding)
+      - [x] Add array method edge case tests
+        - Array.Delete with various counts, boundaries, overflow
+        - Array.IndexOf with start positions, empty arrays, strings
+        - Array.SetLength grow/shrink operations
+        - Array.Add multiple elements
+      - [x] Add string helper method tests
+        - ToUpper, ToLower, ToString, StartsWith, EndsWith, Contains
+        - IndexOf, Copy (1 or 2 args), Before, After, Length
+        - ToInteger, ToFloat with error cases
+        - Argument validation and error handling
+      - **Current Status**: Package coverage 63.5% → 72.5% → 74.4% (+10.9%, need 5.6% more for 80%)
     - [x] 3.1.3.6 Improve semantic analyzer coverage (60.2% → 62.4%)
       - Added coverage tests for built-in convert functions (9 functions: 0% → 84-100%)
         - analyzeDefault, analyzeStrToIntDef, analyzeStrToFloatDef, analyzeTryStrToInt
