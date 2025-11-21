@@ -284,3 +284,75 @@ func parseErrorString(errStr string) (lexer.Position, string) {
 
 	return lexer.Position{Line: line, Column: column}, message
 }
+
+// DWScript-compatible error formatting functions
+// These produce error messages in the format expected by the original DWScript compiler
+
+// FormatDWScriptError formats an error message in DWScript format:
+// "Syntax Error: <message> [line: X, column: Y]"
+func FormatDWScriptError(message string, line, column int) string {
+	return fmt.Sprintf("Syntax Error: %s [line: %d, column: %d]", message, line, column)
+}
+
+// FormatUnknownName formats an "Unknown name" error in DWScript format
+func FormatUnknownName(name string, line, column int) string {
+	return FormatDWScriptError(fmt.Sprintf("Unknown name \"%s\"", name), line, column)
+}
+
+// FormatIncompatibleTypes formats a type incompatibility error in DWScript format
+func FormatIncompatibleTypes(message string, line, column int) string {
+	return FormatDWScriptError(fmt.Sprintf("Incompatible types: %s", message), line, column)
+}
+
+// FormatCannotAssign formats a "Cannot assign" error in DWScript format
+func FormatCannotAssign(fromType, toType string, line, column int) string {
+	message := fmt.Sprintf("Cannot assign \"%s\" to \"%s\"", fromType, toType)
+	return FormatIncompatibleTypes(message, line, column)
+}
+
+// FormatArrayIndexError formats an array index type error in DWScript format
+func FormatArrayIndexError(expectedType, gotType string, line, column int) string {
+	message := fmt.Sprintf("Array index expected \"%s\" but got \"%s\"", expectedType, gotType)
+	return FormatDWScriptError(message, line, column)
+}
+
+// FormatArgumentError formats a function argument type error in DWScript format
+// Note: DWScript uses 0-based argument indexing in error messages
+func FormatArgumentError(argIndex int, expectedType, gotType string, line, column int) string {
+	message := fmt.Sprintf("Argument %d expects type \"%s\" instead of \"%s\"",
+		argIndex, SimplifyTypeName(expectedType), SimplifyTypeName(gotType))
+	return FormatDWScriptError(message, line, column)
+}
+
+// FormatParameterError formats a parameter type error in DWScript format
+func FormatParameterError(expectedType, gotType string, line, column int) string {
+	message := fmt.Sprintf("Incompatible parameter types - \"%s\" expected (instead of \"%s\")", expectedType, gotType)
+	return FormatDWScriptError(message, line, column)
+}
+
+// SimplifyTypeName removes parent class information from type names for error messages
+// Converts "ClassName(ParentClass)" to "ClassName" and "array of ClassName(Parent)" to "array of ClassName"
+func SimplifyTypeName(typeName string) string {
+	// Handle array types: "array of ClassName(Parent)" -> "array of ClassName"
+	if strings.HasPrefix(typeName, "array of ") {
+		elementType := typeName[9:] // Skip "array of "
+		return "array of " + SimplifyTypeName(elementType)
+	}
+
+	// Handle array with bounds: "array[X..Y] of ClassName(Parent)" -> "array[X..Y] of ClassName"
+	if strings.HasPrefix(typeName, "array[") {
+		closeBracket := strings.Index(typeName, "] of ")
+		if closeBracket > 0 {
+			prefix := typeName[:closeBracket+5] // Include "] of "
+			elementType := typeName[closeBracket+5:]
+			return prefix + SimplifyTypeName(elementType)
+		}
+	}
+
+	// Remove parent class info: "ClassName(ParentClass)" -> "ClassName"
+	if parenIdx := strings.Index(typeName, "("); parenIdx > 0 {
+		return typeName[:parenIdx]
+	}
+
+	return typeName
+}

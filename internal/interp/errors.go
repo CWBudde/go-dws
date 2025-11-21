@@ -55,7 +55,7 @@ func (i *Interpreter) getLocationFromNode(node ast.Node) string {
 		return ""
 	}
 	pos := node.Pos()
-	return fmt.Sprintf("line: %d, column: %d", pos.Line, pos.Column)
+	return fmt.Sprintf("line %d, column %d", pos.Line, pos.Column)
 }
 
 // ContractFailureError represents a contract violation (precondition or postcondition failure).

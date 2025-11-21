@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	identpkg "github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -160,7 +161,7 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 			return types.VOID
 		}
 
-		a.addError("undefined variable '%s' at %s", ident.Value, ident.Token.Pos.String())
+		a.addError("%s", errors.FormatUnknownName(ident.Value, ident.Token.Pos.Line, ident.Token.Pos.Column))
 		return nil
 	}
 

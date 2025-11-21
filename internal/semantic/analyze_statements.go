@@ -1,7 +1,10 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -265,8 +268,8 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 			// Check type compatibility
 			if !a.canAssign(valueType, returnType) {
-				a.addError("cannot assign %s to %s at %s",
-					valueType.String(), returnType.String(), stmt.Token.Pos.String())
+				pos := stmt.Token.Pos
+				a.addError("%s", errors.FormatCannotAssign(valueType.String(), returnType.String(), pos.Line, pos.Column))
 			}
 			return
 		}
@@ -288,8 +291,8 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					}
 				}
 				if !a.canAssign(valueType, fieldType) {
-					a.addError("cannot assign %s to %s at %s",
-						valueType.String(), fieldType.String(), stmt.Token.Pos.String())
+					pos := stmt.Token.Pos
+					a.addError("%s", errors.FormatCannotAssign(valueType.String(), fieldType.String(), pos.Line, pos.Column))
 				}
 				return
 			}
@@ -316,8 +319,8 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 							}
 						}
 						if !a.canAssign(valueType, propInfo.Type) {
-							a.addError("cannot assign %s to %s at %s",
-								valueType.String(), propInfo.Type.String(), stmt.Token.Pos.String())
+							pos := stmt.Token.Pos
+							a.addError("%s", errors.FormatCannotAssign(valueType.String(), propInfo.Type.String(), pos.Line, pos.Column))
 						}
 						return
 					}
@@ -377,12 +380,34 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 		// Check type compatibility (skip for class operators - they're method calls)
 		if !usesClassOperator && !a.canAssign(valueType, sym.Type) {
-			a.addError("cannot assign %s to %s at %s",
-				valueType.String(), sym.Type.String(), stmt.Token.Pos.String())
+			pos := stmt.Token.Pos
+			a.addError("%s", errors.FormatCannotAssign(valueType.String(), sym.Type.String(), pos.Line, pos.Column))
 		}
 
 	case *ast.MemberAccessExpression:
 		// Member assignment: obj.field := value or obj.field += value
+
+		// Check if this is an assignment to a class constant (which is not allowed)
+		objectType := a.analyzeExpression(target.Object)
+		if objectType != nil {
+			memberName := strings.ToLower(target.Member.Value)
+			objectTypeResolved := types.GetUnderlyingType(objectType)
+
+			// Handle metaclass type
+			if metaclassType, ok := objectTypeResolved.(*types.ClassOfType); ok {
+				objectTypeResolved = metaclassType.ClassType
+			}
+
+			// Check if it's a class constant
+			if classType, ok := objectTypeResolved.(*types.ClassType); ok {
+				if constType := a.findClassConstantWithVisibility(classType, memberName, stmt.Token.Pos.String()); constType != nil {
+					a.addError("cannot assign to constant '%s' at %s",
+						target.Member.Value, stmt.Token.Pos.String())
+					return
+				}
+			}
+		}
+
 		// Analyze the target to ensure it's valid
 		targetType := a.analyzeExpression(target)
 		if targetType == nil {
@@ -406,8 +431,8 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 		// Check type compatibility (skip for class operators - they're method calls)
 		if !usesClassOperator && !a.canAssign(valueType, targetType) {
-			a.addError("cannot assign %s to %s at %s",
-				valueType.String(), targetType.String(), stmt.Token.Pos.String())
+			pos := stmt.Token.Pos
+			a.addError("%s", errors.FormatCannotAssign(valueType.String(), targetType.String(), pos.Line, pos.Column))
 		}
 
 	case *ast.IndexExpression:
@@ -435,8 +460,8 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 		// Check type compatibility (skip for class operators - they're method calls)
 		if !usesClassOperator && !a.canAssign(valueType, targetType) {
-			a.addError("cannot assign %s to %s at %s",
-				valueType.String(), targetType.String(), stmt.Token.Pos.String())
+			pos := stmt.Token.Pos
+			a.addError("%s", errors.FormatCannotAssign(valueType.String(), targetType.String(), pos.Line, pos.Column))
 		}
 
 	default:
