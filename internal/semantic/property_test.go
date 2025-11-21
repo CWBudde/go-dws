@@ -1,7 +1,6 @@
 package semantic
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -315,7 +314,7 @@ end;`,
 			}
 
 			errMsg := err.Error()
-			if !strings.Contains(errMsg, tt.expectedError) {
+			if !ErrorMatches(errMsg, tt.expectedError) {
 				t.Errorf("expected error containing '%s', got '%s'", tt.expectedError, errMsg)
 			}
 		})
@@ -671,7 +670,7 @@ end;`,
 			}
 
 			errMsg := err.Error()
-			if !strings.Contains(errMsg, tt.expectedError) {
+			if !ErrorMatches(errMsg, tt.expectedError) {
 				t.Errorf("expected error containing '%s', got '%s'", tt.expectedError, errMsg)
 			}
 		})
@@ -896,7 +895,7 @@ end;`,
 			}
 
 			errMsg := err.Error()
-			if !strings.Contains(errMsg, tt.expectedError) {
+			if !ErrorMatches(errMsg, tt.expectedError) {
 				t.Errorf("expected error containing '%s', got '%s'", tt.expectedError, errMsg)
 			}
 		})

@@ -93,8 +93,29 @@ func (e *Engine) Compile(source string) (*Program, error) {
 	if e.options.TypeCheck {
 		analyzer = semantic.NewAnalyzer()
 		if err := analyzer.Analyze(program); err != nil {
-			// Convert semantic errors
-			errors := convertSemanticError(err)
+			// Try to use structured errors first (new system with proper position info)
+			structuredErrs := analyzer.StructuredErrors()
+			var errors []*Error
+
+			if len(structuredErrs) > 0 {
+				// Use structured errors when available
+				errors = make([]*Error, 0, len(structuredErrs))
+				for _, serr := range structuredErrs {
+					errors = append(errors, &Error{
+						Message:  serr.Message,
+						Line:     serr.Pos.Line,
+						Column:   serr.Pos.Column,
+						Length:   0,
+						Severity: SeverityError,
+						Code:     string(serr.Type),
+					})
+				}
+			} else {
+				// Fall back to old-style string errors
+				// Many errors still use the old addError() system
+				errors = convertSemanticError(err)
+			}
+
 			return nil, &CompileError{
 				Stage:  "type checking",
 				Errors: errors,
@@ -256,9 +277,28 @@ func newBytecodeCompileError(err error) *CompileError {
 // Returns (line, column, message) where line and column are 0 if not found.
 // Handles error formats like:
 //   - "error message at 10:5"
+//   - "error message [line: 3, column: 19]"
 //   - "error message"
 func extractPositionFromError(errStr string) (int, int, string) {
-	// Look for " at line:column" pattern at the end of the string
+	// First try to extract position from [line: X, column: Y] format
+	lineIdx := strings.Index(errStr, "[line: ")
+	if lineIdx != -1 {
+		// Extract the bracketed position part
+		closeBracket := strings.Index(errStr[lineIdx:], "]")
+		if closeBracket != -1 {
+			posPart := errStr[lineIdx : lineIdx+closeBracket+1]
+			message := strings.TrimSpace(errStr[:lineIdx])
+
+			// Try to parse "[line: X, column: Y]"
+			var line, column int
+			n, err := fmt.Sscanf(posPart, "[line: %d, column: %d]", &line, &column)
+			if err == nil && n == 2 {
+				return line, column, message
+			}
+		}
+	}
+
+	// Fall back to " at line:column" pattern
 	idx := strings.LastIndex(errStr, " at ")
 	if idx == -1 {
 		return 0, 0, errStr

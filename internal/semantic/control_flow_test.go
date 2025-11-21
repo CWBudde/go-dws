@@ -592,8 +592,8 @@ func TestForInLoopVariableScope(t *testing.T) {
 		t.Fatal("Expected semantic error for loop variable used outside scope, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "undefined") {
-		t.Errorf("Expected error about undefined variable, got: %v", err)
+	if !strings.Contains(strings.ToLower(err.Error()), "undefined") && !strings.Contains(strings.ToLower(err.Error()), "unknown") {
+		t.Errorf("Expected error about undefined/unknown variable, got: %v", err)
 	}
 }
 
