@@ -8,12 +8,12 @@ import (
 // TestEvaluateBinaryComparisonFloats tests comparison folding for float values
 func TestEvaluateBinaryComparisonFloats(t *testing.T) {
 	tests := []struct {
-		name     string
-		op       string
-		left     Value
-		right    Value
-		wantVal  Value
-		wantOk   bool
+		name    string
+		op      string
+		left    Value
+		right   Value
+		wantVal Value
+		wantOk  bool
 	}{
 		{
 			name:    "float less than true",
@@ -980,16 +980,16 @@ func TestBinaryFloatOpTypeErrors(t *testing.T) {
 // TestInvokeMethodStringHelpers tests string helper methods
 func TestInvokeMethodStringHelpers(t *testing.T) {
 	tests := []struct {
-		name       string
-		receiver   Value
-		method     string
-		args       []Value
-		wantVal    string
-		wantInt    int64
-		wantBool   bool
-		checkInt   bool
-		checkBool  bool
-		wantError  bool
+		name      string
+		receiver  Value
+		method    string
+		args      []Value
+		wantVal   string
+		wantInt   int64
+		wantBool  bool
+		checkInt  bool
+		checkBool bool
+		wantError bool
 	}{
 		{
 			name:     "ToUpper",
