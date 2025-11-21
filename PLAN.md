@@ -1163,9 +1163,21 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - ✅ Actual indexing operations delegated to adapter (needs value-specific logic)
   - ✅ Error handling with clear base/index type information
 
-- [ ] **3.5.29** Migrate Set Literal Expression (`VisitSetLiteral`)
+- [x] **3.5.29** Migrate Set Literal Expression (`VisitSetLiteral`) ✅
   - **Requirements**: Range expansion, storage strategies
   - **Effort**: 3-5 days
+  - **Status**: COMPLETE - Set literal compilation implemented with range expansion
+  - **Implementation**:
+    - Added `OpNewSet` opcode (instruction #115) to bytecode instruction set
+    - Implemented `compileSetLiteral` with compile-time constant range expansion
+    - Integer ranges (e.g., `[1..10]`) expand to individual elements at compile time
+    - Character ranges (e.g., `['a'..'z']`) expand to individual characters at compile time
+    - Mixed elements and ranges supported (e.g., `[0, 2..4, 10]`)
+    - Added `SetInstance` type with map-based storage for uniqueness
+    - Added `ValueSet` type to bytecode value system
+    - VM execution support via `OpNewSet` handler
+    - Comprehensive tests for empty sets, simple sets, integer ranges, character ranges, and mixed sets
+    - All tests pass successfully
 
 ---
 
