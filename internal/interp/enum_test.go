@@ -309,7 +309,8 @@ func TestForInEnumType_ExplicitOrdinals(t *testing.T) {
 					PrintLn(Ord(s));
 				end;
 			`,
-			expect: "10\n10\n20\n20\n30\n30\n",
+			// DWScript iterates over the full range from min (10) to max (30)
+			expect: "10\n10\n11\n11\n12\n12\n13\n13\n14\n14\n15\n15\n16\n16\n17\n17\n18\n18\n19\n19\n20\n20\n21\n21\n22\n22\n23\n23\n24\n24\n25\n25\n26\n26\n27\n27\n28\n28\n29\n29\n30\n30\n",
 		},
 		{
 			name: "enum with mixed ordinals",
@@ -320,7 +321,8 @@ func TestForInEnumType_ExplicitOrdinals(t *testing.T) {
 					PrintLn(Ord(p));
 				end;
 			`,
-			expect: "0\n0\n5\n5\n6\n6\n",
+			// DWScript iterates from 0 (Low) to 6 (High) = 7 values
+			expect: "0\n0\n1\n1\n2\n2\n3\n3\n4\n4\n5\n5\n6\n6\n",
 		},
 		{
 			name: "enum with gaps in ordinals",
@@ -331,7 +333,8 @@ func TestForInEnumType_ExplicitOrdinals(t *testing.T) {
 					count := count + 1;
 				PrintLn(count);
 			`,
-			expect: "3\n",
+			// DWScript iterates from 0 (None) to 100 (High) = 101 values
+			expect: "101\n",
 		},
 	}
 
@@ -411,8 +414,8 @@ func TestForInEnumType_LargeEnum(t *testing.T) {
 		PrintLn(count);
 	`
 	_, output := testEvalWithOutput(input)
-	// TRange has only 2 values: Low (2) and High (1000)
-	expect := "2\n"
+	// DWScript iterates from 2 to 1000 (inclusive) = 999 values
+	expect := "999\n"
 	if output != expect {
 		t.Errorf("expected %q, got %q", expect, output)
 	}
@@ -420,13 +423,15 @@ func TestForInEnumType_LargeEnum(t *testing.T) {
 
 func TestForInEnumType_OrdinalValues(t *testing.T) {
 	// Test that iteration provides enum values with correct ordinals
+	// DWScript iterates over all ordinals from Low to High
 	input := `
-		type TRange = enum (Low = 2, High = 1000);
+		type TRange = enum (Low = 2, High = 10);
 		for var e in TRange do
 			PrintLn(Ord(e));
 	`
 	_, output := testEvalWithOutput(input)
-	expect := "2\n1000\n"
+	// Should iterate from 2 to 10 (inclusive) = 9 values
+	expect := "2\n3\n4\n5\n6\n7\n8\n9\n10\n"
 	if output != expect {
 		t.Errorf("expected %q, got %q", expect, output)
 	}
