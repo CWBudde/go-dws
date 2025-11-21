@@ -1171,17 +1171,20 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Clean separation: evaluator controls flow and basic validation, interpreter handles OOP semantics
   - **Note**: Self preservation is the critical feature - inherited calls parent method but keeps the current object instance as Self.
 
-- [ ] **3.5.34** Migrate Type Checking (`VisitIsExpression`)
+- [x] **3.5.34** Migrate Type Checking (`VisitIsExpression`)
   - **Requirements**: Runtime type checking, class hierarchy traversal
   - **Effort**: 1 week
+  - **Done**: Migrated `VisitIsExpression` to the evaluator with proper class hierarchy and interface implementation checking
 
-- [ ] **3.5.35** Migrate Type Casting (`VisitAsExpression`)
+- [x] **3.5.35** Migrate Type Casting (`VisitAsExpression`)
   - **Requirements**: Type casting with interface wrapping/unwrapping
   - **Effort**: 1 week
+  - **Done**: Migrated `VisitAsExpression` to the evaluator with full interface wrapping/unwrapping support
 
-- [ ] **3.5.36** Migrate Interface Checking (`VisitImplementsExpression`)
+- [x] **3.5.36** Migrate Interface Checking (`VisitImplementsExpression`)
   - **Requirements**: Interface implementation verification
   - **Effort**: 3-5 days
+  - **Done**: Migrated `VisitImplementsExpression` to the evaluator with full interface implementation checking
 
 - [ ] **3.5.37** Migrate Method Pointers (`VisitAddressOfExpression`)
   - **Requirements**: Function/method pointer creation, overload resolution
