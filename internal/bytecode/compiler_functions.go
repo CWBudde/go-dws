@@ -73,22 +73,28 @@ func (c *Compiler) compileCallExpression(expr *ast.CallExpression) error {
 			c.chunk.Write(OpCall, byte(argCount), info.constIndex, lineOf(expr))
 			return nil
 		}
-		// Check if it's a builtin function
+		// Check if it's a builtin function (only if not shadowed by local/upvalue/global)
 		if c.isBuiltinFunction(ident.Value) {
-			// Compile arguments
-			for _, arg := range expr.Arguments {
-				if err := c.compileExpression(arg); err != nil {
-					return err
+			// Check if shadowed by local, enclosing variable, or global - if so, skip builtin path
+			if _, ok := c.resolveLocal(ident.Value); !ok {
+				if !c.hasEnclosingLocal(ident.Value) {
+					if _, ok := c.resolveGlobal(ident.Value); !ok {
+						// Not shadowed - compile as builtin call
+						for _, arg := range expr.Arguments {
+							if err := c.compileExpression(arg); err != nil {
+								return err
+							}
+						}
+						builtinValue := BuiltinValue(strings.ToLower(ident.Value))
+						constIdx := c.chunk.AddConstant(builtinValue)
+						if constIdx > 0xFFFF {
+							return c.errorf(expr, "too many constants")
+						}
+						c.chunk.Write(OpCall, byte(argCount), uint16(constIdx), lineOf(expr))
+						return nil
+					}
 				}
 			}
-			// Create a builtin constant and emit OpCall
-			builtinValue := BuiltinValue(strings.ToLower(ident.Value))
-			constIdx := c.chunk.AddConstant(builtinValue)
-			if constIdx > 0xFFFF {
-				return c.errorf(expr, "too many constants")
-			}
-			c.chunk.Write(OpCall, byte(argCount), uint16(constIdx), lineOf(expr))
-			return nil
 		}
 	}
 
