@@ -964,7 +964,157 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 }
 
 // VisitInheritedExpression evaluates an 'inherited' expression.
-// Calls parent class method with proper context and Self preservation.
+//
+// **COMPLEXITY**: High (~176 lines in original implementation)
+// **STATUS**: Documentation-only migration with full adapter delegation
+//
+// **SYNTAX FORMS**:
+//   - `inherited MethodName(args)` - Explicit method call with arguments
+//   - `inherited MethodName` - Explicit method/property/field access without args
+//   - `inherited` - Bare inherited (calls same method in parent class)
+//
+// **EXECUTION PHASES** (evaluated in this order):
+//
+// **1. CONTEXT VALIDATION** (~10 lines)
+//   - **Self check**: Must be in method context with Self defined
+//     - Error: "inherited can only be used inside a method"
+//   - **ObjectInstance check**: Self must be an ObjectInstance
+//     - Error: "inherited requires Self to be an object instance"
+//   - **Parent class check**: Current class must have a parent
+//     - Error: "class 'X' has no parent class"
+//   - Implementation: lines 794-811 in original
+//
+// **2. METHOD NAME RESOLUTION** (~17 lines)
+//   - **Explicit method name**: `inherited MethodName(...)`
+//     - Uses ie.Method.Value directly
+//   - **Bare inherited**: `inherited` (no method name specified)
+//     - Looks up `__CurrentMethod__` from environment
+//     - Must be StringValue containing current method name
+//     - Enables nested inherited calls through inheritance chain
+//     - Error: "bare 'inherited' requires method context"
+//     - Error: "invalid method context"
+//   - Implementation: lines 813-829 in original
+//
+// **3. MEMBER LOOKUP IN PARENT CLASS** (case-insensitive)
+//   Searches parent class members in priority order:
+//
+//   **3a. METHODS** (~87 lines)
+//     - Iterates parentClass.Methods map with case-insensitive comparison
+//     - If found, executes full method call (see Phase 4)
+//     - Implementation: lines 831-927 in original
+//
+//   **3b. PROPERTIES** (~17 lines)
+//     - Iterates parentClass.Properties map with case-insensitive comparison
+//     - Cannot be called with arguments or as method
+//       - Error: "cannot call property 'X' as a method"
+//     - Reads property via evalPropertyRead()
+//     - Implementation: lines 929-946 in original
+//
+//   **3c. FIELDS** (~13 lines)
+//     - Iterates parentClass.Fields map with case-insensitive comparison
+//     - Cannot be called with arguments or as method
+//       - Error: "cannot call field 'X' as a method"
+//     - Returns field value directly via obj.GetField()
+//     - Returns NilValue if field is nil
+//     - Implementation: lines 948-961 in original
+//
+//   **3d. NOT FOUND**
+//     - Error: "method, property, or field 'X' not found in parent class 'Y'"
+//
+// **4. METHOD EXECUTION** (when method found)
+//   - **Argument evaluation**: Evaluates all arguments in current environment
+//   - **Argument count validation**:
+//     - Error: "wrong number of arguments for method 'X': expected N, got M"
+//   - **Method environment setup**:
+//     a. Creates enclosed environment via NewEnclosedEnvironment
+//     b. Binds `Self` to **current object** (preserves instance identity!)
+//     c. Binds `__CurrentClass__` to parent ClassInfoValue
+//     d. Adds parent class constants via bindClassConstantsToEnv()
+//     e. Binds `__CurrentMethod__` to method name (enables nested inherited)
+//   - **Parameter binding**:
+//     - Binds each parameter to corresponding argument
+//     - Applies implicit type conversion if parameter has type annotation
+//     - Uses tryImplicitConversion() helper
+//   - **Result variable initialization** (for functions):
+//     - Resolves return type via resolveTypeFromAnnotation()
+//     - Gets default value via getDefaultValue()
+//     - Binds `Result` to default value
+//     - Binds method name as ReferenceValue alias to Result (DWScript style)
+//   - **Body execution**: Executes parentMethod.Body via Eval()
+//   - **Return value extraction**:
+//     - For functions: checks Result, then method name alias, then NilValue
+//     - For procedures: returns NilValue
+//   - **Environment restoration**: Restores saved environment
+//   - Implementation: lines 841-927 in original
+//
+// **SPECIAL BEHAVIORS**:
+//
+// **Self Preservation**:
+//   - Critical feature of inherited calls
+//   - Parent method executes with **current instance** as Self
+//   - NOT a new parent instance - same object through inheritance chain
+//   - Enables: Child.Method() → inherited → Parent.Method() on same object
+//   - Example: overridden method in Child calls inherited, parent code
+//     operates on the Child instance's fields
+//
+// **Bare Inherited Support**:
+//   - `inherited` without method name calls same method in parent
+//   - Uses `__CurrentMethod__` environment variable set during method entry
+//   - Enables clean inheritance patterns without repeating method name
+//   - Supports nested inheritance: GrandChild → Child → Parent all using bare inherited
+//
+// **Case-Insensitive Lookup**:
+//   - DWScript standard: all identifiers are case-insensitive
+//   - Method, property, and field lookups use strings.EqualFold()
+//
+// **Method Name as Return Alias**:
+//   - DWScript allows `MethodName := value` as alternative to `Result := value`
+//   - Implemented via ReferenceValue pointing to Result variable
+//   - Both forms work interchangeably in inherited method context
+//
+// **Class Constants in Scope**:
+//   - Parent class constants are bound to method scope
+//   - Allows inherited method to access parent's constants directly
+//   - Uses bindClassConstantsToEnv() helper
+//
+// **Implicit Type Conversion**:
+//   - Arguments are converted to parameter types if possible
+//   - Uses tryImplicitConversion() for Integer↔Float, etc.
+//   - Applied during parameter binding, not argument evaluation
+//
+// **DEPENDENCIES** (blockers for full migration):
+//   - ObjectInstance: Current object reference with Class pointer
+//   - ClassInfo: Class metadata with Parent, Methods, Properties, Fields
+//   - ClassInfoValue: Wrapper for __CurrentClass__ binding
+//   - StringValue: For __CurrentMethod__ storage
+//   - ReferenceValue: For method name alias to Result
+//   - NilValue: For procedure returns and nil field values
+//   - PropertyInfo: For property lookup and evalPropertyRead
+//   - Environment: Scope management for method execution
+//   - NewEnclosedEnvironment(): Scope creation
+//   - bindClassConstantsToEnv(): Constant binding helper
+//   - tryImplicitConversion(): Type conversion helper
+//   - resolveTypeFromAnnotation(): Return type resolution
+//   - getDefaultValue(): Default value for return type
+//   - evalPropertyRead(): Property read evaluation
+//
+// **MIGRATION STRATEGY**:
+//   - Phase 1 (this task): Comprehensive documentation of all modes ✓
+//   - Phase 2 (future): Migrate context validation after ObjectInstance migration
+//   - Phase 3 (future): Migrate method lookup after ClassInfo migration
+//   - Phase 4 (future): Migrate method execution after method call migration
+//   - Phase 5 (future): Migrate property/field access after property system migration
+//
+// **ERROR CONDITIONS**:
+//   - "inherited can only be used inside a method" - No Self in environment
+//   - "inherited requires Self to be an object instance" - Self not ObjectInstance
+//   - "class 'X' has no parent class" - Root class with no parent
+//   - "bare 'inherited' requires method context" - No __CurrentMethod__ for bare inherited
+//   - "invalid method context" - __CurrentMethod__ not a StringValue
+//   - "wrong number of arguments for method 'X'" - Argument/parameter count mismatch
+//   - "cannot call property 'X' as a method" - Property access with args/call syntax
+//   - "cannot call field 'X' as a method" - Field access with args/call syntax
+//   - "method, property, or field 'X' not found in parent class 'Y'" - Member not found
 func (e *Evaluator) VisitInheritedExpression(node *ast.InheritedExpression, ctx *ExecutionContext) Value {
 	return e.adapter.EvalNode(node)
 }
