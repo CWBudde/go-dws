@@ -331,7 +331,171 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 }
 
 // VisitNewExpression evaluates a 'new' expression (object instantiation).
-// Handles class lookup, field initialization, constructor dispatch, and interface wrapping.
+//
+// **COMPLEXITY**: High (~250 lines in original implementation)
+// **STATUS**: Documentation-only migration with full adapter delegation
+//
+// **INSTANTIATION MODES** (evaluated in this order):
+//
+// **1. CLASS LOOKUP** (case-insensitive)
+//   - Pattern: `new TMyClass` or `TMyClass.Create(...)`
+//   - Searches class registry with case-insensitive comparison
+//   - All class names in DWScript are case-insensitive by language spec
+//   - Implementation: ~10 lines in original
+//
+// **2. RECORD TYPE DELEGATION**
+//   - Pattern: `TMyRecord.Create(...)` where TMyRecord is a record type
+//   - Detection: If class not found, check for record type in environment
+//     with key `__record_type_<lowercase_name>`
+//   - Action: Converts NewExpression to MethodCallExpression and delegates
+//     to evalMethodCall for record static method handling
+//   - This allows records to have static factory methods like classes
+//   - Implementation: ~30 lines in original
+//
+// **3. ABSTRACT CLASS CHECK**
+//   - Pattern: `new TAbstractClass` where class has `abstract` modifier
+//   - Error: "Trying to create an instance of an abstract class"
+//   - Prevents instantiation of classes meant only as base classes
+//   - Implementation: ~4 lines in original
+//
+// **4. EXTERNAL CLASS CHECK**
+//   - Pattern: `new TExternalClass` where class has `external` modifier
+//   - Error: "cannot instantiate external class 'X' - external classes are not supported"
+//   - External classes are for FFI integration (not yet supported)
+//   - Implementation: ~6 lines in original
+//
+// **5. OBJECT CREATION**
+//   - Action: Creates new ObjectInstance with reference to ClassInfo
+//   - ObjectInstance contains field map, class reference, and VMT
+//   - Implementation: ~2 lines in original
+//
+// **6. FIELD INITIALIZATION** (two-phase)
+//   - **Phase A: Create temporary environment**
+//     - Creates enclosed environment with class constants for field initializers
+//     - Class constants are accessible during field initialization
+//   - **Phase B: Initialize each field**
+//     - If field has initializer expression: evaluate and assign
+//     - Otherwise: use getZeroValueForType for appropriate default value
+//     - Field types are used to determine correct zero values
+//   - Error handling: Returns immediately if any initializer fails
+//   - Implementation: ~30 lines in original
+//
+// **7. EXCEPTION CLASS HANDLING** (special cases)
+//   - **EHost.Create(className, message)**:
+//     - Pattern: `new EHost('SomeException', 'Error message')`
+//     - Requires exactly 2 arguments
+//     - Sets ExceptionClass and Message fields directly
+//     - Returns immediately (no constructor body execution)
+//   - **Other Exception.Create(message)**:
+//     - Pattern: `new ESomeException('Error message')`
+//     - Accepts single message argument
+//     - Sets Message field directly
+//     - Returns immediately (no constructor body execution)
+//   - Detection via isExceptionClass() and InheritsFrom("EHost")
+//   - Implementation: ~50 lines in original
+//
+// **8. CONSTRUCTOR RESOLUTION**
+//   - **Step A: Get default constructor name**
+//     - Checks class hierarchy for constructor marked as `default`
+//     - Falls back to "Create" if no default constructor specified
+//   - **Step B: Find constructor overloads**
+//     - getMethodOverloadsInHierarchy() finds all constructors in hierarchy
+//     - Case-insensitive lookup (DWScript standard)
+//     - Includes inherited virtual constructors
+//   - **Step C: Implicit parameterless constructor**
+//     - If 0 arguments and no parameterless constructor exists,
+//       return object with just field initialization (no constructor body)
+//     - This allows classes without explicit Create() to be instantiated
+//   - **Step D: Resolve overload**
+//     - resolveMethodOverload() matches arguments to parameters
+//     - Uses type compatibility and implicit conversions
+//     - Error: Overload resolution failure messages
+//   - Implementation: ~40 lines in original
+//
+// **9. CONSTRUCTOR EXECUTION**
+//   - **Environment setup**:
+//     - Creates enclosed method environment
+//     - Binds `Self` to the new object instance
+//     - Binds constructor parameters to evaluated arguments
+//     - For constructors with return type: initializes `Result` variable
+//     - Binds `__CurrentClass__` for ClassName access in constructor
+//   - **Argument evaluation**:
+//     - Evaluates each constructor argument in current environment
+//     - Error propagation on evaluation failure
+//   - **Argument count validation**:
+//     - Error: "wrong number of arguments for constructor 'X': expected N, got M"
+//   - **Body execution**:
+//     - Executes constructor body via Eval()
+//     - Error propagation on body failure
+//   - **Environment restoration**:
+//     - Restores previous environment after constructor completes
+//   - Implementation: ~55 lines in original
+//
+// **10. RETURN VALUE**
+//   - Returns the newly created ObjectInstance
+//   - Object has all fields initialized and constructor executed
+//
+// **SPECIAL BEHAVIORS**:
+//
+// **Case-insensitive class lookup**:
+//   - DWScript is case-insensitive by language spec
+//   - Class names are matched without regard to case
+//
+// **Default constructor pattern**:
+//   - Classes can mark a constructor as `default` for `new TClass` syntax
+//   - Falls back to "Create" if no default specified
+//   - Allows DSL-style APIs with custom constructor names
+//
+// **Implicit parameterless constructor**:
+//   - Classes without explicit Create() can still be instantiated
+//   - Fields are initialized but no constructor body runs
+//   - Enables simple data classes without boilerplate
+//
+// **Record type delegation**:
+//   - Parser creates NewExpression for `TRecord.Create(...)` syntax
+//   - Evaluator converts to MethodCallExpression for proper handling
+//   - Enables uniform syntax for class and record instantiation
+//
+// **Exception handling shortcuts**:
+//   - Built-in exception constructors have special handling
+//   - Bypasses normal constructor resolution for efficiency
+//   - Sets Message field directly without constructor body
+//
+// **Class constants in field initializers**:
+//   - Field initializers can reference class constants
+//   - Temporary environment created with constants defined
+//   - Enables `FMyField: Integer := MY_CONST + 1` patterns
+//
+// **DEPENDENCIES** (blockers for full migration):
+//   - ClassInfo: Class metadata including fields, methods, constructors, parent
+//   - ObjectInstance: Runtime object with fields, class reference, VMT
+//   - RecordTypeValue: For record type detection and delegation
+//   - ExceptionValue: For exception class detection
+//   - Environment: Scope management for field initializers and constructor
+//   - resolveMethodOverload(): Constructor overload resolution
+//   - getMethodOverloadsInHierarchy(): Constructor lookup in class hierarchy
+//   - getZeroValueForType(): Default value generation for field types
+//   - ClassInfoValue: For __CurrentClass__ binding
+//   - isExceptionClass(): Exception class detection helper
+//   - InheritsFrom(): Class hierarchy traversal
+//
+// **MIGRATION STRATEGY**:
+//   - Phase 1 (this task): Comprehensive documentation of all modes ✓
+//   - Phase 2 (future): Migrate simple class instantiation after ObjectInstance migration
+//   - Phase 3 (future): Migrate field initialization after type system migration
+//   - Phase 4 (future): Migrate constructor dispatch after method call migration
+//   - Phase 5 (future): Migrate exception handling after exception system migration
+//   - Phase 6 (future): Migrate record delegation after record type migration
+//
+// **ERROR CONDITIONS**:
+//   - "class 'X' not found" - Class not in registry and not a record type
+//   - "Trying to create an instance of an abstract class" - Abstract class instantiation
+//   - "cannot instantiate external class 'X'" - External class instantiation
+//   - "EHost.Create requires class name and message arguments" - Wrong EHost args
+//   - Overload resolution errors - No matching constructor for arguments
+//   - "wrong number of arguments for constructor 'X'" - Argument count mismatch
+//   - Field initializer errors - Propagated from initializer evaluation
+//   - Constructor body errors - Propagated from constructor execution
 func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionContext) Value {
 	return e.adapter.EvalNode(node)
 }
