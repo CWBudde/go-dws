@@ -617,6 +617,116 @@ analyzer := semantic.NewAnalyzer()
 errors := analyzer.Analyze(program)
 ```
 
+## Developer Reference
+
+### Parser Development Guidelines
+
+**Token Consumption Convention**: All parsing functions are called WITH `curToken` positioned at the triggering token. Functions consume their own tokens and leave `curToken` at the last consumed token.
+
+**Example**:
+```go
+// parseBlockStatement parses a begin...end block.
+// PRE: curToken is BEGIN
+// POST: curToken is END
+func (p *Parser) parseBlockStatement() *ast.BlockStatement {
+    block := &ast.BlockStatement{Token: p.curToken}
+    p.nextToken() // advance past 'begin'
+    // ... parse statements ...
+    // curToken is now END
+    return block
+}
+```
+
+### Extending the Parser
+
+**Adding New Expressions**:
+1. Define AST node in `pkg/ast/`
+2. Register prefix/infix parse function in `parser.go`
+3. Add tests in `internal/parser/*_test.go`
+4. Regenerate visitor: `go generate ./pkg/ast`
+
+**Adding New Statements**:
+1. Define AST node in `pkg/ast/`
+2. Add parse function in appropriate `internal/parser/*.go` file
+3. Update `parseStatement()` dispatcher
+4. Add comprehensive tests
+5. Regenerate visitor
+
+### AST Visitor Development
+
+**Regenerating Visitor Code**: After modifying AST nodes, regenerate the visitor:
+```bash
+go generate ./pkg/ast
+# or directly:
+go run cmd/gen-visitor/main.go
+```
+
+**Custom Visitor Tags**:
+- `ast:"order:N"` - Control field traversal order (lower N = earlier)
+- Fields without Node types are automatically skipped
+- Embedded fields are recursively extracted
+
+**Example**:
+```go
+type MyNode struct {
+    BaseNode
+    First  Expression `ast:"order:1"`
+    Second Expression `ast:"order:2"`
+    Name   string     // Skipped (not a Node)
+}
+```
+
+### Parser Combinators Usage
+
+**Common Patterns**:
+```go
+// Optional token
+if p.Optional(token.SEMICOLON) {
+    // semicolon was present
+}
+
+// List with separators
+p.SeparatedList(SeparatorConfig{
+    Sep:        token.COMMA,
+    Term:       token.RPAREN,
+    ParseItem:  func() bool { /* parse item */ },
+    AllowEmpty: true,
+})
+
+// Expect with error
+if !p.Expect(token.THEN) {
+    return nil // error already reported
+}
+```
+
+### Benchmarking
+
+Run parser benchmarks to ensure no performance regression:
+```bash
+# Run all parser benchmarks
+go test ./internal/parser -bench=. -benchmem
+
+# Compare with baseline
+go test ./internal/parser -bench=. -benchmem > new.txt
+benchstat baseline.txt new.txt
+```
+
+### Code Style
+
+- Follow Go standard formatting (`go fmt`)
+- Use `golangci-lint` for linting
+- Document all exported functions
+- Include PRE/POST conditions for parsing functions
+- Use block context for better error messages
+- Always test error recovery paths
+
+For more details, see inline documentation in:
+- `internal/parser/parser.go` - Main parser patterns
+- `internal/parser/combinators.go` - Combinator library
+- `internal/parser/cursor.go` - Cursor API
+- `pkg/ast/visitor_generated.go` - Generated visitor code
+- `cmd/gen-visitor/main.go` - Visitor generator
+
 ## Future Enhancements
 
 While Stage 2 is complete, potential future improvements include:
