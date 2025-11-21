@@ -47,7 +47,7 @@ const (
 	ValueFloat
 	ValueString
 	ValueArray
-	ValueSet    // Task 3.5.29: Set value type
+	ValueSet // Task 3.5.29: Set value type
 	ValueObject
 	ValueRecord // Task 9.7: Record value type
 	ValueFunction
