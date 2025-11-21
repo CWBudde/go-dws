@@ -201,6 +201,30 @@ func (c *Compiler) compileSetLiteral(expr *ast.SetLiteral) error {
 		return c.errorf(nil, "nil set literal expression")
 	}
 
+	// Task 9.156: Check if this SetLiteral should be treated as an array (array of const)
+	// The semantic analyzer marks SetLiterals with array type annotations when the
+	// context expects an array (e.g., Format('%s', [value]) where [value] is array of const)
+	if c.semanticInfo != nil {
+		if typeAnnot := c.semanticInfo.GetType(expr); typeAnnot != nil && typeAnnot.Name != "" {
+			// Check if the type name indicates an array type
+			// Type names like "array of const", "array of Integer", "array[0..10] of String"
+			if strings.HasPrefix(strings.ToLower(typeAnnot.Name), "array") {
+				// This SetLiteral should be compiled as an array, not a set
+				// Create a temporary ArrayLiteralExpression and delegate to array compilation
+				arrayLit := &ast.ArrayLiteralExpression{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{Token: expr.Token},
+					},
+					Elements: expr.Elements,
+				}
+				// Copy type annotation to array literal so array compiler can use it
+				c.semanticInfo.SetType(arrayLit, typeAnnot)
+				// Delegate to array literal compilation
+				return c.compileArrayLiteral(arrayLit)
+			}
+		}
+	}
+
 	// Track total number of elements to be pushed onto the stack
 	// (ranges will be expanded into individual elements)
 	totalElements := 0
