@@ -1195,3 +1195,449 @@ func TestIdentifierList(t *testing.T) {
 		})
 	}
 }
+
+// TestOptionalTypeAnnotation tests the OptionalTypeAnnotation combinator
+func TestOptionalTypeAnnotation(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		shouldHave  bool
+		expectError bool
+	}{
+		{
+			name:        "present type annotation",
+			input:       "x : Integer",
+			shouldHave:  true,
+			expectError: false,
+		},
+		{
+			name:        "no type annotation",
+			input:       "x := 42",
+			shouldHave:  false,
+			expectError: false,
+		},
+		{
+			name:        "type annotation with custom type",
+			input:       "x : TMyClass",
+			shouldHave:  true,
+			expectError: false,
+		},
+		{
+			name:        "type annotation with array type",
+			input:       "x : array of Integer",
+			shouldHave:  true,
+			expectError: false,
+		},
+		{
+			name:        "colon but invalid type expression",
+			input:       "x : ;",
+			shouldHave:  false,
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := newTestParser(tt.input)
+			// Cursor should be at first token before calling OptionalTypeAnnotation
+			result := p.OptionalTypeAnnotation()
+
+			if tt.shouldHave && result == nil {
+				t.Errorf("Expected type annotation, got nil")
+			}
+			if !tt.shouldHave && result != nil {
+				t.Errorf("Expected no type annotation, got %T", result)
+			}
+
+			hasErrors := len(p.errors) > 0
+			if hasErrors != tt.expectError {
+				t.Errorf("Expected error = %v, got %v (errors: %d)", tt.expectError, hasErrors, len(p.errors))
+			}
+		})
+	}
+}
+
+// TestStatementBlock tests the StatementBlock combinator
+func TestStatementBlock(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		config      StatementBlockConfig
+		expectNil   bool
+		expectError bool
+		stmtCount   int
+	}{
+		{
+			name:  "simple begin...end block",
+			input: "begin var x: Integer; end",
+			config: StatementBlockConfig{
+				OpenToken:      lexer.BEGIN,
+				CloseToken:     lexer.END,
+				SkipSemicolons: true,
+				ContextName:    "begin block",
+				RequireClose:   true,
+			},
+			expectNil:   false,
+			expectError: false,
+			stmtCount:   1,
+		},
+		{
+			name:  "empty block",
+			input: "begin end",
+			config: StatementBlockConfig{
+				OpenToken:      lexer.BEGIN,
+				CloseToken:     lexer.END,
+				SkipSemicolons: true,
+				RequireClose:   true,
+			},
+			expectNil:   false,
+			expectError: false,
+			stmtCount:   0,
+		},
+		{
+			name:  "block with multiple statements",
+			input: "begin var x: Integer; var y: String; var z: Boolean; end",
+			config: StatementBlockConfig{
+				OpenToken:      lexer.BEGIN,
+				CloseToken:     lexer.END,
+				SkipSemicolons: true,
+				RequireClose:   true,
+			},
+			expectNil:   false,
+			expectError: false,
+			stmtCount:   3,
+		},
+		{
+			name:  "missing close token with RequireClose",
+			input: "begin var x: Integer;",
+			config: StatementBlockConfig{
+				OpenToken:      lexer.BEGIN,
+				CloseToken:     lexer.END,
+				SkipSemicolons: true,
+				RequireClose:   true,
+			},
+			expectNil:   false,
+			expectError: true,
+			stmtCount:   1,
+		},
+		{
+			name:  "empty context name defaults to token string",
+			input: "begin end",
+			config: StatementBlockConfig{
+				OpenToken:      lexer.BEGIN,
+				CloseToken:     lexer.END,
+				SkipSemicolons: true,
+				ContextName:    "", // Should default to "BEGIN"
+				RequireClose:   true,
+			},
+			expectNil:   false,
+			expectError: false,
+			stmtCount:   0,
+		},
+		{
+			name:  "additional terminators - try/except",
+			input: "try var x: Integer; except",
+			config: StatementBlockConfig{
+				OpenToken:             lexer.TRY,
+				CloseToken:            lexer.END,
+				AdditionalTerminators: []lexer.TokenType{lexer.EXCEPT, lexer.FINALLY},
+				SkipSemicolons:        true,
+				ContextName:           "try block",
+				RequireClose:          true,
+			},
+			expectNil:   false,
+			expectError: false, // EXCEPT is an additional terminator, so no error
+			stmtCount:   1,
+		},
+		{
+			name:  "no RequireClose",
+			input: "begin var x: Integer;",
+			config: StatementBlockConfig{
+				OpenToken:      lexer.BEGIN,
+				CloseToken:     lexer.END,
+				SkipSemicolons: true,
+				RequireClose:   false, // Don't require END
+			},
+			expectNil:   false,
+			expectError: false,
+			stmtCount:   1,
+		},
+		{
+			name:  "skip semicolons disabled",
+			input: "begin ; ; var x: Integer; end",
+			config: StatementBlockConfig{
+				OpenToken:      lexer.BEGIN,
+				CloseToken:     lexer.END,
+				SkipSemicolons: false, // Don't skip semicolons
+				RequireClose:   true,
+			},
+			expectNil:   false,
+			expectError: true, // Will get errors trying to parse semicolons as statements
+			stmtCount:   2,    // Parser returns 2 statements (semicolons create nil statements that are stored)
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := newTestParser(tt.input)
+			result := p.StatementBlock(tt.config)
+
+			if tt.expectNil && result != nil {
+				t.Errorf("Expected nil result, got %T", result)
+			}
+			if !tt.expectNil && result == nil {
+				t.Fatal("Expected result, got nil")
+			}
+
+			if result != nil && len(result.Statements) != tt.stmtCount {
+				t.Errorf("Expected %d statements, got %d", tt.stmtCount, len(result.Statements))
+			}
+
+			hasErrors := len(p.errors) > 0
+			if hasErrors != tt.expectError {
+				t.Errorf("Expected error = %v, got %v (errors: %d)", tt.expectError, hasErrors, len(p.errors))
+				for _, err := range p.errors {
+					t.Logf("  Error: %s", err.Message)
+				}
+			}
+		})
+	}
+}
+
+// TestParameterGroup tests the ParameterGroup combinator
+func TestParameterGroup(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		config       ParameterGroupConfig
+		expectNil    bool
+		expectError  bool
+		paramCount   int
+		checkModifier func(*testing.T, *ast.Parameter)
+	}{
+		{
+			name:  "simple parameter without modifiers",
+			input: "x: Integer",
+			config: ParameterGroupConfig{
+				AllowModifiers: false,
+				AllowDefaults:  false,
+			},
+			expectNil:   false,
+			expectError: false,
+			paramCount:  1,
+			checkModifier: func(t *testing.T, p *ast.Parameter) {
+				if p.ByRef || p.IsConst || p.IsLazy {
+					t.Error("Expected no modifiers")
+				}
+			},
+		},
+		{
+			name:  "multiple identifiers in one group",
+			input: "x, y, z: Integer",
+			config: ParameterGroupConfig{
+				AllowModifiers: false,
+				AllowDefaults:  false,
+			},
+			expectNil:   false,
+			expectError: false,
+			paramCount:  3,
+		},
+		{
+			name:  "var modifier",
+			input: "var x: Integer",
+			config: ParameterGroupConfig{
+				AllowModifiers: true,
+				AllowDefaults:  false,
+			},
+			expectNil:   false,
+			expectError: false,
+			paramCount:  1,
+			checkModifier: func(t *testing.T, p *ast.Parameter) {
+				if !p.ByRef {
+					t.Error("Expected ByRef to be true")
+				}
+			},
+		},
+		{
+			name:  "const modifier",
+			input: "const x: Integer",
+			config: ParameterGroupConfig{
+				AllowModifiers: true,
+				AllowDefaults:  false,
+			},
+			expectNil:   false,
+			expectError: false,
+			paramCount:  1,
+			checkModifier: func(t *testing.T, p *ast.Parameter) {
+				if !p.IsConst {
+					t.Error("Expected IsConst to be true")
+				}
+			},
+		},
+		{
+			name:  "lazy modifier",
+			input: "lazy x: Integer",
+			config: ParameterGroupConfig{
+				AllowModifiers: true,
+				AllowDefaults:  false,
+			},
+			expectNil:   false,
+			expectError: false,
+			paramCount:  1,
+			checkModifier: func(t *testing.T, p *ast.Parameter) {
+				if !p.IsLazy {
+					t.Error("Expected IsLazy to be true")
+				}
+			},
+		},
+		{
+			name:  "mutually exclusive: var and const",
+			input: "const var x: Integer",
+			config: ParameterGroupConfig{
+				AllowModifiers: true,
+				ErrorContext:   "test param",
+			},
+			expectNil:   true,
+			expectError: true,
+			paramCount:  0,
+		},
+		{
+			name:  "mutually exclusive: lazy and var",
+			input: "lazy var x: Integer",
+			config: ParameterGroupConfig{
+				AllowModifiers: true,
+				ErrorContext:   "test param",
+			},
+			expectNil:   true,
+			expectError: true,
+			paramCount:  0,
+		},
+		{
+			name:  "mutually exclusive: const and lazy",
+			input: "const lazy x: Integer",
+			config: ParameterGroupConfig{
+				AllowModifiers: true,
+				ErrorContext:   "test param",
+			},
+			expectNil:   true,
+			expectError: true,
+			paramCount:  0,
+		},
+		{
+			name:  "with default value",
+			input: "x: Integer = 42",
+			config: ParameterGroupConfig{
+				AllowModifiers: false,
+				AllowDefaults:  true,
+			},
+			expectNil:   false,
+			expectError: false,
+			paramCount:  1,
+			checkModifier: func(t *testing.T, p *ast.Parameter) {
+				if p.DefaultValue == nil {
+					t.Error("Expected default value")
+				}
+			},
+		},
+		{
+			name:  "default value with modifier - should error",
+			input: "var x: Integer = 42",
+			config: ParameterGroupConfig{
+				AllowModifiers: true,
+				AllowDefaults:  true,
+				ErrorContext:   "test param",
+			},
+			expectNil:   true,
+			expectError: true,
+			paramCount:  0,
+		},
+		{
+			name:  "lazy parameter with default - should error",
+			input: "lazy x: Integer = 42",
+			config: ParameterGroupConfig{
+				AllowModifiers: true,
+				AllowDefaults:  true,
+				ErrorContext:   "test param",
+			},
+			expectNil:   true,
+			expectError: true,
+			paramCount:  0,
+		},
+		{
+			name:  "const parameter with default - should error",
+			input: "const x: Integer = 42",
+			config: ParameterGroupConfig{
+				AllowModifiers: true,
+				AllowDefaults:  true,
+				ErrorContext:   "test param",
+			},
+			expectNil:   true,
+			expectError: true,
+			paramCount:  0,
+		},
+		{
+			name:  "missing expression after equals",
+			input: "x: Integer = ;",
+			config: ParameterGroupConfig{
+				AllowModifiers: false,
+				AllowDefaults:  true,
+				ErrorContext:   "test param",
+			},
+			expectNil:   true,
+			expectError: true,
+			paramCount:  0,
+		},
+		{
+			name:  "missing colon",
+			input: "x Integer",
+			config: ParameterGroupConfig{
+				AllowModifiers: false,
+				AllowDefaults:  false,
+			},
+			expectNil:   true,
+			expectError: true,
+			paramCount:  0,
+		},
+		{
+			name:  "missing type after colon",
+			input: "x: ;",
+			config: ParameterGroupConfig{
+				AllowModifiers: false,
+				AllowDefaults:  false,
+			},
+			expectNil:   true,
+			expectError: true,
+			paramCount:  0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := newTestParser(tt.input)
+			result := p.ParameterGroup(tt.config)
+
+			if tt.expectNil && result != nil {
+				t.Errorf("Expected nil result, got %d parameters", len(result))
+			}
+			if !tt.expectNil && result == nil {
+				t.Fatal("Expected result, got nil")
+			}
+
+			if result != nil && len(result) != tt.paramCount {
+				t.Errorf("Expected %d parameters, got %d", tt.paramCount, len(result))
+			}
+
+			if result != nil && len(result) > 0 && tt.checkModifier != nil {
+				tt.checkModifier(t, result[0])
+			}
+
+			hasErrors := len(p.errors) > 0
+			if hasErrors != tt.expectError {
+				t.Errorf("Expected error = %v, got %v (errors: %d)", tt.expectError, hasErrors, len(p.errors))
+				for _, err := range p.errors {
+					t.Logf("  Error: %s", err.Message)
+				}
+			}
+		})
+	}
+}

@@ -85,7 +85,11 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Result:** 21/24 combinators have 100% coverage (87.5% overall, 100% for implemented functions)
   - Estimated: 4-6 hours
   - **Note:** Remaining combinator tests for OptionalTypeAnnotation, StatementBlock, and ParameterGroup to be added in follow-up task 2.8.2a.
-- [ ] **2.8.2a**: Add tests for OptionalTypeAnnotation, StatementBlock, ParameterGroup combinators
+- [x] **2.8.2a**: Add tests for OptionalTypeAnnotation, StatementBlock, ParameterGroup combinators
+  - ✅ OptionalTypeAnnotation: 0% → 100% (5 comprehensive test cases)
+  - ✅ StatementBlock: 0% → 94.7% (8 comprehensive test cases)
+  - ✅ ParameterGroup: 0% → 97.9% (15 comprehensive test cases)
+  - **Result:** All 24 combinators now tested, 22 at 100%, average 99.7% coverage
   - Estimated: 2-3 hours
 
 - [ ] **2.8.3**: Add tests for untested parsing functions
