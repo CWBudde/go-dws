@@ -1124,13 +1124,52 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - VirtualMethodTable infrastructure, helper infrastructure, overload resolution, user function calls, type system operations, call stack management, environment management - need adapter methods
   - **Note**: This was the most complex migration task - 1,116 lines covering 15 distinct method call modes with virtual dispatch, overload resolution, recursion tracking, and extensive OOP infrastructure. Full migration requires substantial infrastructure to be in place first.
 
-- [ ] **3.5.32** Migrate Object Instantiation (`VisitNewExpression`)
+- [x] **3.5.32** Migrate Object Instantiation (`VisitNewExpression`)
+  - **Complexity**: High (~250 lines in original implementation)
   - **Requirements**: Constructor dispatch, field initialization, class inheritance
-  - **Effort**: 1-2 weeks
+  - **Effort**: 1-2 weeks (full implementation) / 2 hours (actual migration)
+  - **Status**: ✅ COMPLETE - Actual code migration using adapter.CreateObject()
+  - **Implementation Summary**:
+    - Migrated VisitNewExpression to evaluate arguments in evaluator and delegate object creation to adapter
+    - Evaluator now: (1) extracts class name, (2) evaluates all constructor arguments, (3) calls adapter.CreateObject()
+    - Original implementation: 262 lines (objects_instantiation.go:11-262)
+    - Adapter method handles: class lookup, record type delegation, abstract/external checks, field initialization, exception handling, constructor resolution, constructor execution
+    - Comprehensive documentation of 10 instantiation modes preserved in method comments
+  - **Files Modified**:
+    - `internal/interp/evaluator/visitor_expressions.go` - Actual implementation (~25 lines) + documentation
+  - **Testing**:
+    - ✅ All evaluator tests pass
+    - ✅ All NewExpression-specific tests pass (TestObjectCreation, TestNewExpressionOptionalParentheses, TestConstructors, TestNewKeyword*, TestConstructorOverload)
+    - ✅ No regressions in existing functionality
+  - **Migration Approach**:
+    - Evaluator handles argument evaluation (its responsibility)
+    - Adapter handles complex OOP logic via CreateObject() method (already existed)
+    - Clean separation: evaluator controls flow, interpreter handles type-specific details
+  - **Note**: This task handles the `new` keyword and `TClass.Create()` syntax for object instantiation.
 
-- [ ] **3.5.33** Migrate Inherited Expression (`VisitInheritedExpression`)
+- [x] **3.5.33** Migrate Inherited Expression (`VisitInheritedExpression`)
+  - **Complexity**: High (~176 lines in original implementation)
   - **Requirements**: Parent method resolution, argument passing
-  - **Effort**: 1 week
+  - **Effort**: 1 week (full implementation) / 2 hours (actual migration)
+  - **Status**: ✅ COMPLETE - Actual code migration using adapter.CallInheritedMethod()
+  - **Implementation Summary**:
+    - Migrated VisitInheritedExpression to handle context validation and method name resolution in evaluator
+    - Evaluator now: (1) validates Self exists, (2) resolves method name (explicit or from __CurrentMethod__), (3) evaluates arguments, (4) calls adapter.CallInheritedMethod()
+    - Original implementation: 176 lines (objects_hierarchy.go:790-965)
+    - Adapter method handles: parent class lookup, method/property/field resolution, Self binding, environment setup, method execution
+    - Supports both explicit (`inherited MethodName(args)`) and bare (`inherited`) syntax
+    - Comprehensive documentation of 4 execution phases preserved in method comments
+  - **Files Modified**:
+    - `internal/interp/evaluator/visitor_expressions.go` - Actual implementation (~50 lines) + documentation
+  - **Testing**:
+    - ✅ All evaluator tests pass
+    - ✅ All semantic inherited tests pass (15 test functions)
+    - ✅ No regressions in existing functionality
+  - **Migration Approach**:
+    - Evaluator handles: Self validation, method name resolution (explicit/bare), argument evaluation
+    - Adapter handles: parent class traversal, method lookup, environment management, execution
+    - Clean separation: evaluator controls flow and basic validation, interpreter handles OOP semantics
+  - **Note**: Self preservation is the critical feature - inherited calls parent method but keeps the current object instance as Self.
 
 - [ ] **3.5.34** Migrate Type Checking (`VisitIsExpression`)
   - **Requirements**: Runtime type checking, class hierarchy traversal

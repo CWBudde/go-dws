@@ -331,9 +331,195 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 }
 
 // VisitNewExpression evaluates a 'new' expression (object instantiation).
-// Handles class lookup, field initialization, constructor dispatch, and interface wrapping.
+//
+// **COMPLEXITY**: High (~250 lines in original implementation)
+// **STATUS**: Partial migration with argument evaluation in evaluator and object creation delegated to adapter
+//
+// **INSTANTIATION MODES** (evaluated in this order):
+//
+// **1. CLASS LOOKUP** (case-insensitive)
+//   - Pattern: `new TMyClass` or `TMyClass.Create(...)`
+//   - Searches class registry with case-insensitive comparison
+//   - All class names in DWScript are case-insensitive by language spec
+//   - Implementation: ~10 lines in original
+//
+// **2. RECORD TYPE DELEGATION**
+//   - Pattern: `TMyRecord.Create(...)` where TMyRecord is a record type
+//   - Detection: If class not found, check for record type in environment
+//     with key `__record_type_<lowercase_name>`
+//   - Action: Converts NewExpression to MethodCallExpression and delegates
+//     to evalMethodCall for record static method handling
+//   - This allows records to have static factory methods like classes
+//   - Implementation: ~30 lines in original
+//
+// **3. ABSTRACT CLASS CHECK**
+//   - Pattern: `new TAbstractClass` where class has `abstract` modifier
+//   - Error: "Trying to create an instance of an abstract class"
+//   - Prevents instantiation of classes meant only as base classes
+//   - Implementation: ~4 lines in original
+//
+// **4. EXTERNAL CLASS CHECK**
+//   - Pattern: `new TExternalClass` where class has `external` modifier
+//   - Error: "cannot instantiate external class 'X' - external classes are not supported"
+//   - External classes are for FFI integration (not yet supported)
+//   - Implementation: ~6 lines in original
+//
+// **5. OBJECT CREATION**
+//   - Action: Creates new ObjectInstance with reference to ClassInfo
+//   - ObjectInstance contains field map, class reference, and VMT
+//   - Implementation: ~2 lines in original
+//
+// **6. FIELD INITIALIZATION** (two-phase)
+//   - **Phase A: Create temporary environment**
+//   - Creates enclosed environment with class constants for field initializers
+//   - Class constants are accessible during field initialization
+//   - **Phase B: Initialize each field**
+//   - If field has initializer expression: evaluate and assign
+//   - Otherwise: use getZeroValueForType for appropriate default value
+//   - Field types are used to determine correct zero values
+//   - Error handling: Returns immediately if any initializer fails
+//   - Implementation: ~30 lines in original
+//
+// **7. EXCEPTION CLASS HANDLING** (special cases)
+//   - **EHost.Create(className, message)**:
+//   - Pattern: `new EHost('SomeException', 'Error message')`
+//   - Requires exactly 2 arguments
+//   - Sets ExceptionClass and Message fields directly
+//   - Returns immediately (no constructor body execution)
+//   - **Other Exception.Create(message)**:
+//   - Pattern: `new ESomeException('Error message')`
+//   - Accepts single message argument
+//   - Sets Message field directly
+//   - Returns immediately (no constructor body execution)
+//   - Detection via isExceptionClass() and InheritsFrom("EHost")
+//   - Implementation: ~50 lines in original
+//
+// **8. CONSTRUCTOR RESOLUTION**
+//   - **Step A: Get default constructor name**
+//   - Checks class hierarchy for constructor marked as `default`
+//   - Falls back to "Create" if no default constructor specified
+//   - **Step B: Find constructor overloads**
+//   - getMethodOverloadsInHierarchy() finds all constructors in hierarchy
+//   - Case-insensitive lookup (DWScript standard)
+//   - Includes inherited virtual constructors
+//   - **Step C: Implicit parameterless constructor**
+//   - If 0 arguments and no parameterless constructor exists,
+//     return object with just field initialization (no constructor body)
+//   - This allows classes without explicit Create() to be instantiated
+//   - **Step D: Resolve overload**
+//   - resolveMethodOverload() matches arguments to parameters
+//   - Uses type compatibility and implicit conversions
+//   - Error: Overload resolution failure messages
+//   - Implementation: ~40 lines in original
+//
+// **9. CONSTRUCTOR EXECUTION**
+//   - **Environment setup**:
+//   - Creates enclosed method environment
+//   - Binds `Self` to the new object instance
+//   - Binds constructor parameters to evaluated arguments
+//   - For constructors with return type: initializes `Result` variable
+//   - Binds `__CurrentClass__` for ClassName access in constructor
+//   - **Argument evaluation**:
+//   - Evaluates each constructor argument in current environment
+//   - Error propagation on evaluation failure
+//   - **Argument count validation**:
+//   - Error: "wrong number of arguments for constructor 'X': expected N, got M"
+//   - **Body execution**:
+//   - Executes constructor body via Eval()
+//   - Error propagation on body failure
+//   - **Environment restoration**:
+//   - Restores previous environment after constructor completes
+//   - Implementation: ~55 lines in original
+//
+// **10. RETURN VALUE**
+//   - Returns the newly created ObjectInstance
+//   - Object has all fields initialized and constructor executed
+//
+// **SPECIAL BEHAVIORS**:
+//
+// **Case-insensitive class lookup**:
+//   - DWScript is case-insensitive by language spec
+//   - Class names are matched without regard to case
+//
+// **Default constructor pattern**:
+//   - Classes can mark a constructor as `default` for `new TClass` syntax
+//   - Falls back to "Create" if no default specified
+//   - Allows DSL-style APIs with custom constructor names
+//
+// **Implicit parameterless constructor**:
+//   - Classes without explicit Create() can still be instantiated
+//   - Fields are initialized but no constructor body runs
+//   - Enables simple data classes without boilerplate
+//
+// **Record type delegation**:
+//   - Parser creates NewExpression for `TRecord.Create(...)` syntax
+//   - Evaluator converts to MethodCallExpression for proper handling
+//   - Enables uniform syntax for class and record instantiation
+//
+// **Exception handling shortcuts**:
+//   - Built-in exception constructors have special handling
+//   - Bypasses normal constructor resolution for efficiency
+//   - Sets Message field directly without constructor body
+//
+// **Class constants in field initializers**:
+//   - Field initializers can reference class constants
+//   - Temporary environment created with constants defined
+//   - Enables `FMyField: Integer := MY_CONST + 1` patterns
+//
+// **DEPENDENCIES** (blockers for full migration):
+//   - ClassInfo: Class metadata including fields, methods, constructors, parent
+//   - ObjectInstance: Runtime object with fields, class reference, VMT
+//   - RecordTypeValue: For record type detection and delegation
+//   - ExceptionValue: For exception class detection
+//   - Environment: Scope management for field initializers and constructor
+//   - resolveMethodOverload(): Constructor overload resolution
+//   - getMethodOverloadsInHierarchy(): Constructor lookup in class hierarchy
+//   - getZeroValueForType(): Default value generation for field types
+//   - ClassInfoValue: For __CurrentClass__ binding
+//   - isExceptionClass(): Exception class detection helper
+//   - InheritsFrom(): Class hierarchy traversal
+//
+// **MIGRATION STRATEGY**:
+//   - Phase 1 (this task): Comprehensive documentation of all modes ✓
+//   - Phase 2 (future): Migrate simple class instantiation after ObjectInstance migration
+//   - Phase 3 (future): Migrate field initialization after type system migration
+//   - Phase 4 (future): Migrate constructor dispatch after method call migration
+//   - Phase 5 (future): Migrate exception handling after exception system migration
+//   - Phase 6 (future): Migrate record delegation after record type migration
+//
+// **ERROR CONDITIONS**:
+//   - "class 'X' not found" - Class not in registry and not a record type
+//   - "Trying to create an instance of an abstract class" - Abstract class instantiation
+//   - "cannot instantiate external class 'X'" - External class instantiation
+//   - "EHost.Create requires class name and message arguments" - Wrong EHost args
+//   - Overload resolution errors - No matching constructor for arguments
+//   - "wrong number of arguments for constructor 'X'" - Argument count mismatch
+//   - Field initializer errors - Propagated from initializer evaluation
+//   - Constructor body errors - Propagated from constructor execution
 func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNode(node)
+	// Get the class name
+	className := node.ClassName.Value
+
+	// Evaluate all constructor arguments
+	args := make([]Value, len(node.Arguments))
+	for i, arg := range node.Arguments {
+		val := e.Eval(arg, ctx)
+		if isError(val) {
+			return val
+		}
+		args[i] = val
+	}
+
+	// Create the object using the adapter
+	// The adapter handles: class lookup, field initialization, and constructor execution
+	// NOTE: Record type delegation, abstract/external checks, and exception handling
+	// are still handled by the original evalNewExpression in objects_instantiation.go
+	obj, err := e.adapter.CreateObject(className, args)
+	if err != nil {
+		return e.newError(node, "%s", err.Error())
+	}
+
+	return obj
 }
 
 // VisitMemberAccessExpression evaluates member access (obj.field, obj.method).
@@ -800,9 +986,207 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 }
 
 // VisitInheritedExpression evaluates an 'inherited' expression.
-// Calls parent class method with proper context and Self preservation.
+//
+// **COMPLEXITY**: High (~176 lines in original implementation)
+// **STATUS**: Partial migration with context validation, method name resolution, and argument evaluation in evaluator; inherited method execution delegated to adapter
+//
+// **SYNTAX FORMS**:
+//   - `inherited MethodName(args)` - Explicit method call with arguments
+//   - `inherited MethodName` - Explicit method/property/field access without args
+//   - `inherited` - Bare inherited (calls same method in parent class)
+//
+// **EXECUTION PHASES** (evaluated in this order):
+//
+// **1. CONTEXT VALIDATION** (~10 lines)
+//   - **Self check**: Must be in method context with Self defined
+//   - Error: "inherited can only be used inside a method"
+//   - **ObjectInstance check**: Self must be an ObjectInstance
+//   - Error: "inherited requires Self to be an object instance"
+//   - **Parent class check**: Current class must have a parent
+//   - Error: "class 'X' has no parent class"
+//   - Implementation: lines 794-811 in original
+//
+// **2. METHOD NAME RESOLUTION** (~17 lines)
+//   - **Explicit method name**: `inherited MethodName(...)`
+//   - Uses ie.Method.Value directly
+//   - **Bare inherited**: `inherited` (no method name specified)
+//   - Looks up `__CurrentMethod__` from environment
+//   - Must be StringValue containing current method name
+//   - Enables nested inherited calls through inheritance chain
+//   - Error: "bare 'inherited' requires method context"
+//   - Error: "invalid method context"
+//   - Implementation: lines 813-829 in original
+//
+// **3. MEMBER LOOKUP IN PARENT CLASS** (case-insensitive)
+//
+//	Searches parent class members in priority order:
+//
+//	**3a. METHODS** (~87 lines)
+//	  - Iterates parentClass.Methods map with case-insensitive comparison
+//	  - If found, executes full method call (see Phase 4)
+//	  - Implementation: lines 831-927 in original
+//
+//	**3b. PROPERTIES** (~17 lines)
+//	  - Iterates parentClass.Properties map with case-insensitive comparison
+//	  - Cannot be called with arguments or as method
+//	    - Error: "cannot call property 'X' as a method"
+//	  - Reads property via evalPropertyRead()
+//	  - Implementation: lines 929-946 in original
+//
+//	**3c. FIELDS** (~13 lines)
+//	  - Iterates parentClass.Fields map with case-insensitive comparison
+//	  - Cannot be called with arguments or as method
+//	    - Error: "cannot call field 'X' as a method"
+//	  - Returns field value directly via obj.GetField()
+//	  - Returns NilValue if field is nil
+//	  - Implementation: lines 948-961 in original
+//
+//	**3d. NOT FOUND**
+//	  - Error: "method, property, or field 'X' not found in parent class 'Y'"
+//
+// **4. METHOD EXECUTION** (when method found)
+//   - **Argument evaluation**: Evaluates all arguments in current environment
+//   - **Argument count validation**:
+//   - Error: "wrong number of arguments for method 'X': expected N, got M"
+//   - **Method environment setup**:
+//     a. Creates enclosed environment via NewEnclosedEnvironment
+//     b. Binds `Self` to **current object** (preserves instance identity!)
+//     c. Binds `__CurrentClass__` to parent ClassInfoValue
+//     d. Adds parent class constants via bindClassConstantsToEnv()
+//     e. Binds `__CurrentMethod__` to method name (enables nested inherited)
+//   - **Parameter binding**:
+//   - Binds each parameter to corresponding argument
+//   - Applies implicit type conversion if parameter has type annotation
+//   - Uses tryImplicitConversion() helper
+//   - **Result variable initialization** (for functions):
+//   - Resolves return type via resolveTypeFromAnnotation()
+//   - Gets default value via getDefaultValue()
+//   - Binds `Result` to default value
+//   - Binds method name as ReferenceValue alias to Result (DWScript style)
+//   - **Body execution**: Executes parentMethod.Body via Eval()
+//   - **Return value extraction**:
+//   - For functions: checks Result, then method name alias, then NilValue
+//   - For procedures: returns NilValue
+//   - **Environment restoration**: Restores saved environment
+//   - Implementation: lines 841-927 in original
+//
+// **SPECIAL BEHAVIORS**:
+//
+// **Self Preservation**:
+//   - Critical feature of inherited calls
+//   - Parent method executes with **current instance** as Self
+//   - NOT a new parent instance - same object through inheritance chain
+//   - Enables: Child.Method() → inherited → Parent.Method() on same object
+//   - Example: overridden method in Child calls inherited, parent code
+//     operates on the Child instance's fields
+//
+// **Bare Inherited Support**:
+//   - `inherited` without method name calls same method in parent
+//   - Uses `__CurrentMethod__` environment variable set during method entry
+//   - Enables clean inheritance patterns without repeating method name
+//   - Supports nested inheritance: GrandChild → Child → Parent all using bare inherited
+//
+// **Case-Insensitive Lookup**:
+//   - DWScript standard: all identifiers are case-insensitive
+//   - Method, property, and field lookups use strings.EqualFold()
+//
+// **Method Name as Return Alias**:
+//   - DWScript allows `MethodName := value` as alternative to `Result := value`
+//   - Implemented via ReferenceValue pointing to Result variable
+//   - Both forms work interchangeably in inherited method context
+//
+// **Class Constants in Scope**:
+//   - Parent class constants are bound to method scope
+//   - Allows inherited method to access parent's constants directly
+//   - Uses bindClassConstantsToEnv() helper
+//
+// **Implicit Type Conversion**:
+//   - Arguments are converted to parameter types if possible
+//   - Uses tryImplicitConversion() for Integer↔Float, etc.
+//   - Applied during parameter binding, not argument evaluation
+//
+// **DEPENDENCIES** (blockers for full migration):
+//   - ObjectInstance: Current object reference with Class pointer
+//   - ClassInfo: Class metadata with Parent, Methods, Properties, Fields
+//   - ClassInfoValue: Wrapper for __CurrentClass__ binding
+//   - StringValue: For __CurrentMethod__ storage
+//   - ReferenceValue: For method name alias to Result
+//   - NilValue: For procedure returns and nil field values
+//   - PropertyInfo: For property lookup and evalPropertyRead
+//   - Environment: Scope management for method execution
+//   - NewEnclosedEnvironment(): Scope creation
+//   - bindClassConstantsToEnv(): Constant binding helper
+//   - tryImplicitConversion(): Type conversion helper
+//   - resolveTypeFromAnnotation(): Return type resolution
+//   - getDefaultValue(): Default value for return type
+//   - evalPropertyRead(): Property read evaluation
+//
+// **MIGRATION STRATEGY**:
+//   - Phase 1 (this task): Comprehensive documentation of all modes ✓
+//   - Phase 2 (future): Migrate context validation after ObjectInstance migration
+//   - Phase 3 (future): Migrate method lookup after ClassInfo migration
+//   - Phase 4 (future): Migrate method execution after method call migration
+//   - Phase 5 (future): Migrate property/field access after property system migration
+//
+// **ERROR CONDITIONS**:
+//   - "inherited can only be used inside a method" - No Self in environment
+//   - "inherited requires Self to be an object instance" - Self not ObjectInstance
+//   - "class 'X' has no parent class" - Root class with no parent
+//   - "bare 'inherited' requires method context" - No __CurrentMethod__ for bare inherited
+//   - "invalid method context" - __CurrentMethod__ not a StringValue
+//   - "wrong number of arguments for method 'X'" - Argument/parameter count mismatch
+//   - "cannot call property 'X' as a method" - Property access with args/call syntax
+//   - "cannot call field 'X' as a method" - Field access with args/call syntax
+//   - "method, property, or field 'X' not found in parent class 'Y'" - Member not found
 func (e *Evaluator) VisitInheritedExpression(node *ast.InheritedExpression, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNode(node)
+	// Get Self from environment - must be in a method context
+	selfVal, exists := ctx.Env().Get("Self")
+	if !exists {
+		return e.newError(node, "inherited can only be used inside a method")
+	}
+
+	// Convert to Value type
+	self, ok := selfVal.(Value)
+	if !ok {
+		return e.newError(node, "inherited requires Self to be an object instance")
+	}
+
+	// Determine the method name
+	var methodName string
+	if node.Method != nil {
+		// Explicit method name: inherited MethodName(args)
+		methodName = node.Method.Value
+	} else {
+		// Bare inherited: get current method name from environment
+		currentMethodVal, exists := ctx.Env().Get("__CurrentMethod__")
+		if !exists {
+			return e.newError(node, "bare 'inherited' requires method context")
+		}
+
+		// Extract method name string - check for runtime.StringValue
+		// Note: internal/interp.StringValue is a type alias for runtime.StringValue,
+		// so this check handles both cases.
+		if strVal, ok := currentMethodVal.(*runtime.StringValue); ok {
+			methodName = strVal.Value
+		} else {
+			return e.newError(node, "invalid method context")
+		}
+	}
+
+	// Evaluate all arguments
+	args := make([]Value, len(node.Arguments))
+	for i, arg := range node.Arguments {
+		val := e.Eval(arg, ctx)
+		if isError(val) {
+			return val
+		}
+		args[i] = val
+	}
+
+	// Call the inherited method using the adapter
+	// The adapter handles: parent class lookup, method resolution, environment setup,
+	// Self binding, parameter binding, and method execution
+	return e.adapter.CallInheritedMethod(self, methodName, args)
 }
 
 // VisitSelfExpression evaluates a 'Self' expression.
