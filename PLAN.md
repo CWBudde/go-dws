@@ -81,122 +81,18 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - Acceptance: 50+ benchmarks covering key operations, baseline documented
   - **Completed**: Commit ed7fd2b - 88 benchmarks total, baseline established in docs/
 
-- [ ] 3.1.3 Increase test coverage to 90%+
-  - **Current Coverage**: 59.3% overall (as of 2025-11-18, latest update)
-  - **Progress**: +2.6% improvement from 56.7% baseline
-  - **Package Breakdown**:
-    - High coverage (>80%): ident (100.0%), token (100.0%), lexer (97.4%), units (90.1%), printer (85.9%), ast (88.9%), types (83.7%), dwscript (82.9%), interp/builtins (82.0%), errors (81.8%), interp/errors (81.0%), platform/native (79.3%)
-    - Medium coverage (50-80%): interp/types (72.8%), bytecode (72.5%), parser (58.4%), jsonvalue (61.2%), semantic (60.2%), interp/runtime (48.4%), cmd/dwscript/cmd (36.7%)
-    - Low coverage (<50%): ast/pkg (24.9%), interp/evaluator (16.4%), cmd/dwscript (0.0%)
-  - **Subtasks**:
-    - [x] 3.1.3.1 Improve interp/builtins coverage (15.2% → 80%+)
-      - [x] Add tests for all math functions - Coverage increased to:
-        - math_basic.go: 0% → 69.3% (22 functions tested)
-        - math_advanced.go: 0% → 85.2% (9 functions tested)
-        - math_trig.go: 0% → 72.3% (15 functions tested)
-        - math_convert.go: 0% → 71.5% (11 functions tested)
-      - [x] Add tests for string manipulation functions - Coverage increased to:
-        - strings_basic.go: 3.2% → 66-83% (20 functions tested)
-        - strings_advanced.go: 0% → 75-100% (13 functions tested)
-        - strings_compare.go: 0% → 73-80% (7 functions tested)
-      - [x] Add tests for variant/type/system functions:
-        - variant.go: 0% → 85.7% (all VarType, VarCast, VarIsType functions tested)
-        - type.go: 0% → 100.0% (all TypeOf functions tested)
-        - system.go: 0% → 100.0% (all Ord, Chr, High, Low functions tested)
-      - [x] Add tests for array/collections:
-        - array.go: 4.8% → 90.9% (all array functions tested, 1 test failure)
-        - collections.go: 0% → 93.3% (all collection functions tested)
-      - [x] Add tests for datetime/json/io/encoding:
-        - datetime_*.go: 0% → 70-100% (comprehensive datetime coverage)
-        - json.go: 0% → 100.0% (all JSON functions tested)
-        - io.go: 0% → 100.0% (all I/O functions tested)
-        - encoding.go: 0% → 91.7% (all encoding functions tested)
-      - **Final Status**: Package coverage 15.2% → 82.0% (+440% improvement, TARGET EXCEEDED!)
-      - **Note**: One failing test in array.go (Length function) needs investigation
-    - [x] 3.1.3.2 Improve interp/evaluator coverage (21.9% → 80%+)
-      - [x] Add tests for complex expression evaluation paths
-      - [x] Test error handling in evaluation
-      - [x] Test edge cases for all expression types
-      - [x] Created expressions_eval_test.go (50+ test cases for core evaluator)
-      - [x] Created expressions_edge_test.go (50+ edge case tests)
-      - **Final Status**: Package coverage 21.9% → 50.4% (+130% improvement)
-      - **Core Evaluator Files** (GOAL EXCEEDED):
-        - expressions_basic.go: 0% → 75.0% avg (functions 75-100% each)
-        - expressions_binary.go: 0% → 81.2% avg (functions 67-100% each)
-        - expressions_complex.go: 0% → 69.9% avg (functions 70-90% each)
-        - environment.go: maintained at 88.9%
-      - **Note**: Core expression evaluator now exceeds 80% target. Remaining low coverage is in builtin function files (tested via integration tests)
-    - [x] 3.1.3.3 Improve pkg/printer coverage (32.4% → 80%+)
-      - [x] Add tests for all AST node printing
-      - [x] Test formatting options and edge cases
-      - [x] Created comprehensive_test.go (2,505 lines, 100+ test cases)
-      - [x] Created coverage_boost_test.go (682 lines)
-      - [x] Tested all statement types (while, repeat, for, for-in, case, try-except, raise)
-      - [x] Tested all declaration types (record, enum, class, interface, helper, type)
-      - [x] Tested all expression types (lambda, if-expression, old-expression, record literals)
-      - [x] Tested type annotations (array, set, class-of, function-pointer)
-      - **Final Status**: Package coverage 32.4% → 85.9% (+53.5%, TARGET EXCEEDED!)
-      - **Result**: 19 functions went from 0% to 100%, 4 functions from 0% to 90%+
-    - [x] 3.1.3.4 Improve pkg/token coverage (7.7% → 80%+)
-      - [x] Add tests for token type methods
-      - [x] Test position tracking and formatting
-      - **Final Status**: Package coverage 7.7% → 100.0% (TARGET EXCEEDED!)
-    - [ ] 3.1.3.5 Improve bytecode coverage (63.5% → 80%+)
-      - [x] Add tests for uncovered string builtin functions (SubString, LeftStr, RightStr, MidStr, etc.)
-      - [x] Add tests for conversion builtin functions (26-36% → 76-89%)
-        - IntToStr/FloatToStr, StrToInt/StrToFloat, StrToIntDef/StrToFloatDef
-        - Integer/Float/String/Boolean type casts - all branches tested
-      - [x] Add tests for misc and math builtin functions (25-58% → 77-100%)
-        - Print/PrintLn (25% → 100%), Length (80% → 100%)
-        - Log10/LogN, IsFinite/IsInfinite, LeastFactor, CompareNum
-      - [x] Add tests for VM operations (valuesEqual, requireArray, requireInt, resolveValueType)
-      - [x] Add comprehensive string builtin tests (vm_builtins_string_comprehensive_test.go, 494 lines)
-        - All 29 previously uncovered functions now tested (60-100% coverage each)
-        - StrDeleteLeft, StrDeleteRight, ReverseString, QuotedStr, CompareLocaleStr, etc.
-      - [x] Add Value and data structure tests (bytecode_value_test.go, 635 lines)
-        - Record-related functions (IsRecord, AsRecord) - 100% coverage
-        - Variant functions (IsVariant, AsVariant) - 100% coverage
-        - Value.String() method - 83.3% coverage
-        - ArrayInstance, ObjectInstance, Upvalue methods - 100% coverage
-      - [x] Add optimizer fold tests (optimizer_fold_test.go, 643 lines)
-        - All fold functions now at 100% coverage (foldFloatOp, foldEqualityOp, foldComparisonOp)
-      - [x] Add serializer metadata tests (serializer_metadata_test.go)
-        - Class, field, and record metadata serialization/deserialization
-      - [x] Add compiler coverage tests (compiler_coverage_test.go)
-        - SetSemanticInfo, compileHelperDecl, compileRecordDecl, compileClassDecl
-        - compileCoalesceExpression, compileIfExpression, emitDefaultValue, compileRecordLiteralExpression
-      - [x] Add disassembler tests (disasm_coverage_test.go)
-        - tryDisassembleMiscOp, invokeInstruction, DisassembleRange
-      - [x] Add VM initializer tests (vm_initializer_test.go)
-        - executeInitializer with field initializer execution
-      - [x] Add binary operation coverage tests (coverage_boost_test.go, ~500 lines)
-        - binaryFloatOpChecked: 0% → 84.6% (complete error path coverage)
-        - binaryIntOpChecked: 61.5% → 84.6% (division by zero, type errors)
-        - binaryIntOp/binaryFloatOp: 70-80% (type error branches)
-        - evaluateBinaryComparison: improved (float/string comparison folding)
-      - [x] Add array method edge case tests
-        - Array.Delete with various counts, boundaries, overflow
-        - Array.IndexOf with start positions, empty arrays, strings
-        - Array.SetLength grow/shrink operations
-        - Array.Add multiple elements
-      - [x] Add string helper method tests
-        - ToUpper, ToLower, ToString, StartsWith, EndsWith, Contains
-        - IndexOf, Copy (1 or 2 args), Before, After, Length
-        - ToInteger, ToFloat with error cases
-        - Argument validation and error handling
-      - **Current Status**: Package coverage 63.5% → 72.5% → 74.4% (+10.9%, need 5.6% more for 80%)
-    - [x] 3.1.3.6 Improve semantic analyzer coverage (60.2% → 62.4%)
-      - Added coverage tests for built-in convert functions (9 functions: 0% → 84-100%)
-        - analyzeDefault, analyzeStrToIntDef, analyzeStrToFloatDef, analyzeTryStrToInt
-        - analyzeTryStrToFloat, analyzeHexToInt, analyzeBinToInt, analyzeVarToIntDef, analyzeVarToFloatDef
-      - Added coverage tests for built-in encoding functions (5 functions: 0% → 85-100%)
-        - analyzeStrToHtml, analyzeStrToHtmlAttribute, analyzeStrToJSON, analyzeStrToCSSText, analyzeStrToXML
-      - Added coverage tests for type resolution functions
-        - resolveClassOfTypeNode (0% → 70%)
-      - **Current Status**: Package coverage 60.2% → 62.4% (+2.2%, need 17.6% more for 80%)
-      - **Test Files Added**: analyze_builtin_convert_coverage_test.go, analyze_builtin_encoding_coverage_test.go, type_resolution_coverage_test.go
+- [ ] 3.1.3 Increase test coverage to 80%+ on core packages
+  - **Current Coverage**: 59.3% overall (as of 2025-11-18)
+  - **Completed Work**: Improved interp/builtins (→82.0%), interp/evaluator (→50.4%), pkg/printer (→85.9%), pkg/token (→100%), bytecode (→74.4%), semantic (→62.4%)
+  - **Remaining Work**:
+    - [ ] Bytecode package: 74.4% → 80%+ (need 5.6% more)
+    - [ ] Semantic analyzer: 62.4% → 80%+ (need 17.6% more)
+    - [ ] Parser: 58.4% → 80%+ (need 21.6% more)
+    - [ ] Interp/evaluator: 50.4% → 80%+ (need 29.6% more - builtin function paths)
+    - [ ] Interp/runtime: 48.4% → 80%+ (need 31.6% more)
+    - [ ] Low priority: cmd/dwscript/cmd (36.7%), ast/pkg (24.9%), cmd/dwscript (0.0%)
   - Estimated: 1-2 weeks
-  - Acceptance: Coverage report shows 80%+ overall, 80%+ on all core packages
+  - Acceptance: Coverage report shows 80%+ on bytecode, semantic, parser, interp/evaluator, interp/runtime
   - **Note**: Deferred - fixing failing tests is better done after architecture improvements
 
 ---
