@@ -9,6 +9,8 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Completed**
 
+---
+
 ## Phase 2: Parser Modernization ✅ **COMPLETED** (2025-01-21)
 
 **Accomplishments**:
@@ -24,7 +26,6 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 **Documentation**: [PHASE2_MODERNIZATION.md](PHASE2_MODERNIZATION.md), [PHASE2_COMPARISON.md](PHASE2_COMPARISON.md)
 
 ---
-
 
 ## Phase 3: Interpreter Architecture Refactoring
 
