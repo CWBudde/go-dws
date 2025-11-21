@@ -216,8 +216,8 @@
 - [x] Verified with test script
 
 **Implementation Locations**:
-- StrJoin: `internal/interp/builtins/strings_basic.go:991`
-- StrArrayPack: `internal/interp/builtins/strings_basic.go:1033`
+- StrJoin: `internal/interp/builtins/strings_basic.go:1000`
+- StrArrayPack: `internal/interp/builtins/strings_basic.go:1042`
 
 ---
 
