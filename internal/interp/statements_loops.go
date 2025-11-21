@@ -447,10 +447,11 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 			return newError("for-in loop: can only iterate over enum types, got %s", col.TypeName)
 		}
 
-		// Iterate through enum values in their defined order
-		// Use OrderedNames to only iterate over declared values, not the full ordinal range
-		for _, valueName := range enumType.OrderedNames {
-			ordinal := enumType.Values[valueName]
+		// Iterate through enum ordinal range (inclusive)
+		// DWScript iterates over the full range from min to max, not just declared values
+		// This allows constructs like: enum (Low = 2, High = 1000) to iterate 2..1000
+		for ordinal := enumType.MinOrdinal(); ordinal <= enumType.MaxOrdinal(); ordinal++ {
+			valueName := enumType.GetEnumName(ordinal)
 			// Create an enum value for this element
 			enumVal := &EnumValue{
 				TypeName:     enumType.Name,
