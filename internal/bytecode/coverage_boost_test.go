@@ -487,12 +487,12 @@ func TestInvokeMethodArrayDeleteEdgeCases(t *testing.T) {
 // TestInvokeMethodArrayIndexOfEdgeCases tests edge cases for Array.IndexOf
 func TestInvokeMethodArrayIndexOfEdgeCases(t *testing.T) {
 	tests := []struct {
+		searchVal  Value
 		name       string
 		initial    []Value
-		searchVal  Value
 		startIndex int64
-		useStart   bool
 		wantIndex  int64
+		useStart   bool
 	}{
 		{
 			name:       "find at start",
@@ -735,10 +735,10 @@ func TestInvokeMethodArraySetLengthDirect(t *testing.T) {
 // TestBinaryIntOpChecked tests binaryIntOpChecked with various cases
 func TestBinaryIntOpChecked(t *testing.T) {
 	tests := []struct {
-		name      string
+		fn        func(a, b int64) (int64, error)
 		left      Value
 		right     Value
-		fn        func(a, b int64) (int64, error)
+		name      string
 		wantVal   int64
 		wantError bool
 	}{
@@ -817,10 +817,10 @@ func TestBinaryIntOpChecked(t *testing.T) {
 // TestBinaryFloatOpChecked tests binaryFloatOpChecked with various cases
 func TestBinaryFloatOpChecked(t *testing.T) {
 	tests := []struct {
-		name      string
+		fn        func(a, b float64) (float64, error)
 		left      Value
 		right     Value
-		fn        func(a, b float64) (float64, error)
+		name      string
 		wantVal   float64
 		wantError bool
 	}{
@@ -980,11 +980,11 @@ func TestBinaryFloatOpTypeErrors(t *testing.T) {
 // TestInvokeMethodStringHelpers tests string helper methods
 func TestInvokeMethodStringHelpers(t *testing.T) {
 	tests := []struct {
-		name      string
 		receiver  Value
+		name      string
 		method    string
-		args      []Value
 		wantVal   string
+		args      []Value
 		wantInt   int64
 		wantBool  bool
 		checkInt  bool
