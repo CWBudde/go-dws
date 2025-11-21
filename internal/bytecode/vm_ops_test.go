@@ -276,8 +276,8 @@ func TestCompare(t *testing.T) {
 	})
 
 	t.Run("float comparison", func(t *testing.T) {
-		vm.push(FloatValue(3.14))  // left
-		vm.push(FloatValue(2.71))  // right
+		vm.push(FloatValue(3.14)) // left
+		vm.push(FloatValue(2.71)) // right
 		result, err := vm.compare(OpGreater)
 		if err != nil {
 			t.Fatalf("compare error: %v", err)
@@ -288,8 +288,8 @@ func TestCompare(t *testing.T) {
 	})
 
 	t.Run("string greater than", func(t *testing.T) {
-		vm.push(StringValue("banana"))  // left
-		vm.push(StringValue("apple"))   // right
+		vm.push(StringValue("banana")) // left
+		vm.push(StringValue("apple"))  // right
 		result, err := vm.compare(OpGreater)
 		if err != nil {
 			t.Fatalf("compare error: %v", err)

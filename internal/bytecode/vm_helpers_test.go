@@ -176,10 +176,10 @@ func TestFindHelperMethodCaseInsensitive(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		methodName     string
-		expectedSlot   uint16
-		expectedFound  bool
+		name          string
+		methodName    string
+		expectedSlot  uint16
+		expectedFound bool
 	}{
 		{
 			name:          "exact match",
