@@ -7,8 +7,8 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
-	pkgast "github.com/cwbudde/go-dws/pkg/ast"   // Task 9.18
-	"github.com/cwbudde/go-dws/pkg/token" // Task 6.1.1.3: for TypeRegistry
+	pkgast "github.com/cwbudde/go-dws/pkg/ast" // Task 9.18
+	"github.com/cwbudde/go-dws/pkg/token"      // Task 6.1.1.3: for TypeRegistry
 )
 
 // ============================================================================
