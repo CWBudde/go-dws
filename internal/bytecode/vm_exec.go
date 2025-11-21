@@ -1095,6 +1095,48 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				return ret, nil
 			}
 			vm.push(ret)
+
+		// Task 1.3.7.6: Reference operations for var parameters
+		case OpLoadRef:
+			// Load a reference to a local variable onto the stack
+			idx := int(inst.B())
+			if idx >= len(frame.locals) {
+				return NilValue(), vm.runtimeError("LOAD_REF index %d out of range", idx)
+			}
+			// Create a reference pointing to the local variable slot
+			ref := &Reference{Location: &frame.locals[idx]}
+			vm.push(RefValue(ref))
+
+		case OpStoreRef:
+			// Store value through a reference
+			// Stack: [reference, value] -> []
+			val, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			refVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			ref := refVal.AsRef()
+			if ref == nil {
+				return NilValue(), vm.runtimeError("STORE_REF: expected reference, got %s", refVal.Type.String())
+			}
+			ref.Assign(val)
+
+		case OpDeref:
+			// Dereference a reference to get its value
+			// Stack: [reference] -> [value]
+			refVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			ref := refVal.AsRef()
+			if ref == nil {
+				return NilValue(), vm.runtimeError("DEREF: expected reference, got %s", refVal.Type.String())
+			}
+			vm.push(ref.Deref())
+
 		case OpHalt:
 			if len(vm.stack) == 0 {
 				return NilValue(), nil
