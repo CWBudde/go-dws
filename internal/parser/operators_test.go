@@ -546,6 +546,21 @@ func TestParseOperatorDeclaration_Errors(t *testing.T) {
 			input:         `operator + (String, Integer) : String uses;`,
 			expectedError: "expected identifier after 'uses' in operator declaration",
 		},
+		{
+			name:          "unterminated operand list - no closing paren (CRITICAL BUG FIX)",
+			input:         `operator + (`,
+			expectedError: "operator declaration requires at least one operand type",
+		},
+		{
+			name:          "unterminated operand list - EOF after type",
+			input:         `operator + (Integer`,
+			expectedError: "unterminated operator operand list",
+		},
+		{
+			name:          "unterminated operand list - EOF after comma",
+			input:         `operator + (Integer,`,
+			expectedError: "expected 'uses' in operator declaration",
+		},
 	}
 
 	for _, tt := range tests {
