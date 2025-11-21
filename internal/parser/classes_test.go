@@ -1954,3 +1954,97 @@ end;
 		t.Errorf("Field[1].InitValue should be nil. got=%v", stmt.Fields[1].InitValue)
 	}
 }
+
+
+// TestParseClassDeclaration tests the parseClassDeclaration function directly
+func TestParseClassDeclaration(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectNil   bool
+		expectError bool
+		checkName   string
+	}{
+		{
+			name:        "valid class declaration",
+			input:       "type TPoint = class end;",
+			expectNil:   false,
+			expectError: false,
+			checkName:   "TPoint",
+		},
+		{
+			name:        "valid class with parent",
+			input:       "type TChild = class(TParent) end;",
+			expectNil:   false,
+			expectError: false,
+			checkName:   "TChild",
+		},
+		{
+			name:        "missing class name identifier",
+			input:       "type = class end;",
+			expectNil:   true,
+			expectError: true,
+		},
+		{
+			name:        "missing equals sign",
+			input:       "type TPoint class end;",
+			expectNil:   true,
+			expectError: true,
+		},
+		{
+			name:        "missing class keyword",
+			input:       "type TPoint = end;",
+			expectNil:   true,
+			expectError: true,
+		},
+		{
+			name:        "wrong token after equals (interface instead of class)",
+			input:       "type TPoint = interface end;",
+			expectNil:   true,
+			expectError: true,
+		},
+		{
+			name:        "number instead of identifier for class name",
+			input:       "type 123 = class end;",
+			expectNil:   true,
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			
+			// parseClassDeclaration expects cursor to be positioned
+			// at the token BEFORE the class name identifier
+			// In this case, we position at TYPE token
+			// (cursor is already at TYPE after New())
+			
+			result := p.parseClassDeclaration()
+
+			if tt.expectNil && result != nil {
+				t.Errorf("Expected nil result, got %T", result)
+			}
+			if !tt.expectNil && result == nil {
+				t.Error("Expected result, got nil")
+			}
+
+			if result != nil && tt.checkName != "" {
+				if result.Name.Value != tt.checkName {
+					t.Errorf("Expected class name %q, got %q", tt.checkName, result.Name.Value)
+				}
+			}
+
+			hasErrors := len(p.Errors()) > 0
+			if hasErrors != tt.expectError {
+				t.Errorf("Expected error = %v, got %v (errors: %d)", tt.expectError, hasErrors, len(p.Errors()))
+				if hasErrors {
+					for _, err := range p.Errors() {
+						t.Logf("  Error: %s", err.Message)
+					}
+				}
+			}
+		})
+	}
+}
