@@ -37,7 +37,7 @@ end;
 	}
 
 	// Check if the class was merged
-	ttest, ok := analyzer.classes["ttest"]
+	ttest, ok := analyzer.GetClasses()["ttest"]
 	if !ok {
 		t.Fatal("TTest class not found!")
 	}

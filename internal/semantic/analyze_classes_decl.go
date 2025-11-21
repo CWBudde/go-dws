@@ -28,10 +28,11 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 
 	// Check if class is already declared
 	// Task 9.285: Use lowercase for case-insensitive lookup
-	existingClass, exists := a.classes[strings.ToLower(className)]
+	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
+	existingClass := a.getClassType(className)
 	resolvingForwardDecl := false
 	mergingPartialClass := false
-	if exists {
+	if existingClass != nil {
 		// Task 9.13: Handle partial class merging
 		if existingClass.IsPartial && decl.IsPartial {
 			// Both are partial - merge them
@@ -60,9 +61,8 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			var fullImplParent *types.ClassType
 			if decl.Parent != nil {
 				parentName := decl.Parent.Value
-				var found bool
-				fullImplParent, found = a.classes[strings.ToLower(parentName)]
-				if !found {
+				fullImplParent = a.getClassType(parentName)
+				if fullImplParent == nil {
 					a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
 					return
 				}
@@ -104,9 +104,8 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		var parentClass *types.ClassType
 		if decl.Parent != nil {
 			parentName := decl.Parent.Value
-			var found bool
-			parentClass, found = a.classes[strings.ToLower(parentName)]
-			if !found {
+			parentClass = a.getClassType(parentName)
+			if parentClass == nil {
 				a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
 				return
 			}
@@ -120,7 +119,8 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		classType.ExternalName = decl.ExternalName
 
 		// Register the forward declaration
-		a.classes[strings.ToLower(className)] = classType
+		// Task 6.1.1.3: Use TypeRegistry for class registration
+		a.registerTypeWithPos(className, classType, decl.Token.Pos)
 		return
 	}
 
@@ -136,9 +136,8 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		// Update parent if specified in this partial declaration and wasn't set before
 		if decl.Parent != nil && parentClass == nil {
 			parentName := decl.Parent.Value
-			var found bool
-			parentClass, found = a.classes[strings.ToLower(parentName)]
-			if !found {
+			parentClass = a.getClassType(parentName)
+			if parentClass == nil {
 				a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
 				return
 			}
@@ -147,7 +146,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 
 		// Handle implicit TObject parent if needed
 		if parentClass == nil && !ident.Equal(className, "TObject") && !decl.IsExternal {
-			parentClass = a.classes["tobject"]
+			parentClass = a.getClassType("TObject")
 			if parentClass == nil {
 				a.addError("implicit parent class 'TObject' not found at %s", decl.Token.Pos.String())
 				return
@@ -158,10 +157,10 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		// Not resolving a forward declaration or partial - resolve parent and create new class
 		if decl.Parent != nil {
 			parentName := decl.Parent.Value
-			var found bool
 			// Task 9.285: Use lowercase for case-insensitive lookup
-			parentClass, found = a.classes[strings.ToLower(parentName)]
-			if !found {
+			// Task 6.1.1.3: Use TypeRegistry for unified type lookup
+			parentClass = a.getClassType(parentName)
+			if parentClass == nil {
 				a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
 				return
 			}
@@ -169,7 +168,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			// Task 9.51: If no explicit parent, implicitly inherit from TObject (unless this IS TObject or external)
 			// External classes can have nil parent (inherit from Object)
 			if !ident.Equal(className, "TObject") && !decl.IsExternal {
-				parentClass = a.classes["tobject"]
+				parentClass = a.getClassType("TObject")
 				if parentClass == nil {
 					a.addError("implicit parent class 'TObject' not found at %s", decl.Token.Pos.String())
 					return
@@ -282,7 +281,11 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	// Task 9.6: Register class before analyzing fields so that field initializers
 	// can reference the class name (e.g., FField := TObj2.Value)
 	// Task 9.285: Use lowercase for case-insensitive lookup
-	a.classes[strings.ToLower(className)] = classType
+	// Task 6.1.1.3: Use TypeRegistry for class registration
+	// Only register if this is a new class (not merging partial or resolving forward)
+	if !mergingPartialClass && !resolvingForwardDecl {
+		a.registerTypeWithPos(className, classType, decl.Token.Pos)
+	}
 
 	// Task 9.6: Set currentClass before analyzing constants and fields
 	// so that they can reference class constants
@@ -503,16 +506,18 @@ func (a *Analyzer) analyzeMethodImplementation(decl *ast.FunctionDecl) {
 
 	// Look up the class first
 	// Task 9.285: Use lowercase for case-insensitive lookup
-	classType, classExists := a.classes[strings.ToLower(typeName)]
-	if classExists {
+	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
+	classType := a.getClassType(typeName)
+	if classType != nil {
 		// Handle class method implementation (existing logic)
 		a.analyzeClassMethodImplementation(decl, classType, typeName)
 		return
 	}
 
 	// Look up as a record type
-	recordType, recordExists := a.records[strings.ToLower(typeName)]
-	if recordExists {
+	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
+	recordType := a.getRecordType(typeName)
+	if recordType != nil {
 		// Handle record method implementation
 		a.analyzeRecordMethodImplementation(decl, recordType, typeName)
 		return

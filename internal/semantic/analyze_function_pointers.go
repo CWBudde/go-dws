@@ -2,7 +2,6 @@ package semantic
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -95,7 +94,8 @@ func (a *Analyzer) analyzeFunctionPointerTypeDeclaration(decl *ast.TypeDeclarati
 		AliasedType: funcPtrType,
 	}
 	// Use lowercase key for case-insensitive lookup
-	a.typeAliases[strings.ToLower(decl.Name.Value)] = typeAlias
+	// Task 6.1.1.3: Use TypeRegistry for type registration
+	a.registerTypeWithPos(decl.Name.Value, typeAlias, decl.Token.Pos)
 }
 
 // ============================================================================

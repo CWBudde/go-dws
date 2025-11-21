@@ -21,7 +21,8 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 
 	// Check if enum is already declared
 	// Use lowercase for case-insensitive duplicate check
-	if _, exists := a.enums[strings.ToLower(enumName)]; exists {
+	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
+	if a.hasType(enumName) {
 		a.addError("enum type '%s' already declared at %s", enumName, decl.Token.Pos.String())
 		return
 	}
@@ -88,7 +89,7 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 	}
 
 	// Register the enum type (use lowercase key for case-insensitive lookup)
-	a.enums[strings.ToLower(enumName)] = enumType
+	a.registerTypeWithPos(enumName, enumType, decl.Token.Pos)
 
 	// Register each enum value as a constant in the symbol table
 	// For scoped enums (enum/flags keyword), skip global registration -

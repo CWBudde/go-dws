@@ -22,10 +22,11 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 
 	// Look up class in registry
 	// Task 9.285: Use lowercase for case-insensitive lookup
-	classType, found := a.classes[strings.ToLower(className)]
-	if !found {
+	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
+	classType := a.getClassType(className)
+	if classType == nil {
 		// Check if it's a record type (records don't use 'new', but might use TRecord.Create() syntax)
-		if recordType, recordFound := a.records[strings.ToLower(className)]; recordFound {
+		if recordType := a.getRecordType(className); recordType != nil {
 			// This is actually a record static method call (e.g., TTest.Create(...))
 			// Treat it as a static method call
 			return a.analyzeRecordStaticMethodCallFromNew(expr, recordType)
