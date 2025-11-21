@@ -236,27 +236,14 @@ func (a *Analyzer) isTypeMetaValueExpression(expr ast.Expression) bool {
 		return false
 	}
 
+	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
+	// Check if it's a user-defined type (enum, class, interface, alias, record, set)
+	if a.hasType(ident.Value) {
+		return true
+	}
+
+	// Check built-in types
 	lower := strings.ToLower(ident.Value)
-
-	if _, ok := a.enums[lower]; ok {
-		return true
-	}
-	if _, ok := a.classes[lower]; ok {
-		return true
-	}
-	if _, ok := a.interfaces[lower]; ok {
-		return true
-	}
-	if _, ok := a.typeAliases[lower]; ok {
-		return true
-	}
-	if _, ok := a.records[lower]; ok {
-		return true
-	}
-	if _, ok := a.sets[lower]; ok {
-		return true
-	}
-
 	switch lower {
 	case "integer", "float", "boolean", "string":
 		return true
