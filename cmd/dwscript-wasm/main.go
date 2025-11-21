@@ -15,7 +15,7 @@
 //	  WebAssembly.instantiateStreaming(fetch("dwscript.wasm"), go.importObject)
 //	    .then((result) => {
 //	      go.run(result.instance);
-//	      // DWScript API is now available as window.DWScript
+//	      // DWScript API is available as window.DWScript
 //	    });
 //	</script>
 package main

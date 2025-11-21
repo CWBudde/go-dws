@@ -88,6 +88,6 @@ func TestParserWithoutSemanticAnalysis(t *testing.T) {
 		t.Fatal("ParseProgram() returned nil")
 	}
 
-	// Parser is now purely syntactic - semantic analysis must be run separately
+	// Parser is purely syntactic - semantic analysis must be run separately
 	// to detect the type mismatch. This test verifies that separation.
 }

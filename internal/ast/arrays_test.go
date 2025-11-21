@@ -290,7 +290,7 @@ func TestArrayLiteralExpression_String(t *testing.T) {
 }
 
 func TestArrayLiteralExpression_TypeTracking(t *testing.T) {
-	// Task 9.18: Type information is now stored in SemanticInfo, not on AST nodes
+	// Type information is stored in SemanticInfo, not on AST nodes
 	// See pkg/ast/metadata_test.go for type annotation tests
 	tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
 	arrayLit := &ArrayLiteralExpression{
@@ -467,7 +467,7 @@ func TestIndexExpression(t *testing.T) {
 			Index: NewTestIntegerLiteral(0),
 		}
 
-		// Task 9.18: Type annotation now stored in SemanticInfo
+		// Type information is stored in SemanticInfo, not on AST nodes
 		// See pkg/ast/metadata_test.go for type annotation tests
 
 		// Verify node structure is correct
@@ -855,7 +855,7 @@ func TestNewArrayExpression(t *testing.T) {
 			},
 		}
 
-		// Task 9.18: Type annotation now stored in SemanticInfo
+		// Type information is stored in SemanticInfo, not on AST nodes
 		// See pkg/ast/metadata_test.go for type annotation tests
 
 		// Verify node structure is correct

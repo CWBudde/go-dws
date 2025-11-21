@@ -283,9 +283,6 @@ func TestLambdaExpression(t *testing.T) {
 
 		// Verify it implements TypedExpression interface
 		var _ TypedExpression = node
-
-		// Task 9.18: GetType/SetType methods removed - type info now in SemanticInfo
-		// See pkg/ast/metadata_test.go for type annotation tests
 	})
 
 	t.Run("lambda position tracking", func(t *testing.T) {

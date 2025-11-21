@@ -139,7 +139,7 @@ func TestLineInfoEncoding(t *testing.T) {
 	// Write instruction on different line
 	chunk.WriteSimple(OpAddInt, 2)
 
-	// Should now have two entries
+	// Should have two entries
 	if len(chunk.Lines) != 2 {
 		t.Errorf("Lines length = %d, want 2", len(chunk.Lines))
 	}

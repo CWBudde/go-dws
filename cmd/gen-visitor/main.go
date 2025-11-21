@@ -69,7 +69,7 @@ var knownNodeTypes = map[string]bool{
 	"Condition":      true,
 	"FinallyClause":  true,
 
-	// Task 9.20: Helper types that now implement Node interface
+	// Helper types that implement Node interface
 	"Parameter":           true,
 	"CaseBranch":          true,
 	"ExceptClause":        true,
@@ -79,7 +79,7 @@ var knownNodeTypes = map[string]bool{
 }
 
 // knownHelperTypes are types that don't implement Node but contain Node fields
-// NOTE: This map is now empty as all helper types have been migrated to implement Node (Task 9.20)
+// NOTE: This map is empty as all helper types have been migrated to implement Node
 var knownHelperTypes = map[string]bool{}
 
 func main() {
@@ -247,7 +247,7 @@ func extractFields(structType *ast.StructType) []*FieldInfo {
 		if len(field.Names) == 0 {
 			// This is an embedded field - skip it as we only want explicit fields
 			// Note: TypedExpressionBase/TypedStatementBase no longer have a Type field
-			// Type information is now stored in SemanticInfo (Task 9.18)
+			// Type information is stored in SemanticInfo
 			continue
 		}
 
@@ -344,7 +344,7 @@ func extractFields(structType *ast.StructType) []*FieldInfo {
 }
 
 // shouldSkipField returns true if this field should not be walked.
-// This is now type-aware: it checks both the field name AND type to make the decision.
+// This is type-aware: it checks both the field name AND type to make the decision.
 // For example, "Operator" is skipped only if it's a string, not if it's an Expression.
 func shouldSkipField(name string, fieldType string) bool {
 	// Always skip these metadata/position fields regardless of type
@@ -508,7 +508,7 @@ func Walk(v Visitor, node Node) {
 		}
 	}
 
-	// NOTE: Task 9.20 - All helper types now implement Node interface, so they are
+	// NOTE: All helper types implement Node interface, so they are
 	// generated automatically by the main visitor generation logic above.
 	// The hardcoded walkParameter, walkCaseBranch, walkExceptClause, and
 	// walkExceptionHandler functions have been removed.

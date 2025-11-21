@@ -555,7 +555,7 @@ func TestCompiler_SelfIdentifierEmitsGetSelf(t *testing.T) {
 	}
 }
 
-// TestCompiler_SetLiteral tests compilation of set literals (Task 3.5.29).
+// TestCompiler_SetLiteral tests compilation of set literals.
 func TestCompiler_SetLiteral(t *testing.T) {
 	tests := []struct {
 		name             string
