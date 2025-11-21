@@ -450,6 +450,6 @@ func (i *Interpreter) evalSetDeclaration(decl *ast.SetDecl) Value {
 	}
 
 	// Set type already registered by semantic analyzer
-	// Just return null value to indicate successful processing
-	return &NullValue{}
+	// Just return nil value to indicate successful processing
+	return &NilValue{}
 }
