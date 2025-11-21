@@ -35,6 +35,8 @@ func (c *Compiler) compileExpression(expr ast.Expression) error {
 		return c.compileArrayLiteral(node)
 	case *ast.NewArrayExpression:
 		return c.compileNewArrayExpression(node)
+	case *ast.SetLiteral:
+		return c.compileSetLiteral(node)
 	case *ast.IndexExpression:
 		return c.compileIndexExpression(node)
 	case *ast.MemberAccessExpression:
@@ -192,6 +194,169 @@ func (c *Compiler) compileArrayLiteral(expr *ast.ArrayLiteralExpression) error {
 	}
 	c.chunk.Write(OpNewArray, 0, uint16(count), lineOf(expr))
 	return nil
+}
+
+func (c *Compiler) compileSetLiteral(expr *ast.SetLiteral) error {
+	if expr == nil {
+		return c.errorf(nil, "nil set literal expression")
+	}
+
+	// Task 9.156: Check if this SetLiteral should be treated as an array (array of const)
+	// The semantic analyzer marks SetLiterals with array type annotations when the
+	// context expects an array (e.g., Format('%s', [value]) where [value] is array of const)
+	if c.semanticInfo != nil {
+		if typeAnnot := c.semanticInfo.GetType(expr); typeAnnot != nil && typeAnnot.Name != "" {
+			// Check if the type name indicates an array type
+			// Type names like "array of const", "array of Integer", "array[0..10] of String"
+			if strings.HasPrefix(strings.ToLower(typeAnnot.Name), "array") {
+				// This SetLiteral should be compiled as an array, not a set
+				// Create a temporary ArrayLiteralExpression and delegate to array compilation
+				arrayLit := &ast.ArrayLiteralExpression{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{Token: expr.Token},
+					},
+					Elements: expr.Elements,
+				}
+				// Copy type annotation to array literal so array compiler can use it
+				c.semanticInfo.SetType(arrayLit, typeAnnot)
+				// Delegate to array literal compilation
+				return c.compileArrayLiteral(arrayLit)
+			}
+		}
+	}
+
+	// Track total number of elements to be pushed onto the stack
+	// (ranges will be expanded into individual elements)
+	totalElements := 0
+
+	for _, element := range expr.Elements {
+		// Check if this is a range expression (e.g., 1..10)
+		if rangeExpr, ok := element.(*ast.RangeExpression); ok {
+			// Try to expand constant ranges at compile time
+			expanded, err := c.expandConstantRange(rangeExpr)
+			if err != nil {
+				return err
+			}
+
+			if expanded != nil {
+				// Successfully expanded constant range - push all values
+				for _, val := range expanded {
+					if err := c.emitLoadConstant(val, lineOf(rangeExpr)); err != nil {
+						return err
+					}
+					totalElements++
+				}
+			} else {
+				// Non-constant range - compile start and end, VM will expand
+				// For now, we'll compile the range expression itself and let
+				// the VM handle expansion (this requires VM support)
+				return c.errorf(rangeExpr, "non-constant ranges in set literals not yet supported")
+			}
+		} else {
+			// Regular element - compile it normally
+			if err := c.compileExpression(element); err != nil {
+				return err
+			}
+			totalElements++
+		}
+	}
+
+	if totalElements > 0xFFFF {
+		return c.errorf(expr, "set literal has too many elements (%d)", totalElements)
+	}
+
+	c.chunk.Write(OpNewSet, 0, uint16(totalElements), lineOf(expr))
+	return nil
+}
+
+// expandConstantRange attempts to expand a constant range expression at compile time.
+// Returns nil if the range is not constant (contains variables/identifiers).
+// Returns a slice of Values if the range can be expanded.
+func (c *Compiler) expandConstantRange(rangeExpr *ast.RangeExpression) ([]Value, error) {
+	if rangeExpr == nil {
+		return nil, c.errorf(nil, "nil range expression")
+	}
+
+	// Extract constant values from start and end
+	startVal, startOK := c.extractConstantValue(rangeExpr.Start)
+	endVal, endOK := c.extractConstantValue(rangeExpr.RangeEnd)
+
+	if !startOK || !endOK {
+		// Not a constant range - return nil to indicate it needs runtime expansion
+		return nil, nil
+	}
+
+	// Expand the range based on the type
+	if startVal.Type == ValueInt && endVal.Type == ValueInt {
+		start, startOK := startVal.Data.(int64)
+		end, endOK := endVal.Data.(int64)
+		if !startOK || !endOK {
+			return nil, c.errorf(rangeExpr, "invalid integer range values")
+		}
+		if end < start {
+			return nil, c.errorf(rangeExpr, "range end (%d) is less than start (%d)", end, start)
+		}
+		// Expand integer range
+		count := int(end - start + 1)
+		if count > 10000 {
+			return nil, c.errorf(rangeExpr, "range too large: %d elements (max 10000)", count)
+		}
+		result := make([]Value, count)
+		for i := 0; i < count; i++ {
+			result[i] = IntValue(start + int64(i))
+		}
+		return result, nil
+	}
+
+	if startVal.Type == ValueString && endVal.Type == ValueString {
+		// Handle character ranges (e.g., 'a'..'z')
+		startStr, startOK := startVal.Data.(string)
+		endStr, endOK := endVal.Data.(string)
+		if !startOK || !endOK {
+			return nil, c.errorf(rangeExpr, "invalid string range values")
+		}
+		if len(startStr) != 1 {
+			return nil, c.errorf(rangeExpr, "range start must be a single character, got %q", startStr)
+		}
+		if len(endStr) != 1 {
+			return nil, c.errorf(rangeExpr, "range end must be a single character, got %q", endStr)
+		}
+		startChar := rune(startStr[0])
+		endChar := rune(endStr[0])
+		if endChar < startChar {
+			return nil, c.errorf(rangeExpr, "range end (%c) is less than start (%c)", endChar, startChar)
+		}
+		// Expand character range
+		count := int(endChar - startChar + 1)
+		if count > 10000 {
+			return nil, c.errorf(rangeExpr, "range too large: %d elements (max 10000)", count)
+		}
+		result := make([]Value, count)
+		for i := 0; i < count; i++ {
+			result[i] = StringValue(string(startChar + rune(i)))
+		}
+		return result, nil
+	}
+
+	return nil, c.errorf(rangeExpr, "unsupported range type: %s", startVal.Type)
+}
+
+// extractConstantValue extracts a constant value from an expression if possible.
+// Returns (value, true) for constants, (Value{}, false) for non-constants.
+func (c *Compiler) extractConstantValue(expr ast.Expression) (Value, bool) {
+	switch node := expr.(type) {
+	case *ast.IntegerLiteral:
+		return IntValue(node.Value), true
+	case *ast.StringLiteral:
+		return StringValue(node.Value), true
+	case *ast.CharLiteral:
+		return StringValue(string(node.Value)), true
+	case *ast.BooleanLiteral:
+		return BoolValue(node.Value), true
+	default:
+		// Non-constant expression (identifier, function call, etc.)
+		return Value{}, false
+	}
 }
 
 func (c *Compiler) compileNewArrayExpression(expr *ast.NewArrayExpression) error {

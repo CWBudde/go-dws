@@ -525,6 +525,16 @@ const (
 	OpArrayIndexOf
 
 	// ========================================
+	// Set Operations (1 opcode)
+	// ========================================
+
+	// OpNewSet creates a new set from elements on stack.
+	// Format: [OpNewSet][unused][elementCount]
+	// Stack: [elem1, elem2, ..., elemN] -> [set]
+	// Elements can be individual values or expanded from ranges
+	OpNewSet
+
+	// ========================================
 	// Object Operations (10 opcodes)
 	// ========================================
 
@@ -695,7 +705,7 @@ const (
 	// Stack: [] -> []
 	OpDebugger
 
-	// Total: 114 opcodes
+	// Total: 115 opcodes
 	// This keeps us well under 128 (7 binary search comparisons in Go switch)
 )
 
@@ -791,6 +801,7 @@ var OpCodeNames = [...]string{
 	OpArrayCount:       "ARRAY_COUNT",
 	OpArrayDelete:      "ARRAY_DELETE",
 	OpArrayIndexOf:     "ARRAY_INDEX_OF",
+	OpNewSet:           "NEW_SET",
 	OpNewObject:        "NEW_OBJECT",
 	OpNewRecord:        "NEW_RECORD", // Task 9.7
 	OpGetField:         "GET_FIELD",

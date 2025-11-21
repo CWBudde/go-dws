@@ -376,6 +376,23 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				elements[i] = val
 			}
 			vm.push(ArrayValue(NewArrayInstance(elements)))
+		case OpNewSet:
+			elementCount := int(inst.B())
+			if elementCount < 0 {
+				return NilValue(), vm.runtimeError("NEW_SET negative element count %d", elementCount)
+			}
+			if len(vm.stack) < elementCount {
+				return NilValue(), vm.runtimeError("NEW_SET requires %d values on stack", elementCount)
+			}
+			elements := make([]Value, elementCount)
+			for i := elementCount - 1; i >= 0; i-- {
+				val, err := vm.pop()
+				if err != nil {
+					return NilValue(), err
+				}
+				elements[i] = val
+			}
+			vm.push(SetValue(NewSetInstance(elements)))
 		case OpNewArraySized:
 			sizeVal, err := vm.pop()
 			if err != nil {
