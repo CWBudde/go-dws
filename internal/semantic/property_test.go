@@ -352,7 +352,7 @@ end;
 
 	// Verify both classes have their properties registered
 	// Use lowercase for case-insensitive lookup
-	baseClass := analyzer.classes["tbase"]
+	baseClass := analyzer.GetClasses()["tbase"]
 	if baseClass == nil {
 		t.Fatal("TBase class not found")
 	}
@@ -361,7 +361,7 @@ end;
 	}
 
 	// Use lowercase for case-insensitive lookup
-	derivedClass := analyzer.classes["tderived"]
+	derivedClass := analyzer.GetClasses()["tderived"]
 	if derivedClass == nil {
 		t.Fatal("TDerived class not found")
 	}
@@ -405,7 +405,7 @@ end;
 	}
 
 	// Use lowercase for case-insensitive lookup
-	class := analyzer.classes["ttest"]
+	class := analyzer.GetClasses()["ttest"]
 	if class == nil {
 		t.Fatal("TTest class not found")
 	}
@@ -476,7 +476,7 @@ end;
 	}
 
 	// Use lowercase for case-insensitive lookup
-	class := analyzer.classes["ttest"]
+	class := analyzer.GetClasses()["ttest"]
 	if class == nil {
 		t.Fatal("TTest class not found")
 	}
@@ -573,7 +573,7 @@ end;`,
 			}
 
 			// Verify class has properties registered
-			class := analyzer.classes["ttest"]
+			class := analyzer.GetClasses()["ttest"]
 			if class == nil {
 				t.Fatal("TTest class not found")
 			}
@@ -706,7 +706,7 @@ end;
 		t.Errorf("unexpected semantic error: %v", err)
 	}
 
-	class := analyzer.classes["ttest"]
+	class := analyzer.GetClasses()["ttest"]
 	if class == nil {
 		t.Fatal("TTest class not found")
 	}

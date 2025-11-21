@@ -61,9 +61,8 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			var fullImplParent *types.ClassType
 			if decl.Parent != nil {
 				parentName := decl.Parent.Value
-				var found bool
 				fullImplParent = a.getClassType(parentName)
-				if !found {
+				if fullImplParent == nil {
 					a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
 					return
 				}
@@ -105,9 +104,8 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		var parentClass *types.ClassType
 		if decl.Parent != nil {
 			parentName := decl.Parent.Value
-			var found bool
 			parentClass = a.getClassType(parentName)
-			if !found {
+			if parentClass == nil {
 				a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
 				return
 			}
@@ -138,9 +136,8 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		// Update parent if specified in this partial declaration and wasn't set before
 		if decl.Parent != nil && parentClass == nil {
 			parentName := decl.Parent.Value
-			var found bool
 			parentClass = a.getClassType(parentName)
-			if !found {
+			if parentClass == nil {
 				a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
 				return
 			}
@@ -160,10 +157,10 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		// Not resolving a forward declaration or partial - resolve parent and create new class
 		if decl.Parent != nil {
 			parentName := decl.Parent.Value
-			var found bool
 			// Task 9.285: Use lowercase for case-insensitive lookup
+			// Task 6.1.1.3: Use TypeRegistry for unified type lookup
 			parentClass = a.getClassType(parentName)
-			if !found {
+			if parentClass == nil {
 				a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
 				return
 			}
@@ -285,7 +282,10 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	// can reference the class name (e.g., FField := TObj2.Value)
 	// Task 9.285: Use lowercase for case-insensitive lookup
 	// Task 6.1.1.3: Use TypeRegistry for class registration
-	a.registerTypeWithPos(className, classType, decl.Token.Pos)
+	// Only register if this is a new class (not merging partial or resolving forward)
+	if !mergingPartialClass && !resolvingForwardDecl {
+		a.registerTypeWithPos(className, classType, decl.Token.Pos)
+	}
 
 	// Task 9.6: Set currentClass before analyzing constants and fields
 	// so that they can reference class constants

@@ -743,6 +743,7 @@ func (a *Analyzer) analyzeTypeDeclaration(decl *ast.TypeDeclaration) {
 		}
 
 		// Use lowercase key for case-insensitive lookup
-		a.typeAliases[strings.ToLower(decl.Name.Value)] = typeAlias
+		// Task 6.1.1.3: Use TypeRegistry for type registration
+		a.registerTypeWithPos(decl.Name.Value, typeAlias, decl.Token.Pos)
 	}
 }
