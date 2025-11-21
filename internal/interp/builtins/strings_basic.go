@@ -393,13 +393,16 @@ func SubStr(ctx Context, args []Value) Value {
 
 // NOTE: Format() is implemented below in the "Advanced String Operations" section.
 
-// TODO: Insert - Requires special handling (takes []ast.Expression, modifies variable in-place)
-// Original signature: func (i *Interpreter) builtinInsert(args []ast.Expression) Value
-// This procedure modifies a string variable in-place and requires AST evaluation.
-
-// TODO: DeleteString - Requires special handling (takes []ast.Expression, modifies variable in-place)
-// Original signature: func (i *Interpreter) builtinDeleteString(args []ast.Expression) Value
-// This procedure modifies a string variable in-place and requires AST evaluation.
+// NOTE: Insert() and Delete() for strings are var-param functions implemented in the
+// interpreter (internal/interp/builtins_strings_basic.go) because they require AST-level
+// access to modify variables in-place. They cannot be migrated to this builtins package
+// since the Context interface only provides evaluated values, not AST nodes.
+//
+// Implemented var-param string functions:
+//   - Insert(source, var dest, pos) - builtinInsert() in builtins_strings_basic.go
+//   - Delete(var s, pos, count) - builtinDeleteString() in builtins_strings_basic.go
+//
+// These are routed through callBuiltinWithVarParam() in functions_builtins.go.
 
 // Chr implements the Chr() built-in function.
 // It converts an integer character code to a single-character string.
