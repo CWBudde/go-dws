@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // Syntax: type ClassName = class(Parent) ... end;

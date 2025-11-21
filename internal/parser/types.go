@@ -3,8 +3,8 @@ package parser
 import (
 	"strconv"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // Type expressions can be:

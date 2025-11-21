@@ -1,8 +1,8 @@
 package interp
 
 import (
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // evalPropertyRead evaluates a property read access.

@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/units"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // TestInitializeUnits_NoRegistry tests initialization when no registry is set

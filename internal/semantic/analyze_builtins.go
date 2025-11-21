@@ -3,7 +3,7 @@ package semantic
 import (
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // ============================================================================

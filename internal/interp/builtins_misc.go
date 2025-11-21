@@ -1,7 +1,7 @@
 package interp
 
 import (
-	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // Miscellaneous Built-in Functions

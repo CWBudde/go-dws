@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/units"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // LoadUnit loads a DWScript unit by name, using the interpreter's unit registry.

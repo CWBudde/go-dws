@@ -1,9 +1,9 @@
 package evaluator
 
 import (
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // Phase 3.5.4 - Phase 2E: Imports for future use (commented out for now)

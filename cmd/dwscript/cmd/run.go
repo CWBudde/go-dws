@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/bytecode"
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/interp"
@@ -13,7 +12,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/units"
-	pkgast "github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/spf13/cobra"
 )
 
@@ -150,7 +149,7 @@ func runScript(_ *cobra.Command, args []string) error {
 	// Run semantic analysis if type checking is enabled
 	// Skip type checking if units are used, since symbols from units
 	// aren't available until runtime
-	var semanticInfo *pkgast.SemanticInfo
+	var semanticInfo *ast.SemanticInfo
 	if typeCheck && !hasUnits {
 		analyzer := semantic.NewAnalyzer()
 		// Set source code for rich error messages

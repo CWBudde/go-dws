@@ -5,8 +5,8 @@ import (
 	"math"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
 	pkgast "github.com/cwbudde/go-dws/pkg/ast" // Task 9.18
 	"github.com/cwbudde/go-dws/pkg/token"      // Task 6.1.1.3: for TypeRegistry
 )

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/token"
 )
 

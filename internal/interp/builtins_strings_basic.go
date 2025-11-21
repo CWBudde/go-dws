@@ -5,7 +5,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // builtinConcat implements the Concat() built-in function.

@@ -3,9 +3,9 @@ package semantic
 import (
 	"testing"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // TestAnalyzeUnit_BasicInterfaceAndImplementation tests that AnalyzeUnit

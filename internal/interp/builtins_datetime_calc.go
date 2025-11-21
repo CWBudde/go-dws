@@ -3,7 +3,7 @@ package interp
 import (
 	"time"
 
-	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // ============================================================================
