@@ -82,49 +82,306 @@
 
 ### 1.3 Builtins - String Functions Requiring Special Handling
 
-#### ArrayValue Migration and By-Ref Parameters
-
 **Location**: [internal/interp/builtins/strings_basic.go](internal/interp/builtins/strings_basic.go)
 
 **Priority**: HIGH
 
-**Affected Functions**:
+**Status**: Planned - Divided into 8 subtasks
 
-**ArrayValue Dependencies** (4 functions):
-
-1. [Format()](internal/interp/builtins/strings_basic.go#L393) - line 393
-2. [StrSplit()](internal/interp/builtins/strings_basic.go#L937) - line 937
-3. [StrJoin()](internal/interp/builtins/strings_basic.go#L941) - line 941
-4. [StrArrayPack()](internal/interp/builtins/strings_basic.go#L945) - line 945
-
-**TODO**: Requires ArrayValue to be moved to runtime package
-
-**By-Ref Parameter Dependencies** (3 functions):
-
-1. [Insert()](internal/interp/builtins/strings_basic.go#L397) - line 397
-2. [Delete()](internal/interp/builtins/strings_basic.go#L401) - line 401
-3. [DeleteString()](internal/interp/builtins/strings_basic.go#L401) - line 401
-
-**TODO**: Requires special handling (takes []ast.Expression, modifies variable in-place)
+**Overview**: 7 string functions require either ArrayValue migration (4 functions) or var parameter support (3 functions). This task has been broken down into manageable subtasks with clear dependencies.
 
 **Impact**:
-
 - 7 string functions incomplete
 - Blocks FunctionsString fixture tests
-- ArrayValue circular dependency issue prevents completion
+- ArrayValue circular dependency prevents completion
+- Var parameter language feature not yet implemented
 
-**Action Required**:
+---
 
-1. **Phase A - ArrayValue Migration**:
-   - Move ArrayValue from interp to runtime package
-   - Update all imports
-   - Resolve circular dependencies
-   - Complete 4 array-dependent functions
+#### 1.3.1 ArrayValue Dependency Analysis
 
-2. **Phase B - By-Ref Parameters**:
-   - Implement by-ref parameter support (var parameters)
-   - Allow functions to modify caller's variables
-   - Complete Insert/Delete/DeleteString functions
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 2-3 days
+
+**Goal**: Document all current uses of ArrayValue and identify circular dependencies
+
+**Tasks**:
+- [ ] Scan entire codebase for ArrayValue usage
+- [ ] Map out import dependencies (interp → runtime, runtime → types, etc.)
+- [ ] Identify which types/functions MUST move with ArrayValue
+- [ ] Document the dependency graph
+- [ ] Create migration plan document
+
+**Deliverables**:
+- `docs/arrayvalue-migration-analysis.md` with dependency graph
+- List of all files that will be affected by the move
+
+**Acceptance Criteria**:
+- All ArrayValue usages documented
+- Circular dependency causes identified
+- Clear migration path defined
+
+---
+
+#### 1.3.2 Move ArrayValue to Runtime Package
+
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 3-5 days
+
+**Depends On**: 1.3.1
+
+**Goal**: Move ArrayValue type from internal/interp to internal/interp/runtime
+
+**Tasks**:
+- [ ] Move `ArrayValue` type definition to `internal/interp/runtime/`
+- [ ] Move any dependent helper types (ArrayTypeInfo, etc.)
+- [ ] Update all imports across the codebase
+- [ ] Resolve any circular import issues (may need interface extraction)
+- [ ] Run full test suite to verify no breakage
+
+**Files to Modify**:
+- `internal/interp/runtime/` - Add ArrayValue
+- `internal/interp/` - Update imports
+- `internal/interp/builtins/` - Update imports
+- `internal/bytecode/` - Update imports (if applicable)
+
+**Acceptance Criteria**:
+- ArrayValue successfully moved to runtime package
+- All tests pass
+- No circular import errors
+- Code still compiles and runs correctly
+
+---
+
+#### 1.3.3 Implement Format() Function
+
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 1-2 days
+
+**Depends On**: 1.3.2
+
+**Goal**: Complete Format() builtin function implementation
+
+**Current Status**: Stubbed at line 393 of strings_basic.go
+
+**Tasks**:
+- [ ] Review original DWScript Format() implementation
+- [ ] Implement format string parsing (placeholders: %s, %d, %f, etc.)
+- [ ] Handle array argument correctly (now accessible via runtime.ArrayValue)
+- [ ] Add comprehensive error handling
+- [ ] Write unit tests for Format()
+- [ ] Test with various format strings and edge cases
+
+**Test Cases**:
+- Format('Hello %s', ['World'])
+- Format('%d + %d = %d', [2, 3, 5])
+- Format('%f', [3.14159])
+- Error cases: mismatched placeholders, wrong types
+
+**Acceptance Criteria**:
+- Format() works with all standard format specifiers
+- Handles arrays of mixed types
+- All unit tests pass
+- Error messages are clear and helpful
+
+---
+
+#### 1.3.4 Implement StrSplit() Function
+
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 1 day
+
+**Depends On**: 1.3.2
+
+**Goal**: Complete StrSplit() builtin function implementation
+
+**Current Status**: Stubbed at line 937 of strings_basic.go
+
+**Tasks**:
+- [ ] Implement string splitting logic
+- [ ] Return ArrayValue with split results
+- [ ] Handle delimiter options (single char, string, regex)
+- [ ] Handle edge cases (empty string, delimiter not found, etc.)
+- [ ] Write unit tests
+
+**Test Cases**:
+- StrSplit('a,b,c', ',') → ['a', 'b', 'c']
+- StrSplit('hello', ',') → ['hello']
+- StrSplit('', ',') → []
+- Multiple consecutive delimiters
+
+**Acceptance Criteria**:
+- Function returns ArrayValue correctly
+- All test cases pass
+- Compatible with original DWScript behavior
+
+---
+
+#### 1.3.5 Implement StrJoin() and StrArrayPack() Functions
+
+**Priority**: MEDIUM | **Status**: Not Started | **Estimated**: 1 day
+
+**Depends On**: 1.3.2
+
+**Goal**: Complete StrJoin() and StrArrayPack() builtin functions
+
+**Current Status**: Stubbed at lines 941, 945 of strings_basic.go
+
+**Tasks**:
+- [ ] Implement StrJoin() - joins array elements with delimiter
+- [ ] Implement StrArrayPack() - packs string array
+- [ ] Handle ArrayValue as input parameter
+- [ ] Write unit tests for both functions
+- [ ] Test interaction with StrSplit() (round-trip)
+
+**Test Cases**:
+- StrJoin(['a', 'b', 'c'], ',') → 'a,b,c'
+- StrArrayPack(['hello', 'world'])
+- Round-trip: StrJoin(StrSplit(s, d), d) should equal s
+
+**Acceptance Criteria**:
+- Both functions work with ArrayValue
+- All test cases pass
+- Round-trip tests validate correctness
+
+---
+
+#### 1.3.6 Design Var Parameter Language Feature
+
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 3-5 days
+
+**Depends On**: None (can start independently)
+
+**Goal**: Design and document var parameter support for DWScript
+
+**Tasks**:
+- [ ] Research original DWScript var parameter semantics
+- [ ] Design AST representation for var parameters
+- [ ] Design semantic analysis for var parameters
+- [ ] Design interpreter evaluation strategy
+- [ ] Design bytecode compilation strategy
+- [ ] Create design document with examples
+- [ ] Review design document for completeness
+
+**Design Questions to Answer**:
+- How are var parameters marked in AST? (VarParameter node?)
+- How does semantic analyzer track var parameters?
+- How does interpreter pass references?
+- How does bytecode represent var parameters?
+- Can var parameters be nested in function calls?
+- Type checking rules for var parameters?
+
+**Deliverables**:
+- `docs/var-parameters-design.md` with complete specification
+
+**Acceptance Criteria**:
+- Design covers all language layers (lexer, parser, AST, semantic, interp, bytecode)
+- Examples provided for common use cases
+- Edge cases and error conditions documented
+
+---
+
+#### 1.3.7 Implement Var Parameter Support
+
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 1-2 weeks
+
+**Depends On**: 1.3.6
+
+**Goal**: Implement var parameter language feature across all compiler layers
+
+**Tasks**:
+
+**Lexer** (if needed):
+- [ ] Add any necessary tokens (likely 'var' already exists)
+
+**Parser**:
+- [ ] Parse var parameter declarations: `procedure Foo(var x: Integer)`
+- [ ] Create AST nodes for var parameters
+- [ ] Add tests for var parameter parsing
+
+**AST**:
+- [ ] Define VarParameter node or flag
+- [ ] Update function declaration nodes
+- [ ] Update visitor pattern
+
+**Semantic Analyzer**:
+- [ ] Validate var parameters (must be assignable lvalues)
+- [ ] Type check var parameter arguments
+- [ ] Ensure var parameters point to valid variables
+- [ ] Add semantic tests
+
+**Interpreter**:
+- [ ] Implement reference passing mechanism
+- [ ] Support write-back to caller's variables
+- [ ] Handle nested scopes correctly
+- [ ] Add interpreter tests
+
+**Bytecode Compiler/VM**:
+- [ ] Design bytecode instructions for var parameters
+- [ ] Implement var parameter compilation
+- [ ] Implement var parameter execution in VM
+- [ ] Add bytecode tests
+
+**Acceptance Criteria**:
+- All compiler layers support var parameters
+- Can pass variables by reference
+- Can modify caller's variables
+- All tests pass (parser, semantic, interp, bytecode)
+
+---
+
+#### 1.3.8 Implement Insert(), Delete(), DeleteString() Functions
+
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 2-3 days
+
+**Depends On**: 1.3.7
+
+**Goal**: Complete string modification builtin functions using var parameters
+
+**Current Status**: Stubbed at lines 397, 401 of strings_basic.go
+
+**Tasks**:
+- [ ] Implement Insert() - insert substring into var string
+- [ ] Implement Delete() - delete substring from var string
+- [ ] Implement DeleteString() - delete specific text from var string
+- [ ] Use var parameter mechanism to modify caller's variable
+- [ ] Add comprehensive tests for all three functions
+- [ ] Test with FunctionsString fixture suite
+
+**Signatures**:
+```pascal
+procedure Insert(source: String; var dest: String; index: Integer);
+procedure Delete(var s: String; index: Integer; count: Integer);
+procedure DeleteString(var s: String; substr: String);
+```
+
+**Test Cases**:
+- Insert operations at various positions
+- Delete operations at boundaries
+- DeleteString with multiple occurrences
+- Edge cases: empty strings, out-of-bounds indices
+
+**Acceptance Criteria**:
+- All three functions modify caller's string correctly
+- No copies/returns, pure in-place modification
+- All unit tests pass
+- FunctionsString fixture tests pass
+
+---
+
+### Task 1.3 Summary
+
+**Total Estimated Time**: 4-6 weeks
+
+**Breakdown**:
+- **Phase A (ArrayValue Migration)**: 1.3.1 → 1.3.2 → 1.3.3, 1.3.4, 1.3.5 (2-3 weeks)
+- **Phase B (Var Parameters)**: 1.3.6 → 1.3.7 → 1.3.8 (2-3 weeks)
+
+**Parallelization Opportunity**: Tasks 1.3.1-1.3.5 (ArrayValue) and 1.3.6-1.3.8 (Var Parameters) can be worked on concurrently as they have no dependencies on each other.
+
+**Critical Path**: 1.3.7 (Implement Var Parameter Support) is the most complex and time-consuming task.
+
+**Deliverables**:
+- 4 string functions using ArrayValue (Format, StrSplit, StrJoin, StrArrayPack)
+- 3 string functions using var parameters (Insert, Delete, DeleteString)
+- Var parameter language feature (usable for other future functions)
+- 2 design documents
 
 **Stage Relevance**: Phase 3.7.1 (documented in [docs/phase3-task3.7.1-summary.md](docs/phase3-task3.7.1-summary.md))
 
