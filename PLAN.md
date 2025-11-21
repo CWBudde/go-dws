@@ -1521,6 +1521,695 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - Hooked the analyzer into the parser/interpreter/CLI (with a disable flag) so type errors surface before execution and runtime uses inferred types.
 - Upgraded diagnostics with per-node position data, the `errors/` formatter, and curated fixtures in `testdata/type_errors` plus `testdata/type_valid`, alongside CLI integration suites.
 
+---
+
+## Phase 6.1: Semantic Analyzer Architectural Refactoring 🚧 **CRITICAL TECHNICAL DEBT**
+
+**Motivation**: The semantic analyzer has grown organically to ~20,000 lines across 40+ files. While functional, it exhibits the "God Object" anti-pattern with an 81-field `Analyzer` struct, no clear separation between analysis passes, scattered state management, and maintenance challenges. This refactoring addresses architectural issues before adding more features.
+
+**Impact**:
+- **Maintainability**: Easier to understand, test, and extend
+- **LSP Support**: Better foundation for language server features (goto definition, find references)
+- **Performance**: Multi-pass design enables parallel analysis and better caching
+- **Code Quality**: Reduced coupling, clearer separation of concerns
+
+**Status**: NOT STARTED
+
+**Priority**: P0 - CRITICAL (Must complete before major feature additions)
+
+**Estimate**: 80-120 hours (2-3 weeks full-time)
+
+---
+
+## Task 6.1.1: Extract and Centralize Type Registry 🎯 **HIGH PRIORITY**
+
+**Goal**: Replace 7 scattered type maps with a unified `TypeRegistry` component that handles all type registration, lookup, and resolution.
+
+**Estimate**: 16-20 hours (2-3 days)
+
+**Status**: NOT STARTED
+
+**Priority**: P0 - CRITICAL (Foundation for other refactorings)
+
+**Current Problem**:
+The `Analyzer` struct currently has 7 separate type maps (in analyzer.go):
+- `classes map[string]*types.ClassType`
+- `interfaces map[string]*types.InterfaceType`
+- `enums map[string]*types.EnumType`
+- `records map[string]*types.RecordType`
+- `sets map[string]*types.SetType`
+- `arrays map[string]*types.ArrayType`
+- `typeAliases map[string]*types.TypeAlias`
+
+This causes:
+- Duplicate lookup logic across 7 different maps
+- No way to iterate all types for documentation/LSP
+- Inconsistent case-sensitivity handling (each map does it separately)
+- No central type resolution point
+- Difficult to add new type kinds
+
+**Insight from Analysis**: Each map independently handles case-insensitivity with `strings.ToLower()`. Type resolution requires checking all 7 maps sequentially. No unified API for "register any type" or "lookup any type".
+
+**Subtasks**:
+
+- [ ] **6.1.1.1 Design TypeRegistry interface**
+  - [ ] Create `internal/semantic/type_registry.go`
+  - [ ] Define `TypeRegistry` struct with unified internal storage
+  - [ ] Design methods: `Register(name string, typ types.Type)`, `Resolve(name string) (types.Type, bool)`
+  - [ ] Add methods: `AllTypes() map[string]types.Type`, `TypesByKind(kind string) []types.Type`
+  - [ ] Include position tracking for type definitions (needed for LSP)
+  - [ ] Write comprehensive unit tests for registry operations
+
+- [ ] **6.1.1.2 Implement type registration**
+  - [ ] Create single internal map: `types map[string]*TypeDescriptor`
+  - [ ] `TypeDescriptor` contains: `Name string`, `Type types.Type`, `Position lexer.Position`, `Visibility int`
+  - [ ] Handle case-insensitive lookup with `strings.ToLower()` in one place
+  - [ ] Support type aliasing and resolution of aliases to underlying types
+  - [ ] Validate uniqueness (prevent duplicate type names)
+  - [ ] Write tests for registration edge cases
+
+- [ ] **6.1.1.3 Migrate existing type maps**
+  - [ ] Replace `Analyzer.classes` with `TypeRegistry.Register/Resolve` calls
+  - [ ] Replace `Analyzer.interfaces` with registry calls
+  - [ ] Replace `Analyzer.enums`, `Analyzer.records`, `Analyzer.sets` with registry
+  - [ ] Replace `Analyzer.arrays`, `Analyzer.typeAliases` with registry
+  - [ ] Update all call sites in `analyze_classes.go`, `analyze_enums.go`, etc.
+  - [ ] Run full test suite to verify no regressions
+
+- [ ] **6.1.1.4 Add registry query capabilities**
+  - [ ] Implement `TypesByKind(kind string)` to get all classes/interfaces/etc.
+  - [ ] Implement `TypesInScope(scope)` for nested type scopes
+  - [ ] Add `FindTypeByPosition(pos)` for LSP "type at cursor"
+  - [ ] Add `GetTypeDependencies(typeName)` for dependency analysis
+  - [ ] Write integration tests for LSP-style queries
+
+**Files to Create**:
+- `internal/semantic/type_registry.go` (new)
+- `internal/semantic/type_registry_test.go` (new)
+
+**Files to Modify**:
+- `internal/semantic/analyzer.go` (remove 7 type maps, add `TypeRegistry` field)
+- `internal/semantic/analyze_classes.go` (use registry instead of `a.classes`)
+- `internal/semantic/analyze_interfaces.go` (use registry)
+- `internal/semantic/analyze_enums.go` (use registry)
+- `internal/semantic/analyze_records.go` (use registry)
+- `internal/semantic/analyze_sets.go` (use registry)
+- `internal/semantic/analyze_arrays.go` (use registry)
+- `internal/semantic/type_resolution.go` (simplify with unified registry)
+
+**Success Metrics**:
+- All 7 type maps removed from `Analyzer` struct
+- Single call site for all type registration
+- Unified case-insensitive lookup
+- All existing tests pass
+- New tests for TypeRegistry at 90%+ coverage
+
+---
+
+## Task 6.1.2: Implement Multi-Pass Analysis Architecture 🎯 **HIGH PRIORITY**
+
+**Goal**: Restructure semantic analysis into explicit passes with clear dependencies, replacing the current single-pass approach that requires complex fix-ups.
+
+**Estimate**: 24-32 hours (3-4 days)
+
+**Status**: NOT STARTED
+
+**Priority**: P0 - CRITICAL (Enables correct handling of forward declarations and type dependencies)
+
+**Current Problem**:
+The analyzer tries to do everything in one pass (analyzer.go:276-310):
+```go
+func (a *Analyzer) Analyze(program *ast.Program) error {
+    for _, stmt := range program.Statements {
+        a.analyzeStatement(stmt)  // Does registration + resolution + validation
+    }
+    // Post-hoc fix-ups for things that couldn't be validated in single pass
+    a.validateMethodImplementations()
+    a.validateFunctionImplementations()
+    a.validateClassForwardDeclarations()
+    return ...
+}
+```
+
+This causes:
+- Forward declarations don't work reliably (class A references class B declared later)
+- Complex type dependencies fail (recursive types, circular references)
+- No way to parallelize analysis
+- Difficult to cache intermediate results
+- "Fix-up" validations scattered throughout codebase
+
+**Insight from Analysis**: Lines 287-293 show three separate post-analysis validation passes. These are band-aids for fundamental architectural issues. DWScript's forward declarations and complex type dependencies require proper multi-pass design.
+
+**Subtasks**:
+
+- [ ] **6.1.2.1 Design pass architecture**
+  - [ ] Create `internal/semantic/passes/` package
+  - [ ] Define `Pass` interface: `Name() string`, `Run(program *ast.Program, ctx *PassContext) error`
+  - [ ] Create `PassContext` struct containing TypeRegistry, SymbolTable, errors
+  - [ ] Design pass dependency graph: Pass1 → Pass2 → Pass3 → Pass4
+  - [ ] Write architecture documentation in `docs/semantic-passes.md`
+
+- [ ] **6.1.2.2 Implement Pass 1: Declaration Collection**
+  - [ ] Create `DeclarationPass` that only registers type/function names
+  - [ ] Walk AST and register: class names, interface names, enum names, record names
+  - [ ] Register function/procedure signatures (without analyzing bodies)
+  - [ ] Handle forward declarations by marking types as incomplete
+  - [ ] Do NOT resolve type references yet (just collect names)
+  - [ ] Write unit tests for declaration collection
+
+- [ ] **6.1.2.3 Implement Pass 2: Type Resolution**
+  - [ ] Create `TypeResolutionPass` that resolves all type references
+  - [ ] Resolve class parent types and interface implementations
+  - [ ] Resolve field types, method signatures, parameter types
+  - [ ] Build complete type hierarchies (inheritance chains)
+  - [ ] Detect circular type dependencies and report errors
+  - [ ] Validate that forward-declared types have implementations
+  - [ ] Write unit tests for type resolution
+
+- [ ] **6.1.2.4 Implement Pass 3: Semantic Validation**
+  - [ ] Create `ValidationPass` that type-checks expressions and statements
+  - [ ] Validate variable declarations and assignments
+  - [ ] Type-check all expressions (binary ops, calls, member access)
+  - [ ] Validate control flow (break/continue in loops, return in functions)
+  - [ ] Check abstract method implementations in concrete classes
+  - [ ] Validate interface method implementations
+  - [ ] Write unit tests for semantic validation
+
+- [ ] **6.1.2.5 Implement Pass 4: Contract Validation**
+  - [ ] Create `ContractPass` for requires/ensures/invariant checking
+  - [ ] Validate that postconditions only use valid 'old' expressions
+  - [ ] Check class invariants are maintained
+  - [ ] Validate requires clauses don't reference mutable state incorrectly
+  - [ ] Write unit tests for contract validation
+
+- [ ] **6.1.2.6 Integrate passes into Analyzer**
+  - [ ] Refactor `Analyzer.Analyze()` to run passes sequentially
+  - [ ] Pass shared context between passes (TypeRegistry, SymbolTable)
+  - [ ] Collect errors from all passes before returning
+  - [ ] Remove post-hoc validation methods (now done in proper passes)
+  - [ ] Run full test suite to verify correctness
+
+- [ ] **6.1.2.7 Add pass result caching**
+  - [ ] Cache Pass 1 results for incremental re-analysis
+  - [ ] Cache Pass 2 type resolution for unchanged files
+  - [ ] Design cache invalidation strategy (changed files invalidate dependent passes)
+  - [ ] Write tests for caching behavior
+
+**Files to Create**:
+- `internal/semantic/passes/pass.go` (interface definition)
+- `internal/semantic/passes/declaration_pass.go`
+- `internal/semantic/passes/type_resolution_pass.go`
+- `internal/semantic/passes/validation_pass.go`
+- `internal/semantic/passes/contract_pass.go`
+- `internal/semantic/passes/pass_context.go`
+- `docs/semantic-passes.md` (architecture documentation)
+
+**Files to Modify**:
+- `internal/semantic/analyzer.go` (refactor `Analyze()` method to use passes)
+- All `analyze_*.go` files (move logic into appropriate passes)
+
+**Success Metrics**:
+- Four explicit passes with clear responsibilities
+- Forward declarations work reliably
+- Circular dependencies detected early
+- Post-hoc validation methods removed
+- All tests pass with new architecture
+- Performance same or better (measure with benchmarks)
+
+---
+
+## Task 6.1.3: Refactor Symbol Table for LSP Support 🎯 **MEDIUM PRIORITY**
+
+**Goal**: Enhance `SymbolTable` to track symbol positions, usage locations, documentation, and metadata required for Language Server Protocol features.
+
+**Estimate**: 12-16 hours (1.5-2 days)
+
+**Status**: NOT STARTED
+
+**Priority**: P1 - HIGH (Required for LSP, but can defer if necessary)
+
+**Current Problem**:
+The `Symbol` struct (symbol_table.go:10-21) is too simplistic:
+```go
+type Symbol struct {
+    Type                 types.Type
+    Value                interface{}  // Using interface{} for constants
+    Name                 string
+    // ... flags ...
+    // Missing: Position, Usage locations, Documentation, Deprecation info
+}
+```
+
+This prevents:
+- "Go to definition" (no position tracking)
+- "Find all references" (no usage tracking)
+- Hover documentation (no doc strings)
+- Unused variable warnings (no usage count)
+- Symbol rename refactoring (no usage locations)
+
+**Insight from Analysis**: Symbol table is only 638 lines and lacks critical metadata for modern IDE features. No position tracking means LSP features impossible without major rework.
+
+**Subtasks**:
+
+- [ ] **6.1.3.1 Enhance Symbol struct**
+  - [ ] Add `DeclPosition lexer.Position` field
+  - [ ] Add `Usages []lexer.Position` slice for tracking references
+  - [ ] Add `Documentation string` field for doc comments
+  - [ ] Add `IsDeprecated bool` and `DeprecationMessage string`
+  - [ ] Add `Attributes map[string]string` for custom metadata
+  - [ ] Update all `Define*` methods to accept position parameter
+  - [ ] Write unit tests for enhanced symbol structure
+
+- [ ] **6.1.3.2 Track symbol usage locations**
+  - [ ] In `Resolve()`, record usage position when symbol found
+  - [ ] Add `RecordUsage(name string, pos lexer.Position)` method
+  - [ ] Track both reads and writes separately (for unused write detection)
+  - [ ] Write tests for usage tracking
+
+- [ ] **6.1.3.3 Add symbol query methods**
+  - [ ] Implement `FindDefinition(name string) (*Symbol, lexer.Position, bool)`
+  - [ ] Implement `FindReferences(name string) []lexer.Position`
+  - [ ] Implement `SymbolsInScope(pos lexer.Position) []*Symbol`
+  - [ ] Implement `UnusedSymbols() []*Symbol` (symbols defined but never used)
+  - [ ] Write unit tests for query methods
+
+- [ ] **6.1.3.4 Integrate with analyzer**
+  - [ ] Update all `Define()` calls to pass AST node position
+  - [ ] Update all `Resolve()` calls to record usage position
+  - [ ] Extract documentation from preceding comments during parsing
+  - [ ] Store symbol documentation in Symbol struct
+  - [ ] Write integration tests
+
+- [ ] **6.1.3.5 Add scope metadata**
+  - [ ] Add `ScopeKind` enum: Global, Function, Class, Block
+  - [ ] Track scope boundaries (start/end positions)
+  - [ ] Add `GetScopeAt(pos lexer.Position) *SymbolTable` method
+  - [ ] Write tests for scope querying
+
+**Files to Modify**:
+- `internal/semantic/symbol_table.go` (enhance Symbol and SymbolTable)
+- `internal/semantic/analyzer.go` (pass positions to symbol operations)
+- All `analyze_*.go` files (pass positions when defining/resolving symbols)
+
+**Files to Create**:
+- `internal/semantic/symbol_query.go` (LSP query methods)
+- `internal/semantic/symbol_query_test.go`
+
+**Success Metrics**:
+- Every symbol has position information
+- Usage tracking works for all references
+- Query methods return correct results
+- All existing tests pass
+- New tests for LSP queries at 85%+ coverage
+
+---
+
+## Task 6.1.4: Consolidate Error Handling 🎯 **MEDIUM PRIORITY**
+
+**Goal**: Remove dual error system (string + structured) and commit to single, consistent structured error approach throughout semantic analyzer.
+
+**Estimate**: 8-12 hours (1-1.5 days)
+
+**Status**: NOT STARTED
+
+**Priority**: P1 - HIGH (Code quality and consistency)
+
+**Current Problem**:
+Analyzer has TWO error systems (analyzer.go:72-73, 456-472):
+```go
+type Analyzer struct {
+    errors           []string            // String errors
+    structuredErrors []*SemanticError    // Structured errors
+}
+
+func (a *Analyzer) addError(format string, args ...any) {
+    a.errors = append(a.errors, fmt.Sprintf(format, args...))
+}
+
+func (a *Analyzer) addStructuredError(err *SemanticError) {
+    a.structuredErrors = append(a.structuredErrors, err)
+    a.errors = append(a.errors, err.Error())  // Duplicate!
+}
+```
+
+Problems:
+- Most code uses `addError()` (string-based)
+- Structured errors are rarely used (incomplete migration)
+- Duplicate storage wastes memory
+- Inconsistent error reporting to CLI/LSP
+- String errors lose position and context information
+
+**Insight from Analysis**: Lines 456-472 show technical debt from incomplete refactoring. String errors dominate codebase. Structured errors would enable better IDE integration (error decorations, quick fixes).
+
+**Subtasks**:
+
+- [ ] **6.1.4.1 Audit error call sites**
+  - [ ] Find all `addError()` calls across semantic analyzer
+  - [ ] Categorize errors: type mismatch, undefined symbol, duplicate declaration, etc.
+  - [ ] Document required information for each error category
+  - [ ] Create spreadsheet/document of error patterns
+
+- [ ] **6.1.4.2 Design comprehensive SemanticError types**
+  - [ ] Create error types: `TypeMismatchError`, `UndefinedSymbolError`, `DuplicateDeclarationError`
+  - [ ] Each error type includes: position, context, suggested fix (if applicable)
+  - [ ] Add `ErrorCode` enum for programmatic error handling
+  - [ ] Support error severity: Error, Warning, Hint
+  - [ ] Write unit tests for error construction
+
+- [ ] **6.1.4.3 Replace addError() calls incrementally**
+  - [ ] Start with most common errors (type mismatch, undefined symbol)
+  - [ ] Replace `addError()` calls with `addStructuredError()` calls
+  - [ ] Update call sites to provide position and context
+  - [ ] Run tests after each file to ensure correctness
+  - [ ] Continue until all `addError()` calls removed
+
+- [ ] **6.1.4.4 Remove string error system**
+  - [ ] Delete `errors []string` field from Analyzer
+  - [ ] Delete `addError()` method
+  - [ ] Rename `addStructuredError()` to `addError()`
+  - [ ] Rename `StructuredErrors()` to `Errors()`
+  - [ ] Update all callers to use new API
+
+- [ ] **6.1.4.5 Enhance error formatting**
+  - [ ] Improve `SemanticError.Error()` to include file, line, column
+  - [ ] Add color-coded error output for CLI
+  - [ ] Add source code snippet with error location highlighted
+  - [ ] Support JSON error format for LSP integration
+  - [ ] Write tests for error formatting
+
+**Files to Modify**:
+- `internal/semantic/errors.go` (add error types)
+- `internal/semantic/analyzer.go` (remove string errors)
+- All `analyze_*.go` files (replace addError calls)
+- `cmd/dwscript/commands/*.go` (update error display)
+
+**Success Metrics**:
+- Zero `addError()` calls remain
+- All errors are structured with positions
+- Error messages improved with context
+- CLI shows beautiful, helpful error messages
+- All tests pass
+
+---
+
+## Task 6.1.5: Extract Builtin Library from Semantic Analyzer 🎯 **MEDIUM PRIORITY**
+
+**Goal**: Move builtin function implementations out of semantic analyzer into separate `internal/stdlib` package. Analyzer should only validate signatures, not implement functions.
+
+**Estimate**: 12-16 hours (1.5-2 days)
+
+**Status**: NOT STARTED
+
+**Priority**: P1 - HIGH (Separation of concerns)
+
+**Current Problem**:
+Files like these are in semantic analyzer:
+- `analyze_builtin_math.go` (23KB) - mathematical functions
+- `analyze_builtin_string_transform.go` - string manipulation
+- `analyze_builtin_datetime.go` - date/time functions
+- `analyze_builtin_json.go` - JSON parsing
+- `analyze_builtin_convert.go` - type conversions
+
+These files contain **runtime implementations**, not just signature validation. This violates separation of concerns.
+
+**Insight from Analysis**: The semantic analyzer is 20,000 lines, with ~8,000 lines being builtin function implementations. These should live in interpreter/stdlib, not analyzer. Analyzer should only know "function X exists with signature Y".
+
+**Subtasks**:
+
+- [ ] **6.1.5.1 Design builtin registry**
+  - [ ] Create `internal/stdlib/registry.go`
+  - [ ] Define `BuiltinFunc` struct with: Name, Signature, Implementation
+  - [ ] Create `BuiltinRegistry` with registration and lookup methods
+  - [ ] Support categories: Math, String, DateTime, JSON, Array, Type Conversion
+  - [ ] Write unit tests for registry
+
+- [ ] **6.1.5.2 Extract math builtins**
+  - [ ] Move functions from `analyze_builtin_math.go` to `internal/stdlib/math.go`
+  - [ ] Register signatures with semantic analyzer
+  - [ ] Move implementations to interpreter
+  - [ ] Update tests to use new structure
+  - [ ] Verify all math function tests pass
+
+- [ ] **6.1.5.3 Extract string builtins**
+  - [ ] Move from `analyze_builtin_string_*.go` to `internal/stdlib/string.go`
+  - [ ] Register signatures with analyzer
+  - [ ] Move implementations to interpreter
+  - [ ] Update tests
+
+- [ ] **6.1.5.4 Extract remaining builtins**
+  - [ ] Extract datetime functions to `internal/stdlib/datetime.go`
+  - [ ] Extract JSON functions to `internal/stdlib/json.go`
+  - [ ] Extract conversion functions to `internal/stdlib/convert.go`
+  - [ ] Extract array functions to `internal/stdlib/array.go`
+  - [ ] Extract encoding functions to `internal/stdlib/encoding.go`
+
+- [ ] **6.1.5.5 Update analyzer to use registry**
+  - [ ] In `NewAnalyzer()`, register all builtin signatures from registry
+  - [ ] Remove implementation code from analyzer
+  - [ ] Analyzer only validates: "does this builtin exist? do arguments match?"
+  - [ ] Delete old `analyze_builtin_*.go` files from semantic package
+  - [ ] Update all tests
+
+- [ ] **6.1.5.6 Update interpreter integration**
+  - [ ] Modify interpreter to get builtin implementations from stdlib registry
+  - [ ] Remove duplicate builtin code from interpreter
+  - [ ] Ensure all builtin tests pass
+  - [ ] Verify no performance regression
+
+**Files to Create**:
+- `internal/stdlib/registry.go`
+- `internal/stdlib/math.go`
+- `internal/stdlib/string.go`
+- `internal/stdlib/datetime.go`
+- `internal/stdlib/json.go`
+- `internal/stdlib/convert.go`
+- `internal/stdlib/array.go`
+- `internal/stdlib/encoding.go`
+
+**Files to Delete** (after migration):
+- `internal/semantic/analyze_builtin_math.go`
+- `internal/semantic/analyze_builtin_string_transform.go`
+- `internal/semantic/analyze_builtin_string_format.go`
+- `internal/semantic/analyze_builtin_string_search.go`
+- `internal/semantic/analyze_builtin_datetime.go`
+- `internal/semantic/analyze_builtin_json.go`
+- `internal/semantic/analyze_builtin_convert.go`
+- `internal/semantic/analyze_builtin_array.go`
+- `internal/semantic/analyze_builtin_encoding.go`
+- `internal/semantic/analyze_builtin_variant.go`
+
+**Files to Modify**:
+- `internal/semantic/analyzer.go` (use registry instead of direct implementation)
+- `internal/interp/interpreter.go` (get builtins from stdlib)
+
+**Success Metrics**:
+- Semantic analyzer is ~12,000 lines instead of 20,000
+- All builtin implementations in single `internal/stdlib` package
+- Analyzer only validates signatures
+- All tests pass
+- No performance regression
+
+---
+
+## Task 6.1.6: Replace State Flags with Context Stack 🎯 **LOW PRIORITY**
+
+**Goal**: Replace fragile boolean state flags (`inLoop`, `inLambda`, etc.) with proper context stack that automatically manages state transitions.
+
+**Estimate**: 8-10 hours (1 day)
+
+**Status**: NOT STARTED
+
+**Priority**: P2 - MEDIUM (Code quality improvement, not blocking)
+
+**Current Problem**:
+Analyzer has 7 fragile state flags (analyzer.go:74-81):
+```go
+loopDepth          int
+inExceptionHandler bool
+inFinallyBlock     bool
+inLoop             bool
+inLambda           bool
+inClassMethod      bool
+inPropertyExpr     bool
+```
+
+Problems:
+- Must manually set/unset in every function
+- Easy to forget cleanup (especially in error paths)
+- Breaks with nested contexts (lambda inside loop inside class method)
+- No automatic restoration on scope exit
+- Difficult to add new context types
+
+**Insight from Analysis**: No automatic cleanup mechanism. Nested contexts (lambda in loop) prone to bugs. Should use defer pattern or context stack.
+
+**Subtasks**:
+
+- [ ] **6.1.6.1 Design AnalysisContext stack**
+  - [ ] Create `AnalysisContext` struct with: Kind (Loop/Lambda/ClassMethod/etc.), Data map[string]any
+  - [ ] Create `ContextStack` with `Push()`, `Pop()`, `Current()`, `InContext(kind)` methods
+  - [ ] Support defer-based automatic cleanup: `defer ctx.Pop()`
+  - [ ] Write unit tests for context stack
+
+- [ ] **6.1.6.2 Replace loop flags**
+  - [ ] Replace `loopDepth` and `inLoop` with context stack
+  - [ ] Update loop analysis functions to push/pop loop context
+  - [ ] Update break/continue validation to check context stack
+  - [ ] Test nested loops
+
+- [ ] **6.1.6.3 Replace lambda flags**
+  - [ ] Replace `inLambda` with context stack
+  - [ ] Update lambda analysis to push/pop lambda context
+  - [ ] Store lambda signature in context data
+  - [ ] Test nested lambdas
+
+- [ ] **6.1.6.4 Replace class method flags**
+  - [ ] Replace `inClassMethod` with context stack
+  - [ ] Store current class type in context data
+  - [ ] Update Self/inherited expression validation
+  - [ ] Test methods in nested classes
+
+- [ ] **6.1.6.5 Replace exception handler flags**
+  - [ ] Replace `inExceptionHandler` and `inFinallyBlock` with context stack
+  - [ ] Update exception statement validation
+  - [ ] Test nested try/except/finally
+
+- [ ] **6.1.6.6 Remove old flags**
+  - [ ] Delete all boolean flags from Analyzer struct
+  - [ ] Replace flag checks with `ctx.InContext(kind)` calls
+  - [ ] Run full test suite
+  - [ ] Verify nested context scenarios work correctly
+
+**Files to Create**:
+- `internal/semantic/analysis_context.go`
+- `internal/semantic/analysis_context_test.go`
+
+**Files to Modify**:
+- `internal/semantic/analyzer.go` (replace flags with context stack)
+- `internal/semantic/analyze_statements.go` (use context stack)
+- `internal/semantic/analyze_lambdas.go` (use context stack)
+- `internal/semantic/analyze_classes.go` (use context stack)
+
+**Success Metrics**:
+- All 7 boolean flags removed
+- Context automatically cleaned up with defer
+- Nested contexts work correctly
+- All tests pass
+- Code more maintainable
+
+---
+
+## Task 6.1.7: Migrate to Visitor Pattern for AST Traversal 🎯 **LOW PRIORITY**
+
+**Goal**: Replace giant type switches with generated visitor pattern for cleaner, more maintainable AST traversal.
+
+**Estimate**: 12-16 hours (1.5-2 days)
+
+**Status**: NOT STARTED
+
+**Priority**: P2 - MEDIUM (Code quality, not urgent)
+
+**Current Problem**:
+AST traversal uses giant type switches (analyze_statements.go:18-88, analyze_expressions.go:14-98):
+```go
+func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
+    switch e := expr.(type) {
+    case *ast.IntegerLiteral:
+        // ...
+    case *ast.FloatLiteral:
+        // ...
+    // ... 30+ cases ...
+    }
+}
+```
+
+Problems:
+- Difficult to maintain (easy to miss cases)
+- No compile-time guarantee all node types handled
+- Hard to add new node types
+- Traversal logic mixed with analysis logic
+- Can't easily customize traversal order
+
+**Insight from Analysis**: Project already has generated visitor pattern in `pkg/ast/visitor_generated.go`. Should use it instead of manual type switches.
+
+**Subtasks**:
+
+- [ ] **6.1.7.1 Study generated visitor**
+  - [ ] Review `pkg/ast/visitor_generated.go` implementation
+  - [ ] Understand `Visitor` interface and `Walk*` functions
+  - [ ] Identify how to integrate with semantic analyzer
+  - [ ] Document visitor usage patterns
+
+- [ ] **6.1.7.2 Create SemanticVisitor**
+  - [ ] Implement `Visitor` interface in `internal/semantic/visitor.go`
+  - [ ] Each `Visit*` method delegates to appropriate analyze function
+  - [ ] Maintain analyzer state (symbol table, type registry, errors)
+  - [ ] Write unit tests for visitor
+
+- [ ] **6.1.7.3 Refactor expression analysis**
+  - [ ] Replace `analyzeExpression()` type switch with visitor dispatch
+  - [ ] Keep analysis logic in separate methods (e.g., `analyzeBinaryOp()`)
+  - [ ] Visitor calls analysis methods instead of inlining logic
+  - [ ] Update tests
+
+- [ ] **6.1.7.4 Refactor statement analysis**
+  - [ ] Replace `analyzeStatement()` type switch with visitor dispatch
+  - [ ] Keep analysis logic in separate methods
+  - [ ] Update tests
+
+- [ ] **6.1.7.5 Remove old type switches**
+  - [ ] Delete manual type switches from analyze_*.go files
+  - [ ] Ensure all node types covered by visitor
+  - [ ] Run full test suite
+  - [ ] Verify no regressions
+
+**Files to Create**:
+- `internal/semantic/visitor.go`
+- `internal/semantic/visitor_test.go`
+
+**Files to Modify**:
+- `internal/semantic/analyze_expressions.go` (use visitor)
+- `internal/semantic/analyze_statements.go` (use visitor)
+- Other analyze_*.go files as needed
+
+**Success Metrics**:
+- No type switches for AST traversal
+- Visitor handles all node types
+- Compile-time safety for node coverage
+- All tests pass
+- Code more maintainable
+
+---
+
+## Phase 6.1 Summary
+
+**Total Estimate**: 80-120 hours (2-3 weeks full-time)
+
+**Completion Criteria**:
+- [ ] Unified TypeRegistry replaces 7 scattered type maps
+- [ ] Multi-pass architecture with clear separation
+- [ ] Enhanced SymbolTable with LSP metadata
+- [ ] Single structured error system
+- [ ] Builtin functions extracted to stdlib
+- [ ] Context stack replaces boolean flags
+- [ ] Visitor pattern for AST traversal
+- [ ] All existing tests pass
+- [ ] Documentation updated
+- [ ] Semantic analyzer reduced from 20,000 to ~12,000 lines
+- [ ] Maintainability score improved significantly
+
+**Dependencies**:
+- Task 6.1.1 (TypeRegistry) must complete before 6.1.2 (multi-pass)
+- Task 6.1.2 (multi-pass) must complete before other refactorings
+- Tasks 6.1.3-6.1.7 can proceed in parallel after 6.1.2
+
+**Risk Mitigation**:
+- Comprehensive test suite ensures correctness during refactoring
+- Incremental approach allows rolling back if issues found
+- Each task is independently testable
+- No public API changes (all internal refactoring)
+
+---
+
 ## Stage 7: Support Object-Oriented Features (Classes, Interfaces, Methods) ✅ **COMPLETED**
 
 - Extended the type system and AST with class/interface nodes, constructors/destructors, member access, `Self`, `NewExpression`, and external declarations (see docs/stage7-summary.md).
