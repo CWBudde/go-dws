@@ -175,13 +175,14 @@ func EncodeDateTime(ctx Context, args []Value) Value {
 // Date Decoding Functions (Var Parameters)
 // =============================================================================
 
-// TODO: DecodeDate - Requires special handling (takes []ast.Expression, modifies variables in-place)
-// Original signature: func (i *Interpreter) builtinDecodeDate(args []ast.Expression) Value
+// NOTE: DecodeDate and DecodeTime are implemented in internal/interp/builtins_datetime_calc.go
+// as var-param functions (taking []ast.Expression). They cannot be migrated to the builtins
+// package because they need direct AST access to modify variables in-place.
+//
 // DecodeDate(dt: TDateTime; var year, month, day: Integer)
-
-// TODO: DecodeTime - Requires special handling (takes []ast.Expression, modifies variables in-place)
-// Original signature: func (i *Interpreter) builtinDecodeTime(args []ast.Expression) Value
 // DecodeTime(dt: TDateTime; var hour, minute, second, msec: Integer)
+//
+// These functions are registered in callBuiltinWithVarParam() in functions_builtins.go.
 
 // =============================================================================
 // Incrementing Functions
