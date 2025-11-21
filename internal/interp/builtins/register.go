@@ -20,10 +20,14 @@ package builtins
 //   - System: 4 functions (GetStackTrace, GetCallStack, Assigned, Assert)
 //
 // Pending migration (still in internal/interp as Interpreter methods):
-//   - Var-param functions: Inc, Dec, Swap, DivMod, Insert, Delete, SetLength (7 functions)
-//   - String helpers requiring ArrayValue or var-params: Format, StrSplit, StrJoin, StrArrayPack, Insert, Delete, DeleteString (7 functions)
+//   - Var-param functions: Inc, Dec, Swap, DivMod, SetLength (5 functions)
+//     Note: Insert/Delete for strings are also var-param but implemented via callBuiltinWithVarParam
 //
-// Total: 231 registered (added Random, RandomInt, Randomize, SetRandSeed, RandSeed, RandG), ~13 pending migration (244 built-in functions total)
+// Note: Var-param functions cannot be migrated to this package because they require
+// AST-level access to modify variables in-place. They use the callBuiltinWithVarParam()
+// mechanism in functions_builtins.go.
+//
+// Total: 234 registered (added StrSplit, StrJoin, StrArrayPack), ~5 var-param functions remain in interpreter
 var DefaultRegistry *Registry
 
 func init() {
