@@ -51,7 +51,7 @@ func (a *Analyzer) isBuiltinFunction(name string) bool {
 		"sametext", "comparetext", "comparestr", "ansicomparetext", "ansicomparestr",
 		"comparelocalestr", "strmatches", "strisascii",
 		"format", "abs", "min", "max", "sqr", "power", "sqrt", "sin",
-		"cos", "tan", "random", "randomize", "exp", "ln", "log2", "round",
+		"cos", "tan", "random", "randomize", "randomint", "setrandseed", "randseed", "randg", "exp", "ln", "log2", "round",
 		"trunc", "frac", "chr", "setlength", "high", "low", "assigned",
 		"degtorad", "radtodeg", "arcsin", "arccos", "arctan", "arctan2",
 		"cotan", "hypot", "sinh", "cosh", "tanh", "arcsinh", "arccosh", "arctanh",

@@ -2,12 +2,10 @@ package builtins
 
 import (
 	"math"
+	"time"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 )
-
-// NOTE: math/rand and time imports will be needed when random functions are implemented
-// after Context interface is extended with RandSource(), GetRandSeed(), and SetRandSeed() methods.
 
 // =============================================================================
 // Basic Math Functions
@@ -589,37 +587,30 @@ func IsInfinite(ctx Context, args []Value) Value {
 // Random implements the Random() built-in function.
 // It returns a random Float between 0.0 (inclusive) and 1.0 (exclusive).
 // Random() - returns random Float in [0, 1)
-// TODO: Requires Context.RandSource() method
 func Random(ctx Context, args []Value) Value {
 	if len(args) != 0 {
 		return ctx.NewError("Random() expects no arguments, got %d", len(args))
 	}
 
-	// TODO: Need to access random source from context
-	// return &runtime.FloatValue{Value: ctx.RandSource().Float64()}
-	panic("Random() not yet implemented - requires Context.RandSource() method")
+	return &runtime.FloatValue{Value: ctx.RandSource().Float64()}
 }
 
 // Randomize implements the Randomize() built-in procedure.
 // It seeds the random number generator with the current time.
 // Randomize() - seeds RNG with current time (no return value)
-// TODO: Requires Context.SetRandSeed() method
 func Randomize(ctx Context, args []Value) Value {
 	if len(args) != 0 {
 		return ctx.NewError("Randomize() expects no arguments, got %d", len(args))
 	}
 
-	// TODO: Need to set random seed in context
-	// seed := time.Now().UnixNano()
-	// ctx.SetRandSeed(seed)
-	// return &runtime.NilValue{}
-	panic("Randomize() not yet implemented - requires Context.SetRandSeed() method")
+	seed := time.Now().UnixNano()
+	ctx.SetRandSeed(seed)
+	return &runtime.NilValue{}
 }
 
 // RandomInt implements the RandomInt() built-in function.
 // It returns a random integer between 0 (inclusive) and max (exclusive).
 // RandomInt(max) - max must be positive
-// TODO: Requires Context.RandSource() method
 func RandomInt(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("RandomInt() expects exactly 1 argument, got %d", len(args))
@@ -640,16 +631,13 @@ func RandomInt(ctx Context, args []Value) Value {
 		return ctx.NewError("RandomInt() expects max > 0, got %d", max)
 	}
 
-	// TODO: Need to access random source from context
-	// randomValue := ctx.RandSource().Intn(int(max))
-	// return &runtime.IntegerValue{Value: int64(randomValue)}
-	panic("RandomInt() not yet implemented - requires Context.RandSource() method")
+	randomValue := ctx.RandSource().Intn(int(max))
+	return &runtime.IntegerValue{Value: int64(randomValue)}
 }
 
 // SetRandSeed implements the SetRandSeed() built-in function.
 // It sets the seed for the random number generator.
 // SetRandSeed(seed: Integer)
-// TODO: Requires Context.SetRandSeed() method
 func SetRandSeed(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("SetRandSeed() expects exactly 1 argument, got %d", len(args))
@@ -661,52 +649,43 @@ func SetRandSeed(ctx Context, args []Value) Value {
 		return ctx.NewError("SetRandSeed() expects Integer, got %s", args[0].Type())
 	}
 
-	// TODO: Need to set random seed in context
-	// ctx.SetRandSeed(seedVal.Value)
-	// return &runtime.NilValue{}
-	_ = seedVal // avoid unused variable error
-	panic("SetRandSeed() not yet implemented - requires Context.SetRandSeed() method")
+	ctx.SetRandSeed(seedVal.Value)
+	return &runtime.NilValue{}
 }
 
 // RandSeed implements the RandSeed() built-in function.
 // It returns the current random seed value.
 // RandSeed: Integer
-// TODO: Requires Context.GetRandSeed() method
 func RandSeed(ctx Context, args []Value) Value {
 	if len(args) != 0 {
 		return ctx.NewError("RandSeed expects no arguments, got %d", len(args))
 	}
 
-	// TODO: Need to get random seed from context
-	// return &runtime.IntegerValue{Value: ctx.GetRandSeed()}
-	panic("RandSeed() not yet implemented - requires Context.GetRandSeed() method")
+	return &runtime.IntegerValue{Value: ctx.GetRandSeed()}
 }
 
 // RandG implements the RandG() built-in function.
 // It returns a Gaussian (normal) distributed random number with mean=0 and stddev=1.
 // Uses the Box-Muller transform.
 // RandG(): Float
-// TODO: Requires Context.RandSource() method
 func RandG(ctx Context, args []Value) Value {
 	if len(args) != 0 {
 		return ctx.NewError("RandG() expects no arguments, got %d", len(args))
 	}
 
-	// TODO: Need to access random source from context
 	// Box-Muller transform to generate Gaussian distributed random numbers
 	// Generate two uniform random numbers in (0, 1]
-	// rng := ctx.RandSource()
-	// u1 := rng.Float64()
-	// u2 := rng.Float64()
-	//
-	// // Ensure u1 is not zero or near-zero to avoid log(0)
-	// if u1 < 1e-10 {
-	// 	u1 = 1e-10
-	// }
-	//
-	// // Box-Muller transform
-	// z0 := math.Sqrt(-2.0*math.Log(u1)) * math.Cos(2.0*math.Pi*u2)
-	//
-	// return &runtime.FloatValue{Value: z0}
-	panic("RandG() not yet implemented - requires Context.RandSource() method")
+	rng := ctx.RandSource()
+	u1 := rng.Float64()
+	u2 := rng.Float64()
+
+	// Ensure u1 is not zero or near-zero to avoid log(0)
+	if u1 < 1e-10 {
+		u1 = 1e-10
+	}
+
+	// Box-Muller transform
+	z0 := math.Sqrt(-2.0*math.Log(u1)) * math.Cos(2.0*math.Pi*u2)
+
+	return &runtime.FloatValue{Value: z0}
 }

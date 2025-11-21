@@ -6,15 +6,15 @@
 
 ## Executive Summary
 
-**Total TODOs**: 109 in Go source files (excluding testdata) - 1 completed
+**Total TODOs**: 109 in Go source files (excluding testdata) - 2 completed
 
 **Quick Stats**:
 
-- HIGH: 24 (blocking features, builtins migration) - ~~1 completed~~
+- HIGH: 24 (blocking features, builtins migration) - ~~2 completed~~
 - MEDIUM: 30+ (architecture improvements, enhancements)
 - LOW: 20+ (future features, nice-to-haves)
 - FIXTURE TESTS: 25 disabled test suites
-- ✅ COMPLETED: 1 (Set type declarations)
+- ✅ COMPLETED: 2 (Set type declarations, Random number functions)
 
 **Distribution by Category**:
 
@@ -32,91 +32,597 @@
 
 ---
 
-### 1.2 Builtins - Random Number Functions Migration
+### ~~1.2 Builtins - Random Number Functions Migration~~ ✅ COMPLETED
 
-#### Random Functions Need Context Interface Extension
+**Status**: COMPLETED (2025-11-21)
 
-**Location**: [internal/interp/builtins/register.go:137](internal/interp/builtins/register.go#L137)
+**Summary**: All 6 random number functions have been successfully migrated to the builtins package and are fully functional in both the AST interpreter and bytecode VM.
 
-**TODO**: Random number functions currently implemented in Interpreter, not yet migrated
+**Changes Made**:
 
-**Priority**: HIGH
+1. **Context Interface** (`internal/interp/builtins/context.go`):
+   - ✅ RandSource() *rand.Rand (line 48)
+   - ✅ GetRandSeed() int64 (line 52)
+   - ✅ SetRandSeed(seed int64) (line 56)
 
-**Affected Functions** (6 total):
+2. **Interpreter Implementation** (`internal/interp/builtins_context.go`):
+   - ✅ Implemented all three Context methods (lines 33, 39, 45)
 
-1. [Random()](internal/interp/builtins/math_basic.go#L592) - needs Context.RandSource()
-2. [Randomize()](internal/interp/builtins/math_basic.go#L606) - needs Context.SetRandSeed()
-3. [RandomInt()](internal/interp/builtins/math_basic.go#L622) - needs Context.RandSource()
-4. [SetRandSeed()](internal/interp/builtins/math_basic.go#L652) - needs Context.SetRandSeed()
-5. [RandSeed()](internal/interp/builtins/math_basic.go#L674) - needs Context.GetRandSeed()
-6. [RandG()](internal/interp/builtins/math_basic.go#L689) - needs Context.RandSource()
+3. **Builtin Functions** (`internal/interp/builtins/math_basic.go`):
+   - ✅ Random() - returns random float [0, 1) (line 592)
+   - ✅ Randomize() - seeds RNG with current time (line 603)
+   - ✅ RandomInt(max) - returns random int [0, max) (line 614)
+   - ✅ SetRandSeed(seed) - sets random seed (line 641)
+   - ✅ RandSeed() - returns current seed (line 659)
+   - ✅ RandG() - returns Gaussian random (line 671)
 
-**Impact**:
+4. **Builtin Registry** (`internal/interp/builtins/register.go`):
+   - ✅ All 6 functions registered (lines 138-143)
+   - ✅ Updated status comment (231 functions registered, Math: 68 functions)
 
-- Blocks Phase 3 refactoring completion
-- 6 random number functions incomplete
-- Affects random number generation in scripts
+5. **Semantic Analyzer** (`internal/semantic/analyze_builtins.go`):
+   - ✅ Added randomint, setrandseed, randseed, randg to builtin list (line 54)
 
-**Action Required**:
+6. **Bytecode Compiler** (`internal/bytecode/compiler_functions.go`):
+   - ✅ Added isBuiltinFunction() method with all 6 random functions (line 125-170)
+   - ✅ Modified compileCallExpression() to handle builtins (line 77-92)
 
-1. Extend Context interface with:
-   - `RandSource() *rand.Rand`
-   - `SetRandSeed(seed int64)`
-   - `GetRandSeed() int64`
-2. Implement these methods in Interpreter's context
-3. Migrate all 6 random functions to builtins package
-4. Remove old implementations from Interpreter
-5. Test with random number fixture tests
+7. **Bytecode VM** (`internal/bytecode/vm_builtins_math.go`):
+   - ✅ Implemented builtinRandom() and builtinRandomInt() (lines 275-297)
+   - ✅ Registered all 6 functions in VM (lines 24-29, lowercase)
 
-**Stage Relevance**: Phase 3 Refactoring (Builtins Migration)
+**Verification**:
+- ✅ AST Interpreter: All functions work correctly
+- ✅ Bytecode VM: All functions compile and execute
+- ✅ Test script confirms deterministic seeding and correct behavior
+
+**Note**: General bytecode VM builtin registration uses capital letters which causes issues. This was fixed for random functions by using lowercase registration. A systematic fix for all VM builtins may be needed separately.
 
 ---
 
 ### 1.3 Builtins - String Functions Requiring Special Handling
 
-#### ArrayValue Migration and By-Ref Parameters
-
 **Location**: [internal/interp/builtins/strings_basic.go](internal/interp/builtins/strings_basic.go)
 
 **Priority**: HIGH
 
-**Affected Functions**:
+**Status**: Planned - Divided into 8 subtasks
 
-**ArrayValue Dependencies** (4 functions):
-
-1. [Format()](internal/interp/builtins/strings_basic.go#L393) - line 393
-2. [StrSplit()](internal/interp/builtins/strings_basic.go#L937) - line 937
-3. [StrJoin()](internal/interp/builtins/strings_basic.go#L941) - line 941
-4. [StrArrayPack()](internal/interp/builtins/strings_basic.go#L945) - line 945
-
-**TODO**: Requires ArrayValue to be moved to runtime package
-
-**By-Ref Parameter Dependencies** (3 functions):
-
-1. [Insert()](internal/interp/builtins/strings_basic.go#L397) - line 397
-2. [Delete()](internal/interp/builtins/strings_basic.go#L401) - line 401
-3. [DeleteString()](internal/interp/builtins/strings_basic.go#L401) - line 401
-
-**TODO**: Requires special handling (takes []ast.Expression, modifies variable in-place)
+**Overview**: 7 string functions require either ArrayValue migration (4 functions) or var parameter support (3 functions). This task has been broken down into manageable subtasks with clear dependencies.
 
 **Impact**:
-
 - 7 string functions incomplete
 - Blocks FunctionsString fixture tests
-- ArrayValue circular dependency issue prevents completion
+- ArrayValue circular dependency prevents completion
+- Var parameter language feature not yet implemented
 
-**Action Required**:
+---
 
-1. **Phase A - ArrayValue Migration**:
-   - Move ArrayValue from interp to runtime package
-   - Update all imports
-   - Resolve circular dependencies
-   - Complete 4 array-dependent functions
+#### 1.3.1 ArrayValue Dependency Analysis
 
-2. **Phase B - By-Ref Parameters**:
-   - Implement by-ref parameter support (var parameters)
-   - Allow functions to modify caller's variables
-   - Complete Insert/Delete/DeleteString functions
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 2-3 days
+
+**Goal**: Document all current uses of ArrayValue and identify circular dependencies
+
+**Tasks**:
+- [ ] Scan entire codebase for ArrayValue usage
+- [ ] Map out import dependencies (interp → runtime, runtime → types, etc.)
+- [ ] Identify which types/functions MUST move with ArrayValue
+- [ ] Document the dependency graph
+- [ ] Create migration plan document
+
+**Deliverables**:
+- `docs/arrayvalue-migration-analysis.md` with dependency graph
+- List of all files that will be affected by the move
+
+**Acceptance Criteria**:
+- All ArrayValue usages documented
+- Circular dependency causes identified
+- Clear migration path defined
+
+---
+
+#### 1.3.2 Move ArrayValue to Runtime Package
+
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 3-5 days
+
+**Depends On**: 1.3.1
+
+**Goal**: Move ArrayValue type from internal/interp to internal/interp/runtime
+
+**Tasks**:
+- [ ] Move `ArrayValue` type definition to `internal/interp/runtime/`
+- [ ] Move any dependent helper types (ArrayTypeInfo, etc.)
+- [ ] Update all imports across the codebase
+- [ ] Resolve any circular import issues (may need interface extraction)
+- [ ] Run full test suite to verify no breakage
+
+**Files to Modify**:
+- `internal/interp/runtime/` - Add ArrayValue
+- `internal/interp/` - Update imports
+- `internal/interp/builtins/` - Update imports
+- `internal/bytecode/` - Update imports (if applicable)
+
+**Acceptance Criteria**:
+- ArrayValue successfully moved to runtime package
+- All tests pass
+- No circular import errors
+- Code still compiles and runs correctly
+
+---
+
+#### 1.3.3 Implement Format() Function
+
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 1-2 days
+
+**Depends On**: 1.3.2
+
+**Goal**: Complete Format() builtin function implementation
+
+**Current Status**: Stubbed at line 393 of strings_basic.go
+
+**Tasks**:
+- [ ] Review original DWScript Format() implementation
+- [ ] Implement format string parsing (placeholders: %s, %d, %f, etc.)
+- [ ] Handle array argument correctly (now accessible via runtime.ArrayValue)
+- [ ] Add comprehensive error handling
+- [ ] Write unit tests for Format()
+- [ ] Test with various format strings and edge cases
+
+**Test Cases**:
+- Format('Hello %s', ['World'])
+- Format('%d + %d = %d', [2, 3, 5])
+- Format('%f', [3.14159])
+- Error cases: mismatched placeholders, wrong types
+
+**Acceptance Criteria**:
+- Format() works with all standard format specifiers
+- Handles arrays of mixed types
+- All unit tests pass
+- Error messages are clear and helpful
+
+---
+
+#### 1.3.4 Implement StrSplit() Function
+
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 1 day
+
+**Depends On**: 1.3.2
+
+**Goal**: Complete StrSplit() builtin function implementation
+
+**Current Status**: Stubbed at line 937 of strings_basic.go
+
+**Tasks**:
+- [ ] Implement string splitting logic
+- [ ] Return ArrayValue with split results
+- [ ] Handle delimiter options (single char, string, regex)
+- [ ] Handle edge cases (empty string, delimiter not found, etc.)
+- [ ] Write unit tests
+
+**Test Cases**:
+- StrSplit('a,b,c', ',') → ['a', 'b', 'c']
+- StrSplit('hello', ',') → ['hello']
+- StrSplit('', ',') → []
+- Multiple consecutive delimiters
+
+**Acceptance Criteria**:
+- Function returns ArrayValue correctly
+- All test cases pass
+- Compatible with original DWScript behavior
+
+---
+
+#### 1.3.5 Implement StrJoin() and StrArrayPack() Functions
+
+**Priority**: MEDIUM | **Status**: Not Started | **Estimated**: 1 day
+
+**Depends On**: 1.3.2
+
+**Goal**: Complete StrJoin() and StrArrayPack() builtin functions
+
+**Current Status**: Stubbed at lines 941, 945 of strings_basic.go
+
+**Tasks**:
+- [ ] Implement StrJoin() - joins array elements with delimiter
+- [ ] Implement StrArrayPack() - packs string array
+- [ ] Handle ArrayValue as input parameter
+- [ ] Write unit tests for both functions
+- [ ] Test interaction with StrSplit() (round-trip)
+
+**Test Cases**:
+- StrJoin(['a', 'b', 'c'], ',') → 'a,b,c'
+- StrArrayPack(['hello', 'world'])
+- Round-trip: StrJoin(StrSplit(s, d), d) should equal s
+
+**Acceptance Criteria**:
+- Both functions work with ArrayValue
+- All test cases pass
+- Round-trip tests validate correctness
+
+---
+
+#### 1.3.6 Design Var Parameter Language Feature
+
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 3-5 days
+
+**Depends On**: None (can start independently)
+
+**Goal**: Design and document var parameter support for DWScript
+
+**Tasks**:
+- [ ] Research original DWScript var parameter semantics
+- [ ] Design AST representation for var parameters
+- [ ] Design semantic analysis for var parameters
+- [ ] Design interpreter evaluation strategy
+- [ ] Design bytecode compilation strategy
+- [ ] Create design document with examples
+- [ ] Review design document for completeness
+
+**Design Questions to Answer**:
+- How are var parameters marked in AST? (VarParameter node?)
+- How does semantic analyzer track var parameters?
+- How does interpreter pass references?
+- How does bytecode represent var parameters?
+- Can var parameters be nested in function calls?
+- Type checking rules for var parameters?
+
+**Deliverables**:
+- `docs/var-parameters-design.md` with complete specification
+
+**Acceptance Criteria**:
+- Design covers all language layers (lexer, parser, AST, semantic, interp, bytecode)
+- Examples provided for common use cases
+- Edge cases and error conditions documented
+
+---
+
+#### 1.3.7 Implement Var Parameter Support
+
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 1-2 weeks
+
+**Depends On**: 1.3.6
+
+**Goal**: Implement var parameter language feature across all compiler layers
+
+**Overview**: This is the most complex task, requiring changes across 6 compiler layers. It has been subdivided into 6 sequential subtasks (1.3.7.1 through 1.3.7.6), each focusing on a single layer.
+
+**Subtasks**:
+- 1.3.7.1: Lexer Support (if needed) - 0.5 days
+- 1.3.7.2: Parser Implementation - 2-3 days
+- 1.3.7.3: AST Node Definitions - 1-2 days
+- 1.3.7.4: Semantic Analysis - 2-3 days
+- 1.3.7.5: Interpreter Support - 3-4 days
+- 1.3.7.6: Bytecode Compiler & VM - 3-5 days
+
+---
+
+##### 1.3.7.1 Lexer - Verify Var Keyword Support
+
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 0.5 days
+
+**Depends On**: 1.3.6
+
+**Goal**: Ensure lexer has all necessary tokens for var parameters
+
+**Tasks**:
+- [ ] Check if `VAR` token already exists (likely yes)
+- [ ] Verify `VAR` is recognized as a keyword in parameter context
+- [ ] Check token position tracking for error messages
+- [ ] Add lexer tests if any changes needed
+
+**Files to Check**:
+- `pkg/token/token_type.go` - Token definitions
+- `internal/lexer/lexer.go` - Keyword recognition
+
+**Acceptance Criteria**:
+- VAR token exists and is properly recognized
+- Can tokenize: `procedure Foo(var x: Integer)`
+- All lexer tests pass
+
+**Notes**: This is likely a verification task only, as VAR should already exist for variable declarations.
+
+---
+
+##### 1.3.7.2 Parser - Parse Var Parameter Declarations
+
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 2-3 days
+
+**Depends On**: 1.3.7.1
+
+**Goal**: Extend parser to recognize and parse var parameter syntax
+
+**Tasks**:
+- [ ] Modify parameter parsing to detect `var` keyword
+- [ ] Add `IsVarParameter` flag or marker to parameter nodes
+- [ ] Parse function declarations with var parameters
+- [ ] Parse procedure declarations with var parameters
+- [ ] Handle mixed parameters (some var, some value)
+- [ ] Add comprehensive parser tests
+- [ ] Test error cases (var on function results, invalid var usage)
+
+**Example Syntax to Parse**:
+```pascal
+procedure Increment(var x: Integer);
+procedure Swap(var a, b: Integer);
+function GetValues(var count: Integer): String;  // both var param and result
+procedure Multi(x: Integer; var y: Integer; z: String);  // mixed
+```
+
+**Files to Modify**:
+- `internal/parser/functions.go` - Parameter parsing logic
+- `internal/parser/parser_test.go` - Parser tests
+
+**Acceptance Criteria**:
+- Can parse var parameter declarations
+- IsVarParameter flag correctly set
+- Mixed parameter lists work correctly
+- All parser tests pass
+- Error messages for invalid var usage
+
+---
+
+##### 1.3.7.3 AST - Define Var Parameter Nodes
+
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 1-2 days
+
+**Depends On**: 1.3.7.2
+
+**Goal**: Extend AST to represent var parameters
+
+**Tasks**:
+- [ ] Add `IsVar` or `VarParameter` field to Parameter node
+- [ ] Update FunctionDeclaration AST node
+- [ ] Update visitor pattern to handle var parameters
+- [ ] Regenerate visitor code if needed (`go generate ./pkg/ast`)
+- [ ] Update AST String() methods for debugging
+- [ ] Add AST tests
+
+**Files to Modify**:
+- `pkg/ast/declarations.go` - Parameter and function nodes
+- `pkg/ast/visitor.go` or `visitor_generated.go` - Visitor pattern
+- `pkg/ast/ast_test.go` - AST tests
+
+**AST Design Example**:
+```go
+type Parameter struct {
+    Name      *Identifier
+    Type      Type
+    IsVar     bool  // NEW: marks var parameters
+    DefaultValue Expression
+    Position  lexer.Position
+}
+```
+
+**Acceptance Criteria**:
+- AST correctly represents var parameters
+- Visitor pattern handles var parameters
+- AST can distinguish var from value parameters
+- String() output shows var parameters
+- All AST tests pass
+
+---
+
+##### 1.3.7.4 Semantic Analyzer - Validate Var Parameters
+
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 2-3 days
+
+**Depends On**: 1.3.7.3
+
+**Goal**: Add semantic analysis for var parameters
+
+**Tasks**:
+- [ ] Validate var parameter arguments are lvalues (variables, not expressions)
+- [ ] Ensure var parameters are assignable (not constants)
+- [ ] Type check var parameter arguments match declaration
+- [ ] Track var parameters in symbol table
+- [ ] Validate function calls with var parameters
+- [ ] Add semantic error messages
+- [ ] Write comprehensive semantic tests
+
+**Validation Rules**:
+- ✅ `Increment(x)` - var parameter with variable
+- ❌ `Increment(5)` - var parameter with literal
+- ❌ `Increment(x + 1)` - var parameter with expression
+- ❌ `Increment(const_value)` - var parameter with constant
+- ✅ `Increment(arr[i])` - var parameter with indexed element
+- ✅ `Increment(obj.field)` - var parameter with field
+
+**Files to Modify**:
+- `internal/semantic/analyze_functions.go` - Function declaration analysis
+- `internal/semantic/analyze_function_calls.go` - Call site validation
+- `internal/semantic/analyzer_test.go` - Semantic tests
+
+**Acceptance Criteria**:
+- Var parameters only accept lvalues
+- Clear error messages for invalid var arguments
+- Type checking enforced for var parameters
+- All semantic tests pass
+- No false positives or negatives
+
+---
+
+##### 1.3.7.5 Interpreter - Implement Reference Passing
+
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 3-4 days
+
+**Depends On**: 1.3.7.4
+
+**Goal**: Implement var parameter evaluation and reference passing in interpreter
+
+**Tasks**:
+- [ ] Design reference passing mechanism (Environment modification)
+- [ ] Modify function call evaluation to detect var parameters
+- [ ] Pass references to variables instead of values
+- [ ] Implement write-back mechanism to caller's scope
+- [ ] Handle var parameters in closures (if applicable)
+- [ ] Handle nested function calls with var parameters
+- [ ] Add comprehensive interpreter tests
+- [ ] Test with real DWScript code examples
+
+**Implementation Strategy**:
+```go
+// Instead of passing value:
+//   env.Set("x", evaluatedArg)
+// Pass reference that can modify caller's variable:
+//   env.SetRef("x", &callerVar)
+```
+
+**Test Cases**:
+- Simple increment: `Increment(x)` modifies x
+- Swap: `Swap(a, b)` exchanges values
+- Array element: `Increment(arr[i])` modifies array element
+- Record field: `Increment(obj.field)` modifies field
+- Nested calls: `A(x); B(x)` both modify x
+- Multiple var params: `Swap(a, b)` modifies both
+
+**Files to Modify**:
+- `internal/interp/functions_user.go` - Function call evaluation
+- `internal/interp/environment.go` - Reference passing support (if needed)
+- `internal/interp/evaluator/` - Evaluator var parameter handling
+- `internal/interp/interpreter_test.go` - Interpreter tests
+
+**Acceptance Criteria**:
+- Var parameters successfully modify caller's variables
+- All test cases pass
+- No memory leaks or reference issues
+- Nested scopes handled correctly
+
+---
+
+##### 1.3.7.6 Bytecode Compiler & VM - Bytecode Var Parameters
+
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 3-5 days
+
+**Depends On**: 1.3.7.5
+
+**Goal**: Implement var parameter support in bytecode compilation and VM execution
+
+**Tasks**:
+
+**Bytecode Compiler**:
+- [ ] Design bytecode strategy for var parameters (stack slots? references?)
+- [ ] Add opcodes if needed (OpLoadRef, OpStoreRef?)
+- [ ] Compile var parameter passing (pass slot/index instead of value)
+- [ ] Compile var parameter writes (write to caller's slot)
+- [ ] Handle var parameters in function calls
+- [ ] Add compiler tests
+
+**VM Execution**:
+- [ ] Implement reference tracking in VM frames
+- [ ] Execute var parameter opcodes
+- [ ] Ensure var parameter modifications visible to caller
+- [ ] Handle var parameters across stack frames
+- [ ] Add VM tests
+
+**Bytecode Design Options**:
+
+**Option A - Stack References**: Pass stack slot indices
+```
+OpLoadVarRef slot  // Push reference (slot index) onto stack
+OpStoreVarRef      // Pop reference and value, store value at reference
+```
+
+**Option B - Upvalues**: Use upvalue mechanism for var parameters
+```
+// Similar to closure upvalues
+OpGetUpvalue index
+OpSetUpvalue index
+```
+
+**Files to Modify**:
+- `internal/bytecode/instruction.go` - New opcodes (if needed)
+- `internal/bytecode/compiler_functions.go` - Compile var parameters
+- `internal/bytecode/vm_exec.go` - Execute var parameter opcodes
+- `internal/bytecode/vm_calls.go` - Handle var parameter calls
+- `internal/bytecode/compiler_test.go` - Compiler tests
+- `internal/bytecode/vm_test.go` - VM tests
+
+**Acceptance Criteria**:
+- Bytecode correctly represents var parameters
+- VM can execute var parameter functions
+- Var parameter modifications visible to caller
+- All bytecode tests pass
+- VM parity tests pass
+
+---
+
+### Task 1.3.7 Summary
+
+**Total Estimated Time**: 1-2 weeks (11-17.5 days across 6 subtasks)
+
+**Breakdown**:
+- 1.3.7.1: Lexer verification (0.5 days)
+- 1.3.7.2: Parser implementation (2-3 days)
+- 1.3.7.3: AST node definitions (1-2 days)
+- 1.3.7.4: Semantic analysis (2-3 days)
+- 1.3.7.5: Interpreter support (3-4 days)
+- 1.3.7.6: Bytecode compiler & VM (3-5 days)
+
+**Dependencies**: Each subtask depends on the previous one completing. This is a **strictly sequential** implementation path.
+
+**Critical Path**: 1.3.7.5 (Interpreter) and 1.3.7.6 (Bytecode) are the most complex subtasks.
+
+**Testing Strategy**: Each subtask includes tests at that layer, plus integration tests at the end to verify end-to-end functionality.
+
+---
+
+#### 1.3.8 Implement Insert(), Delete(), DeleteString() Functions
+
+**Priority**: HIGH | **Status**: Not Started | **Estimated**: 2-3 days
+
+**Depends On**: 1.3.7
+
+**Goal**: Complete string modification builtin functions using var parameters
+
+**Current Status**: Stubbed at lines 397, 401 of strings_basic.go
+
+**Tasks**:
+- [ ] Implement Insert() - insert substring into var string
+- [ ] Implement Delete() - delete substring from var string
+- [ ] Implement DeleteString() - delete specific text from var string
+- [ ] Use var parameter mechanism to modify caller's variable
+- [ ] Add comprehensive tests for all three functions
+- [ ] Test with FunctionsString fixture suite
+
+**Signatures**:
+```pascal
+procedure Insert(source: String; var dest: String; index: Integer);
+procedure Delete(var s: String; index: Integer; count: Integer);
+procedure DeleteString(var s: String; substr: String);
+```
+
+**Test Cases**:
+- Insert operations at various positions
+- Delete operations at boundaries
+- DeleteString with multiple occurrences
+- Edge cases: empty strings, out-of-bounds indices
+
+**Acceptance Criteria**:
+- All three functions modify caller's string correctly
+- No copies/returns, pure in-place modification
+- All unit tests pass
+- FunctionsString fixture tests pass
+
+---
+
+### Task 1.3 Summary
+
+**Total Estimated Time**: 4-6 weeks
+
+**Breakdown**:
+- **Phase A (ArrayValue Migration)**: 1.3.1 → 1.3.2 → 1.3.3, 1.3.4, 1.3.5 (2-3 weeks)
+- **Phase B (Var Parameters)**: 1.3.6 → 1.3.7 → 1.3.8 (2-3 weeks)
+
+**Parallelization Opportunity**: Tasks 1.3.1-1.3.5 (ArrayValue) and 1.3.6-1.3.8 (Var Parameters) can be worked on concurrently as they have no dependencies on each other.
+
+**Critical Path**: 1.3.7 (Implement Var Parameter Support) is the most complex and time-consuming task.
+
+**Deliverables**:
+- 4 string functions using ArrayValue (Format, StrSplit, StrJoin, StrArrayPack)
+- 3 string functions using var parameters (Insert, Delete, DeleteString)
+- Var parameter language feature (usable for other future functions)
+- 2 design documents
 
 **Stage Relevance**: Phase 3.7.1 (documented in [docs/phase3-task3.7.1-summary.md](docs/phase3-task3.7.1-summary.md))
 

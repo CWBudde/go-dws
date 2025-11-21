@@ -9,31 +9,33 @@ import (
 
 // registerMathBuiltins registers all math functions
 func (vm *VM) registerMathBuiltins() {
-	vm.builtins["Pi"] = builtinPi
-	vm.builtins["Sign"] = builtinSign
-	vm.builtins["Odd"] = builtinOdd
-	vm.builtins["Frac"] = builtinFrac
-	vm.builtins["Int"] = builtinInt
-	vm.builtins["Log10"] = builtinLog10
-	vm.builtins["LogN"] = builtinLogN
-	vm.builtins["Infinity"] = builtinInfinity
-	vm.builtins["NaN"] = builtinNaN
-	vm.builtins["IsFinite"] = builtinIsFinite
-	vm.builtins["IsInfinite"] = builtinIsInfinite
-	vm.builtins["IntPower"] = builtinIntPower
-	vm.builtins["RandSeed"] = builtinRandSeed
-	vm.builtins["RandG"] = builtinRandG
-	vm.builtins["SetRandSeed"] = builtinSetRandSeed
-	vm.builtins["Randomize"] = builtinRandomize
-	vm.builtins["Factorial"] = builtinFactorial
-	vm.builtins["Gcd"] = builtinGcd
-	vm.builtins["Lcm"] = builtinLcm
-	vm.builtins["IsPrime"] = builtinIsPrime
-	vm.builtins["LeastFactor"] = builtinLeastFactor
-	vm.builtins["PopCount"] = builtinPopCount
-	vm.builtins["TestBit"] = builtinTestBit
-	vm.builtins["Haversine"] = builtinHaversine
-	vm.builtins["CompareNum"] = builtinCompareNum
+	vm.builtins["pi"] = builtinPi
+	vm.builtins["sign"] = builtinSign
+	vm.builtins["odd"] = builtinOdd
+	vm.builtins["frac"] = builtinFrac
+	vm.builtins["int"] = builtinInt
+	vm.builtins["log10"] = builtinLog10
+	vm.builtins["logn"] = builtinLogN
+	vm.builtins["infinity"] = builtinInfinity
+	vm.builtins["nan"] = builtinNaN
+	vm.builtins["isfinite"] = builtinIsFinite
+	vm.builtins["isinfinite"] = builtinIsInfinite
+	vm.builtins["intpower"] = builtinIntPower
+	vm.builtins["random"] = builtinRandom
+	vm.builtins["randomint"] = builtinRandomInt
+	vm.builtins["randseed"] = builtinRandSeed
+	vm.builtins["randg"] = builtinRandG
+	vm.builtins["setrandseed"] = builtinSetRandSeed
+	vm.builtins["randomize"] = builtinRandomize
+	vm.builtins["factorial"] = builtinFactorial
+	vm.builtins["gcd"] = builtinGcd
+	vm.builtins["lcm"] = builtinLcm
+	vm.builtins["isprime"] = builtinIsPrime
+	vm.builtins["leastfactor"] = builtinLeastFactor
+	vm.builtins["popcount"] = builtinPopCount
+	vm.builtins["testbit"] = builtinTestBit
+	vm.builtins["haversine"] = builtinHaversine
+	vm.builtins["comparenum"] = builtinCompareNum
 }
 
 // Math Functions
@@ -268,6 +270,30 @@ func builtinIntPower(vm *VM, args []Value) (Value, error) {
 	}
 
 	return FloatValue(result), nil
+}
+
+func builtinRandom(vm *VM, args []Value) (Value, error) {
+	if len(args) != 0 {
+		return NilValue(), vm.runtimeError("Random expects no arguments, got %d", len(args))
+	}
+	return FloatValue(vm.rand.Float64()), nil
+}
+
+func builtinRandomInt(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("RandomInt expects 1 argument, got %d", len(args))
+	}
+
+	if !args[0].IsInt() {
+		return NilValue(), vm.runtimeError("RandomInt expects Integer argument, got %s", args[0].Type.String())
+	}
+
+	max := args[0].AsInt()
+	if max <= 0 {
+		return NilValue(), vm.runtimeError("RandomInt expects max > 0, got %d", max)
+	}
+
+	return IntValue(int64(vm.rand.Intn(int(max)))), nil
 }
 
 func builtinRandSeed(vm *VM, args []Value) (Value, error) {

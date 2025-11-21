@@ -3,10 +3,10 @@ package builtins
 // DefaultRegistry is the default global registry of all built-in functions.
 // It's populated on package initialization with all standard DWScript built-ins.
 //
-// Current status (Phase 3, Task 3.7.9):
-//   - 225 functions migrated to internal/interp/builtins/ package
-//   - 225 functions registered in categories:
-//   - Math: 62 functions (basic, advanced, trig, exponential, special values)
+// Current status (Phase 3, Task 3.7.9 - Random functions completed):
+//   - 231 functions migrated to internal/interp/builtins/ package
+//   - 231 functions registered in categories:
+//   - Math: 68 functions (basic, advanced, trig, exponential, special values, random)
 //   - String: 57 functions (manipulation, search, comparison, formatting - added Format)
 //   - DateTime: 52 functions (creation, arithmetic, formatting, parsing, info)
 //   - Conversion: 11 functions (IntToStr, IntToBin, StrToInt, StrToFloat, FloatToStr, BoolToStr, IntToHex, StrToBool, Integer, StrToIntDef, StrToFloatDef)
@@ -21,9 +21,9 @@ package builtins
 //
 // Pending migration (still in internal/interp as Interpreter methods):
 //   - Var-param functions: Inc, Dec, Swap, DivMod, Insert, Delete, SetLength (7 functions)
-//   - Pending: Random functions, string helpers, etc. (~15 functions)
+//   - String helpers requiring ArrayValue or var-params: Format, StrSplit, StrJoin, StrArrayPack, Insert, Delete, DeleteString (7 functions)
 //
-// Total: 225 registered (added Low, High, Concat), ~19 pending migration (244 built-in functions total)
+// Total: 231 registered (added Random, RandomInt, Randomize, SetRandSeed, RandSeed, RandG), ~13 pending migration (244 built-in functions total)
 var DefaultRegistry *Registry
 
 func init() {
@@ -134,13 +134,13 @@ func RegisterMathFunctions(r *Registry) {
 	r.Register("ArcCosh", ArcCosh, CategoryMath, "Returns the inverse hyperbolic cosine")
 	r.Register("ArcTanh", ArcTanh, CategoryMath, "Returns the inverse hyperbolic tangent")
 
-	// Random number functions (TODO: Currently implemented in Interpreter, not yet migrated)
-	// r.Register("Random", Random, CategoryMath, "Returns a random float between 0 and 1")
-	// r.Register("RandomInt", RandomInt, CategoryMath, "Returns a random integer in range")
-	// r.Register("Randomize", Randomize, CategoryMath, "Seeds the random number generator")
-	// r.Register("SetRandSeed", SetRandSeed, CategoryMath, "Sets the random number seed")
-	// r.Register("RandSeed", RandSeed, CategoryMath, "Returns the current random seed")
-	// r.Register("RandG", RandG, CategoryMath, "Returns a random Gaussian value")
+	// Random number functions
+	r.Register("Random", Random, CategoryMath, "Returns a random float between 0 and 1")
+	r.Register("RandomInt", RandomInt, CategoryMath, "Returns a random integer in range")
+	r.Register("Randomize", Randomize, CategoryMath, "Seeds the random number generator")
+	r.Register("SetRandSeed", SetRandSeed, CategoryMath, "Sets the random number seed")
+	r.Register("RandSeed", RandSeed, CategoryMath, "Returns the current random seed")
+	r.Register("RandG", RandG, CategoryMath, "Returns a random Gaussian value")
 }
 
 // RegisterStringFunctions registers all string manipulation built-in functions.
