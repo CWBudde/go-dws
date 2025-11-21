@@ -212,164 +212,48 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 ### Phase 3.5: Evaluator Refactoring
 
 - [x] 3.5.1 Split Interpreter into Evaluator + TypeSystem + ExecutionContext
-  - Create new Evaluator struct with focused responsibility
-  - Evaluator contains: typeSystem, config (output, maxRecursion)
-  - Context passed to all evaluation methods
-  - Remove god object anti-pattern
-  - Files: `internal/interp/evaluator/evaluator.go` (new)
-  - Estimated: 1 week
-  - Acceptance: Clean separation, Interpreter is now small orchestrator, tests pass
-  - **Completed**: Created Evaluator struct (258 lines) with focused responsibility (typeSystem, output, rand, config, unitRegistry, semanticInfo), Interpreter creates and initializes Evaluator in NewWithOptions(), implemented InterpreterAdapter interface for backward compatibility during migration, added state synchronization (SetSource, SetSemanticInfo, SetExternalFunctions), all tests pass with no regressions
+  - Created Evaluator struct (258 lines) with focused responsibility (typeSystem, output, rand, config, unitRegistry, semanticInfo)
+  - Implemented InterpreterAdapter interface for backward compatibility during migration
+  - Interpreter now small orchestrator, all tests pass
 
 - [x] 3.5.2 Implement Visitor pattern for evaluation
-  - Make Evaluator implement ast.Visitor interface
-  - Replace giant Eval() switch with visitor methods
-  - VisitBinaryExpression, VisitCallExpression, etc.
-  - Update AST nodes to use Accept() method
-  - Files: Update `internal/interp/evaluator/*.go`
-  - Estimated: 1 week
-  - Acceptance: No more giant switch, visitor pattern used, tests pass
-  - **Completed**: Implemented visitor pattern with 48 visitor methods (VisitXXX), replaced Evaluator.Eval() giant switch with type switch dispatch to visitor methods, created 4 visitor files organized by category (literals, expressions, statements, declarations), all visitor methods follow consistent signature: func (e *Evaluator) VisitXXX(node *ast.XXX, ctx *ExecutionContext) Value, eliminated 228-line switch statement, all tests pass with no regressions
+  - Implemented 48 visitor methods (VisitXXX) replacing giant Eval() switch
+  - Eliminated 228-line switch statement with type switch dispatch
+  - Created 4 visitor files organized by category (literals, expressions, statements, declarations)
 
 - [x] 3.5.3 Split evaluation by node category
-  - Create separate files for expression/statement evaluation
-  - `evaluator/visitor_expressions.go` - all expression visitors (154 lines)
-  - `evaluator/visitor_statements.go` - all statement visitors (129 lines)
-  - `evaluator/visitor_declarations.go` - all declaration visitors (72 lines)
-  - `evaluator/visitor_literals.go` - all literal visitors (49 lines)
-  - Each file ≤500 lines
-  - Estimated: 3 days
-  - Acceptance: Code organized by category, easy to navigate, tests pass
-  - **Completed**: Created 4 visitor files organized by node category (404 lines total), all files well under 500 line limit (largest: 154 lines), clear organization with visitor_*.go naming convention, 48 visitor methods total (6 literals, 22 expressions, 19 statements, 9 declarations), all tests pass
+  - Created 4 visitor files (404 lines total): visitor_literals.go (49), visitor_expressions.go (154), visitor_statements.go (129), visitor_declarations.go (72)
+  - All files well under 500-line limit
+  - 48 visitor methods: 6 literals, 22 expressions, 19 statements, 9 declarations
 
 - [x] 3.5.4 Migrate simple evaluation logic from Interpreter to Evaluator
-  - Migrate 20 simple visitor methods that don't require complex infrastructure
-  - **Literals** (6): IntegerLiteral, FloatLiteral, StringLiteral, BooleanLiteral, CharLiteral, NilLiteral
-  - **Simple Expressions** (3): GroupedExpression, EnumLiteral, SelfExpression
-  - **Statements** (3): Program, BlockStatement, ReturnStatement
-  - **Control Flow** (7): IfStatement, WhileStatement, RepeatStatement, CaseStatement, BreakStatement, ContinueStatement, ExitStatement
-  - **Helper Functions Added**: isTruthy, variantToBool, valuesEqual, isInRange, runeLength, runeAt, isError
-  - **Remaining**: 28 methods require infrastructure adapters (type system, function calls, property access, arrays)
-  - Files: `evaluator/visitor_*.go`
-  - Estimated: 1 week
-  - Acceptance: ✅ Simple methods migrated (20/48, 41.7%), all tests pass
-  - **Completed**: 20 simple visitor methods migrated, helper functions added for conditionals/case matching, all tests pass with no regressions
+  - Migrated 20 simple visitor methods: 6 literals, 3 simple expressions, 3 statements, 7 control flow, 1 declaration
+  - Added helper functions: isTruthy, variantToBool, valuesEqual, isInRange, runeLength, runeAt, isError
+  - 28 methods remaining (require infrastructure adapters)
 
 - [x] 3.5.5 Add Type System Adapter Methods
-  - Extend InterpreterAdapter interface with type system operations
-  - **Type Registration**:
-    - `GetClassInfo(className string) (*ClassInfo, bool)` - Class metadata lookup
-    - `RegisterClass(info *ClassInfo)` - Class registration
-    - `GetRecordType(typeName string) (*types.RecordType, bool)` - Record type lookup
-    - `GetEnumType(typeName string) (*types.EnumType, bool)` - Enum type lookup
-    - `GetArrayType(typeName string) (*types.ArrayType, bool)` - Array type lookup
-  - **Type Operations**:
-    - `CoerceValue(value Value, targetType types.Type) (Value, error)` - Type coercion
-    - `GetDefaultValue(typ types.Type) Value` - Default value for type
-    - `CheckTypeCompatibility(value Value, targetType types.Type) bool` - Type compatibility check
-    - `GetValueType(value Value) types.Type` - Runtime type inspection
-    - `ResolveArrayTypeByName(typeName string, elementType types.Type) *types.ArrayType` - Array type resolution
-  - Files: `evaluator/evaluator.go`, `interpreter.go`
-  - Estimated: 2-3 days
-  - Acceptance: ✅ Type system operations accessible, all methods implemented and tested
-  - **Completed**: Added 10 type system methods to InterpreterAdapter, all implemented and tested
-  - **Enables**: VarDeclStatement, ConstDecl, Identifier, BinaryExpression, UnaryExpression
+  - Added 10 type system methods: GetClassInfo, RegisterClass, GetRecordType, GetEnumType, GetArrayType, CoerceValue, GetDefaultValue, CheckTypeCompatibility, GetValueType, ResolveArrayTypeByName
+  - Enables: VarDeclStatement, ConstDecl, Identifier, BinaryExpression, UnaryExpression
 
 - [x] 3.5.6 Add Array and Collection Adapter Methods
-  - Extend InterpreterAdapter interface with array/set/collection operations
-  - **Array Construction**:
-    - `CreateArray(elementType types.Type, elements []Value) Value` - Create array from elements
-    - `CreateDynamicArray(elementType types.Type, size int) Value` - Allocate dynamic array
-    - `CreateArrayWithExpectedType(elements []Value, expectedType *types.ArrayType) Value` - Type-aware array creation
-  - **Array Access**:
-    - `GetArrayElement(array Value, index Value) (Value, error)` - Array indexing with bounds check
-    - `SetArrayElement(array Value, index Value, value Value) error` - Array element assignment
-    - `GetArrayLength(array Value) int` - Array length
-  - **Set Operations**:
-    - `CreateSet(elementType types.Type, elements []Value) Value` - Create set from elements
-    - `EvaluateSetRange(start Value, end Value) ([]int, error)` - Expand range (1..10) to elements
-    - `AddToSet(set Value, element Value) error` - Add element to set
-  - **String Indexing**:
-    - `GetStringChar(str Value, index Value) (Value, error)` - String character access
-  - Files: `evaluator/evaluator.go`, `interpreter.go`, `builtins/context.go`, `builtins_context.go`
-  - **Note**: Renamed existing `GetArrayLength` to `GetBuiltinArrayLength` in builtins.Context interface to avoid conflict with adapter method
-  - Acceptance: ✅ Array/set operations accessible, all methods implemented and tested
-  - **Enables**: ArrayLiteralExpression, NewArrayExpression, IndexExpression, SetLiteral
+  - Added 10 array/set methods: CreateArray, CreateDynamicArray, CreateArrayWithExpectedType, GetArrayElement, SetArrayElement, GetArrayLength, CreateSet, EvaluateSetRange, AddToSet, GetStringChar
+  - Renamed existing GetArrayLength to GetBuiltinArrayLength to avoid conflict
+  - Enables: ArrayLiteralExpression, NewArrayExpression, IndexExpression, SetLiteral
 
 - [x] 3.5.7 Add Property, Field, and Member Access Adapter Methods
-  - Extend InterpreterAdapter interface with OOP access operations
-  - **Field Access**:
-    - `GetObjectField(obj Value, fieldName string) (Value, error)` - Object field read
-    - `SetObjectField(obj Value, fieldName string, value Value) error` - Object field write
-    - `GetRecordField(record Value, fieldName string) (Value, error)` - Record field read
-    - `SetRecordField(record Value, fieldName string, value Value) error` - Record field write
-  - **Property Access**:
-    - `GetPropertyValue(obj Value, propName string) (Value, error)` - Property getter
-    - `SetPropertyValue(obj Value, propName string, value Value) error` - Property setter
-    - `GetIndexedProperty(obj Value, propName string, indices []Value) (Value, error)` - Indexed property read
-    - `SetIndexedProperty(obj Value, propName string, indices []Value, value Value) error` - Indexed property write
-  - **Method Calls**:
-    - `CallMethod(obj Value, methodName string, args []Value, node ast.Node) Value` - Method invocation
-    - `CallInheritedMethod(obj Value, methodName string, args []Value) Value` - Parent method call
-  - **Object Operations**:
-    - `CreateObject(className string, args []Value) (Value, error)` - Object instantiation
-    - `CheckType(obj Value, typeName string) bool` - 'is' operator
-    - `CastType(obj Value, typeName string) (Value, error)` - 'as' operator
-  - **Function Pointers**:
-    - `CreateFunctionPointer(fn *ast.FunctionDecl, closure Environment) Value` - Function pointer creation
-    - `CreateLambda(lambda *ast.LambdaExpression, closure Environment) Value` - Lambda creation
-    - `IsFunctionPointer(value Value) bool` - Check if value is function pointer
-    - `GetFunctionPointerParamCount(funcPtr Value) int` - Get parameter count for auto-invoke
-  - **Record Operations**:
-    - `CreateRecord(recordType string, fields map[string]Value) (Value, error)` - Record construction
-  - **Assignment Helpers**:
-    - `SetVariable(name string, value Value, ctx *ExecutionContext) error` - Variable assignment
-    - `CanAssign(target ast.Node) bool` - Check if node is valid lvalue
-  - Files: `evaluator/evaluator.go`, `interpreter.go`
-  - Estimated: 3-4 days
-  - Acceptance: All OOP and complex operations accessible via adapter
-  - **Enables**: MemberAccessExpression, MethodCallExpression, CallExpression, AddressOfExpression, LambdaExpression, NewExpression, IsExpression, AsExpression, RecordLiteralExpression, AssignmentStatement, ExpressionStatement
+  - Added 20 OOP methods: Field access (4), Property access (4), Method calls (2), Object operations (3), Function pointers (4), Record operations (1), Assignment helpers (2)
+  - Key methods: GetObjectField, SetObjectField, GetPropertyValue, SetPropertyValue, CallMethod, CreateObject, CheckType, CastType, CreateFunctionPointer, CreateLambda, CreateRecord, SetVariable, CanAssign
+  - Enables: MemberAccessExpression, MethodCallExpression, CallExpression, AddressOfExpression, LambdaExpression, NewExpression, IsExpression, AsExpression, RecordLiteralExpression, AssignmentStatement, ExpressionStatement
 
 - [x] 3.5.8 Add Missing Adapter Methods and Initial Migration
-  - **Completed**: Added 9 missing adapter methods from task 3.5.7
-  - **Adapter Methods Added**:
-    - Added `CastType` - Type casting ('as' operator)
-    - Added `CreateFunctionPointer` - Function pointer creation
-    - Added `CreateLambda` - Lambda/closure creation
-    - Added `IsFunctionPointer` - Function pointer type check
-    - Added `GetFunctionPointerParamCount` - Parameter count for auto-invoke
-    - Added `CreateRecord` - Record construction
-    - Added `SetVariable` - Variable assignment
-    - Added `CanAssign` - Lvalue validation
-    - Added `RaiseException` - Exception raising
-  - **Migrated Visitor Methods** (2 of 24):
-    - [x] VisitExpressionStatement - Expression statements with auto-invoke
-    - [x] VisitLambdaExpression - Lambda/closure creation
-  - Files: `evaluator/evaluator.go`, `evaluator/visitor_statements.go`, `evaluator/visitor_expressions.go`, `interpreter.go`
-  - Estimated: 2-3 days
-  - Acceptance: Adapter methods implemented, tests pass
-  - **Status**: ✅ COMPLETE - 2/24 methods migrated (8.3%), tests passing
+  - Added 9 missing adapter methods: CastType, CreateFunctionPointer, CreateLambda, IsFunctionPointer, GetFunctionPointerParamCount, CreateRecord, SetVariable, CanAssign, RaiseException
+  - Migrated 2 visitor methods: VisitExpressionStatement, VisitLambdaExpression
+  - Status: 2/24 complex methods migrated (8.3%)
 
 - [x] 3.5.9 Create Environment Adapter and Migrate Helper Functions
-  - Add Environment adapter methods to reduce direct Environment access
-  - **Environment Adapter Methods Added**:
-    - `GetVariable(name string, ctx *ExecutionContext) (Value, bool)` - Variable lookup
-    - `DefineVariable(name string, value Value, ctx *ExecutionContext)` - Variable definition
-    - `CreateEnclosedEnvironment(ctx *ExecutionContext) *ExecutionContext` - New scope
-  - **Helper Functions Migrated** to `helpers.go`:
-    - `IsTruthy`, `VariantToBool` - Boolean conversion for conditionals
-    - `ValuesEqual`, `IsInRange` - Value comparison and range checking
-    - `RuneLength`, `RuneAt` - String/rune utilities
-  - **Refactoring**:
-    - Created `internal/interp/evaluator/helpers.go` with 6 exported helper functions
-    - Removed 200+ lines of duplicate helper code from `visitor_statements.go`
-    - Updated all references to use capitalized (exported) versions
-    - Updated test files to use new helper names
-  - Files: `evaluator/evaluator.go`, `evaluator/helpers.go`, `evaluator/visitor_statements.go`, `evaluator/visitor_expressions.go`, `evaluator/variant_bool_test.go`, `interpreter.go`
-  - Estimated: 2-3 days
-  - Acceptance: ✅ Environment abstraction complete, helper functions reusable, all tests pass
-  - **Status**: ✅ COMPLETE - 3 adapter methods added, 6 helper functions extracted and reused
-  - **Enables**: Cleaner variable access in visitor methods for task 3.5.10
+  - Added 3 environment adapter methods: GetVariable, DefineVariable, CreateEnclosedEnvironment
+  - Extracted 6 helper functions to helpers.go: IsTruthy, VariantToBool, ValuesEqual, IsInRange, RuneLength, RuneAt
+  - Removed 200+ lines of duplicate helper code from visitor_statements.go
 
 - [x] 3.5.10 Migrate Identifier and Simple Variable Lookups
   - Migrate `VisitIdentifier` using environment adapter
