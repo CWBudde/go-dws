@@ -1438,17 +1438,7 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 			}
 
 			// Check if the underlying object's class is compatible with the target class
-			currentClass := underlyingObj.Class
-			isCompatible := false
-			for currentClass != nil {
-				if strings.EqualFold(currentClass.Name, targetClass.Name) {
-					isCompatible = true
-					break
-				}
-				currentClass = currentClass.Parent
-			}
-
-			if !isCompatible {
+			if !isClassCompatible(underlyingObj.Class, targetClass) {
 				return nil, fmt.Errorf("cannot cast interface of '%s' to class '%s'", underlyingObj.Class.Name, targetClass.Name)
 			}
 
@@ -1486,17 +1476,7 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 	// Try class-to-class casting first
 	if targetClass, isClass := i.classes[strings.ToLower(typeName)]; isClass {
 		// Validate that the object's actual runtime type is compatible with the target
-		currentClass := objVal.Class
-		isCompatible := false
-		for currentClass != nil {
-			if strings.EqualFold(currentClass.Name, targetClass.Name) {
-				isCompatible = true
-				break
-			}
-			currentClass = currentClass.Parent
-		}
-
-		if !isCompatible {
+		if !isClassCompatible(objVal.Class, targetClass) {
 			return nil, fmt.Errorf("instance of type '%s' cannot be cast to class '%s'", objVal.Class.Name, targetClass.Name)
 		}
 
