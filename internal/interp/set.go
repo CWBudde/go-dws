@@ -441,3 +441,15 @@ func (i *Interpreter) evalSetExclude(set *SetValue, element Value) Value {
 
 	return &NilValue{}
 }
+
+// evalSetDeclaration evaluates a set type declaration.
+// The semantic analyzer already registered the set type, so we just acknowledge it.
+func (i *Interpreter) evalSetDeclaration(decl *ast.SetDecl) Value {
+	if decl == nil {
+		return &ErrorValue{Message: "nil set declaration"}
+	}
+
+	// Set type already registered by semantic analyzer
+	// Just return null value to indicate successful processing
+	return &NullValue{}
+}

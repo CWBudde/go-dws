@@ -8,11 +8,11 @@ import (
 
 // TestLargeSet tests the CLI with large set operations (>64 elements)
 //
-// NOTE: These tests are currently skipped because the parser does not yet support
-// "set of" type declarations in the type section. Once parser support is added,
-// remove the t.Skip() calls and the tests should pass.
+// NOTE: This test is skipped due to incomplete set operation runtime support.
+// The parser and semantic analyzer work correctly for set type declarations.
+// Re-enable once set union/intersection operations are fully implemented.
 func TestLargeSet(t *testing.T) {
-	t.Skip("Skipping: Parser does not yet support 'set of' type declarations. -> TODO")
+	t.Skip("Skipping: Set operations (union, intersection) need runtime implementation")
 
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
@@ -56,11 +56,11 @@ func TestLargeSet(t *testing.T) {
 
 // TestForInSet tests the CLI with for-in loop over sets
 //
-// NOTE: This test is currently skipped because the parser does not yet support
-// "set of" type declarations in the type section. Once parser support is added,
-// remove the t.Skip() call and the test should pass.
+// NOTE: This test is skipped due to incomplete set operation runtime support.
+// The parser and semantic analyzer work correctly for set type declarations.
+// Re-enable once for-in iteration over sets is fully implemented.
 func TestForInSet(t *testing.T) {
-	t.Skip("Skipping: Parser does not yet support 'set of' type declarations. -> TODO")
+	t.Skip("Skipping: For-in loop over sets needs runtime implementation")
 
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
