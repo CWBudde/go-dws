@@ -575,6 +575,165 @@ func TestFunctionObject(t *testing.T) {
 	})
 }
 
+// TestValueAsConversionMethods tests As* conversion methods
+func TestValueAsConversionMethods(t *testing.T) {
+	t.Run("AsBool valid", func(t *testing.T) {
+		val := BoolValue(true)
+		if !val.AsBool() {
+			t.Errorf("BoolValue(true).AsBool() = false, want true")
+		}
+	})
+
+	t.Run("AsBool invalid", func(t *testing.T) {
+		val := IntValue(42)
+		if val.AsBool() {
+			t.Errorf("IntValue.AsBool() = true, want false")
+		}
+	})
+
+	t.Run("AsInt valid", func(t *testing.T) {
+		val := IntValue(42)
+		if val.AsInt() != 42 {
+			t.Errorf("IntValue(42).AsInt() = %v, want 42", val.AsInt())
+		}
+	})
+
+	t.Run("AsInt invalid", func(t *testing.T) {
+		val := StringValue("hello")
+		if val.AsInt() != 0 {
+			t.Errorf("StringValue.AsInt() = %v, want 0", val.AsInt())
+		}
+	})
+
+	t.Run("AsFloat from float", func(t *testing.T) {
+		val := FloatValue(3.14)
+		if val.AsFloat() != 3.14 {
+			t.Errorf("FloatValue(3.14).AsFloat() = %v, want 3.14", val.AsFloat())
+		}
+	})
+
+	t.Run("AsFloat from int", func(t *testing.T) {
+		val := IntValue(42)
+		if val.AsFloat() != 42.0 {
+			t.Errorf("IntValue(42).AsFloat() = %v, want 42.0", val.AsFloat())
+		}
+	})
+
+	t.Run("AsFloat invalid", func(t *testing.T) {
+		val := StringValue("hello")
+		if val.AsFloat() != 0.0 {
+			t.Errorf("StringValue.AsFloat() = %v, want 0.0", val.AsFloat())
+		}
+	})
+
+	t.Run("AsString valid", func(t *testing.T) {
+		val := StringValue("hello")
+		if val.AsString() != "hello" {
+			t.Errorf("StringValue('hello').AsString() = %v, want 'hello'", val.AsString())
+		}
+	})
+
+	t.Run("AsString invalid", func(t *testing.T) {
+		val := IntValue(42)
+		if val.AsString() != "" {
+			t.Errorf("IntValue.AsString() = %v, want empty string", val.AsString())
+		}
+	})
+
+	t.Run("AsArray valid", func(t *testing.T) {
+		arr := NewArrayInstance([]Value{IntValue(1), IntValue(2)})
+		val := ArrayValue(arr)
+		result := val.AsArray()
+		if result == nil {
+			t.Errorf("ArrayValue.AsArray() = nil, want array instance")
+		}
+		if result != nil && result.Length() != 2 {
+			t.Errorf("AsArray().Length() = %v, want 2", result.Length())
+		}
+	})
+
+	t.Run("AsArray invalid", func(t *testing.T) {
+		val := IntValue(42)
+		result := val.AsArray()
+		if result != nil {
+			t.Errorf("IntValue.AsArray() = %v, want nil", result)
+		}
+	})
+
+	t.Run("AsFunction valid", func(t *testing.T) {
+		fn := NewFunctionObject("test", NewChunk("test"), 0)
+		val := FunctionValue(fn)
+		result := val.AsFunction()
+		if result == nil {
+			t.Errorf("FunctionValue.AsFunction() = nil, want function object")
+		}
+		if result != nil && result.Name != "test" {
+			t.Errorf("AsFunction().Name = %v, want 'test'", result.Name)
+		}
+	})
+
+	t.Run("AsFunction invalid", func(t *testing.T) {
+		val := IntValue(42)
+		result := val.AsFunction()
+		if result != nil {
+			t.Errorf("IntValue.AsFunction() = %v, want nil", result)
+		}
+	})
+
+	t.Run("AsClosure valid", func(t *testing.T) {
+		closure := &Closure{Function: NewFunctionObject("test", NewChunk("test"), 0)}
+		val := ClosureValue(closure)
+		result := val.AsClosure()
+		if result == nil {
+			t.Errorf("ClosureValue.AsClosure() = nil, want closure")
+		}
+	})
+
+	t.Run("AsClosure invalid", func(t *testing.T) {
+		val := IntValue(42)
+		result := val.AsClosure()
+		if result != nil {
+			t.Errorf("IntValue.AsClosure() = %v, want nil", result)
+		}
+	})
+
+	t.Run("AsObject valid", func(t *testing.T) {
+		obj := NewObjectInstance("MyClass")
+		val := ObjectValue(obj)
+		result := val.AsObject()
+		if result == nil {
+			t.Errorf("ObjectValue.AsObject() = nil, want object instance")
+		}
+		if result != nil && result.ClassName != "MyClass" {
+			t.Errorf("AsObject().ClassName = %v, want 'MyClass'", result.ClassName)
+		}
+	})
+
+	t.Run("AsObject invalid", func(t *testing.T) {
+		val := IntValue(42)
+		result := val.AsObject()
+		if result != nil {
+			t.Errorf("IntValue.AsObject() = %v, want nil", result)
+		}
+	})
+
+	t.Run("AsBuiltin valid", func(t *testing.T) {
+		val := BuiltinValue("Print")
+		result := val.AsBuiltin()
+		if result != "Print" {
+			t.Errorf("BuiltinValue('Print').AsBuiltin() = %v, want 'Print'", result)
+		}
+	})
+
+	t.Run("AsBuiltin invalid", func(t *testing.T) {
+		val := IntValue(42)
+		result := val.AsBuiltin()
+		if result != "" {
+			t.Errorf("IntValue.AsBuiltin() = %v, want empty string", result)
+		}
+	})
+}
+
 // TestZeroValueForType tests zeroValueForType helper
 func TestZeroValueForType(t *testing.T) {
 	tests := []struct {

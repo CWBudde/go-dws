@@ -626,6 +626,262 @@ func TestIntToFloatConversion(t *testing.T) {
 	}
 }
 
+// TestSetTryInfo tests the SetTryInfo method
+func TestSetTryInfo(t *testing.T) {
+	t.Run("set try info on valid chunk", func(t *testing.T) {
+		chunk := NewChunk("test")
+		info := TryInfo{
+			CatchTarget:   21,
+			FinallyTarget: -1,
+			HasCatch:      true,
+			HasFinally:    false,
+		}
+		chunk.SetTryInfo(10, info)
+
+		retrieved, ok := chunk.TryInfoAt(10)
+		if !ok {
+			t.Error("TryInfoAt should find the info we just set")
+		}
+		if retrieved.CatchTarget != 21 || !retrieved.HasCatch {
+			t.Errorf("Retrieved info = %+v, want %+v", retrieved, info)
+		}
+	})
+
+	t.Run("set try info on nil chunk", func(t *testing.T) {
+		var chunk *Chunk = nil
+		// Should not panic
+		chunk.SetTryInfo(0, TryInfo{})
+	})
+
+	t.Run("set multiple try infos", func(t *testing.T) {
+		chunk := NewChunk("test")
+		info1 := TryInfo{CatchTarget: 21, FinallyTarget: -1, HasCatch: true, HasFinally: false}
+		info2 := TryInfo{CatchTarget: 41, FinallyTarget: 50, HasCatch: true, HasFinally: true}
+
+		chunk.SetTryInfo(10, info1)
+		chunk.SetTryInfo(30, info2)
+
+		r1, ok1 := chunk.TryInfoAt(10)
+		r2, ok2 := chunk.TryInfoAt(30)
+
+		if !ok1 || !ok2 {
+			t.Error("Both try infos should be retrievable")
+		}
+		if r1.CatchTarget != 21 || r2.CatchTarget != 41 {
+			t.Errorf("Try infos not stored correctly")
+		}
+	})
+
+	t.Run("overwrite existing try info", func(t *testing.T) {
+		chunk := NewChunk("test")
+		info1 := TryInfo{CatchTarget: 21, FinallyTarget: -1, HasCatch: true, HasFinally: false}
+		info2 := TryInfo{CatchTarget: 26, FinallyTarget: 30, HasCatch: true, HasFinally: true}
+
+		chunk.SetTryInfo(10, info1)
+		chunk.SetTryInfo(10, info2)
+
+		retrieved, _ := chunk.TryInfoAt(10)
+		if retrieved.CatchTarget != 26 {
+			t.Errorf("Try info should be overwritten, got CatchTarget = %d, want 26", retrieved.CatchTarget)
+		}
+	})
+}
+
+// TestTryInfoAt tests the TryInfoAt method
+func TestTryInfoAt(t *testing.T) {
+	t.Run("retrieve existing try info", func(t *testing.T) {
+		chunk := NewChunk("test")
+		info := TryInfo{CatchTarget: 21, FinallyTarget: -1, HasCatch: true, HasFinally: false}
+		chunk.SetTryInfo(10, info)
+
+		retrieved, ok := chunk.TryInfoAt(10)
+		if !ok {
+			t.Error("TryInfoAt(10) should return true for existing info")
+		}
+		if retrieved.CatchTarget != 21 {
+			t.Errorf("Retrieved CatchTarget = %d, want 21", retrieved.CatchTarget)
+		}
+	})
+
+	t.Run("retrieve non-existent try info", func(t *testing.T) {
+		chunk := NewChunk("test")
+		_, ok := chunk.TryInfoAt(100)
+		if ok {
+			t.Error("TryInfoAt(100) should return false for non-existent info")
+		}
+	})
+
+	t.Run("retrieve from nil chunk", func(t *testing.T) {
+		var chunk *Chunk = nil
+		_, ok := chunk.TryInfoAt(10)
+		if ok {
+			t.Error("TryInfoAt on nil chunk should return false")
+		}
+	})
+
+	t.Run("retrieve from chunk with nil tryInfos map", func(t *testing.T) {
+		chunk := NewChunk("test")
+		// tryInfos map is nil initially
+		_, ok := chunk.TryInfoAt(10)
+		if ok {
+			t.Error("TryInfoAt should return false when tryInfos map is nil")
+		}
+	})
+}
+
+// TestChunkValuesEqual tests the valuesEqual method
+func TestChunkValuesEqual(t *testing.T) {
+	chunk := NewChunk("test")
+
+	t.Run("nil values equal", func(t *testing.T) {
+		if !chunk.valuesEqual(NilValue(), NilValue()) {
+			t.Error("nil values should be equal")
+		}
+	})
+
+	t.Run("bool values equal", func(t *testing.T) {
+		if !chunk.valuesEqual(BoolValue(true), BoolValue(true)) {
+			t.Error("equal bool values should be equal")
+		}
+		if !chunk.valuesEqual(BoolValue(false), BoolValue(false)) {
+			t.Error("equal bool values should be equal")
+		}
+	})
+
+	t.Run("bool values not equal", func(t *testing.T) {
+		if chunk.valuesEqual(BoolValue(true), BoolValue(false)) {
+			t.Error("different bool values should not be equal")
+		}
+	})
+
+	t.Run("int values equal", func(t *testing.T) {
+		if !chunk.valuesEqual(IntValue(42), IntValue(42)) {
+			t.Error("equal int values should be equal")
+		}
+	})
+
+	t.Run("int values not equal", func(t *testing.T) {
+		if chunk.valuesEqual(IntValue(42), IntValue(43)) {
+			t.Error("different int values should not be equal")
+		}
+	})
+
+	t.Run("float values equal", func(t *testing.T) {
+		if !chunk.valuesEqual(FloatValue(3.14), FloatValue(3.14)) {
+			t.Error("equal float values should be equal")
+		}
+	})
+
+	t.Run("float values not equal", func(t *testing.T) {
+		if chunk.valuesEqual(FloatValue(3.14), FloatValue(3.15)) {
+			t.Error("different float values should not be equal")
+		}
+	})
+
+	t.Run("string values equal", func(t *testing.T) {
+		if !chunk.valuesEqual(StringValue("hello"), StringValue("hello")) {
+			t.Error("equal string values should be equal")
+		}
+	})
+
+	t.Run("string values not equal", func(t *testing.T) {
+		if chunk.valuesEqual(StringValue("hello"), StringValue("world")) {
+			t.Error("different string values should not be equal")
+		}
+	})
+
+	t.Run("different types not equal", func(t *testing.T) {
+		if chunk.valuesEqual(IntValue(42), StringValue("42")) {
+			t.Error("values of different types should not be equal")
+		}
+		if chunk.valuesEqual(IntValue(42), FloatValue(42.0)) {
+			t.Error("int and float should not be equal (different types)")
+		}
+	})
+
+	t.Run("complex types not equal", func(t *testing.T) {
+		arr1 := ArrayValue(NewArrayInstance([]Value{IntValue(1)}))
+		arr2 := ArrayValue(NewArrayInstance([]Value{IntValue(1)}))
+		if chunk.valuesEqual(arr1, arr2) {
+			t.Error("complex types (arrays) should not deduplicate")
+		}
+	})
+
+	t.Run("object values not equal", func(t *testing.T) {
+		obj1 := ObjectValue(NewObjectInstance("Test"))
+		obj2 := ObjectValue(NewObjectInstance("Test"))
+		if chunk.valuesEqual(obj1, obj2) {
+			t.Error("complex types (objects) should not deduplicate")
+		}
+	})
+}
+
+// TestAddConstantDeduplication tests that AddConstant deduplicates properly
+func TestAddConstantDeduplication(t *testing.T) {
+	chunk := NewChunk("test")
+
+	t.Run("deduplicate int constants", func(t *testing.T) {
+		idx1 := chunk.AddConstant(IntValue(42))
+		idx2 := chunk.AddConstant(IntValue(42))
+		if idx1 != idx2 {
+			t.Errorf("AddConstant should deduplicate: idx1=%d, idx2=%d", idx1, idx2)
+		}
+		if len(chunk.Constants) != 1 {
+			t.Errorf("Constants length = %d, want 1", len(chunk.Constants))
+		}
+	})
+
+	t.Run("deduplicate string constants", func(t *testing.T) {
+		chunk := NewChunk("test")
+		idx1 := chunk.AddConstant(StringValue("hello"))
+		idx2 := chunk.AddConstant(StringValue("hello"))
+		if idx1 != idx2 {
+			t.Errorf("AddConstant should deduplicate strings: idx1=%d, idx2=%d", idx1, idx2)
+		}
+		if len(chunk.Constants) != 1 {
+			t.Errorf("Constants length = %d, want 1", len(chunk.Constants))
+		}
+	})
+
+	t.Run("deduplicate nil constants", func(t *testing.T) {
+		chunk := NewChunk("test")
+		idx1 := chunk.AddConstant(NilValue())
+		idx2 := chunk.AddConstant(NilValue())
+		if idx1 != idx2 {
+			t.Errorf("AddConstant should deduplicate nil: idx1=%d, idx2=%d", idx1, idx2)
+		}
+		if len(chunk.Constants) != 1 {
+			t.Errorf("Constants length = %d, want 1", len(chunk.Constants))
+		}
+	})
+
+	t.Run("do not deduplicate different values", func(t *testing.T) {
+		chunk := NewChunk("test")
+		idx1 := chunk.AddConstant(IntValue(42))
+		idx2 := chunk.AddConstant(IntValue(43))
+		if idx1 == idx2 {
+			t.Error("AddConstant should not deduplicate different values")
+		}
+		if len(chunk.Constants) != 2 {
+			t.Errorf("Constants length = %d, want 2", len(chunk.Constants))
+		}
+	})
+
+	t.Run("do not deduplicate complex types", func(t *testing.T) {
+		chunk := NewChunk("test")
+		arr1 := ArrayValue(NewArrayInstance([]Value{IntValue(1)}))
+		arr2 := ArrayValue(NewArrayInstance([]Value{IntValue(1)}))
+		idx1 := chunk.AddConstant(arr1)
+		idx2 := chunk.AddConstant(arr2)
+		if idx1 == idx2 {
+			t.Error("AddConstant should not deduplicate complex types")
+		}
+		if len(chunk.Constants) != 2 {
+			t.Errorf("Constants length = %d, want 2 (no dedup for arrays)", len(chunk.Constants))
+		}
+	})
+}
+
 func BenchmarkWriteInstruction(b *testing.B) {
 	chunk := NewChunk("bench")
 	b.ResetTimer()
