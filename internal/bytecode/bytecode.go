@@ -47,9 +47,9 @@ const (
 	ValueFloat
 	ValueString
 	ValueArray
-	ValueSet // Task 3.5.29: Set value type
+	ValueSet
 	ValueObject
-	ValueRecord // Task 9.7: Record value type
+	ValueRecord
 	ValueFunction
 	ValueClosure
 	ValueBuiltin
@@ -64,9 +64,9 @@ var ValueTypeNames = [...]string{
 	ValueFloat:    "float",
 	ValueString:   "string",
 	ValueArray:    "array",
-	ValueSet:      "set", // Task 3.5.29
+	ValueSet:      "set",
 	ValueObject:   "object",
-	ValueRecord:   "record", // Task 9.7
+	ValueRecord:   "record",
 	ValueFunction: "function",
 	ValueClosure:  "closure",
 	ValueBuiltin:  "builtin",
@@ -107,7 +107,7 @@ func ArrayValue(arr *ArrayInstance) Value {
 	return Value{Type: ValueArray, Data: arr}
 }
 
-// SetValue constructs a Value representing a set instance (Task 3.5.29).
+// SetValue constructs a Value representing a set instance.
 func SetValue(set *SetInstance) Value {
 	return Value{Type: ValueSet, Data: set}
 }
@@ -513,7 +513,7 @@ func (a *ArrayInstance) String() string {
 }
 
 // ============================================================================
-// SetInstance (Task 3.5.29)
+// SetInstance
 // ============================================================================
 
 // SetInstance represents a set value in the bytecode VM.
@@ -657,7 +657,7 @@ func (o *ObjectInstance) GetProperty(name string) (Value, bool) {
 	if ok {
 		return val, true
 	}
-	// Fall back to fields (Task 9.5.5: fields are accessed via property syntax)
+	// Fall back to fields (fields are accessed via property syntax)
 	val, ok = o.fields[strings.ToLower(name)]
 	if ok {
 		return val, true
@@ -677,7 +677,7 @@ func (o *ObjectInstance) SetProperty(name string, value Value) {
 }
 
 // ============================================================================
-// RecordInstance (Task 9.7)
+// RecordInstance
 // ============================================================================
 
 // RecordInstance represents a record value in the bytecode VM.
@@ -746,7 +746,7 @@ type ClassMetadata struct {
 	Fields []*FieldMetadata
 }
 
-// RecordMetadata stores metadata for record types including static methods (Task 9.1).
+// RecordMetadata stores metadata for record types including static methods.
 // Records can have static methods (class functions) that are called on the type itself,
 // not on instances. This metadata maps method names to their constant indices for direct calls.
 type RecordMetadata struct {
@@ -785,7 +785,7 @@ func NewChunk(name string) *Chunk {
 		Lines:      make([]LineInfo, 0, 16),
 		Helpers:    make(map[string]*HelperInfo),
 		Classes:    make(map[string]*ClassMetadata),
-		Records:    make(map[string]*RecordMetadata), // Task 9.1
+		Records:    make(map[string]*RecordMetadata),
 		LocalCount: 0,
 		Name:       name,
 		tryInfos:   make(map[int]TryInfo),

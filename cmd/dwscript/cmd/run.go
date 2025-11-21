@@ -28,7 +28,6 @@ var (
 )
 
 // simpleOptions implements interp.Options for the CLI.
-// Task 3.8.1: Simple implementation for CLI use without pkg/dwscript dependency.
 type simpleOptions struct {
 	MaxRecursionDepth int
 }
@@ -199,7 +198,6 @@ func runScript(_ *cobra.Command, args []string) error {
 
 	// Interpreter: execute the program
 	// Create a simple options struct for passing maxRecursionDepth
-	// Task 3.8.1: Use simpleOptions to implement interp.Options interface
 	opts := &simpleOptions{
 		MaxRecursionDepth: maxRecursion,
 	}

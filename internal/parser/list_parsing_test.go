@@ -399,7 +399,7 @@ func TestParseSeparatedList_TrailingSeparatorNoTerminator(t *testing.T) {
 			input:           "a, b, c,)",
 			expectCount:     3,
 			expectOk:        true,
-			expectCurToken:  ",", // Parser now leaves cursor on the trailing separator
+			expectCurToken:  ",",
 			expectCurType:   lexer.COMMA,
 			expectPeekToken: lexer.RPAREN,
 		},

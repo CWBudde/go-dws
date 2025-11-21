@@ -183,9 +183,6 @@ func TestCharLiteral(t *testing.T) {
 			if node.Pos() != expectedPos {
 				t.Errorf("Pos() = %v, want %v", node.Pos(), expectedPos)
 			}
-
-			// Task 9.18: Type annotation tests moved to pkg/ast/metadata_test.go
-			// GetType/SetType methods no longer exist on nodes
 		})
 	}
 }

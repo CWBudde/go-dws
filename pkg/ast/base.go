@@ -38,7 +38,7 @@ func (n *BaseNode) End() token.Position {
 // TypedExpressionBase extends BaseNode and was previously used to store type
 // annotations. As of Task 9.18, type information is stored separately in
 // SemanticInfo rather than on AST nodes themselves. This type is kept for
-// backward compatibility but is now just an alias for BaseNode.
+// backward compatibility but is just an alias for BaseNode.
 type TypedExpressionBase struct {
 	BaseNode
 }

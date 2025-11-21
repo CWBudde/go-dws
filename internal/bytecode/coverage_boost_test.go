@@ -696,7 +696,7 @@ func TestInvokeMethodArrayDeleteSingleArg(t *testing.T) {
 		t.Errorf("Array length after Delete(2) = %d, want 4", arr.Length())
 	}
 
-	// Element at index 2 should now be 4 (was 3, which was deleted)
+	// Element at index 2 should be 4 (was 3, which was deleted)
 	val, _ := arr.Get(2)
 	if val.AsInt() != 4 {
 		t.Errorf("arr[2] after Delete = %d, want 4", val.AsInt())

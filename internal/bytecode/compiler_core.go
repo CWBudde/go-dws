@@ -6,7 +6,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
-	pkgast "github.com/cwbudde/go-dws/pkg/ast" // Task 9.18
+	pkgast "github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // Compiler converts AST nodes into bytecode chunks.
@@ -124,7 +124,6 @@ func (c *Compiler) newChildCompiler(name string) *Compiler {
 
 // SetSemanticInfo sets the semantic metadata table for this compiler.
 // The semantic info contains type annotations and symbol resolutions from analysis.
-// Task 9.18: Separate type metadata from AST nodes.
 func (c *Compiler) SetSemanticInfo(info *pkgast.SemanticInfo) {
 	c.semanticInfo = info
 }

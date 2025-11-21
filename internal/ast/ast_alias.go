@@ -1,8 +1,6 @@
 package ast
 
 // This file provides type aliases to pkg/ast for backwards compatibility.
-// All internal code continues to use internal/ast, but now it maps to the
-// public pkg/ast types.
 
 import (
 	pkgast "github.com/cwbudde/go-dws/pkg/ast"

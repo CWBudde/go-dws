@@ -476,7 +476,7 @@ func (i *Interpreter) builtinFormat(args []Value) Value {
 		spec := specs[idx]
 
 		// Unbox Variant values for Format() function
-		// Since ARRAY_OF_CONST now uses VARIANT element type
+		// Since ARRAY_OF_CONST uses VARIANT element type
 		// we need to unwrap Variant values before formatting
 		unwrapped := unwrapVariant(elem)
 

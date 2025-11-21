@@ -58,7 +58,6 @@ func (c *Compiler) compileExpression(expr ast.Expression) error {
 	case *ast.IsExpression:
 		return c.compileIsExpression(node)
 	case *ast.RecordLiteralExpression:
-		// Task 9.7: Compile record literals
 		return c.compileRecordLiteralExpression(node)
 	default:
 		return c.errorf(expr, "unsupported expression type %T", expr)
@@ -201,7 +200,7 @@ func (c *Compiler) compileSetLiteral(expr *ast.SetLiteral) error {
 		return c.errorf(nil, "nil set literal expression")
 	}
 
-	// Task 9.156: Check if this SetLiteral should be treated as an array (array of const)
+	// Check if this SetLiteral should be treated as an array (array of const)
 	// The semantic analyzer marks SetLiterals with array type annotations when the
 	// context expects an array (e.g., Format('%s', [value]) where [value] is array of const)
 	if c.semanticInfo != nil {
@@ -458,7 +457,7 @@ func (c *Compiler) compileMethodCallExpression(expr *ast.MethodCallExpression) e
 		return c.errorf(expr, "invalid method call expression")
 	}
 
-	// Task 9.3: Check if this is a static method call on a record type (e.g., TRecord.Method(...))
+	// Check if this is a static method call on a record type (e.g., TRecord.Method(...))
 	if ident, ok := expr.Object.(*ast.Identifier); ok {
 		typeKey := strings.ToLower(ident.Value)
 
@@ -912,7 +911,7 @@ func (c *Compiler) compileIsExpression(expr *ast.IsExpression) error {
 	return c.errorf(expr, "type checking with 'is' operator not yet supported in bytecode mode")
 }
 
-// compileRecordLiteralExpression compiles a record literal (Task 9.7).
+// compileRecordLiteralExpression compiles a record literal.
 // Example: TPoint(x: 10; y: 20)
 // Strategy:
 //  1. Create new record instance (OpNewRecord)

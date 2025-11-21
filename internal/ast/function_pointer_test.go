@@ -168,9 +168,6 @@ func TestAddressOfExpression(t *testing.T) {
 		if node.String() != expected {
 			t.Errorf("expected %q, got %q", expected, node.String())
 		}
-
-		// Task 9.18: Type information is now stored in SemanticInfo, not on nodes
-		// Type checking is tested via SemanticInfo tests
 	})
 
 	t.Run("address-of implements TypedExpression", func(t *testing.T) {
@@ -183,9 +180,6 @@ func TestAddressOfExpression(t *testing.T) {
 
 		// Verify it implements TypedExpression interface
 		var _ TypedExpression = node
-
-		// Task 9.18: GetType/SetType methods removed - type info now in SemanticInfo
-		// See pkg/ast/metadata_test.go for type annotation tests
 	})
 
 	t.Run("address-of position", func(t *testing.T) {

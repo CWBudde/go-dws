@@ -39,7 +39,6 @@ func TestMultiIndexCommaSyntax(t *testing.T) {
 	})
 
 	t.Run("Parse Yin_and_yang.dws with comma syntax", func(t *testing.T) {
-		// Test that Yin_and_yang.dws (which uses comma syntax) now parses successfully
 		cmd := exec.Command(binary, "parse", "../../examples/rosetta/Yin_and_yang.dws")
 		output, err := cmd.CombinedOutput()
 		if err != nil {
@@ -60,7 +59,6 @@ func TestMultiIndexCommaSyntax(t *testing.T) {
 	})
 
 	t.Run("Parse Levenshtein_distance.dws with comma syntax", func(t *testing.T) {
-		// Test that Levenshtein_distance.dws (which uses comma syntax) now parses successfully
 		cmd := exec.Command(binary, "parse", "../../examples/rosetta/Levenshtein_distance.dws")
 		output, err := cmd.CombinedOutput()
 		if err != nil {
