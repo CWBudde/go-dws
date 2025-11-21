@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
@@ -146,8 +147,8 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 
 	// Index must be integer or enum (enums are ordinal types in DWScript)
 	if !indexType.Equals(types.INTEGER) && indexType.TypeKind() != "ENUM" {
-		a.addError("array index must be integer or enum, got %s at %s",
-			indexType.String(), expr.Index.Pos().String())
+		pos := expr.Index.Pos()
+		a.addError("%s", errors.FormatArrayIndexError("Integer", indexType.String(), pos.Line, pos.Column))
 		return nil
 	}
 

@@ -225,12 +225,20 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 
 	// Task 9.17: Analyze and add constants BEFORE fields
 	// This allows class var initialization expressions to reference constants
+	// Use two-pass approach to allow constants to reference earlier constants
 	constantNames := make(map[string]bool)
+
+	// First pass: Register constant names and resolve explicit types
+	type constInfo struct {
+		decl     *ast.ConstDecl
+		explType types.Type
+	}
+	constList := make([]*constInfo, 0, len(decl.Constants))
+
 	for _, constant := range decl.Constants {
 		constantName := constant.Name.Value
 
 		// Check for duplicate constant names
-		// When merging partial classes, check if already exists in ClassType
 		_, existsInClass := classType.Constants[constantName]
 		if existsInClass {
 			a.addError("duplicate constant '%s' in class '%s' at %s",
@@ -244,14 +252,14 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		}
 		constantNames[constantName] = true
 
-		// Task 9.17: Determine and store the constant's type
-		var constType types.Type
+		info := &constInfo{decl: constant}
+
+		// Resolve explicit type annotation if present
 		if constant.Type != nil {
 			typeName := getTypeExpressionName(constant.Type)
 			if typeName != "" {
-				// Explicit type annotation
 				var err error
-				constType, err = a.resolveType(typeName)
+				info.explType, err = a.resolveType(typeName)
 				if err != nil {
 					a.addError("unknown type '%s' for constant '%s' in class '%s' at %s",
 						typeName, constantName, className, constant.Token.Pos.String())
@@ -259,6 +267,34 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 				}
 			}
 		}
+
+		// Register the constant with a placeholder type for now
+		// This allows later constants to reference this one
+		classType.Constants[constantName] = nil
+		if info.explType != nil {
+			classType.ConstantTypes[constantName] = info.explType
+		}
+		classType.ConstantVisibility[constantName] = int(constant.Visibility)
+
+		constList = append(constList, info)
+	}
+
+	// Task 9.6: Register class before analyzing fields so that field initializers
+	// can reference the class name (e.g., FField := TObj2.Value)
+	// Task 9.285: Use lowercase for case-insensitive lookup
+	a.classes[strings.ToLower(className)] = classType
+
+	// Task 9.6: Set currentClass before analyzing constants and fields
+	// so that they can reference class constants
+	previousClass := a.currentClass
+	a.currentClass = classType
+	defer func() { a.currentClass = previousClass }()
+
+	// Second pass: Analyze constant values (can now reference earlier constants)
+	for _, info := range constList {
+		constant := info.decl
+		constantName := constant.Name.Value
+		constType := info.explType
 
 		if constType == nil && constant.Value != nil {
 			// Infer type from value expression
@@ -268,34 +304,14 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 					constantName, className, constant.Token.Pos.String())
 				continue
 			}
-		} else {
+			// Update the type now that we've inferred it
+			classType.ConstantTypes[constantName] = constType
+		} else if constType == nil {
 			a.addError("constant '%s' must have a value or type annotation in class '%s' at %s",
 				constantName, className, constant.Token.Pos.String())
 			continue
 		}
-
-		// Store constant visibility
-		classType.ConstantVisibility[constantName] = int(constant.Visibility)
-
-		// Note: We don't evaluate the constant value here during semantic analysis.
-		// The constant values will be evaluated at runtime when accessed.
-		// We just mark that this constant exists.
-		classType.Constants[constantName] = nil // Placeholder; actual value evaluated at runtime
-
-		// Task 9.17: Store constant type for property validation
-		classType.ConstantTypes[constantName] = constType
 	}
-
-	// Task 9.6: Register class before analyzing fields so that field initializers
-	// can reference the class name (e.g., FField := TObj2.Value)
-	// Task 9.285: Use lowercase for case-insensitive lookup
-	a.classes[strings.ToLower(className)] = classType
-
-	// Task 9.6: Set currentClass before analyzing fields so that field initializers
-	// can reference class constants
-	previousClass := a.currentClass
-	a.currentClass = classType
-	defer func() { a.currentClass = previousClass }()
 
 	// Analyze and add fields
 	fieldNames := make(map[string]bool)

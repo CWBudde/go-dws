@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ident"
 	"github.com/cwbudde/go-dws/pkg/token"
@@ -601,9 +602,8 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 
 			if argType != nil && !a.canAssign(argType, expectedType) {
-				a.addError("lazy argument %d to function '%s' has type %s, expected %s at %s",
-					i+1, funcIdent.Value, argType.String(), expectedType.String(),
-					expr.Token.Pos.String())
+				pos := expr.Token.Pos
+				a.addError("%s", errors.FormatArgumentError(i, expectedType.String(), argType.String(), pos.Line, pos.Column))
 			}
 		} else {
 			// Regular parameter: validate type normally
@@ -619,9 +619,8 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 
 			if argType != nil && !a.canAssign(argType, expectedType) {
-				a.addError("argument %d to function '%s' has type %s, expected %s at %s",
-					i+1, funcIdent.Value, argType.String(), expectedType.String(),
-					expr.Token.Pos.String())
+				pos := expr.Token.Pos
+				a.addError("%s", errors.FormatArgumentError(i, expectedType.String(), argType.String(), pos.Line, pos.Column))
 			}
 		}
 	}

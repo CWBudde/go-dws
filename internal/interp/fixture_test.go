@@ -129,7 +129,7 @@ func TestDWScriptFixtures(t *testing.T) {
 			path:         "../../testdata/fixtures/FailureScripts",
 			expectErrors: true,
 			description:  "Compilation and runtime errors",
-			skip:         true, // TODO: Re-enable after implementing missing features
+			skip:         false, // TODO: Re-enable after implementing missing features
 		},
 		{
 			name:         "AssociativeFail",

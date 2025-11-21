@@ -24,6 +24,12 @@ func getTypeExpressionName(typeExpr ast.TypeExpression) string {
 
 	switch te := typeExpr.(type) {
 	case *ast.TypeAnnotation:
+		if te == nil {
+			return ""
+		}
+		if te.InlineType != nil {
+			return getTypeExpressionName(te.InlineType)
+		}
 		return te.Name
 	case *ast.ArrayTypeNode:
 		return te.String()
