@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // builtinTryStrToInt implements the TryStrToInt() built-in function.

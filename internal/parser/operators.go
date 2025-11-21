@@ -3,8 +3,8 @@ package parser
 import (
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // parseOperatorDeclaration parses a standalone (global) operator declaration.

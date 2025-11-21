@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // TestIntegration_InterfaceDeclarationAndUsage tests complete interface workflow

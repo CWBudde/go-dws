@@ -3,8 +3,8 @@ package bytecode
 import (
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 func (c *Compiler) compileExpression(expr ast.Expression) error {

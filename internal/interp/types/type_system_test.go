@@ -3,7 +3,7 @@ package types
 import (
 	"testing"
 
-	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // Mock types for testing (these mirror the real types in interp package)

@@ -3,8 +3,8 @@ package bytecode
 import (
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 func (c *Compiler) compileProgram(program *ast.Program) error {

@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // parseRecordOrHelperDeclaration determines if this is a record or helper declaration (dispatcher).

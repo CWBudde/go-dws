@@ -1,8 +1,8 @@
 package evaluator
 
 import (
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // This file contains binary operator evaluation methods for the Evaluator.

@@ -1,7 +1,7 @@
 package evaluator
 
 import (
-	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // This file contains visitor methods for declaration AST nodes.

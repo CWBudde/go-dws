@@ -4,13 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
-
-	// Task 3.8.2: pkg/ast is imported for SemanticInfo, which holds semantic analysis
-	// metadata (type annotations, symbol resolutions). This is separate from the AST
-	// structure itself and is not aliased in internal/ast.
-	pkgast "github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // ============================================================================
@@ -683,7 +678,7 @@ func (i *Interpreter) evalArrayLiteralWithExpected(lit *ast.ArrayLiteralExpressi
 	// Ensure semanticInfo exists for type annotation
 	wasNil := i.semanticInfo == nil
 	if wasNil {
-		i.semanticInfo = pkgast.NewSemanticInfo()
+		i.semanticInfo = ast.NewSemanticInfo()
 	}
 
 	// Temporarily set type annotation for evaluation

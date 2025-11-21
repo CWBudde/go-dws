@@ -15,8 +15,8 @@ package builtins
 import (
 	"math/rand"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // Value represents a runtime value in the DWScript interpreter.

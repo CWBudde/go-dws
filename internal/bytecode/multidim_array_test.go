@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/bytecode"
 	"github.com/cwbudde/go-dws/internal/interp"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // NewTestLexer creates a lexer for the given source code.

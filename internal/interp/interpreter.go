@@ -7,13 +7,13 @@ import (
 	"math/rand"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/internal/units"
+	"github.com/cwbudde/go-dws/pkg/ast"
 
 	// Task 3.8.2: pkg/ast is imported for SemanticInfo, which holds semantic analysis
 	// metadata (type annotations, symbol resolutions). This is separate from the AST

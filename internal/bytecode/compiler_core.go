@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
-	pkgast "github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // Compiler converts AST nodes into bytecode chunks.
@@ -17,7 +16,7 @@ type Compiler struct {
 	enclosing       *Compiler
 	globals         map[string]globalVar
 	chunk           *Chunk
-	semanticInfo    *pkgast.SemanticInfo
+	semanticInfo    *ast.SemanticInfo
 	locals          []local
 	loopStack       []*loopContext
 	optimizeOptions []OptimizeOption
@@ -124,7 +123,7 @@ func (c *Compiler) newChildCompiler(name string) *Compiler {
 
 // SetSemanticInfo sets the semantic metadata table for this compiler.
 // The semantic info contains type annotations and symbol resolutions from analysis.
-func (c *Compiler) SetSemanticInfo(info *pkgast.SemanticInfo) {
+func (c *Compiler) SetSemanticInfo(info *ast.SemanticInfo) {
 	c.semanticInfo = info
 }
 

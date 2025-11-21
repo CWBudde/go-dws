@@ -3,7 +3,7 @@ package interp
 import (
 	"math"
 
-	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // builtinRound implements the Round() built-in function.

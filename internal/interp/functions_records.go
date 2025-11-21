@@ -3,7 +3,7 @@ package interp
 import (
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // evalRecordMethodCall evaluates a method call on a record value,

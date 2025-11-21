@@ -3,7 +3,7 @@ package types
 import (
 	"testing"
 
-	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // Helper to create a simple function declaration for testing

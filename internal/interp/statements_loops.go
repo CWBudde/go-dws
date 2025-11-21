@@ -3,8 +3,8 @@ package interp
 import (
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // This file contains loop statement evaluation (while, repeat, for, for-in, break, continue, exit, return).

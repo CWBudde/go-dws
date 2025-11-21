@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // mockErrorValue is a simple error value for testing

@@ -3,8 +3,8 @@ package parser
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // Array Indexing Syntax in DWScript

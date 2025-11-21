@@ -3,7 +3,7 @@ package interp
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // evalBinaryExpression evaluates a binary expression.

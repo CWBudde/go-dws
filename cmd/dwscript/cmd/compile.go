@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/bytecode"
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/semantic"
+	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/spf13/cobra"
 )
 

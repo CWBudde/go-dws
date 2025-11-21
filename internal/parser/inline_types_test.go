@@ -3,8 +3,8 @@ package parser
 import (
 	"testing"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // TestInlineFunctionPointerInParameter tests parsing function declarations

@@ -3,8 +3,8 @@ package evaluator
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // ============================================================================

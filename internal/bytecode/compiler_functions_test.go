@@ -4,9 +4,9 @@ import (
 	"io"
 	"testing"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/interp"
 	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 func TestCompiler_LambdaCapturesLocal(t *testing.T) {

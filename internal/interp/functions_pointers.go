@@ -3,7 +3,7 @@ package interp
 import (
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // callFunctionPointer executes a function pointer call, handling lambdas, method pointers, and regular function pointers.
