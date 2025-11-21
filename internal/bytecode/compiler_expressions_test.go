@@ -554,3 +554,288 @@ func TestCompiler_SelfIdentifierEmitsGetSelf(t *testing.T) {
 		t.Fatalf("expected first instruction to be OpGetSelf, got %v", chunk.Code)
 	}
 }
+
+// TestCompiler_SetLiteral tests compilation of set literals (Task 3.5.29).
+func TestCompiler_SetLiteral(t *testing.T) {
+	tests := []struct {
+		name             string
+		setLiteral       *ast.SetLiteral
+		expectedElements int // Number of elements that should be pushed onto stack
+	}{
+		{
+			name: "empty set",
+			setLiteral: &ast.SetLiteral{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.LBRACK, Literal: "[", Pos: pos(1, 1)},
+					},
+				},
+				Elements: []ast.Expression{},
+			},
+			expectedElements: 0,
+		},
+		{
+			name: "simple set with integers",
+			setLiteral: &ast.SetLiteral{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.LBRACK, Literal: "[", Pos: pos(1, 1)},
+					},
+				},
+				Elements: []ast.Expression{
+					&ast.IntegerLiteral{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(1, 2)},
+							},
+						},
+						Value: 1,
+					},
+					&ast.IntegerLiteral{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.INT, Literal: "2", Pos: pos(1, 5)},
+							},
+						},
+						Value: 2,
+					},
+					&ast.IntegerLiteral{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.INT, Literal: "3", Pos: pos(1, 8)},
+							},
+						},
+						Value: 3,
+					},
+				},
+			},
+			expectedElements: 3,
+		},
+		{
+			name: "set with integer range",
+			setLiteral: &ast.SetLiteral{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.LBRACK, Literal: "[", Pos: pos(1, 1)},
+					},
+				},
+				Elements: []ast.Expression{
+					&ast.RangeExpression{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(1, 2)},
+							},
+						},
+						Start: &ast.IntegerLiteral{
+							TypedExpressionBase: ast.TypedExpressionBase{
+								BaseNode: ast.BaseNode{
+									Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(1, 2)},
+								},
+							},
+							Value: 1,
+						},
+						RangeEnd: &ast.IntegerLiteral{
+							TypedExpressionBase: ast.TypedExpressionBase{
+								BaseNode: ast.BaseNode{
+									Token: lexer.Token{Type: lexer.INT, Literal: "5", Pos: pos(1, 5)},
+								},
+							},
+							Value: 5,
+						},
+					},
+				},
+			},
+			expectedElements: 5, // Range 1..5 expands to [1, 2, 3, 4, 5]
+		},
+		{
+			name: "set with character range",
+			setLiteral: &ast.SetLiteral{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.LBRACK, Literal: "[", Pos: pos(1, 1)},
+					},
+				},
+				Elements: []ast.Expression{
+					&ast.RangeExpression{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.CHAR, Literal: "'a'", Pos: pos(1, 2)},
+							},
+						},
+						Start: &ast.CharLiteral{
+							TypedExpressionBase: ast.TypedExpressionBase{
+								BaseNode: ast.BaseNode{
+									Token: lexer.Token{Type: lexer.CHAR, Literal: "'a'", Pos: pos(1, 2)},
+								},
+							},
+							Value: 'a',
+						},
+						RangeEnd: &ast.CharLiteral{
+							TypedExpressionBase: ast.TypedExpressionBase{
+								BaseNode: ast.BaseNode{
+									Token: lexer.Token{Type: lexer.CHAR, Literal: "'c'", Pos: pos(1, 7)},
+								},
+							},
+							Value: 'c',
+						},
+					},
+				},
+			},
+			expectedElements: 3, // Range 'a'..'c' expands to ['a', 'b', 'c']
+		},
+		{
+			name: "set with mixed elements and range",
+			setLiteral: &ast.SetLiteral{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.LBRACK, Literal: "[", Pos: pos(1, 1)},
+					},
+				},
+				Elements: []ast.Expression{
+					&ast.IntegerLiteral{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: pos(1, 2)},
+							},
+						},
+						Value: 0,
+					},
+					&ast.RangeExpression{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.INT, Literal: "2", Pos: pos(1, 5)},
+							},
+						},
+						Start: &ast.IntegerLiteral{
+							TypedExpressionBase: ast.TypedExpressionBase{
+								BaseNode: ast.BaseNode{
+									Token: lexer.Token{Type: lexer.INT, Literal: "2", Pos: pos(1, 5)},
+								},
+							},
+							Value: 2,
+						},
+						RangeEnd: &ast.IntegerLiteral{
+							TypedExpressionBase: ast.TypedExpressionBase{
+								BaseNode: ast.BaseNode{
+									Token: lexer.Token{Type: lexer.INT, Literal: "4", Pos: pos(1, 9)},
+								},
+							},
+							Value: 4,
+						},
+					},
+					&ast.IntegerLiteral{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.INT, Literal: "10", Pos: pos(1, 13)},
+							},
+						},
+						Value: 10,
+					},
+				},
+			},
+			expectedElements: 5, // [0, 2..4, 10] expands to [0, 2, 3, 4, 10]
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			program := &ast.Program{
+				Statements: []ast.Statement{
+					&ast.ExpressionStatement{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.LBRACK, Literal: "[", Pos: pos(1, 1)},
+						},
+						Expression: tt.setLiteral,
+					},
+				},
+			}
+
+			chunk := compileProgram(t, program)
+
+			// Verify that OpNewSet is emitted with correct element count
+			foundNewSet := false
+			for _, inst := range chunk.Code {
+				if inst.OpCode() == OpNewSet {
+					foundNewSet = true
+					actualCount := int(inst.B())
+					if actualCount != tt.expectedElements {
+						t.Errorf("OpNewSet element count = %d, want %d", actualCount, tt.expectedElements)
+					}
+					break
+				}
+			}
+
+			if !foundNewSet {
+				t.Errorf("expected OpNewSet instruction not found in compiled chunk")
+			}
+		})
+	}
+}
+
+// TestCompiler_SetLiteralRangeExpansion tests that ranges are properly expanded at compile time.
+func TestCompiler_SetLiteralRangeExpansion(t *testing.T) {
+	// Test that a range like [1..10] produces 10 LOAD_CONST instructions followed by NEW_SET with count=10
+	setLiteral := &ast.SetLiteral{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.LBRACK, Literal: "[", Pos: pos(1, 1)},
+			},
+		},
+		Elements: []ast.Expression{
+			&ast.RangeExpression{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(1, 2)},
+					},
+				},
+				Start: &ast.IntegerLiteral{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(1, 2)},
+						},
+					},
+					Value: 1,
+				},
+				RangeEnd: &ast.IntegerLiteral{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.INT, Literal: "10", Pos: pos(1, 6)},
+						},
+					},
+					Value: 10,
+				},
+			},
+		},
+	}
+
+	program := &ast.Program{
+		Statements: []ast.Statement{
+			&ast.ExpressionStatement{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.LBRACK, Literal: "[", Pos: pos(1, 1)},
+				},
+				Expression: setLiteral,
+			},
+		},
+	}
+
+	chunk := compileProgram(t, program)
+
+	// Count LOAD_CONST instructions (should be 10, one for each value in range 1..10)
+	loadConstCount := 0
+	for _, inst := range chunk.Code {
+		op := inst.OpCode()
+		if op == OpLoadConst || op == OpLoadConst0 || op == OpLoadConst1 {
+			loadConstCount++
+		}
+	}
+
+	if loadConstCount != 10 {
+		t.Errorf("expected 10 load constant instructions for range 1..10, got %d", loadConstCount)
+	}
+
+	// Verify the constants are correct (1, 2, 3, ..., 10)
+	if len(chunk.Constants) < 10 {
+		t.Fatalf("expected at least 10 constants in pool, got %d", len(chunk.Constants))
+	}
+}

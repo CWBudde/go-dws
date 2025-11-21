@@ -47,6 +47,7 @@ const (
 	ValueFloat
 	ValueString
 	ValueArray
+	ValueSet // Task 3.5.29: Set value type
 	ValueObject
 	ValueRecord // Task 9.7: Record value type
 	ValueFunction
@@ -63,6 +64,7 @@ var ValueTypeNames = [...]string{
 	ValueFloat:    "float",
 	ValueString:   "string",
 	ValueArray:    "array",
+	ValueSet:      "set", // Task 3.5.29
 	ValueObject:   "object",
 	ValueRecord:   "record", // Task 9.7
 	ValueFunction: "function",
@@ -103,6 +105,11 @@ func StringValue(s string) Value {
 // ArrayValue constructs a Value representing an array instance.
 func ArrayValue(arr *ArrayInstance) Value {
 	return Value{Type: ValueArray, Data: arr}
+}
+
+// SetValue constructs a Value representing a set instance (Task 3.5.29).
+func SetValue(set *SetInstance) Value {
+	return Value{Type: ValueSet, Data: set}
 }
 
 // ObjectValue constructs a Value representing an object instance.
@@ -500,6 +507,100 @@ func (a *ArrayInstance) String() string {
 			builder.WriteString(", ")
 		}
 		builder.WriteString(elem.String())
+	}
+	builder.WriteByte(']')
+	return builder.String()
+}
+
+// ============================================================================
+// SetInstance (Task 3.5.29)
+// ============================================================================
+
+// SetInstance represents a set value in the bytecode VM.
+// Sets are collections of unique ordinal values (integers, enums, characters).
+// In DWScript, sets are typically stored as bitsets for efficient storage and operations.
+type SetInstance struct {
+	elements map[string]struct{} // Use map for uniqueness, string key for any ordinal type
+}
+
+// NewSetInstance creates a new set initialized with the provided elements.
+// Duplicates are automatically removed.
+func NewSetInstance(elements []Value) *SetInstance {
+	set := &SetInstance{
+		elements: make(map[string]struct{}),
+	}
+	for _, elem := range elements {
+		set.Add(elem)
+	}
+	return set
+}
+
+// Add adds an element to the set.
+func (s *SetInstance) Add(value Value) {
+	if s == nil {
+		return
+	}
+	key := s.valueToKey(value)
+	s.elements[key] = struct{}{}
+}
+
+// Contains checks if a value is in the set.
+func (s *SetInstance) Contains(value Value) bool {
+	if s == nil {
+		return false
+	}
+	key := s.valueToKey(value)
+	_, exists := s.elements[key]
+	return exists
+}
+
+// Size returns the number of elements in the set.
+func (s *SetInstance) Size() int {
+	if s == nil {
+		return 0
+	}
+	return len(s.elements)
+}
+
+// valueToKey converts a value to a unique string key for map storage.
+func (s *SetInstance) valueToKey(value Value) string {
+	switch value.Type {
+	case ValueInt:
+		if i, ok := value.Data.(int64); ok {
+			return fmt.Sprintf("i:%d", i)
+		}
+	case ValueString:
+		if str, ok := value.Data.(string); ok {
+			return fmt.Sprintf("s:%s", str)
+		}
+	case ValueBool:
+		if b, ok := value.Data.(bool); ok {
+			return fmt.Sprintf("b:%t", b)
+		}
+	}
+	// Fallback for other types
+	return fmt.Sprintf("v:%v", value.Data)
+}
+
+// String returns a string representation of the set for debugging.
+func (s *SetInstance) String() string {
+	if s == nil {
+		return "[]"
+	}
+	var builder strings.Builder
+	builder.WriteByte('[')
+	first := true
+	for key := range s.elements {
+		if !first {
+			builder.WriteString(", ")
+		}
+		first = false
+		// Strip the type prefix (e.g., "i:1" -> "1", "s:a" -> "a")
+		if idx := strings.IndexByte(key, ':'); idx >= 0 {
+			builder.WriteString(key[idx+1:])
+		} else {
+			builder.WriteString(key)
+		}
 	}
 	builder.WriteByte(']')
 	return builder.String()
