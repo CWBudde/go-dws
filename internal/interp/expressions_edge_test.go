@@ -465,6 +465,161 @@ func TestEvalIsExpressionWithNonObject(t *testing.T) {
 	}
 }
 
+// TestEvalIsExpressionWithNil tests 'is' operator with nil objects
+// Task 3.5.34: Nil objects should return false for any type check
+func TestEvalIsExpressionWithNil(t *testing.T) {
+	input := `
+		type TTest = class
+		end;
+		var obj: TTest := nil;
+		PrintLn(obj is TTest);
+	`
+	_, output := testEvalEdgeCase(input, t)
+	if !strings.Contains(output, "False") {
+		t.Errorf("Expected output containing False, got %q", output)
+	}
+}
+
+// TestEvalIsExpressionWithClassHierarchy tests 'is' operator with class inheritance
+// Task 3.5.34: Objects should match their class and all parent classes
+func TestEvalIsExpressionWithClassHierarchy(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "object is own class",
+			input: `
+				type TParent = class
+				end;
+				type TChild = class(TParent)
+				end;
+				var obj := TChild.Create;
+				PrintLn(obj is TChild);
+			`,
+			expected: "True",
+		},
+		{
+			name: "object is parent class",
+			input: `
+				type TParent = class
+				end;
+				type TChild = class(TParent)
+				end;
+				var obj := TChild.Create;
+				PrintLn(obj is TParent);
+			`,
+			expected: "True",
+		},
+		{
+			name: "parent object is not child class",
+			input: `
+				type TParent = class
+				end;
+				type TChild = class(TParent)
+				end;
+				var obj := TParent.Create;
+				PrintLn(obj is TChild);
+			`,
+			expected: "False",
+		},
+		{
+			name: "deep hierarchy - grandchild is grandparent",
+			input: `
+				type TGrandparent = class
+				end;
+				type TParent = class(TGrandparent)
+				end;
+				type TChild = class(TParent)
+				end;
+				var obj := TChild.Create;
+				PrintLn(obj is TGrandparent);
+			`,
+			expected: "True",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalEdgeCase(tt.input, t)
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output containing %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+// TestEvalIsExpressionWithInterfaceHierarchy tests 'is' operator with interface inheritance
+// Task 3.5.34: Objects should match interfaces they implement directly or via inheritance
+func TestEvalIsExpressionWithInterfaceHierarchy(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "object is implemented interface",
+			input: `
+				type IBase = interface
+					procedure Base;
+				end;
+				type TImpl = class(IBase)
+					procedure Base;
+				end;
+				procedure TImpl.Base; begin end;
+				var obj := TImpl.Create;
+				PrintLn(obj is IBase);
+			`,
+			expected: "True",
+		},
+		{
+			name: "object is not non-implemented interface",
+			input: `
+				type IBase = interface
+					procedure Base;
+				end;
+				type IOther = interface
+					procedure Other;
+				end;
+				type TImpl = class(IBase)
+					procedure Base;
+				end;
+				procedure TImpl.Base; begin end;
+				var obj := TImpl.Create;
+				PrintLn(obj is IOther);
+			`,
+			expected: "False",
+		},
+		{
+			name: "object inherits interface from parent class",
+			input: `
+				type IBase = interface
+					procedure Base;
+				end;
+				type TParent = class(IBase)
+					procedure Base;
+				end;
+				procedure TParent.Base; begin end;
+				type TChild = class(TParent)
+				end;
+				var obj := TChild.Create;
+				PrintLn(obj is IBase);
+			`,
+			expected: "True",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalEdgeCase(tt.input, t)
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output containing %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
 // TestEvalArithmeticShiftRight tests sar operator
 func TestEvalArithmeticShiftRight(t *testing.T) {
 	input := `

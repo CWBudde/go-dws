@@ -174,6 +174,19 @@ func classImplementsInterface(class *ClassInfo, iface *InterfaceInfo) bool {
 	return false
 }
 
+// isClassCompatible checks if objClass is the same as or inherits from targetClass.
+// This is used for type checking in 'as' operator and other casting operations.
+func isClassCompatible(objClass, targetClass *ClassInfo) bool {
+	current := objClass
+	for current != nil {
+		if strings.EqualFold(current.Name, targetClass.Name) {
+			return true
+		}
+		current = current.Parent
+	}
+	return false
+}
+
 // interfaceInheritsFrom checks if sourceIface inherits from targetIface.
 // Returns true if sourceIface is a descendant of targetIface in the interface hierarchy.
 func interfaceInheritsFrom(sourceIface *InterfaceInfo, targetIface *InterfaceInfo) bool {

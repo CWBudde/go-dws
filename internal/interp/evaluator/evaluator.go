@@ -283,6 +283,11 @@ type InterpreterAdapter interface {
 	// Returns the casted value and an error if the cast fails.
 	CastType(obj Value, typeName string) (Value, error)
 
+	// CheckImplements checks if an object/class implements an interface (implements 'implements' operator).
+	// Task 3.5.36: Supports ObjectInstance, ClassValue, and ClassInfoValue inputs.
+	// Returns true if the class implements the specified interface.
+	CheckImplements(obj Value, interfaceName string) (bool, error)
+
 	// ===== Function Pointers (Task 3.5.8) =====
 
 	// CreateFunctionPointer creates a function pointer value from a function declaration.
