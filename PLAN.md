@@ -1545,36 +1545,36 @@ This causes:
 
 **Subtasks**:
 
-- [ ] **6.1.1.1 Design TypeRegistry interface**
-  - [ ] Create `internal/semantic/type_registry.go`
-  - [ ] Define `TypeRegistry` struct with unified internal storage
-  - [ ] Design methods: `Register(name string, typ types.Type)`, `Resolve(name string) (types.Type, bool)`
-  - [ ] Add methods: `AllTypes() map[string]types.Type`, `TypesByKind(kind string) []types.Type`
-  - [ ] Include position tracking for type definitions (needed for LSP)
-  - [ ] Write comprehensive unit tests for registry operations
+- [x] **6.1.1.1 Design TypeRegistry interface**
+  - [x] Create `internal/semantic/type_registry.go`
+  - [x] Define `TypeRegistry` struct with unified internal storage
+  - [x] Design methods: `Register(name string, typ types.Type)`, `Resolve(name string) (types.Type, bool)`
+  - [x] Add methods: `AllTypes() map[string]types.Type`, `TypesByKind(kind string) []types.Type`
+  - [x] Include position tracking for type definitions (needed for LSP)
+  - [x] Write comprehensive unit tests for registry operations
 
-- [ ] **6.1.1.2 Implement type registration**
-  - [ ] Create single internal map: `types map[string]*TypeDescriptor`
-  - [ ] `TypeDescriptor` contains: `Name string`, `Type types.Type`, `Position lexer.Position`, `Visibility int`
-  - [ ] Handle case-insensitive lookup with `strings.ToLower()` in one place
-  - [ ] Support type aliasing and resolution of aliases to underlying types
-  - [ ] Validate uniqueness (prevent duplicate type names)
-  - [ ] Write tests for registration edge cases
+- [x] **6.1.1.2 Implement type registration**
+  - [x] Create single internal map: `types map[string]*TypeDescriptor`
+  - [x] `TypeDescriptor` contains: `Name string`, `Type types.Type`, `Position lexer.Position`, `Visibility int`
+  - [x] Handle case-insensitive lookup with `strings.ToLower()` in one place
+  - [x] Support type aliasing and resolution of aliases to underlying types
+  - [x] Validate uniqueness (prevent duplicate type names)
+  - [x] Write tests for registration edge cases
 
-- [ ] **6.1.1.3 Migrate existing type maps**
-  - [ ] Replace `Analyzer.classes` with `TypeRegistry.Register/Resolve` calls
-  - [ ] Replace `Analyzer.interfaces` with registry calls
-  - [ ] Replace `Analyzer.enums`, `Analyzer.records`, `Analyzer.sets` with registry
-  - [ ] Replace `Analyzer.arrays`, `Analyzer.typeAliases` with registry
-  - [ ] Update all call sites in `analyze_classes.go`, `analyze_enums.go`, etc.
-  - [ ] Run full test suite to verify no regressions
+- [x] **6.1.1.3 Migrate existing type maps**
+  - [x] Replace `Analyzer.classes` with `TypeRegistry.Register/Resolve` calls
+  - [x] Replace `Analyzer.interfaces` with registry calls
+  - [x] Replace `Analyzer.enums`, `Analyzer.records`, `Analyzer.sets` with registry
+  - [x] Replace `Analyzer.arrays`, `Analyzer.typeAliases` with registry
+  - [x] Update all call sites in `analyze_classes.go`, `analyze_enums.go`, etc.
+  - [x] Run full test suite to verify no regressions
 
-- [ ] **6.1.1.4 Add registry query capabilities**
-  - [ ] Implement `TypesByKind(kind string)` to get all classes/interfaces/etc.
-  - [ ] Implement `TypesInScope(scope)` for nested type scopes
-  - [ ] Add `FindTypeByPosition(pos)` for LSP "type at cursor"
-  - [ ] Add `GetTypeDependencies(typeName)` for dependency analysis
-  - [ ] Write integration tests for LSP-style queries
+- [x] **6.1.1.4 Add registry query capabilities**
+  - [x] Implement `TypesByKind(kind string)` to get all classes/interfaces/etc.
+  - [x] Implement `TypesInScope(scope)` for nested type scopes
+  - [x] Add `FindTypeByPosition(pos)` for LSP "type at cursor"
+  - [x] Add `GetTypeDependencies(typeName)` for dependency analysis
+  - [x] Write integration tests for LSP-style queries
 
 **Files to Create**:
 - `internal/semantic/type_registry.go` (new)
