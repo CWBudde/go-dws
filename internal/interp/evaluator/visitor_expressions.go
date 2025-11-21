@@ -333,7 +333,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 // VisitNewExpression evaluates a 'new' expression (object instantiation).
 //
 // **COMPLEXITY**: High (~250 lines in original implementation)
-// **STATUS**: Documentation-only migration with full adapter delegation
+// **STATUS**: Partial migration with argument evaluation in evaluator and object creation delegated to adapter
 //
 // **INSTANTIATION MODES** (evaluated in this order):
 //
@@ -371,64 +371,64 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 //
 // **6. FIELD INITIALIZATION** (two-phase)
 //   - **Phase A: Create temporary environment**
-//     - Creates enclosed environment with class constants for field initializers
-//     - Class constants are accessible during field initialization
+//   - Creates enclosed environment with class constants for field initializers
+//   - Class constants are accessible during field initialization
 //   - **Phase B: Initialize each field**
-//     - If field has initializer expression: evaluate and assign
-//     - Otherwise: use getZeroValueForType for appropriate default value
-//     - Field types are used to determine correct zero values
+//   - If field has initializer expression: evaluate and assign
+//   - Otherwise: use getZeroValueForType for appropriate default value
+//   - Field types are used to determine correct zero values
 //   - Error handling: Returns immediately if any initializer fails
 //   - Implementation: ~30 lines in original
 //
 // **7. EXCEPTION CLASS HANDLING** (special cases)
 //   - **EHost.Create(className, message)**:
-//     - Pattern: `new EHost('SomeException', 'Error message')`
-//     - Requires exactly 2 arguments
-//     - Sets ExceptionClass and Message fields directly
-//     - Returns immediately (no constructor body execution)
+//   - Pattern: `new EHost('SomeException', 'Error message')`
+//   - Requires exactly 2 arguments
+//   - Sets ExceptionClass and Message fields directly
+//   - Returns immediately (no constructor body execution)
 //   - **Other Exception.Create(message)**:
-//     - Pattern: `new ESomeException('Error message')`
-//     - Accepts single message argument
-//     - Sets Message field directly
-//     - Returns immediately (no constructor body execution)
+//   - Pattern: `new ESomeException('Error message')`
+//   - Accepts single message argument
+//   - Sets Message field directly
+//   - Returns immediately (no constructor body execution)
 //   - Detection via isExceptionClass() and InheritsFrom("EHost")
 //   - Implementation: ~50 lines in original
 //
 // **8. CONSTRUCTOR RESOLUTION**
 //   - **Step A: Get default constructor name**
-//     - Checks class hierarchy for constructor marked as `default`
-//     - Falls back to "Create" if no default constructor specified
+//   - Checks class hierarchy for constructor marked as `default`
+//   - Falls back to "Create" if no default constructor specified
 //   - **Step B: Find constructor overloads**
-//     - getMethodOverloadsInHierarchy() finds all constructors in hierarchy
-//     - Case-insensitive lookup (DWScript standard)
-//     - Includes inherited virtual constructors
+//   - getMethodOverloadsInHierarchy() finds all constructors in hierarchy
+//   - Case-insensitive lookup (DWScript standard)
+//   - Includes inherited virtual constructors
 //   - **Step C: Implicit parameterless constructor**
-//     - If 0 arguments and no parameterless constructor exists,
-//       return object with just field initialization (no constructor body)
-//     - This allows classes without explicit Create() to be instantiated
+//   - If 0 arguments and no parameterless constructor exists,
+//     return object with just field initialization (no constructor body)
+//   - This allows classes without explicit Create() to be instantiated
 //   - **Step D: Resolve overload**
-//     - resolveMethodOverload() matches arguments to parameters
-//     - Uses type compatibility and implicit conversions
-//     - Error: Overload resolution failure messages
+//   - resolveMethodOverload() matches arguments to parameters
+//   - Uses type compatibility and implicit conversions
+//   - Error: Overload resolution failure messages
 //   - Implementation: ~40 lines in original
 //
 // **9. CONSTRUCTOR EXECUTION**
 //   - **Environment setup**:
-//     - Creates enclosed method environment
-//     - Binds `Self` to the new object instance
-//     - Binds constructor parameters to evaluated arguments
-//     - For constructors with return type: initializes `Result` variable
-//     - Binds `__CurrentClass__` for ClassName access in constructor
+//   - Creates enclosed method environment
+//   - Binds `Self` to the new object instance
+//   - Binds constructor parameters to evaluated arguments
+//   - For constructors with return type: initializes `Result` variable
+//   - Binds `__CurrentClass__` for ClassName access in constructor
 //   - **Argument evaluation**:
-//     - Evaluates each constructor argument in current environment
-//     - Error propagation on evaluation failure
+//   - Evaluates each constructor argument in current environment
+//   - Error propagation on evaluation failure
 //   - **Argument count validation**:
-//     - Error: "wrong number of arguments for constructor 'X': expected N, got M"
+//   - Error: "wrong number of arguments for constructor 'X': expected N, got M"
 //   - **Body execution**:
-//     - Executes constructor body via Eval()
-//     - Error propagation on body failure
+//   - Executes constructor body via Eval()
+//   - Error propagation on body failure
 //   - **Environment restoration**:
-//     - Restores previous environment after constructor completes
+//   - Restores previous environment after constructor completes
 //   - Implementation: ~55 lines in original
 //
 // **10. RETURN VALUE**
@@ -511,8 +511,9 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 	}
 
 	// Create the object using the adapter
-	// The adapter handles: class lookup, record type delegation, abstract/external checks,
-	// field initialization, exception handling, constructor resolution, and constructor execution
+	// The adapter handles: class lookup, field initialization, and constructor execution
+	// NOTE: Record type delegation, abstract/external checks, and exception handling
+	// are still handled by the original evalNewExpression in objects_instantiation.go
 	obj, err := e.adapter.CreateObject(className, args)
 	if err != nil {
 		return e.newError(node, "%s", err.Error())
@@ -987,7 +988,7 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 // VisitInheritedExpression evaluates an 'inherited' expression.
 //
 // **COMPLEXITY**: High (~176 lines in original implementation)
-// **STATUS**: Documentation-only migration with full adapter delegation
+// **STATUS**: Partial migration with context validation, method name resolution, and argument evaluation in evaluator; inherited method execution delegated to adapter
 //
 // **SYNTAX FORMS**:
 //   - `inherited MethodName(args)` - Explicit method call with arguments
@@ -998,54 +999,55 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 //
 // **1. CONTEXT VALIDATION** (~10 lines)
 //   - **Self check**: Must be in method context with Self defined
-//     - Error: "inherited can only be used inside a method"
+//   - Error: "inherited can only be used inside a method"
 //   - **ObjectInstance check**: Self must be an ObjectInstance
-//     - Error: "inherited requires Self to be an object instance"
+//   - Error: "inherited requires Self to be an object instance"
 //   - **Parent class check**: Current class must have a parent
-//     - Error: "class 'X' has no parent class"
+//   - Error: "class 'X' has no parent class"
 //   - Implementation: lines 794-811 in original
 //
 // **2. METHOD NAME RESOLUTION** (~17 lines)
 //   - **Explicit method name**: `inherited MethodName(...)`
-//     - Uses ie.Method.Value directly
+//   - Uses ie.Method.Value directly
 //   - **Bare inherited**: `inherited` (no method name specified)
-//     - Looks up `__CurrentMethod__` from environment
-//     - Must be StringValue containing current method name
-//     - Enables nested inherited calls through inheritance chain
-//     - Error: "bare 'inherited' requires method context"
-//     - Error: "invalid method context"
+//   - Looks up `__CurrentMethod__` from environment
+//   - Must be StringValue containing current method name
+//   - Enables nested inherited calls through inheritance chain
+//   - Error: "bare 'inherited' requires method context"
+//   - Error: "invalid method context"
 //   - Implementation: lines 813-829 in original
 //
 // **3. MEMBER LOOKUP IN PARENT CLASS** (case-insensitive)
-//   Searches parent class members in priority order:
 //
-//   **3a. METHODS** (~87 lines)
-//     - Iterates parentClass.Methods map with case-insensitive comparison
-//     - If found, executes full method call (see Phase 4)
-//     - Implementation: lines 831-927 in original
+//	Searches parent class members in priority order:
 //
-//   **3b. PROPERTIES** (~17 lines)
-//     - Iterates parentClass.Properties map with case-insensitive comparison
-//     - Cannot be called with arguments or as method
-//       - Error: "cannot call property 'X' as a method"
-//     - Reads property via evalPropertyRead()
-//     - Implementation: lines 929-946 in original
+//	**3a. METHODS** (~87 lines)
+//	  - Iterates parentClass.Methods map with case-insensitive comparison
+//	  - If found, executes full method call (see Phase 4)
+//	  - Implementation: lines 831-927 in original
 //
-//   **3c. FIELDS** (~13 lines)
-//     - Iterates parentClass.Fields map with case-insensitive comparison
-//     - Cannot be called with arguments or as method
-//       - Error: "cannot call field 'X' as a method"
-//     - Returns field value directly via obj.GetField()
-//     - Returns NilValue if field is nil
-//     - Implementation: lines 948-961 in original
+//	**3b. PROPERTIES** (~17 lines)
+//	  - Iterates parentClass.Properties map with case-insensitive comparison
+//	  - Cannot be called with arguments or as method
+//	    - Error: "cannot call property 'X' as a method"
+//	  - Reads property via evalPropertyRead()
+//	  - Implementation: lines 929-946 in original
 //
-//   **3d. NOT FOUND**
-//     - Error: "method, property, or field 'X' not found in parent class 'Y'"
+//	**3c. FIELDS** (~13 lines)
+//	  - Iterates parentClass.Fields map with case-insensitive comparison
+//	  - Cannot be called with arguments or as method
+//	    - Error: "cannot call field 'X' as a method"
+//	  - Returns field value directly via obj.GetField()
+//	  - Returns NilValue if field is nil
+//	  - Implementation: lines 948-961 in original
+//
+//	**3d. NOT FOUND**
+//	  - Error: "method, property, or field 'X' not found in parent class 'Y'"
 //
 // **4. METHOD EXECUTION** (when method found)
 //   - **Argument evaluation**: Evaluates all arguments in current environment
 //   - **Argument count validation**:
-//     - Error: "wrong number of arguments for method 'X': expected N, got M"
+//   - Error: "wrong number of arguments for method 'X': expected N, got M"
 //   - **Method environment setup**:
 //     a. Creates enclosed environment via NewEnclosedEnvironment
 //     b. Binds `Self` to **current object** (preserves instance identity!)
@@ -1053,18 +1055,18 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 //     d. Adds parent class constants via bindClassConstantsToEnv()
 //     e. Binds `__CurrentMethod__` to method name (enables nested inherited)
 //   - **Parameter binding**:
-//     - Binds each parameter to corresponding argument
-//     - Applies implicit type conversion if parameter has type annotation
-//     - Uses tryImplicitConversion() helper
+//   - Binds each parameter to corresponding argument
+//   - Applies implicit type conversion if parameter has type annotation
+//   - Uses tryImplicitConversion() helper
 //   - **Result variable initialization** (for functions):
-//     - Resolves return type via resolveTypeFromAnnotation()
-//     - Gets default value via getDefaultValue()
-//     - Binds `Result` to default value
-//     - Binds method name as ReferenceValue alias to Result (DWScript style)
+//   - Resolves return type via resolveTypeFromAnnotation()
+//   - Gets default value via getDefaultValue()
+//   - Binds `Result` to default value
+//   - Binds method name as ReferenceValue alias to Result (DWScript style)
 //   - **Body execution**: Executes parentMethod.Body via Eval()
 //   - **Return value extraction**:
-//     - For functions: checks Result, then method name alias, then NilValue
-//     - For procedures: returns NilValue
+//   - For functions: checks Result, then method name alias, then NilValue
+//   - For procedures: returns NilValue
 //   - **Environment restoration**: Restores saved environment
 //   - Implementation: lines 841-927 in original
 //
@@ -1162,11 +1164,10 @@ func (e *Evaluator) VisitInheritedExpression(node *ast.InheritedExpression, ctx 
 		}
 
 		// Extract method name string - check for runtime.StringValue
+		// Note: internal/interp.StringValue is a type alias for runtime.StringValue,
+		// so this check handles both cases.
 		if strVal, ok := currentMethodVal.(*runtime.StringValue); ok {
 			methodName = strVal.Value
-		} else if strVal, ok := currentMethodVal.(interface{ String() string }); ok {
-			// Fallback: try String() method (covers internal StringValue)
-			methodName = strVal.String()
 		} else {
 			return e.newError(node, "invalid method context")
 		}
