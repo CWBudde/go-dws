@@ -231,14 +231,21 @@ func (p *Parser) parseOperatorOperandTypes() []ast.TypeExpression {
 
 	cursor = cursor.Advance() // move past '(' to first operand or ')'
 
-	for cursor.Current().Type != lexer.RPAREN {
+	for cursor.Current().Type != lexer.RPAREN && cursor.Current().Type != lexer.EOF {
 		startToken := cursor.Current()
 		nameParts := []string{cursor.Current().Literal}
 
 		// Collect tokens that belong to this type until ',' or ')'
-		for cursor.Peek(1).Type != lexer.COMMA && cursor.Peek(1).Type != lexer.RPAREN {
+		for cursor.Peek(1).Type != lexer.COMMA && cursor.Peek(1).Type != lexer.RPAREN && cursor.Peek(1).Type != lexer.EOF {
 			cursor = cursor.Advance()
 			nameParts = append(nameParts, cursor.Current().Literal)
+		}
+
+		// Check for unterminated list immediately after collecting tokens
+		if cursor.Peek(1).Type == lexer.EOF {
+			p.addError("unterminated operator operand list", ErrMissingRParen)
+			p.cursor = cursor
+			return operandTypes
 		}
 
 		if cursor.Current().Type != lexer.IDENT {
