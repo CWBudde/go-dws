@@ -1021,3 +1021,177 @@ func BenchmarkChoice(b *testing.B) {
 		p.Choice(lexer.PLUS, lexer.MINUS, lexer.ASTERISK, lexer.SLASH)
 	}
 }
+
+// TestSeparatedListMultiSep_FailureCase tests the failure case when parseSeparatedList fails
+func TestSeparatedListMultiSep_FailureCase(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		requireTerm bool
+		expected    int
+	}{
+		{
+			name:        "missing required terminator",
+			input:       "( 1, 2, 3",
+			requireTerm: true,
+			expected:    -1, // Failure returns -1
+		},
+		{
+			name:        "trailing separator allowed",
+			input:       "( 1, 2, )",
+			requireTerm: false,
+			expected:    2,
+		},
+		{
+			name:        "trailing separator not allowed but present",
+			input:       "( 1, )",
+			requireTerm: false,
+			expected:    -1, // Should fail when trailing separator not allowed
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := newTestParser(tt.input)
+			// Consume the opening parenthesis
+			p.nextToken()
+
+			var items []int
+			allowTrailing := false
+			if tt.name == "trailing separator allowed" {
+				allowTrailing = true
+			}
+
+			count := p.SeparatedListMultiSep(
+				[]lexer.TokenType{lexer.COMMA},
+				lexer.RPAREN,
+				func() bool {
+					if p.cursor.Is(lexer.INT) {
+						items = append(items, 1)
+						return true
+					}
+					return false
+				},
+				true,           // allow empty
+				allowTrailing,  // trailing separator
+				tt.requireTerm, // require terminator
+			)
+
+			if count != tt.expected {
+				t.Errorf("SeparatedListMultiSep() = %d, want %d", count, tt.expected)
+			}
+		})
+	}
+}
+
+// TestIdentifierList tests the IdentifierList combinator comprehensively
+func TestIdentifierList(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		config        IdentifierListConfig
+		expectedCount int
+		expectError   bool
+	}{
+		{
+			name:  "single identifier",
+			input: "foo",
+			config: IdentifierListConfig{
+				RequireAtLeastOne: true,
+			},
+			expectedCount: 1,
+			expectError:   false,
+		},
+		{
+			name:  "multiple identifiers",
+			input: "foo, bar, baz",
+			config: IdentifierListConfig{
+				RequireAtLeastOne: true,
+			},
+			expectedCount: 3,
+			expectError:   false,
+		},
+		{
+			name:  "no identifier with AllowEmpty",
+			input: ";",
+			config: IdentifierListConfig{
+				AllowEmpty: true,
+			},
+			expectedCount: 0,
+			expectError:   false,
+		},
+		{
+			name:  "no identifier with RequireAtLeastOne",
+			input: ";",
+			config: IdentifierListConfig{
+				RequireAtLeastOne: true,
+				ErrorContext:      "test context",
+			},
+			expectedCount: -1, // nil return
+			expectError:   true,
+		},
+		{
+			name:  "no identifier with RequireAtLeastOne and empty context",
+			input: ";",
+			config: IdentifierListConfig{
+				RequireAtLeastOne: true,
+				ErrorContext:      "", // Empty context should default to "identifier list"
+			},
+			expectedCount: -1,
+			expectError:   true,
+		},
+		{
+			name:  "no identifier without RequireAtLeastOne or AllowEmpty",
+			input: ";",
+			config: IdentifierListConfig{
+				RequireAtLeastOne: false,
+				AllowEmpty:        false,
+			},
+			expectedCount: -1, // nil return
+			expectError:   false,
+		},
+		{
+			name:  "invalid token after comma",
+			input: "foo, ;",
+			config: IdentifierListConfig{
+				RequireAtLeastOne: true,
+			},
+			expectedCount: 1, // Returns partial list
+			expectError:   true,
+		},
+		{
+			name:  "identifier list ending without comma",
+			input: "foo bar",
+			config: IdentifierListConfig{
+				RequireAtLeastOne: true,
+			},
+			expectedCount: 1, // Only first identifier (bar is not separated by comma)
+			expectError:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := newTestParser(tt.input)
+			result := p.IdentifierList(tt.config)
+
+			if tt.expectedCount == -1 {
+				if result != nil {
+					t.Errorf("Expected nil result, got %d identifiers", len(result))
+				}
+			} else {
+				if result == nil {
+					t.Errorf("Expected %d identifiers, got nil", tt.expectedCount)
+				} else if len(result) != tt.expectedCount {
+					t.Errorf("Expected %d identifiers, got %d", tt.expectedCount, len(result))
+				}
+			}
+
+			// Check for errors
+			hasErrors := len(p.errors) > 0
+			if hasErrors != tt.expectError {
+				t.Errorf("Expected error = %v, got %v (errors: %d)", tt.expectError, hasErrors, len(p.errors))
+			}
+		})
+	}
+}

@@ -76,12 +76,15 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - Test synchronization behavior
   - Estimated: 8-12 hours
 
-- [~] **2.8.2**: Add tests for untested combinators (Target: 90%+ coverage)
+- [x] **2.8.2**: Add tests for untested combinators (Target: 90%+ coverage)
   - ✅ Test BetweenStatement, TryParseStatement
   - ✅ Test Peek*Is lookahead helpers
+  - ✅ Test SeparatedListMultiSep (improved from 80% to 100%)
+  - ✅ Test IdentifierList (improved from 77.3% to 100%)
   - ❌ Test OptionalTypeAnnotation, StatementBlock, ParameterGroup (not yet implemented)
+  - **Result:** 21/24 combinators have 100% coverage (87.5% overall, 100% for implemented functions)
   - Estimated: 4-6 hours
-  - **Note:** Remaining combinator tests for OptionalTypeAnnotation, StatementBlock, and ParameterGroup to be added in follow-up task.
+  - **Note:** Remaining combinator tests for OptionalTypeAnnotation, StatementBlock, and ParameterGroup to be added in follow-up task 2.8.2a.
 - [ ] **2.8.2a**: Add tests for OptionalTypeAnnotation, StatementBlock, ParameterGroup combinators
   - Estimated: 2-3 hours
 
