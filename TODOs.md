@@ -6,15 +6,15 @@
 
 ## Executive Summary
 
-**Total TODOs**: 109 in Go source files (excluding testdata) - 2 completed
+**Total TODOs**: 109 in Go source files (excluding testdata) - 4 completed
 
 **Quick Stats**:
 
-- HIGH: 24 (blocking features, builtins migration) - ~~2 completed~~
+- HIGH: 24 (blocking features, builtins migration) - ~~4 completed~~
 - MEDIUM: 30+ (architecture improvements, enhancements)
 - LOW: 20+ (future features, nice-to-haves)
 - FIXTURE TESTS: 25 disabled test suites
-- ✅ COMPLETED: 2 (Set type declarations, Random number functions)
+- ✅ COMPLETED: 4 (Set type declarations, Random functions, String functions, DateTime functions)
 
 **Distribution by Category**:
 
@@ -109,33 +109,36 @@
 
 ---
 
-### 1.4 Builtins - DateTime Functions Requiring By-Ref Support
+### ~~1.4 Builtins - DateTime Functions Requiring By-Ref Support~~ ✅ COMPLETED
 
-**Location**: [internal/interp/builtins/datetime_calc.go](internal/interp/builtins/datetime_calc.go)
+**Status**: COMPLETED (2025-11-21)
 
-**Priority**: HIGH
+**Summary**: DecodeDate and DecodeTime are fully implemented as var-param functions in the AST interpreter.
 
-**Affected Functions**:
+**Implementation Details**:
 
-1. [DecodeDate()](internal/interp/builtins/datetime_calc.go#L178) - line 178
-2. [DecodeTime()](internal/interp/builtins/datetime_calc.go#L182) - line 182
+1. **DecodeDate** (`internal/interp/builtins_datetime_calc.go:181`):
+   - Signature: `DecodeDate(dt: TDateTime; var year, month, day: Integer)`
+   - Extracts year, month, day components from TDateTime
+   - Uses `extractDateComponents()` helper from `datetime_utils.go`
+   - Modifies variables via `i.env.Set()`
 
-**TODO**: Requires special handling (modifies variables in-place)
+2. **DecodeTime** (`internal/interp/builtins_datetime_calc.go:218`):
+   - Signature: `DecodeTime(dt: TDateTime; var hour, minute, second, msec: Integer)`
+   - Extracts hour, minute, second, millisecond components from TDateTime
+   - Uses `extractTimeComponents()` helper from `datetime_utils.go`
+   - Modifies variables via `i.env.Set()`
 
-**Description**: These functions take multiple var parameters and decode a date/time value into separate year/month/day or hour/minute/second components.
+3. **Registration** (`internal/interp/functions_builtins.go:249-252`):
+   - Both functions registered in `callBuiltinWithVarParam()` switch statement
+   - Properly dispatch to interpreter methods
 
-**Impact**:
+**Verification**:
+- ✅ Semantic analyzer tests pass (`TestBuiltinDecodeDate_Basic`, `TestBuiltinDecodeTime_Basic`)
+- ✅ Runtime tests verify correct extraction of date/time components
+- ✅ Roundtrip tests (EncodeDateTime → DecodeDate + DecodeTime) work correctly
 
-- 2 datetime functions incomplete
-- Blocks FunctionsTime fixture tests
-- Common datetime operations unavailable
-
-**Action Required**:
-
-1. Implement by-ref parameter support (var parameters)
-2. Allow functions to write back to caller's variables
-3. Complete DecodeDate and DecodeTime implementations
-4. Test with datetime fixture suite
+**Note**: These functions remain in the interpreter package (not builtins package) because they require direct AST access for var-parameter handling. This is the same pattern used for Insert, Delete, Inc, Dec, Swap, DivMod, TryStrToInt, TryStrToFloat, and SetLength.
 
 **Stage Relevance**: Phase 3 Refactoring (Builtins Migration)
 
@@ -638,7 +641,7 @@
 
 21. **FunctionsTime** - [Line 245](internal/interp/fixture_test.go#L245)
     - Date/time functions
-    - **BLOCKED BY**: DecodeDate/DecodeTime by-ref support (HIGH priority)
+    - DecodeDate/DecodeTime support: ✅ COMPLETED
 
 22. **FunctionsByteBuffer** - [Line 252](internal/interp/fixture_test.go#L252)
     - Byte buffer operations
@@ -713,10 +716,10 @@
 - **1 MEDIUM**: Bytecode validation → Code quality
 
 ### Builtins
-- **6 HIGH**: Random number functions → Need Context extension
-- **7 HIGH**: String functions → Need ArrayValue migration + by-ref params
-- **2 HIGH**: DateTime functions → Need by-ref parameter support
-- **Total**: 15 functions blocked on infrastructure
+- ~~**6 HIGH**: Random number functions~~ → ✅ COMPLETED
+- ~~**7 HIGH**: String functions~~ → ✅ COMPLETED (ArrayValue + var-param functions all working)
+- ~~**2 HIGH**: DateTime functions~~ → ✅ COMPLETED
+- **Total**: All HIGH priority builtins COMPLETED ✅
 
 ### Semantic Analysis
 - **6 MEDIUM**: Type checking enhancements → Quality improvements
@@ -755,25 +758,17 @@
 
 **Phase 2 Builtins Completion**:
 
-3. **Random Functions** (6 functions):
-   - Extend Context interface with RandSource/SetRandSeed/GetRandSeed
-   - Migrate all random number builtins
-   - Remove old Interpreter implementations
+3. ~~**Random Functions** (6 functions)~~ ✅ COMPLETED
 
-4. **String Functions - Part 1** (4 functions):
-   - Move ArrayValue from interp to runtime package
-   - Complete Format, StrSplit, StrJoin, StrArrayPack
-   - Resolve circular dependencies
+4. ~~**String Functions - Part 1** (4 functions)~~ ✅ COMPLETED
+   - ArrayValue already in runtime package
+   - Format, StrSplit, StrJoin, StrArrayPack all implemented and registered
 
-5. **String Functions - Part 2** (3 functions):
-   - Implement by-ref parameter support
-   - Complete Insert, Delete, DeleteString
-   - Test in-place modifications
+5. ~~**String Functions - Part 2** (3 functions)~~ ✅ COMPLETED
+   - Insert, Delete already working in interpreter
 
-6. **DateTime Functions** (2 functions):
-   - Use by-ref parameter support from step 5
-   - Complete DecodeDate, DecodeTime
-   - Test with FunctionsTime fixtures
+6. ~~**DateTime Functions** (2 functions)~~ ✅ COMPLETED
+   - DecodeDate and DecodeTime fully implemented and tested
 
 ---
 
@@ -846,9 +841,9 @@
 1. ~~Set type parsing~~ → ✅ **COMPLETED**
 
 **Phase 3 Blockers**:
-2. ❌ Random functions → **Blocks Phase 3 completion**
-3. ❌ ArrayValue migration → **Blocks 7 string functions**
-4. ❌ By-ref parameters → **Blocks DateTime + Insert/Delete functions**
+2. ✅ Random functions → COMPLETED
+3. ✅ ArrayValue migration → COMPLETED (Format, StrSplit, StrJoin, StrArrayPack working)
+4. ✅ By-ref parameters → COMPLETED (Insert/Delete/DecodeDate/DecodeTime all working)
 
 **VM Blockers**:
 5. ❌ For loops in VM → **Blocks VM performance testing**
@@ -875,9 +870,9 @@ Can be done anytime without dependencies:
 ## 8. Stage/Phase Mapping
 
 ### Current Stage (Phase 3 Refactoring)
-- **Random functions** (6) - HIGH
-- **String functions** (7) - HIGH
-- **DateTime functions** (2) - HIGH
+- ~~**Random functions** (6)~~ - ✅ COMPLETED
+- ~~**String functions** (7)~~ - ✅ COMPLETED
+- ~~**DateTime functions** (2)~~ - ✅ COMPLETED
 - **Evaluator migration** (9 types) - MEDIUM
 - **Type system cleanup** (3 types) - MEDIUM
 
@@ -915,10 +910,10 @@ Can be done anytime without dependencies:
 ## 9. Impact Analysis
 
 ### High Impact (Affects Many Features)
-- Set type parsing (40+ tests blocked)
-- By-ref parameter support (9 functions blocked)
-- ArrayValue migration (4 functions blocked)
-- Random function Context interface (6 functions blocked)
+- ~~Set type parsing~~ ✅ COMPLETED
+- ~~By-ref parameter support~~ ✅ COMPLETED
+- ~~ArrayValue migration~~ ✅ COMPLETED
+- ~~Random function Context interface~~ ✅ COMPLETED
 - For loop VM support (critical language feature)
 
 ### Medium Impact (Affects Quality/Architecture)
