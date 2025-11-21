@@ -540,8 +540,262 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 }
 
 // VisitMethodCallExpression evaluates a method call (obj.Method(args)).
-// Handles virtual dispatch, overload resolution, Self binding, and interface unwrapping.
+//
+// **COMPLEXITY**: Very High (1,116 lines in original implementation)
+// **STATUS**: Documentation-only migration with full adapter delegation
+//
+// **15 DISTINCT METHOD CALL MODES** (evaluated in this order):
+//
+// **1. UNIT-QUALIFIED FUNCTION CALLS** (UnitName.FunctionName())
+//   - Pattern: `Math.Sin(x)`, `System.WriteLine(s)`
+//   - Detection: Object is Identifier referring to registered unit name
+//   - Process:
+//     a. Check if identifier is registered unit (via unitRegistry.GetUnit)
+//     b. Resolve qualified function (ResolveQualifiedFunction)
+//     c. Evaluate all arguments
+//     d. Call user function (callUserFunction)
+//   - Error: "function 'X' not found in unit 'Y'"
+//   - Implementation: ~20 lines in original
+//
+// **2. STATIC CLASS METHOD CALLS** (TClass.Method())
+//   - Pattern: `TMyClass.ClassMethod()`, `TMyClass.Create()`
+//   - Detection: Object is Identifier referring to registered class name
+//   - Lookup order:
+//     a. Collect class method overloads (getMethodOverloadsInHierarchy with isClassMethod=true)
+//     b. Collect instance method overloads including constructors (isClassMethod=false)
+//     c. Special: If constructor with 0 args and no parameterless constructor exists,
+//        create object with implicit parameterless constructor (just initialize fields)
+//     d. Resolve overload based on argument types (resolveMethodOverload)
+//     e. If class method: execute with Self bound to ClassInfoValue (executeClassMethod)
+//     f. If instance method/constructor: create new object, initialize fields,
+//        execute method with Self bound to new instance
+//   - Overload resolution: Uses semantic.ResolveOverload with type matching
+//   - Virtual dispatch: NOT used for static calls (static binding)
+//   - Field initialization: Field initializers evaluated, then default values for remaining fields
+//   - Result: For constructors, always return object (not Result variable)
+//   - Error: "wrong number of arguments", "There is no overloaded version that can be called with these arguments"
+//   - Implementation: ~245 lines in original
+//
+// **3. RECORD TYPE STATIC METHOD CALLS** (TRecord.Method())
+//   - Pattern: `TPoint.Create()`, `TRecord.ClassMethod()`
+//   - Detection: Object is Identifier with `__record_type_` + lowercase(name) in environment
+//   - Lookup: Check RecordTypeValue.ClassMethodOverloads (case-insensitive)
+//   - Overload resolution: Same as class methods (resolveMethodOverload)
+//   - Execution: Call callRecordStaticMethod WITHOUT Self binding
+//   - Error: "static method 'X' not found in record type 'Y'"
+//   - Implementation: ~30 lines in original
+//
+// **4. CLASSINFO VALUE METHOD CALLS** (ClassInfoValue.Method())
+//   - Pattern: `Self.ClassMethod()` where Self is ClassInfoValue in class method
+//   - Detection: Object evaluates to ClassInfoValue
+//   - Lookup: Only class methods (getMethodOverloadsInHierarchy with isClassMethod=true)
+//   - Execution: executeClassMethod with Self bound to ClassInfoValue
+//   - Error: "class method 'X' not found in class 'Y'"
+//   - Implementation: ~15 lines in original
+//
+// **5. METACLASS CONSTRUCTOR CALLS** (ClassValue.Create())
+//   - Pattern: `var cls: class of TParent; cls := TChild; obj := cls.Create()`
+//   - Detection: Object evaluates to ClassValue
+//   - Purpose: Virtual constructor dispatch via metaclass variables
+//   - Process:
+//     a. Extract runtime class from ClassValue.ClassInfo
+//     b. Look up constructor overloads in runtime class (getMethodOverloadsInHierarchy)
+//     c. Resolve constructor overload based on arguments
+//     d. Create new instance of runtime class (virtual dispatch - uses actual class, not declared type)
+//     e. Initialize all fields with default values
+//     f. Execute constructor with Self bound to new instance
+//   - Key feature: Creates instance of RUNTIME type, not static type
+//   - Error: "constructor 'X' not found in class 'Y'"
+//   - Implementation: ~95 lines in original
+//
+// **6. SET VALUE BUILT-IN METHODS** (SetValue.Include/Exclude())
+//   - Pattern: `mySet.Include(x)`, `mySet.Exclude(y)`
+//   - Detection: Object evaluates to SetValue
+//   - Supported methods (case-insensitive):
+//     a. Include(element): Add element to set
+//     b. Exclude(element): Remove element from set
+//   - Error: "method 'X' not found for set type"
+//   - Implementation: ~30 lines in original
+//
+// **7. RECORD INSTANCE METHOD CALLS** (RecordValue.Method())
+//   - Pattern: `point.GetLength()`, `record.DoSomething(x)`
+//   - Detection: Object evaluates to RecordValue
+//   - Process: Convert to member access, delegate to evalRecordMethodCall
+//   - Supports: Instance methods, properties, class methods (via instance)
+//   - Implementation: ~10 lines in original (delegates to evalRecordMethodCall)
+//
+// **8. INTERFACE INSTANCE METHOD CALLS** (InterfaceInstance.Method())
+//   - Pattern: `intfVar.Hello()`, `intf.DoSomething(x)`
+//   - Detection: Object evaluates to InterfaceInstance
+//   - Validation: Verify method exists in interface definition (Interface.HasMethod)
+//   - Process: Unwrap to underlying object, continue with object method dispatch
+//   - Error: "Interface is nil", "method 'X' not found in interface 'Y'"
+//   - Implementation: ~15 lines in original
+//
+// **9. NIL OBJECT ERROR HANDLING**
+//   - Pattern: `var o: TClass := nil; o.Method()`
+//   - Detection: Object evaluates to NilValue
+//   - Result: Always raise "Object not instantiated"
+//   - Note: Class methods can only be called on class name, not nil instance
+//   - Implementation: ~5 lines in original
+//
+// **10. ENUM TYPE META METHODS** (TypeMetaValue.Low/High/ByName())
+//   - Pattern: `TColor.Low()`, `TColor.High()`, `TColor.ByName('Red')`
+//   - Detection: Object evaluates to TypeMetaValue with EnumType
+//   - Supported methods (case-insensitive):
+//     a. Low(): Returns lowest ordinal value as Integer
+//     b. High(): Returns highest ordinal value as Integer
+//     c. ByName(name: string): Returns ordinal for enum value name (0 if not found)
+//        * Supports qualified names (TypeName.ValueName)
+//        * Case-insensitive lookup
+//        * Returns 0 for empty string or not found (DWScript behavior)
+//   - Implementation: ~50 lines in original
+//
+// **11. HELPER METHOD CALLS** (any_type.HelperMethod())
+//   - Pattern: `"hello".ToUpper()`, `arr.Push(x)`, `123.ToString()`
+//   - Detection: Object is not an object/record, but helpers provide this method
+//   - Process:
+//     a. Find helper method (findHelperMethod) - returns AST method or builtin spec
+//     b. Evaluate all arguments
+//     c. Call helper method (callHelperMethod)
+//   - Supports: String, Array, Integer, Float helpers, etc.
+//   - Error: "cannot call method 'X' on type 'Y' (no helper found)"
+//   - Implementation: ~20 lines in original
+//
+// **12. OBJECT INSTANCE METHOD CALLS** (ObjectInstance.Method())
+//   - Pattern: `obj.DoSomething()`, `obj.GetValue(x)`
+//   - Detection: Object evaluates to ObjectInstance
+//   - Built-in methods: `ClassName()` returns obj.Class.Name
+//   - Process:
+//     a. Collect instance method overloads (getMethodOverloadsInHierarchy with isClassMethod=false)
+//     b. Collect class method overloads (isClassMethod=true) - can be called on instances
+//     c. Resolve overload based on argument types (resolveMethodOverload)
+//     d. Apply VIRTUAL DISPATCH for virtual/override methods (use VirtualMethodTable)
+//        * Only for methods with IsVirtual or IsOverride (NOT reintroduce)
+//        * Look up method signature in obj.Class.VirtualMethodTable
+//        * Use most derived implementation if found
+//     e. Check recursion depth (WillOverflow) before execution
+//     f. Push method name to call stack for stack traces
+//     g. Bind Self to object (or ClassInfoValue for class methods)
+//     h. Add class constants to method scope
+//     i. Bind parameters to arguments with implicit type conversion
+//     j. Initialize Result variable (or method name alias)
+//     k. Execute method body
+//     l. Extract return value (Result or method name variable)
+//     m. Apply implicit return type conversion
+//   - Virtual constructor handling: If calling constructor on instance (o.Create),
+//     create NEW instance of runtime type with virtual dispatch
+//   - Error: "method 'X' not found in class 'Y'"
+//   - Implementation: ~290 lines in original
+//
+// **13. VIRTUAL CONSTRUCTOR DISPATCH** (obj.Create())
+//   - Pattern: `var o: TParent; o := TChild.Create; newObj := o.Create()`
+//   - Detection: Resolved method is constructor (method.IsConstructor)
+//   - Purpose: Create new instance of object's RUNTIME type (virtual dispatch)
+//   - Process:
+//     a. Find constructor in object's runtime class hierarchy (start from obj.Class)
+//     b. Create NEW instance of runtime class (not existing object)
+//     c. Initialize all fields with default values
+//     d. Execute constructor with Self bound to new instance
+//   - Key feature: Always creates NEW object, doesn't modify existing object
+//   - Returns: New ObjectInstance (not the one the method was called on)
+//   - Implementation: ~85 lines in original
+//
+// **14. CLASS METHOD EXECUTION** (executeClassMethod)
+//   - Pattern: All class methods (called on class or instance)
+//   - Self binding: Bound to ClassInfoValue (not instance)
+//   - Environment: New environment with class constants, parameters, Result
+//   - Call stack: Tracks method name for recursion detection and stack traces
+//   - Recursion checking: Validates against max recursion limit
+//   - Result handling: Checks Result and method name variables, implicit conversion
+//   - Implementation: ~105 lines in original
+//
+// **15. OVERLOAD RESOLUTION** (resolveMethodOverload)
+//   - Purpose: Select correct method from multiple overloads based on argument types
+//   - Process:
+//     a. Fast path: Single overload → return immediately
+//     b. Evaluate all arguments to get runtime types (getValueType)
+//     c. Convert method declarations to semantic.Symbol
+//     d. Use semantic.ResolveOverload with type matching
+//     e. Find method declaration corresponding to selected symbol
+//   - Signature matching: Compares parameter types AND return type
+//   - Inheritance: Child methods with same signature hide parent methods
+//   - Error: "There is no overloaded version of 'X.Y' that can be called with these arguments"
+//   - Implementation: ~50 lines in original + ~70 lines for getMethodOverloadsInHierarchy
+//
+// **SPECIAL BEHAVIORS**:
+// - **Virtual dispatch**: Methods marked virtual/override use VirtualMethodTable for polymorphism
+// - **Overload resolution**: Multiple methods with same name resolved by argument types
+// - **Case-insensitive**: All name lookups are case-insensitive (DWScript spec)
+// - **Inheritance**: Methods searched up class hierarchy, child signatures hide parent
+// - **Recursion tracking**: Call stack monitored, max depth enforced
+// - **Self binding**: Varies by context (object, ClassInfoValue, or nil)
+// - **Result variable**: Functions initialize Result, can also use method name as alias
+// - **Implicit conversion**: Parameters and return values converted to match declared types
+// - **Helper support**: Types without native methods can have helper methods
+// - **Constructor semantics**: Always return new object (not Result), initialize all fields
+// - **Virtual constructors**: Constructor calls on instances use runtime type (virtual dispatch)
+// - **Field initialization**: Field initializers evaluated in temporary environment with class constants
+// - **Class constants**: Added to method scope for direct access without qualification
+//
+// **DEPENDENCIES** (blockers for full migration):
+// - ObjectInstance, ClassInfo, ClassValue, ClassInfoValue - in internal/interp (needs migration)
+// - RecordValue, RecordTypeValue - in internal/interp (needs migration)
+// - InterfaceInstance, Interface - in internal/interp (needs migration)
+// - SetValue - in internal/interp (needs migration)
+// - TypeMetaValue, EnumType - in internal/interp (needs migration)
+// - ReferenceValue - in internal/interp (needs migration)
+// - VirtualMethodTable infrastructure - in internal/interp (needs migration)
+// - Helper infrastructure - findHelperMethod, callHelperMethod (needs adapter)
+// - Overload resolution - resolveMethodOverload, getMethodOverloadsInHierarchy (needs adapter)
+// - User function calls - callUserFunction, callRecordStaticMethod (needs adapter)
+// - Type system - getValueType, extractFunctionType, resolveTypeFromAnnotation (needs adapter)
+// - Unit registry - ResolveQualifiedFunction (already in Evaluator)
+// - Call stack - pushCallStack, popCallStack, WillOverflow (needs adapter)
+// - Environment management - NewEnclosedEnvironment, bindClassConstantsToEnv (needs adapter)
+//
+// **TESTING**:
+// - Unit-qualified function calls (Math.Sin, System.WriteLine)
+// - Static class method calls (TClass.ClassMethod, TClass.Create)
+// - Implicit parameterless constructor (TClass.Create with no constructor defined)
+// - Constructor overloading (TClass.Create(), TClass.Create(x))
+// - Record static method calls (TRecord.Create, TRecord.Count)
+// - ClassInfoValue method calls (Self.ClassMethod in class context)
+// - Metaclass constructor calls (cls.Create where cls is class of T)
+// - Set methods (mySet.Include(x), mySet.Exclude(y))
+// - Record instance methods (point.GetLength, record.DoSomething)
+// - Interface method calls (intf.Hello, intf.Process)
+// - Nil object error (nil.Method → error)
+// - Enum meta methods (TColor.Low(), TColor.ByName('Red'))
+// - Helper methods (str.ToUpper, arr.Push, num.ToString)
+// - Object instance methods (obj.GetValue, obj.DoSomething)
+// - Virtual dispatch (parent ref to child object calls child's override)
+// - Virtual constructor dispatch (obj.Create creates new instance of runtime type)
+// - Method overloading (multiple methods with same name, different parameters)
+// - Overload inheritance (child methods hide parent methods with same signature)
+// - Recursion limit enforcement (stack overflow detection)
+// - Self binding variations (object, ClassInfoValue, record)
+// - Result variable handling (Result, method name alias, implicit conversion)
+// - Class constant access in methods (direct access without qualification)
+// - Field initialization (initializers, default values, constructor execution)
+//
+// **IMPLEMENTATION SUMMARY**:
+// - Original implementation: 1,116 lines (objects_methods.go:12-1116)
+// - Handles 15 distinct method call modes with complex dispatch logic
+// - Supports virtual dispatch, overload resolution, recursion tracking
+// - Requires extensive OOP infrastructure not yet in runtime package
+// - Full migration deferred - will be broken into category-specific sub-tasks
+//
+// **MIGRATION STRATEGY**:
+// - Phase 1 (this task): Comprehensive documentation of all call modes
+// - Phase 2 (future): Migrate simple cases (built-in methods, direct calls)
+// - Phase 3 (future): Migrate overload resolution after type system migration
+// - Phase 4 (future): Migrate virtual dispatch after VMT migration
+// - Phase 5 (future): Migrate constructor dispatch after object creation migration
+// - Phase 6 (future): Migrate helper methods after helper system migration
 func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ctx *ExecutionContext) Value {
+	// All 15 method call modes delegated to adapter for now
+	// See comprehensive documentation above for detailed behavior
 	return e.adapter.EvalNode(node)
 }
 
