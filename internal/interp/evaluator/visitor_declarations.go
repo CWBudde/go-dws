@@ -72,3 +72,10 @@ func (e *Evaluator) VisitTypeDeclaration(node *ast.TypeDeclaration, ctx *Executi
 	// TODO: Move type alias registration logic here
 	return e.adapter.EvalNode(node)
 }
+
+// VisitSetDecl evaluates a set declaration.
+func (e *Evaluator) VisitSetDecl(node *ast.SetDecl, ctx *ExecutionContext) Value {
+	// Set type already registered by semantic analyzer
+	// Delegate to adapter for now (Phase 3 migration)
+	return e.adapter.EvalNode(node)
+}

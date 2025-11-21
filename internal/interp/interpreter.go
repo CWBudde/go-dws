@@ -1861,6 +1861,9 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	case *ast.EnumDecl:
 		return i.evalEnumDeclaration(node)
 
+	case *ast.SetDecl:
+		return i.evalSetDeclaration(node)
+
 	case *ast.RecordDecl:
 		return i.evalRecordDeclaration(node)
 
