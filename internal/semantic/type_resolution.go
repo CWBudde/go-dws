@@ -101,39 +101,10 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 		return basicType, nil
 	}
 
-	// Try class types
-	if classType, found := a.classes[normalizedName]; found {
-		return classType, nil
-	}
-
-	// Try interface types
-	if interfaceType, found := a.interfaces[normalizedName]; found {
-		return interfaceType, nil
-	}
-
-	// Try enum types
-	if enumType, found := a.enums[normalizedName]; found {
-		return enumType, nil
-	}
-
-	// Try record types
-	if recordType, found := a.records[normalizedName]; found {
-		return recordType, nil
-	}
-
-	// Try set types
-	if setType, found := a.sets[normalizedName]; found {
-		return setType, nil
-	}
-
-	// Try array types
-	if arrayType, found := a.arrays[normalizedName]; found {
-		return arrayType, nil
-	}
-
-	// Try type aliases
-	if typeAlias, found := a.typeAliases[normalizedName]; found {
-		return typeAlias, nil
+	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
+	// Try user-defined types (classes, interfaces, enums, records, sets, arrays, aliases)
+	if userType, found := a.lookupType(typeName); found {
+		return userType, nil
 	}
 
 	// Try subrange types

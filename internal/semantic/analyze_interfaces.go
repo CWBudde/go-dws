@@ -17,7 +17,7 @@ func (a *Analyzer) analyzeInterfaceDecl(decl *ast.InterfaceDecl) {
 
 	// Check if interface is already declared
 	// Use lowercase for case-insensitive duplicate check
-	if _, exists := a.interfaces[strings.ToLower(interfaceName)]; exists {
+	if _, exists := a.getInterfaceType(interfaceName); exists {
 		a.addError("interface '%s' already declared at %s", interfaceName, decl.Token.Pos.String())
 		return
 	}
@@ -28,7 +28,7 @@ func (a *Analyzer) analyzeInterfaceDecl(decl *ast.InterfaceDecl) {
 		parentName := decl.Parent.Value
 		var found bool
 		// Use lowercase for case-insensitive lookup
-		parentInterface, found = a.interfaces[strings.ToLower(parentName)]
+		parentInterface, found = a.getInterfaceType(parentName)
 		if !found {
 			a.addError("parent interface '%s' not found at %s", parentName, decl.Token.Pos.String())
 			return
@@ -52,7 +52,7 @@ func (a *Analyzer) analyzeInterfaceDecl(decl *ast.InterfaceDecl) {
 
 	// Register interface in the registry
 	// Use lowercase key for case-insensitive lookup
-	a.interfaces[strings.ToLower(interfaceName)] = interfaceType
+	a.registerTypeWithPos(interfaceName, interfaceType, decl.Token.Pos)
 }
 
 // analyzeInterfaceMethodDecl analyzes an interface method declaration
@@ -118,7 +118,7 @@ func (a *Analyzer) validateInterfaceImplementation(classType *types.ClassType, d
 
 		// Lookup the interface type
 		// Use lowercase for case-insensitive lookup
-		ifaceType, found := a.interfaces[strings.ToLower(ifaceName)]
+		ifaceType, found := a.getInterfaceType(ifaceName)
 		if !found {
 			a.addError("interface '%s' not found at %s", ifaceName, decl.Token.Pos.String())
 			continue
