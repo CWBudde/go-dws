@@ -110,31 +110,31 @@ func (p *Parameter) String() string {
 //	ensure
 //	   Result >= 0;
 type FunctionDecl struct {
-	Name                 *Identifier
-	ReturnType           TypeExpression
-	ClassName            *Identifier
-	Parameters           []*Parameter
-	Body                 *BlockStatement
-	PreConditions        *PreConditions
-	PostConditions       *PostConditions
-	ExternalName         string
-	CallingConvention    string
-	CallingConventionPos token.Position // Position of calling convention keyword
-	DeprecatedMessage    string
+	ReturnType        TypeExpression
+	Name              *Identifier
+	ClassName         *Identifier
+	Body              *BlockStatement
+	PreConditions     *PreConditions
+	PostConditions    *PostConditions
+	ExternalName      string
+	CallingConvention string
+	DeprecatedMessage string
+	Parameters        []*Parameter
 	BaseNode
-	Visibility    Visibility
-	IsConstructor bool
-	IsDestructor  bool
-	IsVirtual     bool
-	IsOverride    bool
-	IsReintroduce bool
-	IsAbstract    bool
-	IsExternal    bool
-	IsClassMethod bool
-	IsOverload    bool
-	IsForward     bool
-	IsDefault     bool
-	IsDeprecated  bool
+	CallingConventionPos token.Position
+	Visibility           Visibility
+	IsConstructor        bool
+	IsDestructor         bool
+	IsVirtual            bool
+	IsOverride           bool
+	IsReintroduce        bool
+	IsAbstract           bool
+	IsExternal           bool
+	IsClassMethod        bool
+	IsOverload           bool
+	IsForward            bool
+	IsDefault            bool
+	IsDeprecated         bool
 }
 
 func (fd *FunctionDecl) statementNode() {}

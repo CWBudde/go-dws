@@ -285,23 +285,12 @@ func (p *Parser) BetweenStatement(opening, closing lexer.TokenType, parseFn Stat
 
 // SeparatorConfig configures the SeparatedList combinator.
 type SeparatorConfig struct {
-	// Sep is the separator token (e.g., COMMA)
-	Sep lexer.TokenType
-
-	// Term is the terminator token that ends the list (e.g., RPAREN)
-	Term lexer.TokenType
-
-	// ParseItem is called for each list item. Should return true if successful.
-	ParseItem ParserFunc
-
-	// AllowEmpty permits empty lists (when current token is the terminator)
-	AllowEmpty bool
-
-	// AllowTrailing permits a trailing separator before the terminator: (1, 2, 3,)
+	ParseItem     ParserFunc
+	Sep           lexer.TokenType
+	Term          lexer.TokenType
+	AllowEmpty    bool
 	AllowTrailing bool
-
-	// RequireTerm controls whether the terminator is required at the end
-	RequireTerm bool
+	RequireTerm   bool
 }
 
 // SeparatedList parses a list of items separated by a delimiter.
@@ -637,24 +626,12 @@ func (p *Parser) IdentifierList(config IdentifierListConfig) []*ast.Identifier {
 
 // StatementBlockConfig configures the StatementBlock combinator.
 type StatementBlockConfig struct {
-	// OpenToken is the token that starts the block (e.g., BEGIN, TRY)
-	OpenToken lexer.TokenType
-
-	// CloseToken is the token that ends the block (e.g., END)
-	CloseToken lexer.TokenType
-
-	// AdditionalTerminators are additional tokens that can end the block
-	// (e.g., EXCEPT and FINALLY for TRY blocks)
+	ContextName           string
 	AdditionalTerminators []lexer.TokenType
-
-	// SkipSemicolons controls whether to automatically skip semicolons
-	SkipSemicolons bool
-
-	// ContextName provides context for error messages (e.g., "try block", "function body")
-	ContextName string
-
-	// RequireClose controls whether the closing token is required
-	RequireClose bool
+	OpenToken             lexer.TokenType
+	CloseToken            lexer.TokenType
+	SkipSemicolons        bool
+	RequireClose          bool
 }
 
 // StatementBlock parses a block of statements with configurable delimiters.
@@ -759,14 +736,9 @@ func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement
 
 // ParameterGroupConfig configures the ParameterGroup combinator.
 type ParameterGroupConfig struct {
-	// AllowModifiers controls whether modifiers (var, const, lazy) are allowed
+	ErrorContext   string
 	AllowModifiers bool
-
-	// AllowDefaults controls whether default values are allowed
-	AllowDefaults bool
-
-	// ErrorContext provides context for error messages
-	ErrorContext string
+	AllowDefaults  bool
 }
 
 // ParameterGroup parses a parameter group with shared type.

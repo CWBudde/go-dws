@@ -24,14 +24,9 @@ type Value interface {
 
 // Config holds configuration options for the evaluator.
 type Config struct {
-	// MaxRecursionDepth is the maximum depth of the call stack.
+	SourceCode        string
+	SourceFile        string
 	MaxRecursionDepth int
-
-	// SourceCode is the original source code being executed (for error reporting).
-	SourceCode string
-
-	// SourceFile is the path to the source file (for error reporting).
-	SourceFile string
 }
 
 // DefaultConfig returns the default configuration.
@@ -392,33 +387,18 @@ type InterpreterAdapter interface {
 // The Evaluator is stateless with respect to execution - all execution state
 // (environment, call stack, exceptions, control flow) is in ExecutionContext.
 type Evaluator struct {
-	// Type System - manages all type metadata
-	typeSystem *interptypes.TypeSystem
-
-	// Runtime Services
 	output            io.Writer
-	rand              *rand.Rand
-	randSeed          int64
 	externalFunctions ExternalFunctionRegistry
-
-	// Configuration
-	config *Config
-
-	// Unit System
-	unitRegistry     *units.UnitRegistry
-	initializedUnits map[string]bool
-	loadedUnits      []string
-
-	// Semantic Analysis metadata (from parser/semantic analyzer)
-	semanticInfo *pkgast.SemanticInfo
-
-	// currentNode tracks the current AST node being evaluated (for error reporting)
-	// This is evaluation-local state (not execution state) and is safe to keep here
-	currentNode ast.Node
-
-	// Phase 3.5.1: Temporary adapter to delegate to legacy Interpreter during migration
-	// This will be removed once all evaluation logic is moved here.
-	adapter InterpreterAdapter
+	currentNode       ast.Node
+	adapter           InterpreterAdapter
+	typeSystem        *interptypes.TypeSystem
+	rand              *rand.Rand
+	config            *Config
+	unitRegistry      *units.UnitRegistry
+	initializedUnits  map[string]bool
+	semanticInfo      *pkgast.SemanticInfo
+	loadedUnits       []string
+	randSeed          int64
 }
 
 // NewEvaluator creates a new Evaluator with the given dependencies.
