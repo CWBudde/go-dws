@@ -1,0 +1,34 @@
+// Test script for random number functions
+var i: Integer;
+var f: Float;
+var g: Float;
+
+// Test Random() - should return a float between 0 and 1
+f := Random();
+PrintLn('Random() = ' + FloatToStr(f));
+
+// Test RandomInt() - should return an integer between 0 and 99
+i := RandomInt(100);
+PrintLn('RandomInt(100) = ' + IntToStr(i));
+
+// Test SetRandSeed and RandSeed
+SetRandSeed(12345);
+PrintLn('After SetRandSeed(12345), RandSeed() = ' + IntToStr(RandSeed()));
+
+// Test that setting the same seed produces the same sequence
+SetRandSeed(42);
+f := Random();
+PrintLn('First Random() with seed 42: ' + FloatToStr(f));
+
+SetRandSeed(42);
+f := Random();
+PrintLn('Second Random() with seed 42: ' + FloatToStr(f) + ' (should be same)');
+
+// Test RandG() - Gaussian distribution
+g := RandG();
+PrintLn('RandG() = ' + FloatToStr(g));
+
+// Test Randomize() - seeds with current time
+Randomize();
+f := Random();
+PrintLn('Random() after Randomize() = ' + FloatToStr(f));

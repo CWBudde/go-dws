@@ -6,15 +6,15 @@
 
 ## Executive Summary
 
-**Total TODOs**: 109 in Go source files (excluding testdata) - 1 completed
+**Total TODOs**: 109 in Go source files (excluding testdata) - 2 completed
 
 **Quick Stats**:
 
-- HIGH: 24 (blocking features, builtins migration) - ~~1 completed~~
+- HIGH: 24 (blocking features, builtins migration) - ~~2 completed~~
 - MEDIUM: 30+ (architecture improvements, enhancements)
 - LOW: 20+ (future features, nice-to-haves)
 - FIXTURE TESTS: 25 disabled test suites
-- ✅ COMPLETED: 1 (Set type declarations)
+- ✅ COMPLETED: 2 (Set type declarations, Random number functions)
 
 **Distribution by Category**:
 
@@ -32,43 +32,51 @@
 
 ---
 
-### 1.2 Builtins - Random Number Functions Migration
+### ~~1.2 Builtins - Random Number Functions Migration~~ ✅ COMPLETED
 
-#### Random Functions Need Context Interface Extension
+**Status**: COMPLETED (2025-11-21)
 
-**Location**: [internal/interp/builtins/register.go:137](internal/interp/builtins/register.go#L137)
+**Summary**: All 6 random number functions have been successfully migrated to the builtins package and are fully functional in both the AST interpreter and bytecode VM.
 
-**TODO**: Random number functions currently implemented in Interpreter, not yet migrated
+**Changes Made**:
 
-**Priority**: HIGH
+1. **Context Interface** (`internal/interp/builtins/context.go`):
+   - ✅ RandSource() *rand.Rand (line 48)
+   - ✅ GetRandSeed() int64 (line 52)
+   - ✅ SetRandSeed(seed int64) (line 56)
 
-**Affected Functions** (6 total):
+2. **Interpreter Implementation** (`internal/interp/builtins_context.go`):
+   - ✅ Implemented all three Context methods (lines 33, 39, 45)
 
-1. [Random()](internal/interp/builtins/math_basic.go#L592) - needs Context.RandSource()
-2. [Randomize()](internal/interp/builtins/math_basic.go#L606) - needs Context.SetRandSeed()
-3. [RandomInt()](internal/interp/builtins/math_basic.go#L622) - needs Context.RandSource()
-4. [SetRandSeed()](internal/interp/builtins/math_basic.go#L652) - needs Context.SetRandSeed()
-5. [RandSeed()](internal/interp/builtins/math_basic.go#L674) - needs Context.GetRandSeed()
-6. [RandG()](internal/interp/builtins/math_basic.go#L689) - needs Context.RandSource()
+3. **Builtin Functions** (`internal/interp/builtins/math_basic.go`):
+   - ✅ Random() - returns random float [0, 1) (line 592)
+   - ✅ Randomize() - seeds RNG with current time (line 603)
+   - ✅ RandomInt(max) - returns random int [0, max) (line 614)
+   - ✅ SetRandSeed(seed) - sets random seed (line 641)
+   - ✅ RandSeed() - returns current seed (line 659)
+   - ✅ RandG() - returns Gaussian random (line 671)
 
-**Impact**:
+4. **Builtin Registry** (`internal/interp/builtins/register.go`):
+   - ✅ All 6 functions registered (lines 138-143)
+   - ✅ Updated status comment (231 functions registered, Math: 68 functions)
 
-- Blocks Phase 3 refactoring completion
-- 6 random number functions incomplete
-- Affects random number generation in scripts
+5. **Semantic Analyzer** (`internal/semantic/analyze_builtins.go`):
+   - ✅ Added randomint, setrandseed, randseed, randg to builtin list (line 54)
 
-**Action Required**:
+6. **Bytecode Compiler** (`internal/bytecode/compiler_functions.go`):
+   - ✅ Added isBuiltinFunction() method with all 6 random functions (line 125-170)
+   - ✅ Modified compileCallExpression() to handle builtins (line 77-92)
 
-1. Extend Context interface with:
-   - `RandSource() *rand.Rand`
-   - `SetRandSeed(seed int64)`
-   - `GetRandSeed() int64`
-2. Implement these methods in Interpreter's context
-3. Migrate all 6 random functions to builtins package
-4. Remove old implementations from Interpreter
-5. Test with random number fixture tests
+7. **Bytecode VM** (`internal/bytecode/vm_builtins_math.go`):
+   - ✅ Implemented builtinRandom() and builtinRandomInt() (lines 275-297)
+   - ✅ Registered all 6 functions in VM (lines 24-29, lowercase)
 
-**Stage Relevance**: Phase 3 Refactoring (Builtins Migration)
+**Verification**:
+- ✅ AST Interpreter: All functions work correctly
+- ✅ Bytecode VM: All functions compile and execute
+- ✅ Test script confirms deterministic seeding and correct behavior
+
+**Note**: General bytecode VM builtin registration uses capital letters which causes issues. This was fixed for random functions by using lowercase registration. A systematic fix for all VM builtins may be needed separately.
 
 ---
 
