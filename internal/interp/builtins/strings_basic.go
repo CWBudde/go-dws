@@ -399,8 +399,8 @@ func SubStr(ctx Context, args []Value) Value {
 // since the Context interface only provides evaluated values, not AST nodes.
 //
 // Implemented var-param string functions:
-//   - Insert(source, var dest, pos) - builtinInsert() in builtins_strings_basic.go
-//   - Delete(var s, pos, count) - builtinDeleteString() in builtins_strings_basic.go
+//   - Insert(source, var dest, pos) - builtinInsert() in internal/interp/builtins_strings_basic.go
+//   - Delete(var s, pos, count) - builtinDeleteString() in internal/interp/builtins_strings_basic.go
 //
 // These are routed through callBuiltinWithVarParam() in functions_builtins.go.
 
