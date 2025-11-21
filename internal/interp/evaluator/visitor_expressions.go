@@ -1441,9 +1441,41 @@ func (e *Evaluator) VisitAsExpression(node *ast.AsExpression, ctx *ExecutionCont
 }
 
 // VisitImplementsExpression evaluates an 'implements' interface checking expression.
-// Checks if an object's class implements a specified interface.
+// Task 3.5.36: Interface implementation verification.
+//
+// The 'implements' operator checks if a class/object implements an interface:
+// - obj implements IInterface -> Boolean (object instance)
+// - TClass implements IInterface -> Boolean (class type reference)
+// - ClassVar implements IInterface -> Boolean (metaclass variable)
+//
+// Returns true if the class implements the interface, false otherwise.
+// Unlike 'is' which checks class hierarchy too, 'implements' only checks interfaces.
 func (e *Evaluator) VisitImplementsExpression(node *ast.ImplementsExpression, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNode(node)
+	// Evaluate the left expression (the object or class to check)
+	left := e.Eval(node.Left, ctx)
+	if isError(left) {
+		return left
+	}
+
+	// Get the target interface name from the type expression
+	targetInterfaceName := ""
+	if typeAnnotation, ok := node.TargetType.(*ast.TypeAnnotation); ok {
+		targetInterfaceName = typeAnnotation.Name
+	} else {
+		return e.newError(node, "cannot determine target interface type")
+	}
+
+	// Use the adapter's CheckImplements method which handles:
+	// - nil objects (return false)
+	// - ObjectInstance (extract class)
+	// - ClassValue (metaclass variable)
+	// - ClassInfoValue (class type identifier)
+	result, err := e.adapter.CheckImplements(left, targetInterfaceName)
+	if err != nil {
+		return e.newError(node, "%s", err.Error())
+	}
+
+	return &runtime.BooleanValue{Value: result}
 }
 
 // VisitIfExpression evaluates an inline if-then-else expression.

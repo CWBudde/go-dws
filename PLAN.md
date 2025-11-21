@@ -1181,9 +1181,10 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Effort**: 1 week
   - **Done**: Migrated `VisitAsExpression` to the evaluator with full interface wrapping/unwrapping support
 
-- [ ] **3.5.36** Migrate Interface Checking (`VisitImplementsExpression`)
+- [x] **3.5.36** Migrate Interface Checking (`VisitImplementsExpression`)
   - **Requirements**: Interface implementation verification
   - **Effort**: 3-5 days
+  - **Done**: Migrated `VisitImplementsExpression` to the evaluator with full interface implementation checking
 
 - [ ] **3.5.37** Migrate Method Pointers (`VisitAddressOfExpression`)
   - **Requirements**: Function/method pointer creation, overload resolution

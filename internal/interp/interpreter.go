@@ -1518,6 +1518,49 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 	return nil, fmt.Errorf("type '%s' not found (neither class nor interface)", typeName)
 }
 
+// CheckImplements checks if an object/class implements an interface.
+// Task 3.5.36: Adapter method for 'implements' operator.
+// Supports ObjectInstance, ClassValue, and ClassInfoValue inputs.
+func (i *Interpreter) CheckImplements(obj evaluator.Value, interfaceName string) (bool, error) {
+	// Convert to internal type
+	internalObj := obj.(Value)
+
+	// Handle nil - nil implements no interfaces
+	if _, isNil := internalObj.(*NilValue); isNil {
+		return false, nil
+	}
+
+	// Extract ClassInfo from different value types
+	var classInfo *ClassInfo
+
+	if objInst, ok := internalObj.(*ObjectInstance); ok {
+		// Object instance - extract class
+		classInfo = objInst.Class
+	} else if classVal, ok := internalObj.(*ClassValue); ok {
+		// Class reference (e.g., from metaclass variable: var cls: class of TParent)
+		classInfo = classVal.ClassInfo
+	} else if classInfoVal, ok := internalObj.(*ClassInfoValue); ok {
+		// Class type identifier (e.g., TMyImplementation in: if TMyImplementation implements IMyInterface then)
+		classInfo = classInfoVal.ClassInfo
+	} else {
+		return false, fmt.Errorf("'implements' operator requires object instance or class type, got %s", internalObj.Type())
+	}
+
+	// Guard against nil ClassInfo (e.g., uninitialized metaclass variables)
+	if classInfo == nil {
+		return false, nil
+	}
+
+	// Look up the interface in the registry
+	iface, exists := i.interfaces[strings.ToLower(interfaceName)]
+	if !exists {
+		return false, fmt.Errorf("interface '%s' not found", interfaceName)
+	}
+
+	// Check if the class implements the interface
+	return classImplementsInterface(classInfo, iface), nil
+}
+
 // CreateFunctionPointer creates a function pointer value from a function declaration.
 // Task 3.5.8: Adapter method for function pointer creation.
 func (i *Interpreter) CreateFunctionPointer(fn *ast.FunctionDecl, closure any) evaluator.Value {
