@@ -13,6 +13,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/units"
+	pkgast "github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/spf13/cobra"
 )
 
@@ -150,6 +151,7 @@ func runScript(_ *cobra.Command, args []string) error {
 	// Run semantic analysis if type checking is enabled
 	// Skip type checking if units are used, since symbols from units
 	// aren't available until runtime
+	var semanticInfo *pkgast.SemanticInfo
 	if typeCheck && !hasUnits {
 		analyzer := semantic.NewAnalyzer()
 		// Set source code for rich error messages
@@ -172,6 +174,8 @@ func runScript(_ *cobra.Command, args []string) error {
 			fmt.Fprintln(os.Stderr) // Add newline
 			return fmt.Errorf("semantic analysis failed with %d error(s)", len(analyzer.Errors()))
 		}
+		// Capture semantic info to pass to interpreter
+		semanticInfo = analyzer.GetSemanticInfo()
 	} else if verbose && hasUnits {
 		fmt.Fprintf(os.Stderr, "Type checking disabled (program uses units)\n")
 	}
@@ -203,6 +207,11 @@ func runScript(_ *cobra.Command, args []string) error {
 
 	// Set source code for enhanced runtime error messages
 	interpreter.SetSource(input, filename)
+
+	// Pass semantic info to interpreter if available (enables type inference for empty arrays)
+	if semanticInfo != nil {
+		interpreter.SetSemanticInfo(semanticInfo)
+	}
 
 	// Set up unit registry if search paths are provided or if we're running from a file
 	if len(searchPaths) > 0 {
