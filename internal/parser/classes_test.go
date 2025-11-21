@@ -1325,15 +1325,15 @@ func TestForwardClassDeclaration(t *testing.T) {
 	}
 
 	// Forward declarations have no body, so all slices should be nil or empty
-	if stmt.Fields != nil && len(stmt.Fields) != 0 {
+	if len(stmt.Fields) != 0 {
 		t.Errorf("Forward declaration should have no fields. got=%d", len(stmt.Fields))
 	}
 
-	if stmt.Methods != nil && len(stmt.Methods) != 0 {
+	if len(stmt.Methods) != 0 {
 		t.Errorf("Forward declaration should have no methods. got=%d", len(stmt.Methods))
 	}
 
-	if stmt.Properties != nil && len(stmt.Properties) != 0 {
+	if len(stmt.Properties) != 0 {
 		t.Errorf("Forward declaration should have no properties. got=%d", len(stmt.Properties))
 	}
 }
@@ -1370,11 +1370,11 @@ func TestForwardClassDeclarationWithParent(t *testing.T) {
 	}
 
 	// Forward declarations have no body
-	if stmt.Fields != nil && len(stmt.Fields) != 0 {
+	if len(stmt.Fields) != 0 {
 		t.Errorf("Forward declaration should have no fields. got=%d", len(stmt.Fields))
 	}
 
-	if stmt.Methods != nil && len(stmt.Methods) != 0 {
+	if len(stmt.Methods) != 0 {
 		t.Errorf("Forward declaration should have no methods. got=%d", len(stmt.Methods))
 	}
 }
@@ -1462,7 +1462,7 @@ end;
 	if forward.Name.Value != "TChild" {
 		t.Errorf("forward.Name.Value not 'TChild'. got=%s", forward.Name.Value)
 	}
-	if forward.Methods != nil && len(forward.Methods) != 0 {
+	if len(forward.Methods) != 0 {
 		t.Errorf("Forward declaration should have no methods. got=%d", len(forward.Methods))
 	}
 

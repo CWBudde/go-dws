@@ -1025,28 +1025,32 @@ func BenchmarkChoice(b *testing.B) {
 // TestSeparatedListMultiSep_FailureCase tests the failure case when parseSeparatedList fails
 func TestSeparatedListMultiSep_FailureCase(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       string
-		requireTerm bool
-		expected    int
+		name          string
+		input         string
+		requireTerm   bool
+		allowTrailing bool
+		expected      int
 	}{
 		{
-			name:        "missing required terminator",
-			input:       "( 1, 2, 3",
-			requireTerm: true,
-			expected:    -1, // Failure returns -1
+			name:          "missing required terminator",
+			input:         "( 1, 2, 3",
+			requireTerm:   true,
+			allowTrailing: false,
+			expected:      -1, // Failure returns -1
 		},
 		{
-			name:        "trailing separator allowed",
-			input:       "( 1, 2, )",
-			requireTerm: false,
-			expected:    2,
+			name:          "trailing separator allowed",
+			input:         "( 1, 2, )",
+			requireTerm:   false,
+			allowTrailing: true,
+			expected:      2,
 		},
 		{
-			name:        "trailing separator not allowed but present",
-			input:       "( 1, )",
-			requireTerm: false,
-			expected:    -1, // Should fail when trailing separator not allowed
+			name:          "trailing separator not allowed but present",
+			input:         "( 1, )",
+			requireTerm:   false,
+			allowTrailing: false,
+			expected:      -1, // Should fail when trailing separator not allowed
 		},
 	}
 
@@ -1057,7 +1061,6 @@ func TestSeparatedListMultiSep_FailureCase(t *testing.T) {
 			p.nextToken()
 
 			var items []int
-			allowTrailing := tt.name == "trailing separator allowed"
 
 			count := p.SeparatedListMultiSep(
 				[]lexer.TokenType{lexer.COMMA},
@@ -1069,9 +1072,9 @@ func TestSeparatedListMultiSep_FailureCase(t *testing.T) {
 					}
 					return false
 				},
-				true,           // allow empty
-				allowTrailing,  // trailing separator
-				tt.requireTerm, // require terminator
+				true,             // allow empty
+				tt.allowTrailing, // trailing separator
+				tt.requireTerm,   // require terminator
 			)
 
 			if count != tt.expected {
@@ -1624,7 +1627,7 @@ func TestParameterGroup(t *testing.T) {
 				t.Errorf("Expected %d parameters, got %d", tt.paramCount, len(result))
 			}
 
-			if result != nil && len(result) > 0 && tt.checkModifier != nil {
+			if len(result) > 0 && tt.checkModifier != nil {
 				tt.checkModifier(t, result[0])
 			}
 
