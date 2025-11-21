@@ -250,7 +250,7 @@
 
 ---
 
-### 2.6 Enums - Boolean Operations and Conversions
+### 1.6 Enums - Boolean Operations and Conversions
 
 #### Enum Boolean Operations
 
@@ -297,9 +297,9 @@
 
 ---
 
-## 3. MEDIUM Priority
+## 2. MEDIUM Priority
 
-### 3.1 Interpreter - Evaluator Declaration Visitor Migration
+### 2.1 Interpreter - Evaluator Declaration Visitor Migration
 
 **Location**: [internal/interp/evaluator/visitor_declarations.go](internal/interp/evaluator/visitor_declarations.go)
 
@@ -330,7 +330,7 @@
 
 ---
 
-### 3.2 Types - Circular Import Resolution
+### 2.2 Types - Circular Import Resolution
 
 **Location**: [internal/interp/evaluator/type_helpers.go](internal/interp/evaluator/type_helpers.go)
 
@@ -357,7 +357,7 @@
 
 ---
 
-### 3.3 Bytecode - Validation Enhancements
+### 2.3 Bytecode - Validation Enhancements
 
 **Location**: [internal/bytecode/bytecode.go:946](internal/bytecode/bytecode.go#L946)
 
@@ -377,7 +377,7 @@
 
 ---
 
-### 3.4 Runtime - Record and Class Initialization
+### 2.4 Runtime - Record and Class Initialization
 
 **Priority**: MEDIUM
 
@@ -399,6 +399,7 @@
    - Impact: Dynamic class instantiation may fail
 
 **Action Required**:
+
 1. Implement proper field initialization for records
 2. Fix function pointer type construction
 3. Add class name to type mapping
@@ -408,7 +409,7 @@
 
 ---
 
-### 3.5 Semantic Analysis - Type Checking Enhancements
+### 2.5 Semantic Analysis - Type Checking Enhancements
 
 **Location**: [internal/semantic/](internal/semantic/)
 
@@ -452,7 +453,7 @@
 
 ---
 
-### 3.6 Runtime - Operator and Inheritance Checks
+### 2.6 Runtime - Operator and Inheritance Checks
 
 **Priority**: MEDIUM
 
@@ -477,9 +478,9 @@
 
 ---
 
-## 4. LOW Priority
+## 3. LOW Priority
 
-### 4.1 Future Features
+### 3.1 Future Features
 
 #### Function Pointer Execution Tests
 
@@ -509,7 +510,7 @@
 
 ---
 
-### 4.2 Unit System Enhancements
+### 3.2 Unit System Enhancements
 
 **Location**: [internal/units/search.go:169-170](internal/units/search.go#L169)
 
@@ -530,7 +531,7 @@
 
 ---
 
-### 4.3 CLI Improvements
+### 3.3 CLI Improvements
 
 **Location**: [cmd/dwscript/cmd/fmt.go:296](cmd/dwscript/cmd/fmt.go#L296)
 
@@ -546,7 +547,7 @@
 
 ---
 
-### 4.4 Documentation and Code Quality
+### 3.4 Documentation and Code Quality
 
 **Priority**: LOW
 
@@ -561,7 +562,7 @@
 
 ---
 
-### 4.5 Test Infrastructure Improvements
+### 3.5 Test Infrastructure Improvements
 
 **Priority**: LOW
 
@@ -587,7 +588,7 @@
 
 ---
 
-### 4.6 Formatter Enhancements
+### 3.6 Formatter Enhancements
 
 **Location**: PLAN.md Stage 10.14
 
@@ -606,13 +607,13 @@
 
 ---
 
-## 5. Fixture Test Suites (25 Disabled Categories)
+## 4. Fixture Test Suites (25 Disabled Categories)
 
 > Status: Waiting for feature implementation
 >
 > Each category is skipped with comment: "TODO: Re-enable after implementing missing features"
 
-### 5.1 HIGH Priority Test Suites
+### 4.1 HIGH Priority Test Suites
 
 **Core Language Features** (needs immediate attention):
 
@@ -651,7 +652,7 @@
 
 ---
 
-### 5.2 MEDIUM Priority Test Suites
+### 4.2 MEDIUM Priority Test Suites
 
 **Error Cases** (validate error handling):
 
@@ -701,7 +702,7 @@
 
 ---
 
-### 5.3 LOW Priority Test Suites
+### 4.3 LOW Priority Test Suites
 
 **Advanced/Library Features**:
 
@@ -746,7 +747,7 @@
 
 ---
 
-## 6. Summary by Category
+## 5. Summary by Category
 
 ### Parser
 - **1 CRITICAL**: Infinite loop on incomplete operator declaration → IMMEDIATE FIX
@@ -787,15 +788,9 @@
 
 ---
 
-## 7. Recommended Action Plan
+## 6. Recommended Action Plan
 
 ### 🔥 Immediate (This Week)
-
-**CRITICAL**:
-1. **FIX**: Parser infinite loop bug ([composite_types_test.go:440](cmd/dwscript/composite_types_test.go#L440))
-   - Add error recovery for incomplete operator declarations
-   - Implement recursion depth limits
-   - Re-enable test
 
 **HIGH**:
 2. **Implement**: Set type declaration parsing
@@ -806,7 +801,7 @@
 
 ### 📋 Short Term (Next 2 Weeks)
 
-**Phase 3 Builtins Completion**:
+**Phase 2 Builtins Completion**:
 
 3. **Random Functions** (6 functions):
    - Extend Context interface with RandSource/SetRandSeed/GetRandSeed
@@ -860,7 +855,7 @@
 
 ---
 
-### 🏗️ Long Term (Phase 3+ Completion)
+### 🏗️ Long Term (Phase 2+ Completion)
 
 **Architecture Improvements**:
 
@@ -891,25 +886,24 @@
 
 ---
 
-## 8. Blocking Dependencies
+## 7. Blocking Dependencies
 
 ### Critical Path
 
 **Immediate Blockers**:
-1. ❌ Parser infinite loop → **Blocks error recovery testing**
-2. ❌ Set type parsing → **Blocks SetOfPass/SetOfFail (~40 tests)**
+1. ❌ Set type parsing → **Blocks SetOfPass/SetOfFail (~40 tests)**
 
 **Phase 3 Blockers**:
-3. ❌ Random functions → **Blocks Phase 3 completion**
-4. ❌ ArrayValue migration → **Blocks 7 string functions**
-5. ❌ By-ref parameters → **Blocks DateTime + Insert/Delete functions**
+2. ❌ Random functions → **Blocks Phase 3 completion**
+3. ❌ ArrayValue migration → **Blocks 7 string functions**
+4. ❌ By-ref parameters → **Blocks DateTime + Insert/Delete functions**
 
 **VM Blockers**:
-6. ❌ For loops in VM → **Blocks VM performance testing**
-7. ❌ Result variable → **Blocks DWScript function idioms**
+5. ❌ For loops in VM → **Blocks VM performance testing**
+6. ❌ Result variable → **Blocks DWScript function idioms**
 
 **Feature Blockers**:
-8. ❌ Enum enhancements → **Blocks enum fixture tests**
+7. ❌ Enum enhancements → **Blocks enum fixture tests**
 
 ---
 
@@ -926,7 +920,7 @@ Can be done anytime without dependencies:
 
 ---
 
-## 9. Stage/Phase Mapping
+## 8. Stage/Phase Mapping
 
 ### Current Stage (Phase 3 Refactoring)
 - **Random functions** (6) - HIGH
@@ -966,10 +960,9 @@ Can be done anytime without dependencies:
 
 ---
 
-## 10. Impact Analysis
+## 9. Impact Analysis
 
 ### High Impact (Affects Many Features)
-- Parser infinite loop (CRITICAL - system stability)
 - Set type parsing (40+ tests blocked)
 - By-ref parameter support (9 functions blocked)
 - ArrayValue migration (4 functions blocked)
@@ -990,7 +983,7 @@ Can be done anytime without dependencies:
 
 ---
 
-## 11. Quick Reference Checklist
+## 10. Quick Reference Checklist
 
 ### Before Starting New Features
 - [ ] Check if parser infinite loop is fixed
