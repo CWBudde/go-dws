@@ -49,57 +49,15 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Goal**: Increase parser test coverage from 73.4% to 85%+ by testing uncovered code paths.
 
-**Current Coverage**: 73.4% (448 tests passing)
+**Completed** (2025-01-21):
+- ✅ **2.8.1**: error_recovery.go - 100% coverage (17 functions, integration + unit tests)
+- ✅ **2.8.2**: Combinators - 100% coverage for 21/24 functions (SeparatedListMultiSep, IdentifierList)
+- ✅ **2.8.2a**: Remaining combinators - 99.7% average (OptionalTypeAnnotation 100%, StatementBlock 94.7%, ParameterGroup 97.9%)
 
-**Coverage Gaps Identified**:
-1. **error_recovery.go**: 0% coverage (17 functions untested)
-   - NewErrorRecovery, SynchronizeOn, TryRecover, ExpectWithRecovery
-   - ExpectOneOf, SkipUntil, IsAtSyncPoint
-   - Suggest* helper functions
+**Results**: Parser coverage improved from 73.4% → 78.1%, +630 lines of comprehensive tests
 
-2. **Untested Combinators** (combinators.go):
-   - `BetweenStatement` (0%)
-   - `TryParseStatement` (0%)
-   - `Peek1Is`, `Peek2Is`, `Peek3Is` (0%)
-   - `OptionalTypeAnnotation` (0%)
-   - `StatementBlock` (0%)
-   - `ParameterGroup` (0%)
-
-3. **Untested Parsing Functions**:
-   - `parseClassDeclaration` (classes.go:23) - 0%
-   - `parseInt` (types.go:454) - 0%
-
-**Tasks**:
-- [x] **2.8.1**: Add tests for error_recovery.go functions (Target: 80%+ coverage)
-  - Test error recovery with sync points
-  - Test expectation errors with suggestions
-  - Test synchronization behavior
-  - Estimated: 8-12 hours
-
-- [x] **2.8.2**: Add tests for untested combinators (Target: 90%+ coverage)
-  - ✅ Test BetweenStatement, TryParseStatement
-  - ✅ Test Peek*Is lookahead helpers
-  - ✅ Test SeparatedListMultiSep (improved from 80% to 100%)
-  - ✅ Test IdentifierList (improved from 77.3% to 100%)
-  - ❌ Test OptionalTypeAnnotation, StatementBlock, ParameterGroup (not yet implemented)
-  - **Result:** 21/24 combinators have 100% coverage (87.5% overall, 100% for implemented functions)
-  - Estimated: 4-6 hours
-  - **Note:** Remaining combinator tests for OptionalTypeAnnotation, StatementBlock, and ParameterGroup to be added in follow-up task 2.8.2a.
-- [x] **2.8.2a**: Add tests for OptionalTypeAnnotation, StatementBlock, ParameterGroup combinators
-  - ✅ OptionalTypeAnnotation: 0% → 100% (5 comprehensive test cases)
-  - ✅ StatementBlock: 0% → 94.7% (8 comprehensive test cases)
-  - ✅ ParameterGroup: 0% → 97.9% (15 comprehensive test cases)
-  - **Result:** All 24 combinators now tested, 22 at 100%, average 99.7% coverage
-  - Estimated: 2-3 hours
-
-- [ ] **2.8.3**: Add tests for untested parsing functions
-  - [ ] Test parseClassDeclaration edge cases
-  - [x] Test parseInt with various inputs
-  - Estimated: 2-4 hours
-
-**Target**: 85%+ coverage (currently 73.4%, need +11.6%)
-
-**Estimated Total**: 14-22 hours (2-3 days)
+**Remaining**:
+- [ ] **2.8.3**: Test parseClassDeclaration edge cases (parseInt already tested)
 
 ---
 
