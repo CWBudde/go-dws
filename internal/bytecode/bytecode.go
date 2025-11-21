@@ -18,15 +18,39 @@ type FunctionObject struct {
 	Name        string
 	UpvalueDefs []UpvalueDef
 	Arity       int
+	VarParams   []bool // Task 1.3.7.6: Which parameters are by-reference (var)
 }
 
 // NewFunctionObject creates a new function object.
 func NewFunctionObject(name string, chunk *Chunk, arity int) *FunctionObject {
 	return &FunctionObject{
-		Name:  name,
-		Chunk: chunk,
-		Arity: arity,
+		Name:      name,
+		Chunk:     chunk,
+		Arity:     arity,
+		VarParams: make([]bool, arity), // Initialize all params as non-var
 	}
+}
+
+// NewFunctionObjectWithVarParams creates a new function object with var parameter info.
+// Task 1.3.7.6: Support for by-reference parameters.
+func NewFunctionObjectWithVarParams(name string, chunk *Chunk, arity int, varParams []bool) *FunctionObject {
+	vp := make([]bool, arity)
+	copy(vp, varParams)
+	return &FunctionObject{
+		Name:      name,
+		Chunk:     chunk,
+		Arity:     arity,
+		VarParams: vp,
+	}
+}
+
+// IsVarParam returns true if the parameter at the given index is a var parameter.
+// Task 1.3.7.6: Helper for checking var parameter status.
+func (fn *FunctionObject) IsVarParam(index int) bool {
+	if fn == nil || fn.VarParams == nil || index < 0 || index >= len(fn.VarParams) {
+		return false
+	}
+	return fn.VarParams[index]
 }
 
 // UpvalueCount returns the number of upvalues this function expects.
@@ -54,6 +78,7 @@ const (
 	ValueClosure
 	ValueBuiltin
 	ValueVariant
+	ValueRef
 )
 
 // ValueTypeNames maps value types to their string names for debugging.
@@ -71,6 +96,7 @@ var ValueTypeNames = [...]string{
 	ValueClosure:  "closure",
 	ValueBuiltin:  "builtin",
 	ValueVariant:  "variant",
+	ValueRef:      "ref", // Task 1.3.7.6
 }
 
 // String returns a string representation of the value type.
@@ -115,6 +141,50 @@ func SetValue(set *SetInstance) Value {
 // ObjectValue constructs a Value representing an object instance.
 func ObjectValue(obj *ObjectInstance) Value {
 	return Value{Type: ValueObject, Data: obj}
+}
+
+// Reference represents a reference to a variable for var parameters.
+// Task 1.3.7.6: Used to implement by-reference parameter passing in bytecode VM.
+// The reference stores a pointer to a Value slot so modifications are visible
+// to the caller.
+type Reference struct {
+	// Location points to the actual Value slot being referenced.
+	// When the referenced value is modified, changes are visible through this pointer.
+	Location *Value
+}
+
+// RefValue constructs a Value representing a reference.
+// Task 1.3.7.6: Used for var parameter passing.
+func RefValue(ref *Reference) Value {
+	return Value{Type: ValueRef, Data: ref}
+}
+
+// AsRef extracts the Reference from a Value, returning nil if not a reference.
+// Task 1.3.7.6: Helper for var parameter handling.
+func (v Value) AsRef() *Reference {
+	if v.Type == ValueRef {
+		if ref, ok := v.Data.(*Reference); ok {
+			return ref
+		}
+	}
+	return nil
+}
+
+// Deref dereferences a reference, returning the pointed-to value.
+// Task 1.3.7.6: Helper for var parameter reading.
+func (r *Reference) Deref() Value {
+	if r == nil || r.Location == nil {
+		return NilValue()
+	}
+	return *r.Location
+}
+
+// Assign stores a value through the reference.
+// Task 1.3.7.6: Helper for var parameter writing.
+func (r *Reference) Assign(val Value) {
+	if r != nil && r.Location != nil {
+		*r.Location = val
+	}
 }
 
 // UpvalueDef describes how a function captures an upvalue when a closure is created.

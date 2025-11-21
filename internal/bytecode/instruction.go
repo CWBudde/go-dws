@@ -682,6 +682,28 @@ const (
 	OpThrow
 
 	// ========================================
+	// Reference Operations (3 opcodes) - Task 1.3.7.6
+	// ========================================
+
+	// OpLoadRef loads a reference to a local variable onto the stack.
+	// Used for var parameters to pass by reference instead of by value.
+	// Format: [OpLoadRef][unused][index]
+	// Stack: [] -> [reference to local[index]]
+	OpLoadRef
+
+	// OpStoreRef stores a value through a reference.
+	// Pops reference and value from stack, stores value at referenced location.
+	// Format: [OpStoreRef][unused][unused]
+	// Stack: [reference, value] -> []
+	OpStoreRef
+
+	// OpDeref dereferences a reference to get its current value.
+	// Replaces reference on stack with the actual value it points to.
+	// Format: [OpDeref][unused][unused]
+	// Stack: [reference] -> [value]
+	OpDeref
+
+	// ========================================
 	// Miscellaneous (4 opcodes)
 	// ========================================
 
@@ -705,8 +727,8 @@ const (
 	// Stack: [] -> []
 	OpDebugger
 
-	// Total: 115 opcodes
-	// This keeps us well under 128 (7 binary search comparisons in Go switch)
+	// Total: 124 opcodes (121 original + 3 reference opcodes)
+	// This keeps us under 128 (7 binary search comparisons in Go switch)
 )
 
 // OpCodeNames maps opcodes to their string names for debugging and disassembly.
@@ -828,6 +850,9 @@ var OpCodeNames = [...]string{
 	OpCatch:            "CATCH",
 	OpFinally:          "FINALLY",
 	OpThrow:            "THROW",
+	OpLoadRef:          "LOAD_REF",
+	OpStoreRef:         "STORE_REF",
+	OpDeref:            "DEREF",
 	OpHalt:             "HALT",
 	OpPrint:            "PRINT",
 	OpAssert:           "ASSERT",
