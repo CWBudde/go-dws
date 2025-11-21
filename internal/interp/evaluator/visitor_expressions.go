@@ -497,7 +497,28 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 //   - Field initializer errors - Propagated from initializer evaluation
 //   - Constructor body errors - Propagated from constructor execution
 func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNode(node)
+	// Get the class name
+	className := node.ClassName.Value
+
+	// Evaluate all constructor arguments
+	args := make([]Value, len(node.Arguments))
+	for i, arg := range node.Arguments {
+		val := e.Eval(arg, ctx)
+		if isError(val) {
+			return val
+		}
+		args[i] = val
+	}
+
+	// Create the object using the adapter
+	// The adapter handles: class lookup, record type delegation, abstract/external checks,
+	// field initialization, exception handling, constructor resolution, and constructor execution
+	obj, err := e.adapter.CreateObject(className, args)
+	if err != nil {
+		return e.newError(node, "%s", err.Error())
+	}
+
+	return obj
 }
 
 // VisitMemberAccessExpression evaluates member access (obj.field, obj.method).
@@ -1116,7 +1137,55 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 //   - "cannot call field 'X' as a method" - Field access with args/call syntax
 //   - "method, property, or field 'X' not found in parent class 'Y'" - Member not found
 func (e *Evaluator) VisitInheritedExpression(node *ast.InheritedExpression, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNode(node)
+	// Get Self from environment - must be in a method context
+	selfVal, exists := ctx.Env().Get("Self")
+	if !exists {
+		return e.newError(node, "inherited can only be used inside a method")
+	}
+
+	// Convert to Value type
+	self, ok := selfVal.(Value)
+	if !ok {
+		return e.newError(node, "inherited requires Self to be an object instance")
+	}
+
+	// Determine the method name
+	var methodName string
+	if node.Method != nil {
+		// Explicit method name: inherited MethodName(args)
+		methodName = node.Method.Value
+	} else {
+		// Bare inherited: get current method name from environment
+		currentMethodVal, exists := ctx.Env().Get("__CurrentMethod__")
+		if !exists {
+			return e.newError(node, "bare 'inherited' requires method context")
+		}
+
+		// Extract method name string - check for runtime.StringValue
+		if strVal, ok := currentMethodVal.(*runtime.StringValue); ok {
+			methodName = strVal.Value
+		} else if strVal, ok := currentMethodVal.(interface{ String() string }); ok {
+			// Fallback: try String() method (covers internal StringValue)
+			methodName = strVal.String()
+		} else {
+			return e.newError(node, "invalid method context")
+		}
+	}
+
+	// Evaluate all arguments
+	args := make([]Value, len(node.Arguments))
+	for i, arg := range node.Arguments {
+		val := e.Eval(arg, ctx)
+		if isError(val) {
+			return val
+		}
+		args[i] = val
+	}
+
+	// Call the inherited method using the adapter
+	// The adapter handles: parent class lookup, method resolution, environment setup,
+	// Self binding, parameter binding, and method execution
+	return e.adapter.CallInheritedMethod(self, methodName, args)
 }
 
 // VisitSelfExpression evaluates a 'Self' expression.

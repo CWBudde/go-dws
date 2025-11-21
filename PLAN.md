@@ -1127,62 +1127,49 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - [x] **3.5.32** Migrate Object Instantiation (`VisitNewExpression`)
   - **Complexity**: High (~250 lines in original implementation)
   - **Requirements**: Constructor dispatch, field initialization, class inheritance
-  - **Effort**: 1-2 weeks (full implementation) / 1.5 hours (documentation)
-  - **Status**: ✅ COMPLETE - Documentation-only migration with full adapter delegation
+  - **Effort**: 1-2 weeks (full implementation) / 2 hours (actual migration)
+  - **Status**: ✅ COMPLETE - Actual code migration using adapter.CreateObject()
   - **Implementation Summary**:
-    - Documented all 10 distinct instantiation modes with comprehensive behavior specification
+    - Migrated VisitNewExpression to evaluate arguments in evaluator and delegate object creation to adapter
+    - Evaluator now: (1) extracts class name, (2) evaluates all constructor arguments, (3) calls adapter.CreateObject()
     - Original implementation: 262 lines (objects_instantiation.go:11-262)
-    - Instantiation modes documented: class lookup, record type delegation, abstract class check, external class check, object creation, field initialization (two-phase), exception class handling, constructor resolution, constructor execution, return value handling
-    - Special behaviors: case-insensitive class lookup, default constructor pattern, implicit parameterless constructor, record type delegation, exception handling shortcuts, class constants in field initializers
-    - All functionality delegated to adapter.EvalNode() pending value type migrations to runtime package
+    - Adapter method handles: class lookup, record type delegation, abstract/external checks, field initialization, exception handling, constructor resolution, constructor execution
+    - Comprehensive documentation of 10 instantiation modes preserved in method comments
   - **Files Modified**:
-    - `internal/interp/evaluator/visitor_expressions.go` - Added 165+ lines of comprehensive documentation
+    - `internal/interp/evaluator/visitor_expressions.go` - Actual implementation (~25 lines) + documentation
   - **Testing**:
     - ✅ All evaluator tests pass
-    - ✅ All NewExpression-specific tests pass (TestObjectCreation, TestNewExpressionOptionalParentheses, TestConstructors, TestNewKeyword*)
+    - ✅ All NewExpression-specific tests pass (TestObjectCreation, TestNewExpressionOptionalParentheses, TestConstructors, TestNewKeyword*, TestConstructorOverload)
     - ✅ No regressions in existing functionality
-    - ✅ Maintains 100% compatibility via adapter delegation
-  - **Migration Strategy**:
-    - Phase 1 (this task): Comprehensive documentation of all modes ✅
-    - Phase 2 (future): Migrate simple class instantiation after ObjectInstance migration
-    - Phase 3 (future): Migrate field initialization after type system migration
-    - Phase 4 (future): Migrate constructor dispatch after method call migration
-    - Phase 5 (future): Migrate exception handling after exception system migration
-    - Phase 6 (future): Migrate record delegation after record type migration
-  - **Dependencies** (blockers for full migration):
-    - ClassInfo, ObjectInstance, RecordTypeValue, ExceptionValue, Environment, ClassInfoValue - all in internal/interp, need migration to runtime package
-    - resolveMethodOverload(), getMethodOverloadsInHierarchy(), getZeroValueForType(), isExceptionClass(), InheritsFrom() - need adapter methods
-  - **Note**: This task handles the `new` keyword and `TClass.Create()` syntax for object instantiation, including record type delegation, exception handling shortcuts, and constructor overload resolution.
+  - **Migration Approach**:
+    - Evaluator handles argument evaluation (its responsibility)
+    - Adapter handles complex OOP logic via CreateObject() method (already existed)
+    - Clean separation: evaluator controls flow, interpreter handles type-specific details
+  - **Note**: This task handles the `new` keyword and `TClass.Create()` syntax for object instantiation.
 
 - [x] **3.5.33** Migrate Inherited Expression (`VisitInheritedExpression`)
   - **Complexity**: High (~176 lines in original implementation)
   - **Requirements**: Parent method resolution, argument passing
-  - **Effort**: 1 week (full implementation) / 1 hour (documentation)
-  - **Status**: ✅ COMPLETE - Documentation-only migration with full adapter delegation
+  - **Effort**: 1 week (full implementation) / 2 hours (actual migration)
+  - **Status**: ✅ COMPLETE - Actual code migration using adapter.CallInheritedMethod()
   - **Implementation Summary**:
-    - Documented 3 syntax forms and 4 execution phases with comprehensive behavior specification
+    - Migrated VisitInheritedExpression to handle context validation and method name resolution in evaluator
+    - Evaluator now: (1) validates Self exists, (2) resolves method name (explicit or from __CurrentMethod__), (3) evaluates arguments, (4) calls adapter.CallInheritedMethod()
     - Original implementation: 176 lines (objects_hierarchy.go:790-965)
-    - Syntax forms: explicit method call, explicit member access, bare inherited
-    - Execution phases: context validation, method name resolution, member lookup (methods/properties/fields), method execution
-    - Special behaviors: Self preservation (critical!), bare inherited support, case-insensitive lookup, method name as return alias, class constants in scope, implicit type conversion
-    - All functionality delegated to adapter.EvalNode() pending value type migrations to runtime package
+    - Adapter method handles: parent class lookup, method/property/field resolution, Self binding, environment setup, method execution
+    - Supports both explicit (`inherited MethodName(args)`) and bare (`inherited`) syntax
+    - Comprehensive documentation of 4 execution phases preserved in method comments
   - **Files Modified**:
-    - `internal/interp/evaluator/visitor_expressions.go` - Added 150+ lines of comprehensive documentation
+    - `internal/interp/evaluator/visitor_expressions.go` - Actual implementation (~50 lines) + documentation
   - **Testing**:
     - ✅ All evaluator tests pass
     - ✅ All semantic inherited tests pass (15 test functions)
     - ✅ No regressions in existing functionality
-    - ✅ Maintains 100% compatibility via adapter delegation
-  - **Migration Strategy**:
-    - Phase 1 (this task): Comprehensive documentation of all modes ✅
-    - Phase 2 (future): Migrate context validation after ObjectInstance migration
-    - Phase 3 (future): Migrate method lookup after ClassInfo migration
-    - Phase 4 (future): Migrate method execution after method call migration
-    - Phase 5 (future): Migrate property/field access after property system migration
-  - **Dependencies** (blockers for full migration):
-    - ObjectInstance, ClassInfo, ClassInfoValue, StringValue, ReferenceValue, NilValue, PropertyInfo - all in internal/interp, need migration to runtime package
-    - Environment, NewEnclosedEnvironment, bindClassConstantsToEnv, tryImplicitConversion, resolveTypeFromAnnotation, getDefaultValue, evalPropertyRead - need adapter methods
-  - **Note**: Self preservation is the critical feature - inherited calls parent method but keeps the current object instance as Self, enabling proper polymorphism in inheritance chains.
+  - **Migration Approach**:
+    - Evaluator handles: Self validation, method name resolution (explicit/bare), argument evaluation
+    - Adapter handles: parent class traversal, method lookup, environment management, execution
+    - Clean separation: evaluator controls flow and basic validation, interpreter handles OOP semantics
+  - **Note**: Self preservation is the critical feature - inherited calls parent method but keeps the current object instance as Self.
 
 - [ ] **3.5.34** Migrate Type Checking (`VisitIsExpression`)
   - **Requirements**: Runtime type checking, class hierarchy traversal
