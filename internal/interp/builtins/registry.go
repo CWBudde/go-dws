@@ -66,13 +66,9 @@ type FunctionInfo struct {
 // Registry manages all built-in functions.
 // It provides case-insensitive lookup and categorization of built-in functions.
 type Registry struct {
-	mu sync.RWMutex
-
-	// functions maps normalized names to FunctionInfo
-	functions map[string]*FunctionInfo
-
-	// categories maps category names to lists of function names
+	functions  map[string]*FunctionInfo
 	categories map[Category][]string
+	mu         sync.RWMutex
 }
 
 // NewRegistry creates a new built-in function registry.

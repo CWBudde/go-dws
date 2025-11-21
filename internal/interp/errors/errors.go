@@ -25,12 +25,12 @@ const (
 
 // InterpreterError represents a runtime error in the interpreter with rich context.
 type InterpreterError struct {
-	Category   ErrorCategory     // Error category
-	Message    string            // Human-readable error message
-	Pos        *token.Position   // Position in source code
-	Expression string            // The expression that failed
-	Values     map[string]string // Runtime values as strings
-	Err        error             // Underlying error (for wrapping)
+	Err        error
+	Pos        *token.Position
+	Values     map[string]string
+	Category   ErrorCategory
+	Message    string
+	Expression string
 }
 
 // Error implements the error interface.
