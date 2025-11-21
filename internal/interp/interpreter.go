@@ -1262,18 +1262,18 @@ func (i *Interpreter) CallInheritedMethod(obj evaluator.Value, methodName string
 	// Get object instance
 	objVal, ok := internalObj.(*ObjectInstance)
 	if !ok {
-		panic(fmt.Sprintf("not an object: %s", internalObj.Type()))
+		return newError("inherited requires Self to be an object instance, got %s", internalObj.Type())
 	}
 
 	// Get class info
 	classInfo := objVal.Class
 	if classInfo == nil {
-		panic("object has no class information")
+		return newError("object has no class information")
 	}
 
 	// Check parent class
 	if classInfo.Parent == nil {
-		panic(fmt.Sprintf("class '%s' has no parent", classInfo.Name))
+		return newError("class '%s' has no parent class", classInfo.Name)
 	}
 
 	parentInfo := classInfo.Parent
@@ -1282,7 +1282,7 @@ func (i *Interpreter) CallInheritedMethod(obj evaluator.Value, methodName string
 	methodNameLower := strings.ToLower(methodName)
 	method, exists := parentInfo.Methods[methodNameLower]
 	if !exists {
-		panic(fmt.Sprintf("inherited method '%s' not found in parent class '%s'", methodName, parentInfo.Name))
+		return newError("method, property, or field '%s' not found in parent class '%s'", methodName, parentInfo.Name)
 	}
 
 	// Call the method using existing infrastructure
