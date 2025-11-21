@@ -30,47 +30,6 @@
 
 ## 1. HIGH Priority
 
-### ~~1.1 Parser - Set Type Declarations~~ ✅ COMPLETED
-
-**Status**: COMPLETED (2025-11-21)
-
-**Summary**: Set type declarations were already implemented in the compiler stack. The TODO markers were stale. Fixed a semantic analyzer bug where type declaration blocks were incorrectly creating nested scopes, preventing enum values from being visible outside the type section.
-
-**Changes Made**:
-
-1. **Semantic Analyzer Fix** (`internal/semantic/analyze_statements.go`):
-   - Modified `analyzeBlock()` to detect type declaration blocks
-   - Added `isTypeDeclarationBlock()` helper function
-   - Type declaration blocks no longer create nested scopes
-   - Enum values now correctly visible throughout the program
-
-2. **Interpreter Support** (`internal/interp/`):
-   - Added `evalSetDeclaration()` handler in `set.go`
-   - Added `VisitSetDecl()` handler in `evaluator/visitor_declarations.go`
-   - Integrated SetDecl into evaluation pipeline
-
-**Verification**:
-- ✅ Parser tests pass: `TestParseSetDeclaration`
-- ✅ Semantic tests pass: `TestSetTypeRegistration`, `TestSetTypeErrors`
-- ✅ Simple set scripts execute correctly
-- ✅ Set type declarations work: `type TColorSet = set of TColor;`
-- ✅ Variables can use set types: `var s: TColorSet;`
-- ✅ Enum values visible and usable in expressions
-
-**Existing Implementation**:
-- ✅ Lexer: SET and OF tokens (pkg/token/)
-- ✅ Parser: `parseSetDeclaration()`, `parseSetType()` (internal/parser/sets.go)
-- ✅ AST: SetDecl, SetTypeNode (pkg/ast/)
-- ✅ Semantic: `analyzeSetDecl()` (internal/semantic/analyze_sets.go)
-- ✅ Interpreter: Set operations, SetValue (internal/interp/set*.go)
-- ⚠️ Bytecode VM: Set operations need implementation (separate task)
-
-**Note**: Some set operations (union, intersection) may have runtime issues - these are tracked separately as interpreter/VM enhancement tasks, not parser issues.
-
-**Test Files to Update**:
-- `cmd/dwscript/sets_test.go` - Remove stale skip comments
-- SetOfPass/SetOfFail fixture tests can be re-enabled once remaining runtime operations are implemented
-
 ---
 
 ### 1.2 Builtins - Random Number Functions Migration

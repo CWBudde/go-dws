@@ -360,11 +360,11 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //     c. Class constants (getClassConstant) - lazy evaluation with caching
 //     d. Class properties (lookupProperty) - if IsClassProperty or uses class-level read specs
 //     e. Constructors (HasConstructor) - auto-invoke with 0 arguments if no parentheses
-//        * Supports constructor overloading and inheritance
-//        * Falls back to implicit parameterless constructor if needed
+//   - Supports constructor overloading and inheritance
+//   - Falls back to implicit parameterless constructor if needed
 //     f. Class methods (lookupClassMethodInHierarchy) - static methods
-//        * Parameterless: auto-invoke via VisitMethodCallExpression
-//        * With parameters: return as FunctionPointerValue
+//   - Parameterless: auto-invoke via VisitMethodCallExpression
+//   - With parameters: return as FunctionPointerValue
 //   - Error: "member 'X' not found in class 'Y'"
 //   - Implementation: ~100 lines in original
 //
@@ -386,8 +386,8 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //     a. Constants (RecordTypeValue.Constants)
 //     b. Class variables (RecordTypeValue.ClassVars)
 //     c. Class methods (RecordTypeValue.ClassMethods)
-//        * Parameterless: auto-invoke via VisitMethodCallExpression
-//        * With parameters: error (requires parentheses to call)
+//   - Parameterless: auto-invoke via VisitMethodCallExpression
+//   - With parameters: error (requires parentheses to call)
 //   - Error: "member 'X' not found in record type 'Y'"
 //   - Implementation: ~40 lines in original
 //
@@ -397,11 +397,11 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Lookup order (case-insensitive):
 //     a. Direct field access (RecordValue.Fields)
 //     b. Properties (RecordType.Properties):
-//        * ReadField: field name → direct access, method name → call getter
-//        * Write-only: error "property 'X' is write-only"
+//   - ReadField: field name → direct access, method name → call getter
+//   - Write-only: error "property 'X' is write-only"
 //     c. Instance methods (RecordValue.Methods):
-//        * Parameterless: auto-invoke via VisitMethodCallExpression
-//        * With parameters: error "method 'X' requires N parameter(s); use parentheses"
+//   - Parameterless: auto-invoke via VisitMethodCallExpression
+//   - With parameters: error "method 'X' requires N parameter(s); use parentheses"
 //     d. Class methods (from RecordTypeValue, accessible via instance)
 //     e. Constants (from RecordTypeValue, accessible via instance)
 //     f. Class variables (from RecordTypeValue, accessible via instance)
@@ -423,9 +423,9 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Object type: InterfaceInstance
 //   - Validation: Verify member exists in interface definition (HasMethod)
 //   - For methods:
-//     * Look up implementation in underlying object's class (getMethodOverloadsInHierarchy)
-//     * Return FunctionPointerValue bound to underlying object (NO auto-invoke)
-//     * Enables method delegate assignment: `var h : procedure := i.Hello;`
+//   - Look up implementation in underlying object's class (getMethodOverloadsInHierarchy)
+//   - Return FunctionPointerValue bound to underlying object (NO auto-invoke)
+//   - Enables method delegate assignment: `var h : procedure := i.Hello;`
 //   - For properties/fields: delegate to underlying object (without validation currently)
 //   - Unwrap interface to underlying object and continue evaluation
 //   - Error: "Interface is nil" or "method 'X' declared in interface 'Y' but not implemented"
@@ -467,17 +467,17 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //     b. `ClassType`: returns ClassValue (metaclass for runtime type)
 //   - Lookup order (case-insensitive):
 //     a. Properties (Class.lookupProperty) - takes precedence over fields
-//        * Call evalPropertyRead for read accessor (field, method, or expression)
+//   - Call evalPropertyRead for read accessor (field, method, or expression)
 //     b. Direct field access (obj.GetField) - instance fields
 //     c. Class variables (lookupClassVar) - accessible from instance
-//        * Uses static type from cast if available (e.g., TBase(child).ClassVar)
+//   - Uses static type from cast if available (e.g., TBase(child).ClassVar)
 //     d. Class constants (getClassConstant) - accessible from instance
 //     e. Instance methods (getMethodOverloadsInHierarchy):
-//        * Check all overloads for parameterless variants
-//        * Parameterless: auto-invoke via VisitMethodCallExpression
-//        * With parameters: return first overload as FunctionPointerValue
+//   - Check all overloads for parameterless variants
+//   - Parameterless: auto-invoke via VisitMethodCallExpression
+//   - With parameters: return first overload as FunctionPointerValue
 //     f. Class methods (getMethodOverloadsInHierarchy with classMethod=true)
-//        * Same logic as instance methods (auto-invoke or function pointer)
+//   - Same logic as instance methods (auto-invoke or function pointer)
 //     g. Helper properties (findHelperProperty → evalHelperPropertyRead)
 //   - Error: "field 'X' not found in class 'Y'"
 //   - Implementation: ~115 lines in original
@@ -564,11 +564,11 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 //     a. Collect class method overloads (getMethodOverloadsInHierarchy with isClassMethod=true)
 //     b. Collect instance method overloads including constructors (isClassMethod=false)
 //     c. Special: If constructor with 0 args and no parameterless constructor exists,
-//        create object with implicit parameterless constructor (just initialize fields)
+//     create object with implicit parameterless constructor (just initialize fields)
 //     d. Resolve overload based on argument types (resolveMethodOverload)
 //     e. If class method: execute with Self bound to ClassInfoValue (executeClassMethod)
 //     f. If instance method/constructor: create new object, initialize fields,
-//        execute method with Self bound to new instance
+//     execute method with Self bound to new instance
 //   - Overload resolution: Uses semantic.ResolveOverload with type matching
 //   - Virtual dispatch: NOT used for static calls (static binding)
 //   - Field initialization: Field initializers evaluated, then default values for remaining fields
@@ -646,9 +646,9 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 //     a. Low(): Returns lowest ordinal value as Integer
 //     b. High(): Returns highest ordinal value as Integer
 //     c. ByName(name: string): Returns ordinal for enum value name (0 if not found)
-//        * Supports qualified names (TypeName.ValueName)
-//        * Case-insensitive lookup
-//        * Returns 0 for empty string or not found (DWScript behavior)
+//   - Supports qualified names (TypeName.ValueName)
+//   - Case-insensitive lookup
+//   - Returns 0 for empty string or not found (DWScript behavior)
 //   - Implementation: ~50 lines in original
 //
 // **11. HELPER METHOD CALLS** (any_type.HelperMethod())
@@ -671,9 +671,9 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 //     b. Collect class method overloads (isClassMethod=true) - can be called on instances
 //     c. Resolve overload based on argument types (resolveMethodOverload)
 //     d. Apply VIRTUAL DISPATCH for virtual/override methods (use VirtualMethodTable)
-//        * Only for methods with IsVirtual or IsOverride (NOT reintroduce)
-//        * Look up method signature in obj.Class.VirtualMethodTable
-//        * Use most derived implementation if found
+//   - Only for methods with IsVirtual or IsOverride (NOT reintroduce)
+//   - Look up method signature in obj.Class.VirtualMethodTable
+//   - Use most derived implementation if found
 //     e. Check recursion depth (WillOverflow) before execution
 //     f. Push method name to call stack for stack traces
 //     g. Bind Self to object (or ClassInfoValue for class methods)
