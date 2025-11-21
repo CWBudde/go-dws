@@ -496,7 +496,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		}
 
 		// Not a method - delegate to the underlying object for field/property access
-		// TODO(go-dws: Stage 9.1.1): Implement property validation for interface member access
+		// TODO: Implement property validation for interface member access
 		// to match the strictness of method validation (see objects_methods.go:556-563).
 		// This will ensure that only properties defined in the interface contract can be accessed.
 		// For now, we allow properties/fields to be checked by the underlying object.

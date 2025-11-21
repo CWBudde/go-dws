@@ -110,7 +110,7 @@ func areRuntimeTypesCompatibleForOperator(actualType, declaredType string, decla
 	actualClassName := strings.TrimPrefix(actualType, "CLASS:")
 	declaredClassName := strings.TrimPrefix(declaredType, "CLASS:")
 
-	// TODO (Task 9.14): Full inheritance checking is not yet implemented here
+	// TODO: Full inheritance checking is not yet implemented here
 	// The function currently only does simple name comparison because we don't have
 	// easy access to the actual class hierarchy from the runtime type strings.
 	// The full inheritance check is handled in tryCallClassOperator which walks up
