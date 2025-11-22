@@ -382,24 +382,28 @@ If conditional compilation features are added in the future, they would require:
 
 ---
 
-### Phase 6: Exception Handling (3.5.29-3.5.30)
+### Phase 6: Exception Handling (3.5.29-3.5.30) ✅ **COMPLETED**
 
-- [ ] **3.5.29** Migrate `VisitTryStatement`
+- [x] **3.5.29** Migrate `VisitTryStatement`
   - Try/except/finally semantics
   - Exception matching with type hierarchy
   - Handler variable binding
   - Defer semantics for finally blocks
   - Delegate exception type matching to adapter
-  - Files: `visitor_statements.go`
-  - Effort: 6-8 hours
+  - Added adapter methods: MatchesExceptionType, GetExceptionInstance, EvalBlockStatement, EvalStatement
+  - Implemented evalExceptClause helper function
+  - Files: `visitor_statements.go`, `evaluator.go`, `interpreter.go`
+  - **Completed**: Commit 354514f
 
-- [ ] **3.5.30** Migrate `VisitRaiseStatement`
+- [x] **3.5.30** Migrate `VisitRaiseStatement`
   - Explicit raise with exception object
   - Bare raise (re-raise current exception)
   - Call stack capture via adapter
   - Message extraction from exception objects
-  - Files: `visitor_statements.go`
-  - Effort: 6-8 hours
+  - Added adapter method: CreateExceptionFromObject
+  - Added sync helpers: syncFromContext, syncToContext
+  - Files: `visitor_statements.go`, `evaluator.go`, `interpreter.go`
+  - **Completed**: Commit 354514f
 
 ---
 
