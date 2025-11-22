@@ -1,10 +1,9 @@
 package bytecode
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 func (c *Compiler) compileProgram(program *ast.Program) error {
@@ -494,19 +493,19 @@ func (c *Compiler) compileFunctionDecl(fn *ast.FunctionDecl) error {
 	if c.functions == nil {
 		c.functions = make(map[string]functionInfo)
 	}
-	c.functions[strings.ToLower(fn.Name.Value)] = info
+	c.functions[ident.Normalize(fn.Name.Value)] = info
 
 	// Check if this is a helper method (ClassName is set and refers to a helper)
 	if fn.ClassName != nil {
-		helperKey := strings.ToLower(fn.ClassName.Value)
+		helperKey := ident.Normalize(fn.ClassName.Value)
 		if helper, ok := c.helpers[helperKey]; ok {
 			// This is a helper method - associate it with the helper
-			methodKey := strings.ToLower(fn.Name.Value)
+			methodKey := ident.Normalize(fn.Name.Value)
 			helper.Methods[methodKey] = globalSlot
 		} else if recordMeta, ok := c.records[helperKey]; ok {
 			// Task 9.2: This is a record static method - register it
 			// Static methods use OpCall (direct function call), so we store constIndex not globalSlot
-			methodKey := strings.ToLower(fn.Name.Value)
+			methodKey := ident.Normalize(fn.Name.Value)
 			recordMeta.Methods[methodKey] = uint16(fnConstIndex)
 		}
 		// If ClassName is set but not a helper or record, it's a class method (handled elsewhere)
@@ -610,12 +609,12 @@ func (c *Compiler) compileHelperDecl(decl *ast.HelperDecl) error {
 	for _, method := range decl.Methods {
 		if method != nil && method.Name != nil {
 			// Method will be compiled separately, we'll update the slot mapping later
-			helperInfo.Methods[strings.ToLower(method.Name.Value)] = 0 // Placeholder
+			helperInfo.Methods[ident.Normalize(method.Name.Value)] = 0 // Placeholder
 		}
 	}
 
 	// Register the helper (case-insensitive key)
-	key := strings.ToLower(decl.Name.Value)
+	key := ident.Normalize(decl.Name.Value)
 	c.helpers[key] = helperInfo
 
 	// Helper declaration itself doesn't generate runtime bytecode
@@ -639,7 +638,7 @@ func (c *Compiler) compileRecordDecl(decl *ast.RecordDecl) error {
 	}
 
 	// Store in chunk metadata (will be serialized with bytecode)
-	key := strings.ToLower(recordName)
+	key := ident.Normalize(recordName)
 	c.chunk.Records[key] = recordMeta
 
 	// Store in compiler context for method registration during function compilation
@@ -700,7 +699,7 @@ func (c *Compiler) compileClassDecl(decl *ast.ClassDecl) error {
 	}
 
 	// Store the class metadata in the chunk (case-insensitive key)
-	key := strings.ToLower(className)
+	key := ident.Normalize(className)
 	c.chunk.Classes[key] = classMetadata
 
 	return nil

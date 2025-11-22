@@ -2,9 +2,9 @@ package bytecode
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/pkg/ast"
+	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
 
 func (c *Compiler) compileLambdaExpression(expr *ast.LambdaExpression) error {
@@ -85,7 +85,7 @@ func (c *Compiler) compileCallExpression(expr *ast.CallExpression) error {
 								return err
 							}
 						}
-						builtinValue := BuiltinValue(strings.ToLower(ident.Value))
+						builtinValue := BuiltinValue(pkgident.Normalize(ident.Value))
 						constIdx := c.chunk.AddConstant(builtinValue)
 						if constIdx > 0xFFFF {
 							return c.errorf(expr, "too many constants")
@@ -124,14 +124,14 @@ func (c *Compiler) directCallInfo(ident *ast.Identifier) (functionInfo, bool) {
 		return functionInfo{}, false
 	}
 
-	info, ok := c.functions[strings.ToLower(ident.Value)]
+	info, ok := c.functions[pkgident.Normalize(ident.Value)]
 	return info, ok
 }
 
 // isBuiltinFunction checks if a name refers to a built-in function.
 // This should match the list in internal/semantic/analyze_builtins.go
 func (c *Compiler) isBuiltinFunction(name string) bool {
-	lowerName := strings.ToLower(name)
+	lowerName := pkgident.Normalize(name)
 	switch lowerName {
 	case "println", "print", "ord", "integer", "length", "copy", "concat",
 		"indexof", "contains", "reverse", "sort", "pos", "uppercase",
