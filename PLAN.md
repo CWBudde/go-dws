@@ -1003,7 +1003,7 @@ analyzer := semantic.NewAnalyzerWithExperimentalPasses()
   - **Blocks**: Task 6.1.2.5 (type operators need interface validation)
   - **Files**: `validation_pass.go`, `interface_validation_experimental_test.go`
 
-- [ ] **6.1.2.5: Type Operators (is/as/implements)** (10 tests, 4-5 hours)
+- [x] **6.1.2.5: Type Operators (is/as/implements)** (10 tests, 4-5 hours)
   - Add support for `is` operator (runtime type checking)
   - Add support for `as` operator (type casting with check)
   - Add support for `implements` operator (interface checking)
@@ -1013,7 +1013,7 @@ analyzer := semantic.NewAnalyzerWithExperimentalPasses()
   - **Depends on**: Task 6.1.2.4 (needs interface validation)
   - **Files**: `validation_pass.go`
 
-- [ ] **6.1.2.6: Type Conversion/Coercion** (4 tests, 3-4 hours)
+- [x] **6.1.2.6: Type Conversion/Coercion** (4 tests, 3-4 hours)
   - Support implicit numeric conversions (Integer → Float)
   - Handle explicit conversion operators
   - Validate function call with type coercion
