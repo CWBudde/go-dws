@@ -3051,7 +3051,7 @@ go test -v ./internal/semantic -run TestInheritance
 
 **Estimate**: 8-12 hours (1-1.5 days)
 
-**Status**: IN PROGRESS (8/17 enum tests passing, type casting complete)
+**Status**: IN PROGRESS (9/17 enum tests passing, boolean ops & implicit conversion complete)
 
 **Impact**: Unlocks 12 failing tests in SimpleScripts
 
@@ -3061,10 +3061,12 @@ go test -v ./internal/semantic -run TestInheritance
 
 **Reference**: See `FIXTURE_FAILURES_ANALYSIS.md` - Priority P1, Section 11
 
-**Failing Tests** (12 total):
+**Completed** (2 total):
+- ✅ enum_bool_op (Tasks 9.15.7 and 9.15.8 - boolean ops and implicit conversion)
+
+**Failing Tests** (11 remaining):
 
 - aliased_enum
-- enum_bool_op
 - enum_bounds
 - enum_byname
 - enum_casts
@@ -3128,21 +3130,21 @@ end;
 - `internal/semantic/analyze_expressions.go` (enum boolean ops)
 - `internal/interp/expressions_operators.go` (enum in operator)
 
-### 9.15.7 Enum Boolean Operators
+### 9.15.7 Enum Boolean Operators ✅ COMPLETE
 
 **Goal**: Support boolean/bitwise operators on enum values (for flags).
 
 **Estimate**: 2-3 hours
 
-**Status**: TODO
+**Status**: ✅ COMPLETE (2025-11-22) - See Task 1.6
 
 **Implementation**:
-1. Allow `or`, `and`, `xor` operators on enum operands (especially flags)
-2. Semantic analysis: check enum types are compatible for operators
-3. Runtime: evaluate bitwise operations on enum ordinal values
-4. Return enum type for result (not integer)
+1. ✅ Allow `or`, `and`, `xor` operators on enum operands (especially flags)
+2. ✅ Semantic analysis: check enum types are compatible for operators
+3. ✅ Runtime: evaluate bitwise operations on enum ordinal values
+4. ✅ Return enum type for result (not integer)
 
-**Failing Tests**: enum_bool_op
+**Tests**: enum_bool_op ✅ PASSING (AST interpreter)
 
 **Example**:
 ```pascal
@@ -3151,24 +3153,26 @@ var f1 := TFlags.flRead or TFlags.flWrite;  // Result: 3 (as TFlags)
 var f2 := TFlags.flWrite and TFlags.flRead; // Result: 0 (as TFlags)
 ```
 
-**Files to Modify**:
-- `internal/semantic/analyze_expressions.go` (allow enum operands for or/and/xor)
-- `internal/interp/expressions_operators.go` (evaluate enum boolean ops)
+**Files Modified**:
+- ✅ `internal/semantic/analyze_expr_operators.go` (allow enum operands for or/and/xor)
+- ✅ `internal/interp/expressions_binary.go` (evaluate enum boolean ops)
 
-### 9.15.8 Implicit Enum-to-Integer Conversion
+**Note**: Bytecode VM support pending (see Task 14.16)
+
+### 9.15.8 Implicit Enum-to-Integer Conversion ✅ COMPLETE
 
 **Goal**: Allow implicit conversion from enum to Integer in function calls.
 
 **Estimate**: 1-2 hours
 
-**Status**: TODO
+**Status**: ✅ COMPLETE (2025-11-22) - See Task 1.6
 
 **Implementation**:
-1. When calling `func(i: Integer)` with enum argument, auto-convert
-2. Semantic analysis: allow enum-to-integer implicit conversion
-3. Runtime: automatically get ordinal value when passing enum to Integer param
+1. ✅ When calling `func(i: Integer)` with enum argument, auto-convert
+2. ✅ Semantic analysis: allow enum-to-integer implicit conversion
+3. ✅ Runtime: automatically get ordinal value when passing enum to Integer param
 
-**Failing Tests**: enum_bool_op (PrintInt calls)
+**Tests**: enum_bool_op (PrintInt calls) ✅ PASSING (AST interpreter)
 
 **Example**:
 ```pascal
@@ -3267,11 +3271,14 @@ PrintLn(TEnum.eTwo.Value);  // Qualified access works
 - ⚠ Constant expressions in enum values - TODO
 - **Progress**: 8/17 tests passing (enum_scoped, enum_flags1, enum_bounds, enum_byname, enum_value, enum_qualified_access, enum_ord, enum_forin)
 
-**Remaining Work** (see subtasks 9.15.7-9.15.11 for details):
-- 9.15.7: Boolean operators on enum types (or, and, xor for flags)
-- 9.15.8: Implicit conversion from enum to Integer in function calls
+**Completed Work**:
+- ✅ 9.15.7: Boolean operators on enum types (or, and, xor for flags) - Task 1.6
+- ✅ 9.15.8: Implicit conversion from enum to Integer in function calls - Task 1.6
+
+**Remaining Work** (see subtasks 9.15.9-9.15.11 for details):
 - 9.15.9: Constant expressions in enum value assignments (e.g., Ord('A'))
 - 9.15.11: Additional edge cases (aliased enums, deprecation, names)
+- Bytecode VM support (see Task 14.16)
 
 **Testing**:
 ```bash
@@ -4158,6 +4165,40 @@ This phase implements a bytecode virtual machine for DWScript, providing signifi
   - Documented instruction set and opcodes
   - Provided examples of bytecode output
   - Updated CLAUDE.md with bytecode information
+
+- [ ] 14.16 Add enum support to bytecode VM
+  - **Task**: Implement enum value representation and operations in bytecode VM
+  - **Priority**: MEDIUM (enums work fine in AST interpreter, this is optimization)
+  - **Status**: NOT STARTED
+  - **Implementation**:
+    1. Add `ValueEnum` to ValueType enum in `bytecode.go`
+    2. Add `EnumValue()` helper constructor for enum values
+    3. Modify compiler to handle enum expressions:
+       - Scoped enum access (e.g., `TEnum.Alpha`)
+       - Enum type declarations in symbol table
+       - Member access expressions for enums
+    4. Add enum operations to VM:
+       - Comparison operations (=, <>, <, >, <=, >=)
+       - Boolean operations (and, or, xor) - Task 1.6 support
+       - Implicit enum-to-integer conversion - Task 1.6 support
+    5. Update bytecode serialization to support enum values
+    6. Add comprehensive tests for enum operations in VM
+  - **Current workaround**: Use AST interpreter for scripts with enums
+  - **Failing Test**: `enum_bool_op.pas` fails with bytecode VM
+  - **Example**:
+    ```pascal
+    type TEnum = flags (Alpha, Beta, Gamma);
+    var x := TEnum.Alpha or TEnum.Gamma;  // Currently unsupported in VM
+    PrintInt(TEnum.Beta);                  // Currently unsupported in VM
+    ```
+  - **Files to Modify**:
+    - `internal/bytecode/bytecode.go` (add ValueEnum type)
+    - `internal/bytecode/compiler_expressions.go` (compile enum literals and member access)
+    - `internal/bytecode/compiler_core.go` (symbol table for enum types)
+    - `internal/bytecode/vm_exec.go` (execute enum operations)
+    - `internal/bytecode/serializer.go` (serialize/deserialize enum values)
+  - **Estimated time**: 4-6 hours (1 day)
+  - **Dependencies**: None (enum support complete in AST interpreter and semantic analyzer)
 
 **Estimated time**: Completed in 12-16 weeks
 
