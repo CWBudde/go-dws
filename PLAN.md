@@ -889,11 +889,11 @@ This causes:
       - [x] Validate compound assignment operators (+=, -=, *=, /=)
       - [x] Check operator compatibility with target type
       - [x] Validate assignability for compound operations
-    - [ ] Function body validation **TODO (medium priority)**
-      - [ ] Analyze control flow paths through function body
-      - [ ] Validate all paths return a value (for functions, not procedures)
-      - [ ] Check for unreachable code after return statements
-      - [ ] Validate return types match function signature
+    - [x] Function body validation
+      - [x] Analyze control flow paths through function body
+      - [x] Validate all paths return a value (for functions, not procedures)
+      - [x] Check for unreachable code after return statements
+      - [x] Validate return types match function signature
   - [ ] Migrate builtin function validation from old analyzer **TODO (large scope, low priority)**
     - [ ] Core string functions (Length, Copy, Pos, etc.) - ~10 functions
     - [ ] Math functions (Abs, Sin, Cos, Sqrt, etc.) - ~15 functions
@@ -906,13 +906,13 @@ This causes:
   - [x] Validate control flow (break/continue in loops, return in functions) **DONE**
   - [x] Check abstract method implementations in concrete classes **DONE** ✅
   - [x] Validate interface method implementations **DONE** ✅
-  - [ ] Visibility checking (private/protected/public) **TODO (medium priority)**
-    - [ ] Check field visibility in member access expressions
-    - [ ] Check method visibility in method calls
-    - [ ] Check property visibility in property access
-    - [ ] Check class variable visibility
-    - [ ] Validate visibility rules (private, protected, public, published)
-    - [ ] Check strict private enforcement (same class only)
+  - [x] Visibility checking (private/protected/public)
+    - [x] Check field visibility in member access expressions
+    - [x] Check method visibility in method calls
+    - [x] Check property visibility in property access
+    - [x] Check class variable visibility
+    - [x] Validate visibility rules (private, protected, public, published)
+    - [x] Check strict private enforcement (same class only)
   - [x] Write comprehensive unit tests for ValidationPass **DONE** ✅
     - [x] Test expression validation (literals, operators, calls)
     - [x] Test statement validation (loops, conditionals, declarations)
