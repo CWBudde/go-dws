@@ -56,6 +56,7 @@ func NewScope(kind ScopeKind, parent *Scope) *Scope {
 
 // Define adds a symbol to this scope.
 // The name is normalized for case-insensitive lookup.
+// ident.Normalize converts the name to lowercase for normalization.
 func (s *Scope) Define(name string, typ types.Type) {
 	normalized := ident.Normalize(name)
 	s.Symbols[normalized] = typ

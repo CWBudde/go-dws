@@ -527,7 +527,7 @@ func (v *statementValidator) validateFunction(decl *ast.FunctionDecl) {
 	oldClass := v.ctx.CurrentClass
 	if decl.ClassName != nil {
 		// Look up the class type
-		classTypeName := strings.ToLower(decl.ClassName.Value)
+		classTypeName := ident.Normalize(decl.ClassName.Value)
 		if classType, ok := v.ctx.TypeRegistry.Resolve(classTypeName); ok {
 			if ct, ok := classType.(*types.ClassType); ok {
 				v.ctx.CurrentClass = ct
