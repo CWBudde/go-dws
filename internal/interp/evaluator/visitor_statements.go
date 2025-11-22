@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
@@ -79,6 +80,15 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 	// Evaluate the expression
 	val := e.Eval(node.Expression, ctx)
 	if isError(val) {
+		// Enrich runtime errors with the statement location to mimic DWScript call stack output
+		if errVal, ok := val.(*runtime.ErrorValue); ok {
+			exprPos := node.Expression.Pos()
+			lineMarker := fmt.Sprintf("line: %d", exprPos.Line)
+			loc := fmt.Sprintf("[line: %d, column: %d]", exprPos.Line, exprPos.Column+2)
+			if !strings.Contains(errVal.Message, lineMarker) {
+				errVal.Message = errVal.Message + "\n " + loc
+			}
+		}
 		return val
 	}
 

@@ -90,6 +90,7 @@ type InterfaceDecl struct {
 	Parent       *Identifier
 	ExternalName string
 	Methods      []*InterfaceMethodDecl
+	Properties   []*PropertyDecl
 	BaseNode
 	IsExternal bool
 }

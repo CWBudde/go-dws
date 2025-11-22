@@ -712,6 +712,16 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 		interfaceInfo.Methods[strings.ToLower(methodDecl.Name.Value)] = funcDecl
 	}
 
+	// Register properties declared on the interface
+	for _, propDecl := range id.Properties {
+		if propDecl == nil {
+			continue
+		}
+		if propInfo := i.convertPropertyDecl(propDecl); propInfo != nil {
+			interfaceInfo.Properties[strings.ToLower(propDecl.Name.Value)] = propInfo
+		}
+	}
+
 	// Register interface in registry (use lowercase for case-insensitive lookups)
 	i.interfaces[strings.ToLower(interfaceInfo.Name)] = interfaceInfo
 

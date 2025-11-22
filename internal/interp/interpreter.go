@@ -2012,7 +2012,9 @@ func (i *Interpreter) CheckImplements(obj evaluator.Value, interfaceName string)
 	}
 
 	// Check if the class implements the interface
-	return classImplementsInterface(classInfo, iface), nil
+	// 'implements' operator in DWScript only considers explicitly declared interfaces,
+	// not interfaces inherited through other interfaces.
+	return classExplicitlyImplementsInterface(classInfo, iface), nil
 }
 
 // CreateFunctionPointer creates a function pointer value from a function declaration.
@@ -2765,6 +2767,15 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		// Evaluate the expression
 		val := i.Eval(node.Expression)
 		if isError(val) {
+			// Enrich error with statement location to mimic DWScript call stack output
+			if errVal, ok := val.(*ErrorValue); ok {
+				exprPos := node.Expression.Pos()
+				lineMarker := fmt.Sprintf("line: %d", exprPos.Line)
+				loc := fmt.Sprintf("[line: %d, column: %d]", exprPos.Line, exprPos.Column+2)
+				if !strings.Contains(errVal.Message, lineMarker) {
+					errVal.Message = errVal.Message + "\n " + loc
+				}
+			}
 			return val
 		}
 

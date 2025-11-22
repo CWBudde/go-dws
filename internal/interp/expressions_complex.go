@@ -337,8 +337,8 @@ func (i *Interpreter) evalImplementsExpression(expr *ast.ImplementsExpression) V
 		return &BooleanValue{Value: false}
 	}
 
-	// Check if the class implements the interface
-	result := classImplementsInterface(classInfo, iface)
+	// Check if the class implements the interface (explicit declarations only for DWScript 'implements')
+	result := classExplicitlyImplementsInterface(classInfo, iface)
 	return &BooleanValue{Value: result}
 }
 
