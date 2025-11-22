@@ -521,9 +521,11 @@ The following uses of `strings.ToLower()`/`strings.EqualFold()` are legitimate a
   - Line: 181 - method name lookup
   - Migrated: `strings.ToLower()` → `ident.Normalize()`
 
-- [ ] **14.1.8** Migrate `internal/interp/types/type_system.go` (17 occurrences)
+- [x] **14.1.8** Migrate `internal/interp/types/type_system.go` (17 occurrences)
   - Lines: 145,151,157,175,181,187,258,265,270,299,312,318,331,337,350,393,412
   - Record, interface, helper, class, enum type ID lookups
+  - Migrated: All `strings.ToLower()` → `ident.Normalize()`, all `strings.ToUpper()` → `ident.Normalize()`
+  - Kept `strings` import for `strings.Join()` in `operatorSignatureKey()`
 
 - [ ] **14.1.9** Migrate `internal/interp/record.go` (20 occurrences)
   - Lines: 20,75,91,108,136,142,165,185,232,242,304,322,348,368,425
