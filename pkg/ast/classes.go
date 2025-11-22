@@ -64,6 +64,7 @@ type ClassDecl struct {
 	Name         *Identifier
 	Parent       *Identifier
 	Destructor   *FunctionDecl
+	Invariants   *InvariantClause
 	ExternalName string
 	Interfaces   []*Identifier
 	Operators    []*OperatorDecl
@@ -169,6 +170,16 @@ func (cd *ClassDecl) String() string {
 		out.WriteString("  ")
 		out.WriteString(operator.String())
 		out.WriteString(";\n")
+	}
+
+	// Add invariants
+	if cd.Invariants != nil {
+		out.WriteString("  ")
+		invariantStr := cd.Invariants.String()
+		out.WriteString(strings.ReplaceAll(invariantStr, "\n", "\n  "))
+		if !strings.HasSuffix(invariantStr, "\n") {
+			out.WriteString("\n")
+		}
 	}
 
 	out.WriteString("end")
@@ -407,4 +418,44 @@ type SelfExpression struct {
 func (se *SelfExpression) expressionNode() {}
 func (se *SelfExpression) String() string {
 	return "Self"
+}
+
+// ============================================================================
+// Class Invariants
+// ============================================================================
+
+// InvariantClause represents class invariants for Design-by-Contract.
+// Invariants are checked after constructors, destructors, and optionally
+// after public method execution. They ensure that class instances maintain
+// consistent state throughout their lifetime.
+//
+// DWScript syntax:
+//
+//	type TPoint = class
+//	   FX, FY: Float;
+//	   invariant
+//	      FX >= 0.0 : 'X coordinate must be non-negative';
+//	      FY >= 0.0 : 'Y coordinate must be non-negative';
+//	end;
+type InvariantClause struct {
+	Conditions []*Condition
+	BaseNode
+}
+
+func (ic *InvariantClause) statementNode() {}
+
+func (ic *InvariantClause) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("invariant\n")
+	for i, cond := range ic.Conditions {
+		out.WriteString("   ")
+		out.WriteString(cond.String())
+		if i < len(ic.Conditions)-1 {
+			out.WriteString(";")
+		}
+		out.WriteString("\n")
+	}
+
+	return out.String()
 }
