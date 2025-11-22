@@ -614,6 +614,39 @@ func TestOperatorRegistry(t *testing.T) {
 		}
 	})
 
+	t.Run("Case-insensitive operator lookup", func(t *testing.T) {
+		registry := NewOperatorRegistry()
+		sig := &OperatorSignature{
+			Operator:     "and",
+			OperandTypes: []Type{INTEGER, INTEGER},
+			ResultType:   INTEGER,
+			Binding:      "builtin_and_int",
+		}
+
+		if err := registry.Register(sig); err != nil {
+			t.Fatalf("Register failed: %v", err)
+		}
+
+		// Lookup with different case should work
+		found, ok := registry.Lookup("AND", []Type{INTEGER, INTEGER})
+		if !ok {
+			t.Error("Should find 'and' operator when looking up 'AND'")
+		}
+		if found != nil && found.Binding != "builtin_and_int" {
+			t.Errorf("Binding = %v, want builtin_and_int", found.Binding)
+		}
+
+		// Registering with different case should be detected as duplicate
+		dup := &OperatorSignature{
+			Operator:     "AND",
+			OperandTypes: []Type{INTEGER, INTEGER},
+			ResultType:   INTEGER,
+		}
+		if err := registry.Register(dup); err != ErrOperatorDuplicate {
+			t.Errorf("Expected ErrOperatorDuplicate for case-variant, got %v", err)
+		}
+	})
+
 	t.Run("Register multiple overloads", func(t *testing.T) {
 		registry := NewOperatorRegistry()
 
