@@ -240,3 +240,83 @@ func ExampleHasSuffix() {
 	// Also matches uppercase
 	// Integer doesn't end with Type
 }
+
+// This example demonstrates proper error message handling that preserves
+// the user's original casing while still performing case-insensitive lookups.
+func Example_errorMessages() {
+	// Simulated symbol table with original casing preserved
+	symbols := map[string]string{
+		"myvariable": "MyVariable", // normalized -> original
+		"counter":    "Counter",
+	}
+	values := map[string]int{
+		"myvariable": 42,
+		"counter":    10,
+	}
+
+	// Function that checks if a variable exists and reports errors
+	checkVariable := func(userInput string) {
+		normalized := ident.Normalize(userInput)
+		if _, exists := values[normalized]; exists {
+			// Variable found - use original definition casing
+			original := symbols[normalized]
+			fmt.Printf("Found variable '%s' (defined as '%s')\n", userInput, original)
+		} else {
+			// Variable not found - use user's input casing in error
+			// IMPORTANT: Never normalize the user's input in error messages!
+			fmt.Printf("Error: undefined variable '%s'\n", userInput)
+		}
+	}
+
+	// User looks up variables with different casings
+	checkVariable("MYVARIABLE")  // Found, shows original definition
+	checkVariable("counter")     // Found, shows original definition
+	checkVariable("UndefinedVar") // Not found, shows user's casing
+
+	// Output:
+	// Found variable 'MYVARIABLE' (defined as 'MyVariable')
+	// Found variable 'counter' (defined as 'Counter')
+	// Error: undefined variable 'UndefinedVar'
+}
+
+// This example shows a type registry pattern commonly used in compilers.
+func Example_typeRegistry() {
+	// Registry stores types with normalized keys but preserves original names
+	type TypeInfo struct {
+		Name string // Original casing as defined
+		Kind string // "class", "record", "enum", etc.
+	}
+
+	registry := make(map[string]*TypeInfo) // normalized -> TypeInfo
+
+	// Register types with their original casing
+	register := func(name, kind string) {
+		registry[ident.Normalize(name)] = &TypeInfo{Name: name, Kind: kind}
+	}
+
+	// Look up a type (case-insensitive)
+	lookup := func(name string) *TypeInfo {
+		return registry[ident.Normalize(name)]
+	}
+
+	// Register some types
+	register("TMyClass", "class")
+	register("TPoint", "record")
+	register("TColor", "enum")
+
+	// Look up with various casings
+	if info := lookup("tmyclass"); info != nil {
+		fmt.Printf("Found %s '%s'\n", info.Kind, info.Name)
+	}
+	if info := lookup("TPOINT"); info != nil {
+		fmt.Printf("Found %s '%s'\n", info.Kind, info.Name)
+	}
+	if info := lookup("tcolor"); info != nil {
+		fmt.Printf("Found %s '%s'\n", info.Kind, info.Name)
+	}
+
+	// Output:
+	// Found class 'TMyClass'
+	// Found record 'TPoint'
+	// Found enum 'TColor'
+}

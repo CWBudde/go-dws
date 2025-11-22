@@ -48,10 +48,10 @@ Enhance `pkg/ident` package and establish migration patterns.
     - Migration checklist
     - Examples from the codebase
 
-- [ ] **2.3** Add examples to `pkg/ident` package
-  - Example: Map with case-insensitive keys but preserved original
-  - Example: Symbol table pattern
-  - Example: Error message pattern
+- [x] **2.3** Add examples to `pkg/ident` package
+  - Example: `Example_symbolTable` - Map with case-insensitive keys and preserved original casing
+  - Example: `Example_errorMessages` - Proper error message handling preserving user's casing
+  - Example: `Example_typeRegistry` - Type registry pattern for compilers
 
 - [ ] **2.4** Create helper for case-insensitive maps
   - Consider adding to `pkg/ident`:
