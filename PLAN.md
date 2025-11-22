@@ -941,16 +941,82 @@ This causes:
 
 **Status**: Ready for integration into full 4-pass pipeline
 
-- [x] **6.1.2.6 Integrate passes into Analyzer (partial)** ⚠️
+- [~] **6.1.2.6 Integrate passes into Analyzer** ⚠️ **IN PROGRESS**
   - [x] Refactor `Analyzer.Analyze()` to run Pass 2 in dual-mode
   - [x] Pass shared context between passes (TypeRegistry, SymbolTable)
   - [x] Collect errors from all passes before returning
   - [x] Remove post-hoc validation methods (migrated to Pass 2)
-  - [x] Run full test suite to verify correctness (187 semantic tests pass)
-  - [ ] **6.1.2.6.1 Complete Pass 3 migration** (NEW - see 6.1.2.4 above)
-  - [ ] **6.1.2.6.2 Complete Pass 4 migration** (NEW - see 6.1.2.5 above)
-  - [ ] **6.1.2.6.3 Enable all 4 passes** (NEW)
-  - [ ] **6.1.2.6.4 Remove old analyzer loop entirely** (NEW)
+  - [x] Run full test suite to verify correctness (all semantic tests pass)
+  - [x] Add BuiltinChecker interface to PassContext for future use
+  - [~] **6.1.2.6.1 Complete Pass 3 migration** ⚠️ **~95% COMPLETE** (see below)
+  - [ ] **6.1.2.6.2 Complete Pass 4 migration** (READY - awaiting Pass 3 completion)
+  - [ ] **6.1.2.6.3 Enable all 4 passes** (READY - awaiting Pass 3/4 completion)
+  - [ ] **6.1.2.6.4 Remove old analyzer loop entirely** (READY - awaiting 6.1.2.6.3)
+
+**Current Status**: HYBRID MODE
+- ✅ Pass 2 (Type Resolution) is integrated and runs alongside old analyzer
+- ✅ Forward declarations work correctly
+- ✅ All tests pass (237 semantic tests)
+- ⚠️ Old analyzer still handles most validation (declaration collection, expression type-checking, statement validation)
+- ⚠️ Pass 3 (~98% complete) and Pass 4 (~90% complete) exist but are not yet enabled
+
+**Remaining Work**:
+
+**6.1.2.6.1: Complete Pass 3 (Validation Pass) migration** (~95% COMPLETE)
+
+**✅ Completed (all major features)**:
+- ✅ Variant type compatibility (universal assignment to Variant)
+- ✅ Lambda expression validation (CurrentFunction context for return statements)
+- ✅ Variadic function/method parameter support (argument validation)
+- ✅ Class method lookup from current class context (unqualified calls)
+- ✅ Basic builtin function support via BuiltinChecker interface
+- ✅ Expression type checking (binary ops, unary ops, literals, calls, etc.)
+- ✅ Statement validation (if, while, for, return, break, continue, etc.)
+- ✅ Class/interface validation (inheritance, method overrides, etc.)
+- ✅ Variable declaration validation
+- ✅ Function/method call validation (including variadic)
+
+**⚠️ Remaining (minor edge cases)**:
+1. **Integration testing** (~1-2 hours)
+   - Enable Pass 3 in dual mode with old analyzer
+   - Run full test suite and fix any edge cases discovered
+   - Compare validation results between passes for consistency
+
+2. **Property getter/setter edge cases** (~1 hour)
+   - Already ~90% working, minor refinements needed
+
+3. **Exception handling edge cases** (~1 hour)
+   - Already ~90% working, minor refinements needed
+
+**Estimated remaining**: 2-4 hours (mostly testing and edge case fixes)
+**Files**: `internal/semantic/validation_pass.go`
+**All 237 semantic tests currently pass with old analyzer** ✅
+
+**6.1.2.6.2: Complete Pass 4 (Contract Pass) migration**
+- Currently ~90% complete
+- Missing features:
+  - Additional edge cases in contract validation
+  - Integration testing with complex scenarios
+- Estimated: 2-4 hours
+- Files: `internal/semantic/contract_pass.go`
+
+**6.1.2.6.3: Enable all 4 passes**
+- Replace old analyzer loop with PassManager running all 4 passes
+- Verify all tests still pass
+- Handle any edge cases discovered during testing
+- Estimated: 2-4 hours
+
+**6.1.2.6.4: Remove old analyzer loop entirely**
+- Delete `analyzeStatement()` and all related old validation code
+- Clean up any dead code
+- Update documentation
+- Estimated: 2-4 hours
+
+**Total remaining estimate**: 6-12 hours (1-1.5 days)
+- Pass 3: 2-4 hours (mostly integration testing)
+- Pass 4: 2-4 hours (edge cases and testing)
+- Enable passes: 1-2 hours (dual mode testing)
+- Cleanup: 1-2 hours (remove old analyzer loop)
 
 - [x] **6.1.2.7 Implement Class Invariant Support** 🎯 **MEDIUM PRIORITY** ✅ **DONE**
   - [x] Add AST support for class invariants
