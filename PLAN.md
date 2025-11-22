@@ -953,19 +953,20 @@ This causes:
   - [ ] **6.1.2.6.3 Enable all 4 passes** (READY - awaiting Pass 3/4 completion)
   - [ ] **6.1.2.6.4 Remove old analyzer loop entirely** (READY - awaiting 6.1.2.6.3)
 
-**Current Status**: HYBRID MODE
+**Current Status**: HYBRID MODE (Pass 2 + Pass 3 ENABLED)
 - ✅ Pass 2 (Type Resolution) is integrated and runs alongside old analyzer
+- ✅ **Pass 3 (Semantic Validation) is NOW ENABLED** in dual mode
 - ✅ Forward declarations work correctly
-- ✅ All tests pass (237 semantic tests)
-- ⚠️ Old analyzer still handles most validation (declaration collection, expression type-checking, statement validation)
-- ⚠️ Pass 3 (~98% complete) and Pass 4 (~90% complete) exist but are not yet enabled
+- ✅ 91% test pass rate (1643/1803 tests) with Pass 2 + Pass 3 enabled
+- ⚠️ Old analyzer still handles declaration collection and runs in parallel
+- ⚠️ Pass 4 (~90% complete) exists but is not yet enabled
 
 **Remaining Work**:
 
-**6.1.2.6.1: Complete Pass 3 (Validation Pass) migration** (~95% COMPLETE)
+**6.1.2.6.1: Complete Pass 3 (Validation Pass) migration** ⚠️ **~98% COMPLETE** (ENABLED IN DUAL MODE)
 
-**✅ Completed (all major features)**:
-- ✅ Variant type compatibility (universal assignment to Variant)
+**✅ Completed (all major features + integration)**:
+- ✅ Variant type compatibility (universal assignment to Variant + type alias resolution)
 - ✅ Lambda expression validation (CurrentFunction context for return statements)
 - ✅ Variadic function/method parameter support (argument validation)
 - ✅ Class method lookup from current class context (unqualified calls)
@@ -975,22 +976,36 @@ This causes:
 - ✅ Class/interface validation (inheritance, method overrides, etc.)
 - ✅ Variable declaration validation
 - ✅ Function/method call validation (including variadic)
+- ✅ **ENABLED IN DUAL MODE** - Pass 3 runs alongside old analyzer
+- ✅ **Result implicit variable** handling in functions/methods
+- ✅ **Parameter access** validation within function bodies
+- ✅ **Field access** (including inherited fields via unqualified access)
+- ✅ **CurrentClass context** set correctly for method validation
+- ✅ **Lambda return validation** with nil Name handling
+- ✅ **Type compatibility** with Variant and type aliases
+- ✅ **91% test pass rate** (1643/1803 tests passing)
 
-**⚠️ Remaining (minor edge cases)**:
-1. **Integration testing** (~1-2 hours)
-   - Enable Pass 3 in dual mode with old analyzer
-   - Run full test suite and fix any edge cases discovered
-   - Compare validation results between passes for consistency
+**⚠️ Remaining (9% edge cases - ~160 tests)**:
+1. **Complex type resolution edge cases** (~50 tests)
+   - Array/set/function pointer types in some contexts
+   - Nested generic types
 
-2. **Property getter/setter edge cases** (~1 hour)
-   - Already ~90% working, minor refinements needed
+2. **Property getter/setter edge cases** (~50 tests)
+   - Property access without explicit getter/setter
+   - Indexed properties
 
-3. **Exception handling edge cases** (~1 hour)
-   - Already ~90% working, minor refinements needed
+3. **Exception handling edge cases** (~30 tests)
+   - Try/except/finally validation refinements
+   - Exception type checking
 
-**Estimated remaining**: 2-4 hours (mostly testing and edge case fixes)
+4. **Other edge cases** (~30 tests)
+   - Record literal validation
+   - Operator overload resolution
+   - Forward reference validation
+
+**Estimated remaining**: 3-5 hours (fixing edge cases + testing)
 **Files**: `internal/semantic/validation_pass.go`
-**All 237 semantic tests currently pass with old analyzer** ✅
+**Current status**: Pass 3 is functional and validates 91% of test cases correctly ✅
 
 **6.1.2.6.2: Complete Pass 4 (Contract Pass) migration**
 - Currently ~90% complete
