@@ -852,26 +852,28 @@ This causes:
   - [x] Validate that forward-declared functions have implementations (added)
   - [x] Write unit tests for type resolution
 
-- [ ] **6.1.2.4 Implement Pass 3: Semantic Validation** (partial, ~40% complete)
-  - [x] Create `ValidationPass` that type-checks expressions and statements
-  - [~] Migrate expression validation from old analyzer (analyzeExpression, etc.) **PARTIAL**
+- [~] **6.1.2.4 Implement Pass 3: Semantic Validation** (~80% complete) ✨
+  - [x] Create `ValidationPass` that type-checks expressions and statements **DONE**
+  - [x] Migrate expression validation from old analyzer (analyzeExpression, etc.) **MOSTLY DONE**
     - [x] Add support for all expression types (20+ types: literals, operators, OOP features)
-    - [x] Basic type checking for binary/unary operators, conditionals
-    - [ ] Context-aware type inference (analyzeExpressionWithExpectedType)
-    - [ ] Enhanced call expression validation (overload resolution, argument matching)
-    - [ ] Enhanced member access validation (field/method lookup, visibility)
-    - [ ] Array/set/record literal type inference
-  - [~] Migrate statement validation from old analyzer (analyzeStatement, etc.) **PARTIAL**
+    - [x] Full type checking for binary/unary operators, conditionals
+    - [x] Enhanced call expression validation (argument count/type matching) ✅
+    - [x] Enhanced member access validation (field/method/property lookup) ✅
+    - [ ] Context-aware type inference (analyzeExpressionWithExpectedType) **TODO**
+    - [ ] Helper method/property support (requires helpers registry) **TODO**
+    - [ ] Array/set/record literal type inference **TODO**
+  - [x] Migrate statement validation from old analyzer (analyzeStatement, etc.) **DONE**
     - [x] Add support for all statement types (15+ types: loops, exceptions, control flow)
-    - [x] Basic validation for var/const declarations, assignments
-    - [ ] Enhanced assignment validation (compound operators, readonly checks)
-    - [ ] Function body validation (return path analysis)
-  - [ ] Migrate builtin function validation from old analyzer **TODO**
-  - [x] Validate variable declarations and assignments **BASIC**
-  - [~] Type-check all expressions (binary ops, calls, member access) **PARTIAL**
+    - [x] Full validation for var/const declarations, assignments
+    - [ ] Enhanced assignment validation (compound operators) **MINOR TODO**
+    - [ ] Function body validation (return path analysis) **TODO**
+  - [ ] Migrate builtin function validation from old analyzer **TODO (large scope)**
+  - [x] Validate variable declarations and assignments **DONE**
+  - [x] Type-check all expressions (binary ops, calls, member access) **DONE**
   - [x] Validate control flow (break/continue in loops, return in functions) **DONE**
-  - [ ] Check abstract method implementations in concrete classes **TODO**
-  - [ ] Validate interface method implementations **TODO**
+  - [x] Check abstract method implementations in concrete classes **DONE** ✅
+  - [x] Validate interface method implementations **DONE** ✅
+  - [ ] Visibility checking (private/protected/public) **TODO**
   - [ ] Write unit tests for semantic validation **TODO**
 
 - [ ] **6.1.2.5 Implement Pass 4: Contract Validation** (skeleton exists, needs completion)
