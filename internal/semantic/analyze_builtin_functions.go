@@ -531,6 +531,76 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	}
 }
 
+// getBuiltinReturnType returns the return type for a built-in function WITHOUT analyzing arguments.
+// Task 6.1.2.1: This is used by the validation pass to check if something is a built-in
+// and get its return type, without triggering argument analysis (which would use the wrong scope).
+// For functions where the return type depends on arguments (e.g., Default), returns VARIANT.
+func (a *Analyzer) getBuiltinReturnType(name string) (types.Type, bool) {
+	// Normalize function name to lowercase for case-insensitive matching
+	lowerName := ident.Normalize(name)
+
+	switch lowerName {
+	// I/O Functions - return VOID
+	case "println", "print", "printtooutput":
+		return types.VOID, true
+
+	// Type Conversion - return specific types
+	case "ord", "integer", "strtoint", "hextoint", "bintoint", "strtointdef", "vartointdef", "vartoint":
+		return types.INTEGER, true
+	case "inttostr", "inttobin", "inttohex", "booltostr", "vartostr", "floattostr", "floattostrf",
+		"bytesizetostr", "gettext", "_", "chr", "charat",
+		"strafter", "strbegin", "strbefore", "strend", "stringofstring", "stringofchar",
+		"format", "uppercase", "lowercase", "trim", "trimleft", "trimright",
+		"copy", "leftstr", "rightstr", "midstr", "strjoin", "strreverse", "strsplit",
+		"strreplace", "strtohtml", "strtohtmlattribute", "strtojson", "strtocsstext", "strtoxml":
+		return types.STRING, true
+	case "strtofloat", "strtofloatdef", "vartofloatdef", "vartofloat", "frac", "int",
+		"abs", "sqr", "sqrt", "power", "exp", "ln", "log2", "log10", "logn",
+		"sin", "cos", "tan", "degtorad", "radtodeg", "arcsin", "arccos", "arctan", "arctan2",
+		"cotan", "hypot", "sinh", "cosh", "tanh",
+		"round", "trunc", "ceil", "floor", "sign":
+		return types.FLOAT, true
+	case "strtobool":
+		return types.BOOLEAN, true
+
+	// Boolean returning functions
+	case "trystrtoint", "trystrtofloat", "odd", "assigned", "sametext", "strcontains",
+		"strmatch", "strmatchnumeric", "strbeginswith", "strendswith",
+		"varisempty", "varisnull", "varisclear", "varisarray", "varisstr", "varisnumeric":
+		return types.BOOLEAN, true
+
+	// Array/collection functions
+	case "length", "pos", "posex", "revpos", "indexof", "deletetochars",
+		"strfinddelimiter", "strdeleteall", "strhashcode", "charcodeat":
+		return types.INTEGER, true
+	case "low", "high":
+		return types.INTEGER, true // For most cases, arrays return Integer bounds
+	case "setlength", "insert", "delete", "add", "push", "remove", "clear",
+		"sort", "reverse", "swap":
+		return types.VOID, true
+
+	// Other functions that return variant or depend on context
+	case "default", "varastype":
+		return types.VARIANT, true
+	case "min", "max", "clamp", "clampint", "minint", "maxint":
+		return types.VARIANT, true // Return type depends on arguments
+	case "inc", "dec":
+		return types.VOID, true
+	case "pi", "infinity", "nan", "random", "randomint", "randomrange", "gettickcount":
+		return types.FLOAT, true
+	case "randomize":
+		return types.VOID, true
+	case "sizeof":
+		return types.INTEGER, true
+	case "typename":
+		return types.STRING, true
+
+	default:
+		// Not a built-in function
+		return nil, false
+	}
+}
+
 // ============================================================================
 // Individual Built-in Function Analyzers
 // ============================================================================

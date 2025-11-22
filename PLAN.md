@@ -877,14 +877,14 @@ This causes:
 
 #### Foundation: Type System Completion (Must complete first)
 
-- [ ] **6.1.2.1: Function Pointer Type Resolution** (7 tests, 4-5 hours)
+- [x] **6.1.2.1: Function Pointer Type Resolution** (7 tests, 4-5 hours) ✅ COMPLETE
   - Extend `resolveTypeExpression` to handle `ast.FunctionPointerType`
   - Map to `types.FunctionPointerType` from context.FunctionPointers
   - Validate function pointer assignments (signature compatibility)
   - Validate function pointer calls (argument types, return type)
   - Handle implicit function-to-pointer conversion
   - **Blocks**: Task 6.1.2.10 (Lambda validation needs function pointer types)
-  - **Files**: `validation_pass.go`
+  - **Files**: `validation_pass.go`, `pass_context.go`, `analyzer.go`, `analyze_builtin_functions.go`
 
 - [ ] **6.1.2.2: Set Type Support** (6 tests, 4-5 hours)
   - Extend `resolveTypeExpression` to handle `ast.SetType`
