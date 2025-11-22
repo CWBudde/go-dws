@@ -1270,10 +1270,11 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ### Category F: Control Flow & Statements (Medium Priority)
 
-- [ ] **3.5.41** Migrate Assignment Statement (`VisitAssignmentStatement`)
+- [x] **3.5.41** Migrate Assignment Statement (`VisitAssignmentStatement`)
   - **Complexity**: High
   - **Requirements**: Lvalue resolution, simple/member/index assignments, compound operators (+=, -=, etc.)
   - **Effort**: 1-2 weeks
+  - **Completed**: Task 3.5.41 - Migrated VisitAssignmentStatement with compound operator support and helper methods
 
 - [ ] **3.5.42** Migrate Try Statement (`VisitTryStatement`)
   - **Complexity**: Very High
