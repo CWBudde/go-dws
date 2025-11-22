@@ -476,6 +476,27 @@ type InterpreterAdapter interface {
 	// This allows accessing class variables via nil instances.
 	// Returns the typed nil value and an error if the class doesn't exist.
 	CreateClassZeroValue(className string) (Value, error)
+
+	// ===== Task 3.5.40: Record Literal Adapter Methods =====
+
+	// CreateRecordValue creates a record value with field initialization.
+	// fieldValues is a map of field names to evaluated values.
+	// Missing fields are initialized with default values or field initializers.
+	// Returns the record value and an error if the record type doesn't exist or fields are invalid.
+	CreateRecordValue(recordTypeName string, fieldValues map[string]Value) (Value, error)
+
+	// GetRecordFieldDeclarations retrieves field declarations for a record type.
+	// Returns field declarations map and a boolean indicating success.
+	GetRecordFieldDeclarations(recordTypeName string) (any, bool)
+
+	// GetZeroValueForType creates a zero/default value for a given type.
+	// Handles nested records, arrays, and all DWScript types.
+	// Returns the zero value for the type.
+	GetZeroValueForType(typeInfo any) Value
+
+	// InitializeInterfaceField creates a nil interface instance for interface-typed fields.
+	// Returns an InterfaceInstance value or nil if the type is not an interface.
+	InitializeInterfaceField(fieldType any) Value
 }
 
 // Evaluator is responsible for evaluating DWScript AST nodes.

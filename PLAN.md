@@ -1245,9 +1245,26 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - ✅ Constant declarations work correctly
     - ✅ Type inference works properly
 
-- [ ] **3.5.40** Migrate Record Literals (`VisitRecordLiteralExpression`)
+- [x] **3.5.40** Migrate Record Literals (`VisitRecordLiteralExpression`)
   - **Requirements**: Typed/anonymous record construction, field initialization, nested records
   - **Effort**: 1-2 weeks
+  - **Status**: ✅ COMPLETE - Full migration with field initialization
+  - **Implementation Summary**:
+    - Added 4 adapter methods for record literal operations (CreateRecordValue, GetRecordFieldDeclarations, GetZeroValueForType, InitializeInterfaceField)
+    - Implemented VisitRecordLiteralExpression with full record creation logic
+    - Evaluates field value expressions and validates fields exist
+    - Initializes missing fields with field initializers or zero values
+    - Handles nested records recursively
+    - Handles interface-typed fields specially
+    - Supports both typed (TMyRecord(Field1: val)) and anonymous ((Field1: val)) record literals
+  - **Files Modified**:
+    - `internal/interp/evaluator/evaluator.go` - Added adapter interface methods (4 new methods)
+    - `internal/interp/interpreter.go` - Implemented adapter methods (~120 lines)
+    - `internal/interp/evaluator/visitor_expressions.go` - Migrated VisitRecordLiteralExpression (~80 lines)
+  - **Testing**:
+    - ✅ Build succeeds
+    - ✅ All record tests pass
+    - ✅ Field initialization works correctly
 
 ---
 

@@ -842,6 +842,129 @@ func (i *Interpreter) CreateClassZeroValue(className string) (evaluator.Value, e
 	return &NilValue{ClassType: className}, nil
 }
 
+// ===== Task 3.5.40: Record Literal Adapter Method Implementations =====
+
+// CreateRecordValue creates a record value with field initialization.
+func (i *Interpreter) CreateRecordValue(recordTypeName string, fieldValues map[string]evaluator.Value) (evaluator.Value, error) {
+	normalizedName := strings.ToLower(recordTypeName)
+	recordTypeKey := "__record_type_" + normalizedName
+	typeVal, ok := i.env.Get(recordTypeKey)
+	if !ok {
+		return nil, fmt.Errorf("record type '%s' not found", recordTypeName)
+	}
+
+	recordTypeValue, ok := typeVal.(*RecordTypeValue)
+	if !ok {
+		return nil, fmt.Errorf("type '%s' is not a record type", recordTypeName)
+	}
+
+	recordType := recordTypeValue.RecordType
+
+	// Create the record value with methods
+	recordValue := &RecordValue{
+		RecordType: recordType,
+		Fields:     make(map[string]Value),
+		Methods:    recordTypeValue.Methods,
+	}
+
+	// Copy provided field values (already evaluated)
+	for fieldName, fieldValue := range fieldValues {
+		fieldNameLower := strings.ToLower(fieldName)
+		// Validate field exists
+		if _, exists := recordType.Fields[fieldNameLower]; !exists {
+			return nil, fmt.Errorf("field '%s' does not exist in record type '%s'", fieldName, recordType.Name)
+		}
+		// Convert evaluator.Value to internal Value
+		recordValue.Fields[fieldNameLower] = fieldValue.(Value)
+	}
+
+	// Initialize remaining fields with field initializers or default values
+	methodsLookup := func(rt *types.RecordType) map[string]*ast.FunctionDecl {
+		key := "__record_type_" + strings.ToLower(rt.Name)
+		if typeVal, ok := i.env.Get(key); ok {
+			if rtv, ok := typeVal.(*RecordTypeValue); ok {
+				return rtv.Methods
+			}
+		}
+		return nil
+	}
+
+	for fieldName, fieldType := range recordType.Fields {
+		if _, exists := recordValue.Fields[fieldName]; !exists {
+			var fieldValue Value
+
+			// Check if field has an initializer expression
+			if fieldDecl, hasDecl := recordTypeValue.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
+				// Evaluate the field initializer
+				fieldValue = i.Eval(fieldDecl.InitValue)
+				if isError(fieldValue) {
+					return nil, fmt.Errorf("error evaluating field initializer for '%s': %s", fieldName, fieldValue.(*ErrorValue).Message)
+				}
+			}
+
+			// If no initializer, use getZeroValueForType
+			if fieldValue == nil {
+				fieldValue = getZeroValueForType(fieldType, methodsLookup)
+
+				// Handle interface-typed fields specially
+				if intfValue := i.initializeInterfaceField(fieldType); intfValue != nil {
+					fieldValue = intfValue
+				}
+			}
+
+			recordValue.Fields[fieldName] = fieldValue
+		}
+	}
+
+	return recordValue, nil
+}
+
+// GetRecordFieldDeclarations retrieves field declarations for a record type.
+func (i *Interpreter) GetRecordFieldDeclarations(recordTypeName string) (any, bool) {
+	normalizedName := strings.ToLower(recordTypeName)
+	recordTypeKey := "__record_type_" + normalizedName
+	typeVal, ok := i.env.Get(recordTypeKey)
+	if !ok {
+		return nil, false
+	}
+
+	recordTypeValue, ok := typeVal.(*RecordTypeValue)
+	if !ok {
+		return nil, false
+	}
+
+	return recordTypeValue.FieldDecls, true
+}
+
+// GetZeroValueForType creates a zero/default value for a given type.
+func (i *Interpreter) GetZeroValueForType(typeInfo any) evaluator.Value {
+	t, ok := typeInfo.(types.Type)
+	if !ok {
+		return &NilValue{}
+	}
+
+	methodsLookup := func(rt *types.RecordType) map[string]*ast.FunctionDecl {
+		key := "__record_type_" + strings.ToLower(rt.Name)
+		if typeVal, ok := i.env.Get(key); ok {
+			if rtv, ok := typeVal.(*RecordTypeValue); ok {
+				return rtv.Methods
+			}
+		}
+		return nil
+	}
+
+	return getZeroValueForType(t, methodsLookup)
+}
+
+// InitializeInterfaceField creates a nil interface instance for interface-typed fields.
+func (i *Interpreter) InitializeInterfaceField(fieldType any) evaluator.Value {
+	t, ok := fieldType.(types.Type)
+	if !ok {
+		return nil
+	}
+	return i.initializeInterfaceField(t)
+}
+
 // ===== Task 3.5.6: Array and Collection Adapter Method Implementations =====
 
 // CreateArray creates an array from a list of elements with a specified element type.
