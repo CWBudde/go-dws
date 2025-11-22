@@ -154,11 +154,11 @@ Standalone registry classes with clear boundaries:
   - Impact: Class metadata lookup
   - Migrated: ClassRegistry struct, NewClassRegistry, Register, RegisterWithParent, Lookup, Exists, LookupHierarchy, GetParentName, IsDescendantOf, GetAllClasses, Count, GetClassNames, FindDescendants, GetDepth, Clear
 
-- [ ] **13.6** Migrate `internal/interp/types/function_registry.go`
+- [x] **13.6** Migrate `internal/interp/types/function_registry.go`
   - Fields: `functions`, `qualifiedFunctions` (both `map[string][]*FunctionEntry`)
   - Replace with: `*ident.Map[[]*FunctionEntry]`
   - Impact: User-defined function resolution
-  - Note: Stores slices for overloads - verify slice handling
+  - Migrated: FunctionRegistry struct, NewFunctionRegistry, Register, RegisterWithUnit, Lookup, LookupQualified, Exists, ExistsQualified, GetOverloadCount, GetOverloadCountQualified, GetAllFunctions, GetFunctionNames, GetFunctionsInUnit, Count, TotalOverloads, Clear, RemoveFunction, FindFunctionsByParameterCount, GetFunctionMetadata, ValidateNoConflicts
 
 - [ ] **13.7** Migrate `internal/units/registry.go`
   - Field: `units map[string]*Unit`
