@@ -780,6 +780,33 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 	// Check if left side is an array
 	arrayValue, ok := arrayVal.(*ArrayValue)
 	if !ok {
+		// Check if left side is a string (strings support indexed assignment)
+		if strVal, ok := arrayVal.(*StringValue); ok {
+			// Bounds check using rune length (DWScript strings are 1-based)
+			strLen := runeLength(strVal.Value)
+			if index < 1 || index > strLen {
+				return i.newErrorWithLocation(stmt, "string index out of bounds: %d (string length is %d)", index, strLen)
+			}
+
+			// Value to assign must be a string (character); use first rune
+			charVal, ok := value.(*StringValue)
+			if !ok {
+				return i.newErrorWithLocation(stmt, "cannot assign %s to string index (expected STRING)", value.Type())
+			}
+			if runeLength(charVal.Value) == 0 {
+				return i.newErrorWithLocation(stmt, "cannot assign empty string to string index")
+			}
+			r, _ := runeAt(charVal.Value, 1)
+
+			// Replace rune at position
+			if newStr, ok := runeReplace(strVal.Value, index, r); ok {
+				strVal.Value = newStr
+				return value
+			}
+
+			return i.newErrorWithLocation(stmt, "string index out of bounds: %d (string length is %d)", index, strLen)
+		}
+
 		return i.newErrorWithLocation(stmt, "cannot index type %s", arrayVal.Type())
 	}
 

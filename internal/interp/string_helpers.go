@@ -30,6 +30,22 @@ func runeAt(s string, index int) (rune, bool) {
 	return runes[index-1], true
 }
 
+// runeReplace replaces the rune at the given 1-based index in the string.
+// Returns the updated string and true if the index was valid, or the original string and false otherwise.
+func runeReplace(s string, index int, replacement rune) (string, bool) {
+	if index < 1 {
+		return s, false
+	}
+
+	runes := []rune(s)
+	if index > len(runes) {
+		return s, false
+	}
+
+	runes[index-1] = replacement
+	return string(runes), true
+}
+
 // runeSlice returns a substring based on 1-based character positions (not byte positions).
 // start is inclusive, end is exclusive (like Go's slice notation).
 // If start < 1, it's treated as 1. If end > length, it's treated as length.

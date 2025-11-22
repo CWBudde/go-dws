@@ -97,6 +97,13 @@ func (i *Interpreter) evalClassMethodImplementation(fn *ast.FunctionDecl, classI
 	// This ensures the VMT has references to methods with bodies, not just declarations
 	classInfo.buildVirtualMethodTable()
 
+	// PR #147 follow-up: Propagate implementation to descendants' method tables.
+	// Child classes copy parent Methods/ClassMethods during declaration.
+	// When a parent implementation arrives later (common for separate interface/implementation),
+	// the child maps still point to the declaration (body=nil). Update them unless the child
+	// overrides the method itself.
+	i.propagateMethodImplementationToDescendants(classInfo, normalizedMethodName, fn, fn.IsClassMethod)
+
 	// PR #147 Fix: Rebuild VMT for all descendant classes to propagate the change.
 	// When a parent class method implementation is added after child classes exist,
 	// child classes have stale VMT entries pointing to declaration-only methods.
@@ -131,6 +138,37 @@ func (i *Interpreter) isDescendantOf(childClass, ancestorClass *ClassInfo) bool 
 		current = current.Parent
 	}
 	return false
+}
+
+// propagateMethodImplementationToDescendants updates descendant classes' method maps
+// to point to the latest implementation from an ancestor (when the descendant hasn't
+// provided its own override). This fixes stale declaration-only entries in child
+// Classes when parent method implementations are registered after the child class
+// was already built.
+func (i *Interpreter) propagateMethodImplementationToDescendants(parentClass *ClassInfo, normalizedMethodName string, fn *ast.FunctionDecl, isClassMethod bool) {
+	for _, classInfo := range i.classes {
+		if !i.isDescendantOf(classInfo, parentClass) {
+			continue
+		}
+
+		if isClassMethod {
+			if existing, ok := classInfo.ClassMethods[normalizedMethodName]; ok {
+				// Skip if descendant defines/overrides its own method
+				if existing.ClassName != nil && strings.EqualFold(existing.ClassName.Value, classInfo.Name) {
+					continue
+				}
+				classInfo.ClassMethods[normalizedMethodName] = fn
+			}
+		} else {
+			if existing, ok := classInfo.Methods[normalizedMethodName]; ok {
+				// Skip if descendant defines/overrides its own method
+				if existing.ClassName != nil && strings.EqualFold(existing.ClassName.Value, classInfo.Name) {
+					continue
+				}
+				classInfo.Methods[normalizedMethodName] = fn
+			}
+		}
+	}
 }
 
 // evalRecordMethodImplementation handles record method implementation registration
