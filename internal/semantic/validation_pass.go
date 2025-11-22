@@ -343,11 +343,46 @@ func (v *statementValidator) validateReturn(stmt *ast.ReturnStatement) {
 		return
 	}
 
-	// Type-check return value
-	if stmt.ReturnValue != nil {
-		returnType := v.checkExpression(stmt.ReturnValue)
-		// TODO: Compare with function's return type
-		_ = returnType
+	// Get the function declaration
+	fnDecl, ok := v.ctx.CurrentFunction.(*ast.FunctionDecl)
+	if !ok {
+		// Shouldn't happen, but be defensive
+		return
+	}
+
+	// Resolve the function's return type
+	var expectedReturnType types.Type
+	if fnDecl.ReturnType != nil {
+		expectedReturnType = v.resolveTypeExpression(fnDecl.ReturnType)
+	}
+
+	// Check if this is a function (has return type) or procedure (no return type)
+	if expectedReturnType != nil {
+		// Function: must have a return value
+		if stmt.ReturnValue == nil {
+			v.ctx.AddError("function %s must return a value of type %s",
+				fnDecl.Name.Value, expectedReturnType)
+			return
+		}
+
+		// Type-check the return value
+		actualReturnType := v.checkExpression(stmt.ReturnValue)
+		if actualReturnType == nil {
+			// Expression type couldn't be determined (error already reported)
+			return
+		}
+
+		// Validate type compatibility
+		if !v.typesCompatible(expectedReturnType, actualReturnType) {
+			v.ctx.AddError("cannot return value of type %s from function %s (expected %s)",
+				actualReturnType, fnDecl.Name.Value, expectedReturnType)
+		}
+	} else {
+		// Procedure: should not have a return value
+		if stmt.ReturnValue != nil {
+			v.ctx.AddError("procedure %s cannot return a value (use a function instead)",
+				fnDecl.Name.Value)
+		}
 	}
 }
 
@@ -453,9 +488,106 @@ func (v *statementValidator) validateFunction(decl *ast.FunctionDecl) {
 	// Validate function body
 	if decl.Body != nil {
 		v.validateStatement(decl.Body)
+
+		// Check if this is a function (has return type)
+		if decl.ReturnType != nil {
+			// Validate that all code paths return a value
+			if !v.allPathsReturn(decl.Body) {
+				expectedReturnType := v.resolveTypeExpression(decl.ReturnType)
+				v.ctx.AddError("not all code paths return a value in function %s (expected %s)",
+					decl.Name.Value, expectedReturnType)
+			}
+		}
+	}
+}
+
+// allPathsReturn checks if all code paths in a statement return a value.
+// This is used to validate that functions (not procedures) return on all paths.
+func (v *statementValidator) allPathsReturn(stmt ast.Statement) bool {
+	if stmt == nil {
+		return false
 	}
 
-	// TODO: Validate that all code paths return a value (if function, not procedure)
+	switch s := stmt.(type) {
+	case *ast.ReturnStatement:
+		// Return statement always returns
+		return true
+
+	case *ast.ExitStatement:
+		// Exit statement also terminates the function
+		return true
+
+	case *ast.RaiseStatement:
+		// Raise statement terminates execution
+		return true
+
+	case *ast.BlockStatement:
+		// Check if any statement in the block guarantees a return
+		for _, blockStmt := range s.Statements {
+			if v.allPathsReturn(blockStmt) {
+				return true
+			}
+		}
+		return false
+
+	case *ast.IfStatement:
+		// If-else: both branches must return
+		if s.Alternative != nil {
+			return v.allPathsReturn(s.Consequence) && v.allPathsReturn(s.Alternative)
+		}
+		// If without else doesn't guarantee return
+		return false
+
+	case *ast.CaseStatement:
+		// Case statement: all branches (including else) must return
+		if s.Else == nil {
+			// No else branch, so not all paths covered
+			return false
+		}
+
+		// Check all case branches
+		for _, branch := range s.Cases {
+			if !v.allPathsReturn(branch.Statement) {
+				return false
+			}
+		}
+
+		// Check else branch
+		return v.allPathsReturn(s.Else)
+
+	case *ast.TryStatement:
+		// Try-except-finally: complex control flow
+		// The try block must return, AND:
+		// - If there are exception handlers, they all must return
+		// - The finally block doesn't affect return (it always executes)
+
+		tryReturns := v.allPathsReturn(s.TryBlock)
+		if !tryReturns {
+			return false
+		}
+
+		// If there's an except clause with handlers, check them
+		if s.ExceptClause != nil && len(s.ExceptClause.Handlers) > 0 {
+			for _, handler := range s.ExceptClause.Handlers {
+				if !v.allPathsReturn(handler.Statement) {
+					return false
+				}
+			}
+		}
+
+		// Finally block doesn't affect whether we return
+		// (it executes regardless)
+		return true
+
+	case *ast.WhileStatement, *ast.ForStatement, *ast.RepeatStatement:
+		// Loops don't guarantee execution (might be skipped)
+		// So they don't guarantee a return
+		return false
+
+	default:
+		// Other statements don't return
+		return false
+	}
 }
 
 // validateConstDecl validates a constant declaration
@@ -1186,14 +1318,32 @@ func (v *statementValidator) checkMemberAccessExpression(expr *ast.MemberAccessE
 	// Look up field in class (including inherited fields)
 	fieldType, found := classType.GetField(memberNameLower)
 	if found {
-		// TODO: Check field visibility
+		// Check field visibility
+		fieldOwner := v.getFieldOwner(classType, memberNameLower)
+		if fieldOwner != nil {
+			visibility, hasVisibility := fieldOwner.FieldVisibility[memberNameLower]
+			if hasVisibility {
+				if !v.checkMemberVisibility(fieldOwner, visibility, "field", memberName) {
+					return nil
+				}
+			}
+		}
 		return fieldType
 	}
 
 	// Look up class variable
 	classVarType, foundClassVar := classType.GetClassVar(memberNameLower)
 	if foundClassVar {
-		// TODO: Check class variable visibility
+		// Check class variable visibility
+		classVarOwner := v.getClassVarOwner(classType, memberNameLower)
+		if classVarOwner != nil {
+			visibility, hasVisibility := classVarOwner.ClassVarVisibility[memberNameLower]
+			if hasVisibility {
+				if !v.checkMemberVisibility(classVarOwner, visibility, "class variable", memberName) {
+					return nil
+				}
+			}
+		}
 		return classVarType
 	}
 
@@ -1230,7 +1380,16 @@ func (v *statementValidator) checkMemberAccessExpression(expr *ast.MemberAccessE
 	// Look up method in class
 	methodType, found := classType.GetMethod(memberNameLower)
 	if found {
-		// TODO: Check method visibility
+		// Check method visibility
+		methodOwner := v.getMethodOwner(classType, memberNameLower)
+		if methodOwner != nil {
+			visibility, hasVisibility := methodOwner.MethodVisibility[memberNameLower]
+			if hasVisibility {
+				if !v.checkMemberVisibility(methodOwner, visibility, "method", memberName) {
+					return nil
+				}
+			}
+		}
 
 		// Parameterless methods are auto-invoked
 		if len(methodType.Parameters) == 0 {
@@ -2052,6 +2211,142 @@ func (v *statementValidator) hasHelperClassConst(typ types.Type, constName strin
 	}
 
 	return nil, nil
+}
+
+// ============================================================================
+// Visibility Checking Methods
+// ============================================================================
+
+// checkMemberVisibility checks if a class member is accessible from the current context.
+// Returns true if the member is accessible, false otherwise (and adds an error).
+func (v *statementValidator) checkMemberVisibility(
+	definingClass *types.ClassType,
+	visibility int,
+	memberKind string, // "field", "method", "property", "class variable"
+	memberName string,
+) bool {
+	// Import visibility constants from AST package
+	const (
+		visibilityPrivate   = 0 // ast.VisibilityPrivate
+		visibilityProtected = 1 // ast.VisibilityProtected
+		visibilityPublic    = 2 // ast.VisibilityPublic
+	)
+
+	// Public members are always accessible
+	if visibility == visibilityPublic {
+		return true
+	}
+
+	// If no current class context, only public members are accessible
+	if v.ctx.CurrentClass == nil {
+		v.ctx.AddError("cannot access %s %s '%s' (visibility: %s) from outside a class",
+			visibilityString(visibility), memberKind, memberName, definingClass.Name)
+		return false
+	}
+
+	// Private members: only accessible from the same class
+	if visibility == visibilityPrivate {
+		if v.ctx.CurrentClass == definingClass {
+			return true
+		}
+		v.ctx.AddError("cannot access private %s '%s' of class %s from class %s",
+			memberKind, memberName, definingClass.Name, v.ctx.CurrentClass.Name)
+		return false
+	}
+
+	// Protected members: accessible from the same class or descendant classes
+	if visibility == visibilityProtected {
+		// Check if current class is the defining class or inherits from it
+		if v.ctx.CurrentClass == definingClass || v.isDescendantOf(v.ctx.CurrentClass, definingClass) {
+			return true
+		}
+		v.ctx.AddError("cannot access protected %s '%s' of class %s from class %s",
+			memberKind, memberName, definingClass.Name, v.ctx.CurrentClass.Name)
+		return false
+	}
+
+	// Unknown visibility level - be conservative and allow access
+	return true
+}
+
+// isDescendantOf checks if childClass inherits from parentClass
+func (v *statementValidator) isDescendantOf(childClass, parentClass *types.ClassType) bool {
+	if childClass == nil || parentClass == nil {
+		return false
+	}
+
+	// Walk up the inheritance chain
+	current := childClass.Parent
+	for current != nil {
+		if current == parentClass {
+			return true
+		}
+		current = current.Parent
+	}
+
+	return false
+}
+
+// getFieldOwner returns the class that declares a field, walking up the inheritance chain
+func (v *statementValidator) getFieldOwner(class *types.ClassType, fieldName string) *types.ClassType {
+	if class == nil {
+		return nil
+	}
+
+	// Check if this class declares the field (case-insensitive)
+	lowerFieldName := strings.ToLower(fieldName)
+	if _, found := class.Fields[lowerFieldName]; found {
+		return class
+	}
+
+	// Check parent classes
+	return v.getFieldOwner(class.Parent, fieldName)
+}
+
+// getMethodOwner returns the class that declares a method, walking up the inheritance chain
+func (v *statementValidator) getMethodOwner(class *types.ClassType, methodName string) *types.ClassType {
+	if class == nil {
+		return nil
+	}
+
+	// Use overload system
+	methodKey := strings.ToLower(methodName)
+	if _, found := class.MethodOverloads[methodKey]; found {
+		return class
+	}
+
+	// Check parent classes
+	return v.getMethodOwner(class.Parent, methodName)
+}
+
+// getClassVarOwner returns the class that declares a class variable, walking up the inheritance chain
+func (v *statementValidator) getClassVarOwner(class *types.ClassType, classVarName string) *types.ClassType {
+	if class == nil {
+		return nil
+	}
+
+	// Check if this class declares the class variable (case-insensitive)
+	lowerClassVarName := strings.ToLower(classVarName)
+	if _, found := class.ClassVars[lowerClassVarName]; found {
+		return class
+	}
+
+	// Check parent classes
+	return v.getClassVarOwner(class.Parent, classVarName)
+}
+
+// visibilityString returns a human-readable string for a visibility level
+func visibilityString(visibility int) string {
+	switch visibility {
+	case 0: // VisibilityPrivate
+		return "private"
+	case 1: // VisibilityProtected
+		return "protected"
+	case 2: // VisibilityPublic
+		return "public"
+	default:
+		return "unknown"
+	}
 }
 
 // ============================================================================
