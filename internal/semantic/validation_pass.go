@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -80,6 +82,9 @@ func (p *ValidationPass) Run(program *ast.Program, ctx *PassContext) error {
 
 	// Validate that concrete classes implement all abstract methods
 	validator.validateAbstractImplementations()
+
+	// Validate that classes correctly implement their interfaces
+	validator.validateInterfaceImplementations()
 
 	return nil
 }
@@ -490,9 +495,134 @@ func (v *statementValidator) validateAbstractImplementations() {
 		}
 
 		// Check for unimplemented abstract methods
-		// TODO: Walk the inheritance chain and check for abstract methods
-		_ = classType
+		unimplemented := v.getUnimplementedAbstractMethods(classType)
+		if len(unimplemented) > 0 {
+			// Report error for each unimplemented abstract method
+			for _, methodName := range unimplemented {
+				v.ctx.AddError("concrete class '%s' does not implement abstract method '%s'",
+					classType.Name, methodName)
+			}
+		}
 	}
+}
+
+// validateInterfaceImplementations validates that classes correctly implement their interfaces
+func (v *statementValidator) validateInterfaceImplementations() {
+	// Get all class types
+	allTypes := v.ctx.TypeRegistry.AllDescriptors()
+
+	for _, desc := range allTypes {
+		classType, ok := desc.Type.(*types.ClassType)
+		if !ok {
+			continue
+		}
+
+		// Check each interface the class claims to implement
+		for _, iface := range classType.Interfaces {
+			// Get all methods required by the interface
+			requiredMethods := types.GetAllInterfaceMethods(iface)
+
+			// Check if the class implements all required methods
+			for methodName, methodType := range requiredMethods {
+				// Look up method in class
+				classMethod, found := classType.GetMethod(methodName)
+				if !found {
+					v.ctx.AddError("class '%s' does not implement interface method '%s' from '%s'",
+						classType.Name, methodName, iface.Name)
+					continue
+				}
+
+				// Check method signature compatibility
+				if !v.methodSignaturesCompatible(classMethod, methodType) {
+					v.ctx.AddError("class '%s' method '%s' has incompatible signature for interface '%s'",
+						classType.Name, methodName, iface.Name)
+				}
+			}
+		}
+	}
+}
+
+// getUnimplementedAbstractMethods returns a list of abstract methods that are not implemented
+func (v *statementValidator) getUnimplementedAbstractMethods(classType *types.ClassType) []string {
+	unimplemented := []string{}
+
+	// Collect all abstract methods from parent chain
+	abstractMethods := v.collectAbstractMethods(classType.Parent)
+
+	// Check which ones are not implemented in this class
+	for methodName := range abstractMethods {
+		lowerMethodName := strings.ToLower(methodName)
+		hasOwnMethod := len(classType.MethodOverloads[lowerMethodName]) > 0
+
+		if !hasOwnMethod {
+			// Method not defined in this class at all
+			unimplemented = append(unimplemented, methodName)
+		} else {
+			// Method is defined - check if it's still abstract or reintroduced
+			if isReintroduce, exists := classType.ReintroduceMethods[lowerMethodName]; exists && isReintroduce {
+				// Method reintroduces (hides) parent method without implementing it
+				unimplemented = append(unimplemented, methodName)
+			} else if isAbstract, exists := classType.AbstractMethods[lowerMethodName]; exists && isAbstract {
+				// Still abstract in this class
+				unimplemented = append(unimplemented, methodName)
+			}
+		}
+	}
+
+	return unimplemented
+}
+
+// collectAbstractMethods recursively collects all abstract methods from the parent chain
+func (v *statementValidator) collectAbstractMethods(parent *types.ClassType) map[string]bool {
+	abstractMethods := make(map[string]bool)
+
+	if parent == nil {
+		return abstractMethods
+	}
+
+	// Collect abstract methods from this parent
+	for methodName, isAbstract := range parent.AbstractMethods {
+		if isAbstract {
+			abstractMethods[methodName] = true
+		}
+	}
+
+	// Recursively collect from grandparents
+	grandparentMethods := v.collectAbstractMethods(parent.Parent)
+	for methodName := range grandparentMethods {
+		// Only add if not overridden (not abstract) in this parent
+		lowerMethodName := strings.ToLower(methodName)
+		if isAbstract, exists := parent.AbstractMethods[lowerMethodName]; !exists || isAbstract {
+			abstractMethods[methodName] = true
+		}
+	}
+
+	return abstractMethods
+}
+
+// methodSignaturesCompatible checks if two method signatures are compatible
+func (v *statementValidator) methodSignaturesCompatible(m1, m2 *types.FunctionType) bool {
+	// Check parameter count
+	if len(m1.Parameters) != len(m2.Parameters) {
+		return false
+	}
+
+	// Check parameter types
+	for i := range m1.Parameters {
+		if !v.typesCompatible(m1.Parameters[i], m2.Parameters[i]) {
+			return false
+		}
+	}
+
+	// Check return type
+	if m1.ReturnType == nil && m2.ReturnType == nil {
+		return true
+	}
+	if m1.ReturnType == nil || m2.ReturnType == nil {
+		return false
+	}
+
+	return v.typesCompatible(m1.ReturnType, m2.ReturnType)
 }
 
 // checkExpression type-checks an expression and returns its type
@@ -650,12 +780,98 @@ func (v *statementValidator) checkUnaryExpression(expr *ast.UnaryExpression) typ
 
 // checkCallExpression checks a function call
 func (v *statementValidator) checkCallExpression(expr *ast.CallExpression) types.Type {
-	// TODO: Implement full function call validation
-	// For now, just type-check arguments
-	for _, arg := range expr.Arguments {
-		v.checkExpression(arg)
+	// Handle member access (method calls like obj.Method())
+	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
+		// Analyze the member access to get the method type
+		methodType := v.checkMemberAccessExpression(memberAccess)
+		if methodType == nil {
+			return nil
+		}
+
+		// Verify it's a function type
+		funcType, ok := methodType.(*types.FunctionType)
+		if !ok {
+			// Could be auto-invoked already, just check arguments
+			for _, arg := range expr.Arguments {
+				v.checkExpression(arg)
+			}
+			return methodType
+		}
+
+		// Validate argument count
+		if len(expr.Arguments) != len(funcType.Parameters) {
+			v.ctx.AddError("method call expects %d argument(s), got %d",
+				len(funcType.Parameters), len(expr.Arguments))
+		}
+
+		// Validate argument types
+		for i, arg := range expr.Arguments {
+			if i >= len(funcType.Parameters) {
+				break
+			}
+			paramType := funcType.Parameters[i]
+			argType := v.checkExpression(arg)
+			if argType != nil && paramType != nil {
+				if !v.typesCompatible(paramType, argType) {
+					v.ctx.AddError("argument %d has type %s, expected %s",
+						i+1, argType, paramType)
+				}
+			}
+		}
+
+		return funcType.ReturnType
 	}
-	return nil // Unknown return type
+
+	// Handle regular function calls (identifier-based)
+	funcIdent, ok := expr.Function.(*ast.Identifier)
+	if !ok {
+		v.ctx.AddError("function call must use identifier or member access")
+		return nil
+	}
+
+	// Look up function in symbol table
+	sym, ok := v.ctx.Symbols.Resolve(funcIdent.Value)
+	if !ok {
+		// TODO: Check if it's a built-in function
+		// TODO: Check if it's a class method in current class
+		v.ctx.AddError("undefined function '%s'", funcIdent.Value)
+
+		// Still check arguments for type errors
+		for _, arg := range expr.Arguments {
+			v.checkExpression(arg)
+		}
+		return nil
+	}
+
+	// Get function type
+	funcType, ok := sym.Type.(*types.FunctionType)
+	if !ok {
+		v.ctx.AddError("'%s' is not a function", funcIdent.Value)
+		return nil
+	}
+
+	// Validate argument count
+	if len(expr.Arguments) != len(funcType.Parameters) {
+		v.ctx.AddError("function '%s' expects %d argument(s), got %d",
+			funcIdent.Value, len(funcType.Parameters), len(expr.Arguments))
+	}
+
+	// Validate argument types
+	for i, arg := range expr.Arguments {
+		if i >= len(funcType.Parameters) {
+			break
+		}
+		paramType := funcType.Parameters[i]
+		argType := v.checkExpression(arg)
+		if argType != nil && paramType != nil {
+			if !v.typesCompatible(paramType, argType) {
+				v.ctx.AddError("argument %d has type %s, expected %s",
+					i+1, argType, paramType)
+			}
+		}
+	}
+
+	return funcType.ReturnType
 }
 
 // checkIndexExpression checks an array/string index operation
@@ -668,9 +884,150 @@ func (v *statementValidator) checkIndexExpression(expr *ast.IndexExpression) typ
 
 // checkMemberAccessExpression checks a member access operation
 func (v *statementValidator) checkMemberAccessExpression(expr *ast.MemberAccessExpression) types.Type {
-	// TODO: Implement member access validation
-	v.checkExpression(expr.Object)
-	return nil // Unknown member type
+	// Analyze the object expression
+	objectType := v.checkExpression(expr.Object)
+	if objectType == nil {
+		return nil
+	}
+
+	// Get member name (case-insensitive)
+	memberName := expr.Member.Value
+	memberNameLower := strings.ToLower(memberName)
+
+	// Resolve type aliases to get the underlying type
+	objectTypeResolved := types.GetUnderlyingType(objectType)
+
+	// Handle record type
+	if recordType, ok := objectTypeResolved.(*types.RecordType); ok {
+		// Check for class methods (static methods) on record type
+		if recordType.HasClassMethod(memberNameLower) {
+			classMethod := recordType.GetClassMethod(memberNameLower)
+			if classMethod != nil {
+				return classMethod
+			}
+		}
+
+		// Check for instance fields
+		fieldType, found := recordType.Fields[memberNameLower]
+		if found {
+			return fieldType
+		}
+
+		v.ctx.AddError("record '%s' has no member '%s'", recordType.Name, memberName)
+		return nil
+	}
+
+	// Handle interface type
+	if ifaceType, ok := objectTypeResolved.(*types.InterfaceType); ok {
+		allMethods := types.GetAllInterfaceMethods(ifaceType)
+		if methodType, hasMethod := allMethods[memberNameLower]; hasMethod {
+			return methodType
+		}
+		v.ctx.AddError("interface '%s' has no method '%s'", ifaceType.Name, memberName)
+		return nil
+	}
+
+	// Handle metaclass type (class of T) - convert to base class
+	if metaclassType, ok := objectTypeResolved.(*types.ClassOfType); ok {
+		if metaclassType.ClassType != nil {
+			objectTypeResolved = metaclassType.ClassType
+		}
+	}
+
+	// Handle class type
+	classType, ok := objectTypeResolved.(*types.ClassType)
+	if !ok {
+		// Handle enum .Value property
+		if _, isEnum := objectTypeResolved.(*types.EnumType); isEnum {
+			if memberNameLower == "value" {
+				return types.INTEGER
+			}
+		}
+
+		// For non-class/record types, we would check helpers here
+		// but that requires access to the helpers registry
+		// TODO: Check helpers for properties and methods
+
+		v.ctx.AddError("member access on type %s not supported in ValidationPass", objectType.String())
+		return nil
+	}
+
+	// Handle built-in TObject properties
+	if memberNameLower == "classname" {
+		return types.STRING
+	}
+	if memberNameLower == "classtype" {
+		return types.NewClassOfType(classType)
+	}
+
+	// Look up field in class (including inherited fields)
+	fieldType, found := classType.GetField(memberNameLower)
+	if found {
+		// TODO: Check field visibility
+		return fieldType
+	}
+
+	// Look up class variable
+	classVarType, foundClassVar := classType.GetClassVar(memberNameLower)
+	if foundClassVar {
+		// TODO: Check class variable visibility
+		return classVarType
+	}
+
+	// Look up property
+	propInfo, propFound := classType.GetProperty(memberNameLower)
+	if propFound {
+		return propInfo.Type
+	}
+
+	// Check for constructors
+	constructorOverloads := classType.GetConstructorOverloads(memberNameLower)
+	if len(constructorOverloads) > 0 {
+		// Check if there's a parameterless constructor
+		hasParameterless := false
+		for _, ctor := range constructorOverloads {
+			if len(ctor.Signature.Parameters) == 0 {
+				hasParameterless = true
+				break
+			}
+		}
+
+		// Parameterless constructor - auto-invoke and return class type
+		if hasParameterless {
+			return classType
+		}
+
+		// Constructor with parameters - return method pointer type
+		if len(constructorOverloads) == 1 {
+			return types.NewMethodPointerType(constructorOverloads[0].Signature.Parameters, classType)
+		}
+		return types.NewMethodPointerType([]types.Type{}, classType)
+	}
+
+	// Look up method in class
+	methodType, found := classType.GetMethod(memberNameLower)
+	if found {
+		// TODO: Check method visibility
+
+		// Parameterless methods are auto-invoked
+		if len(methodType.Parameters) == 0 {
+			if methodType.ReturnType == nil {
+				return types.VOID
+			}
+			return methodType.ReturnType
+		}
+
+		// Methods with parameters return method pointer
+		return types.NewMethodPointerType(methodType.Parameters, methodType.ReturnType)
+	}
+
+	// TODO: Check helpers for methods and properties
+
+	// TODO: Check for class constants
+
+	// Member not found
+	v.ctx.AddError("class '%s' has no member '%s'", classType.Name, memberName)
+	return nil
 }
 
 // Helper functions
