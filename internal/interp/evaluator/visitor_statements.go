@@ -915,6 +915,13 @@ func (e *Evaluator) VisitTryStatement(node *ast.TryStatement, ctx *ExecutionCont
 
 // evalExceptClause evaluates an except clause.
 // Task 3.5.29: Helper for VisitTryStatement exception handling.
+//
+// TODO(Task 6.1.2): When the evaluator migration is completed, the adapter methods
+// (EvalStatement, EvalBlockStatement) need to sync ctx.Env() with i.env for exception
+// handler execution. Currently, exception variables are bound to ctx.Env() but the
+// interpreter's Eval() looks up variables in i.env, which would cause undefined
+// variable errors. This is currently not triggered because the interpreter routes
+// TryStatement to its own implementation in exceptions.go.
 func (e *Evaluator) evalExceptClause(clause *ast.ExceptClause, ctx *ExecutionContext) {
 	if ctx.Exception() == nil {
 		// No exception to handle
@@ -937,9 +944,11 @@ func (e *Evaluator) evalExceptClause(clause *ast.ExceptClause, ctx *ExecutionCon
 			ctx.PushEnv()
 			defer ctx.PopEnv()
 
+			// Get exception instance once (for both variable binding and ExceptObject)
+			excInstance := e.adapter.GetExceptionInstance(exc)
+
 			// Bind exception variable
 			if handler.Variable != nil {
-				excInstance := e.adapter.GetExceptionInstance(exc)
 				if excInstance != nil {
 					ctx.Env().Define(handler.Variable.Value, excInstance)
 				}
@@ -954,7 +963,6 @@ func (e *Evaluator) evalExceptClause(clause *ast.ExceptClause, ctx *ExecutionCon
 			// Set ExceptObject to the current exception
 			// Save old ExceptObject value to restore later
 			oldExceptObject, _ := ctx.Env().Get("ExceptObject")
-			excInstance := e.adapter.GetExceptionInstance(exc)
 			if excInstance != nil {
 				ctx.Env().Set("ExceptObject", excInstance)
 			}
