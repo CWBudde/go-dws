@@ -148,7 +148,7 @@ func operatorEntryKey(operator string, operandTypes []Type) string {
 	for i, operand := range operandTypes {
 		parts[i] = typeKey(operand)
 	}
-	return fmt.Sprintf("%s(%s)", operator, strings.Join(parts, ","))
+	return fmt.Sprintf("%s(%s)", ident.Normalize(operator), strings.Join(parts, ","))
 }
 
 // ConversionKind indicates whether a conversion is implicit or explicit.
