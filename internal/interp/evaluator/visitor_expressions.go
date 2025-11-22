@@ -1279,8 +1279,89 @@ func (e *Evaluator) VisitEnumLiteral(node *ast.EnumLiteral, ctx *ExecutionContex
 
 // VisitRecordLiteralExpression evaluates a record literal expression.
 // Handles typed and anonymous record literals with field initialization and default values.
+// Task 3.5.40: Full migration from Interpreter.evalRecordLiteral()
 func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpression, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNode(node)
+	// Task 3.5.40: Record literal evaluation with field initialization
+	//
+	// Record literal syntax:
+	// - Typed: TMyRecord(Field1: 1, Field2: 'hello')
+	// - Anonymous: (Field1: 1, Field2: 'hello') - requires type context
+	//
+	// Type determination:
+	// - Explicit type name in literal → use that type
+	// - Anonymous literal → requires type context (set by variable/const declaration)
+	//
+	// Field initialization:
+	// - Evaluate field value expressions
+	// - Validate fields exist in record type
+	// - Initialize missing fields with field initializers or zero values
+	// - Handle nested records recursively
+	// - Handle interface-typed fields specially
+	//
+	// Positional field initialization:
+	// - Not yet supported (requires field.Name == nil)
+	// - Returns error if attempted
+	//
+	// Field validation:
+	// - All specified fields must exist in record type
+	// - Field names are case-insensitive
+	// - Duplicate field names not allowed (parser enforces)
+	//
+	// Default value initialization:
+	// - Missing fields get field initializers if defined
+	// - Otherwise get zero values for their types
+	// - Nested records initialized recursively
+	// - Interface fields get nil InterfaceInstance
+
+	if node == nil {
+		return e.newError(node, "nil record literal")
+	}
+
+	// Determine record type
+	var recordTypeName string
+	switch {
+	case node.TypeName != nil:
+		recordTypeName = node.TypeName.Value
+	case ctx.RecordTypeContext() != "":
+		// Anonymous literal with type context from caller (e.g., var/const declaration)
+		recordTypeName = ctx.RecordTypeContext()
+	default:
+		// Anonymous literal requires type context (should have been set by caller)
+		return e.newError(node, "record literal requires explicit type name or type context")
+	}
+
+	// Look up record type
+	if _, ok := e.adapter.LookupRecord(recordTypeName); !ok {
+		return e.newError(node, "unknown record type '%s'", recordTypeName)
+	}
+
+	// Evaluate field values
+	fieldValues := make(map[string]Value)
+	for _, field := range node.Fields {
+		// Skip positional fields (not yet implemented)
+		if field.Name == nil {
+			return e.newError(node, "positional record field initialization not yet supported")
+		}
+
+		fieldName := field.Name.Value
+
+		// Evaluate the field value expression
+		fieldValue := e.Eval(field.Value, ctx)
+		if isError(fieldValue) {
+			return fieldValue
+		}
+
+		// Store the field value (case-insensitive)
+		fieldValues[fieldName] = fieldValue
+	}
+
+	// Create record value with field initialization
+	recordValue, err := e.adapter.CreateRecordValue(recordTypeName, fieldValues)
+	if err != nil {
+		return e.newError(node, "%v", err)
+	}
+
+	return recordValue
 }
 
 // VisitSetLiteral evaluates a set literal [value1, value2, ...].

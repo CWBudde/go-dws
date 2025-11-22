@@ -1,6 +1,8 @@
 package evaluator
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -106,122 +108,149 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 }
 
 // VisitVarDeclStatement evaluates a variable declaration statement.
-// Task 3.5.16: Migrated from Interpreter.evalVarDeclStatement()
+// Task 3.5.38: Full migration from Interpreter.evalVarDeclStatement()
 func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *ExecutionContext) Value {
-	// Task 3.5.16: Variable declaration with full type handling and initialization
+	// Task 3.5.38: Variable declaration with full type handling and initialization
 	//
-	// Variable declaration syntax:
-	// - Simple: var x: Integer;
-	// - With initializer: var x: Integer := 42;
-	// - Type inference: var x := 42; (type inferred from value)
-	// - Multi-identifier: var x, y, z: Integer;
-	// - External: var x: Integer; external; or var x: Integer; external 'ExternalName';
-	//
-	// External variables:
-	// - Marked with special ExternalVarValue
-	// - Maps to Go-side external function registry
-	// - Supports custom external name mapping
-	// - Only single-identifier declarations allowed
-	// - Error if used in multi-identifier context
-	//
-	// Multi-identifier declarations:
-	// - All names share same type: var a, b, c: Integer;
-	// - Each gets independent zero value (no aliasing)
-	// - Initializers not allowed (parser enforces)
-	// - Requires explicit type annotation
-	//
-	// Type handling:
-	// - Explicit type: Use type annotation
-	// - Inline array types: var arr: array of Integer; or var arr: array[1..10] of Integer;
-	// - Inline set types: var s: set of TColor;
-	// - Record types: Initialize with zero/default field values
-	// - Array types: Initialize empty or with bounds
-	// - Subrange types: Wrap in SubrangeValue with validation
-	// - Interface types: Initialize as nil InterfaceInstance
-	// - Class types: Initialize as typed nil (allows class variable access)
-	// - Variant types: Initialize as unassigned Variant
-	//
-	// Initializer evaluation:
-	// - Array literals: Infer element type or use declared type
-	// - Record literals: Support anonymous (need type) or typed literals
-	// - Subrange values: Validate against subrange bounds
-	// - Interface wrapping: Wrap objects in InterfaceInstance if target is interface
-	// - Implicit conversions: Integer→Float, value→Variant, etc.
-	//
-	// Type inference (when no explicit type):
-	// - Infer from initializer value
-	// - Not supported for multi-identifier declarations
-	// - Must have initializer if no type specified
-	//
-	// Array literal special handling:
-	// - If initializer is array literal and variable has array type
-	// - Use declared array type for element type inference
-	// - Enables: var arr: array[1..3] of Integer := [1, 2, 3];
-	// - Type validation ensures correct element count for static arrays
-	//
-	// Record literal special handling:
-	// - Anonymous record literals need explicit type context
-	// - var r: TMyRecord := (Field1: 1, Field2: 'hello');
-	// - Type name temporarily set during evaluation
-	// - Enables field type checking and initialization
-	//
-	// Subrange handling:
-	// - Wraps integer values in SubrangeValue
-	// - Validates value is within subrange bounds
-	// - Example: var x: TPercent := 50; (where TPercent = 0..100)
-	// - Runtime validation on initialization
-	//
-	// Interface wrapping:
-	// - If declared type is interface and value is object
-	// - Verify object's class implements interface
-	// - Wrap in InterfaceInstance
-	// - Example: var intf: IFoo := new TBar; (TBar implements IFoo)
-	//
-	// Zero value initialization (no initializer):
-	// - Integer: 0
-	// - Float: 0.0
-	// - String: ""
-	// - Boolean: false
-	// - Variant: nil/unassigned
-	// - Arrays: Empty or properly sized with zero elements
-	// - Records: All fields initialized to zero/default values
-	// - Objects/Classes: nil (typed nil for class variables access)
-	// - Interfaces: nil InterfaceInstance
-	// - Subranges: 0 (validated on assignment)
-	//
-	// createZeroValue helper:
-	// - Creates independent zero values for each variable
-	// - Prevents aliasing in multi-identifier declarations
-	// - Handles nested types (records with record fields, etc.)
-	// - Supports all type categories
-	//
-	// Complexity: Very High - 300+ lines, extensive type handling, special cases
-	// Full implementation requires:
-	// - Type resolution for all DWScript types
-	// - Inline type parsing (array of, set of)
-	// - Record type registry lookup
-	// - Array type registry lookup
-	// - Subrange type registry lookup
-	// - Interface type registry lookup
-	// - Class type registry lookup
-	// - Zero value creation for all types
-	// - Array literal type inference
-	// - Record literal type inference
-	// - Subrange validation
-	// - Interface wrapping with implementation checking
-	// - Implicit type conversions
-	// - Multi-identifier handling
-	// - External variable registration
-	//
-	// Delegate to adapter which handles all variable declaration logic
+	// See extensive documentation in original implementation comments (lines 112-218)
+	// Key capabilities:
+	// - External variables, multi-identifier declarations, inline types
+	// - Subrange/interface wrapping, zero value initialization
+	// - Array/record literal type inference, implicit conversions
 
-	return e.adapter.EvalNode(node)
+	var value Value
+
+	// Handle external variables
+	if node.IsExternal {
+		// External variables only apply to single declarations
+		if len(node.Names) != 1 {
+			return e.newError(node, "external keyword cannot be used with multiple variable names")
+		}
+
+		// Create external variable marker
+		externalName := node.ExternalName
+		if externalName == "" {
+			externalName = node.Names[0].Value
+		}
+		value = e.adapter.CreateExternalVar(node.Names[0].Value, externalName)
+		e.adapter.DefineVariable(node.Names[0].Value, value, ctx)
+		return value
+	}
+
+	// Evaluate initializer if present
+	if node.Value != nil {
+		// Special handling for array literals with expected type
+		if arrayLit, ok := node.Value.(*ast.ArrayLiteralExpression); ok {
+			if node.Type != nil {
+				value = e.adapter.EvalArrayLiteralWithExpectedType(arrayLit, node.Type.String())
+			} else {
+				value = e.Eval(node.Value, ctx)
+			}
+		} else if recordLit, ok := node.Value.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
+			// Anonymous record literal needs explicit type
+			if node.Type == nil {
+				return e.newError(node, "anonymous record literal requires explicit type annotation")
+			}
+			typeName := node.Type.String()
+
+			// Lookup record type
+			if _, ok := e.adapter.LookupRecord(typeName); !ok {
+				return e.newError(node, "unknown type '%s'", typeName)
+			}
+
+			// Set type context for evaluation (avoids AST mutation)
+			ctx.SetRecordTypeContext(typeName)
+			value = e.Eval(recordLit, ctx)
+			ctx.ClearRecordTypeContext()
+		} else {
+			value = e.Eval(node.Value, ctx)
+		}
+
+		if isError(value) {
+			return value
+		}
+
+		// Check if exception was raised during evaluation
+		if ctx.Exception() != nil {
+			return &runtime.NilValue{}
+		}
+
+		// Type conversions and wrapping if explicit type is declared
+		if node.Type != nil {
+			typeName := node.Type.String()
+
+			// Handle subrange type wrapping
+			if typeVal, ok := e.adapter.LookupSubrangeType(typeName); ok {
+				if typeVal != nil { // Ensure typeVal is not nil
+					wrappedVal, err := e.adapter.WrapInSubrange(value, typeName, node)
+					if err != nil {
+						return e.newError(node, "%v", err)
+					}
+					value = wrappedVal
+				}
+			} else {
+				// Try implicit conversion
+				if converted, ok := e.adapter.TryImplicitConversion(value, typeName); ok {
+					value = converted
+				}
+			}
+
+			// Box value if target type is Variant
+			if strings.EqualFold(typeName, "Variant") {
+				value = e.adapter.BoxVariant(value)
+			}
+		}
+	} else {
+		// No initializer - create zero value based on type
+		value = e.createZeroValue(node.Type, node, ctx)
+		if isError(value) {
+			return value
+		}
+	}
+
+	// Define all names with appropriate values
+	var lastValue Value = value
+	for _, name := range node.Names {
+		var nameValue Value
+
+		if node.Value != nil {
+			// Single name with initializer - use the computed value
+			nameValue = value
+
+			// Interface wrapping if target type is interface
+			if node.Type != nil {
+				typeName := node.Type.String()
+				if _, exists := e.adapter.LookupInterface(typeName); exists {
+					// Check if value is already an interface
+					if value.Type() != "INTERFACE" {
+						// Try to wrap in interface
+						wrapped, err := e.adapter.WrapInInterface(value, typeName, node)
+						if err != nil {
+							return e.newError(node, "%v", err)
+						}
+						nameValue = wrapped
+					}
+				}
+			}
+		} else {
+			// No initializer - create separate zero value for each name
+			nameValue = e.createZeroValue(node.Type, node, ctx)
+			if isError(nameValue) {
+				return nameValue
+			}
+		}
+
+		e.adapter.DefineVariable(name.Value, nameValue, ctx)
+		lastValue = nameValue
+	}
+
+	return lastValue
 }
 
 // VisitConstDecl evaluates a constant declaration.
-// Task 3.5.16: Migrated from Interpreter.evalConstDecl()
+// Task 3.5.39: Full migration from Interpreter.evalConstDecl()
 func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) Value {
-	// Task 3.5.16: Constant declaration with type inference
+	// Task 3.5.39: Constant declaration with type inference
 	//
 	// Constant declaration syntax:
 	// - With type: const PI: Float := 3.14159;
@@ -260,17 +289,44 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 	// - Accessible via identifier lookup
 	// - Can be used in other const expressions
 	// - Can be exported from units
-	//
-	// Complexity: Medium - simpler than variables (always has value, no multi-identifier)
-	// Full implementation requires:
-	// - Expression evaluation
-	// - Type inference from value
-	// - Record literal type context handling
-	// - Environment storage
-	//
-	// Delegate to adapter which handles all constant declaration logic
 
-	return e.adapter.EvalNode(node)
+	// Constants must have a value
+	if node.Value == nil {
+		return e.newError(node, "constant '%s' must have a value", node.Name.Value)
+	}
+
+	// Evaluate the constant value
+	var value Value
+
+	// Special handling for anonymous record literals - they need type context
+	if recordLit, ok := node.Value.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
+		// Anonymous record literal needs explicit type
+		if node.Type == nil {
+			return e.newError(node, "anonymous record literal requires explicit type annotation")
+		}
+		typeName := node.Type.String()
+
+		// Lookup record type
+		if _, ok := e.adapter.LookupRecord(typeName); !ok {
+			return e.newError(node, "unknown type '%s'", typeName)
+		}
+
+		// Set type context for evaluation (avoids AST mutation)
+		ctx.SetRecordTypeContext(typeName)
+		value = e.Eval(recordLit, ctx)
+		ctx.ClearRecordTypeContext()
+	} else {
+		value = e.Eval(node.Value, ctx)
+	}
+
+	if isError(value) {
+		return value
+	}
+
+	// Store the constant in the environment
+	// Note: Immutability is enforced by semantic analysis, not at runtime
+	e.adapter.DefineVariable(node.Name.Value, value, ctx)
+	return value
 }
 
 // VisitAssignmentStatement evaluates an assignment statement.
@@ -1213,6 +1269,113 @@ func (e *Evaluator) VisitReturnStatement(node *ast.ReturnStatement, ctx *Executi
 func (e *Evaluator) VisitUsesClause(node *ast.UsesClause, ctx *ExecutionContext) Value {
 	// Uses clauses are no-ops at runtime - units are already loaded
 	return nil
+}
+
+// ============================================================================
+// Variable Declaration Helpers
+// Task 3.5.38: Helper methods for variable declaration
+// ============================================================================
+
+// createZeroValue creates a zero value for the given type.
+// This is used for multi-identifier declarations where each variable needs its own instance.
+// Task 3.5.38: Migrated from Interpreter.createZeroValue()
+func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, ctx *ExecutionContext) Value {
+	if typeExpr == nil {
+		return &runtime.NilValue{}
+	}
+
+	// Check for array type nodes (AST representation)
+	if arrayNode, ok := typeExpr.(*ast.ArrayTypeNode); ok {
+		arrayType, err := e.adapter.ResolveArrayTypeNode(arrayNode)
+		if err != nil {
+			return e.newError(node, "failed to resolve array type: %v", err)
+		}
+		if arrayType != nil {
+			// Create array value using the resolved type
+			return e.adapter.CreateArray(arrayType, []Value{})
+		}
+		return &runtime.NilValue{}
+	}
+
+	typeName := typeExpr.String()
+
+	// Check for inline array types (string representation)
+	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
+		arrayType, err := e.adapter.ParseInlineArrayType(typeName)
+		if err == nil && arrayType != nil {
+			return e.adapter.CreateArray(arrayType, []Value{})
+		}
+		return &runtime.NilValue{}
+	}
+
+	// Check for inline set types
+	if strings.HasPrefix(typeName, "set of ") {
+		setVal, err := e.adapter.CreateSetZeroValue(typeName)
+		if err == nil {
+			return setVal
+		}
+		return &runtime.NilValue{}
+	}
+
+	// Check if this is a record type
+	if e.adapter.HasRecord(typeName) {
+		recordVal, err := e.adapter.CreateRecordZeroValue(typeName)
+		if err == nil {
+			return recordVal
+		}
+		return &runtime.NilValue{}
+	}
+
+	// Check if this is an array type (named type)
+	if e.adapter.IsArrayType(typeName) {
+		arrayVal, err := e.adapter.CreateArrayZeroValue(typeName)
+		if err == nil {
+			return arrayVal
+		}
+		return &runtime.NilValue{}
+	}
+
+	// Check if this is a subrange type
+	if typeVal, ok := e.adapter.LookupSubrangeType(typeName); ok && typeVal != nil {
+		subrangeVal, err := e.adapter.CreateSubrangeZeroValue(typeName)
+		if err == nil {
+			return subrangeVal
+		}
+		return &runtime.NilValue{}
+	}
+
+	// Check if this is an interface type
+	if e.adapter.HasInterface(typeName) {
+		ifaceVal, err := e.adapter.CreateInterfaceZeroValue(typeName)
+		if err == nil {
+			return ifaceVal
+		}
+		return &runtime.NilValue{}
+	}
+
+	// Initialize basic types with their zero values
+	switch strings.ToLower(typeName) {
+	case "integer":
+		return &runtime.IntegerValue{Value: 0}
+	case "float":
+		return &runtime.FloatValue{Value: 0.0}
+	case "string":
+		return &runtime.StringValue{Value: ""}
+	case "boolean":
+		return &runtime.BooleanValue{Value: false}
+	case "variant":
+		// Use adapter to create proper Variant zero value
+		return e.adapter.BoxVariant(&runtime.NilValue{})
+	default:
+		// Check if this is a class type and create a typed nil value
+		if e.adapter.HasClass(typeName) {
+			classVal, err := e.adapter.CreateClassZeroValue(typeName)
+			if err == nil {
+				return classVal
+			}
+		}
+		return &runtime.NilValue{}
+	}
 }
 
 // ============================================================================
