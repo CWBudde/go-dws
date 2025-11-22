@@ -140,3 +140,43 @@ func Index(slice []string, s string) int {
 func IsKeyword(s string, keywords ...string) bool {
 	return Contains(keywords, s)
 }
+
+// HasPrefix tests whether the string s begins with prefix (case-insensitive).
+// This is the case-insensitive equivalent of strings.HasPrefix.
+//
+// Use this function when:
+//   - Checking if a type name starts with "Array" or another prefix
+//   - Matching identifier prefixes in semantic analysis
+//   - Filtering identifiers by naming convention
+//
+// Example:
+//
+//	if ident.HasPrefix(typeName, "array") {
+//	    // Handle array type (matches "Array", "ARRAY", "array", etc.)
+//	}
+func HasPrefix(s, prefix string) bool {
+	if len(prefix) > len(s) {
+		return false
+	}
+	return strings.EqualFold(s[:len(prefix)], prefix)
+}
+
+// HasSuffix tests whether the string s ends with suffix (case-insensitive).
+// This is the case-insensitive equivalent of strings.HasSuffix.
+//
+// Use this function when:
+//   - Checking if a type name ends with a specific suffix
+//   - Matching identifier suffixes in semantic analysis
+//   - Filtering identifiers by naming convention
+//
+// Example:
+//
+//	if ident.HasSuffix(typeName, "Type") {
+//	    // Handle type alias (matches "MyType", "MYTYPE", "mytype", etc.)
+//	}
+func HasSuffix(s, suffix string) bool {
+	if len(suffix) > len(s) {
+		return false
+	}
+	return strings.EqualFold(s[len(s)-len(suffix):], suffix)
+}

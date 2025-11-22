@@ -341,3 +341,101 @@ func BenchmarkIndex(b *testing.B) {
 		_ = Index(items, searches[i%len(searches)])
 	}
 }
+
+func TestHasPrefix(t *testing.T) {
+	tests := []struct {
+		name     string
+		s        string
+		prefix   string
+		expected bool
+	}{
+		{"exact match lowercase", "array", "array", true},
+		{"exact match uppercase", "ARRAY", "ARRAY", true},
+		{"lowercase prefix uppercase string", "array", "ARRAY", true},
+		{"uppercase prefix lowercase string", "ARRAY", "array", true},
+		{"mixed case match", "ArrayOfInteger", "array", true},
+		{"mixed case prefix", "arrayofinteger", "Array", true},
+		{"partial match", "ArrayOfInteger", "ArrayOf", true},
+		{"no match", "Integer", "Array", false},
+		{"prefix longer than string", "Arr", "Array", false},
+		{"empty prefix", "Array", "", true},
+		{"empty string", "", "Array", false},
+		{"both empty", "", "", true},
+		{"single char match", "A", "a", true},
+		{"single char no match", "A", "b", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := HasPrefix(tt.s, tt.prefix)
+			if result != tt.expected {
+				t.Errorf("HasPrefix(%q, %q) = %v, want %v",
+					tt.s, tt.prefix, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestHasSuffix(t *testing.T) {
+	tests := []struct {
+		name     string
+		s        string
+		suffix   string
+		expected bool
+	}{
+		{"exact match lowercase", "type", "type", true},
+		{"exact match uppercase", "TYPE", "TYPE", true},
+		{"lowercase suffix uppercase string", "type", "TYPE", true},
+		{"uppercase suffix lowercase string", "TYPE", "type", true},
+		{"mixed case match", "MyType", "type", true},
+		{"mixed case suffix", "mytype", "Type", true},
+		{"partial match", "ArrayType", "Type", true},
+		{"no match", "Integer", "Type", false},
+		{"suffix longer than string", "Typ", "Type", false},
+		{"empty suffix", "Type", "", true},
+		{"empty string", "", "Type", false},
+		{"both empty", "", "", true},
+		{"single char match", "A", "a", true},
+		{"single char no match", "A", "b", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := HasSuffix(tt.s, tt.suffix)
+			if result != tt.expected {
+				t.Errorf("HasSuffix(%q, %q) = %v, want %v",
+					tt.s, tt.suffix, result, tt.expected)
+			}
+		})
+	}
+}
+
+func BenchmarkHasPrefix(b *testing.B) {
+	pairs := [][2]string{
+		{"ArrayOfInteger", "array"},
+		{"MyVariable", "my"},
+		{"FUNCTION", "func"},
+		{"x", "X"},
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		pair := pairs[i%len(pairs)]
+		_ = HasPrefix(pair[0], pair[1])
+	}
+}
+
+func BenchmarkHasSuffix(b *testing.B) {
+	pairs := [][2]string{
+		{"ArrayType", "type"},
+		{"MyVariable", "able"},
+		{"FUNCTION", "tion"},
+		{"endX", "X"},
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		pair := pairs[i%len(pairs)]
+		_ = HasSuffix(pair[0], pair[1])
+	}
+}

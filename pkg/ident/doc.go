@@ -91,6 +91,20 @@
 //	})
 //	// Result: ["alice", "BOB", "Charlie"]
 //
+// ## Pattern 6: Prefix/Suffix Matching
+//
+// When checking if an identifier starts or ends with a specific string:
+//
+//	// ✅ Good: Use HasPrefix for case-insensitive prefix check
+//	if ident.HasPrefix(typeName, "array") {
+//	    // Handle array types (matches "Array", "ARRAY", "ArrayOfInteger", etc.)
+//	}
+//
+//	// ❌ Avoid: Creating temporary strings
+//	if strings.HasPrefix(strings.ToLower(typeName), "array") {
+//	    // Wasteful allocation
+//	}
+//
 // # Performance Considerations
 //
 //   - Normalize() allocates a new string if the input isn't all lowercase.
@@ -99,7 +113,9 @@
 //   - Equal() is optimized for comparisons and doesn't allocate.
 //     Use it for one-off checks.
 //
-// - Compare() normalizes both strings. Cache the result if sorting repeatedly.
+//   - Compare() normalizes both strings. Cache the result if sorting repeatedly.
+//
+//   - HasPrefix()/HasSuffix() use EqualFold on substrings, avoiding allocation.
 //
 // # Migration from Existing Code
 //
@@ -109,11 +125,24 @@
 //	store[strings.ToLower(name)] = value
 //	if strings.ToLower(a) == strings.ToLower(b) { ... }
 //	if strings.EqualFold(name, "Create") { ... }
+//	if strings.HasPrefix(strings.ToLower(s), "array") { ... }
 //
 //	// After
 //	store[ident.Normalize(name)] = value
 //	if ident.Equal(a, b) { ... }
 //	if ident.Equal(name, "Create") { ... }
+//	if ident.HasPrefix(s, "array") { ... }
+//
+// # When NOT to Use This Package
+//
+// This package is specifically for DWScript identifier handling. Do NOT use it for:
+//
+//   - File extensions or paths (use filepath package and strings.ToLower directly)
+//   - URLs or network addresses (use url package)
+//   - User-facing text that isn't a programming identifier
+//   - Non-ASCII text requiring locale-aware case folding
+//
+// For these cases, use the appropriate standard library functions directly.
 //
 // # Future Enhancements
 //
