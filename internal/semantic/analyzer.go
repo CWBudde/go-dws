@@ -587,6 +587,12 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 		return true
 	}
 
+	// Task 1.6: Allow implicit enum-to-integer conversion
+	// Enums can be implicitly converted to Integer (their underlying representation)
+	if fromUnderlying.TypeKind() == "ENUM" && toUnderlying.Equals(types.INTEGER) {
+		return true
+	}
+
 	if toUnderlying.TypeKind() == "FUNCTION_POINTER" || toUnderlying.TypeKind() == "METHOD_POINTER" {
 		// Use dedicated function pointer validation which provides detailed errors
 		// Note: We don't call validateFunctionPointerAssignment here because it reports errors

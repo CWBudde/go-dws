@@ -411,7 +411,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 	}
 
 	// Handle logical/bitwise operators (and, or, xor)
-	// These operators work on both Boolean (logical) and Integer (bitwise) types
+	// These operators work on Boolean (logical), Integer (bitwise), and Enum types
 	if operator == "and" || operator == "or" || operator == "xor" {
 		// Task 9.4.2: Allow Variant in logical/bitwise operations
 		leftIsVariant := leftType == types.VARIANT
@@ -429,7 +429,23 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 		if leftType.Equals(types.INTEGER) && rightType.Equals(types.INTEGER) {
 			return types.INTEGER
 		}
-		a.addError("operator %s requires both operands to be Boolean or both Integer, got %s and %s at %s",
+
+		// Task 1.6: Allow boolean operations on enum types (especially flags enums)
+		// Check if both operands are the same enum type
+		leftEnum, leftIsEnum := leftType.(*types.EnumType)
+		rightEnum, rightIsEnum := rightType.(*types.EnumType)
+		if leftIsEnum && rightIsEnum {
+			// Both operands must be the same enum type
+			if leftEnum.Equals(rightEnum) {
+				// Return the enum type
+				return leftEnum
+			}
+			a.addError("operator %s requires operands of the same enum type, got %s and %s at %s",
+				operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
+			return nil
+		}
+
+		a.addError("operator %s requires both operands to be Boolean, both Integer, or both the same enum type, got %s and %s at %s",
 			operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
 		return nil
 	}
