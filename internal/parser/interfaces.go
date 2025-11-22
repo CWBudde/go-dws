@@ -490,6 +490,8 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 			Token: cursor.Current(), // 'interface' token
 		},
 		Name: nameIdent,
+		// Initialize slices to avoid nil checks downstream
+		Properties: []*ast.PropertyDecl{},
 	}
 
 	// Check for optional parent interface (IDerived = interface(IBase))
@@ -556,14 +558,22 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 			continue
 		}
 
-		// Parse method declaration (procedure or function)
-		if cursor.Current().Type == lexer.PROCEDURE || cursor.Current().Type == lexer.FUNCTION {
+		switch cursor.Current().Type {
+		case lexer.PROCEDURE, lexer.FUNCTION:
+			// Parse method declaration (procedure or function)
 			method := p.parseInterfaceMethodDecl()
 			if method != nil {
 				interfaceDecl.Methods = append(interfaceDecl.Methods, method)
 			}
 			cursor = p.cursor
-		} else {
+		case lexer.PROPERTY:
+			// Parse property declaration
+			property := p.parsePropertyDeclaration()
+			if property != nil {
+				interfaceDecl.Properties = append(interfaceDecl.Properties, property)
+			}
+			cursor = p.cursor
+		default:
 			// Unknown token in interface body, skip it
 			cursor = cursor.Advance()
 			p.cursor = cursor

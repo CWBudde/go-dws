@@ -3,6 +3,7 @@ package interp
 import (
 	"fmt"
 
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -15,18 +16,20 @@ import (
 // It stores information about an interface's structure including methods,
 // parent interface, and external binding information.
 type InterfaceInfo struct {
-	Parent  *InterfaceInfo
-	Methods map[string]*ast.FunctionDecl
-	Name    string
+	Parent     *InterfaceInfo
+	Methods    map[string]*ast.FunctionDecl
+	Properties map[string]*types.PropertyInfo
+	Name       string
 }
 
 // NewInterfaceInfo creates a new InterfaceInfo with the given name.
 // Methods map is initialized as empty.
 func NewInterfaceInfo(name string) *InterfaceInfo {
 	return &InterfaceInfo{
-		Name:    name,
-		Parent:  nil,
-		Methods: make(map[string]*ast.FunctionDecl),
+		Name:       name,
+		Parent:     nil,
+		Methods:    make(map[string]*ast.FunctionDecl),
+		Properties: make(map[string]*types.PropertyInfo),
 	}
 }
 
@@ -56,6 +59,37 @@ func (ii *InterfaceInfo) HasMethod(name string) bool {
 	return ii.GetMethod(name) != nil
 }
 
+// GetProperty looks up a property by name in this interface (case-insensitive).
+// It searches the interface hierarchy until found.
+func (ii *InterfaceInfo) GetProperty(name string) *types.PropertyInfo {
+	normalized := ident.Normalize(name)
+
+	if prop, exists := ii.Properties[normalized]; exists {
+		return prop
+	}
+
+	if ii.Parent != nil {
+		return ii.Parent.GetProperty(name)
+	}
+
+	return nil
+}
+
+// HasProperty checks if the interface (or any parent) declares a property.
+func (ii *InterfaceInfo) HasProperty(name string) bool {
+	return ii.GetProperty(name) != nil
+}
+
+// getDefaultProperty returns the default property defined on the interface hierarchy, if any.
+func (ii *InterfaceInfo) getDefaultProperty() *types.PropertyInfo {
+	for _, prop := range ii.AllProperties() {
+		if prop.IsDefault {
+			return prop
+		}
+	}
+	return nil
+}
+
 // AllMethods returns all methods in this interface, including inherited methods.
 // Returns a new map containing all methods from this interface and its parents.
 func (ii *InterfaceInfo) AllMethods() map[string]*ast.FunctionDecl {
@@ -71,6 +105,23 @@ func (ii *InterfaceInfo) AllMethods() map[string]*ast.FunctionDecl {
 	// Add this interface's methods
 	for name, method := range ii.Methods {
 		result[name] = method
+	}
+
+	return result
+}
+
+// AllProperties returns all properties declared on this interface and its parents.
+func (ii *InterfaceInfo) AllProperties() map[string]*types.PropertyInfo {
+	result := make(map[string]*types.PropertyInfo)
+
+	if ii.Parent != nil {
+		for name, prop := range ii.Parent.AllProperties() {
+			result[name] = prop
+		}
+	}
+
+	for name, prop := range ii.Properties {
+		result[name] = prop
 	}
 
 	return result
@@ -168,6 +219,26 @@ func classImplementsInterface(class *ClassInfo, iface *InterfaceInfo) bool {
 	// Check parent class (interfaces are inherited)
 	if class.Parent != nil {
 		return classImplementsInterface(class.Parent, iface)
+	}
+
+	return false
+}
+
+// classExplicitlyImplementsInterface checks whether a class or its parents directly declare the interface
+// (without considering interface inheritance). This matches DWScript 'implements' operator behavior.
+func classExplicitlyImplementsInterface(class *ClassInfo, iface *InterfaceInfo) bool {
+	if class == nil || iface == nil {
+		return false
+	}
+
+	for _, implemented := range class.Interfaces {
+		if implemented == iface {
+			return true
+		}
+	}
+
+	if class.Parent != nil {
+		return classExplicitlyImplementsInterface(class.Parent, iface)
 	}
 
 	return false

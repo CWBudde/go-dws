@@ -134,6 +134,28 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 			return objVal
 		}
 
+		// Interface indexed property access
+		if intfInst, ok := objVal.(*InterfaceInstance); ok {
+			if intfInst.Object == nil {
+				return i.newErrorWithLocation(expr, "Interface is nil")
+			}
+			if propInfo := intfInst.Interface.GetProperty(memberAccess.Member.Value); propInfo != nil && propInfo.IsIndexed {
+				indexVals := make([]Value, len(indices))
+				for idx, indexExpr := range indices {
+					indexVals[idx] = i.Eval(indexExpr)
+					if isError(indexVals[idx]) {
+						return indexVals[idx]
+					}
+				}
+				if obj, ok := AsObject(intfInst.Object); ok {
+					return i.evalIndexedPropertyRead(obj, propInfo, indexVals, expr)
+				}
+				return i.newErrorWithLocation(expr, "interface underlying object is not a class instance")
+			}
+			// unwrap for further checks
+			objVal = intfInst.Object
+		}
+
 		// Check if it's a class instance with an indexed property
 		if obj, ok := AsObject(objVal); ok {
 			propInfo := obj.Class.lookupProperty(memberAccess.Member.Value)
@@ -214,6 +236,21 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 	indexVal := i.Eval(expr.Index)
 	if isError(indexVal) {
 		return indexVal
+	}
+
+	// Handle default indexed properties on interface values (e.g., intf['x'])
+	if intfInst, ok := leftVal.(*InterfaceInstance); ok {
+		if intfInst.Object == nil {
+			return i.newErrorWithLocation(expr, "Interface is nil")
+		}
+		if propInfo := intfInst.Interface.getDefaultProperty(); propInfo != nil && propInfo.IsIndexed {
+			if obj, ok := AsObject(intfInst.Object); ok {
+				return i.evalIndexedPropertyRead(obj, propInfo, []Value{indexVal}, expr)
+			}
+			return i.newErrorWithLocation(expr, "interface underlying object is not a class instance")
+		}
+		// unwrap for further default property checks
+		leftVal = intfInst.Object
 	}
 
 	// Check if left side is an object with a default property

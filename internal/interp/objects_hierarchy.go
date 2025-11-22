@@ -450,56 +450,77 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	// If so, extract the underlying object and delegate member access to it
 	if intfInst, ok := objVal.(*InterfaceInstance); ok {
 		if intfInst.Object == nil {
-			return i.newErrorWithLocation(ma, "Interface is nil")
+			return i.newErrorWithLocation(ma.Member, "Interface is nil")
 		}
 
 		// Verify the member exists in the interface definition
 		// This ensures we only access members that are part of the interface contract
 		memberName := ma.Member.Value
 
-		// Task 9.1.6: For interface methods, return a function pointer instead of auto-invoking
-		// This allows method delegate assignment: var h : procedure := i.Hello;
-		if intfInst.Interface.HasMethod(memberName) {
-			// Get the underlying object to find the method implementation
-			underlyingObj, isObj := AsObject(intfInst.Object)
-			if !isObj {
-				return i.newErrorWithLocation(ma, "interface underlying object is not a class instance")
-			}
+		propInfo := intfInst.Interface.GetProperty(memberName)
+		hasMethod := intfInst.Interface.HasMethod(memberName)
+		if !hasMethod && propInfo == nil {
+			return i.newErrorWithLocation(ma, "member '%s' not found in interface '%s'", memberName, intfInst.Interface.Name)
+		}
 
-			// Look up the method in the underlying object's class
-			methodOverloads := i.getMethodOverloadsInHierarchy(underlyingObj.Class, memberName, false)
-			if len(methodOverloads) > 0 {
-				method := methodOverloads[0] // Take first overload
+		// Get the underlying object to find the implementation
+		underlyingObj, isObj := AsObject(intfInst.Object)
+		if !isObj {
+			return i.newErrorWithLocation(ma, "interface underlying object is not a class instance")
+		}
 
-				// Build function pointer type
-				paramTypes := make([]types.Type, len(method.Parameters))
-				for idx, param := range method.Parameters {
-					if param.Type != nil {
-						paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
-					}
-				}
-				var returnType types.Type
-				if method.ReturnType != nil {
-					returnType = i.getTypeFromAnnotation(method.ReturnType)
-				}
-				pointerType := types.NewFunctionPointerType(paramTypes, returnType)
+		// Handle interface properties explicitly (classes may not declare matching properties)
+		if propInfo != nil {
+			return i.evalPropertyRead(underlyingObj, propInfo, ma)
+		}
 
-				// Return function pointer bound to the underlying object
-				// Note: RefCount is NOT incremented here because this might be a transient call
-				// RefCount++ happens in evalSimpleAssignment when storing the pointer in a variable
-				return NewFunctionPointerValue(method, i.env, underlyingObj, pointerType)
-			}
-			// Method declared in interface but not found in implementing class
+		// Method path: reuse object logic (auto-invoke parameterless, otherwise return function pointer)
+		methodOverloads := i.getMethodOverloadsInHierarchy(underlyingObj.Class, memberName, false)
+		classMethodOverloads := i.getMethodOverloadsInHierarchy(underlyingObj.Class, memberName, true)
+
+		if len(methodOverloads) == 0 && len(classMethodOverloads) == 0 {
 			return i.newErrorWithLocation(ma, "method '%s' declared in interface '%s' but not implemented by class '%s'",
 				memberName, intfInst.Interface.Name, underlyingObj.Class.Name)
 		}
 
-		// Not a method - delegate to the underlying object for field/property access
-		// TODO: Implement property validation for interface member access
-		// to match the strictness of method validation (see objects_methods.go:556-563).
-		// This will ensure that only properties defined in the interface contract can be accessed.
-		// For now, we allow properties/fields to be checked by the underlying object.
-		objVal = intfInst.Object
+		var method *ast.FunctionDecl
+		if len(methodOverloads) > 0 {
+			method = methodOverloads[0]
+		} else {
+			method = classMethodOverloads[0]
+		}
+
+		// If the interface method is a function with no parameters and accessed without (),
+		// auto-invoke it to match DWScript behavior for value-returning methods.
+		if method.ReturnType != nil && len(method.Parameters) == 0 {
+			methodCall := &ast.MethodCallExpression{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: ma.Token,
+					},
+				},
+				Object:    ma.Object,
+				Method:    ma.Member,
+				Arguments: []ast.Expression{},
+			}
+			return i.evalMethodCall(methodCall)
+		}
+
+		paramTypes := make([]types.Type, len(method.Parameters))
+		for idx, param := range method.Parameters {
+			if param.Type != nil {
+				paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
+			}
+		}
+		var returnType types.Type
+		if method.ReturnType != nil {
+			returnType = i.getTypeFromAnnotation(method.ReturnType)
+		}
+		pointerType := types.NewFunctionPointerType(paramTypes, returnType)
+
+		// Return function pointer bound to the underlying object
+		// RefCount handling is performed when storing the pointer (see evalSimpleAssignment)
+		return NewFunctionPointerValue(method, i.env, underlyingObj, pointerType)
 	}
 
 	// Task 9.5: Check if this is a type cast value (e.g., TBase(child).ClassVar)

@@ -485,6 +485,10 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 					Interface: ifaceInst.Interface,
 					Object:    srcIface.Object,
 				}
+				// Track that we copied from another interface value; release the source
+				if shouldReleaseInterfaceSource(stmt, i.env) {
+					defer i.ReleaseInterfaceReference(srcIface)
+				}
 			}
 		}
 	}
@@ -614,6 +618,42 @@ func (i *Interpreter) evalRecordPropertyWrite(recordVal *RecordValue, fieldName 
 	return value
 }
 
+// isTemporaryInterfaceSource returns true when the RHS expression produces a temporary interface value
+// (e.g., function calls, object creation) rather than referencing an existing variable/field.
+func isTemporaryInterfaceSource(stmt *ast.AssignmentStatement) bool {
+	if stmt == nil {
+		return false
+	}
+
+	switch stmt.Value.(type) {
+	case *ast.Identifier, *ast.MemberAccessExpression, *ast.IndexExpression:
+		return false
+	default:
+		return true
+	}
+}
+
+// shouldReleaseInterfaceSource determines whether the RHS of an assignment is a temporary interface value.
+// It treats identifiers as temporaries when they don't refer to an existing interface variable (e.g., function calls).
+func shouldReleaseInterfaceSource(stmt *ast.AssignmentStatement, env *Environment) bool {
+	if isTemporaryInterfaceSource(stmt) {
+		return true
+	}
+
+	ident, ok := stmt.Value.(*ast.Identifier)
+	if !ok {
+		return false
+	}
+
+	if envVal, exists := env.Get(ident.Value); exists {
+		_, isIface := envVal.(*InterfaceInstance)
+		return !isIface
+	}
+
+	// Unknown identifier in current scope - treat as temporary (likely a function call)
+	return true
+}
+
 // evalMemberAssignment handles member assignment: obj.field := value or TClass.Variable := value
 func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, value Value, stmt *ast.AssignmentStatement) Value {
 	// Check if the left side is a class identifier (for static assignment: TClass.Variable := value or TClass.Property := value)
@@ -703,6 +743,27 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 		return i.evalRecordPropertyWrite(recordVal, target.Member.Value, value, stmt, target)
 	}
 
+	// Unwrap interface instances for assignment
+	if intfInst, ok := objVal.(*InterfaceInstance); ok {
+		if intfInst.Object == nil {
+			return i.newErrorWithLocation(stmt, "Interface is nil")
+		}
+		objVal = intfInst.Object
+
+		// If the member is declared as a property on the interface, use that metadata
+		if propInfo := intfInst.Interface.GetProperty(target.Member.Value); propInfo != nil {
+			if obj, ok := AsObject(objVal); ok {
+				return i.evalPropertyWrite(obj, propInfo, value, stmt)
+			}
+			return i.newErrorWithLocation(stmt, "interface underlying object is not a class instance")
+		}
+	}
+
+	// Unwrap type cast values to get the underlying object for assignment
+	if typeCast, ok := objVal.(*TypeCastValue); ok {
+		objVal = typeCast.Object
+	}
+
 	// Check if it's an object instance
 	obj, ok := AsObject(objVal)
 	if !ok {
@@ -743,6 +804,27 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 			return objVal
 		}
 
+		// Allow interface-based indexed properties
+		if intfInst, ok := objVal.(*InterfaceInstance); ok {
+			if intfInst.Object == nil {
+				return i.newErrorWithLocation(stmt, "Interface is nil")
+			}
+			objVal = intfInst.Object
+			if propInfo := intfInst.Interface.GetProperty(memberAccess.Member.Value); propInfo != nil && propInfo.IsIndexed {
+				indexVals := make([]Value, len(indices))
+				for idx, indexExpr := range indices {
+					indexVals[idx] = i.Eval(indexExpr)
+					if isError(indexVals[idx]) {
+						return indexVals[idx]
+					}
+				}
+				if obj, ok := AsObject(objVal); ok {
+					return i.evalIndexedPropertyWrite(obj, propInfo, indexVals, value, stmt)
+				}
+				return i.newErrorWithLocation(stmt, "interface underlying object is not a class instance")
+			}
+		}
+
 		// Check if it's a class instance with an indexed property
 		if obj, ok := AsObject(objVal); ok {
 			propInfo := obj.Class.lookupProperty(memberAccess.Member.Value)
@@ -774,6 +856,21 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 	indexVal := i.Eval(target.Index)
 	if isError(indexVal) {
 		return indexVal
+	}
+
+	// Allow default indexed properties on interface values (e.g., intf['x'] := y)
+	if intfInst, ok := arrayVal.(*InterfaceInstance); ok {
+		if intfInst.Object == nil {
+			return i.newErrorWithLocation(stmt, "Interface is nil")
+		}
+		if propInfo := intfInst.Interface.getDefaultProperty(); propInfo != nil && propInfo.IsIndexed {
+			if obj, ok := AsObject(intfInst.Object); ok {
+				return i.evalIndexedPropertyWrite(obj, propInfo, []Value{indexVal}, value, stmt)
+			}
+			return i.newErrorWithLocation(stmt, "interface underlying object is not a class instance")
+		}
+		// unwrap for subsequent checks
+		arrayVal = intfInst.Object
 	}
 
 	// Task 9.16: Check if left side is an object with a default property
