@@ -900,6 +900,8 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 		return e.VisitIfExpression(n, ctx)
 	case *ast.OldExpression:
 		return e.VisitOldExpression(n, ctx)
+	case *ast.RangeExpression:
+		return e.VisitRangeExpression(n, ctx)
 
 	// Statements
 	case *ast.Program:

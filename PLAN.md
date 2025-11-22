@@ -423,12 +423,14 @@ If conditional compilation features are added in the future, they would require:
   - Files: `visitor_expressions.go`
   - Effort: 5-6 hours
 
-- [ ] **3.5.33** Final expression cleanup and edge cases
-  - Audit all Visit* methods for completeness
-  - Handle any remaining expression types
-  - Ensure all error paths are covered
-  - Files: Various
-  - Effort: 4-6 hours
+- [x] **3.5.33** Final expression cleanup and edge cases
+  - Audited all Visit* methods for completeness (21 expressions, 9 literals, 19 statements, 10 declarations)
+  - Implemented missing VisitRangeExpression for range expressions (start..end) used in case statements and set literals
+  - Added nil checks to 5 critical visitor methods: VisitBinaryExpression, VisitUnaryExpression, VisitCallExpression, VisitMemberAccessExpression, VisitMethodCallExpression
+  - Fixed missing error check in VisitRaiseStatement when evaluating exception expression
+  - All error paths now properly covered and validated
+  - Files: `evaluator.go`, `visitor_expressions.go`, `visitor_statements.go`
+  - **Completed**: Commit 73f322b
 
 ---
 
@@ -441,6 +443,7 @@ If conditional compilation features are added in the future, they would require:
   - Target: 95%+ coverage on evaluator package
   - Files: `*_test.go`
   - Effort: 6-8 hours
+  - **Note**: All Visit* methods are now complete and have proper error handling. Focus on testing edge cases like nil inputs, error propagation, and special value handling (nil, empty collections, etc.)
 
 - [ ] **3.5.35** Performance Validation
   - Benchmark visitor pattern vs. original switch
