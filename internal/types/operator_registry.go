@@ -118,16 +118,17 @@ func areTypesCompatibleForOperator(actualType, declaredType Type) bool {
 	declaredArray, declaredIsArray := declaredType.(*ArrayType)
 
 	if actualIsArray && declaredIsArray {
-		// Both must be dynamic arrays (array of const is dynamic)
-		if !actualArray.IsDynamic() || !declaredArray.IsDynamic() {
-			return false
+		// Special case: array of const (dynamic array of Variant) accepts any array type
+		// This must be checked BEFORE the dynamic-only restriction, because array of const
+		// can accept static arrays like [1, 2] or ['a', 'b', 'c']
+		declaredElem := GetUnderlyingType(declaredArray.ElementType)
+		if declaredArray.IsDynamic() && declaredElem.TypeKind() == "VARIANT" {
+			return true // array of const accepts any array (static or dynamic, any element type)
 		}
 
-		// If declared element type is Variant, accept any actual element type
-		// This enables: array of Integer -> array of Variant (array of const)
-		declaredElem := GetUnderlyingType(declaredArray.ElementType)
-		if declaredElem.TypeKind() == "VARIANT" {
-			return true
+		// For non-array-of-const cases, both must be dynamic arrays
+		if !actualArray.IsDynamic() || !declaredArray.IsDynamic() {
+			return false
 		}
 
 		// Check if element types are compatible (recursive for nested arrays)
