@@ -33,7 +33,6 @@ func IsCompatible(from, to Type) bool {
 	}
 
 	// Variant is a universal type - any type can be assigned to it
-	// and Variant can be assigned to Variant
 	if to.TypeKind() == "VARIANT" {
 		return true
 	}
