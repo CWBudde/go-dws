@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -222,63 +224,68 @@ func (rt *RecordType) Equals(other Type) bool {
 
 // HasField checks if the record has a field with the given name
 func (rt *RecordType) HasField(name string) bool {
-	_, exists := rt.Fields[name]
+	_, exists := rt.Fields[ident.Normalize(name)]
 	return exists
 }
 
 // GetFieldType returns the type of a field, or nil if not found
 func (rt *RecordType) GetFieldType(name string) Type {
-	return rt.Fields[name]
+	return rt.Fields[ident.Normalize(name)]
 }
 
 // HasMethod checks if the record has a method with the given name
 func (rt *RecordType) HasMethod(name string) bool {
-	_, exists := rt.Methods[name]
+	_, exists := rt.Methods[ident.Normalize(name)]
 	return exists
 }
 
 // GetMethod returns the type of a method, or nil if not found
 func (rt *RecordType) GetMethod(name string) *FunctionType {
-	return rt.Methods[name]
+	return rt.Methods[ident.Normalize(name)]
 }
 
 // HasClassMethod checks if the record has a class method with the given name
 func (rt *RecordType) HasClassMethod(name string) bool {
-	_, exists := rt.ClassMethods[name]
+	_, exists := rt.ClassMethods[ident.Normalize(name)]
 	return exists
 }
 
 // GetClassMethod returns the type of a class method, or nil if not found
 func (rt *RecordType) GetClassMethod(name string) *FunctionType {
-	return rt.ClassMethods[name]
+	return rt.ClassMethods[ident.Normalize(name)]
 }
 
 // HasProperty checks if the record has a property with the given name
 func (rt *RecordType) HasProperty(name string) bool {
-	_, exists := rt.Properties[name]
+	_, exists := rt.Properties[ident.Normalize(name)]
 	return exists
 }
 
 // GetProperty returns the property info, or nil if not found
 func (rt *RecordType) GetProperty(name string) *RecordPropertyInfo {
-	return rt.Properties[name]
+	return rt.Properties[ident.Normalize(name)]
 }
 
 // GetMethodOverloads returns all overload variants for a given method name
 func (rt *RecordType) GetMethodOverloads(methodName string) []*MethodInfo {
-	return rt.MethodOverloads[methodName]
+	return rt.MethodOverloads[ident.Normalize(methodName)]
 }
 
 // GetClassMethodOverloads returns all overload variants for a given class method name
 func (rt *RecordType) GetClassMethodOverloads(methodName string) []*MethodInfo {
-	return rt.ClassMethodOverloads[methodName]
+	return rt.ClassMethodOverloads[ident.Normalize(methodName)]
 }
 
 // NewRecordType creates a new record type with the given name and fields
 func NewRecordType(name string, fields map[string]Type) *RecordType {
+	// Normalize field keys for case-insensitive lookup
+	normalizedFields := make(map[string]Type, len(fields))
+	for k, v := range fields {
+		normalizedFields[ident.Normalize(k)] = v
+	}
 	return &RecordType{
 		Name:                 name,
-		Fields:               fields,
+		Fields:               normalizedFields,
 		Methods:              make(map[string]*FunctionType),
 		MethodOverloads:      make(map[string][]*MethodInfo),
 		ClassMethods:         make(map[string]*FunctionType),
@@ -613,8 +620,9 @@ func (ht *HelperType) Equals(other Type) bool {
 // If not found in this helper, searches in parent helper (if any).
 // Returns the method type, the helper that owns it, and true if found.
 func (ht *HelperType) GetMethod(name string) (*FunctionType, *HelperType, bool) {
-	// Look in this helper first
-	method, ok := ht.Methods[name]
+	// Case-insensitive method lookup
+	normalizedName := ident.Normalize(name)
+	method, ok := ht.Methods[normalizedName]
 	if ok {
 		return method, ht, true
 	}
@@ -631,8 +639,9 @@ func (ht *HelperType) GetMethod(name string) (*FunctionType, *HelperType, bool) 
 // If not found in this helper, searches in parent helper (if any).
 // Returns the property info, the helper that owns it, and true if found.
 func (ht *HelperType) GetProperty(name string) (*PropertyInfo, *HelperType, bool) {
-	// Look in this helper first
-	prop, ok := ht.Properties[name]
+	// Case-insensitive property lookup
+	normalizedName := ident.Normalize(name)
+	prop, ok := ht.Properties[normalizedName]
 	if ok {
 		return prop, ht, true
 	}
@@ -649,8 +658,9 @@ func (ht *HelperType) GetProperty(name string) (*PropertyInfo, *HelperType, bool
 // If not found in this helper, searches in parent helper (if any).
 // Returns the variable type and true if found, nil and false otherwise.
 func (ht *HelperType) GetClassVar(name string) (Type, bool) {
-	// Look in this helper first
-	varType, ok := ht.ClassVars[name]
+	// Case-insensitive class variable lookup
+	normalizedName := ident.Normalize(name)
+	varType, ok := ht.ClassVars[normalizedName]
 	if ok {
 		return varType, true
 	}
@@ -667,8 +677,9 @@ func (ht *HelperType) GetClassVar(name string) (Type, bool) {
 // If not found in this helper, searches in parent helper (if any).
 // Returns the constant value and true if found, nil and false otherwise.
 func (ht *HelperType) GetClassConst(name string) (interface{}, bool) {
-	// Look in this helper first
-	constVal, ok := ht.ClassConsts[name]
+	// Case-insensitive class constant lookup
+	normalizedName := ident.Normalize(name)
+	constVal, ok := ht.ClassConsts[normalizedName]
 	if ok {
 		return constVal, true
 	}
