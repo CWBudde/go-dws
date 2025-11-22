@@ -758,10 +758,14 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //
 // **COMPLEXITY**: Very High (700+ lines in original implementation)
 // **STATUS**: Documentation-only migration with full adapter delegation
+// **Task 3.5.25**: Simple Modes (Unit-qualified, Enum, Static class, Record fields)
+// **Task 3.5.26**: Complex Modes (Object instance, Interface, Metaclass, Type casts)
 //
 // **11 DISTINCT ACCESS MODES** (evaluated in this order):
 //
-// **1. UNIT-QUALIFIED ACCESS** (UnitName.Symbol)
+// === SIMPLE MODES (Task 3.5.25) ===
+//
+// **1. UNIT-QUALIFIED ACCESS** (UnitName.Symbol) [Task 3.5.25]
 //   - Pattern: `Math.PI`, `System.Print`
 //   - Evaluation order:
 //     a. Check if left side is a registered unit name (via unitRegistry)
@@ -770,7 +774,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Error: "qualified name 'Unit.Symbol' cannot be used as a value (functions must be called)"
 //   - Implementation: ~14 lines in original
 //
-// **2. STATIC CLASS ACCESS** (TClass.Member)
+// **2. STATIC CLASS ACCESS** (TClass.Member) [Task 3.5.25]
 //   - Pattern: `TMyClass.ClassVar`, `TMyClass.Create`, `TMyClass.ClassName`
 //   - Lookup order (case-insensitive):
 //     a. Built-in properties: `ClassName` (string), `ClassType` (metaclass reference)
@@ -786,7 +790,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Error: "member 'X' not found in class 'Y'"
 //   - Implementation: ~100 lines in original
 //
-// **3. ENUM TYPE ACCESS** (TColor.Red, TColor.Low, TColor.High)
+// **3. ENUM TYPE ACCESS** (TColor.Red, TColor.Low, TColor.High) [Task 3.5.25]
 //   - Pattern: `TColor.Red`, `TMyEnum.Low`, `TMyEnum.High`
 //   - Lookup in environment: `__enum_type_` + lowercase(enumTypeName)
 //   - For scoped enums:
@@ -797,7 +801,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Error: "enum value 'X' not found in enum 'Y'"
 //   - Implementation: ~45 lines in original
 //
-// **4. RECORD TYPE STATIC ACCESS** (TPoint.cOrigin, TPoint.Count)
+// **4. RECORD TYPE STATIC ACCESS** (TPoint.cOrigin, TPoint.Count) [Task 3.5.25]
 //   - Pattern: `TPoint.cOrigin`, `TRecord.ClassMethod()`
 //   - Lookup in environment: `__record_type_` + lowercase(recordTypeName)
 //   - Lookup order (case-insensitive):
@@ -809,7 +813,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Error: "member 'X' not found in record type 'Y'"
 //   - Implementation: ~40 lines in original
 //
-// **5. RECORD INSTANCE ACCESS** (record.Field, record.Method)
+// **5. RECORD INSTANCE ACCESS** (record.Field, record.Method) [Task 3.5.25]
 //   - Pattern: `point.X`, `point.GetLength()`, `point.Prop`
 //   - Object type: RecordValue
 //   - Lookup order (case-insensitive):
@@ -827,7 +831,20 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Error: "field 'X' not found in record 'Y'"
 //   - Implementation: ~115 lines in original
 //
-// **6. CLASS/METACLASS ACCESS** (ClassInfoValue/ClassValue.Member)
+// **10. ENUM VALUE PROPERTIES** (enumVal.Value) [Task 3.5.25]
+//   - Pattern: `TColor.Red.Value` (returns ordinal as integer)
+//   - Object type: EnumValue
+//   - Supported properties:
+//     a. `.Value` (case-insensitive): returns OrdinalValue as IntegerValue
+//     b. `.ToString`: handled by helpers (if available)
+//   - Fallback: Check helpers for additional properties
+//   - Implementation: ~10 lines in original
+//   - NOTE: This is listed here (out of precedence order) for Task 3.5.25 grouping
+//   - In actual implementation, this is checked at position 10
+//
+// === COMPLEX MODES (Task 3.5.26) ===
+//
+// **6. CLASS/METACLASS ACCESS** (ClassInfoValue/ClassValue.Member) [Task 3.5.26]
 //   - Pattern: When a class name is evaluated to ClassInfoValue or ClassValue
 //   - Example: `var c := TMyClass; c.Create()`
 //   - Lookup order (same as static class access #2):
@@ -836,7 +853,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Returns: String/ClassValue/field value/method pointer
 //   - Implementation: ~95 lines in original
 //
-// **7. INTERFACE INSTANCE ACCESS** (interface.Method, interface.Property)
+// **7. INTERFACE INSTANCE ACCESS** (interface.Method, interface.Property) [Task 3.5.26]
 //   - Pattern: `intfVar.Hello`, `intfVar.SomeMethod`
 //   - Object type: InterfaceInstance
 //   - Validation: Verify member exists in interface definition (HasMethod)
@@ -849,7 +866,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Error: "Interface is nil" or "method 'X' declared in interface 'Y' but not implemented"
 //   - Implementation: ~50 lines in original
 //
-// **8. TYPE CAST VALUE HANDLING** (TBase(child).ClassVar)
+// **8. TYPE CAST VALUE HANDLING** (TBase(child).ClassVar) [Task 3.5.26]
 //   - Pattern: Accessing members through a type cast expression
 //   - Object type: TypeCastValue
 //   - Extracts: StaticType (for class variable lookup), Object (actual instance)
@@ -857,7 +874,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Unwraps to actual object and continues evaluation with static type context
 //   - Implementation: ~5 lines in original
 //
-// **9. NIL OBJECT HANDLING** (nil.ClassVar)
+// **9. NIL OBJECT HANDLING** (nil.ClassVar) [Task 3.5.26]
 //   - Pattern: `var o: TMyClass := nil; o.ClassVar`
 //   - Object type: NilValue (with ClassType field) or nil evaluation result
 //   - Special case: Accessing class variables on nil instances is allowed
@@ -868,16 +885,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Failure: Error "Object not instantiated" (for instance members)
 //   - Implementation: ~35 lines in original
 //
-// **10. ENUM VALUE PROPERTIES** (enumVal.Value)
-//   - Pattern: `TColor.Red.Value` (returns ordinal as integer)
-//   - Object type: EnumValue
-//   - Supported properties:
-//     a. `.Value` (case-insensitive): returns OrdinalValue as IntegerValue
-//     b. `.ToString`: handled by helpers (if available)
-//   - Fallback: Check helpers for additional properties
-//   - Implementation: ~10 lines in original
-//
-// **11. OBJECT INSTANCE ACCESS** (obj.Field, obj.Method, obj.Property)
+// **11. OBJECT INSTANCE ACCESS** (obj.Field, obj.Method, obj.Property) [Task 3.5.26]
 //   - Pattern: `myObj.Name`, `myObj.GetValue()`, `myObj.Count`
 //   - Object type: ObjectInstance
 //   - Built-in properties (inherited from TObject, case-insensitive):
