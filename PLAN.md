@@ -873,7 +873,11 @@ This causes:
       - [x] Lambda parameter count validation with expected function pointer type ✅
         - Parameter count check, duplicate parameter detection
         - Full lambda type inference deferred to analyze_lambdas.go migration
-    - [ ] Helper method/property support (requires helpers registry) **TODO**
+    - [x] Helper method/property support ✅
+      - Method lookup with array type specialization (Pop method)
+      - Property lookup for helper-defined properties
+      - Class constant lookup for scoped enum access
+      - Generic helper support for arrays and enums
   - [x] Migrate statement validation from old analyzer (analyzeStatement, etc.) **DONE**
     - [x] Add support for all statement types (15+ types: loops, exceptions, control flow)
     - [x] Full validation for var/const declarations, assignments
