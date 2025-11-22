@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -350,7 +349,7 @@ func IsOrdinalType(t Type) bool {
 // This is useful for parsing type annotations
 // DWScript is case-insensitive, so this function normalizes the input
 func TypeFromString(name string) (Type, error) {
-	switch strings.ToLower(name) {
+	switch ident.Normalize(name) {
 	case "integer":
 		return INTEGER, nil
 	case "float":
@@ -884,14 +883,24 @@ func (it *InterfaceType) Equals(other Type) bool {
 
 // HasMethod checks if the interface has a method with the given name
 func (it *InterfaceType) HasMethod(name string) bool {
-	_, ok := it.Methods[name]
-	return ok
+	// Case-insensitive method lookup
+	for methodName := range it.Methods {
+		if ident.Equal(methodName, name) {
+			return true
+		}
+	}
+	return false
 }
 
 // GetMethod retrieves the signature of a method by name
 func (it *InterfaceType) GetMethod(name string) (*FunctionType, bool) {
-	methodType, ok := it.Methods[name]
-	return methodType, ok
+	// Case-insensitive method lookup
+	for methodName, methodType := range it.Methods {
+		if ident.Equal(methodName, name) {
+			return methodType, true
+		}
+	}
+	return nil, false
 }
 
 // InheritsFrom checks if this interface inherits from (extends) another interface.

@@ -107,26 +107,29 @@ Migrate `internal/types/` package with ~15+ direct calls.
   - Replaced: `strings.EqualFold()` → `ident.Equal()`
   - Verified: Original method/field names preserved in type metadata
 
-- [ ] **5.2** Migrate `internal/types/types.go` - Part 2: RecordType methods
-  - Similar methods for RecordType
-  - Replace: `strings.ToLower()` → `ident.Normalize()`
+- [x] **5.2** Migrate RecordType methods in `internal/types/compound_types.go`
+  - Migrated methods: `HasField()`, `GetFieldType()`, `HasMethod()`, `GetMethod()`,
+    `HasClassMethod()`, `GetClassMethod()`, `HasProperty()`, `GetProperty()`,
+    `GetMethodOverloads()`, `GetClassMethodOverloads()`
+  - Used `ident.Equal()` for case-insensitive iteration
+  - Note: RecordType is in compound_types.go, not types.go
 
-- [ ] **5.3** Migrate `internal/types/types.go` - Part 3: InterfaceType methods
-  - Interface method lookups
-  - Replace: `strings.ToLower()` → `ident.Normalize()`
+- [x] **5.3** Migrate InterfaceType methods in `internal/types/types.go`
+  - Migrated methods: `HasMethod()`, `GetMethod()`
+  - Used `ident.Equal()` for case-insensitive iteration
 
-- [ ] **5.4** Migrate `internal/types/compound_types.go`
-  - Search for: `strings.ToLower()`
-  - Replace with: `ident.Normalize()`
+- [x] **5.4** Migrate HelperType methods in `internal/types/compound_types.go`
+  - Migrated methods: `GetMethod()`, `GetProperty()`, `GetClassVar()`, `GetClassConst()`
+  - Used `ident.Normalize()` for case-insensitive lookup
 
-- [ ] **5.5** Migrate `internal/types/type_utils.go`
-  - Function: `TypeFromString()` at line 351
-  - Replace: `strings.ToLower()` → `ident.Normalize()`
+- [x] **5.5** Migrate `TypeFromString()` in `internal/types/types.go`
+  - Replaced: `strings.ToLower()` → `ident.Normalize()`
+  - Removed unused `strings` import from types.go
 
-- [ ] **5.6** Run comprehensive type system tests
-  - Run: `go test ./internal/types/... -v`
-  - Verify: All case-insensitive lookups work
-  - Verify: Error messages preserve original casing
+- [x] **5.6** Run comprehensive type system tests
+  - Ran: `go test ./internal/types/... -v` - All tests pass
+  - Verified: All case-insensitive lookups work correctly
+  - Note: Pre-existing interface test failures in internal/interp are unrelated
 
 ---
 
