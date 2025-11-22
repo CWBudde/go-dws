@@ -540,10 +540,13 @@ The following uses of `strings.ToLower()`/`strings.EqualFold()` are legitimate a
   - Kept `strings` import for `strings.HasPrefix()` (array/set type detection)
   - Variable declaration type resolution
 
-- [ ] **14.1.11** Migrate `internal/interp/objects_methods.go` (12 occurrences)
+- [x] **14.1.11** Migrate `internal/interp/objects_methods.go` (12 occurrences)
   - ToLower: 276,280,439,517
   - EqualFold: 41,554,699,1056,1073,1081
   - Method and constructor lookups
+  - Migrated: All `strings.ToLower()` → `pkgident.Normalize()`, `strings.EqualFold()` → `pkgident.Equal()`
+  - Used `pkgident` alias to avoid conflict with local `ident` variable
+  - Kept `strings` import for `strings.Split()` (qualified name parsing)
 
 - [ ] **14.1.12** Migrate `internal/interp/expressions_complex.go` (9 occurrences)
   - ToLower: 130,166,198,238,268,329,386

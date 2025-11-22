@@ -7,6 +7,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
 
 func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
@@ -38,7 +39,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		// Task 9.82: Case-insensitive class lookup (DWScript is case-insensitive)
 		var classInfo *ClassInfo
 		for className, class := range i.classes {
-			if strings.EqualFold(className, ident.Value) {
+			if pkgident.Equal(className, ident.Value) {
 				classInfo = class
 				break
 			}
@@ -273,11 +274,11 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		}
 
 		// Check if this identifier refers to a record type
-		recordTypeKey := "__record_type_" + strings.ToLower(ident.Value)
+		recordTypeKey := "__record_type_" + pkgident.Normalize(ident.Value)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				// This is TRecord.Method() - check for static method with overload support
-				methodNameLower := strings.ToLower(mc.Method.Value)
+				methodNameLower := pkgident.Normalize(mc.Method.Value)
 				classMethodOverloads, hasOverloads := rtv.ClassMethodOverloads[methodNameLower]
 
 				if !hasOverloads || len(classMethodOverloads) == 0 {
@@ -436,7 +437,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 	// Check if it's a set value with built-in methods (Include, Exclude)
 	if setVal, ok := objVal.(*SetValue); ok {
-		methodName := strings.ToLower(mc.Method.Value) // DWScript is case-insensitive
+		methodName := pkgident.Normalize(mc.Method.Value) // DWScript is case-insensitive
 
 		// Evaluate method arguments
 		args := make([]Value, len(mc.Arguments))
@@ -514,7 +515,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		// Special handling for enum type methods: Low(), High(), and ByName()
 		if tmv, isTypeMeta := objVal.(*TypeMetaValue); isTypeMeta {
 			if enumType, isEnum := tmv.TypeInfo.(*types.EnumType); isEnum {
-				methodName := strings.ToLower(mc.Method.Value)
+				methodName := pkgident.Normalize(mc.Method.Value)
 				switch methodName {
 				case "low":
 					return &IntegerValue{Value: int64(enumType.Low())}
@@ -551,7 +552,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 					// Look up the value (case-insensitive)
 					for valueName, ordinalValue := range enumType.Values {
-						if strings.EqualFold(valueName, searchName) {
+						if pkgident.Equal(valueName, searchName) {
 							return &IntegerValue{Value: int64(ordinalValue)}
 						}
 					}
@@ -696,7 +697,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			}
 			// Case-insensitive fallback
 			for name, ctor := range class.Constructors {
-				if strings.EqualFold(name, constructorName) {
+				if pkgident.Equal(name, constructorName) {
 					actualConstructor = ctor
 					found = true
 					break
@@ -1053,7 +1054,7 @@ func (i *Interpreter) getMethodOverloadsInHierarchy(classInfo *ClassInfo, method
 	// so we only need to check the current class's ConstructorOverloads
 	if !isClassMethod {
 		for ctorName, constructorOverloads := range classInfo.ConstructorOverloads {
-			if strings.EqualFold(ctorName, methodName) && len(constructorOverloads) > 0 {
+			if pkgident.Equal(ctorName, methodName) && len(constructorOverloads) > 0 {
 				// This is a constructor - return constructor overloads from this class
 				// (which includes inherited constructors due to copying in evalClassDeclaration)
 				result = append(result, constructorOverloads...)
@@ -1070,7 +1071,7 @@ func (i *Interpreter) getMethodOverloadsInHierarchy(classInfo *ClassInfo, method
 		if isClassMethod {
 			// Case-insensitive lookup in ClassMethodOverloads
 			for name, methods := range classInfo.ClassMethodOverloads {
-				if strings.EqualFold(name, methodName) {
+				if pkgident.Equal(name, methodName) {
 					overloads = methods
 					break
 				}
@@ -1078,7 +1079,7 @@ func (i *Interpreter) getMethodOverloadsInHierarchy(classInfo *ClassInfo, method
 		} else {
 			// Case-insensitive lookup in MethodOverloads
 			for name, methods := range classInfo.MethodOverloads {
-				if strings.EqualFold(name, methodName) {
+				if pkgident.Equal(name, methodName) {
 					overloads = methods
 					break
 				}
