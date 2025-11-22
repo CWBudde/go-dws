@@ -259,8 +259,7 @@ func (v *statementValidator) validateCompoundAssignment(stmt *ast.AssignmentStat
 	// Check that the result type is compatible with the target type
 	// For example: var x: Integer; x += 5.0 should fail if Float can't be assigned to Integer
 	if !v.typesCompatible(targetType, resultType) {
-		v.ctx.AddError("cannot assign result of %s %s %s (type %s) to %s",
-			targetType, binaryOp, valueType, resultType, targetType)
+		v.ctx.AddError("cannot assign %s to %s", resultType, targetType)
 	}
 }
 
@@ -294,6 +293,13 @@ func (v *statementValidator) checkBinaryOperation(leftType types.Type, operator 
 	leftResolved := types.GetUnderlyingType(leftType)
 	rightResolved := types.GetUnderlyingType(rightType)
 
+	// String concatenation: + (check before numeric to handle strings)
+	if operator == "+" {
+		if v.isStringType(leftResolved) && v.isStringType(rightResolved) {
+			return types.STRING
+		}
+	}
+
 	// Arithmetic operators: +, -, *, /
 	if operator == "+" || operator == "-" || operator == "*" || operator == "/" {
 		// Both operands must be numeric
@@ -315,13 +321,6 @@ func (v *statementValidator) checkBinaryOperation(leftType types.Type, operator 
 			return nil
 		}
 		return types.INTEGER
-	}
-
-	// String concatenation: +
-	if operator == "+" {
-		if v.isStringType(leftResolved) && v.isStringType(rightResolved) {
-			return types.STRING
-		}
 	}
 
 	// Power operator: ^

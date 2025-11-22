@@ -14,8 +14,8 @@ func TestValidationPass_HelperMethodSupport(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name: "non-existent helper member on Integer",
@@ -82,8 +82,8 @@ func TestValidationPass_ContextAwareTypeInference(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name: "record literal with expected type",
@@ -172,8 +172,8 @@ func TestValidationPass_StatementValidation(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name: "valid for loop",
@@ -284,8 +284,8 @@ func TestValidationPass_OOPValidation(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name: "valid class member access",
@@ -407,8 +407,8 @@ func TestValidationPass_CompoundAssignment(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name: "valid integer plus-assign",
