@@ -488,9 +488,10 @@ The following uses of `strings.ToLower()`/`strings.EqualFold()` are legitimate a
 
 #### Migration Subtasks
 
-- [ ] **14.1.1** Migrate `internal/units/` package (5 occurrences)
+- [x] **14.1.1** Migrate `internal/units/` package (5 occurrences)
   - `unit.go:78,84,86` - unit name normalization in `GetNormalizedName()`, `IsDependency()`
   - `search.go:72,85` - unit search capitalization/lowercase
+  - Migrated: `ident.Normalize()` for lowercase, `ident.Equal()` for comparison
 
 - [ ] **14.1.2** Migrate `internal/types/helper.go` (8 occurrences)
   - Lines: 51,63,98,112,133,163,193,223
