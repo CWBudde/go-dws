@@ -1,10 +1,9 @@
-package passes
+package semantic
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/types"
 	pkgast "github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -18,10 +17,10 @@ type PassContext struct {
 	// ============================================================================
 
 	// Symbols is the global symbol table for variables, constants, and functions
-	Symbols *semantic.SymbolTable
+	Symbols *SymbolTable
 
 	// TypeRegistry tracks all user-defined and built-in types
-	TypeRegistry *semantic.TypeRegistry
+	TypeRegistry *TypeRegistry
 
 	// GlobalOperators manages operator overloading registrations
 	GlobalOperators *types.OperatorRegistry
@@ -37,7 +36,7 @@ type PassContext struct {
 	// ============================================================================
 
 	// UnitSymbols maps unit names to their symbol tables (for multi-file projects)
-	UnitSymbols map[string]*semantic.SymbolTable
+	UnitSymbols map[string]*SymbolTable
 
 	// Helpers maps type names to their helper type extensions
 	Helpers map[string][]*types.HelperType
@@ -56,7 +55,7 @@ type PassContext struct {
 	Errors []string
 
 	// StructuredErrors collects detailed structured error objects
-	StructuredErrors []*semantic.SemanticError
+	StructuredErrors []*SemanticError
 
 	// ============================================================================
 	// Pass Execution Context (Read/Write by specific passes)
@@ -113,11 +112,11 @@ type PassContext struct {
 // NewPassContext creates a new pass context with initialized registries.
 func NewPassContext() *PassContext {
 	return &PassContext{
-		Symbols:            semantic.NewSymbolTable(),
-		TypeRegistry:       semantic.NewTypeRegistry(),
-		UnitSymbols:        make(map[string]*semantic.SymbolTable),
+		Symbols:            NewSymbolTable(),
+		TypeRegistry:       NewTypeRegistry(),
+		UnitSymbols:        make(map[string]*SymbolTable),
 		Errors:             make([]string, 0),
-		StructuredErrors:   make([]*semantic.SemanticError, 0),
+		StructuredErrors:   make([]*SemanticError, 0),
 		Subranges:          make(map[string]*types.SubrangeType),
 		FunctionPointers:   make(map[string]*types.FunctionPointerType),
 		Helpers:            make(map[string][]*types.HelperType),
@@ -134,7 +133,7 @@ func (ctx *PassContext) AddError(format string, args ...interface{}) {
 }
 
 // AddStructuredError adds a structured error to the error list.
-func (ctx *PassContext) AddStructuredError(err *semantic.SemanticError) {
+func (ctx *PassContext) AddStructuredError(err *SemanticError) {
 	ctx.StructuredErrors = append(ctx.StructuredErrors, err)
 }
 

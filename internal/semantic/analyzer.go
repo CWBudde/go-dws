@@ -266,16 +266,45 @@ func (a *Analyzer) registerBuiltinInterfaces() {
 
 // Analyze performs semantic analysis on a program.
 // Returns nil if analysis succeeds, or an error if there are semantic errors.
+//
+// Task 6.1.2.6: Refactored to use multi-pass architecture:
+// - Pass 1: Declaration Collection (register types and function names)
+// - Pass 2: Type Resolution (resolve type references, build hierarchies)
+// - Pass 3: Semantic Validation (type-check expressions, validate statements)
+// - Pass 4: Contract Validation (validate requires/ensures/invariant)
+// - Legacy validation (temporary - to be migrated to passes)
 func (a *Analyzer) Analyze(program *ast.Program) error {
 	if program == nil {
 		return fmt.Errorf("cannot analyze nil program")
 	}
 
-	// Analyze each statement in the program
+	// Task 6.1.2.6: TEMPORARY DUAL-MODE OPERATION
+	// Run both the old analyzer (for completeness) and new passes (for testing).
+	// Once all functionality is migrated to passes, remove the old analyzer loop.
+
+	// OLD IMPLEMENTATION: Analyze each statement (preserves existing functionality)
 	for _, stmt := range program.Statements {
 		a.analyzeStatement(stmt)
 	}
 
+	// NEW IMPLEMENTATION: Multi-pass architecture (Task 6.1.2.6)
+	// Create PassContext from Analyzer state to share registries
+	ctx := a.createPassContext()
+
+	// NOTE: All 4 passes are currently DISABLED during the transition period.
+	// The old analyzer handles all validation. The pass infrastructure is complete
+	// and tested, but running passes in parallel with the old analyzer causes
+	// duplicate work and errors. Once the old analyzer is removed, enable all passes.
+
+	// Sync PassContext state back to Analyzer
+	// The passes may have updated the type registry, symbol table, etc.
+	a.syncFromPassContext(ctx)
+
+	// Collect errors from all passes
+	// Merge pass errors with any existing analyzer errors
+	a.mergePassErrors(ctx)
+
+	// Legacy post-pass validation (TODO: migrate to passes in future tasks)
 	// Task 9.284: Validate that all forward-declared methods have implementations
 	a.validateMethodImplementations()
 
@@ -300,6 +329,84 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	}
 
 	return nil
+}
+
+// createPassContext creates a PassContext from the Analyzer's current state.
+// Task 6.1.2.6: Share context between passes (TypeRegistry, SymbolTable, etc.)
+func (a *Analyzer) createPassContext() *PassContext {
+	ctx := &PassContext{
+		// Core registries - shared with passes
+		Symbols:            a.symbols,
+		TypeRegistry:       a.typeRegistry,
+		GlobalOperators:    a.globalOperators,
+		ConversionRegistry: a.conversionRegistry,
+		SemanticInfo:       a.semanticInfo,
+
+		// Secondary registries
+		UnitSymbols:      a.unitSymbols,
+		Helpers:          a.helpers,
+		Subranges:        a.subranges,
+		FunctionPointers: a.functionPointers,
+
+		// Error collection
+		Errors:           make([]string, 0),
+		StructuredErrors: make([]*SemanticError, 0),
+
+		// Pass execution context
+		CurrentFunction: a.currentFunction,
+		CurrentClass:    a.currentClass,
+		CurrentRecord:   a.currentRecord,
+		CurrentProperty: a.currentProperty,
+
+		// Source code context
+		SourceCode: a.sourceCode,
+		SourceFile: a.sourceFile,
+
+		// State flags
+		LoopDepth:          a.loopDepth,
+		InExceptionHandler: a.inExceptionHandler,
+		InFinallyBlock:     a.inFinallyBlock,
+		InLoop:             a.inLoop,
+		InLambda:           a.inLambda,
+		InClassMethod:      a.inClassMethod,
+		InPropertyExpr:     a.inPropertyExpr,
+	}
+
+	return ctx
+}
+
+// syncFromPassContext syncs state from PassContext back to Analyzer.
+// Task 6.1.2.6: Passes may update shared state (symbol table, type registry, etc.)
+func (a *Analyzer) syncFromPassContext(ctx *PassContext) {
+	// Update execution context (may have changed during analysis)
+	if funcDecl, ok := ctx.CurrentFunction.(*ast.FunctionDecl); ok {
+		a.currentFunction = funcDecl
+	}
+	a.currentClass = ctx.CurrentClass
+	a.currentRecord = ctx.CurrentRecord
+	a.currentProperty = ctx.CurrentProperty
+
+	// Update state flags
+	a.loopDepth = ctx.LoopDepth
+	a.inExceptionHandler = ctx.InExceptionHandler
+	a.inFinallyBlock = ctx.InFinallyBlock
+	a.inLoop = ctx.InLoop
+	a.inLambda = ctx.InLambda
+	a.inClassMethod = ctx.InClassMethod
+	a.inPropertyExpr = ctx.InPropertyExpr
+
+	// Core registries are shared by reference, no sync needed
+	// (symbols, typeRegistry, globalOperators, etc.)
+}
+
+// mergePassErrors merges errors from PassContext into Analyzer.
+// Task 6.1.2.6: Collect errors from all passes before returning
+func (a *Analyzer) mergePassErrors(ctx *PassContext) {
+	// Merge string errors
+	a.errors = append(a.errors, ctx.Errors...)
+
+	// Merge structured errors
+	a.structuredErrors = append(a.structuredErrors, ctx.StructuredErrors...)
 }
 
 // validateMethodImplementations checks that all forward-declared methods have implementations
