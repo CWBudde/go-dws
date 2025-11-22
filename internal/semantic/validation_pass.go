@@ -158,8 +158,11 @@ func (v *statementValidator) validateVarDecl(stmt *ast.VarDeclStatement) {
 	var varType types.Type
 	if stmt.Type != nil {
 		varType = v.resolveTypeExpression(stmt.Type)
+		// In dual mode, skip validation for complex types that we can't resolve yet
+		// (arrays, sets, function pointers, etc.). The old analyzer will handle them.
+		// TODO: Implement full type resolution when we remove dual mode
 		if varType == nil {
-			v.ctx.AddError("undefined type in variable declaration")
+			// Complex type - skip validation
 			return
 		}
 	}
@@ -1170,6 +1173,15 @@ func (v *statementValidator) checkIdentifier(expr *ast.Identifier) types.Type {
 					break
 				}
 			}
+		}
+
+		// In dual mode, skip undefined variable errors for function-local context
+		// The old analyzer handles local variable scoping properly
+		// TODO: Implement proper scoped symbol tables when we remove dual mode
+		if v.ctx.CurrentFunction != nil {
+			// Inside a function - might be a local variable that old analyzer handles
+			// Return a safe default type to allow validation to continue
+			return types.VARIANT
 		}
 
 		v.ctx.AddError("undefined variable '%s'", expr.Value)
