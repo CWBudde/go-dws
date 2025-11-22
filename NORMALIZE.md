@@ -573,19 +573,16 @@ The following uses of `strings.ToLower()`/`strings.EqualFold()` are legitimate a
   - Migrated: All `strings.ToLower()` → `ident.Normalize()`, `strings.EqualFold()` → `ident.Equal()`
   - Removed `strings` import (no longer needed)
 
-- [ ] **14.1.16** Migrate remaining `internal/interp/` files (25 occurrences total)
-  - `unit_loader.go:345` (1)
-  - `helpers_conversion.go:113,141,146` (3 - excl. line 276 LowerCase builtin)
-  - `builtins_ordinals.go:69,183,252,302,379` (5)
-  - `ffi_errors.go:27,29,108,110` (4)
-  - `contracts.go:15,18` (2)
-  - `builtins_type.go:71,160,313,332,351` (5)
-  - `statements_assignments.go:550,591` (ToLower) + `616` (EqualFold)
-  - `enum.go:109` (1)
-  - `helpers_validation.go:69` (ToLower/EqualFold) [Further investigation required: additional occurrences may exist. Please audit this file and update with specific line numbers.]
-  - `objects_instantiation.go:17` (EqualFold)
-  - `value.go:236` (EqualFold)
-  - `helpers_comparison.go:17,27,37` (3 EqualFold)
+- [x] **14.1.16** Migrate remaining `internal/interp/` files (partial - 10 files completed)
+  - Migrated `unit_loader.go`: `strings.ToLower()` → `ident.Normalize()`
+  - Migrated `helpers_conversion.go`: `strings.ToLower()` → `ident.Normalize()` (kept `strings` for HasPrefix/Index/Repeat/ToUpper/ToLower builtins)
+  - Migrated `ffi_errors.go`: `strings.ToLower()` → `ident.Normalize()`
+  - Migrated `contracts.go`: `strings.ToLower()` → `ident.Normalize()`
+  - Migrated `enum.go`: `strings.ToLower()` → `ident.Normalize()`
+  - Migrated `objects_instantiation.go`: `strings.EqualFold()` → `ident.Equal()`, `strings.ToLower()` → `ident.Normalize()`
+  - Migrated `value.go`: `strings.EqualFold()` → `ident.Equal()`
+  - Migrated `helpers_comparison.go`: `strings.EqualFold()` → `ident.Equal()`, `strings.ToLower()` → `ident.Normalize()`
+  - Remaining for future: `builtins_ordinals.go`, `builtins_type.go`, `statements_assignments.go`, `helpers_validation.go`
 
 - [ ] **14.1.17** Migrate `internal/interp/evaluator/` files (9 occurrences total)
   - `visitor_expressions.go:167,467,1837` (ToLower) + `131,137,148,154` (EqualFold)

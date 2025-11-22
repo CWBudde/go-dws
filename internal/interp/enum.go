@@ -2,10 +2,10 @@ package interp
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -106,7 +106,7 @@ func (i *Interpreter) evalEnumDeclaration(decl *ast.EnumDecl) Value {
 
 	// Store enum type metadata in environment with special key
 	// This allows variable declarations to resolve the type
-	enumTypeKey := "__enum_type_" + strings.ToLower(enumName)
+	enumTypeKey := "__enum_type_" + ident.Normalize(enumName)
 	i.env.Define(enumTypeKey, &EnumTypeValue{EnumType: enumType})
 
 	// Register enum type name as a TypeMetaValue
