@@ -84,7 +84,7 @@ func (r *TypeRegistry) Register(name string, typ types.Type, pos token.Position,
 
 	// Check for duplicates
 	if existing, exists := r.types.Get(name); exists {
-		return fmt.Errorf("type '%s' already defined at %s", name, existing.Position)
+		return fmt.Errorf("type '%s' already defined at %s", existing.Name, existing.Position)
 	}
 
 	// Register the type
