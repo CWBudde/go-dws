@@ -2,7 +2,6 @@ package semantic
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -321,7 +320,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	classVarNames := make(map[string]bool)
 	for _, field := range decl.Fields {
 		// Task 9.285: Normalize field names to lowercase for case-insensitive lookup
-		fieldName := strings.ToLower(field.Name.Value)
+		fieldName := ident.Normalize(field.Name.Value)
 
 		// Check if this is a class variable (static field)
 		if field.IsClassVar {
@@ -571,7 +570,7 @@ func (a *Analyzer) analyzeClassMethodImplementation(decl *ast.FunctionDecl, clas
 
 	// Task 9.283: Clear the forward flag since we now have an implementation
 	// Task 9.16.1: Use lowercase key since ForwardedMethods now uses lowercase keys
-	delete(classType.ForwardedMethods, strings.ToLower(methodName))
+	delete(classType.ForwardedMethods, ident.Normalize(methodName))
 
 	// Set the current class context
 	previousClass := a.currentClass
@@ -586,7 +585,7 @@ func (a *Analyzer) analyzeClassMethodImplementation(decl *ast.FunctionDecl, clas
 // analyzeRecordMethodImplementation handles record method implementations
 func (a *Analyzer) analyzeRecordMethodImplementation(decl *ast.FunctionDecl, recordType *types.RecordType, recordName string) {
 	methodName := decl.Name.Value
-	lowerMethodName := strings.ToLower(methodName)
+	lowerMethodName := ident.Normalize(methodName)
 
 	// Look up the method in the record to ensure it was declared
 	var declaredMethod *types.FunctionType
@@ -959,7 +958,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		// Only update metadata for new declarations, not implementations
 		// (implementations don't have override/virtual keywords, those are only in declarations)
 		// Task 9.16.1: Use lowercase keys for case-insensitive lookups
-		methodKey := strings.ToLower(method.Name.Value)
+		methodKey := ident.Normalize(method.Name.Value)
 		classType.ClassMethodFlags[methodKey] = method.IsClassMethod
 		classType.VirtualMethods[methodKey] = method.IsVirtual
 		classType.OverrideMethods[methodKey] = method.IsOverride
@@ -971,14 +970,14 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	// Methods declared in class body without implementation are implicitly forward
 	// Task 9.16.1: Use lowercase key for case-insensitive lookups
 	if method.Body == nil {
-		classType.ForwardedMethods[strings.ToLower(method.Name.Value)] = true
+		classType.ForwardedMethods[ident.Normalize(method.Name.Value)] = true
 	}
 
 	// Store method visibility
 	// Only set visibility if this is the first time we're seeing this method (declaration in class body)
 	// Method implementations outside the class shouldn't overwrite the visibility
 	// Task 9.16.1: Use lowercase key for case-insensitive lookups
-	methodKey := strings.ToLower(method.Name.Value)
+	methodKey := ident.Normalize(method.Name.Value)
 	if _, exists := classType.MethodVisibility[methodKey]; !exists {
 		classType.MethodVisibility[methodKey] = int(method.Visibility)
 	}

@@ -1,10 +1,9 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // analyzeMethodCallExpression analyzes a method call on an object
@@ -18,7 +17,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 	methodName := expr.Method.Value
 	// Task 9.16.2.9: Normalize method name to lowercase for case-insensitive lookup
-	methodNameLower := strings.ToLower(methodName)
+	methodNameLower := ident.Normalize(methodName)
 
 	// Task 9.7: Handle metaclass type (class of T) for constructor calls
 	// When we have TExample.CreateWith(...), TExample has type ClassOfType(TExample)
@@ -294,7 +293,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	// Check method visibility - Task 9.16.1
 	if methodOwner != nil && len(overloads) > 0 {
 		// Use lowercase key for case-insensitive lookup
-		visibility, hasVisibility := methodOwner.MethodVisibility[strings.ToLower(methodName)]
+		visibility, hasVisibility := methodOwner.MethodVisibility[ident.Normalize(methodName)]
 		if hasVisibility && !a.checkVisibility(methodOwner, visibility, methodName, "method") {
 			visibilityStr := ast.Visibility(visibility).String()
 			if methodOwner.HasConstructor(methodName) {

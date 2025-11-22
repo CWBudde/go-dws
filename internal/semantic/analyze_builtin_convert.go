@@ -1,10 +1,9 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -350,7 +349,7 @@ func (a *Analyzer) analyzeDefault(args []ast.Expression, callExpr *ast.CallExpre
 	default:
 		// Check if it's a valid type in the symbol table
 		// This could be a class, record, enum, or other custom type
-		lowerName := strings.ToLower(typeName)
+		lowerName := pkgident.Normalize(typeName)
 		if _, exists := a.symbols.Resolve(lowerName); exists {
 			// Valid custom type - all default to nil/zero values
 			// Return VARIANT as a safe fallback type for analysis

@@ -8,6 +8,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // Unit represents a DWScript unit (module).
@@ -75,15 +76,14 @@ func NewUnit(name, filePath string) *Unit {
 // NormalizedName returns the unit name in lowercase for case-insensitive comparison.
 // DWScript is case-insensitive, so "MyUnit", "MYUNIT", and "myunit" are the same.
 func (u *Unit) NormalizedName() string {
-	return strings.ToLower(u.Name)
+	return ident.Normalize(u.Name)
 }
 
 // HasDependency checks if this unit depends on another unit (directly).
 // Returns true if unitName appears in the Uses list.
 func (u *Unit) HasDependency(unitName string) bool {
-	normalized := strings.ToLower(unitName)
 	for _, dep := range u.Uses {
-		if strings.ToLower(dep) == normalized {
+		if ident.Equal(dep, unitName) {
 			return true
 		}
 	}

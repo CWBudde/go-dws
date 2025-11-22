@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // FindUnit searches for a unit file by name in the given search paths.
@@ -69,7 +71,7 @@ func FindUnit(name string, paths []string) (string, error) {
 
 			// Also try with capitalized first letter (common convention)
 			if len(name) > 0 {
-				capitalizedName := strings.ToUpper(name[:1]) + strings.ToLower(name[1:])
+				capitalizedName := strings.ToUpper(name[:1]) + ident.Normalize(name[1:])
 				if capitalizedName != name {
 					capitalizedFileName := capitalizedName + ext
 					capitalizedFullPath := filepath.Join(absPath, capitalizedFileName)
@@ -82,7 +84,7 @@ func FindUnit(name string, paths []string) (string, error) {
 			}
 
 			// Also try all lowercase (another common convention)
-			lowercaseName := strings.ToLower(name)
+			lowercaseName := ident.Normalize(name)
 			if lowercaseName != name {
 				lowercaseFileName := lowercaseName + ext
 				lowercaseFullPath := filepath.Join(absPath, lowercaseFileName)
