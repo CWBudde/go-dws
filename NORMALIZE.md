@@ -197,9 +197,10 @@ Migrate interpreter, which has partial adoption.
   - Removed unused `strings` import
   - All tests pass (pre-existing interface test failures unchanged)
 
-- [ ] **7.4** Migrate `internal/interp/class.go`
-  - Line: 157 - `lookupMethod()` function
-  - Replace: `strings.ToLower()` → `ident.Normalize()`
+- [x] **7.4** Migrate `internal/interp/class.go`
+  - Migrated 2 occurrences of `strings.ToLower()` → `ident.Normalize()`
+  - Migrated 5 occurrences of `strings.EqualFold()` → `ident.Equal()`
+  - Removed unused `strings` import
 
 - [ ] **7.5** Migrate `internal/interp/interface.go`
   - Line: 38 - `GetMethod()` function
