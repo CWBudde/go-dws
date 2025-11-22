@@ -96,11 +96,11 @@ A few interpreter files still contain direct `strings.ToLower()` or `strings.Equ
   - Validation helper functions
   - Migrated: 7 occurrences (helper name lookup, method registration, type indexing)
 
-- [ ] **12.5** Run cleanup commands
+- [x] **12.5** Run cleanup commands
   - `goimports -w .` - Fix imports
   - `golangci-lint run --fix` - Auto-fix lint issues
 
-- [ ] **12.6** Verify all tests pass
+- [x] **12.6** Verify all tests pass
   - `go test ./...`
 
 ### Phase 13: Adopt `ident.Map[T]` for Case-Insensitive Registries
