@@ -471,7 +471,7 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
 
 **Goal**: Runtime types should store only the metadata needed at runtime, not AST nodes.
 
-- [ ] **3.5.37** Design AST-Free Runtime Metadata
+- [x] **3.5.37** Design AST-Free Runtime Metadata
   - Analyze what information is actually needed at runtime vs compile-time
   - Design `MethodMetadata` struct (name, param types, return type, body reference)
   - Design `FieldMetadata` struct (name, type, default value, visibility)
@@ -480,6 +480,7 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
   - Files: `internal/interp/runtime/metadata.go` (new)
   - Effort: 4-6 hours
   - Acceptance: Design doc approved, metadata structs defined
+  - **Completed**: Created comprehensive design document analyzing AST dependencies and designing metadata structures. Implemented ParameterMetadata, MethodMetadata, FieldMetadata, VirtualMethodMetadata, ClassMetadata, RecordMetadata, and HelperMetadata with full conversion utilities and tests. All tests passing. Design provides clear migration path for Phase 9 tasks.
 
 - [ ] **3.5.38** Implement MethodMetadata and MethodRegistry
   - Create `MethodMetadata` with signature info and callable reference
