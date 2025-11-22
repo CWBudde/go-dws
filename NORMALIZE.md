@@ -207,9 +207,11 @@ Migrate interpreter, which has partial adoption.
   - Migrated 1 occurrence of `strings.EqualFold()` → `ident.Equal()`
   - Removed unused `strings` import
 
-- [ ] **7.6** Migrate `internal/interp/objects_hierarchy.go`
-  - Line: 130 (covered in Phase 1 bug fix)
-  - Verify: No additional migrations needed after Phase 1
+- [x] **7.6** Migrate `internal/interp/objects_hierarchy.go`
+  - Migrated 12 occurrences of `strings.ToLower()` → `pkgident.Normalize()`
+  - Migrated 13 occurrences of `strings.EqualFold()` → `pkgident.Equal()`
+  - Used `pkgident` alias to avoid conflict with local `ident` variable
+  - Removed unused `strings` import
 
 - [ ] **7.7** Run interpreter tests
   - Run: `go test ./internal/interp/... -v`
