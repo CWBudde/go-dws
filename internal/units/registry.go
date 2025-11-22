@@ -181,7 +181,7 @@ func (r *UnitRegistry) LoadUnit(name string, searchPaths []string) (*Unit, error
 					// Only add if not already in the uses list from interface
 					found := false
 					for _, existing := range unit.Uses {
-						if strings.EqualFold(existing, unitIdent.Value) {
+						if ident.Equal(existing, unitIdent.Value) {
 							found = true
 							break
 						}
