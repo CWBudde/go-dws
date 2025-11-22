@@ -125,11 +125,11 @@ These are the most impactful changes, touching fundamental lookup structures:
   - Note: `Symbol.Name` field stores original casing - verify `GetOriginalKey()` matches
   - Also updated `type_resolution_pass.go` and `unit_analyzer.go` to use `ident.Map` APIs
 
-- [ ] **13.2** Migrate `internal/semantic/type_registry.go`
+- [x] **13.2** Migrate `internal/semantic/type_registry.go`
   - Field: `types map[string]*TypeDescriptor`
   - Replace with: `types *ident.Map[*TypeDescriptor]`
   - Impact: All type lookups during semantic analysis
-  - Note: Also has `kindIndex map[string][]string` - evaluate if needed
+  - Note: `kindIndex map[string][]string` not migrated - indexed by type kind (CLASS, INTERFACE, etc.), not identifiers
 
 - [ ] **13.3** Migrate `internal/interp/environment.go`
   - Field: `store map[string]Value`
