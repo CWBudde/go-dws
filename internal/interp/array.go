@@ -426,22 +426,39 @@ func (i *Interpreter) evalArrayLiteral(lit *ast.ArrayLiteralExpression) Value {
 		return &ErrorValue{Message: "nil array literal"}
 	}
 
+	// If a type annotation exists, resolve it first so we can evaluate elements
+	// with the expected element type (important for nested array literals).
+	arrayType, errVal := i.arrayTypeFromLiteral(lit)
+	if errVal != nil {
+		return errVal
+	}
+
 	elementCount := len(lit.Elements)
 	evaluated := make([]Value, elementCount)
 	elementTypes := make([]types.Type, elementCount)
 
 	for idx, elem := range lit.Elements {
-		val := i.Eval(elem)
+		var val Value
+
+		// If we already know the array type and the element is an array literal,
+		// evaluate it with the expected element type to avoid incompatible nested arrays.
+		if arrayType != nil {
+			if elemLit, ok := elem.(*ast.ArrayLiteralExpression); ok {
+				if expectedElemArr, ok := arrayType.ElementType.(*types.ArrayType); ok {
+					val = i.evalArrayLiteralWithExpected(elemLit, expectedElemArr)
+				}
+			}
+		}
+
+		if val == nil {
+			val = i.Eval(elem)
+		}
+
 		if isError(val) {
 			return val
 		}
 		evaluated[idx] = val
 		elementTypes[idx] = i.typeFromValue(val)
-	}
-
-	arrayType, errVal := i.arrayTypeFromLiteral(lit)
-	if errVal != nil {
-		return errVal
 	}
 
 	if arrayType == nil {

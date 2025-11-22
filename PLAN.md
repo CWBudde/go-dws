@@ -356,7 +356,7 @@ If conditional compilation features are added in the future, they would require:
   - Files: `visitor_expressions.go`
   - Effort: 6-8 hours
 
-- [ ] **3.5.26** Complete `VisitMemberAccessExpression` - Complex Modes
+- [x] **3.5.26** Complete `VisitMemberAccessExpression` - Complex Modes
   - Object instance field/property access
   - Interface instance access
   - Metaclass access
@@ -364,7 +364,7 @@ If conditional compilation features are added in the future, they would require:
   - Files: `visitor_expressions.go`
   - Effort: 6-8 hours
 
-- [ ] **3.5.27** Complete `VisitMethodCallExpression` - Simple Modes
+- [x] **3.5.27** Complete `VisitMethodCallExpression` - Simple Modes
   - Static methods (TClass.StaticMethod())
   - Record methods (record.Method())
   - Built-in set methods (set.Include(), set.Exclude())
@@ -372,7 +372,7 @@ If conditional compilation features are added in the future, they would require:
   - Files: `visitor_expressions.go`
   - Effort: 6-8 hours
 
-- [ ] **3.5.28** Complete `VisitMethodCallExpression` - Complex Modes
+- [x] **3.5.28** Complete `VisitMethodCallExpression` - Complex Modes
   - Object instance methods with virtual dispatch
   - Overload resolution
   - Constructor calls (TClass.Create())
