@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ErrOperatorDuplicate is returned when attempting to register a duplicate operator signature.
@@ -21,14 +23,15 @@ type OperatorSignature struct {
 }
 
 // OperatorRegistry stores operator overloads keyed by operator token.
+// Task 13.10: Uses ident.Map for case-insensitive operator lookup (e.g., "and" vs "AND").
 type OperatorRegistry struct {
-	entries map[string][]*OperatorSignature
+	entries *ident.Map[[]*OperatorSignature]
 }
 
 // NewOperatorRegistry creates an empty operator registry.
 func NewOperatorRegistry() *OperatorRegistry {
 	return &OperatorRegistry{
-		entries: make(map[string][]*OperatorSignature),
+		entries: ident.NewMap[[]*OperatorSignature](),
 	}
 }
 
@@ -40,22 +43,23 @@ func (r *OperatorRegistry) Register(signature *OperatorSignature) error {
 	}
 
 	key := operatorEntryKey(signature.Operator, signature.OperandTypes)
-	if entries, ok := r.entries[signature.Operator]; ok {
+	if entries, ok := r.entries.Get(signature.Operator); ok {
 		for _, existing := range entries {
 			if operatorEntryKey(existing.Operator, existing.OperandTypes) == key {
 				return ErrOperatorDuplicate
 			}
 		}
+		r.entries.Set(signature.Operator, append(entries, signature))
+	} else {
+		r.entries.Set(signature.Operator, []*OperatorSignature{signature})
 	}
-
-	r.entries[signature.Operator] = append(r.entries[signature.Operator], signature)
 	return nil
 }
 
 // Lookup finds an operator signature that matches the given operand types.
 // Support inheritance - operands are compatible if they're assignable to declared types.
 func (r *OperatorRegistry) Lookup(operator string, operandTypes []Type) (*OperatorSignature, bool) {
-	entries, ok := r.entries[operator]
+	entries, ok := r.entries.Get(operator)
 	if !ok {
 		return nil, false
 	}
@@ -229,17 +233,18 @@ func conversionKey(from, to Type) string {
 }
 
 // typeKey generates a canonical string for a Type used in operator/conversion lookups.
+// Task 13.10: Type names are normalized for case-insensitive matching.
 func typeKey(t Type) string {
 	switch tt := t.(type) {
 	case *ClassType:
-		return "class:" + tt.Name
+		return "class:" + ident.Normalize(tt.Name)
 	case *InterfaceType:
-		return "interface:" + tt.Name
+		return "interface:" + ident.Normalize(tt.Name)
 	case *ArrayType:
 		return "array:" + tt.String()
 	case *RecordType:
 		if tt.Name != "" {
-			return "record:" + tt.Name
+			return "record:" + ident.Normalize(tt.Name)
 		}
 		return "record:" + tt.String()
 	case *FunctionType:

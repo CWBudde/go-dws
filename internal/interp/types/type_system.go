@@ -380,8 +380,9 @@ type HelperInfo = any      // Expected: *interp.HelperInfo
 // ========== Operator Registry ==========
 
 // OperatorRegistry manages operator overloads.
+// Task 13.10: Uses ident.Map for case-insensitive operator lookup (e.g., "and" vs "AND").
 type OperatorRegistry struct {
-	entries map[string][]*OperatorEntry
+	entries *ident.Map[[]*OperatorEntry]
 }
 
 // OperatorEntry represents a registered operator overload.
@@ -397,7 +398,7 @@ type OperatorEntry struct {
 // NewOperatorRegistry creates a new operator registry.
 func NewOperatorRegistry() *OperatorRegistry {
 	return &OperatorRegistry{
-		entries: make(map[string][]*OperatorEntry),
+		entries: ident.NewMap[[]*OperatorEntry](),
 	}
 }
 
@@ -407,16 +408,16 @@ func (r *OperatorRegistry) Register(entry *OperatorEntry) error {
 	if entry == nil {
 		return fmt.Errorf("operator entry cannot be nil")
 	}
-	key := ident.Normalize(entry.Operator)
 
-	// Check for duplicate signatures
-	for _, existing := range r.entries[key] {
-		if operatorSignatureKey(existing.OperandTypes) == operatorSignatureKey(entry.OperandTypes) {
+	// Check for duplicate signatures (ident.Map handles normalization)
+	existing, _ := r.entries.Get(entry.Operator)
+	for _, e := range existing {
+		if operatorSignatureKey(e.OperandTypes) == operatorSignatureKey(entry.OperandTypes) {
 			return fmt.Errorf("operator already registered")
 		}
 	}
 
-	r.entries[key] = append(r.entries[key], entry)
+	r.entries.Set(entry.Operator, append(existing, entry))
 	return nil
 }
 
@@ -426,10 +427,15 @@ func (r *OperatorRegistry) Lookup(operator string, operandTypes []string) (*Oper
 	if r == nil {
 		return nil, false
 	}
-	key := ident.Normalize(operator)
+
+	// ident.Map handles normalization automatically
+	entries, ok := r.entries.Get(operator)
+	if !ok {
+		return nil, false
+	}
 
 	// First try exact match for performance
-	for _, entry := range r.entries[key] {
+	for _, entry := range entries {
 		if operatorSignatureKey(entry.OperandTypes) == operatorSignatureKey(operandTypes) {
 			return entry, true
 		}
@@ -447,11 +453,12 @@ func (r *OperatorRegistry) Clone() *OperatorRegistry {
 		return NewOperatorRegistry()
 	}
 	clone := NewOperatorRegistry()
-	for op, list := range r.entries {
+	r.entries.Range(func(op string, list []*OperatorEntry) bool {
 		copied := make([]*OperatorEntry, len(list))
 		copy(copied, list)
-		clone.entries[op] = copied
-	}
+		clone.entries.Set(op, copied)
+		return true
+	})
 	return clone
 }
 
