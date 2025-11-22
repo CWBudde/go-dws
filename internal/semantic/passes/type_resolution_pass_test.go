@@ -1,7 +1,9 @@
-package passes
+package passes_test
 
 import (
 	"testing"
+
+	"github.com/cwbudde/go-dws/internal/semantic"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -31,15 +33,15 @@ func TestTypeResolutionPass_ClassHierarchy(t *testing.T) {
 	}
 
 	// Run Pass 1
-	ctx := NewPassContext()
-	pass1 := NewDeclarationPass()
+	ctx := semantic.NewPassContext()
+	pass1 := semantic.NewDeclarationPass()
 	err := pass1.Run(program, ctx)
 	if err != nil {
 		t.Fatalf("Pass 1 failed: %v", err)
 	}
 
 	// Run Pass 2
-	pass2 := NewTypeResolutionPass()
+	pass2 := semantic.NewTypeResolutionPass()
 	err = pass2.Run(program, ctx)
 	if err != nil {
 		t.Fatalf("Pass 2 failed: %v", err)
@@ -99,12 +101,12 @@ func TestTypeResolutionPass_CircularDependency(t *testing.T) {
 	}
 
 	// Run Pass 1
-	ctx := NewPassContext()
-	pass1 := NewDeclarationPass()
+	ctx := semantic.NewPassContext()
+	pass1 := semantic.NewDeclarationPass()
 	_ = pass1.Run(program, ctx)
 
 	// Run Pass 2
-	pass2 := NewTypeResolutionPass()
+	pass2 := semantic.NewTypeResolutionPass()
 	_ = pass2.Run(program, ctx)
 
 	// Verify circular dependency error was detected
@@ -143,12 +145,12 @@ func TestTypeResolutionPass_ForwardDeclarationValidation(t *testing.T) {
 	}
 
 	// Run Pass 1
-	ctx := NewPassContext()
-	pass1 := NewDeclarationPass()
+	ctx := semantic.NewPassContext()
+	pass1 := semantic.NewDeclarationPass()
 	_ = pass1.Run(program, ctx)
 
 	// Run Pass 2
-	pass2 := NewTypeResolutionPass()
+	pass2 := semantic.NewTypeResolutionPass()
 	_ = pass2.Run(program, ctx)
 
 	// Verify forward declaration error was detected
@@ -190,15 +192,15 @@ func TestTypeResolutionPass_InterfaceHierarchy(t *testing.T) {
 	}
 
 	// Run Pass 1
-	ctx := NewPassContext()
-	pass1 := NewDeclarationPass()
+	ctx := semantic.NewPassContext()
+	pass1 := semantic.NewDeclarationPass()
 	err := pass1.Run(program, ctx)
 	if err != nil {
 		t.Fatalf("Pass 1 failed: %v", err)
 	}
 
 	// Run Pass 2
-	pass2 := NewTypeResolutionPass()
+	pass2 := semantic.NewTypeResolutionPass()
 	err = pass2.Run(program, ctx)
 	if err != nil {
 		t.Fatalf("Pass 2 failed: %v", err)
@@ -241,8 +243,8 @@ func TestTypeResolutionPass_BuiltinTypesRegistered(t *testing.T) {
 	}
 
 	// Run Pass 2
-	ctx := NewPassContext()
-	pass2 := NewTypeResolutionPass()
+	ctx := semantic.NewPassContext()
+	pass2 := semantic.NewTypeResolutionPass()
 	err := pass2.Run(program, ctx)
 	if err != nil {
 		t.Fatalf("Pass 2 failed: %v", err)

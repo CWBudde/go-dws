@@ -1,7 +1,9 @@
-package passes
+package passes_test
 
 import (
 	"testing"
+
+	"github.com/cwbudde/go-dws/internal/semantic"
 
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/token"
@@ -30,10 +32,10 @@ func TestValidationPass_TypeMismatchInAssignment(t *testing.T) {
 	}
 
 	// Run all passes
-	ctx := NewPassContext()
-	pass1 := NewDeclarationPass()
-	pass2 := NewTypeResolutionPass()
-	pass3 := NewValidationPass()
+	ctx := semantic.NewPassContext()
+	pass1 := semantic.NewDeclarationPass()
+	pass2 := semantic.NewTypeResolutionPass()
+	pass3 := semantic.NewValidationPass()
 
 	_ = pass1.Run(program, ctx)
 	_ = pass2.Run(program, ctx)
@@ -84,10 +86,10 @@ func TestValidationPass_BinaryExpressionTypeCheck(t *testing.T) {
 	}
 
 	// Run all passes
-	ctx := NewPassContext()
-	pass1 := NewDeclarationPass()
-	pass2 := NewTypeResolutionPass()
-	pass3 := NewValidationPass()
+	ctx := semantic.NewPassContext()
+	pass1 := semantic.NewDeclarationPass()
+	pass2 := semantic.NewTypeResolutionPass()
+	pass3 := semantic.NewValidationPass()
 
 	_ = pass1.Run(program, ctx)
 	_ = pass2.Run(program, ctx)
@@ -122,10 +124,10 @@ func TestValidationPass_UndefinedVariable(t *testing.T) {
 	}
 
 	// Run all passes
-	ctx := NewPassContext()
-	pass1 := NewDeclarationPass()
-	pass2 := NewTypeResolutionPass()
-	pass3 := NewValidationPass()
+	ctx := semantic.NewPassContext()
+	pass1 := semantic.NewDeclarationPass()
+	pass2 := semantic.NewTypeResolutionPass()
+	pass3 := semantic.NewValidationPass()
 
 	_ = pass1.Run(program, ctx)
 	_ = pass2.Run(program, ctx)
@@ -162,8 +164,8 @@ func TestValidationPass_BreakOutsideLoop(t *testing.T) {
 	}
 
 	// Run validation pass
-	ctx := NewPassContext()
-	pass3 := NewValidationPass()
+	ctx := semantic.NewPassContext()
+	pass3 := semantic.NewValidationPass()
 	_ = pass3.Run(program, ctx)
 
 	// Verify break outside loop error
@@ -211,10 +213,10 @@ func TestValidationPass_InvalidArithmeticOperands(t *testing.T) {
 	}
 
 	// Run all passes
-	ctx := NewPassContext()
-	pass1 := NewDeclarationPass()
-	pass2 := NewTypeResolutionPass()
-	pass3 := NewValidationPass()
+	ctx := semantic.NewPassContext()
+	pass1 := semantic.NewDeclarationPass()
+	pass2 := semantic.NewTypeResolutionPass()
+	pass3 := semantic.NewValidationPass()
 
 	_ = pass1.Run(program, ctx)
 	_ = pass2.Run(program, ctx)
@@ -256,9 +258,9 @@ func TestValidationPass_BooleanCondition(t *testing.T) {
 	}
 
 	// Run validation pass
-	ctx := NewPassContext()
-	pass2 := NewTypeResolutionPass()
-	pass3 := NewValidationPass()
+	ctx := semantic.NewPassContext()
+	pass2 := semantic.NewTypeResolutionPass()
+	pass3 := semantic.NewValidationPass()
 
 	_ = pass2.Run(program, ctx)
 	_ = pass3.Run(program, ctx)

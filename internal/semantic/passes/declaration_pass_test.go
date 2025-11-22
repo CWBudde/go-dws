@@ -1,7 +1,9 @@
-package passes
+package passes_test
 
 import (
 	"testing"
+
+	"github.com/cwbudde/go-dws/internal/semantic"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -25,10 +27,10 @@ func TestDeclarationPass_ClassRegistration(t *testing.T) {
 	}
 
 	// Create pass context
-	ctx := NewPassContext()
+	ctx := semantic.NewPassContext()
 
 	// Run Pass 1
-	pass := NewDeclarationPass()
+	pass := semantic.NewDeclarationPass()
 	err := pass.Run(program, ctx)
 
 	if err != nil {
@@ -81,10 +83,10 @@ func TestDeclarationPass_ForwardDeclaration(t *testing.T) {
 	}
 
 	// Create pass context
-	ctx := NewPassContext()
+	ctx := semantic.NewPassContext()
 
 	// Run Pass 1
-	pass := NewDeclarationPass()
+	pass := semantic.NewDeclarationPass()
 	err := pass.Run(program, ctx)
 
 	if err != nil {
@@ -129,10 +131,10 @@ func TestDeclarationPass_EnumRegistration(t *testing.T) {
 	}
 
 	// Create pass context
-	ctx := NewPassContext()
+	ctx := semantic.NewPassContext()
 
 	// Run Pass 1
-	pass := NewDeclarationPass()
+	pass := semantic.NewDeclarationPass()
 	err := pass.Run(program, ctx)
 
 	if err != nil {
@@ -190,10 +192,10 @@ func TestDeclarationPass_DuplicateError(t *testing.T) {
 	}
 
 	// Create pass context
-	ctx := NewPassContext()
+	ctx := semantic.NewPassContext()
 
 	// Run Pass 1
-	pass := NewDeclarationPass()
+	pass := semantic.NewDeclarationPass()
 	_ = pass.Run(program, ctx)
 
 	// Verify error was collected
