@@ -355,11 +355,11 @@ func (r *typeResolver) validateMethodImplementations() {
 // validateFunctionImplementations checks that all forward-declared functions have implementations
 // Migrated from analyzer.go:validateFunctionImplementations() for Task 6.1.2
 func (r *typeResolver) validateFunctionImplementations() {
-	// Walk through all symbols in the global scope and nested scopes
+	// Walk through all symbols in the global scope
 	r.validateFunctionImplementationsInScope(r.ctx.Symbols)
 }
 
-// validateFunctionImplementationsInScope recursively checks a scope and its nested scopes
+// validateFunctionImplementationsInScope checks all function symbols in a scope for unimplemented forward declarations
 func (r *typeResolver) validateFunctionImplementationsInScope(scope *SymbolTable) {
 	if scope == nil {
 		return
@@ -371,26 +371,17 @@ func (r *typeResolver) validateFunctionImplementationsInScope(scope *SymbolTable
 		if symbol.IsOverloadSet {
 			for _, overload := range symbol.Overloads {
 				if overload.IsForward {
-					// Get function type from the overload
-					overloadFuncType, ok := overload.Type.(*types.FunctionType)
-					if !ok {
-						continue
-					}
-
 					// Format error message to match DWScript
-					kind := "function"
-					if overloadFuncType.ReturnType == nil || overloadFuncType.ReturnType.String() == "Void" {
-						kind = "function" // DWScript uses "function" for both
-					}
-					r.ctx.AddError("Syntax Error: The %s \"%s\" was forward declared but not implemented",
-						kind, overload.Name)
+					// DWScript uses "function" for both functions and procedures
+					r.ctx.AddError("Syntax Error: The function \"%s\" was forward declared but not implemented",
+						overload.Name)
 				}
 			}
 			continue // Skip to next symbol (overload sets don't have individual Type)
 		}
 
 		// Check non-overload functions
-		funcType, ok := symbol.Type.(*types.FunctionType)
+		_, ok := symbol.Type.(*types.FunctionType)
 		if !ok {
 			continue // Not a function
 		}
@@ -398,17 +389,12 @@ func (r *typeResolver) validateFunctionImplementationsInScope(scope *SymbolTable
 		// Check if this is a non-overloaded forward function
 		if symbol.IsForward {
 			// Format error message to match DWScript
-			kind := "function"
-			if funcType.ReturnType == nil || funcType.ReturnType.String() == "Void" {
-				kind = "function" // DWScript uses "function" for both
-			}
-			r.ctx.AddError("Syntax Error: The %s \"%s\" was forward declared but not implemented",
-				kind, symbol.Name)
+			// DWScript uses "function" for both functions and procedures
+			r.ctx.AddError("Syntax Error: The function \"%s\" was forward declared but not implemented",
+				symbol.Name)
 		}
 	}
 
-	// Recursively check nested scopes (parent scope)
-	if scope.outer != nil {
-		r.validateFunctionImplementationsInScope(scope.outer)
-	}
+	// Note: Forward declarations only exist at global scope in DWScript,
+	// so no need to traverse parent scopes (scope.outer)
 }
