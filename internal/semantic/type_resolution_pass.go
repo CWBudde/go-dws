@@ -366,7 +366,7 @@ func (r *typeResolver) validateFunctionImplementationsInScope(scope *SymbolTable
 	}
 
 	// Check all symbols in this scope
-	for _, symbol := range scope.symbols {
+	scope.symbols.Range(func(_ string, symbol *Symbol) bool {
 		// Check overload sets first (their Type is nil, so must check before type assertion)
 		if symbol.IsOverloadSet {
 			for _, overload := range symbol.Overloads {
@@ -377,13 +377,13 @@ func (r *typeResolver) validateFunctionImplementationsInScope(scope *SymbolTable
 						overload.Name)
 				}
 			}
-			continue // Skip to next symbol (overload sets don't have individual Type)
+			return true // continue to next symbol (overload sets don't have individual Type)
 		}
 
 		// Check non-overload functions
 		_, ok := symbol.Type.(*types.FunctionType)
 		if !ok {
-			continue // Not a function
+			return true // Not a function - continue to next symbol
 		}
 
 		// Check if this is a non-overloaded forward function
@@ -393,7 +393,8 @@ func (r *typeResolver) validateFunctionImplementationsInScope(scope *SymbolTable
 			r.ctx.AddError("Syntax Error: The function \"%s\" was forward declared but not implemented",
 				symbol.Name)
 		}
-	}
+		return true // continue iteration
+	})
 
 	// Note: Forward declarations only exist at global scope in DWScript,
 	// so no need to traverse parent scopes (scope.outer)

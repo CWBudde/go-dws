@@ -24,8 +24,8 @@ type Symbol struct {
 // Unlike the interpreter's symbol table, this one tracks compile-time
 // type information for variables and functions.
 type SymbolTable struct {
-	// Current scope's symbols
-	symbols map[string]*Symbol
+	// Current scope's symbols (case-insensitive via ident.Map)
+	symbols *ident.Map[*Symbol]
 
 	// Parent scope (nil for global scope)
 	outer *SymbolTable
@@ -34,7 +34,7 @@ type SymbolTable struct {
 // NewSymbolTable creates a new symbol table
 func NewSymbolTable() *SymbolTable {
 	return &SymbolTable{
-		symbols: make(map[string]*Symbol),
+		symbols: ident.NewMap[*Symbol](),
 		outer:   nil,
 	}
 }
@@ -47,45 +47,45 @@ func NewEnclosedSymbolTable(outer *SymbolTable) *SymbolTable {
 }
 
 // Define defines a new variable symbol in the current scope
-// DWScript is case-insensitive, so we normalize to lowercase for lookup
+// DWScript is case-insensitive, handled by ident.Map
 func (st *SymbolTable) Define(name string, typ types.Type) {
-	st.symbols[ident.Normalize(name)] = &Symbol{
+	st.symbols.Set(name, &Symbol{
 		Name:     name, // Keep original case for error messages
 		Type:     typ,
 		ReadOnly: false,
 		IsConst:  false,
-	}
+	})
 }
 
 // DefineReadOnly defines a new read-only variable symbol in the current scope
 func (st *SymbolTable) DefineReadOnly(name string, typ types.Type) {
-	st.symbols[ident.Normalize(name)] = &Symbol{
+	st.symbols.Set(name, &Symbol{
 		Name:     name, // Keep original case for error messages
 		Type:     typ,
 		ReadOnly: true,
 		IsConst:  false,
-	}
+	})
 }
 
 // DefineConst defines a new constant symbol in the current scope
 func (st *SymbolTable) DefineConst(name string, typ types.Type, value interface{}) {
-	st.symbols[ident.Normalize(name)] = &Symbol{
+	st.symbols.Set(name, &Symbol{
 		Name:     name, // Keep original case for error messages
 		Type:     typ,
 		ReadOnly: true,
 		IsConst:  true,
 		Value:    value,
-	}
+	})
 }
 
 // DefineFunction defines a new function symbol in the current scope
 func (st *SymbolTable) DefineFunction(name string, funcType *types.FunctionType) {
-	st.symbols[ident.Normalize(name)] = &Symbol{
+	st.symbols.Set(name, &Symbol{
 		Name:     name, // Keep original case for error messages
 		Type:     funcType,
 		ReadOnly: false, // Functions are not assignable
 		IsConst:  false,
-	}
+	})
 }
 
 // DefineOverload defines a new function overload or adds to an existing overload set.
@@ -102,12 +102,11 @@ func (st *SymbolTable) DefineFunction(name string, funcType *types.FunctionType)
 //   - Ambiguous overload with default parameters
 //   - Forward declaration doesn't match implementation
 func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType, hasOverloadDirective bool, isForward bool) error {
-	lowerName := ident.Normalize(name)
-	existing, exists := st.symbols[lowerName]
+	existing, exists := st.symbols.Get(name)
 
 	if !exists {
 		// First declaration - create new symbol (may or may not be overloaded later)
-		st.symbols[lowerName] = &Symbol{
+		st.symbols.Set(name, &Symbol{
 			Name:                 name,
 			Type:                 funcType,
 			ReadOnly:             false,
@@ -116,7 +115,7 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 			Overloads:            nil,
 			HasOverloadDirective: hasOverloadDirective,
 			IsForward:            isForward, // Track if this is a forward declaration
-		}
+		})
 		return nil
 	}
 
@@ -526,8 +525,7 @@ func max(a, b int) int {
 //   - For non-overloaded functions: single-element slice
 //   - For non-existent functions: nil
 func (st *SymbolTable) GetOverloadSet(name string) []*Symbol {
-	lowerName := ident.Normalize(name)
-	sym, ok := st.symbols[lowerName]
+	sym, ok := st.symbols.Get(name)
 	if !ok {
 		// Check outer scope recursively (like Resolve does)
 		if st.outer != nil {
@@ -545,10 +543,10 @@ func (st *SymbolTable) GetOverloadSet(name string) []*Symbol {
 }
 
 // Resolve looks up a symbol by name in the current and outer scopes
-// DWScript is case-insensitive, so we normalize to lowercase for lookup
+// DWScript is case-insensitive, handled by ident.Map
 func (st *SymbolTable) Resolve(name string) (*Symbol, bool) {
-	// Check current scope (case-insensitive)
-	sym, ok := st.symbols[ident.Normalize(name)]
+	// Check current scope (case-insensitive via ident.Map)
+	sym, ok := st.symbols.Get(name)
 	if ok {
 		return sym, true
 	}
@@ -562,10 +560,9 @@ func (st *SymbolTable) Resolve(name string) (*Symbol, bool) {
 }
 
 // IsDeclaredInCurrentScope checks if a symbol is declared in the current scope
-// (not in any parent scope). DWScript is case-insensitive.
+// (not in any parent scope). Case-insensitive via ident.Map.
 func (st *SymbolTable) IsDeclaredInCurrentScope(name string) bool {
-	_, ok := st.symbols[ident.Normalize(name)]
-	return ok
+	return st.symbols.Has(name)
 }
 
 // PushScope creates a new nested scope
@@ -582,6 +579,7 @@ func (st *SymbolTable) PopScope() {
 
 // AllSymbols returns all symbols in the current scope and all outer scopes.
 // Used for symbol extraction for LSP features (Task 10.15).
+// Keys in the returned map are normalized (lowercase).
 func (st *SymbolTable) AllSymbols() map[string]*Symbol {
 	result := make(map[string]*Symbol)
 
@@ -593,9 +591,10 @@ func (st *SymbolTable) AllSymbols() map[string]*Symbol {
 	}
 
 	// Add symbols from current scope (overrides outer symbols with same name)
-	for name, sym := range st.symbols {
-		result[name] = sym
-	}
+	st.symbols.Range(func(name string, sym *Symbol) bool {
+		result[ident.Normalize(name)] = sym
+		return true // continue iteration
+	})
 
 	return result
 }
