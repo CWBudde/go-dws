@@ -1961,11 +1961,7 @@ func (v *statementValidator) typesCompatible(target, source types.Type) bool {
 		// Case 2: Source is also an interface - check inheritance relationship
 		// A derived interface can be assigned to a base interface
 		if sourceInterface, ok := sourceUnderlying.(*types.InterfaceType); ok {
-			// Same interface type is compatible
-			if sourceInterface.Equals(targetInterface) {
-				return true
-			}
-			// Check if source interface inherits from target interface
+			// Check if source interface inherits from target interface (also handles same interface case)
 			return types.IsSubinterfaceOf(sourceInterface, targetInterface)
 		}
 
