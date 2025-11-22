@@ -360,29 +360,29 @@ func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *Exe
 // **1. Function Pointer Calls** (lines 384-395, Task 3.5.23):
 //   - Detects function pointer and lambda calls
 //   - Delegates to adapter which handles:
-//     * Lazy parameter creation (CreateLazyThunk for IsLazy params)
-//     * Var parameter creation (CreateReferenceValue for ByRef params)
-//     * Regular parameter evaluation
-//     * Closure environment capture
+//   - Lazy parameter creation (CreateLazyThunk for IsLazy params)
+//   - Var parameter creation (CreateReferenceValue for ByRef params)
+//   - Regular parameter evaluation
+//   - Closure environment capture
 //
 // **2. Member Access Calls** (lines 398-417, Task 3.5.24):
 //   - **Record/Interface/Object method calls**: obj.Method(args)
-//     * Detects by evaluating object and checking type
-//     * Delegates to adapter for method dispatch
+//   - Detects by evaluating object and checking type
+//   - Delegates to adapter for method dispatch
 //   - **Unit-qualified function calls**: UnitName.FunctionName(args)
-//     * Detects by checking unitRegistry for unit name
-//     * Delegates to adapter for qualified function resolution
+//   - Detects by checking unitRegistry for unit name
+//   - Delegates to adapter for qualified function resolution
 //   - **Class constructor calls**: TClass.Create(args)
-//     * Detects by checking if identifier is a class name
-//     * Delegates to adapter for constructor dispatch and object instantiation
+//   - Detects by checking if identifier is a class name
+//   - Delegates to adapter for constructor dispatch and object instantiation
 //
 // **3. User Function Calls** (lines 427-439, Task 3.5.23):
 //   - Detects user-defined function calls (with overloading support)
 //   - Delegates to adapter which handles:
-//     * Overload resolution based on argument types
-//     * Lazy parameter creation (Jensen's Device pattern)
-//     * Var parameter creation (pass-by-reference)
-//     * Regular parameter evaluation (with caching to prevent double-eval)
+//   - Overload resolution based on argument types
+//   - Lazy parameter creation (Jensen's Device pattern)
+//   - Var parameter creation (pass-by-reference)
+//   - Regular parameter evaluation (with caching to prevent double-eval)
 //
 // **4. Implicit Self Method Calls** (lines 442-448, Task 3.5.24):
 //   - Pattern: MethodName(args) where Self is in environment
