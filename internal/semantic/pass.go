@@ -1,4 +1,4 @@
-package passes
+package semantic
 
 import (
 	"github.com/cwbudde/go-dws/pkg/ast"
