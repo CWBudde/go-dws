@@ -22,11 +22,19 @@ func IsIdentical(a, b Type) bool {
 //   - Integer -> Float: compatible (implicit widening)
 //   - Nil -> any reference type: compatible
 //   - Subtype -> Supertype: compatible (for classes, not yet implemented)
+//   - Any type -> Variant: compatible (Variant is universal container)
+//   - Variant -> Variant: compatible
 //
 // Returns true if assignment is valid, false otherwise.
 func IsCompatible(from, to Type) bool {
 	// Identical types are always compatible
 	if from.Equals(to) {
+		return true
+	}
+
+	// Variant is a universal type - any type can be assigned to it
+	// and Variant can be assigned to Variant
+	if to.TypeKind() == "VARIANT" {
 		return true
 	}
 

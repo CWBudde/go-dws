@@ -2109,6 +2109,17 @@ func (v *statementValidator) checkLambdaExpression(expr *ast.LambdaExpression, e
 	v.ctx.InLambda = true
 	defer func() { v.ctx.InLambda = oldInLambda }()
 
+	// Set CurrentFunction so return statements can validate properly
+	// Create a temporary FunctionDecl representing the lambda
+	oldCurrentFunction := v.ctx.CurrentFunction
+	lambdaFuncDecl := &ast.FunctionDecl{
+		Parameters: expr.Parameters,
+		ReturnType: expr.ReturnType,
+		// Lambda body will be validated below
+	}
+	v.ctx.CurrentFunction = lambdaFuncDecl
+	defer func() { v.ctx.CurrentFunction = oldCurrentFunction }()
+
 	// Validate lambda body
 	if expr.Body != nil {
 		v.validateStatement(expr.Body)
