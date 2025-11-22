@@ -305,6 +305,9 @@ func (i *Interpreter) evalAndExpression(expr *ast.BinaryExpression) Value {
 	switch {
 	case left.Type() == "INTEGER" && right.Type() == "INTEGER":
 		return i.evalIntegerBinaryOp(expr.Operator, left, right)
+	case left.Type() == "ENUM" && right.Type() == "ENUM":
+		// Task 1.6: Support enum boolean operations
+		return i.evalEnumBinaryOp(expr.Operator, left, right)
 	case left.Type() == "VARIANT" || right.Type() == "VARIANT":
 		return i.evalVariantBinaryOp(expr.Operator, left, right, expr)
 	default:
@@ -368,6 +371,9 @@ func (i *Interpreter) evalOrExpression(expr *ast.BinaryExpression) Value {
 	switch {
 	case left.Type() == "INTEGER" && right.Type() == "INTEGER":
 		return i.evalIntegerBinaryOp(expr.Operator, left, right)
+	case left.Type() == "ENUM" && right.Type() == "ENUM":
+		// Task 1.6: Support enum boolean operations
+		return i.evalEnumBinaryOp(expr.Operator, left, right)
 	case left.Type() == "VARIANT" || right.Type() == "VARIANT":
 		return i.evalVariantBinaryOp(expr.Operator, left, right, expr)
 	default:
@@ -669,7 +675,7 @@ func (i *Interpreter) evalBooleanBinaryOp(op string, left, right Value) Value {
 }
 
 // evalEnumBinaryOp evaluates binary operations on enum values.
-// Enums are compared by their ordinal values.
+// Enums support comparison operations (=, <>, <, >, <=, >=) and boolean operations (and, or, xor).
 func (i *Interpreter) evalEnumBinaryOp(op string, left, right Value) Value {
 	// Safe type assertions with error handling
 	leftEnum, ok := left.(*EnumValue)
@@ -685,6 +691,7 @@ func (i *Interpreter) evalEnumBinaryOp(op string, left, right Value) Value {
 	rightVal := rightEnum.OrdinalValue
 
 	switch op {
+	// Comparison operators
 	case "=":
 		return &BooleanValue{Value: leftVal == rightVal}
 	case "<>":
@@ -697,6 +704,28 @@ func (i *Interpreter) evalEnumBinaryOp(op string, left, right Value) Value {
 		return &BooleanValue{Value: leftVal <= rightVal}
 	case ">=":
 		return &BooleanValue{Value: leftVal >= rightVal}
+	// Task 1.6: Boolean operations for enums (especially flags enums)
+	case "and":
+		// Bitwise AND on enum ordinal values, return enum of same type
+		return &EnumValue{
+			TypeName:     leftEnum.TypeName,
+			ValueName:    "", // No specific name for computed values
+			OrdinalValue: leftVal & rightVal,
+		}
+	case "or":
+		// Bitwise OR on enum ordinal values, return enum of same type
+		return &EnumValue{
+			TypeName:     leftEnum.TypeName,
+			ValueName:    "", // No specific name for computed values
+			OrdinalValue: leftVal | rightVal,
+		}
+	case "xor":
+		// Bitwise XOR on enum ordinal values, return enum of same type
+		return &EnumValue{
+			TypeName:     leftEnum.TypeName,
+			ValueName:    "", // No specific name for computed values
+			OrdinalValue: leftVal ^ rightVal,
+		}
 	default:
 		return i.newTypeError(i.currentNode, "unknown operator: %s %s %s", left.Type(), op, right.Type())
 	}
