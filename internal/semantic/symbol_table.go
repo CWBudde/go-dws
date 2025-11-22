@@ -2,9 +2,9 @@ package semantic
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // Symbol represents a symbol in the symbol table (variable or function)
@@ -49,7 +49,7 @@ func NewEnclosedSymbolTable(outer *SymbolTable) *SymbolTable {
 // Define defines a new variable symbol in the current scope
 // DWScript is case-insensitive, so we normalize to lowercase for lookup
 func (st *SymbolTable) Define(name string, typ types.Type) {
-	st.symbols[strings.ToLower(name)] = &Symbol{
+	st.symbols[ident.Normalize(name)] = &Symbol{
 		Name:     name, // Keep original case for error messages
 		Type:     typ,
 		ReadOnly: false,
@@ -59,7 +59,7 @@ func (st *SymbolTable) Define(name string, typ types.Type) {
 
 // DefineReadOnly defines a new read-only variable symbol in the current scope
 func (st *SymbolTable) DefineReadOnly(name string, typ types.Type) {
-	st.symbols[strings.ToLower(name)] = &Symbol{
+	st.symbols[ident.Normalize(name)] = &Symbol{
 		Name:     name, // Keep original case for error messages
 		Type:     typ,
 		ReadOnly: true,
@@ -69,7 +69,7 @@ func (st *SymbolTable) DefineReadOnly(name string, typ types.Type) {
 
 // DefineConst defines a new constant symbol in the current scope
 func (st *SymbolTable) DefineConst(name string, typ types.Type, value interface{}) {
-	st.symbols[strings.ToLower(name)] = &Symbol{
+	st.symbols[ident.Normalize(name)] = &Symbol{
 		Name:     name, // Keep original case for error messages
 		Type:     typ,
 		ReadOnly: true,
@@ -80,7 +80,7 @@ func (st *SymbolTable) DefineConst(name string, typ types.Type, value interface{
 
 // DefineFunction defines a new function symbol in the current scope
 func (st *SymbolTable) DefineFunction(name string, funcType *types.FunctionType) {
-	st.symbols[strings.ToLower(name)] = &Symbol{
+	st.symbols[ident.Normalize(name)] = &Symbol{
 		Name:     name, // Keep original case for error messages
 		Type:     funcType,
 		ReadOnly: false, // Functions are not assignable
@@ -102,7 +102,7 @@ func (st *SymbolTable) DefineFunction(name string, funcType *types.FunctionType)
 //   - Ambiguous overload with default parameters
 //   - Forward declaration doesn't match implementation
 func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType, hasOverloadDirective bool, isForward bool) error {
-	lowerName := strings.ToLower(name)
+	lowerName := ident.Normalize(name)
 	existing, exists := st.symbols[lowerName]
 
 	if !exists {
@@ -526,7 +526,7 @@ func max(a, b int) int {
 //   - For non-overloaded functions: single-element slice
 //   - For non-existent functions: nil
 func (st *SymbolTable) GetOverloadSet(name string) []*Symbol {
-	lowerName := strings.ToLower(name)
+	lowerName := ident.Normalize(name)
 	sym, ok := st.symbols[lowerName]
 	if !ok {
 		// Check outer scope recursively (like Resolve does)
@@ -548,7 +548,7 @@ func (st *SymbolTable) GetOverloadSet(name string) []*Symbol {
 // DWScript is case-insensitive, so we normalize to lowercase for lookup
 func (st *SymbolTable) Resolve(name string) (*Symbol, bool) {
 	// Check current scope (case-insensitive)
-	sym, ok := st.symbols[strings.ToLower(name)]
+	sym, ok := st.symbols[ident.Normalize(name)]
 	if ok {
 		return sym, true
 	}
@@ -564,7 +564,7 @@ func (st *SymbolTable) Resolve(name string) (*Symbol, bool) {
 // IsDeclaredInCurrentScope checks if a symbol is declared in the current scope
 // (not in any parent scope). DWScript is case-insensitive.
 func (st *SymbolTable) IsDeclaredInCurrentScope(name string) bool {
-	_, ok := st.symbols[strings.ToLower(name)]
+	_, ok := st.symbols[ident.Normalize(name)]
 	return ok
 }
 

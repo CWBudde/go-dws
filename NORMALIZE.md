@@ -68,28 +68,27 @@ Already well-centralized, verified completeness.
 
 ---
 
-## Phase 4: Symbol Table & Type Registry (Priority: HIGH)
+## Phase 4: Symbol Table & Type Registry (Priority: HIGH) ✅ COMPLETED
 
-Migrate core lookup infrastructure to `pkg/ident`.
+Migrated core lookup infrastructure to `pkg/ident`.
 
 ### Tasks
 
-- [ ] **4.1** Migrate `internal/semantic/symbol_table.go`
-  - Lines to change: 52, 62, 72, 83, 105, 529, 551, 567
-  - Replace: `strings.ToLower(name)` → `ident.Normalize(name)`
+- [x] **4.1** Migrate `internal/semantic/symbol_table.go`
+  - Replaced 8 occurrences of `strings.ToLower(name)` → `ident.Normalize(name)`
   - Pattern already correct: Stores original in `Symbol.Name` field ✅
-  - Run: `go test ./internal/semantic/... -v`
+  - All tests pass
 
-- [ ] **4.2** Migrate `internal/semantic/type_registry.go`
-  - Lines to change: 85, 110, 122, 308, 321
-  - Replace: `strings.ToLower(name)` → `ident.Normalize(name)`
-  - Verify original casing preserved in descriptors
-  - Run: `go test ./internal/semantic/... -v`
+- [x] **4.2** Migrate `internal/semantic/type_registry.go`
+  - Replaced 5 occurrences of `strings.ToLower(name)` → `ident.Normalize(name)`
+  - Original casing preserved in `TypeDescriptor.Name` ✅
+  - All tests pass
 
-- [ ] **4.3** Add explicit tests for case insensitivity
-  - Test symbol table: Define `MyVar`, lookup `myvar`, `MYVAR`, `MyVar`
-  - Test type registry: Register `MyType`, resolve `mytype`, `MYTYPE`
-  - Verify error messages use original casing
+- [x] **4.3** Add explicit tests for case insensitivity
+  - Added `TestSymbolTableOriginalCasingPreserved`: Tests lowercase, UPPERCASE, PascalCase, camelCase definitions
+  - Added `TestTypeRegistryOriginalCasingPreserved`: Tests various casing with descriptor lookup
+  - Added `TestCaseInsensitiveTypeAliases`: Tests type aliases with different case access
+  - All tests verify original casing is preserved for error messages
 
 ---
 
