@@ -1027,6 +1027,9 @@ func (e *Evaluator) VisitRaiseStatement(node *ast.RaiseStatement, ctx *Execution
 
 	// Evaluate exception expression
 	excVal := e.Eval(node.Exception, ctx)
+	if isError(excVal) {
+		return excVal
+	}
 
 	// Create exception from object using adapter
 	// The adapter will extract class info, message, and capture call stack
