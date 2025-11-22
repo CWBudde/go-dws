@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // callFunctionPointer executes a function pointer call, handling lambdas, method pointers, and regular function pointers.
@@ -117,7 +118,7 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 
 			// Check if return type is a record (overrides default)
 			returnTypeName := lambda.ReturnType.String()
-			lowerReturnType := strings.ToLower(returnTypeName)
+			lowerReturnType := ident.Normalize(returnTypeName)
 			recordTypeKey := "__record_type_" + lowerReturnType
 			if typeVal, ok := i.env.Get(recordTypeKey); ok {
 				if rtv, ok := typeVal.(*RecordTypeValue); ok {

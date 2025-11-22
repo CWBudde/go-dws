@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // This file contains variable and constant declaration evaluation.
@@ -96,7 +97,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 			}
 
 			typeName := stmt.Type.String()
-			recordTypeKey := "__record_type_" + strings.ToLower(typeName)
+			recordTypeKey := "__record_type_" + ident.Normalize(typeName)
 			if typeVal, ok := i.env.Get(recordTypeKey); ok {
 				if rtv, ok := typeVal.(*RecordTypeValue); ok {
 					// Temporarily set the type name for evaluation
@@ -125,7 +126,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 		// If declaring a subrange variable with an initializer, wrap and validate
 		if stmt.Type != nil {
 			typeName := stmt.Type.String()
-			subrangeTypeKey := "__subrange_type_" + strings.ToLower(typeName)
+			subrangeTypeKey := "__subrange_type_" + ident.Normalize(typeName)
 			handledSubrange := false
 			if typeVal, ok := i.env.Get(subrangeTypeKey); ok {
 				if stv, ok := typeVal.(*SubrangeTypeValue); ok {
@@ -158,7 +159,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 			}
 
 			// Task 9.227: Box value if target type is Variant
-			if strings.EqualFold(typeName, "Variant") {
+			if ident.Equal(typeName, "Variant") {
 				value = boxVariant(value)
 			}
 		}
@@ -185,7 +186,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 				} else {
 					value = &NilValue{}
 				}
-			} else if typeVal, ok := i.env.Get("__record_type_" + strings.ToLower(typeName)); ok {
+			} else if typeVal, ok := i.env.Get("__record_type_" + ident.Normalize(typeName)); ok {
 				// Check if this is a record type
 				if rtv, ok := typeVal.(*RecordTypeValue); ok {
 					// Initialize with empty record value
@@ -196,7 +197,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 				}
 			} else {
 				// Check if this is an array type
-				arrayTypeKey := "__array_type_" + strings.ToLower(typeName)
+				arrayTypeKey := "__array_type_" + ident.Normalize(typeName)
 				if typeVal, ok := i.env.Get(arrayTypeKey); ok {
 					if atv, ok := typeVal.(*ArrayTypeValue); ok {
 						// Initialize with empty array value
@@ -206,7 +207,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 					}
 				} else {
 					// Check if this is a subrange type
-					subrangeTypeKey := "__subrange_type_" + strings.ToLower(typeName)
+					subrangeTypeKey := "__subrange_type_" + ident.Normalize(typeName)
 					if typeVal, ok := i.env.Get(subrangeTypeKey); ok {
 						if stv, ok := typeVal.(*SubrangeTypeValue); ok {
 							// Initialize with zero value (will be validated if assigned)
@@ -219,7 +220,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 						}
 					} else {
 						// Task 9.16.2: Check if this is an interface type
-						if ifaceInfo, exists := i.interfaces[strings.ToLower(typeName)]; exists {
+						if ifaceInfo, exists := i.interfaces[ident.Normalize(typeName)]; exists {
 							// Initialize with nil interface instance
 							value = &InterfaceInstance{
 								Interface: ifaceInfo,
@@ -228,7 +229,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 						} else {
 							// Initialize basic types with their zero values
 							// Proper initialization allows implicit conversions to work with target type
-							switch strings.ToLower(typeName) {
+							switch ident.Normalize(typeName) {
 							case "integer":
 								value = &IntegerValue{Value: 0}
 							case "float":
@@ -243,7 +244,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 							default:
 								// Task 9.5.4: Check if this is a class type and create a typed nil value
 								// This allows accessing class variables via nil instances: var b: TBase; b.ClassVar
-								if _, exists := i.classes[strings.ToLower(typeName)]; exists {
+								if _, exists := i.classes[ident.Normalize(typeName)]; exists {
 									value = &NilValue{ClassType: typeName}
 								} else {
 									value = &NilValue{}
@@ -275,7 +276,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 			// Task 9.1.6: If the type annotation is an interface type, wrap the value in an InterfaceInstance
 			if stmt.Type != nil {
 				typeName := stmt.Type.String()
-				if ifaceInfo, exists := i.interfaces[strings.ToLower(typeName)]; exists {
+				if ifaceInfo, exists := i.interfaces[ident.Normalize(typeName)]; exists {
 					// Check if the value is already an InterfaceInstance
 					if _, alreadyInterface := nameValue.(*InterfaceInstance); !alreadyInterface {
 						// Check if the value is an ObjectInstance
@@ -340,7 +341,7 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 	}
 
 	// Check if this is a record type
-	if typeVal, ok := i.env.Get("__record_type_" + strings.ToLower(typeName)); ok {
+	if typeVal, ok := i.env.Get("__record_type_" + ident.Normalize(typeName)); ok {
 		if rtv, ok := typeVal.(*RecordTypeValue); ok {
 			// Task 9.7e1: Use createRecordValue for proper nested record initialization
 			return i.createRecordValue(rtv.RecordType, rtv.Methods)
@@ -348,7 +349,7 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 	}
 
 	// Check if this is an array type
-	arrayTypeKey := "__array_type_" + strings.ToLower(typeName)
+	arrayTypeKey := "__array_type_" + ident.Normalize(typeName)
 	if typeVal, ok := i.env.Get(arrayTypeKey); ok {
 		if atv, ok := typeVal.(*ArrayTypeValue); ok {
 			return NewArrayValue(atv.ArrayType)
@@ -356,7 +357,7 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 	}
 
 	// Check if this is a subrange type
-	subrangeTypeKey := "__subrange_type_" + strings.ToLower(typeName)
+	subrangeTypeKey := "__subrange_type_" + ident.Normalize(typeName)
 	if typeVal, ok := i.env.Get(subrangeTypeKey); ok {
 		if stv, ok := typeVal.(*SubrangeTypeValue); ok {
 			return &SubrangeValue{
@@ -367,7 +368,7 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 	}
 
 	// Task 9.1.3: Check if this is an interface type
-	if ifaceInfo, exists := i.interfaces[strings.ToLower(typeName)]; exists {
+	if ifaceInfo, exists := i.interfaces[ident.Normalize(typeName)]; exists {
 		return &InterfaceInstance{
 			Interface: ifaceInfo,
 			Object:    nil,
@@ -375,7 +376,7 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 	}
 
 	// Initialize basic types with their zero values
-	switch strings.ToLower(typeName) {
+	switch ident.Normalize(typeName) {
 	case "integer":
 		return &IntegerValue{Value: 0}
 	case "float":
@@ -390,7 +391,7 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 	default:
 		// Task 9.5.4: Check if this is a class type and create a typed nil value
 		// This allows accessing class variables via nil instances: var b: TBase; b.ClassVar
-		if _, exists := i.classes[strings.ToLower(typeName)]; exists {
+		if _, exists := i.classes[ident.Normalize(typeName)]; exists {
 			return &NilValue{ClassType: typeName}
 		}
 		return &NilValue{}
@@ -417,7 +418,7 @@ func (i *Interpreter) evalConstDecl(stmt *ast.ConstDecl) Value {
 			return newError("anonymous record literal requires explicit type annotation")
 		}
 		typeName := stmt.Type.String()
-		recordTypeKey := "__record_type_" + strings.ToLower(typeName)
+		recordTypeKey := "__record_type_" + ident.Normalize(typeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				// Temporarily set the type name for evaluation

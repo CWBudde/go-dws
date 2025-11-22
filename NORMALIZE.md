@@ -521,33 +521,49 @@ The following uses of `strings.ToLower()`/`strings.EqualFold()` are legitimate a
   - Line: 181 - method name lookup
   - Migrated: `strings.ToLower()` → `ident.Normalize()`
 
-- [ ] **14.1.8** Migrate `internal/interp/types/type_system.go` (17 occurrences)
+- [x] **14.1.8** Migrate `internal/interp/types/type_system.go` (17 occurrences)
   - Lines: 145,151,157,175,181,187,258,265,270,299,312,318,331,337,350,393,412
   - Record, interface, helper, class, enum type ID lookups
+  - Migrated: All `strings.ToLower()` → `ident.Normalize()`, all `strings.ToUpper()` → `ident.Normalize()`
+  - Kept `strings` import for `strings.Join()` in `operatorSignatureKey()`
 
-- [ ] **14.1.9** Migrate `internal/interp/record.go` (20 occurrences)
+- [x] **14.1.9** Migrate `internal/interp/record.go` (15 occurrences)
   - Lines: 20,75,91,108,136,142,165,185,232,242,304,322,348,368,425
   - Record field, method, constant, class var lookups
+  - Migrated: All `strings.ToLower()` → `ident.Normalize()`
+  - Kept `strings` import for `strings.HasPrefix()` (array type detection)
 
-- [ ] **14.1.10** Migrate `internal/interp/statements_declarations.go` (17 occurrences)
+- [x] **14.1.10** Migrate `internal/interp/statements_declarations.go` (17 occurrences)
   - ToLower: 99,128,188,199,209,222,231,246,274,339,347,355,366,374,389,416
   - EqualFold: 161
+  - Migrated: All `strings.ToLower()` → `ident.Normalize()`, `strings.EqualFold()` → `ident.Equal()`
+  - Kept `strings` import for `strings.HasPrefix()` (array/set type detection)
   - Variable declaration type resolution
 
-- [ ] **14.1.11** Migrate `internal/interp/objects_methods.go` (12 occurrences)
+- [x] **14.1.11** Migrate `internal/interp/objects_methods.go` (12 occurrences)
   - ToLower: 276,280,439,517
   - EqualFold: 41,554,699,1056,1073,1081
   - Method and constructor lookups
+  - Migrated: All `strings.ToLower()` → `pkgident.Normalize()`, `strings.EqualFold()` → `pkgident.Equal()`
+  - Used `pkgident` alias to avoid conflict with local `ident` variable
+  - Kept `strings` import for `strings.Split()` (qualified name parsing)
 
-- [ ] **14.1.12** Migrate `internal/interp/expressions_complex.go` (9 occurrences)
+- [x] **14.1.12** Migrate `internal/interp/expressions_complex.go` (10 occurrences)
   - ToLower: 130,166,198,238,268,329,386
   - EqualFold: 121,178,246
   - Type casting and interface checks
+  - Migrated: All `strings.ToLower()` → `ident.Normalize()`, `strings.EqualFold()` → `ident.Equal()`
+  - Kept `strings` import for `strings.Contains()` (string substring check)
 
-- [ ] **14.1.13** Migrate `internal/interp/functions_*.go` files (12 occurrences total, counting individual function calls)
-  - `functions_typecast.go:91,329,626` (ToLower) + `389,508(x2),601` (EqualFold; line 508 has two calls)
+- [x] **14.1.13** Migrate `internal/interp/functions_*.go` files (20 occurrences total)
+  - `functions_typecast.go:91,329,626` (ToLower) + `389,508(x2),601` (EqualFold)
   - `functions_calls.go:213,298,420` (ToLower) + `179` (EqualFold)
+  - `functions_records.go:18,22,101,110,165,265,383` (ToLower)
+  - `functions_user.go:95,122` (ToLower)
   - `functions_pointers.go:116` (ToLower)
+  - Migrated: All occurrences using `ident.Normalize()`/`pkgident.Normalize()`, `ident.Equal()`/`pkgident.Equal()`
+  - Used `pkgident` alias in files with local `ident` variable conflicts
+  - Removed unused `strings` imports from functions_calls.go, functions_records.go
 
 - [ ] **14.1.14** Migrate `internal/interp/declarations.go` (31 occurrences)
   - ToLower: 37,42,56,61,72,77,89,94,105,110,122,127,139,144,155,160,172,177,189,194,206,211,223,228

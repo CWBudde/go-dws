@@ -6,6 +6,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -17,7 +18,7 @@ import (
 func (i *Interpreter) initializeInterfaceField(fieldType types.Type) Value {
 	if interfaceType, ok := fieldType.(*types.InterfaceType); ok {
 		// Look up the InterfaceInfo from the interpreter
-		if interfaceInfo, exists := i.interfaces[strings.ToLower(interfaceType.Name)]; exists {
+		if interfaceInfo, exists := i.interfaces[ident.Normalize(interfaceType.Name)]; exists {
 			return &InterfaceInstance{
 				Interface: interfaceInfo,
 				Object:    nil,
@@ -72,7 +73,7 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 		}
 
 		// Use lowercase key for case-insensitive access
-		fieldNameLower := strings.ToLower(fieldName)
+		fieldNameLower := ident.Normalize(fieldName)
 		fields[fieldNameLower] = fieldType
 		// Task 9.5: Store field declaration (use lowercase key)
 		fieldDecls[fieldNameLower] = field
@@ -88,7 +89,7 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 	methods := make(map[string]*ast.FunctionDecl)
 	staticMethods := make(map[string]*ast.FunctionDecl)
 	for _, method := range decl.Methods {
-		methodKey := strings.ToLower(method.Name.Value)
+		methodKey := ident.Normalize(method.Name.Value)
 		if method.IsClassMethod {
 			staticMethods[methodKey] = method
 		} else {
@@ -105,7 +106,7 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 			return constValue
 		}
 		// Normalize to lowercase for case-insensitive access
-		constants[strings.ToLower(constName)] = constValue
+		constants[ident.Normalize(constName)] = constValue
 	}
 
 	// Task 9.12.2: Initialize class variables
@@ -133,13 +134,13 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 		}
 
 		// Normalize to lowercase for case-insensitive access
-		classVars[strings.ToLower(varName)] = varValue
+		classVars[ident.Normalize(varName)] = varValue
 	}
 
 	// Process properties
 	for _, prop := range decl.Properties {
 		propName := prop.Name.Value
-		propNameLower := strings.ToLower(propName)
+		propNameLower := ident.Normalize(propName)
 
 		// Resolve property type
 		propType := i.resolveTypeFromExpression(prop.Type)
@@ -162,7 +163,7 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 
 	// Store record type metadata in environment with special key
 	// This allows variable declarations to resolve the type
-	recordTypeKey := "__record_type_" + strings.ToLower(recordName)
+	recordTypeKey := "__record_type_" + ident.Normalize(recordName)
 	recordTypeValue := &RecordTypeValue{
 		RecordType:           recordType,
 		FieldDecls:           fieldDecls, // Task 9.5: Include field declarations
@@ -182,7 +183,7 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 
 	// Also store in records map for easier access during method implementation
 	// PR #147 Fix: Use lowercase key for O(1) case-insensitive lookup
-	i.records[strings.ToLower(recordName)] = recordTypeValue
+	i.records[ident.Normalize(recordName)] = recordTypeValue
 
 	// Initialize overload lists from method declarations
 	// Note: methodName is already lowercase from the maps above
@@ -229,7 +230,7 @@ func (i *Interpreter) createRecordValue(recordType *types.RecordType, methods ma
 	// Create a method lookup callback that can resolve methods for nested records
 	methodsLookup := func(rt *types.RecordType) map[string]*ast.FunctionDecl {
 		// Look up the record type in the environment
-		key := "__record_type_" + strings.ToLower(rt.Name)
+		key := "__record_type_" + ident.Normalize(rt.Name)
 		if typeVal, ok := i.env.Get(key); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				return rtv.Methods
@@ -239,7 +240,7 @@ func (i *Interpreter) createRecordValue(recordType *types.RecordType, methods ma
 	}
 
 	// Task 9.5: Look up the record type value to get field declarations before creating the value
-	recordTypeKey := "__record_type_" + strings.ToLower(recordType.Name)
+	recordTypeKey := "__record_type_" + ident.Normalize(recordType.Name)
 	var rtv *RecordTypeValue
 	if typeVal, ok := i.env.Get(recordTypeKey); ok {
 		rtv, _ = typeVal.(*RecordTypeValue)
@@ -301,7 +302,7 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 	// If the literal has an explicit type name, use it
 	if literal.TypeName != nil {
 		typeName := literal.TypeName.Value
-		recordTypeKey := "__record_type_" + strings.ToLower(typeName)
+		recordTypeKey := "__record_type_" + ident.Normalize(typeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				recordType = rtv.RecordType
@@ -319,7 +320,7 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 	}
 
 	// Look up the record type value to get field declarations
-	recordTypeKey := "__record_type_" + strings.ToLower(literal.TypeName.Value)
+	recordTypeKey := "__record_type_" + ident.Normalize(literal.TypeName.Value)
 	var recordTypeValue *RecordTypeValue
 	if typeVal, ok := i.env.Get(recordTypeKey); ok {
 		recordTypeValue, _ = typeVal.(*RecordTypeValue)
@@ -345,7 +346,7 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 		}
 
 		fieldName := field.Name.Value
-		fieldNameLower := strings.ToLower(fieldName)
+		fieldNameLower := ident.Normalize(fieldName)
 
 		// Check if field exists in record type (use lowercase key)
 		if _, exists := recordType.Fields[fieldNameLower]; !exists {
@@ -365,7 +366,7 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 	// Task 9.5: Initialize remaining fields with field initializers or default values
 	// Create a method lookup callback for nested records
 	methodsLookup := func(rt *types.RecordType) map[string]*ast.FunctionDecl {
-		key := "__record_type_" + strings.ToLower(rt.Name)
+		key := "__record_type_" + ident.Normalize(rt.Name)
 		if typeVal, ok := i.env.Get(key); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				return rtv.Methods
@@ -422,7 +423,7 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 
 	// Normalize type name to lowercase for case-insensitive comparison
 	// DWScript (like Pascal) is case-insensitive for all identifiers including type names
-	lowerTypeName := strings.ToLower(typeName)
+	lowerTypeName := ident.Normalize(typeName)
 
 	switch lowerTypeName {
 	case "integer":
