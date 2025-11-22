@@ -288,9 +288,10 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 		a.analyzeStatement(stmt)
 	}
 
-	// NEW IMPLEMENTATION: Run Pass 2 (Type Resolution)
+	// NEW IMPLEMENTATION: Run Pass 2, Pass 3 (and eventually Pass 4)
 	// Pass 2 performs: built-in type registration, class/interface hierarchy resolution,
 	// field type resolution, method signature resolution, and forward declaration validation.
+	// Pass 3 performs: full semantic validation (type checking, control flow, etc.)
 	// Create PassContext from Analyzer state to share registries
 	ctx := a.createPassContext()
 
@@ -300,6 +301,15 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 
 	// Run Pass 2 directly
 	if err := pass2.Run(program, ctx); err != nil {
+		// Fatal error in pass execution (not a semantic error)
+		return err
+	}
+
+	// Task 6.1.2.6.1: Enable Pass 3 (Semantic Validation) in dual mode
+	// Run Pass 3 to validate types, expressions, and control flow
+	// Note: Old analyzer still runs for comparison during transition
+	pass3 := NewValidationPass()
+	if err := pass3.Run(program, ctx); err != nil {
 		// Fatal error in pass execution (not a semantic error)
 		return err
 	}

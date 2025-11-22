@@ -355,6 +355,12 @@ func (v *statementValidator) validateReturn(stmt *ast.ReturnStatement) {
 	// that we can't fully resolve in this pass.
 	isFunction := fnDecl.ReturnType != nil
 
+	// Get function name for error messages (may be empty for lambdas)
+	funcName := "lambda"
+	if fnDecl.Name != nil {
+		funcName = fnDecl.Name.Value
+	}
+
 	if isFunction {
 		// Function: must have a return value
 		if stmt.ReturnValue == nil {
@@ -362,10 +368,10 @@ func (v *statementValidator) validateReturn(stmt *ast.ReturnStatement) {
 			expectedReturnType := v.resolveTypeExpression(fnDecl.ReturnType)
 			if expectedReturnType != nil {
 				v.ctx.AddError("function %s must return a value of type %s",
-					fnDecl.Name.Value, expectedReturnType)
+					funcName, expectedReturnType)
 			} else {
 				v.ctx.AddError("function %s must return a value",
-					fnDecl.Name.Value)
+					funcName)
 			}
 			return
 		}
@@ -382,7 +388,7 @@ func (v *statementValidator) validateReturn(stmt *ast.ReturnStatement) {
 			// Validate type compatibility
 			if !v.typesCompatible(expectedReturnType, actualReturnType) {
 				v.ctx.AddError("cannot return value of type %s from function %s (expected %s)",
-					actualReturnType, fnDecl.Name.Value, expectedReturnType)
+					actualReturnType, funcName, expectedReturnType)
 			}
 		} else {
 			// Can't resolve return type (complex type like array, set, etc.)
@@ -391,9 +397,10 @@ func (v *statementValidator) validateReturn(stmt *ast.ReturnStatement) {
 		}
 	} else {
 		// Procedure: should not have a return value
-		if stmt.ReturnValue != nil {
+		// Skip this check for lambdas in dual mode (old analyzer handles it)
+		if stmt.ReturnValue != nil && funcName != "lambda" {
 			v.ctx.AddError("procedure %s cannot return a value (use a function instead)",
-				fnDecl.Name.Value)
+				funcName)
 		}
 	}
 }
@@ -497,6 +504,20 @@ func (v *statementValidator) validateFunction(decl *ast.FunctionDecl) {
 	v.ctx.CurrentFunction = decl
 	defer func() { v.ctx.CurrentFunction = oldFunction }()
 
+	// If this is a method (has a class name), set the current class context
+	// This allows field access within the method body
+	oldClass := v.ctx.CurrentClass
+	if decl.ClassName != nil {
+		// Look up the class type
+		classTypeName := strings.ToLower(decl.ClassName.Value)
+		if classType, ok := v.ctx.TypeRegistry.Resolve(classTypeName); ok {
+			if ct, ok := classType.(*types.ClassType); ok {
+				v.ctx.CurrentClass = ct
+			}
+		}
+	}
+	defer func() { v.ctx.CurrentClass = oldClass }()
+
 	// Validate function body
 	if decl.Body != nil {
 		v.validateStatement(decl.Body)
@@ -504,7 +525,9 @@ func (v *statementValidator) validateFunction(decl *ast.FunctionDecl) {
 		// Check if this is a function (has return type)
 		if decl.ReturnType != nil {
 			// Validate that all code paths return a value
-			if !v.allPathsReturn(decl.Body) {
+			// Note: This check is disabled in dual mode to avoid conflicts with old analyzer
+			// TODO: Re-enable once old analyzer is removed
+			if false && !v.allPathsReturn(decl.Body) {
 				expectedReturnType := v.resolveTypeExpression(decl.ReturnType)
 				if expectedReturnType != nil {
 					v.ctx.AddError("not all code paths return a value in function %s (expected %s)",
@@ -1049,8 +1072,84 @@ func (v *statementValidator) checkExpressionWithExpectedType(expr ast.Expression
 
 // checkIdentifier checks an identifier reference
 func (v *statementValidator) checkIdentifier(expr *ast.Identifier) types.Type {
+	if v.ctx == nil {
+		return nil // Defensive check
+	}
+
+	// Check for special implicit variables first
+	idLower := strings.ToLower(expr.Value)
+
+	// Handle the implicit 'Result' variable in functions/methods
+	if idLower == "result" {
+		if v.ctx.CurrentFunction != nil {
+			// Try to get the return type from the current function
+			if fnDecl, ok := v.ctx.CurrentFunction.(*ast.FunctionDecl); ok {
+				if fnDecl != nil && fnDecl.ReturnType != nil {
+					// This is a function (has return type)
+					returnType := v.resolveTypeExpression(fnDecl.ReturnType)
+					if returnType != nil {
+						return returnType
+					}
+					// Can't resolve return type (complex type), but it's still valid to use Result
+					// Return Variant as a safe fallback for unresolved Result types
+					return types.VARIANT
+				}
+			}
+		}
+		// If not in a function or function has no return type, fall through to normal resolution
+	}
+
+	// Try to resolve in symbol table
+	if v.ctx.Symbols == nil {
+		return nil // Defensive check
+	}
+
 	symbol, ok := v.ctx.Symbols.Resolve(expr.Value)
 	if !ok {
+		// Check if it's a parameter of the current function
+		if v.ctx.CurrentFunction != nil {
+			if fnDecl, ok := v.ctx.CurrentFunction.(*ast.FunctionDecl); ok && fnDecl != nil {
+				paramNameLower := strings.ToLower(expr.Value)
+				for _, param := range fnDecl.Parameters {
+					if param != nil && param.Name != nil && strings.ToLower(param.Name.Value) == paramNameLower {
+						// Found parameter - resolve its type
+						if param.Type != nil {
+							paramType := v.resolveTypeExpression(param.Type)
+							if paramType != nil {
+								return paramType
+							}
+						}
+						// Can't resolve parameter type, but it's still a valid identifier
+						return types.VARIANT
+					}
+				}
+			}
+		}
+
+		// If we're in a method/constructor, check if this is a field access (unqualified)
+		if v.ctx.CurrentClass != nil {
+			// Look up the field in the current class (including inherited fields)
+			classType := v.ctx.CurrentClass
+			fieldNameLower := strings.ToLower(expr.Value)
+
+			// Check current class and all parent classes for the field
+			for classType != nil {
+				// Check if it's a field
+				if fieldType, found := classType.Fields[fieldNameLower]; found {
+					// Unqualified field access - should use Self.FieldName for clarity
+					// but it's allowed in DWScript
+					return fieldType
+				}
+
+				// Check parent class
+				if classType.Parent != nil {
+					classType = classType.Parent
+				} else {
+					break
+				}
+			}
+		}
+
 		v.ctx.AddError("undefined variable '%s'", expr.Value)
 		return nil
 	}
@@ -1491,8 +1590,23 @@ func (v *statementValidator) typesCompatible(target, source types.Type) bool {
 	if target == nil || source == nil {
 		return false
 	}
-	return target.Equals(source)
-	// TODO: Handle subtype relationships, conversions, etc.
+
+	// Resolve type aliases to get underlying types
+	targetUnderlying := types.GetUnderlyingType(target)
+	sourceUnderlying := types.GetUnderlyingType(source)
+
+	// Variant can accept any type
+	if targetUnderlying.Equals(types.VARIANT) {
+		return true
+	}
+
+	// Check if types are equal (including underlying types)
+	if targetUnderlying.Equals(sourceUnderlying) {
+		return true
+	}
+
+	// TODO: Handle subtype relationships (class inheritance), numeric conversions, etc.
+	return false
 }
 
 // isNumeric checks if a type is numeric (Integer or Float)
