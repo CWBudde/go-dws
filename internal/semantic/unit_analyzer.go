@@ -66,16 +66,22 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 					}
 
 					// Import all symbols from the used unit
-					for symbolName, symbol := range unitSymbols.symbols {
+					var importErr error
+					unitSymbols.symbols.Range(func(symbolName string, symbol *Symbol) bool {
 						// Check for conflicts
 						if existingSource, exists := importedSymbols[symbolName]; exists {
-							return fmt.Errorf("symbol conflict: '%s' is exported by both '%s' and '%s'",
+							importErr = fmt.Errorf("symbol conflict: '%s' is exported by both '%s' and '%s'",
 								symbol.Name, existingSource, unitIdent.Value)
+							return false // stop iteration
 						}
 
 						// Import the symbol
-						a.symbols.symbols[symbolName] = symbol
+						a.symbols.symbols.Set(symbolName, symbol)
 						importedSymbols[symbolName] = unitIdent.Value
+						return true // continue iteration
+					})
+					if importErr != nil {
+						return importErr
 					}
 				}
 			}
@@ -167,9 +173,10 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 
 	// Step 4: Import interface symbols into the analyzer's symbol table
 	// These become the unit's public API
-	for name, symbol := range interfaceSymbols.symbols {
-		a.symbols.symbols[name] = symbol
-	}
+	interfaceSymbols.symbols.Range(func(name string, symbol *Symbol) bool {
+		a.symbols.symbols.Set(name, symbol)
+		return true // continue iteration
+	})
 
 	// Return accumulated errors
 	if len(a.errors) > 0 {
@@ -196,9 +203,8 @@ func (a *Analyzer) ResolveQualifiedSymbol(unitName, symbolName string) (*Symbol,
 		return nil, fmt.Errorf("unit '%s' not found or not imported", unitName)
 	}
 
-	// Look up the symbol within that unit (case-insensitive)
-	normalizedSymbolName := ident.Normalize(symbolName)
-	symbol, found := unitSymbols.symbols[normalizedSymbolName]
+	// Look up the symbol within that unit (case-insensitive via ident.Map)
+	symbol, found := unitSymbols.symbols.Get(symbolName)
 	if !found {
 		return nil, fmt.Errorf("symbol '%s' not found in unit '%s'", symbolName, unitName)
 	}

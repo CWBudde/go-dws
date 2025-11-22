@@ -118,11 +118,12 @@ The `ident.Map[T]` generic type (created in Phase 2) provides case-insensitive k
 
 These are the most impactful changes, touching fundamental lookup structures:
 
-- [ ] **13.1** Migrate `internal/semantic/symbol_table.go`
+- [x] **13.1** Migrate `internal/semantic/symbol_table.go`
   - Field: `symbols map[string]*Symbol`
   - Replace with: `symbols *ident.Map[*Symbol]`
   - Impact: All variable/function/type symbol lookups
   - Note: `Symbol.Name` field stores original casing - verify `GetOriginalKey()` matches
+  - Also updated `type_resolution_pass.go` and `unit_analyzer.go` to use `ident.Map` APIs
 
 - [ ] **13.2** Migrate `internal/semantic/type_registry.go`
   - Field: `types map[string]*TypeDescriptor`
