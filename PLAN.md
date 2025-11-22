@@ -409,14 +409,14 @@ If conditional compilation features are added in the future, they would require:
 
 ### Phase 7: Advanced Expressions (3.5.31-3.5.33)
 
-- [ ] **3.5.31** Migrate `VisitOldExpression`
+- [x] **3.5.31** Migrate `VisitOldExpression`
   - Postcondition support (Old(value))
   - Value snapshot at function entry
   - Requires contract evaluation infrastructure
   - Files: `visitor_expressions.go`
   - Effort: 4-6 hours
 
-- [ ] **3.5.32** Migrate `VisitLambdaExpression`
+- [x] **3.5.32** Migrate `VisitLambdaExpression`
   - Anonymous function creation
   - Closure capture (captured variable handling)
   - FunctionPointerValue creation
