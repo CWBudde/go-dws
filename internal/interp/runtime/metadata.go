@@ -74,6 +74,13 @@ func (v MethodVisibility) String() string {
 //   - Reduces memory overhead compared to full AST nodes
 //   - Enables serialization for bytecode cache
 type MethodMetadata struct {
+	// === Identity ===
+
+	// ID is the unique method identifier in the MethodRegistry.
+	// Set by MethodRegistry.RegisterMethod().
+	// Task 3.5.38: Enables ID-based method calls without AST dependencies.
+	ID MethodID
+
 	// === Signature Information ===
 
 	// Name is the method/function name.

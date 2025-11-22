@@ -482,24 +482,26 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
   - Acceptance: Design doc approved, metadata structs defined
   - **Completed**: Created comprehensive design document analyzing AST dependencies and designing metadata structures. Implemented ParameterMetadata, MethodMetadata, FieldMetadata, VirtualMethodMetadata, ClassMetadata, RecordMetadata, and HelperMetadata with full conversion utilities and tests. All tests passing. Design provides clear migration path for Phase 9 tasks.
 
-- [ ] **3.5.38** Implement MethodMetadata and MethodRegistry
+- [x] **3.5.38** Implement MethodMetadata and MethodRegistry
   - Create `MethodMetadata` with signature info and callable reference
   - Implement `MethodRegistry` to store methods by ID
   - Add method registration during class declaration evaluation
   - Replace `*ast.FunctionDecl` references with method IDs
-  - Files: `internal/interp/runtime/method_metadata.go` (new)
+  - Files: `internal/interp/runtime/method_registry.go` (new), `internal/interp/runtime/method_registry_test.go` (new), `internal/interp/runtime/metadata.go` (updated)
   - Effort: 6-8 hours
   - Acceptance: Methods can be called via metadata, no AST in hot path
+  - **Completed**: Implemented MethodRegistry with MethodID type for unique method identification. Registry provides thread-safe operations for registering methods and retrieving them by ID. Added MethodID field to MethodMetadata. Includes comprehensive tests covering registration, retrieval, overloads, case-insensitive name lookup, concurrent access, and statistics. All tests passing.
 
-- [ ] **3.5.39** Migrate ClassInfo to AST-Free ClassMetadata
+- [x] **3.5.39** Migrate ClassInfo to AST-Free ClassMetadata
   - Create `ClassMetadata` in runtime package
   - Move field info from `*ast.FieldDecl` to `FieldMetadata`
   - Move constant info from `*ast.ConstDecl` to `ConstantMetadata`
   - Move method references to use `MethodMetadata`
   - Populate metadata during class declaration (compile-time)
-  - Files: `internal/interp/runtime/class_metadata.go` (new), `internal/interp/class.go`
+  - Files: `internal/interp/class.go` (updated), `internal/interp/declarations.go` (updated), `internal/interp/interpreter.go` (updated), `internal/interp/class_test.go` (updated)
   - Effort: 8-10 hours
   - Acceptance: ClassInfo uses metadata only, no AST imports in runtime
+  - **Completed**: Added Metadata field to ClassInfo that contains AST-free ClassMetadata. Added MethodRegistry to Interpreter for ID-based method storage. Modified evalClassDeclaration to populate ClassMetadata during class declaration: fields converted to FieldMetadata, methods registered in MethodRegistry and stored as MethodMetadata, parent metadata references set, class flags (abstract, partial, external) propagated to metadata. Constructors and destructors stored separately (not in Methods map). Added comprehensive tests for metadata population, inheritance, and flags. All existing tests passing.
 
 - [ ] **3.5.40** Migrate ObjectInstance to Use ClassMetadata
   - Update `ObjectInstance` to reference `ClassMetadata` instead of `ClassInfo`

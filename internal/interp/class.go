@@ -3,6 +3,7 @@ package interp
 import (
 	"fmt"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -24,7 +25,23 @@ type VirtualMethodEntry struct {
 // ClassInfo represents runtime class metadata.
 // It stores information about a class's structure including fields, methods,
 // parent class, and constructor/destructor.
+//
+// Task 3.5.39: Migration to AST-free metadata
+// - Metadata field contains AST-free runtime metadata (Phase 9)
+// - Legacy AST fields maintained for backward compatibility
+// - Future: Code will migrate to use Metadata, AST fields deprecated
 type ClassInfo struct {
+	// === AST-Free Metadata (Task 3.5.39) ===
+
+	// Metadata contains AST-free runtime metadata for this class.
+	// Populated during class declaration evaluation.
+	// Phase 9: Enables method calls via MethodID without AST access.
+	Metadata *runtime.ClassMetadata
+
+	// === Legacy AST Fields (to be deprecated) ===
+	// These fields are maintained for backward compatibility during migration.
+	// New code should use Metadata instead.
+
 	Constants            map[string]*ast.ConstDecl
 	ClassVars            map[string]Value
 	ConstructorOverloads map[string][]*ast.FunctionDecl
@@ -53,10 +70,12 @@ type ClassInfo struct {
 
 // NewClassInfo creates a new ClassInfo with the given name.
 // Fields, Methods, ClassVars, ClassMethods, and Properties maps are initialized as empty.
+// Task 3.5.39: Also initializes AST-free ClassMetadata.
 func NewClassInfo(name string) *ClassInfo {
 	return &ClassInfo{
 		Name:                 name,
 		Parent:               nil,
+		Metadata:             runtime.NewClassMetadata(name), // Task 3.5.39
 		Fields:               make(map[string]types.Type),
 		FieldDecls:           make(map[string]*ast.FieldDecl),
 		ClassVars:            make(map[string]Value),
