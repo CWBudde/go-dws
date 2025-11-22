@@ -1607,6 +1607,108 @@ func (i *Interpreter) IsFunctionPointerNil(funcPtr evaluator.Value) bool {
 	return fp.Function == nil && fp.Lambda == nil
 }
 
+// CreateMethodPointer creates a method pointer value bound to a specific object.
+// Task 3.5.37: Adapter method for method pointer creation from @object.MethodName expressions.
+func (i *Interpreter) CreateMethodPointer(objVal evaluator.Value, methodName string, closure any) (evaluator.Value, error) {
+	// Extract the object instance
+	obj, ok := AsObject(objVal)
+	if !ok {
+		return nil, fmt.Errorf("method pointer requires an object instance, got %s", objVal.Type())
+	}
+
+	// Look up the method in the class hierarchy (case-insensitive)
+	method := obj.Class.lookupMethod(methodName)
+	if method == nil {
+		return nil, fmt.Errorf("undefined method: %s.%s", obj.Class.Name, methodName)
+	}
+
+	// Convert closure to Environment
+	// Handle both direct *Environment and *EnvironmentAdapter (from evaluator)
+	var env *Environment
+	if closure != nil {
+		if adapter, ok := closure.(*evaluator.EnvironmentAdapter); ok {
+			env = adapter.Underlying().(*Environment)
+		} else if envVal, ok := closure.(*Environment); ok {
+			env = envVal
+		}
+	}
+
+	// Build parameter types for the function pointer type
+	paramTypes := make([]types.Type, len(method.Parameters))
+	for idx, param := range method.Parameters {
+		if param.Type != nil {
+			paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
+		} else {
+			paramTypes[idx] = &types.IntegerType{} // Default fallback
+		}
+	}
+
+	// Get return type
+	var returnType types.Type
+	if method.ReturnType != nil {
+		returnType = i.getTypeFromAnnotation(method.ReturnType)
+	}
+
+	// Create the method pointer type
+	methodPtr := types.NewMethodPointerType(paramTypes, returnType)
+	pointerType := &methodPtr.FunctionPointerType
+
+	// Create and return the function pointer value with SelfObject bound
+	return NewFunctionPointerValue(method, env, objVal, pointerType), nil
+}
+
+// CreateFunctionPointerFromName creates a function pointer for a named function.
+// Task 3.5.37: Adapter method for function pointer creation from @FunctionName expressions.
+func (i *Interpreter) CreateFunctionPointerFromName(funcName string, closure any) (evaluator.Value, error) {
+	// Look up the function in the function registry (case-insensitive)
+	overloads, exists := i.functions[strings.ToLower(funcName)]
+	if !exists || len(overloads) == 0 {
+		return nil, fmt.Errorf("undefined function or procedure: %s", funcName)
+	}
+
+	// For overloaded functions, use the first overload
+	// Note: Function pointers cannot represent overload sets, only single functions
+	function := overloads[0]
+
+	// Convert closure to Environment
+	// Handle both direct *Environment and *EnvironmentAdapter (from evaluator)
+	var env *Environment
+	if closure != nil {
+		if adapter, ok := closure.(*evaluator.EnvironmentAdapter); ok {
+			env = adapter.Underlying().(*Environment)
+		} else if envVal, ok := closure.(*Environment); ok {
+			env = envVal
+		}
+	}
+
+	// Build parameter types for the function pointer type
+	paramTypes := make([]types.Type, len(function.Parameters))
+	for idx, param := range function.Parameters {
+		if param.Type != nil {
+			paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
+		} else {
+			paramTypes[idx] = &types.IntegerType{} // Default fallback
+		}
+	}
+
+	// Get return type
+	var returnType types.Type
+	if function.ReturnType != nil {
+		returnType = i.getTypeFromAnnotation(function.ReturnType)
+	}
+
+	// Create the function pointer type
+	var pointerType *types.FunctionPointerType
+	if returnType != nil {
+		pointerType = types.NewFunctionPointerType(paramTypes, returnType)
+	} else {
+		pointerType = types.NewProcedurePointerType(paramTypes)
+	}
+
+	// Create and return the function pointer value (no SelfObject)
+	return NewFunctionPointerValue(function, env, nil, pointerType), nil
+}
+
 // CreateRecord creates a record value from field values.
 // Task 3.5.8: Adapter method for record construction.
 func (i *Interpreter) CreateRecord(recordType string, fields map[string]evaluator.Value) (evaluator.Value, error) {

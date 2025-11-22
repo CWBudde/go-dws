@@ -1186,9 +1186,15 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Effort**: 3-5 days
   - **Done**: Migrated `VisitImplementsExpression` to the evaluator with full interface implementation checking
 
-- [ ] **3.5.37** Migrate Method Pointers (`VisitAddressOfExpression`)
+- [x] **3.5.37** Migrate Method Pointers (`VisitAddressOfExpression`)
   - **Requirements**: Function/method pointer creation, overload resolution
   - **Effort**: 1 week
+  - **Done**: Migrated `VisitAddressOfExpression` to the evaluator with full support for:
+    - `@FunctionName` - Creates function pointers from named functions (with type info)
+    - `@object.MethodName` - Creates method pointers bound to object instances (of object)
+    - Added `CreateMethodPointer` and `CreateFunctionPointerFromName` adapter methods
+    - Proper handling of overloaded functions (uses first overload)
+    - Environment closure capture for function pointers
 
 ---
 
@@ -4166,39 +4172,333 @@ This phase implements a bytecode virtual machine for DWScript, providing signifi
   - Provided examples of bytecode output
   - Updated CLAUDE.md with bytecode information
 
-- [ ] 14.16 Add enum support to bytecode VM
-  - **Task**: Implement enum value representation and operations in bytecode VM
-  - **Priority**: MEDIUM (enums work fine in AST interpreter, this is optimization)
-  - **Status**: NOT STARTED
-  - **Implementation**:
-    1. Add `ValueEnum` to ValueType enum in `bytecode.go`
-    2. Add `EnumValue()` helper constructor for enum values
-    3. Modify compiler to handle enum expressions:
-       - Scoped enum access (e.g., `TEnum.Alpha`)
-       - Enum type declarations in symbol table
-       - Member access expressions for enums
-    4. Add enum operations to VM:
-       - Comparison operations (=, <>, <, >, <=, >=)
-       - Boolean operations (and, or, xor) - Task 1.6 support
-       - Implicit enum-to-integer conversion - Task 1.6 support
-    5. Update bytecode serialization to support enum values
-    6. Add comprehensive tests for enum operations in VM
-  - **Current workaround**: Use AST interpreter for scripts with enums
-  - **Failing Test**: `enum_bool_op.pas` fails with bytecode VM
-  - **Example**:
-    ```pascal
-    type TEnum = flags (Alpha, Beta, Gamma);
-    var x := TEnum.Alpha or TEnum.Gamma;  // Currently unsupported in VM
-    PrintInt(TEnum.Beta);                  // Currently unsupported in VM
-    ```
-  - **Files to Modify**:
-    - `internal/bytecode/bytecode.go` (add ValueEnum type)
-    - `internal/bytecode/compiler_expressions.go` (compile enum literals and member access)
-    - `internal/bytecode/compiler_core.go` (symbol table for enum types)
-    - `internal/bytecode/vm_exec.go` (execute enum operations)
-    - `internal/bytecode/serializer.go` (serialize/deserialize enum values)
-  - **Estimated time**: 4-6 hours (1 day)
-  - **Dependencies**: None (enum support complete in AST interpreter and semantic analyzer)
+### Phase 14.16: Bytecode VM Core Feature Completion 🚧 IN PROGRESS
+
+> **Source**: TODOs.md Task 1.5 - Bytecode VM Missing Core Features
+>
+> This section addresses critical missing features in the bytecode VM that prevent
+> full parity with the AST interpreter. These are HIGH priority items that block
+> VM usability for real-world scripts.
+
+#### 14.16.1 For Loop Support 🔴 HIGH PRIORITY
+
+**Status**: Not Started | **Complexity**: High | **Blocking**: VM cannot execute for loops
+
+**Current State**:
+- Opcodes `OpForPrep` and `OpForLoop` exist in instruction.go (lines 357-365)
+- No `ForStatement` case in `compileStatement()` (compiler_statements.go)
+- VM has no handlers for these opcodes in vm_exec.go
+- For loop tests are commented out in vm_parity_test.go (lines 71-79)
+
+**ForStatement AST** (pkg/ast/control_flow.go:167):
+```go
+type ForStatement struct {
+    Start     Expression     // Starting value
+    EndValue  Expression     // Ending value
+    Body      Statement      // Loop body
+    Step      Expression     // Optional step value
+    Variable  *Identifier    // Loop variable
+    Direction ForDirection   // ForTo or ForDownto
+    InlineVar bool           // Whether variable is declared inline
+}
+```
+
+**Implementation Tasks**:
+
+- [ ] **14.16.1.1** Add ForStatement case to compileStatement()
+  - **File**: `internal/bytecode/compiler_statements.go`
+  - **Task**: Add `case *ast.ForStatement: return c.compileForStatement(node)` to switch
+
+- [ ] **14.16.1.2** Implement compileForStatement() function
+  - **File**: `internal/bytecode/compiler_statements.go`
+  - **Complexity**: High (~100-150 lines)
+  - **Requirements**:
+    1. Evaluate start and end values at compile time or runtime
+    2. Create loop variable in local scope (beginScope/declareLocal)
+    3. Handle ForTo direction (ascending: current <= end)
+    4. Handle ForDownto direction (descending: current >= end)
+    5. Handle optional Step expression (default step = 1)
+    6. Emit proper jump instructions:
+       - Initialize loop variable with start value
+       - Check loop condition (compare to end value)
+       - Execute body
+       - Increment/decrement loop variable by step
+       - Jump back to condition check
+    7. Handle break/continue within for loops (pushLoop/popLoop)
+    8. Ensure loop variable scope is limited to loop body
+
+  **Compilation Strategy Option A (Loop Unrolling with VM Support)**:
+  ```
+  ; for i := 1 to 3 do PrintLn(i);
+  OpLoadConst 1         ; push start value
+  OpLoadConst 3         ; push end value
+  OpLoadConst 1         ; push step value (default 1)
+  OpForPrep loopVar exitJump  ; init loop [start,end,step]->[current], check condition
+  loop:
+    ; body
+    OpLoadLocal loopVar
+    OpCallBuiltin PrintLn
+    OpForLoop loopVar loop ; increment by step and check condition
+  exit:
+  ```
+
+  **Compilation Strategy Option B (Compile to While-like Loop)**:
+  ```
+  ; for i := 1 to 3 do PrintLn(i);
+  OpLoadConst 1         ; push start value
+  OpStoreLocal loopVar  ; i := 1
+  loopStart:
+    OpLoadLocal loopVar   ; load i
+    OpLoadConst 3         ; load end value
+    OpLessEqual           ; i <= 3 (for ForTo)
+    OpJumpIfFalse exit
+    ; body
+    OpLoadLocal loopVar
+    OpCallBuiltin PrintLn
+    ; increment
+    OpLoadLocal loopVar
+    OpLoadConst 1         ; step value
+    OpAddInt
+    OpStoreLocal loopVar
+    OpLoop loopStart
+  exit:
+  ```
+
+- [ ] **14.16.1.3** Implement OpForPrep handler in VM (if using Strategy A)
+  - **File**: `internal/bytecode/vm_exec.go`
+  - **Task**: Add case for OpForPrep opcode
+  - **Semantics**: Initialize loop variable, check if loop should execute
+  - **Note**: Direction (ForTo vs ForDownto) must be encoded in opcode operand (e.g., A byte)
+    or Strategy B should be used which generates explicit comparison opcodes per direction
+
+- [ ] **14.16.1.4** Implement OpForLoop handler in VM (if using Strategy A)
+  - **File**: `internal/bytecode/vm_exec.go`
+  - **Task**: Add case for OpForLoop opcode
+  - **Semantics**: Increment/decrement loop variable, check condition, jump
+  - **Note**: Must handle both ForTo (increment, check `<=`) and ForDownto (decrement, check `>=`)
+
+- [ ] **14.16.1.5** Add loopKindFor to compiler loop tracking
+  - **File**: `internal/bytecode/compiler_core.go`
+  - **Task**: Add `loopKindFor` constant and update break/continue handling
+
+- [ ] **14.16.1.6** Add for loop compilation tests
+  - **File**: `internal/bytecode/compiler_statements_test.go`
+  - **Tests**:
+    - Simple for-to loop
+    - Simple for-downto loop
+    - For loop with step
+    - For loop with break
+    - For loop with continue
+    - Nested for loops
+
+- [ ] **14.16.1.7** Enable and verify VM parity tests
+  - **File**: `internal/bytecode/vm_parity_test.go`
+  - **Task**: Uncomment for loop test (lines 71-79)
+  - **Verify**: Output matches AST interpreter
+
+**Acceptance Criteria**:
+- For loops compile without error
+- ForTo and ForDownto directions work correctly
+- Step expression works correctly
+- Break/continue work within for loops
+- VM parity test passes
+
+---
+
+#### 14.16.2 Result Variable Support 🔴 HIGH PRIORITY
+
+**Status**: Not Started | **Complexity**: Medium | **Blocking**: Functions cannot use implicit Result variable
+
+**Current State**:
+- AST interpreter handles Result variable in functions_user.go (lines 88-146)
+- Bytecode compiler's `compileFunctionDecl()` doesn't allocate Result variable
+- Function tests with Result are commented out in vm_parity_test.go (lines 80-91)
+
+**DWScript Result Variable Semantics**:
+```pascal
+function Add(a, b: Integer): Integer;
+begin
+  Result := a + b;  // Assign to Result variable
+end;
+
+function Multiply(x, y: Integer): Integer;
+begin
+  Multiply := x * y;  // Can also assign to function name
+end;
+```
+
+**Implementation Tasks**:
+
+- [ ] **14.16.2.1** Add Result variable allocation in function prologue
+  - **File**: `internal/bytecode/compiler_statements.go` in `compileFunctionDecl()`
+  - **Task**: If function has ReturnType, allocate Result as first local variable
+  - **Code location**: After parameter binding, before body compilation
+  ```go
+  // After binding parameters:
+  if fn.ReturnType != nil {
+      resultSlot, err := child.declareLocal(
+          &ast.Identifier{Value: "Result"},
+          typeFromAnnotation(fn.ReturnType),
+      )
+      // NOTE: declareAlias does not exist yet; implement aliasing mechanism
+      // or resolve function name to Result slot during identifier lookup
+      // (see task 14.16.2.3 for implementation options)
+  }
+  ```
+
+- [ ] **14.16.2.2** Initialize Result with appropriate default value
+  - **File**: `internal/bytecode/compiler_statements.go`
+  - **Task**: Emit code to initialize Result based on return type
+  - **Default values**:
+    - Integer: 0
+    - Float: 0.0
+    - String: ""
+    - Boolean: false
+    - Object/Interface: nil
+    - Array: empty array
+    - Record: initialized record
+
+- [ ] **14.16.2.3** Make function name an alias for Result
+  - **File**: `internal/bytecode/compiler_core.go`
+  - **Task**: Implement aliasing so `FunctionName := value` resolves to Result slot
+  - **Implementation options**:
+    1. Add alias table to symbol table mapping function name to Result slot
+    2. During identifier lookup in function scope, check if identifier matches
+       current function name and resolve to Result slot instead
+  - **Reference**: AST interpreter uses `ReferenceValue` pointing to "Result" (functions_user.go:145)
+
+- [ ] **14.16.2.4** Update ensureFunctionReturn() to return Result
+  - **File**: `internal/bytecode/compiler_statements.go`
+  - **Task**: If function reaches end without explicit return, emit code to return Result value
+  - **Current**: `ensureFunctionReturn()` emits `OpReturn 0` (no value)
+  - **New**: If ReturnType != nil, emit `OpLoadLocal resultSlot; OpReturn 1`
+
+- [ ] **14.16.2.5** Add Result variable tests
+  - **File**: `internal/bytecode/compiler_functions_test.go`
+  - **Tests**:
+    - Function with Result assignment
+    - Function with function name assignment
+    - Function with both Result and explicit return
+    - Nested functions with Result
+    - Recursive function using Result
+
+- [ ] **14.16.2.6** Enable and verify VM parity tests
+  - **File**: `internal/bytecode/vm_parity_test.go`
+  - **Task**: Uncomment Result variable test (lines 80-91)
+  - **Verify**: Output matches AST interpreter
+
+**Acceptance Criteria**:
+- Functions can assign to Result variable
+- Functions can assign to function name as alias for Result
+- Functions without explicit return statement return Result value
+- VM parity test passes
+
+---
+
+#### 14.16.3 Trim Builtin Implementation 🟡 MEDIUM PRIORITY
+
+> **Note**: Originally marked as HIGH priority in TODOs.md. Re-evaluated to MEDIUM because
+> Trim is less critical than for loops and Result variables for VM parity.
+
+**Status**: Not Started | **Complexity**: Low | **Blocking**: Trim() calls fail in VM mode
+
+**Current State**:
+- Trim, TrimLeft, TrimRight exist in AST interpreter builtins (strings_basic.go:188-238)
+- VM has TODO comment at vm_calls.go:196: `// TODO: Implement Trim builtin in VM`
+- String helper method `trim` is commented out in vm_calls.go
+
+**Implementation Tasks**:
+
+- [ ] **14.16.3.1** Add builtinTrim function to VM
+  - **File**: `internal/bytecode/vm_builtins_string.go`
+  - **Task**: Implement Trim(str) - removes leading and trailing whitespace
+  ```go
+  func builtinTrim(vm *VM, args []Value) (Value, error) {
+      if len(args) != 1 {
+          return NilValue(), fmt.Errorf("Trim expects 1 argument, got %d", len(args))
+      }
+      if !args[0].IsString() {
+          return NilValue(), fmt.Errorf("Trim expects string argument")
+      }
+      return StringValue(strings.TrimSpace(args[0].AsString())), nil
+  }
+  ```
+
+- [ ] **14.16.3.2** Add builtinTrimLeft function to VM
+  - **File**: `internal/bytecode/vm_builtins_string.go`
+  - **Task**: Implement TrimLeft(str) - removes leading whitespace
+  ```go
+  func builtinTrimLeft(vm *VM, args []Value) (Value, error) {
+      // Similar to builtinTrim but use strings.TrimLeft(str, " \t\n\r")
+  }
+  ```
+
+- [ ] **14.16.3.3** Add builtinTrimRight function to VM
+  - **File**: `internal/bytecode/vm_builtins_string.go`
+  - **Task**: Implement TrimRight(str) - removes trailing whitespace
+  ```go
+  func builtinTrimRight(vm *VM, args []Value) (Value, error) {
+      // Similar to builtinTrim but use strings.TrimRight(str, " \t\n\r")
+  }
+  ```
+
+- [ ] **14.16.3.4** Register Trim functions in VM builtin table
+  - **File**: `internal/bytecode/vm_builtins.go` or appropriate registration file
+  - **Task**: Add entries to builtin function map
+  ```go
+  "trim":      builtinTrim,
+  "trimleft":  builtinTrimLeft,
+  "trimright": builtinTrimRight,
+  ```
+
+- [ ] **14.16.3.5** Enable String.Trim helper method in VM
+  - **File**: `internal/bytecode/vm_calls.go`
+  - **Task**: Add full implementation for the "trim" case in string helper method dispatch
+    (currently only case label exists). Implementation should validate exactly one string
+    argument and call `builtinTrim`, matching the pattern used for "toupper"/"tolower" cases.
+
+- [ ] **14.16.3.6** Add Trim builtin tests
+  - **File**: `internal/bytecode/vm_builtins_string_test.go`
+  - **Tests**:
+    - Trim with leading spaces
+    - Trim with trailing spaces
+    - Trim with both
+    - Trim with tabs and newlines
+    - TrimLeft and TrimRight variations
+    - Empty string edge case
+
+**Acceptance Criteria**:
+- Trim() function works in bytecode VM
+- TrimLeft() and TrimRight() work in bytecode VM
+- String.Trim helper method works
+- Tests pass
+
+---
+
+#### 14.16 Summary
+
+| Task | Priority | Complexity | Status | Blocking |
+|------|----------|------------|--------|----------|
+| 14.16.1 For Loop Support | 🔴 HIGH | High | Not Started | VM cannot execute for loops |
+| 14.16.2 Result Variable | 🔴 HIGH | Medium | Not Started | Functions cannot use Result |
+| 14.16.3 Trim Builtin | 🟡 MEDIUM | Low | Not Started | Trim() calls fail in VM |
+
+**Estimated Effort**:
+- 14.16.1 For Loop Support: 2-3 days
+- 14.16.2 Result Variable: 1-2 days
+- 14.16.3 Trim Builtin: 0.5 day
+
+**Total**: ~4-6 days
+
+**Dependencies**:
+- None (all tasks can be done independently)
+
+**Testing Strategy**:
+1. Unit tests for each feature
+2. VM parity tests comparing output with AST interpreter
+3. Integration tests with complex scripts using all features
+
+---
 
 **Estimated time**: Completed in 12-16 weeks
 
