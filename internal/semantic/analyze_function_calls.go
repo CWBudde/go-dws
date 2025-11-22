@@ -1,8 +1,6 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -122,11 +120,11 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		if a.currentClass != nil {
 			// Look up method in current class (including inherited methods)
 			// Note: GetMethod() normalizes to lowercase internally, so we pass the original name
-			methodNameLower := strings.ToLower(funcIdent.Value)
+			methodNameLower := ident.Normalize(funcIdent.Value)
 			methodType, found := a.currentClass.GetMethod(funcIdent.Value)
 			if found {
 				// Found a method - check visibility
-				// Use lowercase for visibility map lookup (keys are stored in lowercase)
+				// Use normalized key for visibility map lookup (keys are stored in normalized form)
 				methodOwner := a.getMethodOwner(a.currentClass, methodNameLower)
 				if methodOwner != nil {
 					visibility, hasVisibility := methodOwner.MethodVisibility[methodNameLower]
@@ -172,7 +170,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 		// Check if we're calling a record class method from within a record method
 		if a.currentRecord != nil {
-			methodNameLower := strings.ToLower(funcIdent.Value)
+			methodNameLower := ident.Normalize(funcIdent.Value)
 			overloads := a.currentRecord.GetClassMethodOverloads(methodNameLower)
 			if len(overloads) > 0 {
 				// Found class method overloads - resolve based on arguments
@@ -953,7 +951,7 @@ func (a *Analyzer) isNumericType(t types.Type) bool {
 // analyzeRecordStaticMethodCall analyzes a static method call on a record type
 // Example: TTest.Sum(a, b) where Sum is a class method
 func (a *Analyzer) analyzeRecordStaticMethodCall(expr *ast.CallExpression, recordType *types.RecordType, methodName string) types.Type {
-	lowerMethodName := strings.ToLower(methodName)
+	lowerMethodName := ident.Normalize(methodName)
 
 	// Look up class method overloads
 	overloads := recordType.GetClassMethodOverloads(lowerMethodName)

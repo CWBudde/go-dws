@@ -1,10 +1,9 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -36,7 +35,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 	for _, field := range decl.Fields {
 		fieldName := field.Name.Value
 		// Normalize to lowercase for case-insensitive field access
-		lowerFieldName := strings.ToLower(fieldName)
+		lowerFieldName := ident.Normalize(fieldName)
 
 		// Check for duplicate field names (case-insensitive)
 		if fieldNames[lowerFieldName] {
@@ -94,7 +93,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 	// Process constants
 	for _, constant := range decl.Constants {
 		constName := constant.Name.Value
-		lowerConstName := strings.ToLower(constName)
+		lowerConstName := ident.Normalize(constName)
 
 		// Analyze the constant value
 		constValueType := a.analyzeExpression(constant.Value)
@@ -139,7 +138,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 	// Process class variables
 	for _, classVar := range decl.ClassVars {
 		varName := classVar.Name.Value
-		lowerVarName := strings.ToLower(varName)
+		lowerVarName := ident.Normalize(varName)
 
 		var varType types.Type
 		var err error
@@ -222,7 +221,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			Visibility:           int(method.Visibility),
 		}
 
-		lowerMethodName := strings.ToLower(methodName)
+		lowerMethodName := ident.Normalize(methodName)
 
 		// Store in appropriate maps based on whether it's a class method (static)
 		if method.IsClassMethod {
@@ -301,7 +300,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 	// Process properties if any
 	for _, prop := range decl.Properties {
 		propName := prop.Name.Value
-		lowerPropName := strings.ToLower(propName)
+		lowerPropName := ident.Normalize(propName)
 
 		// Resolve property type
 		propType, err := a.resolveType(getTypeExpressionName(prop.Type))
@@ -343,7 +342,7 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, fieldName string
 	}
 
 	// Normalize field name to lowercase for case-insensitive lookup
-	lowerFieldName := strings.ToLower(fieldName)
+	lowerFieldName := ident.Normalize(fieldName)
 
 	// Check if the field exists
 	fieldType, exists := recordType.Fields[lowerFieldName]

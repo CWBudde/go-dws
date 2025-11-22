@@ -48,7 +48,7 @@ func (a *Analyzer) resolveTypeExpression(typeExpr ast.TypeExpression) (types.Typ
 func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 	// Handle "const" pseudo-type (used in "array of const")
 	// "const" is a special DWScript keyword that means "any type" (Variant)
-	if strings.ToLower(typeName) == "const" {
+	if ident.Normalize(typeName) == "const" {
 		return types.VARIANT, nil
 	}
 
@@ -67,7 +67,7 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 	}
 
 	// Check for inline set types: "set of TEnum", "set of Integer", etc.
-	lowerName := strings.ToLower(typeName)
+	lowerName := ident.Normalize(typeName)
 	if strings.HasPrefix(lowerName, "set of ") {
 		elemName := strings.TrimSpace(typeName[len("set of "):])
 		if elemName == "" {
@@ -94,7 +94,7 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 
 	// Normalize type name for case-insensitive lookup
 	// DWScript is case-insensitive, so "integer", "Integer", and "INTEGER" should all work
-	normalizedName := strings.ToLower(typeName)
+	normalizedName := ident.Normalize(typeName)
 
 	// Try basic types first (TypeFromString now handles case-insensitivity)
 	basicType, err := types.TypeFromString(typeName)
@@ -452,7 +452,7 @@ func (a *Analyzer) resolveSetTypeNode(setNode *ast.SetTypeNode) (types.Type, err
 
 	// Cache inline set types by their string representation for consistent reuse
 	// Task 6.1.1.3: Use TypeRegistry for set type caching
-	normalizedName := strings.ToLower(setNode.String())
+	normalizedName := ident.Normalize(setNode.String())
 	if !a.hasType(normalizedName) {
 		a.registerType(normalizedName, setType)
 	}
@@ -471,7 +471,7 @@ func (a *Analyzer) resolveOperatorType(typeName string) (types.Type, error) {
 		return t, nil
 	}
 
-	lower := strings.ToLower(name)
+	lower := ident.Normalize(name)
 	if strings.HasPrefix(lower, "array of ") {
 		elemName := strings.TrimSpace(name[len("array of "):])
 		elemType, err := a.resolveOperatorType(elemName)
@@ -506,7 +506,7 @@ func normalizeOperatorOperandTypeName(raw string) string {
 	// Collapse repeated whitespace to simplify further checks.
 	trimmed = strings.Join(strings.Fields(trimmed), " ")
 
-	lower := strings.ToLower(trimmed)
+	lower := ident.Normalize(trimmed)
 	modifiers := []string{
 		"constref ",
 		"const ",
@@ -519,7 +519,7 @@ func normalizeOperatorOperandTypeName(raw string) string {
 	for _, mod := range modifiers {
 		if strings.HasPrefix(lower, mod) && len(trimmed) > len(mod) {
 			trimmed = strings.TrimSpace(trimmed[len(mod):])
-			lower = strings.ToLower(trimmed)
+			lower = ident.Normalize(trimmed)
 		}
 	}
 
@@ -806,7 +806,7 @@ func (a *Analyzer) getUnimplementedAbstractMethods(classType *types.ClassType) [
 		// Check if this class has its own implementation of the method
 		// We need to check the method is defined in THIS class specifically, not inherited
 		// Task 9.16.1: methodName is already lowercase from AbstractMethods map
-		lowerMethodName := strings.ToLower(methodName)
+		lowerMethodName := ident.Normalize(methodName)
 		hasOwnMethod := len(classType.MethodOverloads[lowerMethodName]) > 0
 
 		if !hasOwnMethod {
@@ -851,7 +851,7 @@ func (a *Analyzer) collectAbstractMethods(parent *types.ClassType) map[string]bo
 		// Use case-insensitive lookup since DWScript is case-insensitive
 		if _, hasMethod := parent.GetMethod(methodName); hasMethod {
 			// Check if parent still marks it as abstract
-			lowerMethodName := strings.ToLower(methodName)
+			lowerMethodName := ident.Normalize(methodName)
 			if isAbstract, exists := parent.AbstractMethods[lowerMethodName]; exists && isAbstract {
 				// Still abstract in parent
 				abstractMethods[methodName] = true
@@ -925,7 +925,7 @@ func (a *Analyzer) getFieldOwner(class *types.ClassType, fieldName string) *type
 	}
 
 	// Check if this class declares the field (case-insensitive)
-	lowerFieldName := strings.ToLower(fieldName)
+	lowerFieldName := ident.Normalize(fieldName)
 	if _, found := class.Fields[lowerFieldName]; found {
 		return class
 	}
@@ -941,7 +941,7 @@ func (a *Analyzer) getClassVarOwner(class *types.ClassType, classVarName string)
 	}
 
 	// Check if this class declares the class variable (case-insensitive)
-	lowerClassVarName := strings.ToLower(classVarName)
+	lowerClassVarName := ident.Normalize(classVarName)
 	if _, found := class.ClassVars[lowerClassVarName]; found {
 		return class
 	}
@@ -957,7 +957,7 @@ func (a *Analyzer) getMethodOwner(class *types.ClassType, methodName string) *ty
 	}
 
 	// Task 9.16.1: Use overload system instead of deprecated Methods map
-	methodKey := strings.ToLower(methodName)
+	methodKey := ident.Normalize(methodName)
 	if _, found := class.MethodOverloads[methodKey]; found {
 		return class
 	}

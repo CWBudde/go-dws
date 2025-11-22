@@ -1,10 +1,9 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -196,7 +195,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	}
 
 	// Check if object is a class or record type
-	memberName := strings.ToLower(expr.Member.Value)
+	memberName := ident.Normalize(expr.Member.Value)
 
 	// Resolve type aliases to get the underlying type
 	// This allows member access on type alias variables like TBaseClass
@@ -374,8 +373,8 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		// Check method visibility - Task 9.16.1
 		methodOwner := a.getMethodOwner(classType, memberName)
 		if methodOwner != nil {
-			// Use lowercase key for case-insensitive lookup
-			visibility, hasVisibility := methodOwner.MethodVisibility[strings.ToLower(memberName)]
+			// Use normalized key for case-insensitive lookup
+			visibility, hasVisibility := methodOwner.MethodVisibility[ident.Normalize(memberName)]
 			if hasVisibility && !a.checkVisibility(methodOwner, visibility, memberName, "method") {
 				visibilityStr := ast.Visibility(visibility).String()
 				a.addError("cannot call %s method '%s' of class '%s' at %s",
@@ -436,7 +435,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 func (a *Analyzer) analyzeRecordStaticMethodCallFromNew(expr *ast.NewExpression, recordType *types.RecordType) types.Type {
 	// Assume "Create" as the method name (standard DWScript pattern)
 	methodName := "Create"
-	lowerMethodName := strings.ToLower(methodName)
+	lowerMethodName := ident.Normalize(methodName)
 
 	// Look up class method overloads
 	overloads := recordType.GetClassMethodOverloads(lowerMethodName)
