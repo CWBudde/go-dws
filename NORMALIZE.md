@@ -98,11 +98,14 @@ Migrate `internal/types/` package with ~15+ direct calls.
 
 ### Tasks
 
-- [ ] **5.1** Migrate `internal/types/types.go` - Part 1: ClassType methods
-  - Lines: 502, 514, 530, 536, 542, 555, 590, 594
-  - Methods: `HasMethod()`, `GetMethod()`, `GetMethodOverloads()`, `HasField()`, `GetField()`, etc.
-  - Replace: `strings.ToLower()` → `ident.Normalize()`
-  - Verify: Original method/field names preserved in type metadata
+- [x] **5.1** Migrate `internal/types/types.go` - Part 1: ClassType methods
+  - Migrated methods: `HasField()`, `GetField()`, `HasMethod()`, `GetMethod()`,
+    `GetMethodOverloads()`, `GetConstructorOverloads()`, `AddMethodOverload()`,
+    `AddConstructorOverload()`, `HasConstructor()`, `GetConstructor()`,
+    `HasProperty()`, `GetProperty()`, `GetClassVar()`
+  - Replaced: `strings.ToLower()` → `ident.Normalize()`
+  - Replaced: `strings.EqualFold()` → `ident.Equal()`
+  - Verified: Original method/field names preserved in type metadata
 
 - [ ] **5.2** Migrate `internal/types/types.go` - Part 2: RecordType methods
   - Similar methods for RecordType

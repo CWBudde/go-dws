@@ -3,6 +3,8 @@ package types
 import (
 	"fmt"
 	"strings"
+
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // Type represents a DWScript type at compile-time.
@@ -474,8 +476,8 @@ func (ct *ClassType) Equals(other Type) bool {
 // HasField checks if the class or any of its ancestors has a field with the given name
 func (ct *ClassType) HasField(name string) bool {
 	// Case-insensitive field lookup
-	lowerName := strings.ToLower(name)
-	if _, ok := ct.Fields[lowerName]; ok {
+	normalizedName := ident.Normalize(name)
+	if _, ok := ct.Fields[normalizedName]; ok {
 		return true
 	}
 	if ct.Parent != nil {
@@ -487,8 +489,8 @@ func (ct *ClassType) HasField(name string) bool {
 // GetField retrieves the type of a field by name, searching up the inheritance chain
 func (ct *ClassType) GetField(name string) (Type, bool) {
 	// Case-insensitive field lookup
-	lowerName := strings.ToLower(name)
-	if fieldType, ok := ct.Fields[lowerName]; ok {
+	normalizedName := ident.Normalize(name)
+	if fieldType, ok := ct.Fields[normalizedName]; ok {
 		return fieldType, true
 	}
 	if ct.Parent != nil {
@@ -499,7 +501,7 @@ func (ct *ClassType) GetField(name string) (Type, bool) {
 
 // HasMethod checks if the class or any of its ancestors has a method with the given name
 func (ct *ClassType) HasMethod(name string) bool {
-	methodName := strings.ToLower(name)
+	methodName := ident.Normalize(name)
 	if len(ct.MethodOverloads[methodName]) > 0 {
 		return true
 	}
@@ -511,7 +513,7 @@ func (ct *ClassType) HasMethod(name string) bool {
 
 // GetMethod retrieves the signature of a method by name, searching up the inheritance chain
 func (ct *ClassType) GetMethod(name string) (*FunctionType, bool) {
-	methodName := strings.ToLower(name)
+	methodName := ident.Normalize(name)
 	if overloads := ct.MethodOverloads[methodName]; len(overloads) > 0 {
 		// Return the signature of the first overload
 		// (For non-overloaded methods, there's only one)
@@ -526,38 +528,38 @@ func (ct *ClassType) GetMethod(name string) (*FunctionType, bool) {
 // GetMethodOverloads retrieves all overload variants of a method by name
 // Returns overloads from this class only (does not search parent)
 func (ct *ClassType) GetMethodOverloads(name string) []*MethodInfo {
-	// Task 9.285: Normalize method names to lowercase for case-insensitive lookup
-	return ct.MethodOverloads[strings.ToLower(name)]
+	// Normalize method names for case-insensitive lookup
+	return ct.MethodOverloads[ident.Normalize(name)]
 }
 
 // GetConstructorOverloads retrieves all overload variants of a constructor by name
-// Constructor names are case-insensitive, so we normalize to lowercase
+// Constructor names are case-insensitive, so we normalize for lookup
 func (ct *ClassType) GetConstructorOverloads(name string) []*MethodInfo {
-	return ct.ConstructorOverloads[strings.ToLower(name)]
+	return ct.ConstructorOverloads[ident.Normalize(name)]
 }
 
 // AddMethodOverload adds a method overload to the class
 func (ct *ClassType) AddMethodOverload(name string, info *MethodInfo) {
-	// Task 9.285: Normalize method names to lowercase for case-insensitive lookup
-	lowerName := strings.ToLower(name)
-	ct.MethodOverloads[lowerName] = append(ct.MethodOverloads[lowerName], info)
+	// Normalize method names for case-insensitive lookup
+	normalizedName := ident.Normalize(name)
+	ct.MethodOverloads[normalizedName] = append(ct.MethodOverloads[normalizedName], info)
 
 	// Update the primary Methods map to point to the first overload
 	// This maintains backward compatibility with code that uses Methods map directly
-	if len(ct.MethodOverloads[lowerName]) == 1 {
-		ct.Methods[lowerName] = info.Signature
+	if len(ct.MethodOverloads[normalizedName]) == 1 {
+		ct.Methods[normalizedName] = info.Signature
 	}
 }
 
 // AddConstructorOverload adds a constructor overload to the class
-// Constructor names are case-insensitive, so we normalize to lowercase
+// Constructor names are case-insensitive, so we normalize for lookup
 func (ct *ClassType) AddConstructorOverload(name string, info *MethodInfo) {
-	lowerName := strings.ToLower(name)
-	ct.ConstructorOverloads[lowerName] = append(ct.ConstructorOverloads[lowerName], info)
+	normalizedName := ident.Normalize(name)
+	ct.ConstructorOverloads[normalizedName] = append(ct.ConstructorOverloads[normalizedName], info)
 
 	// Update the primary Constructors map
-	if len(ct.ConstructorOverloads[lowerName]) == 1 {
-		ct.Constructors[lowerName] = info.Signature
+	if len(ct.ConstructorOverloads[normalizedName]) == 1 {
+		ct.Constructors[normalizedName] = info.Signature
 	}
 }
 
@@ -586,14 +588,14 @@ func (ct *ClassType) LookupOperator(operator string, operandTypes []Type) (*Oper
 }
 
 // HasConstructor checks if the class or any ancestor declares a constructor with the given name.
-// Task 9.19: Case-insensitive constructor name lookup
+// Case-insensitive constructor name lookup
 func (ct *ClassType) HasConstructor(name string) bool {
 	if ct == nil {
 		return false
 	}
 	// Case-insensitive lookup
 	for ctorName := range ct.Constructors {
-		if strings.EqualFold(ctorName, name) {
+		if ident.Equal(ctorName, name) {
 			return true
 		}
 	}
@@ -605,14 +607,14 @@ func (ct *ClassType) HasConstructor(name string) bool {
 
 // GetConstructor retrieves the signature of a constructor by name, searching up the inheritance chain.
 // Returns (functionType, true) if found, or (nil, false) if not found.
-// Task 9.16.4.4: Support inherited constructor calls in semantic analyzer
+// Supports inherited constructor calls in semantic analyzer
 func (ct *ClassType) GetConstructor(name string) (*FunctionType, bool) {
 	if ct == nil {
 		return nil, false
 	}
-	// Constructors are stored with lowercase keys for case-insensitive lookup
-	lowerName := strings.ToLower(name)
-	if ctorType, ok := ct.Constructors[lowerName]; ok {
+	// Constructors are stored with normalized keys for case-insensitive lookup
+	normalizedName := ident.Normalize(name)
+	if ctorType, ok := ct.Constructors[normalizedName]; ok {
 		return ctorType, true
 	}
 	if ct.Parent != nil {
@@ -627,7 +629,7 @@ func (ct *ClassType) HasProperty(name string) bool {
 		return false
 	}
 	for propName := range ct.Properties {
-		if strings.EqualFold(propName, name) {
+		if ident.Equal(propName, name) {
 			return true
 		}
 	}
@@ -644,7 +646,7 @@ func (ct *ClassType) GetProperty(name string) (*PropertyInfo, bool) {
 		return nil, false
 	}
 	for propName, prop := range ct.Properties {
-		if strings.EqualFold(propName, name) {
+		if ident.Equal(propName, name) {
 			return prop, true
 		}
 	}
@@ -685,14 +687,14 @@ func (ct *ClassType) GetConstant(name string) (interface{}, bool) {
 
 // GetClassVar retrieves a class variable type by name, searching up the inheritance chain.
 // Class variables are static members that belong to the class itself rather than instances.
-// Task 9.5.2: Support for class variable lookup with inheritance.
+// Supports class variable lookup with inheritance.
 func (ct *ClassType) GetClassVar(name string) (Type, bool) {
 	if ct == nil {
 		return nil, false
 	}
 	// Case-insensitive class variable lookup
-	lowerName := strings.ToLower(name)
-	if classVarType, ok := ct.ClassVars[lowerName]; ok {
+	normalizedName := ident.Normalize(name)
+	if classVarType, ok := ct.ClassVars[normalizedName]; ok {
 		return classVarType, true
 	}
 	if ct.Parent != nil {
