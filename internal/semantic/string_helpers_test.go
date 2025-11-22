@@ -5,7 +5,7 @@ import (
 )
 
 // ============================================================================
-// String Helper Method Tests (Task 9.23.6.1)
+// String Helper Method Tests
 // ============================================================================
 
 func TestStringHelperMethods_Conversion(t *testing.T) {

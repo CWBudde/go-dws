@@ -427,7 +427,7 @@ func TestComplexConstructs(t *testing.T) {
 // Test idempotency - formatting the same source multiple times produces same output
 // NOTE: Currently limited because printer doesn't output trailing semicolons,
 // which means the output isn't always parseable again. This needs to be fixed
-// in pkg/printer for true idempotency (task 25.2.8).
+// in pkg/printer for true idempotency.
 func TestIdempotency(t *testing.T) {
 	// Use sources that parse and format correctly when repeated
 	sources := []string{

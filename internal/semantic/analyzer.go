@@ -618,7 +618,7 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 }
 
 // ============================================================================
-// Symbol Table Accessors (Task 10.15)
+// Symbol Table Accessors
 // ============================================================================
 
 // GetSymbolTable returns the current symbol table.
@@ -749,7 +749,7 @@ func (a *Analyzer) validateFieldInitializer(field *ast.FieldDecl, fieldName stri
 }
 
 // ============================================================================
-// Type Registry Helper Methods (Task 6.1.1.3)
+// Type Registry Helper Methods
 // ============================================================================
 // These methods provide a convenient interface to the TypeRegistry for
 // backward compatibility during migration from the old scattered type maps.

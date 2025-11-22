@@ -5,7 +5,7 @@ import (
 )
 
 // ============================================================================
-// JSON Built-in Functions (Task 3.7.6)
+// JSON Built-in Functions
 // ============================================================================
 //
 // This file contains JSON manipulation functions that have been migrated

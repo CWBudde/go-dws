@@ -485,7 +485,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		hasLambdas, lambdaIndices := detectOverloadedCallWithLambdas(expr.Arguments)
 		if hasLambdas {
 			// We have lambda arguments that need type inference
-			// This requires special handling (tasks 9.21.6-9.21.7)
+			// This requires special handling
 			// For now, report that lambdas need explicit types when calling overloaded functions
 			a.addError("lambda type inference not yet supported for overloaded function '%s' - please provide explicit parameter types for lambda at argument position(s) %v at %s",
 				funcIdent.Value, lambdaIndices, expr.Token.Pos.String())

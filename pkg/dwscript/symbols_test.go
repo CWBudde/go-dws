@@ -285,7 +285,7 @@ func getSymbolNames(symbols []Symbol) []string {
 }
 
 // ============================================================================
-// Tests for TypeAt() method (Task 10.16)
+// Tests for TypeAt() method
 // ============================================================================
 
 func TestProgram_TypeAt_Literals(t *testing.T) {

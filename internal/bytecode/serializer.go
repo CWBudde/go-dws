@@ -173,12 +173,12 @@ func (s *Serializer) SerializeChunk(chunk *Chunk) ([]byte, error) {
 		return nil, fmt.Errorf("failed to write helpers: %w", err)
 	}
 
-	// Write class metadata (Task 9.5.5)
+	// Write class metadata
 	if err := s.writeClasses(buf, chunk.Classes); err != nil {
 		return nil, fmt.Errorf("failed to write classes: %w", err)
 	}
 
-	// Write record metadata (Task 9.1)
+	// Write record metadata
 	if err := s.writeRecords(buf, chunk.Records); err != nil {
 		return nil, fmt.Errorf("failed to write records: %w", err)
 	}
@@ -254,7 +254,7 @@ func (s *Serializer) DeserializeChunk(data []byte) (*Chunk, error) {
 	}
 	chunk.Helpers = helpers
 
-	// Read class metadata (Task 9.5.5)
+	// Read class metadata
 	// Check if there's more data (for backward compatibility with older bytecode)
 	if buf.Len() > 0 {
 		classes, err := s.readClasses(buf)
@@ -264,7 +264,7 @@ func (s *Serializer) DeserializeChunk(data []byte) (*Chunk, error) {
 		chunk.Classes = classes
 	}
 
-	// Read record metadata (Task 9.1)
+	// Read record metadata
 	// Check if there's more data (for backward compatibility)
 	if buf.Len() > 0 {
 		records, err := s.readRecords(buf)
@@ -535,7 +535,7 @@ func (s *Serializer) writeValue(w io.Writer, val Value) error {
 
 	case ValueArray, ValueObject, ValueRecord, ValueClosure, ValueVariant:
 		// These types cannot be serialized as constants
-		// They are runtime-only values (Task 9.7: added ValueRecord)
+		// They are runtime-only values
 		return fmt.Errorf("cannot serialize value type %s as constant", val.Type)
 
 	default:
@@ -1021,7 +1021,7 @@ func (s *Serializer) readHelperInfo(r io.Reader) (*HelperInfo, error) {
 }
 
 // ============================================================================
-// Class metadata serialization (Task 9.5.5)
+// Class metadata serialization
 // ============================================================================
 
 func (s *Serializer) writeClasses(w io.Writer, classes map[string]*ClassMetadata) error {
@@ -1206,7 +1206,7 @@ func (s *Serializer) readFieldMetadata(r io.Reader) (*FieldMetadata, error) {
 }
 
 // ============================================================================
-// Record metadata serialization (Task 9.1)
+// Record metadata serialization
 // ============================================================================
 
 func (s *Serializer) writeRecords(w io.Writer, records map[string]*RecordMetadata) error {

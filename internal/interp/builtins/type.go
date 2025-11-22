@@ -5,7 +5,7 @@ import (
 )
 
 // ============================================================================
-// Type Introspection Built-in Functions (Task 3.7.6)
+// Type Introspection Built-in Functions
 // ============================================================================
 //
 // This file contains type introspection functions that have been migrated

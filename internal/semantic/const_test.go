@@ -119,7 +119,7 @@ func TestConstWithUnsupportedFunction(t *testing.T) {
 // Task 9.10: Const Expression Evaluator Tests
 // ============================================================================
 
-// Test string concatenation in const expressions (Task 9.10.2)
+// Test string concatenation in const expressions
 func TestConstWithStringConcatenation(t *testing.T) {
 	input := `const GREETING = 'Hello' + ' ' + 'World';`
 	expectNoErrors(t, input)
@@ -130,7 +130,7 @@ func TestConstWithEmptyStringConcatenation(t *testing.T) {
 	expectNoErrors(t, input)
 }
 
-// Test character literals in const expressions (Task 9.10.3)
+// Test character literals in const expressions
 func TestConstWithCharacterLiteral(t *testing.T) {
 	input := `const CR = #13;`
 	expectNoErrors(t, input)
@@ -150,7 +150,7 @@ func TestConstWithCharacterLiteralConcatenation(t *testing.T) {
 	expectNoErrors(t, input)
 }
 
-// Test Ord/Chr in const context (Task 9.10.5)
+// Test Ord/Chr in const context
 func TestConstWithOrdFunction(t *testing.T) {
 	input := `const CODE = Ord('A');`
 	expectNoErrors(t, input)
@@ -170,7 +170,7 @@ func TestConstWithOrdAndArithmetic(t *testing.T) {
 	expectNoErrors(t, input)
 }
 
-// Test function-local const declarations (Task 9.10.4)
+// Test function-local const declarations
 func TestFunctionLocalConstDeclaration(t *testing.T) {
 	input := `
 		function Test(): Integer;

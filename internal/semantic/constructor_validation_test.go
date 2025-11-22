@@ -722,7 +722,7 @@ end;
 }
 
 // ============================================================================
-// Default Constructor Tests (Task 9.3)
+// Default Constructor Tests
 // ============================================================================
 
 // TestDefaultConstructorInheritance tests that default constructor designation is inherited from parent

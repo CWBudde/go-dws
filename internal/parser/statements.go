@@ -445,7 +445,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		p.cursor = p.cursor.Advance()
 		currentToken = p.cursor.Current()
 		if !p.isIdentifierToken(currentToken.Type) {
-			// Use structured error (Task 2.1.3)
+			// Use structured error
 			err := NewStructuredError(ErrKindMissing).
 				WithCode(ErrExpectedIdent).
 				WithMessage("expected identifier in var declaration").
@@ -460,7 +460,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		}
 	} else if !p.isIdentifierToken(currentToken.Type) {
 		// Should already be at an identifier
-		// Use structured error (Task 2.1.3)
+		// Use structured error
 		err := NewStructuredError(ErrKindMissing).
 			WithCode(ErrExpectedIdent).
 			WithMessage("expected identifier in var declaration").
@@ -482,7 +482,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 	for {
 		currentToken = p.cursor.Current()
 		if !p.isIdentifierToken(currentToken.Type) {
-			// Use structured error (Task 2.1.3)
+			// Use structured error
 			err := NewStructuredError(ErrKindMissing).
 				WithCode(ErrExpectedIdent).
 				WithMessage("expected identifier in var declaration").
@@ -543,7 +543,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		typeExpr := p.parseTypeExpression()
 
 		if typeExpr == nil {
-			// Use structured error (Task 2.1.3)
+			// Use structured error
 			currentToken = p.cursor.Current()
 			err := NewStructuredError(ErrKindMissing).
 				WithCode(ErrExpectedType).
@@ -565,7 +565,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 	if stmt.Type != nil {
 		if nextToken.Type == lexer.ASSIGN || nextToken.Type == lexer.EQ {
 			if len(stmt.Names) > 1 {
-				// Use structured error (Task 2.1.3)
+				// Use structured error
 				err := NewStructuredError(ErrKindInvalid).
 					WithCode(ErrInvalidSyntax).
 					WithMessage("cannot use initializer with multiple variable names").
@@ -585,7 +585,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 	} else {
 		if nextToken.Type == lexer.ASSIGN || nextToken.Type == lexer.EQ {
 			if len(stmt.Names) > 1 {
-				// Use structured error (Task 2.1.3)
+				// Use structured error
 				err := NewStructuredError(ErrKindInvalid).
 					WithCode(ErrInvalidSyntax).
 					WithMessage("cannot use initializer with multiple variable names").
@@ -605,7 +605,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		} else {
 			nextToken = p.cursor.Peek(1)
 			if nextToken.Type == lexer.SEMICOLON || nextToken.Type == lexer.EXTERNAL {
-				// Use structured error (Task 2.1.3)
+				// Use structured error
 				currentToken = p.cursor.Current()
 				err := NewStructuredError(ErrKindInvalid).
 					WithCode(ErrInvalidSyntax).
@@ -617,7 +617,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 					Build()
 				p.addStructuredError(err)
 			} else {
-				// Use structured error (Task 2.1.3)
+				// Use structured error
 				err := NewStructuredError(ErrKindMissing).
 					WithCode(ErrMissingColon).
 					WithMessage("expected ':', ':=' or '=' in variable declaration").

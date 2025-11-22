@@ -5,7 +5,7 @@ import (
 )
 
 // ============================================================================
-// Ordinal Built-in Functions (Task 3.7.5)
+// Ordinal Built-in Functions
 // ============================================================================
 //
 // This file contains ordinal value manipulation functions that have been

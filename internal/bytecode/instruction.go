@@ -543,7 +543,7 @@ const (
 	// Stack: [] -> [object]
 	OpNewObject
 
-	// OpNewRecord creates a new record instance (Task 9.7).
+	// OpNewRecord creates a new record instance.
 	// Format: [OpNewRecord][unused][typeIndex]
 	// Stack: [] -> [record]
 	OpNewRecord

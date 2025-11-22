@@ -7,7 +7,7 @@ import (
 )
 
 // ============================================================================
-// Variant Built-in Functions (Task 3.7.5)
+// Variant Built-in Functions
 // ============================================================================
 //
 // This file contains Variant introspection and conversion functions that have
