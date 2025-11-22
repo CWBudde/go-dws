@@ -3,7 +3,8 @@ package lexer
 import (
 	"strings"
 	"testing"
-	"unicode"
+
+	"github.com/cwbudde/go-dws/internal/testutil"
 )
 
 // TestLexerKeywordCaseInsensitivity comprehensively tests that the lexer
@@ -45,10 +46,10 @@ func TestLexerKeywordCaseInsensitivity(t *testing.T) {
 			testLexerKeywordCase(t, strings.ToUpper(kw.canonical), kw.expectedType)
 
 			// Test MixedCase
-			testLexerKeywordCase(t, capitalizeFirst(kw.canonical), kw.expectedType)
+			testLexerKeywordCase(t, testutil.CapitalizeFirst(kw.canonical), kw.expectedType)
 
 			// Test aLtErNaTiNg
-			testLexerKeywordCase(t, alternatingCase(kw.canonical), kw.expectedType)
+			testLexerKeywordCase(t, testutil.AlternatingCase(kw.canonical), kw.expectedType)
 		})
 	}
 }
@@ -250,27 +251,4 @@ func TestLexerMultipleKeywordsSameProgram(t *testing.T) {
 			t.Errorf("token[%d]: literal = %q, want %q", i, tok.Literal, expectedLiterals[i])
 		}
 	}
-}
-
-// Helper function to capitalize first letter
-func capitalizeFirst(s string) string {
-	if s == "" {
-		return s
-	}
-	runes := []rune(s)
-	runes[0] = unicode.ToUpper(runes[0])
-	return string(runes)
-}
-
-// Helper function to create alternating case
-func alternatingCase(s string) string {
-	runes := []rune(s)
-	for i := range runes {
-		if i%2 == 0 {
-			runes[i] = unicode.ToLower(runes[i])
-		} else {
-			runes[i] = unicode.ToUpper(runes[i])
-		}
-	}
-	return string(runes)
 }

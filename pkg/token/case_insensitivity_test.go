@@ -3,7 +3,8 @@ package token
 import (
 	"strings"
 	"testing"
-	"unicode"
+
+	"github.com/cwbudde/go-dws/internal/testutil"
 )
 
 // TestAllKeywordsCaseInsensitivity comprehensively tests that all DWScript keywords
@@ -31,7 +32,7 @@ func TestAllKeywordsCaseInsensitivity(t *testing.T) {
 
 			// Test MixedCase (capitalize first letter)
 			t.Run("MixedCase", func(t *testing.T) {
-				mixed := capitalizeFirst(keyword)
+				mixed := testutil.CapitalizeFirst(keyword)
 				got := LookupIdent(mixed)
 				if got != expectedType {
 					t.Errorf("LookupIdent(%q) = %v, want %v", mixed, got, expectedType)
@@ -40,7 +41,7 @@ func TestAllKeywordsCaseInsensitivity(t *testing.T) {
 
 			// Test aLtErNaTiNg case
 			t.Run("aLtErNaTiNg", func(t *testing.T) {
-				alternating := alternatingCase(keyword)
+				alternating := testutil.AlternatingCase(keyword)
 				got := LookupIdent(alternating)
 				if got != expectedType {
 					t.Errorf("LookupIdent(%q) = %v, want %v", alternating, got, expectedType)
@@ -205,7 +206,7 @@ func TestIsKeywordCaseInsensitive(t *testing.T) {
 			t.Errorf("IsKeyword(%q) = false, want true", upper)
 		}
 		// Test mixed case
-		mixed := capitalizeFirst(kw)
+		mixed := testutil.CapitalizeFirst(kw)
 		if !IsKeyword(mixed) {
 			t.Errorf("IsKeyword(%q) = false, want true", mixed)
 		}
@@ -261,7 +262,7 @@ func TestTokenTypeConsistency(t *testing.T) {
 	for keyword := range keywords {
 		lower := keyword
 		upper := strings.ToUpper(keyword)
-		mixed := capitalizeFirst(keyword)
+		mixed := testutil.CapitalizeFirst(keyword)
 
 		lowerType := LookupIdent(lower)
 		upperType := LookupIdent(upper)
@@ -274,27 +275,4 @@ func TestTokenTypeConsistency(t *testing.T) {
 			t.Errorf("Inconsistent types for %q: lowercase=%v, mixed=%v", keyword, lowerType, mixedType)
 		}
 	}
-}
-
-// Helper function to capitalize first letter
-func capitalizeFirst(s string) string {
-	if s == "" {
-		return s
-	}
-	runes := []rune(s)
-	runes[0] = unicode.ToUpper(runes[0])
-	return string(runes)
-}
-
-// Helper function to create alternating case
-func alternatingCase(s string) string {
-	runes := []rune(s)
-	for i := range runes {
-		if i%2 == 0 {
-			runes[i] = unicode.ToLower(runes[i])
-		} else {
-			runes[i] = unicode.ToUpper(runes[i])
-		}
-	}
-	return string(runes)
 }
