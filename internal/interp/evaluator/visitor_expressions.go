@@ -53,13 +53,35 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// Try to find identifier in current environment (variables, parameters, constants)
 	val, ok := e.adapter.GetVariable(node.Value, ctx)
 	if ok {
+		// Check if this is an external variable (not yet supported)
+		if e.adapter.IsExternalVar(val) {
+			extVarName := e.adapter.GetExternalVarName(val)
+			return e.newError(node, "Unsupported external variable access: %s", extVarName)
+		}
+
+		// Check if this is a lazy parameter (LazyThunk)
+		// If so, force evaluation - each access re-evaluates the expression
+		if e.adapter.IsLazyThunk(val) {
+			return e.adapter.EvaluateLazyThunk(val)
+		}
+
+		// Check if this is a var parameter (ReferenceValue)
+		// If so, dereference it to get the actual value
+		if e.adapter.IsReferenceValue(val) {
+			actualVal, err := e.adapter.DereferenceValue(val)
+			if err != nil {
+				return e.newError(node, "%s", err.Error())
+			}
+			return actualVal
+		}
+
 		// Variable found - return immediately for basic primitives
 		switch val.(type) {
 		case *runtime.IntegerValue, *runtime.FloatValue, *runtime.StringValue, *runtime.BooleanValue, *runtime.NilValue:
 			return val
 		}
 
-		// For complex value types (ExternalVarValue, LazyThunk, ReferenceValue, arrays, objects, records),
+		// For other complex value types (arrays, objects, records),
 		// delegate to adapter for full processing
 		return e.adapter.EvalNode(node)
 	}
@@ -68,16 +90,75 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// When Self is bound, identifiers can refer to instance fields, class variables,
 	// properties, methods (auto-invoked if zero params), or ClassName/ClassType
 	if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk {
-		if _, ok := selfRaw.(Value); ok {
-			return e.adapter.EvalNode(node)
+		if selfVal, ok := selfRaw.(Value); ok && e.adapter.IsObjectInstance(selfVal) {
+			// Check for instance field
+			if fieldValue, found := e.adapter.GetObjectFieldValue(selfVal, node.Value); found {
+				return fieldValue
+			}
+
+			// Check for class variable
+			if classVarValue, found := e.adapter.GetClassVariableValue(selfVal, node.Value); found {
+				return classVarValue
+			}
+
+			// Check for property - but skip if we're in a property getter/setter to prevent recursion
+			propCtx := ctx.PropContext()
+			if propCtx == nil || (!propCtx.InPropertyGetter && !propCtx.InPropertySetter) {
+				if e.adapter.HasProperty(selfVal, node.Value) {
+					propValue, err := e.adapter.ReadPropertyValue(selfVal, node.Value, node)
+					if err != nil {
+						return e.newError(node, "%s", err.Error())
+					}
+					return propValue
+				}
+			}
+
+			// Check for method - auto-invoke if parameterless, or create method pointer
+			if e.adapter.HasMethod(selfVal, node.Value) {
+				if e.adapter.IsMethodParameterless(selfVal, node.Value) {
+					// Auto-invoke parameterless method
+					return e.adapter.CreateMethodCall(selfVal, node.Value, node)
+				}
+				// Method with parameters - create method pointer
+				methodPtr, err := e.adapter.CreateMethodPointerFromObject(selfVal, node.Value)
+				if err != nil {
+					return e.newError(node, "%s", err.Error())
+				}
+				return methodPtr
+			}
+
+			// Check for ClassName special identifier (case-insensitive)
+			if strings.EqualFold(node.Value, "ClassName") {
+				className := e.adapter.GetClassName(selfVal)
+				return &runtime.StringValue{Value: className}
+			}
+
+			// Check for ClassType special identifier (case-insensitive)
+			if strings.EqualFold(node.Value, "ClassType") {
+				return e.adapter.GetClassType(selfVal)
+			}
 		}
 	}
 
 	// Check if we're in a class method context (__CurrentClass__ is bound)
 	// Identifiers can refer to ClassName, ClassType, or class variables
 	if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
-		if _, ok := currentClassRaw.(Value); ok {
-			return e.adapter.EvalNode(node)
+		if classInfoVal, ok := currentClassRaw.(Value); ok && e.adapter.IsClassInfoValue(classInfoVal) {
+			// Check for ClassName identifier (case-insensitive)
+			if strings.EqualFold(node.Value, "ClassName") {
+				className := e.adapter.GetClassNameFromClassInfo(classInfoVal)
+				return &runtime.StringValue{Value: className}
+			}
+
+			// Check for ClassType identifier (case-insensitive)
+			if strings.EqualFold(node.Value, "ClassType") {
+				return e.adapter.GetClassTypeFromClassInfo(classInfoVal)
+			}
+
+			// Check for class variable
+			if classVarValue, found := e.adapter.GetClassVariableFromClassInfo(classInfoVal, node.Value); found {
+				return classVarValue
+			}
 		}
 	}
 
