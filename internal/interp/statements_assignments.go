@@ -11,6 +11,22 @@ import (
 
 // This file contains assignment statement evaluation (simple, member, index, compound).
 
+// cloneIfCopyable returns a defensive copy for values that implement CopyableValue (e.g., arrays).
+// This enforces value semantics for those types during assignment.
+func cloneIfCopyable(val Value) Value {
+	if val == nil {
+		return nil
+	}
+
+	if copyable, ok := val.(CopyableValue); ok {
+		if copied := copyable.Copy(); copied != nil {
+			return copied
+		}
+	}
+
+	return val
+}
+
 // evalAssignmentStatement evaluates an assignment statement.
 // It updates an existing variable's value or sets an object/array element.
 // Supports: x := value, obj.field := value, arr[i] := value
@@ -331,6 +347,9 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 				value = boxVariant(value)
 			}
 
+			// Ensure value semantics for copyable types (e.g., arrays) when assigning through var params
+			value = cloneIfCopyable(value)
+
 			// Task 9.1.5: Handle interface reference counting when assigning through var parameters
 			// Release the old reference if the target currently holds an interface
 			if oldIntf, isOldIntf := currentVal.(*InterfaceInstance); isOldIntf {
@@ -392,6 +411,9 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 				value = boxVariant(value)
 			}
 		}
+
+		// Ensure value semantics for types that support copying (e.g., arrays)
+		value = cloneIfCopyable(value)
 
 		// Task 9.1.5: Handle object variable assignment - manage ref count
 		if objInst, isObj := existingVal.(*ObjectInstance); isObj {

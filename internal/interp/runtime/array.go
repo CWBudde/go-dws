@@ -35,6 +35,7 @@ func (a *ArrayValue) String() string {
 		return "[]"
 	}
 
+	// Build string representation of elements
 	var elements []string
 	for _, elem := range a.Elements {
 		if elem != nil {
@@ -45,6 +46,21 @@ func (a *ArrayValue) String() string {
 	}
 
 	return "[" + strings.Join(elements, ", ") + "]"
+}
+
+// Copy creates a shallow copy of the array value (new slice, same element references).
+// Arrays have value semantics for assignment, so we need to duplicate the backing slice.
+func (a *ArrayValue) Copy() Value {
+	if a == nil {
+		return nil
+	}
+
+	copied := &ArrayValue{
+		ArrayType: a.ArrayType,
+		Elements:  make([]Value, len(a.Elements)),
+	}
+	copy(copied.Elements, a.Elements)
+	return copied
 }
 
 // ArrayElementInitializer is a function type for initializing array elements.
