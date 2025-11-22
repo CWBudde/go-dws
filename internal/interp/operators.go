@@ -247,24 +247,17 @@ func operatorSignatureKey(operandTypes []string) string {
 
 func normalizeTypeAnnotation(name string) string {
 	trimmed := strings.TrimSpace(name)
-	switch strings.ToLower(trimmed) {
-	case "integer":
-		return "integer"
-	case "float":
-		return "float"
-	case "string":
-		return "string"
-	case "boolean":
-		return "boolean"
-	case "variant":
-		return "variant"
-	case "nil":
-		return "nil"
+	normalized := ident.Normalize(trimmed)
+
+	// Check if it's a primitive type or array
+	switch normalized {
+	case "integer", "float", "string", "boolean", "variant", "nil":
+		return normalized
 	default:
 		if ident.HasPrefix(trimmed, "array of") {
-			return ident.Normalize(trimmed)
+			return normalized
 		}
-		return "class:" + ident.Normalize(trimmed)
+		return "class:" + normalized
 	}
 }
 
