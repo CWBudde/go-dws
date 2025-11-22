@@ -181,9 +181,11 @@ Complex internal structures with multiple interconnected maps:
   - Migrated: All three type ID registries now use `*ident.Map[int]`
   - Methods updated: GetOrAllocate*TypeID, Get*TypeID for class, record, enum
 
-- [ ] **13.10** Migrate `OperatorRegistry` and `ConversionRegistry`
-  - Fields: `entries map[string][]*OperatorEntry`, `implicit`/`explicit` maps
-  - Lowest priority - internal optimization structures
+- [x] **13.10** Migrate `OperatorRegistry` and `ConversionRegistry`
+  - Migrated both `internal/types/operator_registry.go` and `internal/interp/types/type_system.go`
+  - OperatorRegistry: migrated `entries` to `ident.Map[[]*OperatorSignature]` and `ident.Map[[]*OperatorEntry]`
+  - typeKey(): updated to use `ident.Normalize()` for class/interface/record names
+  - ConversionRegistry: kept with plain maps since `conversionKey()` already normalizes via `typeKey()`
 
 ---
 
