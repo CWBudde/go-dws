@@ -181,6 +181,10 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 // VisitBinaryExpression evaluates a binary expression (e.g., a + b, x == y).
 func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *ExecutionContext) Value {
+	if node == nil {
+		return e.newError(node, "nil binary expression")
+	}
+
 	// Handle short-circuit operators first (special evaluation order)
 	switch node.Operator {
 	case "??":
@@ -261,6 +265,10 @@ func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *Execu
 
 // VisitUnaryExpression evaluates a unary expression (e.g., -x, not b).
 func (e *Evaluator) VisitUnaryExpression(node *ast.UnaryExpression, ctx *ExecutionContext) Value {
+	if node == nil {
+		return e.newError(node, "nil unary expression")
+	}
+
 	// Evaluate the operand
 	operand := e.Eval(node.Right, ctx)
 	if isError(operand) {
@@ -417,6 +425,13 @@ func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *Exe
 // The adapter has access to CreateLazyThunk and CreateReferenceValue methods (Task 3.5.23)
 // which enable proper handling of lazy and var parameters in all call contexts.
 func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *ExecutionContext) Value {
+	if node == nil {
+		return e.newError(node, "nil call expression")
+	}
+	if node.Function == nil {
+		return e.newError(node, "call expression missing function")
+	}
+
 	// Check for function pointer calls
 	// Task 3.5.23: Function pointer calls with closure handling, lazy params, and var params
 	if funcIdent, ok := node.Function.(*ast.Identifier); ok {
@@ -961,6 +976,16 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 // - Phase 4 (future): Migrate helper infrastructure after helper system migration
 // - Phase 5 (future): Migrate method/property dispatch after OOP infrastructure migration
 func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression, ctx *ExecutionContext) Value {
+	if node == nil {
+		return e.newError(node, "nil member access expression")
+	}
+	if node.Object == nil {
+		return e.newError(node, "member access missing object")
+	}
+	if node.Member == nil {
+		return e.newError(node, "member access missing member")
+	}
+
 	// Task 3.5.25 & 3.5.26: Implement member access with routing based on object type
 
 	// Evaluate the object first
@@ -1300,6 +1325,16 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 // - Phase 5 (future): Migrate constructor dispatch after object creation migration
 // - Phase 6 (future): Migrate helper methods after helper system migration
 func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ctx *ExecutionContext) Value {
+	if node == nil {
+		return e.newError(node, "nil method call expression")
+	}
+	if node.Object == nil {
+		return e.newError(node, "method call missing object")
+	}
+	if node.Method == nil {
+		return e.newError(node, "method call missing method")
+	}
+
 	// Task 3.5.27 & 3.5.28: Implement method call routing based on object type
 
 	// Evaluate the object first
@@ -2008,4 +2043,22 @@ func (e *Evaluator) VisitOldExpression(node *ast.OldExpression, ctx *ExecutionCo
 		return e.newError(node, "old value for '%s' not captured (internal error)", identName)
 	}
 	return oldValue.(Value)
+}
+
+// VisitRangeExpression handles range expressions (start..end).
+// Range expressions are typically only used in specific contexts:
+// - Case statement branches (e.g., case x of 1..10: ...)
+// - Set literals (e.g., [1..10])
+// Directly evaluating a range expression is not supported in DWScript.
+// This method exists to prevent falling through to the default case in Eval(),
+// and delegates to the adapter which handles context-specific evaluation.
+func (e *Evaluator) VisitRangeExpression(node *ast.RangeExpression, ctx *ExecutionContext) Value {
+	if node == nil {
+		return e.newError(node, "nil range expression")
+	}
+
+	// Range expressions are structural - they don't evaluate to a value on their own.
+	// They're only meaningful in specific contexts (case statements, set literals).
+	// Delegate to adapter for context-aware handling.
+	return e.adapter.EvalNode(node)
 }
