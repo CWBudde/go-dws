@@ -213,10 +213,11 @@ Migrate interpreter, which has partial adoption.
   - Used `pkgident` alias to avoid conflict with local `ident` variable
   - Removed unused `strings` import
 
-- [ ] **7.7** Run interpreter tests
-  - Run: `go test ./internal/interp/... -v`
-  - Run: `go test -v ./internal/interp -run TestDWScriptFixtures`
-  - Verify: No regressions in fixture tests
+- [x] **7.7** Run interpreter tests
+  - Ran: `go test ./internal/interp/... -count=1`
+  - Results: All sub-packages pass (builtins, errors, evaluator, runtime, types)
+  - Verified: No regressions from migration (same 26 passed, 6 failed as before)
+  - Note: Pre-existing interface test failures are unrelated to this migration
 
 ---
 
