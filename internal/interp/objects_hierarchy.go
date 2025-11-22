@@ -1,10 +1,9 @@
 package interp
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // evalMemberAccess evaluates field access (obj.field) or class variable access (TClass.Variable).
@@ -31,7 +30,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		// Task 9.68: Check if this identifier refers to a class (case-insensitive)
 		var classInfo *ClassInfo
 		for className, class := range i.classes {
-			if strings.EqualFold(className, ident.Value) {
+			if pkgident.Equal(className, ident.Value) {
 				classInfo = class
 				break
 			}
@@ -41,10 +40,10 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			memberName := ma.Member.Value
 
 			// Check for built-in ClassType and ClassName properties (case-insensitive)
-			if strings.EqualFold(memberName, "ClassType") {
+			if pkgident.Equal(memberName, "ClassType") {
 				return &ClassValue{ClassInfo: classInfo}
 			}
-			if strings.EqualFold(memberName, "ClassName") {
+			if pkgident.Equal(memberName, "ClassName") {
 				return &StringValue{Value: classInfo.Name}
 			}
 
@@ -132,7 +131,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 		// Check if this identifier refers to an enum type (for scoped access: TColor.Red)
 		// Look for enum type metadata stored in environment
-		enumTypeKey := "__enum_type_" + strings.ToLower(ident.Value)
+		enumTypeKey := "__enum_type_" + pkgident.Normalize(ident.Value)
 		if enumTypeVal, ok := i.env.Get(enumTypeKey); ok {
 			if etv, isEnumType := enumTypeVal.(*EnumTypeValue); isEnumType {
 				// This is scoped enum access: TColor.Red
@@ -152,7 +151,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 				// Check for special enum properties: Low and High
 				// These are only used if there's no enum value with that name
-				lowerMember := strings.ToLower(valueName)
+				lowerMember := pkgident.Normalize(valueName)
 				switch lowerMember {
 				case "low":
 					return &IntegerValue{Value: int64(etv.EnumType.Low())}
@@ -178,23 +177,23 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		}
 
 		// Task 9.12.2: Check if this identifier refers to a record type (for static access: TPoint.cOrigin, TPoint.Count)
-		recordTypeKey := "__record_type_" + strings.ToLower(ident.Value)
+		recordTypeKey := "__record_type_" + pkgident.Normalize(ident.Value)
 		if recordTypeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := recordTypeVal.(*RecordTypeValue); ok {
 				memberName := ma.Member.Value
 
 				// Check constants (case-insensitive)
-				if constValue, exists := rtv.Constants[strings.ToLower(memberName)]; exists {
+				if constValue, exists := rtv.Constants[pkgident.Normalize(memberName)]; exists {
 					return constValue
 				}
 
 				// Check class variables (case-insensitive)
-				if classVarValue, exists := rtv.ClassVars[strings.ToLower(memberName)]; exists {
+				if classVarValue, exists := rtv.ClassVars[pkgident.Normalize(memberName)]; exists {
 					return classVarValue
 				}
 
 				// Check class methods (case-insensitive)
-				if classMethod, exists := rtv.ClassMethods[strings.ToLower(memberName)]; exists {
+				if classMethod, exists := rtv.ClassMethods[pkgident.Normalize(memberName)]; exists {
 					// Check if parameterless
 					if len(classMethod.Parameters) == 0 {
 						// Auto-invoke the class method
@@ -235,13 +234,13 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	// Check if it's a record value
 	if recordVal, ok := objVal.(*RecordValue); ok {
 		// Access record field (case-insensitive - use lowercase key)
-		fieldValue, exists := recordVal.Fields[strings.ToLower(ma.Member.Value)]
+		fieldValue, exists := recordVal.Fields[pkgident.Normalize(ma.Member.Value)]
 		if exists {
 			return fieldValue
 		}
 
 		// Check for properties, class methods, constants, and class variables
-		memberNameLower := strings.ToLower(ma.Member.Value)
+		memberNameLower := pkgident.Normalize(ma.Member.Value)
 
 		// Check if this member is a property
 		if propInfo, exists := recordVal.RecordType.Properties[memberNameLower]; exists {
@@ -249,7 +248,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			if propInfo.ReadField != "" {
 				// Check if ReadField is a field name or method name
 				// First try as a field (use lowercase key)
-				if fieldVal, exists := recordVal.Fields[strings.ToLower(propInfo.ReadField)]; exists {
+				if fieldVal, exists := recordVal.Fields[pkgident.Normalize(propInfo.ReadField)]; exists {
 					return fieldVal
 				}
 
@@ -304,7 +303,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 		// Task 9.12.2: Check for class methods, constants, and class variables (accessible via instance)
 		// Look up the record type value once for all checks
-		recordTypeKey := "__record_type_" + strings.ToLower(recordVal.RecordType.Name)
+		recordTypeKey := "__record_type_" + pkgident.Normalize(recordVal.RecordType.Name)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				// Check class methods (case-insensitive)
@@ -364,12 +363,12 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		memberName := ma.Member.Value
 
 		// Task 9.73: Check for ClassName property in class/metaclass context (case-insensitive)
-		if strings.EqualFold(memberName, "ClassName") {
+		if pkgident.Equal(memberName, "ClassName") {
 			return &StringValue{Value: classInfo.Name}
 		}
 
 		// Task 9.7.2: Check for ClassType property (returns metaclass reference)
-		if strings.EqualFold(memberName, "ClassType") {
+		if pkgident.Equal(memberName, "ClassType") {
 			return &ClassValue{ClassInfo: classInfo}
 		}
 
@@ -532,7 +531,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 			// Look up the class by name (case-insensitive)
 			for registeredClassName, classInfo := range i.classes {
-				if strings.EqualFold(registeredClassName, className) {
+				if pkgident.Equal(registeredClassName, className) {
 					// Check if this member is a class variable
 					if classVarValue, ownerClass := classInfo.lookupClassVar(memberName); ownerClass != nil {
 						return classVarValue
@@ -551,7 +550,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	if !ok {
 		// Check if it's an enum value with .Value or .ToString property
 		if enumVal, isEnum := objVal.(*EnumValue); isEnum {
-			memberName := strings.ToLower(ma.Member.Value)
+			memberName := pkgident.Normalize(ma.Member.Value)
 			if memberName == "value" {
 				// Return the ordinal value as an integer
 				return &IntegerValue{Value: int64(enumVal.OrdinalValue)}
@@ -605,12 +604,12 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	memberName := ma.Member.Value
 
 	// Handle built-in properties/methods available on all objects (inherited from TObject)
-	if strings.EqualFold(memberName, "ClassName") {
+	if pkgident.Equal(memberName, "ClassName") {
 		// ClassName returns the runtime type name of the object
 		return &StringValue{Value: obj.Class.Name}
 	}
 	// Task 9.7.2: ClassType returns metaclass reference for the object's runtime type
-	if strings.EqualFold(memberName, "ClassType") {
+	if pkgident.Equal(memberName, "ClassType") {
 		return &ClassValue{ClassInfo: obj.Class}
 	}
 
@@ -727,13 +726,13 @@ func (i *Interpreter) lookupConstructorOverloadsInHierarchy(classInfo *ClassInfo
 	for current := classInfo; current != nil; current = current.Parent {
 		// Check overload set first (case-insensitive)
 		for ctorName, overloads := range current.ConstructorOverloads {
-			if strings.EqualFold(ctorName, name) && len(overloads) > 0 {
+			if pkgident.Equal(ctorName, name) && len(overloads) > 0 {
 				return overloads
 			}
 		}
 		// Fallback to single constructor (case-insensitive)
 		for ctorName, constructor := range current.Constructors {
-			if strings.EqualFold(ctorName, name) {
+			if pkgident.Equal(ctorName, name) {
 				return []*ast.FunctionDecl{constructor}
 			}
 		}
@@ -756,7 +755,7 @@ func (i *Interpreter) lookupConstructorInHierarchy(classInfo *ClassInfo, name st
 // Returns the method declaration, or nil if not found.
 // Task 9.16.2: Method names are case-insensitive, so we normalize to lowercase
 func (i *Interpreter) lookupClassMethodInHierarchy(classInfo *ClassInfo, name string) *ast.FunctionDecl {
-	normalizedName := strings.ToLower(name)
+	normalizedName := pkgident.Normalize(name)
 	for current := classInfo; current != nil; current = current.Parent {
 		if method, exists := current.ClassMethods[normalizedName]; exists {
 			return method
@@ -832,7 +831,7 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 	// Try method first (case-insensitive)
 	var parentMethod *ast.FunctionDecl
 	for name, method := range parentClass.Methods {
-		if strings.EqualFold(name, methodName) {
+		if pkgident.Equal(name, methodName) {
 			parentMethod = method
 			break
 		}
@@ -929,7 +928,7 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 	// Task 9.16.4.2: Try properties (case-insensitive)
 	var propInfo *types.PropertyInfo
 	for name, prop := range parentClass.Properties {
-		if strings.EqualFold(name, methodName) {
+		if pkgident.Equal(name, methodName) {
 			propInfo = prop
 			break
 		}
@@ -947,7 +946,7 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 
 	// Task 9.16.4.2: Try fields (case-insensitive)
 	for name := range parentClass.Fields {
-		if strings.EqualFold(name, methodName) {
+		if pkgident.Equal(name, methodName) {
 			if len(ie.Arguments) > 0 || ie.IsCall {
 				return i.newErrorWithLocation(ie, "cannot call field '%s' as a method", methodName)
 			}
