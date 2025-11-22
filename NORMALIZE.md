@@ -81,12 +81,22 @@ Enhance `pkg/ident` package and establish migration patterns.
     ```go
     type Map[T any] struct {
         store map[string]T
-        originals map[string]string
+        originals map[string]string // optional: only for error reporting/use cases needing original casing
     }
-    func (m *Map) Set(key string, value T)
-    func (m *Map) Get(key string) (T, bool)
-    func (m *Map) Original(key string) string
+    func (m *Map[T]) Set(key string, value T)
+    func (m *Map[T]) Get(key string) (T, bool)
+    func (m *Map[T]) GetOriginalKey(key string) string
+    func (m *Map[T]) Delete(key string)
+    func (m *Map[T]) Len() int
+    func (m *Map[T]) Keys() []string
+    func (m *Map[T]) Range(f func(key string, value T))
+    // Consider thread safety: document single-threaded assumption, or add sync.Mutex if needed
     ```
+  - API design checklist:
+    - [ ] Thread safety: clarify single-threaded assumption or add concurrency protection
+    - [ ] Memory overhead: make `originals` optional/specialized for error reporting
+    - [ ] API completeness: add `Delete`, `Len`, `Keys`, `Range` methods
+    - [ ] Naming: use `GetOriginalKey` for clarity
   - Evaluate if this reduces boilerplate in migration
 
 ---
