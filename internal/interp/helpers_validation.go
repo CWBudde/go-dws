@@ -1,10 +1,9 @@
 package interp
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -66,7 +65,7 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 		var foundParent *HelperInfo
 		for _, helpers := range i.helpers {
 			for _, helper := range helpers {
-				if strings.EqualFold(helper.Name, parentHelperName) {
+				if ident.Equal(helper.Name, parentHelperName) {
 					foundParent = helper
 					break
 				}
@@ -95,9 +94,9 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 	}
 
 	// Register methods
-	// Task 9.16.2: Normalize method names to lowercase for case-insensitive lookup
+	// Task 9.16.2: Normalize method names for case-insensitive lookup
 	for _, method := range decl.Methods {
-		helperInfo.Methods[strings.ToLower(method.Name.Value)] = method
+		helperInfo.Methods[ident.Normalize(method.Name.Value)] = method
 	}
 
 	// Register properties
@@ -172,11 +171,11 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 	}
 
 	// Get the type name for indexing
-	typeName := strings.ToLower(targetType.String())
+	typeName := ident.Normalize(targetType.String())
 	i.helpers[typeName] = append(i.helpers[typeName], helperInfo)
 
 	// Also register by simple type name for lookup compatibility
-	simpleTypeName := strings.ToLower(extractSimpleTypeName(targetType.String()))
+	simpleTypeName := ident.Normalize(extractSimpleTypeName(targetType.String()))
 	if simpleTypeName != typeName {
 		i.helpers[simpleTypeName] = append(i.helpers[simpleTypeName], helperInfo)
 	}
@@ -290,8 +289,8 @@ func (i *Interpreter) evalHelperPropertyRead(helper *HelperInfo, propInfo *types
 		}
 
 		// Otherwise, try as a method (getter)
-		// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
-		normalizedReadSpec := strings.ToLower(propInfo.ReadSpec)
+		// Task 9.16.2: Method names are case-insensitive
+		normalizedReadSpec := ident.Normalize(propInfo.ReadSpec)
 
 		// Search for the getter method in the owner helper's inheritance chain
 		if method, methodOwner, ok := helper.GetMethod(normalizedReadSpec); ok {
@@ -309,8 +308,8 @@ func (i *Interpreter) evalHelperPropertyRead(helper *HelperInfo, propInfo *types
 
 	case types.PropAccessMethod:
 		// Call getter method
-		// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
-		normalizedReadSpec := strings.ToLower(propInfo.ReadSpec)
+		// Task 9.16.2: Method names are case-insensitive
+		normalizedReadSpec := ident.Normalize(propInfo.ReadSpec)
 
 		// Search for the getter method in the owner helper's inheritance chain
 		if method, methodOwner, ok := helper.GetMethod(normalizedReadSpec); ok {
@@ -433,7 +432,7 @@ func (i *Interpreter) initIntrinsicHelpers() {
 	}
 
 	register := func(typeName string, helper *HelperInfo) {
-		i.helpers[strings.ToLower(typeName)] = append(i.helpers[strings.ToLower(typeName)], helper)
+		i.helpers[ident.Normalize(typeName)] = append(i.helpers[ident.Normalize(typeName)], helper)
 	}
 
 	// Integer helper
