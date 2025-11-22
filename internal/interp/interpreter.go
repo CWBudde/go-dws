@@ -2482,6 +2482,31 @@ func (i *Interpreter) GetExternalVarName(value evaluator.Value) string {
 	return extVar.Name
 }
 
+// CreateLazyThunk creates a lazy parameter thunk from an unevaluated expression.
+// Task 3.5.23: Enables lazy parameter evaluation in user function calls.
+func (i *Interpreter) CreateLazyThunk(expr ast.Expression, env any) evaluator.Value {
+	// Convert environment from any to *Environment
+	environment, ok := env.(*Environment)
+	if !ok {
+		panic(fmt.Sprintf("CreateLazyThunk: env must be *Environment, got %T", env))
+	}
+	return NewLazyThunk(expr, environment, i)
+}
+
+// CreateReferenceValue creates a var parameter reference.
+// Task 3.5.23: Enables pass-by-reference semantics for var parameters.
+func (i *Interpreter) CreateReferenceValue(varName string, env any) evaluator.Value {
+	// Convert environment from any to *Environment
+	environment, ok := env.(*Environment)
+	if !ok {
+		panic(fmt.Sprintf("CreateReferenceValue: env must be *Environment, got %T", env))
+	}
+	return &ReferenceValue{
+		Env:     environment,
+		VarName: varName,
+	}
+}
+
 // ===== Task 3.5.22: Property & Method Reference Adapter Method Implementations =====
 //
 // These adapter methods allow the Evaluator to access object fields, properties,

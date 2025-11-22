@@ -351,11 +351,44 @@ func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *Exe
 }
 
 // VisitCallExpression evaluates a function call expression.
+//
+// **Task 3.5.23**: User Function Calls with Special Parameter Handling
+//
+// This implementation handles the following via delegation to adapter:
+//
+// **1. Function Pointer Calls** (lines 356-362):
+//   - Detects function pointer and lambda calls
+//   - Delegates to adapter which handles:
+//     * Lazy parameter creation (CreateLazyThunk for IsLazy params)
+//     * Var parameter creation (CreateReferenceValue for ByRef params)
+//     * Regular parameter evaluation
+//     * Closure environment capture
+//
+// **2. User Function Calls** (lines 395-405):
+//   - Detects user-defined function calls (with overloading support)
+//   - Delegates to adapter which handles:
+//     * Overload resolution based on argument types
+//     * Lazy parameter creation (Jensen's Device pattern)
+//     * Var parameter creation (pass-by-reference)
+//     * Regular parameter evaluation (with caching to prevent double-eval)
+//
+// **3. Method Calls** (lines 365-384, 409-415):
+//   - Record methods, interface methods, class methods
+//   - Delegates to adapter for complex dispatch logic
+//
+// The adapter has access to CreateLazyThunk and CreateReferenceValue methods (Task 3.5.23)
+// which enable proper handling of lazy and var parameters in all call contexts.
 func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *ExecutionContext) Value {
-	// Check for function pointer calls (require special handling for lazy and var parameters)
+	// Check for function pointer calls
+	// Task 3.5.23: Function pointer calls with closure handling, lazy params, and var params
 	if funcIdent, ok := node.Function.(*ast.Identifier); ok {
 		if val, exists := e.adapter.GetVariable(funcIdent.Value, ctx); exists {
 			if val.Type() == "FUNCTION_POINTER" || val.Type() == "LAMBDA" {
+				// Delegate to adapter which handles:
+				// - Closure environment restoration
+				// - Lazy parameter creation (CreateLazyThunk)
+				// - Var parameter creation (CreateReferenceValue)
+				// - Regular parameter evaluation
 				return e.adapter.EvalNode(node)
 			}
 		}
@@ -390,8 +423,18 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	}
 
 	// Check for user-defined functions (with potential overloading)
+	// Task 3.5.23: Handle lazy and var parameters in user function calls
 	funcNameLower := strings.ToLower(funcName.Value)
 	if overloads, exists := e.adapter.LookupFunction(funcNameLower); exists && len(overloads) > 0 {
+		// For now, delegate to adapter for overload resolution
+		// In the future, this can be migrated to the evaluator
+		// But we need to prepare arguments properly for lazy and var parameters
+
+		// We can't determine which overload without evaluating arguments for type checking
+		// So we delegate the entire call to the adapter, which will:
+		// 1. Resolve the overload
+		// 2. Prepare arguments with lazy thunks and references
+		// 3. Call the user function
 		return e.adapter.EvalNode(node)
 	}
 
