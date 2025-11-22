@@ -1184,7 +1184,13 @@ func (v *statementValidator) checkCallExpression(expr *ast.CallExpression) types
 	// Look up function in symbol table
 	sym, ok := v.ctx.Symbols.Resolve(funcIdent.Value)
 	if !ok {
-		// TODO: Check if it's a built-in function
+		// Check if it's a built-in function
+		if v.ctx.BuiltinChecker != nil {
+			if resultType, isBuiltin := v.ctx.BuiltinChecker.AnalyzeBuiltin(funcIdent.Value, expr.Arguments, expr); isBuiltin {
+				return resultType
+			}
+		}
+
 		// TODO: Check if it's a class method in current class
 		v.ctx.AddError("undefined function '%s'", funcIdent.Value)
 

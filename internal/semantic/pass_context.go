@@ -5,8 +5,18 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
 	pkgast "github.com/cwbudde/go-dws/pkg/ast"
 )
+
+// BuiltinChecker provides an interface for checking and analyzing built-in functions.
+// This allows the passes to validate built-in function calls without direct coupling to the Analyzer.
+type BuiltinChecker interface {
+	// AnalyzeBuiltin analyzes a built-in function call.
+	// Returns (resultType, true) if the function is a recognized built-in,
+	// or (nil, false) if it's not a built-in function.
+	AnalyzeBuiltin(name string, args []ast.Expression, callExpr *ast.CallExpression) (types.Type, bool)
+}
 
 // PassContext contains shared state and resources used across all semantic analysis passes.
 // It serves as the communication medium between passes, allowing later passes to build
@@ -30,6 +40,9 @@ type PassContext struct {
 
 	// SemanticInfo stores AST annotations and metadata (e.g., resolved types)
 	SemanticInfo *pkgast.SemanticInfo
+
+	// BuiltinChecker provides built-in function analysis (allows passes to validate builtins)
+	BuiltinChecker BuiltinChecker
 
 	// ============================================================================
 	// Secondary Registries (Read/Write by specific passes)

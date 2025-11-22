@@ -941,16 +941,58 @@ This causes:
 
 **Status**: Ready for integration into full 4-pass pipeline
 
-- [x] **6.1.2.6 Integrate passes into Analyzer (partial)** ⚠️
+- [~] **6.1.2.6 Integrate passes into Analyzer** ⚠️ **IN PROGRESS**
   - [x] Refactor `Analyzer.Analyze()` to run Pass 2 in dual-mode
   - [x] Pass shared context between passes (TypeRegistry, SymbolTable)
   - [x] Collect errors from all passes before returning
   - [x] Remove post-hoc validation methods (migrated to Pass 2)
-  - [x] Run full test suite to verify correctness (187 semantic tests pass)
-  - [ ] **6.1.2.6.1 Complete Pass 3 migration** (NEW - see 6.1.2.4 above)
-  - [ ] **6.1.2.6.2 Complete Pass 4 migration** (NEW - see 6.1.2.5 above)
-  - [ ] **6.1.2.6.3 Enable all 4 passes** (NEW)
-  - [ ] **6.1.2.6.4 Remove old analyzer loop entirely** (NEW)
+  - [x] Run full test suite to verify correctness (all semantic tests pass)
+  - [x] Add BuiltinChecker interface to PassContext for future use
+  - [ ] **6.1.2.6.1 Complete Pass 3 migration** (BLOCKED - see details below)
+  - [ ] **6.1.2.6.2 Complete Pass 4 migration** (BLOCKED - see details below)
+  - [ ] **6.1.2.6.3 Enable all 4 passes** (BLOCKED - requires 6.1.2.6.1-6.1.2.6.2)
+  - [ ] **6.1.2.6.4 Remove old analyzer loop entirely** (BLOCKED - requires 6.1.2.6.3)
+
+**Current Status**: HYBRID MODE
+- ✅ Pass 2 (Type Resolution) is integrated and runs alongside old analyzer
+- ✅ Forward declarations work correctly
+- ✅ All tests pass (237 semantic tests)
+- ⚠️ Old analyzer still handles most validation (declaration collection, expression type-checking, statement validation)
+- ⚠️ Pass 3 (~98% complete) and Pass 4 (~90% complete) exist but are not yet enabled
+
+**Remaining Work**:
+
+**6.1.2.6.1: Complete Pass 3 (Validation Pass) migration**
+- Missing features that cause test failures:
+  - Variant type handling (assignment compatibility, implicit conversions)
+  - Lambda expression validation (CurrentFunction context for nested lambdas)
+  - Variadic function parameter support
+  - Class method lookup from within current class
+  - Additional builtin function validations
+- Estimated: 8-12 hours
+- Files: `internal/semantic/validation_pass.go`
+
+**6.1.2.6.2: Complete Pass 4 (Contract Pass) migration**
+- Currently ~90% complete
+- Missing features:
+  - Additional edge cases in contract validation
+  - Integration testing with complex scenarios
+- Estimated: 2-4 hours
+- Files: `internal/semantic/contract_pass.go`
+
+**6.1.2.6.3: Enable all 4 passes**
+- Replace old analyzer loop with PassManager running all 4 passes
+- Verify all tests still pass
+- Handle any edge cases discovered during testing
+- Estimated: 2-4 hours
+
+**6.1.2.6.4: Remove old analyzer loop entirely**
+- Delete `analyzeStatement()` and all related old validation code
+- Clean up any dead code
+- Update documentation
+- Estimated: 2-4 hours
+
+**Total remaining estimate**: 14-24 hours (2-3 days)
 
 - [x] **6.1.2.7 Implement Class Invariant Support** 🎯 **MEDIUM PRIORITY** ✅ **DONE**
   - [x] Add AST support for class invariants
