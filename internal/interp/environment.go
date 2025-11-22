@@ -11,15 +11,15 @@ import (
 // proper lexical scoping for DWScript programs.
 //
 // Implementation Note:
-// DWScript is a case-insensitive language, so all variable names are normalized
-// using ident.Normalize() before being stored as map keys. This ensures that
+// DWScript is a case-insensitive language. The store uses ident.Map which
+// automatically normalizes keys for case-insensitive lookup. This ensures that
 // "myVariable", "MyVariable", and "MYVARIABLE" all refer to the same variable.
-// The original case of variable names is not preserved; only normalized keys
-// are stored.
+// The ident.Map also preserves the original casing of keys for error messages.
 type Environment struct {
-	// store maps normalized variable names (via ident.Normalize) to their runtime values.
-	// Keys are normalized for case-insensitive lookup in accordance with DWScript semantics.
-	store map[string]Value
+	// store is a case-insensitive map of variable names to their runtime values.
+	// Keys are automatically normalized by ident.Map for case-insensitive lookup
+	// in accordance with DWScript semantics.
+	store *ident.Map[Value]
 	// outer references the enclosing (parent) environment for nested scopes
 	outer *Environment
 }
@@ -28,7 +28,7 @@ type Environment struct {
 // This is typically used for the global scope of a program.
 func NewEnvironment() *Environment {
 	return &Environment{
-		store: make(map[string]Value),
+		store: ident.NewMap[Value](),
 		outer: nil,
 	}
 }
@@ -41,7 +41,7 @@ func NewEnvironment() *Environment {
 // outer environments are searched recursively up the scope chain.
 func NewEnclosedEnvironment(outer *Environment) *Environment {
 	return &Environment{
-		store: make(map[string]Value),
+		store: ident.NewMap[Value](),
 		outer: outer,
 	}
 }
@@ -57,17 +57,13 @@ func (e *Environment) NewEnclosed() interface{} {
 
 // Get retrieves a variable value by name. It searches the current environment
 // first, then recursively searches outer (parent) environments if not found.
-// DWScript is case-insensitive, so names are normalized using ident.Normalize().
+// DWScript is case-insensitive - ident.Map handles normalization automatically.
 //
 // Returns the value and true if found, or nil and false if the variable is
 // undefined in this scope chain.
 func (e *Environment) Get(name string) (Value, bool) {
-	// Normalize for case-insensitive lookup (DWScript is case-insensitive)
-	key := ident.Normalize(name)
-
-	// Check current environment
-	val, ok := e.store[key]
-	if ok {
+	// Check current environment (ident.Map handles case-insensitive lookup)
+	if val, ok := e.store.Get(name); ok {
 		return val, true
 	}
 
@@ -82,17 +78,14 @@ func (e *Environment) Get(name string) (Value, bool) {
 
 // Set updates an existing variable's value. It searches the current environment
 // first, then recursively searches outer environments to find where the variable
-// is defined. DWScript is case-insensitive, so names are normalized using ident.Normalize().
+// is defined. DWScript is case-insensitive - ident.Map handles normalization automatically.
 //
 // Returns an error if the variable is not defined in any scope in the chain.
 // Use Define() to create a new variable in the current scope.
 func (e *Environment) Set(name string, val Value) error {
-	// Normalize for case-insensitive lookup (DWScript is case-insensitive)
-	key := ident.Normalize(name)
-
-	// Check if variable exists in current environment
-	if _, ok := e.store[key]; ok {
-		e.store[key] = val
+	// Check if variable exists in current environment (ident.Map handles normalization)
+	if e.store.Has(name) {
+		e.store.Set(name, val)
 		return nil
 	}
 
@@ -107,16 +100,15 @@ func (e *Environment) Set(name string, val Value) error {
 
 // Define creates a new variable in the current environment's scope.
 // If a variable with the same name already exists in this scope, it is
-// overwritten (no error is returned). DWScript is case-insensitive, so names
-// are normalized using ident.Normalize().
+// overwritten (no error is returned). DWScript is case-insensitive -
+// ident.Map handles normalization automatically.
 //
 // This differs from Set() which only updates existing variables and errors
 // if the variable is not found. Define() is used for variable declarations,
 // while Set() is used for assignments.
 func (e *Environment) Define(name string, val Value) {
-	// Normalize for case-insensitive storage (DWScript is case-insensitive)
-	key := ident.Normalize(name)
-	e.store[key] = val
+	// ident.Map handles case-insensitive storage automatically
+	e.store.Set(name, val)
 }
 
 // Has checks if a variable is defined in the current environment or any outer scope.
@@ -127,17 +119,15 @@ func (e *Environment) Has(name string) bool {
 
 // GetLocal retrieves a variable value only from the current environment,
 // without searching outer scopes. This is useful for checking if a variable
-// is shadowing an outer variable. DWScript is case-insensitive, so names are
-// normalized using ident.Normalize().
+// is shadowing an outer variable. DWScript is case-insensitive -
+// ident.Map handles normalization automatically.
 func (e *Environment) GetLocal(name string) (Value, bool) {
-	// Normalize for case-insensitive lookup (DWScript is case-insensitive)
-	key := ident.Normalize(name)
-	val, ok := e.store[key]
-	return val, ok
+	// ident.Map handles case-insensitive lookup automatically
+	return e.store.Get(name)
 }
 
 // Size returns the number of variables defined in the current environment
 // (not including outer scopes).
 func (e *Environment) Size() int {
-	return len(e.store)
+	return e.store.Len()
 }

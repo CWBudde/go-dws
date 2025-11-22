@@ -383,10 +383,10 @@ func (i *Interpreter) cleanupInterfaceReferences(env *Environment) {
 	}
 
 	// Iterate through all variables in the environment
-	for _, value := range env.store {
+	env.store.Range(func(_ string, value Value) bool {
 		// Skip ReferenceValue entries (like function name aliases)
 		if _, isRef := value.(*ReferenceValue); isRef {
-			continue
+			return true // continue
 		}
 
 		if intfInst, ok := value.(*InterfaceInstance); ok {
@@ -402,7 +402,8 @@ func (i *Interpreter) cleanupInterfaceReferences(env *Environment) {
 				i.callDestructorIfNeeded(objInst)
 			}
 		}
-	}
+		return true // continue
+	})
 }
 
 // ============================================================================
