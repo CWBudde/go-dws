@@ -852,17 +852,27 @@ This causes:
   - [x] Validate that forward-declared functions have implementations (added)
   - [x] Write unit tests for type resolution
 
-- [ ] **6.1.2.4 Implement Pass 3: Semantic Validation** (skeleton exists, needs completion)
+- [ ] **6.1.2.4 Implement Pass 3: Semantic Validation** (partial, ~40% complete)
   - [x] Create `ValidationPass` that type-checks expressions and statements
-  - [ ] Migrate expression validation from old analyzer (analyzeExpression, etc.)
-  - [ ] Migrate statement validation from old analyzer (analyzeStatement, etc.)
-  - [ ] Migrate builtin function validation from old analyzer
-  - [ ] Validate variable declarations and assignments
-  - [ ] Type-check all expressions (binary ops, calls, member access)
-  - [ ] Validate control flow (break/continue in loops, return in functions)
-  - [ ] Check abstract method implementations in concrete classes
-  - [ ] Validate interface method implementations
-  - [ ] Write unit tests for semantic validation
+  - [~] Migrate expression validation from old analyzer (analyzeExpression, etc.) **PARTIAL**
+    - [x] Add support for all expression types (20+ types: literals, operators, OOP features)
+    - [x] Basic type checking for binary/unary operators, conditionals
+    - [ ] Context-aware type inference (analyzeExpressionWithExpectedType)
+    - [ ] Enhanced call expression validation (overload resolution, argument matching)
+    - [ ] Enhanced member access validation (field/method lookup, visibility)
+    - [ ] Array/set/record literal type inference
+  - [~] Migrate statement validation from old analyzer (analyzeStatement, etc.) **PARTIAL**
+    - [x] Add support for all statement types (15+ types: loops, exceptions, control flow)
+    - [x] Basic validation for var/const declarations, assignments
+    - [ ] Enhanced assignment validation (compound operators, readonly checks)
+    - [ ] Function body validation (return path analysis)
+  - [ ] Migrate builtin function validation from old analyzer **TODO**
+  - [x] Validate variable declarations and assignments **BASIC**
+  - [~] Type-check all expressions (binary ops, calls, member access) **PARTIAL**
+  - [x] Validate control flow (break/continue in loops, return in functions) **DONE**
+  - [ ] Check abstract method implementations in concrete classes **TODO**
+  - [ ] Validate interface method implementations **TODO**
+  - [ ] Write unit tests for semantic validation **TODO**
 
 - [ ] **6.1.2.5 Implement Pass 4: Contract Validation** (skeleton exists, needs completion)
   - [x] Create `ContractPass` for requires/ensures/invariant checking
