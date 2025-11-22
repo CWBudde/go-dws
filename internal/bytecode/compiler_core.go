@@ -2,10 +2,10 @@ package bytecode
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // Compiler converts AST nodes into bytecode chunks.
@@ -249,7 +249,7 @@ func (c *Compiler) declareGlobal(ident *ast.Identifier, typ types.Type) (uint16,
 		c.globals = make(map[string]globalVar)
 	}
 
-	key := strings.ToLower(ident.Value)
+	key := pkgident.Normalize(ident.Value)
 	if _, exists := c.globals[key]; exists {
 		return 0, c.errorf(ident, "duplicate global variable %q", ident.Value)
 	}
@@ -268,7 +268,7 @@ func (c *Compiler) declareGlobal(ident *ast.Identifier, typ types.Type) (uint16,
 
 func (c *Compiler) resolveLocal(name string) (local, bool) {
 	for i := len(c.locals) - 1; i >= 0; i-- {
-		if strings.EqualFold(c.locals[i].name, name) {
+		if pkgident.Equal(c.locals[i].name, name) {
 			return c.locals[i], true
 		}
 	}
@@ -281,7 +281,7 @@ func (c *Compiler) resolveLocalInCurrentScope(name string) (local, bool) {
 		if loc.depth != c.scopeDepth {
 			break
 		}
-		if strings.EqualFold(loc.name, name) {
+		if pkgident.Equal(loc.name, name) {
 			return loc, true
 		}
 	}
@@ -292,7 +292,7 @@ func (c *Compiler) resolveGlobal(name string) (globalVar, bool) {
 	if c.globals == nil {
 		return globalVar{}, false
 	}
-	g, ok := c.globals[strings.ToLower(name)]
+	g, ok := c.globals[pkgident.Normalize(name)]
 	return g, ok
 }
 
@@ -424,7 +424,7 @@ func (c *Compiler) addBuiltinGlobal(name string) {
 	if c.globals == nil {
 		c.globals = make(map[string]globalVar)
 	}
-	key := strings.ToLower(name)
+	key := pkgident.Normalize(name)
 	if _, exists := c.globals[key]; exists {
 		return
 	}
@@ -581,7 +581,7 @@ func (c *Compiler) inferExpressionType(expr ast.Expression) types.Type {
 		return typeFromAnnotation(typeAnnot)
 	case *ast.BinaryExpression:
 		// For binary expressions, infer result type based on operator and operands
-		op := strings.ToLower(node.Operator)
+		op := pkgident.Normalize(node.Operator)
 		leftType := c.inferExpressionType(node.Left)
 		rightType := c.inferExpressionType(node.Right)
 
@@ -699,7 +699,7 @@ func typeFromAnnotation(expr ast.TypeExpression) types.Type {
 			return nil
 		}
 		// Handle simple named types
-		switch strings.ToLower(node.Name) {
+		switch pkgident.Normalize(node.Name) {
 		case "integer":
 			return types.INTEGER
 		case "float":
@@ -799,7 +799,7 @@ func literalValue(expr ast.Expression) (Value, bool) {
 }
 
 func evaluateBinary(operator string, left, right Value) (Value, bool) {
-	opLower := strings.ToLower(operator)
+	opLower := pkgident.Normalize(operator)
 
 	// Try arithmetic operations
 	if result, ok := evaluateBinaryArithmetic(opLower, left, right); ok {
@@ -949,7 +949,7 @@ func evaluateBinaryLogical(operator string, left, right Value) (Value, bool) {
 }
 
 func evaluateUnary(operator string, operand Value) (Value, bool) {
-	switch strings.ToLower(operator) {
+	switch pkgident.Normalize(operator) {
 	case "+":
 		if operand.IsNumber() {
 			return operand, true

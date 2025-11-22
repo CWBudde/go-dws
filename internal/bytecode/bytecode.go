@@ -3,6 +3,8 @@ package bytecode
 import (
 	"fmt"
 	"strings"
+
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // Value represents a runtime value in the bytecode VM.
@@ -699,7 +701,7 @@ func (o *ObjectInstance) GetField(name string) (Value, bool) {
 	if o == nil {
 		return NilValue(), false
 	}
-	val, ok := o.fields[strings.ToLower(name)]
+	val, ok := o.fields[ident.Normalize(name)]
 	if !ok {
 		return NilValue(), false
 	}
@@ -714,7 +716,7 @@ func (o *ObjectInstance) SetField(name string, value Value) {
 	if o.fields == nil {
 		o.fields = make(map[string]Value)
 	}
-	o.fields[strings.ToLower(name)] = value
+	o.fields[ident.Normalize(name)] = value
 }
 
 // GetProperty retrieves a property value by name (case-insensitive).
@@ -723,12 +725,12 @@ func (o *ObjectInstance) GetProperty(name string) (Value, bool) {
 		return NilValue(), false
 	}
 	// Try properties first
-	val, ok := o.props[strings.ToLower(name)]
+	val, ok := o.props[ident.Normalize(name)]
 	if ok {
 		return val, true
 	}
 	// Fall back to fields (fields are accessed via property syntax)
-	val, ok = o.fields[strings.ToLower(name)]
+	val, ok = o.fields[ident.Normalize(name)]
 	if ok {
 		return val, true
 	}
@@ -743,7 +745,7 @@ func (o *ObjectInstance) SetProperty(name string, value Value) {
 	if o.props == nil {
 		o.props = make(map[string]Value)
 	}
-	o.props[strings.ToLower(name)] = value
+	o.props[ident.Normalize(name)] = value
 }
 
 // ============================================================================
@@ -771,7 +773,7 @@ func (r *RecordInstance) GetField(name string) (Value, bool) {
 	if r == nil {
 		return NilValue(), false
 	}
-	val, ok := r.fields[strings.ToLower(name)]
+	val, ok := r.fields[ident.Normalize(name)]
 	if !ok {
 		return NilValue(), false
 	}
@@ -786,7 +788,7 @@ func (r *RecordInstance) SetField(name string, value Value) {
 	if r.fields == nil {
 		r.fields = make(map[string]Value)
 	}
-	r.fields[strings.ToLower(name)] = value
+	r.fields[ident.Normalize(name)] = value
 }
 
 // RecordValue constructs a Value representing a record instance.
