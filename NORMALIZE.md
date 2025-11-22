@@ -34,26 +34,37 @@ Enhanced `pkg/ident` package and established migration patterns.
 
 ---
 
-## Phase 3: Token & Lexer (Priority: HIGH)
+## Phase 3: Token & Lexer (Priority: HIGH) ✅ COMPLETED
 
-Already well-centralized, but verify completeness.
+Already well-centralized, verified completeness.
 
 ### Tasks
 
-- [ ] **3.1** Audit `pkg/token/token.go`
-  - Verify `LookupIdent()` is only case conversion point
-  - Confirm all keyword lookups use this function
+- [x] **3.1** Audit `pkg/token/token.go`
+  - Verified `LookupIdent()` is the only case conversion point (line 738)
+  - Confirmed all keyword lookups use this function
   - ✅ Status: Already centralized
 
-- [ ] **3.2** Audit `internal/lexer/lexer.go`
-  - Verify uses `token.LookupIdent()` consistently
-  - Line 1013 confirmed, check for any direct `strings.ToLower()`
+- [x] **3.2** Audit `internal/lexer/lexer.go`
+  - Verified uses `token.LookupIdent()` via alias (line 1013)
+  - No direct `strings.ToLower()` in main lexer code
+  - Only test files have `strings.ToLower()` for error message verification
   - ✅ Status: Already centralized
 
-- [ ] **3.3** Add tests for keyword case insensitivity
-  - Test all keywords in UPPER, lower, MixedCase
-  - Verify tokens are correctly identified
-  - Verify original casing in error messages
+- [x] **3.3** Add tests for keyword case insensitivity
+  - Created `pkg/token/case_insensitivity_test.go`:
+    - `TestAllKeywordsCaseInsensitivity`: Tests ALL keywords in lowercase, UPPERCASE, MixedCase, aLtErNaTiNg
+    - `TestOriginalCasingPreservedInTokenLiteral`: Verifies original casing preserved in token literals
+    - `TestKeywordIdentifierBoundary`: Tests edge cases between keywords and identifiers
+    - `TestIsKeywordCaseInsensitive`: Verifies IsKeyword function is case-insensitive
+    - `TestGetKeywordLiteralCaseInsensitive`: Verifies canonical form returned
+    - `TestTokenTypeConsistency`: Verifies consistent types across case variations
+  - Created `internal/lexer/case_insensitivity_test.go`:
+    - `TestLexerKeywordCaseInsensitivity`: Tests keywords through full lexer pipeline
+    - `TestLexerPreservesOriginalCasing`: Verifies lexer preserves original casing in literals
+    - `TestLexerMixedCaseProgram`: Tests realistic program with mixed case keywords
+    - `TestLexerKeywordIdentifierBoundary`: Tests boundary between keywords and identifiers
+    - `TestLexerMultipleKeywordsSameProgram`: Tests multiple case variations in one program
 
 ---
 
