@@ -548,10 +548,12 @@ The following uses of `strings.ToLower()`/`strings.EqualFold()` are legitimate a
   - Used `pkgident` alias to avoid conflict with local `ident` variable
   - Kept `strings` import for `strings.Split()` (qualified name parsing)
 
-- [ ] **14.1.12** Migrate `internal/interp/expressions_complex.go` (9 occurrences)
+- [x] **14.1.12** Migrate `internal/interp/expressions_complex.go` (10 occurrences)
   - ToLower: 130,166,198,238,268,329,386
   - EqualFold: 121,178,246
   - Type casting and interface checks
+  - Migrated: All `strings.ToLower()` → `ident.Normalize()`, `strings.EqualFold()` → `ident.Equal()`
+  - Kept `strings` import for `strings.Contains()` (string substring check)
 
 - [ ] **14.1.13** Migrate `internal/interp/functions_*.go` files (12 occurrences total, counting individual function calls)
   - `functions_typecast.go:91,329,626` (ToLower) + `389,508(x2),601` (EqualFold; line 508 has two calls)
