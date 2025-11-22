@@ -84,9 +84,9 @@ A few interpreter files still contain direct `strings.ToLower()` or `strings.Equ
   - Ordinal/enumeration value lookups
   - Migrated: 5 occurrences (4 enum type lookups + 1 class lookup)
 
-- [ ] **12.2** Migrate `internal/interp/builtins_type.go`
+- [x] **12.2** Migrate `internal/interp/builtins_type.go`
   - Type name comparisons in builtin type functions
-  - Estimated: 3-5 occurrences
+  - Migrated: 5 occurrences (2 enum type lookups + 3 type ID registries)
 
 - [ ] **12.3** Migrate `internal/interp/statements_assignments.go`
   - Variable/field assignment resolution
