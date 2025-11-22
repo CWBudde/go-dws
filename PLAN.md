@@ -297,10 +297,11 @@ If conditional compilation features are added in the future, they would require:
 - [x] **3.5.19** Complete Binary Operators - Collections
   - Set operations: `in` operator, union (+), difference (-), intersection (*)
   - Array comparisons (=, <>)
-  - Delegate to adapter for SetValue/ArrayValue operations
-  - Added `evalSetBinaryOp` method for set union/difference/intersection
+  - Delegate to adapter for SetValue/ArrayValue operations (intentional: SetValue is in interp package)
+  - Added `evalSetBinaryOp` method - delegates to adapter for set union/difference/intersection
   - Verified `evalInOperator` delegates for set/array membership testing
   - Verified `evalEqualityComparison` delegates for array/set comparisons
+  - Note: Full migration requires SetValue to be moved to runtime package (future task)
   - Files: `internal/interp/evaluator/binary_ops.go`
   - Effort: 5-6 hours
 

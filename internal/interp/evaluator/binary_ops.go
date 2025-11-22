@@ -119,6 +119,18 @@ func (e *Evaluator) evalAndOp(node *ast.BinaryExpression, ctx *ExecutionContext)
 		return e.evalVariantBinaryOp("and", left, right, node)
 	}
 
+	// Handle Enum types - bitwise AND (not short-circuit)
+	if left.Type() == "ENUM" {
+		right := e.Eval(node.Right, ctx)
+		if isError(right) {
+			return right
+		}
+		if right == nil {
+			return e.newError(node.Right, "right operand evaluated to nil")
+		}
+		return e.evalEnumBinaryOp("and", left, right, node)
+	}
+
 	return e.newError(node, "type mismatch: 'and' operator requires boolean or integer operands")
 }
 
@@ -197,6 +209,18 @@ func (e *Evaluator) evalOrOp(node *ast.BinaryExpression, ctx *ExecutionContext) 
 			return e.newError(node.Right, "right operand evaluated to nil")
 		}
 		return e.evalVariantBinaryOp("or", left, right, node)
+	}
+
+	// Handle Enum types - bitwise OR (not short-circuit)
+	if left.Type() == "ENUM" {
+		right := e.Eval(node.Right, ctx)
+		if isError(right) {
+			return right
+		}
+		if right == nil {
+			return e.newError(node.Right, "right operand evaluated to nil")
+		}
+		return e.evalEnumBinaryOp("or", left, right, node)
 	}
 
 	return e.newError(node, "type mismatch: 'or' operator requires boolean or integer operands")
