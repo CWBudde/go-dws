@@ -384,6 +384,8 @@ func (v *contractValidator) validateOldExpressions(expr ast.Expression, fn *ast.
 		v.validateOldExpressions(e.Expression, fn)
 
 	case *ast.CallExpression:
+		// Check the function being called (e.g., old(x).Method())
+		v.validateOldExpressions(e.Function, fn)
 		// Check all arguments for old expressions
 		for _, arg := range e.Arguments {
 			v.validateOldExpressions(arg, fn)

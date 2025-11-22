@@ -305,7 +305,7 @@ If conditional compilation features are added in the future, they would require:
   - Files: `internal/interp/evaluator/binary_ops.go`
   - Effort: 5-6 hours
 
-- [ ] **3.5.20** Complete Binary Operators - OOP & Operator Overloading
+- [x] **3.5.20** Complete Binary Operators - OOP & Operator Overloading
   - Object/Interface/Class comparisons (=, <>, is)
   - Operator overloading dispatch via adapter
   - Record comparisons
@@ -316,14 +316,14 @@ If conditional compilation features are added in the future, they would require:
 
 ### Phase 4: Identifier & Call Infrastructure (3.5.21-3.5.24)
 
-- [ ] **3.5.21** Complete `VisitIdentifier` - Variable & Constant Lookups
+- [x] **3.5.21** Complete `VisitIdentifier` - Variable & Constant Lookups
   - Extend existing implementation for all variable types
   - Handle ExternalVarValue, LazyThunk, ReferenceValue
   - Add adapter methods for complex value retrieval
   - Files: `visitor_expressions.go`, `evaluator.go`
   - Effort: 6-8 hours
 
-- [ ] **3.5.22** Complete `VisitIdentifier` - Property & Method References
+- [x] **3.5.22** Complete `VisitIdentifier` - Property & Method References
   - Instance fields/properties access
   - Method auto-invoke (property getters)
   - Class variables, function references, class name metaclass

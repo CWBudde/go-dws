@@ -566,10 +566,19 @@ func (v *statementValidator) allPathsReturn(stmt ast.Statement) bool {
 			return false
 		}
 
-		// If there's an except clause with handlers, check them
-		if s.ExceptClause != nil && len(s.ExceptClause.Handlers) > 0 {
-			for _, handler := range s.ExceptClause.Handlers {
-				if !v.allPathsReturn(handler.Statement) {
+		// If there's an except clause, check all exception paths
+		if s.ExceptClause != nil {
+			// If there are specific handlers, all must return
+			if len(s.ExceptClause.Handlers) > 0 {
+				for _, handler := range s.ExceptClause.Handlers {
+					if !v.allPathsReturn(handler.Statement) {
+						return false
+					}
+				}
+			}
+			// If there's an else block (catch-all handler), it must also return
+			if s.ExceptClause.ElseBlock != nil {
+				if !v.allPathsReturn(s.ExceptClause.ElseBlock) {
 					return false
 				}
 			}
@@ -2239,7 +2248,7 @@ func (v *statementValidator) checkMemberVisibility(
 
 	// If no current class context, only public members are accessible
 	if v.ctx.CurrentClass == nil {
-		v.ctx.AddError("cannot access %s %s '%s' (visibility: %s) from outside a class",
+		v.ctx.AddError("cannot access %s %s '%s' of class %s from outside a class",
 			visibilityString(visibility), memberKind, memberName, definingClass.Name)
 		return false
 	}
