@@ -14,6 +14,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 
 	// Task 3.8.2: pkg/ast is imported for SemanticInfo, which holds semantic analysis
 	// metadata (type annotations, symbol resolutions). This is separate from the AST
@@ -2511,8 +2512,13 @@ func (i *Interpreter) GetClassVariableValue(obj evaluator.Value, varName string)
 	if !ok {
 		return nil, false
 	}
-	classVarValue, exists := objInst.Class.ClassVars[varName]
-	return classVarValue, exists
+	// Case-insensitive lookup to match DWScript semantics
+	for name, value := range objInst.Class.ClassVars {
+		if ident.Equal(name, varName) {
+			return value, true
+		}
+	}
+	return nil, false
 }
 
 // HasProperty checks if an object has a property with the given name.
@@ -2666,8 +2672,13 @@ func (i *Interpreter) GetClassVariableFromClassInfo(classInfo evaluator.Value, v
 	if !ok {
 		panic("GetClassVariableFromClassInfo called on non-ClassInfoValue value")
 	}
-	classVarValue, exists := classInfoVal.ClassInfo.ClassVars[varName]
-	return classVarValue, exists
+	// Case-insensitive lookup to match DWScript semantics
+	for name, value := range classInfoVal.ClassInfo.ClassVars {
+		if ident.Equal(name, varName) {
+			return value, true
+		}
+	}
+	return nil, false
 }
 
 // IsClassValue checks if a value is a ClassValue (metaclass reference).
