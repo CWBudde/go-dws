@@ -299,6 +299,33 @@ idx := ident.Index(items, name)
 - Binary: `%1010`
 - Floats: `3.14`, `1.0e10`
 
+### Experimental Multi-Pass Semantic Analysis (Task 6.1.2)
+
+The semantic analyzer has a new multi-pass architecture under development. By default, only the stable old analyzer runs to keep tests passing on main.
+
+**To enable experimental passes** (for task 6.1.2 development):
+
+```go
+// Use this constructor to enable Pass 2 (Type Resolution) and Pass 3 (Semantic Validation)
+analyzer := semantic.NewAnalyzerWithExperimentalPasses()
+err := analyzer.Analyze(program)
+```
+
+**Default behavior** (NewAnalyzer()):
+
+- Only the old analyzer runs
+- All existing tests pass
+- Stable for production use
+
+**Experimental behavior** (NewAnalyzerWithExperimentalPasses()):
+
+- Old analyzer runs first (declaration collection)
+- Pass 2: Type Resolution (resolve type references, build hierarchies)
+- Pass 3: Semantic Validation (type-check expressions, validate statements)
+- Some tests may fail due to dual-mode validation conflicts
+
+When working on task 6.1.2, create test files that explicitly use `NewAnalyzerWithExperimentalPasses()` to test the new pass system without affecting other tests.
+
 ### Testing Philosophy
 
 The project maintains high test coverage (>90% for lexer, >80% for parser) and includes the complete DWScript test suite (~2,100 tests in `testdata/fixtures/`). When adding features:
