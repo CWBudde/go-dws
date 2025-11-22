@@ -1949,6 +1949,26 @@ func (v *statementValidator) typesCompatible(target, source types.Type) bool {
 		}
 	}
 
+	// Task 6.1.2.4: Handle interface type compatibility
+	if targetInterface, ok := targetUnderlying.(*types.InterfaceType); ok {
+		// Assigning to an interface variable
+
+		// Case 1: Source is a class - check if class implements the interface
+		if sourceClass, ok := sourceUnderlying.(*types.ClassType); ok {
+			return sourceClass.ImplementsInterface(targetInterface)
+		}
+
+		// Case 2: Source is also an interface - check inheritance relationship
+		// A derived interface can be assigned to a base interface
+		if sourceInterface, ok := sourceUnderlying.(*types.InterfaceType); ok {
+			// Check if source interface inherits from target interface (also handles same interface case)
+			return types.IsSubinterfaceOf(sourceInterface, targetInterface)
+		}
+
+		// Other types cannot be assigned to interface variables
+		return false
+	}
+
 	// TODO: Handle subtype relationships (class inheritance), numeric conversions, etc.
 	return false
 }
