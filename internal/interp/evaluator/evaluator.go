@@ -398,6 +398,84 @@ type InterpreterAdapter interface {
 	// EvalEqualityComparison handles = and <> operators for complex types using pre-evaluated values.
 	// This prevents double-evaluation of operands with side effects.
 	EvalEqualityComparison(op string, left, right Value, node ast.Node) Value
+
+	// ===== Task 3.5.38: Variable Declaration Adapter Methods =====
+
+	// ParseInlineArrayType parses inline array type signatures like "array of Integer" or "array[1..10] of String".
+	// Returns the array type (as any/interface{}) and an error if parsing fails.
+	ParseInlineArrayType(typeName string) (any, error)
+
+	// ParseInlineSetType parses inline set type signatures like "set of TColor".
+	// Returns the set type (as any/interface{}) and an error if parsing fails.
+	ParseInlineSetType(typeName string) (any, error)
+
+	// LookupSubrangeType finds a subrange type by name in the subrange type registry.
+	// Returns the subrange type value (as any/interface{}) and a boolean indicating success.
+	// The lookup is case-insensitive.
+	LookupSubrangeType(name string) (any, bool)
+
+	// BoxVariant wraps a value in a Variant container.
+	// Returns the variant value containing the wrapped value.
+	BoxVariant(value Value) Value
+
+	// TryImplicitConversion attempts an implicit type conversion from value to targetTypeName.
+	// Returns the converted value and true if conversion succeeded, or original value and false if not.
+	TryImplicitConversion(value Value, targetTypeName string) (Value, bool)
+
+	// WrapInSubrange wraps an integer value in a subrange type with validation.
+	// Returns the subrange value and an error if validation fails.
+	WrapInSubrange(value Value, subrangeTypeName string, node ast.Node) (Value, error)
+
+	// WrapInInterface wraps an object value in an interface instance.
+	// Validates that the object's class implements the interface.
+	// Returns the interface instance and an error if validation fails.
+	WrapInInterface(value Value, interfaceName string, node ast.Node) (Value, error)
+
+	// EvalArrayLiteralWithExpectedType evaluates an array literal with expected type context.
+	// This allows proper element type inference and coercion.
+	// Returns the evaluated array value.
+	EvalArrayLiteralWithExpectedType(lit ast.Node, expectedTypeName string) Value
+
+	// ClassImplementsInterface checks if a class implements an interface.
+	// Returns true if the class (by name) implements the interface (by name).
+	// Both lookups are case-insensitive.
+	ClassImplementsInterface(className, interfaceName string) bool
+
+	// CreateExternalVar creates an external variable marker.
+	// External variables are placeholders that map to Go-side external functions.
+	// Returns the external variable value.
+	CreateExternalVar(varName, externalName string) Value
+
+	// ResolveArrayTypeNode resolves an array type from an AST ArrayTypeNode.
+	// This handles nested arrays and complex bound expressions.
+	// Returns the array type (as any/interface{}) and an error if resolution fails.
+	ResolveArrayTypeNode(arrayNode ast.Node) (any, error)
+
+	// CreateRecordZeroValue creates a zero-initialized record value for a given record type.
+	// All fields are initialized to their respective zero values.
+	// Returns the record value and an error if the record type doesn't exist.
+	CreateRecordZeroValue(recordTypeName string) (Value, error)
+
+	// CreateArrayZeroValue creates a zero-initialized array value for a given array type name.
+	// Returns the array value and an error if the array type doesn't exist.
+	CreateArrayZeroValue(arrayTypeName string) (Value, error)
+
+	// CreateSetZeroValue creates an empty set value for a given set type signature.
+	// Returns the set value and an error if the set type cannot be created.
+	CreateSetZeroValue(setTypeName string) (Value, error)
+
+	// CreateSubrangeZeroValue creates a zero-initialized subrange value for a given subrange type.
+	// Returns the subrange value and an error if the subrange type doesn't exist.
+	CreateSubrangeZeroValue(subrangeTypeName string) (Value, error)
+
+	// CreateInterfaceZeroValue creates a nil interface instance for a given interface type.
+	// Returns the interface instance and an error if the interface type doesn't exist.
+	CreateInterfaceZeroValue(interfaceName string) (Value, error)
+
+	// CreateClassZeroValue creates a typed nil value for a given class type.
+	// This allows accessing class variables via nil instances.
+	// Returns the typed nil value and an error if the class doesn't exist.
+	CreateClassZeroValue(className string) (Value, error)
 }
 
 // Evaluator is responsible for evaluating DWScript AST nodes.

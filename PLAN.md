@@ -1200,7 +1200,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ### Category E: Declarations & Records (Medium Priority)
 
-- [ ] **3.5.38** Migrate Variable Declarations (`VisitVarDeclStatement`)
+- [x] **3.5.38** Migrate Variable Declarations (`VisitVarDeclStatement`)
   - **Complexity**: Very High (300+ lines)
   - **Requirements**:
     - External variable handling
@@ -1210,6 +1210,22 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Interface wrapping
     - Zero value initialization for all types
   - **Effort**: 2-3 weeks
+  - **Status**: ✅ COMPLETE - Full migration with adapter method support
+  - **Implementation Summary**:
+    - Added 14 new adapter methods for type operations (ParseInlineArrayType, ParseInlineSetType, WrapInSubrange, WrapInInterface, etc.)
+    - Implemented VisitVarDeclStatement with full type handling (external vars, multi-identifier, inline types)
+    - Implemented createZeroValue helper with comprehensive type support
+    - Handles all variable declaration scenarios: external, multi-name, typed, inferred, with/without initializers
+    - Supports subrange validation, interface wrapping, variant boxing, implicit conversions
+    - Array/record literal type inference, zero value initialization for all DWScript types
+  - **Files Modified**:
+    - `internal/interp/evaluator/evaluator.go` - Added adapter interface methods (14 new methods)
+    - `internal/interp/interpreter.go` - Implemented adapter methods (~240 lines)
+    - `internal/interp/evaluator/visitor_statements.go` - Migrated VisitVarDeclStatement and createZeroValue (~140 lines)
+  - **Testing**:
+    - ✅ All tests pass
+    - ✅ Build succeeds
+    - ✅ Existing variable declaration tests pass
 
 - [ ] **3.5.39** Migrate Constant Declarations (`VisitConstDecl`)
   - **Requirements**: Type inference from initializer
