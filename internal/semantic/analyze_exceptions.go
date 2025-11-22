@@ -102,7 +102,6 @@ func (a *Analyzer) analyzeExceptionHandler(handler *ast.ExceptionHandler) {
 	} else {
 		// Bare except handler - catches all exceptions
 		// Use Exception as the type for the scope
-		// Task 6.1.1.3: Use TypeRegistry for unified type lookup
 		if exceptionClass := a.getClassType("Exception"); exceptionClass != nil {
 			excType = exceptionClass
 		}

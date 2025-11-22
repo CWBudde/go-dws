@@ -58,7 +58,7 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 // a type declaration (without the 'type' keyword).
 // Pattern: IDENT EQ (CLASS|INTERFACE|LPAREN|RECORD|SET|ARRAY|ENUM|FUNCTION|PROCEDURE|HELPER|...)
 //
-// This method uses lexer.Peek() to look ahead without modifying parser state (Task 12.3.4).
+// This method uses lexer.Peek() to look ahead without modifying parser state.
 // PRE: cursor is SEMICOLON (after previous type decl)
 // POST: cursor is SEMICOLON (after previous type decl)
 

@@ -436,7 +436,7 @@ func TestWalk_WithNilNodes(t *testing.T) {
 }
 
 // TestWalk_HelperTypesAsNodes tests that helper types now properly implement Node
-// and are visited during traversal (Task 9.20)
+// and are visited during traversal.
 func TestWalk_HelperTypesAsNodes(t *testing.T) {
 	tests := []struct {
 		name         string

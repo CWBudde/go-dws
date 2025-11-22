@@ -655,7 +655,6 @@ func (a *Analyzer) analyzeLog2(args []ast.Expression, callExpr *ast.CallExpressi
 
 // analyzeRound analyzes the Round built-in function.
 // Round takes one numeric argument and always returns Integer.
-// Task 9.4.5: Also accepts Variant (runtime type checking will ensure it contains a number).
 func (a *Analyzer) analyzeRound(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {
 		a.addError("function 'Round' expects 1 argument, got %d at %s",

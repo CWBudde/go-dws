@@ -175,7 +175,7 @@ func (vm *VM) invokeMethod(receiver Value, methodName string, args []Value) erro
 		return nil
 	}
 
-	// Handle String helper methods (Task 9.23.5: Bytecode VM helper method support)
+	// Handle String helper methods
 	if receiver.IsString() {
 		str := receiver.AsString()
 		methodNameLower := strings.ToLower(methodName)

@@ -82,7 +82,7 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 	// Try to find as a method first
 	methodType, methodFound := parentClass.GetMethod(memberName)
 	if methodFound {
-		// Task 9.14.2: In DWScript, inherited MethodName without parens is still a call if method takes no params
+		// In DWScript, inherited MethodName without parens is still a call if method takes no params
 		// Determine if this should be treated as a call
 		isMethodCall := ie.IsCall || len(ie.Arguments) > 0
 

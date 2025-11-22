@@ -8,7 +8,6 @@ import (
 
 // ============================================================================
 // Enum-Indexed Array Tests
-// Tests for Task 9.21.1: Enum-indexed arrays with non-zero ordinals
 // ============================================================================
 
 func TestEnumIndexedArrayWithNonZeroOrdinals(t *testing.T) {

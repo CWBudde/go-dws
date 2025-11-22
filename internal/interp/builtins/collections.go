@@ -7,8 +7,6 @@ import (
 // Collection built-in functions for DWScript.
 // This file contains higher-order array functions that work with callbacks:
 // Map, Filter, Reduce, ForEach, Every, Some, Find, FindIndex.
-//
-// Task 3.7.7: Migrate array and collection functions to internal/interp/builtins/ package.
 
 // Map transforms each element of an array using a callback function.
 //

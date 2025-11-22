@@ -113,7 +113,7 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	// Date difference functions
 	// Special date functions
 	// Unix time functions
-	// Variant introspection functions (Task 3.7.5 - migrated to registry)
+	// Variant introspection functions
 	// VarType, VarIsNull, VarIsEmpty, VarIsClear, VarIsArray, VarIsStr, VarIsNumeric
 	// VarToStr, VarToInt, VarToFloat, VarAsType, VarClear
 	// These are now handled by builtins.DefaultRegistry.Lookup() above

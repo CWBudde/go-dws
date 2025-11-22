@@ -45,7 +45,7 @@ func (ta *TypeAnnotation) End() token.Position {
 func (ta *TypeAnnotation) typeExpressionNode() {}
 
 // TypedExpression was previously an interface for expressions with type information.
-// As of Task 9.18, type information is stored separately in SemanticInfo.
+// Type information is stored separately in SemanticInfo. TODO: Check if still needed!
 // This interface is kept for backward compatibility but now just aliases Expression.
 // Code that needs type information should use SemanticInfo.GetType(expr) instead.
 type TypedExpression interface {

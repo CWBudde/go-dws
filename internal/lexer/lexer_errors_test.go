@@ -6,7 +6,7 @@ import (
 )
 
 // TestErrorAccumulation tests that lexer errors are properly accumulated
-// instead of stopping at the first error (Task 12.1)
+// instead of stopping at the first error
 func TestErrorAccumulation(t *testing.T) {
 	tests := []struct {
 		name          string

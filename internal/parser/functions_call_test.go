@@ -6,7 +6,7 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
-// TestUserDefinedFunctionCallsWithArguments tests calling user-defined functions with arguments - Task 5.15
+// TestUserDefinedFunctionCallsWithArguments tests calling user-defined functions with arguments
 func TestUserDefinedFunctionCallsWithArguments(t *testing.T) {
 	tests := []struct {
 		name  string

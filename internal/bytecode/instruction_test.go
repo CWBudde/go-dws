@@ -213,8 +213,8 @@ func TestInstructionString(t *testing.T) {
 }
 
 func TestOpcodeCount(t *testing.T) {
-	// Verify we have exactly 121 opcodes (under 128 for optimal switch performance)
-	const expectedOpcodeCount = 124 // Task 1.3.7.6: Added 3 reference opcodes (OpLoadRef, OpStoreRef, OpDeref)
+	// Verify we have exactly 124 opcodes (under 128 for optimal switch performance)
+	const expectedOpcodeCount = 124
 
 	// Count non-empty opcode names
 	count := 0

@@ -142,7 +142,7 @@ func TestEdgeCases(t *testing.T) {
 					tt.expectedType, tok.Type, tok.Literal)
 			}
 
-			// For error cases, verify error was accumulated (Task 12.1)
+			// For error cases, verify error was accumulated
 			if tt.name == "unterminated string" || tt.name == "unterminated block comment" ||
 				tt.name == "unterminated C-style comment" || tt.name == "illegal character" {
 				errors := l.Errors()

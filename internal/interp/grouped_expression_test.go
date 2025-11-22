@@ -5,8 +5,6 @@ import (
 )
 
 // TestGroupedExpressionEvaluation tests evaluation of grouped (parenthesized) expressions.
-// Task 3.5.10: VisitGroupedExpression migration - simple delegation to inner expression evaluation.
-// This test verifies that precedence is preserved correctly through grouped expressions.
 func TestGroupedExpressionEvaluation(t *testing.T) {
 	tests := []struct {
 		name     string

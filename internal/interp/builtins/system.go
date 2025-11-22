@@ -11,8 +11,6 @@ import (
 // - Type conversion with defaults: StrToIntDef, StrToFloatDef
 // - Runtime utilities: Assigned, Assert
 // - String formatting: Format (complex)
-//
-// Task 3.7.8: Migrate remaining miscellaneous functions to internal/interp/builtins/ package.
 
 // GetStackTrace returns a formatted string representation of the current call stack.
 //
@@ -143,7 +141,7 @@ func Assert(ctx Context, args []Value) Value {
 }
 
 // Integer converts values to integers.
-// NOTE: Ord() is already defined in ordinal.go (Task 3.7.5)
+// NOTE: Ord() is already defined in ordinal.go
 //
 // Signature: Integer(value: Variant) -> Integer
 //
@@ -274,7 +272,7 @@ func StrToFloatDef(ctx Context, args []Value) Value {
 	return &runtime.FloatValue{Value: floatValue}
 }
 
-// NOTE: Succ() and Pred() are already defined in ordinal.go (Task 3.7.5)
+// NOTE: Succ() and Pred() are already defined in ordinal.go
 
 // Format formats a string using format specifiers and an array of values.
 //

@@ -1,7 +1,5 @@
 // Package types provides the type system for the DWScript interpreter.
 // This file implements FunctionRegistry for managing function overloads and qualified names.
-//
-// Task 3.4.3: Create FunctionRegistry with overload support
 package types
 
 import (

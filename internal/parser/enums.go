@@ -48,7 +48,7 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 	cursor = cursor.Advance() // move to '('
 	p.cursor = cursor
 
-	// Parse enum values using SeparatedList combinator (Task 2.3.2)
+	// Parse enum values using SeparatedList combinator
 	cursor = cursor.Advance() // move to first value
 	p.cursor = cursor
 

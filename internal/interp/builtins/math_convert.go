@@ -63,13 +63,12 @@ func RadToDeg(ctx Context, args []Value) Value {
 // Round implements the Round() built-in function.
 // It rounds a number to the nearest integer.
 // Round(x) - returns rounded value as Integer (always returns Integer)
-// Task 9.4.5: Now supports Variant arguments.
 func Round(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("Round() expects exactly 1 argument, got %d", len(args))
 	}
 
-	// Task 9.4.5: Unwrap Variant if necessary
+	// Unwrap Variant if necessary
 	arg := ctx.UnwrapVariant(args[0])
 	var value float64
 

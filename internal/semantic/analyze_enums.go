@@ -21,7 +21,6 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 
 	// Check if enum is already declared
 	// Use lowercase for case-insensitive duplicate check
-	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
 	if a.hasType(enumName) {
 		a.addError("enum type '%s' already declared at %s", enumName, decl.Token.Pos.String())
 		return
