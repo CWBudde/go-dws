@@ -4498,6 +4498,40 @@ end;
 2. VM parity tests comparing output with AST interpreter
 3. Integration tests with complex scripts using all features
 
+[ ] 14.17 Add enum support to bytecode VM
+  - **Task**: Implement enum value representation and operations in bytecode VM
+  - **Priority**: MEDIUM (enums work fine in AST interpreter, this is optimization)
+  - **Status**: NOT STARTED
+  - **Implementation**:
+    1. Add `ValueEnum` to ValueType enum in `bytecode.go`
+    2. Add `EnumValue()` helper constructor for enum values
+    3. Modify compiler to handle enum expressions:
+       - Scoped enum access (e.g., `TEnum.Alpha`)
+       - Enum type declarations in symbol table
+       - Member access expressions for enums
+    4. Add enum operations to VM:
+       - Comparison operations (=, <>, <, >, <=, >=)
+       - Boolean operations (and, or, xor) - Task 1.6 support
+       - Implicit enum-to-integer conversion - Task 1.6 support
+    5. Update bytecode serialization to support enum values
+    6. Add comprehensive tests for enum operations in VM
+  - **Current workaround**: Use AST interpreter for scripts with enums
+  - **Failing Test**: `enum_bool_op.pas` fails with bytecode VM
+  - **Example**:
+    ```pascal
+    type TEnum = flags (Alpha, Beta, Gamma);
+    var x := TEnum.Alpha or TEnum.Gamma;  // Currently unsupported in VM
+    PrintInt(TEnum.Beta);                  // Currently unsupported in VM
+    ```
+  - **Files to Modify**:
+    - `internal/bytecode/bytecode.go` (add ValueEnum type)
+    - `internal/bytecode/compiler_expressions.go` (compile enum literals and member access)
+    - `internal/bytecode/compiler_core.go` (symbol table for enum types)
+    - `internal/bytecode/vm_exec.go` (execute enum operations)
+    - `internal/bytecode/serializer.go` (serialize/deserialize enum values)
+  - **Estimated time**: 4-6 hours (1 day)
+  - **Dependencies**: None (enum support complete in AST interpreter and semantic analyzer)
+
 ---
 
 **Estimated time**: Completed in 12-16 weeks
