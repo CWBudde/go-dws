@@ -465,18 +465,83 @@ If conditional compilation features are added in the future, they would require:
 
 ---
 
-### Deferred (Post Phase 3.5)
+### Phase 9: AST-Free Runtime Types (3.5.37-3.5.44)
 
-- [ ] **3.5.37** Remove Adapter Pattern ⏸️ **BLOCKED**
-  - **Status**: Blocked on AST-free runtime types architecture
-  - **Steps** (when unblocked):
-    - Remove `InterpreterAdapter` interface
-    - Remove `adapter` field from Evaluator
-    - Remove `EvalNode()` fallback calls
-    - Make Interpreter thin orchestrator only
-  - **Blocker**: Requires AST-free runtime types (separate long-term effort)
-  - **Future Work**: See `docs/task-3.5.4-expansion-plan.md` Phase 3
-  - **Effort**: 2 days (after blocker resolved)
+This phase eliminates AST dependencies from runtime value types, enabling the Evaluator to work independently of the AST package and allowing the adapter pattern to be removed.
+
+**Goal**: Runtime types should store only the metadata needed at runtime, not AST nodes.
+
+- [ ] **3.5.37** Design AST-Free Runtime Metadata
+  - Analyze what information is actually needed at runtime vs compile-time
+  - Design `MethodMetadata` struct (name, param types, return type, body reference)
+  - Design `FieldMetadata` struct (name, type, default value, visibility)
+  - Design `ClassMetadata` struct (name, parent, interfaces, methods, fields, constants)
+  - Create design doc: `docs/ast-free-runtime-design.md`
+  - Files: `internal/interp/runtime/metadata.go` (new)
+  - Effort: 4-6 hours
+  - Acceptance: Design doc approved, metadata structs defined
+
+- [ ] **3.5.38** Implement MethodMetadata and MethodRegistry
+  - Create `MethodMetadata` with signature info and callable reference
+  - Implement `MethodRegistry` to store methods by ID
+  - Add method registration during class declaration evaluation
+  - Replace `*ast.FunctionDecl` references with method IDs
+  - Files: `internal/interp/runtime/method_metadata.go` (new)
+  - Effort: 6-8 hours
+  - Acceptance: Methods can be called via metadata, no AST in hot path
+
+- [ ] **3.5.39** Migrate ClassInfo to AST-Free ClassMetadata
+  - Create `ClassMetadata` in runtime package
+  - Move field info from `*ast.FieldDecl` to `FieldMetadata`
+  - Move constant info from `*ast.ConstDecl` to `ConstantMetadata`
+  - Move method references to use `MethodMetadata`
+  - Populate metadata during class declaration (compile-time)
+  - Files: `internal/interp/runtime/class_metadata.go` (new), `internal/interp/class.go`
+  - Effort: 8-10 hours
+  - Acceptance: ClassInfo uses metadata only, no AST imports in runtime
+
+- [ ] **3.5.40** Migrate ObjectInstance to Use ClassMetadata
+  - Update `ObjectInstance` to reference `ClassMetadata` instead of `ClassInfo`
+  - Update `GetMethod()` to return callable via metadata lookup
+  - Update field access to use `FieldMetadata`
+  - Ensure method dispatch works through metadata
+  - Files: `internal/interp/class.go`, `internal/interp/runtime/object.go` (new)
+  - Effort: 6-8 hours
+  - Acceptance: ObjectInstance has no AST dependencies, all OOP tests pass
+
+- [ ] **3.5.41** Migrate FunctionPointerValue to AST-Free
+  - Create `FunctionMetadata` for standalone functions/lambdas
+  - Store parameter info and callable reference instead of `*ast.FunctionDecl`
+  - Update lambda creation to populate metadata
+  - Update function pointer invocation to use metadata
+  - Files: `internal/interp/runtime/primitives.go`, `internal/interp/runtime/function_metadata.go` (new)
+  - Effort: 6-8 hours
+  - Acceptance: FunctionPointerValue has no AST imports, lambda tests pass
+
+- [ ] **3.5.42** Migrate RecordValue to AST-Free
+  - Create `RecordMetadata` for record type info
+  - Move method references to metadata
+  - Update record creation and field access
+  - Files: `internal/interp/value.go`, `internal/interp/runtime/record_metadata.go` (new)
+  - Effort: 4-6 hours
+  - Acceptance: RecordValue has no AST dependencies, record tests pass
+
+- [ ] **3.5.43** Migrate ExceptionValue to AST-Free
+  - Update ExceptionValue to use ClassMetadata references
+  - Ensure exception creation/handling works through metadata
+  - Files: `internal/interp/exceptions.go`
+  - Effort: 3-4 hours
+  - Acceptance: ExceptionValue has no AST dependencies, exception tests pass
+
+- [ ] **3.5.44** Remove Adapter Pattern
+  - Remove `InterpreterAdapter` interface
+  - Remove `adapter` field from Evaluator
+  - Remove all `EvalNode()` fallback calls
+  - Make Interpreter thin orchestrator only
+  - Update benchmarks to include variable access and function calls
+  - Files: `internal/interp/evaluator/evaluator.go`, `internal/interp/interpreter.go`
+  - Effort: 8-12 hours
+  - Acceptance: No adapter, all tests pass, benchmarks updated
 
 ---
 
@@ -492,7 +557,8 @@ If conditional compilation features are added in the future, they would require:
 | 6: Exceptions | 2 | 6-8 | 12-16 | Phase 5 |
 | 7: Advanced | 3 | 4-6 | 12-18 | Phase 4-5 |
 | 8: Finalization | 3 | 4-8 | 12-22 | All phases |
-| **Total** | **27** | **~5 avg** | **112-165** | |
+| 9: AST-Free Runtime | 8 | 5-8 | 45-62 | Phase 8 |
+| **Total** | **35** | **~5 avg** | **157-227** | |
 
 ---
 
