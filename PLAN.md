@@ -356,7 +356,7 @@ If conditional compilation features are added in the future, they would require:
   - Files: `visitor_expressions.go`
   - Effort: 6-8 hours
 
-- [ ] **3.5.26** Complete `VisitMemberAccessExpression` - Complex Modes
+- [x] **3.5.26** Complete `VisitMemberAccessExpression` - Complex Modes
   - Object instance field/property access
   - Interface instance access
   - Metaclass access
