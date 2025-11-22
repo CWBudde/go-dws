@@ -1227,20 +1227,20 @@ func (v *statementValidator) checkBinaryExpression(expr *ast.BinaryExpression) t
 	switch expr.Operator {
 	case "+":
 		// Task 6.1.2.2: + can be used for set union, string concatenation, or numeric addition
-		// Check for set union first
-		leftSetType, leftIsSet := leftType.(*types.SetType)
-		rightSetType, rightIsSet := rightType.(*types.SetType)
+		// Check for set union first (resolve type aliases)
+		leftSetType, leftIsSet := types.GetUnderlyingType(leftType).(*types.SetType)
+		rightSetType, rightIsSet := types.GetUnderlyingType(rightType).(*types.SetType)
 		if leftIsSet && rightIsSet {
 			// Set union - both operands must have the same element type
 			if !leftSetType.ElementType.Equals(rightSetType.ElementType) {
-				v.ctx.AddError("set union requires sets with the same element type, got set of %s and set of %s",
+				v.ctx.AddError("incompatible types in set operation: set of %s and set of %s",
 					leftSetType.ElementType, rightSetType.ElementType)
 				return nil
 			}
 			return leftSetType
 		}
 		if leftIsSet || rightIsSet {
-			v.ctx.AddError("operator + cannot mix set and non-set types")
+			v.ctx.AddError("operator + requires set operands")
 			return nil
 		}
 
@@ -1264,20 +1264,20 @@ func (v *statementValidator) checkBinaryExpression(expr *ast.BinaryExpression) t
 
 	case "-":
 		// Task 6.1.2.2: - can be used for set difference or numeric subtraction
-		// Check for set difference first
-		leftSetType, leftIsSet := leftType.(*types.SetType)
-		rightSetType, rightIsSet := rightType.(*types.SetType)
+		// Check for set difference first (resolve type aliases)
+		leftSetType, leftIsSet := types.GetUnderlyingType(leftType).(*types.SetType)
+		rightSetType, rightIsSet := types.GetUnderlyingType(rightType).(*types.SetType)
 		if leftIsSet && rightIsSet {
 			// Set difference - both operands must have the same element type
 			if !leftSetType.ElementType.Equals(rightSetType.ElementType) {
-				v.ctx.AddError("set difference requires sets with the same element type, got set of %s and set of %s",
+				v.ctx.AddError("incompatible types in set operation: set of %s and set of %s",
 					leftSetType.ElementType, rightSetType.ElementType)
 				return nil
 			}
 			return leftSetType
 		}
 		if leftIsSet || rightIsSet {
-			v.ctx.AddError("operator - cannot mix set and non-set types")
+			v.ctx.AddError("operator - requires set operands")
 			return nil
 		}
 
@@ -1295,20 +1295,20 @@ func (v *statementValidator) checkBinaryExpression(expr *ast.BinaryExpression) t
 
 	case "*":
 		// Task 6.1.2.2: * can be used for set intersection or numeric multiplication
-		// Check for set intersection first
-		leftSetType, leftIsSet := leftType.(*types.SetType)
-		rightSetType, rightIsSet := rightType.(*types.SetType)
+		// Check for set intersection first (resolve type aliases)
+		leftSetType, leftIsSet := types.GetUnderlyingType(leftType).(*types.SetType)
+		rightSetType, rightIsSet := types.GetUnderlyingType(rightType).(*types.SetType)
 		if leftIsSet && rightIsSet {
 			// Set intersection - both operands must have the same element type
 			if !leftSetType.ElementType.Equals(rightSetType.ElementType) {
-				v.ctx.AddError("set intersection requires sets with the same element type, got set of %s and set of %s",
+				v.ctx.AddError("incompatible types in set operation: set of %s and set of %s",
 					leftSetType.ElementType, rightSetType.ElementType)
 				return nil
 			}
 			return leftSetType
 		}
 		if leftIsSet || rightIsSet {
-			v.ctx.AddError("operator * cannot mix set and non-set types")
+			v.ctx.AddError("operator * requires set operands")
 			return nil
 		}
 
@@ -1370,11 +1370,11 @@ func (v *statementValidator) checkBinaryExpression(expr *ast.BinaryExpression) t
 	case "in":
 		// Task 6.1.2.2: Set membership operator
 		// Left operand should be an ordinal value
-		// Right operand should be a set type
+		// Right operand should be a set type (resolve type aliases)
 		// The element type of the set should match the type of the left operand
-		rightSetType, rightIsSet := rightType.(*types.SetType)
+		rightSetType, rightIsSet := types.GetUnderlyingType(rightType).(*types.SetType)
 		if !rightIsSet {
-			v.ctx.AddError("right operand of 'in' must be a set type, got %s", rightType.String())
+			v.ctx.AddError("right operand of 'in' requires set type, got %s", rightType.String())
 			return nil
 		}
 
