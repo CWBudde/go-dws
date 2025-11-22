@@ -4,17 +4,18 @@ import (
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
-	identpkg "github.com/cwbudde/go-dws/pkg/ident"
+	ident "github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
 // Expression Analysis
 // ============================================================================
-func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
+
+func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 	// Task 9.133: Handle built-in type names as type meta-values
 	// These identifiers represent type names that can be used as runtime values
 	// (e.g., High(Integer), Low(Boolean))
-	switch ident.Value {
+	switch identifier.Value {
 	case "Integer":
 		return types.INTEGER
 	case "Float":
@@ -25,16 +26,14 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 		return types.STRING
 	}
 
-	// Task 9.161: Handle user-defined enum type names as type meta-values
 	// This allows enum type names to be used in expressions like High(TColor)
-	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
-	if enumType := a.getEnumType(ident.Value); enumType != nil {
+	if enumType := a.getEnumType(identifier.Value); enumType != nil {
 		return enumType
 	}
 
 	// Handle built-in ExceptObject variable
 	// ExceptObject is a global variable that holds the current exception (or nil)
-	if ident.Value == "ExceptObject" {
+	if identifier.Value == "ExceptObject" {
 		// ExceptObject is always of type Exception (the base exception class)
 		// Task 9.285: Use lowercase for case-insensitive lookup
 		// Task 6.1.1.3: Use TypeRegistry for unified type lookup
@@ -49,23 +48,23 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 	// Task 9.6: Handle ClassName identifier in method contexts
 	// ClassName is a built-in property available on all objects (inherited from TObject)
 	// When used as an identifier, it returns the class name as a String
-	if identpkg.Equal(ident.Value, "ClassName") && a.currentClass != nil {
+	if ident.Equal(identifier.Value, "ClassName") && a.currentClass != nil {
 		return types.STRING
 	}
 
 	// Task 9.7: Handle ClassType identifier in method contexts
 	// ClassType is a built-in property that returns the metaclass reference
-	if identpkg.Equal(ident.Value, "ClassType") && a.currentClass != nil {
+	if ident.Equal(identifier.Value, "ClassType") && a.currentClass != nil {
 		return types.NewClassOfType(a.currentClass)
 	}
 
-	sym, ok := a.symbols.Resolve(ident.Value)
+	sym, ok := a.symbols.Resolve(identifier.Value)
 	if !ok {
 		// Task 9.285: Use lowercase for case-insensitive lookup
 		// Task 9.73.5: When a class name is used as an identifier in expressions,
 		// it should be treated as a metaclass reference (class of ClassName)
 		// Task 6.1.1.3: Use TypeRegistry for unified type lookup
-		if classType := a.getClassType(ident.Value); classType != nil {
+		if classType := a.getClassType(identifier.Value); classType != nil {
 			// Return ClassOfType (metaclass) instead of ClassType
 			// This allows: var meta: class of TBase; meta := TBase;
 			return &types.ClassOfType{ClassType: classType}
@@ -73,38 +72,38 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 		if a.currentClass != nil && !a.inClassMethod {
 			// Task 9.32b/9.32c: Check if identifier is a field of the current class (implicit Self, includes inherited)
 			// NOTE: This only applies to instance methods, NOT class methods (static methods)
-			if fieldType, exists := a.currentClass.GetField(ident.Value); exists {
+			if fieldType, exists := a.currentClass.GetField(identifier.Value); exists {
 				// Check field visibility
-				fieldOwner := a.getFieldOwner(a.currentClass, ident.Value)
+				fieldOwner := a.getFieldOwner(a.currentClass, identifier.Value)
 				if fieldOwner != nil {
 					// Use lowercase for case-insensitive lookup
-					lowerFieldName := identpkg.Normalize(ident.Value)
+					lowerFieldName := ident.Normalize(identifier.Value)
 					visibility, hasVisibility := fieldOwner.FieldVisibility[lowerFieldName]
-					if hasVisibility && !a.checkVisibility(fieldOwner, visibility, ident.Value, "field") {
+					if hasVisibility && !a.checkVisibility(fieldOwner, visibility, identifier.Value, "field") {
 						visibilityStr := ast.Visibility(visibility).String()
 						a.addError("cannot access %s field '%s' at %s",
-							visibilityStr, ident.Value, ident.Token.Pos.String())
+							visibilityStr, identifier.Value, identifier.Token.Pos.String())
 						return nil
 					}
 				}
 				return fieldType
 			}
 
-			// Task 9.32b/9.32c: Check if identifier is a property of the current class (implicit Self)
+			// Check if identifier is a property of the current class (implicit Self)
 			// DWScript is case-insensitive, so we need to search all properties
 			// Also search parent class hierarchy
 			for class := a.currentClass; class != nil; class = class.Parent {
 				for propName, propInfo := range class.Properties {
-					if identpkg.Equal(propName, ident.Value) {
+					if ident.Equal(propName, identifier.Value) {
 						// Task 9.49: Check for circular reference in property expressions
-						if a.inPropertyExpr && identpkg.Equal(propName, a.currentProperty) {
-							a.addError("property '%s' cannot be read-accessed at %s", ident.Value, ident.Token.Pos.String())
+						if a.inPropertyExpr && ident.Equal(propName, a.currentProperty) {
+							a.addError("property '%s' cannot be read-accessed at %s", identifier.Value, identifier.Token.Pos.String())
 							return nil
 						}
 
 						// For write-only properties, check if read access is defined
 						if propInfo.ReadKind == types.PropAccessNone {
-							a.addError("property '%s' is write-only at %s", ident.Value, ident.Token.Pos.String())
+							a.addError("property '%s' is write-only at %s", identifier.Value, identifier.Token.Pos.String())
 							return nil
 						}
 						return propInfo.Type
@@ -114,16 +113,16 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 
 			// Task 9.173: Check if identifier refers to a method of the current class
 			// This allows method pointers to be passed as function arguments
-			methodType, found := a.currentClass.GetMethod(ident.Value)
+			methodType, found := a.currentClass.GetMethod(identifier.Value)
 			if found {
 				// Check method visibility
-				methodOwner := a.getMethodOwner(a.currentClass, ident.Value)
+				methodOwner := a.getMethodOwner(a.currentClass, identifier.Value)
 				if methodOwner != nil {
-					visibility, hasVisibility := methodOwner.MethodVisibility[ident.Value]
-					if hasVisibility && !a.checkVisibility(methodOwner, visibility, ident.Value, "method") {
+					visibility, hasVisibility := methodOwner.MethodVisibility[identifier.Value]
+					if hasVisibility && !a.checkVisibility(methodOwner, visibility, identifier.Value, "method") {
 						visibilityStr := ast.Visibility(visibility).String()
 						a.addError("cannot access %s method '%s' of class '%s' at %s",
-							visibilityStr, ident.Value, methodOwner.Name, ident.Token.Pos.String())
+							visibilityStr, identifier.Value, methodOwner.Name, identifier.Token.Pos.String())
 						return nil
 					}
 				}
@@ -148,7 +147,7 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 		// Class constants should be accessible from anywhere within the class, unlike fields which are
 		// only accessible from instance methods (not class methods)
 		if a.currentClass != nil {
-			if constType := a.findClassConstantWithVisibility(a.currentClass, ident.Value, ident.Token.Pos.String()); constType != nil {
+			if constType := a.findClassConstantWithVisibility(a.currentClass, identifier.Value, identifier.Token.Pos.String()); constType != nil {
 				return constType
 			}
 		}
@@ -156,13 +155,13 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 		// Task 9.132: Check if this is a built-in function used without parentheses
 		// In DWScript, built-in functions like PrintLn can be called without parentheses
 		// The semantic analyzer should allow this and treat them as procedure calls
-		if a.isBuiltinFunction(ident.Value) {
+		if a.isBuiltinFunction(identifier.Value) {
 			// Return Void type for built-in procedures (or appropriate type for functions)
 			// For simplicity, we'll return VOID type which means "any" - the interpreter will handle it
 			return types.VOID
 		}
 
-		a.addError("%s", errors.FormatUnknownName(ident.Value, ident.Token.Pos.Line, ident.Token.Pos.Column))
+		a.addError("%s", errors.FormatUnknownName(identifier.Value, identifier.Token.Pos.Line, identifier.Token.Pos.Column))
 		return nil
 	}
 

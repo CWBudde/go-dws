@@ -505,7 +505,6 @@ The following uses of `strings.ToLower()`/`strings.EqualFold()` are legitimate a
 
 - [x] **14.1.4** Migrate `internal/semantic/analyze_*.go` files (40+ occurrences total)
   - Migrated 16 files in analyze_*.go
-  - Used pkgident/identpkg aliases where local `ident` variables conflict
   - Removed unused `strings` imports
 
 - [x] **14.1.5** Migrate `internal/semantic/contract_pass.go` (4 EqualFold occurrences)
