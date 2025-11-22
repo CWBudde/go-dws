@@ -190,3 +190,203 @@ func Example_migration() {
 	// true
 	// Matched
 }
+
+// This example shows how to use HasPrefix for case-insensitive prefix matching.
+func ExampleHasPrefix() {
+	// Check if a type name starts with "Array" (case-insensitive)
+	typeName := "ArrayOfInteger"
+
+	if ident.HasPrefix(typeName, "array") {
+		fmt.Println("Is an array type")
+	}
+
+	// Works with any case variation
+	if ident.HasPrefix("ARRAYLIST", "Array") {
+		fmt.Println("Also matches uppercase")
+	}
+
+	// No match when prefix is not present
+	if !ident.HasPrefix("Integer", "Array") {
+		fmt.Println("Integer is not an array")
+	}
+
+	// Output:
+	// Is an array type
+	// Also matches uppercase
+	// Integer is not an array
+}
+
+// This example shows how to use HasSuffix for case-insensitive suffix matching.
+func ExampleHasSuffix() {
+	// Check if a type name ends with "Type" (case-insensitive)
+	typeName := "MyCustomType"
+
+	if ident.HasSuffix(typeName, "type") {
+		fmt.Println("Is a type alias")
+	}
+
+	// Works with any case variation
+	if ident.HasSuffix("MYTYPE", "Type") {
+		fmt.Println("Also matches uppercase")
+	}
+
+	// No match when suffix is not present
+	if !ident.HasSuffix("Integer", "Type") {
+		fmt.Println("Integer doesn't end with Type")
+	}
+
+	// Output:
+	// Is a type alias
+	// Also matches uppercase
+	// Integer doesn't end with Type
+}
+
+// This example demonstrates proper error message handling that preserves
+// the user's original casing while still performing case-insensitive lookups.
+func Example_errorMessages() {
+	// Simulated symbol table with original casing preserved
+	symbols := map[string]string{
+		"myvariable": "MyVariable", // normalized -> original
+		"counter":    "Counter",
+	}
+	values := map[string]int{
+		"myvariable": 42,
+		"counter":    10,
+	}
+
+	// Function that checks if a variable exists and reports errors
+	checkVariable := func(userInput string) {
+		normalized := ident.Normalize(userInput)
+		if _, exists := values[normalized]; exists {
+			// Variable found - use original definition casing
+			original := symbols[normalized]
+			fmt.Printf("Found variable '%s' (defined as '%s')\n", userInput, original)
+		} else {
+			// Variable not found - use user's input casing in error
+			// IMPORTANT: Never normalize the user's input in error messages!
+			fmt.Printf("Error: undefined variable '%s'\n", userInput)
+		}
+	}
+
+	// User looks up variables with different casings
+	checkVariable("MYVARIABLE")   // Found, shows original definition
+	checkVariable("counter")      // Found, shows original definition
+	checkVariable("UndefinedVar") // Not found, shows user's casing
+
+	// Output:
+	// Found variable 'MYVARIABLE' (defined as 'MyVariable')
+	// Found variable 'counter' (defined as 'Counter')
+	// Error: undefined variable 'UndefinedVar'
+}
+
+// This example shows a type registry pattern commonly used in compilers.
+func Example_typeRegistry() {
+	// Registry stores types with normalized keys but preserves original names
+	type TypeInfo struct {
+		Name string // Original casing as defined
+		Kind string // "class", "record", "enum", etc.
+	}
+
+	registry := make(map[string]*TypeInfo) // normalized -> TypeInfo
+
+	// Register types with their original casing
+	register := func(name, kind string) {
+		registry[ident.Normalize(name)] = &TypeInfo{Name: name, Kind: kind}
+	}
+
+	// Look up a type (case-insensitive)
+	lookup := func(name string) *TypeInfo {
+		return registry[ident.Normalize(name)]
+	}
+
+	// Register some types
+	register("TMyClass", "class")
+	register("TPoint", "record")
+	register("TColor", "enum")
+
+	// Look up with various casings
+	if info := lookup("tmyclass"); info != nil {
+		fmt.Printf("Found %s '%s'\n", info.Kind, info.Name)
+	}
+	if info := lookup("TPOINT"); info != nil {
+		fmt.Printf("Found %s '%s'\n", info.Kind, info.Name)
+	}
+	if info := lookup("tcolor"); info != nil {
+		fmt.Printf("Found %s '%s'\n", info.Kind, info.Name)
+	}
+
+	// Output:
+	// Found class 'TMyClass'
+	// Found record 'TPoint'
+	// Found enum 'TColor'
+}
+
+// This example demonstrates using the Map type for a simple symbol table.
+func ExampleMap() {
+	// Create a case-insensitive map for variables
+	variables := ident.NewMap[int]()
+
+	// Store variables with their original casing
+	variables.Set("MyVariable", 42)
+	variables.Set("Counter", 10)
+
+	// Lookup works with any case
+	val1, _ := variables.Get("myvariable") // 42
+	val2, _ := variables.Get("COUNTER")    // 10
+
+	fmt.Println(val1)
+	fmt.Println(val2)
+
+	// Get the originally defined name
+	fmt.Println(variables.GetOriginalKey("MYVARIABLE"))
+
+	// Output:
+	// 42
+	// 10
+	// MyVariable
+}
+
+// This example shows using Map.SetIfAbsent for define-once semantics.
+func ExampleMap_SetIfAbsent() {
+	symbols := ident.NewMap[int]()
+
+	// First definition succeeds
+	if symbols.SetIfAbsent("MyVar", 42) {
+		fmt.Println("MyVar defined")
+	}
+
+	// Second definition with different case fails
+	if !symbols.SetIfAbsent("myvar", 100) {
+		orig := symbols.GetOriginalKey("myvar")
+		fmt.Printf("Cannot redefine '%s'\n", orig)
+	}
+
+	// Value unchanged
+	val, _ := symbols.Get("MyVar")
+	fmt.Printf("Value: %d\n", val)
+
+	// Output:
+	// MyVar defined
+	// Cannot redefine 'MyVar'
+	// Value: 42
+}
+
+// This example shows iterating over Map entries.
+func ExampleMap_Range() {
+	m := ident.NewMap[int]()
+	m.Set("Alpha", 1)
+	m.Set("Beta", 2)
+	m.Set("Gamma", 3)
+
+	// Collect entries (order not guaranteed, so we just count)
+	count := 0
+	m.Range(func(key string, value int) bool {
+		count++
+		return true
+	})
+
+	fmt.Printf("Map has %d entries\n", count)
+
+	// Output:
+	// Map has 3 entries
+}

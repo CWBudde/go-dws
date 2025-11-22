@@ -23,52 +23,14 @@ This document outlines the migration plan to centralize all case-insensitive ide
 
 ---
 
-## Phase 2: Core Infrastructure (Priority: HIGH)
+## Phase 2: Core Infrastructure (completed)
 
-Enhance `pkg/ident` package and establish migration patterns.
+Enhanced `pkg/ident` package and established migration patterns.
 
-### Tasks
-
-- [ ] **2.1** Review and enhance `pkg/ident` API if needed
-  - Current functions: `Normalize()`, `Equal()`, `Compare()`
-  - Consider adding: `NormalizeMap()` helper for creating case-insensitive maps
-  - Document best practices in `pkg/ident/doc.go`
-
-- [ ] **2.2** Create migration guide document
-  - File: `docs/ident-migration-guide.md`
-  - Include:
-    - Before/after examples
-    - Common patterns (map keys, comparisons, lookups)
-    - How to preserve original casing in error messages
-    - Anti-patterns to avoid
-
-- [ ] **2.3** Add examples to `pkg/ident` package
-  - Example: Map with case-insensitive keys but preserved original
-  - Example: Symbol table pattern
-  - Example: Error message pattern
-
-- [ ] **2.4** Create helper for case-insensitive maps
-  - Consider adding to `pkg/ident`:
-    ```go
-    type Map[T any] struct {
-        store map[string]T
-        originals map[string]string // optional: only for error reporting/use cases needing original casing
-    }
-    func (m *Map[T]) Set(key string, value T)
-    func (m *Map[T]) Get(key string) (T, bool)
-    func (m *Map[T]) GetOriginalKey(key string) string
-    func (m *Map[T]) Delete(key string)
-    func (m *Map[T]) Len() int
-    func (m *Map[T]) Keys() []string
-    func (m *Map[T]) Range(f func(key string, value T))
-    // Consider thread safety: document single-threaded assumption, or add sync.Mutex if needed
-    ```
-  - API design checklist:
-    - [ ] Thread safety: clarify single-threaded assumption or add concurrency protection
-    - [ ] Memory overhead: make `originals` optional/specialized for error reporting
-    - [ ] API completeness: add `Delete`, `Len`, `Keys`, `Range` methods
-    - [ ] Naming: use `GetOriginalKey` for clarity
-  - Evaluate if this reduces boilerplate in migration
+- [x] **2.1** Added `HasPrefix()` and `HasSuffix()` functions; enhanced `doc.go` with patterns and best practices
+- [x] **2.2** Created `docs/ident-migration-guide.md` with before/after examples, patterns, and anti-patterns
+- [x] **2.3** Added examples: `Example_errorMessages`, `Example_typeRegistry`
+- [x] **2.4** Created generic `Map[T]` type in `pkg/ident/map.go` with full API (Set, Get, GetOriginalKey, Delete, Len, Keys, Range, Clone, etc.)
 
 ---
 
