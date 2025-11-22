@@ -7,6 +7,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -112,9 +113,9 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeExpr ast.TypeExpression) typ
 
 	typeName := typeExpr.String()
 
-	// Normalize type name to lowercase for case-insensitive comparison
+	// Normalize type name for case-insensitive comparison
 	// DWScript (like Pascal) is case-insensitive for all identifiers including type names
-	lowerTypeName := strings.ToLower(typeName)
+	lowerTypeName := ident.Normalize(typeName)
 
 	// Check basic types (case-insensitive)
 	switch lowerTypeName {
@@ -142,12 +143,12 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeExpr ast.TypeExpression) typ
 	}
 
 	// Check for interface types (stored in i.interfaces map)
-	if interfaceInfo, ok := i.interfaces[strings.ToLower(typeName)]; ok {
+	if interfaceInfo, ok := i.interfaces[ident.Normalize(typeName)]; ok {
 		return types.NewInterfaceType(interfaceInfo.Name)
 	}
 
 	// Check for record types (stored with special prefix in environment)
-	recordTypeKey := "__record_type_" + strings.ToLower(typeName)
+	recordTypeKey := "__record_type_" + ident.Normalize(typeName)
 	if typeVal, ok := i.env.Get(recordTypeKey); ok {
 		if recordTypeVal, ok := typeVal.(*RecordTypeValue); ok {
 			return recordTypeVal.RecordType

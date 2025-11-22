@@ -6,6 +6,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // cleanContractMessage removes unnecessary parentheses from contract expressions
@@ -48,11 +49,11 @@ func cleanContractMessage(message string) string {
 // raiseException raises an exception with the given class name and message.
 func (i *Interpreter) raiseException(className, message string, pos *lexer.Position) {
 	// Get the exception class
-	// PR #147: Use lowercase key for O(1) case-insensitive lookup
-	excClass, ok := i.classes[strings.ToLower(className)]
+	// PR #147: Use normalized key for O(1) case-insensitive lookup
+	excClass, ok := i.classes[ident.Normalize(className)]
 	if !ok {
 		// Fallback to base Exception if class not found
-		excClass, ok = i.classes[strings.ToLower("Exception")]
+		excClass, ok = i.classes[ident.Normalize("Exception")]
 		if !ok {
 			// This shouldn't happen, but handle it gracefully
 			i.exception = &ExceptionValue{

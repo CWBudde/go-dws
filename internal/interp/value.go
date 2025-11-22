@@ -11,6 +11,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/jsonvalue"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -233,7 +234,7 @@ func (r *RecordValue) GetMethod(name string) *ast.FunctionDecl {
 	}
 	// Case-insensitive lookup
 	for methodName, decl := range r.Methods {
-		if strings.EqualFold(methodName, name) {
+		if ident.Equal(methodName, name) {
 			return decl
 		}
 	}

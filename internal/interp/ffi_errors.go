@@ -3,9 +3,9 @@ package interp
 import (
 	"fmt"
 	"runtime"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/errors"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // raiseGoErrorAsException converts a Go error returned from host code into a DWScript exception.
@@ -23,10 +23,10 @@ func (i *Interpreter) raiseGoErrorAsException(err error) {
 	copy(callStack, i.callStack)
 
 	// Look up EHost class; fall back to basic Exception if it is unavailable.
-	// PR #147: Use lowercase key for O(1) case-insensitive lookup
-	hostClass, ok := i.classes[strings.ToLower("EHost")]
+	// PR #147: Use normalized key for O(1) case-insensitive lookup
+	hostClass, ok := i.classes[ident.Normalize("EHost")]
 	if !ok {
-		if baseClass, exists := i.classes[strings.ToLower("Exception")]; exists {
+		if baseClass, exists := i.classes[ident.Normalize("Exception")]; exists {
 			hostClass = baseClass
 		} else {
 			// As a last resort, leave exception unset.
@@ -104,10 +104,10 @@ func (i *Interpreter) raiseGoPanicAsException(panicValue interface{}) {
 	copy(callStack, i.callStack)
 
 	// Reuse exception creation logic.
-	// PR #147: Use lowercase key for O(1) case-insensitive lookup
-	hostClass, ok := i.classes[strings.ToLower("EHost")]
+	// PR #147: Use normalized key for O(1) case-insensitive lookup
+	hostClass, ok := i.classes[ident.Normalize("EHost")]
 	if !ok {
-		if baseClass, exists := i.classes[strings.ToLower("Exception")]; exists {
+		if baseClass, exists := i.classes[ident.Normalize("Exception")]; exists {
 			hostClass = baseClass
 		} else {
 			return

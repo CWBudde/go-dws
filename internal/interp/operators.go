@@ -3,6 +3,8 @@ package interp
 import (
 	"fmt"
 	"strings"
+
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 type runtimeOperatorEntry struct {
@@ -178,8 +180,8 @@ func (r *runtimeConversionRegistry) findConversionPath(from, to string, maxDepth
 	}
 
 	// Normalize type names
-	from = strings.ToUpper(from)
-	to = strings.ToUpper(to)
+	from = ident.Normalize(from)
+	to = ident.Normalize(to)
 
 	// Direct conversion check
 	if _, ok := r.implicit[conversionKey(from, to)]; ok {
@@ -208,8 +210,8 @@ func (r *runtimeConversionRegistry) findConversionPath(from, to string, maxDepth
 		// Try all possible conversions from current type
 		for _, entry := range r.implicit {
 			// Check if this conversion starts from current type
-			if strings.ToUpper(entry.From) == current.currentType {
-				nextType := strings.ToUpper(entry.To)
+			if ident.Normalize(entry.From) == current.currentType {
+				nextType := ident.Normalize(entry.To)
 
 				// Found target!
 				if nextType == to {
@@ -236,7 +238,7 @@ func (r *runtimeConversionRegistry) findConversionPath(from, to string, maxDepth
 }
 
 func conversionKey(from, to string) string {
-	return strings.ToUpper(from) + "->" + strings.ToUpper(to)
+	return ident.Normalize(from) + "->" + ident.Normalize(to)
 }
 
 func operatorSignatureKey(operandTypes []string) string {
@@ -247,48 +249,48 @@ func normalizeTypeAnnotation(name string) string {
 	trimmed := strings.TrimSpace(name)
 	switch strings.ToLower(trimmed) {
 	case "integer":
-		return "INTEGER"
+		return "integer"
 	case "float":
-		return "FLOAT"
+		return "float"
 	case "string":
-		return "STRING"
+		return "string"
 	case "boolean":
-		return "BOOLEAN"
+		return "boolean"
 	case "variant":
-		return "VARIANT"
+		return "variant"
 	case "nil":
-		return "NIL"
+		return "nil"
 	default:
-		if strings.HasPrefix(strings.ToLower(trimmed), "array of") {
-			return strings.ToUpper(trimmed)
+		if ident.HasPrefix(trimmed, "array of") {
+			return ident.Normalize(trimmed)
 		}
-		return "CLASS:" + trimmed
+		return "class:" + ident.Normalize(trimmed)
 	}
 }
 
 func valueTypeKey(val Value) string {
 	if val == nil {
-		return "NIL"
+		return "nil"
 	}
 	switch v := val.(type) {
 	case *ObjectInstance:
 		if v.Class != nil {
-			return "CLASS:" + v.Class.Name
+			return "class:" + ident.Normalize(v.Class.Name)
 		}
-		return "CLASS:"
+		return "class:"
 	case *RecordValue:
 		if v.RecordType != nil && v.RecordType.Name != "" {
-			return "CLASS:" + v.RecordType.Name
+			return "class:" + ident.Normalize(v.RecordType.Name)
 		}
-		return "RECORD"
+		return "record"
 	case *ArrayValue:
 		// Include array element type for operator overload matching
 		if v.ArrayType != nil && v.ArrayType.ElementType != nil {
 			elemTypeStr := v.ArrayType.ElementType.String()
-			return "ARRAY OF " + strings.ToUpper(elemTypeStr)
+			return "array of " + ident.Normalize(elemTypeStr)
 		}
-		return "ARRAY"
+		return "array"
 	default:
-		return val.Type()
+		return ident.Normalize(val.Type())
 	}
 }

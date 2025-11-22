@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // evalFunctionDeclaration evaluates a function declaration.
@@ -16,8 +17,8 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 		typeName := fn.ClassName.Value
 
 		// Task 9.14.2 & PR #147: DWScript is case-insensitive
-		// Use lowercase key for O(1) lookup instead of O(n) linear search
-		classInfo, isClass := i.classes[strings.ToLower(typeName)]
+		// Use normalized key for O(1) lookup instead of O(n) linear search
+		classInfo, isClass := i.classes[ident.Normalize(typeName)]
 
 		if isClass {
 			// Handle class method implementation
@@ -25,8 +26,8 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 			return &NilValue{}
 		}
 
-		// PR #147: Use lowercase key for O(1) lookup instead of O(n) linear search
-		recordInfo, isRecord := i.records[strings.ToLower(typeName)]
+		// PR #147: Use normalized key for O(1) lookup instead of O(n) linear search
+		recordInfo, isRecord := i.records[ident.Normalize(typeName)]
 
 		if isRecord {
 			// Handle record method implementation
@@ -39,8 +40,8 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 
 	// Store regular function in the registry
 	// Support overloading by storing multiple functions per name
-	// DWScript is case-insensitive, so normalize the function name to lowercase
-	funcName := strings.ToLower(fn.Name.Value)
+	// DWScript is case-insensitive, so normalize the function name
+	funcName := ident.Normalize(fn.Name.Value)
 
 	// If this function has a body, it may be an implementation that should
 	// replace a previous interface declaration (which has no body).
@@ -62,7 +63,7 @@ func (i *Interpreter) evalClassMethodImplementation(fn *ast.FunctionDecl, classI
 	// Update the method in the class (replacing the declaration with the implementation)
 	// Support method overloading by storing multiple methods per name
 	// We need to replace the declaration with the implementation in the overload list
-	normalizedMethodName := strings.ToLower(fn.Name.Value)
+	normalizedMethodName := ident.Normalize(fn.Name.Value)
 
 	if fn.IsClassMethod {
 		classInfo.ClassMethods[normalizedMethodName] = fn
@@ -78,7 +79,7 @@ func (i *Interpreter) evalClassMethodImplementation(fn *ast.FunctionDecl, classI
 
 	// Also store constructors
 	if fn.IsConstructor {
-		normalizedCtorName := strings.ToLower(fn.Name.Value)
+		normalizedCtorName := ident.Normalize(fn.Name.Value)
 		classInfo.Constructors[normalizedCtorName] = fn
 		// Replace declaration with implementation in constructor overload list
 		overloads := classInfo.ConstructorOverloads[normalizedCtorName]
@@ -154,7 +155,7 @@ func (i *Interpreter) propagateMethodImplementationToDescendants(parentClass *Cl
 		if isClassMethod {
 			if existing, ok := classInfo.ClassMethods[normalizedMethodName]; ok {
 				// Skip if descendant defines/overrides its own method
-				if existing.ClassName != nil && strings.EqualFold(existing.ClassName.Value, classInfo.Name) {
+				if existing.ClassName != nil && ident.Equal(existing.ClassName.Value, classInfo.Name) {
 					continue
 				}
 				classInfo.ClassMethods[normalizedMethodName] = fn
@@ -162,7 +163,7 @@ func (i *Interpreter) propagateMethodImplementationToDescendants(parentClass *Cl
 		} else {
 			if existing, ok := classInfo.Methods[normalizedMethodName]; ok {
 				// Skip if descendant defines/overrides its own method
-				if existing.ClassName != nil && strings.EqualFold(existing.ClassName.Value, classInfo.Name) {
+				if existing.ClassName != nil && ident.Equal(existing.ClassName.Value, classInfo.Name) {
 					continue
 				}
 				classInfo.Methods[normalizedMethodName] = fn
@@ -175,7 +176,7 @@ func (i *Interpreter) propagateMethodImplementationToDescendants(parentClass *Cl
 func (i *Interpreter) evalRecordMethodImplementation(fn *ast.FunctionDecl, recordInfo *RecordTypeValue) {
 	// Update the method in the record (replacing the declaration with the implementation)
 	// Support method overloading by storing multiple methods per name
-	normalizedMethodName := strings.ToLower(fn.Name.Value)
+	normalizedMethodName := ident.Normalize(fn.Name.Value)
 
 	if fn.IsClassMethod {
 		// Static method
@@ -198,8 +199,8 @@ func (i *Interpreter) evalRecordMethodImplementation(fn *ast.FunctionDecl, recor
 func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Check if this is a partial class declaration
 	var classInfo *ClassInfo
-	// PR #147: Use lowercase key for O(1) case-insensitive lookup
-	existingClass, exists := i.classes[strings.ToLower(cd.Name.Value)]
+	// PR #147: Use normalized key for O(1) case-insensitive lookup
+	existingClass, exists := i.classes[ident.Normalize(cd.Name.Value)]
 
 	if exists && existingClass.IsPartial && cd.IsPartial {
 		// Merging partial classes - reuse existing ClassInfo
@@ -233,10 +234,10 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	if cd.Parent != nil {
 		// Explicit parent specified
 		// Task 9.14.2 & PR #147: DWScript is case-insensitive
-		// Use lowercase key for O(1) lookup instead of O(n) linear search
+		// Use normalized key for O(1) lookup instead of O(n) linear search
 		parentName := cd.Parent.Value
 		var exists bool
-		parentClass, exists = i.classes[strings.ToLower(parentName)]
+		parentClass, exists = i.classes[ident.Normalize(parentName)]
 		if !exists {
 			return i.newErrorWithLocation(cd, "parent class '%s' not found", parentName)
 		}
@@ -244,10 +245,10 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		// If no explicit parent, implicitly inherit from TObject
 		// (unless this IS TObject or it's an external class)
 		className := cd.Name.Value
-		if !strings.EqualFold(className, "TObject") && !cd.IsExternal {
-			// PR #147: Use lowercase key for O(1) lookup instead of O(n) linear search
+		if !ident.Equal(className, "TObject") && !cd.IsExternal {
+			// PR #147: Use normalized key for O(1) lookup instead of O(n) linear search
 			var exists bool
-			parentClass, exists = i.classes[strings.ToLower("TObject")]
+			parentClass, exists = i.classes[ident.Normalize("TObject")]
 			if !exists {
 				return i.newErrorWithLocation(cd, "implicit parent class 'TObject' not found")
 			}
@@ -283,11 +284,11 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 
 		// Copy constructors
 		for name, constructor := range parentClass.Constructors {
-			normalizedName := strings.ToLower(name)
+			normalizedName := ident.Normalize(name)
 			classInfo.Constructors[normalizedName] = constructor
 		}
 		for name, overloads := range parentClass.ConstructorOverloads {
-			normalizedName := strings.ToLower(name)
+			normalizedName := ident.Normalize(name)
 			classInfo.ConstructorOverloads[normalizedName] = append([]*ast.FunctionDecl(nil), overloads...)
 		}
 
@@ -305,7 +306,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	for _, ifaceIdent := range cd.Interfaces {
 		ifaceName := ifaceIdent.Value
 		// Look up interface in registry (case-insensitive)
-		iface, exists := i.interfaces[strings.ToLower(ifaceName)]
+		iface, exists := i.interfaces[ident.Normalize(ifaceName)]
 		if !exists {
 			return i.newErrorWithLocation(cd, "interface '%s' not found", ifaceName)
 		}
@@ -367,8 +368,8 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 
 	// Task 9.6: Register class BEFORE processing fields
 	// This allows field initializers to reference the class name (e.g., FField := TObj.Value)
-	// PR #147 Fix: Use lowercase key for O(1) case-insensitive lookup
-	i.classes[strings.ToLower(classInfo.Name)] = classInfo
+	// PR #147 Fix: Use normalized key for O(1) case-insensitive lookup
+	i.classes[ident.Normalize(classInfo.Name)] = classInfo
 
 	// Add own fields to ClassInfo
 	for _, field := range cd.Fields {
@@ -468,16 +469,16 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Add own methods to ClassInfo (these override parent methods if same name)
 	// Support method overloading by storing multiple methods per name
 	for _, method := range cd.Methods {
-		// Normalize method name to lowercase for case-insensitive lookup
+		// Normalize method name for case-insensitive lookup
 		// This matches the semantic analyzer behavior (types.go AddMethodOverload)
-		normalizedMethodName := strings.ToLower(method.Name.Value)
+		normalizedMethodName := ident.Normalize(method.Name.Value)
 
 		// Auto-detect constructors: methods named "Create" that return the class type
 		// This handles inline constructor declarations like: function Create(...): TClass;
 		// Matches semantic analyzer behavior (analyze_classes_decl.go:576-580)
-		if !method.IsConstructor && strings.EqualFold(method.Name.Value, "Create") && method.ReturnType != nil {
+		if !method.IsConstructor && ident.Equal(method.Name.Value, "Create") && method.ReturnType != nil {
 			returnTypeName := method.ReturnType.String()
-			if strings.EqualFold(returnTypeName, cd.Name.Value) {
+			if ident.Equal(returnTypeName, cd.Name.Value) {
 				method.IsConstructor = true
 			}
 		}
@@ -496,7 +497,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		}
 
 		if method.IsConstructor {
-			normalizedName := strings.ToLower(method.Name.Value)
+			normalizedName := ident.Normalize(method.Name.Value)
 			classInfo.Constructors[normalizedName] = method
 
 			// Task 9.3: Capture default constructor
@@ -531,7 +532,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		classInfo.Constructor = constructor
 	}
 	if cd.Constructor != nil {
-		normalizedName := strings.ToLower(cd.Constructor.Name.Value)
+		normalizedName := ident.Normalize(cd.Constructor.Name.Value)
 		classInfo.Constructors[normalizedName] = cd.Constructor
 
 		// In DWScript, a child constructor with the same name and signature HIDES the parent's,
@@ -601,8 +602,8 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	classInfo.buildVirtualMethodTable()
 
 	// Register class in registry
-	// PR #147 Fix: Use lowercase key for O(1) case-insensitive lookup
-	i.classes[strings.ToLower(classInfo.Name)] = classInfo
+	// PR #147 Fix: Use normalized key for O(1) case-insensitive lookup
+	i.classes[ident.Normalize(classInfo.Name)] = classInfo
 
 	return &NilValue{}
 }
@@ -681,7 +682,7 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 	// Handle inheritance if parent interface is specified
 	if id.Parent != nil {
 		parentName := id.Parent.Value
-		parentInterface, exists := i.interfaces[strings.ToLower(parentName)]
+		parentInterface, exists := i.interfaces[ident.Normalize(parentName)]
 		if !exists {
 			return i.newErrorWithLocation(id, "parent interface '%s' not found", parentName)
 		}
@@ -708,8 +709,8 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 			Body:       nil, // Interface methods have no body
 		}
 
-		// Use lowercase for case-insensitive method lookups
-		interfaceInfo.Methods[strings.ToLower(methodDecl.Name.Value)] = funcDecl
+		// Use normalized key for case-insensitive method lookups
+		interfaceInfo.Methods[ident.Normalize(methodDecl.Name.Value)] = funcDecl
 	}
 
 	// Register properties declared on the interface
@@ -718,12 +719,12 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 			continue
 		}
 		if propInfo := i.convertPropertyDecl(propDecl); propInfo != nil {
-			interfaceInfo.Properties[strings.ToLower(propDecl.Name.Value)] = propInfo
+			interfaceInfo.Properties[ident.Normalize(propDecl.Name.Value)] = propInfo
 		}
 	}
 
-	// Register interface in registry (use lowercase for case-insensitive lookups)
-	i.interfaces[strings.ToLower(interfaceInfo.Name)] = interfaceInfo
+	// Register interface in registry (use normalized key for case-insensitive lookups)
+	i.interfaces[ident.Normalize(interfaceInfo.Name)] = interfaceInfo
 
 	return &NilValue{}
 }
@@ -772,7 +773,7 @@ func (i *Interpreter) synthesizeImplicitParameterlessConstructor(classInfo *Clas
 			}
 
 			// Add to class constructor maps
-			normalizedName := strings.ToLower(ctorName)
+			normalizedName := ident.Normalize(ctorName)
 			if _, exists := classInfo.Constructors[normalizedName]; !exists {
 				classInfo.Constructors[normalizedName] = implicitConstructor
 			}
@@ -811,9 +812,9 @@ func (i *Interpreter) evalOperatorDeclaration(decl *ast.OperatorDecl) Value {
 		entry := &runtimeConversionEntry{
 			From: operandTypes[0],
 			To:   targetType,
-			// DWScript is case-insensitive, so normalize the binding name to lowercase
-			BindingName: strings.ToLower(decl.Binding.Value),
-			Implicit:    strings.EqualFold(decl.OperatorSymbol, "implicit"),
+			// DWScript is case-insensitive, so normalize the binding name
+			BindingName: ident.Normalize(decl.Binding.Value),
+			Implicit:    ident.Equal(decl.OperatorSymbol, "implicit"),
 		}
 		if err := i.conversions.register(entry); err != nil {
 			return i.newErrorWithLocation(decl, "conversion from %s to %s already defined", operandTypes[0], targetType)
@@ -824,8 +825,8 @@ func (i *Interpreter) evalOperatorDeclaration(decl *ast.OperatorDecl) Value {
 	entry := &runtimeOperatorEntry{
 		Operator:     decl.OperatorSymbol,
 		OperandTypes: operandTypes,
-		// DWScript is case-insensitive, so normalize the binding name to lowercase
-		BindingName: strings.ToLower(decl.Binding.Value),
+		// DWScript is case-insensitive, so normalize the binding name
+		BindingName: ident.Normalize(decl.Binding.Value),
 	}
 
 	if err := i.globalOperators.register(entry); err != nil {
@@ -841,7 +842,7 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 	}
 
 	bindingName := opDecl.Binding.Value
-	normalizedBindingName := strings.ToLower(bindingName)
+	normalizedBindingName := ident.Normalize(bindingName)
 	method, isClassMethod := classInfo.ClassMethods[normalizedBindingName]
 	if !isClassMethod {
 		var ok bool
@@ -873,7 +874,7 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 		operandTypes = append(operandTypes, key)
 	}
 	if !includesClass {
-		if strings.EqualFold(opDecl.OperatorSymbol, "in") {
+		if ident.Equal(opDecl.OperatorSymbol, "in") {
 			operandTypes = append(operandTypes, classKey)
 		} else {
 			operandTypes = append([]string{classKey}, operandTypes...)

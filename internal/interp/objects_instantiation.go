@@ -1,9 +1,8 @@
 package interp
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // evalNewExpression evaluates object instantiation (TClassName.Create(...)).
@@ -14,7 +13,7 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	className := ne.ClassName.Value
 	var classInfo *ClassInfo
 	for name, class := range i.classes {
-		if strings.EqualFold(name, className) {
+		if ident.Equal(name, className) {
 			classInfo = class
 			break
 		}
@@ -24,7 +23,7 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	// The parser creates NewExpression for TType.Create(...) syntax
 	if classInfo == nil {
 		// Check if this is a record type
-		recordTypeKey := "__record_type_" + strings.ToLower(className)
+		recordTypeKey := "__record_type_" + ident.Normalize(className)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if _, ok := typeVal.(*RecordTypeValue); ok {
 				// This is a record static method call (TRecord.Create(...))
