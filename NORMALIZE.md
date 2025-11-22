@@ -53,28 +53,24 @@ Enhance `pkg/ident` package and establish migration patterns.
   - Example: `Example_errorMessages` - Proper error message handling preserving user's casing
   - Example: `Example_typeRegistry` - Type registry pattern for compilers
 
-- [ ] **2.4** Create helper for case-insensitive maps
-  - Consider adding to `pkg/ident`:
-    ```go
-    type Map[T any] struct {
-        store map[string]T
-        originals map[string]string // optional: only for error reporting/use cases needing original casing
-    }
-    func (m *Map[T]) Set(key string, value T)
-    func (m *Map[T]) Get(key string) (T, bool)
-    func (m *Map[T]) GetOriginalKey(key string) string
-    func (m *Map[T]) Delete(key string)
-    func (m *Map[T]) Len() int
-    func (m *Map[T]) Keys() []string
-    func (m *Map[T]) Range(f func(key string, value T))
-    // Consider thread safety: document single-threaded assumption, or add sync.Mutex if needed
-    ```
+- [x] **2.4** Create helper for case-insensitive maps
+  - Created `pkg/ident/map.go` with generic `Map[T]` type
+  - Implemented methods:
+    - `NewMap[T]()`, `NewMapWithCapacity[T](capacity)`
+    - `Set(key, value)`, `SetIfAbsent(key, value) bool`
+    - `Get(key) (T, bool)`, `Has(key) bool`
+    - `GetOriginalKey(key) string`
+    - `Delete(key) bool`
+    - `Len() int`, `Keys() []string`
+    - `Range(f func(key, value) bool)`
+    - `Clear()`, `Clone() *Map[T]`
   - API design checklist:
-    - [ ] Thread safety: clarify single-threaded assumption or add concurrency protection
-    - [ ] Memory overhead: make `originals` optional/specialized for error reporting
-    - [ ] API completeness: add `Delete`, `Len`, `Keys`, `Range` methods
-    - [ ] Naming: use `GetOriginalKey` for clarity
-  - Evaluate if this reduces boilerplate in migration
+    - [x] Thread safety: Documented single-threaded assumption in godoc
+    - [x] Memory overhead: Always stores originals (simpler API, minimal overhead)
+    - [x] API completeness: Added all methods plus `Has`, `SetIfAbsent`, `Clear`, `Clone`
+    - [x] Naming: Used `GetOriginalKey` for clarity
+  - Added comprehensive tests (14 test functions) and benchmarks
+  - Added examples: `ExampleMap`, `ExampleMap_SetIfAbsent`, `ExampleMap_Range`
 
 ---
 

@@ -269,8 +269,8 @@ func Example_errorMessages() {
 	}
 
 	// User looks up variables with different casings
-	checkVariable("MYVARIABLE")  // Found, shows original definition
-	checkVariable("counter")     // Found, shows original definition
+	checkVariable("MYVARIABLE")   // Found, shows original definition
+	checkVariable("counter")      // Found, shows original definition
 	checkVariable("UndefinedVar") // Not found, shows user's casing
 
 	// Output:
@@ -319,4 +319,74 @@ func Example_typeRegistry() {
 	// Found class 'TMyClass'
 	// Found record 'TPoint'
 	// Found enum 'TColor'
+}
+
+// This example demonstrates using the Map type for a simple symbol table.
+func ExampleMap() {
+	// Create a case-insensitive map for variables
+	variables := ident.NewMap[int]()
+
+	// Store variables with their original casing
+	variables.Set("MyVariable", 42)
+	variables.Set("Counter", 10)
+
+	// Lookup works with any case
+	val1, _ := variables.Get("myvariable") // 42
+	val2, _ := variables.Get("COUNTER")    // 10
+
+	fmt.Println(val1)
+	fmt.Println(val2)
+
+	// Get the originally defined name
+	fmt.Println(variables.GetOriginalKey("MYVARIABLE"))
+
+	// Output:
+	// 42
+	// 10
+	// MyVariable
+}
+
+// This example shows using Map.SetIfAbsent for define-once semantics.
+func ExampleMap_SetIfAbsent() {
+	symbols := ident.NewMap[int]()
+
+	// First definition succeeds
+	if symbols.SetIfAbsent("MyVar", 42) {
+		fmt.Println("MyVar defined")
+	}
+
+	// Second definition with different case fails
+	if !symbols.SetIfAbsent("myvar", 100) {
+		orig := symbols.GetOriginalKey("myvar")
+		fmt.Printf("Cannot redefine '%s'\n", orig)
+	}
+
+	// Value unchanged
+	val, _ := symbols.Get("MyVar")
+	fmt.Printf("Value: %d\n", val)
+
+	// Output:
+	// MyVar defined
+	// Cannot redefine 'MyVar'
+	// Value: 42
+}
+
+// This example shows iterating over Map entries.
+func ExampleMap_Range() {
+	m := ident.NewMap[int]()
+	m.Set("Alpha", 1)
+	m.Set("Beta", 2)
+	m.Set("Gamma", 3)
+
+	// Collect entries (order not guaranteed, so we just count)
+	count := 0
+	m.Range(func(key string, value int) bool {
+		count++
+		return true
+	})
+
+	fmt.Printf("Map has %d entries\n", count)
+
+	// Output:
+	// Map has 3 entries
 }
