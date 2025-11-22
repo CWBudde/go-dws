@@ -1926,6 +1926,29 @@ func (v *statementValidator) typesCompatible(target, source types.Type) bool {
 		return false
 	}
 
+	// Task 6.1.2.3: Handle subrange type compatibility
+	// Subrange types are compatible with their base type (Integer)
+	if targetSubrange, ok := targetUnderlying.(*types.SubrangeType); ok {
+		// Assigning to a subrange variable
+		// Accept: Integer, same subrange type, compatible subrange
+		if sourceSubrange, ok := sourceUnderlying.(*types.SubrangeType); ok {
+			// Both are subranges - they're compatible if they have the same base type
+			// (Runtime bounds checking ensures values are in range at assignment)
+			return targetSubrange.BaseType.Equals(sourceSubrange.BaseType)
+		}
+		// Accept Integer as source for subrange target (runtime check will validate range)
+		if sourceUnderlying.Equals(types.INTEGER) {
+			return true
+		}
+	}
+	if _, ok := sourceUnderlying.(*types.SubrangeType); ok {
+		// Assigning from a subrange variable
+		// Accept: Integer target (subrange is a subset of Integer)
+		if targetUnderlying.Equals(types.INTEGER) {
+			return true
+		}
+	}
+
 	// TODO: Handle subtype relationships (class inheritance), numeric conversions, etc.
 	return false
 }

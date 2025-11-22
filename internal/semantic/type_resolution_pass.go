@@ -1,8 +1,11 @@
 package semantic
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // TypeResolutionPass implements Pass 2: Type Resolution
@@ -75,19 +78,22 @@ func (p *TypeResolutionPass) Run(program *ast.Program, ctx *PassContext) error {
 	// Step 1: Ensure built-in types are registered
 	resolver.registerBuiltinTypes()
 
-	// Step 2: Resolve all class parent types and build inheritance chains
+	// Step 2: Resolve type declarations (aliases, subranges, function pointers)
+	resolver.resolveTypeDeclarations()
+
+	// Step 3: Resolve all class parent types and build inheritance chains
 	resolver.resolveClassHierarchies()
 
-	// Step 3: Resolve interface parent types
+	// Step 4: Resolve interface parent types
 	resolver.resolveInterfaceHierarchies()
 
-	// Step 4: Resolve field types in all classes and records
+	// Step 5: Resolve field types in all classes and records
 	resolver.resolveFieldTypes()
 
-	// Step 5: Resolve method signatures (parameters and return types)
+	// Step 6: Resolve method signatures (parameters and return types)
 	resolver.resolveMethodSignatures()
 
-	// Step 6: Validate that all forward-declared types have implementations
+	// Step 7: Validate that all forward-declared types have implementations
 	resolver.validateForwardDeclarations()
 
 	return nil
@@ -116,6 +122,190 @@ func (r *typeResolver) registerBuiltinTypes() {
 		if !r.ctx.TypeRegistry.Has(name) {
 			_ = r.ctx.TypeRegistry.RegisterBuiltIn(name, typ)
 		}
+	}
+}
+
+// resolveTypeDeclarations resolves all type declarations (aliases, subranges, function pointers)
+func (r *typeResolver) resolveTypeDeclarations() {
+	// Walk through all statements in the program
+	for _, stmt := range r.program.Statements {
+		typeDecl, ok := stmt.(*ast.TypeDeclaration)
+		if !ok {
+			continue
+		}
+
+		r.resolveTypeDeclaration(typeDecl)
+	}
+}
+
+// resolveTypeDeclaration resolves a single type declaration
+func (r *typeResolver) resolveTypeDeclaration(decl *ast.TypeDeclaration) {
+	if decl == nil || decl.Name == nil {
+		return
+	}
+
+	typeName := decl.Name.Value
+
+	// Check if type is already declared
+	if r.ctx.TypeRegistry.Has(typeName) {
+		r.ctx.AddError("type '%s' already declared", typeName)
+		return
+	}
+
+	// Handle subrange types
+	if decl.IsSubrange {
+		r.resolveSubrangeType(decl)
+		return
+	}
+
+	// Handle function pointer types
+	if decl.IsFunctionPointer {
+		r.resolveFunctionPointerType(decl)
+		return
+	}
+
+	// Handle type aliases
+	if decl.IsAlias {
+		r.resolveTypeAlias(decl)
+		return
+	}
+}
+
+// resolveSubrangeType resolves a subrange type declaration
+func (r *typeResolver) resolveSubrangeType(decl *ast.TypeDeclaration) {
+	// Evaluate low bound (must be compile-time constant)
+	lowBound, err := r.evaluateConstantInt(decl.LowBound)
+	if err != nil {
+		r.ctx.AddError("subrange low bound must be a compile-time constant integer: %v", err)
+		return
+	}
+
+	// Evaluate high bound (must be compile-time constant)
+	highBound, err := r.evaluateConstantInt(decl.HighBound)
+	if err != nil {
+		r.ctx.AddError("subrange high bound must be a compile-time constant integer: %v", err)
+		return
+	}
+
+	// Validate low <= high
+	if lowBound > highBound {
+		r.ctx.AddError("subrange low bound (%d) cannot be greater than high bound (%d)",
+			lowBound, highBound)
+		return
+	}
+
+	// Create SubrangeType
+	subrangeType := &types.SubrangeType{
+		BaseType:  types.INTEGER, // Subranges are currently based on Integer
+		Name:      decl.Name.Value,
+		LowBound:  lowBound,
+		HighBound: highBound,
+	}
+
+	// Register in TypeRegistry (visibility 0 = private/program-level)
+	err = r.ctx.TypeRegistry.Register(decl.Name.Value, subrangeType, decl.Token.Pos, 0)
+	if err != nil {
+		r.ctx.AddError("failed to register subrange type '%s': %v", decl.Name.Value, err)
+		return
+	}
+
+	// Also register in Subranges map for backward compatibility
+	// Use normalized key for case-insensitive lookup (DWScript is case-insensitive)
+	r.ctx.Subranges[ident.Normalize(decl.Name.Value)] = subrangeType
+}
+
+// resolveFunctionPointerType resolves a function pointer type declaration
+// TODO: Implement this when needed (Task 6.1.2.1 already completed)
+func (r *typeResolver) resolveFunctionPointerType(decl *ast.TypeDeclaration) {
+	// Function pointer types are already handled by the old analyzer
+	// This is a placeholder for future migration
+}
+
+// resolveTypeAlias resolves a type alias declaration
+func (r *typeResolver) resolveTypeAlias(decl *ast.TypeDeclaration) {
+	// Type aliases are already handled by the old analyzer
+	// This is a placeholder for future migration
+}
+
+// evaluateConstantInt evaluates a compile-time constant integer expression
+func (r *typeResolver) evaluateConstantInt(expr ast.Expression) (int, error) {
+	if expr == nil {
+		return 0, fmt.Errorf("nil expression")
+	}
+
+	switch e := expr.(type) {
+	case *ast.IntegerLiteral:
+		// Direct integer literal
+		return int(e.Value), nil
+
+	case *ast.Identifier:
+		// Constant identifier reference
+		sym, ok := r.ctx.Symbols.Resolve(e.Value)
+		if !ok {
+			return 0, fmt.Errorf("undefined identifier '%s'", e.Value)
+		}
+		if !sym.IsConst {
+			return 0, fmt.Errorf("identifier '%s' is not a constant", e.Value)
+		}
+		if sym.Value == nil {
+			return 0, fmt.Errorf("constant '%s' has no value", e.Value)
+		}
+		intVal, ok := sym.Value.(int)
+		if !ok {
+			return 0, fmt.Errorf("constant '%s' is not an integer", e.Value)
+		}
+		return intVal, nil
+
+	case *ast.UnaryExpression:
+		// Handle negative numbers: -40
+		if e.Operator == "-" {
+			value, err := r.evaluateConstantInt(e.Right)
+			if err != nil {
+				return 0, err
+			}
+			return -value, nil
+		}
+		if e.Operator == "+" {
+			// Unary plus: +5
+			return r.evaluateConstantInt(e.Right)
+		}
+		return 0, fmt.Errorf("non-constant unary expression with operator %s", e.Operator)
+
+	case *ast.BinaryExpression:
+		// Handle binary expressions
+		left, err := r.evaluateConstantInt(e.Left)
+		if err != nil {
+			return 0, err
+		}
+		right, err := r.evaluateConstantInt(e.Right)
+		if err != nil {
+			return 0, err
+		}
+
+		// Evaluate based on operator
+		switch e.Operator {
+		case "+":
+			return left + right, nil
+		case "-":
+			return left - right, nil
+		case "*":
+			return left * right, nil
+		case "div":
+			if right == 0 {
+				return 0, fmt.Errorf("division by zero")
+			}
+			return left / right, nil
+		case "mod":
+			if right == 0 {
+				return 0, fmt.Errorf("modulo by zero")
+			}
+			return left % right, nil
+		default:
+			return 0, fmt.Errorf("non-constant binary operator '%s'", e.Operator)
+		}
+
+	default:
+		return 0, fmt.Errorf("non-constant expression")
 	}
 }
 
