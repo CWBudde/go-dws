@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // TypeResolutionPass implements Pass 2: Type Resolution
@@ -209,7 +210,8 @@ func (r *typeResolver) resolveSubrangeType(decl *ast.TypeDeclaration) {
 	}
 
 	// Also register in Subranges map for backward compatibility
-	r.ctx.Subranges[decl.Name.Value] = subrangeType
+	// Use normalized key for case-insensitive lookup (DWScript is case-insensitive)
+	r.ctx.Subranges[ident.Normalize(decl.Name.Value)] = subrangeType
 }
 
 // resolveFunctionPointerType resolves a function pointer type declaration
