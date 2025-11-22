@@ -6,6 +6,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/types"
 	pkgast "github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // BuiltinChecker provides an interface for checking and analyzing built-in functions.
@@ -15,6 +16,76 @@ type BuiltinChecker interface {
 	// Returns (resultType, true) if the function is a recognized built-in,
 	// or (nil, false) if it's not a built-in function.
 	AnalyzeBuiltin(name string, args []pkgast.Expression, callExpr *pkgast.CallExpression) (types.Type, bool)
+}
+
+// ScopeKind identifies the type of scope (for debugging and special handling)
+type ScopeKind int
+
+const (
+	// ScopeGlobal is the outermost scope containing global declarations
+	ScopeGlobal ScopeKind = iota
+	// ScopeFunction is a function/procedure/method scope
+	ScopeFunction
+	// ScopeBlock is a nested block scope (begin/end, if/else, loops, etc.)
+	ScopeBlock
+)
+
+// Scope represents a lexical scope for symbol resolution.
+// Scopes are organized in a parent chain, allowing inner scopes to access
+// symbols from outer scopes while shadowing is permitted.
+type Scope struct {
+	// Kind identifies the type of scope (global, function, block)
+	Kind ScopeKind
+
+	// Symbols maps normalized identifier names to their types
+	// Names are normalized using ident.Normalize for case-insensitive lookup
+	Symbols map[string]types.Type
+
+	// Parent is the enclosing scope (nil for global scope)
+	Parent *Scope
+}
+
+// NewScope creates a new scope with the given kind and parent.
+func NewScope(kind ScopeKind, parent *Scope) *Scope {
+	return &Scope{
+		Kind:    kind,
+		Symbols: make(map[string]types.Type),
+		Parent:  parent,
+	}
+}
+
+// Define adds a symbol to this scope.
+// The name is normalized for case-insensitive lookup.
+// ident.Normalize converts the name to lowercase for normalization.
+func (s *Scope) Define(name string, typ types.Type) {
+	normalized := ident.Normalize(name)
+	s.Symbols[normalized] = typ
+}
+
+// Lookup searches for a symbol in this scope only (does not check parent).
+// Returns (type, true) if found, (nil, false) otherwise.
+// The name is normalized for case-insensitive lookup.
+func (s *Scope) Lookup(name string) (types.Type, bool) {
+	normalized := ident.Normalize(name)
+	typ, found := s.Symbols[normalized]
+	return typ, found
+}
+
+// LookupChain searches for a symbol in this scope and all parent scopes.
+// Returns (type, true) if found in any scope, (nil, false) otherwise.
+// The name is normalized for case-insensitive lookup.
+func (s *Scope) LookupChain(name string) (types.Type, bool) {
+	// Search current scope
+	if typ, found := s.Lookup(name); found {
+		return typ, true
+	}
+
+	// Search parent scopes
+	if s.Parent != nil {
+		return s.Parent.LookupChain(name)
+	}
+
+	return nil, false
 }
 
 // PassContext contains shared state and resources used across all semantic analysis passes.
@@ -73,6 +144,11 @@ type PassContext struct {
 	// Pass Execution Context (Read/Write by specific passes)
 	// ============================================================================
 
+	// ScopeStack maintains the chain of nested scopes for local variable resolution.
+	// The last element is the current innermost scope.
+	// Index 0 is always the global scope.
+	ScopeStack []*Scope
+
 	// CurrentFunction tracks the function being analyzed (for return validation)
 	CurrentFunction interface{} // *ast.FunctionDecl
 
@@ -111,6 +187,9 @@ type PassContext struct {
 	// InLoop indicates if we're inside any loop construct
 	InLoop bool
 
+	// CurrentForLoopVar tracks the current for loop variable name (for validation)
+	CurrentForLoopVar string
+
 	// InLambda indicates if we're inside a lambda/anonymous function
 	InLambda bool
 
@@ -123,6 +202,9 @@ type PassContext struct {
 
 // NewPassContext creates a new pass context with initialized registries.
 func NewPassContext() *PassContext {
+	// Create the global scope as the root of the scope chain
+	globalScope := NewScope(ScopeGlobal, nil)
+
 	return &PassContext{
 		Symbols:            NewSymbolTable(),
 		TypeRegistry:       NewTypeRegistry(),
@@ -135,6 +217,7 @@ func NewPassContext() *PassContext {
 		GlobalOperators:    types.NewOperatorRegistry(),
 		ConversionRegistry: types.NewConversionRegistry(),
 		SemanticInfo:       pkgast.NewSemanticInfo(),
+		ScopeStack:         []*Scope{globalScope}, // Initialize with global scope
 	}
 }
 
@@ -197,4 +280,57 @@ func (ctx *PassContext) CriticalErrorCount() int {
 	}
 
 	return count
+}
+
+// ============================================================================
+// Scope Management Methods
+// ============================================================================
+
+// PushScope creates and pushes a new scope onto the scope stack.
+// The new scope becomes the current scope and has the previous current scope as its parent.
+func (ctx *PassContext) PushScope(kind ScopeKind) {
+	parent := ctx.CurrentScope()
+	newScope := NewScope(kind, parent)
+	ctx.ScopeStack = append(ctx.ScopeStack, newScope)
+}
+
+// PopScope removes the current scope from the scope stack.
+// This should be called when exiting a function, method, or block.
+// Panics if attempting to pop the global scope.
+func (ctx *PassContext) PopScope() {
+	if len(ctx.ScopeStack) <= 1 {
+		panic("cannot pop global scope")
+	}
+	ctx.ScopeStack = ctx.ScopeStack[:len(ctx.ScopeStack)-1]
+}
+
+// CurrentScope returns the current (innermost) scope.
+// This is always valid as the global scope is always present.
+func (ctx *PassContext) CurrentScope() *Scope {
+	if len(ctx.ScopeStack) == 0 {
+		panic("scope stack is empty")
+	}
+	return ctx.ScopeStack[len(ctx.ScopeStack)-1]
+}
+
+// LookupInScopes searches for a symbol in the current scope and all parent scopes.
+// Returns (type, true) if found, (nil, false) otherwise.
+// This is the primary method for resolving identifiers during semantic analysis.
+func (ctx *PassContext) LookupInScopes(name string) (types.Type, bool) {
+	return ctx.CurrentScope().LookupChain(name)
+}
+
+// DefineInCurrentScope adds a symbol to the current scope.
+// This is used when declaring local variables, parameters, or constants.
+func (ctx *PassContext) DefineInCurrentScope(name string, typ types.Type) {
+	ctx.CurrentScope().Define(name, typ)
+}
+
+// GlobalScope returns the global (outermost) scope.
+// This is always at index 0 of the scope stack.
+func (ctx *PassContext) GlobalScope() *Scope {
+	if len(ctx.ScopeStack) == 0 {
+		panic("scope stack is empty")
+	}
+	return ctx.ScopeStack[0]
 }
