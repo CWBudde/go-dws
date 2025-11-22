@@ -180,13 +180,15 @@ Migrate interpreter, which has partial adoption.
 
 ### Tasks
 
-- [ ] **7.1** ✅ SKIP: `internal/interp/environment.go`
+- [x] **7.1** ✅ VERIFIED: `internal/interp/environment.go`
   - Already uses `ident.Normalize()` at lines 66, 91, 118, 134
-  - Verify: No additional migrations needed
+  - Verified: No `strings.ToLower()` or `strings.EqualFold()` present
+  - Status: Fully migrated, no additional changes needed
 
-- [ ] **7.2** ✅ SKIP: `internal/interp/builtins/registry.go`
-  - Already uses `ident.Normalize()` at lines 137, 150, 165
-  - Verify: No additional migrations needed
+- [x] **7.2** ✅ VERIFIED: `internal/interp/builtins/registry.go`
+  - Already uses `ident.Normalize()` at lines 90, 137, 150, 165, 234
+  - Verified: No `strings.ToLower()` or `strings.EqualFold()` present
+  - Status: Fully migrated, no additional changes needed
 
 - [ ] **7.3** Migrate `internal/interp/interpreter.go`
   - ~20+ locations: lines 300, 312, 322, 329, 341, 351, 358, 370, 380, 389, 404, 425, 511, 580, 588, 596
