@@ -2770,7 +2770,7 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 			// Enrich error with statement location to mimic DWScript call stack output
 			if errVal, ok := val.(*ErrorValue); ok {
 				exprPos := node.Expression.Pos()
-				lineMarker := fmt.Sprintf("line: %d", exprPos.Line)
+				lineMarker := fmt.Sprintf("line %d", exprPos.Line)
 				loc := fmt.Sprintf("at line %d, column: %d", exprPos.Line, exprPos.Column+2)
 				if !strings.Contains(errVal.Message, lineMarker) {
 					errVal.Message = errVal.Message + "\n " + loc

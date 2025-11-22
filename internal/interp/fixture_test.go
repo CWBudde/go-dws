@@ -113,14 +113,14 @@ func TestDWScriptFixtures(t *testing.T) {
 			path:         "../../testdata/fixtures/InterfacesPass",
 			expectErrors: false,
 			description:  "Interface declarations and usage",
-			skip:         true, // TODO: Re-enable after implementing missing features
+			skip:         false,
 		},
 		{
 			name:         "InnerClassesPass",
 			path:         "../../testdata/fixtures/InnerClassesPass",
 			expectErrors: false,
 			description:  "Nested class declarations",
-			skip:         true, // TODO: Re-enable after implementing missing features
+			skip:         false,
 		},
 
 		// Core Language Tests - Failure Cases
