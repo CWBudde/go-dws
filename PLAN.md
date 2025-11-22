@@ -798,11 +798,33 @@ This causes:
 
 **Goal**: Restructure semantic analysis into explicit passes with clear dependencies, replacing the current single-pass approach that requires complex fix-ups.
 
-**Status**: 95.2% COMPLETE (1716/1803 tests passing)
+**Status**: 95.2% COMPLETE (1716/1803 tests passing with experimental passes enabled)
 
 **Priority**: P0 - CRITICAL (Enables correct handling of forward declarations and type dependencies)
 
 **Original Problem**: The analyzer tried to do everything in one pass, causing issues with forward declarations, complex type dependencies, and requiring scattered "fix-up" validation passes. DWScript's forward declarations and circular type references require proper multi-pass design.
+
+---
+
+### ⚠️ Development Mode: Experimental Passes
+
+The new multi-pass system (Pass 2 + Pass 3) is **disabled by default** to keep the main branch stable. When working on task 6.1.2, you must explicitly enable experimental passes:
+
+```go
+// Default: Only old analyzer runs (stable, all tests pass)
+analyzer := semantic.NewAnalyzer()
+
+// For task 6.1.2 development: Enable Pass 2 + Pass 3
+analyzer := semantic.NewAnalyzerWithExperimentalPasses()
+```
+
+**Why?** Running both old and new analyzers causes duplicate/conflicting validation errors, failing ~87 tests. This switch allows development on the new passes without breaking CI on main.
+
+**When to enable:** Use `NewAnalyzerWithExperimentalPasses()` when:
+
+- Working on any 6.1.2.x subtask
+- Writing tests for the new pass system
+- Debugging dual-mode validation conflicts
 
 ---
 
@@ -886,7 +908,7 @@ This causes:
   - **Blocks**: Task 6.1.2.10 (Lambda validation needs function pointer types)
   - **Files**: `validation_pass.go`, `pass_context.go`, `analyzer.go`, `analyze_builtin_functions.go`
 
-- [ ] **6.1.2.2: Set Type Support** (6 tests, 4-5 hours)
+- [x] **6.1.2.2: Set Type Support** (6 tests, 4-5 hours) ✅ COMPLETE
   - Extend `resolveTypeExpression` to handle `ast.SetType`
   - Map to `types.SetType` from context
   - Implement set literal type inference
