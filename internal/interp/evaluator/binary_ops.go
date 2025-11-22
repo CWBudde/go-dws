@@ -119,6 +119,18 @@ func (e *Evaluator) evalAndOp(node *ast.BinaryExpression, ctx *ExecutionContext)
 		return e.evalVariantBinaryOp("and", left, right, node)
 	}
 
+	// Handle Enum types - bitwise AND (not short-circuit)
+	if left.Type() == "ENUM" {
+		right := e.Eval(node.Right, ctx)
+		if isError(right) {
+			return right
+		}
+		if right == nil {
+			return e.newError(node.Right, "right operand evaluated to nil")
+		}
+		return e.evalEnumBinaryOp("and", left, right, node)
+	}
+
 	return e.newError(node, "type mismatch: 'and' operator requires boolean or integer operands")
 }
 
@@ -197,6 +209,18 @@ func (e *Evaluator) evalOrOp(node *ast.BinaryExpression, ctx *ExecutionContext) 
 			return e.newError(node.Right, "right operand evaluated to nil")
 		}
 		return e.evalVariantBinaryOp("or", left, right, node)
+	}
+
+	// Handle Enum types - bitwise OR (not short-circuit)
+	if left.Type() == "ENUM" {
+		right := e.Eval(node.Right, ctx)
+		if isError(right) {
+			return right
+		}
+		if right == nil {
+			return e.newError(node.Right, "right operand evaluated to nil")
+		}
+		return e.evalEnumBinaryOp("or", left, right, node)
 	}
 
 	return e.newError(node, "type mismatch: 'or' operator requires boolean or integer operands")
@@ -423,12 +447,62 @@ func (e *Evaluator) evalBooleanBinaryOp(op string, left, right Value, node ast.N
 }
 
 // evalEnumBinaryOp evaluates binary operations on enum values.
+// Enums support comparison operations (=, <>, <, >, <=, >=) and bitwise operations (and, or, xor).
 // Enums are compared by their ordinal values.
-// Note: Enum types may not be migrated to runtime package yet.
+// Task 3.5.18: Migrated from Interpreter expressions_binary.go
 func (e *Evaluator) evalEnumBinaryOp(op string, left, right Value, node ast.Node) Value {
-	// Delegate to adapter for now since EnumValue is in interp package
-	// Full migration requires EnumValue to be in runtime package
-	return e.adapter.EvalNode(node)
+	// Safe type assertions with error handling
+	leftEnum, ok := left.(*runtime.EnumValue)
+	if !ok {
+		return e.newError(node, "expected enum, got %s", left.Type())
+	}
+	rightEnum, ok := right.(*runtime.EnumValue)
+	if !ok {
+		return e.newError(node, "expected enum, got %s", right.Type())
+	}
+
+	leftVal := leftEnum.OrdinalValue
+	rightVal := rightEnum.OrdinalValue
+
+	switch op {
+	// Comparison operators
+	case "=":
+		return &runtime.BooleanValue{Value: leftVal == rightVal}
+	case "<>":
+		return &runtime.BooleanValue{Value: leftVal != rightVal}
+	case "<":
+		return &runtime.BooleanValue{Value: leftVal < rightVal}
+	case ">":
+		return &runtime.BooleanValue{Value: leftVal > rightVal}
+	case "<=":
+		return &runtime.BooleanValue{Value: leftVal <= rightVal}
+	case ">=":
+		return &runtime.BooleanValue{Value: leftVal >= rightVal}
+	// Bitwise operations for enums (especially flags enums)
+	case "and":
+		// Bitwise AND on enum ordinal values, return enum of same type
+		return &runtime.EnumValue{
+			TypeName:     leftEnum.TypeName,
+			ValueName:    "", // No specific name for computed values
+			OrdinalValue: leftVal & rightVal,
+		}
+	case "or":
+		// Bitwise OR on enum ordinal values, return enum of same type
+		return &runtime.EnumValue{
+			TypeName:     leftEnum.TypeName,
+			ValueName:    "", // No specific name for computed values
+			OrdinalValue: leftVal | rightVal,
+		}
+	case "xor":
+		// Bitwise XOR on enum ordinal values, return enum of same type
+		return &runtime.EnumValue{
+			TypeName:     leftEnum.TypeName,
+			ValueName:    "", // No specific name for computed values
+			OrdinalValue: leftVal ^ rightVal,
+		}
+	default:
+		return e.newError(node, "unknown operator: %s %s %s", left.Type(), op, right.Type())
+	}
 }
 
 // ============================================================================
@@ -437,10 +511,12 @@ func (e *Evaluator) evalEnumBinaryOp(op string, left, right Value, node ast.Node
 
 // evalEqualityComparison handles = and <> operators for complex types.
 // Supports: nil, objects, interfaces, classes, RTTI, sets, arrays, records.
+// Task 3.5.19: Delegates array and set comparisons to adapter.
 func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node ast.Node) Value {
 	// This handles object/interface/class/RTTI/set/array/record comparisons
 	// Task 3.5.19 (PR #219 fix): Use adapter method that accepts pre-evaluated values
 	// to prevent double-evaluation of operands with side effects
+	// Arrays and sets are compared by value (element-by-element) in the Interpreter
 	return e.adapter.EvalEqualityComparison(op, left, right, node)
 }
 
@@ -470,6 +546,19 @@ func (e *Evaluator) evalInOperator(value, container Value, node ast.Node) Value 
 	// Task 3.5.19 (PR #219 fix): Use adapter method that accepts pre-evaluated values
 	// to prevent double-evaluation of operands with side effects
 	return e.adapter.EvalInOperator(value, container, node)
+}
+
+// evalSetBinaryOp evaluates binary operations on sets.
+// Supports: + (union), - (difference), * (intersection).
+// Task 3.5.19: Delegate to adapter for SetValue operations.
+func (e *Evaluator) evalSetBinaryOp(op string, left, right Value, node ast.Node) Value {
+	// Set operations are complex and require access to:
+	// - SetValue type and its storage backends (bitmask vs map)
+	// - SetType information for type checking
+	// - evalBinarySetOperation in interpreter
+	// These are in interp package and haven't been migrated yet
+	// Delegate to adapter which will call the Interpreter's evalBinarySetOperation
+	return e.adapter.EvalNode(node)
 }
 
 // evalVariantBinaryOp handles binary operations with Variant operands.
