@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // evalCallExpression evaluates a function call expression.
@@ -92,7 +93,7 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := fn.ReturnType.String()
-		lowerReturnType := strings.ToLower(returnTypeName)
+		lowerReturnType := ident.Normalize(returnTypeName)
 		recordTypeKey := "__record_type_" + lowerReturnType
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
@@ -119,7 +120,7 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		// Task 9.1.5: Check if return type is an interface (overrides default)
 		// Interface return types should be initialized to InterfaceInstance with nil object
 		// This ensures proper reference counting when assigning to Result
-		if interfaceInfo, ok := i.interfaces[strings.ToLower(returnTypeName)]; ok {
+		if interfaceInfo, ok := i.interfaces[ident.Normalize(returnTypeName)]; ok {
 			resultValue = &InterfaceInstance{
 				Interface: interfaceInfo,
 				Object:    nil,

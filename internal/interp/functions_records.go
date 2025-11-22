@@ -1,9 +1,8 @@
 package interp
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // evalRecordMethodCall evaluates a method call on a record value,
@@ -15,11 +14,11 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	// No inheritance needed for records (unlike classes)
 	if !recVal.HasMethod(methodName) {
 		// Check for class methods (static methods can be called on instances)
-		recordTypeKey := "__record_type_" + strings.ToLower(recVal.RecordType.Name)
+		recordTypeKey := "__record_type_" + ident.Normalize(recVal.RecordType.Name)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				// Check if this is a class method (case-insensitive)
-				if classMethod, exists := rtv.ClassMethods[strings.ToLower(methodName)]; exists {
+				if classMethod, exists := rtv.ClassMethods[ident.Normalize(methodName)]; exists {
 					// Call the class method (static method)
 					return i.callRecordStaticMethod(rtv, classMethod, argExprs, memberAccess)
 				}
@@ -98,7 +97,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	for propName, propInfo := range recVal.RecordType.Properties {
 		if propInfo.ReadField != "" {
 			// Check if the read field is an actual field (use lowercase)
-			if fval, exists := recordCopy.Fields[strings.ToLower(propInfo.ReadField)]; exists {
+			if fval, exists := recordCopy.Fields[ident.Normalize(propInfo.ReadField)]; exists {
 				// Bind the property name to the field value
 				i.env.Define(propName, fval)
 			}
@@ -107,7 +106,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 
 	// Task 9.12.2: Bind record constants and class variables to environment
 	// Look up the record type value to get constants and class vars
-	recordTypeKey := "__record_type_" + strings.ToLower(recVal.RecordType.Name)
+	recordTypeKey := "__record_type_" + ident.Normalize(recVal.RecordType.Name)
 	var recordTypeValue *RecordTypeValue // Track for class var write-back
 	var boundClassVars map[string]bool   // Track which class vars we bound
 	if typeVal, ok := i.env.Get(recordTypeKey); ok {
@@ -162,7 +161,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := method.ReturnType.String()
-		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
+		recordTypeKey := "__record_type_" + ident.Normalize(returnTypeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				// Use createRecordValue for proper nested record initialization
@@ -262,7 +261,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 			// Check if the property name was assigned in the environment
 			if updatedVal, exists := i.env.Get(propName); exists {
 				// Copy the value to the backing field (use lowercase for field lookup)
-				backingFieldName := strings.ToLower(propInfo.WriteField)
+				backingFieldName := ident.Normalize(propInfo.WriteField)
 				if _, fieldExists := recordCopy.Fields[backingFieldName]; fieldExists {
 					recordCopy.Fields[backingFieldName] = updatedVal
 				}
@@ -380,7 +379,7 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := method.ReturnType.String()
-		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
+		recordTypeKey := "__record_type_" + ident.Normalize(returnTypeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if recordTV, ok := typeVal.(*RecordTypeValue); ok {
 				// Return type is a record - create an instance

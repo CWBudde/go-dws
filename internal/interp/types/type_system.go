@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // TypeSystem manages all type registries for the interpreter.
@@ -142,19 +143,19 @@ func (ts *TypeSystem) RegisterRecord(name string, record RecordTypeValue) {
 	if record == nil {
 		return
 	}
-	ts.records[strings.ToLower(name)] = record
+	ts.records[ident.Normalize(name)] = record
 }
 
 // LookupRecord returns the RecordTypeValue for the given name.
 // The lookup is case-insensitive. Returns nil if not found.
 func (ts *TypeSystem) LookupRecord(name string) RecordTypeValue {
-	return ts.records[strings.ToLower(name)]
+	return ts.records[ident.Normalize(name)]
 }
 
 // HasRecord checks if a record type with the given name exists.
 // The check is case-insensitive.
 func (ts *TypeSystem) HasRecord(name string) bool {
-	_, exists := ts.records[strings.ToLower(name)]
+	_, exists := ts.records[ident.Normalize(name)]
 	return exists
 }
 
@@ -172,19 +173,19 @@ func (ts *TypeSystem) RegisterInterface(name string, iface InterfaceInfo) {
 	if iface == nil {
 		return
 	}
-	ts.interfaces[strings.ToLower(name)] = iface
+	ts.interfaces[ident.Normalize(name)] = iface
 }
 
 // LookupInterface returns the InterfaceInfo for the given name.
 // The lookup is case-insensitive. Returns nil if not found.
 func (ts *TypeSystem) LookupInterface(name string) InterfaceInfo {
-	return ts.interfaces[strings.ToLower(name)]
+	return ts.interfaces[ident.Normalize(name)]
 }
 
 // HasInterface checks if an interface with the given name exists.
 // The check is case-insensitive.
 func (ts *TypeSystem) HasInterface(name string) bool {
-	_, exists := ts.interfaces[strings.ToLower(name)]
+	_, exists := ts.interfaces[ident.Normalize(name)]
 	return exists
 }
 
@@ -255,19 +256,19 @@ func (ts *TypeSystem) RegisterHelper(typeName string, helper HelperInfo) {
 	if helper == nil {
 		return
 	}
-	key := strings.ToLower(typeName)
+	key := ident.Normalize(typeName)
 	ts.helpers[key] = append(ts.helpers[key], helper)
 }
 
 // LookupHelpers returns all helper methods for the given type name.
 // Returns nil if no helpers exist for the type.
 func (ts *TypeSystem) LookupHelpers(typeName string) []HelperInfo {
-	return ts.helpers[strings.ToLower(typeName)]
+	return ts.helpers[ident.Normalize(typeName)]
 }
 
 // HasHelpers checks if any helper methods exist for the given type.
 func (ts *TypeSystem) HasHelpers(typeName string) bool {
-	helpers, exists := ts.helpers[strings.ToLower(typeName)]
+	helpers, exists := ts.helpers[ident.Normalize(typeName)]
 	return exists && len(helpers) > 0
 }
 
@@ -296,7 +297,7 @@ func (ts *TypeSystem) Conversions() *ConversionRegistry {
 // GetOrAllocateClassTypeID returns the RTTI type ID for a class.
 // If the class doesn't have an ID yet, a new one is allocated.
 func (ts *TypeSystem) GetOrAllocateClassTypeID(className string) int {
-	normalized := strings.ToLower(className)
+	normalized := ident.Normalize(className)
 	if id, exists := ts.classTypeIDs[normalized]; exists {
 		return id
 	}
@@ -309,13 +310,13 @@ func (ts *TypeSystem) GetOrAllocateClassTypeID(className string) int {
 // GetClassTypeID returns the RTTI type ID for a class if it exists.
 // Returns 0 if the class doesn't have an allocated type ID.
 func (ts *TypeSystem) GetClassTypeID(className string) int {
-	return ts.classTypeIDs[strings.ToLower(className)]
+	return ts.classTypeIDs[ident.Normalize(className)]
 }
 
 // GetOrAllocateRecordTypeID returns the RTTI type ID for a record.
 // If the record doesn't have an ID yet, a new one is allocated.
 func (ts *TypeSystem) GetOrAllocateRecordTypeID(recordName string) int {
-	normalized := strings.ToLower(recordName)
+	normalized := ident.Normalize(recordName)
 	if id, exists := ts.recordTypeIDs[normalized]; exists {
 		return id
 	}
@@ -328,13 +329,13 @@ func (ts *TypeSystem) GetOrAllocateRecordTypeID(recordName string) int {
 // GetRecordTypeID returns the RTTI type ID for a record if it exists.
 // Returns 0 if the record doesn't have an allocated type ID.
 func (ts *TypeSystem) GetRecordTypeID(recordName string) int {
-	return ts.recordTypeIDs[strings.ToLower(recordName)]
+	return ts.recordTypeIDs[ident.Normalize(recordName)]
 }
 
 // GetOrAllocateEnumTypeID returns the RTTI type ID for an enum.
 // If the enum doesn't have an ID yet, a new one is allocated.
 func (ts *TypeSystem) GetOrAllocateEnumTypeID(enumName string) int {
-	normalized := strings.ToLower(enumName)
+	normalized := ident.Normalize(enumName)
 	if id, exists := ts.enumTypeIDs[normalized]; exists {
 		return id
 	}
@@ -347,7 +348,7 @@ func (ts *TypeSystem) GetOrAllocateEnumTypeID(enumName string) int {
 // GetEnumTypeID returns the RTTI type ID for an enum if it exists.
 // Returns 0 if the enum doesn't have an allocated type ID.
 func (ts *TypeSystem) GetEnumTypeID(enumName string) int {
-	return ts.enumTypeIDs[strings.ToLower(enumName)]
+	return ts.enumTypeIDs[ident.Normalize(enumName)]
 }
 
 // ========== Type Information ==========
@@ -390,7 +391,7 @@ func (r *OperatorRegistry) Register(entry *OperatorEntry) error {
 	if entry == nil {
 		return fmt.Errorf("operator entry cannot be nil")
 	}
-	key := strings.ToLower(entry.Operator)
+	key := ident.Normalize(entry.Operator)
 
 	// Check for duplicate signatures
 	for _, existing := range r.entries[key] {
@@ -409,7 +410,7 @@ func (r *OperatorRegistry) Lookup(operator string, operandTypes []string) (*Oper
 	if r == nil {
 		return nil, false
 	}
-	key := strings.ToLower(operator)
+	key := ident.Normalize(operator)
 
 	// First try exact match for performance
 	for _, entry := range r.entries[key] {
@@ -509,8 +510,8 @@ func (r *ConversionRegistry) FindConversionPath(from, to string, maxDepth int) [
 	}
 
 	// Normalize type names
-	from = strings.ToUpper(from)
-	to = strings.ToUpper(to)
+	from = ident.Normalize(from)
+	to = ident.Normalize(to)
 
 	// Direct conversion check
 	if _, ok := r.implicit[conversionKey(from, to)]; ok {
@@ -539,8 +540,8 @@ func (r *ConversionRegistry) FindConversionPath(from, to string, maxDepth int) [
 		// Try all possible conversions from current type
 		for _, entry := range r.implicit {
 			// Check if this conversion starts from current type
-			if strings.ToUpper(entry.From) == current.currentType {
-				nextType := strings.ToUpper(entry.To)
+			if ident.Normalize(entry.From) == current.currentType {
+				nextType := ident.Normalize(entry.To)
 
 				// Found target!
 				if nextType == to {
@@ -568,5 +569,5 @@ func (r *ConversionRegistry) FindConversionPath(from, to string, maxDepth int) [
 
 // conversionKey generates a key for conversion lookup.
 func conversionKey(from, to string) string {
-	return strings.ToUpper(from) + "->" + strings.ToUpper(to)
+	return ident.Normalize(from) + "->" + ident.Normalize(to)
 }

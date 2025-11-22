@@ -7,6 +7,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // parseInlineArrayType parses a DWScript inline array type signature (static or dynamic)
@@ -88,7 +89,7 @@ func (i *Interpreter) parseInlineSetType(signature string) *types.SetType {
 
 	// Look up the enum type in the environment
 	// Enum types are stored with "__enum_type_" prefix
-	typeKey := "__enum_type_" + strings.ToLower(enumTypeName)
+	typeKey := "__enum_type_" + pkgident.Normalize(enumTypeName)
 	typeVal, ok := i.env.Get(typeKey)
 	if !ok {
 		return nil
@@ -326,7 +327,7 @@ func (i *Interpreter) evalTypeCast(typeName string, arg ast.Expression) Value {
 	// This prevents double evaluation when it's not a type cast
 	isTypeCast := false
 	var enumType *types.EnumType
-	lowerName := strings.ToLower(typeName)
+	lowerName := pkgident.Normalize(typeName)
 
 	// Check if it's a built-in type
 	switch lowerName {
@@ -386,7 +387,7 @@ func (i *Interpreter) evalTypeCast(typeName string, arg ast.Expression) Value {
 // lookupClassInfo looks up a class by name (case-insensitive)
 func (i *Interpreter) lookupClassInfo(name string) *ClassInfo {
 	for className, classInfo := range i.classes {
-		if strings.EqualFold(className, name) {
+		if pkgident.Equal(className, name) {
 			return classInfo
 		}
 	}
@@ -505,7 +506,7 @@ func (i *Interpreter) castToBoolean(val Value) Value {
 			return &BooleanValue{Value: false}
 		}
 		// Check multi-character strings (case-insensitive)
-		if strings.EqualFold(s, "yes") || strings.EqualFold(s, "true") {
+		if pkgident.Equal(s, "yes") || pkgident.Equal(s, "true") {
 			return &BooleanValue{Value: true}
 		}
 		return &BooleanValue{Value: false}
@@ -598,7 +599,7 @@ func (i *Interpreter) castToEnum(val Value, targetEnum *types.EnumType, typeName
 
 	case *EnumValue:
 		// Enum → Enum: Only allow identity cast (same type)
-		if strings.EqualFold(v.TypeName, typeName) {
+		if pkgident.Equal(v.TypeName, typeName) {
 			return v
 		}
 		return newError("cannot cast enum %s to %s: incompatible enum types", v.TypeName, typeName)
@@ -623,7 +624,7 @@ func (i *Interpreter) evalDefaultFunction(arg ast.Expression) Value {
 	}
 
 	typeName := ident.Value
-	lowerName := strings.ToLower(typeName)
+	lowerName := pkgident.Normalize(typeName)
 
 	// Return default values based on type name
 	switch lowerName {

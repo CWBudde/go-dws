@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // evalInOperator evaluates the 'in' operator for checking membership in sets, arrays, or strings
@@ -118,7 +119,7 @@ func (i *Interpreter) evalIsExpression(expr *ast.IsExpression) Value {
 	// Walk up the class hierarchy
 	currentClass := obj.Class
 	for currentClass != nil {
-		if strings.EqualFold(currentClass.Name, targetTypeName) {
+		if ident.Equal(currentClass.Name, targetTypeName) {
 			return &BooleanValue{Value: true}
 		}
 		// Move to parent class
@@ -127,7 +128,7 @@ func (i *Interpreter) evalIsExpression(expr *ast.IsExpression) Value {
 
 	// If not a class match, check if the target is an interface
 	// and if the object's class implements it
-	if iface, exists := i.interfaces[strings.ToLower(targetTypeName)]; exists {
+	if iface, exists := i.interfaces[ident.Normalize(targetTypeName)]; exists {
 		result := classImplementsInterface(obj.Class, iface)
 		return &BooleanValue{Value: result}
 	}
@@ -163,7 +164,7 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 
 		// Check if target is a class
 		// PR #147: Use lowercase key for O(1) case-insensitive lookup
-		if targetClass, isClass := i.classes[strings.ToLower(targetTypeName)]; isClass {
+		if targetClass, isClass := i.classes[ident.Normalize(targetTypeName)]; isClass {
 			// Interface-to-class casting
 			// Extract the underlying object
 			underlyingObj := intfInst.Object
@@ -175,7 +176,7 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 			currentClass := underlyingObj.Class
 			isCompatible := false
 			for currentClass != nil {
-				if strings.EqualFold(currentClass.Name, targetClass.Name) {
+				if ident.Equal(currentClass.Name, targetClass.Name) {
 					isCompatible = true
 					break
 				}
@@ -195,7 +196,7 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 		}
 
 		// Check if target is an interface
-		if targetIface, isInterface := i.interfaces[strings.ToLower(targetTypeName)]; isInterface {
+		if targetIface, isInterface := i.interfaces[ident.Normalize(targetTypeName)]; isInterface {
 			// Interface-to-interface casting
 			underlyingObj := intfInst.Object
 			if underlyingObj == nil {
@@ -235,7 +236,7 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 	// Try class-to-class casting first
 	// Look up the target as a class
 	// PR #147: Use lowercase key for O(1) case-insensitive lookup
-	targetClass, isClass := i.classes[strings.ToLower(targetTypeName)]
+	targetClass, isClass := i.classes[ident.Normalize(targetTypeName)]
 	if isClass {
 		// This is a class-to-class cast
 		// Validate that the object's actual runtime type is compatible with the target
@@ -243,7 +244,7 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 		currentClass := obj.Class
 		isCompatible := false
 		for currentClass != nil {
-			if strings.EqualFold(currentClass.Name, targetClass.Name) {
+			if ident.Equal(currentClass.Name, targetClass.Name) {
 				isCompatible = true
 				break
 			}
@@ -265,7 +266,7 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 
 	// Try interface casting
 	// Look up the interface in the registry
-	iface, exists := i.interfaces[strings.ToLower(targetTypeName)]
+	iface, exists := i.interfaces[ident.Normalize(targetTypeName)]
 	if !exists {
 		return i.newErrorWithLocation(expr, "type '%s' not found (neither class nor interface)", targetTypeName)
 	}
@@ -326,7 +327,7 @@ func (i *Interpreter) evalImplementsExpression(expr *ast.ImplementsExpression) V
 	}
 
 	// Look up the interface in the registry
-	iface, exists := i.interfaces[strings.ToLower(targetInterfaceName)]
+	iface, exists := i.interfaces[ident.Normalize(targetInterfaceName)]
 	if !exists {
 		return i.newErrorWithLocation(expr, "interface '%s' not found", targetInterfaceName)
 	}
@@ -383,7 +384,7 @@ func (i *Interpreter) evalIfExpression(expr *ast.IfExpression) Value {
 	}
 
 	// Return default value based on type name
-	typeName := strings.ToLower(typeAnnot.Name)
+	typeName := ident.Normalize(typeAnnot.Name)
 	switch typeName {
 	case "integer", "int64":
 		return &IntegerValue{Value: 0}
