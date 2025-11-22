@@ -852,7 +852,7 @@ This causes:
   - [x] Validate that forward-declared functions have implementations (added)
   - [x] Write unit tests for type resolution
 
-- [~] **6.1.2.4 Implement Pass 3: Semantic Validation** (~80% complete) ✨
+- [~] **6.1.2.4 Implement Pass 3: Semantic Validation** (~90% complete) ✨
   - [x] Create `ValidationPass` that type-checks expressions and statements **DONE**
   - [x] Migrate expression validation from old analyzer (analyzeExpression, etc.) **MOSTLY DONE**
     - [x] Add support for all expression types (20+ types: literals, operators, OOP features)
@@ -862,10 +862,17 @@ This causes:
     - [x] Context-aware type inference (analyzeExpressionWithExpectedType) ✅
       - [x] NilLiteral infers class/interface/function pointer types
       - [x] IntegerLiteral promotes to Float when expected
-      - [ ] RecordLiteral field validation with expected type **TODO**
-      - [ ] ArrayLiteral element type inference **TODO**
-      - [ ] SetLiteral element type inference **TODO**
-      - [ ] Lambda parameter type inference from function pointer **TODO**
+      - [x] RecordLiteral field validation with expected type ✅
+        - Typed and anonymous record literals
+        - Field existence, type compatibility, duplicates, missing required fields
+      - [x] ArrayLiteral element type inference ✅
+        - Element type inference, heterogeneous arrays for Variant
+        - Type widening, numeric promotion
+      - [x] SetLiteral element type inference ✅
+        - Ordinal type validation, range expressions, type consistency
+      - [x] Lambda parameter count validation with expected function pointer type ✅
+        - Parameter count check, duplicate parameter detection
+        - Full lambda type inference deferred to analyze_lambdas.go migration
     - [ ] Helper method/property support (requires helpers registry) **TODO**
   - [x] Migrate statement validation from old analyzer (analyzeStatement, etc.) **DONE**
     - [x] Add support for all statement types (15+ types: loops, exceptions, control flow)
