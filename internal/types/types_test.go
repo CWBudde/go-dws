@@ -132,9 +132,9 @@ func TestRecordType(t *testing.T) {
 		}
 		rt := NewRecordType("", fields)
 		str := rt.String()
-		// String should contain both fields
-		if !contains(str, "Name") || !contains(str, "Age") {
-			t.Errorf("String() = %v, should contain Name and Age", str)
+		// String should contain both fields (keys are normalized to lowercase)
+		if !contains(str, "name") || !contains(str, "age") {
+			t.Errorf("String() = %v, should contain name and age", str)
 		}
 	})
 }
@@ -209,10 +209,10 @@ func TestRecordTypeWithMethods(t *testing.T) {
 		}
 		rt := NewRecordType("TPoint", fields)
 
-		// Add methods to the record
+		// Add methods to the record (use lowercase keys for case-insensitive lookup)
 		rt.Methods = make(map[string]*FunctionType)
-		rt.Methods["GetDistance"] = NewFunctionType([]Type{}, FLOAT)
-		rt.Methods["SetPosition"] = NewProcedureType([]Type{INTEGER, INTEGER})
+		rt.Methods["getdistance"] = NewFunctionType([]Type{}, FLOAT)
+		rt.Methods["setposition"] = NewProcedureType([]Type{INTEGER, INTEGER})
 
 		// Test HasMethod
 		if !rt.HasMethod("GetDistance") {
@@ -274,15 +274,15 @@ func TestRecordTypeWithProperties(t *testing.T) {
 		}
 		rt := NewRecordType("TPoint", fields)
 
-		// Add properties to the record
+		// Add properties to the record (use lowercase keys for case-insensitive lookup)
 		rt.Properties = make(map[string]*RecordPropertyInfo)
-		rt.Properties["X"] = &RecordPropertyInfo{
+		rt.Properties["x"] = &RecordPropertyInfo{
 			Name:       "X",
 			Type:       INTEGER,
 			ReadField:  "FX",
 			WriteField: "FX",
 		}
-		rt.Properties["Y"] = &RecordPropertyInfo{
+		rt.Properties["y"] = &RecordPropertyInfo{
 			Name:       "Y",
 			Type:       INTEGER,
 			ReadField:  "FY",

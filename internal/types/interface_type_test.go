@@ -77,8 +77,9 @@ func TestInterfaceTypeEquals(t *testing.T) {
 
 func TestInterfaceTypeMethods(t *testing.T) {
 	iface := NewInterfaceType("IComparable")
-	iface.Methods["CompareTo"] = NewFunctionType([]Type{INTEGER}, INTEGER)
-	iface.Methods["Equals"] = NewFunctionType([]Type{INTEGER}, BOOLEAN)
+	// Use lowercase keys for case-insensitive lookup
+	iface.Methods["compareto"] = NewFunctionType([]Type{INTEGER}, INTEGER)
+	iface.Methods["equals"] = NewFunctionType([]Type{INTEGER}, BOOLEAN)
 
 	tests := []struct {
 		name       string
