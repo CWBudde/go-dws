@@ -73,6 +73,12 @@ type Analyzer struct {
 	inLambda           bool
 	inClassMethod      bool
 	inPropertyExpr     bool
+
+	// experimentalPasses enables the new multi-pass semantic analysis system.
+	// When false (default), only the old analyzer runs, keeping behavior stable.
+	// When true, Pass 2 (Type Resolution) and Pass 3 (Semantic Validation) also run.
+	// Use NewAnalyzerWithExperimentalPasses() to enable for task 6.1.2 development.
+	experimentalPasses bool
 }
 
 // NewAnalyzer creates a new semantic analyzer
@@ -113,6 +119,23 @@ func NewAnalyzer() *Analyzer {
 	a.symbols.DefineConst("Null", types.VARIANT, nil)       // Null is a variant special value
 	a.symbols.DefineConst("Unassigned", types.VARIANT, nil) // Unassigned is a variant special value
 
+	return a
+}
+
+// NewAnalyzerWithExperimentalPasses creates a new semantic analyzer with experimental
+// multi-pass analysis enabled. This runs both the old analyzer AND the new Pass 2/3
+// system for comparison and development purposes.
+//
+// Use this constructor when working on task 6.1.2 (multi-pass semantic analysis).
+// For normal usage, use NewAnalyzer() which only runs the stable old analyzer.
+//
+// Example usage in tests:
+//
+//	analyzer := semantic.NewAnalyzerWithExperimentalPasses()
+//	err := analyzer.Analyze(program)
+func NewAnalyzerWithExperimentalPasses() *Analyzer {
+	a := NewAnalyzer()
+	a.experimentalPasses = true
 	return a
 }
 
@@ -267,12 +290,14 @@ func (a *Analyzer) registerBuiltinInterfaces() {
 // Analyze performs semantic analysis on a program.
 // Returns nil if analysis succeeds, or an error if there are semantic errors.
 //
-// Task 6.1.2.6: Refactored to use multi-pass architecture:
+// By default, only the stable old analyzer runs. To enable the experimental
+// multi-pass system (for task 6.1.2 development), use NewAnalyzerWithExperimentalPasses().
+//
+// Multi-pass architecture (experimental, task 6.1.2.6):
 // - Pass 1: Declaration Collection (register types and function names)
 // - Pass 2: Type Resolution (resolve type references, build hierarchies)
 // - Pass 3: Semantic Validation (type-check expressions, validate statements)
 // - Pass 4: Contract Validation (validate requires/ensures/invariant)
-// - Legacy validation (temporary - to be migrated to passes)
 func (a *Analyzer) Analyze(program *ast.Program) error {
 	if program == nil {
 		return fmt.Errorf("cannot analyze nil program")
@@ -284,42 +309,52 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	// Note: Some work is duplicated between old analyzer and Pass 2 during transition period.
 
 	// OLD IMPLEMENTATION: Analyze each statement (handles declaration collection and validation)
+	// This is the stable, default behavior used in production.
 	for _, stmt := range program.Statements {
 		a.analyzeStatement(stmt)
 	}
 
-	// NEW IMPLEMENTATION: Run Pass 2, Pass 3 (and eventually Pass 4)
-	// Pass 2 performs: built-in type registration, class/interface hierarchy resolution,
-	// field type resolution, method signature resolution, and forward declaration validation.
-	// Pass 3 performs: full semantic validation (type checking, control flow, etc.)
-	// Create PassContext from Analyzer state to share registries
-	ctx := a.createPassContext()
+	// Validate forward declarations are all resolved
+	// (previously done in Pass 2, now done here for old analyzer)
+	a.validateForwardDeclarations()
 
-	// Create Pass 2 (Type Resolution)
-	// Skip Pass 1 (Declaration Collection) since old analyzer already does that
-	pass2 := NewTypeResolutionPass()
+	// EXPERIMENTAL: Multi-pass semantic analysis (task 6.1.2)
+	// Only runs when experimentalPasses is enabled via NewAnalyzerWithExperimentalPasses().
+	// This allows development on the new pass system without breaking main branch tests.
+	if a.experimentalPasses {
+		// NEW IMPLEMENTATION: Run Pass 2, Pass 3 (and eventually Pass 4)
+		// Pass 2 performs: built-in type registration, class/interface hierarchy resolution,
+		// field type resolution, method signature resolution, and forward declaration validation.
+		// Pass 3 performs: full semantic validation (type checking, control flow, etc.)
+		// Create PassContext from Analyzer state to share registries
+		ctx := a.createPassContext()
 
-	// Run Pass 2 directly
-	if err := pass2.Run(program, ctx); err != nil {
-		// Fatal error in pass execution (not a semantic error)
-		return err
+		// Create Pass 2 (Type Resolution)
+		// Skip Pass 1 (Declaration Collection) since old analyzer already does that
+		pass2 := NewTypeResolutionPass()
+
+		// Run Pass 2 directly
+		if err := pass2.Run(program, ctx); err != nil {
+			// Fatal error in pass execution (not a semantic error)
+			return err
+		}
+
+		// Task 6.1.2.6.1: Enable Pass 3 (Semantic Validation) in dual mode
+		// Run Pass 3 to validate types, expressions, and control flow
+		// Note: Old analyzer still runs for comparison during transition
+		pass3 := NewValidationPass()
+		if err := pass3.Run(program, ctx); err != nil {
+			// Fatal error in pass execution (not a semantic error)
+			return err
+		}
+
+		// Sync PassContext state back to Analyzer
+		// The passes may have updated the type registry, symbol table, etc.
+		a.syncFromPassContext(ctx)
+
+		// Collect errors from all passes
+		a.mergePassErrors(ctx)
 	}
-
-	// Task 6.1.2.6.1: Enable Pass 3 (Semantic Validation) in dual mode
-	// Run Pass 3 to validate types, expressions, and control flow
-	// Note: Old analyzer still runs for comparison during transition
-	pass3 := NewValidationPass()
-	if err := pass3.Run(program, ctx); err != nil {
-		// Fatal error in pass execution (not a semantic error)
-		return err
-	}
-
-	// Sync PassContext state back to Analyzer
-	// The passes may have updated the type registry, symbol table, etc.
-	a.syncFromPassContext(ctx)
-
-	// Collect errors from all passes
-	a.mergePassErrors(ctx)
 
 	// If we accumulated errors (not hints), return them
 	// Task 9.61.4: Hints don't prevent analysis from succeeding
@@ -336,6 +371,20 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	}
 
 	return nil
+}
+
+// validateForwardDeclarations ensures all forward-declared types have implementations.
+// This is called at the end of analysis to catch incomplete forward declarations.
+func (a *Analyzer) validateForwardDeclarations() {
+	// Check all registered classes for unresolved forward declarations
+	for _, t := range a.typeRegistry.AllTypes() {
+		if classType, ok := t.(*types.ClassType); ok {
+			if classType.IsForward {
+				// Use DWScript format: Class "Name" isn't defined completely
+				a.addError("Class \"%s\" isn't defined completely", classType.Name)
+			}
+		}
+	}
 }
 
 // createPassContext creates a PassContext from the Analyzer's current state.
