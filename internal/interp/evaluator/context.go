@@ -144,14 +144,15 @@ type Environment interface {
 // Phase 3.3.3: Updated to use CallStack abstraction with overflow detection.
 // Phase 3.5.4 - Phase 2D: Added envStack for proper environment scoping.
 type ExecutionContext struct {
-	env              Environment
-	exception        interface{}
-	handlerException interface{}
-	callStack        *CallStack
-	controlFlow      *ControlFlow
-	propContext      *PropertyEvalContext
-	envStack         []Environment
-	oldValuesStack   []map[string]interface{}
+	env               Environment
+	exception         interface{}
+	handlerException  interface{}
+	callStack         *CallStack
+	controlFlow       *ControlFlow
+	propContext       *PropertyEvalContext
+	envStack          []Environment
+	oldValuesStack    []map[string]interface{}
+	recordTypeContext string // Type context for anonymous record literals (avoids AST mutation)
 }
 
 // NewExecutionContext creates a new execution context with the given environment.
@@ -287,6 +288,22 @@ func (ctx *ExecutionContext) PropContext() *PropertyEvalContext {
 	return ctx.propContext
 }
 
+// RecordTypeContext returns the current record type context for anonymous record literals.
+// This allows passing type information to record literal evaluation without mutating the AST.
+func (ctx *ExecutionContext) RecordTypeContext() string {
+	return ctx.recordTypeContext
+}
+
+// SetRecordTypeContext sets the record type context for anonymous record literals.
+func (ctx *ExecutionContext) SetRecordTypeContext(typeName string) {
+	ctx.recordTypeContext = typeName
+}
+
+// ClearRecordTypeContext clears the record type context.
+func (ctx *ExecutionContext) ClearRecordTypeContext() {
+	ctx.recordTypeContext = ""
+}
+
 // PushOldValues saves the current variable values before entering a new scope.
 func (ctx *ExecutionContext) PushOldValues(oldValues map[string]interface{}) {
 	ctx.oldValuesStack = append(ctx.oldValuesStack, oldValues)
@@ -323,14 +340,15 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 	copy(envStackCopy, ctx.envStack)
 
 	return &ExecutionContext{
-		env:              ctx.env,
-		envStack:         envStackCopy,
-		callStack:        ctx.callStack,
-		controlFlow:      ctx.controlFlow,
-		exception:        ctx.exception,
-		handlerException: ctx.handlerException,
-		oldValuesStack:   ctx.oldValuesStack,
-		propContext:      ctx.propContext,
+		env:               ctx.env,
+		envStack:          envStackCopy,
+		callStack:         ctx.callStack,
+		controlFlow:       ctx.controlFlow,
+		exception:         ctx.exception,
+		handlerException:  ctx.handlerException,
+		oldValuesStack:    ctx.oldValuesStack,
+		propContext:       ctx.propContext,
+		recordTypeContext: ctx.recordTypeContext,
 	}
 }
 

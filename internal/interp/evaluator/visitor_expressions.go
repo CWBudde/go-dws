@@ -1279,7 +1279,6 @@ func (e *Evaluator) VisitEnumLiteral(node *ast.EnumLiteral, ctx *ExecutionContex
 
 // VisitRecordLiteralExpression evaluates a record literal expression.
 // Handles typed and anonymous record literals with field initialization and default values.
-// VisitRecordLiteralExpression evaluates a record literal (Field1: val1, Field2: val2).
 // Task 3.5.40: Full migration from Interpreter.evalRecordLiteral()
 func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpression, ctx *ExecutionContext) Value {
 	// Task 3.5.40: Record literal evaluation with field initialization
@@ -1320,9 +1319,13 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 
 	// Determine record type
 	var recordTypeName string
-	if node.TypeName != nil {
+	switch {
+	case node.TypeName != nil:
 		recordTypeName = node.TypeName.Value
-	} else {
+	case ctx.RecordTypeContext() != "":
+		// Anonymous literal with type context from caller (e.g., var/const declaration)
+		recordTypeName = ctx.RecordTypeContext()
+	default:
 		// Anonymous literal requires type context (should have been set by caller)
 		return e.newError(node, "record literal requires explicit type name or type context")
 	}

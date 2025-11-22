@@ -158,10 +158,10 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 				return e.newError(node, "unknown type '%s'", typeName)
 			}
 
-			// Temporarily set type name for evaluation
-			recordLit.TypeName = &ast.Identifier{Value: typeName}
+			// Set type context for evaluation (avoids AST mutation)
+			ctx.SetRecordTypeContext(typeName)
 			value = e.Eval(recordLit, ctx)
-			recordLit.TypeName = nil
+			ctx.ClearRecordTypeContext()
 		} else {
 			value = e.Eval(node.Value, ctx)
 		}
@@ -311,10 +311,10 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 			return e.newError(node, "unknown type '%s'", typeName)
 		}
 
-		// Temporarily set the type name for evaluation
-		recordLit.TypeName = &ast.Identifier{Value: typeName}
+		// Set type context for evaluation (avoids AST mutation)
+		ctx.SetRecordTypeContext(typeName)
 		value = e.Eval(recordLit, ctx)
-		recordLit.TypeName = nil
+		ctx.ClearRecordTypeContext()
 	} else {
 		value = e.Eval(node.Value, ctx)
 	}

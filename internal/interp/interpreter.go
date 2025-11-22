@@ -815,7 +815,7 @@ func (i *Interpreter) CreateSubrangeZeroValue(subrangeTypeName string) (evaluato
 	}
 
 	return &SubrangeValue{
-		Value:        0,
+		Value:        stv.SubrangeType.LowBound,
 		SubrangeType: stv.SubrangeType,
 	}, nil
 }
