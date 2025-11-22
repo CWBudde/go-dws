@@ -551,8 +551,9 @@ The following uses of `strings.ToLower()`/`strings.EqualFold()` are legitimate a
   - `functions_calls.go:213,298,420` (ToLower) + `179` (EqualFold)
   - `functions_pointers.go:116` (ToLower)
 
-- [ ] **14.1.14** Migrate `internal/interp/declarations.go` (8 EqualFold occurrences)
-  - Lines: 157,165,247,478,480,806,866
+- [ ] **14.1.14** Migrate `internal/interp/declarations.go` (31 occurrences)
+  - ToLower: 37,42,56,61,72,77,89,94,105,110,122,127,139,144,155,160,172,177,189,194,206,211,223,228
+  - EqualFold: 157,165,247,478,480,806,866
   - Class, method, operator declarations
 
 - [ ] **14.1.15** Migrate `internal/interp/expressions_basic.go` (5 EqualFold occurrences)
