@@ -189,6 +189,12 @@ func (v *statementValidator) validateVarDecl(stmt *ast.VarDeclStatement) {
 			if existing != nil {
 				existing.Type = varType
 			}
+
+			// Also add to the current scope (for local variables in functions)
+			// This allows proper scoped variable resolution
+			if varType != nil {
+				v.ctx.DefineInCurrentScope(name.Value, varType)
+			}
 		}
 	}
 }
@@ -528,6 +534,24 @@ func (v *statementValidator) validateFunction(decl *ast.FunctionDecl) {
 	}
 	defer func() { v.ctx.CurrentClass = oldClass }()
 
+	// Push a new function scope for local variables and parameters
+	v.ctx.PushScope(ScopeFunction)
+	defer v.ctx.PopScope()
+
+	// Add function parameters to the current scope
+	for _, param := range decl.Parameters {
+		if param != nil && param.Name != nil {
+			var paramType types.Type = types.VARIANT // default type
+			if param.Type != nil {
+				resolvedType := v.resolveTypeExpression(param.Type)
+				if resolvedType != nil {
+					paramType = resolvedType
+				}
+			}
+			v.ctx.DefineInCurrentScope(param.Name.Value, paramType)
+		}
+	}
+
 	// Validate function body
 	if decl.Body != nil {
 		v.validateStatement(decl.Body)
@@ -658,6 +682,7 @@ func (v *statementValidator) validateConstDecl(stmt *ast.ConstDecl) {
 	}
 
 	// Type-check the initializer with context-aware inference
+	var finalType types.Type = declaredType
 	if stmt.Value != nil {
 		valueType := v.checkExpressionWithExpectedType(stmt.Value, declaredType)
 
@@ -667,7 +692,15 @@ func (v *statementValidator) validateConstDecl(stmt *ast.ConstDecl) {
 				v.ctx.AddError("cannot initialize constant of type %s with value of type %s",
 					declaredType, valueType)
 			}
+		} else if declaredType == nil {
+			// Type inference from initializer
+			finalType = valueType
 		}
+	}
+
+	// Add constant to the current scope
+	if stmt.Name != nil && finalType != nil {
+		v.ctx.DefineInCurrentScope(stmt.Name.Value, finalType)
 	}
 }
 
@@ -1124,70 +1157,47 @@ func (v *statementValidator) checkIdentifier(expr *ast.Identifier) types.Type {
 		}
 	}
 
-	// Try to resolve in symbol table
-	if v.ctx.Symbols == nil {
-		return nil // Defensive check
+	// First, try to resolve in the scoped symbol tables (local variables, parameters)
+	// This searches the current scope and all parent scopes up to global
+	if scopedType, found := v.ctx.LookupInScopes(expr.Value); found {
+		return scopedType
 	}
 
-	symbol, ok := v.ctx.Symbols.Resolve(expr.Value)
-	if !ok {
-		// Check if it's a parameter of the current function
-		if v.ctx.CurrentFunction != nil {
-			if fnDecl, ok := v.ctx.CurrentFunction.(*ast.FunctionDecl); ok && fnDecl != nil {
-				paramNameLower := strings.ToLower(expr.Value)
-				for _, param := range fnDecl.Parameters {
-					if param != nil && param.Name != nil && strings.ToLower(param.Name.Value) == paramNameLower {
-						// Found parameter - resolve its type
-						if param.Type != nil {
-							paramType := v.resolveTypeExpression(param.Type)
-							if paramType != nil {
-								return paramType
-							}
-						}
-						// Can't resolve parameter type, but it's still a valid identifier
-						return types.VARIANT
-					}
-				}
-			}
+	// Try to resolve in the global symbol table (for global variables and functions)
+	// This is separate from scopes to maintain compatibility with Pass 1 & 2
+	if v.ctx.Symbols != nil {
+		if symbol, ok := v.ctx.Symbols.Resolve(expr.Value); ok {
+			return symbol.Type
 		}
-
-		// If we're in a method/constructor, check if this is a field access (unqualified)
-		if v.ctx.CurrentClass != nil {
-			// Look up the field in the current class (including inherited fields)
-			classType := v.ctx.CurrentClass
-			fieldNameLower := strings.ToLower(expr.Value)
-
-			// Check current class and all parent classes for the field
-			for classType != nil {
-				// Check if it's a field
-				if fieldType, found := classType.Fields[fieldNameLower]; found {
-					// Unqualified field access - should use Self.FieldName for clarity
-					// but it's allowed in DWScript
-					return fieldType
-				}
-
-				// Check parent class
-				if classType.Parent != nil {
-					classType = classType.Parent
-				} else {
-					break
-				}
-			}
-		}
-
-		// In dual mode, skip undefined variable errors for function-local context
-		// The old analyzer handles local variable scoping properly
-		// TODO: Implement proper scoped symbol tables when we remove dual mode
-		if v.ctx.CurrentFunction != nil {
-			// Inside a function - might be a local variable that old analyzer handles
-			// Return a safe default type to allow validation to continue
-			return types.VARIANT
-		}
-
-		v.ctx.AddError("undefined variable '%s'", expr.Value)
-		return nil
 	}
-	return symbol.Type
+
+	// If we're in a method/constructor, check if this is a field access (unqualified)
+	if v.ctx.CurrentClass != nil {
+		// Look up the field in the current class (including inherited fields)
+		classType := v.ctx.CurrentClass
+		fieldNameLower := strings.ToLower(expr.Value)
+
+		// Check current class and all parent classes for the field
+		for classType != nil {
+			// Check if it's a field
+			if fieldType, found := classType.Fields[fieldNameLower]; found {
+				// Unqualified field access - should use Self.FieldName for clarity
+				// but it's allowed in DWScript
+				return fieldType
+			}
+
+			// Check parent class
+			if classType.Parent != nil {
+				classType = classType.Parent
+			} else {
+				break
+			}
+		}
+	}
+
+	// Variable not found in any scope
+	v.ctx.AddError("undefined variable '%s'", expr.Value)
+	return nil
 }
 
 // checkBinaryExpression checks a binary expression

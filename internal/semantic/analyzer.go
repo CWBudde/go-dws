@@ -361,6 +361,7 @@ func (a *Analyzer) createPassContext() *PassContext {
 		StructuredErrors: make([]*SemanticError, 0),
 
 		// Pass execution context
+		ScopeStack:      []*Scope{NewScope(ScopeGlobal, nil)}, // Initialize with global scope
 		CurrentFunction: a.currentFunction,
 		CurrentClass:    a.currentClass,
 		CurrentRecord:   a.currentRecord,

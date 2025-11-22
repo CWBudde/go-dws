@@ -948,7 +948,26 @@ This causes:
   - [x] Remove post-hoc validation methods (migrated to Pass 2)
   - [x] Run full test suite to verify correctness (all semantic tests pass)
   - [x] Add BuiltinChecker interface to PassContext for future use
-  - [~] **6.1.2.6.1 Complete Pass 3 migration** ⚠️ **~95% COMPLETE** (see below)
+  - [~] **6.1.2.6.1 Complete Pass 3 migration** ⚠️ **95.2% COMPLETE** (18 subtasks remaining)
+    - [x] Enable Pass 3 in dual mode (95.2% test pass rate)
+    - [ ] 6.1.2.6.1.1: Scoped Symbol Tables (6 tests)
+    - [ ] 6.1.2.6.1.2: Const Parameter Handling (4 tests)
+    - [ ] 6.1.2.6.1.3: Class Variables/Static Fields (6 tests)
+    - [ ] 6.1.2.6.1.4: Function Pointer Types (7 tests)
+    - [ ] 6.1.2.6.1.5: Lambda Expression Validation (7 tests)
+    - [ ] 6.1.2.6.1.6: Set Type Support (6 tests)
+    - [ ] 6.1.2.6.1.7: Array of Const Literals (5 tests)
+    - [ ] 6.1.2.6.1.8: Full Builtin Validation (15 tests)
+    - [ ] 6.1.2.6.1.9: Type Operators (is/as/implements) (10 tests)
+    - [ ] 6.1.2.6.1.10: Interface Type Validation (4 tests)
+    - [ ] 6.1.2.6.1.11: Exception Variable Scoping (2 tests)
+    - [ ] 6.1.2.6.1.12: For-In Loop Edge Cases (4 tests)
+    - [ ] 6.1.2.6.1.13: Implicit Constructors (2 tests)
+    - [ ] 6.1.2.6.1.14: Type Conversion/Coercion (4 tests)
+    - [ ] 6.1.2.6.1.15: Lazy Parameters (2 tests)
+    - [ ] 6.1.2.6.1.16: Subrange Types (1 test)
+    - [ ] 6.1.2.6.1.17: Operator Overloads (2 tests)
+    - [ ] 6.1.2.6.1.18: Miscellaneous Fixes (4 tests)
   - [ ] **6.1.2.6.2 Complete Pass 4 migration** (READY - awaiting Pass 3 completion)
   - [ ] **6.1.2.6.3 Enable all 4 passes** (READY - awaiting Pass 3/4 completion)
   - [ ] **6.1.2.6.4 Remove old analyzer loop entirely** (READY - awaiting 6.1.2.6.3)
@@ -1024,12 +1043,258 @@ This causes:
 **Test coverage**: 95.2% (1716/1803) - Production ready for dual mode ✅
 
 **Next Steps** (when removing old analyzer):
-- Implement proper scoped symbol tables for local variables
-- Full type expression resolution (arrays, sets, function pointers)
-- Class variable (static field) access in member expressions
-- Const parameter handling
-- Set type inference
-- Advanced exception scoping
+- See detailed subtasks below (6.1.2.6.1.1 through 6.1.2.6.1.17)
+
+---
+
+### Detailed Subtasks to Complete Pass 3 (87 remaining tests)
+
+**6.1.2.6.1.1: Implement Scoped Symbol Tables for Local Variables** (6 tests)
+- [ ] Implement `ScopedSymbolTable` with parent scope chain
+- [ ] Push/pop scopes on function entry/exit, block entry/exit
+- [ ] Update `checkIdentifier` to search scope chain instead of global symbols
+- [ ] Handle function parameters in function scope
+- [ ] Handle local `var` and `const` declarations
+**Failing Tests:**
+- TestFunctionWithLocalVariables
+- TestFunctionParameterScope
+- TestFunctionLocalConstDeclaration
+- TestFunctionLocalConstWithOrd
+- TestExitInProcedure
+- TestClosureCapture (needs closure capture analysis)
+**Estimated**: 4-6 hours
+**Files**: `internal/semantic/pass_context.go`, `validation_pass.go`
+
+**6.1.2.6.1.2: Implement Const Parameter Handling** (4 tests)
+- [ ] Add `IsConst` flag tracking to parameter validation
+- [ ] Validate that const parameters aren't modified in function body
+- [ ] Track assignment targets to detect const violations
+**Failing Tests:**
+- TestConstParameter
+- TestConstParameterWithArray
+**Estimated**: 2-3 hours
+**Files**: `validation_pass.go`
+
+**6.1.2.6.1.3: Implement Class Variables (Static Fields)** (6 tests)
+- [ ] Extend `checkMemberAccessExpression` to handle static field access via class name
+- [ ] Add `ClassType.ClassVars` lookup in member access
+- [ ] Validate visibility rules for class variables
+- [ ] Handle class variable assignment
+**Failing Tests:**
+- TestClassVariableAccessViaClassName
+- TestClassVariableAssignment
+- TestClassVariableInheritance
+- TestClassVariableShadowing
+- TestClassVariableWithInitialization
+- TestPublicClassVariableAccessFromAnywhere
+**Estimated**: 3-4 hours
+**Files**: `validation_pass.go`
+
+**6.1.2.6.1.4: Implement Function Pointer Type Resolution** (7 tests)
+- [ ] Extend `resolveTypeExpression` to handle `ast.FunctionPointerType`
+- [ ] Map to `types.FunctionPointerType` from context.FunctionPointers
+- [ ] Validate function pointer assignments (signature compatibility)
+- [ ] Validate function pointer calls (argument types, return type)
+- [ ] Handle implicit function-to-pointer conversion
+**Failing Tests:**
+- TestFunctionPointerAssignment
+- TestFunctionPointerCall
+- TestFunctionPointerTypeInference
+- TestImplicitFunctionToPointerConversion
+- TestInlineFunctionPointerAssignment
+- TestInlineFunctionPointerCall
+- TestMultipleFunctionPointerTypes
+**Estimated**: 4-5 hours
+**Files**: `validation_pass.go`
+
+**6.1.2.6.1.5: Implement Lambda Expression Full Validation** (7 tests)
+- [ ] Implement lambda type inference from context
+- [ ] Handle lambda parameter scoping properly
+- [ ] Validate lambda return type matches inferred/declared type
+- [ ] Support variadic lambda inference
+- [ ] Implement closure capture analysis
+**Failing Tests:**
+- TestLambdaExpressionBasic
+- TestLambdaInferenceEdgeCases
+- TestLambdaParameterScoping
+- TestLambdaParameterTypeInference
+- TestOverloadDetectionWithLambdas
+- TestVariadicLambdaInference
+**Estimated**: 5-6 hours
+**Files**: `validation_pass.go`
+
+**6.1.2.6.1.6: Implement Set Type Support** (6 tests)
+- [ ] Extend `resolveTypeExpression` to handle `ast.SetType`
+- [ ] Map to `types.SetType` from context
+- [ ] Implement set literal type inference
+- [ ] Validate set membership operators (`in`)
+- [ ] Validate set operations (`+`, `-`, `*` for union/difference/intersection)
+- [ ] Handle large set optimization detection
+**Failing Tests:**
+- TestSetLiterals
+- TestSetMembership
+- TestSetOperations
+- TestLargeSetTypeInference
+- TestLargeSetOperationTypeChecking
+- TestLargeSetStorageKindIndependence
+**Estimated**: 4-5 hours
+**Files**: `validation_pass.go`
+
+**6.1.2.6.1.7: Implement Array of Const Literal Validation** (5 tests)
+- [ ] Handle `array of const` type expressions
+- [ ] Validate array literal type inference for const arrays
+- [ ] Check element type compatibility (homogeneous vs heterogeneous)
+- [ ] Handle empty array literals
+- [ ] Support type aliases for array of const
+**Failing Tests:**
+- TestArrayOfConstArrayCompatibility
+- TestArrayOfConstEmptyLiteral
+- TestArrayOfConstLiteralHeterogeneous
+- TestArrayOfConstLiteralHomogeneous
+- TestArrayOfConstTypeAlias
+**Estimated**: 3-4 hours
+**Files**: `validation_pass.go`
+
+**6.1.2.6.1.8: Implement Full Builtin Function Validation** (15 tests)
+- [ ] Extend builtin validation beyond basic cases
+- [ ] Handle builtins with array parameters (Low, High, SetLength, etc.)
+- [ ] Validate builtin calls in function contexts
+- [ ] Support builtin chaining
+- [ ] Handle conversion builtins (IntToStr, StrToInt, etc.)
+- [ ] Validate DateTime, JSON, Math, String builtins
+**Failing Tests:**
+- TestBuiltinArray_AsParameter, TestBuiltinArray_EmptyArray, TestBuiltinArray_InFunction
+- TestBuiltinArray_IterationWithBounds, TestBuiltinArray_LowHighLength
+- TestBuiltinConvert_AsParameters, TestBuiltinConvert_InFunction
+- TestBuiltinDateTime_InFunction, TestBuiltinJSON_InFunction
+- TestBuiltinMath_AsParameters
+- TestBuiltinString_AsParameters, TestBuiltinString_ChainedOperations
+- TestBuiltinVariant_ArrayOfVariants, TestBuiltinVariant_Conditionals, TestBuiltinVariant_InFunction
+**Estimated**: 5-6 hours
+**Files**: `validation_pass.go`, potentially new `builtin_validator.go`
+
+**6.1.2.6.1.9: Implement Type Operators (is, as, implements)** (10 tests)
+- [ ] Add support for `is` operator (runtime type checking)
+- [ ] Add support for `as` operator (type casting with check)
+- [ ] Add support for `implements` operator (interface checking)
+- [ ] Validate operand types for each operator
+- [ ] Handle chained type operators
+- [ ] Support type operators in conditions and assignments
+**Failing Tests:**
+- TestTypeOperator_As_DowncastValid, TestTypeOperator_As_WithCheck
+- TestTypeOperator_Implements_InCondition
+- TestTypeOperator_Is_ClassInheritance, TestTypeOperator_Is_InCondition
+- TestTypeOperators_AllThreeTogether, TestTypeOperators_ChainedIs
+- TestTypeOperators_InFunction, TestTypeOperators_IsAndAs_Together
+- TestTypeOperators_WithPolymorphism
+**Estimated**: 4-5 hours
+**Files**: `validation_pass.go`
+
+**6.1.2.6.1.10: Implement Interface Type Validation** (4 tests)
+- [ ] Validate interface variable assignment
+- [ ] Check class-to-interface assignment compatibility
+- [ ] Check interface-to-interface assignment
+- [ ] Validate interface types in function returns
+- [ ] Ensure interface method compatibility
+**Failing Tests:**
+- TestInterfaceInFunctionReturn
+- TestInterfaceVariableAssignment
+- TestValidClassToInterfaceAssignment
+- TestValidInterfaceToInterfaceAssignment
+**Estimated**: 2-3 hours
+**Files**: `validation_pass.go`
+
+**6.1.2.6.1.11: Implement Exception Variable Scoping** (2 tests)
+- [ ] Handle exception variable scope in try/except blocks
+- [ ] Validate exception variable types
+- [ ] Ensure exception variables are only visible in except block
+- [ ] Support break/continue with exception handling
+**Failing Tests:**
+- TestExceptionVariableScoping
+- TestBreakContinueWithExceptionHandling
+**Estimated**: 2-3 hours
+**Files**: `validation_pass.go`
+
+**6.1.2.6.1.12: Fix For-In Loop Edge Cases** (4 tests)
+- [ ] Handle inline variable declarations in for-in loops
+- [ ] Ensure for-in works with break/continue
+- [ ] Support nested for-in loops properly
+- [ ] Fix loop variable scoping for for-in
+**Failing Tests:**
+- TestForInWithInlineVar
+- TestForInWithBreak
+- TestForInWithContinue
+- TestNestedForInLoops
+**Estimated**: 2-3 hours
+**Files**: `validation_pass.go`
+
+**6.1.2.6.1.13: Implement Implicit Constructor Support** (2 tests)
+- [ ] Detect classes without explicit constructors
+- [ ] Generate implicit default constructor validation
+- [ ] Handle field initialization in implicit constructors
+**Failing Tests:**
+- TestImplicitConstructorSimpleClass
+- TestImplicitConstructorWithFields
+**Estimated**: 2-3 hours
+**Files**: `validation_pass.go`
+
+**6.1.2.6.1.14: Implement Type Conversion/Coercion** (4 tests)
+- [ ] Support implicit numeric conversions (Integer → Float)
+- [ ] Handle explicit conversion operators
+- [ ] Validate function call with type coercion
+- [ ] Support both implicit and explicit conversions
+- [ ] Integer literal to Float context inference
+**Failing Tests:**
+- TestBothExplicitAndImplicitConversion
+- TestImplicitConversionOperator
+- TestFunctionCallWithCoercion
+- TestIntegerLiteralToFloatContextInference
+**Estimated**: 3-4 hours
+**Files**: `validation_pass.go`
+
+**6.1.2.6.1.15: Implement Lazy Parameters** (2 tests)
+- [ ] Add lazy parameter modifier support
+- [ ] Validate lazy parameters aren't evaluated eagerly
+- [ ] Support mixing lazy and regular parameters
+**Failing Tests:**
+- TestLazyParameterMixedWithRegular
+- TestLazyParameterWithRegularParameter
+**Estimated**: 2-3 hours
+**Files**: `validation_pass.go`
+
+**6.1.2.6.1.16: Implement Subrange Types** (1 test)
+- [ ] Extend type resolution for subrange types
+- [ ] Validate subrange assignment compatibility
+- [ ] Check value ranges
+**Failing Tests:**
+- TestSubrangeAssignmentCompatibility
+**Estimated**: 2-3 hours
+**Files**: `validation_pass.go`
+
+**6.1.2.6.1.17: Implement Operator Overloads** (2 tests)
+- [ ] Validate class operator overload declarations
+- [ ] Check operator overload usage in expressions
+- [ ] Handle compound assignment with overloaded operators
+**Failing Tests:**
+- TestClassOperatorCompoundAssignmentWithEmptyArray
+- TestClassOperatorOverload
+**Estimated**: 2-3 hours
+**Files**: `validation_pass.go`
+
+**6.1.2.6.1.18: Miscellaneous Fixes** (4 tests)
+- [ ] Implement AddressOf operator (`@`) validation
+- [ ] Fix case-insensitive method call edge cases
+- [ ] Complete contract `old()` expression validation
+**Failing Tests:**
+- TestAddressOfExpression
+- TestCaseInsensitiveMethodCalls
+- TestContractOldExpressionValidation
+**Estimated**: 2-3 hours
+**Files**: `validation_pass.go`, `contract_pass.go`
+
+**Total Estimated Time**: 55-73 hours (7-9 days of full-time work)
+
+---
 
 **6.1.2.6.2: Complete Pass 4 (Contract Pass) migration**
 - Currently ~90% complete
