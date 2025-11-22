@@ -23,7 +23,6 @@ func IsIdentical(a, b Type) bool {
 //   - Nil -> any reference type: compatible
 //   - Subtype -> Supertype: compatible (for classes, not yet implemented)
 //   - Any type -> Variant: compatible (Variant is universal container)
-//   - Variant -> Variant: compatible
 //
 // Returns true if assignment is valid, false otherwise.
 func IsCompatible(from, to Type) bool {
