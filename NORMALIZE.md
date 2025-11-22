@@ -274,24 +274,30 @@ Migrate bytecode compiler, which uses `strings.EqualFold()`.
 
 ---
 
-## Phase 9: Parser (Priority: LOW)
+## Phase 9: Parser (Priority: LOW) ✅ COMPLETED
 
-Parser uses `strings.EqualFold()` for keyword checks - low priority.
+Parser uses `strings.ToLower()` for keyword checks - migrated for consistency.
 
 ### Tasks
 
-- [ ] **9.1** Audit `internal/parser/` for case conversion
-  - Files: `functions.go`, `operators.go`, `helpers.go`
-  - ~5 files with `strings.EqualFold()` for keyword comparisons
+- [x] **9.1** Audit `internal/parser/` for case conversion
+  - Found 3 production code occurrences (functions.go, operators.go)
+  - Found 3 test code occurrences (error_recovery_test.go) - kept as-is
+  - No `strings.EqualFold()` calls found (contrary to initial assessment)
 
-- [ ] **9.2** Evaluate migration necessity
-  - Decision: Parser keyword checks via `strings.EqualFold()` may be acceptable
-  - Alternative: Migrate to `ident.Equal()` for consistency
-  - Consider: Performance impact (minimal in parser)
+- [x] **9.2** Evaluate migration necessity
+  - Decision: Migrate to `pkg/ident` for consistency across the codebase
+  - All production uses are for identifier/keyword case-insensitive handling
+  - Performance impact: negligible (same underlying functions)
 
-- [ ] **9.3** Migrate parser if decided
-  - Replace: `strings.EqualFold()` → `ident.Equal()`
-  - Run: `go test ./internal/parser/... -v`
+- [x] **9.3** Migrate parser if decided
+  - Migrated `functions.go`:
+    - `isCallingConvention()`: `strings.ToLower()` → `ident.Equal()` (7 comparisons)
+    - `fn.CallingConvention`: `strings.ToLower()` → `ident.Normalize()`
+  - Migrated `operators.go`:
+    - `normalizeOperatorSymbol()`: `strings.ToLower()` → `ident.Normalize()`
+  - Kept `strings` import in `operators.go` for `strings.Join()` (type name concatenation)
+  - Ran: `go test ./internal/parser/... -v` - All tests pass
 
 ---
 
