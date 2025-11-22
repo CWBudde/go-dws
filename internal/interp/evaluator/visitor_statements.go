@@ -6,7 +6,6 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
-	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // Phase 3.5.4 - Phase 2E: Imports for future use (commented out for now)
@@ -331,72 +330,20 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 }
 
 // VisitAssignmentStatement evaluates an assignment statement.
-// Task 3.5.41: Full migration from Interpreter.evalAssignmentStatement()
+// Task 3.5.41: Delegates to adapter for full assignment handling.
+//
+// The adapter handles all assignment complexity including:
+// - Simple assignment: x := value
+// - Member assignment: obj.field := value, TClass.Variable := value
+// - Index assignment: arr[i] := value, obj.Property[x, y] := value
+// - Compound operators: +=, -=, *=, /= with type coercion and operator overloads
+// - ReferenceValue (var parameters), external variables, subrange validation
+// - Implicit type conversions, variant boxing, object reference counting
+// - Property setter dispatch with recursion prevention
+//
+// See comprehensive documentation in internal/interp/statements_assignments.go
 func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx *ExecutionContext) Value {
-	// Task 3.5.41: Assignment statement evaluation with lvalue resolution and compound operators
-	//
-	// See comprehensive documentation in original implementation (internal/interp/statements_assignments.go)
-	// Key features:
-	// - Simple assignment: x := value
-	// - Member assignment: obj.field := value, TClass.Variable := value
-	// - Index assignment: arr[i] := value, obj.Property[x, y] := value
-	// - Compound operators: +=, -=, *=, /= with type coercion and operator overloads
-
-	// Check if this is a compound assignment
-	isCompound := node.Operator != token.ASSIGN && node.Operator != token.TokenType(0)
-
-	var value Value
-
-	if isCompound {
-		// For compound assignments:
-		// 1. Read the current value
-		// 2. Evaluate the RHS
-		// 3. Apply the operation
-		// 4. Store the result
-
-		// Read current value
-		currentValue := e.Eval(node.Target, ctx)
-		if isError(currentValue) {
-			return currentValue
-		}
-
-		// Evaluate the RHS
-		rhsValue := e.Eval(node.Value, ctx)
-		if isError(rhsValue) {
-			return rhsValue
-		}
-
-		// Apply the compound operation
-		value = e.applyCompoundOperation(node.Operator, currentValue, rhsValue, node, ctx)
-		if isError(value) {
-			return value
-		}
-	} else {
-		// Regular assignment - delegate to adapter for array literal and record literal special handling
-		// The adapter has logic for type inference from target variable types
-		value = e.Eval(node.Value, ctx)
-		if isError(value) {
-			return value
-		}
-	}
-
-	// Handle different target types
-	switch target := node.Target.(type) {
-	case *ast.Identifier:
-		// Simple variable assignment: x := value or x += value
-		return e.evalSimpleAssignment(target, value, node, ctx)
-
-	case *ast.MemberAccessExpression:
-		// Member assignment: obj.field := value or obj.field += value
-		return e.evalMemberAssignment(target, value, node, ctx)
-
-	case *ast.IndexExpression:
-		// Array index assignment: arr[i] := value or arr[i] += value
-		return e.evalIndexAssignment(target, value, node, ctx)
-
-	default:
-		return e.newError(node, "invalid assignment target type: %T", target)
-	}
+	return e.adapter.EvalNode(node)
 }
 
 // VisitBlockStatement evaluates a block statement (begin...end).
@@ -1349,83 +1296,6 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 		}
 		return &runtime.NilValue{}
 	}
-}
-
-// ============================================================================
-// Assignment Statement Helpers
-// Task 3.5.41: Helper methods for assignment statement evaluation
-// ============================================================================
-
-// applyCompoundOperation applies a compound assignment operation (+=, -=, *=, /=).
-// Task 3.5.41: Migrated from Interpreter.applyCompoundOperation()
-func (e *Evaluator) applyCompoundOperation(op token.TokenType, left, right Value, stmt *ast.AssignmentStatement, ctx *ExecutionContext) Value {
-	switch op {
-	case token.PLUS_ASSIGN:
-		// += works with Integer, Float, String, Variant, and custom operator overloads
-		// Delegate to adapter for complex type handling
-		return e.adapter.EvalNode(stmt)
-
-	case token.MINUS_ASSIGN:
-		// -= works with Integer, Float, Variant
-		// Delegate to adapter for complex type handling
-		return e.adapter.EvalNode(stmt)
-
-	case token.TIMES_ASSIGN:
-		// *= works with Integer, Float, Variant
-		// Delegate to adapter for complex type handling
-		return e.adapter.EvalNode(stmt)
-
-	case token.DIVIDE_ASSIGN:
-		// /= works with Integer, Float, Variant
-		// Delegate to adapter for complex type handling
-		return e.adapter.EvalNode(stmt)
-
-	default:
-		return e.newError(stmt, "unknown compound operator: %v", op)
-	}
-}
-
-// evalSimpleAssignment handles simple variable assignment: x := value
-// Task 3.5.41: Migrated from Interpreter.evalSimpleAssignment()
-func (e *Evaluator) evalSimpleAssignment(target *ast.Identifier, value Value, stmt *ast.AssignmentStatement, ctx *ExecutionContext) Value {
-	// Simple variable assignment - delegate to adapter for full handling
-	// The adapter handles:
-	// - ReferenceValue (var parameters)
-	// - External variables
-	// - Subrange validation
-	// - Implicit type conversions
-	// - Variant boxing
-	// - Object reference counting
-	// - Interface wrapping
-	// - Function pointer reference counting
-	// - Method context (Self-bound fields, class variables, properties)
-	return e.adapter.EvalNode(stmt)
-}
-
-// evalMemberAssignment handles member assignment: obj.field := value or TClass.Variable := value
-// Task 3.5.41: Migrated from Interpreter.evalMemberAssignment()
-func (e *Evaluator) evalMemberAssignment(target *ast.MemberAccessExpression, value Value, stmt *ast.AssignmentStatement, ctx *ExecutionContext) Value {
-	// Member assignment - delegate to adapter for full handling
-	// The adapter handles:
-	// - Class variable assignment (TClass.Variable := value)
-	// - Class property assignment (TClass.Property := value)
-	// - Record field and property assignment
-	// - Record array element auto-initialization
-	// - Object field and property assignment
-	// - Property setter dispatch with recursion prevention
-	return e.adapter.EvalNode(stmt)
-}
-
-// evalIndexAssignment handles array index assignment: arr[i] := value
-// Task 3.5.41: Migrated from Interpreter.evalIndexAssignment()
-func (e *Evaluator) evalIndexAssignment(target *ast.IndexExpression, value Value, stmt *ast.AssignmentStatement, ctx *ExecutionContext) Value {
-	// Index assignment - delegate to adapter for full handling
-	// The adapter handles:
-	// - Multi-index property writes (obj.Property[x, y] := value)
-	// - Default property writes (obj[i] := value)
-	// - Array element assignment with bounds checking
-	// - Multi-dimensional array indexing
-	return e.adapter.EvalNode(stmt)
 }
 
 // ============================================================================
