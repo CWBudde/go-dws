@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
-	"github.com/cwbudde/go-dws/pkg/ident"
 	pkgast "github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // BuiltinChecker provides an interface for checking and analyzing built-in functions.
