@@ -798,659 +798,288 @@ This causes:
 
 **Goal**: Restructure semantic analysis into explicit passes with clear dependencies, replacing the current single-pass approach that requires complex fix-ups.
 
-**Estimate**: 24-32 hours (3-4 days)
-
-**Status**: IN PROGRESS (Passes 1-2 complete, Pass 2 enabled in dual-mode)
+**Status**: 95.2% COMPLETE (1716/1803 tests passing)
 
 **Priority**: P0 - CRITICAL (Enables correct handling of forward declarations and type dependencies)
 
-**Current Problem**:
-The analyzer tries to do everything in one pass (analyzer.go:276-310):
-```go
-func (a *Analyzer) Analyze(program *ast.Program) error {
-    for _, stmt := range program.Statements {
-        a.analyzeStatement(stmt)  // Does registration + resolution + validation
-    }
-    // Post-hoc fix-ups for things that couldn't be validated in single pass
-    a.validateMethodImplementations()
-    a.validateFunctionImplementations()
-    a.validateClassForwardDeclarations()
-    return ...
-}
-```
-
-This causes:
-- Forward declarations don't work reliably (class A references class B declared later)
-- Complex type dependencies fail (recursive types, circular references)
-- No way to parallelize analysis
-- Difficult to cache intermediate results
-- "Fix-up" validations scattered throughout codebase
-
-**Insight from Analysis**: Lines 287-293 show three separate post-analysis validation passes. These are band-aids for fundamental architectural issues. DWScript's forward declarations and complex type dependencies require proper multi-pass design.
-
-**Subtasks**:
-
-- [x] **6.1.2.1 Design pass architecture** ✅
-  - [x] Create `internal/semantic/` package (uses semantic/ not semantic/passes/)
-  - [x] Define `Pass` interface: `Name() string`, `Run(program *ast.Program, ctx *PassContext) error`
-  - [x] Create `PassContext` struct containing TypeRegistry, SymbolTable, errors
-  - [x] Design pass dependency graph: Pass1 → Pass2 → Pass3 → Pass4
-  - [ ] Write architecture documentation in `docs/semantic-passes.md` (deferred)
-
-- [x] **6.1.2.2 Implement Pass 1: Declaration Collection** ✅
-  - [x] Create `DeclarationPass` that only registers type/function names
-  - [x] Walk AST and register: class names, interface names, enum names, record names
-  - [x] Register function/procedure signatures (without analyzing bodies)
-  - [x] Handle forward declarations by marking types as incomplete
-  - [x] Do NOT resolve type references yet (just collect names)
-  - [x] Write unit tests for declaration collection
-
-- [x] **6.1.2.3 Implement Pass 2: Type Resolution** ✅
-  - [x] Create `TypeResolutionPass` that resolves all type references
-  - [x] Resolve class parent types and interface implementations
-  - [x] Resolve field types, method signatures, parameter types
-  - [x] Build complete type hierarchies (inheritance chains)
-  - [x] Detect circular type dependencies and report errors
-  - [x] Validate that forward-declared types have implementations
-  - [x] Validate that forward-declared methods have implementations (added)
-  - [x] Validate that forward-declared functions have implementations (added)
-  - [x] Write unit tests for type resolution
-
-- [~] **6.1.2.4 Implement Pass 3: Semantic Validation** (~98% complete) ✨
-  - [x] Create `ValidationPass` that type-checks expressions and statements **DONE**
-  - [x] Migrate expression validation from old analyzer (analyzeExpression, etc.) **MOSTLY DONE**
-    - [x] Add support for all expression types (20+ types: literals, operators, OOP features)
-    - [x] Full type checking for binary/unary operators, conditionals
-    - [x] Enhanced call expression validation (argument count/type matching) ✅
-    - [x] Enhanced member access validation (field/method/property lookup) ✅
-    - [x] Context-aware type inference (analyzeExpressionWithExpectedType) ✅
-      - [x] NilLiteral infers class/interface/function pointer types
-      - [x] IntegerLiteral promotes to Float when expected
-      - [x] RecordLiteral field validation with expected type ✅
-        - Typed and anonymous record literals
-        - Field existence, type compatibility, duplicates, missing required fields
-      - [x] ArrayLiteral element type inference ✅
-        - Element type inference, heterogeneous arrays for Variant
-        - Type widening, numeric promotion
-      - [x] SetLiteral element type inference ✅
-        - Ordinal type validation, range expressions, type consistency
-      - [x] Lambda parameter count validation with expected function pointer type ✅
-        - Parameter count check, duplicate parameter detection
-        - Full lambda type inference deferred to analyze_lambdas.go migration
-    - [x] Helper method/property support ✅
-      - Method lookup with array type specialization (Pop method)
-      - Property lookup for helper-defined properties
-      - Class constant lookup for scoped enum access
-      - Generic helper support for arrays and enums
-  - [x] Migrate statement validation from old analyzer (analyzeStatement, etc.) **DONE**
-    - [x] Add support for all statement types (15+ types: loops, exceptions, control flow)
-    - [x] Full validation for var/const declarations, assignments
-    - [x] Enhanced assignment validation **DONE** ✅
-      - [x] Validate compound assignment operators (+=, -=, *=, /=)
-      - [x] Check operator compatibility with target type
-      - [x] Validate assignability for compound operations
-    - [x] Function body validation
-      - [x] Analyze control flow paths through function body
-      - [x] Validate all paths return a value (for functions, not procedures)
-      - [x] Check for unreachable code after return statements
-      - [x] Validate return types match function signature
-  - [ ] Migrate builtin function validation from old analyzer **TODO (large scope, low priority)**
-    - [ ] Core string functions (Length, Copy, Pos, etc.) - ~10 functions
-    - [ ] Math functions (Abs, Sin, Cos, Sqrt, etc.) - ~15 functions
-    - [ ] Conversion functions (IntToStr, StrToInt, FloatToStr, etc.) - ~12 functions
-    - [ ] Array functions (SetLength, Low, High, etc.) - ~7 functions
-    - Note: Most builtin validation already happens in old analyzer
-    - This is a large migration effort that can be deferred
-  - [x] Validate variable declarations and assignments **DONE**
-  - [x] Type-check all expressions (binary ops, calls, member access) **DONE**
-  - [x] Validate control flow (break/continue in loops, return in functions) **DONE**
-  - [x] Check abstract method implementations in concrete classes **DONE** ✅
-  - [x] Validate interface method implementations **DONE** ✅
-  - [x] Visibility checking (private/protected/public)
-    - [x] Check field visibility in member access expressions
-    - [x] Check method visibility in method calls
-    - [x] Check property visibility in property access
-    - [x] Check class variable visibility
-    - [x] Validate visibility rules (private, protected, public, published)
-    - [x] Check strict private enforcement (same class only)
-  - [x] Write comprehensive unit tests for ValidationPass **DONE** ✅
-    - [x] Test expression validation (literals, operators, calls)
-    - [x] Test statement validation (loops, conditionals, declarations)
-    - [x] Test OOP validation (classes, interfaces, inheritance)
-    - [x] Test context-aware type inference
-    - [x] Test helper method/property support
-    - [x] Test error reporting and recovery
-
-- [~] **6.1.2.5 Implement Pass 4: Contract Validation** (~90% complete) ✨
-  - [x] Create `ContractPass` for requires/ensures/invariant checking **DONE**
-  - [x] Migrate contract validation logic from old analyzer **DONE**
-  - [x] Validate that postconditions only use valid 'old' expressions **DONE**
-  - [ ] Check class invariants are maintained **BLOCKED** (see task 6.1.2.7)
-  - [x] Validate requires clauses properly **DONE**
-  - [x] Write unit tests for contract validation **DONE** (5 tests passing)
-
-**Completed**:
-- Enhanced error messages with position tracking and function context
-- Implemented `isBooleanCompatible()` for robust boolean type checking
-- Added comprehensive `validateOldExpressions()` with recursive AST traversal
-- Validates old() references in binary, unary, grouped, call, index, and member expressions
-- All contract validation tests pass (5/5)
-
-**Blocked**:
-- Class invariant validation requires AST support (tracked in task 6.1.2.7)
-
-**Status**: Ready for integration into full 4-pass pipeline
-
-- [~] **6.1.2.6 Integrate passes into Analyzer** ⚠️ **IN PROGRESS**
-  - [x] Refactor `Analyzer.Analyze()` to run Pass 2 in dual-mode
-  - [x] Pass shared context between passes (TypeRegistry, SymbolTable)
-  - [x] Collect errors from all passes before returning
-  - [x] Remove post-hoc validation methods (migrated to Pass 2)
-  - [x] Run full test suite to verify correctness (all semantic tests pass)
-  - [x] Add BuiltinChecker interface to PassContext for future use
-  - [~] **6.1.2.6.1 Complete Pass 3 migration** ⚠️ **95.2% COMPLETE** (18 subtasks remaining)
-    - [x] Enable Pass 3 in dual mode (95.2% test pass rate)
-    - [ ] 6.1.2.6.1.1: Scoped Symbol Tables (6 tests)
-    - [ ] 6.1.2.6.1.2: Const Parameter Handling (4 tests)
-    - [ ] 6.1.2.6.1.3: Class Variables/Static Fields (6 tests)
-    - [ ] 6.1.2.6.1.4: Function Pointer Types (7 tests)
-    - [ ] 6.1.2.6.1.5: Lambda Expression Validation (7 tests)
-    - [ ] 6.1.2.6.1.6: Set Type Support (6 tests)
-    - [ ] 6.1.2.6.1.7: Array of Const Literals (5 tests)
-    - [ ] 6.1.2.6.1.8: Full Builtin Validation (15 tests)
-    - [ ] 6.1.2.6.1.9: Type Operators (is/as/implements) (10 tests)
-    - [ ] 6.1.2.6.1.10: Interface Type Validation (4 tests)
-    - [ ] 6.1.2.6.1.11: Exception Variable Scoping (2 tests)
-    - [ ] 6.1.2.6.1.12: For-In Loop Edge Cases (4 tests)
-    - [ ] 6.1.2.6.1.13: Implicit Constructors (2 tests)
-    - [ ] 6.1.2.6.1.14: Type Conversion/Coercion (4 tests)
-    - [ ] 6.1.2.6.1.15: Lazy Parameters (2 tests)
-    - [ ] 6.1.2.6.1.16: Subrange Types (1 test)
-    - [ ] 6.1.2.6.1.17: Operator Overloads (2 tests)
-    - [ ] 6.1.2.6.1.18: Miscellaneous Fixes (4 tests)
-  - [ ] **6.1.2.6.2 Complete Pass 4 migration** (READY - awaiting Pass 3 completion)
-  - [ ] **6.1.2.6.3 Enable all 4 passes** (READY - awaiting Pass 3/4 completion)
-  - [ ] **6.1.2.6.4 Remove old analyzer loop entirely** (READY - awaiting 6.1.2.6.3)
-
-**Current Status**: HYBRID MODE (Pass 2 + Pass 3 ENABLED & COMPLETE)
-- ✅ Pass 2 (Type Resolution) is integrated and runs alongside old analyzer
-- ✅ **Pass 3 (Semantic Validation) COMPLETE** - 95.2% test pass rate!
-- ✅ Forward declarations work correctly
-- ✅ **95.2% test pass rate** (1716/1803 tests) with Pass 2 + Pass 3 enabled
-- ✅ Pass 3 validates all major features (operators, loops, types, calls, etc.)
-- ⚠️ Old analyzer still handles declaration collection and 4.8% edge cases
-- ⚠️ Pass 4 (~90% complete) exists but is not yet enabled
-
-**Remaining Work**:
-
-**6.1.2.6.1: Complete Pass 3 (Validation Pass) migration** ✅ **DONE** (95.2% pass rate in dual mode)
-
-**✅ Completed (all major features + edge case fixes)**:
-- ✅ Variant type compatibility (universal assignment to Variant + type alias resolution)
-- ✅ Lambda expression validation (CurrentFunction context for return statements)
-- ✅ Variadic function/method parameter support (argument validation)
-- ✅ Class method lookup from current class context (unqualified calls)
-- ✅ Basic builtin function support via BuiltinChecker interface
-- ✅ Expression type checking (binary ops, unary ops, literals, calls, etc.)
-- ✅ Statement validation (if, while, for, return, break, continue, etc.)
-- ✅ Class/interface validation (inheritance, method overrides, etc.)
-- ✅ Variable declaration validation (with complex type skipping in dual mode)
-- ✅ Function/method call validation (including variadic)
-- ✅ **ENABLED IN DUAL MODE** - Pass 3 runs alongside old analyzer
-- ✅ **Result implicit variable** handling in functions/methods
-- ✅ **Parameter access** validation within function bodies
-- ✅ **Field access** (including inherited fields via unqualified access)
-- ✅ **CurrentClass context** set correctly for method validation
-- ✅ **Lambda return validation** with nil Name handling
-- ✅ **Type compatibility** with Variant and type aliases
-- ✅ **String concatenation** with `+` operator
-- ✅ **Numeric comparisons** (Integer vs Float)
-- ✅ **div/mod operators** for integer division and modulo
-- ✅ **For loop variables** (for..to/downto and for..in)
-- ✅ **Complex type skipping** (arrays, sets, function pointers in dual mode)
-- ✅ **Local variable scoping** (workaround for function-local vars in dual mode)
-- ✅ **95.2% test pass rate** (1716/1803 tests passing)
-
-**⚠️ Remaining (4.8% edge cases - 87 tests) - Deferred to post-dual-mode**:
-1. **Class variables (static fields)** (~15 tests)
-   - Requires special handling in member access validation
-   - Old analyzer handles correctly
-
-2. **Array of const / const parameters** (~20 tests)
-   - Requires const modifier handling in parameters
-   - Old analyzer handles correctly
-
-3. **Set type inference** (~10 tests)
-   - Requires set literal type inference
-   - Old analyzer handles correctly
-
-4. **Builtin function edge cases** (~20 tests)
-   - Complex builtin validation scenarios
-   - Old analyzer handles correctly
-
-5. **Advanced scoping** (~15 tests)
-   - Exception variable scoping
-   - Nested local scopes
-   - Old analyzer handles correctly
-
-6. **Other edge cases** (~7 tests)
-   - Implicit constructors, contract validation, misc
-   - Old analyzer handles correctly
-
-**Status**: COMPLETE for dual mode operation
-**Files**: `internal/semantic/validation_pass.go`, `internal/semantic/pass_context.go`
-**Commits**: 5568660, fc518be, 1a7bd77
-**Test coverage**: 95.2% (1716/1803) - Production ready for dual mode ✅
-
-**Next Steps** (when removing old analyzer):
-- See detailed subtasks below (6.1.2.6.1.1 through 6.1.2.6.1.17)
+**Original Problem**: The analyzer tried to do everything in one pass, causing issues with forward declarations, complex type dependencies, and requiring scattered "fix-up" validation passes. DWScript's forward declarations and circular type references require proper multi-pass design.
 
 ---
 
-### Detailed Subtasks to Complete Pass 3 (87 remaining tests)
+### Completed Work Summary
 
-**6.1.2.6.1.1: Implement Scoped Symbol Tables for Local Variables** ✅ COMPLETE
-- [x] Implement `ScopedSymbolTable` with parent scope chain
-- [x] Push/pop scopes on function entry/exit
-- [x] Update `checkIdentifier` to search scope chain instead of global symbols
-- [x] Handle function parameters in function scope
-- [x] Handle local `var` and `const` declarations
-- [x] Fix type name lookup in TypeRegistry
-- [x] Add lambda parameter scoping
-**Fixed Tests (16 net improvement):**
-- ✅ TestFunctionWithLocalVariables
-- ✅ TestFunctionParameterScope
-- ✅ TestFunctionLocalConstDeclaration
-- ✅ TestFunctionLocalConstWithOrd
-- ✅ TestContractOldExpressionValidation (bonus)
-- ✅ TestConstructorCaseInsensitive (+8 constructor tests)
-- ✅ TestLambdaInFunctionCall (+3 lambda tests)
-- ❌ TestExitInProcedure (old analyzer issue)
-- ❌ TestClosureCapture (needs closure capture analysis - separate subtask)
-**Actual**: ~6 hours
-**Test Impact**: +16 passing tests (87→71 failing, 93.2% pass rate)
-**Files**: `pass_context.go`, `validation_pass.go`, `analyzer.go`
-**Commits**: 7a31526, c92e6a3
+**Infrastructure** (100% complete):
+- ✅ Created Pass interface (`Name()`, `Run(program, ctx)`) and PassManager
+- ✅ Created PassContext with TypeRegistry, SymbolTable, BuiltinChecker interface, ScopedSymbolTable
+- ✅ Designed 4-pass architecture: Declaration → Type Resolution → Validation → Contracts
+- ✅ Integrated passes into Analyzer with dual-mode execution (old + new passes run together)
+- ✅ All pass infrastructure files created and tested
 
-**6.1.2.6.1.2: Implement Const Parameter Handling** (4 tests)
-- [ ] Add `IsConst` flag tracking to parameter validation
-- [ ] Validate that const parameters aren't modified in function body
-- [ ] Track assignment targets to detect const violations
-**Failing Tests:**
-- TestConstParameter
-- TestConstParameterWithArray
-**Estimated**: 2-3 hours
-**Files**: `validation_pass.go`
+**Pass 1: Declaration Collection** (100% complete):
+- ✅ Registers all type names (classes, interfaces, enums, records, sets, arrays, type aliases)
+- ✅ Registers function/procedure signatures without analyzing bodies
+- ✅ Handles forward declarations by marking types as incomplete
+- ✅ Unit tests passing
 
-**6.1.2.6.1.3: Implement Class Variables (Static Fields)** (6 tests)
-- [ ] Extend `checkMemberAccessExpression` to handle static field access via class name
-- [ ] Add `ClassType.ClassVars` lookup in member access
-- [ ] Validate visibility rules for class variables
-- [ ] Handle class variable assignment
-**Failing Tests:**
-- TestClassVariableAccessViaClassName
-- TestClassVariableAssignment
-- TestClassVariableInheritance
-- TestClassVariableShadowing
-- TestClassVariableWithInitialization
-- TestPublicClassVariableAccessFromAnywhere
-**Estimated**: 3-4 hours
-**Files**: `validation_pass.go`
+**Pass 2: Type Resolution** (100% complete):
+- ✅ Resolves all type references (class parents, interface implementations, field types, method signatures)
+- ✅ Builds complete type hierarchies (inheritance chains)
+- ✅ Detects circular type dependencies and reports errors
+- ✅ Validates forward-declared types/methods/functions have implementations
+- ✅ Enabled in dual-mode alongside old analyzer
+- ✅ Unit tests passing
 
-**6.1.2.6.1.4: Implement Function Pointer Type Resolution** (7 tests)
-- [ ] Extend `resolveTypeExpression` to handle `ast.FunctionPointerType`
-- [ ] Map to `types.FunctionPointerType` from context.FunctionPointers
-- [ ] Validate function pointer assignments (signature compatibility)
-- [ ] Validate function pointer calls (argument types, return type)
-- [ ] Handle implicit function-to-pointer conversion
-**Failing Tests:**
-- TestFunctionPointerAssignment
-- TestFunctionPointerCall
-- TestFunctionPointerTypeInference
-- TestImplicitFunctionToPointerConversion
-- TestInlineFunctionPointerAssignment
-- TestInlineFunctionPointerCall
-- TestMultipleFunctionPointerTypes
-**Estimated**: 4-5 hours
-**Files**: `validation_pass.go`
+**Pass 3: Semantic Validation** (95.2% complete - 1716/1803 tests):
+- ✅ Created ValidationPass with comprehensive expression/statement type checking
+- ✅ Migrated all major validation logic from old analyzer:
+  - Expression validation (20+ types: literals, binary/unary ops, calls, member access, etc.)
+  - Statement validation (15+ types: loops, conditionals, declarations, assignments, etc.)
+  - Control flow validation (break/continue in loops, return paths in functions)
+  - OOP validation (class inheritance, interface implementations, abstract methods, visibility)
+  - Context-aware type inference (Nil, Integer→Float promotion, Record/Array/Set literals)
+  - Helper method/property support (array.Pop, scoped enum access)
+  - Variadic function/method parameter support
+  - Compound assignment operators (+=, -=, *=, /=)
+- ✅ Implemented ScopedSymbolTable with parent scope chain for local variables
+- ✅ Enabled in dual-mode alongside old analyzer
+- ✅ 95.2% test pass rate (87 failing tests are edge cases)
 
-**6.1.2.6.1.5: Implement Lambda Expression Full Validation** (7 tests)
-- [ ] Implement lambda type inference from context
-- [ ] Handle lambda parameter scoping properly
-- [ ] Validate lambda return type matches inferred/declared type
-- [ ] Support variadic lambda inference
-- [ ] Implement closure capture analysis
-**Failing Tests:**
-- TestLambdaExpressionBasic
-- TestLambdaInferenceEdgeCases
-- TestLambdaParameterScoping
-- TestLambdaParameterTypeInference
-- TestOverloadDetectionWithLambdas
-- TestVariadicLambdaInference
-**Estimated**: 5-6 hours
-**Files**: `validation_pass.go`
+**Pass 4: Contract Validation** (90% complete):
+- ✅ Created ContractPass for requires/ensures/invariant checking
+- ✅ Validates postconditions only use valid 'old' expressions
+- ✅ Validates requires clauses
+- ✅ Validates class invariants (AST support added, parser extended, validation implemented)
+- ⚠️ Some edge case integration testing remaining
+- ✅ 5 unit tests passing
 
-**6.1.2.6.1.6: Implement Set Type Support** (6 tests)
-- [ ] Extend `resolveTypeExpression` to handle `ast.SetType`
-- [ ] Map to `types.SetType` from context
-- [ ] Implement set literal type inference
-- [ ] Validate set membership operators (`in`)
-- [ ] Validate set operations (`+`, `-`, `*` for union/difference/intersection)
-- [ ] Handle large set optimization detection
-**Failing Tests:**
-- TestSetLiterals
-- TestSetMembership
-- TestSetOperations
-- TestLargeSetTypeInference
-- TestLargeSetOperationTypeChecking
-- TestLargeSetStorageKindIndependence
-**Estimated**: 4-5 hours
-**Files**: `validation_pass.go`
+**Class Invariant Support** (100% complete):
+- ✅ Added InvariantClause AST node and Invariants field to ClassDecl
+- ✅ Extended parser to recognize 'invariants' keyword
+- ✅ Integrated invariant validation into ContractPass
+- ✅ Parser tests passing
+- Note: Runtime invariant checking (executing after constructors/methods) deferred to future task
 
-**6.1.2.6.1.7: Implement Array of Const Literal Validation** (5 tests)
-- [ ] Handle `array of const` type expressions
-- [ ] Validate array literal type inference for const arrays
-- [ ] Check element type compatibility (homogeneous vs heterogeneous)
-- [ ] Handle empty array literals
-- [ ] Support type aliases for array of const
-**Failing Tests:**
-- TestArrayOfConstArrayCompatibility
-- TestArrayOfConstEmptyLiteral
-- TestArrayOfConstLiteralHeterogeneous
-- TestArrayOfConstLiteralHomogeneous
-- TestArrayOfConstTypeAlias
-**Estimated**: 3-4 hours
-**Files**: `validation_pass.go`
+**Files Created**:
+- `internal/semantic/pass.go`, `pass_context.go`
+- `internal/semantic/declaration_pass.go`, `type_resolution_pass.go`, `validation_pass.go`, `contract_pass.go`
+- `internal/semantic/passes/*_test.go`
 
-**6.1.2.6.1.8: Implement Full Builtin Function Validation** (15 tests)
-- [ ] Extend builtin validation beyond basic cases
-- [ ] Handle builtins with array parameters (Low, High, SetLength, etc.)
-- [ ] Validate builtin calls in function contexts
-- [ ] Support builtin chaining
-- [ ] Handle conversion builtins (IntToStr, StrToInt, etc.)
-- [ ] Validate DateTime, JSON, Math, String builtins
-**Failing Tests:**
-- TestBuiltinArray_AsParameter, TestBuiltinArray_EmptyArray, TestBuiltinArray_InFunction
-- TestBuiltinArray_IterationWithBounds, TestBuiltinArray_LowHighLength
-- TestBuiltinConvert_AsParameters, TestBuiltinConvert_InFunction
-- TestBuiltinDateTime_InFunction, TestBuiltinJSON_InFunction
-- TestBuiltinMath_AsParameters
-- TestBuiltinString_AsParameters, TestBuiltinString_ChainedOperations
-- TestBuiltinVariant_ArrayOfVariants, TestBuiltinVariant_Conditionals, TestBuiltinVariant_InFunction
-**Estimated**: 5-6 hours
-**Files**: `validation_pass.go`, potentially new `builtin_validator.go`
-
-**6.1.2.6.1.9: Implement Type Operators (is, as, implements)** (10 tests)
-- [ ] Add support for `is` operator (runtime type checking)
-- [ ] Add support for `as` operator (type casting with check)
-- [ ] Add support for `implements` operator (interface checking)
-- [ ] Validate operand types for each operator
-- [ ] Handle chained type operators
-- [ ] Support type operators in conditions and assignments
-**Failing Tests:**
-- TestTypeOperator_As_DowncastValid, TestTypeOperator_As_WithCheck
-- TestTypeOperator_Implements_InCondition
-- TestTypeOperator_Is_ClassInheritance, TestTypeOperator_Is_InCondition
-- TestTypeOperators_AllThreeTogether, TestTypeOperators_ChainedIs
-- TestTypeOperators_InFunction, TestTypeOperators_IsAndAs_Together
-- TestTypeOperators_WithPolymorphism
-**Estimated**: 4-5 hours
-**Files**: `validation_pass.go`
-
-**6.1.2.6.1.10: Implement Interface Type Validation** (4 tests)
-- [ ] Validate interface variable assignment
-- [ ] Check class-to-interface assignment compatibility
-- [ ] Check interface-to-interface assignment
-- [ ] Validate interface types in function returns
-- [ ] Ensure interface method compatibility
-**Failing Tests:**
-- TestInterfaceInFunctionReturn
-- TestInterfaceVariableAssignment
-- TestValidClassToInterfaceAssignment
-- TestValidInterfaceToInterfaceAssignment
-**Estimated**: 2-3 hours
-**Files**: `validation_pass.go`
-
-**6.1.2.6.1.11: Implement Exception Variable Scoping** (2 tests)
-- [ ] Handle exception variable scope in try/except blocks
-- [ ] Validate exception variable types
-- [ ] Ensure exception variables are only visible in except block
-- [ ] Support break/continue with exception handling
-**Failing Tests:**
-- TestExceptionVariableScoping
-- TestBreakContinueWithExceptionHandling
-**Estimated**: 2-3 hours
-**Files**: `validation_pass.go`
-
-**6.1.2.6.1.12: Fix For-In Loop Edge Cases** (4 tests)
-- [ ] Handle inline variable declarations in for-in loops
-- [ ] Ensure for-in works with break/continue
-- [ ] Support nested for-in loops properly
-- [ ] Fix loop variable scoping for for-in
-**Failing Tests:**
-- TestForInWithInlineVar
-- TestForInWithBreak
-- TestForInWithContinue
-- TestNestedForInLoops
-**Estimated**: 2-3 hours
-**Files**: `validation_pass.go`
-
-**6.1.2.6.1.13: Implement Implicit Constructor Support** (2 tests)
-- [ ] Detect classes without explicit constructors
-- [ ] Generate implicit default constructor validation
-- [ ] Handle field initialization in implicit constructors
-**Failing Tests:**
-- TestImplicitConstructorSimpleClass
-- TestImplicitConstructorWithFields
-**Estimated**: 2-3 hours
-**Files**: `validation_pass.go`
-
-**6.1.2.6.1.14: Implement Type Conversion/Coercion** (4 tests)
-- [ ] Support implicit numeric conversions (Integer → Float)
-- [ ] Handle explicit conversion operators
-- [ ] Validate function call with type coercion
-- [ ] Support both implicit and explicit conversions
-- [ ] Integer literal to Float context inference
-**Failing Tests:**
-- TestBothExplicitAndImplicitConversion
-- TestImplicitConversionOperator
-- TestFunctionCallWithCoercion
-- TestIntegerLiteralToFloatContextInference
-**Estimated**: 3-4 hours
-**Files**: `validation_pass.go`
-
-**6.1.2.6.1.15: Implement Lazy Parameters** (2 tests)
-- [ ] Add lazy parameter modifier support
-- [ ] Validate lazy parameters aren't evaluated eagerly
-- [ ] Support mixing lazy and regular parameters
-**Failing Tests:**
-- TestLazyParameterMixedWithRegular
-- TestLazyParameterWithRegularParameter
-**Estimated**: 2-3 hours
-**Files**: `validation_pass.go`
-
-**6.1.2.6.1.16: Implement Subrange Types** (1 test)
-- [ ] Extend type resolution for subrange types
-- [ ] Validate subrange assignment compatibility
-- [ ] Check value ranges
-**Failing Tests:**
-- TestSubrangeAssignmentCompatibility
-**Estimated**: 2-3 hours
-**Files**: `validation_pass.go`
-
-**6.1.2.6.1.17: Implement Operator Overloads** (2 tests)
-- [ ] Validate class operator overload declarations
-- [ ] Check operator overload usage in expressions
-- [ ] Handle compound assignment with overloaded operators
-**Failing Tests:**
-- TestClassOperatorCompoundAssignmentWithEmptyArray
-- TestClassOperatorOverload
-**Estimated**: 2-3 hours
-**Files**: `validation_pass.go`
-
-**6.1.2.6.1.18: Miscellaneous Fixes** (4 tests)
-- [ ] Implement AddressOf operator (`@`) validation
-- [ ] Fix case-insensitive method call edge cases
-- [ ] Complete contract `old()` expression validation
-**Failing Tests:**
-- TestAddressOfExpression
-- TestCaseInsensitiveMethodCalls
-- TestContractOldExpressionValidation
-**Estimated**: 2-3 hours
-**Files**: `validation_pass.go`, `contract_pass.go`
-
-**Total Estimated Time**: 55-73 hours (7-9 days of full-time work)
+**Files Modified**:
+- `internal/semantic/analyzer.go` (dual-mode integration, removed legacy validation methods)
 
 ---
 
-**6.1.2.6.2: Complete Pass 4 (Contract Pass) migration**
-- Currently ~90% complete
-- Missing features:
-  - Additional edge cases in contract validation
+### Remaining Tasks (87 failing tests, ~60-75 hours)
+
+**Dependencies**: Tasks are ordered by logical dependencies. Type system tasks must come before features that use them.
+
+---
+
+#### Foundation: Type System Completion (Must complete first)
+
+- [ ] **6.1.2.1: Function Pointer Type Resolution** (7 tests, 4-5 hours)
+  - Extend `resolveTypeExpression` to handle `ast.FunctionPointerType`
+  - Map to `types.FunctionPointerType` from context.FunctionPointers
+  - Validate function pointer assignments (signature compatibility)
+  - Validate function pointer calls (argument types, return type)
+  - Handle implicit function-to-pointer conversion
+  - **Blocks**: Task 6.1.2.10 (Lambda validation needs function pointer types)
+  - **Files**: `validation_pass.go`
+
+- [ ] **6.1.2.2: Set Type Support** (6 tests, 4-5 hours)
+  - Extend `resolveTypeExpression` to handle `ast.SetType`
+  - Map to `types.SetType` from context
+  - Implement set literal type inference
+  - Validate set membership operators (`in`)
+  - Validate set operations (`+`, `-`, `*` for union/difference/intersection)
+  - Handle large set optimization detection
+  - **Files**: `validation_pass.go`
+
+- [ ] **6.1.2.3: Subrange Types** (1 test, 2-3 hours)
+  - Extend type resolution for subrange types
+  - Validate subrange assignment compatibility
+  - Check value ranges
+  - **Files**: `validation_pass.go`
+
+- [ ] **6.1.2.4: Interface Type Validation** (4 tests, 2-3 hours)
+  - Validate interface variable assignment
+  - Check class-to-interface assignment compatibility
+  - Check interface-to-interface assignment
+  - Validate interface types in function returns
+  - Ensure interface method compatibility
+  - **Blocks**: Task 6.1.2.5 (type operators need interface validation)
+  - **Files**: `validation_pass.go`
+
+- [ ] **6.1.2.5: Type Operators (is/as/implements)** (10 tests, 4-5 hours)
+  - Add support for `is` operator (runtime type checking)
+  - Add support for `as` operator (type casting with check)
+  - Add support for `implements` operator (interface checking)
+  - Validate operand types for each operator
+  - Handle chained type operators
+  - Support type operators in conditions and assignments
+  - **Depends on**: Task 6.1.2.4 (needs interface validation)
+  - **Files**: `validation_pass.go`
+
+- [ ] **6.1.2.6: Type Conversion/Coercion** (4 tests, 3-4 hours)
+  - Support implicit numeric conversions (Integer → Float)
+  - Handle explicit conversion operators
+  - Validate function call with type coercion
+  - Support both implicit and explicit conversions
+  - Integer literal to Float context inference
+  - **Files**: `validation_pass.go`
+
+---
+
+#### Parameters & Variables
+
+- [ ] **6.1.2.7: Const Parameter Handling** (4 tests, 2-3 hours)
+  - Add `IsConst` flag tracking to parameter validation
+  - Validate that const parameters aren't modified in function body
+  - Track assignment targets to detect const violations
+  - **Files**: `validation_pass.go`
+
+- [ ] **6.1.2.8: Lazy Parameters** (2 tests, 2-3 hours)
+  - Add lazy parameter modifier support
+  - Validate lazy parameters aren't evaluated eagerly
+  - Support mixing lazy and regular parameters
+  - **Files**: `validation_pass.go`
+
+- [ ] **6.1.2.9: Class Variables (Static Fields)** (6 tests, 3-4 hours)
+  - Extend `checkMemberAccessExpression` to handle static field access via class name
+  - Add `ClassType.ClassVars` lookup in member access
+  - Validate visibility rules for class variables
+  - Handle class variable assignment
+  - **Files**: `validation_pass.go`
+
+---
+
+#### Expressions & Statements
+
+- [ ] **6.1.2.10: Lambda Expression Full Validation** (7 tests, 5-6 hours)
+  - Implement lambda type inference from context
+  - Handle lambda parameter scoping properly
+  - Validate lambda return type matches inferred/declared type
+  - Support variadic lambda inference
+  - Implement closure capture analysis
+  - **Depends on**: Task 6.1.2.1 (needs function pointer types)
+  - **Files**: `validation_pass.go`
+
+- [ ] **6.1.2.11: Array of Const Literals** (5 tests, 3-4 hours)
+  - Handle `array of const` type expressions
+  - Validate array literal type inference for const arrays
+  - Check element type compatibility (homogeneous vs heterogeneous)
+  - Handle empty array literals
+  - Support type aliases for array of const
+  - **Files**: `validation_pass.go`
+
+- [ ] **6.1.2.12: Exception Variable Scoping** (2 tests, 2-3 hours)
+  - Handle exception variable scope in try/except blocks
+  - Validate exception variable types
+  - Ensure exception variables are only visible in except block
+  - Support break/continue with exception handling
+  - **Files**: `validation_pass.go`
+
+- [ ] **6.1.2.13: For-In Loop Edge Cases** (4 tests, 2-3 hours)
+  - Handle inline variable declarations in for-in loops
+  - Ensure for-in works with break/continue
+  - Support nested for-in loops properly
+  - Fix loop variable scoping for for-in
+  - **Files**: `validation_pass.go`
+
+---
+
+#### OOP Features
+
+- [ ] **6.1.2.14: Implicit Constructor Support** (2 tests, 2-3 hours)
+  - Detect classes without explicit constructors
+  - Generate implicit default constructor validation
+  - Handle field initialization in implicit constructors
+  - **Files**: `validation_pass.go`
+
+- [ ] **6.1.2.15: Operator Overloads** (2 tests, 2-3 hours)
+  - Validate class operator overload declarations
+  - Check operator overload usage in expressions
+  - Handle compound assignment with overloaded operators
+  - **Files**: `validation_pass.go`
+
+---
+
+#### Builtins & Miscellaneous
+
+- [ ] **6.1.2.16: Full Builtin Function Validation** (15 tests, 5-6 hours)
+  - Extend builtin validation beyond basic cases
+  - Handle builtins with array parameters (Low, High, SetLength, etc.)
+  - Validate builtin calls in function contexts
+  - Support builtin chaining
+  - Handle conversion builtins (IntToStr, StrToInt, etc.)
+  - Validate DateTime, JSON, Math, String builtins
+  - **Note**: Most builtin validation already works via BuiltinChecker interface
+  - **Files**: `validation_pass.go`, potentially new `builtin_validator.go`
+
+- [ ] **6.1.2.17: Miscellaneous Fixes** (4 tests, 2-3 hours)
+  - Implement AddressOf operator (`@`) validation
+  - Fix case-insensitive method call edge cases
+  - Complete contract `old()` expression validation edge cases
+  - **Files**: `validation_pass.go`, `contract_pass.go`
+
+---
+
+#### Integration & Cleanup
+
+- [ ] **6.1.2.18: Complete Pass 4 (Contract Pass) Migration** (2-4 hours)
+  - Fix remaining edge cases in contract validation
   - Integration testing with complex scenarios
-- Estimated: 2-4 hours
-- Files: `internal/semantic/contract_pass.go`
+  - Ensure all contract tests pass
+  - **Files**: `contract_pass.go`
 
-**6.1.2.6.3: Enable all 4 passes**
-- Replace old analyzer loop with PassManager running all 4 passes
-- Verify all tests still pass
-- Handle any edge cases discovered during testing
-- Estimated: 2-4 hours
+- [ ] **6.1.2.19: Enable All 4 Passes** (2-4 hours)
+  - Replace old analyzer loop with PassManager running all 4 passes
+  - Verify all 1803 tests pass
+  - Handle any edge cases discovered during full integration
+  - **Depends on**: All tasks 6.1.2.1-6.1.2.18 complete
+  - **Files**: `analyzer.go`
 
-**6.1.2.6.4: Remove old analyzer loop entirely**
-- Delete `analyzeStatement()` and all related old validation code
-- Clean up any dead code
-- Update documentation
-- Estimated: 2-4 hours
+- [ ] **6.1.2.20: Remove Old Analyzer Loop** (2-4 hours)
+  - Delete `analyzeStatement()` and all related old validation code
+  - Remove dual-mode infrastructure
+  - Clean up dead code from `analyze_*.go` files
+  - Update documentation to reflect new architecture
+  - **Depends on**: Task 6.1.2.19 complete
+  - **Files**: `analyzer.go`, various `analyze_*.go` files
 
-**Total remaining estimate**: 6-12 hours (1-1.5 days)
-- Pass 3: 2-4 hours (mostly integration testing)
-- Pass 4: 2-4 hours (edge cases and testing)
-- Enable passes: 1-2 hours (dual mode testing)
-- Cleanup: 1-2 hours (remove old analyzer loop)
+- [ ] **6.1.2.21: Add Pass Result Caching** (8-12 hours, DEFERRED)
+  - Cache Pass 1 results for incremental re-analysis
+  - Cache Pass 2 type resolution for unchanged files
+  - Design cache invalidation strategy (changed files invalidate dependent passes)
+  - Write tests for caching behavior
+  - **Note**: Deferred until after multi-pass architecture is fully enabled
+  - **Files**: New `pass_cache.go`
 
-- [x] **6.1.2.7 Implement Class Invariant Support** 🎯 **MEDIUM PRIORITY** ✅ **DONE**
-  - [x] Add AST support for class invariants
-    - [x] Add `Invariants` field to `ClassDecl` in `pkg/ast/classes.go`
-    - [x] Define `InvariantClause` AST node structure (similar to `PreConditions`/`PostConditions`)
-    - [x] Add `Condition` list to hold invariant expressions
-  - [x] Extend parser to recognize invariant clauses
-    - [x] Parse `invariants` keyword in class declarations
-    - [x] Parse invariant conditions (boolean expressions with optional messages)
-    - [x] Handle multiple invariants per class
-    - [ ] Support invariant inheritance from parent classes (deferred to runtime implementation)
-  - [x] Update semantic analysis for invariants
-    - [x] Validate invariant expressions are boolean (Pass 4: ContractPass)
-    - [x] Check that invariants only reference fields and class constants
-    - [x] Validate that invariants don't have side effects (no method calls that modify state)
-    - [ ] Ensure invariants are inherited from parent classes (deferred to runtime implementation)
-  - [ ] Implement runtime invariant checking (DEFERRED to future task)
-    - [ ] Check invariants after constructor execution
-    - [ ] Check invariants after destructor execution (before cleanup)
-    - [ ] Check invariants after public method execution (optional, performance sensitive)
-    - [ ] Add flag to enable/disable invariant checking (for production builds)
-  - [x] Write comprehensive tests
-    - [x] Parser tests for invariant syntax
-    - [ ] Semantic tests for invariant validation (covered by ContractPass)
-    - [ ] Runtime tests for invariant checking (deferred with runtime implementation)
-    - [ ] Test invariant inheritance (deferred with runtime implementation)
-    - [ ] Test error messages for invariant violations (deferred with runtime implementation)
-  - [x] Update ContractPass (Pass 4) to validate class invariants
-    - [x] Complete TODO at `contract_pass.go:120` ("Validate class invariants when added to AST")
-    - [x] Integrate invariant validation into existing contract validation flow
+---
 
-**Status**: DONE (Core implementation complete; runtime checking deferred)
+### Current Architecture (Dual-Mode)
 
-**Priority**: P2 - MEDIUM (Required for complete Design-by-Contract support)
-
-**Rationale**: Class invariants are a core feature of Design-by-Contract programming in DWScript. They ensure that class instances maintain consistent state throughout their lifetime.
-
-**Implementation Summary**:
-- Added `InvariantClause` AST node in `pkg/ast/classes.go`
-- Added `Invariants` field to `ClassDecl`
-- Extended parser to recognize `invariants` keyword and parse invariant conditions
-- Updated `ContractPass` to validate invariant expressions (boolean type, no side effects, field/constant references only)
-- Added comprehensive parser tests
-
-**Note**: Runtime invariant checking (executing invariants after constructors, destructors, and methods) is deferred to a future task when the runtime system is more mature.
-
-**Example**:
-```pascal
-type TStack = class
-private
-  FItems: array of Integer;
-  FCount: Integer;
-invariant
-  FCount >= 0;
-  FCount <= Length(FItems);
-public
-  procedure Push(Item: Integer);
-  function Pop: Integer;
-end;
-```
-
-**Dependencies**:
-- Must complete before task 6.1.2.5 can be marked as fully complete
-- Should integrate with existing ContractPass infrastructure
-- May require interpreter/VM updates for runtime checking
-
-**Estimate**: 16-24 hours (2-3 days)
-
-- [ ] **6.1.2.8 Add pass result caching** (renumbered from 6.1.2.7, deferred)
-  - [ ] Cache Pass 1 results for incremental re-analysis
-  - [ ] Cache Pass 2 type resolution for unchanged files
-  - [ ] Design cache invalidation strategy (changed files invalidate dependent passes)
-  - [ ] Write tests for caching behavior
-
-**Files Created** ✅:
-- `internal/semantic/pass.go` (Pass interface and PassManager)
-- `internal/semantic/declaration_pass.go` (Pass 1)
-- `internal/semantic/type_resolution_pass.go` (Pass 2 - enhanced with forward validation)
-- `internal/semantic/validation_pass.go` (Pass 3 - skeleton only)
-- `internal/semantic/contract_pass.go` (Pass 4 - skeleton only)
-- `internal/semantic/pass_context.go` (shared context)
-- `internal/semantic/passes/*_test.go` (unit tests for passes)
-- `docs/semantic-passes.md` (deferred)
-
-**Files Modified** ✅:
-- `internal/semantic/analyzer.go` (runs Pass 2 in dual-mode, removed legacy validation methods)
-
-**Files Needing Migration**:
-- All `analyze_*.go` files (logic needs migration to Pass 3/4):
-  - `analyze_expressions.go` → Pass 3 (ValidationPass)
-  - `analyze_statements.go` → Pass 3 (ValidationPass)
-  - `analyze_builtin_*.go` → Pass 3 (ValidationPass)
-  - `analyze_contracts.go` → Pass 4 (ContractPass)
-  - etc.
-
-**Success Metrics** (partial):
-- ✅ Four explicit passes with clear responsibilities (interfaces defined, Passes 1-2 complete)
-- ✅ Forward declarations validated reliably (Pass 2 handles all forward validation)
-- ⚠️  Circular dependencies detected (partial - type resolution only)
-- ✅ Post-hoc validation methods removed (migrated to Pass 2)
-- ✅ All semantic tests pass (187 tests)
-- ⚠️  Performance maintained (dual-mode has some overhead, will improve when old analyzer removed)
-- ❌ Full pass architecture not yet enabled (currently dual-mode: old analyzer + Pass 2)
-
-**Current Architecture** (Dual-Mode):
 ```go
 func (a *Analyzer) Analyze(program *ast.Program) error {
-    // OLD: Analyze each statement (handles most validation)
+    // OLD: Analyze each statement (handles 4.8% edge cases)
     for _, stmt := range program.Statements {
         a.analyzeStatement(stmt)  // Registration + validation
     }
 
-    // NEW: Run Pass 2 only (forward declaration validation)
+    // NEW: Run Pass 2 + Pass 3 (handles 95.2% of validation)
     ctx := a.createPassContext()
     pass2 := NewTypeResolutionPass()
-    pass2.Run(program, ctx)  // Validates forward declarations
+    pass2.Run(program, ctx)
+    pass3 := NewValidationPass()
+    pass3.Run(program, ctx)
     a.mergePassErrors(ctx)
 
     return ...
 }
 ```
 
-**Target Architecture** (Full Multi-Pass):
+### Target Architecture (Full Multi-Pass)
+
 ```go
 func (a *Analyzer) Analyze(program *ast.Program) error {
     ctx := a.createPassContext()
@@ -1469,12 +1098,20 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 }
 ```
 
-**Next Steps**:
-1. Complete Pass 3 (ValidationPass) by migrating all validation logic from `analyze_*.go` files
-2. Complete Pass 4 (ContractPass) by migrating contract validation logic
-3. Enable all 4 passes and remove old `analyzeStatement()` loop
-4. Verify all tests pass (especially interp fixtures)
-5. Consider performance optimizations and caching (task 6.1.2.8)
+---
+
+### Success Metrics
+
+- ✅ Four explicit passes with clear responsibilities (infrastructure complete)
+- ✅ Forward declarations validated reliably (Pass 2 complete)
+- ✅ Post-hoc validation methods removed (migrated to Pass 2)
+- ✅ All semantic tests pass (187 unit tests)
+- ✅ 95.2% integration test pass rate (1716/1803 tests)
+- ⚠️ Performance maintained (dual-mode has overhead, will improve after task 6.1.2.20)
+- ⚠️ Circular dependencies detected (partial - type resolution only, full detection in Pass 3)
+- ❌ Full pass architecture not yet enabled (blocked on remaining 87 tests)
+
+**Total Remaining Effort**: 60-75 hours (7-9 days full-time work)
 
 ---
 
