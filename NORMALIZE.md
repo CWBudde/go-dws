@@ -301,23 +301,27 @@ Parser uses `strings.ToLower()` for keyword checks - migrated for consistency.
 
 ---
 
-## Phase 10: Registries (Priority: LOW)
+## Phase 10: Registries (Priority: LOW) ✅ COMPLETED
 
-Already mostly migrated, verify completeness.
+Verified completeness and migrated one remaining occurrence.
 
 ### Tasks
 
-- [ ] **10.1** ✅ SKIP: `internal/units/registry.go`
-  - Already uses `ident.Normalize()`
-  - Verify: No additional migrations needed
+- [x] **10.1** Migrate `internal/units/registry.go`
+  - Already uses `ident.Normalize()` for all map key operations
+  - Migrated 1 occurrence: `strings.EqualFold()` → `ident.Equal()` (line 184)
+  - Kept `strings` import for `strings.Join()` usage (legitimate non-identifier use)
+  - All tests pass
 
-- [ ] **10.2** ✅ SKIP: `internal/interp/types/class_registry.go`
-  - Already uses `ident.Normalize()`
-  - Verify: No additional migrations needed
+- [x] **10.2** ✅ VERIFIED: `internal/interp/types/class_registry.go`
+  - Already uses `ident.Normalize()` throughout
+  - No `strings.ToLower()` or `strings.EqualFold()` present
+  - Status: Fully migrated, no changes needed
 
-- [ ] **10.3** ✅ SKIP: `internal/interp/types/function_registry.go`
-  - Already uses `ident.Normalize()`
-  - Verify: No additional migrations needed
+- [x] **10.3** ✅ VERIFIED: `internal/interp/types/function_registry.go`
+  - Already uses `ident.Normalize()` throughout
+  - Only `strings.Split()` used (legitimate parsing use)
+  - Status: Fully migrated, no changes needed
 
 ---
 
