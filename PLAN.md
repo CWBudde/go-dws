@@ -859,9 +859,14 @@ This causes:
     - [x] Full type checking for binary/unary operators, conditionals
     - [x] Enhanced call expression validation (argument count/type matching) ✅
     - [x] Enhanced member access validation (field/method/property lookup) ✅
-    - [ ] Context-aware type inference (analyzeExpressionWithExpectedType) **TODO**
+    - [x] Context-aware type inference (analyzeExpressionWithExpectedType) ✅
+      - [x] NilLiteral infers class/interface/function pointer types
+      - [x] IntegerLiteral promotes to Float when expected
+      - [ ] RecordLiteral field validation with expected type **TODO**
+      - [ ] ArrayLiteral element type inference **TODO**
+      - [ ] SetLiteral element type inference **TODO**
+      - [ ] Lambda parameter type inference from function pointer **TODO**
     - [ ] Helper method/property support (requires helpers registry) **TODO**
-    - [ ] Array/set/record literal type inference **TODO**
   - [x] Migrate statement validation from old analyzer (analyzeStatement, etc.) **DONE**
     - [x] Add support for all statement types (15+ types: loops, exceptions, control flow)
     - [x] Full validation for var/const declarations, assignments

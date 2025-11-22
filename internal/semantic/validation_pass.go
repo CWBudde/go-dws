@@ -670,11 +670,11 @@ func (v *statementValidator) checkExpression(expr ast.Expression) types.Type {
 	case *ast.NewArrayExpression:
 		return v.checkNewArrayExpression(e)
 	case *ast.ArrayLiteralExpression:
-		return v.checkArrayLiteral(e)
+		return v.checkArrayLiteral(e, nil)
 	case *ast.RecordLiteralExpression:
-		return v.checkRecordLiteral(e)
+		return v.checkRecordLiteral(e, nil)
 	case *ast.SetLiteral:
-		return v.checkSetLiteral(e)
+		return v.checkSetLiteral(e, nil)
 	case *ast.IsExpression:
 		return v.checkIsExpression(e)
 	case *ast.AsExpression:
@@ -747,18 +747,15 @@ func (v *statementValidator) checkExpressionWithExpectedType(expr ast.Expression
 
 	case *ast.RecordLiteralExpression:
 		// Record literals can use expected type to validate fields
-		// TODO: Implement full record literal validation with expected type
-		return v.checkRecordLiteral(e)
+		return v.checkRecordLiteral(e, expectedType)
 
 	case *ast.ArrayLiteralExpression:
 		// Array literals can infer element type from expected array type
-		// TODO: Implement array literal type inference with expected type
-		return v.checkArrayLiteral(e)
+		return v.checkArrayLiteral(e, expectedType)
 
 	case *ast.SetLiteral:
 		// Set literals can infer element type from expected set type
-		// TODO: Implement set literal type inference with expected type
-		return v.checkSetLiteral(e)
+		return v.checkSetLiteral(e, expectedType)
 
 	case *ast.LambdaExpression:
 		// Lambda expressions can infer parameter types from expected function pointer type
@@ -1208,36 +1205,330 @@ func (v *statementValidator) checkNewArrayExpression(expr *ast.NewArrayExpressio
 }
 
 // checkArrayLiteral checks an array literal expression
-func (v *statementValidator) checkArrayLiteral(expr *ast.ArrayLiteralExpression) types.Type {
-	// Check all elements
-	for _, elem := range expr.Elements {
-		v.checkExpression(elem)
+func (v *statementValidator) checkArrayLiteral(expr *ast.ArrayLiteralExpression, expectedType types.Type) types.Type {
+	if expr == nil {
+		return nil
 	}
 
-	// TODO: Infer common element type and return array type
-	return nil
+	var expectedArrayType *types.ArrayType
+	if expectedType != nil {
+		if arr, ok := types.GetUnderlyingType(expectedType).(*types.ArrayType); ok {
+			expectedArrayType = arr
+		} else {
+			v.ctx.AddError("array literal cannot be assigned to non-array type %s", expectedType.String())
+			return nil
+		}
+	}
+
+	// Empty literal requires explicit context
+	if len(expr.Elements) == 0 {
+		if expectedArrayType == nil {
+			v.ctx.AddError("cannot infer type for empty array literal")
+			return nil
+		}
+		// Allow empty arrays for array of const / array of Variant (Format function)
+		return expectedType
+	}
+
+	var inferredElementType types.Type
+	hasErrors := false
+
+	for idx, elem := range expr.Elements {
+		var elementExpected types.Type
+		if expectedArrayType != nil {
+			elementExpected = expectedArrayType.ElementType
+		}
+
+		elemType := v.checkExpressionWithExpectedType(elem, elementExpected)
+		if elemType == nil {
+			hasErrors = true
+			continue
+		}
+
+		if expectedArrayType != nil {
+			// This enables heterogeneous arrays like ['string', 123, 3.14] for Format()
+			elemTypeUnderlying := types.GetUnderlyingType(expectedArrayType.ElementType)
+			if elemTypeUnderlying.TypeKind() == "VARIANT" {
+				// Accept any element type for array of Variant
+				continue
+			}
+
+			if !v.typesCompatible(expectedArrayType.ElementType, elemType) {
+				v.ctx.AddError("array element %d has type %s, expected %s",
+					idx+1, elemType.String(), expectedArrayType.ElementType.String())
+				hasErrors = true
+			}
+			continue
+		}
+
+		if inferredElementType == nil {
+			inferredElementType = elemType
+			continue
+		}
+
+		underlyingCurrent := types.GetUnderlyingType(elemType)
+		underlyingInferred := types.GetUnderlyingType(inferredElementType)
+
+		if underlyingInferred.Equals(underlyingCurrent) {
+			continue
+		}
+
+		// If the current element fits in the inferred type, keep the inferred type.
+		if v.typesCompatible(inferredElementType, elemType) {
+			continue
+		}
+
+		// If we can widen the inferred type to the current element, do so.
+		if v.typesCompatible(elemType, inferredElementType) {
+			inferredElementType = elemType
+			continue
+		}
+
+		// Attempt numeric promotion (e.g., Integer + Float -> Float)
+		if promoted := types.PromoteTypes(underlyingInferred, underlyingCurrent); promoted != nil {
+			inferredElementType = promoted
+			continue
+		}
+
+		v.ctx.AddError("incompatible element types in array literal: %s and %s",
+			underlyingInferred.String(), underlyingCurrent.String())
+		hasErrors = true
+	}
+
+	if hasErrors {
+		return nil
+	}
+
+	if expectedArrayType != nil {
+		return expectedType
+	}
+
+	if inferredElementType == nil {
+		v.ctx.AddError("unable to infer element type for array literal")
+		return nil
+	}
+
+	elementUnderlying := types.GetUnderlyingType(inferredElementType)
+	arrayType := types.NewDynamicArrayType(elementUnderlying)
+
+	return arrayType
 }
 
 // checkRecordLiteral checks a record literal expression
-func (v *statementValidator) checkRecordLiteral(expr *ast.RecordLiteralExpression) types.Type {
-	// Check field values
-	for _, field := range expr.Fields {
-		v.checkExpression(field.Value)
+func (v *statementValidator) checkRecordLiteral(expr *ast.RecordLiteralExpression, expectedType types.Type) types.Type {
+	if expr == nil {
+		return nil
 	}
 
-	// TODO: Validate record type and field compatibility
-	return nil
+	var recordType *types.RecordType
+
+	// Check if this is a typed record literal (has TypeName)
+	if expr.TypeName != nil {
+		// Typed record literal: TPoint(x: 10; y: 20)
+		// Look up the type by name
+		typeName := expr.TypeName.Value
+		resolvedType, found := v.ctx.TypeRegistry.Resolve(typeName)
+		if !found {
+			v.ctx.AddError("unknown record type '%s' in record literal", typeName)
+			return nil
+		}
+
+		var ok bool
+		recordType, ok = resolvedType.(*types.RecordType)
+		if !ok {
+			v.ctx.AddError("'%s' is not a record type, got %s", typeName, resolvedType.String())
+			return nil
+		}
+
+		// If expectedType is provided, verify it matches
+		if expectedType != nil {
+			if expectedRecordType, ok := expectedType.(*types.RecordType); ok {
+				if expectedRecordType.Name != recordType.Name {
+					v.ctx.AddError("record literal type '%s' does not match expected type '%s'",
+						recordType.Name, expectedRecordType.Name)
+					return nil
+				}
+			}
+		}
+	} else {
+		// Anonymous record literal: (x: 10; y: 20)
+		// Requires expectedType from context
+		if expectedType == nil {
+			v.ctx.AddError("anonymous record literal requires type context (use explicit type annotation or typed literal)")
+			return nil
+		}
+
+		var ok bool
+		recordType, ok = expectedType.(*types.RecordType)
+		if !ok {
+			v.ctx.AddError("record literal requires a record type, got %s", expectedType.String())
+			return nil
+		}
+	}
+
+	// Track which fields have been initialized
+	initializedFields := make(map[string]bool)
+
+	// Validate each field in the literal
+	for _, field := range expr.Fields {
+		// Skip positional fields (not yet implemented)
+		if field.Name == nil {
+			v.ctx.AddError("positional record field initialization not yet supported")
+			continue
+		}
+
+		fieldName := field.Name.Value
+		// Normalize field name to lowercase for case-insensitive comparison
+		lowerFieldName := strings.ToLower(fieldName)
+
+		// Check for duplicate field initialization
+		if initializedFields[lowerFieldName] {
+			v.ctx.AddError("duplicate field '%s' in record literal", fieldName)
+			continue
+		}
+		initializedFields[lowerFieldName] = true
+
+		// Check if field exists in record type
+		expectedFieldType, exists := recordType.Fields[lowerFieldName]
+		if !exists {
+			v.ctx.AddError("field '%s' does not exist in record type '%s'", fieldName, recordType.Name)
+			continue
+		}
+
+		// Type-check the field value with expected type context
+		actualType := v.checkExpressionWithExpectedType(field.Value, expectedFieldType)
+		if actualType == nil {
+			continue
+		}
+
+		// Check type compatibility
+		if !v.typesCompatible(expectedFieldType, actualType) {
+			v.ctx.AddError("cannot assign %s to %s in field '%s'",
+				actualType.String(), expectedFieldType.String(), fieldName)
+		}
+	}
+
+	// Check for missing required fields (skip fields with default initializers)
+	for fieldName := range recordType.Fields {
+		if !initializedFields[fieldName] {
+			// Check if the field has a default initializer
+			if recordType.FieldsWithInit != nil && recordType.FieldsWithInit[fieldName] {
+				// Field has a default initializer, so it's not required in the literal
+				continue
+			}
+			v.ctx.AddError("missing required field '%s' in record literal", fieldName)
+		}
+	}
+
+	return recordType
 }
 
 // checkSetLiteral checks a set literal expression
-func (v *statementValidator) checkSetLiteral(expr *ast.SetLiteral) types.Type {
-	// Check all elements
-	for _, elem := range expr.Elements {
-		v.checkExpression(elem)
+func (v *statementValidator) checkSetLiteral(expr *ast.SetLiteral, expectedType types.Type) types.Type {
+	if expr == nil {
+		return nil
 	}
 
-	// TODO: Infer set element type and return set type
-	return nil
+	// If we have an expected type, it should be a SetType
+	var expectedSetType *types.SetType
+	if expectedType != nil {
+		var ok bool
+		expectedSetType, ok = expectedType.(*types.SetType)
+		if !ok {
+			v.ctx.AddError("set literal cannot be assigned to non-set type %s", expectedType.String())
+			return nil
+		}
+	}
+
+	// Empty set literal
+	if len(expr.Elements) == 0 {
+		if expectedSetType != nil {
+			return expectedSetType
+		}
+		// Empty set without context - cannot infer type
+		v.ctx.AddError("cannot infer type for empty set literal")
+		return nil
+	}
+
+	// Analyze all elements and check they are of the same ordinal type
+	// Support all ordinal types (Integer, String/Char, Enum, Subrange)
+	var elementType types.Type
+	for i, elem := range expr.Elements {
+		var elemType types.Type
+
+		// Check if this is a range expression (e.g., 1..10 or 'a'..'z')
+		if rangeExpr, isRange := elem.(*ast.RangeExpression); isRange {
+			// Analyze start and end of range
+			startType := v.checkExpression(rangeExpr.Start)
+			endType := v.checkExpression(rangeExpr.RangeEnd)
+
+			if startType == nil || endType == nil {
+				// Error already reported
+				continue
+			}
+
+			// Both bounds must be ordinal types
+			if !types.IsOrdinalType(startType) {
+				v.ctx.AddError("range start must be an ordinal type, got %s", startType.String())
+				continue
+			}
+			if !types.IsOrdinalType(endType) {
+				v.ctx.AddError("range end must be an ordinal type, got %s", endType.String())
+				continue
+			}
+
+			// Both bounds must be the same type
+			if !startType.Equals(endType) {
+				v.ctx.AddError("range start and end must have the same type: got %s and %s",
+					startType.String(), endType.String())
+				continue
+			}
+
+			elemType = startType
+		} else {
+			// Regular element (not a range)
+			elemType = v.checkExpression(elem)
+			if elemType == nil {
+				// Error already reported
+				continue
+			}
+
+			// Element must be an ordinal type
+			if !types.IsOrdinalType(elemType) {
+				v.ctx.AddError("set element must be an ordinal value, got %s", elemType.String())
+				continue
+			}
+		}
+
+		// First element determines the element type
+		if i == 0 {
+			elementType = elemType
+		} else {
+			// All elements must be of the same ordinal type
+			if !elemType.Equals(elementType) {
+				v.ctx.AddError("type mismatch in set literal: expected %s, got %s",
+					elementType.String(), elemType.String())
+			}
+		}
+	}
+
+	if elementType == nil {
+		// All elements had errors
+		return nil
+	}
+
+	// If we have an expected set type, verify the element type matches
+	if expectedSetType != nil {
+		if !elementType.Equals(expectedSetType.ElementType) {
+			v.ctx.AddError("type mismatch in set literal: expected set of %s, got set of %s",
+				expectedSetType.ElementType.String(), elementType.String())
+			return expectedSetType // Return expected type to continue analysis
+		}
+		return expectedSetType
+	}
+
+	// Create and return a new set type based on inferred element type
+	return types.NewSetType(elementType)
 }
 
 // checkIsExpression checks an 'is' type checking expression
