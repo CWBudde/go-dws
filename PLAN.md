@@ -1200,7 +1200,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ### Category E: Declarations & Records (Medium Priority)
 
-- [ ] **3.5.38** Migrate Variable Declarations (`VisitVarDeclStatement`)
+- [x] **3.5.38** Migrate Variable Declarations (`VisitVarDeclStatement`)
   - **Complexity**: Very High (300+ lines)
   - **Requirements**:
     - External variable handling
@@ -1210,14 +1210,61 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Interface wrapping
     - Zero value initialization for all types
   - **Effort**: 2-3 weeks
+  - **Status**: ✅ COMPLETE - Full migration with adapter method support
+  - **Implementation Summary**:
+    - Added 14 new adapter methods for type operations (ParseInlineArrayType, ParseInlineSetType, WrapInSubrange, WrapInInterface, etc.)
+    - Implemented VisitVarDeclStatement with full type handling (external vars, multi-identifier, inline types)
+    - Implemented createZeroValue helper with comprehensive type support
+    - Handles all variable declaration scenarios: external, multi-name, typed, inferred, with/without initializers
+    - Supports subrange validation, interface wrapping, variant boxing, implicit conversions
+    - Array/record literal type inference, zero value initialization for all DWScript types
+  - **Files Modified**:
+    - `internal/interp/evaluator/evaluator.go` - Added adapter interface methods (14 new methods)
+    - `internal/interp/interpreter.go` - Implemented adapter methods (~240 lines)
+    - `internal/interp/evaluator/visitor_statements.go` - Migrated VisitVarDeclStatement and createZeroValue (~140 lines)
+  - **Testing**:
+    - ✅ All tests pass
+    - ✅ Build succeeds
+    - ✅ Existing variable declaration tests pass
 
-- [ ] **3.5.39** Migrate Constant Declarations (`VisitConstDecl`)
+- [x] **3.5.39** Migrate Constant Declarations (`VisitConstDecl`)
   - **Requirements**: Type inference from initializer
   - **Effort**: 1 week
+  - **Status**: ✅ COMPLETE - Full migration with type inference
+  - **Implementation Summary**:
+    - Migrated VisitConstDecl with full constant declaration logic
+    - Validates that constants have initializers
+    - Special handling for anonymous record literals (requires type context)
+    - Stores constants in environment using DefineVariable adapter method
+    - Immutability enforced by semantic analyzer (not runtime)
+    - Type inference from initializer value (Integer, Float, String, Boolean, Array, Record)
+  - **Files Modified**:
+    - `internal/interp/evaluator/visitor_statements.go` - Migrated VisitConstDecl (~40 lines)
+  - **Testing**:
+    - ✅ Build succeeds
+    - ✅ Constant declarations work correctly
+    - ✅ Type inference works properly
 
-- [ ] **3.5.40** Migrate Record Literals (`VisitRecordLiteralExpression`)
+- [x] **3.5.40** Migrate Record Literals (`VisitRecordLiteralExpression`)
   - **Requirements**: Typed/anonymous record construction, field initialization, nested records
   - **Effort**: 1-2 weeks
+  - **Status**: ✅ COMPLETE - Full migration with field initialization
+  - **Implementation Summary**:
+    - Added 4 adapter methods for record literal operations (CreateRecordValue, GetRecordFieldDeclarations, GetZeroValueForType, InitializeInterfaceField)
+    - Implemented VisitRecordLiteralExpression with full record creation logic
+    - Evaluates field value expressions and validates fields exist
+    - Initializes missing fields with field initializers or zero values
+    - Handles nested records recursively
+    - Handles interface-typed fields specially
+    - Supports both typed (TMyRecord(Field1: val)) and anonymous ((Field1: val)) record literals
+  - **Files Modified**:
+    - `internal/interp/evaluator/evaluator.go` - Added adapter interface methods (4 new methods)
+    - `internal/interp/interpreter.go` - Implemented adapter methods (~120 lines)
+    - `internal/interp/evaluator/visitor_expressions.go` - Migrated VisitRecordLiteralExpression (~80 lines)
+  - **Testing**:
+    - ✅ Build succeeds
+    - ✅ All record tests pass
+    - ✅ Field initialization works correctly
 
 ---
 

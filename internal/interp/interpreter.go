@@ -599,6 +599,372 @@ func (i *Interpreter) IsArrayType(typeName string) bool {
 	return ok
 }
 
+// ===== Task 3.5.38: Variable Declaration Adapter Method Implementations =====
+
+// ParseInlineArrayType parses inline array type signatures.
+func (i *Interpreter) ParseInlineArrayType(typeName string) (any, error) {
+	arrType := i.parseInlineArrayType(typeName)
+	if arrType == nil {
+		return nil, fmt.Errorf("invalid inline array type: %s", typeName)
+	}
+	return arrType, nil
+}
+
+// ParseInlineSetType parses inline set type signatures.
+func (i *Interpreter) ParseInlineSetType(typeName string) (any, error) {
+	setType := i.parseInlineSetType(typeName)
+	if setType == nil {
+		return nil, fmt.Errorf("invalid inline set type: %s", typeName)
+	}
+	return setType, nil
+}
+
+// LookupSubrangeType finds a subrange type by name.
+func (i *Interpreter) LookupSubrangeType(name string) (any, bool) {
+	normalizedName := strings.ToLower(name)
+	subrangeTypeKey := "__subrange_type_" + normalizedName
+	typeVal, ok := i.env.Get(subrangeTypeKey)
+	return typeVal, ok
+}
+
+// BoxVariant wraps a value in a Variant container.
+func (i *Interpreter) BoxVariant(value evaluator.Value) evaluator.Value {
+	return boxVariant(value.(Value))
+}
+
+// TryImplicitConversion attempts an implicit type conversion.
+func (i *Interpreter) TryImplicitConversion(value evaluator.Value, targetTypeName string) (evaluator.Value, bool) {
+	converted, ok := i.tryImplicitConversion(value.(Value), targetTypeName)
+	if ok {
+		return converted, true
+	}
+	return value, false
+}
+
+// WrapInSubrange wraps an integer value in a subrange type with validation.
+func (i *Interpreter) WrapInSubrange(value evaluator.Value, subrangeTypeName string, node ast.Node) (evaluator.Value, error) {
+	normalizedName := strings.ToLower(subrangeTypeName)
+	subrangeTypeKey := "__subrange_type_" + normalizedName
+	typeVal, ok := i.env.Get(subrangeTypeKey)
+	if !ok {
+		return nil, fmt.Errorf("subrange type '%s' not found", subrangeTypeName)
+	}
+
+	stv, ok := typeVal.(*SubrangeTypeValue)
+	if !ok {
+		return nil, fmt.Errorf("type '%s' is not a subrange type", subrangeTypeName)
+	}
+
+	// Extract integer value
+	var intValue int
+	if intVal, ok := value.(*IntegerValue); ok {
+		intValue = int(intVal.Value)
+	} else if srcSubrange, ok := value.(*SubrangeValue); ok {
+		intValue = srcSubrange.Value
+	} else {
+		return nil, fmt.Errorf("cannot convert %s to subrange type %s", value.Type(), subrangeTypeName)
+	}
+
+	// Create subrange value and validate
+	subrangeVal := &SubrangeValue{
+		Value:        0, // Will be set by ValidateAndSet
+		SubrangeType: stv.SubrangeType,
+	}
+	if err := subrangeVal.ValidateAndSet(intValue); err != nil {
+		return nil, err
+	}
+	return subrangeVal, nil
+}
+
+// WrapInInterface wraps an object value in an interface instance.
+func (i *Interpreter) WrapInInterface(value evaluator.Value, interfaceName string, node ast.Node) (evaluator.Value, error) {
+	ifaceInfo, exists := i.interfaces[strings.ToLower(interfaceName)]
+	if !exists {
+		return nil, fmt.Errorf("interface '%s' not found", interfaceName)
+	}
+
+	// Check if the value is already an InterfaceInstance
+	if _, alreadyInterface := value.(*InterfaceInstance); alreadyInterface {
+		return value, nil
+	}
+
+	// Check if the value is an ObjectInstance
+	objInst, isObj := value.(*ObjectInstance)
+	if !isObj {
+		return nil, fmt.Errorf("cannot wrap %s in interface %s", value.Type(), interfaceName)
+	}
+
+	// Validate that the object's class implements the interface
+	if !classImplementsInterface(objInst.Class, ifaceInfo) {
+		return nil, fmt.Errorf("class '%s' does not implement interface '%s'",
+			objInst.Class.Name, ifaceInfo.Name)
+	}
+
+	// Wrap the object in an InterfaceInstance
+	return NewInterfaceInstance(ifaceInfo, objInst), nil
+}
+
+// EvalArrayLiteralWithExpectedType evaluates an array literal with expected type context.
+func (i *Interpreter) EvalArrayLiteralWithExpectedType(lit ast.Node, expectedTypeName string) evaluator.Value {
+	arrayLit, ok := lit.(*ast.ArrayLiteralExpression)
+	if !ok {
+		return i.newErrorWithLocation(lit, "expected array literal expression")
+	}
+
+	// Resolve expected type
+	arrType, errVal := i.arrayTypeByName(expectedTypeName, lit)
+	if errVal != nil {
+		return errVal
+	}
+
+	return i.evalArrayLiteralWithExpected(arrayLit, arrType)
+}
+
+// ClassImplementsInterface checks if a class implements an interface.
+func (i *Interpreter) ClassImplementsInterface(className, interfaceName string) bool {
+	classInfo, exists := i.classes[strings.ToLower(className)]
+	if !exists {
+		return false
+	}
+
+	ifaceInfo, exists := i.interfaces[strings.ToLower(interfaceName)]
+	if !exists {
+		return false
+	}
+
+	return classImplementsInterface(classInfo, ifaceInfo)
+}
+
+// CreateExternalVar creates an external variable marker.
+func (i *Interpreter) CreateExternalVar(varName, externalName string) evaluator.Value {
+	return &ExternalVarValue{
+		Name:         varName,
+		ExternalName: externalName,
+	}
+}
+
+// ResolveArrayTypeNode resolves an array type from an AST ArrayTypeNode.
+func (i *Interpreter) ResolveArrayTypeNode(arrayNode ast.Node) (any, error) {
+	arrNode, ok := arrayNode.(*ast.ArrayTypeNode)
+	if !ok {
+		return nil, fmt.Errorf("expected ArrayTypeNode")
+	}
+
+	arrType := i.resolveArrayTypeNode(arrNode)
+	if arrType == nil {
+		return nil, fmt.Errorf("failed to resolve array type")
+	}
+	return arrType, nil
+}
+
+// CreateRecordZeroValue creates a zero-initialized record value.
+func (i *Interpreter) CreateRecordZeroValue(recordTypeName string) (evaluator.Value, error) {
+	normalizedName := strings.ToLower(recordTypeName)
+	recordTypeKey := "__record_type_" + normalizedName
+	typeVal, ok := i.env.Get(recordTypeKey)
+	if !ok {
+		return nil, fmt.Errorf("record type '%s' not found", recordTypeName)
+	}
+
+	rtv, ok := typeVal.(*RecordTypeValue)
+	if !ok {
+		return nil, fmt.Errorf("type '%s' is not a record type", recordTypeName)
+	}
+
+	return i.createRecordValue(rtv.RecordType, rtv.Methods), nil
+}
+
+// CreateArrayZeroValue creates a zero-initialized array value.
+func (i *Interpreter) CreateArrayZeroValue(arrayTypeName string) (evaluator.Value, error) {
+	normalizedName := strings.ToLower(arrayTypeName)
+	arrayTypeKey := "__array_type_" + normalizedName
+	typeVal, ok := i.env.Get(arrayTypeKey)
+	if !ok {
+		return nil, fmt.Errorf("array type '%s' not found", arrayTypeName)
+	}
+
+	atv, ok := typeVal.(*ArrayTypeValue)
+	if !ok {
+		return nil, fmt.Errorf("type '%s' is not an array type", arrayTypeName)
+	}
+
+	return NewArrayValue(atv.ArrayType), nil
+}
+
+// CreateSetZeroValue creates an empty set value.
+func (i *Interpreter) CreateSetZeroValue(setTypeName string) (evaluator.Value, error) {
+	setType := i.parseInlineSetType(setTypeName)
+	if setType == nil {
+		return nil, fmt.Errorf("invalid set type: %s", setTypeName)
+	}
+	return NewSetValue(setType), nil
+}
+
+// CreateSubrangeZeroValue creates a zero-initialized subrange value.
+func (i *Interpreter) CreateSubrangeZeroValue(subrangeTypeName string) (evaluator.Value, error) {
+	normalizedName := strings.ToLower(subrangeTypeName)
+	subrangeTypeKey := "__subrange_type_" + normalizedName
+	typeVal, ok := i.env.Get(subrangeTypeKey)
+	if !ok {
+		return nil, fmt.Errorf("subrange type '%s' not found", subrangeTypeName)
+	}
+
+	stv, ok := typeVal.(*SubrangeTypeValue)
+	if !ok {
+		return nil, fmt.Errorf("type '%s' is not a subrange type", subrangeTypeName)
+	}
+
+	return &SubrangeValue{
+		Value:        stv.SubrangeType.LowBound,
+		SubrangeType: stv.SubrangeType,
+	}, nil
+}
+
+// CreateInterfaceZeroValue creates a nil interface instance.
+func (i *Interpreter) CreateInterfaceZeroValue(interfaceName string) (evaluator.Value, error) {
+	ifaceInfo, exists := i.interfaces[strings.ToLower(interfaceName)]
+	if !exists {
+		return nil, fmt.Errorf("interface '%s' not found", interfaceName)
+	}
+
+	return &InterfaceInstance{
+		Interface: ifaceInfo,
+		Object:    nil,
+	}, nil
+}
+
+// CreateClassZeroValue creates a typed nil value for a class.
+func (i *Interpreter) CreateClassZeroValue(className string) (evaluator.Value, error) {
+	if _, exists := i.classes[strings.ToLower(className)]; !exists {
+		return nil, fmt.Errorf("class '%s' not found", className)
+	}
+
+	return &NilValue{ClassType: className}, nil
+}
+
+// ===== Task 3.5.40: Record Literal Adapter Method Implementations =====
+
+// CreateRecordValue creates a record value with field initialization.
+func (i *Interpreter) CreateRecordValue(recordTypeName string, fieldValues map[string]evaluator.Value) (evaluator.Value, error) {
+	normalizedName := strings.ToLower(recordTypeName)
+	recordTypeKey := "__record_type_" + normalizedName
+	typeVal, ok := i.env.Get(recordTypeKey)
+	if !ok {
+		return nil, fmt.Errorf("record type '%s' not found", recordTypeName)
+	}
+
+	recordTypeValue, ok := typeVal.(*RecordTypeValue)
+	if !ok {
+		return nil, fmt.Errorf("type '%s' is not a record type", recordTypeName)
+	}
+
+	recordType := recordTypeValue.RecordType
+
+	// Create the record value with methods
+	recordValue := &RecordValue{
+		RecordType: recordType,
+		Fields:     make(map[string]Value),
+		Methods:    recordTypeValue.Methods,
+	}
+
+	// Copy provided field values (already evaluated)
+	for fieldName, fieldValue := range fieldValues {
+		fieldNameLower := strings.ToLower(fieldName)
+		// Validate field exists
+		if _, exists := recordType.Fields[fieldNameLower]; !exists {
+			return nil, fmt.Errorf("field '%s' does not exist in record type '%s'", fieldName, recordType.Name)
+		}
+		// Convert evaluator.Value to internal Value
+		recordValue.Fields[fieldNameLower] = fieldValue.(Value)
+	}
+
+	// Initialize remaining fields with field initializers or default values
+	methodsLookup := func(rt *types.RecordType) map[string]*ast.FunctionDecl {
+		key := "__record_type_" + strings.ToLower(rt.Name)
+		if typeVal, ok := i.env.Get(key); ok {
+			if rtv, ok := typeVal.(*RecordTypeValue); ok {
+				return rtv.Methods
+			}
+		}
+		return nil
+	}
+
+	for fieldName, fieldType := range recordType.Fields {
+		if _, exists := recordValue.Fields[fieldName]; !exists {
+			var fieldValue Value
+
+			// Check if field has an initializer expression
+			if fieldDecl, hasDecl := recordTypeValue.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
+				// Evaluate the field initializer
+				fieldValue = i.Eval(fieldDecl.InitValue)
+				if isError(fieldValue) {
+					return nil, fmt.Errorf("error evaluating field initializer for '%s': %s", fieldName, fieldValue.(*ErrorValue).Message)
+				}
+			}
+
+			// If no initializer, use getZeroValueForType
+			if fieldValue == nil {
+				fieldValue = getZeroValueForType(fieldType, methodsLookup)
+
+				// Handle interface-typed fields specially
+				if intfValue := i.initializeInterfaceField(fieldType); intfValue != nil {
+					fieldValue = intfValue
+				}
+			}
+
+			recordValue.Fields[fieldName] = fieldValue
+		}
+	}
+
+	return recordValue, nil
+}
+
+// GetRecordFieldDeclarations retrieves field declarations for a record type.
+func (i *Interpreter) GetRecordFieldDeclarations(recordTypeName string) (any, bool) {
+	normalizedName := strings.ToLower(recordTypeName)
+	recordTypeKey := "__record_type_" + normalizedName
+	typeVal, ok := i.env.Get(recordTypeKey)
+	if !ok {
+		return nil, false
+	}
+
+	recordTypeValue, ok := typeVal.(*RecordTypeValue)
+	if !ok {
+		return nil, false
+	}
+
+	return recordTypeValue.FieldDecls, true
+}
+
+// GetZeroValueForType creates a zero/default value for a given type.
+func (i *Interpreter) GetZeroValueForType(typeInfo any) evaluator.Value {
+	t, ok := typeInfo.(types.Type)
+	if !ok {
+		return &NilValue{}
+	}
+
+	methodsLookup := func(rt *types.RecordType) map[string]*ast.FunctionDecl {
+		key := "__record_type_" + strings.ToLower(rt.Name)
+		if typeVal, ok := i.env.Get(key); ok {
+			if rtv, ok := typeVal.(*RecordTypeValue); ok {
+				return rtv.Methods
+			}
+		}
+		return nil
+	}
+
+	return getZeroValueForType(t, methodsLookup)
+}
+
+// InitializeInterfaceField creates a nil interface instance for interface-typed fields.
+func (i *Interpreter) InitializeInterfaceField(fieldType any) evaluator.Value {
+	t, ok := fieldType.(types.Type)
+	if !ok {
+		return nil
+	}
+	return i.initializeInterfaceField(t)
+}
+
 // ===== Task 3.5.6: Array and Collection Adapter Method Implementations =====
 
 // CreateArray creates an array from a list of elements with a specified element type.
