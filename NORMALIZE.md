@@ -37,13 +37,16 @@ Enhance `pkg/ident` package and establish migration patterns.
     - "When NOT to Use This Package" section
     - Updated migration examples with HasPrefix
 
-- [ ] **2.2** Create migration guide document
+- [x] **2.2** Create migration guide document
   - File: `docs/ident-migration-guide.md`
-  - Include:
-    - Before/after examples
-    - Common patterns (map keys, comparisons, lookups)
+  - Includes:
+    - Before/after examples for all common patterns
+    - 6 common patterns (map keys, comparisons, prefix/suffix, symbol tables, keywords, sorting)
     - How to preserve original casing in error messages
-    - Anti-patterns to avoid
+    - Anti-patterns to avoid (4 documented)
+    - Function reference table with allocation info
+    - Migration checklist
+    - Examples from the codebase
 
 - [ ] **2.3** Add examples to `pkg/ident` package
   - Example: Map with case-insensitive keys but preserved original
