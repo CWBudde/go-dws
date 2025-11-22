@@ -4225,12 +4225,13 @@ type ForStatement struct {
   ; for i := 1 to 3 do PrintLn(i);
   OpLoadConst 1         ; push start value
   OpLoadConst 3         ; push end value
-  OpForPrep loopVar exitJump  ; init loop, check condition
+  OpLoadConst 1         ; push step value (default 1)
+  OpForPrep loopVar exitJump  ; init loop [start,end,step]->[current], check condition
   loop:
     ; body
     OpLoadLocal loopVar
     OpCallBuiltin PrintLn
-    OpForLoop loopVar loop ; increment and check
+    OpForLoop loopVar loop ; increment by step and check condition
   exit:
   ```
 
@@ -4260,11 +4261,14 @@ type ForStatement struct {
   - **File**: `internal/bytecode/vm_exec.go`
   - **Task**: Add case for OpForPrep opcode
   - **Semantics**: Initialize loop variable, check if loop should execute
+  - **Note**: Direction (ForTo vs ForDownto) must be encoded in opcode operand (e.g., A byte)
+    or Strategy B should be used which generates explicit comparison opcodes per direction
 
 - [ ] **14.16.1.4** Implement OpForLoop handler in VM (if using Strategy A)
   - **File**: `internal/bytecode/vm_exec.go`
   - **Task**: Add case for OpForLoop opcode
   - **Semantics**: Increment/decrement loop variable, check condition, jump
+  - **Note**: Must handle both ForTo (increment, check `<=`) and ForDownto (decrement, check `>=`)
 
 - [ ] **14.16.1.5** Add loopKindFor to compiler loop tracking
   - **File**: `internal/bytecode/compiler_core.go`
@@ -4329,8 +4333,9 @@ end;
           &ast.Identifier{Value: "Result"},
           typeFromAnnotation(fn.ReturnType),
       )
-      // Also make function name an alias for Result
-      child.declareAlias(fn.Name.Value, "Result")
+      // NOTE: declareAlias does not exist yet; implement aliasing mechanism
+      // or resolve function name to Result slot during identifier lookup
+      // (see task 14.16.2.3 for implementation options)
   }
   ```
 
@@ -4348,8 +4353,12 @@ end;
 
 - [ ] **14.16.2.3** Make function name an alias for Result
   - **File**: `internal/bytecode/compiler_core.go`
-  - **Task**: Add alias mechanism so `FunctionName := value` is equivalent to `Result := value`
-  - **Alternative**: Resolve function name to Result slot during identifier lookup
+  - **Task**: Implement aliasing so `FunctionName := value` resolves to Result slot
+  - **Implementation options**:
+    1. Add alias table to symbol table mapping function name to Result slot
+    2. During identifier lookup in function scope, check if identifier matches
+       current function name and resolve to Result slot instead
+  - **Reference**: AST interpreter uses `ReferenceValue` pointing to "Result" (functions_user.go:145)
 
 - [ ] **14.16.2.4** Update ensureFunctionReturn() to return Result
   - **File**: `internal/bytecode/compiler_statements.go`
@@ -4380,6 +4389,9 @@ end;
 ---
 
 #### 14.16.3 Trim Builtin Implementation 🟡 MEDIUM PRIORITY
+
+> **Note**: Originally marked as HIGH priority in TODOs.md. Re-evaluated to MEDIUM because
+> Trim is less critical than for loops and Result variables for VM parity.
 
 **Status**: Not Started | **Complexity**: Low | **Blocking**: Trim() calls fail in VM mode
 
@@ -4434,7 +4446,9 @@ end;
 
 - [ ] **14.16.3.5** Enable String.Trim helper method in VM
   - **File**: `internal/bytecode/vm_calls.go`
-  - **Task**: Uncomment/implement trim case in string helper method dispatch (line 196-197)
+  - **Task**: Add full implementation for the "trim" case in string helper method dispatch
+    (currently only case label exists). Implementation should validate exactly one string
+    argument and call `builtinTrim`, matching the pattern used for "toupper"/"tolower" cases.
 
 - [ ] **14.16.3.6** Add Trim builtin tests
   - **File**: `internal/bytecode/vm_builtins_string_test.go`
