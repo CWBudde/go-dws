@@ -933,11 +933,28 @@ func (v *statementValidator) getUnimplementedAbstractMethods(classType *types.Cl
 
 // collectAbstractMethods recursively collects all abstract methods from the parent chain
 func (v *statementValidator) collectAbstractMethods(parent *types.ClassType) map[string]bool {
+	visited := make(map[string]bool)
+	return v.collectAbstractMethodsWithVisited(parent, visited)
+}
+
+// collectAbstractMethodsWithVisited is the internal implementation that tracks visited classes
+// to prevent infinite recursion in circular hierarchies
+func (v *statementValidator) collectAbstractMethodsWithVisited(parent *types.ClassType, visited map[string]bool) map[string]bool {
 	abstractMethods := make(map[string]bool)
 
 	if parent == nil {
 		return abstractMethods
 	}
+
+	// Check for circular dependency
+	className := ident.Normalize(parent.Name)
+	if visited[className] {
+		// Circular parent chain detected - stop recursion
+		return abstractMethods
+	}
+
+	// Mark this class as visited
+	visited[className] = true
 
 	// Collect abstract methods from this parent
 	for methodName, isAbstract := range parent.AbstractMethods {
@@ -947,7 +964,7 @@ func (v *statementValidator) collectAbstractMethods(parent *types.ClassType) map
 	}
 
 	// Recursively collect from grandparents
-	grandparentMethods := v.collectAbstractMethods(parent.Parent)
+	grandparentMethods := v.collectAbstractMethodsWithVisited(parent.Parent, visited)
 	for methodName := range grandparentMethods {
 		// Only add if not overridden (not abstract) in this parent
 		lowerMethodName := ident.Normalize(methodName)
@@ -1181,7 +1198,15 @@ func (v *statementValidator) checkIdentifier(expr *ast.Identifier) types.Type {
 		fieldNameLower := strings.ToLower(expr.Value)
 
 		// Check current class and all parent classes for the field
+		visited := make(map[string]bool)
 		for classType != nil {
+			// Detect circular parent chains
+			className := ident.Normalize(classType.Name)
+			if visited[className] {
+				break // Circular chain - stop traversal
+			}
+			visited[className] = true
+
 			// Check if it's a field
 			if fieldType, found := classType.Fields[fieldNameLower]; found {
 				// Unqualified field access - should use Self.FieldName for clarity
@@ -1190,11 +1215,7 @@ func (v *statementValidator) checkIdentifier(expr *ast.Identifier) types.Type {
 			}
 
 			// Check parent class
-			if classType.Parent != nil {
-				classType = classType.Parent
-			} else {
-				break
-			}
+			classType = classType.Parent
 		}
 	}
 
@@ -2923,9 +2944,17 @@ func (v *statementValidator) isDescendantOf(childClass, parentClass *types.Class
 		return false
 	}
 
-	// Walk up the inheritance chain
+	// Walk up the inheritance chain with circular detection
+	visited := make(map[string]bool)
 	current := childClass.Parent
 	for current != nil {
+		// Detect circular parent chains
+		className := ident.Normalize(current.Name)
+		if visited[className] {
+			break // Circular chain - stop traversal
+		}
+		visited[className] = true
+
 		if current == parentClass {
 			return true
 		}
@@ -2937,9 +2966,22 @@ func (v *statementValidator) isDescendantOf(childClass, parentClass *types.Class
 
 // getFieldOwner returns the class that declares a field, walking up the inheritance chain
 func (v *statementValidator) getFieldOwner(class *types.ClassType, fieldName string) *types.ClassType {
+	visited := make(map[string]bool)
+	return v.getFieldOwnerWithVisited(class, fieldName, visited)
+}
+
+// getFieldOwnerWithVisited is the internal implementation with circular detection
+func (v *statementValidator) getFieldOwnerWithVisited(class *types.ClassType, fieldName string, visited map[string]bool) *types.ClassType {
 	if class == nil {
 		return nil
 	}
+
+	// Detect circular parent chains
+	className := ident.Normalize(class.Name)
+	if visited[className] {
+		return nil // Circular chain - stop recursion
+	}
+	visited[className] = true
 
 	// Check if this class declares the field (case-insensitive)
 	lowerFieldName := ident.Normalize(fieldName)
@@ -2948,14 +2990,27 @@ func (v *statementValidator) getFieldOwner(class *types.ClassType, fieldName str
 	}
 
 	// Check parent classes
-	return v.getFieldOwner(class.Parent, fieldName)
+	return v.getFieldOwnerWithVisited(class.Parent, fieldName, visited)
 }
 
 // getMethodOwner returns the class that declares a method, walking up the inheritance chain
 func (v *statementValidator) getMethodOwner(class *types.ClassType, methodName string) *types.ClassType {
+	visited := make(map[string]bool)
+	return v.getMethodOwnerWithVisited(class, methodName, visited)
+}
+
+// getMethodOwnerWithVisited is the internal implementation with circular detection
+func (v *statementValidator) getMethodOwnerWithVisited(class *types.ClassType, methodName string, visited map[string]bool) *types.ClassType {
 	if class == nil {
 		return nil
 	}
+
+	// Detect circular parent chains
+	className := ident.Normalize(class.Name)
+	if visited[className] {
+		return nil // Circular chain - stop recursion
+	}
+	visited[className] = true
 
 	// Use overload system
 	methodKey := ident.Normalize(methodName)
@@ -2964,14 +3019,27 @@ func (v *statementValidator) getMethodOwner(class *types.ClassType, methodName s
 	}
 
 	// Check parent classes
-	return v.getMethodOwner(class.Parent, methodName)
+	return v.getMethodOwnerWithVisited(class.Parent, methodName, visited)
 }
 
 // getClassVarOwner returns the class that declares a class variable, walking up the inheritance chain
 func (v *statementValidator) getClassVarOwner(class *types.ClassType, classVarName string) *types.ClassType {
+	visited := make(map[string]bool)
+	return v.getClassVarOwnerWithVisited(class, classVarName, visited)
+}
+
+// getClassVarOwnerWithVisited is the internal implementation with circular detection
+func (v *statementValidator) getClassVarOwnerWithVisited(class *types.ClassType, classVarName string, visited map[string]bool) *types.ClassType {
 	if class == nil {
 		return nil
 	}
+
+	// Detect circular parent chains
+	className := ident.Normalize(class.Name)
+	if visited[className] {
+		return nil // Circular chain - stop recursion
+	}
+	visited[className] = true
 
 	// Check if this class declares the class variable (case-insensitive)
 	lowerClassVarName := ident.Normalize(classVarName)
@@ -2980,7 +3048,7 @@ func (v *statementValidator) getClassVarOwner(class *types.ClassType, classVarNa
 	}
 
 	// Check parent classes
-	return v.getClassVarOwner(class.Parent, classVarName)
+	return v.getClassVarOwnerWithVisited(class.Parent, classVarName, visited)
 }
 
 // visibilityString returns a human-readable string for a visibility level
