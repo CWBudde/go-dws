@@ -14,8 +14,8 @@ import (
 // UnitRegistry manages loaded units and handles unit dependencies.
 // It caches compiled units to avoid reloading and detects circular dependencies.
 type UnitRegistry struct {
-	// units maps normalized unit names to loaded Unit instances
-	units map[string]*Unit
+	// units maps unit names to loaded Unit instances (case-insensitive)
+	units *ident.Map[*Unit]
 
 	// loading tracks units currently being loaded to detect circular dependencies
 	loading map[string]bool
@@ -37,7 +37,7 @@ func NewUnitRegistry(searchPaths []string) *UnitRegistry {
 		searchPaths = []string{"."}
 	}
 	return &UnitRegistry{
-		units:        make(map[string]*Unit),
+		units:        ident.NewMap[*Unit](),
 		loading:      make(map[string]bool),
 		loadingChain: make([]string, 0),
 		searchPaths:  searchPaths,
@@ -48,15 +48,13 @@ func NewUnitRegistry(searchPaths []string) *UnitRegistry {
 // RegisterUnit registers a unit in the registry.
 // Returns an error if a unit with the same name (case-insensitive) is already registered.
 func (r *UnitRegistry) RegisterUnit(name string, unit *Unit) error {
-	normalized := ident.Normalize(name)
-
 	// Check if already registered
-	if _, exists := r.units[normalized]; exists {
+	if r.units.Has(name) {
 		return fmt.Errorf("unit '%s' is already registered", name)
 	}
 
 	// Register the unit
-	r.units[normalized] = unit
+	r.units.Set(name, unit)
 	return nil
 }
 
@@ -64,9 +62,7 @@ func (r *UnitRegistry) RegisterUnit(name string, unit *Unit) error {
 // Returns the unit and true if found, nil and false otherwise.
 // The name lookup is case-insensitive.
 func (r *UnitRegistry) GetUnit(name string) (*Unit, bool) {
-	normalized := ident.Normalize(name)
-	unit, exists := r.units[normalized]
-	return unit, exists
+	return r.units.Get(name)
 }
 
 // LoadUnit loads a unit by name, searching in the configured search paths.
@@ -80,14 +76,14 @@ func (r *UnitRegistry) LoadUnit(name string, searchPaths []string) (*Unit, error
 	normalized := ident.Normalize(name)
 
 	// Check if already loaded in registry
-	if unit, exists := r.units[normalized]; exists {
+	if unit, exists := r.units.Get(name); exists {
 		return unit, nil
 	}
 
 	// Check compilation cache before parsing
 	if cachedUnit, found := r.cache.Get(normalized); found {
 		// Unit found in cache and is still valid - use it
-		r.units[normalized] = cachedUnit
+		r.units.Set(name, cachedUnit)
 		return cachedUnit, nil
 	}
 
@@ -216,23 +212,23 @@ func (r *UnitRegistry) LoadUnit(name string, searchPaths []string) (*Unit, error
 // UnregisterUnit removes a unit from the registry.
 // This is primarily useful for testing or when reloading a unit.
 func (r *UnitRegistry) UnregisterUnit(name string) {
-	normalized := ident.Normalize(name)
-	delete(r.units, normalized)
+	r.units.Delete(name)
 }
 
 // Clear removes all units from the registry.
 // This is primarily useful for testing.
 func (r *UnitRegistry) Clear() {
-	r.units = make(map[string]*Unit)
+	r.units.Clear()
 	r.loading = make(map[string]bool)
 }
 
 // ListUnits returns a list of all registered unit names.
 func (r *UnitRegistry) ListUnits() []string {
-	names := make([]string, 0, len(r.units))
-	for _, unit := range r.units {
+	names := make([]string, 0, r.units.Len())
+	r.units.Range(func(_ string, unit *Unit) bool {
 		names = append(names, unit.Name)
-	}
+		return true
+	})
 	return names
 }
 
@@ -263,30 +259,39 @@ func (r *UnitRegistry) ClearCache() {
 //	If Unit B uses Unit A, and Unit C uses Unit B, the order will be: [A, B, C]
 func (r *UnitRegistry) ComputeInitializationOrder() ([]string, error) {
 	// Build dependency graph
-	// inDegree tracks how many dependencies each unit has
+	// inDegree tracks how many dependencies each unit has (keyed by normalized name)
 	inDegree := make(map[string]int)
-	// adjacency list: unit -> units that depend on it
+	// adjacency list: unit -> units that depend on it (keyed by normalized name)
 	dependents := make(map[string][]string)
 
 	// Initialize in-degree for all units
-	for unitName := range r.units {
-		inDegree[unitName] = 0
-	}
+	r.units.Range(func(unitName string, _ *Unit) bool {
+		normalizedName := ident.Normalize(unitName)
+		inDegree[normalizedName] = 0
+		return true
+	})
 
 	// Build the graph
-	for unitName, unit := range r.units {
+	var buildErr error
+	r.units.Range(func(unitName string, unit *Unit) bool {
+		normalizedUnitName := ident.Normalize(unitName)
 		for _, depName := range unit.Uses {
 			normalizedDep := ident.Normalize(depName)
 
 			// Check if the dependency exists
-			if _, exists := r.units[normalizedDep]; !exists {
-				return nil, fmt.Errorf("unit '%s' depends on '%s', which is not loaded", unitName, depName)
+			if !r.units.Has(depName) {
+				buildErr = fmt.Errorf("unit '%s' depends on '%s', which is not loaded", unitName, depName)
+				return false
 			}
 
 			// Add edge: depName -> unitName (unitName depends on depName)
-			dependents[normalizedDep] = append(dependents[normalizedDep], unitName)
-			inDegree[unitName]++
+			dependents[normalizedDep] = append(dependents[normalizedDep], normalizedUnitName)
+			inDegree[normalizedUnitName]++
 		}
+		return true
+	})
+	if buildErr != nil {
+		return nil, buildErr
 	}
 
 	// Kahn's algorithm: start with units that have no dependencies
@@ -298,14 +303,16 @@ func (r *UnitRegistry) ComputeInitializationOrder() ([]string, error) {
 	}
 
 	// Process units in topological order
-	initOrder := make([]string, 0, len(r.units))
+	initOrder := make([]string, 0, r.units.Len())
 
 	for len(queue) > 0 {
 		// Remove a unit with no dependencies
 		current := queue[0]
 		queue = queue[1:]
 		// Append the unit's actual name (with original case), not the normalized key
-		initOrder = append(initOrder, r.units[current].Name)
+		if unit, exists := r.units.Get(current); exists {
+			initOrder = append(initOrder, unit.Name)
+		}
 
 		// Reduce in-degree for all units that depend on current
 		for _, dependent := range dependents[current] {
@@ -318,7 +325,7 @@ func (r *UnitRegistry) ComputeInitializationOrder() ([]string, error) {
 	}
 
 	// If we didn't process all units, there's a cycle
-	if len(initOrder) != len(r.units) {
+	if len(initOrder) != r.units.Len() {
 		// Find a unit involved in the cycle for error reporting
 		remaining := make([]string, 0)
 		for unitName, degree := range inDegree {

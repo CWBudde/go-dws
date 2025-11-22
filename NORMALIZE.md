@@ -160,11 +160,12 @@ Standalone registry classes with clear boundaries:
   - Impact: User-defined function resolution
   - Migrated: FunctionRegistry struct, NewFunctionRegistry, Register, RegisterWithUnit, Lookup, LookupQualified, Exists, ExistsQualified, GetOverloadCount, GetOverloadCountQualified, GetAllFunctions, GetFunctionNames, GetFunctionsInUnit, Count, TotalOverloads, Clear, RemoveFunction, FindFunctionsByParameterCount, GetFunctionMetadata, ValidateNoConflicts
 
-- [ ] **13.7** Migrate `internal/units/registry.go`
+- [x] **13.7** Migrate `internal/units/registry.go`
   - Field: `units map[string]*Unit`
   - Replace with: `units *ident.Map[*Unit]`
   - Impact: Unit/module lookup
-  - Note: Also has `loading map[string]bool` for cycle detection
+  - Note: `loading map[string]bool` kept as regular map - only used for cycle detection, not identifier lookups
+  - Migrated: UnitRegistry struct, NewUnitRegistry, RegisterUnit, GetUnit, LoadUnit, UnregisterUnit, Clear, ListUnits, ComputeInitializationOrder
 
 #### Tasks - Lower Priority (Type System Internals)
 
