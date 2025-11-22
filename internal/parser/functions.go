@@ -1,20 +1,19 @@
 package parser
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // isCallingConvention checks if a string is a calling convention keyword.
 // Calling conventions are contextual identifiers, not reserved keywords,
 // so they're tokenized as IDENT by the lexer.
 func isCallingConvention(literal string) bool {
-	lower := strings.ToLower(literal)
-	return lower == "register" || lower == "pascal" || lower == "cdecl" ||
-		lower == "safecall" || lower == "stdcall" || lower == "fastcall" ||
-		lower == "reference"
+	return ident.Equal(literal, "register") || ident.Equal(literal, "pascal") ||
+		ident.Equal(literal, "cdecl") || ident.Equal(literal, "safecall") ||
+		ident.Equal(literal, "stdcall") || ident.Equal(literal, "fastcall") ||
+		ident.Equal(literal, "reference")
 }
 
 // based on the parser mode (traditional vs cursor).
@@ -259,7 +258,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		} else if nextTok.Type == lexer.IDENT && isCallingConvention(nextTok.Literal) {
 			cursor = cursor.Advance() // move to calling convention
 			p.cursor = cursor
-			fn.CallingConvention = strings.ToLower(cursor.Current().Literal)
+			fn.CallingConvention = ident.Normalize(cursor.Current().Literal)
 			fn.CallingConventionPos = cursor.Current().Pos
 
 			if cursor.Peek(1).Type != lexer.SEMICOLON {
