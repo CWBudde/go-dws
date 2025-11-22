@@ -35,7 +35,6 @@ func NewInterfaceInfo(name string) *InterfaceInfo {
 // and walking up through parent interfaces until the method is found.
 // Returns nil if the method is not found in the interface hierarchy.
 func (ii *InterfaceInfo) GetMethod(name string) *ast.FunctionDecl {
-	// Normalize to lowercase for case-insensitive lookup
 	normalizedName := strings.ToLower(name)
 
 	// Check this interface's methods first
@@ -213,7 +212,6 @@ func classHasMethod(class *ClassInfo, methodName string) bool {
 		return false
 	}
 
-	// Normalize to lowercase for case-insensitive lookup
 	normalizedName := strings.ToLower(methodName)
 
 	// Check current class

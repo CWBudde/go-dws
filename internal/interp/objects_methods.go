@@ -272,8 +272,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			}
 		}
 
-		// Task 9.7f: Check if this identifier refers to a record type
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		// Check if this identifier refers to a record type
 		recordTypeKey := "__record_type_" + strings.ToLower(ident.Value)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {

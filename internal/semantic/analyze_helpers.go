@@ -167,7 +167,7 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 		funcType = types.NewProcedureType(paramTypes)
 	}
 
-	// Add method to helper (normalize to lowercase for case-insensitive lookup)
+	// Add method to helper
 	methodNameLower := strings.ToLower(methodName)
 	helperType.Methods[methodNameLower] = funcType
 
@@ -206,7 +206,6 @@ func (a *Analyzer) analyzeHelperProperty(prop *ast.PropertyDecl, helperType *typ
 		// For now, we just track the basic property info
 	}
 
-	// Normalize to lowercase for case-insensitive lookup
 	propNameLower := strings.ToLower(propName)
 	helperType.Properties[propNameLower] = propInfo
 }
@@ -235,7 +234,6 @@ func (a *Analyzer) analyzeHelperClassVar(classVar *ast.FieldDecl, helperType *ty
 		return
 	}
 
-	// Normalize to lowercase for case-insensitive lookup
 	varNameLower := strings.ToLower(varName)
 	helperType.ClassVars[varNameLower] = varType
 }
@@ -281,7 +279,6 @@ func (a *Analyzer) analyzeHelperClassConst(classConst *ast.ConstDecl, helperType
 
 	// Store the constant (value would be evaluated by interpreter)
 	// For now, we just track that it exists with its type
-	// Normalize to lowercase for case-insensitive lookup
 	constNameLower := strings.ToLower(constName)
 	helperType.ClassConsts[constNameLower] = constType
 }

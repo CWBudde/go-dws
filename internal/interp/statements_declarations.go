@@ -94,8 +94,8 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 			if stmt.Type == nil {
 				return newError("anonymous record literal requires explicit type annotation")
 			}
+
 			typeName := stmt.Type.String()
-			// Task 9.225: Normalize to lowercase for case-insensitive lookups
 			recordTypeKey := "__record_type_" + strings.ToLower(typeName)
 			if typeVal, ok := i.env.Get(recordTypeKey); ok {
 				if rtv, ok := typeVal.(*RecordTypeValue); ok {
@@ -125,7 +125,6 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 		// If declaring a subrange variable with an initializer, wrap and validate
 		if stmt.Type != nil {
 			typeName := stmt.Type.String()
-			// Task 9.225: Normalize to lowercase for case-insensitive lookups
 			subrangeTypeKey := "__subrange_type_" + strings.ToLower(typeName)
 			handledSubrange := false
 			if typeVal, ok := i.env.Get(subrangeTypeKey); ok {
@@ -188,7 +187,6 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 				}
 			} else if typeVal, ok := i.env.Get("__record_type_" + strings.ToLower(typeName)); ok {
 				// Check if this is a record type
-				// Task 9.225: Normalize to lowercase for case-insensitive lookups
 				if rtv, ok := typeVal.(*RecordTypeValue); ok {
 					// Initialize with empty record value
 					// Task 9.7e1: Use createRecordValue for proper nested record initialization
@@ -198,7 +196,6 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 				}
 			} else {
 				// Check if this is an array type
-				// Task 9.225: Normalize to lowercase for case-insensitive lookups
 				arrayTypeKey := "__array_type_" + strings.ToLower(typeName)
 				if typeVal, ok := i.env.Get(arrayTypeKey); ok {
 					if atv, ok := typeVal.(*ArrayTypeValue); ok {
@@ -209,7 +206,6 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 					}
 				} else {
 					// Check if this is a subrange type
-					// Task 9.225: Normalize to lowercase for case-insensitive lookups
 					subrangeTypeKey := "__subrange_type_" + strings.ToLower(typeName)
 					if typeVal, ok := i.env.Get(subrangeTypeKey); ok {
 						if stv, ok := typeVal.(*SubrangeTypeValue); ok {
@@ -340,7 +336,6 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 	}
 
 	// Check if this is a record type
-	// Task 9.225: Normalize to lowercase for case-insensitive lookups
 	if typeVal, ok := i.env.Get("__record_type_" + strings.ToLower(typeName)); ok {
 		if rtv, ok := typeVal.(*RecordTypeValue); ok {
 			// Task 9.7e1: Use createRecordValue for proper nested record initialization
@@ -349,7 +344,6 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 	}
 
 	// Check if this is an array type
-	// Task 9.225: Normalize to lowercase for case-insensitive lookups
 	arrayTypeKey := "__array_type_" + strings.ToLower(typeName)
 	if typeVal, ok := i.env.Get(arrayTypeKey); ok {
 		if atv, ok := typeVal.(*ArrayTypeValue); ok {
@@ -358,7 +352,6 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 	}
 
 	// Check if this is a subrange type
-	// Task 9.225: Normalize to lowercase for case-insensitive lookups
 	subrangeTypeKey := "__subrange_type_" + strings.ToLower(typeName)
 	if typeVal, ok := i.env.Get(subrangeTypeKey); ok {
 		if stv, ok := typeVal.(*SubrangeTypeValue); ok {
@@ -420,7 +413,6 @@ func (i *Interpreter) evalConstDecl(stmt *ast.ConstDecl) Value {
 			return newError("anonymous record literal requires explicit type annotation")
 		}
 		typeName := stmt.Type.String()
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
 		recordTypeKey := "__record_type_" + strings.ToLower(typeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {

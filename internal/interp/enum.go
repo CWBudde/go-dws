@@ -106,7 +106,6 @@ func (i *Interpreter) evalEnumDeclaration(decl *ast.EnumDecl) Value {
 
 	// Store enum type metadata in environment with special key
 	// This allows variable declarations to resolve the type
-	// Normalize to lowercase for case-insensitive lookups
 	enumTypeKey := "__enum_type_" + strings.ToLower(enumName)
 	i.env.Define(enumTypeKey, &EnumTypeValue{EnumType: enumType})
 

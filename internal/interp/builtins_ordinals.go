@@ -66,7 +66,6 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 		}
 
 		// Get the enum type metadata
-		// Normalize to lowercase for case-insensitive lookups
 		enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
 		enumTypeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
@@ -181,7 +180,6 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 		}
 
 		// Get the enum type metadata
-		// Normalize to lowercase for case-insensitive lookups
 		enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
 		enumTypeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
@@ -251,7 +249,6 @@ func (i *Interpreter) builtinSucc(args []Value) Value {
 	case *IntegerValue:
 		return &IntegerValue{Value: val.Value + 1}
 	case *EnumValue:
-		// Normalize to lowercase for case-insensitive lookups
 		enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
 		enumTypeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
@@ -302,7 +299,6 @@ func (i *Interpreter) builtinPred(args []Value) Value {
 	case *IntegerValue:
 		return &IntegerValue{Value: val.Value - 1}
 	case *EnumValue:
-		// Normalize to lowercase for case-insensitive lookups
 		enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
 		enumTypeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {

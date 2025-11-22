@@ -157,7 +157,6 @@ func (i *Interpreter) builtinHigh(args []Value) Value {
 	// Handle enum values
 	if enumVal, ok := arg.(*EnumValue); ok {
 		// Look up the enum type metadata
-		// Normalize to lowercase for case-insensitive lookups
 		enumTypeKey := "__enum_type_" + strings.ToLower(enumVal.TypeName)
 		typeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
