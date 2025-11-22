@@ -534,7 +534,14 @@ func (i *Interpreter) inferArrayTypeFromValues(lit *ast.ArrayLiteralExpression, 
 		return nil, nil
 	}
 
-	return types.NewDynamicArrayType(types.GetUnderlyingType(inferred)), nil
+	// Prefer static array type when inferring without an explicit annotation.
+	// This gives value semantics (copy on assignment) matching DWScript behavior
+	// for array literals assigned to implicitly-typed variables.
+	size := len(lit.Elements)
+	if size == 0 {
+		return types.NewDynamicArrayType(types.GetUnderlyingType(inferred)), nil
+	}
+	return types.NewStaticArrayType(types.GetUnderlyingType(inferred), 0, size-1), nil
 }
 
 // coerceArrayElements ensures evaluated values conform to the array's element type.

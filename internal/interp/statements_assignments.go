@@ -12,14 +12,14 @@ import (
 // This file contains assignment statement evaluation (simple, member, index, compound).
 
 // cloneIfCopyable returns a defensive copy for values that implement CopyableValue (e.g., arrays).
-// Dynamic arrays should keep reference semantics (DWScript/Delphi behavior), so we skip copying
-// them here; static arrays and other copyable primitives still get cloned.
+// DWScript arrays have value semantics, so assignments should duplicate their backing storage
+// to avoid accidental aliasing between variables.
 func cloneIfCopyable(val Value) Value {
 	if val == nil {
 		return nil
 	}
 
-	// Dynamic arrays are reference types; avoid breaking aliasing on assignment.
+	// Dynamic arrays should keep reference semantics (DWScript behavior).
 	if arr, ok := val.(*ArrayValue); ok {
 		if arr.ArrayType == nil || arr.ArrayType.IsDynamic() {
 			return val
@@ -330,7 +330,7 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 }
 
 // evalSimpleAssignment handles simple variable assignment: x := value
-func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, _ *ast.AssignmentStatement) Value {
+func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, stmt *ast.AssignmentStatement) Value {
 	// Task 9.35: Check if target is a var parameter (ReferenceValue)
 	if existingVal, ok := i.env.Get(target.Value); ok {
 		if refVal, isRef := existingVal.(*ReferenceValue); isRef {
@@ -421,7 +421,15 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 		}
 
 		// Ensure value semantics for types that support copying (e.g., arrays)
-		value = cloneIfCopyable(value)
+		// Exception: when assigning directly from an indexed expression (e.g., row := matrix[i])
+		// we keep the reference so mutations write back into the parent container.
+		if stmt == nil {
+			value = cloneIfCopyable(value)
+		} else {
+			if _, isIndexExpr := stmt.Value.(*ast.IndexExpression); !isIndexExpr {
+				value = cloneIfCopyable(value)
+			}
+		}
 
 		// Task 9.1.5: Handle object variable assignment - manage ref count
 		if objInst, isObj := existingVal.(*ObjectInstance); isObj {

@@ -133,7 +133,8 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 	}
 
 	elementUnderlying := types.GetUnderlyingType(inferredElementType)
-	arrayType := types.NewDynamicArrayType(elementUnderlying)
+	size := len(lit.Elements)
+	arrayType := types.NewStaticArrayType(elementUnderlying, 0, size-1)
 
 	a.semanticInfo.SetType(lit, &ast.TypeAnnotation{
 		Token: lit.Token,
