@@ -1658,7 +1658,7 @@ This causes:
 
 **Estimate**: 24-32 hours (3-4 days)
 
-**Status**: NOT STARTED
+**Status**: IN PROGRESS (Passes 1-2 complete, Pass 2 enabled in dual-mode)
 
 **Priority**: P0 - CRITICAL (Enables correct handling of forward declarations and type dependencies)
 
@@ -1688,32 +1688,37 @@ This causes:
 
 **Subtasks**:
 
-- [ ] **6.1.2.1 Design pass architecture**
-  - [ ] Create `internal/semantic/passes/` package
-  - [ ] Define `Pass` interface: `Name() string`, `Run(program *ast.Program, ctx *PassContext) error`
-  - [ ] Create `PassContext` struct containing TypeRegistry, SymbolTable, errors
-  - [ ] Design pass dependency graph: Pass1 → Pass2 → Pass3 → Pass4
-  - [ ] Write architecture documentation in `docs/semantic-passes.md`
+- [x] **6.1.2.1 Design pass architecture** ✅
+  - [x] Create `internal/semantic/` package (uses semantic/ not semantic/passes/)
+  - [x] Define `Pass` interface: `Name() string`, `Run(program *ast.Program, ctx *PassContext) error`
+  - [x] Create `PassContext` struct containing TypeRegistry, SymbolTable, errors
+  - [x] Design pass dependency graph: Pass1 → Pass2 → Pass3 → Pass4
+  - [ ] Write architecture documentation in `docs/semantic-passes.md` (deferred)
 
-- [ ] **6.1.2.2 Implement Pass 1: Declaration Collection**
-  - [ ] Create `DeclarationPass` that only registers type/function names
-  - [ ] Walk AST and register: class names, interface names, enum names, record names
-  - [ ] Register function/procedure signatures (without analyzing bodies)
-  - [ ] Handle forward declarations by marking types as incomplete
-  - [ ] Do NOT resolve type references yet (just collect names)
-  - [ ] Write unit tests for declaration collection
+- [x] **6.1.2.2 Implement Pass 1: Declaration Collection** ✅
+  - [x] Create `DeclarationPass` that only registers type/function names
+  - [x] Walk AST and register: class names, interface names, enum names, record names
+  - [x] Register function/procedure signatures (without analyzing bodies)
+  - [x] Handle forward declarations by marking types as incomplete
+  - [x] Do NOT resolve type references yet (just collect names)
+  - [x] Write unit tests for declaration collection
 
-- [ ] **6.1.2.3 Implement Pass 2: Type Resolution**
-  - [ ] Create `TypeResolutionPass` that resolves all type references
-  - [ ] Resolve class parent types and interface implementations
-  - [ ] Resolve field types, method signatures, parameter types
-  - [ ] Build complete type hierarchies (inheritance chains)
-  - [ ] Detect circular type dependencies and report errors
-  - [ ] Validate that forward-declared types have implementations
-  - [ ] Write unit tests for type resolution
+- [x] **6.1.2.3 Implement Pass 2: Type Resolution** ✅
+  - [x] Create `TypeResolutionPass` that resolves all type references
+  - [x] Resolve class parent types and interface implementations
+  - [x] Resolve field types, method signatures, parameter types
+  - [x] Build complete type hierarchies (inheritance chains)
+  - [x] Detect circular type dependencies and report errors
+  - [x] Validate that forward-declared types have implementations
+  - [x] Validate that forward-declared methods have implementations (added)
+  - [x] Validate that forward-declared functions have implementations (added)
+  - [x] Write unit tests for type resolution
 
-- [ ] **6.1.2.4 Implement Pass 3: Semantic Validation**
-  - [ ] Create `ValidationPass` that type-checks expressions and statements
+- [ ] **6.1.2.4 Implement Pass 3: Semantic Validation** (skeleton exists, needs completion)
+  - [x] Create `ValidationPass` that type-checks expressions and statements
+  - [ ] Migrate expression validation from old analyzer (analyzeExpression, etc.)
+  - [ ] Migrate statement validation from old analyzer (analyzeStatement, etc.)
+  - [ ] Migrate builtin function validation from old analyzer
   - [ ] Validate variable declarations and assignments
   - [ ] Type-check all expressions (binary ops, calls, member access)
   - [ ] Validate control flow (break/continue in loops, return in functions)
@@ -1721,46 +1726,104 @@ This causes:
   - [ ] Validate interface method implementations
   - [ ] Write unit tests for semantic validation
 
-- [ ] **6.1.2.5 Implement Pass 4: Contract Validation**
-  - [ ] Create `ContractPass` for requires/ensures/invariant checking
+- [ ] **6.1.2.5 Implement Pass 4: Contract Validation** (skeleton exists, needs completion)
+  - [x] Create `ContractPass` for requires/ensures/invariant checking
+  - [ ] Migrate contract validation logic from old analyzer
   - [ ] Validate that postconditions only use valid 'old' expressions
   - [ ] Check class invariants are maintained
   - [ ] Validate requires clauses don't reference mutable state incorrectly
   - [ ] Write unit tests for contract validation
 
-- [ ] **6.1.2.6 Integrate passes into Analyzer**
-  - [ ] Refactor `Analyzer.Analyze()` to run passes sequentially
-  - [ ] Pass shared context between passes (TypeRegistry, SymbolTable)
-  - [ ] Collect errors from all passes before returning
-  - [ ] Remove post-hoc validation methods (now done in proper passes)
-  - [ ] Run full test suite to verify correctness
+- [x] **6.1.2.6 Integrate passes into Analyzer (partial)** ⚠️
+  - [x] Refactor `Analyzer.Analyze()` to run Pass 2 in dual-mode
+  - [x] Pass shared context between passes (TypeRegistry, SymbolTable)
+  - [x] Collect errors from all passes before returning
+  - [x] Remove post-hoc validation methods (migrated to Pass 2)
+  - [x] Run full test suite to verify correctness (187 semantic tests pass)
+  - [ ] **6.1.2.6.1 Complete Pass 3 migration** (NEW - see 6.1.2.4 above)
+  - [ ] **6.1.2.6.2 Complete Pass 4 migration** (NEW - see 6.1.2.5 above)
+  - [ ] **6.1.2.6.3 Enable all 4 passes** (NEW)
+  - [ ] **6.1.2.6.4 Remove old analyzer loop entirely** (NEW)
 
-- [ ] **6.1.2.7 Add pass result caching**
+- [ ] **6.1.2.8 Add pass result caching** (renumbered from 6.1.2.7, deferred)
   - [ ] Cache Pass 1 results for incremental re-analysis
   - [ ] Cache Pass 2 type resolution for unchanged files
   - [ ] Design cache invalidation strategy (changed files invalidate dependent passes)
   - [ ] Write tests for caching behavior
 
-**Files to Create**:
-- `internal/semantic/passes/pass.go` (interface definition)
-- `internal/semantic/passes/declaration_pass.go`
-- `internal/semantic/passes/type_resolution_pass.go`
-- `internal/semantic/passes/validation_pass.go`
-- `internal/semantic/passes/contract_pass.go`
-- `internal/semantic/passes/pass_context.go`
-- `docs/semantic-passes.md` (architecture documentation)
+**Files Created** ✅:
+- `internal/semantic/pass.go` (Pass interface and PassManager)
+- `internal/semantic/declaration_pass.go` (Pass 1)
+- `internal/semantic/type_resolution_pass.go` (Pass 2 - enhanced with forward validation)
+- `internal/semantic/validation_pass.go` (Pass 3 - skeleton only)
+- `internal/semantic/contract_pass.go` (Pass 4 - skeleton only)
+- `internal/semantic/pass_context.go` (shared context)
+- `internal/semantic/passes/*_test.go` (unit tests for passes)
+- `docs/semantic-passes.md` (deferred)
 
-**Files to Modify**:
-- `internal/semantic/analyzer.go` (refactor `Analyze()` method to use passes)
-- All `analyze_*.go` files (move logic into appropriate passes)
+**Files Modified** ✅:
+- `internal/semantic/analyzer.go` (runs Pass 2 in dual-mode, removed legacy validation methods)
 
-**Success Metrics**:
-- Four explicit passes with clear responsibilities
-- Forward declarations work reliably
-- Circular dependencies detected early
-- Post-hoc validation methods removed
-- All tests pass with new architecture
-- Performance same or better (measure with benchmarks)
+**Files Needing Migration**:
+- All `analyze_*.go` files (logic needs migration to Pass 3/4):
+  - `analyze_expressions.go` → Pass 3 (ValidationPass)
+  - `analyze_statements.go` → Pass 3 (ValidationPass)
+  - `analyze_builtin_*.go` → Pass 3 (ValidationPass)
+  - `analyze_contracts.go` → Pass 4 (ContractPass)
+  - etc.
+
+**Success Metrics** (partial):
+- ✅ Four explicit passes with clear responsibilities (interfaces defined, Passes 1-2 complete)
+- ✅ Forward declarations validated reliably (Pass 2 handles all forward validation)
+- ⚠️  Circular dependencies detected (partial - type resolution only)
+- ✅ Post-hoc validation methods removed (migrated to Pass 2)
+- ✅ All semantic tests pass (187 tests)
+- ⚠️  Performance maintained (dual-mode has some overhead, will improve when old analyzer removed)
+- ❌ Full pass architecture not yet enabled (currently dual-mode: old analyzer + Pass 2)
+
+**Current Architecture** (Dual-Mode):
+```go
+func (a *Analyzer) Analyze(program *ast.Program) error {
+    // OLD: Analyze each statement (handles most validation)
+    for _, stmt := range program.Statements {
+        a.analyzeStatement(stmt)  // Registration + validation
+    }
+
+    // NEW: Run Pass 2 only (forward declaration validation)
+    ctx := a.createPassContext()
+    pass2 := NewTypeResolutionPass()
+    pass2.Run(program, ctx)  // Validates forward declarations
+    a.mergePassErrors(ctx)
+
+    return ...
+}
+```
+
+**Target Architecture** (Full Multi-Pass):
+```go
+func (a *Analyzer) Analyze(program *ast.Program) error {
+    ctx := a.createPassContext()
+
+    // Run all 4 passes sequentially
+    pass1 := NewDeclarationPass()     // Register types/functions
+    pass2 := NewTypeResolutionPass()  // Resolve types, validate forwards
+    pass3 := NewValidationPass()      // Type-check expressions/statements
+    pass4 := NewContractPass()        // Validate contracts
+
+    passManager := NewPassManager(pass1, pass2, pass3, pass4)
+    passManager.RunAll(program, ctx)
+
+    a.mergePassErrors(ctx)
+    return ...
+}
+```
+
+**Next Steps**:
+1. Complete Pass 3 (ValidationPass) by migrating all validation logic from `analyze_*.go` files
+2. Complete Pass 4 (ContractPass) by migrating contract validation logic
+3. Enable all 4 passes and remove old `analyzeStatement()` loop
+4. Verify all tests pass (especially interp fixtures)
+5. Consider performance optimizations and caching (task 6.1.2.8)
 
 ---
 
