@@ -533,6 +533,7 @@ type InterpreterAdapter interface {
 	//   - expr: The AST expression to evaluate lazily
 	//   - env: The environment captured from the call site
 	// Returns the lazy thunk value.
+	// Panics if the env parameter is not of type *Environment.
 	CreateLazyThunk(expr ast.Expression, env any) Value
 
 	// CreateReferenceValue creates a var parameter reference.
@@ -541,6 +542,7 @@ type InterpreterAdapter interface {
 	//   - varName: The name of the variable to reference
 	//   - env: The environment containing the variable
 	// Returns the reference value.
+	// Panics if the env parameter is not of type *Environment.
 	CreateReferenceValue(varName string, env any) Value
 
 	// ===== Task 3.5.22: Property & Method Reference Adapter Methods =====

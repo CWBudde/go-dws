@@ -357,7 +357,7 @@ func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *Exe
 //
 // This implementation handles the following call types via delegation to adapter:
 //
-// **1. Function Pointer Calls** (lines 384-395, Task 3.5.23):
+// **1. Function Pointer Calls** (lines 419-432, Task 3.5.23):
 //   - Detects function pointer and lambda calls
 //   - Delegates to adapter which handles:
 //   - Lazy parameter creation (CreateLazyThunk for IsLazy params)
@@ -365,7 +365,7 @@ func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *Exe
 //   - Regular parameter evaluation
 //   - Closure environment capture
 //
-// **2. Member Access Calls** (lines 398-417, Task 3.5.24):
+// **2. Member Access Calls** (lines 434-456, Task 3.5.24):
 //   - **Record/Interface/Object method calls**: obj.Method(args)
 //   - Detects by evaluating object and checking type
 //   - Delegates to adapter for method dispatch
@@ -376,7 +376,7 @@ func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *Exe
 //   - Detects by checking if identifier is a class name
 //   - Delegates to adapter for constructor dispatch and object instantiation
 //
-// **3. User Function Calls** (lines 427-439, Task 3.5.23):
+// **3. User Function Calls** (lines 465-479, Task 3.5.23):
 //   - Detects user-defined function calls (with overloading support)
 //   - Delegates to adapter which handles:
 //   - Overload resolution based on argument types
@@ -384,32 +384,32 @@ func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *Exe
 //   - Var parameter creation (pass-by-reference)
 //   - Regular parameter evaluation (with caching to prevent double-eval)
 //
-// **4. Implicit Self Method Calls** (lines 442-448, Task 3.5.24):
+// **4. Implicit Self Method Calls** (lines 481-490, Task 3.5.24):
 //   - Pattern: MethodName(args) where Self is in environment
 //   - Detects by checking for Self in environment
 //   - Delegates to adapter which converts to Self.MethodName(args)
 //
-// **5. Record Static Method Calls** (lines 451-457, Task 3.5.24):
+// **5. Record Static Method Calls** (lines 492-501, Task 3.5.24):
 //   - Pattern: MethodName(args) in record method context
 //   - Detects by checking for __CurrentRecord__ in environment
 //   - Delegates to adapter for static method dispatch
 //
-// **6. Built-in Functions with Var Parameters** (lines 460-474, Task 3.5.24):
+// **6. Built-in Functions with Var Parameters** (lines 503-516, Task 3.5.24):
 //   - Functions: Inc, Dec, Insert, Delete, SetLength, etc.
 //   - Delegates to adapter for var parameter handling
 //
-// **7. Default() Function** (lines 477-479, Task 3.5.24):
+// **7. Default() Function** (lines 524-529, Task 3.5.24):
 //   - Pattern: Default(TypeName)
 //   - Expects unevaluated type identifier
 //   - Delegates to adapter for zero value creation
 //
-// **8. Type Casts** (lines 482-494, Task 3.5.24):
+// **8. Type Casts** (lines 531-547, Task 3.5.24):
 //   - Pattern: TypeName(expression) for single-argument calls
 //   - Supported types: Integer, Float, String, Boolean, Variant, Enum, Class
 //   - Delegates to adapter which calls evalTypeCast
 //   - Falls through to built-in functions if not a type cast
 //
-// **9. Built-in Functions** (lines 497-508):
+// **9. Built-in Functions** (lines 549-562):
 //   - Standard library functions (PrintLn, Length, Abs, etc.)
 //   - Evaluates all arguments first, then delegates to adapter
 //
