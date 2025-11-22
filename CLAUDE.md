@@ -168,9 +168,28 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
   - Integer, Float, String, Boolean, Array, Record, Enum, Class types
   - Type checking and conversion
 
-- `internal/interp/` - AST Interpreter/runtime
-  - Executes the AST via tree-walking
-  - Environment/symbol table management
+- `internal/interp/` - AST Interpreter/runtime (Phase 3.5 refactored architecture)
+  - **Architecture**: Split into thin orchestrator (Interpreter) + evaluation engine (Evaluator)
+  - **Interpreter** (`interpreter.go`): Thin orchestrator that manages global state and delegates evaluation
+    - Maintains compatibility with existing API
+    - Provides adapter interface for gradual migration
+    - Manages global registries (functions, classes, records, operators)
+  - **Evaluator** (`evaluator/`): Visitor-pattern based evaluation engine
+    - `evaluator.go`: Core evaluator with visitor pattern infrastructure
+    - `visitor_expressions.go`: Expression evaluation (48+ visitor methods)
+    - `visitor_statements.go`: Statement evaluation (control flow, loops, etc.)
+    - `visitor_declarations.go`: Declaration evaluation (functions, classes, types)
+    - `visitor_literals.go`: Literal value creation
+    - `binary_ops.go`: Binary operation implementations (arithmetic, comparison, boolean, string)
+    - `context.go`: ExecutionContext for managing environment and call stack
+    - `callstack.go`: Call stack management with recursion depth tracking
+    - Performance: ~70 ns/op for binary operations, 0 allocations for literals (see `docs/evaluator-performance-report.md`)
+  - **Type System** (`types/`): Centralized type registry
+    - `type_system.go`: Manages classes, records, interfaces, functions, helpers
+    - `function_registry.go`: Function overload resolution and registration
+  - **Runtime** (`runtime/`): Runtime value types
+    - Integer, Float, String, Boolean, Array, Record, Class instance values
+    - Environment/symbol table management
   - Built-in function implementations
 
 - `internal/bytecode/` - Bytecode VM (5-6x faster than AST interpreter)
@@ -240,6 +259,27 @@ go run cmd/gen-visitor/main.go
 # or
 go generate ./pkg/ast
 ```
+
+**Evaluator Visitor Pattern** (Phase 3.5): The interpreter's evaluation logic uses a visitor pattern for cleaner code organization and better maintainability.
+
+- **Visitor Methods**: Each AST node type has a corresponding `Visit*` method in the Evaluator
+  - Example: `VisitBinaryExpression(node *ast.BinaryExpression, ctx *ExecutionContext) Value`
+  - All visitor methods take a node and an ExecutionContext, return a Value
+
+- **ExecutionContext**: Encapsulates evaluation state
+  - Environment (variable bindings)
+  - Call stack (for recursion tracking)
+  - Control flow state (break, continue, return, exit)
+  - Exception handling state
+
+- **Adapter Pattern**: Temporary bridge between Interpreter and Evaluator during migration
+  - `InterpreterAdapter` interface allows Evaluator to call back to Interpreter
+  - Will be removed in Phase 3.5.37 (blocked on AST-free runtime types)
+
+- **Performance**: Zero overhead vs switch-based approach
+  - Literals: 0.3-0.6 ns/op (compiler-optimized, 0 allocations)
+  - Binary operations: ~70 ns/op, 3 allocations
+  - See `docs/evaluator-performance-report.md` for detailed benchmarks
 
 **Symbol Tables**: Will use nested scope chain for variable/function resolution (Stage 5).
 
