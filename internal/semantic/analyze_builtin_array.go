@@ -1,10 +1,9 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -243,7 +242,7 @@ func (a *Analyzer) isTypeMetaValueExpression(expr ast.Expression) bool {
 	}
 
 	// Check built-in types
-	lower := strings.ToLower(ident.Value)
+	lower := pkgident.Normalize(ident.Value)
 	switch lower {
 	case "integer", "float", "boolean", "string":
 		return true

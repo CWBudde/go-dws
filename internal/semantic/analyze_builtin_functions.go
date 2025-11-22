@@ -1,10 +1,9 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -16,7 +15,7 @@ import (
 // or (nil, false) if it's not a built-in function.
 func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, callExpr *ast.CallExpression) (types.Type, bool) {
 	// Normalize function name to lowercase for case-insensitive matching
-	lowerName := strings.ToLower(name)
+	lowerName := ident.Normalize(name)
 
 	// Dispatch to specific analyzer based on function name
 	switch lowerName {

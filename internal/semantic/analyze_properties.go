@@ -1,11 +1,9 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
-	"github.com/cwbudde/go-dws/pkg/ident"
+	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -26,7 +24,7 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 
 	//  Check for duplicate property names within class
 	for existingName := range classType.Properties {
-		if ident.Equal(existingName, propName) {
+		if pkgident.Equal(existingName, propName) {
 			a.addError("duplicate property '%s' in class '%s' at %s",
 				propName, classType.Name, prop.Token.Pos.String())
 			return
@@ -141,7 +139,7 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 
 		// 1. Check if it's a class variable (only for class properties)
 		// Task 9.285: Use lowercase for case-insensitive lookup
-		if fieldType, found := classType.ClassVars[strings.ToLower(readSpecName)]; found {
+		if fieldType, found := classType.ClassVars[pkgident.Normalize(readSpecName)]; found {
 			// Only class properties can read from class variables
 			if propInfo.IsClassProperty {
 				if !propType.Equals(fieldType) {
@@ -174,7 +172,7 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		if !propInfo.IsClassProperty {
 			// Instance property can use instance field
 			// Task 9.285: Use lowercase for case-insensitive lookup
-			if fieldType, found := classType.GetField(strings.ToLower(readSpecName)); found {
+			if fieldType, found := classType.GetField(pkgident.Normalize(readSpecName)); found {
 				if !propType.Equals(fieldType) {
 					a.addError("property '%s' read field '%s' has type %s, expected %s at %s",
 						propName, readSpecName, fieldType.String(), propType.String(),
@@ -189,11 +187,11 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 
 		// If method, verify method exists with correct signature
 		// Task 9.285: Use lowercase for case-insensitive lookup
-		if methodType, found := classType.GetMethod(strings.ToLower(readSpecName)); found {
+		if methodType, found := classType.GetMethod(pkgident.Normalize(readSpecName)); found {
 			// For class properties, verify the method is a class method
 			// Task 9.16.1: Use lowercase key since ClassMethodFlags now uses lowercase keys
 			if propInfo.IsClassProperty {
-				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[strings.ToLower(readSpecName)]
+				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[pkgident.Normalize(readSpecName)]
 				if !isClassMethod {
 					a.addError("class property '%s' read method '%s' must be a class method at %s",
 						propName, readSpecName, prop.Token.Pos.String())
@@ -202,7 +200,7 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 			} else {
 				// For instance properties, verify the method is NOT a class method
 				// Task 9.16.1: Use lowercase key since ClassMethodFlags now uses lowercase keys
-				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[strings.ToLower(readSpecName)]
+				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[pkgident.Normalize(readSpecName)]
 				if isClassMethod {
 					a.addError("instance property '%s' read method '%s' cannot be a class method at %s",
 						propName, readSpecName, prop.Token.Pos.String())
@@ -320,7 +318,7 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 	if propInfo.IsClassProperty {
 		// Class property must use class variable
 		// Task 9.285: Use lowercase for case-insensitive lookup
-		fieldType, found = classType.ClassVars[strings.ToLower(writeSpecName)]
+		fieldType, found = classType.ClassVars[pkgident.Normalize(writeSpecName)]
 		if found && !propType.Equals(fieldType) {
 			a.addError("class property '%s' write field '%s' has type %s, expected %s at %s",
 				propName, writeSpecName, fieldType.String(), propType.String(),
@@ -330,7 +328,7 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 	} else {
 		// Instance property can only use instance field
 		// Task 9.285: Use lowercase for case-insensitive lookup
-		fieldType, found = classType.GetField(strings.ToLower(writeSpecName))
+		fieldType, found = classType.GetField(pkgident.Normalize(writeSpecName))
 		if found && !propType.Equals(fieldType) {
 			a.addError("property '%s' write field '%s' has type %s, expected %s at %s",
 				propName, writeSpecName, fieldType.String(), propType.String(),
@@ -354,11 +352,11 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 
 	// If method, verify method exists with correct signature
 	// Task 9.285: Use lowercase for case-insensitive lookup
-	if methodType, found := classType.GetMethod(strings.ToLower(writeSpecName)); found {
+	if methodType, found := classType.GetMethod(pkgident.Normalize(writeSpecName)); found {
 		// For class properties, verify the method is a class method
 		// Task 9.16.1: Use lowercase key since ClassMethodFlags now uses lowercase keys
 		if propInfo.IsClassProperty {
-			isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[strings.ToLower(writeSpecName)]
+			isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[pkgident.Normalize(writeSpecName)]
 			if !isClassMethod {
 				a.addError("class property '%s' write method '%s' must be a class method at %s",
 					propName, writeSpecName, prop.Token.Pos.String())
@@ -367,7 +365,7 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 		} else {
 			// For instance properties, verify the method is NOT a class method
 			// Task 9.16.1: Use lowercase key since ClassMethodFlags now uses lowercase keys
-			isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[strings.ToLower(writeSpecName)]
+			isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[pkgident.Normalize(writeSpecName)]
 			if isClassMethod {
 				a.addError("instance property '%s' write method '%s' cannot be a class method at %s",
 					propName, writeSpecName, prop.Token.Pos.String())
@@ -440,7 +438,7 @@ func (a *Analyzer) getConstantType(classType *types.ClassType, constantName stri
 	for current != nil {
 		// Case-insensitive constant lookup
 		for existingName, constType := range current.ConstantTypes {
-			if ident.Equal(existingName, constantName) {
+			if pkgident.Equal(existingName, constantName) {
 				return constType, true
 			}
 		}

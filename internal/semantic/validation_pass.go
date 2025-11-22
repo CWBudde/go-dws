@@ -1,10 +1,9 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 	"github.com/cwbudde/go-dws/pkg/token"
 )
 
@@ -836,7 +835,7 @@ func (v *statementValidator) getUnimplementedAbstractMethods(classType *types.Cl
 
 	// Check which ones are not implemented in this class
 	for methodName := range abstractMethods {
-		lowerMethodName := strings.ToLower(methodName)
+		lowerMethodName := ident.Normalize(methodName)
 		hasOwnMethod := len(classType.MethodOverloads[lowerMethodName]) > 0
 
 		if !hasOwnMethod {
@@ -876,7 +875,7 @@ func (v *statementValidator) collectAbstractMethods(parent *types.ClassType) map
 	grandparentMethods := v.collectAbstractMethods(parent.Parent)
 	for methodName := range grandparentMethods {
 		// Only add if not overridden (not abstract) in this parent
-		lowerMethodName := strings.ToLower(methodName)
+		lowerMethodName := ident.Normalize(methodName)
 		if isAbstract, exists := parent.AbstractMethods[lowerMethodName]; !exists || isAbstract {
 			abstractMethods[methodName] = true
 		}
@@ -1261,7 +1260,7 @@ func (v *statementValidator) checkMemberAccessExpression(expr *ast.MemberAccessE
 
 	// Get member name (case-insensitive)
 	memberName := expr.Member.Value
-	memberNameLower := strings.ToLower(memberName)
+	memberNameLower := ident.Normalize(memberName)
 
 	// Resolve type aliases to get the underlying type
 	objectTypeResolved := types.GetUnderlyingType(objectType)
@@ -1752,7 +1751,7 @@ func (v *statementValidator) checkRecordLiteral(expr *ast.RecordLiteralExpressio
 
 		fieldName := field.Name.Value
 		// Normalize field name to lowercase for case-insensitive comparison
-		lowerFieldName := strings.ToLower(fieldName)
+		lowerFieldName := ident.Normalize(fieldName)
 
 		// Check for duplicate field initialization
 		if initializedFields[lowerFieldName] {
@@ -2107,7 +2106,7 @@ func (v *statementValidator) checkLambdaExpression(expr *ast.LambdaExpression, e
 	// Check for duplicate parameter names
 	paramNames := make(map[string]bool)
 	for _, param := range expr.Parameters {
-		paramName := strings.ToLower(param.Name.Value)
+		paramName := ident.Normalize(param.Name.Value)
 		if paramNames[paramName] {
 			v.ctx.AddError("duplicate parameter name '%s' in lambda", param.Name.Value)
 			return nil
@@ -2166,7 +2165,7 @@ func (v *statementValidator) getHelpersForType(typ types.Type) []*types.HelperTy
 	}
 
 	// Look up helpers by the type's string representation (case-insensitive)
-	typeName := strings.ToLower(typ.String())
+	typeName := ident.Normalize(typ.String())
 	helpers := v.ctx.Helpers[typeName]
 
 	// For array types, also include generic array helpers
@@ -2200,7 +2199,7 @@ func (v *statementValidator) hasHelperMethod(typ types.Type, methodName string) 
 
 	// Check each helper in reverse order so user-defined helpers (added later)
 	// take precedence over built-in helpers registered during initialization.
-	methodNameLower := strings.ToLower(methodName)
+	methodNameLower := ident.Normalize(methodName)
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
 		if method, ok := helper.Methods[methodNameLower]; ok {
@@ -2237,7 +2236,7 @@ func (v *statementValidator) hasHelperProperty(typ types.Type, propName string) 
 	}
 
 	// Check each helper in reverse order (most recent first)
-	propNameLower := strings.ToLower(propName)
+	propNameLower := ident.Normalize(propName)
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
 		if prop, ok := helper.Properties[propNameLower]; ok {
@@ -2257,7 +2256,7 @@ func (v *statementValidator) hasHelperClassConst(typ types.Type, constName strin
 	}
 
 	// Check each helper in reverse order (most recent first)
-	constNameLower := strings.ToLower(constName)
+	constNameLower := ident.Normalize(constName)
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
 		if constVal, ok := helper.ClassConsts[constNameLower]; ok {
@@ -2349,7 +2348,7 @@ func (v *statementValidator) getFieldOwner(class *types.ClassType, fieldName str
 	}
 
 	// Check if this class declares the field (case-insensitive)
-	lowerFieldName := strings.ToLower(fieldName)
+	lowerFieldName := ident.Normalize(fieldName)
 	if _, found := class.Fields[lowerFieldName]; found {
 		return class
 	}
@@ -2365,7 +2364,7 @@ func (v *statementValidator) getMethodOwner(class *types.ClassType, methodName s
 	}
 
 	// Use overload system
-	methodKey := strings.ToLower(methodName)
+	methodKey := ident.Normalize(methodName)
 	if _, found := class.MethodOverloads[methodKey]; found {
 		return class
 	}
@@ -2381,7 +2380,7 @@ func (v *statementValidator) getClassVarOwner(class *types.ClassType, classVarNa
 	}
 
 	// Check if this class declares the class variable (case-insensitive)
-	lowerClassVarName := strings.ToLower(classVarName)
+	lowerClassVarName := ident.Normalize(classVarName)
 	if _, found := class.ClassVars[lowerClassVarName]; found {
 		return class
 	}

@@ -2,7 +2,8 @@ package types
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // HelperRegistry manages the mapping of types to their helpers.
@@ -48,7 +49,7 @@ func (hr *HelperRegistry) RegisterHelper(helper *HelperType) error {
 	}
 
 	// Normalize helper name to lowercase for case-insensitive lookup
-	helperNameLower := strings.ToLower(helper.Name)
+	helperNameLower := ident.Normalize(helper.Name)
 
 	// Check if helper name is already registered
 	if _, exists := hr.helpersByName[helperNameLower]; exists {
@@ -60,7 +61,7 @@ func (hr *HelperRegistry) RegisterHelper(helper *HelperType) error {
 	var targetTypeNameLower string
 	if helper.TargetType != nil {
 		targetTypeName := helper.TargetType.String()
-		targetTypeNameLower = strings.ToLower(targetTypeName)
+		targetTypeNameLower = ident.Normalize(targetTypeName)
 	} else {
 		// Use special key for generic helpers that apply to multiple types
 		targetTypeNameLower = "<generic>"
@@ -95,7 +96,7 @@ func (hr *HelperRegistry) GetHelpersForType(targetType Type) []*HelperType {
 	}
 
 	targetTypeName := targetType.String()
-	targetTypeNameLower := strings.ToLower(targetTypeName)
+	targetTypeNameLower := ident.Normalize(targetTypeName)
 
 	return hr.helpersByType[targetTypeNameLower]
 }
@@ -109,7 +110,7 @@ func (hr *HelperRegistry) GetHelpersForType(targetType Type) []*HelperType {
 //   - helper type if found, nil otherwise
 //   - boolean indicating if helper was found
 func (hr *HelperRegistry) GetHelperByName(name string) (*HelperType, bool) {
-	helper, ok := hr.helpersByName[strings.ToLower(name)]
+	helper, ok := hr.helpersByName[ident.Normalize(name)]
 	return helper, ok
 }
 
@@ -130,7 +131,7 @@ func (hr *HelperRegistry) FindMethod(targetType Type, methodName string) (*Funct
 		return nil, nil, false
 	}
 
-	methodNameLower := strings.ToLower(methodName)
+	methodNameLower := ident.Normalize(methodName)
 
 	// Search helpers in reverse order (most recent first)
 	for i := len(helpers) - 1; i >= 0; i-- {
@@ -160,7 +161,7 @@ func (hr *HelperRegistry) FindProperty(targetType Type, propertyName string) (*P
 		return nil, nil, false
 	}
 
-	propertyNameLower := strings.ToLower(propertyName)
+	propertyNameLower := ident.Normalize(propertyName)
 
 	// Search helpers in reverse order (most recent first)
 	for i := len(helpers) - 1; i >= 0; i-- {
@@ -190,7 +191,7 @@ func (hr *HelperRegistry) FindClassVar(targetType Type, varName string) (Type, *
 		return nil, nil, false
 	}
 
-	varNameLower := strings.ToLower(varName)
+	varNameLower := ident.Normalize(varName)
 
 	// Search helpers in reverse order (most recent first)
 	for i := len(helpers) - 1; i >= 0; i-- {
@@ -220,7 +221,7 @@ func (hr *HelperRegistry) FindClassConst(targetType Type, constName string) (int
 		return nil, nil, false
 	}
 
-	constNameLower := strings.ToLower(constName)
+	constNameLower := ident.Normalize(constName)
 
 	// Search helpers in reverse order (most recent first)
 	for i := len(helpers) - 1; i >= 0; i-- {

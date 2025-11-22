@@ -1,10 +1,9 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -51,7 +50,7 @@ func (a *Analyzer) inheritParentConstructors(childClass *types.ClassType, parent
 
 			// Add inherited constructor to child class
 			// Use lowercase for case-insensitive lookup
-			lowerCtorName := strings.ToLower(ctorName)
+			lowerCtorName := ident.Normalize(ctorName)
 			if _, exists := childClass.Constructors[lowerCtorName]; !exists {
 				childClass.Constructors[lowerCtorName] = childCtorType
 			}
@@ -101,7 +100,7 @@ func (a *Analyzer) synthesizeDefaultConstructor(classType *types.ClassType) {
 
 	// Add to class constructor maps
 	// Use lowercase for case-insensitive lookup
-	classType.Constructors[strings.ToLower(constructorName)] = funcType
+	classType.Constructors[ident.Normalize(constructorName)] = funcType
 	classType.AddConstructorOverload(constructorName, methodInfo)
 }
 
@@ -161,7 +160,7 @@ func (a *Analyzer) synthesizeImplicitParameterlessConstructor(classType *types.C
 			}
 
 			// Add to class constructor maps
-			lowerName := strings.ToLower(ctorName)
+			lowerName := ident.Normalize(ctorName)
 			if _, exists := classType.Constructors[lowerName]; !exists {
 				classType.Constructors[lowerName] = funcType
 			}

@@ -3,10 +3,10 @@ package semantic
 import (
 	"fmt"
 	"math"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -320,7 +320,7 @@ func (a *Analyzer) evaluateConstantFunction(call *ast.CallExpression) (interface
 		return nil, fmt.Errorf("function call is not a compile-time constant")
 	}
 
-	funcNameLower := strings.ToLower(funcName)
+	funcNameLower := pkgident.Normalize(funcName)
 
 	// Only support compile-time evaluable built-in functions
 	switch funcNameLower {
@@ -360,7 +360,7 @@ func (a *Analyzer) evaluateConstantHigh(args []ast.Expression) (interface{}, err
 
 	// Check if it's a type identifier (e.g., High(Integer))
 	if ident, ok := args[0].(*ast.Identifier); ok {
-		typeName := strings.ToLower(ident.Value)
+		typeName := pkgident.Normalize(ident.Value)
 		switch typeName {
 		case "integer":
 			return math.MaxInt64, nil
@@ -397,7 +397,7 @@ func (a *Analyzer) evaluateConstantLow(args []ast.Expression) (interface{}, erro
 
 	// Check if it's a type identifier (e.g., Low(Integer))
 	if ident, ok := args[0].(*ast.Identifier); ok {
-		typeName := strings.ToLower(ident.Value)
+		typeName := pkgident.Normalize(ident.Value)
 		switch typeName {
 		case "integer":
 			return math.MinInt64, nil
@@ -624,7 +624,7 @@ func (a *Analyzer) evaluateConstantTypeCast(typeName string, arg ast.Expression)
 	default:
 		// For other types (Integer, Float, String), just return the value
 		// The runtime will handle the actual casting
-		typeLower := strings.ToLower(typeName)
+		typeLower := pkgident.Normalize(typeName)
 		switch typeLower {
 		case "integer":
 			// Cast to Integer
@@ -719,7 +719,7 @@ func (a *Analyzer) analyzeTypeDeclaration(decl *ast.TypeDeclaration) {
 		}
 
 		// Use lowercase key for case-insensitive lookup
-		a.subranges[strings.ToLower(decl.Name.Value)] = subrangeType
+		a.subranges[pkgident.Normalize(decl.Name.Value)] = subrangeType
 		return
 	}
 

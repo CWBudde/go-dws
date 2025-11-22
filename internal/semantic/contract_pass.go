@@ -1,10 +1,9 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ContractPass implements Pass 4: Contract Validation
@@ -276,7 +275,7 @@ func (v *contractValidator) checkInvariantIdentifier(ident *ast.Identifier, clas
 	// Check if it's a field in the class
 	if class != nil {
 		for _, field := range class.Fields {
-			if field.Name != nil && strings.EqualFold(field.Name.Value, ident.Value) {
+			if field.Name != nil && pkgident.Equal(field.Name.Value, ident.Value) {
 				// Resolve field type
 				if field.Type != nil {
 					return v.resolveTypeExpression(field.Type)
@@ -286,7 +285,7 @@ func (v *contractValidator) checkInvariantIdentifier(ident *ast.Identifier, clas
 
 		// Check if it's a class constant
 		for _, constant := range class.Constants {
-			if constant.Name != nil && strings.EqualFold(constant.Name.Value, ident.Value) {
+			if constant.Name != nil && pkgident.Equal(constant.Name.Value, ident.Value) {
 				// Return the constant's type
 				if constant.Type != nil {
 					return v.resolveTypeExpression(constant.Type)
@@ -471,7 +470,7 @@ func (v *contractValidator) checkIdentifier(ident *ast.Identifier, fn *ast.Funct
 	// Check if it's a parameter
 	if fn != nil {
 		for _, param := range fn.Parameters {
-			if param.Name != nil && strings.EqualFold(param.Name.Value, ident.Value) {
+			if param.Name != nil && pkgident.Equal(param.Name.Value, ident.Value) {
 				// Resolve parameter type
 				if param.Type != nil {
 					return v.resolveTypeExpression(param.Type)
@@ -480,7 +479,7 @@ func (v *contractValidator) checkIdentifier(ident *ast.Identifier, fn *ast.Funct
 		}
 
 		// Check if it's 'Result' (function return value) - case-insensitive
-		if strings.EqualFold(ident.Value, "Result") && fn.ReturnType != nil {
+		if pkgident.Equal(ident.Value, "Result") && fn.ReturnType != nil {
 			return v.resolveTypeExpression(fn.ReturnType)
 		}
 	}

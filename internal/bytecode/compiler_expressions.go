@@ -1,10 +1,9 @@
 package bytecode
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
 
 func (c *Compiler) compileExpression(expr ast.Expression) error {
@@ -77,7 +76,7 @@ func (c *Compiler) compileIdentifier(ident *ast.Identifier) error {
 			c.chunk.Write(OpLoadGlobal, 0, globalInfo.index, lineOf(ident))
 			return nil
 		}
-		if strings.EqualFold(ident.Value, "Self") {
+		if pkgident.Equal(ident.Value, "Self") {
 			c.chunk.WriteSimple(OpGetSelf, lineOf(ident))
 			return nil
 		}
@@ -93,7 +92,7 @@ func (c *Compiler) compileIdentifierAssignment(ident *ast.Identifier, value ast.
 		return err
 	}
 
-	if strings.EqualFold(ident.Value, builtinExceptObjectName) {
+	if pkgident.Equal(ident.Value, builtinExceptObjectName) {
 		return c.errorf(ident, "cannot assign to %s", builtinExceptObjectName)
 	}
 
@@ -114,7 +113,7 @@ func (c *Compiler) compileIdentifierAssignment(ident *ast.Identifier, value ast.
 		return nil
 	}
 
-	if strings.EqualFold(ident.Value, "Self") {
+	if pkgident.Equal(ident.Value, "Self") {
 		return c.errorf(ident, "cannot assign to Self")
 	}
 
@@ -207,7 +206,7 @@ func (c *Compiler) compileSetLiteral(expr *ast.SetLiteral) error {
 		if typeAnnot := c.semanticInfo.GetType(expr); typeAnnot != nil && typeAnnot.Name != "" {
 			// Check if the type name indicates an array type
 			// Type names like "array of const", "array of Integer", "array[0..10] of String"
-			if strings.HasPrefix(strings.ToLower(typeAnnot.Name), "array") {
+			if pkgident.HasPrefix(typeAnnot.Name, "array") {
 				// This SetLiteral should be compiled as an array, not a set
 				// Create a temporary ArrayLiteralExpression and delegate to array compilation
 				arrayLit := &ast.ArrayLiteralExpression{
@@ -459,11 +458,11 @@ func (c *Compiler) compileMethodCallExpression(expr *ast.MethodCallExpression) e
 
 	// Check if this is a static method call on a record type (e.g., TRecord.Method(...))
 	if ident, ok := expr.Object.(*ast.Identifier); ok {
-		typeKey := strings.ToLower(ident.Value)
+		typeKey := pkgident.Normalize(ident.Value)
 
 		// Check if this is a record type (use c.records which is inherited from parent compiler)
 		if recordMeta, ok := c.records[typeKey]; ok {
-			methodKey := strings.ToLower(expr.Method.Value)
+			methodKey := pkgident.Normalize(expr.Method.Value)
 			if slot, found := recordMeta.Methods[methodKey]; found {
 				// This is a static record method call
 				// Compile arguments (but not the object, since it's a type)
@@ -520,7 +519,7 @@ func (c *Compiler) compileBinaryExpression(expr *ast.BinaryExpression) error {
 	}
 
 	// Special handling for operators that require short-circuit evaluation
-	op := strings.ToLower(expr.Operator)
+	op := pkgident.Normalize(expr.Operator)
 	if op == "??" {
 		return c.compileCoalesceExpression(expr)
 	}
@@ -731,7 +730,7 @@ func (c *Compiler) compileUnaryExpression(expr *ast.UnaryExpression) error {
 	}
 
 	line := lineOf(expr)
-	switch strings.ToLower(expr.Operator) {
+	switch pkgident.Normalize(expr.Operator) {
 	case "+":
 		return nil
 	case "-":
@@ -869,7 +868,7 @@ func (c *Compiler) emitDefaultValue(expr *ast.IfExpression, line int) error {
 	}
 
 	// Get type name and emit appropriate default value
-	typeName := strings.ToLower(typeAnnot.Name)
+	typeName := pkgident.Normalize(typeAnnot.Name)
 	switch typeName {
 	case "integer", "int64":
 		return c.emitLoadConstant(IntValue(0), line)

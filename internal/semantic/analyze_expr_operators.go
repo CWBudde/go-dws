@@ -1,8 +1,6 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -80,7 +78,7 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 				fieldOwner := a.getFieldOwner(a.currentClass, ident.Value)
 				if fieldOwner != nil {
 					// Use lowercase for case-insensitive lookup
-					lowerFieldName := strings.ToLower(ident.Value)
+					lowerFieldName := identpkg.Normalize(ident.Value)
 					visibility, hasVisibility := fieldOwner.FieldVisibility[lowerFieldName]
 					if hasVisibility && !a.checkVisibility(fieldOwner, visibility, ident.Value, "field") {
 						visibilityStr := ast.Visibility(visibility).String()

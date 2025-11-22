@@ -2,10 +2,10 @@ package bytecode
 
 import (
 	"math"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // callFrame represents a single function call frame in the VM's call stack.
@@ -178,7 +178,7 @@ func (vm *VM) invokeMethod(receiver Value, methodName string, args []Value) erro
 	// Handle String helper methods
 	if receiver.IsString() {
 		str := receiver.AsString()
-		methodNameLower := strings.ToLower(methodName)
+		methodNameLower := ident.Normalize(methodName)
 
 		switch methodNameLower {
 		case "toupper", "uppercase":

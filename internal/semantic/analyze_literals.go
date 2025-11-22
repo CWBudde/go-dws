@@ -1,10 +1,9 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -209,7 +208,7 @@ func (a *Analyzer) analyzeRecordLiteral(lit *ast.RecordLiteralExpression, expect
 
 		fieldName := field.Name.Value
 		// Normalize field name to lowercase for case-insensitive comparison
-		lowerFieldName := strings.ToLower(fieldName)
+		lowerFieldName := ident.Normalize(fieldName)
 
 		// Check for duplicate field initialization
 		if initializedFields[lowerFieldName] {
