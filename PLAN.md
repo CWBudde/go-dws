@@ -237,7 +237,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - Files: `visitor_expressions.go`
   - Effort: 2-3 hours
 
-- [ ] **3.5.11** Migrate `VisitIfExpression` (ternary)
+- [x] **3.5.11** Migrate `VisitIfExpression` (ternary)
   - Condition evaluation, branch selection
   - Short-circuit evaluation (only evaluate chosen branch)
   - Files: `visitor_expressions.go`
