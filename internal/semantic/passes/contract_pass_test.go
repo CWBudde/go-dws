@@ -1,6 +1,7 @@
-package passes
+package passes_test
 
 import (
+	"github.com/cwbudde/go-dws/internal/semantic"
 	"strings"
 	"testing"
 
@@ -54,16 +55,16 @@ end;
 			}
 
 			// Run all passes in order
-			ctx := NewPassContext()
+			ctx := semantic.NewPassContext()
 
 			// Pass 1: Declaration
-			declPass := NewDeclarationPass()
+			declPass := semantic.NewDeclarationPass()
 			if err := declPass.Run(program, ctx); err != nil {
 				t.Fatalf("declaration pass error: %v", err)
 			}
 
 			// Pass 2: Type Resolution
-			typePass := NewTypeResolutionPass()
+			typePass := semantic.NewTypeResolutionPass()
 			if err := typePass.Run(program, ctx); err != nil {
 				t.Fatalf("type resolution pass error: %v", err)
 			}
@@ -71,7 +72,7 @@ end;
 			// Skip Pass 3: Validation (not needed for contract validation)
 
 			// Pass 4: Contract Validation
-			contractPass := NewContractPass()
+			contractPass := semantic.NewContractPass()
 			if err := contractPass.Run(program, ctx); err != nil {
 				t.Fatalf("contract pass error: %v", err)
 			}
@@ -146,16 +147,16 @@ ensure
 			}
 
 			// Run all passes in order
-			ctx := NewPassContext()
+			ctx := semantic.NewPassContext()
 
 			// Pass 1: Declaration
-			declPass := NewDeclarationPass()
+			declPass := semantic.NewDeclarationPass()
 			if err := declPass.Run(program, ctx); err != nil {
 				t.Fatalf("declaration pass error: %v", err)
 			}
 
 			// Pass 2: Type Resolution
-			typePass := NewTypeResolutionPass()
+			typePass := semantic.NewTypeResolutionPass()
 			if err := typePass.Run(program, ctx); err != nil {
 				t.Fatalf("type resolution pass error: %v", err)
 			}
@@ -163,7 +164,7 @@ ensure
 			// Skip Pass 3: Validation (not needed for contract validation)
 
 			// Pass 4: Contract Validation
-			contractPass := NewContractPass()
+			contractPass := semantic.NewContractPass()
 			if err := contractPass.Run(program, ctx); err != nil {
 				t.Fatalf("contract pass error: %v", err)
 			}
@@ -241,16 +242,16 @@ ensure
 			}
 
 			// Run all passes in order
-			ctx := NewPassContext()
+			ctx := semantic.NewPassContext()
 
 			// Pass 1: Declaration
-			declPass := NewDeclarationPass()
+			declPass := semantic.NewDeclarationPass()
 			if err := declPass.Run(program, ctx); err != nil {
 				t.Fatalf("declaration pass error: %v", err)
 			}
 
 			// Pass 2: Type Resolution
-			typePass := NewTypeResolutionPass()
+			typePass := semantic.NewTypeResolutionPass()
 			if err := typePass.Run(program, ctx); err != nil {
 				t.Fatalf("type resolution pass error: %v", err)
 			}
@@ -258,7 +259,7 @@ ensure
 			// Skip Pass 3: Validation (not needed for contract validation)
 
 			// Pass 4: Contract Validation
-			contractPass := NewContractPass()
+			contractPass := semantic.NewContractPass()
 			if err := contractPass.Run(program, ctx); err != nil {
 				t.Fatalf("contract pass error: %v", err)
 			}
@@ -316,16 +317,16 @@ ensure
 	}
 
 	// Run all passes in order
-	ctx := NewPassContext()
+	ctx := semantic.NewPassContext()
 
 	// Pass 1: Declaration
-	declPass := NewDeclarationPass()
+	declPass := semantic.NewDeclarationPass()
 	if err := declPass.Run(program, ctx); err != nil {
 		t.Fatalf("declaration pass error: %v", err)
 	}
 
 	// Pass 2: Type Resolution
-	typePass := NewTypeResolutionPass()
+	typePass := semantic.NewTypeResolutionPass()
 	if err := typePass.Run(program, ctx); err != nil {
 		t.Fatalf("type resolution pass error: %v", err)
 	}
@@ -333,7 +334,7 @@ ensure
 	// Skip Pass 3: Validation (not needed for contract validation)
 
 	// Pass 4: Contract Validation
-	contractPass := NewContractPass()
+	contractPass := semantic.NewContractPass()
 	if err := contractPass.Run(program, ctx); err != nil {
 		t.Fatalf("contract pass error: %v", err)
 	}
@@ -379,16 +380,16 @@ end;
 	}
 
 	// Run all passes in order
-	ctx := NewPassContext()
+	ctx := semantic.NewPassContext()
 
 	// Pass 1: Declaration
-	declPass := NewDeclarationPass()
+	declPass := semantic.NewDeclarationPass()
 	if err := declPass.Run(program, ctx); err != nil {
 		t.Fatalf("declaration pass error: %v", err)
 	}
 
 	// Pass 2: Type Resolution
-	typePass := NewTypeResolutionPass()
+	typePass := semantic.NewTypeResolutionPass()
 	if err := typePass.Run(program, ctx); err != nil {
 		t.Fatalf("type resolution pass error: %v", err)
 	}
@@ -396,7 +397,7 @@ end;
 	// Skip Pass 3: Validation (not needed for contract validation)
 
 	// Pass 4: Contract Validation
-	contractPass := NewContractPass()
+	contractPass := semantic.NewContractPass()
 	if err := contractPass.Run(program, ctx); err != nil {
 		t.Fatalf("contract pass error: %v", err)
 	}
