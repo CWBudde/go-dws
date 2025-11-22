@@ -243,45 +243,45 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - Files: `visitor_expressions.go`
   - Effort: 2-3 hours
 
-- [ ] **3.5.12** Migrate `VisitResultExpression`
-  - Function result variable access
-  - Works with current function context
-  - Files: `visitor_expressions.go`
-  - Effort: 2-3 hours
+- [x] **3.5.12** ~~Migrate `VisitResultExpression`~~ (N/A - No separate AST node)
+  - **Status**: Already handled via `VisitIdentifier`
+  - **Implementation**: `Result` is a regular identifier automatically bound in function contexts
+  - **Location**: `visitor_expressions.go:38-97` (VisitIdentifier handles "Result" via GetVariable)
+  - **Note**: No separate `ResultExpression` AST node exists; Result is just an identifier
 
-- [ ] **3.5.13** Migrate `VisitDefaultExpression`
-  - Zero value creation for types
-  - Uses existing `createZeroValue` helper and adapter infrastructure
-  - Files: `visitor_expressions.go`
-  - Effort: 3-4 hours
+- [x] **3.5.13** ~~Migrate `VisitDefaultExpression`~~ (N/A - No separate AST node)
+  - **Status**: Already handled via `VisitCallExpression`
+  - **Implementation**: `Default(TypeName)` is parsed as `CallExpression` and delegated to adapter
+  - **Location**: `visitor_expressions.go:352-355` (VisitCallExpression handles "default" function)
+  - **Parser**: `internal/parser/expressions.go:parseDefaultExpression()` creates CallExpression
+  - **Note**: No separate `DefaultExpression` AST node exists; Default() is a built-in function call
 
-- [ ] **3.5.14** Migrate `VisitTypeOfExpression` and `VisitSizeOfExpression`
-  - Type introspection, size calculation
-  - Uses type system for metadata lookups
-  - Files: `visitor_expressions.go`
-  - Effort: 3-4 hours
+- [x] **3.5.14** ~~Migrate `VisitTypeOfExpression` and `VisitSizeOfExpression`~~ (N/A - Not implemented)
+  - **Status**: AST nodes do not exist in current implementation
+  - **Note**: `TypeOf()` and `SizeOf()` are not implemented in parser/AST yet
+  - **Future**: If these features are added, they would likely be CallExpressions like Default()
 
 ---
 
 ### Phase 2: Compile-Time Expressions (3.5.15-3.5.17)
 
-- [ ] **3.5.15** Migrate `VisitDefinedExpression`
-  - Conditional compilation check
-  - Evaluates to Boolean based on symbol table
-  - Files: `visitor_expressions.go`
-  - Effort: 2-3 hours
+**Note**: These expression types do not exist in the current AST implementation.
+If conditional compilation features are added in the future, they would require:
+1. Parser support to create appropriate AST nodes
+2. Evaluator visitor methods
+3. Symbol table integration
 
-- [ ] **3.5.16** Migrate `VisitDeclaredExpression`
-  - Symbol existence check at runtime
-  - Checks symbol table for identifier presence
-  - Files: `visitor_expressions.go`
-  - Effort: 2-3 hours
+- [x] **3.5.15** ~~Migrate `VisitDefinedExpression`~~ (N/A - Not implemented)
+  - **Status**: AST node does not exist in current implementation
+  - **Note**: Conditional compilation features not yet implemented
 
-- [ ] **3.5.17** Migrate `VisitConditionalDefinedExpression`
-  - Combined conditional/defined check
-  - Used in conditional compilation blocks
-  - Files: `visitor_expressions.go`
-  - Effort: 2-3 hours
+- [x] **3.5.16** ~~Migrate `VisitDeclaredExpression`~~ (N/A - Not implemented)
+  - **Status**: AST node does not exist in current implementation
+  - **Note**: Runtime symbol existence checking not yet implemented
+
+- [x] **3.5.17** ~~Migrate `VisitConditionalDefinedExpression`~~ (N/A - Not implemented)
+  - **Status**: AST node does not exist in current implementation
+  - **Note**: Conditional compilation features not yet implemented
 
 ---
 
