@@ -351,17 +351,88 @@ func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *Exe
 }
 
 // VisitCallExpression evaluates a function call expression.
+//
+// **Task 3.5.23**: User Function Calls with Special Parameter Handling
+// **Task 3.5.24**: Special Calls (Type Casts, Constructors, Implicit Self, Unit-Qualified)
+//
+// This implementation handles the following call types via delegation to adapter:
+//
+// **1. Function Pointer Calls** (lines 384-395, Task 3.5.23):
+//   - Detects function pointer and lambda calls
+//   - Delegates to adapter which handles:
+//   - Lazy parameter creation (CreateLazyThunk for IsLazy params)
+//   - Var parameter creation (CreateReferenceValue for ByRef params)
+//   - Regular parameter evaluation
+//   - Closure environment capture
+//
+// **2. Member Access Calls** (lines 398-417, Task 3.5.24):
+//   - **Record/Interface/Object method calls**: obj.Method(args)
+//   - Detects by evaluating object and checking type
+//   - Delegates to adapter for method dispatch
+//   - **Unit-qualified function calls**: UnitName.FunctionName(args)
+//   - Detects by checking unitRegistry for unit name
+//   - Delegates to adapter for qualified function resolution
+//   - **Class constructor calls**: TClass.Create(args)
+//   - Detects by checking if identifier is a class name
+//   - Delegates to adapter for constructor dispatch and object instantiation
+//
+// **3. User Function Calls** (lines 427-439, Task 3.5.23):
+//   - Detects user-defined function calls (with overloading support)
+//   - Delegates to adapter which handles:
+//   - Overload resolution based on argument types
+//   - Lazy parameter creation (Jensen's Device pattern)
+//   - Var parameter creation (pass-by-reference)
+//   - Regular parameter evaluation (with caching to prevent double-eval)
+//
+// **4. Implicit Self Method Calls** (lines 442-448, Task 3.5.24):
+//   - Pattern: MethodName(args) where Self is in environment
+//   - Detects by checking for Self in environment
+//   - Delegates to adapter which converts to Self.MethodName(args)
+//
+// **5. Record Static Method Calls** (lines 451-457, Task 3.5.24):
+//   - Pattern: MethodName(args) in record method context
+//   - Detects by checking for __CurrentRecord__ in environment
+//   - Delegates to adapter for static method dispatch
+//
+// **6. Built-in Functions with Var Parameters** (lines 460-474, Task 3.5.24):
+//   - Functions: Inc, Dec, Insert, Delete, SetLength, etc.
+//   - Delegates to adapter for var parameter handling
+//
+// **7. Default() Function** (lines 477-479, Task 3.5.24):
+//   - Pattern: Default(TypeName)
+//   - Expects unevaluated type identifier
+//   - Delegates to adapter for zero value creation
+//
+// **8. Type Casts** (lines 482-494, Task 3.5.24):
+//   - Pattern: TypeName(expression) for single-argument calls
+//   - Supported types: Integer, Float, String, Boolean, Variant, Enum, Class
+//   - Delegates to adapter which calls evalTypeCast
+//   - Falls through to built-in functions if not a type cast
+//
+// **9. Built-in Functions** (lines 497-508):
+//   - Standard library functions (PrintLn, Length, Abs, etc.)
+//   - Evaluates all arguments first, then delegates to adapter
+//
+// The adapter has access to CreateLazyThunk and CreateReferenceValue methods (Task 3.5.23)
+// which enable proper handling of lazy and var parameters in all call contexts.
 func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *ExecutionContext) Value {
-	// Check for function pointer calls (require special handling for lazy and var parameters)
+	// Check for function pointer calls
+	// Task 3.5.23: Function pointer calls with closure handling, lazy params, and var params
 	if funcIdent, ok := node.Function.(*ast.Identifier); ok {
 		if val, exists := e.adapter.GetVariable(funcIdent.Value, ctx); exists {
 			if val.Type() == "FUNCTION_POINTER" || val.Type() == "LAMBDA" {
+				// Delegate to adapter which handles:
+				// - Closure environment restoration
+				// - Lazy parameter creation (CreateLazyThunk)
+				// - Var parameter creation (CreateReferenceValue)
+				// - Regular parameter evaluation
 				return e.adapter.EvalNode(node)
 			}
 		}
 	}
 
-	// Check for member access calls: obj.Method(), UnitName.Func(), TClass.Create()
+	// Task 3.5.24: Member access calls (obj.Method(), UnitName.Func(), TClass.Create())
+	// Handles record methods, interface methods, object methods, unit-qualified functions, and constructor calls
 	if memberAccess, ok := node.Function.(*ast.MemberAccessExpression); ok {
 		objVal := e.Eval(memberAccess.Object, ctx)
 		if isError(objVal) {
@@ -369,11 +440,13 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		}
 
 		// Delegate record, interface, and object method calls to adapter
+		// Examples: myRecord.GetValue(), myInterface.Process(), myObj.DoSomething()
 		if objVal.Type() == "RECORD" || objVal.Type() == "INTERFACE" || objVal.Type() == "OBJECT" {
 			return e.adapter.EvalNode(node)
 		}
 
-		// Check for unit-qualified or class constructor calls
+		// Task 3.5.24: Unit-qualified function calls and class constructor calls
+		// Examples: Math.Sin(x), TMyClass.Create(args)
 		if ident, ok := memberAccess.Object.(*ast.Identifier); ok {
 			if e.unitRegistry != nil || e.adapter.HasClass(ident.Value) {
 				return e.adapter.EvalNode(node)
@@ -390,12 +463,24 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	}
 
 	// Check for user-defined functions (with potential overloading)
+	// Task 3.5.23: Handle lazy and var parameters in user function calls
 	funcNameLower := strings.ToLower(funcName.Value)
 	if overloads, exists := e.adapter.LookupFunction(funcNameLower); exists && len(overloads) > 0 {
+		// For now, delegate to adapter for overload resolution
+		// In the future, this can be migrated to the evaluator
+		// But we need to prepare arguments properly for lazy and var parameters
+
+		// We can't determine which overload without evaluating arguments for type checking
+		// So we delegate the entire call to the adapter, which will:
+		// 1. Resolve the overload
+		// 2. Prepare arguments with lazy thunks and references
+		// 3. Call the user function
 		return e.adapter.EvalNode(node)
 	}
 
-	// Check for implicit Self method calls (MethodName() is shorthand for Self.MethodName())
+	// Task 3.5.24: Implicit Self method calls (MethodName() is shorthand for Self.MethodName())
+	// When inside an instance method, calling MethodName() calls Self.MethodName()
+	// Example: Inside method Foo(), calling Bar() means Self.Bar()
 	if selfRaw, ok := ctx.Env().Get("Self"); ok {
 		if selfVal, ok := selfRaw.(Value); ok {
 			if selfVal.Type() == "OBJECT" || selfVal.Type() == "CLASS" {
@@ -404,7 +489,9 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		}
 	}
 
-	// Check for record static method calls
+	// Task 3.5.24: Record static method calls
+	// When inside a record static method context, allows calling other static methods
+	// Example: Inside record static method, calling Count() calls TRecord.Count()
 	if recordRaw, ok := ctx.Env().Get("__CurrentRecord__"); ok {
 		if recordVal, ok := recordRaw.(Value); ok {
 			if recordVal.Type() == "RECORD_TYPE" {
@@ -413,29 +500,38 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		}
 	}
 
-	// Check for built-in functions that need var parameter handling (modify arguments in place)
+	// Task 3.5.24: Built-in functions with var parameter handling (modify arguments in place)
+	// These functions require references to variables, not their values
+	// Examples: Inc(x), Dec(y), Swap(a, b), SetLength(arr, 10)
 	switch funcNameLower {
 	case "inc", "dec", "insert", "decodedate", "decodetime",
 		"swap", "divmod", "trystrtoint", "trystrtofloat", "setlength":
 		return e.adapter.EvalNode(node)
 	case "delete":
 		// Only the 3-parameter form needs var parameter handling
+		// Delete(str, pos, count) modifies str in place
 		if len(node.Arguments) == 3 {
 			return e.adapter.EvalNode(node)
 		}
 	}
 
-	// Check for external (Go) functions that may need var parameter handling
+	// Task 3.5.24: External (Go) functions that may need var parameter handling
+	// External functions can declare var parameters in their signatures
 	if e.externalFunctions != nil {
 		return e.adapter.EvalNode(node)
 	}
 
-	// Check for Default(TypeName) function which expects unevaluated type identifier
+	// Task 3.5.24: Default(TypeName) function - expects unevaluated type identifier
+	// Example: Default(Integer) returns 0, Default(String) returns ""
+	// The type name is NOT evaluated as an expression
 	if funcNameLower == "default" && len(node.Arguments) == 1 {
 		return e.adapter.EvalNode(node)
 	}
 
-	// Try type cast for single-argument calls: TypeName(expression)
+	// Task 3.5.24: Type casts - TypeName(expression) for single-argument calls
+	// Examples: Integer(3.14), String(42), Boolean(1), TMyClass(someObject)
+	// Supported types: Integer, Float, String, Boolean, Variant, Enum types, Class types
+	// Falls through to built-in functions if not a type cast
 	if len(node.Arguments) == 1 {
 		result := e.adapter.EvalNode(node)
 		// If type cast succeeded or there's a real error (not "unknown function"), return it
@@ -450,7 +546,9 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		}
 	}
 
-	// Try built-in functions - evaluate all arguments first
+	// Standard built-in functions - evaluate all arguments first, then call
+	// Examples: PrintLn("hello"), Length(arr), Abs(-5), Sin(x)
+	// All arguments are evaluated before calling the function (no lazy/var parameters)
 	args := make([]Value, len(node.Arguments))
 	for idx, arg := range node.Arguments {
 		val := e.Eval(arg, ctx)
@@ -660,10 +758,14 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //
 // **COMPLEXITY**: Very High (700+ lines in original implementation)
 // **STATUS**: Documentation-only migration with full adapter delegation
+// **Task 3.5.25**: Simple Modes (Unit-qualified, Enum, Static class, Record fields)
+// **Task 3.5.26**: Complex Modes (Object instance, Interface, Metaclass, Type casts)
 //
 // **11 DISTINCT ACCESS MODES** (evaluated in this order):
 //
-// **1. UNIT-QUALIFIED ACCESS** (UnitName.Symbol)
+// === SIMPLE MODES (Task 3.5.25) ===
+//
+// **1. UNIT-QUALIFIED ACCESS** (UnitName.Symbol) [Task 3.5.25]
 //   - Pattern: `Math.PI`, `System.Print`
 //   - Evaluation order:
 //     a. Check if left side is a registered unit name (via unitRegistry)
@@ -672,7 +774,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Error: "qualified name 'Unit.Symbol' cannot be used as a value (functions must be called)"
 //   - Implementation: ~14 lines in original
 //
-// **2. STATIC CLASS ACCESS** (TClass.Member)
+// **2. STATIC CLASS ACCESS** (TClass.Member) [Task 3.5.25]
 //   - Pattern: `TMyClass.ClassVar`, `TMyClass.Create`, `TMyClass.ClassName`
 //   - Lookup order (case-insensitive):
 //     a. Built-in properties: `ClassName` (string), `ClassType` (metaclass reference)
@@ -688,7 +790,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Error: "member 'X' not found in class 'Y'"
 //   - Implementation: ~100 lines in original
 //
-// **3. ENUM TYPE ACCESS** (TColor.Red, TColor.Low, TColor.High)
+// **3. ENUM TYPE ACCESS** (TColor.Red, TColor.Low, TColor.High) [Task 3.5.25]
 //   - Pattern: `TColor.Red`, `TMyEnum.Low`, `TMyEnum.High`
 //   - Lookup in environment: `__enum_type_` + lowercase(enumTypeName)
 //   - For scoped enums:
@@ -699,7 +801,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Error: "enum value 'X' not found in enum 'Y'"
 //   - Implementation: ~45 lines in original
 //
-// **4. RECORD TYPE STATIC ACCESS** (TPoint.cOrigin, TPoint.Count)
+// **4. RECORD TYPE STATIC ACCESS** (TPoint.cOrigin, TPoint.Count) [Task 3.5.25]
 //   - Pattern: `TPoint.cOrigin`, `TRecord.ClassMethod()`
 //   - Lookup in environment: `__record_type_` + lowercase(recordTypeName)
 //   - Lookup order (case-insensitive):
@@ -711,7 +813,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Error: "member 'X' not found in record type 'Y'"
 //   - Implementation: ~40 lines in original
 //
-// **5. RECORD INSTANCE ACCESS** (record.Field, record.Method)
+// **5. RECORD INSTANCE ACCESS** (record.Field, record.Method) [Task 3.5.25]
 //   - Pattern: `point.X`, `point.GetLength()`, `point.Prop`
 //   - Object type: RecordValue
 //   - Lookup order (case-insensitive):
@@ -729,7 +831,20 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Error: "field 'X' not found in record 'Y'"
 //   - Implementation: ~115 lines in original
 //
-// **6. CLASS/METACLASS ACCESS** (ClassInfoValue/ClassValue.Member)
+// **10. ENUM VALUE PROPERTIES** (enumVal.Value) [Task 3.5.25]
+//   - Pattern: `TColor.Red.Value` (returns ordinal as integer)
+//   - Object type: EnumValue
+//   - Supported properties:
+//     a. `.Value` (case-insensitive): returns OrdinalValue as IntegerValue
+//     b. `.ToString`: handled by helpers (if available)
+//   - Fallback: Check helpers for additional properties
+//   - Implementation: ~10 lines in original
+//   - NOTE: This is listed here (out of precedence order) for Task 3.5.25 grouping
+//   - In actual implementation, this is checked at position 10
+//
+// === COMPLEX MODES (Task 3.5.26) ===
+//
+// **6. CLASS/METACLASS ACCESS** (ClassInfoValue/ClassValue.Member) [Task 3.5.26]
 //   - Pattern: When a class name is evaluated to ClassInfoValue or ClassValue
 //   - Example: `var c := TMyClass; c.Create()`
 //   - Lookup order (same as static class access #2):
@@ -738,7 +853,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Returns: String/ClassValue/field value/method pointer
 //   - Implementation: ~95 lines in original
 //
-// **7. INTERFACE INSTANCE ACCESS** (interface.Method, interface.Property)
+// **7. INTERFACE INSTANCE ACCESS** (interface.Method, interface.Property) [Task 3.5.26]
 //   - Pattern: `intfVar.Hello`, `intfVar.SomeMethod`
 //   - Object type: InterfaceInstance
 //   - Validation: Verify member exists in interface definition (HasMethod)
@@ -751,7 +866,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Error: "Interface is nil" or "method 'X' declared in interface 'Y' but not implemented"
 //   - Implementation: ~50 lines in original
 //
-// **8. TYPE CAST VALUE HANDLING** (TBase(child).ClassVar)
+// **8. TYPE CAST VALUE HANDLING** (TBase(child).ClassVar) [Task 3.5.26]
 //   - Pattern: Accessing members through a type cast expression
 //   - Object type: TypeCastValue
 //   - Extracts: StaticType (for class variable lookup), Object (actual instance)
@@ -759,7 +874,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Unwraps to actual object and continues evaluation with static type context
 //   - Implementation: ~5 lines in original
 //
-// **9. NIL OBJECT HANDLING** (nil.ClassVar)
+// **9. NIL OBJECT HANDLING** (nil.ClassVar) [Task 3.5.26]
 //   - Pattern: `var o: TMyClass := nil; o.ClassVar`
 //   - Object type: NilValue (with ClassType field) or nil evaluation result
 //   - Special case: Accessing class variables on nil instances is allowed
@@ -770,16 +885,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 //   - Failure: Error "Object not instantiated" (for instance members)
 //   - Implementation: ~35 lines in original
 //
-// **10. ENUM VALUE PROPERTIES** (enumVal.Value)
-//   - Pattern: `TColor.Red.Value` (returns ordinal as integer)
-//   - Object type: EnumValue
-//   - Supported properties:
-//     a. `.Value` (case-insensitive): returns OrdinalValue as IntegerValue
-//     b. `.ToString`: handled by helpers (if available)
-//   - Fallback: Check helpers for additional properties
-//   - Implementation: ~10 lines in original
-//
-// **11. OBJECT INSTANCE ACCESS** (obj.Field, obj.Method, obj.Property)
+// **11. OBJECT INSTANCE ACCESS** (obj.Field, obj.Method, obj.Property) [Task 3.5.26]
 //   - Pattern: `myObj.Name`, `myObj.GetValue()`, `myObj.Count`
 //   - Object type: ObjectInstance
 //   - Built-in properties (inherited from TObject, case-insensitive):
