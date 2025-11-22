@@ -917,11 +917,11 @@ analyzer := semantic.NewAnalyzerWithExperimentalPasses()
   - Handle large set optimization detection
   - **Files**: `validation_pass.go`
 
-- [ ] **6.1.2.3: Subrange Types** (1 test, 2-3 hours)
+- [x] **6.1.2.3: Subrange Types** (1 test, 2-3 hours) ✅ COMPLETE
   - Extend type resolution for subrange types
   - Validate subrange assignment compatibility
   - Check value ranges
-  - **Files**: `validation_pass.go`
+  - **Files**: `type_resolution_pass.go`, `validation_pass.go`
 
 - [ ] **6.1.2.4: Interface Type Validation** (4 tests, 2-3 hours)
   - Validate interface variable assignment
