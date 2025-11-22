@@ -83,7 +83,7 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 		// Enrich runtime errors with the statement location to mimic DWScript call stack output
 		if errVal, ok := val.(*runtime.ErrorValue); ok {
 			exprPos := node.Expression.Pos()
-			lineMarker := fmt.Sprintf("line: %d", exprPos.Line)
+			lineMarker := fmt.Sprintf("line %d", exprPos.Line)
 			loc := fmt.Sprintf("at line %d, column: %d", exprPos.Line, exprPos.Column+2)
 			if !strings.Contains(errVal.Message, lineMarker) {
 				errVal.Message = errVal.Message + "\n " + loc
