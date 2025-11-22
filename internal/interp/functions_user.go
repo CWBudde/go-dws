@@ -3,7 +3,6 @@ package interp
 import (
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -93,7 +92,8 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := fn.ReturnType.String()
-		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
+		lowerReturnType := strings.ToLower(returnTypeName)
+		recordTypeKey := "__record_type_" + lowerReturnType
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				// Use createRecordValue for proper nested record initialization
@@ -104,25 +104,16 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		// Check if return type is an array (overrides default)
 		// Array return types should be initialized to empty arrays, not NIL
 		// This allows methods like .Add() and .High to work on the Result variable
-		arrayTypeKey := "__array_type_" + strings.ToLower(returnTypeName)
+		arrayTypeKey := "__array_type_" + lowerReturnType
 		if typeVal, ok := i.env.Get(arrayTypeKey); ok {
 			if atv, ok := typeVal.(*ArrayTypeValue); ok {
 				resultValue = NewArrayValue(atv.ArrayType)
 			}
-		} else if strings.HasPrefix(returnTypeName, "array of ") || strings.HasPrefix(returnTypeName, "array[") {
-			// Handle inline array return types like "array of Integer"
-			// For inline array types, create the array type directly from the type name
-			elementTypeName := strings.TrimPrefix(returnTypeName, "array of ")
-			if elementTypeName != returnTypeName {
-				// Dynamic array: "array of Integer" -> elementTypeName = "Integer"
-				elementType, err := i.resolveType(elementTypeName)
-				if err == nil {
-					arrayType := types.NewDynamicArrayType(elementType)
-					resultValue = NewArrayValue(arrayType)
-				}
+		} else if strings.HasPrefix(lowerReturnType, "array") {
+			// Handle inline array return types (dynamic or static)
+			if arrayType := i.parseInlineArrayType(lowerReturnType); arrayType != nil {
+				resultValue = NewArrayValue(arrayType)
 			}
-			// TODO: Handle static inline arrays like "array[1..10] of Integer"
-			// For now, those should use named types
 		}
 
 		// Task 9.1.5: Check if return type is an interface (overrides default)

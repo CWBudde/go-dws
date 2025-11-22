@@ -113,11 +113,24 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := lambda.ReturnType.String()
-		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
+		lowerReturnType := strings.ToLower(returnTypeName)
+		recordTypeKey := "__record_type_" + lowerReturnType
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				// Use createRecordValue for proper nested record initialization
 				resultValue = i.createRecordValue(rtv.RecordType, rtv.Methods)
+			}
+		}
+
+		// Initialize array return types (dynamic or static inline definitions)
+		arrayTypeKey := "__array_type_" + lowerReturnType
+		if typeVal, ok := i.env.Get(arrayTypeKey); ok {
+			if atv, ok := typeVal.(*ArrayTypeValue); ok {
+				resultValue = NewArrayValue(atv.ArrayType)
+			}
+		} else if strings.HasPrefix(lowerReturnType, "array") {
+			if arrayType := i.parseInlineArrayType(lowerReturnType); arrayType != nil {
+				resultValue = NewArrayValue(arrayType)
 			}
 		}
 
