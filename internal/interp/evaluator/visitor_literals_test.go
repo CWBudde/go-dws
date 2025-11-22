@@ -19,10 +19,10 @@ func TestVisitIntegerLiteral(t *testing.T) {
 		{"zero", 0, 0},
 		{"positive", 42, 42},
 		{"negative", -123, -123},
-		{"max_int64", math.MaxInt64, math.MaxInt64},
-		{"min_int64", math.MinInt64, math.MinInt64},
+		{"max int64", math.MaxInt64, math.MaxInt64},
+		{"min int64", math.MinInt64, math.MinInt64},
 		{"one", 1, 1},
-		{"minus_one", -1, -1},
+		{"minus one", -1, -1},
 	}
 
 	e := &Evaluator{}
@@ -65,11 +65,11 @@ func TestVisitFloatLiteral(t *testing.T) {
 		{"negative", -2.71828, -2.71828},
 		{"small", 0.000001, 0.000001},
 		{"large", 1.23e10, 1.23e10},
-		{"negative_exp", 1.5e-5, 1.5e-5},
+		{"negative exponent", 1.5e-5, 1.5e-5},
 		{"one", 1.0, 1.0},
-		{"minus_one", -1.0, -1.0},
-		{"max_float64", math.MaxFloat64, math.MaxFloat64},
-		{"smallest_nonzero", math.SmallestNonzeroFloat64, math.SmallestNonzeroFloat64},
+		{"minus one", -1.0, -1.0},
+		{"max float64", math.MaxFloat64, math.MaxFloat64},
+		{"smallest nonzero", math.SmallestNonzeroFloat64, math.SmallestNonzeroFloat64},
 	}
 
 	e := &Evaluator{}
@@ -109,12 +109,12 @@ func TestVisitStringLiteral(t *testing.T) {
 	}{
 		{"empty", "", ""},
 		{"simple", "hello", "hello"},
-		{"with_spaces", "hello world", "hello world"},
-		{"with_quotes", "it's a test", "it's a test"},
+		{"with spaces", "hello world", "hello world"},
+		{"with quotes", "it's a test", "it's a test"},
 		{"multiline", "line1\nline2\nline3", "line1\nline2\nline3"},
 		{"unicode", "Hello 世界 🌍", "Hello 世界 🌍"},
-		{"escaped_chars", "tab\there\nand newline", "tab\there\nand newline"},
-		{"long_string", string(make([]byte, 1000)), string(make([]byte, 1000))},
+		{"escaped chars", "tab\there\nand newline", "tab\there\nand newline"},
+		{"long string", string(make([]byte, 1000)), string(make([]byte, 1000))},
 	}
 
 	e := &Evaluator{}
@@ -191,15 +191,15 @@ func TestVisitCharLiteral(t *testing.T) {
 		value    rune
 		expected string
 	}{
-		{"ascii_a", 'a', "a"},
-		{"ascii_Z", 'Z', "Z"},
+		{"ascii a", 'a', "a"},
+		{"ascii Z", 'Z', "Z"},
 		{"digit", '5', "5"},
 		{"space", ' ', " "},
 		{"newline", '\n', "\n"},
 		{"tab", '\t', "\t"},
-		{"unicode_emoji", '🌍', "🌍"},
-		{"unicode_chinese", '中', "中"},
-		{"null_char", '\x00', "\x00"},
+		{"unicode emoji", '🌍', "🌍"},
+		{"unicode chinese", '中', "中"},
+		{"null char", '\x00', "\x00"},
 	}
 
 	e := &Evaluator{}
@@ -292,7 +292,7 @@ func TestVisitNilLiteral_Multiple(t *testing.T) {
 func TestVisitorLiterals_NilContext(t *testing.T) {
 	e := &Evaluator{}
 
-	t.Run("integer_with_nil_context", func(t *testing.T) {
+	t.Run("integer with nil context", func(t *testing.T) {
 		node := &ast.IntegerLiteral{Value: 42}
 		result := e.VisitIntegerLiteral(node, nil)
 		if intVal, ok := result.(*runtime.IntegerValue); !ok || intVal.Value != 42 {
@@ -300,7 +300,7 @@ func TestVisitorLiterals_NilContext(t *testing.T) {
 		}
 	})
 
-	t.Run("float_with_nil_context", func(t *testing.T) {
+	t.Run("float with nil context", func(t *testing.T) {
 		node := &ast.FloatLiteral{Value: 3.14}
 		result := e.VisitFloatLiteral(node, nil)
 		if floatVal, ok := result.(*runtime.FloatValue); !ok || floatVal.Value != 3.14 {
@@ -308,7 +308,7 @@ func TestVisitorLiterals_NilContext(t *testing.T) {
 		}
 	})
 
-	t.Run("string_with_nil_context", func(t *testing.T) {
+	t.Run("string with nil context", func(t *testing.T) {
 		node := &ast.StringLiteral{Value: "test"}
 		result := e.VisitStringLiteral(node, nil)
 		if strVal, ok := result.(*runtime.StringValue); !ok || strVal.Value != "test" {
@@ -316,7 +316,7 @@ func TestVisitorLiterals_NilContext(t *testing.T) {
 		}
 	})
 
-	t.Run("boolean_with_nil_context", func(t *testing.T) {
+	t.Run("boolean with nil context", func(t *testing.T) {
 		node := &ast.BooleanLiteral{Value: true}
 		result := e.VisitBooleanLiteral(node, nil)
 		if boolVal, ok := result.(*runtime.BooleanValue); !ok || !boolVal.Value {
@@ -324,7 +324,7 @@ func TestVisitorLiterals_NilContext(t *testing.T) {
 		}
 	})
 
-	t.Run("char_with_nil_context", func(t *testing.T) {
+	t.Run("char with nil context", func(t *testing.T) {
 		node := &ast.CharLiteral{Value: 'x'}
 		result := e.VisitCharLiteral(node, nil)
 		if strVal, ok := result.(*runtime.StringValue); !ok || strVal.Value != "x" {
@@ -332,7 +332,7 @@ func TestVisitorLiterals_NilContext(t *testing.T) {
 		}
 	})
 
-	t.Run("nil_with_nil_context", func(t *testing.T) {
+	t.Run("nil with nil context", func(t *testing.T) {
 		node := &ast.NilLiteral{}
 		result := e.VisitNilLiteral(node, nil)
 		if _, ok := result.(*runtime.NilValue); !ok {
