@@ -533,9 +533,11 @@ The following uses of `strings.ToLower()`/`strings.EqualFold()` are legitimate a
   - Migrated: All `strings.ToLower()` → `ident.Normalize()`
   - Kept `strings` import for `strings.HasPrefix()` (array type detection)
 
-- [ ] **14.1.10** Migrate `internal/interp/statements_declarations.go` (17 occurrences)
+- [x] **14.1.10** Migrate `internal/interp/statements_declarations.go` (17 occurrences)
   - ToLower: 99,128,188,199,209,222,231,246,274,339,347,355,366,374,389,416
   - EqualFold: 161
+  - Migrated: All `strings.ToLower()` → `ident.Normalize()`, `strings.EqualFold()` → `ident.Equal()`
+  - Kept `strings` import for `strings.HasPrefix()` (array/set type detection)
   - Variable declaration type resolution
 
 - [ ] **14.1.11** Migrate `internal/interp/objects_methods.go` (12 occurrences)
