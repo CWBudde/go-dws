@@ -1013,13 +1013,43 @@ func (v *statementValidator) checkMemberAccessExpression(expr *ast.MemberAccessE
 			if memberNameLower == "value" {
 				return types.INTEGER
 			}
+			// Continue to check helpers for other properties/methods on enums
 		}
 
-		// For non-class/record types, we would check helpers here
-		// but that requires access to the helpers registry
-		// TODO: Check helpers for properties and methods
+		// For non-class/record types, check helpers for properties and methods
+		// Prefer helper properties before methods so that property-style access
+		// (e.g., i.ToString) resolves correctly when parentheses are omitted
+		_, helperProp := v.hasHelperProperty(objectType, memberName)
+		if helperProp != nil {
+			return helperProp.Type
+		}
 
-		v.ctx.AddError("member access on type %s not supported in ValidationPass", objectType.String())
+		_, helperMethod := v.hasHelperMethod(objectType, memberName)
+		if helperMethod != nil {
+			// Auto-invoke parameterless helper methods when accessed without ()
+			// This allows arr.Pop to work the same as arr.Pop()
+			if len(helperMethod.Parameters) == 0 {
+				// Parameterless method - auto-invoke and return the return type
+				return helperMethod.ReturnType
+			}
+			// Method has parameters - return the method type for deferred invocation
+			return helperMethod
+		}
+
+		// Check for helper class constants (for scoped enum access like TColor.Red)
+		_, helperConst := v.hasHelperClassConst(objectType, memberName)
+		if helperConst != nil {
+			// For enum types, the constant is the enum value, so return the enum type itself
+			if _, isEnum := objectTypeResolved.(*types.EnumType); isEnum {
+				return objectType
+			}
+			// For other types, we'd need to determine the constant's type
+			// For now, return the object type (conservative approach)
+			return objectType
+		}
+
+		v.ctx.AddError("member access on type %s requires a helper, got no helper with member '%s'",
+			objectType.String(), memberName)
 		return nil
 	}
 
@@ -1092,9 +1122,28 @@ func (v *statementValidator) checkMemberAccessExpression(expr *ast.MemberAccessE
 		return types.NewMethodPointerType(methodType.Parameters, methodType.ReturnType)
 	}
 
-	// TODO: Check helpers for methods and properties
+	// Check helpers for properties and methods on class types
+	_, helperProp := v.hasHelperProperty(objectType, memberName)
+	if helperProp != nil {
+		return helperProp.Type
+	}
 
-	// TODO: Check for class constants
+	_, helperMethod := v.hasHelperMethod(objectType, memberName)
+	if helperMethod != nil {
+		// Auto-invoke parameterless helper methods
+		if len(helperMethod.Parameters) == 0 {
+			return helperMethod.ReturnType
+		}
+		return helperMethod
+	}
+
+	// Check for helper class constants
+	_, helperConst := v.hasHelperClassConst(objectType, memberName)
+	if helperConst != nil {
+		// Return the appropriate type for the constant
+		// For now, return the object type (conservative approach)
+		return objectType
+	}
 
 	// Member not found
 	v.ctx.AddError("class '%s' has no member '%s'", classType.Name, memberName)
@@ -1768,4 +1817,117 @@ func (v *statementValidator) checkOldExpression(expr *ast.OldExpression) types.T
 		return v.checkIdentifier(expr.Identifier)
 	}
 	return nil
+}
+
+// ============================================================================
+// Helper Support Methods
+// ============================================================================
+
+// getHelpersForType returns all helpers that extend the given type.
+func (v *statementValidator) getHelpersForType(typ types.Type) []*types.HelperType {
+	if typ == nil {
+		return nil
+	}
+
+	// Look up helpers by the type's string representation (case-insensitive)
+	typeName := strings.ToLower(typ.String())
+	helpers := v.ctx.Helpers[typeName]
+
+	// For array types, also include generic array helpers
+	if _, isArray := typ.(*types.ArrayType); isArray {
+		arrayHelpers := v.ctx.Helpers["array"]
+		if arrayHelpers != nil {
+			// Combine type-specific helpers with generic array helpers
+			helpers = append(helpers, arrayHelpers...)
+		}
+	}
+
+	// For enum types, also include generic enum helpers
+	if _, isEnum := typ.(*types.EnumType); isEnum {
+		enumHelpers := v.ctx.Helpers["enum"]
+		if enumHelpers != nil {
+			// Combine type-specific helpers with generic enum helpers
+			helpers = append(helpers, enumHelpers...)
+		}
+	}
+
+	return helpers
+}
+
+// hasHelperMethod checks if any helper for the given type defines the specified method.
+// Returns the helper type and method if found.
+func (v *statementValidator) hasHelperMethod(typ types.Type, methodName string) (*types.HelperType, *types.FunctionType) {
+	helpers := v.getHelpersForType(typ)
+	if helpers == nil {
+		return nil, nil
+	}
+
+	// Check each helper in reverse order so user-defined helpers (added later)
+	// take precedence over built-in helpers registered during initialization.
+	methodNameLower := strings.ToLower(methodName)
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
+		if method, ok := helper.Methods[methodNameLower]; ok {
+			// For array types, specialize the method signature if needed
+			// (e.g., Pop() should return the array's element type, not VARIANT)
+			if arrayType, isArray := typ.(*types.ArrayType); isArray {
+				// Check if this is the Pop method that needs specialization
+				if methodNameLower == "pop" && method.ReturnType == types.VARIANT {
+					// Create a specialized version with the actual element type
+					specialized := types.NewFunctionType(method.Parameters, arrayType.ElementType)
+					specialized.ParamNames = method.ParamNames
+					specialized.DefaultValues = method.DefaultValues
+					specialized.VarParams = method.VarParams
+					specialized.ConstParams = method.ConstParams
+					specialized.LazyParams = method.LazyParams
+					specialized.IsVariadic = method.IsVariadic
+					specialized.VariadicType = method.VariadicType
+					return helper, specialized
+				}
+			}
+			return helper, method
+		}
+	}
+
+	return nil, nil
+}
+
+// hasHelperProperty checks if any helper for the given type defines the specified property.
+// Returns the helper type and property if found.
+func (v *statementValidator) hasHelperProperty(typ types.Type, propName string) (*types.HelperType, *types.PropertyInfo) {
+	helpers := v.getHelpersForType(typ)
+	if helpers == nil {
+		return nil, nil
+	}
+
+	// Check each helper in reverse order (most recent first)
+	propNameLower := strings.ToLower(propName)
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
+		if prop, ok := helper.Properties[propNameLower]; ok {
+			return helper, prop
+		}
+	}
+
+	return nil, nil
+}
+
+// hasHelperClassConst checks if any helper for the given type defines the specified class constant.
+// Returns the helper type and constant value if found.
+func (v *statementValidator) hasHelperClassConst(typ types.Type, constName string) (*types.HelperType, interface{}) {
+	helpers := v.getHelpersForType(typ)
+	if helpers == nil {
+		return nil, nil
+	}
+
+	// Check each helper in reverse order (most recent first)
+	constNameLower := strings.ToLower(constName)
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
+		if constVal, ok := helper.ClassConsts[constNameLower]; ok {
+			return helper, constVal
+		}
+	}
+
+	return nil, nil
 }
