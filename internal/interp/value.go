@@ -662,6 +662,7 @@ type FunctionPointerValue = runtime.FunctionPointerValue
 // NewFunctionPointerValue creates a new function pointer value.
 // For regular functions, selfObject should be nil.
 // For method pointers, selfObject should be the instance.
+// Task 3.5.41: Maintains backward compatibility by accepting both AST node and MethodID.
 func NewFunctionPointerValue(
 	function *ast.FunctionDecl,
 	closure *Environment,
@@ -669,7 +670,27 @@ func NewFunctionPointerValue(
 	pointerType *types.FunctionPointerType,
 ) *FunctionPointerValue {
 	return &FunctionPointerValue{
+		MethodID:    runtime.InvalidMethodID, // Will be set later if needed
 		Function:    function,
+		Lambda:      nil,
+		Closure:     closure,
+		SelfObject:  selfObject,
+		PointerType: pointerType,
+	}
+}
+
+// NewFunctionPointerValueWithID creates a new function pointer value using MethodID.
+// This is the AST-free constructor for use after full migration.
+// Task 3.5.41: AST-free function pointer creation.
+func NewFunctionPointerValueWithID(
+	methodID runtime.MethodID,
+	closure *Environment,
+	selfObject Value,
+	pointerType *types.FunctionPointerType,
+) *FunctionPointerValue {
+	return &FunctionPointerValue{
+		MethodID:    methodID,
+		Function:    nil, // No AST node needed
 		Lambda:      nil,
 		Closure:     closure,
 		SelfObject:  selfObject,
@@ -680,14 +701,34 @@ func NewFunctionPointerValue(
 // NewLambdaValue creates a new lambda/closure value.
 // Task 9.221: Constructor for lambda expressions/anonymous methods.
 // The closure environment captures all variables from the scope where the lambda is defined.
+// Task 3.5.41: Maintains backward compatibility during migration.
 func NewLambdaValue(
 	lambda *ast.LambdaExpression,
 	closure *Environment,
 	pointerType *types.FunctionPointerType,
 ) *FunctionPointerValue {
 	return &FunctionPointerValue{
+		MethodID:    runtime.InvalidMethodID, // Will be set later if needed
 		Function:    nil,
 		Lambda:      lambda,
+		Closure:     closure,
+		SelfObject:  nil,
+		PointerType: pointerType,
+	}
+}
+
+// NewLambdaValueWithID creates a new lambda/closure value using MethodID.
+// This is the AST-free constructor for use after full migration.
+// Task 3.5.41: AST-free lambda creation.
+func NewLambdaValueWithID(
+	methodID runtime.MethodID,
+	closure *Environment,
+	pointerType *types.FunctionPointerType,
+) *FunctionPointerValue {
+	return &FunctionPointerValue{
+		MethodID:    methodID,
+		Function:    nil,
+		Lambda:      nil, // No AST node needed
 		Closure:     closure,
 		SelfObject:  nil,
 		PointerType: pointerType,
