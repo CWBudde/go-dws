@@ -497,6 +497,37 @@ type InterpreterAdapter interface {
 	// InitializeInterfaceField creates a nil interface instance for interface-typed fields.
 	// Returns an InterfaceInstance value or nil if the type is not an interface.
 	InitializeInterfaceField(fieldType any) Value
+
+	// ===== Task 3.5.29: Exception Handling Adapter Methods =====
+
+	// MatchesExceptionType checks if an exception matches a handler's type.
+	// The exception should be an *ExceptionValue. The typeExpr is the exception type
+	// from the handler (e.g., "Exception", "EDivByZero").
+	// Returns true if the exception type matches or inherits from the handler type.
+	// Returns true if typeExpr is nil (bare handler catches all).
+	MatchesExceptionType(exc interface{}, typeExpr ast.TypeExpression) bool
+
+	// GetExceptionInstance returns the ObjectInstance from an exception.
+	// The exception should be an *ExceptionValue.
+	// Returns the instance Value or nil if not an exception.
+	GetExceptionInstance(exc interface{}) Value
+
+	// CreateExceptionFromObject creates an ExceptionValue from an object instance.
+	// Used by raise statement to create exception from user-provided object.
+	// Parameters:
+	//   - obj: The object instance (Value) that should be an exception object
+	//   - ctx: The execution context for call stack capture
+	//   - pos: Position information for error reporting (token.Position or similar)
+	// Returns the exception value (interface{}) to be set in context.
+	CreateExceptionFromObject(obj Value, ctx *ExecutionContext, pos any) interface{}
+
+	// EvalBlockStatement evaluates a block statement in the given context.
+	// Returns nil after evaluating all statements.
+	EvalBlockStatement(block *ast.BlockStatement, ctx *ExecutionContext)
+
+	// EvalStatement evaluates a single statement in the given context.
+	// Used by exception handlers to evaluate the handler statement.
+	EvalStatement(stmt ast.Statement, ctx *ExecutionContext)
 }
 
 // Evaluator is responsible for evaluating DWScript AST nodes.
