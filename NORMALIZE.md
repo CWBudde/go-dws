@@ -148,10 +148,11 @@ Standalone registry classes with clear boundaries:
   - Impact: Builtin function resolution
   - Migrated: Registry struct, NewRegistry, Register, Lookup, Get, GetByCategory, AllFunctions, Count, Has, Clear
 
-- [ ] **13.5** Migrate `internal/interp/types/class_registry.go`
+- [x] **13.5** Migrate `internal/interp/types/class_registry.go`
   - Field: `classes map[string]*ClassInfoEntry`
   - Replace with: `classes *ident.Map[*ClassInfoEntry]`
   - Impact: Class metadata lookup
+  - Migrated: ClassRegistry struct, NewClassRegistry, Register, RegisterWithParent, Lookup, Exists, LookupHierarchy, GetParentName, IsDescendantOf, GetAllClasses, Count, GetClassNames, FindDescendants, GetDepth, Clear
 
 - [ ] **13.6** Migrate `internal/interp/types/function_registry.go`
   - Fields: `functions`, `qualifiedFunctions` (both `map[string][]*FunctionEntry`)
