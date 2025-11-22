@@ -883,24 +883,14 @@ func (it *InterfaceType) Equals(other Type) bool {
 
 // HasMethod checks if the interface has a method with the given name
 func (it *InterfaceType) HasMethod(name string) bool {
-	// Case-insensitive method lookup
-	for methodName := range it.Methods {
-		if ident.Equal(methodName, name) {
-			return true
-		}
-	}
-	return false
+	_, exists := it.Methods[ident.Normalize(name)]
+	return exists
 }
 
 // GetMethod retrieves the signature of a method by name
 func (it *InterfaceType) GetMethod(name string) (*FunctionType, bool) {
-	// Case-insensitive method lookup
-	for methodName, methodType := range it.Methods {
-		if ident.Equal(methodName, name) {
-			return methodType, true
-		}
-	}
-	return nil, false
+	methodType, ok := it.Methods[ident.Normalize(name)]
+	return methodType, ok
 }
 
 // InheritsFrom checks if this interface inherits from (extends) another interface.

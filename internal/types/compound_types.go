@@ -224,119 +224,68 @@ func (rt *RecordType) Equals(other Type) bool {
 
 // HasField checks if the record has a field with the given name
 func (rt *RecordType) HasField(name string) bool {
-	// Case-insensitive field lookup
-	for fieldName := range rt.Fields {
-		if ident.Equal(fieldName, name) {
-			return true
-		}
-	}
-	return false
+	_, exists := rt.Fields[ident.Normalize(name)]
+	return exists
 }
 
 // GetFieldType returns the type of a field, or nil if not found
 func (rt *RecordType) GetFieldType(name string) Type {
-	// Case-insensitive field lookup
-	for fieldName, fieldType := range rt.Fields {
-		if ident.Equal(fieldName, name) {
-			return fieldType
-		}
-	}
-	return nil
+	return rt.Fields[ident.Normalize(name)]
 }
 
 // HasMethod checks if the record has a method with the given name
 func (rt *RecordType) HasMethod(name string) bool {
-	// Case-insensitive method lookup
-	for methodName := range rt.Methods {
-		if ident.Equal(methodName, name) {
-			return true
-		}
-	}
-	return false
+	_, exists := rt.Methods[ident.Normalize(name)]
+	return exists
 }
 
 // GetMethod returns the type of a method, or nil if not found
 func (rt *RecordType) GetMethod(name string) *FunctionType {
-	// Case-insensitive method lookup
-	for methodName, methodType := range rt.Methods {
-		if ident.Equal(methodName, name) {
-			return methodType
-		}
-	}
-	return nil
+	return rt.Methods[ident.Normalize(name)]
 }
 
 // HasClassMethod checks if the record has a class method with the given name
 func (rt *RecordType) HasClassMethod(name string) bool {
-	// Case-insensitive method lookup
-	for methodName := range rt.ClassMethods {
-		if ident.Equal(methodName, name) {
-			return true
-		}
-	}
-	return false
+	_, exists := rt.ClassMethods[ident.Normalize(name)]
+	return exists
 }
 
 // GetClassMethod returns the type of a class method, or nil if not found
 func (rt *RecordType) GetClassMethod(name string) *FunctionType {
-	// Case-insensitive method lookup
-	for methodName, methodType := range rt.ClassMethods {
-		if ident.Equal(methodName, name) {
-			return methodType
-		}
-	}
-	return nil
+	return rt.ClassMethods[ident.Normalize(name)]
 }
 
 // HasProperty checks if the record has a property with the given name
 func (rt *RecordType) HasProperty(name string) bool {
-	// Case-insensitive property lookup
-	for propName := range rt.Properties {
-		if ident.Equal(propName, name) {
-			return true
-		}
-	}
-	return false
+	_, exists := rt.Properties[ident.Normalize(name)]
+	return exists
 }
 
 // GetProperty returns the property info, or nil if not found
 func (rt *RecordType) GetProperty(name string) *RecordPropertyInfo {
-	// Case-insensitive property lookup
-	for propName, prop := range rt.Properties {
-		if ident.Equal(propName, name) {
-			return prop
-		}
-	}
-	return nil
+	return rt.Properties[ident.Normalize(name)]
 }
 
 // GetMethodOverloads returns all overload variants for a given method name
 func (rt *RecordType) GetMethodOverloads(methodName string) []*MethodInfo {
-	// Case-insensitive method lookup
-	for name, overloads := range rt.MethodOverloads {
-		if ident.Equal(name, methodName) {
-			return overloads
-		}
-	}
-	return nil
+	return rt.MethodOverloads[ident.Normalize(methodName)]
 }
 
 // GetClassMethodOverloads returns all overload variants for a given class method name
 func (rt *RecordType) GetClassMethodOverloads(methodName string) []*MethodInfo {
-	// Case-insensitive method lookup
-	for name, overloads := range rt.ClassMethodOverloads {
-		if ident.Equal(name, methodName) {
-			return overloads
-		}
-	}
-	return nil
+	return rt.ClassMethodOverloads[ident.Normalize(methodName)]
 }
 
 // NewRecordType creates a new record type with the given name and fields
 func NewRecordType(name string, fields map[string]Type) *RecordType {
+	// Normalize field keys for case-insensitive lookup
+	normalizedFields := make(map[string]Type, len(fields))
+	for k, v := range fields {
+		normalizedFields[ident.Normalize(k)] = v
+	}
 	return &RecordType{
 		Name:                 name,
-		Fields:               fields,
+		Fields:               normalizedFields,
 		Methods:              make(map[string]*FunctionType),
 		MethodOverloads:      make(map[string][]*MethodInfo),
 		ClassMethods:         make(map[string]*FunctionType),
