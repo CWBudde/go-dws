@@ -68,8 +68,11 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 					// Import all symbols from the used unit
 					var importErr error
 					unitSymbols.symbols.Range(func(symbolName string, symbol *Symbol) bool {
+						// Normalize for case-insensitive conflict checking
+						normalizedName := ident.Normalize(symbolName)
+
 						// Check for conflicts
-						if existingSource, exists := importedSymbols[symbolName]; exists {
+						if existingSource, exists := importedSymbols[normalizedName]; exists {
 							importErr = fmt.Errorf("symbol conflict: '%s' is exported by both '%s' and '%s'",
 								symbol.Name, existingSource, unitIdent.Value)
 							return false // stop iteration
@@ -77,7 +80,7 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 
 						// Import the symbol
 						a.symbols.symbols.Set(symbolName, symbol)
-						importedSymbols[symbolName] = unitIdent.Value
+						importedSymbols[normalizedName] = unitIdent.Value
 						return true // continue iteration
 					})
 					if importErr != nil {
