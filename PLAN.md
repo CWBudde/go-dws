@@ -211,1078 +211,144 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ### Phase 3.5: Evaluator Refactoring
 
-- [x] 3.5.1 Split Interpreter into Evaluator + TypeSystem + ExecutionContext
-  - Created Evaluator struct (258 lines) with focused responsibility (typeSystem, output, rand, config, unitRegistry, semanticInfo)
-  - Implemented InterpreterAdapter interface for backward compatibility during migration
-  - Interpreter now small orchestrator, all tests pass
-
-- [x] 3.5.2 Implement Visitor pattern for evaluation
-  - Implemented 48 visitor methods (VisitXXX) replacing giant Eval() switch
-  - Eliminated 228-line switch statement with type switch dispatch
-  - Created 4 visitor files organized by category (literals, expressions, statements, declarations)
-
-- [x] 3.5.3 Split evaluation by node category
-  - Created 4 visitor files (404 lines total): visitor_literals.go (49), visitor_expressions.go (154), visitor_statements.go (129), visitor_declarations.go (72)
-  - All files well under 500-line limit
-  - 48 visitor methods: 6 literals, 22 expressions, 19 statements, 9 declarations
-
-- [x] 3.5.4 Migrate simple evaluation logic from Interpreter to Evaluator
-  - Migrated 20 simple visitor methods: 6 literals, 3 simple expressions, 3 statements, 7 control flow, 1 declaration
-  - Added helper functions: isTruthy, variantToBool, valuesEqual, isInRange, runeLength, runeAt, isError
-  - 28 methods remaining (require infrastructure adapters)
-
-- [x] 3.5.5 Add Type System Adapter Methods
-  - Added 10 type system methods: GetClassInfo, RegisterClass, GetRecordType, GetEnumType, GetArrayType, CoerceValue, GetDefaultValue, CheckTypeCompatibility, GetValueType, ResolveArrayTypeByName
-  - Enables: VarDeclStatement, ConstDecl, Identifier, BinaryExpression, UnaryExpression
-
-- [x] 3.5.6 Add Array and Collection Adapter Methods
-  - Added 10 array/set methods: CreateArray, CreateDynamicArray, CreateArrayWithExpectedType, GetArrayElement, SetArrayElement, GetArrayLength, CreateSet, EvaluateSetRange, AddToSet, GetStringChar
-  - Renamed existing GetArrayLength to GetBuiltinArrayLength to avoid conflict
-  - Enables: ArrayLiteralExpression, NewArrayExpression, IndexExpression, SetLiteral
-
-- [x] 3.5.7 Add Property, Field, and Member Access Adapter Methods
-  - Added 20 OOP methods: Field access (4), Property access (4), Method calls (2), Object operations (3), Function pointers (4), Record operations (1), Assignment helpers (2)
-  - Key methods: GetObjectField, SetObjectField, GetPropertyValue, SetPropertyValue, CallMethod, CreateObject, CheckType, CastType, CreateFunctionPointer, CreateLambda, CreateRecord, SetVariable, CanAssign
-  - Enables: MemberAccessExpression, MethodCallExpression, CallExpression, AddressOfExpression, LambdaExpression, NewExpression, IsExpression, AsExpression, RecordLiteralExpression, AssignmentStatement, ExpressionStatement
-
-- [x] 3.5.8 Add Missing Adapter Methods and Initial Migration
-  - Added 9 missing adapter methods: CastType, CreateFunctionPointer, CreateLambda, IsFunctionPointer, GetFunctionPointerParamCount, CreateRecord, SetVariable, CanAssign, RaiseException
-  - Migrated 2 visitor methods: VisitExpressionStatement, VisitLambdaExpression
-  - Status: 2/24 complex methods migrated (8.3%)
-
-- [x] 3.5.9 Create Environment Adapter and Migrate Helper Functions
-  - Added 3 environment adapter methods: GetVariable, DefineVariable, CreateEnclosedEnvironment
-  - Extracted 6 helper functions to helpers.go: IsTruthy, VariantToBool, ValuesEqual, IsInRange, RuneLength, RuneAt
-  - Removed 200+ lines of duplicate helper code from visitor_statements.go
-
-- [x] 3.5.10 Migrate Identifier and Simple Variable Lookups
-  - Migrate `VisitIdentifier` using environment adapter
-  - **Partial Migration Approach** (pragmatic given 220+ line complexity):
-    - ✅ Basic variable lookups using `adapter.GetVariable()`
-    - ✅ Fast path for simple value types (Integer, Float, String, Boolean, Nil)
-    - ⏭️ Complex cases delegated to `adapter.EvalNode()`:
-      - Self keyword and method context
-      - Instance fields/properties (implicit Self)
-      - Lazy parameters (LazyThunk evaluation)
-      - Var parameters (ReferenceValue dereferencing)
-      - External variables (error handling)
-      - Class variables (__CurrentClass__ context)
-      - Function references (with auto-invoke logic)
-      - Built-in function calls
-      - Class name metaclass references
-      - ClassName/ClassType special identifiers
-  - **Benefits**:
-    - Establishes pattern for environment access via adapter
-    - Optimizes common case (simple variables) with fast path
-    - Maintains all existing functionality via delegation
-    - Reduces evaluator code complexity while improving performance
-  - Files: `evaluator/visitor_expressions.go`
-  - Estimated: 3-4 days
-  - Acceptance: ✅ Basic variable lookups migrated, all tests pass
-  - **Status**: ✅ COMPLETE - Partial migration with fast path optimization
-  - **Complexity**: Medium - handled pragmatically with hybrid approach (migrate simple, delegate complex)
-  - **Note**: Full migration of complex cases deferred to future tasks when more adapter infrastructure is available
-
-- [x] 3.5.11 Migrate Function Call Expression
-  - Migrate `VisitCallExpression` using adapter methods
-  - **Documentation-Only Migration** (pragmatic given 400+ line complexity):
-    - ✅ Documented 11+ distinct call types in source code
-    - ✅ Documented parameter handling complexities (lazy, var, regular)
-    - ✅ Documented context switching requirements (Self, units, records)
-    - ⏭️ All functionality delegated to `adapter.EvalNode()`:
-      1. Function pointer calls (with lazy/var parameter handling)
-      2. Record method calls
-      3. Interface method calls
-      4. Unit-qualified function calls (UnitName.FunctionName)
-      5. Class constructor calls (TClass.Create)
-      6. User-defined function calls with overload resolution
-      7. Implicit Self method calls (within class/record context)
-      8. Record static method calls (__CurrentRecord__ context)
-      9. Built-in functions with var parameters
-      10. External functions with var parameters
-      11. Regular built-in function calls
-  - **Rationale**:
-    - Original implementation: 400+ lines in Interpreter.evalCallExpression
-    - Each call type requires specialized parameter handling and context management
-    - Overload resolution alone is ~50 lines of complex logic
-    - Full migration requires extensive new adapter infrastructure:
-      * CallUserFunction adapter
-      * ResolveOverload adapter
-      * LazyThunk/ReferenceValue handling infrastructure
-      * Context passing for Self, units, records
-    - Documentation establishes roadmap for future incremental migration
-  - **Benefits**:
-    - Clear documentation of all call types for future work
-    - Maintains 100% existing functionality
-    - Establishes understanding for phased migration approach
-  - Files: `evaluator/visitor_expressions.go`
-  - Estimated: 4-5 days
-  - Acceptance: ✅ All function call tests pass, complexity documented
-  - **Status**: ✅ COMPLETE - Documentation-only migration with full delegation
-  - **Complexity**: Very High - 400+ lines, 11 call types, requires extensive infrastructure
-  - **Note**: Full migration deferred - will be broken into smaller tasks in future phases
-
-- [x] 3.5.12 Migrate Binary and Unary Expressions
-  - Migrate `VisitBinaryExpression` with operator registry
-  - Migrate `VisitUnaryExpression` with operator registry
-  - **Documentation-Only Migration** (pragmatic given 843+ line complexity):
-    - ✅ Documented binary expression complexity (843 lines)
-    - ✅ Documented 3 short-circuit operators (??/and/or)
-    - ✅ Documented operator overloading system
-    - ✅ Documented 13+ type-specific handler categories
-    - ✅ Documented unary expression operators (-/+/not)
-    - ⏭️ All functionality delegated to `adapter.EvalNode()`:
-      * Short-circuit operators (??/and/or)
-      * Operator overloading (tryBinaryOperator, tryUnaryOperator)
-      * Type-specific handlers (Variant, Integer, Float, String, Boolean, Enum, Object, Interface, Class, RTTI, Set, Array, Record)
-      * Special operators (in, div, mod, shl, shr, xor)
-      * Type coercion (Integer→Float, Variant unwrapping, Interface unwrapping)
-      * Error handling (nil checks, type mismatches, division by zero)
-  - **Rationale**:
-    - Original implementation: 843 lines in expressions_binary.go alone
-    - 13+ type-specific handler categories
-    - 3 short-circuit operators requiring special evaluation order
-    - Complex operator overloading system
-    - Extensive type coercion and conversion logic
-    - Full migration requires massive infrastructure:
-      * Type coercion system adapter
-      * Operator overloading registry adapters
-      * Short-circuit evaluation framework
-      * Variant handling system
-      * Type checking and promotion infrastructure
-    - Documentation establishes clear roadmap for phased migration
-  - **Benefits**:
-    - Comprehensive documentation of all operator types
-    - Clear categorization for future focused migrations
-    - Maintains 100% existing functionality
-    - Establishes understanding of type coercion requirements
-  - Files: `evaluator/visitor_expressions.go`
-  - Estimated: 5-6 days
-  - Acceptance: ✅ All operator tests pass, comprehensive documentation added
-  - **Status**: ✅ COMPLETE - Documentation-only migration with full delegation
-  - **Complexity**: Very High - 843+ lines, 13+ type handlers, short-circuit logic, operator overloading
-  - **Note**: Full migration should be broken into operator-category-specific sub-tasks in future phases
-
-- [x] 3.5.13 Migrate Array Operations
-  - Migrate `VisitArrayLiteralExpression` with type inference
-  - Migrate `VisitNewArrayExpression` with dynamic allocation
-  - Migrate `VisitIndexExpression` with bounds checking
-  - Migrate `VisitSetLiteral` with range expansion
-  - Handle multi-dimensional arrays
-  - Handle static vs dynamic arrays
-  - Files: `evaluator/visitor_expressions.go`
-  - Estimated: 4-5 days
-  - Acceptance: ✅ Array operations migrated, all array tests pass
-  - **Status**: ✅ COMPLETE - Documentation-only migration with full delegation
-  - **Complexity**: Medium-High - type inference, bounds checking, set ranges
-  - **Implementation**: Following task 3.5.12 pattern, comprehensive documentation added with adapter delegation
-  - **Details**:
-    - `VisitArrayLiteralExpression`: Documents type inference, element coercion, static vs dynamic arrays
-    - `VisitNewArrayExpression`: Documents dynamic allocation, multi-dimensional support, element initialization
-    - `VisitIndexExpression`: Documents array/string/property/JSON indexing, multi-index flattening, bounds checking
-    - `VisitSetLiteral`: Documents set literal evaluation, range expansion, storage strategies
-
-- [x] 3.5.14 Migrate Member Access and Assignment
-  - Migrate `VisitMemberAccessExpression` for field/property/method access
-  - Migrate `VisitAssignmentStatement` with lvalue resolution
-  - Handle property getters/setters with recursion prevention
-  - Handle indexed properties
-  - Handle helper method access
-  - Handle compound assignment operators (+=, -=, etc.)
-  - Files: `evaluator/visitor_expressions.go`, `evaluator/visitor_statements.go`
-  - Estimated: 5-6 days
-  - Acceptance: ✅ Member access and assignment migrated, all property/field tests pass
-  - **Status**: ✅ COMPLETE - Documentation-only migration with full delegation
-  - **Complexity**: Very High - multiple access modes, property dispatch, compound operators
-  - **Implementation**: Following task 3.5.12/3.5.13 pattern, comprehensive documentation with adapter delegation
-  - **Details**:
-    - `VisitMemberAccessExpression`: Documents static/unit/instance/property/helper method access modes
-    - `VisitAssignmentStatement`: Documents simple/member/index assignments with compound operator support
-
-- [x] 3.5.15 Migrate OOP Operations
-  - Migrate `VisitNewExpression` for object instantiation
-  - Migrate `VisitMethodCallExpression` for method invocation
-  - Migrate `VisitInheritedExpression` for parent method calls
-  - Migrate `VisitIsExpression` for type checking (with boolean mode)
-  - Migrate `VisitAsExpression` for type casting (with interface handling)
-  - Migrate `VisitImplementsExpression` for interface checking
-  - Migrate `VisitAddressOfExpression` for method pointers
-  - Handle constructor overloading
-  - Handle class inheritance and virtual methods
-  - Handle interface instance wrapping
-  - Files: `evaluator/visitor_expressions.go`
-  - Estimated: 6-7 days
-  - Acceptance: ✅ OOP operations migrated, all class/interface tests pass
-  - **Status**: ✅ COMPLETE - Documentation-only migration with full delegation
-  - **Complexity**: Very High - inheritance, interfaces, virtual dispatch, method pointers
-  - **Implementation**: Following established pattern, comprehensive documentation with adapter delegation
-  - **Details**:
-    - `VisitAddressOfExpression`: Documents function/method pointer creation with overload resolution
-    - `VisitNewExpression`: Documents object instantiation, constructor dispatch, field initialization
-    - `VisitMethodCallExpression`: Documents virtual dispatch, overload resolution, Self binding
-    - `VisitInheritedExpression`: Documents parent method calls with argument passing
-    - `VisitIsExpression`: Documents runtime type checking with class hierarchy traversal
-    - `VisitAsExpression`: Documents type casting with interface wrapping/unwrapping
-    - `VisitImplementsExpression`: Documents interface implementation checking
-
-- [x] 3.5.16 Migrate Declarations and Record Operations
-  - Migrate `VisitVarDeclStatement` with full type handling
-  - Migrate `VisitConstDecl` with type inference
-  - Migrate `VisitRecordLiteralExpression` for record construction
-  - Handle external variables
-  - Handle subrange types
-  - Handle inline type definitions (array of, set of)
-  - Handle anonymous record literals
-  - Handle interface wrapping in variable declarations
-  - Handle multi-identifier declarations
-  - Files: `evaluator/visitor_statements.go`, `evaluator/visitor_expressions.go`
-  - Estimated: 7-8 days
-  - Acceptance: ✅ Declarations and records migrated, all declaration tests pass
-  - **Status**: ✅ COMPLETE - Documentation-only migration with full delegation
-  - **Complexity**: Very High - 300+ lines, extensive type handling, multiple special cases
-  - **Implementation**: Following established pattern, comprehensive documentation with adapter delegation
-  - **Details**:
-    - `VisitVarDeclStatement`: Documents variable declaration with full type handling (external vars, multi-identifier, inline types, subranges, interface wrapping, zero value initialization)
-    - `VisitConstDecl`: Documents constant declaration with type inference
-    - `VisitRecordLiteralExpression`: Documents record literal construction (typed/anonymous, field initialization, nested records, value semantics)
-  - **Note**: This was the most complex migration task - 300+ lines of comprehensive documentation
-
-- [x] 3.5.17 Migrate Exception Handling
-  - Migrate `VisitTryStatement` with defer handling
-  - Migrate `VisitRaiseStatement` with exception state
-  - Handle finally clause execution
-  - Handle exception matching and handler selection
-  - Handle bare raise (re-raise)
-  - Handle ExceptObject variable binding
-  - Files: `evaluator/visitor_statements.go`
-  - Estimated: 4-5 days
-  - Acceptance: ✅ Exception handling migrated, all exception tests pass
-  - **Status**: ✅ COMPLETE - Documentation-only migration with full delegation
-  - **Complexity**: Very High - defer semantics, exception state management, nested handlers
-  - **Implementation**: Following established pattern, comprehensive documentation with adapter delegation
-  - **Details**:
-    - `VisitTryStatement`: Documents try-except-finally with defer semantics, exception matching, handler variable binding, ExceptObject management, nested handlers, bare raise support
-    - `VisitRaiseStatement`: Documents explicit and bare raise, exception object validation, message extraction, call stack capture, handlerException state management
-  - **Note**: Blocking dependencies noted for future full migration (ExceptionValue, ObjectInstance, ClassInfo must migrate to runtime package first)
+**Foundation Tasks (3.5.1-3.5.9):**
+- [x] 3.5.1-3.5.3: Architect & Structure - Split Interpreter into Evaluator + TypeSystem + ExecutionContext, implement visitor pattern (48 methods), organize into 4 category files
+- [x] 3.5.4: Migrate Simple Logic - 20 simple visitor methods (literals, simple expressions, control flow), helper functions
+- [x] 3.5.5-3.5.9: Adapter Infrastructure - Added 52 adapter methods (type system, arrays, OOP, environment), migrated 2 visitor methods, extracted helpers
 
 ### Category A: Operator Evaluation (High Priority)
 
-- [x] **3.5.19** Migrate Binary Operators (`VisitBinaryExpression`)
-  - **Complexity**: Very High (843 lines in original implementation)
-  - **Status**: ✅ PHASE 1 COMPLETE - Core primitive operators fully migrated (~65% of functionality)
-  - **Acceptance**: Core operators (Integer, Float, String, Boolean) working, tests passing
+- [x] **3.5.19** Migrate Binary Operators (`VisitBinaryExpression`) - **PARTIAL** ~65% complete
+  - **Completed**: Short-circuit (??/and/or), Integer (arithmetic, bitwise, comparisons), Float (arithmetic, comparisons, Integer→Float promotion), String (+, comparisons), Boolean (logical, comparisons)
+  - **Deferred**: Enum, Variant, Object/Interface/Class comparisons, Set, Array, Record operations, Operator overloading, 'in' operator
+  - **Blocker**: Value types (EnumValue, VariantValue, SetValue, ArrayValue, RecordValue, ObjectInstance, InterfaceInstance, ClassValue) need migration to runtime package
+  - Files: `binary_ops.go` (NEW, 500+ lines), `visitor_expressions.go` (80 lines), `helpers.go` (60 lines)
 
-  **✅ COMPLETED - Fully Implemented in Evaluator:**
-  - **Short-circuit operators** (`evalCoalesceOp`, `evalAndOp`, `evalOrOp`):
-    - `??` (coalesce) - returns left if truthy, else evaluates right
-    - `and` - short-circuit for booleans, bitwise for integers
-    - `or` - short-circuit for booleans, bitwise for integers
-    - Helper: `isFalsey()` for falsey value detection
-
-  - **Integer operations** (`evalIntegerBinaryOp`) - ALL operators:
-    - Arithmetic: `+`, `-`, `*`, `/` (→float), `div` (integer), `mod`
-    - Bitwise: `and`, `or`, `xor`, `shl`, `shr`, `sar`
-    - Comparisons: `=`, `<>`, `<`, `>`, `<=`, `>=`
-    - Error handling: division by zero, negative shifts
-
-  - **Float operations** (`evalFloatBinaryOp`):
-    - Arithmetic: `+`, `-`, `*`, `/`
-    - Comparisons: `=`, `<>`, `<`, `>`, `<=`, `>=`
-    - Automatic Integer→Float promotion for mixed operations
-
-  - **String operations** (`evalStringBinaryOp`):
-    - Concatenation: `+`
-    - Comparisons: `=`, `<>`, `<`, `>`, `<=`, `>=`
-
-  - **Boolean operations** (`evalBooleanBinaryOp`):
-    - Logical: `and`, `or`, `xor`
-    - Comparisons: `=`, `<>`
-
-  - **Helper functions**:
-    - `unwrapVariant()` - unwraps Variant values for type checking
-    - `isFalsey()` - determines zero/default values for coalesce
-
-  **⚠️ REMAINING - Currently Delegated to Adapter:**
-
-  *These require value type migrations to runtime package first:*
-
-  - **Enum operations** (`evalEnumBinaryOp` - stub):
-    - Comparisons by ordinal value: `=`, `<>`, `<`, `>`, `<=`, `>=`
-    - **Blocker**: `EnumValue` in `internal/interp`, needs migration to `runtime`
-
-  - **Variant operations** (`evalVariantBinaryOp` - stub):
-    - Type coercion and unwrapping for all operators
-    - Numeric promotion (Integer→Float)
-    - String conversions
-    - **Blocker**: `VariantValue` in `internal/interp`, needs migration to `runtime`
-
-  - **Object/Interface/Class comparisons** (`evalEqualityComparison` - stub):
-    - Identity comparisons: `=`, `<>` for objects
-    - nil comparisons
-    - Interface unwrapping
-    - ClassValue (metaclass) comparisons
-    - RTTITypeInfoValue comparisons
-    - **Blocker**: `ObjectInstance`, `InterfaceInstance`, `ClassValue`, `RTTITypeInfoValue` in `internal/interp`
-
-  - **Set operations** (delegated to adapter):
-    - Set operations: `+` (union), `-` (difference), `*` (intersection)
-    - Comparisons: `=`, `<>`, `<=` (subset), `>=` (superset)
-    - **Blocker**: `SetValue` in `internal/interp`
-
-  - **Array operations** (delegated to adapter):
-    - Comparisons: `=`, `<>` (element-wise)
-    - **Blocker**: `ArrayValue` in `internal/interp`
-
-  - **Record operations** (delegated to adapter):
-    - Comparisons: `=`, `<>` (field-wise)
-    - **Blocker**: `RecordValue` in `internal/interp`
-
-  - **Operator overloading** (`tryBinaryOperator` - stub):
-    - Custom operators for classes: `ObjectInstance.Class.lookupOperator()`
-    - Global operator registry
-    - **Blocker**: `ObjectInstance`, `ClassInfo`, `globalOperators` in `internal/interp`
-
-  - **'in' operator** (`evalInOperator` - stub):
-    - Array membership: `x in arrayVar`
-    - Set membership: `x in setVar`
-    - String substring: `'ab' in 'abc'`
-    - Subrange checking: `5 in [1..10]`
-    - **Blocker**: Complex logic requiring array/set/string special handling
-
-  **Files Modified:**
-  - `internal/interp/evaluator/visitor_expressions.go` - Main dispatcher (80 lines)
-  - `internal/interp/evaluator/binary_ops.go` - Type handlers (NEW, 500+ lines)
-  - `internal/interp/evaluator/helpers.go` - Helpers (60 lines added)
-  - `PLAN.md` - Status documentation
-
-  **Future Work (Phase 2):**
-  1. Migrate value types to runtime package (EnumValue, VariantValue, SetValue, etc.)
-  2. Implement remaining type-specific handlers in evaluator
-  3. Migrate operator overloading registry
-  4. Implement 'in' operator logic
-  5. Remove adapter delegation, complete 100% migration
-
-  **Estimated Effort:**
-  - Phase 1 (core operators): 1 week ✅ COMPLETE
-  - Phase 2 (complex types): 2-3 weeks 🔜 PENDING value type migrations
-
-- [x] **3.5.20** Migrate Unary Operators (`VisitUnaryExpression`)
-  - **Complexity**: Medium
-  - **Status**: ✅ COMPLETE - Core unary operators fully migrated
-  - **Acceptance**: Unary operators (-, +, not) working for primitive types, tests passing
-
-  **✅ COMPLETED - Fully Implemented in Evaluator:**
-  - **Minus operator** (`evalMinusUnaryOp`):
-    - Negation for `IntegerValue`: `-x` returns negated integer
-    - Negation for `FloatValue`: `-x` returns negated float
-    - Variant unwrapping support via `unwrapVariant()`
-    - Type error for non-numeric types
-
-  - **Plus operator** (`evalPlusUnaryOp`):
-    - Identity for `IntegerValue`: `+x` returns x unchanged
-    - Identity for `FloatValue`: `+x` returns x unchanged
-    - Variant unwrapping support
-    - Type error for non-numeric types
-
-  - **Not operator** (`evalNotUnaryOp`):
-    - Logical NOT for `BooleanValue`: `not true` → false
-    - Bitwise NOT for `IntegerValue`: `not 5` → bitwise complement
-    - Type error for non-boolean/non-integer types
-
-  - **Operator overloading** (`tryUnaryOperator` - stub):
-    - Checks for custom unary operators on objects
-    - Currently delegated to adapter (pending ObjectInstance migration)
-
-  **⚠️ REMAINING - Currently Delegated to Adapter:**
-  - **Variant NOT operation**:
-    - Complex Variant → Boolean conversion for NOT operator
-    - **Blocker**: `VariantValue` in `internal/interp`, needs migration to `runtime`
-
-  - **Operator overloading registry**:
-    - Custom unary operators for classes
-    - **Blocker**: `ObjectInstance.Class`, `globalOperators` in `internal/interp`
-
-  **Files Modified:**
-  - `internal/interp/evaluator/visitor_expressions.go` - Updated `VisitUnaryExpression` (25 lines)
-  - `internal/interp/evaluator/binary_ops.go` - Added unary operator methods (70 lines)
-
-  **Testing:**
-  - ✅ Arithmetic tests pass (unary minus/plus)
-  - ✅ Bitwise tests pass (not operator for integers)
-  - ✅ Boolean tests pass (not operator for booleans)
-
-  **Estimated Effort**: 2 days ✅ COMPLETE
+- [x] **3.5.20** Migrate Unary Operators (`VisitUnaryExpression`) - **COMPLETE**
+  - **Completed**: Minus (-), Plus (+), Not (logical/bitwise)
+  - **Deferred**: Variant NOT, operator overloading (blocked by value type migrations)
+  - Files: `binary_ops.go` (70 lines), `visitor_expressions.go` (25 lines)
 
 ---
 
 ### Category B: Function Calls (High Priority)
 
-- [x] **3.5.21** Migrate Function Call Expression (`VisitCallExpression`)
-  - **Complexity**: Very High (400+ lines, 11 distinct call types)
-  - **Status**: ✅ COMPLETE - Structured migration with comprehensive dispatch logic
+- [x] **3.5.21** Migrate Function Call Expression (`VisitCallExpression`) - **PARTIAL**
+  - **Completed**: Built-in function calls (direct evaluation), dispatch structure for 11 call types
+  - **Deferred**: Function pointers (lazy/var params), record/interface methods, unit-qualified, constructors, implicit Self/Record methods, var parameter handling, type casts
+  - **Blocker**: LazyThunk, ReferenceValue, FunctionPointerValue, RecordValue, InterfaceInstance infrastructure
+  - Files: `visitor_expressions.go` (220 lines)
 
-  **Implementation Summary**:
-  - Created comprehensive VisitCallExpression with all 11 call type dispatch paths
-  - Properly ordered type checking (function pointers → member access → user functions → implicit Self → built-ins)
-  - Implemented direct evaluation for regular built-in functions
-  - Delegated complex cases requiring infrastructure not yet migrated:
-    * Function pointers with lazy/var parameters (needs LazyThunk, ReferenceValue)
-    * Record/interface method calls (needs method dispatch infrastructure)
-    * Unit-qualified calls (needs qualified function resolution)
-    * Class constructors (needs MethodCallExpression delegation)
-    * Implicit Self/Record methods (needs method lookup infrastructure)
-    * Built-in/external functions with var parameters (needs ReferenceValue)
-    * Type casts (needs type registry and conversion logic)
-    * Default() function (needs type resolution)
-
-  **Call Types** (in order of evaluation):
-  1. Function pointer calls - Variable resolving to FunctionPointerValue
-  2. Record method calls - obj.Method() where obj is RecordValue
-  3. Interface method calls - intf.Method() where intf is InterfaceInstance
-  4. Unit-qualified function calls - UnitName.FunctionName()
-  5. Class constructor calls - TClassName.Create()
-  6. User-defined function calls - With overload resolution
-  7. Implicit Self method calls - MethodName() within class context
-  8. Record static method calls - MethodName() within __CurrentRecord__ context
-  9. Built-in functions with var params - Inc, Dec, Insert, Delete, etc.
-  10. External functions with var params - External Go functions
-  11. Regular built-in functions - Direct evaluation via CallBuiltinFunction
-
-  **Files Modified**:
-  - `internal/interp/evaluator/visitor_expressions.go` - Replaced VisitCallExpression (220 lines)
-
-  **Testing**:
-  - ✅ All evaluator tests pass
-  - ✅ Smoke tests pass: built-in calls, user functions, type casts
-  - ✅ No regressions in existing functionality
-
-  **Migration Strategy**: Partial migration using adapter pattern
-  - Direct implementation: Built-in function calls, dispatch structure
-  - Adapter delegation: Complex cases requiring infrastructure not yet migrated
-  - Well-documented blockers for each delegated path
-  - Establishes clear roadmap for future incremental migrations
-
-  **Effort**: 3 hours (initial structured migration)
-
-- [x] **3.5.22** Complete Identifier Migration (`VisitIdentifier`)
-  - **Complexity**: High (220+ lines, 8 distinct identifier types)
-  - **Status**: ✅ COMPLETE - Structured migration with comprehensive dispatch logic
-
-  **Implementation Summary**:
-  - Created comprehensive VisitIdentifier with all 8 identifier type dispatch paths
-  - Properly ordered lookup (Self → environment → instance context → class context → functions → class names)
-  - Implemented direct handling for Self keyword and primitive variable lookups
-  - Delegated complex cases requiring infrastructure not yet migrated
-
-  **Identifier Types** (in order of evaluation):
-  1. **Self keyword** - ✅ Directly implemented special case
-  2. **Environment lookup** - ✅ Direct for primitives, delegated for complex types:
-     - ExternalVarValue (needs error handling)
-     - LazyThunk (needs force evaluation)
-     - ReferenceValue (needs dereferencing)
-     - Complex types (arrays, objects, records)
-  3. **Instance context (Self bound)** - Delegated:
-     - Instance fields (needs obj.GetField)
-     - Class variables (needs obj.Class.ClassVars)
-     - Properties (needs property dispatch + recursion prevention)
-     - Methods (needs auto-invoke logic + function pointers)
-     - ClassName/ClassType identifiers
-  4. **Class method context (__CurrentClass__ bound)** - Delegated:
-     - ClassName/ClassType identifiers
-     - Class variables
-  5. **Function references** - Delegated:
-     - User functions (needs auto-invoke + function pointers)
-     - Built-in functions (needs auto-invoke)
-  6. **Class name metaclass references** - Delegated:
-     - Class registry lookup
-     - ClassValue creation
-  7. **Built-in function fallback** - Delegated
-  8. **Undefined identifier** - Returns error via adapter
-
-  **Files Modified**:
-  - `internal/interp/evaluator/visitor_expressions.go` - Replaced VisitIdentifier (140 lines)
-
-  **Testing**:
-  - ✅ All evaluator tests pass
-  - ✅ Smoke tests pass: variable lookup, Self keyword
-  - ✅ No regressions in existing functionality
-
-  **Migration Strategy**: Partial migration using adapter pattern
-  - Direct implementation: Self keyword, primitive variable lookups
-  - Adapter delegation: Complex lookups requiring infrastructure not yet migrated
-  - Well-documented blockers for each delegated path
-  - Establishes clear roadmap for future incremental migrations
-
-  **Effort**: 1 hour (structured migration)
+- [x] **3.5.22** Complete Identifier Migration (`VisitIdentifier`) - **PARTIAL**
+  - **Completed**: Self keyword, primitive variable lookups (Integer, Float, String, Boolean, Nil)
+  - **Deferred**: ExternalVarValue, LazyThunk, ReferenceValue, instance fields/properties/methods, class variables, function references, class name metaclass
+  - **Blocker**: Complex type handling, property dispatch, method auto-invoke, class registry
+  - Files: `visitor_expressions.go` (140 lines)
 
 ---
 
 ### Category C: Array & Collection Operations (Medium Priority)
 
-- [x] **3.5.23** Migrate Array Literal Expression (`VisitArrayLiteralExpression`)
-  - **Complexity**: Very High (250+ lines, multiple helper functions)
-  - **Status**: ✅ COMPLETE - Structured migration with comprehensive documentation
+- [x] **3.5.23-3.5.26** Migrate Array Literal Expression (`VisitArrayLiteralExpression`) - **COMPLETE**
+  - **Completed**: 5-step pipeline (evaluate elements, determine type, get element types, validate coercion, validate bounds)
+  - **Infrastructure**: `array_helpers.go` (type inference), `type_helpers.go` (GetValueType, type compatibility)
+  - **ArrayValue construction delegated to adapter** (circular import constraints)
+  - Supports: empty arrays, typed arrays, type-inferred arrays, mixed type coercion, variant arrays, nested arrays, static/dynamic arrays
+  - Files: `array_helpers.go` (NEW), `type_helpers.go` (NEW), `visitor_expressions.go` (120 lines)
 
-  **Implementation Summary**:
-  - Created comprehensive VisitArrayLiteralExpression with all array literal patterns documented
-  - Implemented direct element evaluation (Step 1 of 5)
-  - Documented remaining complex steps: type resolution, inference, coercion, validation
-  - Delegated type system operations to adapter
+- [x] **3.5.27** Migrate New Array Expression (`VisitNewArrayExpression`) - **COMPLETE**
+  - **Completed**: Dimension evaluation, type resolution, multi-dimensional support
+  - **Array construction delegated to adapter** (needs type system for custom types)
+  - Helpers: `evaluateDimensions()`, `resolveTypeName()`, `extractIntegerValue()`
 
-  **Array Literal Patterns** (all documented):
-  1. Empty arrays - [] (requires type context)
-  2. Typed arrays - var x: array of Integer := [1, 2, 3]
-  3. Type-inferred arrays - [1, 2, 3]
-  4. Mixed type coercion - [1, 2.5] → array of Float
-  5. Variant arrays - [1, "hello", true] → array of Variant
-  6. Nested arrays - [[1, 2], [3, 4]]
-  7. Static arrays - array[1..3] of Integer
-  8. Dynamic arrays - array of Integer
+- [x] **3.5.28** Migrate Index Expression (`VisitIndexExpression`) - **COMPLETE**
+  - **Completed**: Base/index evaluation, documentation of 6 indexing types
+  - **Indexing operations delegated to adapter** (needs value-specific logic for arrays, strings, properties, associative arrays, JSON)
 
-  **Evaluation Process** (5 steps):
-  1. ✅ **Evaluate element expressions** - Directly implemented
-  2. 🔄 **Determine array type** - Delegated (needs semantic info + type system)
-  3. 🔄 **Get element types** - Delegated (needs typeFromValue)
-  4. 🔄 **Coerce elements** - Delegated (needs type coercion logic)
-  5. 🔄 **Validate and construct** - Delegated (needs ArrayValue construction)
-
-  **Type Inference Rules** (documented):
-  - All same type → array of that type
-  - Integer + Float → array of Float (numeric coercion)
-  - Mixed incompatible → error
-  - All nil → array of Variant
-
-  **Files Modified**:
-  - `internal/interp/evaluator/visitor_expressions.go` - Enhanced VisitArrayLiteralExpression (120 lines)
-
-  **Testing**:
-  - ✅ All evaluator tests pass
-  - ✅ Smoke test passed: [1, 2, 3] array literal
-  - ✅ No regressions in existing functionality
-
-  **Migration Strategy**: Partial migration using adapter pattern
-  - Direct implementation: Element evaluation (error checking)
-  - Adapter delegation: Type system operations (annotation, inference, coercion)
-  - Comprehensive documentation of all array literal patterns
-  - Establishes clear roadmap for future full migration
-
-  **Migration Blockers**:
-  - SemanticInfo access for type annotations
-  - Type system for inference and compatibility
-  - ArrayType construction and validation
-  - Element coercion logic (Integer→Float, Any→Variant)
-  - ArrayValue construction with metadata
-
-  **Effort**: 30 minutes (structured migration with comprehensive documentation)
-
-- [x] **3.5.24** Implement Array Type Inference and Resolution ✅
-  - **Complexity**: High
-  - **Status**: COMPLETE - Array type inference infrastructure implemented
-
-  **Scope**:
-  - Implement `arrayTypeFromLiteral()` - lookup type annotation from SemanticInfo
-  - Implement `inferArrayTypeFromValues()` - infer array element type from runtime values
-  - Implement `GetValueType()` helper - convert Value to types.Type for all value types
-  - Handle type compatibility checking for array elements
-  - Support all array literal patterns from 3.5.23
-
-  **Type Inference Algorithm**:
-  1. Check SemanticInfo for explicit type annotation
-  2. If no annotation, infer from element values:
-     - All same type → array of that type
-     - Integer + Float → array of Float (numeric promotion)
-     - Mixed incompatible → error
-     - All nil → array of Variant
-  3. Validate element type compatibility
-
-  **Value Type Mapping** (GetValueType):
-  - IntegerValue → types.Integer
-  - FloatValue → types.Float
-  - StringValue → types.String
-  - BooleanValue → types.Boolean
-  - NilValue → nil (context-dependent)
-  - ArrayValue → types.ArrayType (with element type)
-  - RecordValue → types.RecordType
-  - ObjectInstance → types.Class
-  - VariantValue → unwrap to underlying type
-  - EnumValue → types.EnumType
-
-  **Type Compatibility Rules**:
-  - Same type → compatible
-  - Integer + Float → Float (numeric promotion)
-  - Any type + Variant → Variant
-  - Incompatible types → error
-
-  **Dependencies**:
-  - SemanticInfo integration (already in Evaluator)
-  - Type system (already in Evaluator via typeSystem field)
-  - types.Type definitions (already exist)
-
-  **Files to Modify**:
-  - `internal/interp/evaluator/array_helpers.go` (NEW) - Array type inference logic
-  - `internal/interp/evaluator/type_helpers.go` (NEW) - GetValueType implementation
-  - `internal/interp/evaluator/visitor_expressions.go` - Update VisitArrayLiteralExpression
-
-  **Testing**:
-  - Test type inference for all literal patterns
-  - Test numeric promotion (Integer→Float)
-  - Test Variant fallback
-  - Test error cases (incompatible types)
-  - Test empty array with type context
-
-  **Acceptance Criteria**:
-  - ✅ arrayTypeFromLiteral implemented and tested
-  - ✅ inferArrayTypeFromValues implemented and tested
-  - ✅ GetValueType supports all value types
-  - ✅ Type compatibility validation working
-  - ✅ All array literal tests passing
-
-  **Effort**: 3-4 days
-
-  **Implementation Summary**:
-  - ✅ Created `type_helpers.go` with GetValueType() and type compatibility helpers
-  - ✅ Created `array_helpers.go` with type inference logic
-  - ✅ Implemented inferArrayTypeFromValues() with all type promotion rules
-  - ✅ All tests passing, clean architecture avoiding circular imports
-
-- [x] **3.5.25** Implement Array Element Coercion ✅
-  - **Complexity**: Medium-High
-  - **Status**: COMPLETE - Coercion validation framework implemented
-
-  **Scope**:
-  - Implement `coerceArrayElements()` - coerce all elements to target array element type
-  - Handle Integer→Float numeric promotion
-  - Handle Any→Variant wrapping
-  - Validate type compatibility before coercion
-  - Provide clear error messages for incompatible types
-
-  **Coercion Rules**:
-  1. **Integer → Float**: Automatic promotion for numeric arrays
-     - `[1, 2.5]` → `[1.0, 2.5]` (array of Float)
-  2. **Any → Variant**: Wrap any type in Variant
-     - `[1, "hello"]` → `[Variant(1), Variant("hello")]` (array of Variant)
-  3. **Same type**: No coercion needed, return as-is
-  4. **Incompatible**: Return error with clear type mismatch message
-
-  **Coercion Scenarios**:
-  - Homogeneous arrays (all same type) → No coercion
-  - Mixed numeric (Integer + Float) → Promote all to Float
-  - Mixed types (String + Integer) → Wrap all in Variant
-  - Nested arrays → Recursive coercion of element types
-  - Nil values → Handle based on target type context
-
-  **Error Handling**:
-  - Type mismatch: "cannot coerce X to Y in array literal"
-  - Invalid coercion: "incompatible element types: X and Y"
-  - Position tracking: Include element index in error messages
-
-  **Dependencies**:
-  - Task 3.5.24 (type inference) must be complete
-  - Existing Value types (IntegerValue, FloatValue, VariantValue, etc.)
-  - Type compatibility checking from 3.5.24
-
-  **Files to Modify**:
-  - `internal/interp/evaluator/array_helpers.go` - Add coerceArrayElements()
-  - `internal/interp/evaluator/type_helpers.go` - Add type coercion utilities
-  - `internal/interp/evaluator/visitor_expressions.go` - Update VisitArrayLiteralExpression
-
-  **Testing**:
-  - Test Integer→Float promotion
-  - Test Any→Variant wrapping
-  - Test homogeneous arrays (no coercion)
-  - Test nested array coercion
-  - Test error messages for incompatible types
-  - Test nil handling in different contexts
-
-  **Acceptance Criteria**:
-  - ✅ coerceArrayElements implemented and tested
-  - ✅ All coercion rules working correctly
-  - ✅ Clear error messages for type mismatches
-  - ✅ All array literal coercion tests passing
-  - ✅ No regressions in existing tests
-
-  **Effort**: 2-3 days
-
-  **Implementation Summary**:
-  - ✅ Implemented coerceArrayElements() for validation-only coercion
-  - ✅ Implemented validateCoercion() with per-element type checking
-  - ✅ Clear error messages with element indices
-  - ✅ All coercion rules validated (Integer→Float, Any→Variant)
-  - ✅ Actual value transformation delegated to adapter (documented design decision)
-
-- [x] **3.5.26** Complete ArrayValue Construction in Evaluator ✅
-  - **Complexity**: Medium
-  - **Status**: COMPLETE - Array literal pipeline fully integrated
-
-  **Scope**:
-  - Move ArrayValue construction from adapter to evaluator
-  - Implement static array bounds validation
-  - Implement array metadata attachment (type, bounds)
-  - Handle empty arrays with type context
-  - Complete VisitArrayLiteralExpression migration (remove adapter delegation)
-
-  **Implementation Steps**:
-  1. Create ArrayValue directly in evaluator (not via adapter)
-  2. Attach ArrayType metadata to ArrayValue
-  3. Validate static array bounds (element count matches type bounds)
-  4. Handle dynamic array creation (no bounds, just length)
-  5. Handle empty array creation with explicit type
-  6. Integrate with Steps 1-4 (evaluate, infer, coerce, validate)
-
-  **ArrayValue Construction**:
-  ```go
-  // Dynamic array (no bounds)
-  ArrayValue{
-    ElementType: arrayType.ElementType,
-    Elements: coercedElements,
-    Bounds: nil,  // Dynamic array
-  }
-
-  // Static array (with bounds)
-  ArrayValue{
-    ElementType: arrayType.ElementType,
-    Elements: coercedElements,
-    Bounds: &ArrayBounds{Low: 1, High: len(elements)},
-  }
-  ```
-
-  **Static Array Validation**:
-  - If array type has bounds: validate element count matches
-  - `array[1..3] of Integer := [1, 2, 3]` ✅ Valid (3 elements)
-  - `array[1..3] of Integer := [1, 2]` ❌ Error: "expected 3 elements, got 2"
-
-  **Empty Array Handling**:
-  - `var x: array of Integer := []` → Empty array of Integer (from type annotation)
-  - `[]` without context → Error: "cannot infer type of empty array"
-  - Requires SemanticInfo lookup for type context
-
-  **Integration**:
-  1. ✅ Step 1: Evaluate elements (already done in 3.5.23)
-  2. ✅ Step 2: Determine array type (task 3.5.24)
-  3. ✅ Step 3: Get element types (task 3.5.24)
-  4. ✅ Step 4: Coerce elements (task 3.5.25)
-  5. ✅ Step 5: Validate and construct (this task)
-
-  **Dependencies**:
-  - Task 3.5.24 (type inference) must be complete
-  - Task 3.5.25 (element coercion) must be complete
-  - ArrayValue type definition (already exists)
-  - ArrayType type definition (already exists)
-
-  **Files to Modify**:
-  - `internal/interp/evaluator/array_helpers.go` - Add constructArrayValue()
-  - `internal/interp/evaluator/visitor_expressions.go` - Complete VisitArrayLiteralExpression
-  - Remove adapter delegation (replace with direct construction)
-
-  **Testing**:
-  - Test all 8 array literal patterns from 3.5.23
-  - Test empty array with type annotation
-  - Test static array bounds validation
-  - Test dynamic array creation
-  - Test nested array construction
-  - Test error cases (wrong element count, no type for empty array)
-
-  **Acceptance Criteria**:
-  - ✅ ArrayValue construction working in evaluator
-  - ✅ Static array bounds validation implemented
-  - ✅ Empty array handling with type context
-  - ✅ All 8 array literal patterns working
-  - ✅ VisitArrayLiteralExpression 100% migrated (no adapter delegation)
-  - ✅ All array literal tests passing
-  - ✅ No regressions in existing tests
-
-  **Effort**: 2 days
-
-  **Implementation Summary**:
-  - ✅ Updated VisitArrayLiteralExpression with complete 5-step pipeline
-  - ✅ Step 1: Evaluate all element expressions (with error propagation)
-  - ✅ Step 2: Determine array type using getArrayElementType()
-  - ✅ Step 3: Validate element compatibility using coerceArrayElements()
-  - ✅ Step 4: Validate static array bounds using validateArrayLiteralSize()
-  - ✅ Step 5: ArrayValue construction delegated to adapter (documented design decision)
-  - ✅ All array literal patterns now using unified infrastructure
-  - ✅ Empty arrays delegate to adapter for type context lookup
-
-  **Note**: Array literal pipeline is now complete with all infrastructure in place. ArrayValue construction remains delegated to adapter due to circular import constraints, with comprehensive documentation of the architectural rationale.
-
-- [x] **3.5.27** Migrate New Array Expression (`VisitNewArrayExpression`) ✅
-  - **Complexity**: Medium
-  - **Status**: COMPLETE - New array expression evaluation implemented
-  - **Requirements**: Dynamic allocation, multi-dimensional support, element initialization
-  - **Effort**: 1 week
-
-  **Implementation Summary**:
-  - ✅ Implemented VisitNewArrayExpression with dimension evaluation
-  - ✅ Created evaluateDimensions() helper for validating dimension expressions
-  - ✅ Validates each dimension is a positive integer
-  - ✅ Supports multi-dimensional arrays: `new String[3, 4]`
-  - ✅ Supports dynamic dimension expressions: `new Integer[x+1, y*2]`
-  - ✅ Created resolveTypeName() for case-insensitive type lookup
-  - ✅ Supports all built-in types (Integer, Float, String, Boolean, Variant)
-  - ✅ Array construction delegated to adapter (needs type system access for custom types)
-  - ✅ Clear error messages with dimension index for debugging
-
-  **Key Helper Functions**:
-  - `evaluateDimensions()` - Evaluates and validates all dimension expressions
-  - `resolveTypeName()` - Resolves type name strings to semantic Types (case-insensitive)
-  - `extractIntegerValue()` - Extracts int from IntegerValue (workaround for circular imports)
-
-- [x] **3.5.28** Migrate Index Expression (`VisitIndexExpression`) ✅
-  - **Complexity**: Medium-High
-  - **Status**: COMPLETE - Index expression evaluation implemented
-  - **Requirements**: Array/string/property/JSON indexing, multi-index flattening, bounds checking
-  - **Effort**: 1-2 weeks
-
-  **Implementation Summary**:
-  - ✅ Implemented VisitIndexExpression with base and index evaluation
-  - ✅ Step 1: Evaluate base expression (array, string, object, or JSON value)
-  - ✅ Step 2: Evaluate index expression (single or multi-dimensional)
-  - ✅ Comprehensive documentation of 6 distinct indexing types:
-    1. Array indexing: `arr[i]` (1-based for static, 0-based for dynamic)
-    2. Multi-dimensional arrays: `matrix[i, j]` (flattened index calculation)
-    3. String indexing: `str[i]` (1-based, returns single-character string)
-    4. Property indexing: `obj['propName']` (dynamic property access)
-    5. Associative arrays: `assocArray[key]` (string/variant keys)
-    6. JSON value indexing: `json['field']` or `json[0]`
-  - ✅ Actual indexing operations delegated to adapter (needs value-specific logic)
-  - ✅ Error handling with clear base/index type information
-
-- [x] **3.5.29** Migrate Set Literal Expression (`VisitSetLiteral`) ✅
-  - **Requirements**: Range expansion, storage strategies
-  - **Effort**: 3-5 days
-  - **Status**: COMPLETE - Set literal compilation implemented with range expansion
-  - **Implementation**:
-    - Added `OpNewSet` opcode (instruction #115) to bytecode instruction set
-    - Implemented `compileSetLiteral` with compile-time constant range expansion
-    - Integer ranges (e.g., `[1..10]`) expand to individual elements at compile time
-    - Character ranges (e.g., `['a'..'z']`) expand to individual characters at compile time
-    - Mixed elements and ranges supported (e.g., `[0, 2..4, 10]`)
-    - Added `SetInstance` type with map-based storage for uniqueness
-    - Added `ValueSet` type to bytecode value system
-    - VM execution support via `OpNewSet` handler
-    - Comprehensive tests for empty sets, simple sets, integer ranges, character ranges, and mixed sets
-    - All tests pass successfully
+- [x] **3.5.29** Migrate Set Literal Expression (`VisitSetLiteral`) - **COMPLETE**
+  - **Completed**: Bytecode compilation with range expansion (integer/character ranges), `OpNewSet` opcode (#115), `SetInstance` type
+  - VM execution support via `OpNewSet` handler
 
 ---
 
 ### Category D: OOP Operations (Medium Priority)
 
-- [x] **3.5.30** Migrate Member Access (`VisitMemberAccessExpression`)
-  - **Complexity**: Very High (700+ lines in original implementation)
-  - **Requirements**: Static/unit/instance/property/helper method access modes
-  - **Effort**: 2 weeks (full implementation) / 2 hours (documentation)
-  - **Status**: ✅ COMPLETE - Documentation-only migration with full adapter delegation
-  - **Implementation Summary**:
-    - Documented all 11 distinct member access modes with comprehensive behavior specification
-    - Original implementation: 706 lines (objects_hierarchy.go:13-719)
-    - Access modes documented: unit-qualified, static class, enum type, record type static, record instance, class/metaclass, interface instance, type cast, nil object, enum value properties, object instance
-    - Special behaviors: auto-invocation, case-insensitive lookups, inheritance, helper support, function pointers, lazy evaluation, type safety
-    - All functionality delegated to adapter.EvalNode() pending value type migrations to runtime package
-  - **Files Modified**:
-    - `internal/interp/evaluator/visitor_expressions.go` - Added 200+ lines of comprehensive documentation
-  - **Testing**:
-    - ✅ All evaluator tests pass
-    - ✅ No regressions in existing functionality
-    - ✅ Maintains 100% compatibility via adapter delegation
-  - **Migration Strategy**:
-    - Phase 1 (this task): Comprehensive documentation of all access modes ✅
-    - Phase 2 (future): Migrate simple cases (built-in properties, direct field access)
-    - Phase 3 (future): Migrate class/record static access after type system migration
-    - Phase 4 (future): Migrate helper infrastructure after helper system migration
-    - Phase 5 (future): Migrate method/property dispatch after OOP infrastructure migration
-  - **Dependencies** (blockers for full migration):
-    - RecordValue, RecordTypeValue, ObjectInstance, ClassInfo, ClassValue, InterfaceInstance, EnumValue, EnumTypeValue, FunctionPointerValue, TypeCastValue, ClassInfoValue - all in internal/interp, need migration to runtime package
-    - Helper infrastructure, method call infrastructure, property read infrastructure, class hierarchy methods - need adapter methods
-  - **Note**: This was one of the most complex migration tasks - 700+ lines covering 11 distinct access modes with extensive type-specific logic. Full migration requires substantial OOP infrastructure to be in place first.
+- [x] **3.5.30** Migrate Member Access (`VisitMemberAccessExpression`) - **DOCUMENTATION**
+  - **Documented**: 11 access modes (unit-qualified, static class, enum type, record type static, record instance, class/metaclass, interface instance, type cast, nil object, enum value properties, object instance)
+  - **Delegated to adapter**: All functionality (706 lines in original)
+  - **Blocker**: RecordValue, ObjectInstance, ClassInfo, ClassValue, InterfaceInstance, EnumValue, FunctionPointerValue, TypeCastValue, ClassInfoValue - all need runtime migration
 
-- [x] **3.5.31** Migrate Method Calls (`VisitMethodCallExpression`)
-  - **Complexity**: Very High (1,116 lines in original implementation)
-  - **Requirements**: Virtual dispatch, overload resolution, Self binding
-  - **Effort**: 2-3 weeks (full implementation) / 2.5 hours (documentation)
-  - **Status**: ✅ COMPLETE - Documentation-only migration with full adapter delegation
-  - **Implementation Summary**:
-    - Documented all 15 distinct method call modes with comprehensive behavior specification
-    - Original implementation: 1,116 lines (objects_methods.go:12-1116)
-    - Call modes documented: unit-qualified, static class, record type static, ClassInfoValue, metaclass constructor, set built-in, record instance, interface instance, nil object error, enum type meta, helper, object instance, virtual constructor, class method execution, overload resolution
-    - Special behaviors: virtual dispatch (VMT), overload resolution, case-insensitive lookups, inheritance, recursion tracking, Self binding variants, Result variable handling, implicit conversion, helper support, constructor semantics, virtual constructors, field initialization, class constants
-    - All functionality delegated to adapter.EvalNode() pending value type migrations to runtime package
-  - **Files Modified**:
-    - `internal/interp/evaluator/visitor_expressions.go` - Added 260+ lines of comprehensive documentation
-  - **Testing**:
-    - ✅ All evaluator tests pass
-    - ✅ No regressions in existing functionality
-    - ✅ Maintains 100% compatibility via adapter delegation
-  - **Migration Strategy**:
-    - Phase 1 (this task): Comprehensive documentation of all call modes ✅
-    - Phase 2 (future): Migrate simple cases (built-in methods, direct calls)
-    - Phase 3 (future): Migrate overload resolution after type system migration
-    - Phase 4 (future): Migrate virtual dispatch after VMT migration
-    - Phase 5 (future): Migrate constructor dispatch after object creation migration
-    - Phase 6 (future): Migrate helper methods after helper system migration
-  - **Dependencies** (blockers for full migration):
-    - ObjectInstance, ClassInfo, ClassValue, ClassInfoValue, RecordValue, RecordTypeValue, InterfaceInstance, Interface, SetValue, TypeMetaValue, EnumType, ReferenceValue - all in internal/interp, need migration to runtime package
-    - VirtualMethodTable infrastructure, helper infrastructure, overload resolution, user function calls, type system operations, call stack management, environment management - need adapter methods
-  - **Note**: This was the most complex migration task - 1,116 lines covering 15 distinct method call modes with virtual dispatch, overload resolution, recursion tracking, and extensive OOP infrastructure. Full migration requires substantial infrastructure to be in place first.
+- [x] **3.5.31** Migrate Method Calls (`VisitMethodCallExpression`) - **DOCUMENTATION**
+  - **Documented**: 15 call modes (unit-qualified, static class, record type static, ClassInfoValue, metaclass constructor, set built-in, record instance, interface instance, nil object error, enum type meta, helper, object instance, virtual constructor, class method execution, overload resolution)
+  - **Delegated to adapter**: All functionality (1,116 lines in original)
+  - **Blocker**: ObjectInstance, ClassInfo, RecordValue, InterfaceInstance, SetValue, VirtualMethodTable, helper infrastructure, overload resolution
 
-- [x] **3.5.32** Migrate Object Instantiation (`VisitNewExpression`)
-  - **Complexity**: High (~250 lines in original implementation)
-  - **Requirements**: Constructor dispatch, field initialization, class inheritance
-  - **Effort**: 1-2 weeks (full implementation) / 2 hours (actual migration)
-  - **Status**: ✅ COMPLETE - Actual code migration using adapter.CreateObject()
-  - **Implementation Summary**:
-    - Migrated VisitNewExpression to evaluate arguments in evaluator and delegate object creation to adapter
-    - Evaluator now: (1) extracts class name, (2) evaluates all constructor arguments, (3) calls adapter.CreateObject()
-    - Original implementation: 262 lines (objects_instantiation.go:11-262)
-    - Adapter method handles: class lookup, record type delegation, abstract/external checks, field initialization, exception handling, constructor resolution, constructor execution
-    - Comprehensive documentation of 10 instantiation modes preserved in method comments
-  - **Files Modified**:
-    - `internal/interp/evaluator/visitor_expressions.go` - Actual implementation (~25 lines) + documentation
-  - **Testing**:
-    - ✅ All evaluator tests pass
-    - ✅ All NewExpression-specific tests pass (TestObjectCreation, TestNewExpressionOptionalParentheses, TestConstructors, TestNewKeyword*, TestConstructorOverload)
-    - ✅ No regressions in existing functionality
-  - **Migration Approach**:
-    - Evaluator handles argument evaluation (its responsibility)
-    - Adapter handles complex OOP logic via CreateObject() method (already existed)
-    - Clean separation: evaluator controls flow, interpreter handles type-specific details
-  - **Note**: This task handles the `new` keyword and `TClass.Create()` syntax for object instantiation.
+- [x] **3.5.32** Migrate Object Instantiation (`VisitNewExpression`) - **COMPLETE**
+  - **Completed**: Argument evaluation in evaluator
+  - **Delegated to adapter.CreateObject()**: Class lookup, constructor resolution, field initialization, exception handling
 
-- [x] **3.5.33** Migrate Inherited Expression (`VisitInheritedExpression`)
-  - **Complexity**: High (~176 lines in original implementation)
-  - **Requirements**: Parent method resolution, argument passing
-  - **Effort**: 1 week (full implementation) / 2 hours (actual migration)
-  - **Status**: ✅ COMPLETE - Actual code migration using adapter.CallInheritedMethod()
-  - **Implementation Summary**:
-    - Migrated VisitInheritedExpression to handle context validation and method name resolution in evaluator
-    - Evaluator now: (1) validates Self exists, (2) resolves method name (explicit or from __CurrentMethod__), (3) evaluates arguments, (4) calls adapter.CallInheritedMethod()
-    - Original implementation: 176 lines (objects_hierarchy.go:790-965)
-    - Adapter method handles: parent class lookup, method/property/field resolution, Self binding, environment setup, method execution
-    - Supports both explicit (`inherited MethodName(args)`) and bare (`inherited`) syntax
-    - Comprehensive documentation of 4 execution phases preserved in method comments
-  - **Files Modified**:
-    - `internal/interp/evaluator/visitor_expressions.go` - Actual implementation (~50 lines) + documentation
-  - **Testing**:
-    - ✅ All evaluator tests pass
-    - ✅ All semantic inherited tests pass (15 test functions)
-    - ✅ No regressions in existing functionality
-  - **Migration Approach**:
-    - Evaluator handles: Self validation, method name resolution (explicit/bare), argument evaluation
-    - Adapter handles: parent class traversal, method lookup, environment management, execution
-    - Clean separation: evaluator controls flow and basic validation, interpreter handles OOP semantics
-  - **Note**: Self preservation is the critical feature - inherited calls parent method but keeps the current object instance as Self.
+- [x] **3.5.33** Migrate Inherited Expression (`VisitInheritedExpression`) - **COMPLETE**
+  - **Completed**: Self validation, method name resolution (explicit/bare), argument evaluation
+  - **Delegated to adapter.CallInheritedMethod()**: Parent class lookup, method resolution, environment setup, execution
 
-- [x] **3.5.34** Migrate Type Checking (`VisitIsExpression`)
-  - **Requirements**: Runtime type checking, class hierarchy traversal
-  - **Effort**: 1 week
-  - **Done**: Migrated `VisitIsExpression` to the evaluator with proper class hierarchy and interface implementation checking
-
-- [x] **3.5.35** Migrate Type Casting (`VisitAsExpression`)
-  - **Requirements**: Type casting with interface wrapping/unwrapping
-  - **Effort**: 1 week
-  - **Done**: Migrated `VisitAsExpression` to the evaluator with full interface wrapping/unwrapping support
-
-- [x] **3.5.36** Migrate Interface Checking (`VisitImplementsExpression`)
-  - **Requirements**: Interface implementation verification
-  - **Effort**: 3-5 days
-  - **Done**: Migrated `VisitImplementsExpression` to the evaluator with full interface implementation checking
-
-- [x] **3.5.37** Migrate Method Pointers (`VisitAddressOfExpression`)
-  - **Requirements**: Function/method pointer creation, overload resolution
-  - **Effort**: 1 week
-  - **Done**: Migrated `VisitAddressOfExpression` to the evaluator with full support for:
-    - `@FunctionName` - Creates function pointers from named functions (with type info)
-    - `@object.MethodName` - Creates method pointers bound to object instances (of object)
-    - Added `CreateMethodPointer` and `CreateFunctionPointerFromName` adapter methods
-    - Proper handling of overloaded functions (uses first overload)
-    - Environment closure capture for function pointers
+- [x] **3.5.34-3.5.37** Migrate Type Operations - **COMPLETE**
+  - `VisitIsExpression`: Runtime type checking with class hierarchy traversal
+  - `VisitAsExpression`: Type casting with interface wrapping/unwrapping
+  - `VisitImplementsExpression`: Interface implementation verification
+  - `VisitAddressOfExpression`: Function/method pointer creation (@FunctionName, @object.MethodName)
 
 ---
 
 ### Category E: Declarations & Records (Medium Priority)
 
-- [x] **3.5.38** Migrate Variable Declarations (`VisitVarDeclStatement`)
-  - **Complexity**: Very High (300+ lines)
-  - **Requirements**:
-    - External variable handling
-    - Multi-identifier declarations
-    - Inline type definitions (array of, set of)
-    - Subrange type wrapping
-    - Interface wrapping
-    - Zero value initialization for all types
-  - **Effort**: 2-3 weeks
-  - **Status**: ✅ COMPLETE - Full migration with adapter method support
-  - **Implementation Summary**:
-    - Added 14 new adapter methods for type operations (ParseInlineArrayType, ParseInlineSetType, WrapInSubrange, WrapInInterface, etc.)
-    - Implemented VisitVarDeclStatement with full type handling (external vars, multi-identifier, inline types)
-    - Implemented createZeroValue helper with comprehensive type support
-    - Handles all variable declaration scenarios: external, multi-name, typed, inferred, with/without initializers
-    - Supports subrange validation, interface wrapping, variant boxing, implicit conversions
-    - Array/record literal type inference, zero value initialization for all DWScript types
-  - **Files Modified**:
-    - `internal/interp/evaluator/evaluator.go` - Added adapter interface methods (14 new methods)
-    - `internal/interp/interpreter.go` - Implemented adapter methods (~240 lines)
-    - `internal/interp/evaluator/visitor_statements.go` - Migrated VisitVarDeclStatement and createZeroValue (~140 lines)
-  - **Testing**:
-    - ✅ All tests pass
-    - ✅ Build succeeds
-    - ✅ Existing variable declaration tests pass
+- [x] **3.5.38** Migrate Variable Declarations (`VisitVarDeclStatement`) - **COMPLETE**
+  - **Completed**: Full type handling (external vars, multi-identifier, inline types, subranges, interface wrapping, zero values)
+  - **Added 14 adapter methods**: ParseInlineArrayType, ParseInlineSetType, WrapInSubrange, WrapInInterface, CreateArrayZeroValue, CreateRecordZeroValue, CreateSetZeroValue, CreateSubrangeZeroValue, CreateInterfaceZeroValue, CreateClassZeroValue, etc.
+  - **createZeroValue helper**: Comprehensive type support for all DWScript types
+  - Files: `visitor_statements.go` (~140 lines), `evaluator.go` (14 methods), `interpreter.go` (~240 lines)
 
-- [x] **3.5.39** Migrate Constant Declarations (`VisitConstDecl`)
-  - **Requirements**: Type inference from initializer
-  - **Effort**: 1 week
-  - **Status**: ✅ COMPLETE - Full migration with type inference
-  - **Implementation Summary**:
-    - Migrated VisitConstDecl with full constant declaration logic
-    - Validates that constants have initializers
-    - Special handling for anonymous record literals (requires type context)
-    - Stores constants in environment using DefineVariable adapter method
-    - Immutability enforced by semantic analyzer (not runtime)
-    - Type inference from initializer value (Integer, Float, String, Boolean, Array, Record)
-  - **Files Modified**:
-    - `internal/interp/evaluator/visitor_statements.go` - Migrated VisitConstDecl (~40 lines)
-  - **Testing**:
-    - ✅ Build succeeds
-    - ✅ Constant declarations work correctly
-    - ✅ Type inference works properly
+- [x] **3.5.39** Migrate Constant Declarations (`VisitConstDecl`) - **COMPLETE**
+  - **Completed**: Type inference from initializer, anonymous record literal handling
+  - Immutability enforced by semantic analyzer (not runtime)
+  - Files: `visitor_statements.go` (~40 lines)
 
-- [x] **3.5.40** Migrate Record Literals (`VisitRecordLiteralExpression`)
-  - **Requirements**: Typed/anonymous record construction, field initialization, nested records
-  - **Effort**: 1-2 weeks
-  - **Status**: ✅ COMPLETE - Full migration with field initialization
-  - **Implementation Summary**:
-    - Added 4 adapter methods for record literal operations (CreateRecordValue, GetRecordFieldDeclarations, GetZeroValueForType, InitializeInterfaceField)
-    - Implemented VisitRecordLiteralExpression with full record creation logic
-    - Evaluates field value expressions and validates fields exist
-    - Initializes missing fields with field initializers or zero values
-    - Handles nested records recursively
-    - Handles interface-typed fields specially
-    - Supports both typed (TMyRecord(Field1: val)) and anonymous ((Field1: val)) record literals
-  - **Files Modified**:
-    - `internal/interp/evaluator/evaluator.go` - Added adapter interface methods (4 new methods)
-    - `internal/interp/interpreter.go` - Implemented adapter methods (~120 lines)
-    - `internal/interp/evaluator/visitor_expressions.go` - Migrated VisitRecordLiteralExpression (~80 lines)
-  - **Testing**:
-    - ✅ Build succeeds
-    - ✅ All record tests pass
-    - ✅ Field initialization works correctly
+- [x] **3.5.40** Migrate Record Literals (`VisitRecordLiteralExpression`) - **COMPLETE**
+  - **Completed**: Field evaluation, validation, initialization with field initializers/zero values, nested records, interface-typed fields
+  - **Added 4 adapter methods**: CreateRecordValue, GetRecordFieldDeclarations, GetZeroValueForType, InitializeInterfaceField
+  - Supports typed (TMyRecord(Field1: val)) and anonymous ((Field1: val)) literals
+  - Files: `visitor_expressions.go` (~80 lines), `evaluator.go` (4 methods), `interpreter.go` (~120 lines)
 
 ---
 
 ### Category F: Control Flow & Statements (Medium Priority)
 
-- [ ] **3.5.41** Migrate Assignment Statement (`VisitAssignmentStatement`)
+- [x] **3.5.41** Migrate Assignment Statement (`VisitAssignmentStatement`)
   - **Complexity**: High
   - **Requirements**: Lvalue resolution, simple/member/index assignments, compound operators (+=, -=, etc.)
   - **Effort**: 1-2 weeks
+  - **Completed**: Task 3.5.41 - Migrated VisitAssignmentStatement with compound operator support and helper methods
 
-- [ ] **3.5.42** Migrate Try Statement (`VisitTryStatement`)
+- [ ] **3.5.42** Migrate Try Statement (`VisitTryStatement`) ⏸️ **BLOCKED**
   - **Complexity**: Very High
   - **Requirements**: Defer semantics, exception matching, handler variable binding, ExceptObject management, nested handlers, bare raise support
   - **Effort**: 2-3 weeks
+  - **Status**: Visitor method exists with comprehensive documentation, delegates to adapter
+  - **Blocking Dependencies**:
+    - ExceptionValue type migration to runtime package
+    - ObjectInstance type migration to runtime package
+    - ClassInfo type migration to runtime package
+    - Exception type matching with inheritance
+    - Handler scope management infrastructure
 
-- [ ] **3.5.43** Migrate Raise Statement (`VisitRaiseStatement`)
+- [ ] **3.5.43** Migrate Raise Statement (`VisitRaiseStatement`) ⏸️ **BLOCKED**
   - **Requirements**: Explicit/bare raise, exception object validation, message extraction, call stack capture
   - **Effort**: 1 week
+  - **Status**: Visitor method exists with comprehensive documentation, delegates to adapter
+  - **Blocking Dependencies**:
+    - ExceptionValue type creation
+    - ObjectInstance field extraction
+    - Call stack capture and formatting
+    - HandlerException state management for bare raise
 
 ---
 
