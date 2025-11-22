@@ -1226,14 +1226,33 @@ func (v *statementValidator) checkBinaryExpression(expr *ast.BinaryExpression) t
 	// Check operator compatibility
 	switch expr.Operator {
 	case "+":
-		// + can be used for string concatenation or numeric addition
+		// Task 6.1.2.2: + can be used for set union, string concatenation, or numeric addition
+		// Check for set union first
+		leftSetType, leftIsSet := leftType.(*types.SetType)
+		rightSetType, rightIsSet := rightType.(*types.SetType)
+		if leftIsSet && rightIsSet {
+			// Set union - both operands must have the same element type
+			if !leftSetType.ElementType.Equals(rightSetType.ElementType) {
+				v.ctx.AddError("set union requires sets with the same element type, got set of %s and set of %s",
+					leftSetType.ElementType, rightSetType.ElementType)
+				return nil
+			}
+			return leftSetType
+		}
+		if leftIsSet || rightIsSet {
+			v.ctx.AddError("operator + cannot mix set and non-set types")
+			return nil
+		}
+
+		// String concatenation
 		if v.isString(leftType) || v.isString(rightType) {
 			// String concatenation - both operands should be strings (or convertible to string)
 			return types.STRING
 		}
+
 		// Numeric addition
 		if !v.isNumeric(leftType) || !v.isNumeric(rightType) {
-			v.ctx.AddError("operator + requires numeric or string types, got %s and %s",
+			v.ctx.AddError("operator + requires numeric, string, or set types, got %s and %s",
 				leftType, rightType)
 			return nil
 		}
@@ -1243,11 +1262,73 @@ func (v *statementValidator) checkBinaryExpression(expr *ast.BinaryExpression) t
 		}
 		return types.INTEGER
 
-	case "-", "*", "/":
+	case "-":
+		// Task 6.1.2.2: - can be used for set difference or numeric subtraction
+		// Check for set difference first
+		leftSetType, leftIsSet := leftType.(*types.SetType)
+		rightSetType, rightIsSet := rightType.(*types.SetType)
+		if leftIsSet && rightIsSet {
+			// Set difference - both operands must have the same element type
+			if !leftSetType.ElementType.Equals(rightSetType.ElementType) {
+				v.ctx.AddError("set difference requires sets with the same element type, got set of %s and set of %s",
+					leftSetType.ElementType, rightSetType.ElementType)
+				return nil
+			}
+			return leftSetType
+		}
+		if leftIsSet || rightIsSet {
+			v.ctx.AddError("operator - cannot mix set and non-set types")
+			return nil
+		}
+
+		// Numeric subtraction
+		if !v.isNumeric(leftType) || !v.isNumeric(rightType) {
+			v.ctx.AddError("operator - requires numeric or set types, got %s and %s",
+				leftType, rightType)
+			return nil
+		}
+		// Result type is the "wider" of the two operands
+		if v.isFloat(leftType) || v.isFloat(rightType) {
+			return types.FLOAT
+		}
+		return types.INTEGER
+
+	case "*":
+		// Task 6.1.2.2: * can be used for set intersection or numeric multiplication
+		// Check for set intersection first
+		leftSetType, leftIsSet := leftType.(*types.SetType)
+		rightSetType, rightIsSet := rightType.(*types.SetType)
+		if leftIsSet && rightIsSet {
+			// Set intersection - both operands must have the same element type
+			if !leftSetType.ElementType.Equals(rightSetType.ElementType) {
+				v.ctx.AddError("set intersection requires sets with the same element type, got set of %s and set of %s",
+					leftSetType.ElementType, rightSetType.ElementType)
+				return nil
+			}
+			return leftSetType
+		}
+		if leftIsSet || rightIsSet {
+			v.ctx.AddError("operator * cannot mix set and non-set types")
+			return nil
+		}
+
+		// Numeric multiplication
+		if !v.isNumeric(leftType) || !v.isNumeric(rightType) {
+			v.ctx.AddError("operator * requires numeric or set types, got %s and %s",
+				leftType, rightType)
+			return nil
+		}
+		// Result type is the "wider" of the two operands
+		if v.isFloat(leftType) || v.isFloat(rightType) {
+			return types.FLOAT
+		}
+		return types.INTEGER
+
+	case "/":
 		// Arithmetic operators require numeric types
 		if !v.isNumeric(leftType) || !v.isNumeric(rightType) {
-			v.ctx.AddError("operator %s requires numeric types, got %s and %s",
-				expr.Operator, leftType, rightType)
+			v.ctx.AddError("operator / requires numeric types, got %s and %s",
+				leftType, rightType)
 			return nil
 		}
 		// Result type is the "wider" of the two operands
@@ -1284,6 +1365,32 @@ func (v *statementValidator) checkBinaryExpression(expr *ast.BinaryExpression) t
 				expr.Operator, leftType, rightType)
 			return nil
 		}
+		return types.BOOLEAN
+
+	case "in":
+		// Task 6.1.2.2: Set membership operator
+		// Left operand should be an ordinal value
+		// Right operand should be a set type
+		// The element type of the set should match the type of the left operand
+		rightSetType, rightIsSet := rightType.(*types.SetType)
+		if !rightIsSet {
+			v.ctx.AddError("right operand of 'in' must be a set type, got %s", rightType.String())
+			return nil
+		}
+
+		// Left operand must be an ordinal type
+		if !types.IsOrdinalType(leftType) {
+			v.ctx.AddError("left operand of 'in' must be an ordinal type, got %s", leftType.String())
+			return nil
+		}
+
+		// The element type of the set should match the type of the left operand
+		if !leftType.Equals(rightSetType.ElementType) {
+			v.ctx.AddError("type mismatch in 'in' operator: expected %s, got %s",
+				rightSetType.ElementType.String(), leftType.String())
+			return nil
+		}
+
 		return types.BOOLEAN
 
 	default:
@@ -1756,6 +1863,23 @@ func (v *statementValidator) resolveTypeExpression(typeExpr ast.TypeExpression) 
 		}
 		return types.NewFunctionPointerType(paramTypes, returnType)
 
+	case *ast.SetTypeNode:
+		// Task 6.1.2.2: Handle set type expressions
+		// Resolve the element type
+		if te.ElementType == nil {
+			v.ctx.AddError("set type must have an element type")
+			return nil
+		}
+
+		elementType := v.resolveTypeExpression(te.ElementType)
+		if elementType == nil {
+			v.ctx.AddError("cannot resolve element type for set")
+			return nil
+		}
+
+		// Create the set type (NewSetType automatically determines storage kind)
+		return types.NewSetType(elementType)
+
 	default:
 		// TODO: Handle other type expressions (arrays, etc.)
 		return nil
@@ -1929,6 +2053,20 @@ func (v *statementValidator) checkNewArrayExpression(expr *ast.NewArrayExpressio
 func (v *statementValidator) checkArrayLiteral(expr *ast.ArrayLiteralExpression, expectedType types.Type) types.Type {
 	if expr == nil {
 		return nil
+	}
+
+	// Task 6.1.2.2: Check if expected type is a set type
+	// DWScript uses [] for both arrays and sets, so we need to handle both cases
+	if expectedType != nil {
+		underlyingExpected := types.GetUnderlyingType(expectedType)
+		if setType, isSet := underlyingExpected.(*types.SetType); isSet {
+			// Convert array literal expression to set literal for validation
+			// Create a temporary SetLiteral to reuse the set validation logic
+			setLiteral := &ast.SetLiteral{
+				Elements: expr.Elements,
+			}
+			return v.checkSetLiteral(setLiteral, setType)
+		}
 	}
 
 	var expectedArrayType *types.ArrayType

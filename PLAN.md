@@ -886,7 +886,7 @@ This causes:
   - **Blocks**: Task 6.1.2.10 (Lambda validation needs function pointer types)
   - **Files**: `validation_pass.go`, `pass_context.go`, `analyzer.go`, `analyze_builtin_functions.go`
 
-- [ ] **6.1.2.2: Set Type Support** (6 tests, 4-5 hours)
+- [x] **6.1.2.2: Set Type Support** (6 tests, 4-5 hours) ✅ COMPLETE
   - Extend `resolveTypeExpression` to handle `ast.SetType`
   - Map to `types.SetType` from context
   - Implement set literal type inference
