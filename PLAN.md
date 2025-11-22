@@ -330,7 +330,7 @@ If conditional compilation features are added in the future, they would require:
   - Files: `visitor_expressions.go`
   - Effort: 6-8 hours
 
-- [ ] **3.5.23** Complete `VisitCallExpression` - User Functions
+- [x] **3.5.23** Complete `VisitCallExpression` - User Functions
   - Function pointer calls with closure handling
   - Var parameter handling (by-reference)
   - Lazy parameter evaluation
