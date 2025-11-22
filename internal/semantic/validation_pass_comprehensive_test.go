@@ -401,3 +401,144 @@ func TestValidationPass_ErrorRecovery(t *testing.T) {
 			len(analyzer.Errors()), analyzer.Errors())
 	}
 }
+
+// TestValidationPass_CompoundAssignment tests compound assignment operators
+func TestValidationPass_CompoundAssignment(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid integer plus-assign",
+			input: `
+				var x: Integer := 10;
+				x += 5;  // Valid: Integer + Integer = Integer
+			`,
+			expectError: false,
+		},
+		{
+			name: "valid float plus-assign",
+			input: `
+				var x: Float := 10.5;
+				x += 5.5;  // Valid: Float + Float = Float
+			`,
+			expectError: false,
+		},
+		{
+			name: "valid integer minus-assign",
+			input: `
+				var x: Integer := 10;
+				x -= 5;  // Valid: Integer - Integer = Integer
+			`,
+			expectError: false,
+		},
+		{
+			name: "valid integer times-assign",
+			input: `
+				var x: Integer := 10;
+				x *= 5;  // Valid: Integer * Integer = Integer
+			`,
+			expectError: false,
+		},
+		{
+			name: "valid integer divide-assign",
+			input: `
+				var x: Integer := 10;
+				x /= 2;  // Valid: Integer / Integer = Integer
+			`,
+			expectError: false,
+		},
+		// Note: %= (PERCENT_ASSIGN) is not yet supported by the parser, skip this test
+		// {
+		// 	name: "valid integer mod-assign",
+		// 	input: `
+		// 		var x: Integer := 10;
+		// 		x %= 3;  // Valid: Integer mod Integer = Integer
+		// 	`,
+		// 	expectError: false,
+		// },
+		{
+			name: "valid mixed numeric promotion",
+			input: `
+				var x: Float := 10.0;
+				x += 5;  // Valid: Float + Integer = Float
+			`,
+			expectError: false,
+		},
+		{
+			name: "invalid string plus-assign with integer",
+			input: `
+				var s: String := "hello";
+				s += 5;  // Invalid: String + Integer
+			`,
+			expectError: true,
+			errorMsg:    "Incompatible types",
+		},
+		// Note: %= (PERCENT_ASSIGN) is not yet supported by the parser, skip this test
+		// {
+		// 	name: "invalid integer mod-assign with float",
+		// 	input: `
+		// 		var x: Integer := 10;
+		// 		x %= 3.5;  // Invalid: mod requires both operands to be integers
+		// 	`,
+		// 	expectError: true,
+		// 	errorMsg:    "operator",
+		// },
+		{
+			name: "invalid result type mismatch",
+			input: `
+				var x: Integer := 10;
+				x += 5.0;  // Invalid: result is Float, cannot assign to Integer
+			`,
+			expectError: true,
+			errorMsg:    "Incompatible types",
+		},
+		{
+			name: "valid string concatenation",
+			input: `
+				var s: String := "hello";
+				s += " world";  // Valid: String + String = String
+			`,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := parser.New(l)
+			program := p.ParseProgram()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("Parser errors: %v", p.Errors())
+			}
+
+			analyzer := NewAnalyzer()
+			_ = analyzer.Analyze(program)
+
+			hasErrors := len(analyzer.Errors()) > 0
+			if tt.expectError != hasErrors {
+				if tt.expectError {
+					t.Errorf("Expected error containing '%s', got no error", tt.errorMsg)
+				} else {
+					t.Errorf("Expected no error, got: %v", analyzer.Errors())
+				}
+			}
+
+			if tt.expectError && tt.errorMsg != "" {
+				foundExpectedError := false
+				for _, err := range analyzer.Errors() {
+					if containsError([]string{err}, tt.errorMsg) {
+						foundExpectedError = true
+						break
+					}
+				}
+				if !foundExpectedError {
+					t.Errorf("Expected error containing '%s', got: %v", tt.errorMsg, analyzer.Errors())
+				}
+			}
+		})
+	}
+}

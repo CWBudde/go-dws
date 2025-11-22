@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ValidationPass implements Pass 3: Semantic Validation
@@ -198,6 +199,13 @@ func (v *statementValidator) validateAssignment(stmt *ast.AssignmentStatement) {
 		return // Error already reported
 	}
 
+	// Handle compound assignment operators (+=, -=, *=, /=, etc.)
+	if v.isCompoundAssignment(stmt.Operator) {
+		v.validateCompoundAssignment(stmt, targetType)
+		return
+	}
+
+	// Regular assignment (:=)
 	// Check value (right-hand side) with context-aware inference
 	valueType := v.checkExpressionWithExpectedType(stmt.Value, targetType)
 	if valueType == nil {
@@ -211,6 +219,121 @@ func (v *statementValidator) validateAssignment(stmt *ast.AssignmentStatement) {
 
 	// Check if target is assignable (not const, not readonly)
 	// TODO: Implement const/readonly checking
+}
+
+// isCompoundAssignment checks if the operator is a compound assignment
+func (v *statementValidator) isCompoundAssignment(op token.TokenType) bool {
+	return op == token.PLUS_ASSIGN ||
+		op == token.MINUS_ASSIGN ||
+		op == token.TIMES_ASSIGN ||
+		op == token.DIVIDE_ASSIGN ||
+		op == token.PERCENT_ASSIGN ||
+		op == token.CARET_ASSIGN ||
+		op == token.AT_ASSIGN ||
+		op == token.TILDE_ASSIGN
+}
+
+// validateCompoundAssignment validates compound assignment operators (+=, -=, *=, /=, etc.)
+func (v *statementValidator) validateCompoundAssignment(stmt *ast.AssignmentStatement, targetType types.Type) {
+	// Check value (right-hand side)
+	valueType := v.checkExpression(stmt.Value)
+	if valueType == nil {
+		return // Error already reported
+	}
+
+	// Get the corresponding binary operator
+	binaryOp := v.compoundToBinaryOperator(stmt.Operator)
+	if binaryOp == "" {
+		v.ctx.AddError("unsupported compound assignment operator %s", stmt.Operator)
+		return
+	}
+
+	// Validate the operation: target OP value
+	// For example, x += y is equivalent to x := x + y
+	resultType := v.checkBinaryOperation(targetType, binaryOp, valueType)
+	if resultType == nil {
+		v.ctx.AddError("operator %s not applicable to types %s and %s", binaryOp, targetType, valueType)
+		return
+	}
+
+	// Check that the result type is compatible with the target type
+	// For example: var x: Integer; x += 5.0 should fail if Float can't be assigned to Integer
+	if !v.typesCompatible(targetType, resultType) {
+		v.ctx.AddError("cannot assign result of %s %s %s (type %s) to %s",
+			targetType, binaryOp, valueType, resultType, targetType)
+	}
+}
+
+// compoundToBinaryOperator converts compound assignment operator to binary operator
+func (v *statementValidator) compoundToBinaryOperator(op token.TokenType) string {
+	switch op {
+	case token.PLUS_ASSIGN:
+		return "+"
+	case token.MINUS_ASSIGN:
+		return "-"
+	case token.TIMES_ASSIGN:
+		return "*"
+	case token.DIVIDE_ASSIGN:
+		return "/"
+	case token.PERCENT_ASSIGN:
+		return "mod"
+	case token.CARET_ASSIGN:
+		return "^"
+	case token.AT_ASSIGN:
+		return "@"
+	case token.TILDE_ASSIGN:
+		return "~"
+	default:
+		return ""
+	}
+}
+
+// checkBinaryOperation validates a binary operation and returns the result type
+func (v *statementValidator) checkBinaryOperation(leftType types.Type, operator string, rightType types.Type) types.Type {
+	// Resolve to underlying types
+	leftResolved := types.GetUnderlyingType(leftType)
+	rightResolved := types.GetUnderlyingType(rightType)
+
+	// Arithmetic operators: +, -, *, /
+	if operator == "+" || operator == "-" || operator == "*" || operator == "/" {
+		// Both operands must be numeric
+		if !v.isNumericType(leftResolved) || !v.isNumericType(rightResolved) {
+			return nil
+		}
+
+		// Result type promotion: Float > Integer
+		if v.isFloatType(leftResolved) || v.isFloatType(rightResolved) {
+			return types.FLOAT
+		}
+		return types.INTEGER
+	}
+
+	// Modulo operator: mod (%)
+	if operator == "mod" {
+		// Both operands must be integers
+		if !v.isIntegerType(leftResolved) || !v.isIntegerType(rightResolved) {
+			return nil
+		}
+		return types.INTEGER
+	}
+
+	// String concatenation: +
+	if operator == "+" {
+		if v.isStringType(leftResolved) && v.isStringType(rightResolved) {
+			return types.STRING
+		}
+	}
+
+	// Power operator: ^
+	if operator == "^" {
+		if !v.isNumericType(leftResolved) || !v.isNumericType(rightResolved) {
+			return nil
+		}
+		return types.FLOAT
+	}
+
+	// Unsupported operator for these types
+	return nil
 }
 
 // validateReturn validates a return statement
@@ -1930,4 +2053,40 @@ func (v *statementValidator) hasHelperClassConst(typ types.Type, constName strin
 	}
 
 	return nil, nil
+}
+
+// ============================================================================
+// Type Checking Helper Methods
+// ============================================================================
+
+// isNumericType checks if a type is numeric (Integer or Float)
+func (v *statementValidator) isNumericType(t types.Type) bool {
+	return v.isIntegerType(t) || v.isFloatType(t)
+}
+
+// isIntegerType checks if a type is Integer
+func (v *statementValidator) isIntegerType(t types.Type) bool {
+	if t == nil {
+		return false
+	}
+	underlying := types.GetUnderlyingType(t)
+	return underlying == types.INTEGER || underlying.TypeKind() == "INTEGER"
+}
+
+// isFloatType checks if a type is Float
+func (v *statementValidator) isFloatType(t types.Type) bool {
+	if t == nil {
+		return false
+	}
+	underlying := types.GetUnderlyingType(t)
+	return underlying == types.FLOAT || underlying.TypeKind() == "FLOAT"
+}
+
+// isStringType checks if a type is String
+func (v *statementValidator) isStringType(t types.Type) bool {
+	if t == nil {
+		return false
+	}
+	underlying := types.GetUnderlyingType(t)
+	return underlying == types.STRING || underlying.TypeKind() == "STRING"
 }
