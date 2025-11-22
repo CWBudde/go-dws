@@ -267,7 +267,11 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 		var nameValue Value
 		if stmt.Value != nil {
 			// Single name with initializer - use the computed value
-			nameValue = cloneIfCopyable(value)
+			if _, isIndexExpr := stmt.Value.(*ast.IndexExpression); isIndexExpr {
+				nameValue = value
+			} else {
+				nameValue = cloneIfCopyable(value)
+			}
 			// Task 9.1.6: If the type annotation is an interface type, wrap the value in an InterfaceInstance
 			if stmt.Type != nil {
 				typeName := stmt.Type.String()

@@ -296,26 +296,24 @@ PrintLn(Length(arr) + 10);
 	}
 }
 
-// Dynamic array assignments should keep reference semantics so aliases see mutations.
-func TestDynamicArray_AssignmentSharesReference(t *testing.T) {
+// Dynamic array assignments copy data, but grabbing an element via indexing should alias.
+func TestDynamicArray_AssignmentCreatesCopy(t *testing.T) {
 	script := `
-type TMatrix = array of array of Integer;
-var m := new Integer[2, 2];
+var a := [1, 0, 1, 0];
+var b := a;
+b[1] := 5;
+PrintLn(a[1]);
+PrintLn(b[1]);
 
-m[0][0] := 1;
-m[0][1] := 2;
-
-var row := m[0];
-row[1] := 99;
-
-PrintLn(m[0][1]);
-
-var alias := m[0];
-alias[0] := 7;
-PrintLn(m[0][0]);
+var grid := new Integer[2, 2];
+grid[0][0] := 1;
+var row := grid[0];
+row[0] := 7;
+PrintLn(grid[0][0]);
+PrintLn(row[0]);
 `
 
-	expected := "99\n7\n"
+	expected := "0\n5\n7\n7\n"
 
 	result, output := testEvalWithOutput(script)
 	if result != nil && result.Type() == "ERROR" {
