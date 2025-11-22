@@ -495,7 +495,7 @@ func (i *Interpreter) initIntrinsicHelpers() {
 	stringHelper.Methods["tolower"] = nil
 	stringHelper.BuiltinMethods["tolower"] = "__string_tolower"
 
-	// String transformation methods (task 9.17.3)
+	// String transformation methods
 	stringHelper.Methods["padleft"] = nil
 	stringHelper.BuiltinMethods["padleft"] = "PadLeft"
 	stringHelper.Methods["padright"] = nil

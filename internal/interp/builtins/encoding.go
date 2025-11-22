@@ -9,7 +9,7 @@ import (
 )
 
 // ============================================================================
-// Encoding/Escaping Built-in Functions (Task 3.7.3)
+// Encoding/Escaping Built-in Functions
 // ============================================================================
 //
 // This file contains encoding and escaping functions that have been migrated

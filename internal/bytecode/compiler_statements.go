@@ -623,7 +623,7 @@ func (c *Compiler) compileHelperDecl(decl *ast.HelperDecl) error {
 	return nil
 }
 
-// compileRecordDecl creates record metadata for static method registration (Task 9.2).
+// compileRecordDecl creates record metadata for static method registration.
 // Record declarations don't generate runtime bytecode, but we need to track them
 // so that static methods can be registered during function compilation.
 func (c *Compiler) compileRecordDecl(decl *ast.RecordDecl) error {
@@ -648,7 +648,7 @@ func (c *Compiler) compileRecordDecl(decl *ast.RecordDecl) error {
 	return nil
 }
 
-// compileClassDecl compiles class metadata for field initializers (Task 9.5.5).
+// compileClassDecl compiles class metadata for field initializers.
 // While class declarations don't generate runtime bytecode, we need to store
 // field initializers so they can be executed during object instantiation.
 func (c *Compiler) compileClassDecl(decl *ast.ClassDecl) error {

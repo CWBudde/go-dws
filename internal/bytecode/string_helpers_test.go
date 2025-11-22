@@ -6,7 +6,7 @@ import (
 )
 
 // ============================================================================
-// String Helper Method Tests (Task 9.23.6.3)
+// String Helper Method Tests
 // Tests that bytecode VM produces the same output as AST interpreter
 // ============================================================================
 

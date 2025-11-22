@@ -298,9 +298,10 @@ func TestFunctionPointerInvalidCases(t *testing.T) {
 }
 
 // TestFunctionPointerExecution tests runtime execution of function pointers
-// NOTE: This test will be skipped until interpreter support is implemented (tasks 9.164-9.169)
+// NOTE: This test will be skipped until interpreter support is implemented
 func TestFunctionPointerExecution(t *testing.T) {
-	t.Skip("Function pointer execution not yet implemented in interpreter (tasks 9.164-9.169)")
+	// TODO: Implement function pointers
+	t.Skip("Function pointer execution not yet implemented in interpreter")
 
 	// Build the CLI if needed
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")

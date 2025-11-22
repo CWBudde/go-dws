@@ -5,7 +5,7 @@ import (
 )
 
 // ============================================================================
-// I/O Built-in Functions (Task 3.7.4)
+// I/O Built-in Functions
 // ============================================================================
 //
 // This file contains I/O functions that have been migrated from internal/interp

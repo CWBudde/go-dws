@@ -9,7 +9,7 @@ import (
 )
 
 // ============================================================================
-// String Helper Method Tests (Task 9.23.6.2)
+// String Helper Method Tests
 // ============================================================================
 
 func TestStringHelper_ToUpper(t *testing.T) {
