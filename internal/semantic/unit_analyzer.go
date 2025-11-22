@@ -2,7 +2,6 @@ package semantic
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -54,7 +53,7 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 			if usesClause, ok := stmt.(*ast.UsesClause); ok {
 				// Process each unit in the uses clause
 				for _, unitIdent := range usesClause.Units {
-					unitName := strings.ToLower(unitIdent.Value)
+					unitName := ident.Normalize(unitIdent.Value)
 
 					// Look up the unit's symbols
 					if availableUnits == nil {
@@ -100,7 +99,7 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 				}
 
 				// Store function signature for later validation
-				normalizedName := strings.ToLower(decl.Name.Value)
+				normalizedName := ident.Normalize(decl.Name.Value)
 				interfaceFunctions[normalizedName] = decl
 
 				// Build function type from parameters and return type
@@ -131,7 +130,7 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 					continue
 				}
 
-				normalizedName := strings.ToLower(decl.Name.Value)
+				normalizedName := ident.Normalize(decl.Name.Value)
 
 				// Check if this function was declared in the interface
 				interfaceDecl, hasInterfaceDecl := interfaceFunctions[normalizedName]
@@ -189,7 +188,7 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 //	Strings.Add(a, b)  // Use Add from Strings unit
 func (a *Analyzer) ResolveQualifiedSymbol(unitName, symbolName string) (*Symbol, error) {
 	// Normalize unit name for case-insensitive lookup
-	normalizedUnitName := strings.ToLower(unitName)
+	normalizedUnitName := ident.Normalize(unitName)
 
 	// Look up the unit's symbol table
 	unitSymbols, found := a.unitSymbols[normalizedUnitName]
@@ -198,7 +197,7 @@ func (a *Analyzer) ResolveQualifiedSymbol(unitName, symbolName string) (*Symbol,
 	}
 
 	// Look up the symbol within that unit (case-insensitive)
-	normalizedSymbolName := strings.ToLower(symbolName)
+	normalizedSymbolName := ident.Normalize(symbolName)
 	symbol, found := unitSymbols.symbols[normalizedSymbolName]
 	if !found {
 		return nil, fmt.Errorf("symbol '%s' not found in unit '%s'", symbolName, unitName)
