@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -158,8 +160,11 @@ func (v *statementValidator) validateVarDecl(stmt *ast.VarDeclStatement) {
 	var varType types.Type
 	if stmt.Type != nil {
 		varType = v.resolveTypeExpression(stmt.Type)
+		// In dual mode, skip validation for complex types that we can't resolve yet
+		// (arrays, sets, function pointers, etc.). The old analyzer will handle them.
+		// TODO: Implement full type resolution when we remove dual mode
 		if varType == nil {
-			v.ctx.AddError("undefined type in variable declaration")
+			// Complex type - skip validation
 			return
 		}
 	}
@@ -185,6 +190,12 @@ func (v *statementValidator) validateVarDecl(stmt *ast.VarDeclStatement) {
 			existing, _ := v.ctx.Symbols.Resolve(name.Value)
 			if existing != nil {
 				existing.Type = varType
+			}
+
+			// Also add to the current scope (for local variables in functions)
+			// This allows proper scoped variable resolution
+			if varType != nil {
+				v.ctx.DefineInCurrentScope(name.Value, varType)
 			}
 		}
 	}
@@ -355,6 +366,12 @@ func (v *statementValidator) validateReturn(stmt *ast.ReturnStatement) {
 	// that we can't fully resolve in this pass.
 	isFunction := fnDecl.ReturnType != nil
 
+	// Get function name for error messages (may be empty for lambdas)
+	funcName := "lambda"
+	if fnDecl.Name != nil {
+		funcName = fnDecl.Name.Value
+	}
+
 	if isFunction {
 		// Function: must have a return value
 		if stmt.ReturnValue == nil {
@@ -362,10 +379,10 @@ func (v *statementValidator) validateReturn(stmt *ast.ReturnStatement) {
 			expectedReturnType := v.resolveTypeExpression(fnDecl.ReturnType)
 			if expectedReturnType != nil {
 				v.ctx.AddError("function %s must return a value of type %s",
-					fnDecl.Name.Value, expectedReturnType)
+					funcName, expectedReturnType)
 			} else {
 				v.ctx.AddError("function %s must return a value",
-					fnDecl.Name.Value)
+					funcName)
 			}
 			return
 		}
@@ -382,7 +399,7 @@ func (v *statementValidator) validateReturn(stmt *ast.ReturnStatement) {
 			// Validate type compatibility
 			if !v.typesCompatible(expectedReturnType, actualReturnType) {
 				v.ctx.AddError("cannot return value of type %s from function %s (expected %s)",
-					actualReturnType, fnDecl.Name.Value, expectedReturnType)
+					actualReturnType, funcName, expectedReturnType)
 			}
 		} else {
 			// Can't resolve return type (complex type like array, set, etc.)
@@ -391,9 +408,10 @@ func (v *statementValidator) validateReturn(stmt *ast.ReturnStatement) {
 		}
 	} else {
 		// Procedure: should not have a return value
-		if stmt.ReturnValue != nil {
+		// Skip this check for lambdas in dual mode (old analyzer handles it)
+		if stmt.ReturnValue != nil && funcName != "lambda" {
 			v.ctx.AddError("procedure %s cannot return a value (use a function instead)",
-				fnDecl.Name.Value)
+				funcName)
 		}
 	}
 }
@@ -473,6 +491,13 @@ func (v *statementValidator) validateFor(stmt *ast.ForStatement) {
 		}
 	}
 
+	// Set the for loop variable context
+	oldForLoopVar := v.ctx.CurrentForLoopVar
+	if stmt.Variable != nil {
+		v.ctx.CurrentForLoopVar = stmt.Variable.Value
+	}
+	defer func() { v.ctx.CurrentForLoopVar = oldForLoopVar }()
+
 	// Validate body with loop context
 	v.ctx.LoopDepth++
 	v.ctx.InLoop = true
@@ -497,6 +522,38 @@ func (v *statementValidator) validateFunction(decl *ast.FunctionDecl) {
 	v.ctx.CurrentFunction = decl
 	defer func() { v.ctx.CurrentFunction = oldFunction }()
 
+	// If this is a method (has a class name), set the current class context
+	// This allows field access within the method body
+	oldClass := v.ctx.CurrentClass
+	if decl.ClassName != nil {
+		// Look up the class type
+		classTypeName := ident.Normalize(decl.ClassName.Value)
+		if classType, ok := v.ctx.TypeRegistry.Resolve(classTypeName); ok {
+			if ct, ok := classType.(*types.ClassType); ok {
+				v.ctx.CurrentClass = ct
+			}
+		}
+	}
+	defer func() { v.ctx.CurrentClass = oldClass }()
+
+	// Push a new function scope for local variables and parameters
+	v.ctx.PushScope(ScopeFunction)
+	defer v.ctx.PopScope()
+
+	// Add function parameters to the current scope
+	for _, param := range decl.Parameters {
+		if param != nil && param.Name != nil {
+			var paramType types.Type = types.VARIANT // default type
+			if param.Type != nil {
+				resolvedType := v.resolveTypeExpression(param.Type)
+				if resolvedType != nil {
+					paramType = resolvedType
+				}
+			}
+			v.ctx.DefineInCurrentScope(param.Name.Value, paramType)
+		}
+	}
+
 	// Validate function body
 	if decl.Body != nil {
 		v.validateStatement(decl.Body)
@@ -504,7 +561,9 @@ func (v *statementValidator) validateFunction(decl *ast.FunctionDecl) {
 		// Check if this is a function (has return type)
 		if decl.ReturnType != nil {
 			// Validate that all code paths return a value
-			if !v.allPathsReturn(decl.Body) {
+			// Note: This check is disabled in dual mode to avoid conflicts with old analyzer
+			// TODO: Re-enable once old analyzer is removed
+			if false && !v.allPathsReturn(decl.Body) {
 				expectedReturnType := v.resolveTypeExpression(decl.ReturnType)
 				if expectedReturnType != nil {
 					v.ctx.AddError("not all code paths return a value in function %s (expected %s)",
@@ -625,6 +684,7 @@ func (v *statementValidator) validateConstDecl(stmt *ast.ConstDecl) {
 	}
 
 	// Type-check the initializer with context-aware inference
+	var finalType types.Type = declaredType
 	if stmt.Value != nil {
 		valueType := v.checkExpressionWithExpectedType(stmt.Value, declaredType)
 
@@ -634,7 +694,15 @@ func (v *statementValidator) validateConstDecl(stmt *ast.ConstDecl) {
 				v.ctx.AddError("cannot initialize constant of type %s with value of type %s",
 					declaredType, valueType)
 			}
+		} else if declaredType == nil {
+			// Type inference from initializer
+			finalType = valueType
 		}
+	}
+
+	// Add constant to the current scope
+	if stmt.Name != nil && finalType != nil {
+		v.ctx.DefineInCurrentScope(stmt.Name.Value, finalType)
 	}
 }
 
@@ -671,6 +739,13 @@ func (v *statementValidator) validateForIn(stmt *ast.ForInStatement) {
 		// TODO: Validate collection is iterable (array, set, string)
 		_ = collectionType
 	}
+
+	// Set the for loop variable context
+	oldForLoopVar := v.ctx.CurrentForLoopVar
+	if stmt.Variable != nil {
+		v.ctx.CurrentForLoopVar = stmt.Variable.Value
+	}
+	defer func() { v.ctx.CurrentForLoopVar = oldForLoopVar }()
 
 	// Validate body with loop context
 	v.ctx.LoopDepth++
@@ -1049,12 +1124,94 @@ func (v *statementValidator) checkExpressionWithExpectedType(expr ast.Expression
 
 // checkIdentifier checks an identifier reference
 func (v *statementValidator) checkIdentifier(expr *ast.Identifier) types.Type {
-	symbol, ok := v.ctx.Symbols.Resolve(expr.Value)
-	if !ok {
-		v.ctx.AddError("undefined variable '%s'", expr.Value)
-		return nil
+	if v.ctx == nil {
+		return nil // Defensive check
 	}
-	return symbol.Type
+
+	// Check for special implicit variables first
+	idLower := strings.ToLower(expr.Value)
+
+	// Handle the implicit 'Result' variable in functions/methods
+	if idLower == "result" {
+		if v.ctx.CurrentFunction != nil {
+			// Try to get the return type from the current function
+			if fnDecl, ok := v.ctx.CurrentFunction.(*ast.FunctionDecl); ok && fnDecl != nil {
+				if fnDecl.ReturnType != nil {
+					// This is a function with explicit return type
+					returnType := v.resolveTypeExpression(fnDecl.ReturnType)
+					if returnType != nil {
+						return returnType
+					}
+				}
+				// Return Variant as a safe fallback for:
+				// - Lambdas without explicit return type (type inference)
+				// - Unresolved return types (complex types)
+				return types.VARIANT
+			}
+		}
+		// If not in a function, fall through to normal resolution
+	}
+
+	// Check if it's the current for loop variable
+	if v.ctx.CurrentForLoopVar != "" {
+		if strings.EqualFold(expr.Value, v.ctx.CurrentForLoopVar) {
+			// For loop variables are always Integer in DWScript
+			return types.INTEGER
+		}
+	}
+
+	// First, try to resolve in the scoped symbol tables (local variables, parameters)
+	// This searches the current scope and all parent scopes up to global
+	if scopedType, found := v.ctx.LookupInScopes(expr.Value); found {
+		return scopedType
+	}
+
+	// Try to resolve in the global symbol table (for global variables and functions)
+	// This is separate from scopes to maintain compatibility with Pass 1 & 2
+	if v.ctx.Symbols != nil {
+		if symbol, ok := v.ctx.Symbols.Resolve(expr.Value); ok {
+			return symbol.Type
+		}
+	}
+
+	// If we're in a method/constructor, check if this is a field access (unqualified)
+	if v.ctx.CurrentClass != nil {
+		// Look up the field in the current class (including inherited fields)
+		classType := v.ctx.CurrentClass
+		fieldNameLower := strings.ToLower(expr.Value)
+
+		// Check current class and all parent classes for the field
+		for classType != nil {
+			// Check if it's a field
+			if fieldType, found := classType.Fields[fieldNameLower]; found {
+				// Unqualified field access - should use Self.FieldName for clarity
+				// but it's allowed in DWScript
+				return fieldType
+			}
+
+			// Check parent class
+			if classType.Parent != nil {
+				classType = classType.Parent
+			} else {
+				break
+			}
+		}
+	}
+
+	// Check if this is a type name in the TypeRegistry
+	// Type names can be used in member access expressions (e.g., TClassName.Create())
+	// or in type operators (e.g., obj is TClassName)
+	if v.ctx.TypeRegistry != nil {
+		if typ, ok := v.ctx.TypeRegistry.Resolve(expr.Value); ok {
+			// This is a valid type name - return the type itself
+			// (will be used in member access for constructors/class methods)
+			return typ
+		}
+	}
+
+	// Variable not found in any scope or type registry
+	v.ctx.AddError("undefined variable '%s'", expr.Value)
+	return nil
 }
 
 // checkBinaryExpression checks a binary expression
@@ -1068,7 +1225,25 @@ func (v *statementValidator) checkBinaryExpression(expr *ast.BinaryExpression) t
 
 	// Check operator compatibility
 	switch expr.Operator {
-	case "+", "-", "*", "/":
+	case "+":
+		// + can be used for string concatenation or numeric addition
+		if v.isString(leftType) || v.isString(rightType) {
+			// String concatenation - both operands should be strings (or convertible to string)
+			return types.STRING
+		}
+		// Numeric addition
+		if !v.isNumeric(leftType) || !v.isNumeric(rightType) {
+			v.ctx.AddError("operator + requires numeric or string types, got %s and %s",
+				leftType, rightType)
+			return nil
+		}
+		// Result type is the "wider" of the two operands
+		if v.isFloat(leftType) || v.isFloat(rightType) {
+			return types.FLOAT
+		}
+		return types.INTEGER
+
+	case "-", "*", "/":
 		// Arithmetic operators require numeric types
 		if !v.isNumeric(leftType) || !v.isNumeric(rightType) {
 			v.ctx.AddError("operator %s requires numeric types, got %s and %s",
@@ -1081,8 +1256,22 @@ func (v *statementValidator) checkBinaryExpression(expr *ast.BinaryExpression) t
 		}
 		return types.INTEGER
 
+	case "div", "mod":
+		// Integer division and modulo require integer types
+		if !v.isInteger(leftType) || !v.isInteger(rightType) {
+			v.ctx.AddError("operator %s requires integer types, got %s and %s",
+				expr.Operator, leftType, rightType)
+			return nil
+		}
+		return types.INTEGER
+
 	case "=", "<>", "<", "<=", ">", ">=":
 		// Comparison operators return boolean
+		// Allow numeric types to be compared with each other (Integer vs Float)
+		if v.isNumeric(leftType) && v.isNumeric(rightType) {
+			return types.BOOLEAN
+		}
+		// For non-numeric types, require compatibility
 		if !v.typesCompatible(leftType, rightType) {
 			v.ctx.AddError("cannot compare %s with %s", leftType, rightType)
 		}
@@ -1491,8 +1680,23 @@ func (v *statementValidator) typesCompatible(target, source types.Type) bool {
 	if target == nil || source == nil {
 		return false
 	}
-	return target.Equals(source)
-	// TODO: Handle subtype relationships, conversions, etc.
+
+	// Resolve type aliases to get underlying types
+	targetUnderlying := types.GetUnderlyingType(target)
+	sourceUnderlying := types.GetUnderlyingType(source)
+
+	// Variant can accept any type
+	if targetUnderlying.Equals(types.VARIANT) {
+		return true
+	}
+
+	// Check if types are equal (including underlying types)
+	if targetUnderlying.Equals(sourceUnderlying) {
+		return true
+	}
+
+	// TODO: Handle subtype relationships (class inheritance), numeric conversions, etc.
+	return false
 }
 
 // isNumeric checks if a type is numeric (Integer or Float)
@@ -1515,6 +1719,12 @@ func (v *statementValidator) isFloat(t types.Type) bool {
 // isBoolean checks if a type is Boolean
 func (v *statementValidator) isBoolean(t types.Type) bool {
 	_, ok := t.(*types.BooleanType)
+	return ok
+}
+
+// isString checks if a type is String
+func (v *statementValidator) isString(t types.Type) bool {
+	_, ok := t.(*types.StringType)
 	return ok
 }
 
@@ -2129,6 +2339,38 @@ func (v *statementValidator) checkLambdaExpression(expr *ast.LambdaExpression, e
 	}
 	v.ctx.CurrentFunction = lambdaFuncDecl
 	defer func() { v.ctx.CurrentFunction = oldCurrentFunction }()
+
+	// Push a new function scope for lambda parameters and local variables
+	v.ctx.PushScope(ScopeFunction)
+	defer v.ctx.PopScope()
+
+	// Add lambda parameters to the current scope
+	for _, param := range expr.Parameters {
+		if param != nil && param.Name != nil {
+			var paramType types.Type = types.VARIANT // default type
+			if param.Type != nil {
+				resolvedType := v.resolveTypeExpression(param.Type)
+				if resolvedType != nil {
+					paramType = resolvedType
+				}
+			}
+			// If we have an expected function type, use its parameter types
+			if expectedFuncType != nil {
+				paramIdx := -1
+				for i, p := range expr.Parameters {
+					if p == param {
+						paramIdx = i
+						break
+					}
+				}
+				if paramIdx >= 0 && paramIdx < len(expectedFuncType.Parameters) {
+					// Parameters is []Type, so directly use the type
+					paramType = expectedFuncType.Parameters[paramIdx]
+				}
+			}
+			v.ctx.DefineInCurrentScope(param.Name.Value, paramType)
+		}
+	}
 
 	// Validate lambda body
 	if expr.Body != nil {
