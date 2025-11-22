@@ -546,8 +546,8 @@ The following uses of `strings.ToLower()`/`strings.EqualFold()` are legitimate a
   - EqualFold: 121,178,246
   - Type casting and interface checks
 
-- [ ] **14.1.13** Migrate `internal/interp/functions_*.go` files (10 occurrences total)
-  - `functions_typecast.go:91,329,626` (ToLower) + `389,508,601` (EqualFold)
+- [ ] **14.1.13** Migrate `internal/interp/functions_*.go` files (12 occurrences total, counting individual function calls)
+  - `functions_typecast.go:91,329,626` (ToLower) + `389,508(x2),601` (EqualFold; line 508 has two calls)
   - `functions_calls.go:213,298,420` (ToLower) + `179` (EqualFold)
   - `functions_pointers.go:116` (ToLower)
 
