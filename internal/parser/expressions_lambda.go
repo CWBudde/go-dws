@@ -119,13 +119,12 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 				statements = append(statements, stmt)
 			}
 
-			// Check if we're at the end
-			if p.cursor.Current().Type == lexer.END || p.cursor.Current().Type == lexer.EOF {
-				break
-			}
+			// Advance past the statement to the next token
+			// (parseStatement leaves cursor on last token of statement)
+			p.cursor = p.cursor.Advance()
 
-			// If not at end, skip optional semicolon
-			if p.cursor.Current().Type == lexer.SEMICOLON {
+			// Skip optional semicolons
+			for p.cursor.Current().Type == lexer.SEMICOLON {
 				p.cursor = p.cursor.Advance()
 			}
 		}
