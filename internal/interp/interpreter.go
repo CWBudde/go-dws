@@ -5,9 +5,9 @@ import (
 	"io"
 	"math"
 	"math/rand"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/errors"
-	"github.com/cwbudde/go-dws/pkg/ident"
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/lexer"
