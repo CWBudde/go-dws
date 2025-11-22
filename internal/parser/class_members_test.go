@@ -292,3 +292,129 @@ end;
 		t.Errorf("Field[1].InitValue should be nil. got=%v", stmt.Fields[1].InitValue)
 	}
 }
+
+// ============================================================================
+// Class Invariant Tests
+// ============================================================================
+
+func TestParseClassInvariants(t *testing.T) {
+	input := `
+type TPoint = class
+   FX, FY: Float;
+   invariants
+      FX >= 0.0;
+      FY >= 0.0 : 'Y coordinate must be non-negative';
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if stmt.Invariants == nil {
+		t.Fatalf("stmt.Invariants should not be nil")
+	}
+
+	if len(stmt.Invariants.Conditions) != 2 {
+		t.Fatalf("stmt.Invariants.Conditions should contain 2 conditions. got=%d",
+			len(stmt.Invariants.Conditions))
+	}
+
+	// Check first condition (no message)
+	firstCond := stmt.Invariants.Conditions[0]
+	if firstCond.Test == nil {
+		t.Fatalf("first condition Test should not be nil")
+	}
+	if firstCond.Message != nil {
+		t.Errorf("first condition Message should be nil")
+	}
+
+	// Check second condition (with message)
+	secondCond := stmt.Invariants.Conditions[1]
+	if secondCond.Test == nil {
+		t.Fatalf("second condition Test should not be nil")
+	}
+	if secondCond.Message == nil {
+		t.Fatalf("second condition Message should not be nil")
+	}
+}
+
+func TestParseClassWithMultipleInvariants(t *testing.T) {
+	input := `
+type TStack = class
+private
+   FCount: Integer;
+   FCapacity: Integer;
+   invariants
+      FCount >= 0;
+      FCount <= FCapacity;
+      FCapacity > 0;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if stmt.Invariants == nil {
+		t.Fatalf("stmt.Invariants should not be nil")
+	}
+
+	if len(stmt.Invariants.Conditions) != 3 {
+		t.Fatalf("stmt.Invariants.Conditions should contain 3 conditions. got=%d",
+			len(stmt.Invariants.Conditions))
+	}
+}
+
+func TestParseClassWithoutInvariants(t *testing.T) {
+	input := `
+type TSimple = class
+   FValue: Integer;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if stmt.Invariants != nil {
+		t.Errorf("stmt.Invariants should be nil for class without invariants. got=%v",
+			stmt.Invariants)
+	}
+}

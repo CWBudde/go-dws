@@ -365,6 +365,15 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 				classDecl.Properties = append(classDecl.Properties, property)
 			}
 			cursor = p.cursor
+		} else if cursor.Current().Type == lexer.INVARIANTS {
+			// This is an invariant clause
+			p.cursor = cursor // sync cursor before calling parser function
+			if classDecl.Invariants != nil {
+				p.addError("class already has invariants defined", ErrInvalidSyntax)
+			} else {
+				classDecl.Invariants = p.parseInvariantClause()
+			}
+			cursor = p.cursor
 		} else if cursor.Current().Type == lexer.IDENT {
 			// Unexpected identifier in class body - likely a field missing its type declaration
 			p.addError("expected ':' after field name or method/property declaration keyword", ErrMissingColon)
