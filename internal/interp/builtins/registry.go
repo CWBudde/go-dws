@@ -66,7 +66,7 @@ type FunctionInfo struct {
 // Registry manages all built-in functions.
 // It provides case-insensitive lookup and categorization of built-in functions.
 type Registry struct {
-	functions  map[string]*FunctionInfo
+	functions  *ident.Map[*FunctionInfo]
 	categories map[Category][]string
 	mu         sync.RWMutex
 }
@@ -74,7 +74,7 @@ type Registry struct {
 // NewRegistry creates a new built-in function registry.
 func NewRegistry() *Registry {
 	return &Registry{
-		functions:  make(map[string]*FunctionInfo),
+		functions:  ident.NewMap[*FunctionInfo](),
 		categories: make(map[Category][]string),
 	}
 }
@@ -87,20 +87,6 @@ func (r *Registry) Register(name string, fn BuiltinFunc, category Category, desc
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	normalizedName := ident.Normalize(name)
-
-	// Check if already registered to prevent duplicate category entries
-	if _, exists := r.functions[normalizedName]; exists {
-		// Update the function but don't add to category list again
-		r.functions[normalizedName] = &FunctionInfo{
-			Name:        name,
-			Function:    fn,
-			Category:    category,
-			Description: description,
-		}
-		return
-	}
-
 	info := &FunctionInfo{
 		Name:        name,
 		Function:    fn,
@@ -108,8 +94,15 @@ func (r *Registry) Register(name string, fn BuiltinFunc, category Category, desc
 		Description: description,
 	}
 
-	// Store with normalized key for case-insensitive lookup
-	r.functions[normalizedName] = info
+	// Check if already registered to prevent duplicate category entries
+	if r.functions.Has(name) {
+		// Update the function but don't add to category list again
+		r.functions.Set(name, info)
+		return
+	}
+
+	// Store with case-insensitive lookup (ident.Map handles normalization)
+	r.functions.Set(name, info)
 
 	// Add to category list (only for new registrations)
 	r.categories[category] = append(r.categories[category], name)
@@ -134,8 +127,7 @@ func (r *Registry) Lookup(name string) (BuiltinFunc, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	normalizedName := ident.Normalize(name)
-	if info, ok := r.functions[normalizedName]; ok {
+	if info, ok := r.functions.Get(name); ok {
 		return info.Function, true
 	}
 	return nil, false
@@ -147,9 +139,7 @@ func (r *Registry) Get(name string) (*FunctionInfo, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	normalizedName := ident.Normalize(name)
-	info, ok := r.functions[normalizedName]
-	return info, ok
+	return r.functions.Get(name)
 }
 
 // GetByCategory returns all functions in a given category.
@@ -162,8 +152,7 @@ func (r *Registry) GetByCategory(category Category) []*FunctionInfo {
 	result := make([]*FunctionInfo, 0, len(names))
 
 	for _, name := range names {
-		normalizedName := ident.Normalize(name)
-		if info, ok := r.functions[normalizedName]; ok {
+		if info, ok := r.functions.Get(name); ok {
 			result = append(result, info)
 		}
 	}
@@ -199,10 +188,11 @@ func (r *Registry) AllFunctions() []*FunctionInfo {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	result := make([]*FunctionInfo, 0, len(r.functions))
-	for _, info := range r.functions {
+	result := make([]*FunctionInfo, 0, r.functions.Len())
+	r.functions.Range(func(_ string, info *FunctionInfo) bool {
 		result = append(result, info)
-	}
+		return true
+	})
 
 	// Sort by name for consistent ordering
 	sort.Slice(result, func(i, j int) bool {
@@ -216,7 +206,7 @@ func (r *Registry) AllFunctions() []*FunctionInfo {
 func (r *Registry) Count() int {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return len(r.functions)
+	return r.functions.Len()
 }
 
 // CategoryCount returns the number of functions in a specific category.
@@ -231,9 +221,7 @@ func (r *Registry) Has(name string) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	normalizedName := ident.Normalize(name)
-	_, ok := r.functions[normalizedName]
-	return ok
+	return r.functions.Has(name)
 }
 
 // Clear removes all registered functions.
@@ -242,6 +230,6 @@ func (r *Registry) Clear() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.functions = make(map[string]*FunctionInfo)
+	r.functions.Clear()
 	r.categories = make(map[Category][]string)
 }
