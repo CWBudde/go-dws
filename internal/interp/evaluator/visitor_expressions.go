@@ -960,9 +960,81 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 // - Phase 4 (future): Migrate helper infrastructure after helper system migration
 // - Phase 5 (future): Migrate method/property dispatch after OOP infrastructure migration
 func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression, ctx *ExecutionContext) Value {
-	// All 11 access modes delegated to adapter for now
-	// See comprehensive documentation above for detailed behavior
-	return e.adapter.EvalNode(node)
+	// Task 3.5.25 & 3.5.26: Implement member access with routing based on object type
+
+	// Evaluate the object first
+	obj := e.Eval(node.Object, ctx)
+	if isError(obj) {
+		return obj
+	}
+
+	memberName := node.Member.Value
+
+	// Route based on object type
+	switch obj.Type() {
+	case "OBJECT":
+		// Task 3.5.26: Object instance access (Mode 11)
+		// Pattern: obj.Field, obj.Property, obj.Method
+		// Try field access first
+		if fieldValue, found := e.adapter.GetObjectFieldValue(obj, memberName); found {
+			return fieldValue
+		}
+
+		// Try class variable access
+		if classVarValue, found := e.adapter.GetClassVariableValue(obj, memberName); found {
+			return classVarValue
+		}
+
+		// Try property access
+		propValue, err := e.adapter.ReadPropertyValue(obj, memberName, node)
+		if err == nil {
+			return propValue
+		}
+
+		// Try method or other member access via adapter
+		return e.adapter.EvalNode(node)
+
+	case "INTERFACE":
+		// Task 3.5.26: Interface instance access (Mode 7)
+		// Pattern: intf.Method, intf.Property
+		// Delegate to adapter for interface unwrapping and method lookup
+		return e.adapter.EvalNode(node)
+
+	case "CLASS", "CLASS_INFO":
+		// Task 3.5.26: Metaclass access (Mode 6)
+		// Pattern: ClassValue.Member, ClassInfoValue.Member
+		// Delegate to adapter for class member lookup
+		return e.adapter.EvalNode(node)
+
+	case "TYPE_CAST":
+		// Task 3.5.26: Type cast value handling (Mode 8)
+		// Pattern: TBase(child).ClassVar
+		// Delegate to adapter to unwrap and handle with static type context
+		return e.adapter.EvalNode(node)
+
+	case "NIL":
+		// Task 3.5.26: Nil object handling (Mode 9)
+		// Special case: class variables accessible on nil, instance members error
+		// Delegate to adapter for proper error handling
+		return e.adapter.EvalNode(node)
+
+	case "RECORD":
+		// Task 3.5.25: Record instance access (Mode 5)
+		// Pattern: record.Field, record.Method
+		// Delegate to adapter for record member lookup
+		return e.adapter.EvalNode(node)
+
+	case "ENUM":
+		// Task 3.5.25: Enum value properties (Mode 10)
+		// Pattern: enumVal.Value
+		// Delegate to adapter for enum property access
+		return e.adapter.EvalNode(node)
+
+	default:
+		// For other types (identifiers that might be unit names, class names, enum types, etc.)
+		// delegate to adapter for full handling
+		return e.adapter.EvalNode(node)
+	}
 }
 
 // VisitMethodCallExpression evaluates a method call (obj.Method(args)).
@@ -1220,9 +1292,80 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 // - Phase 5 (future): Migrate constructor dispatch after object creation migration
 // - Phase 6 (future): Migrate helper methods after helper system migration
 func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ctx *ExecutionContext) Value {
-	// All 15 method call modes delegated to adapter for now
-	// See comprehensive documentation above for detailed behavior
-	return e.adapter.EvalNode(node)
+	// Task 3.5.27 & 3.5.28: Implement method call routing based on object type
+
+	// Evaluate the object first
+	obj := e.Eval(node.Object, ctx)
+	if isError(obj) {
+		return obj
+	}
+
+	methodName := node.Method.Value
+
+	// Evaluate all arguments
+	args := make([]Value, len(node.Arguments))
+	for i, arg := range node.Arguments {
+		val := e.Eval(arg, ctx)
+		if isError(val) {
+			return val
+		}
+		args[i] = val
+	}
+
+	// Route based on object type
+	switch obj.Type() {
+	case "OBJECT":
+		// Task 3.5.28: Object instance method calls (Mode 12)
+		// Pattern: obj.Method(args)
+		// Delegate to adapter for method lookup, virtual dispatch, and execution
+		return e.adapter.CallMethod(obj, methodName, args, node)
+
+	case "INTERFACE":
+		// Task 3.5.27: Interface instance method calls (Mode 8)
+		// Pattern: intf.Method(args)
+		// Delegate to adapter for interface unwrapping and method dispatch
+		return e.adapter.CallMethod(obj, methodName, args, node)
+
+	case "CLASS", "CLASS_INFO":
+		// Task 3.5.27: Static class method calls (Mode 2) or ClassInfoValue method calls (Mode 4)
+		// Pattern: TClass.Method(args) or classInfoVal.Method(args)
+		// Delegate to adapter for class method execution
+		return e.adapter.CallMethod(obj, methodName, args, node)
+
+	case "CLASS_VALUE":
+		// Task 3.5.28: Metaclass constructor calls (Mode 5)
+		// Pattern: classVar.Create(args) where classVar is a metaclass variable
+		// Delegate to adapter for virtual constructor dispatch
+		return e.adapter.CallMethod(obj, methodName, args, node)
+
+	case "RECORD":
+		// Task 3.5.27: Record instance method calls (Mode 7)
+		// Pattern: record.Method(args)
+		// Delegate to adapter for record method execution
+		return e.adapter.CallMethod(obj, methodName, args, node)
+
+	case "SET":
+		// Task 3.5.27: Set built-in methods (Mode 6)
+		// Pattern: mySet.Include(x), mySet.Exclude(y)
+		// Delegate to adapter for set method execution
+		return e.adapter.CallMethod(obj, methodName, args, node)
+
+	case "NIL":
+		// Task 3.5.28: Nil object error handling (Mode 9)
+		// Always raise "Object not instantiated" error
+		return e.newError(node, "Object not instantiated")
+
+	case "TYPE_META":
+		// Task 3.5.27: Enum type meta methods (Mode 10)
+		// Pattern: TColor.Low(), TColor.High(), TColor.ByName('Red')
+		// Delegate to adapter for enum meta method execution
+		return e.adapter.CallMethod(obj, methodName, args, node)
+
+	default:
+		// For other types (identifiers that might be unit names, record types, etc.)
+		// or for helper methods, delegate to adapter for full handling
+		return e.adapter.EvalNode(node)
+	}
 }
 
 // VisitInheritedExpression evaluates an 'inherited' expression.
