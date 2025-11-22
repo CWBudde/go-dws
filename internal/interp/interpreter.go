@@ -965,6 +965,113 @@ func (i *Interpreter) InitializeInterfaceField(fieldType any) evaluator.Value {
 	return i.initializeInterfaceField(t)
 }
 
+// ===== Task 3.5.29: Exception Handling Adapter Method Implementations =====
+
+// MatchesExceptionType checks if an exception matches a handler's type.
+// Returns true if the exception type matches or inherits from the handler type.
+func (i *Interpreter) MatchesExceptionType(exc interface{}, typeExpr ast.TypeExpression) bool {
+	excVal, ok := exc.(*ExceptionValue)
+	if !ok {
+		return false
+	}
+	return i.matchesExceptionType(excVal, typeExpr)
+}
+
+// GetExceptionInstance returns the ObjectInstance from an exception.
+func (i *Interpreter) GetExceptionInstance(exc interface{}) evaluator.Value {
+	excVal, ok := exc.(*ExceptionValue)
+	if !ok {
+		return nil
+	}
+	return excVal.Instance
+}
+
+// CreateExceptionFromObject creates an ExceptionValue from an object instance.
+func (i *Interpreter) CreateExceptionFromObject(obj evaluator.Value, ctx *evaluator.ExecutionContext, pos any) interface{} {
+	// Should be an object instance
+	objInst, ok := obj.(*ObjectInstance)
+	if !ok {
+		panic(fmt.Sprintf("runtime error: raise requires exception object, got %s", obj.Type()))
+	}
+
+	// Get the class info
+	classInfo := objInst.Class
+
+	// Extract message from the object's Message field
+	message := ""
+	if msgVal, ok := objInst.Fields["Message"]; ok {
+		if strVal, ok := msgVal.(*StringValue); ok {
+			message = strVal.Value
+		}
+	}
+
+	// Capture current call stack from context
+	callStack := make(errors.StackTrace, len(ctx.CallStack()))
+	copy(callStack, ctx.CallStack())
+
+	// Get position
+	var excPos *lexer.Position
+	if p, ok := pos.(lexer.Position); ok {
+		excPos = &p
+	} else if p, ok := pos.(*lexer.Position); ok {
+		excPos = p
+	}
+
+	return &ExceptionValue{
+		ClassInfo: classInfo,
+		Message:   message,
+		Instance:  objInst,
+		Position:  excPos,
+		CallStack: callStack,
+	}
+}
+
+// EvalBlockStatement evaluates a block statement in the given context.
+func (i *Interpreter) EvalBlockStatement(block *ast.BlockStatement, ctx *evaluator.ExecutionContext) {
+	// Sync context state to interpreter
+	i.syncFromContext(ctx)
+	defer i.syncToContext(ctx)
+
+	i.evalBlockStatement(block)
+}
+
+// EvalStatement evaluates a single statement in the given context.
+func (i *Interpreter) EvalStatement(stmt ast.Statement, ctx *evaluator.ExecutionContext) {
+	// Sync context state to interpreter
+	i.syncFromContext(ctx)
+	defer i.syncToContext(ctx)
+
+	i.Eval(stmt)
+}
+
+// syncFromContext syncs execution state from context to interpreter.
+func (i *Interpreter) syncFromContext(ctx *evaluator.ExecutionContext) {
+	// Sync exception state
+	if exc := ctx.Exception(); exc != nil {
+		if excVal, ok := exc.(*ExceptionValue); ok {
+			i.exception = excVal
+		}
+	} else {
+		i.exception = nil
+	}
+
+	// Sync handler exception
+	if hexc := ctx.HandlerException(); hexc != nil {
+		if excVal, ok := hexc.(*ExceptionValue); ok {
+			i.handlerException = excVal
+		}
+	} else {
+		i.handlerException = nil
+	}
+}
+
+// syncToContext syncs execution state from interpreter to context.
+func (i *Interpreter) syncToContext(ctx *evaluator.ExecutionContext) {
+	// Sync exception state back
+	ctx.SetException(i.exception)
+	ctx.SetHandlerException(i.handlerException)
+}
+
 // ===== Task 3.5.6: Array and Collection Adapter Method Implementations =====
 
 // CreateArray creates an array from a list of elements with a specified element type.
