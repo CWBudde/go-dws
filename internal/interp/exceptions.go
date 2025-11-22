@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/errors"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -78,6 +79,15 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	exceptionClass.IsAbstract = false
 	exceptionClass.IsExternal = false
 
+	// Task 3.5.40: Populate metadata for exception fields
+	messageMeta := &runtime.FieldMetadata{
+		Name:       "Message",
+		TypeName:   "String",
+		Type:       types.STRING,
+		Visibility: runtime.FieldVisibilityPublic,
+	}
+	runtime.AddFieldToClass(exceptionClass.Metadata, messageMeta)
+
 	// Add Create constructor - just a placeholder, will be handled specially
 	exceptionClass.Constructors["Create"] = nil
 
@@ -101,6 +111,15 @@ func (i *Interpreter) registerBuiltinExceptions() {
 		excClass.IsAbstract = false
 		excClass.IsExternal = false
 
+		// Task 3.5.40: Populate metadata for exception fields
+		messageMeta := &runtime.FieldMetadata{
+			Name:       "Message",
+			TypeName:   "String",
+			Type:       types.STRING,
+			Visibility: runtime.FieldVisibilityPublic,
+		}
+		runtime.AddFieldToClass(excClass.Metadata, messageMeta)
+
 		// Inherit Create constructor
 		excClass.Constructors["Create"] = nil
 
@@ -115,6 +134,24 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	eHostClass.Fields["ExceptionClass"] = types.STRING
 	eHostClass.IsAbstract = false
 	eHostClass.IsExternal = false
+
+	// Task 3.5.40: Populate metadata for EHost fields
+	messageMeta2 := &runtime.FieldMetadata{
+		Name:       "Message",
+		TypeName:   "String",
+		Type:       types.STRING,
+		Visibility: runtime.FieldVisibilityPublic,
+	}
+	runtime.AddFieldToClass(eHostClass.Metadata, messageMeta2)
+
+	exceptionClassMeta := &runtime.FieldMetadata{
+		Name:       "ExceptionClass",
+		TypeName:   "String",
+		Type:       types.STRING,
+		Visibility: runtime.FieldVisibilityPublic,
+	}
+	runtime.AddFieldToClass(eHostClass.Metadata, exceptionClassMeta)
+
 	eHostClass.Constructors["Create"] = nil
 
 	// PR #147: Use lowercase key for O(1) case-insensitive lookup
@@ -336,8 +373,9 @@ func (i *Interpreter) evalRaiseStatement(stmt *ast.RaiseStatement) Value {
 
 	// Create exception value
 	// Extract message from the object's Message field
+	// Task 3.5.40: Use GetField for proper normalization
 	message := ""
-	if msgVal, ok := obj.Fields["Message"]; ok {
+	if msgVal := obj.GetField("Message"); msgVal != nil {
 		if strVal, ok := msgVal.(*StringValue); ok {
 			message = strVal.Value
 		}

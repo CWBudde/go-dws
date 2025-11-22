@@ -124,31 +124,67 @@ func NewObjectInstance(class *ClassInfo) *ObjectInstance {
 
 // GetField retrieves the value of a field by name.
 // Returns nil if the field doesn't exist or hasn't been set.
+// Task 3.5.40: Uses ClassMetadata for AST-free field lookup.
+// During migration, falls back to legacy Fields map if metadata unavailable.
 func (o *ObjectInstance) GetField(name string) Value {
 	// Guard against nil class
 	if o.Class == nil {
 		return nil
 	}
 
-	// Check if field is defined in class
-	if _, exists := o.Class.Fields[name]; !exists {
-		// Field not defined in class
-		return nil
+	normalizedName := ident.Normalize(name)
+
+	// Try metadata first (AST-free path)
+	if o.Class.Metadata != nil && len(o.Class.Metadata.Fields) > 0 {
+		if _, exists := o.Class.Metadata.Fields[normalizedName]; !exists {
+			// Field not defined in metadata
+			return nil
+		}
+		// Return the field value (may be nil if not yet set)
+		return o.Fields[normalizedName]
 	}
 
-	// Return the field value (may be nil if not yet set)
-	return o.Fields[name]
+	// Legacy fallback: Check if field exists in ClassInfo.Fields
+	if _, exists := o.Class.Fields[normalizedName]; !exists {
+		// Also check non-normalized key for backward compatibility
+		if _, exists := o.Class.Fields[name]; !exists {
+			return nil
+		}
+		// Return field with original name key
+		return o.Fields[name]
+	}
+
+	// Return field with normalized name
+	return o.Fields[normalizedName]
 }
 
 // SetField sets the value of a field by name.
 // The field must be defined in the class's field map.
+// Task 3.5.40: Uses ClassMetadata for AST-free field lookup.
+// During migration, falls back to legacy Fields map if metadata unavailable.
 func (o *ObjectInstance) SetField(name string, value Value) {
 	// Guard against nil class
 	if o.Class == nil {
 		return
 	}
 
-	// Only set if field is defined in class
+	normalizedName := ident.Normalize(name)
+
+	// Try metadata first (AST-free path)
+	if o.Class.Metadata != nil && len(o.Class.Metadata.Fields) > 0 {
+		if _, exists := o.Class.Metadata.Fields[normalizedName]; exists {
+			o.Fields[normalizedName] = value
+		}
+		return
+	}
+
+	// Legacy fallback: Check if field exists in ClassInfo.Fields
+	if _, exists := o.Class.Fields[normalizedName]; exists {
+		o.Fields[normalizedName] = value
+		return
+	}
+
+	// Also check non-normalized key for backward compatibility
 	if _, exists := o.Class.Fields[name]; exists {
 		o.Fields[name] = value
 	}
@@ -165,17 +201,50 @@ func (o *ObjectInstance) SetField(name string, value Value) {
 //
 // Note: This performs static method resolution (not virtual dispatch).
 // Virtual dispatch is implemented inline in objects_methods.go where needed.
+//
+// Task 3.5.40: Uses ClassMetadata for method lookup (AST-free).
+// Returns AST node from metadata for backward compatibility during migration.
 func (o *ObjectInstance) GetMethod(name string) *ast.FunctionDecl {
+	if o.Class == nil {
+		return nil
+	}
 	return o.Class.lookupMethod(name)
 }
 
 // lookupMethod searches for a method in the class hierarchy.
 // It starts with the current class and walks up the parent chain.
 // Returns the first method found, or nil if not found.
+//
+// Task 3.5.40: Uses ClassMetadata for AST-free method lookup.
+// During migration, falls back to legacy Methods map if metadata is unavailable.
 func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
 	normalizedName := ident.Normalize(name)
 
-	// Check current class
+	// Task 3.5.40: Try metadata first (AST-free path)
+	if c.Metadata != nil {
+		if methodMeta, exists := c.Metadata.Methods[normalizedName]; exists {
+			// Extract AST node from metadata for backward compatibility
+			// During migration, MethodMetadata.Body is still ast.Statement
+			// We need to return the full FunctionDecl, so fall back to legacy for now
+			// TODO: After full migration, return callable instead of AST
+			if legacyMethod, legacyExists := c.Methods[normalizedName]; legacyExists {
+				return legacyMethod
+			}
+			// If metadata exists but legacy doesn't, we need to construct from metadata
+			// For now, this shouldn't happen during migration phase
+			_ = methodMeta // silence unused warning
+		}
+
+		// Check parent class metadata (recursive)
+		if c.Parent != nil {
+			return c.Parent.lookupMethod(name)
+		}
+
+		// Not found in metadata path
+		return nil
+	}
+
+	// Legacy fallback: Check current class
 	if method, exists := c.Methods[normalizedName]; exists {
 		return method
 	}
