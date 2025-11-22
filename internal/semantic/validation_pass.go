@@ -164,9 +164,10 @@ func (v *statementValidator) validateVarDecl(stmt *ast.VarDeclStatement) {
 		}
 	}
 
-	// If there's an initializer, check type compatibility
+	// If there's an initializer, check type compatibility with context-aware inference
 	if stmt.Value != nil {
-		valueType := v.checkExpression(stmt.Value)
+		// Pass expected type for context-aware type inference
+		valueType := v.checkExpressionWithExpectedType(stmt.Value, varType)
 		if varType != nil && valueType != nil {
 			if !v.typesCompatible(varType, valueType) {
 				v.ctx.AddError("cannot initialize variable of type %s with value of type %s",
@@ -197,8 +198,8 @@ func (v *statementValidator) validateAssignment(stmt *ast.AssignmentStatement) {
 		return // Error already reported
 	}
 
-	// Check value (right-hand side)
-	valueType := v.checkExpression(stmt.Value)
+	// Check value (right-hand side) with context-aware inference
+	valueType := v.checkExpressionWithExpectedType(stmt.Value, targetType)
 	if valueType == nil {
 		return // Error already reported
 	}
@@ -337,18 +338,21 @@ func (v *statementValidator) validateFunction(decl *ast.FunctionDecl) {
 
 // validateConstDecl validates a constant declaration
 func (v *statementValidator) validateConstDecl(stmt *ast.ConstDecl) {
-	// Type-check the initializer
+	// Resolve declared type if specified
+	var declaredType types.Type
+	if stmt.Type != nil {
+		declaredType = v.resolveTypeExpression(stmt.Type)
+	}
+
+	// Type-check the initializer with context-aware inference
 	if stmt.Value != nil {
-		valueType := v.checkExpression(stmt.Value)
+		valueType := v.checkExpressionWithExpectedType(stmt.Value, declaredType)
 
 		// If type is specified, validate compatibility
-		if stmt.Type != nil {
-			declaredType := v.resolveTypeExpression(stmt.Type)
-			if declaredType != nil && valueType != nil {
-				if !v.typesCompatible(declaredType, valueType) {
-					v.ctx.AddError("cannot initialize constant of type %s with value of type %s",
-						declaredType, valueType)
-				}
+		if declaredType != nil && valueType != nil {
+			if !v.typesCompatible(declaredType, valueType) {
+				v.ctx.AddError("cannot initialize constant of type %s with value of type %s",
+					declaredType, valueType)
 			}
 		}
 	}
@@ -693,6 +697,77 @@ func (v *statementValidator) checkExpression(expr ast.Expression) types.Type {
 		// Unknown expression type - log for debugging but don't error
 		// Some expression types may not need validation
 		return nil
+	}
+}
+
+// checkExpressionWithExpectedType type-checks an expression with optional expected type context.
+// This enables context-sensitive type inference for expressions that benefit from knowing
+// the expected type (e.g., lambda parameters, nil literals, record literals, integer→float).
+//
+// Context-aware analysis is used in:
+//   - Variable declarations: var x: T := <expr>  (expected type = T)
+//   - Assignments: x := <expr>                    (expected type = type of x)
+//   - Function arguments: f(<expr>)               (expected type = parameter type)
+//   - Return statements: return <expr>            (expected type = function return type)
+//
+// Parameters:
+//   - expr: The expression to analyze
+//   - expectedType: The expected type from context (may be nil if no context available)
+//
+// Returns:
+//   - The actual type of the expression, or nil if analysis failed
+func (v *statementValidator) checkExpressionWithExpectedType(expr ast.Expression, expectedType types.Type) types.Type {
+	if expr == nil {
+		return nil
+	}
+
+	// Handle expressions that benefit from expected type context
+	switch e := expr.(type) {
+	case *ast.NilLiteral:
+		// If expected type is a class, interface, or function pointer, return that type
+		// instead of generic NIL for better type specificity
+		if expectedType != nil {
+			underlyingType := types.GetUnderlyingType(expectedType)
+			typeKind := underlyingType.TypeKind()
+			if typeKind == "CLASS" || typeKind == "INTERFACE" || typeKind == "FUNCTION_POINTER" {
+				return expectedType
+			}
+		}
+		return types.NIL
+
+	case *ast.IntegerLiteral:
+		// If expected type is Float, treat integer literal as float for better compatibility
+		if expectedType != nil {
+			underlyingType := types.GetUnderlyingType(expectedType)
+			if underlyingType.TypeKind() == "FLOAT" {
+				return types.FLOAT
+			}
+		}
+		return types.INTEGER
+
+	case *ast.RecordLiteralExpression:
+		// Record literals can use expected type to validate fields
+		// TODO: Implement full record literal validation with expected type
+		return v.checkRecordLiteral(e)
+
+	case *ast.ArrayLiteralExpression:
+		// Array literals can infer element type from expected array type
+		// TODO: Implement array literal type inference with expected type
+		return v.checkArrayLiteral(e)
+
+	case *ast.SetLiteral:
+		// Set literals can infer element type from expected set type
+		// TODO: Implement set literal type inference with expected type
+		return v.checkSetLiteral(e)
+
+	case *ast.LambdaExpression:
+		// Lambda expressions can infer parameter types from expected function pointer type
+		// TODO: Implement lambda parameter type inference from expected type
+		return v.checkLambdaExpression(e)
+
+	default:
+		// For all other expression types, use regular type checking without context
+		return v.checkExpression(expr)
 	}
 }
 
