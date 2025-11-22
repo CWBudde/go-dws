@@ -401,6 +401,7 @@ Update project documentation to reflect centralized approach.
 
 - [ ] **13.4** Create architecture decision record
   - File: `docs/adr/003-case-insensitivity-centralization.md`
+  - Note: Create the `docs/adr/` directory first if it does not exist.
   - Document: Why `pkg/ident`, alternatives considered, migration rationale
 
 ---
