@@ -190,7 +190,6 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
   - **Runtime** (`runtime/`): Runtime value types
     - Integer, Float, String, Boolean, Array, Record, Class instance values
     - Environment/symbol table management
-  - Environment/symbol table management
   - Built-in function implementations
 
 - `internal/bytecode/` - Bytecode VM (5-6x faster than AST interpreter)
