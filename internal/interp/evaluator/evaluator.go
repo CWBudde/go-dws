@@ -527,6 +527,22 @@ type InterpreterAdapter interface {
 	// Panics if the value is not an ExternalVarValue (check with IsExternalVar first).
 	GetExternalVarName(value Value) string
 
+	// CreateLazyThunk creates a lazy parameter thunk from an unevaluated expression.
+	// Lazy parameters are re-evaluated each time they are accessed (Jensen's Device pattern).
+	// Parameters:
+	//   - expr: The AST expression to evaluate lazily
+	//   - env: The environment captured from the call site
+	// Returns the lazy thunk value.
+	CreateLazyThunk(expr ast.Expression, env any) Value
+
+	// CreateReferenceValue creates a var parameter reference.
+	// Var parameters allow pass-by-reference semantics.
+	// Parameters:
+	//   - varName: The name of the variable to reference
+	//   - env: The environment containing the variable
+	// Returns the reference value.
+	CreateReferenceValue(varName string, env any) Value
+
 	// ===== Task 3.5.22: Property & Method Reference Adapter Methods =====
 
 	// IsObjectInstance checks if a value is an ObjectInstance.
