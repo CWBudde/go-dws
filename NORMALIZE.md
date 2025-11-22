@@ -34,51 +34,61 @@ Enhanced `pkg/ident` package and established migration patterns.
 
 ---
 
-## Phase 3: Token & Lexer (Priority: HIGH)
+## Phase 3: Token & Lexer (Priority: HIGH) ✅ COMPLETED
 
-Already well-centralized, but verify completeness.
+Already well-centralized, verified completeness.
 
 ### Tasks
 
-- [ ] **3.1** Audit `pkg/token/token.go`
-  - Verify `LookupIdent()` is only case conversion point
-  - Confirm all keyword lookups use this function
+- [x] **3.1** Audit `pkg/token/token.go`
+  - Verified `LookupIdent()` is the only case conversion point (line 738)
+  - Confirmed all keyword lookups use this function
   - ✅ Status: Already centralized
 
-- [ ] **3.2** Audit `internal/lexer/lexer.go`
-  - Verify uses `token.LookupIdent()` consistently
-  - Line 1013 confirmed, check for any direct `strings.ToLower()`
+- [x] **3.2** Audit `internal/lexer/lexer.go`
+  - Verified uses `token.LookupIdent()` via alias (line 1013)
+  - No direct `strings.ToLower()` in main lexer code
+  - Only test files have `strings.ToLower()` for error message verification
   - ✅ Status: Already centralized
 
-- [ ] **3.3** Add tests for keyword case insensitivity
-  - Test all keywords in UPPER, lower, MixedCase
-  - Verify tokens are correctly identified
-  - Verify original casing in error messages
+- [x] **3.3** Add tests for keyword case insensitivity
+  - Created `pkg/token/case_insensitivity_test.go`:
+    - `TestAllKeywordsCaseInsensitivity`: Tests ALL keywords in lowercase, UPPERCASE, MixedCase, aLtErNaTiNg
+    - `TestOriginalCasingPreservedInTokenLiteral`: Verifies original casing preserved in token literals
+    - `TestKeywordIdentifierBoundary`: Tests edge cases between keywords and identifiers
+    - `TestIsKeywordCaseInsensitive`: Verifies IsKeyword function is case-insensitive
+    - `TestGetKeywordLiteralCaseInsensitive`: Verifies canonical form returned
+    - `TestTokenTypeConsistency`: Verifies consistent types across case variations
+  - Created `internal/lexer/case_insensitivity_test.go`:
+    - `TestLexerKeywordCaseInsensitivity`: Tests keywords through full lexer pipeline
+    - `TestLexerPreservesOriginalCasing`: Verifies lexer preserves original casing in literals
+    - `TestLexerMixedCaseProgram`: Tests realistic program with mixed case keywords
+    - `TestLexerKeywordIdentifierBoundary`: Tests boundary between keywords and identifiers
+    - `TestLexerMultipleKeywordsSameProgram`: Tests multiple case variations in one program
 
 ---
 
-## Phase 4: Symbol Table & Type Registry (Priority: HIGH)
+## Phase 4: Symbol Table & Type Registry (Priority: HIGH) ✅ COMPLETED
 
-Migrate core lookup infrastructure to `pkg/ident`.
+Migrated core lookup infrastructure to `pkg/ident`.
 
 ### Tasks
 
-- [ ] **4.1** Migrate `internal/semantic/symbol_table.go`
-  - Lines to change: 52, 62, 72, 83, 105, 529, 551, 567
-  - Replace: `strings.ToLower(name)` → `ident.Normalize(name)`
+- [x] **4.1** Migrate `internal/semantic/symbol_table.go`
+  - Replaced 8 occurrences of `strings.ToLower(name)` → `ident.Normalize(name)`
   - Pattern already correct: Stores original in `Symbol.Name` field ✅
-  - Run: `go test ./internal/semantic/... -v`
+  - All tests pass
 
-- [ ] **4.2** Migrate `internal/semantic/type_registry.go`
-  - Lines to change: 85, 110, 122, 308, 321
-  - Replace: `strings.ToLower(name)` → `ident.Normalize(name)`
-  - Verify original casing preserved in descriptors
-  - Run: `go test ./internal/semantic/... -v`
+- [x] **4.2** Migrate `internal/semantic/type_registry.go`
+  - Replaced 5 occurrences of `strings.ToLower(name)` → `ident.Normalize(name)`
+  - Original casing preserved in `TypeDescriptor.Name` ✅
+  - All tests pass
 
-- [ ] **4.3** Add explicit tests for case insensitivity
-  - Test symbol table: Define `MyVar`, lookup `myvar`, `MYVAR`, `MyVar`
-  - Test type registry: Register `MyType`, resolve `mytype`, `MYTYPE`
-  - Verify error messages use original casing
+- [x] **4.3** Add explicit tests for case insensitivity
+  - Added `TestSymbolTableOriginalCasingPreserved`: Tests lowercase, UPPERCASE, PascalCase, camelCase definitions
+  - Added `TestTypeRegistryOriginalCasingPreserved`: Tests various casing with descriptor lookup
+  - Added `TestCaseInsensitiveTypeAliases`: Tests type aliases with different case access
+  - All tests verify original casing is preserved for error messages
 
 ---
 

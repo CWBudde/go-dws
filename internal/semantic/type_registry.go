@@ -2,9 +2,9 @@ package semantic
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ident"
 	"github.com/cwbudde/go-dws/pkg/token"
 )
 
@@ -82,7 +82,7 @@ func (r *TypeRegistry) Register(name string, typ types.Type, pos token.Position,
 		return fmt.Errorf("cannot register nil type")
 	}
 
-	lowerName := strings.ToLower(name)
+	lowerName := ident.Normalize(name)
 
 	// Check for duplicates
 	if existing, exists := r.types[lowerName]; exists {
@@ -107,7 +107,7 @@ func (r *TypeRegistry) Register(name string, typ types.Type, pos token.Position,
 // Resolve looks up a type by name (case-insensitive).
 // Returns the type and true if found, nil and false otherwise.
 func (r *TypeRegistry) Resolve(name string) (types.Type, bool) {
-	lowerName := strings.ToLower(name)
+	lowerName := ident.Normalize(name)
 	descriptor, exists := r.types[lowerName]
 	if !exists {
 		return nil, false
@@ -119,7 +119,7 @@ func (r *TypeRegistry) Resolve(name string) (types.Type, bool) {
 // Returns the full descriptor and true if found, nil and false otherwise.
 // This is useful when you need position information or visibility.
 func (r *TypeRegistry) ResolveDescriptor(name string) (*TypeDescriptor, bool) {
-	lowerName := strings.ToLower(name)
+	lowerName := ident.Normalize(name)
 	descriptor, exists := r.types[lowerName]
 	return descriptor, exists
 }
@@ -305,7 +305,7 @@ func (r *TypeRegistry) Clear() {
 // Unregister removes a type from the registry.
 // Returns true if the type was found and removed, false otherwise.
 func (r *TypeRegistry) Unregister(name string) bool {
-	lowerName := strings.ToLower(name)
+	lowerName := ident.Normalize(name)
 	if _, exists := r.types[lowerName]; exists {
 		delete(r.types, lowerName)
 		// Invalidate kind index
@@ -318,7 +318,7 @@ func (r *TypeRegistry) Unregister(name string) bool {
 // Has checks if a type with the given name is registered (case-insensitive).
 // This is useful for checking existence without retrieving the type.
 func (r *TypeRegistry) Has(name string) bool {
-	lowerName := strings.ToLower(name)
+	lowerName := ident.Normalize(name)
 	_, exists := r.types[lowerName]
 	return exists
 }

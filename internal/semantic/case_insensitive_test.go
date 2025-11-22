@@ -6,6 +6,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // TestCaseInsensitiveVariables tests that variables can be accessed with different casing
@@ -320,5 +321,145 @@ end;`
 
 	if err != nil {
 		t.Errorf("class example should not have semantic errors, got: %v", err)
+	}
+}
+
+// TestSymbolTableOriginalCasingPreserved tests that the symbol table preserves
+// original casing in Symbol.Name for error messages
+func TestSymbolTableOriginalCasingPreserved(t *testing.T) {
+	tests := []struct {
+		name         string
+		definedName  string
+		lookupNames  []string
+		expectedName string // Original name should be preserved
+	}{
+		{
+			name:         "lowercase definition",
+			definedName:  "myvar",
+			lookupNames:  []string{"myvar", "MYVAR", "MyVar", "MyVaR"},
+			expectedName: "myvar",
+		},
+		{
+			name:         "UPPERCASE definition",
+			definedName:  "MYVAR",
+			lookupNames:  []string{"myvar", "MYVAR", "MyVar", "MyVaR"},
+			expectedName: "MYVAR",
+		},
+		{
+			name:         "PascalCase definition",
+			definedName:  "MyVariable",
+			lookupNames:  []string{"myvariable", "MYVARIABLE", "MyVariable", "myVARIABLE"},
+			expectedName: "MyVariable",
+		},
+		{
+			name:         "camelCase definition",
+			definedName:  "myVariable",
+			lookupNames:  []string{"myvariable", "MYVARIABLE", "MyVariable", "myVARIABLE"},
+			expectedName: "myVariable",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			st := NewSymbolTable()
+			st.Define(tt.definedName, types.INTEGER)
+
+			for _, lookup := range tt.lookupNames {
+				sym, ok := st.Resolve(lookup)
+				if !ok {
+					t.Errorf("Resolve(%q) failed to find symbol defined as %q", lookup, tt.definedName)
+					continue
+				}
+				if sym.Name != tt.expectedName {
+					t.Errorf("Resolve(%q) returned symbol with Name=%q, expected %q (original casing lost!)",
+						lookup, sym.Name, tt.expectedName)
+				}
+			}
+		})
+	}
+}
+
+// TestTypeRegistryOriginalCasingPreserved tests that the type registry preserves
+// original casing in TypeDescriptor.Name for error messages
+func TestTypeRegistryOriginalCasingPreserved(t *testing.T) {
+	tests := []struct {
+		name         string
+		definedName  string
+		lookupNames  []string
+		expectedName string
+	}{
+		{
+			name:         "PascalCase type",
+			definedName:  "TMyClass",
+			lookupNames:  []string{"tmyclass", "TMYCLASS", "TMyClass", "tMyClass"},
+			expectedName: "TMyClass",
+		},
+		{
+			name:         "UPPERCASE type",
+			definedName:  "MYTYPE",
+			lookupNames:  []string{"mytype", "MYTYPE", "MyType"},
+			expectedName: "MYTYPE",
+		},
+		{
+			name:         "lowercase type",
+			definedName:  "mytype",
+			lookupNames:  []string{"mytype", "MYTYPE", "MyType"},
+			expectedName: "mytype",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			registry := NewTypeRegistry()
+			intType := &types.IntegerType{}
+			if err := registry.Register(tt.definedName, intType, token.Position{Line: 1, Column: 1}, 0); err != nil {
+				t.Fatalf("Failed to register type: %v", err)
+			}
+
+			for _, lookup := range tt.lookupNames {
+				desc, ok := registry.ResolveDescriptor(lookup)
+				if !ok {
+					t.Errorf("ResolveDescriptor(%q) failed to find type defined as %q", lookup, tt.definedName)
+					continue
+				}
+				if desc.Name != tt.expectedName {
+					t.Errorf("ResolveDescriptor(%q) returned descriptor with Name=%q, expected %q (original casing lost!)",
+						lookup, desc.Name, tt.expectedName)
+				}
+			}
+		})
+	}
+}
+
+// TestCaseInsensitiveTypeAliases tests that type aliases work with case insensitivity
+func TestCaseInsensitiveTypeAliases(t *testing.T) {
+	input := `type
+	MyInteger = Integer;
+	MyStr = String;
+var
+	x: myinteger;
+	y: MYINTEGER;
+	z: MyInteger;
+	s: mystr;
+begin
+	x := 10;
+	y := 20;
+	z := 30;
+	s := 'hello';
+end;`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err != nil {
+		t.Errorf("type alias case insensitivity should work, got: %v", err)
 	}
 }
