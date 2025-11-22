@@ -351,6 +351,8 @@ func (w *declarationWalker) registerFunctionDecl(decl *ast.FunctionDecl) {
 		// Handle forward declarations
 		if existing.IsForward && decl.Body != nil {
 			// This is the implementation of a forward-declared function
+			// Clear the forward flag so Pass 2 doesn't report it as unimplemented
+			existing.IsForward = false
 			// We'll validate and complete it in Pass 2
 			return
 		}

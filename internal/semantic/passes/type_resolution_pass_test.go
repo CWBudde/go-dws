@@ -160,7 +160,8 @@ func TestTypeResolutionPass_ForwardDeclarationValidation(t *testing.T) {
 
 	foundForward := false
 	for _, errMsg := range ctx.Errors {
-		if contains(errMsg, "forward-declared") && contains(errMsg, "TForward") {
+		// Check for DWScript format: Class "TForward" isn't defined completely
+		if (contains(errMsg, "forward-declared") || contains(errMsg, "isn't defined completely")) && contains(errMsg, "TForward") {
 			foundForward = true
 			break
 		}

@@ -288,12 +288,113 @@ func (r *typeResolver) resolveMethodSignatures() {
 func (r *typeResolver) validateForwardDeclarations() {
 	allTypes := r.ctx.TypeRegistry.AllDescriptors()
 
+	// Validate forward-declared classes have implementations
 	for _, desc := range allTypes {
 		if classType, ok := desc.Type.(*types.ClassType); ok {
 			if classType.IsForward {
-				r.ctx.AddError("forward-declared class '%s' at %s has no implementation",
-					classType.Name, desc.Position)
+				// Use DWScript format: Class "Name" isn't defined completely
+				r.ctx.AddError("Class \"%s\" isn't defined completely", classType.Name)
 			}
 		}
 	}
+
+	// Validate forward-declared methods have implementations
+	r.validateMethodImplementations()
+
+	// Validate forward-declared functions have implementations
+	r.validateFunctionImplementations()
+}
+
+// validateMethodImplementations checks that all forward-declared methods have implementations
+// Migrated from analyzer.go:validateMethodImplementations() for Task 6.1.2
+func (r *typeResolver) validateMethodImplementations() {
+	// Iterate through all classes
+	classNames := r.ctx.TypeRegistry.TypesByKind("CLASS")
+	for _, className := range classNames {
+		typ, ok := r.ctx.TypeRegistry.Resolve(className)
+		if !ok {
+			continue
+		}
+		classType, ok := typ.(*types.ClassType)
+		if !ok {
+			continue
+		}
+
+		// Check each method and constructor in ForwardedMethods
+		for methodName, isForwarded := range classType.ForwardedMethods {
+			if !isForwarded {
+				continue
+			}
+
+			// Skip abstract methods - they don't need implementations
+			if classType.AbstractMethods[methodName] {
+				continue
+			}
+
+			// Skip external methods - they are implemented externally
+			if classType.IsExternal {
+				continue
+			}
+
+			// Determine if this is a constructor or regular method
+			isConstructor := len(classType.ConstructorOverloads[methodName]) > 0
+
+			// This method/constructor was declared but never implemented
+			// Use classType.Name to preserve original case in error messages
+			if isConstructor {
+				r.ctx.AddError("constructor '%s.%s' declared but not implemented",
+					classType.Name, methodName)
+			} else {
+				r.ctx.AddError("method '%s.%s' declared but not implemented",
+					classType.Name, methodName)
+			}
+		}
+	}
+}
+
+// validateFunctionImplementations checks that all forward-declared functions have implementations
+// Migrated from analyzer.go:validateFunctionImplementations() for Task 6.1.2
+func (r *typeResolver) validateFunctionImplementations() {
+	// Walk through all symbols in the global scope
+	r.validateFunctionImplementationsInScope(r.ctx.Symbols)
+}
+
+// validateFunctionImplementationsInScope checks all function symbols in a scope for unimplemented forward declarations
+func (r *typeResolver) validateFunctionImplementationsInScope(scope *SymbolTable) {
+	if scope == nil {
+		return
+	}
+
+	// Check all symbols in this scope
+	for _, symbol := range scope.symbols {
+		// Check overload sets first (their Type is nil, so must check before type assertion)
+		if symbol.IsOverloadSet {
+			for _, overload := range symbol.Overloads {
+				if overload.IsForward {
+					// Format error message to match DWScript
+					// DWScript uses "function" for both functions and procedures
+					r.ctx.AddError("Syntax Error: The function \"%s\" was forward declared but not implemented",
+						overload.Name)
+				}
+			}
+			continue // Skip to next symbol (overload sets don't have individual Type)
+		}
+
+		// Check non-overload functions
+		_, ok := symbol.Type.(*types.FunctionType)
+		if !ok {
+			continue // Not a function
+		}
+
+		// Check if this is a non-overloaded forward function
+		if symbol.IsForward {
+			// Format error message to match DWScript
+			// DWScript uses "function" for both functions and procedures
+			r.ctx.AddError("Syntax Error: The function \"%s\" was forward declared but not implemented",
+				symbol.Name)
+		}
+	}
+
+	// Note: Forward declarations only exist at global scope in DWScript,
+	// so no need to traverse parent scopes (scope.outer)
 }
