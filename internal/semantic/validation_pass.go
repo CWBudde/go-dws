@@ -690,7 +690,7 @@ func (v *statementValidator) checkExpression(expr ast.Expression) types.Type {
 	case *ast.AddressOfExpression:
 		return v.checkAddressOfExpression(e)
 	case *ast.LambdaExpression:
-		return v.checkLambdaExpression(e)
+		return v.checkLambdaExpression(e, nil)
 	case *ast.OldExpression:
 		return v.checkOldExpression(e)
 	default:
@@ -759,8 +759,7 @@ func (v *statementValidator) checkExpressionWithExpectedType(expr ast.Expression
 
 	case *ast.LambdaExpression:
 		// Lambda expressions can infer parameter types from expected function pointer type
-		// TODO: Implement lambda parameter type inference from expected type
-		return v.checkLambdaExpression(e)
+		return v.checkLambdaExpression(e, expectedType)
 
 	default:
 		// For all other expression types, use regular type checking without context
@@ -1708,7 +1707,40 @@ func (v *statementValidator) checkAddressOfExpression(expr *ast.AddressOfExpress
 }
 
 // checkLambdaExpression checks a lambda expression
-func (v *statementValidator) checkLambdaExpression(expr *ast.LambdaExpression) types.Type {
+func (v *statementValidator) checkLambdaExpression(expr *ast.LambdaExpression, expectedType types.Type) types.Type {
+	if expr == nil {
+		return nil
+	}
+
+	// If expectedType is provided and is a function pointer, use it for validation
+	var expectedFuncType *types.FunctionPointerType
+	if expectedType != nil {
+		underlyingType := types.GetUnderlyingType(expectedType)
+		if funcPtrType, ok := underlyingType.(*types.FunctionPointerType); ok {
+			expectedFuncType = funcPtrType
+		}
+	}
+
+	// If we have expected function type, validate parameter count
+	if expectedFuncType != nil {
+		if len(expr.Parameters) != len(expectedFuncType.Parameters) {
+			v.ctx.AddError("lambda has %d parameter(s) but expected function type has %d parameter(s)",
+				len(expr.Parameters), len(expectedFuncType.Parameters))
+			return nil
+		}
+	}
+
+	// Check for duplicate parameter names
+	paramNames := make(map[string]bool)
+	for _, param := range expr.Parameters {
+		paramName := strings.ToLower(param.Name.Value)
+		if paramNames[paramName] {
+			v.ctx.AddError("duplicate parameter name '%s' in lambda", param.Name.Value)
+			return nil
+		}
+		paramNames[paramName] = true
+	}
+
 	// Mark that we're in a lambda
 	oldInLambda := v.ctx.InLambda
 	v.ctx.InLambda = true
@@ -1719,7 +1751,13 @@ func (v *statementValidator) checkLambdaExpression(expr *ast.LambdaExpression) t
 		v.validateStatement(expr.Body)
 	}
 
-	// TODO: Return function pointer type
+	// If expected type is available, return it for better type checking
+	if expectedFuncType != nil {
+		return expectedFuncType
+	}
+
+	// Otherwise return nil (full lambda type inference requires symbol table access)
+	// This will be handled by the old analyzer until fully migrated
 	return nil
 }
 
