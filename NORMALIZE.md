@@ -180,35 +180,44 @@ Migrate interpreter, which has partial adoption.
 
 ### Tasks
 
-- [ ] **7.1** ✅ SKIP: `internal/interp/environment.go`
+- [x] **7.1** ✅ VERIFIED: `internal/interp/environment.go`
   - Already uses `ident.Normalize()` at lines 66, 91, 118, 134
-  - Verify: No additional migrations needed
+  - Verified: No `strings.ToLower()` or `strings.EqualFold()` present
+  - Status: Fully migrated, no additional changes needed
 
-- [ ] **7.2** ✅ SKIP: `internal/interp/builtins/registry.go`
-  - Already uses `ident.Normalize()` at lines 137, 150, 165
-  - Verify: No additional migrations needed
+- [x] **7.2** ✅ VERIFIED: `internal/interp/builtins/registry.go`
+  - Already uses `ident.Normalize()` at lines 90, 137, 150, 165, 234
+  - Verified: No `strings.ToLower()` or `strings.EqualFold()` present
+  - Status: Fully migrated, no additional changes needed
 
-- [ ] **7.3** Migrate `internal/interp/interpreter.go`
-  - ~20+ locations: lines 300, 312, 322, 329, 341, 351, 358, 370, 380, 389, 404, 425, 511, 580, 588, 596
-  - Replace: `strings.ToLower()` → `ident.Normalize()`
-  - Focus: Class, record, enum name lookups
+- [x] **7.3** Migrate `internal/interp/interpreter.go`
+  - Migrated 51 occurrences of `strings.ToLower()` → `ident.Normalize()`
+  - Migrated 2 occurrences of `strings.EqualFold()` → `ident.Equal()`
+  - Migrated 1 occurrence of `strings.HasPrefix()` → `ident.HasPrefix()`
+  - Removed unused `strings` import
+  - All tests pass (pre-existing interface test failures unchanged)
 
-- [ ] **7.4** Migrate `internal/interp/class.go`
-  - Line: 157 - `lookupMethod()` function
-  - Replace: `strings.ToLower()` → `ident.Normalize()`
+- [x] **7.4** Migrate `internal/interp/class.go`
+  - Migrated 2 occurrences of `strings.ToLower()` → `ident.Normalize()`
+  - Migrated 5 occurrences of `strings.EqualFold()` → `ident.Equal()`
+  - Removed unused `strings` import
 
-- [ ] **7.5** Migrate `internal/interp/interface.go`
-  - Line: 38 - `GetMethod()` function
-  - Replace: `strings.ToLower()` → `ident.Normalize()`
+- [x] **7.5** Migrate `internal/interp/interface.go`
+  - Migrated 3 occurrences of `strings.ToLower()` → `ident.Normalize()`
+  - Migrated 1 occurrence of `strings.EqualFold()` → `ident.Equal()`
+  - Removed unused `strings` import
 
-- [ ] **7.6** Migrate `internal/interp/objects_hierarchy.go`
-  - Line: 130 (covered in Phase 1 bug fix)
-  - Verify: No additional migrations needed after Phase 1
+- [x] **7.6** Migrate `internal/interp/objects_hierarchy.go`
+  - Migrated 12 occurrences of `strings.ToLower()` → `pkgident.Normalize()`
+  - Migrated 13 occurrences of `strings.EqualFold()` → `pkgident.Equal()`
+  - Used `pkgident` alias to avoid conflict with local `ident` variable
+  - Removed unused `strings` import
 
-- [ ] **7.7** Run interpreter tests
-  - Run: `go test ./internal/interp/... -v`
-  - Run: `go test -v ./internal/interp -run TestDWScriptFixtures`
-  - Verify: No regressions in fixture tests
+- [x] **7.7** Run interpreter tests
+  - Ran: `go test ./internal/interp/... -count=1`
+  - Results: All sub-packages pass (builtins, errors, evaluator, runtime, types)
+  - Verified: No regressions from migration (same 26 passed, 6 failed as before)
+  - Note: Pre-existing interface test failures are unrelated to this migration
 
 ---
 

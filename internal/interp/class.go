@@ -2,10 +2,10 @@ package interp
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // VirtualMethodEntry tracks virtual method dispatch information.
@@ -154,7 +154,7 @@ func (o *ObjectInstance) GetMethod(name string) *ast.FunctionDecl {
 // It starts with the current class and walks up the parent chain.
 // Returns the first method found, or nil if not found.
 func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
-	normalizedName := strings.ToLower(name)
+	normalizedName := ident.Normalize(name)
 
 	// Check current class
 	if method, exists := c.Methods[normalizedName]; exists {
@@ -179,7 +179,7 @@ func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
 func (c *ClassInfo) lookupProperty(name string) *types.PropertyInfo {
 	// Check current class with case-insensitive match
 	for propName, prop := range c.Properties {
-		if strings.EqualFold(propName, name) {
+		if ident.Equal(propName, name) {
 			return prop
 		}
 	}
@@ -199,7 +199,7 @@ func (c *ClassInfo) lookupProperty(name string) *types.PropertyInfo {
 func (c *ClassInfo) lookupConstant(name string) (*ast.ConstDecl, *ClassInfo) {
 	// Check current class with case-insensitive match
 	for constName, constDecl := range c.Constants {
-		if strings.EqualFold(constName, name) {
+		if ident.Equal(constName, name) {
 			return constDecl, c
 		}
 	}
@@ -219,7 +219,7 @@ func (c *ClassInfo) lookupConstant(name string) (*ast.ConstDecl, *ClassInfo) {
 func (c *ClassInfo) lookupClassVar(name string) (Value, *ClassInfo) {
 	// Check current class with case-insensitive match
 	for varName, value := range c.ClassVars {
-		if strings.EqualFold(varName, name) {
+		if ident.Equal(varName, name) {
 			return value, c
 		}
 	}
@@ -275,13 +275,13 @@ func (c *ClassInfo) HasConstructor(name string) bool {
 	}
 	// Case-insensitive search through constructors
 	for ctorName := range c.Constructors {
-		if strings.EqualFold(ctorName, name) {
+		if ident.Equal(ctorName, name) {
 			return true
 		}
 	}
 	// Also check constructor overloads (case-insensitive)
 	for ctorName, overloads := range c.ConstructorOverloads {
-		if strings.EqualFold(ctorName, name) && len(overloads) > 0 {
+		if ident.Equal(ctorName, name) && len(overloads) > 0 {
 			return true
 		}
 	}
@@ -519,7 +519,7 @@ func (c *ClassInfo) buildVirtualMethodTable() {
 // methodSignature generates a signature string for a method.
 // The signature includes the method name and parameter types to support overloading.
 func methodSignature(method *ast.FunctionDecl) string {
-	sig := strings.ToLower(method.Name.Value)
+	sig := ident.Normalize(method.Name.Value)
 
 	// For now, use a simple signature that includes parameter count
 	// In a full implementation, we'd include parameter types
