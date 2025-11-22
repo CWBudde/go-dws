@@ -1623,9 +1623,14 @@ func (i *Interpreter) CreateMethodPointer(objVal evaluator.Value, methodName str
 	}
 
 	// Convert closure to Environment
+	// Handle both direct *Environment and *EnvironmentAdapter (from evaluator)
 	var env *Environment
 	if closure != nil {
-		env = closure.(*Environment)
+		if adapter, ok := closure.(*evaluator.EnvironmentAdapter); ok {
+			env = adapter.Underlying().(*Environment)
+		} else if envVal, ok := closure.(*Environment); ok {
+			env = envVal
+		}
 	}
 
 	// Build parameter types for the function pointer type
@@ -1633,6 +1638,8 @@ func (i *Interpreter) CreateMethodPointer(objVal evaluator.Value, methodName str
 	for idx, param := range method.Parameters {
 		if param.Type != nil {
 			paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
+		} else {
+			paramTypes[idx] = &types.IntegerType{} // Default fallback
 		}
 	}
 
@@ -1664,9 +1671,14 @@ func (i *Interpreter) CreateFunctionPointerFromName(funcName string, closure any
 	function := overloads[0]
 
 	// Convert closure to Environment
+	// Handle both direct *Environment and *EnvironmentAdapter (from evaluator)
 	var env *Environment
 	if closure != nil {
-		env = closure.(*Environment)
+		if adapter, ok := closure.(*evaluator.EnvironmentAdapter); ok {
+			env = adapter.Underlying().(*Environment)
+		} else if envVal, ok := closure.(*Environment); ok {
+			env = envVal
+		}
 	}
 
 	// Build parameter types for the function pointer type
