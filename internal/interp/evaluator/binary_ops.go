@@ -487,10 +487,12 @@ func (e *Evaluator) evalEnumBinaryOp(op string, left, right Value, node ast.Node
 
 // evalEqualityComparison handles = and <> operators for complex types.
 // Supports: nil, objects, interfaces, classes, RTTI, sets, arrays, records.
+// Task 3.5.19: Delegates array and set comparisons to adapter.
 func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node ast.Node) Value {
 	// This handles object/interface/class/RTTI/set/array/record comparisons
 	// Task 3.5.19 (PR #219 fix): Use adapter method that accepts pre-evaluated values
 	// to prevent double-evaluation of operands with side effects
+	// Arrays and sets are compared by value (element-by-element) in the Interpreter
 	return e.adapter.EvalEqualityComparison(op, left, right, node)
 }
 
@@ -520,6 +522,19 @@ func (e *Evaluator) evalInOperator(value, container Value, node ast.Node) Value 
 	// Task 3.5.19 (PR #219 fix): Use adapter method that accepts pre-evaluated values
 	// to prevent double-evaluation of operands with side effects
 	return e.adapter.EvalInOperator(value, container, node)
+}
+
+// evalSetBinaryOp evaluates binary operations on sets.
+// Supports: + (union), - (difference), * (intersection).
+// Task 3.5.19: Delegate to adapter for SetValue operations.
+func (e *Evaluator) evalSetBinaryOp(op string, left, right Value, node ast.Node) Value {
+	// Set operations are complex and require access to:
+	// - SetValue type and its storage backends (bitmask vs map)
+	// - SetType information for type checking
+	// - evalBinarySetOperation in interpreter
+	// These are in interp package and haven't been migrated yet
+	// Delegate to adapter which will call the Interpreter's evalBinarySetOperation
+	return e.adapter.EvalNode(node)
 }
 
 // evalVariantBinaryOp handles binary operations with Variant operands.

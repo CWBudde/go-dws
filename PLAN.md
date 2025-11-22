@@ -294,11 +294,14 @@ If conditional compilation features are added in the future, they would require:
   - Files: `internal/interp/evaluator/binary_ops.go`, `internal/interp/evaluator/enum_ops_test.go`
   - Effort: 4-5 hours
 
-- [ ] **3.5.19** Complete Binary Operators - Collections
+- [x] **3.5.19** Complete Binary Operators - Collections
   - Set operations: `in` operator, union (+), difference (-), intersection (*)
   - Array comparisons (=, <>)
   - Delegate to adapter for SetValue/ArrayValue operations
-  - Files: `binary_ops.go`
+  - Added `evalSetBinaryOp` method for set union/difference/intersection
+  - Verified `evalInOperator` delegates for set/array membership testing
+  - Verified `evalEqualityComparison` delegates for array/set comparisons
+  - Files: `internal/interp/evaluator/binary_ops.go`
   - Effort: 5-6 hours
 
 - [ ] **3.5.20** Complete Binary Operators - OOP & Operator Overloading
