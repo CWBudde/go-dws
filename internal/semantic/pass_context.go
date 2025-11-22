@@ -111,6 +111,9 @@ type PassContext struct {
 	// InLoop indicates if we're inside any loop construct
 	InLoop bool
 
+	// CurrentForLoopVar tracks the current for loop variable name (for validation)
+	CurrentForLoopVar string
+
 	// InLambda indicates if we're inside a lambda/anonymous function
 	InLambda bool
 

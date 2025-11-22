@@ -480,6 +480,13 @@ func (v *statementValidator) validateFor(stmt *ast.ForStatement) {
 		}
 	}
 
+	// Set the for loop variable context
+	oldForLoopVar := v.ctx.CurrentForLoopVar
+	if stmt.Variable != nil {
+		v.ctx.CurrentForLoopVar = stmt.Variable.Value
+	}
+	defer func() { v.ctx.CurrentForLoopVar = oldForLoopVar }()
+
 	// Validate body with loop context
 	v.ctx.LoopDepth++
 	v.ctx.InLoop = true
@@ -694,6 +701,13 @@ func (v *statementValidator) validateForIn(stmt *ast.ForInStatement) {
 		// TODO: Validate collection is iterable (array, set, string)
 		_ = collectionType
 	}
+
+	// Set the for loop variable context
+	oldForLoopVar := v.ctx.CurrentForLoopVar
+	if stmt.Variable != nil {
+		v.ctx.CurrentForLoopVar = stmt.Variable.Value
+	}
+	defer func() { v.ctx.CurrentForLoopVar = oldForLoopVar }()
 
 	// Validate body with loop context
 	v.ctx.LoopDepth++
@@ -1099,6 +1113,14 @@ func (v *statementValidator) checkIdentifier(expr *ast.Identifier) types.Type {
 		// If not in a function or function has no return type, fall through to normal resolution
 	}
 
+	// Check if it's the current for loop variable
+	if v.ctx.CurrentForLoopVar != "" {
+		if strings.EqualFold(expr.Value, v.ctx.CurrentForLoopVar) {
+			// For loop variables are always Integer in DWScript
+			return types.INTEGER
+		}
+	}
+
 	// Try to resolve in symbol table
 	if v.ctx.Symbols == nil {
 		return nil // Defensive check
@@ -1167,7 +1189,25 @@ func (v *statementValidator) checkBinaryExpression(expr *ast.BinaryExpression) t
 
 	// Check operator compatibility
 	switch expr.Operator {
-	case "+", "-", "*", "/":
+	case "+":
+		// + can be used for string concatenation or numeric addition
+		if v.isString(leftType) || v.isString(rightType) {
+			// String concatenation - both operands should be strings (or convertible to string)
+			return types.STRING
+		}
+		// Numeric addition
+		if !v.isNumeric(leftType) || !v.isNumeric(rightType) {
+			v.ctx.AddError("operator + requires numeric or string types, got %s and %s",
+				leftType, rightType)
+			return nil
+		}
+		// Result type is the "wider" of the two operands
+		if v.isFloat(leftType) || v.isFloat(rightType) {
+			return types.FLOAT
+		}
+		return types.INTEGER
+
+	case "-", "*", "/":
 		// Arithmetic operators require numeric types
 		if !v.isNumeric(leftType) || !v.isNumeric(rightType) {
 			v.ctx.AddError("operator %s requires numeric types, got %s and %s",
@@ -1180,8 +1220,22 @@ func (v *statementValidator) checkBinaryExpression(expr *ast.BinaryExpression) t
 		}
 		return types.INTEGER
 
+	case "div", "mod":
+		// Integer division and modulo require integer types
+		if !v.isInteger(leftType) || !v.isInteger(rightType) {
+			v.ctx.AddError("operator %s requires integer types, got %s and %s",
+				expr.Operator, leftType, rightType)
+			return nil
+		}
+		return types.INTEGER
+
 	case "=", "<>", "<", "<=", ">", ">=":
 		// Comparison operators return boolean
+		// Allow numeric types to be compared with each other (Integer vs Float)
+		if v.isNumeric(leftType) && v.isNumeric(rightType) {
+			return types.BOOLEAN
+		}
+		// For non-numeric types, require compatibility
 		if !v.typesCompatible(leftType, rightType) {
 			v.ctx.AddError("cannot compare %s with %s", leftType, rightType)
 		}
@@ -1629,6 +1683,12 @@ func (v *statementValidator) isFloat(t types.Type) bool {
 // isBoolean checks if a type is Boolean
 func (v *statementValidator) isBoolean(t types.Type) bool {
 	_, ok := t.(*types.BooleanType)
+	return ok
+}
+
+// isString checks if a type is String
+func (v *statementValidator) isString(t types.Type) bool {
+	_, ok := t.(*types.StringType)
 	return ok
 }
 
