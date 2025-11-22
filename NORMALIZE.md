@@ -29,10 +29,13 @@ Enhance `pkg/ident` package and establish migration patterns.
 
 ### Tasks
 
-- [ ] **2.1** Review and enhance `pkg/ident` API if needed
-  - Current functions: `Normalize()`, `Equal()`, `Compare()`
-  - Consider adding: `NormalizeMap()` helper for creating case-insensitive maps
-  - Document best practices in `pkg/ident/doc.go`
+- [x] **2.1** Review and enhance `pkg/ident` API if needed
+  - Current functions: `Normalize()`, `Equal()`, `Compare()`, `Contains()`, `Index()`, `IsKeyword()`
+  - Added: `HasPrefix()` and `HasSuffix()` for case-insensitive prefix/suffix matching
+  - Documented best practices in `pkg/ident/doc.go` including:
+    - Pattern 6: Prefix/Suffix Matching
+    - "When NOT to Use This Package" section
+    - Updated migration examples with HasPrefix
 
 - [ ] **2.2** Create migration guide document
   - File: `docs/ident-migration-guide.md`

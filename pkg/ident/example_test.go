@@ -190,3 +190,53 @@ func Example_migration() {
 	// true
 	// Matched
 }
+
+// This example shows how to use HasPrefix for case-insensitive prefix matching.
+func ExampleHasPrefix() {
+	// Check if a type name starts with "Array" (case-insensitive)
+	typeName := "ArrayOfInteger"
+
+	if ident.HasPrefix(typeName, "array") {
+		fmt.Println("Is an array type")
+	}
+
+	// Works with any case variation
+	if ident.HasPrefix("ARRAYLIST", "Array") {
+		fmt.Println("Also matches uppercase")
+	}
+
+	// No match when prefix is not present
+	if !ident.HasPrefix("Integer", "Array") {
+		fmt.Println("Integer is not an array")
+	}
+
+	// Output:
+	// Is an array type
+	// Also matches uppercase
+	// Integer is not an array
+}
+
+// This example shows how to use HasSuffix for case-insensitive suffix matching.
+func ExampleHasSuffix() {
+	// Check if a type name ends with "Type" (case-insensitive)
+	typeName := "MyCustomType"
+
+	if ident.HasSuffix(typeName, "type") {
+		fmt.Println("Is a type alias")
+	}
+
+	// Works with any case variation
+	if ident.HasSuffix("MYTYPE", "Type") {
+		fmt.Println("Also matches uppercase")
+	}
+
+	// No match when suffix is not present
+	if !ident.HasSuffix("Integer", "Type") {
+		fmt.Println("Integer doesn't end with Type")
+	}
+
+	// Output:
+	// Is a type alias
+	// Also matches uppercase
+	// Integer doesn't end with Type
+}
