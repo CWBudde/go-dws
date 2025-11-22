@@ -436,10 +436,146 @@ Final cleanup and verification.
 
 ### Tasks
 
-- [ ] **14.1** Search for any remaining direct case conversion
+- [x] **14.1** Search for any remaining direct case conversion
   - Command: `grep -r "strings.ToLower" --include="*.go" | grep -v "pkg/ident"`
   - Command: `grep -r "strings.EqualFold" --include="*.go" | grep -v "pkg/ident"`
   - Investigate: Each occurrence for legitimacy
+  - **Results**: Found ~160 `strings.ToLower` and ~55 `strings.EqualFold` occurrences
+  - See subtasks below for categorized migration plan
+
+#### Legitimate Exceptions (DO NOT MIGRATE)
+
+The following uses of `strings.ToLower()`/`strings.EqualFold()` are legitimate and should NOT be migrated:
+
+1. **pkg/token/token.go** (3 occurrences) - Foundation of case-insensitive keyword lookup
+   - `LookupIdent()`, `IsKeyword()`, `GetKeywordLiteral()` - canonical implementation
+
+2. **pkg/ident/*.go** - Implementation of the ident package itself
+
+3. **Builtin string functions** (actual DWScript runtime functions):
+   - `internal/bytecode/vm_builtins_string.go:1052,1067-1068,1111-1112,1304-1305,1387` - SameText, CompareText, AnsiCompareText, AnsiPos, LowerCase
+   - `internal/interp/builtins_strings_basic.go:109,735` - LowerCase, StrToBool parsing
+   - `internal/interp/builtins_strings_compare.go:35` - SameText
+   - `internal/interp/builtins/strings_compare.go:41` - SameText
+   - `internal/interp/helpers_conversion.go:276` - LowerCase implementation
+   - `internal/interp/runtime/helpers.go:348` - StringEqualsInsensitive runtime helper
+
+4. **Test files** (error message checking, not identifier handling):
+   - `cmd/dwscript/math_functions_test.go:140`
+   - `cmd/dwscript/exception_cli_test.go:248`
+   - `internal/parser/error_recovery_test.go:751,1071,1087`
+   - `internal/lexer/lexer_errors_test.go:295,383`
+   - `internal/lexer/token_test.go:412`
+   - `internal/semantic/analyze_builtin_convert_coverage_test.go:32`
+   - `internal/semantic/control_flow_test.go:595`
+   - `internal/semantic/analyzer_test.go:65,66,79`
+   - `internal/semantic/subrange_test.go:79`
+   - `internal/interp/interpreter_basic_test.go:511`
+   - `internal/interp/type_assertion_test.go:76`
+   - `internal/interp/operator_test.go:96`
+   - `internal/interp/interface_integration_test.go:296,429`
+   - `internal/interp/interface_edge_test.go:92,132,152`
+   - `internal/bytecode/compiler_coverage_test.go:763,764`
+   - `pkg/dwscript/error_format_test.go:78`
+
+5. **FFI/Examples** (actual function registration):
+   - `examples/ffi/main.go:86` - example code
+   - `pkg/dwscript/ffi_integration_test.go:22,127` - FFI tests
+
+6. **Non-identifier uses**:
+   - `cmd/dwscript/cmd/fmt.go:109` - format style command-line option
+   - `internal/bytecode/vm_builtins_conversion.go:214` - StrToBool user input parsing
+
+#### Migration Subtasks
+
+- [ ] **14.1.1** Migrate `internal/units/` package (5 occurrences)
+  - `unit.go:78,84,86` - unit name normalization in `GetNormalizedName()`, `IsDependency()`
+  - `search.go:72,85` - unit search capitalization/lowercase
+
+- [ ] **14.1.2** Migrate `internal/types/helper.go` (9 occurrences)
+  - Lines: 51,63,98,112,133,163,193,223
+  - Helper type lookups: `helpersByName`, method/property/var/const lookups
+
+- [ ] **14.1.3** Migrate `internal/semantic/validation_pass.go` (13 occurrences)
+  - Lines: 839,879,1247,1738,2093,2141,2175,2212,2232,2324,2340,2356
+  - Method, field, property, type name validations
+
+- [ ] **14.1.4** Migrate `internal/semantic/analyze_*.go` files (22 occurrences total)
+  - `analyze_method_calls.go:21,297` (2)
+  - `analyze_properties.go:144,177,192,196,205,323,333,357,361,370` (10)
+  - `analyze_classes_inheritance.go:54,104,164` (3)
+  - `analyze_types.go:323,363,400,627,722` (5)
+  - `analyze_classes_validation.go:136` (1)
+  - `analyze_builtin_convert.go:353` (1)
+  - `analyze_interfaces.go:91,151` (2)
+  - `analyze_builtins.go:35` (1)
+  - `analyze_builtin_array.go:246` (1)
+
+- [ ] **14.1.5** Migrate `internal/semantic/contract_pass.go` (4 EqualFold occurrences)
+  - Lines: 279,289,474,483
+  - Field, constant, parameter lookups
+
+- [ ] **14.1.6** Migrate `internal/bytecode/compiler_expressions.go` (9 occurrences)
+  - ToLower: 210,462,466,523,734,872
+  - EqualFold: 80,96,117
+  - Identifier and type handling
+
+- [ ] **14.1.7** Migrate `internal/bytecode/vm_calls.go` (1 occurrence)
+  - Line: 181 - method name lookup
+
+- [ ] **14.1.8** Migrate `internal/interp/types/type_system.go` (17 occurrences)
+  - Lines: 145,151,157,175,181,187,258,265,270,299,312,318,331,337,350,393,412
+  - Record, interface, helper, class, enum type ID lookups
+
+- [ ] **14.1.9** Migrate `internal/interp/record.go` (20 occurrences)
+  - Lines: 20,75,91,108,136,142,165,185,232,242,304,322,348,368,425
+  - Record field, method, constant, class var lookups
+
+- [ ] **14.1.10** Migrate `internal/interp/statements_declarations.go` (17 occurrences)
+  - ToLower: 99,128,188,199,209,222,231,246,274,339,347,355,366,374,389,416
+  - EqualFold: 161
+  - Variable declaration type resolution
+
+- [ ] **14.1.11** Migrate `internal/interp/objects_methods.go` (12 occurrences)
+  - ToLower: 276,280,439,517
+  - EqualFold: 41,554,699,1056,1073,1081
+  - Method and constructor lookups
+
+- [ ] **14.1.12** Migrate `internal/interp/expressions_complex.go` (9 occurrences)
+  - ToLower: 130,166,198,238,268,329,386
+  - EqualFold: 121,178,246
+  - Type casting and interface checks
+
+- [ ] **14.1.13** Migrate `internal/interp/functions_*.go` files (10 occurrences total)
+  - `functions_typecast.go:91,329,626` (ToLower) + `389,508,601` (EqualFold)
+  - `functions_calls.go:213,298,420` (ToLower) + `179` (EqualFold)
+  - `functions_pointers.go:116` (ToLower)
+
+- [ ] **14.1.14** Migrate `internal/interp/declarations.go` (8 EqualFold occurrences)
+  - Lines: 157,165,247,478,480,806,866
+  - Class, method, operator declarations
+
+- [ ] **14.1.15** Migrate `internal/interp/expressions_basic.go` (5 EqualFold occurrences)
+  - Lines: 132,136,147,151,224
+  - ClassName, ClassType special identifiers
+
+- [ ] **14.1.16** Migrate remaining `internal/interp/` files (25 occurrences total)
+  - `unit_loader.go:345` (1)
+  - `helpers_conversion.go:113,141,146` (3 - excl. line 276 LowerCase builtin)
+  - `builtins_ordinals.go:69,183,252,302,379` (5)
+  - `ffi_errors.go:27,29,108,110` (4)
+  - `contracts.go:15,18` (2)
+  - `builtins_type.go:71,160,313,332,351` (5)
+  - `statements_assignments.go:550,591` (ToLower) + `616` (EqualFold)
+  - `enum.go:109` + others
+  - `helpers_validation.go` (several ToLower + EqualFold:69)
+  - `objects_instantiation.go:17` (EqualFold)
+  - `value.go:236` (EqualFold)
+  - `helpers_comparison.go:17,27,37` (3 EqualFold)
+
+- [ ] **14.1.17** Migrate `internal/interp/evaluator/` files (9 occurrences total)
+  - `visitor_expressions.go:167,467,1837` (ToLower) + `131,137,148,154` (EqualFold)
+  - `visitor_statements.go:1194` (ToLower) + `199` (EqualFold)
 
 - [ ] **14.2** Remove unused imports
   - Run: `goimports -w .`
