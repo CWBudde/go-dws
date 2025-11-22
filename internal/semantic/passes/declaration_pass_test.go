@@ -1,8 +1,9 @@
 package passes_test
 
 import (
-	"github.com/cwbudde/go-dws/internal/semantic"
 	"testing"
+
+	"github.com/cwbudde/go-dws/internal/semantic"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
