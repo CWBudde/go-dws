@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"strings"
 	"sync"
 	"testing"
 
@@ -345,7 +346,7 @@ func TestStats_String(t *testing.T) {
 	}
 
 	// String should contain key info
-	if !contains(str, "2 methods") {
+	if !strings.Contains(str, "2 methods") {
 		t.Errorf("Expected string to contain method count, got: %s", str)
 	}
 }
@@ -478,19 +479,4 @@ func TestInvalidMethodID(t *testing.T) {
 	if id == InvalidMethodID {
 		t.Error("RegisterMethod should not return InvalidMethodID for valid metadata")
 	}
-}
-
-// Helper function to check if a string contains a substring.
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 || indexString(s, substr) >= 0)
-}
-
-// Helper function to find substring index.
-func indexString(s, substr string) int {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return i
-		}
-	}
-	return -1
 }

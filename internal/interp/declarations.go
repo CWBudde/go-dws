@@ -304,6 +304,25 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			classInfo.DefaultConstructor = parentClass.DefaultConstructor
 		}
 
+		// Task 3.5.39: Copy parent constructors to metadata
+		for name, constructor := range parentClass.Metadata.Constructors {
+			if classInfo.Metadata.Constructors == nil {
+				classInfo.Metadata.Constructors = make(map[string]*runtime.MethodMetadata)
+			}
+			classInfo.Metadata.Constructors[name] = constructor
+		}
+		for name, overloads := range parentClass.Metadata.ConstructorOverloads {
+			if classInfo.Metadata.ConstructorOverloads == nil {
+				classInfo.Metadata.ConstructorOverloads = make(map[string][]*runtime.MethodMetadata)
+			}
+			classInfo.Metadata.ConstructorOverloads[name] = append([]*runtime.MethodMetadata(nil), overloads...)
+		}
+
+		// Task 3.5.39: Inherit default constructor name into metadata
+		if parentClass.Metadata.DefaultConstructor != "" {
+			classInfo.Metadata.DefaultConstructor = parentClass.Metadata.DefaultConstructor
+		}
+
 		// Copy operator overloads
 		classInfo.Operators = parentClass.Operators.clone()
 	}
@@ -603,6 +622,11 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Task 3.5.39: Destructor metadata is now set during the method loop above
 	if destructor, exists := classInfo.Methods["destroy"]; exists {
 		classInfo.Destructor = destructor
+	}
+
+	// Task 3.5.39: Inherit destructor from parent if no local destructor declared
+	if classInfo.Metadata.Destructor == nil && classInfo.Parent != nil && classInfo.Parent.Metadata.Destructor != nil {
+		classInfo.Metadata.Destructor = classInfo.Parent.Metadata.Destructor
 	}
 
 	// Synthesize implicit parameterless constructor if any constructor has 'overload'
