@@ -527,6 +527,80 @@ type InterpreterAdapter interface {
 	// Panics if the value is not an ExternalVarValue (check with IsExternalVar first).
 	GetExternalVarName(value Value) string
 
+	// ===== Task 3.5.22: Property & Method Reference Adapter Methods =====
+
+	// IsObjectInstance checks if a value is an ObjectInstance.
+	// Returns true if the value is an object instance.
+	IsObjectInstance(value Value) bool
+
+	// GetObjectFieldValue retrieves a field value from an object instance.
+	// Returns the field value and true if found, nil and false otherwise.
+	GetObjectFieldValue(obj Value, fieldName string) (Value, bool)
+
+	// GetClassVariableValue retrieves a class variable value from an object's class.
+	// Returns the class variable value and true if found, nil and false otherwise.
+	GetClassVariableValue(obj Value, varName string) (Value, bool)
+
+	// HasProperty checks if an object has a property with the given name.
+	// Returns true if the property exists (case-insensitive lookup).
+	HasProperty(obj Value, propName string) bool
+
+	// ReadPropertyValue reads a property value from an object.
+	// Handles field-backed, method-backed, and expression-backed properties.
+	// Returns the property value and an error if reading fails.
+	// Note: Caller is responsible for property recursion prevention.
+	ReadPropertyValue(obj Value, propName string, node any) (Value, error)
+
+	// HasMethod checks if an object has a method with the given name.
+	// Returns true if the method exists (case-insensitive lookup).
+	HasMethod(obj Value, methodName string) bool
+
+	// IsMethodParameterless checks if a method has zero parameters.
+	// Returns true if the method exists and has no parameters.
+	// Returns false if the method doesn't exist or has parameters.
+	IsMethodParameterless(obj Value, methodName string) bool
+
+	// CreateMethodCall creates a synthetic method call expression for auto-invocation.
+	// Used when a parameterless method is referenced without parentheses.
+	// Returns the result of calling the method.
+	CreateMethodCall(obj Value, methodName string, node any) Value
+
+	// CreateMethodPointer creates a method pointer for a method with parameters.
+	// Used when a method with parameters is referenced without parentheses.
+	// Returns a FunctionPointerValue bound to the object.
+	CreateMethodPointerFromObject(obj Value, methodName string) (Value, error)
+
+	// GetClassName returns the class name for an object instance.
+	// Returns the class name string.
+	GetClassName(obj Value) string
+
+	// GetClassType returns the ClassValue (metaclass) for an object instance.
+	// Returns the ClassValue representing the object's runtime class.
+	GetClassType(obj Value) Value
+
+	// IsClassInfoValue checks if a value is a ClassInfoValue.
+	// Returns true if the value represents class metadata (from __CurrentClass__).
+	IsClassInfoValue(value Value) bool
+
+	// GetClassNameFromClassInfo returns the class name from a ClassInfoValue.
+	// Returns the class name string.
+	// Panics if the value is not a ClassInfoValue.
+	GetClassNameFromClassInfo(classInfo Value) string
+
+	// GetClassTypeFromClassInfo returns the ClassValue from a ClassInfoValue.
+	// Returns the ClassValue (metaclass reference).
+	// Panics if the value is not a ClassInfoValue.
+	GetClassTypeFromClassInfo(classInfo Value) Value
+
+	// GetClassVariableFromClassInfo retrieves a class variable from ClassInfoValue.
+	// Returns the class variable value and true if found, nil and false otherwise.
+	// Panics if the value is not a ClassInfoValue.
+	GetClassVariableFromClassInfo(classInfo Value, varName string) (Value, bool)
+
+	// IsClassValue checks if a value is a ClassValue (metaclass reference).
+	// Returns true if the value is a class name used as a value (e.g., var c := TMyClass).
+	IsClassValue(value Value) bool
+
 	// ===== Task 3.5.29: Exception Handling Adapter Methods =====
 
 	// MatchesExceptionType checks if an exception matches a handler's type.

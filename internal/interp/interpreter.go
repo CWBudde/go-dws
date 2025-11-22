@@ -2481,6 +2481,201 @@ func (i *Interpreter) GetExternalVarName(value evaluator.Value) string {
 	return extVar.Name
 }
 
+// ===== Task 3.5.22: Property & Method Reference Adapter Method Implementations =====
+//
+// These adapter methods allow the Evaluator to access object fields, properties,
+// methods, and class metadata when handling identifier lookups in method contexts.
+
+// IsObjectInstance checks if a value is an ObjectInstance.
+func (i *Interpreter) IsObjectInstance(value evaluator.Value) bool {
+	_, ok := value.(*ObjectInstance)
+	return ok
+}
+
+// GetObjectFieldValue retrieves a field value from an object instance.
+func (i *Interpreter) GetObjectFieldValue(obj evaluator.Value, fieldName string) (evaluator.Value, bool) {
+	objInst, ok := obj.(*ObjectInstance)
+	if !ok {
+		return nil, false
+	}
+	fieldValue := objInst.GetField(fieldName)
+	if fieldValue == nil {
+		return nil, false
+	}
+	return fieldValue, true
+}
+
+// GetClassVariableValue retrieves a class variable value from an object's class.
+func (i *Interpreter) GetClassVariableValue(obj evaluator.Value, varName string) (evaluator.Value, bool) {
+	objInst, ok := obj.(*ObjectInstance)
+	if !ok {
+		return nil, false
+	}
+	classVarValue, exists := objInst.Class.ClassVars[varName]
+	return classVarValue, exists
+}
+
+// HasProperty checks if an object has a property with the given name.
+func (i *Interpreter) HasProperty(obj evaluator.Value, propName string) bool {
+	objInst, ok := obj.(*ObjectInstance)
+	if !ok {
+		return false
+	}
+	propInfo := objInst.Class.lookupProperty(propName)
+	return propInfo != nil
+}
+
+// ReadPropertyValue reads a property value from an object.
+func (i *Interpreter) ReadPropertyValue(obj evaluator.Value, propName string, node any) (evaluator.Value, error) {
+	objInst, ok := obj.(*ObjectInstance)
+	if !ok {
+		return nil, fmt.Errorf("cannot read property from non-object value")
+	}
+
+	propInfo := objInst.Class.lookupProperty(propName)
+	if propInfo == nil {
+		return nil, fmt.Errorf("property '%s' not found", propName)
+	}
+
+	// Use the existing evalPropertyRead method
+	astNode, ok := node.(ast.Node)
+	if !ok {
+		astNode = nil
+	}
+	return i.evalPropertyRead(objInst, propInfo, astNode), nil
+}
+
+// HasMethod checks if an object has a method with the given name.
+func (i *Interpreter) HasMethod(obj evaluator.Value, methodName string) bool {
+	objInst, ok := obj.(*ObjectInstance)
+	if !ok {
+		return false
+	}
+	_, exists := objInst.Class.Methods[strings.ToLower(methodName)]
+	return exists
+}
+
+// IsMethodParameterless checks if a method has zero parameters.
+func (i *Interpreter) IsMethodParameterless(obj evaluator.Value, methodName string) bool {
+	objInst, ok := obj.(*ObjectInstance)
+	if !ok {
+		return false
+	}
+	method, exists := objInst.Class.Methods[strings.ToLower(methodName)]
+	if !exists {
+		return false
+	}
+	return len(method.Parameters) == 0
+}
+
+// CreateMethodCall creates a synthetic method call expression for auto-invocation.
+func (i *Interpreter) CreateMethodCall(obj evaluator.Value, methodName string, node any) evaluator.Value {
+	// Create a synthetic method call and evaluate it
+	// We create identifiers without token information since this is synthetic
+	selfIdent := &ast.Identifier{Value: "Self"}
+	methodIdent := &ast.Identifier{Value: methodName}
+
+	// Copy token information from the original node if available
+	if astNode, ok := node.(*ast.Identifier); ok {
+		selfIdent.Token = astNode.Token
+		methodIdent.Token = astNode.Token
+	}
+
+	syntheticCall := &ast.MethodCallExpression{
+		Object:    selfIdent,
+		Method:    methodIdent,
+		Arguments: []ast.Expression{},
+	}
+
+	return i.evalMethodCall(syntheticCall)
+}
+
+// CreateMethodPointerFromObject creates a method pointer for a method with parameters.
+func (i *Interpreter) CreateMethodPointerFromObject(obj evaluator.Value, methodName string) (evaluator.Value, error) {
+	objInst, ok := obj.(*ObjectInstance)
+	if !ok {
+		return nil, fmt.Errorf("cannot create method pointer from non-object value")
+	}
+
+	method, exists := objInst.Class.Methods[strings.ToLower(methodName)]
+	if !exists {
+		return nil, fmt.Errorf("method '%s' not found", methodName)
+	}
+
+	// Build the pointer type
+	paramTypes := make([]types.Type, len(method.Parameters))
+	for idx, param := range method.Parameters {
+		if param.Type != nil {
+			paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
+		}
+	}
+	var returnType types.Type
+	if method.ReturnType != nil {
+		returnType = i.getTypeFromAnnotation(method.ReturnType)
+	}
+	pointerType := types.NewFunctionPointerType(paramTypes, returnType)
+
+	return NewFunctionPointerValue(method, i.env, objInst, pointerType), nil
+}
+
+// GetClassName returns the class name for an object instance.
+func (i *Interpreter) GetClassName(obj evaluator.Value) string {
+	objInst, ok := obj.(*ObjectInstance)
+	if !ok {
+		return ""
+	}
+	return objInst.Class.Name
+}
+
+// GetClassType returns the ClassValue (metaclass) for an object instance.
+func (i *Interpreter) GetClassType(obj evaluator.Value) evaluator.Value {
+	objInst, ok := obj.(*ObjectInstance)
+	if !ok {
+		return nil
+	}
+	return &ClassValue{ClassInfo: objInst.Class}
+}
+
+// IsClassInfoValue checks if a value is a ClassInfoValue.
+func (i *Interpreter) IsClassInfoValue(value evaluator.Value) bool {
+	_, ok := value.(*ClassInfoValue)
+	return ok
+}
+
+// GetClassNameFromClassInfo returns the class name from a ClassInfoValue.
+func (i *Interpreter) GetClassNameFromClassInfo(classInfo evaluator.Value) string {
+	classInfoVal, ok := classInfo.(*ClassInfoValue)
+	if !ok {
+		panic("GetClassNameFromClassInfo called on non-ClassInfoValue value")
+	}
+	return classInfoVal.ClassInfo.Name
+}
+
+// GetClassTypeFromClassInfo returns the ClassValue from a ClassInfoValue.
+func (i *Interpreter) GetClassTypeFromClassInfo(classInfo evaluator.Value) evaluator.Value {
+	classInfoVal, ok := classInfo.(*ClassInfoValue)
+	if !ok {
+		panic("GetClassTypeFromClassInfo called on non-ClassInfoValue value")
+	}
+	return &ClassValue{ClassInfo: classInfoVal.ClassInfo}
+}
+
+// GetClassVariableFromClassInfo retrieves a class variable from ClassInfoValue.
+func (i *Interpreter) GetClassVariableFromClassInfo(classInfo evaluator.Value, varName string) (evaluator.Value, bool) {
+	classInfoVal, ok := classInfo.(*ClassInfoValue)
+	if !ok {
+		panic("GetClassVariableFromClassInfo called on non-ClassInfoValue value")
+	}
+	classVarValue, exists := classInfoVal.ClassInfo.ClassVars[varName]
+	return classVarValue, exists
+}
+
+// IsClassValue checks if a value is a ClassValue (metaclass reference).
+func (i *Interpreter) IsClassValue(value evaluator.Value) bool {
+	_, ok := value.(*ClassValue)
+	return ok
+}
+
 // GetCallStack returns a copy of the current call stack.
 // Returns stack frames in the order they were called (oldest to newest).
 func (i *Interpreter) GetCallStack() errors.StackTrace {
