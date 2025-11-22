@@ -131,11 +131,12 @@ These are the most impactful changes, touching fundamental lookup structures:
   - Impact: All type lookups during semantic analysis
   - Note: `kindIndex map[string][]string` not migrated - indexed by type kind (CLASS, INTERFACE, etc.), not identifiers
 
-- [ ] **13.3** Migrate `internal/interp/environment.go`
+- [x] **13.3** Migrate `internal/interp/environment.go`
   - Field: `store map[string]Value`
   - Replace with: `store *ident.Map[Value]`
   - Impact: Runtime variable storage and lookup
-  - Note: Hot path - verify no performance regression
+  - Migrated: Environment struct, NewEnvironment, NewEnclosedEnvironment, Get, Set, Define, GetLocal, Size
+  - Also updated: interface.go cleanupInterfaceReferences to use Range() instead of direct map iteration
 
 #### Tasks - Medium Priority (Registries)
 
