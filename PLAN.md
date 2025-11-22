@@ -948,10 +948,10 @@ This causes:
   - [x] Remove post-hoc validation methods (migrated to Pass 2)
   - [x] Run full test suite to verify correctness (all semantic tests pass)
   - [x] Add BuiltinChecker interface to PassContext for future use
-  - [ ] **6.1.2.6.1 Complete Pass 3 migration** (BLOCKED - see details below)
-  - [ ] **6.1.2.6.2 Complete Pass 4 migration** (BLOCKED - see details below)
-  - [ ] **6.1.2.6.3 Enable all 4 passes** (BLOCKED - requires 6.1.2.6.1-6.1.2.6.2)
-  - [ ] **6.1.2.6.4 Remove old analyzer loop entirely** (BLOCKED - requires 6.1.2.6.3)
+  - [~] **6.1.2.6.1 Complete Pass 3 migration** ⚠️ **~95% COMPLETE** (see below)
+  - [ ] **6.1.2.6.2 Complete Pass 4 migration** (READY - awaiting Pass 3 completion)
+  - [ ] **6.1.2.6.3 Enable all 4 passes** (READY - awaiting Pass 3/4 completion)
+  - [ ] **6.1.2.6.4 Remove old analyzer loop entirely** (READY - awaiting 6.1.2.6.3)
 
 **Current Status**: HYBRID MODE
 - ✅ Pass 2 (Type Resolution) is integrated and runs alongside old analyzer
@@ -962,39 +962,35 @@ This causes:
 
 **Remaining Work**:
 
-**6.1.2.6.1: Complete Pass 3 (Validation Pass) migration** (~60% COMPLETE)
+**6.1.2.6.1: Complete Pass 3 (Validation Pass) migration** (~95% COMPLETE)
 
-**✅ Completed**:
-- Variant type compatibility (universal assignment to Variant)
-- Lambda expression validation (CurrentFunction context)
-- Basic builtin function support via BuiltinChecker interface
-- Expression type checking (binary ops, unary ops, literals)
-- Statement validation (if, while, for, etc.)
-- Class/interface validation
-- Variable declaration validation
-- Function call validation
+**✅ Completed (all major features)**:
+- ✅ Variant type compatibility (universal assignment to Variant)
+- ✅ Lambda expression validation (CurrentFunction context for return statements)
+- ✅ Variadic function/method parameter support (argument validation)
+- ✅ Class method lookup from current class context (unqualified calls)
+- ✅ Basic builtin function support via BuiltinChecker interface
+- ✅ Expression type checking (binary ops, unary ops, literals, calls, etc.)
+- ✅ Statement validation (if, while, for, return, break, continue, etc.)
+- ✅ Class/interface validation (inheritance, method overrides, etc.)
+- ✅ Variable declaration validation
+- ✅ Function/method call validation (including variadic)
 
-**⚠️ Remaining Features**:
-1. **Variadic function parameters** (~2-3 hours)
-   - Detect `array of <type>` parameters
-   - Handle variadic argument passing
-   - Validate argument types for variadic calls
-   - Test with ~10 variadic function tests
+**⚠️ Remaining (minor edge cases)**:
+1. **Integration testing** (~1-2 hours)
+   - Enable Pass 3 in dual mode with old analyzer
+   - Run full test suite and fix any edge cases discovered
+   - Compare validation results between passes for consistency
 
-2. **Class method lookup from current class** (~1-2 hours)
-   - When in class method, look up unqualified calls in current class
-   - Handle inherited method resolution
-   - Respect visibility rules (private/protected/public)
-   - Test with ~5 class method tests
+2. **Property getter/setter edge cases** (~1 hour)
+   - Already ~90% working, minor refinements needed
 
-3. **Additional edge cases** (~2-3 hours)
-   - Property getter/setter validation improvements
-   - Exception handling edge cases
-   - Complex nested expression scenarios
-   - Integration with helpers and operators
+3. **Exception handling edge cases** (~1 hour)
+   - Already ~90% working, minor refinements needed
 
-**Estimated remaining**: 5-8 hours
-**Files**: `internal/semantic/validation_pass.go`, possibly `internal/semantic/pass_context.go`
+**Estimated remaining**: 2-4 hours (mostly testing and edge case fixes)
+**Files**: `internal/semantic/validation_pass.go`
+**All 237 semantic tests currently pass with old analyzer** ✅
 
 **6.1.2.6.2: Complete Pass 4 (Contract Pass) migration**
 - Currently ~90% complete
@@ -1016,11 +1012,11 @@ This causes:
 - Update documentation
 - Estimated: 2-4 hours
 
-**Total remaining estimate**: 11-20 hours (1.5-2.5 days)
-- Pass 3: 5-8 hours
-- Pass 4: 2-4 hours
-- Enable passes: 2-4 hours
-- Cleanup: 2-4 hours
+**Total remaining estimate**: 6-12 hours (1-1.5 days)
+- Pass 3: 2-4 hours (mostly integration testing)
+- Pass 4: 2-4 hours (edge cases and testing)
+- Enable passes: 1-2 hours (dual mode testing)
+- Cleanup: 1-2 hours (remove old analyzer loop)
 
 - [x] **6.1.2.7 Implement Class Invariant Support** 🎯 **MEDIUM PRIORITY** ✅ **DONE**
   - [x] Add AST support for class invariants
