@@ -26,15 +26,14 @@ type TypeSystem struct {
 	// Function registry: Task 3.4.3 - using FunctionRegistry abstraction
 	functionRegistry *FunctionRegistry
 
-	// Record registry: maps lowercase record names to RecordTypeValue
-	records map[string]RecordTypeValue
+	// Record registry: case-insensitive map of record names to RecordTypeValue
+	records *ident.Map[RecordTypeValue]
 
-	// Interface registry: maps lowercase interface names to InterfaceInfo
-	interfaces map[string]InterfaceInfo
+	// Interface registry: case-insensitive map of interface names to InterfaceInfo
+	interfaces *ident.Map[InterfaceInfo]
 
-	// Helper registry: maps type names to helper method lists
-	// Key is type name (lowercase), value is list of helper methods
-	helpers map[string][]HelperInfo
+	// Helper registry: case-insensitive map of type names to helper method lists
+	helpers *ident.Map[[]HelperInfo]
 
 	// Operator registry: manages operator overloads
 	operators *OperatorRegistry
@@ -43,9 +42,10 @@ type TypeSystem struct {
 	conversions *ConversionRegistry
 
 	// Type ID registries for RTTI (Task 9.25)
-	classTypeIDs  map[string]int
-	recordTypeIDs map[string]int
-	enumTypeIDs   map[string]int
+	// Task 13.9: Migrated to ident.Map for consistent case-insensitive access
+	classTypeIDs  *ident.Map[int]
+	recordTypeIDs *ident.Map[int]
+	enumTypeIDs   *ident.Map[int]
 
 	// Next available type IDs
 	nextClassTypeID  int
@@ -56,19 +56,19 @@ type TypeSystem struct {
 // NewTypeSystem creates a new TypeSystem with initialized registries.
 func NewTypeSystem() *TypeSystem {
 	return &TypeSystem{
-		classRegistry:    NewClassRegistry(),    // Task 3.4.2
-		functionRegistry: NewFunctionRegistry(), // Task 3.4.3
-		records:          make(map[string]RecordTypeValue),
-		interfaces:       make(map[string]InterfaceInfo),
-		helpers:          make(map[string][]HelperInfo),
+		classRegistry:    NewClassRegistry(),              // Task 3.4.2
+		functionRegistry: NewFunctionRegistry(),           // Task 3.4.3
+		records:          ident.NewMap[RecordTypeValue](), // Task 13.8
+		interfaces:       ident.NewMap[InterfaceInfo](),   // Task 13.8
+		helpers:          ident.NewMap[[]HelperInfo](),    // Task 13.8
 		operators:        NewOperatorRegistry(),
 		conversions:      NewConversionRegistry(),
-		classTypeIDs:     make(map[string]int),
-		recordTypeIDs:    make(map[string]int),
-		enumTypeIDs:      make(map[string]int),
-		nextClassTypeID:  1000,   // Start class IDs at 1000
-		nextRecordTypeID: 200000, // Start record IDs at 200000
-		nextEnumTypeID:   300000, // Start enum IDs at 300000
+		classTypeIDs:     ident.NewMap[int](), // Task 13.9
+		recordTypeIDs:    ident.NewMap[int](), // Task 13.9
+		enumTypeIDs:      ident.NewMap[int](), // Task 13.9
+		nextClassTypeID:  1000,                // Start class IDs at 1000
+		nextRecordTypeID: 200000,              // Start record IDs at 200000
+		nextEnumTypeID:   300000,              // Start enum IDs at 300000
 	}
 }
 
@@ -138,61 +138,71 @@ func (ts *TypeSystem) Classes() *ClassRegistry {
 // ========== Record Registry ==========
 
 // RegisterRecord registers a new record type in the type system.
-// The name is stored case-insensitively (converted to lowercase).
+// The name is stored case-insensitively, with original casing preserved.
 func (ts *TypeSystem) RegisterRecord(name string, record RecordTypeValue) {
 	if record == nil {
 		return
 	}
-	ts.records[ident.Normalize(name)] = record
+	ts.records.Set(name, record)
 }
 
 // LookupRecord returns the RecordTypeValue for the given name.
 // The lookup is case-insensitive. Returns nil if not found.
 func (ts *TypeSystem) LookupRecord(name string) RecordTypeValue {
-	return ts.records[ident.Normalize(name)]
+	record, _ := ts.records.Get(name)
+	return record
 }
 
 // HasRecord checks if a record type with the given name exists.
 // The check is case-insensitive.
 func (ts *TypeSystem) HasRecord(name string) bool {
-	_, exists := ts.records[ident.Normalize(name)]
-	return exists
+	return ts.records.Has(name)
 }
 
 // AllRecords returns a map of all registered record types.
-// Note: The returned map uses lowercase keys.
+// Note: The returned map uses normalized (lowercase) keys.
 func (ts *TypeSystem) AllRecords() map[string]RecordTypeValue {
-	return ts.records
+	result := make(map[string]RecordTypeValue, ts.records.Len())
+	ts.records.Range(func(key string, value RecordTypeValue) bool {
+		result[ident.Normalize(key)] = value
+		return true
+	})
+	return result
 }
 
 // ========== Interface Registry ==========
 
 // RegisterInterface registers a new interface in the type system.
-// The name is stored case-insensitively (converted to lowercase).
+// The name is stored case-insensitively, with original casing preserved.
 func (ts *TypeSystem) RegisterInterface(name string, iface InterfaceInfo) {
 	if iface == nil {
 		return
 	}
-	ts.interfaces[ident.Normalize(name)] = iface
+	ts.interfaces.Set(name, iface)
 }
 
 // LookupInterface returns the InterfaceInfo for the given name.
 // The lookup is case-insensitive. Returns nil if not found.
 func (ts *TypeSystem) LookupInterface(name string) InterfaceInfo {
-	return ts.interfaces[ident.Normalize(name)]
+	iface, _ := ts.interfaces.Get(name)
+	return iface
 }
 
 // HasInterface checks if an interface with the given name exists.
 // The check is case-insensitive.
 func (ts *TypeSystem) HasInterface(name string) bool {
-	_, exists := ts.interfaces[ident.Normalize(name)]
-	return exists
+	return ts.interfaces.Has(name)
 }
 
 // AllInterfaces returns a map of all registered interfaces.
-// Note: The returned map uses lowercase keys.
+// Note: The returned map uses normalized (lowercase) keys.
 func (ts *TypeSystem) AllInterfaces() map[string]InterfaceInfo {
-	return ts.interfaces
+	result := make(map[string]InterfaceInfo, ts.interfaces.Len())
+	ts.interfaces.Range(func(key string, value InterfaceInfo) bool {
+		result[ident.Normalize(key)] = value
+		return true
+	})
+	return result
 }
 
 // ========== Function Registry ==========
@@ -251,31 +261,37 @@ func (ts *TypeSystem) Functions() *FunctionRegistry {
 // ========== Helper Registry ==========
 
 // RegisterHelper registers a helper method for a type.
-// The type name is stored in lowercase for consistency.
+// The type name is stored case-insensitively, with original casing preserved.
 func (ts *TypeSystem) RegisterHelper(typeName string, helper HelperInfo) {
 	if helper == nil {
 		return
 	}
-	key := ident.Normalize(typeName)
-	ts.helpers[key] = append(ts.helpers[key], helper)
+	existing, _ := ts.helpers.Get(typeName)
+	ts.helpers.Set(typeName, append(existing, helper))
 }
 
 // LookupHelpers returns all helper methods for the given type name.
 // Returns nil if no helpers exist for the type.
 func (ts *TypeSystem) LookupHelpers(typeName string) []HelperInfo {
-	return ts.helpers[ident.Normalize(typeName)]
+	helpers, _ := ts.helpers.Get(typeName)
+	return helpers
 }
 
 // HasHelpers checks if any helper methods exist for the given type.
 func (ts *TypeSystem) HasHelpers(typeName string) bool {
-	helpers, exists := ts.helpers[ident.Normalize(typeName)]
+	helpers, exists := ts.helpers.Get(typeName)
 	return exists && len(helpers) > 0
 }
 
 // AllHelpers returns the entire helper registry.
-// The returned map should not be modified directly.
+// Note: The returned map uses normalized (lowercase) keys.
 func (ts *TypeSystem) AllHelpers() map[string][]HelperInfo {
-	return ts.helpers
+	result := make(map[string][]HelperInfo, ts.helpers.Len())
+	ts.helpers.Range(func(key string, value []HelperInfo) bool {
+		result[ident.Normalize(key)] = value
+		return true
+	})
+	return result
 }
 
 // ========== Operator Registry ==========
@@ -297,12 +313,11 @@ func (ts *TypeSystem) Conversions() *ConversionRegistry {
 // GetOrAllocateClassTypeID returns the RTTI type ID for a class.
 // If the class doesn't have an ID yet, a new one is allocated.
 func (ts *TypeSystem) GetOrAllocateClassTypeID(className string) int {
-	normalized := ident.Normalize(className)
-	if id, exists := ts.classTypeIDs[normalized]; exists {
+	if id, exists := ts.classTypeIDs.Get(className); exists {
 		return id
 	}
 	id := ts.nextClassTypeID
-	ts.classTypeIDs[normalized] = id
+	ts.classTypeIDs.Set(className, id)
 	ts.nextClassTypeID++
 	return id
 }
@@ -310,18 +325,18 @@ func (ts *TypeSystem) GetOrAllocateClassTypeID(className string) int {
 // GetClassTypeID returns the RTTI type ID for a class if it exists.
 // Returns 0 if the class doesn't have an allocated type ID.
 func (ts *TypeSystem) GetClassTypeID(className string) int {
-	return ts.classTypeIDs[ident.Normalize(className)]
+	id, _ := ts.classTypeIDs.Get(className)
+	return id
 }
 
 // GetOrAllocateRecordTypeID returns the RTTI type ID for a record.
 // If the record doesn't have an ID yet, a new one is allocated.
 func (ts *TypeSystem) GetOrAllocateRecordTypeID(recordName string) int {
-	normalized := ident.Normalize(recordName)
-	if id, exists := ts.recordTypeIDs[normalized]; exists {
+	if id, exists := ts.recordTypeIDs.Get(recordName); exists {
 		return id
 	}
 	id := ts.nextRecordTypeID
-	ts.recordTypeIDs[normalized] = id
+	ts.recordTypeIDs.Set(recordName, id)
 	ts.nextRecordTypeID++
 	return id
 }
@@ -329,18 +344,18 @@ func (ts *TypeSystem) GetOrAllocateRecordTypeID(recordName string) int {
 // GetRecordTypeID returns the RTTI type ID for a record if it exists.
 // Returns 0 if the record doesn't have an allocated type ID.
 func (ts *TypeSystem) GetRecordTypeID(recordName string) int {
-	return ts.recordTypeIDs[ident.Normalize(recordName)]
+	id, _ := ts.recordTypeIDs.Get(recordName)
+	return id
 }
 
 // GetOrAllocateEnumTypeID returns the RTTI type ID for an enum.
 // If the enum doesn't have an ID yet, a new one is allocated.
 func (ts *TypeSystem) GetOrAllocateEnumTypeID(enumName string) int {
-	normalized := ident.Normalize(enumName)
-	if id, exists := ts.enumTypeIDs[normalized]; exists {
+	if id, exists := ts.enumTypeIDs.Get(enumName); exists {
 		return id
 	}
 	id := ts.nextEnumTypeID
-	ts.enumTypeIDs[normalized] = id
+	ts.enumTypeIDs.Set(enumName, id)
 	ts.nextEnumTypeID++
 	return id
 }
@@ -348,7 +363,8 @@ func (ts *TypeSystem) GetOrAllocateEnumTypeID(enumName string) int {
 // GetEnumTypeID returns the RTTI type ID for an enum if it exists.
 // Returns 0 if the enum doesn't have an allocated type ID.
 func (ts *TypeSystem) GetEnumTypeID(enumName string) int {
-	return ts.enumTypeIDs[ident.Normalize(enumName)]
+	id, _ := ts.enumTypeIDs.Get(enumName)
+	return id
 }
 
 // ========== Type Information ==========
