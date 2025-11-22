@@ -23,35 +23,37 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 		},
 	}
 
-	// Expect opening parenthesis
+	// Check for opening parenthesis (optional for zero-parameter lambdas)
 	nextToken := p.cursor.Peek(1)
-	if nextToken.Type != lexer.LPAREN {
-		p.addError("expected '(' after 'lambda'", ErrUnexpectedToken)
-		return nil
-	}
-	p.cursor = p.cursor.Advance() // move to '('
+	if nextToken.Type == lexer.LPAREN {
+		p.cursor = p.cursor.Advance() // move to '('
 
-	// Parse parameter list (may be empty)
-	lambdaExpr.Parameters = p.parseLambdaParameterList()
+		// Parse parameter list (may be empty)
+		lambdaExpr.Parameters = p.parseLambdaParameterList()
 
-	// Check for return type annotation (optional)
-	nextToken = p.cursor.Peek(1)
-	if nextToken.Type == lexer.COLON {
-		p.cursor = p.cursor.Advance() // move to ':'
-
-		// Parse return type
+		// Check for return type annotation (optional)
 		nextToken = p.cursor.Peek(1)
-		if nextToken.Type != lexer.IDENT {
-			p.addError("expected return type after ':'", ErrExpectedType)
-			return nil
-		}
-		p.cursor = p.cursor.Advance() // move to type
-		typeToken := p.cursor.Current()
+		if nextToken.Type == lexer.COLON {
+			p.cursor = p.cursor.Advance() // move to ':'
 
-		lambdaExpr.ReturnType = &ast.TypeAnnotation{
-			Token: typeToken,
-			Name:  typeToken.Literal,
+			// Parse return type
+			nextToken = p.cursor.Peek(1)
+			if nextToken.Type != lexer.IDENT {
+				p.addError("expected return type after ':'", ErrExpectedType)
+				return nil
+			}
+			p.cursor = p.cursor.Advance() // move to type
+			typeToken := p.cursor.Current()
+
+			lambdaExpr.ReturnType = &ast.TypeAnnotation{
+				Token: typeToken,
+				Name:  typeToken.Literal,
+			}
 		}
+	} else {
+		// No parentheses - zero-parameter lambda
+		// Parameters remain empty (nil)
+		lambdaExpr.Parameters = []*ast.Parameter{}
 	}
 
 	// Check which syntax is being used: shorthand (=>) or full (begin/end)
@@ -106,8 +108,41 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 		}
 
 	default:
-		p.addError("expected '=>' or 'begin' after lambda parameters", ErrUnexpectedToken)
-		return nil
+		// Full syntax without 'begin': lambda result := value end
+		// Parse statements until we hit 'end'
+		p.cursor = p.cursor.Advance() // move to first token of body
+
+		statements := []ast.Statement{}
+		for p.cursor.Current().Type != lexer.END && p.cursor.Current().Type != lexer.EOF {
+			stmt := p.parseStatement()
+			if stmt != nil {
+				statements = append(statements, stmt)
+			}
+
+			// Advance past the statement to the next token
+			// (parseStatement leaves cursor on last token of statement)
+			p.cursor = p.cursor.Advance()
+
+			// Skip optional semicolons
+			for p.cursor.Current().Type == lexer.SEMICOLON {
+				p.cursor = p.cursor.Advance()
+			}
+		}
+
+		if p.cursor.Current().Type != lexer.END {
+			p.addError("expected 'end' to close lambda body", ErrUnexpectedToken)
+			return nil
+		}
+
+		// Create block statement from parsed statements
+		lambdaExpr.Body = &ast.BlockStatement{
+			BaseNode:   ast.BaseNode{Token: currentToken},
+			Statements: statements,
+		}
+		lambdaExpr.IsShorthand = false
+
+		// Set end position to the 'end' keyword
+		return builder.Finish(lambdaExpr).(ast.Expression)
 	}
 }
 

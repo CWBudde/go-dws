@@ -106,32 +106,40 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 	}
 
 	// For functions (not procedures), initialize the Result variable
-	if lambda.ReturnType != nil {
-		// Initialize Result based on return type with appropriate defaults
-		returnType := i.resolveTypeFromAnnotation(lambda.ReturnType)
-		var resultValue = i.getDefaultValue(returnType)
+	// Shorthand lambdas (lambda => expr) always have an implicit return value
+	if lambda.ReturnType != nil || lambda.IsShorthand {
+		var resultValue Value
 
-		// Check if return type is a record (overrides default)
-		returnTypeName := lambda.ReturnType.String()
-		lowerReturnType := strings.ToLower(returnTypeName)
-		recordTypeKey := "__record_type_" + lowerReturnType
-		if typeVal, ok := i.env.Get(recordTypeKey); ok {
-			if rtv, ok := typeVal.(*RecordTypeValue); ok {
-				// Use createRecordValue for proper nested record initialization
-				resultValue = i.createRecordValue(rtv.RecordType, rtv.Methods)
-			}
-		}
+		if lambda.ReturnType != nil {
+			// Initialize Result based on return type with appropriate defaults
+			returnType := i.resolveTypeFromAnnotation(lambda.ReturnType)
+			resultValue = i.getDefaultValue(returnType)
 
-		// Initialize array return types (dynamic or static inline definitions)
-		arrayTypeKey := "__array_type_" + lowerReturnType
-		if typeVal, ok := i.env.Get(arrayTypeKey); ok {
-			if atv, ok := typeVal.(*ArrayTypeValue); ok {
-				resultValue = NewArrayValue(atv.ArrayType)
+			// Check if return type is a record (overrides default)
+			returnTypeName := lambda.ReturnType.String()
+			lowerReturnType := strings.ToLower(returnTypeName)
+			recordTypeKey := "__record_type_" + lowerReturnType
+			if typeVal, ok := i.env.Get(recordTypeKey); ok {
+				if rtv, ok := typeVal.(*RecordTypeValue); ok {
+					// Use createRecordValue for proper nested record initialization
+					resultValue = i.createRecordValue(rtv.RecordType, rtv.Methods)
+				}
 			}
-		} else if strings.HasPrefix(lowerReturnType, "array") {
-			if arrayType := i.parseInlineArrayType(lowerReturnType); arrayType != nil {
-				resultValue = NewArrayValue(arrayType)
+
+			// Initialize array return types (dynamic or static inline definitions)
+			arrayTypeKey := "__array_type_" + lowerReturnType
+			if typeVal, ok := i.env.Get(arrayTypeKey); ok {
+				if atv, ok := typeVal.(*ArrayTypeValue); ok {
+					resultValue = NewArrayValue(atv.ArrayType)
+				}
+			} else if strings.HasPrefix(lowerReturnType, "array") {
+				if arrayType := i.parseInlineArrayType(lowerReturnType); arrayType != nil {
+					resultValue = NewArrayValue(arrayType)
+				}
 			}
+		} else {
+			// Shorthand lambda without explicit return type - use nil as default
+			resultValue = &NilValue{}
 		}
 
 		i.env.Define("Result", resultValue)
@@ -159,8 +167,8 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 
 	// Extract return value
 	var returnValue Value
-	if lambda.ReturnType != nil {
-		// Lambda has a return type - get the Result value
+	if lambda.ReturnType != nil || lambda.IsShorthand {
+		// Lambda has a return type or is shorthand (implicit return) - get the Result value
 		resultVal, resultOk := i.env.Get("Result")
 
 		if resultOk && resultVal.Type() != "NIL" {
