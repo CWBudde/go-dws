@@ -25,26 +25,28 @@ Fix immediate bugs where original casing is lost in error messages.
 
 ### Tasks
 
-- [ ] **1.1** Fix error message in `internal/semantic/analyze_classes.go:430`
+- [x] **1.1** Fix error message in `internal/semantic/analyze_classes.go:430`
   - Change from: `a.addError("class '%s' has no member '%s'", classType.Name, memberName)`
   - Change to: `a.addError("class '%s' has no member '%s'", classType.Name, expr.Member.Value)`
   - Test with: Create test case where user types `obj.MyField` for non-existent member
 
-- [ ] **1.2** Audit all error messages in `internal/semantic/analyze_classes.go`
+- [x] **1.2** Audit all error messages in `internal/semantic/analyze_classes.go`
   - Lines to check: 199, 378, 430, 439
   - Ensure all member/method name errors use original casing
   - Document pattern: "Use expr.Member.Value (original) for errors, strings.ToLower() only for lookups"
+  - Fixed 5 error messages: lines 288, 312, 329, 382, 430
 
-- [ ] **1.3** Create regression test suite for error message casing
+- [x] **1.3** Create regression test suite for error message casing
   - Test file: `internal/semantic/analyze_classes_errors_test.go`
   - Test cases:
     - Non-existent member access with mixed case
     - Non-existent method call with mixed case
     - Verify error message contains original user input casing
 
-- [ ] **1.4** Commit and push Phase 1 fixes
+- [x] **1.4** Commit and push Phase 1 fixes
   - Commit message: "fix: preserve original casing in member access error messages"
   - Include test coverage for regressions
+  - Commit: d4755d7
 
 ---
 
