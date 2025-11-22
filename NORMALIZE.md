@@ -171,15 +171,15 @@ Standalone registry classes with clear boundaries:
 
 Complex internal structures with multiple interconnected maps:
 
-- [ ] **13.8** Migrate `internal/interp/types/type_system.go` - Part 1
+- [x] **13.8** Migrate `internal/interp/types/type_system.go` - Part 1
   - Fields: `records`, `interfaces`, `helpers` maps
-  - Higher complexity due to nested structures
-  - Consider migrating incrementally
+  - Migrated: All three registries now use `*ident.Map[T]`
+  - Methods updated: Register*, Lookup*, Has*, All* for each registry
 
-- [ ] **13.9** Migrate `internal/interp/types/type_system.go` - Part 2
+- [x] **13.9** Migrate `internal/interp/types/type_system.go` - Part 2
   - Fields: `classTypeIDs`, `recordTypeIDs`, `enumTypeIDs`
-  - These map type names to integer IDs
-  - May not need original casing preservation
+  - Migrated: All three type ID registries now use `*ident.Map[int]`
+  - Methods updated: GetOrAllocate*TypeID, Get*TypeID for class, record, enum
 
 - [ ] **13.10** Migrate `OperatorRegistry` and `ConversionRegistry`
   - Fields: `entries map[string][]*OperatorEntry`, `implicit`/`explicit` maps
