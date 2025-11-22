@@ -852,7 +852,7 @@ This causes:
   - [x] Validate that forward-declared functions have implementations (added)
   - [x] Write unit tests for type resolution
 
-- [~] **6.1.2.4 Implement Pass 3: Semantic Validation** (~90% complete) ✨
+- [~] **6.1.2.4 Implement Pass 3: Semantic Validation** (~98% complete) ✨
   - [x] Create `ValidationPass` that type-checks expressions and statements **DONE**
   - [x] Migrate expression validation from old analyzer (analyzeExpression, etc.) **MOSTLY DONE**
     - [x] Add support for all expression types (20+ types: literals, operators, OOP features)
@@ -909,13 +909,13 @@ This causes:
     - [ ] Check class variable visibility
     - [ ] Validate visibility rules (private, protected, public, published)
     - [ ] Check strict private enforcement (same class only)
-  - [ ] Write comprehensive unit tests for ValidationPass **TODO (high priority)**
-    - [ ] Test expression validation (literals, operators, calls)
-    - [ ] Test statement validation (loops, conditionals, declarations)
-    - [ ] Test OOP validation (classes, interfaces, inheritance)
-    - [ ] Test context-aware type inference
-    - [ ] Test helper method/property support
-    - [ ] Test error reporting and recovery
+  - [x] Write comprehensive unit tests for ValidationPass **DONE** ✅
+    - [x] Test expression validation (literals, operators, calls)
+    - [x] Test statement validation (loops, conditionals, declarations)
+    - [x] Test OOP validation (classes, interfaces, inheritance)
+    - [x] Test context-aware type inference
+    - [x] Test helper method/property support
+    - [x] Test error reporting and recovery
 
 - [ ] **6.1.2.5 Implement Pass 4: Contract Validation** (skeleton exists, needs completion)
   - [x] Create `ContractPass` for requires/ensures/invariant checking
