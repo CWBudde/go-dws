@@ -221,32 +221,56 @@ Migrate interpreter, which has partial adoption.
 
 ---
 
-## Phase 8: Bytecode Compiler & VM (Priority: MEDIUM)
+## Phase 8: Bytecode Compiler & VM (Priority: MEDIUM) ✅ COMPLETED
 
 Migrate bytecode compiler, which uses `strings.EqualFold()`.
 
 ### Tasks
 
-- [ ] **8.1** Migrate `internal/bytecode/compiler_core.go`
-  - Line 271: `resolveLocal()` - uses `strings.EqualFold()`
-  - Line 284: `resolveUpvalue()` - uses `strings.EqualFold()`
-  - Line 295: `resolveGlobal()` - uses `strings.ToLower()`
-  - Replace with: `ident.Equal()` or `ident.Normalize()`
-  - Decision: Use `ident.Equal()` for comparisons (no allocation)
+- [x] **8.1** Migrate `internal/bytecode/compiler_core.go`
+  - Migrated 8 occurrences:
+    - `declareGlobal()`: `strings.ToLower()` → `pkgident.Normalize()`
+    - `resolveLocal()`: `strings.EqualFold()` → `pkgident.Equal()`
+    - `resolveLocalInCurrentScope()`: `strings.EqualFold()` → `pkgident.Equal()`
+    - `resolveGlobal()`: `strings.ToLower()` → `pkgident.Normalize()`
+    - `addBuiltinGlobal()`: `strings.ToLower()` → `pkgident.Normalize()`
+    - `inferExpressionType()`: `strings.ToLower()` → `pkgident.Normalize()`
+    - `typeFromAnnotation()`: `strings.ToLower()` → `pkgident.Normalize()`
+    - `evaluateBinary()`: `strings.ToLower()` → `pkgident.Normalize()`
+    - `evaluateUnary()`: `strings.ToLower()` → `pkgident.Normalize()`
+  - Used `pkgident` alias to avoid shadowing with local `ident` parameter
+  - Removed unused `strings` import
 
-- [ ] **8.2** Migrate identifier checks in compiler
-  - Lines: 80, 96, 117 - uses `strings.EqualFold()`
-  - Replace with: `ident.Equal()`
+- [x] **8.2** Migrate `internal/bytecode/compiler_statements.go`
+  - Migrated 8 occurrences in function/helper/record/class declarations
+  - Replaced: `strings.ToLower()` → `ident.Normalize()`
+  - Removed unused `strings` import
 
-- [ ] **8.3** Audit other bytecode files
-  - Search: `strings.ToLower`, `strings.EqualFold` in `internal/bytecode/`
-  - Files to check: `compiler.go`, `compiler_expr.go`, `compiler_stmt.go`, etc.
-  - Migrate all occurrences
+- [x] **8.3** Migrate `internal/bytecode/bytecode.go`
+  - Migrated 7 occurrences in ObjectInstance and RecordInstance methods:
+    - `GetField()`, `SetField()`, `GetProperty()`, `SetProperty()`
+  - Replaced: `strings.ToLower()` → `ident.Normalize()`
+  - Kept `strings` import for `strings.Builder` and `strings.IndexByte` usage
 
-- [ ] **8.4** Run bytecode tests
-  - Run: `go test ./internal/bytecode/... -v`
-  - Test: Compile and run with mixed-case identifiers
-  - Verify: Variable resolution works case-insensitively
+- [x] **8.4** Migrate `internal/bytecode/vm_exec.go`
+  - Migrated 2 occurrences:
+    - Class metadata lookup in OpNewObject handler
+    - `resolveValueType()` function
+  - Replaced: `strings.ToLower()` → `ident.Normalize()`
+  - Removed unused `strings` import
+
+- [x] **8.5** Migrate `internal/bytecode/compiler_functions.go`
+  - Migrated 3 occurrences:
+    - `compileCallExpression()`: builtin value creation
+    - `resolveDirectFunction()`: function lookup
+    - `isBuiltinFunction()`: builtin name normalization
+  - Used `pkgident` alias to avoid shadowing with local `ident` parameter
+  - Removed unused `strings` import
+
+- [x] **8.6** Run bytecode tests
+  - Ran: `go test ./internal/bytecode/... -count=1`
+  - Results: All tests pass
+  - Verified: No regressions from migration
 
 ---
 

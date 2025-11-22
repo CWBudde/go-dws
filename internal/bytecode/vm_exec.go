@@ -3,7 +3,8 @@ package bytecode
 import (
 	"fmt"
 	"math"
-	"strings"
+
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // executeInitializer executes a field initializer chunk and returns the result.
@@ -687,7 +688,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 
 			// Task 9.5.5: Initialize fields from class metadata
 			// Look up class metadata (case-insensitive)
-			classKey := strings.ToLower(className)
+			classKey := ident.Normalize(className)
 			if classMeta, ok := frame.chunk.Classes[classKey]; ok {
 				// Initialize each field
 				for _, fieldMeta := range classMeta.Fields {
@@ -1306,7 +1307,7 @@ func (vm *VM) createMultiDimArray(dimensions []int, elementType ValueType) *Arra
 // This is used when compiling array creation expressions to determine
 // the element type for proper zero-value initialization.
 func resolveValueType(typeName string) ValueType {
-	switch strings.ToLower(typeName) {
+	switch ident.Normalize(typeName) {
 	case "integer", "int":
 		return ValueInt
 	case "float", "real", "double":
