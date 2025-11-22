@@ -1,6 +1,7 @@
 package interp
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
@@ -127,6 +128,13 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 		var combined []*HelperInfo
 		if h, ok := i.helpers[specific]; ok {
 			combined = append(combined, h...)
+		}
+		// If it's a static array, also try the dynamic equivalent ("array of <elem>")
+		if v.ArrayType.IsStatic() && v.ArrayType.ElementType != nil {
+			dynKey := strings.ToLower(fmt.Sprintf("array of %s", v.ArrayType.ElementType.String()))
+			if h, ok := i.helpers[dynKey]; ok {
+				combined = append(combined, h...)
+			}
 		}
 		if h, ok := i.helpers["array"]; ok {
 			combined = append(combined, h...)
