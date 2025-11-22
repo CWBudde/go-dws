@@ -285,7 +285,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		}
 
 		a.addError("member access on type %s requires a helper, got no helper with member '%s' at %s",
-			objectType.String(), memberName, expr.Token.Pos.String())
+			objectType.String(), expr.Member.Value, expr.Token.Pos.String())
 		return nil
 	}
 
@@ -309,7 +309,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			if hasVisibility && !a.checkVisibility(fieldOwner, visibility, memberName, "field") {
 				visibilityStr := ast.Visibility(visibility).String()
 				a.addError("cannot access %s field '%s' of class '%s' at %s",
-					visibilityStr, memberName, fieldOwner.Name, expr.Token.Pos.String())
+					visibilityStr, expr.Member.Value, fieldOwner.Name, expr.Token.Pos.String())
 				return nil
 			}
 		}
@@ -326,7 +326,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			if hasVisibility && !a.checkVisibility(classVarOwner, visibility, memberName, "class variable") {
 				visibilityStr := ast.Visibility(visibility).String()
 				a.addError("cannot access %s class variable '%s' of class '%s' at %s",
-					visibilityStr, memberName, classVarOwner.Name, expr.Token.Pos.String())
+					visibilityStr, expr.Member.Value, classVarOwner.Name, expr.Token.Pos.String())
 				return nil
 			}
 		}
@@ -379,7 +379,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			if hasVisibility && !a.checkVisibility(methodOwner, visibility, memberName, "method") {
 				visibilityStr := ast.Visibility(visibility).String()
 				a.addError("cannot call %s method '%s' of class '%s' at %s",
-					visibilityStr, memberName, methodOwner.Name, expr.Token.Pos.String())
+					visibilityStr, expr.Member.Value, methodOwner.Name, expr.Token.Pos.String())
 				return nil
 			}
 		}
@@ -427,7 +427,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 
 	// Member not found
 	a.addError("class '%s' has no member '%s' at %s",
-		classType.Name, memberName, expr.Token.Pos.String())
+		classType.Name, expr.Member.Value, expr.Token.Pos.String())
 	return nil
 }
 
