@@ -23,54 +23,14 @@ This document outlines the migration plan to centralize all case-insensitive ide
 
 ---
 
-## Phase 2: Core Infrastructure (Priority: HIGH)
+## Phase 2: Core Infrastructure (completed)
 
-Enhance `pkg/ident` package and establish migration patterns.
+Enhanced `pkg/ident` package and established migration patterns.
 
-### Tasks
-
-- [x] **2.1** Review and enhance `pkg/ident` API if needed
-  - Current functions: `Normalize()`, `Equal()`, `Compare()`, `Contains()`, `Index()`, `IsKeyword()`
-  - Added: `HasPrefix()` and `HasSuffix()` for case-insensitive prefix/suffix matching
-  - Documented best practices in `pkg/ident/doc.go` including:
-    - Pattern 6: Prefix/Suffix Matching
-    - "When NOT to Use This Package" section
-    - Updated migration examples with HasPrefix
-
-- [x] **2.2** Create migration guide document
-  - File: `docs/ident-migration-guide.md`
-  - Includes:
-    - Before/after examples for all common patterns
-    - 6 common patterns (map keys, comparisons, prefix/suffix, symbol tables, keywords, sorting)
-    - How to preserve original casing in error messages
-    - Anti-patterns to avoid (4 documented)
-    - Function reference table with allocation info
-    - Migration checklist
-    - Examples from the codebase
-
-- [x] **2.3** Add examples to `pkg/ident` package
-  - Example: `Example_symbolTable` - Map with case-insensitive keys and preserved original casing
-  - Example: `Example_errorMessages` - Proper error message handling preserving user's casing
-  - Example: `Example_typeRegistry` - Type registry pattern for compilers
-
-- [x] **2.4** Create helper for case-insensitive maps
-  - Created `pkg/ident/map.go` with generic `Map[T]` type
-  - Implemented methods:
-    - `NewMap[T]()`, `NewMapWithCapacity[T](capacity)`
-    - `Set(key, value)`, `SetIfAbsent(key, value) bool`
-    - `Get(key) (T, bool)`, `Has(key) bool`
-    - `GetOriginalKey(key) string`
-    - `Delete(key) bool`
-    - `Len() int`, `Keys() []string`
-    - `Range(f func(key, value) bool)`
-    - `Clear()`, `Clone() *Map[T]`
-  - API design checklist:
-    - [x] Thread safety: Documented single-threaded assumption in godoc
-    - [x] Memory overhead: Always stores originals (simpler API, minimal overhead)
-    - [x] API completeness: Added all methods plus `Has`, `SetIfAbsent`, `Clear`, `Clone`
-    - [x] Naming: Used `GetOriginalKey` for clarity
-  - Added comprehensive tests (14 test functions) and benchmarks
-  - Added examples: `ExampleMap`, `ExampleMap_SetIfAbsent`, `ExampleMap_Range`
+- [x] **2.1** Added `HasPrefix()` and `HasSuffix()` functions; enhanced `doc.go` with patterns and best practices
+- [x] **2.2** Created `docs/ident-migration-guide.md` with before/after examples, patterns, and anti-patterns
+- [x] **2.3** Added examples: `Example_errorMessages`, `Example_typeRegistry`
+- [x] **2.4** Created generic `Map[T]` type in `pkg/ident/map.go` with full API (Set, Get, GetOriginalKey, Delete, Len, Keys, Range, Clone, etc.)
 
 ---
 
