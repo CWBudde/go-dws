@@ -555,10 +555,15 @@ The following uses of `strings.ToLower()`/`strings.EqualFold()` are legitimate a
   - Migrated: All `strings.ToLower()` → `ident.Normalize()`, `strings.EqualFold()` → `ident.Equal()`
   - Kept `strings` import for `strings.Contains()` (string substring check)
 
-- [ ] **14.1.13** Migrate `internal/interp/functions_*.go` files (12 occurrences total, counting individual function calls)
-  - `functions_typecast.go:91,329,626` (ToLower) + `389,508(x2),601` (EqualFold; line 508 has two calls)
+- [x] **14.1.13** Migrate `internal/interp/functions_*.go` files (20 occurrences total)
+  - `functions_typecast.go:91,329,626` (ToLower) + `389,508(x2),601` (EqualFold)
   - `functions_calls.go:213,298,420` (ToLower) + `179` (EqualFold)
+  - `functions_records.go:18,22,101,110,165,265,383` (ToLower)
+  - `functions_user.go:95,122` (ToLower)
   - `functions_pointers.go:116` (ToLower)
+  - Migrated: All occurrences using `ident.Normalize()`/`pkgident.Normalize()`, `ident.Equal()`/`pkgident.Equal()`
+  - Used `pkgident` alias in files with local `ident` variable conflicts
+  - Removed unused `strings` imports from functions_calls.go, functions_records.go
 
 - [ ] **14.1.14** Migrate `internal/interp/declarations.go` (31 occurrences)
   - ToLower: 37,42,56,61,72,77,89,94,105,110,122,127,139,144,155,160,172,177,189,194,206,211,223,228
