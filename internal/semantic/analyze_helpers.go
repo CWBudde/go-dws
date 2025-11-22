@@ -1,8 +1,6 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -110,7 +108,7 @@ func (a *Analyzer) analyzeHelperDecl(decl *ast.HelperDecl) {
 
 	// Register the helper
 	// Multiple helpers can extend the same type, so we store them in a list
-	targetTypeName = strings.ToLower(targetType.String())
+	targetTypeName = ident.Normalize(targetType.String())
 	if a.helpers[targetTypeName] == nil {
 		a.helpers[targetTypeName] = make([]*types.HelperType, 0)
 	}
@@ -168,7 +166,7 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 	}
 
 	// Add method to helper
-	methodNameLower := strings.ToLower(methodName)
+	methodNameLower := ident.Normalize(methodName)
 	helperType.Methods[methodNameLower] = funcType
 
 	// Note: In helper methods, 'Self' implicitly refers to an instance of the target type.
@@ -206,7 +204,7 @@ func (a *Analyzer) analyzeHelperProperty(prop *ast.PropertyDecl, helperType *typ
 		// For now, we just track the basic property info
 	}
 
-	propNameLower := strings.ToLower(propName)
+	propNameLower := ident.Normalize(propName)
 	helperType.Properties[propNameLower] = propInfo
 }
 
@@ -234,7 +232,7 @@ func (a *Analyzer) analyzeHelperClassVar(classVar *ast.FieldDecl, helperType *ty
 		return
 	}
 
-	varNameLower := strings.ToLower(varName)
+	varNameLower := ident.Normalize(varName)
 	helperType.ClassVars[varNameLower] = varType
 }
 
@@ -279,7 +277,7 @@ func (a *Analyzer) analyzeHelperClassConst(classConst *ast.ConstDecl, helperType
 
 	// Store the constant (value would be evaluated by interpreter)
 	// For now, we just track that it exists with its type
-	constNameLower := strings.ToLower(constName)
+	constNameLower := ident.Normalize(constName)
 	helperType.ClassConsts[constNameLower] = constType
 }
 
@@ -291,7 +289,7 @@ func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 	}
 
 	// Look up helpers by the type's string representation
-	typeName := strings.ToLower(typ.String())
+	typeName := ident.Normalize(typ.String())
 	helpers := a.helpers[typeName]
 
 	// Task 9.171: For array types, also include generic array helpers
@@ -334,7 +332,7 @@ func (a *Analyzer) hasHelperMethod(typ types.Type, methodName string) (*types.He
 			// (e.g., Pop() should return the array's element type, not VARIANT)
 			if arrayType, isArray := typ.(*types.ArrayType); isArray {
 				// Check if this is the Pop method that needs specialization
-				if strings.ToLower(methodName) == "pop" && method.ReturnType == types.VARIANT {
+				if ident.Equal(methodName, "pop") && method.ReturnType == types.VARIANT {
 					// Create a specialized version with the actual element type
 					specialized := types.NewFunctionType(method.Parameters, arrayType.ElementType)
 					specialized.ParamNames = method.ParamNames
@@ -385,7 +383,7 @@ func (a *Analyzer) hasHelperClassConst(typ types.Type, constName string) (*types
 
 	// Check each helper in reverse order (most recent first)
 	// Task 9.217: Use case-insensitive lookup for DWScript compatibility
-	constNameLower := strings.ToLower(constName)
+	constNameLower := ident.Normalize(constName)
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
 		if constVal, ok := helper.ClassConsts[constNameLower]; ok {
@@ -505,7 +503,7 @@ func (a *Analyzer) initArrayHelpers() {
 func (a *Analyzer) initIntrinsicHelpers() {
 	// Helper registration helper to reduce duplication.
 	register := func(typeName string, helper *types.HelperType) {
-		key := strings.ToLower(typeName)
+		key := ident.Normalize(typeName)
 		if a.helpers[key] == nil {
 			a.helpers[key] = make([]*types.HelperType, 0)
 		}

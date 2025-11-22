@@ -1,8 +1,6 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -390,7 +388,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		// Check if this is an assignment to a class constant (which is not allowed)
 		objectType := a.analyzeExpression(target.Object)
 		if objectType != nil {
-			memberName := strings.ToLower(target.Member.Value)
+			memberName := ident.Normalize(target.Member.Value)
 			objectTypeResolved := types.GetUnderlyingType(objectType)
 
 			// Handle metaclass type

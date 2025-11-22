@@ -1,9 +1,8 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -32,7 +31,7 @@ func (a *Analyzer) isLValue(expr ast.Expression) bool {
 // isBuiltinFunction checks if a name refers to a built-in function.
 func (a *Analyzer) isBuiltinFunction(name string) bool {
 	// Normalize to lowercase for case-insensitive matching
-	lowerName := strings.ToLower(name)
+	lowerName := ident.Normalize(name)
 
 	// List of all built-in functions that can be called without parentheses
 	// This should match the list in the interpreter's isBuiltinFunction

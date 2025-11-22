@@ -2,10 +2,10 @@ package semantic
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // validateMethodSignature validates that an out-of-line method implementation
@@ -133,7 +133,7 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 	// Task 9.6: Check class metadata instead of AST node, since implementations don't have override keyword
 	// Task 9.16.1: Use lowercase key for case-insensitive lookups
 	// Task 9.2: Allow reintroduce keyword to explicitly hide virtual parent methods (check class metadata, not AST)
-	methodNameLower := strings.ToLower(methodName)
+	methodNameLower := ident.Normalize(methodName)
 	isOverrideInClass := classType.OverrideMethods[methodNameLower]
 	isVirtualInClass := classType.VirtualMethods[methodNameLower]
 	isReintroduceInClass := classType.ReintroduceMethods[methodNameLower]

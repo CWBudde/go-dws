@@ -1,10 +1,9 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -124,7 +123,7 @@ func (a *Analyzer) createEnumScopedAccessHelper(enumName string, enumType *types
 	// This allows TColor.Red to resolve to the Red constant
 	for valueName, ordinalValue := range enumType.Values {
 		// Store the ordinal value as the constant value
-		helper.ClassConsts[strings.ToLower(valueName)] = ordinalValue
+		helper.ClassConsts[ident.Normalize(valueName)] = ordinalValue
 	}
 
 	// Add Low and High as class constants
@@ -160,7 +159,7 @@ func (a *Analyzer) createEnumScopedAccessHelper(enumName string, enumType *types
 	helper.Methods["byname"] = byNameMethod
 
 	// Register the helper for this enum type
-	targetTypeName := strings.ToLower(enumType.String())
+	targetTypeName := ident.Normalize(enumType.String())
 	if a.helpers[targetTypeName] == nil {
 		a.helpers[targetTypeName] = make([]*types.HelperType, 0)
 	}

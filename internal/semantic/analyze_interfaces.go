@@ -1,10 +1,9 @@
 package semantic
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -88,7 +87,7 @@ func (a *Analyzer) analyzeInterfaceMethodDecl(method *ast.InterfaceMethodDecl, i
 	funcType := types.NewFunctionType(paramTypes, returnType)
 
 	// Check for duplicate method (case-insensitive)
-	methodKey := strings.ToLower(methodName)
+	methodKey := ident.Normalize(methodName)
 
 	// Check if method already exists in this interface
 	if _, exists := iface.Methods[methodKey]; exists {
@@ -148,7 +147,7 @@ func (a *Analyzer) validateInterfaceImplementation(classType *types.ClassType, d
 			} else {
 				// Clear the forward flag since this method implements the interface
 				// Methods implementing interfaces are complete implementations, not forward declarations
-				delete(classType.ForwardedMethods, strings.ToLower(methodName))
+				delete(classType.ForwardedMethods, ident.Normalize(methodName))
 			}
 		}
 	}
