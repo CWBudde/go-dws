@@ -337,7 +337,7 @@ If conditional compilation features are added in the future, they would require:
   - Files: `visitor_expressions.go`
   - Effort: 6-8 hours
 
-- [ ] **3.5.24** Complete `VisitCallExpression` - Special Calls
+- [x] **3.5.24** Complete `VisitCallExpression` - Special Calls
   - Type casts (Integer(x), String(y))
   - Constructor calls
   - Implicit Self methods, unit-qualified calls
@@ -348,7 +348,7 @@ If conditional compilation features are added in the future, they would require:
 
 ### Phase 5: OOP Operations (3.5.25-3.5.28)
 
-- [ ] **3.5.25** Complete `VisitMemberAccessExpression` - Simple Modes
+- [x] **3.5.25** Complete `VisitMemberAccessExpression` - Simple Modes
   - Unit-qualified access (Unit.Symbol)
   - Enum value properties (TEnum.EnumValue)
   - Static class access (TClass.StaticMethod)
