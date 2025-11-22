@@ -568,8 +568,8 @@ The following uses of `strings.ToLower()`/`strings.EqualFold()` are legitimate a
   - `contracts.go:15,18` (2)
   - `builtins_type.go:71,160,313,332,351` (5)
   - `statements_assignments.go:550,591` (ToLower) + `616` (EqualFold)
-  - `enum.go:109` + others
-  - `helpers_validation.go` (several ToLower + EqualFold:69)
+  - `enum.go:109` (1)
+  - `helpers_validation.go:69` (ToLower/EqualFold) [Further investigation required: additional occurrences may exist. Please audit this file and update with specific line numbers.]
   - `objects_instantiation.go:17` (EqualFold)
   - `value.go:236` (EqualFold)
   - `helpers_comparison.go:17,27,37` (3 EqualFold)
