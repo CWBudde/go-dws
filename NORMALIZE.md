@@ -492,7 +492,7 @@ The following uses of `strings.ToLower()`/`strings.EqualFold()` are legitimate a
   - `unit.go:78,84,86` - unit name normalization in `GetNormalizedName()`, `IsDependency()`
   - `search.go:72,85` - unit search capitalization/lowercase
 
-- [ ] **14.1.2** Migrate `internal/types/helper.go` (9 occurrences)
+- [ ] **14.1.2** Migrate `internal/types/helper.go` (8 occurrences)
   - Lines: 51,63,98,112,133,163,193,223
   - Helper type lookups: `helpersByName`, method/property/var/const lookups
 
