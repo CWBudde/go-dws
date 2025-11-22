@@ -230,7 +230,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	if cd.IsExternal {
 		classInfo.IsExternal = true
 		classInfo.ExternalName = cd.ExternalName
-		classInfo.Metadata.IsExternal = true       // Task 3.5.39
+		classInfo.Metadata.IsExternal = true              // Task 3.5.39
 		classInfo.Metadata.ExternalName = cd.ExternalName // Task 3.5.39
 	}
 
@@ -263,7 +263,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Set parent reference and inherit members (only if not already set for partial classes)
 	if parentClass != nil && classInfo.Parent == nil {
 		classInfo.Parent = parentClass
-		classInfo.Metadata.Parent = parentClass.Metadata       // Task 3.5.39
+		classInfo.Metadata.Parent = parentClass.Metadata          // Task 3.5.39
 		classInfo.Metadata.ParentName = parentClass.Metadata.Name // Task 3.5.39
 
 		// Copy parent fields (child inherits all parent fields)
