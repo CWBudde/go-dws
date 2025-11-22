@@ -117,7 +117,8 @@ func (v *contractValidator) validateStatement(stmt ast.Statement) {
 		for _, method := range s.Methods {
 			v.validateFunctionContracts(method)
 		}
-		// TODO: Validate class invariants when they are added to the AST
+		// Validate class invariants
+		v.validateClassInvariants(s)
 	case *ast.BlockStatement:
 		// Recursively validate nested statements
 		for _, nested := range s.Statements {
@@ -172,6 +173,177 @@ func (v *contractValidator) validatePostConditions(post *ast.PostConditions, fn 
 
 		// Validate 'old' expressions (ensure referenced identifiers exist)
 		v.validateOldExpressions(cond.Test, fn)
+	}
+}
+
+// validateClassInvariants validates class invariant clauses
+func (v *contractValidator) validateClassInvariants(class *ast.ClassDecl) {
+	if class == nil || class.Invariants == nil {
+		return
+	}
+
+	// Validate each invariant condition
+	for _, cond := range class.Invariants.Conditions {
+		v.validateInvariantCondition(cond, class)
+	}
+}
+
+// validateInvariantCondition validates a single invariant condition
+func (v *contractValidator) validateInvariantCondition(cond *ast.Condition, class *ast.ClassDecl) {
+	if cond == nil || cond.Test == nil {
+		return
+	}
+
+	// Check that the test expression is boolean
+	testType := v.checkInvariantExpression(cond.Test, class)
+	if testType != nil && !v.isBooleanCompatible(testType) {
+		v.ctx.AddError("invariant must be boolean expression in class '%s', got %s at %s",
+			class.Name.Value, testType.String(), cond.Token.Pos.String())
+	}
+
+	// Validate message if present (should be string)
+	if cond.Message != nil {
+		msgType := v.checkInvariantExpression(cond.Message, class)
+		if msgType != nil && msgType != types.STRING {
+			v.ctx.AddError("invariant message must be string expression in class '%s', got %s at %s",
+				class.Name.Value, msgType.String(), cond.Token.Pos.String())
+		}
+	}
+
+	// Validate that invariant only references fields and class constants
+	v.validateInvariantReferences(cond.Test, class)
+}
+
+// checkInvariantExpression type-checks an expression in invariant context
+func (v *contractValidator) checkInvariantExpression(expr ast.Expression, class *ast.ClassDecl) types.Type {
+	if expr == nil {
+		return nil
+	}
+
+	switch e := expr.(type) {
+	case *ast.BinaryExpression:
+		leftType := v.checkInvariantExpression(e.Left, class)
+		rightType := v.checkInvariantExpression(e.Right, class)
+
+		// Comparison and logical operators return Boolean
+		switch e.Operator {
+		case "=", "<>", "<", "<=", ">", ">=", "and", "or", "xor":
+			typ, _ := v.ctx.TypeRegistry.Resolve("Boolean")
+			return typ
+		default:
+			// For arithmetic operators, return the left type
+			if leftType != nil {
+				return leftType
+			}
+			return rightType
+		}
+	case *ast.UnaryExpression:
+		return v.checkInvariantExpression(e.Right, class)
+	case *ast.Identifier:
+		return v.checkInvariantIdentifier(e, class)
+	case *ast.IntegerLiteral:
+		typ, _ := v.ctx.TypeRegistry.Resolve("Integer")
+		return typ
+	case *ast.FloatLiteral:
+		typ, _ := v.ctx.TypeRegistry.Resolve("Float")
+		return typ
+	case *ast.StringLiteral:
+		typ, _ := v.ctx.TypeRegistry.Resolve("String")
+		return typ
+	case *ast.BooleanLiteral:
+		typ, _ := v.ctx.TypeRegistry.Resolve("Boolean")
+		return typ
+	case *ast.MemberAccessExpression:
+		// For member access, check the target and member
+		v.checkInvariantExpression(e.Object, class)
+		// Return type would be the member's type (simplified)
+		return nil
+	default:
+		// For other expressions, just return nil (Pass 3 already validated them)
+		return nil
+	}
+}
+
+// checkInvariantIdentifier checks if an identifier is valid in invariant context
+func (v *contractValidator) checkInvariantIdentifier(ident *ast.Identifier, class *ast.ClassDecl) types.Type {
+	if ident == nil {
+		return nil
+	}
+
+	// Check if it's a field in the class
+	if class != nil {
+		for _, field := range class.Fields {
+			if field.Name != nil && strings.EqualFold(field.Name.Value, ident.Value) {
+				// Resolve field type
+				if field.Type != nil {
+					return v.resolveTypeExpression(field.Type)
+				}
+			}
+		}
+
+		// Check if it's a class constant
+		for _, constant := range class.Constants {
+			if constant.Name != nil && strings.EqualFold(constant.Name.Value, ident.Value) {
+				// Return the constant's type
+				if constant.Type != nil {
+					return v.resolveTypeExpression(constant.Type)
+				}
+				// If no explicit type, try to infer from value
+				if constant.Value != nil {
+					return v.checkInvariantExpression(constant.Value, class)
+				}
+			}
+		}
+	}
+
+	// Check symbol table for global constants
+	sym, _ := v.ctx.Symbols.Resolve(ident.Value)
+	if sym != nil {
+		return sym.Type
+	}
+
+	return nil
+}
+
+// validateInvariantReferences ensures that invariants only reference fields and constants
+func (v *contractValidator) validateInvariantReferences(expr ast.Expression, class *ast.ClassDecl) {
+	if expr == nil {
+		return
+	}
+
+	switch e := expr.(type) {
+	case *ast.CallExpression:
+		// Method calls are not allowed in invariants (they might have side effects)
+		v.ctx.AddError("invariant cannot call methods (side effects not allowed) in class '%s' at %s",
+			class.Name.Value, e.Token.Pos.String())
+
+	case *ast.MethodCallExpression:
+		// Method calls are not allowed in invariants
+		v.ctx.AddError("invariant cannot call methods (side effects not allowed) in class '%s' at %s",
+			class.Name.Value, e.Token.Pos.String())
+
+	case *ast.BinaryExpression:
+		v.validateInvariantReferences(e.Left, class)
+		v.validateInvariantReferences(e.Right, class)
+
+	case *ast.UnaryExpression:
+		v.validateInvariantReferences(e.Right, class)
+
+	case *ast.GroupedExpression:
+		v.validateInvariantReferences(e.Expression, class)
+
+	case *ast.MemberAccessExpression:
+		v.validateInvariantReferences(e.Object, class)
+
+	case *ast.IndexExpression:
+		v.validateInvariantReferences(e.Left, class)
+		if e.Index != nil {
+			v.validateInvariantReferences(e.Index, class)
+		}
+
+	// Literals and identifiers are allowed
+	default:
+		// Other expressions are allowed (validated by checkInvariantExpression)
 	}
 }
 

@@ -1456,6 +1456,66 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 	return postConditions
 }
 
+// parseInvariantClause parses class invariants (invariant block).
+// Syntax: invariants condition1; condition2; ...
+// Returns an InvariantClause node containing all parsed conditions.
+// PRE: cursor is INVARIANTS
+// POST: cursor is last token of last condition
+func (p *Parser) parseInvariantClause() *ast.InvariantClause {
+	builder := p.StartNode()
+
+	invariantToken := p.cursor.Current()
+
+	// Advance to the first condition
+	p.nextToken()
+
+	var conditions []*ast.Condition
+
+	// Parse first condition
+	condition := p.parseCondition()
+	if condition == nil {
+		p.addError("expected at least one condition after 'invariants'", ErrInvalidExpression)
+		return nil
+	}
+	conditions = append(conditions, condition)
+
+	// Parse additional conditions separated by semicolons
+	for p.peekTokenIs(lexer.SEMICOLON) {
+		p.nextToken() // consume the semicolon
+
+		// Check if we've reached the end of invariants (peek at next token)
+		// (next class member keyword, end, or EOF)
+		if p.peekTokenIs(lexer.PRIVATE) || p.peekTokenIs(lexer.PROTECTED) ||
+			p.peekTokenIs(lexer.PUBLIC) || p.peekTokenIs(lexer.FUNCTION) ||
+			p.peekTokenIs(lexer.PROCEDURE) || p.peekTokenIs(lexer.CONSTRUCTOR) ||
+			p.peekTokenIs(lexer.DESTRUCTOR) || p.peekTokenIs(lexer.PROPERTY) ||
+			p.peekTokenIs(lexer.CLASS) || p.peekTokenIs(lexer.CONST) ||
+			p.peekTokenIs(lexer.END) || p.peekTokenIs(lexer.EOF) {
+			break
+		}
+
+		p.nextToken() // move to the next condition
+
+		condition := p.parseCondition()
+		if condition == nil {
+			break
+		}
+		conditions = append(conditions, condition)
+	}
+
+	invariantClause := &ast.InvariantClause{
+		BaseNode:   ast.BaseNode{Token: invariantToken},
+		Conditions: conditions,
+	}
+
+	// EndPos is the end of the last condition
+	if len(conditions) > 0 {
+		return builder.FinishWithNode(invariantClause, conditions[len(conditions)-1]).(*ast.InvariantClause)
+	}
+
+	return invariantClause
+}
+
 // parseIsExpression parses the 'is' operator which can be used for:
 // 1. Type checking: obj is TMyClass
 // 2. Boolean value comparison: boolExpr is True, boolExpr is False
