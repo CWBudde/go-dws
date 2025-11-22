@@ -1969,7 +1969,15 @@ func (v *statementValidator) typesCompatible(target, source types.Type) bool {
 		return false
 	}
 
-	// TODO: Handle subtype relationships (class inheritance), numeric conversions, etc.
+	// Task 6.1.2.6: Handle implicit numeric conversions
+	// Integer can be implicitly converted to Float (widening conversion)
+	// This enables: var f: Float := intVar, function calls, assignments, etc.
+	// Note: Float → Integer is NOT allowed (would lose precision)
+	if targetUnderlying.TypeKind() == "FLOAT" && sourceUnderlying.TypeKind() == "INTEGER" {
+		return true
+	}
+
+	// TODO: Handle subtype relationships (class inheritance), etc.
 	return false
 }
 
