@@ -2,11 +2,11 @@ package interp
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // This file contains assignment statement evaluation (simple, member, index, compound).
@@ -567,10 +567,10 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 // This helper extracts common logic for property writes (both direct and after auto-initialization).
 // Returns the assigned value on success, or an error Value.
 func (i *Interpreter) evalRecordPropertyWrite(recordVal *RecordValue, fieldName string, value Value, stmt *ast.AssignmentStatement, target *ast.MemberAccessExpression) Value {
-	fieldNameLower := strings.ToLower(fieldName)
+	fieldNameNorm := ident.Normalize(fieldName)
 
 	// Check if this is a property assignment (properties take precedence over fields)
-	if propInfo, exists := recordVal.RecordType.Properties[fieldNameLower]; exists {
+	if propInfo, exists := recordVal.RecordType.Properties[fieldNameNorm]; exists {
 		if propInfo.WriteField != "" {
 			// Check if WriteField is a field name or method name
 			// First try as a method (setter)
@@ -607,8 +607,8 @@ func (i *Interpreter) evalRecordPropertyWrite(recordVal *RecordValue, fieldName 
 				return value
 			}
 
-			// Not a method - try as a field name (direct field assignment, use lowercase)
-			recordVal.Fields[strings.ToLower(propInfo.WriteField)] = value
+			// Not a method - try as a field name (direct field assignment, use normalized key)
+			recordVal.Fields[ident.Normalize(propInfo.WriteField)] = value
 			return value
 		}
 		// Property is read-only
@@ -617,12 +617,12 @@ func (i *Interpreter) evalRecordPropertyWrite(recordVal *RecordValue, fieldName 
 
 	// Not a property - try direct field assignment
 	// Verify field exists in the record type (case-insensitive)
-	if _, exists := recordVal.RecordType.Fields[fieldNameLower]; !exists {
+	if _, exists := recordVal.RecordType.Fields[fieldNameNorm]; !exists {
 		return i.newErrorWithLocation(stmt, "field '%s' not found in record '%s'", fieldName, recordVal.RecordType.Name)
 	}
 
-	// Set the field value (use lowercase key)
-	recordVal.Fields[fieldNameLower] = value
+	// Set the field value (use normalized key)
+	recordVal.Fields[fieldNameNorm] = value
 	return value
 }
 
@@ -665,11 +665,11 @@ func shouldReleaseInterfaceSource(stmt *ast.AssignmentStatement, env *Environmen
 // evalMemberAssignment handles member assignment: obj.field := value or TClass.Variable := value
 func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, value Value, stmt *ast.AssignmentStatement) Value {
 	// Check if the left side is a class identifier (for static assignment: TClass.Variable := value or TClass.Property := value)
-	if ident, ok := target.Object.(*ast.Identifier); ok {
+	if targetIdent, ok := target.Object.(*ast.Identifier); ok {
 		// Check if this identifier refers to a class (case-insensitive lookup to match DWScript semantics)
 		var classInfo *ClassInfo
 		for className, class := range i.classes {
-			if strings.EqualFold(className, ident.Value) {
+			if ident.Equal(className, targetIdent.Value) {
 				classInfo = class
 				break
 			}
@@ -685,7 +685,7 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 
 			// Otherwise, try class variable assignment
 			if _, exists := classInfo.ClassVars[memberName]; !exists {
-				return i.newErrorWithLocation(stmt, "class variable '%s' not found in class '%s'", memberName, ident.Value)
+				return i.newErrorWithLocation(stmt, "class variable '%s' not found in class '%s'", memberName, targetIdent.Value)
 			}
 			// Assign to the class variable
 			classInfo.ClassVars[memberName] = value

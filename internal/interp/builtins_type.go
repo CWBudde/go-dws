@@ -2,9 +2,9 @@ package interp
 
 import (
 	"math"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // Type Introspection Built-in Functions
@@ -68,7 +68,7 @@ func (i *Interpreter) builtinLow(args []Value) Value {
 	// Handle enum values
 	if enumVal, ok := arg.(*EnumValue); ok {
 		// Look up the enum type metadata
-		enumTypeKey := "__enum_type_" + strings.ToLower(enumVal.TypeName)
+		enumTypeKey := "__enum_type_" + ident.Normalize(enumVal.TypeName)
 		typeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
 			return i.newErrorWithLocation(i.currentNode, "enum type '%s' not found", enumVal.TypeName)
@@ -157,7 +157,7 @@ func (i *Interpreter) builtinHigh(args []Value) Value {
 	// Handle enum values
 	if enumVal, ok := arg.(*EnumValue); ok {
 		// Look up the enum type metadata
-		enumTypeKey := "__enum_type_" + strings.ToLower(enumVal.TypeName)
+		enumTypeKey := "__enum_type_" + ident.Normalize(enumVal.TypeName)
 		typeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
 			return i.newErrorWithLocation(i.currentNode, "enum type '%s' not found", enumVal.TypeName)
@@ -309,8 +309,8 @@ func (i *Interpreter) getTypeIDAndName(val Value) (int, string) {
 // Type IDs start at 1000 for classes.
 // Uses a registry to ensure unique IDs and handles case-insensitivity.
 func (i *Interpreter) getClassTypeID(className string) int {
-	// Normalize to lowercase for case-insensitive comparison
-	normalizedName := strings.ToLower(className)
+	// Normalize for case-insensitive comparison
+	normalizedName := ident.Normalize(className)
 
 	// Check if we already have an ID for this class
 	if id, exists := i.classTypeIDRegistry[normalizedName]; exists {
@@ -328,8 +328,8 @@ func (i *Interpreter) getClassTypeID(className string) int {
 // Type IDs start at 200000 for records.
 // Uses a registry to ensure unique IDs and handles case-insensitivity.
 func (i *Interpreter) getRecordTypeID(recordName string) int {
-	// Normalize to lowercase for case-insensitive comparison
-	normalizedName := strings.ToLower(recordName)
+	// Normalize for case-insensitive comparison
+	normalizedName := ident.Normalize(recordName)
 
 	// Check if we already have an ID for this record
 	if id, exists := i.recordTypeIDRegistry[normalizedName]; exists {
@@ -347,8 +347,8 @@ func (i *Interpreter) getRecordTypeID(recordName string) int {
 // Type IDs start at 300000 for enums.
 // Uses a registry to ensure unique IDs and handles case-insensitivity.
 func (i *Interpreter) getEnumTypeID(enumName string) int {
-	// Normalize to lowercase for case-insensitive comparison
-	normalizedName := strings.ToLower(enumName)
+	// Normalize for case-insensitive comparison
+	normalizedName := ident.Normalize(enumName)
 
 	// Check if we already have an ID for this enum
 	if id, exists := i.enumTypeIDRegistry[normalizedName]; exists {

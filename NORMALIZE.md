@@ -80,21 +80,21 @@ A few interpreter files still contain direct `strings.ToLower()` or `strings.Equ
 
 #### Tasks
 
-- [ ] **12.1** Migrate `internal/interp/builtins_ordinals.go`
+- [x] **12.1** Migrate `internal/interp/builtins_ordinals.go`
   - Ordinal/enumeration value lookups
-  - Estimated: 2-3 occurrences
+  - Migrated: 5 occurrences (4 enum type lookups + 1 class lookup)
 
-- [ ] **12.2** Migrate `internal/interp/builtins_type.go`
+- [x] **12.2** Migrate `internal/interp/builtins_type.go`
   - Type name comparisons in builtin type functions
-  - Estimated: 3-5 occurrences
+  - Migrated: 5 occurrences (2 enum type lookups + 3 type ID registries)
 
-- [ ] **12.3** Migrate `internal/interp/statements_assignments.go`
+- [x] **12.3** Migrate `internal/interp/statements_assignments.go`
   - Variable/field assignment resolution
-  - Estimated: 2-4 occurrences
+  - Migrated: 3 occurrences (record field normalization + class lookup)
 
-- [ ] **12.4** Migrate `internal/interp/helpers_validation.go`
+- [x] **12.4** Migrate `internal/interp/helpers_validation.go`
   - Validation helper functions
-  - Estimated: 1-2 occurrences
+  - Migrated: 7 occurrences (helper name lookup, method registration, type indexing)
 
 - [ ] **12.5** Run cleanup commands
   - `goimports -w .` - Fix imports

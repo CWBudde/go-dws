@@ -2,9 +2,9 @@ package interp
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // builtinInc implements the Inc() built-in function.
@@ -66,7 +66,7 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 		}
 
 		// Get the enum type metadata
-		enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
+		enumTypeKey := "__enum_type_" + ident.Normalize(val.TypeName)
 		enumTypeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
 			return i.newErrorWithLocation(i.currentNode, "enum type metadata not found for %s", val.TypeName)
@@ -180,7 +180,7 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 		}
 
 		// Get the enum type metadata
-		enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
+		enumTypeKey := "__enum_type_" + ident.Normalize(val.TypeName)
 		enumTypeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
 			return i.newErrorWithLocation(i.currentNode, "enum type metadata not found for %s", val.TypeName)
@@ -249,7 +249,7 @@ func (i *Interpreter) builtinSucc(args []Value) Value {
 	case *IntegerValue:
 		return &IntegerValue{Value: val.Value + 1}
 	case *EnumValue:
-		enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
+		enumTypeKey := "__enum_type_" + ident.Normalize(val.TypeName)
 		enumTypeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
 			return i.newErrorWithLocation(i.currentNode, "enum type metadata not found for %s", val.TypeName)
@@ -299,7 +299,7 @@ func (i *Interpreter) builtinPred(args []Value) Value {
 	case *IntegerValue:
 		return &IntegerValue{Value: val.Value - 1}
 	case *EnumValue:
-		enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
+		enumTypeKey := "__enum_type_" + ident.Normalize(val.TypeName)
 		enumTypeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
 			return i.newErrorWithLocation(i.currentNode, "enum type metadata not found for %s", val.TypeName)
@@ -375,8 +375,8 @@ func (i *Interpreter) builtinAssert(args []Value) Value {
 	}
 
 	// Create EAssertionFailed exception
-	// PR #147: Use lowercase key for O(1) case-insensitive lookup
-	assertClass, ok := i.classes[strings.ToLower("EAssertionFailed")]
+	// PR #147: Use ident.Normalize for case-insensitive lookup
+	assertClass, ok := i.classes[ident.Normalize("EAssertionFailed")]
 	if !ok {
 		return i.newErrorWithLocation(i.currentNode, "EAssertionFailed exception class not found")
 	}
