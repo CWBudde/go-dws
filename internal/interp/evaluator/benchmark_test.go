@@ -13,6 +13,10 @@ import (
 	"github.com/cwbudde/go-dws/pkg/token"
 )
 
+// benchSink is a package-level variable to prevent the compiler from
+// eliminating benchmark calls as dead code (DCE prevention).
+var benchSink any
+
 // Benchmark helpers
 
 func parseCode(code string) *ast.Program {
@@ -58,7 +62,7 @@ func BenchmarkVisitIntegerLiteral(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = eval.VisitIntegerLiteral(node, ctx)
+		benchSink = eval.VisitIntegerLiteral(node, ctx)
 	}
 }
 
@@ -78,7 +82,7 @@ func BenchmarkVisitFloatLiteral(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = eval.VisitFloatLiteral(node, ctx)
+		benchSink = eval.VisitFloatLiteral(node, ctx)
 	}
 }
 
@@ -98,7 +102,7 @@ func BenchmarkVisitStringLiteral(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = eval.VisitStringLiteral(node, ctx)
+		benchSink = eval.VisitStringLiteral(node, ctx)
 	}
 }
 
@@ -118,7 +122,7 @@ func BenchmarkVisitBooleanLiteral(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = eval.VisitBooleanLiteral(node, ctx)
+		benchSink = eval.VisitBooleanLiteral(node, ctx)
 	}
 }
 
@@ -156,7 +160,7 @@ func BenchmarkVisitBinaryExpression_IntegerAdd(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = eval.VisitBinaryExpression(node, ctx)
+		benchSink = eval.VisitBinaryExpression(node, ctx)
 	}
 }
 
@@ -190,7 +194,7 @@ func BenchmarkVisitBinaryExpression_IntegerMultiply(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = eval.VisitBinaryExpression(node, ctx)
+		benchSink = eval.VisitBinaryExpression(node, ctx)
 	}
 }
 
@@ -224,7 +228,7 @@ func BenchmarkVisitBinaryExpression_IntegerComparison(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = eval.VisitBinaryExpression(node, ctx)
+		benchSink = eval.VisitBinaryExpression(node, ctx)
 	}
 }
 
@@ -258,7 +262,7 @@ func BenchmarkVisitBinaryExpression_BooleanAnd(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = eval.VisitBinaryExpression(node, ctx)
+		benchSink = eval.VisitBinaryExpression(node, ctx)
 	}
 }
 
@@ -292,7 +296,7 @@ func BenchmarkVisitBinaryExpression_StringConcat(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = eval.VisitBinaryExpression(node, ctx)
+		benchSink = eval.VisitBinaryExpression(node, ctx)
 	}
 }
 
@@ -324,7 +328,7 @@ func BenchmarkVisitUnaryExpression_IntegerNegation(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = eval.VisitUnaryExpression(node, ctx)
+		benchSink = eval.VisitUnaryExpression(node, ctx)
 	}
 }
 
@@ -352,7 +356,7 @@ func BenchmarkVisitUnaryExpression_BooleanNot(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = eval.VisitUnaryExpression(node, ctx)
+		benchSink = eval.VisitUnaryExpression(node, ctx)
 	}
 }
 
@@ -412,7 +416,7 @@ func BenchmarkComplexArithmetic(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = eval.VisitBinaryExpression(node, ctx)
+		benchSink = eval.VisitBinaryExpression(node, ctx)
 	}
 }
 
@@ -448,7 +452,7 @@ func BenchmarkDeepNesting(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = eval.VisitBinaryExpression(result.(*ast.BinaryExpression), ctx)
+		benchSink = eval.VisitBinaryExpression(result.(*ast.BinaryExpression), ctx)
 	}
 }
 
@@ -484,7 +488,7 @@ func BenchmarkWideExpression(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = eval.VisitBinaryExpression(result.(*ast.BinaryExpression), ctx)
+		benchSink = eval.VisitBinaryExpression(result.(*ast.BinaryExpression), ctx)
 	}
 }
 
@@ -526,10 +530,10 @@ func BenchmarkVisitorDispatchMixed(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = eval.VisitIntegerLiteral(intLit, ctx)
-		_ = eval.VisitFloatLiteral(floatLit, ctx)
-		_ = eval.VisitStringLiteral(strLit, ctx)
-		_ = eval.VisitBooleanLiteral(boolLit, ctx)
+		benchSink = eval.VisitIntegerLiteral(intLit, ctx)
+		benchSink = eval.VisitFloatLiteral(floatLit, ctx)
+		benchSink = eval.VisitStringLiteral(strLit, ctx)
+		benchSink = eval.VisitBooleanLiteral(boolLit, ctx)
 	}
 }
 
@@ -547,7 +551,7 @@ func BenchmarkEvaluatorCreation(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = NewEvaluator(typeSystem, output, config, unitRegistry)
+		benchSink = NewEvaluator(typeSystem, output, config, unitRegistry)
 	}
 }
 
@@ -557,6 +561,6 @@ func BenchmarkContextCreation(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		env := newMockEnvironment()
-		_ = NewExecutionContext(env)
+		benchSink = NewExecutionContext(env)
 	}
 }
