@@ -231,7 +231,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ### Phase 1: Simple Expression Methods (3.5.10-3.5.14)
 
-- [ ] **3.5.10** Migrate `VisitParenthesizedExpression` / `VisitGroupedExpression`
+- [x] **3.5.10** Migrate `VisitParenthesizedExpression` / `VisitGroupedExpression`
   - Simple delegation to inner expression evaluation
   - Verify precedence is preserved correctly
   - Files: `visitor_expressions.go`
