@@ -287,10 +287,11 @@ If conditional compilation features are added in the future, they would require:
 
 ### Phase 3: Complete Binary/Unary Operators (3.5.18-3.5.20)
 
-- [ ] **3.5.18** Complete Binary Operators - Enum & Variant
+- [x] **3.5.18** Complete Binary Operators - Enum & Variant
   - EnumValue comparisons (=, <>, <, >, <=, >=)
   - Variant operations (delegate to adapter for type coercion)
-  - Files: `binary_ops.go`
+  - Bitwise operations for enums (and, or, xor) for flag enums
+  - Files: `internal/interp/evaluator/binary_ops.go`, `internal/interp/evaluator/enum_ops_test.go`
   - Effort: 4-5 hours
 
 - [ ] **3.5.19** Complete Binary Operators - Collections

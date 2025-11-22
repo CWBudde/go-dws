@@ -423,12 +423,62 @@ func (e *Evaluator) evalBooleanBinaryOp(op string, left, right Value, node ast.N
 }
 
 // evalEnumBinaryOp evaluates binary operations on enum values.
+// Enums support comparison operations (=, <>, <, >, <=, >=) and bitwise operations (and, or, xor).
 // Enums are compared by their ordinal values.
-// Note: Enum types may not be migrated to runtime package yet.
+// Task 3.5.18: Migrated from Interpreter expressions_binary.go
 func (e *Evaluator) evalEnumBinaryOp(op string, left, right Value, node ast.Node) Value {
-	// Delegate to adapter for now since EnumValue is in interp package
-	// Full migration requires EnumValue to be in runtime package
-	return e.adapter.EvalNode(node)
+	// Safe type assertions with error handling
+	leftEnum, ok := left.(*runtime.EnumValue)
+	if !ok {
+		return e.newError(node, "expected enum, got %s", left.Type())
+	}
+	rightEnum, ok := right.(*runtime.EnumValue)
+	if !ok {
+		return e.newError(node, "expected enum, got %s", right.Type())
+	}
+
+	leftVal := leftEnum.OrdinalValue
+	rightVal := rightEnum.OrdinalValue
+
+	switch op {
+	// Comparison operators
+	case "=":
+		return &runtime.BooleanValue{Value: leftVal == rightVal}
+	case "<>":
+		return &runtime.BooleanValue{Value: leftVal != rightVal}
+	case "<":
+		return &runtime.BooleanValue{Value: leftVal < rightVal}
+	case ">":
+		return &runtime.BooleanValue{Value: leftVal > rightVal}
+	case "<=":
+		return &runtime.BooleanValue{Value: leftVal <= rightVal}
+	case ">=":
+		return &runtime.BooleanValue{Value: leftVal >= rightVal}
+	// Bitwise operations for enums (especially flags enums)
+	case "and":
+		// Bitwise AND on enum ordinal values, return enum of same type
+		return &runtime.EnumValue{
+			TypeName:     leftEnum.TypeName,
+			ValueName:    "", // No specific name for computed values
+			OrdinalValue: leftVal & rightVal,
+		}
+	case "or":
+		// Bitwise OR on enum ordinal values, return enum of same type
+		return &runtime.EnumValue{
+			TypeName:     leftEnum.TypeName,
+			ValueName:    "", // No specific name for computed values
+			OrdinalValue: leftVal | rightVal,
+		}
+	case "xor":
+		// Bitwise XOR on enum ordinal values, return enum of same type
+		return &runtime.EnumValue{
+			TypeName:     leftEnum.TypeName,
+			ValueName:    "", // No specific name for computed values
+			OrdinalValue: leftVal ^ rightVal,
+		}
+	default:
+		return e.newError(node, "unknown operator: %s %s %s", left.Type(), op, right.Type())
+	}
 }
 
 // ============================================================================
