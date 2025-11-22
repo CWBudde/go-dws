@@ -1133,20 +1133,21 @@ func (v *statementValidator) checkIdentifier(expr *ast.Identifier) types.Type {
 	if idLower == "result" {
 		if v.ctx.CurrentFunction != nil {
 			// Try to get the return type from the current function
-			if fnDecl, ok := v.ctx.CurrentFunction.(*ast.FunctionDecl); ok {
-				if fnDecl != nil && fnDecl.ReturnType != nil {
-					// This is a function (has return type)
+			if fnDecl, ok := v.ctx.CurrentFunction.(*ast.FunctionDecl); ok && fnDecl != nil {
+				if fnDecl.ReturnType != nil {
+					// This is a function with explicit return type
 					returnType := v.resolveTypeExpression(fnDecl.ReturnType)
 					if returnType != nil {
 						return returnType
 					}
-					// Can't resolve return type (complex type), but it's still valid to use Result
-					// Return Variant as a safe fallback for unresolved Result types
-					return types.VARIANT
 				}
+				// Return Variant as a safe fallback for:
+				// - Lambdas without explicit return type (type inference)
+				// - Unresolved return types (complex types)
+				return types.VARIANT
 			}
 		}
-		// If not in a function or function has no return type, fall through to normal resolution
+		// If not in a function, fall through to normal resolution
 	}
 
 	// Check if it's the current for loop variable
@@ -1195,7 +1196,18 @@ func (v *statementValidator) checkIdentifier(expr *ast.Identifier) types.Type {
 		}
 	}
 
-	// Variable not found in any scope
+	// Check if this is a type name in the TypeRegistry
+	// Type names can be used in member access expressions (e.g., TClassName.Create())
+	// or in type operators (e.g., obj is TClassName)
+	if v.ctx.TypeRegistry != nil {
+		if typ, ok := v.ctx.TypeRegistry.Resolve(expr.Value); ok {
+			// This is a valid type name - return the type itself
+			// (will be used in member access for constructors/class methods)
+			return typ
+		}
+	}
+
+	// Variable not found in any scope or type registry
 	v.ctx.AddError("undefined variable '%s'", expr.Value)
 	return nil
 }
@@ -2325,6 +2337,38 @@ func (v *statementValidator) checkLambdaExpression(expr *ast.LambdaExpression, e
 	}
 	v.ctx.CurrentFunction = lambdaFuncDecl
 	defer func() { v.ctx.CurrentFunction = oldCurrentFunction }()
+
+	// Push a new function scope for lambda parameters and local variables
+	v.ctx.PushScope(ScopeFunction)
+	defer v.ctx.PopScope()
+
+	// Add lambda parameters to the current scope
+	for _, param := range expr.Parameters {
+		if param != nil && param.Name != nil {
+			var paramType types.Type = types.VARIANT // default type
+			if param.Type != nil {
+				resolvedType := v.resolveTypeExpression(param.Type)
+				if resolvedType != nil {
+					paramType = resolvedType
+				}
+			}
+			// If we have an expected function type, use its parameter types
+			if expectedFuncType != nil {
+				paramIdx := -1
+				for i, p := range expr.Parameters {
+					if p == param {
+						paramIdx = i
+						break
+					}
+				}
+				if paramIdx >= 0 && paramIdx < len(expectedFuncType.Parameters) {
+					// Parameters is []Type, so directly use the type
+					paramType = expectedFuncType.Parameters[paramIdx]
+				}
+			}
+			v.ctx.DefineInCurrentScope(param.Name.Value, paramType)
+		}
+	}
 
 	// Validate lambda body
 	if expr.Body != nil {
