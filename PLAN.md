@@ -1276,14 +1276,27 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Effort**: 1-2 weeks
   - **Completed**: Task 3.5.41 - Migrated VisitAssignmentStatement with compound operator support and helper methods
 
-- [ ] **3.5.42** Migrate Try Statement (`VisitTryStatement`)
+- [ ] **3.5.42** Migrate Try Statement (`VisitTryStatement`) ⏸️ **BLOCKED**
   - **Complexity**: Very High
   - **Requirements**: Defer semantics, exception matching, handler variable binding, ExceptObject management, nested handlers, bare raise support
   - **Effort**: 2-3 weeks
+  - **Status**: Visitor method exists with comprehensive documentation, delegates to adapter
+  - **Blocking Dependencies**:
+    - ExceptionValue type migration to runtime package
+    - ObjectInstance type migration to runtime package
+    - ClassInfo type migration to runtime package
+    - Exception type matching with inheritance
+    - Handler scope management infrastructure
 
-- [ ] **3.5.43** Migrate Raise Statement (`VisitRaiseStatement`)
+- [ ] **3.5.43** Migrate Raise Statement (`VisitRaiseStatement`) ⏸️ **BLOCKED**
   - **Requirements**: Explicit/bare raise, exception object validation, message extraction, call stack capture
   - **Effort**: 1 week
+  - **Status**: Visitor method exists with comprehensive documentation, delegates to adapter
+  - **Blocking Dependencies**:
+    - ExceptionValue type creation
+    - ObjectInstance field extraction
+    - Call stack capture and formatting
+    - HandlerException state management for bare raise
 
 ---
 
