@@ -454,13 +454,14 @@ If conditional compilation features are added in the future, they would require:
   - Effort: 4-6 hours
   - **Completed**: Created comprehensive benchmark suite with 17 benchmarks covering literals, binary/unary operations, complex expressions, visitor dispatch, and memory allocation. Performance analysis shows zero regression vs switch-based approach, with excellent memory characteristics and linear scaling. Detailed report in `docs/evaluator-performance-report.md`.
 
-- [ ] **3.5.36** Documentation Update
+- [x] **3.5.36** Documentation Update
   - Update CLAUDE.md architecture section
   - Create migration guide for contributors
   - Document visitor pattern usage
   - Architecture diagrams
-  - Files: `CLAUDE.md`, `docs/architecture/interpreter.md`
+  - Files: `CLAUDE.md`, `docs/architecture/interpreter.md`, `docs/evaluator-migration-guide.md`
   - Effort: 4-6 hours
+  - **Completed**: Updated CLAUDE.md with detailed evaluator architecture section, created comprehensive interpreter architecture document (`docs/architecture/interpreter.md`) with architecture diagrams, visitor pattern explanation, and performance data. Created contributor migration guide (`docs/evaluator-migration-guide.md`) with examples, patterns, testing guidelines, and common mistakes to avoid.
 
 ---
 
