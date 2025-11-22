@@ -126,11 +126,11 @@ type MethodMetadata struct {
     // Executable body - exactly one of these will be set:
     Body           ast.Statement          // AST body (Phase 9)
     BytecodeID     int                   // Bytecode ID (future)
-    NativeFunc     func([]Value) Value   // Built-in function
+    NativeFunc     func(args []interface{}) interface{}   // Built-in function
 
     // Validation (Phase 9: keep AST; future: migrate to bytecode)
-    PreConditions  []ast.Expression
-    PostConditions []ast.Expression
+    PreConditions  *ast.PreConditions
+    PostConditions *ast.PostConditions
 
     // Method characteristics
     IsVirtual      bool

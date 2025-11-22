@@ -287,12 +287,12 @@ func AddFieldToRecord(record *RecordMetadata, field *FieldMetadata) {
 func normalizeIdentifier(name string) string {
 	// Simple lowercase conversion for now
 	// This matches the behavior of ident.Normalize
-	result := make([]rune, len(name))
-	for i, r := range name {
+	result := make([]rune, 0, len(name))
+	for _, r := range name {
 		if r >= 'A' && r <= 'Z' {
-			result[i] = r + ('a' - 'A')
+			result = append(result, r+('a'-'A'))
 		} else {
-			result[i] = r
+			result = append(result, r)
 		}
 	}
 	return string(result)
