@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -289,7 +291,7 @@ func (v *contractValidator) checkIdentifier(ident *ast.Identifier, fn *ast.Funct
 	// Check if it's a parameter
 	if fn != nil {
 		for _, param := range fn.Parameters {
-			if param.Name != nil && param.Name.Value == ident.Value {
+			if param.Name != nil && strings.EqualFold(param.Name.Value, ident.Value) {
 				// Resolve parameter type
 				if param.Type != nil {
 					return v.resolveTypeExpression(param.Type)
@@ -297,8 +299,8 @@ func (v *contractValidator) checkIdentifier(ident *ast.Identifier, fn *ast.Funct
 			}
 		}
 
-		// Check if it's 'Result' (function return value)
-		if ident.Value == "Result" && fn.ReturnType != nil {
+		// Check if it's 'Result' (function return value) - case-insensitive
+		if strings.EqualFold(ident.Value, "Result") && fn.ReturnType != nil {
 			return v.resolveTypeExpression(fn.ReturnType)
 		}
 	}
