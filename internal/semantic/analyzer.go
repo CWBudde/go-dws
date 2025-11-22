@@ -628,7 +628,6 @@ func (a *Analyzer) GetSymbolTable() *SymbolTable {
 }
 
 // GetClasses returns the analyzer's class type map.
-// Task 6.1.1.3: Build map from TypeRegistry
 func (a *Analyzer) GetClasses() map[string]*types.ClassType {
 	result := make(map[string]*types.ClassType)
 	classNames := a.typeRegistry.TypesByKind("CLASS")
@@ -641,7 +640,6 @@ func (a *Analyzer) GetClasses() map[string]*types.ClassType {
 }
 
 // GetInterfaces returns the analyzer's interface type map.
-// Task 6.1.1.3: Build map from TypeRegistry
 func (a *Analyzer) GetInterfaces() map[string]*types.InterfaceType {
 	result := make(map[string]*types.InterfaceType)
 	interfaceNames := a.typeRegistry.TypesByKind("INTERFACE")
@@ -654,7 +652,6 @@ func (a *Analyzer) GetInterfaces() map[string]*types.InterfaceType {
 }
 
 // GetEnums returns the analyzer's enum type map.
-// Task 6.1.1.3: Build map from TypeRegistry
 func (a *Analyzer) GetEnums() map[string]*types.EnumType {
 	result := make(map[string]*types.EnumType)
 	enumNames := a.typeRegistry.TypesByKind("ENUM")
@@ -667,7 +664,6 @@ func (a *Analyzer) GetEnums() map[string]*types.EnumType {
 }
 
 // GetRecords returns the analyzer's record type map.
-// Task 6.1.1.3: Build map from TypeRegistry
 func (a *Analyzer) GetRecords() map[string]*types.RecordType {
 	result := make(map[string]*types.RecordType)
 	recordNames := a.typeRegistry.TypesByKind("RECORD")
@@ -680,7 +676,6 @@ func (a *Analyzer) GetRecords() map[string]*types.RecordType {
 }
 
 // GetArrayTypes returns the analyzer's array type map.
-// Task 6.1.1.3: Build map from TypeRegistry
 func (a *Analyzer) GetArrayTypes() map[string]*types.ArrayType {
 	result := make(map[string]*types.ArrayType)
 	arrayNames := a.typeRegistry.TypesByKind("ARRAY")
@@ -693,7 +688,7 @@ func (a *Analyzer) GetArrayTypes() map[string]*types.ArrayType {
 }
 
 // GetTypeAliases returns the analyzer's type alias map.
-// Task 6.1.1.3: Build map from TypeRegistry
+//
 // Note: We iterate through all types and check for type aliases via type assertion
 // because TypeAlias.TypeKind() returns the underlying type's kind (for compatibility),
 // not "ALIAS", so TypesByKind("ALIAS") would return nothing.

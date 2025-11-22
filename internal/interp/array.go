@@ -624,7 +624,6 @@ func (i *Interpreter) typeFromValue(val Value) types.Type {
 	case *ArrayValue:
 		return v.ArrayType
 	case *EnumValue:
-		// Normalize to lowercase for case-insensitive lookups
 		if typeVal, ok := i.env.Get("__enum_type_" + strings.ToLower(v.TypeName)); ok {
 			if enumTypeVal, ok := typeVal.(*EnumTypeValue); ok {
 				return enumTypeVal.EnumType

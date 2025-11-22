@@ -93,7 +93,6 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := fn.ReturnType.String()
-		// Normalize to lowercase for case-insensitive lookups
 		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
@@ -105,7 +104,6 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		// Check if return type is an array (overrides default)
 		// Array return types should be initialized to empty arrays, not NIL
 		// This allows methods like .Add() and .High to work on the Result variable
-		// Normalize to lowercase for case-insensitive lookups
 		arrayTypeKey := "__array_type_" + strings.ToLower(returnTypeName)
 		if typeVal, ok := i.env.Get(arrayTypeKey); ok {
 			if atv, ok := typeVal.(*ArrayTypeValue); ok {

@@ -162,7 +162,6 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := method.ReturnType.String()
-		// Normalize to lowercase for case-insensitive lookups
 		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
@@ -381,7 +380,6 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := method.ReturnType.String()
-		// Normalize to lowercase for case-insensitive lookups
 		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if recordTV, ok := typeVal.(*RecordTypeValue); ok {

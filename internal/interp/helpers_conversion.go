@@ -138,13 +138,11 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeExpr ast.TypeExpression) typ
 	}
 
 	// Check for interface types (stored in i.interfaces map)
-	// Normalize to lowercase for case-insensitive lookups
 	if interfaceInfo, ok := i.interfaces[strings.ToLower(typeName)]; ok {
 		return types.NewInterfaceType(interfaceInfo.Name)
 	}
 
 	// Check for record types (stored with special prefix in environment)
-	// Normalize to lowercase for case-insensitive lookups
 	recordTypeKey := "__record_type_" + strings.ToLower(typeName)
 	if typeVal, ok := i.env.Get(recordTypeKey); ok {
 		if recordTypeVal, ok := typeVal.(*RecordTypeValue); ok {

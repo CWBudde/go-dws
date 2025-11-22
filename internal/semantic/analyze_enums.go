@@ -125,7 +125,6 @@ func (a *Analyzer) createEnumScopedAccessHelper(enumName string, enumType *types
 	// This allows TColor.Red to resolve to the Red constant
 	for valueName, ordinalValue := range enumType.Values {
 		// Store the ordinal value as the constant value
-		// Normalize to lowercase for case-insensitive lookup
 		helper.ClassConsts[strings.ToLower(valueName)] = ordinalValue
 	}
 

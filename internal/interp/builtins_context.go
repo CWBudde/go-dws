@@ -701,7 +701,6 @@ func (i *Interpreter) GetEnumSuccessor(enumVal builtins.Value) (builtins.Value, 
 		return nil, fmt.Errorf("expected EnumValue, got %T", enumVal)
 	}
 
-	// Normalize to lowercase for case-insensitive lookups
 	enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
 	enumTypeVal, ok := i.env.Get(enumTypeKey)
 	if !ok {
@@ -747,14 +746,12 @@ func (i *Interpreter) GetEnumSuccessor(enumVal builtins.Value) (builtins.Value, 
 
 // GetEnumPredecessor returns the predecessor of an enum value.
 // This implements the builtins.Context interface.
-// Task 3.7.8: Helper for Pred() function.
 func (i *Interpreter) GetEnumPredecessor(enumVal builtins.Value) (builtins.Value, error) {
 	val, ok := enumVal.(*EnumValue)
 	if !ok {
 		return nil, fmt.Errorf("expected EnumValue, got %T", enumVal)
 	}
 
-	// Normalize to lowercase for case-insensitive lookups
 	enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
 	enumTypeVal, ok := i.env.Get(enumTypeKey)
 	if !ok {

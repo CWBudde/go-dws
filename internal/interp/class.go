@@ -154,7 +154,6 @@ func (o *ObjectInstance) GetMethod(name string) *ast.FunctionDecl {
 // It starts with the current class and walks up the parent chain.
 // Returns the first method found, or nil if not found.
 func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
-	// Normalize to lowercase for case-insensitive lookup
 	normalizedName := strings.ToLower(name)
 
 	// Check current class

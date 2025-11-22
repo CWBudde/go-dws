@@ -162,7 +162,6 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 
 	// Store record type metadata in environment with special key
 	// This allows variable declarations to resolve the type
-	// Task 9.225: Normalize to lowercase for case-insensitive lookups
 	recordTypeKey := "__record_type_" + strings.ToLower(recordName)
 	recordTypeValue := &RecordTypeValue{
 		RecordType:           recordType,
@@ -230,7 +229,6 @@ func (i *Interpreter) createRecordValue(recordType *types.RecordType, methods ma
 	// Create a method lookup callback that can resolve methods for nested records
 	methodsLookup := func(rt *types.RecordType) map[string]*ast.FunctionDecl {
 		// Look up the record type in the environment
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
 		key := "__record_type_" + strings.ToLower(rt.Name)
 		if typeVal, ok := i.env.Get(key); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
@@ -303,7 +301,6 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 	// If the literal has an explicit type name, use it
 	if literal.TypeName != nil {
 		typeName := literal.TypeName.Value
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
 		recordTypeKey := "__record_type_" + strings.ToLower(typeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {

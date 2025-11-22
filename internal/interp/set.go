@@ -89,7 +89,6 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 				// Special handling for enum types
 				if enumVal, isEnum := startVal.(*EnumValue); isEnum {
 					// Get enum type from environment
-					// Task 9.225: Normalize to lowercase for case-insensitive lookups
 					typeVal, ok := i.env.Get("__enum_type_" + strings.ToLower(enumVal.TypeName))
 					if !ok {
 						return &ErrorValue{
@@ -164,7 +163,6 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 				// Special handling for enum types
 				if enumVal, isEnum := elemVal.(*EnumValue); isEnum {
 					// Get enum type from environment
-					// Task 9.225: Normalize to lowercase for case-insensitive lookups
 					typeVal, ok := i.env.Get("__enum_type_" + strings.ToLower(enumVal.TypeName))
 					if !ok {
 						return &ErrorValue{

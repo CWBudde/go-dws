@@ -196,10 +196,9 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	}
 
 	// Check if object is a class or record type
-	// Task 9.285: Normalize to lowercase for case-insensitive lookup
 	memberName := strings.ToLower(expr.Member.Value)
 
-	// Task 9.73.5: Resolve type aliases to get the underlying type
+	// Resolve type aliases to get the underlying type
 	// This allows member access on type alias variables like TBaseClass
 	objectTypeResolved := types.GetUnderlyingType(objectType)
 

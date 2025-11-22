@@ -113,7 +113,6 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := lambda.ReturnType.String()
-		// Normalize to lowercase for case-insensitive lookups
 		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
