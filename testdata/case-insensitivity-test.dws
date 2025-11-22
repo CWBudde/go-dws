@@ -1,0 +1,70 @@
+// Case-insensitivity test script
+// Tests that DWScript correctly handles case-insensitive identifiers
+
+// Variable declarations with different casing
+var MyVariable: Integer;
+var AnotherVar: String;
+
+// Type definitions
+type
+    TMyRecord = record
+        FirstField: Integer;
+        SecondField: String;
+    end;
+
+    TColor = (Red, Green, Blue);
+
+// Function definition
+function GetValue(Input: Integer): Integer;
+begin
+    RESULT := INPUT * 2;  // Using different case for Result and Input
+end;
+
+// Procedure
+procedure PrintMessage(Msg: String);
+begin
+    PRINTLN(MSG);  // Using different case
+end;
+
+// Main program
+begin
+    // Test variable access with different cases
+    myvariable := 42;
+    MYVARIABLE := MYVARIABLE + 10;
+    PrintLn(IntToStr(MyVariable));  // Should print 52
+
+    // Test const/function name case insensitivity
+    anothervar := 'Hello';
+    ANOTHERVAR := ANOTHERVAR + ' World';
+    PRINTLN(AnotherVar);  // Should print Hello World
+
+    // Test function call with different casing
+    MyVariable := GETVALUE(10);
+    PrintLn(inttostr(myvariable));  // Should print 20
+
+    // Test record field access
+    var rec: TMyRecord;
+    rec.FIRSTFIELD := 100;
+    rec.secondfield := 'Test';
+    PrintLn(IntToStr(REC.firstfield));  // Should print 100
+    PrintLn(rec.SECONDFIELD);           // Should print Test
+
+    // Test enum access
+    var c: TColor;
+    c := RED;
+    c := green;
+    c := BLUE;
+    PrintLn('Enum test passed');
+
+    // Test keyword case insensitivity
+    IF TRUE THEN
+        PrintLn('IF works')
+    ELSE
+        PrintLn('IF failed');
+
+    var i: INTEGER;
+    FOR i := 1 TO 3 DO
+        PrintLn('Loop ' + IntToStr(i));
+
+    PrintLn('All case insensitivity tests passed!');
+end.
