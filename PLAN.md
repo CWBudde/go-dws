@@ -211,198 +211,249 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ### Phase 3.5: Evaluator Refactoring
 
-**Foundation Tasks (3.5.1-3.5.9):**
+**Foundation Tasks (3.5.1-3.5.9) - COMPLETE:**
 - [x] 3.5.1-3.5.3: Architect & Structure - Split Interpreter into Evaluator + TypeSystem + ExecutionContext, implement visitor pattern (48 methods), organize into 4 category files
 - [x] 3.5.4: Migrate Simple Logic - 20 simple visitor methods (literals, simple expressions, control flow), helper functions
 - [x] 3.5.5-3.5.9: Adapter Infrastructure - Added 52 adapter methods (type system, arrays, OOP, environment), migrated 2 visitor methods, extracted helpers
 
-### Category A: Operator Evaluation (High Priority)
-
-- [x] **3.5.19** Migrate Binary Operators (`VisitBinaryExpression`) - **PARTIAL** ~65% complete
-  - **Completed**: Short-circuit (??/and/or), Integer (arithmetic, bitwise, comparisons), Float (arithmetic, comparisons, Integer→Float promotion), String (+, comparisons), Boolean (logical, comparisons)
-  - **Deferred**: Enum, Variant, Object/Interface/Class comparisons, Set, Array, Record operations, Operator overloading, 'in' operator
-  - **Blocker**: Value types (EnumValue, VariantValue, SetValue, ArrayValue, RecordValue, ObjectInstance, InterfaceInstance, ClassValue) need migration to runtime package
-  - Files: `binary_ops.go` (NEW, 500+ lines), `visitor_expressions.go` (80 lines), `helpers.go` (60 lines)
-
-- [x] **3.5.20** Migrate Unary Operators (`VisitUnaryExpression`) - **COMPLETE**
-  - **Completed**: Minus (-), Plus (+), Not (logical/bitwise)
-  - **Deferred**: Variant NOT, operator overloading (blocked by value type migrations)
-  - Files: `binary_ops.go` (70 lines), `visitor_expressions.go` (25 lines)
+**Previously Completed (renumbered for reference):**
+- [x] Binary Operators (~65%): Short-circuit, Integer, Float, String, Boolean operations
+- [x] Unary Operators: Minus, Plus, Not (logical/bitwise)
+- [x] Call Expression (partial): Built-in function calls, dispatch structure
+- [x] Identifier (partial): Self keyword, primitive variable lookups
+- [x] Array Operations: ArrayLiteral, NewArray, IndexExpression, SetLiteral
+- [x] OOP Operations (documented/delegated): MemberAccess, MethodCall, NewExpression, InheritedExpression
+- [x] Type Operations: IsExpression, AsExpression, ImplementsExpression, AddressOfExpression
+- [x] Declarations: VarDeclStatement, ConstDecl, RecordLiteralExpression
+- [x] Assignment: VisitAssignmentStatement with compound operators
 
 ---
 
-### Category B: Function Calls (High Priority)
+### Phase 1: Simple Expression Methods (3.5.10-3.5.14)
 
-- [x] **3.5.21** Migrate Function Call Expression (`VisitCallExpression`) - **PARTIAL**
-  - **Completed**: Built-in function calls (direct evaluation), dispatch structure for 11 call types
-  - **Deferred**: Function pointers (lazy/var params), record/interface methods, unit-qualified, constructors, implicit Self/Record methods, var parameter handling, type casts
-  - **Blocker**: LazyThunk, ReferenceValue, FunctionPointerValue, RecordValue, InterfaceInstance infrastructure
-  - Files: `visitor_expressions.go` (220 lines)
+- [ ] **3.5.10** Migrate `VisitParenthesizedExpression` / `VisitGroupedExpression`
+  - Simple delegation to inner expression evaluation
+  - Verify precedence is preserved correctly
+  - Files: `visitor_expressions.go`
+  - Effort: 2-3 hours
 
-- [x] **3.5.22** Complete Identifier Migration (`VisitIdentifier`) - **PARTIAL**
-  - **Completed**: Self keyword, primitive variable lookups (Integer, Float, String, Boolean, Nil)
-  - **Deferred**: ExternalVarValue, LazyThunk, ReferenceValue, instance fields/properties/methods, class variables, function references, class name metaclass
-  - **Blocker**: Complex type handling, property dispatch, method auto-invoke, class registry
-  - Files: `visitor_expressions.go` (140 lines)
+- [ ] **3.5.11** Migrate `VisitIfExpression` (ternary)
+  - Condition evaluation, branch selection
+  - Short-circuit evaluation (only evaluate chosen branch)
+  - Files: `visitor_expressions.go`
+  - Effort: 2-3 hours
 
----
+- [ ] **3.5.12** Migrate `VisitResultExpression`
+  - Function result variable access
+  - Works with current function context
+  - Files: `visitor_expressions.go`
+  - Effort: 2-3 hours
 
-### Category C: Array & Collection Operations (Medium Priority)
+- [ ] **3.5.13** Migrate `VisitDefaultExpression`
+  - Zero value creation for types
+  - Uses existing `createZeroValue` helper and adapter infrastructure
+  - Files: `visitor_expressions.go`
+  - Effort: 3-4 hours
 
-- [x] **3.5.23-3.5.26** Migrate Array Literal Expression (`VisitArrayLiteralExpression`) - **COMPLETE**
-  - **Completed**: 5-step pipeline (evaluate elements, determine type, get element types, validate coercion, validate bounds)
-  - **Infrastructure**: `array_helpers.go` (type inference), `type_helpers.go` (GetValueType, type compatibility)
-  - **ArrayValue construction delegated to adapter** (circular import constraints)
-  - Supports: empty arrays, typed arrays, type-inferred arrays, mixed type coercion, variant arrays, nested arrays, static/dynamic arrays
-  - Files: `array_helpers.go` (NEW), `type_helpers.go` (NEW), `visitor_expressions.go` (120 lines)
-
-- [x] **3.5.27** Migrate New Array Expression (`VisitNewArrayExpression`) - **COMPLETE**
-  - **Completed**: Dimension evaluation, type resolution, multi-dimensional support
-  - **Array construction delegated to adapter** (needs type system for custom types)
-  - Helpers: `evaluateDimensions()`, `resolveTypeName()`, `extractIntegerValue()`
-
-- [x] **3.5.28** Migrate Index Expression (`VisitIndexExpression`) - **COMPLETE**
-  - **Completed**: Base/index evaluation, documentation of 6 indexing types
-  - **Indexing operations delegated to adapter** (needs value-specific logic for arrays, strings, properties, associative arrays, JSON)
-
-- [x] **3.5.29** Migrate Set Literal Expression (`VisitSetLiteral`) - **COMPLETE**
-  - **Completed**: Bytecode compilation with range expansion (integer/character ranges), `OpNewSet` opcode (#115), `SetInstance` type
-  - VM execution support via `OpNewSet` handler
+- [ ] **3.5.14** Migrate `VisitTypeOfExpression` and `VisitSizeOfExpression`
+  - Type introspection, size calculation
+  - Uses type system for metadata lookups
+  - Files: `visitor_expressions.go`
+  - Effort: 3-4 hours
 
 ---
 
-### Category D: OOP Operations (Medium Priority)
+### Phase 2: Compile-Time Expressions (3.5.15-3.5.17)
 
-- [x] **3.5.30** Migrate Member Access (`VisitMemberAccessExpression`) - **DOCUMENTATION**
-  - **Documented**: 11 access modes (unit-qualified, static class, enum type, record type static, record instance, class/metaclass, interface instance, type cast, nil object, enum value properties, object instance)
-  - **Delegated to adapter**: All functionality (706 lines in original)
-  - **Blocker**: RecordValue, ObjectInstance, ClassInfo, ClassValue, InterfaceInstance, EnumValue, FunctionPointerValue, TypeCastValue, ClassInfoValue - all need runtime migration
+- [ ] **3.5.15** Migrate `VisitDefinedExpression`
+  - Conditional compilation check
+  - Evaluates to Boolean based on symbol table
+  - Files: `visitor_expressions.go`
+  - Effort: 2-3 hours
 
-- [x] **3.5.31** Migrate Method Calls (`VisitMethodCallExpression`) - **DOCUMENTATION**
-  - **Documented**: 15 call modes (unit-qualified, static class, record type static, ClassInfoValue, metaclass constructor, set built-in, record instance, interface instance, nil object error, enum type meta, helper, object instance, virtual constructor, class method execution, overload resolution)
-  - **Delegated to adapter**: All functionality (1,116 lines in original)
-  - **Blocker**: ObjectInstance, ClassInfo, RecordValue, InterfaceInstance, SetValue, VirtualMethodTable, helper infrastructure, overload resolution
+- [ ] **3.5.16** Migrate `VisitDeclaredExpression`
+  - Symbol existence check at runtime
+  - Checks symbol table for identifier presence
+  - Files: `visitor_expressions.go`
+  - Effort: 2-3 hours
 
-- [x] **3.5.32** Migrate Object Instantiation (`VisitNewExpression`) - **COMPLETE**
-  - **Completed**: Argument evaluation in evaluator
-  - **Delegated to adapter.CreateObject()**: Class lookup, constructor resolution, field initialization, exception handling
-
-- [x] **3.5.33** Migrate Inherited Expression (`VisitInheritedExpression`) - **COMPLETE**
-  - **Completed**: Self validation, method name resolution (explicit/bare), argument evaluation
-  - **Delegated to adapter.CallInheritedMethod()**: Parent class lookup, method resolution, environment setup, execution
-
-- [x] **3.5.34-3.5.37** Migrate Type Operations - **COMPLETE**
-  - `VisitIsExpression`: Runtime type checking with class hierarchy traversal
-  - `VisitAsExpression`: Type casting with interface wrapping/unwrapping
-  - `VisitImplementsExpression`: Interface implementation verification
-  - `VisitAddressOfExpression`: Function/method pointer creation (@FunctionName, @object.MethodName)
+- [ ] **3.5.17** Migrate `VisitConditionalDefinedExpression`
+  - Combined conditional/defined check
+  - Used in conditional compilation blocks
+  - Files: `visitor_expressions.go`
+  - Effort: 2-3 hours
 
 ---
 
-### Category E: Declarations & Records (Medium Priority)
+### Phase 3: Complete Binary/Unary Operators (3.5.18-3.5.20)
 
-- [x] **3.5.38** Migrate Variable Declarations (`VisitVarDeclStatement`) - **COMPLETE**
-  - **Completed**: Full type handling (external vars, multi-identifier, inline types, subranges, interface wrapping, zero values)
-  - **Added 14 adapter methods**: ParseInlineArrayType, ParseInlineSetType, WrapInSubrange, WrapInInterface, CreateArrayZeroValue, CreateRecordZeroValue, CreateSetZeroValue, CreateSubrangeZeroValue, CreateInterfaceZeroValue, CreateClassZeroValue, etc.
-  - **createZeroValue helper**: Comprehensive type support for all DWScript types
-  - Files: `visitor_statements.go` (~140 lines), `evaluator.go` (14 methods), `interpreter.go` (~240 lines)
+- [ ] **3.5.18** Complete Binary Operators - Enum & Variant
+  - EnumValue comparisons (=, <>, <, >, <=, >=)
+  - Variant operations (delegate to adapter for type coercion)
+  - Files: `binary_ops.go`
+  - Effort: 4-5 hours
 
-- [x] **3.5.39** Migrate Constant Declarations (`VisitConstDecl`) - **COMPLETE**
-  - **Completed**: Type inference from initializer, anonymous record literal handling
-  - Immutability enforced by semantic analyzer (not runtime)
-  - Files: `visitor_statements.go` (~40 lines)
+- [ ] **3.5.19** Complete Binary Operators - Collections
+  - Set operations: `in` operator, union (+), difference (-), intersection (*)
+  - Array comparisons (=, <>)
+  - Delegate to adapter for SetValue/ArrayValue operations
+  - Files: `binary_ops.go`
+  - Effort: 5-6 hours
 
-- [x] **3.5.40** Migrate Record Literals (`VisitRecordLiteralExpression`) - **COMPLETE**
-  - **Completed**: Field evaluation, validation, initialization with field initializers/zero values, nested records, interface-typed fields
-  - **Added 4 adapter methods**: CreateRecordValue, GetRecordFieldDeclarations, GetZeroValueForType, InitializeInterfaceField
-  - Supports typed (TMyRecord(Field1: val)) and anonymous ((Field1: val)) literals
-  - Files: `visitor_expressions.go` (~80 lines), `evaluator.go` (4 methods), `interpreter.go` (~120 lines)
-
----
-
-### Category F: Control Flow & Statements (Medium Priority)
-
-- [x] **3.5.41** Migrate Assignment Statement (`VisitAssignmentStatement`)
-  - **Complexity**: High
-  - **Requirements**: Lvalue resolution, simple/member/index assignments, compound operators (+=, -=, etc.)
-  - **Effort**: 1-2 weeks
-  - **Completed**: Task 3.5.41 - Migrated VisitAssignmentStatement with compound operator support and helper methods
-
-- [ ] **3.5.42** Migrate Try Statement (`VisitTryStatement`) ⏸️ **BLOCKED**
-  - **Complexity**: Very High
-  - **Requirements**: Defer semantics, exception matching, handler variable binding, ExceptObject management, nested handlers, bare raise support
-  - **Effort**: 2-3 weeks
-  - **Status**: Visitor method exists with comprehensive documentation, delegates to adapter
-  - **Blocking Dependencies**:
-    - ExceptionValue type migration to runtime package
-    - ObjectInstance type migration to runtime package
-    - ClassInfo type migration to runtime package
-    - Exception type matching with inheritance
-    - Handler scope management infrastructure
-
-- [ ] **3.5.43** Migrate Raise Statement (`VisitRaiseStatement`) ⏸️ **BLOCKED**
-  - **Requirements**: Explicit/bare raise, exception object validation, message extraction, call stack capture
-  - **Effort**: 1 week
-  - **Status**: Visitor method exists with comprehensive documentation, delegates to adapter
-  - **Blocking Dependencies**:
-    - ExceptionValue type creation
-    - ObjectInstance field extraction
-    - Call stack capture and formatting
-    - HandlerException state management for bare raise
+- [ ] **3.5.20** Complete Binary Operators - OOP & Operator Overloading
+  - Object/Interface/Class comparisons (=, <>, is)
+  - Operator overloading dispatch via adapter
+  - Record comparisons
+  - Files: `binary_ops.go`
+  - Effort: 5-6 hours
 
 ---
 
-### Category G: Remaining Expression Methods (~12 methods)
+### Phase 4: Identifier & Call Infrastructure (3.5.21-3.5.24)
 
-- [ ] **3.5.44** Migrate IfExpression
-- [ ] **3.5.45** Migrate ParenthesizedExpression (if not already covered)
-- [ ] **3.5.46** Migrate TypeOfExpression
-- [ ] **3.5.47** Migrate SizeOfExpression
-- [ ] **3.5.48** Migrate DefaultExpression
-- [ ] **3.5.49** Migrate OldExpression (postconditions)
-- [ ] **3.5.50** Migrate ResultExpression
-- [ ] **3.5.51** Migrate ConditionalDefinedExpression
-- [ ] **3.5.52** Migrate DeclaredExpression
-- [ ] **3.5.53** Migrate DefinedExpression
-- [ ] **3.5.54** Migrate Other remaining expression types
-- [ ] **3.5.55** Final expression cleanup and edge cases
+- [ ] **3.5.21** Complete `VisitIdentifier` - Variable & Constant Lookups
+  - Extend existing implementation for all variable types
+  - Handle ExternalVarValue, LazyThunk, ReferenceValue
+  - Add adapter methods for complex value retrieval
+  - Files: `visitor_expressions.go`, `evaluator.go`
+  - Effort: 6-8 hours
 
-**Effort**: 2-4 weeks (combined)
+- [ ] **3.5.22** Complete `VisitIdentifier` - Property & Method References
+  - Instance fields/properties access
+  - Method auto-invoke (property getters)
+  - Class variables, function references, class name metaclass
+  - Files: `visitor_expressions.go`
+  - Effort: 6-8 hours
+
+- [ ] **3.5.23** Complete `VisitCallExpression` - User Functions
+  - Function pointer calls with closure handling
+  - Var parameter handling (by-reference)
+  - Lazy parameter evaluation
+  - Files: `visitor_expressions.go`
+  - Effort: 6-8 hours
+
+- [ ] **3.5.24** Complete `VisitCallExpression` - Special Calls
+  - Type casts (Integer(x), String(y))
+  - Constructor calls
+  - Implicit Self methods, unit-qualified calls
+  - Files: `visitor_expressions.go`
+  - Effort: 6-8 hours
 
 ---
 
-### Category H: Infrastructure Tasks
+### Phase 5: OOP Operations (3.5.25-3.5.28)
 
-- [ ] **3.5.56** Enhance Test Coverage
-  - **Current State**: All existing tests pass, zero regressions
-  - **Needed**:
-    - Unit tests for individual visitor methods
-    - Tests for adapter infrastructure methods
-    - Edge case coverage for migrated methods
-    - Performance benchmarks for visitor dispatch
-  - **Target**: 95%+ coverage on evaluator package
-  - **Effort**: 2-3 weeks (ongoing)
+- [ ] **3.5.25** Complete `VisitMemberAccessExpression` - Simple Modes
+  - Unit-qualified access (Unit.Symbol)
+  - Enum value properties (TEnum.EnumValue)
+  - Static class access (TClass.StaticMethod)
+  - Record instance fields
+  - Files: `visitor_expressions.go`
+  - Effort: 6-8 hours
 
-- [ ] **3.5.57** Performance Optimization
-  - **Tasks**:
-    - Benchmark visitor pattern vs. original switch
-    - Optimize hot paths (binary ops, function calls)
-    - Profile memory allocations
-    - Consider inline optimizations
-    - Evaluate caching opportunities
-  - **Target**: No more than 5% performance regression vs. baseline
-  - **Effort**: 1-2 weeks
+- [ ] **3.5.26** Complete `VisitMemberAccessExpression` - Complex Modes
+  - Object instance field/property access
+  - Interface instance access
+  - Metaclass access
+  - Type cast operations
+  - Files: `visitor_expressions.go`
+  - Effort: 6-8 hours
 
-- [ ] **3.5.58** Update Documentation
-  - **Tasks**:
-    - Update CLAUDE.md with new architecture
-    - Create architecture diagrams
-    - Document visitor pattern usage
-    - Create migration guide for contributors
-  - **Files**: `docs/architecture/interpreter.md`, `CLAUDE.md`
-  - **Effort**: 3-5 days
+- [ ] **3.5.27** Complete `VisitMethodCallExpression` - Simple Modes
+  - Static methods (TClass.StaticMethod())
+  - Record methods (record.Method())
+  - Built-in set methods (set.Include(), set.Exclude())
+  - Unit-qualified calls (Unit.Function())
+  - Files: `visitor_expressions.go`
+  - Effort: 6-8 hours
 
-- [ ] **3.5.59** Remove Adapter Pattern ⏸️ **DEFERRED**
+- [ ] **3.5.28** Complete `VisitMethodCallExpression` - Complex Modes
+  - Object instance methods with virtual dispatch
+  - Overload resolution
+  - Constructor calls (TClass.Create())
+  - Inherited method calls
+  - Files: `visitor_expressions.go`
+  - Effort: 6-8 hours
+
+---
+
+### Phase 6: Exception Handling (3.5.29-3.5.30)
+
+- [ ] **3.5.29** Migrate `VisitTryStatement`
+  - Try/except/finally semantics
+  - Exception matching with type hierarchy
+  - Handler variable binding
+  - Defer semantics for finally blocks
+  - Delegate exception type matching to adapter
+  - Files: `visitor_statements.go`
+  - Effort: 6-8 hours
+
+- [ ] **3.5.30** Migrate `VisitRaiseStatement`
+  - Explicit raise with exception object
+  - Bare raise (re-raise current exception)
+  - Call stack capture via adapter
+  - Message extraction from exception objects
+  - Files: `visitor_statements.go`
+  - Effort: 6-8 hours
+
+---
+
+### Phase 7: Advanced Expressions (3.5.31-3.5.33)
+
+- [ ] **3.5.31** Migrate `VisitOldExpression`
+  - Postcondition support (Old(value))
+  - Value snapshot at function entry
+  - Requires contract evaluation infrastructure
+  - Files: `visitor_expressions.go`
+  - Effort: 4-6 hours
+
+- [ ] **3.5.32** Migrate `VisitLambdaExpression`
+  - Anonymous function creation
+  - Closure capture (captured variable handling)
+  - FunctionPointerValue creation
+  - Files: `visitor_expressions.go`
+  - Effort: 5-6 hours
+
+- [ ] **3.5.33** Final expression cleanup and edge cases
+  - Audit all Visit* methods for completeness
+  - Handle any remaining expression types
+  - Ensure all error paths are covered
+  - Files: Various
+  - Effort: 4-6 hours
+
+---
+
+### Phase 8: Finalization (3.5.34-3.5.36)
+
+- [ ] **3.5.34** Test Coverage Enhancement
+  - Unit tests for all visitor methods
+  - Edge case coverage for migrated methods
+  - Tests for adapter infrastructure methods
+  - Target: 95%+ coverage on evaluator package
+  - Files: `*_test.go`
+  - Effort: 6-8 hours
+
+- [ ] **3.5.35** Performance Validation
+  - Benchmark visitor pattern vs. original switch
+  - Profile hot paths (binary ops, function calls)
+  - Optimize if >5% regression detected
+  - Memory allocation profiling
+  - Files: `benchmark_test.go`
+  - Effort: 4-6 hours
+
+- [ ] **3.5.36** Documentation Update
+  - Update CLAUDE.md architecture section
+  - Create migration guide for contributors
+  - Document visitor pattern usage
+  - Architecture diagrams
+  - Files: `CLAUDE.md`, `docs/architecture/interpreter.md`
+  - Effort: 4-6 hours
+
+---
+
+### Deferred (Post Phase 3.5)
+
+- [ ] **3.5.37** Remove Adapter Pattern ⏸️ **BLOCKED**
   - **Status**: Blocked on AST-free runtime types architecture
   - **Steps** (when unblocked):
     - Remove `InterpreterAdapter` interface
@@ -412,6 +463,22 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Blocker**: Requires AST-free runtime types (separate long-term effort)
   - **Future Work**: See `docs/task-3.5.4-expansion-plan.md` Phase 3
   - **Effort**: 2 days (after blocker resolved)
+
+---
+
+### Complexity Summary
+
+| Phase | Tasks | Hours/Task | Total Hours | Dependencies |
+|-------|-------|------------|-------------|--------------|
+| 1: Simple Expressions | 5 | 2-4 | 10-18 | None |
+| 2: Compile-Time | 3 | 2-3 | 6-9 | None |
+| 3: Operators | 3 | 4-6 | 12-18 | Adapter methods |
+| 4: Identifier/Call | 4 | 6-8 | 24-32 | Phase 3 |
+| 5: OOP | 4 | 6-8 | 24-32 | Phase 4 |
+| 6: Exceptions | 2 | 6-8 | 12-16 | Phase 5 |
+| 7: Advanced | 3 | 4-6 | 12-18 | Phase 4-5 |
+| 8: Finalization | 3 | 4-8 | 12-22 | All phases |
+| **Total** | **27** | **~5 avg** | **112-165** | |
 
 ---
 
