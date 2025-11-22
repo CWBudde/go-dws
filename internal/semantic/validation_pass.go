@@ -1150,28 +1150,8 @@ func (v *statementValidator) checkCallExpression(expr *ast.CallExpression) types
 			return methodType
 		}
 
-		// Validate argument count
-		if len(expr.Arguments) != len(funcType.Parameters) {
-			v.ctx.AddError("method call expects %d argument(s), got %d",
-				len(funcType.Parameters), len(expr.Arguments))
-		}
-
-		// Validate argument types
-		for i, arg := range expr.Arguments {
-			if i >= len(funcType.Parameters) {
-				break
-			}
-			paramType := funcType.Parameters[i]
-			argType := v.checkExpression(arg)
-			if argType != nil && paramType != nil {
-				if !v.typesCompatible(paramType, argType) {
-					v.ctx.AddError("argument %d has type %s, expected %s",
-						i+1, argType, paramType)
-				}
-			}
-		}
-
-		return funcType.ReturnType
+		// Use method name for error messages
+		return v.validateFunctionCall(memberAccess.Member.Value, funcType, expr.Arguments)
 	}
 
 	// Handle regular function calls (identifier-based)
@@ -1184,8 +1164,21 @@ func (v *statementValidator) checkCallExpression(expr *ast.CallExpression) types
 	// Look up function in symbol table
 	sym, ok := v.ctx.Symbols.Resolve(funcIdent.Value)
 	if !ok {
-		// TODO: Check if it's a built-in function
-		// TODO: Check if it's a class method in current class
+		// Check if it's a built-in function
+		if v.ctx.BuiltinChecker != nil {
+			if resultType, isBuiltin := v.ctx.BuiltinChecker.AnalyzeBuiltin(funcIdent.Value, expr.Arguments, expr); isBuiltin {
+				return resultType
+			}
+		}
+
+		// Check if it's a method in the current class
+		if v.ctx.CurrentClass != nil {
+			if methodType, found := v.ctx.CurrentClass.GetMethod(funcIdent.Value); found {
+				// Found a method - validate it like a function call
+				return v.validateFunctionCall(funcIdent.Value, methodType, expr.Arguments)
+			}
+		}
+
 		v.ctx.AddError("undefined function '%s'", funcIdent.Value)
 
 		// Still check arguments for type errors
@@ -1202,23 +1195,47 @@ func (v *statementValidator) checkCallExpression(expr *ast.CallExpression) types
 		return nil
 	}
 
-	// Validate argument count
-	if len(expr.Arguments) != len(funcType.Parameters) {
-		v.ctx.AddError("function '%s' expects %d argument(s), got %d",
-			funcIdent.Value, len(funcType.Parameters), len(expr.Arguments))
+	return v.validateFunctionCall(funcIdent.Value, funcType, expr.Arguments)
+}
+
+// validateFunctionCall validates a function call with the given function type and arguments
+func (v *statementValidator) validateFunctionCall(funcName string, funcType *types.FunctionType, args []ast.Expression) types.Type {
+	// Validate argument count (handle variadic functions)
+	if funcType.IsVariadic {
+		// Variadic function: must have at least as many arguments as non-variadic parameters
+		nonVariadicCount := len(funcType.Parameters)
+		if len(args) < nonVariadicCount {
+			v.ctx.AddError("function '%s' expects at least %d argument(s), got %d",
+				funcName, nonVariadicCount, len(args))
+		}
+	} else {
+		// Non-variadic function: exact match required
+		if len(args) != len(funcType.Parameters) {
+			v.ctx.AddError("function '%s' expects %d argument(s), got %d",
+				funcName, len(funcType.Parameters), len(args))
+		}
 	}
 
 	// Validate argument types
-	for i, arg := range expr.Arguments {
-		if i >= len(funcType.Parameters) {
+	for i, arg := range args {
+		var expectedType types.Type
+
+		if i < len(funcType.Parameters) {
+			// Non-variadic parameter
+			expectedType = funcType.Parameters[i]
+		} else if funcType.IsVariadic {
+			// Variadic parameter - use VariadicType
+			expectedType = funcType.VariadicType
+		} else {
+			// Too many arguments for non-variadic function (error already reported)
 			break
 		}
-		paramType := funcType.Parameters[i]
+
 		argType := v.checkExpression(arg)
-		if argType != nil && paramType != nil {
-			if !v.typesCompatible(paramType, argType) {
+		if argType != nil && expectedType != nil {
+			if !v.typesCompatible(expectedType, argType) {
 				v.ctx.AddError("argument %d has type %s, expected %s",
-					i+1, argType, paramType)
+					i+1, argType, expectedType)
 			}
 		}
 	}
@@ -2102,6 +2119,17 @@ func (v *statementValidator) checkLambdaExpression(expr *ast.LambdaExpression, e
 	oldInLambda := v.ctx.InLambda
 	v.ctx.InLambda = true
 	defer func() { v.ctx.InLambda = oldInLambda }()
+
+	// Set CurrentFunction so return statements can validate properly
+	// Create a temporary FunctionDecl representing the lambda
+	oldCurrentFunction := v.ctx.CurrentFunction
+	lambdaFuncDecl := &ast.FunctionDecl{
+		Parameters: expr.Parameters,
+		ReturnType: expr.ReturnType,
+		// Lambda body will be validated below
+	}
+	v.ctx.CurrentFunction = lambdaFuncDecl
+	defer func() { v.ctx.CurrentFunction = oldCurrentFunction }()
 
 	// Validate lambda body
 	if expr.Body != nil {

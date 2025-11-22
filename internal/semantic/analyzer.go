@@ -309,7 +309,6 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	a.syncFromPassContext(ctx)
 
 	// Collect errors from all passes
-	// Merge pass errors with any existing analyzer errors
 	a.mergePassErrors(ctx)
 
 	// If we accumulated errors (not hints), return them
@@ -339,6 +338,7 @@ func (a *Analyzer) createPassContext() *PassContext {
 		GlobalOperators:    a.globalOperators,
 		ConversionRegistry: a.conversionRegistry,
 		SemanticInfo:       a.semanticInfo,
+		BuiltinChecker:     a, // Analyzer implements BuiltinChecker interface
 
 		// Secondary registries
 		UnitSymbols:      a.unitSymbols,
@@ -371,6 +371,12 @@ func (a *Analyzer) createPassContext() *PassContext {
 	}
 
 	return ctx
+}
+
+// AnalyzeBuiltin implements the BuiltinChecker interface.
+// This allows passes to validate built-in function calls.
+func (a *Analyzer) AnalyzeBuiltin(name string, args []ast.Expression, callExpr *ast.CallExpression) (types.Type, bool) {
+	return a.analyzeBuiltinFunction(name, args, callExpr)
 }
 
 // syncFromPassContext syncs state from PassContext back to Analyzer.
