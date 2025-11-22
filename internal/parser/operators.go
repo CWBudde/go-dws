@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // parseOperatorDeclaration parses a standalone (global) operator declaration.
@@ -307,7 +308,7 @@ func isOperatorSymbolToken(t lexer.TokenType) bool {
 func normalizeOperatorSymbol(tok lexer.Token) string {
 	switch tok.Type {
 	case lexer.IN, lexer.NOT:
-		return strings.ToLower(tok.Literal)
+		return ident.Normalize(tok.Literal)
 	default:
 		return tok.Literal
 	}
