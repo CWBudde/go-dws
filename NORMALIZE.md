@@ -127,7 +127,7 @@ Migrate core lookup infrastructure to `pkg/ident`.
   - Run: `go test ./internal/semantic/... -v`
 
 - [ ] **4.2** Migrate `internal/semantic/type_registry.go`
-  - Lines to change: 110, 122
+  - Lines to change: 85, 110, 122, 308, 321
   - Replace: `strings.ToLower(name)` → `ident.Normalize(name)`
   - Verify original casing preserved in descriptors
   - Run: `go test ./internal/semantic/... -v`
