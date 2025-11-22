@@ -203,6 +203,13 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
   - 150+ DWScript token constants
   - Case-insensitive keyword lookup utilities
 
+- `pkg/ident/` - Case-insensitive identifier utilities
+  - `Normalize()`: Canonical form for map keys
+  - `Equal()`: Case-insensitive comparison (use instead of `strings.EqualFold`)
+  - `HasPrefix()`, `HasSuffix()`: Case-insensitive prefix/suffix matching
+  - `Contains()`, `Index()`: Case-insensitive slice operations
+  - See "Case Insensitivity" in Development Guidelines for usage
+
 - `pkg/platform/` - Platform abstraction layer (planned for Stage 10.15)
   - Abstracts filesystem, console, and platform-specific functionality
   - Enables native and WebAssembly builds with consistent behavior
@@ -240,7 +247,29 @@ go generate ./pkg/ast
 
 ### DWScript Language Specifics
 
-**Case Insensitivity**: DWScript keywords are case-insensitive. The lexer normalizes all keywords to lowercase via `LookupIdent()`.
+**Case Insensitivity**: DWScript is a case-insensitive language. All identifiers, keywords, type names, and member names are compared without regard to case.
+
+Use the `pkg/ident` package for all case-insensitive identifier operations:
+
+```go
+import "github.com/cwbudde/go-dws/pkg/ident"
+
+// Comparing identifiers (preferred over strings.EqualFold)
+if ident.Equal(name1, name2) { ... }
+
+// Normalizing for map keys
+variables[ident.Normalize("MyVar")] = value
+
+// Case-insensitive prefix/suffix matching
+if ident.HasPrefix(typeName, "array") { ... }
+if ident.HasSuffix(typeName, "Type") { ... }
+
+// Slice operations
+if ident.Contains(keywords, name) { ... }
+idx := ident.Index(items, name)
+```
+
+**Important**: Avoid direct `strings.ToLower()` or `strings.EqualFold()` calls - use the `ident` helpers instead for consistency.
 
 **Operators**:
 
