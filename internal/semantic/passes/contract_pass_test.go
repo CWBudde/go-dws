@@ -1,9 +1,10 @@
 package passes_test
 
 import (
-	"github.com/cwbudde/go-dws/internal/semantic"
 	"strings"
 	"testing"
+
+	"github.com/cwbudde/go-dws/internal/semantic"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
