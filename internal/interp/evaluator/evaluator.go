@@ -498,6 +498,35 @@ type InterpreterAdapter interface {
 	// Returns an InterfaceInstance value or nil if the type is not an interface.
 	InitializeInterfaceField(fieldType any) Value
 
+	// ===== Task 3.5.21: Complex Value Retrieval Adapter Methods =====
+
+	// IsExternalVar checks if a value is an ExternalVarValue.
+	// Returns true if the value is an external variable marker.
+	IsExternalVar(value Value) bool
+
+	// IsLazyThunk checks if a value is a LazyThunk.
+	// Returns true if the value is a lazy parameter that needs evaluation.
+	IsLazyThunk(value Value) bool
+
+	// IsReferenceValue checks if a value is a ReferenceValue.
+	// Returns true if the value is a var parameter reference that needs dereferencing.
+	IsReferenceValue(value Value) bool
+
+	// EvaluateLazyThunk forces evaluation of a lazy parameter.
+	// Returns the evaluated value.
+	// Panics if the value is not a LazyThunk (check with IsLazyThunk first).
+	EvaluateLazyThunk(value Value) Value
+
+	// DereferenceValue dereferences a var parameter reference.
+	// Returns the actual value and an error if dereferencing fails.
+	// Panics if the value is not a ReferenceValue (check with IsReferenceValue first).
+	DereferenceValue(value Value) (Value, error)
+
+	// GetExternalVarName returns the name of an external variable.
+	// Returns the external variable name.
+	// Panics if the value is not an ExternalVarValue (check with IsExternalVar first).
+	GetExternalVarName(value Value) string
+
 	// ===== Task 3.5.29: Exception Handling Adapter Methods =====
 
 	// MatchesExceptionType checks if an exception matches a handler's type.

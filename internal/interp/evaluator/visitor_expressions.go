@@ -53,13 +53,35 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// Try to find identifier in current environment (variables, parameters, constants)
 	val, ok := e.adapter.GetVariable(node.Value, ctx)
 	if ok {
+		// Check if this is an external variable (not yet supported)
+		if e.adapter.IsExternalVar(val) {
+			extVarName := e.adapter.GetExternalVarName(val)
+			return e.newError(node, "Unsupported external variable access: %s", extVarName)
+		}
+
+		// Check if this is a lazy parameter (LazyThunk)
+		// If so, force evaluation - each access re-evaluates the expression
+		if e.adapter.IsLazyThunk(val) {
+			return e.adapter.EvaluateLazyThunk(val)
+		}
+
+		// Check if this is a var parameter (ReferenceValue)
+		// If so, dereference it to get the actual value
+		if e.adapter.IsReferenceValue(val) {
+			actualVal, err := e.adapter.DereferenceValue(val)
+			if err != nil {
+				return e.newError(node, "%s", err.Error())
+			}
+			return actualVal
+		}
+
 		// Variable found - return immediately for basic primitives
 		switch val.(type) {
 		case *runtime.IntegerValue, *runtime.FloatValue, *runtime.StringValue, *runtime.BooleanValue, *runtime.NilValue:
 			return val
 		}
 
-		// For complex value types (ExternalVarValue, LazyThunk, ReferenceValue, arrays, objects, records),
+		// For other complex value types (arrays, objects, records),
 		// delegate to adapter for full processing
 		return e.adapter.EvalNode(node)
 	}
