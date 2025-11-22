@@ -962,15 +962,39 @@ This causes:
 
 **Remaining Work**:
 
-**6.1.2.6.1: Complete Pass 3 (Validation Pass) migration**
-- Missing features that cause test failures:
-  - Variant type handling (assignment compatibility, implicit conversions)
-  - Lambda expression validation (CurrentFunction context for nested lambdas)
-  - Variadic function parameter support
-  - Class method lookup from within current class
-  - Additional builtin function validations
-- Estimated: 8-12 hours
-- Files: `internal/semantic/validation_pass.go`
+**6.1.2.6.1: Complete Pass 3 (Validation Pass) migration** (~60% COMPLETE)
+
+**✅ Completed**:
+- Variant type compatibility (universal assignment to Variant)
+- Lambda expression validation (CurrentFunction context)
+- Basic builtin function support via BuiltinChecker interface
+- Expression type checking (binary ops, unary ops, literals)
+- Statement validation (if, while, for, etc.)
+- Class/interface validation
+- Variable declaration validation
+- Function call validation
+
+**⚠️ Remaining Features**:
+1. **Variadic function parameters** (~2-3 hours)
+   - Detect `array of <type>` parameters
+   - Handle variadic argument passing
+   - Validate argument types for variadic calls
+   - Test with ~10 variadic function tests
+
+2. **Class method lookup from current class** (~1-2 hours)
+   - When in class method, look up unqualified calls in current class
+   - Handle inherited method resolution
+   - Respect visibility rules (private/protected/public)
+   - Test with ~5 class method tests
+
+3. **Additional edge cases** (~2-3 hours)
+   - Property getter/setter validation improvements
+   - Exception handling edge cases
+   - Complex nested expression scenarios
+   - Integration with helpers and operators
+
+**Estimated remaining**: 5-8 hours
+**Files**: `internal/semantic/validation_pass.go`, possibly `internal/semantic/pass_context.go`
 
 **6.1.2.6.2: Complete Pass 4 (Contract Pass) migration**
 - Currently ~90% complete
@@ -992,7 +1016,11 @@ This causes:
 - Update documentation
 - Estimated: 2-4 hours
 
-**Total remaining estimate**: 14-24 hours (2-3 days)
+**Total remaining estimate**: 11-20 hours (1.5-2.5 days)
+- Pass 3: 5-8 hours
+- Pass 4: 2-4 hours
+- Enable passes: 2-4 hours
+- Cleanup: 2-4 hours
 
 - [x] **6.1.2.7 Implement Class Invariant Support** 🎯 **MEDIUM PRIORITY** ✅ **DONE**
   - [x] Add AST support for class invariants
