@@ -622,8 +622,9 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool) testResult 
 	// If we expect errors but got no parse errors, run semantic analysis and try execution
 	if expectErrors && len(parseErrors) == 0 {
 		// Run semantic analysis to catch semantic errors (overload violations, type errors, etc.)
-		// Task 6.1.2: Enable experimental passes for multi-pass analysis architecture
-		analyzer := semantic.NewAnalyzerWithExperimentalPasses()
+		// Task 6.1.2: Enable experimental passes for multi-pass analysis architecture (on demand!)
+		// analyzer := semantic.NewAnalyzerWithExperimentalPasses()
+		analyzer := semantic.NewAnalyzer()
 		analyzer.SetSource(source, pasFile)
 
 		var semanticErrors []string
@@ -684,7 +685,8 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool) testResult 
 	// Run semantic analysis before execution
 	// This enables proper type checking and disambiguation of array vs set literals
 	// Task 6.1.2: Enable experimental passes for multi-pass analysis architecture
-	analyzer := semantic.NewAnalyzerWithExperimentalPasses()
+	// analyzer := semantic.NewAnalyzerWithExperimentalPasses()
+	analyzer := semantic.NewAnalyzer()
 	analyzer.SetSource(source, pasFile)
 
 	if err := analyzer.Analyze(program); err != nil {
