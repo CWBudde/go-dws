@@ -14,16 +14,20 @@ import (
 // - Validate 'require' (precondition) clauses in functions
 //   - Check that expressions are boolean
 //   - Validate that only parameters and constants are referenced
+//
 // - Validate 'ensure' (postcondition) clauses in functions
 //   - Check that expressions are boolean
 //   - Validate 'old(expr)' expressions (save value at function entry)
 //   - Check that old() only wraps valid expressions (no side effects)
+//
 // - Validate 'invariant' clauses in classes
 //   - Check that expressions are boolean
 //   - Validate that invariants only reference fields and constants
 //   - Check that invariants are maintained after constructors/destructors
+//
 // - Validate 'assert' statements
 //   - Check that expressions are boolean
+//
 // - Check contract inheritance rules
 //   - Derived methods can weaken preconditions (OR with parent)
 //   - Derived methods can strengthen postconditions (AND with parent)
@@ -44,24 +48,25 @@ import (
 // - Warnings for contract violations (if detectable at compile-time)
 //
 // **Example**:
-//   function Divide(x, y: Integer): Integer;
-//   require
-//     y <> 0  // Precondition: divisor must be non-zero
-//   ensure
-//     Result * y = x  // Postcondition: result * divisor = dividend
-//   begin
-//     Result := x div y;
-//   end;
 //
-//   class TStack = class
-//   private
-//     FCount: Integer;
-//   invariant
-//     FCount >= 0  // Class invariant: count is never negative
-//   public
-//     procedure Push(Item: Integer);
-//     function Pop: Integer;
-//   end;
+//	function Divide(x, y: Integer): Integer;
+//	require
+//	  y <> 0  // Precondition: divisor must be non-zero
+//	ensure
+//	  Result * y = x  // Postcondition: result * divisor = dividend
+//	begin
+//	  Result := x div y;
+//	end;
+//
+//	class TStack = class
+//	private
+//	  FCount: Integer;
+//	invariant
+//	  FCount >= 0  // Class invariant: count is never negative
+//	public
+//	  procedure Push(Item: Integer);
+//	  function Pop: Integer;
+//	end;
 type ContractPass struct{}
 
 // NewContractPass creates a new contract validation pass.

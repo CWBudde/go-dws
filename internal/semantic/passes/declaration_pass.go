@@ -35,8 +35,9 @@ import (
 // - Symbols populated with function/variable names (with unresolved type references)
 //
 // **Example**:
-//   type TFoo = class; // Forward declaration - registered as incomplete
-//   type TBar = class(TFoo) ... end; // Registered with parent name "TFoo" (not resolved yet)
+//
+//	type TFoo = class; // Forward declaration - registered as incomplete
+//	type TBar = class(TFoo) ... end; // Registered with parent name "TFoo" (not resolved yet)
 type DeclarationPass struct{}
 
 // NewDeclarationPass creates a new declaration collection pass.

@@ -44,13 +44,14 @@ import (
 // - Errors for undefined types, circular dependencies
 //
 // **Example**:
-//   // After Pass 1, we have:
-//   // - TypeRegistry["tfoo"] = ClassType{Name: "TFoo", Parent: "TObject" (string)}
-//   // - TypeRegistry["tbar"] = ClassType{Name: "TBar", Parent: "TFoo" (string)}
-//   //
-//   // After Pass 2, we have:
-//   // - TypeRegistry["tfoo"] = ClassType{Name: "TFoo", Parent: *types.ClassType{TObject}}
-//   // - TypeRegistry["tbar"] = ClassType{Name: "TBar", Parent: *types.ClassType{TFoo}}
+//
+//	// After Pass 1, we have:
+//	// - TypeRegistry["tfoo"] = ClassType{Name: "TFoo", Parent: "TObject" (string)}
+//	// - TypeRegistry["tbar"] = ClassType{Name: "TBar", Parent: "TFoo" (string)}
+//	//
+//	// After Pass 2, we have:
+//	// - TypeRegistry["tfoo"] = ClassType{Name: "TFoo", Parent: *types.ClassType{TObject}}
+//	// - TypeRegistry["tbar"] = ClassType{Name: "TBar", Parent: *types.ClassType{TFoo}}
 type TypeResolutionPass struct{}
 
 // NewTypeResolutionPass creates a new type resolution pass.

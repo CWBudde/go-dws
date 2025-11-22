@@ -43,16 +43,17 @@ import (
 // - Errors for type mismatches, undefined variables, invalid operations
 //
 // **Example**:
-//   var x: Integer;
-//   var y: String;
-//   x := y; // ERROR: Cannot assign String to Integer
 //
-//   class TFoo = class
-//     procedure Bar; virtual; abstract;
-//   end;
+//	var x: Integer;
+//	var y: String;
+//	x := y; // ERROR: Cannot assign String to Integer
 //
-//   class TBaz = class(TFoo)
-//   end; // ERROR: TBaz must implement abstract method Bar
+//	class TFoo = class
+//	  procedure Bar; virtual; abstract;
+//	end;
+//
+//	class TBaz = class(TFoo)
+//	end; // ERROR: TBaz must implement abstract method Bar
 type ValidationPass struct{}
 
 // NewValidationPass creates a new semantic validation pass.
