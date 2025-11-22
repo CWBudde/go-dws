@@ -134,13 +134,9 @@ func (p *Parser) parseIdentifier() ast.Expression {
 	}
 }
 
-// parsePrefixExpression parses a prefix (unary) expression.
+// parsePrefixExpression parses a prefix (unary) expression: -x, +x, not x
 // PRE: cursor is prefix operator (NOT, MINUS, PLUS, etc.)
 // POST: cursor is last token of right operand
-//
-// Parses unary prefix operators: -x, +x, not x
-// PRE: cursor is on prefix operator token (MINUS, PLUS, NOT)
-// POST: cursor is at last token of right expression
 func (p *Parser) parsePrefixExpression() ast.Expression {
 	builder := p.StartNode()
 	operatorToken := p.cursor.Current()
@@ -201,8 +197,6 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 // parseExpressionList parses a comma-separated list of expressions.
 // PRE: cursor is before the list (at opening delimiter)
 // POST: cursor is at terminator (closing delimiter)
-//
-// Uses parseExpression for each element instead of parseExpression.
 func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
 	list := []ast.Expression{}
 
@@ -269,11 +263,6 @@ func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
 //
 // PRE: cursor is LPAREN
 // POST: cursor is RPAREN
-//
-// Parses grouped expressions in parentheses: (expr)
-// Also handles empty parentheses, array literals, and record literals
-// PRE: cursor is on LPAREN
-// POST: cursor is on RPAREN
 func (p *Parser) parseGroupedExpression() ast.Expression {
 	lparenToken := p.cursor.Current()
 

@@ -11,10 +11,6 @@ import (
 // Also handles typed record literals: TypeName(field: value)
 // PRE: cursor is LPAREN
 // POST: cursor is RPAREN
-//
-// Parses function call expressions and typed record literals using cursor navigation.
-// PRE: cursor is on LPAREN
-// POST: cursor is on RPAREN
 func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	// Check if this might be a typed record literal
 	// Pattern: Identifier(Identifier:Expression, ...)
@@ -43,10 +39,6 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 // The difference is whether the arguments are field initializers (name: value) or expressions.
 // PRE: cursor is LPAREN
 // POST: cursor is RPAREN
-//
-// parseCallOrRecordLiteral orchestrates the disambiguation between function calls
-// PRE: cursor is on LPAREN
-// POST: cursor is on RPAREN
 func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expression {
 	// Empty parentheses -> function call
 	nextToken := p.cursor.Peek(1)
@@ -93,11 +85,9 @@ func (p *Parser) parseEmptyCall(typeName *ast.Identifier) *ast.CallExpression {
 	return builder.Finish(exp).(*ast.CallExpression)
 }
 
-// parseCallWithExpressionList parses a function call using the cursor expression list parser.
+// parseCallWithExpressionList parses a function call using the expression list parser.
 // PRE: cursor is at LPAREN, cursor.Peek(1) is not RPAREN
 // POST: cursor is at RPAREN
-//
-// Uses parseExpressionList instead of parseExpressionList.
 func (p *Parser) parseCallWithExpressionList(typeName *ast.Identifier) *ast.CallExpression {
 	builder := p.StartNode()
 	lparenToken := p.cursor.Current()
