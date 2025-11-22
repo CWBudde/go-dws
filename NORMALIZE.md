@@ -190,10 +190,12 @@ Migrate interpreter, which has partial adoption.
   - Verified: No `strings.ToLower()` or `strings.EqualFold()` present
   - Status: Fully migrated, no additional changes needed
 
-- [ ] **7.3** Migrate `internal/interp/interpreter.go`
-  - ~20+ locations: lines 300, 312, 322, 329, 341, 351, 358, 370, 380, 389, 404, 425, 511, 580, 588, 596
-  - Replace: `strings.ToLower()` → `ident.Normalize()`
-  - Focus: Class, record, enum name lookups
+- [x] **7.3** Migrate `internal/interp/interpreter.go`
+  - Migrated 51 occurrences of `strings.ToLower()` → `ident.Normalize()`
+  - Migrated 2 occurrences of `strings.EqualFold()` → `ident.Equal()`
+  - Migrated 1 occurrence of `strings.HasPrefix()` → `ident.HasPrefix()`
+  - Removed unused `strings` import
+  - All tests pass (pre-existing interface test failures unchanged)
 
 - [ ] **7.4** Migrate `internal/interp/class.go`
   - Line: 157 - `lookupMethod()` function

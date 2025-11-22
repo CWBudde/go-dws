@@ -5,9 +5,9 @@ import (
 	"io"
 	"math"
 	"math/rand"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/errors"
+	"github.com/cwbudde/go-dws/pkg/ident"
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -298,7 +298,7 @@ func (i *Interpreter) CallBuiltinFunction(name string, args []evaluator.Value) e
 // LookupFunction finds a function by name in the function registry.
 func (i *Interpreter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
 	// DWScript is case-insensitive, so normalize to lowercase
-	normalizedName := strings.ToLower(name)
+	normalizedName := ident.Normalize(name)
 	functions, ok := i.functions[normalizedName]
 	return functions, ok
 }
@@ -310,7 +310,7 @@ func (i *Interpreter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
 
 // LookupClass finds a class by name in the class registry.
 func (i *Interpreter) LookupClass(name string) (any, bool) {
-	normalizedName := strings.ToLower(name)
+	normalizedName := ident.Normalize(name)
 	class, ok := i.classes[normalizedName]
 	if !ok {
 		return nil, false
@@ -320,14 +320,14 @@ func (i *Interpreter) LookupClass(name string) (any, bool) {
 
 // HasClass checks if a class with the given name exists.
 func (i *Interpreter) HasClass(name string) bool {
-	normalizedName := strings.ToLower(name)
+	normalizedName := ident.Normalize(name)
 	_, ok := i.classes[normalizedName]
 	return ok
 }
 
 // GetClassTypeID returns the type ID for a class, or 0 if not found.
 func (i *Interpreter) GetClassTypeID(className string) int {
-	normalizedName := strings.ToLower(className)
+	normalizedName := ident.Normalize(className)
 	typeID, ok := i.classTypeIDRegistry[normalizedName]
 	if !ok {
 		return 0
@@ -339,7 +339,7 @@ func (i *Interpreter) GetClassTypeID(className string) int {
 
 // LookupRecord finds a record type by name in the record registry.
 func (i *Interpreter) LookupRecord(name string) (any, bool) {
-	normalizedName := strings.ToLower(name)
+	normalizedName := ident.Normalize(name)
 	record, ok := i.records[normalizedName]
 	if !ok {
 		return nil, false
@@ -349,14 +349,14 @@ func (i *Interpreter) LookupRecord(name string) (any, bool) {
 
 // HasRecord checks if a record type with the given name exists.
 func (i *Interpreter) HasRecord(name string) bool {
-	normalizedName := strings.ToLower(name)
+	normalizedName := ident.Normalize(name)
 	_, ok := i.records[normalizedName]
 	return ok
 }
 
 // GetRecordTypeID returns the type ID for a record type, or 0 if not found.
 func (i *Interpreter) GetRecordTypeID(recordName string) int {
-	normalizedName := strings.ToLower(recordName)
+	normalizedName := ident.Normalize(recordName)
 	typeID, ok := i.recordTypeIDRegistry[normalizedName]
 	if !ok {
 		return 0
@@ -368,7 +368,7 @@ func (i *Interpreter) GetRecordTypeID(recordName string) int {
 
 // LookupInterface finds an interface by name in the interface registry.
 func (i *Interpreter) LookupInterface(name string) (any, bool) {
-	normalizedName := strings.ToLower(name)
+	normalizedName := ident.Normalize(name)
 	iface, ok := i.interfaces[normalizedName]
 	if !ok {
 		return nil, false
@@ -378,7 +378,7 @@ func (i *Interpreter) LookupInterface(name string) (any, bool) {
 
 // HasInterface checks if an interface with the given name exists.
 func (i *Interpreter) HasInterface(name string) bool {
-	normalizedName := strings.ToLower(name)
+	normalizedName := ident.Normalize(name)
 	_, ok := i.interfaces[normalizedName]
 	return ok
 }
@@ -387,7 +387,7 @@ func (i *Interpreter) HasInterface(name string) bool {
 
 // LookupHelpers finds helper methods for a type by name.
 func (i *Interpreter) LookupHelpers(typeName string) []any {
-	normalizedName := strings.ToLower(typeName)
+	normalizedName := ident.Normalize(typeName)
 	helpers, ok := i.helpers[normalizedName]
 	if !ok {
 		return nil
@@ -402,7 +402,7 @@ func (i *Interpreter) LookupHelpers(typeName string) []any {
 
 // HasHelpers checks if a type has helper methods defined.
 func (i *Interpreter) HasHelpers(typeName string) bool {
-	normalizedName := strings.ToLower(typeName)
+	normalizedName := ident.Normalize(typeName)
 	helpers, ok := i.helpers[normalizedName]
 	return ok && len(helpers) > 0
 }
@@ -423,7 +423,7 @@ func (i *Interpreter) GetConversionRegistry() any {
 
 // GetEnumTypeID returns the type ID for an enum type, or 0 if not found.
 func (i *Interpreter) GetEnumTypeID(enumName string) int {
-	normalizedName := strings.ToLower(enumName)
+	normalizedName := ident.Normalize(enumName)
 	typeID, ok := i.enumTypeIDRegistry[normalizedName]
 	if !ok {
 		return 0
@@ -509,7 +509,7 @@ func (i *Interpreter) ConvertValue(value evaluator.Value, targetTypeName string)
 
 // CreateDefaultValue creates a zero/default value for a given type name.
 func (i *Interpreter) CreateDefaultValue(typeName string) evaluator.Value {
-	normalizedName := strings.ToLower(typeName)
+	normalizedName := ident.Normalize(typeName)
 
 	// Check for basic types
 	switch normalizedName {
@@ -565,7 +565,7 @@ func (i *Interpreter) CreateDefaultValue(typeName string) evaluator.Value {
 	}
 
 	// Check for set types
-	if strings.HasPrefix(normalizedName, "set of ") {
+	if ident.HasPrefix(typeName, "set of ") {
 		setType := i.parseInlineSetType(typeName)
 		if setType != nil {
 			return NewSetValue(setType)
@@ -578,7 +578,7 @@ func (i *Interpreter) CreateDefaultValue(typeName string) evaluator.Value {
 
 // IsEnumType checks if a given name refers to an enum type.
 func (i *Interpreter) IsEnumType(typeName string) bool {
-	normalizedName := strings.ToLower(typeName)
+	normalizedName := ident.Normalize(typeName)
 	enumTypeKey := "__enum_type_" + normalizedName
 	_, ok := i.env.Get(enumTypeKey)
 	return ok
@@ -586,7 +586,7 @@ func (i *Interpreter) IsEnumType(typeName string) bool {
 
 // IsRecordType checks if a given name refers to a record type.
 func (i *Interpreter) IsRecordType(typeName string) bool {
-	normalizedName := strings.ToLower(typeName)
+	normalizedName := ident.Normalize(typeName)
 	recordTypeKey := "__record_type_" + normalizedName
 	_, ok := i.env.Get(recordTypeKey)
 	return ok
@@ -594,7 +594,7 @@ func (i *Interpreter) IsRecordType(typeName string) bool {
 
 // IsArrayType checks if a given name refers to an array type.
 func (i *Interpreter) IsArrayType(typeName string) bool {
-	normalizedName := strings.ToLower(typeName)
+	normalizedName := ident.Normalize(typeName)
 	arrayTypeKey := "__array_type_" + normalizedName
 	_, ok := i.env.Get(arrayTypeKey)
 	return ok
@@ -622,7 +622,7 @@ func (i *Interpreter) ParseInlineSetType(typeName string) (any, error) {
 
 // LookupSubrangeType finds a subrange type by name.
 func (i *Interpreter) LookupSubrangeType(name string) (any, bool) {
-	normalizedName := strings.ToLower(name)
+	normalizedName := ident.Normalize(name)
 	subrangeTypeKey := "__subrange_type_" + normalizedName
 	typeVal, ok := i.env.Get(subrangeTypeKey)
 	return typeVal, ok
@@ -644,7 +644,7 @@ func (i *Interpreter) TryImplicitConversion(value evaluator.Value, targetTypeNam
 
 // WrapInSubrange wraps an integer value in a subrange type with validation.
 func (i *Interpreter) WrapInSubrange(value evaluator.Value, subrangeTypeName string, node ast.Node) (evaluator.Value, error) {
-	normalizedName := strings.ToLower(subrangeTypeName)
+	normalizedName := ident.Normalize(subrangeTypeName)
 	subrangeTypeKey := "__subrange_type_" + normalizedName
 	typeVal, ok := i.env.Get(subrangeTypeKey)
 	if !ok {
@@ -679,7 +679,7 @@ func (i *Interpreter) WrapInSubrange(value evaluator.Value, subrangeTypeName str
 
 // WrapInInterface wraps an object value in an interface instance.
 func (i *Interpreter) WrapInInterface(value evaluator.Value, interfaceName string, node ast.Node) (evaluator.Value, error) {
-	ifaceInfo, exists := i.interfaces[strings.ToLower(interfaceName)]
+	ifaceInfo, exists := i.interfaces[ident.Normalize(interfaceName)]
 	if !exists {
 		return nil, fmt.Errorf("interface '%s' not found", interfaceName)
 	}
@@ -723,12 +723,12 @@ func (i *Interpreter) EvalArrayLiteralWithExpectedType(lit ast.Node, expectedTyp
 
 // ClassImplementsInterface checks if a class implements an interface.
 func (i *Interpreter) ClassImplementsInterface(className, interfaceName string) bool {
-	classInfo, exists := i.classes[strings.ToLower(className)]
+	classInfo, exists := i.classes[ident.Normalize(className)]
 	if !exists {
 		return false
 	}
 
-	ifaceInfo, exists := i.interfaces[strings.ToLower(interfaceName)]
+	ifaceInfo, exists := i.interfaces[ident.Normalize(interfaceName)]
 	if !exists {
 		return false
 	}
@@ -760,7 +760,7 @@ func (i *Interpreter) ResolveArrayTypeNode(arrayNode ast.Node) (any, error) {
 
 // CreateRecordZeroValue creates a zero-initialized record value.
 func (i *Interpreter) CreateRecordZeroValue(recordTypeName string) (evaluator.Value, error) {
-	normalizedName := strings.ToLower(recordTypeName)
+	normalizedName := ident.Normalize(recordTypeName)
 	recordTypeKey := "__record_type_" + normalizedName
 	typeVal, ok := i.env.Get(recordTypeKey)
 	if !ok {
@@ -777,7 +777,7 @@ func (i *Interpreter) CreateRecordZeroValue(recordTypeName string) (evaluator.Va
 
 // CreateArrayZeroValue creates a zero-initialized array value.
 func (i *Interpreter) CreateArrayZeroValue(arrayTypeName string) (evaluator.Value, error) {
-	normalizedName := strings.ToLower(arrayTypeName)
+	normalizedName := ident.Normalize(arrayTypeName)
 	arrayTypeKey := "__array_type_" + normalizedName
 	typeVal, ok := i.env.Get(arrayTypeKey)
 	if !ok {
@@ -803,7 +803,7 @@ func (i *Interpreter) CreateSetZeroValue(setTypeName string) (evaluator.Value, e
 
 // CreateSubrangeZeroValue creates a zero-initialized subrange value.
 func (i *Interpreter) CreateSubrangeZeroValue(subrangeTypeName string) (evaluator.Value, error) {
-	normalizedName := strings.ToLower(subrangeTypeName)
+	normalizedName := ident.Normalize(subrangeTypeName)
 	subrangeTypeKey := "__subrange_type_" + normalizedName
 	typeVal, ok := i.env.Get(subrangeTypeKey)
 	if !ok {
@@ -823,7 +823,7 @@ func (i *Interpreter) CreateSubrangeZeroValue(subrangeTypeName string) (evaluato
 
 // CreateInterfaceZeroValue creates a nil interface instance.
 func (i *Interpreter) CreateInterfaceZeroValue(interfaceName string) (evaluator.Value, error) {
-	ifaceInfo, exists := i.interfaces[strings.ToLower(interfaceName)]
+	ifaceInfo, exists := i.interfaces[ident.Normalize(interfaceName)]
 	if !exists {
 		return nil, fmt.Errorf("interface '%s' not found", interfaceName)
 	}
@@ -836,7 +836,7 @@ func (i *Interpreter) CreateInterfaceZeroValue(interfaceName string) (evaluator.
 
 // CreateClassZeroValue creates a typed nil value for a class.
 func (i *Interpreter) CreateClassZeroValue(className string) (evaluator.Value, error) {
-	if _, exists := i.classes[strings.ToLower(className)]; !exists {
+	if _, exists := i.classes[ident.Normalize(className)]; !exists {
 		return nil, fmt.Errorf("class '%s' not found", className)
 	}
 
@@ -847,7 +847,7 @@ func (i *Interpreter) CreateClassZeroValue(className string) (evaluator.Value, e
 
 // CreateRecordValue creates a record value with field initialization.
 func (i *Interpreter) CreateRecordValue(recordTypeName string, fieldValues map[string]evaluator.Value) (evaluator.Value, error) {
-	normalizedName := strings.ToLower(recordTypeName)
+	normalizedName := ident.Normalize(recordTypeName)
 	recordTypeKey := "__record_type_" + normalizedName
 	typeVal, ok := i.env.Get(recordTypeKey)
 	if !ok {
@@ -870,7 +870,7 @@ func (i *Interpreter) CreateRecordValue(recordTypeName string, fieldValues map[s
 
 	// Copy provided field values (already evaluated)
 	for fieldName, fieldValue := range fieldValues {
-		fieldNameLower := strings.ToLower(fieldName)
+		fieldNameLower := ident.Normalize(fieldName)
 		// Validate field exists
 		if _, exists := recordType.Fields[fieldNameLower]; !exists {
 			return nil, fmt.Errorf("field '%s' does not exist in record type '%s'", fieldName, recordType.Name)
@@ -881,7 +881,7 @@ func (i *Interpreter) CreateRecordValue(recordTypeName string, fieldValues map[s
 
 	// Initialize remaining fields with field initializers or default values
 	methodsLookup := func(rt *types.RecordType) map[string]*ast.FunctionDecl {
-		key := "__record_type_" + strings.ToLower(rt.Name)
+		key := "__record_type_" + ident.Normalize(rt.Name)
 		if typeVal, ok := i.env.Get(key); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				return rtv.Methods
@@ -922,7 +922,7 @@ func (i *Interpreter) CreateRecordValue(recordTypeName string, fieldValues map[s
 
 // GetRecordFieldDeclarations retrieves field declarations for a record type.
 func (i *Interpreter) GetRecordFieldDeclarations(recordTypeName string) (any, bool) {
-	normalizedName := strings.ToLower(recordTypeName)
+	normalizedName := ident.Normalize(recordTypeName)
 	recordTypeKey := "__record_type_" + normalizedName
 	typeVal, ok := i.env.Get(recordTypeKey)
 	if !ok {
@@ -945,7 +945,7 @@ func (i *Interpreter) GetZeroValueForType(typeInfo any) evaluator.Value {
 	}
 
 	methodsLookup := func(rt *types.RecordType) map[string]*ast.FunctionDecl {
-		key := "__record_type_" + strings.ToLower(rt.Name)
+		key := "__record_type_" + ident.Normalize(rt.Name)
 		if typeVal, ok := i.env.Get(key); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				return rtv.Methods
@@ -1392,7 +1392,7 @@ func (i *Interpreter) GetObjectField(obj evaluator.Value, fieldName string) (eva
 	}
 
 	// Look up field value
-	fieldValue, exists := objVal.Fields[strings.ToLower(fieldName)]
+	fieldValue, exists := objVal.Fields[ident.Normalize(fieldName)]
 	if !exists {
 		return nil, fmt.Errorf("field '%s' not found in object", fieldName)
 	}
@@ -1413,7 +1413,7 @@ func (i *Interpreter) SetObjectField(obj evaluator.Value, fieldName string, valu
 	}
 
 	// Verify field exists in class definition (case-insensitive)
-	fieldNameLower := strings.ToLower(fieldName)
+	fieldNameLower := ident.Normalize(fieldName)
 	if _, exists := objVal.Class.Fields[fieldNameLower]; !exists {
 		return fmt.Errorf("field '%s' not found in class '%s'", fieldName, objVal.Class.Name)
 	}
@@ -1435,7 +1435,7 @@ func (i *Interpreter) GetRecordField(record evaluator.Value, fieldName string) (
 	}
 
 	// Look up field value
-	fieldValue, exists := recVal.Fields[strings.ToLower(fieldName)]
+	fieldValue, exists := recVal.Fields[ident.Normalize(fieldName)]
 	if !exists {
 		return nil, fmt.Errorf("field '%s' not found in record", fieldName)
 	}
@@ -1456,7 +1456,7 @@ func (i *Interpreter) SetRecordField(record evaluator.Value, fieldName string, v
 	}
 
 	// Verify field exists in record type definition (case-insensitive)
-	fieldNameLower := strings.ToLower(fieldName)
+	fieldNameLower := ident.Normalize(fieldName)
 	if recVal.RecordType != nil {
 		if _, exists := recVal.RecordType.Fields[fieldNameLower]; !exists {
 			return fmt.Errorf("field '%s' not found in record type '%s'", fieldName, recVal.RecordType.Name)
@@ -1486,7 +1486,7 @@ func (i *Interpreter) GetPropertyValue(obj evaluator.Value, propName string) (ev
 	}
 
 	// Find property (case-insensitive)
-	propNameLower := strings.ToLower(propName)
+	propNameLower := ident.Normalize(propName)
 	prop, exists := classInfo.Properties[propNameLower]
 	if !exists {
 		return nil, fmt.Errorf("property '%s' not found in class '%s'", propName, classInfo.Name)
@@ -1520,7 +1520,7 @@ func (i *Interpreter) SetPropertyValue(obj evaluator.Value, propName string, val
 	}
 
 	// Find property (case-insensitive)
-	propNameLower := strings.ToLower(propName)
+	propNameLower := ident.Normalize(propName)
 	prop, exists := classInfo.Properties[propNameLower]
 	if !exists {
 		return fmt.Errorf("property '%s' not found in class '%s'", propName, classInfo.Name)
@@ -1535,7 +1535,7 @@ func (i *Interpreter) SetPropertyValue(obj evaluator.Value, propName string, val
 	switch prop.WriteKind {
 	case types.PropAccessField:
 		// Direct field assignment
-		objVal.Fields[strings.ToLower(prop.WriteSpec)] = internalValue
+		objVal.Fields[ident.Normalize(prop.WriteSpec)] = internalValue
 		return nil
 
 	case types.PropAccessMethod:
@@ -1589,7 +1589,7 @@ func (i *Interpreter) GetIndexedProperty(obj evaluator.Value, propName string, i
 	}
 
 	// Find indexed property (case-insensitive)
-	propNameLower := strings.ToLower(propName)
+	propNameLower := ident.Normalize(propName)
 	prop, exists := classInfo.Properties[propNameLower]
 	if !exists {
 		return nil, fmt.Errorf("property '%s' not found in class '%s'", propName, classInfo.Name)
@@ -1649,7 +1649,7 @@ func (i *Interpreter) SetIndexedProperty(obj evaluator.Value, propName string, i
 	}
 
 	// Find indexed property (case-insensitive)
-	propNameLower := strings.ToLower(propName)
+	propNameLower := ident.Normalize(propName)
 	prop, exists := classInfo.Properties[propNameLower]
 	if !exists {
 		return fmt.Errorf("property '%s' not found in class '%s'", propName, classInfo.Name)
@@ -1753,7 +1753,7 @@ func (i *Interpreter) CallInheritedMethod(obj evaluator.Value, methodName string
 	parentInfo := classInfo.Parent
 
 	// Find method in parent (case-insensitive)
-	methodNameLower := strings.ToLower(methodName)
+	methodNameLower := ident.Normalize(methodName)
 	method, exists := parentInfo.Methods[methodNameLower]
 	if !exists {
 		return newError("method, property, or field '%s' not found in parent class '%s'", methodName, parentInfo.Name)
@@ -1777,7 +1777,7 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 	internalArgs := convertEvaluatorArgs(args)
 
 	// Look up class (case-insensitive)
-	classInfo, exists := i.classes[strings.ToLower(className)]
+	classInfo, exists := i.classes[ident.Normalize(className)]
 	if !exists {
 		return nil, fmt.Errorf("class '%s' not found", className)
 	}
@@ -1817,7 +1817,7 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 	i.env = savedEnv
 
 	// Call constructor if it exists
-	constructorNameLower := strings.ToLower("Create")
+	constructorNameLower := ident.Normalize("Create")
 	if constructor, exists := classInfo.Constructors[constructorNameLower]; exists {
 		tempEnv := NewEnclosedEnvironment(i.env)
 		tempEnv.Define("Self", obj)
@@ -1862,21 +1862,21 @@ func (i *Interpreter) CheckType(obj evaluator.Value, typeName string) bool {
 	}
 
 	// Check if the object's class matches (case-insensitive)
-	if strings.EqualFold(classInfo.Name, typeName) {
+	if ident.Equal(classInfo.Name, typeName) {
 		return true
 	}
 
 	// Check parent class hierarchy
 	current := classInfo.Parent
 	for current != nil {
-		if strings.EqualFold(current.Name, typeName) {
+		if ident.Equal(current.Name, typeName) {
 			return true
 		}
 		current = current.Parent
 	}
 
 	// Task 3.5.34: Check if the target is an interface and if the object's class implements it
-	if iface, exists := i.interfaces[strings.ToLower(typeName)]; exists {
+	if iface, exists := i.interfaces[ident.Normalize(typeName)]; exists {
 		return classImplementsInterface(objVal.Class, iface)
 	}
 
@@ -1904,7 +1904,7 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 	// Handle interface-to-object/interface casting
 	if intfInst, ok := internalObj.(*InterfaceInstance); ok {
 		// Check if target is a class
-		if targetClass, isClass := i.classes[strings.ToLower(typeName)]; isClass {
+		if targetClass, isClass := i.classes[ident.Normalize(typeName)]; isClass {
 			// Interface-to-class casting: extract the underlying object
 			underlyingObj := intfInst.Object
 			if underlyingObj == nil {
@@ -1921,7 +1921,7 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 		}
 
 		// Check if target is an interface
-		if targetIface, isInterface := i.interfaces[strings.ToLower(typeName)]; isInterface {
+		if targetIface, isInterface := i.interfaces[ident.Normalize(typeName)]; isInterface {
 			// Interface-to-interface casting
 			underlyingObj := intfInst.Object
 			if underlyingObj == nil {
@@ -1948,7 +1948,7 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 	}
 
 	// Try class-to-class casting first
-	if targetClass, isClass := i.classes[strings.ToLower(typeName)]; isClass {
+	if targetClass, isClass := i.classes[ident.Normalize(typeName)]; isClass {
 		// Validate that the object's actual runtime type is compatible with the target
 		if !isClassCompatible(objVal.Class, targetClass) {
 			return nil, fmt.Errorf("instance of type '%s' cannot be cast to class '%s'", objVal.Class.Name, targetClass.Name)
@@ -1959,7 +1959,7 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 	}
 
 	// Try interface casting
-	if iface, exists := i.interfaces[strings.ToLower(typeName)]; exists {
+	if iface, exists := i.interfaces[ident.Normalize(typeName)]; exists {
 		// Validate that the object's class implements the interface
 		if !classImplementsInterface(objVal.Class, iface) {
 			return nil, fmt.Errorf("class '%s' does not implement interface '%s'", objVal.Class.Name, iface.Name)
@@ -2006,7 +2006,7 @@ func (i *Interpreter) CheckImplements(obj evaluator.Value, interfaceName string)
 	}
 
 	// Look up the interface in the registry
-	iface, exists := i.interfaces[strings.ToLower(interfaceName)]
+	iface, exists := i.interfaces[ident.Normalize(interfaceName)]
 	if !exists {
 		return false, fmt.Errorf("interface '%s' not found", interfaceName)
 	}
@@ -2135,7 +2135,7 @@ func (i *Interpreter) CreateMethodPointer(objVal evaluator.Value, methodName str
 // Task 3.5.37: Adapter method for function pointer creation from @FunctionName expressions.
 func (i *Interpreter) CreateFunctionPointerFromName(funcName string, closure any) (evaluator.Value, error) {
 	// Look up the function in the function registry (case-insensitive)
-	overloads, exists := i.functions[strings.ToLower(funcName)]
+	overloads, exists := i.functions[ident.Normalize(funcName)]
 	if !exists || len(overloads) == 0 {
 		return nil, fmt.Errorf("undefined function or procedure: %s", funcName)
 	}
@@ -2187,7 +2187,7 @@ func (i *Interpreter) CreateFunctionPointerFromName(funcName string, closure any
 // Task 3.5.8: Adapter method for record construction.
 func (i *Interpreter) CreateRecord(recordType string, fields map[string]evaluator.Value) (evaluator.Value, error) {
 	// Look up the record type
-	recordTypeKey := "__record_type_" + strings.ToLower(recordType)
+	recordTypeKey := "__record_type_" + ident.Normalize(recordType)
 	typeVal, ok := i.env.Get(recordTypeKey)
 	if !ok {
 		return nil, fmt.Errorf("unknown record type '%s'", recordType)
