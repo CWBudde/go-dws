@@ -1,10 +1,9 @@
 package interp
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // evalIdentifier looks up an identifier in the environment.
@@ -89,7 +88,7 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 
 			// Check if it's a method of the current class
 			// This allows methods to reference other methods as method pointers
-			if method, exists := obj.Class.Methods[strings.ToLower(node.Value)]; exists {
+			if method, exists := obj.Class.Methods[ident.Normalize(node.Value)]; exists {
 				// In DWScript/Pascal, parameterless methods can be called without parentheses
 				// When referenced as an identifier, they should be treated as implicit calls
 				if len(method.Parameters) == 0 {
@@ -129,11 +128,11 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 
 			// Check for ClassName in instance method/constructor context
 			// This handles `PrintLn(ClassName)` inside constructors
-			if strings.EqualFold(node.Value, "ClassName") {
+			if ident.Equal(node.Value, "ClassName") {
 				return &StringValue{Value: obj.Class.Name}
 			}
 			// Check for ClassType in instance method/constructor context
-			if strings.EqualFold(node.Value, "ClassType") {
+			if ident.Equal(node.Value, "ClassType") {
 				return &ClassValue{ClassInfo: obj.Class}
 			}
 		}
@@ -144,11 +143,11 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 	if hasCurrentClass {
 		if classInfo, ok := currentClassVal.(*ClassInfoValue); ok {
 			// Check for ClassName identifier in class method context (case-insensitive)
-			if strings.EqualFold(node.Value, "ClassName") {
+			if ident.Equal(node.Value, "ClassName") {
 				return &StringValue{Value: classInfo.ClassInfo.Name}
 			}
 			// Check for ClassType identifier in class method context (case-insensitive)
-			if strings.EqualFold(node.Value, "ClassType") {
+			if ident.Equal(node.Value, "ClassType") {
 				return &ClassValue{ClassInfo: classInfo.ClassInfo}
 			}
 
@@ -162,8 +161,8 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 	// Before returning error, check if this is a function name
 	// In DWScript, functions can be referenced as values (function pointers)
 	// or called without parentheses if they have zero parameters
-	// DWScript is case-insensitive, so normalize the function name to lowercase
-	if overloads, exists := i.functions[strings.ToLower(node.Value)]; exists && len(overloads) > 0 {
+	// DWScript is case-insensitive, so normalize the function name
+	if overloads, exists := i.functions[ident.Normalize(node.Value)]; exists && len(overloads) > 0 {
 		// For function pointer or parameterless call, resolve to the appropriate overload
 		var fn *ast.FunctionDecl
 		if len(overloads) == 1 {
@@ -221,7 +220,7 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 	// Class names can be used in expressions like TObj.Create or new TObj
 	// DWScript is case-insensitive, so we need to search all classes
 	for className, classInfo := range i.classes {
-		if strings.EqualFold(className, node.Value) {
+		if ident.Equal(className, node.Value) {
 			// Return a ClassValue to represent a metaclass reference
 			// This allows assignments like: var meta: class of TBase; meta := TBase;
 			return &ClassValue{ClassInfo: classInfo}
@@ -378,8 +377,8 @@ func (i *Interpreter) evalFunctionPointer(name string, selfObject Value, _ ast.N
 		}
 	} else {
 		// Look up the function in the function registry
-		// DWScript is case-insensitive, so normalize the function name to lowercase
-		overloads, exists := i.functions[strings.ToLower(name)]
+		// DWScript is case-insensitive, so normalize the function name
+		overloads, exists := i.functions[ident.Normalize(name)]
 		if !exists || len(overloads) == 0 {
 			return i.newUndefinedError(nil, "undefined function or procedure: %s", name)
 		}

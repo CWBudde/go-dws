@@ -2,11 +2,14 @@ package interp
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
+
+// Note: This file uses ident.Normalize() for type name normalization (case-insensitive lookups)
+// and ident.Equal() for case-insensitive string comparisons
 
 // ============================================================================
 // Helper Lookup and Comparison Functions
@@ -15,7 +18,7 @@ import (
 // findPropertyCaseInsensitive searches for a property by name using case-insensitive comparison.
 func findPropertyCaseInsensitive(props map[string]*types.PropertyInfo, name string) *types.PropertyInfo {
 	for key, prop := range props {
-		if strings.EqualFold(key, name) {
+		if ident.Equal(key, name) {
 			return prop
 		}
 	}
@@ -25,7 +28,7 @@ func findPropertyCaseInsensitive(props map[string]*types.PropertyInfo, name stri
 // findMethodCaseInsensitive searches for a method by name using case-insensitive comparison.
 func findMethodCaseInsensitive(methods map[string]*ast.FunctionDecl, name string) *ast.FunctionDecl {
 	for key, method := range methods {
-		if strings.EqualFold(key, name) {
+		if ident.Equal(key, name) {
 			return method
 		}
 	}
@@ -35,7 +38,7 @@ func findMethodCaseInsensitive(methods map[string]*ast.FunctionDecl, name string
 // findBuiltinMethodCaseInsensitive searches for a builtin method spec by name using case-insensitive comparison.
 func findBuiltinMethodCaseInsensitive(builtinMethods map[string]string, name string) (string, bool) {
 	for key, spec := range builtinMethods {
-		if strings.EqualFold(key, name) {
+		if ident.Equal(key, name) {
 			return spec, true
 		}
 	}
@@ -124,14 +127,14 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 		typeName = v.RecordType.Name
 	case *ArrayValue:
 		// First try specific array type (e.g., "array of String"), then generic array helpers
-		specific := strings.ToLower(v.ArrayType.String())
+		specific := ident.Normalize(v.ArrayType.String())
 		var combined []*HelperInfo
 		if h, ok := i.helpers[specific]; ok {
 			combined = append(combined, h...)
 		}
 		// If it's a static array, also try the dynamic equivalent ("array of <elem>")
 		if v.ArrayType.IsStatic() && v.ArrayType.ElementType != nil {
-			dynKey := strings.ToLower(fmt.Sprintf("array of %s", v.ArrayType.ElementType.String()))
+			dynKey := ident.Normalize(fmt.Sprintf("array of %s", v.ArrayType.ElementType.String()))
 			if h, ok := i.helpers[dynKey]; ok {
 				combined = append(combined, h...)
 			}
@@ -142,7 +145,7 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 		return combined
 	case *EnumValue:
 		// First try specific enum type (e.g., "TColor"), then generic enum helpers
-		specific := strings.ToLower(v.TypeName)
+		specific := ident.Normalize(v.TypeName)
 		var combined []*HelperInfo
 		if h, ok := i.helpers[specific]; ok {
 			combined = append(combined, h...)
@@ -157,7 +160,7 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 	}
 
 	// Look up helpers for this type
-	return i.helpers[strings.ToLower(typeName)]
+	return i.helpers[ident.Normalize(typeName)]
 }
 
 // findHelperMethod searches all applicable helpers for a method with the given name

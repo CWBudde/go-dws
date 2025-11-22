@@ -7,6 +7,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // Phase 3.5.4 - Phase 2E: Imports for future use (commented out for now)
@@ -206,7 +207,7 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 			}
 
 			// Box value if target type is Variant
-			if strings.EqualFold(typeName, "Variant") {
+			if ident.Equal(typeName, "Variant") {
 				value = e.adapter.BoxVariant(value)
 			}
 		}
@@ -1201,7 +1202,7 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 	}
 
 	// Initialize basic types with their zero values
-	switch strings.ToLower(typeName) {
+	switch ident.Normalize(typeName) {
 	case "integer":
 		return &runtime.IntegerValue{Value: 0}
 	case "float":

@@ -6,6 +6,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // This file contains visitor methods for expression AST nodes.
@@ -128,13 +129,13 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			}
 
 			// Check for ClassName special identifier (case-insensitive)
-			if strings.EqualFold(node.Value, "ClassName") {
+			if ident.Equal(node.Value, "ClassName") {
 				className := e.adapter.GetClassName(selfVal)
 				return &runtime.StringValue{Value: className}
 			}
 
 			// Check for ClassType special identifier (case-insensitive)
-			if strings.EqualFold(node.Value, "ClassType") {
+			if ident.Equal(node.Value, "ClassType") {
 				return e.adapter.GetClassType(selfVal)
 			}
 		}
@@ -145,13 +146,13 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
 		if classInfoVal, ok := currentClassRaw.(Value); ok && e.adapter.IsClassInfoValue(classInfoVal) {
 			// Check for ClassName identifier (case-insensitive)
-			if strings.EqualFold(node.Value, "ClassName") {
+			if ident.Equal(node.Value, "ClassName") {
 				className := e.adapter.GetClassNameFromClassInfo(classInfoVal)
 				return &runtime.StringValue{Value: className}
 			}
 
 			// Check for ClassType identifier (case-insensitive)
-			if strings.EqualFold(node.Value, "ClassType") {
+			if ident.Equal(node.Value, "ClassType") {
 				return e.adapter.GetClassTypeFromClassInfo(classInfoVal)
 			}
 
@@ -164,7 +165,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 	// Check if this identifier is a user-defined function name
 	// Functions are auto-invoked if they have zero parameters, or converted to function pointers if they have parameters
-	funcNameLower := strings.ToLower(node.Value)
+	funcNameLower := ident.Normalize(node.Value)
 	if overloads, exists := e.adapter.LookupFunction(funcNameLower); exists && len(overloads) > 0 {
 		return e.adapter.EvalNode(node)
 	}
@@ -464,7 +465,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 
 	// Check for user-defined functions (with potential overloading)
 	// Task 3.5.23: Handle lazy and var parameters in user function calls
-	funcNameLower := strings.ToLower(funcName.Value)
+	funcNameLower := ident.Normalize(funcName.Value)
 	if overloads, exists := e.adapter.LookupFunction(funcNameLower); exists && len(overloads) > 0 {
 		// For now, delegate to adapter for overload resolution
 		// In the future, this can be migrated to the evaluator
@@ -1984,7 +1985,7 @@ func (e *Evaluator) VisitIfExpression(node *ast.IfExpression, ctx *ExecutionCont
 	}
 
 	// Return default value based on type name
-	typeName := strings.ToLower(typeAnnot.Name)
+	typeName := ident.Normalize(typeAnnot.Name)
 	switch typeName {
 	case "integer", "int64":
 		return &runtime.IntegerValue{Value: 0}
