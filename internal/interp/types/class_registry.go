@@ -15,8 +15,9 @@ import (
 // - Efficient hierarchy traversal
 // - Descendant checking (is class A derived from class B?)
 type ClassRegistry struct {
-	// classes maps normalized class names to ClassInfo
-	classes map[string]*ClassInfoEntry
+	// classes stores ClassInfo entries with case-insensitive lookup
+	// and automatic original-casing preservation
+	classes *ident.Map[*ClassInfoEntry]
 }
 
 // ClassInfoEntry wraps class information stored in the registry.
@@ -36,7 +37,7 @@ type ClassInfoEntry struct {
 // NewClassRegistry creates a new empty class registry.
 func NewClassRegistry() *ClassRegistry {
 	return &ClassRegistry{
-		classes: make(map[string]*ClassInfoEntry),
+		classes: ident.NewMap[*ClassInfoEntry](),
 	}
 }
 
@@ -60,7 +61,7 @@ func (r *ClassRegistry) Register(name string, classInfo any) {
 		ParentName: parentName,
 	}
 
-	r.classes[ident.Normalize(name)] = entry
+	r.classes.Set(name, entry)
 }
 
 // RegisterWithParent adds a class to the registry with explicit parent name.
@@ -76,13 +77,13 @@ func (r *ClassRegistry) RegisterWithParent(name string, classInfo any, parentNam
 		ParentName: parentName,
 	}
 
-	r.classes[ident.Normalize(name)] = entry
+	r.classes.Set(name, entry)
 }
 
 // Lookup finds a class by name (case-insensitive).
 // Returns the class info and true if found, nil and false otherwise.
 func (r *ClassRegistry) Lookup(name string) (any, bool) {
-	entry, ok := r.classes[ident.Normalize(name)]
+	entry, ok := r.classes.Get(name)
 	if !ok {
 		return nil, false
 	}
@@ -92,8 +93,7 @@ func (r *ClassRegistry) Lookup(name string) (any, bool) {
 // Exists checks if a class with the given name exists in the registry.
 // The check is case-insensitive.
 func (r *ClassRegistry) Exists(name string) bool {
-	_, exists := r.classes[ident.Normalize(name)]
-	return exists
+	return r.classes.Has(name)
 }
 
 // LookupHierarchy returns all classes in the inheritance hierarchy for the given class.
@@ -105,7 +105,7 @@ func (r *ClassRegistry) Exists(name string) bool {
 //
 // Returns nil if the class is not found.
 func (r *ClassRegistry) LookupHierarchy(name string) []any {
-	entry, ok := r.classes[ident.Normalize(name)]
+	entry, ok := r.classes.Get(name)
 	if !ok {
 		return nil
 	}
@@ -115,7 +115,7 @@ func (r *ClassRegistry) LookupHierarchy(name string) []any {
 	// Walk up the parent chain
 	currentParent := entry.ParentName
 	for currentParent != "" {
-		parentEntry, ok := r.classes[ident.Normalize(currentParent)]
+		parentEntry, ok := r.classes.Get(currentParent)
 		if !ok {
 			// Parent not found in registry - stop here
 			break
@@ -130,7 +130,7 @@ func (r *ClassRegistry) LookupHierarchy(name string) []any {
 // GetParentName returns the parent class name for the given class.
 // Returns empty string if the class has no parent or is not found.
 func (r *ClassRegistry) GetParentName(name string) string {
-	entry, ok := r.classes[ident.Normalize(name)]
+	entry, ok := r.classes.Get(name)
 	if !ok {
 		return ""
 	}
@@ -146,17 +146,13 @@ func (r *ClassRegistry) GetParentName(name string) string {
 //	IsDescendantOf("Dog", "Animal") returns true if Dog inherits from Animal
 //	IsDescendantOf("Dog", "Dog") returns true (class is its own descendant)
 func (r *ClassRegistry) IsDescendantOf(descendantName, ancestorName string) bool {
-	// Normalize names for comparison
-	descendantKey := ident.Normalize(descendantName)
-	ancestorKey := ident.Normalize(ancestorName)
-
-	// A class is its own descendant
-	if descendantKey == ancestorKey {
+	// A class is its own descendant (case-insensitive comparison)
+	if ident.Equal(descendantName, ancestorName) {
 		return true
 	}
 
 	// Look up the descendant class
-	entry, ok := r.classes[descendantKey]
+	entry, ok := r.classes.Get(descendantName)
 	if !ok {
 		return false
 	}
@@ -164,11 +160,11 @@ func (r *ClassRegistry) IsDescendantOf(descendantName, ancestorName string) bool
 	// Walk up the parent chain looking for the ancestor
 	currentParent := entry.ParentName
 	for currentParent != "" {
-		if ident.Normalize(currentParent) == ancestorKey {
+		if ident.Equal(currentParent, ancestorName) {
 			return true
 		}
 
-		parentEntry, ok := r.classes[ident.Normalize(currentParent)]
+		parentEntry, ok := r.classes.Get(currentParent)
 		if !ok {
 			// Parent not in registry - can't continue
 			break
@@ -183,26 +179,23 @@ func (r *ClassRegistry) IsDescendantOf(descendantName, ancestorName string) bool
 // The map uses normalized keys (case-insensitive).
 // The returned map should not be modified directly.
 func (r *ClassRegistry) GetAllClasses() map[string]any {
-	result := make(map[string]any, len(r.classes))
-	for key, entry := range r.classes {
-		result[key] = entry.Info
-	}
+	result := make(map[string]any, r.classes.Len())
+	r.classes.Range(func(name string, entry *ClassInfoEntry) bool {
+		result[ident.Normalize(name)] = entry.Info
+		return true
+	})
 	return result
 }
 
 // Count returns the number of classes in the registry.
 func (r *ClassRegistry) Count() int {
-	return len(r.classes)
+	return r.classes.Len()
 }
 
 // GetClassNames returns a slice of all registered class names (original case).
 // The names are not sorted.
 func (r *ClassRegistry) GetClassNames() []string {
-	names := make([]string, 0, len(r.classes))
-	for _, entry := range r.classes {
-		names = append(names, entry.Name)
-	}
-	return names
+	return r.classes.Keys()
 }
 
 // FindDescendants returns all classes that inherit from the given ancestor class.
@@ -213,20 +206,20 @@ func (r *ClassRegistry) GetClassNames() []string {
 //
 //	FindDescendants("Animal") returns [Cat, Dog]
 func (r *ClassRegistry) FindDescendants(ancestorName string) []any {
-	ancestorKey := ident.Normalize(ancestorName)
 	descendants := []any{}
 
-	for _, entry := range r.classes {
+	r.classes.Range(func(name string, entry *ClassInfoEntry) bool {
 		// Skip the ancestor itself
-		if ident.Normalize(entry.Name) == ancestorKey {
-			continue
+		if ident.Equal(name, ancestorName) {
+			return true // continue iteration
 		}
 
 		// Check if this class inherits from the ancestor
-		if r.IsDescendantOf(entry.Name, ancestorName) {
+		if r.IsDescendantOf(name, ancestorName) {
 			descendants = append(descendants, entry.Info)
 		}
-	}
+		return true // continue iteration
+	})
 
 	return descendants
 }
@@ -242,7 +235,7 @@ func (r *ClassRegistry) FindDescendants(ancestorName string) []any {
 //	GetDepth("Animal") returns 1 (if Animal inherits from Object)
 //	GetDepth("Dog") returns 2 (if Dog inherits from Animal)
 func (r *ClassRegistry) GetDepth(name string) int {
-	entry, ok := r.classes[ident.Normalize(name)]
+	entry, ok := r.classes.Get(name)
 	if !ok {
 		return -1
 	}
@@ -251,7 +244,7 @@ func (r *ClassRegistry) GetDepth(name string) int {
 	currentParent := entry.ParentName
 
 	for currentParent != "" {
-		parentEntry, ok := r.classes[ident.Normalize(currentParent)]
+		parentEntry, ok := r.classes.Get(currentParent)
 		if !ok {
 			// Parent not found - stop here
 			break
@@ -265,5 +258,5 @@ func (r *ClassRegistry) GetDepth(name string) int {
 
 // Clear removes all classes from the registry.
 func (r *ClassRegistry) Clear() {
-	r.classes = make(map[string]*ClassInfoEntry)
+	r.classes.Clear()
 }
