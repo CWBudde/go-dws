@@ -14,10 +14,10 @@ import (
 // TestUndefinedVariablePreservesCase tests that undefined variable errors preserve the user's casing
 func TestUndefinedVariablePreservesCase(t *testing.T) {
 	tests := []struct {
-		name         string
-		input        string
-		expectInErr  string // String that should appear in error message
-		notInErr     string // String that should NOT appear (wrong case)
+		name        string
+		input       string
+		expectInErr string // String that should appear in error message
+		notInErr    string // String that should NOT appear (wrong case)
 	}{
 		{
 			name: "lowercase undefined variable",
