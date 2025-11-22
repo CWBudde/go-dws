@@ -248,9 +248,9 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 }
 
 // VisitConstDecl evaluates a constant declaration.
-// Task 3.5.16: Migrated from Interpreter.evalConstDecl()
+// Task 3.5.39: Full migration from Interpreter.evalConstDecl()
 func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) Value {
-	// Task 3.5.16: Constant declaration with type inference
+	// Task 3.5.39: Constant declaration with type inference
 	//
 	// Constant declaration syntax:
 	// - With type: const PI: Float := 3.14159;
@@ -289,17 +289,44 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 	// - Accessible via identifier lookup
 	// - Can be used in other const expressions
 	// - Can be exported from units
-	//
-	// Complexity: Medium - simpler than variables (always has value, no multi-identifier)
-	// Full implementation requires:
-	// - Expression evaluation
-	// - Type inference from value
-	// - Record literal type context handling
-	// - Environment storage
-	//
-	// Delegate to adapter which handles all constant declaration logic
 
-	return e.adapter.EvalNode(node)
+	// Constants must have a value
+	if node.Value == nil {
+		return e.newError(node, "constant '%s' must have a value", node.Name.Value)
+	}
+
+	// Evaluate the constant value
+	var value Value
+
+	// Special handling for anonymous record literals - they need type context
+	if recordLit, ok := node.Value.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
+		// Anonymous record literal needs explicit type
+		if node.Type == nil {
+			return e.newError(node, "anonymous record literal requires explicit type annotation")
+		}
+		typeName := node.Type.String()
+
+		// Lookup record type
+		if _, ok := e.adapter.LookupRecord(typeName); !ok {
+			return e.newError(node, "unknown type '%s'", typeName)
+		}
+
+		// Temporarily set the type name for evaluation
+		recordLit.TypeName = &ast.Identifier{Value: typeName}
+		value = e.Eval(recordLit, ctx)
+		recordLit.TypeName = nil
+	} else {
+		value = e.Eval(node.Value, ctx)
+	}
+
+	if isError(value) {
+		return value
+	}
+
+	// Store the constant in the environment
+	// Note: Immutability is enforced by semantic analysis, not at runtime
+	e.adapter.DefineVariable(node.Name.Value, value, ctx)
+	return value
 }
 
 // VisitAssignmentStatement evaluates an assignment statement.

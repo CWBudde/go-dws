@@ -1227,9 +1227,23 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - ✅ Build succeeds
     - ✅ Existing variable declaration tests pass
 
-- [ ] **3.5.39** Migrate Constant Declarations (`VisitConstDecl`)
+- [x] **3.5.39** Migrate Constant Declarations (`VisitConstDecl`)
   - **Requirements**: Type inference from initializer
   - **Effort**: 1 week
+  - **Status**: ✅ COMPLETE - Full migration with type inference
+  - **Implementation Summary**:
+    - Migrated VisitConstDecl with full constant declaration logic
+    - Validates that constants have initializers
+    - Special handling for anonymous record literals (requires type context)
+    - Stores constants in environment using DefineVariable adapter method
+    - Immutability enforced by semantic analyzer (not runtime)
+    - Type inference from initializer value (Integer, Float, String, Boolean, Array, Record)
+  - **Files Modified**:
+    - `internal/interp/evaluator/visitor_statements.go` - Migrated VisitConstDecl (~40 lines)
+  - **Testing**:
+    - ✅ Build succeeds
+    - ✅ Constant declarations work correctly
+    - ✅ Type inference works properly
 
 - [ ] **3.5.40** Migrate Record Literals (`VisitRecordLiteralExpression`)
   - **Requirements**: Typed/anonymous record construction, field initialization, nested records
