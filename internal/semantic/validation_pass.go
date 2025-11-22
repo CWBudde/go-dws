@@ -1150,47 +1150,8 @@ func (v *statementValidator) checkCallExpression(expr *ast.CallExpression) types
 			return methodType
 		}
 
-		// Validate argument count (handle variadic methods)
-		if funcType.IsVariadic {
-			// Variadic method: must have at least as many arguments as non-variadic parameters
-			nonVariadicCount := len(funcType.Parameters)
-			if len(expr.Arguments) < nonVariadicCount {
-				v.ctx.AddError("method call expects at least %d argument(s), got %d",
-					nonVariadicCount, len(expr.Arguments))
-			}
-		} else {
-			// Non-variadic method: exact match required
-			if len(expr.Arguments) != len(funcType.Parameters) {
-				v.ctx.AddError("method call expects %d argument(s), got %d",
-					len(funcType.Parameters), len(expr.Arguments))
-			}
-		}
-
-		// Validate argument types
-		for i, arg := range expr.Arguments {
-			var expectedType types.Type
-
-			if i < len(funcType.Parameters) {
-				// Non-variadic parameter
-				expectedType = funcType.Parameters[i]
-			} else if funcType.IsVariadic {
-				// Variadic parameter - use VariadicType
-				expectedType = funcType.VariadicType
-			} else {
-				// Too many arguments (error already reported)
-				break
-			}
-
-			argType := v.checkExpression(arg)
-			if argType != nil && expectedType != nil {
-				if !v.typesCompatible(expectedType, argType) {
-					v.ctx.AddError("argument %d has type %s, expected %s",
-						i+1, argType, expectedType)
-				}
-			}
-		}
-
-		return funcType.ReturnType
+		// Use method name for error messages
+		return v.validateFunctionCall(memberAccess.Member.Value, funcType, expr.Arguments)
 	}
 
 	// Handle regular function calls (identifier-based)

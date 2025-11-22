@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
-	"github.com/cwbudde/go-dws/pkg/ast"
 	pkgast "github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -15,7 +14,7 @@ type BuiltinChecker interface {
 	// AnalyzeBuiltin analyzes a built-in function call.
 	// Returns (resultType, true) if the function is a recognized built-in,
 	// or (nil, false) if it's not a built-in function.
-	AnalyzeBuiltin(name string, args []ast.Expression, callExpr *ast.CallExpression) (types.Type, bool)
+	AnalyzeBuiltin(name string, args []pkgast.Expression, callExpr *pkgast.CallExpression) (types.Type, bool)
 }
 
 // PassContext contains shared state and resources used across all semantic analysis passes.
