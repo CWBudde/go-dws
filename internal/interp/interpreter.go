@@ -9,6 +9,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -49,6 +50,7 @@ type Interpreter struct {
 	unitRegistry         *units.UnitRegistry
 	propContext          *PropertyEvalContext
 	typeSystem           *interptypes.TypeSystem
+	methodRegistry       *runtime.MethodRegistry // Task 3.5.39: AST-free method storage
 	recordTypeIDRegistry map[string]int
 	records              map[string]*RecordTypeValue
 	interfaces           map[string]*InterfaceInfo
@@ -116,6 +118,9 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 		// Phase 3.4.1: TypeSystem (new centralized type registry)
 		// This is the modern API - use this for new code
 		typeSystem: ts,
+
+		// Task 3.5.39: MethodRegistry for AST-free method storage
+		methodRegistry: runtime.NewMethodRegistry(),
 
 		// Phase 3.4.1: Legacy fields for backward compatibility
 		// These will be removed once migration to typeSystem is complete

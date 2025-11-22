@@ -559,3 +559,204 @@ func TestCaseInsensitiveTypeNames(t *testing.T) {
 		})
 	}
 }
+
+// TestClassMetadataPopulation tests that ClassMetadata is populated during class declaration.
+// Task 3.5.39: Migrate ClassInfo to AST-Free ClassMetadata
+func TestClassMetadataPopulation(t *testing.T) {
+	input := `
+		type
+			TPoint = class
+			private
+				FX: Integer;
+				FY: Integer;
+			public
+				constructor Create(X, Y: Integer);
+				function GetX(): Integer;
+				function GetY(): Integer;
+				procedure SetX(Value: Integer);
+				destructor Destroy;
+			end;
+	`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("Parser errors: %v", p.Errors())
+	}
+
+	interp := New(nil)
+	result := interp.Eval(program)
+
+	if isError(result) {
+		t.Fatalf("Expected no errors, got %v", result)
+	}
+
+	// Lookup the class
+	classInfo := interp.classes["tpoint"]
+	if classInfo == nil {
+		t.Fatal("Expected class TPoint to be registered")
+	}
+
+	// Check that Metadata is initialized
+	if classInfo.Metadata == nil {
+		t.Fatal("Expected Metadata to be initialized")
+	}
+
+	// Check metadata name
+	if classInfo.Metadata.Name != "TPoint" {
+		t.Errorf("Expected metadata name 'TPoint', got %q", classInfo.Metadata.Name)
+	}
+
+	// Check fields are in metadata
+	if len(classInfo.Metadata.Fields) != 2 {
+		t.Errorf("Expected 2 fields in metadata, got %d", len(classInfo.Metadata.Fields))
+	}
+
+	// Check specific fields
+	if _, exists := classInfo.Metadata.Fields["fx"]; !exists {
+		t.Error("Expected field 'FX' in metadata")
+	}
+	if _, exists := classInfo.Metadata.Fields["fy"]; !exists {
+		t.Error("Expected field 'FY' in metadata")
+	}
+
+	// Check methods are in metadata (excluding constructor and destructor)
+	// GetX, GetY, SetX should be in Methods
+	if len(classInfo.Metadata.Methods) != 3 {
+		t.Errorf("Expected 3 methods in metadata, got %d", len(classInfo.Metadata.Methods))
+	}
+
+	// Check constructor is in metadata
+	if len(classInfo.Metadata.Constructors) != 1 {
+		t.Errorf("Expected 1 constructor in metadata, got %d", len(classInfo.Metadata.Constructors))
+	}
+
+	// Check destructor is in metadata
+	if classInfo.Metadata.Destructor == nil {
+		t.Error("Expected destructor in metadata")
+	}
+
+	// Check that methods are registered in MethodRegistry and have IDs
+	for methodName, method := range classInfo.Metadata.Methods {
+		if method.ID == 0 {
+			t.Errorf("Method %q has invalid ID (0)", methodName)
+		}
+		// Verify we can retrieve the method by ID
+		retrieved := interp.methodRegistry.GetMethod(method.ID)
+		if retrieved == nil {
+			t.Errorf("Could not retrieve method %q by ID %d from registry", methodName, method.ID)
+		}
+		if retrieved.Name != method.Name {
+			t.Errorf("Retrieved method name mismatch: expected %q, got %q", method.Name, retrieved.Name)
+		}
+	}
+}
+
+// TestClassMetadataInheritance tests that metadata is properly set for inheritance.
+// Task 3.5.39: Migrate ClassInfo to AST-Free ClassMetadata
+func TestClassMetadataInheritance(t *testing.T) {
+	input := `
+		type
+			TBase = class
+				FValue: Integer;
+				procedure DoSomething;
+			end;
+
+			TDerived = class(TBase)
+				FExtra: String;
+				procedure DoExtra;
+			end;
+	`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("Parser errors: %v", p.Errors())
+	}
+
+	interp := New(nil)
+	result := interp.Eval(program)
+
+	if isError(result) {
+		t.Fatalf("Expected no errors, got %v", result)
+	}
+
+	// Check TDerived metadata
+	derived := interp.classes["tderived"]
+	if derived == nil {
+		t.Fatal("Expected class TDerived to be registered")
+	}
+
+	// Check parent metadata reference
+	if derived.Metadata.Parent == nil {
+		t.Fatal("Expected TDerived metadata to have Parent set")
+	}
+
+	if derived.Metadata.ParentName != "TBase" {
+		t.Errorf("Expected parent name 'TBase', got %q", derived.Metadata.ParentName)
+	}
+
+	// The parent metadata should be the base class's metadata
+	base := interp.classes["tbase"]
+	if base == nil {
+		t.Fatal("Expected class TBase to be registered")
+	}
+
+	if derived.Metadata.Parent != base.Metadata {
+		t.Error("Expected TDerived metadata parent to reference TBase metadata")
+	}
+}
+
+// TestClassMetadataFlags tests that class flags are set in metadata.
+// Task 3.5.39: Migrate ClassInfo to AST-Free ClassMetadata
+func TestClassMetadataFlags(t *testing.T) {
+	input := `
+		type
+			TAbstract = class abstract
+				procedure AbstractMethod; virtual; abstract;
+			end;
+
+			TPartial = class partial
+				FField: Integer;
+			end;
+	`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("Parser errors: %v", p.Errors())
+	}
+
+	interp := New(nil)
+	result := interp.Eval(program)
+
+	if isError(result) {
+		t.Fatalf("Expected no errors, got %v", result)
+	}
+
+	// Check abstract flag
+	abstract := interp.classes["tabstract"]
+	if abstract == nil {
+		t.Fatal("Expected class TAbstract to be registered")
+	}
+
+	if !abstract.Metadata.IsAbstract {
+		t.Error("Expected TAbstract metadata IsAbstract to be true")
+	}
+
+	// Check partial flag
+	partial := interp.classes["tpartial"]
+	if partial == nil {
+		t.Fatal("Expected class TPartial to be registered")
+	}
+
+	if !partial.Metadata.IsPartial {
+		t.Error("Expected TPartial metadata IsPartial to be true")
+	}
+}

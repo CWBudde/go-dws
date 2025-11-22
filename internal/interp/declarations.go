@@ -3,6 +3,7 @@ package interp
 import (
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -216,17 +217,21 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Mark as partial if this declaration is partial
 	if cd.IsPartial {
 		classInfo.IsPartial = true
+		classInfo.Metadata.IsPartial = true // Task 3.5.39
 	}
 
 	// Set abstract flag (only if not already set)
 	if cd.IsAbstract {
 		classInfo.IsAbstract = true
+		classInfo.Metadata.IsAbstract = true // Task 3.5.39
 	}
 
 	// Set external flags (only if not already set)
 	if cd.IsExternal {
 		classInfo.IsExternal = true
 		classInfo.ExternalName = cd.ExternalName
+		classInfo.Metadata.IsExternal = true       // Task 3.5.39
+		classInfo.Metadata.ExternalName = cd.ExternalName // Task 3.5.39
 	}
 
 	// Handle inheritance if parent class is specified
@@ -258,6 +263,8 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Set parent reference and inherit members (only if not already set for partial classes)
 	if parentClass != nil && classInfo.Parent == nil {
 		classInfo.Parent = parentClass
+		classInfo.Metadata.Parent = parentClass.Metadata       // Task 3.5.39
+		classInfo.Metadata.ParentName = parentClass.Metadata.Name // Task 3.5.39
 
 		// Copy parent fields (child inherits all parent fields)
 		for fieldName, fieldType := range parentClass.Fields {
@@ -313,6 +320,9 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 
 		// Add interface to class's interface list
 		classInfo.Interfaces = append(classInfo.Interfaces, iface)
+
+		// Task 3.5.39: Add interface name to metadata
+		classInfo.Metadata.Interfaces = append(classInfo.Metadata.Interfaces, ifaceName)
 
 		// Note: Method implementation validation is deferred until the class methods
 		// are fully processed. For now, we just register that the class claims to
@@ -463,6 +473,11 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			classInfo.Fields[field.Name.Value] = fieldType
 			// Store field declaration for initializer access
 			classInfo.FieldDecls[field.Name.Value] = field
+
+			// Task 3.5.39: Add to metadata
+			fieldMeta := runtime.FieldMetadataFromAST(field)
+			fieldMeta.Type = fieldType
+			runtime.AddFieldToClass(classInfo.Metadata, fieldMeta)
 		}
 	}
 
@@ -483,22 +498,44 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			}
 		}
 
+		// Task 3.5.39: Create MethodMetadata once for this method
+		methodMeta := runtime.MethodMetadataFromAST(method)
+		i.methodRegistry.RegisterMethod(methodMeta)
+
 		// Check if this is a class method (static method) or instance method
 		if method.IsClassMethod {
 			// Store in ClassMethods map
 			classInfo.ClassMethods[normalizedMethodName] = method
 			// Add to overload list
 			classInfo.ClassMethodOverloads[normalizedMethodName] = append(classInfo.ClassMethodOverloads[normalizedMethodName], method)
+
+			// Task 3.5.39: Add to metadata (unless it's a constructor/destructor - those go separately)
+			if !method.IsConstructor && !method.IsDestructor {
+				runtime.AddMethodToClass(classInfo.Metadata, methodMeta, true)
+			}
 		} else {
 			// Store in instance Methods map
 			classInfo.Methods[normalizedMethodName] = method
 			// Add to overload list
 			classInfo.MethodOverloads[normalizedMethodName] = append(classInfo.MethodOverloads[normalizedMethodName], method)
+
+			// Task 3.5.39: Add to metadata (unless it's a constructor/destructor - those go separately)
+			if !method.IsConstructor && !method.IsDestructor {
+				runtime.AddMethodToClass(classInfo.Metadata, methodMeta, false)
+			}
+		}
+
+		// Task 3.5.39: Handle destructor
+		if method.IsDestructor {
+			classInfo.Metadata.Destructor = methodMeta
 		}
 
 		if method.IsConstructor {
 			normalizedName := ident.Normalize(method.Name.Value)
 			classInfo.Constructors[normalizedName] = method
+
+			// Task 3.5.39: Add constructor to metadata (reuse methodMeta)
+			runtime.AddConstructorToClass(classInfo.Metadata, methodMeta)
 
 			// Task 9.3: Capture default constructor
 			if method.IsDefault {
@@ -535,6 +572,12 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		normalizedName := ident.Normalize(cd.Constructor.Name.Value)
 		classInfo.Constructors[normalizedName] = cd.Constructor
 
+		// Task 3.5.39: Register constructor in metadata
+		// Create and register method metadata for explicit constructor
+		constructorMeta := runtime.MethodMetadataFromAST(cd.Constructor)
+		i.methodRegistry.RegisterMethod(constructorMeta)
+		runtime.AddConstructorToClass(classInfo.Metadata, constructorMeta)
+
 		// In DWScript, a child constructor with the same name and signature HIDES the parent's,
 		// regardless of whether it has the `override` keyword or not
 		existingOverloads := classInfo.ConstructorOverloads[normalizedName]
@@ -557,6 +600,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	}
 
 	// Identify destructor (method named "Destroy")
+	// Task 3.5.39: Destructor metadata is now set during the method loop above
 	if destructor, exists := classInfo.Methods["destroy"]; exists {
 		classInfo.Destructor = destructor
 	}
