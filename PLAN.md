@@ -881,16 +881,41 @@ This causes:
   - [x] Migrate statement validation from old analyzer (analyzeStatement, etc.) **DONE**
     - [x] Add support for all statement types (15+ types: loops, exceptions, control flow)
     - [x] Full validation for var/const declarations, assignments
-    - [ ] Enhanced assignment validation (compound operators) **MINOR TODO**
-    - [ ] Function body validation (return path analysis) **TODO**
-  - [ ] Migrate builtin function validation from old analyzer **TODO (large scope)**
+    - [ ] Enhanced assignment validation **TODO (low priority)**
+      - [ ] Validate compound assignment operators (+=, -=, *=, /=)
+      - [ ] Check operator compatibility with target type
+      - [ ] Validate assignability for compound operations
+    - [ ] Function body validation **TODO (medium priority)**
+      - [ ] Analyze control flow paths through function body
+      - [ ] Validate all paths return a value (for functions, not procedures)
+      - [ ] Check for unreachable code after return statements
+      - [ ] Validate return types match function signature
+  - [ ] Migrate builtin function validation from old analyzer **TODO (large scope, low priority)**
+    - [ ] Core string functions (Length, Copy, Pos, etc.) - ~10 functions
+    - [ ] Math functions (Abs, Sin, Cos, Sqrt, etc.) - ~15 functions
+    - [ ] Conversion functions (IntToStr, StrToInt, FloatToStr, etc.) - ~12 functions
+    - [ ] Array functions (SetLength, Low, High, etc.) - ~7 functions
+    - Note: Most builtin validation already happens in old analyzer
+    - This is a large migration effort that can be deferred
   - [x] Validate variable declarations and assignments **DONE**
   - [x] Type-check all expressions (binary ops, calls, member access) **DONE**
   - [x] Validate control flow (break/continue in loops, return in functions) **DONE**
   - [x] Check abstract method implementations in concrete classes **DONE** ✅
   - [x] Validate interface method implementations **DONE** ✅
-  - [ ] Visibility checking (private/protected/public) **TODO**
-  - [ ] Write unit tests for semantic validation **TODO**
+  - [ ] Visibility checking (private/protected/public) **TODO (medium priority)**
+    - [ ] Check field visibility in member access expressions
+    - [ ] Check method visibility in method calls
+    - [ ] Check property visibility in property access
+    - [ ] Check class variable visibility
+    - [ ] Validate visibility rules (private, protected, public, published)
+    - [ ] Check strict private enforcement (same class only)
+  - [ ] Write comprehensive unit tests for ValidationPass **TODO (high priority)**
+    - [ ] Test expression validation (literals, operators, calls)
+    - [ ] Test statement validation (loops, conditionals, declarations)
+    - [ ] Test OOP validation (classes, interfaces, inheritance)
+    - [ ] Test context-aware type inference
+    - [ ] Test helper method/property support
+    - [ ] Test error reporting and recovery
 
 - [ ] **6.1.2.5 Implement Pass 4: Contract Validation** (skeleton exists, needs completion)
   - [x] Create `ContractPass` for requires/ensures/invariant checking
