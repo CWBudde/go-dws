@@ -311,6 +311,27 @@ type InterpreterAdapter interface {
 	// Returns true if the function pointer has no function or lambda assigned.
 	IsFunctionPointerNil(funcPtr Value) bool
 
+	// ===== Method Pointers (Task 3.5.37) =====
+
+	// CreateMethodPointer creates a method pointer value bound to a specific object.
+	// Task 3.5.37: Used by address-of expression (@object.MethodName) to create
+	// method pointers that capture both the method and the object to call it on.
+	// Parameters:
+	//   - obj: The object instance (Value) to bind the method to
+	//   - methodName: The name of the method to look up
+	//   - closure: The environment where the method pointer is created
+	// Returns the method pointer value and an error if the method is not found.
+	CreateMethodPointer(obj Value, methodName string, closure any) (Value, error)
+
+	// CreateFunctionPointerFromName creates a function pointer for a named function.
+	// Task 3.5.37: Used by address-of expression (@FunctionName) to create
+	// function pointers from standalone functions.
+	// Parameters:
+	//   - funcName: The name of the function to look up (case-insensitive)
+	//   - closure: The environment where the function pointer is created
+	// Returns the function pointer value and an error if the function is not found.
+	CreateFunctionPointerFromName(funcName string, closure any) (Value, error)
+
 	// ===== Record Operations (Task 3.5.7) =====
 
 	// CreateRecord creates a record value from field values.

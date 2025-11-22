@@ -203,10 +203,63 @@ func (e *Evaluator) VisitUnaryExpression(node *ast.UnaryExpression, ctx *Executi
 	}
 }
 
-// VisitAddressOfExpression evaluates an address-of expression (@funcName).
+// VisitAddressOfExpression evaluates an address-of expression (@funcName or @obj.method).
 // Creates function/method pointers that can be called later or assigned to variables.
+//
+// Task 3.5.37: Full migration of address-of operator evaluation.
+//
+// **SYNTAX FORMS**:
+//   - `@FunctionName` - Creates a function pointer to a standalone function
+//   - `@object.MethodName` - Creates a method pointer bound to an object instance
+//
+// **FUNCTION POINTERS**:
+//   - Regular function/procedure references
+//   - Resolved via function registry (case-insensitive lookup)
+//   - For overloaded functions, the first overload is used
+//   - The function pointer captures the closure environment
+//
+// **METHOD POINTERS** (procedure/function of object):
+//   - Method references bound to a specific object instance
+//   - The object is evaluated and stored in the pointer's SelfObject field
+//   - When called, Self is bound to the captured object
+//   - Enables callback patterns: `var callback: TNotifyEvent := @myObj.OnClick;`
+//
+// **TYPE INFORMATION**:
+//   - Function pointers include type information (parameter types, return type)
+//   - Method pointers are marked as "of object" type
+//   - Used for type checking during assignment and calls
 func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNode(node)
+	// The operator should be an identifier (function/procedure name) or member access (for methods)
+	switch operand := node.Operator.(type) {
+	case *ast.Identifier:
+		// Regular function/procedure pointer: @FunctionName
+		funcPtr, err := e.adapter.CreateFunctionPointerFromName(operand.Value, ctx.Env())
+		if err != nil {
+			return e.newError(node, "%s", err.Error())
+		}
+		return funcPtr
+
+	case *ast.MemberAccessExpression:
+		// Method pointer: @object.MethodName
+		// First evaluate the object
+		objectVal := e.Eval(operand.Object, ctx)
+		if isError(objectVal) {
+			return objectVal
+		}
+
+		// Get the method name
+		methodName := operand.Member.Value
+
+		// Create method pointer with the object as Self
+		methodPtr, err := e.adapter.CreateMethodPointer(objectVal, methodName, ctx.Env())
+		if err != nil {
+			return e.newError(node, "%s", err.Error())
+		}
+		return methodPtr
+
+	default:
+		return e.newError(node, "address-of operator requires function or method name, got %T", operand)
+	}
 }
 
 // VisitGroupedExpression evaluates a grouped expression (parenthesized).
