@@ -8,6 +8,43 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
+// cleanContractMessage removes unnecessary parentheses from contract expressions
+// for display in error messages. The AST's String() method adds structural parentheses
+// that make error messages harder to read.
+func cleanContractMessage(message string) string {
+	// Strip all outer parentheses pairs
+	for len(message) > 2 && message[0] == '(' && message[len(message)-1] == ')' {
+		message = message[1 : len(message)-1]
+	}
+	// Remove parentheses after binary operators to make messages more readable
+	// e.g., "Result = (old val + 1)" -> "Result = old val + 1"
+	message = strings.ReplaceAll(message, " = (", " = ")
+	message = strings.ReplaceAll(message, " <> (", " <> ")
+	message = strings.ReplaceAll(message, " < (", " < ")
+	message = strings.ReplaceAll(message, " > (", " > ")
+	message = strings.ReplaceAll(message, " <= (", " <= ")
+	message = strings.ReplaceAll(message, " >= (", " >= ")
+	message = strings.ReplaceAll(message, " + (", " + ")
+	message = strings.ReplaceAll(message, " - (", " - ")
+	message = strings.ReplaceAll(message, " * (", " * ")
+	message = strings.ReplaceAll(message, " / (", " / ")
+	message = strings.ReplaceAll(message, " div (", " div ")
+	message = strings.ReplaceAll(message, " mod (", " mod ")
+	message = strings.ReplaceAll(message, " and (", " and ")
+	message = strings.ReplaceAll(message, " or (", " or ")
+	message = strings.ReplaceAll(message, " xor (", " xor ")
+	// Remove matching trailing parentheses that were left over
+	for strings.Count(message, "(") < strings.Count(message, ")") {
+		lastParen := strings.LastIndex(message, ")")
+		if lastParen >= 0 {
+			message = message[:lastParen] + message[lastParen+1:]
+		} else {
+			break
+		}
+	}
+	return message
+}
+
 // raiseException raises an exception with the given class name and message.
 func (i *Interpreter) raiseException(className, message string, pos *lexer.Position) {
 	// Get the exception class
@@ -81,7 +118,19 @@ func (i *Interpreter) findOldExpressions(expr ast.Expression, env *Environment, 
 			// Only capture once per identifier
 			val, ok := env.Get(identName)
 			if ok {
-				oldValues[identName] = val
+				// If the value is a reference (var parameter), dereference it
+				// to capture the actual value, not the reference itself
+				if refVal, isRef := val.(*ReferenceValue); isRef {
+					derefVal, err := refVal.Dereference()
+					if err != nil {
+						// Store nil if dereference fails - error will be reported at evaluation time
+						oldValues[identName] = &NilValue{}
+					} else {
+						oldValues[identName] = derefVal
+					}
+				} else {
+					oldValues[identName] = val
+				}
 			}
 			// If not found, we'll let the runtime evaluation handle the error
 		}
@@ -159,11 +208,8 @@ func (i *Interpreter) checkPreconditions(funcName string, preConditions *ast.Pre
 
 		// If the condition failed, raise an exception
 		if !boolVal.Value {
-			// Build error message - strip outer parentheses from expression
-			message := condition.Test.String()
-			if len(message) > 2 && message[0] == '(' && message[len(message)-1] == ')' {
-				message = message[1 : len(message)-1]
-			}
+			// Build error message - clean up parentheses from expression
+			message := cleanContractMessage(condition.Test.String())
 
 			// Evaluate custom message if provided
 			if condition.Message != nil {
@@ -178,13 +224,13 @@ func (i *Interpreter) checkPreconditions(funcName string, preConditions *ast.Pre
 
 			// Format the exception message in DWScript format:
 			// "Pre-condition failed in FuncName [line: X, column: Y], condition_expr"
-			// Use Test.Pos() to get the correct column where the test expression starts
-			testPos := condition.Test.Pos()
+			// Use condition.Pos() to get the position of the require line
+			condPos := condition.Pos()
 			fullMessage := fmt.Sprintf("Pre-condition failed in %s [line: %d, column: %d], %s",
-				funcName, testPos.Line, testPos.Column, message)
+				funcName, condPos.Line, condPos.Column, message)
 
 			// Raise an Exception
-			i.raiseException("Exception", fullMessage, &testPos)
+			i.raiseException("Exception", fullMessage, &condPos)
 			return nil
 		}
 	}
@@ -217,11 +263,8 @@ func (i *Interpreter) checkPostconditions(funcName string, postConditions *ast.P
 
 		// If the condition failed, raise an exception
 		if !boolVal.Value {
-			// Build error message - strip outer parentheses from expression
-			message := condition.Test.String()
-			if len(message) > 2 && message[0] == '(' && message[len(message)-1] == ')' {
-				message = message[1 : len(message)-1]
-			}
+			// Build error message - clean up parentheses from expression
+			message := cleanContractMessage(condition.Test.String())
 
 			// Evaluate custom message if provided
 			if condition.Message != nil {
@@ -236,13 +279,13 @@ func (i *Interpreter) checkPostconditions(funcName string, postConditions *ast.P
 
 			// Format the exception message in DWScript format:
 			// "Post-condition failed in FuncName [line: X, column: Y], condition_expr"
-			// Use Test.Pos() to get the correct column where the test expression starts
-			testPos := condition.Test.Pos()
+			// Use condition.Pos() to get the position of the ensure line
+			condPos := condition.Pos()
 			fullMessage := fmt.Sprintf("Post-condition failed in %s [line: %d, column: %d], %s",
-				funcName, testPos.Line, testPos.Column, message)
+				funcName, condPos.Line, condPos.Column, message)
 
 			// Raise an Exception
-			i.raiseException("Exception", fullMessage, &testPos)
+			i.raiseException("Exception", fullMessage, &condPos)
 			return nil
 		}
 	}

@@ -63,6 +63,10 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 		if isError(rhsValue) {
 			return rhsValue
 		}
+		// Check if an exception was raised during evaluation
+		if i.exception != nil {
+			return &NilValue{}
+		}
 
 		// Apply the compound operation
 		value = i.applyCompoundOperation(stmt.Operator, currentValue, rhsValue, stmt)
@@ -111,6 +115,10 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 
 		if isError(value) {
 			return value
+		}
+		// Check if an exception was raised during evaluation
+		if i.exception != nil {
+			return &NilValue{}
 		}
 
 		// Records have value semantics - copy when assigning
