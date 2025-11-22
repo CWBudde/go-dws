@@ -3044,24 +3044,24 @@ func (v *statementValidator) classesInSameHierarchy(class1, class2 *types.ClassT
 		return false
 	}
 
-	// Check if they're the same class
-	if class1.Name == class2.Name {
+	// Check if they're the same class (case-insensitive)
+	if ident.Equal(class1.Name, class2.Name) {
 		return true
 	}
 
-	// Check if class1 is an ancestor of class2
+	// Check if class1 is an ancestor of class2 (case-insensitive)
 	current := class2.Parent
 	for current != nil {
-		if current.Name == class1.Name {
+		if ident.Equal(current.Name, class1.Name) {
 			return true
 		}
 		current = current.Parent
 	}
 
-	// Check if class2 is an ancestor of class1
+	// Check if class2 is an ancestor of class1 (case-insensitive)
 	current = class1.Parent
 	for current != nil {
-		if current.Name == class2.Name {
+		if ident.Equal(current.Name, class2.Name) {
 			return true
 		}
 		current = current.Parent
