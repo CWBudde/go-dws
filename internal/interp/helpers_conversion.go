@@ -32,7 +32,11 @@ func (i *Interpreter) getDefaultValue(typ types.Type) Value {
 	case "CLASS", "INTERFACE", "FUNCTION_POINTER", "METHOD_POINTER":
 		return &NilValue{}
 	case "ARRAY":
-		// Dynamic arrays default to NIL
+		// Arrays should default to an empty array value of the correct element type.
+		// If we can resolve the array type, create an empty array; otherwise fall back to nil.
+		if arrType, ok := typ.(*types.ArrayType); ok {
+			return NewArrayValue(arrType)
+		}
 		return &NilValue{}
 	case "RECORD":
 		// Records should be initialized with default field values
