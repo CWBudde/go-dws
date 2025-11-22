@@ -565,14 +565,13 @@ The following uses of `strings.ToLower()`/`strings.EqualFold()` are legitimate a
   - Used `pkgident` alias in files with local `ident` variable conflicts
   - Removed unused `strings` imports from functions_calls.go, functions_records.go
 
-- [ ] **14.1.14** Migrate `internal/interp/declarations.go` (31 occurrences)
-  - ToLower: 37,42,56,61,72,77,89,94,105,110,122,127,139,144,155,160,172,177,189,194,206,211,223,228
-  - EqualFold: 157,165,247,478,480,806,866
-  - Class, method, operator declarations
+- [x] **14.1.14** Migrate `internal/interp/declarations.go` (31 occurrences)
+  - Migrated: All `strings.ToLower()` → `ident.Normalize()`, `strings.EqualFold()` → `ident.Equal()`
+  - Kept `strings` import for `strings.Join()` (legitimate non-identifier use)
 
-- [ ] **14.1.15** Migrate `internal/interp/expressions_basic.go` (5 EqualFold occurrences)
-  - Lines: 132,136,147,151,224
-  - ClassName, ClassType special identifiers
+- [x] **14.1.15** Migrate `internal/interp/expressions_basic.go` (7 occurrences)
+  - Migrated: All `strings.ToLower()` → `ident.Normalize()`, `strings.EqualFold()` → `ident.Equal()`
+  - Removed `strings` import (no longer needed)
 
 - [ ] **14.1.16** Migrate remaining `internal/interp/` files (25 occurrences total)
   - `unit_loader.go:345` (1)
