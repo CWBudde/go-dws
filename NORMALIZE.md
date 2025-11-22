@@ -584,9 +584,10 @@ The following uses of `strings.ToLower()`/`strings.EqualFold()` are legitimate a
   - Migrated `helpers_comparison.go`: `strings.EqualFold()` → `ident.Equal()`, `strings.ToLower()` → `ident.Normalize()`
   - Remaining for future: `builtins_ordinals.go`, `builtins_type.go`, `statements_assignments.go`, `helpers_validation.go`
 
-- [ ] **14.1.17** Migrate `internal/interp/evaluator/` files (9 occurrences total)
-  - `visitor_expressions.go:167,467,1837` (ToLower) + `131,137,148,154` (EqualFold)
-  - `visitor_statements.go:1194` (ToLower) + `199` (EqualFold)
+- [x] **14.1.17** Migrate `internal/interp/evaluator/` files (9 occurrences)
+  - Migrated `visitor_expressions.go`: `strings.ToLower()` → `ident.Normalize()`, `strings.EqualFold()` → `ident.Equal()`
+  - Migrated `visitor_statements.go`: `strings.ToLower()` → `ident.Normalize()`, `strings.EqualFold()` → `ident.Equal()`
+  - Kept `strings` import for Contains/HasPrefix (legitimate non-identifier uses)
 
 - [ ] **14.2** Remove unused imports
   - Run: `goimports -w .`
