@@ -20,20 +20,15 @@ func formatRuntimeError(errVal Value) string {
 	errStr = strings.TrimPrefix(errStr, "ERROR: ")
 
 	// Replace "at line X, column Y" with "[line: X, column: Y]"
-	errStr = strings.Replace(errStr, " at line ", " [line: ", 1)
+	errStr = strings.ReplaceAll(errStr, " at line ", " [line: ")
 	if strings.Contains(errStr, "[line:") {
-		// Add closing bracket after column number if not already present
-		parts := strings.SplitN(errStr, "[line: ", 2)
-		if len(parts) == 2 {
-			location := strings.TrimSpace(parts[1])
-			// Only add closing bracket if not already present
-			if !strings.HasSuffix(location, "]") {
-				location = location + "]"
+		lines := strings.Split(errStr, "\n")
+		for idx, line := range lines {
+			if strings.Contains(line, "[line:") && !strings.Contains(line, "]") {
+				lines[idx] = line + "]"
 			}
-			errStr = parts[0] + "[line: " + location
 		}
-	} else {
-		// No location info, just add it at the end if we can extract from node
+		errStr = strings.Join(lines, "\n")
 	}
 
 	// Add "Runtime Error: " prefix
