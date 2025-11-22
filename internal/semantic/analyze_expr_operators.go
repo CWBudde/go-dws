@@ -445,7 +445,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 			return nil
 		}
 
-		a.addError("operator %s requires both operands to be Boolean or both Integer, got %s and %s at %s",
+		a.addError("operator %s requires both operands to be Boolean, both Integer, or both the same enum type, got %s and %s at %s",
 			operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
 		return nil
 	}

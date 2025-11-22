@@ -107,9 +107,9 @@ func TestLogicalOperationsError(t *testing.T) {
 		input string
 		error string
 	}{
-		{"var x := 3 and true;", "Boolean or both Integer"},         // Mixed Integer/Boolean
-		{"var x := false or 5;", "Boolean or both Integer"},         // Mixed Boolean/Integer
-		{"var x := 'hello' or 'world';", "Boolean or both Integer"}, // Strings not supported
+		{"var x := 3 and true;", "Boolean, both Integer, or both the same enum type"},         // Mixed Integer/Boolean
+		{"var x := false or 5;", "Boolean, both Integer, or both the same enum type"},         // Mixed Boolean/Integer
+		{"var x := 'hello' or 'world';", "Boolean, both Integer, or both the same enum type"}, // Strings not supported
 	}
 
 	for _, tt := range tests {

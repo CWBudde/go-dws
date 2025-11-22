@@ -239,6 +239,10 @@ func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) 
 				return &FloatValue{Value: float64(intVal.Value)}, true
 			}
 		}
+		// Enum → Integer implicit conversion (Task 1.6)
+		if enumVal, ok := value.(*EnumValue); ok && normalizedTarget == "INTEGER" {
+			return &IntegerValue{Value: int64(enumVal.OrdinalValue)}, true
+		}
 		return value, false
 	}
 
