@@ -390,6 +390,13 @@ func (a *Analyzer) AnalyzeBuiltin(name string, args []ast.Expression, callExpr *
 	return a.analyzeBuiltinFunction(name, args, callExpr)
 }
 
+// IsBuiltinFunction implements the BuiltinChecker interface.
+// Task 6.1.2.1: This method checks if a function is built-in WITHOUT analyzing arguments.
+// Returns the return type (or VARIANT for unknown return types) and true if it's a built-in.
+func (a *Analyzer) IsBuiltinFunction(name string) (types.Type, bool) {
+	return a.getBuiltinReturnType(name)
+}
+
 // syncFromPassContext syncs state from PassContext back to Analyzer.
 // Task 6.1.2.6: Passes may update shared state (symbol table, type registry, etc.)
 func (a *Analyzer) syncFromPassContext(ctx *PassContext) {

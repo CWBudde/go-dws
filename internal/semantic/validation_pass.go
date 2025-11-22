@@ -1354,7 +1354,14 @@ func (v *statementValidator) checkCallExpression(expr *ast.CallExpression) types
 	if !ok {
 		// Check if it's a built-in function
 		if v.ctx.BuiltinChecker != nil {
-			if resultType, isBuiltin := v.ctx.BuiltinChecker.AnalyzeBuiltin(funcIdent.Value, expr.Arguments, expr); isBuiltin {
+			// Task 6.1.2.1: Check if function is a built-in WITHOUT delegating argument analysis
+			// The old analyzer doesn't have access to the validation pass's scoped symbol tables,
+			// so we need to validate arguments ourselves using checkExpression
+			if resultType, isBuiltin := v.ctx.BuiltinChecker.IsBuiltinFunction(funcIdent.Value); isBuiltin {
+				// Validate arguments ourselves using the validation pass's scope
+				for _, arg := range expr.Arguments {
+					v.checkExpression(arg)
+				}
 				return resultType
 			}
 		}
@@ -1379,6 +1386,15 @@ func (v *statementValidator) checkCallExpression(expr *ast.CallExpression) types
 	// Get function type
 	funcType, ok := sym.Type.(*types.FunctionType)
 	if !ok {
+		// Task 6.1.2.1: Check if it's a function pointer type
+		underlyingType := types.GetUnderlyingType(sym.Type)
+		if funcPtrType, isFuncPtr := underlyingType.(*types.FunctionPointerType); isFuncPtr {
+			return v.validateFunctionPointerCall(funcIdent.Value, funcPtrType, expr.Arguments)
+		}
+		if methodPtrType, isMethodPtr := underlyingType.(*types.MethodPointerType); isMethodPtr {
+			return v.validateFunctionPointerCall(funcIdent.Value, &methodPtrType.FunctionPointerType, expr.Arguments)
+		}
+
 		v.ctx.AddError("'%s' is not a function", funcIdent.Value)
 		return nil
 	}
@@ -1429,6 +1445,40 @@ func (v *statementValidator) validateFunctionCall(funcName string, funcType *typ
 	}
 
 	return funcType.ReturnType
+}
+
+// validateFunctionPointerCall validates a call expression through a function pointer variable.
+// Task 6.1.2.1: Handle function pointer calls in the validation pass
+func (v *statementValidator) validateFunctionPointerCall(varName string, funcPtrType *types.FunctionPointerType, args []ast.Expression) types.Type {
+	// Validate argument count
+	if len(args) != len(funcPtrType.Parameters) {
+		v.ctx.AddError("function pointer '%s' expects %d argument(s), got %d",
+			varName, len(funcPtrType.Parameters), len(args))
+	}
+
+	// Validate argument types
+	for i, arg := range args {
+		if i >= len(funcPtrType.Parameters) {
+			// Too many arguments - error already reported
+			v.checkExpression(arg) // Still check the argument for errors
+			continue
+		}
+
+		expectedType := funcPtrType.Parameters[i]
+		argType := v.checkExpression(arg)
+		if argType != nil && expectedType != nil {
+			if !v.typesCompatible(expectedType, argType) {
+				v.ctx.AddError("argument %d has type %s, expected %s",
+					i+1, argType, expectedType)
+			}
+		}
+	}
+
+	// Return the function pointer's return type
+	if funcPtrType.ReturnType != nil {
+		return funcPtrType.ReturnType
+	}
+	return types.VOID
 }
 
 // checkIndexExpression checks an array/string index operation
@@ -1667,12 +1717,49 @@ func (v *statementValidator) checkMemberAccessExpression(expr *ast.MemberAccessE
 
 // resolveTypeExpression resolves a type expression to a concrete type
 func (v *statementValidator) resolveTypeExpression(typeExpr ast.TypeExpression) types.Type {
-	if typeAnnot, ok := typeExpr.(*ast.TypeAnnotation); ok {
-		typ, _ := v.ctx.TypeRegistry.Resolve(typeAnnot.Name)
-		return typ
+	if typeExpr == nil {
+		return nil
 	}
-	// TODO: Handle other type expressions (arrays, function pointers, etc.)
-	return nil
+
+	switch te := typeExpr.(type) {
+	case *ast.TypeAnnotation:
+		typ, _ := v.ctx.TypeRegistry.Resolve(te.Name)
+		return typ
+
+	case *ast.FunctionPointerTypeNode:
+		// Task 6.1.2.1: Handle function pointer type expressions
+		// Resolve parameter types
+		paramTypes := make([]types.Type, 0, len(te.Parameters))
+		for _, param := range te.Parameters {
+			if param.Type != nil {
+				paramType := v.resolveTypeExpression(param.Type)
+				if paramType != nil {
+					paramTypes = append(paramTypes, paramType)
+				} else {
+					// Default to VARIANT for unknown types
+					paramTypes = append(paramTypes, types.VARIANT)
+				}
+			} else {
+				paramTypes = append(paramTypes, types.VARIANT)
+			}
+		}
+
+		// Resolve return type (nil for procedures)
+		var returnType types.Type
+		if te.ReturnType != nil {
+			returnType = v.resolveTypeExpression(te.ReturnType)
+		}
+
+		// Create the function pointer type
+		if te.OfObject {
+			return types.NewMethodPointerType(paramTypes, returnType)
+		}
+		return types.NewFunctionPointerType(paramTypes, returnType)
+
+	default:
+		// TODO: Handle other type expressions (arrays, etc.)
+		return nil
+	}
 }
 
 // typesCompatible checks if two types are compatible for assignment
@@ -1695,8 +1782,60 @@ func (v *statementValidator) typesCompatible(target, source types.Type) bool {
 		return true
 	}
 
+	// Task 6.1.2.1: Check function pointer type compatibility
+	if targetFP, ok := targetUnderlying.(*types.FunctionPointerType); ok {
+		// Source must also be a function pointer type
+		if sourceFP, ok := sourceUnderlying.(*types.FunctionPointerType); ok {
+			return v.functionPointersCompatible(targetFP, sourceFP)
+		}
+		// Method pointer can be assigned to function pointer (but not vice versa)
+		if sourceMP, ok := sourceUnderlying.(*types.MethodPointerType); ok {
+			return v.functionPointersCompatible(targetFP, &sourceMP.FunctionPointerType)
+		}
+	}
+	if targetMP, ok := targetUnderlying.(*types.MethodPointerType); ok {
+		// Only method pointers can be assigned to method pointers
+		if sourceMP, ok := sourceUnderlying.(*types.MethodPointerType); ok {
+			return v.functionPointersCompatible(&targetMP.FunctionPointerType, &sourceMP.FunctionPointerType)
+		}
+		// Function pointer cannot be assigned to method pointer
+		return false
+	}
+
 	// TODO: Handle subtype relationships (class inheritance), numeric conversions, etc.
 	return false
+}
+
+// functionPointersCompatible checks if two function pointer types are compatible.
+// Task 6.1.2.1: Two function pointers are compatible if:
+// - They have the same number of parameters
+// - Each parameter type is compatible
+// - Return types are compatible (or both are procedures with no return)
+func (v *statementValidator) functionPointersCompatible(target, source *types.FunctionPointerType) bool {
+	// Check parameter count
+	if len(target.Parameters) != len(source.Parameters) {
+		return false
+	}
+
+	// Check each parameter type
+	for i, targetParam := range target.Parameters {
+		sourceParam := source.Parameters[i]
+		if !targetParam.Equals(sourceParam) {
+			return false
+		}
+	}
+
+	// Check return type
+	// Both nil means both are procedures
+	if target.ReturnType == nil && source.ReturnType == nil {
+		return true
+	}
+	// One nil and one not means incompatible (function vs procedure)
+	if target.ReturnType == nil || source.ReturnType == nil {
+		return false
+	}
+	// Both have return types - check compatibility
+	return target.ReturnType.Equals(source.ReturnType)
 }
 
 // isNumeric checks if a type is numeric (Integer or Float)
