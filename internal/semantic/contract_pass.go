@@ -212,6 +212,9 @@ func (v *contractValidator) validateInvariantCondition(cond *ast.Condition, clas
 
 	// Validate that invariant only references fields and class constants
 	v.validateInvariantReferences(cond.Test, class)
+	if cond.Message != nil {
+		v.validateInvariantReferences(cond.Message, class)
+	}
 }
 
 // checkInvariantExpression type-checks an expression in invariant context
