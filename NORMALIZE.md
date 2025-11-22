@@ -142,10 +142,11 @@ These are the most impactful changes, touching fundamental lookup structures:
 
 Standalone registry classes with clear boundaries:
 
-- [ ] **13.4** Migrate `internal/interp/builtins/registry.go`
+- [x] **13.4** Migrate `internal/interp/builtins/registry.go`
   - Field: `functions map[string]*FunctionInfo`
   - Replace with: `functions *ident.Map[*FunctionInfo]`
   - Impact: Builtin function resolution
+  - Migrated: Registry struct, NewRegistry, Register, Lookup, Get, GetByCategory, AllFunctions, Count, Has, Clear
 
 - [ ] **13.5** Migrate `internal/interp/types/class_registry.go`
   - Field: `classes map[string]*ClassInfoEntry`
