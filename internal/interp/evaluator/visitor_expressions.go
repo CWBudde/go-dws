@@ -975,7 +975,20 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 	case "OBJECT":
 		// Task 3.5.26: Object instance access (Mode 11)
 		// Pattern: obj.Field, obj.Property, obj.Method
-		// Try field access first
+		// Lookup order per spec (lines 894-900): Properties → Fields → Class Variables
+
+		// Try property access first (with recursion protection)
+		propCtx := ctx.PropContext()
+		if propCtx == nil || (!propCtx.InPropertyGetter && !propCtx.InPropertySetter) {
+			if e.adapter.HasProperty(obj, memberName) {
+				propValue, err := e.adapter.ReadPropertyValue(obj, memberName, node)
+				if err == nil {
+					return propValue
+				}
+			}
+		}
+
+		// Try field access
 		if fieldValue, found := e.adapter.GetObjectFieldValue(obj, memberName); found {
 			return fieldValue
 		}
@@ -983,12 +996,6 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Try class variable access
 		if classVarValue, found := e.adapter.GetClassVariableValue(obj, memberName); found {
 			return classVarValue
-		}
-
-		// Try property access
-		propValue, err := e.adapter.ReadPropertyValue(obj, memberName, node)
-		if err == nil {
-			return propValue
 		}
 
 		// Try method or other member access via adapter
