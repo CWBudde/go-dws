@@ -2,9 +2,9 @@ package interp
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -35,7 +35,7 @@ func NewInterfaceInfo(name string) *InterfaceInfo {
 // and walking up through parent interfaces until the method is found.
 // Returns nil if the method is not found in the interface hierarchy.
 func (ii *InterfaceInfo) GetMethod(name string) *ast.FunctionDecl {
-	normalizedName := strings.ToLower(name)
+	normalizedName := ident.Normalize(name)
 
 	// Check this interface's methods first
 	if method, exists := ii.Methods[normalizedName]; exists {
@@ -178,7 +178,7 @@ func classImplementsInterface(class *ClassInfo, iface *InterfaceInfo) bool {
 func isClassCompatible(objClass, targetClass *ClassInfo) bool {
 	current := objClass
 	for current != nil {
-		if strings.EqualFold(current.Name, targetClass.Name) {
+		if ident.Equal(current.Name, targetClass.Name) {
 			return true
 		}
 		current = current.Parent
@@ -212,7 +212,7 @@ func classHasMethod(class *ClassInfo, methodName string) bool {
 		return false
 	}
 
-	normalizedName := strings.ToLower(methodName)
+	normalizedName := ident.Normalize(methodName)
 
 	// Check current class
 	if _, exists := class.Methods[normalizedName]; exists {
@@ -350,5 +350,5 @@ func (i *Interpreter) registerBuiltinInterfaces() {
 	iinterface.Parent = nil // Root of the interface hierarchy
 
 	// Register with lowercase key for case-insensitive lookup
-	i.interfaces[strings.ToLower("IInterface")] = iinterface
+	i.interfaces[ident.Normalize("IInterface")] = iinterface
 }

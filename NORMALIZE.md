@@ -202,9 +202,10 @@ Migrate interpreter, which has partial adoption.
   - Migrated 5 occurrences of `strings.EqualFold()` → `ident.Equal()`
   - Removed unused `strings` import
 
-- [ ] **7.5** Migrate `internal/interp/interface.go`
-  - Line: 38 - `GetMethod()` function
-  - Replace: `strings.ToLower()` → `ident.Normalize()`
+- [x] **7.5** Migrate `internal/interp/interface.go`
+  - Migrated 3 occurrences of `strings.ToLower()` → `ident.Normalize()`
+  - Migrated 1 occurrence of `strings.EqualFold()` → `ident.Equal()`
+  - Removed unused `strings` import
 
 - [ ] **7.6** Migrate `internal/interp/objects_hierarchy.go`
   - Line: 130 (covered in Phase 1 bug fix)
