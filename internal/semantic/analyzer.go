@@ -278,23 +278,30 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 		return fmt.Errorf("cannot analyze nil program")
 	}
 
-	// Task 6.1.2.6: TEMPORARY DUAL-MODE OPERATION
-	// Run both the old analyzer (for completeness) and new passes (for testing).
-	// Once all functionality is migrated to passes, remove the old analyzer loop.
+	// Task 6.1.2.6: PARTIAL MIGRATION TO PASSES
+	// The old analyzer handles declaration collection and most validation.
+	// Pass 2 (Type Resolution) handles forward declaration validation only.
+	// This avoids duplicate "already declared" errors while still getting the benefit
+	// of the new forward declaration validation logic.
 
-	// OLD IMPLEMENTATION: Analyze each statement (preserves existing functionality)
+	// OLD IMPLEMENTATION: Analyze each statement (handles declaration collection and validation)
 	for _, stmt := range program.Statements {
 		a.analyzeStatement(stmt)
 	}
 
-	// NEW IMPLEMENTATION: Multi-pass architecture (Task 6.1.2.6)
+	// NEW IMPLEMENTATION: Run Pass 2 only (forward declaration validation)
 	// Create PassContext from Analyzer state to share registries
 	ctx := a.createPassContext()
 
-	// NOTE: All 4 passes are currently DISABLED during the transition period.
-	// The old analyzer handles all validation. The pass infrastructure is complete
-	// and tested, but running passes in parallel with the old analyzer causes
-	// duplicate work and errors. Once the old analyzer is removed, enable all passes.
+	// Create Pass 2 only (Type Resolution with forward declaration validation)
+	// Skip Pass 1 (Declaration Collection) since old analyzer already does that
+	pass2 := NewTypeResolutionPass() // Pass 2: Type Resolution (includes forward declaration validation)
+
+	// Run Pass 2 directly
+	if err := pass2.Run(program, ctx); err != nil {
+		// Fatal error in pass execution (not a semantic error)
+		return err
+	}
 
 	// Sync PassContext state back to Analyzer
 	// The passes may have updated the type registry, symbol table, etc.
@@ -303,16 +310,6 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	// Collect errors from all passes
 	// Merge pass errors with any existing analyzer errors
 	a.mergePassErrors(ctx)
-
-	// Legacy post-pass validation (TODO: migrate to passes in future tasks)
-	// Task 9.284: Validate that all forward-declared methods have implementations
-	a.validateMethodImplementations()
-
-	// Task 9.64: Validate that all forward-declared functions have implementations
-	a.validateFunctionImplementations()
-
-	// Task 9.11: Validate that all forward-declared classes have implementations
-	a.validateClassForwardDeclarations()
 
 	// If we accumulated errors (not hints), return them
 	// Task 9.61.4: Hints don't prevent analysis from succeeding
@@ -407,129 +404,6 @@ func (a *Analyzer) mergePassErrors(ctx *PassContext) {
 
 	// Merge structured errors
 	a.structuredErrors = append(a.structuredErrors, ctx.StructuredErrors...)
-}
-
-// validateMethodImplementations checks that all forward-declared methods have implementations
-// Task 9.284: Post-analysis validation for missing method implementations
-func (a *Analyzer) validateMethodImplementations() {
-	// Iterate through all classes
-	// Task 6.1.1.3: Use TypeRegistry to iterate all class types
-	classNames := a.typeRegistry.TypesByKind("CLASS")
-	for _, className := range classNames {
-		classType := a.getClassType(className)
-		// Check each method and constructor in ForwardedMethods
-		// Task 9.16.1: ForwardedMethods now uses lowercase keys
-		for methodName, isForwarded := range classType.ForwardedMethods {
-			if !isForwarded {
-				continue
-			}
-
-			// Skip abstract methods - they don't need implementations
-			// Task 9.16.1: AbstractMethods also uses lowercase keys now
-			if classType.AbstractMethods[methodName] {
-				continue
-			}
-
-			// Skip external methods - they are implemented externally
-			if classType.IsExternal {
-				continue
-			}
-
-			// Determine if this is a constructor or regular method
-			// Task 9.16.1: ConstructorOverloads uses lowercase keys
-			isConstructor := len(classType.ConstructorOverloads[methodName]) > 0
-
-			// This method/constructor was declared but never implemented
-			// Use classType.Name to preserve original case in error messages
-			if isConstructor {
-				a.addError("constructor '%s.%s' declared but not implemented",
-					classType.Name, methodName)
-			} else {
-				a.addError("method '%s.%s' declared but not implemented",
-					classType.Name, methodName)
-			}
-		}
-	}
-}
-
-// validateFunctionImplementations checks that all forward-declared functions have implementations
-// Task 9.64: Post-analysis validation for missing function implementations
-func (a *Analyzer) validateFunctionImplementations() {
-	// Walk through all symbols in the global scope and nested scopes
-	a.validateFunctionImplementationsInScope(a.symbols)
-}
-
-// validateFunctionImplementationsInScope recursively checks a scope and its nested scopes
-func (a *Analyzer) validateFunctionImplementationsInScope(scope *SymbolTable) {
-	if scope == nil {
-		return
-	}
-
-	// Check all symbols in this scope
-	for _, symbol := range scope.symbols {
-		// Check overload sets first (their Type is nil, so must check before type assertion)
-		if symbol.IsOverloadSet {
-			for _, overload := range symbol.Overloads {
-				if overload.IsForward {
-					// Get function type from the overload
-					overloadFuncType, ok := overload.Type.(*types.FunctionType)
-					if !ok {
-						continue
-					}
-
-					// Format error message to match DWScript
-					kind := "function"
-					if overloadFuncType.ReturnType == nil || overloadFuncType.ReturnType.String() == "Void" {
-						kind = "function" // DWScript uses "function" for both
-					}
-					a.addError("Syntax Error: The %s \"%s\" was forward declared but not implemented",
-						kind, overload.Name)
-				}
-			}
-			continue // Skip to next symbol (overload sets don't have individual Type)
-		}
-
-		// Check non-overload functions
-		funcType, ok := symbol.Type.(*types.FunctionType)
-		if !ok {
-			continue // Not a function
-		}
-
-		// Check if this is a non-overloaded forward function
-		if symbol.IsForward {
-			// Format error message to match DWScript: "The function "X" was forward declared but not implemented"
-			kind := "function"
-			if funcType.ReturnType == nil || funcType.ReturnType.String() == "Void" {
-				kind = "function" // DWScript uses "function" for both
-			}
-			// Note: We don't have position info in Symbol, so we'll use a simple error message
-			a.addError("Syntax Error: The %s \"%s\" was forward declared but not implemented",
-				kind, symbol.Name)
-		}
-	}
-
-	// Recursively check nested scopes (parent scope)
-	if scope.outer != nil {
-		a.validateFunctionImplementationsInScope(scope.outer)
-	}
-}
-
-// validateClassForwardDeclarations checks that all forward-declared classes have implementations
-// Task 9.11: Post-analysis validation for missing class implementations
-// Task 9.4: Updated error message to match DWScript format
-func (a *Analyzer) validateClassForwardDeclarations() {
-	// Iterate through all classes
-	// Task 6.1.1.3: Use TypeRegistry to iterate all class types
-	classNames := a.typeRegistry.TypesByKind("CLASS")
-	for _, className := range classNames {
-		classType := a.getClassType(className)
-		// Check if this class is still marked as forward (not implemented)
-		if classType.IsForward {
-			// This class was forward declared but never implemented
-			// Use DWScript format: Class "Name" isn't defined completely
-			a.addError("Class \"%s\" isn't defined completely", classType.Name)
-		}
-	}
 }
 
 // Errors returns all accumulated semantic errors
