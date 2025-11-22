@@ -498,32 +498,29 @@ The following uses of `strings.ToLower()`/`strings.EqualFold()` are legitimate a
   - Helper type lookups: `helpersByName`, method/property/var/const lookups
   - Migrated: All `strings.ToLower()` → `ident.Normalize()`, removed `strings` import
 
-- [ ] **14.1.3** Migrate `internal/semantic/validation_pass.go` (13 occurrences)
+- [x] **14.1.3** Migrate `internal/semantic/validation_pass.go` (12 occurrences)
   - Lines: 839,879,1247,1738,2093,2141,2175,2212,2232,2324,2340,2356
   - Method, field, property, type name validations
+  - Migrated: All `strings.ToLower()` → `ident.Normalize()`
 
-- [ ] **14.1.4** Migrate `internal/semantic/analyze_*.go` files (22 occurrences total)
-  - `analyze_method_calls.go:21,297` (2)
-  - `analyze_properties.go:144,177,192,196,205,323,333,357,361,370` (10)
-  - `analyze_classes_inheritance.go:54,104,164` (3)
-  - `analyze_types.go:323,363,400,627,722` (5)
-  - `analyze_classes_validation.go:136` (1)
-  - `analyze_builtin_convert.go:353` (1)
-  - `analyze_interfaces.go:91,151` (2)
-  - `analyze_builtins.go:35` (1)
-  - `analyze_builtin_array.go:246` (1)
+- [x] **14.1.4** Migrate `internal/semantic/analyze_*.go` files (40+ occurrences total)
+  - Migrated 16 files in analyze_*.go
+  - Used pkgident/identpkg aliases where local `ident` variables conflict
+  - Removed unused `strings` imports
 
-- [ ] **14.1.5** Migrate `internal/semantic/contract_pass.go` (4 EqualFold occurrences)
+- [x] **14.1.5** Migrate `internal/semantic/contract_pass.go` (4 EqualFold occurrences)
   - Lines: 279,289,474,483
   - Field, constant, parameter lookups
+  - Migrated: `strings.EqualFold()` → `pkgident.Equal()`
 
-- [ ] **14.1.6** Migrate `internal/bytecode/compiler_expressions.go` (9 occurrences)
+- [x] **14.1.6** Migrate `internal/bytecode/compiler_expressions.go` (9 occurrences)
   - ToLower: 210,462,466,523,734,872
   - EqualFold: 80,96,117
-  - Identifier and type handling
+  - Migrated: `strings.ToLower()` → `pkgident.Normalize()`, `strings.EqualFold()` → `pkgident.Equal()`, `strings.HasPrefix()` → `pkgident.HasPrefix()`
 
-- [ ] **14.1.7** Migrate `internal/bytecode/vm_calls.go` (1 occurrence)
+- [x] **14.1.7** Migrate `internal/bytecode/vm_calls.go` (1 occurrence)
   - Line: 181 - method name lookup
+  - Migrated: `strings.ToLower()` → `ident.Normalize()`
 
 - [ ] **14.1.8** Migrate `internal/interp/types/type_system.go` (17 occurrences)
   - Lines: 145,151,157,175,181,187,258,265,270,299,312,318,331,337,350,393,412
