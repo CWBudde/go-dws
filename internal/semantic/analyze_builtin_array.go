@@ -236,7 +236,7 @@ func (a *Analyzer) isTypeMetaValueExpression(expr ast.Expression) bool {
 		return false
 	}
 
-	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
+	// Use TypeRegistry for unified type lookup
 	// Check if it's a user-defined type (enum, class, interface, alias, record, set)
 	if a.hasType(ident.Value) {
 		return true

@@ -155,7 +155,7 @@ func TestNilLiteral(t *testing.T) {
 
 // TestFunctionDeclarations tests parsing of function declarations.
 
-// TestParserLexerErrors tests that parser can access lexer errors (Task 12.1.4)
+// TestParserLexerErrors tests that parser can access lexer errors
 func TestParserLexerErrors(t *testing.T) {
 	tests := []struct {
 		name               string

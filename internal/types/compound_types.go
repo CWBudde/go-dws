@@ -151,7 +151,7 @@ type RecordType struct {
 	Properties           map[string]*RecordPropertyInfo
 	Constants            map[string]*ConstantInfo // Record constants (regular and class)
 	ClassVars            map[string]Type          // Class variables (shared across instances)
-	FieldsWithInit       map[string]bool          // Fields that have default initializers - Task 9.12.4
+	FieldsWithInit       map[string]bool          // Fields that have default initializers
 	Name                 string
 }
 

@@ -12,10 +12,18 @@ import (
 // This file contains assignment statement evaluation (simple, member, index, compound).
 
 // cloneIfCopyable returns a defensive copy for values that implement CopyableValue (e.g., arrays).
-// This enforces value semantics for those types during assignment.
+// Dynamic arrays should keep reference semantics (DWScript/Delphi behavior), so we skip copying
+// them here; static arrays and other copyable primitives still get cloned.
 func cloneIfCopyable(val Value) Value {
 	if val == nil {
 		return nil
+	}
+
+	// Dynamic arrays are reference types; avoid breaking aliasing on assignment.
+	if arr, ok := val.(*ArrayValue); ok {
+		if arr.ArrayType == nil || arr.ArrayType.IsDynamic() {
+			return val
+		}
 	}
 
 	if copyable, ok := val.(CopyableValue); ok {

@@ -11,14 +11,13 @@ import (
 )
 
 // TestEvalEnumBinaryOp tests binary operations on enum values.
-// Task 3.5.18: Tests for enum comparisons and bitwise operations.
 func TestEvalEnumBinaryOp(t *testing.T) {
 	tests := []struct {
+		expected any // bool for comparisons, int for bitwise ops
 		name     string
 		op       string
 		left     *runtime.EnumValue
 		right    *runtime.EnumValue
-		expected interface{} // bool for comparisons, int for bitwise ops
 	}{
 		// Comparison operators
 		{
@@ -333,37 +332,35 @@ func TestEvalEnumBinaryOp(t *testing.T) {
 // TestEvalEnumBinaryOpErrors tests error cases for enum binary operations.
 func TestEvalEnumBinaryOpErrors(t *testing.T) {
 	tests := []struct {
-		name        string
-		op          string
 		left        Value
 		right       Value
+		name        string
+		op          string
 		expectError bool
 	}{
 		{
-			name: "left operand not enum",
-			op:   "=",
 			left: &runtime.IntegerValue{Value: 42},
 			right: &runtime.EnumValue{
 				TypeName:     "TColor",
 				ValueName:    "Red",
 				OrdinalValue: 0,
 			},
+			name:        "left operand not enum",
+			op:          "=",
 			expectError: true,
 		},
 		{
-			name: "right operand not enum",
-			op:   "=",
 			left: &runtime.EnumValue{
 				TypeName:     "TColor",
 				ValueName:    "Red",
 				OrdinalValue: 0,
 			},
 			right:       &runtime.IntegerValue{Value: 42},
+			name:        "right operand not enum",
+			op:          "=",
 			expectError: true,
 		},
 		{
-			name: "unknown operator",
-			op:   "+",
 			left: &runtime.EnumValue{
 				TypeName:     "TColor",
 				ValueName:    "Red",
@@ -374,6 +371,8 @@ func TestEvalEnumBinaryOpErrors(t *testing.T) {
 				ValueName:    "Green",
 				OrdinalValue: 1,
 			},
+			name:        "unknown operator",
+			op:          "+",
 			expectError: true,
 		},
 	}

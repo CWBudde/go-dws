@@ -26,8 +26,8 @@ const (
 	FALSE = token.FALSE
 	NIL   = token.NIL
 
-	NULL       = token.NULL       // Task 9.4.1: Variant special value
-	UNASSIGNED = token.UNASSIGNED // Task 9.4.1: Variant special value
+	NULL       = token.NULL
+	UNASSIGNED = token.UNASSIGNED
 
 	BEGIN    = token.BEGIN
 	END      = token.END

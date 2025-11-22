@@ -85,8 +85,8 @@ func NewArrayValue(arrayType *types.ArrayType, initializer ArrayElementInitializ
 		size := arrayType.Size()
 		elements = make([]Value, size)
 
-		// Task 9.56: For nested arrays, initialize each element as an array
-		// Task 9.36: For record elements, initialize each element as a record
+		// For nested arrays, initialize each element as an array
+		// For record elements, initialize each element as a record
 		if initializer != nil && arrayType.ElementType != nil {
 			for i := 0; i < size; i++ {
 				elements[i] = initializer(arrayType.ElementType, i)

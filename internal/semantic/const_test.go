@@ -116,7 +116,7 @@ func TestConstWithUnsupportedFunction(t *testing.T) {
 }
 
 // ============================================================================
-// Task 9.10: Const Expression Evaluator Tests
+// Const Expression Evaluator Tests
 // ============================================================================
 
 // Test string concatenation in const expressions

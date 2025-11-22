@@ -306,7 +306,7 @@ func (r *typeResolver) validateForwardDeclarations() {
 }
 
 // validateMethodImplementations checks that all forward-declared methods have implementations
-// Migrated from analyzer.go:validateMethodImplementations() for Task 6.1.2
+// Migrated from analyzer.go:validateMethodImplementations()
 func (r *typeResolver) validateMethodImplementations() {
 	// Iterate through all classes
 	classNames := r.ctx.TypeRegistry.TypesByKind("CLASS")
@@ -353,7 +353,7 @@ func (r *typeResolver) validateMethodImplementations() {
 }
 
 // validateFunctionImplementations checks that all forward-declared functions have implementations
-// Migrated from analyzer.go:validateFunctionImplementations() for Task 6.1.2
+// Migrated from analyzer.go:validateFunctionImplementations()
 func (r *typeResolver) validateFunctionImplementations() {
 	// Walk through all symbols in the global scope
 	r.validateFunctionImplementationsInScope(r.ctx.Symbols)

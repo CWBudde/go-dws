@@ -296,6 +296,36 @@ PrintLn(Length(arr) + 10);
 	}
 }
 
+// Dynamic array assignments should keep reference semantics so aliases see mutations.
+func TestDynamicArray_AssignmentSharesReference(t *testing.T) {
+	script := `
+type TMatrix = array of array of Integer;
+var m := new Integer[2, 2];
+
+m[0][0] := 1;
+m[0][1] := 2;
+
+var row := m[0];
+row[1] := 99;
+
+PrintLn(m[0][1]);
+
+var alias := m[0];
+alias[0] := 7;
+PrintLn(m[0][0]);
+`
+
+	expected := "99\n7\n"
+
+	result, output := testEvalWithOutput(script)
+	if result != nil && result.Type() == "ERROR" {
+		t.Fatalf("unexpected error: %s", result.String())
+	}
+	if output != expected {
+		t.Errorf("expected output:\n%s\ngot:\n%s", expected, output)
+	}
+}
+
 // TestHappyNumbers_SimplifiedVersion tests a simplified version of the happy numbers algorithm
 // This is the actual pattern from happy_numbers.pas
 func TestHappyNumbers_SimplifiedVersion(t *testing.T) {

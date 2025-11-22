@@ -91,4 +91,3 @@ These tests verify:
 
 ## Related Documentation
 - See `docs/control-flow.md` for detailed language specification
-- See `PLAN.md` task 8.235 for implementation details

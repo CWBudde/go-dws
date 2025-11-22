@@ -1,4 +1,3 @@
-// Extended test case for Task 9.2.2
 // Testing various scenarios with type aliases and var parameters
 
 PrintLn('=== Test 1: Basic type alias with var parameter ===');

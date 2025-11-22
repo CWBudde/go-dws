@@ -98,7 +98,7 @@ func TestCharLiterals(t *testing.T) {
 	}
 }
 
-// TestCharLiteralStandaloneStillWorks tests that isCharLiteralStandalone works after refactoring (Task 12.2.2)
+// TestCharLiteralStandaloneStillWorks tests that isCharLiteralStandalone works after refactoring
 func TestCharLiteralStandaloneStillWorks(t *testing.T) {
 	tests := []struct {
 		name         string

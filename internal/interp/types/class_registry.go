@@ -1,7 +1,5 @@
 // Package types provides the type system for the DWScript interpreter.
 // This file implements ClassRegistry for managing class types and hierarchies.
-//
-// Task 3.4.2: Create ClassRegistry abstraction
 package types
 
 import (

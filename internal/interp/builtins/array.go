@@ -8,8 +8,6 @@ import (
 // Array built-in functions for DWScript.
 // This file contains simple array operations: Length, Copy, Low, High, IndexOf,
 // Contains, Reverse, Sort, Add, Delete, SetLength.
-//
-// Task 3.7.7: Migrate array and collection functions to internal/interp/builtins/ package.
 
 // Length returns the number of elements in an array or characters in a string.
 //
