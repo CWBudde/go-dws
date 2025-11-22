@@ -124,7 +124,8 @@ func (w *declarationWalker) registerClassDecl(decl *ast.ClassDecl) {
 			// Handle forward declaration completion
 			if existingClass.IsForward && !isForward {
 				// This is the full implementation of a forward-declared class
-				// We'll resolve it in Pass 2, just note that we've seen it
+				// Clear the forward flag so Pass 2 knows it has an implementation
+				existingClass.IsForward = false
 				return
 			}
 

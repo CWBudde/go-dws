@@ -1,6 +1,7 @@
 package passes
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/semantic"
@@ -128,14 +129,7 @@ func NewPassContext() *PassContext {
 
 // AddError adds a formatted error message to the error list.
 func (ctx *PassContext) AddError(format string, args ...interface{}) {
-	msg := format
-	if len(args) > 0 {
-		msg = strings.ReplaceAll(msg, "%s", "%v")
-		// Simple formatting - in real implementation would use fmt.Sprintf
-		for _, arg := range args {
-			msg = strings.Replace(msg, "%v", toString(arg), 1)
-		}
-	}
+	msg := fmt.Sprintf(format, args...)
 	ctx.Errors = append(ctx.Errors, msg)
 }
 
@@ -192,18 +186,4 @@ func (ctx *PassContext) CriticalErrorCount() int {
 	}
 
 	return count
-}
-
-// toString is a helper to convert various types to strings for error formatting
-func toString(v interface{}) string {
-	if v == nil {
-		return "<nil>"
-	}
-	if s, ok := v.(string); ok {
-		return s
-	}
-	if stringer, ok := v.(interface{ String() string }); ok {
-		return stringer.String()
-	}
-	return "<unknown>"
 }

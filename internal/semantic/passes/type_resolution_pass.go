@@ -131,6 +131,36 @@ func (r *typeResolver) resolveClassHierarchies() {
 	}
 }
 
+// isForwardClassDecl returns true if the class declaration is a forward declaration
+// (all member slices are nil, meaning no body was defined)
+func isForwardClassDecl(decl *ast.ClassDecl) bool {
+	return decl.Fields == nil &&
+		decl.Methods == nil &&
+		decl.Properties == nil &&
+		decl.Operators == nil &&
+		decl.Constants == nil
+}
+
+// findClassParentName finds the parent class name from the AST for the given class.
+// It skips forward declarations to find the actual class definition with a parent.
+func (r *typeResolver) findClassParentName(className string) string {
+	for _, stmt := range r.program.Statements {
+		classDecl, ok := stmt.(*ast.ClassDecl)
+		if !ok || classDecl.Name == nil || classDecl.Name.Value != className {
+			continue
+		}
+
+		if classDecl.Parent != nil {
+			return classDecl.Parent.Value // Found the definition with a parent
+		}
+		if !isForwardClassDecl(classDecl) {
+			return "" // Found a non-forward declaration without parent - this is the root
+		}
+		// Otherwise, this is a forward declaration - keep looking for the full definition
+	}
+	return ""
+}
+
 // resolveClassParent resolves the parent type for a single class
 func (r *typeResolver) resolveClassParent(classType *types.ClassType) {
 	// If parent is already resolved, we're done
@@ -138,18 +168,7 @@ func (r *typeResolver) resolveClassParent(classType *types.ClassType) {
 		return
 	}
 
-	// Find the AST node for this class to get the parent name
-	var parentName string
-	for _, stmt := range r.program.Statements {
-		if classDecl, ok := stmt.(*ast.ClassDecl); ok {
-			if classDecl.Name != nil && classDecl.Name.Value == classType.Name {
-				if classDecl.Parent != nil {
-					parentName = classDecl.Parent.Value
-				}
-				break
-			}
-		}
-	}
+	parentName := r.findClassParentName(classType.Name)
 
 	// If no parent specified, we're done (root class)
 	if parentName == "" {
