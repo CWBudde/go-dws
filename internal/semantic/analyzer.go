@@ -280,22 +280,23 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 
 	// Task 6.1.2.6: PARTIAL MIGRATION TO PASSES
 	// The old analyzer handles declaration collection and most validation.
-	// Pass 2 (Type Resolution) handles forward declaration validation only.
-	// This avoids duplicate "already declared" errors while still getting the benefit
-	// of the new forward declaration validation logic.
+	// Pass 2 (Type Resolution) performs full type resolution including forward declaration validation.
+	// Note: Some work is duplicated between old analyzer and Pass 2 during transition period.
 
 	// OLD IMPLEMENTATION: Analyze each statement (handles declaration collection and validation)
 	for _, stmt := range program.Statements {
 		a.analyzeStatement(stmt)
 	}
 
-	// NEW IMPLEMENTATION: Run Pass 2 only (forward declaration validation)
+	// NEW IMPLEMENTATION: Run Pass 2 (Type Resolution)
+	// Pass 2 performs: built-in type registration, class/interface hierarchy resolution,
+	// field type resolution, method signature resolution, and forward declaration validation.
 	// Create PassContext from Analyzer state to share registries
 	ctx := a.createPassContext()
 
-	// Create Pass 2 only (Type Resolution with forward declaration validation)
+	// Create Pass 2 (Type Resolution)
 	// Skip Pass 1 (Declaration Collection) since old analyzer already does that
-	pass2 := NewTypeResolutionPass() // Pass 2: Type Resolution (includes forward declaration validation)
+	pass2 := NewTypeResolutionPass()
 
 	// Run Pass 2 directly
 	if err := pass2.Run(program, ctx); err != nil {
