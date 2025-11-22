@@ -169,6 +169,9 @@ func (v *contractValidator) validatePostConditions(post *ast.PostConditions, fn 
 
 	for _, cond := range post.Conditions {
 		v.validateCondition(cond, "postcondition", fn, true)
+
+		// Validate 'old' expressions (ensure referenced identifiers exist)
+		v.validateOldExpressions(cond.Test, fn)
 	}
 }
 
@@ -180,15 +183,17 @@ func (v *contractValidator) validateCondition(cond *ast.Condition, kind string, 
 
 	// Check that the test expression is boolean
 	testType := v.checkExpression(cond.Test, fn, allowOld)
-	if testType != nil && testType.String() != "Boolean" {
-		v.ctx.AddError("%s must be boolean, got %s", kind, testType)
+	if testType != nil && !v.isBooleanCompatible(testType) {
+		v.ctx.AddError("%s must be boolean expression in function '%s', got %s at %s",
+			kind, fn.Name.Value, testType.String(), cond.Token.Pos.String())
 	}
 
-	// Validate message if present (should be string, but parser already enforces this)
+	// Validate message if present (should be string)
 	if cond.Message != nil {
 		msgType := v.checkExpression(cond.Message, fn, allowOld)
-		if msgType != nil && msgType.String() != "String" {
-			v.ctx.AddError("%s message must be string, got %s", kind, msgType)
+		if msgType != nil && msgType != types.STRING {
+			v.ctx.AddError("%s message must be string expression in function '%s', got %s at %s",
+				kind, fn.Name.Value, msgType.String(), cond.Token.Pos.String())
 		}
 	}
 }
@@ -329,4 +334,74 @@ func (v *contractValidator) resolveTypeExpression(typeExpr ast.TypeExpression) t
 	}
 
 	return nil
+}
+
+// isBooleanCompatible checks if a type is Boolean or compatible with Boolean
+func (v *contractValidator) isBooleanCompatible(t types.Type) bool {
+	if t == nil {
+		return false
+	}
+
+	// Check if it's the Boolean type directly
+	if t == types.BOOLEAN || t.String() == "Boolean" {
+		return true
+	}
+
+	// Check underlying type for type aliases
+	underlying := types.GetUnderlyingType(t)
+	return underlying == types.BOOLEAN || underlying.String() == "Boolean"
+}
+
+// validateOldExpressions recursively validates 'old' keyword usage in expressions
+// This ensures that old() references valid identifiers and validates side effect rules
+func (v *contractValidator) validateOldExpressions(expr ast.Expression, fn *ast.FunctionDecl) {
+	if expr == nil {
+		return
+	}
+
+	switch e := expr.(type) {
+	case *ast.OldExpression:
+		// Validate that the referenced identifier is defined
+		if e.Identifier != nil {
+			idType := v.checkIdentifier(e.Identifier, fn)
+			if idType == nil {
+				v.ctx.AddError("old() references undefined identifier '%s' in function '%s' at %s",
+					e.Identifier.Value, fn.Name.Value, e.Token.Pos.String())
+			}
+		}
+
+	case *ast.BinaryExpression:
+		// Recursively check both sides
+		v.validateOldExpressions(e.Left, fn)
+		v.validateOldExpressions(e.Right, fn)
+
+	case *ast.UnaryExpression:
+		// Recursively check operand
+		v.validateOldExpressions(e.Right, fn)
+
+	case *ast.GroupedExpression:
+		// Recursively check grouped expression
+		v.validateOldExpressions(e.Expression, fn)
+
+	case *ast.CallExpression:
+		// Check all arguments for old expressions
+		for _, arg := range e.Arguments {
+			v.validateOldExpressions(arg, fn)
+		}
+
+	case *ast.IndexExpression:
+		// Check left side and index
+		v.validateOldExpressions(e.Left, fn)
+		if e.Index != nil {
+			v.validateOldExpressions(e.Index, fn)
+		}
+
+	case *ast.MemberAccessExpression:
+		// Check object expression
+		v.validateOldExpressions(e.Object, fn)
+
+	// For literals and simple identifiers, no old expressions to validate
+	default:
+		// No old expressions in other node types
+	}
 }
