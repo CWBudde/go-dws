@@ -493,9 +493,10 @@ The following uses of `strings.ToLower()`/`strings.EqualFold()` are legitimate a
   - `search.go:72,85` - unit search capitalization/lowercase
   - Migrated: `ident.Normalize()` for lowercase, `ident.Equal()` for comparison
 
-- [ ] **14.1.2** Migrate `internal/types/helper.go` (8 occurrences)
+- [x] **14.1.2** Migrate `internal/types/helper.go` (8 occurrences)
   - Lines: 51,63,98,112,133,163,193,223
   - Helper type lookups: `helpersByName`, method/property/var/const lookups
+  - Migrated: All `strings.ToLower()` → `ident.Normalize()`, removed `strings` import
 
 - [ ] **14.1.3** Migrate `internal/semantic/validation_pass.go` (13 occurrences)
   - Lines: 839,879,1247,1738,2093,2141,2175,2212,2232,2324,2340,2356
