@@ -350,32 +350,45 @@ func (v *statementValidator) validateReturn(stmt *ast.ReturnStatement) {
 		return
 	}
 
-	// Resolve the function's return type
-	var expectedReturnType types.Type
-	if fnDecl.ReturnType != nil {
-		expectedReturnType = v.resolveTypeExpression(fnDecl.ReturnType)
-	}
+	// Check if this is a function (has return type declaration) or procedure (no return type)
+	// Note: We check fnDecl.ReturnType != nil, NOT the resolved type, because
+	// resolveTypeExpression may return nil for complex types (arrays, sets, function pointers, etc.)
+	// that we can't fully resolve in this pass.
+	isFunction := fnDecl.ReturnType != nil
 
-	// Check if this is a function (has return type) or procedure (no return type)
-	if expectedReturnType != nil {
+	if isFunction {
 		// Function: must have a return value
 		if stmt.ReturnValue == nil {
-			v.ctx.AddError("function %s must return a value of type %s",
-				fnDecl.Name.Value, expectedReturnType)
+			// Try to resolve the return type for a better error message
+			expectedReturnType := v.resolveTypeExpression(fnDecl.ReturnType)
+			if expectedReturnType != nil {
+				v.ctx.AddError("function %s must return a value of type %s",
+					fnDecl.Name.Value, expectedReturnType)
+			} else {
+				v.ctx.AddError("function %s must return a value",
+					fnDecl.Name.Value)
+			}
 			return
 		}
 
-		// Type-check the return value
-		actualReturnType := v.checkExpression(stmt.ReturnValue)
-		if actualReturnType == nil {
-			// Expression type couldn't be determined (error already reported)
-			return
-		}
+		// Type-check the return value if we can resolve the expected type
+		expectedReturnType := v.resolveTypeExpression(fnDecl.ReturnType)
+		if expectedReturnType != nil {
+			actualReturnType := v.checkExpression(stmt.ReturnValue)
+			if actualReturnType == nil {
+				// Expression type couldn't be determined (error already reported)
+				return
+			}
 
-		// Validate type compatibility
-		if !v.typesCompatible(expectedReturnType, actualReturnType) {
-			v.ctx.AddError("cannot return value of type %s from function %s (expected %s)",
-				actualReturnType, fnDecl.Name.Value, expectedReturnType)
+			// Validate type compatibility
+			if !v.typesCompatible(expectedReturnType, actualReturnType) {
+				v.ctx.AddError("cannot return value of type %s from function %s (expected %s)",
+					actualReturnType, fnDecl.Name.Value, expectedReturnType)
+			}
+		} else {
+			// Can't resolve return type (complex type like array, set, etc.)
+			// Still validate the return expression exists and is valid
+			v.checkExpression(stmt.ReturnValue)
 		}
 	} else {
 		// Procedure: should not have a return value
@@ -494,8 +507,13 @@ func (v *statementValidator) validateFunction(decl *ast.FunctionDecl) {
 			// Validate that all code paths return a value
 			if !v.allPathsReturn(decl.Body) {
 				expectedReturnType := v.resolveTypeExpression(decl.ReturnType)
-				v.ctx.AddError("not all code paths return a value in function %s (expected %s)",
-					decl.Name.Value, expectedReturnType)
+				if expectedReturnType != nil {
+					v.ctx.AddError("not all code paths return a value in function %s (expected %s)",
+						decl.Name.Value, expectedReturnType)
+				} else {
+					v.ctx.AddError("not all code paths return a value in function %s",
+						decl.Name.Value)
+				}
 			}
 		}
 	}
