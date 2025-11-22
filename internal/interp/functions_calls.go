@@ -1,10 +1,9 @@
 package interp
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // evalCallExpression evaluates a DWScript function call expression.
@@ -176,7 +175,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 			// Check if this identifier refers to a class (case-insensitive)
 			var classInfo *ClassInfo
 			for className, class := range i.classes {
-				if strings.EqualFold(className, ident.Value) {
+				if pkgident.Equal(className, ident.Value) {
 					classInfo = class
 					break
 				}
@@ -210,7 +209,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 
 	// Check if it's a user-defined function first
 	// DWScript is case-insensitive, so normalize the function name to lowercase
-	funcNameLower := strings.ToLower(funcName.Value)
+	funcNameLower := pkgident.Normalize(funcName.Value)
 	if overloads, exists := i.functions[funcNameLower]; exists && len(overloads) > 0 {
 		// Resolve overload based on argument types and get cached evaluated arguments
 		fn, cachedArgs, err := i.resolveOverload(funcNameLower, overloads, expr.Arguments)
@@ -295,7 +294,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 	if recordVal, ok := i.env.Get("__CurrentRecord__"); ok {
 		if rtv, isRecord := recordVal.(*RecordTypeValue); isRecord {
 			// Check if the function name matches a static method (case-insensitive)
-			methodNameLower := strings.ToLower(funcName.Value)
+			methodNameLower := pkgident.Normalize(funcName.Value)
 			if overloads, exists := rtv.ClassMethodOverloads[methodNameLower]; exists && len(overloads) > 0 {
 				// Found a static method - convert to qualified call
 				mc := &ast.MethodCallExpression{
@@ -417,7 +416,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 // for case-insensitive matching (DWScript is case-insensitive).
 func normalizeBuiltinName(name string) string {
 	// Create a lowercase version for comparison
-	lower := strings.ToLower(name)
+	lower := pkgident.Normalize(name)
 
 	// Map of lowercase names to canonical names
 	// This allows case-insensitive function calls
