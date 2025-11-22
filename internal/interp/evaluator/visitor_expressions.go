@@ -181,10 +181,6 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 // VisitBinaryExpression evaluates a binary expression (e.g., a + b, x == y).
 func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *ExecutionContext) Value {
-	if node == nil {
-		return e.newError(node, "nil binary expression")
-	}
-
 	// Handle short-circuit operators first (special evaluation order)
 	switch node.Operator {
 	case "??":
@@ -265,10 +261,6 @@ func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *Execu
 
 // VisitUnaryExpression evaluates a unary expression (e.g., -x, not b).
 func (e *Evaluator) VisitUnaryExpression(node *ast.UnaryExpression, ctx *ExecutionContext) Value {
-	if node == nil {
-		return e.newError(node, "nil unary expression")
-	}
-
 	// Evaluate the operand
 	operand := e.Eval(node.Right, ctx)
 	if isError(operand) {
@@ -425,9 +417,6 @@ func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *Exe
 // The adapter has access to CreateLazyThunk and CreateReferenceValue methods (Task 3.5.23)
 // which enable proper handling of lazy and var parameters in all call contexts.
 func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *ExecutionContext) Value {
-	if node == nil {
-		return e.newError(node, "nil call expression")
-	}
 	if node.Function == nil {
 		return e.newError(node, "call expression missing function")
 	}
@@ -976,9 +965,6 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 // - Phase 4 (future): Migrate helper infrastructure after helper system migration
 // - Phase 5 (future): Migrate method/property dispatch after OOP infrastructure migration
 func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression, ctx *ExecutionContext) Value {
-	if node == nil {
-		return e.newError(node, "nil member access expression")
-	}
 	if node.Object == nil {
 		return e.newError(node, "member access missing object")
 	}
@@ -1325,9 +1311,6 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 // - Phase 5 (future): Migrate constructor dispatch after object creation migration
 // - Phase 6 (future): Migrate helper methods after helper system migration
 func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ctx *ExecutionContext) Value {
-	if node == nil {
-		return e.newError(node, "nil method call expression")
-	}
 	if node.Object == nil {
 		return e.newError(node, "method call missing object")
 	}
@@ -2053,8 +2036,8 @@ func (e *Evaluator) VisitOldExpression(node *ast.OldExpression, ctx *ExecutionCo
 // This method exists to prevent falling through to the default case in Eval(),
 // and delegates to the adapter which handles context-specific evaluation.
 func (e *Evaluator) VisitRangeExpression(node *ast.RangeExpression, ctx *ExecutionContext) Value {
-	if node == nil {
-		return e.newError(node, "nil range expression")
+	if node.Start == nil || node.RangeEnd == nil {
+		return e.newError(node, "range expression missing start or end")
 	}
 
 	// Range expressions are structural - they don't evaluate to a value on their own.
