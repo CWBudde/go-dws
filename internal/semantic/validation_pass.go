@@ -99,6 +99,8 @@ func (v *statementValidator) validateStatement(stmt ast.Statement) {
 	switch s := stmt.(type) {
 	case *ast.VarDeclStatement:
 		v.validateVarDecl(s)
+	case *ast.ConstDecl:
+		v.validateConstDecl(s)
 	case *ast.AssignmentStatement:
 		v.validateAssignment(s)
 	case *ast.ReturnStatement:
@@ -107,6 +109,8 @@ func (v *statementValidator) validateStatement(stmt ast.Statement) {
 		v.validateBreak(s)
 	case *ast.ContinueStatement:
 		v.validateContinue(s)
+	case *ast.ExitStatement:
+		v.validateExit(s)
 	case *ast.ExpressionStatement:
 		// Type-check the expression
 		v.checkExpression(s.Expression)
@@ -114,16 +118,30 @@ func (v *statementValidator) validateStatement(stmt ast.Statement) {
 		v.validateIf(s)
 	case *ast.WhileStatement:
 		v.validateWhile(s)
+	case *ast.RepeatStatement:
+		v.validateRepeat(s)
 	case *ast.ForStatement:
 		v.validateFor(s)
+	case *ast.ForInStatement:
+		v.validateForIn(s)
+	case *ast.CaseStatement:
+		v.validateCase(s)
 	case *ast.BlockStatement:
 		v.validateBlock(s)
 	case *ast.FunctionDecl:
 		v.validateFunction(s)
-	// Class/interface/enum/record declarations don't need validation here
+	case *ast.RaiseStatement:
+		v.validateRaise(s)
+	case *ast.TryStatement:
+		v.validateTry(s)
+	// Type and class declarations don't need validation here
 	// (they were handled in Pass 1 and Pass 2)
 	case *ast.ClassDecl, *ast.InterfaceDecl, *ast.EnumDecl, *ast.RecordDecl:
 		// Skip - structural validation done in earlier passes
+	case *ast.OperatorDecl, *ast.HelperDecl, *ast.SetDecl, *ast.ArrayDecl, *ast.TypeDeclaration:
+		// Skip - type declarations validated in earlier passes
+	case *ast.UsesClause, *ast.UnitDeclaration:
+		// Skip - these are structural and don't need validation
 	default:
 		// Unknown statement type - skip
 	}
@@ -312,6 +330,154 @@ func (v *statementValidator) validateFunction(decl *ast.FunctionDecl) {
 	// TODO: Validate that all code paths return a value (if function, not procedure)
 }
 
+// validateConstDecl validates a constant declaration
+func (v *statementValidator) validateConstDecl(stmt *ast.ConstDecl) {
+	// Type-check the initializer
+	if stmt.Value != nil {
+		valueType := v.checkExpression(stmt.Value)
+
+		// If type is specified, validate compatibility
+		if stmt.Type != nil {
+			declaredType := v.resolveTypeExpression(stmt.Type)
+			if declaredType != nil && valueType != nil {
+				if !v.typesCompatible(declaredType, valueType) {
+					v.ctx.AddError("cannot initialize constant of type %s with value of type %s",
+						declaredType, valueType)
+				}
+			}
+		}
+	}
+}
+
+// validateExit validates an exit statement
+func (v *statementValidator) validateExit(stmt *ast.ExitStatement) {
+	if v.ctx.CurrentFunction == nil {
+		v.ctx.AddError("exit statement outside of function")
+	}
+}
+
+// validateRepeat validates a repeat-until loop
+func (v *statementValidator) validateRepeat(stmt *ast.RepeatStatement) {
+	// Validate condition is boolean
+	condType := v.checkExpression(stmt.Condition)
+	if condType != nil && !v.isBoolean(condType) {
+		v.ctx.AddError("repeat condition must be boolean, got %s", condType)
+	}
+
+	// Validate body with loop context
+	v.ctx.LoopDepth++
+	v.ctx.InLoop = true
+	v.validateStatement(stmt.Body)
+	v.ctx.LoopDepth--
+	if v.ctx.LoopDepth == 0 {
+		v.ctx.InLoop = false
+	}
+}
+
+// validateForIn validates a for-in loop
+func (v *statementValidator) validateForIn(stmt *ast.ForInStatement) {
+	// Validate collection expression
+	collectionType := v.checkExpression(stmt.Collection)
+	if collectionType != nil {
+		// TODO: Validate collection is iterable (array, set, string)
+		_ = collectionType
+	}
+
+	// Validate body with loop context
+	v.ctx.LoopDepth++
+	v.ctx.InLoop = true
+	v.validateStatement(stmt.Body)
+	v.ctx.LoopDepth--
+	if v.ctx.LoopDepth == 0 {
+		v.ctx.InLoop = false
+	}
+}
+
+// validateCase validates a case statement
+func (v *statementValidator) validateCase(stmt *ast.CaseStatement) {
+	// Validate selector expression
+	selectorType := v.checkExpression(stmt.Expression)
+	if selectorType == nil {
+		return
+	}
+
+	// Validate each case branch
+	for _, branch := range stmt.Cases {
+		// Validate case values
+		for _, value := range branch.Values {
+			valueType := v.checkExpression(value)
+			if valueType != nil && !v.typesCompatible(selectorType, valueType) {
+				v.ctx.AddError("case value type %s incompatible with selector type %s",
+					valueType, selectorType)
+			}
+		}
+
+		// Validate branch statement
+		v.validateStatement(branch.Statement)
+	}
+
+	// Validate else clause if present
+	if stmt.Else != nil {
+		v.validateStatement(stmt.Else)
+	}
+}
+
+// validateRaise validates a raise statement
+func (v *statementValidator) validateRaise(stmt *ast.RaiseStatement) {
+	// If there's an exception expression, validate it
+	if stmt.Exception != nil {
+		exceptionType := v.checkExpression(stmt.Exception)
+
+		// TODO: Validate exception type is or derives from Exception
+		_ = exceptionType
+	} else {
+		// Re-raise without argument is only valid inside exception handler
+		if !v.ctx.InExceptionHandler {
+			v.ctx.AddError("'raise' without exception object can only be used inside exception handler")
+		}
+	}
+}
+
+// validateTry validates a try-except-finally statement
+func (v *statementValidator) validateTry(stmt *ast.TryStatement) {
+	// Validate try block
+	v.validateStatement(stmt.TryBlock)
+
+	// Validate except clause
+	if stmt.ExceptClause != nil {
+		oldInHandler := v.ctx.InExceptionHandler
+		v.ctx.InExceptionHandler = true
+
+		// Validate exception handlers
+		for _, handler := range stmt.ExceptClause.Handlers {
+			// Validate exception type if specified
+			if handler.ExceptionType != nil {
+				exceptionType := v.resolveTypeExpression(handler.ExceptionType)
+				// TODO: Validate it's an Exception class
+				_ = exceptionType
+			}
+
+			// Validate handler statement
+			v.validateStatement(handler.Statement)
+		}
+
+		// Validate else block in except clause if present
+		if stmt.ExceptClause.ElseBlock != nil {
+			v.validateStatement(stmt.ExceptClause.ElseBlock)
+		}
+
+		v.ctx.InExceptionHandler = oldInHandler
+	}
+
+	// Validate finally clause if present
+	if stmt.FinallyClause != nil && stmt.FinallyClause.Block != nil {
+		oldInFinally := v.ctx.InFinallyBlock
+		v.ctx.InFinallyBlock = true
+		v.validateStatement(stmt.FinallyClause.Block)
+		v.ctx.InFinallyBlock = oldInFinally
+	}
+}
+
 // validateAbstractImplementations validates that concrete classes implement abstract methods
 func (v *statementValidator) validateAbstractImplementations() {
 	// Get all class types
@@ -344,20 +510,58 @@ func (v *statementValidator) checkExpression(expr ast.Expression) types.Type {
 		return types.STRING
 	case *ast.BooleanLiteral:
 		return types.BOOLEAN
+	case *ast.CharLiteral:
+		// Character literals are treated as single-character strings in DWScript
+		return types.STRING
+	case *ast.NilLiteral:
+		return types.NIL
 	case *ast.Identifier:
 		return v.checkIdentifier(e)
 	case *ast.BinaryExpression:
 		return v.checkBinaryExpression(e)
 	case *ast.UnaryExpression:
 		return v.checkUnaryExpression(e)
+	case *ast.GroupedExpression:
+		return v.checkExpression(e.Expression)
 	case *ast.CallExpression:
 		return v.checkCallExpression(e)
 	case *ast.IndexExpression:
 		return v.checkIndexExpression(e)
 	case *ast.MemberAccessExpression:
 		return v.checkMemberAccessExpression(e)
+	case *ast.MethodCallExpression:
+		return v.checkMethodCallExpression(e)
+	case *ast.NewExpression:
+		return v.checkNewExpression(e)
+	case *ast.NewArrayExpression:
+		return v.checkNewArrayExpression(e)
+	case *ast.ArrayLiteralExpression:
+		return v.checkArrayLiteral(e)
+	case *ast.RecordLiteralExpression:
+		return v.checkRecordLiteral(e)
+	case *ast.SetLiteral:
+		return v.checkSetLiteral(e)
+	case *ast.IsExpression:
+		return v.checkIsExpression(e)
+	case *ast.AsExpression:
+		return v.checkAsExpression(e)
+	case *ast.ImplementsExpression:
+		return v.checkImplementsExpression(e)
+	case *ast.IfExpression:
+		return v.checkIfExpression(e)
+	case *ast.SelfExpression:
+		return v.checkSelfExpression(e)
+	case *ast.InheritedExpression:
+		return v.checkInheritedExpression(e)
+	case *ast.AddressOfExpression:
+		return v.checkAddressOfExpression(e)
+	case *ast.LambdaExpression:
+		return v.checkLambdaExpression(e)
+	case *ast.OldExpression:
+		return v.checkOldExpression(e)
 	default:
-		// Unknown expression type
+		// Unknown expression type - log for debugging but don't error
+		// Some expression types may not need validation
 		return nil
 	}
 }
@@ -511,4 +715,296 @@ func (v *statementValidator) isFloat(t types.Type) bool {
 func (v *statementValidator) isBoolean(t types.Type) bool {
 	_, ok := t.(*types.BooleanType)
 	return ok
+}
+
+// ============================================================================
+// Additional Expression Validation Methods
+// ============================================================================
+
+// checkMethodCallExpression checks a method call expression
+func (v *statementValidator) checkMethodCallExpression(expr *ast.MethodCallExpression) types.Type {
+	// Check the object expression
+	objType := v.checkExpression(expr.Object)
+	if objType == nil {
+		return nil
+	}
+
+	// Check all arguments
+	for _, arg := range expr.Arguments {
+		v.checkExpression(arg)
+	}
+
+	// TODO: Validate method exists and argument types match
+	return nil
+}
+
+// checkNewExpression checks a class instantiation expression
+func (v *statementValidator) checkNewExpression(expr *ast.NewExpression) types.Type {
+	// Resolve the class type from the class name
+	if expr.ClassName == nil {
+		v.ctx.AddError("'new' expression missing class name")
+		return nil
+	}
+
+	classType, ok := v.ctx.TypeRegistry.Resolve(expr.ClassName.Value)
+	if !ok || classType == nil {
+		v.ctx.AddError("cannot resolve class '%s' in 'new' expression", expr.ClassName.Value)
+		return nil
+	}
+
+	// Check constructor arguments
+	for _, arg := range expr.Arguments {
+		v.checkExpression(arg)
+	}
+
+	// TODO: Validate constructor exists and argument types match
+	return classType
+}
+
+// checkNewArrayExpression checks an array instantiation expression
+func (v *statementValidator) checkNewArrayExpression(expr *ast.NewArrayExpression) types.Type {
+	// Check dimension expressions
+	for _, dim := range expr.Dimensions {
+		dimType := v.checkExpression(dim)
+		if dimType != nil && !v.isInteger(dimType) {
+			v.ctx.AddError("array dimension must be integer, got %s", dimType)
+		}
+	}
+
+	// TODO: Return proper array type
+	return nil
+}
+
+// checkArrayLiteral checks an array literal expression
+func (v *statementValidator) checkArrayLiteral(expr *ast.ArrayLiteralExpression) types.Type {
+	// Check all elements
+	for _, elem := range expr.Elements {
+		v.checkExpression(elem)
+	}
+
+	// TODO: Infer common element type and return array type
+	return nil
+}
+
+// checkRecordLiteral checks a record literal expression
+func (v *statementValidator) checkRecordLiteral(expr *ast.RecordLiteralExpression) types.Type {
+	// Check field values
+	for _, field := range expr.Fields {
+		v.checkExpression(field.Value)
+	}
+
+	// TODO: Validate record type and field compatibility
+	return nil
+}
+
+// checkSetLiteral checks a set literal expression
+func (v *statementValidator) checkSetLiteral(expr *ast.SetLiteral) types.Type {
+	// Check all elements
+	for _, elem := range expr.Elements {
+		v.checkExpression(elem)
+	}
+
+	// TODO: Infer set element type and return set type
+	return nil
+}
+
+// checkIsExpression checks an 'is' type checking expression
+func (v *statementValidator) checkIsExpression(expr *ast.IsExpression) types.Type {
+	// Check left expression
+	leftType := v.checkExpression(expr.Left)
+	if leftType == nil {
+		return nil
+	}
+
+	// If checking against boolean value (is True/is False)
+	if expr.Right != nil {
+		v.checkExpression(expr.Right)
+		return types.BOOLEAN
+	}
+
+	// Type checking mode - validate target type is a class
+	if expr.TargetType != nil {
+		targetType := v.resolveTypeExpression(expr.TargetType)
+		if targetType == nil {
+			v.ctx.AddError("cannot resolve target type in 'is' expression")
+			return nil
+		}
+
+		// Validate operand is a class or nil
+		if leftType != types.NIL {
+			leftUnderlying := types.GetUnderlyingType(leftType)
+			if _, isClass := leftUnderlying.(*types.ClassType); !isClass {
+				v.ctx.AddError("'is' operator requires class instance, got %s", leftType)
+			}
+		}
+
+		// Validate target is a class type
+		targetUnderlying := types.GetUnderlyingType(targetType)
+		if _, isClass := targetUnderlying.(*types.ClassType); !isClass {
+			v.ctx.AddError("'is' operator requires class type, got %s", targetType)
+		}
+	}
+
+	return types.BOOLEAN
+}
+
+// checkAsExpression checks an 'as' type casting expression
+func (v *statementValidator) checkAsExpression(expr *ast.AsExpression) types.Type {
+	// Check left expression
+	leftType := v.checkExpression(expr.Left)
+	if leftType == nil {
+		return nil
+	}
+
+	// Resolve target type
+	targetType := v.resolveTypeExpression(expr.TargetType)
+	if targetType == nil {
+		v.ctx.AddError("cannot resolve target type in 'as' expression")
+		return nil
+	}
+
+	// Validate target is class or interface
+	targetUnderlying := types.GetUnderlyingType(targetType)
+	_, isInterface := targetUnderlying.(*types.InterfaceType)
+	_, isClass := targetUnderlying.(*types.ClassType)
+
+	if !isInterface && !isClass {
+		v.ctx.AddError("'as' operator requires class or interface type, got %s", targetType)
+		return targetType // Return target type to prevent cascading errors
+	}
+
+	// Validate left type is a class or nil
+	if leftType != types.NIL {
+		leftUnderlying := types.GetUnderlyingType(leftType)
+		if _, isClass := leftUnderlying.(*types.ClassType); !isClass {
+			v.ctx.AddError("'as' operator requires class instance, got %s", leftType)
+		}
+	}
+
+	// TODO: Validate inheritance/interface implementation relationship
+	return targetType
+}
+
+// checkImplementsExpression checks an 'implements' interface checking expression
+func (v *statementValidator) checkImplementsExpression(expr *ast.ImplementsExpression) types.Type {
+	// Check left expression
+	leftType := v.checkExpression(expr.Left)
+	if leftType == nil {
+		return nil
+	}
+
+	// Resolve target type
+	targetType := v.resolveTypeExpression(expr.TargetType)
+	if targetType == nil {
+		v.ctx.AddError("cannot resolve target type in 'implements' expression")
+		return nil
+	}
+
+	// Validate target is an interface
+	targetUnderlying := types.GetUnderlyingType(targetType)
+	if _, isInterface := targetUnderlying.(*types.InterfaceType); !isInterface {
+		v.ctx.AddError("'implements' operator requires interface type, got %s", targetType)
+	}
+
+	// Validate left type is a class or nil
+	if leftType != types.NIL {
+		leftUnderlying := types.GetUnderlyingType(leftType)
+		if _, isClass := leftUnderlying.(*types.ClassType); !isClass {
+			v.ctx.AddError("'implements' operator requires class instance, got %s", leftType)
+		}
+	}
+
+	return types.BOOLEAN
+}
+
+// checkIfExpression checks an inline if-then-else expression
+func (v *statementValidator) checkIfExpression(expr *ast.IfExpression) types.Type {
+	// Check condition is boolean
+	condType := v.checkExpression(expr.Condition)
+	if condType != nil && !v.isBoolean(condType) {
+		v.ctx.AddError("if expression condition must be boolean, got %s", condType)
+	}
+
+	// Check consequence
+	consequenceType := v.checkExpression(expr.Consequence)
+	if consequenceType == nil {
+		return nil
+	}
+
+	// If there's an alternative, check type compatibility
+	if expr.Alternative != nil {
+		alternativeType := v.checkExpression(expr.Alternative)
+		if alternativeType != nil && !v.typesCompatible(consequenceType, alternativeType) {
+			v.ctx.AddError("incompatible types in if-then-else: %s and %s",
+				consequenceType, alternativeType)
+		}
+	}
+
+	return consequenceType
+}
+
+// checkSelfExpression checks a 'Self' expression
+func (v *statementValidator) checkSelfExpression(expr *ast.SelfExpression) types.Type {
+	// 'Self' is only valid inside class methods
+	if v.ctx.CurrentClass == nil {
+		v.ctx.AddError("'Self' can only be used inside class methods")
+		return nil
+	}
+
+	return v.ctx.CurrentClass
+}
+
+// checkInheritedExpression checks an 'inherited' expression
+func (v *statementValidator) checkInheritedExpression(expr *ast.InheritedExpression) types.Type {
+	// 'inherited' is only valid inside class methods
+	if v.ctx.CurrentClass == nil {
+		v.ctx.AddError("'inherited' can only be used inside class methods")
+		return nil
+	}
+
+	// Validate that class has a parent
+	if v.ctx.CurrentClass.Parent == nil {
+		v.ctx.AddError("'inherited' used in class with no parent")
+		return nil
+	}
+
+	// TODO: Return appropriate type based on inherited call
+	return nil
+}
+
+// checkAddressOfExpression checks an address-of (@) expression
+func (v *statementValidator) checkAddressOfExpression(expr *ast.AddressOfExpression) types.Type {
+	// Check the operator expression (the function/method reference)
+	operatorType := v.checkExpression(expr.Operator)
+	if operatorType == nil {
+		return nil
+	}
+
+	// TODO: Return function pointer type
+	return nil
+}
+
+// checkLambdaExpression checks a lambda expression
+func (v *statementValidator) checkLambdaExpression(expr *ast.LambdaExpression) types.Type {
+	// Mark that we're in a lambda
+	oldInLambda := v.ctx.InLambda
+	v.ctx.InLambda = true
+	defer func() { v.ctx.InLambda = oldInLambda }()
+
+	// Validate lambda body
+	if expr.Body != nil {
+		v.validateStatement(expr.Body)
+	}
+
+	// TODO: Return function pointer type
+	return nil
+}
+
+// checkOldExpression checks an 'old' expression (for postconditions)
+func (v *statementValidator) checkOldExpression(expr *ast.OldExpression) types.Type {
+	// Check the identifier
+	if expr.Identifier != nil {
+		return v.checkIdentifier(expr.Identifier)
+	}
+	return nil
 }
