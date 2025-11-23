@@ -540,15 +540,20 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
   - Acceptance: ExceptionValue has no AST dependencies, exception tests pass
   - **Completed**: Added Metadata field to ExceptionValue structure. Updated Type() and Inspect() methods to prefer Metadata over ClassInfo with fallback for backward compatibility. Updated all exception creation sites (raiseMaxRecursionExceeded, evalRaiseStatement) to populate Metadata field. Updated matchesExceptionType() to use metadata for class hierarchy checks. Fixed metadata parent hierarchy for all built-in exception classes (Exception, ERangeError, EConvertError, EDivByZero, EAssertionFailed, EInvalidOp, EScriptStackOverflow, EHost). Deprecated ClassInfo field but kept it populated for backward compatibility during migration. All exception tests passing, including hierarchy tests.
 
-- [ ] **3.5.44** Remove Adapter Pattern
-  - Remove `InterpreterAdapter` interface
-  - Remove `adapter` field from Evaluator
-  - Remove all `EvalNode()` fallback calls
-  - Make Interpreter thin orchestrator only
-  - Update benchmarks to include variable access and function calls
-  - Files: `internal/interp/evaluator/evaluator.go`, `internal/interp/interpreter.go`
-  - Effort: 8-12 hours
-  - Acceptance: No adapter, all tests pass, benchmarks updated
+- [~] **3.5.44** Remove Adapter Pattern (PARTIAL - Core Complete, Cleanup Pending)
+  - ✅ Made Interpreter thin orchestrator - Eval() delegates to Evaluator
+  - ✅ Created evalDirect() bypass to prevent infinite recursion
+  - ✅ Fixed EnvironmentAdapter unwrapping in 5 adapter methods
+  - ✅ Fixed critical bugs (function lookup, nil pointer dereference)
+  - ⏳ Remove `InterpreterAdapter` interface (pending - still needed)
+  - ⏳ Remove `adapter` field from Evaluator (pending - still needed)
+  - ⏳ Remove remaining `EvalNode()` fallback calls (~42 locations)
+  - ⏳ Update benchmarks to include variable access and function calls
+  - Files: `internal/interp/evaluator/evaluator.go`, `internal/interp/interpreter.go`, `internal/interp/evaluator/visitor_declarations.go`, `internal/interp/evaluator/visitor_statements.go`, `internal/interp/exceptions.go`
+  - Effort: 8-12 hours (6 hours spent, 2-6 hours remaining)
+  - Acceptance: ✅ Interpreter is thin orchestrator, ⏳ Tests mostly passing (3 edge cases), ⏳ Adapter removal pending
+  - **Status**: Core architectural change complete. Interpreter.Eval() successfully delegates to Evaluator.Eval(). Most tests passing. Adapter pattern still in place for not-yet-migrated functionality. Edge cases: closure capture (1 test), assert output formatting (2 tests).
+  - **Commits**: fb590e2 (initial implementation), 5507d5a (bug fixes)
 
 ---
 
