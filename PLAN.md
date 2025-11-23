@@ -532,12 +532,13 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
   - Acceptance: RecordValue has no AST dependencies, record tests pass
   - **Completed**: Added RecordMetadata field to both RecordValue and RecordTypeValue. Created buildRecordMetadata() and buildMethodMetadata() helpers to convert AST declarations to runtime metadata. Updated GetMethod() to reconstruct FunctionDecl from MethodMetadata for backward compatibility. Updated all record creation sites (record.go, interpreter.go) to populate Metadata field. Created NewRecordValueWithMetadata() for AST-free creation. Deprecated Methods field but kept it populated for backward compatibility during migration. All record tests passing. RecordValue ready for AST-free runtime in Phase 3.5.44.
 
-- [ ] **3.5.43** Migrate ExceptionValue to AST-Free
+- [x] **3.5.43** Migrate ExceptionValue to AST-Free
   - Update ExceptionValue to use ClassMetadata references
   - Ensure exception creation/handling works through metadata
   - Files: `internal/interp/exceptions.go`
   - Effort: 3-4 hours
   - Acceptance: ExceptionValue has no AST dependencies, exception tests pass
+  - **Completed**: Added Metadata field to ExceptionValue structure. Updated Type() and Inspect() methods to prefer Metadata over ClassInfo with fallback for backward compatibility. Updated all exception creation sites (raiseMaxRecursionExceeded, evalRaiseStatement) to populate Metadata field. Updated matchesExceptionType() to use metadata for class hierarchy checks. Fixed metadata parent hierarchy for all built-in exception classes (Exception, ERangeError, EConvertError, EDivByZero, EAssertionFailed, EInvalidOp, EScriptStackOverflow, EHost). Deprecated ClassInfo field but kept it populated for backward compatibility during migration. All exception tests passing, including hierarchy tests.
 
 - [ ] **3.5.44** Remove Adapter Pattern
   - Remove `InterpreterAdapter` interface
