@@ -67,10 +67,77 @@ type InterpreterAdapter interface {
 	// CallBuiltinFunction executes a built-in function by name.
 	CallBuiltinFunction(name string, args []Value) Value
 
+	// IsBuiltinFunction checks if a name refers to a built-in function.
+	// This is used to avoid unnecessary function call attempts for undefined identifiers.
+	IsBuiltinFunction(name string) bool
+
 	// LookupFunction finds a function by name in the function registry.
 	// Returns the function declaration(s) and a boolean indicating success.
 	// Multiple functions may be returned for overloaded functions.
 	LookupFunction(name string) ([]*ast.FunctionDecl, bool)
+
+	// ===== Task 3.5.46: Specific Call Adapter Methods =====
+	// These methods replace generic EvalNodeWithContext calls with specific,
+	// well-named methods that describe what they do.
+
+	// EvalCallExpression evaluates a call expression using the interpreter's full logic.
+	// Task 3.5.46: Specific adapter for complex call cases that require:
+	// - Function pointer calls with closure restoration
+	// - Method dispatch (object, record, interface, class)
+	// - Overload resolution for user functions
+	// - Lazy and var parameter handling
+	// - Unit-qualified function calls
+	// - Constructor calls
+	// - Type casts
+	// - Default() function
+	// This replaces generic EvalNodeWithContext for CallExpression nodes.
+	EvalCallExpression(node *ast.CallExpression, ctx *ExecutionContext) Value
+
+	// EvalMemberAccessExpression evaluates a member access expression using the interpreter's full logic.
+	// Task 3.5.46: Specific adapter for complex member access cases that require:
+	// - Unit-qualified access (UnitName.Symbol)
+	// - Static class access (TClass.ClassVar, TClass.ClassName)
+	// - Enum type access (TColor.Red, TColor.Low, TColor.High)
+	// - Record type static access (TPoint.cOrigin)
+	// - Record instance access (record.Field, record.Method)
+	// - Object instance access (obj.Field, obj.Method, obj.Property)
+	// - Interface instance access (interface.Method)
+	// - Type cast value handling (TBase(child).ClassVar)
+	// - Nil object handling (nil.ClassVar)
+	// - Enum value properties (enumVal.Value)
+	// - Class/metaclass access (ClassValue.Member)
+	// This replaces generic EvalNodeWithContext for MemberAccessExpression nodes.
+	EvalMemberAccessExpression(node *ast.MemberAccessExpression, ctx *ExecutionContext) Value
+
+	// EvalMethodCallExpression evaluates a method call expression using the interpreter's full logic.
+	// Task 3.5.46: Specific adapter for method call cases including helper methods.
+	// This replaces generic EvalNodeWithContext for MethodCallExpression default cases.
+	EvalMethodCallExpression(node *ast.MethodCallExpression, ctx *ExecutionContext) Value
+
+	// EvalSetLiteral evaluates a set literal expression using the interpreter's full logic.
+	// Task 3.5.46: Specific adapter for set literal evaluation.
+	// This replaces generic EvalNodeWithContext for SetLiteral nodes.
+	EvalSetLiteral(node *ast.SetLiteral, ctx *ExecutionContext) Value
+
+	// EvalArrayLiteral evaluates an array literal expression using the interpreter's full logic.
+	// Task 3.5.46: Specific adapter for array literal evaluation with type inference.
+	// This replaces generic EvalNodeWithContext for ArrayLiteralExpression nodes.
+	EvalArrayLiteral(node *ast.ArrayLiteralExpression, ctx *ExecutionContext) Value
+
+	// EvalNewArrayExpression evaluates a new array expression using the interpreter's full logic.
+	// Task 3.5.46: Specific adapter for array construction.
+	// This replaces generic EvalNodeWithContext for NewArrayExpression nodes.
+	EvalNewArrayExpression(node *ast.NewArrayExpression, ctx *ExecutionContext) Value
+
+	// EvalIndexExpression evaluates an index expression using the interpreter's full logic.
+	// Task 3.5.46: Specific adapter for array/string indexing.
+	// This replaces generic EvalNodeWithContext for IndexExpression nodes.
+	EvalIndexExpression(node *ast.IndexExpression, ctx *ExecutionContext) Value
+
+	// EvalRangeExpression evaluates a range expression using the interpreter's full logic.
+	// Task 3.5.46: Specific adapter for range evaluation.
+	// This replaces generic EvalNodeWithContext for RangeExpression nodes.
+	EvalRangeExpression(node *ast.RangeExpression, ctx *ExecutionContext) Value
 
 	// Phase 3.5.4 - Phase 2B: Type system access methods
 	// These methods allow the Evaluator to access type registries during evaluation
@@ -619,6 +686,12 @@ type InterpreterAdapter interface {
 	// IsClassValue checks if a value is a ClassValue (metaclass reference).
 	// Returns true if the value is a class name used as a value (e.g., var c := TMyClass).
 	IsClassValue(value Value) bool
+
+	// CreateClassValueFromName creates a ClassValue from a class name.
+	// Task 3.5.46: Used by VisitIdentifier when an identifier resolves to a class name.
+	// Returns the ClassValue (metaclass reference) and true if the class exists,
+	// nil and false otherwise.
+	CreateClassValueFromName(className string) (Value, bool)
 
 	// ===== Task 3.5.29: Exception Handling Adapter Methods =====
 
