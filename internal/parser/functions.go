@@ -16,9 +16,6 @@ func isCallingConvention(literal string) bool {
 		ident.Equal(literal, "reference")
 }
 
-// based on the parser mode (traditional vs cursor).
-//
-
 // parseFunctionLocalDeclarations parses local VAR and CONST declarations inside a function.
 // PRE: cursor position such that Peek(1) might be VAR or CONST
 // POST: cursor is at last token of last declaration
@@ -703,9 +700,6 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 	return params
 }
 
-// based on the parser mode (traditional vs cursor).
-//
-
 // positioned at the first parameter token (not at LPAREN).
 // This is a wrapper used by function pointer type parsing.
 // Syntax: name: Type; name2: Type; ...
@@ -750,9 +744,6 @@ func (p *Parser) parseParameterListAtToken() []*ast.Parameter {
 
 	return params
 }
-
-// based on the parser mode (traditional vs cursor).
-//
 
 // Used for shorthand function pointer syntax: function(Integer, String): Boolean
 //
