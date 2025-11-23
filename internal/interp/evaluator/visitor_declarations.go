@@ -186,9 +186,146 @@ func (e *Evaluator) VisitEnumDecl(node *ast.EnumDecl, ctx *ExecutionContext) Val
 }
 
 // VisitRecordDecl evaluates a record declaration.
-// Phase 3.5.44: Delegate to adapter.EvalNodeWithContext() for complex record registration logic.
+// Task 3.5.49: Migrated from Interpreter to Evaluator.
+// Registers the record type with field definitions, methods, constants, and class variables.
 func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNodeWithContext(node, ctx)
+	if node == nil {
+		return e.newError(node, "nil record declaration")
+	}
+
+	recordName := node.Name.Value
+
+	// Build the record type from the declaration
+	fields := make(map[string]types.Type)
+	fieldDecls := make(map[string]*ast.FieldDecl)
+
+	for _, field := range node.Fields {
+		fieldName := field.Name.Value
+
+		// Handle type inference for fields
+		var fieldType types.Type
+		if field.Type != nil {
+			// Explicit type - resolve it
+			resolvedType := e.adapter.ResolveTypeFromExpression(field.Type)
+			if resolvedType == nil {
+				return e.newError(node, "unknown or invalid type for field '%s' in record '%s'", fieldName, recordName)
+			}
+			fieldType = resolvedType.(types.Type)
+		} else if field.InitValue != nil {
+			// Type inference from initializer
+			initValue := e.Eval(field.InitValue, ctx)
+			if isError(initValue) {
+				return initValue
+			}
+			fieldTypeAny := e.adapter.GetValueType(initValue)
+			if fieldTypeAny == nil {
+				return e.newError(node, "cannot infer type for field '%s' in record '%s'", fieldName, recordName)
+			}
+			fieldType = fieldTypeAny.(types.Type)
+		} else {
+			return e.newError(node, "field '%s' in record '%s' must have either a type or initializer", fieldName, recordName)
+		}
+
+		// Use lowercase key for case-insensitive access
+		fieldNameLower := ident.Normalize(fieldName)
+		fields[fieldNameLower] = fieldType
+		fieldDecls[fieldNameLower] = field
+	}
+
+	// Create the record type
+	recordType := types.NewRecordType(recordName, fields)
+
+	// Build maps for instance methods and static methods
+	methods := make(map[string]*ast.FunctionDecl)
+	staticMethods := make(map[string]*ast.FunctionDecl)
+	for _, method := range node.Methods {
+		methodKey := ident.Normalize(method.Name.Value)
+		if method.IsClassMethod {
+			staticMethods[methodKey] = method
+		} else {
+			methods[methodKey] = method
+		}
+	}
+
+	// Evaluate record constants
+	constants := make(map[string]Value)
+	for _, constant := range node.Constants {
+		constName := constant.Name.Value
+		constValue := e.Eval(constant.Value, ctx)
+		if isError(constValue) {
+			return constValue
+		}
+		constants[ident.Normalize(constName)] = constValue
+	}
+
+	// Initialize class variables
+	classVars := make(map[string]Value)
+	for _, classVar := range node.ClassVars {
+		varName := classVar.Name.Value
+		var varValue Value
+
+		if classVar.InitValue != nil {
+			// Evaluate the initializer
+			varValue = e.Eval(classVar.InitValue, ctx)
+			if isError(varValue) {
+				return varValue
+			}
+		} else {
+			// Use type to determine zero value
+			var varType types.Type
+			if classVar.Type != nil {
+				resolvedType := e.adapter.ResolveTypeFromExpression(classVar.Type)
+				if resolvedType == nil {
+					return e.newError(node, "unknown type for class variable '%s' in record '%s'", varName, recordName)
+				}
+				varType = resolvedType.(types.Type)
+			}
+			varValue = e.adapter.GetZeroValueForType(varType)
+		}
+
+		classVars[ident.Normalize(varName)] = varValue
+	}
+
+	// Process properties
+	for _, prop := range node.Properties {
+		propName := prop.Name.Value
+		propNameLower := ident.Normalize(propName)
+
+		// Resolve property type
+		propTypeAny := e.adapter.ResolveTypeFromExpression(prop.Type)
+		if propTypeAny == nil {
+			return e.newError(node, "unknown type for property '%s' in record '%s'", propName, recordName)
+		}
+		propType := propTypeAny.(types.Type)
+
+		// Create property info
+		propInfo := &types.RecordPropertyInfo{
+			Name:       propName,
+			Type:       propType,
+			ReadField:  prop.ReadField,
+			WriteField: prop.WriteField,
+			IsDefault:  prop.IsDefault,
+		}
+
+		// Store in recordType.Properties (case-insensitive)
+		recordType.Properties[propNameLower] = propInfo
+	}
+
+	// Build RecordTypeValue using adapter
+	recordTypeValue := e.adapter.BuildRecordTypeValue(
+		recordName,
+		recordType,
+		fieldDecls,
+		methods,
+		staticMethods,
+		constants,
+		classVars,
+	)
+
+	// Register in environment and TypeSystem using adapter
+	e.adapter.RegisterRecordTypeInEnvironment(recordName, recordTypeValue, ctx)
+
+	return &runtime.NilValue{}
 }
 
 // VisitHelperDecl evaluates a helper declaration (type extension).
@@ -261,9 +398,89 @@ func (e *Evaluator) VisitArrayDecl(node *ast.ArrayDecl, ctx *ExecutionContext) V
 }
 
 // VisitTypeDeclaration evaluates a type alias declaration.
-// Phase 3.5.44: Delegate to adapter.EvalNodeWithContext() for type alias registration logic.
+// Task 3.5.49: Migrated from Interpreter to Evaluator.
+// Handles type aliases, subrange types, and function pointer types.
 func (e *Evaluator) VisitTypeDeclaration(node *ast.TypeDeclaration, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNodeWithContext(node, ctx)
+	if node == nil {
+		return e.newError(node, "nil type declaration")
+	}
+
+	// Handle subrange types
+	if node.IsSubrange {
+		// Evaluate low bound
+		lowBoundVal := e.Eval(node.LowBound, ctx)
+		if isError(lowBoundVal) {
+			return lowBoundVal
+		}
+
+		// Evaluate high bound
+		highBoundVal := e.Eval(node.HighBound, ctx)
+		if isError(highBoundVal) {
+			return highBoundVal
+		}
+
+		// Build and register subrange type using adapter
+		subrangeTypeValue, err := e.adapter.BuildSubrangeTypeValue(node.Name.Value, lowBoundVal, highBoundVal)
+		if err != nil {
+			return e.newError(node, err.Error())
+		}
+
+		e.adapter.RegisterSubrangeTypeInEnvironment(node.Name.Value, subrangeTypeValue, ctx)
+		return &runtime.NilValue{}
+	}
+
+	// Handle function pointer type declarations
+	if node.IsFunctionPointer {
+		if node.FunctionPointerType == nil {
+			return e.newError(node, "function pointer type declaration has no type information")
+		}
+
+		// Function pointer types are validated by the semantic analyzer
+		// At runtime, we just register the type name as existing
+		typeKey := "__funcptr_type_" + node.Name.Value
+		ctx.Env().Define(typeKey, &runtime.StringValue{Value: "function_pointer_type"})
+
+		return &runtime.NilValue{}
+	}
+
+	// Handle type aliases
+	if node.IsAlias {
+		// Check for inline/complex type expressions that don't need runtime storage
+		switch node.AliasedType.(type) {
+		case *ast.ClassOfTypeNode:
+			// Metaclass types - semantic analyzer handles them
+			return &runtime.NilValue{}
+		case *ast.SetTypeNode:
+			// Set types - semantic analyzer handles them
+			return &runtime.NilValue{}
+		case *ast.ArrayTypeNode:
+			// Inline array types - semantic analyzer handles them
+			return &runtime.NilValue{}
+		case *ast.FunctionPointerTypeNode:
+			// Function pointer types - already handled earlier
+			return &runtime.NilValue{}
+		}
+
+		// For TypeAnnotation with InlineType, also skip runtime resolution
+		if typeAnnot, ok := node.AliasedType.(*ast.TypeAnnotation); ok && typeAnnot.InlineType != nil {
+			return &runtime.NilValue{}
+		}
+
+		// Resolve the aliased type by name (handles simple named types only)
+		aliasedType, err := e.adapter.GetType(node.AliasedType.String())
+		if err != nil {
+			return e.newError(node, "unknown type '%s' in type alias", node.AliasedType.String())
+		}
+
+		// Build and register type alias using adapter
+		typeAliasValue := e.adapter.BuildTypeAliasValue(node.Name.Value, aliasedType)
+		e.adapter.RegisterTypeAliasInEnvironment(node.Name.Value, typeAliasValue, ctx)
+
+		return &runtime.NilValue{}
+	}
+
+	// Non-alias type declarations (future)
+	return e.newError(node, "non-alias type declarations not yet supported")
 }
 
 // VisitSetDecl evaluates a set declaration.

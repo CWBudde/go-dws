@@ -758,6 +758,76 @@ type InterpreterAdapter interface {
 	// EvalStatement evaluates a single statement in the given context.
 	// Used by exception handlers to evaluate the handler statement.
 	EvalStatement(stmt ast.Statement, ctx *ExecutionContext)
+
+	// ===== Task 3.5.49: Record and Type Declaration Adapter Methods =====
+
+	// BuildRecordTypeValue creates a RecordTypeValue from record declaration components.
+	// This encapsulates the creation of interp-specific types that the evaluator cannot create directly.
+	// Parameters:
+	//   - recordName: The name of the record type
+	//   - recordType: The types.RecordType with field definitions
+	//   - fieldDecls: Map of field names to field declarations (for initializers)
+	//   - methods: Map of method names to method declarations
+	//   - staticMethods: Map of static method names to method declarations
+	//   - constants: Map of constant names to evaluated values
+	//   - classVars: Map of class variable names to evaluated values
+	// Returns the RecordTypeValue (as any) for registration.
+	BuildRecordTypeValue(
+		recordName string,
+		recordType any,
+		fieldDecls map[string]*ast.FieldDecl,
+		methods map[string]*ast.FunctionDecl,
+		staticMethods map[string]*ast.FunctionDecl,
+		constants map[string]Value,
+		classVars map[string]Value,
+	) any
+
+	// RegisterRecordTypeInEnvironment registers a record type in the environment.
+	// This handles the special key naming convention and stores the RecordTypeValue.
+	// Parameters:
+	//   - recordName: The name of the record type
+	//   - recordTypeValue: The RecordTypeValue (as any) to register
+	//   - ctx: The execution context with the environment
+	RegisterRecordTypeInEnvironment(recordName string, recordTypeValue any, ctx *ExecutionContext)
+
+	// BuildTypeAliasValue creates a TypeAliasValue from type alias components.
+	// Parameters:
+	//   - aliasName: The name of the type alias
+	//   - aliasedType: The underlying type being aliased
+	// Returns the TypeAliasValue (as any) for registration.
+	BuildTypeAliasValue(aliasName string, aliasedType any) any
+
+	// RegisterTypeAliasInEnvironment registers a type alias in the environment.
+	// Parameters:
+	//   - aliasName: The name of the type alias
+	//   - typeAliasValue: The TypeAliasValue (as any) to register
+	//   - ctx: The execution context with the environment
+	RegisterTypeAliasInEnvironment(aliasName string, typeAliasValue any, ctx *ExecutionContext)
+
+	// BuildSubrangeTypeValue creates a SubrangeTypeValue from subrange components.
+	// Parameters:
+	//   - typeName: The name of the subrange type
+	//   - lowBound: The low bound value (IntegerValue)
+	//   - highBound: The high bound value (IntegerValue)
+	// Returns the SubrangeTypeValue (as any) for registration, or an error.
+	BuildSubrangeTypeValue(typeName string, lowBound, highBound Value) (any, error)
+
+	// RegisterSubrangeTypeInEnvironment registers a subrange type in the environment.
+	// Parameters:
+	//   - typeName: The name of the subrange type
+	//   - subrangeTypeValue: The SubrangeTypeValue (as any) to register
+	//   - ctx: The execution context with the environment
+	RegisterSubrangeTypeInEnvironment(typeName string, subrangeTypeValue any, ctx *ExecutionContext)
+
+	// ResolveTypeFromExpression resolves a type from an AST type expression.
+	// This handles type names, inline types, and complex type expressions.
+	// Returns the resolved types.Type (as any) or nil if resolution fails.
+	ResolveTypeFromExpression(typeExpr ast.TypeExpression) any
+
+	// GetValueType returns the types.Type for a runtime value.
+	// Used for type inference from initializer values.
+	// Returns the type (as any) or nil if the type cannot be determined.
+	GetValueType(value Value) any
 }
 
 // Evaluator is responsible for evaluating DWScript AST nodes.
