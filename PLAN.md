@@ -367,7 +367,7 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
   - ✅ Interpreter successfully delegates to Evaluator
   - ⏳ Full adapter removal (interface deletion, field removal) pending on declaration migration
 
-**Phase 3.5 Progress**: 43 of 60 tasks complete (71.7%) - Tasks 3.5.45-3.5.60 pending on feature branch
+**Phase 3.5 Progress**: 45 of 60 tasks complete (75.0%) - Tasks 3.5.45, 3.5.48-3.5.60 pending
 
 #### Phase A: Stabilization (3.5.45)
 
@@ -386,23 +386,25 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
 
 ---
 
-#### Phase B: Extract Shared Services (3.5.46-3.5.47)
+#### Phase B: Extract Shared Services (3.5.46-3.5.47) ✅ COMPLETE
 
 Before migrating logic, extract reusable components that both Interpreter and Evaluator can use directly.
 
-- [ ] **3.5.46** Extract Type Registry Service
-  - Create standalone `TypeRegistry` in `internal/interp/types/type_system.go`
-  - Move all class/record/interface/enum/helper lookup from Interpreter
-  - Provide direct access methods eliminating adapter dependency
-  - Both Interpreter and Evaluator reference same TypeRegistry instance
+- [x] **3.5.46** Extract Type Registry Service ✅
+  - ✅ Created standalone `TypeRegistry` in `internal/interp/types/type_system.go`
+  - ✅ Moved all class/record/interface/enum/helper lookup from Interpreter
+  - ✅ Provided direct access methods eliminating adapter dependency
+  - ✅ Both Interpreter and Evaluator reference same TypeRegistry instance
+  - ✅ Added comprehensive test coverage in `type_system_test.go` and `type_registry_test.go`
   - Files: `internal/interp/types/type_system.go`, `internal/interp/interpreter.go`, `internal/interp/evaluator/evaluator.go`
   - Acceptance: TypeSystem works standalone, Evaluator accesses directly without adapter
 
-- [ ] **3.5.47** Extract Function Registry Service
-  - Create standalone `FunctionRegistry` in `internal/interp/types/function_registry.go`
-  - Move function lookup/resolution and overload handling from Interpreter
-  - Include builtin function registration and lookup
-  - Both Interpreter and Evaluator reference same FunctionRegistry instance
+- [x] **3.5.47** Extract Function Registry Service ✅
+  - ✅ Created standalone `FunctionRegistry` in `internal/interp/types/function_registry.go`
+  - ✅ Moved function lookup/resolution and overload handling from Interpreter
+  - ✅ Included builtin function registration and lookup
+  - ✅ Both Interpreter and Evaluator reference same FunctionRegistry instance
+  - ✅ Added comprehensive test coverage in `function_registry_test.go`
   - Files: `internal/interp/types/function_registry.go`, `internal/interp/interpreter.go`
   - Acceptance: FunctionRegistry works standalone, Evaluator can lookup functions directly
 
@@ -583,9 +585,16 @@ Final cleanup after all logic is migrated.
 - FunctionRegistry builtin support (Task 3.5.47 preparation)
 - Parity tests for regression prevention
 
-**Status of `feat/removal_of_adapter_pattern` branch**: ABANDONED
+**Status of `feat/removal_of_adapter_pattern` branch**: ABANDONED (Nov 2025 analysis)
 
-The branch attempted to migrate tasks 3.5.45-3.5.60 but accumulated 57 failing tests.
+The branch attempted to migrate tasks 3.5.45-3.5.60 but has critical issues:
+
+- **50+ failing tests** vs 4 on main (pre-existing interface/inheritance issues)
+- **Stack overflow panics** due to infinite recursion between Interpreter.Eval ↔ Evaluator.Eval
+- Root cause: Expanding the adapter interface created mutual recursion instead of eliminating dependencies
+- Salvaged: `type_registry_test.go` (342 lines of tests for TypeSystem)
+- Not salvageable: interpreter.go changes (+1,234 lines), evaluator changes - they cause the recursion
+
 See "Lessons Learned" section below.
 
 ---
