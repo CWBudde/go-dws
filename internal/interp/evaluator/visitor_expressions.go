@@ -56,15 +56,16 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	if valRaw, ok := ctx.Env().Get(node.Value); ok {
 		val := valRaw.(Value)
 		// Check if this is an external variable (not yet supported)
-		if e.adapter.IsExternalVar(val) {
-			extVarName := e.adapter.GetExternalVarName(val)
-			return e.newError(node, "Unsupported external variable access: %s", extVarName)
+		// Task 3.5.73: Use type assertion instead of adapter
+		if extVar, ok := val.(ExternalVarAccessor); ok {
+			return e.newError(node, "Unsupported external variable access: %s", extVar.ExternalVarName())
 		}
 
 		// Check if this is a lazy parameter (LazyThunk)
 		// If so, force evaluation - each access re-evaluates the expression
-		if e.adapter.IsLazyThunk(val) {
-			return e.adapter.EvaluateLazyThunk(val)
+		// Task 3.5.73: Use type assertion instead of adapter
+		if thunk, ok := val.(LazyEvaluator); ok {
+			return thunk.Evaluate()
 		}
 
 		// Check if this is a var parameter (ReferenceValue)
