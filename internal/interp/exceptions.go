@@ -47,6 +47,10 @@ func (e *ExceptionValue) Type() string {
 // Inspect returns a string representation of the exception.
 // Task 3.5.43: Updated to prefer Metadata over ClassInfo.
 func (e *ExceptionValue) Inspect() string {
+	// Phase 3.5.44: Add nil check to prevent panic
+	if e == nil {
+		return "EXCEPTION: <nil>"
+	}
 	// Prefer metadata if available
 	if e.Metadata != nil {
 		return fmt.Sprintf("%s: %s", e.Metadata.Name, e.Message)

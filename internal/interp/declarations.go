@@ -797,7 +797,10 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 		}
 	}
 
-	// Register interface in registry (use normalized key for case-insensitive lookups)
+	// Register interface in registry
+	// Task 3.5.46: Register interface in TypeSystem for shared access
+	i.typeSystem.RegisterInterface(interfaceInfo.Name, interfaceInfo)
+	// Also maintain legacy map for backward compatibility (use normalized key for case-insensitive lookups)
 	i.interfaces[ident.Normalize(interfaceInfo.Name)] = interfaceInfo
 
 	return &NilValue{}
