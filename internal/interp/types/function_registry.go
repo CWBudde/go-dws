@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/interp/builtins"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -17,7 +18,11 @@ import (
 // - Case-insensitive function name lookup
 // - Multiple overloads per function name
 // - Qualified name support (Unit.Function)
+// - Builtin function registration and lookup
 // - Efficient lookup operations
+//
+// Task 3.5.47: Enhanced to support both AST-based functions and builtin functions.
+// This allows both Interpreter and Evaluator to use the same registry instance.
 type FunctionRegistry struct {
 	// functions maps function names to overload lists (case-insensitive)
 	functions *ident.Map[[]*FunctionEntry]
@@ -25,6 +30,11 @@ type FunctionRegistry struct {
 	// qualifiedFunctions maps "unitname.functionname" to overload lists (case-insensitive)
 	// This supports explicit unit qualification (e.g., Math.Abs)
 	qualifiedFunctions *ident.Map[[]*FunctionEntry]
+
+	// builtins is the registry for built-in functions
+	// Defaults to builtins.DefaultRegistry, but can be customized per instance
+	// Task 3.5.47: Support for builtin function registration and lookup
+	builtins *builtins.Registry
 }
 
 // FunctionEntry represents a registered function with metadata.
@@ -40,10 +50,20 @@ type FunctionEntry struct {
 }
 
 // NewFunctionRegistry creates a new empty function registry.
+// The builtin registry defaults to builtins.DefaultRegistry.
+// Use NewFunctionRegistryWithBuiltins to provide a custom builtin registry.
 func NewFunctionRegistry() *FunctionRegistry {
+	return NewFunctionRegistryWithBuiltins(builtins.DefaultRegistry)
+}
+
+// NewFunctionRegistryWithBuiltins creates a new function registry with a custom builtin registry.
+// This is useful for testing or when you want to use a different set of builtin functions.
+// Task 3.5.47: Support for custom builtin registries.
+func NewFunctionRegistryWithBuiltins(builtinReg *builtins.Registry) *FunctionRegistry {
 	return &FunctionRegistry{
 		functions:          ident.NewMap[[]*FunctionEntry](),
 		qualifiedFunctions: ident.NewMap[[]*FunctionEntry](),
+		builtins:           builtinReg,
 	}
 }
 
@@ -313,4 +333,80 @@ func (r *FunctionRegistry) ValidateNoConflicts(name string, paramCount int, hasO
 	}
 
 	return nil
+}
+
+// ===== Builtin Function Support (Task 3.5.47) =====
+
+// LookupBuiltin looks up a builtin function by name (case-insensitive).
+// Returns the builtin function implementation and true if found, nil and false otherwise.
+// Task 3.5.47: Direct access to builtin functions for Evaluator.
+func (r *FunctionRegistry) LookupBuiltin(name string) (builtins.BuiltinFunc, bool) {
+	if r.builtins == nil {
+		return nil, false
+	}
+	return r.builtins.Lookup(name)
+}
+
+// GetBuiltinInfo retrieves the full FunctionInfo for a builtin function by name (case-insensitive).
+// Returns the info and true if found, nil and false otherwise.
+// Task 3.5.47: Metadata access for builtin functions.
+func (r *FunctionRegistry) GetBuiltinInfo(name string) (*builtins.FunctionInfo, bool) {
+	if r.builtins == nil {
+		return nil, false
+	}
+	return r.builtins.Get(name)
+}
+
+// IsBuiltin checks if a function name refers to a builtin function.
+// The check is case-insensitive.
+// Task 3.5.47: Helper to distinguish builtin from user-defined functions.
+func (r *FunctionRegistry) IsBuiltin(name string) bool {
+	if r.builtins == nil {
+		return false
+	}
+	_, ok := r.builtins.Lookup(name)
+	return ok
+}
+
+// GetBuiltinRegistry returns the underlying builtin registry.
+// This is useful for advanced operations like registering custom builtins.
+// Task 3.5.47: Direct registry access when needed.
+func (r *FunctionRegistry) GetBuiltinRegistry() *builtins.Registry {
+	return r.builtins
+}
+
+// SetBuiltinRegistry sets the builtin registry to use.
+// This is useful for testing or when you want to swap in a different builtin registry.
+// Task 3.5.47: Allow changing the builtin registry after creation.
+func (r *FunctionRegistry) SetBuiltinRegistry(reg *builtins.Registry) {
+	r.builtins = reg
+}
+
+// LookupAny looks up a function by name, checking both user-defined and builtin functions.
+// Returns:
+//   - userDefined: AST declarations if it's a user-defined function, nil otherwise
+//   - isBuiltin: true if the function is a builtin
+//   - found: true if any function (user-defined or builtin) was found
+//
+// User-defined functions take precedence over builtin functions.
+// Task 3.5.47: Unified lookup for both function types.
+func (r *FunctionRegistry) LookupAny(name string) (userDefined []*ast.FunctionDecl, isBuiltin bool, found bool) {
+	// Check user-defined functions first
+	if decls := r.Lookup(name); len(decls) > 0 {
+		return decls, false, true
+	}
+
+	// Check builtin functions
+	if r.IsBuiltin(name) {
+		return nil, true, true
+	}
+
+	return nil, false, false
+}
+
+// ExistsAny checks if a function with the given name exists in either user-defined or builtin registry.
+// The check is case-insensitive.
+// Task 3.5.47: Unified existence check.
+func (r *FunctionRegistry) ExistsAny(name string) bool {
+	return r.Exists(name) || r.IsBuiltin(name)
 }
