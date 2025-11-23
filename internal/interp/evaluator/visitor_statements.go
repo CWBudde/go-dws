@@ -52,10 +52,11 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 	if ctx.Exception() != nil {
 		// Type assert to ExceptionValue to get Inspect() method
 		// This is safe because only ExceptionValue instances are set via SetException()
+		// Phase 3.5.44: Add nil check to prevent panic on nil *ExceptionValue
 		type ExceptionInspector interface {
 			Inspect() string
 		}
-		if exc, ok := ctx.Exception().(ExceptionInspector); ok {
+		if exc, ok := ctx.Exception().(ExceptionInspector); ok && exc != nil {
 			return e.newError(node, "uncaught exception: %s", exc.Inspect())
 		}
 		return e.newError(node, "uncaught exception: %v", ctx.Exception())
@@ -165,7 +166,8 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 			typeName := node.Type.String()
 
 			// Lookup record type
-			if _, ok := e.adapter.LookupRecord(typeName); !ok {
+			// Task 3.5.46: Use TypeSystem directly instead of adapter
+			if !e.typeSystem.HasRecord(typeName) {
 				return e.newError(node, "unknown type '%s'", typeName)
 			}
 
@@ -231,7 +233,8 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 			// Interface wrapping if target type is interface
 			if node.Type != nil {
 				typeName := node.Type.String()
-				if _, exists := e.adapter.LookupInterface(typeName); exists {
+				// Task 3.5.46: Use TypeSystem directly instead of adapter
+				if e.typeSystem.HasInterface(typeName) {
 					// Check if value is already an interface
 					if value.Type() != "INTERFACE" {
 						// Try to wrap in interface
@@ -318,7 +321,8 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 		typeName := node.Type.String()
 
 		// Lookup record type
-		if _, ok := e.adapter.LookupRecord(typeName); !ok {
+		// Task 3.5.46: Use TypeSystem directly instead of adapter
+		if !e.typeSystem.HasRecord(typeName) {
 			return e.newError(node, "unknown type '%s'", typeName)
 		}
 
