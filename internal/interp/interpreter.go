@@ -258,12 +258,39 @@ func (i *Interpreter) GetEvaluator() *evaluator.Evaluator {
 
 // EvalNode implements the evaluator.InterpreterAdapter interface.
 // This allows the Evaluator to delegate back to the Interpreter during migration.
-// Phase 3.5.1: This is temporary and will be removed once all evaluation logic
-// is moved to the Evaluator.
+// Phase 3.5.44: Now calls evalDirect() to avoid infinite recursion.
+// The new Interpreter.Eval() delegates to Evaluator, which may call back here for not-yet-migrated cases.
 func (i *Interpreter) EvalNode(node ast.Node) evaluator.Value {
-	// Delegate to the legacy Eval method
-	// The cast is safe because our Value type matches evaluator.Value interface
-	return i.Eval(node)
+	// Use evalDirect to bypass the Evaluator delegation and use the legacy switch logic
+	// This prevents infinite recursion: Eval() → Evaluator → adapter.EvalNode() → evalDirect()
+	return i.evalDirect(node)
+}
+
+// EvalNodeWithContext evaluates a node with proper environment synchronization.
+// Phase 3.5.44: This method syncs the interpreter's environment from the context
+// before calling evalDirect, ensuring that scoped environments (from loops, functions, etc.)
+// are properly respected by the legacy evaluation code.
+func (i *Interpreter) EvalNodeWithContext(node ast.Node, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// Save the current environment to restore after evaluation
+	savedEnv := i.env
+
+	// Sync the interpreter's environment from the context
+	// The context's Env() returns an EnvironmentAdapter wrapping the actual *Environment
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+
+	// Ensure environment is restored even on panic
+	defer func() {
+		i.env = savedEnv
+	}()
+
+	// Use evalDirect to bypass the Evaluator delegation and use the legacy switch logic
+	return i.evalDirect(node)
 }
 
 // Phase 3.5.4 - Phase 2A: Function call system adapter methods
@@ -2035,9 +2062,21 @@ func (i *Interpreter) CheckImplements(obj evaluator.Value, interfaceName string)
 // Task 3.5.8: Adapter method for function pointer creation.
 func (i *Interpreter) CreateFunctionPointer(fn *ast.FunctionDecl, closure any) evaluator.Value {
 	// Convert closure to Environment
+	// Phase 3.5.44: Handle EnvironmentAdapter unwrapping
 	var env *Environment
 	if closure != nil {
-		env = closure.(*Environment)
+		if envAdapter, ok := closure.(*evaluator.EnvironmentAdapter); ok {
+			underlying := envAdapter.Underlying()
+			if e, ok := underlying.(*Environment); ok {
+				env = e
+			} else {
+				panic(fmt.Sprintf("CreateFunctionPointer: EnvironmentAdapter.Underlying() must return *Environment, got %T", underlying))
+			}
+		} else if e, ok := closure.(*Environment); ok {
+			env = e
+		} else {
+			panic(fmt.Sprintf("CreateFunctionPointer: closure must be *Environment or *EnvironmentAdapter, got %T", closure))
+		}
 	}
 
 	return &FunctionPointerValue{
@@ -2050,9 +2089,21 @@ func (i *Interpreter) CreateFunctionPointer(fn *ast.FunctionDecl, closure any) e
 // Task 3.5.8: Adapter method for lambda creation.
 func (i *Interpreter) CreateLambda(lambda *ast.LambdaExpression, closure any) evaluator.Value {
 	// Convert closure to Environment
+	// Phase 3.5.44: Handle EnvironmentAdapter unwrapping
 	var env *Environment
 	if closure != nil {
-		env = closure.(*Environment)
+		if envAdapter, ok := closure.(*evaluator.EnvironmentAdapter); ok {
+			underlying := envAdapter.Underlying()
+			if e, ok := underlying.(*Environment); ok {
+				env = e
+			} else {
+				panic(fmt.Sprintf("CreateLambda: EnvironmentAdapter.Underlying() must return *Environment, got %T", underlying))
+			}
+		} else if e, ok := closure.(*Environment); ok {
+			env = e
+		} else {
+			panic(fmt.Sprintf("CreateLambda: closure must be *Environment or *EnvironmentAdapter, got %T", closure))
+		}
 	}
 
 	return &FunctionPointerValue{
@@ -2504,9 +2555,14 @@ func (i *Interpreter) GetExternalVarName(value evaluator.Value) string {
 // Task 3.5.23: Enables lazy parameter evaluation in user function calls.
 func (i *Interpreter) CreateLazyThunk(expr ast.Expression, env any) evaluator.Value {
 	// Convert environment from any to *Environment
-	environment, ok := env.(*Environment)
-	if !ok {
-		panic(fmt.Sprintf("CreateLazyThunk: env must be *Environment, got %T", env))
+	// Phase 3.5.44: Handle EnvironmentAdapter unwrapping
+	var environment *Environment
+	if envAdapter, ok := env.(*evaluator.EnvironmentAdapter); ok {
+		environment = envAdapter.Underlying().(*Environment)
+	} else if envVal, ok := env.(*Environment); ok {
+		environment = envVal
+	} else {
+		panic(fmt.Sprintf("CreateLazyThunk: env must be *Environment or *EnvironmentAdapter, got %T", env))
 	}
 	return NewLazyThunk(expr, environment, i)
 }
@@ -2515,9 +2571,14 @@ func (i *Interpreter) CreateLazyThunk(expr ast.Expression, env any) evaluator.Va
 // Task 3.5.23: Enables pass-by-reference semantics for var parameters.
 func (i *Interpreter) CreateReferenceValue(varName string, env any) evaluator.Value {
 	// Convert environment from any to *Environment
-	environment, ok := env.(*Environment)
-	if !ok {
-		panic(fmt.Sprintf("CreateReferenceValue: env must be *Environment, got %T", env))
+	// Phase 3.5.44: Handle EnvironmentAdapter unwrapping
+	var environment *Environment
+	if envAdapter, ok := env.(*evaluator.EnvironmentAdapter); ok {
+		environment = envAdapter.Underlying().(*Environment)
+	} else if envVal, ok := env.(*Environment); ok {
+		environment = envVal
+	} else {
+		panic(fmt.Sprintf("CreateReferenceValue: env must be *Environment or *EnvironmentAdapter, got %T", env))
 	}
 	return &ReferenceValue{
 		Env:     environment,
@@ -2769,7 +2830,20 @@ func (i *Interpreter) popCallStack() {
 
 // Eval evaluates an AST node and returns its value.
 // This is the main entry point for the interpreter.
+// Phase 3.5.44: Interpreter is now a thin orchestrator that delegates to Evaluator.
 func (i *Interpreter) Eval(node ast.Node) Value {
+	// Track the current node for error reporting
+	i.currentNode = node
+
+	// Delegate all evaluation to the Evaluator
+	// The Evaluator uses the visitor pattern and may delegate back for not-yet-migrated cases
+	return i.evaluatorInstance.Eval(node, i.ctx)
+}
+
+// evalDirect evaluates a node using the legacy switch-based approach.
+// Phase 3.5.44: This is used as a fallback for cases not yet fully migrated to the Evaluator.
+// This method will be gradually phased out as more functionality moves to the Evaluator.
+func (i *Interpreter) evalDirect(node ast.Node) Value {
 	// Track the current node for error reporting
 	i.currentNode = node
 
