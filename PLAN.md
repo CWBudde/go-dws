@@ -545,14 +545,15 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
   - ✅ Created evalDirect() bypass to prevent infinite recursion
   - ✅ Fixed EnvironmentAdapter unwrapping in 5 adapter methods
   - ✅ Fixed critical bugs (function lookup, nil pointer dereference)
-  - ⏳ Remove `InterpreterAdapter` interface (pending - still needed)
-  - ⏳ Remove `adapter` field from Evaluator (pending - still needed)
-  - ⏳ Remove remaining `EvalNode()` fallback calls (~42 locations)
+  - ✅ Replaced most generic EvalNode/EvalNodeWithContext calls with specific methods (3.5.46, 3.5.47)
+  - ⏳ Remove `InterpreterAdapter` interface (pending - task 3.5.48)
+  - ⏳ Remove `adapter` field from Evaluator (pending - task 3.5.48)
+  - ⏳ Remove remaining `EvalNodeWithContext()` fallback calls (11 locations: 1 in evaluator.go, 10 in visitor_declarations.go)
   - ⏳ Update benchmarks to include variable access and function calls
   - Files: `internal/interp/evaluator/evaluator.go`, `internal/interp/interpreter.go`, `internal/interp/evaluator/visitor_declarations.go`, `internal/interp/evaluator/visitor_statements.go`, `internal/interp/exceptions.go`
   - Effort: 8-12 hours (6 hours spent, 2-6 hours remaining)
   - Acceptance: ✅ Interpreter is thin orchestrator, ⏳ Tests mostly passing (3 edge cases), ⏳ Adapter removal pending
-  - **Status**: Core architectural change complete. Interpreter.Eval() successfully delegates to Evaluator.Eval(). Most tests passing. Adapter pattern still in place for not-yet-migrated functionality. Edge cases: closure capture (1 test), assert output formatting (2 tests).
+  - **Status**: Core architectural change complete. Interpreter.Eval() successfully delegates to Evaluator.Eval(). Most tests passing. Generic adapter calls reduced from ~42 to 11 via tasks 3.5.46 and 3.5.47. Remaining adapter calls use specific, descriptive method names. Full adapter removal blocked on declaration migration (visitor_declarations.go). Edge cases: closure capture (1 test), assert output formatting (2 tests).
 
 - [ ] **3.5.45** Fix Edge Case Test Failures
   - Fix closure capture test (TestSimpleClosureCapture returns 0 instead of 50)
