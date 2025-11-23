@@ -508,6 +508,66 @@ func (i *Interpreter) EvalHelperDeclaration(node *ast.HelperDecl, ctx *evaluator
 	return i.evalHelperDeclaration(node)
 }
 
+// ===== Task 3.5.51: Function/Operator Declaration Adapter Methods =====
+
+// EvalFunctionDeclaration evaluates a function declaration using the interpreter's full logic.
+// Task 3.5.51: Specific adapter method to replace generic EvalNodeWithContext for FunctionDecl nodes.
+func (i *Interpreter) EvalFunctionDeclaration(node *ast.FunctionDecl, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// Save the current environment to restore after evaluation
+	savedEnv := i.env
+
+	// Sync the interpreter's environment from the context
+	// The context's Env() returns an EnvironmentAdapter wrapping the actual *Environment
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+
+	// Ensure environment is restored even on panic
+	defer func() {
+		i.env = savedEnv
+		// Task 3.5.51: Sync exception state back to context only if an exception was raised
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	// Delegate to the interpreter's function declaration evaluation logic
+	return i.evalFunctionDeclaration(node)
+}
+
+// EvalOperatorDeclaration evaluates an operator declaration using the interpreter's full logic.
+// Task 3.5.51: Specific adapter method to replace generic EvalNodeWithContext for OperatorDecl nodes.
+func (i *Interpreter) EvalOperatorDeclaration(node *ast.OperatorDecl, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// Save the current environment to restore after evaluation
+	savedEnv := i.env
+
+	// Sync the interpreter's environment from the context
+	// The context's Env() returns an EnvironmentAdapter wrapping the actual *Environment
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+
+	// Ensure environment is restored even on panic
+	defer func() {
+		i.env = savedEnv
+		// Task 3.5.51: Sync exception state back to context only if an exception was raised
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	// Delegate to the interpreter's operator declaration evaluation logic
+	return i.evalOperatorDeclaration(node)
+}
+
 // LookupFunction finds a function by name in the function registry.
 func (i *Interpreter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
 	// DWScript is case-insensitive, so normalize to lowercase
@@ -982,12 +1042,19 @@ func (i *Interpreter) CreateArrayZeroValue(arrayTypeName string) (evaluator.Valu
 		return nil, fmt.Errorf("array type '%s' not found", arrayTypeName)
 	}
 
-	atv, ok := typeVal.(*ArrayTypeValue)
-	if !ok {
-		return nil, fmt.Errorf("type '%s' is not an array type", arrayTypeName)
+	// Task 3.5.48: Handle both interp.ArrayTypeValue and evaluator.ArrayTypeValue
+	// The evaluator's VisitArrayDecl registers evaluator.ArrayTypeValue, but this
+	// function was originally written to expect interp.ArrayTypeValue.
+	if atv, ok := typeVal.(*ArrayTypeValue); ok {
+		return NewArrayValue(atv.ArrayType), nil
 	}
 
-	return NewArrayValue(atv.ArrayType), nil
+	// Check for evaluator.ArrayTypeValue (registered by VisitArrayDecl)
+	if atv, ok := typeVal.(*evaluator.ArrayTypeValue); ok {
+		return NewArrayValue(atv.ArrayType), nil
+	}
+
+	return nil, fmt.Errorf("type '%s' is not an array type", arrayTypeName)
 }
 
 // CreateSetZeroValue creates an empty set value.
@@ -3398,6 +3465,17 @@ func (i *Interpreter) RegisterRecordTypeInEnvironment(recordName string, recordT
 	// Store in environment with special key
 	recordTypeKey := "__record_type_" + ident.Normalize(recordName)
 	ctx.Env().Define(recordTypeKey, rtv)
+}
+
+// RegisterArrayTypeInEnvironment registers an array type in the interpreter's environment.
+// Task 3.5.48: This stores in i.env directly to ensure IsArrayType and CreateArrayZeroValue
+// can find the type during variable declarations.
+func (i *Interpreter) RegisterArrayTypeInEnvironment(arrayName string, arrayTypeValue evaluator.Value) {
+	// Store in interpreter's environment with special key
+	// This is necessary because IsArrayType and CreateArrayZeroValue look in i.env,
+	// not in the ExecutionContext's environment.
+	typeKey := "__array_type_" + ident.Normalize(arrayName)
+	i.env.Define(typeKey, arrayTypeValue.(Value))
 }
 
 // BuildTypeAliasValue creates a TypeAliasValue from type alias components.
