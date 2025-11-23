@@ -586,7 +586,7 @@ Before migrating logic, extract reusable components that both Interpreter and Ev
   - Acceptance: TypeRegistry works standalone, Evaluator can access directly
   - Dependencies: 3.5.45
 
-- [ ] **3.5.47** Extract Function Registry Service
+- [x] **3.5.47** Extract Function Registry Service
   - Create standalone `FunctionRegistry` struct in `internal/interp/types/`
   - Move function lookup/resolution, overload handling from Interpreter
   - Include builtin function registration and lookup

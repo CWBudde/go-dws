@@ -3,6 +3,7 @@ package types
 import (
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/interp/builtins"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -473,5 +474,326 @@ func TestFunctionRegistry_GetFunctionsInUnit(t *testing.T) {
 	otherFuncs := registry.GetFunctionsInUnit("Other")
 	if len(otherFuncs) != 0 {
 		t.Errorf("Expected 0 functions in Other unit, got %d", len(otherFuncs))
+	}
+}
+
+// ===== Builtin Function Support Tests (Task 3.5.47) =====
+
+func TestFunctionRegistry_LookupBuiltin(t *testing.T) {
+	registry := NewFunctionRegistry()
+
+	// Test lookup of standard builtin functions
+	tests := []struct {
+		name     string
+		expected bool
+	}{
+		{"PrintLn", true},
+		{"Print", true},
+		{"Abs", true},
+		{"Sin", true},
+		{"Cos", true},
+		{"UpperCase", true},
+		{"LowerCase", true},
+		{"NonExistentFunc", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fn, ok := registry.LookupBuiltin(tt.name)
+			if ok != tt.expected {
+				t.Errorf("LookupBuiltin(%q) ok = %v, expected %v", tt.name, ok, tt.expected)
+			}
+			if ok && fn == nil {
+				t.Errorf("LookupBuiltin(%q) returned nil function", tt.name)
+			}
+		})
+	}
+}
+
+func TestFunctionRegistry_LookupBuiltin_CaseInsensitive(t *testing.T) {
+	registry := NewFunctionRegistry()
+
+	// Test case-insensitive lookup
+	tests := []string{
+		"PrintLn",
+		"println",
+		"PRINTLN",
+		"PrInTlN",
+	}
+
+	for _, name := range tests {
+		t.Run(name, func(t *testing.T) {
+			fn, ok := registry.LookupBuiltin(name)
+			if !ok {
+				t.Errorf("LookupBuiltin(%q) should find function (case-insensitive)", name)
+			}
+			if fn == nil {
+				t.Errorf("LookupBuiltin(%q) returned nil function", name)
+			}
+		})
+	}
+}
+
+func TestFunctionRegistry_GetBuiltinInfo(t *testing.T) {
+	registry := NewFunctionRegistry()
+
+	// Test getting builtin info
+	info, ok := registry.GetBuiltinInfo("PrintLn")
+	if !ok {
+		t.Fatal("GetBuiltinInfo(\"PrintLn\") should return info")
+	}
+	if info == nil {
+		t.Fatal("GetBuiltinInfo(\"PrintLn\") returned nil info")
+	}
+	if info.Name != "PrintLn" {
+		t.Errorf("Expected name 'PrintLn', got %q", info.Name)
+	}
+	if info.Function == nil {
+		t.Error("Expected non-nil function")
+	}
+
+	// Test non-existent builtin
+	info, ok = registry.GetBuiltinInfo("NonExistent")
+	if ok {
+		t.Error("GetBuiltinInfo(\"NonExistent\") should not find info")
+	}
+	if info != nil {
+		t.Error("GetBuiltinInfo(\"NonExistent\") should return nil info")
+	}
+}
+
+func TestFunctionRegistry_IsBuiltin(t *testing.T) {
+	registry := NewFunctionRegistry()
+
+	tests := []struct {
+		name     string
+		expected bool
+	}{
+		{"PrintLn", true},
+		{"Abs", true},
+		{"Sin", true},
+		{"abs", true}, // Case-insensitive
+		{"ABS", true}, // Case-insensitive
+		{"MyUserFunc", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := registry.IsBuiltin(tt.name)
+			if result != tt.expected {
+				t.Errorf("IsBuiltin(%q) = %v, expected %v", tt.name, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestFunctionRegistry_GetBuiltinRegistry(t *testing.T) {
+	registry := NewFunctionRegistry()
+
+	builtinReg := registry.GetBuiltinRegistry()
+	if builtinReg == nil {
+		t.Fatal("GetBuiltinRegistry() returned nil")
+	}
+
+	// Verify it's the same registry by looking up a function
+	fn, ok := builtinReg.Lookup("PrintLn")
+	if !ok {
+		t.Error("Expected to find PrintLn in builtin registry")
+	}
+	if fn == nil {
+		t.Error("Expected non-nil function")
+	}
+}
+
+func TestFunctionRegistry_SetBuiltinRegistry(t *testing.T) {
+	registry := NewFunctionRegistry()
+
+	// Create a custom builtin registry
+	customReg := builtins.NewRegistry()
+
+	// Register a custom builtin with proper signature
+	customReg.Register("CustomFunc", func(ctx builtins.Context, args []builtins.Value) builtins.Value {
+		// Mock implementation
+		return nil
+	}, builtins.CategorySystem, "Custom test function")
+
+	// Set the custom registry
+	registry.SetBuiltinRegistry(customReg)
+
+	// Verify custom function is available
+	if !registry.IsBuiltin("CustomFunc") {
+		t.Error("Expected CustomFunc to be available after SetBuiltinRegistry")
+	}
+
+	// Verify standard functions are not available (since we replaced the registry)
+	if registry.IsBuiltin("PrintLn") {
+		t.Error("Standard functions should not be available after replacing registry")
+	}
+}
+
+func TestFunctionRegistry_LookupAny_UserDefined(t *testing.T) {
+	registry := NewFunctionRegistry()
+
+	// Register a user-defined function
+	fn := makeFunctionDecl("MyFunc", 2)
+	registry.Register("MyFunc", fn)
+
+	// Lookup should find the user-defined function
+	userDefined, isBuiltin, found := registry.LookupAny("MyFunc")
+	if !found {
+		t.Error("LookupAny should find MyFunc")
+	}
+	if isBuiltin {
+		t.Error("MyFunc should not be identified as builtin")
+	}
+	if len(userDefined) != 1 {
+		t.Errorf("Expected 1 user-defined function, got %d", len(userDefined))
+	}
+}
+
+func TestFunctionRegistry_LookupAny_Builtin(t *testing.T) {
+	registry := NewFunctionRegistry()
+
+	// Lookup builtin function
+	userDefined, isBuiltin, found := registry.LookupAny("PrintLn")
+	if !found {
+		t.Error("LookupAny should find PrintLn")
+	}
+	if !isBuiltin {
+		t.Error("PrintLn should be identified as builtin")
+	}
+	if userDefined != nil {
+		t.Error("Builtin function should return nil for userDefined")
+	}
+}
+
+func TestFunctionRegistry_LookupAny_NotFound(t *testing.T) {
+	registry := NewFunctionRegistry()
+
+	// Lookup non-existent function
+	userDefined, isBuiltin, found := registry.LookupAny("NonExistent")
+	if found {
+		t.Error("LookupAny should not find NonExistent")
+	}
+	if isBuiltin {
+		t.Error("NonExistent should not be identified as builtin")
+	}
+	if userDefined != nil {
+		t.Error("Non-existent function should return nil for userDefined")
+	}
+}
+
+func TestFunctionRegistry_LookupAny_UserDefinedOverridesBuiltin(t *testing.T) {
+	registry := NewFunctionRegistry()
+
+	// Register a user-defined function with the same name as a builtin
+	fn := makeFunctionDecl("PrintLn", 1)
+	registry.Register("PrintLn", fn)
+
+	// User-defined should take precedence
+	userDefined, isBuiltin, found := registry.LookupAny("PrintLn")
+	if !found {
+		t.Error("LookupAny should find PrintLn")
+	}
+	if isBuiltin {
+		t.Error("User-defined PrintLn should take precedence over builtin")
+	}
+	if len(userDefined) != 1 {
+		t.Errorf("Expected 1 user-defined function, got %d", len(userDefined))
+	}
+}
+
+func TestFunctionRegistry_ExistsAny_UserDefined(t *testing.T) {
+	registry := NewFunctionRegistry()
+
+	// Register a user-defined function
+	fn := makeFunctionDecl("MyFunc", 0)
+	registry.Register("MyFunc", fn)
+
+	if !registry.ExistsAny("MyFunc") {
+		t.Error("ExistsAny should find user-defined MyFunc")
+	}
+}
+
+func TestFunctionRegistry_ExistsAny_Builtin(t *testing.T) {
+	registry := NewFunctionRegistry()
+
+	if !registry.ExistsAny("PrintLn") {
+		t.Error("ExistsAny should find builtin PrintLn")
+	}
+}
+
+func TestFunctionRegistry_ExistsAny_NotFound(t *testing.T) {
+	registry := NewFunctionRegistry()
+
+	if registry.ExistsAny("NonExistent") {
+		t.Error("ExistsAny should not find NonExistent")
+	}
+}
+
+func TestFunctionRegistry_ExistsAny_CaseInsensitive(t *testing.T) {
+	registry := NewFunctionRegistry()
+
+	tests := []string{
+		"PrintLn",
+		"println",
+		"PRINTLN",
+	}
+
+	for _, name := range tests {
+		t.Run(name, func(t *testing.T) {
+			if !registry.ExistsAny(name) {
+				t.Errorf("ExistsAny should find %q (case-insensitive)", name)
+			}
+		})
+	}
+}
+
+func TestFunctionRegistry_NewFunctionRegistryWithBuiltins(t *testing.T) {
+	// Create custom builtin registry
+	customReg := builtins.NewRegistry()
+	customReg.Register("TestFunc", func(ctx builtins.Context, args []builtins.Value) builtins.Value {
+		// Mock implementation
+		return nil
+	}, builtins.CategorySystem, "Test function")
+
+	// Create function registry with custom builtins
+	registry := NewFunctionRegistryWithBuiltins(customReg)
+
+	// Verify custom builtin is available
+	if !registry.IsBuiltin("TestFunc") {
+		t.Error("Custom builtin should be available")
+	}
+
+	// Verify standard builtins are not available
+	if registry.IsBuiltin("PrintLn") {
+		t.Error("Standard builtins should not be available with custom registry")
+	}
+}
+
+func TestFunctionRegistry_NilBuiltinRegistry(t *testing.T) {
+	// Create registry with nil builtin registry
+	registry := NewFunctionRegistryWithBuiltins(nil)
+
+	// All builtin operations should handle nil gracefully
+	if registry.IsBuiltin("PrintLn") {
+		t.Error("IsBuiltin should return false when builtin registry is nil")
+	}
+
+	if fn, ok := registry.LookupBuiltin("PrintLn"); ok || fn != nil {
+		t.Error("LookupBuiltin should return (nil, false) when builtin registry is nil")
+	}
+
+	if info, ok := registry.GetBuiltinInfo("PrintLn"); ok || info != nil {
+		t.Error("GetBuiltinInfo should return (nil, false) when builtin registry is nil")
+	}
+
+	if reg := registry.GetBuiltinRegistry(); reg != nil {
+		t.Error("GetBuiltinRegistry should return nil when builtin registry is nil")
+	}
+
+	if registry.ExistsAny("PrintLn") {
+		t.Error("ExistsAny should return false for builtins when builtin registry is nil")
 	}
 }
