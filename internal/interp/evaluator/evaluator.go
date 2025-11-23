@@ -894,6 +894,75 @@ type InterpreterAdapter interface {
 	// Used for type inference from initializer values.
 	// Returns the type (as any) or nil if the type cannot be determined.
 	GetValueType(value Value) any
+
+	// ===== Task 3.5.52: Call Expression Adapter Methods =====
+	// These methods handle complex call scenarios that require interpreter state.
+
+	// CallFunctionPointerWithArgs calls a function pointer with unevaluated arguments.
+	// Handles lazy params, var params, and closure environment restoration.
+	CallFunctionPointerWithArgs(funcPtr Value, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallRecordMethod calls a method on a record value.
+	CallRecordMethod(record Value, methodName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallInterfaceMethod calls a method on an interface value.
+	CallInterfaceMethod(iface Value, methodName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallObjectMethod calls a method on an object value.
+	CallObjectMethod(obj Value, methodName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallUnitFunction calls a unit-qualified function (UnitName.FunctionName).
+	CallUnitFunction(unitName, funcName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallClassMethod calls a class method or constructor (TClass.MethodName).
+	CallClassMethod(className, methodName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallUserFunctionWithOverloads calls a user-defined function with potential overloads.
+	CallUserFunctionWithOverloads(funcName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallImplicitSelfMethod calls a method using implicit Self reference.
+	CallImplicitSelfMethod(selfVal Value, methodName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallRecordStaticMethod calls a record's static method.
+	CallRecordStaticMethod(recordVal Value, methodName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallBuiltinWithVarParam calls a builtin function that modifies its arguments.
+	CallBuiltinWithVarParam(funcName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallExternalFunction calls an external (Go) function.
+	CallExternalFunction(funcName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// EvalDefaultFunction evaluates a Default(TypeName) call.
+	EvalDefaultFunction(arg ast.Expression, ctx *ExecutionContext) Value
+
+	// EvalTypeCast evaluates a type cast expression (TypeName(expression)).
+	EvalTypeCast(typeName string, arg ast.Expression, ctx *ExecutionContext) Value
+
+	// HasExternalFunction checks if an external function with the given name exists.
+	HasExternalFunction(funcName string) bool
+
+	// ===== Task 3.5.53: Member Access Adapter Methods =====
+
+	// EvalObjectMemberAccess evaluates member access on an object (methods, properties).
+	EvalObjectMemberAccess(node *ast.MemberAccessExpression, obj Value, memberName string, ctx *ExecutionContext) Value
+
+	// EvalInterfaceMemberAccess evaluates member access on an interface.
+	EvalInterfaceMemberAccess(node *ast.MemberAccessExpression, iface Value, memberName string, ctx *ExecutionContext) Value
+
+	// EvalClassMemberAccess evaluates member access on a class/class info value.
+	EvalClassMemberAccess(node *ast.MemberAccessExpression, classVal Value, memberName string, ctx *ExecutionContext) Value
+
+	// EvalTypeCastMemberAccess evaluates member access on a type cast value.
+	EvalTypeCastMemberAccess(node *ast.MemberAccessExpression, typeCastVal Value, memberName string, ctx *ExecutionContext) Value
+
+	// EvalNilMemberAccess evaluates member access on nil (class variables may be accessible).
+	EvalNilMemberAccess(node *ast.MemberAccessExpression, memberName string, ctx *ExecutionContext) Value
+
+	// EvalRecordMemberAccess evaluates member access on a record.
+	EvalRecordMemberAccess(node *ast.MemberAccessExpression, record Value, memberName string, ctx *ExecutionContext) Value
+
+	// EvalEnumMemberAccess evaluates member access on an enum value (e.g., enumVal.Value).
+	EvalEnumMemberAccess(node *ast.MemberAccessExpression, enumVal Value, memberName string, ctx *ExecutionContext) Value
 }
 
 // Evaluator is responsible for evaluating DWScript AST nodes.

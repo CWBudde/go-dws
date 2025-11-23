@@ -568,6 +568,506 @@ func (i *Interpreter) EvalOperatorDeclaration(node *ast.OperatorDecl, ctx *evalu
 	return i.evalOperatorDeclaration(node)
 }
 
+// ===== Task 3.5.52: Call Expression Adapter Methods =====
+
+// CallFunctionPointerWithArgs calls a function pointer with unevaluated arguments.
+// Task 3.5.52: Handles lazy params, var params, and closure environment restoration.
+func (i *Interpreter) CallFunctionPointerWithArgs(funcPtr evaluator.Value, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	fp, ok := funcPtr.(*FunctionPointerValue)
+	if !ok {
+		return &ErrorValue{Message: "expected function pointer value"}
+	}
+
+	evalArgs := make([]Value, len(args))
+	for idx, arg := range args {
+		isLazy := fp.Function != nil && idx < len(fp.Function.Parameters) && fp.Function.Parameters[idx].IsLazy
+		isByRef := fp.Function != nil && idx < len(fp.Function.Parameters) && fp.Function.Parameters[idx].ByRef
+
+		if isLazy {
+			evalArgs[idx] = NewLazyThunk(arg, i.env, i)
+		} else if isByRef {
+			if argIdent, ok := arg.(*ast.Identifier); ok {
+				evalArgs[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+			} else {
+				return &ErrorValue{Message: fmt.Sprintf("var parameter requires a variable, got %T", arg)}
+			}
+		} else {
+			val := i.Eval(arg)
+			if isError(val) {
+				return val
+			}
+			evalArgs[idx] = val
+		}
+	}
+
+	return i.callFunctionPointer(fp, evalArgs, nil)
+}
+
+// CallRecordMethod calls a method on a record value.
+func (i *Interpreter) CallRecordMethod(record evaluator.Value, methodName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	recVal, ok := record.(*RecordValue)
+	if !ok {
+		return &ErrorValue{Message: fmt.Sprintf("expected record value, got %s", record.Type())}
+	}
+
+	return i.evalRecordMethodCall(recVal, &ast.MemberAccessExpression{
+		Member: &ast.Identifier{Value: methodName},
+	}, args, nil)
+}
+
+// CallInterfaceMethod calls a method on an interface value.
+func (i *Interpreter) CallInterfaceMethod(iface evaluator.Value, methodName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	ifaceInst, ok := iface.(*InterfaceInstance)
+	if !ok {
+		return &ErrorValue{Message: fmt.Sprintf("expected interface value, got %s", iface.Type())}
+	}
+
+	if ifaceInst.Object == nil {
+		return &ErrorValue{Message: "cannot call method on nil interface"}
+	}
+
+	mc := &ast.MethodCallExpression{
+		Object:    &ast.Identifier{Value: "Self"},
+		Method:    &ast.Identifier{Value: methodName},
+		Arguments: args,
+	}
+
+	savedSelf, hasSelf := i.env.Get("Self")
+	_ = i.env.Set("Self", ifaceInst.Object)
+	defer func() {
+		if hasSelf {
+			_ = i.env.Set("Self", savedSelf)
+		}
+	}()
+
+	return i.evalMethodCall(mc)
+}
+
+// CallObjectMethod calls a method on an object value.
+func (i *Interpreter) CallObjectMethod(obj evaluator.Value, methodName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	mc := &ast.MethodCallExpression{
+		Object:    &ast.Identifier{Value: "Self"},
+		Method:    &ast.Identifier{Value: methodName},
+		Arguments: args,
+	}
+
+	savedSelf, hasSelf := i.env.Get("Self")
+	_ = i.env.Set("Self", obj)
+	defer func() {
+		if hasSelf {
+			_ = i.env.Set("Self", savedSelf)
+		}
+	}()
+
+	return i.evalMethodCall(mc)
+}
+
+// CallUnitFunction calls a unit-qualified function.
+func (i *Interpreter) CallUnitFunction(unitName, funcName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	fn, err := i.ResolveQualifiedFunction(unitName, funcName)
+	if err != nil {
+		return &ErrorValue{Message: fmt.Sprintf("function '%s' not found in unit '%s'", funcName, unitName)}
+	}
+
+	evalArgs := make([]Value, len(args))
+	for idx, arg := range args {
+		isLazy := idx < len(fn.Parameters) && fn.Parameters[idx].IsLazy
+		isByRef := idx < len(fn.Parameters) && fn.Parameters[idx].ByRef
+
+		if isLazy {
+			evalArgs[idx] = NewLazyThunk(arg, i.env, i)
+		} else if isByRef {
+			if argIdent, ok := arg.(*ast.Identifier); ok {
+				evalArgs[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+			} else {
+				return &ErrorValue{Message: fmt.Sprintf("var parameter requires a variable, got %T", arg)}
+			}
+		} else {
+			val := i.Eval(arg)
+			if isError(val) {
+				return val
+			}
+			evalArgs[idx] = val
+		}
+	}
+
+	return i.callUserFunction(fn, evalArgs)
+}
+
+// CallClassMethod calls a class method or constructor.
+func (i *Interpreter) CallClassMethod(className, methodName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	mc := &ast.MethodCallExpression{
+		Object:    &ast.Identifier{Value: className},
+		Method:    &ast.Identifier{Value: methodName},
+		Arguments: args,
+	}
+
+	return i.evalMethodCall(mc)
+}
+
+// CallUserFunctionWithOverloads calls a user-defined function with overload resolution.
+func (i *Interpreter) CallUserFunctionWithOverloads(funcName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	funcNameLower := ident.Normalize(funcName)
+	overloads, exists := i.functions[funcNameLower]
+	if !exists || len(overloads) == 0 {
+		return &ErrorValue{Message: fmt.Sprintf("unknown function: %s", funcName)}
+	}
+
+	fn, cachedArgs, err := i.resolveOverload(funcNameLower, overloads, args)
+	if err != nil {
+		return &ErrorValue{Message: err.Error()}
+	}
+
+	evalArgs := make([]Value, len(args))
+	for idx, arg := range args {
+		isLazy := idx < len(fn.Parameters) && fn.Parameters[idx].IsLazy
+		isByRef := idx < len(fn.Parameters) && fn.Parameters[idx].ByRef
+
+		if isLazy {
+			evalArgs[idx] = NewLazyThunk(arg, i.env, i)
+		} else if isByRef {
+			if argIdent, ok := arg.(*ast.Identifier); ok {
+				evalArgs[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+			} else {
+				return &ErrorValue{Message: fmt.Sprintf("var parameter requires a variable, got %T", arg)}
+			}
+		} else {
+			evalArgs[idx] = cachedArgs[idx]
+		}
+	}
+
+	return i.callUserFunction(fn, evalArgs)
+}
+
+// CallImplicitSelfMethod calls a method using implicit Self.
+func (i *Interpreter) CallImplicitSelfMethod(selfVal evaluator.Value, methodName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	mc := &ast.MethodCallExpression{
+		Object:    &ast.Identifier{Value: "Self"},
+		Method:    &ast.Identifier{Value: methodName},
+		Arguments: args,
+	}
+
+	return i.evalMethodCall(mc)
+}
+
+// CallRecordStaticMethod calls a record's static method.
+func (i *Interpreter) CallRecordStaticMethod(recordVal evaluator.Value, methodName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	rtv, ok := recordVal.(*RecordTypeValue)
+	if !ok {
+		return &ErrorValue{Message: fmt.Sprintf("expected record type value, got %s", recordVal.Type())}
+	}
+
+	mc := &ast.MethodCallExpression{
+		Object:    &ast.Identifier{Value: rtv.RecordType.Name},
+		Method:    &ast.Identifier{Value: methodName},
+		Arguments: args,
+	}
+
+	return i.evalMethodCall(mc)
+}
+
+// CallBuiltinWithVarParam calls a builtin function with var parameters.
+func (i *Interpreter) CallBuiltinWithVarParam(funcName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	return i.callBuiltinWithVarParam(funcName, args)
+}
+
+// CallExternalFunction calls an external (Go) function.
+func (i *Interpreter) CallExternalFunction(funcName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	if i.externalFunctions == nil {
+		return &ErrorValue{Message: fmt.Sprintf("unknown function: %s", funcName)}
+	}
+
+	extFunc, ok := i.externalFunctions.Get(funcName)
+	if !ok {
+		return &ErrorValue{Message: fmt.Sprintf("unknown external function: %s", funcName)}
+	}
+
+	varParams := extFunc.Wrapper.GetVarParams()
+	paramTypes := extFunc.Wrapper.GetParamTypes()
+
+	evalArgs := make([]Value, len(args))
+	for idx, arg := range args {
+		isVarParam := idx < len(varParams) && varParams[idx]
+
+		if isVarParam {
+			if argIdent, ok := arg.(*ast.Identifier); ok {
+				evalArgs[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+			} else {
+				return &ErrorValue{Message: fmt.Sprintf("var parameter requires a variable, got %T", arg)}
+			}
+		} else {
+			var val Value
+			if idx < len(paramTypes) {
+				expectedType, _ := i.parseTypeString(paramTypes[idx])
+				val = i.EvalWithExpectedType(arg, expectedType)
+			} else {
+				val = i.Eval(arg)
+			}
+			if isError(val) {
+				return val
+			}
+			evalArgs[idx] = val
+		}
+	}
+
+	return i.callExternalFunction(extFunc, evalArgs)
+}
+
+// EvalDefaultFunction evaluates a Default(TypeName) call.
+func (i *Interpreter) EvalDefaultFunction(arg ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	result := i.evalDefaultFunction(arg)
+	if result == nil {
+		return &ErrorValue{Message: "Default() requires a valid type name"}
+	}
+	return result
+}
+
+// EvalTypeCast evaluates a type cast expression.
+func (i *Interpreter) EvalTypeCast(typeName string, arg ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	return i.evalTypeCast(typeName, arg)
+}
+
+// HasExternalFunction checks if an external function exists.
+func (i *Interpreter) HasExternalFunction(funcName string) bool {
+	if i.externalFunctions == nil {
+		return false
+	}
+	_, ok := i.externalFunctions.Get(funcName)
+	return ok
+}
+
+// ===== Task 3.5.53: Member Access Adapter Methods =====
+
+// EvalObjectMemberAccess evaluates member access on an object.
+func (i *Interpreter) EvalObjectMemberAccess(node *ast.MemberAccessExpression, obj evaluator.Value, memberName string, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalMemberAccessExpression(node, ctx)
+}
+
+// EvalInterfaceMemberAccess evaluates member access on an interface.
+func (i *Interpreter) EvalInterfaceMemberAccess(node *ast.MemberAccessExpression, iface evaluator.Value, memberName string, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalMemberAccessExpression(node, ctx)
+}
+
+// EvalClassMemberAccess evaluates member access on a class/class info value.
+func (i *Interpreter) EvalClassMemberAccess(node *ast.MemberAccessExpression, classVal evaluator.Value, memberName string, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalMemberAccessExpression(node, ctx)
+}
+
+// EvalTypeCastMemberAccess evaluates member access on a type cast value.
+func (i *Interpreter) EvalTypeCastMemberAccess(node *ast.MemberAccessExpression, typeCastVal evaluator.Value, memberName string, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalMemberAccessExpression(node, ctx)
+}
+
+// EvalNilMemberAccess evaluates member access on nil.
+func (i *Interpreter) EvalNilMemberAccess(node *ast.MemberAccessExpression, memberName string, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalMemberAccessExpression(node, ctx)
+}
+
+// EvalRecordMemberAccess evaluates member access on a record.
+func (i *Interpreter) EvalRecordMemberAccess(node *ast.MemberAccessExpression, record evaluator.Value, memberName string, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalMemberAccessExpression(node, ctx)
+}
+
+// EvalEnumMemberAccess evaluates member access on an enum value.
+func (i *Interpreter) EvalEnumMemberAccess(node *ast.MemberAccessExpression, enumVal evaluator.Value, memberName string, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalMemberAccessExpression(node, ctx)
+}
+
 // LookupFunction finds a function by name in the function registry.
 func (i *Interpreter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
 	// DWScript is case-insensitive, so normalize to lowercase
@@ -1251,8 +1751,11 @@ func (i *Interpreter) MatchesExceptionType(exc interface{}, typeExpr ast.TypeExp
 
 // GetExceptionInstance returns the ObjectInstance from an exception.
 func (i *Interpreter) GetExceptionInstance(exc interface{}) evaluator.Value {
+	if exc == nil {
+		return nil
+	}
 	excVal, ok := exc.(*ExceptionValue)
-	if !ok {
+	if !ok || excVal == nil {
 		return nil
 	}
 	return excVal.Instance
@@ -1349,8 +1852,11 @@ func (i *Interpreter) syncToContext(ctx *evaluator.ExecutionContext) {
 // Task 3.5.47: Called after operations that may raise exceptions
 // (CallBuiltinFunction, CallUserFunction) to ensure exceptions raised
 // by the interpreter are visible to the evaluator.
+// Task 3.5.52: Only sync if there's an actual exception to avoid setting typed nil.
 func (i *Interpreter) SyncException(ctx *evaluator.ExecutionContext) {
-	ctx.SetException(i.exception)
+	if i.exception != nil {
+		ctx.SetException(i.exception)
+	}
 }
 
 // ===== Task 3.5.6: Array and Collection Adapter Method Implementations =====
