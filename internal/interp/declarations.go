@@ -397,13 +397,8 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 
 	// Task 9.6: Register class BEFORE processing fields
 	// This allows field initializers to reference the class name (e.g., FField := TObj.Value)
-	// Task 3.5.46: Register class in TypeSystem
-	parentName := ""
-	if classInfo.Parent != nil {
-		parentName = classInfo.Parent.Name
-	}
-	i.typeSystem.RegisterClassWithParent(classInfo.Name, classInfo, parentName)
-	// Task 3.5.46: Also maintain legacy map for backward compatibility during migration
+	// Task 3.5.46: Register in legacy map early for field initializers that reference the class
+	// Note: TypeSystem registration happens at end of function after VMT is built
 	i.classes[ident.Normalize(classInfo.Name)] = classInfo
 
 	// Add own fields to ClassInfo
@@ -675,15 +670,13 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Build virtual method table after all methods and fields are processed
 	classInfo.buildVirtualMethodTable()
 
-	// Register class in registry
-	// Task 3.5.46: Register class in TypeSystem
+	// Task 3.5.46: Register class in TypeSystem after VMT is built
+	// Note: Legacy map registration already done early (line ~402) for field initializers
 	parentName2 := ""
 	if classInfo.Parent != nil {
 		parentName2 = classInfo.Parent.Name
 	}
 	i.typeSystem.RegisterClassWithParent(classInfo.Name, classInfo, parentName2)
-	// Task 3.5.46: Also maintain legacy map for backward compatibility during migration
-	i.classes[ident.Normalize(classInfo.Name)] = classInfo
 
 	return &NilValue{}
 }

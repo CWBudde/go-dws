@@ -3,6 +3,7 @@ package interp
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 
 	internalTypes "github.com/cwbudde/go-dws/internal/types"
@@ -127,8 +128,8 @@ func TestTypeRegistryStandalone(t *testing.T) {
 
 		// Lookup helpers
 		helpers := ts.LookupHelpers("String")
-		if helpers == nil || len(helpers) == 0 {
-			t.Fatal("LookupHelpers(String) = nil or empty, want helper list")
+		if len(helpers) == 0 {
+			t.Fatal("LookupHelpers(String) empty, want helper list")
 		}
 	})
 
@@ -267,5 +268,75 @@ func TestTypeRegistryConcurrentAccess(t *testing.T) {
 	// Wait for all goroutines
 	for i := 0; i < 10; i++ {
 		<-done
+	}
+}
+
+// TestBuiltinClassesInTypeSystem verifies that built-in classes (TObject, Exception, etc.)
+// are registered in the TypeSystem and accessible via HasClass/LookupClass.
+// Task 3.5.46: This is a regression test for PR #314 fix.
+func TestBuiltinClassesInTypeSystem(t *testing.T) {
+	out := &bytes.Buffer{}
+	interp := New(out)
+
+	builtinClasses := []string{
+		"TObject",
+		"Exception",
+		"EConvertError",
+		"ERangeError",
+		"EDivByZero",
+		"EAssertionFailed",
+		"EInvalidOp",
+		"EScriptStackOverflow",
+		"EHost",
+	}
+
+	for _, className := range builtinClasses {
+		t.Run(className, func(t *testing.T) {
+			// Test HasClass (which delegates to TypeSystem)
+			if !interp.HasClass(className) {
+				t.Errorf("HasClass(%s) = false, want true", className)
+			}
+
+			// Test case-insensitive lookup with lowercase
+			lowerName := strings.ToLower(className)
+			if !interp.HasClass(lowerName) {
+				t.Errorf("HasClass(%s) case-insensitive = false, want true", lowerName)
+			}
+
+			// Test LookupClass
+			classInfo, ok := interp.LookupClass(className)
+			if !ok {
+				t.Errorf("LookupClass(%s) = _, false; want _, true", className)
+			}
+			if classInfo == nil {
+				t.Errorf("LookupClass(%s) returned nil ClassInfo", className)
+			}
+		})
+	}
+}
+
+// TestBuiltinInterfaceInTypeSystem verifies that IInterface is registered in the TypeSystem.
+// Task 3.5.46: This is a regression test for PR #314 fix.
+func TestBuiltinInterfaceInTypeSystem(t *testing.T) {
+	out := &bytes.Buffer{}
+	interp := New(out)
+
+	// Test HasInterface (which delegates to TypeSystem)
+	if !interp.HasInterface("IInterface") {
+		t.Error("HasInterface(IInterface) = false, want true")
+	}
+
+	// Test case-insensitive lookup
+	if !interp.HasInterface("iinterface") {
+		t.Error("HasInterface(iinterface) case-insensitive = false, want true")
+	}
+
+	// Test LookupInterface
+	ifaceInfo, ok := interp.LookupInterface("IInterface")
+	if !ok {
+		t.Error("LookupInterface(IInterface) = _, false; want _, true")
+	}
+	if ifaceInfo == nil {
+		t.Error("LookupInterface(IInterface) returned nil InterfaceInfo")
 	}
 }
