@@ -208,6 +208,28 @@ type InterpreterAdapter interface {
 	// This replaces generic EvalNodeWithContext for HelperDecl nodes.
 	EvalHelperDeclaration(node *ast.HelperDecl, ctx *ExecutionContext) Value
 
+	// ===== Task 3.5.51: Function/Operator Declaration Adapter Methods =====
+
+	// EvalFunctionDeclaration evaluates a function declaration using the interpreter's full logic.
+	// Task 3.5.51: Specific adapter for function declaration that handles:
+	// - Function registration in i.functions map (case-insensitive)
+	// - Method implementation (ClassName != nil): updates ClassInfo or RecordTypeValue methods
+	// - Support for function overloading (multiple functions per name)
+	// - Replacement of interface declarations (no body) with implementations (has body)
+	// - Constructor and destructor registration for class methods
+	// - VMT rebuilding after method implementation
+	// This replaces generic EvalNodeWithContext for FunctionDecl nodes.
+	EvalFunctionDeclaration(node *ast.FunctionDecl, ctx *ExecutionContext) Value
+
+	// EvalOperatorDeclaration evaluates an operator declaration using the interpreter's full logic.
+	// Task 3.5.51: Specific adapter for operator declaration that handles:
+	// - Class operators: skipped (handled during class declaration)
+	// - Conversion operators (implicit/explicit): registers in i.conversions
+	// - Global operators: registers in i.globalOperators with operand types
+	// - Binding function name normalization (case-insensitive)
+	// This replaces generic EvalNodeWithContext for OperatorDecl nodes.
+	EvalOperatorDeclaration(node *ast.OperatorDecl, ctx *ExecutionContext) Value
+
 	// Phase 3.5.4 - Phase 2B: Type system access methods
 	// These methods allow the Evaluator to access type registries during evaluation
 	// without directly accessing Interpreter fields.
@@ -825,6 +847,14 @@ type InterpreterAdapter interface {
 	//   - recordTypeValue: The RecordTypeValue (as any) to register
 	//   - ctx: The execution context with the environment
 	RegisterRecordTypeInEnvironment(recordName string, recordTypeValue any, ctx *ExecutionContext)
+
+	// RegisterArrayTypeInEnvironment registers an array type in the interpreter's environment.
+	// Task 3.5.48: This stores in i.env directly to ensure IsArrayType and CreateArrayZeroValue
+	// can find the type during variable declarations.
+	// Parameters:
+	//   - arrayName: The name of the array type
+	//   - arrayTypeValue: The ArrayTypeValue (as Value) to register
+	RegisterArrayTypeInEnvironment(arrayName string, arrayTypeValue Value)
 
 	// BuildTypeAliasValue creates a TypeAliasValue from type alias components.
 	// Parameters:

@@ -57,10 +57,11 @@ func (a *ArrayTypeValue) String() string {
 }
 
 // VisitFunctionDecl evaluates a function declaration.
-// Phase 3.5.44: Delegate to adapter for function registration.
-// The Interpreter registers to both legacy i.functions map and TypeSystem.
+// Task 3.5.51: Delegates to adapter.EvalFunctionDeclaration() for function registration logic.
+// This includes registering in i.functions map, handling method implementations (ClassName != nil),
+// supporting function overloading, and updating ClassInfo/RecordTypeValue for class/record methods.
 func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNodeWithContext(node, ctx)
+	return e.adapter.EvalFunctionDeclaration(node, ctx)
 }
 
 // VisitClassDecl evaluates a class declaration.
@@ -81,9 +82,11 @@ func (e *Evaluator) VisitInterfaceDecl(node *ast.InterfaceDecl, ctx *ExecutionCo
 }
 
 // VisitOperatorDecl evaluates an operator declaration (operator overloading).
-// Phase 3.5.44: Delegate to adapter.EvalNodeWithContext() for complex operator registration logic.
+// Task 3.5.51: Delegates to adapter.EvalOperatorDeclaration() for operator registration logic.
+// This includes registering conversion operators in i.conversions, global operators in i.globalOperators,
+// and skipping class operators (handled during class declaration).
 func (e *Evaluator) VisitOperatorDecl(node *ast.OperatorDecl, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNodeWithContext(node, ctx)
+	return e.adapter.EvalOperatorDeclaration(node, ctx)
 }
 
 // VisitEnumDecl evaluates an enum declaration.
@@ -407,12 +410,15 @@ func (e *Evaluator) VisitArrayDecl(node *ast.ArrayDecl, ctx *ExecutionContext) V
 
 	// Store array type in environment with a special prefix
 	// This allows var declarations to look up the type
-	typeKey := "__array_type_" + ident.Normalize(arrayName)
 	arrayTypeValue := &ArrayTypeValue{
 		Name:      arrayName,
 		ArrayType: arrayType,
 	}
-	ctx.Env().Define(typeKey, arrayTypeValue)
+
+	// Task 3.5.48: Register in interpreter's i.env via adapter method.
+	// This is necessary because IsArrayType and CreateArrayZeroValue look in i.env,
+	// not in ctx.Env(). The adapter ensures the type is stored where lookups expect it.
+	e.adapter.RegisterArrayTypeInEnvironment(arrayName, arrayTypeValue)
 
 	return &runtime.NilValue{} // Type declarations don't return a value
 }
@@ -465,8 +471,8 @@ func (e *Evaluator) VisitTypeDeclaration(node *ast.TypeDeclaration, ctx *Executi
 
 	// Handle type aliases
 	if node.IsAlias {
-		// Check for inline/complex type expressions that don't need runtime storage
-		switch node.AliasedType.(type) {
+		// Check for inline/complex type expressions
+		switch aliasType := node.AliasedType.(type) {
 		case *ast.ClassOfTypeNode:
 			// Metaclass types - semantic analyzer handles them
 			return &runtime.NilValue{}
@@ -474,7 +480,25 @@ func (e *Evaluator) VisitTypeDeclaration(node *ast.TypeDeclaration, ctx *Executi
 			// Set types - semantic analyzer handles them
 			return &runtime.NilValue{}
 		case *ast.ArrayTypeNode:
-			// Inline array types - semantic analyzer handles them
+			// Task 3.5.48: Inline array types need runtime registration for variable declarations.
+			// Example: type TMyArray = array[1..10] of Integer;
+			// The type must be registered so IsArrayType and CreateArrayZeroValue can find it.
+			arrayType, err := e.adapter.ResolveArrayTypeNode(aliasType)
+			if err != nil {
+				return e.newError(node, "failed to resolve array type: %v", err)
+			}
+			if arrayType != nil {
+				// Create ArrayTypeValue and register it
+				typedArrayType, ok := arrayType.(*types.ArrayType)
+				if !ok {
+					return e.newError(node, "resolved type is not an ArrayType")
+				}
+				arrayTypeValue := &ArrayTypeValue{
+					Name:      node.Name.Value,
+					ArrayType: typedArrayType,
+				}
+				e.adapter.RegisterArrayTypeInEnvironment(node.Name.Value, arrayTypeValue)
+			}
 			return &runtime.NilValue{}
 		case *ast.FunctionPointerTypeNode:
 			// Function pointer types - already handled earlier
