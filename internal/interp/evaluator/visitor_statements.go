@@ -220,7 +220,7 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 	}
 
 	// Define all names with appropriate values
-	var lastValue Value = value
+	var lastValue = value
 	for _, name := range node.Names {
 		var nameValue Value
 

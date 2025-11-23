@@ -13,8 +13,8 @@ func TestInterfaceValidationWithExperimentalPasses(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name: "valid class to interface assignment",

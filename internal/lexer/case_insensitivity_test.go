@@ -78,27 +78,27 @@ func TestLexerPreservesOriginalCasing(t *testing.T) {
 	testCases := []struct {
 		name            string
 		input           string
-		expectedType    TokenType
 		expectedLiteral string
+		expectedType    TokenType
 	}{
 		// Keywords in various cases - literal should match input exactly
-		{"BEGIN_upper", "BEGIN", BEGIN, "BEGIN"},
-		{"Begin_mixed", "Begin", BEGIN, "Begin"},
-		{"begin_lower", "begin", BEGIN, "begin"},
-		{"bEgIn_alternating", "bEgIn", BEGIN, "bEgIn"},
+		{name: "BEGIN_upper", input: "BEGIN", expectedType: BEGIN, expectedLiteral: "BEGIN"},
+		{name: "Begin_mixed", input: "Begin", expectedType: BEGIN, expectedLiteral: "Begin"},
+		{name: "begin_lower", input: "begin", expectedType: BEGIN, expectedLiteral: "begin"},
+		{name: "bEgIn_alternating", input: "bEgIn", expectedType: BEGIN, expectedLiteral: "bEgIn"},
 
-		{"FUNCTION_upper", "FUNCTION", FUNCTION, "FUNCTION"},
-		{"Function_mixed", "Function", FUNCTION, "Function"},
-		{"FuNcTiOn_alternating", "FuNcTiOn", FUNCTION, "FuNcTiOn"},
+		{name: "FUNCTION_upper", input: "FUNCTION", expectedType: FUNCTION, expectedLiteral: "FUNCTION"},
+		{name: "Function_mixed", input: "Function", expectedType: FUNCTION, expectedLiteral: "Function"},
+		{name: "FuNcTiOn_alternating", input: "FuNcTiOn", expectedType: FUNCTION, expectedLiteral: "FuNcTiOn"},
 
-		{"TRUE_upper", "TRUE", TRUE, "TRUE"},
-		{"True_mixed", "True", TRUE, "True"},
-		{"true_lower", "true", TRUE, "true"},
+		{name: "TRUE_upper", input: "TRUE", expectedType: TRUE, expectedLiteral: "TRUE"},
+		{name: "True_mixed", input: "True", expectedType: TRUE, expectedLiteral: "True"},
+		{name: "true_lower", input: "true", expectedType: TRUE, expectedLiteral: "true"},
 
 		// Identifiers - literal should always match input
-		{"MyVariable_mixed", "MyVariable", IDENT, "MyVariable"},
-		{"MYVARIABLE_upper", "MYVARIABLE", IDENT, "MYVARIABLE"},
-		{"myvariable_lower", "myvariable", IDENT, "myvariable"},
+		{name: "MyVariable_mixed", input: "MyVariable", expectedType: IDENT, expectedLiteral: "MyVariable"},
+		{name: "MYVARIABLE_upper", input: "MYVARIABLE", expectedType: IDENT, expectedLiteral: "MYVARIABLE"},
+		{name: "myvariable_lower", input: "myvariable", expectedType: IDENT, expectedLiteral: "myvariable"},
 	}
 
 	for _, tc := range testCases {
@@ -131,33 +131,33 @@ func TestLexerMixedCaseProgram(t *testing.T) {
 	`
 
 	expectedTokens := []struct {
-		tokenType TokenType
 		literal   string
+		tokenType TokenType
 	}{
-		{VAR, "Var"},
-		{IDENT, "x"},
-		{COLON, ":"},
-		{IDENT, "Integer"},
-		{SEMICOLON, ";"},
-		{BEGIN, "BEGIN"},
-		{IF, "If"},
-		{IDENT, "x"},
-		{GREATER, ">"},
-		{INT, "0"},
-		{THEN, "Then"},
-		{IDENT, "PrintLn"},
-		{LPAREN, "("},
-		{STRING, "positive"},
-		{RPAREN, ")"},
-		{ELSE, "Else"},
-		{IDENT, "PrintLn"},
-		{LPAREN, "("},
-		{STRING, "non-positive"},
-		{RPAREN, ")"},
-		{SEMICOLON, ";"},
-		{END, "END"},
-		{SEMICOLON, ";"},
-		{EOF, ""},
+		{tokenType: VAR, literal: "Var"},
+		{tokenType: IDENT, literal: "x"},
+		{tokenType: COLON, literal: ":"},
+		{tokenType: IDENT, literal: "Integer"},
+		{tokenType: SEMICOLON, literal: ";"},
+		{tokenType: BEGIN, literal: "BEGIN"},
+		{tokenType: IF, literal: "If"},
+		{tokenType: IDENT, literal: "x"},
+		{tokenType: GREATER, literal: ">"},
+		{tokenType: INT, literal: "0"},
+		{tokenType: THEN, literal: "Then"},
+		{tokenType: IDENT, literal: "PrintLn"},
+		{tokenType: LPAREN, literal: "("},
+		{tokenType: STRING, literal: "positive"},
+		{tokenType: RPAREN, literal: ")"},
+		{tokenType: ELSE, literal: "Else"},
+		{tokenType: IDENT, literal: "PrintLn"},
+		{tokenType: LPAREN, literal: "("},
+		{tokenType: STRING, literal: "non-positive"},
+		{tokenType: RPAREN, literal: ")"},
+		{tokenType: SEMICOLON, literal: ";"},
+		{tokenType: END, literal: "END"},
+		{tokenType: SEMICOLON, literal: ";"},
+		{tokenType: EOF, literal: ""},
 	}
 
 	l := New(input)

@@ -684,7 +684,7 @@ func (v *statementValidator) validateConstDecl(stmt *ast.ConstDecl) {
 	}
 
 	// Type-check the initializer with context-aware inference
-	var finalType types.Type = declaredType
+	var finalType = declaredType
 	if stmt.Value != nil {
 		valueType := v.checkExpressionWithExpectedType(stmt.Value, declaredType)
 

@@ -15,8 +15,8 @@ func TestErrorMessageCasing(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         string
+		errorContains string
 		wantErr       bool
-		errorContains string // Should contain original casing from user input
 	}{
 		{
 			name: "non-existent member with MixedCase",

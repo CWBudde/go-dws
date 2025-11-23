@@ -330,8 +330,8 @@ func TestSymbolTableOriginalCasingPreserved(t *testing.T) {
 	tests := []struct {
 		name         string
 		definedName  string
+		expectedName string
 		lookupNames  []string
-		expectedName string // Original name should be preserved
 	}{
 		{
 			name:         "lowercase definition",
@@ -385,8 +385,8 @@ func TestTypeRegistryOriginalCasingPreserved(t *testing.T) {
 	tests := []struct {
 		name         string
 		definedName  string
-		lookupNames  []string
 		expectedName string
+		lookupNames  []string
 	}{
 		{
 			name:         "PascalCase type",

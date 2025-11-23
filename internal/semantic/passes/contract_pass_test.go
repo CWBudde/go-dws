@@ -15,8 +15,8 @@ func TestContractPassPreconditionBoolean(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name: "valid boolean precondition",
@@ -107,8 +107,8 @@ func TestContractPassPostconditionBoolean(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name: "valid boolean postcondition",
@@ -199,8 +199,8 @@ func TestContractPassOldExpression(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name: "valid old expression with parameter",

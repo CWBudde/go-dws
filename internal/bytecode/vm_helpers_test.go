@@ -11,8 +11,8 @@ func TestSetStringLength(t *testing.T) {
 	tests := []struct {
 		name      string
 		input     string
-		newLength int
 		expected  string
+		newLength int
 	}{
 		{
 			name:      "same length",

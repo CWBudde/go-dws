@@ -150,9 +150,9 @@ type ExecutionContext struct {
 	callStack         *CallStack
 	controlFlow       *ControlFlow
 	propContext       *PropertyEvalContext
+	recordTypeContext string
 	envStack          []Environment
 	oldValuesStack    []map[string]interface{}
-	recordTypeContext string // Type context for anonymous record literals (avoids AST mutation)
 }
 
 // NewExecutionContext creates a new execution context with the given environment.

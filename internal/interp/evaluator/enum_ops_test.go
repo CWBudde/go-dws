@@ -13,11 +13,11 @@ import (
 // TestEvalEnumBinaryOp tests binary operations on enum values.
 func TestEvalEnumBinaryOp(t *testing.T) {
 	tests := []struct {
-		expected any // bool for comparisons, int for bitwise ops
-		name     string
-		op       string
+		expected any
 		left     *runtime.EnumValue
 		right    *runtime.EnumValue
+		name     string
+		op       string
 	}{
 		// Comparison operators
 		{
