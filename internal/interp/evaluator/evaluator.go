@@ -52,6 +52,12 @@ type InterpreterAdapter interface {
 	// EvalNode evaluates a node using the legacy Interpreter.Eval method.
 	EvalNode(node ast.Node) Value
 
+	// EvalNodeWithContext evaluates a node using the legacy Interpreter.Eval method
+	// with proper environment synchronization from the ExecutionContext.
+	// This ensures that scoped environments (from loops, functions, etc.) are respected.
+	// Phase 3.5.44: Added to fix scope desync when adapter fallbacks are called from scoped contexts.
+	EvalNodeWithContext(node ast.Node, ctx *ExecutionContext) Value
+
 	// Phase 3.5.4 - Phase 2A: Function call system methods
 	// These methods allow the Evaluator to call functions during evaluation
 	// without directly accessing Interpreter fields.
@@ -968,8 +974,9 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	default:
 		// Phase 3.5.2: Unknown node type - delegate to adapter if available
 		// This provides a safety net during the migration
+		// Phase 3.5.44: Use EvalNodeWithContext to preserve scoped environments
 		if e.adapter != nil {
-			return e.adapter.EvalNode(node)
+			return e.adapter.EvalNodeWithContext(node, ctx)
 		}
 		// If no adapter, this is an error (unknown node type)
 		panic("Evaluator.Eval: unknown node type and no adapter available")

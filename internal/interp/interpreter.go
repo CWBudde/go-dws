@@ -266,6 +266,33 @@ func (i *Interpreter) EvalNode(node ast.Node) evaluator.Value {
 	return i.evalDirect(node)
 }
 
+// EvalNodeWithContext evaluates a node with proper environment synchronization.
+// Phase 3.5.44: This method syncs the interpreter's environment from the context
+// before calling evalDirect, ensuring that scoped environments (from loops, functions, etc.)
+// are properly respected by the legacy evaluation code.
+func (i *Interpreter) EvalNodeWithContext(node ast.Node, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// Save the current environment to restore after evaluation
+	savedEnv := i.env
+
+	// Sync the interpreter's environment from the context
+	// The context's Env() returns an EnvironmentAdapter wrapping the actual *Environment
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+
+	// Ensure environment is restored even on panic
+	defer func() {
+		i.env = savedEnv
+	}()
+
+	// Use evalDirect to bypass the Evaluator delegation and use the legacy switch logic
+	return i.evalDirect(node)
+}
+
 // Phase 3.5.4 - Phase 2A: Function call system adapter methods
 // These methods implement the InterpreterAdapter interface for function calls.
 
@@ -2059,10 +2086,16 @@ func (i *Interpreter) CreateLambda(lambda *ast.LambdaExpression, closure any) ev
 	var env *Environment
 	if closure != nil {
 		if envAdapter, ok := closure.(*evaluator.EnvironmentAdapter); ok {
-			// Unwrap the EnvironmentAdapter to get the underlying Environment
-			env = envAdapter.Underlying().(*Environment)
+			underlying := envAdapter.Underlying()
+			if e, ok := underlying.(*Environment); ok {
+				env = e
+			} else {
+				panic(fmt.Sprintf("CreateLambda: EnvironmentAdapter.Underlying() must return *Environment, got %T", underlying))
+			}
+		} else if e, ok := closure.(*Environment); ok {
+			env = e
 		} else {
-			env = closure.(*Environment)
+			panic(fmt.Sprintf("CreateLambda: closure must be *Environment or *EnvironmentAdapter, got %T", closure))
 		}
 	}
 

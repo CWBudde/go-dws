@@ -355,7 +355,7 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 //
 // See comprehensive documentation in internal/interp/statements_assignments.go
 func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNode(node)
+	return e.adapter.EvalNodeWithContext(node, ctx)
 }
 
 // VisitBlockStatement evaluates a block statement (begin...end).
