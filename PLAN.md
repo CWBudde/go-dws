@@ -540,15 +540,104 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
   - Acceptance: ExceptionValue has no AST dependencies, exception tests pass
   - **Completed**: Added Metadata field to ExceptionValue structure. Updated Type() and Inspect() methods to prefer Metadata over ClassInfo with fallback for backward compatibility. Updated all exception creation sites (raiseMaxRecursionExceeded, evalRaiseStatement) to populate Metadata field. Updated matchesExceptionType() to use metadata for class hierarchy checks. Fixed metadata parent hierarchy for all built-in exception classes (Exception, ERangeError, EConvertError, EDivByZero, EAssertionFailed, EInvalidOp, EScriptStackOverflow, EHost). Deprecated ClassInfo field but kept it populated for backward compatibility during migration. All exception tests passing, including hierarchy tests.
 
-- [ ] **3.5.44** Remove Adapter Pattern
-  - Remove `InterpreterAdapter` interface
-  - Remove `adapter` field from Evaluator
-  - Remove all `EvalNode()` fallback calls
-  - Make Interpreter thin orchestrator only
-  - Update benchmarks to include variable access and function calls
+- [~] **3.5.44** Remove Adapter Pattern (PARTIAL - Core Complete, Cleanup Pending)
+  - ✅ Made Interpreter thin orchestrator - Eval() delegates to Evaluator
+  - ✅ Created evalDirect() bypass to prevent infinite recursion
+  - ✅ Fixed EnvironmentAdapter unwrapping in 5 adapter methods
+  - ✅ Fixed critical bugs (function lookup, nil pointer dereference)
+  - ⏳ Remove `InterpreterAdapter` interface (pending - still needed)
+  - ⏳ Remove `adapter` field from Evaluator (pending - still needed)
+  - ⏳ Remove remaining `EvalNode()` fallback calls (~42 locations)
+  - ⏳ Update benchmarks to include variable access and function calls
+  - Files: `internal/interp/evaluator/evaluator.go`, `internal/interp/interpreter.go`, `internal/interp/evaluator/visitor_declarations.go`, `internal/interp/evaluator/visitor_statements.go`, `internal/interp/exceptions.go`
+  - Effort: 8-12 hours (6 hours spent, 2-6 hours remaining)
+  - Acceptance: ✅ Interpreter is thin orchestrator, ⏳ Tests mostly passing (3 edge cases), ⏳ Adapter removal pending
+  - **Status**: Core architectural change complete. Interpreter.Eval() successfully delegates to Evaluator.Eval(). Most tests passing. Adapter pattern still in place for not-yet-migrated functionality. Edge cases: closure capture (1 test), assert output formatting (2 tests).
+  - **Commits**: fb590e2 (initial implementation), 5507d5a (bug fixes)
+
+- [ ] **3.5.45** Fix Edge Case Test Failures
+  - Fix closure capture test (TestSimpleClosureCapture returns 0 instead of 50)
+  - Fix assert output formatting tests (TestAssertFalseWithCustomMessage, TestAssertMessageFormat)
+  - Root cause: Execution path changed when Interpreter.Eval() started delegating to Evaluator
+  - Debug approach:
+    - Add logging to track closure environment capture and access
+    - Verify evalDirect() properly handles closure creation
+    - Check if assert exception output is being captured correctly
+  - Files: `internal/interp/evaluator/visitor_expressions.go`, `internal/interp/interpreter.go`
+  - Effort: 1-2 hours
+  - Acceptance: All 3 edge case tests pass
+  - Dependencies: 3.5.44
+
+- [ ] **3.5.46** Migrate Remaining Expression Visitors
+  - Remove adapter.EvalNode() calls in visitor_expressions.go (~20 locations)
+  - Implement logic directly in visitor methods or extract to helper functions
+  - Focus areas:
+    - Identifier resolution (function names, class names, built-in functions)
+    - Complex member access patterns
+    - Array/set operations still using adapter
+  - Strategy: For each adapter.EvalNode() call, either:
+    1. Implement logic inline using available services (typeSystem, etc.)
+    2. Extract Interpreter method to standalone helper function
+    3. Add specific adapter method (not generic EvalNode)
+  - Files: `internal/interp/evaluator/visitor_expressions.go`
+  - Effort: 2-3 hours
+  - Acceptance: No adapter.EvalNode() calls in visitor_expressions.go
+  - Dependencies: 3.5.45
+
+- [ ] **3.5.47** Migrate Remaining Statement and Binary Op Visitors
+  - Remove adapter.EvalNode() calls in visitor_statements.go (AssignmentStatement)
+  - Remove adapter.EvalNode() calls in binary_ops.go (2 locations)
+  - Move assignment logic from Interpreter.evalAssignmentStatement to Evaluator
+  - Move binary op fallback logic inline or to helper functions
+  - Files: `internal/interp/evaluator/visitor_statements.go`, `internal/interp/evaluator/binary_ops.go`
+  - Effort: 1-2 hours
+  - Acceptance: No adapter.EvalNode() calls in statements or binary ops
+  - Dependencies: 3.5.46
+
+- [ ] **3.5.48** Remove InterpreterAdapter Interface
+  - Verify no adapter.EvalNode() calls remain in Evaluator package
+  - Remove InterpreterAdapter interface from evaluator.go
+  - Remove adapter field from Evaluator struct
+  - Remove SetAdapter() method
+  - Remove adapter setup in Interpreter.NewWithOptions()
+  - Update all remaining adapter method calls to use direct Interpreter access or services
   - Files: `internal/interp/evaluator/evaluator.go`, `internal/interp/interpreter.go`
-  - Effort: 8-12 hours
-  - Acceptance: No adapter, all tests pass, benchmarks updated
+  - Effort: 1-2 hours
+  - Acceptance: No InterpreterAdapter interface, no adapter field, all tests pass
+  - Dependencies: 3.5.47
+
+- [ ] **3.5.49** Add Performance Benchmarks
+  - Create benchmarks for variable access patterns
+  - Create benchmarks for function call patterns
+  - Compare thin orchestrator vs old switch-based approach (if feasible)
+  - Verify no performance regression from architectural change
+  - Files: `internal/interp/interpreter_bench_test.go` (new)
+  - Effort: 1 hour
+  - Acceptance: Benchmarks added, no significant regression
+  - Dependencies: 3.5.48
+
+- [ ] **3.5.50** Remove evalDirect() Legacy Code Path
+  - Once all adapter.EvalNode() calls are removed, evalDirect() is no longer needed
+  - Remove evalDirect() method from Interpreter
+  - Update EvalNode() adapter method if still needed for other adapter methods
+  - Clean up comments referring to legacy/migration paths
+  - Files: `internal/interp/interpreter.go`
+  - Effort: 30 minutes
+  - Acceptance: evalDirect() removed, code cleaner, all tests pass
+  - Dependencies: 3.5.48
+
+---
+
+**Phase 3.5 Completion Summary**
+
+Tasks 3.5.44-3.5.50 complete the evaluator migration and adapter pattern removal:
+- 3.5.44: Core thin orchestrator ✅ (partial - core complete)
+- 3.5.45-3.5.47: Migrate remaining functionality
+- 3.5.48: Remove adapter interface
+- 3.5.49-3.5.50: Performance validation and cleanup
+
+Total estimated remaining effort: 6-10 hours
+
 
 ---
 
