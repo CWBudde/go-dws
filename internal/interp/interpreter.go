@@ -419,6 +419,95 @@ func (i *Interpreter) EvalVariantUnaryNot(operand evaluator.Value, node ast.Node
 	return i.EvalNodeWithContext(node, ctx)
 }
 
+// ===== Task 3.5.50: Declaration Adapter Methods =====
+
+// EvalClassDeclaration evaluates a class declaration using the interpreter's full logic.
+// Task 3.5.50: Specific adapter method to replace generic EvalNodeWithContext for ClassDecl nodes.
+func (i *Interpreter) EvalClassDeclaration(node *ast.ClassDecl, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// Save the current environment to restore after evaluation
+	savedEnv := i.env
+
+	// Sync the interpreter's environment from the context
+	// The context's Env() returns an EnvironmentAdapter wrapping the actual *Environment
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+
+	// Ensure environment is restored even on panic
+	defer func() {
+		i.env = savedEnv
+		// Task 3.5.50: Sync exception state back to context only if an exception was raised
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	// Delegate to the interpreter's class declaration evaluation logic
+	return i.evalClassDeclaration(node)
+}
+
+// EvalInterfaceDeclaration evaluates an interface declaration using the interpreter's full logic.
+// Task 3.5.50: Specific adapter method to replace generic EvalNodeWithContext for InterfaceDecl nodes.
+func (i *Interpreter) EvalInterfaceDeclaration(node *ast.InterfaceDecl, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// Save the current environment to restore after evaluation
+	savedEnv := i.env
+
+	// Sync the interpreter's environment from the context
+	// The context's Env() returns an EnvironmentAdapter wrapping the actual *Environment
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+
+	// Ensure environment is restored even on panic
+	defer func() {
+		i.env = savedEnv
+		// Task 3.5.50: Sync exception state back to context only if an exception was raised
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	// Delegate to the interpreter's interface declaration evaluation logic
+	return i.evalInterfaceDeclaration(node)
+}
+
+// EvalHelperDeclaration evaluates a helper declaration using the interpreter's full logic.
+// Task 3.5.50: Specific adapter method to replace generic EvalNodeWithContext for HelperDecl nodes.
+func (i *Interpreter) EvalHelperDeclaration(node *ast.HelperDecl, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// Save the current environment to restore after evaluation
+	savedEnv := i.env
+
+	// Sync the interpreter's environment from the context
+	// The context's Env() returns an EnvironmentAdapter wrapping the actual *Environment
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+
+	// Ensure environment is restored even on panic
+	defer func() {
+		i.env = savedEnv
+		// Task 3.5.50: Sync exception state back to context only if an exception was raised
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	// Delegate to the interpreter's helper declaration evaluation logic
+	return i.evalHelperDeclaration(node)
+}
+
 // LookupFunction finds a function by name in the function registry.
 func (i *Interpreter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
 	// DWScript is case-insensitive, so normalize to lowercase
