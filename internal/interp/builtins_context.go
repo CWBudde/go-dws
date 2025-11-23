@@ -674,13 +674,11 @@ func (i *Interpreter) RaiseAssertionFailed(customMessage string) {
 	}
 
 	// Create exception instance
-	instance := &ObjectInstance{
-		Class:  assertClass,
-		Fields: make(map[string]Value),
-	}
+	instance := NewObjectInstance(assertClass)
 
 	// Set the Message field
-	instance.Fields["Message"] = &StringValue{Value: message}
+	// Task 3.5.40: Use SetField to ensure proper normalization
+	instance.SetField("Message", &StringValue{Value: message})
 
 	// Create exception value and set it
 	i.exception = &ExceptionValue{

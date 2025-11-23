@@ -340,7 +340,8 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 
 		// Create object and interface instance
 		obj := NewObjectInstance(class)
-		obj.Fields["TestField"] = &IntegerValue{Value: 42}
+		// Task 3.5.40: Use SetField for proper normalization
+		obj.SetField("TestField", &IntegerValue{Value: 42})
 		ifaceInstance := NewInterfaceInstance(iface, obj)
 
 		// Test: Interface → Object cast
@@ -501,7 +502,8 @@ func TestIntegration_InterfaceLifetimeManagement(t *testing.T) {
 		iface := NewInterfaceInfo("IShared")
 		class := NewClassInfo("TShared")
 		obj := NewObjectInstance(class)
-		obj.Fields["Counter"] = &IntegerValue{Value: 0}
+		// Task 3.5.40: Use SetField for proper normalization
+		obj.SetField("Counter", &IntegerValue{Value: 0})
 
 		// Create multiple interface instances referencing same object
 		iface1 := NewInterfaceInstance(iface, obj)

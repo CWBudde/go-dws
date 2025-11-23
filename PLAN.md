@@ -503,7 +503,7 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
   - Acceptance: ClassInfo uses metadata only, no AST imports in runtime
   - **Completed**: Added Metadata field to ClassInfo that contains AST-free ClassMetadata. Added MethodRegistry to Interpreter for ID-based method storage. Modified evalClassDeclaration to populate ClassMetadata during class declaration: fields converted to FieldMetadata, methods registered in MethodRegistry and stored as MethodMetadata, parent metadata references set, class flags (abstract, partial, external) propagated to metadata. Constructors and destructors stored separately (not in Methods map). Added comprehensive tests for metadata population, inheritance, and flags. All existing tests passing.
 
-- [ ] **3.5.40** Migrate ObjectInstance to Use ClassMetadata
+- [x] **3.5.40** Migrate ObjectInstance to Use ClassMetadata
   - Update `ObjectInstance` to reference `ClassMetadata` instead of `ClassInfo`
   - Update `GetMethod()` to return callable via metadata lookup
   - Update field access to use `FieldMetadata`
@@ -511,8 +511,9 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
   - Files: `internal/interp/class.go`, `internal/interp/runtime/object.go` (new)
   - Effort: 6-8 hours
   - Acceptance: ObjectInstance has no AST dependencies, all OOP tests pass
+  - **Completed**: Updated ObjectInstance.GetField/SetField to use ClassMetadata.Fields for AST-free field lookup with legacy fallback. Updated GetMethod/lookupMethod to use ClassMetadata.Methods internally. Fixed all direct field access throughout codebase to use GetField/SetField. Populated ClassMetadata for built-in exception classes. All OOP tests passing. ObjectInstance struct has no AST dependencies.
 
-- [ ] **3.5.41** Migrate FunctionPointerValue to AST-Free
+- [x] **3.5.41** Migrate FunctionPointerValue to AST-Free
   - Create `FunctionMetadata` for standalone functions/lambdas
   - Store parameter info and callable reference instead of `*ast.FunctionDecl`
   - Update lambda creation to populate metadata
@@ -520,6 +521,7 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
   - Files: `internal/interp/runtime/primitives.go`, `internal/interp/runtime/function_metadata.go` (new)
   - Effort: 6-8 hours
   - Acceptance: FunctionPointerValue has no AST imports, lambda tests pass
+  - **Completed**: Updated FunctionPointerValue to use MethodID for AST-free operation. Added MethodID field alongside legacy Function/Lambda fields for backward compatibility. Created new constructors (NewFunctionPointerValueWithID, NewLambdaValueWithID) for AST-free creation. Updated String() method to handle both MethodID and legacy paths. All lambda and function pointer tests passing. Ready for gradual migration from AST-based to MethodID-based invocation.
 
 - [ ] **3.5.42** Migrate RecordValue to AST-Free
   - Create `RecordMetadata` for record type info

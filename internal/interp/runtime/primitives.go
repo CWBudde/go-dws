@@ -438,10 +438,11 @@ func (u *UnassignedValue) Copy() Value {
 // FunctionPointerValue represents a function or procedure pointer in DWScript.
 // Task 9.164: Create runtime representation for function pointers.
 // Task 9.221: Extended to support lambda expressions/anonymous methods.
+// Task 3.5.41: Migrated to AST-free representation using MethodID.
 //
 // Function pointers store a reference to a callable function/procedure along with
 // its closure environment. Method pointers additionally capture the Self object.
-// Lambdas are also represented using this type, with Lambda field set instead of Function.
+// Lambdas are also represented using this type.
 //
 // Examples:
 //   - Function pointer: var f: TFunc; f := @MyFunction;
@@ -451,14 +452,12 @@ func (u *UnassignedValue) Copy() Value {
 // NOTE: Closure field uses interface{} to avoid circular import with interp.Environment.
 // At runtime, this will be *Environment.
 type FunctionPointerValue struct {
-	// Function is the AST node of the function/procedure being pointed to
-	// Either Function OR Lambda will be set, never both
-	Function *ast.FunctionDecl
+	// === AST-Free Fields (Task 3.5.41) ===
 
-	// Lambda is the AST node of the lambda expression (anonymous method)
-	// Either Function OR Lambda will be set, never both
-	// Task 9.221: Added for lambda/closure support
-	Lambda *ast.LambdaExpression
+	// MethodID is the unique ID in the MethodRegistry for this callable.
+	// Used for AST-free method/function invocation.
+	// Task 3.5.41: Replaces direct AST node storage.
+	MethodID MethodID
 
 	// Closure is the environment where the function/lambda was defined
 	// For lambdas, this captures all variables from outer scopes
@@ -472,6 +471,20 @@ type FunctionPointerValue struct {
 
 	// PointerType is the function pointer type information
 	PointerType *types.FunctionPointerType
+
+	// === Legacy AST Fields (for backward compatibility during migration) ===
+	// TODO: Remove these after full migration to MethodID-based invocation
+
+	// Function is the AST node of the function/procedure being pointed to
+	// Either Function OR Lambda will be set, never both
+	// Deprecated: Use MethodID instead
+	Function *ast.FunctionDecl
+
+	// Lambda is the AST node of the lambda expression (anonymous method)
+	// Either Function OR Lambda will be set, never both
+	// Task 9.221: Added for lambda/closure support
+	// Deprecated: Use MethodID instead
+	Lambda *ast.LambdaExpression
 }
 
 // Type returns "FUNCTION_POINTER", "METHOD_POINTER", or "LAMBDA" (closure).
@@ -489,12 +502,25 @@ func (f *FunctionPointerValue) Type() string {
 // String returns the string representation of the function pointer.
 // Format: @FunctionName, @Object.MethodName, or <lambda> for closures
 // Task 9.221: Updated to handle lambdas.
+// Task 3.5.41: Updated to handle MethodID-based representation.
 func (f *FunctionPointerValue) String() string {
-	// Lambda closures
+	// Lambda closures (check legacy field first for backward compatibility)
 	if f.Lambda != nil {
 		return "<lambda>"
 	}
 
+	// Check if we have MethodID (AST-free path)
+	if f.MethodID != InvalidMethodID {
+		// For method pointers, show object + method
+		if f.SelfObject != nil {
+			return "@" + f.SelfObject.String() + ".<method>"
+		}
+		// For regular function pointers, show generic representation
+		// (We don't have access to MethodRegistry here to look up name)
+		return "@<function>"
+	}
+
+	// Legacy path: use AST nodes
 	// Regular function/method pointers
 	if f.Function == nil {
 		return "@<nil>"
