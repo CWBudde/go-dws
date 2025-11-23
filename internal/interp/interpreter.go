@@ -795,6 +795,20 @@ func (i *Interpreter) CallClassMethod(className, methodName string, args []ast.E
 	return i.evalMethodCall(mc)
 }
 
+// CallClassMethodFromValue calls a class method using an evaluated class value.
+// Used when a class is stored in a variable (metaclass) and methods are called on it.
+func (i *Interpreter) CallClassMethodFromValue(classVal evaluator.Value, methodName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// Extract the class name from the ClassValue
+	cv, ok := classVal.(*ClassValue)
+	if !ok {
+		return &evaluator.ErrorValue{Message: fmt.Sprintf("expected class value, got %s", classVal.Type())}
+	}
+	if cv.ClassInfo == nil {
+		return &evaluator.ErrorValue{Message: "class value has no class info"}
+	}
+	return i.CallClassMethod(cv.ClassInfo.Name, methodName, args, ctx)
+}
+
 // CallUserFunctionWithOverloads calls a user-defined function with overload resolution.
 func (i *Interpreter) CallUserFunctionWithOverloads(funcName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
 	savedEnv := i.env

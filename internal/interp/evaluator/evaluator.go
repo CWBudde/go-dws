@@ -917,6 +917,10 @@ type InterpreterAdapter interface {
 	// CallClassMethod calls a class method or constructor (TClass.MethodName).
 	CallClassMethod(className, methodName string, args []ast.Expression, ctx *ExecutionContext) Value
 
+	// CallClassMethodFromValue calls a class method using an evaluated class value.
+	// Used when a class is stored in a variable (metaclass) and methods are called on it.
+	CallClassMethodFromValue(classVal Value, methodName string, args []ast.Expression, ctx *ExecutionContext) Value
+
 	// CallUserFunctionWithOverloads calls a user-defined function with potential overloads.
 	CallUserFunctionWithOverloads(funcName string, args []ast.Expression, ctx *ExecutionContext) Value
 
