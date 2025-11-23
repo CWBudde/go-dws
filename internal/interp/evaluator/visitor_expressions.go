@@ -108,7 +108,8 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			// Check for property - but skip if we're in a property getter/setter to prevent recursion
 			propCtx := ctx.PropContext()
 			if propCtx == nil || (!propCtx.InPropertyGetter && !propCtx.InPropertySetter) {
-				if e.adapter.HasProperty(selfVal, node.Value) {
+				// Task 3.5.72: Use ObjectValue interface for direct property check
+				if objVal, ok := selfVal.(ObjectValue); ok && objVal.HasProperty(node.Value) {
 					propValue, err := e.adapter.ReadPropertyValue(selfVal, node.Value, node)
 					if err != nil {
 						return e.newError(node, "%s", err.Error())
@@ -118,7 +119,8 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			}
 
 			// Check for method - auto-invoke if parameterless, or create method pointer
-			if e.adapter.HasMethod(selfVal, node.Value) {
+			// Task 3.5.72: Use ObjectValue interface for direct method check
+			if objVal, ok := selfVal.(ObjectValue); ok && objVal.HasMethod(node.Value) {
 				if e.adapter.IsMethodParameterless(selfVal, node.Value) {
 					// Auto-invoke parameterless method
 					return e.adapter.CreateMethodCall(selfVal, node.Value, node)
@@ -1002,7 +1004,8 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Try property access first (with recursion protection)
 		propCtx := ctx.PropContext()
 		if propCtx == nil || (!propCtx.InPropertyGetter && !propCtx.InPropertySetter) {
-			if e.adapter.HasProperty(obj, memberName) {
+			// Task 3.5.72: Use ObjectValue interface for direct property check
+			if objVal, ok := obj.(ObjectValue); ok && objVal.HasProperty(memberName) {
 				propValue, err := e.adapter.ReadPropertyValue(obj, memberName, node)
 				if err == nil {
 					return propValue
