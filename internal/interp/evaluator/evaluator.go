@@ -31,6 +31,22 @@ type ObjectValue interface {
 	HasMethod(name string) bool
 }
 
+// ExternalVarAccessor is an optional interface for external variable values.
+// Task 3.5.73: Enables direct access to external variable name without adapter.
+type ExternalVarAccessor interface {
+	Value
+	// ExternalVarName returns the name of the external variable.
+	ExternalVarName() string
+}
+
+// LazyEvaluator is an optional interface for lazy parameter thunks.
+// Task 3.5.73: Enables direct lazy evaluation without adapter.
+type LazyEvaluator interface {
+	Value
+	// Evaluate forces evaluation of the lazy parameter and returns the result.
+	Evaluate() Value
+}
+
 // Config holds configuration options for the evaluator.
 type Config struct {
 	SourceCode        string
@@ -506,30 +522,14 @@ type InterpreterAdapter interface {
 
 	// ===== Task 3.5.21: Complex Value Retrieval Adapter Methods =====
 
-	// IsExternalVar checks if a value is an ExternalVarValue.
-	// Returns true if the value is an external variable marker.
-	IsExternalVar(value Value) bool
-
-	// IsLazyThunk checks if a value is a LazyThunk.
-	// Returns true if the value is a lazy parameter that needs evaluation.
-	IsLazyThunk(value Value) bool
-
 	// Task 3.5.71: IsReferenceValue removed - use val.Type() == "REFERENCE" directly
-
-	// EvaluateLazyThunk forces evaluation of a lazy parameter.
-	// Returns the evaluated value.
-	// Panics if the value is not a LazyThunk (check with IsLazyThunk first).
-	EvaluateLazyThunk(value Value) Value
+	// Task 3.5.73: IsExternalVar, IsLazyThunk, EvaluateLazyThunk, GetExternalVarName removed
+	//              - use ExternalVarAccessor and LazyEvaluator interfaces directly
 
 	// DereferenceValue dereferences a var parameter reference.
 	// Returns the actual value and an error if dereferencing fails.
 	// Panics if the value is not a ReferenceValue (check with IsReferenceValue first).
 	DereferenceValue(value Value) (Value, error)
-
-	// GetExternalVarName returns the name of an external variable.
-	// Returns the external variable name.
-	// Panics if the value is not an ExternalVarValue (check with IsExternalVar first).
-	GetExternalVarName(value Value) string
 
 	// CreateLazyThunk creates a lazy parameter thunk from an unevaluated expression.
 	// Lazy parameters are re-evaluated each time they are accessed (Jensen's Device pattern).

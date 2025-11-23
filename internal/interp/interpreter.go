@@ -2420,32 +2420,11 @@ func (i *Interpreter) EvalEqualityComparison(op string, left, right evaluator.Va
 // ===== Task 3.5.21: Complex Value Retrieval Adapter Method Implementations =====
 //
 // These adapter methods allow the Evaluator to handle complex value types
-// (ExternalVarValue, LazyThunk, ReferenceValue) that require special processing
-// when accessed as identifiers.
-
-// IsExternalVar checks if a value is an ExternalVarValue.
-func (i *Interpreter) IsExternalVar(value evaluator.Value) bool {
-	_, ok := value.(*ExternalVarValue)
-	return ok
-}
-
-// IsLazyThunk checks if a value is a LazyThunk.
-func (i *Interpreter) IsLazyThunk(value evaluator.Value) bool {
-	_, ok := value.(*LazyThunk)
-	return ok
-}
-
+// (ReferenceValue) that require special processing when accessed as identifiers.
+//
 // Task 3.5.71: IsReferenceValue removed - evaluator uses val.Type() == "REFERENCE" directly
-
-// EvaluateLazyThunk forces evaluation of a lazy parameter.
-// Panics if the value is not a LazyThunk.
-func (i *Interpreter) EvaluateLazyThunk(value evaluator.Value) evaluator.Value {
-	thunk, ok := value.(*LazyThunk)
-	if !ok {
-		panic("EvaluateLazyThunk called on non-LazyThunk value")
-	}
-	return thunk.Evaluate()
-}
+// Task 3.5.73: IsExternalVar, IsLazyThunk, EvaluateLazyThunk, GetExternalVarName removed
+//              - evaluator uses ExternalVarAccessor and LazyEvaluator interfaces directly
 
 // DereferenceValue dereferences a var parameter reference.
 // Returns the actual value and an error if dereferencing fails.
@@ -2460,16 +2439,6 @@ func (i *Interpreter) DereferenceValue(value evaluator.Value) (evaluator.Value, 
 		return nil, err
 	}
 	return actualVal, nil
-}
-
-// GetExternalVarName returns the name of an external variable.
-// Panics if the value is not an ExternalVarValue.
-func (i *Interpreter) GetExternalVarName(value evaluator.Value) string {
-	extVar, ok := value.(*ExternalVarValue)
-	if !ok {
-		panic("GetExternalVarName called on non-ExternalVarValue value")
-	}
-	return extVar.Name
 }
 
 // CreateLazyThunk creates a lazy parameter thunk from an unevaluated expression.

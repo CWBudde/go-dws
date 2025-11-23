@@ -520,6 +520,12 @@ func (e *ExternalVarValue) String() string {
 	return fmt.Sprintf("external(%s)", e.Name)
 }
 
+// ExternalVarName returns the variable name for error reporting.
+// Task 3.5.73: Implements ExternalVarAccessor interface for direct access without adapter.
+func (e *ExternalVarValue) ExternalVarName() string {
+	return e.Name
+}
+
 // Helper functions to create values from Go types
 
 // NewIntegerValue creates a new IntegerValue from an int64.

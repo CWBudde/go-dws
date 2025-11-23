@@ -5,8 +5,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -337,6 +339,14 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 		iface := NewInterfaceInfo("ITest")
 		class := NewClassInfo("TTest")
 		class.Methods["doit"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "DoIt"}}
+		// Register field so SetField uses normalized metadata/legacy paths
+		class.Fields["testfield"] = types.INTEGER
+		runtime.AddFieldToClass(class.Metadata, &runtime.FieldMetadata{
+			Name:       "TestField",
+			Type:       types.INTEGER,
+			TypeName:   "Integer",
+			Visibility: runtime.FieldVisibilityPublic,
+		})
 
 		// Create object and interface instance
 		obj := NewObjectInstance(class)
@@ -355,9 +365,9 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 			t.Errorf("Extracted object should be TTest, got %s", extracted.Class.Name)
 		}
 
-		// Verify object fields preserved (direct access to Fields map)
-		fieldVal, exists := extracted.Fields["TestField"]
-		if !exists {
+		// Verify object fields preserved (case-insensitive lookup)
+		fieldVal := extracted.GetField("TestField")
+		if fieldVal == nil {
 			t.Fatal("TestField should exist in object")
 		}
 

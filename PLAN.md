@@ -318,10 +318,16 @@ Interpreter.Eval() delegates to Evaluator. Created evalDirect() bypass. Fixed En
   - Files: `evaluator/evaluator.go`, `evaluator/visitor_expressions.go`, `class.go`, `interpreter.go`
   - Acceptance: No adapter property/method existence calls, tests pass ✅
 
-- [ ] **3.5.73** Replace External/Lazy Value Checks
-  - Replace `IsExternalVar`, `IsLazyThunk`, `EvaluateLazyThunk`
-  - Use type assertions on known value types
-  - Acceptance: No adapter external/lazy calls
+- [x] **3.5.73** Replace External/Lazy Value Checks ✅
+  - Added `ExternalVarAccessor` and `LazyEvaluator` interfaces to evaluator
+  - Added `ExternalVarName()` method to `ExternalVarValue` struct in value.go
+  - Replaced 4 adapter calls with interface type assertions:
+    - visitor_expressions.go:60 (`IsExternalVar` + `GetExternalVarName` → `ExternalVarAccessor`)
+    - visitor_expressions.go:67 (`IsLazyThunk` + `EvaluateLazyThunk` → `LazyEvaluator`)
+  - Removed 4 methods from adapter interface and interpreter:
+    - `IsExternalVar`, `IsLazyThunk`, `EvaluateLazyThunk`, `GetExternalVarName`
+  - Files: `evaluator/evaluator.go`, `evaluator/visitor_expressions.go`, `value.go`, `interpreter.go`
+  - Acceptance: No adapter external/lazy calls, tests pass ✅
 
 ---
 
