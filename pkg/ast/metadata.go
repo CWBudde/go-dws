@@ -51,12 +51,12 @@ import (
 //
 // **Migration Path**:
 //
-// 1. Create SemanticInfo and API (this file) - Task 9.18.1, 9.18.2
-// 2. Remove Type field from AST nodes - Task 9.18.3
-// 3. Update semantic analyzer to use SemanticInfo - Task 9.18.4
-// 4. Update interpreter to use SemanticInfo - Task 9.18.5
-// 5. Update bytecode compiler to use SemanticInfo - Task 9.18.6
-// 6. Update public API to return SemanticInfo - Task 9.18.7
+// 1. Create SemanticInfo and API (this file)
+// 2. Remove Type field from AST nodes
+// 3. Update semantic analyzer to use SemanticInfo
+// 4. Update interpreter to use SemanticInfo
+// 5. Update bytecode compiler to use SemanticInfo
+// 6. Update public API to return SemanticInfo
 //
 // ============================================================================
 
@@ -136,9 +136,9 @@ func (si *SemanticInfo) ClearType(expr Expression) {
 //
 // Thread-safe for concurrent reads.
 //
-// NOTE: Currently returns interface{} to avoid circular dependency.
-// Will be refined to return proper Symbol type in Task 9.18.4.
-func (si *SemanticInfo) GetSymbol(ident *Identifier) interface{} {
+// NOTE: Currently returns any to avoid circular dependency.
+// TODO: Refine to return proper Symbol type
+func (si *SemanticInfo) GetSymbol(ident *Identifier) any {
 	si.mu.RLock()
 	defer si.mu.RUnlock()
 	return si.symbols[ident]
@@ -149,9 +149,9 @@ func (si *SemanticInfo) GetSymbol(ident *Identifier) interface{} {
 //
 // Not safe for concurrent writes. Should only be called during analysis.
 //
-// NOTE: Currently accepts interface{} to avoid circular dependency.
-// Will be refined to accept proper Symbol type in Task 9.18.4.
-func (si *SemanticInfo) SetSymbol(ident *Identifier, symbol interface{}) {
+// NOTE: Currently accepts any to avoid circular dependency.
+// TODO: Refine to return proper Symbol type
+func (si *SemanticInfo) SetSymbol(ident *Identifier, symbol any) {
 	si.mu.Lock()
 	defer si.mu.Unlock()
 	si.symbols[ident] = symbol
