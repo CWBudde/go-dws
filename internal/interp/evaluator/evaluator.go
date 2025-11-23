@@ -748,6 +748,13 @@ type InterpreterAdapter interface {
 	// Returns the exception value (interface{}) to be set in context.
 	CreateExceptionFromObject(obj Value, ctx *ExecutionContext, pos any) interface{}
 
+	// SyncException synchronizes exception state from interpreter to context.
+	// This must be called after operations that may raise exceptions
+	// (e.g., CallBuiltinFunction, CallUserFunction) because the interpreter
+	// stores exceptions on its own field which doesn't automatically propagate
+	// to the ExecutionContext.
+	SyncException(ctx *ExecutionContext)
+
 	// EvalBlockStatement evaluates a block statement in the given context.
 	// Returns nil after evaluating all statements.
 	EvalBlockStatement(block *ast.BlockStatement, ctx *ExecutionContext)
