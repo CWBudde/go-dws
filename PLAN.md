@@ -604,14 +604,22 @@ Before migrating logic, extract reusable components that both Interpreter and Ev
 
 All 10 declaration visitors currently forward 100% to adapter. This is the largest migration blocker.
 
-- [x] **3.5.48** Migrate Simple Declaration Visitors
+- [ ] **3.5.48** Migrate Simple Declaration Visitors
   - Migrate EnumDecl, SetDecl, ArrayDecl visitors to Evaluator
   - These have simpler registration logic (no inheritance, no methods)
   - Use TypeRegistry directly instead of adapter
-  - Files: `internal/interp/evaluator/visitor_declarations.go`
+  - Files: `internal/interp/evaluator/visitor_declarations.go`, `internal/interp/evaluator/evaluator.go`
   - Effort: 2-3 hours
-  - Acceptance: 3 declaration visitors implemented in Evaluator, no adapter calls
+  - Acceptance: 3 declaration visitors implemented in Evaluator, no adapter calls for these 3
   - Dependencies: 3.5.47
+  - Sub-tasks:
+    - [x] Remove adapter fallback in evaluator.go default case
+    - [x] Implement VisitEnumDecl with enum type creation and value registration
+    - [x] Implement VisitSetDecl (simple pass-through, semantic analyzer handles it)
+    - [x] Implement VisitArrayDecl with type resolution and bound evaluation
+    - [ ] Fix ArrayDecl: array type lookup not working in VarDeclStatement (tests failing)
+    - [ ] Verify array builtin tests pass (Low, High, SetLength, Add, Delete, Copy, IndexOf, Contains)
+  - Note: 7 other declaration visitors still use adapter (FunctionDecl, ClassDecl, InterfaceDecl, OperatorDecl, RecordDecl, HelperDecl, TypeDeclaration) - planned for 3.5.49-3.5.51
 
 - [ ] **3.5.49** Migrate Record/Type Declaration Visitors
   - Migrate RecordDecl visitor (field registration, record methods)
