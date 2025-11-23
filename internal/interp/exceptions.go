@@ -96,9 +96,9 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	objectClass.Constructors["create"] = createConstructor
 	objectClass.ConstructorOverloads["create"] = []*ast.FunctionDecl{createConstructor}
 
-	// PR #147: Use lowercase key for O(1) case-insensitive lookup
+	// Use lowercase key for O(1) case-insensitive lookup
 	i.classes[strings.ToLower("TObject")] = objectClass
-	// Task 3.5.46: Also register in TypeSystem
+	// Also register in TypeSystem for shared access
 	i.typeSystem.RegisterClass("TObject", objectClass)
 
 	// Register Exception base class
@@ -124,9 +124,9 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	// Add Create constructor - just a placeholder, will be handled specially
 	exceptionClass.Constructors["Create"] = nil
 
-	// PR #147: Use lowercase key for O(1) case-insensitive lookup
+	// Use lowercase key for O(1) case-insensitive lookup
 	i.classes[strings.ToLower("Exception")] = exceptionClass
-	// Task 3.5.46: Also register in TypeSystem
+	// Also register in TypeSystem for shared access
 	i.typeSystem.RegisterClassWithParent("Exception", exceptionClass, "TObject")
 
 	// Register standard exception types
@@ -162,9 +162,9 @@ func (i *Interpreter) registerBuiltinExceptions() {
 		// Inherit Create constructor
 		excClass.Constructors["Create"] = nil
 
-		// PR #147: Use lowercase key for O(1) case-insensitive lookup
+		// Use lowercase key for O(1) case-insensitive lookup
 		i.classes[strings.ToLower(excName)] = excClass
-		// Task 3.5.46: Also register in TypeSystem
+		// Also register in TypeSystem for shared access
 		i.typeSystem.RegisterClassWithParent(excName, excClass, "Exception")
 	}
 
@@ -199,9 +199,9 @@ func (i *Interpreter) registerBuiltinExceptions() {
 
 	eHostClass.Constructors["Create"] = nil
 
-	// PR #147: Use lowercase key for O(1) case-insensitive lookup
+	// Use lowercase key for O(1) case-insensitive lookup
 	i.classes[strings.ToLower("EHost")] = eHostClass
-	// Task 3.5.46: Also register in TypeSystem
+	// Also register in TypeSystem for shared access
 	i.typeSystem.RegisterClassWithParent("EHost", eHostClass, "Exception")
 }
 
