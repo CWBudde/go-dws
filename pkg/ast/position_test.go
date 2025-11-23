@@ -9,7 +9,7 @@ import (
 	"github.com/cwbudde/go-dws/pkg/token"
 )
 
-// TestPositionSimpleStatements tests position tracking on simple statements (Task 10.19)
+// TestPositionSimpleStatements tests position tracking on simple statements
 func TestPositionSimpleStatements(t *testing.T) {
 	tests := []struct {
 		checkPos func(t *testing.T, program *ast.Program)
@@ -84,7 +84,7 @@ func TestPositionSimpleStatements(t *testing.T) {
 	}
 }
 
-// TestPositionNestedExpressions tests position tracking on nested expressions (Task 10.19)
+// TestPositionNestedExpressions tests position tracking on nested expressions
 func TestPositionNestedExpressions(t *testing.T) {
 	source := "var result: Integer := (1 + 2) * 3;"
 
@@ -120,7 +120,7 @@ func TestPositionNestedExpressions(t *testing.T) {
 	}
 }
 
-// TestPositionMultiLineConstructs tests position tracking on multi-line code (Task 10.19)
+// TestPositionMultiLineConstructs tests position tracking on multi-line code
 func TestPositionMultiLineConstructs(t *testing.T) {
 	source := `begin
   x := 1;
@@ -170,7 +170,7 @@ end;`
 	}
 }
 
-// TestPosition1BasedLineNumbering verifies 1-based line numbering (Task 10.19)
+// TestPosition1BasedLineNumbering verifies 1-based line numbering
 func TestPosition1BasedLineNumbering(t *testing.T) {
 	source := "var x: Integer;"
 
@@ -203,7 +203,7 @@ func TestPosition1BasedLineNumbering(t *testing.T) {
 	}
 }
 
-// TestPositionPosAndEndMethods tests Pos() and End() on various node types (Task 10.19)
+// TestPositionPosAndEndMethods tests Pos() and End() on various node types
 func TestPositionPosAndEndMethods(t *testing.T) {
 	source := `
 var x: Integer := 42;
@@ -262,7 +262,7 @@ end;
 	t.Logf("Verified position methods on %d AST nodes", nodeCount)
 }
 
-// TestPositionWithUnicode tests position tracking with Unicode characters (Task 10.19)
+// TestPositionWithUnicode tests position tracking with Unicode characters
 func TestPositionWithUnicode(t *testing.T) {
 	// Unicode characters: "Hello 世界" contains multibyte chars
 	source := "var message: String := 'Hello 世界';"

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// TestPeekCharDoesNotModifyState tests that peekChar() doesn't modify lexer state (Task 12.2.3)
+// TestPeekCharDoesNotModifyState tests that peekChar() doesn't modify lexer state
 func TestPeekCharDoesNotModifyState(t *testing.T) {
 	input := "abc"
 	l := New(input)
@@ -32,7 +32,7 @@ func TestPeekCharDoesNotModifyState(t *testing.T) {
 	}
 }
 
-// TestPeekCharN tests peekCharN() for various N values (Task 12.2.3)
+// TestPeekCharN tests peekCharN() for various N values
 func TestPeekCharN(t *testing.T) {
 	input := "abcdef"
 	l := New(input)
@@ -70,7 +70,7 @@ func TestPeekCharN(t *testing.T) {
 	}
 }
 
-// TestPeekCharNWithUTF8 tests peekCharN() with multi-byte UTF-8 characters (Task 12.2.3)
+// TestPeekCharNWithUTF8 tests peekCharN() with multi-byte UTF-8 characters
 func TestPeekCharNWithUTF8(t *testing.T) {
 	input := "aβγδ" // 'a' (1 byte), 'β' (2 bytes), 'γ' (2 bytes), 'δ' (2 bytes)
 	l := New(input)
@@ -100,7 +100,7 @@ func TestPeekCharNWithUTF8(t *testing.T) {
 	}
 }
 
-// TestSaveRestoreStateSymmetry tests that saveState/restoreState is symmetric (Task 12.2.3)
+// TestSaveRestoreStateSymmetry tests that saveState/restoreState is symmetric
 func TestSaveRestoreStateSymmetry(t *testing.T) {
 	input := "var x := 5;\ny := 10;"
 	l := New(input)
@@ -161,7 +161,7 @@ func TestSaveRestoreStateSymmetry(t *testing.T) {
 	}
 }
 
-// TestSaveRestoreStatePreservesLineColumn tests that line/column are correctly saved/restored (Task 12.2.3)
+// TestSaveRestoreStatePreservesLineColumn tests that line/column are correctly saved/restored
 func TestSaveRestoreStatePreservesLineColumn(t *testing.T) {
 	input := "var x := 5;\ny := 10;\nz := 15;"
 	l := New(input)
@@ -209,7 +209,7 @@ func TestSaveRestoreStatePreservesLineColumn(t *testing.T) {
 	}
 }
 
-// TestMatchAndConsume tests the matchAndConsume helper method (Task 12.5.1)
+// TestMatchAndConsume tests the matchAndConsume helper method
 func TestMatchAndConsume(t *testing.T) {
 	tests := []struct {
 		name        string

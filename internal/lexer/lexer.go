@@ -206,7 +206,6 @@ func (l *Lexer) currentPos() Position {
 //
 // Deprecated: Use Peek(n) for token lookahead instead of creating temporary lexers.
 // This method is kept for backward compatibility but may be removed in a future version.
-// See Task 12.3 for the new Peek() API.
 func (l *Lexer) Input() string {
 	return l.input
 }
@@ -363,7 +362,7 @@ func (l *Lexer) readCStyleComment() (string, bool) {
 	return l.input[startPos:l.position], false
 }
 
-// Operator handler functions (Task 12.4.1 - Arithmetic operators)
+// Operator handler functions
 
 // tokenHandler is a function that handles a specific character/operator.
 // It takes the current position and returns the corresponding token.
@@ -466,7 +465,7 @@ func (l *Lexer) handlePercent(pos Position) Token {
 	return tok
 }
 
-// Operator handler functions (Task 12.4.2 - Comparison and logical operators)
+// Operator handler functions
 
 // handleEquals handles the '=' operator and its variants (==, ===, =>).
 func (l *Lexer) handleEquals(pos Position) Token {
