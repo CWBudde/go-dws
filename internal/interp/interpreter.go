@@ -2267,18 +2267,7 @@ func (i *Interpreter) RaiseException(className string, message string, pos any) 
 	i.raiseException(className, message, position)
 }
 
-// GetVariable retrieves a variable value from the execution context.
-// Task 3.5.9: Adapter method for environment access.
-func (i *Interpreter) GetVariable(name string, ctx *evaluator.ExecutionContext) (evaluator.Value, bool) {
-	// Get the value from the context's environment
-	val, found := ctx.Env().Get(name)
-	if !found {
-		return nil, false
-	}
-
-	// Convert to evaluator.Value type
-	return val.(evaluator.Value), true
-}
+// Task 3.5.70: GetVariable removed - evaluator now uses ctx.Env().Get() directly
 
 // DefineVariable defines a new variable in the execution context.
 // Task 3.5.9: Adapter method for environment access.

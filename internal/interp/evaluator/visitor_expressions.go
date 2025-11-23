@@ -52,8 +52,9 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	}
 
 	// Try to find identifier in current environment (variables, parameters, constants)
-	val, ok := e.adapter.GetVariable(node.Value, ctx)
-	if ok {
+	// Task 3.5.70: Use direct environment access instead of adapter
+	if valRaw, ok := ctx.Env().Get(node.Value); ok {
+		val := valRaw.(Value)
 		// Check if this is an external variable (not yet supported)
 		if e.adapter.IsExternalVar(val) {
 			extVarName := e.adapter.GetExternalVarName(val)
@@ -425,8 +426,10 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 
 	// Check for function pointer calls
 	// Task 3.5.23: Function pointer calls with closure handling, lazy params, and var params
+	// Task 3.5.70: Use direct environment access instead of adapter
 	if funcIdent, ok := node.Function.(*ast.Identifier); ok {
-		if val, exists := e.adapter.GetVariable(funcIdent.Value, ctx); exists {
+		if valRaw, exists := ctx.Env().Get(funcIdent.Value); exists {
+			val := valRaw.(Value)
 			if val.Type() == "FUNCTION_POINTER" || val.Type() == "LAMBDA" {
 				// Delegate to adapter which handles:
 				// - Closure environment restoration

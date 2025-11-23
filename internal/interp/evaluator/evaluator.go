@@ -350,10 +350,7 @@ type InterpreterAdapter interface {
 	RaiseException(className string, message string, pos any)
 
 	// ===== Environment Access (Task 3.5.9) =====
-
-	// GetVariable retrieves a variable value from the execution context.
-	// Returns the value and true if found, nil and false otherwise.
-	GetVariable(name string, ctx *ExecutionContext) (Value, bool)
+	// Task 3.5.70: GetVariable removed - use ctx.Env().Get() directly
 
 	// DefineVariable defines a new variable in the execution context.
 	// This creates a new binding in the current scope.

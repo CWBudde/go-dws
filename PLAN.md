@@ -274,113 +274,29 @@ Interpreter.Eval() delegates to Evaluator. Created evalDirect() bypass. Fixed En
 5. Reduce adapter to minimal interface (~5 essential methods)
 
 ---
+### Phase 10: Direct Service Access (3.5.61-3.5.63) ✅ COMPLETE
 
-### Phase 10: Direct Service Access (3.5.61-3.5.63)
+- [x] **3.5.61** Add Direct TypeRegistry Access to Evaluator
+- [x] **3.5.62** Add Direct FunctionRegistry Access to Evaluator  
+- [x] **3.5.63** Add Direct Environment Access Pattern
 
-- [x] **3.5.61** Add Direct TypeRegistry Access to Evaluator ✅ ALREADY DONE
-  - `typeSystem *interptypes.TypeSystem` field exists in Evaluator
-  - Injected via NewEvaluator() constructor
-  - TypeSystem() accessor method available
-  - Already used directly in array_helpers.go, visitor_statements.go, visitor_expressions.go
+### Phase 11: Remove Type Lookup Adapter Calls (3.5.64-3.5.69) ✅ COMPLETE
 
-- [x] **3.5.62** Add Direct FunctionRegistry Access to Evaluator ✅
-  - Added `FunctionRegistry()` method that returns `e.typeSystem.Functions()`
-  - Uses existing FunctionRegistry embedded in TypeSystem (no duplication)
-  - Files: `evaluator/evaluator.go`
-  - Acceptance: Evaluator has direct FunctionRegistry access via FunctionRegistry() method
-
-- [x] **3.5.63** Add Direct Environment Access Pattern ✅
-  - Added `GetVar(ctx, name)` - retrieves variable with Value type conversion
-  - Added `DefineVar(ctx, name, value)` - defines variable without adapter
-  - Added `SetVar(ctx, name, value)` - updates variable without adapter
-  - Files: `evaluator/evaluator.go`
-  - Acceptance: Direct environment access helpers available
-
----
-
-### Phase 11: Remove Type Lookup Adapter Calls (3.5.64-3.5.69)
-
-Each task removes ONE category of adapter calls and removes the adapter methods if no longer used.
-
-- [x] **3.5.64** Replace `adapter.LookupClass()` and `adapter.HasClass()` ✅
-  - Replaced 3 `adapter.HasClass()` calls with `e.typeSystem.HasClass()`
-  - visitor_expressions.go: 2 calls (lines 175, 458)
-  - visitor_statements.go: 1 call (line 1227)
-  - No `adapter.LookupClass()` calls existed (only comments)
-  - Acceptance: No adapter class lookup calls, tests pass
-
-- [x] **3.5.65** Replace `adapter.LookupRecord()` and `adapter.HasRecord()` ✅
-  - Replaced 1 `adapter.HasRecord()` call with `e.typeSystem.HasRecord()`
-  - visitor_statements.go: line 1177
-  - No `adapter.LookupRecord()` calls existed (only comments)
-  - Acceptance: No adapter record lookup calls, tests pass
-
-- [x] **3.5.66** Replace `adapter.LookupInterface()` and `adapter.HasInterface()` ✅
-  - Replaced 1 `adapter.HasInterface()` call with `e.typeSystem.HasInterface()`
-  - visitor_statements.go: line 1205
-  - No `adapter.LookupInterface()` calls existed (only comments)
-  - Acceptance: No adapter interface lookup calls, tests pass
-
-- [x] **3.5.67** Replace `adapter.LookupFunction()` ✅
-  - Replaced 2 `adapter.LookupFunction()` calls with `e.FunctionRegistry().Lookup()`
-  - visitor_expressions.go: lines 170, 477
-  - Simplified check from `exists && len(overloads) > 0` to `len(overloads) > 0`
-  - Acceptance: No adapter function lookup calls, tests pass
-
-- [x] **3.5.68** Replace Type ID Lookups ✅
-  - No `adapter.GetClassTypeID/GetRecordTypeID/GetEnumTypeID` calls found (only comments)
-  - TypeSystem already provides these via `GetClassTypeID()`, etc.
-  - Acceptance: No adapter type ID calls existed
-
-- [x] **3.5.69** Replace Type Check Methods ✅ (completed via subtasks)
-  - Migrated array types from environment storage to TypeSystem registry
-  - Replaced `adapter.IsArrayType()` with `e.typeSystem.HasArrayType()`
-  - Removed `ArrayTypeValue` wrapper type
-  - **All subtasks (3.5.69a-e) completed**
-
-- [x] **3.5.69a** Add ArrayType Registry to TypeSystem ✅
-  - Added `arrayTypes *ident.Map[*coretypes.ArrayType]` field to TypeSystem
-  - Added methods: `RegisterArrayType()`, `LookupArrayType()`, `HasArrayType()`, `AllArrayTypes()`
-  - Files: `internal/interp/types/type_system.go`
-  - Added import alias `coretypes` for `internal/types` package
-  - Acceptance: New registry exists, all tests pass ✅
-
-- [x] **3.5.69b** Dual-Write Array Types ✅
-  - Updated `evalArrayDeclaration()` to register in BOTH environment AND TypeSystem
-  - Keep environment storage for backward compatibility during migration
-  - Added TODO comment for 3.5.69e cleanup
-  - Files: `internal/interp/array.go`
-  - Acceptance: Array types registered in TypeSystem, all tests pass ✅
-
-- [x] **3.5.69c** Migrate Interpreter Lookups to TypeSystem ✅
-  - Updated `IsArrayType()` to use `typeSystem.HasArrayType()`
-  - Updated `CreateArrayZeroValue()` to use `typeSystem.LookupArrayType()`
-  - Updated `resolveType()` array type path to use TypeSystem
-  - Updated 6 locations across 5 files
-  - Files: `interpreter.go`, `record.go`, `statements_declarations.go`, `functions_user.go`, `functions_pointers.go`
-  - Only environment WRITE remains in `array.go` (for 3.5.69e)
-  - Acceptance: Interpreter uses TypeSystem for array lookups, all tests pass ✅
-
-- [x] **3.5.69d** Replace Evaluator Adapter Call ✅
-  - Replaced `adapter.IsArrayType()` with `e.typeSystem.HasArrayType()`
-  - Files: `evaluator/visitor_statements.go`
-  - Note: `CreateArrayZeroValue()` still uses adapter (follows record pattern)
-  - Acceptance: No adapter.IsArrayType() calls, all tests pass ✅
-
-- [x] **3.5.69e** Remove Environment Storage ✅
-  - Removed `__array_type_` storage from `evalArrayDeclaration()`
-  - Removed `ArrayTypeValue` wrapper type (no longer needed)
-  - Files: `internal/interp/array.go`
-  - Acceptance: No `__array_type_` environment keys, all tests pass ✅
-
----
+- [x] **3.5.64** Replace `adapter.LookupClass()` and `adapter.HasClass()` (3 calls)
+- [x] **3.5.65** Replace `adapter.LookupRecord()` and `adapter.HasRecord()` (1 call)
+- [x] **3.5.66** Replace `adapter.LookupInterface()` and `adapter.HasInterface()` (1 call)
+- [x] **3.5.67** Replace `adapter.LookupFunction()` (2 calls)
+- [x] **3.5.68** Replace Type ID Lookups (none found)
+- [x] **3.5.69** Replace Type Check Methods (migrated array types to TypeSystem registry)
 
 ### Phase 12: Remove Value Access Adapter Calls (3.5.70-3.5.73)
 
-- [ ] **3.5.70** Replace Variable Access Adapter Calls
-  - Replace `adapter.GetVariable()` (~2 calls)
-  - Use `ctx.Environment.Get()` directly
-  - Acceptance: No adapter variable access calls
+- [x] **3.5.70** Replace Variable Access Adapter Calls ✅
+  - Replaced 2 `adapter.GetVariable()` calls with `ctx.Env().Get()` + type assertion
+  - visitor_expressions.go: VisitIdentifier (line 56), VisitCallExpression (line 431)
+  - Removed `GetVariable` from adapter interface and interpreter
+  - Files: `evaluator/visitor_expressions.go`, `evaluator/evaluator.go`, `interpreter.go`
+  - Acceptance: No adapter variable access calls, tests pass ✅
 
 - [ ] **3.5.71** Replace `adapter.IsObjectInstance()` and Type Checks
   - Replace with type assertion: `_, ok := v.(*runtime.ObjectInstance)`
