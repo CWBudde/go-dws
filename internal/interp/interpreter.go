@@ -2032,9 +2032,16 @@ func (i *Interpreter) CreateFunctionPointer(fn *ast.FunctionDecl, closure any) e
 	var env *Environment
 	if closure != nil {
 		if envAdapter, ok := closure.(*evaluator.EnvironmentAdapter); ok {
-			env = envAdapter.Underlying().(*Environment)
+			underlying := envAdapter.Underlying()
+			if e, ok := underlying.(*Environment); ok {
+				env = e
+			} else {
+				panic(fmt.Sprintf("CreateFunctionPointer: EnvironmentAdapter.Underlying() must return *Environment, got %T", underlying))
+			}
+		} else if e, ok := closure.(*Environment); ok {
+			env = e
 		} else {
-			env = closure.(*Environment)
+			panic(fmt.Sprintf("CreateFunctionPointer: closure must be *Environment or *EnvironmentAdapter, got %T", closure))
 		}
 	}
 
