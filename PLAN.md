@@ -283,11 +283,11 @@ Interpreter.Eval() delegates to Evaluator. Created evalDirect() bypass. Fixed En
   - TypeSystem() accessor method available
   - Already used directly in array_helpers.go, visitor_statements.go, visitor_expressions.go
 
-- [ ] **3.5.62** Add Direct FunctionRegistry Access to Evaluator
-  - Add `funcRegistry *types.FunctionRegistry` field to Evaluator
-  - Inject FunctionRegistry during NewEvaluator() initialization
+- [x] **3.5.62** Add Direct FunctionRegistry Access to Evaluator ✅
+  - Added `FunctionRegistry()` method that returns `e.typeSystem.Functions()`
+  - Uses existing FunctionRegistry embedded in TypeSystem (no duplication)
   - Files: `evaluator/evaluator.go`
-  - Acceptance: Evaluator has direct FunctionRegistry reference
+  - Acceptance: Evaluator has direct FunctionRegistry access via FunctionRegistry() method
 
 - [ ] **3.5.63** Add Direct Environment Access Pattern
   - Create helper method `getEnv(ctx) *runtime.Environment`
