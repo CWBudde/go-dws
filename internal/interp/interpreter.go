@@ -3215,3 +3215,181 @@ func (i *Interpreter) EvalWithExpectedType(node ast.Node, expectedType types.Typ
 	// For all other cases, use regular Eval
 	return i.Eval(node)
 }
+
+// ===== Task 3.5.49: Record and Type Declaration Adapter Method Implementations =====
+
+// BuildRecordTypeValue creates a RecordTypeValue from record declaration components.
+func (i *Interpreter) BuildRecordTypeValue(
+	recordName string,
+	recordType any,
+	fieldDecls map[string]*ast.FieldDecl,
+	methods map[string]*ast.FunctionDecl,
+	staticMethods map[string]*ast.FunctionDecl,
+	constants map[string]evaluator.Value,
+	classVars map[string]evaluator.Value,
+) any {
+	// Convert recordType to *types.RecordType
+	rt, ok := recordType.(*types.RecordType)
+	if !ok {
+		return nil
+	}
+
+	// Convert evaluator.Value maps to internal Value maps with safe type assertions
+	internalConstants := make(map[string]Value)
+	for k, v := range constants {
+		internalVal, ok := v.(Value)
+		if !ok {
+			return nil // Invalid value type in constants map
+		}
+		internalConstants[k] = internalVal
+	}
+
+	internalClassVars := make(map[string]Value)
+	for k, v := range classVars {
+		internalVal, ok := v.(Value)
+		if !ok {
+			return nil // Invalid value type in classVars map
+		}
+		internalClassVars[k] = internalVal
+	}
+
+	// Build metadata using the existing helper
+	metadata := i.buildRecordMetadata(recordName, rt, methods, staticMethods, internalConstants, internalClassVars)
+
+	// Create RecordTypeValue
+	recordTypeValue := &RecordTypeValue{
+		RecordType:           rt,
+		FieldDecls:           fieldDecls,
+		Metadata:             metadata,
+		Methods:              methods,
+		StaticMethods:        staticMethods,
+		ClassMethods:         staticMethods, // Alias for compatibility
+		ClassMethodOverloads: make(map[string][]*ast.FunctionDecl),
+		MethodOverloads:      make(map[string][]*ast.FunctionDecl),
+		Constants:            internalConstants,
+		ClassVars:            internalClassVars,
+	}
+
+	// Initialize overload lists
+	for methodName, methodDecl := range methods {
+		recordTypeValue.MethodOverloads[methodName] = []*ast.FunctionDecl{methodDecl}
+	}
+	for methodName, methodDecl := range staticMethods {
+		recordTypeValue.ClassMethodOverloads[methodName] = []*ast.FunctionDecl{methodDecl}
+	}
+
+	return recordTypeValue
+}
+
+// RegisterRecordTypeInEnvironment registers a record type in the environment.
+func (i *Interpreter) RegisterRecordTypeInEnvironment(recordName string, recordTypeValue any, ctx *evaluator.ExecutionContext) {
+	rtv, ok := recordTypeValue.(*RecordTypeValue)
+	if !ok {
+		return
+	}
+
+	// Register in TypeSystem
+	i.typeSystem.RegisterRecord(recordName, rtv)
+
+	// Also maintain legacy map for backward compatibility during migration
+	i.records[ident.Normalize(recordName)] = rtv
+
+	// Store in environment with special key
+	recordTypeKey := "__record_type_" + ident.Normalize(recordName)
+	ctx.Env().Define(recordTypeKey, rtv)
+}
+
+// BuildTypeAliasValue creates a TypeAliasValue from type alias components.
+func (i *Interpreter) BuildTypeAliasValue(aliasName string, aliasedType any) any {
+	at, ok := aliasedType.(types.Type)
+	if !ok {
+		return nil
+	}
+
+	return &TypeAliasValue{
+		Name:        aliasName,
+		AliasedType: at,
+	}
+}
+
+// RegisterTypeAliasInEnvironment registers a type alias in the environment.
+func (i *Interpreter) RegisterTypeAliasInEnvironment(aliasName string, typeAliasValue any, ctx *evaluator.ExecutionContext) {
+	tav, ok := typeAliasValue.(*TypeAliasValue)
+	if !ok {
+		return
+	}
+
+	// Store in environment with special prefix
+	typeKey := "__type_alias_" + strings.ToLower(aliasName)
+	ctx.Env().Define(typeKey, tav)
+}
+
+// BuildSubrangeTypeValue creates a SubrangeTypeValue from subrange components.
+func (i *Interpreter) BuildSubrangeTypeValue(typeName string, lowBound, highBound evaluator.Value) (any, error) {
+	// Convert bounds to internal values with safe type assertions
+	lowVal, ok := lowBound.(Value)
+	if !ok {
+		return nil, fmt.Errorf("internal error: invalid low bound value type")
+	}
+	highVal, ok := highBound.(Value)
+	if !ok {
+		return nil, fmt.Errorf("internal error: invalid high bound value type")
+	}
+
+	// Get integer values
+	lowIntVal, ok := lowVal.(*IntegerValue)
+	if !ok {
+		return nil, fmt.Errorf("subrange low bound must be an integer")
+	}
+	lowInt := int(lowIntVal.Value)
+
+	highIntVal, ok := highVal.(*IntegerValue)
+	if !ok {
+		return nil, fmt.Errorf("subrange high bound must be an integer")
+	}
+	highInt := int(highIntVal.Value)
+
+	// Validate bounds
+	if lowInt > highInt {
+		return nil, fmt.Errorf("subrange low bound (%d) cannot be greater than high bound (%d)", lowInt, highInt)
+	}
+
+	// Create SubrangeType
+	subrangeType := &types.SubrangeType{
+		BaseType:  types.INTEGER,
+		Name:      typeName,
+		LowBound:  lowInt,
+		HighBound: highInt,
+	}
+
+	// Create SubrangeTypeValue
+	return &SubrangeTypeValue{
+		Name:         typeName,
+		SubrangeType: subrangeType,
+	}, nil
+}
+
+// RegisterSubrangeTypeInEnvironment registers a subrange type in the environment.
+func (i *Interpreter) RegisterSubrangeTypeInEnvironment(typeName string, subrangeTypeValue any, ctx *evaluator.ExecutionContext) {
+	stv, ok := subrangeTypeValue.(*SubrangeTypeValue)
+	if !ok {
+		return
+	}
+
+	// Store in environment with special prefix
+	typeKey := "__subrange_type_" + strings.ToLower(typeName)
+	ctx.Env().Define(typeKey, stv)
+}
+
+// ResolveTypeFromExpression resolves a type from an AST type expression.
+func (i *Interpreter) ResolveTypeFromExpression(typeExpr ast.TypeExpression) any {
+	return i.resolveTypeFromExpression(typeExpr)
+}
+
+// GetValueType returns the types.Type for a runtime value.
+func (i *Interpreter) GetValueType(value evaluator.Value) any {
+	if internalVal, ok := value.(Value); ok {
+		return i.getValueType(internalVal)
+	}
+	return nil
+}

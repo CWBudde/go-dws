@@ -604,12 +604,11 @@ Before migrating logic, extract reusable components that both Interpreter and Ev
 
 All 10 declaration visitors currently forward 100% to adapter. This is the largest migration blocker.
 
-- [ ] **3.5.48** Migrate Simple Declaration Visitors
+- [~] **3.5.48** Migrate Simple Declaration Visitors
   - Migrate EnumDecl, SetDecl, ArrayDecl visitors to Evaluator
   - These have simpler registration logic (no inheritance, no methods)
   - Use TypeRegistry directly instead of adapter
   - Files: `internal/interp/evaluator/visitor_declarations.go`, `internal/interp/evaluator/evaluator.go`
-  - Effort: 2-3 hours
   - Acceptance: 3 declaration visitors implemented in Evaluator, no adapter calls for these 3
   - Dependencies: 3.5.47
   - Sub-tasks:
@@ -619,16 +618,18 @@ All 10 declaration visitors currently forward 100% to adapter. This is the large
     - [x] Implement VisitArrayDecl with type resolution and bound evaluation
     - [ ] Fix ArrayDecl: array type lookup not working in VarDeclStatement (tests failing)
     - [ ] Verify array builtin tests pass (Low, High, SetLength, Add, Delete, Copy, IndexOf, Contains)
-  - Note: 7 other declaration visitors still use adapter (FunctionDecl, ClassDecl, InterfaceDecl, OperatorDecl, RecordDecl, HelperDecl, TypeDeclaration) - planned for 3.5.49-3.5.51
+  - Note: 5 other declaration visitors still use adapter (FunctionDecl, ClassDecl, InterfaceDecl, OperatorDecl, HelperDecl) - planned for 3.5.50-3.5.51.
 
-- [ ] **3.5.49** Migrate Record/Type Declaration Visitors
-  - Migrate RecordDecl visitor (field registration, record methods)
-  - Migrate TypeDeclaration visitor (type aliases)
-  - Handle record metadata creation
-  - Files: `internal/interp/evaluator/visitor_declarations.go`
+- [x] **3.5.49** Migrate Record/Type Declaration Visitors
+  - [x] Migrate RecordDecl visitor (field registration, record methods, constants, class variables, properties)
+  - [x] Migrate TypeDeclaration visitor (type aliases, subrange types, function pointer types)
+  - [x] Handle record metadata creation via adapter methods
+  - [x] Add adapter methods: BuildRecordTypeValue, RegisterRecordTypeInEnvironment, BuildTypeAliasValue, RegisterTypeAliasInEnvironment, BuildSubrangeTypeValue, RegisterSubrangeTypeInEnvironment, ResolveTypeFromExpression, GetValueType
+  - Files: `internal/interp/evaluator/visitor_declarations.go`, `internal/interp/interpreter.go`
   - Effort: 2-3 hours
   - Acceptance: RecordDecl, TypeDeclaration implemented in Evaluator
   - Dependencies: 3.5.48
+  - Note: Adapter methods encapsulate creation of interp-specific types (RecordTypeValue, TypeAliasValue, SubrangeTypeValue) due to circular dependency constraints. 2 of 10 declaration visitors now migrated.
 
 - [ ] **3.5.50** Migrate Class/Interface/Helper Declaration Visitors
   - Migrate ClassDecl visitor (complex: inheritance, methods, properties, constructors)
