@@ -116,13 +116,15 @@ func (e *Evaluator) VisitEnumDecl(node *ast.EnumDecl, ctx *ExecutionContext) Val
 					return e.newError(node, "enum '%s' value '%s' (%d) must be a power of 2 for flags enum",
 						enumName, valueName, ordinalValue)
 				}
-				// For flags, update bit position based on explicit value
-				for bitPos := 0; bitPos < 64; bitPos++ {
-					if (1 << bitPos) == ordinalValue {
-						flagBitPosition = bitPos + 1
-						break
-					}
+				// For flags, calculate bit position using bit manipulation
+				// This is more efficient than a loop and works for all valid powers of 2
+				bitPos := 0
+				temp := ordinalValue
+				for temp > 1 {
+					temp >>= 1
+					bitPos++
 				}
+				flagBitPosition = bitPos + 1
 			} else {
 				// For regular enums, update current ordinal
 				currentOrdinal = ordinalValue + 1
@@ -282,44 +284,24 @@ func (e *Evaluator) VisitSetDecl(node *ast.SetDecl, ctx *ExecutionContext) Value
 // ============================================================================
 
 // resolveTypeForDeclaration resolves a type name to its semantic type.
-// This handles built-in types, enum types, record types, and array types.
+// This handles built-in types, enum types, record types, array types, type aliases, and subranges.
 // Returns nil if the type cannot be resolved.
 //
 // Phase 3.5.48: Helper for array/enum/record type resolution in declarations.
+// Uses adapter.GetType() to delegate to the full Interpreter.resolveType() which handles
+// all type kinds including type aliases and subranges.
 func (e *Evaluator) resolveTypeForDeclaration(typeName string, ctx *ExecutionContext) types.Type {
-	// Try built-in types first using existing resolveTypeName
-	builtinType := e.resolveTypeName(typeName)
-	if builtinType != nil {
-		return builtinType
+	// Delegate to adapter's GetType which calls Interpreter.resolveType()
+	// This handles: built-ins, enums, records, arrays, type aliases, subranges, inline arrays
+	resolvedType, err := e.adapter.GetType(typeName)
+	if err != nil {
+		return nil
 	}
 
-	// Check environment for enum types
-	enumTypeKey := "__enum_type_" + ident.Normalize(typeName)
-	if enumTypeVal, ok := ctx.Env().Get(enumTypeKey); ok {
-		if enumType, ok := enumTypeVal.(*EnumTypeValue); ok {
-			return enumType.EnumType
-		}
+	// Convert from any to types.Type
+	if typ, ok := resolvedType.(types.Type); ok {
+		return typ
 	}
 
-	// Check environment for array types
-	arrayTypeKey := "__array_type_" + ident.Normalize(typeName)
-	if arrayTypeVal, ok := ctx.Env().Get(arrayTypeKey); ok {
-		if arrayType, ok := arrayTypeVal.(*ArrayTypeValue); ok {
-			return arrayType.ArrayType
-		}
-	}
-
-	// Check TypeSystem for record types
-	if e.typeSystem.HasRecord(typeName) {
-		record := e.typeSystem.LookupRecord(typeName)
-		if record != nil {
-			// RecordTypeValue wraps RecordValue which has RecordType
-			// We need to extract the RecordType from the environment storage
-			// For now, this requires accessing the adapter's type resolution
-			// This will be improved when record types are properly stored in TypeSystem
-		}
-	}
-
-	// Type not found
 	return nil
 }
