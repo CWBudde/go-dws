@@ -182,7 +182,10 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		// Check if function has zero parameters - auto-invoke if so
 		if len(fn.Parameters) == 0 {
 			// Auto-invoke the parameterless function/procedure
-			return e.adapter.CallUserFunction(fn, []Value{})
+			result := e.adapter.CallUserFunction(fn, []Value{})
+			// Task 3.5.47: Sync exception state after user function calls
+			e.adapter.SyncException(ctx)
+			return result
 		}
 
 		// Function has parameters - create function pointer
@@ -199,6 +202,8 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// First check if it's a built-in to avoid unnecessary call attempts
 	if e.adapter.IsBuiltinFunction(node.Value) {
 		result := e.adapter.CallBuiltinFunction(node.Value, []Value{})
+		// Task 3.5.47: Sync exception state after builtin calls (e.g., Assert)
+		e.adapter.SyncException(ctx)
 		if !isError(result) {
 			return result
 		}
@@ -593,7 +598,10 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	}
 
 	// Call built-in function via adapter
-	return e.adapter.CallBuiltinFunction(funcName.Value, args)
+	result := e.adapter.CallBuiltinFunction(funcName.Value, args)
+	// Task 3.5.47: Sync exception state after builtin calls (e.g., Assert)
+	e.adapter.SyncException(ctx)
+	return result
 }
 
 // VisitNewExpression evaluates a 'new' expression (object instantiation).

@@ -287,6 +287,13 @@ func (i *Interpreter) EvalNodeWithContext(node ast.Node, ctx *evaluator.Executio
 	// Ensure environment is restored even on panic
 	defer func() {
 		i.env = savedEnv
+		// Task 3.5.47: Sync exception state back to context only if an exception was raised
+		// This ensures exceptions raised during evaluation (e.g., Assert) are visible
+		// to the evaluator for proper try-except handling.
+		// We only sync if there's an active exception to avoid clearing context exceptions.
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
 	}()
 
 	// Use evalDirect to bypass the Evaluator delegation and use the legacy switch logic
@@ -1091,7 +1098,10 @@ func (i *Interpreter) InitializeInterfaceField(fieldType any) evaluator.Value {
 // Returns true if the exception type matches or inherits from the handler type.
 func (i *Interpreter) MatchesExceptionType(exc interface{}, typeExpr ast.TypeExpression) bool {
 	excVal, ok := exc.(*ExceptionValue)
-	if !ok {
+	// Task 3.5.47: Guard against typed nil interface values
+	// In Go, an interface can hold a typed nil (*ExceptionValue)(nil) where
+	// the type assertion succeeds (ok=true) but the value is nil.
+	if !ok || excVal == nil {
 		return false
 	}
 	return i.matchesExceptionType(excVal, typeExpr)
@@ -1190,6 +1200,15 @@ func (i *Interpreter) syncToContext(ctx *evaluator.ExecutionContext) {
 	// Sync exception state back
 	ctx.SetException(i.exception)
 	ctx.SetHandlerException(i.handlerException)
+}
+
+// SyncException synchronizes exception state from interpreter to context.
+// This implements the InterpreterAdapter interface.
+// Task 3.5.47: Called after operations that may raise exceptions
+// (CallBuiltinFunction, CallUserFunction) to ensure exceptions raised
+// by the interpreter are visible to the evaluator.
+func (i *Interpreter) SyncException(ctx *evaluator.ExecutionContext) {
+	ctx.SetException(i.exception)
 }
 
 // ===== Task 3.5.6: Array and Collection Adapter Method Implementations =====
