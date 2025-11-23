@@ -578,9 +578,56 @@ Final cleanup after all logic is migrated.
 
 - 3.5.44: Core thin orchestrator (Interpreter.Eval delegates to Evaluator)
 
-**Work in progress on `feat/removal_of_adapter_pattern` branch**:
+**Merged to main via `feat/prepare-adapter-removal` branch**:
 
-- Tasks 3.5.45-3.5.60: Full adapter removal and cleanup
+- FunctionRegistry builtin support (Task 3.5.47 preparation)
+- Parity tests for regression prevention
+
+**Status of `feat/removal_of_adapter_pattern` branch**: ABANDONED
+
+The branch attempted to migrate tasks 3.5.45-3.5.60 but accumulated 57 failing tests.
+See "Lessons Learned" section below.
+
+---
+
+#### Lessons Learned from Adapter Removal Attempt
+
+**What Went Wrong:**
+
+1. **Adapter pattern grew instead of shrinking**: Each migration task added new adapter methods (15+ total) instead of removing them. The goal was removal, but the implementation went backwards.
+
+2. **Environment synchronization broke**: The `EvalNodeWithContext()` method didn't properly sync exception state and environment changes between Interpreter and Evaluator.
+
+3. **Two ErrorValue types created**: Both `interp.ErrorValue` and `evaluator.ErrorValue` existed, causing type mismatches in tests.
+
+4. **Too many changes in one branch**: The branch accumulated changes across 57+ tests worth of functionality, making debugging extremely difficult.
+
+**Correct Approach for Future Adapter Removal:**
+
+1. **Rule: Never add adapter methods** - Each PR should reduce adapter usage, never increase it. If you need a new adapter method, the approach is wrong.
+
+2. **One feature at a time** - Each PR should:
+   - Remove one specific adapter method call
+   - Move that logic completely into Evaluator
+   - Pass all tests before proceeding
+
+3. **Parity tests first** - Run `TestParity*` tests before and after each change to catch regressions immediately.
+
+4. **Small PRs** - Target 1-2 adapter method removals per PR. If tests start failing, revert immediately.
+
+5. **Sequence**:
+   a. Start with leaf operations (no dependencies on other adapter calls)
+   b. Move to operations that only depend on already-migrated operations
+   c. Leave complex interdependent operations for last
+
+**Recommended Future Tasks:**
+
+Instead of the original Phase 3.5.45-3.5.60 plan, use this incremental approach:
+
+1. Identify adapter methods with zero dependencies on other adapter methods
+2. Migrate those one at a time (one PR each)
+3. After all leaf methods are migrated, identify the next layer
+4. Repeat until adapter is empty
 
 ---
 
