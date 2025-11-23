@@ -611,13 +611,14 @@ func (p *Printer) printFunctionDecl(fd *ast.FunctionDecl) {
 	}
 
 	// Print constructor/destructor or function/procedure keyword
-	if fd.IsConstructor {
+	switch {
+	case fd.IsConstructor:
 		p.write("constructor")
-	} else if fd.IsDestructor {
+	case fd.IsDestructor:
 		p.write("destructor")
-	} else if fd.ReturnType != nil {
+	case fd.ReturnType != nil:
 		p.write("function")
-	} else {
+	default:
 		p.write("procedure")
 	}
 	p.requiredSpace()
