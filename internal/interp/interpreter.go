@@ -327,6 +327,60 @@ func (i *Interpreter) CallBuiltinFunction(name string, args []evaluator.Value) e
 	return i.callBuiltinFunction(name, convertEvaluatorArgs(args))
 }
 
+// IsBuiltinFunction checks if a name refers to a built-in function.
+// This avoids unnecessary function call attempts for undefined identifiers.
+func (i *Interpreter) IsBuiltinFunction(name string) bool {
+	return i.isBuiltinFunction(name)
+}
+
+// EvalCallExpression evaluates a call expression using the interpreter's full logic.
+// Task 3.5.46: Specific adapter method to replace generic EvalNodeWithContext for calls.
+func (i *Interpreter) EvalCallExpression(node *ast.CallExpression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNodeWithContext(node, ctx)
+}
+
+// EvalMemberAccessExpression evaluates a member access expression using the interpreter's full logic.
+// Task 3.5.46: Specific adapter method to replace generic EvalNodeWithContext for member access.
+func (i *Interpreter) EvalMemberAccessExpression(node *ast.MemberAccessExpression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNodeWithContext(node, ctx)
+}
+
+// EvalMethodCallExpression evaluates a method call expression using the interpreter's full logic.
+// Task 3.5.46: Specific adapter method to replace generic EvalNodeWithContext for method calls.
+func (i *Interpreter) EvalMethodCallExpression(node *ast.MethodCallExpression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNodeWithContext(node, ctx)
+}
+
+// EvalSetLiteral evaluates a set literal expression using the interpreter's full logic.
+// Task 3.5.46: Specific adapter method to replace generic EvalNodeWithContext for set literals.
+func (i *Interpreter) EvalSetLiteral(node *ast.SetLiteral, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNodeWithContext(node, ctx)
+}
+
+// EvalArrayLiteral evaluates an array literal expression using the interpreter's full logic.
+// Task 3.5.46: Specific adapter method to replace generic EvalNodeWithContext for array literals.
+func (i *Interpreter) EvalArrayLiteral(node *ast.ArrayLiteralExpression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNodeWithContext(node, ctx)
+}
+
+// EvalNewArrayExpression evaluates a new array expression using the interpreter's full logic.
+// Task 3.5.46: Specific adapter method to replace generic EvalNodeWithContext for array construction.
+func (i *Interpreter) EvalNewArrayExpression(node *ast.NewArrayExpression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNodeWithContext(node, ctx)
+}
+
+// EvalIndexExpression evaluates an index expression using the interpreter's full logic.
+// Task 3.5.46: Specific adapter method to replace generic EvalNodeWithContext for indexing.
+func (i *Interpreter) EvalIndexExpression(node *ast.IndexExpression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNodeWithContext(node, ctx)
+}
+
+// EvalRangeExpression evaluates a range expression using the interpreter's full logic.
+// Task 3.5.46: Specific adapter method to replace generic EvalNodeWithContext for ranges.
+func (i *Interpreter) EvalRangeExpression(node *ast.RangeExpression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNodeWithContext(node, ctx)
+}
+
 // LookupFunction finds a function by name in the function registry.
 func (i *Interpreter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
 	// DWScript is case-insensitive, so normalize to lowercase
@@ -2782,6 +2836,17 @@ func (i *Interpreter) GetClassVariableFromClassInfo(classInfo evaluator.Value, v
 func (i *Interpreter) IsClassValue(value evaluator.Value) bool {
 	_, ok := value.(*ClassValue)
 	return ok
+}
+
+// CreateClassValueFromName creates a ClassValue from a class name.
+// Task 3.5.46: Specific adapter method to replace generic EvalNode() calls.
+func (i *Interpreter) CreateClassValueFromName(className string) (evaluator.Value, bool) {
+	normalizedName := ident.Normalize(className)
+	classInfo, ok := i.classes[normalizedName]
+	if !ok {
+		return nil, false
+	}
+	return &ClassValue{ClassInfo: classInfo}, true
 }
 
 // GetCallStack returns a copy of the current call stack.
