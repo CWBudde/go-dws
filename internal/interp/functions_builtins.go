@@ -24,50 +24,11 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	// Normalize function name for case-insensitive matching (DWScript is case-insensitive)
 	name = normalizeBuiltinName(name)
 
+	// Functions not yet migrated to the builtins registry
+	// These are either:
+	// - Not yet migrated (HexToInt, BinToInt, VarToIntDef, VarToFloatDef, Succ, Pred)
+	// - Need interpreter access for callbacks (Map, Filter, Reduce, etc.)
 	switch name {
-	case "PrintLn":
-		return i.builtinPrintLn(args)
-	case "Print":
-		return i.builtinPrint(args)
-	case "Ord":
-		return i.builtinOrd(args)
-	case "StrSplit":
-		return i.builtinStrSplit(args)
-	case "StrJoin":
-		return i.builtinStrJoin(args)
-	case "StrArrayPack":
-		return i.builtinStrArrayPack(args)
-	case "Random":
-		return i.builtinRandom(args)
-	case "Randomize":
-		return i.builtinRandomize(args)
-	case "SetRandSeed":
-		return i.builtinSetRandSeed(args)
-	case "RandSeed":
-		return i.builtinRandSeed(args)
-	case "RandG":
-		return i.builtinRandG(args)
-	case "RandomInt":
-		return i.builtinRandomInt(args)
-	case "SetLength":
-		// SetLength is a var-param function, shouldn't be called with evaluated args
-		return i.newErrorWithLocation(i.currentNode, "SetLength should be called as var-param function")
-	case "Add":
-		return i.builtinAdd(args)
-	case "Delete":
-		return i.builtinDelete(args)
-	case "IntToStr":
-		return i.builtinIntToStr(args)
-	case "IntToBin":
-		return i.builtinIntToBin(args)
-	case "StrToInt":
-		return i.builtinStrToInt(args)
-	case "FloatToStr":
-		return i.builtinFloatToStr(args)
-	case "StrToFloat":
-		return i.builtinStrToFloat(args)
-	case "BoolToStr":
-		return i.builtinBoolToStr(args)
 	case "HexToInt":
 		return i.builtinHexToInt(args)
 	case "BinToInt":
@@ -80,12 +41,8 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinSucc(args)
 	case "Pred":
 		return i.builtinPred(args)
-	// RTTI functions
-	case "TypeOf":
-		return i.builtinTypeOf(args)
-	case "TypeOfClass":
-		return i.builtinTypeOfClass(args)
 	// Higher-order functions for working with arrays and lambdas
+	// These need interpreter access for callback evaluation
 	case "Map":
 		return i.builtinMap(args)
 	case "Filter":
@@ -104,50 +61,6 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinFindIndex(args)
 	case "Slice":
 		return i.builtinSlice(args)
-	// Current date/time functions
-	// Date encoding functions
-	// Component extraction functions
-	// Formatting functions
-	// Parsing functions
-	// Incrementing functions
-	// Date difference functions
-	// Special date functions
-	// Unix time functions
-	// Variant introspection functions
-	// VarType, VarIsNull, VarIsEmpty, VarIsClear, VarIsArray, VarIsStr, VarIsNumeric
-	// VarToStr, VarToInt, VarToFloat, VarAsType, VarClear
-	// These are now handled by builtins.DefaultRegistry.Lookup() above
-
-	// JSON parsing functions
-	case "ParseJSON":
-		return i.builtinParseJSON(args)
-	// JSON serialization functions
-	case "ToJSON":
-		return i.builtinToJSON(args)
-	case "ToJSONFormatted":
-		return i.builtinToJSONFormatted(args)
-	// JSON object access functions
-	case "JSONHasField":
-		return i.builtinJSONHasField(args)
-	case "JSONKeys":
-		return i.builtinJSONKeys(args)
-	case "JSONValues":
-		return i.builtinJSONValues(args)
-	// JSON array length function
-	case "JSONLength":
-		return i.builtinJSONLength(args)
-	// Encoding/Escaping functions (Phase 9.17.6)
-	case "StrToHtml":
-		return i.builtinStrToHtml(args)
-	case "StrToHtmlAttribute":
-		return i.builtinStrToHtmlAttribute(args)
-	case "StrToJSON":
-		return i.builtinStrToJSON(args)
-	case "StrToCSSText":
-		return i.builtinStrToCSSText(args)
-	case "StrToXML":
-		return i.builtinStrToXML(args)
-	// Advanced Math functions (Phase 9.23)
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined function: %s", name)
 	}
