@@ -134,14 +134,16 @@ func (o *ObjectInstance) GetField(name string) Value {
 
 	normalizedName := ident.Normalize(name)
 
-	// Try metadata first (AST-free path)
-	if o.Class.Metadata != nil && len(o.Class.Metadata.Fields) > 0 {
-		if _, exists := o.Class.Metadata.Fields[normalizedName]; !exists {
-			// Field not defined in metadata
-			return nil
+	// Try metadata first (AST-free path), walking up the inheritance chain.
+	// This avoids missing inherited fields when the child class adds its own fields.
+	if fieldMeta := lookupFieldMetadata(o.Class.Metadata, normalizedName); fieldMeta != nil {
+		if val, exists := o.Fields[normalizedName]; exists {
+			return val
 		}
-		// Return the field value (may be nil if not yet set)
-		return o.Fields[normalizedName]
+		if val, exists := o.Fields[name]; exists {
+			return val
+		}
+		return nil
 	}
 
 	// Legacy fallback: Check if field exists in ClassInfo.Fields
@@ -170,11 +172,9 @@ func (o *ObjectInstance) SetField(name string, value Value) {
 
 	normalizedName := ident.Normalize(name)
 
-	// Try metadata first (AST-free path)
-	if o.Class.Metadata != nil && len(o.Class.Metadata.Fields) > 0 {
-		if _, exists := o.Class.Metadata.Fields[normalizedName]; exists {
-			o.Fields[normalizedName] = value
-		}
+	// Try metadata first (AST-free path), walking up the inheritance chain.
+	if lookupFieldMetadata(o.Class.Metadata, normalizedName) != nil {
+		o.Fields[normalizedName] = value
 		return
 	}
 
@@ -421,6 +421,17 @@ func isObject(v Value) bool {
 func AsObject(v Value) (*ObjectInstance, bool) {
 	obj, ok := v.(*ObjectInstance)
 	return obj, ok
+}
+
+// lookupFieldMetadata searches for a field in the class metadata hierarchy.
+// Returns the metadata for the field if found, or nil otherwise.
+func lookupFieldMetadata(meta *runtime.ClassMetadata, normalizedName string) *runtime.FieldMetadata {
+	for current := meta; current != nil; current = current.Parent {
+		if field, ok := current.Fields[normalizedName]; ok {
+			return field
+		}
+	}
+	return nil
 }
 
 // ============================================================================
