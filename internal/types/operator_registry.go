@@ -23,7 +23,7 @@ type OperatorSignature struct {
 }
 
 // OperatorRegistry stores operator overloads keyed by operator token.
-// Task 13.10: Uses ident.Map for case-insensitive operator lookup (e.g., "and" vs "AND").
+// Uses ident.Map for case-insensitive operator lookup (e.g., "and" vs "AND").
 type OperatorRegistry struct {
 	entries *ident.Map[[]*OperatorSignature]
 }
@@ -233,7 +233,7 @@ func conversionKey(from, to Type) string {
 }
 
 // typeKey generates a canonical string for a Type used in operator/conversion lookups.
-// Task 13.10: Type names are normalized for case-insensitive matching.
+// Type names are normalized for case-insensitive matching.
 func typeKey(t Type) string {
 	switch tt := t.(type) {
 	case *ClassType:

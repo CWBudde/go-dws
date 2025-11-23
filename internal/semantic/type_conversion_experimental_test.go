@@ -10,7 +10,6 @@ import (
 
 // TestTypeConversionWithExperimentalPasses tests type conversions and coercions
 // with experimental passes enabled.
-// Task 6.1.2.6: Type Conversion/Coercion
 func TestTypeConversionWithExperimentalPasses(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -177,8 +176,7 @@ func TestTypeConversionWithExperimentalPasses(t *testing.T) {
 	}
 }
 
-// TestIntegerLiteralToFloatContext tests integer literal type inference
-// Task 6.1.2.6: Integer literal to Float context inference
+// TestIntegerLiteralToFloatContext tests integer literal type inference.
 func TestIntegerLiteralToFloatContext(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -248,8 +246,7 @@ func TestIntegerLiteralToFloatContext(t *testing.T) {
 	}
 }
 
-// TestNumericCoercionInBinaryOperations tests type coercion in expressions
-// Task 6.1.2.6: Support numeric type promotion in operations
+// TestNumericCoercionInBinaryOperations tests type coercion in expressions.
 func TestNumericCoercionInBinaryOperations(t *testing.T) {
 	tests := []struct {
 		name        string

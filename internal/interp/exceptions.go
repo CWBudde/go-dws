@@ -17,9 +17,8 @@ import (
 
 // ExceptionValue represents an exception object at runtime.
 // It holds the exception class type, the message, position, and the call stack at the point of raise.
-// Task 3.5.43: Migrated to use ClassMetadata instead of direct ClassInfo dependency.
 type ExceptionValue struct {
-	Metadata  *runtime.ClassMetadata // AST-free class metadata (Task 3.5.43)
+	Metadata  *runtime.ClassMetadata // AST-free class metadata
 	Instance  *ObjectInstance
 	Message   string
 	Position  *lexer.Position   // Position where the exception was raised (for error reporting)
@@ -31,7 +30,6 @@ type ExceptionValue struct {
 }
 
 // Type returns the type of this exception value.
-// Task 3.5.43: Updated to prefer Metadata over ClassInfo.
 func (e *ExceptionValue) Type() string {
 	// Prefer metadata if available
 	if e.Metadata != nil {
@@ -45,7 +43,6 @@ func (e *ExceptionValue) Type() string {
 }
 
 // Inspect returns a string representation of the exception.
-// Task 3.5.43: Updated to prefer Metadata over ClassInfo.
 func (e *ExceptionValue) Inspect() string {
 	// Phase 3.5.44: Add nil check to prevent panic
 	if e == nil {
@@ -108,11 +105,11 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	exceptionClass.IsAbstract = false
 	exceptionClass.IsExternal = false
 
-	// Task 3.5.43: Set parent metadata for hierarchy checks
+	// Set parent metadata for hierarchy checks
 	exceptionClass.Metadata.Parent = objectClass.Metadata
 	exceptionClass.Metadata.ParentName = "TObject"
 
-	// Task 3.5.40: Populate metadata for exception fields
+	// Populate metadata for exception fields
 	messageMeta := &runtime.FieldMetadata{
 		Name:       "Message",
 		TypeName:   "String",
@@ -146,11 +143,11 @@ func (i *Interpreter) registerBuiltinExceptions() {
 		excClass.IsAbstract = false
 		excClass.IsExternal = false
 
-		// Task 3.5.43: Set parent metadata for hierarchy checks
+		// Set parent metadata for hierarchy checks
 		excClass.Metadata.Parent = exceptionClass.Metadata
 		excClass.Metadata.ParentName = "Exception"
 
-		// Task 3.5.40: Populate metadata for exception fields
+		// Populate metadata for exception fields
 		messageMeta := &runtime.FieldMetadata{
 			Name:       "Message",
 			TypeName:   "String",
@@ -176,11 +173,11 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	eHostClass.IsAbstract = false
 	eHostClass.IsExternal = false
 
-	// Task 3.5.43: Set parent metadata for hierarchy checks
+	// Set parent metadata for hierarchy checks
 	eHostClass.Metadata.Parent = exceptionClass.Metadata
 	eHostClass.Metadata.ParentName = "Exception"
 
-	// Task 3.5.40: Populate metadata for EHost fields
+	// Populate metadata for EHost fields
 	messageMeta2 := &runtime.FieldMetadata{
 		Name:       "Message",
 		TypeName:   "String",
@@ -215,8 +212,7 @@ func (i *Interpreter) raiseMaxRecursionExceeded() Value {
 	callStack := make(errors.StackTrace, len(i.callStack))
 	copy(callStack, i.callStack)
 
-	// Look up EScriptStackOverflow class
-	// PR #147: Use lowercase key for O(1) case-insensitive lookup
+	// Look up EScriptStackOverflow class (use lowercase key for case-insensitive lookup)
 	stackOverflowClass, ok := i.classes[strings.ToLower("EScriptStackOverflow")]
 	if !ok {
 		// Fall back to Exception if EScriptStackOverflow isn't registered
@@ -232,9 +228,7 @@ func (i *Interpreter) raiseMaxRecursionExceeded() Value {
 	instance := NewObjectInstance(stackOverflowClass)
 	instance.SetField("Message", &StringValue{Value: message})
 
-	// Set the exception
-	// Position is nil for internally-raised exceptions like recursion overflow
-	// Task 3.5.43: Populate Metadata field from ClassInfo
+	// Set the exception (Position is nil for internally-raised exceptions like recursion overflow)
 	i.exception = &ExceptionValue{
 		Metadata:  stackOverflowClass.Metadata,
 		Instance:  instance,
@@ -374,7 +368,6 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 }
 
 // matchesExceptionType checks if an exception matches a handler's type.
-// Task 3.5.43: Updated to prefer Metadata over ClassInfo for hierarchy checks.
 func (i *Interpreter) matchesExceptionType(exc *ExceptionValue, typeExpr ast.TypeExpression) bool {
 	if typeExpr == nil {
 		return true // Bare handler catches all
@@ -438,9 +431,7 @@ func (i *Interpreter) evalRaiseStatement(stmt *ast.RaiseStatement) Value {
 	// Get the class info
 	classInfo := obj.Class
 
-	// Create exception value
-	// Extract message from the object's Message field
-	// Task 3.5.40: Use GetField for proper normalization
+	// Create exception value and extract message from the object's Message field
 	message := ""
 	if msgVal := obj.GetField("Message"); msgVal != nil {
 		if strVal, ok := msgVal.(*StringValue); ok {
@@ -455,7 +446,6 @@ func (i *Interpreter) evalRaiseStatement(stmt *ast.RaiseStatement) Value {
 	// Capture position of the raise statement
 	pos := stmt.Token.Pos
 
-	// Task 3.5.43: Populate Metadata field from ClassInfo
 	i.exception = &ExceptionValue{
 		Metadata:  classInfo.Metadata,
 		Message:   message,
