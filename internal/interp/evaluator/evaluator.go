@@ -560,9 +560,7 @@ type InterpreterAdapter interface {
 	// Returns the class variable value and true if found, nil and false otherwise.
 	GetClassVariableValue(obj Value, varName string) (Value, bool)
 
-	// HasProperty checks if an object has a property with the given name.
-	// Returns true if the property exists (case-insensitive lookup).
-	HasProperty(obj Value, propName string) bool
+	// Task 3.5.72: HasProperty removed - use ObjectValue interface directly
 
 	// ReadPropertyValue reads a property value from an object.
 	// Handles field-backed, method-backed, and expression-backed properties.
@@ -570,9 +568,7 @@ type InterpreterAdapter interface {
 	// Note: Caller is responsible for property recursion prevention.
 	ReadPropertyValue(obj Value, propName string, node any) (Value, error)
 
-	// HasMethod checks if an object has a method with the given name.
-	// Returns true if the method exists (case-insensitive lookup).
-	HasMethod(obj Value, methodName string) bool
+	// Task 3.5.72: HasMethod removed - use ObjectValue interface directly
 
 	// IsMethodParameterless checks if a method has zero parameters.
 	// Returns true if the method exists and has no parameters.

@@ -307,10 +307,16 @@ Interpreter.Eval() delegates to Evaluator. Created evalDirect() bypass. Fixed En
   - Files: `evaluator/visitor_expressions.go`, `evaluator/evaluator.go`, `interpreter.go`
   - Acceptance: No adapter type check calls for these values, tests pass ✅
 
-- [ ] **3.5.72** Replace Property Existence Checks
-  - Replace `adapter.HasProperty()`, `adapter.HasMethod()` (~3 calls)
-  - Use direct TypeRegistry method lookup
-  - Acceptance: No adapter property/method existence calls
+- [x] **3.5.72** Replace Property Existence Checks ✅
+  - Added `ObjectValue` interface to evaluator with `ClassName()`, `HasProperty()`, `HasMethod()`
+  - ObjectInstance implements `ObjectValue` interface directly (no circular imports)
+  - Replaced 3 adapter calls with interface type assertions:
+    - visitor_expressions.go:112 (`HasProperty` in VisitIdentifier)
+    - visitor_expressions.go:123 (`HasMethod` in VisitIdentifier)
+    - visitor_expressions.go:1008 (`HasProperty` in VisitMemberAccessExpression)
+  - Removed `HasProperty` and `HasMethod` from adapter interface
+  - Files: `evaluator/evaluator.go`, `evaluator/visitor_expressions.go`, `class.go`, `interpreter.go`
+  - Acceptance: No adapter property/method existence calls, tests pass ✅
 
 - [ ] **3.5.73** Replace External/Lazy Value Checks
   - Replace `IsExternalVar`, `IsLazyThunk`, `EvaluateLazyThunk`

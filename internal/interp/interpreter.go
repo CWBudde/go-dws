@@ -2532,15 +2532,7 @@ func (i *Interpreter) GetClassVariableValue(obj evaluator.Value, varName string)
 	return nil, false
 }
 
-// HasProperty checks if an object has a property with the given name.
-func (i *Interpreter) HasProperty(obj evaluator.Value, propName string) bool {
-	objInst, ok := obj.(*ObjectInstance)
-	if !ok {
-		return false
-	}
-	propInfo := objInst.Class.lookupProperty(propName)
-	return propInfo != nil
-}
+// Task 3.5.72: HasProperty removed - ObjectInstance implements evaluator.ObjectValue directly
 
 // ReadPropertyValue reads a property value from an object.
 func (i *Interpreter) ReadPropertyValue(obj evaluator.Value, propName string, node any) (evaluator.Value, error) {
@@ -2562,15 +2554,7 @@ func (i *Interpreter) ReadPropertyValue(obj evaluator.Value, propName string, no
 	return i.evalPropertyRead(objInst, propInfo, astNode), nil
 }
 
-// HasMethod checks if an object has a method with the given name.
-func (i *Interpreter) HasMethod(obj evaluator.Value, methodName string) bool {
-	objInst, ok := obj.(*ObjectInstance)
-	if !ok {
-		return false
-	}
-	_, exists := objInst.Class.Methods[strings.ToLower(methodName)]
-	return exists
-}
+// Task 3.5.72: HasMethod removed - ObjectInstance implements evaluator.ObjectValue directly
 
 // IsMethodParameterless checks if a method has zero parameters.
 func (i *Interpreter) IsMethodParameterless(obj evaluator.Value, methodName string) bool {
