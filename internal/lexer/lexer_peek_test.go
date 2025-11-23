@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// TestPeekToken tests basic token peeking functionality (Task 12.3.2)
+// TestPeekToken tests basic token peeking functionality
 func TestPeekToken(t *testing.T) {
 	input := "var x := 5;"
 	l := New(input)
@@ -47,7 +47,7 @@ func TestPeekToken(t *testing.T) {
 	}
 }
 
-// TestPeekMultipleTokens tests peeking multiple tokens ahead (Task 12.3.2)
+// TestPeekMultipleTokens tests peeking multiple tokens ahead
 func TestPeekMultipleTokens(t *testing.T) {
 	input := "var x := 5;"
 	l := New(input)
@@ -84,7 +84,7 @@ func TestPeekMultipleTokens(t *testing.T) {
 	}
 }
 
-// TestPeekAndConsumeInterleaved tests interleaving Peek and NextToken (Task 12.3.2)
+// TestPeekAndConsumeInterleaved tests interleaving Peek and NextToken
 func TestPeekAndConsumeInterleaved(t *testing.T) {
 	input := "a b c d"
 	l := New(input)
@@ -132,7 +132,7 @@ func TestPeekAndConsumeInterleaved(t *testing.T) {
 	}
 }
 
-// TestPeekWithComments tests that Peek handles comments correctly (Task 12.3.2)
+// TestPeekWithComments tests that Peek handles comments correctly
 func TestPeekWithComments(t *testing.T) {
 	input := "var // comment\nx := 5"
 	l := New(input)
@@ -161,7 +161,7 @@ func TestPeekWithComments(t *testing.T) {
 	}
 }
 
-// TestNextTokenAfterPeekConsumesBuffer tests that NextToken consumes buffered tokens (Task 12.3.3)
+// TestNextTokenAfterPeekConsumesBuffer tests that NextToken consumes buffered tokens
 func TestNextTokenAfterPeekConsumesBuffer(t *testing.T) {
 	input := "a b c"
 	l := New(input)
@@ -194,7 +194,7 @@ func TestNextTokenAfterPeekConsumesBuffer(t *testing.T) {
 	}
 }
 
-// TestPeekPreservesExistingBehavior tests that existing code still works (Task 12.3.3)
+// TestPeekPreservesExistingBehavior tests that existing code still works
 func TestPeekPreservesExistingBehavior(t *testing.T) {
 	input := "var x := 5;"
 	l := New(input)
