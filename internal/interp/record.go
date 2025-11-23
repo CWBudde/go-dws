@@ -246,7 +246,7 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 	recordTypeValue := &RecordTypeValue{
 		RecordType:           recordType,
 		FieldDecls:           fieldDecls, // Task 9.5: Include field declarations
-		Metadata:             metadata,    // Task 3.5.42: AST-free metadata
+		Metadata:             metadata,   // Task 3.5.42: AST-free metadata
 		Methods:              methods,
 		StaticMethods:        staticMethods,
 		ClassMethods:         make(map[string]*ast.FunctionDecl),
@@ -283,9 +283,9 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 // Task 9.12: Extended to include constants and class variables.
 // Task 3.5.42: Extended to include RecordMetadata for AST-free runtime operation.
 type RecordTypeValue struct {
-	RecordType           *types.RecordType
-	FieldDecls           map[string]*ast.FieldDecl      // Field declarations (for initializers) - Task 9.5
-	Metadata             *runtime.RecordMetadata        // Runtime metadata (methods, constants, etc.) - Task 3.5.42
+	RecordType *types.RecordType
+	FieldDecls map[string]*ast.FieldDecl // Field declarations (for initializers) - Task 9.5
+	Metadata   *runtime.RecordMetadata   // Runtime metadata (methods, constants, etc.) - Task 3.5.42
 
 	// Deprecated: Use Metadata.Methods instead. Will be removed in Phase 3.5.44.
 	// Kept temporarily for backward compatibility during migration.

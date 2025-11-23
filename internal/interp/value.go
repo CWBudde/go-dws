@@ -152,13 +152,13 @@ func (r *RTTITypeInfoValue) String() string {
 // RecordValue represents a record value in DWScript.
 // Task 3.5.42: Migrated to use RecordMetadata instead of AST-dependent method map.
 type RecordValue struct {
-	RecordType *types.RecordType     // The record type metadata
-	Fields     map[string]Value      // Field name -> runtime value mapping
+	RecordType *types.RecordType       // The record type metadata
+	Fields     map[string]Value        // Field name -> runtime value mapping
 	Metadata   *runtime.RecordMetadata // Runtime metadata (methods, constants, etc.)
 
 	// Deprecated: Use Metadata.Methods instead. Will be removed in Phase 3.5.44.
 	// Kept temporarily for backward compatibility during migration.
-	Methods    map[string]*ast.FunctionDecl // Method name -> AST declaration
+	Methods map[string]*ast.FunctionDecl // Method name -> AST declaration
 }
 
 // Type returns the record type name (e.g., "TFoo") or "RECORD" if unnamed.
