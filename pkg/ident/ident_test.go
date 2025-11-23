@@ -110,16 +110,16 @@ func TestCompare(t *testing.T) {
 		b        string
 		expected int // <0 if a<b, 0 if a==b, >0 if a>b
 	}{
-		{"equal lowercase", "abc", "abc", 0},
-		{"equal different case", "ABC", "abc", 0},
-		{"less than", "abc", "def", -1},
-		{"greater than", "def", "abc", 1},
-		{"case insensitive less", "ABC", "def", -1},
-		{"case insensitive greater", "XYZ", "abc", 1},
-		{"prefix", "abc", "abcd", -1},
-		{"empty vs non-empty", "", "x", -1},
-		{"non-empty vs empty", "x", "", 1},
-		{"empty vs empty", "", "", 0},
+		{name: "equal lowercase", a: "abc", b: "abc", expected: 0},
+		{name: "equal different case", a: "ABC", b: "abc", expected: 0},
+		{name: "less than", a: "abc", b: "def", expected: -1},
+		{name: "greater than", a: "def", b: "abc", expected: 1},
+		{name: "case insensitive less", a: "ABC", b: "def", expected: -1},
+		{name: "case insensitive greater", a: "XYZ", b: "abc", expected: 1},
+		{name: "prefix", a: "abc", b: "abcd", expected: -1},
+		{name: "empty vs non-empty", a: "", b: "x", expected: -1},
+		{name: "non-empty vs empty", a: "x", b: "", expected: 1},
+		{name: "empty vs empty", a: "", b: "", expected: 0},
 	}
 
 	for _, tt := range tests {
@@ -128,11 +128,12 @@ func TestCompare(t *testing.T) {
 
 			// Check sign matches expected
 			var resultSign int
-			if result < 0 {
+			switch {
+			case result < 0:
 				resultSign = -1
-			} else if result > 0 {
+			case result > 0:
 				resultSign = 1
-			} else {
+			default:
 				resultSign = 0
 			}
 
