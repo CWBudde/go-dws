@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -26,6 +27,81 @@ func (i *Interpreter) initializeInterfaceField(fieldType types.Type) Value {
 		}
 	}
 	return nil
+}
+
+// buildRecordMetadata builds RecordMetadata from AST declarations.
+// Task 3.5.42: Helper to create AST-free metadata for records.
+func (i *Interpreter) buildRecordMetadata(
+	recordName string,
+	recordType *types.RecordType,
+	methods map[string]*ast.FunctionDecl,
+	staticMethods map[string]*ast.FunctionDecl,
+	constants map[string]Value,
+	classVars map[string]Value,
+) *runtime.RecordMetadata {
+	metadata := runtime.NewRecordMetadata(recordName, recordType)
+
+	// Convert instance methods to MethodMetadata
+	for methodName, methodDecl := range methods {
+		methodMeta := i.buildMethodMetadata(methodDecl)
+		metadata.Methods[methodName] = methodMeta
+		metadata.MethodOverloads[methodName] = []*runtime.MethodMetadata{methodMeta}
+	}
+
+	// Convert static methods to MethodMetadata
+	for methodName, methodDecl := range staticMethods {
+		methodMeta := i.buildMethodMetadata(methodDecl)
+		methodMeta.IsClassMethod = true
+		metadata.StaticMethods[methodName] = methodMeta
+		metadata.StaticMethodOverloads[methodName] = []*runtime.MethodMetadata{methodMeta}
+	}
+
+	// Copy constants and class vars
+	for k, v := range constants {
+		metadata.Constants[k] = v
+	}
+	for k, v := range classVars {
+		metadata.ClassVars[k] = v
+	}
+
+	return metadata
+}
+
+// buildMethodMetadata converts an AST FunctionDecl to MethodMetadata.
+// Task 3.5.42: Helper to extract metadata from AST method declarations.
+func (i *Interpreter) buildMethodMetadata(decl *ast.FunctionDecl) *runtime.MethodMetadata {
+	// Build parameter metadata
+	params := make([]runtime.ParameterMetadata, len(decl.Parameters))
+	for idx, param := range decl.Parameters {
+		typeName := ""
+		if param.Type != nil {
+			typeName = param.Type.String()
+		}
+		params[idx] = runtime.ParameterMetadata{
+			Name:         param.Name.Value,
+			TypeName:     typeName,
+			Type:         nil, // Will be resolved later if needed
+			ByRef:        param.ByRef,
+			DefaultValue: param.DefaultValue,
+		}
+	}
+
+	// Determine return type
+	returnTypeName := ""
+	if decl.ReturnType != nil {
+		returnTypeName = decl.ReturnType.String()
+	}
+
+	return &runtime.MethodMetadata{
+		Name:           decl.Name.Value,
+		Parameters:     params,
+		ReturnTypeName: returnTypeName,
+		ReturnType:     nil, // Will be resolved later if needed
+		Body:           decl.Body,
+		IsClassMethod:  decl.IsClassMethod,
+		IsConstructor:  decl.IsConstructor,
+		IsDestructor:   decl.IsDestructor,
+	}
 }
 
 // ============================================================================
@@ -161,12 +237,16 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 		recordType.Properties[propNameLower] = propInfo
 	}
 
+	// Task 3.5.42: Build RecordMetadata from AST declarations
+	metadata := i.buildRecordMetadata(recordName, recordType, methods, staticMethods, constants, classVars)
+
 	// Store record type metadata in environment with special key
 	// This allows variable declarations to resolve the type
 	recordTypeKey := "__record_type_" + ident.Normalize(recordName)
 	recordTypeValue := &RecordTypeValue{
 		RecordType:           recordType,
 		FieldDecls:           fieldDecls, // Task 9.5: Include field declarations
+		Metadata:             metadata,    // Task 3.5.42: AST-free metadata
 		Methods:              methods,
 		StaticMethods:        staticMethods,
 		ClassMethods:         make(map[string]*ast.FunctionDecl),
@@ -201,9 +281,14 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 // in the interpreter's environment.
 // Task 9.7: Extended to include method AST nodes for runtime execution.
 // Task 9.12: Extended to include constants and class variables.
+// Task 3.5.42: Extended to include RecordMetadata for AST-free runtime operation.
 type RecordTypeValue struct {
 	RecordType           *types.RecordType
 	FieldDecls           map[string]*ast.FieldDecl      // Field declarations (for initializers) - Task 9.5
+	Metadata             *runtime.RecordMetadata        // Runtime metadata (methods, constants, etc.) - Task 3.5.42
+
+	// Deprecated: Use Metadata.Methods instead. Will be removed in Phase 3.5.44.
+	// Kept temporarily for backward compatibility during migration.
 	Methods              map[string]*ast.FunctionDecl   // Instance methods: Method name -> AST declaration
 	StaticMethods        map[string]*ast.FunctionDecl   // Static methods: Method name -> AST declaration (class function/procedure)
 	ClassMethods         map[string]*ast.FunctionDecl   // Alias for StaticMethods (for compatibility)
@@ -246,8 +331,14 @@ func (i *Interpreter) createRecordValue(recordType *types.RecordType, methods ma
 		rtv, _ = typeVal.(*RecordTypeValue)
 	}
 
+	// Task 3.5.42: Extract metadata from RecordTypeValue if available
+	var metadata *runtime.RecordMetadata
+	if rtv != nil {
+		metadata = rtv.Metadata
+	}
+
 	// Create the record value
-	rv := newRecordValueInternal(recordType, methods, methodsLookup)
+	rv := newRecordValueInternal(recordType, metadata, methods, methodsLookup)
 
 	// Task 9.5: Initialize fields with field initializers or default values
 	if rtv != nil {
@@ -327,15 +418,18 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 	}
 
 	// Task 9.12.4: Create the record value with methods
+	// Task 3.5.42: Updated to use RecordMetadata
 	recordValue := &RecordValue{
 		RecordType: recordType,
 		Fields:     make(map[string]Value),
-		Methods:    nil, // Will be set below if recordTypeValue is available
+		Metadata:   nil, // Will be set below if recordTypeValue is available
+		Methods:    nil, // Deprecated: Will be set for backward compatibility
 	}
 
-	// Set methods if available
+	// Set metadata and methods if available
 	if recordTypeValue != nil {
-		recordValue.Methods = recordTypeValue.Methods
+		recordValue.Metadata = recordTypeValue.Metadata
+		recordValue.Methods = recordTypeValue.Methods // Deprecated: backward compatibility
 	}
 
 	// Evaluate and assign field values from literal
