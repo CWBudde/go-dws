@@ -277,12 +277,11 @@ Interpreter.Eval() delegates to Evaluator. Created evalDirect() bypass. Fixed En
 
 ### Phase 10: Direct Service Access (3.5.61-3.5.63)
 
-- [ ] **3.5.61** Add Direct TypeRegistry Access to Evaluator
-  - Add `typeRegistry *types.TypeSystem` field to Evaluator
-  - Inject TypeRegistry during NewEvaluator() initialization
-  - Keep adapter for backward compatibility during migration
-  - Files: `evaluator/evaluator.go`
-  - Acceptance: Evaluator has direct TypeRegistry reference
+- [x] **3.5.61** Add Direct TypeRegistry Access to Evaluator ✅ ALREADY DONE
+  - `typeSystem *interptypes.TypeSystem` field exists in Evaluator
+  - Injected via NewEvaluator() constructor
+  - TypeSystem() accessor method available
+  - Already used directly in array_helpers.go, visitor_statements.go, visitor_expressions.go
 
 - [ ] **3.5.62** Add Direct FunctionRegistry Access to Evaluator
   - Add `funcRegistry *types.FunctionRegistry` field to Evaluator
