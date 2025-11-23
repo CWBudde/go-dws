@@ -222,7 +222,7 @@ func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
 
 	// Task 3.5.40: Try metadata first (AST-free path)
 	if c.Metadata != nil {
-		if methodMeta, exists := c.Metadata.Methods[normalizedName]; exists {
+		if _, exists := c.Metadata.Methods[normalizedName]; exists {
 			// Extract AST node from metadata for backward compatibility
 			// During migration, MethodMetadata.Body is still ast.Statement
 			// We need to return the full FunctionDecl, so fall back to legacy for now
@@ -230,21 +230,11 @@ func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
 			if legacyMethod, legacyExists := c.Methods[normalizedName]; legacyExists {
 				return legacyMethod
 			}
-			// If metadata exists but legacy doesn't, we need to construct from metadata
-			// For now, this shouldn't happen during migration phase
-			_ = methodMeta // silence unused warning
 		}
-
-		// Check parent class metadata (recursive)
-		if c.Parent != nil {
-			return c.Parent.lookupMethod(name)
-		}
-
-		// Not found in metadata path
-		return nil
 	}
 
-	// Legacy fallback: Check current class
+	// Legacy fallback: Check current class Methods map
+	// This is needed during migration when metadata exists but method isn't in Metadata.Methods
 	if method, exists := c.Methods[normalizedName]; exists {
 		return method
 	}

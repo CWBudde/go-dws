@@ -184,6 +184,8 @@ func TestInterfaceInstanceGetUnderlyingObject(t *testing.T) {
 	// Create a class and object
 	classInfo := NewClassInfo("TMyClass")
 	// Task 3.5.40: Define field in class before setting it
+	// Note: Field defined as "x" (lowercase) but accessed as "X" (uppercase)
+	// to verify case-insensitive field access via normalization
 	classInfo.Fields["x"] = types.INTEGER
 	obj := NewObjectInstance(classInfo)
 	// Task 3.5.40: Use SetField for proper normalization

@@ -662,7 +662,7 @@ type FunctionPointerValue = runtime.FunctionPointerValue
 // NewFunctionPointerValue creates a new function pointer value.
 // For regular functions, selfObject should be nil.
 // For method pointers, selfObject should be the instance.
-// Task 3.5.41: Maintains backward compatibility by accepting both AST node and MethodID.
+// Task 3.5.40: Maintains backward compatibility by accepting both AST node and MethodID.
 func NewFunctionPointerValue(
 	function *ast.FunctionDecl,
 	closure *Environment,
