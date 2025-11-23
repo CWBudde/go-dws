@@ -450,7 +450,6 @@ func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *Exe
 //
 // The adapter has access to CreateLazyThunk and CreateReferenceValue methods (Task 3.5.23)
 // which enable proper handling of lazy and var parameters in all call contexts.
-//
 // Task 3.5.52: Refactored to use specific adapter methods instead of generic EvalCallExpression.
 func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *ExecutionContext) Value {
 	if node.Function == nil {
