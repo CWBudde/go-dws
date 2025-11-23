@@ -31,7 +31,8 @@ type FunctionRegistry struct {
 	// This supports explicit unit qualification (e.g., Math.Abs)
 	qualifiedFunctions *ident.Map[[]*FunctionEntry]
 
-	// builtins is the registry for built-in functions (shared across all instances)
+	// builtins is the registry for built-in functions
+	// Defaults to builtins.DefaultRegistry, but can be customized per instance
 	// Task 3.5.47: Support for builtin function registration and lookup
 	builtins *builtins.Registry
 }
@@ -382,8 +383,12 @@ func (r *FunctionRegistry) SetBuiltinRegistry(reg *builtins.Registry) {
 }
 
 // LookupAny looks up a function by name, checking both user-defined and builtin functions.
-// Returns the AST declarations if it's a user-defined function, or nil if it's a builtin.
-// The second return value is true if any function (user-defined or builtin) was found.
+// Returns:
+//   - userDefined: AST declarations if it's a user-defined function, nil otherwise
+//   - isBuiltin: true if the function is a builtin
+//   - found: true if any function (user-defined or builtin) was found
+//
+// User-defined functions take precedence over builtin functions.
 // Task 3.5.47: Unified lookup for both function types.
 func (r *FunctionRegistry) LookupAny(name string) (userDefined []*ast.FunctionDecl, isBuiltin bool, found bool) {
 	// Check user-defined functions first
