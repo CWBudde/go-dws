@@ -705,6 +705,12 @@ func (e *Evaluator) TypeSystem() *interptypes.TypeSystem {
 	return e.typeSystem
 }
 
+// FunctionRegistry returns the function registry for direct function lookups.
+// Task 3.5.62: Provides direct access to FunctionRegistry without going through adapter.
+func (e *Evaluator) FunctionRegistry() *interptypes.FunctionRegistry {
+	return e.typeSystem.Functions()
+}
+
 // Output returns the output writer.
 func (e *Evaluator) Output() io.Writer {
 	return e.output
@@ -817,6 +823,40 @@ func (e *Evaluator) SetCurrentNode(node ast.Node) {
 // Phase 3.5.1: This is temporary and will be removed once migration is complete.
 func (e *Evaluator) SetAdapter(adapter InterpreterAdapter) {
 	e.adapter = adapter
+}
+
+// ============================================================================
+// Task 3.5.63: Direct Environment Access Helpers
+// ============================================================================
+// These methods provide direct access to environment operations without going
+// through the adapter. They handle the interface{} to Value type conversion.
+
+// GetVar retrieves a variable from the execution context's environment.
+// Returns the value and whether it was found.
+// Task 3.5.63: Direct environment access without adapter.
+func (e *Evaluator) GetVar(ctx *ExecutionContext, name string) (Value, bool) {
+	val, found := ctx.Env().Get(name)
+	if !found {
+		return nil, false
+	}
+	// The environment stores interface{}, but we know it's always a Value
+	if v, ok := val.(Value); ok {
+		return v, true
+	}
+	return nil, false
+}
+
+// DefineVar defines a new variable in the execution context's environment.
+// Task 3.5.63: Direct environment access without adapter.
+func (e *Evaluator) DefineVar(ctx *ExecutionContext, name string, value Value) {
+	ctx.Env().Define(name, value)
+}
+
+// SetVar updates an existing variable in the execution context's environment.
+// Returns true if the variable existed and was updated, false otherwise.
+// Task 3.5.63: Direct environment access without adapter.
+func (e *Evaluator) SetVar(ctx *ExecutionContext, name string, value Value) bool {
+	return ctx.Env().Set(name, value)
 }
 
 // Eval evaluates an AST node and returns the result value.

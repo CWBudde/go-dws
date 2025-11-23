@@ -289,11 +289,12 @@ Interpreter.Eval() delegates to Evaluator. Created evalDirect() bypass. Fixed En
   - Files: `evaluator/evaluator.go`
   - Acceptance: Evaluator has direct FunctionRegistry access via FunctionRegistry() method
 
-- [ ] **3.5.63** Add Direct Environment Access Pattern
-  - Create helper method `getEnv(ctx) *runtime.Environment`
-  - Unwrap EnvironmentAdapter to access underlying environment
-  - Files: `evaluator/evaluator.go`, `evaluator/env_adapter.go`
-  - Acceptance: Direct environment access without adapter calls
+- [x] **3.5.63** Add Direct Environment Access Pattern ✅
+  - Added `GetVar(ctx, name)` - retrieves variable with Value type conversion
+  - Added `DefineVar(ctx, name, value)` - defines variable without adapter
+  - Added `SetVar(ctx, name, value)` - updates variable without adapter
+  - Files: `evaluator/evaluator.go`
+  - Acceptance: Direct environment access helpers available
 
 ---
 
