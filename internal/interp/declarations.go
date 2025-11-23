@@ -399,7 +399,6 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// This allows field initializers to reference the class name (e.g., FField := TObj.Value)
 	// Task 3.5.46: Register in legacy map early for field initializers that reference the class
 	// Note: TypeSystem registration happens at end of function after VMT is built
-	// PR #147 Fix: Use normalized key for O(1) case-insensitive lookup
 	i.classes[ident.Normalize(classInfo.Name)] = classInfo
 
 	// Add own fields to ClassInfo
@@ -798,9 +797,10 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 	}
 
 	// Register interface in registry
-	// Task 3.5.46: Register interface in TypeSystem for shared access
+	// Register interface in TypeSystem for shared access
 	i.typeSystem.RegisterInterface(interfaceInfo.Name, interfaceInfo)
-	// Also maintain legacy map for backward compatibility (use normalized key for case-insensitive lookups)
+	// Also maintain legacy map for backward compatibility
+	// (use normalized key for case-insensitive lookups)
 	i.interfaces[ident.Normalize(interfaceInfo.Name)] = interfaceInfo
 
 	return &NilValue{}
