@@ -1068,6 +1068,38 @@ func (i *Interpreter) EvalEnumMemberAccess(node *ast.MemberAccessExpression, enu
 	return i.EvalMemberAccessExpression(node, ctx)
 }
 
+// ===== Task 3.5.54: Collection Expression Adapter Methods =====
+
+// EvalSetLiteralElements evaluates a set literal.
+func (i *Interpreter) EvalSetLiteralElements(node *ast.SetLiteral, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalSetLiteral(node, ctx)
+}
+
+// EvalEmptyArrayLiteral evaluates an empty array literal.
+func (i *Interpreter) EvalEmptyArrayLiteral(node *ast.ArrayLiteralExpression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalArrayLiteral(node, ctx)
+}
+
+// EvalArrayLiteralWithElements evaluates an array literal with pre-evaluated elements.
+func (i *Interpreter) EvalArrayLiteralWithElements(node *ast.ArrayLiteralExpression, elements []evaluator.Value, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalArrayLiteral(node, ctx)
+}
+
+// EvalIndexExpressionWithValues evaluates indexing with pre-evaluated base and index.
+func (i *Interpreter) EvalIndexExpressionWithValues(node *ast.IndexExpression, base evaluator.Value, index evaluator.Value, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalIndexExpression(node, ctx)
+}
+
+// EvalNewArrayWithDimensions evaluates new array with pre-evaluated dimensions.
+func (i *Interpreter) EvalNewArrayWithDimensions(node *ast.NewArrayExpression, dimensions []int, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNewArrayExpression(node, ctx)
+}
+
+// EvalRangeExpressionValues evaluates a range expression.
+func (i *Interpreter) EvalRangeExpressionValues(node *ast.RangeExpression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalRangeExpression(node, ctx)
+}
+
 // LookupFunction finds a function by name in the function registry.
 func (i *Interpreter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
 	// DWScript is case-insensitive, so normalize to lowercase

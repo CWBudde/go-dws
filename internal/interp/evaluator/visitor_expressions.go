@@ -1752,8 +1752,9 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 
 // VisitSetLiteral evaluates a set literal [value1, value2, ...].
 // Handles simple elements, ranges, and mixed sets with proper type inference.
+// Task 3.5.54: Use EvalSetLiteralElements instead of generic EvalSetLiteral
 func (e *Evaluator) VisitSetLiteral(node *ast.SetLiteral, ctx *ExecutionContext) Value {
-	return e.adapter.EvalSetLiteral(node, ctx)
+	return e.adapter.EvalSetLiteralElements(node, ctx)
 }
 
 // VisitArrayLiteralExpression evaluates an array literal [1, 2, 3].
@@ -1764,8 +1765,9 @@ func (e *Evaluator) VisitArrayLiteralExpression(node *ast.ArrayLiteralExpression
 	}
 
 	// Empty arrays need type annotation
+	// Task 3.5.54: Use EvalEmptyArrayLiteral for empty arrays
 	if len(node.Elements) == 0 {
-		return e.adapter.EvalArrayLiteral(node, ctx)
+		return e.adapter.EvalEmptyArrayLiteral(node, ctx)
 	}
 
 	// Evaluate all element expressions
@@ -1797,7 +1799,8 @@ func (e *Evaluator) VisitArrayLiteralExpression(node *ast.ArrayLiteralExpression
 	}
 
 	// Delegate final construction to adapter
-	return e.adapter.EvalArrayLiteral(node, ctx)
+	// Task 3.5.54: Use EvalArrayLiteralWithElements with pre-evaluated elements
+	return e.adapter.EvalArrayLiteralWithElements(node, evaluatedElements, ctx)
 }
 
 // VisitIndexExpression evaluates an index expression array[index].
@@ -1826,7 +1829,8 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 	}
 
 	// Delegate indexing logic to adapter
-	return e.adapter.EvalIndexExpression(node, ctx)
+	// Task 3.5.54: Use EvalIndexExpressionWithValues with pre-evaluated base and index
+	return e.adapter.EvalIndexExpressionWithValues(node, base, index, ctx)
 }
 
 // VisitNewArrayExpression evaluates a new array expression.
@@ -1841,13 +1845,14 @@ func (e *Evaluator) VisitNewArrayExpression(node *ast.NewArrayExpression, ctx *E
 	}
 
 	// Evaluate and validate dimensions
-	_, err := e.evaluateDimensions(node.Dimensions, ctx, node)
+	dimensions, err := e.evaluateDimensions(node.Dimensions, ctx, node)
 	if err != nil {
 		return err
 	}
 
 	// Delegate array construction to adapter
-	return e.adapter.EvalNewArrayExpression(node, ctx)
+	// Task 3.5.54: Use EvalNewArrayWithDimensions with pre-evaluated dimensions
+	return e.adapter.EvalNewArrayWithDimensions(node, dimensions, ctx)
 }
 
 // VisitLambdaExpression evaluates a lambda expression (closure).
@@ -2073,5 +2078,6 @@ func (e *Evaluator) VisitRangeExpression(node *ast.RangeExpression, ctx *Executi
 	// Range expressions are structural - they don't evaluate to a value on their own.
 	// They're only meaningful in specific contexts (case statements, set literals).
 	// Delegate to adapter for context-aware handling.
-	return e.adapter.EvalRangeExpression(node, ctx)
+	// Task 3.5.54: Use EvalRangeExpressionValues
+	return e.adapter.EvalRangeExpressionValues(node, ctx)
 }
