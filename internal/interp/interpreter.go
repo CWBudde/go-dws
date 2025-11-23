@@ -440,6 +440,10 @@ func (i *Interpreter) EvalClassDeclaration(node *ast.ClassDecl, ctx *evaluator.E
 	// Ensure environment is restored even on panic
 	defer func() {
 		i.env = savedEnv
+		// Task 3.5.50: Sync exception state back to context only if an exception was raised
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
 	}()
 
 	// Delegate to the interpreter's class declaration evaluation logic
@@ -465,6 +469,10 @@ func (i *Interpreter) EvalInterfaceDeclaration(node *ast.InterfaceDecl, ctx *eva
 	// Ensure environment is restored even on panic
 	defer func() {
 		i.env = savedEnv
+		// Task 3.5.50: Sync exception state back to context only if an exception was raised
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
 	}()
 
 	// Delegate to the interpreter's interface declaration evaluation logic
@@ -490,6 +498,10 @@ func (i *Interpreter) EvalHelperDeclaration(node *ast.HelperDecl, ctx *evaluator
 	// Ensure environment is restored even on panic
 	defer func() {
 		i.env = savedEnv
+		// Task 3.5.50: Sync exception state back to context only if an exception was raised
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
 	}()
 
 	// Delegate to the interpreter's helper declaration evaluation logic
