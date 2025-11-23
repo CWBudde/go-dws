@@ -139,6 +139,38 @@ type InterpreterAdapter interface {
 	// This replaces generic EvalNodeWithContext for RangeExpression nodes.
 	EvalRangeExpression(node *ast.RangeExpression, ctx *ExecutionContext) Value
 
+	// ===== Task 3.5.47: Statement and Binary Op Adapter Methods =====
+
+	// EvalAssignment evaluates an assignment statement using the interpreter's full logic.
+	// Task 3.5.47: Specific adapter for assignment statement evaluation that handles:
+	// - Simple assignment: x := value
+	// - Member assignment: obj.field := value, record.field := value
+	// - Index assignment: arr[i] := value, obj.Property[x, y] := value
+	// - Compound operators: +=, -=, *=, /= with type coercion and operator overloads
+	// - ReferenceValue (var parameters), external variables, subrange validation
+	// - Implicit type conversions, variant boxing, object reference counting
+	// - Property setter dispatch with recursion prevention
+	// This replaces generic EvalNodeWithContext for AssignmentStatement nodes.
+	EvalAssignment(node *ast.AssignmentStatement, ctx *ExecutionContext) Value
+
+	// EvalSetBinaryOperation evaluates a binary operation on set values using the interpreter's full logic.
+	// Task 3.5.47: Specific adapter for set binary operations that handles:
+	// - Union (+), difference (-), intersection (*) operations
+	// - SetValue type and storage backends (bitmask vs map)
+	// - SetType information for type checking
+	// - Calls interpreter's evalBinarySetOperation method
+	// This replaces generic EvalNodeWithContext for set binary operations.
+	EvalSetBinaryOperation(op string, left, right Value, node ast.Node, ctx *ExecutionContext) Value
+
+	// EvalVariantUnaryNot evaluates the NOT operator on a Variant value using the interpreter's full logic.
+	// Task 3.5.47: Specific adapter for Variant NOT operations that handles:
+	// - Variant unwrapping
+	// - Underlying type determination
+	// - Applying NOT to unwrapped value (boolean or bitwise)
+	// - Special handling for nil/unassigned variants
+	// This replaces generic EvalNodeWithContext for Variant NOT operations.
+	EvalVariantUnaryNot(operand Value, node ast.Node, ctx *ExecutionContext) Value
+
 	// Phase 3.5.4 - Phase 2B: Type system access methods
 	// These methods allow the Evaluator to access type registries during evaluation
 	// without directly accessing Interpreter fields.
