@@ -576,14 +576,16 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
 
 Before migrating logic, extract reusable components that both Interpreter and Evaluator can use directly.
 
-- [ ] **3.5.46** Extract Type Registry Service
-  - Create standalone `TypeRegistry` struct in `internal/interp/types/`
-  - Move class/record/interface/enum/helper lookup from Interpreter
-  - Provide direct access methods (no adapter needed)
-  - Both Interpreter and Evaluator reference same TypeRegistry instance
-  - Files: `internal/interp/types/type_registry.go` (new), `internal/interp/interpreter.go`
+- [x] **3.5.46** Extract Type Registry Service ✅
+  - Create standalone `TypeRegistry` struct in `internal/interp/types/` (TypeSystem serves this role)
+  - Move class/record/interface/enum/helper lookup from Interpreter ✅
+  - Provide direct access methods (no adapter needed) ✅
+  - Both Interpreter and Evaluator reference same TypeRegistry instance ✅
+  - Files: `internal/interp/types/type_system.go` (existing), `internal/interp/interpreter.go`, `internal/interp/evaluator/evaluator.go`
+  - Updated: `internal/interp/declarations.go`, `internal/interp/record.go`, `internal/interp/helpers_validation.go`
+  - Test: `internal/interp/type_registry_test.go` (new)
   - Effort: 2-3 hours
-  - Acceptance: TypeRegistry works standalone, Evaluator can access directly
+  - Acceptance: TypeSystem works standalone, Evaluator can access directly without adapter ✅
   - Dependencies: 3.5.45
 
 - [x] **3.5.47** Extract Function Registry Service

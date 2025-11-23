@@ -433,102 +433,86 @@ func (i *Interpreter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
 // ===== Class Registry =====
 
 // LookupClass finds a class by name in the class registry.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
 func (i *Interpreter) LookupClass(name string) (any, bool) {
-	normalizedName := ident.Normalize(name)
-	class, ok := i.classes[normalizedName]
-	if !ok {
+	class := i.typeSystem.LookupClass(name)
+	if class == nil {
 		return nil, false
 	}
 	return class, true
 }
 
 // HasClass checks if a class with the given name exists.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
 func (i *Interpreter) HasClass(name string) bool {
-	normalizedName := ident.Normalize(name)
-	_, ok := i.classes[normalizedName]
-	return ok
+	return i.typeSystem.HasClass(name)
 }
 
 // GetClassTypeID returns the type ID for a class, or 0 if not found.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy registry.
 func (i *Interpreter) GetClassTypeID(className string) int {
-	normalizedName := ident.Normalize(className)
-	typeID, ok := i.classTypeIDRegistry[normalizedName]
-	if !ok {
-		return 0
-	}
-	return typeID
+	return i.typeSystem.GetClassTypeID(className)
 }
 
 // ===== Record Registry =====
 
 // LookupRecord finds a record type by name in the record registry.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
 func (i *Interpreter) LookupRecord(name string) (any, bool) {
-	normalizedName := ident.Normalize(name)
-	record, ok := i.records[normalizedName]
-	if !ok {
+	record := i.typeSystem.LookupRecord(name)
+	if record == nil {
 		return nil, false
 	}
 	return record, true
 }
 
 // HasRecord checks if a record type with the given name exists.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
 func (i *Interpreter) HasRecord(name string) bool {
-	normalizedName := ident.Normalize(name)
-	_, ok := i.records[normalizedName]
-	return ok
+	return i.typeSystem.HasRecord(name)
 }
 
 // GetRecordTypeID returns the type ID for a record type, or 0 if not found.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy registry.
 func (i *Interpreter) GetRecordTypeID(recordName string) int {
-	normalizedName := ident.Normalize(recordName)
-	typeID, ok := i.recordTypeIDRegistry[normalizedName]
-	if !ok {
-		return 0
-	}
-	return typeID
+	return i.typeSystem.GetRecordTypeID(recordName)
 }
 
 // ===== Interface Registry =====
 
 // LookupInterface finds an interface by name in the interface registry.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
 func (i *Interpreter) LookupInterface(name string) (any, bool) {
-	normalizedName := ident.Normalize(name)
-	iface, ok := i.interfaces[normalizedName]
-	if !ok {
+	iface := i.typeSystem.LookupInterface(name)
+	if iface == nil {
 		return nil, false
 	}
 	return iface, true
 }
 
 // HasInterface checks if an interface with the given name exists.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
 func (i *Interpreter) HasInterface(name string) bool {
-	normalizedName := ident.Normalize(name)
-	_, ok := i.interfaces[normalizedName]
-	return ok
+	return i.typeSystem.HasInterface(name)
 }
 
 // ===== Helper Registry =====
 
 // LookupHelpers finds helper methods for a type by name.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
 func (i *Interpreter) LookupHelpers(typeName string) []any {
-	normalizedName := ident.Normalize(typeName)
-	helpers, ok := i.helpers[normalizedName]
-	if !ok {
+	helpers := i.typeSystem.LookupHelpers(typeName)
+	if helpers == nil {
 		return nil
 	}
-	// Convert []*HelperInfo to []any
-	result := make([]any, len(helpers))
-	for idx, helper := range helpers {
-		result[idx] = helper
-	}
-	return result
+	// Return as []any for adapter compatibility
+	return helpers
 }
 
 // HasHelpers checks if a type has helper methods defined.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
 func (i *Interpreter) HasHelpers(typeName string) bool {
-	normalizedName := ident.Normalize(typeName)
-	helpers, ok := i.helpers[normalizedName]
-	return ok && len(helpers) > 0
+	return i.typeSystem.HasHelpers(typeName)
 }
 
 // ===== Operator & Conversion Registries =====
@@ -546,13 +530,9 @@ func (i *Interpreter) GetConversionRegistry() any {
 // ===== Enum Type IDs =====
 
 // GetEnumTypeID returns the type ID for an enum type, or 0 if not found.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy registry.
 func (i *Interpreter) GetEnumTypeID(enumName string) int {
-	normalizedName := ident.Normalize(enumName)
-	typeID, ok := i.enumTypeIDRegistry[normalizedName]
-	if !ok {
-		return 0
-	}
-	return typeID
+	return i.typeSystem.GetEnumTypeID(enumName)
 }
 
 // ===== Task 3.5.5: Type System Adapter Method Implementations =====

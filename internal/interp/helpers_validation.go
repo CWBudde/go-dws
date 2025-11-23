@@ -172,11 +172,17 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 
 	// Get the type name for indexing
 	typeName := ident.Normalize(targetType.String())
+	// Task 3.5.46: Register helper in TypeSystem
+	i.typeSystem.RegisterHelper(typeName, helperInfo)
+	// Task 3.5.46: Also maintain legacy map for backward compatibility during migration
 	i.helpers[typeName] = append(i.helpers[typeName], helperInfo)
 
 	// Also register by simple type name for lookup compatibility
 	simpleTypeName := ident.Normalize(extractSimpleTypeName(targetType.String()))
 	if simpleTypeName != typeName {
+		// Task 3.5.46: Register helper by simple name in TypeSystem
+		i.typeSystem.RegisterHelper(simpleTypeName, helperInfo)
+		// Task 3.5.46: Also maintain legacy map for backward compatibility during migration
 		i.helpers[simpleTypeName] = append(i.helpers[simpleTypeName], helperInfo)
 	}
 

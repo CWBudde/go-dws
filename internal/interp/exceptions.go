@@ -98,6 +98,8 @@ func (i *Interpreter) registerBuiltinExceptions() {
 
 	// PR #147: Use lowercase key for O(1) case-insensitive lookup
 	i.classes[strings.ToLower("TObject")] = objectClass
+	// Task 3.5.46: Also register in TypeSystem for shared access
+	i.typeSystem.RegisterClassWithParent("TObject", objectClass, "")
 
 	// Register Exception base class
 	exceptionClass := NewClassInfo("Exception")
@@ -124,6 +126,8 @@ func (i *Interpreter) registerBuiltinExceptions() {
 
 	// PR #147: Use lowercase key for O(1) case-insensitive lookup
 	i.classes[strings.ToLower("Exception")] = exceptionClass
+	// Task 3.5.46: Also register in TypeSystem for shared access
+	i.typeSystem.RegisterClassWithParent("Exception", exceptionClass, "TObject")
 
 	// Register standard exception types
 	standardExceptions := []string{
@@ -160,6 +164,8 @@ func (i *Interpreter) registerBuiltinExceptions() {
 
 		// PR #147: Use lowercase key for O(1) case-insensitive lookup
 		i.classes[strings.ToLower(excName)] = excClass
+		// Task 3.5.46: Also register in TypeSystem for shared access
+		i.typeSystem.RegisterClassWithParent(excName, excClass, "Exception")
 	}
 
 	// Register EHost exception wrapper for host runtime errors.
@@ -195,6 +201,8 @@ func (i *Interpreter) registerBuiltinExceptions() {
 
 	// PR #147: Use lowercase key for O(1) case-insensitive lookup
 	i.classes[strings.ToLower("EHost")] = eHostClass
+	// Task 3.5.46: Also register in TypeSystem for shared access
+	i.typeSystem.RegisterClassWithParent("EHost", eHostClass, "Exception")
 }
 
 // raiseMaxRecursionExceeded raises an EScriptStackOverflow exception when the
