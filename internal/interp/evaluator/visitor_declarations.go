@@ -210,7 +210,11 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 			if resolvedType == nil {
 				return e.newError(node, "unknown or invalid type for field '%s' in record '%s'", fieldName, recordName)
 			}
-			fieldType = resolvedType.(types.Type)
+			var ok bool
+			fieldType, ok = resolvedType.(types.Type)
+			if !ok {
+				return e.newError(node, "internal error: invalid type resolution for field '%s'", fieldName)
+			}
 		} else if field.InitValue != nil {
 			// Type inference from initializer
 			initValue := e.Eval(field.InitValue, ctx)
@@ -221,7 +225,11 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 			if fieldTypeAny == nil {
 				return e.newError(node, "cannot infer type for field '%s' in record '%s'", fieldName, recordName)
 			}
-			fieldType = fieldTypeAny.(types.Type)
+			var ok bool
+			fieldType, ok = fieldTypeAny.(types.Type)
+			if !ok {
+				return e.newError(node, "internal error: invalid type inference for field '%s'", fieldName)
+			}
 		} else {
 			return e.newError(node, "field '%s' in record '%s' must have either a type or initializer", fieldName, recordName)
 		}
@@ -278,7 +286,11 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 				if resolvedType == nil {
 					return e.newError(node, "unknown type for class variable '%s' in record '%s'", varName, recordName)
 				}
-				varType = resolvedType.(types.Type)
+				var ok bool
+				varType, ok = resolvedType.(types.Type)
+				if !ok {
+					return e.newError(node, "internal error: invalid type resolution for class variable '%s'", varName)
+				}
 			}
 			varValue = e.adapter.GetZeroValueForType(varType)
 		}
@@ -296,7 +308,10 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 		if propTypeAny == nil {
 			return e.newError(node, "unknown type for property '%s' in record '%s'", propName, recordName)
 		}
-		propType := propTypeAny.(types.Type)
+		propType, ok := propTypeAny.(types.Type)
+		if !ok {
+			return e.newError(node, "internal error: invalid type resolution for property '%s'", propName)
+		}
 
 		// Create property info
 		propInfo := &types.RecordPropertyInfo{
@@ -422,7 +437,7 @@ func (e *Evaluator) VisitTypeDeclaration(node *ast.TypeDeclaration, ctx *Executi
 		// Build and register subrange type using adapter
 		subrangeTypeValue, err := e.adapter.BuildSubrangeTypeValue(node.Name.Value, lowBoundVal, highBoundVal)
 		if err != nil {
-			return e.newError(node, err.Error())
+			return e.newError(node, "%s", err.Error())
 		}
 
 		e.adapter.RegisterSubrangeTypeInEnvironment(node.Name.Value, subrangeTypeValue, ctx)
@@ -437,7 +452,7 @@ func (e *Evaluator) VisitTypeDeclaration(node *ast.TypeDeclaration, ctx *Executi
 
 		// Function pointer types are validated by the semantic analyzer
 		// At runtime, we just register the type name as existing
-		typeKey := "__funcptr_type_" + node.Name.Value
+		typeKey := "__funcptr_type_" + ident.Normalize(node.Name.Value)
 		ctx.Env().Define(typeKey, &runtime.StringValue{Value: "function_pointer_type"})
 
 		return &runtime.NilValue{}

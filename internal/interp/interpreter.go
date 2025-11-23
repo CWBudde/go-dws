@@ -3234,15 +3234,23 @@ func (i *Interpreter) BuildRecordTypeValue(
 		return nil
 	}
 
-	// Convert evaluator.Value maps to internal Value maps
+	// Convert evaluator.Value maps to internal Value maps with safe type assertions
 	internalConstants := make(map[string]Value)
 	for k, v := range constants {
-		internalConstants[k] = v.(Value)
+		internalVal, ok := v.(Value)
+		if !ok {
+			return nil // Invalid value type in constants map
+		}
+		internalConstants[k] = internalVal
 	}
 
 	internalClassVars := make(map[string]Value)
 	for k, v := range classVars {
-		internalClassVars[k] = v.(Value)
+		internalVal, ok := v.(Value)
+		if !ok {
+			return nil // Invalid value type in classVars map
+		}
+		internalClassVars[k] = internalVal
 	}
 
 	// Build metadata using the existing helper
@@ -3318,9 +3326,15 @@ func (i *Interpreter) RegisterTypeAliasInEnvironment(aliasName string, typeAlias
 
 // BuildSubrangeTypeValue creates a SubrangeTypeValue from subrange components.
 func (i *Interpreter) BuildSubrangeTypeValue(typeName string, lowBound, highBound evaluator.Value) (any, error) {
-	// Convert bounds to internal values
-	lowVal := lowBound.(Value)
-	highVal := highBound.(Value)
+	// Convert bounds to internal values with safe type assertions
+	lowVal, ok := lowBound.(Value)
+	if !ok {
+		return nil, fmt.Errorf("internal error: invalid low bound value type")
+	}
+	highVal, ok := highBound.(Value)
+	if !ok {
+		return nil, fmt.Errorf("internal error: invalid high bound value type")
+	}
 
 	// Get integer values
 	lowIntVal, ok := lowVal.(*IntegerValue)
@@ -3374,5 +3388,8 @@ func (i *Interpreter) ResolveTypeFromExpression(typeExpr ast.TypeExpression) any
 
 // GetValueType returns the types.Type for a runtime value.
 func (i *Interpreter) GetValueType(value evaluator.Value) any {
-	return i.getValueType(value.(Value))
+	if internalVal, ok := value.(Value); ok {
+		return i.getValueType(internalVal)
+	}
+	return nil
 }
