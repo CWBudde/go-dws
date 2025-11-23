@@ -558,9 +558,9 @@ func TestCompiler_SelfIdentifierEmitsGetSelf(t *testing.T) {
 // TestCompiler_SetLiteral tests compilation of set literals.
 func TestCompiler_SetLiteral(t *testing.T) {
 	tests := []struct {
-		name             string
 		setLiteral       *ast.SetLiteral
-		expectedElements int // Number of elements that should be pushed onto stack
+		name             string
+		expectedElements int
 	}{
 		{
 			name: "empty set",

@@ -188,18 +188,18 @@ func TestVisitBooleanLiteral(t *testing.T) {
 func TestVisitCharLiteral(t *testing.T) {
 	tests := []struct {
 		name     string
-		value    rune
 		expected string
+		value    rune
 	}{
-		{"ascii a", 'a', "a"},
-		{"ascii Z", 'Z', "Z"},
-		{"digit", '5', "5"},
-		{"space", ' ', " "},
-		{"newline", '\n', "\n"},
-		{"tab", '\t', "\t"},
-		{"unicode emoji", '🌍', "🌍"},
-		{"unicode chinese", '中', "中"},
-		{"null char", '\x00', "\x00"},
+		{name: "ascii a", expected: "a", value: 'a'},
+		{name: "ascii Z", expected: "Z", value: 'Z'},
+		{name: "digit", expected: "5", value: '5'},
+		{name: "space", expected: " ", value: ' '},
+		{name: "newline", expected: "\n", value: '\n'},
+		{name: "tab", expected: "\t", value: '\t'},
+		{name: "unicode emoji", expected: "🌍", value: '🌍'},
+		{name: "unicode chinese", expected: "中", value: '中'},
+		{name: "null char", expected: "\x00", value: '\x00'},
 	}
 
 	e := &Evaluator{}

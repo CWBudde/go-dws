@@ -15,8 +15,8 @@ func TestTypeConversionWithExperimentalPasses(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         string
-		expectError   bool
 		errorContains string
+		expectError   bool
 	}{
 		{
 			name: "implicit Integer to Float in assignment",

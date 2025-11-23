@@ -10,14 +10,14 @@ import (
 // TestMethodVisibilityString tests the String() method of MethodVisibility.
 func TestMethodVisibilityString(t *testing.T) {
 	tests := []struct {
-		visibility MethodVisibility
 		expected   string
+		visibility MethodVisibility
 	}{
-		{VisibilityPublic, "public"},
-		{VisibilityPrivate, "private"},
-		{VisibilityProtected, "protected"},
-		{VisibilityPublished, "published"},
-		{MethodVisibility(999), "unknown"},
+		{visibility: VisibilityPublic, expected: "public"},
+		{visibility: VisibilityPrivate, expected: "private"},
+		{visibility: VisibilityProtected, expected: "protected"},
+		{visibility: VisibilityPublished, expected: "published"},
+		{visibility: MethodVisibility(999), expected: "unknown"},
 	}
 
 	for _, tt := range tests {
@@ -33,14 +33,14 @@ func TestMethodVisibilityString(t *testing.T) {
 // TestFieldVisibilityString tests the String() method of FieldVisibility.
 func TestFieldVisibilityString(t *testing.T) {
 	tests := []struct {
-		visibility FieldVisibility
 		expected   string
+		visibility FieldVisibility
 	}{
-		{FieldVisibilityPublic, "public"},
-		{FieldVisibilityPrivate, "private"},
-		{FieldVisibilityProtected, "protected"},
-		{FieldVisibilityPublished, "published"},
-		{FieldVisibility(999), "unknown"},
+		{visibility: FieldVisibilityPublic, expected: "public"},
+		{visibility: FieldVisibilityPrivate, expected: "private"},
+		{visibility: FieldVisibilityProtected, expected: "protected"},
+		{visibility: FieldVisibilityPublished, expected: "published"},
+		{visibility: FieldVisibility(999), expected: "unknown"},
 	}
 
 	for _, tt := range tests {

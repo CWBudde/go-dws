@@ -19,8 +19,8 @@ type FunctionObject struct {
 	Chunk       *Chunk
 	Name        string
 	UpvalueDefs []UpvalueDef
+	VarParams   []bool
 	Arity       int
-	VarParams   []bool // Task 1.3.7.6: Which parameters are by-reference (var)
 }
 
 // NewFunctionObject creates a new function object.
