@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 )
@@ -664,13 +665,20 @@ func TestClassErrors(t *testing.T) {
 				t.Fatalf("Expected error, got %s", result.String())
 			}
 
-			errVal, ok := result.(*ErrorValue)
-			if !ok {
-				t.Fatalf("Expected ErrorValue, got %T", result)
+			// Task 3.5.45: Handle both interp.ErrorValue and evaluator.ErrorValue
+			// The Evaluator returns evaluator.ErrorValue, while legacy code returns interp.ErrorValue
+			var errorMessage string
+			switch err := result.(type) {
+			case *ErrorValue:
+				errorMessage = err.Message
+			case *evaluator.ErrorValue:
+				errorMessage = err.Message
+			default:
+				t.Fatalf("Expected ErrorValue (interp or evaluator), got %T", result)
 			}
 
-			if !strings.Contains(errVal.Message, tt.expectedError) {
-				t.Errorf("Expected error containing '%s', got '%s'", tt.expectedError, errVal.Message)
+			if !strings.Contains(errorMessage, tt.expectedError) {
+				t.Errorf("Expected error containing '%s', got '%s'", tt.expectedError, errorMessage)
 			}
 		})
 	}

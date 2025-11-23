@@ -258,12 +258,46 @@ func (i *Interpreter) GetEvaluator() *evaluator.Evaluator {
 
 // EvalNode implements the evaluator.InterpreterAdapter interface.
 // This allows the Evaluator to delegate back to the Interpreter during migration.
-// Phase 3.5.1: This is temporary and will be removed once all evaluation logic
-// is moved to the Evaluator.
+// Phase 3.5.44: Now calls evalDirect() to avoid infinite recursion.
+// The new Interpreter.Eval() delegates to Evaluator, which may call back here for not-yet-migrated cases.
 func (i *Interpreter) EvalNode(node ast.Node) evaluator.Value {
-	// Delegate to the legacy Eval method
-	// The cast is safe because our Value type matches evaluator.Value interface
-	return i.Eval(node)
+	// Use evalDirect to bypass the Evaluator delegation and use the legacy switch logic
+	// This prevents infinite recursion: Eval() → Evaluator → adapter.EvalNode() → evalDirect()
+	return i.evalDirect(node)
+}
+
+// EvalNodeWithContext evaluates a node with proper environment synchronization.
+// Phase 3.5.44: This method syncs the interpreter's environment from the context
+// before calling evalDirect, ensuring that scoped environments (from loops, functions, etc.)
+// are properly respected by the legacy evaluation code.
+func (i *Interpreter) EvalNodeWithContext(node ast.Node, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// Save the current environment to restore after evaluation
+	savedEnv := i.env
+
+	// Sync the interpreter's environment from the context
+	// The context's Env() returns an EnvironmentAdapter wrapping the actual *Environment
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+
+	// Ensure environment is restored even on panic
+	defer func() {
+		i.env = savedEnv
+		// Task 3.5.47: Sync exception state back to context only if an exception was raised
+		// This ensures exceptions raised during evaluation (e.g., Assert) are visible
+		// to the evaluator for proper try-except handling.
+		// We only sync if there's an active exception to avoid clearing context exceptions.
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	// Use evalDirect to bypass the Evaluator delegation and use the legacy switch logic
+	return i.evalDirect(node)
 }
 
 // Phase 3.5.4 - Phase 2A: Function call system adapter methods
@@ -298,6 +332,786 @@ func (i *Interpreter) CallUserFunction(fn *ast.FunctionDecl, args []evaluator.Va
 // CallBuiltinFunction executes a built-in function by name.
 func (i *Interpreter) CallBuiltinFunction(name string, args []evaluator.Value) evaluator.Value {
 	return i.callBuiltinFunction(name, convertEvaluatorArgs(args))
+}
+
+// IsBuiltinFunction checks if a name refers to a built-in function.
+// This avoids unnecessary function call attempts for undefined identifiers.
+func (i *Interpreter) IsBuiltinFunction(name string) bool {
+	return i.isBuiltinFunction(name)
+}
+
+// EvalCallExpression evaluates a call expression using the interpreter's full logic.
+// Task 3.5.46: Specific adapter method to replace generic EvalNodeWithContext for calls.
+func (i *Interpreter) EvalCallExpression(node *ast.CallExpression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNodeWithContext(node, ctx)
+}
+
+// EvalMemberAccessExpression evaluates a member access expression using the interpreter's full logic.
+// Task 3.5.46: Specific adapter method to replace generic EvalNodeWithContext for member access.
+func (i *Interpreter) EvalMemberAccessExpression(node *ast.MemberAccessExpression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNodeWithContext(node, ctx)
+}
+
+// EvalMethodCallExpression evaluates a method call expression using the interpreter's full logic.
+// Task 3.5.46: Specific adapter method to replace generic EvalNodeWithContext for method calls.
+func (i *Interpreter) EvalMethodCallExpression(node *ast.MethodCallExpression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNodeWithContext(node, ctx)
+}
+
+// EvalSetLiteral evaluates a set literal expression using the interpreter's full logic.
+// Task 3.5.46: Specific adapter method to replace generic EvalNodeWithContext for set literals.
+func (i *Interpreter) EvalSetLiteral(node *ast.SetLiteral, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNodeWithContext(node, ctx)
+}
+
+// EvalArrayLiteral evaluates an array literal expression using the interpreter's full logic.
+// Task 3.5.46: Specific adapter method to replace generic EvalNodeWithContext for array literals.
+func (i *Interpreter) EvalArrayLiteral(node *ast.ArrayLiteralExpression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNodeWithContext(node, ctx)
+}
+
+// EvalNewArrayExpression evaluates a new array expression using the interpreter's full logic.
+// Task 3.5.46: Specific adapter method to replace generic EvalNodeWithContext for array construction.
+func (i *Interpreter) EvalNewArrayExpression(node *ast.NewArrayExpression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNodeWithContext(node, ctx)
+}
+
+// EvalIndexExpression evaluates an index expression using the interpreter's full logic.
+// Task 3.5.46: Specific adapter method to replace generic EvalNodeWithContext for indexing.
+func (i *Interpreter) EvalIndexExpression(node *ast.IndexExpression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNodeWithContext(node, ctx)
+}
+
+// EvalRangeExpression evaluates a range expression using the interpreter's full logic.
+// Task 3.5.46: Specific adapter method to replace generic EvalNodeWithContext for ranges.
+func (i *Interpreter) EvalRangeExpression(node *ast.RangeExpression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNodeWithContext(node, ctx)
+}
+
+// ===== Task 3.5.47: Statement and Binary Op Adapter Methods =====
+
+// EvalAssignment evaluates an assignment statement using the interpreter's full logic.
+// Task 3.5.47: Specific adapter method to replace generic EvalNodeWithContext for assignments.
+func (i *Interpreter) EvalAssignment(node *ast.AssignmentStatement, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNodeWithContext(node, ctx)
+}
+
+// EvalSetBinaryOperation evaluates a binary operation on set values using the interpreter's full logic.
+// Task 3.5.47: Specific adapter method to replace generic EvalNodeWithContext for set binary operations.
+func (i *Interpreter) EvalSetBinaryOperation(op string, left, right evaluator.Value, node ast.Node, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// The interpreter's evalBinarySetOperation expects *SetValue operands
+	// Convert from evaluator.Value to *SetValue
+	leftSet, okLeft := left.(*SetValue)
+	rightSet, okRight := right.(*SetValue)
+
+	if !okLeft || !okRight {
+		return &ErrorValue{Message: fmt.Sprintf("set operation requires set operands, got %s and %s", left.Type(), right.Type())}
+	}
+
+	return i.evalBinarySetOperation(leftSet, rightSet, op)
+}
+
+// EvalVariantUnaryNot evaluates the NOT operator on a Variant value using the interpreter's full logic.
+// Task 3.5.47: Specific adapter method to replace generic EvalNodeWithContext for Variant NOT operations.
+func (i *Interpreter) EvalVariantUnaryNot(operand evaluator.Value, node ast.Node, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// For Variant NOT, we need to delegate back to the full node evaluation
+	// because the Interpreter's Eval method handles Variant unwrapping
+	return i.EvalNodeWithContext(node, ctx)
+}
+
+// ===== Task 3.5.50: Declaration Adapter Methods =====
+
+// EvalClassDeclaration evaluates a class declaration using the interpreter's full logic.
+// Task 3.5.50: Specific adapter method to replace generic EvalNodeWithContext for ClassDecl nodes.
+func (i *Interpreter) EvalClassDeclaration(node *ast.ClassDecl, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// Save the current environment to restore after evaluation
+	savedEnv := i.env
+
+	// Sync the interpreter's environment from the context
+	// The context's Env() returns an EnvironmentAdapter wrapping the actual *Environment
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+
+	// Ensure environment is restored even on panic
+	defer func() {
+		i.env = savedEnv
+		// Task 3.5.50: Sync exception state back to context only if an exception was raised
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	// Delegate to the interpreter's class declaration evaluation logic
+	return i.evalClassDeclaration(node)
+}
+
+// EvalInterfaceDeclaration evaluates an interface declaration using the interpreter's full logic.
+// Task 3.5.50: Specific adapter method to replace generic EvalNodeWithContext for InterfaceDecl nodes.
+func (i *Interpreter) EvalInterfaceDeclaration(node *ast.InterfaceDecl, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// Save the current environment to restore after evaluation
+	savedEnv := i.env
+
+	// Sync the interpreter's environment from the context
+	// The context's Env() returns an EnvironmentAdapter wrapping the actual *Environment
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+
+	// Ensure environment is restored even on panic
+	defer func() {
+		i.env = savedEnv
+		// Task 3.5.50: Sync exception state back to context only if an exception was raised
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	// Delegate to the interpreter's interface declaration evaluation logic
+	return i.evalInterfaceDeclaration(node)
+}
+
+// EvalHelperDeclaration evaluates a helper declaration using the interpreter's full logic.
+// Task 3.5.50: Specific adapter method to replace generic EvalNodeWithContext for HelperDecl nodes.
+func (i *Interpreter) EvalHelperDeclaration(node *ast.HelperDecl, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// Save the current environment to restore after evaluation
+	savedEnv := i.env
+
+	// Sync the interpreter's environment from the context
+	// The context's Env() returns an EnvironmentAdapter wrapping the actual *Environment
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+
+	// Ensure environment is restored even on panic
+	defer func() {
+		i.env = savedEnv
+		// Task 3.5.50: Sync exception state back to context only if an exception was raised
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	// Delegate to the interpreter's helper declaration evaluation logic
+	return i.evalHelperDeclaration(node)
+}
+
+// ===== Task 3.5.51: Function/Operator Declaration Adapter Methods =====
+
+// EvalFunctionDeclaration evaluates a function declaration using the interpreter's full logic.
+// Task 3.5.51: Specific adapter method to replace generic EvalNodeWithContext for FunctionDecl nodes.
+func (i *Interpreter) EvalFunctionDeclaration(node *ast.FunctionDecl, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// Save the current environment to restore after evaluation
+	savedEnv := i.env
+
+	// Sync the interpreter's environment from the context
+	// The context's Env() returns an EnvironmentAdapter wrapping the actual *Environment
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+
+	// Ensure environment is restored even on panic
+	defer func() {
+		i.env = savedEnv
+		// Task 3.5.51: Sync exception state back to context only if an exception was raised
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	// Delegate to the interpreter's function declaration evaluation logic
+	return i.evalFunctionDeclaration(node)
+}
+
+// EvalOperatorDeclaration evaluates an operator declaration using the interpreter's full logic.
+// Task 3.5.51: Specific adapter method to replace generic EvalNodeWithContext for OperatorDecl nodes.
+func (i *Interpreter) EvalOperatorDeclaration(node *ast.OperatorDecl, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// Save the current environment to restore after evaluation
+	savedEnv := i.env
+
+	// Sync the interpreter's environment from the context
+	// The context's Env() returns an EnvironmentAdapter wrapping the actual *Environment
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+
+	// Ensure environment is restored even on panic
+	defer func() {
+		i.env = savedEnv
+		// Task 3.5.51: Sync exception state back to context only if an exception was raised
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	// Delegate to the interpreter's operator declaration evaluation logic
+	return i.evalOperatorDeclaration(node)
+}
+
+// ===== Task 3.5.52: Call Expression Adapter Methods =====
+
+// CallFunctionPointerWithArgs calls a function pointer with unevaluated arguments.
+// Task 3.5.52: Handles lazy params, var params, and closure environment restoration.
+func (i *Interpreter) CallFunctionPointerWithArgs(funcPtr evaluator.Value, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	fp, ok := funcPtr.(*FunctionPointerValue)
+	if !ok {
+		return &ErrorValue{Message: "expected function pointer value"}
+	}
+
+	evalArgs := make([]Value, len(args))
+	for idx, arg := range args {
+		isLazy := fp.Function != nil && idx < len(fp.Function.Parameters) && fp.Function.Parameters[idx].IsLazy
+		isByRef := fp.Function != nil && idx < len(fp.Function.Parameters) && fp.Function.Parameters[idx].ByRef
+
+		if isLazy {
+			evalArgs[idx] = NewLazyThunk(arg, i.env, i)
+		} else if isByRef {
+			if argIdent, ok := arg.(*ast.Identifier); ok {
+				evalArgs[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+			} else {
+				return &ErrorValue{Message: fmt.Sprintf("var parameter requires a variable, got %T", arg)}
+			}
+		} else {
+			val := i.Eval(arg)
+			if isError(val) {
+				return val
+			}
+			evalArgs[idx] = val
+		}
+	}
+
+	return i.callFunctionPointer(fp, evalArgs, nil)
+}
+
+// CallRecordMethod calls a method on a record value.
+func (i *Interpreter) CallRecordMethod(record evaluator.Value, methodName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	recVal, ok := record.(*RecordValue)
+	if !ok {
+		return &ErrorValue{Message: fmt.Sprintf("expected record value, got %s", record.Type())}
+	}
+
+	return i.evalRecordMethodCall(recVal, &ast.MemberAccessExpression{
+		Member: &ast.Identifier{Value: methodName},
+	}, args, nil)
+}
+
+// CallInterfaceMethod calls a method on an interface value.
+func (i *Interpreter) CallInterfaceMethod(iface evaluator.Value, methodName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	ifaceInst, ok := iface.(*InterfaceInstance)
+	if !ok {
+		return &ErrorValue{Message: fmt.Sprintf("expected interface value, got %s", iface.Type())}
+	}
+
+	if ifaceInst.Object == nil {
+		return &ErrorValue{Message: "cannot call method on nil interface"}
+	}
+
+	mc := &ast.MethodCallExpression{
+		Object:    &ast.Identifier{Value: "Self"},
+		Method:    &ast.Identifier{Value: methodName},
+		Arguments: args,
+	}
+
+	savedSelf, hasSelf := i.env.Get("Self")
+	_ = i.env.Set("Self", ifaceInst.Object)
+	defer func() {
+		if hasSelf {
+			_ = i.env.Set("Self", savedSelf)
+		}
+	}()
+
+	return i.evalMethodCall(mc)
+}
+
+// CallObjectMethod calls a method on an object value.
+func (i *Interpreter) CallObjectMethod(obj evaluator.Value, methodName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	mc := &ast.MethodCallExpression{
+		Object:    &ast.Identifier{Value: "Self"},
+		Method:    &ast.Identifier{Value: methodName},
+		Arguments: args,
+	}
+
+	savedSelf, hasSelf := i.env.Get("Self")
+	_ = i.env.Set("Self", obj)
+	defer func() {
+		if hasSelf {
+			_ = i.env.Set("Self", savedSelf)
+		}
+	}()
+
+	return i.evalMethodCall(mc)
+}
+
+// CallUnitFunction calls a unit-qualified function.
+func (i *Interpreter) CallUnitFunction(unitName, funcName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	fn, err := i.ResolveQualifiedFunction(unitName, funcName)
+	if err != nil {
+		return &ErrorValue{Message: fmt.Sprintf("function '%s' not found in unit '%s'", funcName, unitName)}
+	}
+
+	evalArgs := make([]Value, len(args))
+	for idx, arg := range args {
+		isLazy := idx < len(fn.Parameters) && fn.Parameters[idx].IsLazy
+		isByRef := idx < len(fn.Parameters) && fn.Parameters[idx].ByRef
+
+		if isLazy {
+			evalArgs[idx] = NewLazyThunk(arg, i.env, i)
+		} else if isByRef {
+			if argIdent, ok := arg.(*ast.Identifier); ok {
+				evalArgs[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+			} else {
+				return &ErrorValue{Message: fmt.Sprintf("var parameter requires a variable, got %T", arg)}
+			}
+		} else {
+			val := i.Eval(arg)
+			if isError(val) {
+				return val
+			}
+			evalArgs[idx] = val
+		}
+	}
+
+	return i.callUserFunction(fn, evalArgs)
+}
+
+// CallClassMethod calls a class method or constructor.
+func (i *Interpreter) CallClassMethod(className, methodName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	mc := &ast.MethodCallExpression{
+		Object:    &ast.Identifier{Value: className},
+		Method:    &ast.Identifier{Value: methodName},
+		Arguments: args,
+	}
+
+	return i.evalMethodCall(mc)
+}
+
+// CallClassMethodFromValue calls a class method using an evaluated class value.
+// Used when a class is stored in a variable (metaclass) and methods are called on it.
+func (i *Interpreter) CallClassMethodFromValue(classVal evaluator.Value, methodName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// Extract the class name from the ClassValue
+	cv, ok := classVal.(*ClassValue)
+	if !ok {
+		return &evaluator.ErrorValue{Message: fmt.Sprintf("expected class value, got %s", classVal.Type())}
+	}
+	if cv.ClassInfo == nil {
+		return &evaluator.ErrorValue{Message: "class value has no class info"}
+	}
+	return i.CallClassMethod(cv.ClassInfo.Name, methodName, args, ctx)
+}
+
+// CallUserFunctionWithOverloads calls a user-defined function with overload resolution.
+func (i *Interpreter) CallUserFunctionWithOverloads(funcName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	funcNameLower := ident.Normalize(funcName)
+	overloads, exists := i.functions[funcNameLower]
+	if !exists || len(overloads) == 0 {
+		return &ErrorValue{Message: fmt.Sprintf("unknown function: %s", funcName)}
+	}
+
+	fn, cachedArgs, err := i.resolveOverload(funcNameLower, overloads, args)
+	if err != nil {
+		return &ErrorValue{Message: err.Error()}
+	}
+
+	evalArgs := make([]Value, len(args))
+	for idx, arg := range args {
+		isLazy := idx < len(fn.Parameters) && fn.Parameters[idx].IsLazy
+		isByRef := idx < len(fn.Parameters) && fn.Parameters[idx].ByRef
+
+		if isLazy {
+			evalArgs[idx] = NewLazyThunk(arg, i.env, i)
+		} else if isByRef {
+			if argIdent, ok := arg.(*ast.Identifier); ok {
+				evalArgs[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+			} else {
+				return &ErrorValue{Message: fmt.Sprintf("var parameter requires a variable, got %T", arg)}
+			}
+		} else {
+			evalArgs[idx] = cachedArgs[idx]
+		}
+	}
+
+	return i.callUserFunction(fn, evalArgs)
+}
+
+// CallImplicitSelfMethod calls a method using implicit Self.
+func (i *Interpreter) CallImplicitSelfMethod(selfVal evaluator.Value, methodName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	mc := &ast.MethodCallExpression{
+		Object:    &ast.Identifier{Value: "Self"},
+		Method:    &ast.Identifier{Value: methodName},
+		Arguments: args,
+	}
+
+	return i.evalMethodCall(mc)
+}
+
+// CallRecordStaticMethod calls a record's static method.
+func (i *Interpreter) CallRecordStaticMethod(recordVal evaluator.Value, methodName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	rtv, ok := recordVal.(*RecordTypeValue)
+	if !ok {
+		return &ErrorValue{Message: fmt.Sprintf("expected record type value, got %s", recordVal.Type())}
+	}
+
+	mc := &ast.MethodCallExpression{
+		Object:    &ast.Identifier{Value: rtv.RecordType.Name},
+		Method:    &ast.Identifier{Value: methodName},
+		Arguments: args,
+	}
+
+	return i.evalMethodCall(mc)
+}
+
+// CallBuiltinWithVarParam calls a builtin function with var parameters.
+func (i *Interpreter) CallBuiltinWithVarParam(funcName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	return i.callBuiltinWithVarParam(funcName, args)
+}
+
+// CallExternalFunction calls an external (Go) function.
+func (i *Interpreter) CallExternalFunction(funcName string, args []ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	if i.externalFunctions == nil {
+		return &ErrorValue{Message: fmt.Sprintf("unknown function: %s", funcName)}
+	}
+
+	extFunc, ok := i.externalFunctions.Get(funcName)
+	if !ok {
+		return &ErrorValue{Message: fmt.Sprintf("unknown external function: %s", funcName)}
+	}
+
+	varParams := extFunc.Wrapper.GetVarParams()
+	paramTypes := extFunc.Wrapper.GetParamTypes()
+
+	evalArgs := make([]Value, len(args))
+	for idx, arg := range args {
+		isVarParam := idx < len(varParams) && varParams[idx]
+
+		if isVarParam {
+			if argIdent, ok := arg.(*ast.Identifier); ok {
+				evalArgs[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+			} else {
+				return &ErrorValue{Message: fmt.Sprintf("var parameter requires a variable, got %T", arg)}
+			}
+		} else {
+			var val Value
+			if idx < len(paramTypes) {
+				expectedType, _ := i.parseTypeString(paramTypes[idx])
+				val = i.EvalWithExpectedType(arg, expectedType)
+			} else {
+				val = i.Eval(arg)
+			}
+			if isError(val) {
+				return val
+			}
+			evalArgs[idx] = val
+		}
+	}
+
+	return i.callExternalFunction(extFunc, evalArgs)
+}
+
+// EvalDefaultFunction evaluates a Default(TypeName) call.
+func (i *Interpreter) EvalDefaultFunction(arg ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	result := i.evalDefaultFunction(arg)
+	if result == nil {
+		return &ErrorValue{Message: "Default() requires a valid type name"}
+	}
+	return result
+}
+
+// EvalTypeCast evaluates a type cast expression.
+func (i *Interpreter) EvalTypeCast(typeName string, arg ast.Expression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	savedEnv := i.env
+	if ctxEnv := ctx.Env(); ctxEnv != nil {
+		if envAdapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := envAdapter.Underlying().(*Environment); ok {
+				i.env = env
+			}
+		}
+	}
+	defer func() {
+		i.env = savedEnv
+		if i.exception != nil {
+			ctx.SetException(i.exception)
+		}
+	}()
+
+	return i.evalTypeCast(typeName, arg)
+}
+
+// HasExternalFunction checks if an external function exists.
+func (i *Interpreter) HasExternalFunction(funcName string) bool {
+	if i.externalFunctions == nil {
+		return false
+	}
+	_, ok := i.externalFunctions.Get(funcName)
+	return ok
+}
+
+// ===== Task 3.5.53: Member Access Adapter Methods =====
+
+// EvalObjectMemberAccess evaluates member access on an object.
+func (i *Interpreter) EvalObjectMemberAccess(node *ast.MemberAccessExpression, obj evaluator.Value, memberName string, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalMemberAccessExpression(node, ctx)
+}
+
+// EvalInterfaceMemberAccess evaluates member access on an interface.
+func (i *Interpreter) EvalInterfaceMemberAccess(node *ast.MemberAccessExpression, iface evaluator.Value, memberName string, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalMemberAccessExpression(node, ctx)
+}
+
+// EvalClassMemberAccess evaluates member access on a class/class info value.
+func (i *Interpreter) EvalClassMemberAccess(node *ast.MemberAccessExpression, classVal evaluator.Value, memberName string, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalMemberAccessExpression(node, ctx)
+}
+
+// EvalTypeCastMemberAccess evaluates member access on a type cast value.
+func (i *Interpreter) EvalTypeCastMemberAccess(node *ast.MemberAccessExpression, typeCastVal evaluator.Value, memberName string, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalMemberAccessExpression(node, ctx)
+}
+
+// EvalNilMemberAccess evaluates member access on nil.
+func (i *Interpreter) EvalNilMemberAccess(node *ast.MemberAccessExpression, memberName string, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalMemberAccessExpression(node, ctx)
+}
+
+// EvalRecordMemberAccess evaluates member access on a record.
+func (i *Interpreter) EvalRecordMemberAccess(node *ast.MemberAccessExpression, record evaluator.Value, memberName string, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalMemberAccessExpression(node, ctx)
+}
+
+// EvalEnumMemberAccess evaluates member access on an enum value.
+func (i *Interpreter) EvalEnumMemberAccess(node *ast.MemberAccessExpression, enumVal evaluator.Value, memberName string, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalMemberAccessExpression(node, ctx)
+}
+
+// ===== Task 3.5.54: Collection Expression Adapter Methods =====
+
+// EvalSetLiteralElements evaluates a set literal.
+func (i *Interpreter) EvalSetLiteralElements(node *ast.SetLiteral, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalSetLiteral(node, ctx)
+}
+
+// EvalEmptyArrayLiteral evaluates an empty array literal.
+func (i *Interpreter) EvalEmptyArrayLiteral(node *ast.ArrayLiteralExpression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalArrayLiteral(node, ctx)
+}
+
+// EvalArrayLiteralWithElements evaluates an array literal with pre-evaluated elements.
+func (i *Interpreter) EvalArrayLiteralWithElements(node *ast.ArrayLiteralExpression, elements []evaluator.Value, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalArrayLiteral(node, ctx)
+}
+
+// EvalIndexExpressionWithValues evaluates indexing with pre-evaluated base and index.
+func (i *Interpreter) EvalIndexExpressionWithValues(node *ast.IndexExpression, base evaluator.Value, index evaluator.Value, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalIndexExpression(node, ctx)
+}
+
+// EvalNewArrayWithDimensions evaluates new array with pre-evaluated dimensions.
+func (i *Interpreter) EvalNewArrayWithDimensions(node *ast.NewArrayExpression, dimensions []int, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNewArrayExpression(node, ctx)
+}
+
+// EvalRangeExpressionValues evaluates a range expression.
+func (i *Interpreter) EvalRangeExpressionValues(node *ast.RangeExpression, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalRangeExpression(node, ctx)
 }
 
 // LookupFunction finds a function by name in the function registry.
@@ -338,73 +1152,62 @@ func (i *Interpreter) GetClassTypeID(className string) int {
 // ===== Record Registry =====
 
 // LookupRecord finds a record type by name in the record registry.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
 func (i *Interpreter) LookupRecord(name string) (any, bool) {
-	normalizedName := ident.Normalize(name)
-	record, ok := i.records[normalizedName]
-	if !ok {
+	record := i.typeSystem.LookupRecord(name)
+	if record == nil {
 		return nil, false
 	}
 	return record, true
 }
 
 // HasRecord checks if a record type with the given name exists.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
 func (i *Interpreter) HasRecord(name string) bool {
-	normalizedName := ident.Normalize(name)
-	_, ok := i.records[normalizedName]
-	return ok
+	return i.typeSystem.HasRecord(name)
 }
 
 // GetRecordTypeID returns the type ID for a record type, or 0 if not found.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy registry.
 func (i *Interpreter) GetRecordTypeID(recordName string) int {
-	normalizedName := ident.Normalize(recordName)
-	typeID, ok := i.recordTypeIDRegistry[normalizedName]
-	if !ok {
-		return 0
-	}
-	return typeID
+	return i.typeSystem.GetRecordTypeID(recordName)
 }
 
 // ===== Interface Registry =====
 
 // LookupInterface finds an interface by name in the interface registry.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
 func (i *Interpreter) LookupInterface(name string) (any, bool) {
-	normalizedName := ident.Normalize(name)
-	iface, ok := i.interfaces[normalizedName]
-	if !ok {
+	iface := i.typeSystem.LookupInterface(name)
+	if iface == nil {
 		return nil, false
 	}
 	return iface, true
 }
 
 // HasInterface checks if an interface with the given name exists.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
 func (i *Interpreter) HasInterface(name string) bool {
-	normalizedName := ident.Normalize(name)
-	_, ok := i.interfaces[normalizedName]
-	return ok
+	return i.typeSystem.HasInterface(name)
 }
 
 // ===== Helper Registry =====
 
 // LookupHelpers finds helper methods for a type by name.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
 func (i *Interpreter) LookupHelpers(typeName string) []any {
-	normalizedName := ident.Normalize(typeName)
-	helpers, ok := i.helpers[normalizedName]
-	if !ok {
+	helpers := i.typeSystem.LookupHelpers(typeName)
+	if helpers == nil {
 		return nil
 	}
-	// Convert []*HelperInfo to []any
-	result := make([]any, len(helpers))
-	for idx, helper := range helpers {
-		result[idx] = helper
-	}
-	return result
+	// Return as []any for adapter compatibility
+	return helpers
 }
 
 // HasHelpers checks if a type has helper methods defined.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
 func (i *Interpreter) HasHelpers(typeName string) bool {
-	normalizedName := ident.Normalize(typeName)
-	helpers, ok := i.helpers[normalizedName]
-	return ok && len(helpers) > 0
+	return i.typeSystem.HasHelpers(typeName)
 }
 
 // ===== Operator & Conversion Registries =====
@@ -422,13 +1225,9 @@ func (i *Interpreter) GetConversionRegistry() any {
 // ===== Enum Type IDs =====
 
 // GetEnumTypeID returns the type ID for an enum type, or 0 if not found.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy registry.
 func (i *Interpreter) GetEnumTypeID(enumName string) int {
-	normalizedName := ident.Normalize(enumName)
-	typeID, ok := i.enumTypeIDRegistry[normalizedName]
-	if !ok {
-		return 0
-	}
-	return typeID
+	return i.typeSystem.GetEnumTypeID(enumName)
 }
 
 // ===== Task 3.5.5: Type System Adapter Method Implementations =====
@@ -789,12 +1588,19 @@ func (i *Interpreter) CreateArrayZeroValue(arrayTypeName string) (evaluator.Valu
 		return nil, fmt.Errorf("array type '%s' not found", arrayTypeName)
 	}
 
-	atv, ok := typeVal.(*ArrayTypeValue)
-	if !ok {
-		return nil, fmt.Errorf("type '%s' is not an array type", arrayTypeName)
+	// Task 3.5.48: Handle both interp.ArrayTypeValue and evaluator.ArrayTypeValue
+	// The evaluator's VisitArrayDecl registers evaluator.ArrayTypeValue, but this
+	// function was originally written to expect interp.ArrayTypeValue.
+	if atv, ok := typeVal.(*ArrayTypeValue); ok {
+		return NewArrayValue(atv.ArrayType), nil
 	}
 
-	return NewArrayValue(atv.ArrayType), nil
+	// Check for evaluator.ArrayTypeValue (registered by VisitArrayDecl)
+	if atv, ok := typeVal.(*evaluator.ArrayTypeValue); ok {
+		return NewArrayValue(atv.ArrayType), nil
+	}
+
+	return nil, fmt.Errorf("type '%s' is not an array type", arrayTypeName)
 }
 
 // CreateSetZeroValue creates an empty set value.
@@ -980,7 +1786,10 @@ func (i *Interpreter) InitializeInterfaceField(fieldType any) evaluator.Value {
 // Returns true if the exception type matches or inherits from the handler type.
 func (i *Interpreter) MatchesExceptionType(exc interface{}, typeExpr ast.TypeExpression) bool {
 	excVal, ok := exc.(*ExceptionValue)
-	if !ok {
+	// Task 3.5.47: Guard against typed nil interface values
+	// In Go, an interface can hold a typed nil (*ExceptionValue)(nil) where
+	// the type assertion succeeds (ok=true) but the value is nil.
+	if !ok || excVal == nil {
 		return false
 	}
 	return i.matchesExceptionType(excVal, typeExpr)
@@ -988,8 +1797,11 @@ func (i *Interpreter) MatchesExceptionType(exc interface{}, typeExpr ast.TypeExp
 
 // GetExceptionInstance returns the ObjectInstance from an exception.
 func (i *Interpreter) GetExceptionInstance(exc interface{}) evaluator.Value {
+	if exc == nil {
+		return nil
+	}
 	excVal, ok := exc.(*ExceptionValue)
-	if !ok {
+	if !ok || excVal == nil {
 		return nil
 	}
 	return excVal.Instance
@@ -1079,6 +1891,18 @@ func (i *Interpreter) syncToContext(ctx *evaluator.ExecutionContext) {
 	// Sync exception state back
 	ctx.SetException(i.exception)
 	ctx.SetHandlerException(i.handlerException)
+}
+
+// SyncException synchronizes exception state from interpreter to context.
+// This implements the InterpreterAdapter interface.
+// Task 3.5.47: Called after operations that may raise exceptions
+// (CallBuiltinFunction, CallUserFunction) to ensure exceptions raised
+// by the interpreter are visible to the evaluator.
+// Task 3.5.52: Only sync if there's an actual exception to avoid setting typed nil.
+func (i *Interpreter) SyncException(ctx *evaluator.ExecutionContext) {
+	if i.exception != nil {
+		ctx.SetException(i.exception)
+	}
 }
 
 // ===== Task 3.5.6: Array and Collection Adapter Method Implementations =====
@@ -1708,19 +2532,19 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 	// Get object instance
 	objVal, ok := internalObj.(*ObjectInstance)
 	if !ok {
-		panic(fmt.Sprintf("not an object: %s", internalObj.Type()))
+		return i.newErrorWithLocation(node, "not an object: %s", internalObj.Type())
 	}
 
 	// Get class info
 	classInfo := objVal.Class
 	if classInfo == nil {
-		panic("object has no class information")
+		return i.newErrorWithLocation(node, "object has no class information")
 	}
 
 	// Find method (case-insensitive) using the existing helper
 	method := classInfo.lookupMethod(methodName)
 	if method == nil {
-		panic(fmt.Sprintf("method '%s' not found in class '%s'", methodName, classInfo.Name))
+		return i.newErrorWithLocation(node, "method '%s' not found in class '%s'", methodName, classInfo.Name)
 	}
 
 	// Call the method using existing infrastructure
@@ -2035,9 +2859,21 @@ func (i *Interpreter) CheckImplements(obj evaluator.Value, interfaceName string)
 // Task 3.5.8: Adapter method for function pointer creation.
 func (i *Interpreter) CreateFunctionPointer(fn *ast.FunctionDecl, closure any) evaluator.Value {
 	// Convert closure to Environment
+	// Phase 3.5.44: Handle EnvironmentAdapter unwrapping
 	var env *Environment
 	if closure != nil {
-		env = closure.(*Environment)
+		if envAdapter, ok := closure.(*evaluator.EnvironmentAdapter); ok {
+			underlying := envAdapter.Underlying()
+			if e, ok := underlying.(*Environment); ok {
+				env = e
+			} else {
+				panic(fmt.Sprintf("CreateFunctionPointer: EnvironmentAdapter.Underlying() must return *Environment, got %T", underlying))
+			}
+		} else if e, ok := closure.(*Environment); ok {
+			env = e
+		} else {
+			panic(fmt.Sprintf("CreateFunctionPointer: closure must be *Environment or *EnvironmentAdapter, got %T", closure))
+		}
 	}
 
 	return &FunctionPointerValue{
@@ -2050,9 +2886,21 @@ func (i *Interpreter) CreateFunctionPointer(fn *ast.FunctionDecl, closure any) e
 // Task 3.5.8: Adapter method for lambda creation.
 func (i *Interpreter) CreateLambda(lambda *ast.LambdaExpression, closure any) evaluator.Value {
 	// Convert closure to Environment
+	// Phase 3.5.44: Handle EnvironmentAdapter unwrapping
 	var env *Environment
 	if closure != nil {
-		env = closure.(*Environment)
+		if envAdapter, ok := closure.(*evaluator.EnvironmentAdapter); ok {
+			underlying := envAdapter.Underlying()
+			if e, ok := underlying.(*Environment); ok {
+				env = e
+			} else {
+				panic(fmt.Sprintf("CreateLambda: EnvironmentAdapter.Underlying() must return *Environment, got %T", underlying))
+			}
+		} else if e, ok := closure.(*Environment); ok {
+			env = e
+		} else {
+			panic(fmt.Sprintf("CreateLambda: closure must be *Environment or *EnvironmentAdapter, got %T", closure))
+		}
 	}
 
 	return &FunctionPointerValue{
@@ -2504,9 +3352,14 @@ func (i *Interpreter) GetExternalVarName(value evaluator.Value) string {
 // Task 3.5.23: Enables lazy parameter evaluation in user function calls.
 func (i *Interpreter) CreateLazyThunk(expr ast.Expression, env any) evaluator.Value {
 	// Convert environment from any to *Environment
-	environment, ok := env.(*Environment)
-	if !ok {
-		panic(fmt.Sprintf("CreateLazyThunk: env must be *Environment, got %T", env))
+	// Phase 3.5.44: Handle EnvironmentAdapter unwrapping
+	var environment *Environment
+	if envAdapter, ok := env.(*evaluator.EnvironmentAdapter); ok {
+		environment = envAdapter.Underlying().(*Environment)
+	} else if envVal, ok := env.(*Environment); ok {
+		environment = envVal
+	} else {
+		panic(fmt.Sprintf("CreateLazyThunk: env must be *Environment or *EnvironmentAdapter, got %T", env))
 	}
 	return NewLazyThunk(expr, environment, i)
 }
@@ -2515,9 +3368,14 @@ func (i *Interpreter) CreateLazyThunk(expr ast.Expression, env any) evaluator.Va
 // Task 3.5.23: Enables pass-by-reference semantics for var parameters.
 func (i *Interpreter) CreateReferenceValue(varName string, env any) evaluator.Value {
 	// Convert environment from any to *Environment
-	environment, ok := env.(*Environment)
-	if !ok {
-		panic(fmt.Sprintf("CreateReferenceValue: env must be *Environment, got %T", env))
+	// Phase 3.5.44: Handle EnvironmentAdapter unwrapping
+	var environment *Environment
+	if envAdapter, ok := env.(*evaluator.EnvironmentAdapter); ok {
+		environment = envAdapter.Underlying().(*Environment)
+	} else if envVal, ok := env.(*Environment); ok {
+		environment = envVal
+	} else {
+		panic(fmt.Sprintf("CreateReferenceValue: env must be *Environment or *EnvironmentAdapter, got %T", env))
 	}
 	return &ReferenceValue{
 		Env:     environment,
@@ -2730,6 +3588,17 @@ func (i *Interpreter) IsClassValue(value evaluator.Value) bool {
 	return ok
 }
 
+// CreateClassValueFromName creates a ClassValue from a class name.
+// Task 3.5.46: Specific adapter method to replace generic EvalNode() calls.
+func (i *Interpreter) CreateClassValueFromName(className string) (evaluator.Value, bool) {
+	normalizedName := ident.Normalize(className)
+	classInfo, ok := i.classes[normalizedName]
+	if !ok {
+		return nil, false
+	}
+	return &ClassValue{ClassInfo: classInfo}, true
+}
+
 // GetCallStack returns a copy of the current call stack.
 // Returns stack frames in the order they were called (oldest to newest).
 func (i *Interpreter) GetCallStack() errors.StackTrace {
@@ -2769,7 +3638,48 @@ func (i *Interpreter) popCallStack() {
 
 // Eval evaluates an AST node and returns its value.
 // This is the main entry point for the interpreter.
+// Phase 3.5.44: Interpreter is now a thin orchestrator that delegates to Evaluator.
 func (i *Interpreter) Eval(node ast.Node) Value {
+	// Track the current node for error reporting
+	i.currentNode = node
+
+	// Task 3.5.45: During the Evaluator migration, we bridge two environment management approaches:
+	// 1. Interpreter uses i.env (modified directly via i.env = newEnv)
+	// 2. Evaluator uses ctx.Env() (modified via ctx.PushEnv()/PopEnv())
+	//
+	// When Interpreter creates new scopes (e.g., lambdas, function calls), it updates i.env but not ctx.
+	// When Evaluator creates new scopes (e.g., loops, with blocks), it updates ctx but not i.env.
+	//
+	// We only sync if i.env has changed from what's in the context, to avoid discarding
+	// Evaluator's environment changes (e.g., from ctx.PushEnv()). We save/restore because
+	// Evaluator may push its own scopes, and we don't want to lose them on nested Eval calls.
+	// This is a temporary bridge during migration; once all environment management is unified,
+	// this workaround can be removed.
+	savedCtxEnv := i.ctx.Env()
+	needsSync := true
+	if adapter, ok := savedCtxEnv.(*evaluator.EnvironmentAdapter); ok {
+		if adapter.Underlying() == i.env {
+			needsSync = false
+		}
+	}
+	if needsSync {
+		i.ctx.SetEnv(evaluator.NewEnvironmentAdapter(i.env))
+	}
+
+	// Ensure we restore the context environment even if evaluation panics
+	defer func() {
+		i.ctx.SetEnv(savedCtxEnv)
+	}()
+
+	// Delegate all evaluation to the Evaluator
+	// The Evaluator uses the visitor pattern and may delegate back for not-yet-migrated cases
+	return i.evaluatorInstance.Eval(node, i.ctx)
+}
+
+// evalDirect evaluates a node using the legacy switch-based approach.
+// Phase 3.5.44: This is used as a fallback for cases not yet fully migrated to the Evaluator.
+// This method will be gradually phased out as more functionality moves to the Evaluator.
+func (i *Interpreter) evalDirect(node ast.Node) Value {
 	// Track the current node for error reporting
 	i.currentNode = node
 
@@ -3024,4 +3934,193 @@ func (i *Interpreter) EvalWithExpectedType(node ast.Node, expectedType types.Typ
 
 	// For all other cases, use regular Eval
 	return i.Eval(node)
+}
+
+// ===== Task 3.5.49: Record and Type Declaration Adapter Method Implementations =====
+
+// BuildRecordTypeValue creates a RecordTypeValue from record declaration components.
+func (i *Interpreter) BuildRecordTypeValue(
+	recordName string,
+	recordType any,
+	fieldDecls map[string]*ast.FieldDecl,
+	methods map[string]*ast.FunctionDecl,
+	staticMethods map[string]*ast.FunctionDecl,
+	constants map[string]evaluator.Value,
+	classVars map[string]evaluator.Value,
+) any {
+	// Convert recordType to *types.RecordType
+	rt, ok := recordType.(*types.RecordType)
+	if !ok {
+		return nil
+	}
+
+	// Convert evaluator.Value maps to internal Value maps with safe type assertions
+	internalConstants := make(map[string]Value)
+	for k, v := range constants {
+		internalVal, ok := v.(Value)
+		if !ok {
+			return nil // Invalid value type in constants map
+		}
+		internalConstants[k] = internalVal
+	}
+
+	internalClassVars := make(map[string]Value)
+	for k, v := range classVars {
+		internalVal, ok := v.(Value)
+		if !ok {
+			return nil // Invalid value type in classVars map
+		}
+		internalClassVars[k] = internalVal
+	}
+
+	// Build metadata using the existing helper
+	metadata := i.buildRecordMetadata(recordName, rt, methods, staticMethods, internalConstants, internalClassVars)
+
+	// Create RecordTypeValue
+	recordTypeValue := &RecordTypeValue{
+		RecordType:           rt,
+		FieldDecls:           fieldDecls,
+		Metadata:             metadata,
+		Methods:              methods,
+		StaticMethods:        staticMethods,
+		ClassMethods:         staticMethods, // Alias for compatibility
+		ClassMethodOverloads: make(map[string][]*ast.FunctionDecl),
+		MethodOverloads:      make(map[string][]*ast.FunctionDecl),
+		Constants:            internalConstants,
+		ClassVars:            internalClassVars,
+	}
+
+	// Initialize overload lists
+	for methodName, methodDecl := range methods {
+		recordTypeValue.MethodOverloads[methodName] = []*ast.FunctionDecl{methodDecl}
+	}
+	for methodName, methodDecl := range staticMethods {
+		recordTypeValue.ClassMethodOverloads[methodName] = []*ast.FunctionDecl{methodDecl}
+	}
+
+	return recordTypeValue
+}
+
+// RegisterRecordTypeInEnvironment registers a record type in the environment.
+func (i *Interpreter) RegisterRecordTypeInEnvironment(recordName string, recordTypeValue any, ctx *evaluator.ExecutionContext) {
+	rtv, ok := recordTypeValue.(*RecordTypeValue)
+	if !ok {
+		return
+	}
+
+	// Register in TypeSystem
+	i.typeSystem.RegisterRecord(recordName, rtv)
+
+	// Also maintain legacy map for backward compatibility during migration
+	i.records[ident.Normalize(recordName)] = rtv
+
+	// Store in environment with special key
+	recordTypeKey := "__record_type_" + ident.Normalize(recordName)
+	ctx.Env().Define(recordTypeKey, rtv)
+}
+
+// RegisterArrayTypeInEnvironment registers an array type in the interpreter's environment.
+// Task 3.5.48: This stores in i.env directly to ensure IsArrayType and CreateArrayZeroValue
+// can find the type during variable declarations.
+func (i *Interpreter) RegisterArrayTypeInEnvironment(arrayName string, arrayTypeValue evaluator.Value) {
+	// Store in interpreter's environment with special key
+	// This is necessary because IsArrayType and CreateArrayZeroValue look in i.env,
+	// not in the ExecutionContext's environment.
+	typeKey := "__array_type_" + ident.Normalize(arrayName)
+	i.env.Define(typeKey, arrayTypeValue.(Value))
+}
+
+// BuildTypeAliasValue creates a TypeAliasValue from type alias components.
+func (i *Interpreter) BuildTypeAliasValue(aliasName string, aliasedType any) any {
+	at, ok := aliasedType.(types.Type)
+	if !ok {
+		return nil
+	}
+
+	return &TypeAliasValue{
+		Name:        aliasName,
+		AliasedType: at,
+	}
+}
+
+// RegisterTypeAliasInEnvironment registers a type alias in the environment.
+func (i *Interpreter) RegisterTypeAliasInEnvironment(aliasName string, typeAliasValue any, ctx *evaluator.ExecutionContext) {
+	tav, ok := typeAliasValue.(*TypeAliasValue)
+	if !ok {
+		return
+	}
+
+	// Store in environment with special prefix
+	typeKey := "__type_alias_" + strings.ToLower(aliasName)
+	ctx.Env().Define(typeKey, tav)
+}
+
+// BuildSubrangeTypeValue creates a SubrangeTypeValue from subrange components.
+func (i *Interpreter) BuildSubrangeTypeValue(typeName string, lowBound, highBound evaluator.Value) (any, error) {
+	// Convert bounds to internal values with safe type assertions
+	lowVal, ok := lowBound.(Value)
+	if !ok {
+		return nil, fmt.Errorf("internal error: invalid low bound value type")
+	}
+	highVal, ok := highBound.(Value)
+	if !ok {
+		return nil, fmt.Errorf("internal error: invalid high bound value type")
+	}
+
+	// Get integer values
+	lowIntVal, ok := lowVal.(*IntegerValue)
+	if !ok {
+		return nil, fmt.Errorf("subrange low bound must be an integer")
+	}
+	lowInt := int(lowIntVal.Value)
+
+	highIntVal, ok := highVal.(*IntegerValue)
+	if !ok {
+		return nil, fmt.Errorf("subrange high bound must be an integer")
+	}
+	highInt := int(highIntVal.Value)
+
+	// Validate bounds
+	if lowInt > highInt {
+		return nil, fmt.Errorf("subrange low bound (%d) cannot be greater than high bound (%d)", lowInt, highInt)
+	}
+
+	// Create SubrangeType
+	subrangeType := &types.SubrangeType{
+		BaseType:  types.INTEGER,
+		Name:      typeName,
+		LowBound:  lowInt,
+		HighBound: highInt,
+	}
+
+	// Create SubrangeTypeValue
+	return &SubrangeTypeValue{
+		Name:         typeName,
+		SubrangeType: subrangeType,
+	}, nil
+}
+
+// RegisterSubrangeTypeInEnvironment registers a subrange type in the environment.
+func (i *Interpreter) RegisterSubrangeTypeInEnvironment(typeName string, subrangeTypeValue any, ctx *evaluator.ExecutionContext) {
+	stv, ok := subrangeTypeValue.(*SubrangeTypeValue)
+	if !ok {
+		return
+	}
+
+	// Store in environment with special prefix
+	typeKey := "__subrange_type_" + strings.ToLower(typeName)
+	ctx.Env().Define(typeKey, stv)
+}
+
+// ResolveTypeFromExpression resolves a type from an AST type expression.
+func (i *Interpreter) ResolveTypeFromExpression(typeExpr ast.TypeExpression) any {
+	return i.resolveTypeFromExpression(typeExpr)
+}
+
+// GetValueType returns the types.Type for a runtime value.
+func (i *Interpreter) GetValueType(value evaluator.Value) any {
+	if internalVal, ok := value.(Value); ok {
+		return i.getValueType(internalVal)
+	}
+	return nil
 }

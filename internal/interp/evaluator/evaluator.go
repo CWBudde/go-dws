@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"fmt"
 	"io"
 	"math/rand"
 
@@ -47,6 +48,12 @@ type InterpreterAdapter interface {
 	// EvalNode evaluates a node using the legacy Interpreter.Eval method.
 	EvalNode(node ast.Node) Value
 
+	// EvalNodeWithContext evaluates a node using the legacy Interpreter.Eval method
+	// with proper environment synchronization from the ExecutionContext.
+	// This ensures that scoped environments (from loops, functions, etc.) are respected.
+	// Phase 3.5.44: Added to fix scope desync when adapter fallbacks are called from scoped contexts.
+	EvalNodeWithContext(node ast.Node, ctx *ExecutionContext) Value
+
 	// Phase 3.5.4 - Phase 2A: Function call system methods
 	// These methods allow the Evaluator to call functions during evaluation
 	// without directly accessing Interpreter fields.
@@ -61,10 +68,167 @@ type InterpreterAdapter interface {
 	// CallBuiltinFunction executes a built-in function by name.
 	CallBuiltinFunction(name string, args []Value) Value
 
+	// IsBuiltinFunction checks if a name refers to a built-in function.
+	// This is used to avoid unnecessary function call attempts for undefined identifiers.
+	IsBuiltinFunction(name string) bool
+
 	// LookupFunction finds a function by name in the function registry.
 	// Returns the function declaration(s) and a boolean indicating success.
 	// Multiple functions may be returned for overloaded functions.
 	LookupFunction(name string) ([]*ast.FunctionDecl, bool)
+
+	// ===== Task 3.5.46: Specific Call Adapter Methods =====
+	// These methods replace generic EvalNodeWithContext calls with specific,
+	// well-named methods that describe what they do.
+
+	// EvalCallExpression evaluates a call expression using the interpreter's full logic.
+	// Task 3.5.46: Specific adapter for complex call cases that require:
+	// - Function pointer calls with closure restoration
+	// - Method dispatch (object, record, interface, class)
+	// - Overload resolution for user functions
+	// - Lazy and var parameter handling
+	// - Unit-qualified function calls
+	// - Constructor calls
+	// - Type casts
+	// - Default() function
+	// This replaces generic EvalNodeWithContext for CallExpression nodes.
+	EvalCallExpression(node *ast.CallExpression, ctx *ExecutionContext) Value
+
+	// EvalMemberAccessExpression evaluates a member access expression using the interpreter's full logic.
+	// Task 3.5.46: Specific adapter for complex member access cases that require:
+	// - Unit-qualified access (UnitName.Symbol)
+	// - Static class access (TClass.ClassVar, TClass.ClassName)
+	// - Enum type access (TColor.Red, TColor.Low, TColor.High)
+	// - Record type static access (TPoint.cOrigin)
+	// - Record instance access (record.Field, record.Method)
+	// - Object instance access (obj.Field, obj.Method, obj.Property)
+	// - Interface instance access (interface.Method)
+	// - Type cast value handling (TBase(child).ClassVar)
+	// - Nil object handling (nil.ClassVar)
+	// - Enum value properties (enumVal.Value)
+	// - Class/metaclass access (ClassValue.Member)
+	// This replaces generic EvalNodeWithContext for MemberAccessExpression nodes.
+	EvalMemberAccessExpression(node *ast.MemberAccessExpression, ctx *ExecutionContext) Value
+
+	// EvalMethodCallExpression evaluates a method call expression using the interpreter's full logic.
+	// Task 3.5.46: Specific adapter for method call cases including helper methods.
+	// This replaces generic EvalNodeWithContext for MethodCallExpression default cases.
+	EvalMethodCallExpression(node *ast.MethodCallExpression, ctx *ExecutionContext) Value
+
+	// EvalSetLiteral evaluates a set literal expression using the interpreter's full logic.
+	// Task 3.5.46: Specific adapter for set literal evaluation.
+	// This replaces generic EvalNodeWithContext for SetLiteral nodes.
+	EvalSetLiteral(node *ast.SetLiteral, ctx *ExecutionContext) Value
+
+	// EvalArrayLiteral evaluates an array literal expression using the interpreter's full logic.
+	// Task 3.5.46: Specific adapter for array literal evaluation with type inference.
+	// This replaces generic EvalNodeWithContext for ArrayLiteralExpression nodes.
+	EvalArrayLiteral(node *ast.ArrayLiteralExpression, ctx *ExecutionContext) Value
+
+	// EvalNewArrayExpression evaluates a new array expression using the interpreter's full logic.
+	// Task 3.5.46: Specific adapter for array construction.
+	// This replaces generic EvalNodeWithContext for NewArrayExpression nodes.
+	EvalNewArrayExpression(node *ast.NewArrayExpression, ctx *ExecutionContext) Value
+
+	// EvalIndexExpression evaluates an index expression using the interpreter's full logic.
+	// Task 3.5.46: Specific adapter for array/string indexing.
+	// This replaces generic EvalNodeWithContext for IndexExpression nodes.
+	EvalIndexExpression(node *ast.IndexExpression, ctx *ExecutionContext) Value
+
+	// EvalRangeExpression evaluates a range expression using the interpreter's full logic.
+	// Task 3.5.46: Specific adapter for range evaluation.
+	// This replaces generic EvalNodeWithContext for RangeExpression nodes.
+	EvalRangeExpression(node *ast.RangeExpression, ctx *ExecutionContext) Value
+
+	// ===== Task 3.5.47: Statement and Binary Op Adapter Methods =====
+
+	// EvalAssignment evaluates an assignment statement using the interpreter's full logic.
+	// Task 3.5.47: Specific adapter for assignment statement evaluation that handles:
+	// - Simple assignment: x := value
+	// - Member assignment: obj.field := value, record.field := value
+	// - Index assignment: arr[i] := value, obj.Property[x, y] := value
+	// - Compound operators: +=, -=, *=, /= with type coercion and operator overloads
+	// - ReferenceValue (var parameters), external variables, subrange validation
+	// - Implicit type conversions, variant boxing, object reference counting
+	// - Property setter dispatch with recursion prevention
+	// This replaces generic EvalNodeWithContext for AssignmentStatement nodes.
+	EvalAssignment(node *ast.AssignmentStatement, ctx *ExecutionContext) Value
+
+	// EvalSetBinaryOperation evaluates a binary operation on set values using the interpreter's full logic.
+	// Task 3.5.47: Specific adapter for set binary operations that handles:
+	// - Union (+), difference (-), intersection (*) operations
+	// - SetValue type and storage backends (bitmask vs map)
+	// - SetType information for type checking
+	// - Calls interpreter's evalBinarySetOperation method
+	// This replaces generic EvalNodeWithContext for set binary operations.
+	EvalSetBinaryOperation(op string, left, right Value, node ast.Node, ctx *ExecutionContext) Value
+
+	// EvalVariantUnaryNot evaluates the NOT operator on a Variant value using the interpreter's full logic.
+	// Task 3.5.47: Specific adapter for Variant NOT operations that handles:
+	// - Variant unwrapping
+	// - Underlying type determination
+	// - Applying NOT to unwrapped value (boolean or bitwise)
+	// - Special handling for nil/unassigned variants
+	// This replaces generic EvalNodeWithContext for Variant NOT operations.
+	EvalVariantUnaryNot(operand Value, node ast.Node, ctx *ExecutionContext) Value
+
+	// ===== Task 3.5.50: Declaration Adapter Methods =====
+
+	// EvalClassDeclaration evaluates a class declaration using the interpreter's full logic.
+	// Task 3.5.50: Specific adapter for class declaration that handles:
+	// - ClassInfo creation and initialization
+	// - Inheritance (parent class lookup, field/method copying, VMT building)
+	// - Interface implementation tracking
+	// - Class constants, fields (instance and class vars), properties
+	// - Methods (instance, class, virtual, override), constructors, destructors
+	// - Operator overload registration
+	// - Type ID assignment and metadata creation
+	// This replaces generic EvalNodeWithContext for ClassDecl nodes.
+	EvalClassDeclaration(node *ast.ClassDecl, ctx *ExecutionContext) Value
+
+	// EvalInterfaceDeclaration evaluates an interface declaration using the interpreter's full logic.
+	// Task 3.5.50: Specific adapter for interface declaration that handles:
+	// - InterfaceInfo creation and initialization
+	// - Parent interface inheritance (method and property inheritance)
+	// - Method signature registration (InterfaceMethodDecl to FunctionDecl conversion)
+	// - Property declaration registration
+	// - Interface registration in both TypeSystem and legacy map
+	// This replaces generic EvalNodeWithContext for InterfaceDecl nodes.
+	EvalInterfaceDeclaration(node *ast.InterfaceDecl, ctx *ExecutionContext) Value
+
+	// EvalHelperDeclaration evaluates a helper declaration using the interpreter's full logic.
+	// Task 3.5.50: Specific adapter for helper declaration that handles:
+	// - HelperInfo creation and initialization
+	// - Target type resolution from AST type annotation
+	// - Parent helper inheritance (method and property copying)
+	// - Method registration (user-defined and builtin)
+	// - Property registration (getter/setter handling)
+	// - Class variable and class constant initialization
+	// - Helper registration in TypeSystem by type name (normalized and simple)
+	// This replaces generic EvalNodeWithContext for HelperDecl nodes.
+	EvalHelperDeclaration(node *ast.HelperDecl, ctx *ExecutionContext) Value
+
+	// ===== Task 3.5.51: Function/Operator Declaration Adapter Methods =====
+
+	// EvalFunctionDeclaration evaluates a function declaration using the interpreter's full logic.
+	// Task 3.5.51: Specific adapter for function declaration that handles:
+	// - Function registration in i.functions map (case-insensitive)
+	// - Method implementation (ClassName != nil): updates ClassInfo or RecordTypeValue methods
+	// - Support for function overloading (multiple functions per name)
+	// - Replacement of interface declarations (no body) with implementations (has body)
+	// - Constructor and destructor registration for class methods
+	// - VMT rebuilding after method implementation
+	// This replaces generic EvalNodeWithContext for FunctionDecl nodes.
+	EvalFunctionDeclaration(node *ast.FunctionDecl, ctx *ExecutionContext) Value
+
+	// EvalOperatorDeclaration evaluates an operator declaration using the interpreter's full logic.
+	// Task 3.5.51: Specific adapter for operator declaration that handles:
+	// - Class operators: skipped (handled during class declaration)
+	// - Conversion operators (implicit/explicit): registers in i.conversions
+	// - Global operators: registers in i.globalOperators with operand types
+	// - Binding function name normalization (case-insensitive)
+	// This replaces generic EvalNodeWithContext for OperatorDecl nodes.
+	EvalOperatorDeclaration(node *ast.OperatorDecl, ctx *ExecutionContext) Value
 
 	// Phase 3.5.4 - Phase 2B: Type system access methods
 	// These methods allow the Evaluator to access type registries during evaluation
@@ -130,8 +294,6 @@ type InterpreterAdapter interface {
 
 	// GetEnumTypeID returns the type ID for an enum type, or 0 if not found.
 	GetEnumTypeID(enumName string) int
-
-	// ===== Task 3.5.5: Type System Access Methods =====
 
 	// GetType resolves a type by name.
 	// Returns the resolved type and an error if the type is not found.
@@ -364,9 +526,6 @@ type InterpreterAdapter interface {
 	// Returns a new ExecutionContext with the enclosed environment.
 	CreateEnclosedEnvironment(ctx *ExecutionContext) *ExecutionContext
 
-	// Phase 3.5.4 - Phase 2C: Property & Indexing System infrastructure
-	// Property and indexing operations are available through existing infrastructure:
-	//
 	// PropertyEvalContext: Available via ExecutionContext.PropContext() for recursion prevention
 	// Property dispatch: Available via EvalNode delegation (uses Phase 2A function calls + Phase 2B type lookups)
 	// Array indexing: Available via EvalNode delegation (bounds checking integrated)
@@ -614,6 +773,12 @@ type InterpreterAdapter interface {
 	// Returns true if the value is a class name used as a value (e.g., var c := TMyClass).
 	IsClassValue(value Value) bool
 
+	// CreateClassValueFromName creates a ClassValue from a class name.
+	// Task 3.5.46: Used by VisitIdentifier when an identifier resolves to a class name.
+	// Returns the ClassValue (metaclass reference) and true if the class exists,
+	// nil and false otherwise.
+	CreateClassValueFromName(className string) (Value, bool)
+
 	// ===== Task 3.5.29: Exception Handling Adapter Methods =====
 
 	// MatchesExceptionType checks if an exception matches a handler's type.
@@ -637,6 +802,13 @@ type InterpreterAdapter interface {
 	// Returns the exception value (interface{}) to be set in context.
 	CreateExceptionFromObject(obj Value, ctx *ExecutionContext, pos any) interface{}
 
+	// SyncException synchronizes exception state from interpreter to context.
+	// This must be called after operations that may raise exceptions
+	// (e.g., CallBuiltinFunction, CallUserFunction) because the interpreter
+	// stores exceptions on its own field which doesn't automatically propagate
+	// to the ExecutionContext.
+	SyncException(ctx *ExecutionContext)
+
 	// EvalBlockStatement evaluates a block statement in the given context.
 	// Returns nil after evaluating all statements.
 	EvalBlockStatement(block *ast.BlockStatement, ctx *ExecutionContext)
@@ -644,6 +816,177 @@ type InterpreterAdapter interface {
 	// EvalStatement evaluates a single statement in the given context.
 	// Used by exception handlers to evaluate the handler statement.
 	EvalStatement(stmt ast.Statement, ctx *ExecutionContext)
+
+	// ===== Task 3.5.49: Record and Type Declaration Adapter Methods =====
+
+	// BuildRecordTypeValue creates a RecordTypeValue from record declaration components.
+	// This encapsulates the creation of interp-specific types that the evaluator cannot create directly.
+	// Parameters:
+	//   - recordName: The name of the record type
+	//   - recordType: The types.RecordType with field definitions
+	//   - fieldDecls: Map of field names to field declarations (for initializers)
+	//   - methods: Map of method names to method declarations
+	//   - staticMethods: Map of static method names to method declarations
+	//   - constants: Map of constant names to evaluated values
+	//   - classVars: Map of class variable names to evaluated values
+	// Returns the RecordTypeValue (as any) for registration.
+	BuildRecordTypeValue(
+		recordName string,
+		recordType any,
+		fieldDecls map[string]*ast.FieldDecl,
+		methods map[string]*ast.FunctionDecl,
+		staticMethods map[string]*ast.FunctionDecl,
+		constants map[string]Value,
+		classVars map[string]Value,
+	) any
+
+	// RegisterRecordTypeInEnvironment registers a record type in the environment.
+	// This handles the special key naming convention and stores the RecordTypeValue.
+	// Parameters:
+	//   - recordName: The name of the record type
+	//   - recordTypeValue: The RecordTypeValue (as any) to register
+	//   - ctx: The execution context with the environment
+	RegisterRecordTypeInEnvironment(recordName string, recordTypeValue any, ctx *ExecutionContext)
+
+	// RegisterArrayTypeInEnvironment registers an array type in the interpreter's environment.
+	// Task 3.5.48: This stores in i.env directly to ensure IsArrayType and CreateArrayZeroValue
+	// can find the type during variable declarations.
+	// Parameters:
+	//   - arrayName: The name of the array type
+	//   - arrayTypeValue: The ArrayTypeValue (as Value) to register
+	RegisterArrayTypeInEnvironment(arrayName string, arrayTypeValue Value)
+
+	// BuildTypeAliasValue creates a TypeAliasValue from type alias components.
+	// Parameters:
+	//   - aliasName: The name of the type alias
+	//   - aliasedType: The underlying type being aliased
+	// Returns the TypeAliasValue (as any) for registration.
+	BuildTypeAliasValue(aliasName string, aliasedType any) any
+
+	// RegisterTypeAliasInEnvironment registers a type alias in the environment.
+	// Parameters:
+	//   - aliasName: The name of the type alias
+	//   - typeAliasValue: The TypeAliasValue (as any) to register
+	//   - ctx: The execution context with the environment
+	RegisterTypeAliasInEnvironment(aliasName string, typeAliasValue any, ctx *ExecutionContext)
+
+	// BuildSubrangeTypeValue creates a SubrangeTypeValue from subrange components.
+	// Parameters:
+	//   - typeName: The name of the subrange type
+	//   - lowBound: The low bound value (IntegerValue)
+	//   - highBound: The high bound value (IntegerValue)
+	// Returns the SubrangeTypeValue (as any) for registration, or an error.
+	BuildSubrangeTypeValue(typeName string, lowBound, highBound Value) (any, error)
+
+	// RegisterSubrangeTypeInEnvironment registers a subrange type in the environment.
+	// Parameters:
+	//   - typeName: The name of the subrange type
+	//   - subrangeTypeValue: The SubrangeTypeValue (as any) to register
+	//   - ctx: The execution context with the environment
+	RegisterSubrangeTypeInEnvironment(typeName string, subrangeTypeValue any, ctx *ExecutionContext)
+
+	// ResolveTypeFromExpression resolves a type from an AST type expression.
+	// This handles type names, inline types, and complex type expressions.
+	// Returns the resolved types.Type (as any) or nil if resolution fails.
+	ResolveTypeFromExpression(typeExpr ast.TypeExpression) any
+
+	// GetValueType returns the types.Type for a runtime value.
+	// Used for type inference from initializer values.
+	// Returns the type (as any) or nil if the type cannot be determined.
+	GetValueType(value Value) any
+
+	// ===== Task 3.5.52: Call Expression Adapter Methods =====
+	// These methods handle complex call scenarios that require interpreter state.
+
+	// CallFunctionPointerWithArgs calls a function pointer with unevaluated arguments.
+	// Handles lazy params, var params, and closure environment restoration.
+	CallFunctionPointerWithArgs(funcPtr Value, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallRecordMethod calls a method on a record value.
+	CallRecordMethod(record Value, methodName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallInterfaceMethod calls a method on an interface value.
+	CallInterfaceMethod(iface Value, methodName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallObjectMethod calls a method on an object value.
+	CallObjectMethod(obj Value, methodName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallUnitFunction calls a unit-qualified function (UnitName.FunctionName).
+	CallUnitFunction(unitName, funcName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallClassMethod calls a class method or constructor (TClass.MethodName).
+	CallClassMethod(className, methodName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallClassMethodFromValue calls a class method using an evaluated class value.
+	// Used when a class is stored in a variable (metaclass) and methods are called on it.
+	CallClassMethodFromValue(classVal Value, methodName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallUserFunctionWithOverloads calls a user-defined function with potential overloads.
+	CallUserFunctionWithOverloads(funcName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallImplicitSelfMethod calls a method using implicit Self reference.
+	CallImplicitSelfMethod(selfVal Value, methodName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallRecordStaticMethod calls a record's static method.
+	CallRecordStaticMethod(recordVal Value, methodName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallBuiltinWithVarParam calls a builtin function that modifies its arguments.
+	CallBuiltinWithVarParam(funcName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// CallExternalFunction calls an external (Go) function.
+	CallExternalFunction(funcName string, args []ast.Expression, ctx *ExecutionContext) Value
+
+	// EvalDefaultFunction evaluates a Default(TypeName) call.
+	EvalDefaultFunction(arg ast.Expression, ctx *ExecutionContext) Value
+
+	// EvalTypeCast evaluates a type cast expression (TypeName(expression)).
+	EvalTypeCast(typeName string, arg ast.Expression, ctx *ExecutionContext) Value
+
+	// HasExternalFunction checks if an external function with the given name exists.
+	HasExternalFunction(funcName string) bool
+
+	// ===== Task 3.5.53: Member Access Adapter Methods =====
+
+	// EvalObjectMemberAccess evaluates member access on an object (methods, properties).
+	EvalObjectMemberAccess(node *ast.MemberAccessExpression, obj Value, memberName string, ctx *ExecutionContext) Value
+
+	// EvalInterfaceMemberAccess evaluates member access on an interface.
+	EvalInterfaceMemberAccess(node *ast.MemberAccessExpression, iface Value, memberName string, ctx *ExecutionContext) Value
+
+	// EvalClassMemberAccess evaluates member access on a class/class info value.
+	EvalClassMemberAccess(node *ast.MemberAccessExpression, classVal Value, memberName string, ctx *ExecutionContext) Value
+
+	// EvalTypeCastMemberAccess evaluates member access on a type cast value.
+	EvalTypeCastMemberAccess(node *ast.MemberAccessExpression, typeCastVal Value, memberName string, ctx *ExecutionContext) Value
+
+	// EvalNilMemberAccess evaluates member access on nil (class variables may be accessible).
+	EvalNilMemberAccess(node *ast.MemberAccessExpression, memberName string, ctx *ExecutionContext) Value
+
+	// EvalRecordMemberAccess evaluates member access on a record.
+	EvalRecordMemberAccess(node *ast.MemberAccessExpression, record Value, memberName string, ctx *ExecutionContext) Value
+
+	// EvalEnumMemberAccess evaluates member access on an enum value (e.g., enumVal.Value).
+	EvalEnumMemberAccess(node *ast.MemberAccessExpression, enumVal Value, memberName string, ctx *ExecutionContext) Value
+
+	// ===== Task 3.5.54: Collection Expression Adapter Methods =====
+
+	// EvalSetLiteralElements evaluates a set literal with pre-evaluated elements.
+	EvalSetLiteralElements(node *ast.SetLiteral, ctx *ExecutionContext) Value
+
+	// EvalEmptyArrayLiteral evaluates an empty array literal (needs type annotation).
+	EvalEmptyArrayLiteral(node *ast.ArrayLiteralExpression, ctx *ExecutionContext) Value
+
+	// EvalArrayLiteralWithElements evaluates an array literal with pre-evaluated elements.
+	EvalArrayLiteralWithElements(node *ast.ArrayLiteralExpression, elements []Value, ctx *ExecutionContext) Value
+
+	// EvalIndexExpressionWithValues evaluates indexing with pre-evaluated base and index.
+	EvalIndexExpressionWithValues(node *ast.IndexExpression, base Value, index Value, ctx *ExecutionContext) Value
+
+	// EvalNewArrayWithDimensions evaluates new array with pre-evaluated dimensions.
+	EvalNewArrayWithDimensions(node *ast.NewArrayExpression, dimensions []int, ctx *ExecutionContext) Value
+
+	// EvalRangeExpressionValues evaluates a range expression (used in set literals and case statements).
+	EvalRangeExpressionValues(node *ast.RangeExpression, ctx *ExecutionContext) Value
 }
 
 // Evaluator is responsible for evaluating DWScript AST nodes.
@@ -961,12 +1304,8 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 		return e.VisitTypeDeclaration(n, ctx)
 
 	default:
-		// Phase 3.5.2: Unknown node type - delegate to adapter if available
-		// This provides a safety net during the migration
-		if e.adapter != nil {
-			return e.adapter.EvalNode(node)
-		}
-		// If no adapter, this is an error (unknown node type)
-		panic("Evaluator.Eval: unknown node type and no adapter available")
+		// Phase 3.5.48: All known node types are handled above.
+		// Unknown node types indicate a bug (missing case) or an invalid AST.
+		panic(fmt.Sprintf("Evaluator.Eval: unknown node type %T", node))
 	}
 }

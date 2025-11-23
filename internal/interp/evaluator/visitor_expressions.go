@@ -76,15 +76,9 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			return actualVal
 		}
 
-		// Variable found - return immediately for basic primitives
-		switch val.(type) {
-		case *runtime.IntegerValue, *runtime.FloatValue, *runtime.StringValue, *runtime.BooleanValue, *runtime.NilValue:
-			return val
-		}
-
-		// For other complex value types (arrays, objects, records),
-		// delegate to adapter for full processing
-		return e.adapter.EvalNode(node)
+		// Variable found - return the value as-is
+		// All special handling (external vars, lazy thunks, references) is already done above
+		return val
 	}
 
 	// Check if we're in an instance method context (Self is bound)
@@ -167,16 +161,56 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// Functions are auto-invoked if they have zero parameters, or converted to function pointers if they have parameters
 	funcNameLower := ident.Normalize(node.Value)
 	if overloads, exists := e.adapter.LookupFunction(funcNameLower); exists && len(overloads) > 0 {
-		return e.adapter.EvalNode(node)
+		// Resolve to the appropriate overload
+		var fn *ast.FunctionDecl
+		if len(overloads) == 1 {
+			fn = overloads[0]
+		} else {
+			// Multiple overloads - try to find the one with zero parameters
+			for _, candidate := range overloads {
+				if len(candidate.Parameters) == 0 {
+					fn = candidate
+					break
+				}
+			}
+			// If no zero-param overload, default to first one (for function pointer use)
+			if fn == nil {
+				fn = overloads[0]
+			}
+		}
+
+		// Check if function has zero parameters - auto-invoke if so
+		if len(fn.Parameters) == 0 {
+			// Auto-invoke the parameterless function/procedure
+			result := e.adapter.CallUserFunction(fn, []Value{})
+			// Task 3.5.47: Sync exception state after user function calls
+			e.adapter.SyncException(ctx)
+			return result
+		}
+
+		// Function has parameters - create function pointer
+		return e.adapter.CreateFunctionPointer(fn, ctx.Env())
 	}
 
 	// Check if this identifier is a class name (metaclass reference)
-	if e.adapter.HasClass(node.Value) {
-		return e.adapter.EvalNode(node)
+	if classValue, ok := e.adapter.CreateClassValueFromName(node.Value); ok {
+		return classValue
 	}
 
-	// Final check: delegate to adapter for built-in functions or error if undefined
-	return e.adapter.EvalNode(node)
+	// Check if this is a parameterless built-in function
+	// Built-in functions like PrintLn can be called without parentheses
+	// First check if it's a built-in to avoid unnecessary call attempts
+	if e.adapter.IsBuiltinFunction(node.Value) {
+		result := e.adapter.CallBuiltinFunction(node.Value, []Value{})
+		// Task 3.5.47: Sync exception state after builtin calls (e.g., Assert)
+		e.adapter.SyncException(ctx)
+		if !isError(result) {
+			return result
+		}
+	}
+
+	// Not a variable, function, class, or built-in - undefined identifier
+	return e.newError(node, "undefined variable '%s'", node.Value)
 }
 
 // VisitBinaryExpression evaluates a binary expression (e.g., a + b, x == y).
@@ -279,7 +313,7 @@ func (e *Evaluator) VisitUnaryExpression(node *ast.UnaryExpression, ctx *Executi
 	case "+":
 		return e.evalPlusUnaryOp(operand, node)
 	case "not":
-		return e.evalNotUnaryOp(operand, node)
+		return e.evalNotUnaryOp(operand, node, ctx)
 	default:
 		return e.newError(node, "unknown operator: %s%s", node.Operator, operand.Type())
 	}
@@ -416,6 +450,7 @@ func (e *Evaluator) VisitGroupedExpression(node *ast.GroupedExpression, ctx *Exe
 //
 // The adapter has access to CreateLazyThunk and CreateReferenceValue methods (Task 3.5.23)
 // which enable proper handling of lazy and var parameters in all call contexts.
+// Task 3.5.52: Refactored to use specific adapter methods instead of generic EvalCallExpression.
 func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *ExecutionContext) Value {
 	if node.Function == nil {
 		return e.newError(node, "call expression missing function")
@@ -423,38 +458,46 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 
 	// Check for function pointer calls
 	// Task 3.5.23: Function pointer calls with closure handling, lazy params, and var params
+	// Task 3.5.52: Use CallFunctionPointerWithArgs adapter method
 	if funcIdent, ok := node.Function.(*ast.Identifier); ok {
 		if val, exists := e.adapter.GetVariable(funcIdent.Value, ctx); exists {
 			if val.Type() == "FUNCTION_POINTER" || val.Type() == "LAMBDA" {
-				// Delegate to adapter which handles:
-				// - Closure environment restoration
-				// - Lazy parameter creation (CreateLazyThunk)
-				// - Var parameter creation (CreateReferenceValue)
-				// - Regular parameter evaluation
-				return e.adapter.EvalNode(node)
+				return e.adapter.CallFunctionPointerWithArgs(val, node.Arguments, ctx)
 			}
 		}
 	}
 
 	// Task 3.5.24: Member access calls (obj.Method(), UnitName.Func(), TClass.Create())
-	// Handles record methods, interface methods, object methods, unit-qualified functions, and constructor calls
+	// Task 3.5.52: Use specific adapter methods for each call type
 	if memberAccess, ok := node.Function.(*ast.MemberAccessExpression); ok {
 		objVal := e.Eval(memberAccess.Object, ctx)
 		if isError(objVal) {
 			return objVal
 		}
 
-		// Delegate record, interface, and object method calls to adapter
-		// Examples: myRecord.GetValue(), myInterface.Process(), myObj.DoSomething()
-		if objVal.Type() == "RECORD" || objVal.Type() == "INTERFACE" || objVal.Type() == "OBJECT" {
-			return e.adapter.EvalNode(node)
+		// Delegate record, interface, object, and class method calls to specific adapter methods
+		switch objVal.Type() {
+		case "RECORD":
+			return e.adapter.CallRecordMethod(objVal, memberAccess.Member.Value, node.Arguments, ctx)
+		case "INTERFACE":
+			return e.adapter.CallInterfaceMethod(objVal, memberAccess.Member.Value, node.Arguments, ctx)
+		case "OBJECT":
+			return e.adapter.CallObjectMethod(objVal, memberAccess.Member.Value, node.Arguments, ctx)
+		case "CLASS":
+			// Task 3.5.52: Class method call on evaluated class value (metaclass variable)
+			// Example: var cls := TObject; cls.Create;
+			return e.adapter.CallClassMethodFromValue(objVal, memberAccess.Member.Value, node.Arguments, ctx)
 		}
 
 		// Task 3.5.24: Unit-qualified function calls and class constructor calls
-		// Examples: Math.Sin(x), TMyClass.Create(args)
-		if ident, ok := memberAccess.Object.(*ast.Identifier); ok {
-			if e.unitRegistry != nil || e.adapter.HasClass(ident.Value) {
-				return e.adapter.EvalNode(node)
+		if objIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
+			// Check for class methods first (TClassName.Method())
+			if e.adapter.HasClass(objIdent.Value) {
+				return e.adapter.CallClassMethod(objIdent.Value, memberAccess.Member.Value, node.Arguments, ctx)
+			}
+			// Then check for unit-qualified functions (UnitName.Func())
+			if e.unitRegistry != nil {
+				return e.adapter.CallUnitFunction(objIdent.Value, memberAccess.Member.Value, node.Arguments, ctx)
 			}
 		}
 
@@ -468,78 +511,60 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	}
 
 	// Check for user-defined functions (with potential overloading)
-	// Task 3.5.23: Handle lazy and var parameters in user function calls
+	// Task 3.5.52: Use CallUserFunctionWithOverloads adapter method
 	funcNameLower := ident.Normalize(funcName.Value)
 	if overloads, exists := e.adapter.LookupFunction(funcNameLower); exists && len(overloads) > 0 {
-		// For now, delegate to adapter for overload resolution
-		// In the future, this can be migrated to the evaluator
-		// But we need to prepare arguments properly for lazy and var parameters
-
-		// We can't determine which overload without evaluating arguments for type checking
-		// So we delegate the entire call to the adapter, which will:
-		// 1. Resolve the overload
-		// 2. Prepare arguments with lazy thunks and references
-		// 3. Call the user function
-		return e.adapter.EvalNode(node)
+		return e.adapter.CallUserFunctionWithOverloads(funcName.Value, node.Arguments, ctx)
 	}
 
-	// Task 3.5.24: Implicit Self method calls (MethodName() is shorthand for Self.MethodName())
-	// When inside an instance method, calling MethodName() calls Self.MethodName()
-	// Example: Inside method Foo(), calling Bar() means Self.Bar()
+	// Task 3.5.24: Implicit Self method calls
+	// Task 3.5.52: Use CallImplicitSelfMethod adapter method
 	if selfRaw, ok := ctx.Env().Get("Self"); ok {
 		if selfVal, ok := selfRaw.(Value); ok {
 			if selfVal.Type() == "OBJECT" || selfVal.Type() == "CLASS" {
-				return e.adapter.EvalNode(node)
+				return e.adapter.CallImplicitSelfMethod(selfVal, funcName.Value, node.Arguments, ctx)
 			}
 		}
 	}
 
 	// Task 3.5.24: Record static method calls
-	// When inside a record static method context, allows calling other static methods
-	// Example: Inside record static method, calling Count() calls TRecord.Count()
+	// Task 3.5.52: Use CallRecordStaticMethod adapter method
 	if recordRaw, ok := ctx.Env().Get("__CurrentRecord__"); ok {
 		if recordVal, ok := recordRaw.(Value); ok {
 			if recordVal.Type() == "RECORD_TYPE" {
-				return e.adapter.EvalNode(node)
+				return e.adapter.CallRecordStaticMethod(recordVal, funcName.Value, node.Arguments, ctx)
 			}
 		}
 	}
 
-	// Task 3.5.24: Built-in functions with var parameter handling (modify arguments in place)
-	// These functions require references to variables, not their values
-	// Examples: Inc(x), Dec(y), Swap(a, b), SetLength(arr, 10)
+	// Task 3.5.24: Built-in functions with var parameter handling
+	// Task 3.5.52: Use CallBuiltinWithVarParam adapter method
 	switch funcNameLower {
 	case "inc", "dec", "insert", "decodedate", "decodetime",
 		"swap", "divmod", "trystrtoint", "trystrtofloat", "setlength":
-		return e.adapter.EvalNode(node)
+		return e.adapter.CallBuiltinWithVarParam(funcName.Value, node.Arguments, ctx)
 	case "delete":
-		// Only the 3-parameter form needs var parameter handling
-		// Delete(str, pos, count) modifies str in place
 		if len(node.Arguments) == 3 {
-			return e.adapter.EvalNode(node)
+			return e.adapter.CallBuiltinWithVarParam(funcName.Value, node.Arguments, ctx)
 		}
 	}
 
-	// Task 3.5.24: External (Go) functions that may need var parameter handling
-	// External functions can declare var parameters in their signatures
-	if e.externalFunctions != nil {
-		return e.adapter.EvalNode(node)
+	// Task 3.5.24: External (Go) functions
+	// Task 3.5.52: Use HasExternalFunction and CallExternalFunction adapter methods
+	if e.adapter.HasExternalFunction(funcName.Value) {
+		return e.adapter.CallExternalFunction(funcName.Value, node.Arguments, ctx)
 	}
 
-	// Task 3.5.24: Default(TypeName) function - expects unevaluated type identifier
-	// Example: Default(Integer) returns 0, Default(String) returns ""
-	// The type name is NOT evaluated as an expression
+	// Task 3.5.24: Default(TypeName) function
+	// Task 3.5.52: Use EvalDefaultFunction adapter method
 	if funcNameLower == "default" && len(node.Arguments) == 1 {
-		return e.adapter.EvalNode(node)
+		return e.adapter.EvalDefaultFunction(node.Arguments[0], ctx)
 	}
 
-	// Task 3.5.24: Type casts - TypeName(expression) for single-argument calls
-	// Examples: Integer(3.14), String(42), Boolean(1), TMyClass(someObject)
-	// Supported types: Integer, Float, String, Boolean, Variant, Enum types, Class types
-	// Falls through to built-in functions if not a type cast
+	// Task 3.5.24: Type casts
+	// Task 3.5.52: Use EvalTypeCast adapter method
 	if len(node.Arguments) == 1 {
-		result := e.adapter.EvalNode(node)
-		// If type cast succeeded or there's a real error (not "unknown function"), return it
+		result := e.adapter.EvalTypeCast(funcName.Value, node.Arguments[0], ctx)
 		if result != nil && !isError(result) {
 			return result
 		}
@@ -552,8 +577,6 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	}
 
 	// Standard built-in functions - evaluate all arguments first, then call
-	// Examples: PrintLn("hello"), Length(arr), Abs(-5), Sin(x)
-	// All arguments are evaluated before calling the function (no lazy/var parameters)
 	args := make([]Value, len(node.Arguments))
 	for idx, arg := range node.Arguments {
 		val := e.Eval(arg, ctx)
@@ -564,7 +587,10 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	}
 
 	// Call built-in function via adapter
-	return e.adapter.CallBuiltinFunction(funcName.Value, args)
+	result := e.adapter.CallBuiltinFunction(funcName.Value, args)
+	// Task 3.5.47: Sync exception state after builtin calls
+	e.adapter.SyncException(ctx)
+	return result
 }
 
 // VisitNewExpression evaluates a 'new' expression (object instantiation).
@@ -1010,49 +1036,50 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			return classVarValue
 		}
 
-		// Try method or other member access via adapter
-		return e.adapter.EvalNode(node)
+		// Try method or other member access via specific adapter method
+		// Task 3.5.53: Use EvalObjectMemberAccess instead of generic EvalMemberAccessExpression
+		return e.adapter.EvalObjectMemberAccess(node, obj, memberName, ctx)
 
 	case "INTERFACE":
 		// Task 3.5.26: Interface instance access (Mode 7)
 		// Pattern: intf.Method, intf.Property
-		// Delegate to adapter for interface unwrapping and method lookup
-		return e.adapter.EvalNode(node)
+		// Task 3.5.53: Use EvalInterfaceMemberAccess
+		return e.adapter.EvalInterfaceMemberAccess(node, obj, memberName, ctx)
 
 	case "CLASS", "CLASS_INFO":
 		// Task 3.5.26: Metaclass access (Mode 6)
 		// Pattern: ClassValue.Member, ClassInfoValue.Member
-		// Delegate to adapter for class member lookup
-		return e.adapter.EvalNode(node)
+		// Task 3.5.53: Use EvalClassMemberAccess
+		return e.adapter.EvalClassMemberAccess(node, obj, memberName, ctx)
 
 	case "TYPE_CAST":
 		// Task 3.5.26: Type cast value handling (Mode 8)
 		// Pattern: TBase(child).ClassVar
-		// Delegate to adapter to unwrap and handle with static type context
-		return e.adapter.EvalNode(node)
+		// Task 3.5.53: Use EvalTypeCastMemberAccess
+		return e.adapter.EvalTypeCastMemberAccess(node, obj, memberName, ctx)
 
 	case "NIL":
 		// Task 3.5.26: Nil object handling (Mode 9)
 		// Special case: class variables accessible on nil, instance members error
-		// Delegate to adapter for proper error handling
-		return e.adapter.EvalNode(node)
+		// Task 3.5.53: Use EvalNilMemberAccess
+		return e.adapter.EvalNilMemberAccess(node, memberName, ctx)
 
 	case "RECORD":
 		// Task 3.5.25: Record instance access (Mode 5)
 		// Pattern: record.Field, record.Method
-		// Delegate to adapter for record member lookup
-		return e.adapter.EvalNode(node)
+		// Task 3.5.53: Use EvalRecordMemberAccess
+		return e.adapter.EvalRecordMemberAccess(node, obj, memberName, ctx)
 
 	case "ENUM":
 		// Task 3.5.25: Enum value properties (Mode 10)
 		// Pattern: enumVal.Value
-		// Delegate to adapter for enum property access
-		return e.adapter.EvalNode(node)
+		// Task 3.5.53: Use EvalEnumMemberAccess
+		return e.adapter.EvalEnumMemberAccess(node, obj, memberName, ctx)
 
 	default:
 		// For other types (identifiers that might be unit names, class names, enum types, etc.)
-		// delegate to adapter for full handling
-		return e.adapter.EvalNode(node)
+		// Task 3.5.53: Use generic EvalMemberAccessExpression for unhandled types
+		return e.adapter.EvalMemberAccessExpression(node, ctx)
 	}
 }
 
@@ -1390,7 +1417,7 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 	default:
 		// For other types (identifiers that might be unit names, record types, etc.)
 		// or for helper methods, delegate to adapter for full handling
-		return e.adapter.EvalNode(node)
+		return e.adapter.EvalMethodCallExpression(node, ctx)
 	}
 }
 
@@ -1723,8 +1750,9 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 
 // VisitSetLiteral evaluates a set literal [value1, value2, ...].
 // Handles simple elements, ranges, and mixed sets with proper type inference.
+// Task 3.5.54: Use EvalSetLiteralElements instead of generic EvalSetLiteral
 func (e *Evaluator) VisitSetLiteral(node *ast.SetLiteral, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNode(node)
+	return e.adapter.EvalSetLiteralElements(node, ctx)
 }
 
 // VisitArrayLiteralExpression evaluates an array literal [1, 2, 3].
@@ -1735,8 +1763,9 @@ func (e *Evaluator) VisitArrayLiteralExpression(node *ast.ArrayLiteralExpression
 	}
 
 	// Empty arrays need type annotation
+	// Task 3.5.54: Use EvalEmptyArrayLiteral for empty arrays
 	if len(node.Elements) == 0 {
-		return e.adapter.EvalNode(node)
+		return e.adapter.EvalEmptyArrayLiteral(node, ctx)
 	}
 
 	// Evaluate all element expressions
@@ -1768,7 +1797,8 @@ func (e *Evaluator) VisitArrayLiteralExpression(node *ast.ArrayLiteralExpression
 	}
 
 	// Delegate final construction to adapter
-	return e.adapter.EvalNode(node)
+	// Task 3.5.54: Use EvalArrayLiteralWithElements with pre-evaluated elements
+	return e.adapter.EvalArrayLiteralWithElements(node, evaluatedElements, ctx)
 }
 
 // VisitIndexExpression evaluates an index expression array[index].
@@ -1797,7 +1827,8 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 	}
 
 	// Delegate indexing logic to adapter
-	return e.adapter.EvalNode(node)
+	// Task 3.5.54: Use EvalIndexExpressionWithValues with pre-evaluated base and index
+	return e.adapter.EvalIndexExpressionWithValues(node, base, index, ctx)
 }
 
 // VisitNewArrayExpression evaluates a new array expression.
@@ -1812,13 +1843,14 @@ func (e *Evaluator) VisitNewArrayExpression(node *ast.NewArrayExpression, ctx *E
 	}
 
 	// Evaluate and validate dimensions
-	_, err := e.evaluateDimensions(node.Dimensions, ctx, node)
+	dimensions, err := e.evaluateDimensions(node.Dimensions, ctx, node)
 	if err != nil {
 		return err
 	}
 
 	// Delegate array construction to adapter
-	return e.adapter.EvalNode(node)
+	// Task 3.5.54: Use EvalNewArrayWithDimensions with pre-evaluated dimensions
+	return e.adapter.EvalNewArrayWithDimensions(node, dimensions, ctx)
 }
 
 // VisitLambdaExpression evaluates a lambda expression (closure).
@@ -2044,5 +2076,6 @@ func (e *Evaluator) VisitRangeExpression(node *ast.RangeExpression, ctx *Executi
 	// Range expressions are structural - they don't evaluate to a value on their own.
 	// They're only meaningful in specific contexts (case statements, set literals).
 	// Delegate to adapter for context-aware handling.
-	return e.adapter.EvalNode(node)
+	// Task 3.5.54: Use EvalRangeExpressionValues
+	return e.adapter.EvalRangeExpressionValues(node, ctx)
 }
