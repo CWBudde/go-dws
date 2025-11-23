@@ -150,10 +150,15 @@ func (r *RTTITypeInfoValue) String() string {
 }
 
 // RecordValue represents a record value in DWScript.
+// Task 3.5.42: Migrated to use RecordMetadata instead of AST-dependent method map.
 type RecordValue struct {
-	RecordType *types.RecordType            // The record type metadata
-	Fields     map[string]Value             // Field name -> runtime value mapping
-	Methods    map[string]*ast.FunctionDecl // Method name -> AST declaration
+	RecordType *types.RecordType       // The record type metadata
+	Fields     map[string]Value        // Field name -> runtime value mapping
+	Metadata   *runtime.RecordMetadata // Runtime metadata (methods, constants, etc.)
+
+	// Deprecated: Use Metadata.Methods instead. Will be removed in Phase 3.5.44.
+	// Kept temporarily for backward compatibility during migration.
+	Methods map[string]*ast.FunctionDecl // Method name -> AST declaration
 }
 
 // Type returns the record type name (e.g., "TFoo") or "RECORD" if unnamed.
@@ -204,6 +209,7 @@ func (r *RecordValue) String() string {
 // Copy creates a deep copy of the record value
 // Records have value semantics in DWScript, so assignment should copy.
 // Task 9.7: Updated to copy methods as well.
+// Task 3.5.42: Updated to copy Metadata reference.
 func (r *RecordValue) Copy() *RecordValue {
 	copiedFields := make(map[string]Value, len(r.Fields))
 
@@ -221,14 +227,70 @@ func (r *RecordValue) Copy() *RecordValue {
 	return &RecordValue{
 		RecordType: r.RecordType,
 		Fields:     copiedFields,
-		Methods:    r.Methods, // Methods are shared (AST nodes are immutable)
+		Metadata:   r.Metadata, // Metadata is shared (immutable)
+		Methods:    r.Methods,  // Methods are shared (AST nodes are immutable) - deprecated
 	}
 }
 
 // GetMethod retrieves a method declaration by name.
 // Task 9.7: Helper for record method invocation.
 // Task 9.7.3: Case-insensitive method lookup.
+// Task 3.5.42: Updated to use RecordMetadata with fallback to legacy Methods field.
 func (r *RecordValue) GetMethod(name string) *ast.FunctionDecl {
+	// Prefer metadata if available
+	if r.Metadata != nil {
+		normalizedName := ident.Normalize(name)
+		if methodMeta, ok := r.Metadata.Methods[normalizedName]; ok {
+			// Return the AST body from metadata
+			// Note: During migration, MethodMetadata.Body contains the AST node
+			if methodMeta.Body != nil {
+				// Reconstruct FunctionDecl from metadata for compatibility
+				// This is temporary until all callers migrate to MethodMetadata
+				blockBody, ok := methodMeta.Body.(*ast.BlockStatement)
+				if !ok {
+					// Body must be a BlockStatement for function declarations
+					return nil
+				}
+
+				// Reconstruct parameters from metadata
+				params := make([]*ast.Parameter, len(methodMeta.Parameters))
+				for i, paramMeta := range methodMeta.Parameters {
+					// Reconstruct Type from TypeName for implicit conversion support
+					var paramType ast.TypeExpression
+					if paramMeta.TypeName != "" {
+						paramType = &ast.TypeAnnotation{Name: paramMeta.TypeName}
+					}
+					params[i] = &ast.Parameter{
+						Name:         &ast.Identifier{Value: paramMeta.Name},
+						Type:         paramType,
+						ByRef:        paramMeta.ByRef,
+						DefaultValue: paramMeta.DefaultValue,
+					}
+				}
+
+				// Reconstruct return type if present
+				var returnType ast.TypeExpression
+				if methodMeta.ReturnTypeName != "" {
+					// Create a TypeAnnotation from the type name
+					returnType = &ast.TypeAnnotation{
+						Name: methodMeta.ReturnTypeName,
+					}
+				}
+
+				return &ast.FunctionDecl{
+					Name:          &ast.Identifier{Value: methodMeta.Name},
+					Parameters:    params,
+					ReturnType:    returnType,
+					Body:          blockBody,
+					IsClassMethod: methodMeta.IsClassMethod,
+					IsConstructor: methodMeta.IsConstructor,
+					IsDestructor:  methodMeta.IsDestructor,
+				}
+			}
+		}
+	}
+
+	// Fallback to legacy Methods field for backward compatibility
 	if r.Methods == nil {
 		return nil
 	}
@@ -534,7 +596,8 @@ func getZeroValueForType(t types.Type, methodsLookup func(*types.RecordType) map
 			if methodsLookup != nil {
 				methods = methodsLookup(recordType)
 			}
-			return newRecordValueInternal(recordType, methods, methodsLookup)
+			// Task 3.5.42: Pass nil metadata (will be populated later if needed)
+			return newRecordValueInternal(recordType, nil, methods, methodsLookup)
 		}
 		// For other complex types (classes, arrays, etc.), return nil
 		return &NilValue{}
@@ -542,7 +605,8 @@ func getZeroValueForType(t types.Type, methodsLookup func(*types.RecordType) map
 }
 
 // newRecordValueInternal is the internal implementation that supports recursive initialization.
-func newRecordValueInternal(recordType *types.RecordType, methods map[string]*ast.FunctionDecl, methodsLookup func(*types.RecordType) map[string]*ast.FunctionDecl) *RecordValue {
+// Task 3.5.42: Updated to accept RecordMetadata instead of AST method map.
+func newRecordValueInternal(recordType *types.RecordType, metadata *runtime.RecordMetadata, methods map[string]*ast.FunctionDecl, methodsLookup func(*types.RecordType) map[string]*ast.FunctionDecl) *RecordValue {
 	fields := make(map[string]Value)
 
 	// Task 9.7e1: Initialize all fields with zero values
@@ -554,13 +618,22 @@ func newRecordValueInternal(recordType *types.RecordType, methods map[string]*as
 	return &RecordValue{
 		RecordType: recordType,
 		Fields:     fields,
-		Methods:    methods,
+		Metadata:   metadata,
+		Methods:    methods, // Deprecated: kept for backward compatibility
 	}
 }
 
 // NewRecordValue creates a new RecordValue with the given record type.
+// Deprecated: Use NewRecordValueWithMetadata for AST-free creation.
+// This constructor is kept for backward compatibility during migration.
 func NewRecordValue(recordType *types.RecordType, methods map[string]*ast.FunctionDecl) Value {
-	return newRecordValueInternal(recordType, methods, nil)
+	return newRecordValueInternal(recordType, nil, methods, nil)
+}
+
+// NewRecordValueWithMetadata creates a new RecordValue using RecordMetadata.
+// Task 3.5.42: AST-free record creation using metadata.
+func NewRecordValueWithMetadata(recordType *types.RecordType, metadata *runtime.RecordMetadata) Value {
+	return newRecordValueInternal(recordType, metadata, nil, nil)
 }
 
 // ClassInfoValue is a special internal value type used to track the current class context

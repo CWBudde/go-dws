@@ -17,22 +17,45 @@ import (
 
 // ExceptionValue represents an exception object at runtime.
 // It holds the exception class type, the message, position, and the call stack at the point of raise.
+// Task 3.5.43: Migrated to use ClassMetadata instead of direct ClassInfo dependency.
 type ExceptionValue struct {
-	ClassInfo *ClassInfo
+	Metadata  *runtime.ClassMetadata // AST-free class metadata (Task 3.5.43)
 	Instance  *ObjectInstance
 	Message   string
 	Position  *lexer.Position   // Position where the exception was raised (for error reporting)
 	CallStack errors.StackTrace // Stack trace at the point the exception was raised
+
+	// Deprecated: Use Metadata instead. Will be removed in Phase 3.5.44.
+	// Kept temporarily for backward compatibility during migration.
+	ClassInfo *ClassInfo
 }
 
 // Type returns the type of this exception value.
+// Task 3.5.43: Updated to prefer Metadata over ClassInfo.
 func (e *ExceptionValue) Type() string {
-	return e.ClassInfo.Name
+	// Prefer metadata if available
+	if e.Metadata != nil {
+		return e.Metadata.Name
+	}
+	// Fallback to ClassInfo for backward compatibility
+	if e.ClassInfo != nil {
+		return e.ClassInfo.Name
+	}
+	return "EXCEPTION"
 }
 
 // Inspect returns a string representation of the exception.
+// Task 3.5.43: Updated to prefer Metadata over ClassInfo.
 func (e *ExceptionValue) Inspect() string {
-	return fmt.Sprintf("%s: %s", e.ClassInfo.Name, e.Message)
+	// Prefer metadata if available
+	if e.Metadata != nil {
+		return fmt.Sprintf("%s: %s", e.Metadata.Name, e.Message)
+	}
+	// Fallback to ClassInfo for backward compatibility
+	if e.ClassInfo != nil {
+		return fmt.Sprintf("%s: %s", e.ClassInfo.Name, e.Message)
+	}
+	return fmt.Sprintf("EXCEPTION: %s", e.Message)
 }
 
 // ============================================================================
@@ -79,6 +102,10 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	exceptionClass.IsAbstract = false
 	exceptionClass.IsExternal = false
 
+	// Task 3.5.43: Set parent metadata for hierarchy checks
+	exceptionClass.Metadata.Parent = objectClass.Metadata
+	exceptionClass.Metadata.ParentName = "TObject"
+
 	// Task 3.5.40: Populate metadata for exception fields
 	messageMeta := &runtime.FieldMetadata{
 		Name:       "Message",
@@ -111,6 +138,10 @@ func (i *Interpreter) registerBuiltinExceptions() {
 		excClass.IsAbstract = false
 		excClass.IsExternal = false
 
+		// Task 3.5.43: Set parent metadata for hierarchy checks
+		excClass.Metadata.Parent = exceptionClass.Metadata
+		excClass.Metadata.ParentName = "Exception"
+
 		// Task 3.5.40: Populate metadata for exception fields
 		messageMeta := &runtime.FieldMetadata{
 			Name:       "Message",
@@ -134,6 +165,10 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	eHostClass.Fields["ExceptionClass"] = types.STRING
 	eHostClass.IsAbstract = false
 	eHostClass.IsExternal = false
+
+	// Task 3.5.43: Set parent metadata for hierarchy checks
+	eHostClass.Metadata.Parent = exceptionClass.Metadata
+	eHostClass.Metadata.ParentName = "Exception"
 
 	// Task 3.5.40: Populate metadata for EHost fields
 	messageMeta2 := &runtime.FieldMetadata{
@@ -187,12 +222,14 @@ func (i *Interpreter) raiseMaxRecursionExceeded() Value {
 
 	// Set the exception
 	// Position is nil for internally-raised exceptions like recursion overflow
+	// Task 3.5.43: Populate Metadata field from ClassInfo
 	i.exception = &ExceptionValue{
-		ClassInfo: stackOverflowClass,
+		Metadata:  stackOverflowClass.Metadata,
 		Instance:  instance,
 		Message:   message,
 		Position:  nil,
 		CallStack: callStack,
+		ClassInfo: stackOverflowClass, // Deprecated: backward compatibility
 	}
 
 	return &NilValue{}
@@ -325,6 +362,7 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 }
 
 // matchesExceptionType checks if an exception matches a handler's type.
+// Task 3.5.43: Updated to prefer Metadata over ClassInfo for hierarchy checks.
 func (i *Interpreter) matchesExceptionType(exc *ExceptionValue, typeExpr ast.TypeExpression) bool {
 	if typeExpr == nil {
 		return true // Bare handler catches all
@@ -332,14 +370,31 @@ func (i *Interpreter) matchesExceptionType(exc *ExceptionValue, typeExpr ast.Typ
 
 	typeName := typeExpr.String()
 
-	// Check if exception class matches or inherits from handler type
-	currentClass := exc.ClassInfo
-	for currentClass != nil {
-		if currentClass.Name == typeName {
-			return true
+	// Prefer metadata if available
+	if exc.Metadata != nil {
+		// Check if exception class matches or inherits from handler type
+		currentMetadata := exc.Metadata
+		for currentMetadata != nil {
+			if currentMetadata.Name == typeName {
+				return true
+			}
+			// Check parent class metadata
+			currentMetadata = currentMetadata.Parent
 		}
-		// Check parent class
-		currentClass = currentClass.Parent
+		return false
+	}
+
+	// Fallback to ClassInfo for backward compatibility
+	if exc.ClassInfo != nil {
+		// Check if exception class matches or inherits from handler type
+		currentClass := exc.ClassInfo
+		for currentClass != nil {
+			if currentClass.Name == typeName {
+				return true
+			}
+			// Check parent class
+			currentClass = currentClass.Parent
+		}
 	}
 
 	return false
@@ -388,12 +443,14 @@ func (i *Interpreter) evalRaiseStatement(stmt *ast.RaiseStatement) Value {
 	// Capture position of the raise statement
 	pos := stmt.Token.Pos
 
+	// Task 3.5.43: Populate Metadata field from ClassInfo
 	i.exception = &ExceptionValue{
-		ClassInfo: classInfo,
+		Metadata:  classInfo.Metadata,
 		Message:   message,
 		Instance:  obj,
 		Position:  &pos,
 		CallStack: callStack,
+		ClassInfo: classInfo, // Deprecated: backward compatibility
 	}
 
 	return nil
