@@ -211,449 +211,225 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ### Phase 3.5: Evaluator Refactoring
 
-**Foundation Tasks (3.5.1-3.5.9) - COMPLETE:**
-- [x] 3.5.1-3.5.3: Architect & Structure - Split Interpreter into Evaluator + TypeSystem + ExecutionContext, implement visitor pattern (48 methods), organize into 4 category files
-- [x] 3.5.4: Migrate Simple Logic - 20 simple visitor methods (literals, simple expressions, control flow), helper functions
-- [x] 3.5.5-3.5.9: Adapter Infrastructure - Added 52 adapter methods (type system, arrays, OOP, environment), migrated 2 visitor methods, extracted helpers
+#### Completed Work (3.5.1-3.5.47) ✅ CONDENSED
 
-**Previously Completed (renumbered for reference):**
-- [x] Binary Operators (~65%): Short-circuit, Integer, Float, String, Boolean operations
-- [x] Unary Operators: Minus, Plus, Not (logical/bitwise)
-- [x] Call Expression (partial): Built-in function calls, dispatch structure
-- [x] Identifier (partial): Self keyword, primitive variable lookups
-- [x] Array Operations: ArrayLiteral, NewArray, IndexExpression, SetLiteral
-- [x] OOP Operations (documented/delegated): MemberAccess, MethodCall, NewExpression, InheritedExpression
-- [x] Type Operations: IsExpression, AsExpression, ImplementsExpression, AddressOfExpression
-- [x] Declarations: VarDeclStatement, ConstDecl, RecordLiteralExpression
-- [x] Assignment: VisitAssignmentStatement with compound operators
+**Foundation & Visitor Implementation (3.5.1-3.5.9):**
+Split Interpreter into Evaluator + TypeSystem + ExecutionContext, implemented visitor pattern (48 methods), organized into 4 category files, created adapter infrastructure with 52 methods.
 
----
+**Visitor Methods (3.5.10-3.5.33):**
+- Simple Expressions: GroupedExpression, IfExpression, ResultExpression, DefaultExpression
+- Operators: Binary ops (enums, variants, collections, OOP, overloading), Unary ops (minus, plus, not)
+- Identifier/Call: Variable/constant/external/lazy lookups, user functions, closures, var parameters, type casts, constructors
+- OOP: MemberAccess (unit-qualified, enum, static, record, objects, interfaces), MethodCall (virtual dispatch, overloads, inherited)
+- Exception Handling: TryStatement, RaiseStatement with call stack capture
+- Advanced: OldExpression, LambdaExpression with closure capture
 
-### Phase 1: Simple Expression Methods (3.5.10-3.5.14) ✅ COMPLETE
+**Finalization (3.5.34-3.5.36):**
+95%+ test coverage, 17 performance benchmarks (zero regression), comprehensive documentation.
 
-- [x] **3.5.10** Migrated `VisitGroupedExpression` - parenthesized expressions
-- [x] **3.5.11** Migrated `VisitIfExpression` - ternary with short-circuit evaluation
-- [x] **3.5.12** `VisitResultExpression` - handled via VisitIdentifier
-- [x] **3.5.13** `VisitDefaultExpression` - handled via VisitCallExpression
-- [x] **3.5.14** `VisitTypeOfExpression` and `VisitSizeOfExpression` - not implemented (no AST nodes)
+**AST-Free Runtime Types (3.5.37-3.5.43):**
+MethodMetadata/MethodRegistry, ClassInfo→ClassMetadata, ObjectInstance, FunctionPointerValue, RecordValue, ExceptionValue all migrated to AST-free operation.
 
-### Phase 2: Compile-Time Expressions (3.5.15-3.5.17) - N/A
+**Core Thin Orchestrator (3.5.44):**
+Interpreter.Eval() delegates to Evaluator. Created evalDirect() bypass. Fixed EnvironmentAdapter unwrapping.
 
-- [x] **3.5.15-3.5.17** Conditional compilation features not yet implemented in parser/AST
-
-### Phase 3: Complete Binary/Unary Operators (3.5.18-3.5.20) ✅ COMPLETE
-
-- [x] **3.5.18** Migrated binary operators for enums & variants with bitwise operations
-- [x] **3.5.19** Migrated binary operators for collections (sets, arrays, `in` operator)
-- [x] **3.5.20** Migrated binary operators for OOP & operator overloading
-
-### Phase 4: Identifier & Call Infrastructure (3.5.21-3.5.24) ✅ COMPLETE
-
-- [x] **3.5.21** Completed `VisitIdentifier` - variable, constant, external, lazy lookups
-- [x] **3.5.22** Completed `VisitIdentifier` - properties, methods, class variables, function references
-- [x] **3.5.23** Completed `VisitCallExpression` - user functions with closures, var parameters, lazy evaluation
-- [x] **3.5.24** Completed `VisitCallExpression` - type casts, constructors, implicit Self, unit-qualified calls
-
-### Phase 5: OOP Operations (3.5.25-3.5.28) ✅ COMPLETE
-
-- [x] **3.5.25** Completed `VisitMemberAccessExpression` - unit-qualified, enum, static, record access
-- [x] **3.5.26** Completed `VisitMemberAccessExpression` - object instances, interfaces, metaclass, type casts
-- [x] **3.5.27** Completed `VisitMethodCallExpression` - static methods, record methods, built-in set methods
-- [x] **3.5.28** Completed `VisitMethodCallExpression` - virtual dispatch, overloads, constructors, inherited
-
-### Phase 6: Exception Handling (3.5.29-3.5.30) ✅ COMPLETE
-
-- [x] **3.5.29** Migrated `VisitTryStatement` - try/except/finally, exception matching, type hierarchy
-- [x] **3.5.30** Migrated `VisitRaiseStatement` - explicit/bare raise, call stack capture
-
-### Phase 7: Advanced Expressions (3.5.31-3.5.33) ✅ COMPLETE
-
-- [x] **3.5.31** Migrated `VisitOldExpression` - postcondition support with value snapshots
-- [x] **3.5.32** Migrated `VisitLambdaExpression` - anonymous functions, closure capture, FunctionPointerValue
-- [x] **3.5.33** Final cleanup - added nil checks (5 methods), fixed error handling, audited all visitor methods (21 expressions, 9 literals, 19 statements, 10 declarations)
-
-### Phase 8: Finalization (3.5.34-3.5.36) ✅ COMPLETE
-
-- [x] **3.5.34** Test Coverage Enhancement - 95%+ coverage on evaluator package, all visitor methods tested
-- [x] **3.5.35** Performance Validation - 17 benchmarks, zero regression vs switch-based approach
-- [x] **3.5.36** Documentation Update - evaluator architecture, migration guide, performance report
+**Shared Services (3.5.46-3.5.47):**
+- TypeRegistry: standalone in `types/type_system.go`, manages classes/records/interfaces/enums/helpers
+- FunctionRegistry: standalone in `types/function_registry.go`, handles overloads, builtin integration
 
 ---
 
-### Phase 8: Finalization (3.5.34-3.5.36)
+#### Current State (November 2025)
 
-- [x] **3.5.34** Test Coverage Enhancement
-  - Unit tests for all visitor methods
-  - Edge case coverage for migrated methods
-  - Tests for adapter infrastructure methods
-  - Target: 95%+ coverage on evaluator package
-  - Files: `*_test.go`
-  - Effort: 6-8 hours
-  - **Note**: All Visit* methods are now complete and have proper error handling. Focus on testing edge cases like nil inputs, error propagation, and special value handling (nil, empty collections, etc.)
+**Adapter Usage:**
+- visitor_expressions.go: 78 calls (30 EvalNode, 7 CallMethod, rest scattered)
+- visitor_statements.go: 40 calls
+- visitor_declarations.go: 10 calls (all EvalNode - 100% delegation)
+- **Total: ~128 adapter calls**
 
-- [x] **3.5.35** Performance Validation
-  - Benchmark visitor pattern vs. original switch
-  - Profile hot paths (binary ops, function calls)
-  - Optimize if >5% regression detected
-  - Memory allocation profiling
-  - Files: `benchmark_test.go`, `docs/evaluator-performance-report.md`
-  - Effort: 4-6 hours
-  - **Completed**: Created comprehensive benchmark suite with 17 benchmarks covering literals, binary/unary operations, complex expressions, visitor dispatch, and memory allocation. Performance analysis shows zero regression vs switch-based approach, with excellent memory characteristics and linear scaling. Detailed report in `docs/evaluator-performance-report.md`.
+**Pre-existing Failures:** 2 tests fail (TestDWScriptFixtures, TestIntegration_InterfaceCastingAllCombinations) - unrelated to refactoring.
 
-- [x] **3.5.36** Documentation Update
-  - Update CLAUDE.md architecture section
-  - Create migration guide for contributors
-  - Document visitor pattern usage
-  - Architecture diagrams
-  - Files: `CLAUDE.md`, `docs/architecture/interpreter.md`, `docs/evaluator-migration-guide.md`
-  - Effort: 4-6 hours
-  - **Completed**: Updated CLAUDE.md with detailed evaluator architecture section, created comprehensive interpreter architecture document (`docs/architecture/interpreter.md`) with architecture diagrams, visitor pattern explanation, and performance data. Created contributor migration guide (`docs/evaluator-migration-guide.md`) with examples, patterns, testing guidelines, and common mistakes to avoid.
+**Branch Status:** `feat/removal_of_adapter_pattern` ABANDONED - added adapter methods instead of removing them, caused infinite recursion.
 
 ---
 
-### Phase 9: AST-Free Runtime Types (3.5.37-3.5.44)
+#### Lessons Learned from Failed Approach
 
-This phase eliminates AST dependencies from runtime value types, enabling the Evaluator to work independently of the AST package and allowing the adapter pattern to be removed.
-
-**Goal**: Runtime types should store only the metadata needed at runtime, not AST nodes.
-
-### Phase 9: AST-Free Runtime Types (3.5.37-3.5.44) ✅ COMPLETE
-
-This phase eliminates AST dependencies from runtime value types, enabling the Evaluator to work independently of the AST package and allowing the adapter pattern to be removed.
-
-- [x] **3.5.37** Design AST-Free Runtime Metadata
-  - Created comprehensive design document analyzing AST dependencies
-  - Designed metadata structures: ParameterMetadata, MethodMetadata, FieldMetadata, ClassMetadata, RecordMetadata, HelperMetadata
-  - Provided clear migration path for Phase 9 tasks
-
-- [x] **3.5.38** Implement MethodMetadata and MethodRegistry
-  - Implemented MethodRegistry with MethodID for unique method identification
-  - Registry provides thread-safe operations for registering and retrieving methods
-  - Added MethodID field to MethodMetadata with comprehensive test coverage
-
-- [x] **3.5.39** Migrate ClassInfo to AST-Free ClassMetadata
-  - Added Metadata field to ClassInfo containing AST-free ClassMetadata
-  - Modified evalClassDeclaration to populate ClassMetadata during class declaration
-  - All existing tests passing with ClassInfo/ClassMetadata integration
-
-- [x] **3.5.40** Migrate ObjectInstance to Use ClassMetadata
-  - Updated ObjectInstance to reference ClassMetadata instead of ClassInfo
-  - Updated field access to use FieldMetadata
-  - Updated method dispatch to work through metadata
-  - All OOP tests passing with AST-free field/method access
-
-- [x] **3.5.41** Migrate FunctionPointerValue to AST-Free
-  - Updated FunctionPointerValue to use MethodID for AST-free operation
-  - Added new constructors (NewFunctionPointerValueWithID, NewLambdaValueWithID)
-  - All lambda and function pointer tests passing
-
-- [x] **3.5.42** Migrate RecordValue to AST-Free
-  - Added RecordMetadata field to RecordValue and RecordTypeValue
-  - Updated all record creation sites to populate Metadata field
-  - Created NewRecordValueWithMetadata() for AST-free creation
-  - All record tests passing with AST-free metadata
-
-- [x] **3.5.43** Migrate ExceptionValue to AST-Free ✅ COMPLETE
-  - Updated ExceptionValue to use ClassMetadata references
-  - Exception creation/handling now works through metadata
-  - Fixed metadata parent hierarchy for all built-in exception classes
-  - All exception tests passing including hierarchy tests
-
-- [~] **3.5.44** Remove Adapter Pattern ✅ CORE COMPLETE, CLEANUP PENDING
-  - ✅ Interpreter is thin orchestrator - Eval() delegates to Evaluator
-  - ✅ Created evalDirect() bypass to prevent infinite recursion
-  - ✅ Fixed EnvironmentAdapter unwrapping in adapter methods
-  - ✅ Replaced most generic EvalNode calls with specific methods
-  - ✅ Interpreter successfully delegates to Evaluator
-  - ⏳ Full adapter removal (interface deletion, field removal) pending on declaration migration
-
-**Phase 3.5 Progress**: 45 of 60 tasks complete (75.0%) - Tasks 3.5.45, 3.5.48-3.5.60 pending
-
-#### Phase A: Stabilization (3.5.45)
-
-- [ ] **3.5.45** Fix Edge Case Test Failures
-  - Fix closure capture test (TestSimpleClosureCapture returns 0 instead of 50)
-  - Fix assert output formatting tests (TestAssertFalseWithCustomMessage, TestAssertMessageFormat)
-  - Root cause: Execution path changed when Interpreter.Eval() started delegating to Evaluator
-  - Debug approach:
-    - Add logging to track closure environment capture and access
-    - Verify evalDirect() properly handles closure creation
-    - Check if assert exception output is being captured correctly
-  - Files: `internal/interp/evaluator/visitor_expressions.go`, `internal/interp/interpreter.go`
-  - Effort: 1-2 hours
-  - Acceptance: All 3 edge case tests pass
-  - Dependencies: 3.5.44
+1. **Never add adapter methods** - Each PR must reduce adapter usage
+2. **One feature at a time** - Remove one adapter call, pass all tests, repeat
+3. **Start with leaf operations** - Methods with no internal adapter dependencies
+4. **Small PRs** - 1-2 adapter method removals per PR max
 
 ---
 
-#### Phase B: Extract Shared Services (3.5.46-3.5.47) ✅ COMPLETE
+#### New Strategy: Incremental Adapter Removal
 
-Before migrating logic, extract reusable components that both Interpreter and Evaluator can use directly.
+**Core Principle:** Remove adapter calls one at a time. Never add new adapter methods.
 
-- [x] **3.5.46** Extract Type Registry Service ✅
-  - ✅ Created standalone `TypeRegistry` in `internal/interp/types/type_system.go`
-  - ✅ Moved all class/record/interface/enum/helper lookup from Interpreter
-  - ✅ Provided direct access methods eliminating adapter dependency
-  - ✅ Both Interpreter and Evaluator reference same TypeRegistry instance
-  - ✅ Added comprehensive test coverage in `type_system_test.go` and `type_registry_test.go`
-  - Files: `internal/interp/types/type_system.go`, `internal/interp/interpreter.go`, `internal/interp/evaluator/evaluator.go`
-  - Acceptance: TypeSystem works standalone, Evaluator accesses directly without adapter
-
-- [x] **3.5.47** Extract Function Registry Service ✅
-  - ✅ Created standalone `FunctionRegistry` in `internal/interp/types/function_registry.go`
-  - ✅ Moved function lookup/resolution and overload handling from Interpreter
-  - ✅ Included builtin function registration and lookup
-  - ✅ Both Interpreter and Evaluator reference same FunctionRegistry instance
-  - ✅ Added comprehensive test coverage in `function_registry_test.go`
-  - Files: `internal/interp/types/function_registry.go`, `internal/interp/interpreter.go`
-  - Acceptance: FunctionRegistry works standalone, Evaluator can lookup functions directly
+**Approach:**
+1. Give Evaluator direct references to TypeRegistry/FunctionRegistry
+2. Replace type lookup adapter calls with direct service calls
+3. Remove adapter methods that are no longer used
+4. Keep `EvalNode` for declarations (they're complex and work)
+5. Reduce adapter to minimal interface (~5 essential methods)
 
 ---
 
-#### Phase C: Migrate Declaration Visitors (3.5.48-3.5.51)
+### Phase 10: Direct Service Access (3.5.61-3.5.63)
 
-All 10 declaration visitors currently forward 100% to adapter. This is the largest migration blocker.
+- [ ] **3.5.61** Add Direct TypeRegistry Access to Evaluator
+  - Add `typeRegistry *types.TypeSystem` field to Evaluator
+  - Inject TypeRegistry during NewEvaluator() initialization
+  - Keep adapter for backward compatibility during migration
+  - Files: `evaluator/evaluator.go`
+  - Acceptance: Evaluator has direct TypeRegistry reference
 
-- [ ] **3.5.48** Migrate Simple Declaration Visitors
-  - Migrate EnumDecl, SetDecl, ArrayDecl visitors to Evaluator
-  - These have simpler registration logic (no inheritance, no methods)
-  - Use TypeRegistry directly instead of adapter
-  - Files: `internal/interp/evaluator/visitor_declarations.go`, `internal/interp/evaluator/evaluator.go`, `internal/interp/interpreter.go`
-  - Acceptance: 3 declaration visitors implemented in Evaluator, no adapter calls for these 3
-  - Dependencies: 3.5.47
-  - Sub-tasks:
-    - [ ] Remove adapter fallback in evaluator.go default case
-    - [ ] Implement VisitEnumDecl with enum type creation and value registration
-    - [ ] Implement VisitSetDecl (simple pass-through, semantic analyzer handles it)
-    - [ ] Implement VisitArrayDecl with type resolution and bound evaluation
-    - [ ] Fix ArrayDecl: array type lookup not working in VarDeclStatement
-    - [ ] Verify array builtin tests pass (Low, High, SetLength, Add, Delete, Copy, IndexOf, Contains)
-  - Note: 5 other declaration visitors use specific adapter methods (FunctionDecl, ClassDecl, InterfaceDecl, OperatorDecl, HelperDecl) - to be completed in 3.5.50-3.5.51.
+- [ ] **3.5.62** Add Direct FunctionRegistry Access to Evaluator
+  - Add `funcRegistry *types.FunctionRegistry` field to Evaluator
+  - Inject FunctionRegistry during NewEvaluator() initialization
+  - Files: `evaluator/evaluator.go`
+  - Acceptance: Evaluator has direct FunctionRegistry reference
 
-- [ ] **3.5.49** Migrate Record/Type Declaration Visitors
-  - [ ] Migrate RecordDecl visitor (field registration, record methods, constants, class variables, properties)
-  - [ ] Migrate TypeDeclaration visitor (type aliases, subrange types, function pointer types)
-  - [ ] Handle record metadata creation via adapter methods
-  - [ ] Add adapter methods: BuildRecordTypeValue, RegisterRecordTypeInEnvironment, BuildTypeAliasValue, RegisterTypeAliasInEnvironment, BuildSubrangeTypeValue, RegisterSubrangeTypeInEnvironment, ResolveTypeFromExpression, GetValueType
-  - Files: `internal/interp/evaluator/visitor_declarations.go`, `internal/interp/interpreter.go`
-  - Effort: 2-3 hours
-  - Acceptance: RecordDecl, TypeDeclaration implemented in Evaluator
-  - Dependencies: 3.5.48
-  - Note: Adapter methods encapsulate creation of interp-specific types (RecordTypeValue, TypeAliasValue, SubrangeTypeValue) due to circular dependency constraints.
-
-- [ ] **3.5.50** Migrate Class/Interface/Helper Declaration Visitors
-  - [ ] Add EvalClassDeclaration, EvalInterfaceDeclaration, EvalHelperDeclaration to InterpreterAdapter interface
-  - [ ] Implement adapter methods in Interpreter with proper environment sync and exception propagation
-  - [ ] Update VisitClassDecl, VisitInterfaceDecl, VisitHelperDecl to use specific adapter methods
-  - [ ] Replace generic EvalNodeWithContext calls with specific adapter methods
-  - Files: `internal/interp/evaluator/visitor_declarations.go`, `internal/interp/evaluator/evaluator.go`, `internal/interp/interpreter.go`
-  - Acceptance: ClassDecl, InterfaceDecl, HelperDecl use specific adapter methods
-  - Dependencies: 3.5.49
-  - Note: Full migration to Evaluator deferred to future task due to complexity (inheritance, methods, properties). This task establishes adapter infrastructure following pattern from 3.5.46/3.5.47.
-
-- [ ] **3.5.51** Migrate Function/Operator Declaration Visitors
-  - [ ] Add EvalFunctionDeclaration and EvalOperatorDeclaration to InterpreterAdapter interface
-  - [ ] Implement adapter methods in Interpreter with environment sync and exception propagation
-  - [ ] Update VisitFunctionDecl to use adapter.EvalFunctionDeclaration()
-  - [ ] Update VisitOperatorDecl to use adapter.EvalOperatorDeclaration()
-  - Files: `internal/interp/evaluator/evaluator.go`, `internal/interp/evaluator/visitor_declarations.go`, `internal/interp/interpreter.go`
-  - Acceptance: All 10 declaration visitors use specific adapter methods, no generic EvalNodeWithContext calls for declarations
-  - Dependencies: 3.5.50
-  - Note: Full migration to Evaluator deferred to future phases. This task completes Phase C by establishing adapter infrastructure for FunctionDecl and OperatorDecl, following the pattern from 3.5.46/3.5.47/3.5.50.
+- [ ] **3.5.63** Add Direct Environment Access Pattern
+  - Create helper method `getEnv(ctx) *runtime.Environment`
+  - Unwrap EnvironmentAdapter to access underlying environment
+  - Files: `evaluator/evaluator.go`, `evaluator/env_adapter.go`
+  - Acceptance: Direct environment access without adapter calls
 
 ---
 
-#### Phase D: Migrate Complex Expression Handling (3.5.52-3.5.54)
+### Phase 11: Remove Type Lookup Adapter Calls (3.5.64-3.5.69)
 
-Move logic from adapter methods into Evaluator. Currently there are ~79 adapter calls in visitor_expressions.go.
+Each task removes ONE category of adapter calls and removes the adapter methods if no longer used.
 
-- [ ] **3.5.52** Migrate Call Expression Handling
-  - Move `EvalCallExpression` logic from Interpreter to Evaluator
-  - Handle: user functions, builtins, method calls, constructors, type casts
-  - Currently 11 call sites use adapter.EvalCallExpression
-  - Files: `internal/interp/evaluator/visitor_expressions.go`, `internal/interp/evaluator/call_helpers.go` (new)
-  - Effort: 3-4 hours
-  - Acceptance: No adapter.EvalCallExpression calls, call logic in Evaluator
-  - Dependencies: 3.5.51
+- [ ] **3.5.64** Replace `adapter.LookupClass()` and `adapter.HasClass()`
+  - Find all calls in visitor_expressions.go (~4 calls)
+  - Replace with `e.typeRegistry.LookupClass()`
+  - Remove adapter methods if unused
+  - Acceptance: No adapter class lookup calls, tests pass
 
-- [ ] **3.5.53** Migrate Member Access Handling
-  - Move `EvalMemberAccessExpression` logic from Interpreter to Evaluator
-  - Handle: property access, field access, method access, static members, enum values
-  - Currently 8 call sites use adapter.EvalMemberAccessExpression
-  - Files: `internal/interp/evaluator/visitor_expressions.go`, `internal/interp/evaluator/evaluator.go`
-  - Effort: 2-3 hours
-  - Acceptance: No adapter.EvalMemberAccessExpression calls
-  - Dependencies: 3.5.52
+- [ ] **3.5.65** Replace `adapter.LookupRecord()` and `adapter.HasRecord()`
+  - Find all calls (~2-3 calls)
+  - Replace with direct TypeRegistry calls
+  - Acceptance: No adapter record lookup calls
 
-- [ ] **3.5.54** Migrate Collection Expression Handling
-  - Move array/set/index/range expression evaluation from Interpreter
-  - Methods: EvalArrayLiteral, EvalSetLiteral, EvalIndexExpression, EvalRangeExpression, EvalNewArrayExpression
-  - Files: `internal/interp/evaluator/visitor_expressions.go`, `internal/interp/evaluator/evaluator.go`
-  - Effort: 2-3 hours
-  - Acceptance: No adapter collection method calls in expressions
-  - Dependencies: 3.5.53
+- [ ] **3.5.66** Replace `adapter.LookupInterface()` and `adapter.HasInterface()`
+  - Find all calls (~1-2 calls)
+  - Replace with direct TypeRegistry calls
+  - Acceptance: No adapter interface lookup calls
 
----
+- [ ] **3.5.67** Replace `adapter.LookupFunction()`
+  - Find all calls (~2 calls)
+  - Replace with `e.funcRegistry.Lookup()`
+  - Acceptance: No adapter function lookup calls
 
-#### Phase E: Migrate Statement Handling (3.5.55-3.5.57)
+- [ ] **3.5.68** Replace Type ID Lookups
+  - Replace `GetClassTypeID`, `GetRecordTypeID`, `GetEnumTypeID`
+  - Use direct TypeRegistry calls
+  - Acceptance: No adapter type ID calls
 
-Move statement-related adapter calls. Currently ~44 adapter calls in visitor_statements.go.
-
-- [ ] **3.5.55** Migrate Block/Scope Statement Handling
-  - Move `EvalBlockStatement` logic from Interpreter to Evaluator
-  - Handle scoped variable declarations, environment creation
-  - Currently 3 call sites use adapter.EvalBlockStatement
-  - Files: `internal/interp/evaluator/visitor_statements.go`
-  - Effort: 1-2 hours
-  - Acceptance: No adapter.EvalBlockStatement calls
-  - Dependencies: 3.5.54
-
-- [ ] **3.5.56** Migrate Exception Handling
-  - Move try/catch/finally evaluation logic from Interpreter
-  - Handle exception matching, exception instance creation
-  - Methods: EvalStatement (in exception context), MatchesExceptionType, GetExceptionInstance
-  - Files: `internal/interp/evaluator/visitor_statements.go`, `internal/interp/evaluator/exception_helpers.go` (new)
-  - Effort: 2-3 hours
-  - Acceptance: Exception handling fully in Evaluator
-  - Dependencies: 3.5.55
-
-- [ ] **3.5.57** Migrate Assignment Handling
-  - Move `EvalAssignment` logic fully into Evaluator
-  - Handle: simple assignment, member assignment, index assignment, compound operators
-  - Currently 1 call site, but complex logic
-  - Files: `internal/interp/evaluator/visitor_statements.go`
-  - Effort: 1-2 hours
-  - Acceptance: No adapter.EvalAssignment calls
-  - Dependencies: 3.5.56
+- [ ] **3.5.69** Replace Type Check Methods
+  - Replace `IsEnumType`, `IsRecordType`, `IsArrayType`
+  - Replace `IsTypeCompatible`
+  - Use direct TypeRegistry checks
+  - Acceptance: No adapter type check calls
 
 ---
 
-#### Phase F: Cleanup (3.5.58-3.5.60)
+### Phase 12: Remove Value Access Adapter Calls (3.5.70-3.5.73)
 
-Final cleanup after all logic is migrated.
+- [ ] **3.5.70** Replace Variable Access Adapter Calls
+  - Replace `adapter.GetVariable()` (~2 calls)
+  - Use `ctx.Environment.Get()` directly
+  - Acceptance: No adapter variable access calls
 
-- [ ] **3.5.58** Remove InterpreterAdapter Interface
-  - Verify all adapter method calls have been migrated or converted to direct service access
-  - Remove InterpreterAdapter interface definition from evaluator.go
-  - Remove adapter field from Evaluator struct
-  - Remove SetAdapter() method
-  - Convert any remaining calls to direct service references (TypeRegistry, FunctionRegistry)
-  - Files: `internal/interp/evaluator/evaluator.go`, `internal/interp/interpreter.go`
-  - Effort: 1-2 hours
-  - Acceptance: No InterpreterAdapter interface, no adapter field, all tests pass
-  - Dependencies: 3.5.57
+- [ ] **3.5.71** Replace `adapter.IsObjectInstance()` and Type Checks
+  - Replace with type assertion: `_, ok := v.(*runtime.ObjectInstance)`
+  - Similarly for IsClassInfoValue, IsReferenceValue, etc.
+  - Acceptance: No adapter type check calls for values
 
-- [ ] **3.5.59** Remove evalDirect() and Legacy Code Paths
-  - Remove evalDirect() method from Interpreter (no longer needed)
-  - Clean up Interpreter to be pure orchestrator
-  - Remove comments referring to legacy/migration paths
-  - Files: `internal/interp/interpreter.go`
-  - Effort: 30 min - 1 hour
-  - Acceptance: evalDirect() removed, code cleaner, all tests pass
-  - Dependencies: 3.5.58
+- [ ] **3.5.72** Replace Property Existence Checks
+  - Replace `adapter.HasProperty()`, `adapter.HasMethod()` (~3 calls)
+  - Use direct TypeRegistry method lookup
+  - Acceptance: No adapter property/method existence calls
 
-- [ ] **3.5.60** Add Performance Benchmarks
-  - Create benchmarks for variable access patterns
-  - Create benchmarks for function call patterns
-  - Create benchmarks for method dispatch
-  - Compare before/after migration (use git history if needed)
-  - Files: `internal/interp/interpreter_bench_test.go` (new)
-  - Effort: 1-2 hours
-  - Acceptance: Benchmarks added, no significant regression documented
-  - Dependencies: 3.5.59
+- [ ] **3.5.73** Replace External/Lazy Value Checks
+  - Replace `IsExternalVar`, `IsLazyThunk`, `EvaluateLazyThunk`
+  - Use type assertions on known value types
+  - Acceptance: No adapter external/lazy calls
 
 ---
 
-**Phase 3.5 Completion Summary**
+### Phase 13: Reduce EvalNode Usage (3.5.74-3.5.76)
 
-| Phase | Tasks | Est. Hours | Description |
-|-------|-------|------------|-------------|
-| A: Stabilization | 3.5.45 | 1-2 | Fix edge case test failures |
-| B: Services | 3.5.46-3.5.47 | 4-6 | Extract TypeRegistry, FunctionRegistry |
-| C: Declarations | 3.5.48-3.5.51 | 10-15 | Migrate all 10 declaration visitors |
-| D: Expressions | 3.5.52-3.5.54 | 7-10 | Migrate call, member access, collections |
-| E: Statements | 3.5.55-3.5.57 | 4-7 | Migrate blocks, exceptions, assignments |
-| F: Cleanup | 3.5.58-3.5.60 | 2.5-5 | Remove adapter, benchmarks |
-| **Total** | **16 tasks** | **28.5-45** | |
+Focus on removing generic `EvalNode` calls that aren't in declarations.
 
-**Completed on main**:
+- [ ] **3.5.74** Audit All EvalNode Calls
+  - List all 30 EvalNode calls with their locations
+  - Categorize: declarations (keep), expressions (remove), statements (remove)
+  - Document which can be replaced with direct visitor calls
+  - Files: Create audit document
 
-- 3.5.44: Core thin orchestrator (Interpreter.Eval delegates to Evaluator)
+- [ ] **3.5.75** Replace Expression EvalNode Calls
+  - For each expression using EvalNode, call the specific visitor instead
+  - Example: Replace `adapter.EvalNode(binaryExpr)` with `e.VisitBinaryExpression(binaryExpr, ctx)`
+  - Acceptance: No EvalNode calls for expressions
 
-**Merged to main via `feat/prepare-adapter-removal` branch**:
-
-- FunctionRegistry builtin support (Task 3.5.47 preparation)
-- Parity tests for regression prevention
-
-**Status of `feat/removal_of_adapter_pattern` branch**: ABANDONED (Nov 2025 analysis)
-
-The branch attempted to migrate tasks 3.5.45-3.5.60 but has critical issues:
-
-- **50+ failing tests** vs 4 on main (pre-existing interface/inheritance issues)
-- **Stack overflow panics** due to infinite recursion between Interpreter.Eval ↔ Evaluator.Eval
-- Root cause: Expanding the adapter interface created mutual recursion instead of eliminating dependencies
-- Salvaged: `type_registry_test.go` (342 lines of tests for TypeSystem)
-- Not salvageable: interpreter.go changes (+1,234 lines), evaluator changes - they cause the recursion
-
-See "Lessons Learned" section below.
+- [ ] **3.5.76** Replace Statement EvalNode Calls
+  - For each statement using EvalNode, call the specific visitor
+  - Acceptance: No EvalNode calls for statements, only declarations
 
 ---
 
-#### Lessons Learned from Adapter Removal Attempt
+### Phase 14: Minimize Adapter Interface (3.5.77-3.5.79)
 
-**What Went Wrong:**
+- [ ] **3.5.77** Remove Unused Adapter Methods
+  - Audit adapter interface for methods no longer called
+  - Remove from interface and Interpreter implementation
+  - Acceptance: Adapter interface reduced by ~50%
 
-1. **Adapter pattern grew instead of shrinking**: Each migration task added new adapter methods (15+ total) instead of removing them. The goal was removal, but the implementation went backwards.
+- [ ] **3.5.78** Consolidate Remaining Adapter Methods
+  - Group remaining methods by category
+  - Document why each is still needed
+  - Target: ~10-15 essential methods
 
-2. **Environment synchronization broke**: The `EvalNodeWithContext()` method didn't properly sync exception state and environment changes between Interpreter and Evaluator.
-
-3. **Two ErrorValue types created**: Both `interp.ErrorValue` and `evaluator.ErrorValue` existed, causing type mismatches in tests.
-
-4. **Too many changes in one branch**: The branch accumulated changes across 57+ tests worth of functionality, making debugging extremely difficult.
-
-**Correct Approach for Future Adapter Removal:**
-
-1. **Rule: Never add adapter methods** - Each PR should reduce adapter usage, never increase it. If you need a new adapter method, the approach is wrong.
-
-2. **One feature at a time** - Each PR should:
-   - Remove one specific adapter method call
-   - Move that logic completely into Evaluator
-   - Pass all tests before proceeding
-
-3. **Parity tests first** - Run `TestParity*` tests before and after each change to catch regressions immediately.
-
-4. **Small PRs** - Target 1-2 adapter method removals per PR. If tests start failing, revert immediately.
-
-5. **Sequence**:
-   a. Start with leaf operations (no dependencies on other adapter calls)
-   b. Move to operations that only depend on already-migrated operations
-   c. Leave complex interdependent operations for last
-
-**Recommended Future Tasks:**
-
-Instead of the original Phase 3.5.45-3.5.60 plan, use this incremental approach:
-
-1. Identify adapter methods with zero dependencies on other adapter methods
-2. Migrate those one at a time (one PR each)
-3. After all leaf methods are migrated, identify the next layer
-4. Repeat until adapter is empty
+- [ ] **3.5.79** Document Final Architecture
+  - Update CLAUDE.md with final architecture
+  - Document which adapter methods remain and why
+  - Create migration complete summary
 
 ---
 
-### Complexity Summary
+### Phase 15: Future - Full Adapter Removal (DEFERRED)
 
-| Phase | Tasks | Hours/Task | Total Hours | Dependencies |
-|-------|-------|------------|-------------|--------------|
-| 1: Simple Expressions | 5 | 2-4 | 10-18 | None |
-| 2: Compile-Time | 3 | 2-3 | 6-9 | None |
-| 3: Operators | 3 | 4-6 | 12-18 | Adapter methods |
-| 4: Identifier/Call | 4 | 6-8 | 24-32 | Phase 3 |
-| 5: OOP | 4 | 6-8 | 24-32 | Phase 4 |
-| 6: Exceptions | 2 | 6-8 | 12-16 | Phase 5 |
-| 7: Advanced | 3 | 4-6 | 12-18 | Phase 4-5 |
-| 8: Finalization | 3 | 4-8 | 12-22 | All phases |
-| 9: AST-Free Runtime | 8 | 5-8 | 45-62 | Phase 8 |
-| **Total** | **35** | **~5 avg** | **157-227** | |
+These tasks are deferred until the adapter is minimal. They're complex and require moving substantial logic:
+
+- [ ] **3.5.80** Migrate CallMethod/CallFunctionPointer (complex, many dependencies)
+- [ ] **3.5.81** Migrate CreateObject/CastType (requires type resolution)
+- [ ] **3.5.82** Remove Adapter Interface Entirely
+- [ ] **3.5.83** Remove evalDirect() from Interpreter
+
+---
+
+### Phase 3.5 Summary
+
+| Phase | Tasks | Description |
+|-------|-------|-------------|
+| 1-9 | 3.5.1-3.5.47 | ✅ COMPLETE - Foundation, visitors, AST-free, services |
+| 10: Direct Access | 3.5.61-3.5.63 | Give Evaluator direct service references |
+| 11: Type Lookups | 3.5.64-3.5.69 | Remove ~15 adapter type lookup calls |
+| 12: Value Access | 3.5.70-3.5.73 | Remove ~10 adapter value access calls |
+| 13: Reduce EvalNode | 3.5.74-3.5.76 | Remove ~20 non-declaration EvalNode calls |
+| 14: Minimize | 3.5.77-3.5.79 | Shrink adapter to essential methods |
+| 15: Future | 3.5.80-3.5.83 | Full removal (deferred) |
+
+**Total remaining: 23 bite-sized tasks**
+
+Each task should be:
+- Completable in 30-60 minutes
+- One PR per task
+- All tests pass before and after
+- No new adapter methods ever
 
 ---
 
