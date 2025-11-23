@@ -298,10 +298,14 @@ Interpreter.Eval() delegates to Evaluator. Created evalDirect() bypass. Fixed En
   - Files: `evaluator/visitor_expressions.go`, `evaluator/evaluator.go`, `interpreter.go`
   - Acceptance: No adapter variable access calls, tests pass ✅
 
-- [ ] **3.5.71** Replace `adapter.IsObjectInstance()` and Type Checks
-  - Replace with type assertion: `_, ok := v.(*runtime.ObjectInstance)`
-  - Similarly for IsClassInfoValue, IsReferenceValue, etc.
-  - Acceptance: No adapter type check calls for values
+- [x] **3.5.71** Replace `adapter.IsObjectInstance()` and Type Checks ✅
+  - Replaced with `.Type()` checks (avoids circular imports):
+    - `IsReferenceValue(val)` → `val.Type() == "REFERENCE"` (line 73)
+    - `IsObjectInstance(val)` → `val.Type() == "OBJECT"` (line 97)
+    - `IsClassInfoValue(val)` → `val.Type() == "CLASSINFO"` (line 151)
+  - Removed 3 methods from adapter interface and interpreter
+  - Files: `evaluator/visitor_expressions.go`, `evaluator/evaluator.go`, `interpreter.go`
+  - Acceptance: No adapter type check calls for these values, tests pass ✅
 
 - [ ] **3.5.72** Replace Property Existence Checks
   - Replace `adapter.HasProperty()`, `adapter.HasMethod()` (~3 calls)

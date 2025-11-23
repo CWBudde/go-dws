@@ -69,7 +69,8 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 		// Check if this is a var parameter (ReferenceValue)
 		// If so, dereference it to get the actual value
-		if e.adapter.IsReferenceValue(val) {
+		// Task 3.5.71: Use Type() check instead of adapter
+		if val.Type() == "REFERENCE" {
 			actualVal, err := e.adapter.DereferenceValue(val)
 			if err != nil {
 				return e.newError(node, "%s", err.Error())
@@ -91,8 +92,9 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// Check if we're in an instance method context (Self is bound)
 	// When Self is bound, identifiers can refer to instance fields, class variables,
 	// properties, methods (auto-invoked if zero params), or ClassName/ClassType
+	// Task 3.5.71: Use Type() check instead of adapter for IsObjectInstance
 	if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk {
-		if selfVal, ok := selfRaw.(Value); ok && e.adapter.IsObjectInstance(selfVal) {
+		if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "OBJECT" {
 			// Check for instance field
 			if fieldValue, found := e.adapter.GetObjectFieldValue(selfVal, node.Value); found {
 				return fieldValue
@@ -144,8 +146,9 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 	// Check if we're in a class method context (__CurrentClass__ is bound)
 	// Identifiers can refer to ClassName, ClassType, or class variables
+	// Task 3.5.71: Use Type() check instead of adapter for IsClassInfoValue
 	if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
-		if classInfoVal, ok := currentClassRaw.(Value); ok && e.adapter.IsClassInfoValue(classInfoVal) {
+		if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
 			// Check for ClassName identifier (case-insensitive)
 			if ident.Equal(node.Value, "ClassName") {
 				className := e.adapter.GetClassNameFromClassInfo(classInfoVal)

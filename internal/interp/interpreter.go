@@ -2435,11 +2435,7 @@ func (i *Interpreter) IsLazyThunk(value evaluator.Value) bool {
 	return ok
 }
 
-// IsReferenceValue checks if a value is a ReferenceValue.
-func (i *Interpreter) IsReferenceValue(value evaluator.Value) bool {
-	_, ok := value.(*ReferenceValue)
-	return ok
-}
+// Task 3.5.71: IsReferenceValue removed - evaluator uses val.Type() == "REFERENCE" directly
 
 // EvaluateLazyThunk forces evaluation of a lazy parameter.
 // Panics if the value is not a LazyThunk.
@@ -2506,11 +2502,7 @@ func (i *Interpreter) CreateReferenceValue(varName string, env any) evaluator.Va
 // These adapter methods allow the Evaluator to access object fields, properties,
 // methods, and class metadata when handling identifier lookups in method contexts.
 
-// IsObjectInstance checks if a value is an ObjectInstance.
-func (i *Interpreter) IsObjectInstance(value evaluator.Value) bool {
-	_, ok := value.(*ObjectInstance)
-	return ok
-}
+// Task 3.5.71: IsObjectInstance removed - evaluator uses val.Type() == "OBJECT" directly
 
 // GetObjectFieldValue retrieves a field value from an object instance.
 func (i *Interpreter) GetObjectFieldValue(obj evaluator.Value, fieldName string) (evaluator.Value, bool) {
@@ -2661,11 +2653,7 @@ func (i *Interpreter) GetClassType(obj evaluator.Value) evaluator.Value {
 	return &ClassValue{ClassInfo: objInst.Class}
 }
 
-// IsClassInfoValue checks if a value is a ClassInfoValue.
-func (i *Interpreter) IsClassInfoValue(value evaluator.Value) bool {
-	_, ok := value.(*ClassInfoValue)
-	return ok
-}
+// Task 3.5.71: IsClassInfoValue removed - evaluator uses val.Type() == "CLASSINFO" directly
 
 // GetClassNameFromClassInfo returns the class name from a ClassInfoValue.
 func (i *Interpreter) GetClassNameFromClassInfo(classInfo evaluator.Value) string {
