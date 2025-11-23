@@ -1,8 +1,30 @@
 package interp
 
 import (
+	"encoding/json"
+	"fmt"
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/jsonvalue"
 	"github.com/cwbudde/go-dws/internal/types"
+)
+
+// ============================================================================
+// VarType Constants
+// ============================================================================
+// These constants define the VarType codes used by DWScript's Variant type system.
+// They match the standard Delphi VarType constants.
+
+const (
+	varEmpty   = 0     // Unassigned/Empty
+	varNull    = 1     // Null (SQL NULL)
+	varInteger = 3     // 32-bit signed integer
+	varDouble  = 5     // Double precision float
+	varBoolean = 11    // Boolean
+	varInt64   = 20    // 64-bit signed integer
+	varString  = 256   // String value
+	varArray   = 0x2000 // Array flag (can be ORed with element type)
+	varJSON    = 0x4000 // Custom code for JSON objects
 )
 
 // ============================================================================
@@ -184,4 +206,128 @@ func getJSONValueType(jv *JSONValue) types.Type {
 	// For now, return nil to indicate dynamic typing
 	// TODO: Create a proper JSONType in types package if needed for semantic analysis
 	return nil
+}
+
+// ============================================================================
+// JSON Parsing Helpers
+// ============================================================================
+
+// parseJSONString parses a JSON string and returns a jsonvalue.Value.
+// This is the core JSON parsing function used by ParseJSON and related functions.
+func parseJSONString(jsonStr string) (*jsonvalue.Value, error) {
+	// Decode JSON into Go interface{}
+	var data interface{}
+	decoder := json.NewDecoder(strings.NewReader(jsonStr))
+	decoder.UseNumber() // Preserve number precision
+
+	err := decoder.Decode(&data)
+	if err != nil {
+		// Return detailed error with position
+		return nil, formatJSONError(err, jsonStr)
+	}
+
+	// Convert to jsonvalue.Value
+	return goValueToJSONValue(data), nil
+}
+
+// goValueToJSONValue converts a Go interface{} value from encoding/json
+// to our type-safe jsonvalue.Value representation.
+//
+// This handles the mapping:
+//   - nil → JSON null
+//   - bool → JSON boolean
+//   - json.Number → JSON int64 or number
+//   - string → JSON string
+//   - []interface{} → JSON array (recursive)
+//   - map[string]interface{} → JSON object (recursive)
+func goValueToJSONValue(data interface{}) *jsonvalue.Value {
+	if data == nil {
+		return jsonvalue.NewNull()
+	}
+
+	switch v := data.(type) {
+	case bool:
+		return jsonvalue.NewBoolean(v)
+
+	case json.Number:
+		// Try to parse as int64 first (for whole numbers)
+		if i64, err := v.Int64(); err == nil {
+			return jsonvalue.NewInt64(i64)
+		}
+		// Otherwise parse as float64
+		if f64, err := v.Float64(); err == nil {
+			return jsonvalue.NewNumber(f64)
+		}
+		// Fallback to string if parsing fails
+		return jsonvalue.NewString(v.String())
+
+	case float64:
+		// Direct float64 (when UseNumber is not used)
+		return jsonvalue.NewNumber(v)
+
+	case string:
+		return jsonvalue.NewString(v)
+
+	case []interface{}:
+		// JSON array - recursively convert elements
+		arr := jsonvalue.NewArray()
+		for _, elem := range v {
+			arr.ArrayAppend(goValueToJSONValue(elem))
+		}
+		return arr
+
+	case map[string]interface{}:
+		// JSON object - recursively convert fields
+		obj := jsonvalue.NewObject()
+		for key, value := range v {
+			obj.ObjectSet(key, goValueToJSONValue(value))
+		}
+		return obj
+
+	default:
+		// Unknown type - return null
+		return jsonvalue.NewNull()
+	}
+}
+
+// formatJSONError formats a JSON parsing error with position information.
+// Extract line and column from syntax errors.
+//
+// Go's json.SyntaxError includes offset information which we convert
+// to line:column format for better error messages.
+func formatJSONError(err error, jsonStr string) error {
+	// Check if it's a syntax error with offset information
+	if syntaxErr, ok := err.(*json.SyntaxError); ok {
+		line, col := offsetToLineCol(jsonStr, syntaxErr.Offset)
+		return fmt.Errorf("invalid JSON at line %d, column %d: %s", line, col, syntaxErr.Error())
+	}
+
+	// Check if it's an unmarshal type error
+	if typeErr, ok := err.(*json.UnmarshalTypeError); ok {
+		line, col := offsetToLineCol(jsonStr, typeErr.Offset)
+		return fmt.Errorf("invalid JSON type at line %d, column %d: %s", line, col, typeErr.Error())
+	}
+
+	// Other errors (e.g., unexpected EOF)
+	return fmt.Errorf("invalid JSON: %s", err.Error())
+}
+
+// offsetToLineCol converts a byte offset to line and column numbers.
+// Helper for error position calculation.
+//
+// Lines and columns are 1-indexed for user-facing error messages.
+func offsetToLineCol(jsonStr string, offset int64) (line int, col int) {
+	line = 1
+	col = 1
+
+	for i := 0; i < int(offset) && i < len(jsonStr); i++ {
+		if jsonStr[i] == '\n' {
+			line++
+			col = 1
+		} else {
+			col++
+		}
+	}
+
+	return line, col
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/builtins"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // Ensure Interpreter implements builtins.Context interface at compile time.
@@ -951,30 +952,142 @@ func (i *Interpreter) FormatString(format string, args []builtins.Value) (string
 // This implements the builtins.Context interface.
 // Task 3.7.9: Support for polymorphic Low() function.
 func (i *Interpreter) GetLowBound(value builtins.Value) (builtins.Value, error) {
-	// Delegate to the existing builtinLow implementation
-	result := i.builtinLow([]Value{value})
+	// Handle type meta-values (type names as values)
+	if typeMetaVal, ok := value.(*TypeMetaValue); ok {
+		// Handle built-in types
+		switch typeMetaVal.TypeInfo {
+		case types.INTEGER:
+			return &IntegerValue{Value: math.MinInt64}, nil
+		case types.FLOAT:
+			return &FloatValue{Value: -math.MaxFloat64}, nil
+		case types.BOOLEAN:
+			return &BooleanValue{Value: false}, nil
+		}
 
-	// Check if result is an error and preserve the original error message
-	if errVal, isErr := result.(*ErrorValue); isErr {
-		return nil, fmt.Errorf("%s", errVal.Message)
+		// Handle enum types
+		if enumType, ok := typeMetaVal.TypeInfo.(*types.EnumType); ok {
+			if len(enumType.OrderedNames) == 0 {
+				return nil, fmt.Errorf("enum type '%s' has no values", typeMetaVal.TypeName)
+			}
+			firstValueName := enumType.OrderedNames[0]
+			firstOrdinal := enumType.Values[firstValueName]
+			return &EnumValue{
+				TypeName:     typeMetaVal.TypeName,
+				ValueName:    firstValueName,
+				OrdinalValue: firstOrdinal,
+			}, nil
+		}
+
+		return nil, fmt.Errorf("Low() not supported for type %s", typeMetaVal.TypeName)
 	}
 
-	return result, nil
+	// Handle array values
+	if arrayVal, ok := value.(*ArrayValue); ok {
+		if arrayVal.ArrayType == nil {
+			return &IntegerValue{Value: 0}, nil // Dynamic array default
+		}
+		if arrayVal.ArrayType.IsStatic() {
+			return &IntegerValue{Value: int64(*arrayVal.ArrayType.LowBound)}, nil
+		}
+		return &IntegerValue{Value: 0}, nil
+	}
+
+	// Handle enum values
+	if enumVal, ok := value.(*EnumValue); ok {
+		enumTypeKey := "__enum_type_" + ident.Normalize(enumVal.TypeName)
+		typeVal, ok := i.env.Get(enumTypeKey)
+		if !ok {
+			return nil, fmt.Errorf("enum type '%s' not found", enumVal.TypeName)
+		}
+		enumTypeVal, ok := typeVal.(*EnumTypeValue)
+		if !ok {
+			return nil, fmt.Errorf("invalid enum type metadata for '%s'", enumVal.TypeName)
+		}
+		enumType := enumTypeVal.EnumType
+		if len(enumType.OrderedNames) == 0 {
+			return nil, fmt.Errorf("enum type '%s' has no values", enumVal.TypeName)
+		}
+		firstValueName := enumType.OrderedNames[0]
+		firstOrdinal := enumType.Values[firstValueName]
+		return &EnumValue{
+			TypeName:     enumVal.TypeName,
+			ValueName:    firstValueName,
+			OrdinalValue: firstOrdinal,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("Low() expects array, enum, or type name, got %s", value.Type())
 }
 
 // GetHighBound returns the upper bound for arrays, enums, or type meta-values.
 // This implements the builtins.Context interface.
 // Task 3.7.9: Support for polymorphic High() function.
 func (i *Interpreter) GetHighBound(value builtins.Value) (builtins.Value, error) {
-	// Delegate to the existing builtinHigh implementation
-	result := i.builtinHigh([]Value{value})
+	// Handle type meta-values (type names as values)
+	if typeMetaVal, ok := value.(*TypeMetaValue); ok {
+		// Handle built-in types
+		switch typeMetaVal.TypeInfo {
+		case types.INTEGER:
+			return &IntegerValue{Value: math.MaxInt64}, nil
+		case types.FLOAT:
+			return &FloatValue{Value: math.MaxFloat64}, nil
+		case types.BOOLEAN:
+			return &BooleanValue{Value: true}, nil
+		}
 
-	// Check if result is an error and preserve the original error message
-	if errVal, isErr := result.(*ErrorValue); isErr {
-		return nil, fmt.Errorf("%s", errVal.Message)
+		// Handle enum types
+		if enumType, ok := typeMetaVal.TypeInfo.(*types.EnumType); ok {
+			if len(enumType.OrderedNames) == 0 {
+				return nil, fmt.Errorf("enum type '%s' has no values", typeMetaVal.TypeName)
+			}
+			lastValueName := enumType.OrderedNames[len(enumType.OrderedNames)-1]
+			lastOrdinal := enumType.Values[lastValueName]
+			return &EnumValue{
+				TypeName:     typeMetaVal.TypeName,
+				ValueName:    lastValueName,
+				OrdinalValue: lastOrdinal,
+			}, nil
+		}
+
+		return nil, fmt.Errorf("High() not supported for type %s", typeMetaVal.TypeName)
 	}
 
-	return result, nil
+	// Handle array values
+	if arrayVal, ok := value.(*ArrayValue); ok {
+		if arrayVal.ArrayType == nil {
+			return &IntegerValue{Value: int64(len(arrayVal.Elements) - 1)}, nil
+		}
+		if arrayVal.ArrayType.IsStatic() {
+			return &IntegerValue{Value: int64(*arrayVal.ArrayType.HighBound)}, nil
+		}
+		return &IntegerValue{Value: int64(len(arrayVal.Elements) - 1)}, nil
+	}
+
+	// Handle enum values
+	if enumVal, ok := value.(*EnumValue); ok {
+		enumTypeKey := "__enum_type_" + ident.Normalize(enumVal.TypeName)
+		typeVal, ok := i.env.Get(enumTypeKey)
+		if !ok {
+			return nil, fmt.Errorf("enum type '%s' not found", enumVal.TypeName)
+		}
+		enumTypeVal, ok := typeVal.(*EnumTypeValue)
+		if !ok {
+			return nil, fmt.Errorf("invalid enum type metadata for '%s'", enumVal.TypeName)
+		}
+		enumType := enumTypeVal.EnumType
+		if len(enumType.OrderedNames) == 0 {
+			return nil, fmt.Errorf("enum type '%s' has no values", enumVal.TypeName)
+		}
+		lastValueName := enumType.OrderedNames[len(enumType.OrderedNames)-1]
+		lastOrdinal := enumType.Values[lastValueName]
+		return &EnumValue{
+			TypeName:     enumVal.TypeName,
+			ValueName:    lastValueName,
+			OrdinalValue: lastOrdinal,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("High() expects array, enum, or type name, got %s", value.Type())
 }
 
 // ConcatStrings concatenates multiple string values into a single string.

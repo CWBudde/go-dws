@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/interp/builtins"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -559,7 +560,7 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 			return i.newErrorWithLocation(node, "String.ToInteger requires string receiver")
 		}
 		// Call the builtin StrToInt function
-		return i.builtinStrToInt([]Value{strVal})
+		return builtins.StrToInt(i, []builtins.Value{strVal})
 
 	case "__string_tofloat":
 		// String.ToFloat() -> StrToFloat(self)
@@ -571,7 +572,7 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 			return i.newErrorWithLocation(node, "String.ToFloat requires string receiver")
 		}
 		// Call the builtin StrToFloat function
-		return i.builtinStrToFloat([]Value{strVal})
+		return builtins.StrToFloat(i, []builtins.Value{strVal})
 
 	case "__string_tostring":
 		// String.ToString() -> identity (returns self)
@@ -594,7 +595,7 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 			return i.newErrorWithLocation(node, "String.StartsWith requires string receiver")
 		}
 		// Call the builtin StrBeginsWith function
-		return i.builtinStrBeginsWith([]Value{strVal, args[0]})
+		return builtins.StrBeginsWith(i, []builtins.Value{strVal, args[0]})
 
 	case "__string_endswith":
 		// String.EndsWith(str) -> StrEndsWith(self, str)
@@ -606,7 +607,7 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 			return i.newErrorWithLocation(node, "String.EndsWith requires string receiver")
 		}
 		// Call the builtin StrEndsWith function
-		return i.builtinStrEndsWith([]Value{strVal, args[0]})
+		return builtins.StrEndsWith(i, []builtins.Value{strVal, args[0]})
 
 	case "__string_contains":
 		// String.Contains(str) -> StrContains(self, str)
@@ -618,7 +619,7 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 			return i.newErrorWithLocation(node, "String.Contains requires string receiver")
 		}
 		// Call the builtin StrContains function
-		return i.builtinStrContains([]Value{strVal, args[0]})
+		return builtins.StrContains(i, []builtins.Value{strVal, args[0]})
 
 	case "__string_indexof":
 		// String.IndexOf(substr) -> Pos(substr, self)
@@ -631,7 +632,7 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 			return i.newErrorWithLocation(node, "String.IndexOf requires string receiver")
 		}
 		// Call the builtin Pos function with reversed arguments: Pos(substr, str)
-		return i.builtinPos([]Value{args[0], strVal})
+		return builtins.Pos(i, []builtins.Value{args[0], strVal})
 
 	case "__string_copy":
 		// String.Copy(start, [len]) -> Copy(self, start, len)
@@ -646,10 +647,10 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		// If only one argument, default length to MaxInt
 		if len(args) == 1 {
 			maxInt := &IntegerValue{Value: 2147483647} // MaxInt
-			return i.builtinCopy([]Value{strVal, args[0], maxInt})
+			return builtins.Copy(i, []builtins.Value{strVal, args[0], maxInt})
 		}
 		// Call the builtin Copy function with 3 arguments: Copy(str, start, len)
-		return i.builtinCopy([]Value{strVal, args[0], args[1]})
+		return builtins.Copy(i, []builtins.Value{strVal, args[0], args[1]})
 
 	case "__string_before":
 		// String.Before(str) -> StrBefore(self, str)
@@ -661,7 +662,7 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 			return i.newErrorWithLocation(node, "String.Before requires string receiver")
 		}
 		// Call the builtin StrBefore function
-		return i.builtinStrBefore([]Value{strVal, args[0]})
+		return builtins.StrBefore(i, []builtins.Value{strVal, args[0]})
 
 	case "__string_after":
 		// String.After(str) -> StrAfter(self, str)
@@ -673,7 +674,7 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 			return i.newErrorWithLocation(node, "String.After requires string receiver")
 		}
 		// Call the builtin StrAfter function
-		return i.builtinStrAfter([]Value{strVal, args[0]})
+		return builtins.StrAfter(i, []builtins.Value{strVal, args[0]})
 
 	case "__string_trim":
 		// String.Trim() -> Trim(self)
@@ -685,7 +686,7 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 			return i.newErrorWithLocation(node, "String.Trim requires string receiver")
 		}
 		// Call the builtin Trim function
-		return i.builtinTrim([]Value{strVal})
+		return builtins.Trim(i, []builtins.Value{strVal})
 
 	case "__string_split":
 		// String.Split(delimiter) -> StrSplit(self, delimiter)
@@ -697,7 +698,7 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 			return i.newErrorWithLocation(node, "String.Split requires string receiver")
 		}
 		// Call the builtin StrSplit function
-		return i.builtinStrSplit([]Value{strVal, args[0]})
+		return builtins.StrSplit(i, []builtins.Value{strVal, args[0]})
 
 	default:
 		// Try calling as a builtin function with self as first argument

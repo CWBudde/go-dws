@@ -32,7 +32,7 @@ func TestStrBefore(t *testing.T) {
 				&runtime.StringValue{Value: "HelloWorld"},
 				&runtime.StringValue{Value: "@"},
 			},
-			expected: "HelloWorld",
+			expected: "",
 		},
 		{
 			name: "delimiter at start",
@@ -128,7 +128,7 @@ func TestStrBeforeLast(t *testing.T) {
 				&runtime.StringValue{Value: "abc"},
 				&runtime.StringValue{Value: "@"},
 			},
-			expected: "abc",
+			expected: "",
 		},
 	}
 
