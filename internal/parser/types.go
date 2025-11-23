@@ -110,9 +110,6 @@ func (p *Parser) detectFunctionPointerFullSyntax() bool {
 	}
 }
 
-// based on the parser mode (traditional vs cursor).
-//
-
 // This is the reusable version extracted from parseFunctionPointerTypeDeclaration.
 //
 // Syntax:
@@ -253,9 +250,6 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 type dimensionPair struct {
 	low, high ast.Expression
 }
-
-// based on the parser mode (traditional vs cursor).
-//
 
 // Supports both dynamic and static arrays:
 //   - Dynamic: array of ElementType
@@ -542,9 +536,6 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 
 	return dimensions
 }
-
-// based on the parser mode (traditional vs cursor).
-//
 
 // Syntax:
 //
