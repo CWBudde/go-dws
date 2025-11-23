@@ -24,6 +24,7 @@ import (
 // 4. Enum Handling - enum declaration, scoped enums, ordinal values
 // 5. Error Messages - location info, error formatting
 // 6. Contracts - assert, require, ensure
+// 7. Additional Critical Behaviors - closures, records, overloading, short-circuit
 
 // runParityTest is a helper to run a parity test with expected output
 func runParityTest(t *testing.T, name string, input string, expected string) {
