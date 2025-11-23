@@ -552,11 +552,9 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 				return rtv.RecordType, nil
 			}
 		}
-		// Try array type
-		if arrayTypeVal, ok := i.env.Get("__array_type_" + lowerTypeName); ok {
-			if atv, ok := arrayTypeVal.(*ArrayTypeValue); ok {
-				return atv.ArrayType, nil
-			}
+		// Try array type (Task 3.5.69c: use TypeSystem)
+		if arrayType := i.typeSystem.LookupArrayType(typeName); arrayType != nil {
+			return arrayType, nil
 		}
 		// Try type alias
 		if typeAliasVal, ok := i.env.Get("__type_alias_" + lowerTypeName); ok {

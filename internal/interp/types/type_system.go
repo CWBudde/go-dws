@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	coretypes "github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -35,6 +36,10 @@ type TypeSystem struct {
 	// Helper registry: case-insensitive map of type names to helper method lists
 	helpers *ident.Map[[]HelperInfo]
 
+	// Array type registry: case-insensitive map of array type names to ArrayType
+	// Task 3.5.69a: Migrating array types from environment storage to TypeSystem
+	arrayTypes *ident.Map[*coretypes.ArrayType]
+
 	// Operator registry: manages operator overloads
 	operators *OperatorRegistry
 
@@ -56,11 +61,12 @@ type TypeSystem struct {
 // NewTypeSystem creates a new TypeSystem with initialized registries.
 func NewTypeSystem() *TypeSystem {
 	return &TypeSystem{
-		classRegistry:    NewClassRegistry(),              // Task 3.4.2
-		functionRegistry: NewFunctionRegistry(),           // Task 3.4.3
-		records:          ident.NewMap[RecordTypeValue](), // Task 13.8
-		interfaces:       ident.NewMap[InterfaceInfo](),   // Task 13.8
-		helpers:          ident.NewMap[[]HelperInfo](),    // Task 13.8
+		classRegistry:    NewClassRegistry(),                        // Task 3.4.2
+		functionRegistry: NewFunctionRegistry(),                     // Task 3.4.3
+		records:          ident.NewMap[RecordTypeValue](),           // Task 13.8
+		interfaces:       ident.NewMap[InterfaceInfo](),             // Task 13.8
+		helpers:          ident.NewMap[[]HelperInfo](),              // Task 13.8
+		arrayTypes:       ident.NewMap[*coretypes.ArrayType](),      // Task 3.5.69a
 		operators:        NewOperatorRegistry(),
 		conversions:      NewConversionRegistry(),
 		classTypeIDs:     ident.NewMap[int](), // Task 13.9
@@ -199,6 +205,42 @@ func (ts *TypeSystem) HasInterface(name string) bool {
 func (ts *TypeSystem) AllInterfaces() map[string]InterfaceInfo {
 	result := make(map[string]InterfaceInfo, ts.interfaces.Len())
 	ts.interfaces.Range(func(key string, value InterfaceInfo) bool {
+		result[ident.Normalize(key)] = value
+		return true
+	})
+	return result
+}
+
+// ========== Array Type Registry ==========
+// Task 3.5.69a: Array type registry migrated from environment storage
+
+// RegisterArrayType registers an array type in the type system.
+// The name is stored case-insensitively, with original casing preserved.
+func (ts *TypeSystem) RegisterArrayType(name string, arrayType *coretypes.ArrayType) {
+	if arrayType == nil {
+		return
+	}
+	ts.arrayTypes.Set(name, arrayType)
+}
+
+// LookupArrayType returns the ArrayType for the given name.
+// The lookup is case-insensitive. Returns nil if not found.
+func (ts *TypeSystem) LookupArrayType(name string) *coretypes.ArrayType {
+	arrayType, _ := ts.arrayTypes.Get(name)
+	return arrayType
+}
+
+// HasArrayType checks if an array type with the given name exists.
+// The check is case-insensitive.
+func (ts *TypeSystem) HasArrayType(name string) bool {
+	return ts.arrayTypes.Has(name)
+}
+
+// AllArrayTypes returns a map of all registered array types.
+// Note: The returned map uses normalized (lowercase) keys.
+func (ts *TypeSystem) AllArrayTypes() map[string]*coretypes.ArrayType {
+	result := make(map[string]*coretypes.ArrayType, ts.arrayTypes.Len())
+	ts.arrayTypes.Range(func(key string, value *coretypes.ArrayType) bool {
 		result[ident.Normalize(key)] = value
 		return true
 	})

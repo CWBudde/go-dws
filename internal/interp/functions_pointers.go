@@ -128,11 +128,9 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 			}
 
 			// Initialize array return types (dynamic or static inline definitions)
-			arrayTypeKey := "__array_type_" + lowerReturnType
-			if typeVal, ok := i.env.Get(arrayTypeKey); ok {
-				if atv, ok := typeVal.(*ArrayTypeValue); ok {
-					resultValue = NewArrayValue(atv.ArrayType)
-				}
+			// Task 3.5.69c: Use TypeSystem instead of environment lookup
+			if arrayType := i.typeSystem.LookupArrayType(returnTypeName); arrayType != nil {
+				resultValue = NewArrayValue(arrayType)
 			} else if strings.HasPrefix(lowerReturnType, "array") {
 				if arrayType := i.parseInlineArrayType(lowerReturnType); arrayType != nil {
 					resultValue = NewArrayValue(arrayType)

@@ -62,14 +62,9 @@ func (i *Interpreter) evalArrayDeclaration(decl *ast.ArrayDecl) Value {
 		arrayType = types.NewStaticArrayType(elementType, int(lowBound.Value), int(highBound.Value))
 	}
 
-	// Store array type in environment with a special prefix
-	// This allows var declarations to look up the type
-	typeKey := "__array_type_" + strings.ToLower(arrayName)
-	arrayTypeValue := &ArrayTypeValue{
-		Name:      arrayName,
-		ArrayType: arrayType,
-	}
-	i.env.Define(typeKey, arrayTypeValue) // Use Define, not Set
+	// Task 3.5.69e: Register array type in TypeSystem only
+	// (Environment storage removed - all consumers now use TypeSystem)
+	i.typeSystem.RegisterArrayType(arrayName, arrayType)
 
 	return &NilValue{} // Type declarations don't return a value
 }
@@ -439,22 +434,6 @@ func (i *Interpreter) indexJSON(jsonVal *JSONValue, indexVal Value, expr *ast.In
 
 	// Not an object or array
 	return i.newErrorWithLocation(expr, "cannot index JSON %s", kind)
-}
-
-// ArrayTypeValue is an internal value that stores array type metadata in the environment.
-type ArrayTypeValue struct {
-	ArrayType *types.ArrayType
-	Name      string
-}
-
-// Type returns "ARRAY_TYPE".
-func (a *ArrayTypeValue) Type() string {
-	return "ARRAY_TYPE"
-}
-
-// String returns the array type name.
-func (a *ArrayTypeValue) String() string {
-	return "array type " + a.Name
 }
 
 // evalArrayLiteral evaluates an array literal expression at runtime.
