@@ -397,7 +397,13 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 
 	// Task 9.6: Register class BEFORE processing fields
 	// This allows field initializers to reference the class name (e.g., FField := TObj.Value)
-	// PR #147 Fix: Use normalized key for O(1) case-insensitive lookup
+	// Task 3.5.46: Register class in TypeSystem
+	parentName := ""
+	if classInfo.Parent != nil {
+		parentName = classInfo.Parent.Name
+	}
+	i.typeSystem.RegisterClassWithParent(classInfo.Name, classInfo, parentName)
+	// Task 3.5.46: Also maintain legacy map for backward compatibility during migration
 	i.classes[ident.Normalize(classInfo.Name)] = classInfo
 
 	// Add own fields to ClassInfo
@@ -670,7 +676,13 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	classInfo.buildVirtualMethodTable()
 
 	// Register class in registry
-	// PR #147 Fix: Use normalized key for O(1) case-insensitive lookup
+	// Task 3.5.46: Register class in TypeSystem
+	parentName2 := ""
+	if classInfo.Parent != nil {
+		parentName2 = classInfo.Parent.Name
+	}
+	i.typeSystem.RegisterClassWithParent(classInfo.Name, classInfo, parentName2)
+	// Task 3.5.46: Also maintain legacy map for backward compatibility during migration
 	i.classes[ident.Normalize(classInfo.Name)] = classInfo
 
 	return &NilValue{}
@@ -791,7 +803,10 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 		}
 	}
 
-	// Register interface in registry (use normalized key for case-insensitive lookups)
+	// Register interface in registry
+	// Task 3.5.46: Register interface in TypeSystem
+	i.typeSystem.RegisterInterface(interfaceInfo.Name, interfaceInfo)
+	// Task 3.5.46: Also maintain legacy map for backward compatibility during migration
 	i.interfaces[ident.Normalize(interfaceInfo.Name)] = interfaceInfo
 
 	return &NilValue{}
