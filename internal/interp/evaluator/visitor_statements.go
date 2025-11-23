@@ -52,10 +52,11 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 	if ctx.Exception() != nil {
 		// Type assert to ExceptionValue to get Inspect() method
 		// This is safe because only ExceptionValue instances are set via SetException()
+		// Phase 3.5.44: Add nil check to prevent panic on nil *ExceptionValue
 		type ExceptionInspector interface {
 			Inspect() string
 		}
-		if exc, ok := ctx.Exception().(ExceptionInspector); ok {
+		if exc, ok := ctx.Exception().(ExceptionInspector); ok && exc != nil {
 			return e.newError(node, "uncaught exception: %s", exc.Inspect())
 		}
 		return e.newError(node, "uncaught exception: %v", ctx.Exception())
@@ -354,7 +355,7 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 //
 // See comprehensive documentation in internal/interp/statements_assignments.go
 func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNode(node)
+	return e.adapter.EvalNodeWithContext(node, ctx)
 }
 
 // VisitBlockStatement evaluates a block statement (begin...end).
