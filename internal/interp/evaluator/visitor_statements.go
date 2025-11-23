@@ -166,7 +166,8 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 			typeName := node.Type.String()
 
 			// Lookup record type
-			if _, ok := e.adapter.LookupRecord(typeName); !ok {
+			// Task 3.5.46: Use TypeSystem directly instead of adapter
+			if !e.typeSystem.HasRecord(typeName) {
 				return e.newError(node, "unknown type '%s'", typeName)
 			}
 
@@ -232,7 +233,8 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 			// Interface wrapping if target type is interface
 			if node.Type != nil {
 				typeName := node.Type.String()
-				if _, exists := e.adapter.LookupInterface(typeName); exists {
+				// Task 3.5.46: Use TypeSystem directly instead of adapter
+				if e.typeSystem.HasInterface(typeName) {
 					// Check if value is already an interface
 					if value.Type() != "INTERFACE" {
 						// Try to wrap in interface
@@ -319,7 +321,8 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 		typeName := node.Type.String()
 
 		// Lookup record type
-		if _, ok := e.adapter.LookupRecord(typeName); !ok {
+		// Task 3.5.46: Use TypeSystem directly instead of adapter
+		if !e.typeSystem.HasRecord(typeName) {
 			return e.newError(node, "unknown type '%s'", typeName)
 		}
 
