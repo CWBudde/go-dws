@@ -1687,7 +1687,8 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 	}
 
 	// Look up record type
-	if _, ok := e.adapter.LookupRecord(recordTypeName); !ok {
+	// Task 3.5.46: Use TypeSystem directly instead of adapter
+	if !e.typeSystem.HasRecord(recordTypeName) {
 		return e.newError(node, "unknown record type '%s'", recordTypeName)
 	}
 
