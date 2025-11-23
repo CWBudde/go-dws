@@ -2923,15 +2923,28 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	// Track the current node for error reporting
 	i.currentNode = node
 
-	// Task 3.5.45: Sync the interpreter's environment to the execution context
-	// This ensures that environment changes (e.g., lambda scopes, function calls)
-	// are visible to the Evaluator. Without this, lambdas and functions that create
-	// new scopes will fail because the Evaluator uses a stale environment.
+	// Task 3.5.45: During the Evaluator migration, we bridge two environment management approaches:
+	// 1. Interpreter uses i.env (modified directly via i.env = newEnv)
+	// 2. Evaluator uses ctx.Env() (modified via ctx.PushEnv()/PopEnv())
 	//
-	// We save the old environment and restore it after evaluation to ensure
-	// that nested Eval calls (e.g., in lambda bodies) don't corrupt the context.
+	// When Interpreter creates new scopes (e.g., lambdas, function calls), it updates i.env but not ctx.
+	// When Evaluator creates new scopes (e.g., loops, with blocks), it updates ctx but not i.env.
+	//
+	// We only sync if i.env has changed from what's in the context, to avoid discarding
+	// Evaluator's environment changes (e.g., from ctx.PushEnv()). We save/restore because
+	// Evaluator may push its own scopes, and we don't want to lose them on nested Eval calls.
+	// This is a temporary bridge during migration; once all environment management is unified,
+	// this workaround can be removed.
 	savedCtxEnv := i.ctx.Env()
-	i.ctx.SetEnv(evaluator.NewEnvironmentAdapter(i.env))
+	needsSync := true
+	if adapter, ok := savedCtxEnv.(*evaluator.EnvironmentAdapter); ok {
+		if adapter.Underlying() == i.env {
+			needsSync = false
+		}
+	}
+	if needsSync {
+		i.ctx.SetEnv(evaluator.NewEnvironmentAdapter(i.env))
+	}
 
 	// Ensure we restore the context environment even if evaluation panics
 	defer func() {
