@@ -664,13 +664,23 @@ func TestClassErrors(t *testing.T) {
 				t.Fatalf("Expected error, got %s", result.String())
 			}
 
-			errVal, ok := result.(*ErrorValue)
-			if !ok {
+			// Task 3.5.45: Handle both interp.ErrorValue and evaluator.ErrorValue
+			// The Evaluator may return evaluator.ErrorValue, while legacy code returns interp.ErrorValue
+			errorMessage := ""
+			switch err := result.(type) {
+			case *ErrorValue:
+				errorMessage = err.Message
+			case interface{ String() string }:
+				// For evaluator.ErrorValue and other error types, use String()
+				errorMessage = err.String()
+				// Remove "ERROR: " prefix if present
+				errorMessage = strings.TrimPrefix(errorMessage, "ERROR: ")
+			default:
 				t.Fatalf("Expected ErrorValue, got %T", result)
 			}
 
-			if !strings.Contains(errVal.Message, tt.expectedError) {
-				t.Errorf("Expected error containing '%s', got '%s'", tt.expectedError, errVal.Message)
+			if !strings.Contains(errorMessage, tt.expectedError) {
+				t.Errorf("Expected error containing '%s', got '%s'", tt.expectedError, errorMessage)
 			}
 		})
 	}
