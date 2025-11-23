@@ -484,10 +484,9 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		case "OBJECT":
 			return e.adapter.CallObjectMethod(objVal, memberAccess.Member.Value, node.Arguments, ctx)
 		case "CLASS":
-			// TClass.Method() - class/static method call on evaluated class type
-			if objIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
-				return e.adapter.CallClassMethod(objIdent.Value, memberAccess.Member.Value, node.Arguments, ctx)
-			}
+			// Task 3.5.52: Class method call on evaluated class value (metaclass variable)
+			// Example: var cls := TObject; cls.Create;
+			return e.adapter.CallClassMethodFromValue(objVal, memberAccess.Member.Value, node.Arguments, ctx)
 		}
 
 		// Task 3.5.24: Unit-qualified function calls and class constructor calls
