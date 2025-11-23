@@ -381,6 +381,37 @@ func (i *Interpreter) EvalRangeExpression(node *ast.RangeExpression, ctx *evalua
 	return i.EvalNodeWithContext(node, ctx)
 }
 
+// ===== Task 3.5.47: Statement and Binary Op Adapter Methods =====
+
+// EvalAssignment evaluates an assignment statement using the interpreter's full logic.
+// Task 3.5.47: Specific adapter method to replace generic EvalNodeWithContext for assignments.
+func (i *Interpreter) EvalAssignment(node *ast.AssignmentStatement, ctx *evaluator.ExecutionContext) evaluator.Value {
+	return i.EvalNodeWithContext(node, ctx)
+}
+
+// EvalSetBinaryOperation evaluates a binary operation on set values using the interpreter's full logic.
+// Task 3.5.47: Specific adapter method to replace generic EvalNodeWithContext for set binary operations.
+func (i *Interpreter) EvalSetBinaryOperation(op string, left, right evaluator.Value, node ast.Node, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// The interpreter's evalBinarySetOperation expects *SetValue operands
+	// Convert from evaluator.Value to *SetValue
+	leftSet, okLeft := left.(*SetValue)
+	rightSet, okRight := right.(*SetValue)
+
+	if !okLeft || !okRight {
+		return &ErrorValue{Message: fmt.Sprintf("set operation requires set operands, got %s and %s", left.Type(), right.Type())}
+	}
+
+	return i.evalBinarySetOperation(leftSet, rightSet, op)
+}
+
+// EvalVariantUnaryNot evaluates the NOT operator on a Variant value using the interpreter's full logic.
+// Task 3.5.47: Specific adapter method to replace generic EvalNodeWithContext for Variant NOT operations.
+func (i *Interpreter) EvalVariantUnaryNot(operand evaluator.Value, node ast.Node, ctx *evaluator.ExecutionContext) evaluator.Value {
+	// For Variant NOT, we need to delegate back to the full node evaluation
+	// because the Interpreter's Eval method handles Variant unwrapping
+	return i.EvalNodeWithContext(node, ctx)
+}
+
 // LookupFunction finds a function by name in the function registry.
 func (i *Interpreter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
 	// DWScript is case-insensitive, so normalize to lowercase
