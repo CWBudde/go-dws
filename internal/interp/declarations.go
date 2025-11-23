@@ -671,13 +671,13 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Build virtual method table after all methods and fields are processed
 	classInfo.buildVirtualMethodTable()
 
-	// Task 3.5.46: Register class in TypeSystem after VMT is built
-	// Note: Legacy map registration already done early (line ~401) for field initializers
-	parentName := ""
+	// Register class in TypeSystem after VMT is built
+	// Note: Legacy map registration already (done early) for field initializers
+	parentName2 := ""
 	if classInfo.Parent != nil {
-		parentName = classInfo.Parent.Name
+		parentName2 = classInfo.Parent.Name
 	}
-	i.typeSystem.RegisterClassWithParent(classInfo.Name, classInfo, parentName)
+	i.typeSystem.RegisterClassWithParent(classInfo.Name, classInfo, parentName2)
 
 	return &NilValue{}
 }
