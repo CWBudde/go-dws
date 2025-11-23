@@ -382,13 +382,11 @@ func (i *Interpreter) builtinAssert(args []Value) Value {
 	}
 
 	// Create exception instance
-	instance := &ObjectInstance{
-		Class:  assertClass,
-		Fields: make(map[string]Value),
-	}
+	// Task 3.5.40: Use NewObjectInstance and SetField for proper initialization
+	instance := NewObjectInstance(assertClass)
 
 	// Set the Message field
-	instance.Fields["Message"] = &StringValue{Value: message}
+	instance.SetField("Message", &StringValue{Value: message})
 
 	// Create exception value and set it
 	// Position is nil for built-in function exceptions
@@ -534,13 +532,14 @@ func (i *Interpreter) evaluateLValue(lvalue ast.Expression) (Value, func(Value) 
 		// Handle different object types
 		switch obj := objVal.(type) {
 		case *ObjectInstance:
-			currentVal, exists := obj.Fields[fieldName]
-			if !exists {
+			// Task 3.5.40: Use GetField/SetField for proper normalization
+			currentVal := obj.GetField(fieldName)
+			if currentVal == nil {
 				return nil, nil, fmt.Errorf("field '%s' not found in class '%s'", fieldName, obj.Class.Name)
 			}
 
 			assignFunc := func(value Value) error {
-				obj.Fields[fieldName] = value
+				obj.SetField(fieldName, value)
 				return nil
 			}
 

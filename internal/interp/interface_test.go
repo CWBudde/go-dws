@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -182,8 +183,13 @@ func TestInterfaceInstanceGetUnderlyingObject(t *testing.T) {
 
 	// Create a class and object
 	classInfo := NewClassInfo("TMyClass")
+	// Task 3.5.40: Define field in class before setting it
+	// Note: Field defined as "x" (lowercase) but accessed as "X" (uppercase)
+	// to verify case-insensitive field access via normalization
+	classInfo.Fields["x"] = types.INTEGER
 	obj := NewObjectInstance(classInfo)
-	obj.Fields["X"] = &IntegerValue{Value: 42}
+	// Task 3.5.40: Use SetField for proper normalization
+	obj.SetField("X", &IntegerValue{Value: 42})
 
 	// Create an interface instance
 	iface := NewInterfaceInstance(interfaceInfo, obj)
@@ -196,7 +202,11 @@ func TestInterfaceInstanceGetUnderlyingObject(t *testing.T) {
 	}
 
 	// Verify we can access the object's fields
-	if underlyingObj.Fields["X"].(*IntegerValue).Value != 42 {
+	// Task 3.5.40: Use GetField for proper field access
+	fieldVal := underlyingObj.GetField("X")
+	if fieldVal == nil {
+		t.Error("Field X should exist")
+	} else if intVal, ok := fieldVal.(*IntegerValue); !ok || intVal.Value != 42 {
 		t.Error("Should be able to access underlying object's fields")
 	}
 }
