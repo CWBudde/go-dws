@@ -584,7 +584,7 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
   - Dependencies: 3.5.45
   - **Completed**: Successfully removed all generic adapter.EvalNode() and adapter.EvalNodeWithContext() calls from visitor_expressions.go. Added 9 new specific adapter methods: CreateClassValueFromName, EvalCallExpression, EvalMemberAccessExpression, EvalMethodCallExpression, EvalSetLiteral, EvalArrayLiteral, EvalNewArrayExpression, EvalIndexExpression, EvalRangeExpression. All adapter calls now use specific, descriptive method names. Code compiles and acceptance criteria met.
 
-- [ ] **3.5.47** Migrate Remaining Statement and Binary Op Visitors
+- [x] **3.5.47** Migrate Remaining Statement and Binary Op Visitors
   - Remove adapter.EvalNode() calls in visitor_statements.go (AssignmentStatement)
   - Remove adapter.EvalNode() calls in binary_ops.go (2 locations)
   - Move assignment logic from Interpreter.evalAssignmentStatement to Evaluator
@@ -593,20 +593,15 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
   - Effort: 1-2 hours
   - Acceptance: No adapter.EvalNode() calls in statements or binary ops
   - Dependencies: 3.5.46
-  - **Notes for Implementation**:
-    - Check current state: `grep -n "adapter.EvalNodeWithContext" internal/interp/evaluator/{visitor_statements.go,binary_ops.go}`
-    - Found locations (as of 3.5.46):
-      - `visitor_statements.go:358` - AssignmentStatement handling
-      - `binary_ops.go:562` - Binary op fallback for complex operands
-      - `binary_ops.go:634` - Binary op fallback in evalBinaryExpressionWithOperands
-    - Strategy: Follow same pattern as 3.5.46 - add specific adapter methods
-    - Suggested new adapter methods:
-      - `EvalAssignment(target, value, operator, node, ctx)` - handles all assignment types
-      - `EvalBinaryOperation(left, right, operator, node, ctx)` - handles operator overloads
-    - Assignment complexity: Must handle identifiers, member access, index expressions, property setters
-    - Binary op complexity: Must handle operator overloads for custom types
-    - Consider extracting assignment target resolution to helper function
-    - Test thoroughly: assignments are critical for state changes
+  - **Completed**: Successfully removed all generic adapter.EvalNodeWithContext() calls from visitor_statements.go and binary_ops.go. Added 3 new specific adapter methods:
+    - `EvalAssignment(node, ctx)` - handles all assignment statement complexity (simple, member, index, compound operators)
+    - `EvalSetBinaryOperation(op, left, right, node, ctx)` - handles set binary operations (union, difference, intersection)
+    - `EvalVariantUnaryNot(operand, node, ctx)` - handles Variant NOT operations
+  - All adapter calls in these files now use specific, descriptive method names. Code compiles and acceptance criteria met.
+  - Replaced calls at:
+    - `visitor_statements.go:359` - VisitAssignmentStatement
+    - `binary_ops.go:563` - evalSetBinaryOp
+    - `binary_ops.go:636` - evalNotUnaryOp (Variant case)
 
 - [ ] **3.5.48** Remove InterpreterAdapter Interface
   - Verify no adapter.EvalNode() calls remain in Evaluator package
@@ -619,6 +614,17 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
   - Effort: 1-2 hours
   - Acceptance: No InterpreterAdapter interface, no adapter field, all tests pass
   - Dependencies: 3.5.47
+  - **Notes for Implementation**:
+    - Remaining adapter.EvalNodeWithContext calls (as of 3.5.47):
+      - `evaluator.go:1084` - Default case in Eval() switch (unsupported node types)
+      - `visitor_declarations.go:17,25,32,38,44,50,56,62,68,75` - All 10 declaration visitors
+    - Note: There are ~138 total adapter method calls remaining (but all are specific methods, not generic EvalNode/EvalNodeWithContext)
+    - Strategy: This task ONLY removes the InterpreterAdapter interface, not all adapter usage
+    - The adapter field becomes a direct *Interpreter reference
+    - All specific adapter methods (EvalCallExpression, etc.) become direct Interpreter method calls
+    - The remaining 11 EvalNodeWithContext calls should be replaced with specific methods first
+    - Or: Keep InterpreterAdapter but make it a marker interface that Interpreter implements
+    - Consider: This may be blocked until declarations are migrated (visitor_declarations.go)
 
 - [ ] **3.5.49** Add Performance Benchmarks
   - Create benchmarks for variable access patterns
