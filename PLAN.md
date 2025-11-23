@@ -555,6 +555,8 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
   - Acceptance: ✅ Interpreter is thin orchestrator, ⏳ Tests mostly passing (3 edge cases), ⏳ Adapter removal pending
   - **Status**: Core architectural change complete. Interpreter.Eval() successfully delegates to Evaluator.Eval(). Most tests passing. Generic adapter calls reduced from ~42 to 11 via tasks 3.5.46 and 3.5.47. Remaining adapter calls use specific, descriptive method names. Full adapter removal blocked on declaration migration (visitor_declarations.go). Edge cases: closure capture (1 test), assert output formatting (2 tests).
 
+#### Phase A: Stabilization (Complete 3.5.45)
+
 - [ ] **3.5.45** Fix Edge Case Test Failures
   - Fix closure capture test (TestSimpleClosureCapture returns 0 instead of 50)
   - Fix assert output formatting tests (TestAssertFalseWithCustomMessage, TestAssertMessageFormat)
@@ -568,96 +570,193 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
   - Acceptance: All 3 edge case tests pass
   - Dependencies: 3.5.44
 
-- [x] **3.5.46** Migrate Remaining Expression Visitors
-  - Remove adapter.EvalNode() calls in visitor_expressions.go (~20 locations)
-  - Implement logic directly in visitor methods or extract to helper functions
-  - Focus areas:
-    - Identifier resolution (function names, class names, built-in functions)
-    - Complex member access patterns
-    - Array/set operations still using adapter
-  - Strategy: For each adapter.EvalNode() call, either:
-    1. Implement logic inline using available services (typeSystem, etc.)
-    2. Extract Interpreter method to standalone helper function
-    3. Add specific adapter method (not generic EvalNode)
-  - Files: `internal/interp/evaluator/visitor_expressions.go`
+---
+
+#### Phase B: Extract Shared Services (3.5.46-3.5.47)
+
+Before migrating logic, extract reusable components that both Interpreter and Evaluator can use directly.
+
+- [ ] **3.5.46** Extract Type Registry Service
+  - Create standalone `TypeRegistry` struct in `internal/interp/types/`
+  - Move class/record/interface/enum/helper lookup from Interpreter
+  - Provide direct access methods (no adapter needed)
+  - Both Interpreter and Evaluator reference same TypeRegistry instance
+  - Files: `internal/interp/types/type_registry.go` (new), `internal/interp/interpreter.go`
   - Effort: 2-3 hours
-  - Acceptance: No adapter.EvalNode() calls in visitor_expressions.go
+  - Acceptance: TypeRegistry works standalone, Evaluator can access directly
   - Dependencies: 3.5.45
-  - **Completed**: Successfully removed all generic adapter.EvalNode() and adapter.EvalNodeWithContext() calls from visitor_expressions.go. Added 9 new specific adapter methods: CreateClassValueFromName, EvalCallExpression, EvalMemberAccessExpression, EvalMethodCallExpression, EvalSetLiteral, EvalArrayLiteral, EvalNewArrayExpression, EvalIndexExpression, EvalRangeExpression. All adapter calls now use specific, descriptive method names. Code compiles and acceptance criteria met.
 
-- [x] **3.5.47** Migrate Remaining Statement and Binary Op Visitors
-  - Remove adapter.EvalNode() calls in visitor_statements.go (AssignmentStatement)
-  - Remove adapter.EvalNode() calls in binary_ops.go (2 locations)
-  - Move assignment logic from Interpreter.evalAssignmentStatement to Evaluator
-  - Move binary op fallback logic inline or to helper functions
-  - Files: `internal/interp/evaluator/visitor_statements.go`, `internal/interp/evaluator/binary_ops.go`
-  - Effort: 1-2 hours
-  - Acceptance: No adapter.EvalNode() calls in statements or binary ops
+- [ ] **3.5.47** Extract Function Registry Service
+  - Create standalone `FunctionRegistry` struct in `internal/interp/types/`
+  - Move function lookup/resolution, overload handling from Interpreter
+  - Include builtin function registration and lookup
+  - Both Interpreter and Evaluator reference same FunctionRegistry instance
+  - Files: `internal/interp/types/function_registry.go` (enhance existing), `internal/interp/interpreter.go`
+  - Effort: 2-3 hours
+  - Acceptance: FunctionRegistry works standalone, Evaluator can lookup functions directly
   - Dependencies: 3.5.46
-  - **Completed**: Successfully removed all generic adapter.EvalNodeWithContext() calls from visitor_statements.go and binary_ops.go. Added 3 new specific adapter methods:
-    - `EvalAssignment(node, ctx)` - handles all assignment statement complexity (simple, member, index, compound operators)
-    - `EvalSetBinaryOperation(op, left, right, node, ctx)` - handles set binary operations (union, difference, intersection)
-    - `EvalVariantUnaryNot(operand, node, ctx)` - handles Variant NOT operations
-  - All adapter calls in these files now use specific, descriptive method names. Code compiles and acceptance criteria met.
-  - Replaced calls at:
-    - `visitor_statements.go:359` - VisitAssignmentStatement
-    - `binary_ops.go:563` - evalSetBinaryOp
-    - `binary_ops.go:636` - evalNotUnaryOp (Variant case)
 
-- [ ] **3.5.48** Remove InterpreterAdapter Interface
-  - Verify no adapter.EvalNode() calls remain in Evaluator package
-  - Remove InterpreterAdapter interface from evaluator.go
+---
+
+#### Phase C: Migrate Declaration Visitors (3.5.48-3.5.51)
+
+All 10 declaration visitors currently forward 100% to adapter. This is the largest migration blocker.
+
+- [ ] **3.5.48** Migrate Simple Declaration Visitors
+  - Migrate EnumDecl, SetDecl, ArrayDecl visitors to Evaluator
+  - These have simpler registration logic (no inheritance, no methods)
+  - Use TypeRegistry directly instead of adapter
+  - Files: `internal/interp/evaluator/visitor_declarations.go`
+  - Effort: 2-3 hours
+  - Acceptance: 3 declaration visitors implemented in Evaluator, no adapter calls
+  - Dependencies: 3.5.47
+
+- [ ] **3.5.49** Migrate Record/Type Declaration Visitors
+  - Migrate RecordDecl visitor (field registration, record methods)
+  - Migrate TypeDeclaration visitor (type aliases)
+  - Handle record metadata creation
+  - Files: `internal/interp/evaluator/visitor_declarations.go`
+  - Effort: 2-3 hours
+  - Acceptance: RecordDecl, TypeDeclaration implemented in Evaluator
+  - Dependencies: 3.5.48
+
+- [ ] **3.5.50** Migrate Class/Interface/Helper Declaration Visitors
+  - Migrate ClassDecl visitor (complex: inheritance, methods, properties, constructors)
+  - Migrate InterfaceDecl visitor (method signatures, inheritance)
+  - Migrate HelperDecl visitor (helper method registration)
+  - This is the most complex migration task
+  - Files: `internal/interp/evaluator/visitor_declarations.go`, may need helpers
+  - Effort: 4-6 hours
+  - Acceptance: ClassDecl, InterfaceDecl, HelperDecl implemented in Evaluator
+  - Dependencies: 3.5.49
+
+- [ ] **3.5.51** Migrate Function/Operator Declaration Visitors
+  - Migrate FunctionDecl visitor (function registration, overloads)
+  - Migrate OperatorDecl visitor (operator overload registration)
+  - Use FunctionRegistry directly
+  - Files: `internal/interp/evaluator/visitor_declarations.go`
+  - Effort: 2-3 hours
+  - Acceptance: All 10 declaration visitors implemented, no EvalNodeWithContext calls remain
+  - Dependencies: 3.5.50
+
+---
+
+#### Phase D: Migrate Complex Expression Handling (3.5.52-3.5.54)
+
+Move logic from adapter methods into Evaluator. Currently there are ~79 adapter calls in visitor_expressions.go.
+
+- [ ] **3.5.52** Migrate Call Expression Handling
+  - Move `EvalCallExpression` logic from Interpreter to Evaluator
+  - Handle: user functions, builtins, method calls, constructors, type casts
+  - Currently 11 call sites use adapter.EvalCallExpression
+  - Files: `internal/interp/evaluator/visitor_expressions.go`, `internal/interp/evaluator/call_helpers.go` (new)
+  - Effort: 3-4 hours
+  - Acceptance: No adapter.EvalCallExpression calls, call logic in Evaluator
+  - Dependencies: 3.5.51
+
+- [ ] **3.5.53** Migrate Member Access Handling
+  - Move `EvalMemberAccessExpression` logic from Interpreter to Evaluator
+  - Handle: property access, field access, method access, static members, enum values
+  - Currently 8 call sites use adapter.EvalMemberAccessExpression
+  - Files: `internal/interp/evaluator/visitor_expressions.go`, `internal/interp/evaluator/member_helpers.go` (new)
+  - Effort: 2-3 hours
+  - Acceptance: No adapter.EvalMemberAccessExpression calls
+  - Dependencies: 3.5.52
+
+- [ ] **3.5.54** Migrate Collection Expression Handling
+  - Move array/set/index/range expression evaluation from Interpreter
+  - Methods: EvalArrayLiteral, EvalSetLiteral, EvalIndexExpression, EvalRangeExpression, EvalNewArrayExpression
+  - Files: `internal/interp/evaluator/visitor_expressions.go`, `internal/interp/evaluator/collection_helpers.go` (new)
+  - Effort: 2-3 hours
+  - Acceptance: No adapter collection method calls in expressions
+  - Dependencies: 3.5.53
+
+---
+
+#### Phase E: Migrate Statement Handling (3.5.55-3.5.57)
+
+Move statement-related adapter calls. Currently ~44 adapter calls in visitor_statements.go.
+
+- [ ] **3.5.55** Migrate Block/Scope Statement Handling
+  - Move `EvalBlockStatement` logic from Interpreter to Evaluator
+  - Handle scoped variable declarations, environment creation
+  - Currently 3 call sites use adapter.EvalBlockStatement
+  - Files: `internal/interp/evaluator/visitor_statements.go`
+  - Effort: 1-2 hours
+  - Acceptance: No adapter.EvalBlockStatement calls
+  - Dependencies: 3.5.54
+
+- [ ] **3.5.56** Migrate Exception Handling
+  - Move try/catch/finally evaluation logic from Interpreter
+  - Handle exception matching, exception instance creation
+  - Methods: EvalStatement (in exception context), MatchesExceptionType, GetExceptionInstance
+  - Files: `internal/interp/evaluator/visitor_statements.go`, `internal/interp/evaluator/exception_helpers.go` (new)
+  - Effort: 2-3 hours
+  - Acceptance: Exception handling fully in Evaluator
+  - Dependencies: 3.5.55
+
+- [ ] **3.5.57** Migrate Assignment Handling
+  - Move `EvalAssignment` logic fully into Evaluator
+  - Handle: simple assignment, member assignment, index assignment, compound operators
+  - Currently 1 call site, but complex logic
+  - Files: `internal/interp/evaluator/visitor_statements.go`
+  - Effort: 1-2 hours
+  - Acceptance: No adapter.EvalAssignment calls
+  - Dependencies: 3.5.56
+
+---
+
+#### Phase F: Cleanup (3.5.58-3.5.60)
+
+Final cleanup after all logic is migrated.
+
+- [ ] **3.5.58** Remove InterpreterAdapter Interface
+  - Verify all adapter method calls have been migrated or converted to direct service access
+  - Remove InterpreterAdapter interface definition from evaluator.go
   - Remove adapter field from Evaluator struct
   - Remove SetAdapter() method
-  - Remove adapter setup in Interpreter.NewWithOptions()
-  - Update all remaining adapter method calls to use direct Interpreter access or services
+  - Convert any remaining calls to direct service references (TypeRegistry, FunctionRegistry)
   - Files: `internal/interp/evaluator/evaluator.go`, `internal/interp/interpreter.go`
   - Effort: 1-2 hours
   - Acceptance: No InterpreterAdapter interface, no adapter field, all tests pass
-  - Dependencies: 3.5.47
-  - **Notes for Implementation**:
-    - Remaining adapter.EvalNodeWithContext calls (as of 3.5.47):
-      - `evaluator.go:1084` - Default case in Eval() switch (unsupported node types)
-      - `visitor_declarations.go:17,25,32,38,44,50,56,62,68,75` - All 10 declaration visitors
-    - Note: There are ~138 total adapter method calls remaining (but all are specific methods, not generic EvalNode/EvalNodeWithContext)
-    - Strategy: This task ONLY removes the InterpreterAdapter interface, not all adapter usage
-    - The adapter field becomes a direct *Interpreter reference
-    - All specific adapter methods (EvalCallExpression, etc.) become direct Interpreter method calls
-    - The remaining 11 EvalNodeWithContext calls should be replaced with specific methods first
-    - Or: Keep InterpreterAdapter but make it a marker interface that Interpreter implements
-    - Consider: This may be blocked until declarations are migrated (visitor_declarations.go)
+  - Dependencies: 3.5.57
 
-- [ ] **3.5.49** Add Performance Benchmarks
+- [ ] **3.5.59** Remove evalDirect() and Legacy Code Paths
+  - Remove evalDirect() method from Interpreter (no longer needed)
+  - Clean up Interpreter to be pure orchestrator
+  - Remove comments referring to legacy/migration paths
+  - Files: `internal/interp/interpreter.go`
+  - Effort: 30 min - 1 hour
+  - Acceptance: evalDirect() removed, code cleaner, all tests pass
+  - Dependencies: 3.5.58
+
+- [ ] **3.5.60** Add Performance Benchmarks
   - Create benchmarks for variable access patterns
   - Create benchmarks for function call patterns
-  - Compare thin orchestrator vs old switch-based approach (if feasible)
-  - Verify no performance regression from architectural change
+  - Create benchmarks for method dispatch
+  - Compare before/after migration (use git history if needed)
   - Files: `internal/interp/interpreter_bench_test.go` (new)
-  - Effort: 1 hour
-  - Acceptance: Benchmarks added, no significant regression
-  - Dependencies: 3.5.48
-
-- [ ] **3.5.50** Remove evalDirect() Legacy Code Path
-  - Once all adapter.EvalNode() calls are removed, evalDirect() is no longer needed
-  - Remove evalDirect() method from Interpreter
-  - Update EvalNode() adapter method if still needed for other adapter methods
-  - Clean up comments referring to legacy/migration paths
-  - Files: `internal/interp/interpreter.go`
-  - Effort: 30 minutes
-  - Acceptance: evalDirect() removed, code cleaner, all tests pass
-  - Dependencies: 3.5.48
+  - Effort: 1-2 hours
+  - Acceptance: Benchmarks added, no significant regression documented
+  - Dependencies: 3.5.59
 
 ---
 
 **Phase 3.5 Completion Summary**
 
-Tasks 3.5.44-3.5.50 complete the evaluator migration and adapter pattern removal:
-- 3.5.44: Core thin orchestrator ✅ (partial - core complete)
-- 3.5.45-3.5.47: Migrate remaining functionality
-- 3.5.48: Remove adapter interface
-- 3.5.49-3.5.50: Performance validation and cleanup
+| Phase | Tasks | Est. Hours | Description |
+|-------|-------|------------|-------------|
+| A: Stabilization | 3.5.45 | 1-2 | Fix edge case test failures |
+| B: Services | 3.5.46-3.5.47 | 4-6 | Extract TypeRegistry, FunctionRegistry |
+| C: Declarations | 3.5.48-3.5.51 | 10-15 | Migrate all 10 declaration visitors |
+| D: Expressions | 3.5.52-3.5.54 | 7-10 | Migrate call, member access, collections |
+| E: Statements | 3.5.55-3.5.57 | 4-7 | Migrate blocks, exceptions, assignments |
+| F: Cleanup | 3.5.58-3.5.60 | 2.5-5 | Remove adapter, benchmarks |
+| **Total** | **16 tasks** | **28.5-45** | |
 
-Total estimated remaining effort: 6-10 hours
+**Previous tasks completed**:
+- 3.5.44: Core thin orchestrator ✅ (Interpreter.Eval delegates to Evaluator)
+- 3.5.46-3.5.47 (old): Removed generic EvalNode calls ✅ (replaced with specific methods)
 
 
 ---
