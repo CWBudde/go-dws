@@ -1173,7 +1173,8 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 	}
 
 	// Check if this is a record type
-	if e.adapter.HasRecord(typeName) {
+	// Task 3.5.65: Use direct TypeRegistry access instead of adapter
+	if e.typeSystem.HasRecord(typeName) {
 		recordVal, err := e.adapter.CreateRecordZeroValue(typeName)
 		if err == nil {
 			return recordVal
@@ -1200,7 +1201,8 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 	}
 
 	// Check if this is an interface type
-	if e.adapter.HasInterface(typeName) {
+	// Task 3.5.66: Use direct TypeRegistry access instead of adapter
+	if e.typeSystem.HasInterface(typeName) {
 		ifaceVal, err := e.adapter.CreateInterfaceZeroValue(typeName)
 		if err == nil {
 			return ifaceVal
@@ -1223,7 +1225,8 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 		return e.adapter.BoxVariant(&runtime.NilValue{})
 	default:
 		// Check if this is a class type and create a typed nil value
-		if e.adapter.HasClass(typeName) {
+		// Task 3.5.64: Use direct TypeRegistry access instead of adapter
+		if e.typeSystem.HasClass(typeName) {
 			classVal, err := e.adapter.CreateClassZeroValue(typeName)
 			if err == nil {
 				return classVal

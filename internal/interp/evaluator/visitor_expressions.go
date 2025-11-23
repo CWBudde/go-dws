@@ -165,13 +165,15 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 	// Check if this identifier is a user-defined function name
 	// Functions are auto-invoked if they have zero parameters, or converted to function pointers if they have parameters
+	// Task 3.5.67: Use direct FunctionRegistry access instead of adapter
 	funcNameLower := ident.Normalize(node.Value)
-	if overloads, exists := e.adapter.LookupFunction(funcNameLower); exists && len(overloads) > 0 {
+	if overloads := e.FunctionRegistry().Lookup(funcNameLower); len(overloads) > 0 {
 		return e.adapter.EvalNode(node)
 	}
 
 	// Check if this identifier is a class name (metaclass reference)
-	if e.adapter.HasClass(node.Value) {
+	// Task 3.5.64: Use direct TypeRegistry access instead of adapter
+	if e.typeSystem.HasClass(node.Value) {
 		return e.adapter.EvalNode(node)
 	}
 
@@ -452,8 +454,9 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 
 		// Task 3.5.24: Unit-qualified function calls and class constructor calls
 		// Examples: Math.Sin(x), TMyClass.Create(args)
+		// Task 3.5.64: Use direct TypeRegistry access instead of adapter
 		if ident, ok := memberAccess.Object.(*ast.Identifier); ok {
-			if e.unitRegistry != nil || e.adapter.HasClass(ident.Value) {
+			if e.unitRegistry != nil || e.typeSystem.HasClass(ident.Value) {
 				return e.adapter.EvalNode(node)
 			}
 		}
@@ -469,8 +472,9 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 
 	// Check for user-defined functions (with potential overloading)
 	// Task 3.5.23: Handle lazy and var parameters in user function calls
+	// Task 3.5.67: Use direct FunctionRegistry access instead of adapter
 	funcNameLower := ident.Normalize(funcName.Value)
-	if overloads, exists := e.adapter.LookupFunction(funcNameLower); exists && len(overloads) > 0 {
+	if overloads := e.FunctionRegistry().Lookup(funcNameLower); len(overloads) > 0 {
 		// For now, delegate to adapter for overload resolution
 		// In the future, this can be migrated to the evaluator
 		// But we need to prepare arguments properly for lazy and var parameters
