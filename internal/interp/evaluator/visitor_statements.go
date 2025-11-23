@@ -52,10 +52,11 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 	if ctx.Exception() != nil {
 		// Type assert to ExceptionValue to get Inspect() method
 		// This is safe because only ExceptionValue instances are set via SetException()
+		// Phase 3.5.44: Add nil check to prevent panic on nil *ExceptionValue
 		type ExceptionInspector interface {
 			Inspect() string
 		}
-		if exc, ok := ctx.Exception().(ExceptionInspector); ok {
+		if exc, ok := ctx.Exception().(ExceptionInspector); ok && exc != nil {
 			return e.newError(node, "uncaught exception: %s", exc.Inspect())
 		}
 		return e.newError(node, "uncaught exception: %v", ctx.Exception())

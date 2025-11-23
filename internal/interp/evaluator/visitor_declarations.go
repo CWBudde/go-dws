@@ -11,11 +11,10 @@ import (
 // in the appropriate registries.
 
 // VisitFunctionDecl evaluates a function declaration.
-// Phase 3.5.44: Register function directly using TypeSystem.
+// Phase 3.5.44: Delegate to adapter for function registration.
+// The Interpreter registers to both legacy i.functions map and TypeSystem.
 func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionContext) Value {
-	// Register the function in the type system
-	e.typeSystem.RegisterFunction(node.Name.Value, node)
-	return nil
+	return e.adapter.EvalNode(node)
 }
 
 // VisitClassDecl evaluates a class declaration.
