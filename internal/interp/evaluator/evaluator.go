@@ -172,6 +172,42 @@ type InterpreterAdapter interface {
 	// This replaces generic EvalNodeWithContext for Variant NOT operations.
 	EvalVariantUnaryNot(operand Value, node ast.Node, ctx *ExecutionContext) Value
 
+	// ===== Task 3.5.50: Declaration Adapter Methods =====
+
+	// EvalClassDeclaration evaluates a class declaration using the interpreter's full logic.
+	// Task 3.5.50: Specific adapter for class declaration that handles:
+	// - ClassInfo creation and initialization
+	// - Inheritance (parent class lookup, field/method copying, VMT building)
+	// - Interface implementation tracking
+	// - Class constants, fields (instance and class vars), properties
+	// - Methods (instance, class, virtual, override), constructors, destructors
+	// - Operator overload registration
+	// - Type ID assignment and metadata creation
+	// This replaces generic EvalNodeWithContext for ClassDecl nodes.
+	EvalClassDeclaration(node *ast.ClassDecl, ctx *ExecutionContext) Value
+
+	// EvalInterfaceDeclaration evaluates an interface declaration using the interpreter's full logic.
+	// Task 3.5.50: Specific adapter for interface declaration that handles:
+	// - InterfaceInfo creation and initialization
+	// - Parent interface inheritance (method and property inheritance)
+	// - Method signature registration (InterfaceMethodDecl to FunctionDecl conversion)
+	// - Property declaration registration
+	// - Interface registration in both TypeSystem and legacy map
+	// This replaces generic EvalNodeWithContext for InterfaceDecl nodes.
+	EvalInterfaceDeclaration(node *ast.InterfaceDecl, ctx *ExecutionContext) Value
+
+	// EvalHelperDeclaration evaluates a helper declaration using the interpreter's full logic.
+	// Task 3.5.50: Specific adapter for helper declaration that handles:
+	// - HelperInfo creation and initialization
+	// - Target type resolution from AST type annotation
+	// - Parent helper inheritance (method and property copying)
+	// - Method registration (user-defined and builtin)
+	// - Property registration (getter/setter handling)
+	// - Class variable and class constant initialization
+	// - Helper registration in TypeSystem by type name (normalized and simple)
+	// This replaces generic EvalNodeWithContext for HelperDecl nodes.
+	EvalHelperDeclaration(node *ast.HelperDecl, ctx *ExecutionContext) Value
+
 	// Phase 3.5.4 - Phase 2B: Type system access methods
 	// These methods allow the Evaluator to access type registries during evaluation
 	// without directly accessing Interpreter fields.

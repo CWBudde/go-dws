@@ -64,18 +64,20 @@ func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionCont
 }
 
 // VisitClassDecl evaluates a class declaration.
-// Phase 3.5.44: Delegate to adapter.EvalNodeWithContext() for complex class registration logic.
-// This includes building ClassInfo/ClassMetadata, handling inheritance, methods, properties, etc.
-// This complex logic remains in Interpreter for now.
+// Task 3.5.50: Delegates to adapter.EvalClassDeclaration() for class registration logic.
+// This includes building ClassInfo/ClassMetadata, handling inheritance, methods, properties,
+// constructors, destructors, operator overloads, and virtual method table construction.
 func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNodeWithContext(node, ctx)
+	return e.adapter.EvalClassDeclaration(node, ctx)
 }
 
 // VisitInterfaceDecl evaluates an interface declaration.
-// Phase 3.5.44: Delegate to adapter.EvalNodeWithContext() for complex interface registration logic.
-// This includes building InterfaceInfo, handling inheritance, methods, etc.
+// Task 3.5.50: Delegates to adapter.EvalInterfaceDeclaration() for interface registration logic.
+// This includes building InterfaceInfo, handling parent interface inheritance,
+// method signature registration (InterfaceMethodDecl to FunctionDecl conversion),
+// and property registration.
 func (e *Evaluator) VisitInterfaceDecl(node *ast.InterfaceDecl, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNodeWithContext(node, ctx)
+	return e.adapter.EvalInterfaceDeclaration(node, ctx)
 }
 
 // VisitOperatorDecl evaluates an operator declaration (operator overloading).
@@ -344,9 +346,12 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 }
 
 // VisitHelperDecl evaluates a helper declaration (type extension).
-// Phase 3.5.44: Delegate to adapter.EvalNodeWithContext() for complex helper registration logic.
+// Task 3.5.50: Delegates to adapter.EvalHelperDeclaration() for helper registration logic.
+// This includes building HelperInfo, resolving target type, handling parent helper inheritance,
+// method registration (user-defined and builtin), property registration,
+// and class variable/constant initialization.
 func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNodeWithContext(node, ctx)
+	return e.adapter.EvalHelperDeclaration(node, ctx)
 }
 
 // VisitArrayDecl evaluates an array type declaration.
