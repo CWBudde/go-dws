@@ -262,7 +262,9 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 	i.env.Define(recordTypeKey, recordTypeValue)
 
 	// Also store in records map for easier access during method implementation
-	// PR #147 Fix: Use lowercase key for O(1) case-insensitive lookup
+	// Task 3.5.46: Register record in TypeSystem for shared access
+	i.typeSystem.RegisterRecord(recordName, recordTypeValue)
+	// PR #147 Fix: Use lowercase key for O(1) case-insensitive lookup (legacy map for compatibility)
 	i.records[ident.Normalize(recordName)] = recordTypeValue
 
 	// Initialize overload lists from method declarations
