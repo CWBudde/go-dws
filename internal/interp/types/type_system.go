@@ -61,12 +61,12 @@ type TypeSystem struct {
 // NewTypeSystem creates a new TypeSystem with initialized registries.
 func NewTypeSystem() *TypeSystem {
 	return &TypeSystem{
-		classRegistry:    NewClassRegistry(),                        // Task 3.4.2
-		functionRegistry: NewFunctionRegistry(),                     // Task 3.4.3
-		records:          ident.NewMap[RecordTypeValue](),           // Task 13.8
-		interfaces:       ident.NewMap[InterfaceInfo](),             // Task 13.8
-		helpers:          ident.NewMap[[]HelperInfo](),              // Task 13.8
-		arrayTypes:       ident.NewMap[*coretypes.ArrayType](),      // Task 3.5.69a
+		classRegistry:    NewClassRegistry(),                   // Task 3.4.2
+		functionRegistry: NewFunctionRegistry(),                // Task 3.4.3
+		records:          ident.NewMap[RecordTypeValue](),      // Task 13.8
+		interfaces:       ident.NewMap[InterfaceInfo](),        // Task 13.8
+		helpers:          ident.NewMap[[]HelperInfo](),         // Task 13.8
+		arrayTypes:       ident.NewMap[*coretypes.ArrayType](), // Task 3.5.69a
 		operators:        NewOperatorRegistry(),
 		conversions:      NewConversionRegistry(),
 		classTypeIDs:     ident.NewMap[int](), // Task 13.9
