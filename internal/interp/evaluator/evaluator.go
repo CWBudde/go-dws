@@ -963,6 +963,26 @@ type InterpreterAdapter interface {
 
 	// EvalEnumMemberAccess evaluates member access on an enum value (e.g., enumVal.Value).
 	EvalEnumMemberAccess(node *ast.MemberAccessExpression, enumVal Value, memberName string, ctx *ExecutionContext) Value
+
+	// ===== Task 3.5.54: Collection Expression Adapter Methods =====
+
+	// EvalSetLiteralElements evaluates a set literal with pre-evaluated elements.
+	EvalSetLiteralElements(node *ast.SetLiteral, ctx *ExecutionContext) Value
+
+	// EvalEmptyArrayLiteral evaluates an empty array literal (needs type annotation).
+	EvalEmptyArrayLiteral(node *ast.ArrayLiteralExpression, ctx *ExecutionContext) Value
+
+	// EvalArrayLiteralWithElements evaluates an array literal with pre-evaluated elements.
+	EvalArrayLiteralWithElements(node *ast.ArrayLiteralExpression, elements []Value, ctx *ExecutionContext) Value
+
+	// EvalIndexExpressionWithValues evaluates indexing with pre-evaluated base and index.
+	EvalIndexExpressionWithValues(node *ast.IndexExpression, base Value, index Value, ctx *ExecutionContext) Value
+
+	// EvalNewArrayWithDimensions evaluates new array with pre-evaluated dimensions.
+	EvalNewArrayWithDimensions(node *ast.NewArrayExpression, dimensions []int, ctx *ExecutionContext) Value
+
+	// EvalRangeExpressionValues evaluates a range expression (used in set literals and case statements).
+	EvalRangeExpressionValues(node *ast.RangeExpression, ctx *ExecutionContext) Value
 }
 
 // Evaluator is responsible for evaluating DWScript AST nodes.
