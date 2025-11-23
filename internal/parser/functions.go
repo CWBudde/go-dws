@@ -19,294 +19,12 @@ func isCallingConvention(literal string) bool {
 // based on the parser mode (traditional vs cursor).
 //
 
-// Syntax: function Name(params): Type; begin ... end;
-//
-//	procedure Name(params); begin ... end;
-//
-// PRE: cursor is FUNCTION or PROCEDURE
-// POST: cursor is END or SEMICOLON (forward declaration) or last token of body
-func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
+// parseFunctionLocalDeclarations parses local VAR and CONST declarations inside a function.
+// PRE: cursor position such that Peek(1) might be VAR or CONST
+// POST: cursor is at last token of last declaration
+func (p *Parser) parseFunctionLocalDeclarations(fn *ast.FunctionDecl) bool {
 	cursor := p.cursor
-	builder := p.StartNode()
 
-	fn := &ast.FunctionDecl{
-		BaseNode: ast.BaseNode{
-			Token: cursor.Current(),
-		},
-	}
-
-	// Parse function name (may be qualified: ClassName.MethodName)
-	cursor = cursor.Advance() // move to name
-	p.cursor = cursor
-
-	firstIdent := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: cursor.Current(),
-			},
-		},
-		Value: cursor.Current().Literal,
-	}
-
-	// Check for qualified name (ClassName.MethodName for method implementations)
-	if cursor.Peek(1).Type == lexer.DOT {
-		cursor = cursor.Advance() // move to '.'
-		cursor = cursor.Advance() // move past '.'
-		p.cursor = cursor
-
-		fn.ClassName = firstIdent
-		fn.Name = &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: cursor.Current(),
-				},
-			},
-			Value: cursor.Current().Literal,
-		}
-	} else {
-		fn.Name = firstIdent
-		fn.ClassName = nil
-	}
-
-	// Parse parameter list (if present)
-	if cursor.Peek(1).Type == lexer.LPAREN {
-		cursor = cursor.Advance() // move to '('
-		p.cursor = cursor
-
-		fn.Parameters = p.parseParameterList()
-		cursor = p.cursor
-
-		if cursor.Current().Type != lexer.RPAREN {
-			p.addError("expected ')' after parameter list", ErrMissingRParen)
-			return nil
-		}
-	}
-
-	// Parse return type for functions (not procedures)
-	if cursor.Peek(1).Type == lexer.COLON {
-		cursor = cursor.Advance() // move to ':'
-		cursor = cursor.Advance() // move past ':' to type expression
-		p.cursor = cursor
-
-		typeExpr := p.parseTypeExpression()
-		if typeExpr == nil {
-			p.addError("expected return type after ':'", ErrExpectedType)
-			return nil
-		}
-
-		cursor = p.cursor
-
-		// Convert TypeExpression to TypeAnnotation
-		switch te := typeExpr.(type) {
-		case *ast.TypeAnnotation:
-			fn.ReturnType = te
-		case *ast.FunctionPointerTypeNode:
-			fn.ReturnType = &ast.TypeAnnotation{
-				Token: te.Token,
-				Name:  te.String(),
-			}
-		case *ast.SetTypeNode:
-			fn.ReturnType = &ast.TypeAnnotation{
-				Token: te.Token,
-				Name:  te.String(),
-			}
-		case *ast.ArrayTypeNode:
-			if te == nil {
-				p.addError("array type expression is nil in return type", ErrInvalidType)
-				return nil
-			}
-			token := te.Token
-			if token.Type == 0 || token.Literal == "" {
-				token = lexer.Token{Type: lexer.ARRAY, Literal: "array", Pos: lexer.Position{}}
-			}
-			fn.ReturnType = &ast.TypeAnnotation{
-				Token: token,
-				Name:  te.String(),
-			}
-		default:
-			p.addError("unsupported type expression in return type", ErrInvalidType)
-			return nil
-		}
-	}
-
-	// Expect semicolon after signature
-	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' after function signature", ErrMissingSemicolon)
-		return nil
-	}
-	cursor = cursor.Advance() // move to SEMICOLON
-	p.cursor = cursor
-
-	// Parse directives loop
-	for {
-		nextTok := cursor.Peek(1)
-
-		if nextTok.Type == lexer.STATIC {
-			cursor = cursor.Advance() // move to 'static'
-			p.cursor = cursor
-
-			if cursor.Peek(1).Type != lexer.SEMICOLON {
-				p.addError("expected ';' after static", ErrMissingSemicolon)
-				return nil
-			}
-			cursor = cursor.Advance() // move to SEMICOLON
-			p.cursor = cursor
-
-		} else if nextTok.Type == lexer.VIRTUAL {
-			cursor = cursor.Advance() // move to 'virtual'
-			p.cursor = cursor
-			fn.IsVirtual = true
-
-			if cursor.Peek(1).Type != lexer.SEMICOLON {
-				p.addError("expected ';' after virtual", ErrMissingSemicolon)
-				return nil
-			}
-			cursor = cursor.Advance() // move to SEMICOLON
-			p.cursor = cursor
-
-		} else if nextTok.Type == lexer.OVERRIDE {
-			cursor = cursor.Advance() // move to 'override'
-			p.cursor = cursor
-			fn.IsOverride = true
-
-			if cursor.Peek(1).Type != lexer.SEMICOLON {
-				p.addError("expected ';' after override", ErrMissingSemicolon)
-				return nil
-			}
-			cursor = cursor.Advance() // move to SEMICOLON
-			p.cursor = cursor
-
-		} else if nextTok.Type == lexer.REINTRODUCE {
-			cursor = cursor.Advance() // move to 'reintroduce'
-			p.cursor = cursor
-			fn.IsReintroduce = true
-
-			if cursor.Peek(1).Type != lexer.SEMICOLON {
-				p.addError("expected ';' after reintroduce", ErrMissingSemicolon)
-				return nil
-			}
-			cursor = cursor.Advance() // move to SEMICOLON
-			p.cursor = cursor
-
-		} else if nextTok.Type == lexer.DEFAULT {
-			cursor = cursor.Advance() // move to 'default'
-			p.cursor = cursor
-			fn.IsDefault = true
-
-			if cursor.Peek(1).Type != lexer.SEMICOLON {
-				p.addError("expected ';' after default", ErrMissingSemicolon)
-				return nil
-			}
-			cursor = cursor.Advance() // move to SEMICOLON
-			p.cursor = cursor
-
-		} else if nextTok.Type == lexer.ABSTRACT {
-			cursor = cursor.Advance() // move to 'abstract'
-			p.cursor = cursor
-			fn.IsAbstract = true
-
-			if cursor.Peek(1).Type != lexer.SEMICOLON {
-				p.addError("expected ';' after abstract", ErrMissingSemicolon)
-				return nil
-			}
-			cursor = cursor.Advance() // move to SEMICOLON
-			p.cursor = cursor
-
-		} else if nextTok.Type == lexer.EXTERNAL {
-			cursor = cursor.Advance() // move to 'external'
-			p.cursor = cursor
-			fn.IsExternal = true
-
-			// Check for optional external name string
-			if cursor.Peek(1).Type == lexer.STRING {
-				cursor = cursor.Advance() // move to string
-				p.cursor = cursor
-				fn.ExternalName = cursor.Current().Literal
-			}
-
-			if cursor.Peek(1).Type != lexer.SEMICOLON {
-				p.addError("expected ';' after external", ErrMissingSemicolon)
-				return nil
-			}
-			cursor = cursor.Advance() // move to SEMICOLON
-			p.cursor = cursor
-
-		} else if nextTok.Type == lexer.OVERLOAD {
-			cursor = cursor.Advance() // move to 'overload'
-			p.cursor = cursor
-			fn.IsOverload = true
-
-			if cursor.Peek(1).Type != lexer.SEMICOLON {
-				p.addError("expected ';' after overload", ErrMissingSemicolon)
-				return nil
-			}
-			cursor = cursor.Advance() // move to SEMICOLON
-			p.cursor = cursor
-
-		} else if nextTok.Type == lexer.FORWARD {
-			cursor = cursor.Advance() // move to 'forward'
-			p.cursor = cursor
-			fn.IsForward = true
-
-			if cursor.Peek(1).Type != lexer.SEMICOLON {
-				p.addError("expected ';' after forward", ErrMissingSemicolon)
-				return nil
-			}
-			cursor = cursor.Advance() // move to SEMICOLON
-			p.cursor = cursor
-
-		} else if nextTok.Type == lexer.IDENT && isCallingConvention(nextTok.Literal) {
-			cursor = cursor.Advance() // move to calling convention
-			p.cursor = cursor
-			fn.CallingConvention = ident.Normalize(cursor.Current().Literal)
-			fn.CallingConventionPos = cursor.Current().Pos
-
-			if cursor.Peek(1).Type != lexer.SEMICOLON {
-				p.addError("expected ';' after calling convention", ErrMissingSemicolon)
-				return nil
-			}
-			cursor = cursor.Advance() // move to SEMICOLON
-			p.cursor = cursor
-
-		} else if nextTok.Type == lexer.DEPRECATED {
-			cursor = cursor.Advance() // move to 'deprecated'
-			p.cursor = cursor
-			fn.IsDeprecated = true
-
-			// Check for optional deprecation message
-			if cursor.Peek(1).Type == lexer.STRING {
-				cursor = cursor.Advance() // move to string
-				p.cursor = cursor
-				fn.DeprecatedMessage = cursor.Current().Literal
-			}
-
-			if cursor.Peek(1).Type != lexer.SEMICOLON {
-				p.addError("expected ';' after deprecated", ErrMissingSemicolon)
-				return nil
-			}
-			cursor = cursor.Advance() // move to SEMICOLON
-			p.cursor = cursor
-
-		} else {
-			break // No more directives
-		}
-	}
-
-	// Parse preconditions (require block) if present
-	if cursor.Peek(1).Type == lexer.REQUIRE {
-		cursor = cursor.Advance() // move to REQUIRE
-		p.cursor = cursor
-		fn.PreConditions = p.parsePreConditions()
-		cursor = p.cursor
-	}
-
-	// Check if this is a forward declaration (no body)
-	nextTok := cursor.Peek(1)
-	if fn.IsForward || (nextTok.Type != lexer.BEGIN && nextTok.Type != lexer.VAR && nextTok.Type != lexer.CONST && nextTok.Type != lexer.REQUIRE) {
-		return builder.Finish(fn).(*ast.FunctionDecl)
-	}
-
-	// Parse local variable/constant declarations
 	for cursor.Peek(1).Type == lexer.VAR || cursor.Peek(1).Type == lexer.CONST {
 		cursor = cursor.Advance() // move to 'var' or 'const'
 		p.cursor = cursor
@@ -360,6 +78,340 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			cursor = p.cursor
 		}
 	}
+
+	return true
+}
+
+// parseFunctionDirectives parses function/procedure directives (static, virtual, override, etc.).
+// PRE: cursor is at semicolon after function signature
+// POST: cursor is at last semicolon after last directive
+func (p *Parser) parseFunctionDirectives(fn *ast.FunctionDecl) bool {
+	cursor := p.cursor
+
+	for {
+		nextTok := cursor.Peek(1)
+
+		if nextTok.Type == lexer.STATIC {
+			cursor = cursor.Advance() // move to 'static'
+			p.cursor = cursor
+
+			if cursor.Peek(1).Type != lexer.SEMICOLON {
+				p.addError("expected ';' after static", ErrMissingSemicolon)
+				return false
+			}
+			cursor = cursor.Advance() // move to SEMICOLON
+			p.cursor = cursor
+
+		} else if nextTok.Type == lexer.VIRTUAL {
+			cursor = cursor.Advance() // move to 'virtual'
+			p.cursor = cursor
+			fn.IsVirtual = true
+
+			if cursor.Peek(1).Type != lexer.SEMICOLON {
+				p.addError("expected ';' after virtual", ErrMissingSemicolon)
+				return false
+			}
+			cursor = cursor.Advance() // move to SEMICOLON
+			p.cursor = cursor
+
+		} else if nextTok.Type == lexer.OVERRIDE {
+			cursor = cursor.Advance() // move to 'override'
+			p.cursor = cursor
+			fn.IsOverride = true
+
+			if cursor.Peek(1).Type != lexer.SEMICOLON {
+				p.addError("expected ';' after override", ErrMissingSemicolon)
+				return false
+			}
+			cursor = cursor.Advance() // move to SEMICOLON
+			p.cursor = cursor
+
+		} else if nextTok.Type == lexer.REINTRODUCE {
+			cursor = cursor.Advance() // move to 'reintroduce'
+			p.cursor = cursor
+			fn.IsReintroduce = true
+
+			if cursor.Peek(1).Type != lexer.SEMICOLON {
+				p.addError("expected ';' after reintroduce", ErrMissingSemicolon)
+				return false
+			}
+			cursor = cursor.Advance() // move to SEMICOLON
+			p.cursor = cursor
+
+		} else if nextTok.Type == lexer.DEFAULT {
+			cursor = cursor.Advance() // move to 'default'
+			p.cursor = cursor
+			fn.IsDefault = true
+
+			if cursor.Peek(1).Type != lexer.SEMICOLON {
+				p.addError("expected ';' after default", ErrMissingSemicolon)
+				return false
+			}
+			cursor = cursor.Advance() // move to SEMICOLON
+			p.cursor = cursor
+
+		} else if nextTok.Type == lexer.ABSTRACT {
+			cursor = cursor.Advance() // move to 'abstract'
+			p.cursor = cursor
+			fn.IsAbstract = true
+
+			if cursor.Peek(1).Type != lexer.SEMICOLON {
+				p.addError("expected ';' after abstract", ErrMissingSemicolon)
+				return false
+			}
+			cursor = cursor.Advance() // move to SEMICOLON
+			p.cursor = cursor
+
+		} else if nextTok.Type == lexer.EXTERNAL {
+			cursor = cursor.Advance() // move to 'external'
+			p.cursor = cursor
+			fn.IsExternal = true
+
+			// Check for optional external name string
+			if cursor.Peek(1).Type == lexer.STRING {
+				cursor = cursor.Advance() // move to string
+				p.cursor = cursor
+				fn.ExternalName = cursor.Current().Literal
+			}
+
+			if cursor.Peek(1).Type != lexer.SEMICOLON {
+				p.addError("expected ';' after external", ErrMissingSemicolon)
+				return false
+			}
+			cursor = cursor.Advance() // move to SEMICOLON
+			p.cursor = cursor
+
+		} else if nextTok.Type == lexer.OVERLOAD {
+			cursor = cursor.Advance() // move to 'overload'
+			p.cursor = cursor
+			fn.IsOverload = true
+
+			if cursor.Peek(1).Type != lexer.SEMICOLON {
+				p.addError("expected ';' after overload", ErrMissingSemicolon)
+				return false
+			}
+			cursor = cursor.Advance() // move to SEMICOLON
+			p.cursor = cursor
+
+		} else if nextTok.Type == lexer.FORWARD {
+			cursor = cursor.Advance() // move to 'forward'
+			p.cursor = cursor
+			fn.IsForward = true
+
+			if cursor.Peek(1).Type != lexer.SEMICOLON {
+				p.addError("expected ';' after forward", ErrMissingSemicolon)
+				return false
+			}
+			cursor = cursor.Advance() // move to SEMICOLON
+			p.cursor = cursor
+
+		} else if nextTok.Type == lexer.IDENT && isCallingConvention(nextTok.Literal) {
+			cursor = cursor.Advance() // move to calling convention
+			p.cursor = cursor
+			fn.CallingConvention = ident.Normalize(cursor.Current().Literal)
+			fn.CallingConventionPos = cursor.Current().Pos
+
+			if cursor.Peek(1).Type != lexer.SEMICOLON {
+				p.addError("expected ';' after calling convention", ErrMissingSemicolon)
+				return false
+			}
+			cursor = cursor.Advance() // move to SEMICOLON
+			p.cursor = cursor
+
+		} else if nextTok.Type == lexer.DEPRECATED {
+			cursor = cursor.Advance() // move to 'deprecated'
+			p.cursor = cursor
+			fn.IsDeprecated = true
+
+			// Check for optional deprecation message
+			if cursor.Peek(1).Type == lexer.STRING {
+				cursor = cursor.Advance() // move to string
+				p.cursor = cursor
+				fn.DeprecatedMessage = cursor.Current().Literal
+			}
+
+			if cursor.Peek(1).Type != lexer.SEMICOLON {
+				p.addError("expected ';' after deprecated", ErrMissingSemicolon)
+				return false
+			}
+			cursor = cursor.Advance() // move to SEMICOLON
+			p.cursor = cursor
+
+		} else {
+			break // No more directives
+		}
+	}
+
+	return true
+}
+
+// parseFunctionReturnType parses and converts a return type expression to TypeAnnotation.
+// PRE: cursor is at type expression
+// POST: cursor is at last token of type expression
+func (p *Parser) parseFunctionReturnType() *ast.TypeAnnotation {
+	typeExpr := p.parseTypeExpression()
+	if typeExpr == nil {
+		p.addError("expected return type after ':'", ErrExpectedType)
+		return nil
+	}
+
+	// Convert TypeExpression to TypeAnnotation
+	switch te := typeExpr.(type) {
+	case *ast.TypeAnnotation:
+		return te
+	case *ast.FunctionPointerTypeNode:
+		return &ast.TypeAnnotation{
+			Token: te.Token,
+			Name:  te.String(),
+		}
+	case *ast.SetTypeNode:
+		return &ast.TypeAnnotation{
+			Token: te.Token,
+			Name:  te.String(),
+		}
+	case *ast.ArrayTypeNode:
+		if te == nil {
+			p.addError("array type expression is nil in return type", ErrInvalidType)
+			return nil
+		}
+		token := te.Token
+		if token.Type == 0 || token.Literal == "" {
+			token = lexer.Token{Type: lexer.ARRAY, Literal: "array", Pos: lexer.Position{}}
+		}
+		return &ast.TypeAnnotation{
+			Token: token,
+			Name:  te.String(),
+		}
+	default:
+		p.addError("unsupported type expression in return type", ErrInvalidType)
+		return nil
+	}
+}
+
+// parseFunctionQualifiedName parses a function name, which may be qualified (ClassName.MethodName).
+// PRE: cursor is at function/procedure name
+// POST: cursor is at function name (last identifier)
+func (p *Parser) parseFunctionQualifiedName() (name, className *ast.Identifier) {
+	cursor := p.cursor
+
+	firstIdent := &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: cursor.Current(),
+			},
+		},
+		Value: cursor.Current().Literal,
+	}
+
+	// Check for qualified name (ClassName.MethodName for method implementations)
+	if cursor.Peek(1).Type == lexer.DOT {
+		cursor = cursor.Advance() // move to '.'
+		cursor = cursor.Advance() // move past '.'
+		p.cursor = cursor
+
+		className = firstIdent
+		name = &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: cursor.Current(),
+				},
+			},
+			Value: cursor.Current().Literal,
+		}
+	} else {
+		// Even for simple names, we're already positioned at it
+		name = firstIdent
+		className = nil
+		// p.cursor is already at the name, no need to update
+	}
+
+	return name, className
+}
+
+// Syntax: function Name(params): Type; begin ... end;
+//
+//	procedure Name(params); begin ... end;
+//
+// PRE: cursor is FUNCTION or PROCEDURE
+// POST: cursor is END or SEMICOLON (forward declaration) or last token of body
+func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
+	cursor := p.cursor
+	builder := p.StartNode()
+
+	fn := &ast.FunctionDecl{
+		BaseNode: ast.BaseNode{
+			Token: cursor.Current(),
+		},
+	}
+
+	// Parse function name (may be qualified: ClassName.MethodName)
+	cursor = cursor.Advance() // move to name
+	p.cursor = cursor
+
+	fn.Name, fn.ClassName = p.parseFunctionQualifiedName()
+	cursor = p.cursor // reload cursor after parsing qualified name
+
+	// Parse parameter list (if present)
+	if cursor.Peek(1).Type == lexer.LPAREN {
+		cursor = cursor.Advance() // move to '('
+		p.cursor = cursor
+
+		fn.Parameters = p.parseParameterList()
+		cursor = p.cursor
+
+		if cursor.Current().Type != lexer.RPAREN {
+			p.addError("expected ')' after parameter list", ErrMissingRParen)
+			return nil
+		}
+	}
+
+	// Parse return type for functions (not procedures)
+	if cursor.Peek(1).Type == lexer.COLON {
+		cursor = cursor.Advance() // move to ':'
+		cursor = cursor.Advance() // move past ':' to type expression
+		p.cursor = cursor
+
+		returnType := p.parseFunctionReturnType()
+		if returnType == nil {
+			return nil
+		}
+		fn.ReturnType = returnType
+		cursor = p.cursor
+	}
+
+	// Expect semicolon after signature
+	if cursor.Peek(1).Type != lexer.SEMICOLON {
+		p.addError("expected ';' after function signature", ErrMissingSemicolon)
+		return nil
+	}
+	cursor = cursor.Advance() // move to SEMICOLON
+	p.cursor = cursor
+
+	// Parse directives (static, virtual, override, etc.)
+	if !p.parseFunctionDirectives(fn) {
+		return nil
+	}
+	cursor = p.cursor
+
+	// Parse preconditions (require block) if present
+	if cursor.Peek(1).Type == lexer.REQUIRE {
+		cursor = cursor.Advance() // move to REQUIRE
+		p.cursor = cursor
+		fn.PreConditions = p.parsePreConditions()
+		cursor = p.cursor
+	}
+
+	// Check if this is a forward declaration (no body)
+	nextTok := cursor.Peek(1)
+	if fn.IsForward || (nextTok.Type != lexer.BEGIN && nextTok.Type != lexer.VAR && nextTok.Type != lexer.CONST && nextTok.Type != lexer.REQUIRE) {
+		return builder.Finish(fn).(*ast.FunctionDecl)
+	}
+
+	// Parse local variable/constant declarations
+	if !p.parseFunctionLocalDeclarations(fn) {
+		return nil
+	}
+	cursor = p.cursor
 
 	// Parse function body (begin...end block)
 	if cursor.Peek(1).Type != lexer.BEGIN {
