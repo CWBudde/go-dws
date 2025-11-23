@@ -1,7 +1,10 @@
 package evaluator
 
 import (
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // This file contains visitor methods for declaration AST nodes.
@@ -9,6 +12,49 @@ import (
 //
 // Declarations define types, functions, classes, etc. and register them
 // in the appropriate registries.
+
+// ============================================================================
+// Local Value Types for Declaration Processing
+// ============================================================================
+//
+// These types are defined locally to avoid circular dependencies between
+// evaluator and interp packages. They will eventually be moved to the runtime
+// package as part of the AST-free runtime types migration (Phase 3.5.37).
+
+// EnumTypeValue is an internal value type used to store enum type metadata
+// in the environment.
+type EnumTypeValue struct {
+	EnumType *types.EnumType
+}
+
+// Type returns "ENUM_TYPE".
+func (e *EnumTypeValue) Type() string {
+	return "ENUM_TYPE"
+}
+
+// String returns the enum type name.
+func (e *EnumTypeValue) String() string {
+	if e.EnumType == nil {
+		return "enum type <nil>"
+	}
+	return e.EnumType.Name
+}
+
+// ArrayTypeValue is an internal value that stores array type metadata in the environment.
+type ArrayTypeValue struct {
+	ArrayType *types.ArrayType
+	Name      string
+}
+
+// Type returns "ARRAY_TYPE".
+func (a *ArrayTypeValue) Type() string {
+	return "ARRAY_TYPE"
+}
+
+// String returns the array type name.
+func (a *ArrayTypeValue) String() string {
+	return "array type " + a.Name
+}
 
 // VisitFunctionDecl evaluates a function declaration.
 // Phase 3.5.44: Delegate to adapter for function registration.
@@ -39,9 +85,104 @@ func (e *Evaluator) VisitOperatorDecl(node *ast.OperatorDecl, ctx *ExecutionCont
 }
 
 // VisitEnumDecl evaluates an enum declaration.
-// Phase 3.5.44: Delegate to adapter.EvalNodeWithContext() for enum registration logic.
+// Phase 3.5.48: Migrated from adapter to Evaluator.
+// Registers enum type and values in the environment.
 func (e *Evaluator) VisitEnumDecl(node *ast.EnumDecl, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNodeWithContext(node, ctx)
+	if node == nil {
+		return e.newError(node, "nil enum declaration")
+	}
+
+	enumName := node.Name.Value
+
+	// Build the enum type from the declaration
+	enumValues := make(map[string]int)
+	orderedNames := make([]string, 0, len(node.Values))
+
+	// Calculate ordinal values (explicit or implicit)
+	currentOrdinal := 0
+	flagBitPosition := 0 // For flags enums, track the bit position (2^n)
+
+	for _, enumValue := range node.Values {
+		valueName := enumValue.Name
+
+		// Determine ordinal value (explicit or implicit)
+		var ordinalValue int
+		if enumValue.Value != nil {
+			// Explicit value provided
+			ordinalValue = *enumValue.Value
+			if node.Flags {
+				// For flags, explicit values must be powers of 2
+				if ordinalValue <= 0 || (ordinalValue&(ordinalValue-1)) != 0 {
+					return e.newError(node, "enum '%s' value '%s' (%d) must be a power of 2 for flags enum",
+						enumName, valueName, ordinalValue)
+				}
+				// For flags, calculate bit position using bit manipulation
+				// This is more efficient than a loop and works for all valid powers of 2
+				bitPos := 0
+				temp := ordinalValue
+				for temp > 1 {
+					temp >>= 1
+					bitPos++
+				}
+				flagBitPosition = bitPos + 1
+			} else {
+				// For regular enums, update current ordinal
+				currentOrdinal = ordinalValue + 1
+			}
+		} else {
+			// Implicit value
+			if node.Flags {
+				// Flags use power-of-2 values: 1, 2, 4, 8, 16, ...
+				ordinalValue = 1 << flagBitPosition
+				flagBitPosition++
+			} else {
+				// Regular enums use sequential values
+				ordinalValue = currentOrdinal
+				currentOrdinal++
+			}
+		}
+
+		// Store the value
+		enumValues[valueName] = ordinalValue
+		orderedNames = append(orderedNames, valueName)
+	}
+
+	// Create the enum type
+	var enumType *types.EnumType
+	if node.Scoped || node.Flags {
+		enumType = types.NewScopedEnumType(enumName, enumValues, orderedNames, node.Flags)
+	} else {
+		enumType = types.NewEnumType(enumName, enumValues, orderedNames)
+	}
+
+	// Register each enum value in the symbol table as a constant
+	// For scoped enums (enum/flags keyword), skip global registration -
+	// values are only accessible via qualified access (Type.Value)
+	if !node.Scoped {
+		for valueName, ordinalValue := range enumValues {
+			enumVal := &runtime.EnumValue{
+				TypeName:     enumName,
+				ValueName:    valueName,
+				OrdinalValue: ordinalValue,
+			}
+			ctx.Env().Define(valueName, enumVal)
+		}
+	}
+
+	// Store enum type metadata in environment with special key
+	// This allows variable declarations to resolve the type
+	enumTypeKey := "__enum_type_" + ident.Normalize(enumName)
+	ctx.Env().Define(enumTypeKey, &EnumTypeValue{EnumType: enumType})
+
+	// Register enum type name as a TypeMetaValue
+	// This allows the type name to be used as a runtime value in expressions
+	// like High(TColor) or Low(TColor), just like built-in types (Integer, Float, etc.)
+	ctx.Env().Define(enumName, &runtime.TypeMetaValue{
+		TypeInfo: enumType,
+		TypeName: enumName,
+	})
+
+	return &runtime.NilValue{}
 }
 
 // VisitRecordDecl evaluates a record declaration.
@@ -57,9 +198,66 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 }
 
 // VisitArrayDecl evaluates an array type declaration.
-// Phase 3.5.44: Delegate to adapter.EvalNodeWithContext() for array type registration logic.
+// Phase 3.5.48: Migrated from adapter to Evaluator.
+// Example: type TMyArray = array[1..10] of Integer;
 func (e *Evaluator) VisitArrayDecl(node *ast.ArrayDecl, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNodeWithContext(node, ctx)
+	if node == nil {
+		return e.newError(node, "nil array declaration")
+	}
+
+	arrayName := node.Name.Value
+
+	// Build the array type from the declaration
+	arrayTypeAnnotation := node.ArrayType
+	if arrayTypeAnnotation == nil {
+		return e.newError(node, "invalid array type declaration")
+	}
+
+	// Resolve the element type
+	elementTypeName := arrayTypeAnnotation.ElementType.String()
+	elementType := e.resolveTypeForDeclaration(elementTypeName, ctx)
+	if elementType == nil {
+		return e.newError(node, "unknown element type '%s'", elementTypeName)
+	}
+
+	// Create the array type
+	var arrayType *types.ArrayType
+	if arrayTypeAnnotation.IsDynamic() {
+		arrayType = types.NewDynamicArrayType(elementType)
+	} else {
+		// Evaluate bound expressions at runtime
+		lowBoundVal := e.Eval(arrayTypeAnnotation.LowBound, ctx)
+		if isError(lowBoundVal) {
+			return lowBoundVal
+		}
+		highBoundVal := e.Eval(arrayTypeAnnotation.HighBound, ctx)
+		if isError(highBoundVal) {
+			return highBoundVal
+		}
+
+		// Extract integer values
+		lowBound, ok := lowBoundVal.(*runtime.IntegerValue)
+		if !ok {
+			return e.newError(node, "array lower bound must be an integer")
+		}
+		highBound, ok := highBoundVal.(*runtime.IntegerValue)
+		if !ok {
+			return e.newError(node, "array upper bound must be an integer")
+		}
+
+		arrayType = types.NewStaticArrayType(elementType, int(lowBound.Value), int(highBound.Value))
+	}
+
+	// Store array type in environment with a special prefix
+	// This allows var declarations to look up the type
+	typeKey := "__array_type_" + ident.Normalize(arrayName)
+	arrayTypeValue := &ArrayTypeValue{
+		Name:      arrayName,
+		ArrayType: arrayType,
+	}
+	ctx.Env().Define(typeKey, arrayTypeValue)
+
+	return &runtime.NilValue{} // Type declarations don't return a value
 }
 
 // VisitTypeDeclaration evaluates a type alias declaration.
@@ -69,8 +267,41 @@ func (e *Evaluator) VisitTypeDeclaration(node *ast.TypeDeclaration, ctx *Executi
 }
 
 // VisitSetDecl evaluates a set declaration.
+// Phase 3.5.48: Migrated from adapter to Evaluator.
+// Set types are already registered by the semantic analyzer, so we just return nil.
 func (e *Evaluator) VisitSetDecl(node *ast.SetDecl, ctx *ExecutionContext) Value {
+	if node == nil {
+		return e.newError(node, "nil set declaration")
+	}
+
 	// Set type already registered by semantic analyzer
-	// Delegate to adapter for now (Phase 3 migration)
-	return e.adapter.EvalNodeWithContext(node, ctx)
+	// Just return nil value to indicate successful processing
+	return &runtime.NilValue{}
+}
+
+// ============================================================================
+// Helper Methods for Declaration Processing
+// ============================================================================
+
+// resolveTypeForDeclaration resolves a type name to its semantic type.
+// This handles built-in types, enum types, record types, array types, type aliases, and subranges.
+// Returns nil if the type cannot be resolved.
+//
+// Phase 3.5.48: Helper for array/enum/record type resolution in declarations.
+// Uses adapter.GetType() to delegate to the full Interpreter.resolveType() which handles
+// all type kinds including type aliases and subranges.
+func (e *Evaluator) resolveTypeForDeclaration(typeName string, ctx *ExecutionContext) types.Type {
+	// Delegate to adapter's GetType which calls Interpreter.resolveType()
+	// This handles: built-ins, enums, records, arrays, type aliases, subranges, inline arrays
+	resolvedType, err := e.adapter.GetType(typeName)
+	if err != nil {
+		return nil
+	}
+
+	// Convert from any to types.Type
+	if typ, ok := resolvedType.(types.Type); ok {
+		return typ
+	}
+
+	return nil
 }
