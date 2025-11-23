@@ -13,7 +13,7 @@ import (
 // ============================================================================
 
 // analyzeCallExpressionWithContext analyzes a call expression with optional expected type context.
-// Task 9.19.2: The expected type can help with overload resolution in the future.
+// The expected type can help with overload resolution in the future.
 // Currently, this is a wrapper that delegates to analyzeCallExpression, but can be extended
 // to use the expected type for disambiguating between multiple overloads.
 func (a *Analyzer) analyzeCallExpressionWithContext(expr *ast.CallExpression, expectedType types.Type) types.Type {
@@ -45,7 +45,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return a.analyzeRecordStaticMethodCall(expr, recordType, memberAccess.Member.Value)
 		}
 
-		// Task 9.73.2: Check if the object is a ClassOfType (metaclass variable)
+		// Check if the object is a ClassOfType (metaclass variable)
 		if metaclassType, isMetaclassType := objectType.(*types.ClassOfType); isMetaclassType {
 			// This is a constructor call through a metaclass variable like cls.Create(args)
 			// where cls is of type "class of TBase"
@@ -81,7 +81,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				break // Already reported count mismatch
 			}
 
-			// Task 9.2b: Validate var parameter receives an lvalue
+			// Validate var parameter receives an lvalue
 			isVar := len(funcType.VarParams) > i && funcType.VarParams[i]
 			if isVar && !a.isLValue(arg) {
 				a.addError("var parameter %d requires a variable (identifier, array element, or field), got %s at %s",
@@ -115,7 +115,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return resultType
 		}
 
-		// Task 9.16.1: Check if we're calling a class method without explicit "Self."
+		// Check if we're calling a class method without explicit "Self."
 		// This handles calls like Helper() from within a class method
 		if a.currentClass != nil {
 			// Look up method in current class (including inherited methods)
@@ -148,7 +148,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 						break // Already reported count mismatch
 					}
 
-					// Task 9.2b: Validate var parameter receives an lvalue
+					// Validate var parameter receives an lvalue
 					isVar := len(methodType.VarParams) > i && methodType.VarParams[i]
 					if isVar && !a.isLValue(arg) {
 						a.addError("var parameter %d requires a variable (identifier, array element, or field), got %s at %s",
@@ -275,7 +275,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-		// Task 9.227: Higher-order functions for working with lambdas
+		// Higher-order functions for working with lambdas
 		if ident.Equal(funcIdent.Value, "Map") {
 			// Map(array, lambda) -> array
 			if len(expr.Arguments) != 2 {
@@ -412,8 +412,6 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-		// Task 9.95-9.97: Current date/time functions
-
 		// Allow calling methods within the current class without explicit Self
 		if a.currentClass != nil {
 			if methodType, found := a.currentClass.GetMethod(funcIdent.Value); found {
@@ -434,9 +432,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 		}
 
-		// Task 9.232: Variant introspection functions
-
-		// Task 9.114: GetStackTrace() built-in function
+		// GetStackTrace() built-in function
 		if ident.Equal(funcIdent.Value, "GetStackTrace") {
 			if len(expr.Arguments) != 0 {
 				a.addError("function 'GetStackTrace' expects 0 arguments, got %d at %s",
@@ -446,7 +442,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
-		// Task 9.116: GetCallStack() built-in function
+		// GetCallStack() built-in function
 		if ident.Equal(funcIdent.Value, "GetCallStack") {
 			if len(expr.Arguments) != 0 {
 				a.addError("function 'GetCallStack' expects 0 arguments, got %d at %s",
@@ -458,7 +454,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.NewDynamicArrayType(types.VARIANT)
 		}
 
-		// Task 9.8.1-9.8.2: Check if this is a type cast (TypeName(expression))
+		// Check if this is a type cast (TypeName(expression))
 		// Type casts look like function calls but the "function" name is actually a type name
 		if castType := a.analyzeTypeCast(funcIdent.Value, expr.Arguments, expr); castType != nil {
 			return castType
@@ -468,18 +464,18 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		return nil
 	}
 
-	// Task 9.65-9.66: Check if this is an overloaded function
+	// Check if this is an overloaded function
 	// If so, resolve the overload set to select the best match
 	var funcType *types.FunctionType
 	if sym.IsOverloadSet {
 		// Get all overload candidates
 		candidates := a.symbols.GetOverloadSet(funcIdent.Value)
-		if candidates == nil || len(candidates) == 0 {
+		if len(candidates) == 0 {
 			a.addError("no overload candidates found for '%s' at %s", funcIdent.Value, expr.Token.Pos.String())
 			return nil
 		}
 
-		// Task 9.21.5: Detect overloaded function calls with lambda arguments
+		// Detect overloaded function calls with lambda arguments
 		hasLambdas, lambdaIndices := detectOverloadedCallWithLambdas(expr.Arguments)
 		if hasLambdas {
 			// We have lambda arguments that need type inference
@@ -503,7 +499,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		// Resolve overload based on argument types
 		selected, err := ResolveOverload(candidates, argTypes)
 		if err != nil {
-			// Task 9.63: Provide DWScript-compatible error message for failed overload resolution
+			// Provide DWScript-compatible error message for failed overload resolution
 			a.addError("Syntax Error: There is no overloaded version of \"%s\" that can be called with these arguments [line: %d, column: %d]",
 				funcIdent.Value, expr.Token.Pos.Line, expr.Token.Pos.Column)
 			return nil
@@ -517,7 +513,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return nil
 		}
 	} else {
-		// Task 9.162: Check if it's a function pointer type first
+		// Check if it's a function pointer type first
 		if funcPtrType := a.analyzeFunctionPointerCall(expr, sym.Type); funcPtrType != nil {
 			return funcPtrType
 		}
@@ -526,7 +522,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		var ok bool
 		funcType, ok = sym.Type.(*types.FunctionType)
 		if !ok {
-			// Task 9.15.6: Before reporting error, check if it's a type cast
+			// Before reporting error, check if it's a type cast
 			// Type names can be in the symbol table (e.g., enum types, class types)
 			if castType := a.analyzeTypeCast(funcIdent.Value, expr.Arguments, expr); castType != nil {
 				return castType

@@ -35,7 +35,7 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 		return nil
 	}
 
-	// Task 9.216: Check for duplicate parameter names
+	// Check for duplicate parameter names
 	paramNames := make(map[string]bool)
 	for _, param := range expr.Parameters {
 		if paramNames[param.Name.Value] {
@@ -46,14 +46,14 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 		paramNames[param.Name.Value] = true
 	}
 
-	// Task 9.216/9.218: Validate and infer parameter types
+	// Validate and infer parameter types
 	paramTypes := make([]types.Type, 0, len(expr.Parameters))
 	hasUntypedParams := false
 
 	for _, param := range expr.Parameters {
 		if param.Type == nil {
 			hasUntypedParams = true
-			// Task 9.218: Try to infer parameter type from context
+			// Try to infer parameter type from context
 			// For now, mark as needing inference
 			paramTypes = append(paramTypes, nil)
 		} else {
@@ -67,7 +67,7 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 		}
 	}
 
-	// Task 9.218: If we have untyped parameters, attempt type inference
+	// If we have untyped parameters, attempt type inference
 	if hasUntypedParams {
 		// Try to infer from context
 		// This would require passing expected type from parent expression
@@ -77,7 +77,7 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 		return nil
 	}
 
-	// Task 9.216: Create new scope for lambda body
+	// Create new scope for lambda body
 	oldSymbols := a.symbols
 	lambdaScope := NewEnclosedSymbolTable(oldSymbols)
 	a.symbols = lambdaScope
@@ -94,7 +94,7 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 	a.inLambda = true
 	defer func() { a.inLambda = previousInLambda }()
 
-	// Task 9.216: Determine or infer return type
+	// Determine or infer return type
 	var returnType types.Type
 	if expr.ReturnType != nil {
 		// Explicit return type specified
@@ -131,12 +131,12 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 		a.analyzeBlock(expr.Body)
 	}
 
-	// Task 9.217: Perform closure capture analysis
+	// Perform closure capture analysis
 	// Identify variables from outer scopes used in the lambda
 	capturedVars := a.analyzeCapturedVariables(expr.Body, lambdaScope, oldSymbols)
 	expr.CapturedVars = capturedVars
 
-	// Task 9.216: Create function pointer type matching the lambda signature
+	// Create function pointer type matching the lambda signature
 	// For procedures (no return type or VOID), pass nil as return type
 	var funcPtrReturnType types.Type
 	if returnType != nil && returnType != types.VOID {
@@ -144,7 +144,7 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 	}
 	funcPtrType := types.NewFunctionPointerType(paramTypes, funcPtrReturnType)
 
-	// Task 9.216: Set the type annotation on the expression
+	// Set the type annotation on the expression
 	// Create a TypeAnnotation for the AST node
 	typeAnnotation := &ast.TypeAnnotation{
 		Name: fmt.Sprintf("lambda%s", funcPtrType.String()),

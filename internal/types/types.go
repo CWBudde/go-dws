@@ -737,21 +737,21 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 		Fields:               make(map[string]Type),
 		ClassVars:            make(map[string]Type),
 		Constants:            make(map[string]interface{}),
-		ConstantTypes:        make(map[string]Type), // Task 9.17
+		ConstantTypes:        make(map[string]Type),
 		ConstantVisibility:   make(map[string]int),
 		ClassVarVisibility:   make(map[string]int),
 		Methods:              make(map[string]*FunctionType),
-		MethodOverloads:      make(map[string][]*MethodInfo), // Task 9.61
+		MethodOverloads:      make(map[string][]*MethodInfo),
 		FieldVisibility:      make(map[string]int),
 		MethodVisibility:     make(map[string]int),
 		VirtualMethods:       make(map[string]bool),
 		OverrideMethods:      make(map[string]bool),
 		AbstractMethods:      make(map[string]bool),
 		ForwardedMethods:     make(map[string]bool),
-		ReintroduceMethods:   make(map[string]bool), // Task 9.2
+		ReintroduceMethods:   make(map[string]bool),
 		Operators:            NewOperatorRegistry(),
 		Constructors:         make(map[string]*FunctionType),
-		ConstructorOverloads: make(map[string][]*MethodInfo), // Task 9.61
+		ConstructorOverloads: make(map[string][]*MethodInfo),
 		ClassMethodFlags:     make(map[string]bool),
 		Properties:           make(map[string]*PropertyInfo),
 	}
@@ -844,7 +844,6 @@ func (ct *ClassOfType) IsAssignableFrom(classType *ClassType) bool {
 
 // NewClassOfType creates a new metaclass type referencing the given class type.
 // This is used for "class of T" type declarations in DWScript.
-// Task 9.7.1: ClassType property returns ClassOfType
 func NewClassOfType(classType *ClassType) *ClassOfType {
 	return &ClassOfType{
 		ClassType: classType,

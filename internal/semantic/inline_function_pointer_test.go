@@ -8,11 +8,10 @@ import (
 )
 
 // ============================================================================
-// Task 9.50: Inline Function Pointer Semantic Analysis Tests
+// Inline Function Pointer Semantic Analysis Tests
 // ============================================================================
 
 // TestInlineFunctionPointerInVariable tests inline function pointer types in variable declarations.
-// Task 9.50: Verify type checker handles inline function pointers correctly
 func TestInlineFunctionPointerInVariable(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -98,7 +97,6 @@ func TestInlineFunctionPointerInVariable(t *testing.T) {
 }
 
 // TestInlineFunctionPointerInParameter tests inline function pointer types in function parameters.
-// Task 9.50: Ensure proper scope resolution for inline function pointer types
 func TestInlineFunctionPointerInParameter(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -178,7 +176,6 @@ func TestInlineFunctionPointerInParameter(t *testing.T) {
 }
 
 // TestInlineFunctionPointerTypeErrors tests error cases for inline function pointer types.
-// Task 9.50: Test validation of inline function pointer types
 func TestInlineFunctionPointerTypeErrors(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -238,7 +235,6 @@ func TestInlineFunctionPointerTypeErrors(t *testing.T) {
 }
 
 // TestInlineFunctionPointerAssignment tests assignment compatibility with inline function pointers.
-// Task 9.50: Test function pointer type compatibility and assignment rules
 func TestInlineFunctionPointerAssignment(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -310,7 +306,6 @@ func TestInlineFunctionPointerAssignment(t *testing.T) {
 }
 
 // TestInlineFunctionPointerAssignmentErrors tests incompatible assignments with inline function pointers.
-// Task 9.50: Test function pointer type compatibility and assignment rules
 func TestInlineFunctionPointerAssignmentErrors(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -402,7 +397,6 @@ func TestInlineFunctionPointerAssignmentErrors(t *testing.T) {
 }
 
 // TestInlineFunctionPointerCall tests calling inline function pointer variables.
-// Task 9.50: Test function pointer call validation
 func TestInlineFunctionPointerCall(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -479,7 +473,6 @@ func TestInlineFunctionPointerCall(t *testing.T) {
 }
 
 // TestInlineFunctionPointerCallErrors tests error cases for calling inline function pointers.
-// Task 9.50: Test function pointer call validation errors
 func TestInlineFunctionPointerCallErrors(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -546,7 +539,6 @@ func TestInlineFunctionPointerCallErrors(t *testing.T) {
 }
 
 // TestMixedInlineAndAliasedFunctionPointers tests using both inline and aliased function pointer types together.
-// Task 9.50: Test that inline and aliased function pointers work together
 func TestMixedInlineAndAliasedFunctionPointers(t *testing.T) {
 	input := `
 		// Aliased function pointer type

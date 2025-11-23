@@ -14,9 +14,7 @@ import (
 func (a *Analyzer) analyzeInterfaceDecl(decl *ast.InterfaceDecl) {
 	interfaceName := decl.Name.Value
 
-	// Check if interface is already declared
-	// Use lowercase for case-insensitive duplicate check
-	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
+	// Check if interface is already declared (use lowercase for case-insensitive duplicate check)
 	if a.hasType(interfaceName) {
 		a.addError("interface '%s' already declared at %s", interfaceName, decl.Token.Pos.String())
 		return
@@ -27,7 +25,6 @@ func (a *Analyzer) analyzeInterfaceDecl(decl *ast.InterfaceDecl) {
 	if decl.Parent != nil {
 		parentName := decl.Parent.Value
 		// Use lowercase for case-insensitive lookup
-		// Task 6.1.1.3: Use TypeRegistry for unified type lookup
 		parentInterface = a.getInterfaceType(parentName)
 		if parentInterface == nil {
 			a.addError("parent interface '%s' not found at %s", parentName, decl.Token.Pos.String())
@@ -116,9 +113,7 @@ func (a *Analyzer) validateInterfaceImplementation(classType *types.ClassType, d
 	for _, ifaceIdent := range decl.Interfaces {
 		ifaceName := ifaceIdent.Value
 
-		// Lookup the interface type
-		// Use lowercase for case-insensitive lookup
-		// Task 6.1.1.3: Use TypeRegistry for unified type lookup
+		// Lookup the interface type (use lowercase for case-insensitive lookup)
 		ifaceType := a.getInterfaceType(ifaceName)
 		if ifaceType == nil {
 			a.addError("interface '%s' not found at %s", ifaceName, decl.Token.Pos.String())

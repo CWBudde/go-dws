@@ -10,11 +10,10 @@ import (
 )
 
 // ============================================================================
-// Task 9.216: Lambda Expression Semantic Analysis Tests
+// Lambda Expression Semantic Analysis Tests
 // ============================================================================
 
 // TestLambdaExpressionBasic tests basic lambda expression analysis with explicit types.
-// Task 9.216: Test valid lambda expressions
 func TestLambdaExpressionBasic(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -89,7 +88,6 @@ func TestLambdaExpressionBasic(t *testing.T) {
 }
 
 // TestLambdaReturnTypeInference tests return type inference from lambda body.
-// Task 9.216: Test return type inference
 func TestLambdaReturnTypeInference(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -149,7 +147,6 @@ func TestLambdaReturnTypeInference(t *testing.T) {
 }
 
 // TestLambdaParameterScoping tests that lambda parameters are properly scoped.
-// Task 9.216: Test parameter scoping
 func TestLambdaParameterScoping(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -209,7 +206,6 @@ func TestLambdaParameterScoping(t *testing.T) {
 }
 
 // TestLambdaErrors tests error cases in lambda analysis.
-// Task 9.216: Test error handling
 func TestLambdaErrors(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -292,7 +288,6 @@ func TestLambdaErrors(t *testing.T) {
 }
 
 // TestLambdaInFunctionCall tests lambdas used directly in function calls.
-// Task 9.216: Test lambda in expression context
 // Note: Function pointer type parameters in function declarations are not yet fully supported
 // so we test lambda in assignment context instead
 func TestLambdaInFunctionCall(t *testing.T) {
@@ -337,7 +332,6 @@ func TestLambdaInFunctionCall(t *testing.T) {
 }
 
 // TestClosureCapture tests that lambdas correctly capture variables from outer scopes.
-// Task 9.217: Test closure capture analysis
 func TestClosureCapture(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -451,7 +445,6 @@ func TestClosureCapture(t *testing.T) {
 }
 
 // TestLambdaWithResultVariable tests that Result variable is properly added to scope.
-// Task 9.216: Test Result variable in lambda scope
 func TestLambdaWithResultVariable(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -508,7 +501,7 @@ func TestLambdaWithResultVariable(t *testing.T) {
 	}
 }
 
-// TestLambdaParameterTypeInference tests Task 9.19 - parameter type inference from context
+// TestLambdaParameterTypeInference tests parameter type inference from context.
 func TestLambdaParameterTypeInference(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -601,7 +594,7 @@ func TestLambdaParameterTypeInference(t *testing.T) {
 	}
 }
 
-// TestLambdaParameterTypeInferenceErrors tests error cases for Task 9.19
+// TestLambdaParameterTypeInferenceErrors tests error cases for parameter type inference.
 func TestLambdaParameterTypeInferenceErrors(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -683,7 +676,7 @@ func TestLambdaParameterTypeInferenceErrors(t *testing.T) {
 	}
 }
 
-// TestLambdaInferenceEdgeCases tests additional edge cases for Task 9.23
+// TestLambdaInferenceEdgeCases tests additional edge cases for lambda type inference.
 func TestLambdaInferenceEdgeCases(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -783,7 +776,7 @@ func TestLambdaInferenceEdgeCases(t *testing.T) {
 	}
 }
 
-// TestLambdaInferenceComplexErrors tests complex error scenarios for Task 9.23
+// TestLambdaInferenceComplexErrors tests complex error scenarios for lambda type inference.
 func TestLambdaInferenceComplexErrors(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -854,8 +847,7 @@ func TestLambdaInferenceComplexErrors(t *testing.T) {
 	}
 }
 
-// TestVariadicLambdaInference tests lambda type inference in variadic function contexts
-// Task 9.21.4: Support variadic parameters in lambda type inference
+// TestVariadicLambdaInference tests lambda type inference in variadic function contexts.
 func TestVariadicLambdaInference(t *testing.T) {
 	tests := []struct {
 		checkFn  func(*testing.T, *Analyzer)
@@ -1021,7 +1013,7 @@ func TestVariadicLambdaInference(t *testing.T) {
 }
 
 // ============================================================================
-// Task 9.21.5: Tests for Overload Detection with Lambda Arguments
+// Overload Detection with Lambda Arguments
 // ============================================================================
 
 func TestOverloadDetectionWithLambdas(t *testing.T) {
