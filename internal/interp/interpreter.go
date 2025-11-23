@@ -867,10 +867,12 @@ func (i *Interpreter) CreateRecordValue(recordTypeName string, fieldValues map[s
 	recordType := recordTypeValue.RecordType
 
 	// Create the record value with methods
+	// Task 3.5.42: Updated to use RecordMetadata
 	recordValue := &RecordValue{
 		RecordType: recordType,
 		Fields:     make(map[string]Value),
-		Methods:    recordTypeValue.Methods,
+		Metadata:   recordTypeValue.Metadata,
+		Methods:    recordTypeValue.Methods, // Deprecated: backward compatibility
 	}
 
 	// Copy provided field values (already evaluated)
@@ -2212,10 +2214,12 @@ func (i *Interpreter) CreateRecord(recordType string, fields map[string]evaluato
 	}
 
 	// Create record value
+	// Task 3.5.42: Updated to use RecordMetadata
 	return &RecordValue{
 		RecordType: rtv.RecordType,
 		Fields:     internalFields,
-		Methods:    rtv.Methods,
+		Metadata:   rtv.Metadata,
+		Methods:    rtv.Methods, // Deprecated: backward compatibility
 	}, nil
 }
 
