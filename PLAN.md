@@ -523,13 +523,14 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
   - Acceptance: FunctionPointerValue has no AST imports, lambda tests pass
   - **Completed**: Updated FunctionPointerValue to use MethodID for AST-free operation. Added MethodID field alongside legacy Function/Lambda fields for backward compatibility. Created new constructors (NewFunctionPointerValueWithID, NewLambdaValueWithID) for AST-free creation. Updated String() method to handle both MethodID and legacy paths. All lambda and function pointer tests passing. Ready for gradual migration from AST-based to MethodID-based invocation.
 
-- [ ] **3.5.42** Migrate RecordValue to AST-Free
+- [x] **3.5.42** Migrate RecordValue to AST-Free
   - Create `RecordMetadata` for record type info
   - Move method references to metadata
   - Update record creation and field access
-  - Files: `internal/interp/value.go`, `internal/interp/runtime/record_metadata.go` (new)
+  - Files: `internal/interp/value.go`, `internal/interp/record.go`, `internal/interp/interpreter.go`
   - Effort: 4-6 hours
   - Acceptance: RecordValue has no AST dependencies, record tests pass
+  - **Completed**: Added RecordMetadata field to both RecordValue and RecordTypeValue. Created buildRecordMetadata() and buildMethodMetadata() helpers to convert AST declarations to runtime metadata. Updated GetMethod() to reconstruct FunctionDecl from MethodMetadata for backward compatibility. Updated all record creation sites (record.go, interpreter.go) to populate Metadata field. Created NewRecordValueWithMetadata() for AST-free creation. Deprecated Methods field but kept it populated for backward compatibility during migration. All record tests passing. RecordValue ready for AST-free runtime in Phase 3.5.44.
 
 - [ ] **3.5.43** Migrate ExceptionValue to AST-Free
   - Update ExceptionValue to use ClassMetadata references
