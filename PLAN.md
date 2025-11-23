@@ -414,7 +414,7 @@ Before migrating logic, extract reusable components that both Interpreter and Ev
 
 All 10 declaration visitors currently forward 100% to adapter. This is the largest migration blocker.
 
-- [ ] **3.5.48** Migrate Simple Declaration Visitors
+- [x] **3.5.48** Migrate Simple Declaration Visitors
   - Migrate EnumDecl, SetDecl, ArrayDecl visitors to Evaluator
   - These have simpler registration logic (no inheritance, no methods)
   - Use TypeRegistry directly instead of adapter
