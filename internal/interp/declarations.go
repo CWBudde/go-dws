@@ -397,6 +397,8 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 
 	// Task 9.6: Register class BEFORE processing fields
 	// This allows field initializers to reference the class name (e.g., FField := TObj.Value)
+	// Task 3.5.46: Register in legacy map early for field initializers that reference the class
+	// Note: TypeSystem registration happens at end of function after VMT is built
 	// PR #147 Fix: Use normalized key for O(1) case-insensitive lookup
 	i.classes[ident.Normalize(classInfo.Name)] = classInfo
 
@@ -669,9 +671,13 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Build virtual method table after all methods and fields are processed
 	classInfo.buildVirtualMethodTable()
 
-	// Register class in registry
-	// PR #147 Fix: Use normalized key for O(1) case-insensitive lookup
-	i.classes[ident.Normalize(classInfo.Name)] = classInfo
+	// Task 3.5.46: Register class in TypeSystem after VMT is built
+	// Note: Legacy map registration already done early (line ~401) for field initializers
+	parentName := ""
+	if classInfo.Parent != nil {
+		parentName = classInfo.Parent.Name
+	}
+	i.typeSystem.RegisterClassWithParent(classInfo.Name, classInfo, parentName)
 
 	return &NilValue{}
 }

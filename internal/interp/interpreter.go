@@ -314,30 +314,25 @@ func (i *Interpreter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
 // ===== Class Registry =====
 
 // LookupClass finds a class by name in the class registry.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
 func (i *Interpreter) LookupClass(name string) (any, bool) {
-	normalizedName := ident.Normalize(name)
-	class, ok := i.classes[normalizedName]
-	if !ok {
+	class := i.typeSystem.LookupClass(name)
+	if class == nil {
 		return nil, false
 	}
 	return class, true
 }
 
 // HasClass checks if a class with the given name exists.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
 func (i *Interpreter) HasClass(name string) bool {
-	normalizedName := ident.Normalize(name)
-	_, ok := i.classes[normalizedName]
-	return ok
+	return i.typeSystem.HasClass(name)
 }
 
 // GetClassTypeID returns the type ID for a class, or 0 if not found.
+// Task 3.5.46: Delegates to TypeSystem instead of using legacy registry.
 func (i *Interpreter) GetClassTypeID(className string) int {
-	normalizedName := ident.Normalize(className)
-	typeID, ok := i.classTypeIDRegistry[normalizedName]
-	if !ok {
-		return 0
-	}
-	return typeID
+	return i.typeSystem.GetClassTypeID(className)
 }
 
 // ===== Record Registry =====
@@ -728,8 +723,13 @@ func (i *Interpreter) EvalArrayLiteralWithExpectedType(lit ast.Node, expectedTyp
 
 // ClassImplementsInterface checks if a class implements an interface.
 func (i *Interpreter) ClassImplementsInterface(className, interfaceName string) bool {
-	classInfo, exists := i.classes[ident.Normalize(className)]
-	if !exists {
+	// Task 3.5.46: Use TypeSystem for class lookup
+	classInfoIface := i.typeSystem.LookupClass(className)
+	if classInfoIface == nil {
+		return false
+	}
+	classInfo, ok := classInfoIface.(*ClassInfo)
+	if !ok {
 		return false
 	}
 
@@ -840,8 +840,9 @@ func (i *Interpreter) CreateInterfaceZeroValue(interfaceName string) (evaluator.
 }
 
 // CreateClassZeroValue creates a typed nil value for a class.
+// Task 3.5.46: Use TypeSystem for class lookup.
 func (i *Interpreter) CreateClassZeroValue(className string) (evaluator.Value, error) {
-	if _, exists := i.classes[ident.Normalize(className)]; !exists {
+	if !i.typeSystem.HasClass(className) {
 		return nil, fmt.Errorf("class '%s' not found", className)
 	}
 
@@ -1783,10 +1784,14 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 	// Convert arguments
 	internalArgs := convertEvaluatorArgs(args)
 
-	// Look up class (case-insensitive)
-	classInfo, exists := i.classes[ident.Normalize(className)]
-	if !exists {
+	// Task 3.5.46: Look up class via TypeSystem (case-insensitive)
+	classInfoIface := i.typeSystem.LookupClass(className)
+	if classInfoIface == nil {
 		return nil, fmt.Errorf("class '%s' not found", className)
+	}
+	classInfo, ok := classInfoIface.(*ClassInfo)
+	if !ok {
+		return nil, fmt.Errorf("class '%s' has invalid type", className)
 	}
 
 	// Check if trying to instantiate an abstract class
@@ -1910,8 +1915,9 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 
 	// Handle interface-to-object/interface casting
 	if intfInst, ok := internalObj.(*InterfaceInstance); ok {
-		// Check if target is a class
-		if targetClass, isClass := i.classes[ident.Normalize(typeName)]; isClass {
+		// Task 3.5.46: Check if target is a class via TypeSystem
+		if targetClassIface := i.typeSystem.LookupClass(typeName); targetClassIface != nil {
+			targetClass, _ := targetClassIface.(*ClassInfo)
 			// Interface-to-class casting: extract the underlying object
 			underlyingObj := intfInst.Object
 			if underlyingObj == nil {
@@ -1954,8 +1960,9 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 		return nil, fmt.Errorf("'as' operator requires object instance, got %s", internalObj.Type())
 	}
 
-	// Try class-to-class casting first
-	if targetClass, isClass := i.classes[ident.Normalize(typeName)]; isClass {
+	// Task 3.5.46: Try class-to-class casting first via TypeSystem
+	if targetClassIface := i.typeSystem.LookupClass(typeName); targetClassIface != nil {
+		targetClass, _ := targetClassIface.(*ClassInfo)
 		// Validate that the object's actual runtime type is compatible with the target
 		if !isClassCompatible(objVal.Class, targetClass) {
 			return nil, fmt.Errorf("instance of type '%s' cannot be cast to class '%s'", objVal.Class.Name, targetClass.Name)
