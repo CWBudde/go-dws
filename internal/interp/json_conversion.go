@@ -16,13 +16,13 @@ import (
 // They match the standard Delphi VarType constants.
 
 const (
-	varEmpty   = 0     // Unassigned/Empty
-	varNull    = 1     // Null (SQL NULL)
-	varInteger = 3     // 32-bit signed integer
-	varDouble  = 5     // Double precision float
-	varBoolean = 11    // Boolean
-	varInt64   = 20    // 64-bit signed integer
-	varString  = 256   // String value
+	varEmpty   = 0      // Unassigned/Empty
+	varNull    = 1      // Null (SQL NULL)
+	varInteger = 3      // 32-bit signed integer
+	varDouble  = 5      // Double precision float
+	varBoolean = 11     // Boolean
+	varInt64   = 20     // 64-bit signed integer
+	varString  = 256    // String value
 	varArray   = 0x2000 // Array flag (can be ORed with element type)
 	varJSON    = 0x4000 // Custom code for JSON objects
 )
