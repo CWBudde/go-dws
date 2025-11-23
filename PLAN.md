@@ -332,18 +332,46 @@ Each task removes ONE category of adapter calls and removes the adapter methods 
   - TypeSystem already provides these via `GetClassTypeID()`, etc.
   - Acceptance: No adapter type ID calls existed
 
-- [~] **3.5.69** Replace Type Check Methods - PARTIAL
-  - No `adapter.IsEnumType`, `adapter.IsRecordType`, `adapter.IsTypeCompatible` calls found
-  - 1 `adapter.IsArrayType` call remains (visitor_statements.go:1186)
-  - **Why IsArrayType is different:**
-    - Implementation: `i.env.Get("__array_type_" + normalizedName)` (interpreter.go:597-600)
-    - Array types are stored in environment with magic prefix `__array_type_`, not in TypeSystem
-    - This is a legacy pattern from before TypeSystem existed
-  - **Future fix options:**
-    1. Add `arrayTypes` registry to TypeSystem (preferred - consistent with class/record/interface)
-    2. Or expose environment key lookup helper in Evaluator
-  - **Related code:** `evalArrayDeclaration` in interpreter.go likely sets these keys
-  - Acceptance: Most type check calls removed, 1 remains pending array type migration
+- [x] **3.5.69** Replace Type Check Methods ✅ (completed via subtasks)
+  - Migrated array types from environment storage to TypeSystem registry
+  - Replaced `adapter.IsArrayType()` with `e.typeSystem.HasArrayType()`
+  - Removed `ArrayTypeValue` wrapper type
+  - **All subtasks (3.5.69a-e) completed**
+
+- [x] **3.5.69a** Add ArrayType Registry to TypeSystem ✅
+  - Added `arrayTypes *ident.Map[*coretypes.ArrayType]` field to TypeSystem
+  - Added methods: `RegisterArrayType()`, `LookupArrayType()`, `HasArrayType()`, `AllArrayTypes()`
+  - Files: `internal/interp/types/type_system.go`
+  - Added import alias `coretypes` for `internal/types` package
+  - Acceptance: New registry exists, all tests pass ✅
+
+- [x] **3.5.69b** Dual-Write Array Types ✅
+  - Updated `evalArrayDeclaration()` to register in BOTH environment AND TypeSystem
+  - Keep environment storage for backward compatibility during migration
+  - Added TODO comment for 3.5.69e cleanup
+  - Files: `internal/interp/array.go`
+  - Acceptance: Array types registered in TypeSystem, all tests pass ✅
+
+- [x] **3.5.69c** Migrate Interpreter Lookups to TypeSystem ✅
+  - Updated `IsArrayType()` to use `typeSystem.HasArrayType()`
+  - Updated `CreateArrayZeroValue()` to use `typeSystem.LookupArrayType()`
+  - Updated `resolveType()` array type path to use TypeSystem
+  - Updated 6 locations across 5 files
+  - Files: `interpreter.go`, `record.go`, `statements_declarations.go`, `functions_user.go`, `functions_pointers.go`
+  - Only environment WRITE remains in `array.go` (for 3.5.69e)
+  - Acceptance: Interpreter uses TypeSystem for array lookups, all tests pass ✅
+
+- [x] **3.5.69d** Replace Evaluator Adapter Call ✅
+  - Replaced `adapter.IsArrayType()` with `e.typeSystem.HasArrayType()`
+  - Files: `evaluator/visitor_statements.go`
+  - Note: `CreateArrayZeroValue()` still uses adapter (follows record pattern)
+  - Acceptance: No adapter.IsArrayType() calls, all tests pass ✅
+
+- [x] **3.5.69e** Remove Environment Storage ✅
+  - Removed `__array_type_` storage from `evalArrayDeclaration()`
+  - Removed `ArrayTypeValue` wrapper type (no longer needed)
+  - Files: `internal/interp/array.go`
+  - Acceptance: No `__array_type_` environment keys, all tests pass ✅
 
 ---
 

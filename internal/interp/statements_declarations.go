@@ -196,15 +196,10 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 					value = &NilValue{}
 				}
 			} else {
-				// Check if this is an array type
-				arrayTypeKey := "__array_type_" + ident.Normalize(typeName)
-				if typeVal, ok := i.env.Get(arrayTypeKey); ok {
-					if atv, ok := typeVal.(*ArrayTypeValue); ok {
-						// Initialize with empty array value
-						value = NewArrayValue(atv.ArrayType)
-					} else {
-						value = &NilValue{}
-					}
+				// Check if this is an array type (Task 3.5.69c: use TypeSystem)
+				if arrayType := i.typeSystem.LookupArrayType(typeName); arrayType != nil {
+					// Initialize with empty array value
+					value = NewArrayValue(arrayType)
 				} else {
 					// Check if this is a subrange type
 					subrangeTypeKey := "__subrange_type_" + ident.Normalize(typeName)
@@ -348,12 +343,9 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 		}
 	}
 
-	// Check if this is an array type
-	arrayTypeKey := "__array_type_" + ident.Normalize(typeName)
-	if typeVal, ok := i.env.Get(arrayTypeKey); ok {
-		if atv, ok := typeVal.(*ArrayTypeValue); ok {
-			return NewArrayValue(atv.ArrayType)
-		}
+	// Check if this is an array type (Task 3.5.69c: use TypeSystem)
+	if arrayType := i.typeSystem.LookupArrayType(typeName); arrayType != nil {
+		return NewArrayValue(arrayType)
 	}
 
 	// Check if this is a subrange type

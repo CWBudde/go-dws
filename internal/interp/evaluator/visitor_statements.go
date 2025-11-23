@@ -1183,7 +1183,8 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 	}
 
 	// Check if this is an array type (named type)
-	if e.adapter.IsArrayType(typeName) {
+	// Task 3.5.69d: Use direct TypeRegistry access instead of adapter
+	if e.typeSystem.HasArrayType(typeName) {
 		arrayVal, err := e.adapter.CreateArrayZeroValue(typeName)
 		if err == nil {
 			return arrayVal

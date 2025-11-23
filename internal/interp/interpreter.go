@@ -554,14 +554,9 @@ func (i *Interpreter) CreateDefaultValue(typeName string) evaluator.Value {
 		}
 	}
 
-	// Check for array types
-	if i.IsArrayType(typeName) {
-		arrayTypeKey := "__array_type_" + normalizedName
-		if typeVal, ok := i.env.Get(arrayTypeKey); ok {
-			if atv, ok := typeVal.(*ArrayTypeValue); ok {
-				return NewArrayValue(atv.ArrayType)
-			}
-		}
+	// Check for array types (Task 3.5.69c: use TypeSystem)
+	if arrayType := i.typeSystem.LookupArrayType(typeName); arrayType != nil {
+		return NewArrayValue(arrayType)
 	}
 
 	// Check for set types
@@ -593,11 +588,9 @@ func (i *Interpreter) IsRecordType(typeName string) bool {
 }
 
 // IsArrayType checks if a given name refers to an array type.
+// Task 3.5.69c: Migrated to use TypeSystem instead of environment lookup.
 func (i *Interpreter) IsArrayType(typeName string) bool {
-	normalizedName := ident.Normalize(typeName)
-	arrayTypeKey := "__array_type_" + normalizedName
-	_, ok := i.env.Get(arrayTypeKey)
-	return ok
+	return i.typeSystem.HasArrayType(typeName)
 }
 
 // ===== Task 3.5.38: Variable Declaration Adapter Method Implementations =====
@@ -781,20 +774,14 @@ func (i *Interpreter) CreateRecordZeroValue(recordTypeName string) (evaluator.Va
 }
 
 // CreateArrayZeroValue creates a zero-initialized array value.
+// Task 3.5.69c: Migrated to use TypeSystem instead of environment lookup.
 func (i *Interpreter) CreateArrayZeroValue(arrayTypeName string) (evaluator.Value, error) {
-	normalizedName := ident.Normalize(arrayTypeName)
-	arrayTypeKey := "__array_type_" + normalizedName
-	typeVal, ok := i.env.Get(arrayTypeKey)
-	if !ok {
+	arrayType := i.typeSystem.LookupArrayType(arrayTypeName)
+	if arrayType == nil {
 		return nil, fmt.Errorf("array type '%s' not found", arrayTypeName)
 	}
 
-	atv, ok := typeVal.(*ArrayTypeValue)
-	if !ok {
-		return nil, fmt.Errorf("type '%s' is not an array type", arrayTypeName)
-	}
-
-	return NewArrayValue(atv.ArrayType), nil
+	return NewArrayValue(arrayType), nil
 }
 
 // CreateSetZeroValue creates an empty set value.
