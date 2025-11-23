@@ -17,6 +17,20 @@ type Value interface {
 	String() string
 }
 
+// ObjectValue is an optional interface that object instances can implement
+// to provide direct access to class metadata without going through the adapter.
+// Task 3.5.72: Enables direct property/method existence checks.
+type ObjectValue interface {
+	Value
+	// ClassName returns the class name of this object instance.
+	ClassName() string
+	// HasProperty checks if this object's class has a property with the given name.
+	// The check includes the entire class hierarchy.
+	HasProperty(name string) bool
+	// HasMethod checks if this object's class has a method with the given name.
+	HasMethod(name string) bool
+}
+
 // Config holds configuration options for the evaluator.
 type Config struct {
 	SourceCode        string

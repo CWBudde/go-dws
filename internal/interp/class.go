@@ -395,6 +395,35 @@ func (o *ObjectInstance) String() string {
 	return fmt.Sprintf("%s instance", o.Class.Name)
 }
 
+// ClassName returns the class name of this object instance.
+// Task 3.5.72: Implements evaluator.ObjectValue interface.
+func (o *ObjectInstance) ClassName() string {
+	if o == nil || o.Class == nil {
+		return ""
+	}
+	return o.Class.Name
+}
+
+// HasProperty checks if this object's class has a property with the given name.
+// The check includes the entire class hierarchy.
+// Task 3.5.72: Implements evaluator.ObjectValue interface.
+func (o *ObjectInstance) HasProperty(name string) bool {
+	if o == nil || o.Class == nil {
+		return false
+	}
+	return o.Class.lookupProperty(name) != nil
+}
+
+// HasMethod checks if this object's class has a method with the given name.
+// Task 3.5.72: Implements evaluator.ObjectValue interface.
+func (o *ObjectInstance) HasMethod(name string) bool {
+	if o == nil || o.Class == nil {
+		return false
+	}
+	_, exists := o.Class.Methods[ident.Normalize(name)]
+	return exists
+}
+
 // IsInstanceOf checks whether the object derives from the given class.
 func (o *ObjectInstance) IsInstanceOf(target *ClassInfo) bool {
 	if o == nil || o.Class == nil || target == nil {
