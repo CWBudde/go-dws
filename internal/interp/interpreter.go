@@ -1824,19 +1824,19 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 	// Get object instance
 	objVal, ok := internalObj.(*ObjectInstance)
 	if !ok {
-		panic(fmt.Sprintf("not an object: %s", internalObj.Type()))
+		return i.newErrorWithLocation(node, "not an object: %s", internalObj.Type())
 	}
 
 	// Get class info
 	classInfo := objVal.Class
 	if classInfo == nil {
-		panic("object has no class information")
+		return i.newErrorWithLocation(node, "object has no class information")
 	}
 
 	// Find method (case-insensitive) using the existing helper
 	method := classInfo.lookupMethod(methodName)
 	if method == nil {
-		panic(fmt.Sprintf("method '%s' not found in class '%s'", methodName, classInfo.Name))
+		return i.newErrorWithLocation(node, "method '%s' not found in class '%s'", methodName, classInfo.Name)
 	}
 
 	// Call the method using existing infrastructure
@@ -2934,6 +2934,21 @@ func (i *Interpreter) popCallStack() {
 func (i *Interpreter) Eval(node ast.Node) Value {
 	// Track the current node for error reporting
 	i.currentNode = node
+
+	// Task 3.5.45: Sync the interpreter's environment to the execution context
+	// This ensures that environment changes (e.g., lambda scopes, function calls)
+	// are visible to the Evaluator. Without this, lambdas and functions that create
+	// new scopes will fail because the Evaluator uses a stale environment.
+	//
+	// We save the old environment and restore it after evaluation to ensure
+	// that nested Eval calls (e.g., in lambda bodies) don't corrupt the context.
+	savedCtxEnv := i.ctx.Env()
+	i.ctx.SetEnv(evaluator.NewEnvironmentAdapter(i.env))
+
+	// Ensure we restore the context environment even if evaluation panics
+	defer func() {
+		i.ctx.SetEnv(savedCtxEnv)
+	}()
 
 	// Delegate all evaluation to the Evaluator
 	// The Evaluator uses the visitor pattern and may delegate back for not-yet-migrated cases
