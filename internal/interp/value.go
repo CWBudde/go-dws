@@ -255,11 +255,16 @@ func (r *RecordValue) GetMethod(name string) *ast.FunctionDecl {
 				// Reconstruct parameters from metadata
 				params := make([]*ast.Parameter, len(methodMeta.Parameters))
 				for i, paramMeta := range methodMeta.Parameters {
+					// Reconstruct Type from TypeName for implicit conversion support
+					var paramType ast.TypeExpression
+					if paramMeta.TypeName != "" {
+						paramType = &ast.TypeAnnotation{Name: paramMeta.TypeName}
+					}
 					params[i] = &ast.Parameter{
 						Name:         &ast.Identifier{Value: paramMeta.Name},
+						Type:         paramType,
 						ByRef:        paramMeta.ByRef,
 						DefaultValue: paramMeta.DefaultValue,
-						// Type is not stored in metadata, will be resolved from TypeName if needed
 					}
 				}
 
