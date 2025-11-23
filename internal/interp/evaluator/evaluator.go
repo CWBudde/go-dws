@@ -7,11 +7,6 @@ import (
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
-
-	// Task 3.8.2: pkg/ast is imported for SemanticInfo, which holds semantic analysis
-	// metadata (type annotations, symbol resolutions). This is separate from the AST
-	// structure itself and is not aliased in internal/ast.
-	pkgast "github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // Value represents a runtime value in the DWScript interpreter.
@@ -673,7 +668,7 @@ type Evaluator struct {
 	config            *Config
 	unitRegistry      *units.UnitRegistry
 	initializedUnits  map[string]bool
-	semanticInfo      *pkgast.SemanticInfo
+	semanticInfo      *ast.SemanticInfo
 	loadedUnits       []string
 	randSeed          int64
 }
@@ -799,12 +794,12 @@ func (e *Evaluator) AddLoadedUnit(unitName string) {
 }
 
 // SemanticInfo returns the semantic analysis metadata.
-func (e *Evaluator) SemanticInfo() *pkgast.SemanticInfo {
+func (e *Evaluator) SemanticInfo() *ast.SemanticInfo {
 	return e.semanticInfo
 }
 
 // SetSemanticInfo sets the semantic analysis metadata.
-func (e *Evaluator) SetSemanticInfo(info *pkgast.SemanticInfo) {
+func (e *Evaluator) SetSemanticInfo(info *ast.SemanticInfo) {
 	e.semanticInfo = info
 }
 
