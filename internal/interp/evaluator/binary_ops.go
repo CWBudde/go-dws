@@ -552,6 +552,7 @@ func (e *Evaluator) evalInOperator(value, container Value, node ast.Node) Value 
 // Supports: + (union), - (difference), * (intersection).
 // Task 3.5.19: Delegate to adapter for SetValue operations.
 // Phase 3.5.44: Added ctx parameter for proper environment scoping.
+// Task 3.5.47: Use specific EvalSetBinaryOperation adapter method instead of generic EvalNodeWithContext.
 func (e *Evaluator) evalSetBinaryOp(op string, left, right Value, node ast.Node, ctx *ExecutionContext) Value {
 	// Set operations are complex and require access to:
 	// - SetValue type and its storage backends (bitmask vs map)
@@ -559,7 +560,7 @@ func (e *Evaluator) evalSetBinaryOp(op string, left, right Value, node ast.Node,
 	// - evalBinarySetOperation in interpreter
 	// These are in interp package and haven't been migrated yet
 	// Delegate to adapter which will call the Interpreter's evalBinarySetOperation
-	return e.adapter.EvalNodeWithContext(node, ctx)
+	return e.adapter.EvalSetBinaryOperation(op, left, right, node, ctx)
 }
 
 // evalVariantBinaryOp handles binary operations with Variant operands.
@@ -627,11 +628,12 @@ func (e *Evaluator) evalPlusUnaryOp(operand Value, node ast.Node) Value {
 // For Integer: bitwise NOT
 // For Variant: unwrap and apply NOT to underlying value
 // Phase 3.5.44: Added ctx parameter for proper environment scoping.
+// Task 3.5.47: Use specific EvalVariantUnaryNot adapter method instead of generic EvalNodeWithContext.
 func (e *Evaluator) evalNotUnaryOp(operand Value, node ast.Node, ctx *ExecutionContext) Value {
 	// Check if this is a Variant - delegate to adapter for now
 	// Variant NOT is complex and needs VariantValue type
 	if operand.Type() == "VARIANT" {
-		return e.adapter.EvalNodeWithContext(node, ctx)
+		return e.adapter.EvalVariantUnaryNot(operand, node, ctx)
 	}
 
 	// Handle boolean NOT

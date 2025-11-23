@@ -346,6 +346,7 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 
 // VisitAssignmentStatement evaluates an assignment statement.
 // Task 3.5.41: Delegates to adapter for full assignment handling.
+// Task 3.5.47: Use specific EvalAssignment adapter method instead of generic EvalNodeWithContext.
 //
 // The adapter handles all assignment complexity including:
 // - Simple assignment: x := value
@@ -358,7 +359,7 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 //
 // See comprehensive documentation in internal/interp/statements_assignments.go
 func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNodeWithContext(node, ctx)
+	return e.adapter.EvalAssignment(node, ctx)
 }
 
 // VisitBlockStatement evaluates a block statement (begin...end).
