@@ -1,17 +1,13 @@
 package evaluator
 
 import (
+	"fmt"
 	"io"
 	"math/rand"
 
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
-
-	// Task 3.8.2: pkg/ast is imported for SemanticInfo, which holds semantic analysis
-	// metadata (type annotations, symbol resolutions). This is separate from the AST
-	// structure itself and is not aliased in internal/ast.
-	pkgast "github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // Value represents a runtime value in the DWScript interpreter.
@@ -240,8 +236,6 @@ type InterpreterAdapter interface {
 
 	// GetEnumTypeID returns the type ID for an enum type, or 0 if not found.
 	GetEnumTypeID(enumName string) int
-
-	// ===== Task 3.5.5: Type System Access Methods =====
 
 	// GetType resolves a type by name.
 	// Returns the resolved type and an error if the type is not found.
@@ -474,9 +468,6 @@ type InterpreterAdapter interface {
 	// Returns a new ExecutionContext with the enclosed environment.
 	CreateEnclosedEnvironment(ctx *ExecutionContext) *ExecutionContext
 
-	// Phase 3.5.4 - Phase 2C: Property & Indexing System infrastructure
-	// Property and indexing operations are available through existing infrastructure:
-	//
 	// PropertyEvalContext: Available via ExecutionContext.PropContext() for recursion prevention
 	// Property dispatch: Available via EvalNode delegation (uses Phase 2A function calls + Phase 2B type lookups)
 	// Array indexing: Available via EvalNode delegation (bounds checking integrated)
@@ -791,7 +782,7 @@ type Evaluator struct {
 	config            *Config
 	unitRegistry      *units.UnitRegistry
 	initializedUnits  map[string]bool
-	semanticInfo      *pkgast.SemanticInfo
+	semanticInfo      *ast.SemanticInfo
 	loadedUnits       []string
 	randSeed          int64
 }
@@ -917,12 +908,12 @@ func (e *Evaluator) AddLoadedUnit(unitName string) {
 }
 
 // SemanticInfo returns the semantic analysis metadata.
-func (e *Evaluator) SemanticInfo() *pkgast.SemanticInfo {
+func (e *Evaluator) SemanticInfo() *ast.SemanticInfo {
 	return e.semanticInfo
 }
 
 // SetSemanticInfo sets the semantic analysis metadata.
-func (e *Evaluator) SetSemanticInfo(info *pkgast.SemanticInfo) {
+func (e *Evaluator) SetSemanticInfo(info *ast.SemanticInfo) {
 	e.semanticInfo = info
 }
 
@@ -1084,13 +1075,8 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 		return e.VisitTypeDeclaration(n, ctx)
 
 	default:
-		// Phase 3.5.2: Unknown node type - delegate to adapter if available
-		// This provides a safety net during the migration
-		// Phase 3.5.44: Use EvalNodeWithContext to preserve scoped environments
-		if e.adapter != nil {
-			return e.adapter.EvalNodeWithContext(node, ctx)
-		}
-		// If no adapter, this is an error (unknown node type)
-		panic("Evaluator.Eval: unknown node type and no adapter available")
+		// Phase 3.5.48: All known node types are handled above.
+		// Unknown node types indicate a bug (missing case) or an invalid AST.
+		panic(fmt.Sprintf("Evaluator.Eval: unknown node type %T", node))
 	}
 }
