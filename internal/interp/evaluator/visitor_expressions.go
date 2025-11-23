@@ -196,10 +196,12 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 	// Check if this is a parameterless built-in function
 	// Built-in functions like PrintLn can be called without parentheses
-	// Try calling with no arguments - if it fails, it's undefined
-	result := e.adapter.CallBuiltinFunction(node.Value, []Value{})
-	if !isError(result) {
-		return result
+	// First check if it's a built-in to avoid unnecessary call attempts
+	if e.adapter.IsBuiltinFunction(node.Value) {
+		result := e.adapter.CallBuiltinFunction(node.Value, []Value{})
+		if !isError(result) {
+			return result
+		}
 	}
 
 	// Not a variable, function, class, or built-in - undefined identifier

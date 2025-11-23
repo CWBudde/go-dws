@@ -327,6 +327,12 @@ func (i *Interpreter) CallBuiltinFunction(name string, args []evaluator.Value) e
 	return i.callBuiltinFunction(name, convertEvaluatorArgs(args))
 }
 
+// IsBuiltinFunction checks if a name refers to a built-in function.
+// This avoids unnecessary function call attempts for undefined identifiers.
+func (i *Interpreter) IsBuiltinFunction(name string) bool {
+	return i.isBuiltinFunction(name)
+}
+
 // EvalCallExpression evaluates a call expression using the interpreter's full logic.
 // Task 3.5.46: Specific adapter method to replace generic EvalNodeWithContext for calls.
 func (i *Interpreter) EvalCallExpression(node *ast.CallExpression, ctx *evaluator.ExecutionContext) evaluator.Value {

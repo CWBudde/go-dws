@@ -553,7 +553,6 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
   - Effort: 8-12 hours (6 hours spent, 2-6 hours remaining)
   - Acceptance: ✅ Interpreter is thin orchestrator, ⏳ Tests mostly passing (3 edge cases), ⏳ Adapter removal pending
   - **Status**: Core architectural change complete. Interpreter.Eval() successfully delegates to Evaluator.Eval(). Most tests passing. Adapter pattern still in place for not-yet-migrated functionality. Edge cases: closure capture (1 test), assert output formatting (2 tests).
-  - **Commits**: fb590e2 (initial implementation), 5507d5a (bug fixes)
 
 - [ ] **3.5.45** Fix Edge Case Test Failures
   - Fix closure capture test (TestSimpleClosureCapture returns 0 instead of 50)
@@ -584,7 +583,6 @@ This phase eliminates AST dependencies from runtime value types, enabling the Ev
   - Acceptance: No adapter.EvalNode() calls in visitor_expressions.go
   - Dependencies: 3.5.45
   - **Completed**: Successfully removed all generic adapter.EvalNode() and adapter.EvalNodeWithContext() calls from visitor_expressions.go. Added 9 new specific adapter methods: CreateClassValueFromName, EvalCallExpression, EvalMemberAccessExpression, EvalMethodCallExpression, EvalSetLiteral, EvalArrayLiteral, EvalNewArrayExpression, EvalIndexExpression, EvalRangeExpression. All adapter calls now use specific, descriptive method names. Code compiles and acceptance criteria met.
-  - **Commit**: c332099
 
 - [ ] **3.5.47** Migrate Remaining Statement and Binary Op Visitors
   - Remove adapter.EvalNode() calls in visitor_statements.go (AssignmentStatement)

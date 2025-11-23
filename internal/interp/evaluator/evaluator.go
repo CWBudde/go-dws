@@ -72,6 +72,10 @@ type InterpreterAdapter interface {
 	// CallBuiltinFunction executes a built-in function by name.
 	CallBuiltinFunction(name string, args []Value) Value
 
+	// IsBuiltinFunction checks if a name refers to a built-in function.
+	// This is used to avoid unnecessary function call attempts for undefined identifiers.
+	IsBuiltinFunction(name string) bool
+
 	// LookupFunction finds a function by name in the function registry.
 	// Returns the function declaration(s) and a boolean indicating success.
 	// Multiple functions may be returned for overloaded functions.
