@@ -500,9 +500,7 @@ type InterpreterAdapter interface {
 	// Returns true if the value is a lazy parameter that needs evaluation.
 	IsLazyThunk(value Value) bool
 
-	// IsReferenceValue checks if a value is a ReferenceValue.
-	// Returns true if the value is a var parameter reference that needs dereferencing.
-	IsReferenceValue(value Value) bool
+	// Task 3.5.71: IsReferenceValue removed - use val.Type() == "REFERENCE" directly
 
 	// EvaluateLazyThunk forces evaluation of a lazy parameter.
 	// Returns the evaluated value.
@@ -538,10 +536,7 @@ type InterpreterAdapter interface {
 	CreateReferenceValue(varName string, env any) Value
 
 	// ===== Task 3.5.22: Property & Method Reference Adapter Methods =====
-
-	// IsObjectInstance checks if a value is an ObjectInstance.
-	// Returns true if the value is an object instance.
-	IsObjectInstance(value Value) bool
+	// Task 3.5.71: IsObjectInstance removed - use val.Type() == "OBJECT" directly
 
 	// GetObjectFieldValue retrieves a field value from an object instance.
 	// Returns the field value and true if found, nil and false otherwise.
@@ -588,9 +583,7 @@ type InterpreterAdapter interface {
 	// Returns the ClassValue representing the object's runtime class.
 	GetClassType(obj Value) Value
 
-	// IsClassInfoValue checks if a value is a ClassInfoValue.
-	// Returns true if the value represents class metadata (from __CurrentClass__).
-	IsClassInfoValue(value Value) bool
+	// Task 3.5.71: IsClassInfoValue removed - use val.Type() == "CLASSINFO" directly
 
 	// GetClassNameFromClassInfo returns the class name from a ClassInfoValue.
 	// Returns the class name string.
