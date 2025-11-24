@@ -64,6 +64,28 @@ type LazyEvaluator interface {
 	Evaluate() Value
 }
 
+// InterfaceInstanceValue is an optional interface that interface instances can implement
+// to provide direct access to the underlying object and interface metadata without adapter.
+// Task 3.5.87: Enables direct interface member access verification.
+type InterfaceInstanceValue interface {
+	Value
+	// GetUnderlyingObjectValue returns the object wrapped by this interface instance.
+	// Returns nil if the interface instance wraps a nil object.
+	// Note: Returns Value to avoid circular imports; caller should type-assert to ObjectValue.
+	// Note: Named differently from GetUnderlyingObject() to allow coexistence with
+	// concrete return type method for backwards compatibility.
+	GetUnderlyingObjectValue() Value
+	// InterfaceName returns the name of the interface type.
+	// Used for error messages and debugging.
+	InterfaceName() string
+	// HasInterfaceMethod checks if the interface declares a method with the given name.
+	// The check includes parent interfaces.
+	HasInterfaceMethod(name string) bool
+	// HasInterfaceProperty checks if the interface declares a property with the given name.
+	// The check includes parent interfaces.
+	HasInterfaceProperty(name string) bool
+}
+
 // Config holds configuration options for the evaluator.
 type Config struct {
 	SourceCode        string
