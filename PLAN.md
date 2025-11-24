@@ -548,27 +548,38 @@ the adapter has substantial logic for this. Recommend tackling in small, focused
   - Uses EvaluateLValue for string reference
   - Files: `evaluator/var_params.go`, `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.93e** Migrate Swap/DivMod Built-ins
-  - Handle `Swap(a, b)` - exchanges two variables
+- [x] **3.5.93e** Migrate Swap/DivMod Built-ins ✅
+  - Handle `Swap(a, b)` - exchanges two variables using EvaluateLValue
   - Handle `DivMod(dividend, divisor, quotient, remainder)` - 4 params, 2 are var
-  - Files: `evaluator/visitor_expressions.go`
+  - Files: `evaluator/var_params.go`, `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.93f** Migrate TryStrToInt/TryStrToFloat Built-ins
-  - Handle `TryStrToInt(str, outValue)` - returns bool, outValue is var param
-  - Handle `TryStrToFloat(str, outValue)` - returns bool, outValue is var param
-  - Files: `evaluator/visitor_expressions.go`
+- [x] **3.5.93f** Migrate TryStrToInt/TryStrToFloat Built-ins ✅
+  - Handle `TryStrToInt(str, outValue)` or `TryStrToInt(str, base, outValue)` - returns Boolean
+  - Handle `TryStrToFloat(str, outValue)` - returns Boolean
+  - Pattern: Parse string, return true/false, only update var param on success
+  - Uses EvaluateLValue for var parameter handling with any lvalue type
+  - Files: `evaluator/var_params.go`, `evaluator/visitor_expressions.go`, `functions_calls.go`
+  - Note: TryStrToInt has 2-arg and 3-arg forms (base parameter)
+  - Note: These return Boolean (unlike nil-returning var-param functions)
+  - Needs: `strconv.ParseInt`, `strconv.ParseFloat`, `strings.TrimSpace`
+  - See: `internal/interp/builtins_convert_advanced.go:14-107` (TryStrToInt)
+  - See: `internal/interp/builtins_convert_advanced.go:170-228` (TryStrToFloat)
+  - Files: `evaluator/var_params.go`, `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.93g** Migrate DecodeDate/DecodeTime Built-ins
-  - Handle `DecodeDate(date, year, month, day)` - 4 params, 3 are var
-  - Handle `DecodeTime(time, hour, min, sec, msec)` - 5 params, 4 are var
-  - Most complex due to multiple output parameters
-  - Files: `evaluator/visitor_expressions.go`
+- [x] **3.5.93g** Migrate DecodeDate/DecodeTime Built-ins ✅
+  - Handle `DecodeDate(dt, var year, var month, var day)` - 4 params, 3 are var
+  - Handle `DecodeTime(dt, var hour, var minute, var second, var msec)` - 5 params, 4 are var
+  - Pattern: Extract components from TDateTime (Float), assign to multiple var params
+  - Note: First arg is Float (TDateTime), remaining args are Integer var params
+  - Uses EvaluateLValue for var parameter handling with any lvalue type
+  - Created datetime helper functions in `evaluator/datetime_helpers.go`
+  - Files: `evaluator/var_params.go`, `evaluator/visitor_expressions.go`, `evaluator/datetime_helpers.go`, `functions_calls.go`
 
 ---
 
 **3.5.94-3.5.97: Other VisitCallExpression Cases**
 
-- [ ] **3.5.94** Replace VisitCallExpression default/type cast
+- [x] **3.5.94** Replace VisitCallExpression default/type cast
   - 2 calls at lines 546, 554
   - `Default(TypeName)` - returns default value for type
   - `TypeName(expr)` - type cast expressions

@@ -428,6 +428,11 @@ type InterpreterAdapter interface {
 	// Returns the casted value and an error if the cast fails.
 	CastType(obj Value, typeName string) (Value, error)
 
+	// CastToClass performs class type casting for TypeName(expr) expressions.
+	// Task 3.5.94: Delegates class casting logic to the Interpreter during type cast migration.
+	// Returns the casted value with proper static type preservation.
+	CastToClass(val Value, className string, node ast.Expression) Value
+
 	// CheckImplements checks if an object/class implements an interface (implements 'implements' operator).
 	// Task 3.5.36: Supports ObjectInstance, ClassValue, and ClassInfoValue inputs.
 	// Returns true if the class implements the specified interface.

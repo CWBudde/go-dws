@@ -2,7 +2,6 @@ package evaluator
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -562,9 +561,18 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		return e.builtinSetLength(node.Arguments, ctx)
 	case "insert":
 		return e.builtinInsert(node.Arguments, ctx)
-	case "decodedate", "decodetime", "swap", "divmod", "trystrtoint", "trystrtofloat":
-		// These still use the adapter (not yet migrated)
-		return e.adapter.EvalNode(node)
+	case "swap":
+		return e.builtinSwap(node.Arguments, ctx)
+	case "divmod":
+		return e.builtinDivMod(node.Arguments, ctx)
+	case "trystrtoint":
+		return e.builtinTryStrToInt(node.Arguments, ctx)
+	case "trystrtofloat":
+		return e.builtinTryStrToFloat(node.Arguments, ctx)
+	case "decodedate":
+		return e.builtinDecodeDate(node.Arguments, ctx)
+	case "decodetime":
+		return e.builtinDecodeTime(node.Arguments, ctx)
 	case "delete":
 		// Only the 3-parameter form needs var parameter handling
 		// Delete(str, pos, count) modifies str in place
@@ -579,28 +587,23 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		return e.adapter.EvalNode(node)
 	}
 
-	// Task 3.5.24: Default(TypeName) function - expects unevaluated type identifier
+	// Task 3.5.94: Default(TypeName) function - expects unevaluated type identifier
 	// Example: Default(Integer) returns 0, Default(String) returns ""
 	// The type name is NOT evaluated as an expression
 	if funcNameLower == "default" && len(node.Arguments) == 1 {
-		return e.adapter.EvalNode(node)
+		return e.builtinDefault(node.Arguments, ctx)
 	}
 
-	// Task 3.5.24: Type casts - TypeName(expression) for single-argument calls
+	// Task 3.5.94: Type casts - TypeName(expression) for single-argument calls
 	// Examples: Integer(3.14), String(42), Boolean(1), TMyClass(someObject)
 	// Supported types: Integer, Float, String, Boolean, Variant, Enum types, Class types
 	// Falls through to built-in functions if not a type cast
 	if len(node.Arguments) == 1 {
-		result := e.adapter.EvalNode(node)
-		// If type cast succeeded or there's a real error (not "unknown function"), return it
-		if result != nil && !isError(result) {
+		result := e.evalTypeCast(funcName.Value, node.Arguments[0], ctx)
+		// If type cast succeeded (not nil), return it
+		// nil means it's not a type cast, so continue to built-in functions
+		if result != nil {
 			return result
-		}
-		if isError(result) {
-			if !strings.Contains(result.String(), "unknown function") &&
-				!strings.Contains(result.String(), "undefined identifier") {
-				return result
-			}
 		}
 	}
 
