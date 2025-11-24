@@ -20,6 +20,7 @@ type Value interface {
 // ObjectValue is an optional interface that object instances can implement
 // to provide direct access to class metadata without going through the adapter.
 // Task 3.5.72: Enables direct property/method existence checks.
+// Task 3.5.86: Extended with GetField and GetClassVar for member access.
 type ObjectValue interface {
 	Value
 	// ClassName returns the class name of this object instance.
@@ -29,6 +30,22 @@ type ObjectValue interface {
 	HasProperty(name string) bool
 	// HasMethod checks if this object's class has a method with the given name.
 	HasMethod(name string) bool
+	// GetField retrieves the value of a field by name.
+	// Returns the field value or nil if the field doesn't exist.
+	// Task 3.5.86: Enables direct field access without adapter.
+	GetField(name string) Value
+	// GetClassVar retrieves a class variable value by name.
+	// Returns the value and true if found, nil and false otherwise.
+	// Task 3.5.86: Enables direct class variable access without adapter.
+	GetClassVar(name string) (Value, bool)
+}
+
+// EnumAccessor is an optional interface for enum values.
+// Task 3.5.89: Enables direct access to enum ordinal value without adapter.
+type EnumAccessor interface {
+	Value
+	// GetOrdinal returns the ordinal (integer) value of the enum.
+	GetOrdinal() int
 }
 
 // ExternalVarAccessor is an optional interface for external variable values.

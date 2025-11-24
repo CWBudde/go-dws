@@ -1033,11 +1033,18 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Pattern: obj.Field, obj.Property, obj.Method
 		// Lookup order per spec (lines 894-900): Properties → Fields → Class Variables
 
+		// Task 3.5.86: Use ObjectValue interface for direct member access
+		objVal, ok := obj.(ObjectValue)
+		if !ok {
+			return e.adapter.EvalNode(node)
+		}
+
 		// Try property access first (with recursion protection)
 		propCtx := ctx.PropContext()
 		if propCtx == nil || (!propCtx.InPropertyGetter && !propCtx.InPropertySetter) {
 			// Task 3.5.72: Use ObjectValue interface for direct property check
-			if objVal, ok := obj.(ObjectValue); ok && objVal.HasProperty(memberName) {
+			if objVal.HasProperty(memberName) {
+				// Property reading still uses adapter due to complex method invocation logic
 				propValue, err := e.adapter.ReadPropertyValue(obj, memberName, node)
 				if err == nil {
 					return propValue
@@ -1045,13 +1052,13 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			}
 		}
 
-		// Try field access
-		if fieldValue, found := e.adapter.GetObjectFieldValue(obj, memberName); found {
+		// Task 3.5.86: Direct field access via ObjectValue interface
+		if fieldValue := objVal.GetField(memberName); fieldValue != nil {
 			return fieldValue
 		}
 
-		// Try class variable access
-		if classVarValue, found := e.adapter.GetClassVariableValue(obj, memberName); found {
+		// Task 3.5.86: Direct class variable access via ObjectValue interface
+		if classVarValue, found := objVal.GetClassVar(memberName); found {
 			return classVarValue
 		}
 
@@ -1089,9 +1096,15 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		return e.adapter.EvalNode(node)
 
 	case "ENUM":
-		// Task 3.5.25: Enum value properties (Mode 10)
+		// Task 3.5.89: Enum value properties (Mode 10)
 		// Pattern: enumVal.Value
-		// Delegate to adapter for enum property access
+		// Handle .Value property directly via EnumAccessor interface
+		if enumVal, ok := obj.(EnumAccessor); ok {
+			if ident.Equal(memberName, "Value") {
+				return &runtime.IntegerValue{Value: int64(enumVal.GetOrdinal())}
+			}
+		}
+		// Other enum properties (.Name, .ToString, etc.) handled by helpers via adapter
 		return e.adapter.EvalNode(node)
 
 	default:
