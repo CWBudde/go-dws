@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -69,46 +70,6 @@ func (i *Interpreter) evalArrayDeclaration(decl *ast.ArrayDecl) Value {
 	return &NilValue{} // Type declarations don't return a value
 }
 
-// ============================================================================
-// Multi-Index Support
-// ============================================================================
-
-// collectIndices flattens nested IndexExpression nodes for multi-index properties.
-// The parser converts multi-index syntax like obj.Data[1, 2] into nested IndexExpression nodes:
-//
-//	((obj.Data)[1])[2]
-//
-// This function walks the chain and extracts:
-//   - base: The actual object.property being accessed (e.g., obj.Data)
-//   - indices: All index expressions in order (e.g., [1, 2])
-//
-// This supports multi-dimensional indexed properties like:
-//
-//	property Cells[x, y: Integer]: Float read GetCell write SetCell;
-func collectIndices(expr *ast.IndexExpression) (base ast.Expression, indices []ast.Expression) {
-	indices = make([]ast.Expression, 0, 4) // Most properties have ≤4 dimensions
-	current := expr
-
-	// Walk down the chain of nested IndexExpression nodes
-	for {
-		// Prepend this level's index to maintain left-to-right order
-		// We prepend because we're traversing from outermost to innermost
-		indices = append([]ast.Expression{current.Index}, indices...)
-
-		// Check if Left is another IndexExpression (nested)
-		if leftIndex, ok := current.Left.(*ast.IndexExpression); ok {
-			current = leftIndex
-			continue
-		}
-
-		// Found the base expression (e.g., obj.Property or arr)
-		base = current.Left
-		break
-	}
-
-	return base, indices
-}
-
 // evalIndexExpression evaluates array/string indexing: arr[i]
 func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 	if expr == nil {
@@ -118,7 +79,7 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 	// Check if this might be a multi-index property access
 	// We only flatten indices if the base is a MemberAccessExpression (property access)
 	// For regular array access like arr[i][j], we process each level separately
-	base, indices := collectIndices(expr)
+	base, indices := evaluator.CollectIndices(expr)
 
 	// Check if this is indexed property access: obj.Property[index1, index2, ...]
 	// Only flatten indices for property access, not for regular arrays

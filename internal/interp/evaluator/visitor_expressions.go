@@ -1737,8 +1737,9 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 
 // VisitSetLiteral evaluates a set literal [value1, value2, ...].
 // Handles simple elements, ranges, and mixed sets with proper type inference.
+// Task 3.5.80: Direct evaluation without adapter EvalNode call.
 func (e *Evaluator) VisitSetLiteral(node *ast.SetLiteral, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNode(node)
+	return e.evalSetLiteralDirect(node, ctx)
 }
 
 // VisitArrayLiteralExpression evaluates an array literal [1, 2, 3].

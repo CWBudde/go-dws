@@ -353,9 +353,9 @@ Helper functions for ordinal types, index collection, and type inference need to
   - Files: `value.go` → `evaluator/ordinal_helpers.go`
   - Unblocks: 3.5.80
 
-- [ ] **3.5.78** Move Index Collection Helper
-  - Move `collectIndices` to evaluator package
-  - Used by evalIndexExpression for multi-index property access
+- [x] **3.5.78** Move Index Collection Helper ✅
+  - Moved `CollectIndices` to `evaluator/index_helpers.go` (exported)
+  - Updated callers in `array.go` and `statements_assignments.go`
   - Files: `interp/array.go` → `evaluator/index_helpers.go`
   - Unblocks: 3.5.81
 
@@ -365,21 +365,23 @@ Helper functions for ordinal types, index collection, and type inference need to
 
 Evaluator needs to resolve type names for array construction and type casts.
 
-- [ ] **3.5.79** Add Type Resolution to Evaluator
-  - Add `resolveType(name string)` method using TypeRegistry
-  - Handle array types, enum types, class types
-  - Files: `evaluator/evaluator.go`
+- [x] **3.5.79** Add Type Resolution to Evaluator ✅
+  - Added `ResolveType(typeName string)` method in new `evaluator/type_resolution.go`
+  - Handles built-in types, inline array types, named array types via TypeSystem
+  - Falls back to adapter for enum/record/class/alias/subrange types
+  - Removed unused `resolveTypeName` from `array_helpers.go`
   - Unblocks: 3.5.80, 3.5.82, 3.5.83
 
 ---
 
 #### Group A: Array/Set Expression Visitors (4 calls, blocked on infrastructure)
 
-- [ ] **3.5.80** Replace VisitSetLiteral EvalNode
-  - 1 call at line 1741
-  - Requires: semanticInfo (3.5.76), ordinal helpers (3.5.77), type resolution (3.5.79)
-  - Migrate evalSetLiteral from set.go (~150 lines)
-  - Files: `evaluator/visitor_expressions.go`
+- [x] **3.5.80** Replace VisitSetLiteral EvalNode ✅
+  - Created `evaluator/set_helpers.go` with `evalSetLiteralDirect()`
+  - Handles simple elements, ranges, enum sets, and lazy integer ranges
+  - Uses semanticInfo, ordinal helpers, and type resolution infrastructure
+  - Retains adapter call only for array-in-set-syntax case (migrated in 3.5.83)
+  - Files: `evaluator/set_helpers.go`, `evaluator/visitor_expressions.go`
 
 - [ ] **3.5.81** Replace VisitIndexExpression EvalNode
   - 1 call at line 1814
@@ -519,9 +521,9 @@ These tasks are deferred until the adapter is minimal. They're complex and requi
 | 14: Minimize | 3.5.96-3.5.98 | Shrink adapter to essential methods |
 | 15: Future | 3.5.99-3.5.102 | Full removal (deferred) |
 
-**Phase 13 status:** 4 done (audit + VisitRangeExpression + SemanticInfo + OrdinalHelpers), 18 remaining
+**Phase 13 status:** 7 done (audit + VisitRangeExpression + SemanticInfo + OrdinalHelpers + IndexHelpers + TypeResolution + SetLiteral), 15 remaining
 
-**Total remaining: 25 tasks** (18 in Phase 13 + 3 in Phase 14 + 4 in Phase 15)
+**Total remaining: 22 tasks** (15 in Phase 13 + 3 in Phase 14 + 4 in Phase 15)
 
 Each task should be:
 - Completable in 30-60 minutes
