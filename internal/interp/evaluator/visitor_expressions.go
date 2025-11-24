@@ -463,21 +463,59 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	// Check for function pointer calls
 	// Task 3.5.23: Function pointer calls with closure handling, lazy params, and var params
 	// Task 3.5.70: Use direct environment access instead of adapter
+	// Task 3.5.95: Migrated parameter preparation logic from Interpreter.evalCallExpression
 	if funcIdent, ok := node.Function.(*ast.Identifier); ok {
 		if valRaw, exists := ctx.Env().Get(funcIdent.Value); exists {
 			val := valRaw.(Value)
 			if val.Type() == "FUNCTION_POINTER" || val.Type() == "LAMBDA" {
-				// Delegate to adapter which handles:
-				// - Closure environment restoration
-				// - Lazy parameter creation (CreateLazyThunk)
-				// - Var parameter creation (CreateReferenceValue)
-				// - Regular parameter evaluation
-				return e.adapter.EvalNode(node)
+				// Cast to FunctionPointerValue to access parameter metadata
+				funcPtr, ok := val.(*runtime.FunctionPointerValue)
+				if !ok {
+					return e.newError(node, "invalid function pointer type")
+				}
+
+				// Prepare arguments - handle lazy, var, and regular parameters
+				args := make([]Value, len(node.Arguments))
+				for idx, arg := range node.Arguments {
+					// Check parameter flags (only for regular function pointers, not lambdas)
+					isLazy := false
+					isByRef := false
+					if funcPtr.Function != nil && idx < len(funcPtr.Function.Parameters) {
+						isLazy = funcPtr.Function.Parameters[idx].IsLazy
+						isByRef = funcPtr.Function.Parameters[idx].ByRef
+					}
+
+					if isLazy {
+						// For lazy parameters, create a LazyThunk via adapter
+						// LazyThunk captures the argument expression and call-site environment
+						args[idx] = e.adapter.CreateLazyThunk(arg, ctx.Env())
+					} else if isByRef {
+						// For var parameters, create a ReferenceValue via adapter
+						// Var parameters must be lvalues (variables)
+						if argIdent, ok := arg.(*ast.Identifier); ok {
+							args[idx] = e.adapter.CreateReferenceValue(argIdent.Value, ctx.Env())
+						} else {
+							return e.newError(arg, "var parameter requires a variable, got %T", arg)
+						}
+					} else {
+						// For regular parameters, evaluate immediately
+						argVal := e.Eval(arg, ctx)
+						if isError(argVal) {
+							return argVal
+						}
+						args[idx] = argVal
+					}
+				}
+
+				// Call through the function pointer via adapter
+				// The adapter handles closure environment restoration and actual invocation
+				return e.adapter.CallFunctionPointer(val, args, node)
 			}
 		}
 	}
 
 	// Task 3.5.24: Member access calls (obj.Method(), UnitName.Func(), TClass.Create())
+	// Task 3.5.96: Migrated to use adapter methods instead of EvalNode
 	// Handles record methods, interface methods, object methods, unit-qualified functions, and constructor calls
 	if memberAccess, ok := node.Function.(*ast.MemberAccessExpression); ok {
 		objVal := e.Eval(memberAccess.Object, ctx)
@@ -485,18 +523,18 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 			return objVal
 		}
 
-		// Delegate record, interface, and object method calls to adapter
+		// Task 3.5.96: Member method calls (record, interface, object)
 		// Examples: myRecord.GetValue(), myInterface.Process(), myObj.DoSomething()
 		if objVal.Type() == "RECORD" || objVal.Type() == "INTERFACE" || objVal.Type() == "OBJECT" {
-			return e.adapter.EvalNode(node)
+			return e.adapter.CallMemberMethod(node, memberAccess, objVal)
 		}
 
-		// Task 3.5.24: Unit-qualified function calls and class constructor calls
+		// Task 3.5.96: Unit-qualified function calls and class constructor calls
 		// Examples: Math.Sin(x), TMyClass.Create(args)
-		// Task 3.5.64: Use direct TypeRegistry access instead of adapter
+		// Task 3.5.64: Use direct TypeRegistry access to check for class existence
 		if ident, ok := memberAccess.Object.(*ast.Identifier); ok {
 			if e.unitRegistry != nil || e.typeSystem.HasClass(ident.Value) {
-				return e.adapter.EvalNode(node)
+				return e.adapter.CallQualifiedOrConstructor(node, memberAccess)
 			}
 		}
 

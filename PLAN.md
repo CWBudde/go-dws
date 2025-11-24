@@ -586,19 +586,22 @@ the adapter has substantial logic for this. Recommend tackling in small, focused
   - Medium complexity: needs type resolution
   - Files: `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.95** Replace VisitCallExpression function pointer
-  - 1 call at line 445
-  - Closure environment capture
-  - Lazy params and var params in function pointers
-  - High complexity: interacts with closure system
-  - Files: `evaluator/visitor_expressions.go`
+- [x] **3.5.95** Replace VisitCallExpression function pointer ✅
+  - Migrated parameter preparation logic from `functions_calls.go` lines 30-68
+  - Handles lazy parameters via `CreateLazyThunk` adapter call
+  - Handles var parameters via `CreateReferenceValue` adapter call
+  - Regular parameters evaluated directly in evaluator
+  - Function pointer invocation via `CallFunctionPointer` adapter call
+  - All function pointer and lambda tests pass
+  - Files: `evaluator/visitor_expressions.go` (lines 463-515)
 
-- [ ] **3.5.96** Replace VisitCallExpression method calls
-  - 2 calls at lines 461, 469
-  - Record/interface/object method invocation
-  - Unit-qualified calls (`UnitName.FunctionName()`)
-  - High complexity: method dispatch logic
-  - Files: `evaluator/visitor_expressions.go`
+- [x] **3.5.96** Replace VisitCallExpression method calls ✅
+  - Removed 2 EvalNode calls (lines 528, 536)
+  - Added `CallMemberMethod` adapter method for record/interface/object methods
+  - Added `CallQualifiedOrConstructor` adapter method for unit-qualified calls and constructors
+  - Encapsulates complex logic: environment swapping (interfaces), MethodCallExpression creation
+  - All record, interface, and object method tests pass
+  - Files: `evaluator/evaluator.go` (interface), `interpreter.go` (implementation), `evaluator/visitor_expressions.go` (usage)
 
 - [ ] **3.5.97** Replace VisitCallExpression user functions
   - 3 calls at lines 496, 505, 516
@@ -714,7 +717,7 @@ These tasks are deferred until the adapter is minimal. They're complex and requi
 | 14: Minimize | 3.5.100-3.5.102 | Shrink adapter to essential methods |
 | 15: Future | 3.5.103-3.5.106 | Full removal (deferred) |
 
-**Phase 13 status:** 14 done, remaining tasks expanded into subtasks
+**Phase 13 status:** 16 done, remaining tasks expanded into subtasks
 
 **Task breakdown after expansion:**
 

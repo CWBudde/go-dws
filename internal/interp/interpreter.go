@@ -310,6 +310,150 @@ func (i *Interpreter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
 	return functions, ok
 }
 
+// ===== Task 3.5.96: Method and Qualified Call Methods =====
+
+// CallMemberMethod calls a method on an object (record, interface, or object instance).
+// Task 3.5.96: Enables evaluator to delegate member method calls without using EvalNode.
+func (i *Interpreter) CallMemberMethod(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression, objVal evaluator.Value) evaluator.Value {
+	// This method encapsulates the complex logic from evalCallExpression lines 82-120
+
+	// Check if this is a record method call
+	if recVal, ok := objVal.(*RecordValue); ok {
+		return i.evalRecordMethodCall(recVal, memberAccess, callExpr.Arguments, memberAccess.Object)
+	}
+
+	// Check if this is an interface method call
+	if ifaceInst, ok := objVal.(*InterfaceInstance); ok {
+		// Dispatch to the underlying object
+		if ifaceInst.Object == nil {
+			return i.newErrorWithLocation(callExpr, "cannot call method on nil interface")
+		}
+		// Call the method on the underlying object by temporarily swapping the variable
+		if objIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
+			savedVal, exists := i.env.Get(objIdent.Value)
+			if exists {
+				// Temporarily set to underlying object
+				_ = i.env.Set(objIdent.Value, ifaceInst.Object)
+				// Use defer to ensure restoration even if method call panics or returns early
+				defer func() { _ = i.env.Set(objIdent.Value, savedVal) }()
+
+				// Create a method call expression
+				mc := &ast.MethodCallExpression{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: callExpr.Token,
+						},
+					},
+					Object:    memberAccess.Object,
+					Method:    memberAccess.Member,
+					Arguments: callExpr.Arguments,
+				}
+				return i.evalMethodCall(mc)
+			}
+		}
+		return i.newErrorWithLocation(callExpr, "interface method call requires identifier")
+	}
+
+	// If it's an object, create a MethodCallExpression and evaluate it
+	// This handles regular object method calls
+	if objVal.Type() == "OBJECT" {
+		mc := &ast.MethodCallExpression{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: callExpr.Token,
+				},
+			},
+			Object:    memberAccess.Object,
+			Method:    memberAccess.Member,
+			Arguments: callExpr.Arguments,
+		}
+		return i.evalMethodCall(mc)
+	}
+
+	return i.newErrorWithLocation(callExpr, "cannot call method on value of type %s", objVal.Type())
+}
+
+// CallQualifiedOrConstructor calls a unit-qualified function or class constructor.
+// Task 3.5.96: Enables evaluator to delegate qualified calls without using EvalNode.
+func (i *Interpreter) CallQualifiedOrConstructor(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression) evaluator.Value {
+	// This method encapsulates the complex logic from evalCallExpression lines 122-201
+
+	// Check if the left side is a unit identifier (for qualified access: UnitName.FunctionName)
+	if unitIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
+		// This could be a unit-qualified call: UnitName.FunctionName()
+		if i.unitRegistry != nil {
+			if _, exists := i.unitRegistry.GetUnit(unitIdent.Value); exists {
+				// Resolve the qualified function
+				fn, err := i.ResolveQualifiedFunction(unitIdent.Value, memberAccess.Member.Value)
+				if err == nil {
+					// Prepare arguments - lazy parameters get LazyThunks, var parameters get References
+					args := make([]Value, len(callExpr.Arguments))
+					for idx, arg := range callExpr.Arguments {
+						// Check parameter flags
+						isLazy := idx < len(fn.Parameters) && fn.Parameters[idx].IsLazy
+						isByRef := idx < len(fn.Parameters) && fn.Parameters[idx].ByRef
+
+						if isLazy {
+							// For lazy parameters, create a LazyThunk
+							args[idx] = NewLazyThunk(arg, i.env, i)
+						} else if isByRef {
+							// For var parameters, create a reference
+							if argIdent, ok := arg.(*ast.Identifier); ok {
+								if val, exists := i.env.Get(argIdent.Value); exists {
+									if refVal, isRef := val.(*ReferenceValue); isRef {
+										args[idx] = refVal // Pass through existing reference
+									} else {
+										args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+									}
+								} else {
+									args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+								}
+							} else {
+								return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
+							}
+						} else {
+							// For regular parameters, evaluate immediately
+							val := i.Eval(arg)
+							if isError(val) {
+								return val
+							}
+							args[idx] = val
+						}
+					}
+					return i.callUserFunction(fn, args)
+				}
+				// Function not found in unit
+				return i.newErrorWithLocation(callExpr, "function '%s' not found in unit '%s'", memberAccess.Member.Value, unitIdent.Value)
+			}
+		}
+
+		// Check if this is a class constructor call (TClass.Create(...))
+		var classInfo *ClassInfo
+		for className, class := range i.classes {
+			if ident.Equal(className, unitIdent.Value) {
+				classInfo = class
+				break
+			}
+		}
+		if classInfo != nil {
+			// This is a class constructor/method call - convert to MethodCallExpression
+			mc := &ast.MethodCallExpression{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: callExpr.Token,
+					},
+				},
+				Object:    unitIdent,
+				Method:    memberAccess.Member,
+				Arguments: callExpr.Arguments,
+			}
+			return i.evalMethodCall(mc)
+		}
+	}
+
+	return i.newErrorWithLocation(callExpr, "cannot call member expression that is not a method or unit-qualified function")
+}
+
 // Phase 3.5.4 - Phase 2B: Type system access adapter methods
 // These methods implement the InterpreterAdapter interface for type system access.
 
