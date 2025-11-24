@@ -309,6 +309,46 @@ func (r *RecordValue) HasMethod(name string) bool {
 	return r.GetMethod(name) != nil
 }
 
+// GetRecordField retrieves a field value by name (case-insensitive lookup).
+// Returns the field value and true if found, nil and false otherwise.
+// Task 3.5.91: Implements RecordInstanceValue interface for direct field access.
+// Note: Returns Value (interp.Value) for use in evaluator package.
+func (r *RecordValue) GetRecordField(name string) (Value, bool) {
+	if r.Fields == nil {
+		return nil, false
+	}
+	// Case-insensitive lookup
+	for fieldName, value := range r.Fields {
+		if ident.Equal(fieldName, name) {
+			return value, true
+		}
+	}
+	return nil, false
+}
+
+// GetRecordTypeName returns the record type name (e.g., "TPoint").
+// Returns "RECORD" if the type name is not available.
+// Task 3.5.91: Implements RecordInstanceValue interface.
+func (r *RecordValue) GetRecordTypeName() string {
+	return r.Type()
+}
+
+// HasRecordMethod checks if a method with the given name exists on this record type.
+// The lookup is case-insensitive.
+// Task 3.5.91: Implements RecordInstanceValue interface.
+func (r *RecordValue) HasRecordMethod(name string) bool {
+	return r.HasMethod(name)
+}
+
+// HasRecordProperty checks if a property with the given name exists.
+// Note: Records in DWScript don't have properties (unlike classes), so this
+// always returns false. Included for consistency with other value interfaces.
+// Task 3.5.91: Implements RecordInstanceValue interface.
+func (r *RecordValue) HasRecordProperty(_ string) bool {
+	// Records don't have properties in DWScript - they only have fields and methods
+	return false
+}
+
 // ExternalVarValue represents an external variable marker.
 type ExternalVarValue struct {
 	Name         string // The variable name in DWScript
@@ -659,6 +699,82 @@ func (c *ClassInfoValue) String() string {
 	return "class " + c.ClassInfo.Name
 }
 
+// GetClassName returns the class name.
+// Task 3.5.88: Implements evaluator.ClassMetaValue interface.
+func (c *ClassInfoValue) GetClassName() string {
+	if c == nil || c.ClassInfo == nil {
+		return ""
+	}
+	return c.ClassInfo.Name
+}
+
+// GetClassVar retrieves a class variable value by name from the class hierarchy.
+// Returns the value and true if found, nil and false otherwise.
+// Task 3.5.88: Implements evaluator.ClassMetaValue interface.
+func (c *ClassInfoValue) GetClassVar(name string) (Value, bool) {
+	if c == nil || c.ClassInfo == nil {
+		return nil, false
+	}
+	value, owningClass := c.ClassInfo.lookupClassVar(name)
+	if owningClass == nil {
+		return nil, false
+	}
+	return value, true
+}
+
+// GetClassConstant retrieves a class constant value by name from the class hierarchy.
+// Returns the value and true if found, nil and false otherwise.
+// Task 3.5.88: Implements evaluator.ClassMetaValue interface.
+func (c *ClassInfoValue) GetClassConstant(name string) (Value, bool) {
+	if c == nil || c.ClassInfo == nil {
+		return nil, false
+	}
+	// Check ConstantValues cache first (case-insensitive)
+	for constName, value := range c.ClassInfo.ConstantValues {
+		if ident.Equal(constName, name) {
+			return value, true
+		}
+	}
+	// Check parent class hierarchy
+	if c.ClassInfo.Parent != nil {
+		parentCIV := &ClassInfoValue{ClassInfo: c.ClassInfo.Parent}
+		return parentCIV.GetClassConstant(name)
+	}
+	return nil, false
+}
+
+// HasClassMethod checks if a class method with the given name exists.
+// Task 3.5.88: Implements evaluator.ClassMetaValue interface.
+func (c *ClassInfoValue) HasClassMethod(name string) bool {
+	if c == nil || c.ClassInfo == nil {
+		return false
+	}
+	normalizedName := ident.Normalize(name)
+	// Check single class methods
+	if _, exists := c.ClassInfo.ClassMethods[normalizedName]; exists {
+		return true
+	}
+	// Check overloaded class methods
+	if overloads, exists := c.ClassInfo.ClassMethodOverloads[normalizedName]; exists && len(overloads) > 0 {
+		return true
+	}
+	// Check parent class hierarchy
+	if c.ClassInfo.Parent != nil {
+		parentCIV := &ClassInfoValue{ClassInfo: c.ClassInfo.Parent}
+		return parentCIV.HasClassMethod(name)
+	}
+	return false
+}
+
+// HasConstructor checks if a constructor with the given name exists.
+// Task 3.5.88: Implements evaluator.ClassMetaValue interface.
+func (c *ClassInfoValue) HasConstructor(name string) bool {
+	if c == nil || c.ClassInfo == nil {
+		return false
+	}
+	return c.ClassInfo.HasConstructor(name)
+}
+
 // TypeCastValue wraps an object with its static type from a type cast.
 // This preserves the static type for member access, particularly for class variables.
 // Example: TBase(childObj).ClassVar should access TBase's class variable, not TChild's.
@@ -675,6 +791,35 @@ func (t *TypeCastValue) Type() string {
 // String delegates to the wrapped object's String().
 func (t *TypeCastValue) String() string {
 	return t.Object.String()
+}
+
+// GetStaticTypeName returns the static type name from the cast.
+// Task 3.5.89: Implements evaluator.TypeCastAccessor interface.
+func (t *TypeCastValue) GetStaticTypeName() string {
+	if t.StaticType == nil {
+		return ""
+	}
+	return t.StaticType.Name
+}
+
+// GetWrappedValue returns the actual value wrapped by the type cast.
+// Task 3.5.89: Implements evaluator.TypeCastAccessor interface.
+func (t *TypeCastValue) GetWrappedValue() Value {
+	return t.Object
+}
+
+// GetStaticClassVar retrieves a class variable from the static type's class hierarchy.
+// Task 3.5.89: Implements evaluator.TypeCastAccessor interface.
+// This uses the static type from the cast, not the runtime type of the wrapped object.
+func (t *TypeCastValue) GetStaticClassVar(name string) (Value, bool) {
+	if t.StaticType == nil {
+		return nil, false
+	}
+	value, owningClass := t.StaticType.lookupClassVar(name)
+	if owningClass == nil {
+		return nil, false
+	}
+	return value, true
 }
 
 // GoInt converts a Value to a Go int64. Returns error if not an IntegerValue.

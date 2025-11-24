@@ -86,6 +86,79 @@ type InterfaceInstanceValue interface {
 	HasInterfaceProperty(name string) bool
 }
 
+// ClassMetaValue is an optional interface that class references (ClassValue, ClassInfoValue)
+// can implement to provide direct access to class metadata without going through the adapter.
+// Task 3.5.88: Enables direct class member access for CLASS and CLASS_INFO value types.
+type ClassMetaValue interface {
+	Value
+	// GetClassName returns the class name.
+	GetClassName() string
+	// GetClassVar retrieves a class variable value by name from the class hierarchy.
+	// Returns the value and true if found, nil and false otherwise.
+	// The lookup is case-insensitive.
+	GetClassVar(name string) (Value, bool)
+	// GetClassConstant retrieves a class constant value by name from the class hierarchy.
+	// Returns the value and true if found, nil and false otherwise.
+	// The lookup is case-insensitive.
+	GetClassConstant(name string) (Value, bool)
+	// HasClassMethod checks if a class method with the given name exists.
+	// The lookup is case-insensitive and includes the entire class hierarchy.
+	HasClassMethod(name string) bool
+	// HasConstructor checks if a constructor with the given name exists.
+	// The lookup is case-insensitive and includes the entire class hierarchy.
+	HasConstructor(name string) bool
+}
+
+// TypeCastAccessor is an optional interface for type cast values.
+// Task 3.5.89: Enables direct access to the static type and wrapped value without adapter.
+// TypeCastValue wraps an object with its static type from a type cast expression.
+// Example: TBase(childObj).ClassVar should access TBase's class variable, not TChild's.
+type TypeCastAccessor interface {
+	Value
+	// GetStaticTypeName returns the static type name from the cast (e.g., "TBase").
+	GetStaticTypeName() string
+	// GetWrappedValue returns the actual value wrapped by the type cast.
+	// This is the runtime object (could be ObjectInstance, NilValue, etc.).
+	GetWrappedValue() Value
+	// GetStaticClassVar retrieves a class variable from the static type's class hierarchy.
+	// This is the key operation for type-cast member access: TBase(child).ClassVar
+	// must access TBase's class variable, not TChild's.
+	// Returns the value and true if found, nil and false otherwise.
+	GetStaticClassVar(name string) (Value, bool)
+}
+
+// NilAccessor is an optional interface for nil values.
+// Task 3.5.90: Enables direct access to the typed class name for nil values.
+// Typed nil values (e.g., `var b: TBase := nil`) can access class variables
+// but not instance members.
+type NilAccessor interface {
+	Value
+	// GetTypedClassName returns the class type name for typed nil values.
+	// Returns "" for untyped nil values.
+	// Example: For `var b: TBase := nil`, returns "TBase".
+	GetTypedClassName() string
+}
+
+// RecordInstanceValue is an optional interface that record instances can implement
+// to provide direct access to record fields and metadata without going through the adapter.
+// Task 3.5.91: Enables direct record field access in VisitMemberAccessExpression.
+type RecordInstanceValue interface {
+	Value
+	// GetRecordField retrieves a field value by name (case-insensitive lookup).
+	// Returns the field value and true if found, nil and false otherwise.
+	GetRecordField(name string) (Value, bool)
+	// GetRecordTypeName returns the record type name (e.g., "TPoint").
+	// Returns "RECORD" if the type name is not available.
+	GetRecordTypeName() string
+	// HasRecordMethod checks if a method with the given name exists on this record type.
+	// The lookup is case-insensitive.
+	HasRecordMethod(name string) bool
+	// HasRecordProperty checks if a property with the given name exists.
+	// Note: Records in DWScript don't have properties (unlike classes), so this
+	// typically returns false. Included for consistency with other value interfaces.
+	HasRecordProperty(name string) bool
+}
+
 // Config holds configuration options for the evaluator.
 type Config struct {
 	SourceCode        string

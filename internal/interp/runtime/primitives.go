@@ -377,6 +377,16 @@ func (n *NilValue) Copy() Value {
 	return &NilValue{ClassType: n.ClassType}
 }
 
+// GetTypedClassName returns the class type name for typed nil values.
+// Task 3.5.90: Implements evaluator.NilAccessor interface.
+// Returns "" for untyped nil values.
+func (n *NilValue) GetTypedClassName() string {
+	if n == nil {
+		return ""
+	}
+	return n.ClassType
+}
+
 // ============================================================================
 
 // NullValue represents an uninitialized variant.

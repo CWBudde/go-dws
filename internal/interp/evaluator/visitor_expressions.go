@@ -1099,27 +1099,125 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		return e.adapter.EvalNode(node)
 
 	case "CLASS", "CLASS_INFO":
-		// Task 3.5.26: Metaclass access (Mode 6)
+		// Task 3.5.88: Metaclass access (Mode 6)
 		// Pattern: ClassValue.Member, ClassInfoValue.Member
-		// Delegate to adapter for class member lookup
+		// Handle built-in properties and class variables/constants directly
+
+		// Try to use ClassMetaValue interface for direct access
+		classMetaVal, ok := obj.(ClassMetaValue)
+		if !ok {
+			// Fallback to adapter if interface not implemented
+			return e.adapter.EvalNode(node)
+		}
+
+		// Handle built-in properties first
+		if ident.Equal(memberName, "ClassName") {
+			// ClassName property returns the class name as a string
+			return &runtime.StringValue{Value: classMetaVal.GetClassName()}
+		}
+		if ident.Equal(memberName, "ClassType") {
+			// ClassType property returns the class itself (for CLASS type, return self)
+			// For CLASS_INFO, we return the same value wrapped as CLASS
+			return obj
+		}
+
+		// Try class variables - direct lookup without adapter
+		if val, found := classMetaVal.GetClassVar(memberName); found {
+			return val
+		}
+
+		// Try class constants - direct lookup without adapter
+		if val, found := classMetaVal.GetClassConstant(memberName); found {
+			return val
+		}
+
+		// Complex cases (constructors, class methods, properties) need adapter
+		// because they require method invocation logic
 		return e.adapter.EvalNode(node)
 
 	case "TYPE_CAST":
-		// Task 3.5.26: Type cast value handling (Mode 8)
+		// Task 3.5.89: Type cast value handling (Mode 8)
 		// Pattern: TBase(child).ClassVar
-		// Delegate to adapter to unwrap and handle with static type context
+		// Uses static type from cast for class variable lookup, not runtime type.
+
+		// Try TypeCastAccessor interface for direct access
+		typeCastVal, ok := obj.(TypeCastAccessor)
+		if !ok {
+			// Fallback to adapter if interface not implemented
+			return e.adapter.EvalNode(node)
+		}
+
+		// First, try class variable lookup using the STATIC type
+		// This is the key behavior: TBase(child).ClassVar accesses TBase's class var
+		if classVarValue, found := typeCastVal.GetStaticClassVar(memberName); found {
+			return classVarValue
+		}
+
+		// Get the wrapped value for further processing
+		wrappedValue := typeCastVal.GetWrappedValue()
+
+		// If wrapped value is an object, try field access and property reading
+		if objVal, ok := wrappedValue.(ObjectValue); ok {
+			// Try direct field access on the wrapped object
+			if fieldValue := objVal.GetField(memberName); fieldValue != nil {
+				return fieldValue
+			}
+
+			// Try property access on the wrapped object (uses adapter for getter logic)
+			if objVal.HasProperty(memberName) {
+				propValue, err := e.adapter.ReadPropertyValue(wrappedValue, memberName, node)
+				if err == nil {
+					return propValue
+				}
+			}
+		}
+
+		// For method calls and complex cases, delegate to adapter
 		return e.adapter.EvalNode(node)
 
 	case "NIL":
-		// Task 3.5.26: Nil object handling (Mode 9)
-		// Special case: class variables accessible on nil, instance members error
-		// Delegate to adapter for proper error handling
+		// Task 3.5.90: Nil object handling (Mode 9)
+		// Typed nil values can access class variables, but not instance members.
+
+		// Try NilAccessor interface to get typed class name
+		nilVal, ok := obj.(NilAccessor)
+		if !ok {
+			// Untyped nil - always error
+			return e.newError(node, "Object not instantiated")
+		}
+
+		typedClassName := nilVal.GetTypedClassName()
+		if typedClassName == "" {
+			// Untyped nil - always error
+			return e.newError(node, "Object not instantiated")
+		}
+
+		// Typed nil: Try to look up class variable via adapter
+		// The adapter can access the class registry and lookup class variables
+		// Delegate to adapter for class variable lookup with proper static type
 		return e.adapter.EvalNode(node)
 
 	case "RECORD":
-		// Task 3.5.25: Record instance access (Mode 5)
+		// Task 3.5.91: Record instance access (Mode 5)
 		// Pattern: record.Field, record.Method
-		// Delegate to adapter for record member lookup
+		// Use RecordInstanceValue interface for direct field access
+		if recVal, ok := obj.(RecordInstanceValue); ok {
+			// Direct field access - most common case
+			if fieldVal, found := recVal.GetRecordField(memberName); found {
+				return fieldVal
+			}
+
+			// Method reference - still uses adapter for method invocation
+			if recVal.HasRecordMethod(memberName) {
+				return e.adapter.EvalNode(node)
+			}
+
+			// Property check (records don't have properties, but check for consistency)
+			if recVal.HasRecordProperty(memberName) {
+				return e.adapter.EvalNode(node)
+			}
+		}
+		// Fallback to adapter for other record member access patterns
 		return e.adapter.EvalNode(node)
 
 	case "ENUM":
@@ -1472,9 +1570,41 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		// Delegate to adapter for enum meta method execution
 		return e.adapter.CallMethod(obj, methodName, args, node)
 
+	// Task 3.5.98a: Explicit cases for helper-enabled types
+	// These types use helper methods (type extensions) for their method calls.
+	// Examples: str.ToUpper(), arr.Push(), num.ToString()
+	// Currently delegated to adapter which handles helper lookup and invocation.
+	case "STRING":
+		// String helpers: ToUpper, ToLower, Split, Trim, Contains, etc.
+		return e.adapter.EvalNode(node)
+
+	case "INTEGER":
+		// Integer helpers: ToString, ToHexString, etc.
+		return e.adapter.EvalNode(node)
+
+	case "FLOAT":
+		// Float helpers: ToString, etc.
+		return e.adapter.EvalNode(node)
+
+	case "BOOLEAN":
+		// Boolean helpers: ToString, etc.
+		return e.adapter.EvalNode(node)
+
+	case "ARRAY":
+		// Array helpers: Push, Pop, Add, Delete, IndexOf, SetLength, Swap, etc.
+		return e.adapter.EvalNode(node)
+
+	case "VARIANT":
+		// Variant helpers (if any)
+		return e.adapter.EvalNode(node)
+
+	case "ENUM":
+		// Enum value helpers (distinct from TYPE_META which is enum type methods)
+		return e.adapter.EvalNode(node)
+
 	default:
 		// For other types (identifiers that might be unit names, record types, etc.)
-		// or for helper methods, delegate to adapter for full handling
+		// Delegate to adapter for full handling
 		return e.adapter.EvalNode(node)
 	}
 }
