@@ -552,15 +552,24 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	// Task 3.5.24: Built-in functions with var parameter handling (modify arguments in place)
 	// These functions require references to variables, not their values
 	// Examples: Inc(x), Dec(y), Swap(a, b), SetLength(arr, 10)
+	// Task 3.5.93: Inc, Dec, SetLength, Insert, Delete migrated to Evaluator
 	switch funcNameLower {
-	case "inc", "dec", "insert", "decodedate", "decodetime",
-		"swap", "divmod", "trystrtoint", "trystrtofloat", "setlength":
+	case "inc":
+		return e.builtinInc(node.Arguments, ctx)
+	case "dec":
+		return e.builtinDec(node.Arguments, ctx)
+	case "setlength":
+		return e.builtinSetLength(node.Arguments, ctx)
+	case "insert":
+		return e.builtinInsert(node.Arguments, ctx)
+	case "decodedate", "decodetime", "swap", "divmod", "trystrtoint", "trystrtofloat":
+		// These still use the adapter (not yet migrated)
 		return e.adapter.EvalNode(node)
 	case "delete":
 		// Only the 3-parameter form needs var parameter handling
 		// Delete(str, pos, count) modifies str in place
 		if len(node.Arguments) == 3 {
-			return e.adapter.EvalNode(node)
+			return e.builtinDeleteString(node.Arguments, ctx)
 		}
 	}
 
