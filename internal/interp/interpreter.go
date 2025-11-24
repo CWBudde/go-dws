@@ -454,6 +454,141 @@ func (i *Interpreter) CallQualifiedOrConstructor(callExpr *ast.CallExpression, m
 	return i.newErrorWithLocation(callExpr, "cannot call member expression that is not a method or unit-qualified function")
 }
 
+// ===== Task 3.5.97: User Function Call Methods =====
+
+// CallUserFunctionWithOverloads calls a user-defined function with overload resolution.
+// Task 3.5.97a: Enables evaluator to call user functions without using EvalNode.
+func (i *Interpreter) CallUserFunctionWithOverloads(callExpr *ast.CallExpression, funcName *ast.Identifier) evaluator.Value {
+	// This method encapsulates the logic from evalCallExpression lines 210-265
+
+	funcNameLower := ident.Normalize(funcName.Value)
+	overloads, exists := i.functions[funcNameLower]
+	if !exists || len(overloads) == 0 {
+		return i.newErrorWithLocation(callExpr, "function '%s' not found", funcName.Value)
+	}
+
+	// Resolve overload based on argument types and get cached evaluated arguments
+	fn, cachedArgs, err := i.resolveOverload(funcNameLower, overloads, callExpr.Arguments)
+	if err != nil {
+		return i.newErrorWithLocation(callExpr, "%s", err.Error())
+	}
+
+	// Prepare arguments - lazy parameters get LazyThunks, var parameters get References
+	args := make([]Value, len(callExpr.Arguments))
+	for idx, arg := range callExpr.Arguments {
+		// Check parameter flags
+		isLazy := idx < len(fn.Parameters) && fn.Parameters[idx].IsLazy
+		isByRef := idx < len(fn.Parameters) && fn.Parameters[idx].ByRef
+
+		if isLazy {
+			// For lazy parameters, create a LazyThunk
+			args[idx] = NewLazyThunk(arg, i.env, i)
+		} else if isByRef {
+			// For var parameters, create a reference
+			if argIdent, ok := arg.(*ast.Identifier); ok {
+				if val, exists := i.env.Get(argIdent.Value); exists {
+					if refVal, isRef := val.(*ReferenceValue); isRef {
+						args[idx] = refVal // Pass through existing reference
+					} else {
+						args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+					}
+				} else {
+					args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+				}
+			} else {
+				return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
+			}
+		} else {
+			// For regular parameters, use the cached value from overload resolution
+			args[idx] = cachedArgs[idx]
+		}
+	}
+	return i.callUserFunction(fn, args)
+}
+
+// CallImplicitSelfMethod calls a method on the implicit Self object.
+// Task 3.5.97b: Enables evaluator to call implicit Self methods without using EvalNode.
+func (i *Interpreter) CallImplicitSelfMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) evaluator.Value {
+	// This method encapsulates the logic from evalCallExpression lines 267-291
+
+	selfVal, ok := i.env.Get("Self")
+	if !ok {
+		return i.newErrorWithLocation(callExpr, "no Self context for implicit method call")
+	}
+
+	obj, isObj := AsObject(selfVal)
+	if !isObj {
+		return i.newErrorWithLocation(callExpr, "Self is not an object")
+	}
+
+	if obj.GetMethod(funcName.Value) == nil {
+		return i.newErrorWithLocation(callExpr, "method '%s' not found on Self", funcName.Value)
+	}
+
+	// Create a method call expression: Self.MethodName(args)
+	mc := &ast.MethodCallExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: callExpr.Token,
+			},
+		},
+		Object: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: funcName.Token,
+				},
+			},
+			Value: "Self",
+		},
+		Method:    funcName,
+		Arguments: callExpr.Arguments,
+	}
+	return i.evalMethodCall(mc)
+}
+
+// CallRecordStaticMethod calls a static method within a record context.
+// Task 3.5.97c: Enables evaluator to call record static methods without using EvalNode.
+func (i *Interpreter) CallRecordStaticMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) evaluator.Value {
+	// This method encapsulates the logic from evalCallExpression lines 293+
+
+	recordVal, ok := i.env.Get("__CurrentRecord__")
+	if !ok {
+		return i.newErrorWithLocation(callExpr, "no __CurrentRecord__ context for static method call")
+	}
+
+	rtv, isRecord := recordVal.(*RecordTypeValue)
+	if !isRecord {
+		return i.newErrorWithLocation(callExpr, "__CurrentRecord__ is not a RecordTypeValue")
+	}
+
+	// Check if the function name matches a static method (case-insensitive)
+	methodNameLower := ident.Normalize(funcName.Value)
+	overloads, exists := rtv.ClassMethodOverloads[methodNameLower]
+	if !exists || len(overloads) == 0 {
+		return i.newErrorWithLocation(callExpr, "static method '%s' not found on record type '%s'", funcName.Value, rtv.RecordType.Name)
+	}
+
+	// Found a static method - convert to qualified call
+	mc := &ast.MethodCallExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: callExpr.Token,
+			},
+		},
+		Object: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: funcName.Token,
+				},
+			},
+			Value: rtv.RecordType.Name,
+		},
+		Method:    funcName,
+		Arguments: callExpr.Arguments,
+	}
+	return i.evalMethodCall(mc)
+}
+
 // Phase 3.5.4 - Phase 2B: Type system access adapter methods
 // These methods implement the InterpreterAdapter interface for type system access.
 

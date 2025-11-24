@@ -550,38 +550,38 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	// Check for user-defined functions (with potential overloading)
 	// Task 3.5.23: Handle lazy and var parameters in user function calls
 	// Task 3.5.67: Use direct FunctionRegistry access instead of adapter
+	// Task 3.5.97a: Migrated to use CallUserFunctionWithOverloads adapter method
 	funcNameLower := ident.Normalize(funcName.Value)
 	if overloads := e.FunctionRegistry().Lookup(funcNameLower); len(overloads) > 0 {
-		// For now, delegate to adapter for overload resolution
-		// In the future, this can be migrated to the evaluator
-		// But we need to prepare arguments properly for lazy and var parameters
-
-		// We can't determine which overload without evaluating arguments for type checking
-		// So we delegate the entire call to the adapter, which will:
-		// 1. Resolve the overload
-		// 2. Prepare arguments with lazy thunks and references
-		// 3. Call the user function
-		return e.adapter.EvalNode(node)
+		// Delegate to adapter for overload resolution and parameter preparation
+		// The adapter handles:
+		// 1. Overload resolution based on argument types
+		// 2. Lazy parameter wrapping (LazyThunk)
+		// 3. Var parameter wrapping (ReferenceValue)
+		// 4. Calling the resolved user function
+		return e.adapter.CallUserFunctionWithOverloads(node, funcName)
 	}
 
 	// Task 3.5.24: Implicit Self method calls (MethodName() is shorthand for Self.MethodName())
+	// Task 3.5.97b: Migrated to use CallImplicitSelfMethod adapter method
 	// When inside an instance method, calling MethodName() calls Self.MethodName()
 	// Example: Inside method Foo(), calling Bar() means Self.Bar()
 	if selfRaw, ok := ctx.Env().Get("Self"); ok {
 		if selfVal, ok := selfRaw.(Value); ok {
 			if selfVal.Type() == "OBJECT" || selfVal.Type() == "CLASS" {
-				return e.adapter.EvalNode(node)
+				return e.adapter.CallImplicitSelfMethod(node, funcName)
 			}
 		}
 	}
 
 	// Task 3.5.24: Record static method calls
+	// Task 3.5.97c: Migrated to use CallRecordStaticMethod adapter method
 	// When inside a record static method context, allows calling other static methods
 	// Example: Inside record static method, calling Count() calls TRecord.Count()
 	if recordRaw, ok := ctx.Env().Get("__CurrentRecord__"); ok {
 		if recordVal, ok := recordRaw.(Value); ok {
 			if recordVal.Type() == "RECORD_TYPE" {
-				return e.adapter.EvalNode(node)
+				return e.adapter.CallRecordStaticMethod(node, funcName)
 			}
 		}
 	}
