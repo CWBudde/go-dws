@@ -2044,19 +2044,16 @@ func (e *Evaluator) VisitOldExpression(node *ast.OldExpression, ctx *ExecutionCo
 }
 
 // VisitRangeExpression handles range expressions (start..end).
-// Range expressions are typically only used in specific contexts:
-// - Case statement branches (e.g., case x of 1..10: ...)
-// - Set literals (e.g., [1..10])
-// Directly evaluating a range expression is not supported in DWScript.
-// This method exists to prevent falling through to the default case in Eval(),
-// and delegates to the adapter which handles context-specific evaluation.
+// Range expressions are only valid in specific contexts:
+// - Case statement branches (case x of 1..10: ...) - handled in VisitCaseStatement
+// - Set literals ([1..10]) - handled in set.go
+// Direct evaluation of a standalone range expression is not valid in DWScript.
 func (e *Evaluator) VisitRangeExpression(node *ast.RangeExpression, ctx *ExecutionContext) Value {
 	if node.Start == nil || node.RangeEnd == nil {
 		return e.newError(node, "range expression missing start or end")
 	}
 
 	// Range expressions are structural - they don't evaluate to a value on their own.
-	// They're only meaningful in specific contexts (case statements, set literals).
-	// Delegate to adapter for context-aware handling.
-	return e.adapter.EvalNode(node)
+	// Direct evaluation is an error (contexts that use ranges handle them specially).
+	return e.newError(node, "range expression cannot be evaluated directly; only valid in case statements or set literals")
 }

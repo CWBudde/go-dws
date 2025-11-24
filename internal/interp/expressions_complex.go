@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -15,7 +16,7 @@ func (i *Interpreter) evalInOperator(value Value, container Value, node ast.Node
 	// Handle set membership (now supports all ordinal types)
 	if setVal, ok := container.(*SetValue); ok {
 		// Value must be an ordinal type to be in a set
-		ordinal, err := GetOrdinalValue(value)
+		ordinal, err := evaluator.GetOrdinalValue(value)
 		if err != nil {
 			return i.newErrorWithLocation(node, "type mismatch: %s", err.Error())
 		}

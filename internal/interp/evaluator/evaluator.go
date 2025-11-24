@@ -674,11 +674,14 @@ type Evaluator struct {
 }
 
 // NewEvaluator creates a new Evaluator with the given dependencies.
+// Task 3.5.76: semanticInfo is now passed via constructor (like TypeRegistry)
+// for explicit dependency injection.
 func NewEvaluator(
 	typeSystem *interptypes.TypeSystem,
 	output io.Writer,
 	config *Config,
 	unitRegistry *units.UnitRegistry,
+	semanticInfo *ast.SemanticInfo,
 ) *Evaluator {
 	if config == nil {
 		config = DefaultConfig()
@@ -697,6 +700,7 @@ func NewEvaluator(
 		unitRegistry:     unitRegistry,
 		initializedUnits: make(map[string]bool),
 		loadedUnits:      make([]string, 0),
+		semanticInfo:     semanticInfo,
 	}
 }
 

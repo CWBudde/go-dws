@@ -34,7 +34,7 @@ func createTestEvaluator() *Evaluator {
 	config.MaxRecursionDepth = 1024
 	typeSystem := interptypes.NewTypeSystem()
 	unitRegistry := units.NewUnitRegistry([]string{"."})
-	return NewEvaluator(typeSystem, &bytes.Buffer{}, config, unitRegistry)
+	return NewEvaluator(typeSystem, &bytes.Buffer{}, config, unitRegistry, nil)
 }
 
 func createTestContext() *ExecutionContext {
@@ -551,7 +551,7 @@ func BenchmarkEvaluatorCreation(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		benchSink = NewEvaluator(typeSystem, output, config, unitRegistry)
+		benchSink = NewEvaluator(typeSystem, output, config, unitRegistry, nil)
 	}
 }
 
