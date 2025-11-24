@@ -432,17 +432,17 @@ Evaluator needs to resolve type names for array construction and type casts.
   - Method access fallback to adapter (deferred to later task)
   - Files: `evaluator/evaluator.go`, `class.go`, `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.87** Replace VisitMemberAccessExpression INTERFACE case
-  - Add InterfaceInstanceValue interface to evaluator.go:
-    - `GetUnderlyingObject() ObjectValue` - unwrap to underlying object
+- [x] **3.5.87** Replace VisitMemberAccessExpression INTERFACE case ✅
+  - Added InterfaceInstanceValue interface to evaluator.go:
+    - `GetUnderlyingObjectValue() Value` - unwrap to underlying object (returns Value to avoid circular imports)
     - `InterfaceName() string` - get interface name for error messages
     - `HasInterfaceMethod(name string) bool` - check interface contract
     - `HasInterfaceProperty(name string) bool` - check interface contract
-  - Implement on InterfaceInstance in interface.go
-  - Handle nil interface check directly
-  - Verify member exists in interface definition before delegating to object
-  - Property access: delegate to underlying object's property
-  - Method access: still needs adapter for complex dispatch logic
+  - Implemented on InterfaceInstance in interface.go
+  - Handles nil interface check directly (delegates to adapter for error)
+  - Verifies member exists in interface definition before delegating to object
+  - Property access: delegates to underlying object's property via adapter
+  - Method access: still uses adapter for complex dispatch logic
   - Files: `evaluator/evaluator.go`, `interface.go`, `evaluator/visitor_expressions.go`
 
 - [ ] **3.5.88** Replace VisitMemberAccessExpression CLASS/CLASS_INFO cases
