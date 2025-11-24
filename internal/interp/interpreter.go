@@ -179,11 +179,13 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 	}
 
 	// Create evaluator instance
+	// Task 3.5.76: semanticInfo passed via constructor for explicit dependency injection
 	interp.evaluatorInstance = evaluator.NewEvaluator(
 		ts,
 		output,
 		evalConfig,
-		nil, // unitRegistry is set later via SetUnitRegistry if needed
+		nil,                  // unitRegistry is set later via SetUnitRegistry if needed
+		interp.semanticInfo, // Task 3.5.76: pass semanticInfo to constructor
 	)
 
 	// Set external functions if available
@@ -1273,7 +1275,7 @@ func (i *Interpreter) CreateSet(elementType any, elements []evaluator.Value) eva
 		internalElem := elem.(Value)
 
 		// Get ordinal value
-		ordinal, err := GetOrdinalValue(internalElem)
+		ordinal, err := evaluator.GetOrdinalValue(internalElem)
 		if err != nil {
 			// Skip non-ordinal elements
 			continue
@@ -1292,12 +1294,12 @@ func (i *Interpreter) EvaluateSetRange(start evaluator.Value, end evaluator.Valu
 	internalEnd := end.(Value)
 
 	// Get ordinal values
-	startOrd, err := GetOrdinalValue(internalStart)
+	startOrd, err := evaluator.GetOrdinalValue(internalStart)
 	if err != nil {
 		return nil, fmt.Errorf("range start must be ordinal type: %s", err.Error())
 	}
 
-	endOrd, err := GetOrdinalValue(internalEnd)
+	endOrd, err := evaluator.GetOrdinalValue(internalEnd)
 	if err != nil {
 		return nil, fmt.Errorf("range end must be ordinal type: %s", err.Error())
 	}
@@ -1331,7 +1333,7 @@ func (i *Interpreter) AddToSet(set evaluator.Value, element evaluator.Value) err
 	}
 
 	// Get ordinal value of element
-	ordinal, err := GetOrdinalValue(internalElement)
+	ordinal, err := evaluator.GetOrdinalValue(internalElement)
 	if err != nil {
 		return fmt.Errorf("cannot add non-ordinal element to set: %s", err.Error())
 	}

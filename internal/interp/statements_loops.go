@@ -3,6 +3,7 @@ package interp
 import (
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -117,11 +118,11 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 	}
 
 	// Convert start/end to ordinal values
-	startOrd, err := GetOrdinalValue(startVal)
+	startOrd, err := evaluator.GetOrdinalValue(startVal)
 	if err != nil {
 		return newError("for loop start value must be ordinal, got %s", startVal.Type())
 	}
-	endOrd, err := GetOrdinalValue(endVal)
+	endOrd, err := evaluator.GetOrdinalValue(endVal)
 	if err != nil {
 		return newError("for loop end value must be ordinal, got %s", endVal.Type())
 	}
@@ -134,7 +135,7 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 			return stepVal
 		}
 
-		stepOrd, err := GetOrdinalValue(stepVal)
+		stepOrd, err := evaluator.GetOrdinalValue(stepVal)
 		if err != nil {
 			return newError("for loop step value must be ordinal, got %s", stepVal.Type())
 		}

@@ -274,13 +274,13 @@ Interpreter.Eval() delegates to Evaluator. Created evalDirect() bypass. Fixed En
 5. Reduce adapter to minimal interface (~5 essential methods)
 
 ---
-### Phase 10: Direct Service Access (3.5.61-3.5.63) ✅ COMPLETE
+### Phase 10: Direct Service Access (3.5.61-3.5.63)
 
 - [x] **3.5.61** Add Direct TypeRegistry Access to Evaluator
 - [x] **3.5.62** Add Direct FunctionRegistry Access to Evaluator
 - [x] **3.5.63** Add Direct Environment Access Pattern
 
-### Phase 11: Remove Type Lookup Adapter Calls (3.5.64-3.5.69) ✅ COMPLETE
+### Phase 11: Remove Type Lookup Adapter Calls (3.5.64-3.5.69)
 
 - [x] **3.5.64** Replace `adapter.LookupClass()` and `adapter.HasClass()` (3 calls)
 - [x] **3.5.65** Replace `adapter.LookupRecord()` and `adapter.HasRecord()` (1 call)
@@ -291,80 +291,205 @@ Interpreter.Eval() delegates to Evaluator. Created evalDirect() bypass. Fixed En
 
 ### Phase 12: Remove Value Access Adapter Calls (3.5.70-3.5.73)
 
-- [x] **3.5.70** Replace Variable Access Adapter Calls ✅
-  - Replaced 2 `adapter.GetVariable()` calls with `ctx.Env().Get()` + type assertion
-  - visitor_expressions.go: VisitIdentifier (line 56), VisitCallExpression (line 431)
-  - Removed `GetVariable` from adapter interface and interpreter
-  - Files: `evaluator/visitor_expressions.go`, `evaluator/evaluator.go`, `interpreter.go`
-  - Acceptance: No adapter variable access calls, tests pass ✅
-
-- [x] **3.5.71** Replace `adapter.IsObjectInstance()` and Type Checks ✅
-  - Replaced with `.Type()` checks (avoids circular imports):
-    - `IsReferenceValue(val)` → `val.Type() == "REFERENCE"` (line 73)
-    - `IsObjectInstance(val)` → `val.Type() == "OBJECT"` (line 97)
-    - `IsClassInfoValue(val)` → `val.Type() == "CLASSINFO"` (line 151)
-  - Removed 3 methods from adapter interface and interpreter
-  - Files: `evaluator/visitor_expressions.go`, `evaluator/evaluator.go`, `interpreter.go`
-  - Acceptance: No adapter type check calls for these values, tests pass ✅
-
-- [x] **3.5.72** Replace Property Existence Checks ✅
-  - Added `ObjectValue` interface to evaluator with `ClassName()`, `HasProperty()`, `HasMethod()`
-  - ObjectInstance implements `ObjectValue` interface directly (no circular imports)
-  - Replaced 3 adapter calls with interface type assertions:
-    - visitor_expressions.go:112 (`HasProperty` in VisitIdentifier)
-    - visitor_expressions.go:123 (`HasMethod` in VisitIdentifier)
-    - visitor_expressions.go:1008 (`HasProperty` in VisitMemberAccessExpression)
-  - Removed `HasProperty` and `HasMethod` from adapter interface
-  - Files: `evaluator/evaluator.go`, `evaluator/visitor_expressions.go`, `class.go`, `interpreter.go`
-  - Acceptance: No adapter property/method existence calls, tests pass ✅
-
-- [x] **3.5.73** Replace External/Lazy Value Checks ✅
-  - Added `ExternalVarAccessor` and `LazyEvaluator` interfaces to evaluator
-  - Added `ExternalVarName()` method to `ExternalVarValue` struct in value.go
-  - Replaced 4 adapter calls with interface type assertions:
-    - visitor_expressions.go:60 (`IsExternalVar` + `GetExternalVarName` → `ExternalVarAccessor`)
-    - visitor_expressions.go:67 (`IsLazyThunk` + `EvaluateLazyThunk` → `LazyEvaluator`)
-  - Removed 4 methods from adapter interface and interpreter:
-    - `IsExternalVar`, `IsLazyThunk`, `EvaluateLazyThunk`, `GetExternalVarName`
-  - Files: `evaluator/evaluator.go`, `evaluator/visitor_expressions.go`, `value.go`, `interpreter.go`
-  - Acceptance: No adapter external/lazy calls, tests pass ✅
+- [x] **3.5.70** Replace Variable Access Adapter Calls
+- [x] **3.5.71** Replace Type Checks (`IsObjectInstance`, `IsReferenceValue`, `IsClassInfoValue`)
+- [x] **3.5.72** Replace Property Existence Checks
+- [x] **3.5.73** Replace External/Lazy Value Checks
 
 ---
 
-### Phase 13: Reduce EvalNode Usage (3.5.74-3.5.76)
+### Phase 13: Reduce EvalNode Usage
 
 Focus on removing generic `EvalNode` calls that aren't in declarations.
 
-- [ ] **3.5.74** Audit All EvalNode Calls
-  - List all 30 EvalNode calls with their locations
-  - Categorize: declarations (keep), expressions (remove), statements (remove)
-  - Document which can be replaced with direct visitor calls
-  - Files: Create audit document
+**Total EvalNode calls found: 46**
 
-- [ ] **3.5.75** Replace Expression EvalNode Calls
-  - For each expression using EvalNode, call the specific visitor instead
-  - Example: Replace `adapter.EvalNode(binaryExpr)` with `e.VisitBinaryExpression(binaryExpr, ctx)`
-  - Acceptance: No EvalNode calls for expressions
+| File | Calls | Notes |
+|------|-------|-------|
+| visitor_expressions.go | 31 | Candidates for removal |
+| visitor_declarations.go | 10 | KEEP - registry logic not migrated |
+| binary_ops.go | 2 | KEEP - complex set/variant ops |
+| visitor_statements.go | 1 | KEEP - complex assignment logic |
+| evaluator.go | 1 | KEEP - fallback safety net |
 
-- [ ] **3.5.76** Replace Statement EvalNode Calls
-  - For each statement using EvalNode, call the specific visitor
-  - Acceptance: No EvalNode calls for statements, only declarations
+**KEEP (15 calls):** Declarations (10), assignment (1), binary ops (2), safety net (1), inherited (1)
+**CANDIDATES (31 calls):** Expression visitors that can be migrated incrementally
 
 ---
 
-### Phase 14: Minimize Adapter Interface (3.5.77-3.5.79)
+#### Completed Tasks
 
-- [ ] **3.5.77** Remove Unused Adapter Methods
+- [x] **3.5.74** Audit All EvalNode Calls ✅
+  - Found 46 total calls (31 candidates, 15 to keep)
+  - Categorized by visitor method for incremental migration
+  - Documented in audit table above
+
+- [x] **3.5.75** Replace VisitRangeExpression EvalNode ✅
+  - 1 call at line 2061 → replaced with direct error (range expressions can't be evaluated directly)
+  - Range expressions handled specially in VisitCaseStatement and set.go
+  - Files: `evaluator/visitor_expressions.go`
+
+---
+
+#### Infrastructure: SemanticInfo Access
+
+Before migrating set/array literals, the Evaluator needs access to semantic analysis results.
+
+- [x] **3.5.76** Add SemanticInfo to Evaluator ✅
+  - Pass semanticInfo to Evaluator constructor (like TypeRegistry)
+  - Add `semanticInfo` field and accessor method
+  - Files: `evaluator/evaluator.go`, `interpreter.go`
+  - Unblocks: 3.5.80, 3.5.83
+
+---
+
+#### Infrastructure: Array/Set Helper Migration
+
+Helper functions for ordinal types, index collection, and type inference need to be accessible from Evaluator.
+
+- [x] **3.5.77** Move Ordinal Helpers to Evaluator Package ✅
+  - Moved `GetOrdinalValue`, `GetOrdinalType` to `evaluator/ordinal_helpers.go`
+  - Updated all callers in interp package to use `evaluator.GetOrdinalValue/Type`
+  - Files: `value.go` → `evaluator/ordinal_helpers.go`
+  - Unblocks: 3.5.80
+
+- [ ] **3.5.78** Move Index Collection Helper
+  - Move `collectIndices` to evaluator package
+  - Used by evalIndexExpression for multi-index property access
+  - Files: `interp/array.go` → `evaluator/index_helpers.go`
+  - Unblocks: 3.5.81
+
+---
+
+#### Infrastructure: Type Resolution
+
+Evaluator needs to resolve type names for array construction and type casts.
+
+- [ ] **3.5.79** Add Type Resolution to Evaluator
+  - Add `resolveType(name string)` method using TypeRegistry
+  - Handle array types, enum types, class types
+  - Files: `evaluator/evaluator.go`
+  - Unblocks: 3.5.80, 3.5.82, 3.5.83
+
+---
+
+#### Group A: Array/Set Expression Visitors (4 calls, blocked on infrastructure)
+
+- [ ] **3.5.80** Replace VisitSetLiteral EvalNode
+  - 1 call at line 1741
+  - Requires: semanticInfo (3.5.76), ordinal helpers (3.5.77), type resolution (3.5.79)
+  - Migrate evalSetLiteral from set.go (~150 lines)
+  - Files: `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.81** Replace VisitIndexExpression EvalNode
+  - 1 call at line 1814
+  - Requires: index collection (3.5.78), property lookup infrastructure
+  - Migrate evalIndexExpression from array.go (~200 lines)
+  - Files: `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.82** Replace VisitNewArrayExpression EvalNode
+  - 1 call at line 1835
+  - Requires: type resolution (3.5.79)
+  - Migrate evalNewArrayExpression from array.go
+  - Files: `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.83** Replace VisitArrayLiteralExpression EvalNode
+  - 2 calls at lines 1753, 1785
+  - Requires: semanticInfo (3.5.76), type resolution (3.5.79)
+  - Migrate evalArrayLiteral from array.go (~100 lines)
+  - Files: `evaluator/visitor_expressions.go`
+
+---
+
+#### Group B: VisitIdentifier (4 calls, medium complexity)
+
+- [ ] **3.5.84** Replace VisitIdentifier complex value types
+  - 1 call at line 90
+  - Arrays, objects, records delegation
+  - Files: `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.85** Replace VisitIdentifier function/class lookups
+  - 3 calls at lines 178, 184, 188
+  - Function name, class name, and fallback lookups
+  - Files: `evaluator/visitor_expressions.go`
+
+---
+
+#### Group C: VisitMemberAccessExpression (8 calls, medium complexity)
+
+- [ ] **3.5.86** Replace VisitMemberAccessExpression OBJECT case
+  - 1 call at line 1028
+  - Object method/member access
+  - Files: `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.87** Replace VisitMemberAccessExpression INTERFACE case
+  - 1 call at line 1034
+  - Interface unwrapping and method lookup
+  - Files: `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.88** Replace VisitMemberAccessExpression CLASS/CLASS_INFO cases
+  - 1 call at line 1040
+  - Metaclass and static member access
+  - Files: `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.89** Replace VisitMemberAccessExpression remaining cases
+  - 5 calls at lines 1046, 1052, 1058, 1064, 1069
+  - TYPE_CAST, NIL, RECORD, ENUM, default fallback
+  - Files: `evaluator/visitor_expressions.go`
+
+---
+
+#### Group D: VisitCallExpression (12 calls, high complexity)
+
+- [ ] **3.5.90** Replace VisitCallExpression var param handling
+  - 3 calls at lines 527, 532, 539
+  - Inc, Dec, Insert, Delete, SetLength, external functions
+  - Files: `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.91** Replace VisitCallExpression default/type cast
+  - 2 calls at lines 546, 554
+  - Default(TypeName) and TypeName(expr) casts
+  - Files: `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.92** Replace VisitCallExpression function pointer
+  - 1 call at line 445
+  - Closure environment, lazy params, var params
+  - Files: `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.93** Replace VisitCallExpression method calls
+  - 2 calls at lines 461, 469
+  - Record/interface/object methods, unit-qualified calls
+  - Files: `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.94** Replace VisitCallExpression user functions
+  - 3 calls at lines 496, 505, 516
+  - Overload resolution, implicit Self, record static methods
+  - Files: `evaluator/visitor_expressions.go`
+
+---
+
+#### Group E: VisitMethodCallExpression (1 call)
+
+- [ ] **3.5.95** Replace VisitMethodCallExpression helper methods
+  - 1 call at line 1407
+  - Helper method dispatch
+  - Files: `evaluator/visitor_expressions.go`
+
+---
+
+### Phase 14: Minimize Adapter Interface (3.5.96-3.5.98)
+
+- [ ] **3.5.96** Remove Unused Adapter Methods
   - Audit adapter interface for methods no longer called
   - Remove from interface and Interpreter implementation
   - Acceptance: Adapter interface reduced by ~50%
 
-- [ ] **3.5.78** Consolidate Remaining Adapter Methods
+- [ ] **3.5.97** Consolidate Remaining Adapter Methods
   - Group remaining methods by category
   - Document why each is still needed
   - Target: ~10-15 essential methods
 
-- [ ] **3.5.79** Document Final Architecture
+- [ ] **3.5.98** Document Final Architecture
   - Update CLAUDE.md with final architecture
   - Document which adapter methods remain and why
   - Create migration complete summary
@@ -375,10 +500,10 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 These tasks are deferred until the adapter is minimal. They're complex and require moving substantial logic:
 
-- [ ] **3.5.80** Migrate CallMethod/CallFunctionPointer (complex, many dependencies)
-- [ ] **3.5.81** Migrate CreateObject/CastType (requires type resolution)
-- [ ] **3.5.82** Remove Adapter Interface Entirely
-- [ ] **3.5.83** Remove evalDirect() from Interpreter
+- [ ] **3.5.99** Migrate CallMethod/CallFunctionPointer (complex, many dependencies)
+- [ ] **3.5.100** Migrate CreateObject/CastType (requires type resolution)
+- [ ] **3.5.101** Remove Adapter Interface Entirely
+- [ ] **3.5.102** Remove evalDirect() from Interpreter
 
 ---
 
@@ -387,14 +512,16 @@ These tasks are deferred until the adapter is minimal. They're complex and requi
 | Phase | Tasks | Description |
 |-------|-------|-------------|
 | 1-9 | 3.5.1-3.5.47 | ✅ COMPLETE - Foundation, visitors, AST-free, services |
-| 10: Direct Access | 3.5.61-3.5.63 | Give Evaluator direct service references |
-| 11: Type Lookups | 3.5.64-3.5.69 | Remove ~15 adapter type lookup calls |
-| 12: Value Access | 3.5.70-3.5.73 | Remove ~10 adapter value access calls |
-| 13: Reduce EvalNode | 3.5.74-3.5.76 | Remove ~20 non-declaration EvalNode calls |
-| 14: Minimize | 3.5.77-3.5.79 | Shrink adapter to essential methods |
-| 15: Future | 3.5.80-3.5.83 | Full removal (deferred) |
+| 10: Direct Access | 3.5.61-3.5.63 | ✅ COMPLETE - Give Evaluator direct service references |
+| 11: Type Lookups | 3.5.64-3.5.69 | ✅ COMPLETE - Remove ~15 adapter type lookup calls |
+| 12: Value Access | 3.5.70-3.5.73 | ✅ COMPLETE - Remove ~10 adapter value access calls |
+| 13: Reduce EvalNode | 3.5.74-3.5.95 | Infrastructure (4) + EvalNode removal (18) = 22 tasks |
+| 14: Minimize | 3.5.96-3.5.98 | Shrink adapter to essential methods |
+| 15: Future | 3.5.99-3.5.102 | Full removal (deferred) |
 
-**Total remaining: 23 bite-sized tasks**
+**Phase 13 status:** 4 done (audit + VisitRangeExpression + SemanticInfo + OrdinalHelpers), 18 remaining
+
+**Total remaining: 25 tasks** (18 in Phase 13 + 3 in Phase 14 + 4 in Phase 15)
 
 Each task should be:
 - Completable in 30-60 minutes
