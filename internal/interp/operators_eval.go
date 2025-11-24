@@ -234,13 +234,13 @@ func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) 
 	path := i.conversions.findConversionPath(normalizedSource, normalizedTarget, maxConversionChainDepth)
 	if len(path) < 2 {
 		// Integer → Float is always allowed in Pascal/Delphi (automatic widening)
-		if normalizedSource == "INTEGER" && normalizedTarget == "FLOAT" {
+		if normalizedSource == "integer" && normalizedTarget == "float" {
 			if intVal, ok := value.(*IntegerValue); ok {
 				return &FloatValue{Value: float64(intVal.Value)}, true
 			}
 		}
 		// Enum → Integer implicit conversion (Task 1.6)
-		if enumVal, ok := value.(*EnumValue); ok && normalizedTarget == "INTEGER" {
+		if enumVal, ok := value.(*EnumValue); ok && normalizedTarget == "integer" {
 			return &IntegerValue{Value: int64(enumVal.OrdinalValue)}, true
 		}
 		return value, false
