@@ -14,6 +14,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 ## Phase 2: Parser Modernization ✅ **COMPLETED** (2025-01-21)
 
 **Accomplishments**:
+
 - Transformed parser to 100% cursor-based architecture (immutable TokenCursor)
 - Built modern infrastructure: combinators, structured errors, automatic position tracking
 - Removed ~6,700 lines of legacy code (31% reduction: 21K → 14.6K lines)
@@ -34,6 +35,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 **Status**: Planned | **Complexity**: High | **Priority**: Medium | **Estimated**: 4-6 weeks
 
 **Motivation**: The interpreter has grown to 68 files and 80K lines with architectural issues:
+
 - God object (Interpreter struct with 25+ fields mixing concerns)
 - Giant switch statement in Eval() (230 lines, 30+ cases)
 - Tight coupling between evaluation logic, type system, and runtime
@@ -44,6 +46,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - Difficult to test components in isolation
 
 **Benefits**:
+
 - Improved code maintainability and readability
 - Better testability (unit test individual components)
 - Easier to add new language features
@@ -52,6 +55,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - Consistent patterns and practices throughout
 
 **Non-Goals**:
+
 - Changing interpreter semantics or behavior
 - Breaking existing tests (all tests must continue passing)
 - Changing public API surface
@@ -217,6 +221,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 Split Interpreter into Evaluator + TypeSystem + ExecutionContext, implemented visitor pattern (48 methods), organized into 4 category files, created adapter infrastructure with 52 methods.
 
 **Visitor Methods (3.5.10-3.5.33):**
+
 - Simple Expressions: GroupedExpression, IfExpression, ResultExpression, DefaultExpression
 - Operators: Binary ops (enums, variants, collections, OOP, overloading), Unary ops (minus, plus, not)
 - Identifier/Call: Variable/constant/external/lazy lookups, user functions, closures, var parameters, type casts, constructors
@@ -234,6 +239,7 @@ MethodMetadata/MethodRegistry, ClassInfo→ClassMetadata, ObjectInstance, Functi
 Interpreter.Eval() delegates to Evaluator. Created evalDirect() bypass. Fixed EnvironmentAdapter unwrapping.
 
 **Shared Services (3.5.46-3.5.47):**
+
 - TypeRegistry: standalone in `types/type_system.go`, manages classes/records/interfaces/enums/helpers
 - FunctionRegistry: standalone in `types/function_registry.go`, handles overloads, builtin integration
 
@@ -242,6 +248,7 @@ Interpreter.Eval() delegates to Evaluator. Created evalDirect() bypass. Fixed En
 #### Current State (November 2025)
 
 **Adapter Usage:**
+
 - visitor_expressions.go: 78 calls (30 EvalNode, 7 CallMethod, rest scattered)
 - visitor_statements.go: 40 calls
 - visitor_declarations.go: 10 calls (all EvalNode - 100% delegation)
@@ -267,6 +274,7 @@ Interpreter.Eval() delegates to Evaluator. Created evalDirect() bypass. Fixed En
 **Core Principle:** Remove adapter calls one at a time. Never add new adapter methods.
 
 **Approach:**
+
 1. Give Evaluator direct references to TypeRegistry/FunctionRegistry
 2. Replace type lookup adapter calls with direct service calls
 3. Remove adapter methods that are no longer used
@@ -274,6 +282,7 @@ Interpreter.Eval() delegates to Evaluator. Created evalDirect() bypass. Fixed En
 5. Reduce adapter to minimal interface (~5 essential methods)
 
 ---
+
 ### Phase 10: Direct Service Access (3.5.61-3.5.63)
 
 - [x] **3.5.61** Add Direct TypeRegistry Access to Evaluator
@@ -445,44 +454,47 @@ Evaluator needs to resolve type names for array construction and type casts.
   - Method access: still uses adapter for complex dispatch logic
   - Files: `evaluator/evaluator.go`, `interface.go`, `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.88** Replace VisitMemberAccessExpression CLASS/CLASS_INFO cases
-  - Add ClassMetaValue interface to evaluator.go:
+- [x] **3.5.88** Replace VisitMemberAccessExpression CLASS/CLASS_INFO cases ✅
+  - Added ClassMetaValue interface to evaluator.go:
     - `GetClassName() string` - get class name
     - `GetClassVar(name string) (Value, bool)` - lookup class variable
     - `GetClassConstant(name string) (Value, bool)` - lookup class constant
     - `HasClassMethod(name string) bool` - check for class method
     - `HasConstructor(name string) bool` - check for constructor
-  - Implement on ClassValue and ClassInfoValue in class.go
+  - Implemented on ClassValue in class.go and ClassInfoValue in value.go
   - Handle built-in properties (ClassName, ClassType) directly
-  - Class variables and constants: direct lookup
+  - Class variables and constants: direct lookup without adapter
   - Class methods/constructors: still need adapter for invocation
-  - Files: `evaluator/evaluator.go`, `class.go`, `evaluator/visitor_expressions.go`
+  - Files: `evaluator/evaluator.go`, `class.go`, `value.go`, `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.89** Replace VisitMemberAccessExpression TYPE_CAST case
+- [x] **3.5.89** Replace VisitMemberAccessExpression TYPE_CAST case
   - Add TypeCastAccessor interface to evaluator.go:
     - `GetStaticType() string` - get the cast target type name
     - `GetWrappedValue() Value` - unwrap to actual value
-  - Implement on TypeCastValue
-  - Unwrap value and use static type for class variable lookups
+  - Implement on TypeCastValue (already defined in value.go lines 738-744)
+  - Unwrap value and use **static type** for class variable lookups
+  - Key insight: `TBase(childObj).ClassVar` must access TBase's class var, not TChild's
+  - Pattern: Check built-in props → class vars/constants via static type → delegate methods to adapter
   - Files: `evaluator/evaluator.go`, `value.go`, `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.90** Replace VisitMemberAccessExpression NIL case
+- [x] **3.5.90** Replace VisitMemberAccessExpression NIL case
   - Add NilAccessor interface to evaluator.go:
-    - `GetTypedClassName() string` - get class type if typed nil
-  - Implement on NilValue
-  - Handle class variable access on typed nil values
-  - Return "Object not instantiated" error for instance members
-  - Files: `evaluator/evaluator.go`, `value.go`, `evaluator/visitor_expressions.go`
+    - `GetTypedClassName() string` - get class type if typed nil (returns "" for untyped nil)
+  - Implement on NilValue in runtime/primitives.go (NilValue is defined there)
+  - Note: Typed nil values can access class variables but not instance members
+  - Handle class variable access on typed nil values directly
+  - Return "Object not instantiated" error for instance members (delegate to adapter for error)
+  - Files: `evaluator/evaluator.go`, `runtime/primitives.go`, `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.91** Replace VisitMemberAccessExpression RECORD case
-  - Add RecordInstanceValue interface to evaluator.go:
+- [x] **3.5.91** Replace VisitMemberAccessExpression RECORD case ✅
+  - Added RecordInstanceValue interface to evaluator.go:
     - `GetRecordField(name string) (Value, bool)` - direct field access
     - `GetRecordTypeName() string` - get record type name
     - `HasRecordMethod(name string) bool` - check for method
-    - `HasRecordProperty(name string) bool` - check for property
-  - Implement on RecordValue in value.go
-  - Handle field access directly
-  - Properties and methods: still need adapter for complex logic
+    - `HasRecordProperty(name string) bool` - check for property (records don't have properties)
+  - Implemented on RecordValue in value.go
+  - Direct field access via Fields map (case-insensitive lookup)
+  - Methods/properties still use adapter for complex logic
   - Files: `evaluator/evaluator.go`, `value.go`, `evaluator/visitor_expressions.go`
 
 - [x] **3.5.92** Replace VisitMemberAccessExpression ENUM case ✅
@@ -496,39 +508,143 @@ Evaluator needs to resolve type names for array construction and type casts.
 
 #### Group D: VisitCallExpression (12 calls, high complexity)
 
-- [ ] **3.5.93** Replace VisitCallExpression var param handling
-  - 3 calls at lines 527, 532, 539
-  - Inc, Dec, Insert, Delete, SetLength, external functions
+**Complexity Analysis:** VisitCallExpression is one of the most complex visitors because it handles:
+- User-defined function calls with overload resolution
+- Built-in functions with var/lazy parameters
+- Implicit Self method calls (inside instance methods)
+- Record static method calls
+- External (Go) function calls
+- Function pointer invocations
+
+The var parameter handling is particularly complex because it requires creating `ReferenceValue`
+wrappers to pass variables by reference, detecting which parameters are `var` parameters, and
+the adapter has substantial logic for this. Recommend tackling in small, focused subtasks.
+
+---
+
+**3.5.93: Built-in Var Parameter Functions (Split into subtasks)**
+
+- [ ] **3.5.93a** Infrastructure: Add VarParamHelper to Evaluator
+  - Create `evaluator/var_params.go` with helper methods
+  - `CreateVarReference(varName string, env any) Value` - create reference to variable
+  - `IsVarTarget(node ast.Node) (varName string, ok bool)` - check if node is valid var target
+  - `UpdateVarTarget(node ast.Node, value Value, ctx *ExecutionContext) error` - write back
+  - This infrastructure enables incremental migration of var param functions
+  - Files: `evaluator/var_params.go`
+
+- [ ] **3.5.93b** Migrate Inc/Dec Built-ins
+  - Handle `Inc(x)`, `Inc(x, n)`, `Dec(x)`, `Dec(x, n)` directly
+  - Simple case: get reference, read value, add/subtract, write back
+  - Use VarParamHelper infrastructure from 3.5.93a
   - Files: `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.94** Replace VisitCallExpression default/type cast
-  - 2 calls at lines 546, 554
-  - Default(TypeName) and TypeName(expr) casts
+- [ ] **3.5.93c** Migrate SetLength Built-in
+  - Handle `SetLength(arr, newSize)` directly
+  - Get reference to array, resize it, write back
   - Files: `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.95** Replace VisitCallExpression function pointer
-  - 1 call at line 445
-  - Closure environment, lazy params, var params
+- [ ] **3.5.93d** Migrate Insert/Delete Built-ins
+  - Handle `Insert(str, substr, pos)` - modifies str in place
+  - Handle `Delete(str, pos, count)` - modifies str in place
   - Files: `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.96** Replace VisitCallExpression method calls
-  - 2 calls at lines 461, 469
-  - Record/interface/object methods, unit-qualified calls
+- [ ] **3.5.93e** Migrate Swap/DivMod Built-ins
+  - Handle `Swap(a, b)` - exchanges two variables
+  - Handle `DivMod(dividend, divisor, quotient, remainder)` - 4 params, 2 are var
   - Files: `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.97** Replace VisitCallExpression user functions
-  - 3 calls at lines 496, 505, 516
-  - Overload resolution, implicit Self, record static methods
+- [ ] **3.5.93f** Migrate TryStrToInt/TryStrToFloat Built-ins
+  - Handle `TryStrToInt(str, outValue)` - returns bool, outValue is var param
+  - Handle `TryStrToFloat(str, outValue)` - returns bool, outValue is var param
+  - Files: `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.93g** Migrate DecodeDate/DecodeTime Built-ins
+  - Handle `DecodeDate(date, year, month, day)` - 4 params, 3 are var
+  - Handle `DecodeTime(time, hour, min, sec, msec)` - 5 params, 4 are var
+  - Most complex due to multiple output parameters
   - Files: `evaluator/visitor_expressions.go`
 
 ---
 
-#### Group E: VisitMethodCallExpression (1 call)
+**3.5.94-3.5.97: Other VisitCallExpression Cases**
 
-- [ ] **3.5.98** Replace VisitMethodCallExpression helper methods
-  - 1 call at line 1407
-  - Helper method dispatch
+- [ ] **3.5.94** Replace VisitCallExpression default/type cast
+  - 2 calls at lines 546, 554
+  - `Default(TypeName)` - returns default value for type
+  - `TypeName(expr)` - type cast expressions
+  - Medium complexity: needs type resolution
   - Files: `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.95** Replace VisitCallExpression function pointer
+  - 1 call at line 445
+  - Closure environment capture
+  - Lazy params and var params in function pointers
+  - High complexity: interacts with closure system
+  - Files: `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.96** Replace VisitCallExpression method calls
+  - 2 calls at lines 461, 469
+  - Record/interface/object method invocation
+  - Unit-qualified calls (`UnitName.FunctionName()`)
+  - High complexity: method dispatch logic
+  - Files: `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.97** Replace VisitCallExpression user functions
+  - 3 calls at lines 496, 505, 516
+  - **3.5.97a** User function overload resolution
+  - **3.5.97b** Implicit Self method calls (inside instance methods)
+  - **3.5.97c** Record static method calls (inside record methods)
+  - Very high complexity: overload resolution requires type matching
+  - Files: `evaluator/visitor_expressions.go`
+
+---
+
+#### Group E: VisitMethodCallExpression Helper Methods (1 call, high complexity)
+
+**Complexity Analysis:** The `default` case in VisitMethodCallExpression (line 1576) handles helper
+method dispatch for primitive types (String, Integer, Float, Boolean), arrays, and enums. Helper
+methods are type extensions that add methods to types that don't natively have them (e.g., `str.ToUpper()`,
+`arr.Push()`, `num.ToString()`).
+
+The helper system involves:
+- Looking up helpers for the value's type (getHelpersForValue)
+- Searching helper inheritance chains
+- Handling both AST-declared methods and builtin spec methods
+- Actually calling the helper method (callHelperMethod)
+
+**Current approach:** `EvalNode` delegation re-evaluates the whole node, which works but is inefficient
+since we've already evaluated the object and arguments.
+
+**Why CallMethod doesn't work:** The adapter's `CallMethod` panics if the object is not an ObjectInstance,
+so it can't handle primitive types with helper methods.
+
+---
+
+**3.5.98: Helper Method Migration (Split into subtasks)**
+
+- [x] **3.5.98a** Add explicit type cases for helper-enabled types ✅
+  - Added cases for STRING, INTEGER, FLOAT, BOOLEAN, ARRAY, VARIANT, ENUM
+  - Documented that these use helpers via adapter delegation
+  - No functional change, just clearer routing and better documentation
+  - Files: `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.98b** Infrastructure: Add HelperMethodResolver to Evaluator
+  - Create `evaluator/helper_methods.go` with helper lookup logic
+  - `FindHelperMethod(val Value, methodName string) (helperInfo, methodDecl, builtinSpec)`
+  - Move `getHelpersForValue` logic to evaluator (type-to-helper-name mapping)
+  - Use TypeSystem.LookupHelpers() for helper registry access
+  - Files: `evaluator/helper_methods.go`
+
+- [ ] **3.5.98c** Migrate builtin helper method calls
+  - Handle builtin specs like `__string_toupper`, `__array_push` directly
+  - These are simple operations that can be done in evaluator
+  - Files: `evaluator/helper_methods.go`, `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.98d** Migrate AST helper method calls
+  - For helper methods with AST declarations
+  - Call the method body with proper Self binding
+  - More complex due to method body evaluation
+  - Files: `evaluator/helper_methods.go`, `evaluator/visitor_expressions.go`
 
 ---
 
@@ -583,13 +699,17 @@ These tasks are deferred until the adapter is minimal. They're complex and requi
 | 10: Direct Access | 3.5.61-3.5.63 | ✅ COMPLETE - Give Evaluator direct service references |
 | 11: Type Lookups | 3.5.64-3.5.69 | ✅ COMPLETE - Remove ~15 adapter type lookup calls |
 | 12: Value Access | 3.5.70-3.5.73 | ✅ COMPLETE - Remove ~10 adapter value access calls |
-| 13: Reduce EvalNode | 3.5.74-3.5.99 | Infrastructure (4) + EvalNode removal (22) = 26 tasks |
+| 13: Reduce EvalNode | 3.5.74-3.5.99 | Infrastructure (4) + EvalNode removal - see subtasks |
 | 14: Minimize | 3.5.100-3.5.102 | Shrink adapter to essential methods |
 | 15: Future | 3.5.103-3.5.106 | Full removal (deferred) |
 
-**Phase 13 status:** 12 done, 14 remaining
+**Phase 13 status:** 14 done, remaining tasks expanded into subtasks
 
-**Total remaining: 21 tasks** (14 in Phase 13 + 3 in Phase 14 + 4 in Phase 15)
+**Task breakdown after expansion:**
+
+- 3.5.93 split into 7 subtasks (3.5.93a-g) for var param built-ins
+- 3.5.97 split into 3 subtasks (3.5.97a-c) for user function calls
+- Total subtasks: ~25 remaining in Phase 13
 
 Each task should be:
 - Completable in 30-60 minutes
@@ -939,6 +1059,7 @@ analyzer := semantic.NewAnalyzerWithExperimentalPasses()
 ### Completed Work Summary
 
 **Infrastructure** (100% complete):
+
 - ✅ Created Pass interface (`Name()`, `Run(program, ctx)`) and PassManager
 - ✅ Created PassContext with TypeRegistry, SymbolTable, BuiltinChecker interface, ScopedSymbolTable
 - ✅ Designed 4-pass architecture: Declaration → Type Resolution → Validation → Contracts
@@ -946,12 +1067,14 @@ analyzer := semantic.NewAnalyzerWithExperimentalPasses()
 - ✅ All pass infrastructure files created and tested
 
 **Pass 1: Declaration Collection** (100% complete):
+
 - ✅ Registers all type names (classes, interfaces, enums, records, sets, arrays, type aliases)
 - ✅ Registers function/procedure signatures without analyzing bodies
 - ✅ Handles forward declarations by marking types as incomplete
 - ✅ Unit tests passing
 
 **Pass 2: Type Resolution** (100% complete):
+
 - ✅ Resolves all type references (class parents, interface implementations, field types, method signatures)
 - ✅ Builds complete type hierarchies (inheritance chains)
 - ✅ Detects circular type dependencies and reports errors
@@ -960,6 +1083,7 @@ analyzer := semantic.NewAnalyzerWithExperimentalPasses()
 - ✅ Unit tests passing
 
 **Pass 3: Semantic Validation** (95.2% complete - 1716/1803 tests):
+
 - ✅ Created ValidationPass with comprehensive expression/statement type checking
 - ✅ Migrated all major validation logic from old analyzer:
   - Expression validation (20+ types: literals, binary/unary ops, calls, member access, etc.)
@@ -975,6 +1099,7 @@ analyzer := semantic.NewAnalyzerWithExperimentalPasses()
 - ✅ 95.2% test pass rate (87 failing tests are edge cases)
 
 **Pass 4: Contract Validation** (90% complete):
+
 - ✅ Created ContractPass for requires/ensures/invariant checking
 - ✅ Validates postconditions only use valid 'old' expressions
 - ✅ Validates requires clauses
@@ -983,6 +1108,7 @@ analyzer := semantic.NewAnalyzerWithExperimentalPasses()
 - ✅ 5 unit tests passing
 
 **Class Invariant Support** (100% complete):
+
 - ✅ Added InvariantClause AST node and Invariants field to ClassDecl
 - ✅ Extended parser to recognize 'invariants' keyword
 - ✅ Integrated invariant validation into ContractPass
@@ -990,11 +1116,13 @@ analyzer := semantic.NewAnalyzerWithExperimentalPasses()
 - Note: Runtime invariant checking (executing after constructors/methods) deferred to future task
 
 **Files Created**:
+
 - `internal/semantic/pass.go`, `pass_context.go`
 - `internal/semantic/declaration_pass.go`, `type_resolution_pass.go`, `validation_pass.go`, `contract_pass.go`
 - `internal/semantic/passes/*_test.go`
 
 **Files Modified**:
+
 - `internal/semantic/analyzer.go` (dual-mode integration, removed legacy validation methods)
 
 ---
@@ -1314,15 +1442,18 @@ This prevents:
   - [ ] Write tests for scope querying
 
 **Files to Modify**:
+
 - `internal/semantic/symbol_table.go` (enhance Symbol and SymbolTable)
 - `internal/semantic/analyzer.go` (pass positions to symbol operations)
 - All `analyze_*.go` files (pass positions when defining/resolving symbols)
 
 **Files to Create**:
+
 - `internal/semantic/symbol_query.go` (LSP query methods)
 - `internal/semantic/symbol_query_test.go`
 
 **Success Metrics**:
+
 - Every symbol has position information
 - Usage tracking works for all references
 - Query methods return correct results
@@ -1342,7 +1473,9 @@ This prevents:
 **Priority**: P1 - HIGH (Code quality and consistency)
 
 **Current Problem**:
+
 Analyzer has TWO error systems (analyzer.go:72-73, 456-472):
+
 ```go
 type Analyzer struct {
     errors           []string            // String errors
@@ -1405,12 +1538,14 @@ Problems:
   - [ ] Write tests for error formatting
 
 **Files to Modify**:
+
 - `internal/semantic/errors.go` (add error types)
 - `internal/semantic/analyzer.go` (remove string errors)
 - All `analyze_*.go` files (replace addError calls)
 - `cmd/dwscript/commands/*.go` (update error display)
 
 **Success Metrics**:
+
 - Zero `addError()` calls remain
 - All errors are structured with positions
 - Error messages improved with context
@@ -1431,6 +1566,7 @@ Problems:
 
 **Current Problem**:
 Files like these are in semantic analyzer:
+
 - `analyze_builtin_math.go` (23KB) - mathematical functions
 - `analyze_builtin_string_transform.go` - string manipulation
 - `analyze_builtin_datetime.go` - date/time functions
@@ -1484,6 +1620,7 @@ These files contain **runtime implementations**, not just signature validation. 
   - [ ] Verify no performance regression
 
 **Files to Create**:
+
 - `internal/stdlib/registry.go`
 - `internal/stdlib/math.go`
 - `internal/stdlib/string.go`
@@ -1494,6 +1631,7 @@ These files contain **runtime implementations**, not just signature validation. 
 - `internal/stdlib/encoding.go`
 
 **Files to Delete** (after migration):
+
 - `internal/semantic/analyze_builtin_math.go`
 - `internal/semantic/analyze_builtin_string_transform.go`
 - `internal/semantic/analyze_builtin_string_format.go`
@@ -1630,6 +1768,7 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 ```
 
 Problems:
+
 - Difficult to maintain (easy to miss cases)
 - No compile-time guarantee all node types handled
 - Hard to add new node types
@@ -1670,10 +1809,12 @@ Problems:
   - [ ] Verify no regressions
 
 **Files to Create**:
+
 - `internal/semantic/visitor.go`
 - `internal/semantic/visitor_test.go`
 
 **Files to Modify**:
+
 - `internal/semantic/analyze_expressions.go` (use visitor)
 - `internal/semantic/analyze_statements.go` (use visitor)
 - Other analyze_*.go files as needed
@@ -1751,11 +1892,13 @@ Problems:
 **Priority**: P0 - CRITICAL (Core OOP feature)
 
 **Description**: Class variables are static class members that belong to the class itself rather than instances. In DWScript, they are declared with the `class var` keyword and can be accessed via the class name (e.g., `TBase.Test`) or via instances. Currently:
+
 - Parser doesn't recognize `class var` syntax in class bodies
 - Type system doesn't track class variables separately from instance fields
 - Semantic analyzer and interpreter have no support for class variable access
 
 **Failing Tests** (11 total):
+
 - class_var
 - class_var_as_prop
 - class_var_dyn1
@@ -1792,6 +1935,7 @@ PrintLn(b.Test);    // Access via instance
 **Status**: DONE
 
 **Implementation**:
+
 1. Add parsing for `class var` keyword in class body
 2. Create AST node to represent class variables (or flag in existing FieldDeclaration)
 3. Handle multiple class var declarations
@@ -1804,6 +1948,7 @@ PrintLn(b.Test);    // Access via instance
 - `internal/parser/parser_classvar_test.go` (added additional verification tests)
 
 **Notes**:
+
 - Parser implementation for class var was already complete
 - All tests pass, including initialization, type inference, and visibility modifiers
 - Supports both `class var X: Type;` and `class var X: Type := Value;` syntax
@@ -1982,6 +2127,7 @@ end;
 **Estimate**: 2-3 hours
 
 **Implementation**:
+
 1. Modify class body parser to recognize `:=` after identifier
 2. Create field with initialization expression in AST
 3. Distinguish from method declarations and properties
@@ -1997,6 +2143,7 @@ end;
 **Estimate**: 2-3 hours
 
 **Implementation**:
+
 1. During class declaration analysis, analyze field initializer expressions
 2. Resolve references to class constants
 3. Validate initializer types match field types

@@ -509,6 +509,82 @@ func (c *ClassValue) String() string {
 	return "class <nil>"
 }
 
+// GetClassName returns the class name.
+// Task 3.5.88: Implements evaluator.ClassMetaValue interface.
+func (c *ClassValue) GetClassName() string {
+	if c == nil || c.ClassInfo == nil {
+		return ""
+	}
+	return c.ClassInfo.Name
+}
+
+// GetClassVar retrieves a class variable value by name from the class hierarchy.
+// Returns the value and true if found, nil and false otherwise.
+// Task 3.5.88: Implements evaluator.ClassMetaValue interface.
+func (c *ClassValue) GetClassVar(name string) (Value, bool) {
+	if c == nil || c.ClassInfo == nil {
+		return nil, false
+	}
+	value, owningClass := c.ClassInfo.lookupClassVar(name)
+	if owningClass == nil {
+		return nil, false
+	}
+	return value, true
+}
+
+// GetClassConstant retrieves a class constant value by name from the class hierarchy.
+// Returns the value and true if found, nil and false otherwise.
+// Task 3.5.88: Implements evaluator.ClassMetaValue interface.
+func (c *ClassValue) GetClassConstant(name string) (Value, bool) {
+	if c == nil || c.ClassInfo == nil {
+		return nil, false
+	}
+	// Check ConstantValues cache first (case-insensitive)
+	for constName, value := range c.ClassInfo.ConstantValues {
+		if ident.Equal(constName, name) {
+			return value, true
+		}
+	}
+	// Check parent class hierarchy
+	if c.ClassInfo.Parent != nil {
+		parentCV := &ClassValue{ClassInfo: c.ClassInfo.Parent}
+		return parentCV.GetClassConstant(name)
+	}
+	return nil, false
+}
+
+// HasClassMethod checks if a class method with the given name exists.
+// Task 3.5.88: Implements evaluator.ClassMetaValue interface.
+func (c *ClassValue) HasClassMethod(name string) bool {
+	if c == nil || c.ClassInfo == nil {
+		return false
+	}
+	normalizedName := ident.Normalize(name)
+	// Check single class methods
+	if _, exists := c.ClassInfo.ClassMethods[normalizedName]; exists {
+		return true
+	}
+	// Check overloaded class methods
+	if overloads, exists := c.ClassInfo.ClassMethodOverloads[normalizedName]; exists && len(overloads) > 0 {
+		return true
+	}
+	// Check parent class hierarchy
+	if c.ClassInfo.Parent != nil {
+		parentCV := &ClassValue{ClassInfo: c.ClassInfo.Parent}
+		return parentCV.HasClassMethod(name)
+	}
+	return false
+}
+
+// HasConstructor checks if a constructor with the given name exists.
+// Task 3.5.88: Implements evaluator.ClassMetaValue interface.
+func (c *ClassValue) HasConstructor(name string) bool {
+	if c == nil || c.ClassInfo == nil {
+		return false
+	}
+	return c.ClassInfo.HasConstructor(name)
+}
+
 // IsAssignableTo checks if this class reference can be assigned to a variable
 // of the given metaclass type. This implements the assignment compatibility
 // rules for metaclasses.
