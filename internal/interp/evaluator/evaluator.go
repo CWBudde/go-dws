@@ -774,6 +774,30 @@ type InterpreterAdapter interface {
 	// EvalStatement evaluates a single statement in the given context.
 	// Used by exception handlers to evaluate the handler statement.
 	EvalStatement(stmt ast.Statement, ctx *ExecutionContext)
+
+	// ===== Task 3.5.96: Method and Qualified Call Methods =====
+
+	// CallMemberMethod calls a method on an object (record, interface, or object instance).
+	// This handles:
+	// - Record method calls: recVal.Method(args)
+	// - Interface method calls: ifaceVal.Method(args) - dispatches to underlying object
+	// - Object method calls: objVal.Method(args)
+	// Parameters:
+	//   - callExpr: The original CallExpression AST node
+	//   - memberAccess: The MemberAccessExpression (obj.member)
+	//   - objVal: The evaluated object value
+	// Returns the method call result or an error.
+	CallMemberMethod(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression, objVal Value) Value
+
+	// CallQualifiedOrConstructor calls a unit-qualified function or class constructor.
+	// This handles:
+	// - Unit-qualified calls: UnitName.FunctionName(args)
+	// - Class constructor calls: TClassName.Create(args)
+	// Parameters:
+	//   - callExpr: The original CallExpression AST node
+	//   - memberAccess: The MemberAccessExpression (unit.func or class.method)
+	// Returns the call result or an error.
+	CallQualifiedOrConstructor(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression) Value
 }
 
 // Evaluator is responsible for evaluating DWScript AST nodes.
