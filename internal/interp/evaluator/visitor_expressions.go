@@ -79,15 +79,9 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			return actualVal
 		}
 
-		// Variable found - return immediately for basic primitives
-		switch val.(type) {
-		case *runtime.IntegerValue, *runtime.FloatValue, *runtime.StringValue, *runtime.BooleanValue, *runtime.NilValue:
-			return val
-		}
-
-		// For other complex value types (arrays, objects, records),
-		// delegate to adapter for full processing
-		return e.adapter.EvalNode(node)
+		// Variable found - return the value directly
+		// All value types (primitives, arrays, objects, records) can be returned as-is
+		return val
 	}
 
 	// Check if we're in an instance method context (Self is bound)
@@ -173,19 +167,56 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// Check if this identifier is a user-defined function name
 	// Functions are auto-invoked if they have zero parameters, or converted to function pointers if they have parameters
 	// Task 3.5.67: Use direct FunctionRegistry access instead of adapter
+	// Task 3.5.85: Direct evaluation without adapter EvalNode call
 	funcNameLower := ident.Normalize(node.Value)
 	if overloads := e.FunctionRegistry().Lookup(funcNameLower); len(overloads) > 0 {
-		return e.adapter.EvalNode(node)
+		// Find the appropriate overload
+		var fn *ast.FunctionDecl
+		if len(overloads) == 1 {
+			fn = overloads[0]
+		} else {
+			// Multiple overloads - try to find the one with zero parameters
+			for _, candidate := range overloads {
+				if len(candidate.Parameters) == 0 {
+					fn = candidate
+					break
+				}
+			}
+			// If no zero-param overload, default to first one (for function pointer use)
+			if fn == nil {
+				fn = overloads[0]
+			}
+		}
+
+		// Check if function has zero parameters - auto-invoke
+		if len(fn.Parameters) == 0 {
+			return e.adapter.CallUserFunction(fn, []Value{})
+		}
+
+		// Function has parameters - create function pointer
+		return e.adapter.CreateFunctionPointer(fn, ctx.Env())
 	}
 
 	// Check if this identifier is a class name (metaclass reference)
 	// Task 3.5.64: Use direct TypeRegistry access instead of adapter
+	// Task 3.5.85: Direct ClassValue creation without adapter EvalNode call
 	if e.typeSystem.HasClass(node.Value) {
-		return e.adapter.EvalNode(node)
+		classVal, err := e.adapter.CreateClassValue(node.Value)
+		if err != nil {
+			return e.newError(node, "%s", err.Error())
+		}
+		return classVal
 	}
 
-	// Final check: delegate to adapter for built-in functions or error if undefined
-	return e.adapter.EvalNode(node)
+	// Final check: check for built-in functions or return undefined error
+	// Task 3.5.85: Direct built-in invocation without adapter EvalNode call
+	if e.FunctionRegistry().IsBuiltin(node.Value) {
+		// Parameterless built-in functions are auto-invoked
+		return e.adapter.CallBuiltinFunction(node.Value, []Value{})
+	}
+
+	// Still not found - return error
+	return e.newError(node, "undefined variable '%s'", node.Value)
 }
 
 // VisitBinaryExpression evaluates a binary expression (e.g., a + b, x == y).
@@ -1743,47 +1774,10 @@ func (e *Evaluator) VisitSetLiteral(node *ast.SetLiteral, ctx *ExecutionContext)
 }
 
 // VisitArrayLiteralExpression evaluates an array literal [1, 2, 3].
+// Task 3.5.83: Direct evaluation without adapter EvalNode call.
 // Handles type inference, element coercion, and bounds validation for static and dynamic arrays.
 func (e *Evaluator) VisitArrayLiteralExpression(node *ast.ArrayLiteralExpression, ctx *ExecutionContext) Value {
-	if node == nil {
-		return e.newError(node, "nil array literal")
-	}
-
-	// Empty arrays need type annotation
-	if len(node.Elements) == 0 {
-		return e.adapter.EvalNode(node)
-	}
-
-	// Evaluate all element expressions
-	elementCount := len(node.Elements)
-	evaluatedElements := make([]Value, elementCount)
-
-	for idx, elem := range node.Elements {
-		val := e.Eval(elem, ctx)
-		if isError(val) {
-			return val
-		}
-		evaluatedElements[idx] = val
-	}
-
-	// Determine array element type
-	arrayType := e.getArrayElementType(node, evaluatedElements)
-	if arrayType == nil {
-		return e.newError(node, "cannot infer type of array literal")
-	}
-
-	// Validate element type compatibility
-	if err := e.coerceArrayElements(evaluatedElements, arrayType.ElementType, node); err != nil {
-		return err
-	}
-
-	// Validate static array bounds
-	if err := e.validateArrayLiteralSize(arrayType, elementCount, node); err != nil {
-		return err
-	}
-
-	// Delegate final construction to adapter
-	return e.adapter.EvalNode(node)
+	return e.evalArrayLiteralDirect(node, ctx)
 }
 
 // VisitIndexExpression evaluates an index expression array[index].
@@ -1797,22 +1791,67 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 		return e.newError(node, "index expression missing base")
 	}
 
-	base := e.Eval(node.Left, ctx)
-	if isError(base) {
-		return base
+	// Check if this might be a multi-index property access (obj.Property[x, y])
+	// We only flatten indices if the base is a MemberAccessExpression (property access)
+	// For regular array access like arr[i][j], we process each level separately
+	base, _ := CollectIndices(node)
+
+	// Check if this is indexed property access: obj.Property[index1, index2, ...]
+	// Only flatten indices for property access, not for regular arrays
+	if _, ok := base.(*ast.MemberAccessExpression); ok {
+		// Delegate property-based indexing to adapter (complex logic with class/interface lookups)
+		return e.adapter.EvalNode(node)
+	}
+
+	// Not a property access - this is regular array/string indexing
+	// Process ONLY the outermost index, not all nested indices
+	// This allows FData[x][y] to work as: (FData[x])[y]
+	leftVal := e.Eval(node.Left, ctx)
+	if isError(leftVal) {
+		return leftVal
 	}
 
 	if node.Index == nil {
 		return e.newError(node, "index expression missing index")
 	}
 
-	index := e.Eval(node.Index, ctx)
-	if isError(index) {
-		return index
+	// Evaluate the index for this level only
+	indexVal := e.Eval(node.Index, ctx)
+	if isError(indexVal) {
+		return indexVal
 	}
 
-	// Delegate indexing logic to adapter
-	return e.adapter.EvalNode(node)
+	// Unwrap variants for indexing
+	leftVal = unwrapVariant(leftVal)
+
+	// Handle interface/object default property access - delegate to adapter
+	// These require class hierarchy lookup and property getter execution
+	switch leftVal.Type() {
+	case "INTERFACE", "OBJECT", "RECORD":
+		// Default property access requires adapter (class lookup, method calls)
+		return e.adapter.EvalNode(node)
+	case "JSON":
+		// JSON indexing requires VariantValue which is in interp package
+		return e.adapter.EvalNode(node)
+	}
+
+	// Index must be an integer or enum for arrays and strings
+	index, ok := ExtractIntegerIndex(indexVal)
+	if !ok {
+		return e.newError(node, "index must be an integer or enum, got %s", indexVal.Type())
+	}
+
+	// Check if left side is an array
+	if arrayVal, ok := leftVal.(*runtime.ArrayValue); ok {
+		return e.IndexArray(arrayVal, index, node)
+	}
+
+	// Check if left side is a string
+	if strVal, ok := leftVal.(*runtime.StringValue); ok {
+		return e.IndexString(strVal, index, node)
+	}
+
+	return e.newError(node, "cannot index type %s", leftVal.Type())
 }
 
 // VisitNewArrayExpression evaluates a new array expression.
@@ -1826,14 +1865,21 @@ func (e *Evaluator) VisitNewArrayExpression(node *ast.NewArrayExpression, ctx *E
 		return e.newError(node, "new array expression missing element type")
 	}
 
-	// Evaluate and validate dimensions
-	_, err := e.evaluateDimensions(node.Dimensions, ctx, node)
-	if err != nil {
-		return err
+	// Resolve the element type
+	elementTypeName := node.ElementTypeName.Value
+	elementType, typeErr := e.ResolveType(elementTypeName)
+	if typeErr != nil {
+		return e.newError(node, "unknown element type '%s': %s", elementTypeName, typeErr)
 	}
 
-	// Delegate array construction to adapter
-	return e.adapter.EvalNode(node)
+	// Evaluate and validate dimensions
+	dimensions, evalErr := e.evaluateDimensions(node.Dimensions, ctx, node)
+	if evalErr != nil {
+		return evalErr
+	}
+
+	// Create the multi-dimensional array directly
+	return e.CreateMultiDimArray(elementType, dimensions)
 }
 
 // VisitLambdaExpression evaluates a lambda expression (closure).

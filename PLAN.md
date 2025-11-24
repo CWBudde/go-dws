@@ -383,34 +383,48 @@ Evaluator needs to resolve type names for array construction and type casts.
   - Retains adapter call only for array-in-set-syntax case (migrated in 3.5.83)
   - Files: `evaluator/set_helpers.go`, `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.81** Replace VisitIndexExpression EvalNode
-  - 1 call at line 1814
-  - Requires: index collection (3.5.78), property lookup infrastructure
-  - Migrate evalIndexExpression from array.go (~200 lines)
+- [x] **3.5.81a** Replace VisitIndexExpression EvalNode - Basic Cases ✅
+  - [x] Created `evaluator/index_ops.go` with `IndexArray()`, `IndexString()`, `ExtractIntegerIndex()`
+  - [x] Array indexing with bounds checking (static and dynamic arrays)
+  - [x] String indexing (1-indexed, UTF-8 aware)
+  - [x] Index type validation (Integer or Enum)
+  - Files: `evaluator/index_ops.go`, `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.81b** Replace VisitIndexExpression EvalNode - Property/JSON Cases
+  - [ ] Property access when base is MemberAccessExpression (indexed properties)
+  - [ ] Interface default property access
+  - [ ] Object default property access
+  - [ ] Record default property access with getter methods
+  - [ ] JSON object/array indexing
+  - Blocked on: evalIndexedPropertyRead migration, JSONValue/VariantValue in evaluator
   - Files: `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.82** Replace VisitNewArrayExpression EvalNode
-  - 1 call at line 1835
-  - Requires: type resolution (3.5.79)
-  - Migrate evalNewArrayExpression from array.go
-  - Files: `evaluator/visitor_expressions.go`
+- [x] **3.5.82** Replace VisitNewArrayExpression EvalNode ✅
+  - Added `CreateMultiDimArray()` and `buildArrayTypeForDimensions()` to `index_ops.go`
+  - Uses `ResolveType()` for element type resolution
+  - Uses `evaluateDimensions()` for dimension validation
+  - Extended `getZeroValueForType()` to handle ARRAY types
+  - No adapter delegation - fully migrated
+  - Files: `evaluator/index_ops.go`, `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.83** Replace VisitArrayLiteralExpression EvalNode
-  - 2 calls at lines 1753, 1785
-  - Requires: semanticInfo (3.5.76), type resolution (3.5.79)
-  - Migrate evalArrayLiteral from array.go (~100 lines)
-  - Files: `evaluator/visitor_expressions.go`
+- [x] **3.5.83** Replace VisitArrayLiteralExpression EvalNode ✅
+  - Removed 2 EvalNode calls (lines 1753, 1785)
+  - Added `evalArrayLiteralDirect()` and supporting methods to `array_helpers.go`
+  - Added `CreateArrayValue()` adapter method for direct array construction
+  - Handles type annotation from semanticInfo, type inference, element coercion
+  - Supports nested array literals with expected type propagation
+  - Files: `evaluator/array_helpers.go`, `evaluator/visitor_expressions.go`, `evaluator/evaluator.go`, `interpreter.go`
 
 ---
 
 #### Group B: VisitIdentifier (4 calls, medium complexity)
 
-- [ ] **3.5.84** Replace VisitIdentifier complex value types
+- [x] **3.5.84** Replace VisitIdentifier complex value types
   - 1 call at line 90
   - Arrays, objects, records delegation
   - Files: `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.85** Replace VisitIdentifier function/class lookups
+- [x] **3.5.85** Replace VisitIdentifier function/class lookups
   - 3 calls at lines 178, 184, 188
   - Function name, class name, and fallback lookups
   - Files: `evaluator/visitor_expressions.go`
@@ -521,9 +535,9 @@ These tasks are deferred until the adapter is minimal. They're complex and requi
 | 14: Minimize | 3.5.96-3.5.98 | Shrink adapter to essential methods |
 | 15: Future | 3.5.99-3.5.102 | Full removal (deferred) |
 
-**Phase 13 status:** 7 done (audit + VisitRangeExpression + SemanticInfo + OrdinalHelpers + IndexHelpers + TypeResolution + SetLiteral), 15 remaining
+**Phase 13 status:** 10 done (audit + VisitRangeExpression + SemanticInfo + OrdinalHelpers + IndexHelpers + TypeResolution + SetLiteral + IndexExpression-basic + NewArrayExpression + ArrayLiteral), 13 remaining
 
-**Total remaining: 22 tasks** (15 in Phase 13 + 3 in Phase 14 + 4 in Phase 15)
+**Total remaining: 20 tasks** (13 in Phase 13 + 3 in Phase 14 + 4 in Phase 15)
 
 Each task should be:
 - Completable in 30-60 minutes

@@ -218,6 +218,14 @@ type InterpreterAdapter interface {
 	// Uses the expected array type for proper element type inference and coercion.
 	CreateArrayWithExpectedType(elements []Value, expectedType any) Value
 
+	// CreateArrayValue creates an ArrayValue with the specified array type and elements.
+	// Task 3.5.83: Direct array construction without re-evaluation.
+	// Parameters:
+	//   - arrayType: The *types.ArrayType for the array (passed as any to avoid import cycles)
+	//   - elements: The pre-evaluated element values
+	// Returns the created ArrayValue.
+	CreateArrayValue(arrayType any, elements []Value) Value
+
 	// GetArrayElement retrieves an element from an array at the given index.
 	// Performs bounds checking and returns an error if index is out of range.
 	GetArrayElement(array Value, index Value) (Value, error)
@@ -312,6 +320,11 @@ type InterpreterAdapter interface {
 	// Task 3.5.36: Supports ObjectInstance, ClassValue, and ClassInfoValue inputs.
 	// Returns true if the class implements the specified interface.
 	CheckImplements(obj Value, interfaceName string) (bool, error)
+
+	// CreateClassValue creates a ClassValue (metaclass reference) from a class name.
+	// Task 3.5.85: Used by VisitIdentifier to return metaclass references for class names.
+	// Returns the ClassValue and an error if the class is not found.
+	CreateClassValue(className string) (Value, error)
 
 	// ===== Function Pointers (Task 3.5.8) =====
 

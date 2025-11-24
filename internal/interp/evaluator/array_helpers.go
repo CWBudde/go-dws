@@ -313,3 +313,341 @@ func (e *Evaluator) extractIntegerValue(val Value) (int, error) {
 
 	return intVal, nil
 }
+
+// ============================================================================
+// Array Literal Direct Evaluation
+// ============================================================================
+//
+// Task 3.5.83: Direct array literal evaluation without adapter.EvalNode().
+// This eliminates double-evaluation by using pre-evaluated elements.
+// ============================================================================
+
+// evalArrayLiteralDirect evaluates an array literal expression directly.
+// This is the main entry point for array literal evaluation without adapter delegation.
+//
+// Process:
+//  1. Get type annotation from semanticInfo (if available)
+//  2. Evaluate all elements (with expected type for nested arrays)
+//  3. Infer type if no annotation exists
+//  4. Coerce elements to target type
+//  5. Validate static array bounds
+//  6. Create ArrayValue directly via adapter.CreateArrayValue
+//
+// Returns the ArrayValue or an error Value.
+func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx *ExecutionContext) Value {
+	if node == nil {
+		return e.newError(node, "nil array literal")
+	}
+
+	// Step 1: Get type annotation from semanticInfo
+	arrayType := e.getArrayTypeFromAnnotation(node)
+
+	// Step 2: Evaluate all elements
+	elementCount := len(node.Elements)
+	evaluatedElements := make([]Value, elementCount)
+	elementTypes := make([]types.Type, elementCount)
+
+	for idx, elem := range node.Elements {
+		var val Value
+
+		// If we have an expected array type and element is an array literal,
+		// evaluate it with the expected element type for proper nested array typing.
+		if arrayType != nil {
+			if elemLit, ok := elem.(*ast.ArrayLiteralExpression); ok {
+				if expectedElemArr, ok := arrayType.ElementType.(*types.ArrayType); ok {
+					val = e.evalArrayLiteralWithExpectedType(elemLit, expectedElemArr, ctx)
+				}
+			}
+		}
+
+		// Regular evaluation if not a nested array literal
+		if val == nil {
+			val = e.Eval(elem, ctx)
+		}
+
+		if isError(val) {
+			return val
+		}
+		evaluatedElements[idx] = val
+		elementTypes[idx] = GetValueType(val)
+	}
+
+	// Step 3: Infer type if no annotation
+	if arrayType == nil {
+		inferred := e.inferArrayTypeFromElements(node, elementTypes)
+		if inferred == nil {
+			if elementCount == 0 {
+				return e.newError(node, "cannot infer type for empty array literal")
+			}
+			return e.newError(node, "cannot determine array type for literal")
+		}
+		arrayType = inferred
+	}
+
+	// Step 4: Coerce elements to target type
+	coercedElements, errVal := e.coerceElementsToType(arrayType, evaluatedElements, elementTypes, node)
+	if errVal != nil {
+		return errVal
+	}
+
+	// Step 5: Validate static array bounds
+	if arrayType.IsStatic() {
+		expectedSize := arrayType.Size()
+		if elementCount != expectedSize {
+			return e.newError(node, "array literal has %d elements, expected %d", elementCount, expectedSize)
+		}
+	}
+
+	// Step 6: Create ArrayValue directly
+	return e.adapter.CreateArrayValue(arrayType, coercedElements)
+}
+
+// getArrayTypeFromAnnotation retrieves the array type from semantic info annotations.
+// Returns nil if no annotation exists or cannot be resolved.
+func (e *Evaluator) getArrayTypeFromAnnotation(node *ast.ArrayLiteralExpression) *types.ArrayType {
+	if e.semanticInfo == nil {
+		return nil
+	}
+
+	typeAnnot := e.semanticInfo.GetType(node)
+	if typeAnnot == nil || typeAnnot.Name == "" {
+		return nil
+	}
+
+	// Resolve the type name to an ArrayType
+	resolved, err := e.ResolveType(typeAnnot.Name)
+	if err != nil {
+		return nil
+	}
+
+	if arrayType, ok := resolved.(*types.ArrayType); ok {
+		return arrayType
+	}
+
+	// Check underlying type for type aliases
+	if underlying := types.GetUnderlyingType(resolved); underlying != nil {
+		if arrayType, ok := underlying.(*types.ArrayType); ok {
+			return arrayType
+		}
+	}
+
+	return nil
+}
+
+// evalArrayLiteralWithExpectedType evaluates a nested array literal with an expected type.
+// This ensures nested array literals get the correct element type from their parent.
+func (e *Evaluator) evalArrayLiteralWithExpectedType(node *ast.ArrayLiteralExpression, expected *types.ArrayType, ctx *ExecutionContext) Value {
+	if expected == nil {
+		return e.evalArrayLiteralDirect(node, ctx)
+	}
+
+	// Temporarily set type annotation for this evaluation
+	if e.semanticInfo == nil {
+		// No semantic info - just use expected type directly
+		return e.evalArrayLiteralWithType(node, expected, ctx)
+	}
+
+	// Save and restore type annotation
+	prevType := e.semanticInfo.GetType(node)
+	annotation := &ast.TypeAnnotation{Token: node.Token, Name: expected.String()}
+	e.semanticInfo.SetType(node, annotation)
+
+	result := e.evalArrayLiteralDirect(node, ctx)
+
+	// Restore previous annotation
+	if prevType != nil {
+		e.semanticInfo.SetType(node, prevType)
+	} else {
+		e.semanticInfo.ClearType(node)
+	}
+
+	return result
+}
+
+// evalArrayLiteralWithType evaluates an array literal with a known array type.
+// Used when semanticInfo is not available.
+func (e *Evaluator) evalArrayLiteralWithType(node *ast.ArrayLiteralExpression, arrayType *types.ArrayType, ctx *ExecutionContext) Value {
+	elementCount := len(node.Elements)
+	evaluatedElements := make([]Value, elementCount)
+	elementTypes := make([]types.Type, elementCount)
+
+	for idx, elem := range node.Elements {
+		var val Value
+
+		// Handle nested array literals with expected element type
+		if elemLit, ok := elem.(*ast.ArrayLiteralExpression); ok {
+			if expectedElemArr, ok := arrayType.ElementType.(*types.ArrayType); ok {
+				val = e.evalArrayLiteralWithType(elemLit, expectedElemArr, ctx)
+			}
+		}
+
+		if val == nil {
+			val = e.Eval(elem, ctx)
+		}
+
+		if isError(val) {
+			return val
+		}
+		evaluatedElements[idx] = val
+		elementTypes[idx] = GetValueType(val)
+	}
+
+	// Coerce elements
+	coercedElements, errVal := e.coerceElementsToType(arrayType, evaluatedElements, elementTypes, node)
+	if errVal != nil {
+		return errVal
+	}
+
+	// Validate static array bounds
+	if arrayType.IsStatic() {
+		expectedSize := arrayType.Size()
+		if elementCount != expectedSize {
+			return e.newError(node, "array literal has %d elements, expected %d", elementCount, expectedSize)
+		}
+	}
+
+	return e.adapter.CreateArrayValue(arrayType, coercedElements)
+}
+
+// inferArrayTypeFromElements infers an array type from evaluated element types.
+// Returns a dynamic array type with the common element type, or nil if inference fails.
+func (e *Evaluator) inferArrayTypeFromElements(node *ast.ArrayLiteralExpression, elementTypes []types.Type) *types.ArrayType {
+	if len(elementTypes) == 0 {
+		return nil
+	}
+
+	var inferred types.Type
+
+	for idx, elemType := range elementTypes {
+		if elemType == nil {
+			continue
+		}
+
+		underlying := types.GetUnderlyingType(elemType)
+		if underlying == types.NIL {
+			continue
+		}
+
+		if inferred == nil {
+			inferred = underlying
+			continue
+		}
+
+		if inferred.Equals(underlying) {
+			continue
+		}
+
+		// Numeric promotion: Integer + Float → Float
+		if inferred.Equals(types.INTEGER) && underlying.Equals(types.FLOAT) {
+			inferred = types.FLOAT
+			continue
+		}
+		if inferred.Equals(types.FLOAT) && underlying.Equals(types.INTEGER) {
+			continue
+		}
+
+		// Incompatible types - could return Variant or error
+		// For now, return nil to match existing behavior
+		_ = idx // Suppress unused variable warning
+		return nil
+	}
+
+	if inferred == nil {
+		return nil
+	}
+
+	// Create a static array type for literals (value semantics)
+	size := len(node.Elements)
+	if size == 0 {
+		return types.NewDynamicArrayType(types.GetUnderlyingType(inferred))
+	}
+	return types.NewStaticArrayType(types.GetUnderlyingType(inferred), 0, size-1)
+}
+
+// coerceElementsToType coerces all elements to the target array element type.
+// Handles Integer→Float promotion and Variant boxing.
+func (e *Evaluator) coerceElementsToType(arrayType *types.ArrayType, values []Value, valueTypes []types.Type, node *ast.ArrayLiteralExpression) ([]Value, Value) {
+	coerced := make([]Value, len(values))
+
+	elementType := arrayType.ElementType
+	if elementType == nil {
+		return nil, e.newError(node, "array literal has no element type information")
+	}
+	underlyingElementType := types.GetUnderlyingType(elementType)
+
+	for idx, val := range values {
+		var valType types.Type
+		if idx < len(valueTypes) && valueTypes[idx] != nil {
+			valType = types.GetUnderlyingType(valueTypes[idx])
+		}
+
+		// Box values when expected element type is Variant
+		if underlyingElementType.Equals(types.VARIANT) {
+			coerced[idx] = e.adapter.BoxVariant(val)
+			continue
+		}
+
+		// Handle nil values
+		if val != nil && val.Type() == "NIL" {
+			switch underlyingElementType.TypeKind() {
+			case "CLASS", "INTERFACE", "ARRAY":
+				coerced[idx] = val
+				continue
+			default:
+				elemNode := node
+				if idx < len(node.Elements) {
+					elemNode = &ast.ArrayLiteralExpression{Elements: []ast.Expression{node.Elements[idx]}}
+				}
+				return nil, e.newError(elemNode, "cannot assign nil to %s", underlyingElementType.String())
+			}
+		}
+
+		if valType == nil {
+			elemNode := node
+			if idx < len(node.Elements) {
+				elemNode = &ast.ArrayLiteralExpression{Elements: []ast.Expression{node.Elements[idx]}}
+			}
+			return nil, e.newError(elemNode, "cannot determine type for array element %d", idx+1)
+		}
+
+		// Exact type match
+		if underlyingElementType.Equals(valType) {
+			coerced[idx] = val
+			continue
+		}
+
+		// Integer → Float promotion
+		if underlyingElementType.Equals(types.FLOAT) && valType.Equals(types.INTEGER) {
+			// Convert integer to float via adapter
+			converted, err := e.adapter.ConvertValue(val, "Float")
+			if err == nil {
+				coerced[idx] = converted
+				continue
+			}
+		}
+
+		// Array compatibility check
+		if valType.TypeKind() == "ARRAY" && underlyingElementType.TypeKind() == "ARRAY" {
+			if types.IsCompatible(valType, underlyingElementType) || types.IsCompatible(underlyingElementType, valType) {
+				coerced[idx] = val
+				continue
+			}
+		}
+
+		// General compatibility check
+		if types.IsCompatible(valType, underlyingElementType) {
+			coerced[idx] = val
+			continue
+		}
+
+		// Incompatible type
+		elemNode := node
+		if idx < len(node.Elements) {
+			elemNode = &ast.ArrayLiteralExpression{Elements: []ast.Expression{node.Elements[idx]}}
+		}
+		return nil, e.newError(elemNode, "array element %d has incompatible type (got %s, expected %s)",
+			idx+1, val.Type(), underlyingElementType.String())
+	}
+
+	return coerced, nil
+}
