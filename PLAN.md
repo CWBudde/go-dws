@@ -328,181 +328,25 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 #### Completed Tasks
 
-- [x] **3.5.74** Audit All EvalNode Calls ✅
-  - Found 46 total calls (31 candidates, 15 to keep)
-  - Categorized by visitor method for incremental migration
-  - Documented in audit table above
-
-- [x] **3.5.75** Replace VisitRangeExpression EvalNode ✅
-  - 1 call at line 2061 → replaced with direct error (range expressions can't be evaluated directly)
-  - Range expressions handled specially in VisitCaseStatement and set.go
-  - Files: `evaluator/visitor_expressions.go`
-
----
-
-#### Infrastructure: SemanticInfo Access
-
-Before migrating set/array literals, the Evaluator needs access to semantic analysis results.
-
-- [x] **3.5.76** Add SemanticInfo to Evaluator ✅
-  - Pass semanticInfo to Evaluator constructor (like TypeRegistry)
-  - Add `semanticInfo` field and accessor method
-  - Files: `evaluator/evaluator.go`, `interpreter.go`
-  - Unblocks: 3.5.80, 3.5.83
-
----
-
-#### Infrastructure: Array/Set Helper Migration
-
-Helper functions for ordinal types, index collection, and type inference need to be accessible from Evaluator.
-
-- [x] **3.5.77** Move Ordinal Helpers to Evaluator Package ✅
-  - Moved `GetOrdinalValue`, `GetOrdinalType` to `evaluator/ordinal_helpers.go`
-  - Updated all callers in interp package to use `evaluator.GetOrdinalValue/Type`
-  - Files: `value.go` → `evaluator/ordinal_helpers.go`
-  - Unblocks: 3.5.80
-
-- [x] **3.5.78** Move Index Collection Helper ✅
-  - Moved `CollectIndices` to `evaluator/index_helpers.go` (exported)
-  - Updated callers in `array.go` and `statements_assignments.go`
-  - Files: `interp/array.go` → `evaluator/index_helpers.go`
-  - Unblocks: 3.5.81
-
----
-
-#### Infrastructure: Type Resolution
-
-Evaluator needs to resolve type names for array construction and type casts.
-
-- [x] **3.5.79** Add Type Resolution to Evaluator ✅
-  - Added `ResolveType(typeName string)` method in new `evaluator/type_resolution.go`
-  - Handles built-in types, inline array types, named array types via TypeSystem
-  - Falls back to adapter for enum/record/class/alias/subrange types
-  - Removed unused `resolveTypeName` from `array_helpers.go`
-  - Unblocks: 3.5.80, 3.5.82, 3.5.83
-
----
-
-#### Group A: Array/Set Expression Visitors (4 calls, blocked on infrastructure)
-
-- [x] **3.5.80** Replace VisitSetLiteral EvalNode ✅
-  - Created `evaluator/set_helpers.go` with `evalSetLiteralDirect()`
-  - Handles simple elements, ranges, enum sets, and lazy integer ranges
-  - Uses semanticInfo, ordinal helpers, and type resolution infrastructure
-  - Retains adapter call only for array-in-set-syntax case (migrated in 3.5.83)
-  - Files: `evaluator/set_helpers.go`, `evaluator/visitor_expressions.go`
-
-- [x] **3.5.81** Replace VisitIndexExpression EvalNode - Basic Cases ✅
-  - [x] Created `evaluator/index_ops.go` with `IndexArray()`, `IndexString()`, `ExtractIntegerIndex()`
-  - [x] Array indexing with bounds checking (static and dynamic arrays)
-  - [x] String indexing (1-indexed, UTF-8 aware)
-  - [x] Index type validation (Integer or Enum)
-  - Files: `evaluator/index_ops.go`, `evaluator/visitor_expressions.go`
-
-- [x] **3.5.82** Replace VisitNewArrayExpression EvalNode ✅
-  - Added `CreateMultiDimArray()` and `buildArrayTypeForDimensions()` to `index_ops.go`
-  - Uses `ResolveType()` for element type resolution
-  - Uses `evaluateDimensions()` for dimension validation
-  - Extended `getZeroValueForType()` to handle ARRAY types
-  - No adapter delegation - fully migrated
-  - Files: `evaluator/index_ops.go`, `evaluator/visitor_expressions.go`
-
-- [x] **3.5.83** Replace VisitArrayLiteralExpression EvalNode ✅
-  - Removed 2 EvalNode calls (lines 1753, 1785)
-  - Added `evalArrayLiteralDirect()` and supporting methods to `array_helpers.go`
-  - Added `CreateArrayValue()` adapter method for direct array construction
-  - Handles type annotation from semanticInfo, type inference, element coercion
-  - Supports nested array literals with expected type propagation
-  - Files: `evaluator/array_helpers.go`, `evaluator/visitor_expressions.go`, `evaluator/evaluator.go`, `interpreter.go`
-
----
-
-#### Group B: VisitIdentifier (4 calls, medium complexity)
-
-- [x] **3.5.84** Replace VisitIdentifier complex value types
-  - 1 call at line 90
-  - Arrays, objects, records delegation
-  - Files: `evaluator/visitor_expressions.go`
-
-- [x] **3.5.85** Replace VisitIdentifier function/class lookups
-  - 3 calls at lines 178, 184, 188
-  - Function name, class name, and fallback lookups
-  - Files: `evaluator/visitor_expressions.go`
-
----
-
-#### Group C: VisitMemberAccessExpression (8 calls, medium complexity)
-
-- [x] **3.5.86** Replace VisitMemberAccessExpression OBJECT case ✅
-  - Extended ObjectValue interface with GetField() and GetClassVar() methods
-  - Implemented GetClassVar() on ObjectInstance
-  - Direct field and class variable access without adapter
-  - Property reading still uses adapter (complex method invocation logic)
-  - Method access fallback to adapter (deferred to later task)
-  - Files: `evaluator/evaluator.go`, `class.go`, `evaluator/visitor_expressions.go`
-
-- [x] **3.5.87** Replace VisitMemberAccessExpression INTERFACE case ✅
-  - Added InterfaceInstanceValue interface to evaluator.go:
-    - `GetUnderlyingObjectValue() Value` - unwrap to underlying object (returns Value to avoid circular imports)
-    - `InterfaceName() string` - get interface name for error messages
-    - `HasInterfaceMethod(name string) bool` - check interface contract
-    - `HasInterfaceProperty(name string) bool` - check interface contract
-  - Implemented on InterfaceInstance in interface.go
-  - Handles nil interface check directly (delegates to adapter for error)
-  - Verifies member exists in interface definition before delegating to object
-  - Property access: delegates to underlying object's property via adapter
-  - Method access: still uses adapter for complex dispatch logic
-  - Files: `evaluator/evaluator.go`, `interface.go`, `evaluator/visitor_expressions.go`
-
-- [x] **3.5.88** Replace VisitMemberAccessExpression CLASS/CLASS_INFO cases ✅
-  - Added ClassMetaValue interface to evaluator.go:
-    - `GetClassName() string` - get class name
-    - `GetClassVar(name string) (Value, bool)` - lookup class variable
-    - `GetClassConstant(name string) (Value, bool)` - lookup class constant
-    - `HasClassMethod(name string) bool` - check for class method
-    - `HasConstructor(name string) bool` - check for constructor
-  - Implemented on ClassValue in class.go and ClassInfoValue in value.go
-  - Handle built-in properties (ClassName, ClassType) directly
-  - Class variables and constants: direct lookup without adapter
-  - Class methods/constructors: still need adapter for invocation
-  - Files: `evaluator/evaluator.go`, `class.go`, `value.go`, `evaluator/visitor_expressions.go`
-
-- [x] **3.5.89** Replace VisitMemberAccessExpression TYPE_CAST case
-  - Add TypeCastAccessor interface to evaluator.go:
-    - `GetStaticType() string` - get the cast target type name
-    - `GetWrappedValue() Value` - unwrap to actual value
-  - Implement on TypeCastValue (already defined in value.go lines 738-744)
-  - Unwrap value and use **static type** for class variable lookups
-  - Key insight: `TBase(childObj).ClassVar` must access TBase's class var, not TChild's
-  - Pattern: Check built-in props → class vars/constants via static type → delegate methods to adapter
-  - Files: `evaluator/evaluator.go`, `value.go`, `evaluator/visitor_expressions.go`
-
-- [x] **3.5.90** Replace VisitMemberAccessExpression NIL case
-  - Add NilAccessor interface to evaluator.go:
-    - `GetTypedClassName() string` - get class type if typed nil (returns "" for untyped nil)
-  - Implement on NilValue in runtime/primitives.go (NilValue is defined there)
-  - Note: Typed nil values can access class variables but not instance members
-  - Handle class variable access on typed nil values directly
-  - Return "Object not instantiated" error for instance members (delegate to adapter for error)
-  - Files: `evaluator/evaluator.go`, `runtime/primitives.go`, `evaluator/visitor_expressions.go`
-
-- [x] **3.5.91** Replace VisitMemberAccessExpression RECORD case ✅
-  - Added RecordInstanceValue interface to evaluator.go:
-    - `GetRecordField(name string) (Value, bool)` - direct field access
-    - `GetRecordTypeName() string` - get record type name
-    - `HasRecordMethod(name string) bool` - check for method
-    - `HasRecordProperty(name string) bool` - check for property (records don't have properties)
-  - Implemented on RecordValue in value.go
-  - Direct field access via Fields map (case-insensitive lookup)
-  - Methods/properties still use adapter for complex logic
-  - Files: `evaluator/evaluator.go`, `value.go`, `evaluator/visitor_expressions.go`
-
-- [x] **3.5.92** Replace VisitMemberAccessExpression ENUM case ✅
-  - Added EnumAccessor interface with GetOrdinal() method
-  - Implemented GetOrdinal() on runtime.EnumValue
-  - Handles .Value property directly
-  - Other properties (.Name, .ToString) handled by helpers via adapter
-  - Files: `evaluator/evaluator.go`, `runtime/enum.go`, `evaluator/visitor_expressions.go`
+- [x] **3.5.74** Audit All EvalNode Calls - Found 46 total calls (31 candidates, 15 to keep)
+- [x] **3.5.75** Replace VisitRangeExpression EvalNode - Direct error for non-evaluable ranges
+- [x] **3.5.76** Add SemanticInfo to Evaluator - Pass semanticInfo for type resolution
+- [x] **3.5.77** Move Ordinal Helpers to Evaluator Package - Migrated GetOrdinalValue/Type
+- [x] **3.5.78** Move Index Collection Helper - Migrated CollectIndices
+- [x] **3.5.79** Add Type Resolution to Evaluator - ResolveType() for built-in/array/named types
+- [x] **3.5.80** Replace VisitSetLiteral EvalNode - Direct set evaluation with evalSetLiteralDirect()
+- [x] **3.5.81** Replace VisitIndexExpression EvalNode - Array/string indexing with bounds checking
+- [x] **3.5.82** Replace VisitNewArrayExpression EvalNode - Multi-dimensional array creation
+- [x] **3.5.83** Replace VisitArrayLiteralExpression EvalNode - Direct array literal evaluation with type inference
+- [x] **3.5.84** Replace VisitIdentifier complex value types - Arrays/objects/records delegation
+- [x] **3.5.85** Replace VisitIdentifier function/class lookups - Function name and class name lookups
+- [x] **3.5.86** Replace VisitMemberAccessExpression OBJECT case - Direct field/class var access via ObjectValue interface
+- [x] **3.5.87** Replace VisitMemberAccessExpression INTERFACE case - InterfaceInstanceValue interface with member verification
+- [x] **3.5.88** Replace VisitMemberAccessExpression CLASS/CLASS_INFO cases - ClassMetaValue interface for class vars/constants
+- [x] **3.5.89** Replace VisitMemberAccessExpression TYPE_CAST case - TypeCastAccessor interface for static type lookups
+- [x] **3.5.90** Replace VisitMemberAccessExpression NIL case - NilAccessor interface for typed nil class var access
+- [x] **3.5.91** Replace VisitMemberAccessExpression RECORD case - RecordInstanceValue interface for direct field access
+- [x] **3.5.92** Replace VisitMemberAccessExpression ENUM case - EnumAccessor interface for .Value property
 
 ---
 
