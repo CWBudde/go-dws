@@ -187,6 +187,46 @@ func (ii *InterfaceInstance) ImplementsInterface(iface *InterfaceInfo) bool {
 	return classImplementsInterface(ii.Object.Class, iface)
 }
 
+// GetUnderlyingObjectValue returns the object wrapped by this interface instance.
+// Returns nil if the interface wraps a nil object.
+// Task 3.5.87: Implements evaluator.InterfaceInstanceValue interface.
+// Note: This returns ObjectValue (interface) while GetUnderlyingObject returns *ObjectInstance.
+func (ii *InterfaceInstance) GetUnderlyingObjectValue() Value {
+	if ii.Object == nil {
+		return nil
+	}
+	return ii.Object
+}
+
+// InterfaceName returns the name of the interface type.
+// Task 3.5.87: Implements evaluator.InterfaceInstanceValue interface.
+func (ii *InterfaceInstance) InterfaceName() string {
+	if ii.Interface == nil {
+		return ""
+	}
+	return ii.Interface.Name
+}
+
+// HasInterfaceMethod checks if the interface declares a method with the given name.
+// The check includes parent interfaces.
+// Task 3.5.87: Implements evaluator.InterfaceInstanceValue interface.
+func (ii *InterfaceInstance) HasInterfaceMethod(name string) bool {
+	if ii.Interface == nil {
+		return false
+	}
+	return ii.Interface.HasMethod(name)
+}
+
+// HasInterfaceProperty checks if the interface declares a property with the given name.
+// The check includes parent interfaces.
+// Task 3.5.87: Implements evaluator.InterfaceInstanceValue interface.
+func (ii *InterfaceInstance) HasInterfaceProperty(name string) bool {
+	if ii.Interface == nil {
+		return false
+	}
+	return ii.Interface.HasProperty(name)
+}
+
 // ============================================================================
 // Helper Functions
 // ============================================================================

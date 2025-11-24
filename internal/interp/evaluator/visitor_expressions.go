@@ -1068,7 +1068,34 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 	case "INTERFACE":
 		// Task 3.5.26: Interface instance access (Mode 7)
 		// Pattern: intf.Method, intf.Property
-		// Delegate to adapter for interface unwrapping and method lookup
+
+		// Task 3.5.87: Use InterfaceInstanceValue interface for direct member verification
+		ifaceVal, ok := obj.(InterfaceInstanceValue)
+		if !ok {
+			return e.adapter.EvalNode(node)
+		}
+
+		// Get underlying object - nil check is critical for interface access
+		underlying := ifaceVal.GetUnderlyingObjectValue()
+		if underlying == nil {
+			// Nil interface access - let adapter handle the error
+			return e.adapter.EvalNode(node)
+		}
+
+		// Verify the member is part of the interface contract before delegating
+		if ifaceVal.HasInterfaceProperty(memberName) {
+			// Property access: delegate to underlying object's property reading
+			// Uses adapter due to complex method invocation logic for property getters
+			propValue, err := e.adapter.ReadPropertyValue(underlying, memberName, node)
+			if err == nil {
+				return propValue
+			}
+			// Property read failed - fallback to adapter for error handling
+			return e.adapter.EvalNode(node)
+		}
+
+		// Method access or unknown member - delegate to adapter
+		// Methods require complex dispatch logic (virtual method tables, etc.)
 		return e.adapter.EvalNode(node)
 
 	case "CLASS", "CLASS_INFO":
