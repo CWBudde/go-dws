@@ -603,13 +603,14 @@ the adapter has substantial logic for this. Recommend tackling in small, focused
   - All record, interface, and object method tests pass
   - Files: `evaluator/evaluator.go` (interface), `interpreter.go` (implementation), `evaluator/visitor_expressions.go` (usage)
 
-- [ ] **3.5.97** Replace VisitCallExpression user functions
-  - 3 calls at lines 496, 505, 516
-  - **3.5.97a** User function overload resolution
-  - **3.5.97b** Implicit Self method calls (inside instance methods)
-  - **3.5.97c** Record static method calls (inside record methods)
-  - Very high complexity: overload resolution requires type matching
-  - Files: `evaluator/visitor_expressions.go`
+- [x] **3.5.97** Replace VisitCallExpression user functions ✅
+  - Removed 3 EvalNode calls (lines 562, 572, 584)
+  - **3.5.97a** Added `CallUserFunctionWithOverloads` for overload resolution
+  - **3.5.97b** Added `CallImplicitSelfMethod` for implicit Self calls
+  - **3.5.97c** Added `CallRecordStaticMethod` for record static methods
+  - Encapsulates: overload resolution (resolveOverload), parameter preparation, MethodCallExpression creation
+  - All function, record, interface, and object tests pass
+  - Files: `evaluator/evaluator.go` (interface), `interpreter.go` (implementation), `evaluator/visitor_expressions.go` (usage)
 
 ---
 
@@ -717,7 +718,7 @@ These tasks are deferred until the adapter is minimal. They're complex and requi
 | 14: Minimize | 3.5.100-3.5.102 | Shrink adapter to essential methods |
 | 15: Future | 3.5.103-3.5.106 | Full removal (deferred) |
 
-**Phase 13 status:** 16 done, remaining tasks expanded into subtasks
+**Phase 13 status:** 17 done (3.5.74-3.5.97), remaining tasks expanded into subtasks
 
 **Task breakdown after expansion:**
 

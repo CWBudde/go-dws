@@ -798,6 +798,43 @@ type InterpreterAdapter interface {
 	//   - memberAccess: The MemberAccessExpression (unit.func or class.method)
 	// Returns the call result or an error.
 	CallQualifiedOrConstructor(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression) Value
+
+	// ===== Task 3.5.97: User Function Call Methods =====
+
+	// CallUserFunctionWithOverloads calls a user-defined function with overload resolution.
+	// This handles:
+	// - Single function calls: MyFunction(args)
+	// - Overloaded function calls: OverloadedFunc(args) - resolves based on argument types
+	// - Parameter preparation: lazy parameters get LazyThunks, var parameters get References
+	// Parameters:
+	//   - callExpr: The original CallExpression AST node
+	//   - funcName: The function identifier
+	// Returns the function call result or an error.
+	// Task 3.5.97a: Encapsulates overload resolution and parameter preparation.
+	CallUserFunctionWithOverloads(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
+
+	// CallImplicitSelfMethod calls a method on the implicit Self object.
+	// This handles:
+	// - MethodName() inside instance methods → Self.MethodName()
+	// - Converts simple CallExpression to MethodCallExpression
+	// Parameters:
+	//   - callExpr: The original CallExpression AST node
+	//   - funcName: The method identifier
+	// Returns the method call result or an error.
+	// Task 3.5.97b: Enables implicit method calls without EvalNode.
+	CallImplicitSelfMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
+
+	// CallRecordStaticMethod calls a static method within a record context.
+	// This handles:
+	// - MethodName() inside record static methods → TRecord.MethodName()
+	// - Looks up method in __CurrentRecord__ context
+	// - Converts to MethodCallExpression with record type
+	// Parameters:
+	//   - callExpr: The original CallExpression AST node
+	//   - funcName: The method identifier
+	// Returns the method call result or an error.
+	// Task 3.5.97c: Enables record static method calls without EvalNode.
+	CallRecordStaticMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
 }
 
 // Evaluator is responsible for evaluating DWScript AST nodes.
