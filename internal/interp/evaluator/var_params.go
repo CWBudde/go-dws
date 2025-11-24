@@ -2,6 +2,8 @@ package evaluator
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -762,5 +764,340 @@ func runeSetLength(s string, newLength int) string {
 	return s + string(nullBytes)
 }
 
+// ============================================================================
+// Task 3.5.93e: Swap/DivMod Built-in Functions
+// ============================================================================
+
+// builtinSwap implements the Swap() built-in function.
+// Swap(a, b) - exchanges the values of two variables
+// Both arguments must be lvalues (variables, array elements, object fields).
+func (e *Evaluator) builtinSwap(args []ast.Expression, ctx *ExecutionContext) Value {
+	// Validate argument count (exactly 2 arguments)
+	if len(args) != 2 {
+		return e.newError(nil, "Swap() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// Evaluate both lvalues
+	val1, assign1, err1 := e.EvaluateLValue(args[0], ctx)
+	if err1 != nil {
+		return e.newError(nil, "Swap() first argument must be a variable: %s", err1.Error())
+	}
+
+	val2, assign2, err2 := e.EvaluateLValue(args[1], ctx)
+	if err2 != nil {
+		return e.newError(nil, "Swap() second argument must be a variable: %s", err2.Error())
+	}
+
+	// Dereference if either is a var parameter (ReferenceValue)
+	actualVal1 := val1
+	if ref, isRef := val1.(ReferenceAccessor); isRef {
+		deref, err := ref.Dereference()
+		if err != nil {
+			return e.newError(nil, "%s", err.Error())
+		}
+		actualVal1 = deref
+	}
+
+	actualVal2 := val2
+	if ref, isRef := val2.(ReferenceAccessor); isRef {
+		deref, err := ref.Dereference()
+		if err != nil {
+			return e.newError(nil, "%s", err.Error())
+		}
+		actualVal2 = deref
+	}
+
+	// Swap the values using the assignment closures
+	if err := assign1(actualVal2); err != nil {
+		return e.newError(nil, "Swap() failed to update first variable: %s", err.Error())
+	}
+
+	if err := assign2(actualVal1); err != nil {
+		return e.newError(nil, "Swap() failed to update second variable: %s", err.Error())
+	}
+
+	return &runtime.NilValue{}
+}
+
+// builtinDivMod implements the DivMod() built-in function.
+// DivMod(dividend, divisor, quotient, remainder) - performs integer division
+// First two arguments are values, last two are var parameters for output.
+func (e *Evaluator) builtinDivMod(args []ast.Expression, ctx *ExecutionContext) Value {
+	// Validate argument count (exactly 4 arguments)
+	if len(args) != 4 {
+		return e.newError(nil, "DivMod() expects exactly 4 arguments, got %d", len(args))
+	}
+
+	// Evaluate first two arguments (dividend and divisor)
+	dividendVal := e.Eval(args[0], ctx)
+	if isError(dividendVal) {
+		return dividendVal
+	}
+	dividendInt, ok := dividendVal.(*runtime.IntegerValue)
+	if !ok {
+		return e.newError(nil, "DivMod() expects integer as first argument, got %s", dividendVal.Type())
+	}
+
+	divisorVal := e.Eval(args[1], ctx)
+	if isError(divisorVal) {
+		return divisorVal
+	}
+	divisorInt, ok := divisorVal.(*runtime.IntegerValue)
+	if !ok {
+		return e.newError(nil, "DivMod() expects integer as second argument, got %s", divisorVal.Type())
+	}
+
+	// Check for division by zero
+	if divisorInt.Value == 0 {
+		return e.newError(nil, "DivMod() division by zero")
+	}
+
+	// Calculate quotient and remainder
+	quotient := dividendInt.Value / divisorInt.Value
+	remainder := dividendInt.Value % divisorInt.Value
+
+	// Evaluate the output lvalues (quotient and remainder variables)
+	_, assignQuotient, err := e.EvaluateLValue(args[2], ctx)
+	if err != nil {
+		return e.newError(nil, "DivMod() third argument must be a variable: %s", err.Error())
+	}
+
+	_, assignRemainder, err := e.EvaluateLValue(args[3], ctx)
+	if err != nil {
+		return e.newError(nil, "DivMod() fourth argument must be a variable: %s", err.Error())
+	}
+
+	// Assign the results
+	quotientResult := &runtime.IntegerValue{Value: quotient}
+	remainderResult := &runtime.IntegerValue{Value: remainder}
+
+	if err := assignQuotient(quotientResult); err != nil {
+		return e.newError(nil, "DivMod() failed to update quotient variable: %s", err.Error())
+	}
+
+	if err := assignRemainder(remainderResult); err != nil {
+		return e.newError(nil, "DivMod() failed to update remainder variable: %s", err.Error())
+	}
+
+	return &runtime.NilValue{}
+}
+
+// ============================================================================
+// Task 3.5.93f: TryStrToInt/TryStrToFloat Built-in Functions
+// ============================================================================
+
+// builtinTryStrToInt implements the TryStrToInt() built-in function.
+// TryStrToInt(str: String, var outValue: Integer): Boolean
+// TryStrToInt(str: String, base: Integer, var outValue: Integer): Boolean
+// Returns true and updates outValue on successful parsing, false otherwise.
+func (e *Evaluator) builtinTryStrToInt(args []ast.Expression, ctx *ExecutionContext) Value {
+	// Validate argument count (2 or 3 arguments)
+	if len(args) < 2 || len(args) > 3 {
+		return e.newError(nil, "TryStrToInt() expects 2 or 3 arguments, got %d", len(args))
+	}
+
+	// First argument: string to convert
+	strArg := e.Eval(args[0], ctx)
+	if isError(strArg) {
+		return strArg
+	}
+	strVal, ok := strArg.(*runtime.StringValue)
+	if !ok {
+		return e.newError(nil, "TryStrToInt() expects String as first argument, got %s", strArg.Type())
+	}
+
+	// Determine if we have 2 or 3 arguments
+	var base int
+	var valueArg ast.Expression
+
+	if len(args) == 2 {
+		// TryStrToInt(str, var value) - base defaults to 10
+		base = 10
+		valueArg = args[1]
+	} else {
+		// TryStrToInt(str, base, var value)
+		baseArg := e.Eval(args[1], ctx)
+		if isError(baseArg) {
+			return baseArg
+		}
+		baseInt, ok := baseArg.(*runtime.IntegerValue)
+		if !ok {
+			return e.newError(nil, "TryStrToInt() expects Integer as second argument (base), got %s", baseArg.Type())
+		}
+		base = int(baseInt.Value)
+
+		// Validate base range (2-36)
+		if base < 2 || base > 36 {
+			// Invalid base - return false without modifying variable
+			return &runtime.BooleanValue{Value: false}
+		}
+
+		valueArg = args[2]
+	}
+
+	// Use EvaluateLValue to get the var parameter (supports any lvalue)
+	_, assignFunc, err := e.EvaluateLValue(valueArg, ctx)
+	if err != nil {
+		return e.newError(nil, "TryStrToInt() var parameter must be a variable: %s", err.Error())
+	}
+
+	// Try to parse the string
+	s := strings.TrimSpace(strVal.Value)
+	if s == "" {
+		// Empty string - return false without modifying variable
+		return &runtime.BooleanValue{Value: false}
+	}
+
+	intValue, parseErr := strconv.ParseInt(s, base, 64)
+	if parseErr != nil {
+		// Parsing failed - return false without modifying variable
+		return &runtime.BooleanValue{Value: false}
+	}
+
+	// Parsing succeeded - update the variable and return true
+	result := &runtime.IntegerValue{Value: intValue}
+	if err := assignFunc(result); err != nil {
+		return e.newError(nil, "TryStrToInt() failed to update variable: %s", err.Error())
+	}
+
+	return &runtime.BooleanValue{Value: true}
+}
+
+// builtinTryStrToFloat implements the TryStrToFloat() built-in function.
+// TryStrToFloat(str: String, var outValue: Float): Boolean
+// Returns true and updates outValue on successful parsing, false otherwise.
+func (e *Evaluator) builtinTryStrToFloat(args []ast.Expression, ctx *ExecutionContext) Value {
+	// Validate argument count (exactly 2 arguments)
+	if len(args) != 2 {
+		return e.newError(nil, "TryStrToFloat() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: string to convert
+	strArg := e.Eval(args[0], ctx)
+	if isError(strArg) {
+		return strArg
+	}
+	strVal, ok := strArg.(*runtime.StringValue)
+	if !ok {
+		return e.newError(nil, "TryStrToFloat() expects String as first argument, got %s", strArg.Type())
+	}
+
+	// Use EvaluateLValue to get the var parameter (supports any lvalue)
+	_, assignFunc, err := e.EvaluateLValue(args[1], ctx)
+	if err != nil {
+		return e.newError(nil, "TryStrToFloat() var parameter must be a variable: %s", err.Error())
+	}
+
+	// Try to parse the string as a float
+	s := strings.TrimSpace(strVal.Value)
+	if s == "" {
+		// Empty string - return false without modifying variable
+		return &runtime.BooleanValue{Value: false}
+	}
+
+	floatValue, parseErr := strconv.ParseFloat(s, 64)
+	if parseErr != nil {
+		// Parsing failed - return false without modifying variable
+		return &runtime.BooleanValue{Value: false}
+	}
+
+	// Parsing succeeded - update the variable and return true
+	result := &runtime.FloatValue{Value: floatValue}
+	if err := assignFunc(result); err != nil {
+		return e.newError(nil, "TryStrToFloat() failed to update variable: %s", err.Error())
+	}
+
+	return &runtime.BooleanValue{Value: true}
+}
+
+// ============================================================================
+// Task 3.5.93g: DecodeDate/DecodeTime Built-in Functions
+// ============================================================================
+
+// builtinDecodeDate implements the DecodeDate() built-in function.
+// DecodeDate(dt: TDateTime; var year, month, day: Integer)
+// Extracts year, month, day components from a TDateTime and assigns to var parameters.
+func (e *Evaluator) builtinDecodeDate(args []ast.Expression, ctx *ExecutionContext) Value {
+	// Validate argument count (4 arguments: dt + 3 var params)
+	if len(args) != 4 {
+		return e.newError(nil, "DecodeDate() expects 4 arguments (dt, var year, var month, var day), got %d", len(args))
+	}
+
+	// Evaluate the first argument (the TDateTime value)
+	dtVal := e.Eval(args[0], ctx)
+	if isError(dtVal) {
+		return dtVal
+	}
+
+	floatVal, ok := dtVal.(*runtime.FloatValue)
+	if !ok {
+		return e.newError(nil, "DecodeDate() expects Float/TDateTime as first argument, got %s", dtVal.Type())
+	}
+
+	// Extract date components using the datetime utility function
+	year, month, day := extractDateComponents(floatVal.Value)
+
+	// Set the var parameters (args 1, 2, 3) using EvaluateLValue
+	components := []int{year, month, day}
+	paramNames := []string{"year", "month", "day"}
+
+	for idx, val := range components {
+		_, assignFunc, err := e.EvaluateLValue(args[idx+1], ctx)
+		if err != nil {
+			return e.newError(nil, "DecodeDate() %s parameter must be a variable: %s", paramNames[idx], err.Error())
+		}
+
+		result := &runtime.IntegerValue{Value: int64(val)}
+		if err := assignFunc(result); err != nil {
+			return e.newError(nil, "DecodeDate() failed to update %s variable: %s", paramNames[idx], err.Error())
+		}
+	}
+
+	return &runtime.NilValue{}
+}
+
+// builtinDecodeTime implements the DecodeTime() built-in function.
+// DecodeTime(dt: TDateTime; var hour, minute, second, msec: Integer)
+// Extracts hour, minute, second, millisecond components from a TDateTime and assigns to var parameters.
+func (e *Evaluator) builtinDecodeTime(args []ast.Expression, ctx *ExecutionContext) Value {
+	// Validate argument count (5 arguments: dt + 4 var params)
+	if len(args) != 5 {
+		return e.newError(nil, "DecodeTime() expects 5 arguments (dt, var hour, var minute, var second, var msec), got %d", len(args))
+	}
+
+	// Evaluate the first argument (the TDateTime value)
+	dtVal := e.Eval(args[0], ctx)
+	if isError(dtVal) {
+		return dtVal
+	}
+
+	floatVal, ok := dtVal.(*runtime.FloatValue)
+	if !ok {
+		return e.newError(nil, "DecodeTime() expects Float/TDateTime as first argument, got %s", dtVal.Type())
+	}
+
+	// Extract time components using the datetime utility function
+	hour, minute, second, msec := extractTimeComponents(floatVal.Value)
+
+	// Set the var parameters (args 1, 2, 3, 4) using EvaluateLValue
+	components := []int{hour, minute, second, msec}
+	paramNames := []string{"hour", "minute", "second", "msec"}
+
+	for idx, val := range components {
+		_, assignFunc, err := e.EvaluateLValue(args[idx+1], ctx)
+		if err != nil {
+			return e.newError(nil, "DecodeTime() %s parameter must be a variable: %s", paramNames[idx], err.Error())
+		}
+
+		result := &runtime.IntegerValue{Value: int64(val)}
+		if err := assignFunc(result); err != nil {
+			return e.newError(nil, "DecodeTime() failed to update %s variable: %s", paramNames[idx], err.Error())
+		}
+	}
+
+	return &runtime.NilValue{}
+}
+
+// Note: extractDateComponents and extractTimeComponents are defined in internal/interp/datetime_utils.go
 // Note: lookupEnumType is defined in set_helpers.go and reused here.
 // Note: isError is defined in visitor_expressions.go and reused here.

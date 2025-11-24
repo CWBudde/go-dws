@@ -319,13 +319,18 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		}
 	}
 
+	// Task 3.5.93f-g: These functions are now handled by the evaluator
+	if funcName.Value == "TryStrToInt" || funcName.Value == "TryStrToFloat" ||
+		funcName.Value == "DecodeDate" || funcName.Value == "DecodeTime" {
+		// Delegate to the evaluator which handles these with the visitor pattern
+		return i.evaluatorInstance.Eval(expr, i.ctx)
+	}
+
 	// Check if this is a built-in function with var parameters
 	// These functions need the AST node for the first argument to modify it in place
 	if funcName.Value == "Inc" || funcName.Value == "Dec" || funcName.Value == "Insert" ||
 		(funcName.Value == "Delete" && len(expr.Arguments) == 3) ||
-		funcName.Value == "DecodeDate" || funcName.Value == "DecodeTime" ||
 		funcName.Value == "Swap" || funcName.Value == "DivMod" ||
-		funcName.Value == "TryStrToInt" || funcName.Value == "TryStrToFloat" ||
 		funcName.Value == "SetLength" {
 		return i.callBuiltinWithVarParam(funcName.Value, expr.Arguments)
 	}

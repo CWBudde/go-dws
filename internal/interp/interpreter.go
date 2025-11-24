@@ -1999,6 +1999,22 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 	return nil, fmt.Errorf("type '%s' not found (neither class nor interface)", typeName)
 }
 
+// CastToClass performs class type casting for TypeName(expr) expressions.
+// Task 3.5.94: Adapter method for type cast migration. Uses existing castToClass logic.
+func (i *Interpreter) CastToClass(val evaluator.Value, className string, node ast.Expression) evaluator.Value {
+	// Convert to internal type
+	internalVal := val.(Value)
+
+	// Look up the class
+	classInfo := i.lookupClassInfo(className)
+	if classInfo == nil {
+		return nil // Not a class type, caller will try other options
+	}
+
+	// Use the existing castToClass method
+	return i.castToClass(internalVal, classInfo, node)
+}
+
 // CheckImplements checks if an object/class implements an interface.
 // Task 3.5.36: Adapter method for 'implements' operator.
 // Supports ObjectInstance, ClassValue, and ClassInfoValue inputs.

@@ -167,10 +167,8 @@ func (i *Interpreter) callBuiltinWithVarParam(name string, args []ast.Expression
 		return i.builtinSwap(args)
 	case "DivMod":
 		return i.builtinDivMod(args)
-	case "TryStrToInt":
-		return i.builtinTryStrToInt(args)
-	case "TryStrToFloat":
-		return i.builtinTryStrToFloat(args)
+	// Task 3.5.93f: TryStrToInt/TryStrToFloat migrated to evaluator
+	// These functions are now handled by the evaluator's visitor pattern
 	case "SetLength":
 		return i.builtinSetLength(args)
 	default:

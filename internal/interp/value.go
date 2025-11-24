@@ -450,6 +450,12 @@ func (v *VariantValue) String() string {
 	return v.Value.String()
 }
 
+// GetVariantValue returns the wrapped value.
+// Task 3.5.94: Implements VariantAccessor interface for type cast support.
+func (v *VariantValue) GetVariantValue() Value {
+	return v.Value
+}
+
 // UnwrapVariant returns the underlying wrapped value.
 // This method implements the runtime.VariantWrapper interface, allowing
 // the evaluator package to unwrap variants without circular dependencies.
