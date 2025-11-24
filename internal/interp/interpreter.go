@@ -1166,6 +1166,30 @@ func (i *Interpreter) CreateArrayWithExpectedType(elements []evaluator.Value, ex
 	return NewArrayValue(&types.ArrayType{LowBound: nil, HighBound: nil})
 }
 
+// CreateArrayValue creates an ArrayValue with the specified array type and elements.
+// Task 3.5.83: Direct array construction without re-evaluation.
+func (i *Interpreter) CreateArrayValue(arrayType any, elements []evaluator.Value) evaluator.Value {
+	// Convert arrayType to *types.ArrayType
+	var typedArrayType *types.ArrayType
+	if arrayType != nil {
+		if at, ok := arrayType.(*types.ArrayType); ok {
+			typedArrayType = at
+		}
+	}
+
+	// Convert evaluator.Value slice to internal Value slice
+	internalElements := make([]Value, len(elements))
+	for idx, elem := range elements {
+		internalElements[idx] = elem.(Value)
+	}
+
+	// Create and return the array value
+	return &ArrayValue{
+		ArrayType: typedArrayType,
+		Elements:  internalElements,
+	}
+}
+
 // GetArrayElement retrieves an element from an array at the given index.
 func (i *Interpreter) GetArrayElement(array evaluator.Value, index evaluator.Value) (evaluator.Value, error) {
 	// Convert to internal types
@@ -2018,6 +2042,18 @@ func (i *Interpreter) CheckImplements(obj evaluator.Value, interfaceName string)
 	// 'implements' operator in DWScript only considers explicitly declared interfaces,
 	// not interfaces inherited through other interfaces.
 	return classExplicitlyImplementsInterface(classInfo, iface), nil
+}
+
+// CreateClassValue creates a ClassValue (metaclass reference) from a class name.
+// Task 3.5.85: Adapter method for returning metaclass references from VisitIdentifier.
+func (i *Interpreter) CreateClassValue(className string) (evaluator.Value, error) {
+	// Look up the class in the registry (case-insensitive)
+	for name, classInfo := range i.classes {
+		if ident.Equal(name, className) {
+			return &ClassValue{ClassInfo: classInfo}, nil
+		}
+	}
+	return nil, fmt.Errorf("class '%s' not found", className)
 }
 
 // CreateFunctionPointer creates a function pointer value from a function declaration.
