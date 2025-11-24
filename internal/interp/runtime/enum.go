@@ -29,3 +29,9 @@ func (e *EnumValue) Type() string {
 func (e *EnumValue) String() string {
 	return fmt.Sprintf("%d", e.OrdinalValue)
 }
+
+// GetOrdinal returns the ordinal (integer) value of the enum.
+// Task 3.5.89: Implements evaluator.EnumAccessor interface for direct enum access.
+func (e *EnumValue) GetOrdinal() int {
+	return e.OrdinalValue
+}

@@ -383,21 +383,12 @@ Evaluator needs to resolve type names for array construction and type casts.
   - Retains adapter call only for array-in-set-syntax case (migrated in 3.5.83)
   - Files: `evaluator/set_helpers.go`, `evaluator/visitor_expressions.go`
 
-- [x] **3.5.81a** Replace VisitIndexExpression EvalNode - Basic Cases ✅
+- [x] **3.5.81** Replace VisitIndexExpression EvalNode - Basic Cases ✅
   - [x] Created `evaluator/index_ops.go` with `IndexArray()`, `IndexString()`, `ExtractIntegerIndex()`
   - [x] Array indexing with bounds checking (static and dynamic arrays)
   - [x] String indexing (1-indexed, UTF-8 aware)
   - [x] Index type validation (Integer or Enum)
   - Files: `evaluator/index_ops.go`, `evaluator/visitor_expressions.go`
-
-- [ ] **3.5.81b** Replace VisitIndexExpression EvalNode - Property/JSON Cases
-  - [ ] Property access when base is MemberAccessExpression (indexed properties)
-  - [ ] Interface default property access
-  - [ ] Object default property access
-  - [ ] Record default property access with getter methods
-  - [ ] JSON object/array indexing
-  - Blocked on: evalIndexedPropertyRead migration, JSONValue/VariantValue in evaluator
-  - Files: `evaluator/visitor_expressions.go`
 
 - [x] **3.5.82** Replace VisitNewArrayExpression EvalNode ✅
   - Added `CreateMultiDimArray()` and `buildArrayTypeForDimensions()` to `index_ops.go`
@@ -433,51 +424,99 @@ Evaluator needs to resolve type names for array construction and type casts.
 
 #### Group C: VisitMemberAccessExpression (8 calls, medium complexity)
 
-- [ ] **3.5.86** Replace VisitMemberAccessExpression OBJECT case
-  - 1 call at line 1028
-  - Object method/member access
-  - Files: `evaluator/visitor_expressions.go`
+- [x] **3.5.86** Replace VisitMemberAccessExpression OBJECT case ✅
+  - Extended ObjectValue interface with GetField() and GetClassVar() methods
+  - Implemented GetClassVar() on ObjectInstance
+  - Direct field and class variable access without adapter
+  - Property reading still uses adapter (complex method invocation logic)
+  - Method access fallback to adapter (deferred to later task)
+  - Files: `evaluator/evaluator.go`, `class.go`, `evaluator/visitor_expressions.go`
 
 - [ ] **3.5.87** Replace VisitMemberAccessExpression INTERFACE case
-  - 1 call at line 1034
-  - Interface unwrapping and method lookup
-  - Files: `evaluator/visitor_expressions.go`
+  - Add InterfaceInstanceValue interface to evaluator.go:
+    - `GetUnderlyingObject() ObjectValue` - unwrap to underlying object
+    - `InterfaceName() string` - get interface name for error messages
+    - `HasInterfaceMethod(name string) bool` - check interface contract
+    - `HasInterfaceProperty(name string) bool` - check interface contract
+  - Implement on InterfaceInstance in interface.go
+  - Handle nil interface check directly
+  - Verify member exists in interface definition before delegating to object
+  - Property access: delegate to underlying object's property
+  - Method access: still needs adapter for complex dispatch logic
+  - Files: `evaluator/evaluator.go`, `interface.go`, `evaluator/visitor_expressions.go`
 
 - [ ] **3.5.88** Replace VisitMemberAccessExpression CLASS/CLASS_INFO cases
-  - 1 call at line 1040
-  - Metaclass and static member access
-  - Files: `evaluator/visitor_expressions.go`
+  - Add ClassMetaValue interface to evaluator.go:
+    - `GetClassName() string` - get class name
+    - `GetClassVar(name string) (Value, bool)` - lookup class variable
+    - `GetClassConstant(name string) (Value, bool)` - lookup class constant
+    - `HasClassMethod(name string) bool` - check for class method
+    - `HasConstructor(name string) bool` - check for constructor
+  - Implement on ClassValue and ClassInfoValue in class.go
+  - Handle built-in properties (ClassName, ClassType) directly
+  - Class variables and constants: direct lookup
+  - Class methods/constructors: still need adapter for invocation
+  - Files: `evaluator/evaluator.go`, `class.go`, `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.89** Replace VisitMemberAccessExpression remaining cases
-  - 5 calls at lines 1046, 1052, 1058, 1064, 1069
-  - TYPE_CAST, NIL, RECORD, ENUM, default fallback
-  - Files: `evaluator/visitor_expressions.go`
+- [ ] **3.5.89** Replace VisitMemberAccessExpression TYPE_CAST case
+  - Add TypeCastAccessor interface to evaluator.go:
+    - `GetStaticType() string` - get the cast target type name
+    - `GetWrappedValue() Value` - unwrap to actual value
+  - Implement on TypeCastValue
+  - Unwrap value and use static type for class variable lookups
+  - Files: `evaluator/evaluator.go`, `value.go`, `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.90** Replace VisitMemberAccessExpression NIL case
+  - Add NilAccessor interface to evaluator.go:
+    - `GetTypedClassName() string` - get class type if typed nil
+  - Implement on NilValue
+  - Handle class variable access on typed nil values
+  - Return "Object not instantiated" error for instance members
+  - Files: `evaluator/evaluator.go`, `value.go`, `evaluator/visitor_expressions.go`
+
+- [ ] **3.5.91** Replace VisitMemberAccessExpression RECORD case
+  - Add RecordInstanceValue interface to evaluator.go:
+    - `GetRecordField(name string) (Value, bool)` - direct field access
+    - `GetRecordTypeName() string` - get record type name
+    - `HasRecordMethod(name string) bool` - check for method
+    - `HasRecordProperty(name string) bool` - check for property
+  - Implement on RecordValue in value.go
+  - Handle field access directly
+  - Properties and methods: still need adapter for complex logic
+  - Files: `evaluator/evaluator.go`, `value.go`, `evaluator/visitor_expressions.go`
+
+- [x] **3.5.92** Replace VisitMemberAccessExpression ENUM case ✅
+  - Added EnumAccessor interface with GetOrdinal() method
+  - Implemented GetOrdinal() on runtime.EnumValue
+  - Handles .Value property directly
+  - Other properties (.Name, .ToString) handled by helpers via adapter
+  - Files: `evaluator/evaluator.go`, `runtime/enum.go`, `evaluator/visitor_expressions.go`
 
 ---
 
 #### Group D: VisitCallExpression (12 calls, high complexity)
 
-- [ ] **3.5.90** Replace VisitCallExpression var param handling
+- [ ] **3.5.93** Replace VisitCallExpression var param handling
   - 3 calls at lines 527, 532, 539
   - Inc, Dec, Insert, Delete, SetLength, external functions
   - Files: `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.91** Replace VisitCallExpression default/type cast
+- [ ] **3.5.94** Replace VisitCallExpression default/type cast
   - 2 calls at lines 546, 554
   - Default(TypeName) and TypeName(expr) casts
   - Files: `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.92** Replace VisitCallExpression function pointer
+- [ ] **3.5.95** Replace VisitCallExpression function pointer
   - 1 call at line 445
   - Closure environment, lazy params, var params
   - Files: `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.93** Replace VisitCallExpression method calls
+- [ ] **3.5.96** Replace VisitCallExpression method calls
   - 2 calls at lines 461, 469
   - Record/interface/object methods, unit-qualified calls
   - Files: `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.94** Replace VisitCallExpression user functions
+- [ ] **3.5.97** Replace VisitCallExpression user functions
   - 3 calls at lines 496, 505, 516
   - Overload resolution, implicit Self, record static methods
   - Files: `evaluator/visitor_expressions.go`
@@ -486,26 +525,39 @@ Evaluator needs to resolve type names for array construction and type casts.
 
 #### Group E: VisitMethodCallExpression (1 call)
 
-- [ ] **3.5.95** Replace VisitMethodCallExpression helper methods
+- [ ] **3.5.98** Replace VisitMethodCallExpression helper methods
   - 1 call at line 1407
   - Helper method dispatch
   - Files: `evaluator/visitor_expressions.go`
 
 ---
 
-### Phase 14: Minimize Adapter Interface (3.5.96-3.5.98)
+#### Group F: VisitIndexExpression Advanced Cases (blocked)
 
-- [ ] **3.5.96** Remove Unused Adapter Methods
+- [ ] **3.5.99** Replace VisitIndexExpression EvalNode - Property/JSON Cases
+  - [ ] Property access when base is MemberAccessExpression (indexed properties)
+  - [ ] Interface default property access
+  - [ ] Object default property access
+  - [ ] Record default property access with getter methods
+  - [ ] JSON object/array indexing
+  - Blocked on: evalIndexedPropertyRead migration, JSONValue/VariantValue in evaluator
+  - Files: `evaluator/visitor_expressions.go`
+
+---
+
+### Phase 14: Minimize Adapter Interface (3.5.100-3.5.102)
+
+- [ ] **3.5.100** Remove Unused Adapter Methods
   - Audit adapter interface for methods no longer called
   - Remove from interface and Interpreter implementation
   - Acceptance: Adapter interface reduced by ~50%
 
-- [ ] **3.5.97** Consolidate Remaining Adapter Methods
+- [ ] **3.5.101** Consolidate Remaining Adapter Methods
   - Group remaining methods by category
   - Document why each is still needed
   - Target: ~10-15 essential methods
 
-- [ ] **3.5.98** Document Final Architecture
+- [ ] **3.5.102** Document Final Architecture
   - Update CLAUDE.md with final architecture
   - Document which adapter methods remain and why
   - Create migration complete summary
@@ -516,10 +568,10 @@ Evaluator needs to resolve type names for array construction and type casts.
 
 These tasks are deferred until the adapter is minimal. They're complex and require moving substantial logic:
 
-- [ ] **3.5.99** Migrate CallMethod/CallFunctionPointer (complex, many dependencies)
-- [ ] **3.5.100** Migrate CreateObject/CastType (requires type resolution)
-- [ ] **3.5.101** Remove Adapter Interface Entirely
-- [ ] **3.5.102** Remove evalDirect() from Interpreter
+- [ ] **3.5.103** Migrate CallMethod/CallFunctionPointer (complex, many dependencies)
+- [ ] **3.5.104** Migrate CreateObject/CastType (requires type resolution)
+- [ ] **3.5.105** Remove Adapter Interface Entirely
+- [ ] **3.5.106** Remove evalDirect() from Interpreter
 
 ---
 
@@ -531,13 +583,13 @@ These tasks are deferred until the adapter is minimal. They're complex and requi
 | 10: Direct Access | 3.5.61-3.5.63 | ✅ COMPLETE - Give Evaluator direct service references |
 | 11: Type Lookups | 3.5.64-3.5.69 | ✅ COMPLETE - Remove ~15 adapter type lookup calls |
 | 12: Value Access | 3.5.70-3.5.73 | ✅ COMPLETE - Remove ~10 adapter value access calls |
-| 13: Reduce EvalNode | 3.5.74-3.5.95 | Infrastructure (4) + EvalNode removal (18) = 22 tasks |
-| 14: Minimize | 3.5.96-3.5.98 | Shrink adapter to essential methods |
-| 15: Future | 3.5.99-3.5.102 | Full removal (deferred) |
+| 13: Reduce EvalNode | 3.5.74-3.5.99 | Infrastructure (4) + EvalNode removal (22) = 26 tasks |
+| 14: Minimize | 3.5.100-3.5.102 | Shrink adapter to essential methods |
+| 15: Future | 3.5.103-3.5.106 | Full removal (deferred) |
 
-**Phase 13 status:** 10 done (audit + VisitRangeExpression + SemanticInfo + OrdinalHelpers + IndexHelpers + TypeResolution + SetLiteral + IndexExpression-basic + NewArrayExpression + ArrayLiteral), 13 remaining
+**Phase 13 status:** 12 done, 14 remaining
 
-**Total remaining: 20 tasks** (13 in Phase 13 + 3 in Phase 14 + 4 in Phase 15)
+**Total remaining: 21 tasks** (14 in Phase 13 + 3 in Phase 14 + 4 in Phase 15)
 
 Each task should be:
 - Completable in 30-60 minutes

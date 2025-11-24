@@ -424,6 +424,20 @@ func (o *ObjectInstance) HasMethod(name string) bool {
 	return exists
 }
 
+// GetClassVar retrieves a class variable value by name from this object's class hierarchy.
+// Returns the value and true if found, nil and false otherwise.
+// Task 3.5.86: Implements evaluator.ObjectValue interface for direct class variable access.
+func (o *ObjectInstance) GetClassVar(name string) (Value, bool) {
+	if o == nil || o.Class == nil {
+		return nil, false
+	}
+	value, owningClass := o.Class.lookupClassVar(name)
+	if owningClass == nil {
+		return nil, false
+	}
+	return value, true
+}
+
 // IsInstanceOf checks whether the object derives from the given class.
 func (o *ObjectInstance) IsInstanceOf(target *ClassInfo) bool {
 	if o == nil || o.Class == nil || target == nil {
