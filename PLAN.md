@@ -524,29 +524,29 @@ the adapter has substantial logic for this. Recommend tackling in small, focused
 
 **3.5.93: Built-in Var Parameter Functions (Split into subtasks)**
 
-- [ ] **3.5.93a** Infrastructure: Add VarParamHelper to Evaluator
-  - Create `evaluator/var_params.go` with helper methods
-  - `CreateVarReference(varName string, env any) Value` - create reference to variable
-  - `IsVarTarget(node ast.Node) (varName string, ok bool)` - check if node is valid var target
-  - `UpdateVarTarget(node ast.Node, value Value, ctx *ExecutionContext) error` - write back
-  - This infrastructure enables incremental migration of var param functions
+- [x] **3.5.93a** Infrastructure: Add VarParamHelper to Evaluator ✅
+  - Created `evaluator/var_params.go` with helper methods
+  - `EvaluateLValue(lvalue ast.Expression, ctx *ExecutionContext)` - evaluates lvalue once, returns value + assign closure
+  - `IsVarTarget(node ast.Node) bool` - check if node is valid var target
+  - Supports Identifier, IndexExpression, MemberAccessExpression lvalues
   - Files: `evaluator/var_params.go`
 
-- [ ] **3.5.93b** Migrate Inc/Dec Built-ins
-  - Handle `Inc(x)`, `Inc(x, n)`, `Dec(x)`, `Dec(x, n)` directly
-  - Simple case: get reference, read value, add/subtract, write back
-  - Use VarParamHelper infrastructure from 3.5.93a
-  - Files: `evaluator/visitor_expressions.go`
+- [x] **3.5.93b** Migrate Inc/Dec Built-ins ✅
+  - Handle `Inc(x)`, `Inc(x, n)`, `Dec(x)`, `Dec(x, n)` directly in Evaluator
+  - Uses EvaluateLValue infrastructure for read-modify-write
+  - Supports Integer and Enum types
+  - Files: `evaluator/var_params.go`, `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.93c** Migrate SetLength Built-in
-  - Handle `SetLength(arr, newSize)` directly
-  - Get reference to array, resize it, write back
-  - Files: `evaluator/visitor_expressions.go`
+- [x] **3.5.93c** Migrate SetLength Built-in ✅
+  - Handle `SetLength(arr, newSize)` and `SetLength(str, newLen)` directly
+  - Uses EvaluateLValue for array/string reference
+  - Files: `evaluator/var_params.go`, `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.93d** Migrate Insert/Delete Built-ins
-  - Handle `Insert(str, substr, pos)` - modifies str in place
-  - Handle `Delete(str, pos, count)` - modifies str in place
-  - Files: `evaluator/visitor_expressions.go`
+- [x] **3.5.93d** Migrate Insert/Delete Built-ins ✅
+  - Handle `Insert(source, target, pos)` - inserts source into target at pos
+  - Handle `Delete(str, pos, count)` - deletes count chars from str
+  - Uses EvaluateLValue for string reference
+  - Files: `evaluator/var_params.go`, `evaluator/visitor_expressions.go`
 
 - [ ] **3.5.93e** Migrate Swap/DivMod Built-ins
   - Handle `Swap(a, b)` - exchanges two variables
