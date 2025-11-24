@@ -3,6 +3,7 @@ package interp
 import (
 	"fmt"
 
+	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -801,7 +802,7 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 	// Task 9.2d: Check if this might be a multi-index property write
 	// We only flatten indices if the base is a MemberAccessExpression (property access)
 	// For regular array writes like arr[i][j] := value, we process each level separately
-	base, indices := collectIndices(target)
+	base, indices := evaluator.CollectIndices(target)
 
 	// Task 9.2b + 9.2d: Check if this is indexed property write: obj.Property[index1, index2, ...] := value
 	// Only flatten indices for property access, not for regular arrays

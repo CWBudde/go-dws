@@ -184,7 +184,7 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 		ts,
 		output,
 		evalConfig,
-		nil,                  // unitRegistry is set later via SetUnitRegistry if needed
+		nil,                 // unitRegistry is set later via SetUnitRegistry if needed
 		interp.semanticInfo, // Task 3.5.76: pass semanticInfo to constructor
 	)
 

@@ -235,58 +235,6 @@ func (e *Evaluator) validateArrayLiteralSize(arrayType *types.ArrayType, element
 }
 
 // ============================================================================
-// Type Resolution Helpers
-// ============================================================================
-//
-// Task 3.5.27: Helpers for resolving type names to semantic types.
-// ============================================================================
-
-// resolveTypeName resolves a type name string to a semantic Type.
-// This handles built-in types and custom types.
-//
-// Supported types:
-//   - Built-in: Integer, Float, String, Boolean, Variant
-//   - Custom: Records, Classes (via type system lookup)
-func (e *Evaluator) resolveTypeName(name string) types.Type {
-	// Normalize to case-insensitive comparison (DWScript is case-insensitive)
-	switch name {
-	case "Integer", "integer", "INTEGER":
-		return types.INTEGER
-	case "Float", "float", "FLOAT":
-		return types.FLOAT
-	case "String", "string", "STRING":
-		return types.STRING
-	case "Boolean", "boolean", "BOOLEAN":
-		return types.BOOLEAN
-	case "Variant", "variant", "VARIANT":
-		return types.VARIANT
-	default:
-		// Check if it's a registered record type
-		if e.typeSystem.HasRecord(name) {
-			record := e.typeSystem.LookupRecord(name)
-			if record != nil {
-				// RecordTypeValue is an interface{}, we need to extract the actual type
-				// For now, return nil - this will be improved when we have proper type access
-				return nil
-			}
-		}
-
-		// Check if it's a registered class type
-		if e.typeSystem.HasClass(name) {
-			class := e.typeSystem.LookupClass(name)
-			if class != nil {
-				// ClassInfo is an interface{}, we need to extract the actual type
-				// For now, return nil - this will be improved when we have proper type access
-				return nil
-			}
-		}
-
-		// Unknown type
-		return nil
-	}
-}
-
-// ============================================================================
 // New Array Expression Helpers
 // ============================================================================
 //
