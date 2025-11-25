@@ -252,24 +252,12 @@ type InterpreterAdapter interface {
 	// The lookup is case-insensitive.
 	LookupClass(name string) (any, bool)
 
-	// HasClass checks if a class with the given name exists.
-	HasClass(name string) bool
-
-	// GetClassTypeID returns the type ID for a class, or 0 if not found.
-	GetClassTypeID(className string) int
-
 	// ===== Record Registry =====
 
 	// LookupRecord finds a record type by name in the record registry.
 	// Returns the record type value (as any/interface{}) and a boolean indicating success.
 	// The lookup is case-insensitive.
 	LookupRecord(name string) (any, bool)
-
-	// HasRecord checks if a record type with the given name exists.
-	HasRecord(name string) bool
-
-	// GetRecordTypeID returns the type ID for a record type, or 0 if not found.
-	GetRecordTypeID(recordName string) int
 
 	// ===== Interface Registry =====
 
@@ -278,9 +266,6 @@ type InterpreterAdapter interface {
 	// The lookup is case-insensitive.
 	LookupInterface(name string) (any, bool)
 
-	// HasInterface checks if an interface with the given name exists.
-	HasInterface(name string) bool
-
 	// ===== Helper Registry =====
 
 	// LookupHelpers finds helper methods for a type by name.
@@ -288,18 +273,11 @@ type InterpreterAdapter interface {
 	// The lookup is case-insensitive.
 	LookupHelpers(typeName string) []any
 
-	// HasHelpers checks if a type has helper methods defined.
-	HasHelpers(typeName string) bool
-
 	// ===== Operator & Conversion Registries =====
 
 	// GetOperatorRegistry returns the operator registry for operator overload lookups.
 	// Returns the registry as any/interface{} to avoid circular dependencies.
 	GetOperatorRegistry() any
-
-	// GetConversionRegistry returns the conversion registry for type conversion lookups.
-	// Returns the registry as any/interface{} to avoid circular dependencies.
-	GetConversionRegistry() any
 
 	// ===== Enum Type IDs =====
 
@@ -313,55 +291,15 @@ type InterpreterAdapter interface {
 	// The lookup is case-insensitive.
 	GetType(name string) (any, error)
 
-	// ResolveType resolves a type from an AST type annotation.
-	// Returns the resolved type and an error if the type cannot be resolved.
-	ResolveType(typeAnnotation *ast.TypeAnnotation) (any, error)
-
-	// IsTypeCompatible checks if a value is compatible with a target type.
-	// This is used for type checking in assignments and parameter passing.
-	IsTypeCompatible(from Value, toTypeName string) bool
-
-	// InferArrayElementType infers the element type from array literal elements.
-	// Returns the inferred type or an error if elements have incompatible types.
-	InferArrayElementType(elements []Value) (any, error)
-
-	// InferRecordType infers the record type name from field values.
-	// Returns the record type name or an error if it cannot be inferred.
-	InferRecordType(fields map[string]Value) (string, error)
-
 	// ConvertValue performs implicit or explicit type conversion.
 	// Returns the converted value or an error if conversion is not possible.
 	ConvertValue(value Value, targetTypeName string) (Value, error)
-
-	// CreateDefaultValue creates a zero/default value for a given type name.
-	// Returns the default value or nil if the type is not recognized.
-	CreateDefaultValue(typeName string) Value
-
-	// IsEnumType checks if a given name refers to an enum type.
-	// The lookup is case-insensitive.
-	IsEnumType(typeName string) bool
-
-	// IsRecordType checks if a given name refers to a record type.
-	// The lookup is case-insensitive.
-	IsRecordType(typeName string) bool
-
-	// IsArrayType checks if a given name refers to an array type.
-	// The lookup is case-insensitive.
-	IsArrayType(typeName string) bool
 
 	// ===== Task 3.5.6: Array and Collection Adapter Methods =====
 
 	// CreateArray creates an array from a list of elements with a specified element type.
 	// Returns the created array value.
 	CreateArray(elementType any, elements []Value) Value
-
-	// CreateDynamicArray allocates a new dynamic array of a given size and element type.
-	// Returns the created array value.
-	CreateDynamicArray(elementType any, size int) Value
-
-	// CreateArrayWithExpectedType creates an array from elements with type-aware construction.
-	// Uses the expected array type for proper element type inference and coercion.
-	CreateArrayWithExpectedType(elements []Value, expectedType any) Value
 
 	// CreateArrayValue creates an ArrayValue with the specified array type and elements.
 	// Task 3.5.83: Direct array construction without re-evaluation.
@@ -371,71 +309,7 @@ type InterpreterAdapter interface {
 	// Returns the created ArrayValue.
 	CreateArrayValue(arrayType any, elements []Value) Value
 
-	// GetArrayElement retrieves an element from an array at the given index.
-	// Performs bounds checking and returns an error if index is out of range.
-	GetArrayElement(array Value, index Value) (Value, error)
-
-	// SetArrayElement sets an element in an array at the given index.
-	// Performs bounds checking and returns an error if index is out of range.
-	SetArrayElement(array Value, index Value, value Value) error
-
-	// GetArrayLength returns the length of an array.
-	// Returns 0 for non-array values.
-	GetArrayLength(array Value) int
-
-	// CreateSet creates a set from a list of elements with a specified element type.
-	// Returns the created set value.
-	CreateSet(elementType any, elements []Value) Value
-
-	// EvaluateSetRange expands a range expression (e.g., 1..10, 'a'..'z') into ordinal values.
-	// Returns a slice of ordinal values or an error if the range cannot be evaluated.
-	EvaluateSetRange(start Value, end Value) ([]int, error)
-
-	// AddToSet adds an element to a set.
-	// Returns an error if the element cannot be added.
-	AddToSet(set Value, element Value) error
-
-	// GetStringChar retrieves a character from a string at the given index (1-based).
-	// Returns an error if index is out of range.
-	GetStringChar(str Value, index Value) (Value, error)
-
 	// ===== Task 3.5.7: Property, Field, and Member Access Adapter Methods =====
-
-	// ===== Field Access =====
-
-	// GetObjectField retrieves a field value from an object.
-	// Returns the field value and an error if the field does not exist.
-	GetObjectField(obj Value, fieldName string) (Value, error)
-
-	// SetObjectField sets a field value in an object.
-	// Returns an error if the field does not exist or the value is incompatible.
-	SetObjectField(obj Value, fieldName string, value Value) error
-
-	// GetRecordField retrieves a field value from a record.
-	// Returns the field value and an error if the field does not exist.
-	GetRecordField(record Value, fieldName string) (Value, error)
-
-	// SetRecordField sets a field value in a record.
-	// Returns an error if the field does not exist or the value is incompatible.
-	SetRecordField(record Value, fieldName string, value Value) error
-
-	// ===== Property Access =====
-
-	// GetPropertyValue retrieves a property value from an object.
-	// Returns the property value and an error if the property does not exist.
-	GetPropertyValue(obj Value, propName string) (Value, error)
-
-	// SetPropertyValue sets a property value in an object.
-	// Returns an error if the property does not exist or the value is incompatible.
-	SetPropertyValue(obj Value, propName string, value Value) error
-
-	// GetIndexedProperty retrieves an indexed property value from an object.
-	// Returns the property value and an error if the property does not exist or indices are invalid.
-	GetIndexedProperty(obj Value, propName string, indices []Value) (Value, error)
-
-	// SetIndexedProperty sets an indexed property value in an object.
-	// Returns an error if the property does not exist, indices are invalid, or value is incompatible.
-	SetIndexedProperty(obj Value, propName string, indices []Value, value Value) error
 
 	// ===== Method Calls =====
 
@@ -520,22 +394,6 @@ type InterpreterAdapter interface {
 	// Returns the function pointer value and an error if the function is not found.
 	CreateFunctionPointerFromName(funcName string, closure any) (Value, error)
 
-	// ===== Record Operations (Task 3.5.7) =====
-
-	// CreateRecord creates a record value from field values.
-	// Returns the record value and an error if the record type doesn't exist or fields are invalid.
-	CreateRecord(recordType string, fields map[string]Value) (Value, error)
-
-	// ===== Assignment Helpers (Task 3.5.7) =====
-
-	// SetVariable assigns a value to a variable in the execution context.
-	// Returns an error if the assignment fails.
-	SetVariable(name string, value Value, ctx *ExecutionContext) error
-
-	// CanAssign checks if an AST node can be used as an lvalue (assignment target).
-	// Returns true if the node is a valid lvalue.
-	CanAssign(target ast.Node) bool
-
 	// ===== Exception Handling (Task 3.5.8) =====
 
 	// RaiseException raises an exception with the given class name and message.
@@ -548,11 +406,6 @@ type InterpreterAdapter interface {
 	// DefineVariable defines a new variable in the execution context.
 	// This creates a new binding in the current scope.
 	DefineVariable(name string, value Value, ctx *ExecutionContext)
-
-	// CreateEnclosedEnvironment creates a new execution context with an enclosed environment.
-	// The new environment has the current environment as its parent (for scoping).
-	// Returns a new ExecutionContext with the enclosed environment.
-	CreateEnclosedEnvironment(ctx *ExecutionContext) *ExecutionContext
 
 	// Phase 3.5.4 - Phase 2C: Property & Indexing System infrastructure
 	// Property and indexing operations are available through existing infrastructure:
@@ -590,10 +443,6 @@ type InterpreterAdapter interface {
 	// Returns the array type (as any/interface{}) and an error if parsing fails.
 	ParseInlineArrayType(typeName string) (any, error)
 
-	// ParseInlineSetType parses inline set type signatures like "set of TColor".
-	// Returns the set type (as any/interface{}) and an error if parsing fails.
-	ParseInlineSetType(typeName string) (any, error)
-
 	// LookupSubrangeType finds a subrange type by name in the subrange type registry.
 	// Returns the subrange type value (as any/interface{}) and a boolean indicating success.
 	// The lookup is case-insensitive.
@@ -620,11 +469,6 @@ type InterpreterAdapter interface {
 	// This allows proper element type inference and coercion.
 	// Returns the evaluated array value.
 	EvalArrayLiteralWithExpectedType(lit ast.Node, expectedTypeName string) Value
-
-	// ClassImplementsInterface checks if a class implements an interface.
-	// Returns true if the class (by name) implements the interface (by name).
-	// Both lookups are case-insensitive.
-	ClassImplementsInterface(className, interfaceName string) bool
 
 	// CreateExternalVar creates an external variable marker.
 	// External variables are placeholders that map to Go-side external functions.
@@ -669,19 +513,6 @@ type InterpreterAdapter interface {
 	// Missing fields are initialized with default values or field initializers.
 	// Returns the record value and an error if the record type doesn't exist or fields are invalid.
 	CreateRecordValue(recordTypeName string, fieldValues map[string]Value) (Value, error)
-
-	// GetRecordFieldDeclarations retrieves field declarations for a record type.
-	// Returns field declarations map and a boolean indicating success.
-	GetRecordFieldDeclarations(recordTypeName string) (any, bool)
-
-	// GetZeroValueForType creates a zero/default value for a given type.
-	// Handles nested records, arrays, and all DWScript types.
-	// Returns the zero value for the type.
-	GetZeroValueForType(typeInfo any) Value
-
-	// InitializeInterfaceField creates a nil interface instance for interface-typed fields.
-	// Returns an InterfaceInstance value or nil if the type is not an interface.
-	InitializeInterfaceField(fieldType any) Value
 
 	// ===== Task 3.5.21: Complex Value Retrieval Adapter Methods =====
 
@@ -772,10 +603,6 @@ type InterpreterAdapter interface {
 	// Returns the class variable value and true if found, nil and false otherwise.
 	// Panics if the value is not a ClassInfoValue.
 	GetClassVariableFromClassInfo(classInfo Value, varName string) (Value, bool)
-
-	// IsClassValue checks if a value is a ClassValue (metaclass reference).
-	// Returns true if the value is a class name used as a value (e.g., var c := TMyClass).
-	IsClassValue(value Value) bool
 
 	// ===== Task 3.5.29: Exception Handling Adapter Methods =====
 
