@@ -11,6 +11,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
+	"github.com/cwbudde/go-dws/internal/jsonvalue"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/internal/units"
@@ -587,6 +588,52 @@ func (i *Interpreter) CallRecordStaticMethod(callExpr *ast.CallExpression, funcN
 		Arguments: callExpr.Arguments,
 	}
 	return i.evalMethodCall(mc)
+}
+
+// WrapJSONValueInVariant wraps a jsonvalue.Value in a VariantValue containing a JSONValue.
+// Task 3.5.99b: Implements InterpreterAdapter.WrapJSONValueInVariant for JSON indexing support.
+func (i *Interpreter) WrapJSONValueInVariant(jv any) evaluator.Value {
+	// Convert any to *jsonvalue.Value
+	jsonVal, ok := jv.(*jsonvalue.Value)
+	if !ok && jv != nil {
+		// Invalid type passed - return error
+		return &ErrorValue{Message: "invalid type passed to WrapJSONValueInVariant: expected *jsonvalue.Value"}
+	}
+
+	// Use the existing jsonValueToVariant helper
+	return jsonValueToVariant(jsonVal)
+}
+
+// CallIndexedPropertyGetter calls an indexed property getter method on an object.
+// Task 3.5.99c: Implements InterpreterAdapter.CallIndexedPropertyGetter for object default property access.
+func (i *Interpreter) CallIndexedPropertyGetter(obj evaluator.Value, propImpl any, indices []evaluator.Value, node any) evaluator.Value {
+	// Convert obj to ObjectInstance
+	objInst, ok := obj.(*ObjectInstance)
+	if !ok {
+		return &ErrorValue{Message: "CallIndexedPropertyGetter expects ObjectInstance"}
+	}
+
+	// Convert propImpl to *types.PropertyInfo
+	propInfo, ok := propImpl.(*types.PropertyInfo)
+	if !ok {
+		return &ErrorValue{Message: "CallIndexedPropertyGetter expects *types.PropertyInfo"}
+	}
+
+	// Convert node to ast.Node
+	astNode, ok := node.(ast.Node)
+	if !ok {
+		return &ErrorValue{Message: "CallIndexedPropertyGetter expects ast.Node"}
+	}
+
+	// Convert []evaluator.Value to []Value (they're the same underlying interface)
+	// evaluator.Value is an alias for the local Value interface in the interp package
+	convertedIndices := make([]Value, len(indices))
+	for i, idx := range indices {
+		convertedIndices[i] = idx
+	}
+
+	// Delegate to the existing evalIndexedPropertyRead method
+	return i.evalIndexedPropertyRead(objInst, propInfo, convertedIndices, astNode)
 }
 
 // Phase 3.5.4 - Phase 2B: Type system access adapter methods

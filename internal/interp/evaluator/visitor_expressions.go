@@ -2035,14 +2035,26 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 	// Unwrap variants for indexing
 	leftVal = unwrapVariant(leftVal)
 
-	// Handle interface/object default property access - delegate to adapter
+	// Handle JSON indexing directly - Task 3.5.99b
+	if leftVal.Type() == "JSON" {
+		return e.indexJSON(leftVal, indexVal, node)
+	}
+
+	// Task 3.5.99c: Handle object default property access
+	if leftVal.Type() == "OBJECT" {
+		if accessor, ok := leftVal.(PropertyAccessor); ok {
+			if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
+				// Delegate indexed property method call to adapter
+				return e.adapter.CallIndexedPropertyGetter(leftVal, defaultProp.Impl, []Value{indexVal}, node)
+			}
+		}
+	}
+
+	// Handle interface/record default property access - delegate to adapter
 	// These require class hierarchy lookup and property getter execution
 	switch leftVal.Type() {
-	case "INTERFACE", "OBJECT", "RECORD":
+	case "INTERFACE", "RECORD":
 		// Default property access requires adapter (class lookup, method calls)
-		return e.adapter.EvalNode(node)
-	case "JSON":
-		// JSON indexing requires VariantValue which is in interp package
 		return e.adapter.EvalNode(node)
 	}
 
