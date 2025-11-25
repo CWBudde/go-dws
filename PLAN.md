@@ -352,238 +352,55 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 #### Group D: VisitCallExpression (12 calls, high complexity)
 
-**Complexity Analysis:** VisitCallExpression is one of the most complex visitors because it handles:
-- User-defined function calls with overload resolution
-- Built-in functions with var/lazy parameters
-- Implicit Self method calls (inside instance methods)
-- Record static method calls
-- External (Go) function calls
-- Function pointer invocations
+- [x] **3.5.93** Built-in Var Parameter Functions ✅
+  - **Infrastructure**: Created `evaluator/var_params.go` with `EvaluateLValue()` for read-modify-write operations
+  - **Migrated**: Inc/Dec, SetLength, Insert/Delete, Swap, DivMod, TryStrToInt/TryStrToFloat (2/3-arg forms), DecodeDate/DecodeTime
+  - **Files**: `evaluator/var_params.go`, `evaluator/datetime_helpers.go`, `evaluator/visitor_expressions.go`
 
-The var parameter handling is particularly complex because it requires creating `ReferenceValue`
-wrappers to pass variables by reference, detecting which parameters are `var` parameters, and
-the adapter has substantial logic for this. Recommend tackling in small, focused subtasks.
+- [x] **3.5.94** Default/Type Cast Calls ✅
+  - `Default(TypeName)` returns default value for type
+  - `TypeName(expr)` handles type cast expressions
+  - **Files**: `evaluator/visitor_expressions.go`
 
----
+- [x] **3.5.95** Function Pointer Calls ✅
+  - Migrated parameter preparation (lazy/var/regular parameters)
+  - Uses `CreateLazyThunk`, `CreateReferenceValue`, `CallFunctionPointer` adapter calls
+  - **Files**: `evaluator/visitor_expressions.go`
 
-**3.5.93: Built-in Var Parameter Functions (Split into subtasks)**
+- [x] **3.5.96** Method Calls ✅
+  - Added `CallMemberMethod` for record/interface/object methods
+  - Added `CallQualifiedOrConstructor` for unit-qualified calls and constructors
+  - **Files**: `evaluator/evaluator.go`, `interpreter.go`, `evaluator/visitor_expressions.go`
 
-- [x] **3.5.93a** Infrastructure: Add VarParamHelper to Evaluator ✅
-  - Created `evaluator/var_params.go` with helper methods
-  - `EvaluateLValue(lvalue ast.Expression, ctx *ExecutionContext)` - evaluates lvalue once, returns value + assign closure
-  - `IsVarTarget(node ast.Node) bool` - check if node is valid var target
-  - Supports Identifier, IndexExpression, MemberAccessExpression lvalues
-  - Files: `evaluator/var_params.go`
-
-- [x] **3.5.93b** Migrate Inc/Dec Built-ins ✅
-  - Handle `Inc(x)`, `Inc(x, n)`, `Dec(x)`, `Dec(x, n)` directly in Evaluator
-  - Uses EvaluateLValue infrastructure for read-modify-write
-  - Supports Integer and Enum types
-  - Files: `evaluator/var_params.go`, `evaluator/visitor_expressions.go`
-
-- [x] **3.5.93c** Migrate SetLength Built-in ✅
-  - Handle `SetLength(arr, newSize)` and `SetLength(str, newLen)` directly
-  - Uses EvaluateLValue for array/string reference
-  - Files: `evaluator/var_params.go`, `evaluator/visitor_expressions.go`
-
-- [x] **3.5.93d** Migrate Insert/Delete Built-ins ✅
-  - Handle `Insert(source, target, pos)` - inserts source into target at pos
-  - Handle `Delete(str, pos, count)` - deletes count chars from str
-  - Uses EvaluateLValue for string reference
-  - Files: `evaluator/var_params.go`, `evaluator/visitor_expressions.go`
-
-- [x] **3.5.93e** Migrate Swap/DivMod Built-ins ✅
-  - Handle `Swap(a, b)` - exchanges two variables using EvaluateLValue
-  - Handle `DivMod(dividend, divisor, quotient, remainder)` - 4 params, 2 are var
-  - Files: `evaluator/var_params.go`, `evaluator/visitor_expressions.go`
-
-- [x] **3.5.93f** Migrate TryStrToInt/TryStrToFloat Built-ins ✅
-  - Handle `TryStrToInt(str, outValue)` or `TryStrToInt(str, base, outValue)` - returns Boolean
-  - Handle `TryStrToFloat(str, outValue)` - returns Boolean
-  - Pattern: Parse string, return true/false, only update var param on success
-  - Uses EvaluateLValue for var parameter handling with any lvalue type
-  - Files: `evaluator/var_params.go`, `evaluator/visitor_expressions.go`, `functions_calls.go`
-  - Note: TryStrToInt has 2-arg and 3-arg forms (base parameter)
-  - Note: These return Boolean (unlike nil-returning var-param functions)
-  - Needs: `strconv.ParseInt`, `strconv.ParseFloat`, `strings.TrimSpace`
-  - See: `internal/interp/builtins_convert_advanced.go:14-107` (TryStrToInt)
-  - See: `internal/interp/builtins_convert_advanced.go:170-228` (TryStrToFloat)
-  - Files: `evaluator/var_params.go`, `evaluator/visitor_expressions.go`
-
-- [x] **3.5.93g** Migrate DecodeDate/DecodeTime Built-ins ✅
-  - Handle `DecodeDate(dt, var year, var month, var day)` - 4 params, 3 are var
-  - Handle `DecodeTime(dt, var hour, var minute, var second, var msec)` - 5 params, 4 are var
-  - Pattern: Extract components from TDateTime (Float), assign to multiple var params
-  - Note: First arg is Float (TDateTime), remaining args are Integer var params
-  - Uses EvaluateLValue for var parameter handling with any lvalue type
-  - Created datetime helper functions in `evaluator/datetime_helpers.go`
-  - Files: `evaluator/var_params.go`, `evaluator/visitor_expressions.go`, `evaluator/datetime_helpers.go`, `functions_calls.go`
-
----
-
-**3.5.94-3.5.97: Other VisitCallExpression Cases**
-
-- [x] **3.5.94** Replace VisitCallExpression default/type cast
-  - 2 calls at lines 546, 554
-  - `Default(TypeName)` - returns default value for type
-  - `TypeName(expr)` - type cast expressions
-  - Medium complexity: needs type resolution
-  - Files: `evaluator/visitor_expressions.go`
-
-- [x] **3.5.95** Replace VisitCallExpression function pointer ✅
-  - Migrated parameter preparation logic from `functions_calls.go` lines 30-68
-  - Handles lazy parameters via `CreateLazyThunk` adapter call
-  - Handles var parameters via `CreateReferenceValue` adapter call
-  - Regular parameters evaluated directly in evaluator
-  - Function pointer invocation via `CallFunctionPointer` adapter call
-  - All function pointer and lambda tests pass
-  - Files: `evaluator/visitor_expressions.go` (lines 463-515)
-
-- [x] **3.5.96** Replace VisitCallExpression method calls ✅
-  - Removed 2 EvalNode calls (lines 528, 536)
-  - Added `CallMemberMethod` adapter method for record/interface/object methods
-  - Added `CallQualifiedOrConstructor` adapter method for unit-qualified calls and constructors
-  - Encapsulates complex logic: environment swapping (interfaces), MethodCallExpression creation
-  - All record, interface, and object method tests pass
-  - Files: `evaluator/evaluator.go` (interface), `interpreter.go` (implementation), `evaluator/visitor_expressions.go` (usage)
-
-- [x] **3.5.97** Replace VisitCallExpression user functions ✅
-  - Removed 3 EvalNode calls (lines 562, 572, 584)
-  - **3.5.97a** Added `CallUserFunctionWithOverloads` for overload resolution
-  - **3.5.97b** Added `CallImplicitSelfMethod` for implicit Self calls
-  - **3.5.97c** Added `CallRecordStaticMethod` for record static methods
-  - Encapsulates: overload resolution (resolveOverload), parameter preparation, MethodCallExpression creation
-  - All function, record, interface, and object tests pass
-  - Files: `evaluator/evaluator.go` (interface), `interpreter.go` (implementation), `evaluator/visitor_expressions.go` (usage)
+- [x] **3.5.97** User Function Calls ✅
+  - Added `CallUserFunctionWithOverloads` (overload resolution)
+  - Added `CallImplicitSelfMethod` (implicit Self calls)
+  - Added `CallRecordStaticMethod` (record static methods)
+  - **Files**: `evaluator/evaluator.go`, `interpreter.go`, `evaluator/visitor_expressions.go`
 
 ---
 
 #### Group E: VisitMethodCallExpression Helper Methods (1 call, high complexity)
 
-**Complexity Analysis:** The `default` case in VisitMethodCallExpression (line 1576) handles helper
-method dispatch for primitive types (String, Integer, Float, Boolean), arrays, and enums. Helper
-methods are type extensions that add methods to types that don't natively have them (e.g., `str.ToUpper()`,
-`arr.Push()`, `num.ToString()`).
-
-The helper system involves:
-- Looking up helpers for the value's type (getHelpersForValue)
-- Searching helper inheritance chains
-- Handling both AST-declared methods and builtin spec methods
-- Actually calling the helper method (callHelperMethod)
-
-**Current approach:** `EvalNode` delegation re-evaluates the whole node, which works but is inefficient
-since we've already evaluated the object and arguments.
-
-**Why CallMethod doesn't work:** The adapter's `CallMethod` panics if the object is not an ObjectInstance,
-so it can't handle primitive types with helper methods.
-
----
-
-**3.5.98: Helper Method Migration (Split into subtasks)**
-
-- [x] **3.5.98a** Add explicit type cases for helper-enabled types ✅
-  - Added cases for STRING, INTEGER, FLOAT, BOOLEAN, ARRAY, VARIANT, ENUM
-  - Documented that these use helpers via adapter delegation
-  - No functional change, just clearer routing and better documentation
-  - Files: `evaluator/visitor_expressions.go`
-
-- [x] **3.5.98b** Infrastructure: Add HelperMethodResolver to Evaluator ✅
-  - Created `evaluator/helper_methods.go` with helper lookup logic
-  - Implemented `FindHelperMethod(val Value, methodName string) *HelperMethodResult`
-  - Migrated `getHelpersForValue` logic to evaluator (type-to-helper-name mapping)
-  - Uses TypeSystem.LookupHelpers() for helper registry access
+- [x] **3.5.98** Helper Method Migration ✅
+  - **Infrastructure**: Created `evaluator/helper_methods.go` with `FindHelperMethod()` for type-to-helper resolution
+  - **Migrated**: Builtin helper lookup, AST helper method execution infrastructure
   - Added `GetEnumTypeName()` to EnumValue, `ArrayTypeString()` to ArrayValue
-  - Files: `evaluator/helper_methods.go`, `runtime/enum.go`, `runtime/array.go`
-
-- [x] **3.5.98c** Migrate builtin helper method calls ✅
-  - Created `CallHelperMethod` and `CallBuiltinHelperMethod` in evaluator
-  - Updated `VisitMethodCallExpression` to use direct helper lookup via `FindHelperMethod`
-  - Builtin execution still delegated to adapter (infrastructure in place for future migration)
   - Replaced 7 adapter EvalNode calls with direct helper method resolution
-  - Files: `evaluator/helper_methods.go`, `evaluator/visitor_expressions.go`
-
-- [x] **3.5.98d** Migrate AST helper method calls ✅
-  - Created `CallASTHelperMethod` with argument validation
-  - Infrastructure in place for AST method execution (Self binding, environment, etc.)
-  - Still delegates to adapter (requires type resolution, default values)
-  - Completes helper method routing - evaluator now owns the lookup and dispatch
-  - Files: `evaluator/helper_methods.go`
+  - **Files**: `evaluator/helper_methods.go`, `evaluator/visitor_expressions.go`, `runtime/enum.go`, `runtime/array.go`
 
 ---
 
-#### Group F: VisitIndexExpression Advanced Cases (blocked)
+#### Group F: VisitIndexExpression Advanced Cases (7 EvalNode calls)
 
-**Task 3.5.99 Split Rationale**: This task involves ~400+ lines of complex logic across multiple concerns (property access, JSON indexing, default properties), has circular import issues (JSONValue/VariantValue), and different risk profiles. Split into 7 subtasks for incremental progress following the pattern of 3.5.93 and 3.5.97.
-
-- [x] **3.5.99a** Property Access Infrastructure ✅ (45 min)
-  - Added `PropertyAccessor` interface to evaluator for objects/interfaces/records
-  - Added `PropertyDescriptor` struct with Name, IsIndexed, IsDefault, Impl fields
-  - Methods: `LookupProperty(name string)`, `GetDefaultProperty()`
-  - Implemented in `ObjectInstance`, `InterfaceInstance`, `RecordValue`
-  - Files: `evaluator/evaluator.go`, `class.go`, `interface.go`, `value.go`
-  - Tests: `property_accessor_test.go` (4 test functions, all passing)
-  - Completed: 2025-11-25
-
-- [x] **3.5.99b** JSON Indexing Migration ✅ (45 min)
-  - Created `evaluator/json_helpers.go` with `indexJSON` method
-  - Used reflection to access JSONValue.Value field (avoids circular import)
-  - Added `WrapJSONValueInVariant` to InterpreterAdapter interface
-  - Removed EvalNode delegation for JSON case (visitor_expressions.go:2046)
-  - Tests: Verified with `testdata/json/json_object_access.dws` and `json_array_access.dws` (all passing)
-  - Files: `evaluator/json_helpers.go`, `evaluator/visitor_expressions.go`, `interpreter.go`
-  - Completed: 2025-11-25
-
-- [x] **3.5.99c** Object Default Property Access ✅ (30 min)
-  - Added object default property detection in VisitIndexExpression
-  - Used PropertyAccessor.GetDefaultProperty() to get default property descriptor
-  - Added CallIndexedPropertyGetter to InterpreterAdapter interface
-  - Implemented delegation to evalIndexedPropertyRead for property method execution
-  - Removed EvalNode delegation for OBJECT case (visitor_expressions.go:2043-2051)
-  - Files: `evaluator/evaluator.go`, `evaluator/visitor_expressions.go`, `interpreter.go`
-  - Note: Tests require semantic analysis support for default properties (Stage 6)
-  - Completed: 2025-11-25
-
-- [x] **3.5.99d** Interface Default Property Access ✅ (25 min)
-  - Implemented interface unwrapping using InterfaceInstanceValue.GetUnderlyingObjectValue()
-  - Added nil interface check with proper error message
-  - Checked both interface's default property and underlying object's default property
-  - Used PropertyAccessor.GetDefaultProperty() for interface property lookup
-  - Delegated property getter execution via CallIndexedPropertyGetter
-  - Removed EvalNode delegation for INTERFACE case (visitor_expressions.go:2053-2084)
-  - Files: `evaluator/visitor_expressions.go`
-  - Completed: 2025-11-25
-
-- [x] **3.5.99e** Record Default Property Access ✅ (35 min)
-  - Added CallRecordPropertyGetter to InterpreterAdapter interface
-  - Implemented record default property detection using PropertyAccessor.GetDefaultProperty()
-  - Created synthetic MethodCallExpression with temporary environment bindings for indices
-  - Delegated to evalMethodCall for actual method execution
-  - Removed EvalNode delegation for RECORD case (visitor_expressions.go:2086-2096)
-  - Files: `evaluator/evaluator.go`, `evaluator/visitor_expressions.go`, `interpreter.go`
-  - Completed: 2025-11-25
-
-- [x] **3.5.99f** Indexed Property Infrastructure ✅ (completed in 3.5.99c)
-  - Created `CallIndexedPropertyGetter` adapter method in task 3.5.99c
-  - Delegates to existing `evalIndexedPropertyRead` which handles:
-    - Method environment creation and cleanup
-    - Self binding for object context
-    - Index parameter binding
-    - Result variable initialization
-    - Method body execution
-  - Files: `evaluator/evaluator.go` (interface at lines 885-894), `interpreter.go` (implementation at lines 609-637)
-  - Note: This infrastructure was completed as part of 3.5.99c
-  - Completed: 2025-11-25
-
-- [x] **3.5.99g** Indexed Property Access via MemberAccessExpression ✅ (45 min)
-  - Migrated indexed property lookup using CollectIndices to flatten multi-index properties
-  - Implemented interface indexed property access with property lookup and unwrapping
-  - Implemented object indexed property access using PropertyAccessor.LookupProperty
-  - Implemented record indexed property access with delegation to CallRecordPropertyGetter
-  - Evaluates all indices in the flattened list before calling property getter
-  - Removed EvalNode delegation for MemberAccessExpression base (visitor_expressions.go:2013-2091)
-  - Files: `evaluator/visitor_expressions.go`
-  - Note: Tests require semantic analysis support for indexed properties (Stage 6)
-  - Completed: 2025-11-25
+- [x] **3.5.99** Property Access & JSON Indexing ✅
+  - **Infrastructure**: Added `PropertyAccessor` interface with `LookupProperty()`, `GetDefaultProperty()`
+  - **JSON Indexing**: Created `evaluator/json_helpers.go` with reflection-based access (avoids circular import)
+  - **Default Properties**: Object/interface/record default property access via `CallIndexedPropertyGetter`/`CallRecordPropertyGetter`
+  - **Indexed Properties**: Multi-index property access via `CollectIndices` (flattened evaluation)
+  - Removed 7 EvalNode delegations (JSON, OBJECT, INTERFACE, RECORD, MemberAccessExpression cases)
+  - **Files**: `evaluator/evaluator.go`, `evaluator/json_helpers.go`, `evaluator/visitor_expressions.go`, `interpreter.go`, `class.go`, `interface.go`, `value.go`
+  - **Tests**: `property_accessor_test.go` (4 test functions, all passing)
 
 ---
 
