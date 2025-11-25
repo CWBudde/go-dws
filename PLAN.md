@@ -487,12 +487,13 @@ so it can't handle primitive types with helper methods.
   - No functional change, just clearer routing and better documentation
   - Files: `evaluator/visitor_expressions.go`
 
-- [ ] **3.5.98b** Infrastructure: Add HelperMethodResolver to Evaluator
-  - Create `evaluator/helper_methods.go` with helper lookup logic
-  - `FindHelperMethod(val Value, methodName string) (helperInfo, methodDecl, builtinSpec)`
-  - Move `getHelpersForValue` logic to evaluator (type-to-helper-name mapping)
-  - Use TypeSystem.LookupHelpers() for helper registry access
-  - Files: `evaluator/helper_methods.go`
+- [x] **3.5.98b** Infrastructure: Add HelperMethodResolver to Evaluator ✅
+  - Created `evaluator/helper_methods.go` with helper lookup logic
+  - Implemented `FindHelperMethod(val Value, methodName string) *HelperMethodResult`
+  - Migrated `getHelpersForValue` logic to evaluator (type-to-helper-name mapping)
+  - Uses TypeSystem.LookupHelpers() for helper registry access
+  - Added `GetEnumTypeName()` to EnumValue, `ArrayTypeString()` to ArrayValue
+  - Files: `evaluator/helper_methods.go`, `runtime/enum.go`, `runtime/array.go`
 
 - [ ] **3.5.98c** Migrate builtin helper method calls
   - Handle builtin specs like `__string_toupper`, `__array_push` directly
