@@ -2002,16 +2002,92 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 		return e.newError(node, "index expression missing base")
 	}
 
-	// Check if this might be a multi-index property access (obj.Property[x, y])
+	// Task 3.5.99g: Check if this is indexed property access via MemberAccessExpression
+	// obj.Property[index1, index2, ...] should be flattened and passed to the property getter
 	// We only flatten indices if the base is a MemberAccessExpression (property access)
 	// For regular array access like arr[i][j], we process each level separately
-	base, _ := CollectIndices(node)
+	base, indices := CollectIndices(node)
 
 	// Check if this is indexed property access: obj.Property[index1, index2, ...]
 	// Only flatten indices for property access, not for regular arrays
-	if _, ok := base.(*ast.MemberAccessExpression); ok {
-		// Delegate property-based indexing to adapter (complex logic with class/interface lookups)
-		return e.adapter.EvalNode(node)
+	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok {
+		// Evaluate the object being accessed
+		objVal := e.Eval(memberAccess.Object, ctx)
+		if isError(objVal) {
+			return objVal
+		}
+
+		// Task 3.5.99g: Handle interface indexed property access
+		if intfInst, ok := objVal.(InterfaceInstanceValue); ok {
+			underlying := intfInst.GetUnderlyingObjectValue()
+			if underlying == nil {
+				return e.newError(node, "interface is nil")
+			}
+
+			// Check if interface has the indexed property
+			if accessor, ok := objVal.(PropertyAccessor); ok {
+				if propDesc := accessor.LookupProperty(memberAccess.Member.Value); propDesc != nil && propDesc.IsIndexed {
+					// Evaluate all indices
+					indexVals := make([]Value, len(indices))
+					for idx, indexExpr := range indices {
+						indexVals[idx] = e.Eval(indexExpr, ctx)
+						if isError(indexVals[idx]) {
+							return indexVals[idx]
+						}
+					}
+
+					// Call indexed property getter on the underlying object
+					if underlying.Type() == "OBJECT" {
+						return e.adapter.CallIndexedPropertyGetter(underlying, propDesc.Impl, indexVals, node)
+					}
+					return e.newError(node, "interface underlying object is not a class instance")
+				}
+			}
+
+			// Unwrap for further checks
+			objVal = underlying
+		}
+
+		// Task 3.5.99g: Handle object indexed property access
+		if objVal.Type() == "OBJECT" {
+			if accessor, ok := objVal.(PropertyAccessor); ok {
+				if propDesc := accessor.LookupProperty(memberAccess.Member.Value); propDesc != nil && propDesc.IsIndexed {
+					// Evaluate all indices
+					indexVals := make([]Value, len(indices))
+					for idx, indexExpr := range indices {
+						indexVals[idx] = e.Eval(indexExpr, ctx)
+						if isError(indexVals[idx]) {
+							return indexVals[idx]
+						}
+					}
+
+					// Call indexed property getter
+					return e.adapter.CallIndexedPropertyGetter(objVal, propDesc.Impl, indexVals, node)
+				}
+			}
+		}
+
+		// Task 3.5.99g: Handle record indexed property access
+		if objVal.Type() == "RECORD" {
+			if accessor, ok := objVal.(PropertyAccessor); ok {
+				if propDesc := accessor.LookupProperty(memberAccess.Member.Value); propDesc != nil {
+					// Evaluate all indices
+					indexVals := make([]Value, len(indices))
+					for idx, indexExpr := range indices {
+						indexVals[idx] = e.Eval(indexExpr, ctx)
+						if isError(indexVals[idx]) {
+							return indexVals[idx]
+						}
+					}
+
+					// Call record property getter
+					return e.adapter.CallRecordPropertyGetter(objVal, propDesc.Impl, indexVals, node)
+				}
+			}
+		}
+
+		// Not an indexed property - fall through to normal member access handling
+		// This will likely error, but let it be handled by the regular logic below
 	}
 
 	// Not a property access - this is regular array/string indexing
@@ -2050,12 +2126,49 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 		}
 	}
 
-	// Handle interface/record default property access - delegate to adapter
-	// These require class hierarchy lookup and property getter execution
-	switch leftVal.Type() {
-	case "INTERFACE", "RECORD":
-		// Default property access requires adapter (class lookup, method calls)
-		return e.adapter.EvalNode(node)
+	// Task 3.5.99d: Handle interface default property access
+	if leftVal.Type() == "INTERFACE" {
+		// Unwrap interface to get underlying object
+		if ifaceVal, ok := leftVal.(InterfaceInstanceValue); ok {
+			underlying := ifaceVal.GetUnderlyingObjectValue()
+			if underlying == nil {
+				return e.newError(node, "interface is nil")
+			}
+
+			// Check if interface has a default property
+			if accessor, ok := leftVal.(PropertyAccessor); ok {
+				if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil && defaultProp.IsIndexed {
+					// The property is defined on the interface, but we need the underlying object for execution
+					if objVal := underlying; objVal.Type() == "OBJECT" {
+						return e.adapter.CallIndexedPropertyGetter(objVal, defaultProp.Impl, []Value{indexVal}, node)
+					}
+					return e.newError(node, "interface underlying object is not a class instance")
+				}
+			}
+
+			// No default property on interface, continue with unwrapped object
+			// Check if the underlying object has a default property
+			leftVal = underlying
+			if leftVal.Type() == "OBJECT" {
+				if accessor, ok := leftVal.(PropertyAccessor); ok {
+					if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
+						return e.adapter.CallIndexedPropertyGetter(leftVal, defaultProp.Impl, []Value{indexVal}, node)
+					}
+				}
+			}
+		}
+	}
+
+	// Task 3.5.99e: Handle record default property access
+	if leftVal.Type() == "RECORD" {
+		// Check if record has a default property
+		if accessor, ok := leftVal.(PropertyAccessor); ok {
+			if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
+				// Delegate record property getter method call to adapter
+				return e.adapter.CallRecordPropertyGetter(leftVal, defaultProp.Impl, []Value{indexVal}, node)
+			}
+		}
+		// No default property, fall through to normal indexing (which will error)
 	}
 
 	// Index must be an integer or enum for arrays and strings

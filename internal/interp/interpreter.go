@@ -636,6 +636,77 @@ func (i *Interpreter) CallIndexedPropertyGetter(obj evaluator.Value, propImpl an
 	return i.evalIndexedPropertyRead(objInst, propInfo, convertedIndices, astNode)
 }
 
+// CallRecordPropertyGetter calls a record property getter method.
+// Task 3.5.99e: Implements InterpreterAdapter.CallRecordPropertyGetter for record default property access.
+func (i *Interpreter) CallRecordPropertyGetter(record evaluator.Value, propImpl any, indices []evaluator.Value, node any) evaluator.Value {
+	// Convert record to RecordValue
+	recordVal, ok := record.(*RecordValue)
+	if !ok {
+		return &ErrorValue{Message: "CallRecordPropertyGetter expects RecordValue"}
+	}
+
+	// Convert propImpl to *types.RecordPropertyInfo
+	propInfo, ok := propImpl.(*types.RecordPropertyInfo)
+	if !ok {
+		return &ErrorValue{Message: "CallRecordPropertyGetter expects *types.RecordPropertyInfo"}
+	}
+
+	// Convert node to ast.Node (specifically *ast.IndexExpression for now)
+	indexExpr, ok := node.(*ast.IndexExpression)
+	if !ok {
+		return &ErrorValue{Message: "CallRecordPropertyGetter expects *ast.IndexExpression"}
+	}
+
+	// Check if the property has a read accessor
+	if propInfo.ReadField == "" {
+		return i.newErrorWithLocation(indexExpr, "default property is write-only")
+	}
+
+	// Get the getter method
+	getterMethod := recordVal.GetMethod(propInfo.ReadField)
+	if getterMethod == nil {
+		return i.newErrorWithLocation(indexExpr, "default property read accessor '%s' is not a method", propInfo.ReadField)
+	}
+
+	// Convert []evaluator.Value to []Value
+	convertedIndices := make([]Value, len(indices))
+	for idx, val := range indices {
+		convertedIndices[idx] = val
+	}
+
+	// Create a synthetic method call expression: record.GetterMethod(index)
+	// We need to bind the index value(s) in the environment temporarily
+	methodCall := &ast.MethodCallExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: indexExpr.Token},
+		},
+		Object: indexExpr.Left,
+		Method: &ast.Identifier{
+			Value: propInfo.ReadField,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{Token: indexExpr.Token},
+			},
+		},
+		Arguments: make([]ast.Expression, len(indices)),
+	}
+
+	// Create temporary identifiers for each index argument
+	for idx := range indices {
+		tempVarName := fmt.Sprintf("__temp_default_index_%d__", idx)
+		methodCall.Arguments[idx] = &ast.Identifier{
+			Value: tempVarName,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{Token: indexExpr.Token},
+			},
+		}
+		// Bind the index value in the environment
+		i.env.Define(tempVarName, convertedIndices[idx])
+	}
+
+	// Call the getter method
+	return i.evalMethodCall(methodCall)
+}
+
 // Phase 3.5.4 - Phase 2B: Type system access adapter methods
 // These methods implement the InterpreterAdapter interface for type system access.
 

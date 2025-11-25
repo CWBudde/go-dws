@@ -543,27 +543,47 @@ so it can't handle primitive types with helper methods.
   - Note: Tests require semantic analysis support for default properties (Stage 6)
   - Completed: 2025-11-25
 
-- [ ] **3.5.99d** Interface Default Property Access (30-45 min)
-  - Implement interface unwrapping + object default property access
-  - Handle nil interface access errors
-  - Remove EvalNode delegation for INTERFACE case (visitor_expressions.go:2041)
+- [x] **3.5.99d** Interface Default Property Access ✅ (25 min)
+  - Implemented interface unwrapping using InterfaceInstanceValue.GetUnderlyingObjectValue()
+  - Added nil interface check with proper error message
+  - Checked both interface's default property and underlying object's default property
+  - Used PropertyAccessor.GetDefaultProperty() for interface property lookup
+  - Delegated property getter execution via CallIndexedPropertyGetter
+  - Removed EvalNode delegation for INTERFACE case (visitor_expressions.go:2053-2084)
+  - Files: `evaluator/visitor_expressions.go`
+  - Completed: 2025-11-25
 
-- [ ] **3.5.99e** Record Default Property Access (45-60 min)
-  - Implement `evalRecordDefaultPropertyRead` with getter method calls
-  - Handle record property getter invocation
-  - Remove EvalNode delegation for RECORD case (visitor_expressions.go:2043)
+- [x] **3.5.99e** Record Default Property Access ✅ (35 min)
+  - Added CallRecordPropertyGetter to InterpreterAdapter interface
+  - Implemented record default property detection using PropertyAccessor.GetDefaultProperty()
+  - Created synthetic MethodCallExpression with temporary environment bindings for indices
+  - Delegated to evalMethodCall for actual method execution
+  - Removed EvalNode delegation for RECORD case (visitor_expressions.go:2086-2096)
+  - Files: `evaluator/evaluator.go`, `evaluator/visitor_expressions.go`, `interpreter.go`
+  - Completed: 2025-11-25
 
-- [ ] **3.5.99f** Indexed Property Infrastructure (45-60 min)
-  - Create `CallIndexedPropertyGetter` adapter method (delegate for now)
-  - Add environment management infrastructure to evaluator
-  - Prepare for property method invocation
-  - Files: `evaluator/evaluator.go` (interface), `interpreter.go` (implementation)
+- [x] **3.5.99f** Indexed Property Infrastructure ✅ (completed in 3.5.99c)
+  - Created `CallIndexedPropertyGetter` adapter method in task 3.5.99c
+  - Delegates to existing `evalIndexedPropertyRead` which handles:
+    - Method environment creation and cleanup
+    - Self binding for object context
+    - Index parameter binding
+    - Result variable initialization
+    - Method body execution
+  - Files: `evaluator/evaluator.go` (interface at lines 885-894), `interpreter.go` (implementation at lines 609-637)
+  - Note: This infrastructure was completed as part of 3.5.99c
+  - Completed: 2025-11-25
 
-- [ ] **3.5.99g** Indexed Property Access via MemberAccessExpression (60-90 min)
-  - Migrate indexed property lookup and method invocation
-  - Use `CollectIndices` to flatten multi-index properties
-  - Remove EvalNode delegation for MemberAccessExpression base (visitor_expressions.go:2014)
-  - Tests: `testdata/properties/indexed_property.dws`, `testdata/properties/multi_index_property.dws`
+- [x] **3.5.99g** Indexed Property Access via MemberAccessExpression ✅ (45 min)
+  - Migrated indexed property lookup using CollectIndices to flatten multi-index properties
+  - Implemented interface indexed property access with property lookup and unwrapping
+  - Implemented object indexed property access using PropertyAccessor.LookupProperty
+  - Implemented record indexed property access with delegation to CallRecordPropertyGetter
+  - Evaluates all indices in the flattened list before calling property getter
+  - Removed EvalNode delegation for MemberAccessExpression base (visitor_expressions.go:2013-2091)
+  - Files: `evaluator/visitor_expressions.go`
+  - Note: Tests require semantic analysis support for indexed properties (Stage 6)
+  - Completed: 2025-11-25
 
 ---
 

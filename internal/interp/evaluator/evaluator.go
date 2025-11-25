@@ -892,6 +892,19 @@ type InterpreterAdapter interface {
 	// Returns the result of the property getter method call.
 	// Task 3.5.99c: Enables object default property indexing in evaluator.
 	CallIndexedPropertyGetter(obj Value, propImpl any, indices []Value, node any) Value
+
+	// ===== Task 3.5.99e: Record Default Property Access =====
+
+	// CallRecordPropertyGetter calls a record property getter method.
+	// This is used for record default property access: record[index] -> record.GetProperty(index).
+	// Parameters:
+	//   - record: The record value (RecordValue)
+	//   - propImpl: The property implementation (types.RecordPropertyInfo from PropertyDescriptor.Impl)
+	//   - indices: The index arguments (e.g., [indexValue] for single-index properties)
+	//   - node: The AST node for error reporting
+	// Returns the result of the property getter method call.
+	// Task 3.5.99e: Enables record default property indexing in evaluator.
+	CallRecordPropertyGetter(record Value, propImpl any, indices []Value, node any) Value
 }
 
 // Evaluator is responsible for evaluating DWScript AST nodes.
