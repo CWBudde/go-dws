@@ -1620,41 +1620,32 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		// Delegate to adapter for enum meta method execution
 		return e.adapter.CallMethod(obj, methodName, args, node)
 
-	// Task 3.5.98a: Explicit cases for helper-enabled types
+	// Task 3.5.98a+c: Explicit cases for helper-enabled types
 	// These types use helper methods (type extensions) for their method calls.
 	// Examples: str.ToUpper(), arr.Push(), num.ToString()
-	// Currently delegated to adapter which handles helper lookup and invocation.
-	case "STRING":
-		// String helpers: ToUpper, ToLower, Split, Trim, Contains, etc.
-		return e.adapter.EvalNode(node)
+	//
+	// Task 3.5.98c: Now using direct helper method lookup and execution instead of adapter delegation.
+	case "STRING", "INTEGER", "FLOAT", "BOOLEAN", "ARRAY", "VARIANT", "ENUM":
+		// Find the helper method for this value type
+		helperResult := e.FindHelperMethod(obj, methodName)
+		if helperResult == nil {
+			return e.newError(node, "cannot call method '%s' on type '%s' (no helper found)", methodName, obj.Type())
+		}
 
-	case "INTEGER":
-		// Integer helpers: ToString, ToHexString, etc.
-		return e.adapter.EvalNode(node)
-
-	case "FLOAT":
-		// Float helpers: ToString, etc.
-		return e.adapter.EvalNode(node)
-
-	case "BOOLEAN":
-		// Boolean helpers: ToString, etc.
-		return e.adapter.EvalNode(node)
-
-	case "ARRAY":
-		// Array helpers: Push, Pop, Add, Delete, IndexOf, SetLength, Swap, etc.
-		return e.adapter.EvalNode(node)
-
-	case "VARIANT":
-		// Variant helpers (if any)
-		return e.adapter.EvalNode(node)
-
-	case "ENUM":
-		// Enum value helpers (distinct from TYPE_META which is enum type methods)
-		return e.adapter.EvalNode(node)
+		// Execute the helper method (builtin or AST)
+		return e.CallHelperMethod(helperResult, obj, args, node)
 
 	default:
 		// For other types (identifiers that might be unit names, record types, etc.)
-		// Delegate to adapter for full handling
+		// Try helper method lookup first
+		helperResult := e.FindHelperMethod(obj, methodName)
+		if helperResult != nil {
+			// Found a helper method - execute it
+			return e.CallHelperMethod(helperResult, obj, args, node)
+		}
+
+		// No helper found - delegate to adapter for full handling
+		// (might be unit-qualified call, record method, or other complex case)
 		return e.adapter.EvalNode(node)
 	}
 }
