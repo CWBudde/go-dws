@@ -868,6 +868,30 @@ type InterpreterAdapter interface {
 	// Returns the method call result or an error.
 	// Task 3.5.97c: Enables record static method calls without EvalNode.
 	CallRecordStaticMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
+
+	// ===== Task 3.5.99b: JSON Value Helpers =====
+
+	// WrapJSONValueInVariant wraps a jsonvalue.Value in a VariantValue containing a JSONValue.
+	// This creates the necessary JSONValue wrapper and boxes it in a Variant.
+	// The JSON value becomes available for variant operations.
+	// Parameters:
+	//   - jv: The jsonvalue.Value to wrap (nil creates a JSON null)
+	// Returns a VariantValue containing a JSONValue.
+	// Task 3.5.99b: Enables JSON indexing without circular imports.
+	WrapJSONValueInVariant(jv any) Value
+
+	// ===== Task 3.5.99c: Object Default Property Access =====
+
+	// CallIndexedPropertyGetter calls an indexed property getter method on an object.
+	// This is used for default property access: obj[index] -> obj.DefaultProperty[index].
+	// Parameters:
+	//   - obj: The object instance (ObjectInstance)
+	//   - propImpl: The property implementation (types.PropertyInfo from PropertyDescriptor.Impl)
+	//   - indices: The index arguments (e.g., [indexValue] for single-index properties)
+	//   - node: The AST node for error reporting
+	// Returns the result of the property getter method call.
+	// Task 3.5.99c: Enables object default property indexing in evaluator.
+	CallIndexedPropertyGetter(obj Value, propImpl any, indices []Value, node any) Value
 }
 
 // Evaluator is responsible for evaluating DWScript AST nodes.

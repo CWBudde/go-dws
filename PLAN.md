@@ -524,18 +524,24 @@ so it can't handle primitive types with helper methods.
   - Tests: `property_accessor_test.go` (4 test functions, all passing)
   - Completed: 2025-11-25
 
-- [ ] **3.5.99b** JSON Indexing Migration (45-60 min)
-  - Move `indexJSON` logic to evaluator package
-  - Create `evaluator/json_helpers.go` with JSON indexing functions
-  - Handle `JSONValue` via interface/type assertion to avoid circular import
-  - Remove EvalNode delegation for JSON case (visitor_expressions.go:2046)
-  - Tests: `testdata/fixtures/JSONConnectorPass/`
+- [x] **3.5.99b** JSON Indexing Migration ✅ (45 min)
+  - Created `evaluator/json_helpers.go` with `indexJSON` method
+  - Used reflection to access JSONValue.Value field (avoids circular import)
+  - Added `WrapJSONValueInVariant` to InterpreterAdapter interface
+  - Removed EvalNode delegation for JSON case (visitor_expressions.go:2046)
+  - Tests: Verified with `testdata/json/json_object_access.dws` and `json_array_access.dws` (all passing)
+  - Files: `evaluator/json_helpers.go`, `evaluator/visitor_expressions.go`, `interpreter.go`
+  - Completed: 2025-11-25
 
-- [ ] **3.5.99c** Object Default Property Access (45-60 min)
-  - Implement `evalObjectDefaultPropertyRead` in evaluator
-  - Handle single-index default property access via PropertyAccessor interface
-  - Remove EvalNode delegation for OBJECT case (visitor_expressions.go:2041-2043)
-  - Tests: `testdata/properties/default_property.dws`
+- [x] **3.5.99c** Object Default Property Access ✅ (30 min)
+  - Added object default property detection in VisitIndexExpression
+  - Used PropertyAccessor.GetDefaultProperty() to get default property descriptor
+  - Added CallIndexedPropertyGetter to InterpreterAdapter interface
+  - Implemented delegation to evalIndexedPropertyRead for property method execution
+  - Removed EvalNode delegation for OBJECT case (visitor_expressions.go:2043-2051)
+  - Files: `evaluator/evaluator.go`, `evaluator/visitor_expressions.go`, `interpreter.go`
+  - Note: Tests require semantic analysis support for default properties (Stage 6)
+  - Completed: 2025-11-25
 
 - [ ] **3.5.99d** Interface Default Property Access (30-45 min)
   - Implement interface unwrapping + object default property access
