@@ -1086,7 +1086,10 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Task 3.5.86: Use ObjectValue interface for direct member access
 		objVal, ok := obj.(ObjectValue)
 		if !ok {
-			return e.adapter.EvalNode(node)
+			// Task 3.5.101: Direct error instead of EvalNode delegation
+			// If Type() returns "OBJECT" but ObjectValue interface is not implemented,
+			// this is an internal inconsistency that should not happen
+			return e.newError(node, "internal error: OBJECT value does not implement ObjectValue interface")
 		}
 
 		// Try property access first (with recursion protection)
@@ -1122,14 +1125,17 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Task 3.5.87: Use InterfaceInstanceValue interface for direct member verification
 		ifaceVal, ok := obj.(InterfaceInstanceValue)
 		if !ok {
-			return e.adapter.EvalNode(node)
+			// Task 3.5.101: Direct error instead of EvalNode delegation
+			// If Type() returns "INTERFACE" but InterfaceInstanceValue interface is not implemented,
+			// this is an internal inconsistency that should not happen
+			return e.newError(node, "internal error: INTERFACE value does not implement InterfaceInstanceValue interface")
 		}
 
 		// Get underlying object - nil check is critical for interface access
 		underlying := ifaceVal.GetUnderlyingObjectValue()
 		if underlying == nil {
-			// Nil interface access - let adapter handle the error
-			return e.adapter.EvalNode(node)
+			// Task 3.5.101: Direct error for nil interface access
+			return e.newError(node, "Interface is nil")
 		}
 
 		// Verify the member is part of the interface contract before delegating
@@ -1140,8 +1146,8 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			if err == nil {
 				return propValue
 			}
-			// Property read failed - fallback to adapter for error handling
-			return e.adapter.EvalNode(node)
+			// Task 3.5.101: Direct error instead of EvalNode delegation for property read failure
+			return e.newError(node, "failed to read property '%s' on interface '%s': %v", memberName, ifaceVal.InterfaceName(), err)
 		}
 
 		// Method access or unknown member - delegate to adapter
@@ -1156,8 +1162,10 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Try to use ClassMetaValue interface for direct access
 		classMetaVal, ok := obj.(ClassMetaValue)
 		if !ok {
-			// Fallback to adapter if interface not implemented
-			return e.adapter.EvalNode(node)
+			// Task 3.5.101: Direct error instead of EvalNode delegation
+			// If Type() returns "CLASS"/"CLASS_INFO" but ClassMetaValue interface is not implemented,
+			// this is an internal inconsistency that should not happen
+			return e.newError(node, "internal error: %s value does not implement ClassMetaValue interface", obj.Type())
 		}
 
 		// Handle built-in properties first
@@ -1193,8 +1201,10 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Try TypeCastAccessor interface for direct access
 		typeCastVal, ok := obj.(TypeCastAccessor)
 		if !ok {
-			// Fallback to adapter if interface not implemented
-			return e.adapter.EvalNode(node)
+			// Task 3.5.101: Direct error instead of EvalNode delegation
+			// If Type() returns "TYPE_CAST" but TypeCastAccessor interface is not implemented,
+			// this is an internal inconsistency that should not happen
+			return e.newError(node, "internal error: TYPE_CAST value does not implement TypeCastAccessor interface")
 		}
 
 		// First, try class variable lookup using the STATIC type
@@ -1251,41 +1261,115 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Task 3.5.91: Record instance access (Mode 5)
 		// Pattern: record.Field, record.Method
 		// Use RecordInstanceValue interface for direct field access
-		if recVal, ok := obj.(RecordInstanceValue); ok {
-			// Direct field access - most common case
-			if fieldVal, found := recVal.GetRecordField(memberName); found {
-				return fieldVal
-			}
-
-			// Method reference - still uses adapter for method invocation
-			if recVal.HasRecordMethod(memberName) {
-				return e.adapter.EvalNode(node)
-			}
-
-			// Property check (records don't have properties, but check for consistency)
-			if recVal.HasRecordProperty(memberName) {
-				return e.adapter.EvalNode(node)
-			}
+		recVal, ok := obj.(RecordInstanceValue)
+		if !ok {
+			// Task 3.5.101: Direct error instead of EvalNode delegation
+			// If Type() returns "RECORD" but RecordInstanceValue interface is not implemented,
+			// this is an internal inconsistency that should not happen
+			return e.newError(node, "internal error: RECORD value does not implement RecordInstanceValue interface")
 		}
-		// Fallback to adapter for other record member access patterns
-		return e.adapter.EvalNode(node)
+
+		// Direct field access - most common case
+		if fieldVal, found := recVal.GetRecordField(memberName); found {
+			return fieldVal
+		}
+
+		// Method reference - still uses adapter for method invocation
+		if recVal.HasRecordMethod(memberName) {
+			return e.adapter.EvalNode(node)
+		}
+
+		// Task 3.5.101: Records don't have properties in DWScript - return proper error
+		// Note: HasRecordProperty() always returns false for standard records,
+		// but if it ever returns true, we should handle it properly
+		if recVal.HasRecordProperty(memberName) {
+			// This should not happen for standard records, but if properties are added later,
+			// this path would need proper property reading logic
+			return e.newError(node, "property access on records not supported")
+		}
+
+		// Task 3.5.101: Member not found - return proper error instead of delegating
+		return e.newError(node, "field '%s' not found in record '%s'", memberName, recVal.GetRecordTypeName())
 
 	case "ENUM":
 		// Task 3.5.89: Enum value properties (Mode 10)
 		// Pattern: enumVal.Value
 		// Handle .Value property directly via EnumAccessor interface
-		if enumVal, ok := obj.(EnumAccessor); ok {
-			if ident.Equal(memberName, "Value") {
-				return &runtime.IntegerValue{Value: int64(enumVal.GetOrdinal())}
+		enumVal, ok := obj.(EnumAccessor)
+		if !ok {
+			// Task 3.5.101: Direct error instead of EvalNode delegation
+			// If Type() returns "ENUM" but EnumAccessor interface is not implemented,
+			// this is an internal inconsistency that should not happen
+			return e.newError(node, "internal error: ENUM value does not implement EnumAccessor interface")
+		}
+
+		// Handle built-in .Value property
+		if ident.Equal(memberName, "Value") {
+			return &runtime.IntegerValue{Value: int64(enumVal.GetOrdinal())}
+		}
+
+		// Task 3.5.101: Check for helper methods/properties on enums
+		// Other properties like .Name, .ToString are handled by helper methods
+		helperResult := e.FindHelperMethod(obj, memberName)
+		if helperResult != nil {
+			// Found a helper method - check if it's parameterless for auto-invoke
+			if helperResult.Method != nil && len(helperResult.Method.Parameters) == 0 {
+				// Auto-invoke parameterless helper method
+				return e.CallHelperMethod(helperResult, obj, []Value{}, node)
+			}
+			if helperResult.BuiltinSpec != "" {
+				// Builtin helper - auto-invoke
+				return e.CallHelperMethod(helperResult, obj, []Value{}, node)
 			}
 		}
-		// Other enum properties (.Name, .ToString, etc.) handled by helpers via adapter
-		return e.adapter.EvalNode(node)
+
+		// Check for helper properties
+		helpers := e.getHelpersForValue(obj)
+		for idx := len(helpers) - 1; idx >= 0; idx-- {
+			helper := helpers[idx]
+			if propInfo, _, found := helper.GetProperty(memberName); found && propInfo != nil {
+				// Found a helper property - delegate to adapter for property reading
+				// (helper properties use complex getter method invocation)
+				return e.adapter.EvalNode(node)
+			}
+		}
+
+		// Task 3.5.101: Unknown enum member - return proper error
+		return e.newError(node, "member '%s' not found on enum value", memberName)
 
 	default:
-		// For other types (identifiers that might be unit names, class names, enum types, etc.)
-		// delegate to adapter for full handling
-		return e.adapter.EvalNode(node)
+		// Task 3.5.101: Handle helper methods/properties for other types
+		// Types like STRING, INTEGER, FLOAT, BOOLEAN, ARRAY may have helper extensions
+
+		// Check for helper methods first
+		helperResult := e.FindHelperMethod(obj, memberName)
+		if helperResult != nil {
+			// Found a helper method - check if it's parameterless for auto-invoke
+			if helperResult.Method != nil && len(helperResult.Method.Parameters) == 0 {
+				// Auto-invoke parameterless helper method
+				return e.CallHelperMethod(helperResult, obj, []Value{}, node)
+			}
+			if helperResult.BuiltinSpec != "" {
+				// Builtin helper - auto-invoke
+				return e.CallHelperMethod(helperResult, obj, []Value{}, node)
+			}
+			// Helper method has parameters - needs to be called explicitly
+			// This case should be handled by VisitMethodCallExpression, not member access
+		}
+
+		// Check for helper properties
+		helpers := e.getHelpersForValue(obj)
+		for idx := len(helpers) - 1; idx >= 0; idx-- {
+			helper := helpers[idx]
+			if propInfo, _, found := helper.GetProperty(memberName); found && propInfo != nil {
+				// Found a helper property - delegate to adapter for property reading
+				// (helper properties use complex getter method invocation)
+				return e.adapter.EvalNode(node)
+			}
+		}
+
+		// Task 3.5.101: Return proper error for unsupported member access
+		return e.newError(node, "member '%s' not found on value of type '%s'", memberName, obj.Type())
 	}
 }
 

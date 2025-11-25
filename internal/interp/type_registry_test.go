@@ -194,10 +194,6 @@ func TestInterpreterEvaluatorSharedTypeSystem(t *testing.T) {
 
 	// Test 1: Interpreter should see the registered class
 	t.Run("InterpreterCanSeeTypeSystemClass", func(t *testing.T) {
-		if !interp.HasClass("TSharedClass") {
-			t.Error("Interpreter.HasClass(TSharedClass) = false, want true")
-		}
-
 		// Lookup through interpreter
 		_, ok := interp.LookupClass("TSharedClass")
 		if !ok {
@@ -224,8 +220,9 @@ func TestInterpreterEvaluatorSharedTypeSystem(t *testing.T) {
 	// Test 3: Case-insensitive access
 	t.Run("CaseInsensitiveAccess", func(t *testing.T) {
 		// Both should support case-insensitive lookup
-		if !interp.HasClass("tsharedclass") {
-			t.Error("Interpreter.HasClass(tsharedclass) = false, want true (case-insensitive)")
+		_, ok := interp.LookupClass("tsharedclass")
+		if !ok {
+			t.Error("Interpreter.LookupClass(tsharedclass) = false, want true (case-insensitive)")
 		}
 		if !interp.typeSystem.HasClass("TSHAREDCLASS") {
 			t.Error("TypeSystem.HasClass(TSHAREDCLASS) = false, want true (case-insensitive)")
@@ -292,19 +289,15 @@ func TestBuiltinClassesInTypeSystem(t *testing.T) {
 
 	for _, className := range builtinClasses {
 		t.Run(className, func(t *testing.T) {
-			// Test HasClass (which delegates to TypeSystem)
-			if !interp.HasClass(className) {
-				t.Errorf("HasClass(%s) = false, want true", className)
+			// Test LookupClass
+			classInfo, ok := interp.LookupClass(className)
+			if !ok {
+				t.Errorf("LookupClass(%s) = false, want true", className)
 			}
 
 			// Test case-insensitive lookup with lowercase
 			lowerName := strings.ToLower(className)
-			if !interp.HasClass(lowerName) {
-				t.Errorf("HasClass(%s) case-insensitive = false, want true", lowerName)
-			}
-
-			// Test LookupClass
-			classInfo, ok := interp.LookupClass(className)
+			classInfo, ok = interp.LookupClass(lowerName)
 			if !ok {
 				t.Errorf("LookupClass(%s) = _, false; want _, true", className)
 			}
@@ -321,14 +314,16 @@ func TestBuiltinInterfaceInTypeSystem(t *testing.T) {
 	out := &bytes.Buffer{}
 	interp := New(out)
 
-	// Test HasInterface (which delegates to TypeSystem)
-	if !interp.HasInterface("IInterface") {
-		t.Error("HasInterface(IInterface) = false, want true")
+	// Test LookupInterface (which delegates to TypeSystem)
+	_, ok := interp.LookupInterface("IInterface")
+	if !ok {
+		t.Error("LookupInterface(IInterface) = _, false; want _, true")
 	}
 
 	// Test case-insensitive lookup
-	if !interp.HasInterface("iinterface") {
-		t.Error("HasInterface(iinterface) case-insensitive = false, want true")
+	_, ok = interp.LookupInterface("iinterface")
+	if !ok {
+		t.Error("LookupInterface(iinterface) = _, false; want _, true (case-insensitive)")
 	}
 
 	// Test LookupInterface

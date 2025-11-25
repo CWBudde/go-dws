@@ -724,19 +724,6 @@ func (i *Interpreter) LookupClass(name string) (any, bool) {
 
 // HasClass checks if a class with the given name exists.
 // Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
-func (i *Interpreter) HasClass(name string) bool {
-	return i.typeSystem.HasClass(name)
-}
-
-// GetClassTypeID returns the type ID for a class, or 0 if not found.
-// Task 3.5.46: Delegates to TypeSystem instead of using legacy registry.
-func (i *Interpreter) GetClassTypeID(className string) int {
-	return i.typeSystem.GetClassTypeID(className)
-}
-
-// ===== Record Registry =====
-
-// LookupRecord finds a record type by name in the record registry.
 func (i *Interpreter) LookupRecord(name string) (any, bool) {
 	normalizedName := ident.Normalize(name)
 	record, ok := i.records[normalizedName]
@@ -747,25 +734,6 @@ func (i *Interpreter) LookupRecord(name string) (any, bool) {
 }
 
 // HasRecord checks if a record type with the given name exists.
-func (i *Interpreter) HasRecord(name string) bool {
-	normalizedName := ident.Normalize(name)
-	_, ok := i.records[normalizedName]
-	return ok
-}
-
-// GetRecordTypeID returns the type ID for a record type, or 0 if not found.
-func (i *Interpreter) GetRecordTypeID(recordName string) int {
-	normalizedName := ident.Normalize(recordName)
-	typeID, ok := i.recordTypeIDRegistry[normalizedName]
-	if !ok {
-		return 0
-	}
-	return typeID
-}
-
-// ===== Interface Registry =====
-
-// LookupInterface finds an interface by name in the interface registry.
 func (i *Interpreter) LookupInterface(name string) (any, bool) {
 	normalizedName := ident.Normalize(name)
 	iface, ok := i.interfaces[normalizedName]
@@ -776,15 +744,6 @@ func (i *Interpreter) LookupInterface(name string) (any, bool) {
 }
 
 // HasInterface checks if an interface with the given name exists.
-func (i *Interpreter) HasInterface(name string) bool {
-	normalizedName := ident.Normalize(name)
-	_, ok := i.interfaces[normalizedName]
-	return ok
-}
-
-// ===== Helper Registry =====
-
-// LookupHelpers finds helper methods for a type by name.
 func (i *Interpreter) LookupHelpers(typeName string) []any {
 	normalizedName := ident.Normalize(typeName)
 	helpers, ok := i.helpers[normalizedName]
@@ -800,27 +759,11 @@ func (i *Interpreter) LookupHelpers(typeName string) []any {
 }
 
 // HasHelpers checks if a type has helper methods defined.
-func (i *Interpreter) HasHelpers(typeName string) bool {
-	normalizedName := ident.Normalize(typeName)
-	helpers, ok := i.helpers[normalizedName]
-	return ok && len(helpers) > 0
-}
-
-// ===== Operator & Conversion Registries =====
-
-// GetOperatorRegistry returns the operator registry for operator overload lookups.
 func (i *Interpreter) GetOperatorRegistry() any {
 	return i.globalOperators
 }
 
 // GetConversionRegistry returns the conversion registry for type conversion lookups.
-func (i *Interpreter) GetConversionRegistry() any {
-	return i.conversions
-}
-
-// ===== Enum Type IDs =====
-
-// GetEnumTypeID returns the type ID for an enum type, or 0 if not found.
 func (i *Interpreter) GetEnumTypeID(enumName string) int {
 	normalizedName := ident.Normalize(enumName)
 	typeID, ok := i.enumTypeIDRegistry[normalizedName]
@@ -842,57 +785,6 @@ func (i *Interpreter) GetType(name string) (any, error) {
 }
 
 // ResolveType resolves a type from an AST type annotation.
-func (i *Interpreter) ResolveType(typeAnnotation *ast.TypeAnnotation) (any, error) {
-	if typeAnnotation == nil {
-		return nil, fmt.Errorf("nil type annotation")
-	}
-	return i.resolveType(typeAnnotation.String())
-}
-
-// IsTypeCompatible checks if a value is compatible with a target type.
-func (i *Interpreter) IsTypeCompatible(from evaluator.Value, toTypeName string) bool {
-	// Convert from evaluator.Value to internal Value
-	internalValue := from.(Value)
-
-	// Try implicit conversion - if it succeeds, types are compatible
-	_, ok := i.tryImplicitConversion(internalValue, toTypeName)
-	return ok
-}
-
-// InferArrayElementType infers the element type from array literal elements.
-func (i *Interpreter) InferArrayElementType(elements []evaluator.Value) (any, error) {
-	if len(elements) == 0 {
-		// Empty array - cannot infer type
-		return nil, fmt.Errorf("cannot infer type from empty array")
-	}
-
-	// Convert first element to internal Value
-	firstInternalValue := elements[0].(Value)
-
-	// Use the type of the first element
-	firstType := i.typeFromValue(firstInternalValue)
-
-	// Verify all elements have compatible types
-	for idx, elem := range elements[1:] {
-		internalElem := elem.(Value)
-		elemType := i.typeFromValue(internalElem)
-		if elemType.String() != firstType.String() {
-			return nil, fmt.Errorf("incompatible types in array: element 0 is %s, element %d is %s",
-				firstType.String(), idx+1, elemType.String())
-		}
-	}
-
-	return firstType, nil
-}
-
-// InferRecordType infers the record type name from field values.
-func (i *Interpreter) InferRecordType(fields map[string]evaluator.Value) (string, error) {
-	// This is complex - for now, we cannot infer record types from values alone
-	// Record type inference typically requires explicit type annotations
-	return "", fmt.Errorf("cannot infer record type from fields (explicit type required)")
-}
-
-// ConvertValue performs implicit or explicit type conversion.
 func (i *Interpreter) ConvertValue(value evaluator.Value, targetTypeName string) (evaluator.Value, error) {
 	// Convert from evaluator.Value to internal Value
 	internalValue := value.(Value)
@@ -907,94 +799,6 @@ func (i *Interpreter) ConvertValue(value evaluator.Value, targetTypeName string)
 }
 
 // CreateDefaultValue creates a zero/default value for a given type name.
-func (i *Interpreter) CreateDefaultValue(typeName string) evaluator.Value {
-	normalizedName := ident.Normalize(typeName)
-
-	// Check for basic types
-	switch normalizedName {
-	case "integer", "int64":
-		return &IntegerValue{Value: 0}
-	case "float", "float64", "double", "real":
-		return &FloatValue{Value: 0.0}
-	case "string":
-		return &StringValue{Value: ""}
-	case "boolean", "bool":
-		return &BooleanValue{Value: false}
-	case "variant":
-		return &VariantValue{} // Unassigned variant
-	}
-
-	// Check for enum types
-	if i.IsEnumType(typeName) {
-		enumTypeKey := "__enum_type_" + normalizedName
-		if typeVal, ok := i.env.Get(enumTypeKey); ok {
-			if etv, ok := typeVal.(*EnumTypeValue); ok {
-				// Return first enum value
-				if len(etv.EnumType.OrderedNames) > 0 {
-					firstValueName := etv.EnumType.OrderedNames[0]
-					firstOrdinal := etv.EnumType.Values[firstValueName]
-					return &EnumValue{
-						TypeName:     etv.EnumType.Name,
-						ValueName:    firstValueName,
-						OrdinalValue: firstOrdinal,
-					}
-				}
-			}
-		}
-	}
-
-	// Check for record types
-	if i.IsRecordType(typeName) {
-		recordTypeKey := "__record_type_" + normalizedName
-		if typeVal, ok := i.env.Get(recordTypeKey); ok {
-			if rtv, ok := typeVal.(*RecordTypeValue); ok {
-				return i.createRecordValue(rtv.RecordType, rtv.Methods)
-			}
-		}
-	}
-
-	// Check for array types (Task 3.5.69c: use TypeSystem)
-	if arrayType := i.typeSystem.LookupArrayType(typeName); arrayType != nil {
-		return NewArrayValue(arrayType)
-	}
-
-	// Check for set types
-	if ident.HasPrefix(typeName, "set of ") {
-		setType := i.parseInlineSetType(typeName)
-		if setType != nil {
-			return NewSetValue(setType)
-		}
-	}
-
-	// For unknown types, return nil
-	return &NilValue{}
-}
-
-// IsEnumType checks if a given name refers to an enum type.
-func (i *Interpreter) IsEnumType(typeName string) bool {
-	normalizedName := ident.Normalize(typeName)
-	enumTypeKey := "__enum_type_" + normalizedName
-	_, ok := i.env.Get(enumTypeKey)
-	return ok
-}
-
-// IsRecordType checks if a given name refers to a record type.
-func (i *Interpreter) IsRecordType(typeName string) bool {
-	normalizedName := ident.Normalize(typeName)
-	recordTypeKey := "__record_type_" + normalizedName
-	_, ok := i.env.Get(recordTypeKey)
-	return ok
-}
-
-// IsArrayType checks if a given name refers to an array type.
-// Task 3.5.69c: Migrated to use TypeSystem instead of environment lookup.
-func (i *Interpreter) IsArrayType(typeName string) bool {
-	return i.typeSystem.HasArrayType(typeName)
-}
-
-// ===== Task 3.5.38: Variable Declaration Adapter Method Implementations =====
-
-// ParseInlineArrayType parses inline array type signatures.
 func (i *Interpreter) ParseInlineArrayType(typeName string) (any, error) {
 	arrType := i.parseInlineArrayType(typeName)
 	if arrType == nil {
@@ -1004,15 +808,6 @@ func (i *Interpreter) ParseInlineArrayType(typeName string) (any, error) {
 }
 
 // ParseInlineSetType parses inline set type signatures.
-func (i *Interpreter) ParseInlineSetType(typeName string) (any, error) {
-	setType := i.parseInlineSetType(typeName)
-	if setType == nil {
-		return nil, fmt.Errorf("invalid inline set type: %s", typeName)
-	}
-	return setType, nil
-}
-
-// LookupSubrangeType finds a subrange type by name.
 func (i *Interpreter) LookupSubrangeType(name string) (any, bool) {
 	normalizedName := ident.Normalize(name)
 	subrangeTypeKey := "__subrange_type_" + normalizedName
@@ -1114,26 +909,6 @@ func (i *Interpreter) EvalArrayLiteralWithExpectedType(lit ast.Node, expectedTyp
 }
 
 // ClassImplementsInterface checks if a class implements an interface.
-func (i *Interpreter) ClassImplementsInterface(className, interfaceName string) bool {
-	// Task 3.5.46: Use TypeSystem for class lookup
-	classInfoIface := i.typeSystem.LookupClass(className)
-	if classInfoIface == nil {
-		return false
-	}
-	classInfo, ok := classInfoIface.(*ClassInfo)
-	if !ok {
-		return false
-	}
-
-	ifaceInfo, exists := i.interfaces[ident.Normalize(interfaceName)]
-	if !exists {
-		return false
-	}
-
-	return classImplementsInterface(classInfo, ifaceInfo)
-}
-
-// CreateExternalVar creates an external variable marker.
 func (i *Interpreter) CreateExternalVar(varName, externalName string) evaluator.Value {
 	return &ExternalVarValue{
 		Name:         varName,
@@ -1315,23 +1090,6 @@ func (i *Interpreter) CreateRecordValue(recordTypeName string, fieldValues map[s
 }
 
 // GetRecordFieldDeclarations retrieves field declarations for a record type.
-func (i *Interpreter) GetRecordFieldDeclarations(recordTypeName string) (any, bool) {
-	normalizedName := ident.Normalize(recordTypeName)
-	recordTypeKey := "__record_type_" + normalizedName
-	typeVal, ok := i.env.Get(recordTypeKey)
-	if !ok {
-		return nil, false
-	}
-
-	recordTypeValue, ok := typeVal.(*RecordTypeValue)
-	if !ok {
-		return nil, false
-	}
-
-	return recordTypeValue.FieldDecls, true
-}
-
-// GetZeroValueForType creates a zero/default value for a given type.
 func (i *Interpreter) GetZeroValueForType(typeInfo any) evaluator.Value {
 	t, ok := typeInfo.(types.Type)
 	if !ok {
@@ -1352,18 +1110,6 @@ func (i *Interpreter) GetZeroValueForType(typeInfo any) evaluator.Value {
 }
 
 // InitializeInterfaceField creates a nil interface instance for interface-typed fields.
-func (i *Interpreter) InitializeInterfaceField(fieldType any) evaluator.Value {
-	t, ok := fieldType.(types.Type)
-	if !ok {
-		return nil
-	}
-	return i.initializeInterfaceField(t)
-}
-
-// ===== Task 3.5.29: Exception Handling Adapter Method Implementations =====
-
-// MatchesExceptionType checks if an exception matches a handler's type.
-// Returns true if the exception type matches or inherits from the handler type.
 func (i *Interpreter) MatchesExceptionType(exc interface{}, typeExpr ast.TypeExpression) bool {
 	excVal, ok := exc.(*ExceptionValue)
 	if !ok {
@@ -1502,69 +1248,6 @@ func (i *Interpreter) CreateArray(elementType any, elements []evaluator.Value) e
 }
 
 // CreateDynamicArray allocates a new dynamic array of a given size and element type.
-func (i *Interpreter) CreateDynamicArray(elementType any, size int) evaluator.Value {
-	// Convert elementType to types.Type
-	var typedElementType types.Type
-	if elementType != nil {
-		if t, ok := elementType.(types.Type); ok {
-			typedElementType = t
-		}
-	}
-
-	// Create array type (dynamic array has nil bounds)
-	arrayType := &types.ArrayType{
-		ElementType: typedElementType,
-		LowBound:    nil,
-		HighBound:   nil,
-	}
-
-	// Create array value
-	arrayVal := NewArrayValue(arrayType)
-
-	// Pre-fill with default values if size > 0
-	if size > 0 {
-		defaultVal := i.CreateDefaultValue(typedElementType.String()).(Value)
-		for j := 0; j < size; j++ {
-			arrayVal.Elements = append(arrayVal.Elements, defaultVal)
-		}
-	}
-
-	return arrayVal
-}
-
-// CreateArrayWithExpectedType creates an array from elements with type-aware construction.
-func (i *Interpreter) CreateArrayWithExpectedType(elements []evaluator.Value, expectedType any) evaluator.Value {
-	// Convert expectedType to *types.ArrayType
-	var arrayType *types.ArrayType
-	if expectedType != nil {
-		if at, ok := expectedType.(*types.ArrayType); ok {
-			arrayType = at
-		}
-	}
-
-	// Convert evaluator.Value slice to internal Value slice
-	internalElements := make([]Value, len(elements))
-	for idx, elem := range elements {
-		internalElements[idx] = elem.(Value)
-	}
-
-	// Use existing method that handles type inference and conversion
-	if arrayType != nil {
-		return i.evalArrayLiteralWithExpected(&ast.ArrayLiteralExpression{Elements: nil}, arrayType)
-	}
-
-	// Fallback: create array without expected type
-	if len(internalElements) > 0 {
-		elemType := i.typeFromValue(internalElements[0])
-		return i.CreateArray(elemType, elements)
-	}
-
-	// Empty array with unknown type (dynamic array)
-	return NewArrayValue(&types.ArrayType{LowBound: nil, HighBound: nil})
-}
-
-// CreateArrayValue creates an ArrayValue with the specified array type and elements.
-// Task 3.5.83: Direct array construction without re-evaluation.
 func (i *Interpreter) CreateArrayValue(arrayType any, elements []evaluator.Value) evaluator.Value {
 	// Convert arrayType to *types.ArrayType
 	var typedArrayType *types.ArrayType
@@ -1588,528 +1271,6 @@ func (i *Interpreter) CreateArrayValue(arrayType any, elements []evaluator.Value
 }
 
 // GetArrayElement retrieves an element from an array at the given index.
-func (i *Interpreter) GetArrayElement(array evaluator.Value, index evaluator.Value) (evaluator.Value, error) {
-	// Convert to internal types
-	internalArray := array.(Value)
-	internalIndex := index.(Value)
-
-	// Check if it's an array
-	arrayVal, ok := internalArray.(*ArrayValue)
-	if !ok {
-		return nil, fmt.Errorf("not an array: %s", internalArray.Type())
-	}
-
-	// Get index as integer
-	indexInt, ok := internalIndex.(*IntegerValue)
-	if !ok {
-		return nil, fmt.Errorf("array index must be integer, got %s", internalIndex.Type())
-	}
-
-	// Convert to 0-based index (DWScript uses different conventions depending on array type)
-	idx := int(indexInt.Value)
-
-	// Handle low bound offset for static arrays
-	if !arrayVal.ArrayType.IsDynamic() && arrayVal.ArrayType.LowBound != nil {
-		idx = idx - *arrayVal.ArrayType.LowBound
-	}
-
-	// Bounds check
-	if idx < 0 || idx >= len(arrayVal.Elements) {
-		return nil, fmt.Errorf("array index %d out of bounds (0..%d)", idx, len(arrayVal.Elements)-1)
-	}
-
-	return arrayVal.Elements[idx], nil
-}
-
-// SetArrayElement sets an element in an array at the given index.
-func (i *Interpreter) SetArrayElement(array evaluator.Value, index evaluator.Value, value evaluator.Value) error {
-	// Convert to internal types
-	internalArray := array.(Value)
-	internalIndex := index.(Value)
-	internalValue := value.(Value)
-
-	// Check if it's an array
-	arrayVal, ok := internalArray.(*ArrayValue)
-	if !ok {
-		return fmt.Errorf("not an array: %s", internalArray.Type())
-	}
-
-	// Get index as integer
-	indexInt, ok := internalIndex.(*IntegerValue)
-	if !ok {
-		return fmt.Errorf("array index must be integer, got %s", internalIndex.Type())
-	}
-
-	// Convert to 0-based index
-	idx := int(indexInt.Value)
-
-	// Handle low bound offset for static arrays
-	if !arrayVal.ArrayType.IsDynamic() && arrayVal.ArrayType.LowBound != nil {
-		idx = idx - *arrayVal.ArrayType.LowBound
-	}
-
-	// Bounds check
-	if idx < 0 || idx >= len(arrayVal.Elements) {
-		return fmt.Errorf("array index %d out of bounds (0..%d)", idx, len(arrayVal.Elements)-1)
-	}
-
-	// Set element
-	arrayVal.Elements[idx] = internalValue
-
-	return nil
-}
-
-// GetArrayLength returns the length of an array (adapter method for evaluator).
-func (i *Interpreter) GetArrayLength(array evaluator.Value) int {
-	// Convert to internal type
-	internalArray := array.(Value)
-
-	// Check if it's an array
-	arrayVal, ok := internalArray.(*ArrayValue)
-	if !ok {
-		return 0
-	}
-
-	return len(arrayVal.Elements)
-}
-
-// CreateSet creates a set from a list of elements with a specified element type.
-func (i *Interpreter) CreateSet(elementType any, elements []evaluator.Value) evaluator.Value {
-	// Convert elementType to types.Type
-	var typedElementType types.Type
-	if elementType != nil {
-		if t, ok := elementType.(types.Type); ok {
-			typedElementType = t
-		}
-	}
-
-	// Create set type
-	setType := &types.SetType{
-		ElementType: typedElementType,
-	}
-
-	// Create set value
-	setValue := NewSetValue(setType)
-
-	// Add elements
-	for _, elem := range elements {
-		internalElem := elem.(Value)
-
-		// Get ordinal value
-		ordinal, err := evaluator.GetOrdinalValue(internalElem)
-		if err != nil {
-			// Skip non-ordinal elements
-			continue
-		}
-
-		setValue.AddElement(ordinal)
-	}
-
-	return setValue
-}
-
-// EvaluateSetRange expands a range expression (e.g., 1..10, 'a'..'z') into ordinal values.
-func (i *Interpreter) EvaluateSetRange(start evaluator.Value, end evaluator.Value) ([]int, error) {
-	// Convert to internal types
-	internalStart := start.(Value)
-	internalEnd := end.(Value)
-
-	// Get ordinal values
-	startOrd, err := evaluator.GetOrdinalValue(internalStart)
-	if err != nil {
-		return nil, fmt.Errorf("range start must be ordinal type: %s", err.Error())
-	}
-
-	endOrd, err := evaluator.GetOrdinalValue(internalEnd)
-	if err != nil {
-		return nil, fmt.Errorf("range end must be ordinal type: %s", err.Error())
-	}
-
-	// Expand range
-	var ordinals []int
-	if startOrd <= endOrd {
-		for ord := startOrd; ord <= endOrd; ord++ {
-			ordinals = append(ordinals, ord)
-		}
-	} else {
-		// Reverse range
-		for ord := startOrd; ord >= endOrd; ord-- {
-			ordinals = append(ordinals, ord)
-		}
-	}
-
-	return ordinals, nil
-}
-
-// AddToSet adds an element to a set.
-func (i *Interpreter) AddToSet(set evaluator.Value, element evaluator.Value) error {
-	// Convert to internal types
-	internalSet := set.(Value)
-	internalElement := element.(Value)
-
-	// Check if it's a set
-	setValue, ok := internalSet.(*SetValue)
-	if !ok {
-		return fmt.Errorf("not a set: %s", internalSet.Type())
-	}
-
-	// Get ordinal value of element
-	ordinal, err := evaluator.GetOrdinalValue(internalElement)
-	if err != nil {
-		return fmt.Errorf("cannot add non-ordinal element to set: %s", err.Error())
-	}
-
-	// Add to set
-	setValue.AddElement(ordinal)
-
-	return nil
-}
-
-// GetStringChar retrieves a character from a string at the given index (1-based).
-func (i *Interpreter) GetStringChar(str evaluator.Value, index evaluator.Value) (evaluator.Value, error) {
-	// Convert to internal types
-	internalStr := str.(Value)
-	internalIndex := index.(Value)
-
-	// Get string value
-	strVal, ok := internalStr.(*StringValue)
-	if !ok {
-		return nil, fmt.Errorf("not a string: %s", internalStr.Type())
-	}
-
-	// Get index as integer
-	indexInt, ok := internalIndex.(*IntegerValue)
-	if !ok {
-		return nil, fmt.Errorf("string index must be integer, got %s", internalIndex.Type())
-	}
-
-	// DWScript uses 1-based indexing for strings
-	idx := int(indexInt.Value) - 1
-
-	// Bounds check
-	runes := []rune(strVal.Value)
-	if idx < 0 || idx >= len(runes) {
-		return nil, fmt.Errorf("string index %d out of bounds (1..%d)", int(indexInt.Value), len(runes))
-	}
-
-	// Return character as string
-	return &StringValue{Value: string(runes[idx])}, nil
-}
-
-// ===== Task 3.5.7: Property, Field, and Member Access Adapter Methods =====
-
-// GetObjectField retrieves a field value from an object.
-func (i *Interpreter) GetObjectField(obj evaluator.Value, fieldName string) (evaluator.Value, error) {
-	// Convert to internal type
-	internalObj := obj.(Value)
-
-	// Get object instance
-	objVal, ok := internalObj.(*ObjectInstance)
-	if !ok {
-		return nil, fmt.Errorf("not an object: %s", internalObj.Type())
-	}
-
-	// Look up field value
-	fieldValue, exists := objVal.Fields[ident.Normalize(fieldName)]
-	if !exists {
-		return nil, fmt.Errorf("field '%s' not found in object", fieldName)
-	}
-
-	return fieldValue, nil
-}
-
-// SetObjectField sets a field value in an object.
-func (i *Interpreter) SetObjectField(obj evaluator.Value, fieldName string, value evaluator.Value) error {
-	// Convert to internal types
-	internalObj := obj.(Value)
-	internalValue := value.(Value)
-
-	// Get object instance
-	objVal, ok := internalObj.(*ObjectInstance)
-	if !ok {
-		return fmt.Errorf("not an object: %s", internalObj.Type())
-	}
-
-	// Verify field exists in class definition (case-insensitive)
-	fieldNameLower := ident.Normalize(fieldName)
-	if _, exists := objVal.Class.Fields[fieldNameLower]; !exists {
-		return fmt.Errorf("field '%s' not found in class '%s'", fieldName, objVal.Class.Name)
-	}
-
-	// Set field value (case-insensitive)
-	objVal.Fields[fieldNameLower] = internalValue
-	return nil
-}
-
-// GetRecordField retrieves a field value from a record.
-func (i *Interpreter) GetRecordField(record evaluator.Value, fieldName string) (evaluator.Value, error) {
-	// Convert to internal type
-	internalRecord := record.(Value)
-
-	// Get record value
-	recVal, ok := internalRecord.(*RecordValue)
-	if !ok {
-		return nil, fmt.Errorf("not a record: %s", internalRecord.Type())
-	}
-
-	// Look up field value
-	fieldValue, exists := recVal.Fields[ident.Normalize(fieldName)]
-	if !exists {
-		return nil, fmt.Errorf("field '%s' not found in record", fieldName)
-	}
-
-	return fieldValue, nil
-}
-
-// SetRecordField sets a field value in a record.
-func (i *Interpreter) SetRecordField(record evaluator.Value, fieldName string, value evaluator.Value) error {
-	// Convert to internal types
-	internalRecord := record.(Value)
-	internalValue := value.(Value)
-
-	// Get record value
-	recVal, ok := internalRecord.(*RecordValue)
-	if !ok {
-		return fmt.Errorf("not a record: %s", internalRecord.Type())
-	}
-
-	// Verify field exists in record type definition (case-insensitive)
-	fieldNameLower := ident.Normalize(fieldName)
-	if recVal.RecordType != nil {
-		if _, exists := recVal.RecordType.Fields[fieldNameLower]; !exists {
-			return fmt.Errorf("field '%s' not found in record type '%s'", fieldName, recVal.RecordType.Name)
-		}
-	}
-
-	// Set field value (case-insensitive)
-	recVal.Fields[fieldNameLower] = internalValue
-	return nil
-}
-
-// GetPropertyValue retrieves a property value from an object.
-func (i *Interpreter) GetPropertyValue(obj evaluator.Value, propName string) (evaluator.Value, error) {
-	// Convert to internal type
-	internalObj := obj.(Value)
-
-	// Get object instance
-	objVal, ok := internalObj.(*ObjectInstance)
-	if !ok {
-		return nil, fmt.Errorf("not an object: %s", internalObj.Type())
-	}
-
-	// Get class info
-	classInfo := objVal.Class
-	if classInfo == nil {
-		return nil, fmt.Errorf("object has no class information")
-	}
-
-	// Find property (case-insensitive)
-	propNameLower := ident.Normalize(propName)
-	prop, exists := classInfo.Properties[propNameLower]
-	if !exists {
-		return nil, fmt.Errorf("property '%s' not found in class '%s'", propName, classInfo.Name)
-	}
-
-	// Delegate to existing property read infrastructure
-	result := i.evalPropertyRead(objVal, prop, nil)
-	if isError(result) {
-		return nil, fmt.Errorf("property read failed: %v", result)
-	}
-
-	return result, nil
-}
-
-// SetPropertyValue sets a property value in an object.
-func (i *Interpreter) SetPropertyValue(obj evaluator.Value, propName string, value evaluator.Value) error {
-	// Convert to internal types
-	internalObj := obj.(Value)
-	internalValue := value.(Value)
-
-	// Get object instance
-	objVal, ok := internalObj.(*ObjectInstance)
-	if !ok {
-		return fmt.Errorf("not an object: %s", internalObj.Type())
-	}
-
-	// Get class info
-	classInfo := objVal.Class
-	if classInfo == nil {
-		return fmt.Errorf("object has no class information")
-	}
-
-	// Find property (case-insensitive)
-	propNameLower := ident.Normalize(propName)
-	prop, exists := classInfo.Properties[propNameLower]
-	if !exists {
-		return fmt.Errorf("property '%s' not found in class '%s'", propName, classInfo.Name)
-	}
-
-	// Check if property is read-only
-	if prop.WriteKind == types.PropAccessNone {
-		return fmt.Errorf("property '%s' is read-only", propName)
-	}
-
-	// Handle property write based on WriteKind
-	switch prop.WriteKind {
-	case types.PropAccessField:
-		// Direct field assignment
-		objVal.Fields[ident.Normalize(prop.WriteSpec)] = internalValue
-		return nil
-
-	case types.PropAccessMethod:
-		// Call setter method
-		method := objVal.Class.lookupMethod(prop.WriteSpec)
-		if method == nil {
-			return fmt.Errorf("property '%s' setter method '%s' not found", propName, prop.WriteSpec)
-		}
-
-		savedEnv := i.env
-		tempEnv := NewEnclosedEnvironment(i.env)
-		tempEnv.Define("Self", objVal)
-		i.env = tempEnv
-
-		args := []Value{internalValue}
-		result := i.callUserFunction(method, args)
-
-		i.env = savedEnv
-
-		if isError(result) {
-			return fmt.Errorf("property setter failed: %v", result)
-		}
-		return nil
-
-	default:
-		return fmt.Errorf("property '%s' has unsupported write access kind", propName)
-	}
-}
-
-// GetIndexedProperty retrieves an indexed property value from an object.
-func (i *Interpreter) GetIndexedProperty(obj evaluator.Value, propName string, indices []evaluator.Value) (evaluator.Value, error) {
-	// Convert to internal type
-	internalObj := obj.(Value)
-
-	// Convert indices
-	internalIndices := make([]Value, len(indices))
-	for idx, index := range indices {
-		internalIndices[idx] = index.(Value)
-	}
-
-	// Get object instance
-	objVal, ok := internalObj.(*ObjectInstance)
-	if !ok {
-		return nil, fmt.Errorf("not an object: %s", internalObj.Type())
-	}
-
-	// Get class info
-	classInfo := objVal.Class
-	if classInfo == nil {
-		return nil, fmt.Errorf("object has no class information")
-	}
-
-	// Find indexed property (case-insensitive)
-	propNameLower := ident.Normalize(propName)
-	prop, exists := classInfo.Properties[propNameLower]
-	if !exists {
-		return nil, fmt.Errorf("property '%s' not found in class '%s'", propName, classInfo.Name)
-	}
-
-	if !prop.IsIndexed {
-		return nil, fmt.Errorf("property '%s' is not an indexed property", propName)
-	}
-
-	// Call getter method with indices
-	if prop.ReadKind == types.PropAccessMethod {
-		method := objVal.Class.lookupMethod(prop.ReadSpec)
-		if method == nil {
-			return nil, fmt.Errorf("indexed property '%s' getter method '%s' not found", propName, prop.ReadSpec)
-		}
-
-		savedEnv := i.env
-		tempEnv := NewEnclosedEnvironment(i.env)
-		tempEnv.Define("Self", objVal)
-		i.env = tempEnv
-
-		result := i.callUserFunction(method, internalIndices)
-
-		i.env = savedEnv
-
-		if isError(result) {
-			return nil, fmt.Errorf("indexed property getter failed: %v", result)
-		}
-		return result, nil
-	}
-
-	return nil, fmt.Errorf("indexed property '%s' has unsupported read access kind", propName)
-}
-
-// SetIndexedProperty sets an indexed property value in an object.
-func (i *Interpreter) SetIndexedProperty(obj evaluator.Value, propName string, indices []evaluator.Value, value evaluator.Value) error {
-	// Convert to internal types
-	internalObj := obj.(Value)
-	internalValue := value.(Value)
-
-	// Convert indices
-	internalIndices := make([]Value, len(indices))
-	for idx, index := range indices {
-		internalIndices[idx] = index.(Value)
-	}
-
-	// Get object instance
-	objVal, ok := internalObj.(*ObjectInstance)
-	if !ok {
-		return fmt.Errorf("not an object: %s", internalObj.Type())
-	}
-
-	// Get class info
-	classInfo := objVal.Class
-	if classInfo == nil {
-		return fmt.Errorf("object has no class information")
-	}
-
-	// Find indexed property (case-insensitive)
-	propNameLower := ident.Normalize(propName)
-	prop, exists := classInfo.Properties[propNameLower]
-	if !exists {
-		return fmt.Errorf("property '%s' not found in class '%s'", propName, classInfo.Name)
-	}
-
-	if !prop.IsIndexed {
-		return fmt.Errorf("property '%s' is not an indexed property", propName)
-	}
-
-	// Check if property is read-only
-	if prop.WriteKind == types.PropAccessNone {
-		return fmt.Errorf("indexed property '%s' is read-only", propName)
-	}
-
-	// Call setter method with indices + value
-	if prop.WriteKind == types.PropAccessMethod {
-		method := objVal.Class.lookupMethod(prop.WriteSpec)
-		if method == nil {
-			return fmt.Errorf("indexed property '%s' setter method '%s' not found", propName, prop.WriteSpec)
-		}
-
-		savedEnv := i.env
-		tempEnv := NewEnclosedEnvironment(i.env)
-		tempEnv.Define("Self", objVal)
-		i.env = tempEnv
-
-		// Append value to indices for setter call
-		args := append(internalIndices, internalValue)
-		result := i.callUserFunction(method, args)
-
-		i.env = savedEnv
-
-		if isError(result) {
-			return fmt.Errorf("indexed property setter failed: %v", result)
-		}
-		return nil
-	}
-
-	return fmt.Errorf("indexed property '%s' has unsupported write access kind", propName)
-}
-
-// CallMethod executes a method on an object with the given arguments.
 func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []evaluator.Value, node ast.Node) evaluator.Value {
 	// Convert to internal types
 	internalObj := obj.(Value)
@@ -2639,72 +1800,6 @@ func (i *Interpreter) CreateFunctionPointerFromName(funcName string, closure any
 
 // CreateRecord creates a record value from field values.
 // Task 3.5.8: Adapter method for record construction.
-func (i *Interpreter) CreateRecord(recordType string, fields map[string]evaluator.Value) (evaluator.Value, error) {
-	// Look up the record type
-	recordTypeKey := "__record_type_" + ident.Normalize(recordType)
-	typeVal, ok := i.env.Get(recordTypeKey)
-	if !ok {
-		return nil, fmt.Errorf("unknown record type '%s'", recordType)
-	}
-
-	rtv, ok := typeVal.(*RecordTypeValue)
-	if !ok {
-		return nil, fmt.Errorf("'%s' is not a record type", recordType)
-	}
-
-	// Convert field values to internal types
-	internalFields := make(map[string]Value)
-	for name, val := range fields {
-		internalFields[name] = val.(Value)
-	}
-
-	// Create record value
-	// Task 3.5.42: Updated to use RecordMetadata
-	return &RecordValue{
-		RecordType: rtv.RecordType,
-		Fields:     internalFields,
-		Metadata:   rtv.Metadata,
-		Methods:    rtv.Methods, // Deprecated: backward compatibility
-	}, nil
-}
-
-// SetVariable assigns a value to a variable in the execution context.
-// Task 3.5.8: Adapter method for variable assignment.
-func (i *Interpreter) SetVariable(name string, value evaluator.Value, ctx *evaluator.ExecutionContext) error {
-	// Convert to internal type
-	internalValue := value.(Value)
-
-	// Set the variable in the environment
-	env := ctx.Env()
-	envAdapter, ok := env.(interface{ SetInternal(string, Value) bool })
-	if !ok {
-		return fmt.Errorf("cannot set variable '%s'", name)
-	}
-
-	if !envAdapter.SetInternal(name, internalValue) {
-		return fmt.Errorf("undefined variable '%s'", name)
-	}
-
-	return nil
-}
-
-// CanAssign checks if an AST node can be used as an lvalue (assignment target).
-// Task 3.5.8: Adapter method for lvalue validation.
-func (i *Interpreter) CanAssign(target ast.Node) bool {
-	switch target.(type) {
-	case *ast.Identifier:
-		return true
-	case *ast.MemberAccessExpression:
-		return true
-	case *ast.IndexExpression:
-		return true
-	default:
-		return false
-	}
-}
-
-// RaiseException raises an exception with the given class name and message.
-// Task 3.5.8: Adapter method for exception handling.
 func (i *Interpreter) RaiseException(className string, message string, pos any) {
 	// Convert pos to lexer.Position if provided
 	var position *lexer.Position
@@ -2728,19 +1823,6 @@ func (i *Interpreter) DefineVariable(name string, value evaluator.Value, ctx *ev
 
 	// Define in the context's environment
 	ctx.Env().Define(name, internalValue)
-}
-
-// CreateEnclosedEnvironment creates a new execution context with an enclosed environment.
-// Task 3.5.9: Adapter method for environment access.
-func (i *Interpreter) CreateEnclosedEnvironment(ctx *evaluator.ExecutionContext) *evaluator.ExecutionContext {
-	// Get the current environment from the context and create an enclosed scope
-	currentEnv := ctx.Env()
-	newEnv := currentEnv.NewEnclosedEnvironment()
-
-	// Create a new execution context with the enclosed environment
-	newCtx := evaluator.NewExecutionContext(newEnv)
-
-	return newCtx
 }
 
 // ===== Task 3.5.19: Binary Operator Adapter Methods (Fix for PR #219) =====
@@ -3090,12 +2172,6 @@ func (i *Interpreter) GetClassVariableFromClassInfo(classInfo evaluator.Value, v
 		}
 	}
 	return nil, false
-}
-
-// IsClassValue checks if a value is a ClassValue (metaclass reference).
-func (i *Interpreter) IsClassValue(value evaluator.Value) bool {
-	_, ok := value.(*ClassValue)
-	return ok
 }
 
 // GetCallStack returns a copy of the current call stack.
