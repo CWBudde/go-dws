@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/jsonvalue"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -341,12 +342,60 @@ func (r *RecordValue) HasRecordMethod(name string) bool {
 }
 
 // HasRecordProperty checks if a property with the given name exists.
-// Note: Records in DWScript don't have properties (unlike classes), so this
-// always returns false. Included for consistency with other value interfaces.
+// Note: Records CAN have properties in DWScript (though less common than classes).
 // Task 3.5.91: Implements RecordInstanceValue interface.
-func (r *RecordValue) HasRecordProperty(_ string) bool {
-	// Records don't have properties in DWScript - they only have fields and methods
-	return false
+func (r *RecordValue) HasRecordProperty(name string) bool {
+	if r.RecordType == nil || r.RecordType.Properties == nil {
+		return false
+	}
+	normalizedName := ident.Normalize(name)
+	_, exists := r.RecordType.Properties[normalizedName]
+	return exists
+}
+
+// LookupProperty searches for a property by name in the record type.
+// Task 3.5.99a: Implements evaluator.PropertyAccessor interface.
+// Returns a PropertyDescriptor wrapping types.RecordPropertyInfo, or nil if not found.
+func (r *RecordValue) LookupProperty(name string) *evaluator.PropertyDescriptor {
+	if r.RecordType == nil || r.RecordType.Properties == nil {
+		return nil
+	}
+
+	normalizedName := ident.Normalize(name)
+	propInfo, exists := r.RecordType.Properties[normalizedName]
+	if !exists {
+		return nil
+	}
+
+	return &evaluator.PropertyDescriptor{
+		Name:      propInfo.Name,
+		IsIndexed: false, // RecordPropertyInfo doesn't have IsIndexed field, records use simple field-based properties
+		IsDefault: propInfo.IsDefault,
+		Impl:      propInfo, // Store the original RecordPropertyInfo for later use
+	}
+}
+
+// GetDefaultProperty returns the default property for this record type, if any.
+// Task 3.5.99a: Implements evaluator.PropertyAccessor interface.
+// Returns a PropertyDescriptor wrapping types.RecordPropertyInfo, or nil if no default property exists.
+func (r *RecordValue) GetDefaultProperty() *evaluator.PropertyDescriptor {
+	if r.RecordType == nil || r.RecordType.Properties == nil {
+		return nil
+	}
+
+	// Search for the default property
+	for _, propInfo := range r.RecordType.Properties {
+		if propInfo.IsDefault {
+			return &evaluator.PropertyDescriptor{
+				Name:      propInfo.Name,
+				IsIndexed: false, // RecordPropertyInfo doesn't have IsIndexed field
+				IsDefault: true,
+				Impl:      propInfo, // Store the original RecordPropertyInfo for later use
+			}
+		}
+	}
+
+	return nil
 }
 
 // ExternalVarValue represents an external variable marker.
