@@ -139,6 +139,39 @@ type NilAccessor interface {
 	GetTypedClassName() string
 }
 
+// PropertyAccessor is an optional interface for values that support property access.
+// Task 3.5.99a: Provides common abstraction for property lookup on objects, interfaces, and records.
+// This enables the evaluator to handle property access uniformly across different runtime types.
+type PropertyAccessor interface {
+	Value
+	// LookupProperty searches for a property by name in the type hierarchy.
+	// Returns a PropertyDescriptor with metadata needed for property access.
+	// Returns nil if the property is not found.
+	// The lookup is case-insensitive and includes parent types where applicable.
+	LookupProperty(name string) *PropertyDescriptor
+
+	// GetDefaultProperty returns the default property for this type, if any.
+	// Default properties allow indexing syntax: obj[index] instead of obj.Property[index].
+	// Returns nil if no default property is defined.
+	GetDefaultProperty() *PropertyDescriptor
+}
+
+// PropertyDescriptor provides metadata about a property.
+// Task 3.5.99a: Abstracts property info across classes, interfaces, and records.
+// This allows the evaluator to access property metadata without knowing the specific runtime type.
+type PropertyDescriptor struct {
+	Name      string // Property name
+	IsIndexed bool   // True if this is an indexed property (e.g., property Items[Index: Integer]: String)
+	IsDefault bool   // True if this is the default property
+
+	// For implementation reference:
+	// - Objects: pointer to types.PropertyInfo
+	// - Interfaces: pointer to types.PropertyInfo
+	// - Records: pointer to types.RecordPropertyInfo
+	// We store as `any` to avoid circular imports and maintain type flexibility
+	Impl any
+}
+
 // RecordInstanceValue is an optional interface that record instances can implement
 // to provide direct access to record fields and metadata without going through the adapter.
 // Task 3.5.91: Enables direct record field access in VisitMemberAccessExpression.

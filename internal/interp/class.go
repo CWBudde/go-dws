@@ -3,6 +3,7 @@ package interp
 import (
 	"fmt"
 
+	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -209,6 +210,48 @@ func (o *ObjectInstance) GetMethod(name string) *ast.FunctionDecl {
 		return nil
 	}
 	return o.Class.lookupMethod(name)
+}
+
+// LookupProperty searches for a property by name in the class hierarchy.
+// Task 3.5.99a: Implements evaluator.PropertyAccessor interface.
+// Returns a PropertyDescriptor wrapping types.PropertyInfo, or nil if not found.
+func (o *ObjectInstance) LookupProperty(name string) *evaluator.PropertyDescriptor {
+	if o.Class == nil {
+		return nil
+	}
+
+	propInfo := o.Class.lookupProperty(name)
+	if propInfo == nil {
+		return nil
+	}
+
+	return &evaluator.PropertyDescriptor{
+		Name:      propInfo.Name,
+		IsIndexed: propInfo.IsIndexed,
+		IsDefault: propInfo.IsDefault,
+		Impl:      propInfo, // Store the original PropertyInfo for later use
+	}
+}
+
+// GetDefaultProperty returns the default property for this object's class, if any.
+// Task 3.5.99a: Implements evaluator.PropertyAccessor interface.
+// Returns a PropertyDescriptor wrapping types.PropertyInfo, or nil if no default property exists.
+func (o *ObjectInstance) GetDefaultProperty() *evaluator.PropertyDescriptor {
+	if o.Class == nil {
+		return nil
+	}
+
+	propInfo := o.Class.getDefaultProperty()
+	if propInfo == nil {
+		return nil
+	}
+
+	return &evaluator.PropertyDescriptor{
+		Name:      propInfo.Name,
+		IsIndexed: propInfo.IsIndexed,
+		IsDefault: propInfo.IsDefault,
+		Impl:      propInfo, // Store the original PropertyInfo for later use
+	}
 }
 
 // lookupMethod searches for a method in the class hierarchy.

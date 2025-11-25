@@ -513,14 +513,51 @@ so it can't handle primitive types with helper methods.
 
 #### Group F: VisitIndexExpression Advanced Cases (blocked)
 
-- [ ] **3.5.99** Replace VisitIndexExpression EvalNode - Property/JSON Cases
-  - [ ] Property access when base is MemberAccessExpression (indexed properties)
-  - [ ] Interface default property access
-  - [ ] Object default property access
-  - [ ] Record default property access with getter methods
-  - [ ] JSON object/array indexing
-  - Blocked on: evalIndexedPropertyRead migration, JSONValue/VariantValue in evaluator
-  - Files: `evaluator/visitor_expressions.go`
+**Task 3.5.99 Split Rationale**: This task involves ~400+ lines of complex logic across multiple concerns (property access, JSON indexing, default properties), has circular import issues (JSONValue/VariantValue), and different risk profiles. Split into 7 subtasks for incremental progress following the pattern of 3.5.93 and 3.5.97.
+
+- [x] **3.5.99a** Property Access Infrastructure ✅ (45 min)
+  - Added `PropertyAccessor` interface to evaluator for objects/interfaces/records
+  - Added `PropertyDescriptor` struct with Name, IsIndexed, IsDefault, Impl fields
+  - Methods: `LookupProperty(name string)`, `GetDefaultProperty()`
+  - Implemented in `ObjectInstance`, `InterfaceInstance`, `RecordValue`
+  - Files: `evaluator/evaluator.go`, `class.go`, `interface.go`, `value.go`
+  - Tests: `property_accessor_test.go` (4 test functions, all passing)
+  - Completed: 2025-11-25
+
+- [ ] **3.5.99b** JSON Indexing Migration (45-60 min)
+  - Move `indexJSON` logic to evaluator package
+  - Create `evaluator/json_helpers.go` with JSON indexing functions
+  - Handle `JSONValue` via interface/type assertion to avoid circular import
+  - Remove EvalNode delegation for JSON case (visitor_expressions.go:2046)
+  - Tests: `testdata/fixtures/JSONConnectorPass/`
+
+- [ ] **3.5.99c** Object Default Property Access (45-60 min)
+  - Implement `evalObjectDefaultPropertyRead` in evaluator
+  - Handle single-index default property access via PropertyAccessor interface
+  - Remove EvalNode delegation for OBJECT case (visitor_expressions.go:2041-2043)
+  - Tests: `testdata/properties/default_property.dws`
+
+- [ ] **3.5.99d** Interface Default Property Access (30-45 min)
+  - Implement interface unwrapping + object default property access
+  - Handle nil interface access errors
+  - Remove EvalNode delegation for INTERFACE case (visitor_expressions.go:2041)
+
+- [ ] **3.5.99e** Record Default Property Access (45-60 min)
+  - Implement `evalRecordDefaultPropertyRead` with getter method calls
+  - Handle record property getter invocation
+  - Remove EvalNode delegation for RECORD case (visitor_expressions.go:2043)
+
+- [ ] **3.5.99f** Indexed Property Infrastructure (45-60 min)
+  - Create `CallIndexedPropertyGetter` adapter method (delegate for now)
+  - Add environment management infrastructure to evaluator
+  - Prepare for property method invocation
+  - Files: `evaluator/evaluator.go` (interface), `interpreter.go` (implementation)
+
+- [ ] **3.5.99g** Indexed Property Access via MemberAccessExpression (60-90 min)
+  - Migrate indexed property lookup and method invocation
+  - Use `CollectIndices` to flatten multi-index properties
+  - Remove EvalNode delegation for MemberAccessExpression base (visitor_expressions.go:2014)
+  - Tests: `testdata/properties/indexed_property.dws`, `testdata/properties/multi_index_property.dws`
 
 ---
 
@@ -572,7 +609,9 @@ These tasks are deferred until the adapter is minimal. They're complex and requi
 
 - 3.5.93 split into 7 subtasks (3.5.93a-g) for var param built-ins
 - 3.5.97 split into 3 subtasks (3.5.97a-c) for user function calls
-- Total subtasks: ~25 remaining in Phase 13
+- 3.5.98 split into 4 subtasks (3.5.98a-d) for helper method calls
+- 3.5.99 split into 7 subtasks (3.5.99a-g) for advanced indexing cases
+- Total subtasks: ~31 remaining in Phase 13
 
 Each task should be:
 - Completable in 30-60 minutes
