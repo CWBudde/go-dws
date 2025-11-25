@@ -35,3 +35,9 @@ func (e *EnumValue) String() string {
 func (e *EnumValue) GetOrdinal() int {
 	return e.OrdinalValue
 }
+
+// GetEnumTypeName returns the enum type name (e.g., "TColor").
+// Task 3.5.98b: Enables helper method resolution for enums in evaluator.
+func (e *EnumValue) GetEnumTypeName() string {
+	return e.TypeName
+}

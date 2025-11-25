@@ -63,6 +63,15 @@ func (a *ArrayValue) Copy() Value {
 	return copied
 }
 
+// ArrayTypeString returns the array type as a string (e.g., "array of String").
+// Task 3.5.98b: Implements evaluator.ArrayAccessor interface for helper method resolution.
+func (a *ArrayValue) ArrayTypeString() string {
+	if a.ArrayType != nil {
+		return a.ArrayType.String()
+	}
+	return "array"
+}
+
 // ArrayElementInitializer is a function type for initializing array elements.
 // This allows the interp package to provide custom initialization logic
 // for complex element types (records, nested arrays, etc.) without creating
