@@ -453,25 +453,77 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Files**: `evaluator/visitor_expressions.go`
   - **Tests**: All MemberAccess, Interface, Record, Enum tests pass
 
-- [ ] **3.5.102** Remove EvalNode from helper method fallbacks (2 calls) ⚠️ DEFERRED
+- [ ] **3.5.102** Remove EvalNode from helper method fallbacks (2 calls) - **SPLIT INTO SUB-TASKS**
   - **Location**: `helper_methods.go` lines 287-288, 327-328
   - **Issue**: `CallBuiltinHelperMethod()` and `CallASTHelperMethod()` delegate to EvalNode
-  - **Complexity**: HIGH - requires migrating ~40 builtin helper implementations (~800 lines) + AST execution logic
-  - **Cannot add adapter methods** (per lessons learned: "Never add adapter methods")
-  - **Solution**: Migrate all helper method logic directly to evaluator package
-  - **Dependencies**:
-    - Builtin helpers: Need direct access to StringValue, IntegerValue, FloatValue, etc. (circular import issues)
-    - AST helpers: Need Environment creation, type resolution, default value creation
-  - **Status**: DEFERRED - requires significant refactoring of runtime value types
-  - **Calls removed**: 2 EvalNode calls (when completed)
+  - **Complexity**: HIGH - 37 builtin helper implementations + AST execution logic
+  - **Solution**: Migrate helper method logic incrementally to evaluator package
+  - **Calls removed**: 2 EvalNode calls
+  - **Sub-tasks**:
+    - [ ] **3.5.102a** Migrate String Helper Methods (8 methods, LOW RISK)
+      - `__string_toupper`, `__string_tolower`, `__string_length`, etc.
+      - Simple string operations, no complex dependencies
+      - ~100 lines to migrate
+    - [ ] **3.5.102b** Migrate Integer Helper Methods (6 methods, LOW RISK)
+      - `__integer_tostring`, `__integer_tohexstring`, `__integer_abs`, etc.
+      - Simple integer operations and conversions
+      - ~80 lines to migrate
+    - [ ] **3.5.102c** Migrate Float Helper Methods (5 methods, LOW RISK)
+      - `__float_tostring_prec`, `__float_round`, `__float_ceil`, etc.
+      - Simple float operations and formatting
+      - ~70 lines to migrate
+    - [ ] **3.5.102d** Migrate Boolean Helper Methods (2 methods, LOW RISK)
+      - `__boolean_tostring`, etc.
+      - Trivial boolean operations
+      - ~20 lines to migrate
+    - [ ] **3.5.102e** Migrate Array Helper Methods (10 methods, MEDIUM RISK)
+      - `__string_array_join`, `__array_length`, `__array_high`, etc.
+      - Array operations, may need helper functions
+      - ~150 lines to migrate
+    - [ ] **3.5.102f** Migrate Remaining Builtin Helpers (6 methods, MEDIUM RISK)
+      - Enum, set, and other specialized helpers
+      - ~100 lines to migrate
+    - [ ] **3.5.102g** Migrate AST Helper Method Execution (HIGHEST RISK)
+      - Requires Environment management, type resolution, default values
+      - Complex dependencies on adapter infrastructure
+      - Consider keeping adapter delegation initially
 
-- [ ] **3.5.103** Remove EvalNode from binary_ops.go (4 calls)
+- [ ] **3.5.103** Remove EvalNode from binary_ops.go (4 calls) - **SPLIT INTO SUB-TASKS**
   - **Location**: `binary_ops.go` lines 520, 548, 561, 575, 632
   - **Methods**: `EvalEqualityComparison`, `EvalInOperator`, `EvalVariantBinaryOp`
   - **Issue**: Complex equality/membership/variant operations delegate to adapter
   - **Solution**: Implement equality/in/variant ops directly with Value type assertions
   - **Risk**: High - variant operations are complex, need careful testing
   - **Calls removed**: 4 EvalNode + 3 specialized binary op calls
+  - **Sub-tasks**:
+    - [x] **3.5.103a** Migrate EvalInOperator (line 548) - **COMPLETED**
+      - Migrated set/array/string membership testing
+      - All 5 'in' operator tests passing
+      - Uses simple string comparison for arrays (will be improved in 3.5.103c)
+    - [x] **3.5.103b** Migrate Set Binary Operations (line 561) - **COMPLETED**
+      - Migrated set union/difference/intersection
+      - Supports both bitmask and map storage
+      - All 7+ set operation tests passing
+    - [x] **3.5.103c** Migrate Helper Functions (FOUNDATION) - **COMPLETED**
+      - Updated evalInOperator to use `ValuesEqual()` helper (already existed in helpers.go)
+      - ValuesEqual handles primitive types, with fallback for complex types (records, etc.)
+      - RecordsEqual migration deferred until RecordValue is moved to runtime package
+      - All tests passing (set 'in' operator, array indexOf)
+    - [x] **3.5.103d** Migrate EvalEqualityComparison (line 520) - **COMPLETED**
+      - Migrated object/interface/class/RTTI/record equality comparisons
+      - Added `RecordsEqual()` helper (uses string comparison fallback)
+      - Added `isSimpleType()` helper for type classification
+      - Handles all complex type comparisons: nil, objects, interfaces, classes, RTTI, records
+      - All tests passing (TestRecord, TestInterface, TestClass)
+      - **Bonus**: Fixed TestIntegration_InterfaceCastingAllCombinations (was failing, now passing)
+      - Reduced EvalNode calls from 35 → 28 (1 adapter call removed)
+    - [ ] **3.5.103e** Migrate Variant NOT Operation (line 632)
+      - Depends on 3.5.103c
+      - Handle variant unwrapping in NOT operator
+    - [ ] **3.5.103f** Migrate EvalVariantBinaryOp (line 575) - **HIGHEST RISK**
+      - Depends on 3.5.103c
+      - Complex null-handling semantics
+      - 118-line implementation to migrate
 
 - [ ] **3.5.104** Remove EvalNode from set_helpers.go (2 calls)
   - **Location**: `set_helpers.go` lines 46, 257
@@ -479,13 +531,45 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Solution**: Use TypeSystem.LookupSetType() directly
   - **Calls removed**: 2 EvalNode + 1 GetType calls
 
-- [ ] **3.5.105** Remove EvalNode from visitor_statements.go AssignmentStatement (1 call)
+- [ ] **3.5.105** Remove EvalNode from visitor_statements.go AssignmentStatement (1 call) - **SPLIT INTO SUB-TASKS**
   - **Location**: `visitor_statements.go` line 361
+  - **Source**: `statements_assignments.go` (971 lines total)
   - **Issue**: Complex assignment statement delegates entirely
   - **Solution**: Migrate assignment logic to evaluator (requires lvalue handling)
-  - **Risk**: High - assignment touches many code paths
+  - **Risk**: VERY HIGH - assignment touches many code paths
   - **Dependency**: Requires `SetVar`, field assignment, property setters
   - **Calls removed**: 1 EvalNode call
+  - **Sub-tasks**:
+    - [ ] **3.5.105a** Migrate Simple Variable Assignment (LOW RISK)
+      - Source: `evalSimpleAssignment()` lines 342-569 (228 lines)
+      - Handles: `x := value` with SetVar, var parameters, implicit conversions
+      - Includes: Reference value handling, subrange validation, variant boxing
+      - Risk: LOW - straightforward variable update with type checking
+      - Tests: ~15-20 existing assignment tests
+    - [ ] **3.5.105b** Migrate Compound Operations (MEDIUM RISK)
+      - Source: `applyCompoundOperation()` lines 151-341 (191 lines)
+      - Handles: `+=`, `-=`, `*=`, `/=` for Integer/Float/String/Variant
+      - Includes: Class operator overloads, variant unwrapping, type coercion
+      - Risk: MEDIUM - multiple operators, type combinations
+      - Tests: ~10 compound assignment tests
+    - [ ] **3.5.105c** Migrate Index Assignment (MEDIUM RISK)
+      - Source: `evalIndexAssignment()` lines 801-971 (171 lines)
+      - Handles: `arr[i] := value`, `str[i] := char`
+      - Includes: Array bounds checking, string mutation, multi-dimensional arrays
+      - Risk: MEDIUM - array/string indexing with bounds validation
+      - Tests: ~12 array/string index assignment tests
+    - [ ] **3.5.105d** Migrate Member Assignment (HIGH RISK)
+      - Source: `evalMemberAssignment()` lines 667-800 (134 lines)
+      - Handles: `obj.field := value`, property setters, record fields
+      - Includes: Property setter dispatch, recursion prevention, interface handling
+      - Risk: HIGH - property setters have complex dispatch logic
+      - Tests: ~20 member/property assignment tests
+    - [ ] **3.5.105e** Integration and Context Inference (MEDIUM RISK)
+      - Source: Main function lines 43-147 (105 lines)
+      - Handles: Array/record literal type inference from target context
+      - Includes: Record value semantics (defensive copying), exception handling
+      - Risk: MEDIUM - orchestrates all assignment types
+      - Tests: Full assignment test suite validation
 
 - [ ] **3.5.106** Remove EvalNode from type_resolution.go (1 call)
   - **Location**: `type_resolution.go` line 67

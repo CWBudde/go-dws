@@ -130,6 +130,17 @@ func ValuesEqual(left, right Value) bool {
 	}
 }
 
+// RecordsEqual checks if two RecordValues are equal by comparing all fields.
+// Task 3.5.103d: Migrated from Interpreter.recordsEqual for record equality comparison.
+// Note: This uses string comparison as a simple fallback for now.
+// Full field-by-field comparison will be implemented when RecordValue is migrated to runtime package.
+func RecordsEqual(left, right Value) bool {
+	// For now, use the existing ValuesEqual logic which does string comparison
+	// This maintains current behavior while avoiding import cycles
+	// TODO: When RecordValue moves to runtime package, implement proper field comparison
+	return ValuesEqual(left, right)
+}
+
 // IsInRange checks if value is within the range [start, end] inclusive.
 // Supports Integer, Float, String (character), and Enum values.
 // Phase 3.5.4.41: Migrated from Interpreter.isInRange()

@@ -1,7 +1,10 @@
 package evaluator
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -511,13 +514,133 @@ func (e *Evaluator) evalEnumBinaryOp(op string, left, right Value, node ast.Node
 
 // evalEqualityComparison handles = and <> operators for complex types.
 // Supports: nil, objects, interfaces, classes, RTTI, sets, arrays, records.
-// Task 3.5.19: Delegates array and set comparisons to adapter.
+// Task 3.5.103d: Migrated from Interpreter.EvalEqualityComparison.
 func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node ast.Node) Value {
-	// This handles object/interface/class/RTTI/set/array/record comparisons
-	// Task 3.5.19 (PR #219 fix): Use adapter method that accepts pre-evaluated values
-	// to prevent double-evaluation of operands with side effects
-	// Arrays and sets are compared by value (element-by-element) in the Interpreter
-	return e.adapter.EvalEqualityComparison(op, left, right, node)
+	// Check type names to identify complex types
+	leftType := left.Type()
+	rightType := right.Type()
+
+	// Handle nil comparisons
+	if leftType == "NIL" || rightType == "NIL" {
+		// Both nil
+		if leftType == "NIL" && rightType == "NIL" {
+			if op == "=" {
+				return &runtime.BooleanValue{Value: true}
+			}
+			return &runtime.BooleanValue{Value: false}
+		}
+
+		// One is nil, one is not - handle interface special case
+		if leftType == "INTERFACE" || rightType == "INTERFACE" {
+			// Check if interface wraps nil object
+			var intfIsNil bool
+			if leftType == "INTERFACE" {
+				// Interface on left, nil on right
+				// Use string representation check (interface with nil object shows as "nil")
+				intfIsNil = left.String() == "nil"
+			} else {
+				// Nil on left, interface on right
+				intfIsNil = right.String() == "nil"
+			}
+			if op == "=" {
+				return &runtime.BooleanValue{Value: intfIsNil}
+			}
+			return &runtime.BooleanValue{Value: !intfIsNil}
+		}
+
+		// Standard nil comparison (one nil, one not)
+		if op == "=" {
+			return &runtime.BooleanValue{Value: false}
+		}
+		return &runtime.BooleanValue{Value: true}
+	}
+
+	// Handle RTTITypeInfoValue comparisons (TypeOf results)
+	if leftType == "RTTI_TYPE_INFO" && rightType == "RTTI_TYPE_INFO" {
+		// Compare using string representation (contains TypeID)
+		result := left.String() == right.String()
+		if op == "=" {
+			return &runtime.BooleanValue{Value: result}
+		}
+		return &runtime.BooleanValue{Value: !result}
+	}
+
+	// Handle ClassValue (metaclass) comparisons
+	// ClassValue Type() returns "CLASS[ClassName]"
+	leftIsClass := len(leftType) > 6 && leftType[:6] == "CLASS[" && leftType[len(leftType)-1] == ']'
+	rightIsClass := len(rightType) > 6 && rightType[:6] == "CLASS[" && rightType[len(rightType)-1] == ']'
+
+	if leftIsClass || rightIsClass {
+		// Both are ClassValue - compare by string representation
+		if leftIsClass && rightIsClass {
+			result := left.String() == right.String()
+			if op == "=" {
+				return &runtime.BooleanValue{Value: result}
+			}
+			return &runtime.BooleanValue{Value: !result}
+		}
+		// One is ClassValue, one is nil - already handled above
+		if op == "=" {
+			return &runtime.BooleanValue{Value: false}
+		}
+		return &runtime.BooleanValue{Value: true}
+	}
+
+	// Handle InterfaceInstance comparisons
+	if leftType == "INTERFACE" && rightType == "INTERFACE" {
+		// Compare underlying objects by string representation
+		result := left.String() == right.String()
+		if op == "=" {
+			return &runtime.BooleanValue{Value: result}
+		}
+		return &runtime.BooleanValue{Value: !result}
+	}
+
+	// Handle Object comparisons (Type() returns "OBJECT[ClassName]")
+	leftIsObj := len(leftType) > 7 && leftType[:7] == "OBJECT[" && leftType[len(leftType)-1] == ']'
+	rightIsObj := len(rightType) > 7 && rightType[:7] == "OBJECT[" && rightType[len(rightType)-1] == ']'
+
+	if leftIsObj || rightIsObj {
+		// Object identity comparison - compare by pointer equality
+		// Use string representation which includes object address
+		result := left.String() == right.String()
+		if op == "=" {
+			return &runtime.BooleanValue{Value: result}
+		}
+		return &runtime.BooleanValue{Value: !result}
+	}
+
+	// Handle Record comparisons
+	// RecordValue Type() returns record type name or "RECORD"
+	// We check both for named records and anonymous "RECORD" type
+	leftIsRecord := leftType == "RECORD" || (leftType != "" && !isSimpleType(leftType))
+	rightIsRecord := rightType == "RECORD" || (rightType != "" && !isSimpleType(rightType))
+
+	if leftIsRecord && rightIsRecord {
+		// Use RecordsEqual helper (currently uses string comparison)
+		result := RecordsEqual(left, right)
+		if op == "=" {
+			return &runtime.BooleanValue{Value: result}
+		}
+		return &runtime.BooleanValue{Value: !result}
+	}
+
+	// Not a supported equality comparison type - use ValuesEqual as fallback
+	result := ValuesEqual(left, right)
+	if op == "=" {
+		return &runtime.BooleanValue{Value: result}
+	}
+	return &runtime.BooleanValue{Value: !result}
+}
+
+// isSimpleType checks if a type name represents a simple value type.
+func isSimpleType(typeName string) bool {
+	switch typeName {
+	case "INTEGER", "FLOAT", "STRING", "BOOLEAN", "NIL", "SET", "ARRAY", "VARIANT", "ENUM":
+		return true
+	default:
+		return false
+	}
 }
 
 // ============================================================================
@@ -537,28 +660,137 @@ func (e *Evaluator) tryBinaryOperator(operator string, left, right Value, node a
 
 // evalInOperator evaluates the 'in' operator for membership testing.
 // Supports: arrays, sets, strings, subranges.
+// Task 3.5.103a: Migrated from Interpreter expressions_complex.go:15-63
 func (e *Evaluator) evalInOperator(value, container Value, node ast.Node) Value {
-	// The 'in' operator is complex and handles:
-	// - Array membership: x in arrayVar
-	// - Set membership: x in setVar
-	// - String substring: 'ab' in 'abc'
-	// - Subrange checking: 5 in [1..10]
-	// Task 3.5.19 (PR #219 fix): Use adapter method that accepts pre-evaluated values
-	// to prevent double-evaluation of operands with side effects
-	return e.adapter.EvalInOperator(value, container, node)
+	// Handle set membership
+	if setVal, ok := container.(*runtime.SetValue); ok {
+		// Value must be an ordinal type to be in a set
+		ordinal, err := GetOrdinalValue(value)
+		if err != nil {
+			return e.newError(node, "type mismatch: %s", err.Error())
+		}
+		// Check if the element is in the set using the ordinal value
+		isInSet := setVal.HasElement(ordinal)
+		return &runtime.BooleanValue{Value: isInSet}
+	}
+
+	// Handle string character/substring membership: 'x' in 'abc'
+	if strContainer, ok := container.(*runtime.StringValue); ok {
+		// Value must be a string (character)
+		strValue, ok := value.(*runtime.StringValue)
+		if !ok {
+			return e.newError(node, "type mismatch: %s in STRING", value.Type())
+		}
+		// Check if the container string contains the value string
+		if len(strValue.Value) > 0 {
+			// Check substring containment
+			contains := strings.Contains(strContainer.Value, strValue.Value)
+			return &runtime.BooleanValue{Value: contains}
+		}
+		// Empty string is not in any string
+		return &runtime.BooleanValue{Value: false}
+	}
+
+	// Handle array membership
+	if arrVal, ok := container.(*runtime.ArrayValue); ok {
+		// Search for the value in the array using proper equality comparison
+		// Task 3.5.103c: Use ValuesEqual helper for comprehensive equality
+		for _, elem := range arrVal.Elements {
+			if ValuesEqual(value, elem) {
+				return &runtime.BooleanValue{Value: true}
+			}
+		}
+		// Value not found in array
+		return &runtime.BooleanValue{Value: false}
+	}
+
+	return e.newError(node, "type mismatch: %s in %s", value.Type(), container.Type())
 }
 
 // evalSetBinaryOp evaluates binary operations on sets.
 // Supports: + (union), - (difference), * (intersection).
-// Task 3.5.19: Delegate to adapter for SetValue operations.
+// Task 3.5.103b: Migrated from Interpreter set.go:259-338
 func (e *Evaluator) evalSetBinaryOp(op string, left, right Value, node ast.Node) Value {
-	// Set operations are complex and require access to:
-	// - SetValue type and its storage backends (bitmask vs map)
-	// - SetType information for type checking
-	// - evalBinarySetOperation in interpreter
-	// These are in interp package and haven't been migrated yet
-	// Delegate to adapter which will call the Interpreter's evalBinarySetOperation
-	return e.adapter.EvalNode(node)
+	// Type assert to SetValue
+	leftSet, leftOk := left.(*runtime.SetValue)
+	rightSet, rightOk := right.(*runtime.SetValue)
+
+	if !leftOk || !rightOk {
+		return e.newError(node, "set operations require set operands")
+	}
+
+	if leftSet == nil || rightSet == nil {
+		return e.newError(node, "nil set operand")
+	}
+
+	// Verify both sets are of the same type
+	if !leftSet.SetType.Equals(rightSet.SetType) {
+		return e.newError(node, "type mismatch in set operation: %s vs %s",
+			leftSet.SetType.String(), rightSet.SetType.String())
+	}
+
+	// Create result set with same type
+	result := runtime.NewSetValue(leftSet.SetType)
+
+	// Choose operation based on storage kind
+	switch leftSet.SetType.StorageKind {
+	case types.SetStorageBitmask:
+		// Fast bitwise operations for bitmask storage
+		var resultElements uint64
+
+		switch op {
+		case "+":
+			// Union: bitwise OR
+			resultElements = leftSet.Elements | rightSet.Elements
+
+		case "-":
+			// Difference: bitwise AND NOT
+			resultElements = leftSet.Elements &^ rightSet.Elements
+
+		case "*":
+			// Intersection: bitwise AND
+			resultElements = leftSet.Elements & rightSet.Elements
+
+		default:
+			return e.newError(node, "unsupported set operation: %s", op)
+		}
+
+		result.Elements = resultElements
+
+	case types.SetStorageMap:
+		// Map-based operations for large sets
+		switch op {
+		case "+":
+			// Union: add all elements from both sets
+			for ordinal := range leftSet.MapStore {
+				result.MapStore[ordinal] = true
+			}
+			for ordinal := range rightSet.MapStore {
+				result.MapStore[ordinal] = true
+			}
+
+		case "-":
+			// Difference: elements in left but not in right
+			for ordinal := range leftSet.MapStore {
+				if !rightSet.MapStore[ordinal] {
+					result.MapStore[ordinal] = true
+				}
+			}
+
+		case "*":
+			// Intersection: elements in both sets
+			for ordinal := range leftSet.MapStore {
+				if rightSet.MapStore[ordinal] {
+					result.MapStore[ordinal] = true
+				}
+			}
+
+		default:
+			return e.newError(node, "unsupported set operation: %s", op)
+		}
+	}
+
+	return result
 }
 
 // evalVariantBinaryOp handles binary operations with Variant operands.
