@@ -461,10 +461,11 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Solution**: Migrate helper method logic incrementally to evaluator package
   - **Calls removed**: 2 EvalNode calls
   - **Sub-tasks**:
-    - [ ] **3.5.102a** Migrate String Helper Methods (8 methods, LOW RISK)
-      - `__string_toupper`, `__string_tolower`, `__string_length`, etc.
-      - Simple string operations, no complex dependencies
-      - ~100 lines to migrate
+    - [x] **3.5.102a** Migrate String Helper Methods (4 methods, LOW RISK) ✅
+      - `__string_toupper`, `__string_tolower`, `__string_length`, `__string_tostring`
+      - Simple string operations implemented directly in `evaluator/string_helpers.go`
+      - Uses `strings.ToUpper/ToLower` directly, no builtins.Context dependency
+      - ~95 lines migrated
     - [ ] **3.5.102b** Migrate Integer Helper Methods (6 methods, LOW RISK)
       - `__integer_tostring`, `__integer_tohexstring`, `__integer_abs`, etc.
       - Simple integer operations and conversions

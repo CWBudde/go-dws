@@ -1,6 +1,7 @@
 package builtins
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -53,7 +54,13 @@ func IntToStr(ctx Context, args []Value) Value {
 
 		// Validate base range (2-36)
 		if base < 2 || base > 36 {
-			return ctx.NewError("IntToStr() base must be between 2 and 36, got %d", base)
+			msg := fmt.Sprintf("IntToStr() base must be between 2 and 36, got %d", base)
+			if raiser, ok := ctx.(interface {
+				RaiseException(className, message string, pos any)
+			}); ok {
+				raiser.RaiseException("Exception", msg, nil)
+			}
+			return ctx.NewError(msg)
 		}
 	}
 

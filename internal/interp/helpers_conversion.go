@@ -202,14 +202,24 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 
 	switch spec {
 	case "__integer_tostring":
-		if len(args) != 0 {
-			return i.newErrorWithLocation(node, "Integer.ToString does not take arguments")
-		}
 		intVal, ok := selfValue.(*IntegerValue)
 		if !ok {
 			return i.newErrorWithLocation(node, "Integer.ToString requires integer receiver")
 		}
-		return &StringValue{Value: strconv.FormatInt(intVal.Value, 10)}
+		if len(args) > 1 {
+			return i.newErrorWithLocation(node, "Integer.ToString expects 0 or 1 argument")
+		}
+
+		// Use the IntToStr builtin to share base handling/validation (2..36)
+		builtinArgs := []builtins.Value{intVal}
+		if len(args) == 1 {
+			baseVal, ok := args[0].(*IntegerValue)
+			if !ok {
+				return i.newErrorWithLocation(node, "Integer.ToString base must be Integer, got %s", args[0].Type())
+			}
+			builtinArgs = append(builtinArgs, baseVal)
+		}
+		return builtins.IntToStr(i, builtinArgs)
 
 	case "__float_tostring_prec":
 		if len(args) != 1 {
@@ -922,6 +932,26 @@ func (i *Interpreter) evalBuiltinHelperProperty(propSpec string, selfValue Value
 			return i.newErrorWithLocation(node, "String.IsASCII property requires string receiver")
 		}
 		return builtins.StrIsASCII(i, []builtins.Value{strVal})
+	case "__string_trim":
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.Trim property requires string receiver")
+		}
+		return builtins.Trim(i, []builtins.Value{strVal})
+	case "__string_trimleft":
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.TrimLeft property requires string receiver")
+		}
+		// Property version defaults to trimming whitespace (same as TrimLeft(str))
+		return builtins.TrimLeft(i, []builtins.Value{strVal})
+	case "__string_trimright":
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.TrimRight property requires string receiver")
+		}
+		// Property version defaults to trimming whitespace (same as TrimRight(str))
+		return builtins.TrimRight(i, []builtins.Value{strVal})
 
 	case "__boolean_tostring":
 		boolVal, ok := selfValue.(*BooleanValue)
