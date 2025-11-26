@@ -317,12 +317,13 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 |------|-------|-------|
 | visitor_expressions.go | 31 | Candidates for removal |
 | visitor_declarations.go | 10 | KEEP - registry logic not migrated |
-| binary_ops.go | 2 | KEEP - complex set/variant ops |
+| binary_ops.go | 0 | ✅ MIGRATED - 3.5.103 complete |
 | visitor_statements.go | 1 | KEEP - complex assignment logic |
 | evaluator.go | 1 | KEEP - fallback safety net |
 
-**KEEP (15 calls):** Declarations (10), assignment (1), binary ops (2), safety net (1), inherited (1)
+**KEEP (13 calls):** Declarations (10), assignment (1), safety net (1), inherited (1)
 **CANDIDATES (31 calls):** Expression visitors that can be migrated incrementally
+**MIGRATED (2 calls):** binary_ops.go (3.5.103e, 3.5.103f)
 
 ---
 
@@ -488,7 +489,7 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
       - Complex dependencies on adapter infrastructure
       - Consider keeping adapter delegation initially
 
-- [ ] **3.5.103** Remove EvalNode from binary_ops.go (4 calls) - **SPLIT INTO SUB-TASKS**
+- [x] **3.5.103** Remove EvalNode from binary_ops.go (4 calls) - **COMPLETED**
   - **Location**: `binary_ops.go` lines 520, 548, 561, 575, 632
   - **Methods**: `EvalEqualityComparison`, `EvalInOperator`, `EvalVariantBinaryOp`
   - **Issue**: Complex equality/membership/variant operations delegate to adapter
@@ -517,13 +518,16 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
       - All tests passing (TestRecord, TestInterface, TestClass)
       - **Bonus**: Fixed TestIntegration_InterfaceCastingAllCombinations (was failing, now passing)
       - Reduced EvalNode calls from 35 → 28 (1 adapter call removed)
-    - [ ] **3.5.103e** Migrate Variant NOT Operation (line 632)
-      - Depends on 3.5.103c
-      - Handle variant unwrapping in NOT operator
-    - [ ] **3.5.103f** Migrate EvalVariantBinaryOp (line 575) - **HIGHEST RISK**
-      - Depends on 3.5.103c
-      - Complex null-handling semantics
-      - 118-line implementation to migrate
+    - [x] **3.5.103e** Migrate Variant NOT Operation (line 632) - **COMPLETED**
+      - Uses `VariantToBool()` helper for conversion to boolean
+      - Uses `adapter.BoxVariant()` to wrap result (not new dependency)
+      - Removed 1 EvalNode call
+    - [x] **3.5.103f** Migrate EvalVariantBinaryOp (line 575) - **COMPLETED**
+      - Added `IsUninitialized()` to `runtime.VariantWrapper` interface
+      - Migrated 118-line implementation with full null-handling semantics
+      - Added `isNullish()`, `convertToString()`, `isNumericTypeName()` helpers
+      - Handles: nullish comparisons, type coercion, string concatenation
+      - Removed 1 EvalVariantBinaryOp adapter call
 
 - [ ] **3.5.104** Remove EvalNode from set_helpers.go (2 calls)
   - **Location**: `set_helpers.go` lines 46, 257

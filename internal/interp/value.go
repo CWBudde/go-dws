@@ -516,6 +516,13 @@ func (v *VariantValue) UnwrapVariant() Value {
 	return v.Value
 }
 
+// IsUninitialized returns true if the variant has no wrapped value (Value == nil).
+// Task 3.5.103f: Implements runtime.VariantWrapper interface for variant comparison semantics.
+// An uninitialized variant equals falsey values, while a variant containing Unassigned does not.
+func (v *VariantValue) IsUninitialized() bool {
+	return v.Value == nil
+}
+
 // ============================================================================
 // Variant Boxing/Unboxing Helpers
 // ============================================================================
