@@ -794,17 +794,152 @@ func (e *Evaluator) evalSetBinaryOp(op string, left, right Value, node ast.Node)
 }
 
 // evalVariantBinaryOp handles binary operations with Variant operands.
-// Variants require complex type coercion and unwrapping.
+// Task 3.5.103f: Migrated from Interpreter expressions_binary.go:746-863.
+//
+// Variant operations follow these rules:
+//   - Unwrap operands to get actual runtime values
+//   - Apply numeric promotion (Integer + Float → Float)
+//   - Support string concatenation with + operator
+//   - Raise runtime error if types are incompatible
+//   - Special handling for uninitialized vs explicitly nullish variants
 func (e *Evaluator) evalVariantBinaryOp(op string, left, right Value, node ast.Node) Value {
-	// Variant operations are extremely complex:
-	// - Unwrap Variant values
-	// - Determine underlying types
-	// - Apply type coercion rules
-	// - Perform operation on unwrapped values
-	// - Special handling for nil/unassigned variants
-	// Task 3.5.19 (PR #219 fix): Use adapter method that accepts pre-evaluated values
-	// to prevent double-evaluation of operands with side effects
-	return e.adapter.EvalVariantBinaryOp(op, left, right, node)
+	// Task 9.4.3: Check if either operand is an uninitialized Variant (before unwrapping)
+	// An uninitialized variant has Value == nil (detected via IsUninitialized).
+	// This is distinct from a VariantValue explicitly containing an UnassignedValue/NullValue/NilValue.
+	leftUnassignedVariant := false
+	rightUnassignedVariant := false
+
+	if wrapper, ok := left.(runtime.VariantWrapper); ok {
+		leftUnassignedVariant = wrapper.IsUninitialized()
+	}
+	if wrapper, ok := right.(runtime.VariantWrapper); ok {
+		rightUnassignedVariant = wrapper.IsUninitialized()
+	}
+
+	// Unwrap Variant values to get the actual runtime values
+	leftVal := unwrapVariant(left)
+	rightVal := unwrapVariant(right)
+
+	// Task 9.4.1: Check for Null/Unassigned/Nil values (after unwrapping)
+	leftIsNullish := isNullish(leftVal)
+	rightIsNullish := isNullish(rightVal)
+
+	// For comparison operators
+	// Task 9.4.3: Complex comparison semantics for Null/Unassigned variants:
+	// - Uninitialized variant (VariantValue with Value==nil): equals falsey values (0, false, '', etc.)
+	//   and also equals other nullish values (Unassigned, Null, Nil).
+	// - Explicit Unassigned/Null/Nil value: only equals other nullish values (Unassigned, Null, Nil),
+	//   does NOT equal falsey values.
+	if op == "=" || op == "<>" {
+		// Case 1: Both are nullish (Null/nil/Unassigned) or unassigned variants -> equal
+		if (leftIsNullish || leftUnassignedVariant) && (rightIsNullish || rightUnassignedVariant) {
+			return &runtime.BooleanValue{Value: op == "="}
+		}
+
+		// Case 2: One is an UNASSIGNED variant (not just nullish), check if other is falsey
+		// Only unassigned variants (not Null/nil) equal falsey values
+		if leftUnassignedVariant && !rightIsNullish {
+			result := isFalsey(rightVal)
+			if op == "=" {
+				return &runtime.BooleanValue{Value: result}
+			}
+			return &runtime.BooleanValue{Value: !result}
+		}
+		if rightUnassignedVariant && !leftIsNullish {
+			result := isFalsey(leftVal)
+			if op == "=" {
+				return &runtime.BooleanValue{Value: result}
+			}
+			return &runtime.BooleanValue{Value: !result}
+		}
+
+		// Case 3: One is nullish (but not unassigned variant), the other is not -> not equal
+		if leftIsNullish || rightIsNullish {
+			return &runtime.BooleanValue{Value: op == "<>"}
+		}
+	}
+
+	// Error if either operand is nullish for non-comparison operators
+	if leftIsNullish {
+		return e.newError(node, "cannot perform operation on unassigned Variant")
+	}
+	if rightIsNullish {
+		return e.newError(node, "cannot perform operation on unassigned Variant")
+	}
+
+	leftType := leftVal.Type()
+	rightType := rightVal.Type()
+
+	// Dispatch based on unwrapped types
+	switch {
+	// Both integers
+	case leftType == "INTEGER" && rightType == "INTEGER":
+		return e.evalIntegerBinaryOp(op, leftVal, rightVal, node)
+
+	// Either is float → promote to float
+	case leftType == "FLOAT" || rightType == "FLOAT":
+		return e.evalFloatBinaryOp(op, leftVal, rightVal, node)
+
+	// Both strings
+	case leftType == "STRING" && rightType == "STRING":
+		return e.evalStringBinaryOp(op, leftVal, rightVal, node)
+
+	// Both booleans
+	case leftType == "BOOLEAN" && rightType == "BOOLEAN":
+		return e.evalBooleanBinaryOp(op, leftVal, rightVal, node)
+
+	// String + any type → string concatenation (for + operator only)
+	case op == "+" && (leftType == "STRING" || rightType == "STRING"):
+		leftStr := convertToString(leftVal)
+		rightStr := convertToString(rightVal)
+		return &runtime.StringValue{Value: leftStr + rightStr}
+
+	// Numeric type mismatch → try conversion
+	case isNumericTypeName(leftType) && isNumericTypeName(rightType):
+		// This shouldn't happen since we handle Integer and Float above,
+		// but included for completeness
+		return e.evalFloatBinaryOp(op, leftVal, rightVal, node)
+
+	// For comparison operators, try comparing as strings
+	case op == "=" || op == "<>" || op == "<" || op == ">" || op == "<=" || op == ">=":
+		// Convert both to strings and compare
+		leftStr := convertToString(leftVal)
+		rightStr := convertToString(rightVal)
+		return e.evalStringBinaryOp(op, &runtime.StringValue{Value: leftStr}, &runtime.StringValue{Value: rightStr}, node)
+
+	default:
+		return e.newError(node, "incompatible Variant types for operator %s: %s and %s",
+			op, leftType, rightType)
+	}
+}
+
+// isNullish checks if a value represents a null/unassigned/nil state.
+// Task 3.5.103f: Helper for variant comparison semantics.
+func isNullish(val Value) bool {
+	if val == nil {
+		return true
+	}
+	switch val.Type() {
+	case "NIL", "NULL", "UNASSIGNED":
+		return true
+	default:
+		return false
+	}
+}
+
+// convertToString converts a Value to its string representation.
+// Task 3.5.103f: Helper for Variant string concatenation and comparison.
+func convertToString(val Value) string {
+	if val == nil {
+		return ""
+	}
+	return val.String()
+}
+
+// isNumericTypeName checks if a type name string is numeric (INTEGER or FLOAT).
+// Task 3.5.103f: Helper for variant type coercion.
+func isNumericTypeName(typeStr string) bool {
+	return typeStr == "INTEGER" || typeStr == "FLOAT"
 }
 
 // ============================================================================
@@ -856,12 +991,15 @@ func (e *Evaluator) evalPlusUnaryOp(operand Value, node ast.Node) Value {
 // evalNotUnaryOp evaluates the not operator.
 // For Boolean: logical NOT
 // For Integer: bitwise NOT
-// For Variant: unwrap and apply NOT to underlying value
+// For Variant: convert to boolean, negate, wrap result in Variant
+// Task 3.5.103e: Migrated Variant NOT from adapter delegation to direct implementation.
 func (e *Evaluator) evalNotUnaryOp(operand Value, node ast.Node) Value {
-	// Check if this is a Variant - delegate to adapter for now
-	// Variant NOT is complex and needs VariantValue type
+	// Handle Variant: convert to bool using DWScript semantics, negate, wrap in Variant
+	// Uses VariantToBool from helpers.go which handles unwrapping and type coercion
 	if operand.Type() == "VARIANT" {
-		return e.adapter.EvalNode(node)
+		boolResult := VariantToBool(operand)
+		// Return the negated result as a Variant containing a Boolean
+		return e.adapter.BoxVariant(&runtime.BooleanValue{Value: !boolResult})
 	}
 
 	// Handle boolean NOT
