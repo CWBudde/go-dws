@@ -2,6 +2,7 @@ package builtins
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
@@ -42,10 +43,10 @@ func Concat(ctx Context, args []Value) Value {
 
 // Pos implements the Pos() built-in function.
 // It finds the position of a substring within a string.
-// Pos(substr, str) - returns 1-based position (0 if not found)
+// Pos(substr, str [, offset]) - returns 1-based position (0 if not found)
 func Pos(ctx Context, args []Value) Value {
-	if len(args) != 2 {
-		return ctx.NewError("Pos() expects exactly 2 arguments, got %d", len(args))
+	if len(args) != 2 && len(args) != 3 {
+		return ctx.NewError("Pos() expects 2 or 3 arguments, got %d", len(args))
 	}
 
 	// First argument: substring to find
@@ -58,6 +59,16 @@ func Pos(ctx Context, args []Value) Value {
 	strVal, ok := args[1].(*runtime.StringValue)
 	if !ok {
 		return ctx.NewError("Pos() expects string as second argument, got %s", args[1].Type())
+	}
+
+	// Optional third argument: offset (1-based)
+	if len(args) == 3 {
+		offsetVal, ok := ctx.ToInt64(args[2])
+		if !ok {
+			return ctx.NewError("Pos() expects integer as third argument, got %s", args[2].Type())
+		}
+		// Delegate to PosEx for offset handling
+		return PosEx(ctx, []Value{substrVal, strVal, &runtime.IntegerValue{Value: offsetVal}})
 	}
 
 	substr := substrVal.Value
@@ -186,28 +197,54 @@ func AnsiLowerCase(ctx Context, args []Value) Value {
 }
 
 // Trim implements the Trim() built-in function.
-// It removes leading and trailing whitespace from a string.
-// Trim(str) - returns string with whitespace removed from both ends
+// Trim(str) - removes leading/trailing whitespace
+// Trim(str, left, right) - removes left/right character counts
 func Trim(ctx Context, args []Value) Value {
-	if len(args) != 1 {
-		return ctx.NewError("Trim() expects exactly 1 argument, got %d", len(args))
+	if len(args) != 1 && len(args) != 3 {
+		return ctx.NewError("Trim() expects 1 or 3 arguments, got %d", len(args))
 	}
 
 	// First argument: string
 	strVal, ok := args[0].(*runtime.StringValue)
 	if !ok {
-		return ctx.NewError("Trim() expects string as argument, got %s", args[0].Type())
+		return ctx.NewError("Trim() expects string as first argument, got %s", args[0].Type())
 	}
 
-	return &runtime.StringValue{Value: strings.TrimSpace(strVal.Value)}
+	if len(args) == 1 {
+		return &runtime.StringValue{Value: strings.TrimSpace(strVal.Value)}
+	}
+
+	leftVal, ok := args[1].(*runtime.IntegerValue)
+	if !ok {
+		return ctx.NewError("Trim() expects integer as second argument, got %s", args[1].Type())
+	}
+	rightVal, ok := args[2].(*runtime.IntegerValue)
+	if !ok {
+		return ctx.NewError("Trim() expects integer as third argument, got %s", args[2].Type())
+	}
+
+	runes := []rune(strVal.Value)
+	left := int(leftVal.Value)
+	right := int(rightVal.Value)
+	if left < 0 {
+		left = 0
+	}
+	if right < 0 {
+		right = 0
+	}
+	if left+right >= len(runes) {
+		return &runtime.StringValue{Value: ""}
+	}
+	return &runtime.StringValue{Value: string(runes[left : len(runes)-right])}
 }
 
 // TrimLeft implements the TrimLeft() built-in function.
-// It removes leading whitespace from a string.
+// It removes leading whitespace or a number of characters.
 // TrimLeft(str) - returns string with leading whitespace removed
+// TrimLeft(str, count) - removes count leading characters
 func TrimLeft(ctx Context, args []Value) Value {
-	if len(args) != 1 {
-		return ctx.NewError("TrimLeft() expects exactly 1 argument, got %d", len(args))
+	if len(args) != 1 && len(args) != 2 {
+		return ctx.NewError("TrimLeft() expects 1 or 2 arguments, got %d", len(args))
 	}
 
 	// First argument: string
@@ -216,16 +253,32 @@ func TrimLeft(ctx Context, args []Value) Value {
 		return ctx.NewError("TrimLeft() expects string as argument, got %s", args[0].Type())
 	}
 
-	// Use TrimLeft to remove leading whitespace
-	return &runtime.StringValue{Value: strings.TrimLeft(strVal.Value, " \t\n\r")}
+	if len(args) == 1 {
+		return &runtime.StringValue{Value: strings.TrimLeft(strVal.Value, " \t\n\r")}
+	}
+
+	countVal, ok := args[1].(*runtime.IntegerValue)
+	if !ok {
+		return ctx.NewError("TrimLeft() expects integer as second argument, got %s", args[1].Type())
+	}
+	count := int(countVal.Value)
+	if count < 0 {
+		count = 0
+	}
+	runes := []rune(strVal.Value)
+	if count >= len(runes) {
+		return &runtime.StringValue{Value: ""}
+	}
+	return &runtime.StringValue{Value: string(runes[count:])}
 }
 
 // TrimRight implements the TrimRight() built-in function.
-// It removes trailing whitespace from a string.
+// It removes trailing whitespace or a number of characters.
 // TrimRight(str) - returns string with trailing whitespace removed
+// TrimRight(str, count) - removes count trailing characters
 func TrimRight(ctx Context, args []Value) Value {
-	if len(args) != 1 {
-		return ctx.NewError("TrimRight() expects exactly 1 argument, got %d", len(args))
+	if len(args) != 1 && len(args) != 2 {
+		return ctx.NewError("TrimRight() expects 1 or 2 arguments, got %d", len(args))
 	}
 
 	// First argument: string
@@ -234,8 +287,23 @@ func TrimRight(ctx Context, args []Value) Value {
 		return ctx.NewError("TrimRight() expects string as argument, got %s", args[0].Type())
 	}
 
-	// Use TrimRight to remove trailing whitespace
-	return &runtime.StringValue{Value: strings.TrimRight(strVal.Value, " \t\n\r")}
+	if len(args) == 1 {
+		return &runtime.StringValue{Value: strings.TrimRight(strVal.Value, " \t\n\r")}
+	}
+
+	countVal, ok := args[1].(*runtime.IntegerValue)
+	if !ok {
+		return ctx.NewError("TrimRight() expects integer as second argument, got %s", args[1].Type())
+	}
+	count := int(countVal.Value)
+	if count < 0 {
+		count = 0
+	}
+	runes := []rune(strVal.Value)
+	if count >= len(runes) {
+		return &runtime.StringValue{Value: ""}
+	}
+	return &runtime.StringValue{Value: string(runes[:len(runes)-count])}
 }
 
 // StringReplace implements the StringReplace() built-in function.
@@ -302,6 +370,11 @@ func StringReplace(ctx Context, args []Value) Value {
 	}
 
 	return &runtime.StringValue{Value: result}
+}
+
+// StrReplace is an alias for StringReplace for DWScript compatibility.
+func StrReplace(ctx Context, args []Value) Value {
+	return StringReplace(ctx, args)
 }
 
 // StringOfChar implements the StringOfChar() built-in function.
@@ -423,7 +496,6 @@ func Chr(ctx Context, args []Value) Value {
 		return ctx.NewError("Chr() code %d out of valid Unicode range (0-1114111)", intVal.Value)
 	}
 
-	// Convert to rune and then to string
 	return &runtime.StringValue{Value: string(rune(intVal.Value))}
 }
 
@@ -476,6 +548,11 @@ func StrToBool(ctx Context, args []Value) Value {
 
 	// Normalize to lowercase for case-insensitive matching
 	s := strings.ToLower(strings.TrimSpace(strVal.Value))
+
+	// Numeric strings: parse as integer, zero is False, non-zero is True
+	if num, err := strconv.ParseInt(s, 10, 64); err == nil {
+		return &runtime.BooleanValue{Value: num != 0}
+	}
 
 	// Check for true values
 	switch s {
@@ -641,6 +718,11 @@ func StrBeginsWith(ctx Context, args []Value) Value {
 		return ctx.NewError("StrBeginsWith() expects string as second argument, got %s", args[1].Type())
 	}
 
+	// An empty prefix returns False in DWScript fixtures.
+	if len(prefixVal.Value) == 0 {
+		return &runtime.BooleanValue{Value: false}
+	}
+
 	result := strings.HasPrefix(strVal.Value, prefixVal.Value)
 	return &runtime.BooleanValue{Value: result}
 }
@@ -663,6 +745,11 @@ func StrEndsWith(ctx Context, args []Value) Value {
 	suffixVal, ok := args[1].(*runtime.StringValue)
 	if !ok {
 		return ctx.NewError("StrEndsWith() expects string as second argument, got %s", args[1].Type())
+	}
+
+	// Empty suffix returns false per DWScript reference behavior.
+	if len(suffixVal.Value) == 0 {
+		return &runtime.BooleanValue{Value: false}
 	}
 
 	result := strings.HasSuffix(strVal.Value, suffixVal.Value)
@@ -789,9 +876,13 @@ func RevPos(ctx Context, args []Value) Value {
 	needle := needleVal.Value
 	haystack := haystackVal.Value
 
-	// Handle empty needle - returns length + 1 (not found behavior for DWScript)
+	// Handle empty needle - DWScript returns length + 1
 	if len(needle) == 0 {
-		return &runtime.IntegerValue{Value: int64(runeLength(haystack) + 1)}
+		var length int64
+		for range haystack {
+			length++
+		}
+		return &runtime.IntegerValue{Value: length + 1}
 	}
 
 	// Find the last occurrence using strings.LastIndex
@@ -809,10 +900,19 @@ func RevPos(ctx Context, args []Value) Value {
 
 // StrFind implements the StrFind() built-in function.
 // It is an alias for PosEx - finds substring with starting index.
-// StrFind(str, substr, fromIndex) - returns 1-based position (0 if not found)
+// StrFind(str, substr [, fromIndex]) - returns 1-based position (0 if not found)
 func StrFind(ctx Context, args []Value) Value {
-	if len(args) != 3 {
-		return ctx.NewError("StrFind() expects exactly 3 arguments, got %d", len(args))
+	if len(args) != 2 && len(args) != 3 {
+		return ctx.NewError("StrFind() expects 2 or 3 arguments, got %d", len(args))
+	}
+
+	fromIndex := &runtime.IntegerValue{Value: 1}
+	if len(args) == 3 {
+		offsetVal, ok := ctx.ToInt64(args[2])
+		if !ok {
+			return ctx.NewError("StrFind() expects integer as third argument, got %s", args[2].Type())
+		}
+		fromIndex = &runtime.IntegerValue{Value: offsetVal}
 	}
 
 	// StrFind(str, substr, fromIndex) maps to PosEx(substr, str, fromIndex)
@@ -820,7 +920,7 @@ func StrFind(ctx Context, args []Value) Value {
 	reorderedArgs := []Value{
 		args[1], // substr becomes first arg (needle)
 		args[0], // str becomes second arg (haystack)
-		args[2], // fromIndex stays as third arg (offset)
+		fromIndex,
 	}
 
 	return PosEx(ctx, reorderedArgs)
@@ -857,15 +957,16 @@ func ByteSizeToStr(ctx Context, args []Value) Value {
 		absSize = -absSize
 	}
 
-	if absSize < KB {
+	switch {
+	case absSize < KB:
 		result = fmt.Sprintf("%d bytes", int64(size))
-	} else if absSize < MB {
+	case absSize < MB:
 		result = fmt.Sprintf("%.2f KB", size/KB)
-	} else if absSize < GB {
+	case absSize < GB:
 		result = fmt.Sprintf("%.2f MB", size/MB)
-	} else if absSize < TB {
+	case absSize < TB:
 		result = fmt.Sprintf("%.2f GB", size/GB)
-	} else {
+	default:
 		result = fmt.Sprintf("%.2f TB", size/TB)
 	}
 
@@ -965,17 +1066,18 @@ func StrSplit(ctx Context, args []Value) Value {
 	str := strVal.Value
 	delim := delimVal.Value
 
-	// Handle empty delimiter - return array with single element (the original string)
+	var parts []string
 	if len(delim) == 0 {
-		elements := []Value{&runtime.StringValue{Value: str}}
-		return &runtime.ArrayValue{
-			Elements:  elements,
-			ArrayType: types.NewDynamicArrayType(types.STRING),
+		if len(str) == 0 {
+			parts = []string{}
+		} else {
+			for _, r := range []rune(str) {
+				parts = append(parts, string(r))
+			}
 		}
+	} else {
+		parts = strings.Split(str, delim)
 	}
-
-	// Split the string
-	parts := strings.Split(str, delim)
 
 	// Convert to array of StringValue
 	elements := make([]Value, len(parts))

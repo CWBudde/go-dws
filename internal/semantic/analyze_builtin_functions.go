@@ -108,6 +108,10 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeTrimRight(args, callExpr), true
 	case "stringreplace":
 		return a.analyzeStringReplace(args, callExpr), true
+	case "strreplace":
+		return a.analyzeStringReplace(args, callExpr), true
+	case "strreplacemacros":
+		return a.analyzeStrReplaceMacros(args, callExpr), true
 	case "stringofchar":
 		return a.analyzeStringOfChar(args, callExpr), true
 	case "format":

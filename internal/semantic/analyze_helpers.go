@@ -496,6 +496,12 @@ func (a *Analyzer) initArrayHelpers() {
 
 	// Register helper for array type (generic catch-all)
 	a.helpers["array"] = append(a.helpers["array"], arrayHelper)
+
+	// Generic array helper methods
+	arrayHelper.Methods["map"] = types.NewFunctionType([]types.Type{types.NewFunctionPointerType([]types.Type{types.VARIANT}, types.VARIANT)}, types.NewDynamicArrayType(types.VARIANT))
+	arrayHelper.BuiltinMethods["map"] = "__array_map"
+	arrayHelper.Methods["join"] = types.NewFunctionType([]types.Type{types.STRING}, types.STRING)
+	arrayHelper.BuiltinMethods["join"] = "__array_join"
 }
 
 // initIntrinsicHelpers registers built-in helpers for primitive types (Integer, Float, Boolean).
@@ -637,6 +643,17 @@ func (a *Analyzer) initIntrinsicHelpers() {
 	// .IndexOf(str) -> Pos(str, self) - note parameter order is reversed!
 	stringHelper.Methods["indexof"] = types.NewFunctionType([]types.Type{types.STRING}, types.INTEGER)
 	stringHelper.BuiltinMethods["indexof"] = "__string_indexof"
+	// .Matches(mask) -> StrMatches(self, mask)
+	stringHelper.Methods["matches"] = types.NewFunctionType([]types.Type{types.STRING}, types.BOOLEAN)
+	stringHelper.BuiltinMethods["matches"] = "__string_matches"
+	// .IsASCII property
+	stringHelper.Properties["isascii"] = &types.PropertyInfo{
+		Name:      "IsASCII",
+		Type:      types.BOOLEAN,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__string_isascii",
+		WriteKind: types.PropAccessNone,
+	}
 
 	// Task 9.23: Extraction helper methods
 	// .Copy(start, len) -> Copy(self, start, len) - 2-parameter variant
@@ -658,14 +675,45 @@ func (a *Analyzer) initIntrinsicHelpers() {
 	stringHelper.BuiltinMethods["after"] = "__string_after"
 
 	// Task 9.23: Modification helper methods
-	// .Trim -> Trim(self)
-	stringHelper.Methods["trim"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	// .Trim([left, right]) -> Trim variations
+	stringHelper.Methods["trim"] = types.NewFunctionTypeWithMetadata(
+		[]types.Type{types.INTEGER, types.INTEGER},
+		[]string{"left", "right"},
+		[]interface{}{int64(0), int64(0)},
+		[]bool{false, false},
+		[]bool{false, false},
+		[]bool{false, false},
+		types.STRING,
+	)
 	stringHelper.BuiltinMethods["trim"] = "__string_trim"
+	stringHelper.Methods["trimleft"] = types.NewFunctionType([]types.Type{types.INTEGER}, types.STRING)
+	stringHelper.BuiltinMethods["trimleft"] = "__string_trimleft"
+	stringHelper.Methods["trimright"] = types.NewFunctionType([]types.Type{types.INTEGER}, types.STRING)
+	stringHelper.BuiltinMethods["trimright"] = "__string_trimright"
 
 	// Task 9.23: Split/join helper methods
 	// .Split(delimiter) -> StrSplit(self, delimiter)
 	stringHelper.Methods["split"] = types.NewFunctionType([]types.Type{types.STRING}, types.NewDynamicArrayType(types.STRING))
 	stringHelper.BuiltinMethods["split"] = "__string_split"
+	// Encoding helpers
+	stringHelper.Methods["tojson"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	stringHelper.BuiltinMethods["tojson"] = "__string_tojson"
+	stringHelper.Methods["tohtml"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	stringHelper.BuiltinMethods["tohtml"] = "__string_tohtml"
+	stringHelper.Methods["tohtmlattribute"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	stringHelper.BuiltinMethods["tohtmlattribute"] = "__string_tohtmlattribute"
+	stringHelper.Methods["tocsstext"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	stringHelper.BuiltinMethods["tocsstext"] = "__string_tocsstext"
+	stringHelper.Methods["toxml"] = types.NewFunctionTypeWithMetadata(
+		[]types.Type{types.INTEGER},
+		[]string{"mode"},
+		[]interface{}{int64(0)}, // Default mode: ignore unsupported characters
+		[]bool{false},
+		[]bool{false},
+		[]bool{false},
+		types.STRING,
+	)
+	stringHelper.BuiltinMethods["toxml"] = "__string_toxml"
 
 	// Register case-insensitive property/method aliases for DWScript compatibility
 	// Task 9.23: .uppercase -> .ToUpper, .lowercase -> .ToLower

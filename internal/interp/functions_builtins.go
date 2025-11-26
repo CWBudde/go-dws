@@ -81,7 +81,7 @@ func (i *Interpreter) isBuiltinFunction(name string) bool {
 	case "PrintLn", "Print", "Ord", "Integer", "Length", "Copy", "Concat",
 		"IndexOf", "Contains", "Reverse", "Sort", "Pos", "UpperCase",
 		"LowerCase", "ASCIIUpperCase", "ASCIILowerCase", "AnsiUpperCase", "AnsiLowerCase",
-		"Trim", "TrimLeft", "TrimRight", "StringReplace", "StringOfChar",
+		"Trim", "TrimLeft", "TrimRight", "StringReplace", "StrReplace", "StrReplaceMacros", "StringOfChar",
 		"SubStr", "SubString", "LeftStr", "RightStr", "MidStr",
 		"StrBeginsWith", "StrEndsWith", "StrContains", "PosEx", "RevPos", "StrFind",
 		"StrSplit", "StrJoin", "StrArrayPack",

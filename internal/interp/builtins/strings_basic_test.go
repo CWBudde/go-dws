@@ -769,7 +769,7 @@ func TestStrBeginsWith(t *testing.T) {
 				&runtime.StringValue{Value: "Hello"},
 				&runtime.StringValue{Value: ""},
 			},
-			expected: true,
+			expected: false,
 		},
 	}
 
@@ -817,7 +817,7 @@ func TestStrEndsWith(t *testing.T) {
 				&runtime.StringValue{Value: "Hello"},
 				&runtime.StringValue{Value: ""},
 			},
-			expected: true,
+			expected: false,
 		},
 	}
 

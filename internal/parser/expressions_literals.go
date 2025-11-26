@@ -92,14 +92,6 @@ func (p *Parser) parseStringLiteral() ast.Expression {
 	// extract the value without the quotes
 	value := currentToken.Literal
 
-	// Remove surrounding quotes
-	if len(value) >= 2 {
-		if (value[0] == '\'' && value[len(value)-1] == '\'') ||
-			(value[0] == '"' && value[len(value)-1] == '"') {
-			value = value[1 : len(value)-1]
-		}
-	}
-
 	// Handle escaped quotes ('' -> ')
 	value = unescapeString(value)
 

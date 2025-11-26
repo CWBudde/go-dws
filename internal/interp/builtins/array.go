@@ -66,7 +66,7 @@ func Copy(ctx Context, args []Value) Value {
 		return ctx.ArrayCopy(args[0])
 	}
 
-	// Handle string copy: Copy(str, index, count) - 3 arguments
+	// Handle string copy: Copy(str, index, count)
 	if len(args) != 3 {
 		return ctx.NewError("Copy() expects either 1 argument (array) or 3 arguments (string), got %d", len(args))
 	}
@@ -87,7 +87,7 @@ func Copy(ctx Context, args []Value) Value {
 		return ctx.NewError("Copy() expects integer as second argument, got %T", args[1])
 	}
 
-	// Third argument: count
+	// Third argument: count (optional, defaults to copy to end)
 	var countInt int64
 	if intVal, ok := args[2].(*runtime.IntegerValue); ok {
 		countInt = intVal.Value

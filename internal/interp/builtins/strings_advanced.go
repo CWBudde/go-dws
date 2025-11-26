@@ -113,7 +113,7 @@ func StrAfter(ctx Context, args []Value) Value {
 
 	// Handle empty delimiter - return empty string
 	if len(delim) == 0 {
-		return &runtime.StringValue{Value: ""}
+		return &runtime.StringValue{Value: str}
 	}
 
 	// Find the first occurrence of delimiter
@@ -196,8 +196,10 @@ func StrBetween(ctx Context, args []Value) Value {
 	start := startVal.Value
 	stop := stopVal.Value
 
-	// Handle empty delimiters - return empty string
-	if len(start) == 0 || len(stop) == 0 {
+	// Handle empty delimiters following DWScript semantics:
+	// - Empty start -> not found
+	// - Empty stop  -> return everything after the start delimiter (if present)
+	if len(start) == 0 {
 		return &runtime.StringValue{Value: ""}
 	}
 
@@ -215,10 +217,14 @@ func StrBetween(ctx Context, args []Value) Value {
 		return &runtime.StringValue{Value: ""}
 	}
 
-	stopIdx := strings.Index(str[searchFrom:], stop)
+	// Empty stop delimiter means "to the end"
+	stopIdx := -1
+	if len(stop) > 0 {
+		stopIdx = strings.Index(str[searchFrom:], stop)
+	}
 	if stopIdx == -1 {
-		// Stop delimiter not found - return empty string
-		return &runtime.StringValue{Value: ""}
+		// Stop delimiter not found - return substring from start to end
+		return &runtime.StringValue{Value: str[searchFrom:]}
 	}
 
 	// Adjust stopIdx to be relative to the original string
@@ -226,6 +232,76 @@ func StrBetween(ctx Context, args []Value) Value {
 
 	// Return substring between start and stop delimiters
 	return &runtime.StringValue{Value: str[searchFrom:stopIdx]}
+}
+
+// StrReplaceMacros replaces macros delimited by start/end tokens using a map of replacements.
+// StrReplaceMacros(str, macrosArray, startDelim [, endDelim])
+// macrosArray is an array of strings in pairs: [key1, val1, key2, val2, ...]
+func StrReplaceMacros(ctx Context, args []Value) Value {
+	if len(args) < 2 || len(args) > 4 {
+		return ctx.NewError("StrReplaceMacros() expects 2 to 4 arguments, got %d", len(args))
+	}
+
+	textVal, ok := args[0].(*runtime.StringValue)
+	if !ok {
+		return ctx.NewError("StrReplaceMacros() expects string as first argument, got %s", args[0].Type())
+	}
+	macroArr, ok := args[1].(*runtime.ArrayValue)
+	if !ok {
+		return ctx.NewError("StrReplaceMacros() expects array as second argument, got %s", args[1].Type())
+	}
+
+	startDelim := ""
+	endDelim := ""
+	if len(args) >= 3 {
+		if s, ok := args[2].(*runtime.StringValue); ok {
+			startDelim = s.Value
+		} else {
+			return ctx.NewError("StrReplaceMacros() expects string as third argument, got %s", args[2].Type())
+		}
+	}
+	if len(args) == 4 {
+		if s, ok := args[3].(*runtime.StringValue); ok {
+			endDelim = s.Value
+		} else {
+			return ctx.NewError("StrReplaceMacros() expects string as fourth argument, got %s", args[3].Type())
+		}
+	}
+
+	macros := []string{}
+	for _, elem := range macroArr.Elements {
+		if sv, ok := elem.(*runtime.StringValue); ok {
+			macros = append(macros, sv.Value)
+		} else {
+			return ctx.NewError("StrReplaceMacros() expects array of strings for macros")
+		}
+	}
+
+	text := textVal.Value
+	// Replace using pairs
+	for i := 0; i+1 < len(macros); i += 2 {
+		key := macros[i]
+		val := macros[i+1]
+
+		var pattern string
+		switch {
+		case startDelim != "" && endDelim != "":
+			pattern = startDelim + key + endDelim
+		case startDelim != "":
+			pattern = startDelim + key + startDelim
+		default:
+			pattern = key
+		}
+
+		if pattern == "" {
+			// Avoid infinite loops when pattern is empty
+			continue
+		}
+
+		text = strings.ReplaceAll(text, pattern, val)
+	}
+
+	return &runtime.StringValue{Value: text}
 }
 
 // IsDelimiter implements the IsDelimiter() built-in function.
@@ -321,8 +397,8 @@ func LastDelimiter(ctx Context, args []Value) Value {
 // It finds the position of the first occurrence of any delimiter character, starting from an index.
 // FindDelimiter(delims, str, startIndex) - returns 1-based position (0 if not found)
 func FindDelimiter(ctx Context, args []Value) Value {
-	if len(args) != 3 {
-		return ctx.NewError("FindDelimiter() expects exactly 3 arguments, got %d", len(args))
+	if len(args) != 2 && len(args) != 3 {
+		return ctx.NewError("FindDelimiter() expects 2 or 3 arguments, got %d", len(args))
 	}
 
 	// First argument: delimiter characters
@@ -338,15 +414,17 @@ func FindDelimiter(ctx Context, args []Value) Value {
 	}
 
 	// Third argument: start index (1-based)
-	startIndexVal, ok := args[2].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("FindDelimiter() expects integer as third argument, got %s", args[2].Type())
+	startIndex := 1
+	if len(args) == 3 {
+		startIndexVal, ok := ctx.ToInt64(args[2])
+		if !ok {
+			return ctx.NewError("FindDelimiter() expects integer as third argument, got %s", args[2].Type())
+		}
+		startIndex = int(startIndexVal)
 	}
 
 	delims := delimsVal.Value
 	str := strVal.Value
-	startIndex := int(startIndexVal.Value) // 1-based
-
 	// Handle invalid start index
 	if startIndex < 1 {
 		return &runtime.IntegerValue{Value: 0}

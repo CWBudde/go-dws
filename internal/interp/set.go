@@ -47,6 +47,19 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 		}
 	}
 
+	// If semantic analysis provided a set type annotation, capture it for inference.
+	var annotatedSetType *types.SetType
+	if typeAnnot != nil && typeAnnot.Name != "" {
+		if resolvedType, err := i.resolveType(typeAnnot.Name); err == nil {
+			if setType, ok := types.GetUnderlyingType(resolvedType).(*types.SetType); ok {
+				annotatedSetType = setType
+			}
+		}
+		if annotatedSetType == nil {
+			annotatedSetType = i.parseInlineSetType(typeAnnot.Name)
+		}
+	}
+
 	// Task 9.8/9.226: Evaluate all elements and determine the ordinal type
 	// Use a temporary map to collect ordinals, then populate the correct storage
 	var elementType types.Type
@@ -207,8 +220,16 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 		}
 	}
 
+	// If we couldn't determine element type from elements, fall back to annotated type.
+	if elementType == nil && annotatedSetType != nil {
+		elementType = annotatedSetType.ElementType
+	}
+
 	// Handle empty set - if no element type determined, we can't infer it
 	if elementType == nil && len(literal.Elements) == 0 {
+		if annotatedSetType != nil {
+			return NewSetValue(annotatedSetType)
+		}
 		// Empty set - try to get type from literal's type annotation
 		// For now, return error - empty sets need type context
 		return &ErrorValue{
@@ -216,8 +237,20 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 		}
 	}
 
+	if annotatedSetType != nil && elementType != nil && !annotatedSetType.ElementType.Equals(elementType) {
+		return &ErrorValue{
+			Message: fmt.Sprintf("type mismatch in set literal: expected set of %s, got set of %s",
+				annotatedSetType.ElementType.String(), elementType.String()),
+		}
+	}
+
 	// Task 9.8/9.226: Create the SetType (automatically selects storage strategy)
-	setType := types.NewSetType(elementType)
+	var setType *types.SetType
+	if annotatedSetType != nil {
+		setType = annotatedSetType
+	} else {
+		setType = types.NewSetType(elementType)
+	}
 
 	// Task 9.8: Create SetValue and populate the correct storage backend
 	setValue := NewSetValue(setType)

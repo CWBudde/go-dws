@@ -206,7 +206,7 @@ func TestStringHelper_StartsWith(t *testing.T) {
 		{
 			name:     "StartsWith empty prefix",
 			input:    "PrintLn('test'.StartsWith(''));",
-			expected: "True\n",
+			expected: "False\n",
 		},
 		{
 			name:     "StartsWith longer than string",
@@ -560,12 +560,12 @@ func TestStringHelper_EdgeCases(t *testing.T) {
 		{
 			name:     "StartsWith empty string",
 			input:    "PrintLn('test'.StartsWith(''));",
-			expected: "True\n",
+			expected: "False\n",
 		},
 		{
 			name:     "EndsWith empty string",
 			input:    "PrintLn('test'.EndsWith(''));",
-			expected: "True\n",
+			expected: "False\n",
 		},
 	}
 

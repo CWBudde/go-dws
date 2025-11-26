@@ -438,7 +438,9 @@ func (i *Interpreter) initIntrinsicHelpers() {
 	}
 
 	register := func(typeName string, helper *HelperInfo) {
-		i.helpers[ident.Normalize(typeName)] = append(i.helpers[ident.Normalize(typeName)], helper)
+		norm := ident.Normalize(typeName)
+		i.helpers[norm] = append(i.helpers[norm], helper)
+		i.typeSystem.RegisterHelper(typeName, helper)
 	}
 
 	// Integer helper
@@ -499,6 +501,8 @@ func (i *Interpreter) initIntrinsicHelpers() {
 	stringHelper.BuiltinMethods["toupper"] = "__string_toupper"
 	stringHelper.Methods["tolower"] = nil
 	stringHelper.BuiltinMethods["tolower"] = "__string_tolower"
+	stringHelper.Methods["matches"] = nil
+	stringHelper.BuiltinMethods["matches"] = "__string_matches"
 
 	// String transformation methods
 	stringHelper.Methods["padleft"] = nil
@@ -553,10 +557,31 @@ func (i *Interpreter) initIntrinsicHelpers() {
 	// Modification methods
 	stringHelper.Methods["trim"] = nil
 	stringHelper.BuiltinMethods["trim"] = "__string_trim"
+	stringHelper.Methods["trimleft"] = nil
+	stringHelper.BuiltinMethods["trimleft"] = "__string_trimleft"
+	stringHelper.Methods["trimright"] = nil
+	stringHelper.BuiltinMethods["trimright"] = "__string_trimright"
 
 	// Split/join methods
 	stringHelper.Methods["split"] = nil
 	stringHelper.BuiltinMethods["split"] = "__string_split"
+	stringHelper.Methods["tojson"] = nil
+	stringHelper.BuiltinMethods["tojson"] = "__string_tojson"
+	stringHelper.Methods["tohtml"] = nil
+	stringHelper.BuiltinMethods["tohtml"] = "__string_tohtml"
+	stringHelper.Methods["tohtmlattribute"] = nil
+	stringHelper.BuiltinMethods["tohtmlattribute"] = "__string_tohtmlattribute"
+	stringHelper.Methods["tocsstext"] = nil
+	stringHelper.BuiltinMethods["tocsstext"] = "__string_tocsstext"
+	stringHelper.Methods["toxml"] = nil
+	stringHelper.BuiltinMethods["toxml"] = "__string_toxml"
+	stringHelper.Properties["isascii"] = &types.PropertyInfo{
+		Name:      "IsASCII",
+		Type:      types.BOOLEAN,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__string_isascii",
+		WriteKind: types.PropAccessNone,
+	}
 
 	// Case-insensitive aliases for DWScript compatibility
 	stringHelper.Methods["uppercase"] = nil
@@ -573,6 +598,15 @@ func (i *Interpreter) initIntrinsicHelpers() {
 	stringArrayHelper.Methods["join"] = nil
 	stringArrayHelper.BuiltinMethods["join"] = "__string_array_join"
 	register(stringArrayType.String(), stringArrayHelper)
+
+	// Generic array helper additions
+	arrayHelper := NewHelperInfo("TArrayHelper", nil, false)
+	arrayHelper.Methods["map"] = nil
+	arrayHelper.BuiltinMethods["map"] = "__array_map"
+	arrayHelper.Methods["join"] = nil
+	arrayHelper.BuiltinMethods["join"] = "__array_join"
+	i.helpers["array"] = append(i.helpers["array"], arrayHelper)
+	i.typeSystem.RegisterHelper("array", arrayHelper)
 }
 
 // initEnumHelpers registers built-in helpers for enumerated types.

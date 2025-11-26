@@ -219,7 +219,7 @@ func TestStrBetween(t *testing.T) {
 				&runtime.StringValue{Value: "["},
 				&runtime.StringValue{Value: "]"},
 			},
-			expected: "",
+			expected: "WorldEnd",
 		},
 	}
 

@@ -11,10 +11,10 @@ import (
 // Functions for searching, finding, and comparing strings
 
 // analyzePos analyzes the Pos built-in function.
-// Pos takes two string arguments and returns an integer.
+// Pos takes two string arguments and an optional integer offset and returns an integer.
 func (a *Analyzer) analyzePos(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 2 {
-		a.addError("function 'Pos' expects 2 arguments, got %d at %s",
+	if len(args) < 2 || len(args) > 3 {
+		a.addError("function 'Pos' expects 2 or 3 arguments, got %d at %s",
 			len(args), callExpr.Token.Pos.String())
 		return types.INTEGER
 	}
@@ -29,6 +29,13 @@ func (a *Analyzer) analyzePos(args []ast.Expression, callExpr *ast.CallExpressio
 	if strType != nil && strType != types.STRING {
 		a.addError("function 'Pos' expects string as second argument, got %s at %s",
 			strType.String(), callExpr.Token.Pos.String())
+	}
+	if len(args) == 3 {
+		offsetType := a.analyzeExpression(args[2])
+		if offsetType != nil && offsetType != types.INTEGER {
+			a.addError("function 'Pos' expects integer as third argument, got %s at %s",
+				offsetType.String(), callExpr.Token.Pos.String())
+		}
 	}
 	return types.INTEGER
 }
@@ -155,10 +162,10 @@ func (a *Analyzer) analyzeRevPos(args []ast.Expression, callExpr *ast.CallExpres
 }
 
 // analyzeStrFind analyzes the StrFind built-in function.
-// StrFind(str, substr, fromIndex) - returns integer (1-based position, 0 if not found)
+// StrFind(str, substr [, fromIndex]) - returns integer (1-based position, 0 if not found)
 func (a *Analyzer) analyzeStrFind(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 3 {
-		a.addError("function 'StrFind' expects 3 arguments, got %d at %s",
+	if len(args) < 2 || len(args) > 3 {
+		a.addError("function 'StrFind' expects 2 or 3 arguments, got %d at %s",
 			len(args), callExpr.Token.Pos.String())
 		return types.INTEGER
 	}
@@ -174,11 +181,13 @@ func (a *Analyzer) analyzeStrFind(args []ast.Expression, callExpr *ast.CallExpre
 		a.addError("function 'StrFind' expects string as second argument, got %s at %s",
 			substrType.String(), callExpr.Token.Pos.String())
 	}
-	// Analyze third argument (fromIndex - integer)
-	fromIndexType := a.analyzeExpression(args[2])
-	if fromIndexType != nil && fromIndexType != types.INTEGER {
-		a.addError("function 'StrFind' expects integer as third argument, got %s at %s",
-			fromIndexType.String(), callExpr.Token.Pos.String())
+	if len(args) == 3 {
+		// Analyze third argument (fromIndex - integer)
+		fromIndexType := a.analyzeExpression(args[2])
+		if fromIndexType != nil && fromIndexType != types.INTEGER {
+			a.addError("function 'StrFind' expects integer as third argument, got %s at %s",
+				fromIndexType.String(), callExpr.Token.Pos.String())
+		}
 	}
 	return types.INTEGER
 }
@@ -238,8 +247,8 @@ func (a *Analyzer) analyzeLastDelimiter(args []ast.Expression, callExpr *ast.Cal
 // analyzeFindDelimiter analyzes the FindDelimiter built-in function.
 // FindDelimiter(delims, str, startIndex) - returns integer
 func (a *Analyzer) analyzeFindDelimiter(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 3 {
-		a.addError("function 'FindDelimiter' expects 3 arguments, got %d at %s",
+	if len(args) < 2 || len(args) > 3 {
+		a.addError("function 'FindDelimiter' expects 2 or 3 arguments, got %d at %s",
 			len(args), callExpr.Token.Pos.String())
 		return types.INTEGER
 	}
@@ -255,11 +264,13 @@ func (a *Analyzer) analyzeFindDelimiter(args []ast.Expression, callExpr *ast.Cal
 		a.addError("function 'FindDelimiter' expects string as second argument, got %s at %s",
 			strType.String(), callExpr.Token.Pos.String())
 	}
-	// Analyze third argument (startIndex - integer)
-	startIndexType := a.analyzeExpression(args[2])
-	if startIndexType != nil && startIndexType != types.INTEGER {
-		a.addError("function 'FindDelimiter' expects integer as third argument, got %s at %s",
-			startIndexType.String(), callExpr.Token.Pos.String())
+	if len(args) == 3 {
+		// Analyze third argument (startIndex - integer)
+		startIndexType := a.analyzeExpression(args[2])
+		if startIndexType != nil && startIndexType != types.INTEGER {
+			a.addError("function 'FindDelimiter' expects integer as third argument, got %s at %s",
+				startIndexType.String(), callExpr.Token.Pos.String())
+		}
 	}
 	return types.INTEGER
 }

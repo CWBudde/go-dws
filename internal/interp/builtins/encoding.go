@@ -1,11 +1,14 @@
 package builtins
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
-	"unicode"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/lexer"
+	pkgast "github.com/cwbudde/go-dws/pkg/ast"
+	pkgtoken "github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -94,30 +97,18 @@ func htmlAttributeEncode(s string) string {
 	b.Grow(len(s))
 
 	for _, r := range s {
-		switch r {
-		case '&':
-			b.WriteString("&amp;")
-		case '<':
-			b.WriteString("&lt;")
-		case '>':
-			b.WriteString("&gt;")
-		case '"':
-			b.WriteString("&quot;")
-		case '\'':
-			b.WriteString("&#39;")
-		case '\n':
-			b.WriteString("&#10;")
-		case '\r':
-			b.WriteString("&#13;")
-		case '\t':
-			b.WriteString("&#9;")
-		default:
-			// Encode other control characters
-			if r < 32 || r == 127 {
-				fmt.Fprintf(&b, "&#%d;", r)
-			} else {
-				b.WriteRune(r)
-			}
+		// As per OWASP rule #2: encode everything except alphanumerics
+		if ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z') || ('0' <= r && r <= '9') || r > 255 {
+			b.WriteRune(r)
+			continue
+		}
+
+		code := int(r)
+		// Use decimal for common ASCII characters, hex otherwise (matches DWScript reference)
+		if code >= 10 && code <= 99 {
+			fmt.Fprintf(&b, "&#%d;", code)
+		} else {
+			fmt.Fprintf(&b, "&#x%X;", code)
 		}
 	}
 
@@ -137,44 +128,13 @@ func StrToJSON(ctx Context, args []Value) Value {
 		return ctx.NewError("StrToJSON() expects string argument, got %s", args[0].Type())
 	}
 
-	// JSON encode the string
-	result := jsonEncode(strVal.Value)
-	return &runtime.StringValue{Value: result}
-}
-
-// jsonEncode encodes a string for safe use in JSON.
-// Escapes: \ " and control characters
-func jsonEncode(s string) string {
-	var b strings.Builder
-	b.Grow(len(s) + 10) // Extra space for escape sequences
-
-	for _, r := range s {
-		switch r {
-		case '\\':
-			b.WriteString("\\\\")
-		case '"':
-			b.WriteString("\\\"")
-		case '\b':
-			b.WriteString("\\b")
-		case '\f':
-			b.WriteString("\\f")
-		case '\n':
-			b.WriteString("\\n")
-		case '\r':
-			b.WriteString("\\r")
-		case '\t':
-			b.WriteString("\\t")
-		default:
-			// Escape other control characters
-			if r < 32 || r == 127 {
-				fmt.Fprintf(&b, "\\u%04x", r)
-			} else {
-				b.WriteRune(r)
-			}
-		}
+	// JSON encode the string using the standard library for correctness
+	jsonEncoded, err := json.Marshal(strVal.Value)
+	if err != nil {
+		return ctx.NewError("StrToJSON() failed: %v", err)
 	}
 
-	return b.String()
+	return &runtime.StringValue{Value: string(jsonEncoded)}
 }
 
 // StrToCSSText encodes a string for safe use in CSS text.
@@ -198,34 +158,22 @@ func StrToCSSText(ctx Context, args []Value) Value {
 // cssEncode encodes a string for safe use in CSS text.
 // Escapes special CSS characters using CSS escape sequences.
 func cssEncode(s string) string {
+	if s == "" {
+		return ""
+	}
+
 	var b strings.Builder
-	b.Grow(len(s) + 10)
+	// Worst case every character is escaped with a leading backslash
+	b.Grow(len(s) * 2)
 
 	for _, r := range s {
-		// Check if character needs escaping
-		// CSS requires escaping for: \ " ' ( ) { } [ ] < > ; : , . / ? ! @ # $ % ^ & * = + | ~
-		// Also escape newlines, tabs, and control characters
-		needsEscape := false
-
-		switch r {
-		case '\\', '"', '\'', '(', ')', '{', '}', '[', ']',
-			'<', '>', ';', ':', ',', '.', '/', '?', '!',
-			'@', '#', '$', '%', '^', '&', '*', '=', '+',
-			'|', '~', '\n', '\r', '\t', '\f':
-			needsEscape = true
-		default:
-			// Escape control characters and non-ASCII characters that might be problematic
-			if r < 32 || r == 127 {
-				needsEscape = true
-			}
-		}
-
-		if needsEscape {
-			// CSS hex escape: \HH or \HHHHHH (up to 6 hex digits)
-			fmt.Fprintf(&b, "\\%x ", r)
-		} else {
+		if ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z') || ('0' <= r && r <= '9') || r > 255 {
 			b.WriteRune(r)
+			continue
 		}
+
+		b.WriteRune('\\')
+		b.WriteRune(r)
 	}
 
 	return b.String()
@@ -263,19 +211,62 @@ func StrToXML(ctx Context, args []Value) Value {
 	}
 
 	// XML encode the string
-	result := xmlEncode(strVal.Value, mode)
+	result, err := xmlEncode(strVal.Value, mode)
+	if err != nil {
+		// Enrich error with source position if available
+		msg := err.Error()
+		var excPos *lexer.Position
+		if node := ctx.CurrentNode(); node != nil {
+			switch n := node.(type) {
+			case *pkgast.MethodCallExpression:
+				pos := n.Method.Pos()
+				msg = fmt.Sprintf("%s [line: %d, column: %d]", msg, pos.Line, pos.Column)
+				excPos = &lexer.Position{Line: pos.Line, Column: pos.Column}
+			default:
+				if posNode, ok := node.(interface{ Pos() pkgtoken.Position }); ok {
+					pos := posNode.Pos()
+					msg = fmt.Sprintf("%s [line: %d, column: %d]", msg, pos.Line, pos.Column)
+					excPos = &lexer.Position{Line: pos.Line, Column: pos.Column}
+				}
+			}
+		}
+
+		// Try to raise a DWScript-style exception so try/except can catch it
+		if raiser, ok := ctx.(interface {
+			RaiseException(className, message string, pos any)
+		}); ok {
+			raiser.RaiseException("Exception", msg, excPos)
+		}
+
+		// Also return an error value to abort the current evaluation path
+		return ctx.NewError(msg)
+	}
 	return &runtime.StringValue{Value: result}
 }
 
 // xmlEncode encodes a string for safe use in XML.
-// Mode 0: Standard XML encoding (content)
-// Mode 1: XML attribute encoding (more restrictive)
-// Mode 2: XML text encoding (preserves whitespace)
-func xmlEncode(s string, mode int) string {
+// Mode 0: ignore unsupported XML characters
+// Mode 1: encode unsupported XML characters as numeric entities
+// Other modes: raise an error on unsupported characters
+func xmlEncode(s string, mode int) (string, error) {
 	var b strings.Builder
 	b.Grow(len(s))
 
 	for _, r := range s {
+		// Unsupported XML 1.0 characters (control chars except CR/LF/TAB)
+		if (r >= 1 && r <= 8) || (r >= 11 && r <= 12) || (r >= 14 && r <= 31) {
+			switch mode {
+			case 0:
+				// Ignore (drop character)
+				continue
+			case 1:
+				fmt.Fprintf(&b, "&#%d;", r)
+				continue
+			default:
+				return "", fmt.Errorf("Unsupported character #%d", r)
+			}
+		}
+
 		switch r {
 		case '&':
 			b.WriteString("&amp;")
@@ -284,50 +275,13 @@ func xmlEncode(s string, mode int) string {
 		case '>':
 			b.WriteString("&gt;")
 		case '"':
-			if mode == 1 { // Attribute mode
-				b.WriteString("&quot;")
-			} else {
-				b.WriteRune(r)
-			}
+			b.WriteString("&quot;")
 		case '\'':
-			if mode == 1 { // Attribute mode
-				b.WriteString("&apos;")
-			} else {
-				b.WriteRune(r)
-			}
-		case '\n':
-			switch mode {
-			case 1: // Attribute mode - encode newlines
-				b.WriteString("&#10;")
-			case 2: // Text mode - preserve
-				b.WriteRune(r)
-			default:
-				b.WriteRune(r)
-			}
-		case '\r':
-			switch mode {
-			case 1: // Attribute mode
-				b.WriteString("&#13;")
-			case 2: // Text mode - preserve
-				b.WriteRune(r)
-			default:
-				b.WriteRune(r)
-			}
-		case '\t':
-			if mode == 1 { // Attribute mode
-				b.WriteString("&#9;")
-			} else {
-				b.WriteRune(r)
-			}
+			b.WriteString("&apos;")
 		default:
-			// Encode control characters in all modes
-			if !unicode.IsPrint(r) && r != '\n' && r != '\r' && r != '\t' {
-				fmt.Fprintf(&b, "&#%d;", r)
-			} else {
-				b.WriteRune(r)
-			}
+			b.WriteRune(r)
 		}
 	}
 
-	return b.String()
+	return b.String(), nil
 }

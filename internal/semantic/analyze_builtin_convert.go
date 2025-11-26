@@ -218,18 +218,25 @@ func (a *Analyzer) analyzeVarToStr(args []ast.Expression, callExpr *ast.CallExpr
 }
 
 // analyzeFloatToStr analyzes the FloatToStr built-in function.
-// FloatToStr takes one float argument and returns a string.
+// FloatToStr takes a float (or integer) and optional precision and returns a string.
 func (a *Analyzer) analyzeFloatToStr(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'FloatToStr' expects 1 argument, got %d at %s",
+	if len(args) == 0 || len(args) > 2 {
+		a.addError("function 'FloatToStr' expects 1 or 2 arguments, got %d at %s",
 			len(args), callExpr.Token.Pos.String())
 		return types.STRING
 	}
-	// Analyze the argument and verify it's Float
+	// Analyze the argument and verify it's numeric
 	argType := a.analyzeExpression(args[0])
-	if argType != nil && argType != types.FLOAT {
+	if argType != nil && argType != types.FLOAT && argType != types.INTEGER {
 		a.addError("function 'FloatToStr' expects Float as argument, got %s at %s",
 			argType.String(), callExpr.Token.Pos.String())
+	}
+	if len(args) == 2 {
+		precType := a.analyzeExpression(args[1])
+		if precType != nil && precType != types.INTEGER {
+			a.addError("function 'FloatToStr' expects Integer precision as second argument, got %s at %s",
+				precType.String(), callExpr.Token.Pos.String())
+		}
 	}
 	return types.STRING
 }

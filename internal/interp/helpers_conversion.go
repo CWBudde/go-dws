@@ -195,6 +195,11 @@ func extractSimpleTypeName(typeName string) string {
 
 // evalBuiltinHelperMethod executes a built-in helper method implementation identified by spec.
 func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args []Value, node ast.Node) Value {
+	// Ensure CurrentNode points to the helper invocation for accurate error reporting
+	prevNode := i.currentNode
+	i.currentNode = node
+	defer func() { i.currentNode = prevNode }()
+
 	switch spec {
 	case "__integer_tostring":
 		if len(args) != 0 {
@@ -305,6 +310,44 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 			builder.WriteString(strElem.Value)
 		}
 		return &StringValue{Value: builder.String()}
+
+	case "__array_map":
+		if len(args) != 1 {
+			return i.newErrorWithLocation(node, "Array.Map expects exactly 1 argument")
+		}
+		arrVal, ok := selfValue.(*ArrayValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Array.Map requires array receiver")
+		}
+		fn, ok := args[0].(*FunctionPointerValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Array.Map expects function pointer as argument, got %s", args[0].Type())
+		}
+		return i.builtinMap([]Value{arrVal, fn})
+
+	case "__array_join":
+		if len(args) != 1 {
+			return i.newErrorWithLocation(node, "Array.Join expects exactly 1 argument")
+		}
+		arrVal, ok := selfValue.(*ArrayValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Array.Join requires array receiver")
+		}
+		sep, ok := args[0].(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Array.Join separator must be String, got %s", args[0].Type())
+		}
+		var b strings.Builder
+		for idx, elem := range arrVal.Elements {
+			if idx > 0 {
+				b.WriteString(sep.Value)
+			}
+			if elem == nil {
+				continue
+			}
+			b.WriteString(elem.String())
+		}
+		return &StringValue{Value: b.String()}
 
 	case "__array_add":
 		// Implements arr.Add(value) - adds an element to a dynamic array
@@ -634,6 +677,26 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		// Call the builtin Pos function with reversed arguments: Pos(substr, str)
 		return builtins.Pos(i, []builtins.Value{args[0], strVal})
 
+	case "__string_matches":
+		if len(args) != 1 {
+			return i.newErrorWithLocation(node, "String.Matches expects exactly 1 argument")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.Matches requires string receiver")
+		}
+		return builtins.StrMatches(i, []builtins.Value{strVal, args[0]})
+
+	case "__string_isascii":
+		if len(args) != 0 {
+			return i.newErrorWithLocation(node, "String.IsASCII does not take arguments")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.IsASCII requires string receiver")
+		}
+		return builtins.StrIsASCII(i, []builtins.Value{strVal})
+
 	case "__string_copy":
 		// String.Copy(start, [len]) -> Copy(self, start, len)
 		// Optional second parameter defaults to MaxInt (copy to end)
@@ -677,16 +740,55 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		return builtins.StrAfter(i, []builtins.Value{strVal, args[0]})
 
 	case "__string_trim":
-		// String.Trim() -> Trim(self)
-		if len(args) != 0 {
-			return i.newErrorWithLocation(node, "String.Trim does not take arguments")
+		// String.Trim([left,right]) -> Trim variations
+		if len(args) != 0 && len(args) != 2 {
+			return i.newErrorWithLocation(node, "String.Trim expects 0 or 2 arguments")
 		}
 		strVal, ok := selfValue.(*StringValue)
 		if !ok {
 			return i.newErrorWithLocation(node, "String.Trim requires string receiver")
 		}
-		// Call the builtin Trim function
-		return builtins.Trim(i, []builtins.Value{strVal})
+		if len(args) == 0 {
+			return builtins.Trim(i, []builtins.Value{strVal})
+		}
+		left, lok := args[0].(*IntegerValue)
+		right, rok := args[1].(*IntegerValue)
+		if !lok || !rok {
+			return i.newErrorWithLocation(node, "String.Trim expects integer counts")
+		}
+		runes := []rune(strVal.Value)
+		start := int(left.Value)
+		endTrim := int(right.Value)
+		if start < 0 {
+			start = 0
+		}
+		if endTrim < 0 {
+			endTrim = 0
+		}
+		if start+endTrim >= len(runes) {
+			return &StringValue{Value: ""}
+		}
+		return &StringValue{Value: string(runes[start : len(runes)-endTrim])}
+
+	case "__string_trimleft":
+		if len(args) != 1 {
+			return i.newErrorWithLocation(node, "String.TrimLeft expects exactly 1 argument")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.TrimLeft requires string receiver")
+		}
+		return builtins.TrimLeft(i, []builtins.Value{strVal, args[0]})
+
+	case "__string_trimright":
+		if len(args) != 1 {
+			return i.newErrorWithLocation(node, "String.TrimRight expects exactly 1 argument")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.TrimRight requires string receiver")
+		}
+		return builtins.TrimRight(i, []builtins.Value{strVal, args[0]})
 
 	case "__string_split":
 		// String.Split(delimiter) -> StrSplit(self, delimiter)
@@ -699,6 +801,62 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		}
 		// Call the builtin StrSplit function
 		return builtins.StrSplit(i, []builtins.Value{strVal, args[0]})
+
+	case "__string_tojson":
+		if len(args) != 0 {
+			return i.newErrorWithLocation(node, "String.ToJSON does not take arguments")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.ToJSON requires string receiver")
+		}
+		return builtins.StrToJSON(i, []builtins.Value{strVal})
+
+	case "__string_tohtml":
+		if len(args) != 0 {
+			return i.newErrorWithLocation(node, "String.ToHTML does not take arguments")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.ToHTML requires string receiver")
+		}
+		return builtins.StrToHtml(i, []builtins.Value{strVal})
+
+	case "__string_tohtmlattribute":
+		if len(args) != 0 {
+			return i.newErrorWithLocation(node, "String.ToHtmlAttribute does not take arguments")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.ToHtmlAttribute requires string receiver")
+		}
+		return builtins.StrToHtmlAttribute(i, []builtins.Value{strVal})
+
+	case "__string_tocsstext":
+		if len(args) != 0 {
+			return i.newErrorWithLocation(node, "String.ToCSSText does not take arguments")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.ToCSSText requires string receiver")
+		}
+		return builtins.StrToCSSText(i, []builtins.Value{strVal})
+
+	case "__string_toxml":
+		// String.ToXML([mode]) -> StrToXML(self, [mode])
+		if len(args) > 1 {
+			return i.newErrorWithLocation(node, "String.ToXML expects 0 or 1 argument")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.ToXML requires string receiver")
+		}
+		// StrToXML accepts an optional mode parameter; forward it when provided.
+		allArgs := []builtins.Value{strVal}
+		if len(args) == 1 {
+			allArgs = append(allArgs, args[0])
+		}
+		return builtins.StrToXML(i, allArgs)
 
 	default:
 		// Try calling as a builtin function with self as first argument
@@ -757,6 +915,13 @@ func (i *Interpreter) evalBuiltinHelperProperty(propSpec string, selfValue Value
 			return i.newErrorWithLocation(node, "Float.ToString property requires float receiver")
 		}
 		return &StringValue{Value: fmt.Sprintf("%g", floatVal.Value)}
+
+	case "__string_isascii":
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.IsASCII property requires string receiver")
+		}
+		return builtins.StrIsASCII(i, []builtins.Value{strVal})
 
 	case "__boolean_tostring":
 		boolVal, ok := selfValue.(*BooleanValue)
