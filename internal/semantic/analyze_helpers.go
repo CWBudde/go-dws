@@ -525,7 +525,16 @@ func (a *Analyzer) initIntrinsicHelpers() {
 		ReadSpec:  "__integer_tostring",
 		WriteKind: types.PropAccessNone,
 	}
-	intHelper.Methods["tostring"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	// ToString([base]) - optional base (2..36), default 10
+	intHelper.Methods["tostring"] = types.NewFunctionTypeWithMetadata(
+		[]types.Type{types.INTEGER},
+		[]string{"base"},
+		[]interface{}{int64(10)},
+		[]bool{false},
+		[]bool{false},
+		[]bool{false},
+		types.STRING,
+	)
 	intHelper.BuiltinMethods["tostring"] = "__integer_tostring"
 	// ToHexString method: converts integer to hex string with specified number of digits
 	intHelper.Methods["tohexstring"] = types.NewFunctionType([]types.Type{types.INTEGER}, types.STRING)
@@ -652,6 +661,28 @@ func (a *Analyzer) initIntrinsicHelpers() {
 		Type:      types.BOOLEAN,
 		ReadKind:  types.PropAccessBuiltin,
 		ReadSpec:  "__string_isascii",
+		WriteKind: types.PropAccessNone,
+	}
+	// Allow property-style access for Trim helpers (e.g., s.Trim)
+	stringHelper.Properties["trim"] = &types.PropertyInfo{
+		Name:      "Trim",
+		Type:      types.STRING,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__string_trim",
+		WriteKind: types.PropAccessNone,
+	}
+	stringHelper.Properties["trimleft"] = &types.PropertyInfo{
+		Name:      "TrimLeft",
+		Type:      types.STRING,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__string_trimleft",
+		WriteKind: types.PropAccessNone,
+	}
+	stringHelper.Properties["trimright"] = &types.PropertyInfo{
+		Name:      "TrimRight",
+		Type:      types.STRING,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__string_trimright",
 		WriteKind: types.PropAccessNone,
 	}
 

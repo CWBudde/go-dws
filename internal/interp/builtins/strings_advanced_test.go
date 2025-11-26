@@ -32,7 +32,7 @@ func TestStrBefore(t *testing.T) {
 				&runtime.StringValue{Value: "HelloWorld"},
 				&runtime.StringValue{Value: "@"},
 			},
-			expected: "",
+			expected: "HelloWorld",
 		},
 		{
 			name: "delimiter at start",
@@ -41,6 +41,14 @@ func TestStrBefore(t *testing.T) {
 				&runtime.StringValue{Value: "@"},
 			},
 			expected: "",
+		},
+		{
+			name: "empty delimiter returns original string",
+			args: []Value{
+				&runtime.StringValue{Value: "HelloWorld"},
+				&runtime.StringValue{Value: ""},
+			},
+			expected: "HelloWorld",
 		},
 	}
 
@@ -90,6 +98,14 @@ func TestStrAfter(t *testing.T) {
 			},
 			expected: "",
 		},
+		{
+			name: "empty delimiter returns empty string",
+			args: []Value{
+				&runtime.StringValue{Value: "HelloWorld"},
+				&runtime.StringValue{Value: ""},
+			},
+			expected: "",
+		},
 	}
 
 	for _, tt := range tests {
@@ -128,7 +144,15 @@ func TestStrBeforeLast(t *testing.T) {
 				&runtime.StringValue{Value: "abc"},
 				&runtime.StringValue{Value: "@"},
 			},
-			expected: "",
+			expected: "abc",
+		},
+		{
+			name: "empty delimiter returns original string",
+			args: []Value{
+				&runtime.StringValue{Value: "abc"},
+				&runtime.StringValue{Value: ""},
+			},
+			expected: "abc",
 		},
 	}
 

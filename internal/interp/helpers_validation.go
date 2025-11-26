@@ -561,6 +561,28 @@ func (i *Interpreter) initIntrinsicHelpers() {
 	stringHelper.BuiltinMethods["trimleft"] = "__string_trimleft"
 	stringHelper.Methods["trimright"] = nil
 	stringHelper.BuiltinMethods["trimright"] = "__string_trimright"
+	// Property-style access for Trim helpers (no parentheses)
+	stringHelper.Properties["trim"] = &types.PropertyInfo{
+		Name:      "Trim",
+		Type:      types.STRING,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__string_trim",
+		WriteKind: types.PropAccessNone,
+	}
+	stringHelper.Properties["trimleft"] = &types.PropertyInfo{
+		Name:      "TrimLeft",
+		Type:      types.STRING,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__string_trimleft",
+		WriteKind: types.PropAccessNone,
+	}
+	stringHelper.Properties["trimright"] = &types.PropertyInfo{
+		Name:      "TrimRight",
+		Type:      types.STRING,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__string_trimright",
+		WriteKind: types.PropAccessNone,
+	}
 
 	// Split/join methods
 	stringHelper.Methods["split"] = nil

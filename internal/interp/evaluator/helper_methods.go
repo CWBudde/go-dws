@@ -277,13 +277,19 @@ func (e *Evaluator) CallHelperMethod(
 
 // CallBuiltinHelperMethod executes a builtin helper method directly in the evaluator.
 // Task 3.5.98c: Migrates builtin helper method execution from Interpreter.
+// Task 3.5.102a: String helper methods now handled directly in evaluator.
 //
-// For now, this delegates to the adapter, but we'll migrate specific implementations
-// incrementally to avoid creating a massive function.
+// Specific helper implementations are migrated incrementally:
+// - String helpers: ToUpper, ToLower, Length, ToString (Task 3.5.102a)
+//
+// Unhandled helpers fall through to the adapter.
 func (e *Evaluator) CallBuiltinHelperMethod(spec string, selfValue Value, args []Value, node ast.Node) Value {
-	// For now, delegate all builtin helper methods to the adapter
-	// We'll migrate specific implementations incrementally
-	// The adapter has the full evalBuiltinHelperMethod implementation
+	// Task 3.5.102a: Try string helpers first
+	if result := e.evalStringHelper(spec, selfValue, args, node); result != nil {
+		return result
+	}
+
+	// Fall through to adapter for unhandled helpers
 	return e.adapter.EvalNode(node)
 }
 

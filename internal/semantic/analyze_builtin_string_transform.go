@@ -148,52 +148,81 @@ func (a *Analyzer) analyzeLowerCase(args []ast.Expression, callExpr *ast.CallExp
 }
 
 // analyzeTrim analyzes the Trim built-in function.
-// Trim takes one string argument and returns a string.
+// Trim takes one string argument (or string with left/right counts) and returns a string.
 func (a *Analyzer) analyzeTrim(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'Trim' expects 1 argument, got %d at %s",
+	if len(args) != 1 && len(args) != 3 {
+		a.addError("function 'Trim' expects 1 or 3 arguments, got %d at %s",
 			len(args), callExpr.Token.Pos.String())
 		return types.STRING
 	}
-	// Analyze the argument and verify it's a string
+	// First argument must be string
 	argType := a.analyzeExpression(args[0])
 	if argType != nil && argType != types.STRING {
-		a.addError("function 'Trim' expects string as argument, got %s at %s",
+		a.addError("function 'Trim' expects string as first argument, got %s at %s",
 			argType.String(), callExpr.Token.Pos.String())
+	}
+	// Optional left/right counts
+	if len(args) == 3 {
+		leftType := a.analyzeExpression(args[1])
+		if leftType != nil && leftType != types.INTEGER {
+			a.addError("function 'Trim' expects integer as second argument, got %s at %s",
+				leftType.String(), callExpr.Token.Pos.String())
+		}
+		rightType := a.analyzeExpression(args[2])
+		if rightType != nil && rightType != types.INTEGER {
+			a.addError("function 'Trim' expects integer as third argument, got %s at %s",
+				rightType.String(), callExpr.Token.Pos.String())
+		}
 	}
 	return types.STRING
 }
 
 // analyzeTrimLeft analyzes the TrimLeft built-in function.
-// TrimLeft takes one string argument and returns a string.
+// TrimLeft takes one string argument (optionally a count) and returns a string.
 func (a *Analyzer) analyzeTrimLeft(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'TrimLeft' expects 1 argument, got %d at %s",
+	if len(args) != 1 && len(args) != 2 {
+		a.addError("function 'TrimLeft' expects 1 or 2 arguments, got %d at %s",
 			len(args), callExpr.Token.Pos.String())
 		return types.STRING
 	}
-	// Analyze the argument and verify it's a string
+	// First argument must be string
 	argType := a.analyzeExpression(args[0])
 	if argType != nil && argType != types.STRING {
-		a.addError("function 'TrimLeft' expects string as argument, got %s at %s",
+		a.addError("function 'TrimLeft' expects string as first argument, got %s at %s",
 			argType.String(), callExpr.Token.Pos.String())
+	}
+	// Optional count
+	if len(args) == 2 {
+		countType := a.analyzeExpression(args[1])
+		if countType != nil && countType != types.INTEGER {
+			a.addError("function 'TrimLeft' expects integer as second argument, got %s at %s",
+				countType.String(), callExpr.Token.Pos.String())
+		}
 	}
 	return types.STRING
 }
 
 // analyzeTrimRight analyzes the TrimRight built-in function.
-// TrimRight takes one string argument and returns a string.
+// TrimRight takes one string argument (optionally a count) and returns a string.
 func (a *Analyzer) analyzeTrimRight(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'TrimRight' expects 1 argument, got %d at %s",
+	if len(args) != 1 && len(args) != 2 {
+		a.addError("function 'TrimRight' expects 1 or 2 arguments, got %d at %s",
 			len(args), callExpr.Token.Pos.String())
 		return types.STRING
 	}
-	// Analyze the argument and verify it's a string
+	// First argument must be string
 	argType := a.analyzeExpression(args[0])
 	if argType != nil && argType != types.STRING {
-		a.addError("function 'TrimRight' expects string as argument, got %s at %s",
+		a.addError("function 'TrimRight' expects string as first argument, got %s at %s",
 			argType.String(), callExpr.Token.Pos.String())
+	}
+	// Optional count
+	if len(args) == 2 {
+		countType := a.analyzeExpression(args[1])
+		if countType != nil && countType != types.INTEGER {
+			a.addError("function 'TrimRight' expects integer as second argument, got %s at %s",
+				countType.String(), callExpr.Token.Pos.String())
+		}
 	}
 	return types.STRING
 }

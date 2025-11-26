@@ -12,7 +12,7 @@ import (
 
 // StrBefore implements the StrBefore() built-in function.
 // It returns the substring before the first occurrence of a delimiter.
-// StrBefore(str, delimiter) - returns substring before first delimiter (empty if not found)
+// StrBefore(str, delimiter) - returns substring before first delimiter (original string if not found)
 func StrBefore(ctx Context, args []Value) Value {
 	if len(args) != 2 {
 		return ctx.NewError("StrBefore() expects exactly 2 arguments, got %d", len(args))
@@ -41,8 +41,8 @@ func StrBefore(ctx Context, args []Value) Value {
 	// Find the first occurrence of delimiter
 	index := strings.Index(str, delim)
 	if index == -1 {
-		// Delimiter not found - return empty string
-		return &runtime.StringValue{Value: ""}
+		// Delimiter not found - return original string
+		return &runtime.StringValue{Value: str}
 	}
 
 	// Return substring before delimiter
@@ -51,7 +51,7 @@ func StrBefore(ctx Context, args []Value) Value {
 
 // StrBeforeLast implements the StrBeforeLast() built-in function.
 // It returns the substring before the last occurrence of a delimiter.
-// StrBeforeLast(str, delimiter) - returns substring before last delimiter (empty if not found)
+// StrBeforeLast(str, delimiter) - returns substring before last delimiter (original string if not found)
 func StrBeforeLast(ctx Context, args []Value) Value {
 	if len(args) != 2 {
 		return ctx.NewError("StrBeforeLast() expects exactly 2 arguments, got %d", len(args))
@@ -80,8 +80,8 @@ func StrBeforeLast(ctx Context, args []Value) Value {
 	// Find the last occurrence of delimiter
 	index := strings.LastIndex(str, delim)
 	if index == -1 {
-		// Delimiter not found - return empty string
-		return &runtime.StringValue{Value: ""}
+		// Delimiter not found - return original string
+		return &runtime.StringValue{Value: str}
 	}
 
 	// Return substring before last delimiter
@@ -113,7 +113,7 @@ func StrAfter(ctx Context, args []Value) Value {
 
 	// Handle empty delimiter - return empty string
 	if len(delim) == 0 {
-		return &runtime.StringValue{Value: str}
+		return &runtime.StringValue{Value: ""}
 	}
 
 	// Find the first occurrence of delimiter

@@ -541,16 +541,16 @@ func builtinStrBefore(vm *VM, args []Value) (Value, error) {
 	str := args[0].AsString()
 	delim := args[1].AsString()
 
-	// Handle empty delimiter - return empty string
+	// Handle empty delimiter - return original string
 	if len(delim) == 0 {
-		return StringValue(""), nil
+		return StringValue(str), nil
 	}
 
 	// Find the first occurrence of delimiter
 	index := strings.Index(str, delim)
 	if index == -1 {
-		// Delimiter not found - return empty string
-		return StringValue(""), nil
+		// Delimiter not found - return original string
+		return StringValue(str), nil
 	}
 
 	// Return substring before delimiter
@@ -571,16 +571,16 @@ func builtinStrBeforeLast(vm *VM, args []Value) (Value, error) {
 	str := args[0].AsString()
 	delim := args[1].AsString()
 
-	// Handle empty delimiter - return empty string
+	// Handle empty delimiter - return original string
 	if len(delim) == 0 {
-		return StringValue(""), nil
+		return StringValue(str), nil
 	}
 
 	// Find the last occurrence of delimiter
 	index := strings.LastIndex(str, delim)
 	if index == -1 {
-		// Delimiter not found - return empty string
-		return StringValue(""), nil
+		// Delimiter not found - return original string
+		return StringValue(str), nil
 	}
 
 	// Return substring before last delimiter
