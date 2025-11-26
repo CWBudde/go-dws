@@ -235,6 +235,41 @@ func (a *Analyzer) analyzeStringReplace(args []ast.Expression, callExpr *ast.Cal
 	return types.STRING
 }
 
+// analyzeStrReplaceMacros analyzes the StrReplaceMacros built-in function.
+// StrReplaceMacros(str, macrosArray, startDelim [, endDelim])
+func (a *Analyzer) analyzeStrReplaceMacros(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) < 2 || len(args) > 4 {
+		a.addError("function 'StrReplaceMacros' expects 2 to 4 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StrReplaceMacros' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	macroType := a.analyzeExpression(args[1])
+	if macroType != nil {
+		if arrType, ok := macroType.(*types.ArrayType); !ok || arrType.ElementType != types.STRING {
+			a.addError("function 'StrReplaceMacros' expects array of String as second argument, got %s at %s",
+				macroType.String(), callExpr.Token.Pos.String())
+		}
+	}
+	if len(args) >= 3 {
+		if delimType := a.analyzeExpression(args[2]); delimType != nil && delimType != types.STRING {
+			a.addError("function 'StrReplaceMacros' expects string as third argument, got %s at %s",
+				delimType.String(), callExpr.Token.Pos.String())
+		}
+	}
+	if len(args) == 4 {
+		if endType := a.analyzeExpression(args[3]); endType != nil && endType != types.STRING {
+			a.addError("function 'StrReplaceMacros' expects string as fourth argument, got %s at %s",
+				endType.String(), callExpr.Token.Pos.String())
+		}
+	}
+	return types.STRING
+}
+
 // analyzeInsert analyzes the Insert built-in procedure.
 // Insert takes 3 arguments: source string, target variable, position.
 func (a *Analyzer) analyzeInsert(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
@@ -640,5 +675,8 @@ func (a *Analyzer) analyzeCharAt(args []ast.Expression, callExpr *ast.CallExpres
 		a.addError("function 'CharAt' expects integer as second argument, got %s at %s",
 			posType.String(), callExpr.Token.Pos.String())
 	}
+	// Emit deprecation warning to mirror DWScript behavior
+	a.addHint("Warning: \"CharAt\" has been deprecated [line: %d, column: %d]",
+		callExpr.Token.Pos.Line, 9)
 	return types.STRING
 }

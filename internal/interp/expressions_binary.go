@@ -61,6 +61,11 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 	case left.Type() == "STRING" && right.Type() == "STRING":
 		return i.evalStringBinaryOp(expr.Operator, left, right)
 
+	case left.Type() == "SET" && right.Type() == "SET":
+		leftSet := left.(*SetValue)
+		rightSet := right.(*SetValue)
+		return i.evalBinarySetOperation(leftSet, rightSet, expr.Operator)
+
 	// Allow string concatenation with RTTI_TYPEINFO
 	case (left.Type() == "STRING" && right.Type() == "RTTI_TYPEINFO") || (left.Type() == "RTTI_TYPEINFO" && right.Type() == "STRING"):
 		if expr.Operator == "+" {

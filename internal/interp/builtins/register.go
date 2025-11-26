@@ -161,6 +161,8 @@ func RegisterStringFunctions(r *Registry) {
 	r.Register("TrimLeft", TrimLeft, CategoryString, "Removes leading whitespace")
 	r.Register("TrimRight", TrimRight, CategoryString, "Removes trailing whitespace")
 	r.Register("StringReplace", StringReplace, CategoryString, "Replaces occurrences of a substring")
+	r.Register("StrReplace", StrReplace, CategoryString, "Alias for StringReplace")
+	r.Register("StrReplaceMacros", StrReplaceMacros, CategoryString, "Replaces macros delimited in a string")
 	r.Register("StringOfChar", StringOfChar, CategoryString, "Creates a string of repeated characters")
 	r.Register("SubStr", SubStr, CategoryString, "Extracts a substring")
 	r.Register("SubString", SubString, CategoryString, "Extracts a substring (alias)")

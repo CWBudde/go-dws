@@ -196,9 +196,7 @@ func runeSetLength(s string, newLength int) string {
 		return string(runes[:newLength])
 	}
 
-	// Extend with null characters (#0) to match DWScript semantics
-	// This is more efficient than creating a slice and looping
 	padding := newLength - currentLength
-	nullBytes := make([]byte, padding)
-	return s + string(nullBytes)
+	nullRunes := make([]rune, padding) // zero rune -> '\x00'
+	return s + string(nullRunes)
 }

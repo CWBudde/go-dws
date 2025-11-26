@@ -249,6 +249,11 @@ func (i *Interpreter) isBuiltinMethodParameterless(builtinSpec string) bool {
 		"__string_after":        false, // After(str) - 1 parameter
 		"__string_trim":         true,  // Trim() - no parameters
 		"__string_split":        false, // Split(delimiter) - 1 parameter
+		"__string_tojson":       true,  // ToJSON() - no parameters
+		"__string_tohtml":       true,  // ToHTML() - no parameters
+		"__string_tohtmlattribute": true, // ToHtmlAttribute() - no parameters
+		"__string_tocsstext":    true,  // ToCSSText() - no parameters
+		"__string_toxml":        true,  // ToXML() - no parameters (mode via explicit call)
 	}
 
 	if isParameterless, exists := parameterlessBuiltins[builtinSpec]; exists {

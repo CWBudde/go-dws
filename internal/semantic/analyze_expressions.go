@@ -204,12 +204,18 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 				}
 				if convertible {
 					setLit := &ast.SetLiteral{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{Token: e.Token},
-						},
-						Elements: e.Elements,
+						TypedExpressionBase: e.TypedExpressionBase,
+						Elements:            e.Elements,
 					}
-					return a.analyzeSetLiteralWithContext(setLit, expectedType)
+
+					resultType := a.analyzeSetLiteralWithContext(setLit, expectedType)
+					if resultType != nil && a.semanticInfo != nil {
+						a.semanticInfo.SetType(e, &ast.TypeAnnotation{
+							Token: e.Token,
+							Name:  resultType.String(),
+						})
+					}
+					return resultType
 				}
 			}
 		}

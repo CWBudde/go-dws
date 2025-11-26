@@ -307,7 +307,7 @@ func Format(ctx Context, args []Value) Value {
 	// Delegate to Context helper for actual formatting
 	result, err := ctx.FormatString(fmtVal.Value, arrVal.Elements)
 	if err != nil {
-		return ctx.NewError("Format() %s", err.Error())
+		return ctx.NewError("EDelphi: Format invalid or incompatible with argument")
 	}
 
 	return &runtime.StringValue{Value: result}

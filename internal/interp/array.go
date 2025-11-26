@@ -403,6 +403,44 @@ func (i *Interpreter) evalArrayLiteral(lit *ast.ArrayLiteralExpression) Value {
 		return &ErrorValue{Message: "nil array literal"}
 	}
 
+	// If semantic analysis annotated this literal as a set (array literal used for set context),
+	// evaluate it via set literal handling so empty set assignments work.
+	if i.semanticInfo != nil {
+		if typeAnnot := i.semanticInfo.GetType(lit); typeAnnot != nil && typeAnnot.Name != "" {
+			var resolved types.Type
+			if typeVal, err := i.resolveType(typeAnnot.Name); err == nil {
+				resolved = typeVal
+			}
+
+			var setType *types.SetType
+			if resolved != nil {
+				if _, isArray := resolved.(*types.ArrayType); !isArray {
+					if candidate, ok := types.GetUnderlyingType(resolved).(*types.SetType); ok {
+						setType = candidate
+					}
+				}
+			} else {
+				setType = i.parseInlineSetType(typeAnnot.Name)
+			}
+
+			if setType != nil {
+				setLit := &ast.SetLiteral{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lit.Token,
+							EndPos: lit.End(),
+						},
+					},
+					Elements: lit.Elements,
+				}
+
+				// Propagate the type annotation so evalSetLiteral can infer element type.
+				i.semanticInfo.SetType(setLit, typeAnnot)
+				return i.evalSetLiteral(setLit)
+			}
+		}
+	}
+
 	// If a type annotation exists, resolve it first so we can evaluate elements
 	// with the expected element type (important for nested array literals).
 	arrayType, errVal := i.arrayTypeFromLiteral(lit)

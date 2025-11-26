@@ -1,7 +1,7 @@
 package builtins
 
 import (
-	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -204,10 +204,11 @@ func StrToFloat(ctx Context, args []Value) Value {
 }
 
 // FloatToStr converts a float to its string representation.
-// FloatToStr(f: Float): String
+// FloatToStr(f: Float [, precision: Integer]): String
+// Precision >= 0 formats with fixed decimals, <0 rounds to powers of 10.
 func FloatToStr(ctx Context, args []Value) Value {
-	if len(args) != 1 {
-		return ctx.NewError("FloatToStr() expects exactly 1 argument, got %d", len(args))
+	if len(args) < 1 || len(args) > 2 {
+		return ctx.NewError("FloatToStr() expects 1 or 2 arguments, got %d", len(args))
 	}
 
 	// Argument can be Float or Integer (implicit coercion)
@@ -216,9 +217,39 @@ func FloatToStr(ctx Context, args []Value) Value {
 		return ctx.NewError("FloatToStr() expects float argument, got %s", args[0].Type())
 	}
 
-	// Convert float to string using Go's fmt
-	// Use 'g' format for general representation (like DWScript's FloatToStr)
-	result := fmt.Sprintf("%g", floatValue)
+	// Optional precision handling
+	if len(args) == 2 {
+		// Precision must be an integer value (reject floats)
+		switch args[1].(type) {
+		case *runtime.IntegerValue, *runtime.EnumValue:
+			// ok
+		default:
+			return ctx.NewError("FloatToStr() expects integer precision, got %s", args[1].Type())
+		}
+		prec, _ := ctx.ToInt64(args[1])
+
+		// Negative precision rounds to tens/hundreds/etc.
+		if prec < 0 {
+			factor := math.Pow10(int(-prec))
+			floatValue = math.Round(floatValue/factor) * factor
+			prec = 0
+		}
+
+		// Extremely large precision falls back to default formatting
+		if prec > 15 {
+			return &runtime.StringValue{Value: strconv.FormatFloat(floatValue, 'g', -1, 64)}
+		}
+
+		// Use fixed-point formatting, trimming trailing zeros when precision is zero
+		result := strconv.FormatFloat(floatValue, 'f', int(prec), 64)
+		if prec == 0 {
+			result = strings.TrimSuffix(result, ".")
+		}
+		return &runtime.StringValue{Value: result}
+	}
+
+	// Default formatting keeps significant digits without losing precision
+	result := strconv.FormatFloat(floatValue, 'g', -1, 64)
 	return &runtime.StringValue{Value: result}
 }
 

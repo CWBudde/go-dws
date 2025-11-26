@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"unicode/utf8"
 
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
@@ -36,7 +37,16 @@ func detectAndDecodeFile(path string) (string, error) {
 	}
 
 	// No BOM detected, assume UTF-8
-	return string(data), nil
+	if utf8.Valid(data) {
+		return string(data), nil
+	}
+
+	// Fallback: treat as Latin-1/bytes and promote to runes
+	runes := make([]rune, len(data))
+	for i, b := range data {
+		runes[i] = rune(b)
+	}
+	return string(runes), nil
 }
 
 // decodeUTF16 decodes UTF-16 encoded data to UTF-8 string.

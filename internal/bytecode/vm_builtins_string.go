@@ -264,7 +264,8 @@ func builtinStrBeginsWith(vm *VM, args []Value) (Value, error) {
 	str := args[0].AsString()
 	prefix := args[1].AsString()
 
-	result := len(prefix) == 0 || (len(str) >= len(prefix) && str[:len(prefix)] == prefix)
+	// DWScript treats empty prefixes as false (see JS RTL implementation)
+	result := len(prefix) != 0 && len(str) >= len(prefix) && str[:len(prefix)] == prefix
 	return BoolValue(result), nil
 }
 

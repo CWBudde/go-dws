@@ -433,7 +433,7 @@ func normalizeBuiltinName(name string) string {
 		"asciiuppercase": "ASCIIUpperCase", "asciilowercase": "ASCIILowerCase",
 		"ansiuppercase": "AnsiUpperCase", "ansilowercase": "AnsiLowerCase",
 		"trim":     "Trim",
-		"trimleft": "TrimLeft", "trimright": "TrimRight", "stringreplace": "StringReplace",
+		"trimleft": "TrimLeft", "trimright": "TrimRight", "stringreplace": "StringReplace", "strreplace": "StrReplace", "strreplacemacros": "StrReplaceMacros",
 		"stringofchar": "StringOfChar", "substr": "SubStr", "substring": "SubString",
 		"leftstr": "LeftStr", "rightstr": "RightStr", "midstr": "MidStr",
 		"strbeginswith": "StrBeginsWith", "strendswith": "StrEndsWith", "strcontains": "StrContains",

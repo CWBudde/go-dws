@@ -107,7 +107,7 @@ func TestStrToHtmlAttribute(t *testing.T) {
 		{
 			name:     "with tab",
 			args:     []Value{&runtime.StringValue{Value: "hello\tworld"}},
-			expected: "hello&#9;world",
+			expected: "hello&#x9;world",
 		},
 		{
 			name:    "wrong argument count",
@@ -151,27 +151,27 @@ func TestStrToJSON(t *testing.T) {
 		{
 			name:     "basic string",
 			args:     []Value{&runtime.StringValue{Value: "hello"}},
-			expected: "hello",
+			expected: "\"hello\"",
 		},
 		{
 			name:     "with backslash",
 			args:     []Value{&runtime.StringValue{Value: `C:\path\file`}},
-			expected: `C:\\path\\file`,
+			expected: `"C:\\path\\file"`,
 		},
 		{
 			name:     "with quotes",
 			args:     []Value{&runtime.StringValue{Value: `"quoted"`}},
-			expected: `\"quoted\"`,
+			expected: `"\"quoted\""`,
 		},
 		{
 			name:     "with newline",
 			args:     []Value{&runtime.StringValue{Value: "line1\nline2"}},
-			expected: `line1\nline2`,
+			expected: `"line1\nline2"`,
 		},
 		{
 			name:     "with tab",
 			args:     []Value{&runtime.StringValue{Value: "col1\tcol2"}},
-			expected: `col1\tcol2`,
+			expected: `"col1\tcol2"`,
 		},
 		{
 			name:    "wrong argument count",
@@ -220,7 +220,7 @@ func TestStrToCSSText(t *testing.T) {
 		{
 			name:     "with special chars",
 			args:     []Value{&runtime.StringValue{Value: "a:b;c"}},
-			expected: "a\\3a b\\3b c",
+			expected: "a\\:b\\;c",
 		},
 		{
 			name:    "wrong argument count",
