@@ -8,6 +8,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // Phase 3.5.4 - Phase 2E: Imports for future use (commented out for now)
@@ -345,20 +346,77 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 }
 
 // VisitAssignmentStatement evaluates an assignment statement.
-// Task 3.5.41: Delegates to adapter for full assignment handling.
+// Task 3.5.105a: Migrated simple variable assignment handling directly to evaluator.
 //
-// The adapter handles all assignment complexity including:
-// - Simple assignment: x := value
-// - Member assignment: obj.field := value, TClass.Variable := value
-// - Index assignment: arr[i] := value, obj.Property[x, y] := value
-// - Compound operators: +=, -=, *=, /= with type coercion and operator overloads
-// - ReferenceValue (var parameters), external variables, subrange validation
-// - Implicit type conversions, variant boxing, object reference counting
+// Assignment types handled:
+// - Simple assignment: x := value (Task 3.5.105a - handled directly for basic cases)
+// - Member assignment: obj.field := value, TClass.Variable := value (delegates to adapter)
+// - Index assignment: arr[i] := value, obj.Property[x, y] := value (delegates to adapter)
+// - Compound operators: +=, -=, *=, /= (delegates to adapter for all cases)
+//
+// The adapter handles complex cases including:
+// - Compound operators with type coercion and operator overloads
+// - Object reference counting and destructor calls
+// - Interface wrapping and reference management
 // - Property setter dispatch with recursion prevention
+// - Self/class context for field and class variable assignment
 //
 // See comprehensive documentation in internal/interp/statements_assignments.go
 func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx *ExecutionContext) Value {
-	return e.adapter.EvalNode(node)
+	// Check if this is a compound assignment (+=, -=, *=, /=)
+	// Compound assignments are complex - delegate to adapter
+	// Task 3.5.105a: Only handle simple := assignments directly
+	isCompound := node.Operator != token.ASSIGN && node.Operator != token.TokenType(0)
+	if isCompound {
+		// Compound assignments need complex handling (operator dispatch, type coercion)
+		return e.adapter.EvalNode(node)
+	}
+
+	// Handle different target types
+	switch target := node.Target.(type) {
+	case *ast.Identifier:
+		// Simple variable assignment: x := value
+		// Task 3.5.105a: Try to handle directly, fall back to adapter for complex cases
+
+		// First evaluate the value
+		value := e.Eval(node.Value, ctx)
+		if isError(value) {
+			return value
+		}
+
+		// Check for exception during evaluation
+		if ctx.Exception() != nil {
+			return &runtime.NilValue{}
+		}
+
+		// Records have value semantics - copy when assigning
+		// Use Type() check since RecordValue is in interp package, not runtime
+		if value != nil && value.Type() == "RECORD" {
+			if copyable, ok := value.(runtime.CopyableValue); ok {
+				if copied := copyable.Copy(); copied != nil {
+					if copiedValue, ok := copied.(Value); ok {
+						value = copiedValue
+					}
+				}
+			}
+		}
+
+		// Try direct assignment
+		return e.evalSimpleAssignmentDirect(target, value, node, ctx)
+
+	case *ast.MemberAccessExpression:
+		// Member assignment: obj.field := value
+		// Delegate to adapter for complex member handling
+		return e.adapter.EvalNode(node)
+
+	case *ast.IndexExpression:
+		// Array index assignment: arr[i] := value
+		// Delegate to adapter for complex index handling
+		return e.adapter.EvalNode(node)
+
+	default:
+		return e.newError(node, "invalid assignment target type: %T", target)
+	}
 }
 
 // VisitBlockStatement evaluates a block statement (begin...end).

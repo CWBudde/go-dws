@@ -545,7 +545,7 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Dependency**: Requires `SetVar`, field assignment, property setters
   - **Calls removed**: 1 EvalNode call
   - **Sub-tasks**:
-    - [ ] **3.5.105a** Migrate Simple Variable Assignment (LOW RISK)
+    - [x] **3.5.105a** Migrate Simple Variable Assignment (LOW RISK)
       - Source: `evalSimpleAssignment()` lines 342-569 (228 lines)
       - Handles: `x := value` with SetVar, var parameters, implicit conversions
       - Includes: Reference value handling, subrange validation, variant boxing
