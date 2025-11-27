@@ -224,12 +224,16 @@ func (p *Printer) decIndent() {
 // ============================================================================
 
 // printDWScript prints the node in DWScript source format.
+// Uses a single type switch for O(1) dispatch, with helper methods for code organization.
+//
+//nolint:gocyclo // Type switch with many cases is intentional for O(1) dispatch
 func (p *Printer) printDWScript(node ast.Node) {
 	if node == nil {
 		return
 	}
 
 	switch n := node.(type) {
+	// Program
 	case *ast.Program:
 		p.printProgram(n)
 
@@ -295,12 +299,7 @@ func (p *Printer) printDWScript(node ast.Node) {
 	case *ast.ContinueStatement:
 		p.write("continue")
 	case *ast.ExitStatement:
-		p.write("exit")
-		// Handle optional return value
-		if n.ReturnValue != nil {
-			p.requiredSpace()
-			p.printDWScript(n.ReturnValue)
-		}
+		p.printExitStatement(n)
 
 	// Exception handling
 	case *ast.TryStatement:
@@ -334,7 +333,7 @@ func (p *Printer) printDWScript(node ast.Node) {
 	case *ast.RecordPropertyDecl:
 		p.printRecordPropertyDecl(n)
 
-	// Array and collection expressions
+	// Collection expressions
 	case *ast.ArrayLiteralExpression:
 		p.printArrayLiteral(n)
 	case *ast.IndexExpression:
@@ -356,11 +355,7 @@ func (p *Printer) printDWScript(node ast.Node) {
 	case *ast.CallExpression:
 		p.printCallExpression(n)
 	case *ast.InheritedExpression:
-		p.write("inherited")
-		if n.Method != nil {
-			p.space()
-			p.printDWScript(n.Method)
-		}
+		p.printInheritedExpression(n)
 
 	// Type expressions
 	case *ast.IsExpression:
@@ -370,18 +365,17 @@ func (p *Printer) printDWScript(node ast.Node) {
 	case *ast.ImplementsExpression:
 		p.printImplementsExpression(n)
 
-	// Other
+	// Other expressions
 	case *ast.RecordLiteralExpression:
 		p.printRecordLiteral(n)
 	case *ast.LambdaExpression:
 		p.printLambdaExpression(n)
 	case *ast.AddressOfExpression:
-		p.write("@")
-		p.printDWScript(n.Operator)
+		p.printAddressOfExpression(n)
 	case *ast.OldExpression:
 		p.printOldExpression(n)
 
-	// Type annotations and type expressions
+	// Type annotations
 	case *ast.TypeAnnotation:
 		p.printTypeAnnotation(n)
 	case *ast.ArrayTypeAnnotation:
@@ -399,6 +393,30 @@ func (p *Printer) printDWScript(node ast.Node) {
 		// Fallback: use the node's String() method
 		p.write(fmt.Sprintf("%v", node))
 	}
+}
+
+// printExitStatement prints an exit statement with optional return value.
+func (p *Printer) printExitStatement(n *ast.ExitStatement) {
+	p.write("exit")
+	if n.ReturnValue != nil {
+		p.requiredSpace()
+		p.printDWScript(n.ReturnValue)
+	}
+}
+
+// printInheritedExpression prints an inherited expression.
+func (p *Printer) printInheritedExpression(n *ast.InheritedExpression) {
+	p.write("inherited")
+	if n.Method != nil {
+		p.space()
+		p.printDWScript(n.Method)
+	}
+}
+
+// printAddressOfExpression prints an address-of expression.
+func (p *Printer) printAddressOfExpression(n *ast.AddressOfExpression) {
+	p.write("@")
+	p.printDWScript(n.Operator)
 }
 
 // printProgram prints a Program node.

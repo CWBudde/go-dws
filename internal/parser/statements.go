@@ -7,6 +7,34 @@ import (
 
 // PRE: cursor is on first token of statement
 // POST: cursor is on last token of statement
+// parseDefaultStatementCase handles the complex default case logic for statement parsing.
+func (p *Parser) parseDefaultStatementCase(currentToken lexer.Token) ast.Statement {
+	// Check for assignment (simple or member assignment)
+	// Handle SELF and INHERITED which can be assignment targets (e.g., Self.X := value)
+	if currentToken.Type == lexer.SELF || currentToken.Type == lexer.INHERITED {
+		return p.parseAssignmentOrExpression()
+	}
+
+	if p.isIdentifierToken(currentToken.Type) {
+		// Could be:
+		// 1. x := value (assignment)
+		// 2. obj.field := value (member assignment)
+		// 3. x: Type; (var declaration without 'var' keyword - part of var section)
+
+		// Check if this is a var declaration (IDENT COLON pattern)
+		nextToken := p.cursor.Peek(1)
+		if nextToken.Type == lexer.COLON {
+			// This is a var declaration in a var section
+			// Treat it like "var x: Type;"
+			return p.parseVarDeclaration()
+		}
+
+		return p.parseAssignmentOrExpression()
+	}
+
+	return p.parseExpressionStatement()
+}
+
 func (p *Parser) parseStatement() ast.Statement {
 	// As we implement each statement cursor handler, they'll be added here
 
@@ -92,30 +120,7 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseUsesClause()
 
 	default:
-		// Check for assignment (simple or member assignment)
-		// Handle SELF and INHERITED which can be assignment targets (e.g., Self.X := value)
-		if currentToken.Type == lexer.SELF || currentToken.Type == lexer.INHERITED {
-			return p.parseAssignmentOrExpression()
-		}
-
-		if p.isIdentifierToken(currentToken.Type) {
-			// Could be:
-			// 1. x := value (assignment)
-			// 2. obj.field := value (member assignment)
-			// 3. x: Type; (var declaration without 'var' keyword - part of var section)
-
-			// Check if this is a var declaration (IDENT COLON pattern)
-			nextToken := p.cursor.Peek(1)
-			if nextToken.Type == lexer.COLON {
-				// This is a var declaration in a var section
-				// Treat it like "var x: Type;"
-				return p.parseVarDeclaration()
-			}
-
-			return p.parseAssignmentOrExpression()
-		}
-
-		return p.parseExpressionStatement()
+		return p.parseDefaultStatementCase(currentToken)
 	}
 }
 
