@@ -278,14 +278,28 @@ func (e *Evaluator) CallHelperMethod(
 // CallBuiltinHelperMethod executes a builtin helper method directly in the evaluator.
 // Task 3.5.98c: Migrates builtin helper method execution from Interpreter.
 // Task 3.5.102a: String helper methods now handled directly in evaluator.
+// Task 3.5.102b: Integer helper methods now handled directly in evaluator.
+// Task 3.5.102c: Float helper methods now handled directly in evaluator.
 //
 // Specific helper implementations are migrated incrementally:
 // - String helpers: ToUpper, ToLower, Length, ToString (Task 3.5.102a)
+// - Integer helpers: ToString, ToHexString (Task 3.5.102b)
+// - Float helpers: ToString, ToString(precision) (Task 3.5.102c)
 //
 // Unhandled helpers fall through to the adapter.
 func (e *Evaluator) CallBuiltinHelperMethod(spec string, selfValue Value, args []Value, node ast.Node) Value {
 	// Task 3.5.102a: Try string helpers first
 	if result := e.evalStringHelper(spec, selfValue, args, node); result != nil {
+		return result
+	}
+
+	// Task 3.5.102b: Try integer helpers
+	if result := e.evalIntegerHelper(spec, selfValue, args, node); result != nil {
+		return result
+	}
+
+	// Task 3.5.102c: Try float helpers
+	if result := e.evalFloatHelper(spec, selfValue, args, node); result != nil {
 		return result
 	}
 
@@ -356,4 +370,3 @@ func convertToHelperInfoSlice(helpers []any) []HelperInfo {
 	}
 	return result
 }
-

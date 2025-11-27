@@ -466,14 +466,16 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
       - Simple string operations implemented directly in `evaluator/string_helpers.go`
       - Uses `strings.ToUpper/ToLower` directly, no builtins.Context dependency
       - ~95 lines migrated
-    - [ ] **3.5.102b** Migrate Integer Helper Methods (6 methods, LOW RISK)
-      - `__integer_tostring`, `__integer_tohexstring`, `__integer_abs`, etc.
-      - Simple integer operations and conversions
-      - ~80 lines to migrate
-    - [ ] **3.5.102c** Migrate Float Helper Methods (5 methods, LOW RISK)
-      - `__float_tostring_prec`, `__float_round`, `__float_ceil`, etc.
-      - Simple float operations and formatting
-      - ~70 lines to migrate
+    - [x] **3.5.102b** Migrate Integer Helper Methods (2 methods, LOW RISK) ✅
+      - `__integer_tostring`, `__integer_tohexstring`
+      - Simple integer operations implemented directly in `evaluator/integer_helpers.go`
+      - Uses `strconv.FormatInt` and `fmt.Sprintf("%X")` directly, no builtins.Context dependency
+      - ~95 lines migrated
+    - [x] **3.5.102c** Migrate Float Helper Methods (2 methods, LOW RISK) ✅
+      - `__float_tostring_prec`, `__float_tostring_default`
+      - Simple float operations implemented directly in `evaluator/float_helpers.go`
+      - Uses `fmt.Sprintf` directly, no builtins.Context dependency
+      - ~75 lines migrated
     - [ ] **3.5.102d** Migrate Boolean Helper Methods (2 methods, LOW RISK)
       - `__boolean_tostring`, etc.
       - Trivial boolean operations
@@ -536,7 +538,7 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Solution**: Use TypeSystem.LookupSetType() directly
   - **Calls removed**: 2 EvalNode + 1 GetType calls
 
-- [ ] **3.5.105** Remove EvalNode from visitor_statements.go AssignmentStatement (1 call) - **SPLIT INTO SUB-TASKS**
+- [ ] **3.5.105** Remove EvalNode from visitor_statements.go AssignmentStatement (1 call)
   - **Location**: `visitor_statements.go` line 361
   - **Source**: `statements_assignments.go` (971 lines total)
   - **Issue**: Complex assignment statement delegates entirely
