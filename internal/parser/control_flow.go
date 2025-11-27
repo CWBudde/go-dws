@@ -20,6 +20,18 @@ func isNilStatement(stmt ast.Statement) bool {
 	return v.Kind() == reflect.Ptr && v.IsNil()
 }
 
+// isImplicitSemicolon checks whether the upcoming token can implicitly terminate
+// a statement without requiring an explicit semicolon. DWScript allows omitting
+// the semicolon before certain block terminators (e.g., before ELSE or END).
+func isImplicitSemicolon(t lexer.TokenType) bool {
+	switch t {
+	case lexer.ELSE, lexer.END, lexer.UNTIL, lexer.EXCEPT, lexer.FINALLY, lexer.ENSURE, lexer.EOF:
+		return true
+	default:
+		return false
+	}
+}
+
 // parseBreakStatement parses a break statement.
 // Syntax: break;
 // PRE: cursor is BREAK
@@ -200,7 +212,7 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 	p.cursor = p.cursor.Advance()
 	stmt.Consequence = p.parseStatement()
 
-	if stmt.Consequence == nil {
+	if isNilStatement(stmt.Consequence) {
 		// Use structured error for missing statement
 		err := NewStructuredError(ErrKindInvalid).
 			WithCode(ErrInvalidSyntax).
@@ -223,7 +235,7 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 		p.cursor = p.cursor.Advance() // move to statement after 'else'
 		stmt.Alternative = p.parseStatement()
 
-		if stmt.Alternative == nil {
+		if isNilStatement(stmt.Alternative) {
 			// Use structured error for missing else statement
 			err := NewStructuredError(ErrKindInvalid).
 				WithCode(ErrInvalidSyntax).
@@ -423,23 +435,27 @@ func (p *Parser) parseBreakStatement() *ast.BreakStatement {
 
 	// Expect semicolon after break
 	nextToken := p.cursor.Peek(1)
-	if nextToken.Type != lexer.SEMICOLON {
-		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingSemicolon).
-			WithMessage("expected ';' after 'break'").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("';'").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add ';' after the break statement").
-			WithParsePhase("break statement").
-			Build()
-		p.addStructuredError(err)
-		return nil
+	if nextToken.Type == lexer.SEMICOLON {
+		p.cursor = p.cursor.Advance() // move to semicolon
+		return builder.Finish(stmt).(*ast.BreakStatement)
 	}
 
-	p.cursor = p.cursor.Advance() // move to semicolon
-	return builder.Finish(stmt).(*ast.BreakStatement)
+	if isImplicitSemicolon(nextToken.Type) {
+		return builder.Finish(stmt).(*ast.BreakStatement)
+	}
+
+	// Use structured error
+	err := NewStructuredError(ErrKindMissing).
+		WithCode(ErrMissingSemicolon).
+		WithMessage("expected ';' after 'break'").
+		WithPosition(nextToken.Pos, nextToken.Length()).
+		WithExpectedString("';'").
+		WithActual(nextToken.Type, nextToken.Literal).
+		WithSuggestion("add ';' after the break statement").
+		WithParsePhase("break statement").
+		Build()
+	p.addStructuredError(err)
+	return nil
 }
 
 // Syntax: continue;
@@ -455,23 +471,27 @@ func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
 
 	// Expect semicolon after continue
 	nextToken := p.cursor.Peek(1)
-	if nextToken.Type != lexer.SEMICOLON {
-		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingSemicolon).
-			WithMessage("expected ';' after 'continue'").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("';'").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add ';' after the continue statement").
-			WithParsePhase("continue statement").
-			Build()
-		p.addStructuredError(err)
-		return nil
+	if nextToken.Type == lexer.SEMICOLON {
+		p.cursor = p.cursor.Advance() // move to semicolon
+		return builder.Finish(stmt).(*ast.ContinueStatement)
 	}
 
-	p.cursor = p.cursor.Advance() // move to semicolon
-	return builder.Finish(stmt).(*ast.ContinueStatement)
+	if isImplicitSemicolon(nextToken.Type) {
+		return builder.Finish(stmt).(*ast.ContinueStatement)
+	}
+
+	// Use structured error
+	err := NewStructuredError(ErrKindMissing).
+		WithCode(ErrMissingSemicolon).
+		WithMessage("expected ';' after 'continue'").
+		WithPosition(nextToken.Pos, nextToken.Length()).
+		WithExpectedString("';'").
+		WithActual(nextToken.Type, nextToken.Literal).
+		WithSuggestion("add ';' after the continue statement").
+		WithParsePhase("continue statement").
+		Build()
+	p.addStructuredError(err)
+	return nil
 }
 
 // Syntax: exit; exit value; or exit(value);
@@ -548,23 +568,27 @@ func (p *Parser) parseExitStatement() *ast.ExitStatement {
 
 	// Expect semicolon after exit or exit(value)
 	nextToken = p.cursor.Peek(1)
-	if nextToken.Type != lexer.SEMICOLON {
-		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingSemicolon).
-			WithMessage("expected ';' after 'exit'").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("';'").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add ';' after the exit statement").
-			WithParsePhase("exit statement").
-			Build()
-		p.addStructuredError(err)
-		return nil
+	if nextToken.Type == lexer.SEMICOLON {
+		p.cursor = p.cursor.Advance() // move to semicolon
+		return builder.Finish(stmt).(*ast.ExitStatement)
 	}
 
-	p.cursor = p.cursor.Advance() // move to semicolon
-	return builder.Finish(stmt).(*ast.ExitStatement)
+	if isImplicitSemicolon(nextToken.Type) {
+		return builder.Finish(stmt).(*ast.ExitStatement)
+	}
+
+	// Use structured error
+	err := NewStructuredError(ErrKindMissing).
+		WithCode(ErrMissingSemicolon).
+		WithMessage("expected ';' after 'exit'").
+		WithPosition(nextToken.Pos, nextToken.Length()).
+		WithExpectedString("';'").
+		WithActual(nextToken.Type, nextToken.Literal).
+		WithSuggestion("add ';' after the exit statement").
+		WithParsePhase("exit statement").
+		Build()
+	p.addStructuredError(err)
+	return nil
 }
 
 // ============================================================================
