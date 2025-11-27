@@ -480,6 +480,17 @@ func (i *Interpreter) evalRaiseStatement(stmt *ast.RaiseStatement) Value {
 
 	// Evaluate exception expression
 	excVal := i.Eval(stmt.Exception)
+	if isError(excVal) {
+		return excVal
+	}
+
+	// Nil exception object - raise standard "Object not instantiated" exception
+	if excVal == nil || excVal.Type() == "NIL" {
+		pos := stmt.Exception.Pos()
+		message := fmt.Sprintf("Object not instantiated [line: %d, column: %d]", pos.Line, pos.Column+1)
+		i.raiseException("Exception", message, &pos)
+		return nil
+	}
 
 	// Should be an object instance
 	obj, ok := excVal.(*ObjectInstance)
