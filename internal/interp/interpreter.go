@@ -1500,6 +1500,47 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		return newInstance
 	}
 
+	// Task 3.5.112: Handle INTERFACE values (interface method calls)
+	// Pattern: intf.Method(args) where intf is an interface instance
+	if intfInst, ok := internalObj.(*InterfaceInstance); ok {
+		// Check for nil interface (wrapped object is nil)
+		if intfInst.Object == nil {
+			return newError("Interface is nil")
+		}
+
+		// Verify method exists in interface contract (case-insensitive)
+		if !intfInst.HasInterfaceMethod(methodName) {
+			return newError("method '%s' not found in interface '%s'", methodName, intfInst.InterfaceName())
+		}
+
+		// Extract underlying object and dispatch to it
+		// The interface validates the contract; actual method lives on the object
+		objVal := intfInst.Object
+
+		// Get class info
+		classInfo := objVal.Class
+		if classInfo == nil {
+			return newError("object has no class information")
+		}
+
+		// Find method (case-insensitive)
+		method := classInfo.lookupMethod(methodName)
+		if method == nil {
+			return newError("method '%s' not found in class '%s'", methodName, classInfo.Name)
+		}
+
+		// Call the method with Self bound to the underlying object (not the interface)
+		savedEnv := i.env
+		tempEnv := NewEnclosedEnvironment(i.env)
+		tempEnv.Define("Self", objVal)
+		i.env = tempEnv
+
+		result := i.callUserFunction(method, internalArgs)
+
+		i.env = savedEnv
+		return result
+	}
+
 	// Original OBJECT handling
 	objVal, ok := internalObj.(*ObjectInstance)
 	if !ok {
