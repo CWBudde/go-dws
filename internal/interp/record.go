@@ -310,6 +310,12 @@ func (r *RecordTypeValue) String() string {
 	return r.RecordType.Name
 }
 
+// GetRecordType returns the underlying RecordType.
+// Task 3.5.106: Provides interface-based access for the evaluator.
+func (r *RecordTypeValue) GetRecordType() *types.RecordType {
+	return r.RecordType
+}
+
 // createRecordValue creates a new RecordValue with proper method lookup for nested records.
 // Task 9.7e1: Helper to create records with method resolution for nested record fields.
 // Task 9.5: Initialize fields with field initializers.

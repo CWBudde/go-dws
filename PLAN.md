@@ -584,11 +584,13 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
       - **Files**: Updated `evaluator/context.go` (added `arrayTypeContext` field), `evaluator/array_helpers.go`, `evaluator/assignment_helpers.go`, `evaluator/visitor_statements.go`
       - **Implementation**: Added `ArrayTypeContext()` to ExecutionContext for passing type info; `evalArrayLiteralDirect()` checks context first; `VisitAssignmentStatement()` extracts target type and sets context before evaluating array/record literals
 
-- [ ] **3.5.106** Remove EvalNode from type_resolution.go (1 call)
+- [x] **3.5.106** Remove EvalNode from type_resolution.go (1 call) ✅
   - **Location**: `type_resolution.go` line 67
   - **Issue**: `GetType()` call for named type resolution
-  - **Solution**: Use TypeSystem registry lookups directly
+  - **Solution**: Use direct environment lookups with interface-based type access
   - **Calls removed**: 1 GetType call (adapter.GetType used)
+  - **Files**: Updated `evaluator/type_resolution.go` (added `ResolveTypeWithContext()`, `resolveInlineArrayTypeWithContext()`), `evaluator/set_helpers.go`, `evaluator/visitor_expressions.go`, `evaluator/array_helpers.go`, `interp/record.go` (added `GetRecordType()`), `interp/type_alias.go` (added `GetAliasedType()`, `GetSubrangeType()`)
+  - **Implementation**: Added context-aware type resolution that directly looks up enum, record, type alias, and subrange types from environment using interface-based getters; updated all callers to use context-aware version
 
 - [ ] **3.5.107** Keep EvalNode for visitor_declarations.go (10 calls) ⚠️ KEEP
   - **Location**: `visitor_declarations.go` all 10 declarations

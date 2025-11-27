@@ -347,7 +347,7 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 	}
 
 	// Step 1: Get type annotation from semanticInfo
-	arrayType := e.getArrayTypeFromAnnotation(node)
+	arrayType := e.getArrayTypeFromAnnotation(node, ctx)
 
 	// Step 2: Evaluate all elements
 	elementCount := len(node.Elements)
@@ -411,7 +411,9 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 
 // getArrayTypeFromAnnotation retrieves the array type from semantic info annotations.
 // Returns nil if no annotation exists or cannot be resolved.
-func (e *Evaluator) getArrayTypeFromAnnotation(node *ast.ArrayLiteralExpression) *types.ArrayType {
+//
+// Task 3.5.106: Updated to take context for adapter-free type resolution.
+func (e *Evaluator) getArrayTypeFromAnnotation(node *ast.ArrayLiteralExpression, ctx *ExecutionContext) *types.ArrayType {
 	if e.semanticInfo == nil {
 		return nil
 	}
@@ -421,8 +423,8 @@ func (e *Evaluator) getArrayTypeFromAnnotation(node *ast.ArrayLiteralExpression)
 		return nil
 	}
 
-	// Resolve the type name to an ArrayType
-	resolved, err := e.ResolveType(typeAnnot.Name)
+	// Resolve the type name to an ArrayType using context-aware resolution
+	resolved, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx)
 	if err != nil {
 		return nil
 	}

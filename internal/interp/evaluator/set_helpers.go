@@ -38,7 +38,7 @@ func (e *Evaluator) evalSetLiteralDirect(node *ast.SetLiteral, ctx *ExecutionCon
 	// This happens when semantic analyzer determined it's used in array context
 	if e.semanticInfo != nil {
 		if typeAnnot := e.semanticInfo.GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
-			resolvedType, err := e.ResolveType(typeAnnot.Name)
+			resolvedType, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx)
 			if err == nil {
 				if arrayType, isArray := resolvedType.(*types.ArrayType); isArray {
 					// Task 3.5.104: Evaluate as array literal directly instead of delegating
