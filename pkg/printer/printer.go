@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/pkg/ast"
-	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // Format specifies the output format for the printer.
@@ -152,16 +151,6 @@ func (p *Printer) Print(node ast.Node) string {
 // write writes a string to the buffer without indentation.
 func (p *Printer) write(s string) {
 	p.buf.WriteString(s)
-}
-
-// writeln writes a string followed by a newline (respects compact style).
-func (p *Printer) writeln(s string) {
-	if p.opts.Style == StyleCompact {
-		p.buf.WriteString(s)
-	} else {
-		p.buf.WriteString(s)
-		p.buf.WriteByte('\n')
-	}
 }
 
 // writeIndent writes the current indentation.
@@ -495,6 +484,8 @@ func (p *Printer) printTreeNode(node ast.Node, prefix string) {
 }
 
 // printTreeNodeInfo prints basic information about a node for tree format.
+//
+//nolint:funlen
 func (p *Printer) printTreeNodeInfo(node ast.Node) {
 	// Get the type name without the package prefix
 	typeName := fmt.Sprintf("%T", node)
@@ -617,12 +608,4 @@ func (p *Printer) nodeToMap(node ast.Node) map[string]interface{} {
 	}
 
 	return result
-}
-
-// Helper function to convert position to string
-func formatPosition(pos token.Position) string {
-	if pos.Line == 0 {
-		return ""
-	}
-	return fmt.Sprintf("%d:%d", pos.Line, pos.Column)
 }

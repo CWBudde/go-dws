@@ -1,0 +1,606 @@
+package interp
+
+import (
+	"fmt"
+
+	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
+)
+
+// ===== Task 3.5.96: Method and Qualified Call Methods =====
+
+// CallMemberMethod calls a method on an object (record, interface, or object instance).
+// Task 3.5.96: Enables evaluator to delegate member method calls without using EvalNode.
+func (i *Interpreter) CallMemberMethod(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression, objVal evaluator.Value) evaluator.Value {
+	// This method encapsulates the complex logic from evalCallExpression lines 82-120
+
+	// Check if this is a record method call
+	if recVal, ok := objVal.(*RecordValue); ok {
+		return i.evalRecordMethodCall(recVal, memberAccess, callExpr.Arguments, memberAccess.Object)
+	}
+
+	// Check if this is an interface method call
+	if ifaceInst, ok := objVal.(*InterfaceInstance); ok {
+		// Dispatch to the underlying object
+		if ifaceInst.Object == nil {
+			return i.newErrorWithLocation(callExpr, "cannot call method on nil interface")
+		}
+		// Call the method on the underlying object by temporarily swapping the variable
+		if objIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
+			savedVal, exists := i.env.Get(objIdent.Value)
+			if exists {
+				// Temporarily set to underlying object
+				_ = i.env.Set(objIdent.Value, ifaceInst.Object)
+				// Use defer to ensure restoration even if method call panics or returns early
+				defer func() { _ = i.env.Set(objIdent.Value, savedVal) }()
+
+				// Create a method call expression
+				mc := &ast.MethodCallExpression{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: callExpr.Token,
+						},
+					},
+					Object:    memberAccess.Object,
+					Method:    memberAccess.Member,
+					Arguments: callExpr.Arguments,
+				}
+				return i.evalMethodCall(mc)
+			}
+		}
+		return i.newErrorWithLocation(callExpr, "interface method call requires identifier")
+	}
+
+	// If it's an object, create a MethodCallExpression and evaluate it
+	// This handles regular object method calls
+	if objVal.Type() == "OBJECT" {
+		mc := &ast.MethodCallExpression{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: callExpr.Token,
+				},
+			},
+			Object:    memberAccess.Object,
+			Method:    memberAccess.Member,
+			Arguments: callExpr.Arguments,
+		}
+		return i.evalMethodCall(mc)
+	}
+
+	return i.newErrorWithLocation(callExpr, "cannot call method on value of type %s", objVal.Type())
+}
+
+// CallQualifiedOrConstructor calls a unit-qualified function or class constructor.
+// Task 3.5.96: Enables evaluator to delegate qualified calls without using EvalNode.
+func (i *Interpreter) CallQualifiedOrConstructor(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression) evaluator.Value {
+	// This method encapsulates the complex logic from evalCallExpression lines 122-201
+
+	// Check if the left side is a unit identifier (for qualified access: UnitName.FunctionName)
+	if unitIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
+		// This could be a unit-qualified call: UnitName.FunctionName()
+		if i.unitRegistry != nil {
+			if _, exists := i.unitRegistry.GetUnit(unitIdent.Value); exists {
+				// Resolve the qualified function
+				fn, err := i.ResolveQualifiedFunction(unitIdent.Value, memberAccess.Member.Value)
+				if err == nil {
+					// Prepare arguments - lazy parameters get LazyThunks, var parameters get References
+					args := make([]Value, len(callExpr.Arguments))
+					for idx, arg := range callExpr.Arguments {
+						// Check parameter flags
+						isLazy := idx < len(fn.Parameters) && fn.Parameters[idx].IsLazy
+						isByRef := idx < len(fn.Parameters) && fn.Parameters[idx].ByRef
+
+						if isLazy {
+							// For lazy parameters, create a LazyThunk
+							args[idx] = NewLazyThunk(arg, i.env, i)
+						} else if isByRef {
+							// For var parameters, create a reference
+							if argIdent, ok := arg.(*ast.Identifier); ok {
+								if val, exists := i.env.Get(argIdent.Value); exists {
+									if refVal, isRef := val.(*ReferenceValue); isRef {
+										args[idx] = refVal // Pass through existing reference
+									} else {
+										args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+									}
+								} else {
+									args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+								}
+							} else {
+								return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
+							}
+						} else {
+							// For regular parameters, evaluate immediately
+							val := i.Eval(arg)
+							if isError(val) {
+								return val
+							}
+							args[idx] = val
+						}
+					}
+					return i.callUserFunction(fn, args)
+				}
+				// Function not found in unit
+				return i.newErrorWithLocation(callExpr, "function '%s' not found in unit '%s'", memberAccess.Member.Value, unitIdent.Value)
+			}
+		}
+
+		// Check if this is a class constructor call (TClass.Create(...))
+		var classInfo *ClassInfo
+		for className, class := range i.classes {
+			if ident.Equal(className, unitIdent.Value) {
+				classInfo = class
+				break
+			}
+		}
+		if classInfo != nil {
+			// This is a class constructor/method call - convert to MethodCallExpression
+			mc := &ast.MethodCallExpression{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: callExpr.Token,
+					},
+				},
+				Object:    unitIdent,
+				Method:    memberAccess.Member,
+				Arguments: callExpr.Arguments,
+			}
+			return i.evalMethodCall(mc)
+		}
+	}
+
+	return i.newErrorWithLocation(callExpr, "cannot call member expression that is not a method or unit-qualified function")
+}
+
+// CallMethod calls a method on objects (record, interface, or object instance).
+// This is the primary adapter method for method dispatch from the evaluator.
+func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []evaluator.Value, node ast.Node) evaluator.Value {
+	// Convert to internal types
+	internalObj := obj.(Value)
+	internalArgs := convertEvaluatorArgs(args)
+
+	// Task 3.5.111c: Handle CLASS_INFO values (class method calls)
+	// Pattern: ClassInfoValue.Method() where Self is already a ClassInfoValue
+	if classInfoVal, ok := internalObj.(*ClassInfoValue); ok {
+		classInfo := classInfoVal.ClassInfo
+		if classInfo == nil {
+			return newError("ClassInfoValue has no class information")
+		}
+
+		// Look up class method (case-insensitive)
+		classMethodOverloads := i.getMethodOverloadsInHierarchy(classInfo, methodName, true)
+		if len(classMethodOverloads) == 0 {
+			return newError("class method '%s' not found in class '%s'", methodName, classInfo.Name)
+		}
+
+		// Create a synthetic MethodCallExpression for overload resolution
+		// We need this to support overloaded methods with different parameter types
+		argExprs := make([]ast.Expression, len(internalArgs))
+		for idx := range internalArgs {
+			// We don't have actual expressions, so we pass nil
+			// The overload resolver will fall back to argument count matching
+			argExprs[idx] = nil
+		}
+
+		// Simple case: single overload or select by argument count
+		var classMethod *ast.FunctionDecl
+		if len(classMethodOverloads) == 1 {
+			classMethod = classMethodOverloads[0]
+		} else {
+			// Find matching overload by argument count
+			for _, m := range classMethodOverloads {
+				if len(m.Parameters) == len(internalArgs) {
+					classMethod = m
+					break
+				}
+			}
+			if classMethod == nil {
+				return newError("no matching overload for class method '%s' in class '%s' with %d arguments",
+					methodName, classInfo.Name, len(internalArgs))
+			}
+		}
+
+		// Execute class method with Self bound to ClassInfoValue
+		savedEnv := i.env
+		methodEnv := NewEnclosedEnvironment(i.env)
+		i.env = methodEnv
+
+		// Check recursion depth
+		if i.ctx.GetCallStack().WillOverflow() {
+			i.env = savedEnv
+			return i.raiseMaxRecursionExceeded()
+		}
+
+		// Push to call stack
+		fullMethodName := classInfo.Name + "." + methodName
+		i.pushCallStack(fullMethodName)
+		defer i.popCallStack()
+
+		// Bind Self to ClassInfoValue for class methods
+		i.env.Define("Self", classInfoVal)
+		i.env.Define("__CurrentClass__", classInfoVal)
+
+		// Add class constants
+		i.bindClassConstantsToEnv(classInfo)
+
+		// Bind parameters with implicit conversion
+		for idx, param := range classMethod.Parameters {
+			arg := internalArgs[idx]
+			if param.Type != nil {
+				paramTypeName := param.Type.String()
+				if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+					arg = converted
+				}
+			}
+			i.env.Define(param.Name.Value, arg)
+		}
+
+		// Initialize Result for functions
+		if classMethod.ReturnType != nil {
+			returnType := i.resolveTypeFromAnnotation(classMethod.ReturnType)
+			defaultVal := i.getDefaultValue(returnType)
+			i.env.Define("Result", defaultVal)
+			i.env.Define(classMethod.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+		}
+
+		// Execute method body
+		result := i.Eval(classMethod.Body)
+		if isError(result) {
+			i.env = savedEnv
+			return result
+		}
+
+		// Extract return value
+		var returnValue Value
+		if classMethod.ReturnType != nil {
+			resultVal, resultOk := i.env.Get("Result")
+			methodNameVal, methodNameOk := i.env.Get(classMethod.Name.Value)
+
+			if resultOk && resultVal.Type() != "NIL" {
+				returnValue = resultVal
+			} else if methodNameOk && methodNameVal.Type() != "NIL" {
+				returnValue = methodNameVal
+			} else if resultOk {
+				returnValue = resultVal
+			} else {
+				returnValue = &NilValue{}
+			}
+		} else {
+			returnValue = &NilValue{}
+		}
+
+		i.env = savedEnv
+		return returnValue
+	}
+
+	// Task 3.5.111e: Handle ClassValue (metaclass) constructor calls
+	// Pattern: classVar.Create(args) where classVar is a "class of TBase" metaclass variable
+	if classVal, ok := internalObj.(*ClassValue); ok {
+		runtimeClass := classVal.ClassInfo
+		if runtimeClass == nil {
+			return newError("invalid class reference")
+		}
+
+		// Look up constructor in the runtime class
+		constructorOverloads := i.getMethodOverloadsInHierarchy(runtimeClass, methodName, false)
+		if len(constructorOverloads) == 0 {
+			return newError("constructor '%s' not found in class '%s'", methodName, runtimeClass.Name)
+		}
+
+		// Simple overload resolution by argument count
+		var constructor *ast.FunctionDecl
+		if len(constructorOverloads) == 1 {
+			constructor = constructorOverloads[0]
+		} else {
+			for _, c := range constructorOverloads {
+				if len(c.Parameters) == len(internalArgs) {
+					constructor = c
+					break
+				}
+			}
+			if constructor == nil {
+				return newError("no matching overload for constructor '%s' in class '%s' with %d arguments",
+					methodName, runtimeClass.Name, len(internalArgs))
+			}
+		}
+
+		// Check argument count
+		if len(internalArgs) != len(constructor.Parameters) {
+			return newError("wrong number of arguments for constructor '%s': expected %d, got %d",
+				methodName, len(constructor.Parameters), len(internalArgs))
+		}
+
+		// Create new instance of the runtime class
+		newInstance := NewObjectInstance(runtimeClass)
+
+		// Initialize all fields with default values
+		for fieldName, fieldType := range runtimeClass.Fields {
+			var defaultValue Value
+			if fieldDecl, hasDecl := runtimeClass.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
+				// Use field initializer
+				savedEnv := i.env
+				tempEnv := NewEnclosedEnvironment(i.env)
+				for constName, constValue := range runtimeClass.ConstantValues {
+					tempEnv.Define(constName, constValue)
+				}
+				i.env = tempEnv
+				defaultValue = i.Eval(fieldDecl.InitValue)
+				i.env = savedEnv
+				if isError(defaultValue) {
+					return defaultValue
+				}
+			} else {
+				defaultValue = getZeroValueForType(fieldType, nil)
+			}
+			newInstance.SetField(fieldName, defaultValue)
+		}
+
+		// Execute constructor
+		savedEnv := i.env
+		methodEnv := NewEnclosedEnvironment(i.env)
+		i.env = methodEnv
+
+		// Check recursion depth
+		if i.ctx.GetCallStack().WillOverflow() {
+			i.env = savedEnv
+			return i.raiseMaxRecursionExceeded()
+		}
+
+		// Push to call stack
+		fullMethodName := runtimeClass.Name + "." + methodName
+		i.pushCallStack(fullMethodName)
+		defer i.popCallStack()
+
+		// Bind Self to the new instance
+		i.env.Define("Self", newInstance)
+		i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: runtimeClass})
+
+		// Add class constants
+		i.bindClassConstantsToEnv(runtimeClass)
+
+		// Bind constructor parameters with implicit conversion
+		for idx, param := range constructor.Parameters {
+			arg := internalArgs[idx]
+			if param.Type != nil {
+				paramTypeName := param.Type.String()
+				if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+					arg = converted
+				}
+			}
+			i.env.Define(param.Name.Value, arg)
+		}
+
+		// Execute constructor body
+		result := i.Eval(constructor.Body)
+		if isError(result) {
+			i.env = savedEnv
+			return result
+		}
+
+		i.env = savedEnv
+
+		// Constructors return the new instance (Result is Self)
+		return newInstance
+	}
+
+	// Task 3.5.112: Handle INTERFACE values (interface method calls)
+	// Pattern: intf.Method(args) where intf is an interface instance
+	if intfInst, ok := internalObj.(*InterfaceInstance); ok {
+		// Check for nil interface (wrapped object is nil)
+		if intfInst.Object == nil {
+			return newError("Interface is nil")
+		}
+
+		// Verify method exists in interface contract (case-insensitive)
+		if !intfInst.HasInterfaceMethod(methodName) {
+			return newError("method '%s' not found in interface '%s'", methodName, intfInst.InterfaceName())
+		}
+
+		// Extract underlying object and dispatch to it
+		// The interface validates the contract; actual method lives on the object
+		objVal := intfInst.Object
+
+		// Get class info
+		classInfo := objVal.Class
+		if classInfo == nil {
+			return newError("object has no class information")
+		}
+
+		// Find method (case-insensitive)
+		method := classInfo.lookupMethod(methodName)
+		if method == nil {
+			return newError("method '%s' not found in class '%s'", methodName, classInfo.Name)
+		}
+
+		// Call the method with Self bound to the underlying object (not the interface)
+		savedEnv := i.env
+		tempEnv := NewEnclosedEnvironment(i.env)
+		tempEnv.Define("Self", objVal)
+		i.env = tempEnv
+
+		result := i.callUserFunction(method, internalArgs)
+
+		i.env = savedEnv
+		return result
+	}
+
+	// Task 3.5.113: Handle RECORD values (record method calls)
+	// Pattern: record.Method(args) where record is a record instance
+	if recVal, ok := internalObj.(*RecordValue); ok {
+		// Method lookup - check instance methods first
+		method := recVal.GetMethod(methodName)
+
+		// Check for class/static methods on the record type
+		var rtv *RecordTypeValue
+		recordTypeKey := "__record_type_" + ident.Normalize(recVal.RecordType.Name)
+		if typeVal, found := i.env.Get(recordTypeKey); found {
+			rtv, _ = typeVal.(*RecordTypeValue)
+		}
+
+		if method == nil && rtv != nil {
+			if classMethod, exists := rtv.ClassMethods[ident.Normalize(methodName)]; exists {
+				// Static method - no Self, just constants and class vars
+				savedEnv := i.env
+				methodEnv := NewEnclosedEnvironment(i.env)
+				i.env = methodEnv
+
+				// Bind __CurrentRecord__ for record context
+				i.env.Define("__CurrentRecord__", rtv)
+
+				// Bind constants and class variables
+				for constName, constValue := range rtv.Constants {
+					i.env.Define(constName, constValue)
+				}
+				for varName, varValue := range rtv.ClassVars {
+					i.env.Define(varName, varValue)
+				}
+
+				// Check recursion depth
+				if i.ctx.GetCallStack().WillOverflow() {
+					i.env = savedEnv
+					return i.raiseMaxRecursionExceeded()
+				}
+
+				// Push to call stack
+				fullMethodName := recVal.RecordType.Name + "." + methodName
+				i.pushCallStack(fullMethodName)
+				defer i.popCallStack()
+
+				result := i.callUserFunction(classMethod, internalArgs)
+				i.env = savedEnv
+				return result
+			}
+		}
+
+		if method == nil {
+			return newError("method '%s' not found in record type '%s'", methodName, recVal.RecordType.Name)
+		}
+
+		// Records have value semantics - copy before method execution
+		recordCopy := recVal.Copy()
+
+		// Create method environment
+		savedEnv := i.env
+		methodEnv := NewEnclosedEnvironment(i.env)
+		i.env = methodEnv
+
+		// Bind Self to the record copy
+		i.env.Define("Self", recordCopy)
+
+		// Bind all record fields to environment for direct access
+		for fieldName, fieldValue := range recordCopy.Fields {
+			i.env.Define(fieldName, fieldValue)
+		}
+
+		// Bind properties for simple field-backed properties
+		if recVal.RecordType.Properties != nil {
+			for propName, propInfo := range recVal.RecordType.Properties {
+				if propInfo.ReadField != "" {
+					if fval, exists := recordCopy.Fields[ident.Normalize(propInfo.ReadField)]; exists {
+						i.env.Define(propName, fval)
+					}
+				}
+			}
+		}
+
+		// Bind constants and class variables from RecordTypeValue
+		if rtv != nil {
+			for constName, constValue := range rtv.Constants {
+				i.env.Define(constName, constValue)
+			}
+			for varName, varValue := range rtv.ClassVars {
+				i.env.Define(varName, varValue)
+			}
+		}
+
+		// Check recursion depth
+		if i.ctx.GetCallStack().WillOverflow() {
+			i.env = savedEnv
+			return i.raiseMaxRecursionExceeded()
+		}
+
+		// Push to call stack
+		fullMethodName := recVal.RecordType.Name + "." + methodName
+		i.pushCallStack(fullMethodName)
+		defer i.popCallStack()
+
+		// Call the method
+		result := i.callUserFunction(method, internalArgs)
+
+		i.env = savedEnv
+		return result
+	}
+
+	// Original OBJECT handling
+	objVal, ok := internalObj.(*ObjectInstance)
+	if !ok {
+		panic(fmt.Sprintf("not an object: %s", internalObj.Type()))
+	}
+
+	// Get class info
+	classInfo := objVal.Class
+	if classInfo == nil {
+		panic("object has no class information")
+	}
+
+	// Find method (case-insensitive) using the existing helper
+	method := classInfo.lookupMethod(methodName)
+	if method == nil {
+		panic(fmt.Sprintf("method '%s' not found in class '%s'", methodName, classInfo.Name))
+	}
+
+	// Call the method using existing infrastructure
+	savedEnv := i.env
+	tempEnv := NewEnclosedEnvironment(i.env)
+	tempEnv.Define("Self", objVal)
+	i.env = tempEnv
+
+	result := i.callUserFunction(method, internalArgs)
+
+	i.env = savedEnv
+	return result
+}
+
+// CallInheritedMethod executes an inherited (parent) method with the given arguments.
+func (i *Interpreter) CallInheritedMethod(obj evaluator.Value, methodName string, args []evaluator.Value) evaluator.Value {
+	// Convert to internal types
+	internalObj := obj.(Value)
+	internalArgs := convertEvaluatorArgs(args)
+
+	// Get object instance
+	objVal, ok := internalObj.(*ObjectInstance)
+	if !ok {
+		return newError("inherited requires Self to be an object instance, got %s", internalObj.Type())
+	}
+
+	// Get class info
+	classInfo := objVal.Class
+	if classInfo == nil {
+		return newError("object has no class information")
+	}
+
+	// Check parent class
+	if classInfo.Parent == nil {
+		return newError("class '%s' has no parent class", classInfo.Name)
+	}
+
+	parentInfo := classInfo.Parent
+
+	// Find method in parent (case-insensitive)
+	methodNameLower := ident.Normalize(methodName)
+	method, exists := parentInfo.Methods[methodNameLower]
+	if !exists {
+		return newError("method, property, or field '%s' not found in parent class '%s'", methodName, parentInfo.Name)
+	}
+
+	// Call the method using existing infrastructure
+	savedEnv := i.env
+	tempEnv := NewEnclosedEnvironment(i.env)
+	tempEnv.Define("Self", objVal)
+	i.env = tempEnv
+
+	result := i.callUserFunction(method, internalArgs)
+
+	i.env = savedEnv
+	return result
+}
