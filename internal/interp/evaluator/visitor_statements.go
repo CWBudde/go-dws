@@ -349,22 +349,27 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 // Task 3.5.105a: Migrated simple variable assignment handling directly to evaluator.
 // Task 3.5.105b: Migrated compound operators (+=, -=, *=, /=) for simple identifiers.
 // Task 3.5.105c: Migrated index assignment for arrays/strings directly to evaluator.
+// Task 3.5.105d: Structured member assignment with adapter delegation for complex cases.
 //
 // Assignment types handled:
 // - Simple assignment: x := value (Task 3.5.105a - handled directly for basic cases)
 // - Compound operators on simple identifiers: x += value (Task 3.5.105b - handled directly)
 // - Index assignment: arr[i] := value, str[i] := char (Task 3.5.105c - handled directly for arrays/strings)
-// - Member assignment: obj.field := value, TClass.Variable := value (delegates to adapter)
+// - Member assignment: obj.field := value (Task 3.5.105d - structured with adapter delegation)
+// - Class variable/property: TClass.Variable := value (delegates to adapter)
 // - Indexed property writes: obj.Property[x, y] := value (delegates to adapter)
 // - Compound operators on members/indexes: obj.x += value (delegates to adapter)
 //
 // The adapter handles complex cases including:
-// - Member assignments (task 3.5.105d)
+// - Class variable and property assignment
+// - Object field and property assignment (with setter dispatch)
+// - Record field and property assignment
 // - Indexed property writes (with getter/setter dispatch)
 // - Object reference counting and destructor calls
 // - Interface wrapping and reference management
 // - Property setter dispatch with recursion prevention
 // - Self/class context for field and class variable assignment
+// - Auto-initialization of record array elements
 //
 // See comprehensive documentation in internal/interp/statements_assignments.go
 func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx *ExecutionContext) Value {
@@ -408,9 +413,26 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 		return e.evalSimpleAssignmentDirect(target, value, node, ctx)
 
 	case *ast.MemberAccessExpression:
-		// Member assignment: obj.field := value
-		// Delegate to adapter for complex member handling
-		return e.adapter.EvalNode(node)
+		// Task 3.5.105d: Member assignment with structured delegation
+		// Complex cases (properties, class variables) delegate to adapter
+
+		// Compound assignments on members still go to adapter
+		if isCompound {
+			return e.adapter.EvalNode(node)
+		}
+
+		// Evaluate the value to assign
+		value := e.Eval(node.Value, ctx)
+		if isError(value) {
+			return value
+		}
+
+		// Check for exception during evaluation
+		if ctx.Exception() != nil {
+			return &runtime.NilValue{}
+		}
+
+		return e.evalMemberAssignmentDirect(target, value, node, ctx)
 
 	case *ast.IndexExpression:
 		// Task 3.5.105c: Handle index assignment directly for arrays/strings
