@@ -192,6 +192,39 @@ type RecordInstanceValue interface {
 	HasRecordProperty(name string) bool
 }
 
+// SetMethodDispatcher is an optional interface that set values can implement
+// to provide direct access to set mutation methods without going through the adapter.
+// Task 3.5.111a: Enables direct set method dispatch (Include, Exclude) in VisitMethodCallExpression.
+type SetMethodDispatcher interface {
+	Value
+	// AddElement adds an element with the given ordinal value to the set.
+	// This mutates the set in place (used for Include method).
+	AddElement(ordinal int)
+	// RemoveElement removes an element with the given ordinal value from the set.
+	// This mutates the set in place (used for Exclude method).
+	RemoveElement(ordinal int)
+	// GetSetElementTypeName returns the element type name for error messages.
+	// Returns "Unknown" if the element type cannot be determined.
+	GetSetElementTypeName() string
+}
+
+// EnumTypeMetaDispatcher is an optional interface that type meta values wrapping
+// enum types can implement to provide direct access to enum type methods.
+// Task 3.5.111b: Enables direct enum type method dispatch (Low, High, ByName) in VisitMethodCallExpression.
+type EnumTypeMetaDispatcher interface {
+	Value
+	// IsEnumTypeMeta returns true if this type meta wraps an enum type.
+	IsEnumTypeMeta() bool
+	// EnumLow returns the lowest ordinal value of the enum type.
+	EnumLow() int
+	// EnumHigh returns the highest ordinal value of the enum type.
+	EnumHigh() int
+	// EnumByName looks up an enum value by name (case-insensitive).
+	// Supports both simple names ('Red') and qualified names ('TColor.Red').
+	// Returns the ordinal value if found, or 0 if not found (DWScript behavior).
+	EnumByName(name string) int
+}
+
 // Config holds configuration options for the evaluator.
 type Config struct {
 	SourceCode        string

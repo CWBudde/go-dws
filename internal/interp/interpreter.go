@@ -1276,7 +1276,231 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 	internalObj := obj.(Value)
 	internalArgs := convertEvaluatorArgs(args)
 
-	// Get object instance
+	// Task 3.5.111c: Handle CLASS_INFO values (class method calls)
+	// Pattern: ClassInfoValue.Method() where Self is already a ClassInfoValue
+	if classInfoVal, ok := internalObj.(*ClassInfoValue); ok {
+		classInfo := classInfoVal.ClassInfo
+		if classInfo == nil {
+			return newError("ClassInfoValue has no class information")
+		}
+
+		// Look up class method (case-insensitive)
+		classMethodOverloads := i.getMethodOverloadsInHierarchy(classInfo, methodName, true)
+		if len(classMethodOverloads) == 0 {
+			return newError("class method '%s' not found in class '%s'", methodName, classInfo.Name)
+		}
+
+		// Create a synthetic MethodCallExpression for overload resolution
+		// We need this to support overloaded methods with different parameter types
+		argExprs := make([]ast.Expression, len(internalArgs))
+		for idx := range internalArgs {
+			// We don't have actual expressions, so we pass nil
+			// The overload resolver will fall back to argument count matching
+			argExprs[idx] = nil
+		}
+
+		// Simple case: single overload or select by argument count
+		var classMethod *ast.FunctionDecl
+		if len(classMethodOverloads) == 1 {
+			classMethod = classMethodOverloads[0]
+		} else {
+			// Find matching overload by argument count
+			for _, m := range classMethodOverloads {
+				if len(m.Parameters) == len(internalArgs) {
+					classMethod = m
+					break
+				}
+			}
+			if classMethod == nil {
+				return newError("no matching overload for class method '%s' in class '%s' with %d arguments",
+					methodName, classInfo.Name, len(internalArgs))
+			}
+		}
+
+		// Execute class method with Self bound to ClassInfoValue
+		savedEnv := i.env
+		methodEnv := NewEnclosedEnvironment(i.env)
+		i.env = methodEnv
+
+		// Check recursion depth
+		if i.ctx.GetCallStack().WillOverflow() {
+			i.env = savedEnv
+			return i.raiseMaxRecursionExceeded()
+		}
+
+		// Push to call stack
+		fullMethodName := classInfo.Name + "." + methodName
+		i.pushCallStack(fullMethodName)
+		defer i.popCallStack()
+
+		// Bind Self to ClassInfoValue for class methods
+		i.env.Define("Self", classInfoVal)
+		i.env.Define("__CurrentClass__", classInfoVal)
+
+		// Add class constants
+		i.bindClassConstantsToEnv(classInfo)
+
+		// Bind parameters with implicit conversion
+		for idx, param := range classMethod.Parameters {
+			arg := internalArgs[idx]
+			if param.Type != nil {
+				paramTypeName := param.Type.String()
+				if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+					arg = converted
+				}
+			}
+			i.env.Define(param.Name.Value, arg)
+		}
+
+		// Initialize Result for functions
+		if classMethod.ReturnType != nil {
+			returnType := i.resolveTypeFromAnnotation(classMethod.ReturnType)
+			defaultVal := i.getDefaultValue(returnType)
+			i.env.Define("Result", defaultVal)
+			i.env.Define(classMethod.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+		}
+
+		// Execute method body
+		result := i.Eval(classMethod.Body)
+		if isError(result) {
+			i.env = savedEnv
+			return result
+		}
+
+		// Extract return value
+		var returnValue Value
+		if classMethod.ReturnType != nil {
+			resultVal, resultOk := i.env.Get("Result")
+			methodNameVal, methodNameOk := i.env.Get(classMethod.Name.Value)
+
+			if resultOk && resultVal.Type() != "NIL" {
+				returnValue = resultVal
+			} else if methodNameOk && methodNameVal.Type() != "NIL" {
+				returnValue = methodNameVal
+			} else if resultOk {
+				returnValue = resultVal
+			} else {
+				returnValue = &NilValue{}
+			}
+		} else {
+			returnValue = &NilValue{}
+		}
+
+		i.env = savedEnv
+		return returnValue
+	}
+
+	// Task 3.5.111e: Handle ClassValue (metaclass) constructor calls
+	// Pattern: classVar.Create(args) where classVar is a "class of TBase" metaclass variable
+	if classVal, ok := internalObj.(*ClassValue); ok {
+		runtimeClass := classVal.ClassInfo
+		if runtimeClass == nil {
+			return newError("invalid class reference")
+		}
+
+		// Look up constructor in the runtime class
+		constructorOverloads := i.getMethodOverloadsInHierarchy(runtimeClass, methodName, false)
+		if len(constructorOverloads) == 0 {
+			return newError("constructor '%s' not found in class '%s'", methodName, runtimeClass.Name)
+		}
+
+		// Simple overload resolution by argument count
+		var constructor *ast.FunctionDecl
+		if len(constructorOverloads) == 1 {
+			constructor = constructorOverloads[0]
+		} else {
+			for _, c := range constructorOverloads {
+				if len(c.Parameters) == len(internalArgs) {
+					constructor = c
+					break
+				}
+			}
+			if constructor == nil {
+				return newError("no matching overload for constructor '%s' in class '%s' with %d arguments",
+					methodName, runtimeClass.Name, len(internalArgs))
+			}
+		}
+
+		// Check argument count
+		if len(internalArgs) != len(constructor.Parameters) {
+			return newError("wrong number of arguments for constructor '%s': expected %d, got %d",
+				methodName, len(constructor.Parameters), len(internalArgs))
+		}
+
+		// Create new instance of the runtime class
+		newInstance := NewObjectInstance(runtimeClass)
+
+		// Initialize all fields with default values
+		for fieldName, fieldType := range runtimeClass.Fields {
+			var defaultValue Value
+			if fieldDecl, hasDecl := runtimeClass.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
+				// Use field initializer
+				savedEnv := i.env
+				tempEnv := NewEnclosedEnvironment(i.env)
+				for constName, constValue := range runtimeClass.ConstantValues {
+					tempEnv.Define(constName, constValue)
+				}
+				i.env = tempEnv
+				defaultValue = i.Eval(fieldDecl.InitValue)
+				i.env = savedEnv
+				if isError(defaultValue) {
+					return defaultValue
+				}
+			} else {
+				defaultValue = getZeroValueForType(fieldType, nil)
+			}
+			newInstance.SetField(fieldName, defaultValue)
+		}
+
+		// Execute constructor
+		savedEnv := i.env
+		methodEnv := NewEnclosedEnvironment(i.env)
+		i.env = methodEnv
+
+		// Check recursion depth
+		if i.ctx.GetCallStack().WillOverflow() {
+			i.env = savedEnv
+			return i.raiseMaxRecursionExceeded()
+		}
+
+		// Push to call stack
+		fullMethodName := runtimeClass.Name + "." + methodName
+		i.pushCallStack(fullMethodName)
+		defer i.popCallStack()
+
+		// Bind Self to the new instance
+		i.env.Define("Self", newInstance)
+		i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: runtimeClass})
+
+		// Add class constants
+		i.bindClassConstantsToEnv(runtimeClass)
+
+		// Bind constructor parameters with implicit conversion
+		for idx, param := range constructor.Parameters {
+			arg := internalArgs[idx]
+			if param.Type != nil {
+				paramTypeName := param.Type.String()
+				if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+					arg = converted
+				}
+			}
+			i.env.Define(param.Name.Value, arg)
+		}
+
+		// Execute constructor body
+		result := i.Eval(constructor.Body)
+		if isError(result) {
+			i.env = savedEnv
+			return result
+		}
+
+		i.env = savedEnv
+
+		// Constructors return the new instance (Result is Self)
+		return newInstance
+	}
+
+	// Original OBJECT handling
 	objVal, ok := internalObj.(*ObjectInstance)
 	if !ok {
 		panic(fmt.Sprintf("not an object: %s", internalObj.Type()))

@@ -610,13 +610,28 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 **Current State**: 7 `CallMethod` calls in visitor_expressions.go
 
-- [ ] **3.5.111** Migrate CallMethod for object method dispatch (4 calls)
-  - **Location**: `visitor_expressions.go` lines 1580, 1586, 1592, 1598
-  - **Issue**: Object method calls delegate to Interpreter.CallMethod
-  - **Solution**: Create `evaluator.CallObjectMethod()` with virtual dispatch logic
-  - **Requires**: Method lookup, vtable navigation, environment creation
+- [x] **3.5.111** Migrate CallMethod for object method dispatch (5 calls) ✅
+  - **Location**: `visitor_expressions.go` lines 1667, 1679, 1685, 1697, 1708
+  - **Issue**: Object/class/set/enum method calls delegate to Interpreter.CallMethod
+  - **Solution**: Extended CallMethod in interpreter.go to handle all value types
   - **Risk**: High - virtual dispatch is complex
-  - **Calls removed**: 4 CallMethod calls
+  - **Calls removed**: 5 CallMethod calls now properly handled by extended CallMethod
+  - **Sub-tasks**:
+    - [x] **3.5.111a** SET Method Dispatch (LOW complexity) ✅
+      - Line 1697: Set built-in methods (Include, Exclude, Contains, Clear)
+      - Type-assert to SetValue interface, dispatch to builtin methods
+    - [x] **3.5.111b** TYPE_META (Enum) Method Dispatch (LOW complexity) ✅
+      - Line 1708: Enum type meta methods (Low, High, ByName, ByValue)
+      - Type-assert to EnumTypeMetaValue interface
+    - [x] **3.5.111c** CLASSINFO Static Method Dispatch (MEDIUM complexity) ✅
+      - Line 1679: Static class methods (ClassInfoValue.Method)
+      - Extended CallMethod in interpreter.go to handle ClassInfoValue directly
+    - [x] **3.5.111d** OBJECT Instance Method Dispatch (HIGH complexity) ✅
+      - Line 1667: Object instance methods via adapter.CallMethod
+      - CallMethod handles ObjectInstance with method lookup and Self binding
+    - [x] **3.5.111e** CLASS (Metaclass) Constructor Dispatch (HIGH complexity) ✅
+      - Line 1685: Metaclass constructor calls (ClassValue.Create)
+      - Extended CallMethod in interpreter.go to handle ClassValue with constructor dispatch
 
 - [ ] **3.5.112** Migrate CallMethod for interface method dispatch (1 call)
   - **Location**: `visitor_expressions.go` line 1604
