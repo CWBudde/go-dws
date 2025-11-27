@@ -633,17 +633,19 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
       - Line 1685: Metaclass constructor calls (ClassValue.Create)
       - Extended CallMethod in interpreter.go to handle ClassValue with constructor dispatch
 
-- [ ] **3.5.112** Migrate CallMethod for interface method dispatch (1 call)
-  - **Location**: `visitor_expressions.go` line 1604
+- [x] **3.5.112** Migrate CallMethod for interface method dispatch (1 call) ✅
+  - **Location**: `visitor_expressions.go` line 1670 (INTERFACE case)
   - **Issue**: Interface method calls delegate to adapter
-  - **Solution**: Use InterfaceInstanceValue.GetUnderlyingObjectValue() for dispatch
-  - **Calls removed**: 1 CallMethod call
+  - **Solution**: Added InterfaceInstance case to CallMethod in interpreter.go (lines 1503-1542)
+  - **Implementation**: Verify method in interface contract, extract underlying object, dispatch to object method
+  - **Calls removed**: 1 CallMethod call now properly handled
 
-- [ ] **3.5.113** Migrate CallMethod for record method dispatch (1 call)
-  - **Location**: `visitor_expressions.go` line 1610
+- [x] **3.5.113** Migrate CallMethod for record method dispatch (1 call) ✅
+  - **Location**: `visitor_expressions.go` line 1688 (RECORD case)
   - **Issue**: Record method calls delegate to adapter
-  - **Solution**: Create `evaluator.CallRecordMethod()` with static dispatch
-  - **Calls removed**: 1 CallMethod call
+  - **Solution**: Added RecordValue case to CallMethod in interpreter.go (lines 1544-1649)
+  - **Implementation**: Instance methods with Self/field binding, static methods with constants/class vars
+  - **Calls removed**: 1 CallMethod call now properly handled
 
 - [ ] **3.5.114** Migrate CallInheritedMethod (1 call)
   - **Location**: `visitor_expressions.go` line 1854
