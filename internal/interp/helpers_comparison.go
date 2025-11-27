@@ -100,6 +100,24 @@ func (h *HelperInfo) GetProperty(name string) (*types.PropertyInfo, *HelperInfo,
 	return nil, nil, false
 }
 
+// GetClassVars returns the class variables defined in this helper.
+// Task 3.5.102g: Enables direct access to helper class variables without walking the map.
+func (h *HelperInfo) GetClassVars() map[string]Value {
+	return h.ClassVars
+}
+
+// GetClassConsts returns the class constants defined in this helper.
+// Task 3.5.102g: Enables direct access to helper class constants without walking the map.
+func (h *HelperInfo) GetClassConsts() map[string]Value {
+	return h.ClassConsts
+}
+
+// GetParentHelper returns the parent helper (for inheritance chain traversal).
+// Task 3.5.102g: Enables walking the helper inheritance chain from the evaluator.
+func (h *HelperInfo) GetParentHelper() *HelperInfo {
+	return h.ParentHelper
+}
+
 // ============================================================================
 // Helper Discovery and Lookup
 // ============================================================================

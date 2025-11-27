@@ -2,11 +2,11 @@ package evaluator
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -40,10 +40,14 @@ func (e *Evaluator) evalSetLiteralDirect(node *ast.SetLiteral, ctx *ExecutionCon
 		if typeAnnot := e.semanticInfo.GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
 			resolvedType, err := e.ResolveType(typeAnnot.Name)
 			if err == nil {
-				if _, isArray := resolvedType.(*types.ArrayType); isArray {
-					// Evaluate as array literal instead - delegate to adapter
-					// (Array literal evaluation will be migrated in task 3.5.83)
-					return e.adapter.EvalNode(node)
+				if arrayType, isArray := resolvedType.(*types.ArrayType); isArray {
+					// Task 3.5.104: Evaluate as array literal directly instead of delegating
+					// Convert SetLiteral to ArrayLiteralExpression and evaluate directly
+					arrayLit := &ast.ArrayLiteralExpression{
+						Elements: node.Elements,
+					}
+					// Pass the array type via semantic info if possible
+					return e.evalArrayLiteralWithType(arrayLit, arrayType, ctx)
 				}
 			}
 		}
@@ -239,9 +243,12 @@ func (e *Evaluator) evalSetSimpleElement(
 }
 
 // lookupEnumType looks up an enum type by name from the environment.
+// Task 3.5.104: Removed adapter.GetType() fallback - use direct environment lookup only.
 func (e *Evaluator) lookupEnumType(typeName string, ctx *ExecutionContext) (*types.EnumType, error) {
 	// Enum types are stored in environment with "__enum_type_" prefix
-	typeVal, ok := ctx.Env().Get("__enum_type_" + strings.ToLower(typeName))
+	// Use ident.Normalize for case-insensitive lookup (consistent with other type lookups)
+	normalizedName := ident.Normalize(typeName)
+	typeVal, ok := ctx.Env().Get("__enum_type_" + normalizedName)
 	if !ok {
 		return nil, fmt.Errorf("unknown enum type '%s'", typeName)
 	}
@@ -252,16 +259,6 @@ func (e *Evaluator) lookupEnumType(typeName string, ctx *ExecutionContext) (*typ
 		return enumTypeProvider.GetEnumType(), nil
 	}
 
-	// Fallback: try to access via reflection or adapter
-	// For now, use the adapter which has access to the concrete type
-	resolvedType, err := e.adapter.GetType(typeName)
-	if err != nil {
-		return nil, fmt.Errorf("invalid enum type for '%s'", typeName)
-	}
-
-	if enumType, ok := resolvedType.(*types.EnumType); ok {
-		return enumType, nil
-	}
-
-	return nil, fmt.Errorf("type '%s' is not an enum type", typeName)
+	// The value was found but doesn't implement GetEnumType() - this is a programming error
+	return nil, fmt.Errorf("type '%s' is registered but does not provide EnumType (internal error)", typeName)
 }

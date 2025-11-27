@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
@@ -135,4 +137,79 @@ func (e *Evaluator) resolveInlineArrayType(typeName string) (types.Type, error) 
 // Deprecated: Use ResolveType instead.
 func (e *Evaluator) ResolveTypeFromName(typeName string) (types.Type, error) {
 	return e.ResolveType(typeName)
+}
+
+// ============================================================================
+// Type Annotation Resolution
+// ============================================================================
+//
+// Task 3.5.102g: Resolve types from AST type annotations.
+// ============================================================================
+
+// ResolveTypeFromAnnotation resolves a type from an AST TypeExpression.
+// This is used for function return types, parameter types, and variable declarations.
+//
+// Task 3.5.102g: Migrated from Interpreter.resolveTypeFromAnnotation().
+func (e *Evaluator) ResolveTypeFromAnnotation(typeExpr ast.TypeExpression) (types.Type, error) {
+	if typeExpr == nil {
+		return nil, nil
+	}
+
+	// Get the type name string from the expression
+	typeName := typeExpr.String()
+
+	// Delegate to ResolveType which handles all type resolution
+	return e.ResolveType(typeName)
+}
+
+// ============================================================================
+// Default Value Creation
+// ============================================================================
+//
+// Task 3.5.102g: Create default/zero values for types.
+// ============================================================================
+
+// GetDefaultValue returns the default/zero value for a given type.
+// This is used for Result variable initialization in functions.
+//
+// Task 3.5.102g: Migrated from Interpreter.getDefaultValue().
+func (e *Evaluator) GetDefaultValue(typ types.Type) Value {
+	if typ == nil {
+		return e.nilValue()
+	}
+
+	switch typ.TypeKind() {
+	case "STRING":
+		return &runtime.StringValue{Value: ""}
+	case "INTEGER":
+		return &runtime.IntegerValue{Value: 0}
+	case "FLOAT":
+		return &runtime.FloatValue{Value: 0.0}
+	case "BOOLEAN":
+		return &runtime.BooleanValue{Value: false}
+	case "CLASS", "INTERFACE", "FUNCTION_POINTER", "METHOD_POINTER":
+		return e.nilValue()
+	case "ARRAY":
+		// Arrays should default to an empty array value of the correct element type.
+		if arrType, ok := typ.(*types.ArrayType); ok {
+			return runtime.NewArrayValue(arrType, nil)
+		}
+		return e.nilValue()
+	case "RECORD":
+		// Records should be initialized with default field values.
+		// For now, return NIL (will be enhanced if needed).
+		return e.nilValue()
+	case "VARIANT":
+		// Variants default to Unassigned (nil-like)
+		return e.nilValue()
+	default:
+		// Unknown types default to NIL
+		return e.nilValue()
+	}
+}
+
+// nilValue returns a nil value.
+// Task 3.5.102g: Helper for creating nil values.
+func (e *Evaluator) nilValue() Value {
+	return &runtime.NilValue{}
 }
