@@ -37,6 +37,19 @@ type HelperInfo interface {
 	// Returns the property info, the helper that owns it, and whether it was found.
 	// Note: Uses any to avoid importing internal/interp/types (circular dependency)
 	GetProperty(name string) (any, HelperInfo, bool)
+
+	// GetClassVars returns the class variables defined in this helper.
+	// Task 3.5.102g: Enables direct access to helper class variables.
+	GetClassVars() map[string]Value
+
+	// GetClassConsts returns the class constants defined in this helper.
+	// Task 3.5.102g: Enables direct access to helper class constants.
+	GetClassConsts() map[string]Value
+
+	// GetParentHelper returns the parent helper for inheritance chain traversal.
+	// Task 3.5.102g: Enables walking the helper inheritance chain.
+	// Returns nil if this is a root helper.
+	GetParentHelper() HelperInfo
 }
 
 // HelperMethodResult represents the result of a helper method lookup.
@@ -248,6 +261,8 @@ type BooleanValue interface {
 // This replaces the adapter's callHelperMethod for cases that can be handled
 // directly in the evaluator.
 //
+// Task 3.5.102g: Added ctx parameter to enable direct AST helper execution.
+//
 // Returns:
 // - The method result value
 // - An error value if something went wrong
@@ -256,6 +271,7 @@ func (e *Evaluator) CallHelperMethod(
 	selfValue Value,
 	args []Value,
 	node ast.Node,
+	ctx *ExecutionContext,
 ) Value {
 	if result == nil {
 		return e.newError(node, "helper method not found")
@@ -263,13 +279,13 @@ func (e *Evaluator) CallHelperMethod(
 
 	// If it's a builtin method, handle it directly
 	if result.BuiltinSpec != "" {
-		return e.CallBuiltinHelperMethod(result.BuiltinSpec, selfValue, args, node)
+		return e.CallBuiltinHelperMethod(result.BuiltinSpec, selfValue, args, node, ctx)
 	}
 
 	// If it's an AST method, execute it with proper Self binding
-	// Task 3.5.98d: Migrated AST helper method execution from Interpreter
+	// Task 3.5.102g: Migrated AST helper method execution from Interpreter
 	if result.Method != nil {
-		return e.CallASTHelperMethod(result.OwnerHelper, result.Method, selfValue, args, node)
+		return e.CallASTHelperMethod(result.OwnerHelper, result.Method, selfValue, args, node, ctx)
 	}
 
 	return e.newError(node, "helper method has no implementation")
@@ -283,6 +299,7 @@ func (e *Evaluator) CallHelperMethod(
 // Task 3.5.102d: Boolean helper methods now handled directly in evaluator.
 // Task 3.5.102e: Array helper methods now handled directly in evaluator.
 // Task 3.5.102f: Enum helper methods now handled directly in evaluator.
+// Task 3.5.102g: Added ctx parameter for consistency with CallHelperMethod.
 //
 // Specific helper implementations are migrated incrementally:
 // - String helpers: ToUpper, ToLower, Length, ToString (Task 3.5.102a)
@@ -293,7 +310,7 @@ func (e *Evaluator) CallHelperMethod(
 // - Enum helpers: Value, Name, QualifiedName (Task 3.5.102f)
 //
 // Unhandled helpers fall through to the adapter.
-func (e *Evaluator) CallBuiltinHelperMethod(spec string, selfValue Value, args []Value, node ast.Node) Value {
+func (e *Evaluator) CallBuiltinHelperMethod(spec string, selfValue Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	// Task 3.5.102a: Try string helpers first
 	if result := e.evalStringHelper(spec, selfValue, args, node); result != nil {
 		return result
@@ -329,7 +346,7 @@ func (e *Evaluator) CallBuiltinHelperMethod(spec string, selfValue Value, args [
 }
 
 // CallASTHelperMethod executes a user-defined helper method (with AST body).
-// Task 3.5.98d: Migrates AST helper method execution from Interpreter.callHelperMethod.
+// Task 3.5.102g: Migrates AST helper method execution from Interpreter.callHelperMethod.
 //
 // This handles:
 // - Creating a new method environment
@@ -345,6 +362,7 @@ func (e *Evaluator) CallASTHelperMethod(
 	selfValue Value,
 	args []Value,
 	node ast.Node,
+	ctx *ExecutionContext,
 ) Value {
 	if method == nil {
 		return e.newError(node, "helper method not implemented")
@@ -356,16 +374,97 @@ func (e *Evaluator) CallASTHelperMethod(
 			method.Name.Value, len(method.Parameters), len(args))
 	}
 
-	// For now, delegate to adapter for complex AST method execution
-	// This requires:
-	// 1. Environment management (create new environment, save/restore)
-	// 2. Type resolution for Result variable (resolveTypeFromAnnotation)
-	// 3. Default value creation (getDefaultValue)
-	// 4. Helper class var/const access from inheritance chain
-	//
-	// These dependencies are still in the adapter, so we delegate the full execution.
-	// Future work can migrate these piece by piece.
-	return e.adapter.EvalNode(node)
+	// Create method environment (enclosed scope)
+	ctx.PushEnv()
+	defer ctx.PopEnv()
+
+	// Bind Self to the target value (the value being extended)
+	ctx.Env().Define("Self", selfValue)
+
+	// Bind helper class vars and consts from entire inheritance chain.
+	// Walk from root parent to current helper so child helpers override parents.
+	e.bindHelperChainVarsConsts(helper, ctx)
+
+	// Bind method parameters
+	for idx, param := range method.Parameters {
+		ctx.Env().Define(param.Name.Value, args[idx])
+	}
+
+	// For functions, initialize the Result variable
+	if method.ReturnType != nil {
+		returnType, err := e.ResolveTypeFromAnnotation(method.ReturnType)
+		if err != nil {
+			return e.newError(node, "failed to resolve return type: %v", err)
+		}
+		defaultVal := e.GetDefaultValue(returnType)
+		ctx.Env().Define("Result", defaultVal)
+		// Also define method name as alias for Result (Pascal convention)
+		ctx.Env().Define(method.Name.Value, defaultVal)
+	}
+
+	// Execute method body
+	result := e.Eval(method.Body, ctx)
+	if isError(result) {
+		return result
+	}
+
+	// Extract return value
+	if method.ReturnType != nil {
+		return e.extractReturnValue(method.Name.Value, ctx)
+	}
+
+	// For procedures, return nil
+	return e.nilValue()
+}
+
+// bindHelperChainVarsConsts binds class vars and consts from the helper inheritance chain.
+// Walks from root parent to the current helper so child helpers override parents.
+// Task 3.5.102g: Helper for CallASTHelperMethod.
+func (e *Evaluator) bindHelperChainVarsConsts(helper HelperInfo, ctx *ExecutionContext) {
+	// Build the helper chain from root to current
+	var helperChain []HelperInfo
+	for h := helper; h != nil; h = h.GetParentHelper() {
+		helperChain = append([]HelperInfo{h}, helperChain...)
+	}
+
+	// Bind vars and consts in order (root first, so children override)
+	for _, h := range helperChain {
+		for name, value := range h.GetClassVars() {
+			ctx.Env().Define(name, value)
+		}
+		for name, value := range h.GetClassConsts() {
+			ctx.Env().Define(name, value)
+		}
+	}
+}
+
+// extractReturnValue extracts the return value from a function's environment.
+// Checks Result first, then method name alias, following Pascal conventions.
+// Task 3.5.102g: Helper for CallASTHelperMethod.
+func (e *Evaluator) extractReturnValue(methodName string, ctx *ExecutionContext) Value {
+	// Check Result variable first
+	if resultVal, ok := ctx.Env().Get("Result"); ok {
+		if val, ok := resultVal.(Value); ok && val.Type() != "NIL" {
+			return val
+		}
+	}
+
+	// Check method name alias
+	if methodNameVal, ok := ctx.Env().Get(methodName); ok {
+		if val, ok := methodNameVal.(Value); ok && val.Type() != "NIL" {
+			return val
+		}
+	}
+
+	// Fallback to Result even if NIL
+	if resultVal, ok := ctx.Env().Get("Result"); ok {
+		if val, ok := resultVal.(Value); ok {
+			return val
+		}
+	}
+
+	// Final fallback
+	return e.nilValue()
 }
 
 // ============================================================================

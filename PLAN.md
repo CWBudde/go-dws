@@ -351,54 +351,36 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 ---
 
-#### Group D: VisitCallExpression (12 calls, high complexity)
+#### Group D: VisitCallExpression (12 calls) ✅ COMPLETE
 
-- [x] **3.5.93** Built-in Var Parameter Functions ✅
-  - **Infrastructure**: Created `evaluator/var_params.go` with `EvaluateLValue()` for read-modify-write operations
-  - **Migrated**: Inc/Dec, SetLength, Insert/Delete, Swap, DivMod, TryStrToInt/TryStrToFloat (2/3-arg forms), DecodeDate/DecodeTime
-  - **Files**: `evaluator/var_params.go`, `evaluator/datetime_helpers.go`, `evaluator/visitor_expressions.go`
-
-- [x] **3.5.94** Default/Type Cast Calls ✅
-  - `Default(TypeName)` returns default value for type
-  - `TypeName(expr)` handles type cast expressions
-  - **Files**: `evaluator/visitor_expressions.go`
-
-- [x] **3.5.95** Function Pointer Calls ✅
-  - Migrated parameter preparation (lazy/var/regular parameters)
-  - Uses `CreateLazyThunk`, `CreateReferenceValue`, `CallFunctionPointer` adapter calls
-  - **Files**: `evaluator/visitor_expressions.go`
-
-- [x] **3.5.96** Method Calls ✅
-  - Added `CallMemberMethod` for record/interface/object methods
-  - Added `CallQualifiedOrConstructor` for unit-qualified calls and constructors
-  - **Files**: `evaluator/evaluator.go`, `interpreter.go`, `evaluator/visitor_expressions.go`
-
-- [x] **3.5.97** User Function Calls ✅
-  - Added `CallUserFunctionWithOverloads` (overload resolution)
-  - Added `CallImplicitSelfMethod` (implicit Self calls)
-  - Added `CallRecordStaticMethod` (record static methods)
-  - **Files**: `evaluator/evaluator.go`, `interpreter.go`, `evaluator/visitor_expressions.go`
+- [x] **3.5.93-3.5.97** Call Expression Migration ✅
+  - **Var Parameters** (3.5.93): Created `var_params.go` with `EvaluateLValue()` for read-modify-write (Inc/Dec, SetLength, Insert/Delete, Swap, DivMod, TryStrTo*, DecodeDate/Time)
+  - **Default/Type Cast** (3.5.94): Default(TypeName) and TypeName(expr) type casts
+  - **Function Pointers** (3.5.95): Parameter preparation (lazy/var/regular), uses CreateLazyThunk/CreateReferenceValue/CallFunctionPointer adapters
+  - **Method Calls** (3.5.96): CallMemberMethod (record/interface/object), CallQualifiedOrConstructor (unit-qualified + constructors)
+  - **User Functions** (3.5.97): CallUserFunctionWithOverloads (overload resolution), CallImplicitSelfMethod (implicit Self), CallRecordStaticMethod (record static methods)
+  - **Files**: `evaluator/var_params.go`, `evaluator/datetime_helpers.go`, `evaluator/visitor_expressions.go`, `evaluator/evaluator.go`, `interpreter.go`
 
 ---
 
-#### Group E: VisitMethodCallExpression Helper Methods (1 call, high complexity)
+#### Group E: Helper Methods (1 call) ✅ COMPLETE
 
 - [x] **3.5.98** Helper Method Migration ✅
-  - **Infrastructure**: Created `evaluator/helper_methods.go` with `FindHelperMethod()` for type-to-helper resolution
-  - **Migrated**: Builtin helper lookup, AST helper method execution infrastructure
+  - Created `helper_methods.go` with `FindHelperMethod()` for type-to-helper resolution
+  - Migrated builtin helper lookup, AST helper method execution infrastructure
   - Added `GetEnumTypeName()` to EnumValue, `ArrayTypeString()` to ArrayValue
-  - Replaced 7 adapter EvalNode calls with direct helper method resolution
+  - Removed 7 adapter EvalNode calls with direct helper method resolution
   - **Files**: `evaluator/helper_methods.go`, `evaluator/visitor_expressions.go`, `runtime/enum.go`, `runtime/array.go`
 
 ---
 
-#### Group F: VisitIndexExpression Advanced Cases (7 EvalNode calls)
+#### Group F: Advanced Indexing (7 calls) ✅ COMPLETE
 
 - [x] **3.5.99** Property Access & JSON Indexing ✅
-  - **Infrastructure**: Added `PropertyAccessor` interface with `LookupProperty()`, `GetDefaultProperty()`
-  - **JSON Indexing**: Created `evaluator/json_helpers.go` with reflection-based access (avoids circular import)
-  - **Default Properties**: Object/interface/record default property access via `CallIndexedPropertyGetter`/`CallRecordPropertyGetter`
-  - **Indexed Properties**: Multi-index property access via `CollectIndices` (flattened evaluation)
+  - **Infrastructure**: PropertyAccessor interface (LookupProperty, GetDefaultProperty)
+  - **JSON**: Created `json_helpers.go` with reflection-based access (avoids circular import)
+  - **Default Properties**: Object/interface/record default property access via CallIndexedPropertyGetter/CallRecordPropertyGetter
+  - **Indexed Properties**: Multi-index property access via CollectIndices (flattened evaluation)
   - Removed 7 EvalNode delegations (JSON, OBJECT, INTERFACE, RECORD, MemberAccessExpression cases)
   - **Files**: `evaluator/evaluator.go`, `evaluator/json_helpers.go`, `evaluator/visitor_expressions.go`, `interpreter.go`, `class.go`, `interface.go`, `value.go`
   - **Tests**: `property_accessor_test.go` (4 test functions, all passing)
@@ -408,18 +390,15 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 ### Phase 14: Adapter Audit (3.5.100)
 
 - [x] **3.5.100** Audit Unused Adapter Methods ✅
-  - **Analysis**: 149 total methods, 78 used (52.3%), 71 unused (47.7%)
+  - **Analysis**: 149 methods total → 78 used (52.3%), 71 unused (47.7%)
   - **Categories**: Interface duplicates (21), Type registry (9), Property/field (10), Type system (4), Array/collection (7), Assignment (3), Value creation (6), Type parsing (1), Class checks (2)
-  - **Reduction potential**: ~48% achievable by removing unused methods
-  - **Report**: Created comprehensive audit with 7-phase removal plan
-  - **Files**: `/tmp/adapter_audit_report.md`
+  - **Report**: Created comprehensive audit with 7-phase removal plan (`/tmp/adapter_audit_report.md`)
 
-- [x] **3.5.100b** Remove Verified Unused Adapter Methods (42 methods) ✅
-  - **Removed from interface**: Type registry (10), Property/field access (10), Array/collection (8), Type system (4), Value creation (3), Assignment (3), Misc (4)
-  - **Methods removed**: `HasClass`, `GetClassTypeID`, `HasRecord`, `GetRecordTypeID`, `HasInterface`, `HasHelpers`, `GetConversionRegistry`, `IsEnumType`, `IsRecordType`, `IsArrayType`, `GetObjectField`, `SetObjectField`, `GetRecordField`, `SetRecordField`, `GetPropertyValue`, `SetPropertyValue`, `GetIndexedProperty`, `SetIndexedProperty`, `GetRecordFieldDeclarations`, `InitializeInterfaceField`, `CreateDefaultValue`, `GetZeroValueForType`, `CreateRecord`, `CreateArrayWithExpectedType`, `CreateDynamicArray`, `GetArrayElement`, `SetArrayElement`, `GetArrayLength`, `CreateSet`, `AddToSet`, `EvaluateSetRange`, `GetStringChar`, `SetVariable`, `CanAssign`, `CreateEnclosedEnvironment`, `ResolveType`, `IsTypeCompatible`, `InferArrayElementType`, `InferRecordType`, `ParseInlineSetType`, `ClassImplementsInterface`, `IsClassValue`
+- [x] **3.5.100b** Remove Verified Unused Methods (42 removed) ✅
+  - **Removed**: Type registry (10), Property/field access (10), Array/collection (8), Type system (4), Value creation (3), Assignment (3), Misc (4)
   - **Implementation cleanup**: Removed 40 method implementations from `interpreter.go` (924 lines, 27.2% reduction)
   - **Test fixes**: Updated `type_registry_test.go` to use `LookupClass`/`LookupInterface` instead of removed `HasClass`/`HasInterface`
-  - **Reduction**: 149 → 107 methods (42 removed, 28.2% reduction)
+  - **Reduction**: 149 → 107 methods (28.2% reduction)
   - **Files**: `evaluator/evaluator.go`, `interpreter.go`, `type_registry_test.go`
 
 ---
@@ -427,6 +406,7 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 ### Phase 15: Reduce EvalNode Calls (3.5.101-3.5.110)
 
 **Current State (as of latest grep):**
+
 - **Total adapter calls**: 135 across 13 files
 - **EvalNode**: 35 calls (highest usage - primary migration target)
 - **CallMethod**: 7 calls (all in VisitMethodCallExpression)
@@ -454,12 +434,12 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Files**: `evaluator/visitor_expressions.go`
   - **Tests**: All MemberAccess, Interface, Record, Enum tests pass
 
-- [ ] **3.5.102** Remove EvalNode from helper method fallbacks (2 calls) - **SPLIT INTO SUB-TASKS**
+- [x] **3.5.102** Remove EvalNode from helper method fallbacks (2 calls) - **COMPLETED** ✅
   - **Location**: `helper_methods.go` lines 287-288, 327-328
   - **Issue**: `CallBuiltinHelperMethod()` and `CallASTHelperMethod()` delegate to EvalNode
   - **Complexity**: HIGH - 37 builtin helper implementations + AST execution logic
   - **Solution**: Migrate helper method logic incrementally to evaluator package
-  - **Calls removed**: 2 EvalNode calls
+  - **Calls removed**: 2 EvalNode calls (1 from CallBuiltinHelperMethod fallback, 1 from CallASTHelperMethod)
   - **Sub-tasks**:
     - [x] **3.5.102a** Migrate String Helper Methods (4 methods, LOW RISK) ✅
       - `__string_toupper`, `__string_tolower`, `__string_length`, `__string_tostring`
@@ -488,13 +468,24 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
       - Implemented directly in `evaluator/array_helpers.go`
       - ~360 lines added (includes type inference helpers already present)
       - NOT migrated: `__array_indexof`, `__array_setlength`, `__array_map` (complex dependencies)
-    - [ ] **3.5.102f** Migrate Remaining Builtin Helpers (6 methods, MEDIUM RISK)
+    - [x] **3.5.102f** Migrate Remaining Builtin Helpers (6 methods, MEDIUM RISK) ✅
       - Enum, set, and other specialized helpers
       - ~100 lines to migrate
-    - [ ] **3.5.102g** Migrate AST Helper Method Execution (HIGHEST RISK)
-      - Requires Environment management, type resolution, default values
-      - Complex dependencies on adapter infrastructure
-      - Consider keeping adapter delegation initially
+    - [x] **3.5.102g** Migrate AST Helper Method Execution (HIGHEST RISK) ✅
+      - **Infrastructure Added**:
+        - Extended `HelperInfo` interface with `GetClassVars()`, `GetClassConsts()`, `GetParentHelper()`
+        - Added `ResolveTypeFromAnnotation()` to evaluator for return type resolution
+        - Added `GetDefaultValue()` to evaluator for Result variable initialization
+        - Added `ctx *ExecutionContext` parameter to `CallHelperMethod`, `CallBuiltinHelperMethod`, `CallASTHelperMethod`
+      - **Implementation**: Direct AST helper execution with:
+        - Environment management via `ctx.PushEnv()`/`ctx.PopEnv()`
+        - Self binding for the extended value
+        - Helper inheritance chain var/const binding
+        - Parameter binding
+        - Result variable initialization
+        - Return value extraction (Result or method name alias)
+      - **Removed**: 1 `adapter.EvalNode(node)` call
+      - **Tests**: All 22 helper tests passing
 
 - [x] **3.5.103** Remove EvalNode from binary_ops.go (4 calls) - **COMPLETED**
   - **Location**: `binary_ops.go` lines 520, 548, 561, 575, 632
@@ -536,11 +527,14 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
       - Handles: nullish comparisons, type coercion, string concatenation
       - Removed 1 EvalVariantBinaryOp adapter call
 
-- [ ] **3.5.104** Remove EvalNode from set_helpers.go (2 calls)
+- [x] **3.5.104** Remove EvalNode from set_helpers.go (2 calls) - **COMPLETED** ✅
   - **Location**: `set_helpers.go` lines 46, 257
-  - **Issue**: Set literal evaluation has fallback, GetType for named set types
-  - **Solution**: Use TypeSystem.LookupSetType() directly
-  - **Calls removed**: 2 EvalNode + 1 GetType calls
+  - **Changes**:
+    - Line 46 (EvalNode for array): Converted SetLiteral to ArrayLiteralExpression and called `evalArrayLiteralWithType()` directly instead of delegating to adapter
+    - Line 257 (GetType for enum): Removed adapter.GetType() fallback, using direct environment lookup with `ident.Normalize()` for case-insensitive enum type resolution
+  - **Files**: `evaluator/set_helpers.go`
+  - **Tests**: All set literal and enum tests pass
+  - **Calls removed**: 1 EvalNode + 1 GetType adapter calls
 
 - [ ] **3.5.105** Remove EvalNode from visitor_statements.go AssignmentStatement (1 call)
   - **Location**: `visitor_statements.go` line 361

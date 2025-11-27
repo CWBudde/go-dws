@@ -1318,11 +1318,11 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			// Found a helper method - check if it's parameterless for auto-invoke
 			if helperResult.Method != nil && len(helperResult.Method.Parameters) == 0 {
 				// Auto-invoke parameterless helper method
-				return e.CallHelperMethod(helperResult, obj, []Value{}, node)
+				return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
 			}
 			if helperResult.BuiltinSpec != "" {
 				// Builtin helper - auto-invoke
-				return e.CallHelperMethod(helperResult, obj, []Value{}, node)
+				return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
 			}
 		}
 
@@ -1350,11 +1350,11 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			// Found a helper method - check if it's parameterless for auto-invoke
 			if helperResult.Method != nil && len(helperResult.Method.Parameters) == 0 {
 				// Auto-invoke parameterless helper method
-				return e.CallHelperMethod(helperResult, obj, []Value{}, node)
+				return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
 			}
 			if helperResult.BuiltinSpec != "" {
 				// Builtin helper - auto-invoke
-				return e.CallHelperMethod(helperResult, obj, []Value{}, node)
+				return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
 			}
 			// Helper method has parameters - needs to be called explicitly
 			// This case should be handled by VisitMethodCallExpression, not member access
@@ -1720,7 +1720,7 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		}
 
 		// Execute the helper method (builtin or AST)
-		return e.CallHelperMethod(helperResult, obj, args, node)
+		return e.CallHelperMethod(helperResult, obj, args, node, ctx)
 
 	default:
 		// For other types (identifiers that might be unit names, record types, etc.)
@@ -1728,7 +1728,7 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		helperResult := e.FindHelperMethod(obj, methodName)
 		if helperResult != nil {
 			// Found a helper method - execute it
-			return e.CallHelperMethod(helperResult, obj, args, node)
+			return e.CallHelperMethod(helperResult, obj, args, node, ctx)
 		}
 
 		// No helper found - delegate to adapter for full handling
