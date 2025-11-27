@@ -386,6 +386,24 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 		// Simple variable assignment: x := value
 		// Task 3.5.105a: Try to handle directly, fall back to adapter for complex cases
 
+		// Task 3.5.105e: Context inference for array literals
+		// Set array type context from target variable before evaluating the literal
+		if _, isArrayLit := node.Value.(*ast.ArrayLiteralExpression); isArrayLit {
+			if expectedType := e.getArrayTypeFromTarget(target, ctx); expectedType != nil {
+				ctx.SetArrayTypeContext(expectedType)
+				defer ctx.ClearArrayTypeContext()
+			}
+		}
+
+		// Task 3.5.105e: Context inference for anonymous record literals
+		// Set record type context from target variable before evaluating the literal
+		if recordLit, isRecordLit := node.Value.(*ast.RecordLiteralExpression); isRecordLit && recordLit.TypeName == nil {
+			if recordTypeName := e.getRecordTypeNameFromTarget(target, ctx); recordTypeName != "" {
+				ctx.SetRecordTypeContext(recordTypeName)
+				defer ctx.ClearRecordTypeContext()
+			}
+		}
+
 		// First evaluate the value
 		value := e.Eval(node.Value, ctx)
 		if isError(value) {

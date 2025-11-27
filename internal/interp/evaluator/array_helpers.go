@@ -341,6 +341,11 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 		return e.newError(node, "nil array literal")
 	}
 
+	// Task 3.5.105e: Check context first for type inference from assignment target
+	if ctx.ArrayTypeContext() != nil {
+		return e.evalArrayLiteralWithExpectedType(node, ctx.ArrayTypeContext(), ctx)
+	}
+
 	// Step 1: Get type annotation from semanticInfo
 	arrayType := e.getArrayTypeFromAnnotation(node)
 

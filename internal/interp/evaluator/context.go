@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"github.com/cwbudde/go-dws/internal/errors"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // ControlFlowKind represents the type of control flow signal.
@@ -151,6 +152,7 @@ type ExecutionContext struct {
 	controlFlow       *ControlFlow
 	propContext       *PropertyEvalContext
 	recordTypeContext string
+	arrayTypeContext  *types.ArrayType // Task 3.5.105e: for array literal context inference
 	envStack          []Environment
 	oldValuesStack    []map[string]interface{}
 }
@@ -304,6 +306,23 @@ func (ctx *ExecutionContext) ClearRecordTypeContext() {
 	ctx.recordTypeContext = ""
 }
 
+// ArrayTypeContext returns the current array type context for array literal evaluation.
+// Task 3.5.105e: This allows passing type information to array literal evaluation
+// without mutating the AST, enabling context inference from assignment targets.
+func (ctx *ExecutionContext) ArrayTypeContext() *types.ArrayType {
+	return ctx.arrayTypeContext
+}
+
+// SetArrayTypeContext sets the array type context for array literal evaluation.
+func (ctx *ExecutionContext) SetArrayTypeContext(arrayType *types.ArrayType) {
+	ctx.arrayTypeContext = arrayType
+}
+
+// ClearArrayTypeContext clears the array type context.
+func (ctx *ExecutionContext) ClearArrayTypeContext() {
+	ctx.arrayTypeContext = nil
+}
+
 // PushOldValues saves the current variable values before entering a new scope.
 func (ctx *ExecutionContext) PushOldValues(oldValues map[string]interface{}) {
 	ctx.oldValuesStack = append(ctx.oldValuesStack, oldValues)
@@ -349,6 +368,7 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 		oldValuesStack:    ctx.oldValuesStack,
 		propContext:       ctx.propContext,
 		recordTypeContext: ctx.recordTypeContext,
+		arrayTypeContext:  ctx.arrayTypeContext,
 	}
 }
 
