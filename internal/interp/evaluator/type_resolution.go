@@ -140,6 +140,151 @@ func (e *Evaluator) ResolveTypeFromName(typeName string) (types.Type, error) {
 }
 
 // ============================================================================
+// Context-Aware Type Resolution
+// ============================================================================
+//
+// Task 3.5.106: Direct type resolution with environment access.
+// These methods resolve types without adapter dependency by using direct
+// environment lookups for custom types (enum, record, type alias, subrange).
+// ============================================================================
+
+// ResolveTypeWithContext resolves a type name to a types.Type with environment access.
+// This method provides complete direct type resolution without adapter dependency.
+//
+// Resolution order:
+//  1. Built-in types (Integer, Float, String, Boolean, Variant, Const)
+//  2. Inline array types (array of X, array[...])
+//  3. Named array types (via TypeSystem)
+//  4. Enum types (via environment: __enum_type_<name>)
+//  5. Record types (via environment: __record_type_<name>)
+//  6. Type aliases (via environment: __type_alias_<name>)
+//  7. Subrange types (via environment: __subrange_type_<name>)
+//
+// The lookup is case-insensitive per DWScript semantics.
+//
+// Returns:
+//   - The resolved types.Type
+//   - An error if the type cannot be resolved
+func (e *Evaluator) ResolveTypeWithContext(typeName string, ctx *ExecutionContext) (types.Type, error) {
+	// Step 1: Handle inline array types first
+	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
+		return e.resolveInlineArrayTypeWithContext(typeName, ctx)
+	}
+
+	// Step 2: Normalize for case-insensitive lookup
+	lowerTypeName := ident.Normalize(typeName)
+
+	// Step 3: Check built-in types
+	switch lowerTypeName {
+	case "integer":
+		return types.INTEGER, nil
+	case "float":
+		return types.FLOAT, nil
+	case "string":
+		return types.STRING, nil
+	case "boolean":
+		return types.BOOLEAN, nil
+	case "variant":
+		return types.VARIANT, nil
+	case "const":
+		// "Const" redirects to VARIANT for dynamic typing
+		return types.VARIANT, nil
+	}
+
+	// Step 4: Check named array types via TypeSystem (direct access)
+	if arrayType := e.typeSystem.LookupArrayType(typeName); arrayType != nil {
+		return arrayType, nil
+	}
+
+	// Step 5: Check enum types in environment
+	if enumTypeVal, ok := ctx.Env().Get("__enum_type_" + lowerTypeName); ok {
+		if etv, ok := enumTypeVal.(interface{ GetEnumType() *types.EnumType }); ok {
+			return etv.GetEnumType(), nil
+		}
+	}
+
+	// Step 6: Check record types in environment
+	if recordTypeVal, ok := ctx.Env().Get("__record_type_" + lowerTypeName); ok {
+		if rtv, ok := recordTypeVal.(interface{ GetRecordType() *types.RecordType }); ok {
+			return rtv.GetRecordType(), nil
+		}
+	}
+
+	// Step 7: Check type aliases in environment
+	if typeAliasVal, ok := ctx.Env().Get("__type_alias_" + lowerTypeName); ok {
+		if tav, ok := typeAliasVal.(interface{ GetAliasedType() types.Type }); ok {
+			return tav.GetAliasedType(), nil
+		}
+	}
+
+	// Step 8: Check subrange types in environment
+	if subrangeTypeVal, ok := ctx.Env().Get("__subrange_type_" + lowerTypeName); ok {
+		if stv, ok := subrangeTypeVal.(interface{ GetSubrangeType() *types.SubrangeType }); ok {
+			return stv.GetSubrangeType(), nil
+		}
+	}
+
+	// Unknown type
+	return nil, fmt.Errorf("unknown type: %s", typeName)
+}
+
+// resolveInlineArrayTypeWithContext handles inline array type syntax with context:
+//   - "array of Integer" → dynamic array
+//   - "array[1..10] of String" → static array
+//
+// Task 3.5.106: Context-aware version for complete adapter-free resolution.
+func (e *Evaluator) resolveInlineArrayTypeWithContext(typeName string, ctx *ExecutionContext) (types.Type, error) {
+	// Handle "array of ElementType" (dynamic array)
+	if strings.HasPrefix(typeName, "array of ") {
+		elementTypeName := strings.TrimPrefix(typeName, "array of ")
+		elementType, err := e.ResolveTypeWithContext(elementTypeName, ctx)
+		if err != nil {
+			return nil, fmt.Errorf("invalid array element type: %w", err)
+		}
+		return types.NewDynamicArrayType(elementType), nil
+	}
+
+	// Handle "array[bounds] of ElementType" (static array)
+	// Format: array[low..high] of ElementType
+	if strings.HasPrefix(typeName, "array[") {
+		// Find the "] of " separator
+		ofIdx := strings.Index(typeName, "] of ")
+		if ofIdx == -1 {
+			return nil, fmt.Errorf("invalid array type syntax: %s", typeName)
+		}
+
+		boundsStr := typeName[6:ofIdx] // Extract "low..high"
+		elementTypeName := typeName[ofIdx+5:]
+
+		// Parse bounds
+		parts := strings.Split(boundsStr, "..")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid array bounds: %s", boundsStr)
+		}
+
+		var low, high int
+		_, err := fmt.Sscanf(parts[0], "%d", &low)
+		if err != nil {
+			return nil, fmt.Errorf("invalid low bound: %s", parts[0])
+		}
+		_, err = fmt.Sscanf(parts[1], "%d", &high)
+		if err != nil {
+			return nil, fmt.Errorf("invalid high bound: %s", parts[1])
+		}
+
+		// Resolve element type using context-aware method
+		elementType, err := e.ResolveTypeWithContext(elementTypeName, ctx)
+		if err != nil {
+			return nil, fmt.Errorf("invalid array element type: %w", err)
+		}
+
+		return types.NewStaticArrayType(elementType, low, high), nil
+	}
+
+	return nil, fmt.Errorf("invalid inline array type: %s", typeName)
+}
+
+// ============================================================================
 // Type Annotation Resolution
 // ============================================================================
 //

@@ -2290,7 +2290,7 @@ func (e *Evaluator) VisitNewArrayExpression(node *ast.NewArrayExpression, ctx *E
 
 	// Resolve the element type
 	elementTypeName := node.ElementTypeName.Value
-	elementType, typeErr := e.ResolveType(elementTypeName)
+	elementType, typeErr := e.ResolveTypeWithContext(elementTypeName, ctx)
 	if typeErr != nil {
 		return e.newError(node, "unknown element type '%s': %s", elementTypeName, typeErr)
 	}

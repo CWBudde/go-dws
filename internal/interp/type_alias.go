@@ -26,6 +26,12 @@ func (tv *TypeAliasValue) String() string {
 	return fmt.Sprintf("type %s = %s", tv.Name, tv.AliasedType.String())
 }
 
+// GetAliasedType returns the underlying aliased type.
+// Task 3.5.106: Provides interface-based access for the evaluator.
+func (tv *TypeAliasValue) GetAliasedType() types.Type {
+	return tv.AliasedType
+}
+
 // ============================================================================
 // Subrange Type Support
 // ============================================================================
@@ -42,6 +48,12 @@ func (sv *SubrangeTypeValue) Type() string {
 
 func (sv *SubrangeTypeValue) String() string {
 	return fmt.Sprintf("type %s = %d..%d", sv.Name, sv.SubrangeType.LowBound, sv.SubrangeType.HighBound)
+}
+
+// GetSubrangeType returns the underlying SubrangeType.
+// Task 3.5.106: Provides interface-based access for the evaluator.
+func (sv *SubrangeTypeValue) GetSubrangeType() *types.SubrangeType {
+	return sv.SubrangeType
 }
 
 // SubrangeValue wraps an integer value with subrange bounds checking.
