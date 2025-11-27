@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -346,4 +347,65 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 
 	// Set failed - return error
 	return e.newError(target, "undefined variable: %s", targetName)
+}
+
+// ============================================================================
+// Context Inference Helpers
+// ============================================================================
+//
+// Task 3.5.105e: Helpers for extracting type context from assignment targets.
+// These enable array and record literals to infer their types from the
+// target variable during assignment.
+// ============================================================================
+
+// getArrayTypeFromTarget extracts ArrayType from target variable.
+// This enables context inference for array literals during assignment:
+// var arr: array of Integer; arr := [1, 2, 3]; // Literal adopts arr's type
+//
+// Returns nil if:
+// - Target variable doesn't exist
+// - Target variable is not an ArrayValue
+// - Target variable has no type information
+func (e *Evaluator) getArrayTypeFromTarget(target *ast.Identifier, ctx *ExecutionContext) *types.ArrayType {
+	existingVal, exists := ctx.Env().Get(target.Value)
+	if !exists {
+		return nil
+	}
+	// runtime.ArrayValue has ArrayType directly accessible
+	if arrVal, ok := existingVal.(*runtime.ArrayValue); ok {
+		return arrVal.ArrayType
+	}
+	return nil
+}
+
+// getRecordTypeNameFromTarget extracts record type name from target variable.
+// This enables context inference for anonymous record literals during assignment:
+// var p: TPoint; p := (x: 1, y: 2); // Literal adopts TPoint type
+//
+// RecordValue.Type() returns the record type name (e.g., "TPoint") or "RECORD"
+// for anonymous records. For context inference, we need the actual type name.
+//
+// Returns empty string if:
+// - Target variable doesn't exist
+// - Target variable is not a record
+// - Target variable is an anonymous record (Type() returns "RECORD")
+// - Type name is not a registered record type
+func (e *Evaluator) getRecordTypeNameFromTarget(target *ast.Identifier, ctx *ExecutionContext) string {
+	existingVal, exists := ctx.Env().Get(target.Value)
+	if !exists {
+		return ""
+	}
+	if existingVal == nil {
+		return ""
+	}
+	// RecordValue.Type() returns record type name or "RECORD" for anonymous
+	// We use the Value interface which is available
+	if v, ok := existingVal.(Value); ok {
+		typeName := v.Type()
+		// Only return named record types, not generic "RECORD"
+		if typeName != "" && typeName != "RECORD" && e.typeSystem.HasRecord(typeName) {
+			return typeName
+		}
+	}
+	return ""
 }

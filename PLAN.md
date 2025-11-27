@@ -536,7 +536,7 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Tests**: All set literal and enum tests pass
   - **Calls removed**: 1 EvalNode + 1 GetType adapter calls
 
-- [ ] **3.5.105** Remove EvalNode from visitor_statements.go AssignmentStatement (1 call)
+- [x] **3.5.105** Remove EvalNode from visitor_statements.go AssignmentStatement (1 call) ✅
   - **Location**: `visitor_statements.go` line 361
   - **Source**: `statements_assignments.go` (971 lines total)
   - **Issue**: Complex assignment statement delegates entirely
@@ -575,12 +575,14 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
       - Tests: ~20 member/property assignment tests (all pass)
       - **Files**: Created `evaluator/member_assignment.go` (~120 lines), updated `evaluator/visitor_statements.go`
       - **Implementation**: Structured evaluation with comprehensive adapter delegation; complex cases (class variables, object fields, record fields with properties, interfaces) delegated to adapter due to type dependencies in interp package
-    - [ ] **3.5.105e** Integration and Context Inference (MEDIUM RISK)
+    - [x] **3.5.105e** Integration and Context Inference (MEDIUM RISK) ✅
       - Source: Main function lines 43-147 (105 lines)
       - Handles: Array/record literal type inference from target context
       - Includes: Record value semantics (defensive copying), exception handling
       - Risk: MEDIUM - orchestrates all assignment types
       - Tests: Full assignment test suite validation
+      - **Files**: Updated `evaluator/context.go` (added `arrayTypeContext` field), `evaluator/array_helpers.go`, `evaluator/assignment_helpers.go`, `evaluator/visitor_statements.go`
+      - **Implementation**: Added `ArrayTypeContext()` to ExecutionContext for passing type info; `evalArrayLiteralDirect()` checks context first; `VisitAssignmentStatement()` extracts target type and sets context before evaluating array/record literals
 
 - [ ] **3.5.106** Remove EvalNode from type_resolution.go (1 call)
   - **Location**: `type_resolution.go` line 67
