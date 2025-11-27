@@ -165,6 +165,141 @@ func isBuiltinClass(name string) bool {
 // Current token should be 'class'.
 // PRE: cursor is CLASS
 // POST: cursor is END
+// handleVisibilityKeyword checks for and handles visibility section keywords, returning true if one was found.
+func (p *Parser) handleVisibilityKeyword(cursor *TokenCursor, currentVisibility *ast.Visibility) bool {
+	if cursor.Current().Type == lexer.PRIVATE {
+		*currentVisibility = ast.VisibilityPrivate
+		return true
+	} else if cursor.Current().Type == lexer.PROTECTED {
+		*currentVisibility = ast.VisibilityProtected
+		return true
+	} else if cursor.Current().Type == lexer.PUBLIC {
+		*currentVisibility = ast.VisibilityPublic
+		return true
+	}
+	return false
+}
+
+// parseClassLevelMember parses class-level members (class var/const/property/method/operator).
+func (p *Parser) parseClassLevelMember(cursor *TokenCursor, classDecl *ast.ClassDecl, currentVisibility ast.Visibility) *TokenCursor {
+	classToken := cursor.Current()
+	cursor = cursor.Advance() // move past 'class'
+	p.cursor = cursor
+
+	if cursor.Current().Type == lexer.VAR {
+		// Class variable: class var FieldName: Type;
+		cursor = cursor.Advance() // move past 'var'
+		p.cursor = cursor
+		fields := p.parseFieldDeclarations(currentVisibility)
+		for _, field := range fields {
+			if field != nil {
+				field.IsClassVar = true // Mark as class variable
+				classDecl.Fields = append(classDecl.Fields, field)
+			}
+		}
+	} else if cursor.Current().Type == lexer.CONST {
+		// Class constant: class const Name = Value;
+		cursor = cursor.Advance() // move past 'const'
+		p.cursor = cursor
+		constant := p.parseClassConstantDeclaration(currentVisibility, true)
+		if constant != nil {
+			classDecl.Constants = append(classDecl.Constants, constant)
+		}
+	} else if cursor.Current().Type == lexer.PROPERTY {
+		// Class property: class property Name: Type read GetName write SetName;
+		property := p.parsePropertyDeclaration()
+		if property != nil {
+			property.IsClassProperty = true // Mark as class property
+			classDecl.Properties = append(classDecl.Properties, property)
+		}
+	} else if cursor.Current().Type == lexer.OPERATOR {
+		operator := p.parseClassOperatorDeclaration(classToken, currentVisibility)
+		if operator != nil {
+			classDecl.Operators = append(classDecl.Operators, operator)
+		}
+	} else if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE || cursor.Current().Type == lexer.METHOD {
+		// Class method: class function/procedure/method ...
+		method := p.parseFunctionDeclaration()
+		if method != nil {
+			method.IsClassMethod = true // Mark as class method
+			method.Visibility = currentVisibility
+			classDecl.Methods = append(classDecl.Methods, method)
+		}
+	} else {
+		p.addError("expected 'var', 'const', 'property', 'function', 'procedure', or 'method' after 'class' keyword", ErrUnexpectedToken)
+	}
+
+	return p.cursor
+}
+
+// parseInstanceLevelMember parses instance-level members (regular fields, methods, properties, etc.).
+func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.ClassDecl, currentVisibility ast.Visibility) *TokenCursor {
+	if cursor.Current().Type == lexer.CONST {
+		// Regular class constant: const Name = Value;
+		cursor = cursor.Advance() // move past 'const'
+		p.cursor = cursor
+		constant := p.parseClassConstantDeclaration(currentVisibility, false)
+		if constant != nil {
+			classDecl.Constants = append(classDecl.Constants, constant)
+		}
+	} else if cursor.Current().Type == lexer.IDENT && (cursor.Peek(1).Type == lexer.COLON || cursor.Peek(1).Type == lexer.COMMA || cursor.Peek(1).Type == lexer.ASSIGN || cursor.Peek(1).Type == lexer.EQ) {
+		// This is a regular instance field declaration (may be comma-separated)
+		// Supports: FieldName: Type; or FieldName := Value; or FieldName = Value; or FieldName: Type := Value;
+		fields := p.parseFieldDeclarations(currentVisibility)
+		for _, field := range fields {
+			if field != nil {
+				classDecl.Fields = append(classDecl.Fields, field)
+			}
+		}
+	} else if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE || cursor.Current().Type == lexer.METHOD {
+		// This is a regular instance method declaration
+		method := p.parseFunctionDeclaration()
+		if method != nil {
+			method.Visibility = currentVisibility
+			classDecl.Methods = append(classDecl.Methods, method)
+		}
+	} else if cursor.Current().Type == lexer.CONSTRUCTOR {
+		// This is a constructor declaration
+		method := p.parseFunctionDeclaration()
+		if method != nil {
+			method.IsConstructor = true
+			method.Visibility = currentVisibility
+			classDecl.Methods = append(classDecl.Methods, method)
+		}
+	} else if cursor.Current().Type == lexer.DESTRUCTOR {
+		// This is a destructor declaration
+		method := p.parseFunctionDeclaration()
+		if method != nil {
+			method.IsDestructor = true
+			method.Visibility = currentVisibility
+			classDecl.Methods = append(classDecl.Methods, method)
+		}
+	} else if cursor.Current().Type == lexer.PROPERTY {
+		// This is a property declaration
+		property := p.parsePropertyDeclaration()
+		if property != nil {
+			// Note: We could track visibility here if needed
+			// For now, properties are parsed without explicit visibility tracking
+			classDecl.Properties = append(classDecl.Properties, property)
+		}
+	} else if cursor.Current().Type == lexer.INVARIANTS {
+		// This is an invariant clause
+		p.cursor = cursor // sync cursor before calling parser function
+		if classDecl.Invariants != nil {
+			p.addError("class already has invariants defined", ErrInvalidSyntax)
+		} else {
+			classDecl.Invariants = p.parseInvariantClause()
+		}
+	} else if cursor.Current().Type == lexer.IDENT {
+		// Unexpected identifier in class body - likely a field missing its type declaration
+		p.addError("expected ':' after field name or method/property declaration keyword", ErrMissingColon)
+	} else {
+		// Unknown token in class body, skip it
+	}
+
+	return p.cursor
+}
+
 func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.ClassDecl {
 	builder := p.StartNode()
 	cursor := p.cursor
@@ -238,18 +373,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 		}
 
 		// Check for visibility section keywords
-		if cursor.Current().Type == lexer.PRIVATE {
-			currentVisibility = ast.VisibilityPrivate
-			cursor = cursor.Advance()
-			p.cursor = cursor
-			continue
-		} else if cursor.Current().Type == lexer.PROTECTED {
-			currentVisibility = ast.VisibilityProtected
-			cursor = cursor.Advance()
-			p.cursor = cursor
-			continue
-		} else if cursor.Current().Type == lexer.PUBLIC {
-			currentVisibility = ast.VisibilityPublic
+		if p.handleVisibilityKeyword(cursor, &currentVisibility) {
 			cursor = cursor.Advance()
 			p.cursor = cursor
 			continue
@@ -257,134 +381,9 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 
 		// Check for 'class var', 'class const', 'class property', or 'class function' / 'class procedure'
 		if cursor.Current().Type == lexer.CLASS {
-			classToken := cursor.Current()
-			cursor = cursor.Advance() // move past 'class'
-			p.cursor = cursor
-
-			if cursor.Current().Type == lexer.VAR {
-				// Class variable: class var FieldName: Type;
-				cursor = cursor.Advance() // move past 'var'
-				p.cursor = cursor
-				fields := p.parseFieldDeclarations(currentVisibility)
-				for _, field := range fields {
-					if field != nil {
-						field.IsClassVar = true // Mark as class variable
-						classDecl.Fields = append(classDecl.Fields, field)
-					}
-				}
-				cursor = p.cursor
-			} else if cursor.Current().Type == lexer.CONST {
-				// Class constant: class const Name = Value;
-				cursor = cursor.Advance() // move past 'const'
-				p.cursor = cursor
-				constant := p.parseClassConstantDeclaration(currentVisibility, true)
-				if constant != nil {
-					classDecl.Constants = append(classDecl.Constants, constant)
-				}
-				cursor = p.cursor
-			} else if cursor.Current().Type == lexer.PROPERTY {
-				// Class property: class property Name: Type read GetName write SetName;
-				property := p.parsePropertyDeclaration()
-				if property != nil {
-					property.IsClassProperty = true // Mark as class property
-					classDecl.Properties = append(classDecl.Properties, property)
-				}
-				cursor = p.cursor
-			} else if cursor.Current().Type == lexer.OPERATOR {
-				operator := p.parseClassOperatorDeclaration(classToken, currentVisibility)
-				if operator != nil {
-					classDecl.Operators = append(classDecl.Operators, operator)
-				}
-				cursor = p.cursor
-			} else if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE || cursor.Current().Type == lexer.METHOD {
-				// Class method: class function/procedure/method ...
-				method := p.parseFunctionDeclaration()
-				if method != nil {
-					method.IsClassMethod = true // Mark as class method
-					method.Visibility = currentVisibility
-					classDecl.Methods = append(classDecl.Methods, method)
-				}
-				cursor = p.cursor
-			} else {
-				p.addError("expected 'var', 'const', 'property', 'function', 'procedure', or 'method' after 'class' keyword", ErrUnexpectedToken)
-				cursor = cursor.Advance()
-				p.cursor = cursor
-				continue
-			}
-		} else if cursor.Current().Type == lexer.CONST {
-			// Regular class constant: const Name = Value;
-			cursor = cursor.Advance() // move past 'const'
-			p.cursor = cursor
-			constant := p.parseClassConstantDeclaration(currentVisibility, false)
-			if constant != nil {
-				classDecl.Constants = append(classDecl.Constants, constant)
-			}
-			cursor = p.cursor
-		} else if cursor.Current().Type == lexer.IDENT && (cursor.Peek(1).Type == lexer.COLON || cursor.Peek(1).Type == lexer.COMMA || cursor.Peek(1).Type == lexer.ASSIGN || cursor.Peek(1).Type == lexer.EQ) {
-			// This is a regular instance field declaration (may be comma-separated)
-			// Supports: FieldName: Type; or FieldName := Value; or FieldName = Value; or FieldName: Type := Value;
-			fields := p.parseFieldDeclarations(currentVisibility)
-			for _, field := range fields {
-				if field != nil {
-					classDecl.Fields = append(classDecl.Fields, field)
-				}
-			}
-			cursor = p.cursor
-		} else if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE || cursor.Current().Type == lexer.METHOD {
-			// This is a regular instance method declaration
-			method := p.parseFunctionDeclaration()
-			if method != nil {
-				method.Visibility = currentVisibility
-				classDecl.Methods = append(classDecl.Methods, method)
-			}
-			cursor = p.cursor
-		} else if cursor.Current().Type == lexer.CONSTRUCTOR {
-			// This is a constructor declaration
-			method := p.parseFunctionDeclaration()
-			if method != nil {
-				method.IsConstructor = true
-				method.Visibility = currentVisibility
-				classDecl.Methods = append(classDecl.Methods, method)
-			}
-			cursor = p.cursor
-		} else if cursor.Current().Type == lexer.DESTRUCTOR {
-			// This is a destructor declaration
-			method := p.parseFunctionDeclaration()
-			if method != nil {
-				method.IsDestructor = true
-				method.Visibility = currentVisibility
-				classDecl.Methods = append(classDecl.Methods, method)
-			}
-			cursor = p.cursor
-		} else if cursor.Current().Type == lexer.PROPERTY {
-			// This is a property declaration
-			property := p.parsePropertyDeclaration()
-			if property != nil {
-				// Note: We could track visibility here if needed
-				// For now, properties are parsed without explicit visibility tracking
-				classDecl.Properties = append(classDecl.Properties, property)
-			}
-			cursor = p.cursor
-		} else if cursor.Current().Type == lexer.INVARIANTS {
-			// This is an invariant clause
-			p.cursor = cursor // sync cursor before calling parser function
-			if classDecl.Invariants != nil {
-				p.addError("class already has invariants defined", ErrInvalidSyntax)
-			} else {
-				classDecl.Invariants = p.parseInvariantClause()
-			}
-			cursor = p.cursor
-		} else if cursor.Current().Type == lexer.IDENT {
-			// Unexpected identifier in class body - likely a field missing its type declaration
-			p.addError("expected ':' after field name or method/property declaration keyword", ErrMissingColon)
-			cursor = cursor.Advance()
-			p.cursor = cursor
-			continue
+			cursor = p.parseClassLevelMember(cursor, classDecl, currentVisibility)
 		} else {
-			// Unknown token in class body, skip it
-			cursor = cursor.Advance()
-			p.cursor = cursor
-			continue
+			cursor = p.parseInstanceLevelMember(cursor, classDecl, currentVisibility)
 		}
 
 		cursor = cursor.Advance()

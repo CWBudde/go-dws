@@ -89,57 +89,27 @@ func (p *Parser) looksLikeTypeDeclaration() bool {
 // POST: cursor is at SEMICOLON
 func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement {
 	builder := p.StartNode()
-	cursor := p.cursor
 
-	// Check if we're already at the identifier (type section continuation)
-	// or if we need to advance to it (after 'type' keyword)
-	var nameIdent *ast.Identifier
-
-	if cursor.Current().Type == lexer.TYPE {
-		// After 'type' keyword, expect identifier next
-		if !p.isIdentifierToken(cursor.Peek(1).Type) {
-			p.addError("expected identifier after 'type'", ErrExpectedIdent)
-			return nil
-		}
-		cursor = cursor.Advance() // move to identifier
-		p.cursor = cursor
-		nameIdent = &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: cursor.Current(),
-				},
-			},
-			Value: cursor.Current().Literal,
-		}
-	} else if !p.isIdentifierToken(cursor.Current().Type) {
-		// Should already be at an identifier
-		p.addError("expected identifier in type declaration", ErrExpectedIdent)
+	// Parse the type name identifier
+	nameIdent := p.parseTypeNameIdentifier(typeToken)
+	if nameIdent == nil {
 		return nil
-	} else {
-		nameIdent = &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: cursor.Current(),
-				},
-			},
-			Value: cursor.Current().Literal,
-		}
 	}
 
 	// Expect '=' after type name
-	if cursor.Peek(1).Type != lexer.EQ {
+	if p.cursor.Peek(1).Type != lexer.EQ {
 		p.addError("expected '=' after type name", ErrUnexpectedToken)
 		return nil
 	}
-	cursor = cursor.Advance() // move to '='
-	p.cursor = cursor
+	p.cursor = p.cursor.Advance() // move to '='
 
 	// Check what kind of type declaration this is by peeking at the next token
-	nextToken := cursor.Peek(1)
+	nextToken := p.cursor.Peek(1)
 
 	// Subrange type: type TDigit = 0..9; or type TTemperature = -40..50;
 	// Check if it starts with a number or minus (for negative ranges)
 	if nextToken.Type == lexer.INT || nextToken.Type == lexer.MINUS {
+		cursor := p.cursor
 		cursor = cursor.Advance() // move past '='
 		p.cursor = cursor
 
@@ -186,6 +156,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 
 	// Type alias: type TUserID = Integer;
 	if nextToken.Type == lexer.IDENT {
+		cursor := p.cursor
 		cursor = cursor.Advance() // move past '=' to type name
 		p.cursor = cursor
 		currentToken := cursor.Current()
@@ -214,6 +185,101 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 	}
 
 	// For other type declarations (class, interface, enum, etc.), handle each type
+	return p.parseTypeKind(nameIdent, typeToken, nextToken)
+}
+
+// parseTypeNameIdentifier parses the identifier for a type name in a type declaration.
+// This helper function reduces the statement count of parseSingleTypeDeclaration.
+//
+// PRE: cursor is at TYPE token or identifier
+// POST: cursor is at the identifier token
+func (p *Parser) parseTypeNameIdentifier(typeToken lexer.Token) *ast.Identifier {
+	cursor := p.cursor
+
+	// Check if we're already at the identifier (type section continuation)
+	// or if we need to advance to it (after 'type' keyword)
+	if cursor.Current().Type == lexer.TYPE {
+		// After 'type' keyword, expect identifier next
+		if !p.isIdentifierToken(cursor.Peek(1).Type) {
+			p.addError("expected identifier after 'type'", ErrExpectedIdent)
+			return nil
+		}
+		cursor = cursor.Advance() // move to identifier
+		p.cursor = cursor
+	} else if !p.isIdentifierToken(cursor.Current().Type) {
+		// Should already be at an identifier
+		p.addError("expected identifier in type declaration", ErrExpectedIdent)
+		return nil
+	}
+
+	return &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: cursor.Current(),
+			},
+		},
+		Value: cursor.Current().Literal,
+	}
+}
+
+// parseClassTypeKind parses class-related type declarations.
+// This helper function reduces the complexity of parseTypeKind.
+//
+// PRE: cursor is at CLASS token
+// POST: cursor is at SEMICOLON (or appropriate end position)
+func (p *Parser) parseClassTypeKind(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
+	cursor := p.cursor
+
+	// Check if this is a metaclass type alias: type TBaseClass = class of TBase;
+	// or a class declaration: type TMyClass = class ... end;
+	if cursor.Peek(1).Type == lexer.OF {
+		// Metaclass type alias: type TBaseClass = class of TBase;
+		// Parse as type expression (class of ...)
+		classOfType := p.parseClassOfType()
+		if classOfType == nil {
+			return nil
+		}
+
+		// Expect semicolon
+		if p.cursor.Peek(1).Type != lexer.SEMICOLON {
+			p.addError("expected ';' after class of type", ErrMissingSemicolon)
+			return nil
+		}
+		p.cursor = p.cursor.Advance() // move to SEMICOLON
+
+		// Create a type declaration with the metaclass type as an inline type
+		builder := p.StartNode()
+		typeDecl := &ast.TypeDeclaration{
+			BaseNode: ast.BaseNode{
+				Token: typeToken,
+			},
+			Name:        nameIdent,
+			IsAlias:     true,
+			AliasedType: classOfType,
+		}
+		return builder.Finish(typeDecl).(*ast.TypeDeclaration)
+	}
+	// Check if followed by 'partial': type TMyClass = class partial ... end;
+	if cursor.Peek(1).Type == lexer.PARTIAL {
+		p.cursor = p.cursor.Advance() // move to PARTIAL
+		classDecl := p.parseClassDeclarationBody(nameIdent)
+		if classDecl != nil {
+			classDecl.IsPartial = true
+		}
+		return classDecl
+	}
+	// Regular class declaration: type TMyClass = class ... end;
+	return p.parseClassDeclarationBody(nameIdent)
+}
+
+// parseTypeKind parses the specific type kind based on the token after '='.
+// This helper function reduces the complexity of parseSingleTypeDeclaration.
+//
+// PRE: cursor is at '='
+// POST: cursor is at SEMICOLON (or appropriate end position)
+func (p *Parser) parseTypeKind(nameIdent *ast.Identifier, typeToken lexer.Token, nextToken lexer.Token) ast.Statement {
+	cursor := p.cursor
+
 	switch nextToken.Type {
 	case lexer.INTERFACE:
 		// Interface declaration: type IMyInterface = interface ... end;
@@ -241,46 +307,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 	case lexer.CLASS:
 		cursor = cursor.Advance() // move to CLASS
 		p.cursor = cursor
-
-		// Check if this is a metaclass type alias: type TBaseClass = class of TBase;
-		// or a class declaration: type TMyClass = class ... end;
-		if cursor.Peek(1).Type == lexer.OF {
-			// Metaclass type alias: type TBaseClass = class of TBase;
-			// Parse as type expression (class of ...)
-			classOfType := p.parseClassOfType()
-			if classOfType == nil {
-				return nil
-			}
-
-			// Expect semicolon
-			if p.cursor.Peek(1).Type != lexer.SEMICOLON {
-				p.addError("expected ';' after class of type", ErrMissingSemicolon)
-				return nil
-			}
-			p.cursor = p.cursor.Advance() // move to SEMICOLON
-
-			// Create a type declaration with the metaclass type as an inline type
-			typeDecl := &ast.TypeDeclaration{
-				BaseNode: ast.BaseNode{
-					Token: typeToken,
-				},
-				Name:        nameIdent,
-				IsAlias:     true,
-				AliasedType: classOfType,
-			}
-			return builder.Finish(typeDecl).(*ast.TypeDeclaration)
-		}
-		// Check if followed by 'partial': type TMyClass = class partial ... end;
-		if cursor.Peek(1).Type == lexer.PARTIAL {
-			p.cursor = p.cursor.Advance() // move to PARTIAL
-			classDecl := p.parseClassDeclarationBody(nameIdent)
-			if classDecl != nil {
-				classDecl.IsPartial = true
-			}
-			return classDecl
-		}
-		// Regular class declaration: type TMyClass = class ... end;
-		return p.parseClassDeclarationBody(nameIdent)
+		return p.parseClassTypeKind(nameIdent, typeToken)
 	case lexer.RECORD:
 		// Could be either:
 		//   - Record declaration: type TPoint = record X, Y: Integer; end;

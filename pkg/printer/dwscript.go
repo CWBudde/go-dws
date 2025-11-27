@@ -593,6 +593,76 @@ func (p *Printer) printRaiseStatement(rs *ast.RaiseStatement) {
 // Declaration printing methods
 // ============================================================================
 
+// printMethodModifiers prints method modifiers like virtual, override, etc.
+func (p *Printer) printMethodModifiers(fd *ast.FunctionDecl) {
+	if fd.IsVirtual {
+		p.write(";")
+		p.requiredSpace()
+		p.write("virtual")
+	}
+	if fd.IsOverride {
+		p.write(";")
+		p.requiredSpace()
+		p.write("override")
+	}
+	if fd.IsReintroduce {
+		p.write(";")
+		p.requiredSpace()
+		p.write("reintroduce")
+	}
+	if fd.IsAbstract {
+		p.write(";")
+		p.requiredSpace()
+		p.write("abstract")
+	}
+	if fd.IsOverload {
+		p.write(";")
+		p.requiredSpace()
+		p.write("overload")
+	}
+}
+
+// printFunctionDirectives prints function directives like calling convention, deprecated, forward, external.
+func (p *Printer) printFunctionDirectives(fd *ast.FunctionDecl) bool {
+	// Print calling convention
+	if fd.CallingConvention != "" {
+		p.write(";")
+		p.requiredSpace()
+		p.write(fd.CallingConvention)
+	}
+
+	// Print deprecated
+	if fd.IsDeprecated {
+		p.write(";")
+		p.requiredSpace()
+		p.write("deprecated")
+		if fd.DeprecatedMessage != "" {
+			p.requiredSpace()
+			p.write(fmt.Sprintf("'%s'", fd.DeprecatedMessage))
+		}
+	}
+
+	// Print forward/external modifiers
+	if fd.IsForward {
+		p.write(";")
+		p.requiredSpace()
+		p.write("forward")
+		return true // forward functions don't have bodies
+	}
+	if fd.IsExternal {
+		p.write(";")
+		p.requiredSpace()
+		p.write("external")
+		if fd.ExternalName != "" {
+			p.requiredSpace()
+			p.write(fmt.Sprintf("'%s'", fd.ExternalName))
+		}
+		return true // external functions don't have bodies
+	}
+
+	return false // has body
+}
+
 func (p *Printer) printFunctionDecl(fd *ast.FunctionDecl) {
 	// Print visibility for class methods (only if not public and part of a class)
 	// Standalone functions don't have visibility modifiers
@@ -647,70 +717,13 @@ func (p *Printer) printFunctionDecl(fd *ast.FunctionDecl) {
 	}
 
 	// Print method modifiers (virtual, override, etc.)
-	if fd.IsVirtual {
-		p.write(";")
-		p.requiredSpace()
-		p.write("virtual")
-	}
-	if fd.IsOverride {
-		p.write(";")
-		p.requiredSpace()
-		p.write("override")
-	}
-	if fd.IsReintroduce {
-		p.write(";")
-		p.requiredSpace()
-		p.write("reintroduce")
-	}
-	if fd.IsAbstract {
-		p.write(";")
-		p.requiredSpace()
-		p.write("abstract")
-	}
-	if fd.IsOverload {
-		p.write(";")
-		p.requiredSpace()
-		p.write("overload")
-	}
+	p.printMethodModifiers(fd)
 
-	// Print calling convention
-	if fd.CallingConvention != "" {
-		p.write(";")
-		p.requiredSpace()
-		p.write(fd.CallingConvention)
-	}
-
-	// Print deprecated
-	if fd.IsDeprecated {
-		p.write(";")
-		p.requiredSpace()
-		p.write("deprecated")
-		if fd.DeprecatedMessage != "" {
-			p.requiredSpace()
-			p.write(fmt.Sprintf("'%s'", fd.DeprecatedMessage))
-		}
-	}
-
-	// Print forward/external modifiers
-	if fd.IsForward {
-		p.write(";")
-		p.requiredSpace()
-		p.write("forward")
-		return
-	}
-	if fd.IsExternal {
-		p.write(";")
-		p.requiredSpace()
-		p.write("external")
-		if fd.ExternalName != "" {
-			p.requiredSpace()
-			p.write(fmt.Sprintf("'%s'", fd.ExternalName))
-		}
-		return
-	}
+	// Print function directives (calling convention, deprecated, forward, external)
+	hasBody := !p.printFunctionDirectives(fd)
 
 	// Print body
-	if fd.Body != nil {
+	if hasBody && fd.Body != nil {
 		p.write(";")
 		p.newline()
 		p.printDWScript(fd.Body)
@@ -743,6 +756,65 @@ func (p *Printer) printParameter(param *ast.Parameter) {
 		p.write("=")
 		p.space()
 		p.printDWScript(param.DefaultValue)
+	}
+}
+
+// printClassMembers prints all class members (constants, fields, properties, methods, etc.)
+func (p *Printer) printClassMembers(cd *ast.ClassDecl) {
+	// Constants
+	for _, constant := range cd.Constants {
+		p.writeIndent()
+		p.printConstDecl(constant)
+		p.write(";")
+		p.newline()
+	}
+
+	// Fields
+	for _, field := range cd.Fields {
+		p.writeIndent()
+		p.printFieldDecl(field)
+		p.write(";")
+		p.newline()
+	}
+
+	// Properties
+	for _, prop := range cd.Properties {
+		p.writeIndent()
+		p.printPropertyDecl(prop)
+		p.write(";")
+		p.newline()
+	}
+
+	// Constructor
+	if cd.Constructor != nil {
+		p.writeIndent()
+		p.printFunctionDecl(cd.Constructor)
+		p.write(";")
+		p.newline()
+	}
+
+	// Destructor
+	if cd.Destructor != nil {
+		p.writeIndent()
+		p.printFunctionDecl(cd.Destructor)
+		p.write(";")
+		p.newline()
+	}
+
+	// Methods
+	for _, method := range cd.Methods {
+		p.writeIndent()
+		p.printFunctionDecl(method)
+		p.write(";")
+		p.newline()
+	}
+
+	// Operators
+	for _, operator := range cd.Operators {
+		p.writeIndent()
+		p.printOperatorDecl(operator)
+		p.write(";")
+		p.newline()
 	}
 }
 
@@ -799,63 +871,7 @@ func (p *Printer) printClassDecl(cd *ast.ClassDecl) {
 
 	// Print members
 	p.incIndent()
-
-	// Constants
-	for _, constant := range cd.Constants {
-		p.writeIndent()
-		p.printConstDecl(constant)
-		p.write(";")
-		p.newline()
-	}
-
-	// Fields
-	for _, field := range cd.Fields {
-		p.writeIndent()
-		p.printFieldDecl(field)
-		p.write(";")
-		p.newline()
-	}
-
-	// Properties
-	for _, prop := range cd.Properties {
-		p.writeIndent()
-		p.printPropertyDecl(prop)
-		p.write(";")
-		p.newline()
-	}
-
-	// Constructor
-	if cd.Constructor != nil {
-		p.writeIndent()
-		p.printFunctionDecl(cd.Constructor)
-		p.write(";")
-		p.newline()
-	}
-
-	// Destructor
-	if cd.Destructor != nil {
-		p.writeIndent()
-		p.printFunctionDecl(cd.Destructor)
-		p.write(";")
-		p.newline()
-	}
-
-	// Methods
-	for _, method := range cd.Methods {
-		p.writeIndent()
-		p.printFunctionDecl(method)
-		p.write(";")
-		p.newline()
-	}
-
-	// Operators
-	for _, operator := range cd.Operators {
-		p.writeIndent()
-		p.printOperatorDecl(operator)
-		p.write(";")
-		p.newline()
-	}
-
+	p.printClassMembers(cd)
 	p.decIndent()
 	p.writeIndent()
 	p.write("end")
