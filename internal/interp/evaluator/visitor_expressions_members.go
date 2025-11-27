@@ -252,10 +252,13 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		propCtx := ctx.PropContext()
 		if propCtx == nil || (!propCtx.InPropertyGetter && !propCtx.InPropertySetter) {
 			// Task 3.5.72: Use ObjectValue interface for direct property check
+			// Task 3.5.116: Use ObjectValue.ReadProperty with callback pattern
 			if objVal.HasProperty(memberName) {
-				// Property reading still uses adapter due to complex method invocation logic
-				propValue, err := e.adapter.ReadPropertyValue(obj, memberName, node)
-				if err == nil {
+				propValue := objVal.ReadProperty(memberName, func(propInfo any) Value {
+					return e.adapter.ExecutePropertyRead(obj, propInfo, node)
+				})
+				// Check if result is an error
+				if propValue != nil && propValue.Type() != "ERROR" {
 					return propValue
 				}
 			}
@@ -296,14 +299,20 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 		// Verify the member is part of the interface contract before delegating
 		if ifaceVal.HasInterfaceProperty(memberName) {
-			// Property access: delegate to underlying object's property reading
-			// Uses adapter due to complex method invocation logic for property getters
-			propValue, err := e.adapter.ReadPropertyValue(underlying, memberName, node)
-			if err == nil {
-				return propValue
+			// Task 3.5.116: Use ObjectValue.ReadProperty with callback pattern
+			if objVal, ok := underlying.(ObjectValue); ok {
+				propValue := objVal.ReadProperty(memberName, func(propInfo any) Value {
+					return e.adapter.ExecutePropertyRead(underlying, propInfo, node)
+				})
+				// Check if result is an error
+				if propValue != nil && propValue.Type() != "ERROR" {
+					return propValue
+				}
+				// Task 3.5.101: Direct error instead of EvalNode delegation for property read failure
+				return e.newError(node, "failed to read property '%s' on interface '%s': %v", memberName, ifaceVal.InterfaceName(), propValue)
 			}
-			// Task 3.5.101: Direct error instead of EvalNode delegation for property read failure
-			return e.newError(node, "failed to read property '%s' on interface '%s': %v", memberName, ifaceVal.InterfaceName(), err)
+			// Underlying doesn't implement ObjectValue - should not happen for valid interfaces
+			return e.newError(node, "internal error: interface underlying value does not implement ObjectValue")
 		}
 
 		// Method access or unknown member - delegate to adapter
@@ -379,10 +388,13 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 				return fieldValue
 			}
 
-			// Try property access on the wrapped object (uses adapter for getter logic)
+			// Task 3.5.116: Try property access using ObjectValue.ReadProperty with callback pattern
 			if objVal.HasProperty(memberName) {
-				propValue, err := e.adapter.ReadPropertyValue(wrappedValue, memberName, node)
-				if err == nil {
+				propValue := objVal.ReadProperty(memberName, func(propInfo any) Value {
+					return e.adapter.ExecutePropertyRead(wrappedValue, propInfo, node)
+				})
+				// Check if result is an error
+				if propValue != nil && propValue.Type() != "ERROR" {
 					return propValue
 				}
 			}

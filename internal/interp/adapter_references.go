@@ -447,6 +447,24 @@ func (i *Interpreter) ReadPropertyValue(obj evaluator.Value, propName string, no
 	return i.evalPropertyRead(objInst, propInfo, astNode), nil
 }
 
+// ExecutePropertyRead executes property reading with a resolved PropertyInfo.
+// Task 3.5.116: Low-level method for property getter execution.
+// This is the callback implementation for ObjectValue.ReadProperty().
+func (i *Interpreter) ExecutePropertyRead(obj evaluator.Value, propInfo any, node any) evaluator.Value {
+	objInst, ok := obj.(*ObjectInstance)
+	if !ok {
+		return i.NewError("cannot read property from non-object value")
+	}
+
+	pInfo, ok := propInfo.(*types.PropertyInfo)
+	if !ok {
+		return i.NewError("invalid property info type")
+	}
+
+	astNode, _ := node.(ast.Node)
+	return i.evalPropertyRead(objInst, pInfo, astNode)
+}
+
 // Task 3.5.72: HasMethod removed - ObjectInstance implements evaluator.ObjectValue directly
 
 // IsMethodParameterless checks if a method has zero parameters.
