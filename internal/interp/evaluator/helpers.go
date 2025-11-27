@@ -215,6 +215,23 @@ func RuneAt(s string, index int) (rune, bool) {
 	return runes[index-1], true
 }
 
+// RuneReplace replaces the rune at the given 1-based index with the given rune.
+// Returns the new string and true if successful, or empty string and false otherwise.
+// Task 3.5.105c: Added for string index assignment (str[i] := char).
+func RuneReplace(s string, index int, replacement rune) (string, bool) {
+	if index < 1 {
+		return "", false
+	}
+
+	runes := []rune(s)
+	if index > len(runes) {
+		return "", false
+	}
+
+	runes[index-1] = replacement
+	return string(runes), true
+}
+
 // isFalsey determines if a value is "falsey" (default/zero value for its type).
 // Task 3.5.19: Helper for coalesce operator (??) evaluation.
 func isFalsey(val Value) bool {
