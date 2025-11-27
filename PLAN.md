@@ -567,12 +567,14 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
       - Tests: ~12 array/string index assignment tests (all pass)
       - **Files**: Created `evaluator/index_assignment.go` (~180 lines), added `RuneReplace()` to `evaluator/helpers.go`, updated `evaluator/visitor_statements.go`
       - **Implementation**: Direct evaluation for array/string index assignment, adapter delegation for indexed properties, interfaces, and object default properties
-    - [ ] **3.5.105d** Migrate Member Assignment (HIGH RISK)
+    - [x] **3.5.105d** Migrate Member Assignment (HIGH RISK) ✅
       - Source: `evalMemberAssignment()` lines 667-800 (134 lines)
       - Handles: `obj.field := value`, property setters, record fields
       - Includes: Property setter dispatch, recursion prevention, interface handling
       - Risk: HIGH - property setters have complex dispatch logic
-      - Tests: ~20 member/property assignment tests
+      - Tests: ~20 member/property assignment tests (all pass)
+      - **Files**: Created `evaluator/member_assignment.go` (~120 lines), updated `evaluator/visitor_statements.go`
+      - **Implementation**: Structured evaluation with comprehensive adapter delegation; complex cases (class variables, object fields, record fields with properties, interfaces) delegated to adapter due to type dependencies in interp package
     - [ ] **3.5.105e** Integration and Context Inference (MEDIUM RISK)
       - Source: Main function lines 43-147 (105 lines)
       - Handles: Array/record literal type inference from target context
