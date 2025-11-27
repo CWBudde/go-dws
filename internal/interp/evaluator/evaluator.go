@@ -66,6 +66,19 @@ type ObjectValue interface {
 	//   - propertyExecutor: Callback function that executes property read with the resolved PropertyInfo
 	//     The propInfo parameter is *types.PropertyInfo (passed as any to avoid import cycles)
 	ReadProperty(propName string, propertyExecutor func(propInfo any) Value) Value
+	// ReadIndexedProperty reads an indexed property value from this object.
+	// Task 3.5.117: Enables direct indexed property access without adapter.
+	// The propertyExecutor callback handles interpreter-dependent execution:
+	//   - Looks up the getter method from PropertyInfo
+	//   - Binds Self and index parameters
+	//   - Executes the getter method
+	//   - Returns the result
+	// Parameters:
+	//   - propInfo: The property metadata (from PropertyAccessor.LookupProperty or GetDefaultProperty)
+	//   - indices: The index values to pass to the getter
+	//   - propertyExecutor: Callback function that executes the indexed property read
+	//     The propInfo parameter is *types.PropertyInfo (passed as any to avoid import cycles)
+	ReadIndexedProperty(propInfo any, indices []Value, propertyExecutor func(propInfo any, indices []Value) Value) Value
 }
 
 // EnumAccessor is an optional interface for enum values.
@@ -800,7 +813,23 @@ type InterpreterAdapter interface {
 	//   - node: The AST node for error reporting
 	// Returns the result of the property getter method call.
 	// Task 3.5.99c: Enables object default property indexing in evaluator.
+	// DEPRECATED: Use ObjectValue.ReadIndexedProperty with ExecuteIndexedPropertyRead callback instead.
 	CallIndexedPropertyGetter(obj Value, propImpl any, indices []Value, node any) Value
+
+	// ExecuteIndexedPropertyRead executes an indexed property read with resolved PropertyInfo.
+	// Task 3.5.117: Low-level execution callback for ObjectValue.ReadIndexedProperty().
+	// This method handles the interpreter-dependent execution:
+	//   - Looks up the getter method from PropertyInfo
+	//   - Binds Self and index parameters
+	//   - Executes the getter method
+	//   - Returns the result
+	// Parameters:
+	//   - obj: The object instance (ObjectInstance)
+	//   - propInfo: The property metadata (*types.PropertyInfo)
+	//   - indices: The index values to pass to the getter
+	//   - node: The AST node for error reporting
+	// Returns the result of the indexed property getter.
+	ExecuteIndexedPropertyRead(obj Value, propInfo any, indices []Value, node any) Value
 
 	// ===== Task 3.5.99e: Record Default Property Access =====
 

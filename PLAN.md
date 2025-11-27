@@ -748,16 +748,17 @@ methods with index arguments. Consider creating a similar `DispatchPropertyAcces
   - **Calls migrated**: 4 ReadPropertyValue → 4 ExecutePropertyRead (lower-level, simpler)
   - **ReadPropertyValue**: Marked DEPRECATED in interface, kept for backwards compatibility
 
-- [ ] **3.5.117** Migrate CallIndexedPropertyGetter (5 calls)
+- [x] **3.5.117** Migrate CallIndexedPropertyGetter (5 calls) ✅
   - **Location**: `visitor_expressions_indexing.go`
   - **Issue**: Indexed property access (e.g., `Items[i]`) delegates to adapter
-  - **Solution**: Create `evaluator.CallIndexedGetter()` with parameter preparation
-  - **Approach**:
-    1. Get PropertyDescriptor via `PropertyAccessor.LookupProperty()` or `GetDefaultProperty()`
-    2. Extract getter method name from PropertyDescriptor.Impl
-    3. Use `DispatchMethodCall()` with index arguments to invoke getter
-  - **Requires**: Method call infrastructure from Phase 16 ✅ (now available)
-  - **Calls removed**: 5 CallIndexedPropertyGetter calls
+  - **Solution**: Added `ReadIndexedProperty` to ObjectValue interface with callback pattern (following Task 3.5.116)
+  - **Implementation**:
+    1. Added `ReadIndexedProperty(propInfo, indices, executor)` to ObjectValue interface
+    2. Implemented on ObjectInstance - validates object state, delegates to executor callback
+    3. Added `ExecuteIndexedPropertyRead` adapter method for low-level execution
+    4. Updated all 5 call sites to use `objVal.ReadIndexedProperty(...)` with callback
+  - **Calls migrated**: 5 CallIndexedPropertyGetter → 5 ExecuteIndexedPropertyRead (lower-level, simpler)
+  - **CallIndexedPropertyGetter**: Marked DEPRECATED in interface
 
 - [ ] **3.5.118** Migrate CallRecordPropertyGetter (2 calls)
   - **Location**: `visitor_expressions_indexing.go`

@@ -55,7 +55,11 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 
 					// Call indexed property getter on the underlying object
 					if underlying.Type() == "OBJECT" {
-						return e.adapter.CallIndexedPropertyGetter(underlying, propDesc.Impl, indexVals, node)
+						if objVal, ok := underlying.(ObjectValue); ok {
+							return objVal.ReadIndexedProperty(propDesc.Impl, indexVals, func(pi any, idx []Value) Value {
+								return e.adapter.ExecuteIndexedPropertyRead(underlying, pi, idx, node)
+							})
+						}
 					}
 					return e.newError(node, "interface underlying object is not a class instance")
 				}
@@ -78,8 +82,12 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 						}
 					}
 
-					// Call indexed property getter
-					return e.adapter.CallIndexedPropertyGetter(objVal, propDesc.Impl, indexVals, node)
+					// Call indexed property getter via ObjectValue interface
+					if ov, ok := objVal.(ObjectValue); ok {
+						return ov.ReadIndexedProperty(propDesc.Impl, indexVals, func(pi any, idx []Value) Value {
+							return e.adapter.ExecuteIndexedPropertyRead(objVal, pi, idx, node)
+						})
+					}
 				}
 			}
 		}
@@ -137,8 +145,12 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 	if leftVal.Type() == "OBJECT" {
 		if accessor, ok := leftVal.(PropertyAccessor); ok {
 			if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
-				// Delegate indexed property method call to adapter
-				return e.adapter.CallIndexedPropertyGetter(leftVal, defaultProp.Impl, []Value{indexVal}, node)
+				// Task 3.5.117: Use ObjectValue.ReadIndexedProperty with callback
+				if objVal, ok := leftVal.(ObjectValue); ok {
+					return objVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
+						return e.adapter.ExecuteIndexedPropertyRead(leftVal, pi, idx, node)
+					})
+				}
 			}
 		}
 	}
@@ -156,8 +168,13 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 			if accessor, ok := leftVal.(PropertyAccessor); ok {
 				if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil && defaultProp.IsIndexed {
 					// The property is defined on the interface, but we need the underlying object for execution
-					if objVal := underlying; objVal.Type() == "OBJECT" {
-						return e.adapter.CallIndexedPropertyGetter(objVal, defaultProp.Impl, []Value{indexVal}, node)
+					if underlying.Type() == "OBJECT" {
+						// Task 3.5.117: Use ObjectValue.ReadIndexedProperty with callback
+						if objVal, ok := underlying.(ObjectValue); ok {
+							return objVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
+								return e.adapter.ExecuteIndexedPropertyRead(underlying, pi, idx, node)
+							})
+						}
 					}
 					return e.newError(node, "interface underlying object is not a class instance")
 				}
@@ -169,7 +186,12 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 			if leftVal.Type() == "OBJECT" {
 				if accessor, ok := leftVal.(PropertyAccessor); ok {
 					if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
-						return e.adapter.CallIndexedPropertyGetter(leftVal, defaultProp.Impl, []Value{indexVal}, node)
+						// Task 3.5.117: Use ObjectValue.ReadIndexedProperty with callback
+						if objVal, ok := leftVal.(ObjectValue); ok {
+							return objVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
+								return e.adapter.ExecuteIndexedPropertyRead(leftVal, pi, idx, node)
+							})
+						}
 					}
 				}
 			}

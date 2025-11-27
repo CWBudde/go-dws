@@ -533,6 +533,20 @@ func (o *ObjectInstance) ReadProperty(propName string, propertyExecutor func(pro
 	return propertyExecutor(propInfo)
 }
 
+// ReadIndexedProperty reads an indexed property value using the provided executor callback.
+// Task 3.5.117: Enables direct indexed property access without going through adapter.
+// The propInfo is already resolved by PropertyAccessor.LookupProperty or GetDefaultProperty.
+func (o *ObjectInstance) ReadIndexedProperty(propInfo any, indices []Value, propertyExecutor func(propInfo any, indices []Value) Value) Value {
+	// Validate object state
+	if o == nil || o.Class == nil {
+		return newError("object has no class information")
+	}
+
+	// The propInfo is already resolved by the caller (PropertyAccessor.LookupProperty or GetDefaultProperty)
+	// Just call the executor with the property info and indices
+	return propertyExecutor(propInfo, indices)
+}
+
 // IsInstanceOf checks whether the object derives from the given class.
 func (o *ObjectInstance) IsInstanceOf(target *ClassInfo) bool {
 	if o == nil || o.Class == nil || target == nil {

@@ -236,6 +236,43 @@ func (i *Interpreter) GetExceptionInstance(exc interface{}) evaluator.Value {
 
 // CreateExceptionFromObject creates an ExceptionValue from an object instance.
 func (i *Interpreter) CreateExceptionFromObject(obj evaluator.Value, ctx *evaluator.ExecutionContext, pos any) interface{} {
+	// Capture current call stack from context
+	callStack := make(errors.StackTrace, len(ctx.CallStack()))
+	copy(callStack, ctx.CallStack())
+
+	// Get position
+	var excPos *lexer.Position
+	if p, ok := pos.(lexer.Position); ok {
+		excPos = &p
+	} else if p, ok := pos.(*lexer.Position); ok {
+		excPos = p
+	}
+
+	// Nil exception object -> raise standard "Object not instantiated" exception
+	if obj == nil || obj.Type() == "NIL" {
+		message := "Object not instantiated"
+		if excPos != nil {
+			message = fmt.Sprintf("Object not instantiated [line: %d, column: %d]", excPos.Line, excPos.Column+1)
+		}
+
+		excClass, ok := i.classes[ident.Normalize("Exception")]
+		if !ok {
+			excClass = NewClassInfo("Exception")
+		}
+
+		instance := NewObjectInstance(excClass)
+		instance.SetField("Message", &StringValue{Value: message})
+
+		return &ExceptionValue{
+			Metadata:  excClass.Metadata,
+			ClassInfo: excClass,
+			Message:   message,
+			Instance:  instance,
+			Position:  excPos,
+			CallStack: callStack,
+		}
+	}
+
 	// Should be an object instance
 	objInst, ok := obj.(*ObjectInstance)
 	if !ok {
@@ -253,19 +290,8 @@ func (i *Interpreter) CreateExceptionFromObject(obj evaluator.Value, ctx *evalua
 		}
 	}
 
-	// Capture current call stack from context
-	callStack := make(errors.StackTrace, len(ctx.CallStack()))
-	copy(callStack, ctx.CallStack())
-
-	// Get position
-	var excPos *lexer.Position
-	if p, ok := pos.(lexer.Position); ok {
-		excPos = &p
-	} else if p, ok := pos.(*lexer.Position); ok {
-		excPos = p
-	}
-
 	return &ExceptionValue{
+		Metadata:  classInfo.Metadata,
 		ClassInfo: classInfo,
 		Message:   message,
 		Instance:  objInst,
