@@ -21,6 +21,7 @@ type Value interface {
 // to provide direct access to class metadata without going through the adapter.
 // Task 3.5.72: Enables direct property/method existence checks.
 // Task 3.5.86: Extended with GetField and GetClassVar for member access.
+// Task 3.5.114: Extended with CallInheritedMethod for direct inherited method calls.
 type ObjectValue interface {
 	Value
 	// ClassName returns the class name of this object instance.
@@ -38,6 +39,19 @@ type ObjectValue interface {
 	// Returns the value and true if found, nil and false otherwise.
 	// Task 3.5.86: Enables direct class variable access without adapter.
 	GetClassVar(name string) (Value, bool)
+	// CallInheritedMethod calls a method from the parent class.
+	// Task 3.5.114: Enables direct inherited method calls without adapter.
+	// The methodExecutor callback is used to execute the method once resolved.
+	// Returns an error value if:
+	//   - The object has no class information
+	//   - The class has no parent class
+	//   - The method is not found in the parent class
+	// Parameters:
+	//   - methodName: The name of the method to call (case-insensitive)
+	//   - args: The arguments to pass to the method
+	//   - methodExecutor: Callback function that executes the method with the resolved declaration
+	//     The methodDecl parameter is *ast.FunctionDecl (passed as any to avoid import cycles)
+	CallInheritedMethod(methodName string, args []Value, methodExecutor func(methodDecl any, args []Value) Value) Value
 }
 
 // EnumAccessor is an optional interface for enum values.
@@ -352,7 +366,17 @@ type InterpreterAdapter interface {
 
 	// CallInheritedMethod executes an inherited (parent) method with the given arguments.
 	// Returns the method result value.
+	// DEPRECATED: Task 3.5.114 - Use ObjectValue.CallInheritedMethod + ExecuteMethodWithSelf instead.
 	CallInheritedMethod(obj Value, methodName string, args []Value) Value
+
+	// ExecuteMethodWithSelf executes a method with Self bound to the given object.
+	// Task 3.5.114: Low-level method execution for inherited calls.
+	// Parameters:
+	//   - self: The object to bind as Self in the method environment
+	//   - methodDecl: The method declaration (*ast.FunctionDecl, passed as any to avoid import cycles)
+	//   - args: The arguments to pass to the method
+	// Returns the method result value.
+	ExecuteMethodWithSelf(self Value, methodDecl any, args []Value) Value
 
 	// ===== Object Operations =====
 

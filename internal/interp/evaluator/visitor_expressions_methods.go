@@ -3,7 +3,6 @@ package evaluator
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
-	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // This file contains visitor methods for method call and inherited expression AST nodes.
@@ -12,7 +11,7 @@ import (
 // VisitMethodCallExpression evaluates a method call (obj.Method(args)).
 //
 // **COMPLEXITY**: Very High (1,116 lines in original implementation)
-// **STATUS**: Documentation-only migration with full adapter delegation
+// **STATUS**: Task 3.5.115 - Consolidated to use DispatchMethodCall
 //
 // **15 DISTINCT METHOD CALL MODES** (evaluated in this order):
 //
@@ -32,7 +31,7 @@ import (
 // **14. CLASS METHOD EXECUTION** (executeClassMethod)
 // **15. OVERLOAD RESOLUTION** (resolveMethodOverload)
 //
-// See comprehensive documentation in visitor_expressions.go for full mode details.
+// See method_dispatch.go for comprehensive documentation of dispatch architecture.
 func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ctx *ExecutionContext) Value {
 	if node.Object == nil {
 		return e.newError(node, "method call missing object")
@@ -61,151 +60,16 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		args[i] = val
 	}
 
-	// Route based on object type
-	switch obj.Type() {
-	case "OBJECT":
-		// Task 3.5.111d: Object instance method calls (Mode 12)
-		// Pattern: obj.Method(args)
-		// Delegate to adapter.CallMethod which handles ObjectInstance directly
-		// with method lookup and Self binding
-		return e.adapter.CallMethod(obj, methodName, args, node)
-
-	case "INTERFACE":
-		// Task 3.5.27: Interface instance method calls (Mode 8)
-		// Pattern: intf.Method(args)
-		// Delegate to adapter for interface unwrapping and method dispatch
-		return e.adapter.CallMethod(obj, methodName, args, node)
-
-	case "CLASSINFO":
-		// Task 3.5.111c: Static class method calls (Mode 2) or ClassInfoValue method calls (Mode 4)
-		// Pattern: TClass.Method(args) or classInfoVal.Method(args)
-		// Delegate to adapter.CallMethod which now handles ClassInfoValue directly
-		return e.adapter.CallMethod(obj, methodName, args, node)
-
-	case "CLASS":
-		// Task 3.5.111e: Metaclass (ClassValue) method calls (Mode 5)
-		// Pattern: classVar.Create(args) where classVar is a "class of TBase" metaclass variable
-		// Delegate to adapter.CallMethod which needs to handle ClassValue
-		return e.adapter.CallMethod(obj, methodName, args, node)
-
-	case "RECORD":
-		// Task 3.5.27: Record instance method calls (Mode 7)
-		// Pattern: record.Method(args)
-		// Delegate to adapter for record method execution
-		return e.adapter.CallMethod(obj, methodName, args, node)
-
-	case "SET":
-		// Task 3.5.111a: Set built-in methods (Mode 6) - Direct dispatch
-		// Pattern: mySet.Include(x), mySet.Exclude(y)
-		// Directly dispatch to SetMethodDispatcher interface methods
-		setVal, ok := obj.(SetMethodDispatcher)
-		if !ok {
-			return e.newError(node, "internal error: SET value does not implement SetMethodDispatcher")
-		}
-
-		normalizedMethod := ident.Normalize(methodName)
-		switch normalizedMethod {
-		case "include":
-			if len(args) != 1 {
-				return e.newError(node, "Include expects 1 argument, got %d", len(args))
-			}
-			ordinal, err := GetOrdinalValue(args[0])
-			if err != nil {
-				return e.newError(node, "Include requires ordinal value: %s", err.Error())
-			}
-			setVal.AddElement(ordinal)
-			return e.nilValue()
-
-		case "exclude":
-			if len(args) != 1 {
-				return e.newError(node, "Exclude expects 1 argument, got %d", len(args))
-			}
-			ordinal, err := GetOrdinalValue(args[0])
-			if err != nil {
-				return e.newError(node, "Exclude requires ordinal value: %s", err.Error())
-			}
-			setVal.RemoveElement(ordinal)
-			return e.nilValue()
-
-		default:
-			return e.newError(node, "method '%s' not found for set type", methodName)
-		}
-
-	case "NIL":
-		// Task 3.5.28: Nil object error handling (Mode 9)
-		// Always raise "Object not instantiated" error
-		return e.newError(node, "Object not instantiated")
-
-	case "TYPE_META":
-		// Task 3.5.111b: Enum type meta methods (Mode 10) - Direct dispatch
-		// Pattern: TColor.Low(), TColor.High(), TColor.ByName('Red')
-		// Directly dispatch to EnumTypeMetaDispatcher interface methods
-		enumMeta, ok := obj.(EnumTypeMetaDispatcher)
-		if !ok {
-			return e.newError(node, "internal error: TYPE_META value does not implement EnumTypeMetaDispatcher")
-		}
-
-		// Only enum types have these methods
-		if !enumMeta.IsEnumTypeMeta() {
-			return e.newError(node, "method '%s' not found for type '%s'", methodName, obj.String())
-		}
-
-		normalizedMethod := ident.Normalize(methodName)
-		switch normalizedMethod {
-		case "low":
-			return &runtime.IntegerValue{Value: int64(enumMeta.EnumLow())}
-
-		case "high":
-			return &runtime.IntegerValue{Value: int64(enumMeta.EnumHigh())}
-
-		case "byname":
-			if len(args) != 1 {
-				return e.newError(node, "ByName expects 1 argument, got %d", len(args))
-			}
-			nameStr, ok := args[0].(*runtime.StringValue)
-			if !ok {
-				return e.newError(node, "ByName expects string argument, got %s", args[0].Type())
-			}
-			return &runtime.IntegerValue{Value: int64(enumMeta.EnumByName(nameStr.Value))}
-
-		default:
-			return e.newError(node, "method '%s' not found for enum type", methodName)
-		}
-
-	// Task 3.5.98a+c: Explicit cases for helper-enabled types
-	// These types use helper methods (type extensions) for their method calls.
-	// Examples: str.ToUpper(), arr.Push(), num.ToString()
-	//
-	// Task 3.5.98c: Now using direct helper method lookup and execution instead of adapter delegation.
-	case "STRING", "INTEGER", "FLOAT", "BOOLEAN", "ARRAY", "VARIANT", "ENUM":
-		// Find the helper method for this value type
-		helperResult := e.FindHelperMethod(obj, methodName)
-		if helperResult == nil {
-			return e.newError(node, "cannot call method '%s' on type '%s' (no helper found)", methodName, obj.Type())
-		}
-
-		// Execute the helper method (builtin or AST)
-		return e.CallHelperMethod(helperResult, obj, args, node, ctx)
-
-	default:
-		// For other types (identifiers that might be unit names, record types, etc.)
-		// Try helper method lookup first
-		helperResult := e.FindHelperMethod(obj, methodName)
-		if helperResult != nil {
-			// Found a helper method - execute it
-			return e.CallHelperMethod(helperResult, obj, args, node, ctx)
-		}
-
-		// No helper found - delegate to adapter for full handling
-		// (might be unit-qualified call, record method, or other complex case)
-		return e.adapter.EvalNode(node)
-	}
+	// Task 3.5.115: Consolidated method dispatch via DispatchMethodCall
+	// This provides unified error handling and consistent routing for all value types.
+	// See method_dispatch.go for full documentation of the dispatch architecture.
+	return e.DispatchMethodCall(obj, methodName, args, node, ctx)
 }
 
 // VisitInheritedExpression evaluates an 'inherited' expression.
 //
 // **COMPLEXITY**: High (~176 lines in original implementation)
-// **STATUS**: Partial migration with context validation, method name resolution, and argument evaluation in evaluator; inherited method execution delegated to adapter
+// **STATUS**: Task 3.5.114 - Migrated to use ObjectValue.CallInheritedMethod interface
 //
 // **SYNTAX FORMS**:
 //   - `inherited MethodName(args)` - Explicit method call with arguments
@@ -258,8 +122,20 @@ func (e *Evaluator) VisitInheritedExpression(node *ast.InheritedExpression, ctx 
 		args[i] = val
 	}
 
-	// Call the inherited method using the adapter
-	// The adapter handles: parent class lookup, method resolution, environment setup,
-	// Self binding, parameter binding, and method execution
-	return e.adapter.CallInheritedMethod(self, methodName, args)
+	// Task 3.5.114: Use ObjectValue interface for parent class method lookup
+	// Then delegate method execution to adapter.ExecuteMethodWithSelf
+	objVal, ok := self.(ObjectValue)
+	if !ok {
+		// Fallback to adapter for non-ObjectValue types
+		return e.adapter.CallInheritedMethod(self, methodName, args)
+	}
+
+	// Create method executor callback that delegates to adapter
+	methodExecutor := func(methodDecl any, methodArgs []Value) Value {
+		return e.adapter.ExecuteMethodWithSelf(self, methodDecl, methodArgs)
+	}
+
+	// Call inherited method via ObjectValue interface
+	// This performs parent class lookup directly on the object
+	return objVal.CallInheritedMethod(methodName, args, methodExecutor)
 }

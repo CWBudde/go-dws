@@ -604,3 +604,28 @@ func (i *Interpreter) CallInheritedMethod(obj evaluator.Value, methodName string
 	i.env = savedEnv
 	return result
 }
+
+// ExecuteMethodWithSelf executes a method with Self bound to the given object.
+// Task 3.5.114: Low-level method execution for inherited and other method calls.
+func (i *Interpreter) ExecuteMethodWithSelf(self evaluator.Value, methodDecl any, args []evaluator.Value) evaluator.Value {
+	// Type-assert method declaration
+	method, ok := methodDecl.(*ast.FunctionDecl)
+	if !ok {
+		return newError("invalid method declaration type")
+	}
+
+	// Convert to internal types
+	internalSelf := self.(Value)
+	internalArgs := convertEvaluatorArgs(args)
+
+	// Call the method using existing infrastructure
+	savedEnv := i.env
+	tempEnv := NewEnclosedEnvironment(i.env)
+	tempEnv.Define("Self", internalSelf)
+	i.env = tempEnv
+
+	result := i.callUserFunction(method, internalArgs)
+
+	i.env = savedEnv
+	return result
+}

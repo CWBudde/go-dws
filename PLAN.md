@@ -247,14 +247,29 @@ Interpreter.Eval() delegates to Evaluator. Created evalDirect() bypass. Fixed En
 
 #### Current State (November 2025)
 
+**File Structure** (visitor_expressions.go split into 9 files):
+
+| File | Purpose |
+|------|---------|
+| `visitor_expressions_primitives.go` | Literals, grouped expressions, basic values |
+| `visitor_expressions_operators.go` | Binary/unary operators |
+| `visitor_expressions_identifiers.go` | Identifier resolution, Self lookup |
+| `visitor_expressions_functions.go` | Function calls, constructors |
+| `visitor_expressions_members.go` | Member access (obj.field, obj.property) |
+| `visitor_expressions_indexing.go` | Index expressions (arr[i], str[i]) |
+| `visitor_expressions_types.go` | Type operations (is, as, implements) |
+| `visitor_expressions_errors.go` | Error handling helpers |
+| `visitor_expressions_methods.go` | Method calls, inherited expressions |
+
 **Adapter Usage:**
 
-- visitor_expressions.go: 78 calls (30 EvalNode, 7 CallMethod, rest scattered)
+- visitor_expressions_*.go: ~78 calls total across 9 files
 - visitor_statements.go: 40 calls
 - visitor_declarations.go: 10 calls (all EvalNode - 100% delegation)
 - **Total: ~128 adapter calls**
 
-**Pre-existing Failures:** 2 tests fail (TestDWScriptFixtures, TestIntegration_InterfaceCastingAllCombinations) - unrelated to refactoring.
+**Pre-existing Failures:** 1 test fails (TestStringHelper_Before) - unrelated to refactoring.
+**Fixed:** TestIntegration_InterfaceCastingAllCombinations (was failing, now passing after 3.5.103d)
 
 **Branch Status:** `feat/removal_of_adapter_pattern` ABANDONED - added adapter methods instead of removing them, caused infinite recursion.
 
@@ -266,6 +281,36 @@ Interpreter.Eval() delegates to Evaluator. Created evalDirect() bypass. Fixed En
 2. **One feature at a time** - Remove one adapter call, pass all tests, repeat
 3. **Start with leaf operations** - Methods with no internal adapter dependencies
 4. **Small PRs** - 1-2 adapter method removals per PR max
+
+#### Insights from Phase 16 (Task 3.5.114)
+
+**Pattern for Interface-Based Adapter Reduction:**
+
+When migrating adapter methods that require interpreter context for execution:
+
+1. **Add interface method to Value interface** (e.g., `ObjectValue.CallInheritedMethod()`)
+   - Interface method takes a callback/executor for the parts needing interpreter
+   - Performs validation and lookup directly on the object
+
+2. **Implement on concrete type** (e.g., `ObjectInstance.CallInheritedMethod()`)
+   - Does the work that can be done without interpreter (parent lookup, method resolution)
+   - Calls the executor callback for actual execution
+
+3. **Add low-level adapter method** (e.g., `ExecuteMethodWithSelf()`)
+   - Handles only the execution part (environment setup, function call)
+   - Simpler than the original method, no lookup logic
+
+4. **Update visitor** to use interface method with callback
+   - Type-assert to interface
+   - Create executor callback that invokes adapter
+   - Fallback to original adapter for non-implementing types
+
+**Why this works:**
+
+- Moves business logic (lookup, validation) to the object where data lives
+- Keeps interpreter-dependent execution in adapter (environment management)
+- Reduces adapter complexity while maintaining separation of concerns
+- Allows incremental migration with fallbacks
 
 ---
 
@@ -634,30 +679,41 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
       - Extended CallMethod in interpreter.go to handle ClassValue with constructor dispatch
 
 - [x] **3.5.112** Migrate CallMethod for interface method dispatch (1 call) ✅
-  - **Location**: `visitor_expressions.go` line 1670 (INTERFACE case)
+  - **Location**: `visitor_expressions_methods.go` (INTERFACE case in VisitMethodCallExpression)
   - **Issue**: Interface method calls delegate to adapter
   - **Solution**: Added InterfaceInstance case to CallMethod in interpreter.go (lines 1503-1542)
   - **Implementation**: Verify method in interface contract, extract underlying object, dispatch to object method
   - **Calls removed**: 1 CallMethod call now properly handled
 
 - [x] **3.5.113** Migrate CallMethod for record method dispatch (1 call) ✅
-  - **Location**: `visitor_expressions.go` line 1688 (RECORD case)
+  - **Location**: `visitor_expressions_methods.go` (RECORD case in VisitMethodCallExpression)
   - **Issue**: Record method calls delegate to adapter
   - **Solution**: Added RecordValue case to CallMethod in interpreter.go (lines 1544-1649)
   - **Implementation**: Instance methods with Self/field binding, static methods with constants/class vars
   - **Calls removed**: 1 CallMethod call now properly handled
 
-- [ ] **3.5.114** Migrate CallInheritedMethod (1 call)
-  - **Location**: `visitor_expressions.go` line 1854
+- [x] **3.5.114** Migrate CallInheritedMethod (1 call) ✅
+  - **Location**: `visitor_expressions_methods.go` line 264
   - **Issue**: `inherited` keyword delegates to adapter
-  - **Solution**: Implement parent class method lookup + call in evaluator
-  - **Dependency**: Class hierarchy navigation
-  - **Calls removed**: 1 CallInheritedMethod call
+  - **Solution**: Extended ObjectValue interface with CallInheritedMethod; parent class lookup in evaluator via interface, execution via adapter.ExecuteMethodWithSelf
+  - **Implementation**:
+    - Added CallInheritedMethod to ObjectValue interface (evaluator.go)
+    - Implemented CallInheritedMethod on ObjectInstance (class.go)
+    - Added ExecuteMethodWithSelf adapter method (adapter_methods.go)
+    - Updated VisitInheritedExpression to use ObjectValue interface
+  - **Calls removed**: 1 CallInheritedMethod call now routed through ObjectValue interface
 
-- [ ] **3.5.115** Consolidate method call infrastructure
+- [x] **3.5.115** Consolidate method call infrastructure ✅
   - **Goal**: Single `evaluator.DispatchMethodCall()` for all method types
   - **Benefits**: Unified error handling, consistent environment setup
   - **Deliverable**: Method dispatch documentation
+  - **Implementation**:
+    - Created `evaluator/method_dispatch.go` with comprehensive documentation
+    - Implemented `DispatchMethodCall()` as unified entry point for all method types
+    - Refactored helper functions: `dispatchSetMethod()`, `dispatchEnumTypeMetaMethod()`, `dispatchHelperMethod()`
+    - Updated `VisitMethodCallExpression()` to delegate to `DispatchMethodCall()`
+    - Documented 15 distinct method call modes and dispatch architecture
+  - **Files**: `evaluator/method_dispatch.go` (new), `evaluator/visitor_expressions_methods.go` (updated)
 
 ---
 
@@ -666,33 +722,33 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 **Current State**: 9 property-related adapter calls
 
 - [ ] **3.5.116** Migrate ReadPropertyValue (4 calls)
-  - **Location**: `visitor_expressions.go` lines 107, 1098, 1139, 1218
+  - **Location**: `visitor_expressions_members.go`, `visitor_expressions_identifiers.go`
   - **Issue**: Property reads delegate to Interpreter.ReadPropertyValue
   - **Solution**: Create `evaluator.ReadProperty()` using PropertyAccessor interface
   - **Dependency**: PropertyDescriptor with getter metadata
   - **Calls removed**: 4 ReadPropertyValue calls
 
 - [ ] **3.5.117** Migrate CallIndexedPropertyGetter (5 calls)
-  - **Location**: `visitor_expressions.go` lines 2041, 2065, 2124, 2143, 2155
+  - **Location**: `visitor_expressions_indexing.go`
   - **Issue**: Indexed property access (e.g., `Items[i]`) delegates to adapter
   - **Solution**: Create `evaluator.CallIndexedGetter()` with parameter preparation
   - **Requires**: Method call infrastructure from Phase 16
   - **Calls removed**: 5 CallIndexedPropertyGetter calls
 
 - [ ] **3.5.118** Migrate CallRecordPropertyGetter (2 calls)
-  - **Location**: `visitor_expressions.go` lines 2084, 2168
+  - **Location**: `visitor_expressions_indexing.go`
   - **Issue**: Record property access delegates to adapter
   - **Solution**: Use RecordInstanceValue methods directly
   - **Calls removed**: 2 CallRecordPropertyGetter calls
 
 - [ ] **3.5.119** Migrate IsMethodParameterless + CreateMethodCall (2 calls)
-  - **Location**: `visitor_expressions.go` lines 118, 120
+  - **Location**: `visitor_expressions_identifiers.go`
   - **Issue**: Auto-invoke for parameterless methods in identifier resolution
   - **Solution**: Check method arity in ObjectValue.HasMethod, call directly
   - **Calls removed**: 2 adapter calls
 
 - [ ] **3.5.120** Migrate CreateMethodPointerFromObject (1 call)
-  - **Location**: `visitor_expressions.go` line 123
+  - **Location**: `visitor_expressions_identifiers.go`
   - **Issue**: Method pointer creation for methods with parameters
   - **Solution**: Create method pointer directly using FunctionPointerValue
   - **Calls removed**: 1 adapter call
@@ -704,20 +760,20 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 **Current State**: 8 function pointer-related adapter calls
 
 - [ ] **3.5.121** Migrate CallFunctionPointer (2 calls)
-  - **Location**: `visitor_statements.go` line 115, `visitor_expressions.go` line 512
+  - **Location**: `visitor_statements.go`, `visitor_expressions_functions.go`
   - **Issue**: Function pointer invocation delegates to adapter
   - **Solution**: Create `evaluator.InvokeFunctionPointer()` with closure handling
   - **Requires**: Environment setup, parameter binding
   - **Calls removed**: 2 CallFunctionPointer calls
 
 - [ ] **3.5.122** Migrate CreateFunctionPointer + CreateFunctionPointerFromName (2 calls)
-  - **Location**: `visitor_expressions.go` lines 196, 357
+  - **Location**: `visitor_expressions_identifiers.go`, `visitor_expressions_functions.go`
   - **Issue**: Function pointer creation delegates to adapter
   - **Solution**: Create FunctionPointerValue directly in evaluator
   - **Calls removed**: 2 adapter calls
 
 - [ ] **3.5.123** Migrate CreateMethodPointer (1 call)
-  - **Location**: `visitor_expressions.go` line 375
+  - **Location**: `visitor_expressions_functions.go`
   - **Issue**: Method pointer creation (from @obj.method) delegates
   - **Solution**: Create bound method pointer directly
   - **Calls removed**: 1 adapter call
