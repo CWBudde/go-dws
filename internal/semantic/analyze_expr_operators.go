@@ -49,12 +49,20 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 	// ClassName is a built-in property available on all objects (inherited from TObject)
 	// When used as an identifier, it returns the class name as a String
 	if ident.Equal(identifier.Value, "ClassName") && a.currentClass != nil {
+		if identifier.Value != "ClassName" {
+			a.addHint("\"%s\" does not match case of declaration (\"ClassName\") [line: %d, column: %d]",
+				identifier.Value, identifier.Token.Pos.Line, identifier.Token.Pos.Column)
+		}
 		return types.STRING
 	}
 
 	// Task 9.7: Handle ClassType identifier in method contexts
 	// ClassType is a built-in property that returns the metaclass reference
 	if ident.Equal(identifier.Value, "ClassType") && a.currentClass != nil {
+		if identifier.Value != "ClassType" {
+			a.addHint("\"%s\" does not match case of declaration (\"ClassType\") [line: %d, column: %d]",
+				identifier.Value, identifier.Token.Pos.Line, identifier.Token.Pos.Column)
+		}
 		return types.NewClassOfType(a.currentClass)
 	}
 

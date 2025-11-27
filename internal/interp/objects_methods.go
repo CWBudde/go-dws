@@ -11,6 +11,8 @@ import (
 )
 
 func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
+	methodNameLower := pkgident.Normalize(mc.Method.Value)
+
 	// Check if the left side is an identifier (could be unit, class, or instance variable)
 	if ident, ok := mc.Object.(*ast.Identifier); ok {
 		// First, check if this identifier refers to a unit
@@ -505,8 +507,14 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	// When calling o.Method() where o is nil, always raise "Object not instantiated"
 	// Note: Class methods can only be called without error when called directly on
 	// the class name (TClass.Method), not via a nil instance variable (o.Method)
-	if _, isNil := objVal.(*NilValue); isNil {
-		return i.newErrorWithLocation(mc, "Object not instantiated")
+	if objVal == nil || objVal.Type() == "NIL" {
+		// TObject.Free is nil-safe
+		if strings.EqualFold(strings.TrimSpace(mc.Method.Value), "Free") {
+			return &NilValue{}
+		}
+		message := fmt.Sprintf("Object not instantiated [line: %d, column: %d]", mc.Token.Pos.Line, mc.Token.Pos.Column+1)
+		i.raiseException("Exception", message, &mc.Token.Pos)
+		return &NilValue{}
 	}
 
 	// Check if it's an object instance
@@ -584,8 +592,24 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		return i.callHelperMethod(helper, helperMethod, builtinSpec, objVal, args, mc)
 	}
 
+	// Prevent method calls on destroyed instances
+	if obj.Destroyed {
+		message := fmt.Sprintf("Object already destroyed [line: %d, column: %d]", mc.Token.Pos.Line, mc.Token.Pos.Column)
+		i.raiseException("Exception", message, &mc.Token.Pos)
+		return &NilValue{}
+	}
+
+	// TObject.Free delegates to Destroy and is available on all classes
+	if methodNameLower == "free" {
+		if len(mc.Arguments) != 0 {
+			return i.newErrorWithLocation(mc, "wrong number of arguments for method '%s': expected %d, got %d",
+				"Free", 0, len(mc.Arguments))
+		}
+		return i.runDestructor(obj, obj.Class.lookupMethod("Destroy"), mc)
+	}
+
 	// Handle built-in methods that are available on all objects (inherited from TObject)
-	if mc.Method.Value == "ClassName" {
+	if methodNameLower == "classname" {
 		// ClassName returns the runtime type name of the object
 		return &StringValue{Value: obj.Class.Name}
 	}
@@ -674,6 +698,11 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	if len(args) != len(method.Parameters) {
 		return i.newErrorWithLocation(mc, "wrong number of arguments for method '%s': expected %d, got %d",
 			mc.Method.Value, len(method.Parameters), len(args))
+	}
+
+	// Destructors mark the object as destroyed and then run their body
+	if method.IsDestructor {
+		return i.runDestructor(obj, method, mc)
 	}
 
 	// Task 9.4.3 & 9.73.3: Special handling for virtual constructors called on instances
@@ -788,6 +817,12 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		// For instance methods, bind Self to the object
 		i.env.Define("Self", obj)
 	}
+
+	// Determine the declaring class for inherited resolution
+	methodOwner := i.findMethodOwner(obj.Class, method, isClassMethod)
+
+	// Bind __CurrentClass__ to the static class context (declaring class)
+	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: methodOwner})
 
 	// Add class constants to method scope so they can be accessed directly
 	i.bindClassConstantsToEnv(obj.Class)
@@ -1112,4 +1147,31 @@ func (i *Interpreter) getMethodOverloadsInHierarchy(classInfo *ClassInfo, method
 	}
 
 	return result
+}
+
+// findMethodOwner returns the class in the hierarchy that declares the given method.
+// Falls back to the runtime class if not found.
+func (i *Interpreter) findMethodOwner(classInfo *ClassInfo, method *ast.FunctionDecl, isClassMethod bool) *ClassInfo {
+	if classInfo == nil || method == nil {
+		return classInfo
+	}
+
+	for c := classInfo; c != nil; c = c.Parent {
+		var overloads map[string][]*ast.FunctionDecl
+		if isClassMethod {
+			overloads = c.ClassMethodOverloads
+		} else {
+			overloads = c.MethodOverloads
+		}
+
+		for _, methods := range overloads {
+			for _, m := range methods {
+				if m == method {
+					return c
+				}
+			}
+		}
+	}
+
+	return classInfo
 }

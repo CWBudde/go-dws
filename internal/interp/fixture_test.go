@@ -737,7 +737,7 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool) testResult 
 		var formattedOutput strings.Builder
 		formattedOutput.WriteString("Errors >>>>\n")
 		for _, hint := range hints {
-			formattedOutput.WriteString(strings.TrimPrefix(hint, "Hint: "))
+			formattedOutput.WriteString(hint)
 			formattedOutput.WriteString("\n")
 		}
 		formattedOutput.WriteString("Result >>>>\n")

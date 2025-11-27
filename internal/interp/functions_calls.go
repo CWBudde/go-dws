@@ -408,6 +408,10 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		if isError(val) {
 			return val
 		}
+		if i.exception != nil {
+			// Exception raised while evaluating arguments - skip function execution
+			return &NilValue{}
+		}
 		args[idx] = val
 	}
 

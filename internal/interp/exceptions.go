@@ -93,6 +93,65 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	objectClass.Constructors["create"] = createConstructor
 	objectClass.ConstructorOverloads["create"] = []*ast.FunctionDecl{createConstructor}
 
+	// Add default Destroy destructor (virtual) and Free method
+	destroyMethod := &ast.FunctionDecl{
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "Destroy"},
+				},
+			},
+			Value: "Destroy",
+		},
+		Parameters:    []*ast.Parameter{},
+		Body:          &ast.BlockStatement{Statements: []ast.Statement{}},
+		IsDestructor:  true,
+		IsVirtual:     true,
+		Visibility:    ast.VisibilityPublic,
+		IsConstructor: false,
+	}
+	freeMethod := &ast.FunctionDecl{
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "Free"},
+				},
+			},
+			Value: "Free",
+		},
+		Parameters: []*ast.Parameter{},
+		Body:       &ast.BlockStatement{Statements: []ast.Statement{}},
+		Visibility: ast.VisibilityPublic,
+	}
+
+	// Store methods with lowercase keys for case-insensitive lookup
+	objectClass.Methods["destroy"] = destroyMethod
+	objectClass.MethodOverloads["destroy"] = []*ast.FunctionDecl{destroyMethod}
+	objectClass.Methods["free"] = freeMethod
+	objectClass.MethodOverloads["free"] = []*ast.FunctionDecl{freeMethod}
+	objectClass.Destructor = destroyMethod
+
+	// Populate metadata for Destroy/Free (AST-free path)
+	runtime.AddMethodToClass(objectClass.Metadata, &runtime.MethodMetadata{
+		Name:           "Destroy",
+		Parameters:     []runtime.ParameterMetadata{},
+		ReturnType:     nil,
+		ReturnTypeName: "",
+		Body:           destroyMethod.Body,
+		IsVirtual:      true,
+		IsDestructor:   true,
+		Visibility:     runtime.VisibilityPublic,
+	}, false)
+	runtime.AddMethodToClass(objectClass.Metadata, &runtime.MethodMetadata{
+		Name:           "Free",
+		Parameters:     []runtime.ParameterMetadata{},
+		ReturnType:     nil,
+		ReturnTypeName: "",
+		Body:           freeMethod.Body,
+		Visibility:     runtime.VisibilityPublic,
+	}, false)
+	objectClass.buildVirtualMethodTable()
+
 	// Use lowercase key for O(1) case-insensitive lookup
 	i.classes[strings.ToLower("TObject")] = objectClass
 	// Also register in TypeSystem for shared access

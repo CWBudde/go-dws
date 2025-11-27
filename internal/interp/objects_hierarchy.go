@@ -1,6 +1,8 @@
 package interp
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	pkgident "github.com/cwbudde/go-dws/pkg/ident"
@@ -540,6 +542,11 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	if !ok && (objVal.Type() == "NIL" || isNilValue) {
 		memberName := ma.Member.Value
 
+		// TObject.Free is nil-safe even when accessed without parentheses
+		if pkgident.Equal(memberName, "Free") {
+			return &NilValue{}
+		}
+
 		// Task 9.5: If we have a static type from a cast (e.g., TBase(nil).ClassVar), use it
 		if staticClassType != nil {
 			// Use the static type from the cast
@@ -565,7 +572,9 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 		// Task 9.7: If we couldn't find a class variable, raise "Object not instantiated"
 		// This happens when accessing instance members on nil objects
-		return i.newErrorWithLocation(ma, "Object not instantiated")
+		message := fmt.Sprintf("Object not instantiated [line: %d, column: %d]", ma.Token.Pos.Line, ma.Token.Pos.Column+1)
+		i.raiseException("Exception", message, &ma.Token.Pos)
+		return &NilValue{}
 	}
 
 	if !ok {
@@ -623,6 +632,13 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	}
 
 	memberName := ma.Member.Value
+
+	// Prevent member access on destroyed instances
+	if obj.Destroyed {
+		message := fmt.Sprintf("Object already destroyed [line: %d, column: %d]", ma.Token.Pos.Line, ma.Token.Pos.Column)
+		i.raiseException("Exception", message, &ma.Token.Pos)
+		return &NilValue{}
+	}
 
 	// Handle built-in properties/methods available on all objects (inherited from TObject)
 	if pkgident.Equal(memberName, "ClassName") {
@@ -822,8 +838,16 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 		return i.newErrorWithLocation(ie, "inherited requires Self to be an object instance")
 	}
 
-	// Get the parent class
+	// Determine the current static class context for inherited resolution.
+	// Prefer __CurrentClass__ (set when entering a method), fall back to runtime class.
 	classInfo := obj.Class
+	if currentClassVal, has := i.env.Get("__CurrentClass__"); has {
+		if civ, isClassVal := currentClassVal.(*ClassInfoValue); isClassVal && civ.ClassInfo != nil {
+			classInfo = civ.ClassInfo
+		}
+	}
+
+	// Get the parent class
 	if classInfo.Parent == nil {
 		return i.newErrorWithLocation(ie, "class '%s' has no parent class", classInfo.Name)
 	}
@@ -850,15 +874,13 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 
 	// Task 9.16.4.2: Look up member in parent class (method, property, or field)
 	// Try method first (case-insensitive)
-	var parentMethod *ast.FunctionDecl
-	for name, method := range parentClass.Methods {
-		if pkgident.Equal(name, methodName) {
-			parentMethod = method
-			break
+	methodOverloads := i.getMethodOverloadsInHierarchy(parentClass, methodName, false)
+	if len(methodOverloads) > 0 {
+		parentMethod, err := i.resolveMethodOverload(parentClass.Name, methodName, methodOverloads, ie.Arguments)
+		if err != nil {
+			return i.newErrorWithLocation(ie, "%s", err.Error())
 		}
-	}
 
-	if parentMethod != nil {
 		// Found a method - evaluate it
 		// Evaluate arguments
 		args := make([]Value, len(ie.Arguments))

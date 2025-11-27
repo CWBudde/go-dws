@@ -110,6 +110,11 @@ type ObjectInstance struct {
 	// - Decrements when variable is reassigned, set to nil, or goes out of scope
 	// - Destructor called when RefCount reaches 0
 	RefCount int
+
+	// Destroyed indicates whether the object's destructor has completed.
+	// destroyCallDepth tracks nested Destroy calls during inherited dispatch.
+	Destroyed        bool
+	destroyCallDepth int
 }
 
 // NewObjectInstance creates a new object instance of the given class.

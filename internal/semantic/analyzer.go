@@ -8,7 +8,8 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	pkgast "github.com/cwbudde/go-dws/pkg/ast" // Task 9.18
-	"github.com/cwbudde/go-dws/pkg/token"      // Task 6.1.1.3: for TypeRegistry
+	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token" // Task 6.1.1.3: for TypeRegistry
 )
 
 // ============================================================================
@@ -143,23 +144,7 @@ func NewAnalyzerWithExperimentalPasses() *Analyzer {
 func (a *Analyzer) registerBuiltinExceptionTypes() {
 	// Register TObject as the root base class for all classes
 	// Required for DWScript compatibility
-	objectClass := &types.ClassType{
-		Name:                 "TObject",
-		Parent:               nil, // Root of the class hierarchy
-		Fields:               make(map[string]types.Type),
-		Methods:              make(map[string]*types.FunctionType),
-		FieldVisibility:      make(map[string]int),
-		MethodVisibility:     make(map[string]int),
-		VirtualMethods:       make(map[string]bool),
-		OverrideMethods:      make(map[string]bool),
-		AbstractMethods:      make(map[string]bool),
-		ReintroduceMethods:   make(map[string]bool), // Task 9.2
-		Constructors:         make(map[string]*types.FunctionType),
-		ConstructorOverloads: make(map[string][]*types.MethodInfo),
-		Interfaces:           make([]*types.InterfaceType, 0),
-		Properties:           make(map[string]*types.PropertyInfo),
-		ClassMethodFlags:     make(map[string]bool),
-	}
+	objectClass := types.NewClassType("TObject", nil)
 
 	// Add basic Create constructor
 	objectClass.AddConstructorOverload("Create", &types.MethodInfo{
@@ -169,6 +154,31 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 		},
 		Visibility: int(ast.VisibilityPublic),
 	})
+
+	// Add default virtual destructor Destroy
+	destroySig := &types.FunctionType{
+		Parameters: []types.Type{}, // no parameters
+		ReturnType: types.VOID,
+	}
+	objectClass.AddMethodOverload("Destroy", &types.MethodInfo{
+		Signature:  destroySig,
+		IsVirtual:  true,
+		Visibility: int(ast.VisibilityPublic),
+	})
+	// Add TObject.Free which delegates to Destroy at runtime
+	freeSig := &types.FunctionType{
+		Parameters: []types.Type{}, // no parameters
+		ReturnType: types.VOID,
+	}
+	objectClass.AddMethodOverload("Free", &types.MethodInfo{
+		Signature:  freeSig,
+		Visibility: int(ast.VisibilityPublic),
+	})
+
+	// Track visibility/virtual flags for built-in methods
+	objectClass.VirtualMethods[ident.Normalize("Destroy")] = true
+	objectClass.MethodVisibility[ident.Normalize("Destroy")] = int(ast.VisibilityPublic)
+	objectClass.MethodVisibility[ident.Normalize("Free")] = int(ast.VisibilityPublic)
 
 	// Add ClassName method (returns the runtime type name)
 	objectClass.Methods["ClassName"] = &types.FunctionType{
