@@ -348,16 +348,19 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 // VisitAssignmentStatement evaluates an assignment statement.
 // Task 3.5.105a: Migrated simple variable assignment handling directly to evaluator.
 // Task 3.5.105b: Migrated compound operators (+=, -=, *=, /=) for simple identifiers.
+// Task 3.5.105c: Migrated index assignment for arrays/strings directly to evaluator.
 //
 // Assignment types handled:
 // - Simple assignment: x := value (Task 3.5.105a - handled directly for basic cases)
 // - Compound operators on simple identifiers: x += value (Task 3.5.105b - handled directly)
+// - Index assignment: arr[i] := value, str[i] := char (Task 3.5.105c - handled directly for arrays/strings)
 // - Member assignment: obj.field := value, TClass.Variable := value (delegates to adapter)
-// - Index assignment: arr[i] := value, obj.Property[x, y] := value (delegates to adapter)
+// - Indexed property writes: obj.Property[x, y] := value (delegates to adapter)
 // - Compound operators on members/indexes: obj.x += value (delegates to adapter)
 //
 // The adapter handles complex cases including:
-// - Member/index compound assignments (task 3.5.105c/d)
+// - Member assignments (task 3.5.105d)
+// - Indexed property writes (with getter/setter dispatch)
 // - Object reference counting and destructor calls
 // - Interface wrapping and reference management
 // - Property setter dispatch with recursion prevention
@@ -410,9 +413,26 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 		return e.adapter.EvalNode(node)
 
 	case *ast.IndexExpression:
-		// Array index assignment: arr[i] := value
-		// Delegate to adapter for complex index handling
-		return e.adapter.EvalNode(node)
+		// Task 3.5.105c: Handle index assignment directly for arrays/strings
+		// Complex cases (indexed properties, interfaces) delegate to adapter
+
+		// Compound assignments on indexes still go to adapter
+		if isCompound {
+			return e.adapter.EvalNode(node)
+		}
+
+		// Evaluate the value to assign
+		value := e.Eval(node.Value, ctx)
+		if isError(value) {
+			return value
+		}
+
+		// Check for exception during evaluation
+		if ctx.Exception() != nil {
+			return &runtime.NilValue{}
+		}
+
+		return e.evalIndexAssignmentDirect(target, value, node, ctx)
 
 	default:
 		return e.newError(node, "invalid assignment target type: %T", target)

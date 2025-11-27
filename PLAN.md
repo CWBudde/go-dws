@@ -559,12 +559,14 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
       - Tests: ~13 compound assignment tests (all pass)
       - **Files**: Created `evaluator/compound_ops.go` (~235 lines), updated `evaluator/visitor_statements.go`, `evaluator/assignment_helpers.go`
       - **Implementation**: Direct evaluation for simple identifiers, adapter delegation for object class operators
-    - [ ] **3.5.105c** Migrate Index Assignment (MEDIUM RISK)
+    - [x] **3.5.105c** Migrate Index Assignment (MEDIUM RISK) ✅
       - Source: `evalIndexAssignment()` lines 801-971 (171 lines)
       - Handles: `arr[i] := value`, `str[i] := char`
       - Includes: Array bounds checking, string mutation, multi-dimensional arrays
       - Risk: MEDIUM - array/string indexing with bounds validation
-      - Tests: ~12 array/string index assignment tests
+      - Tests: ~12 array/string index assignment tests (all pass)
+      - **Files**: Created `evaluator/index_assignment.go` (~180 lines), added `RuneReplace()` to `evaluator/helpers.go`, updated `evaluator/visitor_statements.go`
+      - **Implementation**: Direct evaluation for array/string index assignment, adapter delegation for indexed properties, interfaces, and object default properties
     - [ ] **3.5.105d** Migrate Member Assignment (HIGH RISK)
       - Source: `evalMemberAssignment()` lines 667-800 (134 lines)
       - Handles: `obj.field := value`, property setters, record fields
