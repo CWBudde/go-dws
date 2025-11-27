@@ -280,11 +280,17 @@ func (e *Evaluator) CallHelperMethod(
 // Task 3.5.102a: String helper methods now handled directly in evaluator.
 // Task 3.5.102b: Integer helper methods now handled directly in evaluator.
 // Task 3.5.102c: Float helper methods now handled directly in evaluator.
+// Task 3.5.102d: Boolean helper methods now handled directly in evaluator.
+// Task 3.5.102e: Array helper methods now handled directly in evaluator.
+// Task 3.5.102f: Enum helper methods now handled directly in evaluator.
 //
 // Specific helper implementations are migrated incrementally:
 // - String helpers: ToUpper, ToLower, Length, ToString (Task 3.5.102a)
 // - Integer helpers: ToString, ToHexString (Task 3.5.102b)
 // - Float helpers: ToString, ToString(precision) (Task 3.5.102c)
+// - Boolean helpers: ToString (Task 3.5.102d)
+// - Array helpers: Length, Count, High, Low, Add, Push, Pop, Swap, Delete, Join (Task 3.5.102e)
+// - Enum helpers: Value, Name, QualifiedName (Task 3.5.102f)
 //
 // Unhandled helpers fall through to the adapter.
 func (e *Evaluator) CallBuiltinHelperMethod(spec string, selfValue Value, args []Value, node ast.Node) Value {
@@ -300,6 +306,21 @@ func (e *Evaluator) CallBuiltinHelperMethod(spec string, selfValue Value, args [
 
 	// Task 3.5.102c: Try float helpers
 	if result := e.evalFloatHelper(spec, selfValue, args, node); result != nil {
+		return result
+	}
+
+	// Task 3.5.102d: Try boolean helpers
+	if result := e.evalBooleanHelper(spec, selfValue, args, node); result != nil {
+		return result
+	}
+
+	// Task 3.5.102e: Try array helpers
+	if result := e.evalArrayHelper(spec, selfValue, args, node); result != nil {
+		return result
+	}
+
+	// Task 3.5.102f: Try enum helpers
+	if result := e.evalEnumHelper(spec, selfValue, args, node); result != nil {
 		return result
 	}
 

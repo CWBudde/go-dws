@@ -2,7 +2,9 @@ package evaluator
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -650,4 +652,365 @@ func (e *Evaluator) coerceElementsToType(arrayType *types.ArrayType, values []Va
 	}
 
 	return coerced, nil
+}
+
+// ============================================================================
+// Array Helper Method Implementations
+// ============================================================================
+// Task 3.5.102e: Migrate array helper methods from Interpreter to Evaluator.
+//
+// These implementations avoid the adapter by directly manipulating runtime values.
+// The goal is to remove EvalNode delegation for common array operations.
+//
+// Split into sub-tasks:
+// - 3.5.102e1: Array properties (Length, Count, High, Low)
+// - 3.5.102e2: Simple array methods (Add, Push, Pop, Swap, Delete)
+// - 3.5.102e3: Join methods (Join, string array Join)
+
+// evalArrayHelper evaluates a built-in array helper method directly in the evaluator.
+// Returns the result value, or nil if this helper is not handled here (should fall through
+// to the adapter).
+func (e *Evaluator) evalArrayHelper(spec string, selfValue Value, args []Value, node ast.Node) Value {
+	switch spec {
+	// Task 3.5.102e1: Array properties
+	case "__array_length", "__array_count":
+		return e.evalArrayLengthHelper(selfValue, args, node)
+	case "__array_high":
+		return e.evalArrayHigh(selfValue, args, node)
+	case "__array_low":
+		return e.evalArrayLow(selfValue, args, node)
+
+	// Task 3.5.102e2: Simple array methods
+	case "__array_add":
+		return e.evalArrayAdd(selfValue, args, node)
+	case "__array_push":
+		return e.evalArrayPush(selfValue, args, node)
+	case "__array_pop":
+		return e.evalArrayPop(selfValue, args, node)
+	case "__array_swap":
+		return e.evalArraySwap(selfValue, args, node)
+	case "__array_delete":
+		return e.evalArrayDelete(selfValue, args, node)
+
+	// Task 3.5.102e3: Join methods
+	case "__array_join":
+		return e.evalArrayJoinHelper(selfValue, args, node)
+	case "__string_array_join":
+		return e.evalStringArrayJoin(selfValue, args, node)
+
+	default:
+		// Not an array helper we handle - return nil to signal fallthrough to adapter
+		return nil
+	}
+}
+
+// ============================================================================
+// Task 3.5.102e1: Array Properties
+// ============================================================================
+
+// evalArrayLengthHelper implements Array.Length and Array.Count property.
+// Returns the number of elements in the array.
+func (e *Evaluator) evalArrayLengthHelper(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 0 {
+		return e.newError(node, "Array.Length property does not take arguments")
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Length property requires array receiver")
+	}
+
+	return &runtime.IntegerValue{Value: int64(len(arrVal.Elements))}
+}
+
+// evalArrayHigh implements Array.High property.
+// Returns the highest valid index of the array.
+// For static arrays, returns the declared high bound.
+// For dynamic arrays, returns Length - 1.
+func (e *Evaluator) evalArrayHigh(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 0 {
+		return e.newError(node, "Array.High property does not take arguments")
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.High property requires array receiver")
+	}
+
+	if arrVal.ArrayType != nil && arrVal.ArrayType.IsStatic() {
+		return &runtime.IntegerValue{Value: int64(*arrVal.ArrayType.HighBound)}
+	}
+	return &runtime.IntegerValue{Value: int64(len(arrVal.Elements) - 1)}
+}
+
+// evalArrayLow implements Array.Low property.
+// Returns the lowest valid index of the array.
+// For static arrays, returns the declared low bound.
+// For dynamic arrays, returns 0.
+func (e *Evaluator) evalArrayLow(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 0 {
+		return e.newError(node, "Array.Low property does not take arguments")
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Low property requires array receiver")
+	}
+
+	if arrVal.ArrayType != nil && arrVal.ArrayType.IsStatic() {
+		return &runtime.IntegerValue{Value: int64(*arrVal.ArrayType.LowBound)}
+	}
+	return &runtime.IntegerValue{Value: 0}
+}
+
+// ============================================================================
+// Task 3.5.102e2: Simple Array Methods
+// ============================================================================
+
+// evalArrayAdd implements Array.Add(value) method.
+// Adds an element to a dynamic array.
+func (e *Evaluator) evalArrayAdd(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 1 {
+		return e.newError(node, "Array.Add expects exactly 1 argument")
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Add requires array receiver")
+	}
+
+	// Check if it's a dynamic array (static arrays cannot use Add)
+	if arrVal.ArrayType != nil && !arrVal.ArrayType.IsDynamic() {
+		return e.newError(node, "Add() can only be used with dynamic arrays, not static arrays")
+	}
+
+	// Append the element
+	arrVal.Elements = append(arrVal.Elements, args[0])
+
+	return &runtime.NilValue{}
+}
+
+// evalArrayPush implements Array.Push(value) method.
+// Pushes an element onto a dynamic array (same as Add, but copies records).
+func (e *Evaluator) evalArrayPush(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 1 {
+		return e.newError(node, "Array.Push expects exactly 1 argument")
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Push requires array receiver")
+	}
+
+	// Check if it's a dynamic array (static arrays cannot use Push)
+	if arrVal.ArrayType != nil && !arrVal.ArrayType.IsDynamic() {
+		return e.newError(node, "Push() can only be used with dynamic arrays, not static arrays")
+	}
+
+	valueToAdd := args[0]
+
+	// If pushing a record, make a copy to avoid aliasing issues
+	// Records are value types and should be copied when added to collections
+	// Check if value implements Copyable interface (RecordValue does)
+	if copyable, ok := valueToAdd.(interface{ Copy() Value }); ok {
+		valueToAdd = copyable.Copy()
+	}
+
+	arrVal.Elements = append(arrVal.Elements, valueToAdd)
+
+	return &runtime.NilValue{}
+}
+
+// evalArrayPop implements Array.Pop() method.
+// Removes and returns the last element from a dynamic array.
+func (e *Evaluator) evalArrayPop(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 0 {
+		return e.newError(node, "Array.Pop expects no arguments, got %d", len(args))
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Pop requires array receiver")
+	}
+
+	// Check if it's a dynamic array (static arrays cannot use Pop)
+	if arrVal.ArrayType != nil && !arrVal.ArrayType.IsDynamic() {
+		return e.newError(node, "Pop() can only be used with dynamic arrays, not static arrays")
+	}
+
+	// Check if array is empty
+	if len(arrVal.Elements) == 0 {
+		return e.newError(node, "Pop() called on empty array")
+	}
+
+	// Get the last element
+	lastElement := arrVal.Elements[len(arrVal.Elements)-1]
+
+	// Remove the last element
+	arrVal.Elements = arrVal.Elements[:len(arrVal.Elements)-1]
+
+	return lastElement
+}
+
+// evalArraySwap implements Array.Swap(i, j) method.
+// Swaps two elements in the array.
+func (e *Evaluator) evalArraySwap(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 2 {
+		return e.newError(node, "Array.Swap expects exactly 2 arguments, got %d", len(args))
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Swap requires array receiver")
+	}
+
+	// Get index i
+	iInt, ok := args[0].(*runtime.IntegerValue)
+	if !ok {
+		return e.newError(node, "Array.Swap first argument must be Integer, got %s", args[0].Type())
+	}
+	iIdx := int(iInt.Value)
+
+	// Get index j
+	jInt, ok := args[1].(*runtime.IntegerValue)
+	if !ok {
+		return e.newError(node, "Array.Swap second argument must be Integer, got %s", args[1].Type())
+	}
+	jIdx := int(jInt.Value)
+
+	// Validate indices
+	arrayLen := len(arrVal.Elements)
+	if iIdx < 0 || iIdx >= arrayLen {
+		return e.newError(node, "Array.Swap first index %d out of bounds (0..%d)", iIdx, arrayLen-1)
+	}
+	if jIdx < 0 || jIdx >= arrayLen {
+		return e.newError(node, "Array.Swap second index %d out of bounds (0..%d)", jIdx, arrayLen-1)
+	}
+
+	// Swap elements
+	arrVal.Elements[iIdx], arrVal.Elements[jIdx] = arrVal.Elements[jIdx], arrVal.Elements[iIdx]
+
+	return &runtime.NilValue{}
+}
+
+// evalArrayDelete implements Array.Delete(index) or Array.Delete(index, count) method.
+// Removes elements from a dynamic array.
+func (e *Evaluator) evalArrayDelete(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) < 1 || len(args) > 2 {
+		return e.newError(node, "Array.Delete expects 1 or 2 arguments, got %d", len(args))
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Delete requires array receiver")
+	}
+
+	// Check if it's a dynamic array (static arrays cannot use Delete)
+	if arrVal.ArrayType != nil && !arrVal.ArrayType.IsDynamic() {
+		return e.newError(node, "Delete() can only be used with dynamic arrays, not static arrays")
+	}
+
+	// Get the index
+	indexInt, ok := args[0].(*runtime.IntegerValue)
+	if !ok {
+		return e.newError(node, "Array.Delete index must be Integer, got %s", args[0].Type())
+	}
+	index := int(indexInt.Value)
+
+	// Get the count (default to 1 if not specified)
+	count := 1
+	if len(args) == 2 {
+		countInt, ok := args[1].(*runtime.IntegerValue)
+		if !ok {
+			return e.newError(node, "Array.Delete count must be Integer, got %s", args[1].Type())
+		}
+		count = int(countInt.Value)
+	}
+
+	// Validate index and count
+	arrayLen := len(arrVal.Elements)
+	if index < 0 || index >= arrayLen {
+		return e.newError(node, "Array.Delete index %d out of bounds (0..%d)", index, arrayLen-1)
+	}
+	if count < 0 {
+		return e.newError(node, "Array.Delete count must be non-negative, got %d", count)
+	}
+
+	// Calculate end index (don't go beyond array length)
+	endIndex := index + count
+	if endIndex > arrayLen {
+		endIndex = arrayLen
+	}
+
+	// Delete elements by slicing
+	arrVal.Elements = append(arrVal.Elements[:index], arrVal.Elements[endIndex:]...)
+
+	return &runtime.NilValue{}
+}
+
+// ============================================================================
+// Task 3.5.102e3: Join Methods
+// ============================================================================
+
+// evalArrayJoinHelper implements Array.Join(separator) method.
+// Joins array elements into a string using the separator.
+func (e *Evaluator) evalArrayJoinHelper(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 1 {
+		return e.newError(node, "Array.Join expects exactly 1 argument")
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Join requires array receiver")
+	}
+
+	sep, ok := args[0].(*runtime.StringValue)
+	if !ok {
+		return e.newError(node, "Array.Join separator must be String, got %s", args[0].Type())
+	}
+
+	var b strings.Builder
+	for idx, elem := range arrVal.Elements {
+		if idx > 0 {
+			b.WriteString(sep.Value)
+		}
+		if elem == nil {
+			continue
+		}
+		b.WriteString(elem.String())
+	}
+
+	return &runtime.StringValue{Value: b.String()}
+}
+
+// evalStringArrayJoin implements string array Join(separator) method.
+// Joins string array elements into a string using the separator.
+func (e *Evaluator) evalStringArrayJoin(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 1 {
+		return e.newError(node, "String array Join expects exactly 1 argument")
+	}
+
+	separator, ok := args[0].(*runtime.StringValue)
+	if !ok {
+		return e.newError(node, "Join separator must be String, got %s", args[0].Type())
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Join helper requires string array receiver")
+	}
+
+	var builder strings.Builder
+	for idx, elem := range arrVal.Elements {
+		strElem, ok := elem.(*runtime.StringValue)
+		if !ok {
+			return e.newError(node, "Join requires elements of type String")
+		}
+		if idx > 0 {
+			builder.WriteString(separator.Value)
+		}
+		builder.WriteString(strElem.Value)
+	}
+
+	return &runtime.StringValue{Value: builder.String()}
 }

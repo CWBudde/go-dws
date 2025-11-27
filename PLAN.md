@@ -476,14 +476,18 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
       - Simple float operations implemented directly in `evaluator/float_helpers.go`
       - Uses `fmt.Sprintf` directly, no builtins.Context dependency
       - ~75 lines migrated
-    - [ ] **3.5.102d** Migrate Boolean Helper Methods (2 methods, LOW RISK)
-      - `__boolean_tostring`, etc.
-      - Trivial boolean operations
-      - ~20 lines to migrate
-    - [ ] **3.5.102e** Migrate Array Helper Methods (10 methods, MEDIUM RISK)
-      - `__string_array_join`, `__array_length`, `__array_high`, etc.
-      - Array operations, may need helper functions
-      - ~150 lines to migrate
+    - [x] **3.5.102d** Migrate Boolean Helper Methods (1 method, LOW RISK) ✅
+      - `__boolean_tostring`
+      - Simple boolean operation implemented directly in `evaluator/boolean_helpers.go`
+      - Returns "True" or "False" (Pascal-style capitalization)
+      - ~45 lines migrated
+    - [x] **3.5.102e** Migrate Array Helper Methods (11 methods, MEDIUM RISK) ✅
+      - Properties: `__array_length`, `__array_count`, `__array_high`, `__array_low`
+      - Methods: `__array_add`, `__array_push`, `__array_pop`, `__array_swap`, `__array_delete`
+      - Join: `__array_join`, `__string_array_join`
+      - Implemented directly in `evaluator/array_helpers.go`
+      - ~360 lines added (includes type inference helpers already present)
+      - NOT migrated: `__array_indexof`, `__array_setlength`, `__array_map` (complex dependencies)
     - [ ] **3.5.102f** Migrate Remaining Builtin Helpers (6 methods, MEDIUM RISK)
       - Enum, set, and other specialized helpers
       - ~100 lines to migrate
