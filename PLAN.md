@@ -551,12 +551,14 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
       - Includes: Reference value handling, subrange validation, variant boxing
       - Risk: LOW - straightforward variable update with type checking
       - Tests: ~15-20 existing assignment tests
-    - [ ] **3.5.105b** Migrate Compound Operations (MEDIUM RISK)
+    - [x] **3.5.105b** Migrate Compound Operations (MEDIUM RISK) ✅
       - Source: `applyCompoundOperation()` lines 151-341 (191 lines)
       - Handles: `+=`, `-=`, `*=`, `/=` for Integer/Float/String/Variant
-      - Includes: Class operator overloads, variant unwrapping, type coercion
+      - Includes: Class operator overloads (delegated to adapter for objects), variant unwrapping, type coercion
       - Risk: MEDIUM - multiple operators, type combinations
-      - Tests: ~10 compound assignment tests
+      - Tests: ~13 compound assignment tests (all pass)
+      - **Files**: Created `evaluator/compound_ops.go` (~235 lines), updated `evaluator/visitor_statements.go`, `evaluator/assignment_helpers.go`
+      - **Implementation**: Direct evaluation for simple identifiers, adapter delegation for object class operators
     - [ ] **3.5.105c** Migrate Index Assignment (MEDIUM RISK)
       - Source: `evalIndexAssignment()` lines 801-971 (171 lines)
       - Handles: `arr[i] := value`, `str[i] := char`
