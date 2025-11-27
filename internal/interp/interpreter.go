@@ -1541,6 +1541,113 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		return result
 	}
 
+	// Task 3.5.113: Handle RECORD values (record method calls)
+	// Pattern: record.Method(args) where record is a record instance
+	if recVal, ok := internalObj.(*RecordValue); ok {
+		// Method lookup - check instance methods first
+		method := recVal.GetMethod(methodName)
+
+		// Check for class/static methods on the record type
+		var rtv *RecordTypeValue
+		recordTypeKey := "__record_type_" + ident.Normalize(recVal.RecordType.Name)
+		if typeVal, found := i.env.Get(recordTypeKey); found {
+			rtv, _ = typeVal.(*RecordTypeValue)
+		}
+
+		if method == nil && rtv != nil {
+			if classMethod, exists := rtv.ClassMethods[ident.Normalize(methodName)]; exists {
+				// Static method - no Self, just constants and class vars
+				savedEnv := i.env
+				methodEnv := NewEnclosedEnvironment(i.env)
+				i.env = methodEnv
+
+				// Bind __CurrentRecord__ for record context
+				i.env.Define("__CurrentRecord__", rtv)
+
+				// Bind constants and class variables
+				for constName, constValue := range rtv.Constants {
+					i.env.Define(constName, constValue)
+				}
+				for varName, varValue := range rtv.ClassVars {
+					i.env.Define(varName, varValue)
+				}
+
+				// Check recursion depth
+				if i.ctx.GetCallStack().WillOverflow() {
+					i.env = savedEnv
+					return i.raiseMaxRecursionExceeded()
+				}
+
+				// Push to call stack
+				fullMethodName := recVal.RecordType.Name + "." + methodName
+				i.pushCallStack(fullMethodName)
+				defer i.popCallStack()
+
+				result := i.callUserFunction(classMethod, internalArgs)
+				i.env = savedEnv
+				return result
+			}
+		}
+
+		if method == nil {
+			return newError("method '%s' not found in record type '%s'", methodName, recVal.RecordType.Name)
+		}
+
+		// Records have value semantics - copy before method execution
+		recordCopy := recVal.Copy()
+
+		// Create method environment
+		savedEnv := i.env
+		methodEnv := NewEnclosedEnvironment(i.env)
+		i.env = methodEnv
+
+		// Bind Self to the record copy
+		i.env.Define("Self", recordCopy)
+
+		// Bind all record fields to environment for direct access
+		for fieldName, fieldValue := range recordCopy.Fields {
+			i.env.Define(fieldName, fieldValue)
+		}
+
+		// Bind properties for simple field-backed properties
+		if recVal.RecordType.Properties != nil {
+			for propName, propInfo := range recVal.RecordType.Properties {
+				if propInfo.ReadField != "" {
+					if fval, exists := recordCopy.Fields[ident.Normalize(propInfo.ReadField)]; exists {
+						i.env.Define(propName, fval)
+					}
+				}
+			}
+		}
+
+		// Bind constants and class variables from RecordTypeValue
+		if rtv != nil {
+			for constName, constValue := range rtv.Constants {
+				i.env.Define(constName, constValue)
+			}
+			for varName, varValue := range rtv.ClassVars {
+				i.env.Define(varName, varValue)
+			}
+		}
+
+		// Check recursion depth
+		if i.ctx.GetCallStack().WillOverflow() {
+			i.env = savedEnv
+			return i.raiseMaxRecursionExceeded()
+		}
+
+		// Push to call stack
+		fullMethodName := recVal.RecordType.Name + "." + methodName
+		i.pushCallStack(fullMethodName)
+		defer i.popCallStack()
+
+		// Call the method
+		result := i.callUserFunction(method, internalArgs)
+
+		i.env = savedEnv
+		return result
+	}
+
 	// Original OBJECT handling
 	objVal, ok := internalObj.(*ObjectInstance)
 	if !ok {
