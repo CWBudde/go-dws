@@ -347,15 +347,17 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 
 // VisitAssignmentStatement evaluates an assignment statement.
 // Task 3.5.105a: Migrated simple variable assignment handling directly to evaluator.
+// Task 3.5.105b: Migrated compound operators (+=, -=, *=, /=) for simple identifiers.
 //
 // Assignment types handled:
 // - Simple assignment: x := value (Task 3.5.105a - handled directly for basic cases)
+// - Compound operators on simple identifiers: x += value (Task 3.5.105b - handled directly)
 // - Member assignment: obj.field := value, TClass.Variable := value (delegates to adapter)
 // - Index assignment: arr[i] := value, obj.Property[x, y] := value (delegates to adapter)
-// - Compound operators: +=, -=, *=, /= (delegates to adapter for all cases)
+// - Compound operators on members/indexes: obj.x += value (delegates to adapter)
 //
 // The adapter handles complex cases including:
-// - Compound operators with type coercion and operator overloads
+// - Member/index compound assignments (task 3.5.105c/d)
 // - Object reference counting and destructor calls
 // - Interface wrapping and reference management
 // - Property setter dispatch with recursion prevention
@@ -364,17 +366,15 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 // See comprehensive documentation in internal/interp/statements_assignments.go
 func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx *ExecutionContext) Value {
 	// Check if this is a compound assignment (+=, -=, *=, /=)
-	// Compound assignments are complex - delegate to adapter
-	// Task 3.5.105a: Only handle simple := assignments directly
 	isCompound := node.Operator != token.ASSIGN && node.Operator != token.TokenType(0)
-	if isCompound {
-		// Compound assignments need complex handling (operator dispatch, type coercion)
-		return e.adapter.EvalNode(node)
-	}
 
 	// Handle different target types
 	switch target := node.Target.(type) {
 	case *ast.Identifier:
+		// Task 3.5.105b: Handle compound operators for simple identifiers
+		if isCompound {
+			return e.evalCompoundIdentifierAssignment(target, node, ctx)
+		}
 		// Simple variable assignment: x := value
 		// Task 3.5.105a: Try to handle directly, fall back to adapter for complex cases
 

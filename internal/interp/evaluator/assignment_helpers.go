@@ -258,3 +258,92 @@ func (e *Evaluator) evalSubrangeAssignment(
 	// Return the subrange value (modified in place)
 	return value
 }
+
+// evalCompoundIdentifierAssignment handles compound assignment operators (+=, -=, *=, /=)
+// for simple identifier targets.
+// Task 3.5.105b: Migrated from Interpreter.evalAssignmentStatement + applyCompoundOperation.
+//
+// This handles the compound assignment flow:
+// 1. Read current value from environment
+// 2. Evaluate the right-hand side expression
+// 3. Apply the compound operation (handled by applyCompoundOperation in compound_ops.go)
+// 4. Write the result back to the environment
+//
+// For complex targets (var parameters, objects needing ref counting), delegates to adapter.
+func (e *Evaluator) evalCompoundIdentifierAssignment(
+	target *ast.Identifier,
+	stmt *ast.AssignmentStatement,
+	ctx *ExecutionContext,
+) Value {
+	targetName := target.Value
+
+	// Get current value from environment
+	currentValRaw, exists := ctx.Env().Get(targetName)
+	if !exists {
+		// Variable not in environment - could be in Self/class context
+		// Delegate to adapter for method context handling
+		return e.adapter.EvalNode(stmt)
+	}
+
+	// Cast to Value interface
+	currentVal, ok := currentValRaw.(Value)
+	if !ok {
+		// Not a Value - delegate to adapter
+		return e.adapter.EvalNode(stmt)
+	}
+
+	// Check if target is a var parameter (ReferenceValue)
+	// Compound assignment to var params requires read-modify-write
+	if refVal, isRef := currentVal.(ReferenceValueAccessor); isRef {
+		// Dereference to get the actual value
+		derefVal, err := refVal.Dereference()
+		if err != nil {
+			return e.newError(target, "%s", err.Error())
+		}
+
+		// Evaluate the RHS
+		rightVal := e.Eval(stmt.Value, ctx)
+		if isError(rightVal) {
+			return rightVal
+		}
+		if ctx.Exception() != nil {
+			return &runtime.NilValue{}
+		}
+
+		// Apply the compound operation
+		result := e.applyCompoundOperation(stmt.Operator, derefVal, rightVal, stmt)
+		if isError(result) {
+			return result
+		}
+
+		// Write back through the reference
+		if err := refVal.Assign(result); err != nil {
+			return e.newError(target, "%s", err.Error())
+		}
+
+		return result
+	}
+
+	// Evaluate the RHS
+	rightVal := e.Eval(stmt.Value, ctx)
+	if isError(rightVal) {
+		return rightVal
+	}
+	if ctx.Exception() != nil {
+		return &runtime.NilValue{}
+	}
+
+	// Apply the compound operation
+	result := e.applyCompoundOperation(stmt.Operator, currentVal, rightVal, stmt)
+	if isError(result) {
+		return result
+	}
+
+	// Write the result back to the environment
+	if e.SetVar(ctx, targetName, result) {
+		return result
+	}
+
+	// Set failed - return error
+	return e.newError(target, "undefined variable: %s", targetName)
+}
