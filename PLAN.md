@@ -736,16 +736,17 @@ methods with index arguments. Consider creating a similar `DispatchPropertyAcces
 - `PropertyDescriptor` struct provides getter/setter metadata
 - `DispatchMethodCall()` can invoke getter methods once property is resolved
 
-- [ ] **3.5.116** Migrate ReadPropertyValue (4 calls)
+- [x] **3.5.116** Migrate ReadPropertyValue (4 calls) ✅
   - **Location**: `visitor_expressions_members.go`, `visitor_expressions_identifiers.go`
   - **Issue**: Property reads delegate to Interpreter.ReadPropertyValue
-  - **Solution**: Create `evaluator.ReadProperty()` using PropertyAccessor interface
-  - **Approach**:
-    1. Use `PropertyAccessor.LookupProperty()` to get PropertyDescriptor
-    2. For simple properties: direct field access via existing interfaces
-    3. For getter properties: use `DispatchMethodCall()` to invoke getter method
-  - **Dependency**: PropertyDescriptor with getter metadata
-  - **Calls removed**: 4 ReadPropertyValue calls
+  - **Solution**: Added `ReadProperty()` to `ObjectValue` interface with callback pattern (from Task 3.5.114)
+  - **Implementation**:
+    1. Added `ReadProperty(propName string, propertyExecutor func(propInfo any) Value)` to `ObjectValue` interface
+    2. Implemented `ReadProperty` on `ObjectInstance` - does property lookup, calls executor callback
+    3. Added `ExecutePropertyRead(obj, propInfo, node)` adapter method for actual property execution
+    4. Updated 4 call sites to use `objVal.ReadProperty(name, callback)` pattern
+  - **Calls migrated**: 4 ReadPropertyValue → 4 ExecutePropertyRead (lower-level, simpler)
+  - **ReadPropertyValue**: Marked DEPRECATED in interface, kept for backwards compatibility
 
 - [ ] **3.5.117** Migrate CallIndexedPropertyGetter (5 calls)
   - **Location**: `visitor_expressions_indexing.go`

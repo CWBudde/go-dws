@@ -514,6 +514,25 @@ func (o *ObjectInstance) CallInheritedMethod(methodName string, args []Value, me
 	return methodExecutor(method, args)
 }
 
+// ReadProperty reads a property value from this object.
+// Task 3.5.116: Enables direct property access without adapter.
+// The propertyExecutor callback handles interpreter-dependent execution.
+func (o *ObjectInstance) ReadProperty(propName string, propertyExecutor func(propInfo any) Value) Value {
+	// Validate object state
+	if o == nil || o.Class == nil {
+		return newError("object has no class information")
+	}
+
+	// Look up the property in the class hierarchy
+	propInfo := o.Class.lookupProperty(propName)
+	if propInfo == nil {
+		return newError("property '%s' not found", propName)
+	}
+
+	// Execute the property read using the provided executor callback
+	return propertyExecutor(propInfo)
+}
+
 // IsInstanceOf checks whether the object derives from the given class.
 func (o *ObjectInstance) IsInstanceOf(target *ClassInfo) bool {
 	if o == nil || o.Class == nil || target == nil {

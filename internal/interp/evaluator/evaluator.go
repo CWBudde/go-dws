@@ -52,6 +52,20 @@ type ObjectValue interface {
 	//   - methodExecutor: Callback function that executes the method with the resolved declaration
 	//     The methodDecl parameter is *ast.FunctionDecl (passed as any to avoid import cycles)
 	CallInheritedMethod(methodName string, args []Value, methodExecutor func(methodDecl any, args []Value) Value) Value
+	// ReadProperty reads a property value from this object.
+	// Task 3.5.116: Enables direct property access without adapter.
+	// The propertyExecutor callback handles interpreter-dependent execution:
+	//   - For field-backed: returns field value directly
+	//   - For method-backed: executes getter method
+	//   - For expression-backed: evaluates expression
+	// Returns an error value if:
+	//   - The object has no class information
+	//   - The property is not found in the class hierarchy
+	// Parameters:
+	//   - propName: The property name (case-insensitive)
+	//   - propertyExecutor: Callback function that executes property read with the resolved PropertyInfo
+	//     The propInfo parameter is *types.PropertyInfo (passed as any to avoid import cycles)
+	ReadProperty(propName string, propertyExecutor func(propInfo any) Value) Value
 }
 
 // EnumAccessor is an optional interface for enum values.
@@ -617,7 +631,18 @@ type InterpreterAdapter interface {
 	// Handles field-backed, method-backed, and expression-backed properties.
 	// Returns the property value and an error if reading fails.
 	// Note: Caller is responsible for property recursion prevention.
+	// DEPRECATED: Use ObjectValue.ReadProperty() with ExecutePropertyRead callback instead.
 	ReadPropertyValue(obj Value, propName string, node any) (Value, error)
+
+	// ExecutePropertyRead executes property reading with a resolved PropertyInfo.
+	// Task 3.5.116: Low-level method for property getter execution.
+	// This is the callback implementation for ObjectValue.ReadProperty().
+	// Parameters:
+	//   - obj: The object to read the property from
+	//   - propInfo: The resolved PropertyInfo (type *types.PropertyInfo)
+	//   - node: AST node for error reporting
+	// Returns the property value.
+	ExecutePropertyRead(obj Value, propInfo any, node any) Value
 
 	// Task 3.5.72: HasMethod removed - use ObjectValue interface directly
 
