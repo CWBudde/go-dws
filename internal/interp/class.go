@@ -481,6 +481,34 @@ func (o *ObjectInstance) GetClassVar(name string) (Value, bool) {
 	return value, true
 }
 
+// CallInheritedMethod calls a method from the parent class.
+// Task 3.5.114: Implements evaluator.ObjectValue interface for direct inherited method calls.
+// The methodExecutor callback is used to execute the method once resolved.
+// Returns an error value if the class has no parent or the method is not found.
+func (o *ObjectInstance) CallInheritedMethod(methodName string, args []Value, methodExecutor func(methodDecl any, args []Value) Value) Value {
+	// Validate object state
+	if o == nil || o.Class == nil {
+		return newError("object has no class information")
+	}
+
+	// Check parent class exists
+	if o.Class.Parent == nil {
+		return newError("class '%s' has no parent class", o.Class.Name)
+	}
+
+	parentInfo := o.Class.Parent
+
+	// Find method in parent (case-insensitive)
+	methodNameLower := ident.Normalize(methodName)
+	method, exists := parentInfo.Methods[methodNameLower]
+	if !exists {
+		return newError("method, property, or field '%s' not found in parent class '%s'", methodName, parentInfo.Name)
+	}
+
+	// Execute the method using the provided executor callback
+	return methodExecutor(method, args)
+}
+
 // IsInstanceOf checks whether the object derives from the given class.
 func (o *ObjectInstance) IsInstanceOf(target *ClassInfo) bool {
 	if o == nil || o.Class == nil || target == nil {
