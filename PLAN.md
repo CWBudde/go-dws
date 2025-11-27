@@ -719,12 +719,31 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 ### Phase 17: Reduce Property Access Calls (3.5.116-3.5.120)
 
-**Current State**: 9 property-related adapter calls
+**Current State**: 14 property-related adapter calls
+
+**Key Insight from Phase 16**: Property getters are essentially method calls. The `DispatchMethodCall()`
+infrastructure from Task 3.5.115 can be reused for indexed property getters since they invoke getter
+methods with index arguments. Consider creating a similar `DispatchPropertyAccess()` consolidation.
+
+**Pattern to Follow** (from Task 3.5.114):
+1. Add interface method to Value type (e.g., `PropertyReader.ReadProperty()`)
+2. Implement on concrete types (ObjectInstance, RecordValue, InterfaceInstance)
+3. Add low-level adapter method for execution if needed
+4. Update visitor to use interface with fallback
+
+**Existing Infrastructure to Leverage**:
+- `PropertyAccessor` interface already exists (Task 3.5.99a) with `LookupProperty()` and `GetDefaultProperty()`
+- `PropertyDescriptor` struct provides getter/setter metadata
+- `DispatchMethodCall()` can invoke getter methods once property is resolved
 
 - [ ] **3.5.116** Migrate ReadPropertyValue (4 calls)
   - **Location**: `visitor_expressions_members.go`, `visitor_expressions_identifiers.go`
   - **Issue**: Property reads delegate to Interpreter.ReadPropertyValue
   - **Solution**: Create `evaluator.ReadProperty()` using PropertyAccessor interface
+  - **Approach**:
+    1. Use `PropertyAccessor.LookupProperty()` to get PropertyDescriptor
+    2. For simple properties: direct field access via existing interfaces
+    3. For getter properties: use `DispatchMethodCall()` to invoke getter method
   - **Dependency**: PropertyDescriptor with getter metadata
   - **Calls removed**: 4 ReadPropertyValue calls
 
@@ -732,25 +751,35 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Location**: `visitor_expressions_indexing.go`
   - **Issue**: Indexed property access (e.g., `Items[i]`) delegates to adapter
   - **Solution**: Create `evaluator.CallIndexedGetter()` with parameter preparation
-  - **Requires**: Method call infrastructure from Phase 16
+  - **Approach**:
+    1. Get PropertyDescriptor via `PropertyAccessor.LookupProperty()` or `GetDefaultProperty()`
+    2. Extract getter method name from PropertyDescriptor.Impl
+    3. Use `DispatchMethodCall()` with index arguments to invoke getter
+  - **Requires**: Method call infrastructure from Phase 16 ✅ (now available)
   - **Calls removed**: 5 CallIndexedPropertyGetter calls
 
 - [ ] **3.5.118** Migrate CallRecordPropertyGetter (2 calls)
   - **Location**: `visitor_expressions_indexing.go`
   - **Issue**: Record property access delegates to adapter
   - **Solution**: Use RecordInstanceValue methods directly
+  - **Note**: Records have simpler property semantics than classes (no virtual dispatch)
   - **Calls removed**: 2 CallRecordPropertyGetter calls
 
 - [ ] **3.5.119** Migrate IsMethodParameterless + CreateMethodCall (2 calls)
   - **Location**: `visitor_expressions_identifiers.go`
   - **Issue**: Auto-invoke for parameterless methods in identifier resolution
   - **Solution**: Check method arity in ObjectValue.HasMethod, call directly
+  - **Approach**:
+    1. Extend ObjectValue interface with `GetMethodArity(name string) int`
+    2. If arity == 0, use `DispatchMethodCall()` with empty args
+    3. Else, create method pointer (Task 3.5.120)
   - **Calls removed**: 2 adapter calls
 
 - [ ] **3.5.120** Migrate CreateMethodPointerFromObject (1 call)
   - **Location**: `visitor_expressions_identifiers.go`
   - **Issue**: Method pointer creation for methods with parameters
   - **Solution**: Create method pointer directly using FunctionPointerValue
+  - **Approach**: Create `evaluator.CreateBoundMethodPointer(obj, methodName)`
   - **Calls removed**: 1 adapter call
 
 ---

@@ -448,10 +448,13 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 				i.callDestructorIfNeeded(objInst)
 			} else if newObj, isNewObj := value.(*ObjectInstance); isNewObj {
 				// Replacing old object with new object
-				// Decrement old object's ref count and call destructor if needed
-				i.callDestructorIfNeeded(objInst)
-				// Increment new object's ref count
-				newObj.RefCount++
+				// Skip ref count changes if assigning the same instance
+				if objInst != newObj {
+					// Decrement old object's ref count and call destructor if needed
+					i.callDestructorIfNeeded(objInst)
+					// Increment new object's ref count
+					newObj.RefCount++
+				}
 			}
 		} else {
 			// Variable doesn't currently hold an object (could be nil, new variable, etc.)

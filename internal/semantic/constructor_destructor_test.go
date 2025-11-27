@@ -99,12 +99,50 @@ func TestDestructorBasic(t *testing.T) {
 	input := `
 type TExample = class
 	FValue: Integer;
-	destructor Destroy;
+	destructor Destroy; override;
 end;
 
 destructor TExample.Destroy;
 begin
 	FValue := 0;
+end;
+`
+	expectNoErrors(t, input)
+}
+
+// Test that TObject provides a default Destroy/Free even when not declared.
+func TestDefaultDestructorFromTObject(t *testing.T) {
+	input := `
+type TExample = class
+  Value: Integer;
+end;
+
+var obj: TExample;
+begin
+  obj := TExample.Create;
+  obj.Destroy;
+  obj.Free;
+end;
+`
+	expectNoErrors(t, input)
+}
+
+// Test that overriding the default TObject.Destroy is allowed.
+func TestDestructorOverrideFromTObject(t *testing.T) {
+	input := `
+type TChild = class(TObject)
+  destructor Destroy; override;
+end;
+
+destructor TChild.Destroy;
+begin
+  inherited destroy;
+end;
+
+var obj: TChild;
+begin
+  obj := TChild.Create;
+  obj.Destroy;
 end;
 `
 	expectNoErrors(t, input)

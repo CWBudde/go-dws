@@ -398,11 +398,78 @@ func interfaceIsCompatible(source *InterfaceInfo, target *InterfaceInfo) bool {
 	return true
 }
 
+// runDestructor executes the destructor for an object with lifecycle tracking.
+// If node is provided, "Object already destroyed" is raised when called twice.
+func (i *Interpreter) runDestructor(obj *ObjectInstance, destructor *ast.FunctionDecl, node ast.Node) Value {
+	if obj == nil {
+		return &NilValue{}
+	}
+
+	// Prevent double-destruction errors for explicit calls
+	if obj.Destroyed {
+		if node != nil {
+			return i.newErrorWithLocation(node, "Object already destroyed")
+		}
+		return &NilValue{}
+	}
+
+	// Reuse existing destructor if not supplied
+	if destructor == nil && obj.Class != nil {
+		destructor = obj.Class.lookupMethod("Destroy")
+	}
+
+	// If no destructor is defined, just mark destroyed
+	if destructor == nil {
+		obj.Destroyed = true
+		obj.RefCount = 0
+		return &NilValue{}
+	}
+
+	obj.destroyCallDepth++
+	defer func() {
+		obj.destroyCallDepth--
+		if obj.destroyCallDepth == 0 {
+			obj.Destroyed = true
+			obj.RefCount = 0
+		}
+	}()
+
+	// Create a temporary environment for the destructor call
+	destructorEnv := NewEnclosedEnvironment(i.env)
+	prevEnv := i.env
+	i.env = destructorEnv
+
+	// Bind Self and class constants
+	i.env.Define("Self", obj)
+	i.bindClassConstantsToEnv(obj.Class)
+
+	// Push call stack for better stack traces
+	i.pushCallStack(obj.Class.Name + ".Destroy")
+	defer i.popCallStack()
+
+	// Execute destructor body
+	result := Value(&NilValue{})
+	if destructor.Body != nil {
+		result = i.Eval(destructor.Body)
+	}
+
+	// Restore previous environment
+	i.env = prevEnv
+
+	return result
+}
+
 // callDestructorIfNeeded decrements the reference count of an object and calls its
 // destructor if the reference count reaches zero.
 // Task 9.1.5: Consolidates destructor logic to reduce code duplication.
 func (i *Interpreter) callDestructorIfNeeded(obj *ObjectInstance) {
-	if obj == nil {
+	if obj == nil || obj.Destroyed {
+		return
+	}
+
+	// If we're already inside this object's destructor (eg, destructor clears a
+	// global reference pointing back to itself), skip to avoid infinite recursion.
+	if obj.destroyCallDepth > 0 {
 		return
 	}
 
@@ -411,6 +478,9 @@ func (i *Interpreter) callDestructorIfNeeded(obj *ObjectInstance) {
 
 	// Decrement reference count
 	obj.RefCount--
+	if obj.RefCount < 0 {
+		obj.RefCount = 0
+	}
 
 	// DEBUG
 	// fmt.Printf("DEBUG callDestructorIfNeeded: RefCount after = %d\n", obj.RefCount)
@@ -419,25 +489,7 @@ func (i *Interpreter) callDestructorIfNeeded(obj *ObjectInstance) {
 	if obj.RefCount <= 0 {
 		// DEBUG
 		// fmt.Printf("DEBUG callDestructorIfNeeded: Calling destructor\n")
-
-		// Look for Destroy method in the class hierarchy
-		destructor := obj.Class.lookupMethod("Destroy")
-		if destructor != nil {
-			// Call the destructor
-			// Create a temporary environment for the destructor call
-			destructorEnv := NewEnclosedEnvironment(i.env)
-			destructorEnv.Define("Self", obj)
-
-			// Save current environment and switch to destructor environment
-			prevEnv := i.env
-			i.env = destructorEnv
-
-			// Execute destructor body
-			i.Eval(destructor.Body)
-
-			// Restore previous environment
-			i.env = prevEnv
-		}
+		i.runDestructor(obj, obj.Class.lookupMethod("Destroy"), nil)
 	}
 }
 
