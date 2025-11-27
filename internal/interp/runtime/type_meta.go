@@ -1,6 +1,11 @@
 package runtime
 
-import "github.com/cwbudde/go-dws/internal/types"
+import (
+	"strings"
+
+	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ident"
+)
 
 // TypeMetaValue represents a type reference in DWScript.
 // This is used for type-as-value scenarios where a type itself is passed as a runtime value.
@@ -29,4 +34,79 @@ func (t *TypeMetaValue) Type() string {
 // String returns the type name.
 func (t *TypeMetaValue) String() string {
 	return t.TypeName
+}
+
+// IsEnumTypeMeta returns true if this type meta wraps an enum type.
+// Task 3.5.111b: Implements EnumTypeMetaDispatcher interface for direct method dispatch.
+func (t *TypeMetaValue) IsEnumTypeMeta() bool {
+	if t.TypeInfo == nil {
+		return false
+	}
+	_, isEnum := t.TypeInfo.(*types.EnumType)
+	return isEnum
+}
+
+// EnumLow returns the lowest ordinal value of the enum type.
+// Task 3.5.111b: Implements EnumTypeMetaDispatcher interface for direct method dispatch.
+// Returns 0 if not an enum type.
+func (t *TypeMetaValue) EnumLow() int {
+	if t.TypeInfo == nil {
+		return 0
+	}
+	enumType, ok := t.TypeInfo.(*types.EnumType)
+	if !ok {
+		return 0
+	}
+	return enumType.Low()
+}
+
+// EnumHigh returns the highest ordinal value of the enum type.
+// Task 3.5.111b: Implements EnumTypeMetaDispatcher interface for direct method dispatch.
+// Returns 0 if not an enum type.
+func (t *TypeMetaValue) EnumHigh() int {
+	if t.TypeInfo == nil {
+		return 0
+	}
+	enumType, ok := t.TypeInfo.(*types.EnumType)
+	if !ok {
+		return 0
+	}
+	return enumType.High()
+}
+
+// EnumByName looks up an enum value by name (case-insensitive).
+// Task 3.5.111b: Implements EnumTypeMetaDispatcher interface for direct method dispatch.
+// Supports both simple names ('Red') and qualified names ('TColor.Red').
+// Returns the ordinal value if found, or 0 if not found (DWScript behavior).
+func (t *TypeMetaValue) EnumByName(name string) int {
+	if t.TypeInfo == nil {
+		return 0
+	}
+	enumType, ok := t.TypeInfo.(*types.EnumType)
+	if !ok {
+		return 0
+	}
+
+	// Empty string returns 0 (DWScript behavior - returns first enum ordinal value)
+	if name == "" {
+		return 0
+	}
+
+	// Check for qualified name (TypeName.ValueName)
+	searchName := name
+	parts := strings.Split(name, ".")
+	if len(parts) == 2 {
+		// Use the value name part
+		searchName = parts[1]
+	}
+
+	// Look up the value (case-insensitive)
+	for valueName, ordinalValue := range enumType.Values {
+		if ident.Equal(valueName, searchName) {
+			return ordinalValue
+		}
+	}
+
+	// Value not found, return 0 (DWScript behavior)
+	return 0
 }

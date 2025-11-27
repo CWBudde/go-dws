@@ -225,3 +225,12 @@ func NewSetValue(setType *types.SetType) *SetValue {
 
 	return sv
 }
+
+// GetSetElementTypeName returns the element type name for error messages.
+// Task 3.5.111a: Implements SetMethodDispatcher interface for direct set method dispatch.
+func (s *SetValue) GetSetElementTypeName() string {
+	if s.SetType == nil || s.SetType.ElementType == nil {
+		return "Unknown"
+	}
+	return s.SetType.ElementType.String()
+}

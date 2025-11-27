@@ -1157,16 +1157,16 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Methods require complex dispatch logic (virtual method tables, etc.)
 		return e.adapter.EvalNode(node)
 
-	case "CLASS", "CLASS_INFO":
+	case "CLASSINFO":
 		// Task 3.5.88: Metaclass access (Mode 6)
-		// Pattern: ClassValue.Member, ClassInfoValue.Member
+		// Pattern: ClassInfoValue.Member
 		// Handle built-in properties and class variables/constants directly
 
 		// Try to use ClassMetaValue interface for direct access
 		classMetaVal, ok := obj.(ClassMetaValue)
 		if !ok {
 			// Task 3.5.101: Direct error instead of EvalNode delegation
-			// If Type() returns "CLASS"/"CLASS_INFO" but ClassMetaValue interface is not implemented,
+			// If Type() returns "CLASSINFO" but ClassMetaValue interface is not implemented,
 			// this is an internal inconsistency that should not happen
 			return e.newError(node, "internal error: %s value does not implement ClassMetaValue interface", obj.Type())
 		}
@@ -1177,8 +1177,8 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			return &runtime.StringValue{Value: classMetaVal.GetClassName()}
 		}
 		if ident.Equal(memberName, "ClassType") {
-			// ClassType property returns the class itself (for CLASS type, return self)
-			// For CLASS_INFO, we return the same value wrapped as CLASS
+			// ClassType property returns the class itself
+			// For CLASSINFO, we return the same value
 			return obj
 		}
 
@@ -1661,9 +1661,10 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 	// Route based on object type
 	switch obj.Type() {
 	case "OBJECT":
-		// Task 3.5.28: Object instance method calls (Mode 12)
+		// Task 3.5.111d: Object instance method calls (Mode 12)
 		// Pattern: obj.Method(args)
-		// Delegate to adapter for method lookup, virtual dispatch, and execution
+		// Delegate to adapter.CallMethod which handles ObjectInstance directly
+		// with method lookup and Self binding
 		return e.adapter.CallMethod(obj, methodName, args, node)
 
 	case "INTERFACE":
@@ -1672,16 +1673,16 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		// Delegate to adapter for interface unwrapping and method dispatch
 		return e.adapter.CallMethod(obj, methodName, args, node)
 
-	case "CLASS", "CLASS_INFO":
-		// Task 3.5.27: Static class method calls (Mode 2) or ClassInfoValue method calls (Mode 4)
+	case "CLASSINFO":
+		// Task 3.5.111c: Static class method calls (Mode 2) or ClassInfoValue method calls (Mode 4)
 		// Pattern: TClass.Method(args) or classInfoVal.Method(args)
-		// Delegate to adapter for class method execution
+		// Delegate to adapter.CallMethod which now handles ClassInfoValue directly
 		return e.adapter.CallMethod(obj, methodName, args, node)
 
-	case "CLASS_VALUE":
-		// Task 3.5.28: Metaclass constructor calls (Mode 5)
-		// Pattern: classVar.Create(args) where classVar is a metaclass variable
-		// Delegate to adapter for virtual constructor dispatch
+	case "CLASS":
+		// Task 3.5.111e: Metaclass (ClassValue) method calls (Mode 5)
+		// Pattern: classVar.Create(args) where classVar is a "class of TBase" metaclass variable
+		// Delegate to adapter.CallMethod which needs to handle ClassValue
 		return e.adapter.CallMethod(obj, methodName, args, node)
 
 	case "RECORD":
@@ -1691,10 +1692,41 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		return e.adapter.CallMethod(obj, methodName, args, node)
 
 	case "SET":
-		// Task 3.5.27: Set built-in methods (Mode 6)
+		// Task 3.5.111a: Set built-in methods (Mode 6) - Direct dispatch
 		// Pattern: mySet.Include(x), mySet.Exclude(y)
-		// Delegate to adapter for set method execution
-		return e.adapter.CallMethod(obj, methodName, args, node)
+		// Directly dispatch to SetMethodDispatcher interface methods
+		setVal, ok := obj.(SetMethodDispatcher)
+		if !ok {
+			return e.newError(node, "internal error: SET value does not implement SetMethodDispatcher")
+		}
+
+		normalizedMethod := ident.Normalize(methodName)
+		switch normalizedMethod {
+		case "include":
+			if len(args) != 1 {
+				return e.newError(node, "Include expects 1 argument, got %d", len(args))
+			}
+			ordinal, err := GetOrdinalValue(args[0])
+			if err != nil {
+				return e.newError(node, "Include requires ordinal value: %s", err.Error())
+			}
+			setVal.AddElement(ordinal)
+			return e.nilValue()
+
+		case "exclude":
+			if len(args) != 1 {
+				return e.newError(node, "Exclude expects 1 argument, got %d", len(args))
+			}
+			ordinal, err := GetOrdinalValue(args[0])
+			if err != nil {
+				return e.newError(node, "Exclude requires ordinal value: %s", err.Error())
+			}
+			setVal.RemoveElement(ordinal)
+			return e.nilValue()
+
+		default:
+			return e.newError(node, "method '%s' not found for set type", methodName)
+		}
 
 	case "NIL":
 		// Task 3.5.28: Nil object error handling (Mode 9)
@@ -1702,10 +1734,40 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		return e.newError(node, "Object not instantiated")
 
 	case "TYPE_META":
-		// Task 3.5.27: Enum type meta methods (Mode 10)
+		// Task 3.5.111b: Enum type meta methods (Mode 10) - Direct dispatch
 		// Pattern: TColor.Low(), TColor.High(), TColor.ByName('Red')
-		// Delegate to adapter for enum meta method execution
-		return e.adapter.CallMethod(obj, methodName, args, node)
+		// Directly dispatch to EnumTypeMetaDispatcher interface methods
+		enumMeta, ok := obj.(EnumTypeMetaDispatcher)
+		if !ok {
+			return e.newError(node, "internal error: TYPE_META value does not implement EnumTypeMetaDispatcher")
+		}
+
+		// Only enum types have these methods
+		if !enumMeta.IsEnumTypeMeta() {
+			return e.newError(node, "method '%s' not found for type '%s'", methodName, obj.String())
+		}
+
+		normalizedMethod := ident.Normalize(methodName)
+		switch normalizedMethod {
+		case "low":
+			return &runtime.IntegerValue{Value: int64(enumMeta.EnumLow())}
+
+		case "high":
+			return &runtime.IntegerValue{Value: int64(enumMeta.EnumHigh())}
+
+		case "byname":
+			if len(args) != 1 {
+				return e.newError(node, "ByName expects 1 argument, got %d", len(args))
+			}
+			nameStr, ok := args[0].(*runtime.StringValue)
+			if !ok {
+				return e.newError(node, "ByName expects string argument, got %s", args[0].Type())
+			}
+			return &runtime.IntegerValue{Value: int64(enumMeta.EnumByName(nameStr.Value))}
+
+		default:
+			return e.newError(node, "method '%s' not found for enum type", methodName)
+		}
 
 	// Task 3.5.98a+c: Explicit cases for helper-enabled types
 	// These types use helper methods (type extensions) for their method calls.
