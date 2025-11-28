@@ -825,7 +825,7 @@ var OpCodeNames = [...]string{
 	OpArrayIndexOf:     "ARRAY_INDEX_OF",
 	OpNewSet:           "NEW_SET",
 	OpNewObject:        "NEW_OBJECT",
-	OpNewRecord:        "NEW_RECORD", // Task 9.7
+	OpNewRecord:        "NEW_RECORD",
 	OpGetField:         "GET_FIELD",
 	OpSetField:         "SET_FIELD",
 	OpGetProperty:      "GET_PROPERTY",

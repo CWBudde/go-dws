@@ -315,10 +315,10 @@ Our Variant implementation follows Delphi/DWScript semantics:
 **Historical Note**: Tasks 9.235-9.237 migrated from a temporary `ConstType` workaround to proper `VariantType`:
 
 ```pascal
-// Old (Task 9.156): Temporary workaround
+// Old Temporary workaround
 var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
 
-// New (Task 9.235): Proper implementation
+// New: Proper implementation
 var ARRAY_OF_CONST = NewDynamicArrayType(VARIANT)
 ```
 

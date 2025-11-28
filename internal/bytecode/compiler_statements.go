@@ -55,7 +55,7 @@ func (c *Compiler) compileStatement(stmt ast.Statement) error {
 	case *ast.RecordDecl:
 		return c.compileRecordDecl(node)
 	case *ast.ClassDecl:
-		// Task 9.5.5: Compile class metadata for field initializers
+		// Compile class metadata for field initializers
 		return c.compileClassDecl(node)
 	case *ast.EnumDecl:
 		return nil // No bytecode needed for type declarations
@@ -503,7 +503,6 @@ func (c *Compiler) compileFunctionDecl(fn *ast.FunctionDecl) error {
 			methodKey := ident.Normalize(fn.Name.Value)
 			helper.Methods[methodKey] = globalSlot
 		} else if recordMeta, ok := c.records[helperKey]; ok {
-			// Task 9.2: This is a record static method - register it
 			// Static methods use OpCall (direct function call), so we store constIndex not globalSlot
 			methodKey := ident.Normalize(fn.Name.Value)
 			recordMeta.Methods[methodKey] = uint16(fnConstIndex)

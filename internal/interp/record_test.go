@@ -23,7 +23,7 @@ func TestRecordValueCreation(t *testing.T) {
 		recordType := types.NewRecordType("TPoint", fields)
 
 		// Create a record value
-		recordVal := NewRecordValue(recordType, nil)
+		recordVal := NewRecordValue(recordType)
 
 		// Verify the value implements Value interface
 		if recordVal == nil {
@@ -54,7 +54,7 @@ func TestRecordValueCreation(t *testing.T) {
 			"Y": types.INTEGER,
 		}
 		recordType := types.NewRecordType("TPoint", fields)
-		recordVal := NewRecordValue(recordType, nil)
+		recordVal := NewRecordValue(recordType)
 
 		// Set some field values
 		if rv, ok := recordVal.(*RecordValue); ok {

@@ -133,7 +133,7 @@ func TestMethodOverload_ClassMethods(t *testing.T) {
 // SKIP: Constructor overloading has issues with explicit constructors
 // The implicit constructor resolution needs enhancement
 func TestMethodOverload_Constructors(t *testing.T) {
-	t.Skip("Constructor overloading needs enhancement - see task 9.19")
+	t.Skip("Constructor overloading needs enhancement")
 	script := `
 		type TTest = class
 			Value: Integer;

@@ -104,7 +104,6 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 		}
 	}
 
-	// Task 9.12.2: Bind record constants and class variables to environment
 	// Look up the record type value to get constants and class vars
 	recordTypeKey := "__record_type_" + ident.Normalize(recVal.RecordType.Name)
 	var recordTypeValue *RecordTypeValue // Track for class var write-back
@@ -165,7 +164,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				// Use createRecordValue for proper nested record initialization
-				resultValue = i.createRecordValue(rtv.RecordType, rtv.Methods)
+				resultValue = i.createRecordValue(rtv.RecordType)
 			}
 		}
 
@@ -342,7 +341,6 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 	// Bind __CurrentRecord__ so record static methods can be called without qualification
 	i.env.Define("__CurrentRecord__", rtv)
 
-	// Task 9.12.2: Bind record constants and class variables to environment for static methods
 	// Track which class vars we bound for write-back
 	boundClassVars := make(map[string]bool)
 
@@ -383,7 +381,7 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if recordTV, ok := typeVal.(*RecordTypeValue); ok {
 				// Return type is a record - create an instance
-				resultValue = i.createRecordValue(recordTV.RecordType, recordTV.Methods)
+				resultValue = i.createRecordValue(recordTV.RecordType)
 			}
 		}
 

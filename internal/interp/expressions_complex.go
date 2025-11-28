@@ -183,7 +183,7 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 		return &NilValue{}
 	}
 
-	// Task 9.1.3: Handle interface-to-object/interface casting
+	// Handle interface-to-object/interface casting
 	// If left side is an InterfaceInstance, we need special handling
 	if intfInst, ok := left.(*InterfaceInstance); ok {
 		// Check if target is a class
@@ -314,7 +314,6 @@ func (i *Interpreter) evalImplementsExpression(expr *ast.ImplementsExpression) V
 		return &BooleanValue{Value: false}
 	}
 
-	// Task 9.1.2: Extract ClassInfo from different value types
 	// The 'implements' operator can work with:
 	// 1. Object instances (extract class from instance)
 	// 2. Class type references (ClassValue from metaclass variables)

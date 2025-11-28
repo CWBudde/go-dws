@@ -50,7 +50,6 @@ func (i *Interpreter) SetRandSeed(seed int64) {
 
 // UnwrapVariant returns the underlying value if input is a Variant, otherwise returns input as-is.
 // This implements the builtins.Context interface.
-// Task 9.4.5: Support for Variant arguments in built-in functions.
 func (i *Interpreter) UnwrapVariant(value builtins.Value) builtins.Value {
 	if value != nil {
 		// Check if it's a VariantValue and unwrap it

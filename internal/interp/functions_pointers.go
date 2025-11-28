@@ -123,7 +123,7 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 			if typeVal, ok := i.env.Get(recordTypeKey); ok {
 				if rtv, ok := typeVal.(*RecordTypeValue); ok {
 					// Use createRecordValue for proper nested record initialization
-					resultValue = i.createRecordValue(rtv.RecordType, rtv.Methods)
+					resultValue = i.createRecordValue(rtv.RecordType)
 				}
 			}
 

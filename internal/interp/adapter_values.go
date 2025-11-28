@@ -49,7 +49,7 @@ func (i *Interpreter) CreateRecordZeroValue(recordTypeName string) (evaluator.Va
 		return nil, fmt.Errorf("type '%s' is not a record type", recordTypeName)
 	}
 
-	return i.createRecordValue(rtv.RecordType, rtv.Methods), nil
+	return i.createRecordValue(rtv.RecordType), nil
 }
 
 // CreateArrayZeroValue creates a zero-initialized array value.
@@ -135,11 +135,11 @@ func (i *Interpreter) CreateRecordValue(recordTypeName string, fieldValues map[s
 
 	// Create the record value with methods
 	// Task 3.5.42: Updated to use RecordMetadata
+	// Task 3.5.128a: Removed deprecated Methods field
 	recordValue := &RecordValue{
 		RecordType: recordType,
 		Fields:     make(map[string]Value),
 		Metadata:   recordTypeValue.Metadata,
-		Methods:    recordTypeValue.Methods, // Deprecated: backward compatibility
 	}
 
 	// Copy provided field values (already evaluated)

@@ -532,7 +532,6 @@ func TestExternalVarRuntime(t *testing.T) {
 // TestFunctionArgumentSingleEvaluation verifies that function arguments are evaluated only once
 // This test addresses the bug where functions called as arguments were evaluated twice:
 // once during overload resolution and once during argument preparation.
-// See task 9.16.10 in PLAN.md
 func TestFunctionArgumentSingleEvaluation(t *testing.T) {
 	tests := []struct {
 		name           string
