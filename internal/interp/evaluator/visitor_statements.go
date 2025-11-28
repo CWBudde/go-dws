@@ -1280,8 +1280,10 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 			return e.newError(node, "failed to resolve array type: %v", err)
 		}
 		if arrayType != nil {
-			// Create array value using the resolved type
-			return e.adapter.CreateArray(arrayType, []Value{})
+			// Task 3.5.127: Create array value directly without adapter
+			if at, ok := arrayType.(*types.ArrayType); ok {
+				return &runtime.ArrayValue{ArrayType: at, Elements: []runtime.Value{}}
+			}
 		}
 		return &runtime.NilValue{}
 	}
@@ -1292,7 +1294,10 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
 		arrayType, err := e.adapter.ParseInlineArrayType(typeName)
 		if err == nil && arrayType != nil {
-			return e.adapter.CreateArray(arrayType, []Value{})
+			// Task 3.5.127: Create array value directly without adapter
+			if at, ok := arrayType.(*types.ArrayType); ok {
+				return &runtime.ArrayValue{ArrayType: at, Elements: []runtime.Value{}}
+			}
 		}
 		return &runtime.NilValue{}
 	}

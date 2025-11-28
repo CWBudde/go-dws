@@ -406,7 +406,12 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 	}
 
 	// Step 6: Create ArrayValue directly
-	return e.adapter.CreateArrayValue(arrayType, coercedElements)
+	// Task 3.5.127: Create array value directly without adapter
+	runtimeElements := make([]runtime.Value, len(coercedElements))
+	for i, elem := range coercedElements {
+		runtimeElements[i] = elem.(runtime.Value)
+	}
+	return &runtime.ArrayValue{ArrayType: arrayType, Elements: runtimeElements}
 }
 
 // getArrayTypeFromAnnotation retrieves the array type from semantic info annotations.
@@ -515,7 +520,12 @@ func (e *Evaluator) evalArrayLiteralWithType(node *ast.ArrayLiteralExpression, a
 		}
 	}
 
-	return e.adapter.CreateArrayValue(arrayType, coercedElements)
+	// Task 3.5.127: Create array value directly without adapter
+	runtimeElements := make([]runtime.Value, len(coercedElements))
+	for i, elem := range coercedElements {
+		runtimeElements[i] = elem.(runtime.Value)
+	}
+	return &runtime.ArrayValue{ArrayType: arrayType, Elements: runtimeElements}
 }
 
 // inferArrayTypeFromElements infers an array type from evaluated element types.
