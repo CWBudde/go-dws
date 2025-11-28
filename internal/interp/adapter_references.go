@@ -529,3 +529,25 @@ func (i *Interpreter) CreateMethodPointerFromObject(obj evaluator.Value, methodN
 
 	return NewFunctionPointerValue(method, i.env, objInst, pointerType), nil
 }
+
+// CreateBoundMethodPointer creates a FunctionPointerValue for a method bound to an object.
+// Task 3.5.120: Low-level adapter method for method pointer creation.
+func (i *Interpreter) CreateBoundMethodPointer(obj evaluator.Value, methodDecl any) evaluator.Value {
+	method := methodDecl.(*ast.FunctionDecl)
+	objInst := obj.(*ObjectInstance)
+
+	// Build the pointer type
+	paramTypes := make([]types.Type, len(method.Parameters))
+	for idx, param := range method.Parameters {
+		if param.Type != nil {
+			paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
+		}
+	}
+	var returnType types.Type
+	if method.ReturnType != nil {
+		returnType = i.getTypeFromAnnotation(method.ReturnType)
+	}
+	pointerType := types.NewFunctionPointerType(paramTypes, returnType)
+
+	return NewFunctionPointerValue(method, i.env, objInst, pointerType)
+}

@@ -583,6 +583,29 @@ func (o *ObjectInstance) InvokeParameterlessMethod(methodName string,
 	return methodExecutor(method), true
 }
 
+// CreateMethodPointer creates a method pointer for a method with parameters.
+// Task 3.5.120: Implements evaluator.ObjectValue interface.
+// Returns (pointer, true) if method exists and has parameters,
+// or (nil, false) if method doesn't exist or has no parameters.
+func (o *ObjectInstance) CreateMethodPointer(methodName string,
+	pointerCreator func(methodDecl any) Value) (Value, bool) {
+	if o == nil || o.Class == nil {
+		return nil, false
+	}
+
+	method, exists := o.Class.Methods[ident.Normalize(methodName)]
+	if !exists {
+		return nil, false // Method not found
+	}
+
+	if len(method.Parameters) == 0 {
+		return nil, false // No parameters - caller should use InvokeParameterlessMethod
+	}
+
+	// Method has parameters - create pointer via callback
+	return pointerCreator(method), true
+}
+
 // IsInstanceOf checks whether the object derives from the given class.
 func (o *ObjectInstance) IsInstanceOf(target *ClassInfo) bool {
 	if o == nil || o.Class == nil || target == nil {

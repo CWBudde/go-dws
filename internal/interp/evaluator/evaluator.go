@@ -89,6 +89,18 @@ type ObjectValue interface {
 	//   - methodExecutor: Callback that executes the method once resolved
 	//     The methodDecl parameter is *ast.FunctionDecl (passed as any to avoid import cycles)
 	InvokeParameterlessMethod(methodName string, methodExecutor func(methodDecl any) Value) (Value, bool)
+	// CreateMethodPointer creates a method pointer for a method with parameters.
+	// Task 3.5.120: Enables direct method pointer creation without adapter.
+	// The pointerCreator callback handles creating the actual FunctionPointerValue
+	// since it requires access to Interpreter's environment and type resolution.
+	// Returns:
+	//   - (Value, true) if method exists and has parameters (pointer created via callback)
+	//   - (nil, false) if method doesn't exist or has no parameters
+	// Parameters:
+	//   - methodName: The method name (case-insensitive)
+	//   - pointerCreator: Callback that creates the FunctionPointerValue
+	//     The methodDecl parameter is *ast.FunctionDecl (passed as any to avoid import cycles)
+	CreateMethodPointer(methodName string, pointerCreator func(methodDecl any) Value) (Value, bool)
 }
 
 // EnumAccessor is an optional interface for enum values.
@@ -691,6 +703,14 @@ type InterpreterAdapter interface {
 	// Used when a method with parameters is referenced without parentheses.
 	// Returns a FunctionPointerValue bound to the object.
 	CreateMethodPointerFromObject(obj Value, methodName string) (Value, error)
+
+	// CreateBoundMethodPointer creates a FunctionPointerValue for a method bound to an object.
+	// Task 3.5.120: Low-level adapter method for method pointer creation.
+	// Parameters:
+	//   - obj: The object instance to bind the method to
+	//   - methodDecl: The method declaration (*ast.FunctionDecl passed as any)
+	// Returns: A FunctionPointerValue with proper type information
+	CreateBoundMethodPointer(obj Value, methodDecl any) Value
 
 	// GetClassName returns the class name for an object instance.
 	// Returns the class name string.
