@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 
 	"github.com/cwbudde/go-dws/internal/types"
@@ -132,6 +133,15 @@ func (f *FloatValue) Type() string {
 
 // String returns the string representation of the float.
 func (f *FloatValue) String() string {
+	if math.IsInf(f.Value, 1) {
+		return "INF"
+	}
+	if math.IsInf(f.Value, -1) {
+		return "-INF"
+	}
+	if math.IsNaN(f.Value) {
+		return "NaN"
+	}
 	return strconv.FormatFloat(f.Value, 'g', -1, 64)
 }
 

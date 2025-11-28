@@ -2,6 +2,7 @@ package interp
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -579,16 +580,15 @@ func (i *Interpreter) evalFloatBinaryOp(op string, left, right Value) Value {
 		return &FloatValue{Value: leftVal * rightVal}
 	case "/":
 		if rightVal == 0 {
-			// Enhanced error with operand values
-			return i.NewRuntimeError(
-				i.currentNode,
-				"division_by_zero",
-				"Division by zero",
-				map[string]string{
-					"left":  fmt.Sprintf("%v", leftVal),
-					"right": fmt.Sprintf("%v", rightVal),
-				},
-			)
+			// DWScript returns infinity (or NaN when 0/0) for float division by zero
+			if leftVal == 0 {
+				return &FloatValue{Value: math.NaN()}
+			}
+			sign := 1.0
+			if leftVal < 0 {
+				sign = -1.0
+			}
+			return &FloatValue{Value: math.Inf(int(sign))}
 		}
 		return &FloatValue{Value: leftVal / rightVal}
 	case "=":
