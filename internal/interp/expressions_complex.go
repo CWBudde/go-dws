@@ -147,6 +147,37 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 		return left
 	}
 
+	// Get the target type name from the type expression
+	targetTypeName := ""
+	if typeAnnotation, ok := expr.TargetType.(*ast.TypeAnnotation); ok {
+		targetTypeName = typeAnnotation.Name
+	} else {
+		return i.newErrorWithLocation(expr, "cannot determine target type")
+	}
+	targetLower := ident.Normalize(targetTypeName)
+
+	// Variant-specific casting: allow using 'as' to coerce to primitive types
+	if variantVal, ok := left.(*VariantValue); ok {
+		switch targetLower {
+		case "integer":
+			return i.castToInteger(variantVal)
+		case "float":
+			return i.castToFloat(variantVal)
+		case "string":
+			return i.castToString(variantVal)
+		case "boolean":
+			return i.castToBoolean(variantVal)
+		case "variant":
+			return variantVal
+		}
+
+		// For class/interface targets, unwrap and continue with normal logic
+		left = variantVal.Value
+		if left == nil {
+			left = &UnassignedValue{}
+		}
+	}
+
 	// Handle nil specially - nil can be cast to any class or interface
 	if _, isNil := left.(*NilValue); isNil {
 		return &NilValue{}
@@ -155,14 +186,6 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 	// Task 9.1.3: Handle interface-to-object/interface casting
 	// If left side is an InterfaceInstance, we need special handling
 	if intfInst, ok := left.(*InterfaceInstance); ok {
-		// Get the target type name first
-		targetTypeName := ""
-		if typeAnnotation, ok := expr.TargetType.(*ast.TypeAnnotation); ok {
-			targetTypeName = typeAnnotation.Name
-		} else {
-			return i.newErrorWithLocation(expr, "cannot determine target type")
-		}
-
 		// Check if target is a class
 		// PR #147: Use lowercase key for O(1) case-insensitive lookup
 		if targetClass, isClass := i.classes[ident.Normalize(targetTypeName)]; isClass {
@@ -224,14 +247,6 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 	obj, ok := AsObject(left)
 	if !ok {
 		return i.newErrorWithLocation(expr, "'as' operator requires object instance, got %s", left.Type())
-	}
-
-	// Get the target type name from the type expression
-	targetTypeName := ""
-	if typeAnnotation, ok := expr.TargetType.(*ast.TypeAnnotation); ok {
-		targetTypeName = typeAnnotation.Name
-	} else {
-		return i.newErrorWithLocation(expr, "cannot determine target type")
 	}
 
 	// Try class-to-class casting first

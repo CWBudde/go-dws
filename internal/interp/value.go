@@ -398,6 +398,17 @@ func (r *RecordValue) GetDefaultProperty() *evaluator.PropertyDescriptor {
 	return nil
 }
 
+// ReadIndexedProperty reads an indexed property value using the provided executor callback.
+// Task 3.5.118: Enables direct indexed property access for records without adapter delegation.
+// The propInfo is already resolved by PropertyAccessor.LookupProperty or GetDefaultProperty.
+func (r *RecordValue) ReadIndexedProperty(propInfo any, indices []evaluator.Value, propertyExecutor func(propInfo any, indices []evaluator.Value) evaluator.Value) evaluator.Value {
+	if r == nil || r.RecordType == nil {
+		return newError("record has no type information")
+	}
+	// Delegate to executor - record validation is done, propInfo already resolved by caller
+	return propertyExecutor(propInfo, indices)
+}
+
 // ExternalVarValue represents an external variable marker.
 type ExternalVarValue struct {
 	Name         string // The variable name in DWScript

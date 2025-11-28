@@ -105,8 +105,14 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 						}
 					}
 
-					// Call record property getter
-					return e.adapter.CallRecordPropertyGetter(objVal, propDesc.Impl, indexVals, node)
+					// Task 3.5.118: Use RecordInstanceValue interface with callback pattern
+					recVal, ok := objVal.(RecordInstanceValue)
+					if !ok {
+						return e.newError(node, "internal error: RECORD value does not implement RecordInstanceValue interface")
+					}
+					return recVal.ReadIndexedProperty(propDesc.Impl, indexVals, func(pi any, idx []Value) Value {
+						return e.adapter.ExecuteRecordPropertyRead(objVal, pi, idx, node)
+					})
 				}
 			}
 		}
@@ -203,8 +209,14 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 		// Check if record has a default property
 		if accessor, ok := leftVal.(PropertyAccessor); ok {
 			if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
-				// Delegate record property getter method call to adapter
-				return e.adapter.CallRecordPropertyGetter(leftVal, defaultProp.Impl, []Value{indexVal}, node)
+				// Task 3.5.118: Use RecordInstanceValue interface with callback pattern
+				recVal, ok := leftVal.(RecordInstanceValue)
+				if !ok {
+					return e.newError(node, "internal error: RECORD value does not implement RecordInstanceValue interface")
+				}
+				return recVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
+					return e.adapter.ExecuteRecordPropertyRead(leftVal, pi, idx, node)
+				})
 			}
 		}
 		// No default property, fall through to normal indexing (which will error)

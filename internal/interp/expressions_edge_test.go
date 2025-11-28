@@ -105,6 +105,26 @@ func TestEvalVariantComparisons(t *testing.T) {
 	}
 }
 
+// TestEvalVariantAsCasts verifies using 'as' with Variant to cast to primitives.
+func TestEvalVariantAsCasts(t *testing.T) {
+	input := `
+		var v: Variant;
+		v := 'abcd';
+		PrintLn(v as String);
+		v := 5;
+		PrintLn((v as Integer) + 1);
+		v := True;
+		PrintLn(v as Boolean);
+		v := False;
+		PrintLn(v as Integer);
+	`
+	_, output := testEvalEdgeCase(input, t)
+	expected := "abcd\n6\nTrue\n0\n"
+	if output != expected {
+		t.Fatalf("expected output:\n%s\ngot:\n%s", expected, output)
+	}
+}
+
 // TestEvalEnumComparisons tests enum comparison operators
 func TestEvalEnumComparisons(t *testing.T) {
 	tests := []struct {

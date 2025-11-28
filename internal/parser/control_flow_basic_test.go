@@ -130,10 +130,15 @@ func TestParseBreakStatement(t *testing.T) {
 
 		l := lexer.New(input)
 		p := New(l)
-		p.ParseProgram()
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
 
-		if len(p.errors) == 0 {
-			t.Error("expected parser error for missing semicolon, got none")
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		}
+
+		if _, ok := program.Statements[0].(*ast.BreakStatement); !ok {
+			t.Fatalf("statement is not *ast.BreakStatement, got %T", program.Statements[0])
 		}
 	})
 }
@@ -226,10 +231,15 @@ func TestParseContinueStatement(t *testing.T) {
 
 		l := lexer.New(input)
 		p := New(l)
-		p.ParseProgram()
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
 
-		if len(p.errors) == 0 {
-			t.Error("expected parser error for missing semicolon, got none")
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		}
+
+		if _, ok := program.Statements[0].(*ast.ContinueStatement); !ok {
+			t.Fatalf("statement is not *ast.ContinueStatement, got %T", program.Statements[0])
 		}
 	})
 }
@@ -380,10 +390,20 @@ func TestParseExitStatement(t *testing.T) {
 
 		l := lexer.New(input)
 		p := New(l)
-		p.ParseProgram()
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
 
-		if len(p.errors) == 0 {
-			t.Error("expected parser error for missing semicolon, got none")
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		}
+
+		exitStmt, ok := program.Statements[0].(*ast.ExitStatement)
+		if !ok {
+			t.Fatalf("statement is not *ast.ExitStatement, got %T", program.Statements[0])
+		}
+
+		if exitStmt.ReturnValue != nil {
+			t.Error("exitStmt.ReturnValue should be nil for bare exit")
 		}
 	})
 

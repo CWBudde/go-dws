@@ -356,3 +356,11 @@ func (i *Interpreter) CallRecordPropertyGetter(record evaluator.Value, propImpl 
 	// Call the getter method
 	return i.evalMethodCall(methodCall)
 }
+
+// ExecuteRecordPropertyRead executes a record property getter method.
+// Task 3.5.118: Low-level execution callback for RecordInstanceValue.ReadIndexedProperty().
+// This delegates to the existing CallRecordPropertyGetter logic.
+func (i *Interpreter) ExecuteRecordPropertyRead(record evaluator.Value, propInfo any, indices []evaluator.Value, node any) evaluator.Value {
+	// Delegate to existing CallRecordPropertyGetter (reuse implementation)
+	return i.CallRecordPropertyGetter(record, propInfo, indices, node)
+}
