@@ -779,12 +779,18 @@ methods with index arguments. Consider creating a similar `DispatchPropertyAcces
   - **Files**: `evaluator/evaluator.go`, `class.go`, `evaluator/visitor_expressions_identifiers.go`
   - **Calls removed**: 2 adapter calls (IsMethodParameterless, CreateMethodCall)
 
-- [ ] **3.5.120** Migrate CreateMethodPointerFromObject (1 call)
+- [x] **3.5.120** Migrate CreateMethodPointerFromObject (1 call)
   - **Location**: `visitor_expressions_identifiers.go`
   - **Issue**: Method pointer creation for methods with parameters
   - **Solution**: Create method pointer directly using FunctionPointerValue
   - **Approach**: Create `evaluator.CreateBoundMethodPointer(obj, methodName)`
   - **Calls removed**: 1 adapter call
+  - **Implementation**:
+    1. Added `CreateMethodPointer(methodName, pointerCreator)` to ObjectValue interface
+    2. Implemented on ObjectInstance - checks method exists and has parameters, creates via callback
+    3. Added `CreateBoundMethodPointer(obj, methodDecl)` adapter method for FunctionPointerValue creation
+    4. Updated visitor to use new interface method with callback pattern
+  - **Files**: `evaluator/evaluator.go`, `class.go`, `adapter_references.go`, `evaluator/visitor_expressions_identifiers.go`
 
 ---
 
