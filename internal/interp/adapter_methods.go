@@ -428,7 +428,8 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 	// Pattern: record.Method(args) where record is a record instance
 	if recVal, ok := internalObj.(*RecordValue); ok {
 		// Method lookup - check instance methods first
-		method := recVal.GetMethod(methodName)
+		// Task 3.5.128b: Use free function instead of method due to type alias
+		method := GetRecordMethod(recVal, methodName)
 
 		// Check for class/static methods on the record type
 		var rtv *RecordTypeValue

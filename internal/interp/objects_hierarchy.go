@@ -254,7 +254,8 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				}
 
 				// Not a field - try as a method (getter)
-				if getterMethod := recordVal.GetMethod(propInfo.ReadField); getterMethod != nil {
+				// Task 3.5.128b: Use free function instead of method due to type alias
+				if getterMethod := GetRecordMethod(recordVal, propInfo.ReadField); getterMethod != nil {
 					// Call the getter method
 					methodCall := &ast.MethodCallExpression{
 						TypedExpressionBase: ast.TypedExpressionBase{
@@ -278,7 +279,8 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 		// Task 9.37: Check if it's a record method (via Metadata.Methods)
 		// Task 3.5.128a: Use GetMethod which now only uses Metadata.Methods
-		methodDecl := recordVal.GetMethod(ma.Member.Value)
+		// Task 3.5.128b: Use free function instead of method due to type alias
+		methodDecl := GetRecordMethod(recordVal, ma.Member.Value)
 		if methodDecl != nil {
 			// Only auto-invoke parameterless methods when accessed without parentheses
 			if len(methodDecl.Parameters) == 0 {

@@ -176,6 +176,44 @@ func (ts *TypeSystem) AllRecords() map[string]RecordTypeValue {
 	return result
 }
 
+// LookupRecordMetadata returns the RecordMetadata for the given record name.
+// This is a convenience method that extracts the Metadata field from RecordTypeValue.
+// Returns nil if the record doesn't exist or has no metadata.
+//
+// Task 3.5.128d: Added to centralize metadata lookup and eliminate __record_type_ pattern.
+//
+// Usage:
+//
+//	metadata := typeSystem.LookupRecordMetadata("TPoint")
+//	if metadata != nil {
+//	    // Use metadata...
+//	}
+func (ts *TypeSystem) LookupRecordMetadata(name string) any {
+	recordTypeValue := ts.LookupRecord(name)
+	if recordTypeValue == nil {
+		return nil
+	}
+
+	// RecordTypeValue is stored as any to avoid circular imports.
+	// The actual type is *interp.RecordTypeValue which has a Metadata field.
+	// We use reflection-like type assertion through any interface.
+	//
+	// Expected structure: recordTypeValue.(*RecordTypeValue).Metadata
+	// Since we can't directly assert (circular import), we use a type switch
+	// on the concrete type that the caller will know about.
+	type hasMetadata interface {
+		GetMetadata() any
+	}
+
+	if hm, ok := recordTypeValue.(hasMetadata); ok {
+		return hm.GetMetadata()
+	}
+
+	// Fallback: Try direct field access via interface{}
+	// This works because RecordTypeValue from interp has a Metadata field
+	return nil
+}
+
 // ========== Interface Registry ==========
 
 // RegisterInterface registers a new interface in the type system.

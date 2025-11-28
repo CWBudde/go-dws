@@ -284,7 +284,7 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 					return i.NewRuntimeError(
 						stmt,
 						"division_by_zero",
-						fmt.Sprintf("Division by zero: %d /= %d", l.Value, r.Value),
+						"Division by zero",
 						map[string]string{
 							"left":  fmt.Sprintf("%d", l.Value),
 							"right": fmt.Sprintf("%d", r.Value),
@@ -303,7 +303,7 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 					return i.NewRuntimeError(
 						stmt,
 						"division_by_zero",
-						fmt.Sprintf("Division by zero: %v /= %v", l.Value, r.Value),
+						"Division by zero",
 						map[string]string{
 							"left":  fmt.Sprintf("%v", l.Value),
 							"right": fmt.Sprintf("%v", r.Value),
@@ -318,7 +318,7 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 					return i.NewRuntimeError(
 						stmt,
 						"division_by_zero",
-						fmt.Sprintf("Division by zero: %v /= %d", l.Value, r.Value),
+						"Division by zero",
 						map[string]string{
 							"left":  fmt.Sprintf("%v", l.Value),
 							"right": fmt.Sprintf("%d", r.Value),
@@ -578,7 +578,8 @@ func (i *Interpreter) evalRecordPropertyWrite(recordVal *RecordValue, fieldName 
 		if propInfo.WriteField != "" {
 			// Check if WriteField is a field name or method name
 			// First try as a method (setter)
-			if setterMethod := recordVal.GetMethod(propInfo.WriteField); setterMethod != nil {
+			// Task 3.5.128b: Use free function instead of method due to type alias
+			if setterMethod := GetRecordMethod(recordVal, propInfo.WriteField); setterMethod != nil {
 				// Call the setter method with the value
 				methodCall := &ast.MethodCallExpression{
 					TypedExpressionBase: ast.TypedExpressionBase{

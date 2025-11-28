@@ -146,7 +146,8 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 					}
 
 					// Check if ReadField is a method (getter with parameters)
-					if getterMethod := recordVal.GetMethod(propInfo.ReadField); getterMethod != nil {
+					// Task 3.5.128b: Use free function instead of method due to type alias
+					if getterMethod := GetRecordMethod(recordVal, propInfo.ReadField); getterMethod != nil {
 						// Call the getter method with indices as arguments
 						methodCall := &ast.MethodCallExpression{
 							TypedExpressionBase: ast.TypedExpressionBase{
@@ -236,7 +237,8 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 		if defaultProp != nil {
 			// Call the getter method with the index
 			if defaultProp.ReadField != "" {
-				if getterMethod := recordVal.GetMethod(defaultProp.ReadField); getterMethod != nil {
+				// Task 3.5.128b: Use free function instead of method due to type alias
+				if getterMethod := GetRecordMethod(recordVal, defaultProp.ReadField); getterMethod != nil {
 					// Call the getter method with index as argument
 					methodCall := &ast.MethodCallExpression{
 						TypedExpressionBase: ast.TypedExpressionBase{

@@ -316,6 +316,12 @@ func (r *RecordTypeValue) GetRecordType() *types.RecordType {
 	return r.RecordType
 }
 
+// GetMetadata returns the RecordMetadata for this record type.
+// Task 3.5.128d: Enables TypeSystem.LookupRecordMetadata() to work without circular imports.
+func (r *RecordTypeValue) GetMetadata() any {
+	return r.Metadata
+}
+
 // createRecordValue creates a new RecordValue with proper method lookup for nested records.
 // Task 9.7e1: Helper to create records with method resolution for nested record fields.
 // Task 9.5: Initialize fields with field initializers.
