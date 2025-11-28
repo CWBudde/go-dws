@@ -2523,6 +2523,17 @@ func (v *statementValidator) checkAsExpression(expr *ast.AsExpression) types.Typ
 		return nil
 	}
 
+	// Allow Variant casts to primitive types (runtime conversion)
+	if leftType != nil && leftType.Equals(types.VARIANT) {
+		if v.ctx.SemanticInfo != nil {
+			v.ctx.SemanticInfo.SetType(expr, &ast.TypeAnnotation{
+				Token: expr.Token,
+				Name:  targetType.String(),
+			})
+		}
+		return targetType
+	}
+
 	// Validate target is class or interface
 	targetUnderlying := types.GetUnderlyingType(targetType)
 	_, isInterface := targetUnderlying.(*types.InterfaceType)

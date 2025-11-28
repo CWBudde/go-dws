@@ -143,6 +143,42 @@ func (i *Interpreter) CheckType(obj evaluator.Value, typeName string) bool {
 func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.Value, error) {
 	// Convert to internal type
 	internalObj := obj.(Value)
+	targetLower := ident.Normalize(typeName)
+
+	// Variant-specific casting to primitive types
+	if variantVal, ok := internalObj.(*VariantValue); ok {
+		switch targetLower {
+		case "integer":
+			result := i.castToInteger(variantVal)
+			if isError(result) {
+				return nil, fmt.Errorf("%s", result.String())
+			}
+			return result, nil
+		case "float":
+			result := i.castToFloat(variantVal)
+			if isError(result) {
+				return nil, fmt.Errorf("%s", result.String())
+			}
+			return result, nil
+		case "string":
+			result := i.castToString(variantVal)
+			return result, nil
+		case "boolean":
+			result := i.castToBoolean(variantVal)
+			if isError(result) {
+				return nil, fmt.Errorf("%s", result.String())
+			}
+			return result, nil
+		case "variant":
+			return variantVal, nil
+		}
+
+		// For class/interface targets, unwrap and continue
+		internalObj = variantVal.Value
+		if internalObj == nil {
+			internalObj = &UnassignedValue{}
+		}
+	}
 
 	// Handle nil - nil can be cast to any type
 	if _, isNil := internalObj.(*NilValue); isNil {

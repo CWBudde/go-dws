@@ -352,6 +352,17 @@ func (a *Analyzer) analyzeAsExpression(expr *ast.AsExpression) types.Type {
 		return nil
 	}
 
+	// Allow Variant casts to primitive types (and other runtime-resolved targets)
+	// DWScript permits using "as" with Variant to force a runtime conversion,
+	// e.g. VariantValue as Integer/String/Float/Boolean.
+	if leftType.Equals(types.VARIANT) {
+		a.semanticInfo.SetType(expr, &ast.TypeAnnotation{
+			Token: expr.Token,
+			Name:  targetType.String(),
+		})
+		return targetType
+	}
+
 	// Target type can be either interface OR class
 	targetUnderlying := types.GetUnderlyingType(targetType)
 	interfaceType, isInterface := targetUnderlying.(*types.InterfaceType)

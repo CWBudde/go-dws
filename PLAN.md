@@ -760,12 +760,13 @@ methods with index arguments. Consider creating a similar `DispatchPropertyAcces
   - **Calls migrated**: 5 CallIndexedPropertyGetter → 5 ExecuteIndexedPropertyRead (lower-level, simpler)
   - **CallIndexedPropertyGetter**: Marked DEPRECATED in interface
 
-- [ ] **3.5.118** Migrate CallRecordPropertyGetter (2 calls)
+- [x] **3.5.118** Migrate CallRecordPropertyGetter (2 calls) ✅
   - **Location**: `visitor_expressions_indexing.go`
   - **Issue**: Record property access delegates to adapter
-  - **Solution**: Use RecordInstanceValue methods directly
+  - **Solution**: Use RecordInstanceValue.ReadIndexedProperty() with callback pattern
   - **Note**: Records have simpler property semantics than classes (no virtual dispatch)
-  - **Calls removed**: 2 CallRecordPropertyGetter calls
+  - **Implementation**: Removed 2 CallRecordPropertyGetter fallback calls (lines 115, 219), converted to internal errors if interface not implemented
+  - **Calls removed**: 2 CallRecordPropertyGetter calls now use ExecuteRecordPropertyRead callback
 
 - [ ] **3.5.119** Migrate IsMethodParameterless + CreateMethodCall (2 calls)
   - **Location**: `visitor_expressions_identifiers.go`

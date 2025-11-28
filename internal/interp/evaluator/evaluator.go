@@ -231,6 +231,14 @@ type RecordInstanceValue interface {
 	// Note: Records in DWScript don't have properties (unlike classes), so this
 	// typically returns false. Included for consistency with other value interfaces.
 	HasRecordProperty(name string) bool
+	// ReadIndexedProperty reads an indexed property value using the provided executor callback.
+	// Task 3.5.118: Enables direct indexed property access for records without adapter delegation.
+	// The propInfo is already resolved by PropertyAccessor.LookupProperty or GetDefaultProperty.
+	// Parameters:
+	//   - propInfo: The property implementation (types.RecordPropertyInfo from PropertyDescriptor.Impl)
+	//   - indices: The index arguments to pass to the getter
+	//   - propertyExecutor: Callback that executes the getter with the resolved property info
+	ReadIndexedProperty(propInfo any, indices []Value, propertyExecutor func(propInfo any, indices []Value) Value) Value
 }
 
 // SetMethodDispatcher is an optional interface that set values can implement
@@ -833,6 +841,7 @@ type InterpreterAdapter interface {
 
 	// ===== Task 3.5.99e: Record Default Property Access =====
 
+	// DEPRECATED: Use RecordInstanceValue.ReadIndexedProperty() with ExecuteRecordPropertyRead callback instead.
 	// CallRecordPropertyGetter calls a record property getter method.
 	// This is used for record default property access: record[index] -> record.GetProperty(index).
 	// Parameters:
@@ -843,6 +852,17 @@ type InterpreterAdapter interface {
 	// Returns the result of the property getter method call.
 	// Task 3.5.99e: Enables record default property indexing in evaluator.
 	CallRecordPropertyGetter(record Value, propImpl any, indices []Value, node any) Value
+
+	// ExecuteRecordPropertyRead executes a record property getter method.
+	// Task 3.5.118: Low-level callback for RecordInstanceValue.ReadIndexedProperty().
+	// This is a thinner wrapper than CallRecordPropertyGetter that is called via the callback pattern.
+	// Parameters:
+	//   - record: The record value (RecordValue)
+	//   - propInfo: The property implementation (types.RecordPropertyInfo from PropertyDescriptor.Impl)
+	//   - indices: The index arguments to pass to the getter
+	//   - node: The AST node for error reporting
+	// Returns the result of the property getter method call.
+	ExecuteRecordPropertyRead(record Value, propInfo any, indices []Value, node any) Value
 }
 
 // Evaluator is responsible for evaluating DWScript AST nodes.
