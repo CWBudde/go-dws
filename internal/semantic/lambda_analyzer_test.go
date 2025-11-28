@@ -1037,7 +1037,7 @@ begin
 end;
 
 begin
-	// This should trigger task 9.21.5 detection
+	// This should trigger detection
 	Process(5, lambda(n) => n * 2);
 end;
 			`,

@@ -191,7 +191,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 				if rtv, ok := typeVal.(*RecordTypeValue); ok {
 					// Initialize with empty record value
 					// Task 9.7e1: Use createRecordValue for proper nested record initialization
-					value = i.createRecordValue(rtv.RecordType, rtv.Methods)
+					value = i.createRecordValue(rtv.RecordType)
 				} else {
 					value = &NilValue{}
 				}
@@ -339,7 +339,7 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 	if typeVal, ok := i.env.Get("__record_type_" + ident.Normalize(typeName)); ok {
 		if rtv, ok := typeVal.(*RecordTypeValue); ok {
 			// Task 9.7e1: Use createRecordValue for proper nested record initialization
-			return i.createRecordValue(rtv.RecordType, rtv.Methods)
+			return i.createRecordValue(rtv.RecordType)
 		}
 	}
 

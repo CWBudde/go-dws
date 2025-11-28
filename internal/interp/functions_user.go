@@ -98,7 +98,7 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				// Use createRecordValue for proper nested record initialization
-				resultValue = i.createRecordValue(rtv.RecordType, rtv.Methods)
+				resultValue = i.createRecordValue(rtv.RecordType)
 			}
 		}
 

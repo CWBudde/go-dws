@@ -803,7 +803,6 @@ func (e *Evaluator) evalSetBinaryOp(op string, left, right Value, node ast.Node)
 //   - Raise runtime error if types are incompatible
 //   - Special handling for uninitialized vs explicitly nullish variants
 func (e *Evaluator) evalVariantBinaryOp(op string, left, right Value, node ast.Node) Value {
-	// Task 9.4.3: Check if either operand is an uninitialized Variant (before unwrapping)
 	// An uninitialized variant has Value == nil (detected via IsUninitialized).
 	// This is distinct from a VariantValue explicitly containing an UnassignedValue/NullValue/NilValue.
 	leftUnassignedVariant := false
@@ -820,12 +819,12 @@ func (e *Evaluator) evalVariantBinaryOp(op string, left, right Value, node ast.N
 	leftVal := unwrapVariant(left)
 	rightVal := unwrapVariant(right)
 
-	// Task 9.4.1: Check for Null/Unassigned/Nil values (after unwrapping)
+	// Check for Null/Unassigned/Nil values (after unwrapping)
 	leftIsNullish := isNullish(leftVal)
 	rightIsNullish := isNullish(rightVal)
 
 	// For comparison operators
-	// Task 9.4.3: Complex comparison semantics for Null/Unassigned variants:
+	// Complex comparison semantics for Null/Unassigned variants:
 	// - Uninitialized variant (VariantValue with Value==nil): equals falsey values (0, false, '', etc.)
 	//   and also equals other nullish values (Unassigned, Null, Nil).
 	// - Explicit Unassigned/Null/Nil value: only equals other nullish values (Unassigned, Null, Nil),

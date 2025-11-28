@@ -1,4 +1,3 @@
-// Test for Task 9.5.5: Field initializers in bytecode VM
 // Tests that field initializers work correctly
 
 var GlobalConstant: Integer = 100;
@@ -15,4 +14,4 @@ obj := TMyClass.Create();
 PrintLn('Field1: ' + IntToStr(obj.field1));
 PrintLn('Field2: ' + obj.field2);
 PrintLn('Field3: ' + IntToStr(obj.field3));
-PrintLn('Task 9.5.5: Field initializers work!');
+PrintLn('Field initializers work!');

@@ -319,19 +319,8 @@ func (r *RecordTypeValue) GetRecordType() *types.RecordType {
 // createRecordValue creates a new RecordValue with proper method lookup for nested records.
 // Task 9.7e1: Helper to create records with method resolution for nested record fields.
 // Task 9.5: Initialize fields with field initializers.
-func (i *Interpreter) createRecordValue(recordType *types.RecordType, methods map[string]*ast.FunctionDecl) Value {
-	// Create a method lookup callback that can resolve methods for nested records
-	methodsLookup := func(rt *types.RecordType) map[string]*ast.FunctionDecl {
-		// Look up the record type in the environment
-		key := "__record_type_" + ident.Normalize(rt.Name)
-		if typeVal, ok := i.env.Get(key); ok {
-			if rtv, ok := typeVal.(*RecordTypeValue); ok {
-				return rtv.Methods
-			}
-		}
-		return nil
-	}
-
+// Task 3.5.128a: Removed deprecated methods parameter - now uses only Metadata.
+func (i *Interpreter) createRecordValue(recordType *types.RecordType) Value {
 	// Task 9.5: Look up the record type value to get field declarations before creating the value
 	recordTypeKey := "__record_type_" + ident.Normalize(recordType.Name)
 	var rtv *RecordTypeValue
@@ -345,8 +334,20 @@ func (i *Interpreter) createRecordValue(recordType *types.RecordType, methods ma
 		metadata = rtv.Metadata
 	}
 
-	// Create the record value
-	rv := newRecordValueInternal(recordType, metadata, methods, methodsLookup)
+	// Create a metadata lookup callback for nested records
+	// Task 3.5.128a: This replaces the old methodsLookup callback
+	metadataLookup := func(rt *types.RecordType) *runtime.RecordMetadata {
+		key := "__record_type_" + ident.Normalize(rt.Name)
+		if typeVal, ok := i.env.Get(key); ok {
+			if nestedRtv, ok := typeVal.(*RecordTypeValue); ok {
+				return nestedRtv.Metadata
+			}
+		}
+		return nil
+	}
+
+	// Create the record value with metadata lookup for nested records
+	rv := newRecordValueInternalWithMetadataLookup(recordType, metadata, metadataLookup)
 
 	// Task 9.5: Initialize fields with field initializers or default values
 	if rtv != nil {
@@ -361,10 +362,14 @@ func (i *Interpreter) createRecordValue(recordType *types.RecordType, methods ma
 					return fieldValue
 				}
 			} else {
-				// Use getZeroValueForType to properly initialize nested records
-				// This ensures nested record fields are initialized as RecordValue instances
-				// rather than NilValue, fixing the bug where Outer.Inner.X would fail
-				fieldValue = getZeroValueForType(fieldType, methodsLookup)
+				// Task 3.5.128a: Handle nested record types specially
+				// Use createRecordValue recursively to ensure metadata is properly set
+				if nestedRecordType, ok := fieldType.(*types.RecordType); ok {
+					fieldValue = i.createRecordValue(nestedRecordType)
+				} else {
+					// Use getZeroValueForType for other types
+					fieldValue = getZeroValueForType(fieldType, nil)
+				}
 
 				// Task 9.1.4: Handle interface-typed fields specially
 				// Interface fields should be initialized as InterfaceInstance with nil object
@@ -427,17 +432,16 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 
 	// Task 9.12.4: Create the record value with methods
 	// Task 3.5.42: Updated to use RecordMetadata
+	// Task 3.5.128a: Removed deprecated Methods field
 	recordValue := &RecordValue{
 		RecordType: recordType,
 		Fields:     make(map[string]Value),
 		Metadata:   nil, // Will be set below if recordTypeValue is available
-		Methods:    nil, // Deprecated: Will be set for backward compatibility
 	}
 
-	// Set metadata and methods if available
+	// Set metadata if available
 	if recordTypeValue != nil {
 		recordValue.Metadata = recordTypeValue.Metadata
-		recordValue.Methods = recordTypeValue.Methods // Deprecated: backward compatibility
 	}
 
 	// Evaluate and assign field values from literal

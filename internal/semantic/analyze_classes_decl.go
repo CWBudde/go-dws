@@ -50,7 +50,6 @@ func (a *Analyzer) collectNestedAliases(aliases map[string]string, stmt ast.Stat
 func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	className := classFullName(decl)
 
-	// Task 9.11: Detect if this is a forward declaration
 	// A forward declaration has no body - the slices are nil (not initialized)
 	// An empty class has initialized but empty slices
 	isForwardDecl := (decl.Fields == nil &&
@@ -60,13 +59,11 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		decl.Constants == nil)
 
 	// Check if class is already declared
-	// Task 9.285: Use lowercase for case-insensitive lookup
-	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
 	existingClass := a.getClassType(className)
 	resolvingForwardDecl := false
 	mergingPartialClass := false
 	if existingClass != nil {
-		// Task 9.13: Handle partial class merging
+		// Handle partial class merging
 		if existingClass.IsPartial && decl.IsPartial {
 			// Both are partial - merge them
 			mergingPartialClass = true
@@ -88,7 +85,6 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			a.addError("class '%s' already declared as non-partial at %s", className, decl.Token.Pos.String())
 			return
 		} else if existingClass.IsForward && !isForwardDecl {
-			// Task 9.11: Handle forward declaration resolution
 			// This is the full implementation of a forward-declared class
 			// Validate that parent class matches between forward declaration and full implementation
 			var fullImplParent *types.ClassType

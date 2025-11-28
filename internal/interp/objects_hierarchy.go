@@ -276,30 +276,28 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			return i.newErrorWithLocation(ma, "property '%s' is write-only", ma.Member.Value)
 		}
 
-		// Task 9.37: Check if it's a record method
-		if recordVal.Methods != nil {
-			// Task 9.16.2: Method names are case-insensitive, use GetMethod helper
-			methodDecl := recordVal.GetMethod(ma.Member.Value)
-			if methodDecl != nil {
-				// Only auto-invoke parameterless methods when accessed without parentheses
-				if len(methodDecl.Parameters) == 0 {
-					// Convert to a method call expression and evaluate it
-					methodCall := &ast.MethodCallExpression{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: ma.Token,
-							},
+		// Task 9.37: Check if it's a record method (via Metadata.Methods)
+		// Task 3.5.128a: Use GetMethod which now only uses Metadata.Methods
+		methodDecl := recordVal.GetMethod(ma.Member.Value)
+		if methodDecl != nil {
+			// Only auto-invoke parameterless methods when accessed without parentheses
+			if len(methodDecl.Parameters) == 0 {
+				// Convert to a method call expression and evaluate it
+				methodCall := &ast.MethodCallExpression{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: ma.Token,
 						},
-						Object:    ma.Object,
-						Method:    ma.Member,
-						Arguments: []ast.Expression{},
-					}
-					return i.evalMethodCall(methodCall)
+					},
+					Object:    ma.Object,
+					Method:    ma.Member,
+					Arguments: []ast.Expression{},
 				}
-				// Method has parameters - cannot auto-invoke without parentheses
-				return i.newErrorWithLocation(ma, "method '%s' of record '%s' requires %d parameter(s); use parentheses to call",
-					ma.Member.Value, recordVal.RecordType.Name, len(methodDecl.Parameters))
+				return i.evalMethodCall(methodCall)
 			}
+			// Method has parameters - cannot auto-invoke without parentheses
+			return i.newErrorWithLocation(ma, "method '%s' of record '%s' requires %d parameter(s); use parentheses to call",
+				ma.Member.Value, recordVal.RecordType.Name, len(methodDecl.Parameters))
 		}
 
 		// Task 9.12.2: Check for class methods, constants, and class variables (accessible via instance)

@@ -881,7 +881,7 @@ func (i *Interpreter) createZeroValueForType(typ types.Type) Value {
 		}
 		// Initialize record types properly for array elements
 		if recordType, ok := typ.(*types.RecordType); ok {
-			return i.createRecordValue(recordType, nil)
+			return i.createRecordValue(recordType)
 		}
 		return &NilValue{}
 	}

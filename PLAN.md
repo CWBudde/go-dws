@@ -482,12 +482,13 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 **Subtasks**:
 
-- [ ] **3.5.128a** Remove deprecated `Methods` field from RecordValue (Phase 3.5.44)
+- [x] **3.5.128a** Remove deprecated `Methods` field from RecordValue ✅
   - **File**: `internal/interp/value.go:162`
   - **Action**: Remove `Methods map[string]*ast.FunctionDecl` field
   - **Action**: Update `GetMethod()` to use only `Metadata.Methods`
   - **Risk**: Low - field already deprecated, fallback exists
   - **Dependency**: Verify no code paths rely on legacy `Methods` field
+  - **Completed**: Removed deprecated field, updated GetMethod(), Copy(), createRecordValue(), and all callers. Added newRecordValueInternalWithMetadataLookup() for nested record metadata propagation.
 
 - [ ] **3.5.128b** Move RecordValue struct to runtime package
   - **From**: `internal/interp/value.go:153-163`
@@ -495,28 +496,40 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Pattern**: Follow `ArrayValue` migration pattern
   - **Fields to keep**: `RecordType`, `Fields`, `Metadata`
   - **Dependency**: 3.5.128a complete
+  - **Note from 3.5.128a**: Also move `newRecordValueInternal()`, `newRecordValueInternalWithMetadataLookup()`, `NewRecordValue()`, `NewRecordValueWithMetadata()` constructors
+  - **Note from 3.5.128a**: The `GetMethod()` function reconstructs `*ast.FunctionDecl` from `MethodMetadata` - consider keeping this in interp package or creating an interface
 
 - [ ] **3.5.128c** Add RecordValueInitializer callback pattern
   - **Pattern**: Similar to `ArrayElementInitializer` in `runtime/array.go:75-79`
   - **Purpose**: Allow evaluator to provide field initialization logic
   - **Signature**: `type RecordFieldInitializer func(fieldName string, fieldType types.Type) runtime.Value`
   - **Dependency**: 3.5.128b complete
+  - **Note from 3.5.128a**: Already have `newRecordValueInternalWithMetadataLookup()` that uses a `metadataLookup func(*types.RecordType) *runtime.RecordMetadata` callback - can extend this pattern
 
 - [ ] **3.5.128d** Add TypeSystem.LookupRecordMetadata() method
   - **File**: `internal/interp/types/type_system.go`
   - **Purpose**: Direct metadata lookup without environment `__record_type_` pattern
   - **Returns**: `*runtime.RecordMetadata` (already exists in TypeSystem as `RecordTypeValue`)
   - **Dependency**: None (can be done in parallel)
+  - **Note from 3.5.128a**: Current code uses `i.env.Get("__record_type_" + ident.Normalize(name))` pattern in 8+ places - TypeSystem method would centralize this
 
 - [ ] **3.5.128e** Implement direct RecordValue creation in evaluator
   - **Location**: `visitor_expressions_indexing.go:324`
   - **Code**: `&runtime.RecordValue{RecordType: rt, Fields: fields, Metadata: meta}`
   - **Dependency**: 3.5.128b, 3.5.128c, 3.5.128d complete
+  - **Note from 3.5.128a**: Interpreter's `createRecordValue()` handles field initializers via `i.Eval()` - evaluator version needs callback pattern for AST evaluation
 
 - [ ] **3.5.128f** Implement direct RecordZeroValue creation in evaluator
   - **Location**: `visitor_statements.go:1317`
   - **Code**: Use initializer callback for default field values
   - **Dependency**: 3.5.128e complete
+  - **Note from 3.5.128a**: For nested records, need recursive metadata lookup - see `newRecordValueInternalWithMetadataLookup()` pattern
+
+**Insights from 3.5.128a completion:**
+1. **Nested records are the main complexity** - require metadata propagation via callbacks
+2. **8+ call sites** use `createRecordValue()` - all updated to use new signature without `methods` param
+3. **`GetMethod()` still returns `*ast.FunctionDecl`** - reconstructs from `MethodMetadata.Body` which contains AST; this AST dependency remains until callers migrate to use `MethodMetadata` directly
+4. **Test coverage**: `TestRecordMethodCall/nested_record_with_methods` validates the metadata propagation
 
 **Estimated effort**: 2-3 days after 3.5.44 completion
 **Calls removed**: 2 adapter calls

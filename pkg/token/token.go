@@ -115,7 +115,7 @@ const (
 	FALSE // false boolean literal
 	NIL   // nil literal
 
-	// Keywords - Variant special values (Task 9.4.1)
+	// Keywords - Variant special values
 	NULL       // Null - special variant value
 	UNASSIGNED // Unassigned - default uninitialized variant value
 
@@ -372,7 +372,7 @@ var tokenTypeStrings = [...]string{
 	FALSE:  "FALSE",
 	NIL:    "NIL",
 
-	// Task 9.4.1: Variant special values
+	// Variant special values
 	NULL:       "NULL",
 	UNASSIGNED: "UNASSIGNED",
 
@@ -672,7 +672,7 @@ var keywords = map[string]TokenType{
 	"false": FALSE,
 	"nil":   NIL,
 
-	// Task 9.4.1: Variant special values
+	// Variant special values
 	"null":       NULL,
 	"unassigned": UNASSIGNED,
 

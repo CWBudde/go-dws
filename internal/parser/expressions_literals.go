@@ -158,7 +158,7 @@ func (p *Parser) parseNilLiteral() ast.Expression {
 }
 
 // parseNullIdentifier parses the Null keyword as an identifier.
-// Task 9.4.1: Null is a built-in constant, so we parse it as an identifier.
+// Null is a built-in constant, so we parse it as an identifier.
 // PRE: cursor is NULL
 // POST: cursor is NULL (unchanged)
 func (p *Parser) parseNullIdentifier() ast.Expression {
@@ -175,7 +175,7 @@ func (p *Parser) parseNullIdentifier() ast.Expression {
 }
 
 // parseUnassignedIdentifier parses the Unassigned keyword as an identifier.
-// Task 9.4.1: Unassigned is a built-in constant, so we parse it as an identifier.
+// Unassigned is a built-in constant, so we parse it as an identifier.
 // PRE: cursor is UNASSIGNED
 // POST: cursor is UNASSIGNED (unchanged)
 func (p *Parser) parseUnassignedIdentifier() ast.Expression {

@@ -19,9 +19,7 @@ import (
 // GetOrdinalValue extracts the ordinal value from any ordinal type value.
 // Ordinal types include: Integer, Enum, String (single character), Boolean.
 // Returns the ordinal value and an error if the value is not an ordinal type.
-//
-// Task 9.226: Original implementation in value.go.
-// Task 3.5.77: Moved to evaluator for direct access during evaluation.
+
 func GetOrdinalValue(val Value) (int, error) {
 	switch v := val.(type) {
 	case *runtime.IntegerValue:
@@ -60,9 +58,6 @@ func GetOrdinalValue(val Value) (int, error) {
 
 // GetOrdinalType extracts the Type from a runtime value.
 // Returns the appropriate type for the value to use in set types.
-//
-// Task 9.226: Original implementation in value.go.
-// Task 3.5.77: Moved to evaluator for direct access during evaluation.
 func GetOrdinalType(val Value) types.Type {
 	switch val.(type) {
 	case *runtime.IntegerValue:

@@ -46,7 +46,7 @@ type TypeSystem struct {
 	// Conversion registry: manages type conversions
 	conversions *ConversionRegistry
 
-	// Type ID registries for RTTI (Task 9.25)
+	// Type ID registries for RTTI
 	// Task 13.9: Migrated to ident.Map for consistent case-insensitive access
 	classTypeIDs  *ident.Map[int]
 	recordTypeIDs *ident.Map[int]

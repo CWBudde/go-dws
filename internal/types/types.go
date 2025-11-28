@@ -778,8 +778,6 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 //
 //	AnimalType := TDog;      // Assign a class type
 //	obj := AnimalType.Create; // Call constructor through metaclass
-//
-// Task 9.71: Metaclass type system
 type ClassOfType struct {
 	// ClassType is the class type that this metaclass references
 	// For "class of TAnimal", this would be the TAnimal ClassType

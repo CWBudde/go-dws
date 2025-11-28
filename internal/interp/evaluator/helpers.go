@@ -10,7 +10,7 @@ import (
 // Task 3.5.9: Extracted from visitor_statements.go for reusability.
 
 // IsTruthy determines if a value is considered "true" for conditional logic.
-// Task 9.35: Support Variant→Boolean implicit conversion.
+// Support Variant→Boolean implicit conversion.
 // DWScript semantics for Variant→Boolean: empty/nil/zero → false, otherwise → true
 func IsTruthy(val Value) bool {
 	switch v := val.(type) {
@@ -33,7 +33,7 @@ func IsTruthy(val Value) bool {
 }
 
 // VariantToBool converts a variant value to boolean using DWScript semantics.
-// Task 9.35: Variant→Boolean coercion rules:
+// Support Variant→Boolean coercion rules:
 // - nil/null → false
 // - Integer 0 → false, non-zero → true
 // - Float 0.0 → false, non-zero → true
