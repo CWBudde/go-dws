@@ -659,7 +659,12 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool) testResult 
 		if result != nil && result.Type() == "ERROR" {
 			// Got runtime error as expected
 			if hasExpectedFile {
-				actualOutput := result.String()
+				formattedError := formatRuntimeErrorValue(result)
+				actualOutput := formattedError
+				if strings.Contains(expectedContent, "Errors >>>>") {
+					actualOutput = "Errors >>>>\n" + formattedError + "\nResult >>>>\n" + buf.String()
+				}
+
 				if normalizeOutput(actualOutput) == normalizeOutput(expectedContent) {
 					return testResultPassed
 				} else {
@@ -714,6 +719,24 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool) testResult 
 
 	// Check for runtime errors
 	if result != nil && result.Type() == "ERROR" {
+		if hasExpectedFile {
+			formattedError := formatRuntimeErrorValue(result)
+
+			// DWScript fixtures wrap runtime errors in an Errors/Result block
+			actualOutput := formattedError
+			if strings.Contains(expectedContent, "Errors >>>>") {
+				actualOutput = "Errors >>>>\n" + formattedError + "\nResult >>>>\n" + buf.String()
+			}
+
+			if normalizeOutput(actualOutput) == normalizeOutput(expectedContent) {
+				return testResultPassed
+			}
+
+			t.Errorf("Runtime error mismatch for %s:\nExpected:\n%s\nActual:\n%s",
+				filepath.Base(pasFile), expectedContent, actualOutput)
+			return testResultFailed
+		}
+
 		t.Errorf("Runtime error in %s: %v", filepath.Base(pasFile), result.String())
 		return testResultFailed
 	}

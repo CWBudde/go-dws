@@ -313,7 +313,8 @@ func (i *Interpreter) CallRecordPropertyGetter(record evaluator.Value, propImpl 
 	}
 
 	// Get the getter method
-	getterMethod := recordVal.GetMethod(propInfo.ReadField)
+	// Task 3.5.128b: Use free function instead of method due to type alias
+	getterMethod := GetRecordMethod(recordVal, propInfo.ReadField)
 	if getterMethod == nil {
 		return i.newErrorWithLocation(indexExpr, "default property read accessor '%s' is not a method", propInfo.ReadField)
 	}

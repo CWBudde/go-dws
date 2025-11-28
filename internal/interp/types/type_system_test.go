@@ -12,7 +12,14 @@ type mockClassInfo struct {
 }
 
 type mockRecordTypeValue struct {
-	Name string
+	Name     string
+	Metadata any
+}
+
+// GetMetadata implements the interface expected by LookupRecordMetadata.
+// Task 3.5.128d: Test support for metadata lookup.
+func (m *mockRecordTypeValue) GetMetadata() any {
+	return m.Metadata
 }
 
 type mockInterfaceInfo struct {
@@ -189,6 +196,43 @@ func TestRecordRegistry(t *testing.T) {
 	ts.RegisterRecord("NilRecord", nil)
 	if ts.HasRecord("NilRecord") {
 		t.Error("HasRecord returned true for nil record")
+	}
+
+	// Test LookupRecordMetadata (Task 3.5.128d)
+	mockMetadata := "test-metadata-value"
+	recordWithMetadata := &mockRecordTypeValue{
+		Name:     "RecordWithMetadata",
+		Metadata: mockMetadata,
+	}
+	ts.RegisterRecord("RecordWithMetadata", recordWithMetadata)
+
+	retrievedMetadata := ts.LookupRecordMetadata("RecordWithMetadata")
+	if retrievedMetadata == nil {
+		t.Error("LookupRecordMetadata returned nil for record with metadata")
+	}
+	if retrievedMetadata.(string) != mockMetadata {
+		t.Errorf("LookupRecordMetadata returned %v, want %v", retrievedMetadata, mockMetadata)
+	}
+
+	// Test case-insensitive metadata lookup
+	retrievedMetadata = ts.LookupRecordMetadata("recordwithmetadata")
+	if retrievedMetadata.(string) != mockMetadata {
+		t.Error("LookupRecordMetadata failed case-insensitive lookup")
+	}
+
+	// Test LookupRecordMetadata for non-existent record
+	nilMetadata := ts.LookupRecordMetadata("NonExistentRecord")
+	if nilMetadata != nil {
+		t.Error("LookupRecordMetadata should return nil for non-existent record")
+	}
+
+	// Test LookupRecordMetadata for record without GetMetadata method
+	recordWithoutMetadata := &mockRecordTypeValue{Name: "NoMetadata"}
+	ts.RegisterRecord("RecordNoMeta", recordWithoutMetadata)
+	metadataResult := ts.LookupRecordMetadata("RecordNoMeta")
+	// Should return nil for record with nil metadata
+	if metadataResult != nil {
+		t.Error("LookupRecordMetadata should return nil for record with nil metadata")
 	}
 }
 

@@ -12,7 +12,8 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 
 	// Method resolution - lookup in RecordValue.Methods (instance methods)
 	// No inheritance needed for records (unlike classes)
-	if !recVal.HasMethod(methodName) {
+	// Task 3.5.128b: Use free function instead of method due to type alias
+	if !RecordHasMethod(recVal, methodName) {
 		// Check for class methods (static methods can be called on instances)
 		recordTypeKey := "__record_type_" + ident.Normalize(recVal.RecordType.Name)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
@@ -49,7 +50,8 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 		return i.callHelperMethod(helper, helperMethod, builtinSpec, recVal, args, memberAccess)
 	}
 
-	method := recVal.GetMethod(methodName)
+	// Task 3.5.128b: Use free function instead of method due to type alias
+	method := GetRecordMethod(recVal, methodName)
 	if method == nil {
 		return i.newErrorWithLocation(memberAccess, "method '%s' not found in record type '%s'",
 			methodName, recVal.RecordType.Name)

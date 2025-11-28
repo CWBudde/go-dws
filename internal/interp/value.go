@@ -3,11 +3,9 @@ package interp
 
 import (
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/jsonvalue"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -153,89 +151,16 @@ func (r *RTTITypeInfoValue) String() string {
 // RecordValue represents a record value in DWScript.
 // Task 3.5.42: Migrated to use RecordMetadata instead of AST-dependent method map.
 // Task 3.5.128a: Removed deprecated Methods field - now uses only Metadata.Methods.
-type RecordValue struct {
-	RecordType *types.RecordType       // The record type metadata
-	Fields     map[string]Value        // Field name -> runtime value mapping
-	Metadata   *runtime.RecordMetadata // Runtime metadata (methods, constants, etc.)
-}
+// Task 3.5.128b: Moved to runtime package; type alias for backward compatibility.
+type RecordValue = runtime.RecordValue
 
-// Type returns the record type name (e.g., "TFoo") or "RECORD" if unnamed.
-func (r *RecordValue) Type() string {
-	if r.RecordType != nil && r.RecordType.Name != "" {
-		return r.RecordType.Name
-	}
-	return "RECORD"
-}
-
-// String returns the string representation of the record.
-func (r *RecordValue) String() string {
-	var sb strings.Builder
-
-	// Show type name if available
-	if r.RecordType != nil && r.RecordType.Name != "" {
-		sb.WriteString(r.RecordType.Name)
-		sb.WriteString("(")
-	} else {
-		sb.WriteString("record(")
-	}
-
-	// Sort field names for consistent output
-	fieldNames := make([]string, 0, len(r.Fields))
-	for name := range r.Fields {
-		fieldNames = append(fieldNames, name)
-	}
-	sort.Strings(fieldNames)
-
-	// Add field values
-	for i, name := range fieldNames {
-		if i > 0 {
-			sb.WriteString(", ")
-		}
-		sb.WriteString(name)
-		sb.WriteString(": ")
-		if val := r.Fields[name]; val != nil {
-			sb.WriteString(val.String())
-		} else {
-			sb.WriteString("nil")
-		}
-	}
-
-	sb.WriteString(")")
-	return sb.String()
-}
-
-// Copy creates a deep copy of the record value
-// Records have value semantics in DWScript, so assignment should copy.
-// Task 9.7: Updated to copy methods as well.
-// Task 3.5.42: Updated to copy Metadata reference.
-// Task 3.5.128a: Removed deprecated Methods field copying.
-func (r *RecordValue) Copy() *RecordValue {
-	copiedFields := make(map[string]Value, len(r.Fields))
-
-	// Deep copy all fields
-	for name, val := range r.Fields {
-		// Check if the value is also a record that needs copying
-		if recVal, ok := val.(*RecordValue); ok {
-			copiedFields[name] = recVal.Copy()
-		} else {
-			// For basic types (Integer, String, etc.), they're already immutable or copied by value
-			copiedFields[name] = val
-		}
-	}
-
-	return &RecordValue{
-		RecordType: r.RecordType,
-		Fields:     copiedFields,
-		Metadata:   r.Metadata, // Metadata is shared (immutable)
-	}
-}
-
-// GetMethod retrieves a method declaration by name.
+// GetRecordMethod retrieves a method declaration by name from a RecordValue.
 // Task 9.7: Helper for record method invocation.
 // Task 9.7.3: Case-insensitive method lookup.
 // Task 3.5.42: Updated to use RecordMetadata with fallback to legacy Methods field.
 // Task 3.5.128a: Removed legacy fallback - now uses only Metadata.Methods.
-func (r *RecordValue) GetMethod(name string) *ast.FunctionDecl {
+// Task 3.5.128b: Changed from method to free function due to type alias.
+func GetRecordMethod(r *RecordValue, name string) *ast.FunctionDecl {
 	// Use metadata for method lookup
 	if r.Metadata == nil {
 		return nil
@@ -297,109 +222,11 @@ func (r *RecordValue) GetMethod(name string) *ast.FunctionDecl {
 	}
 }
 
-// HasMethod checks if a method exists on the record.
+// RecordHasMethod checks if a method exists on the record.
 // Task 9.7: Helper for record method resolution.
-func (r *RecordValue) HasMethod(name string) bool {
-	return r.GetMethod(name) != nil
-}
-
-// GetRecordField retrieves a field value by name (case-insensitive lookup).
-// Returns the field value and true if found, nil and false otherwise.
-// Task 3.5.91: Implements RecordInstanceValue interface for direct field access.
-// Note: Returns Value (interp.Value) for use in evaluator package.
-func (r *RecordValue) GetRecordField(name string) (Value, bool) {
-	if r.Fields == nil {
-		return nil, false
-	}
-	// Case-insensitive lookup
-	for fieldName, value := range r.Fields {
-		if ident.Equal(fieldName, name) {
-			return value, true
-		}
-	}
-	return nil, false
-}
-
-// GetRecordTypeName returns the record type name (e.g., "TPoint").
-// Returns "RECORD" if the type name is not available.
-// Task 3.5.91: Implements RecordInstanceValue interface.
-func (r *RecordValue) GetRecordTypeName() string {
-	return r.Type()
-}
-
-// HasRecordMethod checks if a method with the given name exists on this record type.
-// The lookup is case-insensitive.
-// Task 3.5.91: Implements RecordInstanceValue interface.
-func (r *RecordValue) HasRecordMethod(name string) bool {
-	return r.HasMethod(name)
-}
-
-// HasRecordProperty checks if a property with the given name exists.
-// Note: Records CAN have properties in DWScript (though less common than classes).
-// Task 3.5.91: Implements RecordInstanceValue interface.
-func (r *RecordValue) HasRecordProperty(name string) bool {
-	if r.RecordType == nil || r.RecordType.Properties == nil {
-		return false
-	}
-	normalizedName := ident.Normalize(name)
-	_, exists := r.RecordType.Properties[normalizedName]
-	return exists
-}
-
-// LookupProperty searches for a property by name in the record type.
-// Task 3.5.99a: Implements evaluator.PropertyAccessor interface.
-// Returns a PropertyDescriptor wrapping types.RecordPropertyInfo, or nil if not found.
-func (r *RecordValue) LookupProperty(name string) *evaluator.PropertyDescriptor {
-	if r.RecordType == nil || r.RecordType.Properties == nil {
-		return nil
-	}
-
-	normalizedName := ident.Normalize(name)
-	propInfo, exists := r.RecordType.Properties[normalizedName]
-	if !exists {
-		return nil
-	}
-
-	return &evaluator.PropertyDescriptor{
-		Name:      propInfo.Name,
-		IsIndexed: false, // RecordPropertyInfo doesn't have IsIndexed field, records use simple field-based properties
-		IsDefault: propInfo.IsDefault,
-		Impl:      propInfo, // Store the original RecordPropertyInfo for later use
-	}
-}
-
-// GetDefaultProperty returns the default property for this record type, if any.
-// Task 3.5.99a: Implements evaluator.PropertyAccessor interface.
-// Returns a PropertyDescriptor wrapping types.RecordPropertyInfo, or nil if no default property exists.
-func (r *RecordValue) GetDefaultProperty() *evaluator.PropertyDescriptor {
-	if r.RecordType == nil || r.RecordType.Properties == nil {
-		return nil
-	}
-
-	// Search for the default property
-	for _, propInfo := range r.RecordType.Properties {
-		if propInfo.IsDefault {
-			return &evaluator.PropertyDescriptor{
-				Name:      propInfo.Name,
-				IsIndexed: false, // RecordPropertyInfo doesn't have IsIndexed field
-				IsDefault: true,
-				Impl:      propInfo, // Store the original RecordPropertyInfo for later use
-			}
-		}
-	}
-
-	return nil
-}
-
-// ReadIndexedProperty reads an indexed property value using the provided executor callback.
-// Task 3.5.118: Enables direct indexed property access for records without adapter delegation.
-// The propInfo is already resolved by PropertyAccessor.LookupProperty or GetDefaultProperty.
-func (r *RecordValue) ReadIndexedProperty(propInfo any, indices []evaluator.Value, propertyExecutor func(propInfo any, indices []evaluator.Value) evaluator.Value) evaluator.Value {
-	if r == nil || r.RecordType == nil {
-		return newError("record has no type information")
-	}
-	// Delegate to executor - record validation is done, propInfo already resolved by caller
-	return propertyExecutor(propInfo, indices)
+// Task 3.5.128b: Changed from method to free function due to type alias.
+func RecordHasMethod(r *RecordValue, name string) bool {
+	return GetRecordMethod(r, name) != nil
 }
 
 // ExternalVarValue represents an external variable marker.
@@ -721,54 +548,39 @@ func getZeroValueForType(t types.Type, methodsLookup func(*types.RecordType) map
 // newRecordValueInternal is the internal implementation that supports recursive initialization.
 // Task 3.5.42: Updated to accept RecordMetadata instead of AST method map.
 // Task 3.5.128a: Removed deprecated methods parameter, kept methodsLookup for legacy compatibility.
+// Task 3.5.128b: Now delegates to runtime.NewRecordValueWithInitializer.
 func newRecordValueInternal(recordType *types.RecordType, metadata *runtime.RecordMetadata, methodsLookup func(*types.RecordType) map[string]*ast.FunctionDecl) *RecordValue {
-	fields := make(map[string]Value)
-
-	// Task 9.7e1: Initialize all fields with zero values
-	// This ensures fields are accessible in record methods even before being explicitly assigned
-	for fieldName, fieldType := range recordType.Fields {
-		fields[fieldName] = getZeroValueForType(fieldType, methodsLookup)
+	// Create initializer that handles zero values for all field types
+	initializer := func(fieldName string, fieldType types.Type) runtime.Value {
+		return getZeroValueForType(fieldType, methodsLookup)
 	}
 
-	return &RecordValue{
-		RecordType: recordType,
-		Fields:     fields,
-		Metadata:   metadata,
-	}
+	return runtime.NewRecordValueWithInitializer(recordType, metadata, initializer)
 }
 
 // newRecordValueInternalWithMetadataLookup creates a record with metadata lookup for nested records.
 // Task 3.5.128a: New function that uses metadata lookup instead of methods lookup.
+// Task 3.5.128b: Now delegates to runtime.NewRecordValueWithMetadataLookup.
 func newRecordValueInternalWithMetadataLookup(recordType *types.RecordType, metadata *runtime.RecordMetadata, metadataLookup func(*types.RecordType) *runtime.RecordMetadata) *RecordValue {
-	fields := make(map[string]Value)
-
-	// Initialize all fields with zero values
-	for fieldName, fieldType := range recordType.Fields {
-		// Handle nested record types with metadata lookup
-		if nestedRecordType, ok := fieldType.(*types.RecordType); ok {
-			nestedMetadata := metadataLookup(nestedRecordType)
-			fields[fieldName] = newRecordValueInternalWithMetadataLookup(nestedRecordType, nestedMetadata, metadataLookup)
-		} else {
-			fields[fieldName] = getZeroValueForType(fieldType, nil)
-		}
+	// Create zero value provider for non-record fields
+	zeroValueProvider := func(t types.Type) runtime.Value {
+		return getZeroValueForType(t, nil)
 	}
 
-	return &RecordValue{
-		RecordType: recordType,
-		Fields:     fields,
-		Metadata:   metadata,
-	}
+	return runtime.NewRecordValueWithMetadataLookup(recordType, metadata, metadataLookup, zeroValueProvider)
 }
 
 // NewRecordValue creates a new RecordValue with the given record type.
 // Deprecated: Use NewRecordValueWithMetadata for AST-free creation.
 // Task 3.5.128a: Updated to not require methods parameter (uses metadata only).
+// Task 3.5.128b: Now delegates to runtime.NewRecordValue.
 func NewRecordValue(recordType *types.RecordType) Value {
 	return newRecordValueInternal(recordType, nil, nil)
 }
 
 // NewRecordValueWithMetadata creates a new RecordValue using RecordMetadata.
 // Task 3.5.42: AST-free record creation using metadata.
+// Task 3.5.128b: Now delegates to runtime constructor.
 func NewRecordValueWithMetadata(recordType *types.RecordType, metadata *runtime.RecordMetadata) Value {
 	return newRecordValueInternal(recordType, metadata, nil)
 }

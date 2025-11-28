@@ -12,27 +12,8 @@ import (
 )
 
 // formatRuntimeError converts an error value to DWScript expected format
-// Changes "ERROR: message at line X, column Y" to "Runtime Error: message [line: X, column: Y]"
 func formatRuntimeError(errVal Value) string {
-	errStr := errVal.String()
-
-	// Remove "ERROR: " prefix
-	errStr = strings.TrimPrefix(errStr, "ERROR: ")
-
-	// Replace "at line X, column Y" with "[line: X, column: Y]"
-	errStr = strings.ReplaceAll(errStr, " at line ", " [line: ")
-	if strings.Contains(errStr, "[line:") {
-		lines := strings.Split(errStr, "\n")
-		for idx, line := range lines {
-			if strings.Contains(line, "[line:") && !strings.Contains(line, "]") {
-				lines[idx] = line + "]"
-			}
-		}
-		errStr = strings.Join(lines, "\n")
-	}
-
-	// Add "Runtime Error: " prefix
-	return "Runtime Error: " + errStr
+	return formatRuntimeErrorValue(errVal)
 }
 
 // TestInterfaceReferenceTests runs all ported DWScript interface tests from testdata/interfaces/

@@ -35,6 +35,9 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 		return i.newErrorWithLocation(expr.Right, "right operand evaluated to nil")
 	}
 
+	// Ensure currentNode points to the operator for accurate error locations
+	i.currentNode = expr
+
 	if result, ok := i.tryBinaryOperator(expr.Operator, left, right, expr); ok {
 		return result
 	}
@@ -455,7 +458,7 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 			return i.NewRuntimeError(
 				i.currentNode,
 				"division_by_zero",
-				fmt.Sprintf("Division by zero: %d / %d", leftVal, rightVal),
+				"Division by zero",
 				map[string]string{
 					"left":  fmt.Sprintf("%d", leftVal),
 					"right": fmt.Sprintf("%d", rightVal),
@@ -471,7 +474,7 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 			return i.NewRuntimeError(
 				i.currentNode,
 				"division_by_zero",
-				fmt.Sprintf("Division by zero: %d div %d", leftVal, rightVal),
+				"Division by zero",
 				map[string]string{
 					"left":  fmt.Sprintf("%d", leftVal),
 					"right": fmt.Sprintf("%d", rightVal),
@@ -485,7 +488,7 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 			return i.NewRuntimeError(
 				i.currentNode,
 				"modulo_by_zero",
-				fmt.Sprintf("Modulo by zero: %d mod %d", leftVal, rightVal),
+				"Division by zero",
 				map[string]string{
 					"left":  fmt.Sprintf("%d", leftVal),
 					"right": fmt.Sprintf("%d", rightVal),
@@ -580,7 +583,7 @@ func (i *Interpreter) evalFloatBinaryOp(op string, left, right Value) Value {
 			return i.NewRuntimeError(
 				i.currentNode,
 				"division_by_zero",
-				fmt.Sprintf("Division by zero: %v / %v", leftVal, rightVal),
+				"Division by zero",
 				map[string]string{
 					"left":  fmt.Sprintf("%v", leftVal),
 					"right": fmt.Sprintf("%v", rightVal),

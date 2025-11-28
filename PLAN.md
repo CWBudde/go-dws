@@ -490,49 +490,80 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Dependency**: Verify no code paths rely on legacy `Methods` field
   - **Completed**: Removed deprecated field, updated GetMethod(), Copy(), createRecordValue(), and all callers. Added newRecordValueInternalWithMetadataLookup() for nested record metadata propagation.
 
-- [ ] **3.5.128b** Move RecordValue struct to runtime package
+- [x] **3.5.128b** Move RecordValue struct to runtime package ✅
   - **From**: `internal/interp/value.go:153-163`
   - **To**: `internal/interp/runtime/record.go` (new file)
   - **Pattern**: Follow `ArrayValue` migration pattern
   - **Fields to keep**: `RecordType`, `Fields`, `Metadata`
   - **Dependency**: 3.5.128a complete
-  - **Note from 3.5.128a**: Also move `newRecordValueInternal()`, `newRecordValueInternalWithMetadataLookup()`, `NewRecordValue()`, `NewRecordValueWithMetadata()` constructors
-  - **Note from 3.5.128a**: The `GetMethod()` function reconstructs `*ast.FunctionDecl` from `MethodMetadata` - consider keeping this in interp package or creating an interface
+  - **Completed**: Type alias pattern working, PropertyAccessor in runtime/property.go, free functions GetRecordMethod()/RecordHasMethod() handle AST
+  - **Tests**: All non-fixture tests pass (6 test suites)
+  - **Architecture**: Clean, no circular imports, establishes correct pattern for adapter removal
 
-- [ ] **3.5.128c** Add RecordValueInitializer callback pattern
+- [x] **3.5.128c** Add RecordValueInitializer callback pattern ✅
   - **Pattern**: Similar to `ArrayElementInitializer` in `runtime/array.go:75-79`
   - **Purpose**: Allow evaluator to provide field initialization logic
   - **Signature**: `type RecordFieldInitializer func(fieldName string, fieldType types.Type) runtime.Value`
   - **Dependency**: 3.5.128b complete
-  - **Note from 3.5.128a**: Already have `newRecordValueInternalWithMetadataLookup()` that uses a `metadataLookup func(*types.RecordType) *runtime.RecordMetadata` callback - can extend this pattern
+  - **Completed**: Already implemented in 3.5.128b - RecordFieldInitializer (line 258), RecordMetadataLookup (line 265), NewRecordValueWithInitializer (line 292), NewRecordValueWithMetadataLookup (line 319)
+  - **Usage**: value.go uses these callbacks in newRecordValueInternal() and newRecordValueInternalWithMetadataLookup()
 
-- [ ] **3.5.128d** Add TypeSystem.LookupRecordMetadata() method
+- [x] **3.5.128d** Add TypeSystem.LookupRecordMetadata() method ✅
   - **File**: `internal/interp/types/type_system.go`
   - **Purpose**: Direct metadata lookup without environment `__record_type_` pattern
   - **Returns**: `*runtime.RecordMetadata` (already exists in TypeSystem as `RecordTypeValue`)
   - **Dependency**: None (can be done in parallel)
-  - **Note from 3.5.128a**: Current code uses `i.env.Get("__record_type_" + ident.Normalize(name))` pattern in 8+ places - TypeSystem method would centralize this
+  - **Completed**: Added LookupRecordMetadata() method (line 179-215), added GetMetadata() to RecordTypeValue (line 319-323), added comprehensive tests
+  - **Tests**: TestRecordRegistry includes 5 test cases for metadata lookup (case-insensitive, nil handling, etc.)
+  - **Note**: Found 31 uses of `__record_type_` pattern that can be migrated in future tasks
 
 - [ ] **3.5.128e** Implement direct RecordValue creation in evaluator
   - **Location**: `visitor_expressions_indexing.go:324`
   - **Code**: `&runtime.RecordValue{RecordType: rt, Fields: fields, Metadata: meta}`
   - **Dependency**: 3.5.128b, 3.5.128c, 3.5.128d complete
   - **Note from 3.5.128a**: Interpreter's `createRecordValue()` handles field initializers via `i.Eval()` - evaluator version needs callback pattern for AST evaluation
+  - **Available tools from 3.5.128b-d**:
+    - `runtime.NewRecordValueWithInitializer()` - takes RecordFieldInitializer callback
+    - `evaluator.typeSystem.LookupRecordMetadata()` - direct metadata lookup
+    - `runtime.RecordFieldInitializer` - signature: `func(fieldName string, fieldType types.Type) runtime.Value`
+  - **Strategy**: Create RecordFieldInitializer in evaluator that uses adapter.EvalNode for field expressions, call runtime.NewRecordValueWithInitializer
+  - **Challenge**: Record literal expressions need to be evaluated - may still need adapter temporarily
 
 - [ ] **3.5.128f** Implement direct RecordZeroValue creation in evaluator
   - **Location**: `visitor_statements.go:1317`
   - **Code**: Use initializer callback for default field values
   - **Dependency**: 3.5.128e complete
   - **Note from 3.5.128a**: For nested records, need recursive metadata lookup - see `newRecordValueInternalWithMetadataLookup()` pattern
+  - **Available tools from 3.5.128b-d**:
+    - `runtime.NewRecordValueWithMetadataLookup()` - handles nested records recursively
+    - `RecordMetadataLookup` callback - signature: `func(*types.RecordType) *runtime.RecordMetadata`
+    - Can wrap `evaluator.typeSystem.LookupRecordMetadata()` in the callback
+  - **Strategy**: Create metadata lookup callback that uses TypeSystem, provide zero-value generator for primitive types
+  - **Benefit**: Eliminates adapter.CreateRecordZeroValue call entirely
 
-**Insights from 3.5.128a completion:**
+**Insights from 3.5.128a-d completion:**
 1. **Nested records are the main complexity** - require metadata propagation via callbacks
 2. **8+ call sites** use `createRecordValue()` - all updated to use new signature without `methods` param
 3. **`GetMethod()` still returns `*ast.FunctionDecl`** - reconstructs from `MethodMetadata.Body` which contains AST; this AST dependency remains until callers migrate to use `MethodMetadata` directly
 4. **Test coverage**: `TestRecordMethodCall/nested_record_with_methods` validates the metadata propagation
+5. **Architecture pattern established (3.5.128b)**: Type alias + free functions pattern works perfectly
+   - `type RecordValue = runtime.RecordValue` maintains backward compatibility
+   - Free functions `GetRecordMethod()` and `RecordHasMethod()` handle AST operations
+   - PropertyAccessor interface in runtime/property.go avoids circular imports
+   - All 6 test suites pass with zero regressions
+6. **Callback patterns ready (3.5.128c)**: All constructor variations implemented
+   - `RecordFieldInitializer` for custom field initialization
+   - `RecordMetadataLookup` for nested record metadata resolution
+   - `NewRecordValueWithInitializer()` and `NewRecordValueWithMetadataLookup()` constructors
+7. **TypeSystem integration complete (3.5.128d)**: Clean metadata access established
+   - `LookupRecordMetadata()` provides direct access without environment lookups
+   - `GetMetadata()` interface method enables cross-package access
+   - 31 uses of `__record_type_` pattern identified for future migration
+   - 5 comprehensive test cases validate all edge cases
 
-**Estimated effort**: 2-3 days after 3.5.44 completion
-**Calls removed**: 2 adapter calls
+**Estimated effort**: 2-3 days (includes 3.5.128e-f)
+**Calls removed**: 2 adapter calls (CreateRecordValue, CreateRecordZeroValue)
+**Current status**: 3.5.128a-d complete ✅, ready for 3.5.128e
 
 ---
 

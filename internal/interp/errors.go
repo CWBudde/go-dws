@@ -2,6 +2,7 @@ package interp
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/errors"
 	interpErrors "github.com/cwbudde/go-dws/internal/interp/errors"
@@ -236,10 +237,10 @@ func (r *RuntimeError) Type() string { return "ERROR" }
 
 // String implements the Value interface
 func (r *RuntimeError) String() string {
-	if r.Pos != nil {
-		return fmt.Sprintf("Runtime error at line %d: %s", r.Pos.Line, r.Message)
+	if r.Pos != nil && r.Pos.IsValid() {
+		return fmt.Sprintf("Runtime Error: %s [line: %d, column: %d]", r.Message, r.Pos.Line, r.Pos.Column)
 	}
-	return fmt.Sprintf("Runtime error: %s", r.Message)
+	return fmt.Sprintf("Runtime Error: %s", r.Message)
 }
 
 // ToCompilerError converts a RuntimeError to a CompilerError for display
@@ -292,4 +293,31 @@ func (i *Interpreter) getPositionFromNode(node ast.Node) lexer.Position {
 		return lexer.Position{}
 	}
 	return node.Pos()
+}
+
+// formatRuntimeErrorValue converts interpreter error values to the DWScript runtime
+// error string format expected by the reference fixtures.
+func formatRuntimeErrorValue(errVal Value) string {
+	switch err := errVal.(type) {
+	case *RuntimeError:
+		return err.String()
+	case *ErrorValue:
+		msg := strings.TrimPrefix(err.String(), "ERROR: ")
+		msg = strings.TrimSpace(msg)
+
+		// Normalize "at line X, column: Y" to "[line: X, column: Y]"
+		if strings.Contains(msg, " at line ") {
+			msg = strings.ReplaceAll(msg, " at line ", " [line: ")
+			if strings.Contains(msg, "column:") && !strings.Contains(msg, "]") {
+				msg += "]"
+			}
+		}
+
+		if !strings.HasPrefix(msg, "Runtime Error:") {
+			msg = "Runtime Error: " + msg
+		}
+		return msg
+	default:
+		return "Runtime Error: " + strings.TrimSpace(errVal.String())
+	}
 }
