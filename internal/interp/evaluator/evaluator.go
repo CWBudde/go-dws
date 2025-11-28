@@ -521,11 +521,6 @@ type InterpreterAdapter interface {
 
 	// ===== Function Pointers (Task 3.5.8) =====
 
-	// CreateFunctionPointer creates a function pointer value from a function declaration.
-	// The closure parameter is the environment where the function pointer is created.
-	// Returns the function pointer value.
-	CreateFunctionPointer(fn *ast.FunctionDecl, closure any) Value
-
 	// CreateLambda creates a lambda/closure value from a lambda expression.
 	// The closure parameter is the environment where the lambda is created.
 	// Returns the lambda value.
@@ -553,15 +548,6 @@ type InterpreterAdapter interface {
 	//   - closure: The environment where the method pointer is created
 	// Returns the method pointer value and an error if the method is not found.
 	CreateMethodPointer(obj Value, methodName string, closure any) (Value, error)
-
-	// CreateFunctionPointerFromName creates a function pointer for a named function.
-	// Task 3.5.37: Used by address-of expression (@FunctionName) to create
-	// function pointers from standalone functions.
-	// Parameters:
-	//   - funcName: The name of the function to look up (case-insensitive)
-	//   - closure: The environment where the function pointer is created
-	// Returns the function pointer value and an error if the function is not found.
-	CreateFunctionPointerFromName(funcName string, closure any) (Value, error)
 
 	// ExecuteFunctionPointerCall executes a function pointer with the given metadata.
 	// Task 3.5.121: Low-level execution method used by FunctionPointerCallable.Invoke callback.
