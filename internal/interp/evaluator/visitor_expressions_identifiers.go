@@ -95,12 +95,14 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 				}); invoked {
 					return result
 				}
-				// Method has parameters - create method pointer (Task 3.5.120)
-				methodPtr, err := e.adapter.CreateMethodPointerFromObject(selfVal, node.Value)
-				if err != nil {
-					return e.newError(node, "%s", err.Error())
+				// Task 3.5.120: Use CreateMethodPointer with callback pattern
+				if methodPtr, created := objVal.CreateMethodPointer(node.Value, func(methodDecl any) Value {
+					return e.adapter.CreateBoundMethodPointer(selfVal, methodDecl)
+				}); created {
+					return methodPtr
 				}
-				return methodPtr
+				// Method not found (shouldn't reach here due to HasMethod check above)
+				return e.newError(node, "method '%s' not found", node.Value)
 			}
 
 			// Check for ClassName special identifier (case-insensitive)
