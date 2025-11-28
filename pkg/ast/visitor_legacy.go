@@ -612,6 +612,12 @@ func walkClassDecl(n *ClassDecl, v Visitor) {
 	if n.Destructor != nil {
 		Walk(v, n.Destructor)
 	}
+	for _, constant := range n.Constants {
+		Walk(v, constant)
+	}
+	for _, nested := range n.NestedTypes {
+		Walk(v, nested)
+	}
 }
 
 // walkFieldDecl walks a FieldDecl node

@@ -11,13 +11,7 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	// Look up class in registry (case-insensitive)
 	// Task 9.82: Case-insensitive class lookup (DWScript is case-insensitive)
 	className := ne.ClassName.Value
-	var classInfo *ClassInfo
-	for name, class := range i.classes {
-		if ident.Equal(name, className) {
-			classInfo = class
-			break
-		}
-	}
+	classInfo := i.resolveClassInfoByName(className)
 
 	// Task 9.38: Also check if this is a record type with static methods
 	// The parser creates NewExpression for TType.Create(...) syntax

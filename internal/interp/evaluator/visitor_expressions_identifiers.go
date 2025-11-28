@@ -89,11 +89,13 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			// Check for method - auto-invoke if parameterless, or create method pointer
 			// Task 3.5.72: Use ObjectValue interface for direct method check
 			if objVal, ok := selfVal.(ObjectValue); ok && objVal.HasMethod(node.Value) {
-				if e.adapter.IsMethodParameterless(selfVal, node.Value) {
-					// Auto-invoke parameterless method
-					return e.adapter.CreateMethodCall(selfVal, node.Value, node)
+				// Task 3.5.119: Use InvokeParameterlessMethod with callback pattern
+				if result, invoked := objVal.InvokeParameterlessMethod(node.Value, func(methodDecl any) Value {
+					return e.adapter.ExecuteMethodWithSelf(selfVal, methodDecl, []Value{})
+				}); invoked {
+					return result
 				}
-				// Method with parameters - create method pointer
+				// Method has parameters - create method pointer (Task 3.5.120)
 				methodPtr, err := e.adapter.CreateMethodPointerFromObject(selfVal, node.Value)
 				if err != nil {
 					return e.newError(node, "%s", err.Error())

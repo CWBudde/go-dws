@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -106,13 +107,21 @@ func (p *Parser) parseNewExpression() ast.Expression {
 
 	p.cursor = p.cursor.Advance() // move to identifier
 	typeToken := p.cursor.Current()
+	parts := []string{typeToken.Literal}
+	// Support qualified class names for nested classes: new TOuter.TInner(...)
+	for p.cursor.Peek(1).Type == lexer.DOT && p.cursor.Peek(2).Type == lexer.IDENT {
+		p.cursor = p.cursor.Advance() // move to '.'
+		p.cursor = p.cursor.Advance() // move to next ident
+		typeToken = p.cursor.Current()
+		parts = append(parts, typeToken.Literal)
+	}
 	typeName := &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
 				Token: typeToken,
 			},
 		},
-		Value: typeToken.Literal,
+		Value: strings.Join(parts, "."),
 	}
 
 	// Check what follows: '(' for class, '[' for array, or nothing for zero-arg constructor

@@ -708,6 +708,12 @@ func getZeroValueForType(t types.Type, methodsLookup func(*types.RecordType) map
 	case types.BOOLEAN:
 		return &BooleanValue{Value: false}
 	default:
+		if arrayType, ok := t.(*types.ArrayType); ok {
+			initializer := func(elementType types.Type, _ int) Value {
+				return getZeroValueForType(elementType, methodsLookup)
+			}
+			return runtime.NewArrayValue(arrayType, initializer)
+		}
 		// Task 9.7e1: Handle nested records - recursively create RecordValue instances
 		if recordType, ok := t.(*types.RecordType); ok {
 			// For record types, create a new RecordValue instance with methods

@@ -2,6 +2,7 @@ package parser
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -28,12 +29,24 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 
 	switch currentToken.Type {
 	case lexer.IDENT:
-		// Simple type identifier
-		typeAnnotation := &ast.TypeAnnotation{
-			Token: currentToken,
-			Name:  currentToken.Literal,
+		// Simple or qualified type identifier (supports nested types like TOuter.TInner)
+		parts := []string{currentToken.Literal}
+		endToken := currentToken
+		// Consume dotted identifiers to build a qualified type name
+		for cursor.Peek(1).Type == lexer.DOT && cursor.Peek(2).Type == lexer.IDENT {
+			cursor = cursor.Advance() // move to '.'
+			cursor = cursor.Advance() // move to next ident
+			endToken = cursor.Current()
+			parts = append(parts, endToken.Literal)
 		}
-		// EndPos is after the type identifier token
+		p.cursor = cursor
+
+		qualifiedName := strings.Join(parts, ".")
+		typeAnnotation := &ast.TypeAnnotation{
+			Token:  currentToken,
+			Name:   qualifiedName,
+			EndPos: p.endPosFromToken(endToken),
+		}
 		return builder.Finish(typeAnnotation).(*ast.TypeAnnotation)
 
 	case lexer.CONST:

@@ -768,15 +768,16 @@ methods with index arguments. Consider creating a similar `DispatchPropertyAcces
   - **Implementation**: Removed 2 CallRecordPropertyGetter fallback calls (lines 115, 219), converted to internal errors if interface not implemented
   - **Calls removed**: 2 CallRecordPropertyGetter calls now use ExecuteRecordPropertyRead callback
 
-- [ ] **3.5.119** Migrate IsMethodParameterless + CreateMethodCall (2 calls)
+- [x] **3.5.119** Migrate IsMethodParameterless + CreateMethodCall (2 calls) ✅
   - **Location**: `visitor_expressions_identifiers.go`
   - **Issue**: Auto-invoke for parameterless methods in identifier resolution
-  - **Solution**: Check method arity in ObjectValue.HasMethod, call directly
-  - **Approach**:
-    1. Extend ObjectValue interface with `GetMethodArity(name string) int`
-    2. If arity == 0, use `DispatchMethodCall()` with empty args
-    3. Else, create method pointer (Task 3.5.120)
-  - **Calls removed**: 2 adapter calls
+  - **Solution**: Added `InvokeParameterlessMethod` to ObjectValue interface with callback pattern
+  - **Implementation**:
+    1. Extended ObjectValue interface with `InvokeParameterlessMethod(methodName, methodExecutor)` returning `(Value, bool)`
+    2. Implemented on ObjectInstance - checks method exists and has 0 parameters, invokes via callback
+    3. Updated visitor to use new interface method with `ExecuteMethodWithSelf` adapter (already existed from Task 3.5.114)
+  - **Files**: `evaluator/evaluator.go`, `class.go`, `evaluator/visitor_expressions_identifiers.go`
+  - **Calls removed**: 2 adapter calls (IsMethodParameterless, CreateMethodCall)
 
 - [ ] **3.5.120** Migrate CreateMethodPointerFromObject (1 call)
   - **Location**: `visitor_expressions_identifiers.go`

@@ -137,9 +137,8 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeExpr ast.TypeExpression) typ
 		return types.VARIANT
 	}
 
-	// Check for class types (stored in i.classes map)
-	// Use lowercase for case-insensitive lookup (PR #147)
-	if classInfo, ok := i.classes[lowerTypeName]; ok {
+	// Check for class types (supports nested classes via current class context)
+	if classInfo := i.resolveClassInfoByName(typeName); classInfo != nil {
 		return types.NewClassType(classInfo.Name, nil)
 	}
 
@@ -157,6 +156,39 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeExpr ast.TypeExpression) typ
 	}
 
 	// Type not found
+	return nil
+}
+
+// resolveClassInfoByName looks up a class by name, handling both global and nested classes.
+func (i *Interpreter) resolveClassInfoByName(name string) *ClassInfo {
+	if current := i.currentClassContext(); current != nil {
+		if nested := current.lookupNestedClass(name); nested != nil {
+			return nested
+		}
+	}
+
+	if classInfo, ok := i.classes[ident.Normalize(name)]; ok {
+		return classInfo
+	}
+
+	return nil
+}
+
+// currentClassContext inspects the execution environment to find the current class scope.
+func (i *Interpreter) currentClassContext() *ClassInfo {
+	if val, ok := i.env.Get("__CurrentClass__"); ok {
+		if classVal, ok := val.(*ClassInfoValue); ok {
+			return classVal.ClassInfo
+		}
+	}
+	if val, ok := i.env.Get("Self"); ok {
+		if classVal, ok := val.(*ClassInfoValue); ok {
+			return classVal.ClassInfo
+		}
+		if obj, ok := AsObject(val); ok {
+			return obj.Class
+		}
+	}
 	return nil
 }
 

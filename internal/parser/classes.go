@@ -305,8 +305,9 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 	cursor := p.cursor
 
 	classDecl := &ast.ClassDecl{
-		BaseNode: ast.BaseNode{Token: cursor.Current()}, // 'class' token
-		Name:     nameIdent,
+		BaseNode:    ast.BaseNode{Token: cursor.Current()}, // 'class' token
+		Name:        nameIdent,
+		NestedTypes: []ast.Statement{},
 	}
 
 	// Check for optional parent class and/or interfaces
@@ -372,6 +373,19 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 			continue
 		}
 
+		// Nested type declarations inside the class body
+		if cursor.Current().Type == lexer.TYPE {
+			p.cursor = cursor
+			nestedStmt := p.parseTypeDeclaration()
+			if nestedStmt != nil {
+				p.appendNestedType(classDecl, nestedStmt, nameIdent)
+			}
+			cursor = p.cursor
+			cursor = cursor.Advance()
+			p.cursor = cursor
+			continue
+		}
+
 		// Check for visibility section keywords
 		if p.handleVisibilityKeyword(cursor, &currentVisibility) {
 			cursor = cursor.Advance()
@@ -405,6 +419,36 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 	p.cursor = cursor
 
 	return builder.Finish(classDecl).(*ast.ClassDecl)
+}
+
+// appendNestedType flattens nested type declarations and annotates nested classes
+// with their enclosing class name (e.g., TOuter for TOuter.TInner).
+func (p *Parser) appendNestedType(classDecl *ast.ClassDecl, stmt ast.Statement, enclosingName *ast.Identifier) {
+	outerName := enclosingName.Value
+	if classDecl.EnclosingClass != nil && classDecl.EnclosingClass.Value != "" {
+		outerName = classDecl.EnclosingClass.Value + "." + enclosingName.Value
+	}
+
+	switch n := stmt.(type) {
+	case *ast.BlockStatement:
+		for _, inner := range n.Statements {
+			p.appendNestedType(classDecl, inner, enclosingName)
+		}
+	case *ast.ClassDecl:
+		if n.EnclosingClass == nil {
+			n.EnclosingClass = &ast.Identifier{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: enclosingName.Token,
+					},
+				},
+				Value: outerName,
+			}
+		}
+		classDecl.NestedTypes = append(classDecl.NestedTypes, n)
+	default:
+		classDecl.NestedTypes = append(classDecl.NestedTypes, n)
+	}
 }
 
 // Syntax: FieldName: Type; or FieldName1, FieldName2, FieldName3: Type;

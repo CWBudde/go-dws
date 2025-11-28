@@ -60,6 +60,7 @@ type ClassInfo struct {
 	Destructor           *ast.FunctionDecl
 	Parent               *ClassInfo
 	MethodOverloads      map[string][]*ast.FunctionDecl
+	NestedClasses        map[string]*ClassInfo
 	ExternalName         string
 	Name                 string
 	DefaultConstructor   string
@@ -91,6 +92,7 @@ func NewClassInfo(name string) *ClassInfo {
 		ConstructorOverloads: make(map[string][]*ast.FunctionDecl),
 		Properties:           make(map[string]*types.PropertyInfo),
 		VirtualMethodTable:   make(map[string]*VirtualMethodEntry),
+		NestedClasses:        make(map[string]*ClassInfo),
 	}
 }
 
@@ -126,6 +128,17 @@ func NewObjectInstance(class *ClassInfo) *ObjectInstance {
 		Fields:   make(map[string]Value),
 		RefCount: 0, // Start with reference count of 0
 	}
+}
+
+// lookupNestedClass returns a nested class by short name (case-insensitive).
+func (c *ClassInfo) lookupNestedClass(name string) *ClassInfo {
+	if c == nil {
+		return nil
+	}
+	if nested, ok := c.NestedClasses[ident.Normalize(name)]; ok {
+		return nested
+	}
+	return nil
 }
 
 // GetField retrieves the value of a field by name.
@@ -545,6 +558,29 @@ func (o *ObjectInstance) ReadIndexedProperty(propInfo any, indices []Value, prop
 	// The propInfo is already resolved by the caller (PropertyAccessor.LookupProperty or GetDefaultProperty)
 	// Just call the executor with the property info and indices
 	return propertyExecutor(propInfo, indices)
+}
+
+// InvokeParameterlessMethod invokes a method if it has zero parameters.
+// Task 3.5.119: Implements evaluator.ObjectValue interface.
+// Returns (result, true) if method exists and has 0 parameters,
+// or (nil, false) if method has parameters (caller should create method pointer).
+func (o *ObjectInstance) InvokeParameterlessMethod(methodName string,
+	methodExecutor func(methodDecl any) Value) (Value, bool) {
+	if o == nil || o.Class == nil {
+		return nil, false
+	}
+
+	method, exists := o.Class.Methods[ident.Normalize(methodName)]
+	if !exists {
+		return nil, false // Method not found
+	}
+
+	if len(method.Parameters) > 0 {
+		return nil, false // Has parameters - caller should create method pointer
+	}
+
+	// Parameterless method - invoke via callback
+	return methodExecutor(method), true
 }
 
 // IsInstanceOf checks whether the object derives from the given class.

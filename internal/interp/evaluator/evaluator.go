@@ -79,6 +79,16 @@ type ObjectValue interface {
 	//   - propertyExecutor: Callback function that executes the indexed property read
 	//     The propInfo parameter is *types.PropertyInfo (passed as any to avoid import cycles)
 	ReadIndexedProperty(propInfo any, indices []Value, propertyExecutor func(propInfo any, indices []Value) Value) Value
+	// InvokeParameterlessMethod invokes a method if it has zero parameters.
+	// Task 3.5.119: Enables direct parameterless method auto-invoke without adapter.
+	// Returns:
+	//   - (result, true) if method exists and has 0 parameters (invoked via methodExecutor)
+	//   - (nil, false) if method has parameters (caller should create method pointer)
+	// Parameters:
+	//   - methodName: The method name (case-insensitive)
+	//   - methodExecutor: Callback that executes the method once resolved
+	//     The methodDecl parameter is *ast.FunctionDecl (passed as any to avoid import cycles)
+	InvokeParameterlessMethod(methodName string, methodExecutor func(methodDecl any) Value) (Value, bool)
 }
 
 // EnumAccessor is an optional interface for enum values.

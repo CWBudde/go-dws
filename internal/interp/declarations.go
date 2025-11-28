@@ -9,6 +9,13 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
+func (i *Interpreter) fullClassNameFromDecl(cd *ast.ClassDecl) string {
+	if cd.EnclosingClass != nil && cd.EnclosingClass.Value != "" {
+		return cd.EnclosingClass.Value + "." + cd.Name.Value
+	}
+	return cd.Name.Value
+}
+
 // evalFunctionDeclaration evaluates a function declaration.
 // It registers the function in the function registry without executing its body.
 // For method implementations (fn.ClassName != nil), it updates the class's or record's Methods map.
@@ -198,20 +205,22 @@ func (i *Interpreter) evalRecordMethodImplementation(fn *ast.FunctionDecl, recor
 // It builds a ClassInfo from the AST and registers it in the class registry.
 // Handles inheritance by copying parent fields and methods to the child class.
 func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
+	className := i.fullClassNameFromDecl(cd)
+
 	// Check if this is a partial class declaration
 	var classInfo *ClassInfo
 	// PR #147: Use normalized key for O(1) case-insensitive lookup
-	existingClass, exists := i.classes[ident.Normalize(cd.Name.Value)]
+	existingClass, exists := i.classes[ident.Normalize(className)]
 
 	if exists && existingClass.IsPartial && cd.IsPartial {
 		// Merging partial classes - reuse existing ClassInfo
 		classInfo = existingClass
 	} else if exists {
 		// Non-partial class already exists - error (semantic analyzer should catch this)
-		return i.newErrorWithLocation(cd, "class '%s' already declared", cd.Name.Value)
+		return i.newErrorWithLocation(cd, "class '%s' already declared", className)
 	} else {
 		// New class declaration
-		classInfo = NewClassInfo(cd.Name.Value)
+		classInfo = NewClassInfo(className)
 	}
 
 	// Mark as partial if this declaration is partial
@@ -234,6 +243,13 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		classInfo.Metadata.ExternalName = cd.ExternalName // Task 3.5.39
 	}
 
+	// Provide current class context for nested type resolution during declaration processing
+	savedEnv := i.env
+	tempEnv := NewEnclosedEnvironment(i.env)
+	tempEnv.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
+	i.env = tempEnv
+	defer func() { i.env = savedEnv }()
+
 	// Handle inheritance if parent class is specified
 	var parentClass *ClassInfo
 	if cd.Parent != nil {
@@ -249,7 +265,6 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	} else {
 		// If no explicit parent, implicitly inherit from TObject
 		// (unless this IS TObject or it's an external class)
-		className := cd.Name.Value
 		if !ident.Equal(className, "TObject") && !cd.IsExternal {
 			// PR #147: Use normalized key for O(1) lookup instead of O(n) linear search
 			var exists bool
@@ -400,6 +415,34 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Task 3.5.46: Register in legacy map early for field initializers that reference the class
 	// Note: TypeSystem registration happens at end of function after VMT is built
 	i.classes[ident.Normalize(classInfo.Name)] = classInfo
+
+	// Evaluate nested type declarations before processing fields so nested classes
+	// can be referenced by name inside the outer class.
+	for _, nested := range cd.NestedTypes {
+		switch n := nested.(type) {
+		case *ast.ClassDecl:
+			if n.EnclosingClass == nil {
+				n.EnclosingClass = &ast.Identifier{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: cd.Name.Token,
+						},
+					},
+					Value: classInfo.Name,
+				}
+			}
+			if result := i.evalClassDeclaration(n); isError(result) {
+				return result
+			}
+			if nestedInfo, ok := i.classes[ident.Normalize(i.fullClassNameFromDecl(n))]; ok {
+				classInfo.NestedClasses[ident.Normalize(n.Name.Value)] = nestedInfo
+			}
+		default:
+			if result := i.Eval(n); isError(result) {
+				return result
+			}
+		}
+	}
 
 	// Add own fields to ClassInfo
 	for _, field := range cd.Fields {

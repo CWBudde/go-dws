@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -300,26 +302,33 @@ func (p *Parser) parseFunctionQualifiedName() (name, className *ast.Identifier) 
 		Value: cursor.Current().Literal,
 	}
 
-	// Check for qualified name (ClassName.MethodName for method implementations)
-	if cursor.Peek(1).Type == lexer.DOT {
+	// Collect qualified identifiers for nested classes (e.g., TOuter.TInner.Method)
+	parts := []string{firstIdent.Value}
+	// Advance through any ".Ident" segments to build the qualified class name
+	for cursor.Peek(1).Type == lexer.DOT && cursor.Peek(2).Type == lexer.IDENT {
 		cursor = cursor.Advance() // move to '.'
-		cursor = cursor.Advance() // move past '.'
+		cursor = cursor.Advance() // move to next ident
 		p.cursor = cursor
+		parts = append(parts, cursor.Current().Literal)
+	}
 
+	// If we consumed at least one dot, build className from all but last part
+	if len(parts) > 1 {
 		className = firstIdent
+		className.Value = strings.Join(parts[:len(parts)-1], ".")
+		// Update name to the final identifier
 		name = &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
 					Token: cursor.Current(),
 				},
 			},
-			Value: cursor.Current().Literal,
+			Value: parts[len(parts)-1],
 		}
 	} else {
-		// Even for simple names, we're already positioned at it
+		// Simple (unqualified) name
 		name = firstIdent
 		className = nil
-		// p.cursor is already at the name, no need to update
 	}
 
 	return name, className

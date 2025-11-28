@@ -39,13 +39,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 		// Check if this identifier refers to a class (case-insensitive)
 		// Task 9.82: Case-insensitive class lookup (DWScript is case-insensitive)
-		var classInfo *ClassInfo
-		for className, class := range i.classes {
-			if pkgident.Equal(className, ident.Value) {
-				classInfo = class
-				break
-			}
-		}
+		classInfo := i.resolveClassInfoByName(ident.Value)
 		if classInfo != nil {
 			// Task 9.67: Check for method overloads and resolve based on argument types
 			// Task 9.68: getMethodOverloadsInHierarchy now handles constructors automatically when isClassMethod = false

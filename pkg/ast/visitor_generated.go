@@ -349,6 +349,11 @@ func walkClassDecl(n *ClassDecl, v Visitor) {
 			Walk(v, item)
 		}
 	}
+	for _, item := range n.NestedTypes {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
 }
 
 // walkClassOfTypeNode walks a ClassOfTypeNode node
