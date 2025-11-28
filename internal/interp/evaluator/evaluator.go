@@ -296,6 +296,61 @@ type EnumTypeMetaDispatcher interface {
 	EnumByName(name string) int
 }
 
+// FunctionPointerCallable is an optional interface that function pointer values can implement
+// to provide direct invocation without going through the adapter.
+// Task 3.5.121: Enables direct function pointer invocation in VisitCallExpression and auto-invoke.
+//
+// Implementation note: This interface is implemented by runtime.FunctionPointerValue.
+// The methods use types that avoid circular imports:
+//   - IsNil, ParamCount, IsLambda, HasSelfObject: Simple value methods
+//   - GetMetadata: Returns runtime.FunctionPointerMetadata (as struct value)
+type FunctionPointerCallable interface {
+	Value
+	// IsNil returns true if this function pointer has no function or lambda assigned.
+	// Used to check before invocation to raise appropriate DWScript exceptions.
+	IsNil() bool
+	// ParamCount returns the number of parameters this function pointer expects.
+	// For lambdas, returns the lambda parameter count.
+	// For regular functions, returns the function parameter count.
+	// Returns 0 if neither is set.
+	ParamCount() int
+	// IsLambda returns true if this is a lambda/closure, false for regular function pointers.
+	IsLambda() bool
+	// HasSelfObject returns true if this is a method pointer with a bound Self object.
+	HasSelfObject() bool
+	// GetFunctionDecl returns the function AST node (*ast.FunctionDecl) for regular function pointers.
+	// Returns nil for lambda closures.
+	GetFunctionDecl() any
+	// GetLambdaExpr returns the lambda AST node (*ast.LambdaExpression) for lambda closures.
+	// Returns nil for regular function pointers.
+	GetLambdaExpr() any
+	// GetClosure returns the captured environment (type: *Environment).
+	// For lambdas, this captures all variables from outer scopes.
+	// For functions, this is typically the global environment.
+	GetClosure() any
+	// GetSelfObject returns the bound Self for method pointers.
+	// Returns nil for non-method pointers.
+	GetSelfObject() Value
+}
+
+// FunctionPointerMetadata provides the execution context for function pointer invocation.
+// Task 3.5.121: Passed to the adapter's ExecuteFunctionPointerCall method.
+// Note: This mirrors runtime.FunctionPointerMetadata for documentation and type conversion.
+type FunctionPointerMetadata struct {
+	// IsLambda indicates whether this is a lambda expression
+	IsLambda bool
+	// Lambda is the lambda AST node (nil for regular function pointers)
+	// Type: *ast.LambdaExpression (passed as any to avoid circular import)
+	Lambda any
+	// Function is the function AST node (nil for lambdas)
+	// Type: *ast.FunctionDecl (passed as any to avoid circular import)
+	Function any
+	// Closure is the captured environment (type: *Environment as interface{})
+	Closure any
+	// SelfObject is the bound Self for method pointers (nil for non-method pointers)
+	SelfObject Value
+}
+
 // Config holds configuration options for the evaluator.
 type Config struct {
 	SourceCode        string
@@ -507,6 +562,19 @@ type InterpreterAdapter interface {
 	//   - closure: The environment where the function pointer is created
 	// Returns the function pointer value and an error if the function is not found.
 	CreateFunctionPointerFromName(funcName string, closure any) (Value, error)
+
+	// ExecuteFunctionPointerCall executes a function pointer with the given metadata.
+	// Task 3.5.121: Low-level execution method used by FunctionPointerCallable.Invoke callback.
+	// This handles the interpreter-dependent parts of function pointer invocation:
+	//   - For lambdas: Environment setup, parameter binding, body execution
+	//   - For method pointers: Self binding, environment creation, function call
+	//   - For regular functions: Environment creation, function call
+	// Parameters:
+	//   - metadata: The execution metadata from FunctionPointerCallable.Invoke
+	//   - args: Pre-evaluated argument values
+	//   - node: AST node for error location reporting
+	// Returns the function result or error value.
+	ExecuteFunctionPointerCall(metadata FunctionPointerMetadata, args []Value, node ast.Node) Value
 
 	// ===== Exception Handling (Task 3.5.8) =====
 

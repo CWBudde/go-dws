@@ -92,25 +92,28 @@ func (r *runtimeOperatorRegistry) lookup(operator string, operandTypes []string)
 // areRuntimeTypesCompatibleForOperator checks if actualType can be used where declaredType is expected.
 // This supports inheritance: a subclass instance can be used where parent class is expected.
 func areRuntimeTypesCompatibleForOperator(actualType, declaredType string, declaredClass *ClassInfo) bool {
-	// Exact match
-	if actualType == declaredType {
+	normalizedActual := ident.Normalize(actualType)
+	normalizedDeclared := ident.Normalize(declaredType)
+
+	// Exact match (case-insensitive)
+	if normalizedActual == normalizedDeclared {
 		return true
 	}
 
 	// Check array type compatibility
 	// array of T is compatible with array of Variant (array of const) for any type T
-	if strings.HasPrefix(actualType, "ARRAY OF ") && declaredType == "ARRAY OF VARIANT" {
+	if strings.HasPrefix(normalizedActual, "array of ") && normalizedDeclared == "array of variant" {
 		return true
 	}
 
 	// Check class inheritance: actualType is a subclass of declaredType
-	// Both types are in format "CLASS:ClassName"
-	if !strings.HasPrefix(actualType, "CLASS:") || !strings.HasPrefix(declaredType, "CLASS:") {
+	// Both types are in format "class:classname"
+	if !strings.HasPrefix(normalizedActual, "class:") || !strings.HasPrefix(normalizedDeclared, "class:") {
 		return false
 	}
 
-	actualClassName := strings.TrimPrefix(actualType, "CLASS:")
-	declaredClassName := strings.TrimPrefix(declaredType, "CLASS:")
+	actualClassName := strings.TrimPrefix(normalizedActual, "class:")
+	declaredClassName := strings.TrimPrefix(normalizedDeclared, "class:")
 
 	// TODO: Full inheritance checking is not yet implemented here
 	// The function currently only does simple name comparison because we don't have
@@ -119,10 +122,12 @@ func areRuntimeTypesCompatibleForOperator(actualType, declaredType string, decla
 	// the parent class chain. The declaredClass parameter is kept for future enhancement
 	// when we refactor to pass full ClassInfo objects instead of type strings.
 	if declaredClass != nil {
-		return actualClassName == declaredClassName
+		if ident.Normalize(declaredClass.Name) == declaredClassName {
+			return true
+		}
 	}
 
-	return false
+	return actualClassName == declaredClassName
 }
 
 type runtimeConversionEntry struct {

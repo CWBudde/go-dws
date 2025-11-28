@@ -99,17 +99,33 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 	// In DWScript, when a variable holds a function pointer with no parameters
 	// and is used as a statement, it's automatically invoked
 	// Example: var fp := @SomeProc; fp; // auto-invokes SomeProc
-	if e.adapter.IsFunctionPointer(val) {
-		// Determine parameter count
-		paramCount := e.adapter.GetFunctionPointerParamCount(val)
-
+	// Task 3.5.121: Migrated to use FunctionPointerCallable interface
+	if funcPtr, ok := val.(FunctionPointerCallable); ok {
 		// If it has zero parameters, auto-invoke it
-		if paramCount == 0 {
+		if funcPtr.ParamCount() == 0 {
 			// Check if the function pointer is nil (not assigned) BEFORE invoking.
 			// We check this here to raise a catchable DWScript exception instead of
 			// returning an ErrorValue that would bypass exception handlers.
-			if e.adapter.IsFunctionPointerNil(val) {
+			if funcPtr.IsNil() {
 				// Raise a catchable exception (sets ctx.Exception())
+				e.adapter.RaiseException("Exception", "Function pointer is nil", &node.Token.Pos)
+				return &runtime.NilValue{}
+			}
+			// Build metadata and call via ExecuteFunctionPointerCall
+			metadata := FunctionPointerMetadata{
+				IsLambda:   funcPtr.IsLambda(),
+				Lambda:     funcPtr.GetLambdaExpr(),
+				Function:   funcPtr.GetFunctionDecl(),
+				Closure:    funcPtr.GetClosure(),
+				SelfObject: funcPtr.GetSelfObject(),
+			}
+			return e.adapter.ExecuteFunctionPointerCall(metadata, []Value{}, node)
+		}
+	} else if e.adapter.IsFunctionPointer(val) {
+		// Fallback for types not implementing FunctionPointerCallable
+		paramCount := e.adapter.GetFunctionPointerParamCount(val)
+		if paramCount == 0 {
+			if e.adapter.IsFunctionPointerNil(val) {
 				e.adapter.RaiseException("Exception", "Function pointer is nil", &node.Token.Pos)
 				return &runtime.NilValue{}
 			}

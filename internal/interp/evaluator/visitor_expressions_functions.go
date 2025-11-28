@@ -1,7 +1,6 @@
 package evaluator
 
 import (
-	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -83,15 +82,28 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	// Task 3.5.23: Function pointer calls with closure handling, lazy params, and var params
 	// Task 3.5.70: Use direct environment access instead of adapter
 	// Task 3.5.95: Migrated parameter preparation logic from Interpreter.evalCallExpression
+	// Task 3.5.121: Migrated to use FunctionPointerCallable interface + ExecuteFunctionPointerCall
 	if funcIdent, ok := node.Function.(*ast.Identifier); ok {
 		if valRaw, exists := ctx.Env().Get(funcIdent.Value); exists {
 			val := valRaw.(Value)
-			if val.Type() == "FUNCTION_POINTER" || val.Type() == "LAMBDA" {
-				// Cast to FunctionPointerValue to access parameter metadata
-				funcPtr, ok := val.(*runtime.FunctionPointerValue)
+			if val.Type() == "FUNCTION_POINTER" || val.Type() == "LAMBDA" || val.Type() == "METHOD_POINTER" {
+				// Task 3.5.121: Use FunctionPointerCallable interface for type-safe access
+				funcPtr, ok := val.(FunctionPointerCallable)
 				if !ok {
-					return e.newError(node, "invalid function pointer type")
+					// Fallback to adapter for types not implementing the interface
+					// (should not happen for standard FunctionPointerValue)
+					fallbackArgs := make([]Value, len(node.Arguments))
+					for i, arg := range node.Arguments {
+						fallbackArgs[i] = e.Eval(arg, ctx)
+						if isError(fallbackArgs[i]) {
+							return fallbackArgs[i]
+						}
+					}
+					return e.adapter.CallFunctionPointer(val, fallbackArgs, node)
 				}
+
+				// Get the function AST for parameter metadata
+				funcDecl, _ := funcPtr.GetFunctionDecl().(*ast.FunctionDecl)
 
 				// Prepare arguments - handle lazy, var, and regular parameters
 				args := make([]Value, len(node.Arguments))
@@ -99,9 +111,9 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 					// Check parameter flags (only for regular function pointers, not lambdas)
 					isLazy := false
 					isByRef := false
-					if funcPtr.Function != nil && idx < len(funcPtr.Function.Parameters) {
-						isLazy = funcPtr.Function.Parameters[idx].IsLazy
-						isByRef = funcPtr.Function.Parameters[idx].ByRef
+					if funcDecl != nil && idx < len(funcDecl.Parameters) {
+						isLazy = funcDecl.Parameters[idx].IsLazy
+						isByRef = funcDecl.Parameters[idx].ByRef
 					}
 
 					if isLazy {
@@ -126,9 +138,15 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 					}
 				}
 
-				// Call through the function pointer via adapter
-				// The adapter handles closure environment restoration and actual invocation
-				return e.adapter.CallFunctionPointer(val, args, node)
+				// Task 3.5.121: Build metadata from interface getters and call via ExecuteFunctionPointerCall
+				metadata := FunctionPointerMetadata{
+					IsLambda:   funcPtr.IsLambda(),
+					Lambda:     funcPtr.GetLambdaExpr(),
+					Function:   funcPtr.GetFunctionDecl(),
+					Closure:    funcPtr.GetClosure(),
+					SelfObject: funcPtr.GetSelfObject(),
+				}
+				return e.adapter.ExecuteFunctionPointerCall(metadata, args, node)
 			}
 		}
 	}
