@@ -230,10 +230,8 @@ func RecordHasMethod(r *RecordValue, name string) bool {
 }
 
 // ExternalVarValue represents an external variable marker.
-type ExternalVarValue struct {
-	Name         string // The variable name in DWScript
-	ExternalName string // The external name for FFI binding (may be empty)
-}
+// Task 3.5.130b: Type alias to runtime.ExternalVarValue for backward compatibility.
+type ExternalVarValue = runtime.ExternalVarValue
 
 // ReferenceValue represents a reference to a variable in another environment.
 // Task 9.35: This is used to implement var parameters (by-reference parameters).
@@ -438,25 +436,6 @@ func unwrapVariant(value Value) Value {
 		return variant.Value
 	}
 	return value
-}
-
-// Type returns "EXTERNAL_VAR".
-func (e *ExternalVarValue) Type() string {
-	return "EXTERNAL_VAR"
-}
-
-// String returns a description of the external variable.
-func (e *ExternalVarValue) String() string {
-	if e.ExternalName != "" {
-		return fmt.Sprintf("external(%s -> %s)", e.Name, e.ExternalName)
-	}
-	return fmt.Sprintf("external(%s)", e.Name)
-}
-
-// ExternalVarName returns the variable name for error reporting.
-// Task 3.5.73: Implements ExternalVarAccessor interface for direct access without adapter.
-func (e *ExternalVarValue) ExternalVarName() string {
-	return e.Name
 }
 
 // Helper functions to create values from Go types

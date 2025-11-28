@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -261,4 +262,29 @@ func (e *Evaluator) lookupEnumType(typeName string, ctx *ExecutionContext) (*typ
 
 	// The value was found but doesn't implement GetEnumType() - this is a programming error
 	return nil, fmt.Errorf("type '%s' is registered but does not provide EnumType (internal error)", typeName)
+}
+
+// parseInlineSetType parses inline set type syntax like "set of TEnumType".
+// Returns the SetType, or nil if the string doesn't match the expected format.
+// Task 3.5.129a: Migrated from Interpreter to enable direct set zero-value creation.
+func (e *Evaluator) parseInlineSetType(signature string, ctx *ExecutionContext) *types.SetType {
+	// Check for "set of " prefix (case-sensitive per DWScript spec)
+	if !strings.HasPrefix(signature, "set of ") {
+		return nil
+	}
+
+	// Extract enum type name: "set of TColor" → "TColor"
+	enumTypeName := strings.TrimSpace(signature[7:]) // Skip "set of "
+	if enumTypeName == "" {
+		return nil
+	}
+
+	// Look up the enum type using existing helper
+	enumType, err := e.lookupEnumType(enumTypeName, ctx)
+	if err != nil {
+		return nil
+	}
+
+	// Create and return the set type
+	return types.NewSetType(enumType)
 }

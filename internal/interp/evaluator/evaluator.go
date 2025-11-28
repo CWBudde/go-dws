@@ -476,6 +476,11 @@ type InterpreterAdapter interface {
 	// Returns the created object value and an error if the class does not exist or construction fails.
 	CreateObject(className string, args []Value) (Value, error)
 
+	// ExecuteConstructor executes a constructor method on an already-created object instance.
+	// Task 3.5.126f: Callback for complex constructor execution (method body + Self binding).
+	// Returns an error if constructor execution fails.
+	ExecuteConstructor(obj Value, constructorName string, args []Value) error
+
 	// CheckType checks if an object is of a specified type (implements 'is' operator).
 	// Returns true if the object is compatible with the specified type name.
 	CheckType(obj Value, typeName string) bool
@@ -618,49 +623,32 @@ type InterpreterAdapter interface {
 	// Returns the evaluated array value.
 	EvalArrayLiteralWithExpectedType(lit ast.Node, expectedTypeName string) Value
 
-	// CreateExternalVar creates an external variable marker.
-	// External variables are placeholders that map to Go-side external functions.
-	// Returns the external variable value.
-	CreateExternalVar(varName, externalName string) Value
+	// Task 3.5.130d: CreateExternalVar removed - evaluator constructs runtime.ExternalVarValue directly
 
 	// ResolveArrayTypeNode resolves an array type from an AST ArrayTypeNode.
 	// This handles nested arrays and complex bound expressions.
 	// Returns the array type (as any/interface{}) and an error if resolution fails.
 	ResolveArrayTypeNode(arrayNode ast.Node) (any, error)
 
-	// CreateRecordZeroValue creates a zero-initialized record value for a given record type.
-	// All fields are initialized to their respective zero values.
-	// Returns the record value and an error if the record type doesn't exist.
-	CreateRecordZeroValue(recordTypeName string) (Value, error)
+	// Task 3.5.128f: CreateRecordZeroValue removed - evaluator now handles record zero-value creation directly
+	// Task 3.5.129: CreateArrayZeroValue, CreateSetZeroValue, CreateSubrangeZeroValue, CreateInterfaceZeroValue, CreateClassZeroValue removed
 
-	// CreateArrayZeroValue creates a zero-initialized array value for a given array type name.
-	// Returns the array value and an error if the array type doesn't exist.
-	CreateArrayZeroValue(arrayTypeName string) (Value, error)
+	// ===== Task 3.5.129: Bridge Adapter Methods for Zero Value Creation =====
 
-	// CreateSetZeroValue creates an empty set value for a given set type signature.
-	// Returns the set value and an error if the set type cannot be created.
-	CreateSetZeroValue(setTypeName string) (Value, error)
+	// CreateSubrangeValueDirect creates a subrange value from subrange type metadata.
+	// Task 3.5.129c: Bridge constructor - SubrangeValue in interp package (circular import).
+	CreateSubrangeValueDirect(subrangeType any) Value
 
-	// CreateSubrangeZeroValue creates a zero-initialized subrange value for a given subrange type.
-	// Returns the subrange value and an error if the subrange type doesn't exist.
-	CreateSubrangeZeroValue(subrangeTypeName string) (Value, error)
+	// CreateInterfaceInstanceDirect creates a nil interface instance from metadata.
+	// Task 3.5.129d: Bridge constructor - InterfaceInstance in interp package.
+	CreateInterfaceInstanceDirect(interfaceInfo any) Value
 
-	// CreateInterfaceZeroValue creates a nil interface instance for a given interface type.
-	// Returns the interface instance and an error if the interface type doesn't exist.
-	CreateInterfaceZeroValue(interfaceName string) (Value, error)
-
-	// CreateClassZeroValue creates a typed nil value for a given class type.
-	// This allows accessing class variables via nil instances.
-	// Returns the typed nil value and an error if the class doesn't exist.
-	CreateClassZeroValue(className string) (Value, error)
+	// CreateTypedNilValue creates a typed nil value for a class.
+	// Task 3.5.129e: Bridge constructor - NilValue.ClassType in interp package.
+	CreateTypedNilValue(className string) Value
 
 	// ===== Task 3.5.40: Record Literal Adapter Methods =====
-
-	// CreateRecordValue creates a record value with field initialization.
-	// fieldValues is a map of field names to evaluated values.
-	// Missing fields are initialized with default values or field initializers.
-	// Returns the record value and an error if the record type doesn't exist or fields are invalid.
-	CreateRecordValue(recordTypeName string, fieldValues map[string]Value) (Value, error)
+	// Task 3.5.128e: CreateRecordValue removed - evaluator now handles record creation directly
 
 	// ===== Task 3.5.21: Complex Value Retrieval Adapter Methods =====
 

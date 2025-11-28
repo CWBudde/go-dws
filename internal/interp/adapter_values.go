@@ -12,14 +12,7 @@ import (
 )
 
 // ===== Value Creation Adapter Methods =====
-
-// CreateExternalVar creates an external variable reference value.
-func (i *Interpreter) CreateExternalVar(varName, externalName string) evaluator.Value {
-	return &ExternalVarValue{
-		Name:         varName,
-		ExternalName: externalName,
-	}
-}
+// Task 3.5.130d: CreateExternalVar removed - evaluator now constructs runtime.ExternalVarValue directly
 
 // ResolveArrayTypeNode resolves an array type from an AST ArrayTypeNode.
 func (i *Interpreter) ResolveArrayTypeNode(arrayNode ast.Node) (any, error) {
@@ -35,164 +28,60 @@ func (i *Interpreter) ResolveArrayTypeNode(arrayNode ast.Node) (any, error) {
 	return arrType, nil
 }
 
-// CreateRecordZeroValue creates a zero-initialized record value.
-func (i *Interpreter) CreateRecordZeroValue(recordTypeName string) (evaluator.Value, error) {
-	normalizedName := ident.Normalize(recordTypeName)
-	recordTypeKey := "__record_type_" + normalizedName
-	typeVal, ok := i.env.Get(recordTypeKey)
+// Task 3.5.128f: CreateRecordZeroValue removed - evaluator now handles record zero-value creation directly
+
+// Task 3.5.129: CreateArrayZeroValue, CreateSetZeroValue, CreateSubrangeZeroValue, CreateInterfaceZeroValue, CreateClassZeroValue removed
+
+// ===== Task 3.5.129: Bridge Adapter Methods for Zero Value Creation =====
+
+// CreateSubrangeValueDirect creates a subrange value from subrange type metadata.
+// Task 3.5.129c: Bridge constructor - SubrangeValue cannot be constructed in evaluator (circular import).
+func (i *Interpreter) CreateSubrangeValueDirect(subrangeTypeAny any) evaluator.Value {
+	// Type assert to extract SubrangeType
+	type subrangeTypeProvider interface {
+		GetSubrangeType() *types.SubrangeType
+	}
+
+	stProvider, ok := subrangeTypeAny.(subrangeTypeProvider)
 	if !ok {
-		return nil, fmt.Errorf("record type '%s' not found", recordTypeName)
+		return &NilValue{}
 	}
 
-	rtv, ok := typeVal.(*RecordTypeValue)
-	if !ok {
-		return nil, fmt.Errorf("type '%s' is not a record type", recordTypeName)
+	st := stProvider.GetSubrangeType()
+	if st == nil {
+		return &NilValue{}
 	}
 
-	return i.createRecordValue(rtv.RecordType), nil
-}
-
-// CreateArrayZeroValue creates a zero-initialized array value.
-// Task 3.5.69c: Migrated to use TypeSystem instead of environment lookup.
-func (i *Interpreter) CreateArrayZeroValue(arrayTypeName string) (evaluator.Value, error) {
-	arrayType := i.typeSystem.LookupArrayType(arrayTypeName)
-	if arrayType == nil {
-		return nil, fmt.Errorf("array type '%s' not found", arrayTypeName)
-	}
-
-	return NewArrayValue(arrayType), nil
-}
-
-// CreateSetZeroValue creates an empty set value.
-func (i *Interpreter) CreateSetZeroValue(setTypeName string) (evaluator.Value, error) {
-	setType := i.parseInlineSetType(setTypeName)
-	if setType == nil {
-		return nil, fmt.Errorf("invalid set type: %s", setTypeName)
-	}
-	return NewSetValue(setType), nil
-}
-
-// CreateSubrangeZeroValue creates a zero-initialized subrange value.
-func (i *Interpreter) CreateSubrangeZeroValue(subrangeTypeName string) (evaluator.Value, error) {
-	normalizedName := ident.Normalize(subrangeTypeName)
-	subrangeTypeKey := "__subrange_type_" + normalizedName
-	typeVal, ok := i.env.Get(subrangeTypeKey)
-	if !ok {
-		return nil, fmt.Errorf("subrange type '%s' not found", subrangeTypeName)
-	}
-
-	stv, ok := typeVal.(*SubrangeTypeValue)
-	if !ok {
-		return nil, fmt.Errorf("type '%s' is not a subrange type", subrangeTypeName)
-	}
-
+	// Construct SubrangeValue with low bound as zero value
 	return &SubrangeValue{
-		Value:        stv.SubrangeType.LowBound,
-		SubrangeType: stv.SubrangeType,
-	}, nil
+		Value:        st.LowBound,
+		SubrangeType: st,
+	}
 }
 
-// CreateInterfaceZeroValue creates a nil interface instance.
-func (i *Interpreter) CreateInterfaceZeroValue(interfaceName string) (evaluator.Value, error) {
-	ifaceInfo, exists := i.interfaces[ident.Normalize(interfaceName)]
-	if !exists {
-		return nil, fmt.Errorf("interface '%s' not found", interfaceName)
+// CreateInterfaceInstanceDirect creates a nil interface instance from metadata.
+// Task 3.5.129d: Bridge constructor - InterfaceInstance cannot be constructed in evaluator.
+func (i *Interpreter) CreateInterfaceInstanceDirect(interfaceInfoAny any) evaluator.Value {
+	ifaceInfo, ok := interfaceInfoAny.(*InterfaceInfo)
+	if !ok {
+		return &NilValue{}
 	}
 
+	// Create nil interface instance (Object field is nil)
 	return &InterfaceInstance{
 		Interface: ifaceInfo,
 		Object:    nil,
-	}, nil
+	}
 }
 
-// CreateClassZeroValue creates a typed nil value for a class.
-// Task 3.5.46: Use TypeSystem for class lookup.
-func (i *Interpreter) CreateClassZeroValue(className string) (evaluator.Value, error) {
-	if !i.typeSystem.HasClass(className) {
-		return nil, fmt.Errorf("class '%s' not found", className)
-	}
-
-	return &NilValue{ClassType: className}, nil
+// CreateTypedNilValue creates a typed nil value for a class.
+// Task 3.5.129e: Bridge constructor - NilValue.ClassType cannot be set in evaluator.
+func (i *Interpreter) CreateTypedNilValue(className string) evaluator.Value {
+	return &NilValue{ClassType: className}
 }
 
 // ===== Task 3.5.40: Record Literal Adapter Method Implementations =====
-
-// CreateRecordValue creates a record value with field initialization.
-func (i *Interpreter) CreateRecordValue(recordTypeName string, fieldValues map[string]evaluator.Value) (evaluator.Value, error) {
-	normalizedName := ident.Normalize(recordTypeName)
-	recordTypeKey := "__record_type_" + normalizedName
-	typeVal, ok := i.env.Get(recordTypeKey)
-	if !ok {
-		return nil, fmt.Errorf("record type '%s' not found", recordTypeName)
-	}
-
-	recordTypeValue, ok := typeVal.(*RecordTypeValue)
-	if !ok {
-		return nil, fmt.Errorf("type '%s' is not a record type", recordTypeName)
-	}
-
-	recordType := recordTypeValue.RecordType
-
-	// Create the record value with methods
-	// Task 3.5.42: Updated to use RecordMetadata
-	// Task 3.5.128a: Removed deprecated Methods field
-	recordValue := &RecordValue{
-		RecordType: recordType,
-		Fields:     make(map[string]Value),
-		Metadata:   recordTypeValue.Metadata,
-	}
-
-	// Copy provided field values (already evaluated)
-	for fieldName, fieldValue := range fieldValues {
-		fieldNameLower := ident.Normalize(fieldName)
-		// Validate field exists
-		if _, exists := recordType.Fields[fieldNameLower]; !exists {
-			return nil, fmt.Errorf("field '%s' does not exist in record type '%s'", fieldName, recordType.Name)
-		}
-		// Convert evaluator.Value to internal Value
-		recordValue.Fields[fieldNameLower] = fieldValue.(Value)
-	}
-
-	// Initialize remaining fields with field initializers or default values
-	methodsLookup := func(rt *types.RecordType) map[string]*ast.FunctionDecl {
-		key := "__record_type_" + ident.Normalize(rt.Name)
-		if typeVal, ok := i.env.Get(key); ok {
-			if rtv, ok := typeVal.(*RecordTypeValue); ok {
-				return rtv.Methods
-			}
-		}
-		return nil
-	}
-
-	for fieldName, fieldType := range recordType.Fields {
-		if _, exists := recordValue.Fields[fieldName]; !exists {
-			var fieldValue Value
-
-			// Check if field has an initializer expression
-			if fieldDecl, hasDecl := recordTypeValue.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
-				// Evaluate the field initializer
-				fieldValue = i.Eval(fieldDecl.InitValue)
-				if isError(fieldValue) {
-					return nil, fmt.Errorf("error evaluating field initializer for '%s': %s", fieldName, fieldValue.(*ErrorValue).Message)
-				}
-			}
-
-			// If no initializer, use getZeroValueForType
-			if fieldValue == nil {
-				fieldValue = getZeroValueForType(fieldType, methodsLookup)
-
-				// Handle interface-typed fields specially
-				if intfValue := i.initializeInterfaceField(fieldType); intfValue != nil {
-					fieldValue = intfValue
-				}
-			}
-
-			recordValue.Fields[fieldName] = fieldValue
-		}
-	}
-
-	return recordValue, nil
-}
+// Task 3.5.128e: CreateRecordValue removed - evaluator now handles record creation directly
 
 // GetZeroValueForType returns the zero/default value for a given type.
 func (i *Interpreter) GetZeroValueForType(typeInfo any) evaluator.Value {
