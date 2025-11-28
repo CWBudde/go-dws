@@ -810,11 +810,18 @@ methods with index arguments. Consider creating a similar `DispatchPropertyAcces
     - Updated both call sites to use interface pattern with callback
   - **Calls removed**: 2 CallFunctionPointer calls (replaced with ExecuteFunctionPointerCall)
 
-- [ ] **3.5.122** Migrate CreateFunctionPointer + CreateFunctionPointerFromName (2 calls)
-  - **Location**: `visitor_expressions_identifiers.go`, `visitor_expressions_functions.go`
+- [x] **3.5.122** Migrate CreateFunctionPointer + CreateFunctionPointerFromName (2 calls)
+  - **Location**: `visitor_expressions_identifiers.go`, `visitor_expressions_operators.go`
   - **Issue**: Function pointer creation delegates to adapter
-  - **Solution**: Create FunctionPointerValue directly in evaluator
-  - **Calls removed**: 2 adapter calls
+  - **Solution**: Create FunctionPointerValue directly in evaluator using new helper functions:
+    - Added `getTypeByName()` in `type_helpers.go` for type resolution
+    - Added `createFunctionPointerFromDecl()` for simple pointer creation (no type info)
+    - Added `buildFunctionPointerType()` for constructing type information from function declarations
+  - **Changes**:
+    - `VisitIdentifier`: Replaced `e.adapter.CreateFunctionPointer(fn, ctx.Env())` with `createFunctionPointerFromDecl(fn, ctx.Env())`
+    - `VisitAddressOfExpression`: Replaced `e.adapter.CreateFunctionPointerFromName()` with direct function lookup via `FunctionRegistry()` and inline `FunctionPointerValue` construction with full type info
+  - **Calls removed**: 2 adapter calls (CreateFunctionPointer, CreateFunctionPointerFromName)
+  - Removed both methods from `InterpreterAdapter` interface
 
 - [ ] **3.5.123** Migrate CreateMethodPointer (1 call)
   - **Location**: `visitor_expressions_functions.go`

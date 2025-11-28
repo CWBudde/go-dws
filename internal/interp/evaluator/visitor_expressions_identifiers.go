@@ -171,7 +171,8 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		}
 
 		// Function has parameters - create function pointer
-		return e.adapter.CreateFunctionPointer(fn, ctx.Env())
+		// Task 3.5.122: Direct function pointer creation without adapter
+		return createFunctionPointerFromDecl(fn, ctx.Env())
 	}
 
 	// Check if this identifier is a class name (metaclass reference)

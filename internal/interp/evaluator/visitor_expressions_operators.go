@@ -3,6 +3,7 @@ package evaluator
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // This file contains visitor methods for operator expression AST nodes.
@@ -147,11 +148,24 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 	switch operand := node.Operator.(type) {
 	case *ast.Identifier:
 		// Regular function/procedure pointer: @FunctionName
-		funcPtr, err := e.adapter.CreateFunctionPointerFromName(operand.Value, ctx.Env())
-		if err != nil {
-			return e.newError(node, "%s", err.Error())
+		// Task 3.5.122: Direct function lookup and pointer creation without adapter
+		funcNameLower := ident.Normalize(operand.Value)
+		overloads := e.FunctionRegistry().Lookup(funcNameLower)
+		if len(overloads) == 0 {
+			return e.newError(node, "undefined function or procedure: %s", operand.Value)
 		}
-		return funcPtr
+
+		// For overloaded functions, use the first overload
+		// Note: Function pointers cannot represent overload sets, only single functions
+		function := overloads[0]
+
+		// Build the function pointer type and create the value
+		pointerType := buildFunctionPointerType(function)
+		return &runtime.FunctionPointerValue{
+			Function:    function,
+			Closure:     ctx.Env(),
+			PointerType: pointerType,
+		}
 
 	case *ast.MemberAccessExpression:
 		// Method pointer: @object.MethodName

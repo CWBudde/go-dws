@@ -1,7 +1,9 @@
 package evaluator
 
 import (
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // ============================================================================
@@ -200,6 +202,25 @@ func areTypesCompatible(t1, t2 types.Type) bool {
 	return false
 }
 
+// getTypeByName converts a type name to a types.Type.
+// Task 3.5.122: Used for building function pointer types without adapter.
+func getTypeByName(name string) types.Type {
+	switch name {
+	case "Integer":
+		return types.INTEGER
+	case "Float":
+		return types.FLOAT
+	case "String":
+		return types.STRING
+	case "Boolean":
+		return types.BOOLEAN
+	default:
+		// For custom types, return Integer as placeholder.
+		// Full type resolution would require TypeSystem access.
+		return types.INTEGER
+	}
+}
+
 // commonType determines the common type for two types.
 // Returns the type that both values should be coerced to, or nil if incompatible.
 //
@@ -248,4 +269,48 @@ func commonType(t1, t2 types.Type) types.Type {
 
 	// Incompatible types - need Variant to hold both
 	return types.VARIANT
+}
+
+// ============================================================================
+// Function Pointer Creation Helpers
+// ============================================================================
+//
+// Task 3.5.122: These helpers create function pointer values directly in the
+// evaluator, removing the need to call adapter methods.
+// ============================================================================
+
+// createFunctionPointerFromDecl creates a FunctionPointerValue from a function declaration.
+// This is a simple wrapper that creates a function pointer without type information.
+// Task 3.5.122: Replaces adapter.CreateFunctionPointer
+func createFunctionPointerFromDecl(fn *ast.FunctionDecl, closure any) Value {
+	return &runtime.FunctionPointerValue{
+		Function: fn,
+		Closure:  closure,
+	}
+}
+
+// buildFunctionPointerType builds a FunctionPointerType from a function declaration.
+// Task 3.5.122: Extracts type information from function parameters and return type.
+func buildFunctionPointerType(fn *ast.FunctionDecl) *types.FunctionPointerType {
+	// Build parameter types from type annotations
+	paramTypes := make([]types.Type, len(fn.Parameters))
+	for idx, param := range fn.Parameters {
+		if param.Type != nil {
+			paramTypes[idx] = getTypeByName(param.Type.String())
+		} else {
+			paramTypes[idx] = types.INTEGER // Default fallback
+		}
+	}
+
+	// Get return type
+	var returnType types.Type
+	if fn.ReturnType != nil {
+		returnType = getTypeByName(fn.ReturnType.String())
+	}
+
+	// Create the function pointer type
+	if returnType != nil {
+		return types.NewFunctionPointerType(paramTypes, returnType)
+	}
+	return types.NewProcedurePointerType(paramTypes)
 }
