@@ -12,9 +12,43 @@ import (
 // Class Declaration Analysis Functions
 // ============================================================================
 
+func classFullName(decl *ast.ClassDecl) string {
+	if decl == nil || decl.Name == nil {
+		return ""
+	}
+	if decl.EnclosingClass != nil && decl.EnclosingClass.Value != "" {
+		return decl.EnclosingClass.Value + "." + decl.Name.Value
+	}
+	return decl.Name.Value
+}
+
+func (a *Analyzer) buildNestedAliasMap(decl *ast.ClassDecl) map[string]string {
+	aliases := make(map[string]string)
+	outer := classFullName(decl)
+	for _, nested := range decl.NestedTypes {
+		a.collectNestedAliases(aliases, nested, outer)
+	}
+	return aliases
+}
+
+func (a *Analyzer) collectNestedAliases(aliases map[string]string, stmt ast.Statement, outer string) {
+	switch n := stmt.(type) {
+	case *ast.BlockStatement:
+		for _, inner := range n.Statements {
+			a.collectNestedAliases(aliases, inner, outer)
+		}
+	case *ast.ClassDecl:
+		enclosing := outer
+		if n.EnclosingClass != nil && n.EnclosingClass.Value != "" {
+			enclosing = n.EnclosingClass.Value
+		}
+		aliases[ident.Normalize(n.Name.Value)] = enclosing + "." + n.Name.Value
+	}
+}
+
 // analyzeClassDecl analyzes a class declaration
 func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
-	className := decl.Name.Value
+	className := classFullName(decl)
 
 	// Task 9.11: Detect if this is a forward declaration
 	// A forward declaration has no body - the slices are nil (not initialized)
@@ -178,6 +212,18 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		// Create new class type
 		classType = types.NewClassType(className, parentClass)
 	}
+
+	// Build nested type alias map and analyze nested declarations first so they're available
+	nestedAliases := a.buildNestedAliasMap(decl)
+	a.nestedTypeAliases[ident.Normalize(className)] = nestedAliases
+	for _, nested := range decl.NestedTypes {
+		a.analyzeStatement(nested)
+	}
+
+	// Ensure nested types can be resolved while analyzing this class
+	prevNested := a.currentNestedTypes
+	a.currentNestedTypes = nestedAliases
+	defer func() { a.currentNestedTypes = prevNested }()
 
 	// Update class flags
 	classType.IsForward = false // No longer a forward declaration
@@ -559,6 +605,21 @@ func (a *Analyzer) analyzeClassMethodImplementation(decl *ast.FunctionDecl, clas
 		return
 	}
 
+	// Set the current class context early so signature validation and type resolution
+	// can see nested types.
+	previousClass := a.currentClass
+	a.currentClass = classType
+	prevNested := a.currentNestedTypes
+	if aliases, ok := a.nestedTypeAliases[ident.Normalize(decl.ClassName.Value)]; ok {
+		a.currentNestedTypes = aliases
+	} else if aliases, ok := a.nestedTypeAliases[ident.Normalize(classType.Name)]; ok {
+		a.currentNestedTypes = aliases
+	}
+	defer func() {
+		a.currentClass = previousClass
+		a.currentNestedTypes = prevNested
+	}()
+
 	// Task 9.282: Validate signature matches the declaration (already done in findMatchingOverloadForImplementation for overloads)
 	// For non-overloaded methods, still validate
 	if len(classType.GetMethodOverloads(methodName)) <= 1 && len(classType.GetConstructorOverloads(methodName)) <= 1 {
@@ -571,11 +632,6 @@ func (a *Analyzer) analyzeClassMethodImplementation(decl *ast.FunctionDecl, clas
 	// Task 9.283: Clear the forward flag since we now have an implementation
 	// Task 9.16.1: Use lowercase key since ForwardedMethods now uses lowercase keys
 	delete(classType.ForwardedMethods, ident.Normalize(methodName))
-
-	// Set the current class context
-	previousClass := a.currentClass
-	a.currentClass = classType
-	defer func() { a.currentClass = previousClass }()
 
 	// Use analyzeMethodDecl to analyze the method body with proper scope
 	// This will set up Self, fields, and all method scope correctly
@@ -790,7 +846,14 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 			return
 		}
 
-		paramType, err := a.resolveType(getTypeExpressionName(param.Type))
+		paramTypeName := getTypeExpressionName(param.Type)
+		if aliases, ok := a.nestedTypeAliases[ident.Normalize(classType.Name)]; ok && a.currentNestedTypes == nil {
+			if qualified, ok := aliases[ident.Normalize(paramTypeName)]; ok {
+				paramTypeName = qualified
+			}
+		}
+
+		paramType, err := a.resolveType(paramTypeName)
 		if err != nil {
 			a.addError("unknown parameter type '%s' in method '%s': %v",
 				getTypeExpressionName(param.Type), method.Name.Value, err)

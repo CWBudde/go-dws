@@ -59,6 +59,20 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 		return a.resolveInlineFunctionPointerType(typeName)
 	}
 
+	// Check for nested class types in the current class context
+	if a.currentNestedTypes != nil {
+		if qualified, ok := a.currentNestedTypes[ident.Normalize(typeName)]; ok {
+			typeName = qualified
+		}
+	}
+	if a.currentNestedTypes == nil && a.currentClass != nil {
+		if aliases, ok := a.nestedTypeAliases[ident.Normalize(a.currentClass.Name)]; ok {
+			if qualified, ok := aliases[ident.Normalize(typeName)]; ok {
+				typeName = qualified
+			}
+		}
+	}
+
 	// Check for inline array types
 	// These are synthetic TypeAnnotations created by the parser with full signatures
 	// Examples: "array of Integer", "array[1..10] of String", "array of array of Integer"

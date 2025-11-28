@@ -50,6 +50,45 @@ end;
 	}
 }
 
+func TestClassWithNestedClass(t *testing.T) {
+	input := `type TOuter = class
+   type TInner = class
+      Value: Integer;
+   end;
+   Field: TInner;
+end;`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program should contain 1 statement, got %d", len(program.Statements))
+	}
+
+	classDecl, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("expected *ast.ClassDecl, got %T", program.Statements[0])
+	}
+
+	if len(classDecl.NestedTypes) != 1 {
+		t.Fatalf("expected 1 nested type, got %d", len(classDecl.NestedTypes))
+	}
+
+	nested, ok := classDecl.NestedTypes[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("expected nested class declaration, got %T", classDecl.NestedTypes[0])
+	}
+
+	if nested.EnclosingClass == nil || nested.EnclosingClass.Value != "TOuter" {
+		t.Fatalf("expected enclosing class 'TOuter', got %#v", nested.EnclosingClass)
+	}
+}
+
 func TestClassWithInheritance(t *testing.T) {
 	input := `
 type TChild = class(TParent)

@@ -57,6 +57,7 @@ type Analyzer struct {
 	functionPointers   map[string]*types.FunctionPointerType
 	currentFunction    *ast.FunctionDecl
 	currentClass       *types.ClassType
+	currentNestedTypes map[string]string
 	currentRecord      *types.RecordType
 	conversionRegistry *types.ConversionRegistry
 	semanticInfo       *pkgast.SemanticInfo
@@ -74,6 +75,7 @@ type Analyzer struct {
 	inLambda           bool
 	inClassMethod      bool
 	inPropertyExpr     bool
+	nestedTypeAliases  map[string]map[string]string
 
 	// experimentalPasses enables the new multi-pass semantic analysis system.
 	// When false (default), only the old analyzer runs, keeping behavior stable.
@@ -96,6 +98,7 @@ func NewAnalyzer() *Analyzer {
 		globalOperators:    types.NewOperatorRegistry(),
 		conversionRegistry: types.NewConversionRegistry(),
 		semanticInfo:       pkgast.NewSemanticInfo(), // Task 9.18
+		nestedTypeAliases:  make(map[string]map[string]string),
 	}
 
 	// Register built-in Exception base class
@@ -856,6 +859,12 @@ func (a *Analyzer) hasType(name string) bool {
 // getClassType looks up a class type by name and returns it as *ClassType.
 // Returns nil if not found or if the type is not a class.
 func (a *Analyzer) getClassType(name string) *types.ClassType {
+	if a.currentNestedTypes != nil {
+		if qualified, ok := a.currentNestedTypes[ident.Normalize(name)]; ok {
+			name = qualified
+		}
+	}
+
 	typ, ok := a.typeRegistry.Resolve(name)
 	if !ok {
 		return nil

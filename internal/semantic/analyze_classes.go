@@ -19,6 +19,19 @@ import (
 func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	className := expr.ClassName.Value
 
+	// If we're inside a class with nested types, prefer the nested type name
+	if a.currentNestedTypes != nil {
+		if qualified, ok := a.currentNestedTypes[ident.Normalize(className)]; ok {
+			className = qualified
+		}
+	} else if a.currentClass != nil {
+		if aliases, ok := a.nestedTypeAliases[ident.Normalize(a.currentClass.Name)]; ok {
+			if qualified, ok := aliases[ident.Normalize(className)]; ok {
+				className = qualified
+			}
+		}
+	}
+
 	// Look up class in registry
 	// Task 9.285: Use lowercase for case-insensitive lookup
 	// Task 6.1.1.3: Use TypeRegistry for unified type lookup

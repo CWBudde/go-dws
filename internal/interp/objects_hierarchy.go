@@ -30,13 +30,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		}
 
 		// Task 9.68: Check if this identifier refers to a class (case-insensitive)
-		var classInfo *ClassInfo
-		for className, class := range i.classes {
-			if pkgident.Equal(className, ident.Value) {
-				classInfo = class
-				break
-			}
-		}
+		classInfo := i.resolveClassInfoByName(ident.Value)
 		if classInfo != nil {
 			// This is static access: TClass.Variable
 			memberName := ma.Member.Value
@@ -125,6 +119,11 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				}
 				pointerType := types.NewFunctionPointerType(paramTypes, returnType)
 				return NewFunctionPointerValue(classMethod, i.env, nil, pointerType)
+			}
+
+			// 4. Nested class access (TOuter.TInner)
+			if nested := classInfo.lookupNestedClass(memberName); nested != nil {
+				return &ClassInfoValue{ClassInfo: nested}
 			}
 
 			// 4. Not found anywhere - error
