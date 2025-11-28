@@ -523,9 +523,16 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 		return nil, fmt.Errorf("invalid inline array type: %s", typeName)
 	}
 
+	// Strip parent qualification from class type strings like "TSub(TBase)"
+	// to enable runtime resolution using the declared class name.
+	cleanTypeName := typeName
+	if idx := strings.Index(cleanTypeName, "("); idx != -1 {
+		cleanTypeName = strings.TrimSpace(cleanTypeName[:idx])
+	}
+
 	// Normalize type name to lowercase for case-insensitive comparison
 	// DWScript (like Pascal) is case-insensitive for all identifiers including type names
-	lowerTypeName := ident.Normalize(typeName)
+	lowerTypeName := ident.Normalize(cleanTypeName)
 
 	switch lowerTypeName {
 	case "integer":
@@ -574,6 +581,11 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 			if stv, ok := subrangeTypeVal.(*SubrangeTypeValue); ok {
 				return stv.SubrangeType, nil
 			}
+		}
+		// Try class type via TypeSystem
+		if i.typeSystem != nil && i.typeSystem.HasClass(cleanTypeName) {
+			// Use nominal class type for runtime type information
+			return types.NewClassType(cleanTypeName, nil), nil
 		}
 		// Unknown type
 		return nil, fmt.Errorf("unknown type: %s", typeName)

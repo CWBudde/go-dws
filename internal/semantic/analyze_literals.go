@@ -103,6 +103,16 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 			continue
 		}
 
+		// For class types, widen to the nearest common ancestor (e.g., TObject)
+		if inferredClass, ok := underlyingInferred.(*types.ClassType); ok {
+			if currentClass, ok := underlyingCurrent.(*types.ClassType); ok {
+				if common := a.findCommonBaseClass(inferredClass, currentClass); common != nil {
+					inferredElementType = common
+					continue
+				}
+			}
+		}
+
 		// Attempt numeric promotion (e.g., Integer + Float -> Float)
 		if promoted := types.PromoteTypes(underlyingInferred, underlyingCurrent); promoted != nil {
 			inferredElementType = promoted
@@ -258,6 +268,41 @@ func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedTyp
 		return nil
 	}
 
+	// When no type context is available, check if any element is non-ordinal.
+	// In DWScript, array constructors use the same [] syntax as sets; literals
+	// containing non-ordinal values must therefore be treated as array literals.
+	var preAnalyzed []types.Type
+	if expectedType == nil && len(lit.Elements) > 0 {
+		preAnalyzed = make([]types.Type, len(lit.Elements))
+		for i, elem := range lit.Elements {
+			// Ranges are ordinal by definition; evaluate bounds later
+			if _, isRange := elem.(*ast.RangeExpression); isRange {
+				continue
+			}
+
+			elemType := a.analyzeExpression(elem)
+			preAnalyzed[i] = elemType
+
+			if elemType != nil && !types.IsOrdinalType(elemType) {
+				arrayLit := &ast.ArrayLiteralExpression{
+					TypedExpressionBase: lit.TypedExpressionBase,
+					Elements:            lit.Elements,
+				}
+				resultType := a.analyzeArrayLiteral(arrayLit, nil)
+
+				// Preserve the inferred array type on the original literal so the interpreter
+				// evaluates it as an array rather than a set.
+				if resultType != nil && a.semanticInfo != nil {
+					a.semanticInfo.SetType(lit, &ast.TypeAnnotation{
+						Token: lit.Token,
+						Name:  resultType.String(),
+					})
+				}
+				return resultType
+			}
+		}
+	}
+
 	// If we have an expected type, it should be a SetType
 	var expectedSetType *types.SetType
 	if expectedType != nil {
@@ -319,7 +364,14 @@ func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedTyp
 			elemType = startType
 		} else {
 			// Regular element (not a range)
-			elemType = a.analyzeExpression(elem)
+			if preAnalyzed != nil {
+				elemType = preAnalyzed[i]
+				if elemType == nil {
+					elemType = a.analyzeExpression(elem)
+				}
+			} else {
+				elemType = a.analyzeExpression(elem)
+			}
 			if elemType == nil {
 				// Error already reported
 				continue

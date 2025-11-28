@@ -304,6 +304,13 @@ func (i *Interpreter) getValueType(val Value) types.Type {
 		return types.NIL
 	case *VariantValue:
 		return types.VARIANT
+	case *ArrayValue:
+		if v.ArrayType != nil {
+			return v.ArrayType
+		}
+		return types.NIL
+	case *ObjectInstance:
+		return i.classTypeForName(v.Class)
 	case *RecordValue:
 		if v.RecordType != nil {
 			return v.RecordType
@@ -312,12 +319,27 @@ func (i *Interpreter) getValueType(val Value) types.Type {
 	default:
 		// For objects, arrays, and other complex types, try AsObject
 		if obj, ok := AsObject(val); ok && obj.Class != nil {
-			// TODO: Create custom type from class name when needed
-			return types.NIL
+			return i.classTypeForName(obj.Class)
 		}
 		// For arrays and other types
 		return types.NIL
 	}
+}
+
+// classTypeForName builds a ClassType with parent linkage using the runtime type system.
+func (i *Interpreter) classTypeForName(class *ClassInfo) types.Type {
+	if class == nil {
+		return nil
+	}
+
+	var parentType *types.ClassType
+	if class.Parent != nil {
+		if ct, ok := i.classTypeForName(class.Parent).(*types.ClassType); ok {
+			parentType = ct
+		}
+	}
+
+	return types.NewClassType(class.Name, parentType)
 }
 
 // evalTypeCast evaluates a type cast expression like Integer(x), Float(y), or TMyClass(obj).

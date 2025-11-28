@@ -522,6 +522,11 @@ func (p *Parser) expectPeek(t lexer.TokenType) bool {
 		p.nextToken()
 		return true
 	}
+	// Allow contextual keywords that can act as identifiers (e.g., HELPER used as method name)
+	if t == lexer.IDENT && p.peekTokenIs(lexer.HELPER) {
+		p.nextToken()
+		return true
+	}
 	p.peekError(t)
 	return false
 }
@@ -531,7 +536,7 @@ func (p *Parser) expectPeek(t lexer.TokenType) bool {
 // specific contexts (for loops) but can be used as variable names elsewhere.
 // Also includes SELF which can be the target of member assignments (Self.field := value).
 func (p *Parser) isIdentifierToken(t lexer.TokenType) bool {
-	return t == lexer.IDENT || t == lexer.STEP || t == lexer.SELF
+	return t == lexer.IDENT || t == lexer.STEP || t == lexer.SELF || t == lexer.HELPER
 }
 
 // expectIdentifier checks if the peek token can be used as an identifier and advances if so.
