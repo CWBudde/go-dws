@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -520,6 +521,10 @@ func (e *Evaluator) VisitNewArrayExpression(node *ast.NewArrayExpression, ctx *E
 
 // VisitLambdaExpression evaluates a lambda expression (closure).
 // Creates a lambda that captures the current scope.
+// Task 3.5.124: Direct lambda creation without adapter.
 func (e *Evaluator) VisitLambdaExpression(node *ast.LambdaExpression, ctx *ExecutionContext) Value {
-	return e.adapter.CreateLambda(node, ctx.Env())
+	return &runtime.FunctionPointerValue{
+		Lambda:  node,
+		Closure: ctx.Env(),
+	}
 }

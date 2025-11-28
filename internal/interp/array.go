@@ -427,7 +427,7 @@ func (i *Interpreter) evalArrayLiteral(lit *ast.ArrayLiteralExpression) Value {
 				setLit := &ast.SetLiteral{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
-							Token: lit.Token,
+							Token:  lit.Token,
 							EndPos: lit.End(),
 						},
 					},
@@ -670,10 +670,7 @@ func (i *Interpreter) typeFromValue(val Value) types.Type {
 		}
 		return nil
 	case *ObjectInstance:
-		if v.Class != nil {
-			return types.NewClassType(v.Class.Name, nil)
-		}
-		return nil
+		return i.classTypeForName(v.Class)
 	case *RecordValue:
 		return v.RecordType
 	default:

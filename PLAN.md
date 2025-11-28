@@ -372,270 +372,36 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 ---
 
-#### Completed Tasks
+#### Completed Tasks (3.5.74-3.5.99) ✅
 
-- [x] **3.5.74** Audit All EvalNode Calls - Found 46 total calls (31 candidates, 15 to keep)
-- [x] **3.5.75** Replace VisitRangeExpression EvalNode - Direct error for non-evaluable ranges
-- [x] **3.5.76** Add SemanticInfo to Evaluator - Pass semanticInfo for type resolution
-- [x] **3.5.77** Move Ordinal Helpers to Evaluator Package - Migrated GetOrdinalValue/Type
-- [x] **3.5.78** Move Index Collection Helper - Migrated CollectIndices
-- [x] **3.5.79** Add Type Resolution to Evaluator - ResolveType() for built-in/array/named types
-- [x] **3.5.80** Replace VisitSetLiteral EvalNode - Direct set evaluation with evalSetLiteralDirect()
-- [x] **3.5.81** Replace VisitIndexExpression EvalNode - Array/string indexing with bounds checking
-- [x] **3.5.82** Replace VisitNewArrayExpression EvalNode - Multi-dimensional array creation
-- [x] **3.5.83** Replace VisitArrayLiteralExpression EvalNode - Direct array literal evaluation with type inference
-- [x] **3.5.84** Replace VisitIdentifier complex value types - Arrays/objects/records delegation
-- [x] **3.5.85** Replace VisitIdentifier function/class lookups - Function name and class name lookups
-- [x] **3.5.86** Replace VisitMemberAccessExpression OBJECT case - Direct field/class var access via ObjectValue interface
-- [x] **3.5.87** Replace VisitMemberAccessExpression INTERFACE case - InterfaceInstanceValue interface with member verification
-- [x] **3.5.88** Replace VisitMemberAccessExpression CLASS/CLASS_INFO cases - ClassMetaValue interface for class vars/constants
-- [x] **3.5.89** Replace VisitMemberAccessExpression TYPE_CAST case - TypeCastAccessor interface for static type lookups
-- [x] **3.5.90** Replace VisitMemberAccessExpression NIL case - NilAccessor interface for typed nil class var access
-- [x] **3.5.91** Replace VisitMemberAccessExpression RECORD case - RecordInstanceValue interface for direct field access
-- [x] **3.5.92** Replace VisitMemberAccessExpression ENUM case - EnumAccessor interface for .Value property
+- [x] **3.5.74-3.5.79** Foundation - Audit (46 calls found), SemanticInfo, ordinal/index helpers, type resolution
+- [x] **3.5.80-3.5.83** Literals - Set, index, new array, array literal expressions (direct evaluation)
+- [x] **3.5.84-3.5.92** Member Access - 9 cases migrated (OBJECT/INTERFACE/CLASS/TYPE_CAST/NIL/RECORD/ENUM + identifier lookups)
+- [x] **3.5.93-3.5.97** Call Expression - Var params, type casts, function pointers, method calls, user functions
+- [x] **3.5.98** Helper Methods - `helper_methods.go` with FindHelperMethod, 7 EvalNode calls removed
+- [x] **3.5.99** Advanced Indexing - PropertyAccessor interface, JSON helpers, 7 EvalNode delegations removed
 
 ---
 
-#### Group D: VisitCallExpression (12 calls) ✅ COMPLETE
+### Phase 14: Adapter Audit (3.5.100) ✅
 
-- [x] **3.5.93-3.5.97** Call Expression Migration ✅
-  - **Var Parameters** (3.5.93): Created `var_params.go` with `EvaluateLValue()` for read-modify-write (Inc/Dec, SetLength, Insert/Delete, Swap, DivMod, TryStrTo*, DecodeDate/Time)
-  - **Default/Type Cast** (3.5.94): Default(TypeName) and TypeName(expr) type casts
-  - **Function Pointers** (3.5.95): Parameter preparation (lazy/var/regular), uses CreateLazyThunk/CreateReferenceValue/CallFunctionPointer adapters
-  - **Method Calls** (3.5.96): CallMemberMethod (record/interface/object), CallQualifiedOrConstructor (unit-qualified + constructors)
-  - **User Functions** (3.5.97): CallUserFunctionWithOverloads (overload resolution), CallImplicitSelfMethod (implicit Self), CallRecordStaticMethod (record static methods)
-  - **Files**: `evaluator/var_params.go`, `evaluator/datetime_helpers.go`, `evaluator/visitor_expressions.go`, `evaluator/evaluator.go`, `interpreter.go`
-
----
-
-#### Group E: Helper Methods (1 call) ✅ COMPLETE
-
-- [x] **3.5.98** Helper Method Migration ✅
-  - Created `helper_methods.go` with `FindHelperMethod()` for type-to-helper resolution
-  - Migrated builtin helper lookup, AST helper method execution infrastructure
-  - Added `GetEnumTypeName()` to EnumValue, `ArrayTypeString()` to ArrayValue
-  - Removed 7 adapter EvalNode calls with direct helper method resolution
-  - **Files**: `evaluator/helper_methods.go`, `evaluator/visitor_expressions.go`, `runtime/enum.go`, `runtime/array.go`
-
----
-
-#### Group F: Advanced Indexing (7 calls) ✅ COMPLETE
-
-- [x] **3.5.99** Property Access & JSON Indexing ✅
-  - **Infrastructure**: PropertyAccessor interface (LookupProperty, GetDefaultProperty)
-  - **JSON**: Created `json_helpers.go` with reflection-based access (avoids circular import)
-  - **Default Properties**: Object/interface/record default property access via CallIndexedPropertyGetter/CallRecordPropertyGetter
-  - **Indexed Properties**: Multi-index property access via CollectIndices (flattened evaluation)
-  - Removed 7 EvalNode delegations (JSON, OBJECT, INTERFACE, RECORD, MemberAccessExpression cases)
-  - **Files**: `evaluator/evaluator.go`, `evaluator/json_helpers.go`, `evaluator/visitor_expressions.go`, `interpreter.go`, `class.go`, `interface.go`, `value.go`
-  - **Tests**: `property_accessor_test.go` (4 test functions, all passing)
-
----
-
-### Phase 14: Adapter Audit (3.5.100)
-
-- [x] **3.5.100** Audit Unused Adapter Methods ✅
-  - **Analysis**: 149 methods total → 78 used (52.3%), 71 unused (47.7%)
-  - **Categories**: Interface duplicates (21), Type registry (9), Property/field (10), Type system (4), Array/collection (7), Assignment (3), Value creation (6), Type parsing (1), Class checks (2)
-  - **Report**: Created comprehensive audit with 7-phase removal plan (`/tmp/adapter_audit_report.md`)
-
-- [x] **3.5.100b** Remove Verified Unused Methods (42 removed) ✅
-  - **Removed**: Type registry (10), Property/field access (10), Array/collection (8), Type system (4), Value creation (3), Assignment (3), Misc (4)
-  - **Implementation cleanup**: Removed 40 method implementations from `interpreter.go` (924 lines, 27.2% reduction)
-  - **Test fixes**: Updated `type_registry_test.go` to use `LookupClass`/`LookupInterface` instead of removed `HasClass`/`HasInterface`
-  - **Reduction**: 149 → 107 methods (28.2% reduction)
-  - **Files**: `evaluator/evaluator.go`, `interpreter.go`, `type_registry_test.go`
+- [x] **3.5.100** Audit - 149 methods → 78 used (52.3%), 71 unused
+- [x] **3.5.100b** Removed 42 unused methods (924 lines, 27.2% reduction); 149 → 107 methods
 
 ---
 
 ### Phase 15: Reduce EvalNode Calls (3.5.101-3.5.110)
 
-**Current State (as of latest grep):**
+#### Completed Tasks (3.5.101-3.5.106) ✅
 
-- **Total adapter calls**: 135 across 13 files
-- **EvalNode**: 35 calls (highest usage - primary migration target)
-- **CallMethod**: 7 calls (all in VisitMethodCallExpression)
-- **CallIndexedPropertyGetter**: 5 calls (default property access)
-- **ReadPropertyValue**: 4 calls (property reads)
+- [x] **3.5.101** VisitMemberAccessExpression fallbacks - 6 EvalNode → direct errors; 10 legitimate calls retained
+- [x] **3.5.102** Helper method fallbacks - 26+ helpers migrated (string/int/float/bool/array/enum/AST); 2 EvalNode removed
+- [x] **3.5.103** binary_ops.go - In operator, set ops, equality, variant ops; 7 calls removed (4 EvalNode + 3 specialized)
+- [x] **3.5.104** set_helpers.go - Array literal conversion, enum lookup; 2 calls removed
+- [x] **3.5.105** AssignmentStatement - Simple/compound/index/member assignment + context inference; created `compound_ops.go`, `index_assignment.go`, `member_assignment.go`
+- [x] **3.5.106** type_resolution.go - Context-aware type resolution via interface-based getters
 
-**Strategy**: Focus on removing EvalNode calls first since they represent the highest-usage category.
-
-- [x] **3.5.101** Remove EvalNode from VisitMemberAccessExpression fallbacks ✅
-  - **Completed**: Converted 6 EvalNode delegations to direct errors
-  - **Changes**:
-    - Type assertion failures (OBJECT, INTERFACE, CLASS, TYPE_CAST, RECORD, ENUM) → internal errors
-    - Nil interface access → "Interface is nil" error
-    - Interface property read failure → proper error with context
-    - Record member not found → "field not found" error
-    - Enum unknown member → "member not found" error
-    - Default type unknown member → "member not found" error
-  - **Added**: Helper method/property lookup for ENUM and default types before returning errors
-  - **Remaining EvalNode calls** (10, legitimate delegations):
-    - Method dispatch (5): OBJECT, INTERFACE, CLASS, TYPE_CAST, RECORD methods
-    - NIL class var lookup (1): needs class registry
-    - Helper properties (2): ENUM and default types
-    - External functions (1): var param handling
-    - Method call fallback (1): VisitMethodCallExpression
-  - **Files**: `evaluator/visitor_expressions.go`
-  - **Tests**: All MemberAccess, Interface, Record, Enum tests pass
-
-- [x] **3.5.102** Remove EvalNode from helper method fallbacks (2 calls) - **COMPLETED** ✅
-  - **Location**: `helper_methods.go` lines 287-288, 327-328
-  - **Issue**: `CallBuiltinHelperMethod()` and `CallASTHelperMethod()` delegate to EvalNode
-  - **Complexity**: HIGH - 37 builtin helper implementations + AST execution logic
-  - **Solution**: Migrate helper method logic incrementally to evaluator package
-  - **Calls removed**: 2 EvalNode calls (1 from CallBuiltinHelperMethod fallback, 1 from CallASTHelperMethod)
-  - **Sub-tasks**:
-    - [x] **3.5.102a** Migrate String Helper Methods (4 methods, LOW RISK) ✅
-      - `__string_toupper`, `__string_tolower`, `__string_length`, `__string_tostring`
-      - Simple string operations implemented directly in `evaluator/string_helpers.go`
-      - Uses `strings.ToUpper/ToLower` directly, no builtins.Context dependency
-      - ~95 lines migrated
-    - [x] **3.5.102b** Migrate Integer Helper Methods (2 methods, LOW RISK) ✅
-      - `__integer_tostring`, `__integer_tohexstring`
-      - Simple integer operations implemented directly in `evaluator/integer_helpers.go`
-      - Uses `strconv.FormatInt` and `fmt.Sprintf("%X")` directly, no builtins.Context dependency
-      - ~95 lines migrated
-    - [x] **3.5.102c** Migrate Float Helper Methods (2 methods, LOW RISK) ✅
-      - `__float_tostring_prec`, `__float_tostring_default`
-      - Simple float operations implemented directly in `evaluator/float_helpers.go`
-      - Uses `fmt.Sprintf` directly, no builtins.Context dependency
-      - ~75 lines migrated
-    - [x] **3.5.102d** Migrate Boolean Helper Methods (1 method, LOW RISK) ✅
-      - `__boolean_tostring`
-      - Simple boolean operation implemented directly in `evaluator/boolean_helpers.go`
-      - Returns "True" or "False" (Pascal-style capitalization)
-      - ~45 lines migrated
-    - [x] **3.5.102e** Migrate Array Helper Methods (11 methods, MEDIUM RISK) ✅
-      - Properties: `__array_length`, `__array_count`, `__array_high`, `__array_low`
-      - Methods: `__array_add`, `__array_push`, `__array_pop`, `__array_swap`, `__array_delete`
-      - Join: `__array_join`, `__string_array_join`
-      - Implemented directly in `evaluator/array_helpers.go`
-      - ~360 lines added (includes type inference helpers already present)
-      - NOT migrated: `__array_indexof`, `__array_setlength`, `__array_map` (complex dependencies)
-    - [x] **3.5.102f** Migrate Remaining Builtin Helpers (6 methods, MEDIUM RISK) ✅
-      - Enum, set, and other specialized helpers
-      - ~100 lines to migrate
-    - [x] **3.5.102g** Migrate AST Helper Method Execution (HIGHEST RISK) ✅
-      - **Infrastructure Added**:
-        - Extended `HelperInfo` interface with `GetClassVars()`, `GetClassConsts()`, `GetParentHelper()`
-        - Added `ResolveTypeFromAnnotation()` to evaluator for return type resolution
-        - Added `GetDefaultValue()` to evaluator for Result variable initialization
-        - Added `ctx *ExecutionContext` parameter to `CallHelperMethod`, `CallBuiltinHelperMethod`, `CallASTHelperMethod`
-      - **Implementation**: Direct AST helper execution with:
-        - Environment management via `ctx.PushEnv()`/`ctx.PopEnv()`
-        - Self binding for the extended value
-        - Helper inheritance chain var/const binding
-        - Parameter binding
-        - Result variable initialization
-        - Return value extraction (Result or method name alias)
-      - **Removed**: 1 `adapter.EvalNode(node)` call
-      - **Tests**: All 22 helper tests passing
-
-- [x] **3.5.103** Remove EvalNode from binary_ops.go (4 calls) - **COMPLETED**
-  - **Location**: `binary_ops.go` lines 520, 548, 561, 575, 632
-  - **Methods**: `EvalEqualityComparison`, `EvalInOperator`, `EvalVariantBinaryOp`
-  - **Issue**: Complex equality/membership/variant operations delegate to adapter
-  - **Solution**: Implement equality/in/variant ops directly with Value type assertions
-  - **Risk**: High - variant operations are complex, need careful testing
-  - **Calls removed**: 4 EvalNode + 3 specialized binary op calls
-  - **Sub-tasks**:
-    - [x] **3.5.103a** Migrate EvalInOperator (line 548) - **COMPLETED**
-      - Migrated set/array/string membership testing
-      - All 5 'in' operator tests passing
-      - Uses simple string comparison for arrays (will be improved in 3.5.103c)
-    - [x] **3.5.103b** Migrate Set Binary Operations (line 561) - **COMPLETED**
-      - Migrated set union/difference/intersection
-      - Supports both bitmask and map storage
-      - All 7+ set operation tests passing
-    - [x] **3.5.103c** Migrate Helper Functions (FOUNDATION) - **COMPLETED**
-      - Updated evalInOperator to use `ValuesEqual()` helper (already existed in helpers.go)
-      - ValuesEqual handles primitive types, with fallback for complex types (records, etc.)
-      - RecordsEqual migration deferred until RecordValue is moved to runtime package
-      - All tests passing (set 'in' operator, array indexOf)
-    - [x] **3.5.103d** Migrate EvalEqualityComparison (line 520) - **COMPLETED**
-      - Migrated object/interface/class/RTTI/record equality comparisons
-      - Added `RecordsEqual()` helper (uses string comparison fallback)
-      - Added `isSimpleType()` helper for type classification
-      - Handles all complex type comparisons: nil, objects, interfaces, classes, RTTI, records
-      - All tests passing (TestRecord, TestInterface, TestClass)
-      - **Bonus**: Fixed TestIntegration_InterfaceCastingAllCombinations (was failing, now passing)
-      - Reduced EvalNode calls from 35 → 28 (1 adapter call removed)
-    - [x] **3.5.103e** Migrate Variant NOT Operation (line 632) - **COMPLETED**
-      - Uses `VariantToBool()` helper for conversion to boolean
-      - Uses `adapter.BoxVariant()` to wrap result (not new dependency)
-      - Removed 1 EvalNode call
-    - [x] **3.5.103f** Migrate EvalVariantBinaryOp (line 575) - **COMPLETED**
-      - Added `IsUninitialized()` to `runtime.VariantWrapper` interface
-      - Migrated 118-line implementation with full null-handling semantics
-      - Added `isNullish()`, `convertToString()`, `isNumericTypeName()` helpers
-      - Handles: nullish comparisons, type coercion, string concatenation
-      - Removed 1 EvalVariantBinaryOp adapter call
-
-- [x] **3.5.104** Remove EvalNode from set_helpers.go (2 calls) - **COMPLETED** ✅
-  - **Location**: `set_helpers.go` lines 46, 257
-  - **Changes**:
-    - Line 46 (EvalNode for array): Converted SetLiteral to ArrayLiteralExpression and called `evalArrayLiteralWithType()` directly instead of delegating to adapter
-    - Line 257 (GetType for enum): Removed adapter.GetType() fallback, using direct environment lookup with `ident.Normalize()` for case-insensitive enum type resolution
-  - **Files**: `evaluator/set_helpers.go`
-  - **Tests**: All set literal and enum tests pass
-  - **Calls removed**: 1 EvalNode + 1 GetType adapter calls
-
-- [x] **3.5.105** Remove EvalNode from visitor_statements.go AssignmentStatement (1 call) ✅
-  - **Location**: `visitor_statements.go` line 361
-  - **Source**: `statements_assignments.go` (971 lines total)
-  - **Issue**: Complex assignment statement delegates entirely
-  - **Solution**: Migrate assignment logic to evaluator (requires lvalue handling)
-  - **Risk**: VERY HIGH - assignment touches many code paths
-  - **Dependency**: Requires `SetVar`, field assignment, property setters
-  - **Calls removed**: 1 EvalNode call
-  - **Sub-tasks**:
-    - [x] **3.5.105a** Migrate Simple Variable Assignment (LOW RISK)
-      - Source: `evalSimpleAssignment()` lines 342-569 (228 lines)
-      - Handles: `x := value` with SetVar, var parameters, implicit conversions
-      - Includes: Reference value handling, subrange validation, variant boxing
-      - Risk: LOW - straightforward variable update with type checking
-      - Tests: ~15-20 existing assignment tests
-    - [x] **3.5.105b** Migrate Compound Operations (MEDIUM RISK) ✅
-      - Source: `applyCompoundOperation()` lines 151-341 (191 lines)
-      - Handles: `+=`, `-=`, `*=`, `/=` for Integer/Float/String/Variant
-      - Includes: Class operator overloads (delegated to adapter for objects), variant unwrapping, type coercion
-      - Risk: MEDIUM - multiple operators, type combinations
-      - Tests: ~13 compound assignment tests (all pass)
-      - **Files**: Created `evaluator/compound_ops.go` (~235 lines), updated `evaluator/visitor_statements.go`, `evaluator/assignment_helpers.go`
-      - **Implementation**: Direct evaluation for simple identifiers, adapter delegation for object class operators
-    - [x] **3.5.105c** Migrate Index Assignment (MEDIUM RISK) ✅
-      - Source: `evalIndexAssignment()` lines 801-971 (171 lines)
-      - Handles: `arr[i] := value`, `str[i] := char`
-      - Includes: Array bounds checking, string mutation, multi-dimensional arrays
-      - Risk: MEDIUM - array/string indexing with bounds validation
-      - Tests: ~12 array/string index assignment tests (all pass)
-      - **Files**: Created `evaluator/index_assignment.go` (~180 lines), added `RuneReplace()` to `evaluator/helpers.go`, updated `evaluator/visitor_statements.go`
-      - **Implementation**: Direct evaluation for array/string index assignment, adapter delegation for indexed properties, interfaces, and object default properties
-    - [x] **3.5.105d** Migrate Member Assignment (HIGH RISK) ✅
-      - Source: `evalMemberAssignment()` lines 667-800 (134 lines)
-      - Handles: `obj.field := value`, property setters, record fields
-      - Includes: Property setter dispatch, recursion prevention, interface handling
-      - Risk: HIGH - property setters have complex dispatch logic
-      - Tests: ~20 member/property assignment tests (all pass)
-      - **Files**: Created `evaluator/member_assignment.go` (~120 lines), updated `evaluator/visitor_statements.go`
-      - **Implementation**: Structured evaluation with comprehensive adapter delegation; complex cases (class variables, object fields, record fields with properties, interfaces) delegated to adapter due to type dependencies in interp package
-    - [x] **3.5.105e** Integration and Context Inference (MEDIUM RISK) ✅
-      - Source: Main function lines 43-147 (105 lines)
-      - Handles: Array/record literal type inference from target context
-      - Includes: Record value semantics (defensive copying), exception handling
-      - Risk: MEDIUM - orchestrates all assignment types
-      - Tests: Full assignment test suite validation
-      - **Files**: Updated `evaluator/context.go` (added `arrayTypeContext` field), `evaluator/array_helpers.go`, `evaluator/assignment_helpers.go`, `evaluator/visitor_statements.go`
-      - **Implementation**: Added `ArrayTypeContext()` to ExecutionContext for passing type info; `evalArrayLiteralDirect()` checks context first; `VisitAssignmentStatement()` extracts target type and sets context before evaluating array/record literals
-
-- [x] **3.5.106** Remove EvalNode from type_resolution.go (1 call) ✅
-  - **Location**: `type_resolution.go` line 67
-  - **Issue**: `GetType()` call for named type resolution
-  - **Solution**: Use direct environment lookups with interface-based type access
-  - **Calls removed**: 1 GetType call (adapter.GetType used)
-  - **Files**: Updated `evaluator/type_resolution.go` (added `ResolveTypeWithContext()`, `resolveInlineArrayTypeWithContext()`), `evaluator/set_helpers.go`, `evaluator/visitor_expressions.go`, `evaluator/array_helpers.go`, `interp/record.go` (added `GetRecordType()`), `interp/type_alias.go` (added `GetAliasedType()`, `GetSubrangeType()`)
-  - **Implementation**: Added context-aware type resolution that directly looks up enum, record, type alias, and subrange types from environment using interface-based getters; updated all callers to use context-aware version
+#### Deferred Tasks ⚠️
 
 - [ ] **3.5.107** Keep EvalNode for visitor_declarations.go (10 calls) ⚠️ KEEP
   - **Location**: `visitor_declarations.go` all 10 declarations
@@ -643,197 +409,40 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Future**: Phase 25 will address declaration migration
   - **Status**: DEFERRED - not targeted for Phase 15
 
-- [ ] **3.5.108** Keep EvalNode in evaluator.go fallback (1 call) ⚠️ KEEP
-  - **Location**: `evaluator.go` line 1099
-  - **Reason**: Safety net for unknown node types during migration
-  - **Future**: Remove once all visitors are migrated
-  - **Status**: DEFERRED - safety mechanism
+- [ ] **3.5.108** Keep EvalNode in evaluator.go fallback (1 call) ⚠️ KEEP - Safety net for unknown node types
 
 ---
 
-### Phase 16: Reduce CallMethod Calls (3.5.111-3.5.115)
+### Phase 16: Reduce CallMethod Calls (3.5.111-3.5.115) ✅
 
-**Current State**: 7 `CallMethod` calls in visitor_expressions.go
-
-- [x] **3.5.111** Migrate CallMethod for object method dispatch (5 calls) ✅
-  - **Location**: `visitor_expressions.go` lines 1667, 1679, 1685, 1697, 1708
-  - **Issue**: Object/class/set/enum method calls delegate to Interpreter.CallMethod
-  - **Solution**: Extended CallMethod in interpreter.go to handle all value types
-  - **Risk**: High - virtual dispatch is complex
-  - **Calls removed**: 5 CallMethod calls now properly handled by extended CallMethod
-  - **Sub-tasks**:
-    - [x] **3.5.111a** SET Method Dispatch (LOW complexity) ✅
-      - Line 1697: Set built-in methods (Include, Exclude, Contains, Clear)
-      - Type-assert to SetValue interface, dispatch to builtin methods
-    - [x] **3.5.111b** TYPE_META (Enum) Method Dispatch (LOW complexity) ✅
-      - Line 1708: Enum type meta methods (Low, High, ByName, ByValue)
-      - Type-assert to EnumTypeMetaValue interface
-    - [x] **3.5.111c** CLASSINFO Static Method Dispatch (MEDIUM complexity) ✅
-      - Line 1679: Static class methods (ClassInfoValue.Method)
-      - Extended CallMethod in interpreter.go to handle ClassInfoValue directly
-    - [x] **3.5.111d** OBJECT Instance Method Dispatch (HIGH complexity) ✅
-      - Line 1667: Object instance methods via adapter.CallMethod
-      - CallMethod handles ObjectInstance with method lookup and Self binding
-    - [x] **3.5.111e** CLASS (Metaclass) Constructor Dispatch (HIGH complexity) ✅
-      - Line 1685: Metaclass constructor calls (ClassValue.Create)
-      - Extended CallMethod in interpreter.go to handle ClassValue with constructor dispatch
-
-- [x] **3.5.112** Migrate CallMethod for interface method dispatch (1 call) ✅
-  - **Location**: `visitor_expressions_methods.go` (INTERFACE case in VisitMethodCallExpression)
-  - **Issue**: Interface method calls delegate to adapter
-  - **Solution**: Added InterfaceInstance case to CallMethod in interpreter.go (lines 1503-1542)
-  - **Implementation**: Verify method in interface contract, extract underlying object, dispatch to object method
-  - **Calls removed**: 1 CallMethod call now properly handled
-
-- [x] **3.5.113** Migrate CallMethod for record method dispatch (1 call) ✅
-  - **Location**: `visitor_expressions_methods.go` (RECORD case in VisitMethodCallExpression)
-  - **Issue**: Record method calls delegate to adapter
-  - **Solution**: Added RecordValue case to CallMethod in interpreter.go (lines 1544-1649)
-  - **Implementation**: Instance methods with Self/field binding, static methods with constants/class vars
-  - **Calls removed**: 1 CallMethod call now properly handled
-
-- [x] **3.5.114** Migrate CallInheritedMethod (1 call) ✅
-  - **Location**: `visitor_expressions_methods.go` line 264
-  - **Issue**: `inherited` keyword delegates to adapter
-  - **Solution**: Extended ObjectValue interface with CallInheritedMethod; parent class lookup in evaluator via interface, execution via adapter.ExecuteMethodWithSelf
-  - **Implementation**:
-    - Added CallInheritedMethod to ObjectValue interface (evaluator.go)
-    - Implemented CallInheritedMethod on ObjectInstance (class.go)
-    - Added ExecuteMethodWithSelf adapter method (adapter_methods.go)
-    - Updated VisitInheritedExpression to use ObjectValue interface
-  - **Calls removed**: 1 CallInheritedMethod call now routed through ObjectValue interface
-
-- [x] **3.5.115** Consolidate method call infrastructure ✅
-  - **Goal**: Single `evaluator.DispatchMethodCall()` for all method types
-  - **Benefits**: Unified error handling, consistent environment setup
-  - **Deliverable**: Method dispatch documentation
-  - **Implementation**:
-    - Created `evaluator/method_dispatch.go` with comprehensive documentation
-    - Implemented `DispatchMethodCall()` as unified entry point for all method types
-    - Refactored helper functions: `dispatchSetMethod()`, `dispatchEnumTypeMetaMethod()`, `dispatchHelperMethod()`
-    - Updated `VisitMethodCallExpression()` to delegate to `DispatchMethodCall()`
-    - Documented 15 distinct method call modes and dispatch architecture
-  - **Files**: `evaluator/method_dispatch.go` (new), `evaluator/visitor_expressions_methods.go` (updated)
+- [x] **3.5.111** Object method dispatch - 5 calls: SET/ENUM/CLASSINFO/OBJECT/CLASS methods via extended CallMethod
+- [x] **3.5.112** Interface method dispatch - InterfaceInstance case in CallMethod; contract verification
+- [x] **3.5.113** Record method dispatch - RecordValue case; instance + static methods with Self/field binding
+- [x] **3.5.114** CallInheritedMethod - ObjectValue.CallInheritedMethod interface + ExecuteMethodWithSelf adapter
+- [x] **3.5.115** Consolidated infrastructure - Created `method_dispatch.go` with DispatchMethodCall() entry point
 
 ---
 
-### Phase 17: Reduce Property Access Calls (3.5.116-3.5.120)
+### Phase 17: Reduce Property Access Calls (3.5.116-3.5.120) ✅
 
-**Current State**: 14 property-related adapter calls
-
-**Key Insight from Phase 16**: Property getters are essentially method calls. The `DispatchMethodCall()`
-infrastructure from Task 3.5.115 can be reused for indexed property getters since they invoke getter
-methods with index arguments. Consider creating a similar `DispatchPropertyAccess()` consolidation.
-
-**Pattern to Follow** (from Task 3.5.114):
-1. Add interface method to Value type (e.g., `PropertyReader.ReadProperty()`)
-2. Implement on concrete types (ObjectInstance, RecordValue, InterfaceInstance)
-3. Add low-level adapter method for execution if needed
-4. Update visitor to use interface with fallback
-
-**Existing Infrastructure to Leverage**:
-- `PropertyAccessor` interface already exists (Task 3.5.99a) with `LookupProperty()` and `GetDefaultProperty()`
-- `PropertyDescriptor` struct provides getter/setter metadata
-- `DispatchMethodCall()` can invoke getter methods once property is resolved
-
-- [x] **3.5.116** Migrate ReadPropertyValue (4 calls) ✅
-  - **Location**: `visitor_expressions_members.go`, `visitor_expressions_identifiers.go`
-  - **Issue**: Property reads delegate to Interpreter.ReadPropertyValue
-  - **Solution**: Added `ReadProperty()` to `ObjectValue` interface with callback pattern (from Task 3.5.114)
-  - **Implementation**:
-    1. Added `ReadProperty(propName string, propertyExecutor func(propInfo any) Value)` to `ObjectValue` interface
-    2. Implemented `ReadProperty` on `ObjectInstance` - does property lookup, calls executor callback
-    3. Added `ExecutePropertyRead(obj, propInfo, node)` adapter method for actual property execution
-    4. Updated 4 call sites to use `objVal.ReadProperty(name, callback)` pattern
-  - **Calls migrated**: 4 ReadPropertyValue → 4 ExecutePropertyRead (lower-level, simpler)
-  - **ReadPropertyValue**: Marked DEPRECATED in interface, kept for backwards compatibility
-
-- [x] **3.5.117** Migrate CallIndexedPropertyGetter (5 calls) ✅
-  - **Location**: `visitor_expressions_indexing.go`
-  - **Issue**: Indexed property access (e.g., `Items[i]`) delegates to adapter
-  - **Solution**: Added `ReadIndexedProperty` to ObjectValue interface with callback pattern (following Task 3.5.116)
-  - **Implementation**:
-    1. Added `ReadIndexedProperty(propInfo, indices, executor)` to ObjectValue interface
-    2. Implemented on ObjectInstance - validates object state, delegates to executor callback
-    3. Added `ExecuteIndexedPropertyRead` adapter method for low-level execution
-    4. Updated all 5 call sites to use `objVal.ReadIndexedProperty(...)` with callback
-  - **Calls migrated**: 5 CallIndexedPropertyGetter → 5 ExecuteIndexedPropertyRead (lower-level, simpler)
-  - **CallIndexedPropertyGetter**: Marked DEPRECATED in interface
-
-- [x] **3.5.118** Migrate CallRecordPropertyGetter (2 calls) ✅
-  - **Location**: `visitor_expressions_indexing.go`
-  - **Issue**: Record property access delegates to adapter
-  - **Solution**: Use RecordInstanceValue.ReadIndexedProperty() with callback pattern
-  - **Note**: Records have simpler property semantics than classes (no virtual dispatch)
-  - **Implementation**: Removed 2 CallRecordPropertyGetter fallback calls (lines 115, 219), converted to internal errors if interface not implemented
-  - **Calls removed**: 2 CallRecordPropertyGetter calls now use ExecuteRecordPropertyRead callback
-
-- [x] **3.5.119** Migrate IsMethodParameterless + CreateMethodCall (2 calls) ✅
-  - **Location**: `visitor_expressions_identifiers.go`
-  - **Issue**: Auto-invoke for parameterless methods in identifier resolution
-  - **Solution**: Added `InvokeParameterlessMethod` to ObjectValue interface with callback pattern
-  - **Implementation**:
-    1. Extended ObjectValue interface with `InvokeParameterlessMethod(methodName, methodExecutor)` returning `(Value, bool)`
-    2. Implemented on ObjectInstance - checks method exists and has 0 parameters, invokes via callback
-    3. Updated visitor to use new interface method with `ExecuteMethodWithSelf` adapter (already existed from Task 3.5.114)
-  - **Files**: `evaluator/evaluator.go`, `class.go`, `evaluator/visitor_expressions_identifiers.go`
-  - **Calls removed**: 2 adapter calls (IsMethodParameterless, CreateMethodCall)
-
-- [x] **3.5.120** Migrate CreateMethodPointerFromObject (1 call)
-  - **Location**: `visitor_expressions_identifiers.go`
-  - **Issue**: Method pointer creation for methods with parameters
-  - **Solution**: Create method pointer directly using FunctionPointerValue
-  - **Approach**: Create `evaluator.CreateBoundMethodPointer(obj, methodName)`
-  - **Calls removed**: 1 adapter call
-  - **Implementation**:
-    1. Added `CreateMethodPointer(methodName, pointerCreator)` to ObjectValue interface
-    2. Implemented on ObjectInstance - checks method exists and has parameters, creates via callback
-    3. Added `CreateBoundMethodPointer(obj, methodDecl)` adapter method for FunctionPointerValue creation
-    4. Updated visitor to use new interface method with callback pattern
-  - **Files**: `evaluator/evaluator.go`, `class.go`, `adapter_references.go`, `evaluator/visitor_expressions_identifiers.go`
+- [x] **3.5.116** ReadPropertyValue (4 calls) - ObjectValue.ReadProperty() with callback → ExecutePropertyRead
+- [x] **3.5.117** CallIndexedPropertyGetter (5 calls) - ObjectValue.ReadIndexedProperty() → ExecuteIndexedPropertyRead
+- [x] **3.5.118** CallRecordPropertyGetter (2 calls) - RecordInstanceValue.ReadIndexedProperty() callback pattern
+- [x] **3.5.119** IsMethodParameterless + CreateMethodCall (2 calls) - ObjectValue.InvokeParameterlessMethod()
+- [x] **3.5.120** CreateMethodPointerFromObject (1 call) - ObjectValue.CreateMethodPointer() callback pattern
 
 ---
 
 ### Phase 18: Reduce Function Pointer Calls (3.5.121-3.5.125)
 
-**Current State**: 8 function pointer-related adapter calls
+#### Completed Tasks (3.5.121-3.5.124) ✅
 
-- [x] **3.5.121** Migrate CallFunctionPointer (2 calls) ✅
-  - **Location**: `visitor_statements.go`, `visitor_expressions_functions.go`
-  - **Issue**: Function pointer invocation delegates to adapter
-  - **Solution**: Created `FunctionPointerCallable` interface with callback pattern
-  - **Implementation**:
-    - Added `FunctionPointerCallable` interface in `evaluator/evaluator.go`
-    - Added `FunctionPointerMetadata` struct for execution context
-    - Implemented interface on `FunctionPointerValue` in `runtime/primitives.go`
-    - Added `ExecuteFunctionPointerCall` adapter method for low-level execution
-    - Updated both call sites to use interface pattern with callback
-  - **Calls removed**: 2 CallFunctionPointer calls (replaced with ExecuteFunctionPointerCall)
+- [x] **3.5.121** CallFunctionPointer (2 calls) - FunctionPointerCallable interface → ExecuteFunctionPointerCall
+- [x] **3.5.122** CreateFunctionPointer + CreateFunctionPointerFromName - Direct FunctionPointerValue creation with type helpers
+- [x] **3.5.123** CreateMethodPointer (1 call) - ObjectValue.CreateMethodPointer() with CreateBoundMethodPointer callback
+- [x] **3.5.124** CreateLambda (1 call) - Direct `&runtime.FunctionPointerValue{Lambda: node, Closure: env}`
 
-- [x] **3.5.122** Migrate CreateFunctionPointer + CreateFunctionPointerFromName (2 calls)
-  - **Location**: `visitor_expressions_identifiers.go`, `visitor_expressions_operators.go`
-  - **Issue**: Function pointer creation delegates to adapter
-  - **Solution**: Create FunctionPointerValue directly in evaluator using new helper functions:
-    - Added `getTypeByName()` in `type_helpers.go` for type resolution
-    - Added `createFunctionPointerFromDecl()` for simple pointer creation (no type info)
-    - Added `buildFunctionPointerType()` for constructing type information from function declarations
-  - **Changes**:
-    - `VisitIdentifier`: Replaced `e.adapter.CreateFunctionPointer(fn, ctx.Env())` with `createFunctionPointerFromDecl(fn, ctx.Env())`
-    - `VisitAddressOfExpression`: Replaced `e.adapter.CreateFunctionPointerFromName()` with direct function lookup via `FunctionRegistry()` and inline `FunctionPointerValue` construction with full type info
-  - **Calls removed**: 2 adapter calls (CreateFunctionPointer, CreateFunctionPointerFromName)
-  - Removed both methods from `InterpreterAdapter` interface
-
-- [ ] **3.5.123** Migrate CreateMethodPointer (1 call)
-  - **Location**: `visitor_expressions_functions.go`
-  - **Issue**: Method pointer creation (from @obj.method) delegates
-  - **Solution**: Create bound method pointer directly
-  - **Calls removed**: 1 adapter call
-
-- [ ] **3.5.124** Migrate CreateLambda (1 call)
-  - **Location**: `visitor_expressions.go` line 2224
-  - **Issue**: Lambda expression creation delegates to adapter
-  - **Solution**: Create lambda value directly with closure capture
-  - **Calls removed**: 1 adapter call
+#### Pending Tasks
 
 - [ ] **3.5.125** Migrate IsFunctionPointer + related checks (4 calls)
   - **Location**: `visitor_statements.go` lines 101, 103, 110, 112

@@ -14,18 +14,14 @@ func IsIdentical(a, b Type) bool {
 // Type Compatibility (Assignment Compatibility)
 // ============================================================================
 
-// IsCompatible checks if a value of type 'from' can be assigned to a variable of type 'to'.
-// This includes both exact type matches and implicit conversions.
-//
-// DWScript compatibility rules:
-//   - Same type: always compatible
-//   - Integer -> Float: compatible (implicit widening)
-//   - Nil -> any reference type: compatible
-//   - Subtype -> Supertype: compatible (for classes, not yet implemented)
-//   - Any type -> Variant: compatible (Variant is universal container)
-//
-// Returns true if assignment is valid, false otherwise.
 func IsCompatible(from, to Type) bool {
+	if from == nil || to == nil {
+		return false
+	}
+
+	from = GetUnderlyingType(from)
+	to = GetUnderlyingType(to)
+
 	// Identical types are always compatible
 	if from.Equals(to) {
 		return true
@@ -36,11 +32,14 @@ func IsCompatible(from, to Type) bool {
 		return true
 	}
 
-	// Nil is compatible with reference types (will be expanded in later stages)
+	// Nil is compatible with reference types
 	if from.TypeKind() == "NIL" {
-		// For now, nil is only compatible with nil
-		// This will be expanded when we add classes and other reference types
-		return to.TypeKind() == "NIL"
+		switch to.TypeKind() {
+		case "NIL", "CLASS", "INTERFACE", "CLASSOF":
+			return true
+		default:
+			return false
+		}
 	}
 
 	// Integer can be implicitly converted to Float
@@ -48,21 +47,30 @@ func IsCompatible(from, to Type) bool {
 		return true
 	}
 
+	// Class inheritance: derived class -> base class
+	if fromClass, ok := from.(*ClassType); ok {
+		if toClass, ok := to.(*ClassType); ok {
+			if fromClass.Equals(toClass) || isClassDescendantOf(fromClass, toClass) {
+				return true
+			}
+		}
+	}
+
 	// Dynamic arrays are compatible with static arrays of same element type
-	// (This is a simplified rule; DWScript has more nuanced array compatibility)
 	fromArray, fromIsArray := from.(*ArrayType)
 	toArray, toIsArray := to.(*ArrayType)
 	if fromIsArray && toIsArray {
-		// Element types must be IDENTICAL (not just compatible)
-		// array of Integer is NOT compatible with array of Float
-		if !fromArray.ElementType.Equals(toArray.ElementType) {
+		// Element types must be compatible (allow derived -> base classes, numeric promotion, etc.)
+		if !IsCompatible(fromArray.ElementType, toArray.ElementType) {
 			return false
 		}
-		// Dynamic array can be assigned to dynamic array of same element type
-		if fromArray.IsDynamic() && toArray.IsDynamic() {
+
+		// Allow mixing static/dynamic arrays when element types are compatible
+		if fromArray.IsDynamic() || toArray.IsDynamic() {
 			return true
 		}
-		// Static array can only be assigned to static array with same bounds
+
+		// Static array can be assigned if bounds match
 		return fromArray.Equals(toArray)
 	}
 
@@ -178,6 +186,20 @@ func IsOrderedType(t Type) bool {
 	default:
 		return false
 	}
+}
+
+// isClassDescendantOf checks if child derives from parent (or is the same class).
+func isClassDescendantOf(child, parent *ClassType) bool {
+	if child == nil || parent == nil {
+		return false
+	}
+
+	for current := child; current != nil; current = current.Parent {
+		if current.Equals(parent) {
+			return true
+		}
+	}
+	return false
 }
 
 // SupportsOperation checks if a type supports a given operation.

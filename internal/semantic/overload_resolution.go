@@ -82,6 +82,11 @@ func SignaturesEqual(sig1, sig2 *types.FunctionType) bool {
 // This is used to rank overload candidates when multiple overloads could match
 // the provided arguments.
 func SignatureDistance(argTypes []types.Type, signature *types.FunctionType) int {
+	// If this is a variadic function and the caller supplies exactly as many
+	// arguments as declared parameters, treat the variadic parameter as a
+	// regular parameter (e.g., passing an array literal to an open array).
+	useVariadicAsSlice := signature.IsVariadic && len(argTypes) == len(signature.Parameters)
+
 	// Handle variadic functions: minimum number of parameters is len(Parameters)-1
 	minParams := len(signature.Parameters)
 	if signature.IsVariadic {
@@ -105,7 +110,7 @@ func SignatureDistance(argTypes []types.Type, signature *types.FunctionType) int
 		var paramType types.Type
 
 		// For variadic functions, arguments beyond the last parameter use variadic element type
-		if signature.IsVariadic && i >= len(signature.Parameters)-1 {
+		if signature.IsVariadic && !useVariadicAsSlice && i >= len(signature.Parameters)-1 {
 			paramType = signature.VariadicType
 		} else if i < len(signature.Parameters) {
 			paramType = signature.Parameters[i]
@@ -128,9 +133,30 @@ func SignatureDistance(argTypes []types.Type, signature *types.FunctionType) int
 // typeDistance calculates the conversion distance between two types.
 // Returns -1 if no conversion is possible.
 func typeDistance(from, to types.Type) int {
+	if from == nil || to == nil {
+		return -1
+	}
+
+	from = types.GetUnderlyingType(from)
+	to = types.GetUnderlyingType(to)
+
 	// Exact match
 	if from.Equals(to) {
 		return 0
+	}
+
+	// Array compatibility (static vs dynamic, element hierarchy)
+	if fromArray, ok := from.(*types.ArrayType); ok {
+		if toArray, ok := to.(*types.ArrayType); ok {
+			return arrayDistance(fromArray, toArray)
+		}
+	}
+
+	// Class inheritance: derived class -> base class
+	if fromClass, ok := from.(*types.ClassType); ok {
+		if toClass, ok := to.(*types.ClassType); ok {
+			return classDistance(fromClass, toClass)
+		}
 	}
 
 	fromKind := from.TypeKind()
@@ -159,6 +185,51 @@ func typeDistance(from, to types.Type) int {
 
 	// No conversion available
 	return -1
+}
+
+// classDistance returns how many inheritance steps are needed to convert from -> to.
+// Returns 0 for exact match, positive for ancestor distance, or -1 if incompatible.
+func classDistance(from, to *types.ClassType) int {
+	if from == nil || to == nil {
+		return -1
+	}
+
+	distance := 0
+	for current := from; current != nil; current = current.Parent {
+		if current.Equals(to) {
+			return distance
+		}
+		distance++
+	}
+
+	return -1
+}
+
+// arrayDistance computes compatibility between two array types, accounting for
+// element compatibility and static/dynamic shape differences.
+func arrayDistance(from, to *types.ArrayType) int {
+	if from == nil || to == nil {
+		return -1
+	}
+
+	elemDist := typeDistance(from.ElementType, to.ElementType)
+	if elemDist < 0 {
+		return -1
+	}
+
+	distance := elemDist
+
+	// Penalize static/dynamic mismatches slightly but allow conversion
+	if from.IsDynamic() != to.IsDynamic() {
+		distance++
+	} else if from.IsStatic() && to.IsStatic() {
+		// Bounds must match for exact compatibility; otherwise add a small penalty
+		if from.LowBound != nil && to.LowBound != nil && (*from.LowBound != *to.LowBound || *from.HighBound != *to.HighBound) {
+			distance++
+		}
+	}
+
+	return distance
 }
 
 // ResolveOverload selects the best-fit overload from a set of candidates.

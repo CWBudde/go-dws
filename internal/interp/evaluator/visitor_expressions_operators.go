@@ -178,12 +178,19 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 		// Get the method name
 		methodName := operand.Member.Value
 
-		// Create method pointer with the object as Self
-		methodPtr, err := e.adapter.CreateMethodPointer(objectVal, methodName, ctx.Env())
-		if err != nil {
-			return e.newError(node, "%s", err.Error())
+		// Task 3.5.123: Use ObjectValue.CreateMethodPointer with callback pattern
+		if objVal, ok := objectVal.(ObjectValue); ok {
+			if methodPtr, created := objVal.CreateMethodPointer(methodName, func(methodDecl any) Value {
+				return e.adapter.CreateBoundMethodPointer(objectVal, methodDecl)
+			}); created {
+				return methodPtr
+			}
+			// Method not found
+			return e.newError(node, "undefined method: %s.%s", objVal.ClassName(), methodName)
 		}
-		return methodPtr
+
+		// Non-object type - cannot create method pointer
+		return e.newError(node, "method pointer requires an object instance, got %s", objectVal.Type())
 
 	default:
 		return e.newError(node, "address-of operator requires function or method name, got %T", operand)

@@ -305,7 +305,7 @@ func (p *Parser) parseFunctionQualifiedName() (name, className *ast.Identifier) 
 	// Collect qualified identifiers for nested classes (e.g., TOuter.TInner.Method)
 	parts := []string{firstIdent.Value}
 	// Advance through any ".Ident" segments to build the qualified class name
-	for cursor.Peek(1).Type == lexer.DOT && cursor.Peek(2).Type == lexer.IDENT {
+	for cursor.Peek(1).Type == lexer.DOT && p.isIdentifierToken(cursor.Peek(2).Type) {
 		cursor = cursor.Advance() // move to '.'
 		cursor = cursor.Advance() // move to next ident
 		p.cursor = cursor

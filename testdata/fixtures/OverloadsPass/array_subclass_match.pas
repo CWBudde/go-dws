@@ -1,11 +1,11 @@
 type
    TBase = class end;
 type
-   TSub = class (TBase);
+   TSub = class (TBase) end;
 type
-   TThird = class (TObject);
+   TThird = class (TObject) end;
 type
-   TSubThird = class (TThird);
+   TSubThird = class (TThird) end;
    
 procedure DoIt(p : array of TObject); overload;
 begin
