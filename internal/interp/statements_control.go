@@ -311,8 +311,8 @@ func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol str
 		// Convert arg values to type strings for lookup using valueTypeKey
 		// to match the format used during operator registration
 		// Task 9.14: When searching parent classes, use the parent class name for matching
-		argTypes := make([]string, len(args)+1) // +1 for the class instance itself
-		argTypes[0] = "CLASS:" + class.Name     // Use the current class being searched, not objInst.Class
+		argTypes := make([]string, len(args)+1)           // +1 for the class instance itself
+		argTypes[0] = normalizeTypeAnnotation(class.Name) // Use the current class being searched, not objInst.Class
 		for idx, arg := range args {
 			argTypes[idx+1] = valueTypeKey(arg) // Use valueTypeKey for consistent type keys
 		}

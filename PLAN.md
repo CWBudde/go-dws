@@ -798,12 +798,17 @@ methods with index arguments. Consider creating a similar `DispatchPropertyAcces
 
 **Current State**: 8 function pointer-related adapter calls
 
-- [ ] **3.5.121** Migrate CallFunctionPointer (2 calls)
+- [x] **3.5.121** Migrate CallFunctionPointer (2 calls) ✅
   - **Location**: `visitor_statements.go`, `visitor_expressions_functions.go`
   - **Issue**: Function pointer invocation delegates to adapter
-  - **Solution**: Create `evaluator.InvokeFunctionPointer()` with closure handling
-  - **Requires**: Environment setup, parameter binding
-  - **Calls removed**: 2 CallFunctionPointer calls
+  - **Solution**: Created `FunctionPointerCallable` interface with callback pattern
+  - **Implementation**:
+    - Added `FunctionPointerCallable` interface in `evaluator/evaluator.go`
+    - Added `FunctionPointerMetadata` struct for execution context
+    - Implemented interface on `FunctionPointerValue` in `runtime/primitives.go`
+    - Added `ExecuteFunctionPointerCall` adapter method for low-level execution
+    - Updated both call sites to use interface pattern with callback
+  - **Calls removed**: 2 CallFunctionPointer calls (replaced with ExecuteFunctionPointerCall)
 
 - [ ] **3.5.122** Migrate CreateFunctionPointer + CreateFunctionPointerFromName (2 calls)
   - **Location**: `visitor_expressions_identifiers.go`, `visitor_expressions_functions.go`

@@ -793,3 +793,36 @@ func TestCompoundAssignmentMultiple(t *testing.T) {
 		t.Fatalf("expected 5, got %s", output)
 	}
 }
+
+func TestCompoundAssignmentClassOperator(t *testing.T) {
+	input := `
+		type TTest = class
+			Field : String;
+			procedure AppendString(str : String);
+			procedure AppendInteger(i : Integer);
+			class operator += String uses AppendString;
+			class operator += Integer uses AppendInteger;
+		end;
+
+		procedure TTest.AppendString(str : String);
+		begin
+			Field := Field + '"' + str + '",';
+		end;
+
+		procedure TTest.AppendInteger(i : Integer);
+		begin
+			Field := Field + IntToStr(i) + ',';
+		end;
+
+		var t := TTest.Create;
+		t += 1;
+		t += 'second';
+		t += 3;
+		PrintLn(t.Field);
+	`
+	_, output := testEvalWithOutput(input)
+	expected := "1,\"second\",3,\n"
+	if output != expected {
+		t.Fatalf("expected %q, got %q", expected, output)
+	}
+}

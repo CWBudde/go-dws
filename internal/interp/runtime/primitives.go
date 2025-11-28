@@ -509,6 +509,65 @@ func (f *FunctionPointerValue) Type() string {
 	return "FUNCTION_POINTER"
 }
 
+// ===== Task 3.5.121: FunctionPointerCallable interface implementation =====
+
+// IsNil returns true if this function pointer has no function or lambda assigned.
+// Used to check before invocation to raise appropriate DWScript exceptions.
+func (f *FunctionPointerValue) IsNil() bool {
+	return f.Function == nil && f.Lambda == nil && f.MethodID == InvalidMethodID
+}
+
+// ParamCount returns the number of parameters this function pointer expects.
+// For lambdas, returns the lambda parameter count.
+// For regular functions, returns the function parameter count.
+// Returns 0 if neither is set.
+func (f *FunctionPointerValue) ParamCount() int {
+	if f.Lambda != nil {
+		return len(f.Lambda.Parameters)
+	}
+	if f.Function != nil {
+		return len(f.Function.Parameters)
+	}
+	return 0
+}
+
+// IsLambda returns true if this is a lambda/closure, false for regular function pointers.
+func (f *FunctionPointerValue) IsLambda() bool {
+	return f.Lambda != nil
+}
+
+// HasSelfObject returns true if this is a method pointer with a bound Self object.
+func (f *FunctionPointerValue) HasSelfObject() bool {
+	return f.SelfObject != nil
+}
+
+// GetFunctionDecl returns the function AST node (*ast.FunctionDecl) for regular function pointers.
+// Returns nil for lambda closures.
+// Task 3.5.121: Implements FunctionPointerCallable interface.
+func (f *FunctionPointerValue) GetFunctionDecl() any {
+	return f.Function
+}
+
+// GetLambdaExpr returns the lambda AST node (*ast.LambdaExpression) for lambda closures.
+// Returns nil for regular function pointers.
+// Task 3.5.121: Implements FunctionPointerCallable interface.
+func (f *FunctionPointerValue) GetLambdaExpr() any {
+	return f.Lambda
+}
+
+// GetClosure returns the captured environment (type: *Environment).
+// Task 3.5.121: Implements FunctionPointerCallable interface.
+func (f *FunctionPointerValue) GetClosure() any {
+	return f.Closure
+}
+
+// GetSelfObject returns the bound Self for method pointers.
+// Returns nil for non-method pointers.
+// Task 3.5.121: Implements FunctionPointerCallable interface.
+func (f *FunctionPointerValue) GetSelfObject() Value {
+	return f.SelfObject
+}
+
 // String returns the string representation of the function pointer.
 // Format: @FunctionName, @Object.MethodName, or <lambda> for closures
 // Task 9.221: Updated to handle lambdas.

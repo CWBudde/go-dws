@@ -20,6 +20,7 @@ func convertEvaluatorArgs(args []evaluator.Value) []Value {
 }
 
 // CallFunctionPointer executes a function pointer with given arguments.
+// DEPRECATED: Task 3.5.121 - Use FunctionPointerCallable.Invoke + ExecuteFunctionPointerCall instead.
 func (i *Interpreter) CallFunctionPointer(funcPtr evaluator.Value, args []evaluator.Value, node ast.Node) evaluator.Value {
 	// Convert evaluator.Value to interp.Value (they're the same interface)
 	fp, ok := funcPtr.(*FunctionPointerValue)
@@ -28,6 +29,55 @@ func (i *Interpreter) CallFunctionPointer(funcPtr evaluator.Value, args []evalua
 	}
 
 	return i.callFunctionPointer(fp, convertEvaluatorArgs(args), node)
+}
+
+// ExecuteFunctionPointerCall executes a function pointer with the given metadata.
+// Task 3.5.121: Low-level execution method used by FunctionPointerCallable.Invoke callback.
+// This handles the interpreter-dependent parts of function pointer invocation.
+func (i *Interpreter) ExecuteFunctionPointerCall(metadata evaluator.FunctionPointerMetadata, args []evaluator.Value, node ast.Node) evaluator.Value {
+	interpArgs := convertEvaluatorArgs(args)
+
+	// Handle lambda execution
+	if metadata.IsLambda {
+		lambda, ok := metadata.Lambda.(*ast.LambdaExpression)
+		if !ok {
+			return i.newErrorWithLocation(node, "invalid lambda type in function pointer metadata")
+		}
+
+		closureEnv, ok := metadata.Closure.(*Environment)
+		if !ok {
+			return i.newErrorWithLocation(node, "invalid closure type in function pointer metadata")
+		}
+
+		return i.callLambda(lambda, closureEnv, interpArgs, node)
+	}
+
+	// Handle regular function pointer execution
+	fn, ok := metadata.Function.(*ast.FunctionDecl)
+	if !ok {
+		return i.newErrorWithLocation(node, "invalid function type in function pointer metadata")
+	}
+
+	// If this is a method pointer, set up Self binding
+	if metadata.SelfObject != nil {
+		funcEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = funcEnv
+
+		// Bind Self to the captured object
+		i.env.Define("Self", metadata.SelfObject)
+
+		// Call the function
+		result := i.callUserFunction(fn, interpArgs)
+
+		// Restore environment
+		i.env = savedEnv
+
+		return result
+	}
+
+	// Regular function pointer - just call the function directly
+	return i.callUserFunction(fn, interpArgs)
 }
 
 // CallUserFunction executes a user-defined function.
