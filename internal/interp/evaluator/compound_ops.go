@@ -218,17 +218,17 @@ func (e *Evaluator) evalDivideAssign(left, right Value, node ast.Node) Value {
 // newDivisionByZeroError creates an enhanced division by zero error for integers.
 // Task 9.111: Includes operand values in error metadata.
 func (e *Evaluator) newDivisionByZeroError(node ast.Node, left, right int64) Value {
-	return e.newError(node, "Division by zero", left, right)
+	return e.newError(node, "Division by zero")
 }
 
 // newFloatDivisionByZeroError creates an enhanced division by zero error for floats.
 // Task 9.111: Includes operand values in error metadata.
 func (e *Evaluator) newFloatDivisionByZeroError(node ast.Node, left, right float64) Value {
-	return e.newError(node, "Division by zero", left, right)
+	return e.newError(node, "Division by zero")
 }
 
 // newFloatIntDivisionByZeroError creates an enhanced division by zero error for float/int.
 // Task 9.111: Includes operand values in error metadata.
 func (e *Evaluator) newFloatIntDivisionByZeroError(node ast.Node, left float64, right int64) Value {
-	return e.newError(node, "Division by zero", left, right)
+	return e.newError(node, "Division by zero")
 }

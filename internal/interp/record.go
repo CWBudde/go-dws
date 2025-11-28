@@ -322,6 +322,12 @@ func (r *RecordTypeValue) GetMetadata() any {
 	return r.Metadata
 }
 
+// GetFieldDecls returns the FieldDecls map for this record type.
+// Task 3.5.128e: Enables evaluator to access field declarations for initializer evaluation.
+func (r *RecordTypeValue) GetFieldDecls() map[string]*ast.FieldDecl {
+	return r.FieldDecls
+}
+
 // createRecordValue creates a new RecordValue with proper method lookup for nested records.
 // Task 9.7e1: Helper to create records with method resolution for nested record fields.
 // Task 9.5: Initialize fields with field initializers.

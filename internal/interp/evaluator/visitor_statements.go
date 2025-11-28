@@ -161,7 +161,11 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 		if externalName == "" {
 			externalName = node.Names[0].Value
 		}
-		value = e.adapter.CreateExternalVar(node.Names[0].Value, externalName)
+		// Task 3.5.130c: Direct construction - ExternalVarValue now in runtime package
+		value = &runtime.ExternalVarValue{
+			Name:         node.Names[0].Value,
+			ExternalName: externalName,
+		}
 		e.adapter.DefineVariable(node.Names[0].Value, value, ctx)
 		return value
 	}
@@ -1303,51 +1307,113 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 	}
 
 	// Check for inline set types
+	// Task 3.5.129a: Direct set zero-value creation without adapter
 	if strings.HasPrefix(typeName, "set of ") {
-		setVal, err := e.adapter.CreateSetZeroValue(typeName)
-		if err == nil {
-			return setVal
+		setType := e.parseInlineSetType(typeName, ctx)
+		if setType == nil {
+			return &runtime.NilValue{}
 		}
-		return &runtime.NilValue{}
+		return runtime.NewSetValue(setType)
 	}
 
 	// Check if this is a record type
-	// Task 3.5.65: Use direct TypeRegistry access instead of adapter
+	// Task 3.5.128f: Direct record zero-value creation without adapter
 	if e.typeSystem.HasRecord(typeName) {
-		recordVal, err := e.adapter.CreateRecordZeroValue(typeName)
-		if err == nil {
-			return recordVal
+		// Look up record type via TypeSystem
+		recordTypeAny := e.typeSystem.LookupRecord(typeName)
+		if recordTypeAny == nil {
+			return &runtime.NilValue{}
 		}
-		return &runtime.NilValue{}
+
+		// Type-assert to access RecordType, Metadata, and FieldDecls
+		type recordTypeAccess interface {
+			GetRecordType() *types.RecordType
+			GetMetadata() any
+		}
+
+		recordTypeAccessor, ok := recordTypeAny.(recordTypeAccess)
+		if !ok {
+			return &runtime.NilValue{}
+		}
+
+		recordType := recordTypeAccessor.GetRecordType()
+		if recordType == nil {
+			return &runtime.NilValue{}
+		}
+
+		// Extract Metadata (may be nil)
+		var metadata *runtime.RecordMetadata
+		if mdAny := recordTypeAccessor.GetMetadata(); mdAny != nil {
+			if md, ok := mdAny.(*runtime.RecordMetadata); ok {
+				metadata = md
+			}
+		}
+
+		// Extract FieldDecls for field initializer evaluation
+		var fieldDecls map[string]*ast.FieldDecl
+		type hasFieldDecls interface {
+			GetFieldDecls() map[string]*ast.FieldDecl
+		}
+		if rtVal, ok := recordTypeAny.(hasFieldDecls); ok {
+			fieldDecls = rtVal.GetFieldDecls()
+		}
+
+		// Create field initializer callback for runtime constructor
+		// Task 3.5.128f: Evaluates field initializers or generates zero values
+		initializer := func(fieldName string, fieldType types.Type) runtime.Value {
+			fieldNameNorm := ident.Normalize(fieldName)
+
+			// Check for field initializer expression in FieldDecls
+			if fieldDecls != nil {
+				if fieldDecl, hasDecl := fieldDecls[fieldNameNorm]; hasDecl && fieldDecl.InitValue != nil {
+					// Evaluate the field initializer AST expression directly
+					fieldValue := e.Eval(fieldDecl.InitValue, ctx)
+					if isError(fieldValue) {
+						return fieldValue
+					}
+					return fieldValue
+				}
+			}
+
+			// No initializer - generate zero value
+			return e.getZeroValueForType(fieldType)
+		}
+
+		// Create record using runtime constructor with initializer callback
+		// Task 3.5.128f: Direct runtime call, no adapter needed
+		recordValue := runtime.NewRecordValueWithInitializer(recordType, metadata, initializer)
+
+		return recordValue
 	}
 
 	// Check if this is an array type (named type)
-	// Task 3.5.69d: Use direct TypeRegistry access instead of adapter
+	// Task 3.5.129b: Direct array zero-value creation without adapter
 	if e.typeSystem.HasArrayType(typeName) {
-		arrayVal, err := e.adapter.CreateArrayZeroValue(typeName)
-		if err == nil {
-			return arrayVal
+		arrayType := e.typeSystem.LookupArrayType(typeName)
+		if arrayType == nil {
+			return &runtime.NilValue{}
 		}
-		return &runtime.NilValue{}
+		return runtime.NewArrayValue(arrayType, nil)
 	}
 
 	// Check if this is a subrange type
-	if typeVal, ok := e.adapter.LookupSubrangeType(typeName); ok && typeVal != nil {
-		subrangeVal, err := e.adapter.CreateSubrangeZeroValue(typeName)
-		if err == nil {
-			return subrangeVal
-		}
-		return &runtime.NilValue{}
+	// Task 3.5.129c: Direct subrange lookup + bridge constructor
+	subrangeTypeKey := "__subrange_type_" + ident.Normalize(typeName)
+	if typeVal, ok := ctx.Env().Get(subrangeTypeKey); ok {
+		// Use bridge adapter for construction (SubrangeValue in interp package)
+		return e.adapter.CreateSubrangeValueDirect(typeVal)
 	}
 
 	// Check if this is an interface type
-	// Task 3.5.66: Use direct TypeRegistry access instead of adapter
+	// Task 3.5.129d: Direct interface check + lookup + bridge constructor
 	if e.typeSystem.HasInterface(typeName) {
-		ifaceVal, err := e.adapter.CreateInterfaceZeroValue(typeName)
-		if err == nil {
-			return ifaceVal
+		// Lookup interface metadata via adapter (temporary until TypeSystem migration)
+		ifaceInfoAny, exists := e.adapter.LookupInterface(typeName)
+		if !exists {
+			return &runtime.NilValue{}
 		}
-		return &runtime.NilValue{}
+		// Use bridge adapter for construction (InterfaceInstance in interp package)
+		return e.adapter.CreateInterfaceInstanceDirect(ifaceInfoAny)
 	}
 
 	// Initialize basic types with their zero values
@@ -1365,12 +1431,10 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 		return e.adapter.BoxVariant(&runtime.NilValue{})
 	default:
 		// Check if this is a class type and create a typed nil value
-		// Task 3.5.64: Use direct TypeRegistry access instead of adapter
+		// Task 3.5.129e: Direct class check + bridge constructor
 		if e.typeSystem.HasClass(typeName) {
-			classVal, err := e.adapter.CreateClassZeroValue(typeName)
-			if err == nil {
-				return classVal
-			}
+			// Use bridge adapter for construction (NilValue.ClassType in interp package)
+			return e.adapter.CreateTypedNilValue(typeName)
 		}
 		return &runtime.NilValue{}
 	}

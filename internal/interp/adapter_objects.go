@@ -84,6 +84,50 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 	return obj, nil
 }
 
+// ExecuteConstructor executes a constructor method on an already-created object instance.
+// Task 3.5.126f: Callback for complex constructor execution (method body + Self binding).
+func (i *Interpreter) ExecuteConstructor(obj evaluator.Value, constructorName string, args []evaluator.Value) error {
+	// Convert arguments
+	internalArgs := convertEvaluatorArgs(args)
+	internalObj := obj.(Value)
+
+	// Get the object's class
+	objectInstance, ok := internalObj.(*ObjectInstance)
+	if !ok {
+		return fmt.Errorf("value is not an object instance")
+	}
+
+	classInfo := objectInstance.Class
+
+	// Look up constructor
+	constructorNameNorm := ident.Normalize(constructorName)
+	constructor, exists := classInfo.Constructors[constructorNameNorm]
+	if !exists {
+		if len(internalArgs) > 0 {
+			return fmt.Errorf("no constructor '%s' found for class '%s' with %d arguments", constructorName, classInfo.Name, len(internalArgs))
+		}
+		// No constructor and no args - OK
+		return nil
+	}
+
+	// Execute constructor in a new environment with Self bound
+	savedEnv := i.env
+	tempEnv := NewEnclosedEnvironment(i.env)
+	tempEnv.Define("Self", objectInstance)
+	i.env = tempEnv
+
+	result := i.callUserFunction(constructor, internalArgs)
+
+	i.env = savedEnv
+
+	// Propagate constructor errors
+	if isError(result) {
+		return fmt.Errorf("constructor failed: %v", result)
+	}
+
+	return nil
+}
+
 // ===== Type Checking and Casting =====
 
 // CheckType checks if an object is of a specified type (implements 'is' operator).

@@ -479,10 +479,10 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 		args[i] = val
 	}
 
-	// Create the object using the adapter
-	// The adapter handles: class lookup, field initialization, and constructor execution
-	// NOTE: Record type delegation, abstract/external checks, and exception handling
-	// are still handled by the original evalNewExpression in objects_instantiation.go
+	// Task 3.5.126f: Direct object creation with field initialization callback
+	// For now, continue using CreateObject adapter method since we can't access
+	// ClassInfo directly from evaluator package (circular import).
+	// TODO: In future, refactor to use interface-based access to class metadata.
 	obj, err := e.adapter.CreateObject(className, args)
 	if err != nil {
 		return e.newError(node, "%s", err.Error())

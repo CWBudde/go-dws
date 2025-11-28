@@ -84,7 +84,8 @@ func (e *Evaluator) IndexString(str *runtime.StringValue, index int, node ast.No
 // JSON handling will use val.Type() == "JSON" check and delegate to adapter.
 
 // getZeroValueForType returns the zero/default value for a given type.
-// This is used when accessing uninitialized array elements.
+// This is used when accessing uninitialized array elements and record field initialization.
+// Task 3.5.128e: Extended to support all DWScript types for record field initialization.
 func (e *Evaluator) getZeroValueForType(t types.Type) runtime.Value {
 	if t == nil {
 		return &runtime.NilValue{}
@@ -105,9 +106,42 @@ func (e *Evaluator) getZeroValueForType(t types.Type) runtime.Value {
 			return runtime.NewArrayValue(arrayType, nil)
 		}
 		return &runtime.NilValue{}
+	case "RECORD":
+		// Task 3.5.128e: Recursively create nested records with zero-initialized fields
+		if recordType, ok := t.(*types.RecordType); ok {
+			// Look up metadata for nested record (returns any, need type assertion)
+			metadataAny := e.typeSystem.LookupRecordMetadata(recordType.Name)
+			var nestedMetadata *runtime.RecordMetadata
+			if metadataAny != nil {
+				if md, ok := metadataAny.(*runtime.RecordMetadata); ok {
+					nestedMetadata = md
+				}
+			}
+
+			// Create zero-initialized nested record
+			zeroInit := func(nestedFieldName string, nestedFieldType types.Type) runtime.Value {
+				return e.getZeroValueForType(nestedFieldType)
+			}
+			return runtime.NewRecordValueWithInitializer(recordType, nestedMetadata, zeroInit)
+		}
+		return &runtime.NilValue{}
+	case "INTERFACE":
+		// Task 3.5.128e: Interface fields initialize as nil (use adapter for proper InterfaceInstance)
+		// InterfaceInstance is in interp package, so we return nil here
+		// The adapter will handle interface field initialization if needed
+		return &runtime.NilValue{}
+	case "CLASS":
+		// Task 3.5.128e: Class fields initialize as nil
+		if classType, ok := t.(*types.ClassType); ok {
+			return &runtime.NilValue{ClassType: classType.Name}
+		}
+		return &runtime.NilValue{}
+	case "VARIANT":
+		// Task 3.5.128e: Variant fields initialize as nil (VariantValue is in interp package)
+		// For now, return nil - the adapter will handle variant initialization if needed
+		return &runtime.NilValue{}
 	default:
-		// For complex types (records, objects), return nil
-		// Record initialization requires adapter (method lookups)
+		// For other types, return nil
 		return &runtime.NilValue{}
 	}
 }

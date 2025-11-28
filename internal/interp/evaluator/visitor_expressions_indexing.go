@@ -2,7 +2,9 @@ package evaluator
 
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // This file contains visitor methods for indexing and record literal expression AST nodes.
@@ -294,10 +296,46 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 		return e.newError(node, "record literal requires explicit type name or type context")
 	}
 
-	// Look up record type
-	// Task 3.5.46: Use TypeSystem directly instead of adapter
-	if !e.typeSystem.HasRecord(recordTypeName) {
+	// Look up record type via TypeSystem
+	// Task 3.5.128e: Direct TypeSystem lookup, cast to access FieldDecls
+	recordTypeAny := e.typeSystem.LookupRecord(recordTypeName)
+	if recordTypeAny == nil {
 		return e.newError(node, "unknown record type '%s'", recordTypeName)
+	}
+
+	// Type-assert to access RecordType, Metadata, and FieldDecls
+	// This is safe because TypeSystem stores *RecordTypeValue
+	type recordTypeAccess interface {
+		GetRecordType() *types.RecordType
+		GetMetadata() any
+	}
+
+	recordTypeAccessor, ok := recordTypeAny.(recordTypeAccess)
+	if !ok {
+		return e.newError(node, "failed to access record type '%s'", recordTypeName)
+	}
+
+	recordType := recordTypeAccessor.GetRecordType()
+	if recordType == nil {
+		return e.newError(node, "failed to extract record type for '%s'", recordTypeName)
+	}
+
+	// Extract Metadata (may be nil)
+	var metadata *runtime.RecordMetadata
+	if mdAny := recordTypeAccessor.GetMetadata(); mdAny != nil {
+		if md, ok := mdAny.(*runtime.RecordMetadata); ok {
+			metadata = md
+		}
+	}
+
+	// Extract FieldDecls using struct field access
+	// Since we know the concrete type is *RecordTypeValue from interp package
+	var fieldDecls map[string]*ast.FieldDecl
+	type hasFieldDecls interface {
+		GetFieldDecls() map[string]*ast.FieldDecl
+	}
+	if rtVal, ok := recordTypeAny.(hasFieldDecls); ok {
+		fieldDecls = rtVal.GetFieldDecls()
 	}
 
 	// Evaluate field values
@@ -320,11 +358,39 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 		fieldValues[fieldName] = fieldValue
 	}
 
-	// Create record value with field initialization
-	recordValue, err := e.adapter.CreateRecordValue(recordTypeName, fieldValues)
-	if err != nil {
-		return e.newError(node, "%v", err)
+	// Create field initializer callback for runtime constructor
+	// Task 3.5.128e: NO ADAPTER - evaluates field initializers directly
+	initializer := func(fieldName string, fieldType types.Type) runtime.Value {
+		// Check if field was provided in literal (case-insensitive lookup)
+		for providedName, val := range fieldValues {
+			if ident.Equal(providedName, fieldName) {
+				return val
+			}
+		}
+
+		// Field not in literal - need to initialize it
+		fieldNameNorm := ident.Normalize(fieldName)
+
+		// Check for field initializer expression in FieldDecls
+		if fieldDecls != nil {
+			if fieldDecl, hasDecl := fieldDecls[fieldNameNorm]; hasDecl && fieldDecl.InitValue != nil {
+				// Evaluate the field initializer AST expression directly
+				fieldValue := e.Eval(fieldDecl.InitValue, ctx)
+				if isError(fieldValue) {
+					// Return error value (constructor will propagate it)
+					return fieldValue
+				}
+				return fieldValue
+			}
+		}
+
+		// No initializer - generate zero value
+		return e.getZeroValueForType(fieldType)
 	}
+
+	// Create record using runtime constructor with initializer callback
+	// Task 3.5.128e: Direct runtime call, no adapter needed
+	recordValue := runtime.NewRecordValueWithInitializer(recordType, metadata, initializer)
 
 	return recordValue
 }
