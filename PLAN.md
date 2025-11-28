@@ -456,25 +456,133 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 **Current State**: 15 value creation adapter calls
 
-- [ ] **3.5.126** Migrate CreateObject (1 call)
-  - **Location**: `visitor_expressions.go` line 848
-  - **Issue**: Object instantiation delegates to adapter
-  - **Solution**: Create `evaluator.InstantiateClass()` with constructor dispatch
-  - **Requires**: ClassMetadata lookup, field initialization, constructor call
-  - **Risk**: High - constructor chains are complex
-  - **Calls removed**: 1 CreateObject call
+#### Completed Tasks ✅
 
-- [ ] **3.5.127** Migrate CreateArray + CreateArrayValue (4 calls)
-  - **Location**: `visitor_statements.go` lines 1150, 1161, `array_helpers.go` lines 402, 509
-  - **Issue**: Array creation delegates to adapter
-  - **Solution**: Create ArrayValue directly using types.ArrayType
+- [x] **3.5.127** Migrate CreateArray + CreateArrayValue (4 calls)
+  - **Location**: `visitor_statements.go` lines 1284, 1295, `array_helpers.go` lines 409, 518
+  - **Solution**: Direct `&runtime.ArrayValue{ArrayType: at, Elements: elems}` construction
   - **Calls removed**: 4 adapter calls
 
-- [ ] **3.5.128** Migrate CreateRecordValue + CreateRecordZeroValue (2 calls)
-  - **Location**: `visitor_expressions.go` line 1972, `visitor_statements.go` line 1178
-  - **Issue**: Record creation delegates to adapter
-  - **Solution**: Create RecordValue directly using RecordType metadata
-  - **Calls removed**: 2 adapter calls
+#### Deferred Tasks with Subtask Breakdown ⚠️
+
+---
+
+##### 3.5.128: Migrate RecordValue Creation (2 calls) - MEDIUM COMPLEXITY
+
+**Status**: Deferred - requires Phase 3.5.44 completion first
+
+**Locations**:
+- `visitor_expressions_indexing.go:324` - `CreateRecordValue` (record literal with fields)
+- `visitor_statements.go:1317` - `CreateRecordZeroValue` (zero-initialized record)
+
+**Current Blockers**:
+1. `RecordValue` struct in `interp/value.go:153-163` has deprecated `Methods` field (`map[string]*ast.FunctionDecl`)
+2. Field initializer evaluation requires `i.Eval()` for AST expressions
+3. Record type lookup uses environment pattern (`__record_type_` + name)
+
+**Subtasks**:
+
+- [ ] **3.5.128a** Remove deprecated `Methods` field from RecordValue (Phase 3.5.44)
+  - **File**: `internal/interp/value.go:162`
+  - **Action**: Remove `Methods map[string]*ast.FunctionDecl` field
+  - **Action**: Update `GetMethod()` to use only `Metadata.Methods`
+  - **Risk**: Low - field already deprecated, fallback exists
+  - **Dependency**: Verify no code paths rely on legacy `Methods` field
+
+- [ ] **3.5.128b** Move RecordValue struct to runtime package
+  - **From**: `internal/interp/value.go:153-163`
+  - **To**: `internal/interp/runtime/record.go` (new file)
+  - **Pattern**: Follow `ArrayValue` migration pattern
+  - **Fields to keep**: `RecordType`, `Fields`, `Metadata`
+  - **Dependency**: 3.5.128a complete
+
+- [ ] **3.5.128c** Add RecordValueInitializer callback pattern
+  - **Pattern**: Similar to `ArrayElementInitializer` in `runtime/array.go:75-79`
+  - **Purpose**: Allow evaluator to provide field initialization logic
+  - **Signature**: `type RecordFieldInitializer func(fieldName string, fieldType types.Type) runtime.Value`
+  - **Dependency**: 3.5.128b complete
+
+- [ ] **3.5.128d** Add TypeSystem.LookupRecordMetadata() method
+  - **File**: `internal/interp/types/type_system.go`
+  - **Purpose**: Direct metadata lookup without environment `__record_type_` pattern
+  - **Returns**: `*runtime.RecordMetadata` (already exists in TypeSystem as `RecordTypeValue`)
+  - **Dependency**: None (can be done in parallel)
+
+- [ ] **3.5.128e** Implement direct RecordValue creation in evaluator
+  - **Location**: `visitor_expressions_indexing.go:324`
+  - **Code**: `&runtime.RecordValue{RecordType: rt, Fields: fields, Metadata: meta}`
+  - **Dependency**: 3.5.128b, 3.5.128c, 3.5.128d complete
+
+- [ ] **3.5.128f** Implement direct RecordZeroValue creation in evaluator
+  - **Location**: `visitor_statements.go:1317`
+  - **Code**: Use initializer callback for default field values
+  - **Dependency**: 3.5.128e complete
+
+**Estimated effort**: 2-3 days after 3.5.44 completion
+**Calls removed**: 2 adapter calls
+
+---
+
+##### 3.5.126: Migrate CreateObject (1 call) - HIGH COMPLEXITY
+
+**Status**: Deferred - requires significant architectural changes
+
+**Location**: `visitor_expressions_functions.go:486`
+
+**Current Blockers**:
+1. `ObjectInstance` struct (`class.go:99-120`) depends on `*ClassInfo`
+2. `ClassInfo` struct (`class.go:34-71`) contains 20+ AST-dependent fields
+3. Constructor execution requires `i.callUserFunction()` and `i.Eval()`
+4. Field initializers require AST evaluation
+5. Other types depend on `ObjectInstance`: `InterfaceInstance`, `ExceptionValue`, `TypeCastValue`
+
+**Subtasks** (Long-term roadmap):
+
+- [ ] **3.5.126a** Create ClassMetadataComplete in runtime package
+  - **File**: `internal/interp/runtime/metadata.go` (extend existing ClassMetadata)
+  - **Purpose**: AST-free class metadata sufficient for object instantiation
+  - **Required fields**: Field types, default values (pre-evaluated), constructor signatures
+  - **Risk**: High - affects entire class system
+  - **Dependency**: Phase 3.5.39 (AST-free runtime types)
+
+- [ ] **3.5.126b** Add pre-evaluated field initializers to ClassMetadata
+  - **Current**: Field initializers are `*ast.Expression` evaluated at instantiation
+  - **Target**: Pre-evaluate constant initializers during class registration
+  - **Challenge**: Non-constant initializers still need runtime evaluation
+  - **Solution**: Store `FieldInitializer func(ctx) Value` callbacks
+  - **Dependency**: 3.5.126a complete
+
+- [ ] **3.5.126c** Move ObjectInstance struct to runtime package
+  - **From**: `internal/interp/class.go:99-120`
+  - **To**: `internal/interp/runtime/object.go` (new file)
+  - **Change**: Replace `*ClassInfo` with `*ClassMetadataComplete`
+  - **Risk**: High - breaks 600+ lines of ObjectInstance methods
+  - **Dependency**: 3.5.126a, 3.5.126b complete
+
+- [ ] **3.5.126d** Implement ConstructorExecutor callback interface
+  - **Purpose**: Allow evaluator to request constructor execution without adapter
+  - **Pattern**: Similar to `ExecutePropertyRead` callbacks
+  - **Signature**: `type ConstructorExecutor func(class string, args []Value) (Value, error)`
+  - **Dependency**: 3.5.126c complete
+
+- [ ] **3.5.126e** Migrate dependent types to use runtime.ObjectInstance
+  - **InterfaceInstance** (`interface.go:138-159`): Update Object field type
+  - **ExceptionValue** (`exceptions.go:20-30`): Update Instance field type
+  - **TypeCastValue** (`value.go:860-862`): Update wrapped value handling
+  - **Dependency**: 3.5.126c complete
+
+- [ ] **3.5.126f** Implement direct object instantiation in evaluator
+  - **Location**: `visitor_expressions_functions.go:486`
+  - **Requires**: TypeSystem lookup, field initialization, constructor callback
+  - **Dependency**: All above subtasks complete
+
+**Estimated effort**: 4-6 weeks (major architectural change)
+**Calls removed**: 1 CreateObject call
+**Risk**: Very High - touches core class system
+
+**Alternative consideration**: Keep adapter for object creation indefinitely, focus on reducing other adapter calls first. Object instantiation is inherently complex and may benefit from centralized logic in the Interpreter.
+
+#### Pending Tasks
 
 - [ ] **3.5.129** Migrate Zero Value Creators (5 calls)
   - **Location**: `visitor_statements.go` lines 1168, 1188, 1197, 1207, 1231
