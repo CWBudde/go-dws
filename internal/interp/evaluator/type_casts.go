@@ -62,13 +62,8 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 	case "boolean":
 		return e.castToBoolean(val)
 	case "variant":
-		// Variant can accept any value - delegate to adapter for VariantValue creation
-		// (VariantValue is in interp package, can't be imported here due to circular dependency)
-		converted, err := e.adapter.ConvertValue(val, "Variant")
-		if err != nil {
-			return &runtime.ErrorValue{Message: fmt.Sprintf("cannot convert %s to Variant", val.Type())}
-		}
-		return converted
+		// Variant can accept any value - wrap directly
+		return e.adapter.BoxVariant(val)
 	default:
 		// Check if it's an enum type
 		if enumType != nil {

@@ -637,12 +637,9 @@ func (e *Evaluator) coerceElementsToType(arrayType *types.ArrayType, values []Va
 
 		// Integer → Float promotion
 		if underlyingElementType.Equals(types.FLOAT) && valType.Equals(types.INTEGER) {
-			// Convert integer to float via adapter
-			converted, err := e.adapter.ConvertValue(val, "Float")
-			if err == nil {
-				coerced[idx] = converted
-				continue
-			}
+			// Convert integer to float directly
+			coerced[idx] = e.castToFloat(val)
+			continue
 		}
 
 		// Array compatibility check
