@@ -79,6 +79,15 @@ type TTest = class
 end;`,
 		},
 		{
+			name: "index directive property",
+			input: `
+type TTest = class
+	function GetItem(i: Integer): String; begin Result := ''; end;
+	procedure SetItem(i: Integer; value: String); begin end;
+	property First: String index 0 read GetItem write SetItem;
+end;`,
+		},
+		{
 			name: "auto-property generates backing field",
 			input: `
 type TTest = class
@@ -292,6 +301,34 @@ type TTest = class
 	property Items[i: UnknownType]: String read GetItem;
 end;`,
 			expectedError: "unknown type 'UnknownType'",
+		},
+		{
+			name: "index directive requires getter parameter",
+			input: `
+type TTest = class
+	function GetItem: String; begin Result := ''; end;
+	property First: String index 0 read GetItem;
+end;`,
+			expectedError: "getter method 'GetItem' has 0 parameters, expected 1 parameter",
+		},
+		{
+			name: "index directive must be integer",
+			input: `
+const cStr = 'hi';
+type TTest = class
+	function GetItem(i: Integer): String; begin Result := ''; end;
+	property First: String index cStr read GetItem;
+end;`,
+			expectedError: "index directive must be an integer",
+		},
+		{
+			name: "index directive cannot mix with brackets",
+			input: `
+type TTest = class
+	function GetItem(i: Integer): String; begin Result := ''; end;
+	property Items[i: Integer]: String index 1 read GetItem;
+end;`,
+			expectedError: "cannot combine index parameters with an index directive",
 		},
 	}
 

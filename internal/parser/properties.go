@@ -106,22 +106,60 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 		IsDefault:   false,
 	}
 
-	// Parse optional 'read' clause
-	// ReadSpec can be:
-	// - Identifier (field or method name)
-	// - Expression in parentheses: read (FValue * 2)
-	if p.peekTokenIs(lexer.READ) {
-		p.nextToken() // move to 'read'
-		p.nextToken() // move to read specifier
+	// Track optional specifiers
+	var indexValue ast.Expression
 
-		// Check if read spec is an expression in parentheses
-		if p.curTokenIs(lexer.LPAREN) {
-			// Parse expression-based read spec
-			readExpr := p.parseExpression(LOWEST)
-			prop.ReadSpec = readExpr
-		} else if p.curTokenIs(lexer.IDENT) {
+	// Parse optional index/read/write directives (order-insensitive but only one of each)
+parseDirectives:
+	for {
+		switch {
+		case p.peekTokenIs(lexer.INDEX):
+			p.nextToken() // move to 'index'
+			p.nextToken() // move to expression start
+			if indexValue != nil {
+				p.addError("duplicate index directive on property", ErrUnexpectedToken)
+				return nil
+			}
+			indexValue = p.parseExpression(LOWEST)
+		case p.peekTokenIs(lexer.READ):
+			// Parse optional 'read' clause
+			// ReadSpec can be:
+			// - Identifier (field or method name)
+			// - Expression in parentheses: read (FValue * 2)
+			p.nextToken() // move to 'read'
+			p.nextToken() // move to read specifier
+
+			// Check if read spec is an expression in parentheses
+			if p.curTokenIs(lexer.LPAREN) {
+				// Parse expression-based read spec
+				readExpr := p.parseExpression(LOWEST)
+				prop.ReadSpec = readExpr
+			} else if p.curTokenIs(lexer.IDENT) {
+				// Simple identifier (field or method name)
+				prop.ReadSpec = &ast.Identifier{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: p.cursor.Current(),
+						},
+					},
+					Value: p.cursor.Current().Literal,
+				}
+			} else {
+				p.addError("expected identifier or expression after 'read'", ErrExpectedIdent)
+				return nil
+			}
+		case p.peekTokenIs(lexer.WRITE):
+			// Parse optional 'write' clause
+			// WriteSpec can be:
+			// - Identifier (field or method name)
+			p.nextToken() // move to 'write'
+
+			if !p.expectPeek(lexer.IDENT) {
+				return nil
+			}
+
 			// Simple identifier (field or method name)
-			prop.ReadSpec = &ast.Identifier{
+			prop.WriteSpec = &ast.Identifier{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
 						Token: p.cursor.Current(),
@@ -129,32 +167,13 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 				},
 				Value: p.cursor.Current().Literal,
 			}
-		} else {
-			p.addError("expected identifier or expression after 'read'", ErrExpectedIdent)
-			return nil
+		default:
+			break parseDirectives
 		}
 	}
 
-	// Parse optional 'write' clause
-	// WriteSpec can be:
-	// - Identifier (field or method name)
-	if p.peekTokenIs(lexer.WRITE) {
-		p.nextToken() // move to 'write'
-
-		if !p.expectPeek(lexer.IDENT) {
-			return nil
-		}
-
-		// Simple identifier (field or method name)
-		prop.WriteSpec = &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: p.cursor.Current(),
-				},
-			},
-			Value: p.cursor.Current().Literal,
-		}
-	}
+	// Attach parsed index value
+	prop.IndexValue = indexValue
 
 	// If neither read nor write was specified, generate auto-property
 	// Auto-property generates backing field FName (F + property name)
