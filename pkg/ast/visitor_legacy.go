@@ -750,6 +750,9 @@ func walkPropertyDecl(n *PropertyDecl, v Visitor) {
 	if n.Type != nil {
 		Walk(v, n.Type)
 	}
+	if n.IndexValue != nil {
+		Walk(v, n.IndexValue)
+	}
 	for _, param := range n.IndexParams {
 		walkParameter(param, v)
 	}

@@ -724,6 +724,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	return &NilValue{}
 }
 
+
 // convertPropertyDecl converts an AST property declaration to a PropertyInfo struct.
 // This extracts the property metadata for runtime property access handling.
 // Note: We mark all identifiers as field access for now and will check at runtime
@@ -752,6 +753,14 @@ func (i *Interpreter) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.Pro
 		IsIndexed:       len(propDecl.IndexParams) > 0,
 		IsDefault:       propDecl.IsDefault,
 		IsClassProperty: propDecl.IsClassProperty,
+	}
+
+	if propDecl.IndexValue != nil {
+		if val, ok := ast.ExtractIntegerLiteral(propDecl.IndexValue); ok {
+			propInfo.HasIndexValue = true
+			propInfo.IndexValue = val
+			propInfo.IndexValueType = types.INTEGER
+		}
 	}
 
 	// Determine read access kind and spec
