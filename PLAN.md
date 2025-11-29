@@ -505,17 +505,29 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Methods removed**: 1 (MatchesExceptionType from interface and implementation)
   - **Tests**: All exception type matching tests pass ✅
 
-- [ ] **3.5.136** Migrate GetExceptionInstance (2 calls)
-  - **Location**: `visitor_statements.go` lines 892, 963
-  - **Issue**: Extracting object from ExceptionValue
-  - **Solution**: Type assert to ExceptionValue interface
+- [x] **3.5.136** Migrate GetExceptionInstance (2 calls) ✅
+  - **Location**: `visitor_statements.go` lines 1038, 1110 (finally block, exception handler)
+  - **Issue**: Extracting ObjectInstance from ExceptionValue delegates to adapter
+  - **Solution**: Added `GetInstance()` method to ExceptionValue, created `getExceptionInstance()` helper in evaluator using interface pattern
+  - **Implementation**:
+    - Added `ExceptionValue.GetInstance() interface{}` method to return Instance field
+    - Created evaluator helper with local interface definition to avoid circular imports
+    - Replaced both adapter calls with `e.getExceptionInstance(exc)`
   - **Calls removed**: 2 adapter calls
+  - **Methods removed**: 1 (GetExceptionInstance from adapter interface and implementation)
+  - **Methods added**: 1 (GetInstance on ExceptionValue), 1 helper (getExceptionInstance in evaluator)
+  - **Lines removed**: 8 from adapter_values.go
+  - **Tests**: All exception handling tests pass ✅
 
-- [ ] **3.5.137** Migrate EvalBlockStatement + EvalStatement (4 calls)
-  - **Location**: `visitor_statements.go` lines 902, 918, 989, 1012
-  - **Issue**: Block/statement evaluation in try-except-finally
+- [x] **3.5.137** Migrate EvalBlockStatement + EvalStatement (4 calls) ✅
+  - **Location**: `visitor_statements.go` lines 1048, 1064, 1136, 1159 (finally, try, handler, else blocks)
+  - **Issue**: Block/statement evaluation in try-except-finally delegates to adapter
   - **Solution**: Call Evaluator.Eval() directly with proper context
+  - **Implementation**: Replaced all 4 calls with `e.Eval(node, ctx)` for direct evaluation
   - **Calls removed**: 4 adapter calls
+  - **Methods removed**: 2 (EvalBlockStatement, EvalStatement) + 2 helper methods (syncFromContext, syncToContext)
+  - **Lines removed**: ~47 from adapter_values.go
+  - **Tests**: All exception handling tests pass ✅
 
 ---
 
