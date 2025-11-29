@@ -106,65 +106,17 @@ func (i *Interpreter) GetZeroValueForType(typeInfo any) evaluator.Value {
 // Task 3.5.135: MatchesExceptionType removed - migrated to evaluator.matchesExceptionType()
 // Uses TypeSystem.IsClassDescendantOf for class hierarchy checking.
 
-// GetExceptionInstance returns the ObjectInstance from an exception.
-func (i *Interpreter) GetExceptionInstance(exc interface{}) evaluator.Value {
-	excVal, ok := exc.(*ExceptionValue)
-	if !ok {
-		return nil
-	}
-	return excVal.Instance
-}
+// Task 3.5.136: GetExceptionInstance removed - migrated to evaluator.getExceptionInstance()
+// Uses ExceptionValue.GetInstance() method to extract ObjectInstance without adapter.
 
 // Task 3.5.134: CreateExceptionFromObject removed - migrated to evaluator.createExceptionFromObject()
 // The evaluator now handles nil objects and uses WrapObjectInException bridge constructor.
 
 // ===== Statement Evaluation Adapter Methods =====
 
-// EvalBlockStatement evaluates a block statement in the given context.
-func (i *Interpreter) EvalBlockStatement(block *ast.BlockStatement, ctx *evaluator.ExecutionContext) {
-	// Sync context state to interpreter
-	i.syncFromContext(ctx)
-	defer i.syncToContext(ctx)
-
-	i.evalBlockStatement(block)
-}
-
-// EvalStatement evaluates a single statement in the given context.
-func (i *Interpreter) EvalStatement(stmt ast.Statement, ctx *evaluator.ExecutionContext) {
-	// Sync context state to interpreter
-	i.syncFromContext(ctx)
-	defer i.syncToContext(ctx)
-
-	i.Eval(stmt)
-}
-
-// syncFromContext syncs execution state from context to interpreter.
-func (i *Interpreter) syncFromContext(ctx *evaluator.ExecutionContext) {
-	// Sync exception state
-	if exc := ctx.Exception(); exc != nil {
-		if excVal, ok := exc.(*ExceptionValue); ok {
-			i.exception = excVal
-		}
-	} else {
-		i.exception = nil
-	}
-
-	// Sync handler exception
-	if hexc := ctx.HandlerException(); hexc != nil {
-		if excVal, ok := hexc.(*ExceptionValue); ok {
-			i.handlerException = excVal
-		}
-	} else {
-		i.handlerException = nil
-	}
-}
-
-// syncToContext syncs execution state from interpreter to context.
-func (i *Interpreter) syncToContext(ctx *evaluator.ExecutionContext) {
-	// Sync exception state back
-	ctx.SetException(i.exception)
-	ctx.SetHandlerException(i.handlerException)
-}
+// Task 3.5.137: EvalBlockStatement and EvalStatement removed - evaluator calls e.Eval() directly.
+// Exception handling code now uses direct evaluation instead of adapter delegation.
+// The syncFromContext/syncToContext helper methods were also removed as they were only used by these methods.
 
 // ===== Task 3.5.6: Array and Collection Adapter Method Implementations =====
 

@@ -17,7 +17,7 @@ func (e *ErrorValue) Type() string   { return "ERROR" }
 func (e *ErrorValue) String() string { return "ERROR: " + e.Message }
 
 // newError creates a new error value with optional formatting.
-func (e *Evaluator) newError(_ ast.Node, format string, args ...interface{}) Value {
+func (e *Evaluator) newError(_ ast.Node, format string, args ...any) Value {
 	return &ErrorValue{Message: fmt.Sprintf(format, args...)}
 }
 
