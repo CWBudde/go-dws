@@ -138,7 +138,6 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		// This ensures class-level storage takes precedence over instance fields
 
 		// 1. Check if it's a class variable (only for class properties)
-		// Task 9.285: Use lowercase for case-insensitive lookup
 		if fieldType, found := classType.ClassVars[pkgident.Normalize(readSpecName)]; found {
 			// Only class properties can read from class variables
 			if propInfo.IsClassProperty {
@@ -171,7 +170,6 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		// 3. Check if it's an instance field (only for instance properties)
 		if !propInfo.IsClassProperty {
 			// Instance property can use instance field
-			// Task 9.285: Use lowercase for case-insensitive lookup
 			if fieldType, found := classType.GetField(pkgident.Normalize(readSpecName)); found {
 				if !propType.Equals(fieldType) {
 					a.addError("property '%s' read field '%s' has type %s, expected %s at %s",
@@ -186,7 +184,6 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		}
 
 		// If method, verify method exists with correct signature
-		// Task 9.285: Use lowercase for case-insensitive lookup
 		if methodType, found := classType.GetMethod(pkgident.Normalize(readSpecName)); found {
 			// For class properties, verify the method is a class method
 			// Task 9.16.1: Use lowercase key since ClassMethodFlags now uses lowercase keys
@@ -317,7 +314,6 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 
 	if propInfo.IsClassProperty {
 		// Class property must use class variable
-		// Task 9.285: Use lowercase for case-insensitive lookup
 		fieldType, found = classType.ClassVars[pkgident.Normalize(writeSpecName)]
 		if found && !propType.Equals(fieldType) {
 			a.addError("class property '%s' write field '%s' has type %s, expected %s at %s",
@@ -327,7 +323,6 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 		}
 	} else {
 		// Instance property can only use instance field
-		// Task 9.285: Use lowercase for case-insensitive lookup
 		fieldType, found = classType.GetField(pkgident.Normalize(writeSpecName))
 		if found && !propType.Equals(fieldType) {
 			a.addError("property '%s' write field '%s' has type %s, expected %s at %s",
@@ -351,7 +346,6 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 	}
 
 	// If method, verify method exists with correct signature
-	// Task 9.285: Use lowercase for case-insensitive lookup
 	if methodType, found := classType.GetMethod(pkgident.Normalize(writeSpecName)); found {
 		// For class properties, verify the method is a class method
 		// Task 9.16.1: Use lowercase key since ClassMethodFlags now uses lowercase keys

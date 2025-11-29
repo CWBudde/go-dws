@@ -75,7 +75,6 @@ func TestSubrangeTypeRegistration(t *testing.T) {
 			}
 
 			// Check that subrange type was registered
-			// Use lowercase for case-insensitive lookup
 			subrangeType, found := analyzer.subranges[strings.ToLower(tt.typeName)]
 			if !found {
 				t.Fatalf("Subrange type %s was not registered", tt.typeName)
@@ -207,11 +206,8 @@ func TestSubrangeErrorLowGreaterThanHigh(t *testing.T) {
 			// Should have an error
 			if err == nil {
 				t.Error("Expected semantic error for low > high, got none")
-			} else {
-				errStr := err.Error()
-				if !strings.Contains(errStr, "low bound") || !strings.Contains(errStr, "greater than") {
-					t.Errorf("Expected error about low bound greater than high bound, got: %v", errStr)
-				}
+			} else if !strings.Contains(err.Error(), "low bound") || !strings.Contains(err.Error(), "greater than") {
+				t.Errorf("Expected error about low bound greater than high bound, got: %v", err.Error())
 			}
 		})
 	}
@@ -367,7 +363,6 @@ func TestSubrangeWithUnaryMinus(t *testing.T) {
 	}
 
 	// Check bounds
-	// Use lowercase for case-insensitive lookup
 	subrangeType, found := analyzer.subranges["tnegative"]
 	if !found {
 		t.Fatal("Subrange type TNegative was not registered")
@@ -412,7 +407,6 @@ func TestMultipleSubrangeDeclarations(t *testing.T) {
 	}
 
 	// Verify all three subrange types were registered
-	// Use lowercase for case-insensitive lookup
 	if _, found := analyzer.subranges["tdigit"]; !found {
 		t.Error("TDigit was not registered")
 	}
@@ -486,10 +480,8 @@ func TestSubrangeAssignmentCompatibility(t *testing.T) {
 				} else if tt.errorMsg != "" && !strings.Contains(err.Error(), tt.errorMsg) {
 					t.Errorf("Expected error containing %q, got: %v", tt.errorMsg, err)
 				}
-			} else {
-				if err != nil {
-					t.Errorf("Unexpected semantic error: %v", err)
-				}
+			} else if err != nil {
+				t.Errorf("Unexpected semantic error: %v", err)
 			}
 		})
 	}
@@ -526,7 +518,6 @@ func TestSubrangeInProgram(t *testing.T) {
 	}
 
 	// Verify subrange types are registered
-	// Use lowercase for case-insensitive lookup
 	digitType, digitFound := analyzer.subranges["tdigit"]
 	if !digitFound {
 		t.Error("TDigit type not found")
@@ -663,13 +654,10 @@ func TestEvaluateConstantInt(t *testing.T) {
 				if err == nil {
 					t.Error("Expected error, got none")
 				}
-			} else {
-				if err != nil {
-					t.Errorf("Unexpected error: %v", err)
-				}
-				if result != tt.expected {
-					t.Errorf("Result = %d, want %d", result, tt.expected)
-				}
+			} else if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			} else if result != tt.expected {
+				t.Errorf("Result = %d, want %d", result, tt.expected)
 			}
 		})
 	}

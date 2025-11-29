@@ -143,7 +143,7 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 
 		// Box value if target is a Variant
 		if targetType == "VARIANT" && sourceType != "VARIANT" {
-			value = e.adapter.BoxVariant(value)
+			value = runtime.BoxVariant(value)
 		}
 	}
 
@@ -213,7 +213,7 @@ func (e *Evaluator) evalReferenceAssignment(
 
 	// Box value if target is a Variant
 	if targetType == "VARIANT" && sourceType != "VARIANT" {
-		value = e.adapter.BoxVariant(value)
+		value = runtime.BoxVariant(value)
 	}
 
 	// Ensure value semantics for copyable types

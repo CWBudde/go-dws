@@ -24,7 +24,6 @@ func (a *Analyzer) analyzeInterfaceDecl(decl *ast.InterfaceDecl) {
 	var parentInterface *types.InterfaceType
 	if decl.Parent != nil {
 		parentName := decl.Parent.Value
-		// Use lowercase for case-insensitive lookup
 		parentInterface = a.getInterfaceType(parentName)
 		if parentInterface == nil {
 			a.addError("parent interface '%s' not found at %s", parentName, decl.Token.Pos.String())

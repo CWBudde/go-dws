@@ -19,7 +19,7 @@ import (
 
 func TestVariantBoxingInteger(t *testing.T) {
 	intVal := &IntegerValue{Value: 42}
-	variant := boxVariant(intVal)
+	variant := BoxVariant(intVal)
 
 	if variant.Type() != "VARIANT" {
 		t.Fatalf("expected VARIANT type, got %s", variant.Type())
@@ -36,7 +36,7 @@ func TestVariantBoxingInteger(t *testing.T) {
 
 func TestVariantBoxingString(t *testing.T) {
 	strVal := &StringValue{Value: "hello"}
-	variant := boxVariant(strVal)
+	variant := BoxVariant(strVal)
 
 	if variant.Type() != "VARIANT" {
 		t.Fatalf("expected VARIANT type, got %s", variant.Type())
@@ -53,7 +53,7 @@ func TestVariantBoxingString(t *testing.T) {
 
 func TestVariantBoxingFloat(t *testing.T) {
 	floatVal := &FloatValue{Value: 3.14}
-	variant := boxVariant(floatVal)
+	variant := BoxVariant(floatVal)
 
 	if variant.Type() != "VARIANT" {
 		t.Fatalf("expected VARIANT type, got %s", variant.Type())
@@ -70,7 +70,7 @@ func TestVariantBoxingFloat(t *testing.T) {
 
 func TestVariantBoxingBoolean(t *testing.T) {
 	boolVal := &BooleanValue{Value: true}
-	variant := boxVariant(boolVal)
+	variant := BoxVariant(boolVal)
 
 	if variant.Type() != "VARIANT" {
 		t.Fatalf("expected VARIANT type, got %s", variant.Type())
@@ -86,7 +86,7 @@ func TestVariantBoxingBoolean(t *testing.T) {
 }
 
 func TestVariantBoxingNil(t *testing.T) {
-	variant := boxVariant(nil)
+	variant := BoxVariant(nil)
 
 	if variant.Type() != "VARIANT" {
 		t.Fatalf("expected VARIANT type, got %s", variant.Type())
@@ -104,8 +104,8 @@ func TestVariantBoxingNil(t *testing.T) {
 func TestVariantBoxingAlreadyVariant(t *testing.T) {
 	// Boxing a Variant should return it as-is (no double-wrapping)
 	intVal := &IntegerValue{Value: 42}
-	variant1 := boxVariant(intVal)
-	variant2 := boxVariant(variant1)
+	variant1 := BoxVariant(intVal)
+	variant2 := BoxVariant(variant1)
 
 	if variant1 != variant2 {
 		t.Fatal("expected boxing a Variant to return the same Variant (no double-wrapping)")
@@ -114,7 +114,7 @@ func TestVariantBoxingAlreadyVariant(t *testing.T) {
 
 func TestVariantUnboxing(t *testing.T) {
 	intVal := &IntegerValue{Value: 42}
-	variant := boxVariant(intVal)
+	variant := BoxVariant(intVal)
 
 	unboxed, ok := unboxVariant(variant)
 	if !ok {
@@ -147,12 +147,12 @@ func TestVariantUnwrapping(t *testing.T) {
 	}{
 		{
 			name:     "unwrap integer variant",
-			input:    boxVariant(&IntegerValue{Value: 42}),
+			input:    BoxVariant(&IntegerValue{Value: 42}),
 			expected: &IntegerValue{Value: 42},
 		},
 		{
 			name:     "unwrap string variant",
-			input:    boxVariant(&StringValue{Value: "hello"}),
+			input:    BoxVariant(&StringValue{Value: "hello"}),
 			expected: &StringValue{Value: "hello"},
 		},
 		{
@@ -162,7 +162,7 @@ func TestVariantUnwrapping(t *testing.T) {
 		},
 		{
 			name:     "unwrap nil variant returns UnassignedValue",
-			input:    boxVariant(nil),
+			input:    BoxVariant(nil),
 			expected: &UnassignedValue{},
 		},
 	}

@@ -361,7 +361,7 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 
 			// Box value if target is a Variant
 			if targetType == "VARIANT" && sourceType != "VARIANT" {
-				value = boxVariant(value)
+				value = BoxVariant(value)
 			}
 
 			// Ensure value semantics for copyable types (e.g., arrays) when assigning through var params
@@ -425,7 +425,7 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 
 			// Task 9.227: Box value if target is a Variant
 			if targetType == "VARIANT" && sourceType != "VARIANT" {
-				value = boxVariant(value)
+				value = BoxVariant(value)
 			}
 		}
 

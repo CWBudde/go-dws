@@ -239,7 +239,7 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 
 			// Box value if target type is Variant
 			if ident.Equal(typeName, "Variant") {
-				value = e.adapter.BoxVariant(value)
+				value = runtime.BoxVariant(value)
 			}
 		}
 	} else {
@@ -1436,7 +1436,7 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 		return &runtime.BooleanValue{Value: false}
 	case "variant":
 		// Use adapter to create proper Variant zero value
-		return e.adapter.BoxVariant(&runtime.NilValue{})
+		return runtime.BoxVariant(&runtime.NilValue{})
 	default:
 		// Check if this is a class type and create a typed nil value
 		// Task 3.5.129e: Direct class check + bridge constructor

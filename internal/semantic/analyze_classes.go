@@ -33,7 +33,6 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	}
 
 	// Look up class in registry
-	// Task 9.285: Use lowercase for case-insensitive lookup
 	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
 	classType := a.getClassType(className)
 	if classType == nil {

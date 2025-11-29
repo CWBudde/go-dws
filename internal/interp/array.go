@@ -604,7 +604,7 @@ func (i *Interpreter) coerceArrayElements(arrayType *types.ArrayType, values []V
 		// This enables heterogeneous arrays like [1, "hello", 3.14, true] for Format()
 		// Replaces the old CONST workaround with proper Variant boxing
 		if underlyingElementType.Equals(types.VARIANT) {
-			coerced[idx] = boxVariant(val)
+			coerced[idx] = BoxVariant(val)
 			continue
 		}
 

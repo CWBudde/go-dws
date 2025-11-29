@@ -49,7 +49,6 @@ func (a *Analyzer) inheritParentConstructors(childClass *types.ClassType, parent
 			}
 
 			// Add inherited constructor to child class
-			// Use lowercase for case-insensitive lookup
 			lowerCtorName := ident.Normalize(ctorName)
 			if _, exists := childClass.Constructors[lowerCtorName]; !exists {
 				childClass.Constructors[lowerCtorName] = childCtorType
@@ -99,7 +98,6 @@ func (a *Analyzer) synthesizeDefaultConstructor(classType *types.ClassType) {
 	}
 
 	// Add to class constructor maps
-	// Use lowercase for case-insensitive lookup
 	classType.Constructors[ident.Normalize(constructorName)] = funcType
 	classType.AddConstructorOverload(constructorName, methodInfo)
 }

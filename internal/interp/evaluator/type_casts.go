@@ -63,7 +63,7 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 		return e.castToBoolean(val)
 	case "variant":
 		// Variant can accept any value - wrap directly
-		return e.adapter.BoxVariant(val)
+		return runtime.BoxVariant(val)
 	default:
 		// Check if it's an enum type
 		if enumType != nil {

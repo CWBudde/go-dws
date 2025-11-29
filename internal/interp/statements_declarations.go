@@ -160,7 +160,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 
 			// Task 9.227: Box value if target type is Variant
 			if ident.Equal(typeName, "Variant") {
-				value = boxVariant(value)
+				value = BoxVariant(value)
 			}
 		}
 	} else {

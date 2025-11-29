@@ -29,8 +29,6 @@ func (a *Analyzer) analyzeSetDecl(decl *ast.SetDecl) {
 	elementTypeName := getTypeExpressionName(decl.ElementType)
 
 	// First check if it's an enum type
-	// Use lowercase for case-insensitive lookup
-	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
 	enumType := a.getEnumType(elementTypeName)
 	if enumType == nil {
 		a.addError("unknown type '%s' at %s", elementTypeName, decl.Token.Pos.String())
