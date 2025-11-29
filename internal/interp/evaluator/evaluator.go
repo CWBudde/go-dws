@@ -752,21 +752,14 @@ type InterpreterAdapter interface {
 	// Task 3.5.135: MatchesExceptionType removed - migrated to evaluator.matchesExceptionType()
 	// Uses TypeSystem.IsClassDescendantOf for class hierarchy checking.
 
-	// GetExceptionInstance returns the ObjectInstance from an exception.
-	// The exception should be an *ExceptionValue.
-	// Returns the instance Value or nil if not an exception.
-	GetExceptionInstance(exc interface{}) Value
+	// Task 3.5.136: GetExceptionInstance removed - migrated to evaluator.getExceptionInstance()
+	// Uses ExceptionValue.GetInstance() method to extract ObjectInstance.
 
 	// Task 3.5.134: CreateExceptionFromObject removed - migrated to evaluator.createExceptionFromObject()
 	// Uses WrapObjectInException bridge constructor for wrapping objects in exceptions.
 
-	// EvalBlockStatement evaluates a block statement in the given context.
-	// Returns nil after evaluating all statements.
-	EvalBlockStatement(block *ast.BlockStatement, ctx *ExecutionContext)
-
-	// EvalStatement evaluates a single statement in the given context.
-	// Used by exception handlers to evaluate the handler statement.
-	EvalStatement(stmt ast.Statement, ctx *ExecutionContext)
+	// Task 3.5.137: EvalBlockStatement and EvalStatement removed - evaluator calls e.Eval() directly.
+	// Exception handling code now uses direct evaluation instead of adapter delegation.
 
 	// ===== Task 3.5.96: Method and Qualified Call Methods =====
 
