@@ -1,6 +1,8 @@
 package evaluator
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -118,14 +120,43 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 					}
 
 					if isLazy {
-						// For lazy parameters, create a LazyThunk via adapter
-						// LazyThunk captures the argument expression and call-site environment
-						args[idx] = e.adapter.CreateLazyThunk(arg, ctx.Env())
+						// For lazy parameters, create a LazyThunk with callback-based evaluation
+						// Task 3.5.131d: Direct construction using runtime.NewLazyThunk with callback
+						capturedArg := arg
+						var evalCallback runtime.EvalCallback = func() runtime.Value {
+							// Callback captures interpreter's eval via adapter.EvalNode
+							return e.adapter.EvalNode(capturedArg)
+						}
+						args[idx] = runtime.NewLazyThunk(capturedArg, evalCallback)
 					} else if isByRef {
-						// For var parameters, create a ReferenceValue via adapter
+						// For var parameters, create a ReferenceValue with callback-based get/set
 						// Var parameters must be lvalues (variables)
+						// Task 3.5.131d: Direct construction using runtime.NewReferenceValue with callbacks
 						if argIdent, ok := arg.(*ast.Identifier); ok {
-							args[idx] = e.adapter.CreateReferenceValue(argIdent.Value, ctx.Env())
+							varName := argIdent.Value
+							capturedEnv := ctx.Env()
+
+							var getter runtime.GetterCallback = func() (runtime.Value, error) {
+								val, found := capturedEnv.Get(varName)
+								if !found {
+									return nil, fmt.Errorf("referenced variable %s not found", varName)
+								}
+								// Environment.Get returns interface{}, which will be a Value at runtime
+								if runtimeVal, ok := val.(runtime.Value); ok {
+									return runtimeVal, nil
+								}
+								return nil, fmt.Errorf("environment value is not a runtime.Value")
+							}
+
+							var setter runtime.SetterCallback = func(val runtime.Value) error {
+								// Environment.Set expects interface{}
+								if !capturedEnv.Set(varName, val) {
+									return fmt.Errorf("failed to set variable %s", varName)
+								}
+								return nil
+							}
+
+							args[idx] = runtime.NewReferenceValue(varName, getter, setter)
 						} else {
 							return e.newError(arg, "var parameter requires a variable, got %T", arg)
 						}

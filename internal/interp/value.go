@@ -236,6 +236,10 @@ type ExternalVarValue = runtime.ExternalVarValue
 // ReferenceValue represents a reference to a variable in another environment.
 // Task 9.35: This is used to implement var parameters (by-reference parameters).
 //
+// NOTE (Task 3.5.131c): A new callback-based implementation exists in runtime.ReferenceValue
+// that breaks the direct Environment dependency. The evaluator uses runtime.NewReferenceValue()
+// directly. This implementation remains for backward compatibility with interpreter code.
+//
 // When a function has a var parameter, instead of copying the argument value,
 // we create a ReferenceValue that points to the original variable in the caller's
 // environment. This allows the function to modify the caller's variable.
