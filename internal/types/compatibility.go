@@ -60,8 +60,8 @@ func IsCompatible(from, to Type) bool {
 	fromArray, fromIsArray := from.(*ArrayType)
 	toArray, toIsArray := to.(*ArrayType)
 	if fromIsArray && toIsArray {
-		// Element types must be compatible (allow derived -> base classes, numeric promotion, etc.)
-		if !IsCompatible(fromArray.ElementType, toArray.ElementType) {
+		// Array types are invariant: element types must match exactly
+		if !fromArray.ElementType.Equals(toArray.ElementType) {
 			return false
 		}
 

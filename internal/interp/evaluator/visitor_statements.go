@@ -108,7 +108,11 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 			// returning an ErrorValue that would bypass exception handlers.
 			if funcPtr.IsNil() {
 				// Raise a catchable exception (sets ctx.Exception())
-				e.adapter.RaiseException("Exception", "Function pointer is nil", &node.Token.Pos)
+				// Task 3.5.133: Migrated to use CreateExceptionDirect bridge constructor
+				excClass := e.typeSystem.LookupClass("Exception")
+				callStack := ctx.CallStack()
+				exc := e.adapter.CreateExceptionDirect(excClass, "Function pointer is nil", &node.Token.Pos, callStack)
+				ctx.SetException(exc)
 				return &runtime.NilValue{}
 			}
 			// Build metadata and call via ExecuteFunctionPointerCall
@@ -126,7 +130,11 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 		paramCount := e.adapter.GetFunctionPointerParamCount(val)
 		if paramCount == 0 {
 			if e.adapter.IsFunctionPointerNil(val) {
-				e.adapter.RaiseException("Exception", "Function pointer is nil", &node.Token.Pos)
+				// Task 3.5.133: Migrated to use CreateExceptionDirect bridge constructor
+				excClass := e.typeSystem.LookupClass("Exception")
+				callStack := ctx.CallStack()
+				exc := e.adapter.CreateExceptionDirect(excClass, "Function pointer is nil", &node.Token.Pos, callStack)
+				ctx.SetException(exc)
 				return &runtime.NilValue{}
 			}
 			return e.adapter.CallFunctionPointer(val, []Value{}, node)

@@ -454,179 +454,24 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 ### Phase 19: Reduce Value Creation Calls (3.5.126-3.5.132)
 
-**Current State**: 15 value creation adapter calls
-
 #### Completed Tasks ✅
 
-- [x] **3.5.127** Migrate CreateArray + CreateArrayValue (4 calls)
-  - **Location**: `visitor_statements.go` lines 1284, 1295, `array_helpers.go` lines 409, 518
-  - **Solution**: Direct `&runtime.ArrayValue{ArrayType: at, Elements: elems}` construction
-  - **Calls removed**: 4 adapter calls
+- [x] **3.5.127** CreateArray + CreateArrayValue (4 calls) - Direct `&runtime.ArrayValue` construction
+- [x] **3.5.128** RecordValue creation (2 calls) - Direct TypeSystem access + initializer callbacks, -2 methods
+- [x] **3.5.129** Zero value creators (5 calls) - Direct creation + 3 bridge constructors, -5 methods, net -3
+- [x] **3.5.130** CreateExternalVar (1 call) - Moved to runtime package, -1 method
+- [x] **3.5.131a-h** LazyThunk + ReferenceValue (2 calls) - Callback-based runtime types, -2 methods
+- [x] **3.5.132** DereferenceValue (1 call) - ReferenceAccessor interface, -1 method
 
----
+**Phase 19 Total**: -10 adapter calls, -8 methods (107 → 106 after 3.5.132)
 
-##### 3.5.128: Migrate RecordValue Creation (2 calls) ✅ **COMPLETE**
+#### Deferred Tasks
 
-**All subtasks completed**: 3.5.128a-f ✅
-
-**Locations migrated**:
-
-- `visitor_expressions_indexing.go:324` - Record literal creation (3.5.128e)
-- `visitor_statements.go:1317` - Zero-value record creation (3.5.128f)
-
-**Solution**: Direct TypeSystem access + initializer callbacks + `runtime.NewRecordValueWithInitializer()`
-
-**Key achievements**:
-
-- Removed `CreateRecordValue()` and `CreateRecordZeroValue()` adapter methods
-- Evaluator directly accesses RecordTypeValue via TypeSystem
-- Field initializers evaluated in-place using `e.Eval()`
-- Zero values generated using `e.getZeroValueForType()`
-- Type assertion pattern for accessing RecordType/Metadata/FieldDecls
-- Nested records handled via recursive metadata callbacks
-
-**Calls removed**: 2 adapter calls
-
-**Net adapter reduction**: -2 methods
-
----
-
-##### 3.5.126: Migrate CreateObject (1 call) - DEFERRED
-
-**Status**: DEFERRED - Type alias approach blocked by Go language limitations
-
-**Location**: `visitor_expressions_functions.go:486`
-
-**Root Problem**: Circular import - evaluator (subpackage) cannot import parent interp package
-
-**Attempted Solution**: Type alias pattern from 3.5.128b (RecordValue)
-
-**Why It Failed**:
-
-- Go type aliases (`type ObjectInstance = runtime.ObjectInstance`) **cannot have methods defined on them**
-- Compiler error: "cannot define new methods on non-local type ObjectInstance"
-- Unlike RecordValue which had few methods, ObjectInstance has 17 methods with 600+ lines of code
-- All 17 methods must be converted to free functions
-- All 50-100+ call sites must be updated from `obj.Method()` to `FreeFunction(obj)`
-
-**What Was Completed**:
-
-- [x] **3.5.126a** ExecuteConstructor callback added to adapter interface ✅
-  - Can be used in future migration attempt
-  - Files: `evaluator.go:479-482`, `adapter_objects.go:87-129`
-
-**Why Full Migration Requires 4-6 Weeks**:
-
-1. Move ObjectInstance struct to runtime package
-2. Convert all 17 methods to free functions
-3. Update 50-100+ call sites across codebase
-4. Handle Fields map type change (Value → any with type assertions)
-5. Update dependent types (InterfaceInstance, ExceptionValue, TypeCastValue)
-6. Extensive testing to ensure no behavior changes
-
-**Recommendation**: Keep `CreateObject` in adapter. The complexity and risk don't justify the benefit of removing one adapter method. Focus on other easier wins first.
-
-**Original Subtasks** (for future reference):
-
-- Move ObjectInstance to runtime
-- Convert methods to free functions
-- Update all call sites
-- Implement direct evaluator creation
-- Remove adapter method
-
-#### Pending Tasks
-
-- [x] **3.5.129** Migrate Zero Value Creators (5 calls) ✅
-  - **Location**: `visitor_statements.go` lines 1305-1437
-  - **Methods Removed**: `CreateSetZeroValue`, `CreateArrayZeroValue`, `CreateSubrangeZeroValue`, `CreateInterfaceZeroValue`, `CreateClassZeroValue`
-  - **Solution**: Direct zero-value creation (sets, arrays) + bridge constructors (subranges, interfaces, classes)
-  - **Bridge Methods Added**: `CreateSubrangeValueDirect`, `CreateInterfaceInstanceDirect`, `CreateTypedNilValue`
-  - **Calls removed**: 5 old adapter calls (6 including LookupSubrangeType)
-  - **Calls added**: 3 bridge constructors
-  - **Net reduction**: 3 adapter calls (50% improvement)
-  - **Business logic migrated**: 100% (all lookups/checks moved to evaluator)
-
-- [x] **3.5.130** Migrate CreateExternalVar (1 call) ✅
-  - **Location**: `visitor_statements.go:164`
-  - **Solution**: Moved ExternalVarValue to runtime package, direct construction
-  - **Subtasks**: 3.5.130a-f complete
-  - **Files Created**: `internal/interp/runtime/external_var.go`
-  - **Files Modified**: `value.go` (type alias), `visitor_statements.go` (direct construction), `adapter_values.go` (method removed), `evaluator.go` (interface method removed)
-  - **Calls removed**: 1 adapter call
-  - **Net adapter reduction**: -1 method (CreateExternalVar)
-
-- [x] **3.5.131** Migrate CreateLazyThunk + CreateReferenceValue to bridge constructors ✅
-  - **Status**: INCOMPLETE - Added bridge constructors but didn't eliminate adapter dependency
-  - **Location**: `visitor_expressions_functions.go` lines 124, 129
-  - **Current**: Using `CreateLazyThunkDirect` and `CreateReferenceValueDirect` adapter methods
-  - **Problem**: Replaced 2 adapter calls with 2 different adapter calls - no net reduction
-  - **Next Steps**: See subtasks 3.5.131a-g below for true elimination
-
-- [x] **3.5.131a** Define callback types in runtime package (15 min) ✅
-  - **File**: Create `runtime/lazy_eval.go`
-  - **Add**: `EvalCallback func() Value`, `GetterCallback func() (Value, error)`, `SetterCallback func(Value) error`
-  - **Purpose**: Foundation for callback-based LazyThunk/ReferenceValue
-  - **Status**: COMPLETE - All three callback types defined with comprehensive documentation
-
-- [x] **3.5.131b** Move LazyThunk to runtime with callback pattern (30 min) ✅
-  - **File**: `runtime/lazy_eval.go`
-  - **Create**: `type LazyThunk struct { expression any; evaluator EvalCallback }`
-  - **Method**: `Evaluate() Value` calls `t.evaluator()`
-  - **Constructor**: `NewLazyThunk(expr any, evalCallback EvalCallback) *LazyThunk`
-  - **Rationale**: Callback captures interpreter + env + expression, avoiding direct coupling
-  - **Status**: COMPLETE - LazyThunk moved to runtime with callback-based evaluation
-
-- [x] **3.5.131c** Move ReferenceValue to runtime with callbacks (30 min) ✅
-  - **File**: `runtime/lazy_eval.go`
-  - **Create**: `type ReferenceValue struct { VarName string; getter GetterCallback; setter SetterCallback }`
-  - **Methods**: `Dereference()` calls getter, `Assign()` calls setter
-  - **Constructor**: `NewReferenceValue(varName string, getter, setter) *ReferenceValue`
-  - **Rationale**: Callbacks capture env.Get/Set, avoiding Environment dependency
-  - **Status**: COMPLETE - ReferenceValue moved to runtime with callback-based get/set
-
-- [x] **3.5.131d** Update evaluator to create with callbacks (45 min) ✅
-  - **File**: `visitor_expressions_functions.go` lines 122-163
-  - **Lazy**: Create `evalCallback := func() runtime.Value { return e.adapter.EvalNode(capturedArg) }`
-  - **Var**: Create getter `func() (runtime.Value, error)` with env.Get() and type conversion
-  - **Var**: Create setter `func(val runtime.Value) error` with env.Set()
-  - **Call**: `runtime.NewLazyThunk(arg, evalCallback)` and `runtime.NewReferenceValue(varName, getter, setter)`
-  - **Impact**: **ZERO adapter calls** - direct construction in evaluator
-  - **Status**: COMPLETE - Evaluator now creates lazy/var values directly without adapter
-
-- [x] **3.5.131e** Add ExecutionContext.Clone() method (15 min) ✅ **SKIPPED - NOT NEEDED**
-  - **Analysis**: Callbacks already capture state correctly via closures
-  - **Reason**: No environment switching needed - evaluator creates callbacks inline
-  - **Status**: COMPLETE - Determined unnecessary, skipped implementation
-
-- [x] **3.5.131f** Remove adapter methods completely (15 min) ✅
-  - **File**: `evaluator/evaluator.go` - Removed `CreateLazyThunkDirect`, `CreateReferenceValueDirect` from interface (lines 664-682)
-  - **File**: `adapter_references.go` - Removed implementations (lines 367-388)
-  - **Result**: -2 adapter methods, 0 additions, **net -2 methods** (107 → 105)
-  - **Verification**: `grep` shows 0 calls to removed methods
-  - **Status**: COMPLETE - Both methods removed from interface and implementation
-
-- [x] **3.5.131g** Keep old implementations for backward compatibility (10 min) ✅ **MODIFIED APPROACH**
-  - **Original Plan**: Add type aliases `type LazyThunk = runtime.LazyThunk`
-  - **Issue**: Go doesn't allow type alias AND struct with same name
-  - **Solution**: Kept old implementations with deprecation notices
-    - `lazy_params.go` - Added DEPRECATED comment, kept old LazyThunk for interpreter use
-    - `value.go:236-291` - Kept old ReferenceValue with migration note
-    - Evaluator uses `runtime.LazyThunk` and `runtime.ReferenceValue` directly
-    - Interpreter continues using old implementations (20+ call sites unchanged)
-  - **Status**: COMPLETE - Backward compatibility maintained without type aliases
-
-- [x] **3.5.131h** Test and verify (30 min) ✅
-  - ✅ Lazy parameter tests: **8/8 passing** (Jensen's Device, conditional eval, multiple access, etc.)
-  - ✅ Var parameter FFI tests: **10/10 passing** (basic, swap, string, mixed, float, bool, callback)
-  - ✅ Manual verification: Jensen's Device produces correct harmonic series output
-  - ✅ Zero adapter calls: `grep` confirms no `CreateLazyThunkDirect|CreateReferenceValueDirect` calls
-  - **Status**: COMPLETE - All tests pass, zero regressions, adapter calls eliminated
-
-- [ ] **3.5.132** Migrate DereferenceValue (1 call)
-  - **Location**: `visitor_expressions.go` line 74
-  - **Issue**: Var parameter dereferencing
-  - **Solution**: Type assert to ReferenceValue interface
-  - **Calls removed**: 1 adapter call
+- [ ] **3.5.126** CreateObject (1 call) - DEFERRED ⚠️
+  - **Reason**: Go type alias limitation - ObjectInstance has 17 methods, 600+ LOC, 50-100+ call sites
+  - **Effort**: 4-6 weeks to migrate (convert methods → free functions, update all call sites)
+  - **Recommendation**: Keep in adapter, focus on easier wins
+  - **Note**: ExecuteConstructor callback (3.5.126a) added for future use
 
 ---
 
