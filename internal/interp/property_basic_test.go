@@ -221,6 +221,45 @@ PrintLn(obj.Name);
 	}
 }
 
+func TestPropertyIndexDirective(t *testing.T) {
+	input := `
+type TTest = class
+	function GetProp(i: Integer): String; begin Result := 'Get ' + IntToStr(i); end;
+	procedure SetProp(i: Integer; v: String); begin PrintLn('Set ' + IntToStr(i) + ' with ' + v); end;
+
+	property Item1: String index 1 read GetProp write SetProp;
+	property Item2: String index 2 read GetProp write SetProp;
+end;
+
+var o := TTest.Create;
+PrintLn(o.Item1);
+PrintLn(o.Item2);
+o.Item1 := 'hello';
+o.Item2 := 'world';
+`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	result := interp.Eval(program)
+
+	if isError(result) {
+		t.Fatalf("eval error: %v", result)
+	}
+
+	expected := "Get 1\nGet 2\nSet 1 with hello\nSet 2 with world\n"
+	if buf.String() != expected {
+		t.Errorf("expected output '%s', got '%s'", expected, buf.String())
+	}
+}
+
 // TestPropertyAutoProperty tests auto-properties (with auto-generated backing fields)
 func TestPropertyAutoProperty(t *testing.T) {
 	input := `
