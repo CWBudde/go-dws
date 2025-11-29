@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -186,10 +188,12 @@ func (i *Interpreter) CreateFunctionPointerFromName(funcName string, closure any
 
 // ===== Environment and Exceptions =====
 
-// RaiseException raises an exception during execution.
-// Task 3.5.8: Adapter method for exception raising.
-func (i *Interpreter) RaiseException(className string, message string, pos any) {
-	// Convert pos to lexer.Position if provided
+// CreateExceptionDirect creates an exception with pre-resolved dependencies.
+// Task 3.5.133: Bridge constructor for evaluator exception creation.
+// The evaluator resolves the exception class via TypeSystem, then calls this method
+// to construct the ExceptionValue without doing class lookup itself.
+func (i *Interpreter) CreateExceptionDirect(classMetadata any, message string, pos any, callStack any) any {
+	// Convert position
 	var position *lexer.Position
 	if pos != nil {
 		if p, ok := pos.(*lexer.Position); ok {
@@ -197,8 +201,52 @@ func (i *Interpreter) RaiseException(className string, message string, pos any) 
 		}
 	}
 
-	// Call the internal raiseException method
-	i.raiseException(className, message, position)
+	// Convert call stack
+	var stack errors.StackTrace
+	if callStack != nil {
+		if s, ok := callStack.(errors.StackTrace); ok {
+			stack = s
+		}
+	}
+
+	// Convert ClassMetadata (from runtime) to ClassInfo (interp)
+	var excClass *ClassInfo
+	if classMetadata != nil {
+		if meta, ok := classMetadata.(*runtime.ClassMetadata); ok {
+			// Look up ClassInfo using normalized name
+			excClass = i.classes[ident.Normalize(meta.Name)]
+		}
+	}
+
+	// Fallback to base Exception if class not found
+	if excClass == nil {
+		excClass = i.classes[ident.Normalize("Exception")]
+	}
+
+	// Create instance with Message field
+	var instance *ObjectInstance
+	if excClass != nil {
+		instance = NewObjectInstance(excClass)
+		instance.SetField("Message", &StringValue{Value: message})
+	}
+
+	// Convert ClassMetadata safely (may be nil)
+	var metadata *runtime.ClassMetadata
+	if classMetadata != nil {
+		if meta, ok := classMetadata.(*runtime.ClassMetadata); ok {
+			metadata = meta
+		}
+	}
+
+	// Create ExceptionValue with both Metadata and ClassInfo (backward compatibility)
+	return &ExceptionValue{
+		Metadata:  metadata,
+		ClassInfo: excClass,
+		Instance:  instance,
+		Message:   message,
+		Position:  position,
+		CallStack: stack,
+	}
 }
 
 // Task 3.5.70: GetVariable removed - evaluator now uses ctx.Env().Get() directly

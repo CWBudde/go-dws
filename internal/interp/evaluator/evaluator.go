@@ -549,9 +549,12 @@ type InterpreterAdapter interface {
 
 	// ===== Exception Handling (Task 3.5.8) =====
 
-	// RaiseException raises an exception with the given class name and message.
-	// The pos parameter provides source location information for error reporting.
-	RaiseException(className string, message string, pos any)
+	// CreateExceptionDirect creates an exception with pre-resolved dependencies.
+	// Task 3.5.133: Bridge constructor for exception creation.
+	// Parameters use `any` type to avoid import cycles with interp package.
+	// The evaluator resolves the exception class via TypeSystem, then calls this method
+	// to construct the ExceptionValue without doing class lookup itself.
+	CreateExceptionDirect(classMetadata any, message string, pos any, callStack any) any
 
 	// ===== Environment Access (Task 3.5.9) =====
 	// Task 3.5.70: GetVariable removed - use ctx.Env().Get() directly

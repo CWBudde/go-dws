@@ -300,18 +300,32 @@ func (i *Interpreter) getPositionFromNode(node ast.Node) lexer.Position {
 func formatRuntimeErrorValue(errVal Value) string {
 	switch err := errVal.(type) {
 	case *RuntimeError:
-		return err.String()
+		// Normalize to DWScript fixture format with labeled line/column
+		if err.Pos != nil && err.Pos.IsValid() {
+			return fmt.Sprintf("Runtime Error: %s [line: %d, column: %d]", err.Message, err.Pos.Line, err.Pos.Column)
+		}
+		return "Runtime Error: " + strings.TrimSpace(err.Message)
 	case *ErrorValue:
+		// If we have structured interpreter error data, prefer that for formatting
+		if err.Err != nil && err.Err.Pos != nil {
+			return fmt.Sprintf("Runtime Error: %s [line: %d, column: %d]", err.Err.Message, err.Err.Pos.Line, err.Err.Pos.Column)
+		}
+
 		msg := strings.TrimPrefix(err.String(), "ERROR: ")
 		msg = strings.TrimSpace(msg)
 
 		// Normalize "at line X, column: Y" to "[line: X, column: Y]"
 		if strings.Contains(msg, " at line ") {
 			msg = strings.ReplaceAll(msg, " at line ", " [line: ")
-			if strings.Contains(msg, "column:") && !strings.Contains(msg, "]") {
-				msg += "]"
+		}
+		// Ensure every line location marker is closed with a bracket
+		lines := strings.Split(msg, "\n")
+		for idx, line := range lines {
+			if strings.Contains(line, "[line") && !strings.Contains(line, "]") {
+				lines[idx] = line + "]"
 			}
 		}
+		msg = strings.Join(lines, "\n")
 
 		if !strings.HasPrefix(msg, "Runtime Error:") {
 			msg = "Runtime Error: " + msg
