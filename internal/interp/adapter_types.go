@@ -87,20 +87,6 @@ func (i *Interpreter) GetType(name string) (any, error) {
 	return typ, nil
 }
 
-// ConvertValue attempts to convert a value to a target type.
-func (i *Interpreter) ConvertValue(value evaluator.Value, targetTypeName string) (evaluator.Value, error) {
-	// Convert from evaluator.Value to internal Value
-	internalValue := value.(Value)
-
-	// Try implicit conversion first
-	if converted, ok := i.tryImplicitConversion(internalValue, targetTypeName); ok {
-		return converted, nil
-	}
-
-	// Conversion failed
-	return nil, fmt.Errorf("cannot convert %s to %s", value.Type(), targetTypeName)
-}
-
 // ParseInlineArrayType parses inline array type signatures like "array of Integer".
 func (i *Interpreter) ParseInlineArrayType(typeName string) (any, error) {
 	arrType := i.parseInlineArrayType(typeName)

@@ -430,10 +430,6 @@ type InterpreterAdapter interface {
 	// The lookup is case-insensitive.
 	GetType(name string) (any, error)
 
-	// ConvertValue performs implicit or explicit type conversion.
-	// Returns the converted value or an error if conversion is not possible.
-	ConvertValue(value Value, targetTypeName string) (Value, error)
-
 	// ===== Task 3.5.6: Array and Collection Adapter Methods =====
 
 	// CreateArray creates an array from a list of elements with a specified element type.
