@@ -175,7 +175,7 @@ func TestJSONValue_VariantBoxing(t *testing.T) {
 	jsonVal := NewJSONValue(jv)
 
 	// Box in Variant
-	variant := boxVariant(jsonVal)
+	variant := BoxVariant(jsonVal)
 
 	// Verify it's a Variant
 	if variant.Type() != "VARIANT" {
@@ -362,7 +362,7 @@ func TestJSONValue_WithInterpreter(t *testing.T) {
 	}
 
 	// Box in Variant
-	variant := boxVariant(jsonVal)
+	variant := BoxVariant(jsonVal)
 
 	// Unwrap
 	unwrapped := unwrapVariant(variant)

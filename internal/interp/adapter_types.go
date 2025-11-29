@@ -104,11 +104,6 @@ func (i *Interpreter) LookupSubrangeType(name string) (any, bool) {
 	return typeVal, ok
 }
 
-// BoxVariant wraps a value in a Variant container.
-func (i *Interpreter) BoxVariant(value evaluator.Value) evaluator.Value {
-	return boxVariant(value.(Value))
-}
-
 // TryImplicitConversion attempts an implicit type conversion.
 func (i *Interpreter) TryImplicitConversion(value evaluator.Value, targetTypeName string) (evaluator.Value, bool) {
 	converted, ok := i.tryImplicitConversion(value.(Value), targetTypeName)

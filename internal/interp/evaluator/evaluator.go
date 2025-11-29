@@ -481,6 +481,11 @@ type InterpreterAdapter interface {
 	// Returns true if the object is compatible with the specified type name.
 	CheckType(obj Value, typeName string) bool
 
+	// GetClassMetadataFromValue extracts ClassMetadata from an object value.
+	// Task 3.5.140: Helper method to extract metadata from ObjectInstance or InterfaceInstance.
+	// Returns nil if the value is not an object or doesn't have class metadata.
+	GetClassMetadataFromValue(obj Value) *runtime.ClassMetadata
+
 	// CastType performs type casting (implements 'as' operator).
 	// Returns the casted value and an error if the cast fails.
 	CastType(obj Value, typeName string) (Value, error)
@@ -599,10 +604,6 @@ type InterpreterAdapter interface {
 	// Returns the subrange type value (as any/interface{}) and a boolean indicating success.
 	// The lookup is case-insensitive.
 	LookupSubrangeType(name string) (any, bool)
-
-	// BoxVariant wraps a value in a Variant container.
-	// Returns the variant value containing the wrapped value.
-	BoxVariant(value Value) Value
 
 	// TryImplicitConversion attempts an implicit type conversion from value to targetTypeName.
 	// Returns the converted value and true if conversion succeeded, or original value and false if not.

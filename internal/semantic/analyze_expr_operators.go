@@ -35,7 +35,6 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 	// ExceptObject is a global variable that holds the current exception (or nil)
 	if identifier.Value == "ExceptObject" {
 		// ExceptObject is always of type Exception (the base exception class)
-		// Task 9.285: Use lowercase for case-insensitive lookup
 		// Task 6.1.1.3: Use TypeRegistry for unified type lookup
 		if exceptionClass := a.getClassType("Exception"); exceptionClass != nil {
 			return exceptionClass
@@ -68,7 +67,6 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 
 	sym, ok := a.symbols.Resolve(identifier.Value)
 	if !ok {
-		// Task 9.285: Use lowercase for case-insensitive lookup
 		// Task 9.73.5: When a class name is used as an identifier in expressions,
 		// it should be treated as a metaclass reference (class of ClassName)
 		// Task 6.1.1.3: Use TypeRegistry for unified type lookup
@@ -84,7 +82,6 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 				// Check field visibility
 				fieldOwner := a.getFieldOwner(a.currentClass, identifier.Value)
 				if fieldOwner != nil {
-					// Use lowercase for case-insensitive lookup
 					lowerFieldName := ident.Normalize(identifier.Value)
 					visibility, hasVisibility := fieldOwner.FieldVisibility[lowerFieldName]
 					if hasVisibility && !a.checkVisibility(fieldOwner, visibility, identifier.Value, "field") {

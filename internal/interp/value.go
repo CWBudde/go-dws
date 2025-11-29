@@ -81,6 +81,10 @@ type (
 	// ArrayValue represents an array value in DWScript.
 	// Moved to runtime.ArrayValue in Phase 3.5.4.
 	ArrayValue = runtime.ArrayValue
+
+	// VariantValue represents a Variant value in DWScript.
+	// Task 3.5.139: Moved to runtime.VariantValue for evaluator access.
+	VariantValue = runtime.VariantValue
 )
 
 // ============================================================================
@@ -290,121 +294,22 @@ func (r *ReferenceValue) Assign(value Value) error {
 	return r.Env.Set(r.VarName, value)
 }
 
-// VariantValue represents a Variant value in DWScript.
-// Task 9.221: Variant is a dynamic type that can hold any runtime value.
-//
-// The VariantValue wraps another Value and tracks its actual runtime type.
-// This enables:
-// - Heterogeneous arrays (array of Variant)
-// - Dynamic type conversions at runtime
-// - Type introspection (VarType, VarIsNull, etc.)
-// - Polymorphic function parameters (array of const)
-//
-// Similar to Delphi's TVarData structure and DWScript's IDataContext for variants.
-// The wrapped value can be any Value type: Integer, Float, String, Boolean,
-// Array, Record, Object, etc.
-//
-// Example:
-//
-//	var v: Variant := 42;
-//	// Creates: VariantValue{Value: IntegerValue{42}, ActualType: INTEGER}
-//
-//	v := 'hello';
-//	// Creates: VariantValue{Value: StringValue{'hello'}, ActualType: STRING}
-//
-// See reference/dwscript-original/Source/dwsVariantFunctions.pas
-type VariantValue struct {
-	Value      Value      // The wrapped runtime value
-	ActualType types.Type // The actual type of the wrapped value (for type checking)
-}
-
-// Type returns "VARIANT" to identify this as a Variant value.
-func (v *VariantValue) Type() string {
-	return "VARIANT"
-}
-
-// String returns the string representation by delegating to the wrapped value.
-// This allows Variant values to be printed naturally.
-func (v *VariantValue) String() string {
-	if v.Value == nil {
-		return "Unassigned" // Similar to Delphi's unassigned variant
-	}
-	return v.Value.String()
-}
-
-// GetVariantValue returns the wrapped value.
-// Task 3.5.94: Implements VariantAccessor interface for type cast support.
-func (v *VariantValue) GetVariantValue() Value {
-	return v.Value
-}
-
-// UnwrapVariant returns the underlying wrapped value.
-// This method implements the runtime.VariantWrapper interface, allowing
-// the evaluator package to unwrap variants without circular dependencies.
-// Returns UnassignedValue if the variant is nil/uninitialized.
-func (v *VariantValue) UnwrapVariant() Value {
-	if v.Value == nil {
-		return &UnassignedValue{}
-	}
-	return v.Value
-}
-
-// IsUninitialized returns true if the variant has no wrapped value (Value == nil).
-// Task 3.5.103f: Implements runtime.VariantWrapper interface for variant comparison semantics.
-// An uninitialized variant equals falsey values, while a variant containing Unassigned does not.
-func (v *VariantValue) IsUninitialized() bool {
-	return v.Value == nil
-}
+// Task 3.5.139: VariantValue has been moved to runtime package.
+// See internal/interp/runtime/variant.go for the implementation.
+// Type alias is provided above for backward compatibility.
 
 // ============================================================================
 // Variant Boxing/Unboxing Helpers
 // ============================================================================
 
-// boxVariant wraps any Value in a VariantValue for dynamic typing.
+// BoxVariant wraps any Value in a VariantValue for dynamic typing.
 // Task 9.227: Implement VariantValue boxing in interpreter.
+// Task 3.5.139: Delegates to runtime.BoxVariant.
 //
-// Boxing preserves the original value and tracks its type for later unboxing.
-// Examples:
-//   - boxVariant(&IntegerValue{42}) → VariantValue{Value: IntegerValue{42}, ActualType: INTEGER}
-//   - boxVariant(&StringValue{"hello"}) → VariantValue{Value: StringValue{"hello"}, ActualType: STRING}
-//   - boxVariant(nil) → VariantValue{Value: nil, ActualType: nil}
-func boxVariant(value Value) *VariantValue {
-	if value == nil {
-		return &VariantValue{Value: nil, ActualType: nil}
-	}
-
-	// If already a Variant, return as-is (no double-wrapping)
-	if variant, ok := value.(*VariantValue); ok {
-		return variant
-	}
-
-	// Map runtime Value type to semantic types.Type
-	var actualType types.Type
-	switch value.Type() {
-	case "INTEGER":
-		actualType = types.INTEGER
-	case "FLOAT":
-		actualType = types.FLOAT
-	case "STRING":
-		actualType = types.STRING
-	case "BOOLEAN":
-		actualType = types.BOOLEAN
-	case "NIL":
-		actualType = nil // nil has no type
-	case "NULL":
-		actualType = nil // Task 9.4.1: Null has no specific type
-	case "UNASSIGNED":
-		actualType = nil // Task 9.4.1: Unassigned has no specific type
-	// Complex types (arrays, records, objects) will be added as needed
-	// For now, we store nil for ActualType and rely on Value.Type()
-	default:
-		actualType = nil
-	}
-
-	return &VariantValue{
-		Value:      value,
-		ActualType: actualType,
-	}
+// This function is kept for backward compatibility with code in the interp package.
+// New code should use runtime.BoxVariant directly.
+func BoxVariant(value Value) *VariantValue {
+	return runtime.BoxVariant(value)
 }
 
 // unboxVariant extracts the underlying Value from a VariantValue.

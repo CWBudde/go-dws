@@ -998,7 +998,7 @@ func (e *Evaluator) evalNotUnaryOp(operand Value, node ast.Node) Value {
 	if operand.Type() == "VARIANT" {
 		boolResult := VariantToBool(operand)
 		// Return the negated result as a Variant containing a Boolean
-		return e.adapter.BoxVariant(&runtime.BooleanValue{Value: !boolResult})
+		return runtime.BoxVariant(&runtime.BooleanValue{Value: !boolResult})
 	}
 
 	// Handle boolean NOT

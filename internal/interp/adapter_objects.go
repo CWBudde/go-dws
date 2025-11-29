@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -132,6 +133,45 @@ func (i *Interpreter) ExecuteConstructor(obj evaluator.Value, constructorName st
 
 // CheckType checks if an object is of a specified type (implements 'is' operator).
 // Task 3.5.34: Extended to support both class hierarchy and interface implementation checking.
+// GetClassMetadataFromValue extracts ClassMetadata from an object value.
+// Task 3.5.140: Helper method to extract metadata from ObjectInstance or InterfaceInstance.
+func (i *Interpreter) GetClassMetadataFromValue(obj evaluator.Value) *runtime.ClassMetadata {
+	// Convert to internal type
+	internalObj := obj.(Value)
+
+	// Handle nil
+	if internalObj == nil {
+		return nil
+	}
+
+	// Check for ObjectInstance
+	if objVal, ok := internalObj.(*ObjectInstance); ok {
+		if objVal.Class != nil {
+			return objVal.Class.Metadata
+		}
+		return nil
+	}
+
+	// Check for InterfaceInstance - extract the underlying object's class
+	if ifaceVal, ok := internalObj.(*InterfaceInstance); ok {
+		if ifaceVal.Object != nil && ifaceVal.Object.Class != nil {
+			return ifaceVal.Object.Class.Metadata
+		}
+		return nil
+	}
+
+	// Check for TypeCastValue - extract the wrapped object's class
+	if typeCastVal, ok := internalObj.(*TypeCastValue); ok {
+		if typeCastVal.Object != nil {
+			// Recursively extract from wrapped value
+			return i.GetClassMetadataFromValue(typeCastVal.Object)
+		}
+		return nil
+	}
+
+	return nil
+}
+
 func (i *Interpreter) CheckType(obj evaluator.Value, typeName string) bool {
 	// Convert to internal type
 	internalObj := obj.(Value)

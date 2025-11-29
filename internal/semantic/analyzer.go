@@ -189,7 +189,6 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 		ReturnType: types.STRING,
 	}
 
-	// Task 9.285: Use lowercase for case-insensitive lookup
 	// Task 6.1.1.3: Use TypeRegistry instead of scattered maps
 	a.registerBuiltinType("TObject", objectClass)
 
@@ -221,7 +220,6 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 	}
 
 	// Add Message field to Exception
-	// Task 9.285: Use lowercase for case-insensitive lookup
 	exceptionClass.Fields["message"] = types.STRING
 
 	// Add Create constructor
@@ -233,7 +231,6 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 		Visibility: int(ast.VisibilityPublic),
 	})
 
-	// Task 9.285: Use lowercase for case-insensitive lookup
 	// Task 6.1.1.3: Use TypeRegistry instead of scattered maps
 	a.registerBuiltinType("Exception", exceptionClass)
 
@@ -277,7 +274,6 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 			Visibility: int(ast.VisibilityPublic),
 		})
 
-		// Task 9.285: Use lowercase for case-insensitive lookup
 		// Task 6.1.1.3: Use TypeRegistry instead of scattered maps
 		a.registerBuiltinType(excName, excClass)
 	}
@@ -295,7 +291,6 @@ func (a *Analyzer) registerBuiltinInterfaces() {
 		Methods: make(map[string]*types.FunctionType),
 	}
 
-	// Task 9.285: Use lowercase for case-insensitive lookup
 	// Task 6.1.1.3: Use TypeRegistry instead of scattered maps
 	a.registerBuiltinType("IInterface", iinterface)
 }

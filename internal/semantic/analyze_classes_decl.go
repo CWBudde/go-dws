@@ -126,7 +126,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		}
 	}
 
-	// Task 9.11: If this is a forward declaration, create a minimal class type
+	// If this is a forward declaration, create a minimal class type
 	if isForwardDecl {
 		// For forward declarations, we still need to resolve the parent if specified
 		// so that later uses of the class can access parent members
@@ -186,15 +186,14 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		// Not resolving a forward declaration or partial - resolve parent and create new class
 		if decl.Parent != nil {
 			parentName := decl.Parent.Value
-			// Task 9.285: Use lowercase for case-insensitive lookup
-			// Task 6.1.1.3: Use TypeRegistry for unified type lookup
+			// Use TypeRegistry for unified type lookup
 			parentClass = a.getClassType(parentName)
 			if parentClass == nil {
 				a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
 				return
 			}
 		} else {
-			// Task 9.51: If no explicit parent, implicitly inherit from TObject (unless this IS TObject or external)
+			// If no explicit parent, implicitly inherit from TObject (unless this IS TObject or external)
 			// External classes can have nil parent (inherit from Object)
 			if !ident.Equal(className, "TObject") && !decl.IsExternal {
 				parentClass = a.getClassType("TObject")
@@ -321,7 +320,6 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 
 	// Task 9.6: Register class before analyzing fields so that field initializers
 	// can reference the class name (e.g., FField := TObj2.Value)
-	// Task 9.285: Use lowercase for case-insensitive lookup
 	// Task 6.1.1.3: Use TypeRegistry for class registration
 	// Only register if this is a new class (not merging partial or resolving forward)
 	if !mergingPartialClass && !resolvingForwardDecl {
@@ -546,7 +544,6 @@ func (a *Analyzer) analyzeMethodImplementation(decl *ast.FunctionDecl) {
 	typeName := decl.ClassName.Value
 
 	// Look up the class first
-	// Task 9.285: Use lowercase for case-insensitive lookup
 	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
 	classType := a.getClassType(typeName)
 	if classType != nil {

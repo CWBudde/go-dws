@@ -602,7 +602,7 @@ func (e *Evaluator) coerceElementsToType(arrayType *types.ArrayType, values []Va
 
 		// Box values when expected element type is Variant
 		if underlyingElementType.Equals(types.VARIANT) {
-			coerced[idx] = e.adapter.BoxVariant(val)
+			coerced[idx] = runtime.BoxVariant(val)
 			continue
 		}
 

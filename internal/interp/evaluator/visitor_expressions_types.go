@@ -3,6 +3,7 @@ package evaluator
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // This file contains visitor methods for type operation expression AST nodes.
@@ -63,10 +64,8 @@ func (e *Evaluator) VisitIsExpression(node *ast.IsExpression, ctx *ExecutionCont
 		return e.newError(node, "cannot determine target type")
 	}
 
-	// Use the adapter's CheckType method which handles:
-	// - Class hierarchy traversal (obj is TMyClass checks class and parent classes)
-	// - Interface implementation checking (obj is IMyInterface checks if class implements it)
-	result := e.adapter.CheckType(left, targetTypeName)
+	// Task 3.5.140: Migrated from adapter.CheckType() to direct ClassMetadata usage
+	result := e.checkType(left, targetTypeName)
 	return &runtime.BooleanValue{Value: result}
 }
 
@@ -148,4 +147,77 @@ func (e *Evaluator) VisitImplementsExpression(node *ast.ImplementsExpression, ct
 	}
 
 	return &runtime.BooleanValue{Value: result}
+}
+
+// checkType checks if a value is an instance of a specific type.
+// Task 3.5.140: Migrated from adapter.CheckType() to use ClassMetadata directly.
+//
+// This implements the 'is' operator type checking with:
+// - Class hierarchy traversal (obj is TMyClass checks class and parent classes)
+// - Interface implementation checking (obj is IMyInterface checks if class implements it)
+func (e *Evaluator) checkType(obj Value, typeName string) bool {
+	// Handle nil - nil is not an instance of any type
+	if obj == nil || obj.Type() == "NIL" {
+		return false
+	}
+
+	// Get the class metadata from the object
+	// For ObjectInstance, we access Class.Metadata
+	// For InterfaceInstance, we access Object.Class.Metadata
+	classMeta := e.getClassMetadataFromValue(obj)
+	if classMeta == nil {
+		return false
+	}
+
+	// Check if the object's class matches (case-insensitive)
+	if ident.Equal(classMeta.Name, typeName) {
+		return true
+	}
+
+	// Check parent class hierarchy
+	current := classMeta.Parent
+	for current != nil {
+		if ident.Equal(current.Name, typeName) {
+			return true
+		}
+		current = current.Parent
+	}
+
+	// Check if the target is an interface and if the object's class implements it
+	if e.typeSystem.HasInterface(typeName) {
+		return e.classImplementsInterface(classMeta, typeName)
+	}
+
+	return false
+}
+
+// getClassMetadataFromValue extracts ClassMetadata from a value.
+// Task 3.5.140: Helper to extract metadata from ObjectInstance or InterfaceInstance.
+func (e *Evaluator) getClassMetadataFromValue(obj Value) *runtime.ClassMetadata {
+	// Use adapter to extract ClassMetadata from the object
+	// The adapter has access to internal types and can safely extract the metadata
+	return e.adapter.GetClassMetadataFromValue(obj)
+}
+
+// classImplementsInterface checks if a class implements an interface.
+// Task 3.5.140: Helper for checkType to verify interface implementation.
+func (e *Evaluator) classImplementsInterface(classMeta *runtime.ClassMetadata, interfaceName string) bool {
+	if classMeta == nil {
+		return false
+	}
+
+	// Check if this class explicitly declares the interface
+	for _, ifaceName := range classMeta.Interfaces {
+		if ident.Equal(ifaceName, interfaceName) {
+			return true
+		}
+		// TODO: Check interface inheritance when that's implemented
+	}
+
+	// Check parent class (interfaces are inherited)
+	if classMeta.Parent != nil {
+		return e.classImplementsInterface(classMeta.Parent, interfaceName)
+	}
+
+	return false
 }

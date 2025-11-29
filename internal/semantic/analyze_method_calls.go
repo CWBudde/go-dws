@@ -31,7 +31,6 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	// Check if object is an interface type
 	if interfaceType, ok := objectType.(*types.InterfaceType); ok {
 		// Look up method in interface (including inherited methods from parent interfaces)
-		// Use lowercase for case-insensitive lookup
 		methodType, found := interfaceType.GetMethod(methodNameLower)
 
 		// Check parent interfaces

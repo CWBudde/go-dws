@@ -477,12 +477,12 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 ### Phase 20: Reduce Exception Handling Calls (3.5.133-3.5.137)
 
-**Current State**: 8 exception-related adapter calls
+**Current State**: 7 exception-related adapter calls (1 removed)
 
-- [ ] **3.5.133** Migrate RaiseException (1 call)
+- [x] **3.5.133** Migrate RaiseException (1 call) ✅
   - **Location**: `visitor_statements.go` line 112
   - **Issue**: Exception raising delegates to adapter
-  - **Solution**: Create ExceptionValue directly, set in context
+  - **Solution**: Create ExceptionValue directly using CreateExceptionDirect bridge constructor
   - **Calls removed**: 1 adapter call
 
 - [ ] **3.5.134** Migrate CreateExceptionFromObject (1 call)
@@ -513,25 +513,31 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 ### Phase 21: Reduce Type Operation Calls (3.5.138-3.5.143)
 
-**Current State**: 11 type operation adapter calls
+**Current State**: 9 type operation adapter calls (3 removed, 1 helper added)
 
-- [ ] **3.5.138** Migrate ConvertValue (2 calls)
-  - **Location**: `type_casts.go` line 67, `array_helpers.go` line 622
+- [x] **3.5.138** Migrate ConvertValue (2 calls) ✅
+  - **Location**: `type_casts.go` line 67, `array_helpers.go` line 641
   - **Issue**: Type conversion delegates to adapter
-  - **Solution**: Use TypeSystem conversion registry directly
+  - **Solution**: Replaced with existing adapter method (BoxVariant) and direct evaluator method (castToFloat)
   - **Calls removed**: 2 adapter calls
+  - **Methods removed**: 1 (ConvertValue from adapter interface)
 
-- [ ] **3.5.139** Migrate BoxVariant (4 calls)
-  - **Location**: `visitor_statements.go` lines 213, 1226, `array_helpers.go` line 586
-  - **Issue**: Variant boxing delegates to adapter
-  - **Solution**: Create VariantValue directly
-  - **Calls removed**: 4 adapter calls (3 + 1 noted)
+- [x] **3.5.139** Migrate BoxVariant (9 calls) ✅
+  - **Location**: 7 files in evaluator package (type_casts.go, visitor_statements.go, array_helpers.go, assignment_helpers.go, binary_ops.go)
+  - **Solution**: Moved VariantValue and BoxVariant to runtime package, evaluator calls runtime.BoxVariant directly
+  - **Calls removed**: 9 adapter calls
+  - **Methods removed**: 1 (BoxVariant from adapter interface)
+  - **Result**: Adapter interface reduced from 105 → 104 methods
+  - **Implementation**: Created `internal/interp/runtime/variant.go` with VariantValue struct and BoxVariant function
+  - **Tests**: All variant, type cast, and assignment tests pass
 
-- [ ] **3.5.140** Migrate CheckType (is operator) (1 call)
-  - **Location**: `visitor_expressions.go` line 2285
+- [x] **3.5.140** Migrate CheckType (is operator) (1 call) ✅
+  - **Location**: `visitor_expressions_types.go` line 67
   - **Issue**: Type checking delegates to adapter
-  - **Solution**: Use ClassMetadata hierarchy check
-  - **Calls removed**: 1 adapter call
+  - **Solution**: Created `checkType()` and `classImplementsInterface()` helpers in evaluator, added `GetClassMetadataFromValue()` adapter method to extract metadata from ObjectInstance/InterfaceInstance
+  - **Implementation**: Uses ClassMetadata hierarchy traversal and TypeSystem interface lookups
+  - **Calls removed**: 1 adapter call (CheckType)
+  - **Calls added**: 1 helper adapter call (GetClassMetadataFromValue) - simpler extraction-only method
 
 - [ ] **3.5.141** Migrate CastType (as operator) + CastToClass (2 calls)
   - **Location**: `visitor_expressions.go` line 2321, `type_casts.go` line 79
@@ -731,15 +737,109 @@ These tasks require moving declaration processing from Interpreter to Evaluator.
 
 ---
 
+### Phase 27.5: Future - Eliminate Bridge Constructors (DEFERRED)
+
+**Goal**: Remove all bridge constructor adapter methods by moving value types to runtime package.
+
+Bridge constructors are temporary adapter methods added during Phases 19-20 that take pre-resolved
+dependencies. They enabled moving business logic to the evaluator while deferring the work of
+moving value construction to the runtime package. This phase completes that migration.
+
+**Current Bridge Constructors**:
+- `CreateExceptionDirect` (Task 3.5.133) - Exception value construction
+- `CreateSubrangeValueDirect` (Task 3.5.129) - Subrange value wrapping
+- `CreateInterfaceInstanceDirect` (Task 3.5.129) - Interface instance creation
+- `CreateTypedNilValue` (Task 3.5.129) - Typed nil for classes
+
+**Why They Exist**:
+- ExceptionValue/ObjectInstance/InterfaceInstance live in `interp` package
+- Import cycles prevent direct construction from evaluator package
+- Moving these requires refactoring ObjectInstance (17 methods, 600+ LOC, 50-100+ call sites)
+
+#### Tasks
+
+- [ ] **3.5.176** Move ObjectInstance to runtime package (2-3 weeks)
+  - **Current location**: `internal/interp/object.go`
+  - **Target location**: `internal/interp/runtime/object.go`
+  - **Changes required**:
+    - Convert 17 ObjectInstance methods to free functions or struct methods
+    - Update Fields map type from `map[string]Value` to `map[string]runtime.Value`
+    - Update 50-100+ call sites across codebase
+    - Handle dependent types: InterfaceInstance, TypeCastValue
+  - **Dependency**: ClassMetadata already in runtime (completed in 3.5.41)
+
+- [ ] **3.5.177** Move ExceptionValue to runtime package (1 week)
+  - **Current location**: `internal/interp/exceptions.go`
+  - **Target location**: `internal/interp/runtime/exception.go`
+  - **Changes required**:
+    - Update to use runtime.ObjectInstance
+    - Remove ClassInfo dependency (use only ClassMetadata)
+    - Update exception raising in evaluator to direct construction
+  - **Dependency**: Task 3.5.176 (ObjectInstance migration)
+  - **Eliminates**: `CreateExceptionDirect` bridge constructor
+
+- [ ] **3.5.178** Move SubrangeValue to runtime package (1 week)
+  - **Current location**: `internal/interp/value.go` (SubrangeValue type)
+  - **Target location**: `internal/interp/runtime/subrange.go`
+  - **Changes required**:
+    - Extract SubrangeValue as standalone type
+    - Update to use runtime.SubrangeTypeValue
+    - Update evaluator to construct directly
+  - **Eliminates**: `CreateSubrangeValueDirect` bridge constructor
+
+- [ ] **3.5.179** Move InterfaceInstance to runtime package (1-2 weeks)
+  - **Current location**: `internal/interp/value.go`
+  - **Target location**: `internal/interp/runtime/interface.go`
+  - **Changes required**:
+    - Update to use runtime.ObjectInstance
+    - Update to use runtime.InterfaceMetadata
+    - Update interface casting/wrapping in evaluator
+  - **Dependency**: Task 3.5.176 (ObjectInstance migration)
+  - **Eliminates**: `CreateInterfaceInstanceDirect` bridge constructor
+
+- [ ] **3.5.180** Move TypedNilValue to runtime package (3 days)
+  - **Current location**: `internal/interp/value.go`
+  - **Target location**: `internal/interp/runtime/typed_nil.go`
+  - **Changes required**:
+    - Create typed nil value type in runtime
+    - Update class nil value creation in evaluator
+  - **Dependency**: Task 3.5.176 (ObjectInstance migration)
+  - **Eliminates**: `CreateTypedNilValue` bridge constructor
+
+- [ ] **3.5.181** Remove all bridge constructor adapter methods (1 day)
+  - **Methods to remove**:
+    - `CreateExceptionDirect` from adapter_references.go
+    - `CreateSubrangeValueDirect` from adapter_values.go
+    - `CreateInterfaceInstanceDirect` from adapter_values.go
+    - `CreateTypedNilValue` from adapter_values.go
+  - **Update**: InterpreterAdapter interface in evaluator.go
+  - **Verify**: All evaluator code uses direct runtime construction
+  - **Result**: -4 adapter methods
+
+**Estimated effort**: 5-7 weeks total
+
+**Success criteria**:
+- ✅ All value types used by evaluator live in runtime package
+- ✅ Zero bridge constructor methods remain in adapter
+- ✅ Evaluator constructs all values directly: `&runtime.ExceptionValue{...}`
+- ✅ No import cycles between evaluator and interp packages
+- ✅ All tests pass
+
+**Dependency**: Must complete Phases 15-26 first to reduce adapter complexity
+
+**Benefit**: Eliminates 4 adapter methods, completes value type migration to runtime
+
+---
+
 ### Phase 28: Future - Remove Adapter Entirely (DEFERRED)
 
 Final steps after all migrations complete.
 
-- [ ] **3.5.176** Remove InterpreterAdapter interface from evaluator.go
-- [ ] **3.5.177** Remove adapter field from Evaluator struct
-- [ ] **3.5.178** Remove SetAdapter() method
-- [ ] **3.5.179** Remove evalDirect() from Interpreter
-- [ ] **3.5.180** Final architecture documentation
+- [ ] **3.5.182** Remove InterpreterAdapter interface from evaluator.go
+- [ ] **3.5.183** Remove adapter field from Evaluator struct
+- [ ] **3.5.184** Remove SetAdapter() method
+- [ ] **3.5.185** Remove evalDirect() from Interpreter
+- [ ] **3.5.186** Final architecture documentation
 
 ---
 
@@ -766,7 +866,8 @@ Final steps after all migrations complete.
 | 25: JSON Helpers | 3.5.160-3.5.161 | Remove 3 JSON helper calls |
 | 26: Final Cleanup | 3.5.162-3.5.165 | Document remaining, remove unused |
 | 27: Declarations | 3.5.166-3.5.175 | DEFERRED - Declaration migration (4-6 weeks) |
-| 28: Remove Adapter | 3.5.176-3.5.180 | DEFERRED - Final adapter removal |
+| 27.5: Bridge Elimination | 3.5.176-3.5.181 | DEFERRED - Move value types to runtime, remove 4 bridge constructors (5-7 weeks) |
+| 28: Remove Adapter | 3.5.182-3.5.186 | DEFERRED - Final adapter removal |
 
 **Current State (November 2025):**
 
