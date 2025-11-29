@@ -559,11 +559,17 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Calls removed**: 1 adapter call (CheckType)
   - **Calls added**: 1 helper adapter call (GetClassMetadataFromValue) - simpler extraction-only method
 
-- [ ] **3.5.141** Migrate CastType (as operator) + CastToClass (2 calls)
-  - **Location**: `visitor_expressions.go` line 2321, `type_casts.go` line 79
-  - **Issue**: Type casting delegates to adapter
-  - **Solution**: Create TypeCastValue for static type preservation
-  - **Calls removed**: 2 adapter calls
+- [x] **3.5.141** Migrate CastType (as operator) + CastToClass (2 calls) ✅
+  - **Location**: `visitor_expressions_types.go` line 104, `type_casts.go` line 74
+  - **Issue**: Type casting delegates to adapter (CastType for 'as' operator, CastToClass for TypeName(expr))
+  - **Solution**: Created `castType()` and `castToClassType()` helpers in evaluator with 5 extraction-only adapter methods
+  - **Implementation**:
+    - `castType()`: Handles 'as' operator - returns errors, no TypeCastValue wrappers
+    - `castToClassType()`: Handles TypeName(expr) - raises exceptions, always creates TypeCastValue wrappers
+    - Added 5 adapter helpers: GetObjectInstanceFromValue, GetInterfaceInstanceFromValue, CreateInterfaceWrapper, CreateTypeCastWrapper, RaiseTypeCastException
+  - **Calls removed**: 2 adapter calls (CastType, CastToClass)
+  - **Calls added**: 5 extraction-only adapter helpers (no business logic)
+  - **Methods deprecated**: CastType and CastToClass marked as deprecated, kept for old interpreter path
 
 - [ ] **3.5.142** Migrate CheckImplements (1 call)
   - **Location**: `visitor_expressions.go` line 2361

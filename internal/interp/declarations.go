@@ -724,7 +724,6 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	return &NilValue{}
 }
 
-
 // convertPropertyDecl converts an AST property declaration to a PropertyInfo struct.
 // This extracts the property metadata for runtime property access handling.
 // Note: We mark all identifiers as field access for now and will check at runtime

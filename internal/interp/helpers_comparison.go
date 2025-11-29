@@ -241,37 +241,37 @@ func (i *Interpreter) isBuiltinMethodParameterless(builtinSpec string) bool {
 	// Map of builtin method specs to their parameter counts
 	// This must be kept in sync with the actual builtin method implementations
 	parameterlessBuiltins := map[string]bool{
-		"__array_pop":           true,  // Pop() - no parameters
-		"__array_push":          false, // Push(value) - 1 parameter
-		"__array_swap":          false, // Swap(i, j) - 2 parameters
-		"__array_add":           false, // Add(value) - 1 parameter
-		"__array_delete":        false, // Delete(index) - 1 parameter
-		"__array_indexof":       false, // IndexOf(value) - 1 parameter
-		"__array_setlength":     false, // SetLength(n) - 1 parameter
-		"__integer_tostring":    true,  // ToString() - no parameters
-		"__integer_tohexstring": true,  // ToHexString() - no parameters
-		"__float_tostring_prec": false, // ToString(precision) - 1 parameter
-		"__boolean_tostring":    true,  // ToString() - no parameters
-		"__string_toupper":      true,  // ToUpper() - no parameters
-		"__string_tolower":      true,  // ToLower() - no parameters
-		"__string_array_join":   false, // Join(separator) - 1 parameter
-		"__string_tointeger":    true,  // ToInteger() - no parameters
-		"__string_tofloat":      true,  // ToFloat() - no parameters
-		"__string_tostring":     true,  // ToString() - no parameters
-		"__string_startswith":   false, // StartsWith(str) - 1 parameter
-		"__string_endswith":     false, // EndsWith(str) - 1 parameter
-		"__string_contains":     false, // Contains(str) - 1 parameter
-		"__string_indexof":      false, // IndexOf(str) - 1 parameter
-		"__string_copy":         false, // Copy(start, [len]) - 1-2 parameters
-		"__string_before":       false, // Before(str) - 1 parameter
-		"__string_after":        false, // After(str) - 1 parameter
-		"__string_trim":         true,  // Trim() - no parameters
-		"__string_split":        false, // Split(delimiter) - 1 parameter
-		"__string_tojson":       true,  // ToJSON() - no parameters
-		"__string_tohtml":       true,  // ToHTML() - no parameters
-		"__string_tohtmlattribute": true, // ToHtmlAttribute() - no parameters
-		"__string_tocsstext":    true,  // ToCSSText() - no parameters
-		"__string_toxml":        true,  // ToXML() - no parameters (mode via explicit call)
+		"__array_pop":              true,  // Pop() - no parameters
+		"__array_push":             false, // Push(value) - 1 parameter
+		"__array_swap":             false, // Swap(i, j) - 2 parameters
+		"__array_add":              false, // Add(value) - 1 parameter
+		"__array_delete":           false, // Delete(index) - 1 parameter
+		"__array_indexof":          false, // IndexOf(value) - 1 parameter
+		"__array_setlength":        false, // SetLength(n) - 1 parameter
+		"__integer_tostring":       true,  // ToString() - no parameters
+		"__integer_tohexstring":    true,  // ToHexString() - no parameters
+		"__float_tostring_prec":    false, // ToString(precision) - 1 parameter
+		"__boolean_tostring":       true,  // ToString() - no parameters
+		"__string_toupper":         true,  // ToUpper() - no parameters
+		"__string_tolower":         true,  // ToLower() - no parameters
+		"__string_array_join":      false, // Join(separator) - 1 parameter
+		"__string_tointeger":       true,  // ToInteger() - no parameters
+		"__string_tofloat":         true,  // ToFloat() - no parameters
+		"__string_tostring":        true,  // ToString() - no parameters
+		"__string_startswith":      false, // StartsWith(str) - 1 parameter
+		"__string_endswith":        false, // EndsWith(str) - 1 parameter
+		"__string_contains":        false, // Contains(str) - 1 parameter
+		"__string_indexof":         false, // IndexOf(str) - 1 parameter
+		"__string_copy":            false, // Copy(start, [len]) - 1-2 parameters
+		"__string_before":          false, // Before(str) - 1 parameter
+		"__string_after":           false, // After(str) - 1 parameter
+		"__string_trim":            true,  // Trim() - no parameters
+		"__string_split":           false, // Split(delimiter) - 1 parameter
+		"__string_tojson":          true,  // ToJSON() - no parameters
+		"__string_tohtml":          true,  // ToHTML() - no parameters
+		"__string_tohtmlattribute": true,  // ToHtmlAttribute() - no parameters
+		"__string_tocsstext":       true,  // ToCSSText() - no parameters
+		"__string_toxml":           true,  // ToXML() - no parameters (mode via explicit call)
 	}
 
 	if isParameterless, exists := parameterlessBuiltins[builtinSpec]; exists {

@@ -1,9 +1,12 @@
 package evaluator
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
+	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // This file contains visitor methods for type operation expression AST nodes.
@@ -95,16 +98,16 @@ func (e *Evaluator) VisitAsExpression(node *ast.AsExpression, ctx *ExecutionCont
 		return e.newError(node, "cannot determine target type")
 	}
 
-	// Use the adapter's CastType method which handles:
+	// Task 3.5.141: Use evaluator's castType helper which handles:
 	// - nil casting
 	// - interface-to-class casting (unwrapping)
 	// - interface-to-interface casting (re-wrapping)
 	// - object-to-class casting (hierarchy validation)
 	// - object-to-interface casting (wrapping)
-	result, err := e.adapter.CastType(left, targetTypeName)
+	result, err := e.castType(left, targetTypeName, node)
 	if err != nil {
 		// Cast failed - return error that should be raised as exception
-		// The error message from CastType includes the specific failure reason
+		// The error message from castType includes the specific failure reason
 		return e.newError(node, "%s", err.Error())
 	}
 
@@ -217,6 +220,202 @@ func (e *Evaluator) classImplementsInterface(classMeta *runtime.ClassMetadata, i
 	// Check parent class (interfaces are inherited)
 	if classMeta.Parent != nil {
 		return e.classImplementsInterface(classMeta.Parent, interfaceName)
+	}
+
+	return false
+}
+
+// castType performs type casting for the 'as' operator.
+// Task 3.5.141: Migrated from adapter.CastType().
+//
+// Handles:
+// 1. Variant → primitive types (using existing cast helpers)
+// 2. nil → any type (returns nil)
+// 3. interface → class (extract + validate)
+// 4. interface → interface (rewrap + validate)
+// 5. object → class (validate hierarchy)
+// 6. object → interface (wrap + validate)
+//
+// Returns (Value, error) - does NOT raise exceptions.
+func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, error) {
+	targetLower := pkgident.Normalize(typeName)
+
+	// Handle variant-specific casting to primitive types
+	if variantVal, ok := obj.(VariantAccessor); ok {
+		switch targetLower {
+		case "integer":
+			result := e.castToInteger(variantVal.GetVariantValue())
+			if isError(result) {
+				return nil, fmt.Errorf("%s", result.String())
+			}
+			return result, nil
+		case "float":
+			result := e.castToFloat(variantVal.GetVariantValue())
+			if isError(result) {
+				return nil, fmt.Errorf("%s", result.String())
+			}
+			return result, nil
+		case "string":
+			result := e.castToString(variantVal.GetVariantValue())
+			return result, nil
+		case "boolean":
+			result := e.castToBoolean(variantVal.GetVariantValue())
+			if isError(result) {
+				return nil, fmt.Errorf("%s", result.String())
+			}
+			return result, nil
+		case "variant":
+			return obj, nil
+		}
+
+		// For class/interface targets, unwrap and continue
+		obj = variantVal.GetVariantValue()
+		if obj == nil {
+			obj = &runtime.NilValue{}
+		}
+	}
+
+	// Handle nil - nil can be cast to any type
+	if _, isNil := obj.(*runtime.NilValue); isNil {
+		return &runtime.NilValue{}, nil
+	}
+
+	// Handle interface-to-object/interface casting
+	interfaceInfo, underlyingObj := e.adapter.GetInterfaceInstanceFromValue(obj)
+	if interfaceInfo != nil {
+		// Check if target is a class via TypeSystem
+		if e.typeSystem.HasClass(typeName) {
+			// Interface-to-class casting: extract the underlying object
+			if underlyingObj == nil {
+				return nil, fmt.Errorf("cannot cast nil interface to class '%s'", typeName)
+			}
+
+			// Get the underlying object's class metadata
+			underlyingObjVal := underlyingObj.(Value)
+			underlyingClassMeta := e.getClassMetadataFromValue(underlyingObjVal)
+			if underlyingClassMeta == nil {
+				return nil, fmt.Errorf("cannot extract class metadata from interface underlying object")
+			}
+
+			// Check if the underlying object's class is compatible with the target class
+			targetClassMeta := e.typeSystem.LookupClass(typeName)
+			if !e.isClassHierarchyCompatible(underlyingClassMeta, targetClassMeta) {
+				return nil, fmt.Errorf("cannot cast interface of '%s' to class '%s'", underlyingClassMeta.Name, typeName)
+			}
+
+			// Cast is valid - return the underlying object
+			return underlyingObjVal, nil
+		}
+
+		// Check if target is an interface
+		if e.typeSystem.HasInterface(typeName) {
+			// Interface-to-interface casting
+			if underlyingObj == nil {
+				// DWScript: nil interface cast to interface yields nil interface wrapper
+				nilWrapper, err := e.adapter.CreateInterfaceWrapper(typeName, nil)
+				if err != nil {
+					return nil, err
+				}
+				return nilWrapper, nil
+			}
+
+			// Check if the underlying object's class implements the target interface
+			underlyingObjVal := underlyingObj.(Value)
+			underlyingClassMeta := e.getClassMetadataFromValue(underlyingObjVal)
+			if underlyingClassMeta == nil {
+				return nil, fmt.Errorf("cannot extract class metadata from interface underlying object")
+			}
+
+			if !e.classImplementsInterface(underlyingClassMeta, typeName) {
+				return nil, fmt.Errorf("cannot cast interface of '%s' to interface '%s'", underlyingClassMeta.Name, typeName)
+			}
+
+			// Create and return new interface instance
+			wrapper, err := e.adapter.CreateInterfaceWrapper(typeName, underlyingObjVal)
+			if err != nil {
+				return nil, err
+			}
+			return wrapper, nil
+		}
+
+		return nil, fmt.Errorf("type '%s' not found (neither class nor interface)", typeName)
+	}
+
+	// Handle object casting
+	objVal := e.adapter.GetObjectInstanceFromValue(obj)
+	if objVal == nil {
+		return nil, fmt.Errorf("'as' operator requires object instance, got %s", obj.Type())
+	}
+
+	// Try class-to-class casting first via TypeSystem
+	if e.typeSystem.HasClass(typeName) {
+		// Get the object's class metadata
+		objClassMeta := e.getClassMetadataFromValue(obj)
+		if objClassMeta == nil {
+			return nil, fmt.Errorf("cannot extract class metadata from object")
+		}
+
+		// Validate that the object's actual runtime type is compatible with the target
+		targetClassMeta := e.typeSystem.LookupClass(typeName)
+		if !e.isClassHierarchyCompatible(objClassMeta, targetClassMeta) {
+			return nil, fmt.Errorf("instance of type '%s' cannot be cast to class '%s'", objClassMeta.Name, typeName)
+		}
+
+		// Cast is valid - return the same object
+		return obj, nil
+	}
+
+	// Try interface casting
+	if e.typeSystem.HasInterface(typeName) {
+		// Get the object's class metadata
+		objClassMeta := e.getClassMetadataFromValue(obj)
+		if objClassMeta == nil {
+			return nil, fmt.Errorf("cannot extract class metadata from object")
+		}
+
+		// Validate that the object's class implements the interface
+		if !e.classImplementsInterface(objClassMeta, typeName) {
+			return nil, fmt.Errorf("class '%s' does not implement interface '%s'", objClassMeta.Name, typeName)
+		}
+
+		// Create and return the interface instance
+		wrapper, err := e.adapter.CreateInterfaceWrapper(typeName, obj)
+		if err != nil {
+			return nil, err
+		}
+		return wrapper, nil
+	}
+
+	return nil, fmt.Errorf("type '%s' not found (neither class nor interface)", typeName)
+}
+
+// isClassHierarchyCompatible checks if a class is compatible with a target class.
+// Task 3.5.141: Helper for class hierarchy validation during type casting.
+// Returns true if sourceClass is the same as or a descendant of targetClass.
+func (e *Evaluator) isClassHierarchyCompatible(sourceClass, targetClass interface{}) bool {
+	// Extract ClassMetadata if we have a generic interface
+	var sourceMeta *runtime.ClassMetadata
+	var targetMeta *runtime.ClassMetadata
+
+	if sm, ok := sourceClass.(*runtime.ClassMetadata); ok {
+		sourceMeta = sm
+	} else {
+		return false
+	}
+
+	if tm, ok := targetClass.(*runtime.ClassMetadata); ok {
+		targetMeta = tm
+	} else {
+		return false
+	}
+
+	// Check if source class is the same as or descended from target class
+	current := sourceMeta
+	for current != nil {
+		if pkgident.Equal(current.Name, targetMeta.Name) {
+			return true
+		}
+		current = current.Parent
 	}
 
 	return false

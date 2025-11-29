@@ -486,14 +486,30 @@ type InterpreterAdapter interface {
 	// Returns nil if the value is not an object or doesn't have class metadata.
 	GetClassMetadataFromValue(obj Value) *runtime.ClassMetadata
 
-	// CastType performs type casting (implements 'as' operator).
-	// Returns the casted value and an error if the cast fails.
-	CastType(obj Value, typeName string) (Value, error)
+	// GetObjectInstanceFromValue extracts ObjectInstance from a Value.
+	// Task 3.5.141: Helper to extract ObjectInstance for type casting.
+	// Returns the ObjectInstance interface{} if the value is an ObjectInstance, nil otherwise.
+	GetObjectInstanceFromValue(val Value) interface{}
 
-	// CastToClass performs class type casting for TypeName(expr) expressions.
-	// Task 3.5.94: Delegates class casting logic to the Interpreter during type cast migration.
-	// Returns the casted value with proper static type preservation.
-	CastToClass(val Value, className string, node ast.Expression) Value
+	// GetInterfaceInstanceFromValue extracts InterfaceInstance from a Value.
+	// Task 3.5.141: Helper to extract InterfaceInstance for interface casting.
+	// Returns (interfaceInfo, underlyingObject) if the value is an InterfaceInstance, (nil, nil) otherwise.
+	GetInterfaceInstanceFromValue(val Value) (interfaceInfo interface{}, underlyingObject interface{})
+
+	// CreateInterfaceWrapper creates an InterfaceInstance wrapper.
+	// Task 3.5.141: Helper to create interface wrappers for 'as' operator.
+	// Returns the InterfaceInstance wrapper or error if interface not found.
+	CreateInterfaceWrapper(interfaceName string, obj Value) (Value, error)
+
+	// CreateTypeCastWrapper creates a TypeCastValue wrapper.
+	// Task 3.5.141: Helper to create TypeCastValue for TypeName(expr) casts.
+	// Returns the TypeCastValue wrapper or nil if class not found.
+	CreateTypeCastWrapper(className string, obj Value) Value
+
+	// RaiseTypeCastException raises a type cast exception.
+	// Task 3.5.141: Helper to raise exceptions for invalid TypeName(expr) casts.
+	// This matches the behavior of castToClass which raises exceptions.
+	RaiseTypeCastException(message string, node ast.Node)
 
 	// CheckImplements checks if an object/class implements an interface (implements 'implements' operator).
 	// Task 3.5.36: Supports ObjectInstance, ClassValue, and ClassInfoValue inputs.
