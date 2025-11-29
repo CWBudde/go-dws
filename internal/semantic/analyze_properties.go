@@ -18,22 +18,6 @@ func pluralizeParam(count int) string {
 	return "parameters"
 }
 
-// evaluateIndexDirective extracts an integer value from an index directive expression.
-// Supports plain integer literals and unary-negated integer literals.
-func evaluateIndexDirective(expr ast.Expression) (int64, bool) {
-	switch v := expr.(type) {
-	case *ast.IntegerLiteral:
-		return v.Value, true
-	case *ast.UnaryExpression:
-		if v.Operator == "-" {
-			if lit, ok := v.Right.(*ast.IntegerLiteral); ok {
-				return -lit.Value, true
-			}
-		}
-	}
-	return 0, false
-}
-
 // analyzePropertyDecl validates a property declaration and registers it in the class metadata.
 func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.ClassType) {
 	propName := prop.Name.Value
@@ -117,12 +101,12 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 
 		// Currently support integer-typed index directives
 		if !idxType.Equals(types.INTEGER) {
-			a.addError("property '%s' index directive must be an integer constant, got %s at %s",
+			a.addError("property '%s' index directive must be an integer literal, got %s at %s",
 				propName, idxType.String(), prop.Token.Pos.String())
 			return
 		}
 
-		val, ok := evaluateIndexDirective(prop.IndexValue)
+		val, ok := ast.ExtractIntegerLiteral(prop.IndexValue)
 		if !ok {
 			a.addError("property '%s' index directive must be an integer literal at %s",
 				propName, prop.Token.Pos.String())
