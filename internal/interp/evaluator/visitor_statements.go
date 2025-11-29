@@ -1035,7 +1035,7 @@ func (e *Evaluator) VisitTryStatement(node *ast.TryStatement, ctx *ExecutionCont
 			// Set ExceptObject to the current exception in finally block
 			oldExceptObject, _ := ctx.Env().Get("ExceptObject")
 			if savedExc != nil {
-				excInstance := e.adapter.GetExceptionInstance(savedExc)
+				excInstance := e.getExceptionInstance(savedExc)
 				if excInstance != nil {
 					ctx.Env().Set("ExceptObject", excInstance)
 				}
@@ -1045,7 +1045,8 @@ func (e *Evaluator) VisitTryStatement(node *ast.TryStatement, ctx *ExecutionCont
 			ctx.SetException(nil)
 
 			// Execute finally block
-			e.adapter.EvalBlockStatement(node.FinallyClause.Block, ctx)
+			// Task 3.5.137: Direct evaluation instead of adapter delegation
+			e.Eval(node.FinallyClause.Block, ctx)
 
 			// If finally raised a new exception, keep it (replaces original)
 			// If finally completed normally, restore the original exception
@@ -1061,7 +1062,8 @@ func (e *Evaluator) VisitTryStatement(node *ast.TryStatement, ctx *ExecutionCont
 	}
 
 	// Execute try block
-	e.adapter.EvalBlockStatement(node.TryBlock, ctx)
+	// Task 3.5.137: Direct evaluation instead of adapter delegation
+	e.Eval(node.TryBlock, ctx)
 
 	// If an exception occurred, try to handle it
 	if ctx.Exception() != nil {
@@ -1107,7 +1109,7 @@ func (e *Evaluator) evalExceptClause(clause *ast.ExceptClause, ctx *ExecutionCon
 			defer ctx.PopEnv()
 
 			// Get exception instance once (for both variable binding and ExceptObject)
-			excInstance := e.adapter.GetExceptionInstance(exc)
+			excInstance := e.getExceptionInstance(exc)
 
 			// Bind exception variable
 			if handler.Variable != nil {
@@ -1133,7 +1135,8 @@ func (e *Evaluator) evalExceptClause(clause *ast.ExceptClause, ctx *ExecutionCon
 			ctx.SetException(nil)
 
 			// Execute handler statement
-			e.adapter.EvalStatement(handler.Statement, ctx)
+			// Task 3.5.137: Direct evaluation instead of adapter delegation
+			e.Eval(handler.Statement, ctx)
 
 			// After handler executes:
 			// - If ctx.Exception() is still nil, handler completed normally
@@ -1156,7 +1159,8 @@ func (e *Evaluator) evalExceptClause(clause *ast.ExceptClause, ctx *ExecutionCon
 	if clause.ElseBlock != nil {
 		// Clear the exception before executing else block
 		ctx.SetException(nil)
-		e.adapter.EvalBlockStatement(clause.ElseBlock, ctx)
+		// Task 3.5.137: Direct evaluation instead of adapter delegation
+		e.Eval(clause.ElseBlock, ctx)
 	}
 	// If no else block, exception remains active and will propagate
 }
@@ -1219,6 +1223,31 @@ func (e *Evaluator) matchesExceptionType(exc interface{}, typeExpr ast.TypeExpre
 	// Use TypeSystem to check class hierarchy
 	// IsClassDescendantOf returns true if excTypeName == handlerTypeName or if excTypeName inherits from handlerTypeName
 	return e.typeSystem.IsClassDescendantOf(excTypeName, handlerTypeName)
+}
+
+// getExceptionInstance extracts the ObjectInstance from an ExceptionValue.
+// Returns nil if exc is not an ExceptionValue.
+// Task 3.5.136: Migrated from adapter to enable direct exception instance access.
+func (e *Evaluator) getExceptionInstance(exc interface{}) Value {
+	// Define local interface to access Instance field without importing parent package.
+	// ExceptionValue in parent package implements GetInstance() method.
+	type ExceptionWithInstance interface {
+		GetInstance() interface{} // Returns *ObjectInstance but we can't import that type
+	}
+
+	if excWithInst, ok := exc.(ExceptionWithInstance); ok {
+		// GetInstance returns *ObjectInstance which implements Value interface
+		instance := excWithInst.GetInstance()
+		if instance == nil {
+			return nil
+		}
+		// Type assert to Value (ObjectInstance implements Value)
+		if val, ok := instance.(Value); ok {
+			return val
+		}
+	}
+
+	return nil
 }
 
 // createExceptionFromObject creates an ExceptionValue from an object instance.
