@@ -18,6 +18,22 @@ func pluralizeParam(count int) string {
 	return "parameters"
 }
 
+// evaluateIndexDirective extracts an integer value from an index directive expression.
+// Supports plain integer literals and unary-negated integer literals.
+func evaluateIndexDirective(expr ast.Expression) (int64, bool) {
+	switch v := expr.(type) {
+	case *ast.IntegerLiteral:
+		return v.Value, true
+	case *ast.UnaryExpression:
+		if v.Operator == "-" {
+			if lit, ok := v.Right.(*ast.IntegerLiteral); ok {
+				return -lit.Value, true
+			}
+		}
+	}
+	return 0, false
+}
+
 // analyzePropertyDecl validates a property declaration and registers it in the class metadata.
 func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.ClassType) {
 	propName := prop.Name.Value
@@ -75,6 +91,51 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 		}
 	}
 
+	// Index directive (implicit index argument) - cannot be combined with explicit index params
+	var implicitIndexTypes []types.Type
+	var indexLiteralValue int64
+	if prop.IndexValue != nil {
+		if isIndexed {
+			a.addError("property '%s' cannot combine index parameters with an index directive at %s",
+				propName, prop.Token.Pos.String())
+			return
+		}
+
+		// Analyze the index expression type in a property context
+		savedClass := a.currentClass
+		savedInClassMethod := a.inClassMethod
+		a.currentClass = classType
+		a.inClassMethod = false
+		idxType := a.analyzeExpression(prop.IndexValue)
+		a.currentClass = savedClass
+		a.inClassMethod = savedInClassMethod
+
+		if idxType == nil {
+			// Errors already recorded
+			return
+		}
+
+		// Currently support integer-typed index directives
+		if !idxType.Equals(types.INTEGER) {
+			a.addError("property '%s' index directive must be an integer constant, got %s at %s",
+				propName, idxType.String(), prop.Token.Pos.String())
+			return
+		}
+
+		val, ok := evaluateIndexDirective(prop.IndexValue)
+		if !ok {
+			a.addError("property '%s' index directive must be an integer literal at %s",
+				propName, prop.Token.Pos.String())
+			return
+		}
+
+		indexLiteralValue = val
+		implicitIndexTypes = append(implicitIndexTypes, idxType)
+	}
+
+	// Combine implicit index directive types with explicit index parameters for signature validation
+	totalIndexParamTypes := append(implicitIndexTypes, indexParamTypes...)
+
 	// Create PropertyInfo to store in class metadata
 	propInfo := &types.PropertyInfo{
 		Name:            propName,
@@ -83,6 +144,11 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 		IsDefault:       prop.IsDefault,
 		IsClassProperty: prop.IsClassProperty,
 	}
+	if prop.IndexValue != nil {
+		propInfo.HasIndexValue = true
+		propInfo.IndexValue = indexLiteralValue
+		propInfo.IndexValueType = types.INTEGER
+	}
 
 	// Task 9.49: Register property stub before validating specs
 	// This allows circular reference detection in property expressions
@@ -90,12 +156,12 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 
 	// Validate read specifier
 	if prop.ReadSpec != nil {
-		a.validateReadSpec(prop, classType, propInfo, indexParamTypes)
+		a.validateReadSpec(prop, classType, propInfo, totalIndexParamTypes)
 	}
 
 	// Validate write specifier
 	if prop.WriteSpec != nil {
-		a.validateWriteSpec(prop, classType, propInfo, indexParamTypes)
+		a.validateWriteSpec(prop, classType, propInfo, totalIndexParamTypes)
 	}
 
 	// Validate default property restrictions

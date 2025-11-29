@@ -1,9 +1,27 @@
 package interp
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
+
+// buildIndexDirectiveArgs converts a property's index directive into runtime arguments.
+// Currently only integer index directives are supported.
+func (i *Interpreter) buildIndexDirectiveArgs(propInfo *types.PropertyInfo) ([]Value, error) {
+	if propInfo == nil || !propInfo.HasIndexValue {
+		return nil, nil
+	}
+
+	if propInfo.IndexValueType != nil && propInfo.IndexValueType.Equals(types.INTEGER) {
+		if intVal, ok := propInfo.IndexValue.(int64); ok {
+			return []Value{NewIntegerValue(intVal)}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("property '%s' has unsupported index directive", propInfo.Name)
+}
 
 // evalPropertyRead evaluates a property read access.
 // Handles field-backed, method-backed, and expression-backed properties.
@@ -54,6 +72,9 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 
 		// 3. Try as an instance field
 		if _, exists := obj.Class.Fields[propInfo.ReadSpec]; exists {
+			if propInfo.HasIndexValue {
+				return i.newErrorWithLocation(node, "property '%s' uses an index directive and cannot be field-backed", propInfo.Name)
+			}
 			fieldValue := obj.GetField(propInfo.ReadSpec)
 			if fieldValue == nil {
 				return i.newErrorWithLocation(node, "property '%s' read field '%s' not found", propInfo.Name, propInfo.ReadSpec)
@@ -72,6 +93,17 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 			return i.newErrorWithLocation(node, "indexed property '%s' requires index arguments (e.g., obj.%s[index])", propInfo.Name, propInfo.Name)
 		}
 
+		// Build implicit index arguments from directive (if any)
+		indexArgs, err := i.buildIndexDirectiveArgs(propInfo)
+		if err != nil {
+			return i.newErrorWithLocation(node, "%s", err.Error())
+		}
+
+		if len(method.Parameters) != len(indexArgs) {
+			return i.newErrorWithLocation(node, "property '%s' getter method '%s' expects %d parameter(s), but index directive supplies %d",
+				propInfo.Name, propInfo.ReadSpec, len(method.Parameters), len(indexArgs))
+		}
+
 		// Call the getter method
 		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
@@ -79,6 +111,13 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 
 		// Bind Self to the object
 		i.env.Define("Self", obj)
+
+		// Bind implicit index directive arguments, if present
+		for idx, param := range method.Parameters {
+			if idx < len(indexArgs) {
+				i.env.Define(param.Name.Value, indexArgs[idx])
+			}
+		}
 
 		// For functions, initialize the Result variable
 		// Use appropriate default value based on return type
@@ -143,6 +182,16 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 			return i.newErrorWithLocation(node, "property '%s' getter method '%s' not found", propInfo.Name, propInfo.ReadSpec)
 		}
 
+		// Build implicit index directive arguments, if any
+		indexArgs, err := i.buildIndexDirectiveArgs(propInfo)
+		if err != nil {
+			return i.newErrorWithLocation(node, "%s", err.Error())
+		}
+		if len(method.Parameters) != len(indexArgs) {
+			return i.newErrorWithLocation(node, "property '%s' getter method '%s' expects %d parameter(s), but index directive supplies %d",
+				propInfo.Name, propInfo.ReadSpec, len(method.Parameters), len(indexArgs))
+		}
+
 		// Call the getter method with no arguments
 		// Create method environment with Self bound to object
 		methodEnv := NewEnclosedEnvironment(i.env)
@@ -151,6 +200,13 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 
 		// Bind Self to the object
 		i.env.Define("Self", obj)
+
+		// Bind implicit index directive arguments, if present
+		for idx, param := range method.Parameters {
+			if idx < len(indexArgs) {
+				i.env.Define(param.Name.Value, indexArgs[idx])
+			}
+		}
 
 		// For functions, initialize the Result variable
 		// Task 9.221: Use appropriate default value based on return type
@@ -682,6 +738,9 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 		// Field or method access - check at runtime which it is
 		// First try as a field
 		if _, exists := obj.Class.Fields[propInfo.WriteSpec]; exists {
+			if propInfo.HasIndexValue {
+				return i.newErrorWithLocation(node, "property '%s' uses an index directive and cannot be field-backed", propInfo.Name)
+			}
 			obj.SetField(propInfo.WriteSpec, value)
 			return value
 		}
@@ -692,6 +751,16 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 			return i.newErrorWithLocation(node, "property '%s' write specifier '%s' not found as field or method", propInfo.Name, propInfo.WriteSpec)
 		}
 
+		indexArgs, err := i.buildIndexDirectiveArgs(propInfo)
+		if err != nil {
+			return i.newErrorWithLocation(node, "%s", err.Error())
+		}
+		expectedParams := len(indexArgs) + 1 // value parameter
+		if len(method.Parameters) != expectedParams {
+			return i.newErrorWithLocation(node, "property '%s' setter method '%s' expects %d parameter(s), but index directive supplies %d and value provides 1",
+				propInfo.Name, propInfo.WriteSpec, len(method.Parameters), len(indexArgs))
+		}
+
 		// Call the setter method with the value as argument
 		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
@@ -700,9 +769,14 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 		// Bind Self to the object
 		i.env.Define("Self", obj)
 
-		// Bind the value parameter (setter should have exactly one parameter)
-		if len(method.Parameters) >= 1 {
-			paramName := method.Parameters[0].Name.Value
+		// Bind implicit index arguments first
+		for idx := 0; idx < len(indexArgs); idx++ {
+			i.env.Define(method.Parameters[idx].Name.Value, indexArgs[idx])
+		}
+
+		// Bind the value parameter (setter should have exactly one parameter after index args)
+		if len(method.Parameters) > 0 {
+			paramName := method.Parameters[len(method.Parameters)-1].Name.Value
 			i.env.Define(paramName, value)
 		}
 
@@ -728,6 +802,16 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 			return i.newErrorWithLocation(node, "property '%s' setter method '%s' not found", propInfo.Name, propInfo.WriteSpec)
 		}
 
+		indexArgs, err := i.buildIndexDirectiveArgs(propInfo)
+		if err != nil {
+			return i.newErrorWithLocation(node, "%s", err.Error())
+		}
+		expectedParams := len(indexArgs) + 1 // value parameter
+		if len(method.Parameters) != expectedParams {
+			return i.newErrorWithLocation(node, "property '%s' setter method '%s' expects %d parameter(s), but index directive supplies %d and value provides 1",
+				propInfo.Name, propInfo.WriteSpec, len(method.Parameters), len(indexArgs))
+		}
+
 		// Call the setter method with the value as argument
 		// Create method environment with Self bound to object
 		methodEnv := NewEnclosedEnvironment(i.env)
@@ -737,9 +821,14 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 		// Bind Self to the object
 		i.env.Define("Self", obj)
 
-		// Bind the value parameter (setter should have exactly one parameter)
-		if len(method.Parameters) >= 1 {
-			i.env.Define(method.Parameters[0].Name.Value, value)
+		// Bind implicit index arguments first
+		for idx := 0; idx < len(indexArgs); idx++ {
+			i.env.Define(method.Parameters[idx].Name.Value, indexArgs[idx])
+		}
+
+		// Bind the value parameter (setter should have exactly one parameter after index args)
+		if len(method.Parameters) > 0 {
+			i.env.Define(method.Parameters[len(method.Parameters)-1].Name.Value, value)
 		}
 
 		// Task 9.32c: Set flag to indicate we're inside a property setter

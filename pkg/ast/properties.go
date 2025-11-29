@@ -27,6 +27,7 @@ type PropertyDecl struct {
 	Type        TypeExpression
 	Name        *Identifier
 	IndexParams []*Parameter
+	IndexValue  Expression
 	BaseNode
 	IsDefault       bool
 	IsClassProperty bool
@@ -59,6 +60,12 @@ func (pd *PropertyDecl) String() string {
 	// Property type
 	out.WriteString(": ")
 	out.WriteString(pd.Type.String())
+
+	// Index directive
+	if pd.IndexValue != nil {
+		out.WriteString(" index ")
+		out.WriteString(pd.IndexValue.String())
+	}
 
 	// Read specifier
 	if pd.ReadSpec != nil {
