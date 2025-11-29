@@ -217,6 +217,7 @@ func (i *Interpreter) CheckType(obj evaluator.Value, typeName string) bool {
 
 // CastType performs type casting (implements 'as' operator).
 // Task 3.5.35: Extended to fully support type casting with interface wrapping/unwrapping.
+// Task 3.5.141: DEPRECATED - Migrated to Evaluator.castType(). Kept for backwards compatibility with old interpreter path.
 //
 // Handles the following cases:
 // 1. nil → any type: returns nil
@@ -344,6 +345,7 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 
 // CastToClass performs class type casting for TypeName(expr) expressions.
 // Task 3.5.94: Adapter method for type cast migration. Uses existing castToClass logic.
+// Task 3.5.141: DEPRECATED - Migrated to Evaluator.castToClassType(). Kept for backwards compatibility with old interpreter path.
 func (i *Interpreter) CastToClass(val evaluator.Value, className string, node ast.Expression) evaluator.Value {
 	// Convert to internal type
 	internalVal := val.(Value)
@@ -356,6 +358,89 @@ func (i *Interpreter) CastToClass(val evaluator.Value, className string, node as
 
 	// Use the existing castToClass method
 	return i.castToClass(internalVal, classInfo, node)
+}
+
+// GetObjectInstanceFromValue extracts ObjectInstance from a Value.
+// Task 3.5.141: Helper to extract ObjectInstance for type casting.
+// Returns the ObjectInstance interface{} if the value is an ObjectInstance, nil otherwise.
+func (i *Interpreter) GetObjectInstanceFromValue(val evaluator.Value) interface{} {
+	// Convert to internal type
+	internalVal := val.(Value)
+
+	// Type assert to ObjectInstance
+	if objInst, ok := internalVal.(*ObjectInstance); ok {
+		return objInst
+	}
+
+	return nil
+}
+
+// GetInterfaceInstanceFromValue extracts InterfaceInstance from a Value.
+// Task 3.5.141: Helper to extract InterfaceInstance for interface casting.
+// Returns (interfaceInfo, underlyingObject) if the value is an InterfaceInstance, (nil, nil) otherwise.
+func (i *Interpreter) GetInterfaceInstanceFromValue(val evaluator.Value) (interfaceInfo interface{}, underlyingObject interface{}) {
+	// Convert to internal type
+	internalVal := val.(Value)
+
+	// Type assert to InterfaceInstance
+	if intfInst, ok := internalVal.(*InterfaceInstance); ok {
+		return intfInst.Interface, intfInst.Object
+	}
+
+	return nil, nil
+}
+
+// CreateInterfaceWrapper creates an InterfaceInstance wrapper.
+// Task 3.5.141: Helper to create interface wrappers for 'as' operator.
+// Returns the InterfaceInstance wrapper or error if interface not found.
+func (i *Interpreter) CreateInterfaceWrapper(interfaceName string, obj evaluator.Value) (evaluator.Value, error) {
+	// Convert to internal type
+	var internalObj *ObjectInstance
+	if obj != nil {
+		if o, ok := obj.(*ObjectInstance); ok {
+			internalObj = o
+		} else {
+			return nil, fmt.Errorf("cannot create interface wrapper for non-object type: %s", obj.Type())
+		}
+	}
+
+	// Look up the interface
+	iface, exists := i.interfaces[ident.Normalize(interfaceName)]
+	if !exists {
+		return nil, fmt.Errorf("interface '%s' not found", interfaceName)
+	}
+
+	// Create and return the interface instance
+	return NewInterfaceInstance(iface, internalObj), nil
+}
+
+// CreateTypeCastWrapper creates a TypeCastValue wrapper.
+// Task 3.5.141: Helper to create TypeCastValue for TypeName(expr) casts.
+// Returns the TypeCastValue wrapper or nil if class not found.
+func (i *Interpreter) CreateTypeCastWrapper(className string, obj evaluator.Value) evaluator.Value {
+	// Convert to internal type
+	internalObj := obj.(Value)
+
+	// Look up the class
+	classInfo := i.lookupClassInfo(className)
+	if classInfo == nil {
+		return nil // Class not found
+	}
+
+	// Create and return the TypeCastValue wrapper
+	return &TypeCastValue{
+		Object:     internalObj,
+		StaticType: classInfo,
+	}
+}
+
+// RaiseTypeCastException raises a type cast exception.
+// Task 3.5.141: Helper to raise exceptions for invalid TypeName(expr) casts.
+// This matches the behavior of castToClass which raises exceptions.
+func (i *Interpreter) RaiseTypeCastException(message string, node ast.Node) {
+	pos := node.Pos()
+	fullMessage := fmt.Sprintf("%s [line: %d, column: %d]", message, pos.Line, pos.Column)
+	i.raiseException("Exception", fullMessage, &pos)
 }
 
 // CheckImplements checks if an object/class implements an interface.

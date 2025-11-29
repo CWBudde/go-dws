@@ -267,7 +267,6 @@ func (i *Interpreter) EvalNode(node ast.Node) evaluator.Value {
 	return i.Eval(node)
 }
 
-
 // GetCallStack returns a copy of the current call stack.
 // Returns stack frames in the order they were called (oldest to newest).
 func (i *Interpreter) GetCallStack() errors.StackTrace {

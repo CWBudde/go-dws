@@ -69,9 +69,9 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 		if enumType != nil {
 			return e.castToEnum(val, enumType, typeName)
 		}
-		// Must be a class/interface type (we already checked above)
-		// Delegate to adapter for complex class casting logic
-		return e.adapter.CastToClass(val, typeName, argExpr)
+		// Must be a class type (we already checked above)
+		// Task 3.5.141: Use evaluator's castToClassType helper
+		return e.castToClassType(val, typeName, argExpr)
 	}
 }
 
@@ -312,4 +312,75 @@ type EnumTypeValueAccessor interface {
 // VariantAccessor provides access to variant values
 type VariantAccessor interface {
 	GetVariantValue() Value
+}
+
+// castToClassType performs class type casting for TypeName(expr) expressions.
+// Task 3.5.141: Migrated from adapter.CastToClass() and Interpreter.castToClass().
+//
+// Handles:
+// 1. Variant unwrapping
+// 2. TypeCastValue unwrapping (successive casts)
+// 3. nil → wrap in TypeCastValue with static type
+// 4. Object validation via hierarchy check
+// 5. ALWAYS creates TypeCastValue wrapper for successful casts
+//
+// Raises exceptions (not errors) for invalid casts.
+func (e *Evaluator) castToClassType(val Value, className string, node ast.Node) Value {
+	// Unwrap variant if needed
+	if variantVal, ok := val.(VariantAccessor); ok {
+		val = variantVal.GetVariantValue()
+	}
+
+	// Unwrap TypeCastValue if needed (for successive casts like TBase(obj1) then TObject(obj2))
+	// This preserves support for successive type casts: obj := TObject(child); TBase(obj)
+	if typeCast, ok := val.(TypeCastAccessor); ok {
+		val = typeCast.GetWrappedValue()
+	}
+
+	// Handle nil - wrap it with the static type for proper class variable access
+	if _, isNil := val.(*runtime.NilValue); isNil {
+		// Wrap nil in TypeCastValue to preserve static type information
+		// This allows TBase(nilChild).ClassVar to access TBase's class variable
+		wrapper := e.adapter.CreateTypeCastWrapper(className, val)
+		if wrapper == nil {
+			return e.newError(node, "class '%s' not found", className)
+		}
+		return wrapper
+	}
+
+	// Get the object
+	obj := e.adapter.GetObjectInstanceFromValue(val)
+	if obj == nil {
+		return e.newError(node, "cannot cast %s to %s: not an object", val.Type(), className)
+	}
+
+	// Get the object's class metadata
+	objClassMeta := e.getClassMetadataFromValue(val)
+	if objClassMeta == nil {
+		return e.newError(node, "cannot extract class metadata from object")
+	}
+
+	// Get the target class metadata
+	targetClassMeta := e.typeSystem.LookupClass(className)
+	if targetClassMeta == nil {
+		return e.newError(node, "class '%s' not found", className)
+	}
+
+	// Check if the object's class is compatible with the target class
+	// The object must be an instance of the target class or a derived class
+	if !e.isClassHierarchyCompatible(objClassMeta, targetClassMeta) {
+		// Cast failed - raise exception
+		message := fmt.Sprintf("Cannot cast instance of type \"%s\" to class \"%s\"",
+			objClassMeta.Name, className)
+		e.adapter.RaiseTypeCastException(message, node)
+		return nil
+	}
+
+	// Cast is valid - return a TypeCastValue that preserves the static type
+	// This is crucial for class variable access: TBase(child).ClassVar should access TBase's class variable
+	wrapper := e.adapter.CreateTypeCastWrapper(className, val)
+	if wrapper == nil {
+		return e.newError(node, "failed to create type cast wrapper for class '%s'", className)
+	}
+	return wrapper
 }
