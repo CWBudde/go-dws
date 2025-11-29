@@ -103,14 +103,8 @@ func (i *Interpreter) GetZeroValueForType(typeInfo any) evaluator.Value {
 
 // ===== Exception Handling Adapter Methods =====
 
-// MatchesExceptionType checks if an exception matches a given type expression.
-func (i *Interpreter) MatchesExceptionType(exc interface{}, typeExpr ast.TypeExpression) bool {
-	excVal, ok := exc.(*ExceptionValue)
-	if !ok {
-		return false
-	}
-	return i.matchesExceptionType(excVal, typeExpr)
-}
+// Task 3.5.135: MatchesExceptionType removed - migrated to evaluator.matchesExceptionType()
+// Uses TypeSystem.IsClassDescendantOf for class hierarchy checking.
 
 // GetExceptionInstance returns the ObjectInstance from an exception.
 func (i *Interpreter) GetExceptionInstance(exc interface{}) evaluator.Value {

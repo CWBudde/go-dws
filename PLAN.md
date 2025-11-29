@@ -477,7 +477,7 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 ### Phase 20: Reduce Exception Handling Calls (3.5.133-3.5.137)
 
-**Current State**: 7 exception-related adapter calls (2 removed, 5 remaining)
+**Current State**: 7 exception-related adapter calls (3 removed, 4 remaining)
 
 - [x] **3.5.133** Migrate RaiseException (1 call) ✅
   - **Location**: `visitor_statements.go` line 112
@@ -496,11 +496,14 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Lines removed**: 64 from adapter_values.go
   - **Tests**: All exception and raise tests pass ✅
 
-- [ ] **3.5.135** Migrate MatchesExceptionType (1 call)
-  - **Location**: `visitor_statements.go` line 957
+- [x] **3.5.135** Migrate MatchesExceptionType (1 call) ✅
+  - **Location**: `visitor_statements.go` line 1103 (was 957)
   - **Issue**: Exception type matching in handlers
-  - **Solution**: Check class hierarchy using ClassMetadata
+  - **Solution**: Created evaluator.matchesExceptionType() using TypeSystem.IsClassDescendantOf
+  - **Implementation**: Gets exception type via Type() interface, checks class hierarchy
   - **Calls removed**: 1 adapter call
+  - **Methods removed**: 1 (MatchesExceptionType from interface and implementation)
+  - **Tests**: All exception type matching tests pass ✅
 
 - [ ] **3.5.136** Migrate GetExceptionInstance (2 calls)
   - **Location**: `visitor_statements.go` lines 892, 963

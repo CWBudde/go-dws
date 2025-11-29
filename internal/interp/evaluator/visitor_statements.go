@@ -1100,7 +1100,8 @@ func (e *Evaluator) evalExceptClause(clause *ast.ExceptClause, ctx *ExecutionCon
 
 	// Try each handler in order
 	for _, handler := range clause.Handlers {
-		if e.adapter.MatchesExceptionType(exc, handler.ExceptionType) {
+		// Task 3.5.135: Use evaluator's matchesExceptionType instead of adapter
+		if e.matchesExceptionType(exc, handler.ExceptionType) {
 			// Create new scope for exception variable
 			ctx.PushEnv()
 			defer ctx.PopEnv()
@@ -1188,6 +1189,36 @@ func (e *Evaluator) VisitRaiseStatement(node *ast.RaiseStatement, ctx *Execution
 	ctx.SetException(excObj)
 
 	return nil
+}
+
+// matchesExceptionType checks if an exception matches a handler's exception type.
+// Task 3.5.135: Migrated from adapter to enable direct exception type matching.
+// Uses TypeSystem.IsClassDescendantOf to check if exception class matches or inherits from handler type.
+func (e *Evaluator) matchesExceptionType(exc interface{}, typeExpr ast.TypeExpression) bool {
+	// Nil type expression means bare handler - catches all
+	if typeExpr == nil {
+		return true
+	}
+
+	// Get the handler's exception type name
+	handlerTypeName := typeExpr.String()
+
+	// Get the exception's type name
+	// All values implement Type() string method
+	type TypedValue interface {
+		Type() string
+	}
+
+	excVal, ok := exc.(TypedValue)
+	if !ok {
+		return false
+	}
+
+	excTypeName := excVal.Type()
+
+	// Use TypeSystem to check class hierarchy
+	// IsClassDescendantOf returns true if excTypeName == handlerTypeName or if excTypeName inherits from handlerTypeName
+	return e.typeSystem.IsClassDescendantOf(excTypeName, handlerTypeName)
 }
 
 // createExceptionFromObject creates an ExceptionValue from an object instance.

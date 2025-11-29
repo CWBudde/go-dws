@@ -749,12 +749,8 @@ type InterpreterAdapter interface {
 
 	// ===== Task 3.5.29: Exception Handling Adapter Methods =====
 
-	// MatchesExceptionType checks if an exception matches a handler's type.
-	// The exception should be an *ExceptionValue. The typeExpr is the exception type
-	// from the handler (e.g., "Exception", "EDivByZero").
-	// Returns true if the exception type matches or inherits from the handler type.
-	// Returns true if typeExpr is nil (bare handler catches all).
-	MatchesExceptionType(exc interface{}, typeExpr ast.TypeExpression) bool
+	// Task 3.5.135: MatchesExceptionType removed - migrated to evaluator.matchesExceptionType()
+	// Uses TypeSystem.IsClassDescendantOf for class hierarchy checking.
 
 	// GetExceptionInstance returns the ObjectInstance from an exception.
 	// The exception should be an *ExceptionValue.
