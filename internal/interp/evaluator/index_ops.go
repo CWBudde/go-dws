@@ -153,6 +153,11 @@ func ExtractIntegerIndex(indexVal Value) (int, bool) {
 	switch iv := indexVal.(type) {
 	case *runtime.IntegerValue:
 		return int(iv.Value), true
+	case *runtime.BooleanValue:
+		if iv.Value {
+			return 1, true
+		}
+		return 0, true
 	case *runtime.EnumValue:
 		return iv.OrdinalValue, true
 	default:

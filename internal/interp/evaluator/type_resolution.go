@@ -102,29 +102,46 @@ func (e *Evaluator) resolveInlineArrayType(typeName string) (types.Type, error) 
 			return nil, fmt.Errorf("invalid array type syntax: %s", typeName)
 		}
 
-		boundsStr := typeName[6:ofIdx] // Extract "low..high"
-		elementTypeName := typeName[ofIdx+5:]
+		boundsStr := strings.TrimSpace(typeName[6:ofIdx]) // Extract "low..high" or index type
+		elementTypeName := strings.TrimSpace(typeName[ofIdx+5:])
 
-		// Parse bounds
+		// Parse bounds or ordinal index type
 		parts := strings.Split(boundsStr, "..")
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("invalid array bounds: %s", boundsStr)
-		}
-
 		var low, high int
-		_, err := fmt.Sscanf(parts[0], "%d", &low)
-		if err != nil {
-			return nil, fmt.Errorf("invalid low bound: %s", parts[0])
-		}
-		_, err = fmt.Sscanf(parts[1], "%d", &high)
-		if err != nil {
-			return nil, fmt.Errorf("invalid high bound: %s", parts[1])
+		var hasOrdinalBounds bool
+
+		if len(parts) == 2 {
+			_, err := fmt.Sscanf(parts[0], "%d", &low)
+			if err != nil {
+				return nil, fmt.Errorf("invalid low bound: %s", parts[0])
+			}
+			_, err = fmt.Sscanf(parts[1], "%d", &high)
+			if err != nil {
+				return nil, fmt.Errorf("invalid high bound: %s", parts[1])
+			}
+		} else {
+			indexType, err := e.ResolveType(boundsStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid array index type: %w", err)
+			}
+
+			ordLow, ordHigh, ok := types.OrdinalBounds(indexType)
+			if !ok {
+				return nil, fmt.Errorf("array index type '%s' must be a bounded ordinal", boundsStr)
+			}
+
+			low, high = ordLow, ordHigh
+			hasOrdinalBounds = true
 		}
 
 		// Resolve element type
 		elementType, err := e.ResolveType(elementTypeName)
 		if err != nil {
 			return nil, fmt.Errorf("invalid array element type: %w", err)
+		}
+
+		if len(parts) != 2 && !hasOrdinalBounds {
+			return nil, fmt.Errorf("invalid array bounds: %s", boundsStr)
 		}
 
 		return types.NewStaticArrayType(elementType, low, high), nil
@@ -253,29 +270,46 @@ func (e *Evaluator) resolveInlineArrayTypeWithContext(typeName string, ctx *Exec
 			return nil, fmt.Errorf("invalid array type syntax: %s", typeName)
 		}
 
-		boundsStr := typeName[6:ofIdx] // Extract "low..high"
-		elementTypeName := typeName[ofIdx+5:]
+		boundsStr := strings.TrimSpace(typeName[6:ofIdx]) // Extract "low..high" or index type
+		elementTypeName := strings.TrimSpace(typeName[ofIdx+5:])
 
 		// Parse bounds
 		parts := strings.Split(boundsStr, "..")
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("invalid array bounds: %s", boundsStr)
-		}
-
 		var low, high int
-		_, err := fmt.Sscanf(parts[0], "%d", &low)
-		if err != nil {
-			return nil, fmt.Errorf("invalid low bound: %s", parts[0])
-		}
-		_, err = fmt.Sscanf(parts[1], "%d", &high)
-		if err != nil {
-			return nil, fmt.Errorf("invalid high bound: %s", parts[1])
+		var hasOrdinalBounds bool
+
+		if len(parts) == 2 {
+			_, err := fmt.Sscanf(parts[0], "%d", &low)
+			if err != nil {
+				return nil, fmt.Errorf("invalid low bound: %s", parts[0])
+			}
+			_, err = fmt.Sscanf(parts[1], "%d", &high)
+			if err != nil {
+				return nil, fmt.Errorf("invalid high bound: %s", parts[1])
+			}
+		} else {
+			indexType, err := e.ResolveTypeWithContext(boundsStr, ctx)
+			if err != nil {
+				return nil, fmt.Errorf("invalid array index type: %w", err)
+			}
+
+			ordLow, ordHigh, ok := types.OrdinalBounds(indexType)
+			if !ok {
+				return nil, fmt.Errorf("array index type '%s' must be a bounded ordinal", boundsStr)
+			}
+
+			low, high = ordLow, ordHigh
+			hasOrdinalBounds = true
 		}
 
 		// Resolve element type using context-aware method
 		elementType, err := e.ResolveTypeWithContext(elementTypeName, ctx)
 		if err != nil {
 			return nil, fmt.Errorf("invalid array element type: %w", err)
+		}
+
+		if len(parts) != 2 && !hasOrdinalBounds {
+			return nil, fmt.Errorf("invalid array bounds: %s", boundsStr)
 		}
 
 		return types.NewStaticArrayType(elementType, low, high), nil

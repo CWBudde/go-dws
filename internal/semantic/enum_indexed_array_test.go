@@ -59,6 +59,15 @@ func TestEnumIndexedArrayWithNonZeroOrdinals(t *testing.T) {
 	}
 }
 
+func TestBooleanIndexedArray(t *testing.T) {
+	input := `
+			var b: array [Boolean] of Integer;
+			const s: array [Boolean] of Integer = [0, 1];
+		`
+
+	expectNoErrors(t, input)
+}
+
 func TestEnumIndexedArrayErrors(t *testing.T) {
 	tests := []struct {
 		name          string

@@ -267,15 +267,21 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 		return i.indexJSON(jsonVal, indexVal, expr)
 	}
 
-	// Index must be an integer or enum for arrays and strings
+	// Index must be an ordinal for arrays and strings
 	var index int
 	switch iv := indexVal.(type) {
 	case *IntegerValue:
 		index = int(iv.Value)
 	case *EnumValue:
 		index = iv.OrdinalValue
+	case *BooleanValue:
+		if iv.Value {
+			index = 1
+		}
+	case *SubrangeValue:
+		index = iv.Value
 	default:
-		return i.newErrorWithLocation(expr, "index must be an integer or enum, got %s", indexVal.Type())
+		return i.newErrorWithLocation(expr, "index must be an ordinal value, got %s", indexVal.Type())
 	}
 
 	// Check if left side is an array

@@ -143,6 +143,22 @@ func (i *Interpreter) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) *types.
 		return types.NewDynamicArrayType(elementType)
 	}
 
+	// Ordinal-indexed array (enum, boolean, subrange)
+	if arrayNode.IsEnumIndexed() {
+		indexTypeName := arrayNode.IndexType.String()
+		indexType, err := i.resolveType(indexTypeName)
+		if err != nil {
+			return nil
+		}
+
+		low, high, ok := types.OrdinalBounds(indexType)
+		if !ok {
+			return nil
+		}
+
+		return types.NewStaticArrayType(elementType, low, high)
+	}
+
 	// Static array - evaluate bounds by interpreting the expressions
 	// For constant expressions (literals, unary minus), we can evaluate them directly
 	lowVal := i.Eval(arrayNode.LowBound)

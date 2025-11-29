@@ -227,7 +227,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 	// Index must be an integer or enum for arrays and strings
 	index, ok := ExtractIntegerIndex(indexVal)
 	if !ok {
-		return e.newError(node, "index must be an integer or enum, got %s", indexVal.Type())
+		return e.newError(node, "index must be an ordinal value, got %s", indexVal.Type())
 	}
 
 	// Check if left side is an array

@@ -345,6 +345,29 @@ func IsOrdinalType(t Type) bool {
 		kind == "STRING" || kind == "SUBRANGE"
 }
 
+// OrdinalBounds returns the lowest and highest ordinal values for bounded ordinal types.
+// Supported types:
+//   - Boolean: 0..1
+//   - EnumType: MinOrdinal()..MaxOrdinal()
+//   - SubrangeType: LowBound..HighBound
+//
+// Returns ok=false for types without finite bounds (e.g., Integer, String).
+func OrdinalBounds(t Type) (low, high int, ok bool) {
+	// Resolve aliases before inspecting the concrete type
+	t = GetUnderlyingType(t)
+
+	switch v := t.(type) {
+	case *BooleanType:
+		return 0, 1, true
+	case *EnumType:
+		return v.MinOrdinal(), v.MaxOrdinal(), true
+	case *SubrangeType:
+		return v.LowBound, v.HighBound, true
+	default:
+		return 0, 0, false
+	}
+}
+
 // TypeFromString converts a type name string to a Type
 // This is useful for parsing type annotations
 // DWScript is case-insensitive, so this function normalizes the input
