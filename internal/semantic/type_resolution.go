@@ -308,6 +308,8 @@ func (a *Analyzer) parseShorthandParameters(paramsStr string) ([]types.Type, err
 //   - Static: "array[low..high] of ElementType"
 func (a *Analyzer) resolveInlineArrayType(signature string) (types.Type, error) {
 	var lowBound, highBound *int
+	var ordinalLow, ordinalHigh int
+	var hasOrdinalBounds bool
 	var ofPart string
 
 	// Check if this is a static array with bounds
@@ -320,23 +322,35 @@ func (a *Analyzer) resolveInlineArrayType(signature string) (types.Type, error) 
 
 		boundsStr := signature[6:endBracket] // Skip "array["
 		parts := strings.Split(boundsStr, "..")
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("invalid array bounds in signature: %s", signature)
-		}
+		if len(parts) == 2 {
+			// Numeric bounds: array[low..high]
+			low := 0
+			if _, err := fmt.Sscanf(parts[0], "%d", &low); err != nil {
+				return nil, fmt.Errorf("invalid low bound in signature: %s", signature)
+			}
+			lowBound = &low
 
-		// Parse low bound
-		low := 0
-		if _, err := fmt.Sscanf(parts[0], "%d", &low); err != nil {
-			return nil, fmt.Errorf("invalid low bound in signature: %s", signature)
-		}
-		lowBound = &low
+			high := 0
+			if _, err := fmt.Sscanf(parts[1], "%d", &high); err != nil {
+				return nil, fmt.Errorf("invalid high bound in signature: %s", signature)
+			}
+			highBound = &high
+		} else {
+			// Ordinal index type: array[TEnum] or array[Boolean]
+			indexTypeName := strings.TrimSpace(boundsStr)
+			indexType, err := a.resolveType(indexTypeName)
+			if err != nil {
+				return nil, fmt.Errorf("unknown array index type '%s': %w", indexTypeName, err)
+			}
 
-		// Parse high bound
-		high := 0
-		if _, err := fmt.Sscanf(parts[1], "%d", &high); err != nil {
-			return nil, fmt.Errorf("invalid high bound in signature: %s", signature)
+			low, high, ok := types.OrdinalBounds(indexType)
+			if !ok {
+				return nil, fmt.Errorf("array index type '%s' must be a bounded ordinal type", indexTypeName)
+			}
+
+			ordinalLow, ordinalHigh = low, high
+			hasOrdinalBounds = true
 		}
-		highBound = &high
 
 		// Extract the part after ']' which should be " of ElementType"
 		ofPart = signature[endBracket+1:]
@@ -365,6 +379,9 @@ func (a *Analyzer) resolveInlineArrayType(signature string) (types.Type, error) 
 	// Create array type
 	if lowBound != nil && highBound != nil {
 		return types.NewStaticArrayType(elementType, *lowBound, *highBound), nil
+	}
+	if hasOrdinalBounds {
+		return types.NewStaticArrayType(elementType, ordinalLow, ordinalHigh), nil
 	}
 	return types.NewDynamicArrayType(elementType), nil
 }
@@ -401,27 +418,21 @@ func (a *Analyzer) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) (types.Typ
 		return types.NewDynamicArrayType(elementType), nil
 	}
 
-	// Check if enum-indexed array
-	// Task 9.21.1: Handle enum-indexed arrays
+	// Check if enum/ordinal-indexed array
+	// Task 9.21.1: Handle enum-indexed arrays (extended to all bounded ordinals)
 	if arrayNode.IsEnumIndexed() {
-		// Resolve the enum type
-		enumTypeName := getTypeExpressionName(arrayNode.IndexType)
-		enumType, err := a.resolveType(enumTypeName)
+		// Resolve the index type
+		indexTypeName := getTypeExpressionName(arrayNode.IndexType)
+		indexType, err := a.resolveType(indexTypeName)
 		if err != nil {
-			return nil, fmt.Errorf("unknown enum type '%s' for array index: %w", enumTypeName, err)
+			return nil, fmt.Errorf("unknown array index type '%s': %w", indexTypeName, err)
 		}
 
-		// Ensure it's actually an enum type
-		et, ok := enumType.(*types.EnumType)
+		// Ensure the index type has finite ordinal bounds (Boolean, Enum, Subrange)
+		lowBound, highBound, ok := types.OrdinalBounds(indexType)
 		if !ok {
-			return nil, fmt.Errorf("array index type '%s' must be an enum type, got %s", enumTypeName, enumType.TypeKind())
+			return nil, fmt.Errorf("array index type '%s' must be a bounded ordinal type, got %s", indexTypeName, indexType.TypeKind())
 		}
-
-		// Get actual enum ordinal bounds
-		// For example, type TDay = (Mon=1, Tue, Wed) has ordinals 1, 2, 3
-		// So the array should have bounds 1..3, not 0..2
-		lowBound := et.MinOrdinal()
-		highBound := et.MaxOrdinal()
 
 		return types.NewStaticArrayType(elementType, lowBound, highBound), nil
 	}

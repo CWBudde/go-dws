@@ -722,11 +722,30 @@ func typeFromAnnotation(expr ast.TypeExpression) types.Type {
 		if elementType == nil {
 			return nil
 		}
-		return &types.ArrayType{
-			ElementType: elementType,
-			LowBound:    nil, // Dynamic array
-			HighBound:   nil,
+
+		// Dynamic array
+		if node.IsDynamic() {
+			return types.NewDynamicArrayType(elementType)
 		}
+
+		// Ordinal-indexed arrays (enum/boolean/subrange)
+		if node.IsEnumIndexed() {
+			if indexType := typeFromAnnotation(node.IndexType); indexType != nil {
+				if low, high, ok := types.OrdinalBounds(indexType); ok {
+					return types.NewStaticArrayType(elementType, low, high)
+				}
+			}
+		}
+
+		// Static arrays with literal bounds (best-effort without semantic info)
+		if lowLit, ok := node.LowBound.(*ast.IntegerLiteral); ok {
+			if highLit, ok := node.HighBound.(*ast.IntegerLiteral); ok {
+				return types.NewStaticArrayType(elementType, int(lowLit.Value), int(highLit.Value))
+			}
+		}
+
+		// Fallback to dynamic array when bounds can't be resolved here
+		return types.NewDynamicArrayType(elementType)
 	default:
 		return nil
 	}

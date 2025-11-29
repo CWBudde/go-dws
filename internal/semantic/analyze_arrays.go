@@ -145,10 +145,12 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 		return nil
 	}
 
-	// Index must be integer or enum (enums are ordinal types in DWScript)
-	if !indexType.Equals(types.INTEGER) && indexType.TypeKind() != "ENUM" {
+	// Index must be integer or a bounded ordinal (enum, boolean, subrange)
+	indexUnderlying := types.GetUnderlyingType(indexType)
+	kind := indexUnderlying.TypeKind()
+	if kind != "INTEGER" && kind != "ENUM" && kind != "BOOLEAN" && kind != "SUBRANGE" {
 		pos := expr.Index.Pos()
-		a.addError("%s", errors.FormatArrayIndexError("Integer", indexType.String(), pos.Line, pos.Column))
+		a.addError("%s", errors.FormatArrayIndexError("Integer or ordinal", indexType.String(), pos.Line, pos.Column))
 		return nil
 	}
 

@@ -86,7 +86,7 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 	// Extract integer index
 	index, ok := ExtractIntegerIndex(indexVal)
 	if !ok {
-		return e.newError(stmt, "array index must be an integer, got %s", indexVal.Type())
+		return e.newError(stmt, "array index must be an ordinal, got %s", indexVal.Type())
 	}
 
 	// Handle array assignment

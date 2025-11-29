@@ -872,6 +872,31 @@ func TestEnumType(t *testing.T) {
 			t.Error("EnumType should be ordinal")
 		}
 	})
+
+	t.Run("OrdinalBounds", func(t *testing.T) {
+		enum := &EnumType{
+			Name:         "TFlag",
+			Values:       map[string]int{"Off": -1, "On": 3},
+			OrderedNames: []string{"Off", "On"},
+		}
+
+		if low, high, ok := OrdinalBounds(BOOLEAN); !ok || low != 0 || high != 1 {
+			t.Errorf("OrdinalBounds(BOOLEAN) = (%d,%d,%v), want (0,1,true)", low, high, ok)
+		}
+
+		if low, high, ok := OrdinalBounds(enum); !ok || low != -1 || high != 3 {
+			t.Errorf("OrdinalBounds(enum) = (%d,%d,%v), want (-1,3,true)", low, high, ok)
+		}
+
+		subrange := &SubrangeType{BaseType: INTEGER, LowBound: 5, HighBound: 7}
+		if low, high, ok := OrdinalBounds(subrange); !ok || low != 5 || high != 7 {
+			t.Errorf("OrdinalBounds(subrange) = (%d,%d,%v), want (5,7,true)", low, high, ok)
+		}
+
+		if _, _, ok := OrdinalBounds(STRING); ok {
+			t.Error("OrdinalBounds(STRING) should return ok=false for unbounded ordinal type")
+		}
+	})
 }
 
 // ============================================================================

@@ -896,12 +896,22 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 		}
 	}
 
-	// Index must be an integer
-	indexInt, ok := indexVal.(*IntegerValue)
-	if !ok {
-		return i.newErrorWithLocation(stmt, "array index must be an integer, got %s", indexVal.Type())
+	// Index must be an ordinal (Integer, Enum, Boolean, Subrange)
+	var index int
+	switch idx := indexVal.(type) {
+	case *IntegerValue:
+		index = int(idx.Value)
+	case *EnumValue:
+		index = idx.OrdinalValue
+	case *BooleanValue:
+		if idx.Value {
+			index = 1
+		}
+	case *SubrangeValue:
+		index = idx.Value
+	default:
+		return i.newErrorWithLocation(stmt, "array index must be an ordinal, got %s", indexVal.Type())
 	}
-	index := int(indexInt.Value)
 
 	// Check if left side is an array
 	arrayValue, ok := arrayVal.(*ArrayValue)
