@@ -557,6 +557,16 @@ type InterpreterAdapter interface {
 	// to construct the ExceptionValue without doing class lookup itself.
 	CreateExceptionDirect(classMetadata any, message string, pos any, callStack any) any
 
+	// WrapObjectInException wraps an existing ObjectInstance in an ExceptionValue.
+	// Task 3.5.134: Bridge constructor for raise statement with object instances.
+	// The evaluator handles nil checking and validation, this just wraps a valid object.
+	// Parameters:
+	//   - objInstance: The ObjectInstance to wrap (from evaluator.Value)
+	//   - pos: Position information (lexer.Position or *lexer.Position)
+	//   - callStack: errors.StackTrace for the exception
+	// Returns: ExceptionValue as `any` to avoid import cycles
+	WrapObjectInException(objInstance Value, pos any, callStack any) any
+
 	// ===== Environment Access (Task 3.5.9) =====
 	// Task 3.5.70: GetVariable removed - use ctx.Env().Get() directly
 
@@ -751,14 +761,8 @@ type InterpreterAdapter interface {
 	// Returns the instance Value or nil if not an exception.
 	GetExceptionInstance(exc interface{}) Value
 
-	// CreateExceptionFromObject creates an ExceptionValue from an object instance.
-	// Used by raise statement to create exception from user-provided object.
-	// Parameters:
-	//   - obj: The object instance (Value) that should be an exception object
-	//   - ctx: The execution context for call stack capture
-	//   - pos: Position information for error reporting (token.Position or similar)
-	// Returns the exception value (interface{}) to be set in context.
-	CreateExceptionFromObject(obj Value, ctx *ExecutionContext, pos any) interface{}
+	// Task 3.5.134: CreateExceptionFromObject removed - migrated to evaluator.createExceptionFromObject()
+	// Uses WrapObjectInException bridge constructor for wrapping objects in exceptions.
 
 	// EvalBlockStatement evaluates a block statement in the given context.
 	// Returns nil after evaluating all statements.
