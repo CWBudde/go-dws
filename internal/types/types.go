@@ -418,6 +418,9 @@ type PropertyInfo struct {
 	WriteSpec       string
 	ReadKind        PropAccessKind
 	WriteKind       PropAccessKind
+	HasIndexValue   bool
+	IndexValue      interface{}
+	IndexValueType  Type
 	IsIndexed       bool
 	IsDefault       bool
 	IsClassProperty bool
