@@ -43,9 +43,9 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 		// Check if this is a var parameter (ReferenceValue)
 		// If so, dereference it to get the actual value
-		// Task 3.5.71: Use Type() check instead of adapter
-		if val.Type() == "REFERENCE" {
-			actualVal, err := e.adapter.DereferenceValue(val)
+		// Task 3.5.132: Use ReferenceAccessor interface directly
+		if refVal, ok := val.(ReferenceAccessor); ok {
+			actualVal, err := refVal.Dereference()
 			if err != nil {
 				return e.newError(node, "%s", err.Error())
 			}

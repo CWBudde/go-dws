@@ -348,46 +348,7 @@ func (i *Interpreter) EvalEqualityComparison(op string, left, right evaluator.Va
 // Task 3.5.71: IsReferenceValue removed - evaluator uses val.Type() == "REFERENCE" directly
 // Task 3.5.73: IsExternalVar, IsLazyThunk, EvaluateLazyThunk, GetExternalVarName removed
 //              - evaluator uses ExternalVarAccessor and LazyEvaluator interfaces directly
-
-// DereferenceValue dereferences a var parameter reference.
-// Returns the actual value and an error if dereferencing fails.
-// Panics if the value is not a ReferenceValue.
-func (i *Interpreter) DereferenceValue(value evaluator.Value) (evaluator.Value, error) {
-	refVal, ok := value.(*ReferenceValue)
-	if !ok {
-		panic("DereferenceValue called on non-ReferenceValue value")
-	}
-	actualVal, err := refVal.Dereference()
-	if err != nil {
-		return nil, err
-	}
-	return actualVal, nil
-}
-
-// CreateLazyThunk creates a lazy parameter thunk from an unevaluated expression.
-// Task 3.5.23: Enables lazy parameter evaluation in user function calls.
-func (i *Interpreter) CreateLazyThunk(expr ast.Expression, env any) evaluator.Value {
-	// Convert environment from any to *Environment
-	environment, ok := env.(*Environment)
-	if !ok {
-		panic(fmt.Sprintf("CreateLazyThunk: env must be *Environment, got %T", env))
-	}
-	return NewLazyThunk(expr, environment, i)
-}
-
-// CreateReferenceValue creates a var parameter reference.
-// Task 3.5.23: Enables pass-by-reference semantics for var parameters.
-func (i *Interpreter) CreateReferenceValue(varName string, env any) evaluator.Value {
-	// Convert environment from any to *Environment
-	environment, ok := env.(*Environment)
-	if !ok {
-		panic(fmt.Sprintf("CreateReferenceValue: env must be *Environment, got %T", env))
-	}
-	return &ReferenceValue{
-		Env:     environment,
-		VarName: varName,
-	}
-}
+// Task 3.5.132: DereferenceValue removed - evaluator uses ReferenceAccessor interface directly
 
 // ===== Property and Method References =====
 // Task 3.5.22: Property & Method Reference Adapter Method Implementations

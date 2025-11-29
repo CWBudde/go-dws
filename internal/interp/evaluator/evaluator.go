@@ -655,29 +655,7 @@ type InterpreterAdapter interface {
 	// Task 3.5.71: IsReferenceValue removed - use val.Type() == "REFERENCE" directly
 	// Task 3.5.73: IsExternalVar, IsLazyThunk, EvaluateLazyThunk, GetExternalVarName removed
 	//              - use ExternalVarAccessor and LazyEvaluator interfaces directly
-
-	// DereferenceValue dereferences a var parameter reference.
-	// Returns the actual value and an error if dereferencing fails.
-	// Panics if the value is not a ReferenceValue (check with IsReferenceValue first).
-	DereferenceValue(value Value) (Value, error)
-
-	// CreateLazyThunk creates a lazy parameter thunk from an unevaluated expression.
-	// Lazy parameters are re-evaluated each time they are accessed (Jensen's Device pattern).
-	// Parameters:
-	//   - expr: The AST expression to evaluate lazily
-	//   - env: The environment captured from the call site
-	// Returns the lazy thunk value.
-	// Panics if the env parameter is not of type *Environment.
-	CreateLazyThunk(expr ast.Expression, env any) Value
-
-	// CreateReferenceValue creates a var parameter reference.
-	// Var parameters allow pass-by-reference semantics.
-	// Parameters:
-	//   - varName: The name of the variable to reference
-	//   - env: The environment containing the variable
-	// Returns the reference value.
-	// Panics if the env parameter is not of type *Environment.
-	CreateReferenceValue(varName string, env any) Value
+	// Task 3.5.132: DereferenceValue removed - use ReferenceAccessor interface directly
 
 	// ===== Task 3.5.22: Property & Method Reference Adapter Methods =====
 	// Task 3.5.71: IsObjectInstance removed - use val.Type() == "OBJECT" directly
