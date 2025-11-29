@@ -724,6 +724,21 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	return &NilValue{}
 }
 
+// extractIndexLiteral extracts an integer literal value (supports unary minus) from an AST expression.
+func extractIndexLiteral(expr ast.Expression) (int64, bool) {
+	switch v := expr.(type) {
+	case *ast.IntegerLiteral:
+		return v.Value, true
+	case *ast.UnaryExpression:
+		if v.Operator == "-" {
+			if lit, ok := v.Right.(*ast.IntegerLiteral); ok {
+				return -lit.Value, true
+			}
+		}
+	}
+	return 0, false
+}
+
 // convertPropertyDecl converts an AST property declaration to a PropertyInfo struct.
 // This extracts the property metadata for runtime property access handling.
 // Note: We mark all identifiers as field access for now and will check at runtime
@@ -752,6 +767,14 @@ func (i *Interpreter) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.Pro
 		IsIndexed:       len(propDecl.IndexParams) > 0,
 		IsDefault:       propDecl.IsDefault,
 		IsClassProperty: propDecl.IsClassProperty,
+	}
+
+	if propDecl.IndexValue != nil {
+		if val, ok := extractIndexLiteral(propDecl.IndexValue); ok {
+			propInfo.HasIndexValue = true
+			propInfo.IndexValue = val
+			propInfo.IndexValueType = types.INTEGER
+		}
 	}
 
 	// Determine read access kind and spec

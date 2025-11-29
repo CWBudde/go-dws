@@ -334,6 +334,35 @@ func TestPropertyDefault(t *testing.T) {
 	}
 }
 
+func TestPropertyIndexDirective(t *testing.T) {
+	input := "property Item1: String index 1 read GetItem write SetItem;"
+
+	l := lexer.New(input)
+	p := New(l)
+	prop := p.parsePropertyDeclaration()
+
+	errors := p.Errors()
+	if len(errors) != 0 {
+		t.Fatalf("Parser had %d errors:\n%v", len(errors), errors)
+	}
+
+	if prop == nil {
+		t.Fatal("parsePropertyDeclaration() returned nil")
+	}
+
+	if prop.IndexValue == nil {
+		t.Fatalf("Expected IndexValue to be set")
+	}
+
+	lit, ok := prop.IndexValue.(*ast.IntegerLiteral)
+	if !ok {
+		t.Fatalf("IndexValue should be IntegerLiteral, got %T", prop.IndexValue)
+	}
+	if lit.Value != 1 {
+		t.Fatalf("IndexValue literal expected 1, got %d", lit.Value)
+	}
+}
+
 func TestPropertyAuto(t *testing.T) {
 	input := "property Name: String;"
 
