@@ -3,9 +3,7 @@ package interp
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
-	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -123,71 +121,8 @@ func (i *Interpreter) GetExceptionInstance(exc interface{}) evaluator.Value {
 	return excVal.Instance
 }
 
-// CreateExceptionFromObject creates an ExceptionValue from an object instance.
-func (i *Interpreter) CreateExceptionFromObject(obj evaluator.Value, ctx *evaluator.ExecutionContext, pos any) interface{} {
-	// Capture current call stack from context
-	callStack := make(errors.StackTrace, len(ctx.CallStack()))
-	copy(callStack, ctx.CallStack())
-
-	// Get position
-	var excPos *lexer.Position
-	if p, ok := pos.(lexer.Position); ok {
-		excPos = &p
-	} else if p, ok := pos.(*lexer.Position); ok {
-		excPos = p
-	}
-
-	// Nil exception object -> raise standard "Object not instantiated" exception
-	if obj == nil || obj.Type() == "NIL" {
-		message := "Object not instantiated"
-		if excPos != nil {
-			message = fmt.Sprintf("Object not instantiated [line: %d, column: %d]", excPos.Line, excPos.Column+1)
-		}
-
-		excClass, ok := i.classes[ident.Normalize("Exception")]
-		if !ok {
-			excClass = NewClassInfo("Exception")
-		}
-
-		instance := NewObjectInstance(excClass)
-		instance.SetField("Message", &StringValue{Value: message})
-
-		return &ExceptionValue{
-			Metadata:  excClass.Metadata,
-			ClassInfo: excClass,
-			Message:   message,
-			Instance:  instance,
-			Position:  excPos,
-			CallStack: callStack,
-		}
-	}
-
-	// Should be an object instance
-	objInst, ok := obj.(*ObjectInstance)
-	if !ok {
-		panic(fmt.Sprintf("runtime error: raise requires exception object, got %s", obj.Type()))
-	}
-
-	// Get the class info
-	classInfo := objInst.Class
-
-	// Extract message from the object's Message field
-	message := ""
-	if msgVal, ok := objInst.Fields["Message"]; ok {
-		if strVal, ok := msgVal.(*StringValue); ok {
-			message = strVal.Value
-		}
-	}
-
-	return &ExceptionValue{
-		Metadata:  classInfo.Metadata,
-		ClassInfo: classInfo,
-		Message:   message,
-		Instance:  objInst,
-		Position:  excPos,
-		CallStack: callStack,
-	}
-}
+// Task 3.5.134: CreateExceptionFromObject removed - migrated to evaluator.createExceptionFromObject()
+// The evaluator now handles nil objects and uses WrapObjectInException bridge constructor.
 
 // ===== Statement Evaluation Adapter Methods =====
 

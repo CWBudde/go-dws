@@ -249,6 +249,54 @@ func (i *Interpreter) CreateExceptionDirect(classMetadata any, message string, p
 	}
 }
 
+// WrapObjectInException wraps an existing ObjectInstance in an ExceptionValue.
+// Task 3.5.134: Bridge constructor for raise statement with object instances.
+// The evaluator handles nil checking and validation, this just wraps a valid object.
+func (i *Interpreter) WrapObjectInException(objInstance evaluator.Value, pos any, callStack any) any {
+	// Convert position
+	var position *lexer.Position
+	if pos != nil {
+		if p, ok := pos.(*lexer.Position); ok {
+			position = p
+		}
+	}
+
+	// Convert call stack
+	var stack errors.StackTrace
+	if callStack != nil {
+		if s, ok := callStack.(errors.StackTrace); ok {
+			stack = s
+		}
+	}
+
+	// Cast to ObjectInstance (caller must ensure this is valid)
+	objInst, ok := objInstance.(*ObjectInstance)
+	if !ok {
+		panic(fmt.Sprintf("runtime error: WrapObjectInException requires ObjectInstance, got %s", objInstance.Type()))
+	}
+
+	// Get the class info
+	classInfo := objInst.Class
+
+	// Extract message from the object's Message field
+	message := ""
+	if msgVal, ok := objInst.Fields["Message"]; ok {
+		if strVal, ok := msgVal.(*StringValue); ok {
+			message = strVal.Value
+		}
+	}
+
+	// Create ExceptionValue
+	return &ExceptionValue{
+		Metadata:  classInfo.Metadata,
+		ClassInfo: classInfo,
+		Message:   message,
+		Instance:  objInst,
+		Position:  position,
+		CallStack: stack,
+	}
+}
+
 // Task 3.5.70: GetVariable removed - evaluator now uses ctx.Env().Get() directly
 
 // DefineVariable defines a new variable in the execution context.

@@ -1181,14 +1181,43 @@ func (e *Evaluator) VisitRaiseStatement(node *ast.RaiseStatement, ctx *Execution
 		return excVal
 	}
 
-	// Create exception from object using adapter
-	// The adapter will extract class info, message, and capture call stack
-	excObj := e.adapter.CreateExceptionFromObject(excVal, ctx, node.Pos())
+	// Task 3.5.134: Create exception from object directly in evaluator
+	excObj := e.createExceptionFromObject(excVal, ctx, node.Pos())
 
 	// Set the exception in context
 	ctx.SetException(excObj)
 
 	return nil
+}
+
+// createExceptionFromObject creates an ExceptionValue from an object instance.
+// Task 3.5.134: Migrated from adapter to enable direct exception creation in evaluator.
+// Handles nil objects by creating a standard "Object not instantiated" exception.
+func (e *Evaluator) createExceptionFromObject(obj Value, ctx *ExecutionContext, pos any) any {
+	// Capture current call stack from context
+	callStack := ctx.CallStack()
+
+	// Handle nil object case -> raise standard "Object not instantiated" exception
+	if obj == nil || obj.Type() == "NIL" {
+		// Get Exception class from type system
+		excClass := e.typeSystem.LookupClass("Exception")
+		if excClass == nil {
+			panic("runtime error: Exception class not found")
+		}
+
+		// Format message with position if available
+		message := "Object not instantiated"
+		if pos != nil {
+			message = fmt.Sprintf("Object not instantiated [position: %v]", pos)
+		}
+
+		// Use bridge constructor to create exception
+		return e.adapter.CreateExceptionDirect(excClass, message, pos, callStack)
+	}
+
+	// Validate that we have an object instance
+	// The WrapObjectInException will panic if not, providing a clear error
+	return e.adapter.WrapObjectInException(obj, pos, callStack)
 }
 
 // VisitBreakStatement evaluates a break statement.

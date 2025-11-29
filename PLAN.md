@@ -477,7 +477,7 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 ### Phase 20: Reduce Exception Handling Calls (3.5.133-3.5.137)
 
-**Current State**: 7 exception-related adapter calls (1 removed)
+**Current State**: 7 exception-related adapter calls (2 removed, 5 remaining)
 
 - [x] **3.5.133** Migrate RaiseException (1 call) ✅
   - **Location**: `visitor_statements.go` line 112
@@ -485,11 +485,16 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Solution**: Create ExceptionValue directly using CreateExceptionDirect bridge constructor
   - **Calls removed**: 1 adapter call
 
-- [ ] **3.5.134** Migrate CreateExceptionFromObject (1 call)
-  - **Location**: `visitor_statements.go` line 1040
+- [x] **3.5.134** Migrate CreateExceptionFromObject (1 call) ✅
+  - **Location**: `visitor_statements.go` line 1186 (was 1040)
   - **Issue**: Converting object to exception for `raise obj`
-  - **Solution**: Wrap ObjectInstance in ExceptionValue
+  - **Solution**: Created WrapObjectInException bridge constructor + evaluator helper
+  - **Implementation**: evaluator.createExceptionFromObject() handles nil objects, uses bridge
+  - **Bridge added**: WrapObjectInException (will be removed in Phase 27.5)
   - **Calls removed**: 1 adapter call
+  - **Methods removed**: 1 (CreateExceptionFromObject from interface and implementation)
+  - **Lines removed**: 64 from adapter_values.go
+  - **Tests**: All exception and raise tests pass ✅
 
 - [ ] **3.5.135** Migrate MatchesExceptionType (1 call)
   - **Location**: `visitor_statements.go` line 957
@@ -747,6 +752,7 @@ moving value construction to the runtime package. This phase completes that migr
 
 **Current Bridge Constructors**:
 - `CreateExceptionDirect` (Task 3.5.133) - Exception value construction
+- `WrapObjectInException` (Task 3.5.134) - Wrapping ObjectInstance in ExceptionValue
 - `CreateSubrangeValueDirect` (Task 3.5.129) - Subrange value wrapping
 - `CreateInterfaceInstanceDirect` (Task 3.5.129) - Interface instance creation
 - `CreateTypedNilValue` (Task 3.5.129) - Typed nil for classes
