@@ -87,22 +87,21 @@ func (i *Interpreter) parseInlineSetType(signature string) *types.SetType {
 		return nil
 	}
 
-	// Look up the enum type in the environment
-	// Enum types are stored with "__enum_type_" prefix
-	typeKey := "__enum_type_" + pkgident.Normalize(enumTypeName)
-	typeVal, ok := i.env.Get(typeKey)
-	if !ok {
+	// Look up the enum type via TypeSystem (Task 3.5.143b)
+	enumMetadata := i.typeSystem.LookupEnumMetadata(enumTypeName)
+	if enumMetadata == nil {
 		return nil
 	}
 
-	// Extract the EnumType from the EnumTypeValue
-	enumTypeVal, ok := typeVal.(*EnumTypeValue)
+	// Extract the EnumType
+	etv, ok := enumMetadata.(*EnumTypeValue)
 	if !ok {
 		return nil
 	}
+	enumType := etv.EnumType
 
 	// Create and return the set type
-	return types.NewSetType(enumTypeVal.EnumType)
+	return types.NewSetType(enumType)
 }
 
 // resolveArrayTypeNode resolves an ArrayTypeNode directly from the AST.
@@ -376,10 +375,9 @@ func (i *Interpreter) evalTypeCast(typeName string, arg ast.Expression) Value {
 		if i.lookupClassInfo(typeName) != nil {
 			isTypeCast = true
 		} else {
-			// Task 9.15.6: Check if it's an enum type
-			enumTypeKey := "__enum_type_" + lowerName
-			if typeVal, ok := i.env.Get(enumTypeKey); ok {
-				if etv, ok := typeVal.(*EnumTypeValue); ok {
+			// Task 9.15.6: Check if it's an enum type via TypeSystem (Task 3.5.143b)
+			if enumMetadata := i.typeSystem.LookupEnumMetadata(typeName); enumMetadata != nil {
+				if etv, ok := enumMetadata.(*EnumTypeValue); ok {
 					enumType = etv.EnumType
 					isTypeCast = true
 				}

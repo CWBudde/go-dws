@@ -171,7 +171,7 @@ func (e *Evaluator) ResolveTypeFromName(typeName string) (types.Type, error) {
 //  1. Built-in types (Integer, Float, String, Boolean, Variant, Const)
 //  2. Inline array types (array of X, array[...])
 //  3. Named array types (via TypeSystem)
-//  4. Enum types (via environment: __enum_type_<name>)
+//  4. Enum types (via TypeSystem) - Task 3.5.143b
 //  5. Record types (via environment: __record_type_<name>)
 //  6. Type aliases (via environment: __type_alias_<name>)
 //  7. Subrange types (via environment: __subrange_type_<name>)
@@ -208,14 +208,16 @@ func (e *Evaluator) ResolveTypeWithContext(typeName string, ctx *ExecutionContex
 	}
 
 	// Step 4: Check named array types via TypeSystem (direct access)
-	if arrayType := e.typeSystem.LookupArrayType(typeName); arrayType != nil {
-		return arrayType, nil
-	}
+	if e.typeSystem != nil {
+		if arrayType := e.typeSystem.LookupArrayType(typeName); arrayType != nil {
+			return arrayType, nil
+		}
 
-	// Step 5: Check enum types in environment
-	if enumTypeVal, ok := ctx.Env().Get("__enum_type_" + lowerTypeName); ok {
-		if etv, ok := enumTypeVal.(interface{ GetEnumType() *types.EnumType }); ok {
-			return etv.GetEnumType(), nil
+		// Step 5: Check enum types via TypeSystem (Task 3.5.143b)
+		if enumMetadata := e.typeSystem.LookupEnumMetadata(typeName); enumMetadata != nil {
+			if etv, ok := enumMetadata.(EnumTypeValueAccessor); ok {
+				return etv.GetEnumType(), nil
+			}
 		}
 	}
 

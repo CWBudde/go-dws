@@ -11,7 +11,6 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/builtins"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
-	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // Ensure Interpreter implements builtins.Context interface at compile time.
@@ -699,18 +698,17 @@ func (i *Interpreter) GetEnumSuccessor(enumVal builtins.Value) (builtins.Value, 
 		return nil, fmt.Errorf("expected EnumValue, got %T", enumVal)
 	}
 
-	enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
-	enumTypeVal, ok := i.env.Get(enumTypeKey)
-	if !ok {
+	// Get enum type metadata via TypeSystem (Task 3.5.143b)
+	enumMetadata := i.typeSystem.LookupEnumMetadata(val.TypeName)
+	if enumMetadata == nil {
 		return nil, fmt.Errorf("enum type metadata not found for %s", val.TypeName)
 	}
 
-	enumTypeWrapper, ok := enumTypeVal.(*EnumTypeValue)
+	etv, ok := enumMetadata.(*EnumTypeValue)
 	if !ok {
 		return nil, fmt.Errorf("invalid enum type metadata for %s", val.TypeName)
 	}
-
-	enumType := enumTypeWrapper.EnumType
+	enumType := etv.EnumType
 
 	// Find current value's position in OrderedNames
 	currentPos := -1
@@ -750,18 +748,17 @@ func (i *Interpreter) GetEnumPredecessor(enumVal builtins.Value) (builtins.Value
 		return nil, fmt.Errorf("expected EnumValue, got %T", enumVal)
 	}
 
-	enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
-	enumTypeVal, ok := i.env.Get(enumTypeKey)
-	if !ok {
+	// Get enum type metadata via TypeSystem (Task 3.5.143b)
+	enumMetadata := i.typeSystem.LookupEnumMetadata(val.TypeName)
+	if enumMetadata == nil {
 		return nil, fmt.Errorf("enum type metadata not found for %s", val.TypeName)
 	}
 
-	enumTypeWrapper, ok := enumTypeVal.(*EnumTypeValue)
+	etv, ok := enumMetadata.(*EnumTypeValue)
 	if !ok {
 		return nil, fmt.Errorf("invalid enum type metadata for %s", val.TypeName)
 	}
-
-	enumType := enumTypeWrapper.EnumType
+	enumType := etv.EnumType
 
 	// Find current value's position in OrderedNames
 	currentPos := -1
@@ -993,16 +990,16 @@ func (i *Interpreter) GetLowBound(value builtins.Value) (builtins.Value, error) 
 
 	// Handle enum values
 	if enumVal, ok := value.(*EnumValue); ok {
-		enumTypeKey := "__enum_type_" + ident.Normalize(enumVal.TypeName)
-		typeVal, ok := i.env.Get(enumTypeKey)
-		if !ok {
+		// Get enum type metadata via TypeSystem (Task 3.5.143b)
+		enumMetadata := i.typeSystem.LookupEnumMetadata(enumVal.TypeName)
+		if enumMetadata == nil {
 			return nil, fmt.Errorf("enum type '%s' not found", enumVal.TypeName)
 		}
-		enumTypeVal, ok := typeVal.(*EnumTypeValue)
+		etv, ok := enumMetadata.(*EnumTypeValue)
 		if !ok {
 			return nil, fmt.Errorf("invalid enum type metadata for '%s'", enumVal.TypeName)
 		}
-		enumType := enumTypeVal.EnumType
+		enumType := etv.EnumType
 		if len(enumType.OrderedNames) == 0 {
 			return nil, fmt.Errorf("enum type '%s' has no values", enumVal.TypeName)
 		}
@@ -1064,16 +1061,16 @@ func (i *Interpreter) GetHighBound(value builtins.Value) (builtins.Value, error)
 
 	// Handle enum values
 	if enumVal, ok := value.(*EnumValue); ok {
-		enumTypeKey := "__enum_type_" + ident.Normalize(enumVal.TypeName)
-		typeVal, ok := i.env.Get(enumTypeKey)
-		if !ok {
+		// Get enum type metadata via TypeSystem (Task 3.5.143b)
+		enumMetadata := i.typeSystem.LookupEnumMetadata(enumVal.TypeName)
+		if enumMetadata == nil {
 			return nil, fmt.Errorf("enum type '%s' not found", enumVal.TypeName)
 		}
-		enumTypeVal, ok := typeVal.(*EnumTypeValue)
+		etv, ok := enumMetadata.(*EnumTypeValue)
 		if !ok {
 			return nil, fmt.Errorf("invalid enum type metadata for '%s'", enumVal.TypeName)
 		}
-		enumType := enumTypeVal.EnumType
+		enumType := etv.EnumType
 		if len(enumType.OrderedNames) == 0 {
 			return nil, fmt.Errorf("enum type '%s' has no values", enumVal.TypeName)
 		}

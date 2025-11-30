@@ -109,6 +109,10 @@ func (i *Interpreter) evalEnumDeclaration(decl *ast.EnumDecl) Value {
 	enumTypeKey := "__enum_type_" + ident.Normalize(enumName)
 	i.env.Define(enumTypeKey, &EnumTypeValue{EnumType: enumType})
 
+	// Task 3.5.143a: Also register in TypeSystem for modern access pattern
+	// This enables dual storage during migration (both environment and TypeSystem)
+	i.typeSystem.RegisterEnumType(enumName, &EnumTypeValue{EnumType: enumType})
+
 	// Register enum type name as a TypeMetaValue
 	// This allows the type name to be used as a runtime value in expressions
 	// like High(TColor) or Low(TColor), just like built-in types (Integer, Float, etc.)

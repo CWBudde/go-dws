@@ -26,7 +26,7 @@ import (
 //   - TDateTime, Nil, Void
 //
 // Task 3.5.139b: Extended to handle registered types:
-//   - Enum types (from environment "__enum_type_" prefix)
+//   - Enum types (from TypeSystem) - migrated in Task 3.5.143b
 //   - Record types (from environment "__record_type_" prefix)
 //   - Class types (from TypeSystem)
 //   - Interface types (from TypeSystem)
@@ -100,17 +100,20 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 	default:
 		// Task 3.5.139b: Handle registered types (enums, records, classes, interfaces, subranges)
 
-		// Environment-based lookups (enums, records, subranges)
-		if ctx.Env() != nil {
-			// Try enum type (stored in environment with "__enum_type_" prefix)
-			if enumTypeVal, ok := ctx.Env().Get("__enum_type_" + normalizedName); ok {
-				// Extract EnumType using interface method
-				if enumTypeProvider, ok := enumTypeVal.(interface{ GetEnumType() *types.EnumType }); ok {
-					return enumTypeProvider.GetEnumType(), nil
+		// Try enum type via TypeSystem (Task 3.5.143b)
+		// Check if typeSystem is initialized (defensive programming for tests)
+		if e.typeSystem != nil {
+			if enumMetadata := e.typeSystem.LookupEnumMetadata(cleanTypeName); enumMetadata != nil {
+				if etv, ok := enumMetadata.(EnumTypeValueAccessor); ok {
+					return etv.GetEnumType(), nil
 				}
 				// Found but wrong type - programming error
 				return nil, fmt.Errorf("type '%s' is registered as enum but does not provide EnumType (internal error)", typeName)
 			}
+		}
+
+		// Environment-based lookups (records, subranges)
+		if ctx.Env() != nil {
 
 			// Try record type (stored in environment with "__record_type_" prefix)
 			if recordTypeVal, ok := ctx.Env().Get("__record_type_" + normalizedName); ok {

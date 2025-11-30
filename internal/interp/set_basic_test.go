@@ -583,8 +583,10 @@ func helperSetupInterpWithColorEnum(t *testing.T) (*Interpreter, *types.EnumType
 		OrdinalValue: 2,
 	})
 
-	// Store enum type metadata
-	interp.env.Define("__enum_type_tcolor", &EnumTypeValue{EnumType: enumType})
+	// Store enum type metadata (dual storage for Task 3.5.143b)
+	enumTypeValue := &EnumTypeValue{EnumType: enumType}
+	interp.env.Define("__enum_type_tcolor", enumTypeValue)
+	interp.typeSystem.RegisterEnumType("TColor", enumTypeValue)
 
 	return interp, enumType
 }
@@ -615,8 +617,10 @@ func helperSetupInterpWithLargerEnum(t *testing.T) (*Interpreter, *types.EnumTyp
 		})
 	}
 
-	// Store enum type metadata
-	interp.env.Define("__enum_type_tnumber", &EnumTypeValue{EnumType: enumType})
+	// Store enum type metadata (dual storage for Task 3.5.143b)
+	enumTypeValue := &EnumTypeValue{EnumType: enumType}
+	interp.env.Define("__enum_type_tnumber", enumTypeValue)
+	interp.typeSystem.RegisterEnumType("TNumber", enumTypeValue)
 
 	return interp, enumType
 }

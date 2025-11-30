@@ -531,3 +531,187 @@ func TestDirectRegistryAccess(t *testing.T) {
 		t.Error("Functions() returned different registry than internal")
 	}
 }
+
+// ========== Enum Type Registry Tests ==========
+// Task 3.5.143a: Comprehensive tests for enum type registry
+
+// Mock types for enum testing
+type mockEnumTypeValue struct {
+	name     string
+	enumType any
+}
+
+func (m *mockEnumTypeValue) Type() string      { return "ENUM_TYPE" }
+func (m *mockEnumTypeValue) String() string    { return m.name }
+func (m *mockEnumTypeValue) GetEnumType() any  { return m.enumType }
+
+type mockCoreEnumType struct {
+	name string
+}
+
+// TestEnumTypeRegistry_RegisterAndLookup verifies basic registration and lookup.
+func TestEnumTypeRegistry_RegisterAndLookup(t *testing.T) {
+	ts := NewTypeSystem()
+
+	// Create a mock EnumTypeValue (in real code this would be *interp.EnumTypeValue)
+	mockEnum := &mockEnumTypeValue{name: "TColor"}
+
+	ts.RegisterEnumType("TColor", mockEnum)
+
+	result := ts.LookupEnumType("TColor")
+	if result == nil {
+		t.Error("Expected to find enum type 'TColor'")
+	}
+	if result != mockEnum {
+		t.Error("Retrieved enum type doesn't match registered type")
+	}
+}
+
+// TestEnumTypeRegistry_CaseInsensitive verifies case-insensitive lookup.
+func TestEnumTypeRegistry_CaseInsensitive(t *testing.T) {
+	ts := NewTypeSystem()
+	mockEnum := &mockEnumTypeValue{name: "TColor"}
+
+	ts.RegisterEnumType("TColor", mockEnum)
+
+	// All case variations should work
+	testCases := []string{"TColor", "tcolor", "TCOLOR", "TcOlOr"}
+	for _, name := range testCases {
+		result := ts.LookupEnumType(name)
+		if result != mockEnum {
+			t.Errorf("Case-insensitive lookup failed for '%s'", name)
+		}
+	}
+}
+
+// TestEnumTypeRegistry_HasEnumType verifies existence checking.
+func TestEnumTypeRegistry_HasEnumType(t *testing.T) {
+	ts := NewTypeSystem()
+	mockEnum := &mockEnumTypeValue{name: "TColor"}
+
+	if ts.HasEnumType("TColor") {
+		t.Error("Should not have enum type before registration")
+	}
+
+	ts.RegisterEnumType("TColor", mockEnum)
+
+	if !ts.HasEnumType("TColor") {
+		t.Error("Should have enum type after registration")
+	}
+	if !ts.HasEnumType("tcolor") {
+		t.Error("Case-insensitive check failed")
+	}
+}
+
+// TestEnumTypeRegistry_AllEnumTypes verifies iteration over all enums.
+func TestEnumTypeRegistry_AllEnumTypes(t *testing.T) {
+	ts := NewTypeSystem()
+
+	enum1 := &mockEnumTypeValue{name: "TColor"}
+	enum2 := &mockEnumTypeValue{name: "TSize"}
+
+	ts.RegisterEnumType("TColor", enum1)
+	ts.RegisterEnumType("TSize", enum2)
+
+	all := ts.AllEnumTypes()
+	if len(all) != 2 {
+		t.Errorf("Expected 2 enum types, got %d", len(all))
+	}
+
+	// Check normalized keys
+	if _, ok := all["tcolor"]; !ok {
+		t.Error("Expected 'tcolor' in results (normalized)")
+	}
+	if _, ok := all["tsize"]; !ok {
+		t.Error("Expected 'tsize' in results (normalized)")
+	}
+}
+
+// TestEnumTypeRegistry_LookupMissing verifies nil handling for missing enums.
+func TestEnumTypeRegistry_LookupMissing(t *testing.T) {
+	ts := NewTypeSystem()
+
+	result := ts.LookupEnumType("NonExistent")
+	if result != nil {
+		t.Error("Expected nil for non-existent enum")
+	}
+
+	if ts.HasEnumType("NonExistent") {
+		t.Error("HasEnumType should return false for non-existent enum")
+	}
+}
+
+// TestEnumTypeRegistry_LookupMetadata verifies metadata extraction helper.
+// Task 3.5.143b fix: Updated test to expect wrapper instead of unwrapped type.
+func TestEnumTypeRegistry_LookupMetadata(t *testing.T) {
+	ts := NewTypeSystem()
+
+	mockEnumType := &mockCoreEnumType{name: "TColor"}
+	mockEnum := &mockEnumTypeValue{
+		name:     "TColor",
+		enumType: mockEnumType,
+	}
+
+	ts.RegisterEnumType("TColor", mockEnum)
+
+	// LookupEnumMetadata should return the wrapper, not the unwrapped type
+	metadata := ts.LookupEnumMetadata("TColor")
+	if metadata == nil {
+		t.Error("Expected metadata for 'TColor'")
+	}
+	if metadata != mockEnum {
+		t.Errorf("Retrieved metadata doesn't match expected wrapper: got %T, want %T", metadata, mockEnum)
+	}
+
+	// Verify we can extract the enum type from the wrapper
+	if enumAccessor, ok := metadata.(interface{ GetEnumType() any }); ok {
+		extractedType := enumAccessor.GetEnumType()
+		if extractedType != mockEnumType {
+			t.Errorf("Extracted enum type doesn't match: got %T, want %T", extractedType, mockEnumType)
+		}
+	} else {
+		t.Error("Metadata doesn't implement GetEnumType() interface")
+	}
+
+	// Missing enum
+	nilMetadata := ts.LookupEnumMetadata("NonExistent")
+	if nilMetadata != nil {
+		t.Error("Expected nil metadata for non-existent enum")
+	}
+}
+
+// TestEnumTypeRegistry_NilHandling verifies defensive nil checks.
+func TestEnumTypeRegistry_NilHandling(t *testing.T) {
+	ts := NewTypeSystem()
+
+	// RegisterEnumType should ignore nil
+	ts.RegisterEnumType("NilEnum", nil)
+	if ts.HasEnumType("NilEnum") {
+		t.Error("Should not register nil enum type")
+	}
+}
+
+// TestEnumTypeRegistry_RTTIIntegration verifies RTTI ID allocation still works.
+func TestEnumTypeRegistry_RTTIIntegration(t *testing.T) {
+	ts := NewTypeSystem()
+
+	// Register enum type
+	mockEnum := &mockEnumTypeValue{name: "TColor"}
+	ts.RegisterEnumType("TColor", mockEnum)
+
+	// RTTI IDs should still work independently
+	id1 := ts.GetOrAllocateEnumTypeID("TColor")
+	if id1 != 300000 {
+		t.Errorf("Expected first enum ID to be 300000, got %d", id1)
+	}
+
+	id2 := ts.GetOrAllocateEnumTypeID("TColor")
+	if id2 != id1 {
+		t.Error("Should return same ID for same enum")
+	}
+
+	id3 := ts.GetOrAllocateEnumTypeID("TSize")
+	if id3 != 300001 {
+		t.Errorf("Expected second enum ID to be 300001, got %d", id3)
+	}
+}

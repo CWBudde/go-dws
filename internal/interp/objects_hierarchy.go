@@ -131,17 +131,17 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		}
 
 		// Check if this identifier refers to an enum type (for scoped access: TColor.Red)
-		// Look for enum type metadata stored in environment
-		enumTypeKey := "__enum_type_" + pkgident.Normalize(ident.Value)
-		if enumTypeVal, ok := i.env.Get(enumTypeKey); ok {
-			if etv, isEnumType := enumTypeVal.(*EnumTypeValue); isEnumType {
+		// Look for enum type metadata via TypeSystem (Task 3.5.143b)
+		if enumMetadata := i.typeSystem.LookupEnumMetadata(ident.Value); enumMetadata != nil {
+			if etv, ok := enumMetadata.(*EnumTypeValue); ok {
+				enumType := etv.EnumType
 				// This is scoped enum access: TColor.Red
 				// Look up the enum value in the enum type's values
 				valueName := ma.Member.Value
 
 				// For scoped enums, look up directly in the enum type's values FIRST
 				// This allows enum values named "Low" or "High" to shadow the properties
-				if ordinalValue, exists := etv.EnumType.Values[valueName]; exists {
+				if ordinalValue, exists := enumType.Values[valueName]; exists {
 					// Create and return the enum value
 					return &EnumValue{
 						TypeName:     ident.Value,
@@ -155,13 +155,13 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				lowerMember := pkgident.Normalize(valueName)
 				switch lowerMember {
 				case "low":
-					return &IntegerValue{Value: int64(etv.EnumType.Low())}
+					return &IntegerValue{Value: int64(enumType.Low())}
 				case "high":
-					return &IntegerValue{Value: int64(etv.EnumType.High())}
+					return &IntegerValue{Value: int64(enumType.High())}
 				}
 
 				// For unscoped enums, try to look up in environment as well
-				if !etv.EnumType.Scoped {
+				if !enumType.Scoped {
 					if val, envExists := i.env.Get(valueName); envExists {
 						if enumVal, isEnum := val.(*EnumValue); isEnum {
 							// Verify the value belongs to this enum type

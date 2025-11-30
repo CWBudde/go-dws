@@ -569,9 +569,9 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 	default:
 		// Check for custom types (enums, records, arrays, subranges)
 		// Task 9.225: Use lowerTypeName for case-insensitive lookups
-		// Try enum type
-		if enumTypeVal, ok := i.env.Get("__enum_type_" + lowerTypeName); ok {
-			if etv, ok := enumTypeVal.(*EnumTypeValue); ok {
+		// Try enum type via TypeSystem (Task 3.5.143b)
+		if enumMetadata := i.typeSystem.LookupEnumMetadata(typeName); enumMetadata != nil {
+			if etv, ok := enumMetadata.(*EnumTypeValue); ok {
 				return etv.EnumType, nil
 			}
 		}
