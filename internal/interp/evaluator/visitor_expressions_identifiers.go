@@ -243,19 +243,18 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 	}
 	defer ctx.GetCallStack().Pop()
 
-	// 4. Initialize Result variable (simplified)
+	// 4. Initialize Result variable
+	// Task 3.5.142d: Use ResolveTypeFromAnnotation + GetDefaultValue for proper initialization
 	var resultValue Value
 	if fn.ReturnType != nil {
-		returnTypeName := fn.ReturnType.String()
-
-		// Handle array return types (initialize to empty array)
-		if arrayType := e.typeSystem.LookupArrayType(returnTypeName); arrayType != nil {
-			resultValue = e.adapter.CreateArrayValue(arrayType, []Value{})
-		} else {
-			// TODO(3.5.142d): Handle records, interfaces, subranges
-			// For now, use nil default (will be set by function body)
-			resultValue = &runtime.NilValue{}
+		// Resolve the return type to a types.Type
+		returnType, err := e.ResolveTypeFromAnnotation(fn.ReturnType)
+		if err != nil {
+			return e.newError(node, "cannot resolve return type '%s': %v", fn.ReturnType.String(), err)
 		}
+
+		// Get proper zero value for the type (handles all types correctly)
+		resultValue = e.GetDefaultValue(returnType)
 
 		e.DefineVar(ctx, "Result", resultValue)
 

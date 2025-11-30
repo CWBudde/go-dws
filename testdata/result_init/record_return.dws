@@ -1,0 +1,38 @@
+// Test Result initialization for record return types
+// Task 3.5.142d: Validates proper zero-value initialization for records
+
+type TPoint = record
+  X: Integer;
+  Y: Integer;
+end;
+
+type TPerson = record
+  Name: String;
+  Age: Integer;
+end;
+
+function GetOrigin: TPoint;
+begin
+  // Result should be initialized with default field values
+  // Don't set anything - test that default initialization works
+end;
+
+function GetDefaultPerson: TPerson;
+begin
+  // Result should have Name="" and Age=0 by default
+  // We explicitly set only one field to verify partial updates work
+  Result.Name := 'John';
+end;
+
+var
+  p: TPoint;
+  person: TPerson;
+begin
+  p := GetOrigin();
+  PrintLn(p.X);  // Should print: 0
+  PrintLn(p.Y);  // Should print: 0
+
+  person := GetDefaultPerson();
+  PrintLn(person.Name);  // Should print: John
+  PrintLn(person.Age);   // Should print: 0
+end.
