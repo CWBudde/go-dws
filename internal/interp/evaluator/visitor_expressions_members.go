@@ -47,7 +47,7 @@ import (
 //
 // **3. ENUM TYPE ACCESS** (TColor.Red, TColor.Low, TColor.High) [Task 3.5.25]
 //   - Pattern: `TColor.Red`, `TMyEnum.Low`, `TMyEnum.High`
-//   - Lookup in environment: `__enum_type_` + lowercase(enumTypeName)
+//   - Lookup via TypeSystem (Task 3.5.143b)
 //   - For scoped enums:
 //     a. Look up enum value in EnumType.Values (takes precedence over properties)
 //     b. Check for special properties: `Low` (lowest ordinal), `High` (highest ordinal)

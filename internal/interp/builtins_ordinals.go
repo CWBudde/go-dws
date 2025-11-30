@@ -65,19 +65,17 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 			return i.newErrorWithLocation(i.currentNode, "Inc() with delta not supported for enum types")
 		}
 
-		// Get the enum type metadata
-		enumTypeKey := "__enum_type_" + ident.Normalize(val.TypeName)
-		enumTypeVal, ok := i.env.Get(enumTypeKey)
-		if !ok {
+		// Get the enum type metadata via TypeSystem (Task 3.5.143b)
+		enumMetadata := i.typeSystem.LookupEnumMetadata(val.TypeName)
+		if enumMetadata == nil {
 			return i.newErrorWithLocation(i.currentNode, "enum type metadata not found for %s", val.TypeName)
 		}
 
-		enumTypeWrapper, ok := enumTypeVal.(*EnumTypeValue)
+		etv, ok := enumMetadata.(*EnumTypeValue)
 		if !ok {
 			return i.newErrorWithLocation(i.currentNode, "invalid enum type metadata for %s", val.TypeName)
 		}
-
-		enumType := enumTypeWrapper.EnumType
+		enumType := etv.EnumType
 
 		// Find current value's position in OrderedNames
 		currentPos := -1
@@ -179,19 +177,17 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 			return i.newErrorWithLocation(i.currentNode, "Dec() with delta not supported for enum types")
 		}
 
-		// Get the enum type metadata
-		enumTypeKey := "__enum_type_" + ident.Normalize(val.TypeName)
-		enumTypeVal, ok := i.env.Get(enumTypeKey)
-		if !ok {
+		// Get the enum type metadata via TypeSystem (Task 3.5.143b)
+		enumMetadata := i.typeSystem.LookupEnumMetadata(val.TypeName)
+		if enumMetadata == nil {
 			return i.newErrorWithLocation(i.currentNode, "enum type metadata not found for %s", val.TypeName)
 		}
 
-		enumTypeWrapper, ok := enumTypeVal.(*EnumTypeValue)
+		etv, ok := enumMetadata.(*EnumTypeValue)
 		if !ok {
 			return i.newErrorWithLocation(i.currentNode, "invalid enum type metadata for %s", val.TypeName)
 		}
-
-		enumType := enumTypeWrapper.EnumType
+		enumType := etv.EnumType
 
 		// Find current value's position in OrderedNames
 		currentPos := -1

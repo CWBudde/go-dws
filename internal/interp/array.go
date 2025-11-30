@@ -671,9 +671,10 @@ func (i *Interpreter) typeFromValue(val Value) types.Type {
 	case *ArrayValue:
 		return v.ArrayType
 	case *EnumValue:
-		if typeVal, ok := i.env.Get("__enum_type_" + strings.ToLower(v.TypeName)); ok {
-			if enumTypeVal, ok := typeVal.(*EnumTypeValue); ok {
-				return enumTypeVal.EnumType
+		// Get enum type metadata via TypeSystem (Task 3.5.143b)
+		if enumMetadata := i.typeSystem.LookupEnumMetadata(v.TypeName); enumMetadata != nil {
+			if etv, ok := enumMetadata.(*EnumTypeValue); ok {
+				return etv.EnumType
 			}
 		}
 		return nil

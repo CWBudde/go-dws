@@ -40,6 +40,10 @@ type TypeSystem struct {
 	// Task 3.5.69a: Migrating array types from environment storage to TypeSystem
 	arrayTypes *ident.Map[*coretypes.ArrayType]
 
+	// Enum type registry: case-insensitive map of enum names to EnumTypeValue
+	// Task 3.5.143a: Migrating enum types from environment storage to TypeSystem
+	enumTypes *ident.Map[EnumTypeValue]
+
 	// Operator registry: manages operator overloads
 	operators *OperatorRegistry
 
@@ -67,6 +71,7 @@ func NewTypeSystem() *TypeSystem {
 		interfaces:       ident.NewMap[InterfaceInfo](),        // Task 13.8
 		helpers:          ident.NewMap[[]HelperInfo](),         // Task 13.8
 		arrayTypes:       ident.NewMap[*coretypes.ArrayType](), // Task 3.5.69a
+		enumTypes:        ident.NewMap[EnumTypeValue](),        // Task 3.5.143a
 		operators:        NewOperatorRegistry(),
 		conversions:      NewConversionRegistry(),
 		classTypeIDs:     ident.NewMap[int](), // Task 13.9
@@ -285,6 +290,70 @@ func (ts *TypeSystem) AllArrayTypes() map[string]*coretypes.ArrayType {
 	return result
 }
 
+// ========== Enum Type Registry ==========
+// Task 3.5.143a: Enum type registry migrated from environment storage
+
+// RegisterEnumType registers an enum type in the type system.
+// The name is stored case-insensitively, with original casing preserved.
+func (ts *TypeSystem) RegisterEnumType(name string, enumType EnumTypeValue) {
+	if enumType == nil {
+		return
+	}
+	ts.enumTypes.Set(name, enumType)
+}
+
+// LookupEnumType returns the EnumTypeValue for the given name.
+// The lookup is case-insensitive. Returns nil if not found.
+func (ts *TypeSystem) LookupEnumType(name string) EnumTypeValue {
+	enumType, _ := ts.enumTypes.Get(name)
+	return enumType
+}
+
+// HasEnumType checks if an enum type with the given name exists.
+// The check is case-insensitive.
+func (ts *TypeSystem) HasEnumType(name string) bool {
+	return ts.enumTypes.Has(name)
+}
+
+// AllEnumTypes returns a map of all registered enum types.
+// Note: The returned map uses normalized (lowercase) keys.
+func (ts *TypeSystem) AllEnumTypes() map[string]EnumTypeValue {
+	result := make(map[string]EnumTypeValue, ts.enumTypes.Len())
+	ts.enumTypes.Range(func(key string, value EnumTypeValue) bool {
+		result[ident.Normalize(key)] = value
+		return true
+	})
+	return result
+}
+
+// LookupEnumMetadata returns the EnumTypeValue wrapper for the given enum name.
+// Returns the wrapper directly (not unwrapped) for consistency with RegisterEnumType.
+// Returns nil if the enum doesn't exist.
+//
+// Task 3.5.143a: Added to centralize metadata lookup and simplify Phase 2 migration
+// from __enum_type_ pattern. Follows LookupRecordMetadata precedent.
+// Task 3.5.143b fix: Changed to return wrapper instead of unwrapped type.
+//
+// Usage (in interp package):
+//
+//	if enumMetadata := typeSystem.LookupEnumMetadata("TColor"); enumMetadata != nil {
+//	    if etv, ok := enumMetadata.(*EnumTypeValue); ok {
+//	        enumType := etv.EnumType  // *types.EnumType
+//	    }
+//	}
+//
+// Usage (in evaluator package via interface):
+//
+//	if enumMetadata := typeSystem.LookupEnumMetadata("TColor"); enumMetadata != nil {
+//	    if etv, ok := enumMetadata.(EnumTypeValueAccessor); ok {
+//	        enumType := etv.GetEnumType()  // *types.EnumType
+//	    }
+//	}
+func (ts *TypeSystem) LookupEnumMetadata(name string) any {
+	// Return the wrapper directly (not unwrapped)
+	return ts.LookupEnumType(name)
+}
+
 // ========== Function Registry ==========
 // Task 3.4.3: Function methods now delegate to FunctionRegistry
 
@@ -456,6 +525,7 @@ type ClassInfo = any       // Expected: *interp.ClassInfo
 type RecordTypeValue = any // Expected: *interp.RecordTypeValue
 type InterfaceInfo = any   // Expected: *interp.InterfaceInfo
 type HelperInfo = any      // Expected: *interp.HelperInfo
+type EnumTypeValue = any   // Expected: *interp.EnumTypeValue
 
 // ========== Operator Registry ==========
 

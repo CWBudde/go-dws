@@ -26,13 +26,12 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 		isTypeCast = true
 	default:
 		// Check if it's a class/interface type
-		if e.typeSystem.HasClass(lowerName) {
+		if e.typeSystem != nil && e.typeSystem.HasClass(lowerName) {
 			isTypeCast = true
-		} else {
-			// Check if it's an enum type via environment
-			enumTypeKey := "__enum_type_" + lowerName
-			if typeVal, ok := ctx.Env().Get(enumTypeKey); ok {
-				if etv, ok := typeVal.(EnumTypeValueAccessor); ok {
+		} else if e.typeSystem != nil {
+			// Check if it's an enum type via TypeSystem (Task 3.5.143b)
+			if enumMetadata := e.typeSystem.LookupEnumMetadata(typeName); enumMetadata != nil {
+				if etv, ok := enumMetadata.(EnumTypeValueAccessor); ok {
 					enumType = etv.GetEnumType()
 					isTypeCast = true
 				}

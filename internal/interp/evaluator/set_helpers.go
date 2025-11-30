@@ -7,7 +7,6 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
-	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -243,24 +242,23 @@ func (e *Evaluator) evalSetSimpleElement(
 	return nil
 }
 
-// lookupEnumType looks up an enum type by name from the environment.
+// lookupEnumType looks up an enum type by name from the TypeSystem.
 // Task 3.5.104: Removed adapter.GetType() fallback - use direct environment lookup only.
+// Task 3.5.143b: Migrated to use TypeSystem.LookupEnumMetadata instead of environment.
 func (e *Evaluator) lookupEnumType(typeName string, ctx *ExecutionContext) (*types.EnumType, error) {
-	// Enum types are stored in environment with "__enum_type_" prefix
-	// Use ident.Normalize for case-insensitive lookup (consistent with other type lookups)
-	normalizedName := ident.Normalize(typeName)
-	typeVal, ok := ctx.Env().Get("__enum_type_" + normalizedName)
-	if !ok {
+	// Enum types are stored in TypeSystem (Task 3.5.143b)
+	// LookupEnumMetadata is case-insensitive by default
+	enumMetadata := e.typeSystem.LookupEnumMetadata(typeName)
+	if enumMetadata == nil {
 		return nil, fmt.Errorf("unknown enum type '%s'", typeName)
 	}
 
-	// The stored value should have an EnumType field
-	// We need to extract it - use type assertion via interface
-	if enumTypeProvider, ok := typeVal.(interface{ GetEnumType() *types.EnumType }); ok {
-		return enumTypeProvider.GetEnumType(), nil
+	// The stored value should implement EnumTypeValueAccessor
+	if etv, ok := enumMetadata.(EnumTypeValueAccessor); ok {
+		return etv.GetEnumType(), nil
 	}
 
-	// The value was found but doesn't implement GetEnumType() - this is a programming error
+	// The value was found but wrong type - this is a programming error
 	return nil, fmt.Errorf("type '%s' is registered but does not provide EnumType (internal error)", typeName)
 }
 

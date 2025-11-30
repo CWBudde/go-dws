@@ -1,8 +1,6 @@
 package interp
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -161,13 +159,13 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 	var makeLoopValue func(int64) Value
 	switch v := startVal.(type) {
 	case *EnumValue:
-		// Look up enum metadata to preserve type name and optional value names
+		// Look up enum metadata to preserve type name and optional value names via TypeSystem (Task 3.5.143b)
 		enumType := func(typeName string) *types.EnumType {
-			typeVal, ok := i.env.Get("__enum_type_" + strings.ToLower(typeName))
-			if !ok {
+			enumMetadata := i.typeSystem.LookupEnumMetadata(typeName)
+			if enumMetadata == nil {
 				return nil
 			}
-			if etv, ok := typeVal.(*EnumTypeValue); ok {
+			if etv, ok := enumMetadata.(*EnumTypeValue); ok {
 				return etv.EnumType
 			}
 			return nil

@@ -102,20 +102,20 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 			if elementType == nil {
 				// Special handling for enum types
 				if enumVal, isEnum := startVal.(*EnumValue); isEnum {
-					// Get enum type from environment
-					typeVal, ok := i.env.Get("__enum_type_" + strings.ToLower(enumVal.TypeName))
-					if !ok {
+					// Get enum type via TypeSystem (Task 3.5.143b)
+					enumMetadata := i.typeSystem.LookupEnumMetadata(enumVal.TypeName)
+					if enumMetadata == nil {
 						return &ErrorValue{
 							Message: fmt.Sprintf("unknown enum type '%s'", enumVal.TypeName),
 						}
 					}
-					enumTypeVal, ok := typeVal.(*EnumTypeValue)
+					etv, ok := enumMetadata.(*EnumTypeValue)
 					if !ok {
 						return &ErrorValue{
 							Message: fmt.Sprintf("invalid enum type for '%s'", enumVal.TypeName),
 						}
 					}
-					enumType = enumTypeVal.EnumType
+					enumType = etv.EnumType
 					elementType = enumType
 				} else {
 					// Non-enum ordinal type (Integer, String/Char, Boolean)
