@@ -1,6 +1,8 @@
 package evaluator
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/go-dws/internal/interp/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -258,9 +260,23 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 
 		e.DefineVar(ctx, "Result", resultValue)
 
-		// TODO(3.5.142e): Create function name alias to Result
+		// Task 3.5.142e: Create function name alias to Result
 		// DWScript allows `MyFunc := value` as synonym for `Result := value`
-		// Requires ReferenceValue support in evaluator
+		// Implemented using ReferenceValue that points to Result variable
+		env := ctx.Env()
+		getter := func() (Value, error) {
+			val, ok := env.Get("Result")
+			if !ok {
+				return &runtime.NilValue{}, fmt.Errorf("Result variable not found")
+			}
+			return val.(Value), nil
+		}
+		setter := func(val Value) error {
+			env.Set("Result", val)
+			return nil
+		}
+		funcNameAlias := runtime.NewReferenceValue("Result", getter, setter)
+		e.DefineVar(ctx, funcName, funcNameAlias)
 	}
 
 	// 4. Check preconditions before function body (Task 3.5.142a)

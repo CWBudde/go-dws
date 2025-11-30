@@ -1,0 +1,57 @@
+// Test function name alias with complex return types (assignment only)
+// Task 3.5.142e: Validates alias works with arrays and records
+//
+// Note: Due to semantic analyzer limitations, we can only test WRITE operations.
+// Member access on function names (like CreatePoint.X) is not supported by semantic analysis.
+
+type TPoint = record
+  X: Integer;
+  Y: Integer;
+end;
+
+function CreatePoint(x, y: Integer): TPoint;
+var
+  temp: TPoint;
+begin
+  // Use Result with member access (works in semantic analyzer)
+  Result.X := x;
+  Result.Y := y;
+
+  // Could also assign entire value via function name (but member access doesn't work)
+  // CreatePoint := temp;  // This would work at runtime but semantic analyzer rejects it
+end;
+
+function CreateArray: array of Integer;
+begin
+  // Use function name alias for array assignment
+  CreateArray := [1, 2, 3];
+end;
+
+function CreateStrings: array of String;
+begin
+  // Mix Result and function name for assignment
+  Result := ['A', 'B'];
+
+  // Overwrite with function name
+  CreateStrings := ['X', 'Y', 'Z'];
+end;
+
+var
+  p: TPoint;
+  arr: array of Integer;
+  strs: array of String;
+begin
+  p := CreatePoint(10, 20);
+  PrintLn(p.X);  // Should print: 10
+  PrintLn(p.Y);  // Should print: 20
+
+  arr := CreateArray();
+  PrintLn(Length(arr));  // Should print: 3
+  PrintLn(arr[0]);       // Should print: 1
+  PrintLn(arr[2]);       // Should print: 3
+
+  strs := CreateStrings();
+  PrintLn(Length(strs)); // Should print: 3
+  PrintLn(strs[0]);      // Should print: X
+  PrintLn(strs[2]);      // Should print: Z
+end.

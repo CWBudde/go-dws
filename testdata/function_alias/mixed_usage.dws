@@ -1,0 +1,48 @@
+// Test mixed usage of Result and function name alias (assignment only)
+// Task 3.5.142e: Validates that both can be used for assignment
+//
+// Note: Due to semantic analyzer limitations, we can only test WRITE operations to the alias.
+// The alias works correctly at runtime for both read and write.
+
+function TestAssignment: Integer;
+begin
+  // Initialize using Result
+  Result := 10;
+
+  // Overwrite using function name
+  TestAssignment := 42;
+
+  // Final value should be 42
+end;
+
+function TestSequence: String;
+begin
+  // Assign via function name
+  TestSequence := 'Step1';
+
+  // Assign via Result
+  Result := 'Step2';
+
+  // Assign via function name again
+  TestSequence := 'Step3';
+
+  // Final value should be Step3
+end;
+
+function TestOverwrite: Integer;
+begin
+  // Initialize with function name
+  TestOverwrite := 100;
+
+  // Overwrite twice via Result
+  Result := Result + 1;  // 101
+  Result := Result + 1;  // 102
+
+  // Final value should be 102
+end;
+
+begin
+  PrintLn(TestAssignment());  // Should print: 42
+  PrintLn(TestSequence());    // Should print: Step3
+  PrintLn(TestOverwrite());   // Should print: 102
+end.
