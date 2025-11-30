@@ -444,182 +444,22 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 ### Phase 21: Reduce Type Operation Calls
 
-- [x] **3.5.131** Migrate ConvertValue (2 calls) ✅
-  - **Location**: `type_casts.go` line 67, `array_helpers.go` line 641
-  - **Issue**: Type conversion delegates to adapter
-  - **Solution**: Replaced with existing adapter method (BoxVariant) and direct evaluator method (castToFloat)
-  - **Calls removed**: 2 adapter calls
-  - **Methods removed**: 1 (ConvertValue from adapter interface)
-
-- [x] **3.5.132** Migrate BoxVariant (9 calls) ✅
-  - **Location**: 7 files in evaluator package (type_casts.go, visitor_statements.go, array_helpers.go, assignment_helpers.go, binary_ops.go)
-  - **Solution**: Moved VariantValue and BoxVariant to runtime package, evaluator calls runtime.BoxVariant directly
-  - **Calls removed**: 9 adapter calls
-  - **Methods removed**: 1 (BoxVariant from adapter interface)
-  - **Result**: Adapter interface reduced from 105 → 104 methods
-  - **Implementation**: Created `internal/interp/runtime/variant.go` with VariantValue struct and BoxVariant function
-  - **Tests**: All variant, type cast, and assignment tests pass
-
-- [x] **3.5.133** Migrate CheckType (is operator) (1 call) ✅
-  - **Location**: `visitor_expressions_types.go` line 67
-  - **Issue**: Type checking delegates to adapter
-  - **Solution**: Created `checkType()` and `classImplementsInterface()` helpers in evaluator, added `GetClassMetadataFromValue()` adapter method to extract metadata from ObjectInstance/InterfaceInstance
-  - **Implementation**: Uses ClassMetadata hierarchy traversal and TypeSystem interface lookups
-  - **Calls removed**: 1 adapter call (CheckType)
-  - **Calls added**: 1 helper adapter call (GetClassMetadataFromValue) - simpler extraction-only method
-
-- [x] **3.5.134** Migrate CastType (as operator) + CastToClass (2 calls) ✅
-  - **Location**: `visitor_expressions_types.go` line 104, `type_casts.go` line 74
-  - **Issue**: Type casting delegates to adapter (CastType for 'as' operator, CastToClass for TypeName(expr))
-  - **Solution**: Created `castType()` and `castToClassType()` helpers in evaluator with 5 extraction-only adapter methods
-  - **Implementation**:
-    - `castType()`: Handles 'as' operator - returns errors, no TypeCastValue wrappers
-    - `castToClassType()`: Handles TypeName(expr) - raises exceptions, always creates TypeCastValue wrappers
-    - Added 5 adapter helpers: GetObjectInstanceFromValue, GetInterfaceInstanceFromValue, CreateInterfaceWrapper, CreateTypeCastWrapper, RaiseTypeCastException
-  - **Calls removed**: 2 adapter calls (CastType, CastToClass)
-  - **Calls added**: 5 extraction-only adapter helpers (no business logic)
-  - **Methods deprecated**: CastType and CastToClass marked as deprecated, kept for old interpreter path
-
-- [x] **3.5.135** Migrate CheckImplements (1 call) ✅
-  - **Location**: `visitor_expressions_types.go:142-148`
-  - **Issue**: Interface implementation check delegates to adapter
-  - **Solution**: Created `checkImplements()` and `classImplementsInterfaceExplicitly()` helpers in evaluator
-  - **Implementation**: Uses `getClassMetadataFromValue()` + TypeSystem.HasInterface() + metadata traversal
-  - **Calls removed**: 1 adapter call (CheckImplements)
-  - **Methods removed**: 1 (CheckImplements from adapter interface + implementation, ~44 lines)
-  - **Methods added**: 2 evaluator helpers (checkImplements, classImplementsInterfaceExplicitly)
-  - **Tests**: All interface tests pass ✅
-
-- [x] **3.5.136** Migrate Type Wrapping - DEFERRED to Phase 28 ✅
-  - **Status**: Moved to Phase 28 (tasks 3.5.180-3.5.184) with systematic approach
-  - **Reason**: Requires TypeSystem refactoring (subrange types, interface metadata, conversion registry)
-  - **Note**: Line numbers in task description are outdated (actual: 227, 235, 270)
+- [x] **3.5.131** ConvertValue (2 calls) - Replaced with BoxVariant + castToFloat, -1 method
+- [x] **3.5.132** BoxVariant (9 calls) - Moved to runtime package, evaluator calls runtime.BoxVariant, -1 method
+- [x] **3.5.133** CheckType (is operator) (1 call) - Created checkType() + classImplementsInterface() helpers, +1 metadata extraction helper
+- [x] **3.5.134** CastType + CastToClass (2 calls) - Created castType() + castToClassType() helpers, +5 extraction helpers, deprecated old methods
+- [x] **3.5.135** CheckImplements (1 call) - Created checkImplements() + classImplementsInterfaceExplicitly() helpers, -1 method
+- [x] **3.5.136** Type Wrapping - DEFERRED to Phase 28 (tasks 3.5.180-3.5.184)
 
 ---
 
 ### Phase 22: Reduce Variable Declaration Calls
 
-**Current State**: 8 variable declaration-related calls
-
-- [x] **3.5.137** Migrate DefineVariable (3 calls) ✅
-  - **Location**: `visitor_statements.go` lines 177, 287, 374 (actual locations, not 148/257/343)
-  - **Issue**: Variable definition delegates to adapter
-  - **Solution**: Use ExecutionContext.Env().Define() directly
-  - **Implementation**: Replaced `e.adapter.DefineVariable(name, value, ctx)` with `ctx.Env().Define(name, value)`
-  - **Calls removed**: 3 adapter calls (external variables, multi-identifier loop, constants)
-  - **Methods removed**: 1 (DefineVariable from adapter interface)
-  - **Status**: Complete - adapter interface reduced from 105 → 104 methods
-
-- [x] **3.5.138** Migrate LookupSubrangeType (1 call) ✅
-  - **Location**: `visitor_statements.go` line 226 (not 196/1196 - line numbers outdated)
-  - **Issue**: Subrange type lookup delegates to adapter
-  - **Solution**: Direct environment access with `ctx.Env().Get("__subrange_type_" + ident.Normalize(name))`
-  - **Implementation**: Replaced `e.adapter.LookupSubrangeType(typeName)` with direct environment lookup
-  - **Note**: Line 1501 already uses direct environment access (migrated in 3.5.129c)
-  - **Calls removed**: 1 adapter call (only 1 existed, not 2)
-  - **Methods removed**: 1 (LookupSubrangeType from adapter interface)
-  - **Status**: Complete - adapter interface reduced from 104 → 103 methods
-
-- [x] **3.5.139** Migrate ResolveArrayTypeNode + ParseInlineArrayType (2 calls) - **COMPLEX** ✅
-  - **Location**: `visitor_statements.go` lines 1384, 1401 (actual, not 1144/1159)
-  - **Issue**: Array type resolution from AST nodes and inline string syntax
-  - **Current Implementation**:
-    - `ResolveArrayTypeNode()`: 170+ lines in `functions_typecast.go`, handles nested arrays, AST evaluation
-    - `ParseInlineArrayType()`: 60+ lines, parses "array[low..high] of Type" syntax
-    - Both delegate to `resolveType()` (80+ lines) for recursive type resolution
-  - **Complexity**: High - requires migrating substantial type resolution infrastructure
-  - **Dependencies**: Requires `resolveType()` helper which handles 10+ type categories
-  - **Risk**: High - array type resolution is used throughout the codebase
-  - **Completed**: All 9 subtasks complete, adapter methods removed, 32 tests passing (24 parseInlineArrayType + 8 resolveArrayTypeNode)
-  - **Subtasks** (execute in order):
-    - [x] **3.5.139a**: Create `type_resolution_helpers.go` in evaluator package ✅
-      - Add `resolveTypeName()` helper that handles primitive types (integer, float, string, boolean, variant)
-      - Returns `types.Type` or error
-      - Use TypeSystem for lookups where applicable
-      - **Status**: Complete - implemented with comprehensive tests (30 test cases)
-      - **Files created**: `type_resolution_helpers.go`, `type_resolution_helpers_test.go`
-      - **Primitive types supported**: Integer, Float, String, Boolean, Variant, Const (→Variant), TDateTime, Nil, Void
-      - **Features**: Case-insensitive resolution, parent qualification stripping, error handling
-      - **Tests**: All pass - TestResolveTypeName_Primitives, TestResolveTypeName_ParentQualification, TestResolveTypeName_CaseInsensitivity
-      - **Actual effort**: 1.5 hours
-    - [x] **3.5.139b**: Extend `resolveTypeName()` to handle registered types ✅
-      - Add enum type lookup (uses `"__enum_type_"` prefix in environment)
-      - Add record type lookup (uses `"__record_type_"` prefix in environment)
-      - Add class type lookup (uses `TypeSystem.HasClass()`)
-      - Add interface type lookup (uses `TypeSystem.HasInterface()`)
-      - Add subrange type lookup (uses `"__subrange_type_"` prefix in environment)
-      - Added nil safety checks for `ctx.Env()` to prevent panics
-      - Estimated effort: 3-4 hours
-      - **Completed**: Extended `resolveTypeName()` in [type_resolution_helpers.go](internal/interp/evaluator/type_resolution_helpers.go:52), all tests passing
-    - [x] **3.5.139c**: Add array type lookup to `resolveTypeName()` ✅
-      - Check TypeSystem.LookupArrayType() for named arrays
-      - Returns ArrayType directly from TypeSystem if found
-      - Estimated effort: 2 hours
-      - **Completed**: Added array type lookup to [type_resolution_helpers.go:137-142](internal/interp/evaluator/type_resolution_helpers.go:137), all tests passing
-    - [x] **3.5.139d**: Create `parseInlineArrayType()` helper in evaluator ✅
-      - Parse "array of Type" → dynamic array
-      - Parse "array[low..high] of Type" → static array with bounds
-      - Extract bounds using fmt.Sscanf (same as interpreter)
-      - Resolve element type using `resolveTypeName()`
-      - Create `types.ArrayType` directly
-      - Pattern reference: `parseInlineSetType()` in set_helpers.go:270-290
-      - Estimated effort: 3-4 hours
-      - **Completed**: Created `parseInlineArrayType()` in [type_resolution_helpers.go:191-258](internal/interp/evaluator/type_resolution_helpers.go:191), integrated with `resolveTypeName`, 24 tests passing (dynamic, static, nested arrays)
-    - [x] **3.5.139e**: Create `resolveArrayTypeNode()` helper in evaluator ✅
-      - Handle `ast.ArrayTypeNode` AST nodes
-      - Resolve element type (check if nested ArrayTypeNode first)
-      - Handle dynamic arrays (no bounds)
-      - Handle enum-indexed arrays (get ordinal bounds)
-      - Handle static arrays with explicit bounds
-      - **Challenge**: Bounds are AST expressions - need to evaluate them
-      - Use direct extraction from IntegerLiteral and UnaryExpression nodes
-      - Create `types.ArrayType` with resolved bounds
-      - Pattern reference: interpreter's `resolveArrayTypeNode()` in functions_typecast.go:111-183
-      - Estimated effort: 4-5 hours
-      - **Completed**: Created `resolveArrayTypeNode()` in [type_resolution_helpers.go:292-387](internal/interp/evaluator/type_resolution_helpers.go:292), handles IntegerLiteral and UnaryExpression bounds, 8 tests passing (dynamic, static, nested, negative bounds)
-    - [x] **3.5.139f**: Replace first adapter call (line 1384) ✅
-      - Replace `e.adapter.ResolveArrayTypeNode(arrayNode)` with `e.resolveArrayTypeNode(arrayNode, ctx)`
-      - Pass ctx for environment access
-      - Simplified error handling (no error return from resolveArrayTypeNode)
-      - Estimated effort: 30 minutes
-      - **Completed**: Replaced in [visitor_statements.go:1384-1391](internal/interp/evaluator/visitor_statements.go:1384), direct evaluator call with simplified logic
-    - [x] **3.5.139g**: Replace second adapter call (line 1401) ✅
-      - Replace `e.adapter.ParseInlineArrayType(typeName)` with `e.parseInlineArrayType(typeName, ctx)`
-      - Pass ctx for environment access
-      - Simplified error handling (no error return from parseInlineArrayType)
-      - Estimated effort: 30 minutes
-      - **Completed**: Replaced in [visitor_statements.go:1397-1403](internal/interp/evaluator/visitor_statements.go:1397), direct evaluator call with simplified logic
-    - [x] **3.5.139h**: Remove adapter methods ✅
-      - Remove `ResolveArrayTypeNode` from InterpreterAdapter interface (evaluator.go)
-      - Remove `ParseInlineArrayType` from InterpreterAdapter interface (evaluator.go)
-      - Remove implementations from adapter_values.go and adapter_types.go
-      - Mark with task comment
-      - Estimated effort: 15 minutes
-      - **Completed**: Removed from [evaluator.go:619,643](internal/interp/evaluator/evaluator.go:619), [adapter_values.go:12](internal/interp/adapter_values.go:12), [adapter_types.go:90](internal/interp/adapter_types.go:90), cleaned up unused imports
-    - [x] **3.5.139i**: Test and verify ✅
-      - Run evaluator tests
-      - Run interpreter tests (especially array-related)
-      - Test nested arrays, dynamic arrays, static arrays
-      - **Completed**: All evaluator tests pass, TestResolveArrayTypeNode (8 cases) passes, fixture test failures are pre-existing
-      - Test array bounds edge cases (negative bounds, etc.)
-      - Estimated effort: 1-2 hours
-  - **Total Estimated Effort**: 2-3 days
-  - **Calls removed**: 2 adapter calls
-  - **Methods removed**: 2 (ResolveArrayTypeNode, ParseInlineArrayType)
-  - **New evaluator helpers**: 3 (resolveTypeName, parseInlineArrayType, resolveArrayTypeNode)
-  - **Recommendation**: Execute subtasks incrementally with tests after each step
-
-- [ ] **3.5.140** Migrate EvalArrayLiteralWithExpectedType (1 call)
-  - **Location**: `visitor_statements.go` line 157
-  - **Issue**: Array literal with expected type context
-  - **Solution**: Pass expected type to existing array literal evaluator
-  - **Calls removed**: 1 adapter call
-
-- [ ] **3.5.141** Migrate GetType (2 calls)
-  - **Location**: `set_helpers.go` line 257, `type_resolution.go` line 67
-  - **Issue**: Named type resolution
-  - **Solution**: Use TypeSystem registry lookups
-  - **Calls removed**: 2 adapter calls
+- [x] **3.5.137** DefineVariable (3 calls) - Use ctx.Env().Define() directly, -1 method
+- [x] **3.5.138** LookupSubrangeType (1 call) - Direct environment access with `__subrange_type_` prefix, -1 method
+- [x] **3.5.139** ResolveArrayTypeNode + ParseInlineArrayType (2 calls) - Created type_resolution_helpers.go with resolveTypeName/parseInlineArrayType/resolveArrayTypeNode, 32 tests, -2 methods
+- [x] **3.5.140** EvalArrayLiteralWithExpectedType (1 call) - Use resolveTypeName() + evalArrayLiteralWithExpectedType(), -1 method
+- [x] **3.5.141** GetType (1 call) - Use resolveTypeName() with empty context, -1 method
 
 ---
 
@@ -659,12 +499,184 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
       - **Blocker**: Requires ReferenceValue support in evaluator
       - **Risk**: Low (most code uses Result pattern)
 
-- [ ] **3.5.143** Migrate CallBuiltinFunction (2 calls)
-  - **Location**: `visitor_expressions.go` lines 214, 661
-  - **Issue**: Built-in function dispatch
-  - **Solution**: Use builtins.Registry.Call() directly
-  - **Dependency**: Phase 3.7 builtin registry
+- [ ] **3.5.143** Migrate CallBuiltinFunction - Full Context Implementation (2 calls)
+  - **Location**: `visitor_expressions_functions.go` line 330, `visitor_expressions_identifiers.go` line 194
+  - **Issue**: Built-in function dispatch requires `builtins.Context` interface (40 methods)
+  - **Solution**: Full Context implementation - implement all 40 methods directly in Evaluator
+  - **Approach**: Sustainable, no-shortcuts implementation with proper infrastructure
+  - **Effort**: 63-70 hours (2-3 weeks full-time, 6-8 weeks part-time)
   - **Calls removed**: 2 adapter calls
+  - **Methods removed**: 1 (CallBuiltinFunction)
+  - **Infrastructure**: EnumTypeRegistry, 93 helper functions migrated
+  - **Files created**: 14 new files (7 implementation, 7 test)
+  - **Files modified**: 7 files
+
+  **Phase I: Foundation Infrastructure (13 hours)**
+
+  - [ ] **3.5.143a** Create EnumTypeRegistry (5 hours)
+    - **File**: `internal/interp/types/type_system.go`
+    - **Task**: Add EnumTypeInfo struct and registry to TypeSystem
+    - **Blocker**: Current enum storage uses environment hack (`__enum_type_*`)
+    - **Deliverables**: RegisterEnumType(), LookupEnumType(), HasEnumType()
+
+  - [ ] **3.5.143b** Migrate Enum Type Storage (3 hours)
+    - **Files**: `visitor_declarations.go`, `interpreter.go`, all files with `__enum_type_` lookups
+    - **Task**: Replace environment-based enum storage with TypeSystem registry
+    - **Search**: `grep -r "__enum_type_" internal/`
+
+  - [ ] **3.5.143c** Extract Array Helper Functions (3 hours)
+    - **File**: `internal/interp/evaluator/array_helpers.go` (NEW)
+    - **Task**: Extract 93 array helpers from Interpreter
+    - **Functions**: builtinArrayCopy(), builtinArrayReverse(), builtinArraySort(), etc.
+
+  - [ ] **3.5.143d** Organize JSON Helper Functions (2 hours)
+    - **File**: `internal/interp/evaluator/json_helpers.go` (existing)
+    - **Task**: Ensure all JSON conversion functions accessible to Evaluator
+    - **Functions**: parseJSONString(), valueToJSONValue(), jsonKindToVarType(), etc.
+
+  **Phase II: Simple Context Methods (11 hours)**
+
+  - [ ] **3.5.143e** Core State & Error Methods (1 hour)
+    - **File**: `internal/interp/evaluator/context.go` (NEW)
+    - **Methods**: NewError(), CurrentNode(), RandSource() (3 methods)
+
+  - [ ] **3.5.143f** Random Number Methods (0.5 hour)
+    - **File**: `internal/interp/evaluator/context.go`
+    - **Methods**: GetRandSeed(), SetRandSeed() (2 methods)
+
+  - [ ] **3.5.143g** Type Conversion Methods (3 hours)
+    - **File**: `internal/interp/evaluator/context_conversions.go` (NEW)
+    - **Methods**: UnwrapVariant(), ToInt64(), ToBool(), ToFloat64(), GetTypeOf(), GetClassOf() (6 methods)
+    - **Reference**: `builtins_context.go:58-457`
+
+  - [ ] **3.5.143h** I/O Methods (0.5 hour)
+    - **File**: `internal/interp/evaluator/context.go`
+    - **Methods**: Write(), WriteLine() (2 methods)
+
+  - [ ] **3.5.143i** String Parsing Methods (0.5 hour)
+    - **File**: `internal/interp/evaluator/context_conversions.go`
+    - **Methods**: ParseInt(), ParseFloat() (2 methods)
+
+  - [ ] **3.5.143j** Value Inspection Method (0.5 hour)
+    - **File**: `internal/interp/evaluator/context.go`
+    - **Methods**: IsAssigned() (1 method)
+
+  - [ ] **3.5.143k** Array Construction Methods (0.5 hour)
+    - **File**: `internal/interp/evaluator/context_arrays.go` (NEW)
+    - **Methods**: CreateStringArray(), CreateVariantArray() (2 methods)
+
+  - [ ] **3.5.143l** Type Introspection Methods (1 hour)
+    - **Note**: Covered in 3.5.143g (GetTypeOf, GetClassOf)
+
+  **Phase III: Medium Complexity Methods (6 hours)**
+
+  - [ ] **3.5.143m** Array Operation Methods (4 hours)
+    - **File**: `internal/interp/evaluator/context_arrays.go`
+    - **Methods**: GetBuiltinArrayLength(), SetArrayLength(), ArrayCopy(), ArrayReverse(), ArraySort() (5 methods)
+    - **Dependencies**: Task 3.5.143c (array helpers)
+
+  - [ ] **3.5.143n** Call Stack Methods (2 hours)
+    - **File**: `internal/interp/evaluator/context.go`
+    - **Methods**: GetCallStackString(), GetCallStackArray() (2 methods)
+    - **Reference**: `builtins_context.go:822-884`
+
+  **Phase IV: Complex Methods (16 hours)**
+
+  - [ ] **3.5.143o** String Formatting Method (3 hours)
+    - **File**: `internal/interp/evaluator/context_formatting.go` (NEW)
+    - **Methods**: FormatString() (1 method)
+    - **Complexity**: Medium - fmt.Sprintf-style formatting for DWScript values
+
+  - [ ] **3.5.143p** Exception Raising Method (2 hours)
+    - **File**: `internal/interp/evaluator/context.go`
+    - **Methods**: RaiseAssertionFailed() (1 method)
+
+  - [ ] **3.5.143q** Enum Operation Methods (5 hours)
+    - **File**: `internal/interp/evaluator/context_enums.go` (NEW)
+    - **Methods**: GetEnumOrdinal(), GetEnumSuccessor(), GetEnumPredecessor(), GetJSONVarType() (4 methods)
+    - **Dependencies**: Tasks 3.5.143a-b (EnumTypeRegistry)
+    - **Complexity**: High - requires EnumTypeRegistry infrastructure
+
+  - [ ] **3.5.143r** Bounds Operation Methods (5 hours)
+    - **File**: `internal/interp/evaluator/context_bounds.go` (NEW)
+    - **Methods**: GetLowBound(), GetHighBound() (2 methods)
+    - **Complexity**: High - polymorphic, handles arrays/enums/type meta-values
+
+  - [ ] **3.5.143s** String Concatenation Method (1 hour)
+    - **File**: `internal/interp/evaluator/context_formatting.go`
+    - **Methods**: ConcatStrings() (1 method)
+
+  - [ ] **3.5.143t** JSON Parsing & Conversion (2 hours)
+    - **File**: `internal/interp/evaluator/context_json.go` (NEW)
+    - **Methods**: ParseJSONString(), ValueToJSON(), ValueToJSONWithIndent() (3 methods)
+    - **Dependencies**: Task 3.5.143d (JSON helpers)
+
+  - [ ] **3.5.143u** JSON Inspection Methods (4 hours)
+    - **File**: `internal/interp/evaluator/context_json.go`
+    - **Methods**: JSONHasField(), JSONGetKeys(), JSONGetValues(), JSONGetLength() (4 methods)
+    - **Complexity**: Medium-High - JSON type handling, variant wrapping
+
+  **Phase V: Function Pointer Delegation (Deferred)**
+
+  - [ ] **3.5.143v** EvalFunctionPointer (Deferred to Adapter)
+    - **Status**: DEFERRED to Phase 3.6+
+    - **Reason**: Requires full function execution context (complex closure handling)
+    - **Implementation**: Keep delegating to adapter
+    - **Note**: Only 1 of 40 Context methods still uses adapter
+
+  **Phase VI: Integration & Migration (5 hours)**
+
+  - [ ] **3.5.143w** Implement Context Interface on Evaluator (1 hour)
+    - **File**: `internal/interp/evaluator/evaluator.go`
+    - **Task**: Verify all 40 methods implemented, add compile-time assertion
+
+  - [ ] **3.5.143x** Update Call Sites (2 hours)
+    - **Files**: `visitor_expressions_functions.go:330`, `visitor_expressions_identifiers.go:194`
+    - **Task**: Replace `e.adapter.CallBuiltinFunction()` with direct registry calls
+
+  - [ ] **3.5.143y** Remove Adapter Method (0.5 hour)
+    - **Files**: `evaluator.go`, `adapter_functions.go`
+    - **Task**: Remove CallBuiltinFunction from InterpreterAdapter interface
+
+  - [ ] **3.5.143z** Keep EvalFunctionPointer Adapter Method (0.5 hour)
+    - **Task**: Document that EvalFunctionPointer remains in adapter (deferred)
+
+  **Phase VII: Testing & Validation (28 hours)**
+
+  - [ ] **3.5.143aa** Unit Tests for Context Methods (16 hours)
+    - **Files**: 6 new test files (context_test.go, context_conversions_test.go, etc.)
+    - **Coverage**: 40 unit tests covering all Context methods
+    - **Strategy**: Happy path, error cases, edge cases, nil handling
+
+  - [ ] **3.5.143ab** Integration Tests (8 hours)
+    - **File**: `builtin_integration_test.go` (NEW)
+    - **Coverage**: All 231 registered builtins work via direct Context calls
+    - **Categories**: Math, String, Array, Type, I/O, JSON functions
+
+  - [ ] **3.5.143ac** Regression Testing (4 hours)
+    - **Suite**: Full DWScript test suite (~2,100 tests)
+    - **Commands**: `just test`, `just test-coverage`
+    - **Criteria**: All existing tests pass, coverage >80%
+
+  **Phase VIII: Documentation & Cleanup (2 hours)**
+
+  - [ ] **3.5.143ad** Update PLAN.md (0.5 hour)
+    - **Task**: Mark task complete, add implementation notes
+
+  - [ ] **3.5.143ae** Update CLAUDE.md (0.5 hour)
+    - **Task**: Update Evaluator architecture and TypeSystem documentation
+
+  - [ ] **3.5.143af** Code Documentation (1 hour)
+    - **Task**: Add package-level and method documentation to all new files
+
+  **Summary**:
+  - **Total subtasks**: 26 (a-af)
+  - **Total effort**: 63-70 hours
+  - **Context methods**: 40 (39 direct, 1 deferred)
+  - **New files**: 14 (7 implementation, 7 test)
+  - **Modified files**: 7
+  - **Test coverage**: 40 unit tests + 231 integration tests
+  - **Detailed plan**: `/home/christian/.claude/plans/clever-singing-sunbeam.md`
 
 - [ ] **3.5.151** Migrate CallUserFunctionWithOverloads (1 call)
   - **Location**: `visitor_expressions.go` line 562
