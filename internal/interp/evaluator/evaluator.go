@@ -248,6 +248,18 @@ type RecordInstanceValue interface {
 	ReadIndexedProperty(propInfo any, indices []Value, propertyExecutor func(propInfo any, indices []Value) Value) Value
 }
 
+// RecordTypeMetaValue is an optional interface that record type values can implement
+// to provide direct access to record type metadata without going through the adapter.
+// Task 3.5.146: Enables direct static method lookup in VisitCallExpression for record contexts.
+type RecordTypeMetaValue interface {
+	Value
+	// GetRecordTypeName returns the record type name (e.g., "TPoint").
+	GetRecordTypeName() string
+	// HasStaticMethod checks if a static method (class function/procedure) with the given name exists.
+	// The lookup is case-insensitive.
+	HasStaticMethod(name string) bool
+}
+
 // SetMethodDispatcher is an optional interface that set values can implement
 // to provide direct access to set mutation methods without going through the adapter.
 // Task 3.5.111a: Enables direct set method dispatch (Include, Exclude) in VisitMethodCallExpression.
@@ -796,16 +808,22 @@ type InterpreterAdapter interface {
 	//   - memberAccess: The MemberAccessExpression (obj.member)
 	//   - objVal: The evaluated object value
 	// Returns the method call result or an error.
+	//
+	// Deprecated: Task 3.5.147 - The evaluator now uses DispatchMethodCall directly.
+	// This method is no longer called for RECORD, INTERFACE, or OBJECT method dispatch.
 	CallMemberMethod(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression, objVal Value) Value
 
 	// CallQualifiedOrConstructor calls a unit-qualified function or class constructor.
 	// This handles:
 	// - Unit-qualified calls: UnitName.FunctionName(args)
-	// - Class constructor calls: TClassName.Create(args)
+	// - Class constructor calls: TClassName.Create(args) [DEPRECATED - now uses VisitMethodCallExpression]
 	// Parameters:
 	//   - callExpr: The original CallExpression AST node
 	//   - memberAccess: The MemberAccessExpression (unit.func or class.method)
 	// Returns the call result or an error.
+	//
+	// Deprecated: Task 3.5.147 - Class constructor calls now use VisitMethodCallExpression directly.
+	// This method is still used for unit-qualified function calls only.
 	CallQualifiedOrConstructor(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression) Value
 
 	// ===== Task 3.5.97: User Function Call Methods =====
@@ -843,7 +861,22 @@ type InterpreterAdapter interface {
 	//   - funcName: The method identifier
 	// Returns the method call result or an error.
 	// Task 3.5.97c: Enables record static method calls without EvalNode.
+	//
+	// Deprecated: Task 3.5.146 - Use DispatchRecordStaticMethod instead.
+	// This method re-fetches __CurrentRecord__ which the evaluator already has.
 	CallRecordStaticMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
+
+	// DispatchRecordStaticMethod dispatches a static method call on a record type.
+	// Unlike CallRecordStaticMethod, this method takes the record type name directly,
+	// avoiding the need to re-fetch __CurrentRecord__ from the environment.
+	// The evaluator handles the lookup and validation via RecordTypeMetaValue interface.
+	// Parameters:
+	//   - recordTypeName: The record type name (e.g., "TPoint")
+	//   - callExpr: The original CallExpression AST node
+	//   - funcName: The method identifier
+	// Returns the method call result or an error.
+	// Task 3.5.146: Simpler adapter method that just creates MethodCallExpression and dispatches.
+	DispatchRecordStaticMethod(recordTypeName string, callExpr *ast.CallExpression, funcName *ast.Identifier) Value
 
 	// ===== Task 3.5.99b: JSON Value Helpers =====
 

@@ -194,16 +194,59 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		}
 
 		// Task 3.5.96: Member method calls (record, interface, object)
+		// Task 3.5.147: Migrated to use DispatchMethodCall directly
 		// Examples: myRecord.GetValue(), myInterface.Process(), myObj.DoSomething()
 		if objVal.Type() == "RECORD" || objVal.Type() == "INTERFACE" || objVal.Type() == "OBJECT" {
-			return e.adapter.CallMemberMethod(node, memberAccess, objVal)
+			// Evaluate arguments
+			args := make([]Value, len(node.Arguments))
+			for i, arg := range node.Arguments {
+				val := e.Eval(arg, ctx)
+				if isError(val) {
+					return val
+				}
+				args[i] = val
+			}
+
+			// Create a synthetic MethodCallExpression for error reporting
+			mc := &ast.MethodCallExpression{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: node.Token,
+					},
+				},
+				Object:    memberAccess.Object,
+				Method:    memberAccess.Member,
+				Arguments: node.Arguments,
+			}
+
+			// Dispatch method call directly using existing infrastructure
+			return e.DispatchMethodCall(objVal, memberAccess.Member.Value, args, mc, ctx)
 		}
 
 		// Task 3.5.96: Unit-qualified function calls and class constructor calls
+		// Task 3.5.147: Split handling for cleaner dispatch
 		// Examples: Math.Sin(x), TMyClass.Create(args)
-		// Task 3.5.64: Use direct TypeRegistry access to check for class existence
 		if identNode, ok := memberAccess.Object.(*ast.Identifier); ok {
-			if e.unitRegistry != nil || e.typeSystem.HasClass(identNode.Value) {
+			// Task 3.5.147: Check for class constructor first (via TypeRegistry)
+			// This creates a MethodCallExpression and dispatches via VisitMethodCallExpression
+			if e.typeSystem.HasClass(identNode.Value) {
+				// Convert to MethodCallExpression for constructor/static method dispatch
+				mc := &ast.MethodCallExpression{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: node.Token,
+						},
+					},
+					Object:    identNode,
+					Method:    memberAccess.Member,
+					Arguments: node.Arguments,
+				}
+				return e.VisitMethodCallExpression(mc, ctx)
+			}
+
+			// Task 3.5.147: Unit-qualified function calls (via unitRegistry)
+			// Delegate to adapter for unit resolution and function dispatch
+			if e.unitRegistry != nil {
 				return e.adapter.CallQualifiedOrConstructor(node, memberAccess)
 			}
 		}
@@ -245,13 +288,23 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	}
 
 	// Task 3.5.24: Record static method calls
-	// Task 3.5.97c: Migrated to use CallRecordStaticMethod adapter method
+	// Task 3.5.146: Use RecordTypeMetaValue interface for static method lookup.
 	// When inside a record static method context, allows calling other static methods
 	// Example: Inside record static method, calling Count() calls TRecord.Count()
 	if recordRaw, ok := ctx.Env().Get("__CurrentRecord__"); ok {
 		if recordVal, ok := recordRaw.(Value); ok {
 			if recordVal.Type() == "RECORD_TYPE" {
-				return e.adapter.CallRecordStaticMethod(node, funcName)
+				// Task 3.5.146: Use RecordTypeMetaValue interface for direct static method lookup
+				if rtmv, ok := recordVal.(RecordTypeMetaValue); ok {
+					if rtmv.HasStaticMethod(funcName.Value) {
+						// Static method exists - dispatch via simpler adapter method
+						return e.adapter.DispatchRecordStaticMethod(rtmv.GetRecordTypeName(), node, funcName)
+					}
+					// Static method not found - fall through to other resolution attempts
+				} else {
+					// Fallback to deprecated adapter method for non-implementing types
+					return e.adapter.CallRecordStaticMethod(node, funcName)
+				}
 			}
 		}
 	}

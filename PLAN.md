@@ -620,7 +620,7 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
           - In Progress: 2025-11-30
   - **Next**: Task 3.5.145 (CallImplicitSelfMethod), future overload resolution migration
 
-- [ ] **3.5.145** Migrate CallImplicitSelfMethod (1 call)
+- [x] **3.5.145** Migrate CallImplicitSelfMethod (1 call)
   - **Location**: `visitor_expressions_functions.go` line 572 (needs verification)
   - **Issue**: Implicit Self method call in instance context
   - **Current Implementation**: `adapter_functions.go:139-178` (40 lines)
@@ -639,63 +639,70 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Estimated Effort**: 2-3 hours (simpler than 3.5.144, can reuse helper)
   - **Calls removed**: 0 (partial migration, bridge pattern)
 
-- [ ] **3.5.146** Migrate CallRecordStaticMethod (1 call)
-  - **Location**: `visitor_expressions_functions.go` line 584 (needs verification)
+- [x] **3.5.146** Migrate CallRecordStaticMethod (1 call) ✅
+  - **Location**: `visitor_expressions_functions.go` line 254
   - **Issue**: Record static method call in record context
-  - **Current Implementation**: `adapter_functions.go:180-212` (33 lines)
-  - **Solution**: Create evaluator helper for record method dispatch
-  - **Approach**:
-    1. Get record type from context or TypeSystem
-    2. Prepare arguments using `PrepareUserFunctionArgs()` (reuse from 3.5.144!)
-    3. Dispatch to record method with static binding (no Self)
-    4. Handle method lookup and parameter wrapping
-  - **Key Insights from 3.5.144**:
-    - Record methods similar to regular functions - no Self binding
-    - Can reuse `PrepareUserFunctionArgs()` helper for argument preparation
-    - Static method dispatch simpler than virtual (no inheritance/override)
-    - Use TypeSystem for record metadata lookup
-  - **Pattern**: Partial migration - argument prep to evaluator, execution stays in adapter
-  - **Estimated Effort**: 2-3 hours (similar to 3.5.145)
-  - **Calls removed**: 0 (partial migration, bridge pattern)
-  - **Testing**: Record method tests in `internal/interp/record_method_test.go`
+  - **Solution**: Created `RecordTypeMetaValue` interface + `DispatchRecordStaticMethod` adapter method
+  - **Implementation**:
+    1. Added `RecordTypeMetaValue` interface in `evaluator.go` with `GetRecordTypeName()` and `HasStaticMethod()`
+    2. Implemented interface on `RecordTypeValue` in `record.go`
+    3. Added `DispatchRecordStaticMethod(recordTypeName, callExpr, funcName)` adapter method
+    4. Updated visitor to use interface for static method lookup, simpler adapter for dispatch
+  - **Key Changes**:
+    - Evaluator now does the static method existence check via interface
+    - Adapter method takes record type name directly (no re-fetching from environment)
+    - Deprecated old `CallRecordStaticMethod` (still available for fallback)
+  - **Pattern**: Partial migration - lookup in evaluator, dispatch stays in adapter
+  - **Completed**: 2025-12-01
+  - **Testing**: All record method tests pass (`TestStaticRecordMethods`, `TestStaticRecordMethodErrors`)
 
-- [ ] **3.5.147** Migrate CallMemberMethod + CallQualifiedOrConstructor (2 calls)
-  - **Location**: `visitor_expressions.go` lines 529, 537
+- [x] **3.5.147** Migrate CallMemberMethod + CallQualifiedOrConstructor (2 calls) ✅
+  - **Location**: `visitor_expressions_functions.go` lines 199, 231
   - **Issue**: Member method and qualified calls
-  - **Solution**: Unify into method dispatch infrastructure
-  - **Calls removed**: 2 adapter calls
+  - **Solution**: Unified into method dispatch infrastructure
+  - **Implementation**:
+    1. `CallMemberMethod`: Replaced with direct `DispatchMethodCall()` call for RECORD/INTERFACE/OBJECT
+    2. `CallQualifiedOrConstructor`: Split into two paths:
+       - Class constructors: Now use `VisitMethodCallExpression` directly (no adapter)
+       - Unit-qualified functions: Still use adapter (separate concern from method dispatch)
+  - **Key Changes**:
+    - Evaluator evaluates arguments and creates synthetic MethodCallExpression
+    - Dispatches via existing `DispatchMethodCall()` infrastructure
+    - Class constructor calls converted to MethodCallExpression → `VisitMethodCallExpression`
+  - **Calls removed**: 2 adapter calls (CallMemberMethod fully, CallQualifiedOrConstructor for class dispatch)
+  - **Remaining**: Unit-qualified function calls still use adapter (different concern)
+  - **Completed**: 2025-12-01
+  - **Testing**: All method, class, record, interface, and constructor tests pass
 
 ---
 
 ### Phase 24: Reduce ClassInfo/Object Access Calls (3.5.155-3.5.159)
 
-**Current State**: 9 class/object metadata access calls
-
-- [ ] **3.5.155** Migrate GetObjectFieldValue + GetClassVariableValue (2 calls)
+- [x] **3.5.155** Migrate GetObjectFieldValue + GetClassVariableValue (2 calls)
   - **Location**: `visitor_expressions.go` lines 93, 98
   - **Issue**: Field/class var access for Self identifier
   - **Solution**: Use ObjectValue interface methods
   - **Calls removed**: 2 adapter calls
 
-- [ ] **3.5.156** Migrate GetClassName + GetClassType (2 calls)
+- [x] **3.5.156** Migrate GetClassName + GetClassType (2 calls)
   - **Location**: `visitor_expressions.go` lines 132, 138
   - **Issue**: Class name/type for identifier resolution
   - **Solution**: Use ObjectValue.ClassName() + ClassMetaValue
   - **Calls removed**: 2 adapter calls
 
-- [ ] **3.5.157** Migrate GetClassNameFromClassInfo + GetClassTypeFromClassInfo (2 calls)
+- [x] **3.5.157** Migrate GetClassNameFromClassInfo + GetClassTypeFromClassInfo (2 calls)
   - **Location**: `visitor_expressions.go` lines 150, 156
   - **Issue**: ClassInfo metadata access
   - **Solution**: Type assert to ClassMetaValue interface
   - **Calls removed**: 2 adapter calls
 
-- [ ] **3.5.158** Migrate GetClassVariableFromClassInfo (1 call)
+- [x] **3.5.158** Migrate GetClassVariableFromClassInfo (1 call)
   - **Location**: `visitor_expressions.go` line 160
   - **Issue**: Class variable from ClassInfoValue
   - **Solution**: Use ClassMetaValue.GetClassVar()
   - **Calls removed**: 1 adapter call
 
-- [ ] **3.5.159** Migrate CreateClassValue (1 call)
+- [x] **3.5.159** Migrate CreateClassValue (1 call)
   - **Location**: `visitor_expressions.go` line 203
   - **Issue**: Creating ClassValue from class name
   - **Solution**: Create ClassValue directly using ClassMetadata

@@ -328,6 +328,24 @@ func (r *RecordTypeValue) GetFieldDecls() map[string]*ast.FieldDecl {
 	return r.FieldDecls
 }
 
+// GetRecordTypeName returns the record type name (e.g., "TPoint").
+// Task 3.5.146: Implements evaluator.RecordTypeMetaValue interface for static method dispatch.
+func (r *RecordTypeValue) GetRecordTypeName() string {
+	if r.RecordType != nil {
+		return r.RecordType.Name
+	}
+	return ""
+}
+
+// HasStaticMethod checks if a static method (class function/procedure) with the given name exists.
+// The lookup is case-insensitive.
+// Task 3.5.146: Implements evaluator.RecordTypeMetaValue interface for static method dispatch.
+func (r *RecordTypeValue) HasStaticMethod(name string) bool {
+	methodNameLower := ident.Normalize(name)
+	overloads, exists := r.ClassMethodOverloads[methodNameLower]
+	return exists && len(overloads) > 0
+}
+
 // createRecordValue creates a new RecordValue with proper method lookup for nested records.
 // Task 9.7e1: Helper to create records with method resolution for nested record fields.
 // Task 9.5: Initialize fields with field initializers.
