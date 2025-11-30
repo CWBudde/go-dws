@@ -3,6 +3,7 @@ package evaluator
 import (
 	"fmt"
 
+	"github.com/cwbudde/go-dws/internal/interp/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -326,8 +327,13 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		args[idx] = val
 	}
 
-	// Call built-in function via adapter
-	return e.adapter.CallBuiltinFunction(funcName.Value, args)
+	// Call built-in function directly from registry
+	// Task 3.5.143x: Use direct registry lookup instead of adapter delegation
+	if fn, ok := builtins.DefaultRegistry.Lookup(funcName.Value); ok {
+		return fn(e, args) // Evaluator implements builtins.Context
+	}
+	// Not found in registry - this should not happen if FunctionRegistry is correct
+	return e.newError(node, "builtin function '%s' not found in registry", funcName.Value)
 }
 
 // VisitNewExpression evaluates a 'new' expression (object instantiation).

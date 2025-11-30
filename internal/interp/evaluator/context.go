@@ -569,3 +569,24 @@ func (e *Evaluator) RaiseAssertionFailed(customMessage string) {
 	// position information and custom message, then store it in i.exception.
 	e.adapter.RaiseAssertionFailed(customMessage)
 }
+
+// ============================================================================
+// Function Pointer Delegation (Task 3.5.143v)
+// ============================================================================
+
+// EvalFunctionPointer executes a function pointer with given arguments.
+//
+// IMPORTANT: This method delegates to the adapter (not migrated to Evaluator).
+// Task 3.5.143v: Deferred to Phase 3.6+ because it requires full function
+// execution context setup (environment management, closure capture, recursion
+// tracking) that is complex to migrate. This is the ONLY Context method that
+// still uses adapter delegation.
+//
+// All other 39 Context methods have been implemented directly on Evaluator.
+//
+// This implements the builtins.Context interface by delegating to the adapter's
+// CallFunctionPointer method.
+func (e *Evaluator) EvalFunctionPointer(funcPtr Value, args []Value) Value {
+	// Delegate to adapter.CallFunctionPointer with current node for error reporting
+	return e.adapter.CallFunctionPointer(funcPtr, args, e.currentNode)
+}

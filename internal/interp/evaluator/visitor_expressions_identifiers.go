@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"github.com/cwbudde/go-dws/internal/interp/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -189,9 +190,14 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 	// Final check: check for built-in functions or return undefined error
 	// Task 3.5.85: Direct built-in invocation without adapter EvalNode call
+	// Task 3.5.143x: Use direct registry lookup instead of adapter delegation
 	if e.FunctionRegistry().IsBuiltin(node.Value) {
 		// Parameterless built-in functions are auto-invoked
-		return e.adapter.CallBuiltinFunction(node.Value, []Value{})
+		if fn, ok := builtins.DefaultRegistry.Lookup(node.Value); ok {
+			return fn(e, []Value{}) // Call with empty args (parameterless auto-invoke)
+		}
+		// Builtin registered but not found in registry - should not happen
+		return e.newError(node, "builtin function '%s' registered but not found in registry", node.Value)
 	}
 
 	// Still not found - return error

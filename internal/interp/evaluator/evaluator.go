@@ -4,6 +4,7 @@ import (
 	"io"
 	"math/rand"
 
+	"github.com/cwbudde/go-dws/internal/interp/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/units"
@@ -11,12 +12,9 @@ import (
 )
 
 // Value represents a runtime value in the DWScript interpreter.
-// This is temporarily defined here to avoid circular imports during the refactoring.
-// In the final architecture, this will be properly organized.
-type Value interface {
-	Type() string
-	String() string
-}
+// This is aliased from the runtime package to match builtins.Context interface.
+// Task 3.5.143w: Changed from interface to type alias to match builtins.Value.
+type Value = runtime.Value
 
 // ObjectValue is an optional interface that object instances can implement
 // to provide direct access to class metadata without going through the adapter.
@@ -374,8 +372,8 @@ type InterpreterAdapter interface {
 	// Still used for: function pointer calls, method calls, explicit calls with arguments
 	CallUserFunction(fn *ast.FunctionDecl, args []Value) Value
 
-	// CallBuiltinFunction executes a built-in function by name.
-	CallBuiltinFunction(name string, args []Value) Value
+	// Task 3.5.143y: CallBuiltinFunction REMOVED - evaluator now calls builtins directly via registry
+	// Evaluator implements builtins.Context and uses builtins.DefaultRegistry.Lookup() instead
 
 	// LookupFunction finds a function by name in the function registry.
 	// Returns the function declaration(s) and a boolean indicating success.
@@ -920,6 +918,10 @@ type Evaluator struct {
 	randSeed          int64
 	currentContext    *ExecutionContext // Task 3.5.143n: For Context methods needing runtime state (call stack)
 }
+
+// Ensure Evaluator implements builtins.Context interface at compile time.
+// Task 3.5.143w: Compile-time verification that all 40 Context methods are implemented.
+var _ builtins.Context = (*Evaluator)(nil)
 
 // NewEvaluator creates a new Evaluator with the given dependencies.
 // Task 3.5.76: semanticInfo is now passed via constructor (like TypeRegistry)
