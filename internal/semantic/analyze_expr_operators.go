@@ -170,13 +170,30 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		return nil
 	}
 
-	// Task 9.228: When a function is referenced as a value (not called),
-	// implicitly convert it to a function pointer type.
-	// This allows functions to be passed as arguments to higher-order functions.
-	// Example: PrintLn(First(Second)) where Second is a function
+	// Task 9.228 + Function Name Alias: Handle function/procedure references
+	// When a function is referenced as a value (not called), there are two cases:
+	// 1. Inside the function's own body: function name is an alias for Result variable
+	// 2. Outside the function body: convert to function pointer type
 	if funcType, ok := sym.Type.(*types.FunctionType); ok {
-		// Convert function type to function pointer type
-		// Note: FunctionType uses VOID for procedures, but FunctionPointerType uses nil
+		// Check if we're inside the function's own body (function name = Result alias)
+		// In DWScript, the function name can be used as an alias for the Result variable
+		if a.currentFunction != nil && ident.Equal(a.currentFunction.Name.Value, identifier.Value) {
+			// Inside the function's own body - function name is an alias for Result
+
+			// Procedures (no return type) don't have a Result variable
+			// Return nil to trigger "unknown name" error for reads
+			if funcType.IsProcedure() {
+				return nil
+			}
+
+			// For functions with return types, return the return type
+			// This allows: GetValue := GetValue + 1
+			return funcType.ReturnType
+		}
+
+		// Outside the function body - convert to function pointer type (existing behavior)
+		// This allows functions to be passed as arguments to higher-order functions.
+		// Example: PrintLn(First(Second)) where Second is a function
 		returnType := funcType.ReturnType
 		if funcType.IsProcedure() {
 			returnType = nil
