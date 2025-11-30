@@ -96,13 +96,7 @@ func (i *Interpreter) ParseInlineArrayType(typeName string) (any, error) {
 	return arrType, nil
 }
 
-// LookupSubrangeType finds a subrange type by name.
-func (i *Interpreter) LookupSubrangeType(name string) (any, bool) {
-	normalizedName := ident.Normalize(name)
-	subrangeTypeKey := "__subrange_type_" + normalizedName
-	typeVal, ok := i.env.Get(subrangeTypeKey)
-	return typeVal, ok
-}
+// Task 3.5.138: LookupSubrangeType removed - evaluator now uses ctx.Env().Get() directly
 
 // TryImplicitConversion attempts an implicit type conversion.
 func (i *Interpreter) TryImplicitConversion(value evaluator.Value, targetTypeName string) (evaluator.Value, bool) {

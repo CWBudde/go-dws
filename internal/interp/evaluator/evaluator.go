@@ -618,10 +618,7 @@ type InterpreterAdapter interface {
 	// Returns the array type (as any/interface{}) and an error if parsing fails.
 	ParseInlineArrayType(typeName string) (any, error)
 
-	// LookupSubrangeType finds a subrange type by name in the subrange type registry.
-	// Returns the subrange type value (as any/interface{}) and a boolean indicating success.
-	// The lookup is case-insensitive.
-	LookupSubrangeType(name string) (any, bool)
+	// Task 3.5.138: LookupSubrangeType removed - use ctx.Env().Get("__subrange_type_" + ident.Normalize(name)) directly
 
 	// TryImplicitConversion attempts an implicit type conversion from value to targetTypeName.
 	// Returns the converted value and true if conversion succeeded, or original value and false if not.
