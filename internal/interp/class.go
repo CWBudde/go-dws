@@ -465,6 +465,15 @@ func (o *ObjectInstance) ClassName() string {
 	return o.Class.Name
 }
 
+// GetClassType returns the class type (metaclass) for this object instance.
+// Task 3.5.156: Implements evaluator.ObjectValue interface.
+func (o *ObjectInstance) GetClassType() Value {
+	if o == nil || o.Class == nil {
+		return nil
+	}
+	return &ClassValue{ClassInfo: o.Class}
+}
+
 // HasProperty checks if this object's class has a property with the given name.
 // The check includes the entire class hierarchy.
 // Task 3.5.72: Implements evaluator.ObjectValue interface.
@@ -684,6 +693,13 @@ func (c *ClassValue) GetClassName() string {
 		return ""
 	}
 	return c.ClassInfo.Name
+}
+
+// GetClassType returns the class type (metaclass) as a ClassValue.
+// Task 3.5.157: Implements evaluator.ClassMetaValue interface.
+// For ClassValue, this returns itself since it already represents the class type.
+func (c *ClassValue) GetClassType() Value {
+	return c
 }
 
 // GetClassVar retrieves a class variable value by name from the class hierarchy.
