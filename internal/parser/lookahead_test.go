@@ -117,34 +117,52 @@ func TestPeekAheadHelper(t *testing.T) {
 // TestLooksLikeVarDeclaration tests the var declaration disambiguation.
 func TestLooksLikeVarDeclaration(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		expected bool
+		name          string
+		input         string
+		allowInferred bool
+		expected      bool
 	}{
 		{
-			name:     "explicit type - should be var declaration",
-			input:    "var x : Integer",
-			expected: true,
+			name:          "explicit type - should be var declaration",
+			input:         "var x : Integer",
+			allowInferred: false,
+			expected:      true,
 		},
 		{
-			name:     "multi-var declaration with comma",
-			input:    "var x, y : Integer",
-			expected: true,
+			name:          "multi-var declaration with comma",
+			input:         "var x, y : Integer",
+			allowInferred: false,
+			expected:      true,
 		},
 		{
-			name:     "var with assignment - ambiguous, should be false",
-			input:    "var x := 5",
-			expected: false,
+			name:          "var with assignment - ambiguous when inference disabled",
+			input:         "var x := 5",
+			allowInferred: false,
+			expected:      false,
 		},
 		{
-			name:     "var with equals - ambiguous, should be false",
-			input:    "var x = 5",
-			expected: false,
+			name:          "var with assignment - allowed in block var section",
+			input:         "var x := 5",
+			allowInferred: true,
+			expected:      true,
 		},
 		{
-			name:     "not starting with ident - should be false",
-			input:    "var begin end",
-			expected: false,
+			name:          "var with equals - ambiguous when inference disabled",
+			input:         "var x = 5",
+			allowInferred: false,
+			expected:      false,
+		},
+		{
+			name:          "var with equals - allowed in block var section",
+			input:         "var x = 5",
+			allowInferred: true,
+			expected:      true,
+		},
+		{
+			name:          "not starting with ident - should be false",
+			input:         "var begin end",
+			allowInferred: true,
+			expected:      false,
 		},
 	}
 
@@ -154,7 +172,7 @@ func TestLooksLikeVarDeclaration(t *testing.T) {
 			p := New(l)
 			// After New(), curToken = VAR, peekToken = IDENT or other
 
-			result := p.looksLikeVarDeclaration(p.cursor)
+			result := p.looksLikeVarDeclaration(p.cursor, tt.allowInferred)
 			if result != tt.expected {
 				t.Errorf("looksLikeVarDeclaration() = %v, want %v for input: %s",
 					result, tt.expected, tt.input)

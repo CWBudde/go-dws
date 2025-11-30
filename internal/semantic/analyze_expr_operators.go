@@ -170,6 +170,12 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		return nil
 	}
 
+	// Emit a hint when the identifier casing doesn't match its declaration.
+	if sym.Name != "" && sym.Name != identifier.Value && ident.Equal(sym.Name, identifier.Value) {
+		a.addHint("\"%s\" does not match case of declaration (\"%s\") [line: %d, column: %d]",
+			identifier.Value, sym.Name, identifier.Token.Pos.Line, identifier.Token.Pos.Column)
+	}
+
 	// Task 9.228 + Function Name Alias: Handle function/procedure references
 	// When a function is referenced as a value (not called), there are two cases:
 	// 1. Inside the function's own body: function name is an alias for Result variable

@@ -150,6 +150,21 @@ func TestConstWithCharacterLiteralConcatenation(t *testing.T) {
 	expectNoErrors(t, input)
 }
 
+func TestConstBlockSharesScope(t *testing.T) {
+	input := `
+		const
+			C1 = 1;
+			C2 = C1 + 1;
+
+		var v: Integer := C2;
+
+		begin
+			PrintLn(C1 + v);
+		end;
+	`
+	expectNoErrors(t, input)
+}
+
 // Test Ord/Chr in const context
 func TestConstWithOrdFunction(t *testing.T) {
 	input := `const CODE = Ord('A');`

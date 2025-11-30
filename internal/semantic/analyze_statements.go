@@ -517,15 +517,14 @@ func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, value
 
 // analyzeBlock analyzes a block statement
 func (a *Analyzer) analyzeBlock(stmt *ast.BlockStatement) {
-	// Check if this block contains only type declarations
-	// (enum, class, interface, record, set, array type, type alias, etc.)
-	// If so, don't create a new scope - type declarations should be visible
-	// at the program level, not scoped to the type section block
-	isTypeDeclarationBlock := a.isTypeDeclarationBlock(stmt)
+	// Check if this block is a declaration section (types/const/var).
+	// Declaration sections should not create a new scope - their symbols
+	// must stay visible to subsequent statements in the enclosing scope.
+	shareEnclosingScope := a.isTypeDeclarationBlock(stmt) || a.isConstOrVarDeclBlock(stmt)
 
 	// Create a new scope for the block (unless it's a type declaration block)
 	var oldSymbols *SymbolTable
-	if !isTypeDeclarationBlock {
+	if !shareEnclosingScope {
 		oldSymbols = a.symbols
 		a.symbols = NewEnclosedSymbolTable(oldSymbols)
 		defer func() { a.symbols = oldSymbols }()
@@ -557,6 +556,35 @@ func (a *Analyzer) isTypeDeclarationBlock(stmt *ast.BlockStatement) bool {
 	}
 
 	return true
+}
+
+// isConstOrVarDeclBlock checks if a block statement contains only const or var
+// declarations (as produced by the parser when a single const/var keyword
+// introduces multiple declarations). These blocks should share the enclosing
+// scope so that declared symbols remain visible.
+func (a *Analyzer) isConstOrVarDeclBlock(stmt *ast.BlockStatement) bool {
+	if len(stmt.Statements) == 0 {
+		return false
+	}
+
+	switch stmt.Token.Type {
+	case lexer.CONST:
+		for _, s := range stmt.Statements {
+			if _, ok := s.(*ast.ConstDecl); !ok {
+				return false
+			}
+		}
+		return true
+	case lexer.VAR:
+		for _, s := range stmt.Statements {
+			if _, ok := s.(*ast.VarDeclStatement); !ok {
+				return false
+			}
+		}
+		return true
+	default:
+		return false
+	}
 }
 
 // analyzeIf analyzes an if statement
