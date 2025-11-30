@@ -559,11 +559,30 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
           - 7 unit tests in `user_function_helpers_test.go`
           - Integrated in `adapter_functions.go:CallUserFunctionWithOverloads`
           - Kept backward compat in `callUserFunction` for other call paths
-        - [ ] **3.5.144b.2** Extract parameter binding logic (1.5 hours, MEDIUM risk - needs tryImplicitConversion)
-        - [ ] **3.5.144b.3** Extract Result variable initialization (1 hour, MEDIUM risk - complex type handling)
-        - [ ] **3.5.144b.4** Extract function name alias setup (30 min, LOW risk - ReferenceValue pattern from 3.5.144)
-        - [ ] **3.5.144b.5** Extract precondition checking (1 hour, MEDIUM risk - needs contracts migration)
-        - [ ] **3.5.144b.6** Extract old value capture for postconditions (1 hour, MEDIUM risk)
+        - [x] **3.5.144b.2** Extract parameter binding logic (1.5 hours, MEDIUM risk - needs tryImplicitConversion) ✅
+          - Created `BindFunctionParameters()` in `user_function_helpers.go`
+          - Uses callback pattern for `tryImplicitConversion` (deferred to adapter)
+          - 6 unit tests covering: basic binding, conversion, var params, no params, mixed, nil type
+          - Integration deferred to 3.5.144b.11/12 (unify + adapter update)
+        - [x] **3.5.144b.3** Extract Result variable initialization (1 hour, MEDIUM risk - complex type handling) ✅
+          - Created `InitializeResultVariable()` in `user_function_helpers.go`
+          - Uses `DefaultValueFunc` callback for complex type resolution (records, arrays, interfaces)
+          - Uses `FunctionNameAliasFunc` callback for ReferenceValue creation
+          - 5 unit tests covering: procedures, functions, function name alias, nil callbacks, float default
+          - Integration deferred to 3.5.144b.11/12 (unify + adapter update)
+        - [x] **3.5.144b.4** Extract function name alias setup (30 min, LOW risk - ReferenceValue pattern from 3.5.144) ✅
+          - SKIPPED: Already handled in 3.5.144b.3 via `FunctionNameAliasFunc` callback
+          - The callback creates the ReferenceValue pointing to "Result" (line 137 in original)
+        - [x] **3.5.144b.5** Extract precondition checking (1 hour, MEDIUM risk - needs contracts migration) ✅
+          - Created public wrapper `CheckPreconditions()` in `user_function_helpers.go`
+          - Exposes existing private `checkPreconditions()` from `contracts.go`
+          - Returns Value (error or nil) for exception handling
+          - Completed: 2025-11-30
+        - [x] **3.5.144b.6** Extract old value capture for postconditions (1 hour, MEDIUM risk) ✅
+          - Created public wrappers `CheckPostconditions()` and `CaptureOldValues()` in `user_function_helpers.go`
+          - Exposes existing private methods from `contracts.go` (lines 87-108, 195-249)
+          - Reuses recursive `findOldExpressions()` logic for AST traversal
+          - Completed: 2025-11-30
         - [ ] **3.5.144b.7** Extract function body execution (30 min, LOW risk - already in evaluator)
         - [ ] **3.5.144b.8** Extract Result value extraction (30 min, MEDIUM risk - needs conversion)
         - [ ] **3.5.144b.9** Extract postcondition checking (1 hour, MEDIUM risk - needs contracts)
