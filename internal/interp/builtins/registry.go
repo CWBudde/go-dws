@@ -4,6 +4,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
@@ -61,6 +62,69 @@ type FunctionInfo struct {
 
 	// Description is a brief description of what the function does
 	Description string
+
+	// Signature holds type information for the function.
+	// This enables semantic analysis of @Builtin address-of expressions.
+	// Task 9.24.1: Added for built-in function pointer type metadata.
+	Signature *FunctionSignature
+}
+
+// FunctionSignature describes the type signature of a built-in function.
+// Task 9.24.1: Enables type-safe function pointer handling for built-ins.
+type FunctionSignature struct {
+	// ParamTypes are the types of the function's parameters.
+	// For variadic functions, this contains the types of the fixed parameters.
+	ParamTypes []types.Type
+
+	// ReturnType is the function's return type (nil for procedures).
+	ReturnType types.Type
+
+	// IsVariadic indicates the function accepts variable arguments (like Print, PrintLn).
+	// Variadic functions cannot be used with function pointers.
+	IsVariadic bool
+
+	// MinArgs is the minimum number of arguments (for functions with optional params).
+	MinArgs int
+
+	// MaxArgs is the maximum number of arguments (-1 for unlimited/variadic).
+	MaxArgs int
+}
+
+// Sig creates a FunctionSignature for a function with fixed parameters.
+// Task 9.24.1: Helper for concise signature registration.
+func Sig(params []types.Type, ret types.Type) *FunctionSignature {
+	n := len(params)
+	return &FunctionSignature{
+		ParamTypes: params,
+		ReturnType: ret,
+		IsVariadic: false,
+		MinArgs:    n,
+		MaxArgs:    n,
+	}
+}
+
+// SigOptional creates a FunctionSignature with optional parameters.
+// Task 9.24.1: Helper for functions with optional/default parameters.
+func SigOptional(params []types.Type, ret types.Type, minArgs int) *FunctionSignature {
+	return &FunctionSignature{
+		ParamTypes: params,
+		ReturnType: ret,
+		IsVariadic: false,
+		MinArgs:    minArgs,
+		MaxArgs:    len(params),
+	}
+}
+
+// SigVariadic creates a FunctionSignature for a variadic function.
+// Task 9.24.1: Helper for variadic functions (Print, PrintLn, etc.).
+func SigVariadic(params []types.Type, ret types.Type, minArgs int) *FunctionSignature {
+	return &FunctionSignature{
+		ParamTypes: params,
+		ReturnType: ret,
+		IsVariadic: true,
+		MinArgs:    minArgs,
+		MaxArgs:    -1, // unlimited
+	}
 }
 
 // Registry manages all built-in functions.
@@ -84,6 +148,12 @@ func NewRegistry() *Registry {
 // If a function with the same name is already registered, it will be replaced,
 // but the category list will not contain duplicate entries.
 func (r *Registry) Register(name string, fn BuiltinFunc, category Category, description string) {
+	r.RegisterWithSignature(name, fn, category, description, nil)
+}
+
+// RegisterWithSignature adds a built-in function with type signature to the registry.
+// Task 9.24.1: Enables semantic analysis of @Builtin address-of expressions.
+func (r *Registry) RegisterWithSignature(name string, fn BuiltinFunc, category Category, description string, sig *FunctionSignature) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -92,6 +162,7 @@ func (r *Registry) Register(name string, fn BuiltinFunc, category Category, desc
 		Function:    fn,
 		Category:    category,
 		Description: description,
+		Signature:   sig,
 	}
 
 	// Check if already registered to prevent duplicate category entries
@@ -129,6 +200,19 @@ func (r *Registry) Lookup(name string) (BuiltinFunc, bool) {
 
 	if info, ok := r.functions.Get(name); ok {
 		return info.Function, true
+	}
+	return nil, false
+}
+
+// GetSignature returns the type signature for a function by name (case-insensitive).
+// Returns the signature and true if found, nil and false otherwise.
+// Task 9.24.1: Used by semantic analyzer for @Builtin address-of validation.
+func (r *Registry) GetSignature(name string) (*FunctionSignature, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if info, ok := r.functions.Get(name); ok {
+		return info.Signature, info.Signature != nil
 	}
 	return nil, false
 }

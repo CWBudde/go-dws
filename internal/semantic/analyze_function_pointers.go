@@ -3,6 +3,7 @@ package semantic
 import (
 	"fmt"
 
+	"github.com/cwbudde/go-dws/internal/interp/builtins"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -142,10 +143,39 @@ func (a *Analyzer) analyzeAddressOfExpression(expr *ast.AddressOfExpression) typ
 }
 
 // analyzeAddressOfFunction resolves a function name and creates a function pointer type.
+// Task 9.24.5: Updated to query builtin registry for function signatures.
 func (a *Analyzer) analyzeAddressOfFunction(funcName string, expr *ast.AddressOfExpression) types.Type {
 	// Look up the function in the symbol table
 	sym, ok := a.symbols.Resolve(funcName)
 	if !ok {
+		// Task 9.24.5: Query builtin registry for function signatures
+		if sig, found := builtins.DefaultRegistry.GetSignature(funcName); found {
+			// Check if the builtin is variadic - these cannot be used with function pointers
+			if sig.IsVariadic {
+				a.addError("cannot take address of variadic built-in function '%s' at %s",
+					funcName, expr.Token.Pos.String())
+				return nil
+			}
+			// Note: Builtins with optional parameters (MinArgs != MaxArgs) are allowed.
+			// Per decision 2B: Allow ambiguous builtins, validate at call time.
+			// The function pointer type uses the full signature (max args).
+			// Build function pointer type from builtin signature
+			return a.buildFunctionPointerTypeFromBuiltin(funcName, sig, expr)
+		}
+
+		// Check if it's a known builtin without signature metadata
+		if builtins.DefaultRegistry.Has(funcName) {
+			// Builtin exists but has no signature - allow it, interpreter handles via BuiltinName
+			// Return a generic function pointer type
+			funcPtrType := types.NewFunctionPointerType(nil, types.VARIANT)
+			// Set the type annotation on the expression node
+			typeAnnotation := &ast.TypeAnnotation{
+				Name: fmt.Sprintf("function pointer to %s", funcName),
+			}
+			a.semanticInfo.SetType(expr, typeAnnotation)
+			return funcPtrType
+		}
+
 		a.addError("undefined function '%s' in address-of expression at %s",
 			funcName, expr.Token.Pos.String())
 		return nil
@@ -162,14 +192,41 @@ func (a *Analyzer) analyzeAddressOfFunction(funcName string, expr *ast.AddressOf
 	// Create a function pointer type from the function's signature
 	// Task 9.160: Extract parameter types and return type
 	// For procedures, the return type should be nil (not VOID)
+	return a.buildFunctionPointerType(funcName, funcType, expr)
+}
+
+// buildFunctionPointerTypeFromBuiltin creates a FunctionPointerType from a builtin signature.
+// Task 9.24.5: New helper for builtin function pointer types.
+func (a *Analyzer) buildFunctionPointerTypeFromBuiltin(funcName string, sig *builtins.FunctionSignature, expr *ast.AddressOfExpression) types.Type {
+	// Convert nil return type to proper representation
+	var returnType types.Type
+	if sig.ReturnType != nil && sig.ReturnType != types.VOID {
+		returnType = sig.ReturnType
+	}
+
+	funcPtrType := types.NewFunctionPointerType(sig.ParamTypes, returnType)
+
+	// Task 9.24.5: Set the type annotation on the expression node
+	// The interpreter will use the builtin registry to look up the function at runtime
+	typeAnnotation := &ast.TypeAnnotation{
+		Name: fmt.Sprintf("function pointer to %s", funcName),
+	}
+	a.semanticInfo.SetType(expr, typeAnnotation)
+
+	return funcPtrType
+}
+
+// buildFunctionPointerType creates a FunctionPointerType from a function signature
+// and annotates the AST node for the interpreter.
+func (a *Analyzer) buildFunctionPointerType(funcName string, funcType *types.FunctionType, expr *ast.AddressOfExpression) types.Type {
 	var returnType types.Type
 	if funcType.ReturnType != nil && funcType.ReturnType != types.VOID {
 		returnType = funcType.ReturnType
 	}
+
 	funcPtrType := types.NewFunctionPointerType(funcType.Parameters, returnType)
 
 	// Task 9.160: Set the type on the expression node
-	// Note: We need to create a TypeAnnotation for the AST node
 	typeAnnotation := &ast.TypeAnnotation{
 		Name: fmt.Sprintf("function pointer to %s", funcName),
 	}

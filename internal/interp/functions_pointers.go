@@ -12,6 +12,11 @@ import (
 func (i *Interpreter) callFunctionPointer(funcPtr *FunctionPointerValue, args []Value, node ast.Node) Value {
 	// Enhanced to handle lambda closures
 
+	// Built-in function pointer
+	if funcPtr.BuiltinName != "" {
+		return i.callBuiltin(funcPtr.BuiltinName, args)
+	}
+
 	// Check if this is a lambda or a regular function pointer
 	if funcPtr.Lambda != nil {
 		// Lambda closure - call with closure environment
