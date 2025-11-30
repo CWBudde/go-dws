@@ -107,14 +107,19 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			}
 
 			// Check for ClassName special identifier (case-insensitive)
+			// Task 3.5.156: Use ObjectValue interface for direct ClassName access
 			if ident.Equal(node.Value, "ClassName") {
-				className := e.adapter.GetClassName(selfVal)
-				return &runtime.StringValue{Value: className}
+				if objVal, ok := selfVal.(ObjectValue); ok {
+					return &runtime.StringValue{Value: objVal.ClassName()}
+				}
 			}
 
 			// Check for ClassType special identifier (case-insensitive)
+			// Task 3.5.156: Use ObjectValue interface for direct ClassType access
 			if ident.Equal(node.Value, "ClassType") {
-				return e.adapter.GetClassType(selfVal)
+				if objVal, ok := selfVal.(ObjectValue); ok {
+					return objVal.GetClassType()
+				}
 			}
 		}
 	}
@@ -123,20 +128,23 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// Identifiers can refer to ClassName, ClassType, or class variables
 	if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
 		if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
-			// Check for ClassName identifier (case-insensitive)
-			if ident.Equal(node.Value, "ClassName") {
-				className := e.adapter.GetClassNameFromClassInfo(classInfoVal)
-				return &runtime.StringValue{Value: className}
-			}
+			// Task 3.5.157: Use ClassMetaValue interface for direct class metadata access
+			if classMetaVal, ok := classInfoVal.(ClassMetaValue); ok {
+				// Check for ClassName identifier (case-insensitive)
+				if ident.Equal(node.Value, "ClassName") {
+					return &runtime.StringValue{Value: classMetaVal.GetClassName()}
+				}
 
-			// Check for ClassType identifier (case-insensitive)
-			if ident.Equal(node.Value, "ClassType") {
-				return e.adapter.GetClassTypeFromClassInfo(classInfoVal)
-			}
+				// Check for ClassType identifier (case-insensitive)
+				if ident.Equal(node.Value, "ClassType") {
+					return classMetaVal.GetClassType()
+				}
 
-			// Check for class variable
-			if classVarValue, found := e.adapter.GetClassVariableFromClassInfo(classInfoVal, node.Value); found {
-				return classVarValue
+				// Check for class variable
+				// Task 3.5.158: Use ClassMetaValue.GetClassVar() for direct class variable access
+				if classVarValue, found := classMetaVal.GetClassVar(node.Value); found {
+					return classVarValue
+				}
 			}
 		}
 	}
