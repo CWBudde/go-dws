@@ -61,14 +61,17 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// properties, methods (auto-invoked if zero params), or ClassName/ClassType
 	if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk {
 		if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "OBJECT" {
-			// Check for instance field
-			if fieldValue, found := e.adapter.GetObjectFieldValue(selfVal, node.Value); found {
-				return fieldValue
-			}
+			// Task 3.5.155: Use ObjectValue interface for direct field/class var access
+			if objVal, ok := selfVal.(ObjectValue); ok {
+				// Check for instance field
+				if fieldValue := objVal.GetField(node.Value); fieldValue != nil {
+					return fieldValue
+				}
 
-			// Check for class variable
-			if classVarValue, found := e.adapter.GetClassVariableValue(selfVal, node.Value); found {
-				return classVarValue
+				// Check for class variable
+				if classVarValue, found := objVal.GetClassVar(node.Value); found {
+					return classVarValue
+				}
 			}
 
 			// Check for property - but skip if we're in a property getter/setter to prevent recursion
