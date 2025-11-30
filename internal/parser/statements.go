@@ -157,11 +157,8 @@ func isAssignmentOperator(t lexer.TokenType) bool {
 // A var declaration pattern is: IDENT followed by either:
 // - COLON (for typed declaration: x : Integer)
 // - COMMA (for multi-var declaration: x, y : Integer)
+// - ASSIGN/EQ when inference is explicitly allowed (block-style var sections)
 // This prevents mis-parsing function calls or assignments as var declarations.
-// NOTE: We do NOT accept ASSIGN/EQ patterns here because they're ambiguous:
-//
-//	"x := 5" could be a new var declaration OR an assignment to existing var.
-//	To use type inference in var blocks, repeat the 'var' keyword for each declaration.
 
 // looksLikeConstDeclaration performs lookahead to check if the next tokens form a const declaration.
 // A const declaration pattern is: IDENT followed by either:
@@ -356,7 +353,7 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 // - COLON (for typed declaration: x : Integer)
 // - COMMA (for multi-var declaration: x, y : Integer)
 // This prevents mis-parsing function calls or assignments as var declarations.
-func (p *Parser) looksLikeVarDeclaration(cursor *TokenCursor) bool {
+func (p *Parser) looksLikeVarDeclaration(cursor *TokenCursor, allowInferred bool) bool {
 	nextToken := cursor.Peek(1)
 	if !p.isIdentifierToken(nextToken.Type) {
 		return false
@@ -368,8 +365,16 @@ func (p *Parser) looksLikeVarDeclaration(cursor *TokenCursor) bool {
 	// Only accept unambiguous var declaration patterns:
 	// - name : Type         (explicit type - always a declaration)
 	// - name, name2 : Type  (multi-var declaration)
-	return tokenAfterIdent.Type == lexer.COLON ||
-		tokenAfterIdent.Type == lexer.COMMA
+	if tokenAfterIdent.Type == lexer.COLON || tokenAfterIdent.Type == lexer.COMMA {
+		return true
+	}
+
+	// Allow inferred declarations when we're in a block-style var section
+	if allowInferred && (tokenAfterIdent.Type == lexer.ASSIGN || tokenAfterIdent.Type == lexer.EQ) {
+		return true
+	}
+
+	return false
 }
 
 // looksLikeConstDeclaration performs lookahead using cursor to check if
@@ -404,6 +409,14 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 	blockToken := p.cursor.Current() // Save the initial VAR token for the block
 	statements := []ast.Statement{}
 
+	// Detect block-style var sections where the 'var' keyword is on its own line.
+	// In that case, allow inferred declarations (:=) in continuation lines.
+	allowInferredContinuation := false
+	if blockToken.Type == lexer.VAR {
+		nextToken := p.cursor.Peek(1)
+		allowInferredContinuation = nextToken.Pos.Line > blockToken.Pos.Line
+	}
+
 	// Parse first var declaration
 	firstStmt := p.parseSingleVarDeclaration()
 	if firstStmt == nil {
@@ -413,7 +426,7 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 
 	// Continue parsing additional var declarations without the 'var' keyword
 	// As long as the next line looks like a var declaration (not just any identifier)
-	for p.looksLikeVarDeclaration(p.cursor) {
+	for p.looksLikeVarDeclaration(p.cursor, allowInferredContinuation) {
 		p.cursor = p.cursor.Advance() // move to identifier
 		varStmt := p.parseSingleVarDeclaration()
 		if varStmt == nil {
