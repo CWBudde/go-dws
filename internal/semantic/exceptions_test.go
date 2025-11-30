@@ -28,10 +28,10 @@ func TestExceptionClassRegistered(t *testing.T) {
 	}
 
 	// Exception should have a Message field
-	// Fields are stored in lowercase for case-insensitive lookup
-	messageField, exists := exceptionClass.Fields["message"]
+	// Use GetField for case-insensitive lookup
+	messageField, exists := exceptionClass.GetField("Message")
 	if !exists {
-		t.Fatal("Exception should have a 'message' field")
+		t.Fatal("Exception should have a 'Message' field")
 	}
 
 	if messageField.String() != "String" {

@@ -359,25 +359,27 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	fieldNames := make(map[string]bool)
 	classVarNames := make(map[string]bool)
 	for _, field := range decl.Fields {
-		// Task 9.285: Normalize field names to lowercase for case-insensitive lookup
-		fieldName := ident.Normalize(field.Name.Value)
+		// Preserve original field name for storage (needed for case-of-declaration hints)
+		// Use normalized name only for duplicate checking
+		originalFieldName := field.Name.Value
+		normalizedFieldName := ident.Normalize(originalFieldName)
 
 		// Check if this is a class variable (static field)
 		if field.IsClassVar {
-			// Check for duplicate class variable names
+			// Check for duplicate class variable names (case-insensitive)
 			// When merging partial classes, check if already exists in ClassType
-			_, existsInClass := classType.ClassVars[fieldName]
+			_, existsInClass := classType.ClassVars[normalizedFieldName]
 			if existsInClass {
 				a.addError("duplicate class variable '%s' in class '%s' at %s",
-					fieldName, className, field.Token.Pos.String())
+					originalFieldName, className, field.Token.Pos.String())
 				continue
 			}
-			if classVarNames[fieldName] {
+			if classVarNames[normalizedFieldName] {
 				a.addError("duplicate class variable '%s' in class '%s' at %s",
-					fieldName, className, field.Token.Pos.String())
+					originalFieldName, className, field.Token.Pos.String())
 				continue
 			}
-			classVarNames[fieldName] = true
+			classVarNames[normalizedFieldName] = true
 
 			var fieldType types.Type
 
@@ -388,7 +390,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 				resolvedType, err := a.resolveType(typeName)
 				if err != nil {
 					a.addError("unknown type '%s' for class variable '%s' in class '%s' at %s",
-						typeName, fieldName, className, field.Token.Pos.String())
+						typeName, originalFieldName, className, field.Token.Pos.String())
 					continue
 				}
 				fieldType = resolvedType
@@ -397,14 +399,14 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 				initType := a.analyzeExpression(field.InitValue)
 				if initType == nil {
 					a.addError("cannot infer type for class variable '%s' in class '%s' at %s",
-						fieldName, className, field.Token.Pos.String())
+						originalFieldName, className, field.Token.Pos.String())
 					continue
 				}
 				fieldType = initType
 			} else {
 				// No type and no initialization
 				a.addError("class variable '%s' missing type annotation in class '%s'",
-					fieldName, className)
+					originalFieldName, className)
 				continue
 			}
 
@@ -415,32 +417,39 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 					// Check type compatibility
 					if !types.IsAssignableFrom(fieldType, initType) {
 						a.addError("cannot initialize class variable '%s' of type '%s' with value of type '%s' at %s",
-							fieldName, fieldType.String(), initType.String(), field.Token.Pos.String())
+							originalFieldName, fieldType.String(), initType.String(), field.Token.Pos.String())
 					}
 				}
 			}
 
-			// Store class variable type in ClassType
-			classType.ClassVars[fieldName] = fieldType
+			// Store class variable type in ClassType (normalized key for lookup)
+			classType.ClassVars[normalizedFieldName] = fieldType
 
-			// Store class variable visibility
-			classType.ClassVarVisibility[fieldName] = int(field.Visibility)
+			// Store class variable visibility (normalized key)
+			classType.ClassVarVisibility[normalizedFieldName] = int(field.Visibility)
 		} else {
 			// Instance field
-			// Check for duplicate field names
-			// When merging partial classes, check if already exists in ClassType
-			_, existsInClass := classType.Fields[fieldName]
-			if existsInClass {
+			// Check for duplicate field names (case-insensitive) within THIS class only
+			// Note: Shadowing parent fields IS allowed in DWScript, so don't use GetField()
+			// which walks up the inheritance chain. Only check current class's Fields map.
+			fieldExists := false
+			for existingName := range classType.Fields {
+				if ident.Equal(existingName, normalizedFieldName) {
+					fieldExists = true
+					break
+				}
+			}
+			if fieldExists {
 				a.addError("duplicate field '%s' in class '%s' at %s",
-					fieldName, className, field.Token.Pos.String())
+					originalFieldName, className, field.Token.Pos.String())
 				continue
 			}
-			if fieldNames[fieldName] {
+			if fieldNames[normalizedFieldName] {
 				a.addError("duplicate field '%s' in class '%s' at %s",
-					fieldName, className, field.Token.Pos.String())
+					originalFieldName, className, field.Token.Pos.String())
 				continue
 			}
-			fieldNames[fieldName] = true
+			fieldNames[normalizedFieldName] = true
 
 			var fieldType types.Type
 
@@ -451,7 +460,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 				resolvedType, err := a.resolveType(typeName)
 				if err != nil {
 					a.addError("unknown type '%s' for field '%s' in class '%s' at %s",
-						typeName, fieldName, className, field.Token.Pos.String())
+						typeName, originalFieldName, className, field.Token.Pos.String())
 					continue
 				}
 				fieldType = resolvedType
@@ -460,25 +469,25 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 				initType := a.analyzeExpression(field.InitValue)
 				if initType == nil {
 					a.addError("cannot infer type for field '%s' in class '%s' at %s",
-						fieldName, className, field.Token.Pos.String())
+						originalFieldName, className, field.Token.Pos.String())
 					continue
 				}
 				fieldType = initType
 			} else {
 				// No type and no initialization
 				a.addError("field '%s' missing type annotation in class '%s'",
-					fieldName, className)
+					originalFieldName, className)
 				continue
 			}
 
 			// Task 9.5: Validate field initializer if present
-			a.validateFieldInitializer(field, fieldName, fieldType)
+			a.validateFieldInitializer(field, originalFieldName, fieldType)
 
-			// Add instance field to class
-			classType.Fields[fieldName] = fieldType
+			// Add instance field to class (use original case for case-of-declaration hints)
+			classType.Fields[originalFieldName] = fieldType
 
-			// Store field visibility
-			classType.FieldVisibility[fieldName] = int(field.Visibility)
+			// Store field visibility (normalized key for case-insensitive lookup)
+			classType.FieldVisibility[normalizedFieldName] = int(field.Visibility)
 		}
 	}
 

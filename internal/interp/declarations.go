@@ -741,9 +741,12 @@ func (i *Interpreter) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.Pro
 	case "Boolean":
 		propType = types.BOOLEAN
 	default:
-		// For now, treat unknown types as NIL
-		// In a full implementation, we'd look up custom types
-		propType = types.NIL
+		// Try to resolve known class types; fall back to NIL if unknown
+		if classInfo := i.resolveClassInfoByName(propDecl.Type.String()); classInfo != nil {
+			propType = types.NewClassType(classInfo.Name, nil)
+		} else {
+			propType = types.NIL
+		}
 	}
 
 	propInfo := &types.PropertyInfo{

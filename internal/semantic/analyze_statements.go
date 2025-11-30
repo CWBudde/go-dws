@@ -276,8 +276,8 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 		// Task 9.32b/9.32c: If variable not found, check for implicit Self field/property
 		if !ok && a.currentClass != nil {
-			// Check if it's a field of the current class
-			if fieldType, exists := a.currentClass.Fields[target.Value]; exists {
+			// Check if it's a field of the current class (case-insensitive)
+			if fieldType, exists := a.currentClass.GetField(target.Value); exists {
 				valueType := a.analyzeExpressionWithExpectedType(stmt.Value, fieldType)
 				if valueType == nil {
 					return

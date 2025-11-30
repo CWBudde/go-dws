@@ -195,6 +195,52 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 		return indexVal
 	}
 
+	// Auto-instantiate class-typed fields when accessed through a property that returns nil.
+	// This allows patterns like obj.Sub['x'] to work when Sub is a field-backed class property.
+	if leftVal != nil && leftVal.Type() == "NIL" {
+		if memberAccess, ok := expr.Left.(*ast.MemberAccessExpression); ok {
+			ownerVal := i.Eval(memberAccess.Object)
+			if !isError(ownerVal) {
+				// If the owner is already an object, try to initialize its field-backed property.
+				if ownerObj, ok := AsObject(ownerVal); ok {
+					if propInfo := ownerObj.Class.lookupProperty(memberAccess.Member.Value); propInfo != nil {
+						if classType, ok := propInfo.Type.(*types.ClassType); ok {
+							if classInfo := i.resolveClassInfoByName(classType.Name); classInfo != nil {
+								// Only field-backed properties can be initialized directly
+								if propInfo.ReadKind == types.PropAccessField && propInfo.ReadSpec != "" {
+									newInst := NewObjectInstance(classInfo)
+									ownerObj.SetField(propInfo.ReadSpec, newInst)
+									leftVal = newInst
+								}
+							}
+						}
+					}
+				} else if ownerVal.Type() == "NIL" {
+					// If the owner itself is a nil class property (e.g., data.Sub),
+					// try to auto-create it based on its declaration chain.
+					if maObj, ok := memberAccess.Object.(*ast.MemberAccessExpression); ok {
+						if ensured := i.ensureClassPropertyInstance(maObj); ensured != nil && ensured.Type() != "NIL" {
+							ownerVal = ensured
+							if ownerObj, ok := AsObject(ensured); ok {
+								if propInfo := ownerObj.Class.lookupProperty(memberAccess.Member.Value); propInfo != nil {
+									if classType, ok := propInfo.Type.(*types.ClassType); ok {
+										if classInfo := i.resolveClassInfoByName(classType.Name); classInfo != nil {
+											if propInfo.ReadKind == types.PropAccessField && propInfo.ReadSpec != "" {
+												newInst := NewObjectInstance(classInfo)
+												ownerObj.SetField(propInfo.ReadSpec, newInst)
+												leftVal = newInst
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// Handle default indexed properties on interface values (e.g., intf['x'])
 	if intfInst, ok := leftVal.(*InterfaceInstance); ok {
 		if intfInst.Object == nil {
@@ -865,6 +911,47 @@ func (i *Interpreter) buildArrayTypeForDimensions(elementType types.Type, dimens
 	}
 
 	return currentType
+}
+
+// ensureClassPropertyInstance makes sure a field-backed class property referenced by a MemberAccessExpression
+// is initialized. If the backing field is nil, it instantiates the class and assigns it.
+func (i *Interpreter) ensureClassPropertyInstance(ma *ast.MemberAccessExpression) Value {
+	if ma == nil {
+		return nil
+	}
+
+	ownerVal := i.Eval(ma.Object)
+	if isError(ownerVal) {
+		return ownerVal
+	}
+
+	ownerObj, ok := AsObject(ownerVal)
+	if !ok {
+		return ownerVal
+	}
+
+	propInfo := ownerObj.Class.lookupProperty(ma.Member.Value)
+	if propInfo == nil {
+		return ownerVal
+	}
+
+	classType, isClass := propInfo.Type.(*types.ClassType)
+	if !isClass || propInfo.ReadKind != types.PropAccessField || propInfo.ReadSpec == "" {
+		return ownerVal
+	}
+
+	currentVal := ownerObj.GetField(propInfo.ReadSpec)
+	if currentVal != nil && currentVal.Type() != "NIL" {
+		return currentVal
+	}
+
+	if classInfo := i.resolveClassInfoByName(classType.Name); classInfo != nil {
+		newInst := NewObjectInstance(classInfo)
+		ownerObj.SetField(propInfo.ReadSpec, newInst)
+		return newInst
+	}
+
+	return ownerVal
 }
 
 // createZeroValueForType creates a zero value for the given type.

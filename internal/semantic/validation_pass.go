@@ -1207,8 +1207,8 @@ func (v *statementValidator) checkIdentifier(expr *ast.Identifier) types.Type {
 			}
 			visited[className] = true
 
-			// Check if it's a field
-			if fieldType, found := classType.Fields[fieldNameLower]; found {
+			// Check if it's a field (case-insensitive, keys preserve original case)
+			if fieldType, found := classType.GetField(fieldNameLower); found {
 				// Unqualified field access - should use Self.FieldName for clarity
 				// but it's allowed in DWScript
 				return fieldType
@@ -2995,9 +2995,11 @@ func (v *statementValidator) getFieldOwnerWithVisited(class *types.ClassType, fi
 	visited[className] = true
 
 	// Check if this class declares the field (case-insensitive)
-	lowerFieldName := ident.Normalize(fieldName)
-	if _, found := class.Fields[lowerFieldName]; found {
-		return class
+	// Fields map uses original case keys, so iterate and compare
+	for storedName := range class.Fields {
+		if ident.Equal(storedName, fieldName) {
+			return class
+		}
 	}
 
 	// Check parent classes

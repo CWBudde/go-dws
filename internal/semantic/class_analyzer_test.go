@@ -1130,7 +1130,7 @@ func TestClassFieldInitializerTypeCompatibility(t *testing.T) {
 				end;
 			`,
 			expectError: true,
-			errorMsg:    "cannot initialize field 'count' of type 'Integer' with value of type 'String'",
+			errorMsg:    "cannot initialize field 'Count' of type 'Integer' with value of type 'String'",
 		},
 		{
 			name: "invalid type - integer to string",
@@ -1140,7 +1140,7 @@ func TestClassFieldInitializerTypeCompatibility(t *testing.T) {
 				end;
 			`,
 			expectError: true,
-			errorMsg:    "cannot initialize field 'name' of type 'String' with value of type 'Integer'",
+			errorMsg:    "cannot initialize field 'Name' of type 'String' with value of type 'Integer'",
 		},
 		{
 			name: "valid expression initializer",
