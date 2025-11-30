@@ -840,15 +840,6 @@ type InterpreterAdapter interface {
 
 	// ===== Task 3.5.99b: JSON Value Helpers =====
 
-	// WrapJSONValueInVariant wraps a jsonvalue.Value in a VariantValue containing a JSONValue.
-	// This creates the necessary JSONValue wrapper and boxes it in a Variant.
-	// The JSON value becomes available for variant operations.
-	// Parameters:
-	//   - jv: The jsonvalue.Value to wrap (nil creates a JSON null)
-	// Returns a VariantValue containing a JSONValue.
-	// Task 3.5.99b: Enables JSON indexing without circular imports.
-	WrapJSONValueInVariant(jv any) Value
-
 	// ===== Task 3.5.99c: Object Default Property Access =====
 
 	// CallIndexedPropertyGetter calls an indexed property getter method on an object.

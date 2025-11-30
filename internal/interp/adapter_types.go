@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
-	"github.com/cwbudde/go-dws/internal/jsonvalue"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -157,20 +156,6 @@ func (i *Interpreter) WrapInInterface(value evaluator.Value, interfaceName strin
 }
 
 // Task 3.5.140: EvalArrayLiteralWithExpectedType removed - evaluator uses evalArrayLiteralWithExpectedType() directly
-
-// WrapJSONValueInVariant wraps a jsonvalue.Value in a VariantValue containing a JSONValue.
-// Task 3.5.99b: Implements InterpreterAdapter.WrapJSONValueInVariant for JSON indexing support.
-func (i *Interpreter) WrapJSONValueInVariant(jv any) evaluator.Value {
-	// Convert any to *jsonvalue.Value
-	jsonVal, ok := jv.(*jsonvalue.Value)
-	if !ok && jv != nil {
-		// Invalid type passed - return error
-		return &ErrorValue{Message: "invalid type passed to WrapJSONValueInVariant: expected *jsonvalue.Value"}
-	}
-
-	// Use the existing jsonValueToVariant helper
-	return jsonValueToVariant(jsonVal)
-}
 
 // CallIndexedPropertyGetter calls an indexed property getter method on an object.
 // Task 3.5.99c: Implements InterpreterAdapter.CallIndexedPropertyGetter for object default property access.

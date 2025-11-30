@@ -654,17 +654,25 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 **Current State**: 3 JSON-related adapter calls
 
-- [ ] **3.5.160** Migrate WrapJSONValueInVariant (3 calls)
-  - **Location**: `json_helpers.go` lines 31, 51, 66
-  - **Issue**: JSON value wrapping in Variant delegates to adapter
-  - **Solution**: Create JSONValue + VariantValue directly in evaluator
-  - **Dependency**: Need to handle jsonvalue.Value → JSONValue → VariantValue chain
-  - **Risk**: Medium - avoiding circular imports with reflection-based approach
-  - **Calls removed**: 3 adapter calls
+- [x] **3.5.160** Migrate WrapJSONValueInVariant (6 calls) ✅ **COMPLETE**
+  - **Locations**: `json_helpers.go` (lines 35, 55, 70), `context_json.go` (lines 53, 162, 174)
+  - **Solution**: Moved JSONValue to runtime package, added `BoxVariantWithJSON()` helper
+  - **Implementation**:
+    - 3.5.160a: Moved JSONValue to `runtime/json.go` with type alias for backward compatibility
+    - 3.5.160b: Added `runtime.BoxVariantWithJSON()` helper
+    - 3.5.160c: Replaced 6 adapter calls with direct `runtime.BoxVariantWithJSON()` calls
+    - 3.5.160d: Removed `WrapJSONValueInVariant` from adapter interface and implementation
+    - 3.5.160e: Updated `jsonValueToVariant()` to delegate to runtime helper
+  - **Calls removed**: 6 adapter calls (was 3, found 3 more in context_json.go)
+  - **Adapter methods removed**: 1 (WrapJSONValueInVariant)
+  - **Pattern**: Follows successful VariantValue migration (Task 3.5.139)
+  - **Completed**: 2025-11-30
 
-- [ ] **3.5.161** Consolidate JSON handling
+- [x] **3.5.161** Consolidate JSON handling ✅ **COMPLETE**
   - **Goal**: Complete JSON indexing without any adapter calls
-  - **Deliverable**: Self-contained `json_helpers.go`
+  - **Deliverable**: Self-contained `json_helpers.go` and `context_json.go`
+  - **Status**: Already complete after 3.5.160 - Both json_helpers.go and context_json.go use runtime.BoxVariantWithJSON(), no adapter calls
+  - **Completed**: 2025-11-30 (as part of 3.5.160)
 
 ---
 
@@ -970,7 +978,7 @@ These handle declaration evaluation that requires registry updates.
 | 22: Variable Decl | 3.5.144-3.5.148 | Remove 10 variable declaration calls |
 | 23: User Functions | 3.5.149-3.5.154 | Remove 9 user function calls |
 | 24: ClassInfo/Object | 3.5.155-3.5.159 | Remove 9 class/object access calls |
-| 25: JSON Helpers | 3.5.160-3.5.161 | Remove 3 JSON helper calls |
+| 25: JSON Helpers | 3.5.160-3.5.161 | ✅ COMPLETE - Removed 6 JSON adapter calls, JSONValue to runtime |
 | 26: Type Checks & System | 3.5.180-3.5.189 | Type checks, TypeSystem refactoring, declaration analysis (1-2 weeks) |
 | 27: Declarations | 3.5.166-3.5.175 | Declaration migration to evaluator (4-6 weeks) |
 | 28: Bridge Elimination | 3.5.190-3.5.195 | Move value types to runtime package (5-7 weeks) |
