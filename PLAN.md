@@ -499,103 +499,13 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
       - **Blocker**: Requires ReferenceValue support in evaluator
       - **Risk**: Low (most code uses Result pattern)
 
-- [ ] **3.5.143** Migrate CallBuiltinFunction - Full Context Implementation (2 calls)
-  - **Location**: `visitor_expressions_functions.go` line 330, `visitor_expressions_identifiers.go` line 194
-  - **Issue**: Built-in function dispatch requires `builtins.Context` interface (40 methods)
-  - **Solution**: Full Context implementation - implement all 40 methods directly in Evaluator
-  - **Approach**: Sustainable, no-shortcuts implementation with proper infrastructure
-  - **Effort**: 63-70 hours (2-3 weeks full-time, 6-8 weeks part-time)
-  - **Calls removed**: 2 adapter calls
-  - **Methods removed**: 1 (CallBuiltinFunction)
-  - **Infrastructure**: EnumTypeRegistry, 93 helper functions migrated
-  - **Files created**: 14 new files (7 implementation, 7 test)
-  - **Files modified**: 7 files
+- [x] **3.5.143** Migrate CallBuiltinFunction - Full Context Implementation ✅ COMPLETE
+  - **Status**: All 40 Context interface methods implemented (Nov 2025)
+  - **Result**: 2 adapter calls removed (CallBuiltinFunction), 1 adapter method removed
+  - **Infrastructure**: 8 context files created, EnumTypeRegistry added, 93 helpers migrated
+  - **Verification**: All builtin tests pass, fixture tests maintain pre-existing status
 
-  **Phase I: Foundation Infrastructure (13 hours)** ✅ COMPLETE
-
-  - [x] **3.5.143a-b** EnumTypeRegistry (DONE) - Added enum type registry to TypeSystem, migrated 24 occurrences from environment storage
-  - [x] **3.5.143c** Array Helpers (3h) ✅ - Extracted 8 standalone helpers: Copy, Reverse, Sort, IndexOf, Contains, ConcatArrays, Slice, ValuesEqual, RecordsEqual
-  - [x] **3.5.143d** JSON Helpers (2h) ✅ - Organized 8 JSON conversion helpers: JSONValueToValue, ValueToJSONValue, ParseJSONString, etc.
-
-  **Phase II: Simple Context Methods (11 hours)** ✅ COMPLETE
-
-  - [x] **3.5.143e-f** Core & Random (1.5h) ✅ - NewError(), RandSource(), GetRandSeed(), SetRandSeed() in context.go
-  - [x] **3.5.143g** Type Conversions (3h) ✅ - UnwrapVariant(), ToInt64(), ToBool(), ToFloat64(), GetTypeOf(), GetClassOf() in context_conversions.go (NEW)
-  - [x] **3.5.143h-i** I/O & Parsing (1h) ✅ - Write(), WriteLine(), ParseInt(), ParseFloat()
-  - [x] **3.5.143j-k** Inspection & Arrays (1h) ✅ - IsAssigned(), CreateStringArray(), CreateVariantArray() in context_arrays.go (NEW)
-  - [x] **3.5.143l** Type Introspection ✅ - Covered by 3.5.143g
-
-  **Phase III: Medium Complexity Methods (6 hours)** ✅ COMPLETE
-
-  - [x] **3.5.143m** Array Operations (4h) ✅ - GetBuiltinArrayLength(), SetArrayLength(), ArrayCopy(), ArrayReverse(), ArraySort() in context_arrays.go (84 lines)
-  - [x] **3.5.143n** Call Stack (2h) ✅ - GetCallStackString(), GetCallStackArray() in context.go (56 lines); Added currentContext field to Evaluator
-
-  **Phase IV: Complex Methods (16 hours)**
-
-  - [x] **3.5.143o** String Formatting Method (3 hours) ✅
-    - **File**: `internal/interp/evaluator/context_formatting.go` (NEW)
-    - **Methods**: FormatString() (1 method)
-    - **Complexity**: Medium - fmt.Sprintf-style formatting for DWScript values
-
-  - [x] **3.5.143p** Exception Raising Method (2 hours) ✅
-    - **File**: `internal/interp/evaluator/context.go`
-    - **Methods**: RaiseAssertionFailed() (1 method)
-
-  - [x] **3.5.143q** Enum Operation Methods (5 hours) ✅
-    - **File**: `internal/interp/evaluator/context_enums.go` (NEW)
-    - **Methods**: GetEnumOrdinal(), GetEnumSuccessor(), GetEnumPredecessor(), GetJSONVarType() (4 methods)
-    - **Dependencies**: Tasks 3.5.143a-b (EnumTypeRegistry)
-    - **Complexity**: High - requires EnumTypeRegistry infrastructure
-
-  - [x] **3.5.143r** Bounds Operation Methods (5 hours) ✅
-    - **File**: `internal/interp/evaluator/context_bounds.go` (NEW)
-    - **Methods**: GetLowBound(), GetHighBound() (2 methods)
-    - **Complexity**: High - polymorphic, handles arrays/enums/type meta-values
-    - **Implementation**: Delegation pattern - delegates to Interpreter via adapter
-
-  - [x] **3.5.143s** String Concatenation Method (1 hour) ✅
-    - **File**: `internal/interp/evaluator/context_strings.go` (NEW)
-    - **Methods**: ConcatStrings() (1 method)
-    - **Tests**: 6 unit tests in `context_strings_test.go`
-
-  - [x] **3.5.143t** JSON Parsing & Conversion (2 hours) ✅
-    - **File**: `internal/interp/evaluator/context_json.go` (NEW)
-    - **Methods**: ParseJSONString(), ValueToJSON(), ValueToJSONWithIndent() (3 methods)
-    - **Tests**: 10+ unit tests in `context_json_test.go` (ValueToJSON tests; ParseJSONString requires adapter)
-    - **Dependencies**: Task 3.5.143d (JSON helpers)
-
-  - [x] **3.5.143u** JSON Inspection Methods (4 hours) ✅
-    - **File**: `internal/interp/evaluator/context_json.go`
-    - **Methods**: JSONHasField(), JSONGetKeys(), JSONGetValues(), JSONGetLength() (4 methods)
-    - **Tests**: 4 unit tests in `context_json_test.go` (require adapter, tested in Interpreter suite)
-    - **Complexity**: Medium-High - JSON type handling, variant wrapping, reflection-based extraction
-
-  **Phase V: Function Pointer Delegation (Deferred)**
-
-  - [ ] **3.5.143v** EvalFunctionPointer (Deferred to Adapter)
-    - **Status**: DEFERRED to Phase 3.6+
-    - **Reason**: Requires full function execution context (complex closure handling)
-    - **Implementation**: Keep delegating to adapter
-    - **Note**: Only 1 of 40 Context methods still uses adapter
-
-  **Phase VI: Integration & Migration (5 hours)**
-
-  - [ ] **3.5.143w** Implement Context Interface on Evaluator (1 hour)
-    - **File**: `internal/interp/evaluator/evaluator.go`
-    - **Task**: Verify all 40 methods implemented, add compile-time assertion
-
-  - [ ] **3.5.143x** Update Call Sites (2 hours)
-    - **Files**: `visitor_expressions_functions.go:330`, `visitor_expressions_identifiers.go:194`
-    - **Task**: Replace `e.adapter.CallBuiltinFunction()` with direct registry calls
-
-  - [ ] **3.5.143y** Remove Adapter Method (0.5 hour)
-    - **Files**: `evaluator.go`, `adapter_functions.go`
-    - **Task**: Remove CallBuiltinFunction from InterpreterAdapter interface
-
-  - [ ] **3.5.143z** Keep EvalFunctionPointer Adapter Method (0.5 hour)
-    - **Task**: Document that EvalFunctionPointer remains in adapter (deferred)
-
-  **Phase VII: Testing & Validation (28 hours)**
+  **Remaining Work** (Testing & Documentation):
 
   - [ ] **3.5.143aa** Unit Tests for Context Methods (16 hours)
     - **Files**: 6 new test files (context_test.go, context_conversions_test.go, etc.)
@@ -612,8 +522,6 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
     - **Commands**: `just test`, `just test-coverage`
     - **Criteria**: All existing tests pass, coverage >80%
 
-  **Phase VIII: Documentation & Cleanup (2 hours)**
-
   - [ ] **3.5.143ad** Update PLAN.md (0.5 hour)
     - **Task**: Mark task complete, add implementation notes
 
@@ -623,14 +531,8 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - [ ] **3.5.143af** Code Documentation (1 hour)
     - **Task**: Add package-level and method documentation to all new files
 
-  **Summary**:
-  - **Total subtasks**: 26 (a-af)
-  - **Total effort**: 63-70 hours
-  - **Context methods**: 40 (39 direct, 1 deferred)
-  - **New files**: 14 (7 implementation, 7 test)
-  - **Modified files**: 7
-  - **Test coverage**: 40 unit tests + 231 integration tests
-  - **Detailed plan**: `/home/christian/.claude/plans/clever-singing-sunbeam.md`
+  **Deferred to Phase 3.6+**:
+  - **3.5.143v** EvalFunctionPointer - complex closure handling, keep in adapter (1 of 40 methods)
 
 - [ ] **3.5.151** Migrate CallUserFunctionWithOverloads (1 call)
   - **Location**: `visitor_expressions.go` line 562
@@ -712,31 +614,11 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 ---
 
-### Phase 26: Final Cleanup (3.5.162-3.5.165)
+### Phase 26: Type Checks & Type System Refactoring (3.5.180-3.5.189)
 
-- [ ] **3.5.162** Document Remaining Adapter Methods
-  - Catalog all remaining adapter calls after phases 15-25
-  - Identify methods that must stay (declarations, complex delegation)
-  - Create migration roadmap for Phase 27+
+**Goal**: Migrate type-related adapter calls to use TypeSystem directly.
 
-- [ ] **3.5.163** Remove Unused Adapter Interface Methods
-  - Audit interface vs actual calls
-  - Remove methods no longer in use
-  - Update interpreter.go implementations
-
-- [ ] **3.5.164** Update CLAUDE.md with Final Architecture
-  - Document adapter reduction progress
-  - Describe remaining dependencies
-  - Provide migration guidance
-
-- [ ] **3.5.165** Create Phase 3.5 Completion Summary
-  - Total reduction: 107 → ~20 methods (target)
-  - Document patterns that worked
-  - Lessons learned
-
----
-
-#### Subphase 28.A: Simple Type Checks (3.5.180)
+#### Subphase 26.A: Simple Type Checks (3.5.180)
 
 These are straightforward migrations with no complex dependencies.
 
@@ -757,7 +639,7 @@ These are straightforward migrations with no complex dependencies.
 
 ---
 
-#### Subphase 28.B: Type System Refactoring (3.5.181-3.5.184)
+#### Subphase 26.B: Type System Refactoring (3.5.181-3.5.184)
 
 These require moving type metadata from interpreter-specific storage to TypeSystem.
 
@@ -825,7 +707,7 @@ These require moving type metadata from interpreter-specific storage to TypeSyst
 
 ---
 
-#### Subphase 28.C: Conversion Registry Access (3.5.185)
+#### Subphase 26.C: Conversion Registry Access (3.5.185)
 
 This addresses the most complex type wrapping case.
 
@@ -853,7 +735,7 @@ This addresses the most complex type wrapping case.
 
 ---
 
-#### Subphase 28.D: Object Construction (3.5.186)
+#### Subphase 26.D: Object Construction (3.5.186)
 
 This addresses the most significant deferred task.
 
@@ -877,7 +759,7 @@ This addresses the most significant deferred task.
 
 ---
 
-#### Subphase 28.E: Declaration Processing (3.5.187-3.5.188)
+#### Subphase 26.E: Declaration Analysis (3.5.187-3.5.189)
 
 These handle declaration evaluation that requires registry updates.
 
@@ -926,147 +808,91 @@ These handle declaration evaluation that requires registry updates.
 
 ---
 
-### Phase 28 Summary
+**Phase 26 Summary:**
 
 **Execution Order:**
-1. **28.A** (3.5.180) - Easy win, no dependencies
-2. **28.B** (3.5.181-3.5.184) - Type system refactoring, sequential dependencies
-3. **28.C** (3.5.185) - DEFER indefinitely (too complex)
-4. **28.D** (3.5.186) - Object construction simplification
-5. **28.E** (3.5.187-3.5.189) - Declaration analysis and planning
+
+1. **26.A** (3.5.180) - IsFunctionPointer type checks (4 calls, 1-2 hours)
+2. **26.B** (3.5.181-3.5.184) - Subrange/Interface TypeSystem migration (2 calls, 2-4 days)
+3. **26.C** (3.5.185) - TryImplicitConversion analysis (determine if migration feasible)
+4. **26.D** (3.5.186) - CreateObject refactoring (bridge constructor, 1-2 weeks)
+5. **26.E** (3.5.187-3.5.189) - Declaration dependency analysis & migration strategy
 
 **Expected Outcomes:**
 - **Calls removed**: 6 (IsFunctionPointer:4, WrapInSubrange:1, WrapInInterface:1)
-- **Deferred**: 3 (TryImplicitConversion) - stays in adapter
-- **Analyzed**: 11 (EvalNode declarations:10, fallback:1) - plan for Phase 27
+- **Migration plan**: Phase 27 declaration migration tasks defined
+- **Decision**: TryImplicitConversion - keep in adapter or migrate
 
-**Total Effort**: 2-3 weeks (excluding 3.5.185 and full 3.5.186 migration)
-
----
-
-### Phase 27: Future - Declaration Migration (DEFERRED)
-
-These tasks require moving declaration processing from Interpreter to Evaluator.
-
-- [ ] **3.5.166** Migrate VisitFunctionDecl (function registration)
-- [ ] **3.5.167** Migrate VisitClassDecl (class registration, field init)
-- [ ] **3.5.168** Migrate VisitInterfaceDecl (interface registration)
-- [ ] **3.5.169** Migrate VisitRecordDecl (record type registration)
-- [ ] **3.5.170** Migrate VisitEnumDecl (enum type registration)
-- [ ] **3.5.171** Migrate VisitHelperDecl (helper registration)
-- [ ] **3.5.172** Migrate VisitArrayDecl (array type registration)
-- [ ] **3.5.173** Migrate VisitOperatorDecl (operator registration)
-- [ ] **3.5.174** Migrate VisitSetDecl (set type registration)
-- [ ] **3.5.175** Migrate VisitTypeDeclaration (type alias registration)
-
-**Estimated effort**: 4-6 weeks total
+**Total Effort**: 1-2 weeks
 
 ---
 
-### Phase 27.5: Future - Eliminate Bridge Constructors (DEFERRED)
+### Phase 27: Declaration Migration - Tasks 3.5.166-3.5.175
 
-**Goal**: Remove all bridge constructor adapter methods by moving value types to runtime package.
+**Goal**: Move declaration processing from Interpreter to Evaluator, migrating 10 EvalNode calls.
 
-Bridge constructors are temporary adapter methods added during Phases 19-20 that take pre-resolved
-dependencies. They enabled moving business logic to the evaluator while deferring the work of
-moving value construction to the runtime package. This phase completes that migration.
+**Prerequisite**: Phase 26.E (3.5.187-3.5.188) analysis and strategy must be complete.
 
-**Current Bridge Constructors**:
-- `CreateExceptionDirect` (Task 3.5.133) - Exception value construction
-- `WrapObjectInException` (Task 3.5.134) - Wrapping ObjectInstance in ExceptionValue
-- `CreateSubrangeValueDirect` (Task 3.5.129) - Subrange value wrapping
-- `CreateInterfaceInstanceDirect` (Task 3.5.129) - Interface instance creation
-- `CreateTypedNilValue` (Task 3.5.129) - Typed nil for classes
+**Tasks**:
 
-**Why They Exist**:
-- ExceptionValue/ObjectInstance/InterfaceInstance live in `interp` package
-- Import cycles prevent direct construction from evaluator package
-- Moving these requires refactoring ObjectInstance (17 methods, 600+ LOC, 50-100+ call sites)
+- [ ] **3.5.166** VisitFunctionDecl - function registration
+- [ ] **3.5.167** VisitClassDecl - class registration, field initialization
+- [ ] **3.5.168** VisitInterfaceDecl - interface registration
+- [ ] **3.5.169** VisitRecordDecl - record type registration
+- [ ] **3.5.170** VisitEnumDecl - enum type registration
+- [ ] **3.5.171** VisitHelperDecl - helper registration
+- [ ] **3.5.172** VisitArrayDecl - array type registration
+- [ ] **3.5.173** VisitOperatorDecl - operator registration
+- [ ] **3.5.174** VisitSetDecl - set type registration
+- [ ] **3.5.175** VisitTypeDeclaration - type alias registration
 
-#### Tasks
-
-- [ ] **3.5.176** Move ObjectInstance to runtime package (2-3 weeks)
-  - **Current location**: `internal/interp/object.go`
-  - **Target location**: `internal/interp/runtime/object.go`
-  - **Changes required**:
-    - Convert 17 ObjectInstance methods to free functions or struct methods
-    - Update Fields map type from `map[string]Value` to `map[string]runtime.Value`
-    - Update 50-100+ call sites across codebase
-    - Handle dependent types: InterfaceInstance, TypeCastValue
-  - **Dependency**: ClassMetadata already in runtime (completed in 3.5.41)
-
-- [ ] **3.5.177** Move ExceptionValue to runtime package (1 week)
-  - **Current location**: `internal/interp/exceptions.go`
-  - **Target location**: `internal/interp/runtime/exception.go`
-  - **Changes required**:
-    - Update to use runtime.ObjectInstance
-    - Remove ClassInfo dependency (use only ClassMetadata)
-    - Update exception raising in evaluator to direct construction
-  - **Dependency**: Task 3.5.176 (ObjectInstance migration)
-  - **Eliminates**: `CreateExceptionDirect` bridge constructor
-
-- [ ] **3.5.178** Move SubrangeValue to runtime package (1 week)
-  - **Current location**: `internal/interp/value.go` (SubrangeValue type)
-  - **Target location**: `internal/interp/runtime/subrange.go`
-  - **Changes required**:
-    - Extract SubrangeValue as standalone type
-    - Update to use runtime.SubrangeTypeValue
-    - Update evaluator to construct directly
-  - **Eliminates**: `CreateSubrangeValueDirect` bridge constructor
-
-- [ ] **3.5.179** Move InterfaceInstance to runtime package (1-2 weeks)
-  - **Current location**: `internal/interp/value.go`
-  - **Target location**: `internal/interp/runtime/interface.go`
-  - **Changes required**:
-    - Update to use runtime.ObjectInstance
-    - Update to use runtime.InterfaceMetadata
-    - Update interface casting/wrapping in evaluator
-  - **Dependency**: Task 3.5.176 (ObjectInstance migration)
-  - **Eliminates**: `CreateInterfaceInstanceDirect` bridge constructor
-
-- [ ] **3.5.180** Move TypedNilValue to runtime package (3 days)
-  - **Current location**: `internal/interp/value.go`
-  - **Target location**: `internal/interp/runtime/typed_nil.go`
-  - **Changes required**:
-    - Create typed nil value type in runtime
-    - Update class nil value creation in evaluator
-  - **Dependency**: Task 3.5.176 (ObjectInstance migration)
-  - **Eliminates**: `CreateTypedNilValue` bridge constructor
-
-- [ ] **3.5.181** Remove all bridge constructor adapter methods (1 day)
-  - **Methods to remove**:
-    - `CreateExceptionDirect` from adapter_references.go
-    - `CreateSubrangeValueDirect` from adapter_values.go
-    - `CreateInterfaceInstanceDirect` from adapter_values.go
-    - `CreateTypedNilValue` from adapter_values.go
-  - **Update**: InterpreterAdapter interface in evaluator.go
-  - **Verify**: All evaluator code uses direct runtime construction
-  - **Result**: -4 adapter methods
-
-**Estimated effort**: 5-7 weeks total
-
-**Success criteria**:
-- ✅ All value types used by evaluator live in runtime package
-- ✅ Zero bridge constructor methods remain in adapter
-- ✅ Evaluator constructs all values directly: `&runtime.ExceptionValue{...}`
-- ✅ No import cycles between evaluator and interp packages
-- ✅ All tests pass
-
-**Dependency**: Must complete Phases 15-26 first to reduce adapter complexity
-
-**Benefit**: Eliminates 4 adapter methods, completes value type migration to runtime
+**Estimated effort**: 4-6 weeks
 
 ---
 
-### Phase 28: Future - Remove Adapter Entirely (DEFERRED)
+### Phase 28: Eliminate Bridge Constructors - Tasks 3.5.190-3.5.195
 
-Final steps after all migrations complete.
+**Goal**: Eliminate 4 bridge constructors by moving value types to runtime package.
 
-- [ ] **3.5.182** Remove InterpreterAdapter interface from evaluator.go
-- [ ] **3.5.183** Remove adapter field from Evaluator struct
-- [ ] **3.5.184** Remove SetAdapter() method
-- [ ] **3.5.185** Remove evalDirect() from Interpreter
-- [ ] **3.5.186** Final architecture documentation
+**Context**: Bridge constructors are temporary adapter methods that enabled moving business logic to evaluator while deferring value type migration.
+
+**Bridge Constructors to Eliminate**:
+
+- `CreateExceptionDirect`, `WrapObjectInException` - Exception handling
+- `CreateSubrangeValueDirect` - Subrange value wrapping
+- `CreateInterfaceInstanceDirect` - Interface instance creation
+- `CreateTypedNilValue` - Typed nil for classes
+
+**Tasks**:
+
+- [ ] **3.5.190** Move ObjectInstance to runtime (2-3 weeks) - 17 methods, 50-100+ call sites
+- [ ] **3.5.191** Move ExceptionValue to runtime (1 week) - depends on 3.5.190
+- [ ] **3.5.192** Move SubrangeValue to runtime (1 week)
+- [ ] **3.5.193** Move InterfaceInstance to runtime (1-2 weeks) - depends on 3.5.190
+- [ ] **3.5.194** Move TypedNilValue to runtime (3 days) - depends on 3.5.190
+- [ ] **3.5.195** Remove 4 bridge constructor adapter methods (1 day)
+
+**Estimated effort**: 5-7 weeks
+
+---
+
+### Phase 29: Final Cleanup & Documentation - Tasks 3.5.162-3.5.165, 3.5.196-3.5.200
+
+**Goal**: Document final architecture, remove adapter entirely, create completion summary.
+
+**Tasks**:
+
+- [ ] **3.5.162** Document remaining adapter methods and migration roadmap
+- [ ] **3.5.163** Remove unused adapter interface methods
+- [ ] **3.5.164** Update CLAUDE.md with final architecture
+- [ ] **3.5.165** Create Phase 3.5 completion summary
+- [ ] **3.5.196** Remove InterpreterAdapter interface from evaluator.go
+- [ ] **3.5.197** Remove adapter field from Evaluator struct
+- [ ] **3.5.198** Remove SetAdapter() method
+- [ ] **3.5.199** Remove evalDirect() from Interpreter
+- [ ] **3.5.200** Final architecture documentation
+
+**Estimated effort**: 1-2 weeks
 
 ---
 
@@ -1091,10 +917,10 @@ Final steps after all migrations complete.
 | 23: User Functions | 3.5.149-3.5.154 | Remove 9 user function calls |
 | 24: ClassInfo/Object | 3.5.155-3.5.159 | Remove 9 class/object access calls |
 | 25: JSON Helpers | 3.5.160-3.5.161 | Remove 3 JSON helper calls |
-| 26: Final Cleanup | 3.5.162-3.5.165 | Document remaining, remove unused |
-| 27: Declarations | 3.5.166-3.5.175 | DEFERRED - Declaration migration (4-6 weeks) |
-| 27.5: Bridge Elimination | 3.5.176-3.5.181 | DEFERRED - Move value types to runtime, remove 4 bridge constructors (5-7 weeks) |
-| 28: Remove Adapter | 3.5.182-3.5.186 | DEFERRED - Final adapter removal |
+| 26: Type Checks & System | 3.5.180-3.5.189 | Type checks, TypeSystem refactoring, declaration analysis (1-2 weeks) |
+| 27: Declarations | 3.5.166-3.5.175 | Declaration migration to evaluator (4-6 weeks) |
+| 28: Bridge Elimination | 3.5.190-3.5.195 | Move value types to runtime package (5-7 weeks) |
+| 29: Final Cleanup | 3.5.162-3.5.165, 3.5.196-3.5.200 | Document architecture, remove adapter (1-2 weeks) |
 
 **Current State (November 2025):**
 

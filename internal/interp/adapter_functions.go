@@ -85,10 +85,10 @@ func (i *Interpreter) CallUserFunction(fn *ast.FunctionDecl, args []evaluator.Va
 	return i.callUserFunction(fn, convertEvaluatorArgs(args))
 }
 
-// CallBuiltinFunction executes a built-in function by name.
-func (i *Interpreter) CallBuiltinFunction(name string, args []evaluator.Value) evaluator.Value {
-	return i.callBuiltinFunction(name, convertEvaluatorArgs(args))
-}
+// Task 3.5.143y: CallBuiltinFunction REMOVED
+// The evaluator now implements builtins.Context and calls builtins directly
+// via builtins.DefaultRegistry.Lookup() instead of using this adapter method.
+// See visitor_expressions_functions.go:331 and visitor_expressions_identifiers.go:195
 
 // LookupFunction finds a function by name in the function registry.
 func (i *Interpreter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
