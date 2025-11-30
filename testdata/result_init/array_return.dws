@@ -1,0 +1,41 @@
+// Test Result initialization for array return types
+// Task 3.5.142d: Validates proper empty array initialization
+
+type TIntArray = array of Integer;
+
+function GetEmptyArray: TIntArray;
+begin
+  // Result should be initialized to empty array
+  // Don't assign anything
+end;
+
+function GetArrayWithValues: TIntArray;
+begin
+  // Start with empty array, add values
+  Result := [1, 2, 3];
+end;
+
+function GetDynamicArray: array of String;
+begin
+  // Inline array type - should also initialize to empty
+end;
+
+var
+  arr: TIntArray;
+  strs: array of String;
+begin
+  // Test empty array initialization
+  arr := GetEmptyArray();
+  PrintLn(Length(arr));  // Should print: 0
+
+  // Test array with values
+  arr := GetArrayWithValues();
+  PrintLn(Length(arr));  // Should print: 3
+  PrintLn(arr[0]);       // Should print: 1
+  PrintLn(arr[1]);       // Should print: 2
+  PrintLn(arr[2]);       // Should print: 3
+
+  // Test inline array type
+  strs := GetDynamicArray();
+  PrintLn(Length(strs)); // Should print: 0
+end.

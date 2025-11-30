@@ -1,0 +1,56 @@
+// Test Result initialization for all primitive types
+// Task 3.5.142d: Validates proper zero-value initialization
+
+function GetInt: Integer;
+begin
+  // Should initialize to 0
+end;
+
+function GetFloat: Float;
+begin
+  // Should initialize to 0.0
+end;
+
+function GetString: String;
+begin
+  // Should initialize to empty string
+end;
+
+function GetBool: Boolean;
+begin
+  // Should initialize to False
+end;
+
+function GetIntExplicit: Integer;
+begin
+  Result := 42;
+end;
+
+function GetFloatExplicit: Float;
+begin
+  Result := 3.14;
+end;
+
+function GetStringExplicit: String;
+begin
+  Result := 'Hello';
+end;
+
+function GetBoolExplicit: Boolean;
+begin
+  Result := True;
+end;
+
+begin
+  // Test default initialization
+  PrintLn(GetInt());        // Should print: 0
+  PrintLn(GetFloat());      // Should print: 0
+  PrintLn(GetString());     // Should print: (empty line)
+  PrintLn(GetBool());       // Should print: False
+
+  // Test explicit assignment
+  PrintLn(GetIntExplicit());     // Should print: 42
+  PrintLn(GetFloatExplicit());   // Should print: 3.14
+  PrintLn(GetStringExplicit());  // Should print: Hello
+  PrintLn(GetBoolExplicit());    // Should print: True
+end.
