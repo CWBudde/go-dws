@@ -3849,21 +3849,6 @@ type TypeAnnotation struct {
 
 ---
 
-## Task 9.23: String Helper Methods (Type Helpers for String) 🎯 HIGH PRIORITY
-
-### 9.23.7 Additional Built-in Function Fixes
-
-- [x] 9.23.7.2 Fix FloatToStr to accept Integer arguments ✅ DONE
-  - Issue: `FloatToStr(Integer)` worked in AST interpreter but failed in bytecode VM
-  - Solution: Updated bytecode VM's `builtinFloatToStr` to accept both Float and Integer types
-  - Files modified:
-    - `internal/bytecode/vm_builtins_conversion.go`: Added Integer type check in `builtinFloatToStr`
-    - `internal/bytecode/vm_builtins_conversion_test.go`: Added comprehensive Integer argument tests
-  - Both execution engines now have consistent behavior
-  - All tests pass
-
----
-
 ## Phase 13: go-dws API Enhancements for LSP Integration ✅ COMPLETE
 
 **Goal**: Enhanced go-dws library with structured errors, AST access, position metadata, symbol tables, and type information for LSP features.
