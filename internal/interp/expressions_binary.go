@@ -287,13 +287,26 @@ func (i *Interpreter) evalAndExpression(expr *ast.BinaryExpression) Value {
 			return i.newErrorWithLocation(expr.Right, "right operand evaluated to nil")
 		}
 
-		// Convert to boolean if needed
-		rightBool, ok := right.(*BooleanValue)
-		if !ok {
-			return i.newErrorWithLocation(expr.Right, "expected boolean, got %s", right.Type())
+		// Handle Variant on the right: unwrap and coerce to boolean
+		var rightBoolValue bool
+		var rightIsVariant bool
+		if right.Type() == "VARIANT" {
+			rightBoolValue = variantToBool(right)
+			rightIsVariant = true
+		} else {
+			rightBool, ok := right.(*BooleanValue)
+			if !ok {
+				return i.newErrorWithLocation(expr.Right, "expected boolean, got %s", right.Type())
+			}
+			rightBoolValue = rightBool.Value
 		}
 
-		return &BooleanValue{Value: rightBool.Value}
+		result := &BooleanValue{Value: rightBoolValue}
+		// If right operand was a Variant, wrap the result in a Variant
+		if rightIsVariant {
+			return BoxVariant(result)
+		}
+		return result
 	}
 
 	// For non-boolean types (like integers for bitwise AND), evaluate both operands normally
@@ -353,13 +366,26 @@ func (i *Interpreter) evalOrExpression(expr *ast.BinaryExpression) Value {
 			return i.newErrorWithLocation(expr.Right, "right operand evaluated to nil")
 		}
 
-		// Convert to boolean if needed
-		rightBool, ok := right.(*BooleanValue)
-		if !ok {
-			return i.newErrorWithLocation(expr.Right, "expected boolean, got %s", right.Type())
+		// Handle Variant on the right: unwrap and coerce to boolean
+		var rightBoolValue bool
+		var rightIsVariant bool
+		if right.Type() == "VARIANT" {
+			rightBoolValue = variantToBool(right)
+			rightIsVariant = true
+		} else {
+			rightBool, ok := right.(*BooleanValue)
+			if !ok {
+				return i.newErrorWithLocation(expr.Right, "expected boolean, got %s", right.Type())
+			}
+			rightBoolValue = rightBool.Value
 		}
 
-		return &BooleanValue{Value: rightBool.Value}
+		result := &BooleanValue{Value: rightBoolValue}
+		// If right operand was a Variant, wrap the result in a Variant
+		if rightIsVariant {
+			return BoxVariant(result)
+		}
+		return result
 	}
 
 	// For non-boolean types (like integers for bitwise OR), evaluate both operands normally
@@ -858,6 +884,18 @@ func (i *Interpreter) evalVariantBinaryOp(op string, left, right Value, node ast
 		leftStr := i.convertToString(leftVal)
 		rightStr := i.convertToString(rightVal)
 		return i.evalStringBinaryOp(op, &StringValue{Value: leftStr}, &StringValue{Value: rightStr})
+
+	// For boolean operators with mixed numeric/boolean types, coerce to boolean
+	case (op == "and" || op == "or" || op == "xor") &&
+		((leftType == "BOOLEAN" && (rightType == "INTEGER" || rightType == "FLOAT")) ||
+		 (rightType == "BOOLEAN" && (leftType == "INTEGER" || leftType == "FLOAT")) ||
+		 ((leftType == "INTEGER" || leftType == "FLOAT") && (rightType == "INTEGER" || rightType == "FLOAT"))):
+		// Coerce both operands to boolean
+		leftBool := variantToBool(leftVal)
+		rightBool := variantToBool(rightVal)
+		result := i.evalBooleanBinaryOp(op, &BooleanValue{Value: leftBool}, &BooleanValue{Value: rightBool})
+		// Wrap result in Variant since at least one operand was a Variant
+		return BoxVariant(result)
 
 	default:
 		return i.newErrorWithLocation(node, "incompatible Variant types for operator %s: %s and %s",
