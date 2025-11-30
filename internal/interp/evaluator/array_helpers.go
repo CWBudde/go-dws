@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
@@ -1027,4 +1028,390 @@ func (e *Evaluator) evalStringArrayJoin(selfValue Value, args []Value, node ast.
 	}
 
 	return &runtime.StringValue{Value: builder.String()}
+}
+
+// ============================================================================
+// Array Manipulation Helpers (Task 3.5.143c)
+// ============================================================================
+//
+// These standalone functions provide array manipulation operations.
+// They are used by both the Interpreter and Evaluator for implementing
+// built-in array functions and Context interface methods.
+//
+// Design: These are standalone functions (not Evaluator methods) to allow
+// reuse from both Interpreter and Evaluator without creating circular dependencies.
+// ============================================================================
+
+// ValuesEqual compares two Values for equality.
+// This is a standalone helper extracted from Interpreter.valuesEqual().
+//
+// Handles:
+// - Variant unwrapping
+// - Nil value comparisons
+// - Type checking
+// - Recursive record field comparison
+//
+// Used by: ArrayHelperIndexOf, ArrayHelperContains
+func ValuesEqual(a, b Value) bool {
+	// Unwrap VariantValue if present
+	if varVal, ok := a.(*runtime.VariantValue); ok {
+		a = varVal.Value
+	}
+	if varVal, ok := b.(*runtime.VariantValue); ok {
+		b = varVal.Value
+	}
+
+	// Handle nil values (uninitialized variants)
+	if a == nil && b == nil {
+		return true // Both uninitialized variants are equal
+	}
+	if a == nil || b == nil {
+		return false // One is nil, the other is not
+	}
+
+	// Handle same type comparisons
+	if a.Type() != b.Type() {
+		return false
+	}
+
+	switch left := a.(type) {
+	case *runtime.IntegerValue:
+		right, ok := b.(*runtime.IntegerValue)
+		if !ok {
+			return false
+		}
+		return left.Value == right.Value
+
+	case *runtime.FloatValue:
+		right, ok := b.(*runtime.FloatValue)
+		if !ok {
+			return false
+		}
+		return left.Value == right.Value
+
+	case *runtime.StringValue:
+		right, ok := b.(*runtime.StringValue)
+		if !ok {
+			return false
+		}
+		return left.Value == right.Value
+
+	case *runtime.BooleanValue:
+		right, ok := b.(*runtime.BooleanValue)
+		if !ok {
+			return false
+		}
+		return left.Value == right.Value
+
+	case *runtime.NilValue:
+		return true // nil == nil
+
+	case *runtime.RecordValue:
+		right, ok := b.(*runtime.RecordValue)
+		if !ok {
+			return false
+		}
+		return recordsEqualInternal(left, right)
+
+	default:
+		// For other types, use string comparison as fallback
+		return a.String() == b.String()
+	}
+}
+
+// recordsEqualInternal recursively compares two RecordValue instances for equality.
+// Compares record type names and all field values.
+// Internal helper for ValuesEqual - not exported.
+func recordsEqualInternal(left, right *runtime.RecordValue) bool {
+	// Different types are not equal
+	if left.RecordType.Name != right.RecordType.Name {
+		return false
+	}
+
+	// Check if all fields are equal
+	for fieldName := range left.RecordType.Fields {
+		leftVal, leftExists := left.Fields[fieldName]
+		rightVal, rightExists := right.Fields[fieldName]
+
+		// Both should exist
+		if !leftExists || !rightExists {
+			return false
+		}
+
+		// Compare field values recursively
+		if !ValuesEqual(leftVal, rightVal) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// RecordsEqual checks if two RecordValues are equal by comparing all fields.
+// Public wrapper that delegates to ValuesEqual for type checking and conversion.
+// Task 3.5.143c: Replaces the simple version from helpers.go with full field comparison.
+func RecordsEqual(left, right Value) bool {
+	// Use ValuesEqual which handles RecordValue comparison via recordsEqualInternal
+	return ValuesEqual(left, right)
+}
+
+// ArrayHelperCopy creates a deep copy of an array.
+//
+// For dynamic arrays: creates new array with same elements
+// For static arrays: copies elements to new array
+// For arrays of objects: shallow copy references (as per spec)
+//
+// Returns: New ArrayValue with copied elements
+func ArrayHelperCopy(arr *runtime.ArrayValue) Value {
+	// Create a new ArrayValue with the same type
+	newArray := &runtime.ArrayValue{
+		ArrayType: arr.ArrayType,
+		Elements:  make([]runtime.Value, len(arr.Elements)),
+	}
+
+	// Deep copy the elements slice
+	// Note: For object references, this is a shallow copy (references are copied, not objects)
+	copy(newArray.Elements, arr.Elements)
+
+	return newArray
+}
+
+// ArrayHelperIndexOf searches an array for a value and returns its 0-based index.
+//
+// Returns 0-based index of first occurrence (0 = first element)
+// Returns -1 if not found or invalid startIndex
+// Uses 0-based indexing (standard for dynamic arrays in Pascal/Delphi)
+//
+// Parameters:
+//   - arr: Array to search
+//   - value: Value to find
+//   - startIndex: Starting position (0-based)
+//
+// Returns: IntegerValue with index (>= 0) or -1 if not found
+func ArrayHelperIndexOf(arr *runtime.ArrayValue, value Value, startIndex int) Value {
+	// Validate startIndex bounds
+	if startIndex < 0 || startIndex >= len(arr.Elements) {
+		return &runtime.IntegerValue{Value: -1}
+	}
+
+	// Search array from startIndex onwards
+	for idx := startIndex; idx < len(arr.Elements); idx++ {
+		if ValuesEqual(arr.Elements[idx], value) {
+			// Return 0-based index
+			return &runtime.IntegerValue{Value: int64(idx)}
+		}
+	}
+
+	// Not found
+	return &runtime.IntegerValue{Value: -1}
+}
+
+// ArrayHelperContains checks if an array contains a specific value.
+//
+// Returns true if value is found in array, false otherwise
+// Uses ArrayHelperIndexOf internally
+//
+// Parameters:
+//   - arr: Array to search
+//   - value: Value to find
+//
+// Returns: BooleanValue (true if found, false otherwise)
+func ArrayHelperContains(arr *runtime.ArrayValue, value Value) Value {
+	// Use IndexOf to check if value exists
+	// IndexOf returns >= 0 if found (0-based indexing), -1 if not found
+	result := ArrayHelperIndexOf(arr, value, 0)
+	intResult, ok := result.(*runtime.IntegerValue)
+	if !ok {
+		// Should never happen, but handle error case
+		return &runtime.BooleanValue{Value: false}
+	}
+
+	// Return true if found (index >= 0), false otherwise
+	return &runtime.BooleanValue{Value: intResult.Value >= 0}
+}
+
+// ArrayHelperReverse reverses an array in place.
+//
+// Modifies array by reversing elements in place
+// Swaps elements from both ends moving inward
+//
+// Parameters:
+//   - arr: Array to reverse (modified in place)
+//
+// Returns: NilValue (procedure with no return value)
+func ArrayHelperReverse(arr *runtime.ArrayValue) Value {
+	elements := arr.Elements
+	n := len(elements)
+
+	// Swap elements from both ends
+	for left := 0; left < n/2; left++ {
+		right := n - 1 - left
+		elements[left], elements[right] = elements[right], elements[left]
+	}
+
+	// Return nil (procedure with no return value)
+	return &runtime.NilValue{}
+}
+
+// ArrayHelperSort sorts an array in place using default comparison.
+//
+// Sorts integers numerically, strings lexicographically
+// Uses Go's sort.Slice() for efficient sorting
+//
+// Supported types:
+//   - Integer: numeric sort (ascending)
+//   - Float: numeric sort (ascending)
+//   - String: lexicographic sort
+//   - Boolean: false < true
+//
+// Parameters:
+//   - arr: Array to sort (modified in place)
+//
+// Returns: NilValue (procedure with no return value)
+func ArrayHelperSort(arr *runtime.ArrayValue) Value {
+	elements := arr.Elements
+	n := len(elements)
+
+	// Empty or single element arrays are already sorted
+	if n <= 1 {
+		return &runtime.NilValue{}
+	}
+
+	// Determine element type from first element
+	firstElem := elements[0]
+
+	// Sort based on element type
+	switch firstElem.(type) {
+	case *runtime.IntegerValue:
+		// Numeric sort for integers
+		sort.Slice(elements, func(i, j int) bool {
+			left, leftOk := elements[i].(*runtime.IntegerValue)
+			right, rightOk := elements[j].(*runtime.IntegerValue)
+			if !leftOk || !rightOk {
+				return false
+			}
+			return left.Value < right.Value
+		})
+
+	case *runtime.FloatValue:
+		// Numeric sort for floats
+		sort.Slice(elements, func(i, j int) bool {
+			left, leftOk := elements[i].(*runtime.FloatValue)
+			right, rightOk := elements[j].(*runtime.FloatValue)
+			if !leftOk || !rightOk {
+				return false
+			}
+			return left.Value < right.Value
+		})
+
+	case *runtime.StringValue:
+		// Lexicographic sort for strings
+		sort.Slice(elements, func(i, j int) bool {
+			left, leftOk := elements[i].(*runtime.StringValue)
+			right, rightOk := elements[j].(*runtime.StringValue)
+			if !leftOk || !rightOk {
+				return false
+			}
+			return left.Value < right.Value
+		})
+
+	case *runtime.BooleanValue:
+		// Boolean sort: false < true
+		sort.Slice(elements, func(i, j int) bool {
+			left, leftOk := elements[i].(*runtime.BooleanValue)
+			right, rightOk := elements[j].(*runtime.BooleanValue)
+			if !leftOk || !rightOk {
+				return false
+			}
+			// false (false < true) sorts before true
+			return !left.Value && right.Value
+		})
+
+	default:
+		// For other types, we can't sort - just return nil
+		return &runtime.NilValue{}
+	}
+
+	return &runtime.NilValue{}
+}
+
+// ArrayHelperConcatArrays concatenates multiple arrays into a new array.
+//
+// Creates a new array containing all elements from all input arrays.
+// The result array type is taken from the first array.
+//
+// Parameters:
+//   - arrays: Slice of arrays to concatenate
+//
+// Returns: New ArrayValue with all elements concatenated
+func ArrayHelperConcatArrays(arrays []*runtime.ArrayValue) Value {
+	// Collect all elements from all arrays
+	var resultElements []runtime.Value
+	var firstArrayType *types.ArrayType
+
+	for _, arrayVal := range arrays {
+		// Store the type of the first array to use for the result
+		if firstArrayType == nil && arrayVal.ArrayType != nil {
+			firstArrayType = arrayVal.ArrayType
+		}
+
+		// Append all elements from this array
+		resultElements = append(resultElements, arrayVal.Elements...)
+	}
+
+	// Create and return new array with concatenated elements
+	return &runtime.ArrayValue{
+		Elements:  resultElements,
+		ArrayType: firstArrayType,
+	}
+}
+
+// ArrayHelperSlice extracts a slice from an array.
+//
+// Creates a new array containing elements from arr[start:end].
+// Handles array bounds and adjusts for array low bounds.
+//
+// Parameters:
+//   - arr: Source array
+//   - startIdx: Starting index (adjusted for array's low bound)
+//   - endIdx: Ending index (exclusive, adjusted for array's low bound)
+//
+// Returns: New ArrayValue with sliced elements
+//
+// Note: Indices are adjusted relative to the array's low bound.
+// If array has low bound 1, then start=1, end=3 extracts elements [1,2].
+func ArrayHelperSlice(arr *runtime.ArrayValue, startIdx, endIdx int64) Value {
+	// Get the low bound of the array
+	lowBound := int64(0)
+	if arr.ArrayType != nil && arr.ArrayType.LowBound != nil {
+		lowBound = int64(*arr.ArrayType.LowBound)
+	}
+
+	// Adjust indices to be relative to the array's low bound
+	start := int(startIdx - lowBound)
+	end := int(endIdx - lowBound)
+
+	// Validate indices
+	if start < 0 {
+		start = 0
+	}
+	if end < 0 {
+		end = 0
+	}
+	if end > len(arr.Elements) {
+		end = len(arr.Elements)
+	}
+	if start > end {
+		start = end
+	}
+
+	// Extract the slice
+	resultElements := make([]runtime.Value, end-start)
+	copy(resultElements, arr.Elements[start:end])
+
+	// Create and return new array with sliced elements
+	return &runtime.ArrayValue{
+		Elements:  resultElements,
+		ArrayType: arr.ArrayType,
+	}
 }

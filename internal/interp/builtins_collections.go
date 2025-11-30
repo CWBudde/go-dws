@@ -1,7 +1,7 @@
 package interp
 
 import (
-	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 )
 
 // builtinMap implements the Map() built-in function.
@@ -532,31 +532,18 @@ func (i *Interpreter) builtinConcatArrays(args []Value) Value {
 		return i.newErrorWithLocation(i.currentNode, "Concat() expects at least 1 argument, got %d", len(args))
 	}
 
-	// Collect all elements from all arrays
-	var resultElements []Value
-	var firstArrayType *types.ArrayType
-
+	// Validate and convert all arguments to arrays
+	arrays := make([]*ArrayValue, len(args))
 	for argIdx, arg := range args {
-		// Each argument must be an array
 		arrayVal, ok := arg.(*ArrayValue)
 		if !ok {
 			return i.newErrorWithLocation(i.currentNode, "Concat() argument %d must be an array, got %s", argIdx+1, arg.Type())
 		}
-
-		// Store the type of the first array to use for the result
-		if firstArrayType == nil && arrayVal.ArrayType != nil {
-			firstArrayType = arrayVal.ArrayType
-		}
-
-		// Append all elements from this array
-		resultElements = append(resultElements, arrayVal.Elements...)
+		arrays[argIdx] = arrayVal
 	}
 
-	// Create and return new array with concatenated elements
-	return &ArrayValue{
-		Elements:  resultElements,
-		ArrayType: firstArrayType,
-	}
+	// Task 3.5.143c: Delegate to standalone helper function
+	return evaluator.ArrayHelperConcatArrays(arrays)
 }
 
 // builtinSlice implements the Slice() built-in function.
@@ -597,37 +584,6 @@ func (i *Interpreter) builtinSlice(args []Value) Value {
 		return i.newErrorWithLocation(i.currentNode, "Slice() third argument (end) must be an Integer, got %s", args[2].Type())
 	}
 
-	// Get the low bound of the array
-	lowBound := int64(0)
-	if arrayVal.ArrayType != nil && arrayVal.ArrayType.LowBound != nil {
-		lowBound = int64(*arrayVal.ArrayType.LowBound)
-	}
-
-	// Adjust indices to be relative to the array's low bound
-	start := int(startVal.Value - lowBound)
-	end := int(endVal.Value - lowBound)
-
-	// Validate indices
-	if start < 0 {
-		start = 0
-	}
-	if end < 0 {
-		end = 0
-	}
-	if end > len(arrayVal.Elements) {
-		end = len(arrayVal.Elements)
-	}
-	if start > end {
-		start = end
-	}
-
-	// Extract the slice
-	resultElements := make([]Value, end-start)
-	copy(resultElements, arrayVal.Elements[start:end])
-
-	// Create and return new array with sliced elements
-	return &ArrayValue{
-		Elements:  resultElements,
-		ArrayType: arrayVal.ArrayType,
-	}
+	// Task 3.5.143c: Delegate to standalone helper function
+	return evaluator.ArrayHelperSlice(arrayVal, startVal.Value, endVal.Value)
 }

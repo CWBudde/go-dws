@@ -510,6 +510,11 @@ type InterpreterAdapter interface {
 	// This matches the behavior of castToClass which raises exceptions.
 	RaiseTypeCastException(message string, node ast.Node)
 
+	// RaiseAssertionFailed raises an EAssertionFailed exception with an optional custom message.
+	// Task 3.5.143p: Helper for Assert() function.
+	// The exception includes position information from the current node.
+	RaiseAssertionFailed(customMessage string)
+
 	// CreateClassValue creates a ClassValue (metaclass reference) from a class name.
 	// Task 3.5.85: Used by VisitIdentifier to return metaclass references for class names.
 	// Returns the ClassValue and an error if the class is not found.
@@ -880,6 +885,12 @@ type InterpreterAdapter interface {
 	//   - node: The AST node for error reporting
 	// Returns the result of the property getter method call.
 	ExecuteRecordPropertyRead(record Value, propInfo any, indices []Value, node any) Value
+
+	// ===== Type Conversion & Introspection Methods (Task 3.5.143g) =====
+	// Note: ToInt64, ToBool, ToFloat64, GetTypeOf, GetClassOf are NOT part of this adapter interface.
+	// They are part of builtins.Context interface and are implemented independently on both
+	// Interpreter (in builtins_context.go) and Evaluator (in context_conversions.go).
+	// The Evaluator does not delegate these methods to the adapter.
 }
 
 // Evaluator is responsible for evaluating DWScript AST nodes.
@@ -907,6 +918,7 @@ type Evaluator struct {
 	semanticInfo      *ast.SemanticInfo
 	loadedUnits       []string
 	randSeed          int64
+	currentContext    *ExecutionContext // Task 3.5.143n: For Context methods needing runtime state (call stack)
 }
 
 // NewEvaluator creates a new Evaluator with the given dependencies.
@@ -1112,6 +1124,10 @@ func (e *Evaluator) raiseMaxRecursionExceeded(node ast.Node) Value {
 // The giant switch statement from Interpreter.Eval() is now here, but organized with
 // visitor methods for better separation of concerns.
 func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
+	// Task 3.5.143n: Set currentContext for Context interface methods (call stack access)
+	e.currentContext = ctx
+	defer func() { e.currentContext = nil }()
+
 	// Track current node for error reporting
 	e.currentNode = node
 

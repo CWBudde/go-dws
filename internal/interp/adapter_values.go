@@ -159,3 +159,14 @@ func (i *Interpreter) CreateArrayValue(arrayType any, elements []evaluator.Value
 		Elements:  internalElements,
 	}
 }
+
+// ===== Type Conversion & Introspection Adapter Methods (Task 3.5.143g) =====
+// Note: These methods are already implemented in builtins_context.go as part of
+// the builtins.Context interface. They take builtins.Value (runtime.Value) and
+// are used by both the Interpreter directly and via the adapter bridge.
+
+// ===== Enum Operation Methods (Task 3.5.143q) =====
+// Note: Enum operation methods (GetEnumOrdinal, GetEnumSuccessor, GetEnumPredecessor,
+// GetJSONVarType) are implemented in builtins_context.go as part of the builtins.Context
+// interface. The Evaluator accesses them by casting its adapter to builtins.Context.
+// See context_enums.go for the Evaluator-side implementations.

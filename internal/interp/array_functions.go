@@ -3,6 +3,8 @@ package interp
 
 import (
 	"sort"
+
+	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 )
 
 // builtinArrayCopy creates a deep copy of an array.
@@ -10,18 +12,10 @@ import (
 // For dynamic arrays: creates new array with same elements
 // For static arrays: copies elements to new array
 // For arrays of objects: shallow copy references (as per spec)
+//
+// Task 3.5.143c: Delegates to standalone helper function.
 func (i *Interpreter) builtinArrayCopy(arr *ArrayValue) Value {
-	// Create a new ArrayValue with the same type
-	newArray := &ArrayValue{
-		ArrayType: arr.ArrayType,
-		Elements:  make([]Value, len(arr.Elements)),
-	}
-
-	// Deep copy the elements slice
-	// Note: For object references, this is a shallow copy (references are copied, not objects)
-	copy(newArray.Elements, arr.Elements)
-
-	return newArray
+	return evaluator.ArrayHelperCopy(arr)
 }
 
 // builtinArrayIndexOf searches an array for a value and returns its 0-based index.
@@ -29,40 +23,20 @@ func (i *Interpreter) builtinArrayCopy(arr *ArrayValue) Value {
 // Returns 0-based index of first occurrence (0 = first element)
 // Returns -1 if not found or invalid startIndex
 // Uses 0-based indexing (standard for dynamic arrays in Pascal/Delphi)
+//
+// Task 3.5.143c: Delegates to standalone helper function.
 func (i *Interpreter) builtinArrayIndexOf(arr *ArrayValue, value Value, startIndex int) Value {
-	// Validate startIndex bounds
-	if startIndex < 0 || startIndex >= len(arr.Elements) {
-		return &IntegerValue{Value: -1}
-	}
-
-	// Search array from startIndex onwards
-	for idx := startIndex; idx < len(arr.Elements); idx++ {
-		if i.valuesEqual(arr.Elements[idx], value) {
-			// Return 0-based index
-			return &IntegerValue{Value: int64(idx)}
-		}
-	}
-
-	// Not found
-	return &IntegerValue{Value: -1}
+	return evaluator.ArrayHelperIndexOf(arr, value, startIndex)
 }
 
 // builtinArrayContains checks if an array contains a specific value.
 //
 // Returns true if value is found in array, false otherwise
 // Uses builtinArrayIndexOf internally
+//
+// Task 3.5.143c: Delegates to standalone helper function.
 func (i *Interpreter) builtinArrayContains(arr *ArrayValue, value Value) Value {
-	// Use IndexOf to check if value exists
-	// IndexOf returns >= 0 if found (0-based indexing), -1 if not found
-	result := i.builtinArrayIndexOf(arr, value, 0)
-	intResult, ok := result.(*IntegerValue)
-	if !ok {
-		// Should never happen, but handle error case
-		return &BooleanValue{Value: false}
-	}
-
-	// Return true if found (index >= 0), false otherwise
-	return &BooleanValue{Value: intResult.Value >= 0}
+	return evaluator.ArrayHelperContains(arr, value)
 }
 
 // builtinArrayReverse reverses an array in place.
@@ -70,18 +44,10 @@ func (i *Interpreter) builtinArrayContains(arr *ArrayValue, value Value) Value {
 // Modifies array by reversing elements in place
 // Swaps elements from both ends moving inward
 // Returns nil
+//
+// Task 3.5.143c: Delegates to standalone helper function.
 func (i *Interpreter) builtinArrayReverse(arr *ArrayValue) Value {
-	elements := arr.Elements
-	n := len(elements)
-
-	// Swap elements from both ends
-	for left := 0; left < n/2; left++ {
-		right := n - 1 - left
-		elements[left], elements[right] = elements[right], elements[left]
-	}
-
-	// Return nil (procedure with no return value)
-	return &NilValue{}
+	return evaluator.ArrayHelperReverse(arr)
 }
 
 // builtinArraySort sorts an array in place using default comparison.
@@ -89,71 +55,10 @@ func (i *Interpreter) builtinArrayReverse(arr *ArrayValue) Value {
 // Sorts integers numerically, strings lexicographically
 // Uses Go's sort.Slice() for efficient sorting
 // Returns nil
+//
+// Task 3.5.143c: Delegates to standalone helper function.
 func (i *Interpreter) builtinArraySort(arr *ArrayValue) Value {
-	elements := arr.Elements
-	n := len(elements)
-
-	// Empty or single element arrays are already sorted
-	if n <= 1 {
-		return &NilValue{}
-	}
-
-	// Determine element type from first element
-	firstElem := elements[0]
-
-	// Sort based on element type
-	switch firstElem.(type) {
-	case *IntegerValue:
-		// Numeric sort for integers
-		sort.Slice(elements, func(i, j int) bool {
-			left, leftOk := elements[i].(*IntegerValue)
-			right, rightOk := elements[j].(*IntegerValue)
-			if !leftOk || !rightOk {
-				return false
-			}
-			return left.Value < right.Value
-		})
-
-	case *FloatValue:
-		// Numeric sort for floats
-		sort.Slice(elements, func(i, j int) bool {
-			left, leftOk := elements[i].(*FloatValue)
-			right, rightOk := elements[j].(*FloatValue)
-			if !leftOk || !rightOk {
-				return false
-			}
-			return left.Value < right.Value
-		})
-
-	case *StringValue:
-		// Lexicographic sort for strings
-		sort.Slice(elements, func(i, j int) bool {
-			left, leftOk := elements[i].(*StringValue)
-			right, rightOk := elements[j].(*StringValue)
-			if !leftOk || !rightOk {
-				return false
-			}
-			return left.Value < right.Value
-		})
-
-	case *BooleanValue:
-		// Boolean sort: false < true
-		sort.Slice(elements, func(i, j int) bool {
-			left, leftOk := elements[i].(*BooleanValue)
-			right, rightOk := elements[j].(*BooleanValue)
-			if !leftOk || !rightOk {
-				return false
-			}
-			// false (false < true) sorts before true
-			return !left.Value && right.Value
-		})
-
-	default:
-		// For other types, we can't sort - just return nil
-		return &NilValue{}
-	}
-
-	return &NilValue{}
+	return evaluator.ArrayHelperSort(arr)
 }
 
 // builtinArraySortWithComparator sorts an array in place using a custom comparator function.
