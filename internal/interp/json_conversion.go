@@ -2,6 +2,7 @@ package interp
 
 import (
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/jsonvalue"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -69,22 +70,9 @@ func valueToJSONValue(val Value) *jsonvalue.Value {
 
 // jsonValueToVariant wraps a jsonvalue.Value in a VariantValue.
 //
-// This creates a JSONValue wrapper and boxes it in a Variant.
-// The Variant's ActualType is set to nil since JSON is a dynamic type.
+// Task 3.5.160d: Delegates to runtime.BoxVariantWithJSON.
 func jsonValueToVariant(jv *jsonvalue.Value) *VariantValue {
-	if jv == nil {
-		return &VariantValue{Value: nil, ActualType: nil}
-	}
-
-	// Wrap in JSONValue
-	jsonVal := &JSONValue{Value: jv}
-
-	// Box in Variant
-	// Note: We don't have a specific types.Type for JSON, so use nil
-	return &VariantValue{
-		Value:      jsonVal,
-		ActualType: nil, // JSON is a dynamic type
-	}
+	return runtime.BoxVariantWithJSON(jv)
 }
 
 // variantToJSONValue extracts the underlying jsonvalue.Value from a Variant.

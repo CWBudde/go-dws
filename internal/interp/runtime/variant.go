@@ -1,6 +1,9 @@
 package runtime
 
-import "github.com/cwbudde/go-dws/internal/types"
+import (
+	"github.com/cwbudde/go-dws/internal/jsonvalue"
+	"github.com/cwbudde/go-dws/internal/types"
+)
 
 // VariantValue represents a Variant value in DWScript (Task 9.4).
 // Task 3.5.139: Moved from internal/interp/value.go to runtime package for evaluator access.
@@ -107,5 +110,25 @@ func BoxVariant(value Value) *VariantValue {
 	return &VariantValue{
 		Value:      value,
 		ActualType: actualType,
+	}
+}
+
+// BoxVariantWithJSON wraps a jsonvalue.Value in a VariantValue containing a JSONValue.
+// Task 3.5.160b: Replaces adapter.WrapJSONValueInVariant for evaluator.
+//
+// This creates the necessary JSONValue wrapper and boxes it in a Variant, making JSON
+// values available for variant operations. JSON has no specific ActualType since it's
+// a dynamic type.
+//
+// Examples:
+//   - BoxVariantWithJSON(jsonVal) → VariantValue{Value: JSONValue{jsonVal}, ActualType: nil}
+//   - BoxVariantWithJSON(nil) → VariantValue{Value: nil, ActualType: nil}
+func BoxVariantWithJSON(jv *jsonvalue.Value) *VariantValue {
+	if jv == nil {
+		return &VariantValue{Value: nil, ActualType: nil}
+	}
+	return &VariantValue{
+		Value:      &JSONValue{Value: jv},
+		ActualType: nil, // JSON is a dynamic type
 	}
 }

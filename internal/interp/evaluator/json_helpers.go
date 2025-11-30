@@ -31,8 +31,9 @@ func (e *Evaluator) indexJSON(base Value, index Value, node ast.Node) Value {
 
 	// Handle nil/null JSON value
 	if jv == nil {
-		// nil/null JSON value - delegate to adapter for proper Variant wrapping
-		return e.adapter.WrapJSONValueInVariant(nil)
+		// nil/null JSON value - wrap in Variant directly
+		// Task 3.5.160c: Use runtime.BoxVariantWithJSON instead of adapter
+		return runtime.BoxVariantWithJSON(nil)
 	}
 
 	kind := jv.Kind()
@@ -51,8 +52,9 @@ func (e *Evaluator) indexJSON(base Value, index Value, node ast.Node) Value {
 		// Get the property value (returns nil if not found)
 		propValue := jv.ObjectGet(indexStr)
 
-		// Delegate to adapter to wrap in Variant
-		return e.adapter.WrapJSONValueInVariant(propValue)
+		// Wrap in Variant directly
+		// Task 3.5.160c: Use runtime.BoxVariantWithJSON instead of adapter
+		return runtime.BoxVariantWithJSON(propValue)
 	}
 
 	// JSON Array: support integer indexing
@@ -66,8 +68,9 @@ func (e *Evaluator) indexJSON(base Value, index Value, node ast.Node) Value {
 		// Get the array element (returns nil if out of bounds)
 		elemValue := jv.ArrayGet(indexInt)
 
-		// Delegate to adapter to wrap in Variant
-		return e.adapter.WrapJSONValueInVariant(elemValue)
+		// Wrap in Variant directly
+		// Task 3.5.160c: Use runtime.BoxVariantWithJSON instead of adapter
+		return runtime.BoxVariantWithJSON(elemValue)
 	}
 
 	// Not an object or array

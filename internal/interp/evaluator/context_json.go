@@ -3,6 +3,7 @@ package evaluator
 import (
 	"encoding/json"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/jsonvalue"
 )
 
@@ -47,11 +48,8 @@ func (e *Evaluator) ParseJSONString(jsonStr string) (Value, error) {
 	}
 
 	// Convert to Variant containing JSONValue
-	// We need to use the adapter because the evaluator package can't create
-	// interp.JSONValue or interp.VariantValue (circular dependency).
-	// The adapter's WrapJSONValueInVariant method handles this for us.
-	variant := e.adapter.WrapJSONValueInVariant(jsonVal)
-	return variant, nil
+	// Task 3.5.160c: Use runtime.BoxVariantWithJSON instead of adapter
+	return runtime.BoxVariantWithJSON(jsonVal), nil
 }
 
 // ValueToJSON converts a DWScript Value to a JSON string.
@@ -158,8 +156,9 @@ func (e *Evaluator) JSONGetValues(value Value) []Value {
 		values := make([]Value, len(keys))
 		for idx, key := range keys {
 			fieldVal := jsonVal.ObjectGet(key)
-			// Wrap in Variant using adapter (can't create interp.VariantValue directly)
-			values[idx] = e.adapter.WrapJSONValueInVariant(fieldVal)
+			// Wrap in Variant directly
+			// Task 3.5.160c: Use runtime.BoxVariantWithJSON instead of adapter
+			values[idx] = runtime.BoxVariantWithJSON(fieldVal)
 		}
 		return values
 	}
@@ -170,8 +169,9 @@ func (e *Evaluator) JSONGetValues(value Value) []Value {
 		values := make([]Value, arrayLen)
 		for idx := 0; idx < arrayLen; idx++ {
 			elemVal := jsonVal.ArrayGet(idx)
-			// Wrap in Variant using adapter
-			values[idx] = e.adapter.WrapJSONValueInVariant(elemVal)
+			// Wrap in Variant directly
+			// Task 3.5.160c: Use runtime.BoxVariantWithJSON instead of adapter
+			values[idx] = runtime.BoxVariantWithJSON(elemVal)
 		}
 		return values
 	}
