@@ -1,6 +1,7 @@
 package interp
 
 import (
+	"github.com/cwbudde/go-dws/internal/interp/builtins"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -380,6 +381,20 @@ func (i *Interpreter) evalFunctionPointer(name string, selfObject Value, _ ast.N
 		// DWScript is case-insensitive, so normalize the function name
 		overloads, exists := i.functions[ident.Normalize(name)]
 		if !exists || len(overloads) == 0 {
+			// Built-in function pointer
+			// Task 9.24.6: Get signature from builtin registry
+			if _, ok := builtins.DefaultRegistry.Lookup(name); ok {
+				var pointerType *types.FunctionPointerType
+				if sig, found := builtins.DefaultRegistry.GetSignature(name); found {
+					// Create function pointer type from builtin signature
+					var returnType types.Type
+					if sig.ReturnType != nil && sig.ReturnType != types.VOID {
+						returnType = sig.ReturnType
+					}
+					pointerType = types.NewFunctionPointerType(sig.ParamTypes, returnType)
+				}
+				return NewBuiltinFunctionPointerValue(name, pointerType)
+			}
 			return i.newUndefinedError(nil, "undefined function or procedure: %s", name)
 		}
 

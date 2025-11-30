@@ -1,7 +1,9 @@
 package evaluator
 
 import (
+	"github.com/cwbudde/go-dws/internal/interp/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -152,6 +154,22 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 		funcNameLower := ident.Normalize(operand.Value)
 		overloads := e.FunctionRegistry().Lookup(funcNameLower)
 		if len(overloads) == 0 {
+			// Task 9.24.6: Check for builtin function
+			if _, ok := builtins.DefaultRegistry.Lookup(operand.Value); ok {
+				var pointerType *types.FunctionPointerType
+				if sig, found := builtins.DefaultRegistry.GetSignature(operand.Value); found {
+					// Create function pointer type from builtin signature
+					var returnType types.Type
+					if sig.ReturnType != nil && sig.ReturnType != types.VOID {
+						returnType = sig.ReturnType
+					}
+					pointerType = types.NewFunctionPointerType(sig.ParamTypes, returnType)
+				}
+				return &runtime.FunctionPointerValue{
+					BuiltinName: operand.Value,
+					PointerType: pointerType,
+				}
+			}
 			return e.newError(node, "undefined function or procedure: %s", operand.Value)
 		}
 

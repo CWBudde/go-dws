@@ -17,6 +17,13 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	// Normalize function name to lowercase for case-insensitive matching
 	lowerName := ident.Normalize(name)
 
+	// Emit a hint when the case of a built-in differs from its declaration.
+	if lowerName == "assigned" && name != "Assigned" {
+		pos := callExpr.Function.Pos()
+		a.addHint("\"%s\" does not match case of declaration (\"Assigned\") [line: %d, column: %d]",
+			name, pos.Line, pos.Column)
+	}
+
 	// Dispatch to specific analyzer based on function name
 	switch lowerName {
 	// I/O Functions

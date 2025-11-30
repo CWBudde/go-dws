@@ -713,6 +713,19 @@ func NewFunctionPointerValueWithID(
 	}
 }
 
+// NewBuiltinFunctionPointerValue creates a function pointer value that targets a built-in function.
+func NewBuiltinFunctionPointerValue(name string, pointerType *types.FunctionPointerType) *FunctionPointerValue {
+	return &FunctionPointerValue{
+		MethodID:    runtime.InvalidMethodID,
+		Function:    nil,
+		Lambda:      nil,
+		Closure:     nil,
+		SelfObject:  nil,
+		PointerType: pointerType,
+		BuiltinName: name,
+	}
+}
+
 // NewLambdaValue creates a new lambda/closure value.
 // Task 9.221: Constructor for lambda expressions/anonymous methods.
 // The closure environment captures all variables from the scope where the lambda is defined.

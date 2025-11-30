@@ -479,6 +479,10 @@ type FunctionPointerValue struct {
 	// Task 3.5.41: Replaces direct AST node storage.
 	MethodID MethodID
 
+	// BuiltinName identifies the built-in function when the pointer references
+	// a built-in rather than a user-defined function.
+	BuiltinName string
+
 	// Closure is the environment where the function/lambda was defined
 	// For lambdas, this captures all variables from outer scopes
 	// For functions, this is typically the global environment
@@ -597,6 +601,10 @@ func (f *FunctionPointerValue) String() string {
 		// For regular function pointers, show generic representation
 		// (We don't have access to MethodRegistry here to look up name)
 		return "@<function>"
+	}
+
+	if f.BuiltinName != "" {
+		return "@" + f.BuiltinName
 	}
 
 	// Legacy path: use AST nodes
