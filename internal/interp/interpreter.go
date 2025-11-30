@@ -104,6 +104,14 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 	// - Once migration is complete, the old fields will be removed (future Phase 4+ work)
 	ts := interptypes.NewTypeSystem()
 
+	// Task 3.5.159: Initialize ClassValueFactory to enable evaluator to create ClassValue
+	ts.ClassValueFactory = func(classInfo interptypes.ClassInfo) any {
+		if ci, ok := classInfo.(*ClassInfo); ok {
+			return &ClassValue{ClassInfo: ci}
+		}
+		return nil
+	}
+
 	interp := &Interpreter{
 		env:               env,
 		output:            output,

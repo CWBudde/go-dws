@@ -183,12 +183,17 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	}
 
 	// Check if this identifier is a class name (metaclass reference)
+	// Task 3.5.159: Use TypeSystem.CreateClassValue() instead of adapter
 	if e.typeSystem.HasClass(node.Value) {
-		classVal, err := e.adapter.CreateClassValue(node.Value)
+		classVal, err := e.typeSystem.CreateClassValue(node.Value)
 		if err != nil {
 			return e.newError(node, "%s", err.Error())
 		}
-		return classVal
+		// Type assert to Value (classVal is any to avoid circular imports in types package)
+		if val, ok := classVal.(Value); ok {
+			return val
+		}
+		return e.newError(node, "internal error: ClassValueFactory returned non-Value type")
 	}
 
 	// Final check: check for built-in functions or return undefined error

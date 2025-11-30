@@ -60,6 +60,11 @@ type TypeSystem struct {
 	nextClassTypeID  int
 	nextRecordTypeID int
 	nextEnumTypeID   int
+
+	// ClassValueFactory creates a ClassValue from ClassInfo.
+	// Set by Interpreter to avoid circular dependencies.
+	// Task 3.5.159: Enables evaluator to create ClassValue without adapter.
+	ClassValueFactory func(classInfo ClassInfo) any
 }
 
 // NewTypeSystem creates a new TypeSystem with initialized registries.
@@ -106,6 +111,20 @@ func (ts *TypeSystem) LookupClass(name string) ClassInfo {
 		return nil
 	}
 	return info
+}
+
+// CreateClassValue creates a ClassValue (metaclass reference) from a class name.
+// Returns the ClassValue (as any to avoid circular imports) and an error if the class is not found.
+// Task 3.5.159: Enables evaluator to create ClassValue without using adapter.
+func (ts *TypeSystem) CreateClassValue(className string) (any, error) {
+	classInfo := ts.LookupClass(className)
+	if classInfo == nil {
+		return nil, fmt.Errorf("class '%s' not found", className)
+	}
+	if ts.ClassValueFactory == nil {
+		return nil, fmt.Errorf("ClassValueFactory not initialized")
+	}
+	return ts.ClassValueFactory(classInfo), nil
 }
 
 // HasClass checks if a class with the given name exists.
