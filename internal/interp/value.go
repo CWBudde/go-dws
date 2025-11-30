@@ -496,6 +496,15 @@ func (c *ClassInfoValue) GetClassName() string {
 	return c.ClassInfo.Name
 }
 
+// GetClassType returns the class type (metaclass) as a ClassValue.
+// Task 3.5.157: Implements evaluator.ClassMetaValue interface.
+func (c *ClassInfoValue) GetClassType() Value {
+	if c == nil || c.ClassInfo == nil {
+		return nil
+	}
+	return &ClassValue{ClassInfo: c.ClassInfo}
+}
+
 // GetClassVar retrieves a class variable value by name from the class hierarchy.
 // Returns the value and true if found, nil and false otherwise.
 // Task 3.5.88: Implements evaluator.ClassMetaValue interface.
