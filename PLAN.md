@@ -553,13 +553,15 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
     - **Complexity**: High - polymorphic, handles arrays/enums/type meta-values
     - **Implementation**: Delegation pattern - delegates to Interpreter via adapter
 
-  - [ ] **3.5.143s** String Concatenation Method (1 hour)
-    - **File**: `internal/interp/evaluator/context_formatting.go`
+  - [x] **3.5.143s** String Concatenation Method (1 hour) ✅
+    - **File**: `internal/interp/evaluator/context_strings.go` (NEW)
     - **Methods**: ConcatStrings() (1 method)
+    - **Tests**: 6 unit tests in `context_strings_test.go`
 
-  - [ ] **3.5.143t** JSON Parsing & Conversion (2 hours)
+  - [x] **3.5.143t** JSON Parsing & Conversion (2 hours) ✅
     - **File**: `internal/interp/evaluator/context_json.go` (NEW)
     - **Methods**: ParseJSONString(), ValueToJSON(), ValueToJSONWithIndent() (3 methods)
+    - **Tests**: 10+ unit tests in `context_json_test.go` (ValueToJSON tests; ParseJSONString requires adapter)
     - **Dependencies**: Task 3.5.143d (JSON helpers)
 
   - [ ] **3.5.143u** JSON Inspection Methods (4 hours)
