@@ -1,0 +1,41 @@
+// Test function name as alias for Result variable
+// Task 3.5.142e: Validates that FuncName := value works as synonym for Result := value
+//
+// Note: Semantic analyzer limitations mean we can only test ASSIGNMENT to function name.
+// Reading from the function name is treated as a function pointer by the semantic analyzer.
+// This is a known limitation - the alias works at runtime but semantic analysis doesn't support it yet.
+
+function GetValue: Integer;
+begin
+  // Use function name instead of Result for assignment
+  GetValue := 42;
+end;
+
+function DoubleIt(x: Integer): Integer;
+begin
+  // Assign to function name instead of Result
+  DoubleIt := x * 2;
+end;
+
+function GetString: String;
+begin
+  // Start with function name
+  GetString := 'Hello';
+  // Overwrite via Result
+  Result := Result + ', World!';
+end;
+
+function Fibonacci(n: Integer): Integer;
+begin
+  if n <= 1 then
+    Fibonacci := n  // Use function name
+  else
+    Result := Fibonacci(n-1) + Fibonacci(n-2);  // Use Result
+end;
+
+begin
+  PrintLn(GetValue());      // Should print: 42
+  PrintLn(DoubleIt(21));    // Should print: 42
+  PrintLn(GetString());     // Should print: Hello, World!
+  PrintLn(Fibonacci(7));    // Should print: 13
+end.

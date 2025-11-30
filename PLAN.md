@@ -493,7 +493,7 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
       - **Current**: Only handles arrays, uses NIL default for records/interfaces/subranges
       - **Need**: Proper zero-value initialization for complex types
       - **Risk**: Medium (record return types may not initialize properly)
-    - [ ] **3.5.142e** Function name alias support
+    - [x] **3.5.142e** Function name alias support
       - **Location**: `visitor_expressions_identifiers.go` line 266
       - **Feature**: Allow `MyFunc := value` as synonym for `Result := value`
       - **Blocker**: Requires ReferenceValue support in evaluator
