@@ -61,14 +61,17 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// properties, methods (auto-invoked if zero params), or ClassName/ClassType
 	if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk {
 		if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "OBJECT" {
-			// Check for instance field
-			if fieldValue, found := e.adapter.GetObjectFieldValue(selfVal, node.Value); found {
-				return fieldValue
-			}
+			// Task 3.5.155: Use ObjectValue interface for direct field/class var access
+			if objVal, ok := selfVal.(ObjectValue); ok {
+				// Check for instance field
+				if fieldValue := objVal.GetField(node.Value); fieldValue != nil {
+					return fieldValue
+				}
 
-			// Check for class variable
-			if classVarValue, found := e.adapter.GetClassVariableValue(selfVal, node.Value); found {
-				return classVarValue
+				// Check for class variable
+				if classVarValue, found := objVal.GetClassVar(node.Value); found {
+					return classVarValue
+				}
 			}
 
 			// Check for property - but skip if we're in a property getter/setter to prevent recursion
@@ -104,14 +107,19 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			}
 
 			// Check for ClassName special identifier (case-insensitive)
+			// Task 3.5.156: Use ObjectValue interface for direct ClassName access
 			if ident.Equal(node.Value, "ClassName") {
-				className := e.adapter.GetClassName(selfVal)
-				return &runtime.StringValue{Value: className}
+				if objVal, ok := selfVal.(ObjectValue); ok {
+					return &runtime.StringValue{Value: objVal.ClassName()}
+				}
 			}
 
 			// Check for ClassType special identifier (case-insensitive)
+			// Task 3.5.156: Use ObjectValue interface for direct ClassType access
 			if ident.Equal(node.Value, "ClassType") {
-				return e.adapter.GetClassType(selfVal)
+				if objVal, ok := selfVal.(ObjectValue); ok {
+					return objVal.GetClassType()
+				}
 			}
 		}
 	}
@@ -120,20 +128,23 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// Identifiers can refer to ClassName, ClassType, or class variables
 	if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
 		if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
-			// Check for ClassName identifier (case-insensitive)
-			if ident.Equal(node.Value, "ClassName") {
-				className := e.adapter.GetClassNameFromClassInfo(classInfoVal)
-				return &runtime.StringValue{Value: className}
-			}
+			// Task 3.5.157: Use ClassMetaValue interface for direct class metadata access
+			if classMetaVal, ok := classInfoVal.(ClassMetaValue); ok {
+				// Check for ClassName identifier (case-insensitive)
+				if ident.Equal(node.Value, "ClassName") {
+					return &runtime.StringValue{Value: classMetaVal.GetClassName()}
+				}
 
-			// Check for ClassType identifier (case-insensitive)
-			if ident.Equal(node.Value, "ClassType") {
-				return e.adapter.GetClassTypeFromClassInfo(classInfoVal)
-			}
+				// Check for ClassType identifier (case-insensitive)
+				if ident.Equal(node.Value, "ClassType") {
+					return classMetaVal.GetClassType()
+				}
 
-			// Check for class variable
-			if classVarValue, found := e.adapter.GetClassVariableFromClassInfo(classInfoVal, node.Value); found {
-				return classVarValue
+				// Check for class variable
+				// Task 3.5.158: Use ClassMetaValue.GetClassVar() for direct class variable access
+				if classVarValue, found := classMetaVal.GetClassVar(node.Value); found {
+					return classVarValue
+				}
 			}
 		}
 	}
@@ -172,12 +183,17 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	}
 
 	// Check if this identifier is a class name (metaclass reference)
+	// Task 3.5.159: Use TypeSystem.CreateClassValue() instead of adapter
 	if e.typeSystem.HasClass(node.Value) {
-		classVal, err := e.adapter.CreateClassValue(node.Value)
+		classVal, err := e.typeSystem.CreateClassValue(node.Value)
 		if err != nil {
 			return e.newError(node, "%s", err.Error())
 		}
-		return classVal
+		// Type assert to Value (classVal is any to avoid circular imports in types package)
+		if val, ok := classVal.(Value); ok {
+			return val
+		}
+		return e.newError(node, "internal error: ClassValueFactory returned non-Value type")
 	}
 
 	// Final check: check for built-in functions or return undefined error

@@ -707,25 +707,8 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 **Current State**: 3 JSON-related adapter calls
 
-- [x] **3.5.160** Migrate WrapJSONValueInVariant (6 calls) ✅ **COMPLETE**
-  - **Locations**: `json_helpers.go` (lines 35, 55, 70), `context_json.go` (lines 53, 162, 174)
-  - **Solution**: Moved JSONValue to runtime package, added `BoxVariantWithJSON()` helper
-  - **Implementation**:
-    - 3.5.160a: Moved JSONValue to `runtime/json.go` with type alias for backward compatibility
-    - 3.5.160b: Added `runtime.BoxVariantWithJSON()` helper
-    - 3.5.160c: Replaced 6 adapter calls with direct `runtime.BoxVariantWithJSON()` calls
-    - 3.5.160d: Removed `WrapJSONValueInVariant` from adapter interface and implementation
-    - 3.5.160e: Updated `jsonValueToVariant()` to delegate to runtime helper
-  - **Calls removed**: 6 adapter calls (was 3, found 3 more in context_json.go)
-  - **Adapter methods removed**: 1 (WrapJSONValueInVariant)
-  - **Pattern**: Follows successful VariantValue migration (Task 3.5.139)
-  - **Completed**: 2025-11-30
-
-- [x] **3.5.161** Consolidate JSON handling ✅ **COMPLETE**
-  - **Goal**: Complete JSON indexing without any adapter calls
-  - **Deliverable**: Self-contained `json_helpers.go` and `context_json.go`
-  - **Status**: Already complete after 3.5.160 - Both json_helpers.go and context_json.go use runtime.BoxVariantWithJSON(), no adapter calls
-  - **Completed**: 2025-11-30 (as part of 3.5.160)
+- [x] **3.5.160** Migrate WrapJSONValueInVariant (6 calls)
+- [x] **3.5.161** Consolidate JSON handling
 
 ---
 

@@ -25,6 +25,10 @@ type ObjectValue interface {
 	Value
 	// ClassName returns the class name of this object instance.
 	ClassName() string
+	// GetClassType returns the class type (metaclass) for this object instance.
+	// Returns a Value that implements ClassMetaValue interface.
+	// Task 3.5.156: Enables direct ClassType access without adapter.
+	GetClassType() Value
 	// HasProperty checks if this object's class has a property with the given name.
 	// The check includes the entire class hierarchy.
 	HasProperty(name string) bool
@@ -155,6 +159,9 @@ type ClassMetaValue interface {
 	Value
 	// GetClassName returns the class name.
 	GetClassName() string
+	// GetClassType returns the class type (metaclass) as a ClassValue.
+	// Task 3.5.157: Enables direct ClassType access from ClassInfoValue without adapter.
+	GetClassType() Value
 	// GetClassVar retrieves a class variable value by name from the class hierarchy.
 	// Returns the value and true if found, nil and false otherwise.
 	// The lookup is case-insensitive.
