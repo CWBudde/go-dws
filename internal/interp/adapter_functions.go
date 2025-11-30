@@ -143,7 +143,14 @@ func (i *Interpreter) CallUserFunctionWithOverloads(callExpr *ast.CallExpression
 		return i.newErrorWithLocation(callExpr, "%s", err.Error())
 	}
 
-	// 4. Execute the resolved function with prepared arguments
+	// 4. Evaluate default parameters for missing arguments (MIGRATED - Task 3.5.144b.1)
+	// Defaults are evaluated in the caller's context (i.ctx), not the function scope
+	args, err = i.evaluatorInstance.EvaluateDefaultParameters(fn, args, i.ctx)
+	if err != nil {
+		return i.newErrorWithLocation(callExpr, "%s", err.Error())
+	}
+
+	// 5. Execute the resolved function with prepared arguments
 	return i.callUserFunction(fn, args)
 }
 
