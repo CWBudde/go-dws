@@ -8,7 +8,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/interp/builtins"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -686,6 +689,53 @@ func (i *Interpreter) RaiseAssertionFailed(customMessage string) {
 		Instance:  instance,
 		Position:  nil,
 		CallStack: nil,
+	}
+}
+
+// CreateContractException creates an exception value for contract violations.
+// This implements the InterpreterAdapter interface.
+// Task 3.5.142a: Bridge constructor to create exception without import cycles.
+func (i *Interpreter) CreateContractException(className, message string, node ast.Node, classMetadata interface{}, callStack interface{}) interface{} {
+	// Get position information from the AST node
+	var pos *lexer.Position
+	if node != nil {
+		nodePos := node.Pos()
+		pos = &nodePos
+	}
+
+	// Extract ClassMetadata from interface{} (passed from TypeSystem)
+	var metadata *runtime.ClassMetadata
+	if classMetadata != nil {
+		if md, ok := classMetadata.(*runtime.ClassMetadata); ok {
+			metadata = md
+		}
+	}
+
+	// Extract call stack from interface{}
+	var stack errors.StackTrace
+	if callStack != nil {
+		if st, ok := callStack.(errors.StackTrace); ok {
+			stack = st
+		}
+	}
+
+	// Create ExceptionValue
+	exc := &ExceptionValue{
+		Metadata:  metadata,
+		Instance:  nil, // Contract exceptions don't need full instance
+		Message:   message,
+		Position:  pos,
+		CallStack: stack,
+	}
+
+	return exc
+}
+
+// CleanupInterfaceReferences implements evaluator.InterpreterAdapter.
+// Task 3.5.142c: Bridge method to clean up interface-held objects when scope ends.
+func (i *Interpreter) CleanupInterfaceReferences(env interface{}) {
+	if envTyped, ok := env.(*Environment); ok {
+		i.cleanupInterfaceReferences(envTyped)
 	}
 }
 

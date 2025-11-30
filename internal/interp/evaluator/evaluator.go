@@ -513,6 +513,25 @@ type InterpreterAdapter interface {
 	// The exception includes position information from the current node.
 	RaiseAssertionFailed(customMessage string)
 
+	// CreateContractException creates an exception value for contract violations.
+	// Task 3.5.142a: Bridge constructor to create exception without import cycles.
+	// This is a temporary pattern similar to Task 3.5.129 bridge constructors.
+	// Parameters:
+	//   - className: Exception class name (e.g., "Exception")
+	//   - message: Exception message with position info
+	//   - node: AST node for position information (can be nil)
+	//   - classMetadata: Class metadata from TypeSystem lookup (can be nil)
+	//   - callStack: Call stack trace from ExecutionContext
+	// Returns the created exception value as interface{}.
+	CreateContractException(className, message string, node ast.Node, classMetadata interface{}, callStack interface{}) interface{}
+
+	// CleanupInterfaceReferences releases interface and object references in an environment.
+	// Task 3.5.142c: Bridge method to clean up interface-held objects when scope ends.
+	// This decrements reference counts and calls destructors for objects that reach zero refs.
+	// Parameters:
+	//   - env: Environment (interface{}) to clean up
+	CleanupInterfaceReferences(env interface{})
+
 	// CreateClassValue creates a ClassValue (metaclass reference) from a class name.
 	// Task 3.5.85: Used by VisitIdentifier to return metaclass references for class names.
 	// Returns the ClassValue and an error if the class is not found.

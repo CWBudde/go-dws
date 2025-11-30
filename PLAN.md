@@ -476,15 +476,15 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Calls removed**: 1 adapter call
   - **Status**: Complete - parameterless function auto-invocation working correctly
   - **Deferred subtasks** (marked with TODO in code):
-    - [ ] **3.5.142a** Migrate preconditions check
+    - [x] **3.5.142a** Migrate preconditions check
       - **Location**: `visitor_expressions_identifiers.go` line 271
       - **Blocker**: Requires migration of `i.checkPreconditions()` from `contracts.go`
       - **Risk**: Low (preconditions on parameterless functions are rare)
-    - [ ] **3.5.142b** Migrate postconditions check and old values capture
+    - [x] **3.5.142b** Migrate postconditions check and old values capture
       - **Locations**: `visitor_expressions_identifiers.go` lines 276, 317
       - **Blocker**: Requires migration of `i.checkPostconditions()` and `i.captureOldValues()` from `contracts.go`
       - **Risk**: Low (postconditions on parameterless functions are rare)
-    - [ ] **3.5.142c** Migrate interface cleanup
+    - [x] **3.5.142c** Migrate interface cleanup
       - **Location**: `visitor_expressions_identifiers.go` line 322
       - **Blocker**: Requires migration of `i.cleanupInterfaceReferences()` from `interface.go`
       - **Risk**: Medium (memory leak if parameterless function creates interface variables - rare case)
@@ -499,60 +499,31 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
       - **Blocker**: Requires ReferenceValue support in evaluator
       - **Risk**: Low (most code uses Result pattern)
 
-- [x] **3.5.143** Migrate CallBuiltinFunction - Full Context Implementation ✅ COMPLETE
+- [x] **3.5.143** Migrate CallBuiltinFunction
   - **Status**: All 40 Context interface methods implemented (Nov 2025)
   - **Result**: 2 adapter calls removed (CallBuiltinFunction), 1 adapter method removed
   - **Infrastructure**: 8 context files created, EnumTypeRegistry added, 93 helpers migrated
   - **Verification**: All builtin tests pass, fixture tests maintain pre-existing status
 
-  **Remaining Work** (Testing & Documentation):
-
-  - [ ] **3.5.143aa** Unit Tests for Context Methods (16 hours)
-    - **Files**: 6 new test files (context_test.go, context_conversions_test.go, etc.)
-    - **Coverage**: 40 unit tests covering all Context methods
-    - **Strategy**: Happy path, error cases, edge cases, nil handling
-
-  - [ ] **3.5.143ab** Integration Tests (8 hours)
-    - **File**: `builtin_integration_test.go` (NEW)
-    - **Coverage**: All 231 registered builtins work via direct Context calls
-    - **Categories**: Math, String, Array, Type, I/O, JSON functions
-
-  - [ ] **3.5.143ac** Regression Testing (4 hours)
-    - **Suite**: Full DWScript test suite (~2,100 tests)
-    - **Commands**: `just test`, `just test-coverage`
-    - **Criteria**: All existing tests pass, coverage >80%
-
-  - [ ] **3.5.143ad** Update PLAN.md (0.5 hour)
-    - **Task**: Mark task complete, add implementation notes
-
-  - [ ] **3.5.143ae** Update CLAUDE.md (0.5 hour)
-    - **Task**: Update Evaluator architecture and TypeSystem documentation
-
-  - [ ] **3.5.143af** Code Documentation (1 hour)
-    - **Task**: Add package-level and method documentation to all new files
-
-  **Deferred to Phase 3.6+**:
-  - **3.5.143v** EvalFunctionPointer - complex closure handling, keep in adapter (1 of 40 methods)
-
-- [ ] **3.5.151** Migrate CallUserFunctionWithOverloads (1 call)
+- [ ] **3.5.144** Migrate CallUserFunctionWithOverloads (1 call)
   - **Location**: `visitor_expressions.go` line 562
   - **Issue**: Overloaded function resolution and call
   - **Solution**: Use FunctionRegistry.ResolveOverload() + invoke
   - **Calls removed**: 1 adapter call
 
-- [ ] **3.5.152** Migrate CallImplicitSelfMethod (1 call)
+- [ ] **3.5.145** Migrate CallImplicitSelfMethod (1 call)
   - **Location**: `visitor_expressions.go` line 572
   - **Issue**: Implicit Self method call in instance context
   - **Solution**: Get Self from context, dispatch via method call
   - **Calls removed**: 1 adapter call
 
-- [ ] **3.5.153** Migrate CallRecordStaticMethod (1 call)
+- [ ] **3.5.146** Migrate CallRecordStaticMethod (1 call)
   - **Location**: `visitor_expressions.go` line 584
   - **Issue**: Record static method call in record context
   - **Solution**: Get record context, dispatch to record method
   - **Calls removed**: 1 adapter call
 
-- [ ] **3.5.154** Migrate CallMemberMethod + CallQualifiedOrConstructor (2 calls)
+- [ ] **3.5.147** Migrate CallMemberMethod + CallQualifiedOrConstructor (2 calls)
   - **Location**: `visitor_expressions.go` lines 529, 537
   - **Issue**: Member method and qualified calls
   - **Solution**: Unify into method dispatch infrastructure
