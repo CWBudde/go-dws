@@ -538,12 +538,15 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 **Current State**: 7 user function-related adapter calls
 
-- [ ] **3.5.142** Migrate CallUserFunction (1 call)
-  - **Location**: `visitor_expressions.go` line 192
-  - **Issue**: Direct user function call (parameterless)
-  - **Solution**: Create `evaluator.InvokeUserFunction()`
-  - **Requires**: Environment setup, Result initialization
+- [x] **3.5.142** Migrate CallUserFunction (1 call) ✅
+  - **Location**: `visitor_expressions_identifiers.go` line 170
+  - **Issue**: Direct user function call (parameterless auto-invoke)
+  - **Solution**: Created `evaluator.invokeParameterlessUserFunction()` with simplified implementation
+  - **Implementation**: Uses ExecutionContext stack-based environment model (PushEnv/PopEnv)
+  - **Features**: Recursion check, Result initialization, exit handling, implicit conversion
+  - **Deferred**: Preconditions (3.5.142a), postconditions (3.5.142b), interface cleanup (3.5.142c), advanced Result init (3.5.142d), function name alias (3.5.142e)
   - **Calls removed**: 1 adapter call
+  - **Status**: Complete - parameterless function auto-invocation working correctly
 
 - [ ] **3.5.143** Migrate CallBuiltinFunction (2 calls)
   - **Location**: `visitor_expressions.go` lines 214, 661

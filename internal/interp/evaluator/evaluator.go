@@ -370,6 +370,8 @@ type InterpreterAdapter interface {
 	CallFunctionPointer(funcPtr Value, args []Value, node ast.Node) Value
 
 	// CallUserFunction executes a user-defined function.
+	// Task 3.5.142: Parameterless auto-invoke migrated to evaluator.invokeParameterlessUserFunction()
+	// Still used for: function pointer calls, method calls, explicit calls with arguments
 	CallUserFunction(fn *ast.FunctionDecl, args []Value) Value
 
 	// CallBuiltinFunction executes a built-in function by name.
@@ -1108,6 +1110,12 @@ func (e *Evaluator) DefineVar(ctx *ExecutionContext, name string, value Value) {
 // Task 3.5.63: Direct environment access without adapter.
 func (e *Evaluator) SetVar(ctx *ExecutionContext, name string, value Value) bool {
 	return ctx.Env().Set(name, value)
+}
+
+// raiseMaxRecursionExceeded raises a max recursion exception.
+// Task 3.5.142: Helper for parameterless function invocation.
+func (e *Evaluator) raiseMaxRecursionExceeded(node ast.Node) Value {
+	return e.newError(node, "maximum recursion depth exceeded")
 }
 
 // Eval evaluates an AST node and returns the result value.
