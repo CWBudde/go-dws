@@ -37,9 +37,11 @@ func builtinFloatToStr(vm *VM, args []Value) (Value, error) {
 	if len(args) != 1 {
 		return NilValue(), vm.runtimeError("FloatToStr expects 1 argument, got %d", len(args))
 	}
-	if !args[0].IsFloat() {
-		return NilValue(), vm.runtimeError("FloatToStr expects a float argument")
+	// Accept both float and integer types (auto-convert integer to float)
+	if !args[0].IsFloat() && !args[0].IsInt() {
+		return NilValue(), vm.runtimeError("FloatToStr expects a numeric argument")
 	}
+	// AsFloat() handles conversion for both types
 	return StringValue(fmt.Sprintf("%g", args[0].AsFloat())), nil
 }
 
