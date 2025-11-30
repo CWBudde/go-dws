@@ -3853,7 +3853,7 @@ type TypeAnnotation struct {
 
 ### 9.23.7 Additional Built-in Function Fixes
 
-- [ ] 9.23.7.1 Fix Copy() 2-parameter variant
+- [x] 9.23.7.1 Fix Copy() 2-parameter variant
   - Current: `Copy(str, start, len)` ✓
   - Missing: `Copy(str, start)` - should copy from start to end
   - Implementation: Default len to MaxInt when omitted
@@ -3866,48 +3866,6 @@ type TypeAnnotation struct {
   - DWScript behavior: Accepts numeric types and auto-converts
   - File: `internal/semantic/analyze_function_calls.go` or `internal/interp/builtins_conversion.go`
   - Estimated: 1 hour
-
-- [x] 9.24 Built-in Function Pointer Type Metadata ✅ COMPLETE
-  - Extend builtin registry to include type signatures for all 234+ built-in functions
-  - Enable proper semantic analysis of `@Builtin` address-of expressions
-  - File: `internal/interp/builtins/registry.go`, `internal/interp/builtins/register.go`
-  - Estimated: 4 hours
-
-- [x] 9.24.1 Add Signature field to FunctionInfo ✅
-  - Add `ParamTypes`, `ReturnType`, `IsVariadic` fields
-  - Add `GetSignature()` method to Registry
-  - File: `internal/interp/builtins/registry.go`
-  - Estimated: 30 minutes
-
-- [x] 9.24.2 Update Math function registrations with type metadata ✅
-  - Update RegisterMathFunctions() with 68 function signatures
-  - File: `internal/interp/builtins/register.go`
-  - Estimated: 1 hour
-
-- [x] 9.24.3 Update String function registrations with type metadata ✅
-  - Update RegisterStringFunctions() with 57 function signatures
-  - File: `internal/interp/builtins/register.go`
-  - Estimated: 1 hour
-
-- [x] 9.24.4 Update remaining function registrations with type metadata ✅
-  - DateTime (52), Conversion (11), Encoding (5), JSON (7), Type (2)
-  - Array (16), Collections (8), Variant (10), IO (2), System (4)
-  - File: `internal/interp/builtins/register.go`
-  - Estimated: 1.5 hours
-
-- [x] 9.24.5 Update semantic analyzer to use builtin registry ✅
-  - Query registry in `analyzeAddressOfFunction()` instead of hardcoded map
-  - Remove `AmbiguousBuiltin` field and tracking code
-  - Allow variadic/ambiguous builtins (validate at call time)
-  - Files: `internal/semantic/analyze_function_pointers.go`, `symbol_table.go`, `analyzer.go`
-  - Estimated: 1 hour
-
-- [x] 9.24.6 Clean up interpreter builtin pointer handling ✅
-  - Remove `builtinFunctionPointerTypes` map and `builtinPointerType` method
-  - Keep `BuiltinName` approach in FunctionPointerValue
-  - Updated both Interpreter and Evaluator to use registry signatures
-  - File: `internal/interp/expressions_basic.go`, `internal/interp/evaluator/visitor_expressions_operators.go`
-  - Estimated: 30 minutes
 
 ---
 

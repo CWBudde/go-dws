@@ -242,6 +242,34 @@ end
 			`,
 			expected: "ell",
 		},
+		{
+			name: "Copy with 2 arguments (copy to end)",
+			input: `
+var s: String := "Hello World";
+begin
+	Copy(s, 7);
+end
+			`,
+			expected: "World",
+		},
+		{
+			name: "Copy with 2 arguments from beginning",
+			input: `
+begin
+	Copy("DWScript", 1);
+end
+			`,
+			expected: "DWScript",
+		},
+		{
+			name: "Copy with 2 arguments from middle",
+			input: `
+begin
+	Copy("Testing123", 4);
+end
+			`,
+			expected: "ting123",
+		},
 	}
 
 	for _, tt := range tests {
@@ -279,14 +307,6 @@ end
 			input: `
 begin
 	Copy("hello");
-end
-			`,
-		},
-		{
-			name: "Two arguments only",
-			input: `
-begin
-	Copy("hello", 1);
 end
 			`,
 		},

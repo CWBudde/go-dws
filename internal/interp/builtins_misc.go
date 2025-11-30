@@ -34,6 +34,7 @@ func (i *Interpreter) builtinLength(args []Value) Value {
 
 // builtinCopy implements the Copy() built-in function.
 // It returns a substring of a string.
+// Copy(str, index) - index is 1-based, copies from index to end
 // Copy(str, index, count) - index is 1-based, count is number of characters
 // Copy(arr) - creates a deep copy of an array
 func (i *Interpreter) builtinCopy(args []Value) Value {
@@ -45,9 +46,9 @@ func (i *Interpreter) builtinCopy(args []Value) Value {
 		return i.newErrorWithLocation(i.currentNode, "Copy() with 1 argument expects array, got %s", args[0].Type())
 	}
 
-	// Handle string copy: Copy(str, index, count) - 3 arguments
-	if len(args) != 3 {
-		return i.newErrorWithLocation(i.currentNode, "Copy() expects either 1 argument (array) or 3 arguments (string), got %d", len(args))
+	// Handle string copy: Copy(str, index) or Copy(str, index, count)
+	if len(args) < 2 || len(args) > 3 {
+		return i.newErrorWithLocation(i.currentNode, "Copy() expects 1 argument (array) or 2-3 arguments (string), got %d", len(args))
 	}
 
 	// First argument: string
@@ -62,15 +63,18 @@ func (i *Interpreter) builtinCopy(args []Value) Value {
 		return i.newErrorWithLocation(i.currentNode, "Copy() expects integer as second argument, got %s", args[1].Type())
 	}
 
-	// Third argument: count
-	countVal, ok := args[2].(*IntegerValue)
-	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Copy() expects integer as third argument, got %s", args[2].Type())
-	}
-
 	str := strVal.Value
 	index := indexVal.Value // 1-based
-	count := countVal.Value
+
+	// Third argument: count (optional, defaults to rest of string)
+	var count int64 = int64(len([]rune(str))) // Default: copy to end
+	if len(args) == 3 {
+		countVal, ok := args[2].(*IntegerValue)
+		if !ok {
+			return i.newErrorWithLocation(i.currentNode, "Copy() expects integer as third argument, got %s", args[2].Type())
+		}
+		count = countVal.Value
+	}
 
 	// Use rune-based slicing to handle UTF-8 correctly
 	result := runeSliceFrom(str, int(index), int(count))
