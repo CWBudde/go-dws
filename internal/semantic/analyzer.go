@@ -220,7 +220,7 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 	}
 
 	// Add Message field to Exception
-	exceptionClass.Fields["message"] = types.STRING
+	exceptionClass.Fields["Message"] = types.STRING
 
 	// Add Create constructor
 	exceptionClass.AddConstructorOverload("Create", &types.MethodInfo{

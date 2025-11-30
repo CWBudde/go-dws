@@ -58,7 +58,7 @@ end;
 		t.Errorf("Expected 1 field, got %d", len(ttest.Fields))
 	}
 
-	if _, ok := ttest.Fields["field"]; !ok {
+	if _, ok := ttest.GetField("field"); !ok {
 		t.Error("Field 'field' not found in merged class")
 	}
 

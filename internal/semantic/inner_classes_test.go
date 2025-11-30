@@ -7,7 +7,6 @@ import (
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
-	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 func TestNestedClassTypeResolution(t *testing.T) {
@@ -52,7 +51,7 @@ end;`
 		t.Fatalf("global TInner should still be registered separately")
 	}
 
-	fieldType, ok := outer.Fields[ident.Normalize("Field")]
+	fieldType, ok := outer.GetField("Field")
 	if !ok {
 		t.Fatalf("field 'Field' not found on outer class")
 	}

@@ -905,7 +905,9 @@ func (a *Analyzer) addParentFieldsToScope(parent *types.ClassType) {
 	for fieldName, fieldType := range parent.Fields {
 		// Don't override if already defined (shadowing)
 		if !a.symbols.IsDeclaredInCurrentScope(fieldName) {
-			visibility, ok := parent.FieldVisibility[fieldName]
+			// FieldVisibility uses normalized keys, but Fields uses original case
+			normalizedFieldName := ident.Normalize(fieldName)
+			visibility, ok := parent.FieldVisibility[normalizedFieldName]
 			if ok && visibility == int(ast.VisibilityPrivate) {
 				continue
 			}
@@ -950,9 +952,11 @@ func (a *Analyzer) getFieldOwner(class *types.ClassType, fieldName string) *type
 	}
 
 	// Check if this class declares the field (case-insensitive)
-	lowerFieldName := ident.Normalize(fieldName)
-	if _, found := class.Fields[lowerFieldName]; found {
-		return class
+	// Fields map uses original case keys, so iterate and compare
+	for storedName := range class.Fields {
+		if ident.Equal(storedName, fieldName) {
+			return class
+		}
 	}
 
 	// Check parent classes

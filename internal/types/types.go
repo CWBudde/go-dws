@@ -513,10 +513,11 @@ func (ct *ClassType) HasField(name string) bool {
 
 // GetField retrieves the type of a field by name, searching up the inheritance chain
 func (ct *ClassType) GetField(name string) (Type, bool) {
-	// Case-insensitive field lookup
-	normalizedName := ident.Normalize(name)
-	if fieldType, ok := ct.Fields[normalizedName]; ok {
-		return fieldType, true
+	// Case-insensitive field lookup (keys preserve original case)
+	for fieldName, fieldType := range ct.Fields {
+		if ident.Equal(fieldName, name) {
+			return fieldType, true
+		}
 	}
 	if ct.Parent != nil {
 		return ct.Parent.GetField(name)

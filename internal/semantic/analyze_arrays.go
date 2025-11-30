@@ -4,6 +4,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -82,11 +83,36 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 		return nil
 	}
 
+	// Special-case indexed properties: obj.Prop[index]
+	if memberAccess, ok := expr.Left.(*ast.MemberAccessExpression); ok {
+		if propType := a.analyzeIndexedPropertyAccess(memberAccess, expr); propType != nil {
+			return propType
+		}
+	}
+
 	// Analyze the left side (what's being indexed)
 	leftType := a.analyzeExpression(expr.Left)
 	if leftType == nil {
 		// Error already reported
 		return nil
+	}
+
+	// Allow default indexed properties on classes (obj[index] -> obj.DefaultProperty[index])
+	if classType, ok := types.GetUnderlyingType(leftType).(*types.ClassType); ok {
+		if defaultProp := a.getDefaultClassProperty(classType); defaultProp != nil {
+			expectedIndexTypes := a.getIndexedPropertyParamTypes(defaultProp, classType)
+			if len(expectedIndexTypes) > 0 {
+				indexType := a.analyzeExpressionWithExpectedType(expr.Index, expectedIndexTypes[0])
+				if indexType != nil && !a.canAssign(indexType, expectedIndexTypes[0]) {
+					a.addError("default property index has type %s, expected %s at %s",
+						indexType.String(), expectedIndexTypes[0].String(), expr.Index.Pos().String())
+					return nil
+				}
+			} else {
+				a.analyzeExpression(expr.Index)
+			}
+			return defaultProp.Type
+		}
 	}
 
 	// Check if left side is an array type
@@ -156,6 +182,89 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 
 	// Return the element type of the array
 	return arrayType.ElementType
+}
+
+// analyzeIndexedPropertyAccess handles expressions like obj.Prop[index]
+// by validating the index type against the property's signature and returning the property type.
+func (a *Analyzer) analyzeIndexedPropertyAccess(memberAccess *ast.MemberAccessExpression, expr *ast.IndexExpression) types.Type {
+	// Determine the object type for the member access
+	objectType := a.analyzeExpression(memberAccess.Object)
+	if objectType == nil {
+		return nil
+	}
+
+	objectResolved := types.GetUnderlyingType(objectType)
+	if metaclassType, ok := objectResolved.(*types.ClassOfType); ok {
+		objectResolved = metaclassType.ClassType
+	}
+
+	memberName := ident.Normalize(memberAccess.Member.Value)
+
+	// Handle class instance properties
+	if classType, ok := objectResolved.(*types.ClassType); ok {
+		if propInfo, found := classType.GetProperty(memberName); found {
+			if !propInfo.IsIndexed {
+				// Not an indexed property – let general indexing rules apply to the property type
+				return nil
+			}
+
+			expectedIndexTypes := a.getIndexedPropertyParamTypes(propInfo, classType)
+			if len(expectedIndexTypes) > 0 {
+				indexType := a.analyzeExpressionWithExpectedType(expr.Index, expectedIndexTypes[0])
+				if indexType != nil && !a.canAssign(indexType, expectedIndexTypes[0]) {
+					a.addError("property '%s' index has type %s, expected %s at %s",
+						memberAccess.Member.Value, indexType.String(), expectedIndexTypes[0].String(),
+						expr.Index.Pos().String())
+					return nil
+				}
+			} else {
+				a.analyzeExpression(expr.Index)
+			}
+			return propInfo.Type
+		}
+	}
+
+	// Not an indexed property access
+	return nil
+}
+
+// getDefaultClassProperty walks the class hierarchy to find a default property, if any.
+func (a *Analyzer) getDefaultClassProperty(classType *types.ClassType) *types.PropertyInfo {
+	for current := classType; current != nil; current = current.Parent {
+		for _, propInfo := range current.Properties {
+			if propInfo.IsDefault {
+				return propInfo
+			}
+		}
+	}
+	return nil
+}
+
+// getIndexedPropertyParamTypes tries to determine the index parameter types for an indexed property.
+// Preference order:
+//  1. Getter method parameters (all parameters are index parameters)
+//  2. Setter method parameters (all but the last parameter are index parameters)
+//
+// If no method information is available, returns nil.
+func (a *Analyzer) getIndexedPropertyParamTypes(propInfo *types.PropertyInfo, classType *types.ClassType) []types.Type {
+	// Use getter signature if it is a method
+	if propInfo.ReadKind == types.PropAccessMethod && propInfo.ReadSpec != "" {
+		if methodType, found := classType.GetMethod(ident.Normalize(propInfo.ReadSpec)); found {
+			return methodType.Parameters
+		}
+	}
+
+	// Use setter signature if it is a method (exclude the value parameter)
+	if propInfo.WriteKind == types.PropAccessMethod && propInfo.WriteSpec != "" {
+		if methodType, found := classType.GetMethod(ident.Normalize(propInfo.WriteSpec)); found {
+			if len(methodType.Parameters) > 0 {
+				return methodType.Parameters[:len(methodType.Parameters)-1]
+			}
+			return []types.Type{}
+		}
+	}
+
+	return nil
 }
 
 // analyzeNewArrayExpression analyzes array instantiation with 'new' keyword

@@ -813,6 +813,14 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok {
 		// Evaluate the object being accessed
 		objVal := i.Eval(memberAccess.Object)
+		if objVal != nil && objVal.Type() == "NIL" {
+			// Attempt to auto-create nil class properties before proceeding
+			if maObj, ok := memberAccess.Object.(*ast.MemberAccessExpression); ok {
+				if ensured := i.ensureClassPropertyInstance(maObj); ensured != nil {
+					objVal = ensured
+				}
+			}
+		}
 		if isError(objVal) {
 			return objVal
 		}
@@ -869,6 +877,48 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 	indexVal := i.Eval(target.Index)
 	if isError(indexVal) {
 		return indexVal
+	}
+
+	// Auto-instantiate class-typed fields when accessed through a property that returns nil.
+	// This mirrors evalIndexExpression to support patterns like obj.Sub['x'] := value.
+	if arrayVal != nil && arrayVal.Type() == "NIL" {
+		if memberAccess, ok := target.Left.(*ast.MemberAccessExpression); ok {
+			ownerVal := i.Eval(memberAccess.Object)
+			if !isError(ownerVal) {
+				if ownerObj, ok := AsObject(ownerVal); ok {
+					if propInfo := ownerObj.Class.lookupProperty(memberAccess.Member.Value); propInfo != nil {
+						if classType, ok := propInfo.Type.(*types.ClassType); ok {
+							if classInfo := i.resolveClassInfoByName(classType.Name); classInfo != nil {
+								if propInfo.ReadKind == types.PropAccessField && propInfo.ReadSpec != "" {
+									newInst := NewObjectInstance(classInfo)
+									ownerObj.SetField(propInfo.ReadSpec, newInst)
+									arrayVal = newInst
+								}
+							}
+						}
+					}
+				} else if ownerVal != nil && ownerVal.Type() == "NIL" {
+					if maObj, ok := memberAccess.Object.(*ast.MemberAccessExpression); ok {
+						if ensured := i.ensureClassPropertyInstance(maObj); ensured != nil && ensured.Type() != "NIL" {
+							ownerVal = ensured
+							if ownerObj, ok := AsObject(ensured); ok {
+								if propInfo := ownerObj.Class.lookupProperty(memberAccess.Member.Value); propInfo != nil {
+									if classType, ok := propInfo.Type.(*types.ClassType); ok {
+										if classInfo := i.resolveClassInfoByName(classType.Name); classInfo != nil {
+											if propInfo.ReadKind == types.PropAccessField && propInfo.ReadSpec != "" {
+												newInst := NewObjectInstance(classInfo)
+												ownerObj.SetField(propInfo.ReadSpec, newInst)
+												arrayVal = newInst
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
 	// Allow default indexed properties on interface values (e.g., intf['x'] := y)

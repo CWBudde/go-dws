@@ -306,8 +306,16 @@ end.
 	analyzer := NewAnalyzer()
 	analyzer.Analyze(program)
 
-	if len(analyzer.Errors()) > 0 {
-		t.Fatalf("Expected no semantic errors, got: %v", analyzer.Errors())
+	// Filter out hints - only check for actual errors
+	// Hints about case mismatch are expected behavior in DWScript
+	var actualErrors []string
+	for _, err := range analyzer.Errors() {
+		if len(err) < 5 || err[:5] != "Hint:" {
+			actualErrors = append(actualErrors, err)
+		}
+	}
+	if len(actualErrors) > 0 {
+		t.Fatalf("Expected no semantic errors, got: %v", actualErrors)
 	}
 }
 
