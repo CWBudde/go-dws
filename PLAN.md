@@ -501,24 +501,113 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 **Current State**: 8 variable declaration-related calls
 
-- [ ] **3.5.137** Migrate DefineVariable (3 calls)
-  - **Location**: `visitor_statements.go` lines 148, 257, 343
+- [x] **3.5.137** Migrate DefineVariable (3 calls) ✅
+  - **Location**: `visitor_statements.go` lines 177, 287, 374 (actual locations, not 148/257/343)
   - **Issue**: Variable definition delegates to adapter
   - **Solution**: Use ExecutionContext.Env().Define() directly
-  - **Note**: `DefineVar()` helper exists but adapter calls remain
-  - **Calls removed**: 3 adapter calls
+  - **Implementation**: Replaced `e.adapter.DefineVariable(name, value, ctx)` with `ctx.Env().Define(name, value)`
+  - **Calls removed**: 3 adapter calls (external variables, multi-identifier loop, constants)
+  - **Methods removed**: 1 (DefineVariable from adapter interface)
+  - **Status**: Complete - adapter interface reduced from 105 → 104 methods
 
-- [ ] **3.5.138** Migrate LookupSubrangeType (2 calls)
-  - **Location**: `visitor_statements.go` lines 196, 1196
-  - **Issue**: Subrange type lookup
-  - **Solution**: Use TypeSystem.LookupSubrangeType() directly
-  - **Calls removed**: 2 adapter calls
+- [x] **3.5.138** Migrate LookupSubrangeType (1 call) ✅
+  - **Location**: `visitor_statements.go` line 226 (not 196/1196 - line numbers outdated)
+  - **Issue**: Subrange type lookup delegates to adapter
+  - **Solution**: Direct environment access with `ctx.Env().Get("__subrange_type_" + ident.Normalize(name))`
+  - **Implementation**: Replaced `e.adapter.LookupSubrangeType(typeName)` with direct environment lookup
+  - **Note**: Line 1501 already uses direct environment access (migrated in 3.5.129c)
+  - **Calls removed**: 1 adapter call (only 1 existed, not 2)
+  - **Methods removed**: 1 (LookupSubrangeType from adapter interface)
+  - **Status**: Complete - adapter interface reduced from 104 → 103 methods
 
-- [ ] **3.5.139** Migrate ResolveArrayTypeNode + ParseInlineArrayType (2 calls)
-  - **Location**: `visitor_statements.go` lines 1144, 1159
-  - **Issue**: Array type resolution from AST nodes
-  - **Solution**: Use type resolution helpers with TypeSystem
+- [x] **3.5.139** Migrate ResolveArrayTypeNode + ParseInlineArrayType (2 calls) - **COMPLEX** ✅
+  - **Location**: `visitor_statements.go` lines 1384, 1401 (actual, not 1144/1159)
+  - **Issue**: Array type resolution from AST nodes and inline string syntax
+  - **Current Implementation**:
+    - `ResolveArrayTypeNode()`: 170+ lines in `functions_typecast.go`, handles nested arrays, AST evaluation
+    - `ParseInlineArrayType()`: 60+ lines, parses "array[low..high] of Type" syntax
+    - Both delegate to `resolveType()` (80+ lines) for recursive type resolution
+  - **Complexity**: High - requires migrating substantial type resolution infrastructure
+  - **Dependencies**: Requires `resolveType()` helper which handles 10+ type categories
+  - **Risk**: High - array type resolution is used throughout the codebase
+  - **Completed**: All 9 subtasks complete, adapter methods removed, 32 tests passing (24 parseInlineArrayType + 8 resolveArrayTypeNode)
+  - **Subtasks** (execute in order):
+    - [x] **3.5.139a**: Create `type_resolution_helpers.go` in evaluator package ✅
+      - Add `resolveTypeName()` helper that handles primitive types (integer, float, string, boolean, variant)
+      - Returns `types.Type` or error
+      - Use TypeSystem for lookups where applicable
+      - **Status**: Complete - implemented with comprehensive tests (30 test cases)
+      - **Files created**: `type_resolution_helpers.go`, `type_resolution_helpers_test.go`
+      - **Primitive types supported**: Integer, Float, String, Boolean, Variant, Const (→Variant), TDateTime, Nil, Void
+      - **Features**: Case-insensitive resolution, parent qualification stripping, error handling
+      - **Tests**: All pass - TestResolveTypeName_Primitives, TestResolveTypeName_ParentQualification, TestResolveTypeName_CaseInsensitivity
+      - **Actual effort**: 1.5 hours
+    - [x] **3.5.139b**: Extend `resolveTypeName()` to handle registered types ✅
+      - Add enum type lookup (uses `"__enum_type_"` prefix in environment)
+      - Add record type lookup (uses `"__record_type_"` prefix in environment)
+      - Add class type lookup (uses `TypeSystem.HasClass()`)
+      - Add interface type lookup (uses `TypeSystem.HasInterface()`)
+      - Add subrange type lookup (uses `"__subrange_type_"` prefix in environment)
+      - Added nil safety checks for `ctx.Env()` to prevent panics
+      - Estimated effort: 3-4 hours
+      - **Completed**: Extended `resolveTypeName()` in [type_resolution_helpers.go](internal/interp/evaluator/type_resolution_helpers.go:52), all tests passing
+    - [x] **3.5.139c**: Add array type lookup to `resolveTypeName()` ✅
+      - Check TypeSystem.LookupArrayType() for named arrays
+      - Returns ArrayType directly from TypeSystem if found
+      - Estimated effort: 2 hours
+      - **Completed**: Added array type lookup to [type_resolution_helpers.go:137-142](internal/interp/evaluator/type_resolution_helpers.go:137), all tests passing
+    - [x] **3.5.139d**: Create `parseInlineArrayType()` helper in evaluator ✅
+      - Parse "array of Type" → dynamic array
+      - Parse "array[low..high] of Type" → static array with bounds
+      - Extract bounds using fmt.Sscanf (same as interpreter)
+      - Resolve element type using `resolveTypeName()`
+      - Create `types.ArrayType` directly
+      - Pattern reference: `parseInlineSetType()` in set_helpers.go:270-290
+      - Estimated effort: 3-4 hours
+      - **Completed**: Created `parseInlineArrayType()` in [type_resolution_helpers.go:191-258](internal/interp/evaluator/type_resolution_helpers.go:191), integrated with `resolveTypeName`, 24 tests passing (dynamic, static, nested arrays)
+    - [x] **3.5.139e**: Create `resolveArrayTypeNode()` helper in evaluator ✅
+      - Handle `ast.ArrayTypeNode` AST nodes
+      - Resolve element type (check if nested ArrayTypeNode first)
+      - Handle dynamic arrays (no bounds)
+      - Handle enum-indexed arrays (get ordinal bounds)
+      - Handle static arrays with explicit bounds
+      - **Challenge**: Bounds are AST expressions - need to evaluate them
+      - Use direct extraction from IntegerLiteral and UnaryExpression nodes
+      - Create `types.ArrayType` with resolved bounds
+      - Pattern reference: interpreter's `resolveArrayTypeNode()` in functions_typecast.go:111-183
+      - Estimated effort: 4-5 hours
+      - **Completed**: Created `resolveArrayTypeNode()` in [type_resolution_helpers.go:292-387](internal/interp/evaluator/type_resolution_helpers.go:292), handles IntegerLiteral and UnaryExpression bounds, 8 tests passing (dynamic, static, nested, negative bounds)
+    - [x] **3.5.139f**: Replace first adapter call (line 1384) ✅
+      - Replace `e.adapter.ResolveArrayTypeNode(arrayNode)` with `e.resolveArrayTypeNode(arrayNode, ctx)`
+      - Pass ctx for environment access
+      - Simplified error handling (no error return from resolveArrayTypeNode)
+      - Estimated effort: 30 minutes
+      - **Completed**: Replaced in [visitor_statements.go:1384-1391](internal/interp/evaluator/visitor_statements.go:1384), direct evaluator call with simplified logic
+    - [x] **3.5.139g**: Replace second adapter call (line 1401) ✅
+      - Replace `e.adapter.ParseInlineArrayType(typeName)` with `e.parseInlineArrayType(typeName, ctx)`
+      - Pass ctx for environment access
+      - Simplified error handling (no error return from parseInlineArrayType)
+      - Estimated effort: 30 minutes
+      - **Completed**: Replaced in [visitor_statements.go:1397-1403](internal/interp/evaluator/visitor_statements.go:1397), direct evaluator call with simplified logic
+    - [x] **3.5.139h**: Remove adapter methods ✅
+      - Remove `ResolveArrayTypeNode` from InterpreterAdapter interface (evaluator.go)
+      - Remove `ParseInlineArrayType` from InterpreterAdapter interface (evaluator.go)
+      - Remove implementations from adapter_values.go and adapter_types.go
+      - Mark with task comment
+      - Estimated effort: 15 minutes
+      - **Completed**: Removed from [evaluator.go:619,643](internal/interp/evaluator/evaluator.go:619), [adapter_values.go:12](internal/interp/adapter_values.go:12), [adapter_types.go:90](internal/interp/adapter_types.go:90), cleaned up unused imports
+    - [x] **3.5.139i**: Test and verify ✅
+      - Run evaluator tests
+      - Run interpreter tests (especially array-related)
+      - Test nested arrays, dynamic arrays, static arrays
+      - **Completed**: All evaluator tests pass, TestResolveArrayTypeNode (8 cases) passes, fixture test failures are pre-existing
+      - Test array bounds edge cases (negative bounds, etc.)
+      - Estimated effort: 1-2 hours
+  - **Total Estimated Effort**: 2-3 days
   - **Calls removed**: 2 adapter calls
+  - **Methods removed**: 2 (ResolveArrayTypeNode, ParseInlineArrayType)
+  - **New evaluator helpers**: 3 (resolveTypeName, parseInlineArrayType, resolveArrayTypeNode)
+  - **Recommendation**: Execute subtasks incrementally with tests after each step
 
 - [ ] **3.5.140** Migrate EvalArrayLiteralWithExpectedType (1 call)
   - **Location**: `visitor_statements.go` line 157
@@ -544,9 +633,31 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Solution**: Created `evaluator.invokeParameterlessUserFunction()` with simplified implementation
   - **Implementation**: Uses ExecutionContext stack-based environment model (PushEnv/PopEnv)
   - **Features**: Recursion check, Result initialization, exit handling, implicit conversion
-  - **Deferred**: Preconditions (3.5.142a), postconditions (3.5.142b), interface cleanup (3.5.142c), advanced Result init (3.5.142d), function name alias (3.5.142e)
   - **Calls removed**: 1 adapter call
   - **Status**: Complete - parameterless function auto-invocation working correctly
+  - **Deferred subtasks** (marked with TODO in code):
+    - [ ] **3.5.142a** Migrate preconditions check
+      - **Location**: `visitor_expressions_identifiers.go` line 271
+      - **Blocker**: Requires migration of `i.checkPreconditions()` from `contracts.go`
+      - **Risk**: Low (preconditions on parameterless functions are rare)
+    - [ ] **3.5.142b** Migrate postconditions check and old values capture
+      - **Locations**: `visitor_expressions_identifiers.go` lines 276, 317
+      - **Blocker**: Requires migration of `i.checkPostconditions()` and `i.captureOldValues()` from `contracts.go`
+      - **Risk**: Low (postconditions on parameterless functions are rare)
+    - [ ] **3.5.142c** Migrate interface cleanup
+      - **Location**: `visitor_expressions_identifiers.go` line 322
+      - **Blocker**: Requires migration of `i.cleanupInterfaceReferences()` from `interface.go`
+      - **Risk**: Medium (memory leak if parameterless function creates interface variables - rare case)
+    - [ ] **3.5.142d** Advanced Result initialization
+      - **Location**: `visitor_expressions_identifiers.go` line 259
+      - **Current**: Only handles arrays, uses NIL default for records/interfaces/subranges
+      - **Need**: Proper zero-value initialization for complex types
+      - **Risk**: Medium (record return types may not initialize properly)
+    - [ ] **3.5.142e** Function name alias support
+      - **Location**: `visitor_expressions_identifiers.go` line 266
+      - **Feature**: Allow `MyFunc := value` as synonym for `Result := value`
+      - **Blocker**: Requires ReferenceValue support in evaluator
+      - **Risk**: Low (most code uses Result pattern)
 
 - [ ] **3.5.143** Migrate CallBuiltinFunction (2 calls)
   - **Location**: `visitor_expressions.go` lines 214, 661

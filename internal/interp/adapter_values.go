@@ -1,8 +1,6 @@
 package interp
 
 import (
-	"fmt"
-
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -11,20 +9,7 @@ import (
 
 // ===== Value Creation Adapter Methods =====
 // Task 3.5.130d: CreateExternalVar removed - evaluator now constructs runtime.ExternalVarValue directly
-
-// ResolveArrayTypeNode resolves an array type from an AST ArrayTypeNode.
-func (i *Interpreter) ResolveArrayTypeNode(arrayNode ast.Node) (any, error) {
-	arrNode, ok := arrayNode.(*ast.ArrayTypeNode)
-	if !ok {
-		return nil, fmt.Errorf("expected ArrayTypeNode")
-	}
-
-	arrType := i.resolveArrayTypeNode(arrNode)
-	if arrType == nil {
-		return nil, fmt.Errorf("failed to resolve array type")
-	}
-	return arrType, nil
-}
+// Task 3.5.139h: ResolveArrayTypeNode removed - evaluator uses resolveArrayTypeNode() directly
 
 // Task 3.5.128f: CreateRecordZeroValue removed - evaluator now handles record zero-value creation directly
 

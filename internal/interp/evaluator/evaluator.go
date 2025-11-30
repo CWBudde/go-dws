@@ -616,9 +616,7 @@ type InterpreterAdapter interface {
 
 	// ===== Task 3.5.38: Variable Declaration Adapter Methods =====
 
-	// ParseInlineArrayType parses inline array type signatures like "array of Integer" or "array[1..10] of String".
-	// Returns the array type (as any/interface{}) and an error if parsing fails.
-	ParseInlineArrayType(typeName string) (any, error)
+	// Task 3.5.139h: ParseInlineArrayType removed - evaluator uses parseInlineArrayType() directly
 
 	// Task 3.5.138: LookupSubrangeType removed - use ctx.Env().Get("__subrange_type_" + ident.Normalize(name)) directly
 
@@ -641,11 +639,7 @@ type InterpreterAdapter interface {
 	EvalArrayLiteralWithExpectedType(lit ast.Node, expectedTypeName string) Value
 
 	// Task 3.5.130d: CreateExternalVar removed - evaluator constructs runtime.ExternalVarValue directly
-
-	// ResolveArrayTypeNode resolves an array type from an AST ArrayTypeNode.
-	// This handles nested arrays and complex bound expressions.
-	// Returns the array type (as any/interface{}) and an error if resolution fails.
-	ResolveArrayTypeNode(arrayNode ast.Node) (any, error)
+	// Task 3.5.139h: ResolveArrayTypeNode removed - evaluator uses resolveArrayTypeNode() directly
 
 	// Task 3.5.128f: CreateRecordZeroValue removed - evaluator now handles record zero-value creation directly
 	// Task 3.5.129: CreateArrayZeroValue, CreateSetZeroValue, CreateSubrangeZeroValue, CreateInterfaceZeroValue, CreateClassZeroValue removed

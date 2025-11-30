@@ -184,7 +184,17 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 		// Special handling for array literals with expected type
 		if arrayLit, ok := node.Value.(*ast.ArrayLiteralExpression); ok {
 			if node.Type != nil {
-				value = e.adapter.EvalArrayLiteralWithExpectedType(arrayLit, node.Type.String())
+				// Task 3.5.140: Use evaluator's type resolution and array literal evaluation
+				typeName := node.Type.String()
+				resolvedType, err := e.resolveTypeName(typeName, ctx)
+				if err != nil {
+					return e.newError(node, "failed to resolve array type '%s': %v", typeName, err)
+				}
+				arrayType, ok := resolvedType.(*types.ArrayType)
+				if !ok {
+					return e.newError(node, "expected array type, got %s", resolvedType.String())
+				}
+				value = e.evalArrayLiteralWithExpectedType(arrayLit, arrayType, ctx)
 			} else {
 				value = e.Eval(node.Value, ctx)
 			}
@@ -1381,15 +1391,11 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 
 	// Check for array type nodes (AST representation)
 	if arrayNode, ok := typeExpr.(*ast.ArrayTypeNode); ok {
-		arrayType, err := e.adapter.ResolveArrayTypeNode(arrayNode)
-		if err != nil {
-			return e.newError(node, "failed to resolve array type: %v", err)
-		}
+		// Task 3.5.139f: Use evaluator's resolveArrayTypeNode instead of adapter
+		arrayType := e.resolveArrayTypeNode(arrayNode, ctx)
 		if arrayType != nil {
 			// Task 3.5.127: Create array value directly without adapter
-			if at, ok := arrayType.(*types.ArrayType); ok {
-				return &runtime.ArrayValue{ArrayType: at, Elements: []runtime.Value{}}
-			}
+			return &runtime.ArrayValue{ArrayType: arrayType, Elements: []runtime.Value{}}
 		}
 		return &runtime.NilValue{}
 	}
@@ -1398,12 +1404,11 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 
 	// Check for inline array types (string representation)
 	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
-		arrayType, err := e.adapter.ParseInlineArrayType(typeName)
-		if err == nil && arrayType != nil {
+		// Task 3.5.139g: Use evaluator's parseInlineArrayType instead of adapter
+		arrayType := e.parseInlineArrayType(typeName, ctx)
+		if arrayType != nil {
 			// Task 3.5.127: Create array value directly without adapter
-			if at, ok := arrayType.(*types.ArrayType); ok {
-				return &runtime.ArrayValue{ArrayType: at, Elements: []runtime.Value{}}
-			}
+			return &runtime.ArrayValue{ArrayType: arrayType, Elements: []runtime.Value{}}
 		}
 		return &runtime.NilValue{}
 	}
