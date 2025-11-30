@@ -37,11 +37,11 @@ type TypeSystem struct {
 	helpers *ident.Map[[]HelperInfo]
 
 	// Array type registry: case-insensitive map of array type names to ArrayType
-	// Task 3.5.69a: Migrating array types from environment storage to TypeSystem
+	// Migrating array types from environment storage to TypeSystem
 	arrayTypes *ident.Map[*coretypes.ArrayType]
 
 	// Enum type registry: case-insensitive map of enum names to EnumTypeValue
-	// Task 3.5.143a: Migrating enum types from environment storage to TypeSystem
+	// Migrating enum types from environment storage to TypeSystem
 	enumTypes *ident.Map[EnumTypeValue]
 
 	// Operator registry: manages operator overloads

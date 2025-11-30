@@ -32,7 +32,7 @@ func (i *Interpreter) CallFunctionPointer(funcPtr evaluator.Value, args []evalua
 }
 
 // ExecuteFunctionPointerCall executes a function pointer with the given metadata.
-// Task 3.5.121: Low-level execution method used by FunctionPointerCallable.Invoke callback.
+// Low-level execution method used by FunctionPointerCallable.Invoke callback.
 // This handles the interpreter-dependent parts of function pointer invocation.
 func (i *Interpreter) ExecuteFunctionPointerCall(metadata evaluator.FunctionPointerMetadata, args []evaluator.Value, node ast.Node) evaluator.Value {
 	interpArgs := convertEvaluatorArgs(args)

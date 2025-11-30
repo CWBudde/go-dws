@@ -1,0 +1,54 @@
+// Test parameterless function with postconditions
+// Task 3.5.142b: Validates postcondition checking and old values for auto-invoked functions
+
+type TCounter = class
+  private
+    FValue: Integer;
+  public
+    constructor Create(initialValue: Integer);
+    function GetValue: Integer;  // Parameterless, should check postconditions
+    function Increment: Integer;  // Parameterless with postcondition using old
+    procedure SetValue(newValue: Integer);
+end;
+
+constructor TCounter.Create(initialValue: Integer);
+begin
+  FValue := initialValue;
+end;
+
+function TCounter.GetValue: Integer;
+begin
+  Result := FValue;
+end;
+ensure
+  Result >= 0 : 'result must be non-negative';
+
+function TCounter.Increment: Integer;
+begin
+  FValue := FValue + 1;
+  Result := FValue;
+end;
+ensure
+  Result = old FValue + 1 : 'result must be old value plus one';
+
+procedure TCounter.SetValue(newValue: Integer);
+begin
+  FValue := newValue;
+end;
+
+var
+  counter: TCounter;
+begin
+  // Valid case: postconditions pass
+  counter := TCounter.Create(10);
+  PrintLn(counter.GetValue);  // Auto-invoke should check postconditions, prints 10
+
+  // Test postcondition with old values
+  PrintLn(counter.Increment);  // Auto-invoke with old value check, prints 11
+  PrintLn(counter.Increment);  // Auto-invoke with old value check, prints 12
+
+  // Should print:
+  // 10
+  // 11
+  // 12
+end.

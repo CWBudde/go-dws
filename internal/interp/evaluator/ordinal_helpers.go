@@ -11,8 +11,8 @@ import (
 // Ordinal Value Utilities
 // ============================================================================
 //
-// Task 3.5.77: Ordinal helpers moved to evaluator package for direct access
-// during set/array literal evaluation. These functions extract ordinal values
+// Ordinal helpers moved to evaluator package for direct access during
+// set/array literal evaluation. These functions extract ordinal values
 // from runtime values and determine their types.
 // ============================================================================
 

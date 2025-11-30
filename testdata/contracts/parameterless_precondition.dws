@@ -1,0 +1,40 @@
+// Test parameterless function with preconditions
+// Task 3.5.142a: Validates precondition checking for auto-invoked functions
+
+type TCounter = class
+  private
+    FValue: Integer;
+  public
+    constructor Create(initialValue: Integer);
+    function GetValue: Integer;  // Parameterless, should check preconditions
+    procedure Reset;
+end;
+
+constructor TCounter.Create(initialValue: Integer);
+require
+  initialValue >= 0 : 'initial value must be non-negative';
+begin
+  FValue := initialValue;
+end;
+
+function TCounter.GetValue: Integer;
+require
+  FValue >= 0 : 'counter value corrupted';
+begin
+  Result := FValue;
+end;
+
+procedure TCounter.Reset;
+begin
+  FValue := 0;
+end;
+
+var
+  counter: TCounter;
+begin
+  // Valid case: preconditions pass
+  counter := TCounter.Create(10);
+  PrintLn(counter.GetValue);  // Auto-invoke should check preconditions
+
+  // Should print: 10
+end.

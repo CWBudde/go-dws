@@ -43,7 +43,6 @@ func (e *ExceptionValue) Type() string {
 }
 
 // GetInstance returns the ObjectInstance from this exception.
-// Task 3.5.136: Added to enable evaluator to extract instance without adapter.
 // Returns interface{} to avoid circular import issues with evaluator package.
 func (e *ExceptionValue) GetInstance() interface{} {
 	if e == nil {

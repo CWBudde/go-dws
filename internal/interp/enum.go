@@ -109,7 +109,6 @@ func (i *Interpreter) evalEnumDeclaration(decl *ast.EnumDecl) Value {
 	enumTypeKey := "__enum_type_" + ident.Normalize(enumName)
 	i.env.Define(enumTypeKey, &EnumTypeValue{EnumType: enumType})
 
-	// Task 3.5.143a: Also register in TypeSystem for modern access pattern
 	// This enables dual storage during migration (both environment and TypeSystem)
 	i.typeSystem.RegisterEnumType(enumName, &EnumTypeValue{EnumType: enumType})
 

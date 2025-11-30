@@ -26,25 +26,21 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	}
 
 	// Try to find identifier in current environment (variables, parameters, constants)
-	// Task 3.5.70: Use direct environment access instead of adapter
 	if valRaw, ok := ctx.Env().Get(node.Value); ok {
 		val := valRaw.(Value)
 		// Check if this is an external variable (not yet supported)
-		// Task 3.5.73: Use type assertion instead of adapter
 		if extVar, ok := val.(ExternalVarAccessor); ok {
 			return e.newError(node, "Unsupported external variable access: %s", extVar.ExternalVarName())
 		}
 
 		// Check if this is a lazy parameter (LazyThunk)
 		// If so, force evaluation - each access re-evaluates the expression
-		// Task 3.5.73: Use type assertion instead of adapter
 		if thunk, ok := val.(LazyEvaluator); ok {
 			return thunk.Evaluate()
 		}
 
 		// Check if this is a var parameter (ReferenceValue)
 		// If so, dereference it to get the actual value
-		// Task 3.5.132: Use ReferenceAccessor interface directly
 		if refVal, ok := val.(ReferenceAccessor); ok {
 			actualVal, err := refVal.Dereference()
 			if err != nil {
@@ -61,7 +57,6 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// Check if we're in an instance method context (Self is bound)
 	// When Self is bound, identifiers can refer to instance fields, class variables,
 	// properties, methods (auto-invoked if zero params), or ClassName/ClassType
-	// Task 3.5.71: Use Type() check instead of adapter for IsObjectInstance
 	if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk {
 		if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "OBJECT" {
 			// Check for instance field
@@ -77,8 +72,8 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			// Check for property - but skip if we're in a property getter/setter to prevent recursion
 			propCtx := ctx.PropContext()
 			if propCtx == nil || (!propCtx.InPropertyGetter && !propCtx.InPropertySetter) {
-				// Task 3.5.72: Use ObjectValue interface for direct property check
-				// Task 3.5.116: Use ObjectValue.ReadProperty with callback pattern
+				// Use ObjectValue interface for direct property check
+				// Use ObjectValue.ReadProperty with callback pattern
 				if objVal, ok := selfVal.(ObjectValue); ok && objVal.HasProperty(node.Value) {
 					propValue := objVal.ReadProperty(node.Value, func(propInfo any) Value {
 						return e.adapter.ExecutePropertyRead(selfVal, propInfo, node)
@@ -88,15 +83,15 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			}
 
 			// Check for method - auto-invoke if parameterless, or create method pointer
-			// Task 3.5.72: Use ObjectValue interface for direct method check
+			// Use ObjectValue interface for direct method check
 			if objVal, ok := selfVal.(ObjectValue); ok && objVal.HasMethod(node.Value) {
-				// Task 3.5.119: Use InvokeParameterlessMethod with callback pattern
+				// Use InvokeParameterlessMethod with callback pattern
 				if result, invoked := objVal.InvokeParameterlessMethod(node.Value, func(methodDecl any) Value {
 					return e.adapter.ExecuteMethodWithSelf(selfVal, methodDecl, []Value{})
 				}); invoked {
 					return result
 				}
-				// Task 3.5.120: Use CreateMethodPointer with callback pattern
+				// Use CreateMethodPointer with callback pattern
 				if methodPtr, created := objVal.CreateMethodPointer(node.Value, func(methodDecl any) Value {
 					return e.adapter.CreateBoundMethodPointer(selfVal, methodDecl)
 				}); created {
@@ -121,7 +116,6 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 	// Check if we're in a class method context (__CurrentClass__ is bound)
 	// Identifiers can refer to ClassName, ClassType, or class variables
-	// Task 3.5.71: Use Type() check instead of adapter for IsClassInfoValue
 	if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
 		if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
 			// Check for ClassName identifier (case-insensitive)
@@ -144,8 +138,6 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 	// Check if this identifier is a user-defined function name
 	// Functions are auto-invoked if they have zero parameters, or converted to function pointers if they have parameters
-	// Task 3.5.67: Use direct FunctionRegistry access instead of adapter
-	// Task 3.5.85: Direct evaluation without adapter EvalNode call
 	funcNameLower := ident.Normalize(node.Value)
 	if overloads := e.FunctionRegistry().Lookup(funcNameLower); len(overloads) > 0 {
 		// Find the appropriate overload
@@ -168,18 +160,16 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 		// Check if function has zero parameters - auto-invoke
 		if len(fn.Parameters) == 0 {
-			// Task 3.5.142: Use evaluator-native parameterless function invocation
+			// Use evaluator-native parameterless function invocation
 			return e.invokeParameterlessUserFunction(fn, node, ctx)
 		}
 
 		// Function has parameters - create function pointer
-		// Task 3.5.122: Direct function pointer creation without adapter
+		// Direct function pointer creation without adapter
 		return createFunctionPointerFromDecl(fn, ctx.Env())
 	}
 
 	// Check if this identifier is a class name (metaclass reference)
-	// Task 3.5.64: Use direct TypeRegistry access instead of adapter
-	// Task 3.5.85: Direct ClassValue creation without adapter EvalNode call
 	if e.typeSystem.HasClass(node.Value) {
 		classVal, err := e.adapter.CreateClassValue(node.Value)
 		if err != nil {
@@ -189,8 +179,6 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	}
 
 	// Final check: check for built-in functions or return undefined error
-	// Task 3.5.85: Direct built-in invocation without adapter EvalNode call
-	// Task 3.5.143x: Use direct registry lookup instead of adapter delegation
 	if e.FunctionRegistry().IsBuiltin(node.Value) {
 		// Parameterless built-in functions are auto-invoked
 		if fn, ok := builtins.DefaultRegistry.Lookup(node.Value); ok {
@@ -276,14 +264,30 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 		// Requires ReferenceValue support in evaluator
 	}
 
-	// TODO(3.5.142a): Check preconditions before function body
-	// Blocker: Requires migration of i.checkPreconditions() from contracts.go
-	// Current: Preconditions are SKIPPED for parameterless auto-invoke
-	// Risk: Low (preconditions on parameterless functions are rare)
+	// 4. Check preconditions before function body (Task 3.5.142a)
+	if fn.PreConditions != nil {
+		if err := e.checkPreconditions(funcName, fn.PreConditions, ctx); err != nil {
+			return err
+		}
+		// If exception was raised during precondition checking, return early
+		if ctx.Exception() != nil {
+			return &runtime.NilValue{}
+		}
+	}
 
-	// TODO(3.5.142b): Capture old values for postconditions
-	// Blocker: Requires migration of i.captureOldValues() from contracts.go
-	// Current: Old values are NOT captured
+	// 4b. Capture old values for postconditions (Task 3.5.142b)
+	// This must be called BEFORE the function body executes
+	var oldValues map[string]Value
+	if fn.PostConditions != nil {
+		oldValues = e.captureOldValues(fn, ctx)
+		// Convert map[string]Value to map[string]interface{} for ExecutionContext
+		oldValuesInterface := make(map[string]interface{}, len(oldValues))
+		for k, v := range oldValues {
+			oldValuesInterface[k] = v
+		}
+		ctx.PushOldValues(oldValuesInterface)
+		defer ctx.PopOldValues()
+	}
 
 	// 5. Execute function body
 	if fn.Body == nil {
@@ -322,16 +326,26 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 		resultValue = &runtime.NilValue{}
 	}
 
-	// TODO(3.5.142b): Check postconditions after function body
-	// Blocker: Requires migration of i.checkPostconditions() from contracts.go
-	// Current: Postconditions are SKIPPED for parameterless auto-invoke
-	// Risk: Low (postconditions on parameterless functions are rare)
+	// 9. Check postconditions after function body (Task 3.5.142b)
+	// Old values are available via ctx.GetOldValue() during postcondition evaluation
+	if fn.PostConditions != nil {
+		if err := e.checkPostconditions(funcName, fn.PostConditions, ctx); err != nil {
+			return err
+		}
+		// If exception was raised during postcondition checking, return early
+		if ctx.Exception() != nil {
+			return &runtime.NilValue{}
+		}
+	}
 
-	// TODO(3.5.142c): Clean up interface references
-	// Blocker: Requires migration of i.cleanupInterfaceReferences() from interface.go
-	// Current: Interface cleanup is SKIPPED for parameterless auto-invoke
-	// Risk: Medium (memory leak if function creates interface-held objects)
-	// Mitigation: Most parameterless functions are simple getters, rarely create interfaces
+	// 10. Clean up interface references (Task 3.5.142c)
+	// This releases interface-held and object-held references, decrementing ref counts
+	// and calling destructors when reference count reaches zero.
+	// Note: Cleanup happens via defer in PushEnv/PopEnv, but for now we call explicitly
+	// before PopEnv to ensure cleanup happens even if function returns early.
+	if e.adapter != nil {
+		e.adapter.CleanupInterfaceReferences(ctx.Env())
+	}
 
 	return resultValue
 }
