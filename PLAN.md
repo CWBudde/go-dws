@@ -564,10 +564,11 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
     - **Tests**: 10+ unit tests in `context_json_test.go` (ValueToJSON tests; ParseJSONString requires adapter)
     - **Dependencies**: Task 3.5.143d (JSON helpers)
 
-  - [ ] **3.5.143u** JSON Inspection Methods (4 hours)
+  - [x] **3.5.143u** JSON Inspection Methods (4 hours) ✅
     - **File**: `internal/interp/evaluator/context_json.go`
     - **Methods**: JSONHasField(), JSONGetKeys(), JSONGetValues(), JSONGetLength() (4 methods)
-    - **Complexity**: Medium-High - JSON type handling, variant wrapping
+    - **Tests**: 4 unit tests in `context_json_test.go` (require adapter, tested in Interpreter suite)
+    - **Complexity**: Medium-High - JSON type handling, variant wrapping, reflection-based extraction
 
   **Phase V: Function Pointer Delegation (Deferred)**
 

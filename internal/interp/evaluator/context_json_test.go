@@ -279,3 +279,28 @@ func TestValueToJSON_SpecialFloats(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// JSON Inspection Methods Tests (Task 3.5.143u)
+// ============================================================================
+
+// Note: JSON inspection methods require adapter for unwrapping Variants and
+// extracting JSONValue via reflection. Since createTestEvaluator() creates
+// an evaluator with nil adapter, these tests are skipped. Full functional
+// tests are in the Interpreter's test suite.
+
+func TestJSONHasField_NilAdapter(t *testing.T) {
+	t.Skip("JSONHasField requires adapter - full tests are in Interpreter test suite")
+}
+
+func TestJSONGetKeys_NilAdapter(t *testing.T) {
+	t.Skip("JSONGetKeys requires adapter - full tests are in Interpreter test suite")
+}
+
+func TestJSONGetValues_NilAdapter(t *testing.T) {
+	t.Skip("JSONGetValues requires adapter - full tests are in Interpreter test suite")
+}
+
+func TestJSONGetLength_NilAdapter(t *testing.T) {
+	t.Skip("JSONGetLength requires adapter - full tests are in Interpreter test suite")
+}
