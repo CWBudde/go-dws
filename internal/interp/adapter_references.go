@@ -298,16 +298,7 @@ func (i *Interpreter) WrapObjectInException(objInstance evaluator.Value, pos any
 }
 
 // Task 3.5.70: GetVariable removed - evaluator now uses ctx.Env().Get() directly
-
-// DefineVariable defines a new variable in the execution context.
-// Task 3.5.9: Adapter method for environment access.
-func (i *Interpreter) DefineVariable(name string, value evaluator.Value, ctx *evaluator.ExecutionContext) {
-	// Convert to internal Value type
-	internalValue := value.(Value)
-
-	// Define in the context's environment
-	ctx.Env().Define(name, internalValue)
-}
+// Task 3.5.137: DefineVariable removed - evaluator now uses ctx.Env().Define() directly
 
 // ===== Binary Operator Adapters =====
 // Task 3.5.19: Binary Operator Adapter Methods (Fix for PR #219)

@@ -174,7 +174,8 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 			Name:         node.Names[0].Value,
 			ExternalName: externalName,
 		}
-		e.adapter.DefineVariable(node.Names[0].Value, value, ctx)
+		// Task 3.5.137: Direct environment access instead of adapter
+		ctx.Env().Define(node.Names[0].Value, value)
 		return value
 	}
 
@@ -283,7 +284,8 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 			}
 		}
 
-		e.adapter.DefineVariable(name.Value, nameValue, ctx)
+		// Task 3.5.137: Direct environment access instead of adapter
+		ctx.Env().Define(name.Value, nameValue)
 		lastValue = nameValue
 	}
 
@@ -369,7 +371,8 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 
 	// Store the constant in the environment
 	// Note: Immutability is enforced by semantic analysis, not at runtime
-	e.adapter.DefineVariable(node.Name.Value, value, ctx)
+	// Task 3.5.137: Direct environment access instead of adapter
+	ctx.Env().Define(node.Name.Value, value)
 	return value
 }
 
