@@ -467,6 +467,24 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 **Current State**: 7 user function-related adapter calls
 
+**Key Pattern Established (3.5.144)**:
+
+- **Reusable Helper**: `PrepareUserFunctionArgs()` handles lazy/var/regular parameter wrapping
+- **Callback-Based**: Uses `runtime.NewLazyThunk` and `runtime.NewReferenceValue` with closures
+- **Partial Migration**: Move parameter prep to evaluator, keep dispatch/execution in adapter
+- **Context Access**: Use `i.ctx` (not `i.evaluator.ExecutionContext()`)
+- **Method Naming**: Export helpers with capitalized names for cross-package access
+- **Argument Caching**: Preserve cached values from overload resolution to prevent double-evaluation
+
+**Migration Strategy**:
+
+1. Create evaluator helper for argument preparation (reuse `PrepareUserFunctionArgs()`)
+2. Refactor adapter to call evaluator helper + keep execution logic
+3. Test lazy/var/overload scenarios
+4. Document partial migration status
+
+---
+
 - [x] **3.5.142** Migrate CallUserFunction (1 call) ✅
   - **Location**: `visitor_expressions_identifiers.go` line 170
   - **Issue**: Direct user function call (parameterless auto-invoke)
@@ -505,23 +523,88 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Infrastructure**: 8 context files created, EnumTypeRegistry added, 93 helpers migrated
   - **Verification**: All builtin tests pass, fixture tests maintain pre-existing status
 
-- [ ] **3.5.144** Migrate CallUserFunctionWithOverloads (1 call)
-  - **Location**: `visitor_expressions.go` line 562
+- [x] **3.5.144** Migrate CallUserFunctionWithOverloads (1 call) ✅ PARTIAL
+  - **Location**: `visitor_expressions_functions.go` line 232
   - **Issue**: Overloaded function resolution and call
-  - **Solution**: Use FunctionRegistry.ResolveOverload() + invoke
-  - **Calls removed**: 1 adapter call
+  - **Solution**: Created `PrepareUserFunctionArgs()` evaluator helper
+  - **Pattern**: Task 3.5.131d callback-based lazy/var parameter wrapping
+  - **Migration**: Parameter wrapping → evaluator (no net adapter call reduction)
+  - **Remaining**: Overload resolution + function execution in adapter
+  - **Implementation**:
+    - Created `PrepareUserFunctionArgs()` method (~80 lines) in evaluator
+    - Uses callback-based `runtime.NewLazyThunk` and `runtime.NewReferenceValue`
+    - Refactored adapter method from 48 lines → 35 lines
+    - All tests pass (lazy params, var params, overload resolution, argument caching)
+  - **Remaining Subtasks** (OPTIONAL - not blocking other Phase 23 tasks):
+    - **Why Optional**: Tasks 3.5.145-3.5.147 can be completed without these. They can reuse the same partial migration pattern (parameter prep in evaluator, execution in adapter).
+    - **When to Do**: After completing Phase 23, or when full function execution migration is prioritized.
+    - [ ] **3.5.144a** Migrate overload resolution to evaluator
+      - **Current**: `functions_typecast.go:185-258` (74 lines)
+      - **Complexity**: HIGH - semantic analyzer integration
+      - **Total Effort**: 4-6 hours | **Risk**: Medium
+      - **Granular Steps**:
+        - [ ] **3.5.144a.1** Extract `getValueType()` to evaluator (30 min, LOW risk)
+        - [ ] **3.5.144a.2** Extract `extractFunctionType()` to evaluator (1 hour, LOW risk)
+        - [ ] **3.5.144a.3** Create `resolveOverloadFast()` for single overload (30 min, LOW risk)
+        - [ ] **3.5.144a.4** Create `resolveOverloadMultiple()` for multiple overloads (2 hours, MEDIUM risk)
+        - [ ] **3.5.144a.5** Refactor adapter to use new helpers (30 min, LOW risk)
+    - [ ] **3.5.144b** Migrate user function execution to evaluator
+      - **Current**: `functions_user.go:11-240` (~230 lines)
+      - **Complexity**: VERY HIGH - environment management, contracts, default params
+      - **Total Effort**: 8-12 hours | **Risk**: High
+      - **Granular Steps** (12 micro-tasks, ~30min-1.5hr each):
+        - [ ] **3.5.144b.1** Extract default parameter evaluation (1 hour, LOW risk)
+        - [ ] **3.5.144b.2** Extract parameter binding logic (1.5 hours, MEDIUM risk - needs tryImplicitConversion)
+        - [ ] **3.5.144b.3** Extract Result variable initialization (1 hour, MEDIUM risk - complex type handling)
+        - [ ] **3.5.144b.4** Extract function name alias setup (30 min, LOW risk - ReferenceValue pattern from 3.5.144)
+        - [ ] **3.5.144b.5** Extract precondition checking (1 hour, MEDIUM risk - needs contracts migration)
+        - [ ] **3.5.144b.6** Extract old value capture for postconditions (1 hour, MEDIUM risk)
+        - [ ] **3.5.144b.7** Extract function body execution (30 min, LOW risk - already in evaluator)
+        - [ ] **3.5.144b.8** Extract Result value extraction (30 min, MEDIUM risk - needs conversion)
+        - [ ] **3.5.144b.9** Extract postcondition checking (1 hour, MEDIUM risk - needs contracts)
+        - [ ] **3.5.144b.10** Extract interface cleanup (30 min, MEDIUM risk - needs interface.go migration)
+        - [ ] **3.5.144b.11** Unify with invokeParameterlessUserFunction (2 hours, HIGH risk - merge duplicate logic)
+        - [ ] **3.5.144b.12** Update adapter to call unified function (30 min, LOW risk - simple call replacement)
+  - **Next**: Task 3.5.145 (CallImplicitSelfMethod), future overload resolution migration
 
 - [ ] **3.5.145** Migrate CallImplicitSelfMethod (1 call)
-  - **Location**: `visitor_expressions.go` line 572
+  - **Location**: `visitor_expressions_functions.go` line 572 (needs verification)
   - **Issue**: Implicit Self method call in instance context
-  - **Solution**: Get Self from context, dispatch via method call
-  - **Calls removed**: 1 adapter call
+  - **Current Implementation**: `adapter_functions.go:139-178` (40 lines)
+  - **Solution**: Create evaluator helper similar to `PrepareUserFunctionArgs` pattern
+  - **Approach**:
+    1. Get Self object from `ctx.Env().Get("Self")`
+    2. Prepare arguments using `PrepareUserFunctionArgs()` (reuse from 3.5.144!)
+    3. Dispatch via existing method call infrastructure
+    4. Handle virtual dispatch, overloads, and parameter wrapping
+  - **Key Insights from 3.5.144**:
+    - Use `i.ctx` for ExecutionContext (not `i.evaluator.ExecutionContext()`)
+    - Export helper methods (capitalize) for cross-package access
+    - Reuse `PrepareUserFunctionArgs()` for consistent parameter handling
+    - Keep overload resolution in adapter initially (complex semantic integration)
+  - **Pattern**: Partial migration like 3.5.144 - parameter prep to evaluator, dispatch stays in adapter
+  - **Estimated Effort**: 2-3 hours (simpler than 3.5.144, can reuse helper)
+  - **Calls removed**: 0 (partial migration, bridge pattern)
 
 - [ ] **3.5.146** Migrate CallRecordStaticMethod (1 call)
-  - **Location**: `visitor_expressions.go` line 584
+  - **Location**: `visitor_expressions_functions.go` line 584 (needs verification)
   - **Issue**: Record static method call in record context
-  - **Solution**: Get record context, dispatch to record method
-  - **Calls removed**: 1 adapter call
+  - **Current Implementation**: `adapter_functions.go:180-212` (33 lines)
+  - **Solution**: Create evaluator helper for record method dispatch
+  - **Approach**:
+    1. Get record type from context or TypeSystem
+    2. Prepare arguments using `PrepareUserFunctionArgs()` (reuse from 3.5.144!)
+    3. Dispatch to record method with static binding (no Self)
+    4. Handle method lookup and parameter wrapping
+  - **Key Insights from 3.5.144**:
+    - Record methods similar to regular functions - no Self binding
+    - Can reuse `PrepareUserFunctionArgs()` helper for argument preparation
+    - Static method dispatch simpler than virtual (no inheritance/override)
+    - Use TypeSystem for record metadata lookup
+  - **Pattern**: Partial migration - argument prep to evaluator, execution stays in adapter
+  - **Estimated Effort**: 2-3 hours (similar to 3.5.145)
+  - **Calls removed**: 0 (partial migration, bridge pattern)
+  - **Testing**: Record method tests in `internal/interp/record_method_test.go`
 
 - [ ] **3.5.147** Migrate CallMemberMethod + CallQualifiedOrConstructor (2 calls)
   - **Location**: `visitor_expressions.go` lines 529, 537
@@ -599,10 +682,10 @@ These are straightforward migrations with no complex dependencies.
   - **Current Implementation**: Delegates to adapter for type checking
   - **Migration Strategy**: Type assertion to FunctionPointerValue interface
   - **Subtasks**:
-    - 3.5.180a: Add FunctionPointerValue interface check in evaluator
-    - 3.5.180b: Replace adapter.IsFunctionPointer() with direct type assertion
-    - 3.5.180c: Handle nil checks inline
-    - 3.5.180d: Remove adapter method after tests pass
+    - [ ] 3.5.180a: Add FunctionPointerValue interface check in evaluator
+    - [ ] 3.5.180b: Replace adapter.IsFunctionPointer() with direct type assertion
+    - [ ] 3.5.180c: Handle nil checks inline
+    - [ ] 3.5.180d: Remove adapter method after tests pass
   - **Effort**: 1-2 hours
   - **Dependencies**: None
   - **Calls removed**: 4 adapter calls
@@ -619,10 +702,10 @@ These require moving type metadata from interpreter-specific storage to TypeSyst
   - **Current Problem**: Subrange types stored in environment with `"__subrange_type_"` prefix
   - **Solution**: Add subrange registry to TypeSystem
   - **Subtasks**:
-    - 3.5.181a: Add subrange type registry to TypeSystem (RegisterSubrangeType, LookupSubrangeType)
-    - 3.5.181b: Update VisitTypeDeclaration to register in TypeSystem instead of environment
-    - 3.5.181c: Verify all subrange type lookups use TypeSystem
-    - 3.5.181d: Remove environment-based storage
+    - [ ] 3.5.181a: Add subrange type registry to TypeSystem (RegisterSubrangeType, LookupSubrangeType)
+    - [ ] 3.5.181b: Update VisitTypeDeclaration to register in TypeSystem instead of environment
+    - [ ] 3.5.181c: Verify all subrange type lookups use TypeSystem
+    - [ ] 3.5.181d: Remove environment-based storage
   - **Effort**: 1 day
   - **Dependencies**: None
   - **Tests**: All subrange type tests must pass
@@ -634,11 +717,11 @@ These require moving type metadata from interpreter-specific storage to TypeSyst
   - **Current Implementation**: Looks up from environment, validates, creates SubrangeValue
   - **Migration Strategy**: Use TypeSystem.LookupSubrangeType() + bridge constructor
   - **Subtasks**:
-    - 3.5.182a: Create wrapInSubrange() helper in evaluator
-    - 3.5.182b: Use TypeSystem.LookupSubrangeType() for metadata lookup
-    - 3.5.182c: Keep CreateSubrangeValueDirect bridge constructor (already exists from 3.5.129)
-    - 3.5.182d: Update visitor to call new helper
-    - 3.5.182e: Remove adapter.WrapInSubrange() method
+    - [ ] 3.5.182a: Create wrapInSubrange() helper in evaluator
+    - [ ] 3.5.182b: Use TypeSystem.LookupSubrangeType() for metadata lookup
+    - [ ] 3.5.182c: Keep CreateSubrangeValueDirect bridge constructor (already exists from 3.5.129)
+    - [ ] 3.5.182d: Update visitor to call new helper
+    - [ ] 3.5.182e: Remove adapter.WrapInSubrange() method
   - **Effort**: 2-3 hours
   - **Dependencies**: 3.5.181 (TypeSystem subrange registry)
   - **Calls removed**: 1 adapter call
@@ -649,10 +732,10 @@ These require moving type metadata from interpreter-specific storage to TypeSyst
   - **Current Problem**: Interface metadata in interpreter's `i.interfaces` map
   - **Solution**: Use existing TypeSystem.RegisterInterface/LookupInterface
   - **Subtasks**:
-    - 3.5.183a: Verify TypeSystem.LookupInterface() returns usable InterfaceInfo
-    - 3.5.183b: Update VisitInterfaceDecl to use TypeSystem (if not already)
-    - 3.5.183c: Replace i.interfaces map lookups with TypeSystem.LookupInterface()
-    - 3.5.183d: Remove i.interfaces map from Interpreter
+    - [ ] 3.5.183a: Verify TypeSystem.LookupInterface() returns usable InterfaceInfo
+    - [ ] 3.5.183b: Update VisitInterfaceDecl to use TypeSystem (if not already)
+    - [ ] 3.5.183c: Replace i.interfaces map lookups with TypeSystem.LookupInterface()
+    - [ ] 3.5.183d: Remove i.interfaces map from Interpreter
   - **Effort**: 1-2 days
   - **Dependencies**: None (TypeSystem already has interface registry)
   - **Tests**: All interface declaration and implementation tests
@@ -664,13 +747,13 @@ These require moving type metadata from interpreter-specific storage to TypeSyst
   - **Current Implementation**: Looks up from i.interfaces, validates, creates InterfaceInstance
   - **Migration Strategy**: Use TypeSystem.LookupInterface() + bridge constructor
   - **Subtasks**:
-    - 3.5.184a: Create wrapInInterface() helper in evaluator
-    - 3.5.184b: Use TypeSystem.LookupInterface() for metadata lookup
-    - 3.5.184c: Use GetClassMetadataFromValue() to extract object metadata
-    - 3.5.184d: Call classImplementsInterface() helper for validation
-    - 3.5.184e: Keep CreateInterfaceInstanceDirect bridge constructor (already exists from 3.5.129)
-    - 3.5.184f: Update visitor to call new helper
-    - 3.5.184g: Remove adapter.WrapInInterface() method
+    - [ ] 3.5.184a: Create wrapInInterface() helper in evaluator
+    - [ ] 3.5.184b: Use TypeSystem.LookupInterface() for metadata lookup
+    - [ ] 3.5.184c: Use GetClassMetadataFromValue() to extract object metadata
+    - [ ] 3.5.184d: Call classImplementsInterface() helper for validation
+    - [ ] 3.5.184e: Keep CreateInterfaceInstanceDirect bridge constructor (already exists from 3.5.129)
+    - [ ] 3.5.184f: Update visitor to call new helper
+    - [ ] 3.5.184g: Remove adapter.WrapInInterface() method
   - **Effort**: 2-3 hours
   - **Dependencies**: 3.5.183 (TypeSystem interface metadata)
   - **Calls removed**: 1 adapter call
@@ -693,12 +776,12 @@ This addresses the most complex type wrapping case.
     - **Option C**: Pass ConversionRegistry to evaluator as dependency (architectural change)
   - **Recommendation**: **DEFER INDEFINITELY** - effort/benefit ratio too high
   - **Subtasks** (if Option B chosen):
-    - 3.5.185a: Design ConversionRegistry interface for TypeSystem
-    - 3.5.185b: Move conversion registration to TypeSystem
-    - 3.5.185c: Create evaluator helper for implicit conversion
-    - 3.5.185d: Handle function lookup and execution
-    - 3.5.185e: Migrate all 3 call sites
-    - 3.5.185f: Remove adapter method
+    - [ ] 3.5.185a: Design ConversionRegistry interface for TypeSystem
+    - [ ] 3.5.185b: Move conversion registration to TypeSystem
+    - [ ] 3.5.185c: Create evaluator helper for implicit conversion
+    - [ ] 3.5.185d: Handle function lookup and execution
+    - [ ] 3.5.185e: Migrate all 3 call sites
+    - [ ] 3.5.185f: Remove adapter method
   - **Effort**: 2-3 weeks (if migrated)
   - **Dependencies**: TypeSystem refactoring
   - **Calls removed**: 3 adapter calls (if completed)
@@ -717,11 +800,11 @@ This addresses the most significant deferred task.
   - **Analysis**: Full migration requires moving ObjectInstance to runtime package
   - **Recommendation**: **Partial migration - simplify adapter, don't move ObjectInstance**
   - **Subtasks**:
-    - 3.5.186a: Document all ObjectInstance method dependencies
-    - 3.5.186b: Identify which methods can become free functions
-    - 3.5.186c: Create CreateObjectDirect bridge constructor (simpler than current)
-    - 3.5.186d: Move field initialization logic to evaluator where possible
-    - 3.5.186e: Keep ObjectInstance in interp package (avoid 50-100 call site updates)
+    - [ ] 3.5.186a: Document all ObjectInstance method dependencies
+    - [ ] 3.5.186b: Identify which methods can become free functions
+    - [ ] 3.5.186c: Create CreateObjectDirect bridge constructor (simpler than current)
+    - [ ] 3.5.186d: Move field initialization logic to evaluator where possible
+    - [ ] 3.5.186e: Keep ObjectInstance in interp package (avoid 50-100 call site updates)
   - **Effort**: 1-2 weeks (partial migration)
   - **Dependencies**: None
   - **Calls removed**: 0 (stays as bridge constructor)
@@ -740,16 +823,16 @@ These handle declaration evaluation that requires registry updates.
   - **Current Implementation**: All declarations use EvalNode to delegate to interpreter
   - **Analysis**: Each declaration type registers metadata (functions, classes, interfaces, etc.)
   - **Subtasks**:
-    - 3.5.187a: Audit VisitFunctionDecl registry updates
-    - 3.5.187b: Audit VisitClassDecl registry updates
-    - 3.5.187c: Audit VisitInterfaceDecl registry updates
-    - 3.5.187d: Audit VisitRecordDecl registry updates
-    - 3.5.187e: Audit VisitEnumDecl registry updates
-    - 3.5.187f: Audit VisitHelperDecl registry updates
-    - 3.5.187g: Audit VisitArrayDecl registry updates
-    - 3.5.187h: Audit VisitOperatorDecl registry updates
-    - 3.5.187i: Audit VisitSetDecl registry updates
-    - 3.5.187j: Audit VisitTypeDeclaration registry updates
+    - [ ] 3.5.187a: Audit VisitFunctionDecl registry updates
+    - [ ] 3.5.187b: Audit VisitClassDecl registry updates
+    - [ ] 3.5.187c: Audit VisitInterfaceDecl registry updates
+    - [ ] 3.5.187d: Audit VisitRecordDecl registry updates
+    - [ ] 3.5.187e: Audit VisitEnumDecl registry updates
+    - [ ] 3.5.187f: Audit VisitHelperDecl registry updates
+    - [ ] 3.5.187g: Audit VisitArrayDecl registry updates
+    - [ ] 3.5.187h: Audit VisitOperatorDecl registry updates
+    - [ ] 3.5.187i: Audit VisitSetDecl registry updates
+    - [ ] 3.5.187j: Audit VisitTypeDeclaration registry updates
   - **Effort**: 2-3 days (analysis only)
   - **Dependencies**: None
   - **Deliverable**: Dependency map showing what each declaration needs
@@ -762,10 +845,10 @@ These handle declaration evaluation that requires registry updates.
     - **Option B**: Keep declarations in interpreter, create bridge registration methods
     - **Option C**: Hybrid - simple declarations to evaluator, complex ones stay in interpreter
   - **Subtasks**:
-    - 3.5.188a: Evaluate feasibility of each option
-    - 3.5.188b: Estimate effort for chosen approach
-    - 3.5.188c: Create detailed task breakdown
-    - 3.5.188d: Update Phase 27 with concrete subtasks
+    - [ ] 3.5.188a: Evaluate feasibility of each option
+    - [ ] 3.5.188b: Estimate effort for chosen approach
+    - [ ] 3.5.188c: Create detailed task breakdown
+    - [ ] 3.5.188d: Update Phase 27 with concrete subtasks
   - **Effort**: 1-2 days (planning only)
   - **Dependencies**: 3.5.187 (dependency analysis)
   - **Deliverable**: Migration plan for Phase 27

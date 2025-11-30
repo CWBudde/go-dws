@@ -336,6 +336,88 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	return e.newError(node, "builtin function '%s' not found in registry", funcName.Value)
 }
 
+// PrepareUserFunctionArgs prepares arguments for user function invocation.
+// Task 3.5.144: Handles lazy/var/regular parameter wrapping with callback pattern.
+//
+// Parameters:
+//   - fn: The resolved function declaration from overload resolution
+//   - argExprs: The original argument AST expressions from the call site
+//   - cachedArgs: Pre-evaluated argument values from overload resolution
+//     (regular params use cached values, lazy params are nil)
+//   - ctx: The execution context for environment access
+//   - node: The call expression node for error reporting
+//
+// Returns:
+//   - []Value: Final argument values with proper wrapping
+//   - error: Error if var parameter is not an lvalue
+func (e *Evaluator) PrepareUserFunctionArgs(
+	fn *ast.FunctionDecl,
+	argExprs []ast.Expression,
+	cachedArgs []Value,
+	ctx *ExecutionContext,
+	node ast.Node,
+) ([]Value, error) {
+	args := make([]Value, len(argExprs))
+
+	for idx, arg := range argExprs {
+		// Get parameter metadata (if available)
+		isLazy := idx < len(fn.Parameters) && fn.Parameters[idx].IsLazy
+		isByRef := idx < len(fn.Parameters) && fn.Parameters[idx].ByRef
+
+		if isLazy {
+			// Task 3.5.131d pattern: Lazy with callback
+			// Capture the argument expression for deferred evaluation
+			capturedArg := arg
+			var evalCallback runtime.EvalCallback = func() runtime.Value {
+				// Evaluate in the current context when forced
+				return e.Eval(capturedArg, ctx)
+			}
+			args[idx] = runtime.NewLazyThunk(capturedArg, evalCallback)
+
+		} else if isByRef {
+			// Task 3.5.131d pattern: Var with callbacks
+			// Var parameters must be lvalues (identifiers only)
+			argIdent, ok := arg.(*ast.Identifier)
+			if !ok {
+				return nil, fmt.Errorf("var parameter requires a variable, got %T", arg)
+			}
+
+			varName := argIdent.Value
+			capturedEnv := ctx.Env()
+
+			// Getter callback: Read variable value from environment
+			var getter runtime.GetterCallback = func() (runtime.Value, error) {
+				val, found := capturedEnv.Get(varName)
+				if !found {
+					return nil, fmt.Errorf("variable %s not found", varName)
+				}
+				// Environment.Get returns interface{}, cast to runtime.Value
+				if runtimeVal, ok := val.(runtime.Value); ok {
+					return runtimeVal, nil
+				}
+				return nil, fmt.Errorf("environment value is not a runtime.Value")
+			}
+
+			// Setter callback: Write variable value to environment
+			var setter runtime.SetterCallback = func(val runtime.Value) error {
+				if !capturedEnv.Set(varName, val) {
+					return fmt.Errorf("failed to set variable %s", varName)
+				}
+				return nil
+			}
+
+			args[idx] = runtime.NewReferenceValue(varName, getter, setter)
+
+		} else {
+			// Regular parameter: use cached value from overload resolution
+			// This prevents double-evaluation of argument expressions
+			args[idx] = cachedArgs[idx]
+		}
+	}
+
+	return args, nil
+}
+
 // VisitNewExpression evaluates a 'new' expression (object instantiation).
 //
 // **COMPLEXITY**: High (~250 lines in original implementation)
