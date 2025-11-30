@@ -442,52 +442,6 @@ func (i *Interpreter) RaiseTypeCastException(message string, node ast.Node) {
 	fullMessage := fmt.Sprintf("%s [line: %d, column: %d]", message, pos.Line, pos.Column)
 	i.raiseException("Exception", fullMessage, &pos)
 }
-
-// CheckImplements checks if an object/class implements an interface.
-// Task 3.5.36: Adapter method for 'implements' operator.
-// Supports ObjectInstance, ClassValue, and ClassInfoValue inputs.
-func (i *Interpreter) CheckImplements(obj evaluator.Value, interfaceName string) (bool, error) {
-	// Convert to internal type
-	internalObj := obj.(Value)
-
-	// Handle nil - nil implements no interfaces
-	if _, isNil := internalObj.(*NilValue); isNil {
-		return false, nil
-	}
-
-	// Extract ClassInfo from different value types
-	var classInfo *ClassInfo
-
-	if objInst, ok := internalObj.(*ObjectInstance); ok {
-		// Object instance - extract class
-		classInfo = objInst.Class
-	} else if classVal, ok := internalObj.(*ClassValue); ok {
-		// Class reference (e.g., from metaclass variable: var cls: class of TParent)
-		classInfo = classVal.ClassInfo
-	} else if classInfoVal, ok := internalObj.(*ClassInfoValue); ok {
-		// Class type identifier (e.g., TMyImplementation in: if TMyImplementation implements IMyInterface then)
-		classInfo = classInfoVal.ClassInfo
-	} else {
-		return false, fmt.Errorf("'implements' operator requires object instance or class type, got %s", internalObj.Type())
-	}
-
-	// Guard against nil ClassInfo (e.g., uninitialized metaclass variables)
-	if classInfo == nil {
-		return false, nil
-	}
-
-	// Look up the interface in the registry
-	iface, exists := i.interfaces[ident.Normalize(interfaceName)]
-	if !exists {
-		return false, fmt.Errorf("interface '%s' not found", interfaceName)
-	}
-
-	// Check if the class implements the interface
-	// 'implements' operator in DWScript only considers explicitly declared interfaces,
-	// not interfaces inherited through other interfaces.
-	return classExplicitlyImplementsInterface(classInfo, iface), nil
-}
-
 // ===== Metaclass Operations =====
 
 // CreateClassValue creates a ClassValue (metaclass reference) from a class name.

@@ -139,12 +139,8 @@ func (e *Evaluator) VisitImplementsExpression(node *ast.ImplementsExpression, ct
 		return e.newError(node, "cannot determine target interface type")
 	}
 
-	// Use the adapter's CheckImplements method which handles:
-	// - nil objects (return false)
-	// - ObjectInstance (extract class)
-	// - ClassValue (metaclass variable)
-	// - ClassInfoValue (class type identifier)
-	result, err := e.adapter.CheckImplements(left, targetInterfaceName)
+	// Task 3.5.142: Use evaluator's checkImplements helper (no adapter)
+	result, err := e.checkImplements(left, targetInterfaceName)
 	if err != nil {
 		return e.newError(node, "%s", err.Error())
 	}
@@ -220,6 +216,66 @@ func (e *Evaluator) classImplementsInterface(classMeta *runtime.ClassMetadata, i
 	// Check parent class (interfaces are inherited)
 	if classMeta.Parent != nil {
 		return e.classImplementsInterface(classMeta.Parent, interfaceName)
+	}
+
+	return false
+}
+
+// checkImplements checks if a value implements an interface.
+// Task 3.5.142: Migrated from adapter.CheckImplements() to use ClassMetadata directly.
+//
+// This implements the 'implements' operator which checks EXPLICIT interface implementations:
+// - Does NOT check interface inheritance (differs from 'is' operator)
+// - Returns (bool, error) where error is only for unknown interfaces
+func (e *Evaluator) checkImplements(obj Value, interfaceName string) (bool, error) {
+	// 1. Handle nil - nil implements no interfaces
+	if obj == nil || obj.Type() == "NIL" {
+		return false, nil
+	}
+
+	// 2. Extract ClassMetadata using adapter (extraction only)
+	classMeta := e.getClassMetadataFromValue(obj)
+	if classMeta == nil {
+		// Guard against nil metadata (e.g., uninitialized metaclass variables)
+		// Return false, not error - this matches adapter behavior
+		return false, nil
+	}
+
+	// 3. Check if interface exists in TypeSystem
+	if !e.typeSystem.HasInterface(interfaceName) {
+		return false, fmt.Errorf("interface '%s' not found", interfaceName)
+	}
+
+	// 4. Check implementation using metadata traversal
+	return e.classImplementsInterfaceExplicitly(classMeta, interfaceName), nil
+}
+
+// classImplementsInterfaceExplicitly checks if a class explicitly implements an interface.
+// Task 3.5.142: Helper for checkImplements to verify EXPLICIT interface implementation.
+//
+// This is separate from classImplementsInterface() because:
+// - classImplementsInterface() (for 'is' operator) - WILL check interface inheritance when implemented
+// - classImplementsInterfaceExplicitly() (for 'implements' operator) - will NOT check interface inheritance
+//
+// Currently both are identical because interface inheritance isn't implemented yet.
+// They will diverge when interface inheritance is added.
+func (e *Evaluator) classImplementsInterfaceExplicitly(classMeta *runtime.ClassMetadata, interfaceName string) bool {
+	if classMeta == nil {
+		return false
+	}
+
+	// Check if this class explicitly declares the interface
+	for _, ifaceName := range classMeta.Interfaces {
+		if ident.Equal(ifaceName, interfaceName) {
+			return true
+		}
+		// Note: Does NOT check interface inheritance (explicit declarations only)
+		// This differs from classImplementsInterface() used by 'is' operator
+	}
+
+	// Recursively check parent class
+	if classMeta.Parent != nil {
+		return e.classImplementsInterfaceExplicitly(classMeta.Parent, interfaceName)
 	}
 
 	return false

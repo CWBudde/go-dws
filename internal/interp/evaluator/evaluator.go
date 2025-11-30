@@ -511,11 +511,6 @@ type InterpreterAdapter interface {
 	// This matches the behavior of castToClass which raises exceptions.
 	RaiseTypeCastException(message string, node ast.Node)
 
-	// CheckImplements checks if an object/class implements an interface (implements 'implements' operator).
-	// Task 3.5.36: Supports ObjectInstance, ClassValue, and ClassInfoValue inputs.
-	// Returns true if the class implements the specified interface.
-	CheckImplements(obj Value, interfaceName string) (bool, error)
-
 	// CreateClassValue creates a ClassValue (metaclass reference) from a class name.
 	// Task 3.5.85: Used by VisitIdentifier to return metaclass references for class names.
 	// Returns the ClassValue and an error if the class is not found.
