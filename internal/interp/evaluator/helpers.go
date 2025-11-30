@@ -75,71 +75,13 @@ func VariantToBool(val Value) bool {
 	}
 }
 
-// ValuesEqual compares two values for equality.
-// This is used by case statements to match values.
-// Phase 3.5.4.41: Migrated from Interpreter.valuesEqual()
-func ValuesEqual(left, right Value) bool {
-	// Unwrap VariantValue if present (check by type name since VariantValue is in interp package)
-	// For now, we don't handle Variant unwrapping in the evaluator
-	// This will be handled when Variant types are migrated
+// ValuesEqual is now defined in array_helpers.go (Task 3.5.143c)
+// with full Variant unwrapping and RecordValue support.
+// This comment preserves the history of migration from Phase 3.5.4.41.
 
-	// Handle nil values (uninitialized variants)
-	if left == nil && right == nil {
-		return true // Both uninitialized variants are equal
-	}
-	if left == nil || right == nil {
-		return false // One is nil, the other is not
-	}
-
-	// Handle same type comparisons
-	if left.Type() != right.Type() {
-		return false
-	}
-
-	switch l := left.(type) {
-	case *runtime.IntegerValue:
-		r, ok := right.(*runtime.IntegerValue)
-		if !ok {
-			return false
-		}
-		return l.Value == r.Value
-	case *runtime.FloatValue:
-		r, ok := right.(*runtime.FloatValue)
-		if !ok {
-			return false
-		}
-		return l.Value == r.Value
-	case *runtime.StringValue:
-		r, ok := right.(*runtime.StringValue)
-		if !ok {
-			return false
-		}
-		return l.Value == r.Value
-	case *runtime.BooleanValue:
-		r, ok := right.(*runtime.BooleanValue)
-		if !ok {
-			return false
-		}
-		return l.Value == r.Value
-	case *runtime.NilValue:
-		return true // nil == nil
-	default:
-		// For other types (RecordValue, etc.), use string comparison as fallback
-		// Phase 3.5.4.41: Record comparison delegated to later migration
-		return left.String() == right.String()
-	}
-}
-
-// RecordsEqual checks if two RecordValues are equal by comparing all fields.
-// Task 3.5.103d: Migrated from Interpreter.recordsEqual for record equality comparison.
-// Note: This uses string comparison as a simple fallback for now.
-// Full field-by-field comparison will be implemented when RecordValue is migrated to runtime package.
-func RecordsEqual(left, right Value) bool {
-	// For now, use the existing ValuesEqual logic which does string comparison
-	// This maintains current behavior while avoiding import cycles
-	// TODO: When RecordValue moves to runtime package, implement proper field comparison
-	return ValuesEqual(left, right)
-}
+// RecordsEqual is now defined in array_helpers.go (Task 3.5.143c)
+// with proper field-by-field comparison.
+// This comment preserves the history of migration from Task 3.5.103d.
 
 // IsInRange checks if value is within the range [start, end] inclusive.
 // Supports Integer, Float, String (character), and Enum values.

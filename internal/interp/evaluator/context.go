@@ -1,7 +1,12 @@
 package evaluator
 
 import (
+	"fmt"
+	"io"
+	"math/rand"
+
 	"github.com/cwbudde/go-dws/internal/errors"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
@@ -392,3 +397,175 @@ func (ctx *ExecutionContext) Reset() {
 // Phase 3.3.1: Extract execution state from Interpreter into ExecutionContext.
 // Phase 3.3.2: Implement explicit control flow handling with ControlFlow type.
 // Phase 3.3.3: Create CallStack abstraction with stack overflow detection.
+
+// ============================================================================
+// Context Interface Implementation (Task 3.5.143e-143k)
+// ============================================================================
+//
+// This section implements the builtins.Context interface methods for the Evaluator.
+// These methods provide core functionality for built-in functions:
+// - Error creation with location information
+// - Current AST node access
+// - Random number generation
+// - I/O operations
+// - Value inspection
+// ============================================================================
+
+// ============================================================================
+// Core State & Error Methods (Task 3.5.143e)
+// ============================================================================
+
+// NewError creates an error value with location information from the current node.
+// It formats the message using fmt.Sprintf semantics.
+//
+// This implements the builtins.Context interface method NewError().
+func (e *Evaluator) NewError(format string, args ...interface{}) Value {
+	return e.newError(e.currentNode, format, args...)
+}
+
+// Note: CurrentNode() is already implemented in evaluator.go:1053
+
+// RandSource returns the random number generator for built-in functions
+// like Random(), RandomInt(), and RandG().
+//
+// This implements the builtins.Context interface method RandSource().
+func (e *Evaluator) RandSource() *rand.Rand {
+	return e.rand
+}
+
+// ============================================================================
+// Random Number Methods (Task 3.5.143f)
+// ============================================================================
+
+// GetRandSeed returns the current random number generator seed value.
+// Used by the RandSeed() built-in function.
+//
+// This implements the builtins.Context interface method GetRandSeed().
+func (e *Evaluator) GetRandSeed() int64 {
+	return e.randSeed
+}
+
+// SetRandSeed sets the random number generator seed.
+// Used by the SetRandSeed() and Randomize() built-in functions.
+//
+// This implements the builtins.Context interface method SetRandSeed().
+func (e *Evaluator) SetRandSeed(seed int64) {
+	e.randSeed = seed
+	e.rand.Seed(seed)
+}
+
+// ============================================================================
+// I/O Methods (Task 3.5.143h)
+// ============================================================================
+
+// Write outputs a string to the configured output writer without a newline.
+// Used by the Print() built-in function.
+//
+// This implements the builtins.Context interface method Write().
+func (e *Evaluator) Write(s string) {
+	if e.output != nil {
+		io.WriteString(e.output, s)
+	}
+}
+
+// WriteLine outputs a string to the configured output writer with a newline.
+// Used by the PrintLn() built-in function.
+//
+// This implements the builtins.Context interface method WriteLine().
+func (e *Evaluator) WriteLine(s string) {
+	if e.output != nil {
+		fmt.Fprintln(e.output, s)
+	}
+}
+
+// ============================================================================
+// Value Inspection Method (Task 3.5.143j)
+// ============================================================================
+
+// IsAssigned checks if a Variant value has been assigned (is not uninitialized).
+// Returns true if the value is assigned, false if it's an uninitialized Variant.
+//
+// This implements the builtins.Context interface method IsAssigned().
+func (e *Evaluator) IsAssigned(value Value) bool {
+	// Check if it's a VariantWrapper (runtime.VariantWrapper interface)
+	if wrapper, ok := value.(runtime.VariantWrapper); ok {
+		unwrapped := wrapper.UnwrapVariant()
+		// Uninitialized variants unwrap to nil
+		return unwrapped != nil
+	}
+
+	// Non-variant values are always considered assigned
+	return true
+}
+
+// ============================================================================
+// Call Stack Methods (Task 3.5.143n)
+// ============================================================================
+
+// GetCallStackString returns a formatted string representation of the current call stack.
+// This implements the builtins.Context interface.
+// Task 3.5.143n: Helper for GetStackTrace() function.
+func (e *Evaluator) GetCallStackString() string {
+	if e.currentContext == nil {
+		return ""
+	}
+	return e.currentContext.GetCallStack().String()
+}
+
+// GetCallStackArray returns the current call stack as an array of records.
+// This implements the builtins.Context interface.
+// Task 3.5.143n: Helper for GetCallStack() function.
+func (e *Evaluator) GetCallStackArray() Value {
+	// Handle nil context
+	if e.currentContext == nil {
+		return &runtime.ArrayValue{
+			Elements:  []runtime.Value{},
+			ArrayType: types.NewDynamicArrayType(types.VARIANT),
+		}
+	}
+
+	// Get frames from call stack
+	frames := e.currentContext.GetCallStack().Frames()
+	elements := make([]runtime.Value, len(frames))
+
+	for idx, frame := range frames {
+		// Create a record with FunctionName, Line, Column fields
+		fields := make(map[string]runtime.Value)
+		fields["FunctionName"] = &runtime.StringValue{Value: frame.FunctionName}
+
+		// Extract line and column from Position
+		if frame.Position != nil {
+			fields["Line"] = &runtime.IntegerValue{Value: int64(frame.Position.Line)}
+			fields["Column"] = &runtime.IntegerValue{Value: int64(frame.Position.Column)}
+		} else {
+			fields["Line"] = &runtime.IntegerValue{Value: 0}
+			fields["Column"] = &runtime.IntegerValue{Value: 0}
+		}
+
+		elements[idx] = &runtime.RecordValue{
+			Fields:     fields,
+			RecordType: nil, // Anonymous record (no type metadata needed)
+		}
+	}
+
+	// Create and return the array
+	return &runtime.ArrayValue{
+		Elements:  elements,
+		ArrayType: types.NewDynamicArrayType(types.VARIANT),
+	}
+}
+
+// ============================================================================
+// Exception Raising Methods (Task 3.5.143p)
+// ============================================================================
+
+// RaiseAssertionFailed raises an EAssertionFailed exception with an optional custom message.
+// The exception includes position information from the current node.
+// This implements the builtins.Context interface.
+// Task 3.7.8: Helper for Assert() function.
+func (e *Evaluator) RaiseAssertionFailed(customMessage string) {
+	// Delegate to the adapter since exception handling is still in the Interpreter.
+	// The adapter will create the EAssertionFailed exception instance with proper
+	// position information and custom message, then store it in i.exception.
+	e.adapter.RaiseAssertionFailed(customMessage)
+}

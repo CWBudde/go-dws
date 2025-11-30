@@ -511,87 +511,37 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Files created**: 14 new files (7 implementation, 7 test)
   - **Files modified**: 7 files
 
-  **Phase I: Foundation Infrastructure (13 hours)**
+  **Phase I: Foundation Infrastructure (13 hours)** ✅ COMPLETE
 
-  - [ ] **3.5.143a** Create EnumTypeRegistry (5 hours)
-    - **File**: `internal/interp/types/type_system.go`
-    - **Task**: Add EnumTypeInfo struct and registry to TypeSystem
-    - **Blocker**: Current enum storage uses environment hack (`__enum_type_*`)
-    - **Deliverables**: RegisterEnumType(), LookupEnumType(), HasEnumType()
+  - [x] **3.5.143a-b** EnumTypeRegistry (DONE) - Added enum type registry to TypeSystem, migrated 24 occurrences from environment storage
+  - [x] **3.5.143c** Array Helpers (3h) ✅ - Extracted 8 standalone helpers: Copy, Reverse, Sort, IndexOf, Contains, ConcatArrays, Slice, ValuesEqual, RecordsEqual
+  - [x] **3.5.143d** JSON Helpers (2h) ✅ - Organized 8 JSON conversion helpers: JSONValueToValue, ValueToJSONValue, ParseJSONString, etc.
 
-  - [ ] **3.5.143b** Migrate Enum Type Storage (3 hours)
-    - **Files**: `visitor_declarations.go`, `interpreter.go`, all files with `__enum_type_` lookups
-    - **Task**: Replace environment-based enum storage with TypeSystem registry
-    - **Search**: `grep -r "__enum_type_" internal/`
+  **Phase II: Simple Context Methods (11 hours)** ✅ COMPLETE
 
-  - [ ] **3.5.143c** Extract Array Helper Functions (3 hours)
-    - **File**: `internal/interp/evaluator/array_helpers.go` (NEW)
-    - **Task**: Extract 93 array helpers from Interpreter
-    - **Functions**: builtinArrayCopy(), builtinArrayReverse(), builtinArraySort(), etc.
+  - [x] **3.5.143e-f** Core & Random (1.5h) ✅ - NewError(), RandSource(), GetRandSeed(), SetRandSeed() in context.go
+  - [x] **3.5.143g** Type Conversions (3h) ✅ - UnwrapVariant(), ToInt64(), ToBool(), ToFloat64(), GetTypeOf(), GetClassOf() in context_conversions.go (NEW)
+  - [x] **3.5.143h-i** I/O & Parsing (1h) ✅ - Write(), WriteLine(), ParseInt(), ParseFloat()
+  - [x] **3.5.143j-k** Inspection & Arrays (1h) ✅ - IsAssigned(), CreateStringArray(), CreateVariantArray() in context_arrays.go (NEW)
+  - [x] **3.5.143l** Type Introspection ✅ - Covered by 3.5.143g
 
-  - [ ] **3.5.143d** Organize JSON Helper Functions (2 hours)
-    - **File**: `internal/interp/evaluator/json_helpers.go` (existing)
-    - **Task**: Ensure all JSON conversion functions accessible to Evaluator
-    - **Functions**: parseJSONString(), valueToJSONValue(), jsonKindToVarType(), etc.
+  **Phase III: Medium Complexity Methods (6 hours)** ✅ COMPLETE
 
-  **Phase II: Simple Context Methods (11 hours)**
-
-  - [ ] **3.5.143e** Core State & Error Methods (1 hour)
-    - **File**: `internal/interp/evaluator/context.go` (NEW)
-    - **Methods**: NewError(), CurrentNode(), RandSource() (3 methods)
-
-  - [ ] **3.5.143f** Random Number Methods (0.5 hour)
-    - **File**: `internal/interp/evaluator/context.go`
-    - **Methods**: GetRandSeed(), SetRandSeed() (2 methods)
-
-  - [ ] **3.5.143g** Type Conversion Methods (3 hours)
-    - **File**: `internal/interp/evaluator/context_conversions.go` (NEW)
-    - **Methods**: UnwrapVariant(), ToInt64(), ToBool(), ToFloat64(), GetTypeOf(), GetClassOf() (6 methods)
-    - **Reference**: `builtins_context.go:58-457`
-
-  - [ ] **3.5.143h** I/O Methods (0.5 hour)
-    - **File**: `internal/interp/evaluator/context.go`
-    - **Methods**: Write(), WriteLine() (2 methods)
-
-  - [ ] **3.5.143i** String Parsing Methods (0.5 hour)
-    - **File**: `internal/interp/evaluator/context_conversions.go`
-    - **Methods**: ParseInt(), ParseFloat() (2 methods)
-
-  - [ ] **3.5.143j** Value Inspection Method (0.5 hour)
-    - **File**: `internal/interp/evaluator/context.go`
-    - **Methods**: IsAssigned() (1 method)
-
-  - [ ] **3.5.143k** Array Construction Methods (0.5 hour)
-    - **File**: `internal/interp/evaluator/context_arrays.go` (NEW)
-    - **Methods**: CreateStringArray(), CreateVariantArray() (2 methods)
-
-  - [ ] **3.5.143l** Type Introspection Methods (1 hour)
-    - **Note**: Covered in 3.5.143g (GetTypeOf, GetClassOf)
-
-  **Phase III: Medium Complexity Methods (6 hours)**
-
-  - [ ] **3.5.143m** Array Operation Methods (4 hours)
-    - **File**: `internal/interp/evaluator/context_arrays.go`
-    - **Methods**: GetBuiltinArrayLength(), SetArrayLength(), ArrayCopy(), ArrayReverse(), ArraySort() (5 methods)
-    - **Dependencies**: Task 3.5.143c (array helpers)
-
-  - [ ] **3.5.143n** Call Stack Methods (2 hours)
-    - **File**: `internal/interp/evaluator/context.go`
-    - **Methods**: GetCallStackString(), GetCallStackArray() (2 methods)
-    - **Reference**: `builtins_context.go:822-884`
+  - [x] **3.5.143m** Array Operations (4h) ✅ - GetBuiltinArrayLength(), SetArrayLength(), ArrayCopy(), ArrayReverse(), ArraySort() in context_arrays.go (84 lines)
+  - [x] **3.5.143n** Call Stack (2h) ✅ - GetCallStackString(), GetCallStackArray() in context.go (56 lines); Added currentContext field to Evaluator
 
   **Phase IV: Complex Methods (16 hours)**
 
-  - [ ] **3.5.143o** String Formatting Method (3 hours)
+  - [x] **3.5.143o** String Formatting Method (3 hours) ✅
     - **File**: `internal/interp/evaluator/context_formatting.go` (NEW)
     - **Methods**: FormatString() (1 method)
     - **Complexity**: Medium - fmt.Sprintf-style formatting for DWScript values
 
-  - [ ] **3.5.143p** Exception Raising Method (2 hours)
+  - [x] **3.5.143p** Exception Raising Method (2 hours) ✅
     - **File**: `internal/interp/evaluator/context.go`
     - **Methods**: RaiseAssertionFailed() (1 method)
 
-  - [ ] **3.5.143q** Enum Operation Methods (5 hours)
+  - [x] **3.5.143q** Enum Operation Methods (5 hours) ✅
     - **File**: `internal/interp/evaluator/context_enums.go` (NEW)
     - **Methods**: GetEnumOrdinal(), GetEnumSuccessor(), GetEnumPredecessor(), GetJSONVarType() (4 methods)
     - **Dependencies**: Tasks 3.5.143a-b (EnumTypeRegistry)
