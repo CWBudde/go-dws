@@ -580,10 +580,7 @@ type InterpreterAdapter interface {
 
 	// ===== Environment Access (Task 3.5.9) =====
 	// Task 3.5.70: GetVariable removed - use ctx.Env().Get() directly
-
-	// DefineVariable defines a new variable in the execution context.
-	// This creates a new binding in the current scope.
-	DefineVariable(name string, value Value, ctx *ExecutionContext)
+	// Task 3.5.137: DefineVariable removed - use ctx.Env().Define() directly
 
 	// Phase 3.5.4 - Phase 2C: Property & Indexing System infrastructure
 	// Property and indexing operations are available through existing infrastructure:
