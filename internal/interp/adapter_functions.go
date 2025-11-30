@@ -236,3 +236,29 @@ func (i *Interpreter) CallRecordStaticMethod(callExpr *ast.CallExpression, funcN
 	}
 	return i.evalMethodCall(mc)
 }
+
+// DispatchRecordStaticMethod dispatches a static method call on a record type.
+// Task 3.5.146: Simpler adapter method that takes record type name directly.
+// The evaluator already verified that the record type exists and has the static method
+// via the RecordTypeMetaValue interface.
+func (i *Interpreter) DispatchRecordStaticMethod(recordTypeName string, callExpr *ast.CallExpression, funcName *ast.Identifier) evaluator.Value {
+	// Create a method call expression: RecordTypeName.MethodName(args)
+	mc := &ast.MethodCallExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: callExpr.Token,
+			},
+		},
+		Object: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: funcName.Token,
+				},
+			},
+			Value: recordTypeName,
+		},
+		Method:    funcName,
+		Arguments: callExpr.Arguments,
+	}
+	return i.evalMethodCall(mc)
+}
