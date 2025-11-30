@@ -3853,19 +3853,14 @@ type TypeAnnotation struct {
 
 ### 9.23.7 Additional Built-in Function Fixes
 
-- [x] 9.23.7.1 Fix Copy() 2-parameter variant
-  - Current: `Copy(str, start, len)` ✓
-  - Missing: `Copy(str, start)` - should copy from start to end
-  - Implementation: Default len to MaxInt when omitted
-  - Files: `internal/parser/expressions.go`, `internal/interp/builtins_strings_basic.go`
-  - Estimated: 1 hour
-
-- [ ] 9.23.7.2 Fix FloatToStr to accept Integer arguments
-  - Current: `FloatToStr(Integer)` → type error ✗
-  - Expected: Auto-convert Integer to Float before formatting
-  - DWScript behavior: Accepts numeric types and auto-converts
-  - File: `internal/semantic/analyze_function_calls.go` or `internal/interp/builtins_conversion.go`
-  - Estimated: 1 hour
+- [x] 9.23.7.2 Fix FloatToStr to accept Integer arguments ✅ DONE
+  - Issue: `FloatToStr(Integer)` worked in AST interpreter but failed in bytecode VM
+  - Solution: Updated bytecode VM's `builtinFloatToStr` to accept both Float and Integer types
+  - Files modified:
+    - `internal/bytecode/vm_builtins_conversion.go`: Added Integer type check in `builtinFloatToStr`
+    - `internal/bytecode/vm_builtins_conversion_test.go`: Added comprehensive Integer argument tests
+  - Both execution engines now have consistent behavior
+  - All tests pass
 
 ---
 

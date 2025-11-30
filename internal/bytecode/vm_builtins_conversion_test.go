@@ -77,10 +77,40 @@ func TestBuiltinConversionFunctionsComprehensive(t *testing.T) {
 		}
 	})
 
+	t.Run("FloatToStr with integer", func(t *testing.T) {
+		result, err := builtinFloatToStr(vm, []Value{IntValue(42)})
+		if err != nil {
+			t.Fatalf("builtinFloatToStr() with int should work, got error: %v", err)
+		}
+		if result.AsString() != "42" {
+			t.Errorf("builtinFloatToStr(42) = %v, want '42'", result.AsString())
+		}
+	})
+
+	t.Run("FloatToStr with negative integer", func(t *testing.T) {
+		result, err := builtinFloatToStr(vm, []Value{IntValue(-100)})
+		if err != nil {
+			t.Fatalf("builtinFloatToStr() with negative int should work, got error: %v", err)
+		}
+		if result.AsString() != "-100" {
+			t.Errorf("builtinFloatToStr(-100) = %v, want '-100'", result.AsString())
+		}
+	})
+
+	t.Run("FloatToStr with zero integer", func(t *testing.T) {
+		result, err := builtinFloatToStr(vm, []Value{IntValue(0)})
+		if err != nil {
+			t.Fatalf("builtinFloatToStr() with zero should work, got error: %v", err)
+		}
+		if result.AsString() != "0" {
+			t.Errorf("builtinFloatToStr(0) = %v, want '0'", result.AsString())
+		}
+	})
+
 	t.Run("FloatToStr wrong type", func(t *testing.T) {
-		_, err := builtinFloatToStr(vm, []Value{IntValue(42)})
+		_, err := builtinFloatToStr(vm, []Value{StringValue("not a number")})
 		if err == nil {
-			t.Error("builtinFloatToStr() with int should return error")
+			t.Error("builtinFloatToStr() with string should return error")
 		}
 	})
 
