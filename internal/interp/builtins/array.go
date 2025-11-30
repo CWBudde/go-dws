@@ -51,6 +51,7 @@ func Length(ctx Context, args []Value) Value {
 //
 // Signature:
 //   - Copy(arr) -> array (array copy)
+//   - Copy(str, index) -> string (substring from index to end)
 //   - Copy(str, index, count) -> string (substring)
 //
 // Example:
@@ -60,15 +61,16 @@ func Length(ctx Context, args []Value) Value {
 //
 //	var str := "Hello";
 //	var sub := Copy(str, 1, 3); // "Hel"
+//	var rest := Copy(str, 3);   // "llo"
 func Copy(ctx Context, args []Value) Value {
 	// Handle array copy: Copy(arr) - 1 argument
 	if len(args) == 1 {
 		return ctx.ArrayCopy(args[0])
 	}
 
-	// Handle string copy: Copy(str, index, count)
-	if len(args) != 3 {
-		return ctx.NewError("Copy() expects either 1 argument (array) or 3 arguments (string), got %d", len(args))
+	// Handle string copy: Copy(str, index) or Copy(str, index, count)
+	if len(args) < 2 || len(args) > 3 {
+		return ctx.NewError("Copy() expects 1 argument (array) or 2-3 arguments (string), got %d", len(args))
 	}
 
 	// First argument: string
@@ -87,19 +89,21 @@ func Copy(ctx Context, args []Value) Value {
 		return ctx.NewError("Copy() expects integer as second argument, got %T", args[1])
 	}
 
-	// Third argument: count (optional, defaults to copy to end)
-	var countInt int64
-	if intVal, ok := args[2].(*runtime.IntegerValue); ok {
-		countInt = intVal.Value
-	} else if i64, ok := ctx.ToInt64(args[2]); ok {
-		countInt = i64
-	} else {
-		return ctx.NewError("Copy() expects integer as third argument, got %T", args[2])
-	}
-
 	// Convert string to rune slice for proper indexing
 	runes := []rune(strVal.Value)
 	strLen := int64(len(runes))
+
+	// Third argument: count (optional, defaults to rest of string)
+	var countInt int64 = strLen // Default: copy to end
+	if len(args) == 3 {
+		if intVal, ok := args[2].(*runtime.IntegerValue); ok {
+			countInt = intVal.Value
+		} else if i64, ok := ctx.ToInt64(args[2]); ok {
+			countInt = i64
+		} else {
+			return ctx.NewError("Copy() expects integer as third argument, got %T", args[2])
+		}
+	}
 
 	// Handle 1-based indexing
 	index := indexInt - 1
