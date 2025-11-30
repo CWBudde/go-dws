@@ -87,14 +87,7 @@ func (i *Interpreter) GetType(name string) (any, error) {
 	return typ, nil
 }
 
-// ParseInlineArrayType parses inline array type signatures like "array of Integer".
-func (i *Interpreter) ParseInlineArrayType(typeName string) (any, error) {
-	arrType := i.parseInlineArrayType(typeName)
-	if arrType == nil {
-		return nil, fmt.Errorf("invalid inline array type: %s", typeName)
-	}
-	return arrType, nil
-}
+// Task 3.5.139h: ParseInlineArrayType removed - evaluator uses parseInlineArrayType() directly
 
 // Task 3.5.138: LookupSubrangeType removed - evaluator now uses ctx.Env().Get() directly
 
