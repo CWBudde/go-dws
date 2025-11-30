@@ -78,14 +78,7 @@ func (i *Interpreter) GetEnumTypeID(enumName string) int {
 
 // ===== Task 3.5.5: Type System Adapter Method Implementations =====
 
-// GetType resolves a type by name using the type system.
-func (i *Interpreter) GetType(name string) (any, error) {
-	typ, err := i.resolveType(name)
-	if err != nil {
-		return nil, err
-	}
-	return typ, nil
-}
+// Task 3.5.141: GetType removed - evaluator uses resolveTypeName() directly
 
 // Task 3.5.139h: ParseInlineArrayType removed - evaluator uses parseInlineArrayType() directly
 
@@ -163,21 +156,7 @@ func (i *Interpreter) WrapInInterface(value evaluator.Value, interfaceName strin
 	return NewInterfaceInstance(ifaceInfo, objInst), nil
 }
 
-// EvalArrayLiteralWithExpectedType evaluates an array literal with expected type context.
-func (i *Interpreter) EvalArrayLiteralWithExpectedType(lit ast.Node, expectedTypeName string) evaluator.Value {
-	arrayLit, ok := lit.(*ast.ArrayLiteralExpression)
-	if !ok {
-		return i.newErrorWithLocation(lit, "expected array literal expression")
-	}
-
-	// Resolve expected type
-	arrType, errVal := i.arrayTypeByName(expectedTypeName, lit)
-	if errVal != nil {
-		return errVal
-	}
-
-	return i.evalArrayLiteralWithExpected(arrayLit, arrType)
-}
+// Task 3.5.140: EvalArrayLiteralWithExpectedType removed - evaluator uses evalArrayLiteralWithExpectedType() directly
 
 // WrapJSONValueInVariant wraps a jsonvalue.Value in a VariantValue containing a JSONValue.
 // Task 3.5.99b: Implements InterpreterAdapter.WrapJSONValueInVariant for JSON indexing support.

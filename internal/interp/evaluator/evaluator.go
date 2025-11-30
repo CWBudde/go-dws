@@ -427,10 +427,7 @@ type InterpreterAdapter interface {
 
 	// ===== Task 3.5.5: Type System Access Methods =====
 
-	// GetType resolves a type by name.
-	// Returns the resolved type and an error if the type is not found.
-	// The lookup is case-insensitive.
-	GetType(name string) (any, error)
+	// Task 3.5.141: GetType removed - evaluator uses resolveTypeName() directly
 
 	// ===== Task 3.5.6: Array and Collection Adapter Methods =====
 
@@ -633,13 +630,9 @@ type InterpreterAdapter interface {
 	// Returns the interface instance and an error if validation fails.
 	WrapInInterface(value Value, interfaceName string, node ast.Node) (Value, error)
 
-	// EvalArrayLiteralWithExpectedType evaluates an array literal with expected type context.
-	// This allows proper element type inference and coercion.
-	// Returns the evaluated array value.
-	EvalArrayLiteralWithExpectedType(lit ast.Node, expectedTypeName string) Value
-
 	// Task 3.5.130d: CreateExternalVar removed - evaluator constructs runtime.ExternalVarValue directly
 	// Task 3.5.139h: ResolveArrayTypeNode removed - evaluator uses resolveArrayTypeNode() directly
+	// Task 3.5.140: EvalArrayLiteralWithExpectedType removed - evaluator uses evalArrayLiteralWithExpectedType() directly
 
 	// Task 3.5.128f: CreateRecordZeroValue removed - evaluator now handles record zero-value creation directly
 	// Task 3.5.129: CreateArrayZeroValue, CreateSetZeroValue, CreateSubrangeZeroValue, CreateInterfaceZeroValue, CreateClassZeroValue removed

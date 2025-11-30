@@ -64,19 +64,18 @@ func (e *Evaluator) ResolveType(typeName string) (types.Type, error) {
 		return arrayType, nil
 	}
 
-	// Step 5: Delegate to adapter for all other types
-	// (enum, record, class, type alias, subrange - stored in environment)
-	resolvedType, err := e.adapter.GetType(typeName)
+	// Step 5: Use evaluator's resolveTypeName for all other types
+	// Task 3.5.141: Use resolveTypeName instead of adapter.GetType
+	// Pass nil context - resolveTypeName checks ctx.Env() != nil before accessing environment
+	// This limits resolution to types that don't require environment access (classes, interfaces)
+	// For full resolution including enums/records/subranges, callers should use ResolveType with context
+	ctx := &ExecutionContext{}
+	resolvedType, err := e.resolveTypeName(typeName, ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Cast the result to types.Type
-	if typ, ok := resolvedType.(types.Type); ok {
-		return typ, nil
-	}
-
-	return nil, fmt.Errorf("resolved type %q is not a types.Type", typeName)
+	return resolvedType, nil
 }
 
 // resolveInlineArrayType handles inline array type syntax:
