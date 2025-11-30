@@ -101,52 +101,49 @@ func (i *Interpreter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
 // ===== Task 3.5.97: User Function Call Methods =====
 
 // CallUserFunctionWithOverloads calls a user-defined function with overload resolution.
-// Task 3.5.97a: Enables evaluator to call user functions without using EvalNode.
+// Task 3.5.144: Refactored to use evaluator.prepareUserFunctionArgs for parameter wrapping.
+//
+// Migration status:
+// - [EVALUATOR] Overload resolution (semantic type matching) ← Task 3.5.144a
+// - [EVALUATOR] Argument caching (prevents double-evaluation) ← Task 3.5.144a
+// - [EVALUATOR] Parameter wrapping (lazy/var/regular) ← Task 3.5.144
+// - [ADAPTER] Function execution (callUserFunction)
 func (i *Interpreter) CallUserFunctionWithOverloads(callExpr *ast.CallExpression, funcName *ast.Identifier) evaluator.Value {
-	// This method encapsulates the logic from evalCallExpression lines 210-265
-
+	// 1. Lookup overloads from function registry
 	funcNameLower := ident.Normalize(funcName.Value)
 	overloads, exists := i.functions[funcNameLower]
 	if !exists || len(overloads) == 0 {
 		return i.newErrorWithLocation(callExpr, "function '%s' not found", funcName.Value)
 	}
 
-	// Resolve overload based on argument types and get cached evaluated arguments
-	fn, cachedArgs, err := i.resolveOverload(funcNameLower, overloads, callExpr.Arguments)
+	// 2. Resolve overload using evaluator's new helpers (Task 3.5.144a)
+	// - Single overload: fast path that skips evaluation for lazy params
+	// - Multiple overloads: semantic type matching with ResolveOverload
+	var fn *ast.FunctionDecl
+	var cachedArgs []evaluator.Value
+	var err error
+
+	if len(overloads) == 1 {
+		// Fast path: single overload, use evaluator's ResolveOverloadFast
+		fn = overloads[0]
+		cachedArgs, err = i.evaluatorInstance.ResolveOverloadFast(fn, callExpr.Arguments, i.ctx)
+	} else {
+		// Multiple overloads: use evaluator's ResolveOverloadMultiple
+		fn, cachedArgs, err = i.evaluatorInstance.ResolveOverloadMultiple(
+			funcNameLower, overloads, callExpr.Arguments, i.ctx)
+	}
+
 	if err != nil {
 		return i.newErrorWithLocation(callExpr, "%s", err.Error())
 	}
 
-	// Prepare arguments - lazy parameters get LazyThunks, var parameters get References
-	args := make([]Value, len(callExpr.Arguments))
-	for idx, arg := range callExpr.Arguments {
-		// Check parameter flags
-		isLazy := idx < len(fn.Parameters) && fn.Parameters[idx].IsLazy
-		isByRef := idx < len(fn.Parameters) && fn.Parameters[idx].ByRef
-
-		if isLazy {
-			// For lazy parameters, create a LazyThunk
-			args[idx] = NewLazyThunk(arg, i.env, i)
-		} else if isByRef {
-			// For var parameters, create a reference
-			if argIdent, ok := arg.(*ast.Identifier); ok {
-				if val, exists := i.env.Get(argIdent.Value); exists {
-					if refVal, isRef := val.(*ReferenceValue); isRef {
-						args[idx] = refVal // Pass through existing reference
-					} else {
-						args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
-					}
-				} else {
-					args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
-				}
-			} else {
-				return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
-			}
-		} else {
-			// For regular parameters, use the cached value from overload resolution
-			args[idx] = cachedArgs[idx]
-		}
+	// 3. Prepare arguments with callback-based wrapping (MIGRATED - Task 3.5.144)
+	args, err := i.evaluatorInstance.PrepareUserFunctionArgs(fn, callExpr.Arguments, cachedArgs, i.ctx, callExpr)
+	if err != nil {
+		return i.newErrorWithLocation(callExpr, "%s", err.Error())
 	}
+
+	// 4. Execute the resolved function with prepared arguments
 	return i.callUserFunction(fn, args)
 }
 
