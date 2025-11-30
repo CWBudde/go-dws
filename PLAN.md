@@ -538,22 +538,27 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Remaining Subtasks** (OPTIONAL - not blocking other Phase 23 tasks):
     - **Why Optional**: Tasks 3.5.145-3.5.147 can be completed without these. They can reuse the same partial migration pattern (parameter prep in evaluator, execution in adapter).
     - **When to Do**: After completing Phase 23, or when full function execution migration is prioritized.
-    - [ ] **3.5.144a** Migrate overload resolution to evaluator
+    - [x] **3.5.144a** Migrate overload resolution to evaluator ✅ COMPLETED
       - **Current**: `functions_typecast.go:185-258` (74 lines)
       - **Complexity**: HIGH - semantic analyzer integration
       - **Total Effort**: 4-6 hours | **Risk**: Medium
+      - **Implementation**: Created `overload_resolution.go` (229 lines) + tests (603 lines)
       - **Granular Steps**:
-        - [ ] **3.5.144a.1** Extract `getValueType()` to evaluator (30 min, LOW risk)
-        - [ ] **3.5.144a.2** Extract `extractFunctionType()` to evaluator (1 hour, LOW risk)
-        - [ ] **3.5.144a.3** Create `resolveOverloadFast()` for single overload (30 min, LOW risk)
-        - [ ] **3.5.144a.4** Create `resolveOverloadMultiple()` for multiple overloads (2 hours, MEDIUM risk)
-        - [ ] **3.5.144a.5** Refactor adapter to use new helpers (30 min, LOW risk)
+        - [x] **3.5.144a.1** Extract `getValueType()` to evaluator (30 min, LOW risk) ✅
+        - [x] **3.5.144a.2** Extract `extractFunctionType()` to evaluator (1 hour, LOW risk) ✅
+        - [x] **3.5.144a.3** Create `ResolveOverloadFast()` for single overload (30 min, LOW risk) ✅
+        - [x] **3.5.144a.4** Create `ResolveOverloadMultiple()` for multiple overloads (2 hours, MEDIUM risk) ✅
+        - [x] **3.5.144a.5** Refactor adapter to use new helpers (30 min, LOW risk) ✅
     - [ ] **3.5.144b** Migrate user function execution to evaluator
       - **Current**: `functions_user.go:11-240` (~230 lines)
       - **Complexity**: VERY HIGH - environment management, contracts, default params
       - **Total Effort**: 8-12 hours | **Risk**: High
       - **Granular Steps** (12 micro-tasks, ~30min-1.5hr each):
-        - [ ] **3.5.144b.1** Extract default parameter evaluation (1 hour, LOW risk)
+        - [x] **3.5.144b.1** Extract default parameter evaluation (1 hour, LOW risk) ✅
+          - Created `EvaluateDefaultParameters()` in `user_function_helpers.go`
+          - 7 unit tests in `user_function_helpers_test.go`
+          - Integrated in `adapter_functions.go:CallUserFunctionWithOverloads`
+          - Kept backward compat in `callUserFunction` for other call paths
         - [ ] **3.5.144b.2** Extract parameter binding logic (1.5 hours, MEDIUM risk - needs tryImplicitConversion)
         - [ ] **3.5.144b.3** Extract Result variable initialization (1 hour, MEDIUM risk - complex type handling)
         - [ ] **3.5.144b.4** Extract function name alias setup (30 min, LOW risk - ReferenceValue pattern from 3.5.144)

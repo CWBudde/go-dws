@@ -7,7 +7,10 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
-// evalCallExpression evaluates a function call expression.
+// callUserFunction executes a user-defined function.
+// Task 3.5.144b.1: Default parameter evaluation can be pre-handled by evaluator.EvaluateDefaultParameters
+// when called via CallUserFunctionWithOverloads. For other call paths (constructors, methods, operators),
+// this method still handles default parameters internally for backward compatibility.
 func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value {
 	// Calculate required parameter count (parameters without defaults)
 	requiredParams := 0
@@ -28,7 +31,8 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 	}
 
 	// Fill in missing optional arguments with default values
-	// Evaluate default expressions in the CALLER'S environment
+	// Note: For calls via CallUserFunctionWithOverloads, defaults are already filled
+	// by evaluator.EvaluateDefaultParameters. This code handles other call paths.
 	if len(args) < len(fn.Parameters) {
 		savedEnv := i.env // Save caller's environment
 		for idx := len(args); idx < len(fn.Parameters); idx++ {
