@@ -223,7 +223,9 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 			typeName := node.Type.String()
 
 			// Handle subrange type wrapping
-			if typeVal, ok := e.adapter.LookupSubrangeType(typeName); ok {
+			// Task 3.5.138: Direct environment access instead of adapter
+			subrangeTypeKey := "__subrange_type_" + ident.Normalize(typeName)
+			if typeVal, ok := ctx.Env().Get(subrangeTypeKey); ok {
 				if typeVal != nil { // Ensure typeVal is not nil
 					wrappedVal, err := e.adapter.WrapInSubrange(value, typeName, node)
 					if err != nil {
