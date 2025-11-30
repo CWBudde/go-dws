@@ -372,8 +372,6 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 ---
 
-#### Completed Tasks (3.5.74-3.5.99) ✅
-
 - [x] **3.5.74-3.5.79** Foundation - Audit (46 calls found), SemanticInfo, ordinal/index helpers, type resolution
 - [x] **3.5.80-3.5.83** Literals - Set, index, new array, array literal expressions (direct evaluation)
 - [x] **3.5.84-3.5.92** Member Access - 9 cases migrated (OBJECT/INTERFACE/CLASS/TYPE_CAST/NIL/RECORD/ENUM + identifier lookups)
@@ -383,166 +381,77 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 ---
 
-### Phase 14: Adapter Audit (3.5.100) ✅
+### Phase 15: Reduce EvalNode Calls
 
-- [x] **3.5.100** Audit - 149 methods → 78 used (52.3%), 71 unused
-- [x] **3.5.100b** Removed 42 unused methods (924 lines, 27.2% reduction); 149 → 107 methods
-
----
-
-### Phase 15: Reduce EvalNode Calls (3.5.101-3.5.110)
-
-#### Completed Tasks (3.5.101-3.5.106) ✅
-
-- [x] **3.5.101** VisitMemberAccessExpression fallbacks - 6 EvalNode → direct errors; 10 legitimate calls retained
-- [x] **3.5.102** Helper method fallbacks - 26+ helpers migrated (string/int/float/bool/array/enum/AST); 2 EvalNode removed
-- [x] **3.5.103** binary_ops.go - In operator, set ops, equality, variant ops; 7 calls removed (4 EvalNode + 3 specialized)
-- [x] **3.5.104** set_helpers.go - Array literal conversion, enum lookup; 2 calls removed
-- [x] **3.5.105** AssignmentStatement - Simple/compound/index/member assignment + context inference; created `compound_ops.go`, `index_assignment.go`, `member_assignment.go`
-- [x] **3.5.106** type_resolution.go - Context-aware type resolution via interface-based getters
-
-#### Deferred Tasks ⚠️
-
-- [ ] **3.5.107** Keep EvalNode for visitor_declarations.go (10 calls) ⚠️ KEEP
-  - **Location**: `visitor_declarations.go` all 10 declarations
-  - **Reason**: Declaration processing requires registry updates that live in Interpreter
-  - **Future**: Phase 25 will address declaration migration
-  - **Status**: DEFERRED - not targeted for Phase 15
-
-- [ ] **3.5.108** Keep EvalNode in evaluator.go fallback (1 call) ⚠️ KEEP - Safety net for unknown node types
+- [x] **3.5.100** VisitMemberAccessExpression fallbacks - 6 EvalNode → direct errors; 10 legitimate calls retained
+- [x] **3.5.101** Helper method fallbacks - 26+ helpers migrated (string/int/float/bool/array/enum/AST); 2 EvalNode removed
+- [x] **3.5.102** binary_ops.go - In operator, set ops, equality, variant ops; 7 calls removed (4 EvalNode + 3 specialized)
+- [x] **3.5.103** set_helpers.go - Array literal conversion, enum lookup; 2 calls removed
+- [x] **3.5.104** AssignmentStatement - Simple/compound/index/member assignment + context inference; created `compound_ops.go`, `index_assignment.go`, `member_assignment.go`
+- [x] **3.5.105** type_resolution.go - Context-aware type resolution via interface-based getters
 
 ---
 
-### Phase 16: Reduce CallMethod Calls (3.5.111-3.5.115) ✅
+### Phase 16: Reduce CallMethod Calls
 
-- [x] **3.5.111** Object method dispatch - 5 calls: SET/ENUM/CLASSINFO/OBJECT/CLASS methods via extended CallMethod
-- [x] **3.5.112** Interface method dispatch - InterfaceInstance case in CallMethod; contract verification
-- [x] **3.5.113** Record method dispatch - RecordValue case; instance + static methods with Self/field binding
-- [x] **3.5.114** CallInheritedMethod - ObjectValue.CallInheritedMethod interface + ExecuteMethodWithSelf adapter
-- [x] **3.5.115** Consolidated infrastructure - Created `method_dispatch.go` with DispatchMethodCall() entry point
-
----
-
-### Phase 17: Reduce Property Access Calls (3.5.116-3.5.120) ✅
-
-- [x] **3.5.116** ReadPropertyValue (4 calls) - ObjectValue.ReadProperty() with callback → ExecutePropertyRead
-- [x] **3.5.117** CallIndexedPropertyGetter (5 calls) - ObjectValue.ReadIndexedProperty() → ExecuteIndexedPropertyRead
-- [x] **3.5.118** CallRecordPropertyGetter (2 calls) - RecordInstanceValue.ReadIndexedProperty() callback pattern
-- [x] **3.5.119** IsMethodParameterless + CreateMethodCall (2 calls) - ObjectValue.InvokeParameterlessMethod()
-- [x] **3.5.120** CreateMethodPointerFromObject (1 call) - ObjectValue.CreateMethodPointer() callback pattern
+- [x] **3.5.106** Object method dispatch - 5 calls: SET/ENUM/CLASSINFO/OBJECT/CLASS methods via extended CallMethod
+- [x] **3.5.107** Interface method dispatch - InterfaceInstance case in CallMethod; contract verification
+- [x] **3.5.108** Record method dispatch - RecordValue case; instance + static methods with Self/field binding
+- [x] **3.5.109** CallInheritedMethod - ObjectValue.CallInheritedMethod interface + ExecuteMethodWithSelf adapter
+- [x] **3.5.110** Consolidated infrastructure - Created `method_dispatch.go` with DispatchMethodCall() entry point
 
 ---
 
-### Phase 18: Reduce Function Pointer Calls (3.5.121-3.5.125)
+### Phase 17: Reduce Property Access Calls
 
-#### Completed Tasks (3.5.121-3.5.124) ✅
-
-- [x] **3.5.121** CallFunctionPointer (2 calls) - FunctionPointerCallable interface → ExecuteFunctionPointerCall
-- [x] **3.5.122** CreateFunctionPointer + CreateFunctionPointerFromName - Direct FunctionPointerValue creation with type helpers
-- [x] **3.5.123** CreateMethodPointer (1 call) - ObjectValue.CreateMethodPointer() with CreateBoundMethodPointer callback
-- [x] **3.5.124** CreateLambda (1 call) - Direct `&runtime.FunctionPointerValue{Lambda: node, Closure: env}`
-
-#### Pending Tasks
-
-- [ ] **3.5.125** Migrate IsFunctionPointer + related checks (4 calls)
-  - **Location**: `visitor_statements.go` lines 101, 103, 110, 112
-  - **Issue**: Function pointer type checks and nil checks
-  - **Solution**: Type assertion to FunctionPointerValue interface
-  - **Calls removed**: 4 adapter calls
+- [x] **3.5.111** ReadPropertyValue (4 calls) - ObjectValue.ReadProperty() with callback → ExecutePropertyRead
+- [x] **3.5.112** CallIndexedPropertyGetter (5 calls) - ObjectValue.ReadIndexedProperty() → ExecuteIndexedPropertyRead
+- [x] **3.5.113** CallRecordPropertyGetter (2 calls) - RecordInstanceValue.ReadIndexedProperty() callback pattern
+- [x] **3.5.114** IsMethodParameterless + CreateMethodCall (2 calls) - ObjectValue.InvokeParameterlessMethod()
+- [x] **3.5.115** CreateMethodPointerFromObject (1 call) - ObjectValue.CreateMethodPointer() callback pattern
 
 ---
 
-### Phase 19: Reduce Value Creation Calls (3.5.126-3.5.132)
+### Phase 18: Reduce Function Pointer Calls
 
-#### Completed Tasks ✅
-
-- [x] **3.5.127** CreateArray + CreateArrayValue (4 calls) - Direct `&runtime.ArrayValue` construction
-- [x] **3.5.128** RecordValue creation (2 calls) - Direct TypeSystem access + initializer callbacks, -2 methods
-- [x] **3.5.129** Zero value creators (5 calls) - Direct creation + 3 bridge constructors, -5 methods, net -3
-- [x] **3.5.130** CreateExternalVar (1 call) - Moved to runtime package, -1 method
-- [x] **3.5.131a-h** LazyThunk + ReferenceValue (2 calls) - Callback-based runtime types, -2 methods
-- [x] **3.5.132** DereferenceValue (1 call) - ReferenceAccessor interface, -1 method
-
-**Phase 19 Total**: -10 adapter calls, -8 methods (107 → 106 after 3.5.132)
-
-#### Deferred Tasks
-
-- [ ] **3.5.126** CreateObject (1 call) - DEFERRED ⚠️
-  - **Reason**: Go type alias limitation - ObjectInstance has 17 methods, 600+ LOC, 50-100+ call sites
-  - **Effort**: 4-6 weeks to migrate (convert methods → free functions, update all call sites)
-  - **Recommendation**: Keep in adapter, focus on easier wins
-  - **Note**: ExecuteConstructor callback (3.5.126a) added for future use
+- [x] **3.5.116** CallFunctionPointer (2 calls) - FunctionPointerCallable interface → ExecuteFunctionPointerCall
+- [x] **3.5.117** CreateFunctionPointer + CreateFunctionPointerFromName - Direct FunctionPointerValue creation with type helpers
+- [x] **3.5.118** CreateMethodPointer (1 call) - ObjectValue.CreateMethodPointer() with CreateBoundMethodPointer callback
+- [x] **3.5.119** CreateLambda (1 call) - Direct `&runtime.FunctionPointerValue{Lambda: node, Closure: env}`
 
 ---
 
-### Phase 20: Reduce Exception Handling Calls (3.5.133-3.5.137)
+### Phase 19: Reduce Value Creation Calls
 
-**Current State**: 7 exception-related adapter calls (3 removed, 4 remaining)
-
-- [x] **3.5.133** Migrate RaiseException (1 call) ✅
-  - **Location**: `visitor_statements.go` line 112
-  - **Issue**: Exception raising delegates to adapter
-  - **Solution**: Create ExceptionValue directly using CreateExceptionDirect bridge constructor
-  - **Calls removed**: 1 adapter call
-
-- [x] **3.5.134** Migrate CreateExceptionFromObject (1 call) ✅
-  - **Location**: `visitor_statements.go` line 1186 (was 1040)
-  - **Issue**: Converting object to exception for `raise obj`
-  - **Solution**: Created WrapObjectInException bridge constructor + evaluator helper
-  - **Implementation**: evaluator.createExceptionFromObject() handles nil objects, uses bridge
-  - **Bridge added**: WrapObjectInException (will be removed in Phase 27.5)
-  - **Calls removed**: 1 adapter call
-  - **Methods removed**: 1 (CreateExceptionFromObject from interface and implementation)
-  - **Lines removed**: 64 from adapter_values.go
-  - **Tests**: All exception and raise tests pass ✅
-
-- [x] **3.5.135** Migrate MatchesExceptionType (1 call) ✅
-  - **Location**: `visitor_statements.go` line 1103 (was 957)
-  - **Issue**: Exception type matching in handlers
-  - **Solution**: Created evaluator.matchesExceptionType() using TypeSystem.IsClassDescendantOf
-  - **Implementation**: Gets exception type via Type() interface, checks class hierarchy
-  - **Calls removed**: 1 adapter call
-  - **Methods removed**: 1 (MatchesExceptionType from interface and implementation)
-  - **Tests**: All exception type matching tests pass ✅
-
-- [x] **3.5.136** Migrate GetExceptionInstance (2 calls) ✅
-  - **Location**: `visitor_statements.go` lines 1038, 1110 (finally block, exception handler)
-  - **Issue**: Extracting ObjectInstance from ExceptionValue delegates to adapter
-  - **Solution**: Added `GetInstance()` method to ExceptionValue, created `getExceptionInstance()` helper in evaluator using interface pattern
-  - **Implementation**:
-    - Added `ExceptionValue.GetInstance() interface{}` method to return Instance field
-    - Created evaluator helper with local interface definition to avoid circular imports
-    - Replaced both adapter calls with `e.getExceptionInstance(exc)`
-  - **Calls removed**: 2 adapter calls
-  - **Methods removed**: 1 (GetExceptionInstance from adapter interface and implementation)
-  - **Methods added**: 1 (GetInstance on ExceptionValue), 1 helper (getExceptionInstance in evaluator)
-  - **Lines removed**: 8 from adapter_values.go
-  - **Tests**: All exception handling tests pass ✅
-
-- [x] **3.5.137** Migrate EvalBlockStatement + EvalStatement (4 calls) ✅
-  - **Location**: `visitor_statements.go` lines 1048, 1064, 1136, 1159 (finally, try, handler, else blocks)
-  - **Issue**: Block/statement evaluation in try-except-finally delegates to adapter
-  - **Solution**: Call Evaluator.Eval() directly with proper context
-  - **Implementation**: Replaced all 4 calls with `e.Eval(node, ctx)` for direct evaluation
-  - **Calls removed**: 4 adapter calls
-  - **Methods removed**: 2 (EvalBlockStatement, EvalStatement) + 2 helper methods (syncFromContext, syncToContext)
-  - **Lines removed**: ~47 from adapter_values.go
-  - **Tests**: All exception handling tests pass ✅
+- [x] **3.5.120** CreateArray + CreateArrayValue (4 calls) - Direct `&runtime.ArrayValue` construction
+- [x] **3.5.121** RecordValue creation (2 calls) - Direct TypeSystem access + initializer callbacks, -2 methods
+- [x] **3.5.122** Zero value creators (5 calls) - Direct creation + 3 bridge constructors, -5 methods, net -3
+- [x] **3.5.123** CreateExternalVar (1 call) - Moved to runtime package, -1 method
+- [x] **3.5.124** LazyThunk + ReferenceValue (2 calls) - Callback-based runtime types, -2 methods
+- [x] **3.5.125** DereferenceValue (1 call) - ReferenceAccessor interface, -1 method
 
 ---
 
-### Phase 21: Reduce Type Operation Calls (3.5.138-3.5.143)
+### Phase 20: Reduce Exception Handling Calls
 
-**Current State**: 9 type operation adapter calls (3 removed, 1 helper added)
+- [x] **3.5.126** Migrate RaiseException (1 call) ✅ - Create ExceptionValue directly using CreateExceptionDirect bridge constructor
+- [x] **3.5.127** Migrate CreateExceptionFromObject (1 call) ✅ - Created WrapObjectInException bridge constructor + evaluator helper for object-to-exception conversion
+- [x] **3.5.128** Migrate MatchesExceptionType (1 call) ✅ - Created evaluator.matchesExceptionType() using TypeSystem.IsClassDescendantOf for exception type matching
+- [x] **3.5.129** Migrate GetExceptionInstance (2 calls) ✅ - Added GetInstance() method to ExceptionValue, created getExceptionInstance() helper for instance extraction
+- [x] **3.5.130** Migrate EvalBlockStatement + EvalStatement (4 calls) ✅ - Call Evaluator.Eval() directly with proper context for block/statement evaluation
 
-- [x] **3.5.138** Migrate ConvertValue (2 calls) ✅
+---
+
+### Phase 21: Reduce Type Operation Calls
+
+- [x] **3.5.131** Migrate ConvertValue (2 calls) ✅
   - **Location**: `type_casts.go` line 67, `array_helpers.go` line 641
   - **Issue**: Type conversion delegates to adapter
   - **Solution**: Replaced with existing adapter method (BoxVariant) and direct evaluator method (castToFloat)
   - **Calls removed**: 2 adapter calls
   - **Methods removed**: 1 (ConvertValue from adapter interface)
 
-- [x] **3.5.139** Migrate BoxVariant (9 calls) ✅
+- [x] **3.5.132** Migrate BoxVariant (9 calls) ✅
   - **Location**: 7 files in evaluator package (type_casts.go, visitor_statements.go, array_helpers.go, assignment_helpers.go, binary_ops.go)
   - **Solution**: Moved VariantValue and BoxVariant to runtime package, evaluator calls runtime.BoxVariant directly
   - **Calls removed**: 9 adapter calls
@@ -551,7 +460,7 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Implementation**: Created `internal/interp/runtime/variant.go` with VariantValue struct and BoxVariant function
   - **Tests**: All variant, type cast, and assignment tests pass
 
-- [x] **3.5.140** Migrate CheckType (is operator) (1 call) ✅
+- [x] **3.5.133** Migrate CheckType (is operator) (1 call) ✅
   - **Location**: `visitor_expressions_types.go` line 67
   - **Issue**: Type checking delegates to adapter
   - **Solution**: Created `checkType()` and `classImplementsInterface()` helpers in evaluator, added `GetClassMetadataFromValue()` adapter method to extract metadata from ObjectInstance/InterfaceInstance
@@ -559,7 +468,7 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Calls removed**: 1 adapter call (CheckType)
   - **Calls added**: 1 helper adapter call (GetClassMetadataFromValue) - simpler extraction-only method
 
-- [x] **3.5.141** Migrate CastType (as operator) + CastToClass (2 calls) ✅
+- [x] **3.5.134** Migrate CastType (as operator) + CastToClass (2 calls) ✅
   - **Location**: `visitor_expressions_types.go` line 104, `type_casts.go` line 74
   - **Issue**: Type casting delegates to adapter (CastType for 'as' operator, CastToClass for TypeName(expr))
   - **Solution**: Created `castType()` and `castToClassType()` helpers in evaluator with 5 extraction-only adapter methods
@@ -571,50 +480,53 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - **Calls added**: 5 extraction-only adapter helpers (no business logic)
   - **Methods deprecated**: CastType and CastToClass marked as deprecated, kept for old interpreter path
 
-- [ ] **3.5.142** Migrate CheckImplements (1 call)
-  - **Location**: `visitor_expressions.go` line 2361
-  - **Issue**: Interface implementation check
-  - **Solution**: Use ClassMetadata.ImplementsInterface()
-  - **Calls removed**: 1 adapter call
+- [x] **3.5.135** Migrate CheckImplements (1 call) ✅
+  - **Location**: `visitor_expressions_types.go:142-148`
+  - **Issue**: Interface implementation check delegates to adapter
+  - **Solution**: Created `checkImplements()` and `classImplementsInterfaceExplicitly()` helpers in evaluator
+  - **Implementation**: Uses `getClassMetadataFromValue()` + TypeSystem.HasInterface() + metadata traversal
+  - **Calls removed**: 1 adapter call (CheckImplements)
+  - **Methods removed**: 1 (CheckImplements from adapter interface + implementation, ~44 lines)
+  - **Methods added**: 2 evaluator helpers (checkImplements, classImplementsInterfaceExplicitly)
+  - **Tests**: All interface tests pass ✅
 
-- [ ] **3.5.143** Migrate Type Wrapping (3 calls)
-  - **Location**: `visitor_statements.go` lines 198, 206, 241
-  - **Methods**: `WrapInSubrange`, `TryImplicitConversion`, `WrapInInterface`
-  - **Solution**: Create wrapped values directly using type metadata
-  - **Calls removed**: 3 adapter calls
+- [x] **3.5.136** Migrate Type Wrapping - DEFERRED to Phase 28 ✅
+  - **Status**: Moved to Phase 28 (tasks 3.5.180-3.5.184) with systematic approach
+  - **Reason**: Requires TypeSystem refactoring (subrange types, interface metadata, conversion registry)
+  - **Note**: Line numbers in task description are outdated (actual: 227, 235, 270)
 
 ---
 
-### Phase 22: Reduce Variable Declaration Calls (3.5.144-3.5.148)
+### Phase 22: Reduce Variable Declaration Calls
 
 **Current State**: 8 variable declaration-related calls
 
-- [ ] **3.5.144** Migrate DefineVariable (3 calls)
+- [ ] **3.5.137** Migrate DefineVariable (3 calls)
   - **Location**: `visitor_statements.go` lines 148, 257, 343
   - **Issue**: Variable definition delegates to adapter
   - **Solution**: Use ExecutionContext.Env().Define() directly
   - **Note**: `DefineVar()` helper exists but adapter calls remain
   - **Calls removed**: 3 adapter calls
 
-- [ ] **3.5.145** Migrate LookupSubrangeType (2 calls)
+- [ ] **3.5.138** Migrate LookupSubrangeType (2 calls)
   - **Location**: `visitor_statements.go` lines 196, 1196
   - **Issue**: Subrange type lookup
   - **Solution**: Use TypeSystem.LookupSubrangeType() directly
   - **Calls removed**: 2 adapter calls
 
-- [ ] **3.5.146** Migrate ResolveArrayTypeNode + ParseInlineArrayType (2 calls)
+- [ ] **3.5.139** Migrate ResolveArrayTypeNode + ParseInlineArrayType (2 calls)
   - **Location**: `visitor_statements.go` lines 1144, 1159
   - **Issue**: Array type resolution from AST nodes
   - **Solution**: Use type resolution helpers with TypeSystem
   - **Calls removed**: 2 adapter calls
 
-- [ ] **3.5.147** Migrate EvalArrayLiteralWithExpectedType (1 call)
+- [ ] **3.5.140** Migrate EvalArrayLiteralWithExpectedType (1 call)
   - **Location**: `visitor_statements.go` line 157
   - **Issue**: Array literal with expected type context
   - **Solution**: Pass expected type to existing array literal evaluator
   - **Calls removed**: 1 adapter call
 
-- [ ] **3.5.148** Migrate GetType (2 calls)
+- [ ] **3.5.141** Migrate GetType (2 calls)
   - **Location**: `set_helpers.go` line 257, `type_resolution.go` line 67
   - **Issue**: Named type resolution
   - **Solution**: Use TypeSystem registry lookups
@@ -622,18 +534,18 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 ---
 
-### Phase 23: Reduce User Function Calls (3.5.149-3.5.154)
+### Phase 23: Reduce User Function Calls
 
 **Current State**: 7 user function-related adapter calls
 
-- [ ] **3.5.149** Migrate CallUserFunction (1 call)
+- [ ] **3.5.142** Migrate CallUserFunction (1 call)
   - **Location**: `visitor_expressions.go` line 192
   - **Issue**: Direct user function call (parameterless)
   - **Solution**: Create `evaluator.InvokeUserFunction()`
   - **Requires**: Environment setup, Result initialization
   - **Calls removed**: 1 adapter call
 
-- [ ] **3.5.150** Migrate CallBuiltinFunction (2 calls)
+- [ ] **3.5.143** Migrate CallBuiltinFunction (2 calls)
   - **Location**: `visitor_expressions.go` lines 214, 661
   - **Issue**: Built-in function dispatch
   - **Solution**: Use builtins.Registry.Call() directly
@@ -741,6 +653,214 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
   - Total reduction: 107 → ~20 methods (target)
   - Document patterns that worked
   - Lessons learned
+
+---
+
+#### Subphase 28.A: Simple Type Checks (3.5.180)
+
+These are straightforward migrations with no complex dependencies.
+
+- [ ] **3.5.180** Migrate IsFunctionPointer + Related Checks (4 calls) - **EASY WIN**
+  - **Original Task**: 3.5.125 from Phase 18
+  - **Location**: `visitor_statements.go` lines 101, 103, 110, 112
+  - **Current Implementation**: Delegates to adapter for type checking
+  - **Migration Strategy**: Type assertion to FunctionPointerValue interface
+  - **Subtasks**:
+    - 3.5.180a: Add FunctionPointerValue interface check in evaluator
+    - 3.5.180b: Replace adapter.IsFunctionPointer() with direct type assertion
+    - 3.5.180c: Handle nil checks inline
+    - 3.5.180d: Remove adapter method after tests pass
+  - **Effort**: 1-2 hours
+  - **Dependencies**: None
+  - **Calls removed**: 4 adapter calls
+  - **Risk**: Low - simple type assertion pattern
+
+---
+
+#### Subphase 28.B: Type System Refactoring (3.5.181-3.5.184)
+
+These require moving type metadata from interpreter-specific storage to TypeSystem.
+
+- [ ] **3.5.181** Move Subrange Types to TypeSystem (enables 3.5.182)
+  - **Original Task**: Part of 3.5.143 (WrapInSubrange)
+  - **Current Problem**: Subrange types stored in environment with `"__subrange_type_"` prefix
+  - **Solution**: Add subrange registry to TypeSystem
+  - **Subtasks**:
+    - 3.5.181a: Add subrange type registry to TypeSystem (RegisterSubrangeType, LookupSubrangeType)
+    - 3.5.181b: Update VisitTypeDeclaration to register in TypeSystem instead of environment
+    - 3.5.181c: Verify all subrange type lookups use TypeSystem
+    - 3.5.181d: Remove environment-based storage
+  - **Effort**: 1 day
+  - **Dependencies**: None
+  - **Tests**: All subrange type tests must pass
+  - **Risk**: Medium - changes type registration flow
+
+- [ ] **3.5.182** Migrate WrapInSubrange (1 call)
+  - **Original Task**: Part of 3.5.143
+  - **Location**: `visitor_statements.go` line 227
+  - **Current Implementation**: Looks up from environment, validates, creates SubrangeValue
+  - **Migration Strategy**: Use TypeSystem.LookupSubrangeType() + bridge constructor
+  - **Subtasks**:
+    - 3.5.182a: Create wrapInSubrange() helper in evaluator
+    - 3.5.182b: Use TypeSystem.LookupSubrangeType() for metadata lookup
+    - 3.5.182c: Keep CreateSubrangeValueDirect bridge constructor (already exists from 3.5.129)
+    - 3.5.182d: Update visitor to call new helper
+    - 3.5.182e: Remove adapter.WrapInSubrange() method
+  - **Effort**: 2-3 hours
+  - **Dependencies**: 3.5.181 (TypeSystem subrange registry)
+  - **Calls removed**: 1 adapter call
+  - **Risk**: Low - follows existing pattern from 3.5.129
+
+- [ ] **3.5.183** Move Interface Metadata to TypeSystem (enables 3.5.184)
+  - **Original Task**: Part of 3.5.143 (WrapInInterface)
+  - **Current Problem**: Interface metadata in interpreter's `i.interfaces` map
+  - **Solution**: Use existing TypeSystem.RegisterInterface/LookupInterface
+  - **Subtasks**:
+    - 3.5.183a: Verify TypeSystem.LookupInterface() returns usable InterfaceInfo
+    - 3.5.183b: Update VisitInterfaceDecl to use TypeSystem (if not already)
+    - 3.5.183c: Replace i.interfaces map lookups with TypeSystem.LookupInterface()
+    - 3.5.183d: Remove i.interfaces map from Interpreter
+  - **Effort**: 1-2 days
+  - **Dependencies**: None (TypeSystem already has interface registry)
+  - **Tests**: All interface declaration and implementation tests
+  - **Risk**: Medium - interface lookups are widespread
+
+- [ ] **3.5.184** Migrate WrapInInterface (1 call)
+  - **Original Task**: Part of 3.5.143
+  - **Location**: `visitor_statements.go` line 270
+  - **Current Implementation**: Looks up from i.interfaces, validates, creates InterfaceInstance
+  - **Migration Strategy**: Use TypeSystem.LookupInterface() + bridge constructor
+  - **Subtasks**:
+    - 3.5.184a: Create wrapInInterface() helper in evaluator
+    - 3.5.184b: Use TypeSystem.LookupInterface() for metadata lookup
+    - 3.5.184c: Use GetClassMetadataFromValue() to extract object metadata
+    - 3.5.184d: Call classImplementsInterface() helper for validation
+    - 3.5.184e: Keep CreateInterfaceInstanceDirect bridge constructor (already exists from 3.5.129)
+    - 3.5.184f: Update visitor to call new helper
+    - 3.5.184g: Remove adapter.WrapInInterface() method
+  - **Effort**: 2-3 hours
+  - **Dependencies**: 3.5.183 (TypeSystem interface metadata)
+  - **Calls removed**: 1 adapter call
+  - **Risk**: Low - follows existing pattern from 3.5.129
+
+---
+
+#### Subphase 28.C: Conversion Registry Access (3.5.185)
+
+This addresses the most complex type wrapping case.
+
+- [ ] **3.5.185** Refactor TryImplicitConversion (3 calls) - **COMPLEX**
+  - **Original Task**: Part of 3.5.143
+  - **Location**: `visitor_statements.go` line 235, `assignment_helpers.go` lines 139, 209
+  - **Current Implementation**: Uses conversion registry + function registry + callUserFunction
+  - **Analysis**: This is deeply coupled to interpreter internals
+  - **Options**:
+    - **Option A (Recommended)**: Keep in adapter - too complex to migrate cleanly
+    - **Option B**: Move conversion registry to TypeSystem (2-3 weeks effort)
+    - **Option C**: Pass ConversionRegistry to evaluator as dependency (architectural change)
+  - **Recommendation**: **DEFER INDEFINITELY** - effort/benefit ratio too high
+  - **Subtasks** (if Option B chosen):
+    - 3.5.185a: Design ConversionRegistry interface for TypeSystem
+    - 3.5.185b: Move conversion registration to TypeSystem
+    - 3.5.185c: Create evaluator helper for implicit conversion
+    - 3.5.185d: Handle function lookup and execution
+    - 3.5.185e: Migrate all 3 call sites
+    - 3.5.185f: Remove adapter method
+  - **Effort**: 2-3 weeks (if migrated)
+  - **Dependencies**: TypeSystem refactoring
+  - **Calls removed**: 3 adapter calls (if completed)
+  - **Risk**: Very High - conversion system is complex
+
+---
+
+#### Subphase 28.D: Object Construction (3.5.186)
+
+This addresses the most significant deferred task.
+
+- [ ] **3.5.186** Refactor CreateObject to Reduce Complexity (1 call)
+  - **Original Task**: 3.5.126 from Phase 19
+  - **Location**: `visitor_expressions_functions.go` (constructor calls)
+  - **Current Problem**: ObjectInstance has 17 methods, 600+ LOC, 50-100+ call sites
+  - **Analysis**: Full migration requires moving ObjectInstance to runtime package
+  - **Recommendation**: **Partial migration - simplify adapter, don't move ObjectInstance**
+  - **Subtasks**:
+    - 3.5.186a: Document all ObjectInstance method dependencies
+    - 3.5.186b: Identify which methods can become free functions
+    - 3.5.186c: Create CreateObjectDirect bridge constructor (simpler than current)
+    - 3.5.186d: Move field initialization logic to evaluator where possible
+    - 3.5.186e: Keep ObjectInstance in interp package (avoid 50-100 call site updates)
+  - **Effort**: 1-2 weeks (partial migration)
+  - **Dependencies**: None
+  - **Calls removed**: 0 (stays as bridge constructor)
+  - **Benefit**: Cleaner adapter interface, better separation of concerns
+  - **Risk**: Medium - ObjectInstance is widely used
+
+---
+
+#### Subphase 28.E: Declaration Processing (3.5.187-3.5.188)
+
+These handle declaration evaluation that requires registry updates.
+
+- [ ] **3.5.187** Analyze Declaration EvalNode Dependencies
+  - **Original Task**: 3.5.107 from Phase 15
+  - **Location**: `visitor_declarations.go` all 10 declaration types
+  - **Current Implementation**: All declarations use EvalNode to delegate to interpreter
+  - **Analysis**: Each declaration type registers metadata (functions, classes, interfaces, etc.)
+  - **Subtasks**:
+    - 3.5.187a: Audit VisitFunctionDecl registry updates
+    - 3.5.187b: Audit VisitClassDecl registry updates
+    - 3.5.187c: Audit VisitInterfaceDecl registry updates
+    - 3.5.187d: Audit VisitRecordDecl registry updates
+    - 3.5.187e: Audit VisitEnumDecl registry updates
+    - 3.5.187f: Audit VisitHelperDecl registry updates
+    - 3.5.187g: Audit VisitArrayDecl registry updates
+    - 3.5.187h: Audit VisitOperatorDecl registry updates
+    - 3.5.187i: Audit VisitSetDecl registry updates
+    - 3.5.187j: Audit VisitTypeDeclaration registry updates
+  - **Effort**: 2-3 days (analysis only)
+  - **Dependencies**: None
+  - **Deliverable**: Dependency map showing what each declaration needs
+
+- [ ] **3.5.188** Design Declaration Migration Strategy
+  - **Original Task**: Part of 3.5.107 resolution
+  - **Goal**: Plan how to migrate 10 EvalNode calls without breaking registration
+  - **Options**:
+    - **Option A**: Move all registries to TypeSystem (TypeRegistry, FunctionRegistry already there)
+    - **Option B**: Keep declarations in interpreter, create bridge registration methods
+    - **Option C**: Hybrid - simple declarations to evaluator, complex ones stay in interpreter
+  - **Subtasks**:
+    - 3.5.188a: Evaluate feasibility of each option
+    - 3.5.188b: Estimate effort for chosen approach
+    - 3.5.188c: Create detailed task breakdown
+    - 3.5.188d: Update Phase 27 with concrete subtasks
+  - **Effort**: 1-2 days (planning only)
+  - **Dependencies**: 3.5.187 (dependency analysis)
+  - **Deliverable**: Migration plan for Phase 27
+
+- [ ] **3.5.189** Keep EvalNode Fallback in evaluator.go
+  - **Original Task**: 3.5.108 from Phase 15
+  - **Location**: `evaluator.go` Eval() method
+  - **Decision**: **KEEP PERMANENTLY** - safety net for unknown node types
+  - **Justification**: Every visitor pattern needs a fallback for defensive programming
+  - **Status**: No action needed - mark as permanent architectural decision
+
+---
+
+### Phase 28 Summary
+
+**Execution Order:**
+1. **28.A** (3.5.180) - Easy win, no dependencies
+2. **28.B** (3.5.181-3.5.184) - Type system refactoring, sequential dependencies
+3. **28.C** (3.5.185) - DEFER indefinitely (too complex)
+4. **28.D** (3.5.186) - Object construction simplification
+5. **28.E** (3.5.187-3.5.189) - Declaration analysis and planning
+
+**Expected Outcomes:**
+- **Calls removed**: 6 (IsFunctionPointer:4, WrapInSubrange:1, WrapInInterface:1)
+- **Deferred**: 3 (TryImplicitConversion) - stays in adapter
+- **Analyzed**: 11 (EvalNode declarations:10, fallback:1) - plan for Phase 27
+
+**Total Effort**: 2-3 weeks (excluding 3.5.185 and full 3.5.186 migration)
 
 ---
 
