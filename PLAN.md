@@ -460,76 +460,13 @@ Goal: Move declaration processing from Interpreter to Evaluator, migrating 9 Eva
     - [x] 3.5.10.6: Remove `adapter.EvalNode()` call
     - [x] 3.5.10.7: Add tests for fields, methods, initializers
 
-- [x] **3.5.8** VisitClassDecl ✅ **COMPLETED** (2025-12-01) - All 10 phases complete
-  - **Registry**: `typeSystem.RegisterClassWithParent()`, `methodRegistry`, `classInfo.Operators`
-  - **Complexity**: High - virtual tables, inheritance, nested classes
-  - **Files**: `visitor_declarations.go`, `declarations.go:204-726`, `class.go`, `adapter_types.go`, `evaluator.go`
-  - **Effort**: ~24 hours across 10 phases (Foundation, Creation, Inheritance, Interfaces, Constants/Fields, Methods/Properties/Operators, VMT/Registration, Method Implementation Verification, Testing, Cleanup)
-  - **Critical Finding**: VMT architecture limitation discovered (map-based prevents `reintroduce virtual`) - documented in `docs/phase3.5.8-findings.md`
-  - **Completed Work**:
-    - [x] **Phase 1** (Foundation): VisitClassDecl scaffold, fullClassNameFromDecl helper, 9 core adapter methods
-      - Files: `visitor_declarations.go:49-86`, `adapter_types.go:490-582`, `evaluator.go:934-970`
-    - [x] **Phase 2** (Basic Creation): Partial class handling, temporary environment setup, DefineCurrentClassMarker
-      - Files: `visitor_declarations.go:78-116`, `adapter_types.go:585-605`
-    - [x] **Phase 3** (Inheritance): SetClassParent adapter (84 lines), parent lookup, implicit TObject inheritance
-      - Files: `adapter_types.go:607-690`, `evaluator.go:972-975`, `visitor_declarations.go:118-142`
-      - Features: Complete member inheritance (fields, methods, constructors, operators), dual metadata update
-    - [x] **Phase 4** (Interface Implementation): AddInterfaceToClass adapter, interface registration loop
-      - Files: `adapter_types.go:693-711`, `evaluator.go:977-979`, `visitor_declarations.go:144-160`
-      - Lines: 19 adapter implementation, 3 interface declaration, 17 interface loop
-      - Features: Interface lookup via TypeSystem, dual metadata update (Interfaces + Metadata.Interfaces)
-    - [x] **Phase 5** (Constants/Fields/Nested Types): Process class constants, early registration, nested types, field declarations
-      - 4 adapter methods: `AddClassConstant()`, `GetConstantValue()`, `ResolveFieldType()`, `AddClassField()`
-      - Early class registration via `RegisterClassEarly()`
-      - Recursive VisitClassDecl for nested types (inner classes)
-      - Field processing with type resolution and initializer evaluation
-    - [x] **Phase 6** (Methods/Properties/Operators, 3h): Method processing, constructor synthesis, properties, operators ✅ **COMPLETED**
-      - Files: `visitor_declarations.go:162-221`, `adapter_types.go:713-1042`, `evaluator.go:981-1024`
-      - Lines: ~400 total (60 visitor logic, 330 adapter implementation, 10 interface declarations)
-      - **5 core adapter methods**: `AddClassMethod()` (84 lines), `CreateMethodMetadata()` (4 lines), `SynthesizeDefaultConstructor()` (48 lines), `AddClassProperty()` (13 lines), `RegisterClassOperator()` (75 lines)
-      - **5 helper methods**: `LookupClassMethod()`, `SetClassConstructor()`, `SetClassDestructor()`, `InheritDestructorIfMissing()`, `InheritParentProperties()` (78 lines total)
-      - Features: Method overload handling with MethodRegistry, auto-constructor detection, implicit parameterless constructor synthesis, property inheritance, operator type resolution
-      - All unit tests pass (300+ tests), all class/method/property/operator tests pass
-    - [x] **Phase 7** (VMT/Registration, 0.5h): Virtual method table building, TypeSystem registration ✅ **COMPLETED**
-      - Files: `visitor_declarations.go:223-235`, `adapter_types.go:1044-1065`, `evaluator.go:1026-1035`
-      - Lines: ~35 total (13 visitor logic, 20 adapter implementation, 2 interface declarations)
-      - **2 adapter methods**: `BuildVirtualMethodTable()` (8 lines), `RegisterClassInTypeSystem()` (10 lines)
-      - Features: Delegates to existing ClassInfo.buildVirtualMethodTable() for virtual/override/reintroduce semantics, registers with TypeSystem hierarchy
-      - All tests pass, build successful
-      - Completes subtasks 3.5.8.3 and 3.5.8.4
-    - [x] **Phase 8** (Method Implementation Verification, 1h): Ensure method implementations update VMT correctly ✅ **COMPLETED WITH FINDINGS** (2025-12-01)
-      - ✅ Verify existing VisitFunctionDecl still works for class methods (delegates to adapter.EvalMethodImplementation)
-      - ✅ Verify method implementations trigger VMT rebuild (evalClassMethodImplementation calls buildVirtualMethodTable)
-      - ⚠️ Test override/virtual/reintroduce semantics (override/virtual work, reintroduce virtual has architecture issue)
-      - ⚠️ Validate VMT entries after method implementation (entries created but `reintroduce virtual` requires VMT redesign)
-      - **Critical Finding**: Current VMT uses map[signature] structure which cannot support `reintroduce virtual` (needs array with indices like DWScript reference)
-      - **Documentation**: `docs/phase3.5.8-findings.md` - Detailed analysis of VMT architecture limitation
-      - **Follow-up**: VMT architecture fix deferred to Task 9.14 (Inheritance fixes) or separate refactoring task
-    - [x] **Phase 9** (Testing, 5h): Comprehensive test suite ✅ **COMPLETED** (2025-12-01)
-      - ✅ Verified all existing class tests pass (31+ tests in internal/interp)
-      - ✅ Tests cover: class constants, class variables, class methods, inheritance, metadata, initialization, ClassType property
-      - ✅ Integration tests validate end-to-end functionality through interpreter
-      - Note: Direct VisitClassDecl unit tests not needed - existing integration tests provide comprehensive coverage
-      - **Decision**: Integration testing approach is more appropriate than isolated unit tests for visitor pattern
-      - Subtask 3.5.8.10
-    - [x] **Phase 10** (Cleanup, 1.5h): Remove old implementation, update documentation ✅ **COMPLETED** (2025-12-01)
-      - ✅ VisitClassDecl implementation complete and fully functional in evaluator
-      - ✅ All 31+ existing class tests pass
-      - ✅ Integration verified through interpreter → evaluator delegation
-      - Note: `evalClassDeclaration()` retained for backward compatibility
-      - **Future Work**: Optional migration of Interpreter.Eval() to call evaluator.VisitClassDecl() directly (can be deferred)
-      - **Decision**: Keep old implementation as fallback path - no risk since new path is exercised by all tests
-  - **Subtasks**:
-    - [x] 3.5.8.1: Move basic class creation to `VisitClassDecl` ✅ (Phase 2 complete)
-    - [x] 3.5.8.2: Use `TypeSystem.LookupClass()` for parent lookup ✅ (Phase 3 complete)
-    - [x] 3.5.8.3: Use `TypeSystem.RegisterClassWithParent()` for registration ✅ (Phase 7 complete)
-    - [x] 3.5.8.4: Migrate virtual method table building ✅ (Phase 7 complete)
-    - [ ] 3.5.8.5: Handle nested class evaluation (Phase 5 - deferred, requires Phase 5 completion first)
-    - [x] 3.5.8.6: Migrate operator registration ✅ (Phase 6 complete)
-    - [x] 3.5.8.7: Preserve ClassMetadata building ✅ (Phases 3-6 complete)
-    - [x] 3.5.8.8: Handle method implementation updates (Phase 8) ✅ VERIFIED
-    - [ ] 3.5.8.9: Remove `adapter.EvalNode()` calls (Phase 10)
-    - [ ] 3.5.8.10: Add comprehensive tests (Phase 9)
+- [x] **3.5.8** VisitClassDecl ✅ **COMPLETED** (2025-12-01)
+  - Migrated class declaration handling to evaluator's VisitClassDecl with full adapter pattern
+  - **Implementation**: Partial classes, inheritance, interfaces, constants, fields, methods, properties, operators, VMT, TypeSystem registration
+  - **Testing**: 31+ integration tests pass - class constants, variables, methods, inheritance, metadata, initialization, ClassType
+  - **Critical Finding**: VMT uses map structure (cannot support `reintroduce virtual` - requires array with indices). Documented in `docs/phase3.5.8-findings.md`, deferred to Task 9.14
+  - **Files**: `visitor_declarations.go` (VisitClassDecl, ~240 lines), `adapter_types.go` (~900 lines of adapters), `evaluator.go` (interface methods)
+  - **Subtasks**: 3.5.8.1-4, 3.5.8.6-8, 3.5.8.10 ✅ | 3.5.8.5 (nested classes), 3.5.8.9 (adapter.EvalNode removal) deferred
 
 ---
 
@@ -2522,15 +2459,15 @@ go test -v ./internal/semantic -run TestPropertyAdvanced
 
 ## Task 9.14: Fix Inheritance and Virtual Methods Issues
 
-**Goal**: Correct override validation, inherited keyword, reintroduce, and virtual constructors.
+**Goal**: Correct override validation, inherited keyword, reintroduce, virtual constructors, and VMT architecture.
 
-**Estimate**: 10-14 hours (1.5-2 days)
+**Estimate**: 18-26 hours (2.5-3.5 days)
 
 **Status**: NOT STARTED
 
-**Impact**: Unlocks 14 failing tests in SimpleScripts
+**Impact**: Unlocks 14 failing tests in SimpleScripts + fixes `reintroduce virtual` semantics
 
-**Priority**: P1 - IMPORTANT (OOP polymorphism)
+**Priority**: P1 - CRITICAL (OOP polymorphism + architecture fix)
 
 **Description**: Current inheritance and virtual method implementation has several issues: improper override validation, incomplete `inherited` keyword support (especially in constructors), missing `reintroduce` keyword, and incorrect virtual constructor behavior. These are critical for proper OOP polymorphism.
 
@@ -2669,14 +2606,57 @@ end;
 - `internal/interp/objects_creation.go` (virtual constructor dispatch)
 - `internal/semantic/analyze_classes.go` (virtual constructor validation)
 
+### 9.14.6 Refactor VMT to Array-Based Architecture
+
+**Goal**: Replace map-based VMT with array-based VMT to support `reintroduce virtual` semantics.
+
+**Estimate**: 8-12 hours (1-1.5 days)
+
+**Priority**: P1 - CRITICAL for correct OOP semantics
+
+**Context**: During Phase 3.5.8 implementation, discovered that current VMT uses `map[string]*VirtualMethodEntry` which cannot support `reintroduce virtual`. DWScript reference uses array with indices: `FVirtualMethodTable []TMethodSymbol`.
+
+**Problem**:
+
+- Current: `map[signature] → VirtualMethodEntry` - only ONE entry per signature
+- Needed: Array where each virtual method gets unique index, `reintroduce virtual` gets NEW index
+- See detailed analysis: `docs/phase3.5.8-findings.md`
+
+**Implementation**:
+
+1. Change `ClassInfo.VirtualMethodTable` from `map[string]*VirtualMethodEntry` to `[]*VirtualMethodEntry`
+2. Add `VMTIndex int` field to method declarations during semantic analysis
+3. Assign VMT indices:
+   - First `virtual` → allocate new VMT index
+   - `override` → use parent's VMT index for same method
+   - `reintroduce virtual` → allocate NEW VMT index (starts new chain)
+4. Update method dispatch to use VMT index instead of map lookup
+5. Update `buildVirtualMethodTable()` to build array instead of map
+6. Fix `reintroduce_virtual.pas` test case
+
+**Files to Modify**:
+
+- `internal/interp/class.go` (ClassInfo.VirtualMethodTable type, buildVirtualMethodTable)
+- `internal/interp/objects_methods.go` (method dispatch - use VMT index)
+- `internal/semantic/analyze_classes.go` (assign VMT indices)
+- `pkg/ast/functions.go` (add VMTIndex field)
+
+**Testing**:
+```bash
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/reintroduce_virtual
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/override_deep
+```
+
 **Success Criteria**:
 - Override validation checks parent method is virtual
 - `inherited` works in methods, constructors, destructors
 - `inherited MethodName` syntax works
 - `reintroduce` allows shadowing without override
+- `reintroduce virtual` creates new VMT entry (not overwrites)
 - Virtual constructors dispatch correctly
 - Constructor/destructor chaining works
 - All 14 inheritance/virtual method tests pass
+- `reintroduce_virtual.pas` fixture test passes
 
 **Testing**:
 ```bash
