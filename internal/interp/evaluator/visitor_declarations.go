@@ -231,17 +231,212 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 }
 
 // VisitArrayDecl evaluates an array type declaration.
+// Task 3.5.13: Migrated from Interpreter.evalArrayDeclaration to Evaluator visitor.
+//
+// This method handles array type declarations of the form:
+//
+//	type TMyArray = array[1..10] of Integer;  // static array
+//	type TDynArray = array of String;         // dynamic array
+//
+// It resolves the element type, evaluates bounds for static arrays,
+// creates the appropriate ArrayType, and registers it in the TypeSystem.
 func (e *Evaluator) VisitArrayDecl(node *ast.ArrayDecl, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2B: Type system available for array type registration
-	// TODO: Move array type registration logic here
-	return e.adapter.EvalNode(node)
+	if node == nil {
+		return e.newError(nil, "nil array declaration")
+	}
+
+	arrayName := node.Name.Value
+
+	// Build the array type from the declaration
+	arrayTypeAnnotation := node.ArrayType
+	if arrayTypeAnnotation == nil {
+		return e.newError(node, "invalid array type declaration")
+	}
+
+	// Resolve the element type using evaluator's type resolution
+	elementTypeName := arrayTypeAnnotation.ElementType.String()
+	elementType, err := e.resolveTypeName(elementTypeName, ctx)
+	if err != nil {
+		return e.newError(node, "unknown element type '%s': %v", elementTypeName, err)
+	}
+
+	// Create the array type
+	var arrayType *types.ArrayType
+	if arrayTypeAnnotation.IsDynamic() {
+		arrayType = types.NewDynamicArrayType(elementType)
+	} else {
+		// Evaluate bound expressions using evaluator
+		lowBoundVal := e.Eval(arrayTypeAnnotation.LowBound, ctx)
+		if isError(lowBoundVal) {
+			return lowBoundVal
+		}
+		highBoundVal := e.Eval(arrayTypeAnnotation.HighBound, ctx)
+		if isError(highBoundVal) {
+			return highBoundVal
+		}
+
+		// Extract integer values
+		lowBound, ok := lowBoundVal.(*runtime.IntegerValue)
+		if !ok {
+			return e.newError(node, "array lower bound must be an integer")
+		}
+		highBound, ok := highBoundVal.(*runtime.IntegerValue)
+		if !ok {
+			return e.newError(node, "array upper bound must be an integer")
+		}
+
+		arrayType = types.NewStaticArrayType(elementType, int(lowBound.Value), int(highBound.Value))
+	}
+
+	// Register array type in TypeSystem
+	e.typeSystem.RegisterArrayType(arrayName, arrayType)
+
+	return &runtime.NilValue{}
 }
 
-// VisitTypeDeclaration evaluates a type alias declaration.
+// VisitTypeDeclaration evaluates a type declaration.
+// Task 3.5.16: Migrated from Interpreter.evalTypeDeclaration to Evaluator visitor.
+//
+// This method handles:
+//  1. Subrange types: type TDigit = 0..9;
+//  2. Function pointer types: type TCallback = procedure(x: Integer);
+//  3. Type aliases: type TUserID = Integer;
+//
+// Inline/complex type expressions (ClassOfTypeNode, SetTypeNode, ArrayTypeNode,
+// FunctionPointerTypeNode) are handled by the semantic analyzer and return NilValue.
 func (e *Evaluator) VisitTypeDeclaration(node *ast.TypeDeclaration, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2B: Type system available for type alias handling
-	// TODO: Move type alias registration logic here
-	return e.adapter.EvalNode(node)
+	if node == nil {
+		return e.newError(nil, "nil type declaration")
+	}
+
+	// Handle subrange types
+	if node.IsSubrange {
+		return e.evalSubrangeType(node, ctx)
+	}
+
+	// Handle function pointer type declarations
+	if node.IsFunctionPointer {
+		return e.evalFunctionPointerType(node, ctx)
+	}
+
+	// Handle type aliases
+	if node.IsAlias {
+		return e.evalTypeAlias(node, ctx)
+	}
+
+	// Non-alias type declarations (future)
+	return e.newError(node, "non-alias type declarations not yet supported")
+}
+
+// evalSubrangeType evaluates a subrange type declaration.
+// Example: type TDigit = 0..9;
+func (e *Evaluator) evalSubrangeType(node *ast.TypeDeclaration, ctx *ExecutionContext) Value {
+	// Evaluate low bound
+	lowBoundVal := e.Eval(node.LowBound, ctx)
+	if isError(lowBoundVal) {
+		return lowBoundVal
+	}
+	lowBoundIntVal, ok := lowBoundVal.(*runtime.IntegerValue)
+	if !ok {
+		return e.newError(node, "subrange low bound must be an integer")
+	}
+	lowBoundInt := int(lowBoundIntVal.Value)
+
+	// Evaluate high bound
+	highBoundVal := e.Eval(node.HighBound, ctx)
+	if isError(highBoundVal) {
+		return highBoundVal
+	}
+	highBoundIntVal, ok := highBoundVal.(*runtime.IntegerValue)
+	if !ok {
+		return e.newError(node, "subrange high bound must be an integer")
+	}
+	highBoundInt := int(highBoundIntVal.Value)
+
+	// Validate bounds
+	if lowBoundInt > highBoundInt {
+		return e.newError(node, "subrange low bound (%d) cannot be greater than high bound (%d)", lowBoundInt, highBoundInt)
+	}
+
+	// Create SubrangeType
+	subrangeType := &types.SubrangeType{
+		BaseType:  types.INTEGER,
+		Name:      node.Name.Value,
+		LowBound:  lowBoundInt,
+		HighBound: highBoundInt,
+	}
+
+	// Register in TypeSystem
+	e.typeSystem.RegisterSubrangeType(node.Name.Value, subrangeType)
+
+	return &runtime.NilValue{}
+}
+
+// evalFunctionPointerType evaluates a function pointer type declaration.
+// Example: type TCallback = procedure(x: Integer);
+func (e *Evaluator) evalFunctionPointerType(node *ast.TypeDeclaration, ctx *ExecutionContext) Value {
+	if node.FunctionPointerType == nil {
+		return e.newError(node, "function pointer type declaration has no type information")
+	}
+
+	// Store the type name mapping for type resolution
+	// We just need to register that this type name exists
+	// The actual type checking is done by the semantic analyzer
+	typeKey := "__funcptr_type_" + node.Name.Value
+	// Store a simple marker that this is a function pointer type
+	ctx.Env().Define(typeKey, &runtime.StringValue{Value: "function_pointer_type"})
+
+	return &runtime.NilValue{}
+}
+
+// evalTypeAlias evaluates a type alias declaration.
+// Example: type TUserID = Integer;
+func (e *Evaluator) evalTypeAlias(node *ast.TypeDeclaration, ctx *ExecutionContext) Value {
+	// Check for inline/complex type expressions
+	// For inline types, we don't need to resolve them at runtime because:
+	// 1. The semantic analyzer already validated the types during analysis phase
+	// 2. Inline type aliases are purely semantic constructs (no runtime storage needed)
+	// 3. The interpreter's resolveType() doesn't support complex inline syntax
+	switch node.AliasedType.(type) {
+	case *ast.ClassOfTypeNode:
+		// Metaclass types (class of TBase) - semantic analyzer handles them
+		return &runtime.NilValue{}
+	case *ast.SetTypeNode:
+		// Set types (set of TEnum) - semantic analyzer handles them
+		return &runtime.NilValue{}
+	case *ast.ArrayTypeNode:
+		// Inline array types (array of Integer, array[1..10] of String)
+		// Note: These could potentially need runtime storage, but semantic analyzer
+		// already validated and stored them.
+		return &runtime.NilValue{}
+	case *ast.FunctionPointerTypeNode:
+		// Function pointer types - already handled earlier in this function
+		return &runtime.NilValue{}
+	}
+
+	// For TypeAnnotation with InlineType, also skip runtime resolution
+	if typeAnnot, ok := node.AliasedType.(*ast.TypeAnnotation); ok && typeAnnot.InlineType != nil {
+		// TypeAnnotation wrapping an inline type expression
+		return &runtime.NilValue{}
+	}
+
+	// Resolve the aliased type by name (handles simple named types only)
+	aliasedType, err := e.resolveTypeName(node.AliasedType.String(), ctx)
+	if err != nil {
+		return e.newError(node, "unknown type '%s' in type alias", node.AliasedType.String())
+	}
+
+	// Create TypeAliasValue and register it
+	typeAlias := &runtime.TypeAliasValue{
+		Name:        node.Name.Value,
+		AliasedType: aliasedType,
+	}
+
+	// Store in environment with special prefix (case-insensitive)
+	typeKey := "__type_alias_" + ident.Normalize(node.Name.Value)
+	ctx.Env().Define(typeKey, typeAlias)
+
+	return &runtime.NilValue{}
 }
 
 // VisitSetDecl evaluates a set declaration.
