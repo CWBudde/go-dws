@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -485,4 +486,206 @@ func (i *Interpreter) CallRecordPropertyGetter(record evaluator.Value, propImpl 
 func (i *Interpreter) ExecuteRecordPropertyRead(record evaluator.Value, propInfo any, indices []evaluator.Value, node any) evaluator.Value {
 	// Delegate to existing CallRecordPropertyGetter (reuse implementation)
 	return i.CallRecordPropertyGetter(record, propInfo, indices, node)
+}
+
+// ===== Class Creation Adapters (Task 3.5.8) =====
+
+// NewClassInfoAdapter creates a new ClassInfo with the given name.
+// Task 3.5.8: Phase 1 adapter for Evaluator.VisitClassDecl.
+// Returns interface{} for adapter pattern compatibility.
+func (i *Interpreter) NewClassInfoAdapter(name string) interface{} {
+	return NewClassInfo(name)
+}
+
+// CastToClassInfo attempts to cast interface{} to *ClassInfo.
+// Task 3.5.8: Phase 1 adapter for type-safe ClassInfo access.
+// Returns the ClassInfo and true if successful, nil and false otherwise.
+func (i *Interpreter) CastToClassInfo(class interface{}) (interface{}, bool) {
+	ci, ok := class.(*ClassInfo)
+	if !ok {
+		return nil, false
+	}
+	return ci, true
+}
+
+// GetClassNameFromClassInfoInterface extracts the name from a ClassInfo interface{}.
+// Task 3.5.8: Phase 1 adapter for name extraction from interface{}.
+// Note: Different from GetClassNameFromClassInfo which takes evaluator.Value.
+func (i *Interpreter) GetClassNameFromClassInfoInterface(classInfo interface{}) string {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return ""
+	}
+	return ci.Name
+}
+
+// RegisterClassEarly registers a class in the legacy class map before full initialization.
+// Task 3.5.8: Phase 5 adapter - enables field initializers to reference the class name.
+// This is needed because field initializers may reference the class being declared.
+func (i *Interpreter) RegisterClassEarly(name string, classInfo interface{}) {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return
+	}
+	normalizedName := ident.Normalize(name)
+	i.classes[normalizedName] = ci
+}
+
+// IsClassPartial checks if a ClassInfo is marked as partial.
+// Task 3.5.8: Phase 2 adapter for partial class detection.
+func (i *Interpreter) IsClassPartial(classInfo interface{}) bool {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return false
+	}
+	return ci.IsPartial
+}
+
+// SetClassPartial sets the IsPartial flag on a ClassInfo.
+// Task 3.5.8: Phase 2 adapter for partial class marking.
+func (i *Interpreter) SetClassPartial(classInfo interface{}, isPartial bool) {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return
+	}
+	ci.IsPartial = isPartial
+}
+
+// SetClassAbstract sets the IsAbstract flag on a ClassInfo.
+// Task 3.5.8: Phase 2 adapter for abstract class marking.
+func (i *Interpreter) SetClassAbstract(classInfo interface{}, isAbstract bool) {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return
+	}
+	ci.IsAbstract = isAbstract
+}
+
+// SetClassExternal sets the IsExternal flag and ExternalName on a ClassInfo.
+// Task 3.5.8: Phase 2 adapter for external class marking.
+func (i *Interpreter) SetClassExternal(classInfo interface{}, isExternal bool, externalName string) {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return
+	}
+	ci.IsExternal = isExternal
+	ci.ExternalName = externalName
+}
+
+// ClassHasNoParent checks if a ClassInfo has no parent set yet.
+// Task 3.5.8: Phase 3 adapter for parent inheritance check.
+// Returns true if the class has no parent, false if it already has a parent.
+func (i *Interpreter) ClassHasNoParent(classInfo interface{}) bool {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return false
+	}
+	return ci.Parent == nil
+}
+
+// DefineCurrentClassMarker defines a marker in the environment for the class being declared.
+// Task 3.5.8: Phase 2.2 adapter for nested class context setup.
+// This enables nested type resolution to reference the enclosing class.
+// The marker is stored with a special key that won't conflict with user variables.
+func (i *Interpreter) DefineCurrentClassMarker(env interface{}, classInfo interface{}) {
+	// The evaluator passes an evaluator.Environment, we need to adapt it
+	// For now, we can define a special marker variable
+	// This matches the old implementation in declarations.go:236-237
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return
+	}
+
+	// Note: The environment type from evaluator needs to be converted
+	// For simplicity, we can skip this marker for now since it's primarily
+	// used for nested class resolution which will be handled in Phase 5.
+	// The marker would be: env.Define("__current_class__", ci)
+	// But since env is evaluator.Environment interface, we can't call Define directly.
+	// This will be properly implemented when we handle nested classes in Phase 5.
+	_ = ci // Prevent unused variable warning
+}
+
+// SetClassParent sets the parent class and copies all inherited members.
+// This replicates the logic from declarations.go:287-351.
+func (i *Interpreter) SetClassParent(classInfo interface{}, parentClass interface{}) {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return
+	}
+
+	parent, ok := parentClass.(*ClassInfo)
+	if !ok {
+		return
+	}
+
+	// Only set parent if not already set
+	if ci.Parent != nil {
+		return
+	}
+
+	// Set parent references
+	ci.Parent = parent
+	ci.Metadata.Parent = parent.Metadata
+	ci.Metadata.ParentName = parent.Metadata.Name
+
+	// Copy parent fields (child inherits all parent fields)
+	for fieldName, fieldType := range parent.Fields {
+		ci.Fields[fieldName] = fieldType
+	}
+
+	// Copy parent field declarations (for initializers)
+	for fieldName, fieldDecl := range parent.FieldDecls {
+		ci.FieldDecls[fieldName] = fieldDecl
+	}
+
+	// Copy parent methods (child inherits all parent methods)
+	// Keep Methods and ClassMethods for backward compatibility (direct lookups)
+	for methodName, methodDecl := range parent.Methods {
+		ci.Methods[methodName] = methodDecl
+	}
+	for methodName, methodDecl := range parent.ClassMethods {
+		ci.ClassMethods[methodName] = methodDecl
+	}
+
+	// DON'T copy MethodOverloads/ClassMethodOverloads from parent
+	// Each class should only store its OWN method overloads, not inherited ones.
+	// getMethodOverloadsInHierarchy will walk the hierarchy to collect them at call time.
+	// This prevents duplication when a child class overrides a parent method.
+
+	// Copy constructors
+	for name, constructor := range parent.Constructors {
+		normalizedName := ident.Normalize(name)
+		ci.Constructors[normalizedName] = constructor
+	}
+	for name, overloads := range parent.ConstructorOverloads {
+		normalizedName := ident.Normalize(name)
+		ci.ConstructorOverloads[normalizedName] = append([]*ast.FunctionDecl(nil), overloads...)
+	}
+
+	// Inherit default constructor if parent has one
+	if parent.DefaultConstructor != "" {
+		ci.DefaultConstructor = parent.DefaultConstructor
+	}
+
+	// Copy parent constructors to metadata
+	for name, constructor := range parent.Metadata.Constructors {
+		if ci.Metadata.Constructors == nil {
+			ci.Metadata.Constructors = make(map[string]*runtime.MethodMetadata)
+		}
+		ci.Metadata.Constructors[name] = constructor
+	}
+	for name, overloads := range parent.Metadata.ConstructorOverloads {
+		if ci.Metadata.ConstructorOverloads == nil {
+			ci.Metadata.ConstructorOverloads = make(map[string][]*runtime.MethodMetadata)
+		}
+		ci.Metadata.ConstructorOverloads[name] = append([]*runtime.MethodMetadata(nil), overloads...)
+	}
+
+	// Inherit default constructor name into metadata
+	if parent.Metadata.DefaultConstructor != "" {
+		ci.Metadata.DefaultConstructor = parent.Metadata.DefaultConstructor
+	}
+
+	// Copy operator overloads
+	ci.Operators = parent.Operators.clone()
 }

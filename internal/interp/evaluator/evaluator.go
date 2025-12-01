@@ -931,6 +931,49 @@ type InterpreterAdapter interface {
 	// Returns the result of the property getter method call.
 	ExecuteRecordPropertyRead(record Value, propInfo any, indices []Value, node any) Value
 
+	// ===== Task 3.5.8: Class Declaration Adapter Methods =====
+
+	// NewClassInfoAdapter creates a new ClassInfo with the given name.
+	// Returns interface{} for adapter pattern compatibility.
+	NewClassInfoAdapter(name string) interface{}
+
+	// CastToClassInfo attempts to cast interface{} to *ClassInfo.
+	// Returns the ClassInfo and true if successful, nil and false otherwise.
+	CastToClassInfo(class interface{}) (interface{}, bool)
+
+	// GetClassNameFromClassInfoInterface extracts the name from a ClassInfo interface{}.
+	// Note: Different from GetClassNameFromClassInfo which takes evaluator.Value.
+	GetClassNameFromClassInfoInterface(classInfo interface{}) string
+
+	// RegisterClassEarly registers a class in the legacy class map before full initialization.
+	// This enables field initializers to reference the class name.
+	RegisterClassEarly(name string, classInfo interface{})
+
+	// IsClassPartial checks if a ClassInfo is marked as partial.
+	IsClassPartial(classInfo interface{}) bool
+
+	// SetClassPartial sets the IsPartial flag on a ClassInfo.
+	SetClassPartial(classInfo interface{}, isPartial bool)
+
+	// SetClassAbstract sets the IsAbstract flag on a ClassInfo.
+	SetClassAbstract(classInfo interface{}, isAbstract bool)
+
+	// SetClassExternal sets the IsExternal flag and ExternalName on a ClassInfo.
+	SetClassExternal(classInfo interface{}, isExternal bool, externalName string)
+
+	// ClassHasNoParent checks if a ClassInfo has no parent set yet.
+	// Returns true if the class has no parent, false if it already has a parent.
+	ClassHasNoParent(classInfo interface{}) bool
+
+	// DefineCurrentClassMarker defines a marker in the environment for the class being declared.
+	// This enables nested type resolution to reference the enclosing class.
+	DefineCurrentClassMarker(env interface{}, classInfo interface{})
+
+	// SetClassParent sets the parent class and copies all inherited members.
+	// This includes fields, methods, constructors, operators, and metadata.
+	// Only sets parent if classInfo.Parent is nil (prevents overwriting).
+	SetClassParent(classInfo interface{}, parentClass interface{})
+
 	// ===== Type Conversion & Introspection Methods (Task 3.5.143g) =====
 	// Note: ToInt64, ToBool, ToFloat64, GetTypeOf, GetClassOf are NOT part of this adapter interface.
 	// They are part of builtins.Context interface and are implemented independently on both
