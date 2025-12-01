@@ -100,6 +100,7 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 	// and is used as a statement, it's automatically invoked
 	// Example: var fp := @SomeProc; fp; // auto-invokes SomeProc
 	// Task 3.5.121: Migrated to use FunctionPointerCallable interface
+	// Task 3.5.180: Removed adapter fallback - FunctionPointerValue implements FunctionPointerCallable
 	if funcPtr, ok := val.(FunctionPointerCallable); ok {
 		// If it has zero parameters, auto-invoke it
 		if funcPtr.ParamCount() == 0 {
@@ -124,20 +125,6 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 				SelfObject: funcPtr.GetSelfObject(),
 			}
 			return e.adapter.ExecuteFunctionPointerCall(metadata, []Value{}, node)
-		}
-	} else if e.adapter.IsFunctionPointer(val) {
-		// Fallback for types not implementing FunctionPointerCallable
-		paramCount := e.adapter.GetFunctionPointerParamCount(val)
-		if paramCount == 0 {
-			if e.adapter.IsFunctionPointerNil(val) {
-				// Task 3.5.133: Migrated to use CreateExceptionDirect bridge constructor
-				excClass := e.typeSystem.LookupClass("Exception")
-				callStack := ctx.CallStack()
-				exc := e.adapter.CreateExceptionDirect(excClass, "Function pointer is nil", &node.Token.Pos, callStack)
-				ctx.SetException(exc)
-				return &runtime.NilValue{}
-			}
-			return e.adapter.CallFunctionPointer(val, []Value{}, node)
 		}
 	}
 
@@ -233,16 +220,13 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 			typeName := node.Type.String()
 
 			// Handle subrange type wrapping
-			// Task 3.5.138: Direct environment access instead of adapter
-			subrangeTypeKey := "__subrange_type_" + ident.Normalize(typeName)
-			if typeVal, ok := ctx.Env().Get(subrangeTypeKey); ok {
-				if typeVal != nil { // Ensure typeVal is not nil
-					wrappedVal, err := e.adapter.WrapInSubrange(value, typeName, node)
-					if err != nil {
-						return e.newError(node, "%v", err)
-					}
-					value = wrappedVal
+			// Task 3.5.182: Use TypeSystem instead of environment lookup
+			if e.typeSystem.HasSubrangeType(typeName) {
+				wrappedVal, err := e.adapter.WrapInSubrange(value, typeName, node)
+				if err != nil {
+					return e.newError(node, "%v", err)
 				}
+				value = wrappedVal
 			} else {
 				// Try implicit conversion
 				if converted, ok := e.adapter.TryImplicitConversion(value, typeName); ok {
@@ -1504,11 +1488,10 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 	}
 
 	// Check if this is a subrange type
-	// Task 3.5.129c: Direct subrange lookup + bridge constructor
-	subrangeTypeKey := "__subrange_type_" + ident.Normalize(typeName)
-	if typeVal, ok := ctx.Env().Get(subrangeTypeKey); ok {
+	// Task 3.5.182: Use TypeSystem lookup instead of environment
+	if subrangeType := e.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {
 		// Use bridge adapter for construction (SubrangeValue in interp package)
-		return e.adapter.CreateSubrangeValueDirect(typeVal)
+		return e.adapter.CreateSubrangeValueDirect(subrangeType)
 	}
 
 	// Check if this is an interface type

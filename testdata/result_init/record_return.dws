@@ -1,5 +1,4 @@
 // Test Result initialization for record return types
-// Task 3.5.142d: Validates proper zero-value initialization for records
 
 type TPoint = record
   X: Integer;

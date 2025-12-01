@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// String Formatting Methods (Task 3.5.143o)
+// String Formatting Methods
 // ============================================================================
 //
 // This file implements the string formatting method of the builtins.Context

@@ -125,6 +125,5 @@ type VariantWrapper interface {
 	UnwrapVariant() Value
 	// IsUninitialized returns true if the variant has no wrapped value (Value == nil).
 	// This is distinct from containing a nullish value (Unassigned/Null/Nil).
-	// Task 3.5.103f: Needed for proper variant comparison semantics.
 	IsUninitialized() bool
 }

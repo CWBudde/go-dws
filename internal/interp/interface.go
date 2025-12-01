@@ -556,8 +556,6 @@ func (i *Interpreter) registerBuiltinInterfaces() {
 	iinterface := NewInterfaceInfo("IInterface")
 	iinterface.Parent = nil // Root of the interface hierarchy
 
-	// Register with lowercase key for case-insensitive lookup
-	i.interfaces[ident.Normalize("IInterface")] = iinterface
-	// Task 3.5.46: Also register in TypeSystem for shared access
+	// Task 3.5.184c: Register only in TypeSystem (legacy map removed)
 	i.typeSystem.RegisterInterface("IInterface", iinterface)
 }

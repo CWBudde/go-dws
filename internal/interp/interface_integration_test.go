@@ -52,8 +52,9 @@ func TestIntegration_InterfaceDeclarationAndUsage(t *testing.T) {
 		t.Fatalf("Runtime error: %v", result.String())
 	}
 
-	// Verify interface was registered
-	if _, exists := interp.interfaces["iprintable"]; !exists {
+	// Verify interface was registered (Task 3.5.184c: Use lookupInterfaceInfo)
+	iface := interp.lookupInterfaceInfo("iprintable")
+	if iface == nil {
 		t.Error("IPrintable interface should be registered")
 	}
 
@@ -64,7 +65,6 @@ func TestIntegration_InterfaceDeclarationAndUsage(t *testing.T) {
 	}
 
 	// Verify class implements interface
-	iface := interp.interfaces["iprintable"]
 	if !classImplementsInterface(class, iface) {
 		t.Error("TDocument should implement IPrintable")
 	}
@@ -124,19 +124,19 @@ func TestIntegration_InterfaceInheritanceHierarchy(t *testing.T) {
 		t.Fatalf("Runtime error: %v", result.String())
 	}
 
-	// Verify 3-level interface hierarchy
-	base, existsBase := interp.interfaces["ibase"]
-	if !existsBase {
+	// Verify 3-level interface hierarchy (Task 3.5.184c: Use lookupInterfaceInfo)
+	base := interp.lookupInterfaceInfo("ibase")
+	if base == nil {
 		t.Fatal("IBase should be registered")
 	}
 
-	middle, existsMiddle := interp.interfaces["imiddle"]
-	if !existsMiddle {
+	middle := interp.lookupInterfaceInfo("imiddle")
+	if middle == nil {
 		t.Fatal("IMiddle should be registered")
 	}
 
-	derived, existsDerived := interp.interfaces["iderived"]
-	if !existsDerived {
+	derived := interp.lookupInterfaceInfo("iderived")
+	if derived == nil {
 		t.Fatal("IDerived should be registered")
 	}
 
@@ -253,19 +253,19 @@ func TestIntegration_ClassImplementingMultipleInterfaces(t *testing.T) {
 		t.Fatalf("Runtime error: %v", result.String())
 	}
 
-	// Verify all three interfaces registered
-	readable, existsR := interp.interfaces["ireadable"]
-	if !existsR {
+	// Verify all three interfaces registered (Task 3.5.184c: Use lookupInterfaceInfo)
+	readable := interp.lookupInterfaceInfo("ireadable")
+	if readable == nil {
 		t.Fatal("IReadable should be registered")
 	}
 
-	writable, existsW := interp.interfaces["iwritable"]
-	if !existsW {
+	writable := interp.lookupInterfaceInfo("iwritable")
+	if writable == nil {
 		t.Fatal("IWritable should be registered")
 	}
 
-	closeable, existsC := interp.interfaces["icloseable"]
-	if !existsC {
+	closeable := interp.lookupInterfaceInfo("icloseable")
+	if closeable == nil {
 		t.Fatal("ICloseable should be registered")
 	}
 
@@ -442,7 +442,8 @@ func TestIntegration_InterfaceLifetimeManagement(t *testing.T) {
 		class := NewClassInfo("TResource")
 		class.Methods["release"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Release"}}
 
-		interp.interfaces["iresource"] = iface
+		// Task 3.5.184c: Register via TypeSystem instead of direct map access
+		interp.typeSystem.RegisterInterface("iresource", iface)
 		interp.classes["TResource"] = class
 
 		// Create object and interface instance

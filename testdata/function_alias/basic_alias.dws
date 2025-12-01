@@ -1,5 +1,4 @@
 // Test function name as alias for Result variable
-// Task 3.5.142e: Validates that FuncName := value works as synonym for Result := value
 //
 // Note: Semantic analyzer limitations mean we can only test ASSIGNMENT to function name.
 // Reading from the function name is treated as a function pointer by the semantic analyzer.

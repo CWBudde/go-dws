@@ -5,7 +5,6 @@ import "strings"
 // cleanContractMessage removes unnecessary parentheses from contract expressions
 // for display in error messages. The AST's String() method adds structural parentheses
 // that make error messages harder to read.
-// Task 3.5.142a: Copied from internal/interp/contracts.go for evaluator use.
 func cleanContractMessage(message string) string {
 	// Strip all outer parentheses pairs
 	for len(message) > 2 && message[0] == '(' && message[len(message)-1] == ')' {

@@ -16,10 +16,11 @@ import (
 
 // initializeInterfaceField creates an InterfaceInstance for interface-typed fields.
 // Task 9.1.4: Helper to reduce code duplication in record field initialization.
+// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map.
 func (i *Interpreter) initializeInterfaceField(fieldType types.Type) Value {
 	if interfaceType, ok := fieldType.(*types.InterfaceType); ok {
-		// Look up the InterfaceInfo from the interpreter
-		if interfaceInfo, exists := i.interfaces[ident.Normalize(interfaceType.Name)]; exists {
+		// Look up the InterfaceInfo from the TypeSystem
+		if interfaceInfo := i.lookupInterfaceInfo(interfaceType.Name); interfaceInfo != nil {
 			return &InterfaceInstance{
 				Interface: interfaceInfo,
 				Object:    nil,
@@ -611,10 +612,9 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 			}
 		}
 		// Try subrange type
-		if subrangeTypeVal, ok := i.env.Get("__subrange_type_" + lowerTypeName); ok {
-			if stv, ok := subrangeTypeVal.(*SubrangeTypeValue); ok {
-				return stv.SubrangeType, nil
-			}
+		// Task 3.5.182: Use TypeSystem for subrange type lookup
+		if subrangeType := i.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {
+			return subrangeType, nil
 		}
 		// Try class type via TypeSystem
 		if i.typeSystem != nil && i.typeSystem.HasClass(cleanTypeName) {

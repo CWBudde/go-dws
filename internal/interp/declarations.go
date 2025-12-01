@@ -347,8 +347,9 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	for _, ifaceIdent := range cd.Interfaces {
 		ifaceName := ifaceIdent.Value
 		// Look up interface in registry (case-insensitive)
-		iface, exists := i.interfaces[ident.Normalize(ifaceName)]
-		if !exists {
+		// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
+		iface := i.lookupInterfaceInfo(ifaceName)
+		if iface == nil {
 			return i.newErrorWithLocation(cd, "interface '%s' not found", ifaceName)
 		}
 
@@ -807,10 +808,11 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 	interfaceInfo := NewInterfaceInfo(id.Name.Value)
 
 	// Handle inheritance if parent interface is specified
+	// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
 	if id.Parent != nil {
 		parentName := id.Parent.Value
-		parentInterface, exists := i.interfaces[ident.Normalize(parentName)]
-		if !exists {
+		parentInterface := i.lookupInterfaceInfo(parentName)
+		if parentInterface == nil {
 			return i.newErrorWithLocation(id, "parent interface '%s' not found", parentName)
 		}
 
@@ -850,12 +852,8 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 		}
 	}
 
-	// Register interface in registry
-	// Register interface in TypeSystem for shared access
+	// Register interface in TypeSystem (Task 3.5.184c: only TypeSystem now, legacy map removed)
 	i.typeSystem.RegisterInterface(interfaceInfo.Name, interfaceInfo)
-	// Also maintain legacy map for backward compatibility
-	// (use normalized key for case-insensitive lookups)
-	i.interfaces[ident.Normalize(interfaceInfo.Name)] = interfaceInfo
 
 	return &NilValue{}
 }

@@ -235,11 +235,10 @@ func (e *Evaluator) ResolveTypeWithContext(typeName string, ctx *ExecutionContex
 		}
 	}
 
-	// Step 8: Check subrange types in environment
-	if subrangeTypeVal, ok := ctx.Env().Get("__subrange_type_" + lowerTypeName); ok {
-		if stv, ok := subrangeTypeVal.(interface{ GetSubrangeType() *types.SubrangeType }); ok {
-			return stv.GetSubrangeType(), nil
-		}
+	// Step 8: Check subrange types in TypeSystem
+	// Task 3.5.182: Use TypeSystem instead of environment lookup
+	if subrangeType := e.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {
+		return subrangeType, nil
 	}
 
 	// Unknown type

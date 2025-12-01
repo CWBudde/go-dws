@@ -9,7 +9,6 @@ import (
 )
 
 // applyCompoundOperation applies a compound assignment operation (+=, -=, *=, /=).
-// Task 3.5.105b: Migrated from Interpreter.applyCompoundOperation()
 //
 // Handles:
 // - Integer operations: += -= *= /= between integers

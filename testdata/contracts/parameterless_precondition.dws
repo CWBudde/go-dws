@@ -1,5 +1,4 @@
 // Test parameterless function with preconditions
-// Task 3.5.142a: Validates precondition checking for auto-invoked functions
 
 type TCounter = class
   private

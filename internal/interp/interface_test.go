@@ -259,9 +259,9 @@ func TestEvalInterfaceDeclaration(t *testing.T) {
 		}
 	}
 
-	// Check that interface was registered
-	ifaceInfo, exists := interp.interfaces["imyinterface"]
-	if !exists {
+	// Check that interface was registered (Task 3.5.184c: Use lookupInterfaceInfo)
+	ifaceInfo := interp.lookupInterfaceInfo("imyinterface")
+	if ifaceInfo == nil {
 		t.Fatal("Interface 'IMyInterface' should be registered")
 	}
 
@@ -352,9 +352,9 @@ func TestEvalInterfaceDeclarationWithInheritance(t *testing.T) {
 	}
 	interp.evalInterfaceDeclaration(childDecl)
 
-	// Check that child interface was registered with parent
-	childInfo, exists := interp.interfaces["iderived"]
-	if !exists {
+	// Check that child interface was registered with parent (Task 3.5.184c: Use lookupInterfaceInfo)
+	childInfo := interp.lookupInterfaceInfo("iderived")
+	if childInfo == nil {
 		t.Fatal("Interface 'IDerived' should be registered")
 	}
 
@@ -499,8 +499,8 @@ func TestCompleteInterfaceWorkflow(t *testing.T) {
 	obj := NewObjectInstance(classInfo)
 	obj.SetField("FValue", &IntegerValue{Value: 42})
 
-	// Step 4: Cast object to interface
-	ifaceInfo := interp.interfaces["icounter"]
+	// Step 4: Cast object to interface (Task 3.5.184c: Use lookupInterfaceInfo)
+	ifaceInfo := interp.lookupInterfaceInfo("icounter")
 
 	// Verify the class implements the interface
 	if !classImplementsInterface(classInfo, ifaceInfo) {
@@ -572,9 +572,9 @@ func TestInterfaceVariable(t *testing.T) {
 	}
 	interp.evalClassDeclaration(classDecl)
 
-	// Create object and cast to interface
+	// Create object and cast to interface (Task 3.5.184c: Use lookupInterfaceInfo)
 	obj := NewObjectInstance(interp.classes["tdocument"])
-	ifaceInstance := NewInterfaceInstance(interp.interfaces["iprintable"], obj)
+	ifaceInstance := NewInterfaceInstance(interp.lookupInterfaceInfo("iprintable"), obj)
 
 	// Store in environment as a variable
 	interp.env.Define("myInterface", ifaceInstance)
@@ -638,9 +638,9 @@ func TestObjectToInterface(t *testing.T) {
 	}
 	interp.evalClassDeclaration(classDecl)
 
-	// Test successful cast
+	// Test successful cast (Task 3.5.184c: Use lookupInterfaceInfo)
 	obj := NewObjectInstance(interp.classes["trectangle"])
-	ifaceInfo := interp.interfaces["idrawable"]
+	ifaceInfo := interp.lookupInterfaceInfo("idrawable")
 
 	if !classImplementsInterface(obj.Class, ifaceInfo) {
 		t.Fatal("TRectangle should implement IDrawable")
@@ -719,9 +719,9 @@ func TestInterfaceMethodCall(t *testing.T) {
 	}
 	interp.evalClassDeclaration(classDecl)
 
-	// Create interface instance
+	// Create interface instance (Task 3.5.184c: Use lookupInterfaceInfo)
 	obj := NewObjectInstance(interp.classes["tcalculator"])
-	ifaceInstance := NewInterfaceInstance(interp.interfaces["icalculator"], obj)
+	ifaceInstance := NewInterfaceInstance(interp.lookupInterfaceInfo("icalculator"), obj)
 
 	// Verify method can be found through interface
 	method := ifaceInstance.Interface.GetMethod("Add")
@@ -798,9 +798,9 @@ func TestInterfaceInheritance(t *testing.T) {
 	}
 	interp.evalClassDeclaration(classDecl)
 
-	// Test that class implements derived interface
+	// Test that class implements derived interface (Task 3.5.184c: Use lookupInterfaceInfo)
 	obj := NewObjectInstance(interp.classes["timplementation"])
-	derivedIface := interp.interfaces["iderived"]
+	derivedIface := interp.lookupInterfaceInfo("iderived")
 
 	if !classImplementsInterface(obj.Class, derivedIface) {
 		t.Fatal("TImplementation should implement IDerived")
@@ -818,8 +818,8 @@ func TestInterfaceInheritance(t *testing.T) {
 		t.Error("Should inherit BaseMethod from parent interface")
 	}
 
-	// Test that class also implements base interface
-	baseIface := interp.interfaces["ibase"]
+	// Test that class also implements base interface (Task 3.5.184c: Use lookupInterfaceInfo)
+	baseIface := interp.lookupInterfaceInfo("ibase")
 	if !classImplementsInterface(obj.Class, baseIface) {
 		t.Error("TImplementation should also implement IBase")
 	}
@@ -873,20 +873,20 @@ func TestMultipleInterfaces(t *testing.T) {
 	}
 	interp.evalClassDeclaration(classDecl)
 
-	// Test that class implements both interfaces
+	// Test that class implements both interfaces (Task 3.5.184c: Use lookupInterfaceInfo)
 	obj := NewObjectInstance(interp.classes["tfile"])
 
-	if !classImplementsInterface(obj.Class, interp.interfaces["ireadable"]) {
+	if !classImplementsInterface(obj.Class, interp.lookupInterfaceInfo("ireadable")) {
 		t.Error("TFile should implement IReadable")
 	}
 
-	if !classImplementsInterface(obj.Class, interp.interfaces["iwritable"]) {
+	if !classImplementsInterface(obj.Class, interp.lookupInterfaceInfo("iwritable")) {
 		t.Error("TFile should implement IWritable")
 	}
 
-	// Create interface instances for both interfaces
-	readableInstance := NewInterfaceInstance(interp.interfaces["ireadable"], obj)
-	writableInstance := NewInterfaceInstance(interp.interfaces["iwritable"], obj)
+	// Create interface instances for both interfaces (Task 3.5.184c: Use lookupInterfaceInfo)
+	readableInstance := NewInterfaceInstance(interp.lookupInterfaceInfo("ireadable"), obj)
+	writableInstance := NewInterfaceInstance(interp.lookupInterfaceInfo("iwritable"), obj)
 
 	// Verify both wrap the same object
 	if readableInstance.Object != obj || writableInstance.Object != obj {
@@ -942,9 +942,9 @@ func TestInterfaceToInterface(t *testing.T) {
 	}
 	interp.evalInterfaceDeclaration(derivedDecl)
 
-	// Test upcast: IDog → IAnimal (should succeed)
-	dogIface := interp.interfaces["idog"]
-	animalIface := interp.interfaces["ianimal"]
+	// Test upcast: IDog → IAnimal (should succeed) (Task 3.5.184c: Use lookupInterfaceInfo)
+	dogIface := interp.lookupInterfaceInfo("idog")
+	animalIface := interp.lookupInterfaceInfo("ianimal")
 
 	// IDog has Eat (inherited) and Bark, so it's compatible with IAnimal
 	if !interfaceIsCompatible(dogIface, animalIface) {
@@ -968,7 +968,8 @@ func TestInterfaceToInterface(t *testing.T) {
 	}
 	interp.evalInterfaceDeclaration(unrelatedDecl)
 
-	carIface := interp.interfaces["icar"]
+	// Task 3.5.184c: Use lookupInterfaceInfo
+	carIface := interp.lookupInterfaceInfo("icar")
 	if interfaceIsCompatible(dogIface, carIface) {
 		t.Error("IDog should NOT be compatible with ICar (unrelated)")
 	}
@@ -1011,11 +1012,11 @@ func TestInterfaceToObject(t *testing.T) {
 	}
 	interp.evalClassDeclaration(classDecl)
 
-	// Create object and interface instance
+	// Create object and interface instance (Task 3.5.184c: Use lookupInterfaceInfo)
 	obj := NewObjectInstance(interp.classes["tcircle"])
 	obj.SetField("Radius", &IntegerValue{Value: 10})
 
-	ifaceInstance := NewInterfaceInstance(interp.interfaces["ishape"], obj)
+	ifaceInstance := NewInterfaceInstance(interp.lookupInterfaceInfo("ishape"), obj)
 
 	// Test extracting underlying object
 	extracted := ifaceInstance.GetUnderlyingObject()
@@ -1071,17 +1072,17 @@ func TestInterfaceLifetime(t *testing.T) {
 	}
 	interp.evalClassDeclaration(classDecl)
 
-	// Test 1: Interface holds reference to object
+	// Test 1: Interface holds reference to object (Task 3.5.184c: Use lookupInterfaceInfo)
 	obj := NewObjectInstance(interp.classes["tresource"])
-	ifaceInstance := NewInterfaceInstance(interp.interfaces["iresource"], obj)
+	ifaceInstance := NewInterfaceInstance(interp.lookupInterfaceInfo("iresource"), obj)
 
 	// Object should be accessible through interface
 	if ifaceInstance.Object != obj {
 		t.Error("Interface should maintain reference to object")
 	}
 
-	// Test 2: Multiple interface references to same object
-	ifaceInstance2 := NewInterfaceInstance(interp.interfaces["iresource"], obj)
+	// Test 2: Multiple interface references to same object (Task 3.5.184c: Use lookupInterfaceInfo)
+	ifaceInstance2 := NewInterfaceInstance(interp.lookupInterfaceInfo("iresource"), obj)
 
 	if ifaceInstance.Object != ifaceInstance2.Object {
 		t.Error("Multiple interfaces should reference same object")
@@ -1174,8 +1175,8 @@ func TestInterfacePolymorphism(t *testing.T) {
 
 	obj := NewObjectInstance(interp.classes["tsportscar"])
 
-	// Test 1: Variable of type IVehicle can hold ICar instance
-	carIface := NewInterfaceInstance(interp.interfaces["icar"], obj)
+	// Test 1: Variable of type IVehicle can hold ICar instance (Task 3.5.184c: Use lookupInterfaceInfo)
+	carIface := NewInterfaceInstance(interp.lookupInterfaceInfo("icar"), obj)
 
 	// Store in variable as IVehicle (base interface)
 	interp.env.Define("vehicle", carIface)
@@ -1188,8 +1189,8 @@ func TestInterfacePolymorphism(t *testing.T) {
 		t.Errorf("Interface type should be preserved as ICar, got %s", vehicleIface.Interface.Name)
 	}
 
-	// Test 2: Can cast to base interface
-	baseIface := NewInterfaceInstance(interp.interfaces["ivehicle"], obj)
+	// Test 2: Can cast to base interface (Task 3.5.184c: Use lookupInterfaceInfo)
+	baseIface := NewInterfaceInstance(interp.lookupInterfaceInfo("ivehicle"), obj)
 
 	if baseIface.Interface.Name != "IVehicle" {
 		t.Error("Should be able to create IVehicle instance")

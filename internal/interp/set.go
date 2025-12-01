@@ -102,7 +102,7 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 			if elementType == nil {
 				// Special handling for enum types
 				if enumVal, isEnum := startVal.(*EnumValue); isEnum {
-					// Get enum type via TypeSystem (Task 3.5.143b)
+					// Get enum type via TypeSystem
 					enumMetadata := i.typeSystem.LookupEnumMetadata(enumVal.TypeName)
 					if enumMetadata == nil {
 						return &ErrorValue{

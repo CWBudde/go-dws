@@ -124,33 +124,31 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 		}
 
 		// If declaring a subrange variable with an initializer, wrap and validate
+		// Task 3.5.182: Use TypeSystem instead of environment lookup
 		if stmt.Type != nil {
 			typeName := stmt.Type.String()
-			subrangeTypeKey := "__subrange_type_" + ident.Normalize(typeName)
 			handledSubrange := false
-			if typeVal, ok := i.env.Get(subrangeTypeKey); ok {
-				if stv, ok := typeVal.(*SubrangeTypeValue); ok {
-					// Extract integer value from initializer
-					var intValue int
-					if intVal, ok := value.(*IntegerValue); ok {
-						intValue = int(intVal.Value)
-					} else if srcSubrange, ok := value.(*SubrangeValue); ok {
-						intValue = srcSubrange.Value
-					} else {
-						return newError("cannot initialize subrange type %s with %s", typeName, value.Type())
-					}
-
-					// Create subrange value and validate
-					subrangeVal := &SubrangeValue{
-						Value:        0, // Will be set by ValidateAndSet
-						SubrangeType: stv.SubrangeType,
-					}
-					if err := subrangeVal.ValidateAndSet(intValue); err != nil {
-						return &ErrorValue{Message: err.Error()}
-					}
-					value = subrangeVal
-					handledSubrange = true
+			if subrangeType := i.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {
+				// Extract integer value from initializer
+				var intValue int
+				if intVal, ok := value.(*IntegerValue); ok {
+					intValue = int(intVal.Value)
+				} else if srcSubrange, ok := value.(*SubrangeValue); ok {
+					intValue = srcSubrange.Value
+				} else {
+					return newError("cannot initialize subrange type %s with %s", typeName, value.Type())
 				}
+
+				// Create subrange value and validate
+				subrangeVal := &SubrangeValue{
+					Value:        0, // Will be set by ValidateAndSet
+					SubrangeType: subrangeType,
+				}
+				if err := subrangeVal.ValidateAndSet(intValue); err != nil {
+					return &ErrorValue{Message: err.Error()}
+				}
+				value = subrangeVal
+				handledSubrange = true
 			}
 			if !handledSubrange {
 				if converted, ok := i.tryImplicitConversion(value, typeName); ok {
@@ -200,50 +198,44 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 				if arrayType := i.typeSystem.LookupArrayType(typeName); arrayType != nil {
 					// Initialize with empty array value
 					value = NewArrayValue(arrayType)
+				} else if subrangeType := i.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {
+					// Task 3.5.182: Use TypeSystem for subrange type lookup
+					// Initialize with low bound as zero value
+					value = &SubrangeValue{
+						Value:        subrangeType.LowBound,
+						SubrangeType: subrangeType,
+					}
 				} else {
-					// Check if this is a subrange type
-					subrangeTypeKey := "__subrange_type_" + ident.Normalize(typeName)
-					if typeVal, ok := i.env.Get(subrangeTypeKey); ok {
-						if stv, ok := typeVal.(*SubrangeTypeValue); ok {
-							// Initialize with zero value (will be validated if assigned)
-							value = &SubrangeValue{
-								Value:        0,
-								SubrangeType: stv.SubrangeType,
-							}
-						} else {
-							value = &NilValue{}
+					// Task 9.16.2: Check if this is an interface type
+					// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
+					if ifaceInfo := i.lookupInterfaceInfo(typeName); ifaceInfo != nil {
+						// Initialize with nil interface instance
+						value = &InterfaceInstance{
+							Interface: ifaceInfo,
+							Object:    nil, // nil until assigned
 						}
 					} else {
-						// Task 9.16.2: Check if this is an interface type
-						if ifaceInfo, exists := i.interfaces[ident.Normalize(typeName)]; exists {
-							// Initialize with nil interface instance
-							value = &InterfaceInstance{
-								Interface: ifaceInfo,
-								Object:    nil, // nil until assigned
-							}
-						} else {
-							// Initialize basic types with their zero values
-							// Proper initialization allows implicit conversions to work with target type
-							switch ident.Normalize(typeName) {
-							case "integer":
-								value = &IntegerValue{Value: 0}
-							case "float":
-								value = &FloatValue{Value: 0.0}
-							case "string":
-								value = &StringValue{Value: ""}
-							case "boolean":
-								value = &BooleanValue{Value: false}
-							case "variant":
-								// Task 9.227: Initialize Variant with nil/unassigned value
-								value = &VariantValue{Value: nil, ActualType: nil}
-							default:
-								// Task 9.5.4: Check if this is a class type and create a typed nil value
-								// This allows accessing class variables via nil instances: var b: TBase; b.ClassVar
-								if _, exists := i.classes[ident.Normalize(typeName)]; exists {
-									value = &NilValue{ClassType: typeName}
-								} else {
-									value = &NilValue{}
-								}
+						// Initialize basic types with their zero values
+						// Proper initialization allows implicit conversions to work with target type
+						switch ident.Normalize(typeName) {
+						case "integer":
+							value = &IntegerValue{Value: 0}
+						case "float":
+							value = &FloatValue{Value: 0.0}
+						case "string":
+							value = &StringValue{Value: ""}
+						case "boolean":
+							value = &BooleanValue{Value: false}
+						case "variant":
+							// Task 9.227: Initialize Variant with nil/unassigned value
+							value = &VariantValue{Value: nil, ActualType: nil}
+						default:
+							// Task 9.5.4: Check if this is a class type and create a typed nil value
+							// This allows accessing class variables via nil instances: var b: TBase; b.ClassVar
+							if _, exists := i.classes[ident.Normalize(typeName)]; exists {
+								value = &NilValue{ClassType: typeName}
+							} else {
+								value = &NilValue{}
 							}
 						}
 					}
@@ -269,9 +261,10 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 				nameValue = cloneIfCopyable(value)
 			}
 			// Task 9.1.6: If the type annotation is an interface type, wrap the value in an InterfaceInstance
+			// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
 			if stmt.Type != nil {
 				typeName := stmt.Type.String()
-				if ifaceInfo, exists := i.interfaces[ident.Normalize(typeName)]; exists {
+				if ifaceInfo := i.lookupInterfaceInfo(typeName); ifaceInfo != nil {
 					// Check if the value is already an InterfaceInstance
 					if _, alreadyInterface := nameValue.(*InterfaceInstance); !alreadyInterface {
 						// Check if the value is an ObjectInstance
@@ -349,18 +342,17 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 	}
 
 	// Check if this is a subrange type
-	subrangeTypeKey := "__subrange_type_" + ident.Normalize(typeName)
-	if typeVal, ok := i.env.Get(subrangeTypeKey); ok {
-		if stv, ok := typeVal.(*SubrangeTypeValue); ok {
-			return &SubrangeValue{
-				Value:        0,
-				SubrangeType: stv.SubrangeType,
-			}
+	// Task 3.5.182: Use TypeSystem for subrange type lookup
+	if subrangeType := i.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {
+		return &SubrangeValue{
+			Value:        subrangeType.LowBound,
+			SubrangeType: subrangeType,
 		}
 	}
 
 	// Task 9.1.3: Check if this is an interface type
-	if ifaceInfo, exists := i.interfaces[ident.Normalize(typeName)]; exists {
+	// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
+	if ifaceInfo := i.lookupInterfaceInfo(typeName); ifaceInfo != nil {
 		return &InterfaceInstance{
 			Interface: ifaceInfo,
 			Object:    nil,

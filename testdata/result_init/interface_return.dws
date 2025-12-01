@@ -1,5 +1,4 @@
 // Test Result initialization for interface return types
-// Task 3.5.142d: Validates proper NIL initialization for interfaces
 
 type
   IFoo = interface

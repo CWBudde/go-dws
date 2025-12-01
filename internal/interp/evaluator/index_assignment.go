@@ -11,7 +11,6 @@ import (
 // Index Assignment Operations
 // ============================================================================
 //
-// Task 3.5.105c: Migrated from Interpreter.evalIndexAssignment()
 // Handles array and string index assignment: arr[i] := value, str[i] := char
 //
 // Simple cases (arrays and strings) are handled directly in the evaluator.

@@ -15,9 +15,6 @@ const InvalidMethodID MethodID = 0
 // MethodRegistry stores methods by unique ID, enabling ID-based method calls
 // without AST dependencies in the hot path.
 //
-// Task 3.5.38: Implement MethodMetadata and MethodRegistry
-// Phase 9: AST-Free Runtime Types
-//
 // Design rationale:
 //   - Methods are registered once during class/function declaration (compile-time)
 //   - Method calls use IDs to look up MethodMetadata (avoiding AST access at runtime)

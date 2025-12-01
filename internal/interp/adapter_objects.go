@@ -208,7 +208,8 @@ func (i *Interpreter) CheckType(obj evaluator.Value, typeName string) bool {
 	}
 
 	// Task 3.5.34: Check if the target is an interface and if the object's class implements it
-	if iface, exists := i.interfaces[ident.Normalize(typeName)]; exists {
+	// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
+	if iface := i.lookupInterfaceInfo(typeName); iface != nil {
 		return classImplementsInterface(objVal.Class, iface)
 	}
 
@@ -291,7 +292,8 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 		}
 
 		// Check if target is an interface
-		if targetIface, isInterface := i.interfaces[ident.Normalize(typeName)]; isInterface {
+		// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
+		if targetIface := i.lookupInterfaceInfo(typeName); targetIface != nil {
 			// Interface-to-interface casting
 			underlyingObj := intfInst.Object
 			if underlyingObj == nil {
@@ -330,7 +332,8 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 	}
 
 	// Try interface casting
-	if iface, exists := i.interfaces[ident.Normalize(typeName)]; exists {
+	// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
+	if iface := i.lookupInterfaceInfo(typeName); iface != nil {
 		// Validate that the object's class implements the interface
 		if !classImplementsInterface(objVal.Class, iface) {
 			return nil, fmt.Errorf("class '%s' does not implement interface '%s'", objVal.Class.Name, iface.Name)
@@ -405,8 +408,9 @@ func (i *Interpreter) CreateInterfaceWrapper(interfaceName string, obj evaluator
 	}
 
 	// Look up the interface
-	iface, exists := i.interfaces[ident.Normalize(interfaceName)]
-	if !exists {
+	// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
+	iface := i.lookupInterfaceInfo(interfaceName)
+	if iface == nil {
 		return nil, fmt.Errorf("interface '%s' not found", interfaceName)
 	}
 

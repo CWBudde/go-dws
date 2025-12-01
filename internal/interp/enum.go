@@ -137,7 +137,6 @@ func (e *EnumTypeValue) String() string {
 }
 
 // GetEnumType returns the underlying EnumType.
-// Task 3.5.94: Implements EnumTypeValueAccessor interface for type cast support.
 func (e *EnumTypeValue) GetEnumType() *types.EnumType {
 	return e.EnumType
 }
