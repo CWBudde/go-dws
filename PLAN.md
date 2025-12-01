@@ -561,17 +561,14 @@ Bridge constructors to eliminate:
     - **Actual Effort**: 4 hours (matched estimate)
     - **Summary**: `/home/christian/.claude/plans/task-3.5.22a-completion-summary.md`
 
-  - [ ] **3.5.22b** Fix Array Return Type Initialization
-    - **Blocker**: Array initialization in `Result` variable may not work correctly
-    - **Test failure**: `TestDynamicArray_AddMethod/Add_to_array_inside_function`
-    - **Files**: `user_function_callbacks.go`, `functions_user.go`
-    - **Work**:
-      1. Trace array value flow in function returns
-      2. Ensure array values preserve reference semantics
-      3. Test dynamic array operations inside functions
-      4. Verify array modifications persist after function return
-    - **Effort**: 1 day
-    - **Deliverable**: Array return types work correctly
+  - [x] **3.5.22b** Fix Array Return Type Initialization ✅ COMPLETE (2025-12-02)
+    - **Root cause**: `resolveType()` in `record.go` used `i.env.Get()` for record lookups, but `i.env` is caller's environment in ExecuteUserFunction
+    - **Solution**: Changed record lookup in `resolveType()` to use TypeSystem: `i.typeSystem.LookupRecord(typeName)`
+    - **Note**: Array type lookups already used TypeSystem (`i.typeSystem.LookupArrayType()`) - only the nested record resolution needed fixing
+    - **Files**: `record.go:546-553` (fixed), `array_return_test.go` (NEW - 285 lines, 12 tests)
+    - **Tests**: All pass - Result.Add(), function pointers, overloaded functions, arrays of records
+    - **Actual Effort**: 2 hours
+    - **Deliverable**: Array return types with record elements work correctly in `ExecuteUserFunction`
 
   - [ ] **3.5.22c** Fix Method Pointer Return Values
     - **Blocker**: Method pointers return wrong value
