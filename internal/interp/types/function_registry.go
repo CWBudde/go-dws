@@ -398,3 +398,66 @@ func (r *FunctionRegistry) LookupAny(name string) (userDefined []*ast.FunctionDe
 func (r *FunctionRegistry) ExistsAny(name string) bool {
 	return r.Exists(name) || r.IsBuiltin(name)
 }
+
+// ===== Declaration/Implementation Support =====
+
+// RegisterOrReplace registers a function, replacing any existing declaration-only
+// version if this is an implementation (has a body).
+// Task 3.5.7: Supports interface/implementation section pattern where forward
+// declarations are later replaced by implementations with bodies.
+func (r *FunctionRegistry) RegisterOrReplace(name string, fn *ast.FunctionDecl) {
+	if fn == nil {
+		return
+	}
+
+	entry := &FunctionEntry{
+		Decl:     fn,
+		UnitName: "",
+		Name:     name,
+	}
+
+	existing, ok := r.functions.Get(name)
+	if !ok {
+		r.functions.Set(name, []*FunctionEntry{entry})
+		return
+	}
+
+	// If new function has body, try to replace matching declaration
+	if fn.Body != nil {
+		for idx, e := range existing {
+			if parametersMatchFn(e.Decl.Parameters, fn.Parameters) {
+				// Preserve virtual/override/reintroduce/abstract flags from declaration
+				fn.IsVirtual = e.Decl.IsVirtual
+				fn.IsOverride = e.Decl.IsOverride
+				fn.IsReintroduce = e.Decl.IsReintroduce
+				fn.IsAbstract = e.Decl.IsAbstract
+				existing[idx] = entry
+				r.functions.Set(name, existing)
+				return
+			}
+		}
+	}
+
+	// No match found or no body, append
+	r.functions.Set(name, append(existing, entry))
+}
+
+// parametersMatchFn checks if two parameter lists have matching signatures
+// (same count and same parameter types).
+func parametersMatchFn(params1, params2 []*ast.Parameter) bool {
+	if len(params1) != len(params2) {
+		return false
+	}
+	for i := range params1 {
+		// Compare parameter types
+		if params1[i].Type != nil && params2[i].Type != nil {
+			if params1[i].Type.String() != params2[i].Type.String() {
+				return false
+			}
+		} else if params1[i].Type != params2[i].Type {
+			// One has type, other doesn't
+			return false
+		}
+	}
+	return true
+}

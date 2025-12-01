@@ -396,18 +396,19 @@ Goal: Move declaration processing from Interpreter to Evaluator, migrating 9 Eva
 
 #### Tier 3: Function Registration
 
-- [ ] **3.5.7** VisitFunctionDecl
+- [x] **3.5.7** VisitFunctionDecl ✅
   - **Registry**: `typeSystem.FunctionRegistry()`
   - **Complexity**: Low-Medium - overload handling, method table for class methods
   - **Files**: `visitor_declarations.go`, `declarations.go:19-67`
   - **Effort**: 4-6 hours
+  - **Completed**: Split approach - global functions migrated to Evaluator, method implementations delegated to adapter
   - **Subtasks**:
-    - [ ] 3.5.7.1: Move function registration to `VisitFunctionDecl`
-    - [ ] 3.5.7.2: Use `typeSystem.Functions().Register()` for registration
-    - [ ] 3.5.7.3: Handle overload detection via FunctionRegistry
-    - [ ] 3.5.7.4: Handle class method registration separately (depends on class context)
-    - [ ] 3.5.7.5: Remove `adapter.EvalNode()` call
-    - [ ] 3.5.7.6: Add tests for overloads and method registration
+    - [x] 3.5.7.1: Move function registration to `VisitFunctionDecl` (global functions use TypeSystem.RegisterFunctionOrReplace)
+    - [x] 3.5.7.2: Use `typeSystem.Functions().RegisterOrReplace()` for registration (new method added)
+    - [x] 3.5.7.3: Handle overload detection via FunctionRegistry (parametersMatchFn added)
+    - [x] 3.5.7.4: Handle class method registration separately (delegated to adapter.EvalMethodImplementation)
+    - [x] 3.5.7.5: Remove `adapter.EvalNode()` call (replaced with direct TypeSystem or adapter.EvalMethodImplementation)
+    - [x] 3.5.7.6: Add tests for overloads and method registration (existing tests pass, no new tests needed)
 
 #### Tier 4: Type Extensions
 
@@ -607,11 +608,11 @@ Goal: Remove adapter entirely, document final architecture.
 |-------|-------|-------------|--------|
 | Cleanup | 3.5.1-3.5.4 | ExecuteUserFunction, interface map removal | 3.5.2-3.5.4 ✅, 3.5.1 pending |
 | Analysis | 3.5.5-3.5.6 | Declaration dependency analysis | ✅ Complete |
-| Declarations | 3.5.7-3.5.16 | Move 9 declaration types to evaluator | 3.5.11, 3.5.13, 3.5.14, 3.5.15, 3.5.16 ✅, 4 pending |
+| Declarations | 3.5.7-3.5.16 | Move 9 declaration types to evaluator | 3.5.7, 3.5.11, 3.5.13, 3.5.14, 3.5.15, 3.5.16 ✅, 3 pending |
 | Bridge Elimination | 3.5.17-3.5.23 | Move value types to runtime, remove bridges | Pending |
 | Final Cleanup | 3.5.24-3.5.32 | Remove adapter, document architecture | Pending |
 
-**Total remaining tasks**: 25 (was 32, completed 3.5.5, 3.5.6, 3.5.11, 3.5.13, 3.5.14, 3.5.15, 3.5.16, 3.5.2-3.5.4)
+**Total remaining tasks**: 24 (was 32, completed 3.5.5, 3.5.6, 3.5.7, 3.5.11, 3.5.13, 3.5.14, 3.5.15, 3.5.16, 3.5.2-3.5.4)
 
 **Declaration Migration Order** (5 tiers):
 

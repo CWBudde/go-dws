@@ -370,6 +370,16 @@ type InterpreterAdapter interface {
 	// Multiple functions may be returned for overloaded functions.
 	LookupFunction(name string) ([]*ast.FunctionDecl, bool)
 
+	// ===== Declaration Handling =====
+
+	// EvalMethodImplementation handles method implementation registration for classes/records.
+	// Task 3.5.7: Delegated to Interpreter because it requires ClassInfo internals
+	// (VMT rebuild, descendant propagation).
+	// Parameters:
+	//   - fn: The method implementation declaration (must have fn.ClassName != nil)
+	// Returns NilValue on success, ErrorValue on failure.
+	EvalMethodImplementation(fn *ast.FunctionDecl) Value
+
 	// Phase 3.5.4 - Phase 2B: Type system access methods
 	// These methods allow the Evaluator to access type registries during evaluation
 	// without directly accessing Interpreter fields.
