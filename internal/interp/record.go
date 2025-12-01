@@ -543,9 +543,11 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 				return etv.EnumType, nil
 			}
 		}
-		// Try record type
-		if recordTypeVal, ok := i.env.Get("__record_type_" + lowerTypeName); ok {
-			if rtv, ok := recordTypeVal.(*RecordTypeValue); ok {
+		// Try record type via TypeSystem
+		// Task 3.5.22b: Use TypeSystem registry instead of i.env.Get()
+		// This fixes the issue where i.env is the caller's environment in ExecuteUserFunction
+		if recordTypeValueAny := i.typeSystem.LookupRecord(typeName); recordTypeValueAny != nil {
+			if rtv, ok := recordTypeValueAny.(*RecordTypeValue); ok {
 				return rtv.RecordType, nil
 			}
 		}
