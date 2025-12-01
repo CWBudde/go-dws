@@ -9,8 +9,6 @@ import (
 )
 
 // executeUserFunctionViaEvaluator is a wrapper that calls the evaluator's ExecuteUserFunction.
-// Task 3.5.1c: This wrapper provides the same signature as callUserFunction but delegates
-// to the evaluator's ExecuteUserFunction with proper callbacks.
 //
 // This allows gradual migration of call sites from callUserFunction to the new evaluator-based
 // implementation without changing their signatures.

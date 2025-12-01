@@ -468,7 +468,6 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		}
 
 		// Handle interface properties explicitly (classes may not declare matching properties)
-		// Task 3.5.20: propInfo is now *runtime.PropertyInfo, extract Impl field
 		if propInfo != nil {
 			typesPropertyInfo, ok := propInfo.Impl.(*types.PropertyInfo)
 			if !ok {

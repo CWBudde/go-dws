@@ -65,8 +65,6 @@ func (i *Interpreter) createDefaultValueGetterCallback() evaluator.DefaultValueF
 		}
 
 		// Check if return type is a record (overrides default)
-		// Task 3.5.22a: Use TypeSystem registry instead of i.env.Get()
-		// This fixes the issue where i.env is the caller's environment, not the function environment
 		lowerReturnType = ident.Normalize(returnTypeName)
 		if recordTypeValueAny := i.typeSystem.LookupRecord(returnTypeName); recordTypeValueAny != nil {
 			// TypeSystem.LookupRecord returns any to avoid import cycles
@@ -105,9 +103,6 @@ func (i *Interpreter) createDefaultValueGetterCallback() evaluator.DefaultValueF
 //
 // In DWScript, assigning to either Result or the function name sets the return value.
 // This creates a ReferenceValue that points to "Result" in the function's environment.
-//
-// Task 3.5.1d: The callback now receives the function environment directly from
-// ExecuteUserFunction, since we no longer swap i.env during function execution.
 func (i *Interpreter) createFunctionNameAliasCallback() evaluator.FunctionNameAliasFunc {
 	return func(funcName string, funcEnv evaluator.Environment) evaluator.Value {
 		// Convert evaluator.Environment to *Environment for ReferenceValue

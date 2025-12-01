@@ -413,8 +413,6 @@ func (ts *TypeSystem) RegisterFunction(name string, fn *ast.FunctionDecl) {
 
 // RegisterFunctionOrReplace registers a function, replacing declaration-only version
 // if this is an implementation (has a body).
-// Task 3.5.7: Supports interface/implementation section pattern where forward
-// declarations are later replaced by implementations with bodies.
 func (ts *TypeSystem) RegisterFunctionOrReplace(name string, fn *ast.FunctionDecl) {
 	ts.functionRegistry.RegisterOrReplace(name, fn)
 }

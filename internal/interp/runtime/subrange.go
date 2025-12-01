@@ -11,10 +11,6 @@ import (
 // SubrangeValue wraps an integer value with subrange bounds checking.
 // Subrange types are integer types constrained to a specific range.
 //
-// Task 3.5.19: Moved from internal/interp/type_alias.go to runtime package
-// to enable evaluator package to work with subrange values directly without
-// circular imports.
-//
 // Example DWScript:
 //
 //	type TDigit = 0..9;
@@ -47,21 +43,17 @@ func (sv *SubrangeValue) ValidateAndSet(value int) error {
 }
 
 // GetValue returns the current integer value.
-// Task 3.5.19: Added to satisfy SubrangeValueAccessor interface in evaluator.
 func (sv *SubrangeValue) GetValue() int {
 	return sv.Value
 }
 
 // GetTypeName returns the subrange type name.
-// Task 3.5.19: Added to satisfy SubrangeValueAccessor interface in evaluator.
 func (sv *SubrangeValue) GetTypeName() string {
 	return sv.SubrangeType.Name
 }
 
 // NewSubrangeValue creates a new SubrangeValue with the given type and initial value.
 // Returns an error if the initial value is out of range.
-//
-// Task 3.5.19: Constructor added to enable direct creation in evaluator.
 func NewSubrangeValue(subrangeType *types.SubrangeType, initialValue int) (*SubrangeValue, error) {
 	if err := types.ValidateRange(initialValue, subrangeType); err != nil {
 		return nil, err
@@ -74,8 +66,6 @@ func NewSubrangeValue(subrangeType *types.SubrangeType, initialValue int) (*Subr
 
 // NewSubrangeValueZero creates a new SubrangeValue initialized to the low bound.
 // This is the default initialization for subrange variables.
-//
-// Task 3.5.19: Constructor for default initialization.
 func NewSubrangeValueZero(subrangeType *types.SubrangeType) *SubrangeValue {
 	return &SubrangeValue{
 		SubrangeType: subrangeType,

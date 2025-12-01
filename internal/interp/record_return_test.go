@@ -6,11 +6,6 @@ import (
 
 // TestRecordReturnTypeInitialization verifies that record return types are properly
 // initialized when using ExecuteUserFunction.
-//
-// Task 3.5.22a: This test verifies the fix for record return type initialization.
-// The bug was that createDefaultValueGetterCallback used i.env.Get() to look up
-// record types, but i.env is the caller's environment (not the function environment).
-// The fix uses TypeSystem.LookupRecord() instead, which accesses the global registry.
 func TestRecordReturnTypeInitialization(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -151,7 +146,6 @@ func TestRecordReturnTypeInitialization(t *testing.T) {
 }
 
 // TestRecordReturnViaFunctionPointer verifies record return types work with function pointers.
-// Task 3.5.22a: Function pointers use ExecuteUserFunction (from task 3.5.1b).
 func TestRecordReturnViaFunctionPointer(t *testing.T) {
 	input := `
 		type TPoint = record
@@ -187,7 +181,6 @@ func TestRecordReturnViaFunctionPointer(t *testing.T) {
 }
 
 // TestRecordReturnViaOverloadedFunction verifies record return types work with overloaded functions.
-// Task 3.5.22a: Function overloads use ExecuteUserFunction (from task 3.5.1a).
 func TestRecordReturnViaOverloadedFunction(t *testing.T) {
 	input := `
 		type TPair = record

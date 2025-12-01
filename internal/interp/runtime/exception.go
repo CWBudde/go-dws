@@ -11,9 +11,6 @@ import (
 
 // ExceptionValue represents an exception object at runtime.
 // It holds the exception class type, the message, position, and the call stack at the point of raise.
-//
-// Task 3.5.18: Moved from internal/interp/exceptions.go to runtime package.
-// Both ClassMetadata and ObjectInstance are in runtime, so no interface needed.
 type ExceptionValue struct {
 	Metadata  *ClassMetadata    // AST-free class metadata
 	Instance  *ObjectInstance   // Exception object instance
@@ -67,8 +64,6 @@ func (e *ExceptionValue) Inspect() string {
 
 // NewException creates a new exception with class metadata and message.
 // This is the primary constructor for exceptions in the runtime.
-//
-// Task 3.5.18: Added to enable direct exception construction in evaluator.
 func NewException(metadata *ClassMetadata, instance *ObjectInstance, message string, pos *lexer.Position, callStack errors.StackTrace) *ExceptionValue {
 	return &ExceptionValue{
 		Metadata:  metadata,
@@ -81,8 +76,6 @@ func NewException(metadata *ClassMetadata, instance *ObjectInstance, message str
 
 // NewExceptionFromObject wraps an existing ObjectInstance as an exception.
 // Used for raise statements with object instances.
-//
-// Task 3.5.18: Added to enable direct exception construction in evaluator.
 func NewExceptionFromObject(instance *ObjectInstance, message string, pos *lexer.Position, callStack errors.StackTrace) *ExceptionValue {
 	// Extract metadata from instance
 	var metadata *ClassMetadata

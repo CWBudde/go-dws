@@ -9,8 +9,6 @@ import (
 )
 
 // buildRecordMetadata builds RecordMetadata from AST declarations.
-// Task 3.5.10: Moved from Interpreter to Evaluator to eliminate adapter dependency.
-// Task 3.5.42: Helper to create AST-free metadata for records.
 func (e *Evaluator) buildRecordMetadata(
 	recordName string,
 	recordType *types.RecordType,
@@ -48,8 +46,6 @@ func (e *Evaluator) buildRecordMetadata(
 }
 
 // buildMethodMetadata converts an AST FunctionDecl to MethodMetadata.
-// Task 3.5.10: Moved from Interpreter to Evaluator to eliminate adapter dependency.
-// Task 3.5.42: Helper to extract metadata from AST method declarations.
 func (e *Evaluator) buildMethodMetadata(decl *ast.FunctionDecl) *runtime.MethodMetadata {
 	// Build parameter metadata
 	params := make([]runtime.ParameterMetadata, len(decl.Parameters))

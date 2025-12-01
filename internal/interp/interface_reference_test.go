@@ -226,7 +226,7 @@ func TestInterfaceInheritanceBasics(t *testing.T) {
 		t.Fatalf("Runtime error: %v", result.String())
 	}
 
-	// Verify both interfaces were registered (Task 3.5.184c: Use lookupInterfaceInfo)
+	// Verify both interfaces were registered
 	if interp.lookupInterfaceInfo("ibase") == nil {
 		t.Error("IBase interface should be registered")
 	}
@@ -285,7 +285,7 @@ func TestInterfaceImplementation(t *testing.T) {
 		t.Fatalf("Runtime error: %v", result.String())
 	}
 
-	// Verify interface was registered (Task 3.5.184c: Use lookupInterfaceInfo)
+	// Verify interface was registered
 	iface := interp.lookupInterfaceInfo("imyinterface")
 	if iface == nil {
 		t.Fatal("IMyInterface should be registered")
@@ -339,7 +339,7 @@ func TestInterfaceMultipleImplementation(t *testing.T) {
 		t.Fatalf("Runtime error: %v", result.String())
 	}
 
-	// Verify all interfaces were registered (Task 3.5.184c: Use lookupInterfaceInfo)
+	// Verify all interfaces were registered
 	ifaceA := interp.lookupInterfaceInfo("iintfa")
 	if ifaceA == nil {
 		t.Fatal("IIntfA should be registered")
