@@ -455,6 +455,13 @@ func lookupFieldMetadata(meta *ClassMetadata, normalizedName string) *FieldMetad
 	return nil
 }
 
+// LookupFieldInHierarchy searches for a field in the class metadata hierarchy.
+// This is the exported version of lookupFieldMetadata for use in other packages.
+// Returns the metadata for the field if found, or nil otherwise.
+func LookupFieldInHierarchy(meta *ClassMetadata, normalizedName string) *FieldMetadata {
+	return lookupFieldMetadata(meta, normalizedName)
+}
+
 // newError creates an error value.
 // This is a helper function to create error values without importing interp package.
 func newError(format string, args ...interface{}) Value {
