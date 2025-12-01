@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -526,6 +527,19 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 	if selfOk {
 		if obj, ok := AsObject(selfVal); ok {
 			// Check if it's an instance field
+			// Task 9.23: Check if field exists in the inheritance hierarchy
+			// Use lookupFieldMetadata which properly walks the inheritance chain
+			// This handles both programmatically-registered fields (like Exception.Message)
+			// and AST-declared fields
+			normalizedName := ident.Normalize(target.Value)
+
+			// Check if field exists in metadata (walks inheritance hierarchy)
+			if runtime.LookupFieldInHierarchy(obj.Class.GetMetadata(), normalizedName) != nil {
+				obj.SetField(target.Value, value)
+				return value
+			}
+
+			// Fallback: Check AST-based FieldsMap
 			fields := obj.Class.GetFieldsMap()
 			if fields != nil && fields[target.Value] != nil {
 				obj.SetField(target.Value, value)
