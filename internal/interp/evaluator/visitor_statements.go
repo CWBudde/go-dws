@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -99,10 +100,7 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 			// returning an ErrorValue that would bypass exception handlers.
 			if funcPtr.IsNil() {
 				// Raise a catchable exception (sets ctx.Exception())
-				// Task 3.5.133: Migrated to use CreateExceptionDirect bridge constructor
-				excClass := e.typeSystem.LookupClass("Exception")
-				callStack := ctx.CallStack()
-				exc := e.adapter.CreateExceptionDirect(excClass, "Function pointer is nil", &node.Token.Pos, callStack)
+			exc := e.createException("Exception", "Function pointer is nil", &node.Token.Pos, ctx)
 				ctx.SetException(exc)
 				return &runtime.NilValue{}
 			}
@@ -1243,9 +1241,6 @@ func (e *Evaluator) getExceptionInstance(exc interface{}) Value {
 // Task 3.5.134: Migrated from adapter to enable direct exception creation in evaluator.
 // Handles nil objects by creating a standard "Object not instantiated" exception.
 func (e *Evaluator) createExceptionFromObject(obj Value, ctx *ExecutionContext, pos any) any {
-	// Capture current call stack from context
-	callStack := ctx.CallStack()
-
 	// Handle nil object case -> raise standard "Object not instantiated" exception
 	if obj == nil || obj.Type() == "NIL" {
 		// Get Exception class from type system
@@ -1260,13 +1255,14 @@ func (e *Evaluator) createExceptionFromObject(obj Value, ctx *ExecutionContext, 
 			message = fmt.Sprintf("Object not instantiated [position: %v]", pos)
 		}
 
-		// Use bridge constructor to create exception
-		return e.adapter.CreateExceptionDirect(excClass, message, pos, callStack)
+		// Task 3.5.18: Use evaluator helper method for exception creation
+		lexerPos, _ := pos.(*lexer.Position)
+		return e.createException("Exception", message, lexerPos, ctx)
 	}
 
-	// Validate that we have an object instance
-	// The WrapObjectInException will panic if not, providing a clear error
-	return e.adapter.WrapObjectInException(obj, pos, callStack)
+	// Task 3.5.18: Use evaluator helper method to wrap object as exception
+	lexerPos, _ := pos.(*lexer.Position)
+	return e.wrapObjectAsException(obj, lexerPos, ctx)
 }
 
 // VisitBreakStatement evaluates a break statement.

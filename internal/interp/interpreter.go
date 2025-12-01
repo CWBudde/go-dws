@@ -43,8 +43,8 @@ type Interpreter struct {
 	output               io.Writer
 	helpers              map[string][]*HelperInfo
 	enumTypeIDRegistry   map[string]int
-	exception            *ExceptionValue
-	handlerException     *ExceptionValue
+	exception            *runtime.ExceptionValue // Task 3.5.18: Moved to runtime package
+	handlerException     *runtime.ExceptionValue // Task 3.5.18: Moved to runtime package
 	semanticInfo         *pkgast.SemanticInfo
 	unitRegistry         *units.UnitRegistry
 	propContext          *PropertyEvalContext
@@ -243,7 +243,8 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 
 // GetException returns the current active exception, or nil if none.
 // This is used by the CLI to detect and report unhandled exceptions.
-func (i *Interpreter) GetException() *ExceptionValue {
+// Task 3.5.18: Return type changed to runtime.ExceptionValue
+func (i *Interpreter) GetException() *runtime.ExceptionValue {
 	return i.exception
 }
 

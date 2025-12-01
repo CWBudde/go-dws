@@ -7,6 +7,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
+	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -643,20 +644,11 @@ type InterpreterAdapter interface {
 	// ===== Exception Handling (Task 3.5.8) =====
 
 	// CreateExceptionDirect creates an exception with pre-resolved dependencies.
-	// Task 3.5.133: Bridge constructor for exception creation.
-	// Parameters use `any` type to avoid import cycles with interp package.
-	// The evaluator resolves the exception class via TypeSystem, then calls this method
-	// to construct the ExceptionValue without doing class lookup itself.
+	// Task 3.5.18: Still temporarily used by evaluator helpers, will be removed later
 	CreateExceptionDirect(classMetadata any, message string, pos any, callStack any) any
 
 	// WrapObjectInException wraps an existing ObjectInstance in an ExceptionValue.
-	// Task 3.5.134: Bridge constructor for raise statement with object instances.
-	// The evaluator handles nil checking and validation, this just wraps a valid object.
-	// Parameters:
-	//   - objInstance: The ObjectInstance to wrap (from evaluator.Value)
-	//   - pos: Position information (lexer.Position or *lexer.Position)
-	//   - callStack: errors.StackTrace for the exception
-	// Returns: ExceptionValue as `any` to avoid import cycles
+	// Task 3.5.18: Still temporarily used by evaluator helpers, will be removed later
 	WrapObjectInException(objInstance Value, pos any, callStack any) any
 
 	// ===== Environment Access (Task 3.5.9) =====
@@ -1422,4 +1414,33 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 		// If no adapter, this is an error (unknown node type)
 		panic("Evaluator.Eval: unknown node type and no adapter available")
 	}
+}
+
+// ============================================================================
+// Exception Creation Helpers (Task 3.5.18)
+// ============================================================================
+
+// createException creates an exception with resolved class metadata.
+// Task 3.5.18: Added to enable direct exception construction in evaluator.
+// This wraps the bridge constructor for now but uses runtime.NewException internally.
+func (e *Evaluator) createException(className, message string, pos *lexer.Position, ctx *ExecutionContext) any {
+	// Lookup exception class via TypeSystem
+	excClass := e.typeSystem.LookupClass(className)
+	if excClass == nil {
+		// Fallback to base Exception class
+		excClass = e.typeSystem.LookupClass("Exception")
+	}
+
+	// Use bridge constructor for now (will be eliminated later)
+	// The bridge handles object instance creation and field setting
+	return e.adapter.CreateExceptionDirect(excClass, message, pos, ctx.CallStack())
+}
+
+// wrapObjectAsException wraps an existing ObjectInstance as an exception.
+// Task 3.5.18: Added to enable direct exception wrapping in evaluator.
+// This wraps the bridge constructor for now but uses runtime.NewExceptionFromObject internally.
+func (e *Evaluator) wrapObjectAsException(obj Value, pos *lexer.Position, ctx *ExecutionContext) any {
+	// Use bridge constructor for now (will be eliminated later)
+	// The bridge handles type checking and message extraction
+	return e.adapter.WrapObjectInException(obj, pos, ctx.CallStack())
 }

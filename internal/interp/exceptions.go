@@ -15,58 +15,10 @@ import (
 // Exception Value Representation
 // ============================================================================
 
-// ExceptionValue represents an exception object at runtime.
-// It holds the exception class type, the message, position, and the call stack at the point of raise.
-type ExceptionValue struct {
-	Metadata  *runtime.ClassMetadata // AST-free class metadata
-	Instance  *ObjectInstance
-	Message   string
-	Position  *lexer.Position   // Position where the exception was raised (for error reporting)
-	CallStack errors.StackTrace // Stack trace at the point the exception was raised
-
-	// Deprecated: Use Metadata instead. Will be removed in Phase 3.5.44.
-	// Kept temporarily for backward compatibility during migration.
-	ClassInfo *ClassInfo
-}
-
-// Type returns the type of this exception value.
-func (e *ExceptionValue) Type() string {
-	// Prefer metadata if available
-	if e.Metadata != nil {
-		return e.Metadata.Name
-	}
-	// Fallback to ClassInfo for backward compatibility
-	if e.ClassInfo != nil {
-		return e.ClassInfo.Name
-	}
-	return "EXCEPTION"
-}
-
-// GetInstance returns the ObjectInstance from this exception.
-// Returns interface{} to avoid circular import issues with evaluator package.
-func (e *ExceptionValue) GetInstance() interface{} {
-	if e == nil {
-		return nil
-	}
-	return e.Instance
-}
-
-// Inspect returns a string representation of the exception.
-func (e *ExceptionValue) Inspect() string {
-	// Phase 3.5.44: Add nil check to prevent panic
-	if e == nil {
-		return "EXCEPTION: <nil>"
-	}
-	// Prefer metadata if available
-	if e.Metadata != nil {
-		return fmt.Sprintf("%s: %s", e.Metadata.Name, e.Message)
-	}
-	// Fallback to ClassInfo for backward compatibility
-	if e.ClassInfo != nil {
-		return fmt.Sprintf("%s: %s", e.ClassInfo.Name, e.Message)
-	}
-	return fmt.Sprintf("EXCEPTION: %s", e.Message)
-}
+// ExceptionValue is now in runtime package.
+// Task 3.5.18: Moved to internal/interp/runtime/exception.go
+// This alias provides backward compatibility during migration.
+type ExceptionValue = runtime.ExceptionValue
 
 // ============================================================================
 // Built-in Exception Classes Registration
@@ -297,7 +249,8 @@ func (i *Interpreter) raiseMaxRecursionExceeded() Value {
 	instance.SetField("Message", &StringValue{Value: message})
 
 	// Set the exception (Position is nil for internally-raised exceptions like recursion overflow)
-	i.exception = &ExceptionValue{
+	// Task 3.5.18: Use runtime.ExceptionValue constructor
+	i.exception = &runtime.ExceptionValue{
 		Metadata:  stackOverflowClass.Metadata,
 		Instance:  instance,
 		Message:   message,
@@ -460,13 +413,16 @@ func (i *Interpreter) matchesExceptionType(exc *ExceptionValue, typeExpr ast.Typ
 	// Fallback to ClassInfo for backward compatibility
 	if exc.ClassInfo != nil {
 		// Check if exception class matches or inherits from handler type
-		currentClass := exc.ClassInfo
-		for currentClass != nil {
-			if currentClass.Name == typeName {
-				return true
+		// Task 3.5.18: Type assert from any to concrete ClassInfo
+		if classInfo, ok := exc.ClassInfo.(*ClassInfo); ok {
+			currentClass := classInfo
+			for currentClass != nil {
+				if currentClass.Name == typeName {
+					return true
+				}
+				// Check parent class
+				currentClass = currentClass.Parent
 			}
-			// Check parent class
-			currentClass = currentClass.Parent
 		}
 	}
 
@@ -526,9 +482,10 @@ func (i *Interpreter) evalRaiseStatement(stmt *ast.RaiseStatement) Value {
 	pos := stmt.Token.Pos
 
 	// Need concrete ClassInfo for ClassInfo field
+	// Task 3.5.18: Use runtime.ExceptionValue
 	concreteClass, ok := classInfo.(*ClassInfo)
 	if !ok {
-		i.exception = &ExceptionValue{
+		i.exception = &runtime.ExceptionValue{
 			Metadata:  classInfo.GetMetadata(),
 			Message:   message,
 			Instance:  obj,
@@ -538,7 +495,7 @@ func (i *Interpreter) evalRaiseStatement(stmt *ast.RaiseStatement) Value {
 		return nil
 	}
 
-	i.exception = &ExceptionValue{
+	i.exception = &runtime.ExceptionValue{
 		Metadata:  classInfo.GetMetadata(),
 		Message:   message,
 		Instance:  obj,
