@@ -791,7 +791,12 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 		// If the member is declared as a property on the interface, use that metadata
 		if propInfo := intfInst.Interface.GetProperty(target.Member.Value); propInfo != nil {
 			if obj, ok := AsObject(objVal); ok {
-				return i.evalPropertyWrite(obj, propInfo, value, stmt)
+				// Task 3.5.20: Extract *types.PropertyInfo from Impl field
+				typesPropertyInfo, ok := propInfo.Impl.(*types.PropertyInfo)
+				if !ok {
+					return i.newErrorWithLocation(stmt, "invalid property info type")
+				}
+				return i.evalPropertyWrite(obj, typesPropertyInfo, value, stmt)
 			}
 			return i.newErrorWithLocation(stmt, "interface underlying object is not a class instance")
 		}
@@ -865,7 +870,12 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 					}
 				}
 				if obj, ok := AsObject(objVal); ok {
-					return i.evalIndexedPropertyWrite(obj, propInfo, indexVals, value, stmt)
+					// Task 3.5.20: Extract *types.PropertyInfo from Impl field
+					typesPropertyInfo, ok := propInfo.Impl.(*types.PropertyInfo)
+					if !ok {
+						return i.newErrorWithLocation(stmt, "invalid property info type")
+					}
+					return i.evalIndexedPropertyWrite(obj, typesPropertyInfo, indexVals, value, stmt)
 				}
 				return i.newErrorWithLocation(stmt, "interface underlying object is not a class instance")
 			}
@@ -961,9 +971,15 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 		if intfInst.Object == nil {
 			return i.newErrorWithLocation(stmt, "Interface is nil")
 		}
-		if propInfo := intfInst.Interface.getDefaultProperty(); propInfo != nil && propInfo.IsIndexed {
+		// Task 3.5.20: Use GetDefaultProperty() (public) instead of getDefaultProperty()
+		if propInfo := intfInst.Interface.GetDefaultProperty(); propInfo != nil && propInfo.IsIndexed {
 			if obj, ok := AsObject(intfInst.Object); ok {
-				return i.evalIndexedPropertyWrite(obj, propInfo, []Value{indexVal}, value, stmt)
+				// Extract *types.PropertyInfo from Impl field
+				typesPropertyInfo, ok := propInfo.Impl.(*types.PropertyInfo)
+				if !ok {
+					return i.newErrorWithLocation(stmt, "invalid property info type")
+				}
+				return i.evalIndexedPropertyWrite(obj, typesPropertyInfo, []Value{indexVal}, value, stmt)
 			}
 			return i.newErrorWithLocation(stmt, "interface underlying object is not a class instance")
 		}

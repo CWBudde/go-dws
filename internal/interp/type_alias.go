@@ -35,31 +35,9 @@ func (tv *TypeAliasValue) GetAliasedType() types.Type {
 // Subrange Type Support
 // ============================================================================
 
+// Task 3.5.19: SubrangeValue has been moved to internal/interp/runtime/subrange.go
+// A type alias is provided in value.go for backward compatibility.
 // The types.SubrangeType struct provides all needed metadata directly.
-
-// SubrangeValue wraps an integer value with subrange bounds checking.
-type SubrangeValue struct {
-	SubrangeType *types.SubrangeType
-	Value        int
-}
-
-func (sv *SubrangeValue) Type() string {
-	return sv.SubrangeType.Name
-}
-
-func (sv *SubrangeValue) String() string {
-	return fmt.Sprintf("%d", sv.Value)
-}
-
-// ValidateAndSet checks if a value is within bounds and updates the subrange value.
-// Returns an error if the value is out of range.
-func (sv *SubrangeValue) ValidateAndSet(value int) error {
-	if err := types.ValidateRange(value, sv.SubrangeType); err != nil {
-		return err
-	}
-	sv.Value = value
-	return nil
-}
 
 // evalTypeDeclaration evaluates a type declaration
 // Handles type aliases: type TUserID = Integer;

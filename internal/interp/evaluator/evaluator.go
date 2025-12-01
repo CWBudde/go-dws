@@ -706,14 +706,8 @@ type InterpreterAdapter interface {
 
 	// ===== Bridge Adapter Methods for Zero Value Creation =====
 
-	// CreateSubrangeValueDirect creates a subrange value from subrange type metadata.
-	CreateSubrangeValueDirect(subrangeType any) Value
-
-	// CreateInterfaceInstanceDirect creates a nil interface instance from metadata.
-	CreateInterfaceInstanceDirect(interfaceInfo any) Value
-
-	// CreateTypedNilValue creates a typed nil value for a class.
-	CreateTypedNilValue(className string) Value
+	// Task 3.5.19: CreateSubrangeValueDirect removed - evaluator now uses runtime.NewSubrangeValueZero directly
+	// Task 3.5.23: CreateInterfaceInstanceDirect removed - evaluator now uses runtime.NewInterfaceInstance directly
 
 	// ===== Property & Method Reference Adapter Methods =====
 

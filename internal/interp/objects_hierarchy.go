@@ -458,7 +458,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		propInfo := intfInst.Interface.GetProperty(memberName)
 		hasMethod := intfInst.Interface.HasMethod(memberName)
 		if !hasMethod && propInfo == nil {
-			return i.newErrorWithLocation(ma, "member '%s' not found in interface '%s'", memberName, intfInst.Interface.Name)
+			return i.newErrorWithLocation(ma, "member '%s' not found in interface '%s'", memberName, intfInst.Interface.GetName())
 		}
 
 		// Get the underlying object to find the implementation
@@ -468,8 +468,13 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		}
 
 		// Handle interface properties explicitly (classes may not declare matching properties)
+		// Task 3.5.20: propInfo is now *runtime.PropertyInfo, extract Impl field
 		if propInfo != nil {
-			return i.evalPropertyRead(underlyingObj, propInfo, ma)
+			typesPropertyInfo, ok := propInfo.Impl.(*types.PropertyInfo)
+			if !ok {
+				return i.newErrorWithLocation(ma, "invalid property info type")
+			}
+			return i.evalPropertyRead(underlyingObj, typesPropertyInfo, ma)
 		}
 
 		// Method path: reuse object logic (auto-invoke parameterless, otherwise return function pointer)
@@ -482,7 +487,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 		if len(methodOverloads) == 0 && len(classMethodOverloads) == 0 {
 			return i.newErrorWithLocation(ma, "method '%s' declared in interface '%s' but not implemented by class '%s'",
-				memberName, intfInst.Interface.Name, underlyingObj.Class.GetName())
+				memberName, intfInst.Interface.GetName(), underlyingObj.Class.GetName())
 		}
 
 		var method *ast.FunctionDecl

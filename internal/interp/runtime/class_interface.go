@@ -112,10 +112,50 @@ type OperatorEntry struct {
 	IsClassMethod bool              // True if this is a class method operator
 }
 
-// InterfaceInfo provides metadata about an interface.
-// Forward declaration to avoid import cycle with internal/types.
-// The actual InterfaceInfo is defined in internal/interp/interface.go.
-type InterfaceInfo interface {
+// IInterfaceInfo provides read-only access to interface information.
+// This interface allows InterfaceInstance (in runtime package) to reference
+// InterfaceInfo (in interp package) without creating a circular import dependency.
+//
+// InterfaceInfo (internal/interp/interface.go) implements this interface.
+type IInterfaceInfo interface {
+	// GetName returns the interface name
 	GetName() string
-	// Add more methods as needed during implementation
+
+	// GetParent returns the parent interface, or nil if this is a root interface
+	GetParent() IInterfaceInfo
+
+	// GetMethod looks up a method by name in this interface (case-insensitive).
+	// Searches the interface hierarchy, starting with this interface
+	// and walking up through parent interfaces until the method is found.
+	// Returns the method declaration (*ast.FunctionDecl passed as any) or nil if not found.
+	GetMethod(name string) any
+
+	// HasMethod checks if this interface (or any parent) has a method with the given name.
+	// Name comparison is case-insensitive.
+	HasMethod(name string) bool
+
+	// GetProperty looks up a property by name in this interface (case-insensitive).
+	// Searches the interface hierarchy until found.
+	// Returns property metadata or nil if not found.
+	GetProperty(name string) *PropertyInfo
+
+	// HasProperty checks if the interface (or any parent) declares a property.
+	// Name comparison is case-insensitive.
+	HasProperty(name string) bool
+
+	// GetDefaultProperty returns the default property defined on the interface hierarchy, if any.
+	// Returns nil if no default property exists.
+	GetDefaultProperty() *PropertyInfo
+
+	// AllMethods returns all methods in this interface, including inherited methods.
+	// Returns a new map containing all methods from this interface and its parents.
+	AllMethods() map[string]any
+
+	// AllProperties returns all properties declared on this interface and its parents.
+	AllProperties() map[string]*PropertyInfo
 }
+
+// InterfaceInfo is a legacy type alias maintained for backward compatibility.
+// New code should use IInterfaceInfo.
+// TODO: Remove this alias after all code is migrated to use IInterfaceInfo.
+type InterfaceInfo = IInterfaceInfo

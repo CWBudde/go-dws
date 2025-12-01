@@ -82,6 +82,10 @@ type (
 	// VariantValue represents a Variant value in DWScript.
 	// Task 3.5.139: Moved to runtime.VariantValue for evaluator access.
 	VariantValue = runtime.VariantValue
+
+	// SubrangeValue wraps an integer value with subrange bounds checking.
+	// Task 3.5.19: Moved to runtime.SubrangeValue for evaluator access.
+	SubrangeValue = runtime.SubrangeValue
 )
 
 // ============================================================================

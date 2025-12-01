@@ -17,42 +17,8 @@ import (
 
 // ===== Task 3.5.129: Bridge Adapter Methods for Zero Value Creation =====
 
-// CreateSubrangeValueDirect creates a subrange value from subrange type metadata.
-// Task 3.5.129c: Bridge constructor - SubrangeValue cannot be constructed in evaluator (circular import).
-// Task 3.5.182: Accepts *types.SubrangeType directly from TypeSystem.
-func (i *Interpreter) CreateSubrangeValueDirect(subrangeTypeAny any) evaluator.Value {
-	st, ok := subrangeTypeAny.(*types.SubrangeType)
-	if !ok || st == nil {
-		return &NilValue{}
-	}
-
-	// Construct SubrangeValue with low bound as zero value
-	return &SubrangeValue{
-		Value:        st.LowBound,
-		SubrangeType: st,
-	}
-}
-
-// CreateInterfaceInstanceDirect creates a nil interface instance from metadata.
-// Task 3.5.129d: Bridge constructor - InterfaceInstance cannot be constructed in evaluator.
-func (i *Interpreter) CreateInterfaceInstanceDirect(interfaceInfoAny any) evaluator.Value {
-	ifaceInfo, ok := interfaceInfoAny.(*InterfaceInfo)
-	if !ok {
-		return &NilValue{}
-	}
-
-	// Create nil interface instance (Object field is nil)
-	return &InterfaceInstance{
-		Interface: ifaceInfo,
-		Object:    nil,
-	}
-}
-
-// CreateTypedNilValue creates a typed nil value for a class.
-// Task 3.5.129e: Bridge constructor - NilValue.ClassType cannot be set in evaluator.
-func (i *Interpreter) CreateTypedNilValue(className string) evaluator.Value {
-	return &NilValue{ClassType: className}
-}
+// Task 3.5.19: CreateSubrangeValueDirect removed - evaluator now uses runtime.NewSubrangeValueZero directly
+// Task 3.5.23: CreateInterfaceInstanceDirect removed - evaluator now uses runtime.NewInterfaceInstance directly
 
 // ===== Task 3.5.40: Record Literal Adapter Method Implementations =====
 // Task 3.5.128e: CreateRecordValue removed - evaluator now handles record creation directly

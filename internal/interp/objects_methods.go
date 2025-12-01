@@ -501,7 +501,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		// This ensures we only call methods that are part of the interface contract
 		if !intfInst.Interface.HasMethod(mc.Method.Value) {
 			return i.newErrorWithLocation(mc, "method '%s' not found in interface '%s'",
-				mc.Method.Value, intfInst.Interface.Name)
+				mc.Method.Value, intfInst.Interface.GetName())
 		}
 
 		// Delegate to the underlying object for actual method dispatch
