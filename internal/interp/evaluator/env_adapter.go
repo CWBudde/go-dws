@@ -38,7 +38,11 @@ func NewEnvironmentAdapter(underlying interface{}) *EnvironmentAdapter {
 func (ea *EnvironmentAdapter) Define(name string, value interface{}) {
 	// Convert interface{} to runtime.Value
 	var val runtime.Value
-	if v, ok := value.(runtime.Value); ok {
+	if value == nil {
+		// nil values are allowed (e.g., uninitialized array elements)
+		// Use NilValue as the default
+		val = &runtime.NilValue{}
+	} else if v, ok := value.(runtime.Value); ok {
 		val = v
 	} else {
 		// If not already a Value, this is a programming error

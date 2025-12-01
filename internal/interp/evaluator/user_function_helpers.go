@@ -140,9 +140,12 @@ type DefaultValueFunc func(returnTypeName string) Value
 // Task 3.5.144b.3: Callback pattern allows ReferenceValue creation to remain in interpreter.
 //
 // In DWScript, assigning to either Result or the function name sets the return value.
-// This callback creates a ReferenceValue that points to "Result" in the current environment.
+// This callback creates a ReferenceValue that points to "Result" in the function's environment.
 // The interpreter callback handles the environment-specific ReferenceValue creation.
-type FunctionNameAliasFunc func(funcName string) Value
+//
+// Task 3.5.1d: Changed signature to accept the function environment directly,
+// since ExecuteUserFunction doesn't swap i.env like the old callUserFunction did.
+type FunctionNameAliasFunc func(funcName string, funcEnv Environment) Value
 
 // InitializeResultVariable initializes the Result variable for functions.
 // Task 3.5.144b.3: Extract Result variable initialization from callUserFunction.
@@ -186,7 +189,7 @@ func (e *Evaluator) InitializeResultVariable(
 	// Create function name alias if callback provided
 	// In DWScript, assigning to either Result or the function name sets the return value
 	if aliasCreator != nil {
-		aliasValue := aliasCreator(fn.Name.Value)
+		aliasValue := aliasCreator(fn.Name.Value, env)
 		env.Define(fn.Name.Value, aliasValue)
 	}
 
@@ -310,24 +313,39 @@ func (e *Evaluator) ExecuteUserFunction(
 	ctx *ExecutionContext,
 	callbacks *UserFunctionCallbacks,
 ) (Value, error) {
-	// Task 3.5.144b.7: Function body execution
-	// - Function body is evaluated using e.Eval() with the function's environment
-	// - Exit signal is handled by clearing it and returning current Result
-	// - Exceptions are propagated via ctx
+	// Task 3.5.1d: Validate argument count (mirrors callUserFunction lines 16-31)
+	requiredParams := 0
+	for _, param := range fn.Parameters {
+		if param.DefaultValue == nil {
+			requiredParams++
+		}
+	}
+	if len(args) < requiredParams {
+		return nil, fmt.Errorf("wrong number of arguments: expected at least %d, got %d",
+			requiredParams, len(args))
+	}
+	if len(args) > len(fn.Parameters) {
+		return nil, fmt.Errorf("wrong number of arguments: expected at most %d, got %d",
+			len(fn.Parameters), len(args))
+	}
 
-	// Task 3.5.144b.8: Result value extraction
-	// - For functions (fn.ReturnType != nil): get "Result" from environment
-	// - Apply interface ref count increment if returning interface
-	// - Apply implicit conversion if return type doesn't match
-	// - For procedures: return NilValue
-
-	// Task 3.5.144b.9: Postcondition checking
-	// - Uses e.CheckPostconditions() with old values from stack
-	// - Propagates exceptions if postcondition raises
-
-	// Task 3.5.144b.10: Interface cleanup
-	// - Calls callbacks.InterfaceCleanup() before restoring environment
-	// - Cleans up interface/object references in function scope
+	// Fill in missing optional arguments with default values
+	// Note: For calls via CallUserFunctionWithOverloads, defaults are already filled
+	// by evaluator.EvaluateDefaultParameters. This code handles other call paths.
+	if len(args) < len(fn.Parameters) && callbacks.DefaultValueGetter != nil {
+		for idx := len(args); idx < len(fn.Parameters); idx++ {
+			param := fn.Parameters[idx]
+			if param.DefaultValue == nil {
+				return nil, fmt.Errorf("internal error: missing required parameter at index %d", idx)
+			}
+			// Evaluate default value in caller's context
+			defaultVal := e.Eval(param.DefaultValue, ctx)
+			if isError(defaultVal) {
+				return nil, fmt.Errorf("error evaluating default value: %v", defaultVal)
+			}
+			args = append(args, defaultVal)
+		}
+	}
 
 	// Create new environment for function scope
 	funcEnv := ctx.Env().NewEnclosedEnvironment()

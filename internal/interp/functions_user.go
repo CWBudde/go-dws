@@ -3,9 +3,34 @@ package interp
 import (
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
+
+// executeUserFunctionViaEvaluator is a wrapper that calls the evaluator's ExecuteUserFunction.
+// Task 3.5.1c: This wrapper provides the same signature as callUserFunction but delegates
+// to the evaluator's ExecuteUserFunction with proper callbacks.
+//
+// This allows gradual migration of call sites from callUserFunction to the new evaluator-based
+// implementation without changing their signatures.
+func (i *Interpreter) executeUserFunctionViaEvaluator(fn *ast.FunctionDecl, args []Value) Value {
+	// Convert []Value to []evaluator.Value (they implement the same interface)
+	evalArgs := make([]evaluator.Value, len(args))
+	for idx, arg := range args {
+		evalArgs[idx] = arg
+	}
+
+	// Create callbacks for interpreter-dependent operations
+	callbacks := i.createUserFunctionCallbacks()
+
+	// Execute via evaluator
+	result, err := i.evaluatorInstance.ExecuteUserFunction(fn, evalArgs, i.ctx, callbacks)
+	if err != nil {
+		return newError("%s", err.Error())
+	}
+	return result
+}
 
 // callUserFunction executes a user-defined function.
 // Default parameter evaluation can be pre-handled by evaluator.EvaluateDefaultParameters

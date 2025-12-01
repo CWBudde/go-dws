@@ -256,113 +256,210 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 #### Remaining Tasks
 
 - [ ] **3.5.1** Complete ExecuteUserFunction Integration
-  - **Status**: PARTIAL - callbacks created, integration pending
+  - **Status**: PARTIAL - 3.5.1a-c done, 3.5.1d blocked
   - **Files**: `user_function_callbacks.go`, `adapter_functions.go`, `functions_user.go`
-  - **Work remaining**:
-    - Update `CallUserFunctionWithOverloads` to use `ExecuteUserFunction`
-    - Update `ExecuteFunctionPointerCall` to use `ExecuteUserFunction`
-    - Remove old `callUserFunction` method (~238 lines)
-    - Run comprehensive tests
-  - **Effort**: 3-4 hours
+  - **Total Effort**: 4 hours (3 done, 1 blocked)
   - **Risk**: Medium - core function execution path
 
-- [ ] **3.5.2** Remove `interfaces` Map from Interpreter
+  - [x] **3.5.1a** Update CallUserFunctionWithOverloads ✅
+    - Replaced line 149 in `adapter_functions.go` to use `ExecuteUserFunction`
+    - Created callbacks via `createUserFunctionCallbacks()`
+    - Handles error return (converts to ErrorValue)
+
+  - [x] **3.5.1b** Update ExecuteFunctionPointerCall ✅
+    - Replaced lines 71, 80 in `adapter_functions.go` to use `ExecuteUserFunction`
+    - Fixed: Changed `FunctionNameAliasFunc` signature to pass function environment directly
+    - Self binding works by setting up wrapper environment before `ExecuteUserFunction` call
+
+  - [x] **3.5.1c** Create Wrapper for Remaining Calls ✅
+    - Added `executeUserFunctionViaEvaluator(fn, args) Value` in `functions_user.go`
+    - Wraps `ExecuteUserFunction` with type conversion and error handling
+    - Fixed: Updated `EnvironmentAdapter.Define` to handle nil values (converts to NilValue)
+
+  - [ ] **3.5.1d** Remove Old callUserFunction - **BLOCKED**
+    - **Blockers discovered during attempted migration**:
+      1. Record return type initialization uses `i.env.Get()` in callback, but `i.env` isn't swapped
+      2. Array initialization in `Result` may not work correctly
+      3. Several test failures when replacing all call sites:
+         - `TestUnaryOperatorOverload`: Record return values not working
+         - `TestEvalAddressOfMethod`: Method pointer returns wrong value
+         - `TestDynamicArray_AddMethod/Add_to_array_inside_function`: Array operations fail
+    - **Work needed**:
+      1. Audit `createDefaultValueGetterCallback` to handle record/array types without relying on `i.env`
+      2. Ensure record/array return values are properly initialized in function scope
+      3. Test all operator overload paths
+    - **Current state**: Wrapper exists but only used by 3.5.1a and 3.5.1b paths
+    - **Call sites to migrate (25+)**: `objects_methods.go:33`, `functions_calls.go:164,264`, `adapter_methods.go:119,419,467,526,556,600,624`, `functions_pointers.go:46,55`, `operators_eval.go:53,223,271`, `expressions_basic.go:193`, `adapter_objects.go:73,119`
+
+- [x] **3.5.2** Remove `interfaces` Map from Interpreter ✅
   - **Files**: `interpreter.go`, all files using `i.interfaces[...]`
   - **Prerequisite**: TypeSystem.LookupInterface() already exists and is used
   - **Work**: Remove field, update any remaining direct accesses
-  - **Effort**: 1-2 hours
-  - **Risk**: Low - TypeSystem already has the data
+  - **Completed**: Removed field, added `LookupInterfaceInfo()` and `GetTypeSystem()` public methods
 
-- [ ] **3.5.3** Remove Duplicate Interface Registration
+- [x] **3.5.3** Remove Duplicate Interface Registration ✅
   - **Files**: `declarations.go`, `interface.go`
   - **Work**: Remove registration to `i.interfaces`, keep only TypeSystem
-  - **Effort**: 30 minutes
-  - **Risk**: Low
+  - **Completed**: Both registration sites now use TypeSystem only
 
-- [ ] **3.5.4** Verify All Interface Tests Pass
+- [x] **3.5.4** Verify All Interface Tests Pass ✅
   - **Work**: Run full test suite, fix any regressions
-  - **Effort**: 1 hour (assuming no issues)
-  - **Risk**: Low
+  - **Completed**: All interface tests pass, updated 37 test usages to use `lookupInterfaceInfo()`
 
-- [ ] **3.5.5** Analyze Declaration EvalNode Dependencies
+- [x] **3.5.5** Analyze Declaration EvalNode Dependencies ✅
   - **Goal**: Document what each of 10 declaration types needs for migration
   - **Declarations**: Function, Class, Interface, Record, Enum, Helper, Array, Operator, Set, Type
   - **Deliverable**: Dependency map showing registry requirements, execution-time needs
-  - **Effort**: 1 day
-  - **Risk**: Low (research task)
+  - **Completed**: Full analysis in `/home/christian/.claude/plans/effervescent-stargazing-sparkle.md`
 
-- [ ] **3.5.6** Design Declaration Migration Strategy
+- [x] **3.5.6** Design Declaration Migration Strategy ✅
   - **Goal**: Plan migration approach based on 3.5.5 analysis
-  - **Approach**: Hybrid - simple declarations first (Enum, Helper, Array), complex later (Class)
-  - **Deliverable**: Detailed breakdown for 3.5.7-3.5.16
-  - **Effort**: 1 day
-  - **Risk**: Low (design task)
+  - **Approach**: 5-tier migration - pure registration first (Enum, Operator), then bounds evaluation (Array, Type), then functions, then extensions (Helper, Interface), finally complex types (Record, Class)
+  - **Deliverable**: Detailed subtask breakdown for 3.5.7-3.5.16
+  - **Completed**: See refined task structure below
 
 ---
 
 **Declaration Migration** (3.5.7-3.5.16)
 
-Goal: Move declaration processing from Interpreter to Evaluator, migrating 10 EvalNode calls.
+Goal: Move declaration processing from Interpreter to Evaluator, migrating 9 EvalNode calls (SetDecl already complete).
 
-- [ ] **3.5.7** VisitFunctionDecl
-  - **Registry**: FunctionRegistry (already in TypeSystem)
-  - **Complexity**: Low
-  - **Files**: `visitor_declarations.go`, `declarations.go`
-  - **Effort**: 2-4 hours
+#### Tier 1: Pure Registration (No Execution Dependencies)
 
-- [ ] **3.5.8** VisitClassDecl
-  - **Registry**: ClassRegistry + MethodRegistry
-  - **Complexity**: Medium - field initialization, method registration
-  - **Files**: `visitor_declarations.go`, `class.go`, `declarations.go`
-  - **Effort**: 1-2 days
-
-- [ ] **3.5.9** VisitInterfaceDecl
-  - **Registry**: TypeSystem.interfaces
-  - **Complexity**: Low (after 3.5.2-3.5.4 cleanup)
-  - **Files**: `visitor_declarations.go`, `interface.go`
-  - **Effort**: 2-4 hours
-
-- [ ] **3.5.10** VisitRecordDecl
-  - **Registry**: TypeSystem.records
-  - **Complexity**: Low
-  - **Files**: `visitor_declarations.go`, `record.go`
-  - **Effort**: 2-4 hours
+- [x] **3.5.15** VisitSetDecl ✅
+  - **Status**: Already complete - semantic analyzer handles set declarations
+  - **Registry**: TypeSystem (pre-registered)
+  - **Files**: `set.go:477-487` - NO-OP implementation
+  - **Effort**: None required
 
 - [ ] **3.5.11** VisitEnumDecl
-  - **Registry**: TypeSystem.enumTypes
-  - **Complexity**: Low
+  - **Registry**: `typeSystem.RegisterEnumType()`
+  - **Complexity**: Low - pure metadata, only env storage for unscoped
   - **Files**: `visitor_declarations.go`, `enum.go`
-  - **Effort**: 2-4 hours
-
-- [ ] **3.5.12** VisitHelperDecl
-  - **Registry**: TypeSystem.helpers
-  - **Complexity**: Low
-  - **Files**: `visitor_declarations.go`, `declarations.go`
-  - **Effort**: 2-4 hours
-
-- [ ] **3.5.13** VisitArrayDecl
-  - **Registry**: TypeSystem.arrayTypes
-  - **Complexity**: Low
-  - **Files**: `visitor_declarations.go`, `declarations.go`
-  - **Effort**: 2-4 hours
+  - **Effort**: 2-3 hours
+  - **Subtasks**:
+    - [ ] 3.5.11.1: Move `evalEnumDeclaration` logic to `VisitEnumDecl`
+    - [ ] 3.5.11.2: Use `ctx.Environment()` for unscoped value storage
+    - [ ] 3.5.11.3: Remove `adapter.EvalNode()` call
+    - [ ] 3.5.11.4: Add tests for scoped/unscoped/flags enums
 
 - [ ] **3.5.14** VisitOperatorDecl
-  - **Registry**: TypeSystem.operators
-  - **Complexity**: Low (metadata only)
-  - **Files**: `visitor_declarations.go`, `declarations.go`
-  - **Effort**: 2-4 hours
+  - **Registry**: `TypeSystem.Operators()`, `TypeSystem.Conversions()`, `classInfo.Operators`
+  - **Complexity**: Low - pure registration, no execution
+  - **Files**: `visitor_declarations.go`, `declarations.go:917-1044`
+  - **Effort**: 3-4 hours
+  - **Subtasks**:
+    - [ ] 3.5.14.1: Move operator registration to `VisitOperatorDecl`
+    - [ ] 3.5.14.2: Use TypeSystem for class lookup
+    - [ ] 3.5.14.3: Use `TypeSystem.Operators()` for registration
+    - [ ] 3.5.14.4: Handle conversion operators via `TypeSystem.Conversions()`
+    - [ ] 3.5.14.5: Remove `adapter.EvalNode()` call
+    - [ ] 3.5.14.6: Add tests for global/class/conversion operators
 
-- [ ] **3.5.15** VisitSetDecl
-  - **Registry**: Needs new registry in TypeSystem
-  - **Complexity**: Medium - requires adding SetRegistry
-  - **Files**: `visitor_declarations.go`, `set.go`, `types/type_system.go`
-  - **Effort**: 1 day
+#### Tier 2: Simple Execution (Bounds/Type Resolution)
+
+- [ ] **3.5.13** VisitArrayDecl
+  - **Registry**: `typeSystem.RegisterArrayType()`
+  - **Complexity**: Low - just bounds evaluation
+  - **Files**: `visitor_declarations.go`, `array.go:16-70`
+  - **Effort**: 2-3 hours
+  - **Subtasks**:
+    - [ ] 3.5.13.1: Move `evalArrayDeclaration` logic to `VisitArrayDecl`
+    - [ ] 3.5.13.2: Use evaluator's type resolution for element type
+    - [ ] 3.5.13.3: Use evaluator for bound expression evaluation
+    - [ ] 3.5.13.4: Remove `adapter.EvalNode()` call
+    - [ ] 3.5.13.5: Add tests for dynamic and static arrays
 
 - [ ] **3.5.16** VisitTypeDeclaration
   - **Registry**: TypeSystem (subranges already migrated)
-  - **Complexity**: Low
-  - **Files**: `visitor_declarations.go`, `type_alias.go`
-  - **Effort**: 2-4 hours
+  - **Complexity**: Low - bounds for subranges
+  - **Files**: `visitor_declarations.go`, `type_alias.go:64-100+`
+  - **Effort**: 2-3 hours
+  - **Subtasks**:
+    - [ ] 3.5.16.1: Move type alias logic to `VisitTypeDeclaration`
+    - [ ] 3.5.16.2: Move subrange logic with bounds evaluation
+    - [ ] 3.5.16.3: Use evaluator for bound expression evaluation
+    - [ ] 3.5.16.4: Remove `adapter.EvalNode()` call
+    - [ ] 3.5.16.5: Add tests for aliases and subranges
+
+#### Tier 3: Function Registration
+
+- [ ] **3.5.7** VisitFunctionDecl
+  - **Registry**: `typeSystem.FunctionRegistry()`
+  - **Complexity**: Low-Medium - overload handling, method table for class methods
+  - **Files**: `visitor_declarations.go`, `declarations.go:19-67`
+  - **Effort**: 4-6 hours
+  - **Subtasks**:
+    - [ ] 3.5.7.1: Move function registration to `VisitFunctionDecl`
+    - [ ] 3.5.7.2: Use `typeSystem.Functions().Register()` for registration
+    - [ ] 3.5.7.3: Handle overload detection via FunctionRegistry
+    - [ ] 3.5.7.4: Handle class method registration separately (depends on class context)
+    - [ ] 3.5.7.5: Remove `adapter.EvalNode()` call
+    - [ ] 3.5.7.6: Add tests for overloads and method registration
+
+#### Tier 4: Type Extensions
+
+- [ ] **3.5.12** VisitHelperDecl
+  - **Registry**: `typeSystem.RegisterHelper()`, `typeSystem.LookupHelpers()`
+  - **Complexity**: Medium - depends on class/record types existing
+  - **Files**: `visitor_declarations.go`, `helpers_validation.go:44-150+`
+  - **Effort**: 4-6 hours
+  - **Prerequisite**: Tier 1-2 complete
+  - **Subtasks**:
+    - [ ] 3.5.12.1: Move helper registration to `VisitHelperDecl`
+    - [ ] 3.5.12.2: Use TypeSystem for target type lookup
+    - [ ] 3.5.12.3: Use `TypeSystem.LookupHelpers()` for parent resolution
+    - [ ] 3.5.12.4: Register via `TypeSystem.RegisterHelper()`
+    - [ ] 3.5.12.5: Remove `adapter.EvalNode()` call
+    - [ ] 3.5.12.6: Add tests for class/record helpers, inheritance
+
+- [ ] **3.5.9** VisitInterfaceDecl
+  - **Registry**: `TypeSystem.RegisterInterface()`, `TypeSystem.LookupInterface()`
+  - **Complexity**: Medium - parent interface validation
+  - **Files**: `visitor_declarations.go`, `declarations.go:803-859`, `interface.go`
+  - **Effort**: 4-6 hours
+  - **Prerequisite**: 3.5.2-3.5.4 complete ✅
+  - **Subtasks**:
+    - [ ] 3.5.9.1: Move interface creation to `VisitInterfaceDecl`
+    - [ ] 3.5.9.2: Use `TypeSystem.LookupInterface()` for parent
+    - [ ] 3.5.9.3: Use `TypeSystem.RegisterInterface()` for registration
+    - [ ] 3.5.9.4: Handle property conversion from AST
+    - [ ] 3.5.9.5: Remove `adapter.EvalNode()` call
+    - [ ] 3.5.9.6: Add tests for inheritance, methods, properties
+
+#### Tier 5: Complex Types with Methods
+
+- [ ] **3.5.10** VisitRecordDecl
+  - **Registry**: `typeSystem.RegisterRecord()`, `methodRegistry`
+  - **Complexity**: Medium - field init + method registration
+  - **Files**: `visitor_declarations.go`, `record.go:112-250+`
+  - **Effort**: 1 day
+  - **Subtasks**:
+    - [ ] 3.5.10.1: Move record type creation to `VisitRecordDecl`
+    - [ ] 3.5.10.2: Use evaluator for field initializer evaluation
+    - [ ] 3.5.10.3: Use TypeSystem for record registration
+    - [ ] 3.5.10.4: Handle method registration via methodRegistry
+    - [ ] 3.5.10.5: Preserve RecordMetadata building
+    - [ ] 3.5.10.6: Remove `adapter.EvalNode()` call
+    - [ ] 3.5.10.7: Add tests for fields, methods, initializers
+
+- [ ] **3.5.8** VisitClassDecl
+  - **Registry**: `typeSystem.RegisterClassWithParent()`, `methodRegistry`, `classInfo.Operators`
+  - **Complexity**: High - virtual tables, inheritance, nested classes
+  - **Files**: `visitor_declarations.go`, `declarations.go:204-726`, `class.go`
+  - **Effort**: 2-3 days
+  - **Blocker**: Phase 9 (AST-free methods) for full completion
+  - **Subtasks**:
+    - [ ] 3.5.8.1: Move basic class creation to `VisitClassDecl`
+    - [ ] 3.5.8.2: Use `TypeSystem.Classes()` for parent lookup
+    - [ ] 3.5.8.3: Use `TypeSystem.RegisterClassWithParent()` for registration
+    - [ ] 3.5.8.4: Migrate virtual method table building
+    - [ ] 3.5.8.5: Handle nested class evaluation
+    - [ ] 3.5.8.6: Migrate operator registration
+    - [ ] 3.5.8.7: Preserve ClassMetadata building
+    - [ ] 3.5.8.8: Handle method implementation updates
+    - [ ] 3.5.8.9: Remove `adapter.EvalNode()` calls
+    - [ ] 3.5.8.10: Add comprehensive tests
 
 ---
 
@@ -494,15 +591,23 @@ Goal: Remove adapter entirely, document final architecture.
 
 #### Phase 3.5 Summary
 
-| Group | Tasks | Description |
-|-------|-------|-------------|
-| Cleanup | 3.5.1-3.5.4 | ExecuteUserFunction, interface map removal |
-| Analysis | 3.5.5-3.5.6 | Declaration dependency analysis |
-| Declarations | 3.5.7-3.5.16 | Move 10 declaration types to evaluator |
-| Bridge Elimination | 3.5.17-3.5.23 | Move value types to runtime, remove bridges |
-| Final Cleanup | 3.5.24-3.5.32 | Remove adapter, document architecture |
+| Group | Tasks | Description | Status |
+|-------|-------|-------------|--------|
+| Cleanup | 3.5.1-3.5.4 | ExecuteUserFunction, interface map removal | 3.5.2-3.5.4 ✅, 3.5.1 pending |
+| Analysis | 3.5.5-3.5.6 | Declaration dependency analysis | ✅ Complete |
+| Declarations | 3.5.7-3.5.16 | Move 9 declaration types to evaluator | 3.5.15 ✅, 8 pending |
+| Bridge Elimination | 3.5.17-3.5.23 | Move value types to runtime, remove bridges | Pending |
+| Final Cleanup | 3.5.24-3.5.32 | Remove adapter, document architecture | Pending |
 
-**Total remaining tasks**: 32
+**Total remaining tasks**: 28 (was 32, completed 3.5.5, 3.5.6, 3.5.15, 3.5.2-3.5.4)
+
+**Declaration Migration Order** (5 tiers):
+
+1. **Tier 1** (Pure Registration): Enum ➔ Operator
+2. **Tier 2** (Simple Execution): Array ➔ Type
+3. **Tier 3** (Function Registration): Function
+4. **Tier 4** (Type Extensions): Helper ➔ Interface
+5. **Tier 5** (Complex Types): Record ➔ Class
 
 ---
 

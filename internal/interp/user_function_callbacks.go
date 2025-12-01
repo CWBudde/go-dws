@@ -103,16 +103,19 @@ func (i *Interpreter) createDefaultValueGetterCallback() evaluator.DefaultValueF
 // In DWScript, assigning to either Result or the function name sets the return value.
 // This creates a ReferenceValue that points to "Result" in the function's environment.
 //
-// Note: The callback receives the function name but needs access to the function's environment.
-// Since the callback is called from within InitializeResultVariable (which has the function context),
-// we create a closure that captures the interpreter and creates the reference using i.env.
-// The evaluator will call this with the function environment as i.env when the function executes.
+// Task 3.5.1d: The callback now receives the function environment directly from
+// ExecuteUserFunction, since we no longer swap i.env during function execution.
 func (i *Interpreter) createFunctionNameAliasCallback() evaluator.FunctionNameAliasFunc {
-	return func(funcName string) evaluator.Value {
-		// Create a ReferenceValue pointing to "Result" in the current environment
-		// Note: i.env will be the function's environment when this is called
-		// (the interpreter's environment is swapped during function execution)
-		return &ReferenceValue{Env: i.env, VarName: "Result"}
+	return func(funcName string, funcEnv evaluator.Environment) evaluator.Value {
+		// Convert evaluator.Environment to *Environment for ReferenceValue
+		// The funcEnv is actually an *Environment wrapped in EnvironmentAdapter
+		if adapter, ok := funcEnv.(*evaluator.EnvironmentAdapter); ok {
+			if env, ok := adapter.Underlying().(*Environment); ok {
+				return &ReferenceValue{Env: env, VarName: "Result"}
+			}
+		}
+		// If we can't get the environment, return nil (will cause issues but provides debug info)
+		return &NilValue{}
 	}
 }
 
