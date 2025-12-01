@@ -412,6 +412,41 @@ type InterpreterAdapter interface {
 	// The lookup is case-insensitive.
 	LookupHelpers(typeName string) []any
 
+	// ===== Task 3.5.12: Helper Declaration Adapter Methods =====
+
+	// CreateHelperInfo creates a new HelperInfo instance.
+	// Parameters use any to avoid import cycles with internal/types package.
+	// targetType is expected to be types.Type from internal/types.
+	// Returns the helper info as interface{} to avoid import cycles.
+	CreateHelperInfo(name string, targetType any, isRecordHelper bool) interface{}
+
+	// SetHelperParent sets the parent helper for inheritance chain.
+	SetHelperParent(helper interface{}, parent interface{})
+
+	// VerifyHelperTargetTypeMatch checks if parent helper's target type matches the given type.
+	// targetType is expected to be types.Type from internal/types.
+	VerifyHelperTargetTypeMatch(parent interface{}, targetType any) bool
+
+	// GetHelperName returns the name of a helper (for parent lookup by name).
+	GetHelperName(helper interface{}) string
+
+	// AddHelperMethod registers a method in the helper.
+	AddHelperMethod(helper interface{}, normalizedName string, method *ast.FunctionDecl)
+
+	// AddHelperProperty registers a property in the helper.
+	// propType is expected to be types.Type from internal/types.
+	AddHelperProperty(helper interface{}, prop *ast.PropertyDecl, propType any)
+
+	// AddHelperClassVar adds a class variable to the helper.
+	AddHelperClassVar(helper interface{}, name string, value Value)
+
+	// AddHelperClassConst adds a class constant to the helper.
+	AddHelperClassConst(helper interface{}, name string, value Value)
+
+	// RegisterHelperLegacy registers the helper in the legacy i.helpers map.
+	// This maintains backward compatibility during migration.
+	RegisterHelperLegacy(typeName string, helper interface{})
+
 	// ===== Operator & Conversion Registries =====
 
 	// GetOperatorRegistry returns the operator registry for operator overload lookups.

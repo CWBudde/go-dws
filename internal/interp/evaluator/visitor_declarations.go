@@ -247,10 +247,119 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 }
 
 // VisitHelperDecl evaluates a helper declaration (type extension).
+// Task 3.5.12: Migrated from Interpreter.evalHelperDeclaration to Evaluator visitor.
+//
+// This method handles helper declarations of the form:
+//
+//	type TStringHelper = helper for String ... end;
+//	type TPointHelper = record helper for TPoint ... end;
+//	type TChildHelper = helper(TParentHelper) for String ... end;
+//
+// It resolves the target type, handles parent helper inheritance,
+// registers methods/properties, and registers the helper in the TypeSystem.
 func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2B: Helper registry available via adapter.LookupHelpers()
-	// TODO: Move helper registration logic here (use adapter type system methods)
-	return e.adapter.EvalNode(node)
+	if node == nil {
+		return &runtime.NilValue{}
+	}
+
+	// 3.5.12.2: Resolve the target type using evaluator's type resolution
+	targetType, err := e.ResolveTypeFromAnnotation(node.ForType)
+	if err != nil {
+		return e.newError(node, "unknown target type '%s' for helper '%s'",
+			node.ForType.String(), node.Name.Value)
+	}
+
+	// Create helper info via adapter
+	helperInfo := e.adapter.CreateHelperInfo(node.Name.Value, targetType, node.IsRecordHelper)
+	if helperInfo == nil {
+		return e.newError(node, "failed to create helper info for '%s'", node.Name.Value)
+	}
+
+	// 3.5.12.3: Resolve parent helper if specified
+	if node.ParentHelper != nil {
+		parentHelperName := node.ParentHelper.Value
+
+		// Search all registered helpers for parent by name
+		var foundParent interface{}
+		for _, helpers := range e.typeSystem.AllHelpers() {
+			for _, helper := range helpers {
+				if ident.Equal(e.adapter.GetHelperName(helper), parentHelperName) {
+					foundParent = helper
+					break
+				}
+			}
+			if foundParent != nil {
+				break
+			}
+		}
+
+		if foundParent == nil {
+			return e.newError(node.ParentHelper,
+				"unknown parent helper '%s' for helper '%s'",
+				parentHelperName, node.Name.Value)
+		}
+
+		// Verify target type compatibility
+		if !e.adapter.VerifyHelperTargetTypeMatch(foundParent, targetType) {
+			return e.newError(node.ParentHelper,
+				"parent helper '%s' extends different type than child helper '%s'",
+				parentHelperName, node.Name.Value)
+		}
+
+		// Set up inheritance chain
+		e.adapter.SetHelperParent(helperInfo, foundParent)
+	}
+
+	// Register methods (case-insensitive keys)
+	for _, method := range node.Methods {
+		e.adapter.AddHelperMethod(helperInfo, ident.Normalize(method.Name.Value), method)
+	}
+
+	// Register properties
+	for _, prop := range node.Properties {
+		propType, propErr := e.ResolveTypeFromAnnotation(prop.Type)
+		if propErr != nil {
+			return e.newError(prop, "unknown type '%s' for property '%s'",
+				prop.Type.String(), prop.Name.Value)
+		}
+		e.adapter.AddHelperProperty(helperInfo, prop, propType)
+	}
+
+	// Initialize class variables
+	for _, classVar := range node.ClassVars {
+		varType, varErr := e.resolveTypeName(classVar.Type.String(), ctx)
+		if varErr != nil {
+			return e.newError(classVar, "unknown type for class variable '%s'",
+				classVar.Name.Value)
+		}
+		defaultValue := e.GetDefaultValue(varType)
+		e.adapter.AddHelperClassVar(helperInfo, classVar.Name.Value, defaultValue)
+	}
+
+	// Initialize class constants (evaluate values)
+	for _, classConst := range node.ClassConsts {
+		constValue := e.Eval(classConst.Value, ctx)
+		if isError(constValue) {
+			return constValue
+		}
+		e.adapter.AddHelperClassConst(helperInfo, classConst.Name.Value, constValue)
+	}
+
+	// 3.5.12.4: Register via TypeSystem.RegisterHelper()
+	typeName := ident.Normalize(targetType.String())
+	e.typeSystem.RegisterHelper(typeName, helperInfo)
+
+	// Also maintain legacy map for backward compatibility during migration
+	e.adapter.RegisterHelperLegacy(typeName, helperInfo)
+
+	// Also register by simple type name for lookup compatibility
+	simpleTypeName := ident.Normalize(extractSimpleTypeName(targetType.String()))
+	if simpleTypeName != typeName {
+		e.typeSystem.RegisterHelper(simpleTypeName, helperInfo)
+		e.adapter.RegisterHelperLegacy(simpleTypeName, helperInfo)
+	}
+
+	return &runtime.NilValue{}
 }
 
 // VisitArrayDecl evaluates an array type declaration.
@@ -467,4 +576,14 @@ func (e *Evaluator) VisitSetDecl(node *ast.SetDecl, ctx *ExecutionContext) Value
 	// Set type already registered by semantic analyzer
 	// Delegate to adapter for now (Phase 3 migration)
 	return e.adapter.EvalNode(node)
+}
+
+// extractSimpleTypeName extracts the simple type name from a possibly qualified type string.
+// Task 3.5.12: Used for helper registration with simplified type names.
+// Example: "array of Integer" -> "array"
+func extractSimpleTypeName(typeName string) string {
+	if idx := strings.Index(typeName, " "); idx != -1 {
+		return typeName[:idx]
+	}
+	return typeName
 }
