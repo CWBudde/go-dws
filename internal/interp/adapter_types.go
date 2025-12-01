@@ -2,6 +2,7 @@ package interp
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
@@ -688,4 +689,377 @@ func (i *Interpreter) SetClassParent(classInfo interface{}, parentClass interfac
 
 	// Copy operator overloads
 	ci.Operators = parent.Operators.clone()
+}
+
+// AddInterfaceToClass adds an interface to a class's interface list.
+// This updates both the ClassInfo.Interfaces slice and Metadata.Interfaces.
+func (i *Interpreter) AddInterfaceToClass(classInfo interface{}, interfaceInfo interface{}, interfaceName string) {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return
+	}
+
+	iface, ok := interfaceInfo.(*InterfaceInfo)
+	if !ok {
+		return
+	}
+
+	// Add interface to class's interface list
+	ci.Interfaces = append(ci.Interfaces, iface)
+
+	// Add interface name to metadata
+	ci.Metadata.Interfaces = append(ci.Metadata.Interfaces, interfaceName)
+}
+
+// ===== Task 3.5.8 Phase 6: Method, Property, and Operator Adapters =====
+
+// AddClassMethod adds a method declaration to a ClassInfo.
+// Task 3.5.8 Phase 6: Migrated from declarations.go:556-637 method processing loop.
+// This handles method registration, constructor detection, overload handling, and metadata creation.
+func (i *Interpreter) AddClassMethod(classInfo interface{}, method *ast.FunctionDecl, className string) bool {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return false
+	}
+
+	// Normalize method name for case-insensitive lookup
+	normalizedMethodName := ident.Normalize(method.Name.Value)
+
+	// Auto-detect constructors: methods named "Create" that return the class type
+	// This handles inline constructor declarations like: function Create(...): TClass;
+	// Matches semantic analyzer behavior (analyze_classes_decl.go:576-580)
+	if !method.IsConstructor && ident.Equal(method.Name.Value, "Create") && method.ReturnType != nil {
+		returnTypeName := method.ReturnType.String()
+		if ident.Equal(returnTypeName, className) {
+			method.IsConstructor = true
+		}
+	}
+
+	// Create MethodMetadata once for this method
+	methodMeta := runtime.MethodMetadataFromAST(method)
+	i.methodRegistry.RegisterMethod(methodMeta)
+
+	// Check if this is a class method (static method) or instance method
+	if method.IsClassMethod {
+		// Store in ClassMethods map
+		ci.ClassMethods[normalizedMethodName] = method
+		// Add to overload list
+		ci.ClassMethodOverloads[normalizedMethodName] = append(ci.ClassMethodOverloads[normalizedMethodName], method)
+
+		// Add to metadata (unless it's a constructor/destructor - those go separately)
+		if !method.IsConstructor && !method.IsDestructor {
+			runtime.AddMethodToClass(ci.Metadata, methodMeta, true)
+		}
+	} else {
+		// Store in instance Methods map
+		ci.Methods[normalizedMethodName] = method
+		// Add to overload list
+		ci.MethodOverloads[normalizedMethodName] = append(ci.MethodOverloads[normalizedMethodName], method)
+
+		// Add to metadata (unless it's a constructor/destructor - those go separately)
+		if !method.IsConstructor && !method.IsDestructor {
+			runtime.AddMethodToClass(ci.Metadata, methodMeta, false)
+		}
+	}
+
+	// Handle destructor
+	if method.IsDestructor {
+		ci.Metadata.Destructor = methodMeta
+	}
+
+	// Handle constructor
+	if method.IsConstructor {
+		normalizedName := ident.Normalize(method.Name.Value)
+		ci.Constructors[normalizedName] = method
+
+		// Add constructor to metadata (reuse methodMeta)
+		runtime.AddConstructorToClass(ci.Metadata, methodMeta)
+
+		// Capture default constructor
+		if method.IsDefault {
+			ci.DefaultConstructor = method.Name.Value
+		}
+
+		// In DWScript, a child constructor with the same name and signature HIDES the parent's,
+		// regardless of whether it has the `override` keyword or not
+		existingOverloads := ci.ConstructorOverloads[normalizedName]
+		replaced := false
+		for idx, existingMethod := range existingOverloads {
+			// Check if signatures match (same number and types of parameters)
+			if parametersMatch(existingMethod.Parameters, method.Parameters) {
+				// Replace the parent constructor with this child constructor (hiding)
+				existingOverloads[idx] = method
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			// No matching parent constructor found (different signature), just append
+			existingOverloads = append(existingOverloads, method)
+		}
+		// Write the modified slice back to the map
+		ci.ConstructorOverloads[normalizedName] = existingOverloads
+	}
+
+	return true
+}
+
+// CreateMethodMetadata creates runtime MethodMetadata from an AST method declaration.
+// Task 3.5.8 Phase 6: Wrapper around runtime.MethodMetadataFromAST with registration.
+func (i *Interpreter) CreateMethodMetadata(method *ast.FunctionDecl) interface{} {
+	methodMeta := runtime.MethodMetadataFromAST(method)
+	i.methodRegistry.RegisterMethod(methodMeta)
+	return methodMeta
+}
+
+// SynthesizeDefaultConstructor synthesizes an implicit parameterless constructor.
+// Task 3.5.8 Phase 6: Migrated from declarations.go:880-923.
+// For each constructor name, if it has the 'overload' directive but no parameterless overload,
+// synthesize one. This matches DWScript behavior.
+func (i *Interpreter) SynthesizeDefaultConstructor(classInfo interface{}) {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return
+	}
+
+	// For each constructor name, check if it has the 'overload' directive
+	// If so, ensure there's a parameterless overload
+	for ctorName, overloads := range ci.ConstructorOverloads {
+		hasOverloadDirective := false
+		hasParameterlessOverload := false
+
+		// Check if any overload has the 'overload' directive
+		// and if a parameterless overload already exists
+		for _, ctor := range overloads {
+			if ctor.IsOverload {
+				hasOverloadDirective = true
+			}
+			if len(ctor.Parameters) == 0 {
+				hasParameterlessOverload = true
+			}
+		}
+
+		// If this constructor set has 'overload' but no parameterless version, synthesize one
+		if hasOverloadDirective && !hasParameterlessOverload {
+			// Create a minimal constructor AST node (just for runtime - no actual body needed)
+			// The interpreter will initialize fields with default values when no constructor body exists
+			implicitConstructor := &ast.FunctionDecl{
+				BaseNode:      ast.BaseNode{},
+				Name:          &ast.Identifier{Value: ctorName},
+				Parameters:    []*ast.Parameter{}, // No parameters
+				ReturnType:    nil,                // Constructors don't have explicit return types
+				Body:          nil,                // No body - just field initialization
+				IsConstructor: true,
+				IsOverload:    true,
+			}
+
+			// Add to class constructor maps
+			normalizedName := ident.Normalize(ctorName)
+			if _, exists := ci.Constructors[normalizedName]; !exists {
+				ci.Constructors[normalizedName] = implicitConstructor
+			}
+			ci.ConstructorOverloads[normalizedName] = append(
+				ci.ConstructorOverloads[normalizedName],
+				implicitConstructor,
+			)
+		}
+	}
+}
+
+// AddClassProperty adds a property declaration to a ClassInfo.
+// Task 3.5.8 Phase 6: Migrated from declarations.go:690-710 property registration.
+func (i *Interpreter) AddClassProperty(classInfo interface{}, propDecl *ast.PropertyDecl) bool {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return false
+	}
+
+	// Convert AST property to PropertyInfo
+	propInfo := i.convertPropertyDecl(propDecl)
+	if propInfo != nil {
+		ci.Properties[propDecl.Name.Value] = propInfo
+		return true
+	}
+	return false
+}
+
+// RegisterClassOperator registers an operator overload for a class.
+// Task 3.5.8 Phase 6: Migrated from declarations.go:976-1047 registerClassOperator.
+func (i *Interpreter) RegisterClassOperator(classInfo interface{}, opDecl *ast.OperatorDecl) Value {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return i.newErrorWithLocation(opDecl, "internal error: invalid class type")
+	}
+
+	if opDecl.Binding == nil {
+		return i.newErrorWithLocation(opDecl, "class operator '%s' missing binding", opDecl.OperatorSymbol)
+	}
+
+	bindingName := opDecl.Binding.Value
+	normalizedBindingName := ident.Normalize(bindingName)
+	_, isClassMethod := ci.ClassMethods[normalizedBindingName]
+	if !isClassMethod {
+		_, ok := ci.Methods[normalizedBindingName]
+		if !ok {
+			return i.newErrorWithLocation(opDecl, "binding '%s' for class operator '%s' not found in class '%s'", bindingName, opDecl.OperatorSymbol, ci.Name)
+		}
+	}
+
+	classKey := NormalizeTypeAnnotation(ci.Name)
+	operandTypes := make([]string, 0, len(opDecl.OperandTypes)+1)
+	includesClass := false
+	for _, operand := range opDecl.OperandTypes {
+		// Resolve type aliases before normalizing
+		// This ensures that "toa" (alias for "array of const") is resolved to "ARRAY OF CONST"
+		typeName := operand.String()
+		resolvedType, err := i.resolveType(typeName)
+		var key string
+		if err == nil {
+			// Successfully resolved - use the resolved type's string representation
+			key = NormalizeTypeAnnotation(resolvedType.String())
+		} else {
+			// Failed to resolve - use the raw type name (might be a forward reference)
+			key = NormalizeTypeAnnotation(typeName)
+		}
+		if key == classKey {
+			includesClass = true
+		}
+		operandTypes = append(operandTypes, key)
+	}
+	if !includesClass {
+		if ident.Equal(opDecl.OperatorSymbol, "in") {
+			operandTypes = append(operandTypes, classKey)
+		} else {
+			operandTypes = append([]string{classKey}, operandTypes...)
+		}
+	}
+
+	selfIndex := -1
+	if !isClassMethod {
+		for idx, key := range operandTypes {
+			if key == classKey {
+				selfIndex = idx
+				break
+			}
+		}
+		if selfIndex == -1 {
+			return i.newErrorWithLocation(opDecl, "unable to determine self operand for class operator '%s'", opDecl.OperatorSymbol)
+		}
+	}
+
+	entry := &runtimeOperatorEntry{
+		Operator:      opDecl.OperatorSymbol,
+		OperandTypes:  operandTypes,
+		BindingName:   normalizedBindingName,
+		Class:         ci,
+		IsClassMethod: isClassMethod,
+		SelfIndex:     selfIndex,
+	}
+
+	if err := ci.Operators.register(entry); err != nil {
+		return i.newErrorWithLocation(opDecl, "class operator '%s' already defined for operand types (%s)", opDecl.OperatorSymbol, strings.Join(operandTypes, ", "))
+	}
+
+	return &NilValue{}
+}
+
+// LookupClassMethod looks up a method in a ClassInfo by name.
+// Task 3.5.8 Phase 6: Helper for identifying constructors/destructors.
+func (i *Interpreter) LookupClassMethod(classInfo interface{}, methodName string, isClassMethod bool) (interface{}, bool) {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return nil, false
+	}
+
+	normalizedName := ident.Normalize(methodName)
+	if isClassMethod {
+		method, exists := ci.ClassMethods[normalizedName]
+		return method, exists
+	}
+	method, exists := ci.Methods[normalizedName]
+	return method, exists
+}
+
+// SetClassConstructor sets the constructor field on a ClassInfo (legacy behavior).
+// Task 3.5.8 Phase 6: Maintains backward compatibility with old implementation.
+func (i *Interpreter) SetClassConstructor(classInfo interface{}, constructor interface{}) {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return
+	}
+	ctor, ok := constructor.(*ast.FunctionDecl)
+	if !ok {
+		return
+	}
+	ci.Constructor = ctor
+}
+
+// SetClassDestructor sets the destructor field on a ClassInfo (legacy behavior).
+// Task 3.5.8 Phase 6: Maintains backward compatibility with old implementation.
+func (i *Interpreter) SetClassDestructor(classInfo interface{}, destructor interface{}) {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return
+	}
+	dtor, ok := destructor.(*ast.FunctionDecl)
+	if !ok {
+		return
+	}
+	ci.Destructor = dtor
+}
+
+// InheritDestructorIfMissing inherits destructor from parent if no local destructor declared.
+// Task 3.5.8 Phase 6: Migrated from declarations.go:680-683.
+func (i *Interpreter) InheritDestructorIfMissing(classInfo interface{}) {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return
+	}
+
+	// Inherit destructor from parent if no local destructor declared
+	if ci.Metadata.Destructor == nil && ci.Parent != nil && ci.Parent.Metadata.Destructor != nil {
+		ci.Metadata.Destructor = ci.Parent.Metadata.Destructor
+	}
+}
+
+// InheritParentProperties copies parent properties to child class if not already defined.
+// Task 3.5.8 Phase 6: Migrated from declarations.go:702-710.
+func (i *Interpreter) InheritParentProperties(classInfo interface{}) {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return
+	}
+
+	// Copy parent properties (child inherits all parent properties)
+	if ci.Parent != nil {
+		for propName, propInfo := range ci.Parent.Properties {
+			// Only copy if not already defined in child class
+			if _, exists := ci.Properties[propName]; !exists {
+				ci.Properties[propName] = propInfo
+			}
+		}
+	}
+}
+
+// ===== Task 3.5.8 Phase 7: VMT and Registration Adapters =====
+
+// BuildVirtualMethodTable builds the virtual method table for a class.
+// Task 3.5.8 Phase 7: Delegates to existing ClassInfo.buildVirtualMethodTable().
+// This method implements proper virtual/override/reintroduce semantics.
+func (i *Interpreter) BuildVirtualMethodTable(classInfo interface{}) {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return
+	}
+	ci.buildVirtualMethodTable()
+}
+
+// RegisterClassInTypeSystem registers a class in the TypeSystem after VMT is built.
+// Task 3.5.8 Phase 7: Uses TypeSystem.RegisterClassWithParent() for proper hierarchy tracking.
+func (i *Interpreter) RegisterClassInTypeSystem(classInfo interface{}, parentName string) {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return
+	}
+	i.typeSystem.RegisterClassWithParent(ci.Name, ci, parentName)
 }

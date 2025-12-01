@@ -141,10 +141,98 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 		e.adapter.SetClassParent(classInfo, parentClass)
 	}
 
-	// TODO: Phase 4 - Interface implementation
+	// Phase 4: Interface implementation
+	// Process implemented interfaces - validate existence and store references
+	for _, ifaceIdent := range node.Interfaces {
+		ifaceName := ifaceIdent.Value
+		// Look up interface in TypeSystem (case-insensitive)
+		iface := e.typeSystem.LookupInterface(ifaceName)
+		if iface == nil {
+			return e.newError(node, "interface '%s' not found", ifaceName)
+		}
+
+		// Add interface to class's interface list (updates both ClassInfo and Metadata)
+		e.adapter.AddInterfaceToClass(classInfo, iface, ifaceName)
+
+		// Note: Method implementation validation is deferred until class methods
+		// are fully processed. For now, we just register that the class claims to
+		// implement the interface. Full validation happens in semantic analysis.
+	}
+
 	// TODO: Phase 5 - Constants, fields, nested types
-	// TODO: Phase 6 - Methods, properties, operators
-	// TODO: Phase 7 - Virtual method table and TypeSystem registration
+
+	// Phase 6: Methods, properties, operators
+
+	// Add own methods to ClassInfo (these override parent methods if same name)
+	// Support method overloading by storing multiple methods per name
+	for _, method := range node.Methods {
+		if !e.adapter.AddClassMethod(classInfo, method, className) {
+			return e.newError(method, "failed to add method '%s' to class '%s'", method.Name.Value, className)
+		}
+	}
+
+	// Process explicit constructor if declared separately
+	if node.Constructor != nil {
+		if !e.adapter.AddClassMethod(classInfo, node.Constructor, className) {
+			return e.newError(node.Constructor, "failed to add constructor to class '%s'", className)
+		}
+	}
+
+	// Identify constructor (method named "Create")
+	// Legacy behavior from old implementation
+	if constructor, exists := e.adapter.LookupClassMethod(classInfo, "create", false); exists {
+		e.adapter.SetClassConstructor(classInfo, constructor)
+	}
+
+	// Identify destructor (method named "Destroy")
+	// Legacy behavior - destructor metadata is already set during AddClassMethod if marked as destructor
+	if destructor, exists := e.adapter.LookupClassMethod(classInfo, "destroy", false); exists {
+		e.adapter.SetClassDestructor(classInfo, destructor)
+	}
+
+	// Inherit destructor from parent if no local destructor declared
+	e.adapter.InheritDestructorIfMissing(classInfo)
+
+	// Synthesize implicit parameterless constructor if any constructor has 'overload'
+	e.adapter.SynthesizeDefaultConstructor(classInfo)
+
+	// Register properties
+	// Properties are registered after fields and methods so they can reference them
+	for _, propDecl := range node.Properties {
+		if propDecl == nil {
+			continue
+		}
+		if !e.adapter.AddClassProperty(classInfo, propDecl) {
+			return e.newError(propDecl, "failed to add property '%s' to class '%s'", propDecl.Name.Value, className)
+		}
+	}
+
+	// Copy parent properties (child inherits all parent properties)
+	e.adapter.InheritParentProperties(classInfo)
+
+	// Register class operators (Stage 8)
+	for _, opDecl := range node.Operators {
+		if opDecl == nil {
+			continue
+		}
+		if errVal := e.adapter.RegisterClassOperator(classInfo, opDecl); isError(errVal) {
+			return errVal
+		}
+	}
+
+	// Phase 7: Virtual method table and TypeSystem registration
+
+	// Build virtual method table after all methods and fields are processed
+	// This implements proper virtual/override/reintroduce semantics
+	e.adapter.BuildVirtualMethodTable(classInfo)
+
+	// Register class in TypeSystem after VMT is built
+	// Note: Legacy map registration already done early (for field initializers)
+	parentName := ""
+	if parentClass != nil {
+		parentName = e.adapter.GetClassNameFromClassInfoInterface(parentClass)
+	}
+	e.adapter.RegisterClassInTypeSystem(classInfo, parentName)
 
 	return &runtime.NilValue{}
 }
