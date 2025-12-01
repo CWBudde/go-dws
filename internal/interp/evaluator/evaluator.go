@@ -391,6 +391,15 @@ type InterpreterAdapter interface {
 	// The lookup is case-insensitive.
 	LookupClass(name string) (any, bool)
 
+	// ResolveClassInfoByName resolves a class by name for type resolution.
+	// Task 3.5.9.4: Allows evaluator to resolve class types in property declarations.
+	// Returns the class info (as any/interface{}) or nil if not found.
+	ResolveClassInfoByName(name string) interface{}
+
+	// GetClassName returns the name from a raw ClassInfo interface{}.
+	// Task 3.5.9.4: Extracts class name for type construction.
+	GetClassNameFromInfo(classInfo interface{}) string
+
 	// ===== Record Registry =====
 
 	// LookupRecord finds a record type by name in the record registry.
@@ -446,6 +455,32 @@ type InterpreterAdapter interface {
 	// RegisterHelperLegacy registers the helper in the legacy i.helpers map.
 	// This maintains backward compatibility during migration.
 	RegisterHelperLegacy(typeName string, helper interface{})
+
+	// ===== Task 3.5.9: Interface Declaration Adapter Methods =====
+
+	// NewInterfaceInfoAdapter creates a new InterfaceInfo instance.
+	// Returns the interface info as interface{} to avoid import cycles.
+	NewInterfaceInfoAdapter(name string) interface{}
+
+	// CastToInterfaceInfo performs type assertion from any to *InterfaceInfo.
+	// Returns the casted interface info and a boolean indicating success.
+	CastToInterfaceInfo(iface interface{}) (interface{}, bool)
+
+	// SetInterfaceParent sets the parent interface for inheritance.
+	SetInterfaceParent(iface interface{}, parent interface{})
+
+	// GetInterfaceName returns the name of an interface.
+	GetInterfaceName(iface interface{}) string
+
+	// GetInterfaceParent returns the parent interface for hierarchy traversal.
+	GetInterfaceParent(iface interface{}) interface{}
+
+	// AddInterfaceMethod adds a method to an interface.
+	AddInterfaceMethod(iface interface{}, normalizedName string, method *ast.FunctionDecl)
+
+	// AddInterfaceProperty adds a property to an interface.
+	// propInfo is expected to be *types.PropertyInfo from internal/types.
+	AddInterfaceProperty(iface interface{}, normalizedName string, propInfo any)
 
 	// ===== Operator & Conversion Registries =====
 

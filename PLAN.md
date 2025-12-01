@@ -428,19 +428,19 @@ Goal: Move declaration processing from Interpreter to Evaluator, migrating 9 Eva
     - [x] 3.5.12.5: Remove `adapter.EvalNode()` call ✅
     - [x] 3.5.12.6: Verify existing tests pass (23 helper tests) ✅
 
-- [ ] **3.5.9** VisitInterfaceDecl
+- [x] **3.5.9** VisitInterfaceDecl ✅
   - **Registry**: `TypeSystem.RegisterInterface()`, `TypeSystem.LookupInterface()`
   - **Complexity**: Medium - parent interface validation
   - **Files**: `visitor_declarations.go`, `declarations.go:803-859`, `interface.go`
   - **Effort**: 4-6 hours
   - **Prerequisite**: 3.5.2-3.5.4 complete ✅
   - **Subtasks**:
-    - [ ] 3.5.9.1: Move interface creation to `VisitInterfaceDecl`
-    - [ ] 3.5.9.2: Use `TypeSystem.LookupInterface()` for parent
-    - [ ] 3.5.9.3: Use `TypeSystem.RegisterInterface()` for registration
-    - [ ] 3.5.9.4: Handle property conversion from AST
-    - [ ] 3.5.9.5: Remove `adapter.EvalNode()` call
-    - [ ] 3.5.9.6: Add tests for inheritance, methods, properties
+    - [x] 3.5.9.1: Move interface creation to `VisitInterfaceDecl` ✅
+    - [x] 3.5.9.2: Use `TypeSystem.LookupInterface()` for parent ✅
+    - [x] 3.5.9.3: Use `TypeSystem.RegisterInterface()` for registration ✅
+    - [x] 3.5.9.4: Handle property conversion from AST ✅
+    - [x] 3.5.9.5: Remove `adapter.EvalNode()` call ✅
+    - [x] 3.5.9.6: Add tests for inheritance, methods, properties ✅
 
 #### Tier 5: Complex Types with Methods
 
