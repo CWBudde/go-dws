@@ -207,7 +207,7 @@ func (i *Interpreter) CreateExceptionDirect(classMetadata any, message string, p
 	}
 
 	// Create ExceptionValue with both Metadata and ClassInfo (backward compatibility)
-	return &ExceptionValue{
+	return &runtime.ExceptionValue{
 		Metadata:  metadata,
 		ClassInfo: excClass,
 		Instance:  instance,
@@ -257,14 +257,14 @@ func (i *Interpreter) WrapObjectInException(objInstance evaluator.Value, pos any
 	// Create ExceptionValue - need concrete ClassInfo
 	concreteClass, ok := classInfo.(*ClassInfo)
 	if !ok {
-		return &ExceptionValue{
+		return &runtime.ExceptionValue{
 			Message:   message,
 			Position:  position,
 			CallStack: stack,
 		}
 	}
 
-	return &ExceptionValue{
+	return &runtime.ExceptionValue{
 		Metadata:  classInfo.GetMetadata(),
 		ClassInfo: concreteClass,
 		Message:   message,

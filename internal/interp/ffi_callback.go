@@ -72,7 +72,11 @@ func (i *Interpreter) callDWScriptFunction(
 	// If the DWScript callback raised an exception, convert it to a Go error
 	if i.exception != nil {
 		exceptionMsg := i.exception.Message
-		exceptionClass := i.exception.ClassInfo.Name
+		// Task 3.5.18: Use Metadata instead of ClassInfo (which is now any)
+		exceptionClass := "Exception"
+		if i.exception.Metadata != nil {
+			exceptionClass = i.exception.Metadata.Name
+		}
 
 		// Clear exception for Go context
 		// The exception has been converted to an error and will be returned

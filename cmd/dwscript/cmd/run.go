@@ -274,12 +274,17 @@ func runScript(_ *cobra.Command, args []string) error {
 	if exc := interpreter.GetException(); exc != nil {
 		// Format and print unhandled exception with position (if available) and stack trace
 		// DWScript format: "Runtime Error: <Message> [line: N, column: M]"
+		// Task 3.5.18: Use Metadata.Name instead of ClassInfo.Name
+		excClassName := "Exception"
+		if exc.Metadata != nil {
+			excClassName = exc.Metadata.Name
+		}
 		if exc.Position != nil {
 			fmt.Fprintf(os.Stderr, "Runtime Error: %s: %s [line: %d, column: %d]\n",
-				exc.ClassInfo.Name, exc.Message, exc.Position.Line, exc.Position.Column)
+				excClassName, exc.Message, exc.Position.Line, exc.Position.Column)
 		} else {
 			// If no position (e.g., internal errors), use simple format
-			fmt.Fprintf(os.Stderr, "Runtime Error: %s: %s\n", exc.ClassInfo.Name, exc.Message)
+			fmt.Fprintf(os.Stderr, "Runtime Error: %s: %s\n", excClassName, exc.Message)
 		}
 
 		// Print stack trace if available

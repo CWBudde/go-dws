@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -56,7 +57,7 @@ func (i *Interpreter) raiseException(className, message string, pos *lexer.Posit
 		excClass, ok = i.classes[ident.Normalize("Exception")]
 		if !ok {
 			// This shouldn't happen, but handle it gracefully
-			i.exception = &ExceptionValue{
+			i.exception = &runtime.ExceptionValue{
 				ClassInfo: NewClassInfo(className),
 				Instance:  nil,
 				Message:   message,
@@ -72,7 +73,7 @@ func (i *Interpreter) raiseException(className, message string, pos *lexer.Posit
 	instance.SetField("Message", &StringValue{Value: message})
 
 	// Set the exception
-	i.exception = &ExceptionValue{
+	i.exception = &runtime.ExceptionValue{
 		ClassInfo: excClass,
 		Instance:  instance,
 		Message:   message,

@@ -665,7 +665,9 @@ func (i *Interpreter) RaiseAssertionFailed(customMessage string) {
 	if !ok {
 		// Fallback: raise EAssertionFailed as a simple error if class not found
 		// This should not happen in normal execution
-		i.exception = &ExceptionValue{
+		// Task 3.5.18: Include Metadata field
+		i.exception = &runtime.ExceptionValue{
+			Metadata:  nil,
 			ClassInfo: nil,
 			Message:   message,
 			Instance:  nil,
@@ -682,7 +684,9 @@ func (i *Interpreter) RaiseAssertionFailed(customMessage string) {
 	instance.SetField("Message", &StringValue{Value: message})
 
 	// Create exception value and set it
-	i.exception = &ExceptionValue{
+	// Task 3.5.18: Include Metadata field
+	i.exception = &runtime.ExceptionValue{
+		Metadata:  assertClass.Metadata,
 		ClassInfo: assertClass,
 		Message:   message,
 		Instance:  instance,
@@ -718,7 +722,7 @@ func (i *Interpreter) CreateContractException(className, message string, node as
 	}
 
 	// Create ExceptionValue
-	exc := &ExceptionValue{
+	exc := &runtime.ExceptionValue{
 		Metadata:  metadata,
 		Instance:  nil, // Contract exceptions don't need full instance
 		Message:   message,

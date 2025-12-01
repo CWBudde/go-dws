@@ -3,6 +3,7 @@ package interp
 import (
 	"fmt"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -385,7 +386,9 @@ func (i *Interpreter) builtinAssert(args []Value) Value {
 
 	// Create exception value and set it
 	// Position is nil for built-in function exceptions
-	i.exception = &ExceptionValue{
+	// Task 3.5.18: Include Metadata field
+	i.exception = &runtime.ExceptionValue{
+		Metadata:  assertClass.Metadata,
 		ClassInfo: assertClass,
 		Message:   message,
 		Instance:  instance,

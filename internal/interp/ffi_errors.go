@@ -2,9 +2,10 @@ package interp
 
 import (
 	"fmt"
-	"runtime"
+	goruntime "runtime"
 
 	"github.com/cwbudde/go-dws/internal/errors"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
@@ -45,7 +46,9 @@ func (i *Interpreter) raiseGoErrorAsException(err error) {
 	}
 
 	// Position is nil for FFI errors (they don't originate from DWScript source)
-	i.exception = &ExceptionValue{
+	// Task 3.5.18: Set Metadata field for runtime.ExceptionValue
+	i.exception = &runtime.ExceptionValue{
+		Metadata:  hostClass.Metadata,
 		ClassInfo: hostClass,
 		Instance:  instance,
 		Message:   message,
@@ -95,7 +98,7 @@ func (i *Interpreter) raiseGoPanicAsException(panicValue interface{}) {
 
 	// Optionally append Go stack trace for debugging.
 	stackBuf := make([]byte, 2048)
-	if n := runtime.Stack(stackBuf, false); n > 0 {
+	if n := goruntime.Stack(stackBuf, false); n > 0 {
 		message = message + "\n" + string(stackBuf[:n])
 	}
 
@@ -122,7 +125,9 @@ func (i *Interpreter) raiseGoPanicAsException(panicValue interface{}) {
 	}
 
 	// Position is nil for FFI errors (they don't originate from DWScript source)
-	i.exception = &ExceptionValue{
+	// Task 3.5.18: Set Metadata field for runtime.ExceptionValue
+	i.exception = &runtime.ExceptionValue{
+		Metadata:  hostClass.Metadata,
 		ClassInfo: hostClass,
 		Instance:  instance,
 		Message:   message,

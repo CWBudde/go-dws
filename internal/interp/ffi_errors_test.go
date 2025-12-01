@@ -22,8 +22,8 @@ func TestCallExternalFunctionSafeRecoversPanicError(t *testing.T) {
 		t.Fatalf("expected exception to be raised")
 	}
 
-	if interp.exception.ClassInfo.GetName() != "EHost" {
-		t.Fatalf("expected exception class EHost, got %s", interp.exception.ClassInfo.GetName())
+	if interp.exception.Metadata.Name != "EHost" {
+		t.Fatalf("expected exception class EHost, got %s", interp.exception.Metadata.Name)
 	}
 
 	if !strings.Contains(interp.exception.Message, "panic: boom") {
@@ -77,8 +77,8 @@ func TestGoErrorToExceptionConversion(t *testing.T) {
 			t.Errorf("expected message 'test error message', got %q", interp.exception.Message)
 		}
 
-		if interp.exception.ClassInfo.GetName() != "EHost" {
-			t.Errorf("expected exception class 'EHost', got %q", interp.exception.ClassInfo.GetName())
+		if interp.exception.Metadata.Name != "EHost" {
+			t.Errorf("expected exception class 'EHost', got %q", interp.exception.Metadata.Name)
 		}
 	})
 
@@ -393,8 +393,8 @@ func TestEHostExceptionSpecificFeatures(t *testing.T) {
 		}
 
 		// Should fall back to Exception class
-		if interp.exception.ClassInfo.GetName() != "Exception" {
-			t.Errorf("expected fallback to 'Exception' class, got %q", interp.exception.ClassInfo.GetName())
+		if interp.exception.Metadata.Name != "Exception" {
+			t.Errorf("expected fallback to 'Exception' class, got %q", interp.exception.Metadata.Name)
 		}
 
 		// Message should still be set
