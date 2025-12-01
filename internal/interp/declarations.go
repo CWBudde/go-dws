@@ -46,8 +46,16 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 		return i.newErrorWithLocation(fn, "type '%s' not found for method '%s'", typeName, fn.Name.Value)
 	}
 
-	// Store regular function in the registry
-	// Support overloading by storing multiple functions per name
+	// Task 3.5.7: Register global function in both legacy map and TypeSystem
+	// The legacy map (i.functions) is kept for backward compatibility during migration.
+	// TypeSystem.RegisterFunctionOrReplace handles the interface/implementation pattern:
+	// - Forward declarations (no body) are appended
+	// - Implementations (with body) replace matching declarations by signature
+
+	// Register in TypeSystem (new path, used by Evaluator)
+	i.typeSystem.RegisterFunctionOrReplace(fn.Name.Value, fn)
+
+	// Also maintain legacy registry for backward compatibility
 	// DWScript is case-insensitive, so normalize the function name
 	funcName := ident.Normalize(fn.Name.Value)
 

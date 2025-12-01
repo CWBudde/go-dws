@@ -17,10 +17,33 @@ import (
 // in the appropriate registries.
 
 // VisitFunctionDecl evaluates a function declaration.
+// Task 3.5.7: Migrated from Interpreter.evalFunctionDeclaration to Evaluator visitor.
+//
+// This method handles two cases:
+//   - Global functions: Registered in TypeSystem.FunctionRegistry
+//   - Method implementations (node.ClassName != nil): Delegated to adapter for ClassInfo handling
+//
+// The split design is intentional: method implementations require ClassInfo internals
+// (VMT rebuild, descendant propagation) which belong in the Interpreter. Global functions
+// can be fully handled via the TypeSystem's FunctionRegistry.
 func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2B: Function registry available via adapter.LookupFunction()
-	// TODO: Move function registration logic here (use adapter or typeSystem.FunctionRegistry)
-	return e.adapter.EvalNode(node)
+	if node == nil {
+		return e.newError(nil, "nil function declaration")
+	}
+
+	// Method implementations (TClass.Method syntax) are delegated to adapter
+	// They require ClassInfo internals: VMT rebuild, descendant propagation
+	if node.ClassName != nil {
+		return e.adapter.EvalMethodImplementation(node)
+	}
+
+	// Global function - register in FunctionRegistry via TypeSystem
+	// RegisterFunctionOrReplace handles the interface/implementation pattern:
+	// - Forward declarations (no body) are appended
+	// - Implementations (with body) replace matching declarations by signature
+	e.typeSystem.RegisterFunctionOrReplace(node.Name.Value, node)
+
+	return &runtime.NilValue{}
 }
 
 // VisitClassDecl evaluates a class declaration.

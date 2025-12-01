@@ -275,3 +275,32 @@ func (i *Interpreter) DispatchRecordStaticMethod(recordTypeName string, callExpr
 	}
 	return i.evalMethodCall(mc)
 }
+
+// ===== Task 3.5.7: Function Declaration Methods =====
+
+// EvalMethodImplementation handles method implementation registration for classes/records.
+// Task 3.5.7: Delegated from Evaluator.VisitFunctionDecl because it requires ClassInfo
+// internals (VMT rebuild, descendant propagation).
+func (i *Interpreter) EvalMethodImplementation(fn *ast.FunctionDecl) evaluator.Value {
+	if fn == nil || fn.ClassName == nil {
+		return i.newErrorWithLocation(fn, "EvalMethodImplementation requires a method declaration with ClassName")
+	}
+
+	typeName := fn.ClassName.Value
+
+	// Check if class first (case-insensitive lookup)
+	classInfo, isClass := i.classes[ident.Normalize(typeName)]
+	if isClass {
+		i.evalClassMethodImplementation(fn, classInfo)
+		return &NilValue{}
+	}
+
+	// Check if record (case-insensitive lookup)
+	recordInfo, isRecord := i.records[ident.Normalize(typeName)]
+	if isRecord {
+		i.evalRecordMethodImplementation(fn, recordInfo)
+		return &NilValue{}
+	}
+
+	return i.newErrorWithLocation(fn, "type '%s' not found for method '%s'", typeName, fn.Name.Value)
+}
