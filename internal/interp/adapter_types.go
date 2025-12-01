@@ -82,6 +82,99 @@ func (i *Interpreter) LookupHelpers(typeName string) []any {
 	return result
 }
 
+// ===== Task 3.5.12: Helper Declaration Adapter Methods =====
+
+// CreateHelperInfo creates a new HelperInfo instance.
+func (i *Interpreter) CreateHelperInfo(name string, targetType any, isRecordHelper bool) interface{} {
+	if tt, ok := targetType.(types.Type); ok {
+		return NewHelperInfo(name, tt, isRecordHelper)
+	}
+	return nil
+}
+
+// SetHelperParent sets the parent helper for inheritance chain.
+func (i *Interpreter) SetHelperParent(helper interface{}, parent interface{}) {
+	if h, ok := helper.(*HelperInfo); ok {
+		if p, ok := parent.(*HelperInfo); ok {
+			h.ParentHelper = p
+		}
+	}
+}
+
+// VerifyHelperTargetTypeMatch checks if parent helper's target type matches the given type.
+func (i *Interpreter) VerifyHelperTargetTypeMatch(parent interface{}, targetType any) bool {
+	if p, ok := parent.(*HelperInfo); ok {
+		if tt, ok := targetType.(types.Type); ok {
+			return p.TargetType.Equals(tt)
+		}
+	}
+	return false
+}
+
+// GetHelperName returns the name of a helper (for parent lookup by name).
+func (i *Interpreter) GetHelperName(helper interface{}) string {
+	if h, ok := helper.(*HelperInfo); ok {
+		return h.Name
+	}
+	return ""
+}
+
+// AddHelperMethod registers a method in the helper.
+func (i *Interpreter) AddHelperMethod(helper interface{}, normalizedName string, method *ast.FunctionDecl) {
+	if h, ok := helper.(*HelperInfo); ok {
+		h.Methods[normalizedName] = method
+	}
+}
+
+// AddHelperProperty registers a property in the helper.
+func (i *Interpreter) AddHelperProperty(helper interface{}, prop *ast.PropertyDecl, propType any) {
+	if h, ok := helper.(*HelperInfo); ok {
+		pt, _ := propType.(types.Type)
+		propInfo := &types.PropertyInfo{
+			Name: prop.Name.Value,
+			Type: pt,
+		}
+		// Set up property access
+		if prop.ReadSpec != nil {
+			if identExpr, ok := prop.ReadSpec.(*ast.Identifier); ok {
+				propInfo.ReadKind = types.PropAccessMethod
+				propInfo.ReadSpec = identExpr.Value
+			}
+		}
+		if prop.WriteSpec != nil {
+			if identExpr, ok := prop.WriteSpec.(*ast.Identifier); ok {
+				propInfo.WriteKind = types.PropAccessMethod
+				propInfo.WriteSpec = identExpr.Value
+			}
+		}
+		h.Properties[prop.Name.Value] = propInfo
+	}
+}
+
+// AddHelperClassVar adds a class variable to the helper.
+func (i *Interpreter) AddHelperClassVar(helper interface{}, name string, value evaluator.Value) {
+	if h, ok := helper.(*HelperInfo); ok {
+		h.ClassVars[name] = value.(Value)
+	}
+}
+
+// AddHelperClassConst adds a class constant to the helper.
+func (i *Interpreter) AddHelperClassConst(helper interface{}, name string, value evaluator.Value) {
+	if h, ok := helper.(*HelperInfo); ok {
+		h.ClassConsts[name] = value.(Value)
+	}
+}
+
+// RegisterHelperLegacy registers the helper in the legacy i.helpers map.
+func (i *Interpreter) RegisterHelperLegacy(typeName string, helper interface{}) {
+	if i.helpers == nil {
+		i.helpers = make(map[string][]*HelperInfo)
+	}
+	if h, ok := helper.(*HelperInfo); ok {
+		i.helpers[typeName] = append(i.helpers[typeName], h)
+	}
+}
+
 // GetOperatorRegistry returns the operator registry for custom operator lookups.
 func (i *Interpreter) GetOperatorRegistry() any {
 	return i.globalOperators
