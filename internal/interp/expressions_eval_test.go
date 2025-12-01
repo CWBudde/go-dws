@@ -21,7 +21,15 @@ func testEvalExpression(input string, t *testing.T) (Value, string) {
 
 	analyzer := semantic.NewAnalyzer()
 	_ = analyzer.Analyze(program)
-	if len(analyzer.Errors()) > 0 {
+	// Filter out hints - only treat actual errors as blocking
+	hasRealErrors := false
+	for _, err := range analyzer.Errors() {
+		if !strings.HasPrefix(err, "Hint:") {
+			hasRealErrors = true
+			break
+		}
+	}
+	if hasRealErrors {
 		// Some tests expect semantic errors
 		return nil, ""
 	}

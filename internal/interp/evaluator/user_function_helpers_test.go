@@ -700,7 +700,7 @@ func TestInitializeResultVariable_FunctionNameAlias(t *testing.T) {
 
 	// Track if alias creator was called with correct params
 	aliasCreatorCalled := false
-	aliasCreator := func(funcName string) Value {
+	aliasCreator := func(funcName string, funcEnv Environment) Value {
 		aliasCreatorCalled = true
 		if funcName != "GetValue" {
 			t.Errorf("expected funcName 'GetValue', got '%s'", funcName)

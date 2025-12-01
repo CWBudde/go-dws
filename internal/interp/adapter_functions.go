@@ -58,7 +58,12 @@ func (i *Interpreter) ExecuteFunctionPointerCall(metadata evaluator.FunctionPoin
 		return i.newErrorWithLocation(node, "invalid function type in function pointer metadata")
 	}
 
-	// If this is a method pointer, set up Self binding
+	// Task 3.5.1b: Use ExecuteUserFunction instead of callUserFunction
+	callbacks := i.createUserFunctionCallbacks()
+
+	// If this is a method pointer, set up Self binding in a wrapper environment
+	// before calling ExecuteUserFunction. The function's enclosed environment
+	// will inherit Self from this wrapper.
 	if metadata.SelfObject != nil {
 		funcEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
@@ -67,17 +72,24 @@ func (i *Interpreter) ExecuteFunctionPointerCall(metadata evaluator.FunctionPoin
 		// Bind Self to the captured object
 		i.env.Define("Self", metadata.SelfObject)
 
-		// Call the function
-		result := i.callUserFunction(fn, interpArgs)
+		// Call the function via ExecuteUserFunction
+		result, err := i.evaluatorInstance.ExecuteUserFunction(fn, args, i.ctx, callbacks)
 
 		// Restore environment
 		i.env = savedEnv
 
+		if err != nil {
+			return i.newErrorWithLocation(node, "%s", err.Error())
+		}
 		return result
 	}
 
-	// Regular function pointer - just call the function directly
-	return i.callUserFunction(fn, interpArgs)
+	// Regular function pointer - call via ExecuteUserFunction
+	result, err := i.evaluatorInstance.ExecuteUserFunction(fn, args, i.ctx, callbacks)
+	if err != nil {
+		return i.newErrorWithLocation(node, "%s", err.Error())
+	}
+	return result
 }
 
 // CallUserFunction executes a user-defined function.
@@ -145,8 +157,14 @@ func (i *Interpreter) CallUserFunctionWithOverloads(callExpr *ast.CallExpression
 		return i.newErrorWithLocation(callExpr, "%s", err.Error())
 	}
 
-	// 5. Execute the resolved function with prepared arguments
-	return i.callUserFunction(fn, args)
+	// 5. Execute the resolved function with prepared arguments via ExecuteUserFunction
+	// Task 3.5.1a: Use evaluator's ExecuteUserFunction instead of callUserFunction
+	callbacks := i.createUserFunctionCallbacks()
+	result, err := i.evaluatorInstance.ExecuteUserFunction(fn, args, i.ctx, callbacks)
+	if err != nil {
+		return i.newErrorWithLocation(callExpr, "%s", err.Error())
+	}
+	return result
 }
 
 // CallImplicitSelfMethod calls a method on the implicit Self object.
