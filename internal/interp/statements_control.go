@@ -297,12 +297,14 @@ func (i *Interpreter) isInRange(value, start, end Value) bool {
 func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol string, args []Value, stmt *ast.AssignmentStatement) Value {
 	// Look up the operator in the class (check current class and parents)
 	classInfo := objInst.Class
-	if classInfo == nil {
+	// Need concrete ClassInfo for operator lookup
+	concreteClass, ok := classInfo.(*ClassInfo)
+	if !ok || concreteClass == nil {
 		return nil // No class info
 	}
 
 	// Search for the operator in this class and parent classes
-	for class := classInfo; class != nil; class = class.Parent {
+	for class := concreteClass; class != nil; class = class.Parent {
 		if class.Operators == nil {
 			continue
 		}

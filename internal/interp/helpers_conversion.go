@@ -186,7 +186,10 @@ func (i *Interpreter) currentClassContext() *ClassInfo {
 			return classVal.ClassInfo
 		}
 		if obj, ok := AsObject(val); ok {
-			return obj.Class
+			concreteClass, ok := obj.Class.(*ClassInfo)
+			if ok {
+				return concreteClass
+			}
 		}
 	}
 	return nil

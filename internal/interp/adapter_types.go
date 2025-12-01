@@ -337,9 +337,13 @@ func (i *Interpreter) WrapInInterface(value evaluator.Value, interfaceName strin
 	}
 
 	// Validate that the object's class implements the interface
-	if !classImplementsInterface(objInst.Class, ifaceInfo) {
+	concreteClass, ok := objInst.Class.(*ClassInfo)
+	if !ok {
+		return nil, fmt.Errorf("object has invalid class type")
+	}
+	if !classImplementsInterface(concreteClass, ifaceInfo) {
 		return nil, fmt.Errorf("class '%s' does not implement interface '%s'",
-			objInst.Class.Name, ifaceInfo.Name)
+			objInst.Class.GetName(), ifaceInfo.Name)
 	}
 
 	// Wrap the object in an InterfaceInstance

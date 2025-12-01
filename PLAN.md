@@ -483,17 +483,22 @@ Bridge constructors to eliminate:
 - `CreateObject` - Object instance creation
 - `TryImplicitConversion` - Type conversion execution
 
-- [ ] **3.5.17** Move ObjectInstance to Runtime
-  - **Current location**: `internal/interp/class.go`
-  - **Size**: 17+ methods, 921 LOC
-  - **Call sites**: 50-100+ throughout interp package
-  - **Work**:
-    - Move ObjectInstance struct and methods to `runtime/object.go`
-    - Update all imports
-    - Create type aliases for backward compatibility during transition
-    - Remove type aliases after all usages updated
-  - **Effort**: 2-3 weeks
-  - **Risk**: High - core type used everywhere
+- [x] **3.5.17** Move ObjectInstance to Runtime ✅ COMPLETED
+  - **Current location**: `internal/interp/runtime/object.go`
+  - **Size**: 17+ methods, 450+ LOC
+  - **Call sites**: Fixed 100+ throughout interp package
+  - **Work Completed**:
+    - Created IClassInfo interface in `runtime/class_interface.go` to break circular import
+    - Moved ObjectInstance struct and methods to `runtime/object.go`
+    - Implemented IClassInfo interface on ClassInfo in `class.go`
+    - Created type aliases in `value.go` for backward compatibility
+    - Fixed 100+ call sites to use interface methods (GetName, GetParent, GetMetadata, etc.)
+    - Added type assertions where concrete ClassInfo needed
+    - Fixed PropertyInfo wrapper to use Impl field for actual types.PropertyInfo
+    - Fixed OperatorEntry conversion to include all required fields
+    - Updated all test files to use interface methods
+    - Exported DestroyCallDepth field for cross-package access
+  - **Testing**: All unit tests pass, CLI works correctly, 339/1227 fixture tests pass
   - **Dependencies**: None (foundation for 3.5.18-3.5.21)
 
 - [ ] **3.5.18** Move ExceptionValue to Runtime

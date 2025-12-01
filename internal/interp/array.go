@@ -113,8 +113,14 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 
 		// Check if it's a class instance with an indexed property
 		if obj, ok := AsObject(objVal); ok {
-			propInfo := obj.Class.lookupProperty(memberAccess.Member.Value)
+			propInfo := obj.Class.LookupProperty(memberAccess.Member.Value)
 			if propInfo != nil && propInfo.IsIndexed {
+				// Extract the actual *types.PropertyInfo from the Impl field
+				typesPropInfo, ok := propInfo.Impl.(*types.PropertyInfo)
+				if !ok {
+					return i.NewError("invalid property info implementation")
+				}
+
 				// This is a multi-index property access: flatten and evaluate ALL indices
 				indexVals := make([]Value, len(indices))
 				for idx, indexExpr := range indices {
@@ -125,7 +131,7 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 				}
 
 				// Call indexed property read with all indices
-				return i.evalIndexedPropertyRead(obj, propInfo, indexVals, expr)
+				return i.evalIndexedPropertyRead(obj, typesPropInfo, indexVals, expr)
 			}
 		}
 
@@ -201,14 +207,17 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 			if !isError(ownerVal) {
 				// If the owner is already an object, try to initialize its field-backed property.
 				if ownerObj, ok := AsObject(ownerVal); ok {
-					if propInfo := ownerObj.Class.lookupProperty(memberAccess.Member.Value); propInfo != nil {
-						if classType, ok := propInfo.Type.(*types.ClassType); ok {
-							if classInfo := i.resolveClassInfoByName(classType.Name); classInfo != nil {
-								// Only field-backed properties can be initialized directly
-								if propInfo.ReadKind == types.PropAccessField && propInfo.ReadSpec != "" {
-									newInst := NewObjectInstance(classInfo)
-									ownerObj.SetField(propInfo.ReadSpec, newInst)
-									leftVal = newInst
+					if propInfo := ownerObj.Class.LookupProperty(memberAccess.Member.Value); propInfo != nil {
+						// Extract the actual *types.PropertyInfo from the Impl field
+						if typesPropInfo, ok := propInfo.Impl.(*types.PropertyInfo); ok {
+							if classType, ok := typesPropInfo.Type.(*types.ClassType); ok {
+								if classInfo := i.resolveClassInfoByName(classType.Name); classInfo != nil {
+									// Only field-backed properties can be initialized directly
+									if typesPropInfo.ReadKind == types.PropAccessField && typesPropInfo.ReadSpec != "" {
+										newInst := NewObjectInstance(classInfo)
+										ownerObj.SetField(typesPropInfo.ReadSpec, newInst)
+										leftVal = newInst
+									}
 								}
 							}
 						}
@@ -220,13 +229,16 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 						if ensured := i.ensureClassPropertyInstance(maObj); ensured != nil && ensured.Type() != "NIL" {
 							ownerVal = ensured
 							if ownerObj, ok := AsObject(ensured); ok {
-								if propInfo := ownerObj.Class.lookupProperty(memberAccess.Member.Value); propInfo != nil {
-									if classType, ok := propInfo.Type.(*types.ClassType); ok {
-										if classInfo := i.resolveClassInfoByName(classType.Name); classInfo != nil {
-											if propInfo.ReadKind == types.PropAccessField && propInfo.ReadSpec != "" {
-												newInst := NewObjectInstance(classInfo)
-												ownerObj.SetField(propInfo.ReadSpec, newInst)
-												leftVal = newInst
+								if propInfo := ownerObj.Class.LookupProperty(memberAccess.Member.Value); propInfo != nil {
+									// Extract the actual *types.PropertyInfo from the Impl field
+									if typesPropInfo, ok := propInfo.Impl.(*types.PropertyInfo); ok {
+										if classType, ok := typesPropInfo.Type.(*types.ClassType); ok {
+											if classInfo := i.resolveClassInfoByName(classType.Name); classInfo != nil {
+												if typesPropInfo.ReadKind == types.PropAccessField && typesPropInfo.ReadSpec != "" {
+													newInst := NewObjectInstance(classInfo)
+													ownerObj.SetField(typesPropInfo.ReadSpec, newInst)
+													leftVal = newInst
+												}
 											}
 										}
 									}
@@ -257,12 +269,18 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 	// Check if left side is an object with a default property
 	// This allows obj[index] to be equivalent to obj.DefaultProperty[index]
 	if obj, ok := AsObject(leftVal); ok {
-		defaultProp := obj.Class.getDefaultProperty()
+		defaultProp := obj.Class.GetDefaultProperty()
 		if defaultProp != nil {
+			// Extract the actual *types.PropertyInfo from the Impl field
+			typesDefaultProp, ok := defaultProp.Impl.(*types.PropertyInfo)
+			if !ok {
+				return i.NewError("invalid default property info implementation")
+			}
+
 			// Route to the default indexed property
 			// For now, we only support single-index default properties
 			// Multi-index would need to collect all indices from nested IndexExpressions
-			return i.evalIndexedPropertyRead(obj, defaultProp, []Value{indexVal}, expr)
+			return i.evalIndexedPropertyRead(obj, typesDefaultProp, []Value{indexVal}, expr)
 		}
 	}
 
@@ -721,7 +739,12 @@ func (i *Interpreter) typeFromValue(val Value) types.Type {
 		}
 		return nil
 	case *ObjectInstance:
-		return i.classTypeForName(v.Class)
+		// Need concrete ClassInfo for classTypeForName
+		concreteClass, ok := v.Class.(*ClassInfo)
+		if !ok {
+			return nil
+		}
+		return i.classTypeForName(concreteClass)
 	case *RecordValue:
 		return v.RecordType
 	default:
@@ -926,17 +949,23 @@ func (i *Interpreter) ensureClassPropertyInstance(ma *ast.MemberAccessExpression
 		return ownerVal
 	}
 
-	propInfo := ownerObj.Class.lookupProperty(ma.Member.Value)
+	propInfo := ownerObj.Class.LookupProperty(ma.Member.Value)
 	if propInfo == nil {
 		return ownerVal
 	}
 
-	classType, isClass := propInfo.Type.(*types.ClassType)
-	if !isClass || propInfo.ReadKind != types.PropAccessField || propInfo.ReadSpec == "" {
+	// Extract the actual *types.PropertyInfo from the Impl field
+	typesPropInfo, ok := propInfo.Impl.(*types.PropertyInfo)
+	if !ok {
 		return ownerVal
 	}
 
-	currentVal := ownerObj.GetField(propInfo.ReadSpec)
+	classType, isClass := typesPropInfo.Type.(*types.ClassType)
+	if !isClass || typesPropInfo.ReadKind != types.PropAccessField || typesPropInfo.ReadSpec == "" {
+		return ownerVal
+	}
+
+	currentVal := ownerObj.GetField(typesPropInfo.ReadSpec)
 	if currentVal != nil && currentVal.Type() != "NIL" {
 		return currentVal
 	}

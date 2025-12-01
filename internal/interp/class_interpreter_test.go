@@ -72,8 +72,8 @@ func TestObjectCreation(t *testing.T) {
 				t.Fatalf("Expected object, got %s", result.Type())
 			}
 
-			if obj.Class.Name != tt.expected {
-				t.Errorf("Expected class name %s, got %s", tt.expected, obj.Class.Name)
+			if obj.Class.GetName() != tt.expected {
+				t.Errorf("Expected class name %s, got %s", tt.expected, obj.Class.GetName())
 			}
 		})
 	}
@@ -143,8 +143,8 @@ func TestNewExpressionOptionalParentheses(t *testing.T) {
 				t.Fatalf("Expected object, got %s", result.Type())
 			}
 
-			if obj.Class.Name != tt.expected {
-				t.Errorf("Expected class name %s, got %s", tt.expected, obj.Class.Name)
+			if obj.Class.GetName() != tt.expected {
+				t.Errorf("Expected class name %s, got %s", tt.expected, obj.Class.GetName())
 			}
 		})
 	}
@@ -807,8 +807,8 @@ func TestNewKeywordSimpleClass(t *testing.T) {
 		t.Fatalf("Expected object, got %s", result.Type())
 	}
 
-	if obj.Class.Name != "TPoint" {
-		t.Errorf("Expected class name TPoint, got %s", obj.Class.Name)
+	if obj.Class.GetName() != "TPoint" {
+		t.Errorf("Expected class name TPoint, got %s", obj.Class.GetName())
 	}
 }
 

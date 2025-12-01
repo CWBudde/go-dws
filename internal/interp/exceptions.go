@@ -525,13 +525,26 @@ func (i *Interpreter) evalRaiseStatement(stmt *ast.RaiseStatement) Value {
 	// Capture position of the raise statement
 	pos := stmt.Token.Pos
 
+	// Need concrete ClassInfo for ClassInfo field
+	concreteClass, ok := classInfo.(*ClassInfo)
+	if !ok {
+		i.exception = &ExceptionValue{
+			Metadata:  classInfo.GetMetadata(),
+			Message:   message,
+			Instance:  obj,
+			Position:  &pos,
+			CallStack: callStack,
+		}
+		return nil
+	}
+
 	i.exception = &ExceptionValue{
-		Metadata:  classInfo.Metadata,
+		Metadata:  classInfo.GetMetadata(),
 		Message:   message,
 		Instance:  obj,
 		Position:  &pos,
 		CallStack: callStack,
-		ClassInfo: classInfo, // Deprecated: backward compatibility
+		ClassInfo: concreteClass, // Deprecated: backward compatibility
 	}
 
 	return nil

@@ -473,12 +473,16 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		}
 
 		// Method path: reuse object logic (auto-invoke parameterless, otherwise return function pointer)
-		methodOverloads := i.getMethodOverloadsInHierarchy(underlyingObj.Class, memberName, false)
-		classMethodOverloads := i.getMethodOverloadsInHierarchy(underlyingObj.Class, memberName, true)
+		concreteClass, ok := underlyingObj.Class.(*ClassInfo)
+		if !ok {
+			return i.newErrorWithLocation(ma, "interface wraps invalid object class")
+		}
+		methodOverloads := i.getMethodOverloadsInHierarchy(concreteClass, memberName, false)
+		classMethodOverloads := i.getMethodOverloadsInHierarchy(concreteClass, memberName, true)
 
 		if len(methodOverloads) == 0 && len(classMethodOverloads) == 0 {
 			return i.newErrorWithLocation(ma, "method '%s' declared in interface '%s' but not implemented by class '%s'",
-				memberName, intfInst.Interface.Name, underlyingObj.Class.Name)
+				memberName, intfInst.Interface.Name, underlyingObj.Class.GetName())
 		}
 
 		var method *ast.FunctionDecl
@@ -639,15 +643,23 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	// Handle built-in properties/methods available on all objects (inherited from TObject)
 	if pkgident.Equal(memberName, "ClassName") {
 		// ClassName returns the runtime type name of the object
-		return &StringValue{Value: obj.Class.Name}
+		return &StringValue{Value: obj.Class.GetName()}
 	}
 	// Task 9.7.2: ClassType returns metaclass reference for the object's runtime type
 	if pkgident.Equal(memberName, "ClassType") {
-		return &ClassValue{ClassInfo: obj.Class}
+		concreteClass, ok := obj.Class.(*ClassInfo)
+		if !ok {
+			return i.newErrorWithLocation(ma, "object has invalid class type")
+		}
+		return &ClassValue{ClassInfo: concreteClass}
 	}
 
 	// Check if this is a property access (properties take precedence over fields)
-	if propInfo := obj.Class.lookupProperty(memberName); propInfo != nil {
+	if propDesc := obj.Class.LookupProperty(memberName); propDesc != nil {
+		propInfo, ok := propDesc.Impl.(*types.PropertyInfo)
+		if !ok {
+			return i.newErrorWithLocation(ma, "invalid property descriptor")
+		}
 		return i.evalPropertyRead(obj, propInfo, ma)
 	}
 
@@ -660,22 +672,30 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		if staticClassType != nil {
 			classForLookup = staticClassType
 		}
-		if classVarValue, ownerClass := classForLookup.lookupClassVar(memberName); ownerClass != nil {
+		if classVarValue, ownerClass := classForLookup.LookupClassVar(memberName); ownerClass != nil {
 			return classVarValue
 		}
 
 		// Task 9.22: Try class constants (accessible from instance)
-		if constValue := i.getClassConstant(obj.Class, memberName, ma); constValue != nil {
+		concreteClass, ok := obj.Class.(*ClassInfo)
+		if !ok {
+			return i.newErrorWithLocation(ma, "object has invalid class type")
+		}
+		if constValue := i.getClassConstant(concreteClass, memberName, ma); constValue != nil {
 			return constValue
 		}
 
 		// Check if it's a method
 		// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
 		// Task 9.67: Check MethodOverloads for overloaded methods, not just Methods map
-		methodOverloads := i.getMethodOverloadsInHierarchy(obj.Class, memberName, false)
+		concreteClassForMethod, ok := obj.Class.(*ClassInfo)
+		if !ok {
+			return i.newErrorWithLocation(ma, "object has invalid class type")
+		}
+		methodOverloads := i.getMethodOverloadsInHierarchy(concreteClassForMethod, memberName, false)
 
 		// Task 9.7: Also check for class methods (which can be called on instances)
-		classMethodOverloads := i.getMethodOverloadsInHierarchy(obj.Class, memberName, true)
+		classMethodOverloads := i.getMethodOverloadsInHierarchy(concreteClassForMethod, memberName, true)
 
 		if len(methodOverloads) > 0 || len(classMethodOverloads) > 0 {
 			// Check if any overload has 0 parameters and can be auto-invoked
@@ -744,7 +764,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		if helperProp != nil {
 			return i.evalHelperPropertyRead(helper, helperProp, obj, ma)
 		}
-		return i.newErrorWithLocation(ma, "field '%s' not found in class '%s'", memberName, obj.Class.Name)
+		return i.newErrorWithLocation(ma, "field '%s' not found in class '%s'", memberName, obj.Class.GetName())
 	}
 
 	return fieldValue
@@ -836,11 +856,19 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 
 	// Determine the current static class context for inherited resolution.
 	// Prefer __CurrentClass__ (set when entering a method), fall back to runtime class.
-	classInfo := obj.Class
+	var classInfo *ClassInfo
 	if currentClassVal, has := i.env.Get("__CurrentClass__"); has {
 		if civ, isClassVal := currentClassVal.(*ClassInfoValue); isClassVal && civ.ClassInfo != nil {
 			classInfo = civ.ClassInfo
 		}
+	}
+	if classInfo == nil {
+		// Fall back to runtime class
+		concreteClass, ok := obj.Class.(*ClassInfo)
+		if !ok {
+			return i.newErrorWithLocation(ie, "object has invalid class type")
+		}
+		classInfo = concreteClass
 	}
 
 	// Get the parent class

@@ -265,9 +265,13 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 						// Check if the value is an ObjectInstance
 						if objInst, isObj := nameValue.(*ObjectInstance); isObj {
 							// Validate that the object's class implements the interface
-							if !classImplementsInterface(objInst.Class, ifaceInfo) {
+							concreteClass, ok := objInst.Class.(*ClassInfo)
+							if !ok {
+								return i.newErrorWithLocation(stmt, "object has invalid class type")
+							}
+							if !classImplementsInterface(concreteClass, ifaceInfo) {
 								return i.newErrorWithLocation(stmt, "class '%s' does not implement interface '%s'",
-									objInst.Class.Name, ifaceInfo.Name)
+									objInst.Class.GetName(), ifaceInfo.Name)
 							}
 							// Wrap the object in an InterfaceInstance
 							nameValue = NewInterfaceInstance(ifaceInfo, objInst)

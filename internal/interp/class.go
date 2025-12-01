@@ -3,7 +3,6 @@ package interp
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -91,39 +90,181 @@ func NewClassInfo(name string) *ClassInfo {
 	}
 }
 
-// ObjectInstance represents a runtime instance of a class.
-// It implements the Value interface so it can be used as a runtime value.
-type ObjectInstance struct {
-	// Class points to the class metadata
-	Class *ClassInfo
+// Compile-time assertion that ClassInfo implements runtime.IClassInfo
+var _ runtime.IClassInfo = (*ClassInfo)(nil)
 
-	// Fields maps field names to their runtime values
-	Fields map[string]Value
+// === IClassInfo Interface Implementation ===
+// These methods allow ObjectInstance (in runtime package) to access ClassInfo
+// without creating a circular import dependency.
 
-	// RefCount tracks interface references to this object for lifetime management
-	// Task 9.1.5: Objects held by interfaces use reference counting
-	// - Starts at 0 when object is created; incremented when assigned to variable or interface
-	// - Increments when assigned to another variable or interface
-	// - Decrements when variable is reassigned, set to nil, or goes out of scope
-	// - Destructor called when RefCount reaches 0
-	RefCount int
-
-	// Destroyed indicates whether the object's destructor has completed.
-	// destroyCallDepth tracks nested Destroy calls during inherited dispatch.
-	Destroyed        bool
-	destroyCallDepth int
+// GetName returns the class name
+func (c *ClassInfo) GetName() string {
+	if c == nil {
+		return ""
+	}
+	return c.Name
 }
 
-// NewObjectInstance creates a new object instance of the given class.
-// Field values are initialized as an empty map.
-// Task 9.1.5: RefCount starts at 0; incremented when assigned to variable or interface
-func NewObjectInstance(class *ClassInfo) *ObjectInstance {
-	return &ObjectInstance{
-		Class:    class,
-		Fields:   make(map[string]Value),
-		RefCount: 0, // Start with reference count of 0
+// GetParent returns the parent class metadata
+func (c *ClassInfo) GetParent() runtime.IClassInfo {
+	if c == nil || c.Parent == nil {
+		return nil
+	}
+	return c.Parent
+}
+
+// GetMetadata returns the AST-free metadata
+func (c *ClassInfo) GetMetadata() *runtime.ClassMetadata {
+	if c == nil {
+		return nil
+	}
+	return c.Metadata
+}
+
+// LookupMethod finds a method by name in the class hierarchy
+func (c *ClassInfo) LookupMethod(name string) *ast.FunctionDecl {
+	return c.lookupMethod(name)
+}
+
+// LookupProperty finds a property by name in the class hierarchy
+func (c *ClassInfo) LookupProperty(name string) *runtime.PropertyInfo {
+	propInfo := c.lookupProperty(name)
+	if propInfo == nil {
+		return nil
+	}
+	return &runtime.PropertyInfo{
+		Name:      propInfo.Name,
+		IsIndexed: propInfo.IsIndexed,
+		IsDefault: propInfo.IsDefault,
+		ReadSpec:  propInfo.ReadSpec,
+		WriteSpec: propInfo.WriteSpec,
+		Impl:      propInfo,
 	}
 }
+
+// GetDefaultProperty returns the default property
+func (c *ClassInfo) GetDefaultProperty() *runtime.PropertyInfo {
+	propInfo := c.getDefaultProperty()
+	if propInfo == nil {
+		return nil
+	}
+	return &runtime.PropertyInfo{
+		Name:      propInfo.Name,
+		IsIndexed: propInfo.IsIndexed,
+		IsDefault: propInfo.IsDefault,
+		ReadSpec:  propInfo.ReadSpec,
+		WriteSpec: propInfo.WriteSpec,
+		Impl:      propInfo,
+	}
+}
+
+// FieldExists checks if a field exists
+func (c *ClassInfo) FieldExists(normalizedName string) bool {
+	if c == nil {
+		return false
+	}
+	_, exists := c.Fields[normalizedName]
+	return exists
+}
+
+// GetFieldsMap returns the legacy field declarations map
+func (c *ClassInfo) GetFieldsMap() map[string]*ast.FieldDecl {
+	if c == nil {
+		return nil
+	}
+	return c.FieldDecls
+}
+
+// GetMethodsMap returns the legacy methods map
+func (c *ClassInfo) GetMethodsMap() map[string]*ast.FunctionDecl {
+	if c == nil {
+		return nil
+	}
+	return c.Methods
+}
+
+// LookupClassVar retrieves a class variable by name
+func (c *ClassInfo) LookupClassVar(name string) (Value, runtime.IClassInfo) {
+	value, owningClass := c.lookupClassVar(name)
+	if owningClass == nil {
+		return nil, nil
+	}
+	return value, owningClass
+}
+
+// GetClassVarsMap returns the map of class variables
+func (c *ClassInfo) GetClassVarsMap() map[string]Value {
+	if c == nil {
+		return nil
+	}
+	return c.ClassVars
+}
+
+// GetVirtualMethodTable returns the virtual method dispatch table
+func (c *ClassInfo) GetVirtualMethodTable() map[string]*runtime.VirtualMethodEntry {
+	if c == nil || c.VirtualMethodTable == nil {
+		return nil
+	}
+	// Convert from interp.VirtualMethodEntry to runtime.VirtualMethodEntry
+	result := make(map[string]*runtime.VirtualMethodEntry, len(c.VirtualMethodTable))
+	for sig, entry := range c.VirtualMethodTable {
+		if entry != nil {
+			result[sig] = &runtime.VirtualMethodEntry{
+				Method:        entry.Implementation,
+				OwningClass:   entry.IntroducedBy,
+				IsVirtual:     entry.IsVirtual,
+				IsOverride:    false, // interp.VirtualMethodEntry doesn't track this separately
+				IsReintroduce: entry.IsReintroduced,
+			}
+		}
+	}
+	return result
+}
+
+// LookupOperator finds an operator overload
+func (c *ClassInfo) LookupOperator(operator string, operandTypes []string) (*runtime.OperatorEntry, bool) {
+	if c == nil || c.Operators == nil {
+		return nil, false
+	}
+	entry, found := c.lookupOperator(operator, operandTypes)
+	if !found || entry == nil {
+		return nil, false
+	}
+	// Note: runtime.OperatorEntry is currently a placeholder.
+	// Operator lookup is only used within interp package, so returning
+	// a simplified version here. Full implementation when needed.
+	return &runtime.OperatorEntry{
+		Operator:      entry.Operator,
+		OperandTypes:  entry.OperandTypes,
+		Class:         entry.Class,
+		Method:        nil, // Not needed, BindingName is used instead
+		BindingName:   entry.BindingName,
+		SelfIndex:     entry.SelfIndex,
+		IsClassMethod: entry.IsClassMethod,
+	}, true
+}
+
+// GetInterfaces returns the list of interfaces this class implements
+func (c *ClassInfo) GetInterfaces() []*runtime.InterfaceInfo {
+	if c == nil {
+		return nil
+	}
+	// For now, return nil as InterfaceInfo interface is not fully defined
+	// This will need proper implementation when interface support is added
+	return nil
+}
+
+// === End IClassInfo Interface Implementation ===
+
+// ============================================================================
+// ObjectInstance - Moved to runtime package
+// ============================================================================
+// Task 3.5.17: ObjectInstance has been moved to internal/interp/runtime/object.go
+// A type alias is provided in internal/interp/value.go for backward compatibility.
+//
+// ObjectInstance now uses runtime.IClassInfo interface instead of *ClassInfo
+// to avoid circular import dependencies.
+// ============================================================================
 
 // lookupNestedClass returns a nested class by short name (case-insensitive).
 func (c *ClassInfo) lookupNestedClass(name string) *ClassInfo {
@@ -136,127 +277,9 @@ func (c *ClassInfo) lookupNestedClass(name string) *ClassInfo {
 	return nil
 }
 
-// GetField retrieves the value of a field by name.
-// Returns nil if the field doesn't exist or hasn't been set.
-func (o *ObjectInstance) GetField(name string) Value {
-	// Guard against nil class
-	if o.Class == nil {
-		return nil
-	}
-
-	normalizedName := ident.Normalize(name)
-
-	// Try metadata first (AST-free path), walking up the inheritance chain.
-	// This avoids missing inherited fields when the child class adds its own fields.
-	if fieldMeta := lookupFieldMetadata(o.Class.Metadata, normalizedName); fieldMeta != nil {
-		if val, exists := o.Fields[normalizedName]; exists {
-			return val
-		}
-		if val, exists := o.Fields[name]; exists {
-			return val
-		}
-		return nil
-	}
-
-	// Legacy fallback: Check if field exists in ClassInfo.Fields
-	if _, exists := o.Class.Fields[normalizedName]; !exists {
-		// Also check non-normalized key for backward compatibility
-		if _, exists := o.Class.Fields[name]; !exists {
-			return nil
-		}
-		// Return field with original name key
-		return o.Fields[name]
-	}
-
-	// Return field with normalized name
-	return o.Fields[normalizedName]
-}
-
-// SetField sets the value of a field by name.
-// The field must be defined in the class's field map.
-func (o *ObjectInstance) SetField(name string, value Value) {
-	// Guard against nil class
-	if o.Class == nil {
-		return
-	}
-
-	normalizedName := ident.Normalize(name)
-
-	// Try metadata first (AST-free path), walking up the inheritance chain.
-	if lookupFieldMetadata(o.Class.Metadata, normalizedName) != nil {
-		o.Fields[normalizedName] = value
-		return
-	}
-
-	// Legacy fallback: Check if field exists in ClassInfo.Fields
-	if _, exists := o.Class.Fields[normalizedName]; exists {
-		o.Fields[normalizedName] = value
-		return
-	}
-
-	// Also check non-normalized key for backward compatibility
-	if _, exists := o.Class.Fields[name]; exists {
-		o.Fields[name] = value
-	}
-}
-
-// GetMethod looks up a method by name in this object's class.
-// It searches the class hierarchy, starting with the object's class
-// and walking up through parent classes until the method is found.
-// Returns nil if the method is not found in the class hierarchy.
-//
-// This implements method resolution order (MRO) and supports method overriding:
-//   - If a child class defines a method with the same name as a parent class method,
-//     the child's method is returned (overriding).
-//
-// Note: This performs static method resolution (not virtual dispatch).
-// Virtual dispatch is implemented inline in objects_methods.go where needed.
-func (o *ObjectInstance) GetMethod(name string) *ast.FunctionDecl {
-	if o.Class == nil {
-		return nil
-	}
-	return o.Class.lookupMethod(name)
-}
-
-// LookupProperty searches for a property by name in the class hierarchy.
-func (o *ObjectInstance) LookupProperty(name string) *evaluator.PropertyDescriptor {
-	if o.Class == nil {
-		return nil
-	}
-
-	propInfo := o.Class.lookupProperty(name)
-	if propInfo == nil {
-		return nil
-	}
-
-	return &evaluator.PropertyDescriptor{
-		Name:      propInfo.Name,
-		IsIndexed: propInfo.IsIndexed,
-		IsDefault: propInfo.IsDefault,
-		Impl:      propInfo, // Store the original PropertyInfo for later use
-	}
-}
-
-// GetDefaultProperty returns the default property for this object's class, if any.
-// Task 3.5.99a: Implements evaluator.PropertyAccessor interface.
-// Returns a PropertyDescriptor wrapping types.PropertyInfo, or nil if no default property exists.
-func (o *ObjectInstance) GetDefaultProperty() *evaluator.PropertyDescriptor {
-	if o.Class == nil {
-		return nil
-	}
-
-	propInfo := o.Class.getDefaultProperty()
-	if propInfo == nil {
-		return nil
-	}
-
-	return &evaluator.PropertyDescriptor{
-		Name:      propInfo.Name,
-		IsIndexed: propInfo.IsIndexed,
-		IsDefault: propInfo.IsDefault,
-		Impl:      propInfo, // Store the original PropertyInfo for later use
-	}
-}
+// ============================================================================
+// ClassInfo Helper Methods
+// ============================================================================
 
 // lookupMethod searches for a method in the class hierarchy.
 // It starts with the current class and walks up the parent chain.
@@ -425,219 +448,6 @@ func (c *ClassInfo) InheritsFrom(name string) bool {
 		}
 	}
 	return false
-}
-
-// ============================================================================
-// Value Interface Implementation
-// ============================================================================
-
-// Type returns "OBJECT" to indicate this is an object instance.
-func (o *ObjectInstance) Type() string {
-	return "OBJECT"
-}
-
-// String returns a string representation of the object instance.
-// Format: "TClassName instance"
-func (o *ObjectInstance) String() string {
-	return fmt.Sprintf("%s instance", o.Class.Name)
-}
-
-// ClassName returns the class name of this object instance.
-// Task 3.5.72: Implements evaluator.ObjectValue interface.
-func (o *ObjectInstance) ClassName() string {
-	if o == nil || o.Class == nil {
-		return ""
-	}
-	return o.Class.Name
-}
-
-// GetClassType returns the class type (metaclass) for this object instance.
-// Task 3.5.156: Implements evaluator.ObjectValue interface.
-func (o *ObjectInstance) GetClassType() Value {
-	if o == nil || o.Class == nil {
-		return nil
-	}
-	return &ClassValue{ClassInfo: o.Class}
-}
-
-// HasProperty checks if this object's class has a property with the given name.
-// The check includes the entire class hierarchy.
-// Task 3.5.72: Implements evaluator.ObjectValue interface.
-func (o *ObjectInstance) HasProperty(name string) bool {
-	if o == nil || o.Class == nil {
-		return false
-	}
-	return o.Class.lookupProperty(name) != nil
-}
-
-// HasMethod checks if this object's class has a method with the given name.
-// Task 3.5.72: Implements evaluator.ObjectValue interface.
-func (o *ObjectInstance) HasMethod(name string) bool {
-	if o == nil || o.Class == nil {
-		return false
-	}
-	_, exists := o.Class.Methods[ident.Normalize(name)]
-	return exists
-}
-
-// GetClassVar retrieves a class variable value by name from this object's class hierarchy.
-// Returns the value and true if found, nil and false otherwise.
-// Task 3.5.86: Implements evaluator.ObjectValue interface for direct class variable access.
-func (o *ObjectInstance) GetClassVar(name string) (Value, bool) {
-	if o == nil || o.Class == nil {
-		return nil, false
-	}
-	value, owningClass := o.Class.lookupClassVar(name)
-	if owningClass == nil {
-		return nil, false
-	}
-	return value, true
-}
-
-// CallInheritedMethod calls a method from the parent class.
-// Task 3.5.114: Implements evaluator.ObjectValue interface for direct inherited method calls.
-// The methodExecutor callback is used to execute the method once resolved.
-// Returns an error value if the class has no parent or the method is not found.
-func (o *ObjectInstance) CallInheritedMethod(methodName string, args []Value, methodExecutor func(methodDecl any, args []Value) Value) Value {
-	// Validate object state
-	if o == nil || o.Class == nil {
-		return newError("object has no class information")
-	}
-
-	// Check parent class exists
-	if o.Class.Parent == nil {
-		return newError("class '%s' has no parent class", o.Class.Name)
-	}
-
-	parentInfo := o.Class.Parent
-
-	// Find method in parent (case-insensitive)
-	methodNameLower := ident.Normalize(methodName)
-	method, exists := parentInfo.Methods[methodNameLower]
-	if !exists {
-		return newError("method, property, or field '%s' not found in parent class '%s'", methodName, parentInfo.Name)
-	}
-
-	// Execute the method using the provided executor callback
-	return methodExecutor(method, args)
-}
-
-// ReadProperty reads a property value from this object.
-// Task 3.5.116: Enables direct property access without adapter.
-// The propertyExecutor callback handles interpreter-dependent execution.
-func (o *ObjectInstance) ReadProperty(propName string, propertyExecutor func(propInfo any) Value) Value {
-	// Validate object state
-	if o == nil || o.Class == nil {
-		return newError("object has no class information")
-	}
-
-	// Look up the property in the class hierarchy
-	propInfo := o.Class.lookupProperty(propName)
-	if propInfo == nil {
-		return newError("property '%s' not found", propName)
-	}
-
-	// Execute the property read using the provided executor callback
-	return propertyExecutor(propInfo)
-}
-
-// ReadIndexedProperty reads an indexed property value using the provided executor callback.
-// Task 3.5.117: Enables direct indexed property access without going through adapter.
-// The propInfo is already resolved by PropertyAccessor.LookupProperty or GetDefaultProperty.
-func (o *ObjectInstance) ReadIndexedProperty(propInfo any, indices []Value, propertyExecutor func(propInfo any, indices []Value) Value) Value {
-	// Validate object state
-	if o == nil || o.Class == nil {
-		return newError("object has no class information")
-	}
-
-	// The propInfo is already resolved by the caller (PropertyAccessor.LookupProperty or GetDefaultProperty)
-	// Just call the executor with the property info and indices
-	return propertyExecutor(propInfo, indices)
-}
-
-// InvokeParameterlessMethod invokes a method if it has zero parameters.
-// Task 3.5.119: Implements evaluator.ObjectValue interface.
-// Returns (result, true) if method exists and has 0 parameters,
-// or (nil, false) if method has parameters (caller should create method pointer).
-func (o *ObjectInstance) InvokeParameterlessMethod(methodName string,
-	methodExecutor func(methodDecl any) Value) (Value, bool) {
-	if o == nil || o.Class == nil {
-		return nil, false
-	}
-
-	method, exists := o.Class.Methods[ident.Normalize(methodName)]
-	if !exists {
-		return nil, false // Method not found
-	}
-
-	if len(method.Parameters) > 0 {
-		return nil, false // Has parameters - caller should create method pointer
-	}
-
-	// Parameterless method - invoke via callback
-	return methodExecutor(method), true
-}
-
-// CreateMethodPointer creates a method pointer for a method with parameters.
-// Task 3.5.120: Implements evaluator.ObjectValue interface.
-// Returns (pointer, true) if method exists and has parameters,
-// or (nil, false) if method doesn't exist or has no parameters.
-func (o *ObjectInstance) CreateMethodPointer(methodName string,
-	pointerCreator func(methodDecl any) Value) (Value, bool) {
-	if o == nil || o.Class == nil {
-		return nil, false
-	}
-
-	method, exists := o.Class.Methods[ident.Normalize(methodName)]
-	if !exists {
-		return nil, false // Method not found
-	}
-
-	if len(method.Parameters) == 0 {
-		return nil, false // No parameters - caller should use InvokeParameterlessMethod
-	}
-
-	// Method has parameters - create pointer via callback
-	return pointerCreator(method), true
-}
-
-// IsInstanceOf checks whether the object derives from the given class.
-func (o *ObjectInstance) IsInstanceOf(target *ClassInfo) bool {
-	if o == nil || o.Class == nil || target == nil {
-		return false
-	}
-	current := o.Class
-	for current != nil {
-		if current.Name == target.Name {
-			return true
-		}
-		current = current.Parent
-	}
-	return false
-}
-
-// Helper function to check if a value is an ObjectInstance
-func isObject(v Value) bool {
-	_, ok := v.(*ObjectInstance)
-	return ok
-}
-
-// AsObject attempts to cast a Value to an ObjectInstance.
-// Returns the ObjectInstance and true if successful, or nil and false if not.
-func AsObject(v Value) (*ObjectInstance, bool) {
-	obj, ok := v.(*ObjectInstance)
-	return obj, ok
-}
-
-// lookupFieldMetadata searches for a field in the class metadata hierarchy.
-// Returns the metadata for the field if found, or nil otherwise.
-func lookupFieldMetadata(meta *runtime.ClassMetadata, normalizedName string) *runtime.FieldMetadata {
-	for current := meta; current != nil; current = current.Parent {
-		if field, ok := current.Fields[normalizedName]; ok {
-			return field
-		}
-	}
-	return nil
 }
 
 // ============================================================================

@@ -405,9 +405,9 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		}
 
 		// Find method (case-insensitive)
-		method := classInfo.lookupMethod(methodName)
+		method := classInfo.LookupMethod(methodName)
 		if method == nil {
-			return newError("method '%s' not found in class '%s'", methodName, classInfo.Name)
+			return newError("method '%s' not found in class '%s'", methodName, classInfo.GetName())
 		}
 
 		// Call the method with Self bound to the underlying object (not the interface)
@@ -542,9 +542,9 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 	}
 
 	// Find method (case-insensitive) using the existing helper
-	method := classInfo.lookupMethod(methodName)
+	method := classInfo.LookupMethod(methodName)
 	if method == nil {
-		panic(fmt.Sprintf("method '%s' not found in class '%s'", methodName, classInfo.Name))
+		panic(fmt.Sprintf("method '%s' not found in class '%s'", methodName, classInfo.GetName()))
 	}
 
 	// Call the method using existing infrastructure
@@ -578,17 +578,18 @@ func (i *Interpreter) CallInheritedMethod(obj evaluator.Value, methodName string
 	}
 
 	// Check parent class
-	if classInfo.Parent == nil {
-		return newError("class '%s' has no parent class", classInfo.Name)
+	if classInfo.GetParent() == nil {
+		return newError("class '%s' has no parent class", classInfo.GetName())
 	}
 
-	parentInfo := classInfo.Parent
+	parentInfo := classInfo.GetParent()
 
 	// Find method in parent (case-insensitive)
 	methodNameLower := ident.Normalize(methodName)
-	method, exists := parentInfo.Methods[methodNameLower]
+	methods := parentInfo.GetMethodsMap()
+	method, exists := methods[methodNameLower]
 	if !exists {
-		return newError("method, property, or field '%s' not found in parent class '%s'", methodName, parentInfo.Name)
+		return newError("method, property, or field '%s' not found in parent class '%s'", methodName, parentInfo.GetName())
 	}
 
 	// Call the method using existing infrastructure

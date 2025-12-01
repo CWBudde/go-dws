@@ -59,7 +59,8 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 			}
 
 			// Check if it's a class variable
-			if classVarValue, exists := obj.Class.ClassVars[node.Value]; exists {
+			classVars := obj.Class.GetClassVarsMap()
+			if classVarValue, exists := classVars[node.Value]; exists {
 				return classVarValue
 			}
 
@@ -71,25 +72,33 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 				// Fall through to error below
 			} else {
 				// Check if it's a property (properties can be accessed without Self.)
-				if propInfo := obj.Class.lookupProperty(node.Value); propInfo != nil {
+				if propInfo := obj.Class.LookupProperty(node.Value); propInfo != nil {
+					// Extract the actual *types.PropertyInfo from the Impl field
+					typesPropInfo, ok := propInfo.Impl.(*types.PropertyInfo)
+					if !ok {
+						return i.newErrorWithLocation(node, "invalid property info implementation for '%s'", node.Value)
+					}
+
 					// For field-backed properties, read the field directly to avoid recursion
-					if propInfo.ReadKind == types.PropAccessField {
+					if typesPropInfo.ReadKind == types.PropAccessField {
 						// Check if ReadSpec is actually a field (not a method)
-						if _, isField := obj.Class.Fields[propInfo.ReadSpec]; isField {
-							if fieldValue := obj.GetField(propInfo.ReadSpec); fieldValue != nil {
+						fields := obj.Class.GetFieldsMap()
+						if _, isField := fields[typesPropInfo.ReadSpec]; isField {
+							if fieldValue := obj.GetField(typesPropInfo.ReadSpec); fieldValue != nil {
 								return fieldValue
 							}
-							return i.newErrorWithLocation(node, "property '%s' field '%s' not found", node.Value, propInfo.ReadSpec)
+							return i.newErrorWithLocation(node, "property '%s' field '%s' not found", node.Value, typesPropInfo.ReadSpec)
 						}
 					}
 					// For method-backed or expression-backed properties, use evalPropertyRead
-					return i.evalPropertyRead(obj, propInfo, node)
+					return i.evalPropertyRead(obj, typesPropInfo, node)
 				}
 			} // End else block for property check
 
 			// Check if it's a method of the current class
 			// This allows methods to reference other methods as method pointers
-			if method, exists := obj.Class.Methods[ident.Normalize(node.Value)]; exists {
+			methods := obj.Class.GetMethodsMap()
+			if method, exists := methods[ident.Normalize(node.Value)]; exists {
 				// In DWScript/Pascal, parameterless methods can be called without parentheses
 				// When referenced as an identifier, they should be treated as implicit calls
 				if len(method.Parameters) == 0 {
@@ -130,11 +139,16 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 			// Check for ClassName in instance method/constructor context
 			// This handles `PrintLn(ClassName)` inside constructors
 			if ident.Equal(node.Value, "ClassName") {
-				return &StringValue{Value: obj.Class.Name}
+				return &StringValue{Value: obj.Class.GetName()}
 			}
 			// Check for ClassType in instance method/constructor context
 			if ident.Equal(node.Value, "ClassType") {
-				return &ClassValue{ClassInfo: obj.Class}
+				// Need concrete ClassInfo for ClassValue
+				concreteClass, ok := obj.Class.(*ClassInfo)
+				if !ok {
+					return i.newErrorWithLocation(node, "invalid class type for ClassType")
+				}
+				return &ClassValue{ClassInfo: concreteClass}
 			}
 		}
 	}
@@ -260,8 +274,21 @@ func (i *Interpreter) tryUnaryOperator(operator string, operand Value, node ast.
 	operandTypes := []string{valueTypeKey(operand)}
 
 	if obj, ok := operand.(*ObjectInstance); ok {
-		if entry, found := obj.Class.lookupOperator(operator, operandTypes); found {
-			return i.invokeRuntimeOperator(entry, operands, node), true
+		if entry, found := obj.Class.LookupOperator(operator, operandTypes); found {
+			// Convert runtime.OperatorEntry to runtimeOperatorEntry
+			concreteClass, ok := entry.Class.(*ClassInfo)
+			if !ok {
+				return i.newErrorWithLocation(node, "invalid class type for operator"), true
+			}
+			runtimeEntry := &runtimeOperatorEntry{
+				Class:         concreteClass,
+				Operator:      entry.Operator,
+				BindingName:   entry.BindingName,
+				OperandTypes:  entry.OperandTypes,
+				SelfIndex:     entry.SelfIndex,
+				IsClassMethod: entry.IsClassMethod,
+			}
+			return i.invokeRuntimeOperator(runtimeEntry, operands, node), true
 		}
 	}
 
@@ -372,9 +399,9 @@ func (i *Interpreter) evalFunctionPointer(name string, selfObject Value, _ ast.N
 		}
 
 		// Look up the method in the class hierarchy
-		function = obj.Class.lookupMethod(name)
+		function = obj.Class.LookupMethod(name)
 		if function == nil {
-			return i.newUndefinedError(nil, "undefined method: %s.%s", obj.Class.Name, name)
+			return i.newUndefinedError(nil, "undefined method: %s.%s", obj.Class.GetName(), name)
 		}
 	} else {
 		// Look up the function in the function registry

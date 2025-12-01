@@ -530,7 +530,7 @@ func (i *Interpreter) evaluateLValue(lvalue ast.Expression) (Value, func(Value) 
 			// Use GetField/SetField for proper normalization
 			currentVal := obj.GetField(fieldName)
 			if currentVal == nil {
-				return nil, nil, fmt.Errorf("field '%s' not found in class '%s'", fieldName, obj.Class.Name)
+				return nil, nil, fmt.Errorf("field '%s' not found in class '%s'", fieldName, obj.Class.GetName())
 			}
 
 			assignFunc := func(value Value) error {

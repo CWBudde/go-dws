@@ -137,7 +137,7 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 	case *BooleanValue:
 		typeName = "Boolean"
 	case *ObjectInstance:
-		typeName = v.Class.Name
+		typeName = v.Class.GetName()
 	case *RecordValue:
 		typeName = v.RecordType.Name
 	case *ArrayValue:

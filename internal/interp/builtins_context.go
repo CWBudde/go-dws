@@ -185,7 +185,7 @@ func (i *Interpreter) GetTypeOf(value builtins.Value) string {
 	// Special handling for ObjectInstance - return the class name
 	if objVal, ok := value.(*ObjectInstance); ok {
 		if objVal.Class != nil {
-			return objVal.Class.Name
+			return objVal.Class.GetName()
 		}
 		return "Object"
 	}
@@ -241,7 +241,7 @@ func (i *Interpreter) GetClassOf(value builtins.Value) string {
 	// Handle ObjectInstance - return the class name
 	if objVal, ok := value.(*ObjectInstance); ok {
 		if objVal.Class != nil {
-			return objVal.Class.Name
+			return objVal.Class.GetName()
 		}
 	}
 

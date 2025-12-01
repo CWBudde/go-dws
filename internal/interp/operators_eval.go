@@ -24,7 +24,7 @@ func (i *Interpreter) invokeRuntimeOperator(entry *runtimeOperatorEntry, operand
 			return i.newErrorWithLocation(node, "operator '%s' requires object operand", entry.Operator)
 		}
 		if !obj.IsInstanceOf(entry.Class) {
-			return i.newErrorWithLocation(node, "operator '%s' requires instance of '%s'", entry.Operator, entry.Class.Name)
+			return i.newErrorWithLocation(node, "operator '%s' requires instance of '%s'", entry.Operator, entry.Class.GetName())
 		}
 
 		args := make([]Value, 0, len(operands)-1)
@@ -56,7 +56,7 @@ func (i *Interpreter) invokeGlobalOperator(entry *runtimeOperatorEntry, operands
 func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodName string, args []Value, node ast.Node) Value {
 	method := obj.GetMethod(methodName)
 	if method == nil {
-		return i.newErrorWithLocation(node, "method '%s' not found in class '%s'", methodName, obj.Class.Name)
+		return i.newErrorWithLocation(node, "method '%s' not found in class '%s'", methodName, obj.Class.GetName())
 	}
 
 	if len(args) != len(method.Parameters) {
