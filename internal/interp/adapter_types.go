@@ -67,6 +67,84 @@ func (i *Interpreter) LookupInterfaceInfo(name string) *InterfaceInfo {
 	return nil
 }
 
+// ===== Task 3.5.9: Interface Declaration Adapter Methods =====
+
+// NewInterfaceInfoAdapter creates a new InterfaceInfo instance via NewInterfaceInfo function.
+// Task 3.5.9.1: Allows evaluator to create InterfaceInfo without direct access to interp package.
+func (i *Interpreter) NewInterfaceInfoAdapter(name string) interface{} {
+	return NewInterfaceInfo(name)
+}
+
+// CastToInterfaceInfo performs type assertion from any to *InterfaceInfo.
+// Task 3.5.9.2: Safe type casting for evaluator.
+func (i *Interpreter) CastToInterfaceInfo(iface interface{}) (interface{}, bool) {
+	if ifaceInfo, ok := iface.(*InterfaceInfo); ok {
+		return ifaceInfo, true
+	}
+	return nil, false
+}
+
+// SetInterfaceParent sets the parent interface for inheritance.
+// Task 3.5.9.2: Allows evaluator to set up interface hierarchy.
+func (i *Interpreter) SetInterfaceParent(iface interface{}, parent interface{}) {
+	if ifaceInfo, ok := iface.(*InterfaceInfo); ok {
+		if parentInfo, ok := parent.(*InterfaceInfo); ok {
+			ifaceInfo.Parent = parentInfo
+		}
+	}
+}
+
+// GetInterfaceName returns the name of an interface.
+// Task 3.5.9: Allows evaluator to access interface name without direct InterfaceInfo access.
+func (i *Interpreter) GetInterfaceName(iface interface{}) string {
+	if ifaceInfo, ok := iface.(*InterfaceInfo); ok {
+		return ifaceInfo.Name
+	}
+	return ""
+}
+
+// GetInterfaceParent returns the parent interface.
+// Task 3.5.9: Allows evaluator to traverse interface hierarchy for circular inheritance check.
+func (i *Interpreter) GetInterfaceParent(iface interface{}) interface{} {
+	if ifaceInfo, ok := iface.(*InterfaceInfo); ok {
+		return ifaceInfo.Parent
+	}
+	return nil
+}
+
+// AddInterfaceMethod adds a method to an interface.
+// Task 3.5.9.1: Allows evaluator to register interface methods.
+func (i *Interpreter) AddInterfaceMethod(iface interface{}, normalizedName string, method *ast.FunctionDecl) {
+	if ifaceInfo, ok := iface.(*InterfaceInfo); ok {
+		ifaceInfo.Methods[normalizedName] = method
+	}
+}
+
+// AddInterfaceProperty adds a property to an interface.
+// Task 3.5.9.4: Allows evaluator to register interface properties.
+func (i *Interpreter) AddInterfaceProperty(iface interface{}, normalizedName string, propInfo any) {
+	if ifaceInfo, ok := iface.(*InterfaceInfo); ok {
+		if prop, ok := propInfo.(*types.PropertyInfo); ok {
+			ifaceInfo.Properties[normalizedName] = prop
+		}
+	}
+}
+
+// ResolveClassInfoByName resolves a class by name for property type resolution.
+// Task 3.5.9.4: Allows evaluator to resolve class types in property declarations.
+func (i *Interpreter) ResolveClassInfoByName(name string) interface{} {
+	return i.resolveClassInfoByName(name)
+}
+
+// GetClassNameFromInfo returns the name from a raw ClassInfo interface{}.
+// Task 3.5.9.4: Extracts class name for type construction.
+func (i *Interpreter) GetClassNameFromInfo(classInfo interface{}) string {
+	if ci, ok := classInfo.(*ClassInfo); ok {
+		return ci.Name
+	}
+	return ""
+}
+
 // LookupHelpers returns helpers for a given type name.
 func (i *Interpreter) LookupHelpers(typeName string) []any {
 	normalizedName := ident.Normalize(typeName)

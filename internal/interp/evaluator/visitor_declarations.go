@@ -54,10 +54,179 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 }
 
 // VisitInterfaceDecl evaluates an interface declaration.
+// Task 3.5.9: Migrated from Interpreter.evalInterfaceDeclaration to Evaluator visitor.
+//
+// This method:
+//  1. Creates InterfaceInfo from the AST declaration
+//  2. Resolves parent interface via TypeSystem.LookupInterface()
+//  3. Converts InterfaceMethodDecl nodes to FunctionDecl (interface methods have no body)
+//  4. Converts PropertyDecl nodes using convertPropertyDecl()
+//  5. Registers interface via TypeSystem.RegisterInterface()
 func (e *Evaluator) VisitInterfaceDecl(node *ast.InterfaceDecl, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2B: Interface registry available via adapter.LookupInterface()
-	// TODO: Move interface registration logic here (use adapter type system methods)
-	return e.adapter.EvalNode(node)
+	if node == nil {
+		return e.newError(nil, "nil interface declaration")
+	}
+
+	// Create new InterfaceInfo
+	interfaceInfo := e.adapter.NewInterfaceInfoAdapter(node.Name.Value)
+
+	// Handle inheritance if parent interface is specified
+	if node.Parent != nil {
+		parentName := node.Parent.Value
+		parentInterface := e.typeSystem.LookupInterface(parentName)
+
+		if parentInterface == nil {
+			return e.newError(node.Parent, "parent interface '%s' not found", parentName)
+		}
+
+		// Type assert from any to *InterfaceInfo
+		parentInfo, ok := e.adapter.CastToInterfaceInfo(parentInterface)
+		if !ok {
+			return e.newError(node.Parent, "invalid parent interface '%s'", parentName)
+		}
+
+		// Set parent reference (hierarchy traversal happens in InterfaceInfo methods)
+		e.adapter.SetInterfaceParent(interfaceInfo, parentInfo)
+
+		// Check for circular inheritance
+		if e.hasCircularInterfaceInheritance(interfaceInfo) {
+			return e.newError(node.Parent,
+				"circular inheritance detected in interface '%s'", node.Name.Value)
+		}
+	}
+
+	// Add methods to InterfaceInfo
+	// Convert InterfaceMethodDecl nodes to FunctionDecl nodes for consistency
+	for _, methodDecl := range node.Methods {
+		// Create a FunctionDecl from the InterfaceMethodDecl
+		// Interface methods are declarations only (no body)
+		funcDecl := &ast.FunctionDecl{
+			BaseNode: ast.BaseNode{
+				Token: methodDecl.Token,
+			},
+			Name:       methodDecl.Name,
+			Parameters: methodDecl.Parameters,
+			ReturnType: methodDecl.ReturnType,
+			Body:       nil, // Interface methods have no body
+		}
+
+		// Use normalized key for case-insensitive method lookups
+		e.adapter.AddInterfaceMethod(interfaceInfo, ident.Normalize(methodDecl.Name.Value), funcDecl)
+	}
+
+	// Register properties declared on the interface
+	for _, propDecl := range node.Properties {
+		if propDecl == nil {
+			continue
+		}
+		propInfo, err := e.convertPropertyDecl(propDecl)
+		if err != nil {
+			return e.newError(propDecl, "%v", err)
+		}
+		if propInfo != nil {
+			e.adapter.AddInterfaceProperty(interfaceInfo, ident.Normalize(propDecl.Name.Value), propInfo)
+		}
+	}
+
+	// Register interface in TypeSystem
+	e.typeSystem.RegisterInterface(e.adapter.GetInterfaceName(interfaceInfo), interfaceInfo)
+
+	return &runtime.NilValue{}
+}
+
+// convertPropertyDecl converts an AST property declaration to a PropertyInfo struct.
+// This extracts the property metadata for runtime property access handling.
+// This method is used by interface, class, and record declaration evaluation.
+//
+// Note: We mark all identifiers as field access for now and will check at runtime
+// whether they're actually fields or methods.
+func (e *Evaluator) convertPropertyDecl(propDecl *ast.PropertyDecl) (*types.PropertyInfo, error) {
+	// Resolve property type
+	var propType types.Type
+	switch propDecl.Type.String() {
+	case "Integer":
+		propType = types.INTEGER
+	case "Float":
+		propType = types.FLOAT
+	case "String":
+		propType = types.STRING
+	case "Boolean":
+		propType = types.BOOLEAN
+	default:
+		// Try to resolve known class types; fall back to NIL if unknown
+		if classInfo := e.adapter.ResolveClassInfoByName(propDecl.Type.String()); classInfo != nil {
+			propType = types.NewClassType(e.adapter.GetClassNameFromInfo(classInfo), nil)
+		} else {
+			propType = types.NIL
+		}
+	}
+
+	propInfo := &types.PropertyInfo{
+		Name:            propDecl.Name.Value,
+		Type:            propType,
+		IsIndexed:       len(propDecl.IndexParams) > 0,
+		IsDefault:       propDecl.IsDefault,
+		IsClassProperty: propDecl.IsClassProperty,
+	}
+
+	if propDecl.IndexValue != nil {
+		if val, ok := ast.ExtractIntegerLiteral(propDecl.IndexValue); ok {
+			propInfo.HasIndexValue = true
+			propInfo.IndexValue = val
+			propInfo.IndexValueType = types.INTEGER
+		}
+	}
+
+	// Determine read access kind and spec
+	if propDecl.ReadSpec != nil {
+		if ident, ok := propDecl.ReadSpec.(*ast.Identifier); ok {
+			// It's an identifier - store the name, we'll check if it's a field or method at access time
+			propInfo.ReadSpec = ident.Value
+			// Mark as field for now - evalPropertyRead will check both fields and methods
+			propInfo.ReadKind = types.PropAccessField
+		} else {
+			// It's an expression
+			propInfo.ReadKind = types.PropAccessExpression
+			propInfo.ReadSpec = propDecl.ReadSpec.String()
+			propInfo.ReadExpr = propDecl.ReadSpec // Store AST node for evaluation
+		}
+	} else {
+		propInfo.ReadKind = types.PropAccessNone
+	}
+
+	// Determine write access kind and spec
+	if propDecl.WriteSpec != nil {
+		if ident, ok := propDecl.WriteSpec.(*ast.Identifier); ok {
+			// It's an identifier - store the name, we'll check if it's a field or method at access time
+			propInfo.WriteSpec = ident.Value
+			// Mark as field for now - evalPropertyWrite will check both fields and methods
+			propInfo.WriteKind = types.PropAccessField
+		} else {
+			propInfo.WriteKind = types.PropAccessNone
+		}
+	} else {
+		propInfo.WriteKind = types.PropAccessNone
+	}
+
+	return propInfo, nil
+}
+
+// hasCircularInterfaceInheritance checks if an interface has circular inheritance.
+// This prevents infinite loops when traversing the interface hierarchy.
+func (e *Evaluator) hasCircularInterfaceInheritance(iface any) bool {
+	seen := make(map[string]bool)
+	current := iface
+
+	for current != nil {
+		normalizedName := ident.Normalize(e.adapter.GetInterfaceName(current))
+		if seen[normalizedName] {
+			return true
+		}
+		seen[normalizedName] = true
+		current = e.adapter.GetInterfaceParent(current)
+	}
+
+	return false
 }
 
 // VisitOperatorDecl evaluates an operator declaration (operator overloading).
