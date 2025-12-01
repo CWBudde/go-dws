@@ -32,7 +32,7 @@ func (i *Interpreter) CallFunctionPointer(funcPtr evaluator.Value, args []evalua
 }
 
 // ExecuteFunctionPointerCall executes a function pointer with the given metadata.
-// Low-level execution method used by FunctionPointerCallable.Invoke callback.
+// Task 3.5.121: Low-level execution method used by FunctionPointerCallable.Invoke callback.
 // This handles the interpreter-dependent parts of function pointer invocation.
 func (i *Interpreter) ExecuteFunctionPointerCall(metadata evaluator.FunctionPointerMetadata, args []evaluator.Value, node ast.Node) evaluator.Value {
 	interpArgs := convertEvaluatorArgs(args)
@@ -101,15 +101,10 @@ func (i *Interpreter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
 // ===== Task 3.5.97: User Function Call Methods =====
 
 // CallUserFunctionWithOverloads calls a user-defined function with overload resolution.
-// Task 3.5.144: Refactored to use evaluator.prepareUserFunctionArgs for parameter wrapping.
-//
-// Migration status:
-// - [EVALUATOR] Overload resolution (semantic type matching) ← Task 3.5.144a
-// - [EVALUATOR] Argument caching (prevents double-evaluation) ← Task 3.5.144a
-// - [EVALUATOR] Parameter wrapping (lazy/var/regular) ← Task 3.5.144
-// - [ADAPTER] Function execution (callUserFunction)
+// Task 3.5.97a: Enables evaluator to call user functions without using EvalNode.
 func (i *Interpreter) CallUserFunctionWithOverloads(callExpr *ast.CallExpression, funcName *ast.Identifier) evaluator.Value {
-	// 1. Lookup overloads from function registry
+	// This method encapsulates the logic from evalCallExpression lines 210-265
+
 	funcNameLower := ident.Normalize(funcName.Value)
 	overloads, exists := i.functions[funcNameLower]
 	if !exists || len(overloads) == 0 {
