@@ -338,9 +338,9 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 		// Create interface and class
 		iface := NewInterfaceInfo("ITest")
 		class := NewClassInfo("TTest")
-		class.Methods["doit"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "DoIt"}}
+		class.GetMethodsMap()["doit"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "DoIt"}}
 		// Register field so SetField uses normalized metadata/legacy paths
-		class.Fields["testfield"] = types.INTEGER
+		// Note: Skipping field registration since Fields now expects *ast.FieldDecl
 		runtime.AddFieldToClass(class.Metadata, &runtime.FieldMetadata{
 			Name:       "TestField",
 			Type:       types.INTEGER,
@@ -360,8 +360,8 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 		}
 
 		// Verify object class is preserved
-		if extracted.Class.Name != "TTest" {
-			t.Errorf("Extracted object should be TTest, got %s", extracted.Class.Name)
+		if extracted.Class.GetName() != "TTest" {
+			t.Errorf("Extracted object should be TTest, got %s", extracted.Class.GetName())
 		}
 
 		// Verify object fields preserved (case-insensitive lookup)

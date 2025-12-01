@@ -266,7 +266,7 @@ func valueTypeKey(val Value) string {
 	switch v := val.(type) {
 	case *ObjectInstance:
 		if v.Class != nil {
-			return "class:" + ident.Normalize(v.Class.Name)
+			return "class:" + ident.Normalize(v.Class.GetName())
 		}
 		return "class:"
 	case *RecordValue:

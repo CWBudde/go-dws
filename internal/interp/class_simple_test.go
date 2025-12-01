@@ -47,8 +47,8 @@ func TestBasicObjectCreation(t *testing.T) {
 		t.Fatalf("Expected object, got %s", result.Type())
 	}
 
-	if obj.Class.Name != "TPoint" {
-		t.Errorf("Expected class name TPoint, got %s", obj.Class.Name)
+	if obj.Class.GetName() != "TPoint" {
+		t.Errorf("Expected class name TPoint, got %s", obj.Class.GetName())
 	}
 
 	// Verify fields are initialized with default values

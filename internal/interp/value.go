@@ -155,6 +155,23 @@ func (r *RTTITypeInfoValue) String() string {
 // Task 3.5.128b: Moved to runtime package; type alias for backward compatibility.
 type RecordValue = runtime.RecordValue
 
+// ObjectInstance represents a runtime instance of a class.
+// Task 3.5.17: Moved to runtime.ObjectInstance for bridge constructor elimination.
+// Type alias provided for backward compatibility during migration.
+type ObjectInstance = runtime.ObjectInstance
+
+// NewObjectInstance creates a new object instance of the given class.
+// Task 3.5.17: Function alias for backward compatibility.
+var NewObjectInstance = runtime.NewObjectInstance
+
+// AsObject attempts to cast a Value to an ObjectInstance.
+// Task 3.5.17: Function alias for backward compatibility.
+var AsObject = runtime.AsObject
+
+// IsObject checks if a value is an ObjectInstance.
+// Task 3.5.17: Function alias for backward compatibility.
+var IsObject = runtime.IsObject
+
 // GetRecordMethod retrieves a method declaration by name from a RecordValue.
 // Task 9.7: Helper for record method invocation.
 // Task 9.7.3: Case-insensitive method lookup.

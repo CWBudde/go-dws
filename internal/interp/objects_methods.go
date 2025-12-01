@@ -599,20 +599,26 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			return i.newErrorWithLocation(mc, "wrong number of arguments for method '%s': expected %d, got %d",
 				"Free", 0, len(mc.Arguments))
 		}
-		return i.runDestructor(obj, obj.Class.lookupMethod("Destroy"), mc)
+		return i.runDestructor(obj, obj.Class.LookupMethod("Destroy"), mc)
 	}
 
 	// Handle built-in methods that are available on all objects (inherited from TObject)
 	if methodNameLower == "classname" {
 		// ClassName returns the runtime type name of the object
-		return &StringValue{Value: obj.Class.Name}
+		return &StringValue{Value: obj.Class.GetName()}
+	}
+
+	// Get concrete class for method resolution
+	concreteClass, ok := obj.Class.(*ClassInfo)
+	if !ok {
+		return i.newErrorWithLocation(mc, "object has invalid class type")
 	}
 
 	// Task 9.67: Resolve method overload based on argument types
-	methodOverloads := i.getMethodOverloadsInHierarchy(obj.Class, mc.Method.Value, false)
+	methodOverloads := i.getMethodOverloadsInHierarchy(concreteClass, mc.Method.Value, false)
 
 	// Task 9.7: Also check class methods (which can be called on instances)
-	classMethodOverloads := i.getMethodOverloadsInHierarchy(obj.Class, mc.Method.Value, true)
+	classMethodOverloads := i.getMethodOverloadsInHierarchy(concreteClass, mc.Method.Value, true)
 
 	var method *ast.FunctionDecl
 	var err error
@@ -620,7 +626,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 	// Try instance methods first
 	if len(methodOverloads) > 0 {
-		method, err = i.resolveMethodOverload(obj.Class.Name, mc.Method.Value, methodOverloads, mc.Arguments)
+		method, err = i.resolveMethodOverload(obj.Class.GetName(), mc.Method.Value, methodOverloads, mc.Arguments)
 		if err != nil {
 			return i.newErrorWithLocation(mc, "%s", err.Error())
 		}
@@ -628,9 +634,9 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		// Task 9.14: Use virtual method table for virtual dispatch
 		// ONLY use VMT if the resolved method is virtual or override (not reintroduce)
 		// Reintroduced methods should use static dispatch
-		if method != nil && (method.IsVirtual || method.IsOverride) && obj.Class.VirtualMethodTable != nil {
+		if method != nil && (method.IsVirtual || method.IsOverride) && concreteClass.VirtualMethodTable != nil {
 			sig := methodSignature(method)
-			if entry, exists := obj.Class.VirtualMethodTable[sig]; exists && entry != nil && entry.IsVirtual {
+			if entry, exists := concreteClass.VirtualMethodTable[sig]; exists && entry != nil && entry.IsVirtual {
 				// Use the virtual implementation from the VMT
 				if entry.Implementation != nil {
 					method = entry.Implementation
@@ -641,7 +647,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 	// If no instance method found, try class methods
 	if method == nil && len(classMethodOverloads) > 0 {
-		method, err = i.resolveMethodOverload(obj.Class.Name, mc.Method.Value, classMethodOverloads, mc.Arguments)
+		method, err = i.resolveMethodOverload(obj.Class.GetName(), mc.Method.Value, classMethodOverloads, mc.Arguments)
 		if err != nil {
 			return i.newErrorWithLocation(mc, "%s", err.Error())
 		}
@@ -649,9 +655,9 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 		// Task 9.14: Use virtual method table for class methods too
 		// ONLY use VMT if the resolved method is virtual or override (not reintroduce)
-		if method != nil && (method.IsVirtual || method.IsOverride) && obj.Class.VirtualMethodTable != nil {
+		if method != nil && (method.IsVirtual || method.IsOverride) && concreteClass.VirtualMethodTable != nil {
 			sig := methodSignature(method)
-			if entry, exists := obj.Class.VirtualMethodTable[sig]; exists && entry != nil && entry.IsVirtual {
+			if entry, exists := concreteClass.VirtualMethodTable[sig]; exists && entry != nil && entry.IsVirtual {
 				method = entry.Implementation
 			}
 		}
@@ -661,7 +667,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		// Task 9.86: Check if helpers provide this method
 		helper, helperMethod, builtinSpec := i.findHelperMethod(obj, mc.Method.Value)
 		if helperMethod == nil && builtinSpec == "" {
-			return i.newErrorWithLocation(mc, "method '%s' not found in class '%s'", mc.Method.Value, obj.Class.Name)
+			return i.newErrorWithLocation(mc, "method '%s' not found in class '%s'", mc.Method.Value, obj.Class.GetName())
 		}
 
 		// Evaluate method arguments
@@ -711,7 +717,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		// This implements virtual dispatch - we start from the most derived class
 		constructorName := mc.Method.Value
 		found := false
-		for class := obj.Class; class != nil; class = class.Parent {
+		for class := concreteClass; class != nil; class = class.Parent {
 			// Check if this class has the constructor (case-sensitive match first)
 			if ctor, exists := class.Constructors[constructorName]; exists {
 				actualConstructor = ctor
@@ -736,22 +742,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		newObj := NewObjectInstance(obj.Class)
 
 		// Initialize all fields with default values
-		for fieldName, fieldType := range obj.Class.Fields {
-			var defaultValue Value
-			switch fieldType {
-			case types.INTEGER:
-				defaultValue = &IntegerValue{Value: 0}
-			case types.FLOAT:
-				defaultValue = &FloatValue{Value: 0.0}
-			case types.STRING:
-				defaultValue = &StringValue{Value: ""}
-			case types.BOOLEAN:
-				defaultValue = &BooleanValue{Value: false}
-			default:
-				defaultValue = &NilValue{}
-			}
-			newObj.SetField(fieldName, defaultValue)
-		}
+		// Fields will be initialized during constructor execution
 
 		// Create method environment with Self bound to NEW object
 		methodEnv := NewEnclosedEnvironment(i.env)
@@ -760,7 +751,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		i.env.Define("Self", newObj)
 
 		// Add class constants to method scope so they can be accessed directly
-		i.bindClassConstantsToEnv(obj.Class)
+		i.bindClassConstantsToEnv(concreteClass)
 
 		// Bind method parameters to arguments
 		for idx, param := range actualConstructor.Parameters {
@@ -799,27 +790,27 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	}
 
 	// Task 9.108: Push method name onto call stack for stack traces
-	fullMethodName := obj.Class.Name + "." + mc.Method.Value
+	fullMethodName := obj.Class.GetName() + "." + mc.Method.Value
 	i.pushCallStack(fullMethodName)
 	defer i.popCallStack()
 
 	// Task 9.7: Bind Self appropriately based on method type
 	if isClassMethod {
 		// For class methods, bind Self to the class (not the instance)
-		i.env.Define("Self", &ClassInfoValue{ClassInfo: obj.Class})
+		i.env.Define("Self", &ClassInfoValue{ClassInfo: concreteClass})
 	} else {
 		// For instance methods, bind Self to the object
 		i.env.Define("Self", obj)
 	}
 
 	// Determine the declaring class for inherited resolution
-	methodOwner := i.findMethodOwner(obj.Class, method, isClassMethod)
+	methodOwner := i.findMethodOwner(concreteClass, method, isClassMethod)
 
 	// Bind __CurrentClass__ to the static class context (declaring class)
 	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: methodOwner})
 
 	// Add class constants to method scope so they can be accessed directly
-	i.bindClassConstantsToEnv(obj.Class)
+	i.bindClassConstantsToEnv(concreteClass)
 
 	// Bind method parameters to arguments with implicit conversion
 	for idx, param := range method.Parameters {

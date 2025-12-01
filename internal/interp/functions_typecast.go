@@ -325,7 +325,11 @@ func (i *Interpreter) getValueType(val Value) types.Type {
 		}
 		return types.NIL
 	case *ObjectInstance:
-		return i.classTypeForName(v.Class)
+		concreteClass, ok := v.Class.(*ClassInfo)
+		if !ok {
+			return types.NIL
+		}
+		return i.classTypeForName(concreteClass)
 	case *RecordValue:
 		if v.RecordType != nil {
 			return v.RecordType
@@ -334,7 +338,11 @@ func (i *Interpreter) getValueType(val Value) types.Type {
 	default:
 		// For objects, arrays, and other complex types, try AsObject
 		if obj, ok := AsObject(val); ok && obj.Class != nil {
-			return i.classTypeForName(obj.Class)
+			concreteClass, ok := obj.Class.(*ClassInfo)
+			if !ok {
+				return types.NIL
+			}
+			return i.classTypeForName(concreteClass)
 		}
 		// For arrays and other types
 		return types.NIL
@@ -588,7 +596,7 @@ func (i *Interpreter) castToClass(val Value, targetClass *ClassInfo, node ast.No
 	if !obj.IsInstanceOf(targetClass) {
 		pos := node.Pos()
 		message := fmt.Sprintf("instance of type \"%s\" cannot be cast to class \"%s\" [line: %d, column: %d]",
-			obj.Class.Name, targetClass.Name, pos.Line, pos.Column)
+			obj.Class.GetName(), targetClass.Name, pos.Line, pos.Column)
 		i.raiseException("Exception", message, &pos)
 		return nil
 	}

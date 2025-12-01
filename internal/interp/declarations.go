@@ -963,7 +963,10 @@ func (i *Interpreter) evalOperatorDeclaration(decl *ast.OperatorDecl) Value {
 		Operator:     decl.OperatorSymbol,
 		OperandTypes: operandTypes,
 		// DWScript is case-insensitive, so normalize the binding name
-		BindingName: ident.Normalize(decl.Binding.Value),
+		BindingName:   ident.Normalize(decl.Binding.Value),
+		Class:         nil,  // Global operator, not tied to a class
+		SelfIndex:     -1,   // No self parameter for global operators
+		IsClassMethod: false,
 	}
 
 	if err := i.globalOperators.register(entry); err != nil {

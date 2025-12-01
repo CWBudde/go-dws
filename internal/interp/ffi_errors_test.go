@@ -22,8 +22,8 @@ func TestCallExternalFunctionSafeRecoversPanicError(t *testing.T) {
 		t.Fatalf("expected exception to be raised")
 	}
 
-	if interp.exception.ClassInfo.Name != "EHost" {
-		t.Fatalf("expected exception class EHost, got %s", interp.exception.ClassInfo.Name)
+	if interp.exception.ClassInfo.GetName() != "EHost" {
+		t.Fatalf("expected exception class EHost, got %s", interp.exception.ClassInfo.GetName())
 	}
 
 	if !strings.Contains(interp.exception.Message, "panic: boom") {
@@ -77,8 +77,8 @@ func TestGoErrorToExceptionConversion(t *testing.T) {
 			t.Errorf("expected message 'test error message', got %q", interp.exception.Message)
 		}
 
-		if interp.exception.ClassInfo.Name != "EHost" {
-			t.Errorf("expected exception class 'EHost', got %q", interp.exception.ClassInfo.Name)
+		if interp.exception.ClassInfo.GetName() != "EHost" {
+			t.Errorf("expected exception class 'EHost', got %q", interp.exception.ClassInfo.GetName())
 		}
 	})
 
@@ -259,8 +259,8 @@ func TestEHostExceptionSpecificFeatures(t *testing.T) {
 			t.Fatal("expected EHost to have a parent class")
 		}
 
-		if eHostClass.Parent.Name != "Exception" {
-			t.Errorf("expected EHost parent to be 'Exception', got %q", eHostClass.Parent.Name)
+		if eHostClass.GetParent().GetName() != "Exception" {
+			t.Errorf("expected EHost parent to be 'Exception', got %q", eHostClass.GetParent().GetName())
 		}
 
 		// Verify InheritsFrom works correctly
@@ -393,8 +393,8 @@ func TestEHostExceptionSpecificFeatures(t *testing.T) {
 		}
 
 		// Should fall back to Exception class
-		if interp.exception.ClassInfo.Name != "Exception" {
-			t.Errorf("expected fallback to 'Exception' class, got %q", interp.exception.ClassInfo.Name)
+		if interp.exception.ClassInfo.GetName() != "Exception" {
+			t.Errorf("expected fallback to 'Exception' class, got %q", interp.exception.ClassInfo.GetName())
 		}
 
 		// Message should still be set
@@ -419,8 +419,8 @@ func TestEHostExceptionSpecificFeatures(t *testing.T) {
 		}
 
 		// Verify instance has Class pointing to EHost
-		if interp.exception.Instance.Class.Name != "EHost" {
-			t.Errorf("expected instance Class to be 'EHost', got %q", interp.exception.Instance.Class.Name)
+		if interp.exception.Instance.Class.GetName() != "EHost" {
+			t.Errorf("expected instance Class to be 'EHost', got %q", interp.exception.Instance.Class.GetName())
 		}
 
 		// Verify instance has Fields map

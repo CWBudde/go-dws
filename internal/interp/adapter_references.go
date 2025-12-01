@@ -62,9 +62,9 @@ func (i *Interpreter) CreateMethodPointer(objVal evaluator.Value, methodName str
 	}
 
 	// Look up the method in the class hierarchy (case-insensitive)
-	method := obj.Class.lookupMethod(methodName)
+	method := obj.Class.LookupMethod(methodName)
 	if method == nil {
-		return nil, fmt.Errorf("undefined method: %s.%s", obj.Class.Name, methodName)
+		return nil, fmt.Errorf("undefined method: %s.%s", obj.Class.GetName(), methodName)
 	}
 
 	// Convert closure to Environment
@@ -254,10 +254,19 @@ func (i *Interpreter) WrapObjectInException(objInstance evaluator.Value, pos any
 		}
 	}
 
-	// Create ExceptionValue
+	// Create ExceptionValue - need concrete ClassInfo
+	concreteClass, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return &ExceptionValue{
+			Message:   message,
+			Position:  position,
+			CallStack: stack,
+		}
+	}
+
 	return &ExceptionValue{
-		Metadata:  classInfo.Metadata,
-		ClassInfo: classInfo,
+		Metadata:  classInfo.GetMetadata(),
+		ClassInfo: concreteClass,
 		Message:   message,
 		Instance:  objInst,
 		Position:  position,
@@ -433,7 +442,8 @@ func (i *Interpreter) GetClassVariableValue(obj evaluator.Value, varName string)
 		return nil, false
 	}
 	// Case-insensitive lookup to match DWScript semantics
-	for name, value := range objInst.Class.ClassVars {
+	classVars := objInst.Class.GetClassVarsMap()
+	for name, value := range classVars {
 		if ident.Equal(name, varName) {
 			return value, true
 		}
@@ -450,9 +460,15 @@ func (i *Interpreter) ReadPropertyValue(obj evaluator.Value, propName string, no
 		return nil, fmt.Errorf("cannot read property from non-object value")
 	}
 
-	propInfo := objInst.Class.lookupProperty(propName)
+	propInfo := objInst.Class.LookupProperty(propName)
 	if propInfo == nil {
 		return nil, fmt.Errorf("property '%s' not found", propName)
+	}
+
+	// Extract the actual *types.PropertyInfo from the Impl field
+	typesPropertyInfo, ok := propInfo.Impl.(*types.PropertyInfo)
+	if !ok {
+		return nil, fmt.Errorf("invalid property info implementation")
 	}
 
 	// Use the existing evalPropertyRead method
@@ -460,7 +476,7 @@ func (i *Interpreter) ReadPropertyValue(obj evaluator.Value, propName string, no
 	if !ok {
 		astNode = nil
 	}
-	return i.evalPropertyRead(objInst, propInfo, astNode), nil
+	return i.evalPropertyRead(objInst, typesPropertyInfo, astNode), nil
 }
 
 // ExecutePropertyRead executes property reading with a resolved PropertyInfo.
@@ -489,7 +505,8 @@ func (i *Interpreter) IsMethodParameterless(obj evaluator.Value, methodName stri
 	if !ok {
 		return false
 	}
-	method, exists := objInst.Class.Methods[strings.ToLower(methodName)]
+	methods := objInst.Class.GetMethodsMap()
+	method, exists := methods[strings.ToLower(methodName)]
 	if !exists {
 		return false
 	}
@@ -525,7 +542,8 @@ func (i *Interpreter) CreateMethodPointerFromObject(obj evaluator.Value, methodN
 		return nil, fmt.Errorf("cannot create method pointer from non-object value")
 	}
 
-	method, exists := objInst.Class.Methods[strings.ToLower(methodName)]
+	methods := objInst.Class.GetMethodsMap()
+	method, exists := methods[strings.ToLower(methodName)]
 	if !exists {
 		return nil, fmt.Errorf("method '%s' not found", methodName)
 	}

@@ -99,12 +99,17 @@ func (i *Interpreter) ExecuteConstructor(obj evaluator.Value, constructorName st
 
 	classInfo := objectInstance.Class
 
-	// Look up constructor
+	// Look up constructor - need concrete ClassInfo for Constructors map
+	concreteClass, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return fmt.Errorf("class information is not a ClassInfo")
+	}
+
 	constructorNameNorm := ident.Normalize(constructorName)
-	constructor, exists := classInfo.Constructors[constructorNameNorm]
+	constructor, exists := concreteClass.Constructors[constructorNameNorm]
 	if !exists {
 		if len(internalArgs) > 0 {
-			return fmt.Errorf("no constructor '%s' found for class '%s' with %d arguments", constructorName, classInfo.Name, len(internalArgs))
+			return fmt.Errorf("no constructor '%s' found for class '%s' with %d arguments", constructorName, classInfo.GetName(), len(internalArgs))
 		}
 		// No constructor and no args - OK
 		return nil
@@ -144,7 +149,7 @@ func (i *Interpreter) GetClassMetadataFromValue(obj evaluator.Value) *runtime.Cl
 	// Check for ObjectInstance
 	if objVal, ok := internalObj.(*ObjectInstance); ok {
 		if objVal.Class != nil {
-			return objVal.Class.Metadata
+			return objVal.Class.GetMetadata()
 		}
 		return nil
 	}
@@ -152,7 +157,7 @@ func (i *Interpreter) GetClassMetadataFromValue(obj evaluator.Value) *runtime.Cl
 	// Check for InterfaceInstance - extract the underlying object's class
 	if ifaceVal, ok := internalObj.(*InterfaceInstance); ok {
 		if ifaceVal.Object != nil && ifaceVal.Object.Class != nil {
-			return ifaceVal.Object.Class.Metadata
+			return ifaceVal.Object.Class.GetMetadata()
 		}
 		return nil
 	}
@@ -191,22 +196,26 @@ func (i *Interpreter) CheckType(obj evaluator.Value, typeName string) bool {
 	}
 
 	// Check if the object's class matches (case-insensitive)
-	if ident.Equal(classInfo.Name, typeName) {
+	if ident.Equal(classInfo.GetName(), typeName) {
 		return true
 	}
 
 	// Check parent class hierarchy
-	current := classInfo.Parent
+	current := classInfo.GetParent()
 	for current != nil {
-		if ident.Equal(current.Name, typeName) {
+		if ident.Equal(current.GetName(), typeName) {
 			return true
 		}
-		current = current.Parent
+		current = current.GetParent()
 	}
 
 	// Check if the target is an interface and if the object's class implements it
 	if iface := i.lookupInterfaceInfo(typeName); iface != nil {
-		return classImplementsInterface(objVal.Class, iface)
+		// Need concrete ClassInfo for classImplementsInterface
+		if concreteClass, ok := objVal.Class.(*ClassInfo); ok {
+			return classImplementsInterface(concreteClass, iface)
+		}
+		return false
 	}
 
 	return false
@@ -277,8 +286,13 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 			}
 
 			// Check if the underlying object's class is compatible with the target class
-			if !isClassCompatible(underlyingObj.Class, targetClass) {
-				return nil, fmt.Errorf("cannot cast interface of '%s' to class '%s'", underlyingObj.Class.Name, targetClass.Name)
+			// Need concrete ClassInfo for isClassCompatible
+			if concreteClass, ok := underlyingObj.Class.(*ClassInfo); ok {
+				if !isClassCompatible(concreteClass, targetClass) {
+					return nil, fmt.Errorf("cannot cast interface of '%s' to class '%s'", underlyingObj.Class.GetName(), targetClass.Name)
+				}
+			} else {
+				return nil, fmt.Errorf("underlying object has invalid class type")
 			}
 
 			// Cast is valid - return the underlying object
@@ -295,8 +309,13 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 			}
 
 			// Check if the underlying object's class implements the target interface
-			if !classImplementsInterface(underlyingObj.Class, targetIface) {
-				return nil, fmt.Errorf("cannot cast interface of '%s' to interface '%s'", underlyingObj.Class.Name, targetIface.Name)
+			// Need concrete ClassInfo for classImplementsInterface
+			if concreteClass, ok := underlyingObj.Class.(*ClassInfo); ok {
+				if !classImplementsInterface(concreteClass, targetIface) {
+					return nil, fmt.Errorf("cannot cast interface of '%s' to interface '%s'", underlyingObj.Class.GetName(), targetIface.Name)
+				}
+			} else {
+				return nil, fmt.Errorf("underlying object has invalid class type")
 			}
 
 			// Create and return new interface instance
@@ -316,8 +335,13 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 	if targetClassIface := i.typeSystem.LookupClass(typeName); targetClassIface != nil {
 		targetClass, _ := targetClassIface.(*ClassInfo)
 		// Validate that the object's actual runtime type is compatible with the target
-		if !isClassCompatible(objVal.Class, targetClass) {
-			return nil, fmt.Errorf("instance of type '%s' cannot be cast to class '%s'", objVal.Class.Name, targetClass.Name)
+		// Need concrete ClassInfo for isClassCompatible
+		if concreteClass, ok := objVal.Class.(*ClassInfo); ok {
+			if !isClassCompatible(concreteClass, targetClass) {
+				return nil, fmt.Errorf("instance of type '%s' cannot be cast to class '%s'", objVal.Class.GetName(), targetClass.Name)
+			}
+		} else {
+			return nil, fmt.Errorf("object has invalid class type")
 		}
 
 		// Cast is valid - return the same object
@@ -327,8 +351,13 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 	// Try interface casting
 	if iface := i.lookupInterfaceInfo(typeName); iface != nil {
 		// Validate that the object's class implements the interface
-		if !classImplementsInterface(objVal.Class, iface) {
-			return nil, fmt.Errorf("class '%s' does not implement interface '%s'", objVal.Class.Name, iface.Name)
+		// Need concrete ClassInfo for classImplementsInterface
+		if concreteClass, ok := objVal.Class.(*ClassInfo); ok {
+			if !classImplementsInterface(concreteClass, iface) {
+				return nil, fmt.Errorf("class '%s' does not implement interface '%s'", objVal.Class.GetName(), iface.Name)
+			}
+		} else {
+			return nil, fmt.Errorf("object has invalid class type")
 		}
 
 		// Create and return the interface instance
@@ -449,7 +478,7 @@ func (i *Interpreter) GetClassName(obj evaluator.Value) string {
 	if !ok {
 		return ""
 	}
-	return objInst.Class.Name
+	return objInst.Class.GetName()
 }
 
 // GetClassType returns the ClassValue (metaclass) for an object instance.
@@ -458,7 +487,11 @@ func (i *Interpreter) GetClassType(obj evaluator.Value) evaluator.Value {
 	if !ok {
 		return nil
 	}
-	return &ClassValue{ClassInfo: objInst.Class}
+	// Need concrete ClassInfo for ClassValue
+	if concreteClass, ok := objInst.Class.(*ClassInfo); ok {
+		return &ClassValue{ClassInfo: concreteClass}
+	}
+	return nil
 }
 
 // GetClassNameFromClassInfo returns the class name from a ClassInfoValue.

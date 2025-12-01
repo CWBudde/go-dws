@@ -60,18 +60,22 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		// This matches the semantic analyzer's lookup order
 
 		// 1. Try as a class variable (case-insensitive)
-		if classVarValue, ownerClass := obj.Class.lookupClassVar(propInfo.ReadSpec); ownerClass != nil {
+		if classVarValue, ownerClass := obj.Class.LookupClassVar(propInfo.ReadSpec); ownerClass != nil {
 			return classVarValue
 		}
 
 		// 2. Try as a constant (case-insensitive, with lazy evaluation)
 		// Note: getClassConstant doesn't currently use the ma parameter for error reporting
-		if constValue := i.getClassConstant(obj.Class, propInfo.ReadSpec, nil); constValue != nil {
-			return constValue
+		concreteClass, ok := obj.Class.(*ClassInfo)
+		if ok {
+			if constValue := i.getClassConstant(concreteClass, propInfo.ReadSpec, nil); constValue != nil {
+				return constValue
+			}
 		}
 
 		// 3. Try as an instance field
-		if _, exists := obj.Class.Fields[propInfo.ReadSpec]; exists {
+		fields := obj.Class.GetFieldsMap()
+		if fields != nil && fields[propInfo.ReadSpec] != nil {
 			if propInfo.HasIndexValue {
 				return i.newErrorWithLocation(node, "property '%s' uses an index directive and cannot be field-backed", propInfo.Name)
 			}
@@ -83,7 +87,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		}
 
 		// Not a field, class var, or constant - try as a method (getter)
-		method := obj.Class.lookupMethod(propInfo.ReadSpec)
+		method := obj.Class.LookupMethod(propInfo.ReadSpec)
 		if method == nil {
 			return i.newErrorWithLocation(node, "property '%s' read specifier '%s' not found as field, constant, class var, or method", propInfo.Name, propInfo.ReadSpec)
 		}
@@ -177,7 +181,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		}
 
 		// Check if method exists
-		method := obj.Class.lookupMethod(propInfo.ReadSpec)
+		method := obj.Class.LookupMethod(propInfo.ReadSpec)
 		if method == nil {
 			return i.newErrorWithLocation(node, "property '%s' getter method '%s' not found", propInfo.Name, propInfo.ReadSpec)
 		}
@@ -553,12 +557,13 @@ func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *typ
 	switch propInfo.ReadKind {
 	case types.PropAccessField, types.PropAccessMethod:
 		// Check if it's actually a field (not allowed for indexed properties)
-		if _, exists := obj.Class.Fields[propInfo.ReadSpec]; exists {
+		fields := obj.Class.GetFieldsMap()
+		if fields != nil && fields[propInfo.ReadSpec] != nil {
 			return i.newErrorWithLocation(node, "indexed property '%s' requires a getter method, not a field", propInfo.Name)
 		}
 
 		// Look up the getter method
-		method := obj.Class.lookupMethod(propInfo.ReadSpec)
+		method := obj.Class.LookupMethod(propInfo.ReadSpec)
 		if method == nil {
 			return i.newErrorWithLocation(node, "indexed property '%s' getter method '%s' not found", propInfo.Name, propInfo.ReadSpec)
 		}
@@ -647,12 +652,13 @@ func (i *Interpreter) evalIndexedPropertyWrite(obj *ObjectInstance, propInfo *ty
 	switch propInfo.WriteKind {
 	case types.PropAccessField, types.PropAccessMethod:
 		// Check if it's actually a field (not allowed for indexed properties)
-		if _, exists := obj.Class.Fields[propInfo.WriteSpec]; exists {
+		fields := obj.Class.GetFieldsMap()
+		if fields != nil && fields[propInfo.WriteSpec] != nil {
 			return i.newErrorWithLocation(node, "indexed property '%s' requires a setter method, not a field", propInfo.Name)
 		}
 
 		// Look up the setter method
-		method := obj.Class.lookupMethod(propInfo.WriteSpec)
+		method := obj.Class.LookupMethod(propInfo.WriteSpec)
 		if method == nil {
 			return i.newErrorWithLocation(node, "indexed property '%s' setter method '%s' not found", propInfo.Name, propInfo.WriteSpec)
 		}
@@ -737,7 +743,8 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 	case types.PropAccessField:
 		// Field or method access - check at runtime which it is
 		// First try as a field
-		if _, exists := obj.Class.Fields[propInfo.WriteSpec]; exists {
+		fields := obj.Class.GetFieldsMap()
+		if fields != nil && fields[propInfo.WriteSpec] != nil {
 			if propInfo.HasIndexValue {
 				return i.newErrorWithLocation(node, "property '%s' uses an index directive and cannot be field-backed", propInfo.Name)
 			}
@@ -746,7 +753,7 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 		}
 
 		// Not a field - try as a method (setter)
-		method := obj.Class.lookupMethod(propInfo.WriteSpec)
+		method := obj.Class.LookupMethod(propInfo.WriteSpec)
 		if method == nil {
 			return i.newErrorWithLocation(node, "property '%s' write specifier '%s' not found as field or method", propInfo.Name, propInfo.WriteSpec)
 		}
@@ -797,7 +804,7 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 
 	case types.PropAccessMethod:
 		// Check if method exists
-		method := obj.Class.lookupMethod(propInfo.WriteSpec)
+		method := obj.Class.LookupMethod(propInfo.WriteSpec)
 		if method == nil {
 			return i.newErrorWithLocation(node, "property '%s' setter method '%s' not found", propInfo.Name, propInfo.WriteSpec)
 		}

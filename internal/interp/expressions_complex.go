@@ -120,17 +120,22 @@ func (i *Interpreter) evalIsExpression(expr *ast.IsExpression) Value {
 	// Walk up the class hierarchy
 	currentClass := obj.Class
 	for currentClass != nil {
-		if ident.Equal(currentClass.Name, targetTypeName) {
+		if ident.Equal(currentClass.GetName(), targetTypeName) {
 			return &BooleanValue{Value: true}
 		}
 		// Move to parent class
-		currentClass = currentClass.Parent
+		currentClass = currentClass.GetParent()
 	}
 
 	// If not a class match, check if the target is an interface
 	// and if the object's class implements it
 	if iface := i.lookupInterfaceInfo(targetTypeName); iface != nil {
-		result := classImplementsInterface(obj.Class, iface)
+		// Need concrete ClassInfo for classImplementsInterface
+		concreteClass, ok := obj.Class.(*ClassInfo)
+		if !ok {
+			return i.newErrorWithLocation(expr, "object has invalid class type")
+		}
+		result := classImplementsInterface(concreteClass, iface)
 		return &BooleanValue{Value: result}
 	}
 
@@ -200,17 +205,17 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 			currentClass := underlyingObj.Class
 			isCompatible := false
 			for currentClass != nil {
-				if ident.Equal(currentClass.Name, targetClass.Name) {
+				if ident.Equal(currentClass.GetName(), targetClass.Name) {
 					isCompatible = true
 					break
 				}
-				currentClass = currentClass.Parent
+				currentClass = currentClass.GetParent()
 			}
 
 			if !isCompatible {
 				// Throw exception with proper format including position
 				message := fmt.Sprintf("Cannot cast interface of '%s' to class '%s' [line: %d, column: %d]",
-					underlyingObj.Class.Name, targetClass.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
+					underlyingObj.Class.GetName(), targetClass.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
 				i.raiseException("Exception", message, &expr.Token.Pos)
 				return nil
 			}
@@ -229,9 +234,14 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 			}
 
 			// Check if the underlying object's class implements the target interface
-			if !classImplementsInterface(underlyingObj.Class, targetIface) {
+			// Need concrete ClassInfo for classImplementsInterface
+			concreteClass, ok := underlyingObj.Class.(*ClassInfo)
+			if !ok {
+				return i.newErrorWithLocation(expr, "object has invalid class type")
+			}
+			if !classImplementsInterface(concreteClass, targetIface) {
 				message := fmt.Sprintf("Cannot cast interface of \"%s\" to interface \"%s\" [line: %d, column: %d]",
-					underlyingObj.Class.Name, targetIface.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
+					underlyingObj.Class.GetName(), targetIface.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
 				i.raiseException("Exception", message, &expr.Token.Pos)
 				return nil
 			}
@@ -260,17 +270,17 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 		currentClass := obj.Class
 		isCompatible := false
 		for currentClass != nil {
-			if ident.Equal(currentClass.Name, targetClass.Name) {
+			if ident.Equal(currentClass.GetName(), targetClass.Name) {
 				isCompatible = true
 				break
 			}
-			currentClass = currentClass.Parent
+			currentClass = currentClass.GetParent()
 		}
 
 		// If the object's runtime type doesn't match or derive from target, the cast is invalid
 		if !isCompatible {
 			message := fmt.Sprintf("instance of type \"%s\" cannot be cast to class \"%s\" [line: %d, column: %d]",
-				obj.Class.Name, targetClass.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
+				obj.Class.GetName(), targetClass.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
 			i.raiseException("Exception", message, &expr.Token.Pos)
 			return nil
 		}
@@ -288,9 +298,14 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 	}
 
 	// Validate that the object's class implements the interface
-	if !classImplementsInterface(obj.Class, iface) {
+	// Need concrete ClassInfo for classImplementsInterface
+	concreteClass, ok := obj.Class.(*ClassInfo)
+	if !ok {
+		return i.newErrorWithLocation(expr, "object has invalid class type")
+	}
+	if !classImplementsInterface(concreteClass, iface) {
 		message := fmt.Sprintf("Class \"%s\" does not implement interface \"%s\" [line: %d, column: %d]",
-			obj.Class.Name, iface.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
+			obj.Class.GetName(), iface.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
 		i.raiseException("Exception", message, &expr.Token.Pos)
 		return nil
 	}
@@ -321,8 +336,12 @@ func (i *Interpreter) evalImplementsExpression(expr *ast.ImplementsExpression) V
 	var classInfo *ClassInfo
 
 	if obj, ok := AsObject(left); ok {
-		// Object instance - extract class
-		classInfo = obj.Class
+		// Object instance - extract class (need type assertion)
+		var ok bool
+		classInfo, ok = obj.Class.(*ClassInfo)
+		if !ok {
+			return i.newErrorWithLocation(expr, "object has invalid class type")
+		}
 	} else if classVal, ok := left.(*ClassValue); ok {
 		// Class reference (e.g., from metaclass variable: var cls: class of TParent)
 		classInfo = classVal.ClassInfo

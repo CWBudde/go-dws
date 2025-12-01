@@ -526,21 +526,30 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 	if selfOk {
 		if obj, ok := AsObject(selfVal); ok {
 			// Check if it's an instance field
-			if _, exists := obj.Class.Fields[target.Value]; exists {
+			fields := obj.Class.GetFieldsMap()
+			if fields != nil && fields[target.Value] != nil {
 				obj.SetField(target.Value, value)
 				return value
 			}
 			// Check if it's a class variable
-			if _, exists := obj.Class.ClassVars[target.Value]; exists {
-				obj.Class.ClassVars[target.Value] = value
-				return value
+			if _, ownerClass := obj.Class.LookupClassVar(target.Value); ownerClass != nil {
+				// Need to get concrete class to set class var
+				concreteOwner, ok := ownerClass.(*ClassInfo)
+				if ok {
+					concreteOwner.ClassVars[target.Value] = value
+					return value
+				}
 			}
 			// Task 9.32b: Check if it's a property (properties can be assigned without Self.)
-			if propInfo := obj.Class.lookupProperty(target.Value); propInfo != nil {
+			if propDesc := obj.Class.LookupProperty(target.Value); propDesc != nil {
+				propInfo, ok := propDesc.Impl.(*types.PropertyInfo)
+				if !ok {
+					return i.newErrorWithLocation(target, "invalid property descriptor")
+				}
 				// For field-backed properties, write the field directly to avoid recursion
 				if propInfo.WriteKind == types.PropAccessField {
 					// Check if WriteSpec is actually a field (not a method)
-					if _, isField := obj.Class.Fields[propInfo.WriteSpec]; isField {
+					if fields != nil && fields[propInfo.WriteSpec] != nil {
 						obj.SetField(propInfo.WriteSpec, value)
 						return value
 					}
@@ -683,8 +692,11 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 			memberName := target.Member.Value
 
 			// Check if this is a class property assignment (properties take precedence)
-			if propInfo := classInfo.lookupProperty(memberName); propInfo != nil && propInfo.IsClassProperty {
-				return i.evalClassPropertyWrite(classInfo, propInfo, value, stmt)
+			if propDesc := classInfo.LookupProperty(memberName); propDesc != nil {
+				propInfo, ok := propDesc.Impl.(*types.PropertyInfo)
+				if ok && propInfo.IsClassProperty {
+					return i.evalClassPropertyWrite(classInfo, propInfo, value, stmt)
+				}
 			}
 
 			// Otherwise, try class variable assignment
@@ -785,14 +797,19 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 	memberName := target.Member.Value
 
 	// Check if this is a property assignment (properties take precedence over fields)
-	if propInfo := obj.Class.lookupProperty(memberName); propInfo != nil {
+	if propDesc := obj.Class.LookupProperty(memberName); propDesc != nil {
+		propInfo, ok := propDesc.Impl.(*types.PropertyInfo)
+		if !ok {
+			return i.newErrorWithLocation(stmt, "invalid property descriptor")
+		}
 		return i.evalPropertyWrite(obj, propInfo, value, stmt)
 	}
 
 	// Not a property - try direct field assignment
 	// Verify field exists in the class
-	if _, exists := obj.Class.Fields[memberName]; !exists {
-		return i.newErrorWithLocation(stmt, "field '%s' not found in class '%s'", memberName, obj.Class.Name)
+	fields := obj.Class.GetFieldsMap()
+	if fields == nil || fields[memberName] == nil {
+		return i.newErrorWithLocation(stmt, "field '%s' not found in class '%s'", memberName, obj.Class.GetName())
 	}
 
 	// Set the field value
@@ -847,8 +864,12 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 
 		// Check if it's a class instance with an indexed property
 		if obj, ok := AsObject(objVal); ok {
-			propInfo := obj.Class.lookupProperty(memberAccess.Member.Value)
-			if propInfo != nil && propInfo.IsIndexed {
+			propDesc := obj.Class.LookupProperty(memberAccess.Member.Value)
+			if propDesc != nil && propDesc.IsIndexed {
+				propInfo, ok := propDesc.Impl.(*types.PropertyInfo)
+				if !ok {
+					return i.newErrorWithLocation(stmt, "invalid property descriptor")
+				}
 				// This is a multi-index property write: flatten and evaluate ALL indices
 				indexVals := make([]Value, len(indices))
 				for idx, indexExpr := range indices {
@@ -885,13 +906,16 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 			ownerVal := i.Eval(memberAccess.Object)
 			if !isError(ownerVal) {
 				if ownerObj, ok := AsObject(ownerVal); ok {
-					if propInfo := ownerObj.Class.lookupProperty(memberAccess.Member.Value); propInfo != nil {
-						if classType, ok := propInfo.Type.(*types.ClassType); ok {
-							if classInfo := i.resolveClassInfoByName(classType.Name); classInfo != nil {
-								if propInfo.ReadKind == types.PropAccessField && propInfo.ReadSpec != "" {
-									newInst := NewObjectInstance(classInfo)
-									ownerObj.SetField(propInfo.ReadSpec, newInst)
-									arrayVal = newInst
+					if propDesc := ownerObj.Class.LookupProperty(memberAccess.Member.Value); propDesc != nil {
+						propInfo, ok := propDesc.Impl.(*types.PropertyInfo)
+						if ok {
+							if classType, ok := propInfo.Type.(*types.ClassType); ok {
+								if classInfo := i.resolveClassInfoByName(classType.Name); classInfo != nil {
+									if propInfo.ReadKind == types.PropAccessField && propInfo.ReadSpec != "" {
+										newInst := NewObjectInstance(classInfo)
+										ownerObj.SetField(propInfo.ReadSpec, newInst)
+										arrayVal = newInst
+									}
 								}
 							}
 						}
@@ -901,13 +925,16 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 						if ensured := i.ensureClassPropertyInstance(maObj); ensured != nil && ensured.Type() != "NIL" {
 							ownerVal = ensured
 							if ownerObj, ok := AsObject(ensured); ok {
-								if propInfo := ownerObj.Class.lookupProperty(memberAccess.Member.Value); propInfo != nil {
-									if classType, ok := propInfo.Type.(*types.ClassType); ok {
-										if classInfo := i.resolveClassInfoByName(classType.Name); classInfo != nil {
-											if propInfo.ReadKind == types.PropAccessField && propInfo.ReadSpec != "" {
-												newInst := NewObjectInstance(classInfo)
-												ownerObj.SetField(propInfo.ReadSpec, newInst)
-												arrayVal = newInst
+								if propDesc := ownerObj.Class.LookupProperty(memberAccess.Member.Value); propDesc != nil {
+									propInfo, ok := propDesc.Impl.(*types.PropertyInfo)
+									if ok {
+										if classType, ok := propInfo.Type.(*types.ClassType); ok {
+											if classInfo := i.resolveClassInfoByName(classType.Name); classInfo != nil {
+												if propInfo.ReadKind == types.PropAccessField && propInfo.ReadSpec != "" {
+													newInst := NewObjectInstance(classInfo)
+													ownerObj.SetField(propInfo.ReadSpec, newInst)
+													arrayVal = newInst
+												}
 											}
 										}
 									}
@@ -938,10 +965,14 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 	// Task 9.16: Check if left side is an object with a default property
 	// This allows obj[index] := value to be equivalent to obj.DefaultProperty[index] := value
 	if obj, ok := AsObject(arrayVal); ok {
-		defaultProp := obj.Class.getDefaultProperty()
-		if defaultProp != nil {
+		defaultPropDesc := obj.Class.GetDefaultProperty()
+		if defaultPropDesc != nil {
+			propInfo, ok := defaultPropDesc.Impl.(*types.PropertyInfo)
+			if !ok {
+				return i.newErrorWithLocation(stmt, "invalid default property descriptor")
+			}
 			// Route to the default indexed property write
-			return i.evalIndexedPropertyWrite(obj, defaultProp, []Value{indexVal}, value, stmt)
+			return i.evalIndexedPropertyWrite(obj, propInfo, []Value{indexVal}, value, stmt)
 		}
 	}
 

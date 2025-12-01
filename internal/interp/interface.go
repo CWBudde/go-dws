@@ -170,7 +170,7 @@ func (ii *InterfaceInstance) String() string {
 	if ii.Object == nil {
 		return fmt.Sprintf("%s instance (nil)", ii.Interface.Name)
 	}
-	return fmt.Sprintf("%s instance (wrapping %s)", ii.Interface.Name, ii.Object.Class.Name)
+	return fmt.Sprintf("%s instance (wrapping %s)", ii.Interface.Name, ii.Object.Class.GetName())
 }
 
 // GetUnderlyingObject returns the object wrapped by this interface instance.
@@ -185,7 +185,11 @@ func (ii *InterfaceInstance) ImplementsInterface(iface *InterfaceInfo) bool {
 	if ii.Object == nil {
 		return false // nil doesn't implement any interface
 	}
-	return classImplementsInterface(ii.Object.Class, iface)
+	concreteClass, ok := ii.Object.Class.(*ClassInfo)
+	if !ok {
+		return false
+	}
+	return classImplementsInterface(concreteClass, iface)
 }
 
 // GetUnderlyingObjectValue returns the object wrapped by this interface instance.
@@ -410,7 +414,7 @@ func (i *Interpreter) runDestructor(obj *ObjectInstance, destructor *ast.Functio
 
 	// Reuse existing destructor if not supplied
 	if destructor == nil && obj.Class != nil {
-		destructor = obj.Class.lookupMethod("Destroy")
+		destructor = obj.Class.LookupMethod("Destroy")
 	}
 
 	// If no destructor is defined, just mark destroyed
@@ -420,10 +424,10 @@ func (i *Interpreter) runDestructor(obj *ObjectInstance, destructor *ast.Functio
 		return &NilValue{}
 	}
 
-	obj.destroyCallDepth++
+	obj.DestroyCallDepth++
 	defer func() {
-		obj.destroyCallDepth--
-		if obj.destroyCallDepth == 0 {
+		obj.DestroyCallDepth--
+		if obj.DestroyCallDepth == 0 {
 			obj.Destroyed = true
 			obj.RefCount = 0
 		}
@@ -436,10 +440,13 @@ func (i *Interpreter) runDestructor(obj *ObjectInstance, destructor *ast.Functio
 
 	// Bind Self and class constants
 	i.env.Define("Self", obj)
-	i.bindClassConstantsToEnv(obj.Class)
+	concreteClass, ok := obj.Class.(*ClassInfo)
+	if ok {
+		i.bindClassConstantsToEnv(concreteClass)
+	}
 
 	// Push call stack for better stack traces
-	i.pushCallStack(obj.Class.Name + ".Destroy")
+	i.pushCallStack(obj.Class.GetName() + ".Destroy")
 	defer i.popCallStack()
 
 	// Execute destructor body
@@ -464,7 +471,7 @@ func (i *Interpreter) callDestructorIfNeeded(obj *ObjectInstance) {
 
 	// If we're already inside this object's destructor (eg, destructor clears a
 	// global reference pointing back to itself), skip to avoid infinite recursion.
-	if obj.destroyCallDepth > 0 {
+	if obj.DestroyCallDepth > 0 {
 		return
 	}
 
@@ -484,7 +491,7 @@ func (i *Interpreter) callDestructorIfNeeded(obj *ObjectInstance) {
 	if obj.RefCount <= 0 {
 		// DEBUG
 		// fmt.Printf("DEBUG callDestructorIfNeeded: Calling destructor\n")
-		i.runDestructor(obj, obj.Class.lookupMethod("Destroy"), nil)
+		i.runDestructor(obj, obj.Class.LookupMethod("Destroy"), nil)
 	}
 }
 
