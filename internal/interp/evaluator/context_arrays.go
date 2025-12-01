@@ -8,17 +8,17 @@ import (
 )
 
 // ============================================================================
-// Array Construction Methods (Task 3.5.143k)
+// Array Construction Methods
 // ============================================================================
 //
 // This file implements the array construction and operation methods of the
 // builtins.Context interface for the Evaluator:
 //
-// Construction (Task 3.5.143k):
+// Construction:
 // - CreateStringArray(): Create array of strings from []string
 // - CreateVariantArray(): Create array of Variants from []Value
 //
-// Operations (Task 3.5.143m):
+// Operations:
 // - GetBuiltinArrayLength(): Get array length
 // - SetArrayLength(): Resize dynamic arrays
 // - ArrayCopy(): Deep copy array
@@ -70,12 +70,11 @@ func (e *Evaluator) CreateVariantArray(values []Value) Value {
 }
 
 // ============================================================================
-// Array Operation Methods (Task 3.5.143m)
+// Array Operation Methods
 // ============================================================================
 
 // GetBuiltinArrayLength returns the length of an array for builtin functions.
 // This implements the builtins.Context interface.
-// Task 3.5.143m: Helper for Length() function on arrays.
 func (e *Evaluator) GetBuiltinArrayLength(value Value) (int64, bool) {
 	arrayVal, ok := value.(*runtime.ArrayValue)
 	if !ok {
@@ -86,7 +85,6 @@ func (e *Evaluator) GetBuiltinArrayLength(value Value) (int64, bool) {
 
 // SetArrayLength resizes a dynamic array to the specified length.
 // This implements the builtins.Context interface.
-// Task 3.5.143m: Helper for SetLength() function on arrays.
 func (e *Evaluator) SetArrayLength(array Value, newLength int) error {
 	// Handle arrays
 	arrayVal, ok := array.(*runtime.ArrayValue)
@@ -121,8 +119,6 @@ func (e *Evaluator) SetArrayLength(array Value, newLength int) error {
 
 // ArrayCopy creates a deep copy of an array value.
 // This implements the builtins.Context interface.
-// Task 3.5.143m: Helper for Copy() function on arrays.
-// Delegates to ArrayHelperCopy from array_helpers.go (Task 3.5.143c).
 func (e *Evaluator) ArrayCopy(array Value) Value {
 	arrayVal, ok := array.(*runtime.ArrayValue)
 	if !ok {
@@ -134,8 +130,6 @@ func (e *Evaluator) ArrayCopy(array Value) Value {
 
 // ArrayReverse reverses the elements of an array in place.
 // This implements the builtins.Context interface.
-// Task 3.5.143m: Helper for Reverse() function on arrays.
-// Delegates to ArrayHelperReverse from array_helpers.go (Task 3.5.143c).
 func (e *Evaluator) ArrayReverse(array Value) Value {
 	arrayVal, ok := array.(*runtime.ArrayValue)
 	if !ok {
@@ -147,8 +141,6 @@ func (e *Evaluator) ArrayReverse(array Value) Value {
 
 // ArraySort sorts the elements of an array in place using default comparison.
 // This implements the builtins.Context interface.
-// Task 3.5.143m: Helper for Sort() function on arrays.
-// Delegates to ArrayHelperSort from array_helpers.go (Task 3.5.143c).
 func (e *Evaluator) ArraySort(array Value) Value {
 	arrayVal, ok := array.(*runtime.ArrayValue)
 	if !ok {

@@ -1,13 +1,8 @@
 // Package runtime provides runtime value types for the DWScript interpreter.
 // This file contains property-related types and interfaces.
-//
-// Task 3.5.128b: PropertyDescriptor moved from evaluator to runtime
-// to enable RecordValue to implement PropertyAccessor without circular imports.
 package runtime
 
 // PropertyDescriptor provides metadata about a property.
-// Task 3.5.99a: Abstracts property info across classes, interfaces, and records.
-// Task 3.5.128b: Moved from evaluator to runtime package.
 //
 // This allows runtime types to implement PropertyAccessor without depending
 // on the evaluator package. The evaluator imports runtime and uses this type.
@@ -25,8 +20,6 @@ type PropertyDescriptor struct {
 }
 
 // PropertyAccessor is an optional interface for values that support property access.
-// Task 3.5.99a: Enables direct property lookup without adapter delegation.
-// Task 3.5.128b: Moved from evaluator to runtime package.
 //
 // This interface is implemented by:
 // - ObjectInstance (for class instance properties)

@@ -157,7 +157,7 @@ type ExecutionContext struct {
 	controlFlow       *ControlFlow
 	propContext       *PropertyEvalContext
 	recordTypeContext string
-	arrayTypeContext  *types.ArrayType // Task 3.5.105e: for array literal context inference
+	arrayTypeContext  *types.ArrayType
 	envStack          []Environment
 	oldValuesStack    []map[string]interface{}
 }
@@ -312,8 +312,6 @@ func (ctx *ExecutionContext) ClearRecordTypeContext() {
 }
 
 // ArrayTypeContext returns the current array type context for array literal evaluation.
-// Task 3.5.105e: This allows passing type information to array literal evaluation
-// without mutating the AST, enabling context inference from assignment targets.
 func (ctx *ExecutionContext) ArrayTypeContext() *types.ArrayType {
 	return ctx.arrayTypeContext
 }
@@ -399,7 +397,7 @@ func (ctx *ExecutionContext) Reset() {
 // Phase 3.3.3: Create CallStack abstraction with stack overflow detection.
 
 // ============================================================================
-// Context Interface Implementation (Task 3.5.143e-143k)
+// Context Interface Implementation
 // ============================================================================
 //
 // This section implements the builtins.Context interface methods for the Evaluator.
@@ -412,7 +410,7 @@ func (ctx *ExecutionContext) Reset() {
 // ============================================================================
 
 // ============================================================================
-// Core State & Error Methods (Task 3.5.143e)
+// Core State & Error Methods
 // ============================================================================
 
 // NewError creates an error value with location information from the current node.
@@ -434,7 +432,7 @@ func (e *Evaluator) RandSource() *rand.Rand {
 }
 
 // ============================================================================
-// Random Number Methods (Task 3.5.143f)
+// Random Number Methods
 // ============================================================================
 
 // GetRandSeed returns the current random number generator seed value.
@@ -455,7 +453,7 @@ func (e *Evaluator) SetRandSeed(seed int64) {
 }
 
 // ============================================================================
-// I/O Methods (Task 3.5.143h)
+// I/O Methods
 // ============================================================================
 
 // Write outputs a string to the configured output writer without a newline.
@@ -479,7 +477,7 @@ func (e *Evaluator) WriteLine(s string) {
 }
 
 // ============================================================================
-// Value Inspection Method (Task 3.5.143j)
+// Value Inspection Method
 // ============================================================================
 
 // IsAssigned checks if a Variant value has been assigned (is not uninitialized).
@@ -499,12 +497,11 @@ func (e *Evaluator) IsAssigned(value Value) bool {
 }
 
 // ============================================================================
-// Call Stack Methods (Task 3.5.143n)
+// Call Stack Methods
 // ============================================================================
 
 // GetCallStackString returns a formatted string representation of the current call stack.
 // This implements the builtins.Context interface.
-// Task 3.5.143n: Helper for GetStackTrace() function.
 func (e *Evaluator) GetCallStackString() string {
 	if e.currentContext == nil {
 		return ""
@@ -514,7 +511,6 @@ func (e *Evaluator) GetCallStackString() string {
 
 // GetCallStackArray returns the current call stack as an array of records.
 // This implements the builtins.Context interface.
-// Task 3.5.143n: Helper for GetCallStack() function.
 func (e *Evaluator) GetCallStackArray() Value {
 	// Handle nil context
 	if e.currentContext == nil {
@@ -556,13 +552,12 @@ func (e *Evaluator) GetCallStackArray() Value {
 }
 
 // ============================================================================
-// Exception Raising Methods (Task 3.5.143p)
+// Exception Raising Methods
 // ============================================================================
 
 // RaiseAssertionFailed raises an EAssertionFailed exception with an optional custom message.
 // The exception includes position information from the current node.
 // This implements the builtins.Context interface.
-// Task 3.7.8: Helper for Assert() function.
 func (e *Evaluator) RaiseAssertionFailed(customMessage string) {
 	// Delegate to the adapter since exception handling is still in the Interpreter.
 	// The adapter will create the EAssertionFailed exception instance with proper
@@ -571,18 +566,13 @@ func (e *Evaluator) RaiseAssertionFailed(customMessage string) {
 }
 
 // ============================================================================
-// Function Pointer Delegation (Task 3.5.143v)
+// Function Pointer Delegation
 // ============================================================================
 
 // EvalFunctionPointer executes a function pointer with given arguments.
 //
 // IMPORTANT: This method delegates to the adapter (not migrated to Evaluator).
-// Task 3.5.143v: Deferred to Phase 3.6+ because it requires full function
-// execution context setup (environment management, closure capture, recursion
-// tracking) that is complex to migrate. This is the ONLY Context method that
-// still uses adapter delegation.
-//
-// All other 39 Context methods have been implemented directly on Evaluator.
+// This is the ONLY Context method that still uses adapter delegation.
 //
 // This implements the builtins.Context interface by delegating to the adapter's
 // CallFunctionPointer method.

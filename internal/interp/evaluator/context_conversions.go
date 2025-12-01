@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Type Conversion Methods (Task 3.5.143g, 3.5.143i)
+// Type Conversion Methods
 // ============================================================================
 //
 // This file implements the type conversion and introspection methods of the
@@ -19,8 +19,8 @@ import (
 // - ToFloat64(): Convert values to float64
 // - GetTypeOf(): Get type name of a value
 // - GetClassOf(): Get class name of an object value
-// - ParseInt(): Parse string to int64 (Task 3.5.143i)
-// - ParseFloat(): Parse string to float64 (Task 3.5.143i)
+// - ParseInt(): Parse string to int64
+// - ParseFloat(): Parse string to float64
 //
 // These methods enable built-in functions to perform type conversions and
 // introspection on DWScript values.
@@ -168,7 +168,7 @@ func (e *Evaluator) GetClassOf(value Value) string {
 }
 
 // ============================================================================
-// String Parsing Methods (Task 3.5.143i)
+// String Parsing Methods
 // ============================================================================
 
 // ParseInt parses a string to an int64 with the specified base.

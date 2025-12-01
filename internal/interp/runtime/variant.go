@@ -6,7 +6,6 @@ import (
 )
 
 // VariantValue represents a Variant value in DWScript (Task 9.4).
-// Task 3.5.139: Moved from internal/interp/value.go to runtime package for evaluator access.
 //
 // Variant is DWScript's dynamic type that can hold any value.
 // Similar to Delphi's Variant type or Go's interface{}.
@@ -40,7 +39,6 @@ func (v *VariantValue) String() string {
 }
 
 // GetVariantValue returns the wrapped value.
-// Task 3.5.94: Implements VariantAccessor interface for type cast support.
 func (v *VariantValue) GetVariantValue() Value {
 	return v.Value
 }
@@ -57,15 +55,11 @@ func (v *VariantValue) UnwrapVariant() Value {
 }
 
 // IsUninitialized returns true if the variant has no wrapped value (Value == nil).
-// Task 3.5.103f: Implements runtime.VariantWrapper interface for variant comparison semantics.
-// An uninitialized variant equals falsey values, while a variant containing Unassigned does not.
 func (v *VariantValue) IsUninitialized() bool {
 	return v.Value == nil
 }
 
 // BoxVariant wraps any Value in a VariantValue for dynamic typing.
-// Task 9.227: Implement VariantValue boxing in interpreter.
-// Task 3.5.139: Moved to runtime package for direct evaluator access.
 //
 // Boxing preserves the original value and tracks its type for later unboxing.
 // Prevents double-wrapping - if the value is already a Variant, returns it as-is.
@@ -114,7 +108,6 @@ func BoxVariant(value Value) *VariantValue {
 }
 
 // BoxVariantWithJSON wraps a jsonvalue.Value in a VariantValue containing a JSONValue.
-// Task 3.5.160b: Replaces adapter.WrapJSONValueInVariant for evaluator.
 //
 // This creates the necessary JSONValue wrapper and boxes it in a Variant, making JSON
 // values available for variant operations. JSON has no specific ActualType since it's

@@ -12,8 +12,6 @@ import (
 // For dynamic arrays: creates new array with same elements
 // For static arrays: copies elements to new array
 // For arrays of objects: shallow copy references (as per spec)
-//
-// Task 3.5.143c: Delegates to standalone helper function.
 func (i *Interpreter) builtinArrayCopy(arr *ArrayValue) Value {
 	return evaluator.ArrayHelperCopy(arr)
 }
@@ -23,8 +21,6 @@ func (i *Interpreter) builtinArrayCopy(arr *ArrayValue) Value {
 // Returns 0-based index of first occurrence (0 = first element)
 // Returns -1 if not found or invalid startIndex
 // Uses 0-based indexing (standard for dynamic arrays in Pascal/Delphi)
-//
-// Task 3.5.143c: Delegates to standalone helper function.
 func (i *Interpreter) builtinArrayIndexOf(arr *ArrayValue, value Value, startIndex int) Value {
 	return evaluator.ArrayHelperIndexOf(arr, value, startIndex)
 }
@@ -33,8 +29,6 @@ func (i *Interpreter) builtinArrayIndexOf(arr *ArrayValue, value Value, startInd
 //
 // Returns true if value is found in array, false otherwise
 // Uses builtinArrayIndexOf internally
-//
-// Task 3.5.143c: Delegates to standalone helper function.
 func (i *Interpreter) builtinArrayContains(arr *ArrayValue, value Value) Value {
 	return evaluator.ArrayHelperContains(arr, value)
 }
@@ -44,8 +38,6 @@ func (i *Interpreter) builtinArrayContains(arr *ArrayValue, value Value) Value {
 // Modifies array by reversing elements in place
 // Swaps elements from both ends moving inward
 // Returns nil
-//
-// Task 3.5.143c: Delegates to standalone helper function.
 func (i *Interpreter) builtinArrayReverse(arr *ArrayValue) Value {
 	return evaluator.ArrayHelperReverse(arr)
 }
@@ -55,8 +47,6 @@ func (i *Interpreter) builtinArrayReverse(arr *ArrayValue) Value {
 // Sorts integers numerically, strings lexicographically
 // Uses Go's sort.Slice() for efficient sorting
 // Returns nil
-//
-// Task 3.5.143c: Delegates to standalone helper function.
 func (i *Interpreter) builtinArraySort(arr *ArrayValue) Value {
 	return evaluator.ArrayHelperSort(arr)
 }

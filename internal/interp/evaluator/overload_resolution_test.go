@@ -10,7 +10,6 @@ import (
 )
 
 // TestGetValueType tests the getValueType method for all runtime value types.
-// Task 3.5.144a.1: Extract getValueType() to evaluator for overload resolution.
 func TestGetValueType(t *testing.T) {
 	e := &Evaluator{}
 
@@ -86,7 +85,7 @@ func TestGetValueType_UnknownType(t *testing.T) {
 }
 
 // =============================================================================
-// Task 3.5.144a.2: extractFunctionType tests
+// extractFunctionType tests
 // =============================================================================
 
 // TestExtractFunctionType tests extraction of types.FunctionType from ast.FunctionDecl.
@@ -257,7 +256,7 @@ func TestExtractFunctionType_LazyVarConstFlags(t *testing.T) {
 }
 
 // =============================================================================
-// Task 3.5.144a.3: resolveOverloadFast tests
+// resolveOverloadFast tests
 // =============================================================================
 
 // TestResolveOverloadFast tests the fast path for single-overload function resolution.
@@ -417,7 +416,7 @@ func TestResolveOverloadFast_NoParameters(t *testing.T) {
 }
 
 // =============================================================================
-// Task 3.5.144a.4: resolveOverloadMultiple tests
+// resolveOverloadMultiple tests
 // =============================================================================
 
 // TestResolveOverloadMultiple tests resolution with multiple overloads.

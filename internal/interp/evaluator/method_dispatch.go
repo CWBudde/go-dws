@@ -1,6 +1,6 @@
 // Package evaluator provides method dispatch infrastructure for the DWScript interpreter.
 //
-// # Method Dispatch Architecture (Task 3.5.115)
+// # Method Dispatch Architecture
 //
 // This file documents and implements the consolidated method dispatch infrastructure.
 // Method calls in DWScript are complex, supporting multiple dispatch modes based on
@@ -93,22 +93,6 @@
 //   - Nil receiver: Returns error "Object not instantiated"
 //   - Wrong argument count: Returns error with expected vs actual count
 //   - Type mismatch: Returns error describing the type constraint
-//
-// ## Completed Work (Phase 16)
-//
-//   - Task 3.5.111: Extended CallMethod for OBJECT, CLASSINFO, CLASS, SET, TYPE_META
-//   - Task 3.5.112: Extended CallMethod for INTERFACE
-//   - Task 3.5.113: Extended CallMethod for RECORD
-//   - Task 3.5.114: Migrated CallInheritedMethod to ObjectValue interface
-//   - Task 3.5.115: Consolidated dispatch via DispatchMethodCall (this file)
-//
-// ## Future Work (Phase 17+)
-//
-// The following improvements are planned to fully eliminate adapter.CallMethod():
-//
-//   - Phase 17: Migrate property accessor calls to interfaces
-//   - Phase 18+: Move method execution logic from interpreter to evaluator
-//   - Final goal: Remove adapter.CallMethod() entirely
 
 package evaluator
 
@@ -133,8 +117,6 @@ type MethodCallResult struct {
 
 // DispatchMethodCall routes method calls to the appropriate handler based on value type.
 // This is the consolidated entry point for all method dispatch in the evaluator.
-//
-// Task 3.5.115: Unified method dispatch with consistent error handling.
 //
 // Parameters:
 //   - obj: The receiver value (object, record, set, etc.)

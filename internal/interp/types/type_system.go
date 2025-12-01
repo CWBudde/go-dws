@@ -45,7 +45,6 @@ type TypeSystem struct {
 	enumTypes *ident.Map[EnumTypeValue]
 
 	// Subrange type registry: case-insensitive map of subrange names to SubrangeType
-	// Task 3.5.181: Migrating from environment storage ("__subrange_type_" prefix)
 	subrangeTypes *ident.Map[*coretypes.SubrangeType]
 
 	// Operator registry: manages operator overloads
@@ -55,7 +54,6 @@ type TypeSystem struct {
 	conversions *ConversionRegistry
 
 	// Type ID registries for RTTI
-	// Task 13.9: Migrated to ident.Map for consistent case-insensitive access
 	classTypeIDs  *ident.Map[int]
 	recordTypeIDs *ident.Map[int]
 	enumTypeIDs   *ident.Map[int]
@@ -67,29 +65,28 @@ type TypeSystem struct {
 
 	// ClassValueFactory creates a ClassValue from ClassInfo.
 	// Set by Interpreter to avoid circular dependencies.
-	// Task 3.5.159: Enables evaluator to create ClassValue without adapter.
 	ClassValueFactory func(classInfo ClassInfo) any
 }
 
 // NewTypeSystem creates a new TypeSystem with initialized registries.
 func NewTypeSystem() *TypeSystem {
 	return &TypeSystem{
-		classRegistry:    NewClassRegistry(),                      // Task 3.4.2
-		functionRegistry: NewFunctionRegistry(),                   // Task 3.4.3
-		records:          ident.NewMap[RecordTypeValue](),         // Task 13.8
-		interfaces:       ident.NewMap[InterfaceInfo](),           // Task 13.8
-		helpers:          ident.NewMap[[]HelperInfo](),            // Task 13.8
-		arrayTypes:       ident.NewMap[*coretypes.ArrayType](),    // Task 3.5.69a
-		enumTypes:        ident.NewMap[EnumTypeValue](),           // Task 3.5.143a
-		subrangeTypes:    ident.NewMap[*coretypes.SubrangeType](), // Task 3.5.181
+		classRegistry:    NewClassRegistry(),
+		functionRegistry: NewFunctionRegistry(),
+		records:          ident.NewMap[RecordTypeValue](),
+		interfaces:       ident.NewMap[InterfaceInfo](),
+		helpers:          ident.NewMap[[]HelperInfo](),
+		arrayTypes:       ident.NewMap[*coretypes.ArrayType](),
+		enumTypes:        ident.NewMap[EnumTypeValue](),
+		subrangeTypes:    ident.NewMap[*coretypes.SubrangeType](),
 		operators:        NewOperatorRegistry(),
 		conversions:      NewConversionRegistry(),
-		classTypeIDs:     ident.NewMap[int](), // Task 13.9
-		recordTypeIDs:    ident.NewMap[int](), // Task 13.9
-		enumTypeIDs:      ident.NewMap[int](), // Task 13.9
-		nextClassTypeID:  1000,                // Start class IDs at 1000
-		nextRecordTypeID: 200000,              // Start record IDs at 200000
-		nextEnumTypeID:   300000,              // Start enum IDs at 300000
+		classTypeIDs:     ident.NewMap[int](),
+		recordTypeIDs:    ident.NewMap[int](),
+		enumTypeIDs:      ident.NewMap[int](),
+		nextClassTypeID:  1000,   // Start class IDs at 1000
+		nextRecordTypeID: 200000, // Start record IDs at 200000
+		nextEnumTypeID:   300000, // Start enum IDs at 300000
 	}
 }
 
@@ -120,7 +117,6 @@ func (ts *TypeSystem) LookupClass(name string) ClassInfo {
 
 // CreateClassValue creates a ClassValue (metaclass reference) from a class name.
 // Returns the ClassValue (as any to avoid circular imports) and an error if the class is not found.
-// Task 3.5.159: Enables evaluator to create ClassValue without using adapter.
 func (ts *TypeSystem) CreateClassValue(className string) (any, error) {
 	classInfo := ts.LookupClass(className)
 	if classInfo == nil {
@@ -209,8 +205,6 @@ func (ts *TypeSystem) AllRecords() map[string]RecordTypeValue {
 // This is a convenience method that extracts the Metadata field from RecordTypeValue.
 // Returns nil if the record doesn't exist or has no metadata.
 //
-// Task 3.5.128d: Added to centralize metadata lookup and eliminate __record_type_ pattern.
-//
 // Usage:
 //
 //	metadata := typeSystem.LookupRecordMetadata("TPoint")
@@ -279,7 +273,6 @@ func (ts *TypeSystem) AllInterfaces() map[string]InterfaceInfo {
 }
 
 // ========== Array Type Registry ==========
-// Task 3.5.69a: Array type registry migrated from environment storage
 
 // RegisterArrayType registers an array type in the type system.
 // The name is stored case-insensitively, with original casing preserved.
@@ -315,7 +308,6 @@ func (ts *TypeSystem) AllArrayTypes() map[string]*coretypes.ArrayType {
 }
 
 // ========== Enum Type Registry ==========
-// Task 3.5.143a: Enum type registry migrated from environment storage
 
 // RegisterEnumType registers an enum type in the type system.
 // The name is stored case-insensitively, with original casing preserved.
@@ -354,10 +346,6 @@ func (ts *TypeSystem) AllEnumTypes() map[string]EnumTypeValue {
 // Returns the wrapper directly (not unwrapped) for consistency with RegisterEnumType.
 // Returns nil if the enum doesn't exist.
 //
-// Task 3.5.143a: Added to centralize metadata lookup and simplify Phase 2 migration
-// from __enum_type_ pattern. Follows LookupRecordMetadata precedent.
-// Task 3.5.143b fix: Changed to return wrapper instead of unwrapped type.
-//
 // Usage (in interp package):
 //
 //	if enumMetadata := typeSystem.LookupEnumMetadata("TColor"); enumMetadata != nil {
@@ -379,7 +367,6 @@ func (ts *TypeSystem) LookupEnumMetadata(name string) any {
 }
 
 // ========== Subrange Type Registry ==========
-// Task 3.5.181: Subrange type registry migrated from environment storage
 
 // RegisterSubrangeType registers a subrange type in the type system.
 // The name is stored case-insensitively, with original casing preserved.

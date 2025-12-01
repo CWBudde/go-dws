@@ -143,7 +143,6 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeExpr ast.TypeExpression) typ
 	}
 
 	// Check for interface types
-	// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
 	if interfaceInfo := i.lookupInterfaceInfo(typeName); interfaceInfo != nil {
 		return types.NewInterfaceType(interfaceInfo.Name)
 	}

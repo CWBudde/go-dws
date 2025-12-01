@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// JSON Parsing & Conversion Methods (Task 3.5.143t)
+// JSON Parsing & Conversion Methods
 // ============================================================================
 //
 // This file implements the JSON parsing and conversion methods of the
@@ -23,7 +23,7 @@ import (
 // ============================================================================
 //
 // ============================================================================
-// JSON Inspection Methods (Task 3.5.143u)
+// JSON Inspection Methods
 // ============================================================================
 //
 // This file also implements JSON inspection methods:
@@ -48,7 +48,6 @@ func (e *Evaluator) ParseJSONString(jsonStr string) (Value, error) {
 	}
 
 	// Convert to Variant containing JSONValue
-	// Task 3.5.160c: Use runtime.BoxVariantWithJSON instead of adapter
 	return runtime.BoxVariantWithJSON(jsonVal), nil
 }
 
@@ -88,7 +87,7 @@ func (e *Evaluator) ValueToJSONWithIndent(value Value, formatted bool, indent in
 }
 
 // ============================================================================
-// JSON Inspection Methods (Task 3.5.143u)
+// JSON Inspection Methods
 // ============================================================================
 
 // JSONHasField checks if a JSON object has a specific field.
@@ -157,7 +156,6 @@ func (e *Evaluator) JSONGetValues(value Value) []Value {
 		for idx, key := range keys {
 			fieldVal := jsonVal.ObjectGet(key)
 			// Wrap in Variant directly
-			// Task 3.5.160c: Use runtime.BoxVariantWithJSON instead of adapter
 			values[idx] = runtime.BoxVariantWithJSON(fieldVal)
 		}
 		return values
@@ -170,7 +168,6 @@ func (e *Evaluator) JSONGetValues(value Value) []Value {
 		for idx := 0; idx < arrayLen; idx++ {
 			elemVal := jsonVal.ArrayGet(idx)
 			// Wrap in Variant directly
-			// Task 3.5.160c: Use runtime.BoxVariantWithJSON instead of adapter
 			values[idx] = runtime.BoxVariantWithJSON(elemVal)
 		}
 		return values

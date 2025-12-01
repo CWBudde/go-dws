@@ -8,7 +8,6 @@ import (
 )
 
 // EvaluateDefaultParameters fills in missing optional arguments with default values.
-// Task 3.5.144b.1: Extract default parameter evaluation from callUserFunction.
 //
 // This method:
 //  1. Validates argument count against required/optional parameters
@@ -75,14 +74,12 @@ func (e *Evaluator) EvaluateDefaultParameters(
 }
 
 // ImplicitConversionFunc is a callback type for implicit type conversion.
-// Task 3.5.144b.2: Callback pattern allows conversion logic to remain in interpreter.
 //
 // The function should attempt to convert the value to the target type name.
 // Returns (converted value, true) if conversion happened, (original, false) otherwise.
 type ImplicitConversionFunc func(value Value, targetTypeName string) (Value, bool)
 
 // BindFunctionParameters binds function parameters to arguments in the execution context.
-// Task 3.5.144b.2: Extract parameter binding logic from callUserFunction.
 //
 // This method:
 //  1. Iterates over function parameters and corresponding arguments

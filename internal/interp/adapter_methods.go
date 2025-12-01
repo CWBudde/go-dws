@@ -8,10 +8,9 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
-// ===== Task 3.5.96: Method and Qualified Call Methods =====
+// ===== Method and Qualified Call Methods =====
 
 // CallMemberMethod calls a method on an object (record, interface, or object instance).
-// Task 3.5.96: Enables evaluator to delegate member method calls without using EvalNode.
 func (i *Interpreter) CallMemberMethod(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression, objVal evaluator.Value) evaluator.Value {
 	// This method encapsulates the complex logic from evalCallExpression lines 82-120
 
@@ -72,7 +71,6 @@ func (i *Interpreter) CallMemberMethod(callExpr *ast.CallExpression, memberAcces
 }
 
 // CallQualifiedOrConstructor calls a unit-qualified function or class constructor.
-// Task 3.5.96: Enables evaluator to delegate qualified calls without using EvalNode.
 func (i *Interpreter) CallQualifiedOrConstructor(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression) evaluator.Value {
 	// This method encapsulates the complex logic from evalCallExpression lines 122-201
 
@@ -159,7 +157,7 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 	internalObj := obj.(Value)
 	internalArgs := convertEvaluatorArgs(args)
 
-	// Task 3.5.111c: Handle CLASS_INFO values (class method calls)
+	// Handle CLASS_INFO values (class method calls)
 	// Pattern: ClassInfoValue.Method() where Self is already a ClassInfoValue
 	if classInfoVal, ok := internalObj.(*ClassInfoValue); ok {
 		classInfo := classInfoVal.ClassInfo
@@ -273,7 +271,7 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		return returnValue
 	}
 
-	// Task 3.5.111e: Handle ClassValue (metaclass) constructor calls
+	// Handle ClassValue (metaclass) constructor calls
 	// Pattern: classVar.Create(args) where classVar is a "class of TBase" metaclass variable
 	if classVal, ok := internalObj.(*ClassValue); ok {
 		runtimeClass := classVal.ClassInfo
@@ -383,7 +381,7 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		return newInstance
 	}
 
-	// Task 3.5.112: Handle INTERFACE values (interface method calls)
+	// Handle INTERFACE values (interface method calls)
 	// Pattern: intf.Method(args) where intf is an interface instance
 	if intfInst, ok := internalObj.(*InterfaceInstance); ok {
 		// Check for nil interface (wrapped object is nil)
@@ -424,11 +422,10 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		return result
 	}
 
-	// Task 3.5.113: Handle RECORD values (record method calls)
+	// Handle RECORD values (record method calls)
 	// Pattern: record.Method(args) where record is a record instance
 	if recVal, ok := internalObj.(*RecordValue); ok {
 		// Method lookup - check instance methods first
-		// Task 3.5.128b: Use free function instead of method due to type alias
 		method := GetRecordMethod(recVal, methodName)
 
 		// Check for class/static methods on the record type
@@ -607,7 +604,6 @@ func (i *Interpreter) CallInheritedMethod(obj evaluator.Value, methodName string
 }
 
 // ExecuteMethodWithSelf executes a method with Self bound to the given object.
-// Task 3.5.114: Low-level method execution for inherited and other method calls.
 func (i *Interpreter) ExecuteMethodWithSelf(self evaluator.Value, methodDecl any, args []evaluator.Value) evaluator.Value {
 	// Type-assert method declaration
 	method, ok := methodDecl.(*ast.FunctionDecl)

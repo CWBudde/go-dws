@@ -129,7 +129,6 @@ func (i *Interpreter) evalIsExpression(expr *ast.IsExpression) Value {
 
 	// If not a class match, check if the target is an interface
 	// and if the object's class implements it
-	// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
 	if iface := i.lookupInterfaceInfo(targetTypeName); iface != nil {
 		result := classImplementsInterface(obj.Class, iface)
 		return &BooleanValue{Value: result}
@@ -221,7 +220,6 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 		}
 
 		// Check if target is an interface
-		// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
 		if targetIface := i.lookupInterfaceInfo(targetTypeName); targetIface != nil {
 			// Interface-to-interface casting
 			underlyingObj := intfInst.Object
@@ -284,7 +282,6 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 
 	// Try interface casting
 	// Look up the interface in the registry
-	// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
 	iface := i.lookupInterfaceInfo(targetTypeName)
 	if iface == nil {
 		return i.newErrorWithLocation(expr, "type '%s' not found (neither class nor interface)", targetTypeName)
@@ -345,7 +342,6 @@ func (i *Interpreter) evalImplementsExpression(expr *ast.ImplementsExpression) V
 	}
 
 	// Look up the interface in the registry
-	// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
 	iface := i.lookupInterfaceInfo(targetInterfaceName)
 	if iface == nil {
 		return i.newErrorWithLocation(expr, "interface '%s' not found", targetInterfaceName)

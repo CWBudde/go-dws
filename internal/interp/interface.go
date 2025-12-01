@@ -190,7 +190,7 @@ func (ii *InterfaceInstance) ImplementsInterface(iface *InterfaceInfo) bool {
 
 // GetUnderlyingObjectValue returns the object wrapped by this interface instance.
 // Returns nil if the interface wraps a nil object.
-// Task 3.5.87: Implements evaluator.InterfaceInstanceValue interface.
+//
 // Note: This returns ObjectValue (interface) while GetUnderlyingObject returns *ObjectInstance.
 func (ii *InterfaceInstance) GetUnderlyingObjectValue() Value {
 	if ii.Object == nil {
@@ -200,7 +200,6 @@ func (ii *InterfaceInstance) GetUnderlyingObjectValue() Value {
 }
 
 // InterfaceName returns the name of the interface type.
-// Task 3.5.87: Implements evaluator.InterfaceInstanceValue interface.
 func (ii *InterfaceInstance) InterfaceName() string {
 	if ii.Interface == nil {
 		return ""
@@ -210,7 +209,6 @@ func (ii *InterfaceInstance) InterfaceName() string {
 
 // HasInterfaceMethod checks if the interface declares a method with the given name.
 // The check includes parent interfaces.
-// Task 3.5.87: Implements evaluator.InterfaceInstanceValue interface.
 func (ii *InterfaceInstance) HasInterfaceMethod(name string) bool {
 	if ii.Interface == nil {
 		return false
@@ -220,7 +218,6 @@ func (ii *InterfaceInstance) HasInterfaceMethod(name string) bool {
 
 // HasInterfaceProperty checks if the interface declares a property with the given name.
 // The check includes parent interfaces.
-// Task 3.5.87: Implements evaluator.InterfaceInstanceValue interface.
 func (ii *InterfaceInstance) HasInterfaceProperty(name string) bool {
 	if ii.Interface == nil {
 		return false
@@ -229,7 +226,6 @@ func (ii *InterfaceInstance) HasInterfaceProperty(name string) bool {
 }
 
 // LookupProperty searches for a property by name in the interface hierarchy.
-// Task 3.5.99a: Implements evaluator.PropertyAccessor interface.
 // Returns a PropertyDescriptor wrapping types.PropertyInfo, or nil if not found.
 func (ii *InterfaceInstance) LookupProperty(name string) *evaluator.PropertyDescriptor {
 	if ii.Interface == nil {
@@ -250,7 +246,6 @@ func (ii *InterfaceInstance) LookupProperty(name string) *evaluator.PropertyDesc
 }
 
 // GetDefaultProperty returns the default property for this interface, if any.
-// Task 3.5.99a: Implements evaluator.PropertyAccessor interface.
 // Returns a PropertyDescriptor wrapping types.PropertyInfo, or nil if no default property exists.
 func (ii *InterfaceInstance) GetDefaultProperty() *evaluator.PropertyDescriptor {
 	if ii.Interface == nil {
@@ -556,6 +551,6 @@ func (i *Interpreter) registerBuiltinInterfaces() {
 	iinterface := NewInterfaceInfo("IInterface")
 	iinterface.Parent = nil // Root of the interface hierarchy
 
-	// Task 3.5.184c: Register only in TypeSystem (legacy map removed)
+	// Register only in TypeSystem (legacy map removed)
 	i.typeSystem.RegisterInterface("IInterface", iinterface)
 }

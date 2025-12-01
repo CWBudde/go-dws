@@ -8,7 +8,6 @@ import (
 )
 
 // createUserFunctionCallbacks creates the callback struct for ExecuteUserFunction.
-// Task 3.5.144b.12: Consolidates all interpreter-dependent operations for user function execution.
 //
 // This method creates callbacks that allow the evaluator's ExecuteUserFunction to:
 //  1. Apply implicit type conversion to parameters
@@ -29,7 +28,6 @@ func (i *Interpreter) createUserFunctionCallbacks() *evaluator.UserFunctionCallb
 }
 
 // createImplicitConversionCallback creates the parameter type conversion callback.
-// Task 3.5.144b.2: Callback for BindFunctionParameters.
 func (i *Interpreter) createImplicitConversionCallback() evaluator.ImplicitConversionFunc {
 	return func(value evaluator.Value, targetTypeName string) (evaluator.Value, bool) {
 		return i.tryImplicitConversion(value, targetTypeName)
@@ -37,7 +35,6 @@ func (i *Interpreter) createImplicitConversionCallback() evaluator.ImplicitConve
 }
 
 // createDefaultValueGetterCallback creates the return type default value callback.
-// Task 3.5.144b.3: Callback for InitializeResultVariable.
 //
 // This handles complex default value initialization for:
 //   - Basic types: Integer→0, Float→0.0, String→"", Boolean→false
@@ -90,7 +87,6 @@ func (i *Interpreter) createDefaultValueGetterCallback() evaluator.DefaultValueF
 
 		// Check if return type is an interface (overrides default)
 		// Interface return types should be initialized to InterfaceInstance with nil object
-		// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
 		if interfaceInfo := i.lookupInterfaceInfo(lowerReturnType); interfaceInfo != nil {
 			return &InterfaceInstance{
 				Interface: interfaceInfo,
@@ -103,7 +99,6 @@ func (i *Interpreter) createDefaultValueGetterCallback() evaluator.DefaultValueF
 }
 
 // createFunctionNameAliasCallback creates the function name alias callback.
-// Task 3.5.144b.3: Callback for InitializeResultVariable.
 //
 // In DWScript, assigning to either Result or the function name sets the return value.
 // This creates a ReferenceValue that points to "Result" in the function's environment.
@@ -122,7 +117,6 @@ func (i *Interpreter) createFunctionNameAliasCallback() evaluator.FunctionNameAl
 }
 
 // createReturnValueConverterCallback creates the return value conversion callback.
-// Task 3.5.144b.8: Callback for return value type conversion.
 func (i *Interpreter) createReturnValueConverterCallback() evaluator.TryImplicitConversionReturnFunc {
 	return func(returnValue evaluator.Value, expectedReturnType string) (evaluator.Value, bool) {
 		return i.tryImplicitConversion(returnValue, expectedReturnType)
@@ -130,7 +124,6 @@ func (i *Interpreter) createReturnValueConverterCallback() evaluator.TryImplicit
 }
 
 // createInterfaceRefCounterCallback creates the interface ref count increment callback.
-// Task 3.5.144b.8: Callback for interface reference counting.
 //
 // When returning an interface value from a function, the ref count needs to be incremented
 // for the caller's reference. This will be balanced by cleanup releasing Result after return.
@@ -146,7 +139,6 @@ func (i *Interpreter) createInterfaceRefCounterCallback() evaluator.IncrementInt
 }
 
 // createInterfaceCleanupCallback creates the interface/object cleanup callback.
-// Task 3.5.144b.10: Callback for cleanupInterfaceReferences.
 //
 // This cleans up interface/object references when the function scope ends,
 // decrementing ref counts and calling destructors as needed.
@@ -190,7 +182,6 @@ func (i *Interpreter) createInterfaceCleanupCallback() evaluator.CleanupInterfac
 
 // cleanupInterfaceReferencesForEnv is a helper that cleans up interface references
 // using the evaluator.Environment interface instead of *Environment.
-// Task 3.5.144b.10: Helper for interface cleanup callback.
 func (i *Interpreter) cleanupInterfaceReferencesForEnv(env evaluator.Environment) {
 	// We need to iterate through all variables in the environment
 	// and release any interface references and object references.

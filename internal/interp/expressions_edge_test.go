@@ -486,7 +486,6 @@ func TestEvalIsExpressionWithNonObject(t *testing.T) {
 }
 
 // TestEvalIsExpressionWithNil tests 'is' operator with nil objects
-// Task 3.5.34: Nil objects should return false for any type check
 func TestEvalIsExpressionWithNil(t *testing.T) {
 	input := `
 		type TTest = class
@@ -501,7 +500,6 @@ func TestEvalIsExpressionWithNil(t *testing.T) {
 }
 
 // TestEvalIsExpressionWithClassHierarchy tests 'is' operator with class inheritance
-// Task 3.5.34: Objects should match their class and all parent classes
 func TestEvalIsExpressionWithClassHierarchy(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -571,7 +569,6 @@ func TestEvalIsExpressionWithClassHierarchy(t *testing.T) {
 }
 
 // TestEvalIsExpressionWithInterfaceHierarchy tests 'is' operator with interface inheritance
-// Task 3.5.34: Objects should match interfaces they implement directly or via inheritance
 func TestEvalIsExpressionWithInterfaceHierarchy(t *testing.T) {
 	tests := []struct {
 		name     string

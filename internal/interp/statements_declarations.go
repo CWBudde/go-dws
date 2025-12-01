@@ -117,14 +117,12 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 			return value
 		}
 
-		// Task 9.1.3: Check if exception was raised during evaluation
 		// This is important for operations that raise exceptions (like invalid casts)
 		if i.exception != nil {
 			return nil
 		}
 
 		// If declaring a subrange variable with an initializer, wrap and validate
-		// Task 3.5.182: Use TypeSystem instead of environment lookup
 		if stmt.Type != nil {
 			typeName := stmt.Type.String()
 			handledSubrange := false
@@ -194,20 +192,18 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 					value = &NilValue{}
 				}
 			} else {
-				// Check if this is an array type (Task 3.5.69c: use TypeSystem)
+				// Check if this is an array type
 				if arrayType := i.typeSystem.LookupArrayType(typeName); arrayType != nil {
 					// Initialize with empty array value
 					value = NewArrayValue(arrayType)
 				} else if subrangeType := i.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {
-					// Task 3.5.182: Use TypeSystem for subrange type lookup
 					// Initialize with low bound as zero value
 					value = &SubrangeValue{
 						Value:        subrangeType.LowBound,
 						SubrangeType: subrangeType,
 					}
 				} else {
-					// Task 9.16.2: Check if this is an interface type
-					// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
+					// Check if this is an interface type
 					if ifaceInfo := i.lookupInterfaceInfo(typeName); ifaceInfo != nil {
 						// Initialize with nil interface instance
 						value = &InterfaceInstance{
@@ -260,8 +256,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 			} else {
 				nameValue = cloneIfCopyable(value)
 			}
-			// Task 9.1.6: If the type annotation is an interface type, wrap the value in an InterfaceInstance
-			// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
+			// Check if the type annotation is an interface type, wrap the value in an InterfaceInstance
 			if stmt.Type != nil {
 				typeName := stmt.Type.String()
 				if ifaceInfo := i.lookupInterfaceInfo(typeName); ifaceInfo != nil {
@@ -336,13 +331,12 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 		}
 	}
 
-	// Check if this is an array type (Task 3.5.69c: use TypeSystem)
+	// Check if this is an array type
 	if arrayType := i.typeSystem.LookupArrayType(typeName); arrayType != nil {
 		return NewArrayValue(arrayType)
 	}
 
 	// Check if this is a subrange type
-	// Task 3.5.182: Use TypeSystem for subrange type lookup
 	if subrangeType := i.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {
 		return &SubrangeValue{
 			Value:        subrangeType.LowBound,
@@ -350,8 +344,7 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 		}
 	}
 
-	// Task 9.1.3: Check if this is an interface type
-	// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
+	// Check if this is an interface type
 	if ifaceInfo := i.lookupInterfaceInfo(typeName); ifaceInfo != nil {
 		return &InterfaceInstance{
 			Interface: ifaceInfo,

@@ -9,8 +9,6 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
-// Task 3.5.93a: Infrastructure for built-in functions with var parameters.
-//
 // This file provides helpers for evaluating lvalue expressions (expressions that
 // can appear on the left side of an assignment) and implements built-in functions
 // that modify their arguments in place.
@@ -256,7 +254,7 @@ func IsVarTarget(node ast.Node) bool {
 }
 
 // ============================================================================
-// Task 3.5.93b: Inc/Dec Built-in Functions
+// Inc/Dec Built-in Functions
 // ============================================================================
 
 // builtinInc implements the Inc() built-in function.
@@ -472,7 +470,7 @@ func (e *Evaluator) builtinDec(args []ast.Expression, ctx *ExecutionContext) Val
 }
 
 // ============================================================================
-// Task 3.5.93c: SetLength Built-in Function
+// SetLength Built-in Function
 // ============================================================================
 
 // builtinSetLength implements the SetLength() built-in function.
@@ -561,7 +559,7 @@ func (e *Evaluator) builtinSetLength(args []ast.Expression, ctx *ExecutionContex
 }
 
 // ============================================================================
-// Task 3.5.93d: Insert/Delete Built-in Functions
+// Insert/Delete Built-in Functions
 // ============================================================================
 
 // builtinInsert implements the Insert() built-in function.
@@ -765,7 +763,7 @@ func runeSetLength(s string, newLength int) string {
 }
 
 // ============================================================================
-// Task 3.5.93e: Swap/DivMod Built-in Functions
+// Swap/DivMod Built-in Functions
 // ============================================================================
 
 // builtinSwap implements the Swap() built-in function.
@@ -883,7 +881,7 @@ func (e *Evaluator) builtinDivMod(args []ast.Expression, ctx *ExecutionContext) 
 }
 
 // ============================================================================
-// Task 3.5.93f: TryStrToInt/TryStrToFloat Built-in Functions
+// TryStrToInt/TryStrToFloat Built-in Functions
 // ============================================================================
 
 // builtinTryStrToInt implements the TryStrToInt() built-in function.
@@ -1011,7 +1009,7 @@ func (e *Evaluator) builtinTryStrToFloat(args []ast.Expression, ctx *ExecutionCo
 }
 
 // ============================================================================
-// Task 3.5.93g: DecodeDate/DecodeTime Built-in Functions
+// DecodeDate/DecodeTime Built-in Functions
 // ============================================================================
 
 // builtinDecodeDate implements the DecodeDate() built-in function.

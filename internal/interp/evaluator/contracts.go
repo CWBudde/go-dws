@@ -8,8 +8,6 @@ import (
 )
 
 // raiseContractException creates an exception and sets it in the context via adapter.
-// Task 3.5.142a: Uses bridge constructor adapter method to create exception without import cycles.
-// This is a temporary bridge pattern similar to Task 3.5.129.
 func (e *Evaluator) raiseContractException(className, message string, node ast.Node, ctx *ExecutionContext) {
 	// Get call stack for exception
 	callStack := ctx.CallStack()
@@ -31,7 +29,7 @@ func (e *Evaluator) raiseContractException(className, message string, node ast.N
 
 // checkPreconditions evaluates all preconditions of a function.
 // If any condition fails, it raises an exception directly.
-// Task 3.5.142a: Evaluator implementation for contract preconditions.
+//
 // Returns nil on success, error value if evaluation fails.
 func (e *Evaluator) checkPreconditions(funcName string, preConditions *ast.PreConditions, ctx *ExecutionContext) Value {
 	if preConditions == nil {
@@ -87,7 +85,6 @@ func (e *Evaluator) checkPreconditions(funcName string, preConditions *ast.PreCo
 // captureOldValues traverses postconditions to find all OldExpression nodes
 // and captures their current values from the environment.
 // This must be called BEFORE the function body executes.
-// Task 3.5.142b: Evaluator implementation for capturing old values.
 func (e *Evaluator) captureOldValues(funcDecl *ast.FunctionDecl, ctx *ExecutionContext) map[string]Value {
 	oldValues := make(map[string]Value)
 
@@ -110,7 +107,6 @@ func (e *Evaluator) captureOldValues(funcDecl *ast.FunctionDecl, ctx *ExecutionC
 
 // findOldExpressions recursively searches an expression tree for OldExpression nodes
 // and captures their values.
-// Task 3.5.142b: Evaluator implementation for finding old expressions.
 func (e *Evaluator) findOldExpressions(expr ast.Expression, ctx *ExecutionContext, oldValues map[string]Value) {
 	if expr == nil {
 		return
@@ -195,7 +191,7 @@ func (e *Evaluator) findOldExpressions(expr ast.Expression, ctx *ExecutionContex
 // checkPostconditions evaluates all postconditions of a function.
 // If any condition fails, it raises an exception.
 // This must be called AFTER the function body executes, with oldValues available.
-// Task 3.5.142b: Evaluator implementation for contract postconditions.
+//
 // Returns nil on success, error value if evaluation fails.
 func (e *Evaluator) checkPostconditions(funcName string, postConditions *ast.PostConditions, ctx *ExecutionContext) Value {
 	if postConditions == nil {

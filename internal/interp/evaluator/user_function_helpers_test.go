@@ -8,7 +8,7 @@ import (
 )
 
 // =============================================================================
-// Task 3.5.144b.1: EvaluateDefaultParameters tests
+// EvaluateDefaultParameters tests
 // =============================================================================
 
 // TestEvaluateDefaultParameters tests filling in missing optional arguments with defaults.
@@ -277,7 +277,7 @@ func TestEvaluateDefaultParameters_NoParameters(t *testing.T) {
 }
 
 // =============================================================================
-// Task 3.5.144b.2: BindFunctionParameters tests
+// BindFunctionParameters tests
 // =============================================================================
 
 // testEnv is a simple mock environment for testing parameter binding.
@@ -524,7 +524,7 @@ func TestBindFunctionParameters_MixedVarAndRegular(t *testing.T) {
 	refVal := &mockRefValue{name: "originalB"}
 	args := []Value{
 		&runtime.IntegerValue{Value: 1}, // Should be converted to Float
-		refVal,                           // Should stay as reference
+		refVal,                          // Should stay as reference
 		&runtime.IntegerValue{Value: 3}, // Should be converted to Float
 	}
 
@@ -615,7 +615,7 @@ func TestBindFunctionParameters_NilType(t *testing.T) {
 }
 
 // =============================================================================
-// Task 3.5.144b.3: InitializeResultVariable tests
+// InitializeResultVariable tests
 // =============================================================================
 
 // TestInitializeResultVariable_Procedure tests that procedures don't initialize Result.

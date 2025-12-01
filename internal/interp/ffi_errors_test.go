@@ -30,7 +30,6 @@ func TestCallExternalFunctionSafeRecoversPanicError(t *testing.T) {
 		t.Fatalf("expected panic message, got %q", interp.exception.Message)
 	}
 
-	// Task 3.5.40: Use GetField for proper normalization
 	if field := interp.exception.Instance.GetField("ExceptionClass"); field != nil {
 		if str, isString := field.(*StringValue); !isString || str.Value == "" {
 			t.Fatalf("expected ExceptionClass to contain panic type, got %#v", field)
@@ -90,7 +89,6 @@ func TestGoErrorToExceptionConversion(t *testing.T) {
 		interp.raiseGoErrorAsException(testErr)
 
 		// Verify ExceptionClass field contains the Go type
-		// Task 3.5.40: Use GetField for proper normalization
 		exceptionClassField := interp.exception.Instance.GetField("ExceptionClass")
 		if exceptionClassField == nil {
 			t.Fatal("expected ExceptionClass field to exist")
@@ -286,7 +284,6 @@ func TestEHostExceptionSpecificFeatures(t *testing.T) {
 		}
 
 		// Verify ExceptionClass field exists and is populated
-		// Task 3.5.40: Use GetField for proper normalization
 		exceptionClassField := interp.exception.Instance.GetField("ExceptionClass")
 		if exceptionClassField == nil {
 			t.Fatal("expected ExceptionClass field to exist in EHost exception")
@@ -318,7 +315,6 @@ func TestEHostExceptionSpecificFeatures(t *testing.T) {
 		}
 
 		// Verify Message field exists
-		// Task 3.5.40: Use GetField for proper normalization
 		messageField := interp.exception.Instance.GetField("Message")
 		if messageField == nil {
 			t.Fatal("expected Message field to exist in EHost exception")
@@ -366,7 +362,6 @@ func TestEHostExceptionSpecificFeatures(t *testing.T) {
 					t.Fatal("expected exception to be set")
 				}
 
-				// Task 3.5.40: Use GetField for proper normalization
 				exceptionClassField := interp.exception.Instance.GetField("ExceptionClass")
 				if exceptionClassField == nil {
 					t.Fatal("expected ExceptionClass field")

@@ -11,10 +11,6 @@ import (
 // ============================================================================
 // JSON Value Type
 // ============================================================================
-//
-// Task 3.5.160a: JSONValue moved from interp/value.go to runtime package
-// to enable direct creation by evaluator without circular imports.
-// ============================================================================
 
 // JSONValue represents a JSON value in DWScript.
 // It wraps the jsonvalue.Value type from the internal jsonvalue package.

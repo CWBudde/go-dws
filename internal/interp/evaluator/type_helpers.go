@@ -9,10 +9,6 @@ import (
 // ============================================================================
 // Value to Type Conversion
 // ============================================================================
-//
-// Task 3.5.24: These helpers convert runtime Values to semantic types.Type
-// for use in type inference, compatibility checking, and array construction.
-// ============================================================================
 
 // GetValueType converts a runtime Value to its corresponding types.Type.
 // Returns nil for values that don't have a corresponding semantic type (e.g., nil, unassigned).
@@ -129,7 +125,6 @@ func getArrayElementTypeFromValue(val Value) types.Type {
 	}
 
 	// For now, we can't extract the element type without importing the ArrayValue type
-	// This will be addressed in task 3.5.25 when we implement coercion
 	// For type inference, we'll work with the array values directly
 	return nil
 }
@@ -203,7 +198,6 @@ func areTypesCompatible(t1, t2 types.Type) bool {
 }
 
 // getTypeByName converts a type name to a types.Type.
-// Task 3.5.122: Used for building function pointer types without adapter.
 func getTypeByName(name string) types.Type {
 	switch name {
 	case "Integer":
@@ -274,14 +268,9 @@ func commonType(t1, t2 types.Type) types.Type {
 // ============================================================================
 // Function Pointer Creation Helpers
 // ============================================================================
-//
-// Task 3.5.122: These helpers create function pointer values directly in the
-// evaluator, removing the need to call adapter methods.
-// ============================================================================
 
 // createFunctionPointerFromDecl creates a FunctionPointerValue from a function declaration.
 // This is a simple wrapper that creates a function pointer without type information.
-// Task 3.5.122: Replaces adapter.CreateFunctionPointer
 func createFunctionPointerFromDecl(fn *ast.FunctionDecl, closure any) Value {
 	return &runtime.FunctionPointerValue{
 		Function: fn,
@@ -290,7 +279,6 @@ func createFunctionPointerFromDecl(fn *ast.FunctionDecl, closure any) Value {
 }
 
 // buildFunctionPointerType builds a FunctionPointerType from a function declaration.
-// Task 3.5.122: Extracts type information from function parameters and return type.
 func buildFunctionPointerType(fn *ast.FunctionDecl) *types.FunctionPointerType {
 	// Build parameter types from type annotations
 	paramTypes := make([]types.Type, len(fn.Parameters))
