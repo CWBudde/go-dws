@@ -272,3 +272,54 @@ foo := foo + 1;
 // Helper function to test literal expressions
 
 // TestCompleteSimplePrograms tests parsing of complete simple programs with multiple statement types.
+
+func TestVarDeclarationFollowedByAssignment(t *testing.T) {
+	input := `
+var F1: Integer;
+F1 := 10;
+var F2: Integer := 20;
+`
+
+	p := testParser(input)
+	program := p.ParseProgram()
+
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 3 {
+		t.Fatalf("Expected 3 statements, got %d", len(program.Statements))
+	}
+
+	// First should be VarDeclStatement
+	varDecl1, ok := program.Statements[0].(*ast.VarDeclStatement)
+	if !ok {
+		t.Errorf("Statement 0 should be VarDeclStatement, got %T", program.Statements[0])
+	} else {
+		if len(varDecl1.Names) != 1 || varDecl1.Names[0].Value != "F1" {
+			t.Errorf("Expected var declaration for F1, got %v", varDecl1.Names)
+		}
+	}
+
+	// Second should be AssignmentStatement, NOT VarDeclStatement
+	assignment, ok := program.Statements[1].(*ast.AssignmentStatement)
+	if !ok {
+		t.Errorf("Statement 1 should be AssignmentStatement, got %T", program.Statements[1])
+	} else {
+		target, ok := assignment.Target.(*ast.Identifier)
+		if !ok || target.Value != "F1" {
+			t.Errorf("Expected assignment target to be F1, got %v", assignment.Target)
+		}
+	}
+
+	// Third should be VarDeclStatement
+	varDecl2, ok := program.Statements[2].(*ast.VarDeclStatement)
+	if !ok {
+		t.Errorf("Statement 2 should be VarDeclStatement, got %T", program.Statements[2])
+	} else {
+		if len(varDecl2.Names) != 1 || varDecl2.Names[0].Value != "F2" {
+			t.Errorf("Expected var declaration for F2, got %v", varDecl2.Names)
+		}
+		if varDecl2.Value == nil {
+			t.Errorf("Expected F2 to have initialization value")
+		}
+	}
+}
