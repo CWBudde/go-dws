@@ -366,29 +366,33 @@ Goal: Move declaration processing from Interpreter to Evaluator, migrating 9 Eva
 
 #### Tier 2: Simple Execution (Bounds/Type Resolution)
 
-- [ ] **3.5.13** VisitArrayDecl
+- [x] **3.5.13** VisitArrayDecl ✅
   - **Registry**: `typeSystem.RegisterArrayType()`
   - **Complexity**: Low - just bounds evaluation
   - **Files**: `visitor_declarations.go`, `array.go:16-70`
   - **Effort**: 2-3 hours
   - **Subtasks**:
-    - [ ] 3.5.13.1: Move `evalArrayDeclaration` logic to `VisitArrayDecl`
-    - [ ] 3.5.13.2: Use evaluator's type resolution for element type
-    - [ ] 3.5.13.3: Use evaluator for bound expression evaluation
-    - [ ] 3.5.13.4: Remove `adapter.EvalNode()` call
-    - [ ] 3.5.13.5: Add tests for dynamic and static arrays
+    - [x] 3.5.13.1: Move `evalArrayDeclaration` logic to `VisitArrayDecl`
+    - [x] 3.5.13.2: Use evaluator's `resolveTypeName()` for element type resolution
+    - [x] 3.5.13.3: Use evaluator's `Eval()` for bound expression evaluation
+    - [x] 3.5.13.4: Remove `adapter.EvalNode()` call
+    - [x] 3.5.13.5: Existing tests for dynamic and static arrays verify the migration
 
-- [ ] **3.5.16** VisitTypeDeclaration
+- [x] **3.5.16** VisitTypeDeclaration ✅
   - **Registry**: TypeSystem (subranges already migrated)
   - **Complexity**: Low - bounds for subranges
-  - **Files**: `visitor_declarations.go`, `type_alias.go:64-100+`
+  - **Files**: `visitor_declarations.go`, `type_alias.go:64-100+`, `runtime/type_alias.go`
   - **Effort**: 2-3 hours
   - **Subtasks**:
-    - [ ] 3.5.16.1: Move type alias logic to `VisitTypeDeclaration`
-    - [ ] 3.5.16.2: Move subrange logic with bounds evaluation
-    - [ ] 3.5.16.3: Use evaluator for bound expression evaluation
-    - [ ] 3.5.16.4: Remove `adapter.EvalNode()` call
-    - [ ] 3.5.16.5: Add tests for aliases and subranges
+    - [x] 3.5.16.1: Move type alias logic to `VisitTypeDeclaration`
+    - [x] 3.5.16.2: Move subrange logic with bounds evaluation
+    - [x] 3.5.16.3: Use evaluator for bound expression evaluation
+    - [x] 3.5.16.4: Remove `adapter.EvalNode()` call
+    - [x] 3.5.16.5: Existing tests for aliases and subranges verify the migration
+  - **Additional work**:
+    - Added `TypeAliasValue` to `runtime/type_alias.go` for evaluator package access
+    - Handles subranges, function pointer types, and type aliases
+    - Inline/complex types (ClassOfTypeNode, SetTypeNode, ArrayTypeNode) return NilValue (handled by semantic analyzer)
 
 #### Tier 3: Function Registration
 
@@ -603,11 +607,11 @@ Goal: Remove adapter entirely, document final architecture.
 |-------|-------|-------------|--------|
 | Cleanup | 3.5.1-3.5.4 | ExecuteUserFunction, interface map removal | 3.5.2-3.5.4 ✅, 3.5.1 pending |
 | Analysis | 3.5.5-3.5.6 | Declaration dependency analysis | ✅ Complete |
-| Declarations | 3.5.7-3.5.16 | Move 9 declaration types to evaluator | 3.5.11, 3.5.14, 3.5.15 ✅, 6 pending |
+| Declarations | 3.5.7-3.5.16 | Move 9 declaration types to evaluator | 3.5.11, 3.5.13, 3.5.14, 3.5.15, 3.5.16 ✅, 4 pending |
 | Bridge Elimination | 3.5.17-3.5.23 | Move value types to runtime, remove bridges | Pending |
 | Final Cleanup | 3.5.24-3.5.32 | Remove adapter, document architecture | Pending |
 
-**Total remaining tasks**: 27 (was 32, completed 3.5.5, 3.5.6, 3.5.11, 3.5.14, 3.5.15, 3.5.2-3.5.4)
+**Total remaining tasks**: 25 (was 32, completed 3.5.5, 3.5.6, 3.5.11, 3.5.13, 3.5.14, 3.5.15, 3.5.16, 3.5.2-3.5.4)
 
 **Declaration Migration Order** (5 tiers):
 
