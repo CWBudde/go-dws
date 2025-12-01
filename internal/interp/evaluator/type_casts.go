@@ -29,7 +29,7 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 		if e.typeSystem != nil && e.typeSystem.HasClass(lowerName) {
 			isTypeCast = true
 		} else if e.typeSystem != nil {
-			// Check if it's an enum type via TypeSystem (Task 3.5.143b)
+			// Check if it's an enum type via TypeSystem
 			if enumMetadata := e.typeSystem.LookupEnumMetadata(typeName); enumMetadata != nil {
 				if etv, ok := enumMetadata.(EnumTypeValueAccessor); ok {
 					enumType = etv.GetEnumType()
@@ -69,7 +69,6 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 			return e.castToEnum(val, enumType, typeName)
 		}
 		// Must be a class type (we already checked above)
-		// Task 3.5.141: Use evaluator's castToClassType helper
 		return e.castToClassType(val, typeName, argExpr)
 	}
 }
@@ -267,7 +266,6 @@ func (e *Evaluator) castToEnum(val Value, targetEnum *types.EnumType, typeName s
 // builtinDefault handles the Default() built-in function which expects an unevaluated type identifier.
 // Default(Integer) should pass "Integer" as a string, not evaluate it as a variable.
 // Returns the default/zero value for the specified type, or nil if not a valid type.
-// Task 3.5.94: Migrated from Interpreter.evalDefaultFunction.
 func (e *Evaluator) builtinDefault(args []ast.Expression, ctx *ExecutionContext) Value {
 	// Check argument count
 	if len(args) != 1 {
@@ -314,7 +312,6 @@ type VariantAccessor interface {
 }
 
 // castToClassType performs class type casting for TypeName(expr) expressions.
-// Task 3.5.141: Migrated from adapter.CastToClass() and Interpreter.castToClass().
 //
 // Handles:
 // 1. Variant unwrapping

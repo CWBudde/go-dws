@@ -388,7 +388,6 @@ func (n *NilValue) Copy() Value {
 }
 
 // GetTypedClassName returns the class type name for typed nil values.
-// Task 3.5.90: Implements evaluator.NilAccessor interface.
 // Returns "" for untyped nil values.
 func (n *NilValue) GetTypedClassName() string {
 	if n == nil {
@@ -458,7 +457,6 @@ func (u *UnassignedValue) Copy() Value {
 // FunctionPointerValue represents a function or procedure pointer in DWScript.
 // Task 9.164: Create runtime representation for function pointers.
 // Task 9.221: Extended to support lambda expressions/anonymous methods.
-// Task 3.5.41: Migrated to AST-free representation using MethodID.
 //
 // Function pointers store a reference to a callable function/procedure along with
 // its closure environment. Method pointers additionally capture the Self object.
@@ -472,11 +470,8 @@ func (u *UnassignedValue) Copy() Value {
 // NOTE: Closure field uses interface{} to avoid circular import with interp.Environment.
 // At runtime, this will be *Environment.
 type FunctionPointerValue struct {
-	// === AST-Free Fields (Task 3.5.41) ===
-
 	// MethodID is the unique ID in the MethodRegistry for this callable.
 	// Used for AST-free method/function invocation.
-	// Task 3.5.41: Replaces direct AST node storage.
 	MethodID MethodID
 
 	// BuiltinName identifies the built-in function when the pointer references
@@ -523,7 +518,7 @@ func (f *FunctionPointerValue) Type() string {
 	return "FUNCTION_POINTER"
 }
 
-// ===== Task 3.5.121: FunctionPointerCallable interface implementation =====
+// ===== FunctionPointerCallable interface implementation =====
 
 // IsNil returns true if this function pointer has no function or lambda assigned.
 // Used to check before invocation to raise appropriate DWScript exceptions.
@@ -557,27 +552,23 @@ func (f *FunctionPointerValue) HasSelfObject() bool {
 
 // GetFunctionDecl returns the function AST node (*ast.FunctionDecl) for regular function pointers.
 // Returns nil for lambda closures.
-// Task 3.5.121: Implements FunctionPointerCallable interface.
 func (f *FunctionPointerValue) GetFunctionDecl() any {
 	return f.Function
 }
 
 // GetLambdaExpr returns the lambda AST node (*ast.LambdaExpression) for lambda closures.
 // Returns nil for regular function pointers.
-// Task 3.5.121: Implements FunctionPointerCallable interface.
 func (f *FunctionPointerValue) GetLambdaExpr() any {
 	return f.Lambda
 }
 
 // GetClosure returns the captured environment (type: *Environment).
-// Task 3.5.121: Implements FunctionPointerCallable interface.
 func (f *FunctionPointerValue) GetClosure() any {
 	return f.Closure
 }
 
 // GetSelfObject returns the bound Self for method pointers.
 // Returns nil for non-method pointers.
-// Task 3.5.121: Implements FunctionPointerCallable interface.
 func (f *FunctionPointerValue) GetSelfObject() Value {
 	return f.SelfObject
 }
@@ -585,7 +576,6 @@ func (f *FunctionPointerValue) GetSelfObject() Value {
 // String returns the string representation of the function pointer.
 // Format: @FunctionName, @Object.MethodName, or <lambda> for closures
 // Task 9.221: Updated to handle lambdas.
-// Task 3.5.41: Updated to handle MethodID-based representation.
 func (f *FunctionPointerValue) String() string {
 	// Lambda closures (check legacy field first for backward compatibility)
 	if f.Lambda != nil {

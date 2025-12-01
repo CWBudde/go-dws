@@ -10,7 +10,6 @@ import (
 // ============================================================================
 // Float Helper Method Implementations
 // ============================================================================
-// Task 3.5.102c: Migrate float helper methods from Interpreter to Evaluator.
 //
 // These implementations avoid the adapter by directly manipulating runtime values.
 // The goal is to remove EvalNode delegation for common float operations.
@@ -18,8 +17,6 @@ import (
 // evalFloatHelper evaluates a built-in float helper method directly in the evaluator.
 // Returns the result value, or nil if this helper is not handled here (should fall through
 // to the adapter).
-//
-// Task 3.5.102c: Handles float operations that don't require the builtins Context.
 func (e *Evaluator) evalFloatHelper(spec string, selfValue Value, args []Value, node ast.Node) Value {
 	switch spec {
 	case "__float_tostring_prec":

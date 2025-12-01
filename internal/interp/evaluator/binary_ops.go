@@ -9,7 +9,6 @@ import (
 )
 
 // This file contains binary operator evaluation methods for the Evaluator.
-// Task 3.5.19: Migrated from Interpreter expressions_binary.go
 
 // ============================================================================
 // Short-Circuit Operators
@@ -480,7 +479,6 @@ func (e *Evaluator) evalBooleanBinaryOp(op string, left, right Value, node ast.N
 // evalEnumBinaryOp evaluates binary operations on enum values.
 // Enums support comparison operations (=, <>, <, >, <=, >=) and bitwise operations (and, or, xor).
 // Enums are compared by their ordinal values.
-// Task 3.5.18: Migrated from Interpreter expressions_binary.go
 func (e *Evaluator) evalEnumBinaryOp(op string, left, right Value, node ast.Node) Value {
 	// Safe type assertions with error handling
 	leftEnum, ok := left.(*runtime.EnumValue)
@@ -542,7 +540,6 @@ func (e *Evaluator) evalEnumBinaryOp(op string, left, right Value, node ast.Node
 
 // evalEqualityComparison handles = and <> operators for complex types.
 // Supports: nil, objects, interfaces, classes, RTTI, sets, arrays, records.
-// Task 3.5.103d: Migrated from Interpreter.EvalEqualityComparison.
 func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node ast.Node) Value {
 	// Check type names to identify complex types
 	leftType := left.Type()
@@ -688,7 +685,6 @@ func (e *Evaluator) tryBinaryOperator(operator string, left, right Value, node a
 
 // evalInOperator evaluates the 'in' operator for membership testing.
 // Supports: arrays, sets, strings, subranges.
-// Task 3.5.103a: Migrated from Interpreter expressions_complex.go:15-63
 func (e *Evaluator) evalInOperator(value, container Value, node ast.Node) Value {
 	// Handle set membership
 	if setVal, ok := container.(*runtime.SetValue); ok {
@@ -722,7 +718,7 @@ func (e *Evaluator) evalInOperator(value, container Value, node ast.Node) Value 
 	// Handle array membership
 	if arrVal, ok := container.(*runtime.ArrayValue); ok {
 		// Search for the value in the array using proper equality comparison
-		// Task 3.5.103c: Use ValuesEqual helper for comprehensive equality
+		// Use ValuesEqual helper for comprehensive equality
 		for _, elem := range arrVal.Elements {
 			if ValuesEqual(value, elem) {
 				return &runtime.BooleanValue{Value: true}
@@ -737,7 +733,6 @@ func (e *Evaluator) evalInOperator(value, container Value, node ast.Node) Value 
 
 // evalSetBinaryOp evaluates binary operations on sets.
 // Supports: + (union), - (difference), * (intersection).
-// Task 3.5.103b: Migrated from Interpreter set.go:259-338
 func (e *Evaluator) evalSetBinaryOp(op string, left, right Value, node ast.Node) Value {
 	// Type assert to SetValue
 	leftSet, leftOk := left.(*runtime.SetValue)
@@ -822,7 +817,6 @@ func (e *Evaluator) evalSetBinaryOp(op string, left, right Value, node ast.Node)
 }
 
 // evalVariantBinaryOp handles binary operations with Variant operands.
-// Task 3.5.103f: Migrated from Interpreter expressions_binary.go:746-863.
 //
 // Variant operations follow these rules:
 //   - Unwrap operands to get actual runtime values
@@ -937,8 +931,8 @@ func (e *Evaluator) evalVariantBinaryOp(op string, left, right Value, node ast.N
 	// For boolean operators with mixed numeric/boolean types, coerce to boolean
 	case (op == "and" || op == "or" || op == "xor") &&
 		((leftType == "BOOLEAN" && (rightType == "INTEGER" || rightType == "FLOAT")) ||
-		 (rightType == "BOOLEAN" && (leftType == "INTEGER" || leftType == "FLOAT")) ||
-		 ((leftType == "INTEGER" || leftType == "FLOAT") && (rightType == "INTEGER" || rightType == "FLOAT"))):
+			(rightType == "BOOLEAN" && (leftType == "INTEGER" || leftType == "FLOAT")) ||
+			((leftType == "INTEGER" || leftType == "FLOAT") && (rightType == "INTEGER" || rightType == "FLOAT"))):
 		// Coerce both operands to boolean
 		leftBool := VariantToBool(leftVal)
 		rightBool := VariantToBool(rightVal)
@@ -953,7 +947,6 @@ func (e *Evaluator) evalVariantBinaryOp(op string, left, right Value, node ast.N
 }
 
 // isNullish checks if a value represents a null/unassigned/nil state.
-// Task 3.5.103f: Helper for variant comparison semantics.
 func isNullish(val Value) bool {
 	if val == nil {
 		return true
@@ -967,7 +960,6 @@ func isNullish(val Value) bool {
 }
 
 // convertToString converts a Value to its string representation.
-// Task 3.5.103f: Helper for Variant string concatenation and comparison.
 func convertToString(val Value) string {
 	if val == nil {
 		return ""
@@ -976,7 +968,6 @@ func convertToString(val Value) string {
 }
 
 // isNumericTypeName checks if a type name string is numeric (INTEGER or FLOAT).
-// Task 3.5.103f: Helper for variant type coercion.
 func isNumericTypeName(typeStr string) bool {
 	return typeStr == "INTEGER" || typeStr == "FLOAT"
 }
@@ -984,7 +975,6 @@ func isNumericTypeName(typeStr string) bool {
 // ============================================================================
 // Unary Operators
 // ============================================================================
-// Task 3.5.20: Migrated from Interpreter expressions_basic.go
 
 // tryUnaryOperator attempts to use custom operator overloading for unary operators.
 // Returns (result, true) if operator found, or (nil, false) if not found.
@@ -1031,7 +1021,6 @@ func (e *Evaluator) evalPlusUnaryOp(operand Value, node ast.Node) Value {
 // For Boolean: logical NOT
 // For Integer: bitwise NOT
 // For Variant: convert to boolean, negate, wrap result in Variant
-// Task 3.5.103e: Migrated Variant NOT from adapter delegation to direct implementation.
 func (e *Evaluator) evalNotUnaryOp(operand Value, node ast.Node) Value {
 	// Handle Variant: convert to bool using DWScript semantics, negate, wrap in Variant
 	// Uses VariantToBool from helpers.go which handles unwrapping and type coercion

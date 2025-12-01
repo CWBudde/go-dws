@@ -13,7 +13,6 @@ import (
 // These include 'is' type checking, 'as' type casting, and 'implements' interface checking.
 
 // VisitIsExpression evaluates an 'is' type checking expression.
-// Task 3.5.34: Runtime type checking with class hierarchy and interface support.
 //
 // The 'is' operator has two modes:
 // 1. Type checking: `obj is TMyClass` or `obj is IMyInterface`
@@ -67,13 +66,13 @@ func (e *Evaluator) VisitIsExpression(node *ast.IsExpression, ctx *ExecutionCont
 		return e.newError(node, "cannot determine target type")
 	}
 
-	// Task 3.5.140: Migrated from adapter.CheckType() to direct ClassMetadata usage
+	// Migrated from adapter.CheckType() to direct ClassMetadata usage
 	result := e.checkType(left, targetTypeName)
 	return &runtime.BooleanValue{Value: result}
 }
 
 // VisitAsExpression evaluates an 'as' type casting expression.
-// Task 3.5.35: Runtime type casting with interface wrapping/unwrapping.
+// Runtime type casting with interface wrapping/unwrapping.
 //
 // The 'as' operator performs type casting with the following behaviors:
 // 1. nil -> any type: returns nil (nil can be cast to any class or interface)
@@ -98,7 +97,7 @@ func (e *Evaluator) VisitAsExpression(node *ast.AsExpression, ctx *ExecutionCont
 		return e.newError(node, "cannot determine target type")
 	}
 
-	// Task 3.5.141: Use evaluator's castType helper which handles:
+	// Use evaluator's castType helper which handles:
 	// - nil casting
 	// - interface-to-class casting (unwrapping)
 	// - interface-to-interface casting (re-wrapping)
@@ -115,7 +114,7 @@ func (e *Evaluator) VisitAsExpression(node *ast.AsExpression, ctx *ExecutionCont
 }
 
 // VisitImplementsExpression evaluates an 'implements' interface checking expression.
-// Task 3.5.36: Interface implementation verification.
+// Interface implementation verification.
 //
 // The 'implements' operator checks if a class/object implements an interface:
 // - obj implements IInterface -> Boolean (object instance)
@@ -139,7 +138,7 @@ func (e *Evaluator) VisitImplementsExpression(node *ast.ImplementsExpression, ct
 		return e.newError(node, "cannot determine target interface type")
 	}
 
-	// Task 3.5.142: Use evaluator's checkImplements helper (no adapter)
+	// Use evaluator's checkImplements helper (no adapter)
 	result, err := e.checkImplements(left, targetInterfaceName)
 	if err != nil {
 		return e.newError(node, "%s", err.Error())
@@ -149,7 +148,7 @@ func (e *Evaluator) VisitImplementsExpression(node *ast.ImplementsExpression, ct
 }
 
 // checkType checks if a value is an instance of a specific type.
-// Task 3.5.140: Migrated from adapter.CheckType() to use ClassMetadata directly.
+// Migrated from adapter.CheckType() to use ClassMetadata directly.
 //
 // This implements the 'is' operator type checking with:
 // - Class hierarchy traversal (obj is TMyClass checks class and parent classes)
@@ -191,7 +190,6 @@ func (e *Evaluator) checkType(obj Value, typeName string) bool {
 }
 
 // getClassMetadataFromValue extracts ClassMetadata from a value.
-// Task 3.5.140: Helper to extract metadata from ObjectInstance or InterfaceInstance.
 func (e *Evaluator) getClassMetadataFromValue(obj Value) *runtime.ClassMetadata {
 	// Use adapter to extract ClassMetadata from the object
 	// The adapter has access to internal types and can safely extract the metadata
@@ -199,7 +197,6 @@ func (e *Evaluator) getClassMetadataFromValue(obj Value) *runtime.ClassMetadata 
 }
 
 // classImplementsInterface checks if a class implements an interface.
-// Task 3.5.140: Helper for checkType to verify interface implementation.
 func (e *Evaluator) classImplementsInterface(classMeta *runtime.ClassMetadata, interfaceName string) bool {
 	if classMeta == nil {
 		return false
@@ -222,7 +219,6 @@ func (e *Evaluator) classImplementsInterface(classMeta *runtime.ClassMetadata, i
 }
 
 // checkImplements checks if a value implements an interface.
-// Task 3.5.142: Migrated from adapter.CheckImplements() to use ClassMetadata directly.
 //
 // This implements the 'implements' operator which checks EXPLICIT interface implementations:
 // - Does NOT check interface inheritance (differs from 'is' operator)
@@ -251,7 +247,6 @@ func (e *Evaluator) checkImplements(obj Value, interfaceName string) (bool, erro
 }
 
 // classImplementsInterfaceExplicitly checks if a class explicitly implements an interface.
-// Task 3.5.142: Helper for checkImplements to verify EXPLICIT interface implementation.
 //
 // This is separate from classImplementsInterface() because:
 // - classImplementsInterface() (for 'is' operator) - WILL check interface inheritance when implemented
@@ -282,7 +277,6 @@ func (e *Evaluator) classImplementsInterfaceExplicitly(classMeta *runtime.ClassM
 }
 
 // castType performs type casting for the 'as' operator.
-// Task 3.5.141: Migrated from adapter.CastType().
 //
 // Handles:
 // 1. Variant → primitive types (using existing cast helpers)
@@ -446,7 +440,6 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 }
 
 // isClassHierarchyCompatible checks if a class is compatible with a target class.
-// Task 3.5.141: Helper for class hierarchy validation during type casting.
 // Returns true if sourceClass is the same as or a descendant of targetClass.
 func (e *Evaluator) isClassHierarchyCompatible(sourceClass, targetClass interface{}) bool {
 	// Extract ClassMetadata if we have a generic interface

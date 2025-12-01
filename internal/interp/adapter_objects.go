@@ -19,7 +19,7 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 	// Convert arguments
 	internalArgs := convertEvaluatorArgs(args)
 
-	// Task 3.5.46: Look up class via TypeSystem (case-insensitive)
+	// Look up class via TypeSystem (case-insensitive)
 	classInfoIface := i.typeSystem.LookupClass(className)
 	if classInfoIface == nil {
 		return nil, fmt.Errorf("class '%s' not found", className)
@@ -86,7 +86,6 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 }
 
 // ExecuteConstructor executes a constructor method on an already-created object instance.
-// Task 3.5.126f: Callback for complex constructor execution (method body + Self binding).
 func (i *Interpreter) ExecuteConstructor(obj evaluator.Value, constructorName string, args []evaluator.Value) error {
 	// Convert arguments
 	internalArgs := convertEvaluatorArgs(args)
@@ -132,9 +131,7 @@ func (i *Interpreter) ExecuteConstructor(obj evaluator.Value, constructorName st
 // ===== Type Checking and Casting =====
 
 // CheckType checks if an object is of a specified type (implements 'is' operator).
-// Task 3.5.34: Extended to support both class hierarchy and interface implementation checking.
 // GetClassMetadataFromValue extracts ClassMetadata from an object value.
-// Task 3.5.140: Helper method to extract metadata from ObjectInstance or InterfaceInstance.
 func (i *Interpreter) GetClassMetadataFromValue(obj evaluator.Value) *runtime.ClassMetadata {
 	// Convert to internal type
 	internalObj := obj.(Value)
@@ -207,8 +204,7 @@ func (i *Interpreter) CheckType(obj evaluator.Value, typeName string) bool {
 		current = current.Parent
 	}
 
-	// Task 3.5.34: Check if the target is an interface and if the object's class implements it
-	// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
+	// Check if the target is an interface and if the object's class implements it
 	if iface := i.lookupInterfaceInfo(typeName); iface != nil {
 		return classImplementsInterface(objVal.Class, iface)
 	}
@@ -217,8 +213,6 @@ func (i *Interpreter) CheckType(obj evaluator.Value, typeName string) bool {
 }
 
 // CastType performs type casting (implements 'as' operator).
-// Task 3.5.35: Extended to fully support type casting with interface wrapping/unwrapping.
-// Task 3.5.141: DEPRECATED - Migrated to Evaluator.castType(). Kept for backwards compatibility with old interpreter path.
 //
 // Handles the following cases:
 // 1. nil → any type: returns nil
@@ -273,7 +267,7 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 
 	// Handle interface-to-object/interface casting
 	if intfInst, ok := internalObj.(*InterfaceInstance); ok {
-		// Task 3.5.46: Check if target is a class via TypeSystem
+		// Check if target is a class via TypeSystem
 		if targetClassIface := i.typeSystem.LookupClass(typeName); targetClassIface != nil {
 			targetClass, _ := targetClassIface.(*ClassInfo)
 			// Interface-to-class casting: extract the underlying object
@@ -292,7 +286,6 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 		}
 
 		// Check if target is an interface
-		// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
 		if targetIface := i.lookupInterfaceInfo(typeName); targetIface != nil {
 			// Interface-to-interface casting
 			underlyingObj := intfInst.Object
@@ -319,7 +312,7 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 		return nil, fmt.Errorf("'as' operator requires object instance, got %s", internalObj.Type())
 	}
 
-	// Task 3.5.46: Try class-to-class casting first via TypeSystem
+	// Look up class-to-class casting first via TypeSystem
 	if targetClassIface := i.typeSystem.LookupClass(typeName); targetClassIface != nil {
 		targetClass, _ := targetClassIface.(*ClassInfo)
 		// Validate that the object's actual runtime type is compatible with the target
@@ -332,7 +325,6 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 	}
 
 	// Try interface casting
-	// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
 	if iface := i.lookupInterfaceInfo(typeName); iface != nil {
 		// Validate that the object's class implements the interface
 		if !classImplementsInterface(objVal.Class, iface) {
@@ -347,8 +339,6 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 }
 
 // CastToClass performs class type casting for TypeName(expr) expressions.
-// Task 3.5.94: Adapter method for type cast migration. Uses existing castToClass logic.
-// Task 3.5.141: DEPRECATED - Migrated to Evaluator.castToClassType(). Kept for backwards compatibility with old interpreter path.
 func (i *Interpreter) CastToClass(val evaluator.Value, className string, node ast.Expression) evaluator.Value {
 	// Convert to internal type
 	internalVal := val.(Value)
@@ -364,7 +354,6 @@ func (i *Interpreter) CastToClass(val evaluator.Value, className string, node as
 }
 
 // GetObjectInstanceFromValue extracts ObjectInstance from a Value.
-// Task 3.5.141: Helper to extract ObjectInstance for type casting.
 // Returns the ObjectInstance interface{} if the value is an ObjectInstance, nil otherwise.
 func (i *Interpreter) GetObjectInstanceFromValue(val evaluator.Value) interface{} {
 	// Convert to internal type
@@ -379,7 +368,6 @@ func (i *Interpreter) GetObjectInstanceFromValue(val evaluator.Value) interface{
 }
 
 // GetInterfaceInstanceFromValue extracts InterfaceInstance from a Value.
-// Task 3.5.141: Helper to extract InterfaceInstance for interface casting.
 // Returns (interfaceInfo, underlyingObject) if the value is an InterfaceInstance, (nil, nil) otherwise.
 func (i *Interpreter) GetInterfaceInstanceFromValue(val evaluator.Value) (interfaceInfo interface{}, underlyingObject interface{}) {
 	// Convert to internal type
@@ -394,7 +382,6 @@ func (i *Interpreter) GetInterfaceInstanceFromValue(val evaluator.Value) (interf
 }
 
 // CreateInterfaceWrapper creates an InterfaceInstance wrapper.
-// Task 3.5.141: Helper to create interface wrappers for 'as' operator.
 // Returns the InterfaceInstance wrapper or error if interface not found.
 func (i *Interpreter) CreateInterfaceWrapper(interfaceName string, obj evaluator.Value) (evaluator.Value, error) {
 	// Convert to internal type
@@ -408,7 +395,6 @@ func (i *Interpreter) CreateInterfaceWrapper(interfaceName string, obj evaluator
 	}
 
 	// Look up the interface
-	// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
 	iface := i.lookupInterfaceInfo(interfaceName)
 	if iface == nil {
 		return nil, fmt.Errorf("interface '%s' not found", interfaceName)
@@ -419,7 +405,6 @@ func (i *Interpreter) CreateInterfaceWrapper(interfaceName string, obj evaluator
 }
 
 // CreateTypeCastWrapper creates a TypeCastValue wrapper.
-// Task 3.5.141: Helper to create TypeCastValue for TypeName(expr) casts.
 // Returns the TypeCastValue wrapper or nil if class not found.
 func (i *Interpreter) CreateTypeCastWrapper(className string, obj evaluator.Value) evaluator.Value {
 	// Convert to internal type
@@ -439,17 +424,15 @@ func (i *Interpreter) CreateTypeCastWrapper(className string, obj evaluator.Valu
 }
 
 // RaiseTypeCastException raises a type cast exception.
-// Task 3.5.141: Helper to raise exceptions for invalid TypeName(expr) casts.
-// This matches the behavior of castToClass which raises exceptions.
 func (i *Interpreter) RaiseTypeCastException(message string, node ast.Node) {
 	pos := node.Pos()
 	fullMessage := fmt.Sprintf("%s [line: %d, column: %d]", message, pos.Line, pos.Column)
 	i.raiseException("Exception", fullMessage, &pos)
 }
+
 // ===== Metaclass Operations =====
 
 // CreateClassValue creates a ClassValue (metaclass reference) from a class name.
-// Task 3.5.85: Adapter method for returning metaclass references from VisitIdentifier.
 func (i *Interpreter) CreateClassValue(className string) (evaluator.Value, error) {
 	// Look up the class in the registry (case-insensitive)
 	for name, classInfo := range i.classes {
@@ -477,8 +460,6 @@ func (i *Interpreter) GetClassType(obj evaluator.Value) evaluator.Value {
 	}
 	return &ClassValue{ClassInfo: objInst.Class}
 }
-
-// Task 3.5.71: IsClassInfoValue removed - evaluator uses val.Type() == "CLASSINFO" directly
 
 // GetClassNameFromClassInfo returns the class name from a ClassInfoValue.
 func (i *Interpreter) GetClassNameFromClassInfo(classInfo evaluator.Value) string {

@@ -65,7 +65,7 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 			return i.newErrorWithLocation(i.currentNode, "Inc() with delta not supported for enum types")
 		}
 
-		// Get the enum type metadata via TypeSystem (Task 3.5.143b)
+		// Get the enum type metadata via TypeSystem
 		enumMetadata := i.typeSystem.LookupEnumMetadata(val.TypeName)
 		if enumMetadata == nil {
 			return i.newErrorWithLocation(i.currentNode, "enum type metadata not found for %s", val.TypeName)
@@ -177,7 +177,7 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 			return i.newErrorWithLocation(i.currentNode, "Dec() with delta not supported for enum types")
 		}
 
-		// Get the enum type metadata via TypeSystem (Task 3.5.143b)
+		// Get the enum type metadata via TypeSystem
 		enumMetadata := i.typeSystem.LookupEnumMetadata(val.TypeName)
 		if enumMetadata == nil {
 			return i.newErrorWithLocation(i.currentNode, "enum type metadata not found for %s", val.TypeName)
@@ -378,7 +378,6 @@ func (i *Interpreter) builtinAssert(args []Value) Value {
 	}
 
 	// Create exception instance
-	// Task 3.5.40: Use NewObjectInstance and SetField for proper initialization
 	instance := NewObjectInstance(assertClass)
 
 	// Set the Message field
@@ -528,7 +527,7 @@ func (i *Interpreter) evaluateLValue(lvalue ast.Expression) (Value, func(Value) 
 		// Handle different object types
 		switch obj := objVal.(type) {
 		case *ObjectInstance:
-			// Task 3.5.40: Use GetField/SetField for proper normalization
+			// Use GetField/SetField for proper normalization
 			currentVal := obj.GetField(fieldName)
 			if currentVal == nil {
 				return nil, nil, fmt.Errorf("field '%s' not found in class '%s'", fieldName, obj.Class.Name)

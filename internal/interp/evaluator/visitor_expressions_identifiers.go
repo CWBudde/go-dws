@@ -61,7 +61,6 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// properties, methods (auto-invoked if zero params), or ClassName/ClassType
 	if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk {
 		if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "OBJECT" {
-			// Task 3.5.155: Use ObjectValue interface for direct field/class var access
 			if objVal, ok := selfVal.(ObjectValue); ok {
 				// Check for instance field
 				if fieldValue := objVal.GetField(node.Value); fieldValue != nil {
@@ -107,7 +106,6 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			}
 
 			// Check for ClassName special identifier (case-insensitive)
-			// Task 3.5.156: Use ObjectValue interface for direct ClassName access
 			if ident.Equal(node.Value, "ClassName") {
 				if objVal, ok := selfVal.(ObjectValue); ok {
 					return &runtime.StringValue{Value: objVal.ClassName()}
@@ -115,7 +113,6 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			}
 
 			// Check for ClassType special identifier (case-insensitive)
-			// Task 3.5.156: Use ObjectValue interface for direct ClassType access
 			if ident.Equal(node.Value, "ClassType") {
 				if objVal, ok := selfVal.(ObjectValue); ok {
 					return objVal.GetClassType()
@@ -128,7 +125,6 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// Identifiers can refer to ClassName, ClassType, or class variables
 	if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
 		if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
-			// Task 3.5.157: Use ClassMetaValue interface for direct class metadata access
 			if classMetaVal, ok := classInfoVal.(ClassMetaValue); ok {
 				// Check for ClassName identifier (case-insensitive)
 				if ident.Equal(node.Value, "ClassName") {
@@ -141,7 +137,6 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 				}
 
 				// Check for class variable
-				// Task 3.5.158: Use ClassMetaValue.GetClassVar() for direct class variable access
 				if classVarValue, found := classMetaVal.GetClassVar(node.Value); found {
 					return classVarValue
 				}
@@ -183,7 +178,6 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	}
 
 	// Check if this identifier is a class name (metaclass reference)
-	// Task 3.5.159: Use TypeSystem.CreateClassValue() instead of adapter
 	if e.typeSystem.HasClass(node.Value) {
 		classVal, err := e.typeSystem.CreateClassValue(node.Value)
 		if err != nil {
@@ -230,7 +224,6 @@ func (e *Evaluator) VisitEnumLiteral(node *ast.EnumLiteral, ctx *ExecutionContex
 }
 
 // invokeParameterlessUserFunction invokes a parameterless user function.
-// Task 3.5.142: Simplified implementation for auto-invocation of zero-parameter functions.
 //
 // This is a SUBSET of callUserFunction that:
 // - Uses evaluator's stack-based environment model (PushEnv/PopEnv)
@@ -262,7 +255,6 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 	defer ctx.GetCallStack().Pop()
 
 	// 4. Initialize Result variable
-	// Task 3.5.142d: Use ResolveTypeFromAnnotation + GetDefaultValue for proper initialization
 	var resultValue Value
 	if fn.ReturnType != nil {
 		// Resolve the return type to a types.Type
@@ -276,7 +268,7 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 
 		e.DefineVar(ctx, "Result", resultValue)
 
-		// Task 3.5.142e: Create function name alias to Result
+		// Create function name alias to Result
 		// DWScript allows `MyFunc := value` as synonym for `Result := value`
 		// Implemented using ReferenceValue that points to Result variable
 		env := ctx.Env()
@@ -295,7 +287,7 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 		e.DefineVar(ctx, funcName, funcNameAlias)
 	}
 
-	// 4. Check preconditions before function body (Task 3.5.142a)
+	// 4. Check preconditions before function body
 	if fn.PreConditions != nil {
 		if err := e.checkPreconditions(funcName, fn.PreConditions, ctx); err != nil {
 			return err
@@ -306,7 +298,7 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 		}
 	}
 
-	// 4b. Capture old values for postconditions (Task 3.5.142b)
+	// 4b. Capture old values for postconditions
 	// This must be called BEFORE the function body executes
 	var oldValues map[string]Value
 	if fn.PostConditions != nil {
@@ -357,7 +349,7 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 		resultValue = &runtime.NilValue{}
 	}
 
-	// 9. Check postconditions after function body (Task 3.5.142b)
+	// 9. Check postconditions after function body
 	// Old values are available via ctx.GetOldValue() during postcondition evaluation
 	if fn.PostConditions != nil {
 		if err := e.checkPostconditions(funcName, fn.PostConditions, ctx); err != nil {
@@ -369,7 +361,7 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 		}
 	}
 
-	// 10. Clean up interface references (Task 3.5.142c)
+	// 10. Clean up interface references
 	// This releases interface-held and object-held references, decrementing ref counts
 	// and calling destructors when reference count reaches zero.
 	// Note: Cleanup happens via defer in PushEnv/PopEnv, but for now we call explicitly

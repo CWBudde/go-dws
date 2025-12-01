@@ -63,8 +63,7 @@ func (i *Interpreter) evalArrayDeclaration(decl *ast.ArrayDecl) Value {
 		arrayType = types.NewStaticArrayType(elementType, int(lowBound.Value), int(highBound.Value))
 	}
 
-	// Task 3.5.69e: Register array type in TypeSystem only
-	// (Environment storage removed - all consumers now use TypeSystem)
+	// Register array type in TypeSystem only
 	i.typeSystem.RegisterArrayType(arrayName, arrayType)
 
 	return &NilValue{} // Type declarations don't return a value
@@ -146,7 +145,6 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 					}
 
 					// Check if ReadField is a method (getter with parameters)
-					// Task 3.5.128b: Use free function instead of method due to type alias
 					if getterMethod := GetRecordMethod(recordVal, propInfo.ReadField); getterMethod != nil {
 						// Call the getter method with indices as arguments
 						methodCall := &ast.MethodCallExpression{
@@ -283,7 +281,6 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 		if defaultProp != nil {
 			// Call the getter method with the index
 			if defaultProp.ReadField != "" {
-				// Task 3.5.128b: Use free function instead of method due to type alias
 				if getterMethod := GetRecordMethod(recordVal, defaultProp.ReadField); getterMethod != nil {
 					// Call the getter method with index as argument
 					methodCall := &ast.MethodCallExpression{
@@ -717,7 +714,6 @@ func (i *Interpreter) typeFromValue(val Value) types.Type {
 	case *ArrayValue:
 		return v.ArrayType
 	case *EnumValue:
-		// Get enum type metadata via TypeSystem (Task 3.5.143b)
 		if enumMetadata := i.typeSystem.LookupEnumMetadata(v.TypeName); enumMetadata != nil {
 			if etv, ok := enumMetadata.(*EnumTypeValue); ok {
 				return etv.EnumType

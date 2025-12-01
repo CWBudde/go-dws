@@ -131,7 +131,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		}
 
 		// Check if this identifier refers to an enum type (for scoped access: TColor.Red)
-		// Look for enum type metadata via TypeSystem (Task 3.5.143b)
+		// Look for enum type metadata via TypeSystem
 		if enumMetadata := i.typeSystem.LookupEnumMetadata(ident.Value); enumMetadata != nil {
 			if etv, ok := enumMetadata.(*EnumTypeValue); ok {
 				enumType := etv.EnumType
@@ -254,7 +254,6 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				}
 
 				// Not a field - try as a method (getter)
-				// Task 3.5.128b: Use free function instead of method due to type alias
 				if getterMethod := GetRecordMethod(recordVal, propInfo.ReadField); getterMethod != nil {
 					// Call the getter method
 					methodCall := &ast.MethodCallExpression{
@@ -277,9 +276,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			return i.newErrorWithLocation(ma, "property '%s' is write-only", ma.Member.Value)
 		}
 
-		// Task 9.37: Check if it's a record method (via Metadata.Methods)
-		// Task 3.5.128a: Use GetMethod which now only uses Metadata.Methods
-		// Task 3.5.128b: Use free function instead of method due to type alias
+		// Check if it's a record method
 		methodDecl := GetRecordMethod(recordVal, ma.Member.Value)
 		if methodDecl != nil {
 			// Only auto-invoke parameterless methods when accessed without parentheses

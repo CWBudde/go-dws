@@ -17,7 +17,6 @@ type mockRecordTypeValue struct {
 }
 
 // GetMetadata implements the interface expected by LookupRecordMetadata.
-// Task 3.5.128d: Test support for metadata lookup.
 func (m *mockRecordTypeValue) GetMetadata() any {
 	return m.Metadata
 }
@@ -198,7 +197,7 @@ func TestRecordRegistry(t *testing.T) {
 		t.Error("HasRecord returned true for nil record")
 	}
 
-	// Test LookupRecordMetadata (Task 3.5.128d)
+	// Test LookupRecordMetadata
 	mockMetadata := "test-metadata-value"
 	recordWithMetadata := &mockRecordTypeValue{
 		Name:     "RecordWithMetadata",
@@ -533,7 +532,7 @@ func TestDirectRegistryAccess(t *testing.T) {
 }
 
 // ========== Enum Type Registry Tests ==========
-// Task 3.5.143a: Comprehensive tests for enum type registry
+// Comprehensive tests for enum type registry
 
 // Mock types for enum testing
 type mockEnumTypeValue struct {
@@ -541,9 +540,9 @@ type mockEnumTypeValue struct {
 	enumType any
 }
 
-func (m *mockEnumTypeValue) Type() string      { return "ENUM_TYPE" }
-func (m *mockEnumTypeValue) String() string    { return m.name }
-func (m *mockEnumTypeValue) GetEnumType() any  { return m.enumType }
+func (m *mockEnumTypeValue) Type() string     { return "ENUM_TYPE" }
+func (m *mockEnumTypeValue) String() string   { return m.name }
+func (m *mockEnumTypeValue) GetEnumType() any { return m.enumType }
 
 type mockCoreEnumType struct {
 	name string
@@ -642,7 +641,6 @@ func TestEnumTypeRegistry_LookupMissing(t *testing.T) {
 }
 
 // TestEnumTypeRegistry_LookupMetadata verifies metadata extraction helper.
-// Task 3.5.143b fix: Updated test to expect wrapper instead of unwrapped type.
 func TestEnumTypeRegistry_LookupMetadata(t *testing.T) {
 	ts := NewTypeSystem()
 

@@ -11,18 +11,10 @@ import (
 	"github.com/cwbudde/go-dws/pkg/token"
 )
 
-// Phase 3.5.4 - Phase 2E: Imports for future use (commented out for now)
-// import "fmt" // For exception error messages
-// import "github.com/cwbudde/go-dws/internal/errors" // For exception stack traces
-
 // This file contains visitor methods for statement AST nodes.
-// Phase 3.5.2: Visitor pattern implementation for statements.
 //
 // Statements perform actions and control flow, typically not returning values
 // (or returning nil).
-
-// Task 3.5.9: Helper functions moved to helpers.go for reusability.
-// Use exported versions: IsTruthy, VariantToBool, ValuesEqual, IsInRange, RuneLength, RuneAt
 
 // VisitProgram evaluates a program (the root node).
 // Phase 3.5.4.29: Migrated from Interpreter.evalProgram()
@@ -77,8 +69,6 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 }
 
 // VisitExpressionStatement evaluates an expression statement.
-// Task 3.5.8: Migrated from Interpreter.Eval switch case for *ast.ExpressionStatement
-// Special handling for auto-invoking parameterless function pointers.
 func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx *ExecutionContext) Value {
 	// Evaluate the expression
 	val := e.Eval(node.Expression, ctx)

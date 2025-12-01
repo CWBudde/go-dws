@@ -52,7 +52,7 @@ func TestIntegration_InterfaceDeclarationAndUsage(t *testing.T) {
 		t.Fatalf("Runtime error: %v", result.String())
 	}
 
-	// Verify interface was registered (Task 3.5.184c: Use lookupInterfaceInfo)
+	// Verify interface was registered
 	iface := interp.lookupInterfaceInfo("iprintable")
 	if iface == nil {
 		t.Error("IPrintable interface should be registered")
@@ -124,7 +124,7 @@ func TestIntegration_InterfaceInheritanceHierarchy(t *testing.T) {
 		t.Fatalf("Runtime error: %v", result.String())
 	}
 
-	// Verify 3-level interface hierarchy (Task 3.5.184c: Use lookupInterfaceInfo)
+	// Verify 3-level interface hierarchy
 	base := interp.lookupInterfaceInfo("ibase")
 	if base == nil {
 		t.Fatal("IBase should be registered")
@@ -253,7 +253,7 @@ func TestIntegration_ClassImplementingMultipleInterfaces(t *testing.T) {
 		t.Fatalf("Runtime error: %v", result.String())
 	}
 
-	// Verify all three interfaces registered (Task 3.5.184c: Use lookupInterfaceInfo)
+	// Verify all three interfaces registered
 	readable := interp.lookupInterfaceInfo("ireadable")
 	if readable == nil {
 		t.Fatal("IReadable should be registered")
@@ -350,7 +350,6 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 
 		// Create object and interface instance
 		obj := NewObjectInstance(class)
-		// Task 3.5.40: Use SetField for proper normalization
 		obj.SetField("TestField", &IntegerValue{Value: 42})
 		ifaceInstance := NewInterfaceInstance(iface, obj)
 
@@ -442,7 +441,6 @@ func TestIntegration_InterfaceLifetimeManagement(t *testing.T) {
 		class := NewClassInfo("TResource")
 		class.Methods["release"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Release"}}
 
-		// Task 3.5.184c: Register via TypeSystem instead of direct map access
 		interp.typeSystem.RegisterInterface("iresource", iface)
 		interp.classes["TResource"] = class
 
@@ -513,7 +511,6 @@ func TestIntegration_InterfaceLifetimeManagement(t *testing.T) {
 		iface := NewInterfaceInfo("IShared")
 		class := NewClassInfo("TShared")
 		obj := NewObjectInstance(class)
-		// Task 3.5.40: Use SetField for proper normalization
 		obj.SetField("Counter", &IntegerValue{Value: 0})
 
 		// Create multiple interface instances referencing same object

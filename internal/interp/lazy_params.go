@@ -5,10 +5,10 @@ import (
 )
 
 // DEPRECATED: This file contains the old LazyThunk implementation with direct
-// Interpreter dependency. It has been replaced by runtime.LazyThunk (Task 3.5.131b)
+// Interpreter dependency. It has been replaced by runtime.LazyThunk
 // which uses a callback-based pattern to break the dependency.
 //
-// This file is kept for reference during migration and will be deleted in Phase 3.5.176.
+// This file is kept for reference during migration and will be deleted.
 // New code should use the type alias: interp.LazyThunk = runtime.LazyThunk
 
 // LazyThunk represents a deferred/lazy parameter - an unevaluated expression

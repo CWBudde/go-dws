@@ -10,14 +10,12 @@ import (
 // Assignment Helpers
 // ============================================================================
 //
-// Task 3.5.105a: Simple variable assignment migration.
 // This file contains helpers for evaluating assignment statements directly
 // in the evaluator, reducing adapter dependency.
 // ============================================================================
 
 // ReferenceValueAccessor is an interface for values that can be dereferenced and assigned.
 // This allows the evaluator to work with ReferenceValue without importing the interp package.
-// Task 3.5.105a: Interface-based approach for var parameter handling.
 type ReferenceValueAccessor interface {
 	// Dereference returns the current value of the referenced variable.
 	Dereference() (Value, error)
@@ -26,7 +24,6 @@ type ReferenceValueAccessor interface {
 }
 
 // SubrangeValueAccessor is an interface for subrange values.
-// Task 3.5.105a: Interface-based approach for subrange validation.
 type SubrangeValueAccessor interface {
 	// ValidateAndSet validates that the value is in range and sets it.
 	ValidateAndSet(intValue int) error
@@ -36,14 +33,12 @@ type SubrangeValueAccessor interface {
 	GetTypeName() string
 }
 
-// Note: ExternalVarAccessor is defined in evaluator.go (Task 3.5.73).
+// Note: ExternalVarAccessor is defined in evaluator.go
 
 // cloneIfCopyable returns a defensive copy for values that implement CopyableValue.
 // DWScript static arrays have value semantics, so assignments should duplicate
 // their backing storage to avoid accidental aliasing between variables.
 // Dynamic arrays keep reference semantics.
-//
-// Task 3.5.105a: Migrated from statements_assignments.go.
 func cloneIfCopyable(val Value) Value {
 	if val == nil {
 		return nil
@@ -68,7 +63,6 @@ func cloneIfCopyable(val Value) Value {
 }
 
 // evalSimpleAssignmentDirect handles simple variable assignment: x := value
-// Task 3.5.105a: Migrated from Interpreter.evalSimpleAssignment()
 //
 // This handles the simplest cases directly:
 // - Regular variable assignment with matching types
@@ -183,7 +177,6 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 }
 
 // evalReferenceAssignment handles assignment through a var parameter (ReferenceValue).
-// Task 3.5.105a: Extracted from evalSimpleAssignment for clarity.
 func (e *Evaluator) evalReferenceAssignment(
 	refVal ReferenceValueAccessor,
 	value Value,
@@ -233,7 +226,6 @@ func (e *Evaluator) evalReferenceAssignment(
 }
 
 // evalSubrangeAssignment handles assignment to a subrange variable.
-// Task 3.5.105a: Extracted from evalSimpleAssignment for clarity.
 func (e *Evaluator) evalSubrangeAssignment(
 	subrangeVal SubrangeValueAccessor,
 	value Value,
@@ -262,7 +254,6 @@ func (e *Evaluator) evalSubrangeAssignment(
 
 // evalCompoundIdentifierAssignment handles compound assignment operators (+=, -=, *=, /=)
 // for simple identifier targets.
-// Task 3.5.105b: Migrated from Interpreter.evalAssignmentStatement + applyCompoundOperation.
 //
 // This handles the compound assignment flow:
 // 1. Read current value from environment
@@ -353,7 +344,6 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 // Context Inference Helpers
 // ============================================================================
 //
-// Task 3.5.105e: Helpers for extracting type context from assignment targets.
 // These enable array and record literals to infer their types from the
 // target variable during assignment.
 // ============================================================================

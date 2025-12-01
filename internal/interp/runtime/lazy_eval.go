@@ -1,7 +1,5 @@
 // Package runtime provides runtime value types for the DWScript interpreter.
 // This file contains callback types and values for lazy evaluation.
-//
-// Task 3.5.131a: Define callback types for LazyThunk and ReferenceValue.
 package runtime
 
 // EvalCallback is a function that evaluates an expression and returns a value.
@@ -18,7 +16,7 @@ package runtime
 // (interpreter instance, expression, environment) in a closure, breaking the
 // direct dependency on the interp package.
 //
-// Example usage (from evaluator in task 3.5.131d):
+// Example usage:
 //
 //	evalCallback := func() Value {
 //	    savedEnv := interpreter.env
@@ -28,8 +26,6 @@ package runtime
 //	    return result
 //	}
 //	lazyThunk := runtime.NewLazyThunk(expr, evalCallback)
-//
-// Task 3.5.131a: Foundation for callback-based LazyThunk.
 type EvalCallback func() Value
 
 // GetterCallback reads the value of a variable from an environment.
@@ -49,14 +45,12 @@ type EvalCallback func() Value
 // and variable name in a closure, breaking the direct dependency on the
 // interp.Environment type.
 //
-// Example usage (from evaluator in task 3.5.131d):
+// Example usage:
 //
 //	getter := func() (Value, error) {
 //	    return capturedEnv.Get(varName)
 //	}
 //	refValue := runtime.NewReferenceValue(varName, getter, setter)
-//
-// Task 3.5.131a: Foundation for callback-based ReferenceValue.
 type GetterCallback func() (Value, error)
 
 // SetterCallback writes a value to a variable in an environment.
@@ -76,14 +70,12 @@ type GetterCallback func() (Value, error)
 // and variable name in a closure, breaking the direct dependency on the
 // interp.Environment type.
 //
-// Example usage (from evaluator in task 3.5.131d):
+// Example usage:
 //
 //	setter := func(val Value) error {
 //	    return capturedEnv.Set(varName, val)
 //	}
 //	refValue := runtime.NewReferenceValue(varName, getter, setter)
-//
-// Task 3.5.131a: Foundation for callback-based ReferenceValue.
 type SetterCallback func(Value) error
 
 // LazyThunk represents a deferred/lazy parameter - an unevaluated expression
@@ -110,8 +102,6 @@ type SetterCallback func(Value) error
 //	// Jensen's Device: Computes harmonic series 1/1 + 1/2 + ... + 1/100
 //	var i: Integer;
 //	PrintLn(sum(i, 1, 100, 1.0/i));  // Each access to 'term' evaluates 1.0/i with current i
-//
-// Task 3.5.131b: Moved to runtime package with callback-based evaluation.
 type LazyThunk struct {
 	// expression is the unevaluated AST node stored for debugging/display purposes.
 	// The actual evaluation happens through the evaluator callback.
@@ -121,8 +111,6 @@ type LazyThunk struct {
 	// evaluator is a callback function that evaluates the expression and returns a value.
 	// This callback captures the interpreter, expression, and captured environment,
 	// enabling LazyThunk to live in the runtime package without direct dependencies.
-	//
-	// Task 3.5.131b: Callback pattern breaks dependency on Interpreter.
 	evaluator EvalCallback
 }
 
@@ -133,7 +121,7 @@ type LazyThunk struct {
 // - The expression to evaluate
 // - The captured environment from the call site
 //
-// Example usage (from evaluator in task 3.5.131d):
+// Example usage:
 //
 //	evalCallback := func() Value {
 //	    savedEnv := interpreter.env
@@ -143,8 +131,6 @@ type LazyThunk struct {
 //	    return result
 //	}
 //	lazyThunk := runtime.NewLazyThunk(expr, evalCallback)
-//
-// Task 3.5.131b: Constructor for callback-based LazyThunk.
 func NewLazyThunk(expr any, evaluator EvalCallback) *LazyThunk {
 	return &LazyThunk{
 		expression: expr,
@@ -174,14 +160,11 @@ func (t *LazyThunk) String() string {
 // - Delegates to the evaluator callback (which handles environment switching)
 // - NO caching - each call performs a fresh evaluation
 // - Variable mutations in the captured environment are visible
-//
-// Task 3.5.131b: Callback-based evaluation replaces direct Interpreter dependency.
 func (t *LazyThunk) Evaluate() Value {
 	return t.evaluator()
 }
 
 // ReferenceValue represents a reference to a variable in another environment.
-// Task 3.5.131c: Moved to runtime package with callback-based get/set operations.
 //
 // When a function has a var parameter, instead of copying the argument value,
 // we create a ReferenceValue that points to the original variable in the caller's
@@ -202,8 +185,6 @@ func (t *LazyThunk) Evaluate() Value {
 //     ReferenceValue{VarName: "n", getter: func..., setter: func...}
 //   - When the function reads x, it calls getter() to get current value from caller's env
 //   - When the function assigns to x, it calls setter() to write to caller's env
-//
-// Task 3.5.131c: Callback pattern breaks dependency on Environment.
 type ReferenceValue struct {
 	// VarName is the name of the variable being referenced.
 	// Stored for debugging/display purposes.
@@ -212,15 +193,11 @@ type ReferenceValue struct {
 	// getter is a callback function that reads the current value of the variable.
 	// This callback captures the environment and variable name, enabling
 	// ReferenceValue to live in the runtime package without direct dependencies.
-	//
-	// Task 3.5.131c: Callback pattern breaks dependency on Environment.
 	getter GetterCallback
 
 	// setter is a callback function that writes a new value to the variable.
 	// This callback captures the environment and variable name, enabling
 	// ReferenceValue to live in the runtime package without direct dependencies.
-	//
-	// Task 3.5.131c: Callback pattern breaks dependency on Environment.
 	setter SetterCallback
 }
 
@@ -237,7 +214,7 @@ type ReferenceValue struct {
 // - The variable name
 // - The Set operation
 //
-// Example usage (from evaluator in task 3.5.131d):
+// Example usage:
 //
 //	getter := func() (Value, error) {
 //	    return capturedEnv.Get(varName)
@@ -246,8 +223,6 @@ type ReferenceValue struct {
 //	    return capturedEnv.Set(varName, val)
 //	}
 //	refValue := runtime.NewReferenceValue(varName, getter, setter)
-//
-// Task 3.5.131c: Constructor for callback-based ReferenceValue.
 func NewReferenceValue(varName string, getter GetterCallback, setter SetterCallback) *ReferenceValue {
 	return &ReferenceValue{
 		VarName: varName,
@@ -267,13 +242,11 @@ func (r *ReferenceValue) String() string {
 }
 
 // Dereference returns the current value of the referenced variable.
-// Task 3.5.131c: Delegates to getter callback instead of accessing Environment directly.
 func (r *ReferenceValue) Dereference() (Value, error) {
 	return r.getter()
 }
 
 // Assign sets the value of the referenced variable.
-// Task 3.5.131c: Delegates to setter callback instead of accessing Environment directly.
 func (r *ReferenceValue) Assign(value Value) error {
 	return r.setter(value)
 }

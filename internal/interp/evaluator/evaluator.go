@@ -13,21 +13,16 @@ import (
 
 // Value represents a runtime value in the DWScript interpreter.
 // This is aliased from the runtime package to match builtins.Context interface.
-// Task 3.5.143w: Changed from interface to type alias to match builtins.Value.
 type Value = runtime.Value
 
 // ObjectValue is an optional interface that object instances can implement
 // to provide direct access to class metadata without going through the adapter.
-// Task 3.5.72: Enables direct property/method existence checks.
-// Task 3.5.86: Extended with GetField and GetClassVar for member access.
-// Task 3.5.114: Extended with CallInheritedMethod for direct inherited method calls.
 type ObjectValue interface {
 	Value
 	// ClassName returns the class name of this object instance.
 	ClassName() string
 	// GetClassType returns the class type (metaclass) for this object instance.
 	// Returns a Value that implements ClassMetaValue interface.
-	// Task 3.5.156: Enables direct ClassType access without adapter.
 	GetClassType() Value
 	// HasProperty checks if this object's class has a property with the given name.
 	// The check includes the entire class hierarchy.
@@ -36,14 +31,11 @@ type ObjectValue interface {
 	HasMethod(name string) bool
 	// GetField retrieves the value of a field by name.
 	// Returns the field value or nil if the field doesn't exist.
-	// Task 3.5.86: Enables direct field access without adapter.
 	GetField(name string) Value
 	// GetClassVar retrieves a class variable value by name.
 	// Returns the value and true if found, nil and false otherwise.
-	// Task 3.5.86: Enables direct class variable access without adapter.
 	GetClassVar(name string) (Value, bool)
 	// CallInheritedMethod calls a method from the parent class.
-	// Task 3.5.114: Enables direct inherited method calls without adapter.
 	// The methodExecutor callback is used to execute the method once resolved.
 	// Returns an error value if:
 	//   - The object has no class information
@@ -56,7 +48,6 @@ type ObjectValue interface {
 	//     The methodDecl parameter is *ast.FunctionDecl (passed as any to avoid import cycles)
 	CallInheritedMethod(methodName string, args []Value, methodExecutor func(methodDecl any, args []Value) Value) Value
 	// ReadProperty reads a property value from this object.
-	// Task 3.5.116: Enables direct property access without adapter.
 	// The propertyExecutor callback handles interpreter-dependent execution:
 	//   - For field-backed: returns field value directly
 	//   - For method-backed: executes getter method
@@ -70,7 +61,6 @@ type ObjectValue interface {
 	//     The propInfo parameter is *types.PropertyInfo (passed as any to avoid import cycles)
 	ReadProperty(propName string, propertyExecutor func(propInfo any) Value) Value
 	// ReadIndexedProperty reads an indexed property value from this object.
-	// Task 3.5.117: Enables direct indexed property access without adapter.
 	// The propertyExecutor callback handles interpreter-dependent execution:
 	//   - Looks up the getter method from PropertyInfo
 	//   - Binds Self and index parameters
@@ -83,7 +73,6 @@ type ObjectValue interface {
 	//     The propInfo parameter is *types.PropertyInfo (passed as any to avoid import cycles)
 	ReadIndexedProperty(propInfo any, indices []Value, propertyExecutor func(propInfo any, indices []Value) Value) Value
 	// InvokeParameterlessMethod invokes a method if it has zero parameters.
-	// Task 3.5.119: Enables direct parameterless method auto-invoke without adapter.
 	// Returns:
 	//   - (result, true) if method exists and has 0 parameters (invoked via methodExecutor)
 	//   - (nil, false) if method has parameters (caller should create method pointer)
@@ -93,7 +82,6 @@ type ObjectValue interface {
 	//     The methodDecl parameter is *ast.FunctionDecl (passed as any to avoid import cycles)
 	InvokeParameterlessMethod(methodName string, methodExecutor func(methodDecl any) Value) (Value, bool)
 	// CreateMethodPointer creates a method pointer for a method with parameters.
-	// Task 3.5.120: Enables direct method pointer creation without adapter.
 	// The pointerCreator callback handles creating the actual FunctionPointerValue
 	// since it requires access to Interpreter's environment and type resolution.
 	// Returns:
@@ -107,7 +95,6 @@ type ObjectValue interface {
 }
 
 // EnumAccessor is an optional interface for enum values.
-// Task 3.5.89: Enables direct access to enum ordinal value without adapter.
 type EnumAccessor interface {
 	Value
 	// GetOrdinal returns the ordinal (integer) value of the enum.
@@ -115,7 +102,6 @@ type EnumAccessor interface {
 }
 
 // ExternalVarAccessor is an optional interface for external variable values.
-// Task 3.5.73: Enables direct access to external variable name without adapter.
 type ExternalVarAccessor interface {
 	Value
 	// ExternalVarName returns the name of the external variable.
@@ -123,7 +109,6 @@ type ExternalVarAccessor interface {
 }
 
 // LazyEvaluator is an optional interface for lazy parameter thunks.
-// Task 3.5.73: Enables direct lazy evaluation without adapter.
 type LazyEvaluator interface {
 	Value
 	// Evaluate forces evaluation of the lazy parameter and returns the result.
@@ -132,7 +117,6 @@ type LazyEvaluator interface {
 
 // InterfaceInstanceValue is an optional interface that interface instances can implement
 // to provide direct access to the underlying object and interface metadata without adapter.
-// Task 3.5.87: Enables direct interface member access verification.
 type InterfaceInstanceValue interface {
 	Value
 	// GetUnderlyingObjectValue returns the object wrapped by this interface instance.
@@ -154,13 +138,11 @@ type InterfaceInstanceValue interface {
 
 // ClassMetaValue is an optional interface that class references (ClassValue, ClassInfoValue)
 // can implement to provide direct access to class metadata without going through the adapter.
-// Task 3.5.88: Enables direct class member access for CLASS and CLASS_INFO value types.
 type ClassMetaValue interface {
 	Value
 	// GetClassName returns the class name.
 	GetClassName() string
 	// GetClassType returns the class type (metaclass) as a ClassValue.
-	// Task 3.5.157: Enables direct ClassType access from ClassInfoValue without adapter.
 	GetClassType() Value
 	// GetClassVar retrieves a class variable value by name from the class hierarchy.
 	// Returns the value and true if found, nil and false otherwise.
@@ -179,7 +161,6 @@ type ClassMetaValue interface {
 }
 
 // TypeCastAccessor is an optional interface for type cast values.
-// Task 3.5.89: Enables direct access to the static type and wrapped value without adapter.
 // TypeCastValue wraps an object with its static type from a type cast expression.
 // Example: TBase(childObj).ClassVar should access TBase's class variable, not TChild's.
 type TypeCastAccessor interface {
@@ -197,7 +178,6 @@ type TypeCastAccessor interface {
 }
 
 // NilAccessor is an optional interface for nil values.
-// Task 3.5.90: Enables direct access to the typed class name for nil values.
 // Typed nil values (e.g., `var b: TBase := nil`) can access class variables
 // but not instance members.
 type NilAccessor interface {
@@ -209,20 +189,15 @@ type NilAccessor interface {
 }
 
 // PropertyAccessor is an optional interface for values that support property access.
-// Task 3.5.99a: Provides common abstraction for property lookup on objects, interfaces, and records.
-// Task 3.5.128b: Moved to runtime package; re-exported here for backward compatibility.
 // This enables the evaluator to handle property access uniformly across different runtime types.
 type PropertyAccessor = runtime.PropertyAccessor
 
 // PropertyDescriptor provides metadata about a property.
-// Task 3.5.99a: Abstracts property info across classes, interfaces, and records.
-// Task 3.5.128b: Moved to runtime package; re-exported here for backward compatibility.
 // This allows the evaluator to access property metadata without knowing the specific runtime type.
 type PropertyDescriptor = runtime.PropertyDescriptor
 
 // RecordInstanceValue is an optional interface that record instances can implement
 // to provide direct access to record fields and metadata without going through the adapter.
-// Task 3.5.91: Enables direct record field access in VisitMemberAccessExpression.
 type RecordInstanceValue interface {
 	Value
 	// GetRecordField retrieves a field value by name (case-insensitive lookup).
@@ -239,7 +214,6 @@ type RecordInstanceValue interface {
 	// typically returns false. Included for consistency with other value interfaces.
 	HasRecordProperty(name string) bool
 	// ReadIndexedProperty reads an indexed property value using the provided executor callback.
-	// Task 3.5.118: Enables direct indexed property access for records without adapter delegation.
 	// The propInfo is already resolved by PropertyAccessor.LookupProperty or GetDefaultProperty.
 	// Parameters:
 	//   - propInfo: The property implementation (types.RecordPropertyInfo from PropertyDescriptor.Impl)
@@ -250,7 +224,6 @@ type RecordInstanceValue interface {
 
 // RecordTypeMetaValue is an optional interface that record type values can implement
 // to provide direct access to record type metadata without going through the adapter.
-// Task 3.5.146: Enables direct static method lookup in VisitCallExpression for record contexts.
 type RecordTypeMetaValue interface {
 	Value
 	// GetRecordTypeName returns the record type name (e.g., "TPoint").
@@ -262,7 +235,6 @@ type RecordTypeMetaValue interface {
 
 // SetMethodDispatcher is an optional interface that set values can implement
 // to provide direct access to set mutation methods without going through the adapter.
-// Task 3.5.111a: Enables direct set method dispatch (Include, Exclude) in VisitMethodCallExpression.
 type SetMethodDispatcher interface {
 	Value
 	// AddElement adds an element with the given ordinal value to the set.
@@ -278,7 +250,6 @@ type SetMethodDispatcher interface {
 
 // EnumTypeMetaDispatcher is an optional interface that type meta values wrapping
 // enum types can implement to provide direct access to enum type methods.
-// Task 3.5.111b: Enables direct enum type method dispatch (Low, High, ByName) in VisitMethodCallExpression.
 type EnumTypeMetaDispatcher interface {
 	Value
 	// IsEnumTypeMeta returns true if this type meta wraps an enum type.
@@ -556,20 +527,18 @@ type InterpreterAdapter interface {
 	// Returns the ClassValue and an error if the class is not found.
 	CreateClassValue(className string) (Value, error)
 
-	// ===== Function Pointers (Task 3.5.8) =====
+	// ===== Function Pointers =====
 
 	// CreateLambda creates a lambda/closure value from a lambda expression.
 	// The closure parameter is the environment where the lambda is created.
 	// Returns the lambda value.
 	CreateLambda(lambda *ast.LambdaExpression, closure any) Value
 
-	// Task 3.5.180: Removed IsFunctionPointer, GetFunctionPointerParamCount, IsFunctionPointerNil
 	// These are now handled via FunctionPointerCallable interface type assertions.
 
-	// ===== Method Pointers (Task 3.5.37) =====
+	// ===== Method Pointers =====
 
 	// CreateMethodPointer creates a method pointer value bound to a specific object.
-	// Task 3.5.37: Used by address-of expression (@object.MethodName) to create
 	// method pointers that capture both the method and the object to call it on.
 	// Parameters:
 	//   - obj: The object instance (Value) to bind the method to
@@ -663,39 +632,18 @@ type InterpreterAdapter interface {
 	// Returns the interface instance and an error if validation fails.
 	WrapInInterface(value Value, interfaceName string, node ast.Node) (Value, error)
 
-	// Task 3.5.130d: CreateExternalVar removed - evaluator constructs runtime.ExternalVarValue directly
-	// Task 3.5.139h: ResolveArrayTypeNode removed - evaluator uses resolveArrayTypeNode() directly
-	// Task 3.5.140: EvalArrayLiteralWithExpectedType removed - evaluator uses evalArrayLiteralWithExpectedType() directly
-
-	// Task 3.5.128f: CreateRecordZeroValue removed - evaluator now handles record zero-value creation directly
-	// Task 3.5.129: CreateArrayZeroValue, CreateSetZeroValue, CreateSubrangeZeroValue, CreateInterfaceZeroValue, CreateClassZeroValue removed
-
-	// ===== Task 3.5.129: Bridge Adapter Methods for Zero Value Creation =====
+	// ===== Bridge Adapter Methods for Zero Value Creation =====
 
 	// CreateSubrangeValueDirect creates a subrange value from subrange type metadata.
-	// Task 3.5.129c: Bridge constructor - SubrangeValue in interp package (circular import).
 	CreateSubrangeValueDirect(subrangeType any) Value
 
 	// CreateInterfaceInstanceDirect creates a nil interface instance from metadata.
-	// Task 3.5.129d: Bridge constructor - InterfaceInstance in interp package.
 	CreateInterfaceInstanceDirect(interfaceInfo any) Value
 
 	// CreateTypedNilValue creates a typed nil value for a class.
-	// Task 3.5.129e: Bridge constructor - NilValue.ClassType in interp package.
 	CreateTypedNilValue(className string) Value
 
-	// ===== Task 3.5.40: Record Literal Adapter Methods =====
-	// Task 3.5.128e: CreateRecordValue removed - evaluator now handles record creation directly
-
-	// ===== Task 3.5.21: Complex Value Retrieval Adapter Methods =====
-
-	// Task 3.5.71: IsReferenceValue removed - use val.Type() == "REFERENCE" directly
-	// Task 3.5.73: IsExternalVar, IsLazyThunk, EvaluateLazyThunk, GetExternalVarName removed
-	//              - use ExternalVarAccessor and LazyEvaluator interfaces directly
-	// Task 3.5.132: DereferenceValue removed - use ReferenceAccessor interface directly
-
-	// ===== Task 3.5.22: Property & Method Reference Adapter Methods =====
-	// Task 3.5.71: IsObjectInstance removed - use val.Type() == "OBJECT" directly
+	// ===== Property & Method Reference Adapter Methods =====
 
 	// GetObjectFieldValue retrieves a field value from an object instance.
 	// Returns the field value and true if found, nil and false otherwise.
@@ -705,8 +653,6 @@ type InterpreterAdapter interface {
 	// Returns the class variable value and true if found, nil and false otherwise.
 	GetClassVariableValue(obj Value, varName string) (Value, bool)
 
-	// Task 3.5.72: HasProperty removed - use ObjectValue interface directly
-
 	// ReadPropertyValue reads a property value from an object.
 	// Handles field-backed, method-backed, and expression-backed properties.
 	// Returns the property value and an error if reading fails.
@@ -715,7 +661,6 @@ type InterpreterAdapter interface {
 	ReadPropertyValue(obj Value, propName string, node any) (Value, error)
 
 	// ExecutePropertyRead executes property reading with a resolved PropertyInfo.
-	// Task 3.5.116: Low-level method for property getter execution.
 	// This is the callback implementation for ObjectValue.ReadProperty().
 	// Parameters:
 	//   - obj: The object to read the property from
@@ -723,8 +668,6 @@ type InterpreterAdapter interface {
 	//   - node: AST node for error reporting
 	// Returns the property value.
 	ExecutePropertyRead(obj Value, propInfo any, node any) Value
-
-	// Task 3.5.72: HasMethod removed - use ObjectValue interface directly
 
 	// IsMethodParameterless checks if a method has zero parameters.
 	// Returns true if the method exists and has no parameters.
@@ -742,7 +685,7 @@ type InterpreterAdapter interface {
 	CreateMethodPointerFromObject(obj Value, methodName string) (Value, error)
 
 	// CreateBoundMethodPointer creates a FunctionPointerValue for a method bound to an object.
-	// Task 3.5.120: Low-level adapter method for method pointer creation.
+	//
 	// Parameters:
 	//   - obj: The object instance to bind the method to
 	//   - methodDecl: The method declaration (*ast.FunctionDecl passed as any)
@@ -756,8 +699,6 @@ type InterpreterAdapter interface {
 	// GetClassType returns the ClassValue (metaclass) for an object instance.
 	// Returns the ClassValue representing the object's runtime class.
 	GetClassType(obj Value) Value
-
-	// Task 3.5.71: IsClassInfoValue removed - use val.Type() == "CLASSINFO" directly
 
 	// GetClassNameFromClassInfo returns the class name from a ClassInfoValue.
 	// Returns the class name string.
@@ -774,21 +715,7 @@ type InterpreterAdapter interface {
 	// Panics if the value is not a ClassInfoValue.
 	GetClassVariableFromClassInfo(classInfo Value, varName string) (Value, bool)
 
-	// ===== Task 3.5.29: Exception Handling Adapter Methods =====
-
-	// Task 3.5.135: MatchesExceptionType removed - migrated to evaluator.matchesExceptionType()
-	// Uses TypeSystem.IsClassDescendantOf for class hierarchy checking.
-
-	// Task 3.5.136: GetExceptionInstance removed - migrated to evaluator.getExceptionInstance()
-	// Uses ExceptionValue.GetInstance() method to extract ObjectInstance.
-
-	// Task 3.5.134: CreateExceptionFromObject removed - migrated to evaluator.createExceptionFromObject()
-	// Uses WrapObjectInException bridge constructor for wrapping objects in exceptions.
-
-	// Task 3.5.137: EvalBlockStatement and EvalStatement removed - evaluator calls e.Eval() directly.
-	// Exception handling code now uses direct evaluation instead of adapter delegation.
-
-	// ===== Task 3.5.96: Method and Qualified Call Methods =====
+	// ===== Method and Qualified Call Methods =====
 
 	// CallMemberMethod calls a method on an object (record, interface, or object instance).
 	// This handles:
@@ -870,9 +797,9 @@ type InterpreterAdapter interface {
 	// Task 3.5.146: Simpler adapter method that just creates MethodCallExpression and dispatches.
 	DispatchRecordStaticMethod(recordTypeName string, callExpr *ast.CallExpression, funcName *ast.Identifier) Value
 
-	// ===== Task 3.5.99b: JSON Value Helpers =====
+	// ===== JSON Value Helpers =====
 
-	// ===== Task 3.5.99c: Object Default Property Access =====
+	// ===== Object Default Property Access =====
 
 	// CallIndexedPropertyGetter calls an indexed property getter method on an object.
 	// This is used for default property access: obj[index] -> obj.DefaultProperty[index].
@@ -882,12 +809,10 @@ type InterpreterAdapter interface {
 	//   - indices: The index arguments (e.g., [indexValue] for single-index properties)
 	//   - node: The AST node for error reporting
 	// Returns the result of the property getter method call.
-	// Task 3.5.99c: Enables object default property indexing in evaluator.
 	// DEPRECATED: Use ObjectValue.ReadIndexedProperty with ExecuteIndexedPropertyRead callback instead.
 	CallIndexedPropertyGetter(obj Value, propImpl any, indices []Value, node any) Value
 
 	// ExecuteIndexedPropertyRead executes an indexed property read with resolved PropertyInfo.
-	// Task 3.5.117: Low-level execution callback for ObjectValue.ReadIndexedProperty().
 	// This method handles the interpreter-dependent execution:
 	//   - Looks up the getter method from PropertyInfo
 	//   - Binds Self and index parameters
@@ -901,7 +826,7 @@ type InterpreterAdapter interface {
 	// Returns the result of the indexed property getter.
 	ExecuteIndexedPropertyRead(obj Value, propInfo any, indices []Value, node any) Value
 
-	// ===== Task 3.5.99e: Record Default Property Access =====
+	// ===== Record Default Property Access =====
 
 	// DEPRECATED: Use RecordInstanceValue.ReadIndexedProperty() with ExecuteRecordPropertyRead callback instead.
 	// CallRecordPropertyGetter calls a record property getter method.
@@ -1122,14 +1047,13 @@ func (e *Evaluator) SetAdapter(adapter InterpreterAdapter) {
 }
 
 // ============================================================================
-// Task 3.5.63: Direct Environment Access Helpers
+// Direct Environment Access Helpers
 // ============================================================================
 // These methods provide direct access to environment operations without going
 // through the adapter. They handle the interface{} to Value type conversion.
 
 // GetVar retrieves a variable from the execution context's environment.
 // Returns the value and whether it was found.
-// Task 3.5.63: Direct environment access without adapter.
 func (e *Evaluator) GetVar(ctx *ExecutionContext, name string) (Value, bool) {
 	val, found := ctx.Env().Get(name)
 	if !found {

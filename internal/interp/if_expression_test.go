@@ -5,7 +5,6 @@ import (
 )
 
 // TestIfExpressionEvaluation tests inline if-then-else expression evaluation.
-// Task 3.5.11: VisitIfExpression migration - ternary operator with short-circuit evaluation.
 func TestIfExpressionEvaluation(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -147,7 +146,6 @@ PrintLn(x);
 }
 
 // TestIfExpressionShortCircuit verifies that only the chosen branch is evaluated.
-// This is the key requirement for task 3.5.11: short-circuit evaluation.
 func TestIfExpressionShortCircuit(t *testing.T) {
 	tests := []struct {
 		name     string

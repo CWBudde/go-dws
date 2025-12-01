@@ -14,9 +14,6 @@ import (
 // indexJSON performs JSON value indexing without importing the parent interp package.
 // Supports both object property access (string index) and array element access (integer index).
 //
-// Task 3.5.99b: Migrated from interpreter.indexJSON to avoid EvalNode delegation.
-// Uses reflection to access the internal jsonvalue.Value field to avoid circular imports.
-//
 // For JSON objects: obj['propertyName'] returns the value or nil if not found
 // For JSON arrays: arr[index] returns the element or nil if out of bounds
 func (e *Evaluator) indexJSON(base Value, index Value, node ast.Node) Value {
@@ -32,7 +29,6 @@ func (e *Evaluator) indexJSON(base Value, index Value, node ast.Node) Value {
 	// Handle nil/null JSON value
 	if jv == nil {
 		// nil/null JSON value - wrap in Variant directly
-		// Task 3.5.160c: Use runtime.BoxVariantWithJSON instead of adapter
 		return runtime.BoxVariantWithJSON(nil)
 	}
 
@@ -53,7 +49,6 @@ func (e *Evaluator) indexJSON(base Value, index Value, node ast.Node) Value {
 		propValue := jv.ObjectGet(indexStr)
 
 		// Wrap in Variant directly
-		// Task 3.5.160c: Use runtime.BoxVariantWithJSON instead of adapter
 		return runtime.BoxVariantWithJSON(propValue)
 	}
 
@@ -69,7 +64,6 @@ func (e *Evaluator) indexJSON(base Value, index Value, node ast.Node) Value {
 		elemValue := jv.ArrayGet(indexInt)
 
 		// Wrap in Variant directly
-		// Task 3.5.160c: Use runtime.BoxVariantWithJSON instead of adapter
 		return runtime.BoxVariantWithJSON(elemValue)
 	}
 
@@ -79,7 +73,6 @@ func (e *Evaluator) indexJSON(base Value, index Value, node ast.Node) Value {
 
 // extractJSONValueViaReflection uses reflection to extract the internal jsonvalue.Value
 // from a JSONValue struct, avoiding the need to import the parent interp package.
-// Task 3.5.99b: Reflection-based extraction to avoid circular imports.
 func extractJSONValueViaReflection(val Value) *jsonvalue.Value {
 	if val == nil {
 		return nil
@@ -115,7 +108,7 @@ func extractJSONValueViaReflection(val Value) *jsonvalue.Value {
 }
 
 // ============================================================================
-// JSON Conversion Helpers (Task 3.5.143d)
+// JSON Conversion Helpers
 // ============================================================================
 //
 // These standalone functions provide JSON conversion operations.

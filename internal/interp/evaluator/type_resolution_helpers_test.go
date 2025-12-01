@@ -8,7 +8,6 @@ import (
 )
 
 // TestResolveTypeName_Primitives tests resolveTypeName for primitive types.
-// Task 3.5.139a: Test primitive type resolution.
 func TestResolveTypeName_Primitives(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -111,7 +110,6 @@ func TestResolveTypeName_Primitives(t *testing.T) {
 }
 
 // TestResolveTypeName_ParentQualification tests that parent qualification is stripped.
-// Task 3.5.139a: Test class type strings with parent qualification.
 func TestResolveTypeName_ParentQualification(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -155,7 +153,6 @@ func TestResolveTypeName_ParentQualification(t *testing.T) {
 }
 
 // TestResolveTypeName_CaseInsensitivity verifies case-insensitive resolution.
-// Task 3.5.139a: Test that type resolution is case-insensitive per DWScript spec.
 func TestResolveTypeName_CaseInsensitivity(t *testing.T) {
 	variations := []string{
 		"integer", "Integer", "INTEGER", "InTeGeR",
@@ -182,9 +179,7 @@ func TestResolveTypeName_CaseInsensitivity(t *testing.T) {
 	}
 }
 
-
 // TestResolveTypeName_RegisteredTypes tests resolveTypeName for registered types.
-// Task 3.5.139b: Test enum, record, class, interface, and subrange type resolution.
 //
 // Note: These tests verify the lookup logic works correctly. They use the
 // infrastructure that exists in the evaluator package for type lookups.
@@ -218,7 +213,6 @@ func TestResolveTypeName_RegisteredTypes(t *testing.T) {
 }
 
 // TestResolveTypeName_ArrayTypes tests resolveTypeName for array types.
-// Task 3.5.139c: Test array type resolution via TypeSystem.
 func TestResolveTypeName_ArrayTypes(t *testing.T) {
 	t.Run("returns error for unregistered array types", func(t *testing.T) {
 		e := &Evaluator{}
@@ -246,16 +240,15 @@ func TestResolveTypeName_ArrayTypes(t *testing.T) {
 }
 
 // TestParseInlineArrayType tests parseInlineArrayType for inline array syntax.
-// Task 3.5.139d: Test inline array type parsing.
 func TestParseInlineArrayType(t *testing.T) {
 	tests := []struct {
-		name          string
-		signature     string
-		expectNil     bool
-		expectedType  string // String representation for verification
-		isDynamic     bool
-		lowBound      int
-		highBound     int
+		name         string
+		signature    string
+		expectNil    bool
+		expectedType string // String representation for verification
+		isDynamic    bool
+		lowBound     int
+		highBound    int
 	}{
 		// Dynamic arrays
 		{"Dynamic array of Integer", "array of Integer", false, "array of Integer", true, 0, 0},
@@ -340,7 +333,6 @@ func TestParseInlineArrayType(t *testing.T) {
 }
 
 // TestResolveTypeName_InlineArrays tests resolveTypeName for inline array syntax.
-// Task 3.5.139d: Test integration of inline array parsing into resolveTypeName.
 func TestResolveTypeName_InlineArrays(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -396,10 +388,7 @@ func TestResolveTypeName_InlineArrays(t *testing.T) {
 	}
 }
 
-
-
 // TestResolveArrayTypeNode tests resolveArrayTypeNode for AST ArrayTypeNode resolution.
-// Task 3.5.139e: Test AST-based array type resolution.
 func TestResolveArrayTypeNode(t *testing.T) {
 	tests := []struct {
 		name         string

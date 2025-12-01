@@ -10,7 +10,6 @@ import (
 )
 
 // getValueType returns the types.Type for a runtime Value.
-// Task 3.5.144a.1: Used for overload resolution to determine argument types.
 //
 // This method maps runtime values to their corresponding semantic types,
 // enabling the semantic analyzer's overload resolution to work with
@@ -56,7 +55,6 @@ func (e *Evaluator) getValueType(val Value) types.Type {
 }
 
 // classTypeFromMetadata builds a types.ClassType from runtime.ClassMetadata.
-// Task 3.5.144a.1: Helper for getValueType to handle ObjectInstance values.
 //
 // This recursively builds the class type hierarchy by looking up parent
 // metadata from the runtime.ClassMetadata's ParentMetadata pointer.
@@ -78,7 +76,6 @@ func (e *Evaluator) classTypeFromMetadata(metadata *runtime.ClassMetadata) types
 }
 
 // extractFunctionType extracts a types.FunctionType from an ast.FunctionDecl.
-// Task 3.5.144a.2: Used for overload resolution to compare function signatures.
 //
 // This method converts AST function declarations to semantic FunctionType
 // objects, extracting parameter types, names, modifiers (lazy/var/const),
@@ -127,7 +124,6 @@ func (e *Evaluator) extractFunctionType(fn *ast.FunctionDecl, ctx *ExecutionCont
 }
 
 // ResolveOverloadFast handles single-overload case efficiently.
-// Task 3.5.144a.3: Fast path for overload resolution when only one overload exists.
 //
 // This method skips evaluation for lazy parameters (they're wrapped later by
 // PrepareUserFunctionArgs). Non-lazy parameters are evaluated and cached to
@@ -164,7 +160,6 @@ func (e *Evaluator) ResolveOverloadFast(
 }
 
 // ResolveOverloadMultiple resolves which overload to call when multiple exist.
-// Task 3.5.144a.4: Uses semantic.ResolveOverload for type matching.
 //
 // This method:
 //  1. Evaluates all arguments to determine their types

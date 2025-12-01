@@ -14,8 +14,6 @@ import (
 
 // TestTypeRegistryStandalone tests that the TypeSystem (TypeRegistry) works correctly
 // as a shared service between Interpreter and Evaluator.
-// Task 3.5.46: This test verifies that type registration and lookup work without
-// needing the adapter pattern.
 func TestTypeRegistryStandalone(t *testing.T) {
 	// Create a shared TypeSystem
 	ts := interptypes.NewTypeSystem()
@@ -175,7 +173,6 @@ func TestTypeRegistryStandalone(t *testing.T) {
 
 // TestInterpreterEvaluatorSharedTypeSystem tests that both Interpreter and Evaluator
 // can access the same TypeSystem instance and see each other's registrations.
-// Task 3.5.46: This verifies the goal of the task - shared type registry service.
 func TestInterpreterEvaluatorSharedTypeSystem(t *testing.T) {
 	// Create interpreter
 	out := &bytes.Buffer{}
@@ -270,7 +267,6 @@ func TestTypeRegistryConcurrentAccess(t *testing.T) {
 
 // TestBuiltinClassesInTypeSystem verifies that built-in classes (TObject, Exception, etc.)
 // are registered in the TypeSystem and accessible via HasClass/LookupClass.
-// Task 3.5.46: This is a regression test for PR #314 fix.
 func TestBuiltinClassesInTypeSystem(t *testing.T) {
 	out := &bytes.Buffer{}
 	interp := New(out)
@@ -309,7 +305,6 @@ func TestBuiltinClassesInTypeSystem(t *testing.T) {
 }
 
 // TestBuiltinInterfaceInTypeSystem verifies that IInterface is registered in the TypeSystem.
-// Task 3.5.46: This is a regression test for PR #314 fix.
 func TestBuiltinInterfaceInTypeSystem(t *testing.T) {
 	out := &bytes.Buffer{}
 	interp := New(out)

@@ -10,7 +10,6 @@ import (
 // ============================================================================
 // String Helper Method Implementations
 // ============================================================================
-// Task 3.5.102a: Migrate simple string helper methods from Interpreter to Evaluator.
 //
 // These implementations avoid the adapter by directly manipulating runtime values.
 // The goal is to remove EvalNode delegation for common string operations.
@@ -18,8 +17,6 @@ import (
 // evalStringHelper evaluates a built-in string helper method directly in the evaluator.
 // Returns the result value, or nil if this helper is not handled here (should fall through
 // to the adapter).
-//
-// Task 3.5.102a: Handles simple string operations that don't require the builtins Context.
 func (e *Evaluator) evalStringHelper(spec string, selfValue Value, args []Value, node ast.Node) Value {
 	switch spec {
 	case "__string_toupper":

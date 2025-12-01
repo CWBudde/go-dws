@@ -12,10 +12,6 @@ import (
 // ============================================================================
 // Set Literal Evaluation
 // ============================================================================
-//
-// Task 3.5.80: Direct set literal evaluation in the evaluator.
-// Migrated from interp/set.go to reduce adapter dependency.
-// ============================================================================
 
 // evalSetLiteralDirect evaluates a set literal expression directly.
 // Examples: [Red, Blue], [one..five], []
@@ -41,7 +37,7 @@ func (e *Evaluator) evalSetLiteralDirect(node *ast.SetLiteral, ctx *ExecutionCon
 			resolvedType, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx)
 			if err == nil {
 				if arrayType, isArray := resolvedType.(*types.ArrayType); isArray {
-					// Task 3.5.104: Evaluate as array literal directly instead of delegating
+					// Evaluate as array literal directly instead of delegating
 					// Convert SetLiteral to ArrayLiteralExpression and evaluate directly
 					arrayLit := &ast.ArrayLiteralExpression{
 						Elements: node.Elements,
@@ -243,10 +239,8 @@ func (e *Evaluator) evalSetSimpleElement(
 }
 
 // lookupEnumType looks up an enum type by name from the TypeSystem.
-// Task 3.5.104: Removed adapter.GetType() fallback - use direct environment lookup only.
-// Task 3.5.143b: Migrated to use TypeSystem.LookupEnumMetadata instead of environment.
 func (e *Evaluator) lookupEnumType(typeName string, ctx *ExecutionContext) (*types.EnumType, error) {
-	// Enum types are stored in TypeSystem (Task 3.5.143b)
+	// Enum types are stored in TypeSystem
 	// LookupEnumMetadata is case-insensitive by default
 	enumMetadata := e.typeSystem.LookupEnumMetadata(typeName)
 	if enumMetadata == nil {
@@ -264,7 +258,6 @@ func (e *Evaluator) lookupEnumType(typeName string, ctx *ExecutionContext) (*typ
 
 // parseInlineSetType parses inline set type syntax like "set of TEnumType".
 // Returns the SetType, or nil if the string doesn't match the expected format.
-// Task 3.5.129a: Migrated from Interpreter to enable direct set zero-value creation.
 func (e *Evaluator) parseInlineSetType(signature string, ctx *ExecutionContext) *types.SetType {
 	// Check for "set of " prefix (case-sensitive per DWScript spec)
 	if !strings.HasPrefix(signature, "set of ") {

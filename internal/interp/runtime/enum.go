@@ -31,13 +31,11 @@ func (e *EnumValue) String() string {
 }
 
 // GetOrdinal returns the ordinal (integer) value of the enum.
-// Task 3.5.89: Implements evaluator.EnumAccessor interface for direct enum access.
 func (e *EnumValue) GetOrdinal() int {
 	return e.OrdinalValue
 }
 
 // GetEnumTypeName returns the enum type name (e.g., "TColor").
-// Task 3.5.98b: Enables helper method resolution for enums in evaluator.
 func (e *EnumValue) GetEnumTypeName() string {
 	return e.TypeName
 }

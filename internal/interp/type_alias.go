@@ -27,7 +27,6 @@ func (tv *TypeAliasValue) String() string {
 }
 
 // GetAliasedType returns the underlying aliased type.
-// Task 3.5.106: Provides interface-based access for the evaluator.
 func (tv *TypeAliasValue) GetAliasedType() types.Type {
 	return tv.AliasedType
 }
@@ -36,7 +35,6 @@ func (tv *TypeAliasValue) GetAliasedType() types.Type {
 // Subrange Type Support
 // ============================================================================
 
-// Task 3.5.182: SubrangeTypeValue removed - subrange types are now stored in TypeSystem.
 // The types.SubrangeType struct provides all needed metadata directly.
 
 // SubrangeValue wraps an integer value with subrange bounds checking.
@@ -108,7 +106,7 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 			HighBound: highBoundInt,
 		}
 
-		// Task 3.5.182: Register in TypeSystem (replaces environment-based storage)
+		// Register in TypeSystem (replaces environment-based storage)
 		i.typeSystem.RegisterSubrangeType(decl.Name.Value, subrangeType)
 
 		return &NilValue{}

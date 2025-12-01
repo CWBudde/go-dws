@@ -7,7 +7,6 @@ import (
 )
 
 // This file contains shared helper functions for the evaluator.
-// Task 3.5.9: Extracted from visitor_statements.go for reusability.
 
 // IsTruthy determines if a value is considered "true" for conditional logic.
 // Support Variant→Boolean implicit conversion.
@@ -75,17 +74,11 @@ func VariantToBool(val Value) bool {
 	}
 }
 
-// ValuesEqual is now defined in array_helpers.go (Task 3.5.143c)
+// ValuesEqual is now defined in array_helpers.go
 // with full Variant unwrapping and RecordValue support.
-// This comment preserves the history of migration from Phase 3.5.4.41.
-
-// RecordsEqual is now defined in array_helpers.go (Task 3.5.143c)
-// with proper field-by-field comparison.
-// This comment preserves the history of migration from Task 3.5.103d.
 
 // IsInRange checks if value is within the range [start, end] inclusive.
 // Supports Integer, Float, String (character), and Enum values.
-// Phase 3.5.4.41: Migrated from Interpreter.isInRange()
 func IsInRange(value, start, end Value) bool {
 	// Unwrap VariantValue if present - delegated to later migration
 	// For now, assume values are not wrapped in Variant
@@ -159,7 +152,6 @@ func RuneAt(s string, index int) (rune, bool) {
 
 // RuneReplace replaces the rune at the given 1-based index with the given rune.
 // Returns the new string and true if successful, or empty string and false otherwise.
-// Task 3.5.105c: Added for string index assignment (str[i] := char).
 func RuneReplace(s string, index int, replacement rune) (string, bool) {
 	if index < 1 {
 		return "", false
@@ -175,7 +167,6 @@ func RuneReplace(s string, index int, replacement rune) (string, bool) {
 }
 
 // isFalsey determines if a value is "falsey" (default/zero value for its type).
-// Task 3.5.19: Helper for coalesce operator (??) evaluation.
 func isFalsey(val Value) bool {
 	// Handle nil (from unassigned variants)
 	if val == nil {
@@ -216,7 +207,6 @@ func isFalsey(val Value) bool {
 }
 
 // unwrapVariant unwraps a Variant value to its underlying value.
-// Task 3.5.19: Helper for variant type coercion in binary operations.
 func unwrapVariant(value Value) Value {
 	// Check if this is a VariantWrapper (runtime.VariantWrapper interface)
 	if wrapper, ok := value.(runtime.VariantWrapper); ok {

@@ -123,8 +123,6 @@ func (e *Evaluator) VisitUnaryExpression(node *ast.UnaryExpression, ctx *Executi
 // VisitAddressOfExpression evaluates an address-of expression (@funcName or @obj.method).
 // Creates function/method pointers that can be called later or assigned to variables.
 //
-// Task 3.5.37: Full migration of address-of operator evaluation.
-//
 // **SYNTAX FORMS**:
 //   - `@FunctionName` - Creates a function pointer to a standalone function
 //   - `@object.MethodName` - Creates a method pointer bound to an object instance
@@ -150,7 +148,6 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 	switch operand := node.Operator.(type) {
 	case *ast.Identifier:
 		// Regular function/procedure pointer: @FunctionName
-		// Task 3.5.122: Direct function lookup and pointer creation without adapter
 		funcNameLower := ident.Normalize(operand.Value)
 		overloads := e.FunctionRegistry().Lookup(funcNameLower)
 		if len(overloads) == 0 {
@@ -196,7 +193,6 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 		// Get the method name
 		methodName := operand.Member.Value
 
-		// Task 3.5.123: Use ObjectValue.CreateMethodPointer with callback pattern
 		if objVal, ok := objectVal.(ObjectValue); ok {
 			if methodPtr, created := objVal.CreateMethodPointer(methodName, func(methodDecl any) Value {
 				return e.adapter.CreateBoundMethodPointer(objectVal, methodDecl)

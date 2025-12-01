@@ -1,9 +1,6 @@
 // Package runtime provides runtime metadata structures for the DWScript interpreter.
 // This file contains AST-free metadata types that replace AST node dependencies
 // in runtime type information.
-//
-// Task 3.5.37: Design AST-Free Runtime Metadata
-// Phase 9: AST-Free Runtime Types
 package runtime
 
 import (
@@ -78,7 +75,6 @@ type MethodMetadata struct {
 
 	// ID is the unique method identifier in the MethodRegistry.
 	// Set by MethodRegistry.RegisterMethod().
-	// Task 3.5.38: Enables ID-based method calls without AST dependencies.
 	ID MethodID
 
 	// === Signature Information ===

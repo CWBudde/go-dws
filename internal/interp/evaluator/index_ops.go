@@ -9,10 +9,6 @@ import (
 // ============================================================================
 // Index Operations
 // ============================================================================
-//
-// Task 3.5.81: Index operation helpers for VisitIndexExpression.
-// Migrated from interp/array.go to support direct evaluation without adapter.
-// ============================================================================
 
 // IndexArray performs array indexing with bounds checking.
 // Returns the element at the given index or an error if out of bounds.
@@ -85,7 +81,6 @@ func (e *Evaluator) IndexString(str *runtime.StringValue, index int, node ast.No
 
 // getZeroValueForType returns the zero/default value for a given type.
 // This is used when accessing uninitialized array elements and record field initialization.
-// Task 3.5.128e: Extended to support all DWScript types for record field initialization.
 func (e *Evaluator) getZeroValueForType(t types.Type) runtime.Value {
 	if t == nil {
 		return &runtime.NilValue{}
@@ -107,7 +102,7 @@ func (e *Evaluator) getZeroValueForType(t types.Type) runtime.Value {
 		}
 		return &runtime.NilValue{}
 	case "RECORD":
-		// Task 3.5.128e: Recursively create nested records with zero-initialized fields
+		// Recursively create nested records with zero-initialized fields
 		if recordType, ok := t.(*types.RecordType); ok {
 			// Look up metadata for nested record (returns any, need type assertion)
 			metadataAny := e.typeSystem.LookupRecordMetadata(recordType.Name)
@@ -126,18 +121,17 @@ func (e *Evaluator) getZeroValueForType(t types.Type) runtime.Value {
 		}
 		return &runtime.NilValue{}
 	case "INTERFACE":
-		// Task 3.5.128e: Interface fields initialize as nil (use adapter for proper InterfaceInstance)
 		// InterfaceInstance is in interp package, so we return nil here
 		// The adapter will handle interface field initialization if needed
 		return &runtime.NilValue{}
 	case "CLASS":
-		// Task 3.5.128e: Class fields initialize as nil
+		// Class fields initialize as nil
 		if classType, ok := t.(*types.ClassType); ok {
 			return &runtime.NilValue{ClassType: classType.Name}
 		}
 		return &runtime.NilValue{}
 	case "VARIANT":
-		// Task 3.5.128e: Variant fields initialize as nil (VariantValue is in interp package)
+		// Variant fields initialize as nil (VariantValue is in interp package)
 		// For now, return nil - the adapter will handle variant initialization if needed
 		return &runtime.NilValue{}
 	default:
@@ -167,9 +161,6 @@ func ExtractIntegerIndex(indexVal Value) (int, bool) {
 
 // ============================================================================
 // Multi-Dimensional Array Construction
-// ============================================================================
-//
-// Task 3.5.82: Helpers for creating multi-dimensional arrays from new expressions.
 // ============================================================================
 
 // CreateMultiDimArray creates a multi-dimensional array with the given dimensions.

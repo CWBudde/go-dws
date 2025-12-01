@@ -109,13 +109,11 @@ func (e *Evaluator) VisitIfExpression(node *ast.IfExpression, ctx *ExecutionCont
 
 // VisitSetLiteral evaluates a set literal [value1, value2, ...].
 // Handles simple elements, ranges, and mixed sets with proper type inference.
-// Task 3.5.80: Direct evaluation without adapter EvalNode call.
 func (e *Evaluator) VisitSetLiteral(node *ast.SetLiteral, ctx *ExecutionContext) Value {
 	return e.evalSetLiteralDirect(node, ctx)
 }
 
 // VisitArrayLiteralExpression evaluates an array literal [1, 2, 3].
-// Task 3.5.83: Direct evaluation without adapter EvalNode call.
 // Handles type inference, element coercion, and bounds validation for static and dynamic arrays.
 func (e *Evaluator) VisitArrayLiteralExpression(node *ast.ArrayLiteralExpression, ctx *ExecutionContext) Value {
 	return e.evalArrayLiteralDirect(node, ctx)

@@ -11,7 +11,6 @@ import (
 // VarType Constants
 // ============================================================================
 // These constants are re-exported from evaluator for compatibility.
-// Task 3.5.143d: VarType constants now defined in evaluator/json_helpers.go
 
 const (
 	varEmpty   = evaluator.VarEmpty
@@ -30,7 +29,6 @@ const (
 // ============================================================================
 
 // jsonValueToValue converts a jsonvalue.Value to a DWScript runtime Value.
-// Task 3.5.143d: Delegates to evaluator helper, with special handling for JSONValue.
 func jsonValueToValue(jv *jsonvalue.Value) Value {
 	if jv == nil {
 		return &NilValue{}
@@ -63,14 +61,11 @@ func jsonValueToValue(jv *jsonvalue.Value) Value {
 }
 
 // valueToJSONValue converts a DWScript runtime Value to a jsonvalue.Value.
-// Task 3.5.143d: Delegates to evaluator helper function.
 func valueToJSONValue(val Value) *jsonvalue.Value {
 	return evaluator.ValueToJSONValue(val)
 }
 
 // jsonValueToVariant wraps a jsonvalue.Value in a VariantValue.
-//
-// Task 3.5.160d: Delegates to runtime.BoxVariantWithJSON.
 func jsonValueToVariant(jv *jsonvalue.Value) *VariantValue {
 	return runtime.BoxVariantWithJSON(jv)
 }
@@ -93,7 +88,6 @@ func variantToJSONValue(variant *VariantValue) *jsonvalue.Value {
 }
 
 // jsonKindToVarType maps a jsonvalue.Kind to a VarType code.
-// Task 3.5.143d: Delegates to evaluator helper function.
 func jsonKindToVarType(kind jsonvalue.Kind) int64 {
 	return evaluator.JSONKindToVarType(kind)
 }
@@ -112,7 +106,6 @@ func getJSONValueType(jv *JSONValue) types.Type {
 // ============================================================================
 // JSON Parsing Helpers
 // ============================================================================
-// Task 3.5.143d: All parsing helpers now delegate to evaluator functions.
 
 // parseJSONString parses a JSON string and returns a jsonvalue.Value.
 // This is the core JSON parsing function used by ParseJSON and related functions.

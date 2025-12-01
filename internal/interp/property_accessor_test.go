@@ -8,7 +8,6 @@ import (
 )
 
 // TestPropertyAccessor_ObjectInstance tests that ObjectInstance implements PropertyAccessor.
-// Task 3.5.99a: Verify PropertyAccessor interface implementation.
 func TestPropertyAccessor_ObjectInstance(t *testing.T) {
 	// Create a class with a property
 	class := NewClassInfo("TestClass")
@@ -64,7 +63,6 @@ func TestPropertyAccessor_ObjectInstance(t *testing.T) {
 }
 
 // TestPropertyAccessor_InterfaceInstance tests that InterfaceInstance implements PropertyAccessor.
-// Task 3.5.99a: Verify PropertyAccessor interface implementation.
 func TestPropertyAccessor_InterfaceInstance(t *testing.T) {
 	// Create an interface with a property
 	// Note: Properties map keys must be normalized (lowercase)
@@ -114,7 +112,6 @@ func TestPropertyAccessor_InterfaceInstance(t *testing.T) {
 }
 
 // TestPropertyAccessor_RecordValue tests that RecordValue implements PropertyAccessor.
-// Task 3.5.99a: Verify PropertyAccessor interface implementation.
 func TestPropertyAccessor_RecordValue(t *testing.T) {
 	// Create a record type with a property
 	recordType := &types.RecordType{
@@ -173,7 +170,6 @@ func TestPropertyAccessor_RecordValue(t *testing.T) {
 }
 
 // TestPropertyAccessor_CaseInsensitive tests that property lookup is case-insensitive.
-// Task 3.5.99a: Verify case-insensitive property access.
 func TestPropertyAccessor_CaseInsensitive(t *testing.T) {
 	// Create a class with a property
 	class := NewClassInfo("TestClass")

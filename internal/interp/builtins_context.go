@@ -679,7 +679,6 @@ func (i *Interpreter) RaiseAssertionFailed(customMessage string) {
 	instance := NewObjectInstance(assertClass)
 
 	// Set the Message field
-	// Task 3.5.40: Use SetField to ensure proper normalization
 	instance.SetField("Message", &StringValue{Value: message})
 
 	// Create exception value and set it
@@ -694,7 +693,6 @@ func (i *Interpreter) RaiseAssertionFailed(customMessage string) {
 
 // CreateContractException creates an exception value for contract violations.
 // This implements the InterpreterAdapter interface.
-// Task 3.5.142a: Bridge constructor to create exception without import cycles.
 func (i *Interpreter) CreateContractException(className, message string, node ast.Node, classMetadata interface{}, callStack interface{}) interface{} {
 	// Get position information from the AST node
 	var pos *lexer.Position
@@ -732,7 +730,6 @@ func (i *Interpreter) CreateContractException(className, message string, node as
 }
 
 // CleanupInterfaceReferences implements evaluator.InterpreterAdapter.
-// Task 3.5.142c: Bridge method to clean up interface-held objects when scope ends.
 func (i *Interpreter) CleanupInterfaceReferences(env interface{}) {
 	if envTyped, ok := env.(*Environment); ok {
 		i.cleanupInterfaceReferences(envTyped)
@@ -748,7 +745,7 @@ func (i *Interpreter) GetEnumSuccessor(enumVal builtins.Value) (builtins.Value, 
 		return nil, fmt.Errorf("expected EnumValue, got %T", enumVal)
 	}
 
-	// Get enum type metadata via TypeSystem (Task 3.5.143b)
+	// Get enum type metadata via TypeSystem
 	enumMetadata := i.typeSystem.LookupEnumMetadata(val.TypeName)
 	if enumMetadata == nil {
 		return nil, fmt.Errorf("enum type metadata not found for %s", val.TypeName)
@@ -798,7 +795,7 @@ func (i *Interpreter) GetEnumPredecessor(enumVal builtins.Value) (builtins.Value
 		return nil, fmt.Errorf("expected EnumValue, got %T", enumVal)
 	}
 
-	// Get enum type metadata via TypeSystem (Task 3.5.143b)
+	// Get enum type metadata via TypeSystem
 	enumMetadata := i.typeSystem.LookupEnumMetadata(val.TypeName)
 	if enumMetadata == nil {
 		return nil, fmt.Errorf("enum type metadata not found for %s", val.TypeName)
@@ -1040,7 +1037,7 @@ func (i *Interpreter) GetLowBound(value builtins.Value) (builtins.Value, error) 
 
 	// Handle enum values
 	if enumVal, ok := value.(*EnumValue); ok {
-		// Get enum type metadata via TypeSystem (Task 3.5.143b)
+		// Get enum type metadata via TypeSystem
 		enumMetadata := i.typeSystem.LookupEnumMetadata(enumVal.TypeName)
 		if enumMetadata == nil {
 			return nil, fmt.Errorf("enum type '%s' not found", enumVal.TypeName)
@@ -1111,7 +1108,7 @@ func (i *Interpreter) GetHighBound(value builtins.Value) (builtins.Value, error)
 
 	// Handle enum values
 	if enumVal, ok := value.(*EnumValue); ok {
-		// Get enum type metadata via TypeSystem (Task 3.5.143b)
+		// Get enum type metadata via TypeSystem
 		enumMetadata := i.typeSystem.LookupEnumMetadata(enumVal.TypeName)
 		if enumMetadata == nil {
 			return nil, fmt.Errorf("enum type '%s' not found", enumVal.TypeName)

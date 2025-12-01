@@ -20,9 +20,6 @@ import (
 // - Qualified name support (Unit.Function)
 // - Builtin function registration and lookup
 // - Efficient lookup operations
-//
-// Task 3.5.47: Enhanced to support both AST-based functions and builtin functions.
-// This allows both Interpreter and Evaluator to use the same registry instance.
 type FunctionRegistry struct {
 	// functions maps function names to overload lists (case-insensitive)
 	functions *ident.Map[[]*FunctionEntry]
@@ -33,7 +30,6 @@ type FunctionRegistry struct {
 
 	// builtins is the registry for built-in functions
 	// Defaults to builtins.DefaultRegistry, but can be customized per instance
-	// Task 3.5.47: Support for builtin function registration and lookup
 	builtins *builtins.Registry
 }
 
@@ -58,7 +54,6 @@ func NewFunctionRegistry() *FunctionRegistry {
 
 // NewFunctionRegistryWithBuiltins creates a new function registry with a custom builtin registry.
 // This is useful for testing or when you want to use a different set of builtin functions.
-// Task 3.5.47: Support for custom builtin registries.
 func NewFunctionRegistryWithBuiltins(builtinReg *builtins.Registry) *FunctionRegistry {
 	return &FunctionRegistry{
 		functions:          ident.NewMap[[]*FunctionEntry](),
@@ -335,11 +330,10 @@ func (r *FunctionRegistry) ValidateNoConflicts(name string, paramCount int, hasO
 	return nil
 }
 
-// ===== Builtin Function Support (Task 3.5.47) =====
+// ===== Builtin Function Support =====
 
 // LookupBuiltin looks up a builtin function by name (case-insensitive).
 // Returns the builtin function implementation and true if found, nil and false otherwise.
-// Task 3.5.47: Direct access to builtin functions for Evaluator.
 func (r *FunctionRegistry) LookupBuiltin(name string) (builtins.BuiltinFunc, bool) {
 	if r.builtins == nil {
 		return nil, false
@@ -349,7 +343,6 @@ func (r *FunctionRegistry) LookupBuiltin(name string) (builtins.BuiltinFunc, boo
 
 // GetBuiltinInfo retrieves the full FunctionInfo for a builtin function by name (case-insensitive).
 // Returns the info and true if found, nil and false otherwise.
-// Task 3.5.47: Metadata access for builtin functions.
 func (r *FunctionRegistry) GetBuiltinInfo(name string) (*builtins.FunctionInfo, bool) {
 	if r.builtins == nil {
 		return nil, false
@@ -359,7 +352,6 @@ func (r *FunctionRegistry) GetBuiltinInfo(name string) (*builtins.FunctionInfo, 
 
 // IsBuiltin checks if a function name refers to a builtin function.
 // The check is case-insensitive.
-// Task 3.5.47: Helper to distinguish builtin from user-defined functions.
 func (r *FunctionRegistry) IsBuiltin(name string) bool {
 	if r.builtins == nil {
 		return false
@@ -370,14 +362,12 @@ func (r *FunctionRegistry) IsBuiltin(name string) bool {
 
 // GetBuiltinRegistry returns the underlying builtin registry.
 // This is useful for advanced operations like registering custom builtins.
-// Task 3.5.47: Direct registry access when needed.
 func (r *FunctionRegistry) GetBuiltinRegistry() *builtins.Registry {
 	return r.builtins
 }
 
 // SetBuiltinRegistry sets the builtin registry to use.
 // This is useful for testing or when you want to swap in a different builtin registry.
-// Task 3.5.47: Allow changing the builtin registry after creation.
 func (r *FunctionRegistry) SetBuiltinRegistry(reg *builtins.Registry) {
 	r.builtins = reg
 }
@@ -389,7 +379,6 @@ func (r *FunctionRegistry) SetBuiltinRegistry(reg *builtins.Registry) {
 //   - found: true if any function (user-defined or builtin) was found
 //
 // User-defined functions take precedence over builtin functions.
-// Task 3.5.47: Unified lookup for both function types.
 func (r *FunctionRegistry) LookupAny(name string) (userDefined []*ast.FunctionDecl, isBuiltin bool, found bool) {
 	// Check user-defined functions first
 	if decls := r.Lookup(name); len(decls) > 0 {
@@ -406,7 +395,6 @@ func (r *FunctionRegistry) LookupAny(name string) (userDefined []*ast.FunctionDe
 
 // ExistsAny checks if a function with the given name exists in either user-defined or builtin registry.
 // The check is case-insensitive.
-// Task 3.5.47: Unified existence check.
 func (r *FunctionRegistry) ExistsAny(name string) bool {
 	return r.Exists(name) || r.IsBuiltin(name)
 }

@@ -8,7 +8,7 @@ import (
 )
 
 // callUserFunction executes a user-defined function.
-// Task 3.5.144b.1: Default parameter evaluation can be pre-handled by evaluator.EvaluateDefaultParameters
+// Default parameter evaluation can be pre-handled by evaluator.EvaluateDefaultParameters
 // when called via CallUserFunctionWithOverloads. For other call paths (constructors, methods, operators),
 // this method still handles default parameters internally for backward compatibility.
 func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value {
@@ -109,7 +109,6 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		// Check if return type is an array (overrides default)
 		// Array return types should be initialized to empty arrays, not NIL
 		// This allows methods like .Add() and .High to work on the Result variable
-		// Task 3.5.69c: Use TypeSystem instead of environment lookup
 		if arrayType := i.typeSystem.LookupArrayType(returnTypeName); arrayType != nil {
 			resultValue = NewArrayValue(arrayType)
 		} else if strings.HasPrefix(lowerReturnType, "array") {
@@ -119,10 +118,9 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 			}
 		}
 
-		// Task 9.1.5: Check if return type is an interface (overrides default)
+		// Check if return type is an interface (overrides default)
 		// Interface return types should be initialized to InterfaceInstance with nil object
 		// This ensures proper reference counting when assigning to Result
-		// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
 		if interfaceInfo := i.lookupInterfaceInfo(returnTypeName); interfaceInfo != nil {
 			resultValue = &InterfaceInstance{
 				Interface: interfaceInfo,

@@ -561,7 +561,6 @@ func TestCaseInsensitiveTypeNames(t *testing.T) {
 }
 
 // TestClassMetadataPopulation tests that ClassMetadata is populated during class declaration.
-// Task 3.5.39: Migrate ClassInfo to AST-Free ClassMetadata
 func TestClassMetadataPopulation(t *testing.T) {
 	input := `
 		type
@@ -655,7 +654,6 @@ func TestClassMetadataPopulation(t *testing.T) {
 }
 
 // TestClassMetadataInheritance tests that metadata is properly set for inheritance.
-// Task 3.5.39: Migrate ClassInfo to AST-Free ClassMetadata
 func TestClassMetadataInheritance(t *testing.T) {
 	input := `
 		type
@@ -712,7 +710,6 @@ func TestClassMetadataInheritance(t *testing.T) {
 }
 
 // TestClassMetadataFlags tests that class flags are set in metadata.
-// Task 3.5.39: Migrate ClassInfo to AST-Free ClassMetadata
 func TestClassMetadataFlags(t *testing.T) {
 	input := `
 		type

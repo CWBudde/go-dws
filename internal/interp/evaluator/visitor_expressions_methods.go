@@ -11,7 +11,7 @@ import (
 // VisitMethodCallExpression evaluates a method call (obj.Method(args)).
 //
 // **COMPLEXITY**: Very High (1,116 lines in original implementation)
-// **STATUS**: Task 3.5.115 - Consolidated to use DispatchMethodCall
+// **STATUS**: Consolidated to use DispatchMethodCall
 //
 // **15 DISTINCT METHOD CALL MODES** (evaluated in this order):
 //
@@ -40,8 +40,6 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		return e.newError(node, "method call missing method")
 	}
 
-	// Task 3.5.27 & 3.5.28: Implement method call routing based on object type
-
 	// Evaluate the object first
 	obj := e.Eval(node.Object, ctx)
 	if isError(obj) {
@@ -60,7 +58,6 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		args[i] = val
 	}
 
-	// Task 3.5.115: Consolidated method dispatch via DispatchMethodCall
 	// This provides unified error handling and consistent routing for all value types.
 	// See method_dispatch.go for full documentation of the dispatch architecture.
 	return e.DispatchMethodCall(obj, methodName, args, node, ctx)
@@ -69,7 +66,7 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 // VisitInheritedExpression evaluates an 'inherited' expression.
 //
 // **COMPLEXITY**: High (~176 lines in original implementation)
-// **STATUS**: Task 3.5.114 - Migrated to use ObjectValue.CallInheritedMethod interface
+// **STATUS**: Migrated to use ObjectValue.CallInheritedMethod interface
 //
 // **SYNTAX FORMS**:
 //   - `inherited MethodName(args)` - Explicit method call with arguments
@@ -122,7 +119,7 @@ func (e *Evaluator) VisitInheritedExpression(node *ast.InheritedExpression, ctx 
 		args[i] = val
 	}
 
-	// Task 3.5.114: Use ObjectValue interface for parent class method lookup
+	// Use ObjectValue interface for parent class method lookup
 	// Then delegate method execution to adapter.ExecuteMethodWithSelf
 	objVal, ok := self.(ObjectValue)
 	if !ok {

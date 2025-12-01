@@ -13,10 +13,6 @@ import (
 // ============================================================================
 // Type Resolution
 // ============================================================================
-//
-// Task 3.5.79: Type resolution for the Evaluator.
-// Resolves type names to types.Type using direct service access where possible.
-// ============================================================================
 
 // ResolveType resolves a type name to a types.Type.
 // This method provides direct type resolution using the Evaluator's services,
@@ -65,7 +61,6 @@ func (e *Evaluator) ResolveType(typeName string) (types.Type, error) {
 	}
 
 	// Step 5: Use evaluator's resolveTypeName for all other types
-	// Task 3.5.141: Use resolveTypeName instead of adapter.GetType
 	// Pass nil context - resolveTypeName checks ctx.Env() != nil before accessing environment
 	// This limits resolution to types that don't require environment access (classes, interfaces)
 	// For full resolution including enums/records/subranges, callers should use ResolveType with context
@@ -158,11 +153,6 @@ func (e *Evaluator) ResolveTypeFromName(typeName string) (types.Type, error) {
 // ============================================================================
 // Context-Aware Type Resolution
 // ============================================================================
-//
-// Task 3.5.106: Direct type resolution with environment access.
-// These methods resolve types without adapter dependency by using direct
-// environment lookups for custom types (enum, record, type alias, subrange).
-// ============================================================================
 
 // ResolveTypeWithContext resolves a type name to a types.Type with environment access.
 // This method provides complete direct type resolution without adapter dependency.
@@ -171,7 +161,7 @@ func (e *Evaluator) ResolveTypeFromName(typeName string) (types.Type, error) {
 //  1. Built-in types (Integer, Float, String, Boolean, Variant, Const)
 //  2. Inline array types (array of X, array[...])
 //  3. Named array types (via TypeSystem)
-//  4. Enum types (via TypeSystem) - Task 3.5.143b
+//  4. Enum types (via TypeSystem)
 //  5. Record types (via environment: __record_type_<name>)
 //  6. Type aliases (via environment: __type_alias_<name>)
 //  7. Subrange types (via environment: __subrange_type_<name>)
@@ -213,7 +203,7 @@ func (e *Evaluator) ResolveTypeWithContext(typeName string, ctx *ExecutionContex
 			return arrayType, nil
 		}
 
-		// Step 5: Check enum types via TypeSystem (Task 3.5.143b)
+		// Step 5: Check enum types via TypeSystem
 		if enumMetadata := e.typeSystem.LookupEnumMetadata(typeName); enumMetadata != nil {
 			if etv, ok := enumMetadata.(EnumTypeValueAccessor); ok {
 				return etv.GetEnumType(), nil
@@ -236,7 +226,6 @@ func (e *Evaluator) ResolveTypeWithContext(typeName string, ctx *ExecutionContex
 	}
 
 	// Step 8: Check subrange types in TypeSystem
-	// Task 3.5.182: Use TypeSystem instead of environment lookup
 	if subrangeType := e.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {
 		return subrangeType, nil
 	}
@@ -248,8 +237,6 @@ func (e *Evaluator) ResolveTypeWithContext(typeName string, ctx *ExecutionContex
 // resolveInlineArrayTypeWithContext handles inline array type syntax with context:
 //   - "array of Integer" → dynamic array
 //   - "array[1..10] of String" → static array
-//
-// Task 3.5.106: Context-aware version for complete adapter-free resolution.
 func (e *Evaluator) resolveInlineArrayTypeWithContext(typeName string, ctx *ExecutionContext) (types.Type, error) {
 	// Handle "array of ElementType" (dynamic array)
 	if strings.HasPrefix(typeName, "array of ") {
@@ -321,14 +308,9 @@ func (e *Evaluator) resolveInlineArrayTypeWithContext(typeName string, ctx *Exec
 // ============================================================================
 // Type Annotation Resolution
 // ============================================================================
-//
-// Task 3.5.102g: Resolve types from AST type annotations.
-// ============================================================================
 
 // ResolveTypeFromAnnotation resolves a type from an AST TypeExpression.
 // This is used for function return types, parameter types, and variable declarations.
-//
-// Task 3.5.102g: Migrated from Interpreter.resolveTypeFromAnnotation().
 func (e *Evaluator) ResolveTypeFromAnnotation(typeExpr ast.TypeExpression) (types.Type, error) {
 	if typeExpr == nil {
 		return nil, nil
@@ -344,14 +326,9 @@ func (e *Evaluator) ResolveTypeFromAnnotation(typeExpr ast.TypeExpression) (type
 // ============================================================================
 // Default Value Creation
 // ============================================================================
-//
-// Task 3.5.102g: Create default/zero values for types.
-// ============================================================================
 
 // GetDefaultValue returns the default/zero value for a given type.
 // This is used for Result variable initialization in functions.
-//
-// Task 3.5.102g: Migrated from Interpreter.getDefaultValue().
 func (e *Evaluator) GetDefaultValue(typ types.Type) Value {
 	if typ == nil {
 		return e.nilValue()
@@ -388,7 +365,6 @@ func (e *Evaluator) GetDefaultValue(typ types.Type) Value {
 }
 
 // nilValue returns a nil value.
-// Task 3.5.102g: Helper for creating nil values.
 func (e *Evaluator) nilValue() Value {
 	return &runtime.NilValue{}
 }

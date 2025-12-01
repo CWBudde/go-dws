@@ -87,7 +87,7 @@ func (i *Interpreter) parseInlineSetType(signature string) *types.SetType {
 		return nil
 	}
 
-	// Look up the enum type via TypeSystem (Task 3.5.143b)
+	// Look up the enum type via TypeSystem
 	enumMetadata := i.typeSystem.LookupEnumMetadata(enumTypeName)
 	if enumMetadata == nil {
 		return nil
@@ -375,7 +375,7 @@ func (i *Interpreter) evalTypeCast(typeName string, arg ast.Expression) Value {
 		if i.lookupClassInfo(typeName) != nil {
 			isTypeCast = true
 		} else {
-			// Task 9.15.6: Check if it's an enum type via TypeSystem (Task 3.5.143b)
+			// Look up the enum type via TypeSystem
 			if enumMetadata := i.typeSystem.LookupEnumMetadata(typeName); enumMetadata != nil {
 				if etv, ok := enumMetadata.(*EnumTypeValue); ok {
 					enumType = etv.EnumType
