@@ -403,8 +403,6 @@ func (r *FunctionRegistry) ExistsAny(name string) bool {
 
 // RegisterOrReplace registers a function, replacing any existing declaration-only
 // version if this is an implementation (has a body).
-// Task 3.5.7: Supports interface/implementation section pattern where forward
-// declarations are later replaced by implementations with bodies.
 func (r *FunctionRegistry) RegisterOrReplace(name string, fn *ast.FunctionDecl) {
 	if fn == nil {
 		return

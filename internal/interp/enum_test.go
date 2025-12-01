@@ -708,7 +708,7 @@ func TestEnumQualifiedNameProperty(t *testing.T) {
 }
 
 // ============================================================================
-// Task 3.5.11.4: Scoped/Unscoped/Flags Enum Tests
+// Scoped/Unscoped/Flags Enum Tests
 // ============================================================================
 
 func TestScopedEnumDeclaration(t *testing.T) {

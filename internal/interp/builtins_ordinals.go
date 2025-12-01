@@ -386,7 +386,6 @@ func (i *Interpreter) builtinAssert(args []Value) Value {
 
 	// Create exception value and set it
 	// Position is nil for built-in function exceptions
-	// Task 3.5.18: Include Metadata field
 	i.exception = &runtime.ExceptionValue{
 		Metadata:  assertClass.Metadata,
 		ClassInfo: assertClass,

@@ -46,7 +46,6 @@ func (i *Interpreter) raiseGoErrorAsException(err error) {
 	}
 
 	// Position is nil for FFI errors (they don't originate from DWScript source)
-	// Task 3.5.18: Set Metadata field for runtime.ExceptionValue
 	i.exception = &runtime.ExceptionValue{
 		Metadata:  hostClass.Metadata,
 		ClassInfo: hostClass,
@@ -125,7 +124,6 @@ func (i *Interpreter) raiseGoPanicAsException(panicValue interface{}) {
 	}
 
 	// Position is nil for FFI errors (they don't originate from DWScript source)
-	// Task 3.5.18: Set Metadata field for runtime.ExceptionValue
 	i.exception = &runtime.ExceptionValue{
 		Metadata:  hostClass.Metadata,
 		ClassInfo: hostClass,

@@ -35,7 +35,6 @@ func (tv *TypeAliasValue) GetAliasedType() types.Type {
 // Subrange Type Support
 // ============================================================================
 
-// Task 3.5.19: SubrangeValue has been moved to internal/interp/runtime/subrange.go
 // A type alias is provided in value.go for backward compatibility.
 // The types.SubrangeType struct provides all needed metadata directly.
 

@@ -791,7 +791,7 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 		// If the member is declared as a property on the interface, use that metadata
 		if propInfo := intfInst.Interface.GetProperty(target.Member.Value); propInfo != nil {
 			if obj, ok := AsObject(objVal); ok {
-				// Task 3.5.20: Extract *types.PropertyInfo from Impl field
+				// Extract *types.PropertyInfo from Impl field
 				typesPropertyInfo, ok := propInfo.Impl.(*types.PropertyInfo)
 				if !ok {
 					return i.newErrorWithLocation(stmt, "invalid property info type")
@@ -870,7 +870,7 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 					}
 				}
 				if obj, ok := AsObject(objVal); ok {
-					// Task 3.5.20: Extract *types.PropertyInfo from Impl field
+					// Extract *types.PropertyInfo from Impl field
 					typesPropertyInfo, ok := propInfo.Impl.(*types.PropertyInfo)
 					if !ok {
 						return i.newErrorWithLocation(stmt, "invalid property info type")
@@ -971,7 +971,7 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 		if intfInst.Object == nil {
 			return i.newErrorWithLocation(stmt, "Interface is nil")
 		}
-		// Task 3.5.20: Use GetDefaultProperty() (public) instead of getDefaultProperty()
+		// Use GetDefaultProperty() (public) instead of getDefaultProperty()
 		if propInfo := intfInst.Interface.GetDefaultProperty(); propInfo != nil && propInfo.IsIndexed {
 			if obj, ok := AsObject(intfInst.Object); ok {
 				// Extract *types.PropertyInfo from Impl field

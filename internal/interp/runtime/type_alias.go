@@ -7,8 +7,6 @@ import (
 )
 
 // TypeAliasValue stores a type alias definition.
-// Task 3.5.16: Migrated from internal/interp/type_alias.go to runtime package
-// to enable evaluator package to work with type aliases directly.
 //
 // Type aliases are defined with syntax like:
 //

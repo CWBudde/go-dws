@@ -103,7 +103,7 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 					}
 				}
 				if obj, ok := AsObject(intfInst.Object); ok {
-					// Task 3.5.20: Extract *types.PropertyInfo from Impl field
+					// Extract *types.PropertyInfo from Impl field
 					typesPropertyInfo, ok := propInfo.Impl.(*types.PropertyInfo)
 					if !ok {
 						return i.newErrorWithLocation(expr, "invalid property info type")
@@ -261,7 +261,6 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 		if intfInst.Object == nil {
 			return i.newErrorWithLocation(expr, "Interface is nil")
 		}
-		// Task 3.5.20: Use GetDefaultProperty() (public) instead of getDefaultProperty()
 		if propInfo := intfInst.Interface.GetDefaultProperty(); propInfo != nil && propInfo.IsIndexed {
 			if obj, ok := AsObject(intfInst.Object); ok {
 				// Extract *types.PropertyInfo from Impl field

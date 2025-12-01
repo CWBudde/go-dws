@@ -6,10 +6,6 @@ import (
 
 // TestArrayReturnTypeInitialization verifies that array return types are properly
 // initialized when using ExecuteUserFunction.
-//
-// Task 3.5.22b: This test verifies array return type initialization.
-// The fix ensures that inline array types with record elements resolve correctly
-// using TypeSystem instead of i.env (which is the caller's environment).
 func TestArrayReturnTypeInitialization(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -162,7 +158,6 @@ func TestArrayReturnTypeInitialization(t *testing.T) {
 }
 
 // TestArrayReturnViaFunctionPointer verifies array return types work with function pointers.
-// Task 3.5.22b: Function pointers use ExecuteUserFunction (from task 3.5.1b).
 func TestArrayReturnViaFunctionPointer(t *testing.T) {
 	input := `
 		type TIntArray = array of Integer;
@@ -199,7 +194,6 @@ func TestArrayReturnViaFunctionPointer(t *testing.T) {
 }
 
 // TestArrayReturnViaOverloadedFunction verifies array return types work with overloaded functions.
-// Task 3.5.22b: Function overloads use ExecuteUserFunction (from task 3.5.1a).
 func TestArrayReturnViaOverloadedFunction(t *testing.T) {
 	input := `
 		function MakeArray(n: Integer): array of Integer; overload;
@@ -243,7 +237,6 @@ func TestArrayReturnViaOverloadedFunction(t *testing.T) {
 }
 
 // TestInlineArrayOfRecordReturnType tests array of record return types.
-// Task 3.5.22b: This specifically tests the resolveType fix for record lookups.
 func TestInlineArrayOfRecordReturnType(t *testing.T) {
 	// Note: Using separate record variables to avoid record reference aliasing issue
 	// (records passed to .Add() share the same reference - known behavior)

@@ -115,7 +115,7 @@ func TestEdge_InterfaceWithManyMethods(t *testing.T) {
 			t.Errorf("GetMethod should return method %s", name)
 		}
 
-		// Task 3.5.20: GetMethod returns any, need to type assert
+		// GetMethod returns any, need to type assert
 		method, ok := methodAny.(*ast.FunctionDecl)
 		if !ok {
 			t.Errorf("GetMethod should return *ast.FunctionDecl for method %s", name)
@@ -440,7 +440,6 @@ func TestEdge_InterfaceInstanceImplementsInterface(t *testing.T) {
 	ifaceInstance := NewInterfaceInstance(iface1, obj)
 
 	// Should return true for iface1 (class implements it)
-	// Task 3.5.20: Use free function ImplementsInterface instead of method
 	if !ImplementsInterface(ifaceInstance, iface1) {
 		t.Error("InterfaceInstance should report it implements iface1")
 	}

@@ -43,37 +43,36 @@ type Interpreter struct {
 	output               io.Writer
 	helpers              map[string][]*HelperInfo
 	enumTypeIDRegistry   map[string]int
-	exception            *runtime.ExceptionValue // Task 3.5.18: Moved to runtime package
-	handlerException     *runtime.ExceptionValue // Task 3.5.18: Moved to runtime package
+	exception            *runtime.ExceptionValue
+	handlerException     *runtime.ExceptionValue
 	semanticInfo         *pkgast.SemanticInfo
 	unitRegistry         *units.UnitRegistry
 	propContext          *PropertyEvalContext
 	typeSystem           *interptypes.TypeSystem
-	methodRegistry       *runtime.MethodRegistry // Task 3.5.39: AST-free method storage
+	methodRegistry       *runtime.MethodRegistry
 	recordTypeIDRegistry map[string]int
 	records              map[string]*RecordTypeValue
-	// Task 3.5.184c: interfaces map removed - use typeSystem.LookupInterface() via lookupInterfaceInfo()
-	functions           map[string][]*ast.FunctionDecl
-	globalOperators     *runtimeOperatorRegistry
-	conversions         *runtimeConversionRegistry
-	env                 *Environment
-	evaluatorInstance   *evaluator.Evaluator
-	classes             map[string]*ClassInfo
-	classTypeIDRegistry map[string]int
-	initializedUnits    map[string]bool
-	externalFunctions   *ExternalFunctionRegistry
-	rand                *rand.Rand
-	ctx                 *evaluator.ExecutionContext
-	sourceCode          string
-	sourceFile          string
-	oldValuesStack      []map[string]Value
-	loadedUnits         []string
-	callStack           errors.StackTrace
-	nextEnumTypeID      int
-	randSeed            int64
-	nextRecordTypeID    int
-	maxRecursionDepth   int
-	nextClassTypeID     int
+	functions            map[string][]*ast.FunctionDecl
+	globalOperators      *runtimeOperatorRegistry
+	conversions          *runtimeConversionRegistry
+	env                  *Environment
+	evaluatorInstance    *evaluator.Evaluator
+	classes              map[string]*ClassInfo
+	classTypeIDRegistry  map[string]int
+	initializedUnits     map[string]bool
+	externalFunctions    *ExternalFunctionRegistry
+	rand                 *rand.Rand
+	ctx                  *evaluator.ExecutionContext
+	sourceCode           string
+	sourceFile           string
+	oldValuesStack       []map[string]Value
+	loadedUnits          []string
+	callStack            errors.StackTrace
+	nextEnumTypeID       int
+	randSeed             int64
+	nextRecordTypeID     int
+	maxRecursionDepth    int
+	nextClassTypeID      int
 }
 
 // New creates a new Interpreter with a fresh global environment.

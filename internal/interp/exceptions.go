@@ -16,8 +16,6 @@ import (
 // ============================================================================
 
 // ExceptionValue is now in runtime package.
-// Task 3.5.18: Moved to internal/interp/runtime/exception.go
-// This alias provides backward compatibility during migration.
 type ExceptionValue = runtime.ExceptionValue
 
 // ============================================================================
@@ -249,7 +247,6 @@ func (i *Interpreter) raiseMaxRecursionExceeded() Value {
 	instance.SetField("Message", &StringValue{Value: message})
 
 	// Set the exception (Position is nil for internally-raised exceptions like recursion overflow)
-	// Task 3.5.18: Use runtime.ExceptionValue constructor
 	i.exception = &runtime.ExceptionValue{
 		Metadata:  stackOverflowClass.Metadata,
 		Instance:  instance,
@@ -413,7 +410,6 @@ func (i *Interpreter) matchesExceptionType(exc *ExceptionValue, typeExpr ast.Typ
 	// Fallback to ClassInfo for backward compatibility
 	if exc.ClassInfo != nil {
 		// Check if exception class matches or inherits from handler type
-		// Task 3.5.18: Type assert from any to concrete ClassInfo
 		if classInfo, ok := exc.ClassInfo.(*ClassInfo); ok {
 			currentClass := classInfo
 			for currentClass != nil {
@@ -482,7 +478,6 @@ func (i *Interpreter) evalRaiseStatement(stmt *ast.RaiseStatement) Value {
 	pos := stmt.Token.Pos
 
 	// Need concrete ClassInfo for ClassInfo field
-	// Task 3.5.18: Use runtime.ExceptionValue
 	concreteClass, ok := classInfo.(*ClassInfo)
 	if !ok {
 		i.exception = &runtime.ExceptionValue{
