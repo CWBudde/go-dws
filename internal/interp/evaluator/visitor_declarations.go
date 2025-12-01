@@ -410,9 +410,174 @@ func (e *Evaluator) VisitEnumDecl(node *ast.EnumDecl, ctx *ExecutionContext) Val
 
 // VisitRecordDecl evaluates a record declaration.
 func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2B: Record registry available via adapter.LookupRecord()
-	// TODO: Move record registration logic here (use adapter type system methods)
-	return e.adapter.EvalNode(node)
+	// Task 3.5.10: Full implementation moved from Interpreter to Evaluator.
+	// Eliminates adapter.EvalNode() call - direct registration using evaluator methods.
+	if node == nil {
+		return e.newError(nil, "nil record declaration")
+	}
+
+	recordName := node.Name.Value
+
+	// Build the record type from the declaration
+	fields := make(map[string]types.Type)
+	// Task 9.5: Store field declarations for initializer access
+	fieldDecls := make(map[string]*ast.FieldDecl)
+
+	for _, field := range node.Fields {
+		fieldName := field.Name.Value
+
+		// Task 9.12.1: Handle type inference for fields
+		var fieldType types.Type
+		if field.Type != nil {
+			// Explicit type - use evaluator's type resolution
+			var err error
+			fieldType, err = e.ResolveTypeFromAnnotation(field.Type)
+			if err != nil || fieldType == nil {
+				return e.newError(node, "unknown or invalid type for field '%s' in record '%s'", fieldName, recordName)
+			}
+		} else if field.InitValue != nil {
+			// Type inference from initializer - use evaluator's Eval
+			initValue := e.Eval(field.InitValue, ctx)
+			if isError(initValue) {
+				return initValue
+			}
+			fieldType = e.getValueType(initValue)
+			if fieldType == nil {
+				return e.newError(node, "cannot infer type for field '%s' in record '%s'", fieldName, recordName)
+			}
+		} else {
+			return e.newError(node, "field '%s' in record '%s' must have either a type or initializer", fieldName, recordName)
+		}
+
+		// Use lowercase key for case-insensitive access
+		fieldNameLower := ident.Normalize(fieldName)
+		fields[fieldNameLower] = fieldType
+		// Task 9.5: Store field declaration (use lowercase key)
+		fieldDecls[fieldNameLower] = field
+	}
+
+	// Create the record type
+	recordType := types.NewRecordType(recordName, fields)
+
+	// Task 9.7: Store method AST nodes for runtime invocation
+	// Build maps for instance methods and static methods (class function/procedure)
+	// Task 9.7f: Separate static methods from instance methods
+	// Note: Use lowercase keys for case-insensitive lookup
+	methods := make(map[string]*ast.FunctionDecl)
+	staticMethods := make(map[string]*ast.FunctionDecl)
+	for _, method := range node.Methods {
+		methodKey := ident.Normalize(method.Name.Value)
+		if method.IsClassMethod {
+			staticMethods[methodKey] = method
+		} else {
+			methods[methodKey] = method
+		}
+	}
+
+	// Task 9.12.2: Evaluate record constants - use evaluator's Eval
+	constants := make(map[string]Value)
+	for _, constant := range node.Constants {
+		constName := constant.Name.Value
+		constValue := e.Eval(constant.Value, ctx)
+		if isError(constValue) {
+			return constValue
+		}
+		// Normalize to lowercase for case-insensitive access
+		constants[ident.Normalize(constName)] = constValue
+	}
+
+	// Task 9.12.2: Initialize class variables - use evaluator's Eval and GetDefaultValue
+	classVars := make(map[string]Value)
+	for _, classVar := range node.ClassVars {
+		varName := classVar.Name.Value
+		var varValue Value
+
+		if classVar.InitValue != nil {
+			// Evaluate the initializer
+			varValue = e.Eval(classVar.InitValue, ctx)
+			if isError(varValue) {
+				return varValue
+			}
+		} else {
+			// Use type to determine zero value
+			var varType types.Type
+			if classVar.Type != nil {
+				var err error
+				varType, err = e.ResolveTypeFromAnnotation(classVar.Type)
+				if err != nil || varType == nil {
+					return e.newError(node, "unknown type for class variable '%s' in record '%s'", varName, recordName)
+				}
+			}
+			varValue = e.GetDefaultValue(varType)
+		}
+
+		// Normalize to lowercase for case-insensitive access
+		classVars[ident.Normalize(varName)] = varValue
+	}
+
+	// Process properties
+	for _, prop := range node.Properties {
+		propName := prop.Name.Value
+		propNameLower := ident.Normalize(propName)
+
+		// Resolve property type - use evaluator's type resolution
+		propType, err := e.ResolveTypeFromAnnotation(prop.Type)
+		if err != nil || propType == nil {
+			return e.newError(node, "unknown type for property '%s' in record '%s'", propName, recordName)
+		}
+
+		// Create property info
+		propInfo := &types.RecordPropertyInfo{
+			Name:       propName,
+			Type:       propType,
+			ReadField:  prop.ReadField,
+			WriteField: prop.WriteField,
+			IsDefault:  prop.IsDefault,
+		}
+
+		// Store in recordType.Properties (case-insensitive)
+		recordType.Properties[propNameLower] = propInfo
+	}
+
+	// Task 3.5.42: Build RecordMetadata from AST declarations
+	// Task 3.5.10: Use evaluator's buildRecordMetadata (no adapter)
+	metadata := e.buildRecordMetadata(recordName, recordType, methods, staticMethods, constants, classVars)
+
+	// Store record type metadata in environment with special key
+	// This allows variable declarations to resolve the type
+	recordTypeKey := "__record_type_" + ident.Normalize(recordName)
+	recordTypeValue := &RecordTypeValue{
+		RecordType:           recordType,
+		FieldDecls:           fieldDecls, // Task 9.5: Include field declarations
+		Metadata:             metadata,   // Task 3.5.42: AST-free metadata
+		Methods:              methods,
+		StaticMethods:        staticMethods,
+		ClassMethods:         make(map[string]*ast.FunctionDecl),
+		ClassMethodOverloads: make(map[string][]*ast.FunctionDecl),
+		MethodOverloads:      make(map[string][]*ast.FunctionDecl),
+		Constants:            constants, // Task 9.12.2: Record constants
+		ClassVars:            classVars, // Task 9.12.2: Class variables
+	}
+
+	// Initialize ClassMethods with StaticMethods for compatibility
+	for k, v := range staticMethods {
+		recordTypeValue.ClassMethods[k] = v
+	}
+
+	// Initialize overload lists from method declarations
+	// Note: methodName is already lowercase from the maps above
+	for methodName, methodDecl := range methods {
+		recordTypeValue.MethodOverloads[methodName] = []*ast.FunctionDecl{methodDecl}
+	}
+	for methodName, methodDecl := range staticMethods {
+		recordTypeValue.ClassMethodOverloads[methodName] = []*ast.FunctionDecl{methodDecl}
+	}
+
+	// Task 3.5.10: Direct environment and TypeSystem access (NO ADAPTER)
+	ctx.Env().Define(recordTypeKey, recordTypeValue)
+	e.typeSystem.RegisterRecord(recordName, recordTypeValue)
+
+	return &runtime.NilValue{}
 }
 
 // VisitHelperDecl evaluates a helper declaration (type extension).
