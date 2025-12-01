@@ -460,23 +460,28 @@ Goal: Move declaration processing from Interpreter to Evaluator, migrating 9 Eva
     - [x] 3.5.10.6: Remove `adapter.EvalNode()` call
     - [x] 3.5.10.7: Add tests for fields, methods, initializers
 
-- [ ] **3.5.8** VisitClassDecl
+- [ ] **3.5.8** VisitClassDecl **IN PROGRESS** (Phase 2 of 10 complete - 20%)
   - **Registry**: `typeSystem.RegisterClassWithParent()`, `methodRegistry`, `classInfo.Operators`
   - **Complexity**: High - virtual tables, inheritance, nested classes
-  - **Files**: `visitor_declarations.go`, `declarations.go:204-726`, `class.go`
-  - **Effort**: 2-3 days
+  - **Files**: `visitor_declarations.go`, `declarations.go:204-726`, `class.go`, `adapter_types.go`, `evaluator.go`
+  - **Effort**: 2-3 days (Phases 1-2 complete: ~4 hours, Phases 3-10 remaining: ~20 hours)
   - **Blocker**: Phase 9 (AST-free methods) for full completion
+  - **Detailed Plan**: See `/home/christian/.claude/plans/functional-bubbling-fox.md` for 10-phase implementation
+  - **Completed Work**:
+    - ✅ Phase 1 (Foundation): VisitClassDecl scaffold, fullClassNameFromDecl helper, 9 core adapter methods
+    - ✅ Phase 2 (Basic Creation): Partial class handling, temporary environment setup, 1 additional adapter method
+    - ✅ Lines added: ~240 (visitor_declarations.go, adapter_types.go, evaluator.go interface)
   - **Subtasks**:
-    - [ ] 3.5.8.1: Move basic class creation to `VisitClassDecl`
-    - [ ] 3.5.8.2: Use `TypeSystem.Classes()` for parent lookup
-    - [ ] 3.5.8.3: Use `TypeSystem.RegisterClassWithParent()` for registration
-    - [ ] 3.5.8.4: Migrate virtual method table building
-    - [ ] 3.5.8.5: Handle nested class evaluation
-    - [ ] 3.5.8.6: Migrate operator registration
-    - [ ] 3.5.8.7: Preserve ClassMetadata building
-    - [ ] 3.5.8.8: Handle method implementation updates
-    - [ ] 3.5.8.9: Remove `adapter.EvalNode()` calls
-    - [ ] 3.5.8.10: Add comprehensive tests
+    - [x] 3.5.8.1: Move basic class creation to `VisitClassDecl` ✅ (Phase 2.1 - partial class handling)
+    - [ ] 3.5.8.2: Use `TypeSystem.LookupClass()` for parent lookup (Phase 3 - pending)
+    - [ ] 3.5.8.3: Use `TypeSystem.RegisterClassWithParent()` for registration (Phase 7 - pending)
+    - [ ] 3.5.8.4: Migrate virtual method table building (Phase 7 - pending)
+    - [ ] 3.5.8.5: Handle nested class evaluation (Phase 5 - pending)
+    - [ ] 3.5.8.6: Migrate operator registration (Phase 6 - pending)
+    - [ ] 3.5.8.7: Preserve ClassMetadata building (Phases 3-6 - pending)
+    - [ ] 3.5.8.8: Handle method implementation updates (Phase 8 - pending)
+    - [ ] 3.5.8.9: Remove `adapter.EvalNode()` calls (Phase 10 - pending)
+    - [ ] 3.5.8.10: Add comprehensive tests (Phase 9 - pending)
 
 ---
 

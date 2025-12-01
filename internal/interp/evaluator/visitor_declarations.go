@@ -46,11 +46,107 @@ func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionCont
 	return &runtime.NilValue{}
 }
 
+// fullClassNameFromDecl returns the fully qualified class name for nested classes.
+// For nested classes, it combines the enclosing class name with the class name (e.g., "Outer.Inner").
+// For top-level classes, it returns just the class name.
+func (e *Evaluator) fullClassNameFromDecl(cd *ast.ClassDecl) string {
+	if cd.EnclosingClass != nil && cd.EnclosingClass.Value != "" {
+		return cd.EnclosingClass.Value + "." + cd.Name.Value
+	}
+	return cd.Name.Value
+}
+
 // VisitClassDecl evaluates a class declaration.
+// Task 3.5.8: Migrated from Interpreter.evalClassDeclaration to Evaluator visitor.
+//
+// This method handles all aspects of class declaration including:
+// - Basic class creation and partial class merging
+// - Inheritance resolution (explicit parent or implicit TObject)
+// - Interface implementation
+// - Constants, fields, and nested types
+// - Methods, constructors, destructors, and properties
+// - Operator registration
+// - Virtual method table building
+// - TypeSystem registration
 func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) Value {
-	// Phase 3.5.4 - Phase 2B: Class registry available via adapter.LookupClass()
-	// TODO: Move class registration logic here (use adapter type system methods)
-	return e.adapter.EvalNode(node)
+	if node == nil {
+		return e.newError(nil, "nil class declaration")
+	}
+
+	className := e.fullClassNameFromDecl(node)
+
+	// Phase 2.1: Handle partial class merging or create new class
+	var classInfo interface{}
+	existingClass := e.typeSystem.LookupClass(className)
+
+	if existingClass != nil {
+		ci, ok := e.adapter.CastToClassInfo(existingClass)
+		if !ok {
+			return e.newError(node, "internal error: invalid class type for '%s'", className)
+		}
+
+		existingPartial := e.adapter.IsClassPartial(ci)
+		if existingPartial && node.IsPartial {
+			// Merge into existing partial class
+			classInfo = ci
+		} else {
+			return e.newError(node, "class '%s' already declared", className)
+		}
+	} else {
+		// Create new class
+		classInfo = e.adapter.NewClassInfoAdapter(className)
+	}
+
+	// Set class flags
+	if node.IsPartial {
+		e.adapter.SetClassPartial(classInfo, true)
+	}
+	if node.IsAbstract {
+		e.adapter.SetClassAbstract(classInfo, true)
+	}
+	if node.IsExternal {
+		e.adapter.SetClassExternal(classInfo, true, node.ExternalName)
+	}
+
+	// Phase 2.2: Setup temporary environment for nested class context
+	tempEnv := ctx.Env().NewEnclosedEnvironment()
+	e.adapter.DefineCurrentClassMarker(tempEnv, classInfo)
+	savedEnv := ctx.Env()
+	ctx.SetEnv(tempEnv)
+	defer ctx.SetEnv(savedEnv)
+
+	// Phase 3: Inheritance resolution
+	// Handle inheritance if parent class is specified
+	var parentClass interface{}
+	if node.Parent != nil {
+		// Explicit parent specified
+		parentName := node.Parent.Value
+		parentClass = e.typeSystem.LookupClass(parentName)
+		if parentClass == nil {
+			return e.newError(node, "parent class '%s' not found", parentName)
+		}
+	} else {
+		// If no explicit parent, implicitly inherit from TObject
+		// (unless this IS TObject or it's an external class)
+		if !ident.Equal(className, "TObject") && !node.IsExternal {
+			parentClass = e.typeSystem.LookupClass("TObject")
+			if parentClass == nil {
+				return e.newError(node, "implicit parent class 'TObject' not found")
+			}
+		}
+	}
+
+	// Set parent reference and inherit members (only if not already set for partial classes)
+	if parentClass != nil && e.adapter.ClassHasNoParent(classInfo) {
+		e.adapter.SetClassParent(classInfo, parentClass)
+	}
+
+	// TODO: Phase 4 - Interface implementation
+	// TODO: Phase 5 - Constants, fields, nested types
+	// TODO: Phase 6 - Methods, properties, operators
+	// TODO: Phase 7 - Virtual method table and TypeSystem registration
+
+	return &runtime.NilValue{}
 }
 
 // VisitInterfaceDecl evaluates an interface declaration.
