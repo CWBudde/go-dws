@@ -354,7 +354,9 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 // - COMMA (for multi-var declaration: x, y : Integer)
 // This prevents mis-parsing function calls or assignments as var declarations.
 func (p *Parser) looksLikeVarDeclaration(cursor *TokenCursor, allowInferred bool) bool {
+	currentToken := cursor.Current()
 	nextToken := cursor.Peek(1)
+
 	if !p.isIdentifierToken(nextToken.Type) {
 		return false
 	}
@@ -369,8 +371,16 @@ func (p *Parser) looksLikeVarDeclaration(cursor *TokenCursor, allowInferred bool
 		return true
 	}
 
-	// Allow inferred declarations when we're in a block-style var section
+	// Allow inferred declarations when we're in a block-style var section,
+	// but ONLY if they're on consecutive lines (no blank lines in between).
+	// A blank line terminates the var section.
 	if allowInferred && (tokenAfterIdent.Type == lexer.ASSIGN || tokenAfterIdent.Type == lexer.EQ) {
+		// Check if there's a line gap between current position and next identifier
+		// If current token is SEMICOLON and next token is on a non-consecutive line, it's not a continuation
+		if currentToken.Type == lexer.SEMICOLON && nextToken.Pos.Line > currentToken.Pos.Line+1 {
+			// Blank line detected - var section ends here
+			return false
+		}
 		return true
 	}
 
