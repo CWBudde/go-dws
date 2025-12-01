@@ -255,10 +255,10 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Remaining Tasks
 
-- [ ] **3.5.1** Complete ExecuteUserFunction Integration
-  - **Status**: PARTIAL - 3.5.1a-c done, 3.5.1d blocked
+- [x] **3.5.1** Complete ExecuteUserFunction Integration ✅ **PARTIAL** (3/4 subtasks)
+  - **Status**: Core wrapper infrastructure complete, full migration deferred to 3.5.22
   - **Files**: `user_function_callbacks.go`, `adapter_functions.go`, `functions_user.go`
-  - **Total Effort**: 4 hours (3 done, 1 blocked)
+  - **Completed Effort**: 3 hours
   - **Risk**: Medium - core function execution path
 
   - [x] **3.5.1a** Update CallUserFunctionWithOverloads ✅
@@ -275,21 +275,6 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Added `executeUserFunctionViaEvaluator(fn, args) Value` in `functions_user.go`
     - Wraps `ExecuteUserFunction` with type conversion and error handling
     - Fixed: Updated `EnvironmentAdapter.Define` to handle nil values (converts to NilValue)
-
-  - [ ] **3.5.1d** Remove Old callUserFunction - **BLOCKED**
-    - **Blockers discovered during attempted migration**:
-      1. Record return type initialization uses `i.env.Get()` in callback, but `i.env` isn't swapped
-      2. Array initialization in `Result` may not work correctly
-      3. Several test failures when replacing all call sites:
-         - `TestUnaryOperatorOverload`: Record return values not working
-         - `TestEvalAddressOfMethod`: Method pointer returns wrong value
-         - `TestDynamicArray_AddMethod/Add_to_array_inside_function`: Array operations fail
-    - **Work needed**:
-      1. Audit `createDefaultValueGetterCallback` to handle record/array types without relying on `i.env`
-      2. Ensure record/array return values are properly initialized in function scope
-      3. Test all operator overload paths
-    - **Current state**: Wrapper exists but only used by 3.5.1a and 3.5.1b paths
-    - **Call sites to migrate (25+)**: `objects_methods.go:33`, `functions_calls.go:164,264`, `adapter_methods.go:119,419,467,526,556,600,624`, `functions_pointers.go:46,55`, `operators_eval.go:53,223,271`, `expressions_basic.go:193`, `adapter_objects.go:73,119`
 
 - [x] **3.5.2** Remove `interfaces` Map from Interpreter ✅
   - **Files**: `interpreter.go`, all files using `i.interfaces[...]`
@@ -557,15 +542,158 @@ Bridge constructors to eliminate:
   - **Actual Effort**: 1 hour (vs. 3 days estimated - value type already in runtime)
   - **Testing**: All class variable and nil value tests pass, CLI verified with typed nil access to class vars, 341/1227 fixture tests pass (baseline)
 
-- [ ] **3.5.22** Migrate TryImplicitConversion
-  - **Current location**: Adapter method in `adapter_types.go`
-  - **Challenge**: Execution requires FunctionRegistry + user function invocation
-  - **Work**:
-    - Move conversion logic to evaluator
-    - Use FunctionRegistry directly for conversion function lookup
-    - Handle result wrapping and error handling
-  - **Effort**: 1-2 weeks
-  - **Risk**: High - execution layer coupling
+- [ ] **3.5.22** Migrate Function Execution and Type Conversion to Evaluator
+  - **Goal**: Complete function execution migration + migrate TryImplicitConversion
+  - **Challenge**: Core execution infrastructure requires evaluator-native function calls
+  - **Files**: `functions_user.go`, `operators_eval.go`, `adapter_types.go`, `adapter_objects.go`
+  - **Total Effort**: 1-2 weeks (6-10 days)
+  - **Risk**: High - execution layer coupling, affects 30+ call sites
+  - **Prerequisites**: Tasks 3.5.1a-c complete ✅
+
+  **Phase A: Fix Function Execution Blockers** - 3-4 days
+
+  - [ ] **3.5.22a** Audit and Fix Record Return Type Initialization
+    - **Blocker**: `createDefaultValueGetterCallback` uses `i.env.Get()` but `i.env` isn't swapped during execution
+    - **Test failure**: `TestUnaryOperatorOverload` - record return values not working
+    - **Files**: `user_function_callbacks.go:80-110`
+    - **Work**:
+      1. Analyze how record return values are initialized in `callUserFunction` vs `ExecuteUserFunction`
+      2. Update callback to get environment from function context, not interpreter state
+      3. Add `GetEnvironment()` method to ExecutionContext if needed
+      4. Test with operator overloads returning records
+    - **Effort**: 1 day
+    - **Deliverable**: Record return types work correctly in `ExecuteUserFunction`
+
+  - [ ] **3.5.22b** Fix Array Return Type Initialization
+    - **Blocker**: Array initialization in `Result` variable may not work correctly
+    - **Test failure**: `TestDynamicArray_AddMethod/Add_to_array_inside_function`
+    - **Files**: `user_function_callbacks.go`, `functions_user.go`
+    - **Work**:
+      1. Trace array value flow in function returns
+      2. Ensure array values preserve reference semantics
+      3. Test dynamic array operations inside functions
+      4. Verify array modifications persist after function return
+    - **Effort**: 1 day
+    - **Deliverable**: Array return types work correctly
+
+  - [ ] **3.5.22c** Fix Method Pointer Return Values
+    - **Blocker**: Method pointers return wrong value
+    - **Test failure**: `TestEvalAddressOfMethod`
+    - **Files**: `functions_pointers.go`, `adapter_functions.go`
+    - **Work**:
+      1. Debug method pointer creation in evaluator context
+      2. Ensure Self binding is correct for method pointers
+      3. Verify function environment is captured properly
+      4. Test with address-of operator (@Method)
+    - **Effort**: 1 day
+    - **Deliverable**: Method pointer returns work correctly
+
+  - [ ] **3.5.22d** Migrate All callUserFunction Call Sites
+    - **Current state**: Wrapper exists but only used by 3.5.1a/b paths (2 sites)
+    - **Remaining sites**: 25+ locations across 8 files
+    - **Files to update**:
+      - `objects_methods.go:33` (method calls)
+      - `functions_calls.go:164,264` (function calls)
+      - `adapter_methods.go:119,419,467,526,556,600,624` (adapter methods)
+      - `functions_pointers.go:46,55` (function pointer calls)
+      - `operators_eval.go:53,223,271` (operator overloads, **includes conversion operators**)
+      - `expressions_basic.go:193` (expression evaluation)
+      - `adapter_objects.go:73,119` (object construction)
+    - **Work**:
+      1. Replace `i.callUserFunction(fn, args)` with `i.executeUserFunctionViaEvaluator(fn, args)`
+      2. Run full test suite after each file
+      3. Fix any regressions immediately
+      4. Remove old `callUserFunction` method after all sites migrated
+    - **Effort**: 1 day (incremental migration)
+    - **Deliverable**: All function calls use evaluator execution
+
+  **Phase B: Migrate Type Conversion** - 3-4 days
+
+  - [ ] **3.5.22e** Add Conversion Registry Accessor to TypeSystem
+    - **Current**: `i.conversions.findImplicit()` in interpreter
+    - **Target**: `e.typeSystem.Conversions().FindImplicit()` in evaluator
+    - **Files**: `types/type_system.go`, `types/conversion_registry.go`
+    - **Work**:
+      1. Add public `Conversions() *ConversionRegistry` method to TypeSystem
+      2. Export `FindImplicit(fromType, toType) (ConversionEntry, bool)` method
+      3. Export `FindConversionPath(fromType, toType, maxDepth) []string` method
+      4. Update evaluator imports
+    - **Effort**: 2-3 hours
+    - **Deliverable**: Evaluator can access conversion registry
+
+  - [ ] **3.5.22f** Create Evaluator Helper for Conversion Function Execution
+    - **Files**: `evaluator/type_conversion.go` (new file)
+    - **Work**:
+      1. Create `executeConversionFunction(fn *ast.FunctionDecl, arg Value) (Value, error)` helper
+      2. Use `ExecuteUserFunction` with proper context
+      3. Handle error propagation
+      4. Test with simple conversion operators (Integer→String, etc.)
+    - **Effort**: 4-6 hours
+    - **Deliverable**: Evaluator can execute conversion functions
+
+  - [ ] **3.5.22g** Move tryImplicitConversion Logic to Evaluator
+    - **Current**: `operators_eval.go:193-280` (Interpreter method)
+    - **Target**: `evaluator/type_conversion.go` (Evaluator method)
+    - **Files**: `evaluator/type_conversion.go`, `operators_eval.go`
+    - **Work**:
+      1. Copy `tryImplicitConversion` logic to evaluator
+      2. Replace `i.conversions` with `e.typeSystem.Conversions()`
+      3. Replace `i.functions` with `e.typeSystem.FunctionRegistry()`
+      4. Replace `i.callUserFunction()` with `e.executeConversionFunction()`
+      5. Handle built-in conversions (Integer→Float, Enum→Integer)
+      6. Handle chained conversions with multi-step paths
+      7. Add error handling for conversion failures
+    - **Effort**: 1 day
+    - **Deliverable**: Evaluator has native `tryImplicitConversion()` method
+
+  - [ ] **3.5.22h** Update TryImplicitConversion Call Sites
+    - **Call sites**: 5 locations in evaluator package
+      - `visitor_statements.go` (variable assignment conversions)
+      - `assignment_helpers.go` (assignment type checking)
+      - `visitor_expressions_identifiers.go` (identifier resolution)
+    - **Work**:
+      1. Replace `e.adapter.TryImplicitConversion()` with `e.tryImplicitConversion()`
+      2. Update error handling
+      3. Test each call site individually
+      4. Run full test suite
+    - **Effort**: 4-6 hours
+    - **Deliverable**: All conversion call sites use evaluator method
+
+  - [ ] **3.5.22i** Remove TryImplicitConversion Adapter Method
+    - **Files**: `adapter_types.go:282-288`, `evaluator/evaluator.go`
+    - **Work**:
+      1. Remove `TryImplicitConversion` from InterpreterAdapter interface
+      2. Remove implementation from `adapter_types.go`
+      3. Move `tryImplicitConversion` in `operators_eval.go` to private helper (if still needed by interpreter)
+      4. Verify no remaining adapter calls
+    - **Effort**: 30 minutes
+    - **Deliverable**: Adapter method removed
+
+  **Phase C: Eliminate Remaining Bridges** - 2-3 days
+
+  - [ ] **3.5.22j** Analyze CreateObject Dependencies
+    - **Files**: `adapter_objects.go:18-86`
+    - **Work**:
+      1. Document field initialization requirements
+      2. Document constructor invocation requirements
+      3. Identify if evaluator can handle both with `ExecuteUserFunction`
+      4. Design migration strategy (full elimination vs. partial refactor)
+    - **Effort**: 4 hours
+    - **Deliverable**: Clear plan for CreateObject elimination
+
+  - [ ] **3.5.22k** Migrate CreateObject (if feasible)
+    - **Depends on**: 3.5.22d (function execution), 3.5.22j (analysis)
+    - **Challenge**: Requires `Eval()` for field initializers + function execution for constructors
+    - **Work**: TBD based on 3.5.22j analysis
+    - **Effort**: 1-2 days
+    - **Deliverable**: CreateObject bridge eliminated or refactored
+
+  **Success Criteria**:
+  - ✅ All 25+ `callUserFunction` sites use `executeUserFunctionViaEvaluator`
+  - ✅ Record, array, and method pointer return types work correctly
+  - ✅ All conversion call sites use evaluator's `tryImplicitConversion`
+  - ✅ No regression in existing tests (maintain 341/1227 fixture test baseline)
+  - ✅ Adapter interface reduced by 2+ methods (TryImplicitConversion, possibly CreateObject)
 
 - [ ] **3.5.23** Remove Bridge Constructor Adapter Methods **PARTIAL** (5/6 complete)
   - **Methods to remove**:
@@ -640,13 +768,21 @@ Goal: Remove adapter entirely, document final architecture.
 
 | Group | Tasks | Description | Status |
 |-------|-------|-------------|--------|
-| Cleanup | 3.5.1-3.5.4 | ExecuteUserFunction, interface map removal | 3.5.2-3.5.4 ✅, 3.5.1 pending |
+| Cleanup | 3.5.1-3.5.4 | ExecuteUserFunction, interface map removal | ✅ Complete (3.5.1) |
 | Analysis | 3.5.5-3.5.6 | Declaration dependency analysis | ✅ Complete |
 | Declarations | 3.5.7-3.5.16 | Move 9 declaration types to evaluator | 3.5.7-3.5.9, 3.5.11-3.5.16 ✅, 3.5.10 pending |
-| Bridge Elimination | 3.5.17-3.5.23 | Move value types to runtime, remove bridges | 3.5.17-3.5.19, 3.5.21 ✅, 3.5.20, 3.5.22-3.5.23 pending |
+| Bridge Elimination | 3.5.17-3.5.23 | Move value types to runtime, remove bridges | 3.5.17-3.5.19, 3.5.21, 3.5.23 (5/6) ✅, 3.5.20, 3.5.22 pending |
 | Final Cleanup | 3.5.24-3.5.32 | Remove adapter, document architecture | Pending |
 
-**Total remaining tasks**: 14 (was 32, completed 3.5.2-3.5.9, 3.5.11-3.5.19, 3.5.21)
+**Total remaining tasks**: 13 (was 32, completed 3.5.1-3.5.9, 3.5.11-3.5.19, 3.5.21)
+
+**Critical path**: 3.5.22 (11 subtasks) → unlocks 3.5.23 (CreateObject) + remaining adapter cleanup
+
+**Task 3.5.22 breakdown** (1-2 weeks):
+
+- Phase A: Function execution blockers (3.5.22a-d) - 3-4 days
+- Phase B: Type conversion migration (3.5.22e-i) - 3-4 days
+- Phase C: CreateObject elimination (3.5.22j-k) - 2-3 days
 
 **Declaration Migration Order** (5 tiers):
 
