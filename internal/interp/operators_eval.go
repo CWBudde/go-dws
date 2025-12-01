@@ -204,8 +204,8 @@ func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) 
 	}
 
 	// Normalize type names for conversion lookup (to match how they're registered)
-	normalizedSource := normalizeTypeAnnotation(sourceTypeName)
-	normalizedTarget := normalizeTypeAnnotation(targetTypeName)
+	normalizedSource := NormalizeTypeAnnotation(sourceTypeName)
+	normalizedTarget := NormalizeTypeAnnotation(targetTypeName)
 
 	// Try direct conversion first
 	entry, found := i.conversions.findImplicit(normalizedSource, normalizedTarget)
