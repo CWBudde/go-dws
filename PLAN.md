@@ -552,17 +552,14 @@ Bridge constructors to eliminate:
 
   **Phase A: Fix Function Execution Blockers** - 3-4 days
 
-  - [ ] **3.5.22a** Audit and Fix Record Return Type Initialization
-    - **Blocker**: `createDefaultValueGetterCallback` uses `i.env.Get()` but `i.env` isn't swapped during execution
-    - **Test failure**: `TestUnaryOperatorOverload` - record return values not working
-    - **Files**: `user_function_callbacks.go:80-110`
-    - **Work**:
-      1. Analyze how record return values are initialized in `callUserFunction` vs `ExecuteUserFunction`
-      2. Update callback to get environment from function context, not interpreter state
-      3. Add `GetEnvironment()` method to ExecutionContext if needed
-      4. Test with operator overloads returning records
-    - **Effort**: 1 day
-    - **Deliverable**: Record return types work correctly in `ExecuteUserFunction`
+  - [x] **3.5.22a** Audit and Fix Record Return Type Initialization ✅ COMPLETE (2025-12-01)
+    - **Root cause**: `createDefaultValueGetterCallback` used `i.env.Get()` to look up record types, but `i.env` is caller's environment (not function environment)
+    - **Solution**: Changed from environment lookup to TypeSystem registry: `i.typeSystem.LookupRecord(returnTypeName)`
+    - **Files**: `user_function_callbacks.go:67-78` (fixed), `record_return_test.go` (NEW - 230 lines, 7 tests)
+    - **Tests**: All pass - direct returns, implicit conversions, nested records, function pointers, overloaded functions
+    - **Architecture**: Improved consistency - all type lookups now use TypeSystem (records, arrays, interfaces)
+    - **Actual Effort**: 4 hours (matched estimate)
+    - **Summary**: `/home/christian/.claude/plans/task-3.5.22a-completion-summary.md`
 
   - [ ] **3.5.22b** Fix Array Return Type Initialization
     - **Blocker**: Array initialization in `Result` variable may not work correctly

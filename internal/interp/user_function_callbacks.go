@@ -65,10 +65,13 @@ func (i *Interpreter) createDefaultValueGetterCallback() evaluator.DefaultValueF
 		}
 
 		// Check if return type is a record (overrides default)
+		// Task 3.5.22a: Use TypeSystem registry instead of i.env.Get()
+		// This fixes the issue where i.env is the caller's environment, not the function environment
 		lowerReturnType = ident.Normalize(returnTypeName)
-		recordTypeKey := "__record_type_" + lowerReturnType
-		if typeVal, ok := i.env.Get(recordTypeKey); ok {
-			if rtv, ok := typeVal.(*RecordTypeValue); ok {
+		if recordTypeValueAny := i.typeSystem.LookupRecord(returnTypeName); recordTypeValueAny != nil {
+			// TypeSystem.LookupRecord returns any to avoid import cycles
+			// We know it's actually *RecordTypeValue at runtime
+			if rtv, ok := recordTypeValueAny.(*RecordTypeValue); ok {
 				// Use createRecordValue for proper nested record initialization
 				return i.createRecordValue(rtv.RecordType)
 			}
