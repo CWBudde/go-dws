@@ -19,19 +19,10 @@ import (
 
 // CreateSubrangeValueDirect creates a subrange value from subrange type metadata.
 // Task 3.5.129c: Bridge constructor - SubrangeValue cannot be constructed in evaluator (circular import).
+// Task 3.5.182: Accepts *types.SubrangeType directly from TypeSystem.
 func (i *Interpreter) CreateSubrangeValueDirect(subrangeTypeAny any) evaluator.Value {
-	// Type assert to extract SubrangeType
-	type subrangeTypeProvider interface {
-		GetSubrangeType() *types.SubrangeType
-	}
-
-	stProvider, ok := subrangeTypeAny.(subrangeTypeProvider)
-	if !ok {
-		return &NilValue{}
-	}
-
-	st := stProvider.GetSubrangeType()
-	if st == nil {
+	st, ok := subrangeTypeAny.(*types.SubrangeType)
+	if !ok || st == nil {
 		return &NilValue{}
 	}
 

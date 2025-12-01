@@ -281,7 +281,7 @@ func TestValueToJSON_SpecialFloats(t *testing.T) {
 }
 
 // ============================================================================
-// JSON Inspection Methods Tests (Task 3.5.143u)
+// JSON Inspection Methods Tests
 // ============================================================================
 
 // Note: JSON inspection methods require adapter for unwrapping Variants and

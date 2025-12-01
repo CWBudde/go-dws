@@ -155,16 +155,10 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 			}
 		}
 
-		// Environment-based lookups (enums, records, subranges) - continued
-		if ctx.Env() != nil {
-			// Try subrange type (stored in environment with "__subrange_type_" prefix)
-			if subrangeTypeVal, ok := ctx.Env().Get("__subrange_type_" + normalizedName); ok {
-				// Extract SubrangeType using interface method
-				if subrangeTypeProvider, ok := subrangeTypeVal.(interface{ GetSubrangeType() *types.SubrangeType }); ok {
-					return subrangeTypeProvider.GetSubrangeType(), nil
-				}
-				// Found but wrong type - programming error
-				return nil, fmt.Errorf("type '%s' is registered as subrange but does not provide SubrangeType (internal error)", typeName)
+		// Task 3.5.182: Use TypeSystem for subrange type lookup
+		if e.typeSystem != nil {
+			if subrangeType := e.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {
+				return subrangeType, nil
 			}
 		}
 

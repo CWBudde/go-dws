@@ -26,13 +26,9 @@ type VirtualMethodEntry struct {
 // ClassInfo represents runtime class metadata.
 // It stores information about a class's structure including fields, methods,
 // parent class, and constructor/destructor.
-//
-// Task 3.5.39: Migration to AST-free metadata
-// - Metadata field contains AST-free runtime metadata (Phase 9)
-// - Legacy AST fields maintained for backward compatibility
-// - Future: Code will migrate to use Metadata, AST fields deprecated
+
 type ClassInfo struct {
-	// === AST-Free Metadata (Task 3.5.39) ===
+	// === AST-Free Metadata ===
 
 	// Metadata contains AST-free runtime metadata for this class.
 	// Populated during class declaration evaluation.
@@ -72,12 +68,11 @@ type ClassInfo struct {
 
 // NewClassInfo creates a new ClassInfo with the given name.
 // Fields, Methods, ClassVars, ClassMethods, and Properties maps are initialized as empty.
-// Task 3.5.39: Also initializes AST-free ClassMetadata.
 func NewClassInfo(name string) *ClassInfo {
 	return &ClassInfo{
 		Name:                 name,
 		Parent:               nil,
-		Metadata:             runtime.NewClassMetadata(name), // Task 3.5.39
+		Metadata:             runtime.NewClassMetadata(name),
 		Fields:               make(map[string]types.Type),
 		FieldDecls:           make(map[string]*ast.FieldDecl),
 		ClassVars:            make(map[string]Value),
@@ -143,8 +138,6 @@ func (c *ClassInfo) lookupNestedClass(name string) *ClassInfo {
 
 // GetField retrieves the value of a field by name.
 // Returns nil if the field doesn't exist or hasn't been set.
-// Task 3.5.40: Uses ClassMetadata for AST-free field lookup.
-// During migration, falls back to legacy Fields map if metadata unavailable.
 func (o *ObjectInstance) GetField(name string) Value {
 	// Guard against nil class
 	if o.Class == nil {
@@ -181,8 +174,6 @@ func (o *ObjectInstance) GetField(name string) Value {
 
 // SetField sets the value of a field by name.
 // The field must be defined in the class's field map.
-// Task 3.5.40: Uses ClassMetadata for AST-free field lookup.
-// During migration, falls back to legacy Fields map if metadata unavailable.
 func (o *ObjectInstance) SetField(name string, value Value) {
 	// Guard against nil class
 	if o.Class == nil {
@@ -220,9 +211,6 @@ func (o *ObjectInstance) SetField(name string, value Value) {
 //
 // Note: This performs static method resolution (not virtual dispatch).
 // Virtual dispatch is implemented inline in objects_methods.go where needed.
-//
-// Task 3.5.40: Uses ClassMetadata for method lookup (AST-free).
-// Returns AST node from metadata for backward compatibility during migration.
 func (o *ObjectInstance) GetMethod(name string) *ast.FunctionDecl {
 	if o.Class == nil {
 		return nil
@@ -231,8 +219,6 @@ func (o *ObjectInstance) GetMethod(name string) *ast.FunctionDecl {
 }
 
 // LookupProperty searches for a property by name in the class hierarchy.
-// Task 3.5.99a: Implements evaluator.PropertyAccessor interface.
-// Returns a PropertyDescriptor wrapping types.PropertyInfo, or nil if not found.
 func (o *ObjectInstance) LookupProperty(name string) *evaluator.PropertyDescriptor {
 	if o.Class == nil {
 		return nil

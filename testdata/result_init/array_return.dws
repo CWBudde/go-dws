@@ -1,5 +1,4 @@
 // Test Result initialization for array return types
-// Task 3.5.142d: Validates proper empty array initialization
 
 type TIntArray = array of Integer;
 

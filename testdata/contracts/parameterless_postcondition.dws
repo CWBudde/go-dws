@@ -1,5 +1,4 @@
 // Test parameterless function with postconditions
-// Task 3.5.142b: Validates postcondition checking and old values for auto-invoked functions
 
 type TCounter = class
   private

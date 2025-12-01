@@ -542,7 +542,7 @@ func (i *Interpreter) builtinConcatArrays(args []Value) Value {
 		arrays[argIdx] = arrayVal
 	}
 
-	// Task 3.5.143c: Delegate to standalone helper function
+	// Delegate to standalone helper function
 	return evaluator.ArrayHelperConcatArrays(arrays)
 }
 
@@ -584,6 +584,6 @@ func (i *Interpreter) builtinSlice(args []Value) Value {
 		return i.newErrorWithLocation(i.currentNode, "Slice() third argument (end) must be an Integer, got %s", args[2].Type())
 	}
 
-	// Task 3.5.143c: Delegate to standalone helper function
+	// Delegate to standalone helper function
 	return evaluator.ArrayHelperSlice(arrayVal, startVal.Value, endVal.Value)
 }

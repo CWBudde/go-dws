@@ -319,7 +319,6 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		}
 	}
 
-	// Task 3.5.93f-g: These functions are now handled by the evaluator
 	if funcName.Value == "TryStrToInt" || funcName.Value == "TryStrToFloat" ||
 		funcName.Value == "DecodeDate" || funcName.Value == "DecodeTime" {
 		// Delegate to the evaluator which handles these with the visitor pattern

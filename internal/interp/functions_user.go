@@ -122,7 +122,8 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		// Task 9.1.5: Check if return type is an interface (overrides default)
 		// Interface return types should be initialized to InterfaceInstance with nil object
 		// This ensures proper reference counting when assigning to Result
-		if interfaceInfo, ok := i.interfaces[ident.Normalize(returnTypeName)]; ok {
+		// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
+		if interfaceInfo := i.lookupInterfaceInfo(returnTypeName); interfaceInfo != nil {
 			resultValue = &InterfaceInstance{
 				Interface: interfaceInfo,
 				Object:    nil,

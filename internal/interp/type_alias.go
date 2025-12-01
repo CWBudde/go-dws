@@ -36,25 +36,8 @@ func (tv *TypeAliasValue) GetAliasedType() types.Type {
 // Subrange Type Support
 // ============================================================================
 
-// SubrangeTypeValue stores a subrange type definition
-type SubrangeTypeValue struct {
-	SubrangeType *types.SubrangeType
-	Name         string
-}
-
-func (sv *SubrangeTypeValue) Type() string {
-	return "SUBRANGE_TYPE"
-}
-
-func (sv *SubrangeTypeValue) String() string {
-	return fmt.Sprintf("type %s = %d..%d", sv.Name, sv.SubrangeType.LowBound, sv.SubrangeType.HighBound)
-}
-
-// GetSubrangeType returns the underlying SubrangeType.
-// Task 3.5.106: Provides interface-based access for the evaluator.
-func (sv *SubrangeTypeValue) GetSubrangeType() *types.SubrangeType {
-	return sv.SubrangeType
-}
+// Task 3.5.182: SubrangeTypeValue removed - subrange types are now stored in TypeSystem.
+// The types.SubrangeType struct provides all needed metadata directly.
 
 // SubrangeValue wraps an integer value with subrange bounds checking.
 type SubrangeValue struct {
@@ -125,15 +108,8 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 			HighBound: highBoundInt,
 		}
 
-		// Create SubrangeTypeValue and register it
-		subrangeTypeValue := &SubrangeTypeValue{
-			Name:         decl.Name.Value,
-			SubrangeType: subrangeType,
-		}
-
-		// Store in environment with special prefix
-		typeKey := "__subrange_type_" + strings.ToLower(decl.Name.Value)
-		i.env.Define(typeKey, subrangeTypeValue)
+		// Task 3.5.182: Register in TypeSystem (replaces environment-based storage)
+		i.typeSystem.RegisterSubrangeType(decl.Name.Value, subrangeType)
 
 		return &NilValue{}
 	}

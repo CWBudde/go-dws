@@ -37,7 +37,6 @@ func (t *TypeMetaValue) String() string {
 }
 
 // IsEnumTypeMeta returns true if this type meta wraps an enum type.
-// Task 3.5.111b: Implements EnumTypeMetaDispatcher interface for direct method dispatch.
 func (t *TypeMetaValue) IsEnumTypeMeta() bool {
 	if t.TypeInfo == nil {
 		return false
@@ -47,7 +46,6 @@ func (t *TypeMetaValue) IsEnumTypeMeta() bool {
 }
 
 // EnumLow returns the lowest ordinal value of the enum type.
-// Task 3.5.111b: Implements EnumTypeMetaDispatcher interface for direct method dispatch.
 // Returns 0 if not an enum type.
 func (t *TypeMetaValue) EnumLow() int {
 	if t.TypeInfo == nil {
@@ -61,7 +59,6 @@ func (t *TypeMetaValue) EnumLow() int {
 }
 
 // EnumHigh returns the highest ordinal value of the enum type.
-// Task 3.5.111b: Implements EnumTypeMetaDispatcher interface for direct method dispatch.
 // Returns 0 if not an enum type.
 func (t *TypeMetaValue) EnumHigh() int {
 	if t.TypeInfo == nil {
@@ -75,7 +72,6 @@ func (t *TypeMetaValue) EnumHigh() int {
 }
 
 // EnumByName looks up an enum value by name (case-insensitive).
-// Task 3.5.111b: Implements EnumTypeMetaDispatcher interface for direct method dispatch.
 // Supports both simple names ('Red') and qualified names ('TColor.Red').
 // Returns the ordinal value if found, or 0 if not found (DWScript behavior).
 func (t *TypeMetaValue) EnumByName(name string) int {

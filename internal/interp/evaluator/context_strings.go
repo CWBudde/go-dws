@@ -7,7 +7,7 @@ import (
 )
 
 // ============================================================================
-// String Concatenation Methods (Task 3.5.143s)
+// String Concatenation Methods
 // ============================================================================
 //
 // This file implements the string concatenation method of the builtins.Context

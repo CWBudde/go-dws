@@ -1,5 +1,4 @@
 // Test Result initialization for all primitive types
-// Task 3.5.142d: Validates proper zero-value initialization
 
 function GetInt: Integer;
 begin

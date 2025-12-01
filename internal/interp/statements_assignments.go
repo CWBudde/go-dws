@@ -578,7 +578,6 @@ func (i *Interpreter) evalRecordPropertyWrite(recordVal *RecordValue, fieldName 
 		if propInfo.WriteField != "" {
 			// Check if WriteField is a field name or method name
 			// First try as a method (setter)
-			// Task 3.5.128b: Use free function instead of method due to type alias
 			if setterMethod := GetRecordMethod(recordVal, propInfo.WriteField); setterMethod != nil {
 				// Call the setter method with the value
 				methodCall := &ast.MethodCallExpression{

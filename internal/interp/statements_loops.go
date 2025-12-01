@@ -159,7 +159,7 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 	var makeLoopValue func(int64) Value
 	switch v := startVal.(type) {
 	case *EnumValue:
-		// Look up enum metadata to preserve type name and optional value names via TypeSystem (Task 3.5.143b)
+		// Look up enum metadata to preserve type name and optional value names via TypeSystem
 		enumType := func(typeName string) *types.EnumType {
 			enumMetadata := i.typeSystem.LookupEnumMetadata(typeName)
 			if enumMetadata == nil {

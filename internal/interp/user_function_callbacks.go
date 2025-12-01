@@ -90,7 +90,8 @@ func (i *Interpreter) createDefaultValueGetterCallback() evaluator.DefaultValueF
 
 		// Check if return type is an interface (overrides default)
 		// Interface return types should be initialized to InterfaceInstance with nil object
-		if interfaceInfo, ok := i.interfaces[lowerReturnType]; ok {
+		// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
+		if interfaceInfo := i.lookupInterfaceInfo(lowerReturnType); interfaceInfo != nil {
 			return &InterfaceInstance{
 				Interface: interfaceInfo,
 				Object:    nil,

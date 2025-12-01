@@ -36,13 +36,35 @@ func (i *Interpreter) LookupRecord(name string) (any, bool) {
 }
 
 // LookupInterface finds an interface by name in the interface registry.
+// Task 3.5.184: Delegates to TypeSystem instead of using legacy map.
 func (i *Interpreter) LookupInterface(name string) (any, bool) {
-	normalizedName := ident.Normalize(name)
-	iface, ok := i.interfaces[normalizedName]
-	if !ok {
+	iface := i.typeSystem.LookupInterface(name)
+	if iface == nil {
 		return nil, false
 	}
 	return iface, true
+}
+
+// lookupInterfaceInfo finds an interface by name and returns the typed *InterfaceInfo.
+// Task 3.5.184a: Type-safe helper for internal interpreter use.
+// Returns nil if the interface is not found or if the type assertion fails.
+func (i *Interpreter) lookupInterfaceInfo(name string) *InterfaceInfo {
+	return i.LookupInterfaceInfo(name)
+}
+
+// LookupInterfaceInfo finds an interface by name and returns the typed *InterfaceInfo.
+// Task 3.5.184c: Public API for tests and external code to look up registered interfaces.
+// Returns nil if the interface is not found or if the type assertion fails.
+func (i *Interpreter) LookupInterfaceInfo(name string) *InterfaceInfo {
+	iface := i.typeSystem.LookupInterface(name)
+	if iface == nil {
+		return nil
+	}
+	// Type assert from any to *InterfaceInfo
+	if ifaceInfo, ok := iface.(*InterfaceInfo); ok {
+		return ifaceInfo
+	}
+	return nil
 }
 
 // LookupHelpers returns helpers for a given type name.
@@ -93,17 +115,12 @@ func (i *Interpreter) TryImplicitConversion(value evaluator.Value, targetTypeNam
 }
 
 // WrapInSubrange wraps an integer value in a subrange type with validation.
+// Task 3.5.182: Updated to use TypeSystem instead of environment lookup.
 func (i *Interpreter) WrapInSubrange(value evaluator.Value, subrangeTypeName string, node ast.Node) (evaluator.Value, error) {
-	normalizedName := ident.Normalize(subrangeTypeName)
-	subrangeTypeKey := "__subrange_type_" + normalizedName
-	typeVal, ok := i.env.Get(subrangeTypeKey)
-	if !ok {
+	// Task 3.5.182: Use TypeSystem for subrange type lookup
+	subrangeType := i.typeSystem.LookupSubrangeType(subrangeTypeName)
+	if subrangeType == nil {
 		return nil, fmt.Errorf("subrange type '%s' not found", subrangeTypeName)
-	}
-
-	stv, ok := typeVal.(*SubrangeTypeValue)
-	if !ok {
-		return nil, fmt.Errorf("type '%s' is not a subrange type", subrangeTypeName)
 	}
 
 	// Extract integer value
@@ -119,7 +136,7 @@ func (i *Interpreter) WrapInSubrange(value evaluator.Value, subrangeTypeName str
 	// Create subrange value and validate
 	subrangeVal := &SubrangeValue{
 		Value:        0, // Will be set by ValidateAndSet
-		SubrangeType: stv.SubrangeType,
+		SubrangeType: subrangeType,
 	}
 	if err := subrangeVal.ValidateAndSet(intValue); err != nil {
 		return nil, err
@@ -128,9 +145,10 @@ func (i *Interpreter) WrapInSubrange(value evaluator.Value, subrangeTypeName str
 }
 
 // WrapInInterface wraps an object value in an interface instance.
+// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map.
 func (i *Interpreter) WrapInInterface(value evaluator.Value, interfaceName string, node ast.Node) (evaluator.Value, error) {
-	ifaceInfo, exists := i.interfaces[ident.Normalize(interfaceName)]
-	if !exists {
+	ifaceInfo := i.lookupInterfaceInfo(interfaceName)
+	if ifaceInfo == nil {
 		return nil, fmt.Errorf("interface '%s' not found", interfaceName)
 	}
 

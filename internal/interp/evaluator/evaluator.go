@@ -563,16 +563,8 @@ type InterpreterAdapter interface {
 	// Returns the lambda value.
 	CreateLambda(lambda *ast.LambdaExpression, closure any) Value
 
-	// IsFunctionPointer checks if a value is a function pointer.
-	IsFunctionPointer(value Value) bool
-
-	// GetFunctionPointerParamCount returns the number of parameters a function pointer expects.
-	// Returns 0 for non-function-pointer values.
-	GetFunctionPointerParamCount(funcPtr Value) int
-
-	// IsFunctionPointerNil checks if a function pointer is nil (unassigned).
-	// Returns true if the function pointer has no function or lambda assigned.
-	IsFunctionPointerNil(funcPtr Value) bool
+	// Task 3.5.180: Removed IsFunctionPointer, GetFunctionPointerParamCount, IsFunctionPointerNil
+	// These are now handled via FunctionPointerCallable interface type assertions.
 
 	// ===== Method Pointers (Task 3.5.37) =====
 

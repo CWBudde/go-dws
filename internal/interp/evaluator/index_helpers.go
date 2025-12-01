@@ -6,7 +6,6 @@ import "github.com/cwbudde/go-dws/pkg/ast"
 // Multi-Index Support
 // ============================================================================
 //
-// Task 3.5.78: Index collection helpers for multi-index property access.
 // Moved from interp/array.go to support evaluator package direct access.
 // ============================================================================
 

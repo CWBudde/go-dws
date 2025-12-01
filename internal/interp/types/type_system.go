@@ -44,6 +44,10 @@ type TypeSystem struct {
 	// Migrating enum types from environment storage to TypeSystem
 	enumTypes *ident.Map[EnumTypeValue]
 
+	// Subrange type registry: case-insensitive map of subrange names to SubrangeType
+	// Task 3.5.181: Migrating from environment storage ("__subrange_type_" prefix)
+	subrangeTypes *ident.Map[*coretypes.SubrangeType]
+
 	// Operator registry: manages operator overloads
 	operators *OperatorRegistry
 
@@ -70,13 +74,14 @@ type TypeSystem struct {
 // NewTypeSystem creates a new TypeSystem with initialized registries.
 func NewTypeSystem() *TypeSystem {
 	return &TypeSystem{
-		classRegistry:    NewClassRegistry(),                   // Task 3.4.2
-		functionRegistry: NewFunctionRegistry(),                // Task 3.4.3
-		records:          ident.NewMap[RecordTypeValue](),      // Task 13.8
-		interfaces:       ident.NewMap[InterfaceInfo](),        // Task 13.8
-		helpers:          ident.NewMap[[]HelperInfo](),         // Task 13.8
-		arrayTypes:       ident.NewMap[*coretypes.ArrayType](), // Task 3.5.69a
-		enumTypes:        ident.NewMap[EnumTypeValue](),        // Task 3.5.143a
+		classRegistry:    NewClassRegistry(),                      // Task 3.4.2
+		functionRegistry: NewFunctionRegistry(),                   // Task 3.4.3
+		records:          ident.NewMap[RecordTypeValue](),         // Task 13.8
+		interfaces:       ident.NewMap[InterfaceInfo](),           // Task 13.8
+		helpers:          ident.NewMap[[]HelperInfo](),            // Task 13.8
+		arrayTypes:       ident.NewMap[*coretypes.ArrayType](),    // Task 3.5.69a
+		enumTypes:        ident.NewMap[EnumTypeValue](),           // Task 3.5.143a
+		subrangeTypes:    ident.NewMap[*coretypes.SubrangeType](), // Task 3.5.181
 		operators:        NewOperatorRegistry(),
 		conversions:      NewConversionRegistry(),
 		classTypeIDs:     ident.NewMap[int](), // Task 13.9
@@ -371,6 +376,43 @@ func (ts *TypeSystem) AllEnumTypes() map[string]EnumTypeValue {
 func (ts *TypeSystem) LookupEnumMetadata(name string) any {
 	// Return the wrapper directly (not unwrapped)
 	return ts.LookupEnumType(name)
+}
+
+// ========== Subrange Type Registry ==========
+// Task 3.5.181: Subrange type registry migrated from environment storage
+
+// RegisterSubrangeType registers a subrange type in the type system.
+// The name is stored case-insensitively, with original casing preserved.
+// This replaces the previous environment-based storage using "__subrange_type_" prefix.
+func (ts *TypeSystem) RegisterSubrangeType(name string, subrangeType *coretypes.SubrangeType) {
+	if subrangeType == nil {
+		return
+	}
+	ts.subrangeTypes.Set(name, subrangeType)
+}
+
+// LookupSubrangeType returns the SubrangeType for the given name.
+// The lookup is case-insensitive. Returns nil if not found.
+func (ts *TypeSystem) LookupSubrangeType(name string) *coretypes.SubrangeType {
+	subrangeType, _ := ts.subrangeTypes.Get(name)
+	return subrangeType
+}
+
+// HasSubrangeType checks if a subrange type with the given name exists.
+// The check is case-insensitive.
+func (ts *TypeSystem) HasSubrangeType(name string) bool {
+	return ts.subrangeTypes.Has(name)
+}
+
+// AllSubrangeTypes returns a map of all registered subrange types.
+// Note: The returned map uses normalized (lowercase) keys.
+func (ts *TypeSystem) AllSubrangeTypes() map[string]*coretypes.SubrangeType {
+	result := make(map[string]*coretypes.SubrangeType, ts.subrangeTypes.Len())
+	ts.subrangeTypes.Range(func(key string, value *coretypes.SubrangeType) bool {
+		result[ident.Normalize(key)] = value
+		return true
+	})
+	return result
 }
 
 // ========== Function Registry ==========

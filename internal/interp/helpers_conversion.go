@@ -142,8 +142,9 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeExpr ast.TypeExpression) typ
 		return types.NewClassType(classInfo.Name, nil)
 	}
 
-	// Check for interface types (stored in i.interfaces map)
-	if interfaceInfo, ok := i.interfaces[ident.Normalize(typeName)]; ok {
+	// Check for interface types
+	// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
+	if interfaceInfo := i.lookupInterfaceInfo(typeName); interfaceInfo != nil {
 		return types.NewInterfaceType(interfaceInfo.Name)
 	}
 

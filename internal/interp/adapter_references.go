@@ -48,41 +48,9 @@ func (i *Interpreter) CreateLambda(lambda *ast.LambdaExpression, closure any) ev
 	}
 }
 
-// IsFunctionPointer checks if a value is a function pointer.
-// Task 3.5.8: Adapter method for function pointer type checking.
-func (i *Interpreter) IsFunctionPointer(value evaluator.Value) bool {
-	_, ok := value.(*FunctionPointerValue)
-	return ok
-}
-
-// GetFunctionPointerParamCount returns the number of parameters a function pointer expects.
-// Task 3.5.8: Adapter method for function pointer parameter count.
-func (i *Interpreter) GetFunctionPointerParamCount(funcPtr evaluator.Value) int {
-	fp, ok := funcPtr.(*FunctionPointerValue)
-	if !ok {
-		return 0
-	}
-
-	if fp.Function != nil {
-		return len(fp.Function.Parameters)
-	} else if fp.Lambda != nil {
-		return len(fp.Lambda.Parameters)
-	}
-
-	return 0
-}
-
-// IsFunctionPointerNil checks if a function pointer is nil (unassigned).
-// Task 3.5.8: Adapter method for function pointer nil checking.
-func (i *Interpreter) IsFunctionPointerNil(funcPtr evaluator.Value) bool {
-	fp, ok := funcPtr.(*FunctionPointerValue)
-	if !ok {
-		return false
-	}
-
-	// A function pointer is nil if both Function and Lambda are nil
-	return fp.Function == nil && fp.Lambda == nil
-}
+// Task 3.5.180: Removed IsFunctionPointer, GetFunctionPointerParamCount, IsFunctionPointerNil
+// These methods are no longer needed - FunctionPointerValue implements FunctionPointerCallable
+// interface which provides IsNil(), ParamCount(), and type-safe access directly.
 
 // CreateMethodPointer creates a method pointer value bound to a specific object.
 // Task 3.5.37: Adapter method for method pointer creation from @object.MethodName expressions.

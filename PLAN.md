@@ -723,193 +723,180 @@ Focus on removing generic `EvalNode` calls that aren't in declarations.
 
 **Goal**: Migrate type-related adapter calls to use TypeSystem directly.
 
-#### Subphase 26.A: Simple Type Checks (3.5.180)
-
-These are straightforward migrations with no complex dependencies.
-
-- [ ] **3.5.180** Migrate IsFunctionPointer + Related Checks (4 calls) - **EASY WIN**
-  - **Original Task**: 3.5.125 from Phase 18
-  - **Location**: `visitor_statements.go` lines 101, 103, 110, 112
-  - **Current Implementation**: Delegates to adapter for type checking
-  - **Migration Strategy**: Type assertion to FunctionPointerValue interface
-  - **Subtasks**:
-    - [ ] 3.5.180a: Add FunctionPointerValue interface check in evaluator
-    - [ ] 3.5.180b: Replace adapter.IsFunctionPointer() with direct type assertion
-    - [ ] 3.5.180c: Handle nil checks inline
-    - [ ] 3.5.180d: Remove adapter method after tests pass
-  - **Effort**: 1-2 hours
-  - **Dependencies**: None
-  - **Calls removed**: 4 adapter calls
-  - **Risk**: Low - simple type assertion pattern
+**Current State (December 2025)**: Investigation revealed groundwork status varies significantly by task.
 
 ---
 
-#### Subphase 26.B: Type System Refactoring (3.5.181-3.5.184)
+#### Subphase 26.A: Simple Type Checks (3.5.180) ✅ COMPLETED
 
-These require moving type metadata from interpreter-specific storage to TypeSystem.
-
-- [ ] **3.5.181** Move Subrange Types to TypeSystem (enables 3.5.182)
-  - **Original Task**: Part of 3.5.143 (WrapInSubrange)
-  - **Current Problem**: Subrange types stored in environment with `"__subrange_type_"` prefix
-  - **Solution**: Add subrange registry to TypeSystem
-  - **Subtasks**:
-    - [ ] 3.5.181a: Add subrange type registry to TypeSystem (RegisterSubrangeType, LookupSubrangeType)
-    - [ ] 3.5.181b: Update VisitTypeDeclaration to register in TypeSystem instead of environment
-    - [ ] 3.5.181c: Verify all subrange type lookups use TypeSystem
-    - [ ] 3.5.181d: Remove environment-based storage
-  - **Effort**: 1 day
-  - **Dependencies**: None
-  - **Tests**: All subrange type tests must pass
-  - **Risk**: Medium - changes type registration flow
-
-- [ ] **3.5.182** Migrate WrapInSubrange (1 call)
-  - **Original Task**: Part of 3.5.143
-  - **Location**: `visitor_statements.go` line 227
-  - **Current Implementation**: Looks up from environment, validates, creates SubrangeValue
-  - **Migration Strategy**: Use TypeSystem.LookupSubrangeType() + bridge constructor
-  - **Subtasks**:
-    - [ ] 3.5.182a: Create wrapInSubrange() helper in evaluator
-    - [ ] 3.5.182b: Use TypeSystem.LookupSubrangeType() for metadata lookup
-    - [ ] 3.5.182c: Keep CreateSubrangeValueDirect bridge constructor (already exists from 3.5.129)
-    - [ ] 3.5.182d: Update visitor to call new helper
-    - [ ] 3.5.182e: Remove adapter.WrapInSubrange() method
-  - **Effort**: 2-3 hours
-  - **Dependencies**: 3.5.181 (TypeSystem subrange registry)
-  - **Calls removed**: 1 adapter call
-  - **Risk**: Low - follows existing pattern from 3.5.129
-
-- [ ] **3.5.183** Move Interface Metadata to TypeSystem (enables 3.5.184)
-  - **Original Task**: Part of 3.5.143 (WrapInInterface)
-  - **Current Problem**: Interface metadata in interpreter's `i.interfaces` map
-  - **Solution**: Use existing TypeSystem.RegisterInterface/LookupInterface
-  - **Subtasks**:
-    - [ ] 3.5.183a: Verify TypeSystem.LookupInterface() returns usable InterfaceInfo
-    - [ ] 3.5.183b: Update VisitInterfaceDecl to use TypeSystem (if not already)
-    - [ ] 3.5.183c: Replace i.interfaces map lookups with TypeSystem.LookupInterface()
-    - [ ] 3.5.183d: Remove i.interfaces map from Interpreter
-  - **Effort**: 1-2 days
-  - **Dependencies**: None (TypeSystem already has interface registry)
-  - **Tests**: All interface declaration and implementation tests
-  - **Risk**: Medium - interface lookups are widespread
-
-- [ ] **3.5.184** Migrate WrapInInterface (1 call)
-  - **Original Task**: Part of 3.5.143
-  - **Location**: `visitor_statements.go` line 270
-  - **Current Implementation**: Looks up from i.interfaces, validates, creates InterfaceInstance
-  - **Migration Strategy**: Use TypeSystem.LookupInterface() + bridge constructor
-  - **Subtasks**:
-    - [ ] 3.5.184a: Create wrapInInterface() helper in evaluator
-    - [ ] 3.5.184b: Use TypeSystem.LookupInterface() for metadata lookup
-    - [ ] 3.5.184c: Use GetClassMetadataFromValue() to extract object metadata
-    - [ ] 3.5.184d: Call classImplementsInterface() helper for validation
-    - [ ] 3.5.184e: Keep CreateInterfaceInstanceDirect bridge constructor (already exists from 3.5.129)
-    - [ ] 3.5.184f: Update visitor to call new helper
-    - [ ] 3.5.184g: Remove adapter.WrapInInterface() method
-  - **Effort**: 2-3 hours
-  - **Dependencies**: 3.5.183 (TypeSystem interface metadata)
-  - **Calls removed**: 1 adapter call
-  - **Risk**: Low - follows existing pattern from 3.5.129
+- [x] **3.5.180** Migrate IsFunctionPointer + Related Checks - **COMPLETED**
+  - **What was done**: Removed dead fallback code (lines 128-142 in visitor_statements.go)
+  - **Result**: 4 adapter calls removed, 3 adapter methods removed from interface
+  - **Key insight**: FunctionPointerCallable interface already handled all cases
+  - **Effort**: 30 minutes
 
 ---
 
-#### Subphase 26.C: Conversion Registry Access (3.5.185)
+#### Subphase 26.B: Subrange Types (3.5.181-3.5.182) ✅ COMPLETED
 
-This addresses the most complex type wrapping case.
+**Completed December 2025**:
+- All subrange type storage migrated from environment to TypeSystem
+- SubrangeTypeValue wrapper removed - types.SubrangeType used directly
+- All 11 subrange tests pass
 
-- [ ] **3.5.185** Refactor TryImplicitConversion (3 calls) - **COMPLEX**
-  - **Original Task**: Part of 3.5.143
-  - **Location**: `visitor_statements.go` line 235, `assignment_helpers.go` lines 139, 209
-  - **Current Implementation**: Uses conversion registry + function registry + callUserFunction
-  - **Analysis**: This is deeply coupled to interpreter internals
-  - **Options**:
-    - **Option A (Recommended)**: Keep in adapter - too complex to migrate cleanly
-    - **Option B**: Move conversion registry to TypeSystem (2-3 weeks effort)
-    - **Option C**: Pass ConversionRegistry to evaluator as dependency (architectural change)
-  - **Recommendation**: **DEFER INDEFINITELY** - effort/benefit ratio too high
-  - **Subtasks** (if Option B chosen):
-    - [ ] 3.5.185a: Design ConversionRegistry interface for TypeSystem
-    - [ ] 3.5.185b: Move conversion registration to TypeSystem
-    - [ ] 3.5.185c: Create evaluator helper for implicit conversion
-    - [ ] 3.5.185d: Handle function lookup and execution
-    - [ ] 3.5.185e: Migrate all 3 call sites
-    - [ ] 3.5.185f: Remove adapter method
-  - **Effort**: 2-3 weeks (if migrated)
-  - **Dependencies**: TypeSystem refactoring
-  - **Calls removed**: 3 adapter calls (if completed)
-  - **Risk**: Very High - conversion system is complex
+- [x] **3.5.181** Add Subrange Registry to TypeSystem - **COMPLETED**
+  - **Goal**: Add subrange type storage to TypeSystem instead of environment
+  - **Implementation**: Added to `internal/interp/types/type_system.go`:
+    - `subrangeTypes *ident.Map[*coretypes.SubrangeType]` field
+    - `RegisterSubrangeType(name string, subrangeType *coretypes.SubrangeType)`
+    - `LookupSubrangeType(name string) *coretypes.SubrangeType`
+    - `HasSubrangeType(name string) bool`
+    - `AllSubrangeTypes() map[string]*coretypes.SubrangeType`
+  - **Key decision**: Store `*coretypes.SubrangeType` directly (not wrapper) since it has Name field
+  - **Effort**: 30 minutes
+
+- [x] **3.5.182** Migrate Subrange Type Storage to TypeSystem - **COMPLETED**
+  - **Goal**: Replace ~15 environment lookups with TypeSystem calls
+  - **What was done**:
+    - Updated type_alias.go to register in TypeSystem (removed env storage)
+    - Updated all evaluator lookups (visitor_statements.go, type_resolution.go, type_resolution_helpers.go)
+    - Updated all interpreter lookups (adapter_types.go, statements_declarations.go, record.go)
+    - Removed SubrangeTypeValue type (types.SubrangeType used directly)
+    - Simplified CreateSubrangeValueDirect adapter method
+  - **Files changed**:
+    - `type_alias.go` - Registration now uses TypeSystem, removed SubrangeTypeValue
+    - `adapter_types.go` - WrapInSubrange uses TypeSystem.LookupSubrangeType
+    - `adapter_values.go` - CreateSubrangeValueDirect simplified
+    - `statements_declarations.go` - evalVarDeclStatement and createZeroValue use TypeSystem
+    - `record.go` - resolveTypeName uses TypeSystem
+    - `evaluator/visitor_statements.go` - Uses TypeSystem.HasSubrangeType and LookupSubrangeType
+    - `evaluator/type_resolution.go` - Uses TypeSystem.LookupSubrangeType
+    - `evaluator/type_resolution_helpers.go` - Uses TypeSystem.LookupSubrangeType
+  - **Subtasks**: All completed
+    - [x] 3.5.182a: Update type_alias.go to register in TypeSystem
+    - [x] 3.5.182b: Update evaluator lookups to use TypeSystem
+    - [x] 3.5.182c: Update interpreter lookups to use TypeSystem
+    - [x] 3.5.182d: Remove environment-based `__subrange_type_` storage
+    - [x] 3.5.182e: Verify all 11 subrange tests pass
+  - **Effort**: 2 hours (as estimated)
+  - **Dependencies**: 3.5.181
 
 ---
 
-#### Subphase 26.D: Object Construction (3.5.186)
+#### Subphase 26.C: Interface Metadata (3.5.183-3.5.184)
 
-This addresses the most significant deferred task.
+**Current State (December 2025)**: Investigation revealed TypeSystem already has full interface registry!
+- TypeSystem has: `RegisterInterface()`, `LookupInterface()`, `HasInterface()`, `AllInterfaces()`
+- Interpreter ALSO maintains `i.interfaces` map (duplicate storage)
+- Both registration sites write to BOTH storages for backward compatibility
+- Task 3.5.183 is largely already done - only cleanup remains
 
-- [ ] **3.5.186** Refactor CreateObject to Reduce Complexity (1 call)
-  - **Original Task**: 3.5.126 from Phase 19
-  - **Location**: `visitor_expressions_functions.go` (constructor calls)
-  - **Current Problem**: ObjectInstance has 17 methods, 600+ LOC, 50-100+ call sites
-  - **Analysis**: Full migration requires moving ObjectInstance to runtime package
-  - **Recommendation**: **Partial migration - simplify adapter, don't move ObjectInstance**
+- [x] **3.5.183** Add LookupInterface to TypeSystem - **ALREADY COMPLETE**
+  - **Discovery**: TypeSystem already has full interface registry (type_system.go:246-279)
+  - **Existing infrastructure**:
+    - `interfaces *ident.Map[InterfaceInfo]` field (InterfaceInfo = any for import cycle avoidance)
+    - `RegisterInterface(name string, iface InterfaceInfo)` method
+    - `LookupInterface(name string) InterfaceInfo` method
+    - `HasInterface(name string) bool` method
+    - `AllInterfaces() map[string]InterfaceInfo` method
+  - **Registration sites already exist**:
+    - `declarations.go:855` - Regular interface declarations
+    - `interface.go:562` - IInterface registration
+  - **Subtasks**: All already complete
+    - [x] 3.5.183a: TypeSystem has `interfaces *ident.Map[InterfaceInfo]`
+    - [x] 3.5.183b: `RegisterInterface()` method exists
+    - [x] 3.5.183c: `LookupInterface()` method exists
+    - [x] 3.5.183d: `HasInterface()` uses the interfaces map
+    - [x] 3.5.183e: Interface declarations register in TypeSystem
+  - **Effort**: 0 (already done)
+
+- [~] **3.5.184** Migrate i.interfaces Usages to TypeSystem
+  - **Goal**: Replace ~21 `i.interfaces[...]` usages with TypeSystem.LookupInterface()
+  - **Key challenge**: TypeSystem returns `any`, need type assertion to `*InterfaceInfo`
+  - **Key locations** (21 sites):
+    - `adapter_objects.go:211,294,333,408` - Object/interface casting
+    - `adapter_types.go:41,127` - Type checking, WrapInInterface
+    - `declarations.go:350,812,858` - Interface declaration lookups
+    - `expressions_complex.go:132,223,285,345` - Type operations
+    - `helpers_conversion.go:146` - Conversion helpers
+    - `user_function_callbacks.go:93` - Return type handling
+    - `functions_user.go:125` - Function return handling
+    - `interface.go:560` - IInterface registration
+    - `statements_declarations.go:210,265,352` - Variable declarations
+    - `record.go:22` - Record interface implementation
   - **Subtasks**:
-    - [ ] 3.5.186a: Document all ObjectInstance method dependencies
-    - [ ] 3.5.186b: Identify which methods can become free functions
-    - [ ] 3.5.186c: Create CreateObjectDirect bridge constructor (simpler than current)
-    - [ ] 3.5.186d: Move field initialization logic to evaluator where possible
-    - [ ] 3.5.186e: Keep ObjectInstance in interp package (avoid 50-100 call site updates)
-  - **Effort**: 1-2 weeks (partial migration)
-  - **Dependencies**: None
-  - **Calls removed**: 0 (stays as bridge constructor)
-  - **Benefit**: Cleaner adapter interface, better separation of concerns
-  - **Risk**: Medium - ObjectInstance is widely used
+    - [x] 3.5.184a: Create helper method for type-safe lookup (returns `*InterfaceInfo`)
+    - [x] 3.5.184b: Update all 21 sites to use TypeSystem lookup
+    - [ ] 3.5.184c: Remove `interfaces` map from Interpreter struct
+    - [ ] 3.5.184d: Remove duplicate registration in declarations.go and interface.go
+    - [ ] 3.5.184e: Run all interface tests
+  - **Effort**: 3-4 hours (simpler than originally planned)
+  - **Risk**: Medium - widespread usage requires careful migration
+
+---
+
+#### Subphase 26.D: Deferred Tasks (3.5.185-3.5.186)
+
+These tasks have high effort/benefit ratios and are deferred.
+
+- [ ] **3.5.185** TryImplicitConversion - **DEFER INDEFINITELY**
+  - **Reason**: ConversionRegistry storage exists in TypeSystem, but *execution* requires:
+    1. Function lookup via FunctionRegistry
+    2. User function invocation in proper context
+    3. Result wrapping and error handling
+  - **Current usage**: 3 sites (visitor_statements.go, assignment_helpers.go x2)
+  - **Effort if migrated**: 1-2 weeks
+  - **Decision**: Keep in adapter - execution layer too coupled to Interpreter
+
+- [ ] **3.5.186** CreateObject Refactoring - **DEFER TO PHASE 28**
+  - **Reason**: ObjectInstance has 17+ methods, 921 LOC, 50-100+ call sites
+  - **Current state**: Already uses TypeSystem for class lookup (good)
+  - **Full migration risk**: Moving to runtime package affects too many call sites
+  - **Decision**: Keep as bridge constructor, defer full migration to Phase 28
 
 ---
 
 #### Subphase 26.E: Declaration Analysis (3.5.187-3.5.189)
 
-These handle declaration evaluation that requires registry updates.
+**Current State**: All 10 declaration types in visitor_declarations.go use EvalNode delegation.
+
+| Declaration | Registry Target | Complexity | Notes |
+|-------------|-----------------|------------|-------|
+| Function | FunctionRegistry | Low | Already in TypeSystem |
+| Class | ClassRegistry + MethodRegistry | Medium | Methods already in registry |
+| Interface | TypeSystem.interfaces | Low | After 3.5.183-184 |
+| Record | TypeSystem.records | Low | Ready |
+| Enum | TypeSystem.enumTypes | Low | Ready |
+| Helper | TypeSystem.helpers | Low | Ready |
+| Array | TypeSystem.arrayTypes | Low | Ready |
+| Operator | TypeSystem.operators | Low | Metadata only |
+| Set | (Not in TypeSystem) | Medium | Needs new registry |
+| Type | Environment→TypeSystem | Low | After 3.5.181-182 |
 
 - [ ] **3.5.187** Analyze Declaration EvalNode Dependencies
-  - **Original Task**: 3.5.107 from Phase 15
-  - **Location**: `visitor_declarations.go` all 10 declaration types
-  - **Current Implementation**: All declarations use EvalNode to delegate to interpreter
-  - **Analysis**: Each declaration type registers metadata (functions, classes, interfaces, etc.)
+  - **Goal**: Document what each declaration needs for migration
   - **Subtasks**:
-    - [ ] 3.5.187a: Audit VisitFunctionDecl registry updates
-    - [ ] 3.5.187b: Audit VisitClassDecl registry updates
-    - [ ] 3.5.187c: Audit VisitInterfaceDecl registry updates
-    - [ ] 3.5.187d: Audit VisitRecordDecl registry updates
-    - [ ] 3.5.187e: Audit VisitEnumDecl registry updates
-    - [ ] 3.5.187f: Audit VisitHelperDecl registry updates
-    - [ ] 3.5.187g: Audit VisitArrayDecl registry updates
-    - [ ] 3.5.187h: Audit VisitOperatorDecl registry updates
-    - [ ] 3.5.187i: Audit VisitSetDecl registry updates
-    - [ ] 3.5.187j: Audit VisitTypeDeclaration registry updates
-  - **Effort**: 2-3 days (analysis only)
-  - **Dependencies**: None
-  - **Deliverable**: Dependency map showing what each declaration needs
+    - [ ] 3.5.187a: Audit each declaration's registry requirements
+    - [ ] 3.5.187b: Identify TypeSystem methods needed
+    - [ ] 3.5.187c: Document execution-time dependencies (constructor calls, etc.)
+    - [ ] 3.5.187d: Create dependency graph
+  - **Effort**: 1 day
+  - **Deliverable**: Dependency map for Phase 27
 
 - [ ] **3.5.188** Design Declaration Migration Strategy
-  - **Original Task**: Part of 3.5.107 resolution
-  - **Goal**: Plan how to migrate 10 EvalNode calls without breaking registration
-  - **Options**:
-    - **Option A**: Move all registries to TypeSystem (TypeRegistry, FunctionRegistry already there)
-    - **Option B**: Keep declarations in interpreter, create bridge registration methods
-    - **Option C**: Hybrid - simple declarations to evaluator, complex ones stay in interpreter
+  - **Goal**: Plan Phase 27 migration approach
+  - **Recommended approach**: Hybrid - simple declarations first, complex ones later
   - **Subtasks**:
-    - [ ] 3.5.188a: Evaluate feasibility of each option
-    - [ ] 3.5.188b: Estimate effort for chosen approach
-    - [ ] 3.5.188c: Create detailed task breakdown
-    - [ ] 3.5.188d: Update Phase 27 with concrete subtasks
-  - **Effort**: 1-2 days (planning only)
-  - **Dependencies**: 3.5.187 (dependency analysis)
-  - **Deliverable**: Migration plan for Phase 27
+    - [ ] 3.5.188a: Prioritize by complexity (Enum/Helper/Array first)
+    - [ ] 3.5.188b: Design bridge registration pattern
+    - [ ] 3.5.188c: Create Phase 27 task breakdown
+  - **Effort**: 1 day
+  - **Deliverable**: Phase 27 detailed plan
 
-- [ ] **3.5.189** Keep EvalNode Fallback in evaluator.go
-  - **Original Task**: 3.5.108 from Phase 15
+- [x] **3.5.189** Keep EvalNode Fallback - **PERMANENT DECISION**
   - **Location**: `evaluator.go` Eval() method
-  - **Decision**: **KEEP PERMANENTLY** - safety net for unknown node types
-  - **Justification**: Every visitor pattern needs a fallback for defensive programming
-  - **Status**: No action needed - mark as permanent architectural decision
+  - **Decision**: Keep permanently as safety net for unknown node types
+  - **Status**: No action needed
 
 ---
 
@@ -917,18 +904,26 @@ These handle declaration evaluation that requires registry updates.
 
 **Execution Order:**
 
-1. **26.A** (3.5.180) - IsFunctionPointer type checks (4 calls, 1-2 hours)
-2. **26.B** (3.5.181-3.5.184) - Subrange/Interface TypeSystem migration (2 calls, 2-4 days)
-3. **26.C** (3.5.185) - TryImplicitConversion analysis (determine if migration feasible)
-4. **26.D** (3.5.186) - CreateObject refactoring (bridge constructor, 1-2 weeks)
-5. **26.E** (3.5.187-3.5.189) - Declaration dependency analysis & migration strategy
+| Order | Task | Effort | Risk | Status |
+|-------|------|--------|------|--------|
+| 1 | 3.5.180 - IsFunctionPointer | 30 min | Low | ✅ DONE |
+| 2 | 3.5.181 - Subrange registry | 30 min | Low | ✅ DONE |
+| 3 | 3.5.182 - Subrange migration | 2-3 hours | Low | Ready |
+| 4 | 3.5.183 - Interface LookupInterface | 3-4 hours | Medium | Ready |
+| 5 | 3.5.184 - Interface migration | 4-6 hours | Medium | Ready |
+| 6 | 3.5.187 - Declaration analysis | 1 day | Low | Ready |
+| 7 | 3.5.188 - Migration strategy | 1 day | Low | Ready |
+| - | 3.5.185 - TryImplicitConversion | - | - | DEFERRED |
+| - | 3.5.186 - CreateObject | - | - | DEFERRED |
+| - | 3.5.189 - EvalNode fallback | - | - | KEEP |
 
 **Expected Outcomes:**
-- **Calls removed**: 6 (IsFunctionPointer:4, WrapInSubrange:1, WrapInInterface:1)
-- **Migration plan**: Phase 27 declaration migration tasks defined
-- **Decision**: TryImplicitConversion - keep in adapter or migrate
+- **Adapter calls removed**: 4 (IsFunctionPointer - done)
+- **Adapter methods removed**: 3 (IsFunctionPointer, GetFunctionPointerParamCount, IsFunctionPointerNil - done)
+- **TypeSystem additions**: Subrange registry (3.5.181 - done), Interface lookup (3.5.183)
+- **Migration plan**: Phase 27 declaration tasks defined (3.5.187-188)
 
-**Total Effort**: 1-2 weeks
+**Total Remaining Effort**: ~1.5 days for 3.5.182-3.5.184, ~2 days for 3.5.187-188
 
 ---
 

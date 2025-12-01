@@ -1,5 +1,4 @@
 // Test function name alias with complex return types (assignment only)
-// Task 3.5.142e: Validates alias works with arrays and records
 //
 // Note: Due to semantic analyzer limitations, we can only test WRITE operations.
 // Member access on function names (like CreatePoint.X) is not supported by semantic analysis.

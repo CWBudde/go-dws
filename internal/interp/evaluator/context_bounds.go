@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Bounds Operation Methods (Task 3.5.143r)
+// Bounds Operation Methods
 // ============================================================================
 //
 // This file implements the bounds operation methods of the builtins.Context

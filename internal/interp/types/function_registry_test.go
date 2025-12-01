@@ -477,7 +477,7 @@ func TestFunctionRegistry_GetFunctionsInUnit(t *testing.T) {
 	}
 }
 
-// ===== Builtin Function Support Tests (Task 3.5.47) =====
+// ===== Builtin Function Support Tests =====
 
 func TestFunctionRegistry_LookupBuiltin(t *testing.T) {
 	registry := NewFunctionRegistry()

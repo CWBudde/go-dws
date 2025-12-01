@@ -12,7 +12,6 @@ import (
 // Member Assignment Operations
 // ============================================================================
 //
-// Task 3.5.105d: Migrated from Interpreter.evalMemberAssignment()
 // Handles member assignment: obj.field := value, TClass.Variable := value
 //
 // Member assignment is HIGH RISK due to complex dispatch logic:

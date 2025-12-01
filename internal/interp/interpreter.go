@@ -52,8 +52,8 @@ type Interpreter struct {
 	methodRegistry       *runtime.MethodRegistry // Task 3.5.39: AST-free method storage
 	recordTypeIDRegistry map[string]int
 	records              map[string]*RecordTypeValue
-	interfaces           map[string]*InterfaceInfo
-	functions            map[string][]*ast.FunctionDecl
+	// Task 3.5.184c: interfaces map removed - use typeSystem.LookupInterface() via lookupInterfaceInfo()
+	functions map[string][]*ast.FunctionDecl
 	globalOperators      *runtimeOperatorRegistry
 	conversions          *runtimeConversionRegistry
 	env                  *Environment
@@ -131,11 +131,10 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 
 		// Phase 3.4.1: Legacy fields for backward compatibility
 		// These will be removed once migration to typeSystem is complete
-		functions:            make(map[string][]*ast.FunctionDecl), // Task 9.66: Support overloading
-		classes:              make(map[string]*ClassInfo),
-		records:              make(map[string]*RecordTypeValue),
-		interfaces:           make(map[string]*InterfaceInfo),
-		globalOperators:      newRuntimeOperatorRegistry(),
+		functions:       make(map[string][]*ast.FunctionDecl), // Task 9.66: Support overloading
+		classes:         make(map[string]*ClassInfo),
+		records:         make(map[string]*RecordTypeValue),
+		globalOperators: newRuntimeOperatorRegistry(),
 		conversions:          newRuntimeConversionRegistry(),
 		helpers:              make(map[string][]*HelperInfo),
 		classTypeIDRegistry:  make(map[string]int), // Task 9.25: RTTI type ID registry
@@ -263,6 +262,12 @@ func (i *Interpreter) SetSemanticInfo(info *pkgast.SemanticInfo) {
 // Phase 3.5.1: This provides access to the evaluation engine for advanced use cases.
 func (i *Interpreter) GetEvaluator() *evaluator.Evaluator {
 	return i.evaluatorInstance
+}
+
+// GetTypeSystem returns the TypeSystem for direct access to type registries.
+// Task 3.5.184c: This allows tests and external code to access registered interfaces, classes, etc.
+func (i *Interpreter) GetTypeSystem() *interptypes.TypeSystem {
+	return i.typeSystem
 }
 
 // EvalNode implements the evaluator.InterpreterAdapter interface.

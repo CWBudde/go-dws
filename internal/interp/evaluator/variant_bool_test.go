@@ -31,7 +31,6 @@ func (m *mockVariantValue) UnwrapVariant() runtime.Value {
 }
 
 // IsUninitialized returns true if the variant has no wrapped value.
-// Task 3.5.103f: Implements runtime.VariantWrapper interface.
 func (m *mockVariantValue) IsUninitialized() bool {
 	return m.wrapped == nil
 }

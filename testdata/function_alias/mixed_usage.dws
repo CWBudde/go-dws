@@ -1,5 +1,4 @@
 // Test mixed usage of Result and function name alias (assignment only)
-// Task 3.5.142e: Validates that both can be used for assignment
 //
 // Note: Due to semantic analyzer limitations, we can only test WRITE operations to the alias.
 // The alias works correctly at runtime for both read and write.
