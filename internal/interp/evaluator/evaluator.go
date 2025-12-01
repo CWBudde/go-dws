@@ -974,6 +974,66 @@ type InterpreterAdapter interface {
 	// Only sets parent if classInfo.Parent is nil (prevents overwriting).
 	SetClassParent(classInfo interface{}, parentClass interface{})
 
+	// AddInterfaceToClass adds an interface to a class's interface list.
+	// Updates both ClassInfo.Interfaces slice and Metadata.Interfaces.
+	AddInterfaceToClass(classInfo interface{}, interfaceInfo interface{}, interfaceName string)
+
+	// ===== Task 3.5.8 Phase 6: Method, Property, and Operator Adapters =====
+
+	// AddClassMethod adds a method declaration to a ClassInfo.
+	// Handles both instance and class methods, method overloading, and constructors/destructors.
+	// Creates MethodMetadata and registers with MethodRegistry.
+	// Returns true if method was added successfully, false otherwise.
+	AddClassMethod(classInfo interface{}, method *ast.FunctionDecl, className string) bool
+
+	// CreateMethodMetadata creates runtime MethodMetadata from an AST method declaration.
+	// Registers the metadata with the MethodRegistry.
+	// Returns the created MethodMetadata.
+	CreateMethodMetadata(method *ast.FunctionDecl) interface{}
+
+	// SynthesizeDefaultConstructor synthesizes an implicit parameterless constructor
+	// for each constructor set that has the 'overload' directive but no parameterless overload.
+	// This matches DWScript behavior where overloaded constructors implicitly include a parameterless version.
+	SynthesizeDefaultConstructor(classInfo interface{})
+
+	// AddClassProperty adds a property declaration to a ClassInfo.
+	// Converts the AST PropertyDecl to PropertyInfo and stores it.
+	// Returns true if property was added successfully, false otherwise.
+	AddClassProperty(classInfo interface{}, propDecl *ast.PropertyDecl) bool
+
+	// RegisterClassOperator registers an operator overload for a class.
+	// Validates the binding method exists and creates operator entry.
+	// Returns nil on success, error Value on failure.
+	RegisterClassOperator(classInfo interface{}, opDecl *ast.OperatorDecl) Value
+
+	// LookupClassMethod looks up a method in a ClassInfo by name.
+	// If isClassMethod is true, looks in ClassMethods, otherwise in Methods.
+	// Returns the method declaration and true if found, nil and false otherwise.
+	LookupClassMethod(classInfo interface{}, methodName string, isClassMethod bool) (interface{}, bool)
+
+	// SetClassConstructor sets the constructor field on a ClassInfo (legacy behavior).
+	SetClassConstructor(classInfo interface{}, constructor interface{})
+
+	// SetClassDestructor sets the destructor field on a ClassInfo (legacy behavior).
+	SetClassDestructor(classInfo interface{}, destructor interface{})
+
+	// InheritDestructorIfMissing inherits destructor from parent if no local destructor declared.
+	InheritDestructorIfMissing(classInfo interface{})
+
+	// InheritParentProperties copies parent properties to child class if not already defined.
+	InheritParentProperties(classInfo interface{})
+
+	// ===== Task 3.5.8 Phase 7: VMT and Registration Adapters =====
+
+	// BuildVirtualMethodTable builds the virtual method table for a class.
+	// Delegates to ClassInfo.buildVirtualMethodTable() which implements proper
+	// virtual/override/reintroduce semantics.
+	BuildVirtualMethodTable(classInfo interface{})
+
+	// RegisterClassInTypeSystem registers a class in the TypeSystem after VMT is built.
+	// Uses TypeSystem.RegisterClassWithParent() for proper hierarchy tracking.
+	RegisterClassInTypeSystem(classInfo interface{}, parentName string)
+
 	// ===== Type Conversion & Introspection Methods (Task 3.5.143g) =====
 	// Note: ToInt64, ToBool, ToFloat64, GetTypeOf, GetClassOf are NOT part of this adapter interface.
 	// They are part of builtins.Context interface and are implemented independently on both
