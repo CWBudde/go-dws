@@ -706,3 +706,258 @@ func TestEnumQualifiedNameProperty(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Task 3.5.11.4: Scoped/Unscoped/Flags Enum Tests
+// ============================================================================
+
+func TestScopedEnumDeclaration(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expect string
+	}{
+		{
+			name: "scoped enum with enum keyword",
+			input: `
+				type TColor = enum (Red, Green, Blue);
+				var c := TColor.Red;
+				PrintLn(Ord(c));
+			`,
+			expect: "0\n",
+		},
+		{
+			name: "scoped enum values not accessible unqualified",
+			// In a scoped enum, Red should not be defined at global scope
+			// We test that qualified access works
+			input: `
+				type TColor = enum (Red, Green, Blue);
+				PrintLn(Ord(TColor.Green));
+			`,
+			expect: "1\n",
+		},
+		{
+			name: "scoped enum iteration",
+			input: `
+				type TColor = enum (Red, Green, Blue);
+				for var c in TColor do
+					PrintLn(c);
+			`,
+			expect: "0\n1\n2\n",
+		},
+		{
+			name: "scoped enum High and Low",
+			input: `
+				type TLevel = enum (Low = 10, Medium = 20, High = 30);
+				PrintLn(Low(TLevel));
+				PrintLn(High(TLevel));
+			`,
+			expect: "10\n30\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expect {
+				t.Errorf("expected %q, got %q", tt.expect, output)
+			}
+		})
+	}
+}
+
+func TestUnscopedEnumDeclaration(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expect string
+	}{
+		{
+			name: "unscoped enum values accessible directly",
+			input: `
+				type TColor = (Red, Green, Blue);
+				PrintLn(Ord(Red));
+				PrintLn(Ord(Green));
+				PrintLn(Ord(Blue));
+			`,
+			expect: "0\n1\n2\n",
+		},
+		{
+			name: "unscoped enum values also accessible qualified",
+			input: `
+				type TColor = (Red, Green, Blue);
+				PrintLn(Ord(Red) = Ord(TColor.Red));
+			`,
+			expect: "True\n",
+		},
+		{
+			name: "unscoped enum with explicit values",
+			input: `
+				type TPriority = (Low = 1, Medium = 5, High = 10);
+				PrintLn(Ord(Low));
+				PrintLn(Ord(Medium));
+				PrintLn(Ord(High));
+			`,
+			expect: "1\n5\n10\n",
+		},
+		{
+			name: "unscoped enum with mixed implicit and explicit",
+			input: `
+				type TStatus = (Starting, Running = 5, Paused, Stopped);
+				PrintLn(Ord(Starting));
+				PrintLn(Ord(Running));
+				PrintLn(Ord(Paused));
+				PrintLn(Ord(Stopped));
+			`,
+			expect: "0\n5\n6\n7\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expect {
+				t.Errorf("expected %q, got %q", tt.expect, output)
+			}
+		})
+	}
+}
+
+func TestFlagsEnumDeclaration(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expect string
+	}{
+		{
+			name: "flags enum with implicit power-of-2 values",
+			// Note: "Read" and "Write" are contextual keywords (property accessors),
+			// so we use different names here to avoid parser issues
+			input: `
+				type TPermissions = flags (CanRead, CanWrite, CanExecute);
+				PrintLn(Ord(TPermissions.CanRead));
+				PrintLn(Ord(TPermissions.CanWrite));
+				PrintLn(Ord(TPermissions.CanExecute));
+			`,
+			expect: "1\n2\n4\n",
+		},
+		{
+			name: "flags enum with explicit power-of-2 values",
+			input: `
+				type TAccess = flags (None = 1, View = 2, Edit = 4, Admin = 8);
+				PrintLn(Ord(TAccess.None));
+				PrintLn(Ord(TAccess.View));
+				PrintLn(Ord(TAccess.Edit));
+				PrintLn(Ord(TAccess.Admin));
+			`,
+			expect: "1\n2\n4\n8\n",
+		},
+		{
+			name: "flags enum mixed explicit and implicit",
+			input: `
+				type TFlags = flags (A, B = 4, C);
+				PrintLn(Ord(TFlags.A));
+				PrintLn(Ord(TFlags.B));
+				PrintLn(Ord(TFlags.C));
+			`,
+			// A gets 1 (first power of 2)
+			// B is explicitly 4
+			// C gets 8 (next power of 2 after 4)
+			expect: "1\n4\n8\n",
+		},
+		{
+			name: "flags enum High and Low",
+			input: `
+				type TPermissions = flags (CanRead, CanWrite, CanExecute, Admin);
+				PrintLn(Low(TPermissions));
+				PrintLn(High(TPermissions));
+			`,
+			// Low = 1 (CanRead), High = 8 (Admin)
+			expect: "1\n8\n",
+		},
+		{
+			name: "flags enum is scoped",
+			// Flags enums are always scoped - values must be qualified
+			input: `
+				type TPerms = flags (AllowRead, AllowWrite);
+				var p := TPerms.AllowRead;
+				PrintLn(p.Value);
+			`,
+			expect: "1\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expect {
+				t.Errorf("expected %q, got %q", tt.expect, output)
+			}
+		})
+	}
+}
+
+func TestFlagsEnumValidation(t *testing.T) {
+	// Test that flags enum rejects non-power-of-2 explicit values
+	input := `
+		type TBadFlags = flags (A = 3, B);
+		PrintLn('should not reach here');
+	`
+	result, _ := testEvalWithOutput(input)
+	if result == nil {
+		t.Fatal("expected error result, got nil")
+	}
+	if err, ok := result.(*ErrorValue); ok {
+		if !containsSubstring(err.Message, "power of 2") {
+			t.Errorf("expected power of 2 error, got: %s", err.Message)
+		}
+	} else {
+		t.Errorf("expected ErrorValue, got %T", result)
+	}
+}
+
+func TestEnumTypeMetadataInTypeSystem(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expect string
+	}{
+		{
+			name: "enum type available for for-in iteration",
+			input: `
+				type TSmall = (A, B);
+				var count := 0;
+				for var e in TSmall do
+					count := count + 1;
+				PrintLn(count);
+			`,
+			expect: "2\n",
+		},
+		{
+			name: "enum type Low and High functions",
+			input: `
+				type TRange = (First = 5, Second, Third);
+				PrintLn(Low(TRange));
+				PrintLn(High(TRange));
+			`,
+			expect: "5\n7\n",
+		},
+		{
+			name: "enum type ByName function",
+			input: `
+				type TColor = (Red, Green, Blue);
+				PrintLn(TColor.ByName('Green'));
+			`,
+			expect: "1\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expect {
+				t.Errorf("expected %q, got %q", tt.expect, output)
+			}
+		})
+	}
+}

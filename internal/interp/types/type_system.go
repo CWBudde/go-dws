@@ -792,3 +792,23 @@ func (r *ConversionRegistry) FindConversionPath(from, to string, maxDepth int) [
 func conversionKey(from, to string) string {
 	return ident.Normalize(from) + "->" + ident.Normalize(to)
 }
+
+// NormalizeTypeAnnotation normalizes a type annotation string for operator lookup.
+// Primitive types (integer, float, string, boolean, variant, nil) and array types
+// are returned normalized. All other types get a "class:" prefix.
+// This function is used for consistent operator registration and lookup.
+func NormalizeTypeAnnotation(name string) string {
+	trimmed := strings.TrimSpace(name)
+	normalized := ident.Normalize(trimmed)
+
+	// Check if it's a primitive type or array
+	switch normalized {
+	case "integer", "float", "string", "boolean", "variant", "nil":
+		return normalized
+	default:
+		if ident.HasPrefix(trimmed, "array of") {
+			return normalized
+		}
+		return "class:" + normalized
+	}
+}

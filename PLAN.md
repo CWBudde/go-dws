@@ -332,29 +332,37 @@ Goal: Move declaration processing from Interpreter to Evaluator, migrating 9 Eva
   - **Files**: `set.go:477-487` - NO-OP implementation
   - **Effort**: None required
 
-- [ ] **3.5.11** VisitEnumDecl
+- [x] **3.5.11** VisitEnumDecl ✅
   - **Registry**: `typeSystem.RegisterEnumType()`
   - **Complexity**: Low - pure metadata, only env storage for unscoped
-  - **Files**: `visitor_declarations.go`, `enum.go`
+  - **Files**: `visitor_declarations.go`, `enum.go`, `runtime/enum.go`
   - **Effort**: 2-3 hours
   - **Subtasks**:
-    - [ ] 3.5.11.1: Move `evalEnumDeclaration` logic to `VisitEnumDecl`
-    - [ ] 3.5.11.2: Use `ctx.Environment()` for unscoped value storage
-    - [ ] 3.5.11.3: Remove `adapter.EvalNode()` call
-    - [ ] 3.5.11.4: Add tests for scoped/unscoped/flags enums
+    - [x] 3.5.11.1: Move `evalEnumDeclaration` logic to `VisitEnumDecl`
+    - [x] 3.5.11.2: Use `ctx.Env()` for unscoped value storage
+    - [x] 3.5.11.3: Remove `adapter.EvalNode()` call
+    - [x] 3.5.11.4: Add tests for scoped/unscoped/flags enums
+  - **Additional work**:
+    - Added `EnumTypeValue` and `NewEnumTypeValue` to `runtime/enum.go`
+    - Tests added for scoped, unscoped, and flags enums in `enum_test.go`
 
-- [ ] **3.5.14** VisitOperatorDecl
+- [x] **3.5.14** VisitOperatorDecl ✅
   - **Registry**: `TypeSystem.Operators()`, `TypeSystem.Conversions()`, `classInfo.Operators`
   - **Complexity**: Low - pure registration, no execution
   - **Files**: `visitor_declarations.go`, `declarations.go:917-1044`
   - **Effort**: 3-4 hours
   - **Subtasks**:
-    - [ ] 3.5.14.1: Move operator registration to `VisitOperatorDecl`
-    - [ ] 3.5.14.2: Use TypeSystem for class lookup
-    - [ ] 3.5.14.3: Use `TypeSystem.Operators()` for registration
-    - [ ] 3.5.14.4: Handle conversion operators via `TypeSystem.Conversions()`
-    - [ ] 3.5.14.5: Remove `adapter.EvalNode()` call
-    - [ ] 3.5.14.6: Add tests for global/class/conversion operators
+    - [x] 3.5.14.1: Move operator registration to `VisitOperatorDecl`
+    - [x] 3.5.14.2: Use TypeSystem for class lookup (N/A - class operators handled during class decl)
+    - [x] 3.5.14.3: Use `TypeSystem.Operators()` for registration
+    - [x] 3.5.14.4: Handle conversion operators via `TypeSystem.Conversions()`
+    - [x] 3.5.14.5: Remove `adapter.EvalNode()` call
+    - [x] 3.5.14.6: Add tests for global/class/conversion operators (existing tests cover this)
+  - **Additional work**:
+    - Exported `NormalizeTypeAnnotation` to `internal/interp/types/type_system.go` for cross-package use
+    - Updated all callers in `operators.go`, `declarations.go`, `operators_eval.go`, `statements_control.go`
+    - Global and conversion operators now register via TypeSystem registries
+    - Class operators remain handled during class declaration evaluation (no change needed)
 
 #### Tier 2: Simple Execution (Bounds/Type Resolution)
 
@@ -595,11 +603,11 @@ Goal: Remove adapter entirely, document final architecture.
 |-------|-------|-------------|--------|
 | Cleanup | 3.5.1-3.5.4 | ExecuteUserFunction, interface map removal | 3.5.2-3.5.4 ✅, 3.5.1 pending |
 | Analysis | 3.5.5-3.5.6 | Declaration dependency analysis | ✅ Complete |
-| Declarations | 3.5.7-3.5.16 | Move 9 declaration types to evaluator | 3.5.15 ✅, 8 pending |
+| Declarations | 3.5.7-3.5.16 | Move 9 declaration types to evaluator | 3.5.11, 3.5.14, 3.5.15 ✅, 6 pending |
 | Bridge Elimination | 3.5.17-3.5.23 | Move value types to runtime, remove bridges | Pending |
 | Final Cleanup | 3.5.24-3.5.32 | Remove adapter, document architecture | Pending |
 
-**Total remaining tasks**: 28 (was 32, completed 3.5.5, 3.5.6, 3.5.15, 3.5.2-3.5.4)
+**Total remaining tasks**: 27 (was 32, completed 3.5.5, 3.5.6, 3.5.11, 3.5.14, 3.5.15, 3.5.2-3.5.4)
 
 **Declaration Migration Order** (5 tiers):
 

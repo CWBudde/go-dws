@@ -1,6 +1,10 @@
 package runtime
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/cwbudde/go-dws/internal/types"
+)
 
 // EnumValue represents an enumerated value in DWScript.
 // Enums are named constants with associated ordinal values.
@@ -38,4 +42,46 @@ func (e *EnumValue) GetOrdinal() int {
 // GetEnumTypeName returns the enum type name (e.g., "TColor").
 func (e *EnumValue) GetEnumTypeName() string {
 	return e.TypeName
+}
+
+// ============================================================================
+// EnumTypeValue - Enum Type Metadata
+// ============================================================================
+
+// EnumTypeValue represents enum type metadata in DWScript.
+// It wraps a types.EnumType and is used to store enum type information
+// in the TypeSystem registry.
+//
+// Phase 3.5.11 - Task Migration: Moved from internal/interp to runtime/
+// to enable evaluator package to work with enum type metadata directly.
+//
+// This type implements:
+//   - Value interface (Type(), String())
+//   - GetEnumType() for TypeSystem's EnumTypeValueAccessor interface
+type EnumTypeValue struct {
+	EnumType *types.EnumType
+}
+
+// Type returns "ENUM_TYPE".
+func (e *EnumTypeValue) Type() string {
+	return "ENUM_TYPE"
+}
+
+// String returns the enum type name.
+func (e *EnumTypeValue) String() string {
+	if e.EnumType == nil {
+		return "<nil enum type>"
+	}
+	return e.EnumType.Name
+}
+
+// GetEnumType returns the underlying EnumType.
+// This implements the EnumTypeValueAccessor interface expected by the TypeSystem.
+func (e *EnumTypeValue) GetEnumType() *types.EnumType {
+	return e.EnumType
+}
+
+// NewEnumTypeValue creates a new EnumTypeValue from an EnumType.
+func NewEnumTypeValue(enumType *types.EnumType) *EnumTypeValue {
+	return &EnumTypeValue{EnumType: enumType}
 }

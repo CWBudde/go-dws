@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
@@ -250,20 +251,12 @@ func operatorSignatureKey(operandTypes []string) string {
 	return strings.Join(operandTypes, "|")
 }
 
-func normalizeTypeAnnotation(name string) string {
-	trimmed := strings.TrimSpace(name)
-	normalized := ident.Normalize(trimmed)
-
-	// Check if it's a primitive type or array
-	switch normalized {
-	case "integer", "float", "string", "boolean", "variant", "nil":
-		return normalized
-	default:
-		if ident.HasPrefix(trimmed, "array of") {
-			return normalized
-		}
-		return "class:" + normalized
-	}
+// NormalizeTypeAnnotation normalizes a type annotation string for operator lookup.
+// Primitive types (integer, float, string, boolean, variant, nil) and array types
+// are returned normalized. All other types get a "class:" prefix.
+// This is a convenience wrapper around interptypes.NormalizeTypeAnnotation.
+func NormalizeTypeAnnotation(name string) string {
+	return interptypes.NormalizeTypeAnnotation(name)
 }
 
 func valueTypeKey(val Value) string {

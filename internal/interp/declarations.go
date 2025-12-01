@@ -927,7 +927,7 @@ func (i *Interpreter) evalOperatorDeclaration(decl *ast.OperatorDecl) Value {
 	operandTypes := make([]string, len(decl.OperandTypes))
 	for idx, operand := range decl.OperandTypes {
 		opRand := operand.String()
-		operandTypes[idx] = normalizeTypeAnnotation(opRand)
+		operandTypes[idx] = NormalizeTypeAnnotation(opRand)
 	}
 
 	if decl.Kind == ast.OperatorKindConversion {
@@ -937,7 +937,7 @@ func (i *Interpreter) evalOperatorDeclaration(decl *ast.OperatorDecl) Value {
 		if decl.ReturnType == nil {
 			return i.newErrorWithLocation(decl, "conversion operator '%s' requires a return type", decl.OperatorSymbol)
 		}
-		targetType := normalizeTypeAnnotation(decl.ReturnType.String())
+		targetType := NormalizeTypeAnnotation(decl.ReturnType.String())
 		entry := &runtimeConversionEntry{
 			From: operandTypes[0],
 			To:   targetType,
@@ -981,7 +981,7 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 		}
 	}
 
-	classKey := normalizeTypeAnnotation(classInfo.Name)
+	classKey := NormalizeTypeAnnotation(classInfo.Name)
 	operandTypes := make([]string, 0, len(opDecl.OperandTypes)+1)
 	includesClass := false
 	for _, operand := range opDecl.OperandTypes {
@@ -992,10 +992,10 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 		var key string
 		if err == nil {
 			// Successfully resolved - use the resolved type's string representation
-			key = normalizeTypeAnnotation(resolvedType.String())
+			key = NormalizeTypeAnnotation(resolvedType.String())
 		} else {
 			// Failed to resolve - use the raw type name (might be a forward reference)
-			key = normalizeTypeAnnotation(typeName)
+			key = NormalizeTypeAnnotation(typeName)
 		}
 		if key == classKey {
 			includesClass = true
