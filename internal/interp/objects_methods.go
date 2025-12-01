@@ -225,9 +225,20 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				var returnValue Value
 				if instanceMethod.ReturnType != nil || instanceMethod.IsConstructor {
 					// Task 9.32: For constructors, always return the object instance
-					// (constructors don't use Result variables)
-					if instanceMethod.IsConstructor {
+					// For auto-detected constructors with explicit return types, check Result first
+					if instanceMethod.IsConstructor && instanceMethod.ReturnType == nil {
+						// Explicit constructors (constructor keyword, no return type) always return obj
 						returnValue = obj
+					} else if instanceMethod.IsConstructor && instanceMethod.ReturnType != nil {
+						// Auto-detected constructors (function Create: TClass) - check Result variable
+						// This allows the constructor to assign Result := Self or return a different object
+						resultVal, resultOk := i.env.Get("Result")
+						if resultOk && resultVal.Type() != "NIL" {
+							returnValue = resultVal
+						} else {
+							// Result not set, return the object
+							returnValue = obj
+						}
 					} else {
 						// Check both Result and method name variable
 						resultVal, resultOk := i.env.Get("Result")

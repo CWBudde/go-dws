@@ -806,13 +806,8 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 	}
 
 	// Not a property - try direct field assignment
-	// Verify field exists in the class
-	fields := obj.Class.GetFieldsMap()
-	if fields == nil || fields[memberName] == nil {
-		return i.newErrorWithLocation(stmt, "field '%s' not found in class '%s'", memberName, obj.Class.GetName())
-	}
-
-	// Set the field value
+	// SetField will handle field existence checking via metadata and Fields map
+	// which properly walks the inheritance chain
 	obj.SetField(memberName, value)
 	return value
 }

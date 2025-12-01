@@ -96,13 +96,11 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	// Special handling for Exception.Create
 	// Exception constructors are built-in and take predefined arguments.
 	// NewExpression always implies Create constructor in DWScript.
+	// Task 9.XX: Only apply hardcoded logic if no custom constructor exists
 	if i.isExceptionClass(classInfo) {
 		// EHost.Create(cls, msg) - first argument is exception class name, second is message.
-		if classInfo.InheritsFrom("EHost") {
-			if len(ne.Arguments) != 2 {
-				return i.newErrorWithLocation(ne, "EHost.Create requires class name and message arguments")
-			}
-
+		// Keep this special case for EHost with 2 arguments
+		if classInfo.InheritsFrom("EHost") && len(ne.Arguments) == 2 {
 			classVal := i.Eval(ne.Arguments[0])
 			if isError(classVal) {
 				return classVal
@@ -127,19 +125,8 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 			return obj
 		}
 
-		// Other exception classes accept a single message argument.
-		if len(ne.Arguments) == 1 {
-			msgVal := i.Eval(ne.Arguments[0])
-			if isError(msgVal) {
-				return msgVal
-			}
-			if strVal, ok := msgVal.(*StringValue); ok {
-				obj.SetField("Message", &StringValue{Value: strVal.Value})
-			} else {
-				obj.SetField("Message", &StringValue{Value: msgVal.String()})
-			}
-			return obj
-		}
+		// For other exception classes, let normal constructor resolution handle it
+		// This allows custom constructors while preserving backward compatibility
 	}
 
 	// Task 9.68: Resolve constructor overload based on arguments
@@ -180,6 +167,20 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	} else {
 		// No constructor found - use default (empty) constructor
 		constructor = nil
+
+		// Fallback: For exception classes with single message argument, use built-in logic
+		if i.isExceptionClass(classInfo) && len(ne.Arguments) == 1 {
+			msgVal := i.Eval(ne.Arguments[0])
+			if isError(msgVal) {
+				return msgVal
+			}
+			if strVal, ok := msgVal.(*StringValue); ok {
+				obj.SetField("Message", &StringValue{Value: strVal.Value})
+			} else {
+				obj.SetField("Message", &StringValue{Value: msgVal.String()})
+			}
+			return obj
+		}
 	}
 
 	// Call constructor if present
@@ -230,6 +231,17 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 		if isError(result) {
 			i.env = savedEnv
 			return result
+		}
+
+		// For auto-detected constructors with explicit return types, check if Result was modified
+		if constructor.IsConstructor && constructor.ReturnType != nil {
+			resultVal, resultOk := i.env.Get("Result")
+			if resultOk && resultVal.Type() != "NIL" {
+				// Result was set, use it as the return value (should be the same object)
+				if objInstance, ok := resultVal.(*ObjectInstance); ok {
+					obj = objInstance
+				}
+			}
 		}
 
 		// Restore environment

@@ -3586,6 +3586,121 @@ type TypeAnnotation struct {
 
 ---
 
+## Task 9.23: Fix Inherited Field Assignment in Classes
+
+**Goal**: Fix field assignments to inherited fields in custom exception and class constructors. Currently, assigning to inherited fields (e.g., `Message` inherited from `Exception`) fails with "field not found" errors.
+
+**Estimate**: 4-6 hours
+
+**Status**: TODO
+
+**Priority**: HIGH - Blocks exception handling tests from passing
+
+**Impact**: Affects custom exception classes and any class that assigns to inherited fields in constructors
+
+**Description**:
+
+When custom exception classes define constructors that assign values to inherited fields, the assignment fails with "field 'X' not found in class 'Y'" errors. For example:
+
+```pascal
+type TCustomError = class(Exception)
+   ErrorCode: Integer;
+
+   function Create(msg: String; code: Integer): TCustomError;
+   begin
+      Message := msg;      // ❌ Error: field 'Message' not found in class 'TCustomError'
+      ErrorCode := code;   // ✅ Works fine - own field
+      Result := Self;
+   end;
+end;
+```
+
+The issue occurs because field existence validation in `statements_assignments.go` only checks the current class's `FieldsMap`, not the parent classes. Additionally, built-in classes like `Exception` don't have AST declarations - their fields are registered programmatically in the `Fields` map, which further complicates the lookup.
+
+**Root Cause**:
+
+In `internal/interp/statements_assignments.go` around lines 808-812, the field assignment code attempts to validate field existence but doesn't properly walk the inheritance hierarchy:
+
+```go
+// Current problematic check (simplified)
+if _, exists := obj.Class.GetFieldsMap()[memberName]; !exists {
+    return errorValue("field '%s' not found in class '%s'", memberName, className)
+}
+```
+
+The `GetFieldsMap()` returns `FieldDecls` which contains AST-based field declarations, but:
+1. It doesn't include fields from parent classes
+2. It doesn't include programmatically registered fields (like Exception.Message)
+3. The validation happens before `SetField()` which has proper inheritance support
+
+**Solution Approach**:
+
+The field assignment validation should:
+1. Check the current class's `Fields` map (runtime fields, includes programmatic ones)
+2. Walk up the inheritance hierarchy checking each parent's `Fields` map
+3. Only error if the field isn't found anywhere in the hierarchy
+4. Leverage the existing `SetField()` method's inheritance logic instead of duplicating it
+
+Alternative approach: Remove the upfront validation entirely and rely on `SetField()`'s internal validation, which already handles inheritance correctly.
+
+**Files to Modify**:
+
+- `internal/interp/statements_assignments.go` (lines ~808-812) - Fix field existence check to walk inheritance hierarchy
+- Potentially `internal/interp/objects_hierarchy.go` - May need helper method to check field existence across hierarchy
+
+**Test Case** (from `testdata/exceptions/new_vs_create.dws`):
+
+```pascal
+type TCustomError = class(Exception)
+   ErrorCode: Integer;
+
+   function Create(msg: String; code: Integer): TCustomError;
+   begin
+      Message := msg;
+      ErrorCode := code;
+      Result := Self;
+   end;
+end;
+
+try
+   raise TCustomError.Create('error A', 42);
+except
+   on E: TCustomError do begin
+      PrintLn('Create: ' + E.Message + ', Code: ' + IntToStr(E.ErrorCode));
+   end;
+end;
+```
+
+**Expected Output**: `Create: error A, Code: 42`
+
+**Current Output**: Runtime error: "field 'Message' not found in class 'TCustomError'"
+
+**Acceptance Criteria**:
+- ✓ Field assignments to inherited fields work in constructors
+- ✓ Field assignments to inherited fields work in regular methods
+- ✓ Proper error message when field truly doesn't exist
+- ✓ Test `TestExceptionHandlingIntegration/New_vs_Create_Equivalence` passes completely
+- ✓ All existing field assignment tests continue to pass
+- ✓ Both AST-declared and programmatically-registered fields work
+
+**Related Work**:
+- Task 9.XX: Fixed custom exception constructor resolution (COMPLETED)
+- This task addresses the subsequent field assignment issue discovered during testing
+
+**Testing**:
+```bash
+# Run the specific failing test
+go test -v ./cmd/dwscript -run TestExceptionHandlingIntegration/New_vs_Create_Equivalence
+
+# Run broader exception tests
+go test -v ./cmd/dwscript -run TestExceptionHandlingIntegration
+
+# Test with the script directly
+./bin/dwscript run testdata/exceptions/new_vs_create.dws
+```
+
+---
+
 ## Phase 13: go-dws API Enhancements for LSP Integration ✅ COMPLETE
 
 **Goal**: Enhanced go-dws library with structured errors, AST access, position metadata, symbol tables, and type information for LSP features.
