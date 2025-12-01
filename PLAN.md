@@ -514,25 +514,48 @@ Bridge constructors to eliminate:
   - **Actual Effort**: 4 hours (matched plan estimate)
   - **Testing**: All exception tests pass (TestException*, TestTryExcept*, TestRaise*, TestContract*), CLI works correctly, 341/1227 fixture tests pass (baseline)
 
-- [ ] **3.5.19** Move SubrangeValue to Runtime
+- [x] **3.5.19** Move SubrangeValue to Runtime
   - **Current location**: `internal/interp/type_alias.go`
   - **Work**: Move to `runtime/subrange.go`, update imports
-  - **Effort**: 1 week
+  - **Effort**: 1 week (Actual: 1 hour)
   - **Risk**: Low
+  - **Status**: Completed
+  - **Changes**:
+    - Created `runtime/subrange.go` with SubrangeValue struct and methods
+    - Added `NewSubrangeValue()` and `NewSubrangeValueZero()` constructors
+    - Added `GetValue()` and `GetTypeName()` methods to satisfy evaluator's SubrangeValueAccessor interface
+    - Added type alias in `value.go` for backward compatibility
+    - Removed duplicate definition from `type_alias.go`
+    - Updated evaluator to use `runtime.NewSubrangeValueZero()` directly instead of bridge adapter
+    - Removed `CreateSubrangeValueDirect` bridge constructor (no longer needed)
+  - **Testing**: All 11 subrange tests pass, fixture test baseline unchanged (341/1227)
 
-- [ ] **3.5.20** Move InterfaceInstance to Runtime
-  - **Current location**: `internal/interp/interface.go`
-  - **Dependencies**: 3.5.17 (ObjectInstance - interfaces wrap objects)
-  - **Work**: Move to `runtime/interface.go`, update imports
-  - **Effort**: 1-2 weeks
-  - **Risk**: Medium
+- [x] **3.5.20** Move InterfaceInstance to Runtime ✅ COMPLETED (2025-12-01)
+  - **Location**: `internal/interp/runtime/interface_instance.go`
+  - **Dependencies**: 3.5.17 (ObjectInstance) ✅
+  - **Work Completed**:
+    - **Phase 1**: Created IInterfaceInfo interface in `runtime/class_interface.go` with 10 methods (GetName, GetParent, GetMethod, HasMethod, GetProperty, HasProperty, GetDefaultProperty, AllMethods, AllProperties)
+    - **Phase 2**: Created `runtime/interface_instance.go` with InterfaceInstance struct, methods (Type, String, GetUnderlyingObject, GetUnderlyingObjectValue, InterfaceName, HasInterfaceMethod, HasInterfaceProperty, LookupProperty, GetDefaultProperty)
+    - **Phase 3**: Updated InterfaceInfo in `interface.go` to implement IInterfaceInfo - changed method signatures to return `any`/`*runtime.PropertyInfo` instead of concrete types, added internal helpers (getMethodDecl, getPropertyInfo, allMethodsDecl, allPropertiesInfo) for backward compatibility
+    - **Phase 4**: Fixed 15+ call sites - Interface.Name → Interface.GetName(), Interface.getDefaultProperty() → Interface.GetDefaultProperty(), propInfo extraction via Impl field
+    - **Phase 5**: Updated CreateInterfaceInstanceDirect bridge constructor to use runtime.NewInterfaceInstance
+    - **Phase 6**: Converted ImplementsInterface from method to free function, updated 2 test call sites
+    - Type alias added in `interface.go` for backward compatibility
+    - Compile-time interface check: `var _ runtime.IInterfaceInfo = (*InterfaceInfo)(nil)`
+  - **Actual Effort**: 4 hours (matched medium complexity estimate)
+  - **Testing**: All interface tests pass, baseline unchanged (341/1227 fixture tests pass)
 
-- [ ] **3.5.21** Move TypedNilValue to Runtime
-  - **Current location**: `internal/interp/` (various files)
-  - **Dependencies**: 3.5.17 (ObjectInstance - typed nil references classes)
-  - **Work**: Move to `runtime/nil.go`, update imports
-  - **Effort**: 3 days
-  - **Risk**: Low
+- [x] **3.5.21** Move TypedNilValue to Runtime ✅ COMPLETED (2025-12-01)
+  - **Location**: `internal/interp/runtime/primitives.go` (NilValue struct with ClassType field)
+  - **Dependencies**: 3.5.17 (ObjectInstance) ✅
+  - **Work Completed**:
+    - NilValue was already in runtime package with ClassType field for typed nil support
+    - Removed `CreateTypedNilValue` bridge constructor from adapter interface
+    - Updated single call site in `evaluator/visitor_statements.go:1513` to use `&runtime.NilValue{ClassType: typeName}` directly
+    - Removed bridge method from `adapter_values.go:38-40`
+    - Removed interface method from `evaluator.go:715`
+  - **Actual Effort**: 1 hour (vs. 3 days estimated - value type already in runtime)
+  - **Testing**: All class variable and nil value tests pass, CLI verified with typed nil access to class vars, 341/1227 fixture tests pass (baseline)
 
 - [ ] **3.5.22** Migrate TryImplicitConversion
   - **Current location**: Adapter method in `adapter_types.go`
@@ -544,17 +567,23 @@ Bridge constructors to eliminate:
   - **Effort**: 1-2 weeks
   - **Risk**: High - execution layer coupling
 
-- [ ] **3.5.23** Remove Bridge Constructor Adapter Methods
+- [ ] **3.5.23** Remove Bridge Constructor Adapter Methods **PARTIAL** (5/6 complete)
   - **Methods to remove**:
-    - `CreateExceptionDirect`
-    - `WrapObjectInException`
-    - `CreateSubrangeValueDirect`
-    - `CreateInterfaceInstanceDirect`
-    - `CreateTypedNilValue`
-    - `CreateObject`
-  - **Work**: Remove methods from adapter interface, update all call sites
-  - **Effort**: 1 day
-  - **Risk**: Low (after 3.5.17-3.5.22 complete)
+    - [x] `CreateExceptionDirect` (removed in 3.5.18)
+    - [x] `WrapObjectInException` (removed in 3.5.18)
+    - [x] `CreateSubrangeValueDirect` (removed in 3.5.19)
+    - [x] `CreateInterfaceInstanceDirect` (removed 2025-12-01)
+    - [x] `CreateTypedNilValue` (removed in 3.5.21)
+    - [ ] `CreateObject` (pending - complex, requires object construction analysis)
+  - **CreateInterfaceInstanceDirect elimination** (2025-12-01):
+    - Updated `visitor_statements.go:1487-1497` to call `typeSystem.LookupInterface()` directly
+    - Type-assert to `runtime.IInterfaceInfo` interface
+    - Call `runtime.NewInterfaceInstance(ifaceInfo, nil)` directly
+    - Removed interface method from `evaluator.go:712`
+    - Removed implementation from `adapter_values.go:25-34`
+    - All 32 interface tests pass, CLI verified with nil interface instances
+  - **Effort**: 5 hours (5 bridges removed, 1 pending)
+  - **Risk**: Low (only CreateObject remains)
 
 ---
 
@@ -613,11 +642,11 @@ Goal: Remove adapter entirely, document final architecture.
 |-------|-------|-------------|--------|
 | Cleanup | 3.5.1-3.5.4 | ExecuteUserFunction, interface map removal | 3.5.2-3.5.4 ✅, 3.5.1 pending |
 | Analysis | 3.5.5-3.5.6 | Declaration dependency analysis | ✅ Complete |
-| Declarations | 3.5.7-3.5.16 | Move 9 declaration types to evaluator | 3.5.7, 3.5.11, 3.5.13, 3.5.14, 3.5.15, 3.5.16 ✅, 3 pending |
-| Bridge Elimination | 3.5.17-3.5.23 | Move value types to runtime, remove bridges | Pending |
+| Declarations | 3.5.7-3.5.16 | Move 9 declaration types to evaluator | 3.5.7-3.5.9, 3.5.11-3.5.16 ✅, 3.5.10 pending |
+| Bridge Elimination | 3.5.17-3.5.23 | Move value types to runtime, remove bridges | 3.5.17-3.5.19, 3.5.21 ✅, 3.5.20, 3.5.22-3.5.23 pending |
 | Final Cleanup | 3.5.24-3.5.32 | Remove adapter, document architecture | Pending |
 
-**Total remaining tasks**: 24 (was 32, completed 3.5.5, 3.5.6, 3.5.7, 3.5.11, 3.5.13, 3.5.14, 3.5.15, 3.5.16, 3.5.2-3.5.4)
+**Total remaining tasks**: 14 (was 32, completed 3.5.2-3.5.9, 3.5.11-3.5.19, 3.5.21)
 
 **Declaration Migration Order** (5 tiers):
 

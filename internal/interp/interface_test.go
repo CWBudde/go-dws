@@ -594,8 +594,8 @@ func TestInterfaceVariable(t *testing.T) {
 		t.Fatal("Variable should be an InterfaceInstance")
 	}
 
-	if retrieved.Interface.Name != "IPrintable" {
-		t.Errorf("Interface name should be IPrintable, got %s", retrieved.Interface.Name)
+	if retrieved.Interface.GetName() != "IPrintable" {
+		t.Errorf("Interface name should be IPrintable, got %s", retrieved.Interface.GetName())
 	}
 }
 
@@ -723,9 +723,15 @@ func TestInterfaceMethodCall(t *testing.T) {
 	ifaceInstance := NewInterfaceInstance(interp.lookupInterfaceInfo("icalculator"), obj)
 
 	// Verify method can be found through interface
-	method := ifaceInstance.Interface.GetMethod("Add")
-	if method == nil {
+	methodAny := ifaceInstance.Interface.GetMethod("Add")
+	if methodAny == nil {
 		t.Fatal("Should be able to find Add method through interface")
+	}
+
+	// Task 3.5.20: GetMethod returns any, need to type assert
+	method, ok := methodAny.(*ast.FunctionDecl)
+	if !ok {
+		t.Fatal("GetMethod should return *ast.FunctionDecl")
 	}
 
 	if method.Name.Value != "Add" {
@@ -893,11 +899,11 @@ func TestMultipleInterfaces(t *testing.T) {
 	}
 
 	// Verify correct interface types
-	if readableInstance.Interface.Name != "IReadable" {
+	if readableInstance.Interface.GetName() != "IReadable" {
 		t.Error("First instance should be IReadable")
 	}
 
-	if writableInstance.Interface.Name != "IWritable" {
+	if writableInstance.Interface.GetName() != "IWritable" {
 		t.Error("Second instance should be IWritable")
 	}
 }
@@ -1184,14 +1190,14 @@ func TestInterfacePolymorphism(t *testing.T) {
 	vehicleIface := val.(*InterfaceInstance)
 
 	// Should still be ICar type
-	if vehicleIface.Interface.Name != "ICar" {
-		t.Errorf("Interface type should be preserved as ICar, got %s", vehicleIface.Interface.Name)
+	if vehicleIface.Interface.GetName() != "ICar" {
+		t.Errorf("Interface type should be preserved as ICar, got %s", vehicleIface.Interface.GetName())
 	}
 
 	// Test 2: Can cast to base interface (Task 3.5.184c: Use lookupInterfaceInfo)
 	baseIface := NewInterfaceInstance(interp.lookupInterfaceInfo("ivehicle"), obj)
 
-	if baseIface.Interface.Name != "IVehicle" {
+	if baseIface.Interface.GetName() != "IVehicle" {
 		t.Error("Should be able to create IVehicle instance")
 	}
 

@@ -110,9 +110,15 @@ func TestEdge_InterfaceWithManyMethods(t *testing.T) {
 			t.Errorf("Interface should have method %s", name)
 		}
 
-		method := iface.GetMethod(name)
-		if method == nil {
+		methodAny := iface.GetMethod(name)
+		if methodAny == nil {
 			t.Errorf("GetMethod should return method %s", name)
+		}
+
+		// Task 3.5.20: GetMethod returns any, need to type assert
+		method, ok := methodAny.(*ast.FunctionDecl)
+		if !ok {
+			t.Errorf("GetMethod should return *ast.FunctionDecl for method %s", name)
 		}
 
 		if method.Name.Value != name {
@@ -434,12 +440,13 @@ func TestEdge_InterfaceInstanceImplementsInterface(t *testing.T) {
 	ifaceInstance := NewInterfaceInstance(iface1, obj)
 
 	// Should return true for iface1 (class implements it)
-	if !ifaceInstance.ImplementsInterface(iface1) {
+	// Task 3.5.20: Use free function ImplementsInterface instead of method
+	if !ImplementsInterface(ifaceInstance, iface1) {
 		t.Error("InterfaceInstance should report it implements iface1")
 	}
 
 	// Should return false for iface2 (class doesn't implement it)
-	if ifaceInstance.ImplementsInterface(iface2) {
+	if ImplementsInterface(ifaceInstance, iface2) {
 		t.Error("InterfaceInstance should NOT report it implements iface2")
 	}
 }

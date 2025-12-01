@@ -1475,21 +1475,26 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 
 	// Check if this is a subrange type
 	// Task 3.5.182: Use TypeSystem lookup instead of environment
+	// Task 3.5.19: Direct construction now that SubrangeValue is in runtime package
 	if subrangeType := e.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {
-		// Use bridge adapter for construction (SubrangeValue in interp package)
-		return e.adapter.CreateSubrangeValueDirect(subrangeType)
+		return runtime.NewSubrangeValueZero(subrangeType)
 	}
 
 	// Check if this is an interface type
-	// Task 3.5.129d: Direct interface check + lookup + bridge constructor
+	// Task 3.5.23: Direct interface lookup + runtime constructor (no bridge needed)
 	if e.typeSystem.HasInterface(typeName) {
-		// Lookup interface metadata via adapter (temporary until TypeSystem migration)
-		ifaceInfoAny, exists := e.adapter.LookupInterface(typeName)
-		if !exists {
+		// Lookup interface metadata from TypeSystem
+		ifaceInfoAny := e.typeSystem.LookupInterface(typeName)
+		if ifaceInfoAny == nil {
 			return &runtime.NilValue{}
 		}
-		// Use bridge adapter for construction (InterfaceInstance in interp package)
-		return e.adapter.CreateInterfaceInstanceDirect(ifaceInfoAny)
+		// Type-assert to IInterfaceInfo interface
+		ifaceInfo, ok := ifaceInfoAny.(runtime.IInterfaceInfo)
+		if !ok {
+			return &runtime.NilValue{}
+		}
+		// Create nil interface instance directly
+		return runtime.NewInterfaceInstance(ifaceInfo, nil)
 	}
 
 	// Initialize basic types with their zero values
@@ -1507,10 +1512,9 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 		return runtime.BoxVariant(&runtime.NilValue{})
 	default:
 		// Check if this is a class type and create a typed nil value
-		// Task 3.5.129e: Direct class check + bridge constructor
+		// Task 3.5.21: Direct runtime constructor (no bridge needed)
 		if e.typeSystem.HasClass(typeName) {
-			// Use bridge adapter for construction (NilValue.ClassType in interp package)
-			return e.adapter.CreateTypedNilValue(typeName)
+			return &runtime.NilValue{ClassType: typeName}
 		}
 		return &runtime.NilValue{}
 	}

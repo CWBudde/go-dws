@@ -1,9 +1,7 @@
 package interp
 
 import (
-	"fmt"
-
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -16,12 +14,18 @@ import (
 // InterfaceInfo represents runtime interface metadata.
 // It stores information about an interface's structure including methods,
 // parent interface, and external binding information.
+//
+// Task 3.5.20: Now implements runtime.IInterfaceInfo interface to allow
+// InterfaceInstance (in runtime package) to reference it without circular imports.
 type InterfaceInfo struct {
 	Parent     *InterfaceInfo
 	Methods    map[string]*ast.FunctionDecl
 	Properties map[string]*types.PropertyInfo
 	Name       string
 }
+
+// Ensure InterfaceInfo implements runtime.IInterfaceInfo at compile time.
+var _ runtime.IInterfaceInfo = (*InterfaceInfo)(nil)
 
 // NewInterfaceInfo creates a new InterfaceInfo with the given name.
 // Methods map is initialized as empty.
@@ -34,11 +38,27 @@ func NewInterfaceInfo(name string) *InterfaceInfo {
 	}
 }
 
+// GetName returns the interface name.
+// Task 3.5.20: Implements runtime.IInterfaceInfo interface.
+func (ii *InterfaceInfo) GetName() string {
+	return ii.Name
+}
+
+// GetParent returns the parent interface, or nil if this is a root interface.
+// Task 3.5.20: Implements runtime.IInterfaceInfo interface.
+func (ii *InterfaceInfo) GetParent() runtime.IInterfaceInfo {
+	if ii.Parent == nil {
+		return nil
+	}
+	return ii.Parent
+}
+
 // GetMethod looks up a method by name in this interface.
 // It searches the interface hierarchy, starting with this interface
 // and walking up through parent interfaces until the method is found.
 // Returns nil if the method is not found in the interface hierarchy.
-func (ii *InterfaceInfo) GetMethod(name string) *ast.FunctionDecl {
+// Task 3.5.20: Returns any (instead of *ast.FunctionDecl) to implement IInterfaceInfo.
+func (ii *InterfaceInfo) GetMethod(name string) any {
 	normalizedName := ident.Normalize(name)
 
 	// Check this interface's methods first
@@ -55,6 +75,16 @@ func (ii *InterfaceInfo) GetMethod(name string) *ast.FunctionDecl {
 	return nil
 }
 
+// getMethodDecl is an internal helper that returns the method as *ast.FunctionDecl.
+// Used by existing code that needs the concrete type.
+func (ii *InterfaceInfo) getMethodDecl(name string) *ast.FunctionDecl {
+	method := ii.GetMethod(name)
+	if method == nil {
+		return nil
+	}
+	return method.(*ast.FunctionDecl)
+}
+
 // HasMethod checks if this interface (or any parent) has a method with the given name.
 func (ii *InterfaceInfo) HasMethod(name string) bool {
 	return ii.GetMethod(name) != nil
@@ -62,11 +92,20 @@ func (ii *InterfaceInfo) HasMethod(name string) bool {
 
 // GetProperty looks up a property by name in this interface (case-insensitive).
 // It searches the interface hierarchy until found.
-func (ii *InterfaceInfo) GetProperty(name string) *types.PropertyInfo {
+// Task 3.5.20: Returns *runtime.PropertyInfo (wrapper) to implement IInterfaceInfo.
+func (ii *InterfaceInfo) GetProperty(name string) *runtime.PropertyInfo {
 	normalized := ident.Normalize(name)
 
 	if prop, exists := ii.Properties[normalized]; exists {
-		return prop
+		// Convert types.PropertyInfo to runtime.PropertyInfo
+		return &runtime.PropertyInfo{
+			Name:      prop.Name,
+			IsIndexed: prop.IsIndexed,
+			IsDefault: prop.IsDefault,
+			ReadSpec:  prop.ReadSpec,
+			WriteSpec: prop.WriteSpec,
+			Impl:      prop, // Store original for backward compatibility
+		}
 	}
 
 	if ii.Parent != nil {
@@ -76,13 +115,27 @@ func (ii *InterfaceInfo) GetProperty(name string) *types.PropertyInfo {
 	return nil
 }
 
+// getPropertyInfo is an internal helper that returns the property as *types.PropertyInfo.
+// Used by existing code that needs the concrete type.
+func (ii *InterfaceInfo) getPropertyInfo(name string) *types.PropertyInfo {
+	normalized := ident.Normalize(name)
+	if prop, exists := ii.Properties[normalized]; exists {
+		return prop
+	}
+	if ii.Parent != nil {
+		return ii.Parent.getPropertyInfo(name)
+	}
+	return nil
+}
+
 // HasProperty checks if the interface (or any parent) declares a property.
 func (ii *InterfaceInfo) HasProperty(name string) bool {
 	return ii.GetProperty(name) != nil
 }
 
-// getDefaultProperty returns the default property defined on the interface hierarchy, if any.
-func (ii *InterfaceInfo) getDefaultProperty() *types.PropertyInfo {
+// GetDefaultProperty returns the default property defined on the interface hierarchy, if any.
+// Task 3.5.20: Renamed from getDefaultProperty and returns *runtime.PropertyInfo to implement IInterfaceInfo.
+func (ii *InterfaceInfo) GetDefaultProperty() *runtime.PropertyInfo {
 	for _, prop := range ii.AllProperties() {
 		if prop.IsDefault {
 			return prop
@@ -93,8 +146,9 @@ func (ii *InterfaceInfo) getDefaultProperty() *types.PropertyInfo {
 
 // AllMethods returns all methods in this interface, including inherited methods.
 // Returns a new map containing all methods from this interface and its parents.
-func (ii *InterfaceInfo) AllMethods() map[string]*ast.FunctionDecl {
-	result := make(map[string]*ast.FunctionDecl)
+// Task 3.5.20: Returns map[string]any (instead of map[string]*ast.FunctionDecl) to implement IInterfaceInfo.
+func (ii *InterfaceInfo) AllMethods() map[string]any {
+	result := make(map[string]any)
 
 	// Add parent methods first (so child methods can override)
 	if ii.Parent != nil {
@@ -111,12 +165,59 @@ func (ii *InterfaceInfo) AllMethods() map[string]*ast.FunctionDecl {
 	return result
 }
 
+// allMethodsDecl is an internal helper that returns methods as map[string]*ast.FunctionDecl.
+// Used by existing code that needs the concrete type.
+func (ii *InterfaceInfo) allMethodsDecl() map[string]*ast.FunctionDecl {
+	result := make(map[string]*ast.FunctionDecl)
+
+	// Add parent methods first (so child methods can override)
+	if ii.Parent != nil {
+		for name, method := range ii.Parent.allMethodsDecl() {
+			result[name] = method
+		}
+	}
+
+	// Add this interface's methods
+	for name, method := range ii.Methods {
+		result[name] = method
+	}
+
+	return result
+}
+
 // AllProperties returns all properties declared on this interface and its parents.
-func (ii *InterfaceInfo) AllProperties() map[string]*types.PropertyInfo {
-	result := make(map[string]*types.PropertyInfo)
+// Task 3.5.20: Returns map[string]*runtime.PropertyInfo to implement IInterfaceInfo.
+func (ii *InterfaceInfo) AllProperties() map[string]*runtime.PropertyInfo {
+	result := make(map[string]*runtime.PropertyInfo)
 
 	if ii.Parent != nil {
 		for name, prop := range ii.Parent.AllProperties() {
+			result[name] = prop
+		}
+	}
+
+	for name, prop := range ii.Properties {
+		// Convert types.PropertyInfo to runtime.PropertyInfo
+		result[name] = &runtime.PropertyInfo{
+			Name:      prop.Name,
+			IsIndexed: prop.IsIndexed,
+			IsDefault: prop.IsDefault,
+			ReadSpec:  prop.ReadSpec,
+			WriteSpec: prop.WriteSpec,
+			Impl:      prop,
+		}
+	}
+
+	return result
+}
+
+// allPropertiesInfo is an internal helper that returns properties as map[string]*types.PropertyInfo.
+// Used by existing code that needs the concrete type.
+func (ii *InterfaceInfo) allPropertiesInfo() map[string]*types.PropertyInfo {
+	result := make(map[string]*types.PropertyInfo)
+
+	if ii.Parent != nil {
+		for name, prop := range ii.Parent.allPropertiesInfo() {
 			result[name] = prop
 		}
 	}
@@ -133,55 +234,18 @@ func (ii *InterfaceInfo) AllProperties() map[string]*types.PropertyInfo {
 // ============================================================================
 
 // InterfaceInstance represents a runtime instance of an interface.
-// It wraps an ObjectInstance and provides interface-based access to it.
-// This implements the Value interface so it can be used as a runtime value.
-type InterfaceInstance struct {
-	// Interface points to the interface metadata
-	Interface *InterfaceInfo
-
-	// Object is a reference to the implementing object
-	// This allows method dispatch to the actual object implementation
-	Object *ObjectInstance
-}
+// Task 3.5.20: Moved to runtime.InterfaceInstance for bridge constructor elimination.
+// Type alias provided for backward compatibility during migration.
+type InterfaceInstance = runtime.InterfaceInstance
 
 // NewInterfaceInstance creates a new interface instance wrapping an object.
-// Task 9.1.5: Increments the object's reference count when wrapping it in an interface.
-func NewInterfaceInstance(iface *InterfaceInfo, obj *ObjectInstance) *InterfaceInstance {
-	// Increment reference count when interface takes ownership of object
-	if obj != nil {
-		obj.RefCount++
-	}
-
-	return &InterfaceInstance{
-		Interface: iface,
-		Object:    obj,
-	}
-}
-
-// Type returns "INTERFACE" for interface instances.
-// Implements the Value interface.
-func (ii *InterfaceInstance) Type() string {
-	return "INTERFACE"
-}
-
-// String returns the string representation of the interface instance.
-// Implements the Value interface.
-func (ii *InterfaceInstance) String() string {
-	if ii.Object == nil {
-		return fmt.Sprintf("%s instance (nil)", ii.Interface.Name)
-	}
-	return fmt.Sprintf("%s instance (wrapping %s)", ii.Interface.Name, ii.Object.Class.GetName())
-}
-
-// GetUnderlyingObject returns the object wrapped by this interface instance.
-// This is used for interface-to-object casting.
-func (ii *InterfaceInstance) GetUnderlyingObject() *ObjectInstance {
-	return ii.Object
-}
+// Task 3.5.20: Function alias for backward compatibility.
+var NewInterfaceInstance = runtime.NewInterfaceInstance
 
 // ImplementsInterface checks if the underlying object's class implements all methods
 // of the given interface. This is used for runtime type checking.
-func (ii *InterfaceInstance) ImplementsInterface(iface *InterfaceInfo) bool {
+// Task 3.5.20: Kept in interp package as it needs ClassInfo access.
+func ImplementsInterface(ii *InterfaceInstance, iface *InterfaceInfo) bool {
 	if ii.Object == nil {
 		return false // nil doesn't implement any interface
 	}
@@ -190,83 +254,6 @@ func (ii *InterfaceInstance) ImplementsInterface(iface *InterfaceInfo) bool {
 		return false
 	}
 	return classImplementsInterface(concreteClass, iface)
-}
-
-// GetUnderlyingObjectValue returns the object wrapped by this interface instance.
-// Returns nil if the interface wraps a nil object.
-//
-// Note: This returns ObjectValue (interface) while GetUnderlyingObject returns *ObjectInstance.
-func (ii *InterfaceInstance) GetUnderlyingObjectValue() Value {
-	if ii.Object == nil {
-		return nil
-	}
-	return ii.Object
-}
-
-// InterfaceName returns the name of the interface type.
-func (ii *InterfaceInstance) InterfaceName() string {
-	if ii.Interface == nil {
-		return ""
-	}
-	return ii.Interface.Name
-}
-
-// HasInterfaceMethod checks if the interface declares a method with the given name.
-// The check includes parent interfaces.
-func (ii *InterfaceInstance) HasInterfaceMethod(name string) bool {
-	if ii.Interface == nil {
-		return false
-	}
-	return ii.Interface.HasMethod(name)
-}
-
-// HasInterfaceProperty checks if the interface declares a property with the given name.
-// The check includes parent interfaces.
-func (ii *InterfaceInstance) HasInterfaceProperty(name string) bool {
-	if ii.Interface == nil {
-		return false
-	}
-	return ii.Interface.HasProperty(name)
-}
-
-// LookupProperty searches for a property by name in the interface hierarchy.
-// Returns a PropertyDescriptor wrapping types.PropertyInfo, or nil if not found.
-func (ii *InterfaceInstance) LookupProperty(name string) *evaluator.PropertyDescriptor {
-	if ii.Interface == nil {
-		return nil
-	}
-
-	propInfo := ii.Interface.GetProperty(name)
-	if propInfo == nil {
-		return nil
-	}
-
-	return &evaluator.PropertyDescriptor{
-		Name:      propInfo.Name,
-		IsIndexed: propInfo.IsIndexed,
-		IsDefault: propInfo.IsDefault,
-		Impl:      propInfo, // Store the original PropertyInfo for later use
-	}
-}
-
-// GetDefaultProperty returns the default property for this interface, if any.
-// Returns a PropertyDescriptor wrapping types.PropertyInfo, or nil if no default property exists.
-func (ii *InterfaceInstance) GetDefaultProperty() *evaluator.PropertyDescriptor {
-	if ii.Interface == nil {
-		return nil
-	}
-
-	propInfo := ii.Interface.getDefaultProperty()
-	if propInfo == nil {
-		return nil
-	}
-
-	return &evaluator.PropertyDescriptor{
-		Name:      propInfo.Name,
-		IsIndexed: propInfo.IsIndexed,
-		IsDefault: propInfo.IsDefault,
-		Impl:      propInfo, // Store the original PropertyInfo for later use
-	}
 }
 
 // ============================================================================
@@ -385,7 +372,8 @@ func classHasMethod(class *ClassInfo, methodName string) bool {
 // This is used for interface-to-interface casting.
 func interfaceIsCompatible(source *InterfaceInfo, target *InterfaceInfo) bool {
 	// Get all methods required by the target interface
-	targetMethods := target.AllMethods()
+	// Task 3.5.20: Use allMethodsDecl() to get concrete types for iteration
+	targetMethods := target.allMethodsDecl()
 
 	// Check that the source interface has each required method
 	for methodName := range targetMethods {

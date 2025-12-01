@@ -103,7 +103,12 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 					}
 				}
 				if obj, ok := AsObject(intfInst.Object); ok {
-					return i.evalIndexedPropertyRead(obj, propInfo, indexVals, expr)
+					// Task 3.5.20: Extract *types.PropertyInfo from Impl field
+					typesPropertyInfo, ok := propInfo.Impl.(*types.PropertyInfo)
+					if !ok {
+						return i.newErrorWithLocation(expr, "invalid property info type")
+					}
+					return i.evalIndexedPropertyRead(obj, typesPropertyInfo, indexVals, expr)
 				}
 				return i.newErrorWithLocation(expr, "interface underlying object is not a class instance")
 			}
@@ -256,9 +261,15 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 		if intfInst.Object == nil {
 			return i.newErrorWithLocation(expr, "Interface is nil")
 		}
-		if propInfo := intfInst.Interface.getDefaultProperty(); propInfo != nil && propInfo.IsIndexed {
+		// Task 3.5.20: Use GetDefaultProperty() (public) instead of getDefaultProperty()
+		if propInfo := intfInst.Interface.GetDefaultProperty(); propInfo != nil && propInfo.IsIndexed {
 			if obj, ok := AsObject(intfInst.Object); ok {
-				return i.evalIndexedPropertyRead(obj, propInfo, []Value{indexVal}, expr)
+				// Extract *types.PropertyInfo from Impl field
+				typesPropertyInfo, ok := propInfo.Impl.(*types.PropertyInfo)
+				if !ok {
+					return i.newErrorWithLocation(expr, "invalid property info type")
+				}
+				return i.evalIndexedPropertyRead(obj, typesPropertyInfo, []Value{indexVal}, expr)
 			}
 			return i.newErrorWithLocation(expr, "interface underlying object is not a class instance")
 		}
