@@ -169,9 +169,21 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 			AliasedType: aliasedType,
 		}
 
+		// If this alias targets an enum, register it with the type system so
+		// scoped accesses like Alias.Value work the same as the original type.
+		if enumType, ok := aliasedType.(*types.EnumType); ok {
+			if i.typeSystem != nil {
+				i.typeSystem.RegisterEnumType(decl.Name.Value, &EnumTypeValue{EnumType: enumType})
+			}
+		}
+
 		// Store in environment with special prefix
 		typeKey := "__type_alias_" + strings.ToLower(decl.Name.Value)
 		i.env.Define(typeKey, typeAlias)
+
+		// Also expose the alias name as a type meta value so it can be used
+		// in expressions (e.g., scoped enum access via the alias name).
+		i.env.Define(decl.Name.Value, NewTypeMetaValue(aliasedType, decl.Name.Value))
 
 		return &NilValue{}
 	}

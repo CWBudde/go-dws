@@ -628,7 +628,7 @@ Bridge constructors to eliminate:
     - **Deliverable**: Evaluator can access conversion registry
     - **Completed**: Migrated registration from `runtimeConversionRegistry` to `TypeSystem.Conversions()`, updated all lookup sites, removed duplicate registry code (~115 lines)
 
-  - [ ] **3.5.22f** Create Evaluator Helper for Conversion Function Execution
+  - [x] **3.5.22f** Create Evaluator Helper for Conversion Function Execution
     - **Files**: `evaluator/type_conversion.go` (new file)
     - **Work**:
       1. Create `executeConversionFunction(fn *ast.FunctionDecl, arg Value) (Value, error)` helper
@@ -637,6 +637,7 @@ Bridge constructors to eliminate:
       4. Test with simple conversion operators (Integer→String, etc.)
     - **Effort**: 4-6 hours
     - **Deliverable**: Evaluator can execute conversion functions
+    - **Completed**: Created `ExecuteConversionFunction` and `ExecuteConversionFunctionSimple` helpers with `ConversionCallbacks` struct for interpreter-dependent operations. Includes validation (single parameter, return type required), proper error wrapping, and comprehensive tests.
 
   - [ ] **3.5.22g** Move tryImplicitConversion Logic to Evaluator
     - **Current**: `operators_eval.go:193-280` (Interpreter method)

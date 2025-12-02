@@ -892,6 +892,11 @@ func (a *Analyzer) getEnumType(name string) *types.EnumType {
 	if !ok {
 		return nil
 	}
+	// Unwrap type aliases so aliases to enums behave like the enum itself.
+	// This allows scoped access via an alias (e.g., TE2.Value when TE2 = TE1).
+	if aliasType, ok := typ.(*types.TypeAlias); ok {
+		typ = types.GetUnderlyingType(aliasType)
+	}
 	enumType, ok := typ.(*types.EnumType)
 	if !ok {
 		return nil
