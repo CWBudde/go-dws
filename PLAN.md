@@ -570,17 +570,27 @@ Bridge constructors to eliminate:
     - **Actual Effort**: 2 hours
     - **Deliverable**: Array return types with record elements work correctly in `ExecuteUserFunction`
 
-  - [ ] **3.5.22c** Fix Method Pointer Return Values
-    - **Blocker**: Method pointers return wrong value
-    - **Test failure**: `TestEvalAddressOfMethod`
-    - **Files**: `functions_pointers.go`, `adapter_functions.go`
-    - **Work**:
-      1. Debug method pointer creation in evaluator context
-      2. Ensure Self binding is correct for method pointers
-      3. Verify function environment is captured properly
-      4. Test with address-of operator (@Method)
-    - **Effort**: 1 day
-    - **Deliverable**: Method pointer returns work correctly
+  - [x] **3.5.22c** Fix Method Pointer Return Values ✅ COMPLETE (2025-12-02)
+    - **Status**: Method pointer runtime implementation is working correctly
+    - **Original Blocker**: `TestEvalAddressOfMethod` test failure (now passing)
+    - **Files**: `functions_pointers.go`, `adapter_functions.go`, `method_pointer_test.go` (NEW)
+    - **Work Completed**:
+      1. Verified `TestEvalAddressOfMethod` now passes (was previously blocking)
+      2. Created comprehensive test suite (14 passing tests) covering:
+         - Basic value returns, Self binding persistence
+         - Methods with single/multiple parameters
+         - String, Float, Boolean return types
+         - Different objects with same method
+         - Object modification after pointer creation
+         - Method pointers passed as parameters
+         - Inherited methods and virtual method dispatch
+         - Procedure pointers (no return value)
+         - Method pointers returned from functions
+      3. Identified semantic analyzer limitation (not runtime issue):
+         - Error "method pointers (@TClass.Method) not yet implemented" in certain contexts
+         - Runtime handles method pointers correctly; semantic analyzer blocks some usage patterns
+    - **Actual Effort**: 2 hours (investigation + test creation)
+    - **Deliverable**: Method pointer returns work correctly in evaluator context
 
   - [ ] **3.5.22d** Migrate All callUserFunction Call Sites
     - **Current state**: Wrapper exists but only used by 3.5.1a/b paths (2 sites)
@@ -1345,9 +1355,14 @@ analyzer := semantic.NewAnalyzerWithExperimentalPasses()
 
 - [ ] **6.1.2.17: Miscellaneous Fixes** (4 tests, 2-3 hours)
   - Implement AddressOf operator (`@`) validation
+  - **Method Pointer Support**: Currently reports "method pointers (@TClass.Method) not yet implemented"
+    - Need to support `@obj.Method` syntax for creating method pointers
+    - Need to infer function pointer type from method signature
+    - Runtime already handles method pointers correctly (see `TestMethodPointer_*` tests in `method_pointer_test.go`)
+    - Blocked contexts: `funcs.Add(@obj.Get)`, array storage of method pointers
   - Fix case-insensitive method call edge cases
   - Complete contract `old()` expression validation edge cases
-  - **Files**: `validation_pass.go`, `contract_pass.go`
+  - **Files**: `validation_pass.go`, `contract_pass.go`, `analyze_expressions.go`
 
 ---
 

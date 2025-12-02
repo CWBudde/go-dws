@@ -42,8 +42,8 @@ func (i *Interpreter) callFunctionPointer(funcPtr *FunctionPointerValue, args []
 		// Bind Self to the captured object
 		i.env.Define("Self", funcPtr.SelfObject)
 
-		// Call the function
-		result := i.callUserFunction(funcPtr.Function, args)
+		// Call the function via evaluator
+		result := i.executeUserFunctionViaEvaluator(funcPtr.Function, args)
 
 		// Restore environment
 		i.env = savedEnv
@@ -51,8 +51,8 @@ func (i *Interpreter) callFunctionPointer(funcPtr *FunctionPointerValue, args []
 		return result
 	}
 
-	// Regular function pointer - just call the function directly
-	return i.callUserFunction(funcPtr.Function, args)
+	// Regular function pointer - call via evaluator
+	return i.executeUserFunctionViaEvaluator(funcPtr.Function, args)
 }
 
 // callLambda executes a lambda expression with its captured closure environment.

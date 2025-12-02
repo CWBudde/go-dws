@@ -50,7 +50,7 @@ func (i *Interpreter) invokeGlobalOperator(entry *runtimeOperatorEntry, operands
 	if len(fn.Parameters) != len(operands) {
 		return i.newErrorWithLocation(node, "operator '%s' expects %d operands, got %d", entry.Operator, len(fn.Parameters), len(operands))
 	}
-	return i.callUserFunction(fn, operands)
+	return i.executeUserFunctionViaEvaluator(fn, operands)
 }
 
 func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodName string, args []Value, node ast.Node) Value {
@@ -220,7 +220,7 @@ func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) 
 
 		// Call the conversion function with the value as argument
 		args := []Value{value}
-		result := i.callUserFunction(fn, args)
+		result := i.executeUserFunctionViaEvaluator(fn, args)
 
 		if isError(result) {
 			return result, false
@@ -268,7 +268,7 @@ func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) 
 
 		// Apply this conversion step
 		args := []Value{currentValue}
-		result := i.callUserFunction(fn, args)
+		result := i.executeUserFunctionViaEvaluator(fn, args)
 
 		if isError(result) {
 			return result, false

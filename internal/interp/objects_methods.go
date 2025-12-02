@@ -30,7 +30,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 						}
 						args[idx] = val
 					}
-					return i.callUserFunction(fn, args)
+					return i.executeUserFunctionViaEvaluator(fn, args)
 				}
 				// Function not found in unit
 				return i.newErrorWithLocation(mc, "function '%s' not found in unit '%s'", mc.Method.Value, ident.Value)

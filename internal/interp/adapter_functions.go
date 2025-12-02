@@ -72,10 +72,17 @@ func (i *Interpreter) ExecuteFunctionPointerCall(metadata evaluator.FunctionPoin
 		// Bind Self to the captured object
 		i.env.Define("Self", metadata.SelfObject)
 
+		// Task 3.5.22d: Sync i.ctx.Env() with i.env before calling ExecuteUserFunction.
+		// ExecuteUserFunction creates its function environment from ctx.Env(), so we need
+		// ctx.Env() to see the Self binding we just set up in i.env.
+		savedCtxEnv := i.ctx.Env()
+		i.ctx.SetEnv(evaluator.NewEnvironmentAdapter(i.env))
+
 		// Call the function via ExecuteUserFunction
 		result, err := i.evaluatorInstance.ExecuteUserFunction(fn, args, i.ctx, callbacks)
 
-		// Restore environment
+		// Restore environments
+		i.ctx.SetEnv(savedCtxEnv)
 		i.env = savedEnv
 
 		if err != nil {
@@ -94,7 +101,7 @@ func (i *Interpreter) ExecuteFunctionPointerCall(metadata evaluator.FunctionPoin
 
 // CallUserFunction executes a user-defined function.
 func (i *Interpreter) CallUserFunction(fn *ast.FunctionDecl, args []evaluator.Value) evaluator.Value {
-	return i.callUserFunction(fn, convertEvaluatorArgs(args))
+	return i.executeUserFunctionViaEvaluator(fn, convertEvaluatorArgs(args))
 }
 
 // Task 3.5.143y: CallBuiltinFunction REMOVED

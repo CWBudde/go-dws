@@ -250,6 +250,13 @@ type TryImplicitConversionReturnFunc func(returnValue Value, expectedReturnType 
 // for the caller's reference. This will be balanced by cleanup releasing Result after return.
 type IncrementInterfaceRefCountFunc func(returnValue Value)
 
+// EnvSyncerFunc syncs the interpreter's environment with the evaluator's function environment.
+// Task 3.5.22d: This is called before executing the function body to ensure that when
+// EvalNode is called back to the interpreter (e.g., for function pointer assignments),
+// it uses the correct function environment, not the caller's environment.
+// The returned function should be called to restore the original environment.
+type EnvSyncerFunc func(funcEnv Environment) func()
+
 // UserFunctionCallbacks holds all callback functions needed for user function execution.
 // Task 3.5.144b.11: Consolidates all callbacks into a single struct for cleaner API.
 type UserFunctionCallbacks struct {
@@ -270,6 +277,10 @@ type UserFunctionCallbacks struct {
 
 	// InterfaceCleanup cleans up interface/object references when scope ends
 	InterfaceCleanup CleanupInterfaceReferencesFunc
+
+	// EnvSyncer syncs interpreter's i.env with evaluator's funcEnv during body execution
+	// Task 3.5.22d: Ensures EvalNode callbacks use the correct environment
+	EnvSyncer EnvSyncerFunc
 }
 
 // ExecuteUserFunction executes a user-defined function with all necessary setup and cleanup.
@@ -408,8 +419,24 @@ func (e *Evaluator) ExecuteUserFunction(
 		return nil, fmt.Errorf("function '%s' has no body", fn.Name.Value)
 	}
 
-	// Task 3.5.144b.7: Execute function body with function context
-	_ = e.Eval(fn.Body, funcCtx)
+	// Task 3.5.22d: Sync interpreter's i.env with funcEnv before body execution.
+	// This ensures that when EvalNode is called back to the interpreter
+	// (e.g., for function pointer assignments to Result), it uses funcEnv.
+	var restoreEnv func()
+	if callbacks.EnvSyncer != nil {
+		restoreEnv = callbacks.EnvSyncer(funcEnv)
+	}
+
+	// Task 3.5.144b.7: Execute function body via adapter.
+	// We use EvalNode instead of e.Eval because the evaluator doesn't fully support
+	// all language features yet (e.g., class constructor calls like TClass.Create).
+	// The adapter's EvalNode delegates to the interpreter's Eval which has full support.
+	_ = e.adapter.EvalNode(fn.Body)
+
+	// Restore interpreter's environment after body execution
+	if restoreEnv != nil {
+		restoreEnv()
+	}
 
 	// If exception was raised, propagate it to caller's context
 	if funcCtx.Exception() != nil {
@@ -427,6 +454,7 @@ func (e *Evaluator) ExecuteUserFunction(
 	if fn.ReturnType != nil {
 		// Get Result from function environment
 		resultValInterface, resultOk := funcEnv.Get("Result")
+		// Debug: Check what we got
 		if resultOk {
 			// Convert interface{} to Value
 			if val, ok := resultValInterface.(Value); ok {
