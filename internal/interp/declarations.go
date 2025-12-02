@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -946,14 +947,14 @@ func (i *Interpreter) evalOperatorDeclaration(decl *ast.OperatorDecl) Value {
 			return i.newErrorWithLocation(decl, "conversion operator '%s' requires a return type", decl.OperatorSymbol)
 		}
 		targetType := NormalizeTypeAnnotation(decl.ReturnType.String())
-		entry := &runtimeConversionEntry{
+		entry := &interptypes.ConversionEntry{
 			From: operandTypes[0],
 			To:   targetType,
 			// DWScript is case-insensitive, so normalize the binding name
 			BindingName: ident.Normalize(decl.Binding.Value),
 			Implicit:    ident.Equal(decl.OperatorSymbol, "implicit"),
 		}
-		if err := i.conversions.register(entry); err != nil {
+		if err := i.typeSystem.Conversions().Register(entry); err != nil {
 			return i.newErrorWithLocation(decl, "conversion from %s to %s already defined", operandTypes[0], targetType)
 		}
 		return &NilValue{}
