@@ -24,6 +24,7 @@ func (i *Interpreter) createUserFunctionCallbacks() *evaluator.UserFunctionCallb
 		ReturnValueConverter: i.createReturnValueConverterCallback(),
 		InterfaceRefCounter:  i.createInterfaceRefCounterCallback(),
 		InterfaceCleanup:     i.createInterfaceCleanupCallback(),
+		EnvSyncer:            i.createEnvSyncerCallback(),
 	}
 }
 
@@ -188,31 +189,80 @@ func (i *Interpreter) cleanupInterfaceReferencesForEnv(env evaluator.Environment
 	// and release any interface references and object references.
 	// However, the evaluator.Environment interface doesn't expose iteration.
 	//
-	// Solution: Save and temporarily swap i.env, then call the existing method.
-	// The env passed from ExecuteUserFunction is the function's environment,
-	// and we need to temporarily make it i.env so cleanupInterfaceReferences works.
-
-	// This is safe because:
-	// 1. The env is actually an *Environment at runtime (created by NewEnclosedEnvironment)
-	// 2. We're just temporarily swapping the reference
-	// 3. We restore it immediately after
+	// Solution: Extract the concrete *Environment and call the existing cleanup method.
+	// The env passed from ExecuteUserFunction is either:
+	// 1. An *EnvironmentAdapter wrapping *Environment (via NewEnclosedEnvironment)
+	// 2. Directly an *Environment (shouldn't happen but handle it)
 
 	savedEnv := i.env
 
-	// Unsafe type assertion - we know env is *Environment at runtime
-	// even though the interface signatures don't match perfectly
-	type environmentImpl interface {
-		Define(string, interface{})
-		Get(string) (interface{}, bool)
-		Set(string, interface{}) bool
-		NewEnclosedEnvironment() evaluator.Environment
+	// Try to extract the concrete *Environment
+	var concreteEnv *Environment
+
+	// First, check if it's an *EnvironmentAdapter
+	if adapter, ok := env.(*evaluator.EnvironmentAdapter); ok {
+		// Extract the underlying environment
+		if underlying, ok := adapter.Underlying().(*Environment); ok {
+			concreteEnv = underlying
+		}
+	} else if directEnv, ok := interface{}(env).(*Environment); ok {
+		// Direct *Environment (fallback)
+		concreteEnv = directEnv
 	}
 
-	// Use reflection-free approach: just swap i.env temporarily
-	// Cast through interface{} to work around type system
-	if concreteEnv, ok := interface{}(env).(*Environment); ok {
+	// Perform cleanup if we got a concrete environment
+	if concreteEnv != nil {
 		i.env = concreteEnv
 		i.cleanupInterfaceReferences(i.env)
 		i.env = savedEnv
+	}
+}
+
+// createEnvSyncerCallback creates the environment synchronization callback.
+//
+// Task 3.5.22d: This callback synchronizes the interpreter's i.env with the
+// evaluator's function environment (funcEnv) during function body execution.
+//
+// Why this is needed:
+// - ExecuteUserFunction creates a new funcEnv for the function scope
+// - The function body is executed with funcCtx.Env() = funcEnv
+// - However, when EvalNode is called back to the interpreter (e.g., for
+//   function pointer assignments like "Result := @obj.Method"), it uses i.env
+// - Without syncing, i.env points to the caller's environment, not funcEnv
+// - This causes function pointer assignments to Result to go to the wrong env
+//
+// The callback:
+// 1. Saves the current i.env
+// 2. Sets i.env to the concrete *Environment from funcEnv
+// 3. Returns a restore function that resets i.env to its original value
+func (i *Interpreter) createEnvSyncerCallback() evaluator.EnvSyncerFunc {
+	return func(funcEnv evaluator.Environment) func() {
+		// Save current interpreter environment
+		savedEnv := i.env
+
+		// Extract concrete *Environment from funcEnv
+		// The funcEnv is actually an *EnvironmentAdapter wrapping *Environment
+		synced := false
+		if adapter, ok := funcEnv.(*evaluator.EnvironmentAdapter); ok {
+			if concreteEnv, ok := adapter.Underlying().(*Environment); ok {
+				i.env = concreteEnv
+				synced = true
+			}
+		} else if concreteEnv, ok := interface{}(funcEnv).(*Environment); ok {
+			// Direct *Environment (shouldn't happen but handle it)
+			i.env = concreteEnv
+			synced = true
+		}
+
+		if !synced {
+			// Couldn't sync - this is a problem
+			// For debugging, print type info
+			_ = funcEnv // reference to prevent unused warning
+		}
+
+		// Return restore function
+		return func() {
+			i.env = savedEnv
+		}
 	}
 }

@@ -70,7 +70,7 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 		tempEnv.Define("Self", obj)
 		i.env = tempEnv
 
-		result := i.callUserFunction(constructor, internalArgs)
+		result := i.executeUserFunctionViaEvaluator(constructor, internalArgs)
 
 		i.env = savedEnv
 
@@ -121,7 +121,7 @@ func (i *Interpreter) ExecuteConstructor(obj evaluator.Value, constructorName st
 	tempEnv.Define("Self", objectInstance)
 	i.env = tempEnv
 
-	result := i.callUserFunction(constructor, internalArgs)
+	result := i.executeUserFunctionViaEvaluator(constructor, internalArgs)
 
 	i.env = savedEnv
 

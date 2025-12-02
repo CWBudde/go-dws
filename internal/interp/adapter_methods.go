@@ -116,7 +116,7 @@ func (i *Interpreter) CallQualifiedOrConstructor(callExpr *ast.CallExpression, m
 							args[idx] = val
 						}
 					}
-					return i.callUserFunction(fn, args)
+					return i.executeUserFunctionViaEvaluator(fn, args)
 				}
 				// Function not found in unit
 				return i.newErrorWithLocation(callExpr, "function '%s' not found in unit '%s'", memberAccess.Member.Value, unitIdent.Value)
@@ -416,7 +416,7 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		tempEnv.Define("Self", objVal)
 		i.env = tempEnv
 
-		result := i.callUserFunction(method, internalArgs)
+		result := i.executeUserFunctionViaEvaluator(method, internalArgs)
 
 		i.env = savedEnv
 		return result
@@ -464,7 +464,7 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 				i.pushCallStack(fullMethodName)
 				defer i.popCallStack()
 
-				result := i.callUserFunction(classMethod, internalArgs)
+				result := i.executeUserFunctionViaEvaluator(classMethod, internalArgs)
 				i.env = savedEnv
 				return result
 			}
@@ -523,7 +523,7 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		defer i.popCallStack()
 
 		// Call the method
-		result := i.callUserFunction(method, internalArgs)
+		result := i.executeUserFunctionViaEvaluator(method, internalArgs)
 
 		i.env = savedEnv
 		return result
@@ -553,7 +553,7 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 	tempEnv.Define("Self", objVal)
 	i.env = tempEnv
 
-	result := i.callUserFunction(method, internalArgs)
+	result := i.executeUserFunctionViaEvaluator(method, internalArgs)
 
 	i.env = savedEnv
 	return result
@@ -598,7 +598,7 @@ func (i *Interpreter) CallInheritedMethod(obj evaluator.Value, methodName string
 	tempEnv.Define("Self", objVal)
 	i.env = tempEnv
 
-	result := i.callUserFunction(method, internalArgs)
+	result := i.executeUserFunctionViaEvaluator(method, internalArgs)
 
 	i.env = savedEnv
 	return result
@@ -622,7 +622,7 @@ func (i *Interpreter) ExecuteMethodWithSelf(self evaluator.Value, methodDecl any
 	tempEnv.Define("Self", internalSelf)
 	i.env = tempEnv
 
-	result := i.callUserFunction(method, internalArgs)
+	result := i.executeUserFunctionViaEvaluator(method, internalArgs)
 
 	i.env = savedEnv
 	return result

@@ -161,7 +161,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 								args[idx] = val
 							}
 						}
-						return i.callUserFunction(fn, args)
+						return i.executeUserFunctionViaEvaluator(fn, args)
 					}
 					// Function not found in unit
 					return i.newErrorWithLocation(expr, "function '%s' not found in unit '%s'", memberAccess.Member.Value, unitIdent.Value)
@@ -261,7 +261,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 				args[idx] = cachedArgs[idx]
 			}
 		}
-		return i.callUserFunction(fn, args)
+		return i.executeUserFunctionViaEvaluator(fn, args)
 	}
 
 	// Check if this is an instance method call within the current context (implicit Self)

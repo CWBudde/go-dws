@@ -175,7 +175,3 @@ func (i *Interpreter) callBuiltinWithVarParam(name string, args []ast.Expression
 		return i.newErrorWithLocation(i.currentNode, "undefined var-param function: %s", name)
 	}
 }
-
-// callUserFunction calls a user-defined function.
-// It creates a new environment, binds parameters to arguments, executes the body,
-// and extracts the return value from the Result variable or function name variable.

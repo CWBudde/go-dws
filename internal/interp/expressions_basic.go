@@ -204,7 +204,7 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 			//   if TestFlag then ...
 			// to work correctly (calling the function, not creating a pointer)
 			// For explicit function pointer creation, use @ syntax: var fp := @GetTickCount;
-			return i.callUserFunction(fn, []Value{})
+			return i.executeUserFunctionViaEvaluator(fn, []Value{})
 		}
 
 		// If function has parameters, it's being used as a value (function pointer)
