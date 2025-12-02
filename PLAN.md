@@ -592,7 +592,7 @@ Bridge constructors to eliminate:
     - **Actual Effort**: 2 hours (investigation + test creation)
     - **Deliverable**: Method pointer returns work correctly in evaluator context
 
-  - [ ] **3.5.22d** Migrate All callUserFunction Call Sites
+  - [x] **3.5.22d** Migrate All callUserFunction Call Sites ✅
     - **Current state**: Wrapper exists but only used by 3.5.1a/b paths (2 sites)
     - **Remaining sites**: 25+ locations across 8 files
     - **Files to update**:
@@ -610,10 +610,12 @@ Bridge constructors to eliminate:
       4. Remove old `callUserFunction` method after all sites migrated
     - **Effort**: 1 day (incremental migration)
     - **Deliverable**: All function calls use evaluator execution
+    - **Completed**: All 19 call sites migrated, ~228 lines removed from `functions_user.go`
+    - **Key fixes**: EnvSyncer callback, recursion exception handling, interface cleanup, call stack sync, exception propagation
 
   **Phase B: Migrate Type Conversion** - 3-4 days
 
-  - [ ] **3.5.22e** Add Conversion Registry Accessor to TypeSystem
+  - [x] **3.5.22e** Add Conversion Registry Accessor to TypeSystem ✅
     - **Current**: `i.conversions.findImplicit()` in interpreter
     - **Target**: `e.typeSystem.Conversions().FindImplicit()` in evaluator
     - **Files**: `types/type_system.go`, `types/conversion_registry.go`
@@ -624,6 +626,7 @@ Bridge constructors to eliminate:
       4. Update evaluator imports
     - **Effort**: 2-3 hours
     - **Deliverable**: Evaluator can access conversion registry
+    - **Completed**: Migrated registration from `runtimeConversionRegistry` to `TypeSystem.Conversions()`, updated all lookup sites, removed duplicate registry code (~115 lines)
 
   - [ ] **3.5.22f** Create Evaluator Helper for Conversion Function Execution
     - **Files**: `evaluator/type_conversion.go` (new file)

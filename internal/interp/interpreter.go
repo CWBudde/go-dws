@@ -54,8 +54,8 @@ type Interpreter struct {
 	records              map[string]*RecordTypeValue
 	functions            map[string][]*ast.FunctionDecl
 	globalOperators      *runtimeOperatorRegistry
-	conversions          *runtimeConversionRegistry
-	env                  *Environment
+	// Task 3.5.22e: conversions field removed - use i.typeSystem.Conversions() instead
+	env *Environment
 	evaluatorInstance    *evaluator.Evaluator
 	classes              map[string]*ClassInfo
 	classTypeIDRegistry  map[string]int
@@ -134,9 +134,9 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 		classes:   make(map[string]*ClassInfo),
 		records:   make(map[string]*RecordTypeValue),
 
-		globalOperators:      newRuntimeOperatorRegistry(),
-		conversions:          newRuntimeConversionRegistry(),
-		helpers:              make(map[string][]*HelperInfo),
+		globalOperators: newRuntimeOperatorRegistry(),
+		// Task 3.5.22e: conversions removed - now uses typeSystem.Conversions()
+		helpers: make(map[string][]*HelperInfo),
 		classTypeIDRegistry:  make(map[string]int), // Task 9.25: RTTI type ID registry
 		recordTypeIDRegistry: make(map[string]int), // Task 9.25: RTTI type ID registry
 		enumTypeIDRegistry:   make(map[string]int), // Task 9.25: RTTI type ID registry

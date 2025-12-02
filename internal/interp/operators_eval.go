@@ -207,8 +207,8 @@ func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) 
 	normalizedSource := NormalizeTypeAnnotation(sourceTypeName)
 	normalizedTarget := NormalizeTypeAnnotation(targetTypeName)
 
-	// Try direct conversion first
-	entry, found := i.conversions.findImplicit(normalizedSource, normalizedTarget)
+	// Try direct conversion first (using TypeSystem's ConversionRegistry)
+	entry, found := i.typeSystem.Conversions().FindImplicit(normalizedSource, normalizedTarget)
 	if found {
 		// Look up the conversion function
 		overloads, exists := i.functions[entry.BindingName]
@@ -231,7 +231,7 @@ func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) 
 
 	// Try chained conversion if direct conversion not found
 	const maxConversionChainDepth = 3
-	path := i.conversions.findConversionPath(normalizedSource, normalizedTarget, maxConversionChainDepth)
+	path := i.typeSystem.Conversions().FindConversionPath(normalizedSource, normalizedTarget, maxConversionChainDepth)
 	if len(path) < 2 {
 		// Integer → Float is always allowed in Pascal/Delphi (automatic widening)
 		if normalizedSource == "integer" && normalizedTarget == "float" {
@@ -253,7 +253,7 @@ func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) 
 		toType := path[idx+1]
 
 		// Find the conversion function for this step
-		stepEntry, stepFound := i.conversions.findImplicit(fromType, toType)
+		stepEntry, stepFound := i.typeSystem.Conversions().FindImplicit(fromType, toType)
 		if !stepFound {
 			// Path is broken - this shouldn't happen if findConversionPath worked correctly
 			return value, false
