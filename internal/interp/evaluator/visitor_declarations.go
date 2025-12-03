@@ -845,13 +845,57 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 
 	// Initialize class variables
 	for _, classVar := range node.ClassVars {
-		varType, varErr := e.resolveTypeName(classVar.Type.String(), ctx)
-		if varErr != nil {
+		var (
+			varType      types.Type
+			initialValue runtime.Value
+		)
+
+		if classVar.Type != nil {
+			resolvedType, err := e.resolveTypeName(classVar.Type.String(), ctx)
+			if err != nil {
+				return e.newError(classVar, "unknown type for class variable '%s'",
+					classVar.Name.Value)
+			}
+			varType = resolvedType
+		}
+
+		if classVar.InitValue != nil {
+			val := e.Eval(classVar.InitValue, ctx)
+			if isError(val) {
+				return val
+			}
+			initialValue = val
+
+			if varType == nil {
+				switch v := val.(type) {
+				case *runtime.IntegerValue:
+					varType = types.INTEGER
+				case *runtime.FloatValue:
+					varType = types.FLOAT
+				case *runtime.StringValue:
+					varType = types.STRING
+				case *runtime.BooleanValue:
+					varType = types.BOOLEAN
+				case *runtime.ArrayValue:
+					varType = v.ArrayType
+				}
+				if varType == nil {
+					return e.newError(classVar, "cannot infer type for class variable '%s'",
+						classVar.Name.Value)
+				}
+			}
+		}
+
+		if varType == nil {
 			return e.newError(classVar, "unknown type for class variable '%s'",
 				classVar.Name.Value)
 		}
-		defaultValue := e.GetDefaultValue(varType)
-		e.adapter.AddHelperClassVar(helperInfo, classVar.Name.Value, defaultValue)
+
+		if initialValue == nil {
+			initialValue = e.GetDefaultValue(varType)
+		}
+
+		e.adapter.AddHelperClassVar(helperInfo, classVar.Name.Value, initialValue)
 	}
 
 	// Initialize class constants (evaluate values)
@@ -876,6 +920,12 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 		e.typeSystem.RegisterHelper(simpleTypeName, helperInfo)
 		e.adapter.RegisterHelperLegacy(simpleTypeName, helperInfo)
 	}
+
+	// Expose helper name as a type meta value for static access (e.g., THelper.Member)
+	ctx.Env().Define(node.Name.Value, &runtime.TypeMetaValue{
+		TypeInfo: targetType,
+		TypeName: targetType.String(),
+	})
 
 	return &runtime.NilValue{}
 }

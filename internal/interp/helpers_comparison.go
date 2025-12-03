@@ -169,6 +169,12 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 			combined = append(combined, h...)
 		}
 		return combined
+	case *TypeMetaValue:
+		if v.TypeName != "" {
+			typeName = v.TypeName
+		} else if v.TypeInfo != nil {
+			typeName = v.TypeInfo.String()
+		}
 	default:
 		// For other types, try to extract type name from Type() method
 		typeName = v.Type()
@@ -230,6 +236,42 @@ func (i *Interpreter) findHelperProperty(val Value, propName string) (*HelperInf
 	}
 
 	return nil, nil
+}
+
+// findHelperClassVar searches helpers for a class variable with the given name.
+func (i *Interpreter) findHelperClassVar(val Value, varName string) Value {
+	helpers := i.getHelpersForValue(val)
+	if helpers == nil {
+		return nil
+	}
+
+	varNameLower := ident.Normalize(varName)
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
+		if varVal, ok := helper.ClassVars[varNameLower]; ok {
+			return varVal
+		}
+	}
+
+	return nil
+}
+
+// findHelperClassConst searches helpers for a class constant with the given name.
+func (i *Interpreter) findHelperClassConst(val Value, constName string) Value {
+	helpers := i.getHelpersForValue(val)
+	if helpers == nil {
+		return nil
+	}
+
+	constNameLower := ident.Normalize(constName)
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
+		if constVal, ok := helper.ClassConsts[constNameLower]; ok {
+			return constVal
+		}
+	}
+
+	return nil
 }
 
 // isBuiltinMethodParameterless returns true if the builtin method spec requires no parameters.

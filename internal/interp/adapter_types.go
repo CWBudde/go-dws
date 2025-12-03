@@ -234,14 +234,14 @@ func (i *Interpreter) AddHelperProperty(helper interface{}, prop *ast.PropertyDe
 // AddHelperClassVar adds a class variable to the helper.
 func (i *Interpreter) AddHelperClassVar(helper interface{}, name string, value evaluator.Value) {
 	if h, ok := helper.(*HelperInfo); ok {
-		h.ClassVars[name] = value.(Value)
+		h.ClassVars[ident.Normalize(name)] = value.(Value)
 	}
 }
 
 // AddHelperClassConst adds a class constant to the helper.
 func (i *Interpreter) AddHelperClassConst(helper interface{}, name string, value evaluator.Value) {
 	if h, ok := helper.(*HelperInfo); ok {
-		h.ClassConsts[name] = value.(Value)
+		h.ClassConsts[ident.Normalize(name)] = value.(Value)
 	}
 }
 
