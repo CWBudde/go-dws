@@ -721,6 +721,20 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 			classInfo.ClassVars[memberName] = value
 			return value
 		}
+
+		// Static helper class variable assignment (e.g., String.World := '!')
+		if typeMetaVal, exists := i.env.Get(targetIdent.Value); exists {
+			if tmv, ok := typeMetaVal.(*TypeMetaValue); ok {
+				helpers := i.getHelpersForValue(tmv)
+				varNameLower := ident.Normalize(target.Member.Value)
+				for idx := len(helpers) - 1; idx >= 0; idx-- {
+					if _, ok := helpers[idx].ClassVars[varNameLower]; ok {
+						helpers[idx].ClassVars[varNameLower] = value
+						return value
+					}
+				}
+			}
+		}
 	}
 
 	// Not static access - evaluate the object expression for instance access
@@ -810,6 +824,17 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 	// Check if it's an object instance
 	obj, ok := AsObject(objVal)
 	if !ok {
+		// Try helper class variables for non-object values
+		helpers := i.getHelpersForValue(objVal)
+		if helpers != nil {
+			varNameLower := ident.Normalize(target.Member.Value)
+			for idx := len(helpers) - 1; idx >= 0; idx-- {
+				if _, ok := helpers[idx].ClassVars[varNameLower]; ok {
+					helpers[idx].ClassVars[varNameLower] = value
+					return value
+				}
+			}
+		}
 		return i.newErrorWithLocation(stmt, "cannot assign to field of non-object type '%s'", objVal.Type())
 	}
 

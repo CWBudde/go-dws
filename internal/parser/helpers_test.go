@@ -112,6 +112,17 @@ func TestParseHelperDeclaration(t *testing.T) {
 			classVarCount:   1,
 			classConstCount: 1,
 		},
+		{
+			name: "helper with const without class keyword",
+			input: `type THelper = helper for String
+				const Hello = 'Hello';
+				class var World: String;
+			end;`,
+			expectedName:    "THelper",
+			expectedFor:     "String",
+			classVarCount:   1,
+			classConstCount: 1,
+		},
 	}
 
 	for _, tt := range tests {

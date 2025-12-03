@@ -221,6 +221,20 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		}
 	}
 
+	// Fallback: check helpers registered for this type name via TypeMetaValue in environment
+	if objIdent, ok := ma.Object.(*ast.Identifier); ok {
+		if typeMetaVal, exists := i.env.Get(objIdent.Value); exists {
+			if tmv, ok := typeMetaVal.(*TypeMetaValue); ok {
+				if constVal := i.findHelperClassConst(tmv, ma.Member.Value); constVal != nil {
+					return constVal
+				}
+				if varVal := i.findHelperClassVar(tmv, ma.Member.Value); varVal != nil {
+					return varVal
+				}
+			}
+		}
+	}
+
 	// Not static access - evaluate the object expression for instance access
 	objVal := i.Eval(ma.Object)
 	if isError(objVal) {
@@ -593,16 +607,9 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		}
 
 		// Not an object - check if helpers provide this member
-		helper, helperProp := i.findHelperProperty(objVal, ma.Member.Value)
-		if helperProp != nil {
-			return i.evalHelperPropertyRead(helper, helperProp, objVal, ma)
-		}
-
-		// Task 9.8.5: Check if it's a parameterless helper method that can be auto-invoked
-		// This allows arr.Pop to work the same as arr.Pop()
-		// Note: The semantic analyzer already validated that parameterless methods accessed
-		// without () are allowed. If we reach here with a helper method found, and the
-		// semantic analysis passed, then this must be a parameterless method access.
+		// Prefer helper methods (including parameterless auto-invoke) before properties,
+		// matching evaluator logic so user-defined methods can override intrinsic properties
+		// like Integer.ToString.
 		helper, methodDecl, builtinSpec := i.findHelperMethod(objVal, ma.Member.Value)
 		if helper != nil && (methodDecl != nil || builtinSpec != "") {
 			// Check if it's parameterless
@@ -629,6 +636,19 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				}
 				return i.evalMethodCall(methodCall)
 			}
+		}
+
+		helper, helperProp := i.findHelperProperty(objVal, ma.Member.Value)
+		if helperProp != nil {
+			return i.evalHelperPropertyRead(helper, helperProp, objVal, ma)
+		}
+
+		if constVal := i.findHelperClassConst(objVal, ma.Member.Value); constVal != nil {
+			return constVal
+		}
+
+		if varVal := i.findHelperClassVar(objVal, ma.Member.Value); varVal != nil {
+			return varVal
 		}
 
 		return i.newErrorWithLocation(ma, "cannot access member '%s' of type '%s' (no helper found)",

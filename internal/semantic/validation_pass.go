@@ -1700,6 +1700,12 @@ func (v *statementValidator) checkMemberAccessExpression(expr *ast.MemberAccessE
 			return helperMethod
 		}
 
+		// Check for helper class variables
+		_, helperClassVar := v.hasHelperClassVar(objectType, memberName)
+		if helperClassVar != nil {
+			return helperClassVar
+		}
+
 		// Check for helper class constants (for scoped enum access like TColor.Red)
 		_, helperConst := v.hasHelperClassConst(objectType, memberName)
 		if helperConst != nil {
@@ -2790,6 +2796,11 @@ func (v *statementValidator) getHelpersForType(typ types.Type) []*types.HelperTy
 		return nil
 	}
 
+	// If the type itself is a helper, use its target type for lookup
+	if helperType, ok := typ.(*types.HelperType); ok && helperType.TargetType != nil {
+		typ = helperType.TargetType
+	}
+
 	// Look up helpers by the type's string representation (case-insensitive)
 	typeName := ident.Normalize(typ.String())
 	helpers := v.ctx.Helpers[typeName]
@@ -2867,6 +2878,25 @@ func (v *statementValidator) hasHelperProperty(typ types.Type, propName string) 
 		helper := helpers[idx]
 		if prop, ok := helper.Properties[propNameLower]; ok {
 			return helper, prop
+		}
+	}
+
+	return nil, nil
+}
+
+// hasHelperClassVar checks if any helper for the given type defines the specified class variable.
+// Returns the helper type and variable type if found.
+func (v *statementValidator) hasHelperClassVar(typ types.Type, varName string) (*types.HelperType, types.Type) {
+	helpers := v.getHelpersForType(typ)
+	if helpers == nil {
+		return nil, nil
+	}
+
+	varNameLower := ident.Normalize(varName)
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
+		if varType, ok := helper.ClassVars[varNameLower]; ok {
+			return helper, varType
 		}
 	}
 
