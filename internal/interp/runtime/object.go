@@ -368,6 +368,40 @@ func (o *ObjectInstance) ReadIndexedProperty(propInfo any, indices []Value, prop
 	return propertyExecutor(propInfo, indices)
 }
 
+// WriteProperty writes a property value to this object.
+// Task 3.5.35: Enables direct property write without adapter.
+// The propertyExecutor callback handles interpreter-dependent execution.
+func (o *ObjectInstance) WriteProperty(propName string, value Value, propertyExecutor func(propInfo any, value Value) Value) Value {
+	// Validate object state
+	if o == nil || o.Class == nil {
+		return newError("object has no class information")
+	}
+
+	// Look up the property in the class hierarchy
+	propInfo := o.Class.LookupProperty(propName)
+	if propInfo == nil {
+		return newError("property '%s' not found", propName)
+	}
+
+	// Execute the property write using the provided executor callback
+	// Pass the Impl field which contains the actual *types.PropertyInfo
+	return propertyExecutor(propInfo.Impl, value)
+}
+
+// WriteIndexedProperty writes an indexed property value using the provided executor callback.
+// Task 3.5.35: Enables direct indexed property write without going through adapter.
+// The propInfo is already resolved by PropertyAccessor.LookupProperty or GetDefaultProperty.
+func (o *ObjectInstance) WriteIndexedProperty(propInfo any, indices []Value, value Value, propertyExecutor func(propInfo any, indices []Value, value Value) Value) Value {
+	// Validate object state
+	if o == nil || o.Class == nil {
+		return newError("object has no class information")
+	}
+
+	// The propInfo is already resolved by the caller (PropertyAccessor.LookupProperty or GetDefaultProperty)
+	// Just call the executor with the property info, indices, and value
+	return propertyExecutor(propInfo, indices, value)
+}
+
 // InvokeParameterlessMethod invokes a method if it has zero parameters.
 // Task 3.5.119: Implements evaluator.ObjectValue interface.
 // Returns (result, true) if method exists and has 0 parameters,

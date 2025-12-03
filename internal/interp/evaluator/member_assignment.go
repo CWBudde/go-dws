@@ -5,59 +5,52 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
-	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
 // Member Assignment Operations
 // ============================================================================
 //
+// Task 3.5.35: Migrated member assignment to use native handling.
+//
 // Handles member assignment: obj.field := value, TClass.Variable := value
 //
-// Member assignment is HIGH RISK due to complex dispatch logic:
-// - Class variable assignment (static)
-// - Class property assignment (static with setter dispatch)
-// - Record field assignment (with property setter support)
-// - Object field assignment
-// - Property setter dispatch (with recursion prevention)
-// - Interface unwrapping
-// - Auto-initialization of record array elements
+// NATIVE handling (via evaluator, no adapter):
+// - Record field assignment via RecordFieldSetter interface
+// - Interface unwrapping and routing to underlying object
+// - Object field assignment via ObjectFieldSetter interface
+// - Object property assignment via WriteProperty callback pattern
 //
-// Most cases require types from the interp package (ClassInfo, ObjectInstance,
-// RecordValue, InterfaceInstance) which cannot be imported here. Therefore,
-// complex cases are delegated to the adapter.
+// ADAPTER handling (via EvalNode):
+// - Static class access: TClass.Variable (requires ClassInfo lookup)
+// - Nil value auto-initialization
+// - Record property setter dispatch
+// - Class/metaclass assignment
 //
-// Simple cases handled directly:
-// - Record field assignment via RecordFieldSetter interface (when no property setter)
-//
-// Complex cases delegated to adapter:
-// - Class variable/property assignment
-// - Object field/property assignment
-// - Property setter dispatch
-// - Interface member assignment
-// - Auto-initialization
+// EvalNode reduction: 6 calls → 3-4 calls (~50% reduction)
 // ============================================================================
 
 // evalMemberAssignmentDirect attempts to handle member assignment directly.
-// Complex cases (class variables, properties, interfaces) are delegated to adapter.
+// Task 3.5.35: Migrated to use native handling for most cases, reducing EvalNode calls.
 //
 // Handles directly:
-// - Simple record field assignment (when record implements RecordFieldSetter)
+// - Record field assignment via RecordFieldSetter interface
+// - Interface unwrapping and routing to underlying object
+// - Object field assignment via ObjectFieldSetter interface
+// - Object property assignment via WriteProperty callback
 //
-// Delegates to adapter:
-// - Class variable assignment: TClass.Variable := value
-// - Class property assignment: TClass.Property := value
-// - Object field assignment: obj.field := value
-// - Property setter dispatch: obj.Property := value
-// - Interface member assignment
-// - Auto-initialization of array elements
+// Delegates to adapter (EvalNode):
+// - Static class access: TClass.Variable := value (needs ClassInfo lookup)
+// - Nil value auto-initialization
+// - Record property setter dispatch (when record has properties)
+// - Class/metaclass assignment
 func (e *Evaluator) evalMemberAssignmentDirect(
 	target *ast.MemberAccessExpression,
 	value Value,
 	stmt *ast.AssignmentStatement,
 	ctx *ExecutionContext,
 ) Value {
-	// Check if the target object is a class identifier (static access)
+	// KEEP EVALNODE: Static class identifier access (TClass.Variable)
 	// This requires ClassInfo lookup which is in interp package
 	if _, ok := target.Object.(*ast.Identifier); ok {
 		// Could be TClass.Variable or TClass.Property
@@ -76,84 +69,65 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 		return &runtime.NilValue{}
 	}
 
-	// Handle nil values (might need auto-initialization)
+	// KEEP EVALNODE: Nil value handling (auto-initialization)
 	if objVal == nil || objVal.Type() == "NIL" {
 		// Delegate to adapter for potential auto-initialization
 		return e.adapter.EvalNode(stmt)
 	}
 
-	// Check object type and route accordingly
+	fieldName := target.Member.Value
+
+	// NATIVE: Record field assignment via RecordFieldSetter
+	if recInst, ok := objVal.(RecordInstanceValue); ok {
+		// Check if record has a property with this name (needs setter dispatch)
+		if recInst.HasRecordProperty(fieldName) {
+			// Record property setter needs adapter dispatch
+			return e.adapter.EvalNode(stmt)
+		}
+		// Simple field assignment - use RecordFieldSetter if available
+		if setter, ok := objVal.(RecordFieldSetter); ok {
+			setter.SetRecordField(fieldName, value)
+			return value
+		}
+		// Record doesn't support field assignment directly - delegate
+		return e.adapter.EvalNode(stmt)
+	}
+
+	// NATIVE: Interface unwrapping - get underlying object
+	if intfInst, ok := objVal.(InterfaceInstanceValue); ok {
+		underlying := intfInst.GetUnderlyingObjectValue()
+		if underlying == nil {
+			return e.newError(stmt, "cannot assign to member of nil interface")
+		}
+		// Route to underlying object
+		objVal = underlying
+	}
+
+	// NATIVE: Object field/property assignment
+	if objValIface, ok := objVal.(ObjectValue); ok {
+		// Check if this is a property (has priority over fields)
+		if objValIface.HasProperty(fieldName) {
+			// Property assignment via callback pattern
+			return objValIface.WriteProperty(fieldName, value, func(propInfo any, val Value) Value {
+				return e.executePropertyWrite(objVal, propInfo, val, stmt, ctx)
+			})
+		}
+
+		// Direct field assignment via ObjectFieldSetter
+		if setter, ok := objVal.(ObjectFieldSetter); ok {
+			setter.SetField(fieldName, value)
+			return value
+		}
+
+		return e.newError(stmt, "object does not support field assignment")
+	}
+
+	// KEEP EVALNODE: Class/metaclass assignment
 	objType := objVal.Type()
-
-	// Record field assignment
-	// Records might have properties with setters, so we need to be careful
-	// Check if this is a record type (by type name pattern or explicit RECORD type)
-	if objType == "RECORD" || isRecordTypeName(objType) {
-		// Records may have properties with setters that require adapter dispatch
-		// For safety, delegate all record assignments to adapter
-		// Future optimization: use RecordFieldSetter interface for simple field-only records
-		return e.adapter.EvalNode(stmt)
-	}
-
-	// Interface member assignment
-	if strings.HasPrefix(objType, "INTERFACE") {
-		return e.adapter.EvalNode(stmt)
-	}
-
-	// Object member assignment (fields and properties)
-	if strings.HasPrefix(objType, "OBJECT[") {
-		return e.adapter.EvalNode(stmt)
-	}
-
-	// Class/metaclass assignment
 	if strings.HasPrefix(objType, "CLASS") || objType == "CLASSINFO" {
 		return e.adapter.EvalNode(stmt)
 	}
 
-	// Unknown type - delegate to adapter
+	// KEEP EVALNODE: Unknown type fallback
 	return e.adapter.EvalNode(stmt)
-}
-
-// isRecordTypeName checks if a type name looks like a record type.
-// Record type names typically start with 'T' followed by uppercase.
-func isRecordTypeName(typeName string) bool {
-	if len(typeName) < 2 {
-		return false
-	}
-	// Records in DWScript typically have names like TMyRecord
-	// This is a heuristic - the adapter will validate properly
-	return typeName[0] == 'T' && typeName[1] >= 'A' && typeName[1] <= 'Z'
-}
-
-// evalSimpleRecordFieldAssignment handles direct record field assignment
-// when no property setter is involved.
-// This is a placeholder for future optimization when RecordValue moves to runtime.
-//
-// Currently, all record assignments go through the adapter because:
-// 1. RecordValue is in interp package (can't access directly)
-// 2. Records may have properties with setters that need dispatch
-// 3. Property lookup requires RecordType which is in types package
-//
-// When RecordValue moves to runtime package, this can be implemented to:
-// 1. Check if the field exists (no property with same name)
-// 2. Set the field directly via RecordFieldSetter interface
-// 3. Only delegate to adapter if property setter dispatch is needed
-func (e *Evaluator) evalSimpleRecordFieldAssignment(
-	record Value,
-	fieldName string,
-	value Value,
-	stmt *ast.AssignmentStatement,
-) Value {
-	// Normalize field name for case-insensitive lookup
-	_ = ident.Normalize(fieldName)
-
-	// Check if record implements RecordFieldSetter
-	setter, ok := record.(RecordFieldSetter)
-	if !ok {
-		return e.newError(stmt, "record does not support field assignment")
-	}
-
-	// Set the field
-	setter.SetRecordField(fieldName, value)
-	return value
 }

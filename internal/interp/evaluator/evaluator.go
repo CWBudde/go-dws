@@ -77,6 +77,33 @@ type ObjectValue interface {
 	//   - propertyExecutor: Callback function that executes the indexed property read
 	//     The propInfo parameter is *types.PropertyInfo (passed as any to avoid import cycles)
 	ReadIndexedProperty(propInfo any, indices []Value, propertyExecutor func(propInfo any, indices []Value) Value) Value
+	// WriteProperty writes a property value to this object.
+	// Task 3.5.35: Enables direct property write without adapter.
+	// The propertyExecutor callback handles interpreter-dependent execution:
+	//   - For field-backed: sets field value directly
+	//   - For method-backed: executes setter method
+	// Returns an error value if:
+	//   - The object has no class information
+	//   - The property is not found in the class hierarchy
+	//   - The property is read-only (no write access)
+	// Parameters:
+	//   - propName: The property name (case-insensitive)
+	//   - value: The value to assign to the property
+	//   - propertyExecutor: Callback function that executes property write with the resolved PropertyInfo
+	//     The propInfo parameter is *types.PropertyInfo (passed as any to avoid import cycles)
+	WriteProperty(propName string, value Value, propertyExecutor func(propInfo any, value Value) Value) Value
+	// WriteIndexedProperty writes an indexed property value to this object.
+	// Task 3.5.35: Enables direct indexed property write without adapter.
+	// The propertyExecutor callback handles interpreter-dependent execution:
+	//   - Looks up the setter method from PropertyInfo
+	//   - Binds Self, index parameters, and the value parameter
+	//   - Executes the setter method
+	// Parameters:
+	//   - propInfo: The property metadata (from PropertyAccessor.LookupProperty or GetDefaultProperty)
+	//   - indices: The index values to pass to the setter
+	//   - value: The value to assign
+	//   - propertyExecutor: Callback function that executes the indexed property write
+	WriteIndexedProperty(propInfo any, indices []Value, value Value, propertyExecutor func(propInfo any, indices []Value, value Value) Value) Value
 	// InvokeParameterlessMethod invokes a method if it has zero parameters.
 	// Returns:
 	//   - (result, true) if method exists and has 0 parameters (invoked via methodExecutor)
