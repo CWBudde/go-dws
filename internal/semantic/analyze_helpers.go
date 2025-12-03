@@ -318,6 +318,9 @@ func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 
 	// If the type itself is a helper type (e.g., TDummy.Hello), use its target type
 	if helperType, ok := typ.(*types.HelperType); ok {
+		if helperType.TargetType == nil {
+			return nil
+		}
 		typ = helperType.TargetType
 	}
 
