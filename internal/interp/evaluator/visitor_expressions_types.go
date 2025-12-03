@@ -341,17 +341,18 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 	}
 
 	// Handle interface-to-object/interface casting
-	interfaceInfo, underlyingObj := e.adapter.GetInterfaceInstanceFromValue(obj)
-	if interfaceInfo != nil {
+	// Task 3.5.31: Inline GetInterfaceInstanceFromValue - use InterfaceInstanceValue type assertion
+	if ifaceVal, ok := obj.(InterfaceInstanceValue); ok {
+		underlyingObjVal := ifaceVal.GetUnderlyingObjectValue()
+
 		// Check if target is a class via TypeSystem
 		if e.typeSystem.HasClass(typeName) {
 			// Interface-to-class casting: extract the underlying object
-			if underlyingObj == nil {
+			if underlyingObjVal == nil {
 				return nil, fmt.Errorf("cannot cast nil interface to class '%s'", typeName)
 			}
 
 			// Get the underlying object's class metadata
-			underlyingObjVal := underlyingObj.(Value)
 			underlyingClassMeta := e.getClassMetadataFromValue(underlyingObjVal)
 			if underlyingClassMeta == nil {
 				return nil, fmt.Errorf("cannot extract class metadata from interface underlying object")
@@ -370,9 +371,10 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 		// Check if target is an interface
 		if e.typeSystem.HasInterface(typeName) {
 			// Interface-to-interface casting
-			if underlyingObj == nil {
+			if underlyingObjVal == nil {
 				// DWScript: nil interface cast to interface yields nil interface wrapper
-				nilWrapper, err := e.adapter.CreateInterfaceWrapper(typeName, nil)
+				// Task 3.5.31: Use inlined createInterfaceWrapper instead of adapter
+				nilWrapper, err := e.createInterfaceWrapper(typeName, nil)
 				if err != nil {
 					return nil, err
 				}
@@ -380,7 +382,6 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 			}
 
 			// Check if the underlying object's class implements the target interface
-			underlyingObjVal := underlyingObj.(Value)
 			underlyingClassMeta := e.getClassMetadataFromValue(underlyingObjVal)
 			if underlyingClassMeta == nil {
 				return nil, fmt.Errorf("cannot extract class metadata from interface underlying object")
@@ -391,7 +392,8 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 			}
 
 			// Create and return new interface instance
-			wrapper, err := e.adapter.CreateInterfaceWrapper(typeName, underlyingObjVal)
+			// Task 3.5.31: Use inlined createInterfaceWrapper instead of adapter
+			wrapper, err := e.createInterfaceWrapper(typeName, underlyingObjVal)
 			if err != nil {
 				return nil, err
 			}
@@ -438,7 +440,8 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 		}
 
 		// Create and return the interface instance
-		wrapper, err := e.adapter.CreateInterfaceWrapper(typeName, obj)
+		// Task 3.5.31: Use inlined createInterfaceWrapper instead of adapter
+		wrapper, err := e.createInterfaceWrapper(typeName, obj)
 		if err != nil {
 			return nil, err
 		}
@@ -477,4 +480,34 @@ func (e *Evaluator) isClassHierarchyCompatible(sourceClass, targetClass interfac
 	}
 
 	return false
+}
+
+// createInterfaceWrapper creates an InterfaceInstance wrapper for the given interface name and object.
+// Task 3.5.31: Inlined from adapter.CreateInterfaceWrapper.
+// Returns the InterfaceInstance wrapper or error if interface not found.
+func (e *Evaluator) createInterfaceWrapper(interfaceName string, obj Value) (Value, error) {
+	// Look up the interface via TypeSystem
+	ifaceInfoAny := e.typeSystem.LookupInterface(interfaceName)
+	if ifaceInfoAny == nil {
+		return nil, fmt.Errorf("interface '%s' not found", interfaceName)
+	}
+
+	// Cast to runtime.IInterfaceInfo
+	ifaceInfo, ok := ifaceInfoAny.(runtime.IInterfaceInfo)
+	if !ok {
+		return nil, fmt.Errorf("interface '%s' does not implement IInterfaceInfo", interfaceName)
+	}
+
+	// Handle nil object case
+	if obj == nil {
+		return runtime.NewInterfaceInstance(ifaceInfo, nil), nil
+	}
+
+	// Extract ObjectInstance from the object
+	objInstance, ok := obj.(*runtime.ObjectInstance)
+	if !ok {
+		return nil, fmt.Errorf("cannot create interface wrapper for non-object type: %s", obj.Type())
+	}
+
+	return runtime.NewInterfaceInstance(ifaceInfo, objInstance), nil
 }

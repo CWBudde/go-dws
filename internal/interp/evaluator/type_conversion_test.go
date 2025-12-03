@@ -324,12 +324,6 @@ func (m *mockConversionAdapter) ExecuteConstructor(obj Value, constructorName st
 	return nil
 }
 
-func (m *mockConversionAdapter) GetInterfaceInstanceFromValue(val Value) (interface{}, interface{}) {
-	return nil, nil
-}
-func (m *mockConversionAdapter) CreateInterfaceWrapper(interfaceName string, obj Value) (Value, error) {
-	return nil, nil
-}
 func (m *mockConversionAdapter) CreateTypeCastWrapper(className string, obj Value) Value { return nil }
 func (m *mockConversionAdapter) RaiseTypeCastException(message string, node ast.Node)    {}
 func (m *mockConversionAdapter) RaiseAssertionFailed(customMessage string)               {}

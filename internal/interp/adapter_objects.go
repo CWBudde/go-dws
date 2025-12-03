@@ -306,43 +306,6 @@ func (i *Interpreter) CastToClass(val evaluator.Value, className string, node as
 // Task 3.5.29: GetObjectInstanceFromValue REMOVED - use ObjectValue interface type assertion
 // Replacement: if _, ok := val.(evaluator.ObjectValue); ok { ... }
 
-// GetInterfaceInstanceFromValue extracts InterfaceInstance from a Value.
-// Returns (interfaceInfo, underlyingObject) if the value is an InterfaceInstance, (nil, nil) otherwise.
-func (i *Interpreter) GetInterfaceInstanceFromValue(val evaluator.Value) (interfaceInfo interface{}, underlyingObject interface{}) {
-	// Convert to internal type
-	internalVal := val.(Value)
-
-	// Type assert to InterfaceInstance
-	if intfInst, ok := internalVal.(*InterfaceInstance); ok {
-		return intfInst.Interface, intfInst.Object
-	}
-
-	return nil, nil
-}
-
-// CreateInterfaceWrapper creates an InterfaceInstance wrapper.
-// Returns the InterfaceInstance wrapper or error if interface not found.
-func (i *Interpreter) CreateInterfaceWrapper(interfaceName string, obj evaluator.Value) (evaluator.Value, error) {
-	// Convert to internal type
-	var internalObj *ObjectInstance
-	if obj != nil {
-		if o, ok := obj.(*ObjectInstance); ok {
-			internalObj = o
-		} else {
-			return nil, fmt.Errorf("cannot create interface wrapper for non-object type: %s", obj.Type())
-		}
-	}
-
-	// Look up the interface
-	iface := i.lookupInterfaceInfo(interfaceName)
-	if iface == nil {
-		return nil, fmt.Errorf("interface '%s' not found", interfaceName)
-	}
-
-	// Create and return the interface instance
-	return NewInterfaceInstance(iface, internalObj), nil
-}
-
 // CreateTypeCastWrapper creates a TypeCastValue wrapper.
 // Returns the TypeCastValue wrapper or nil if class not found.
 func (i *Interpreter) CreateTypeCastWrapper(className string, obj evaluator.Value) evaluator.Value {
