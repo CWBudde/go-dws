@@ -16,27 +16,6 @@ import (
 
 // ===== Class Registry =====
 
-// LookupClass finds a class by name in the class registry.
-// Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
-func (i *Interpreter) LookupClass(name string) (any, bool) {
-	class := i.typeSystem.LookupClass(name)
-	if class == nil {
-		return nil, false
-	}
-	return class, true
-}
-
-// LookupRecord finds a record type by name in the record registry.
-// Task 3.5.46: Delegates to TypeSystem instead of using legacy map.
-func (i *Interpreter) LookupRecord(name string) (any, bool) {
-	normalizedName := ident.Normalize(name)
-	record, ok := i.records[normalizedName]
-	if !ok {
-		return nil, false
-	}
-	return record, true
-}
-
 // LookupInterface finds an interface by name in the interface registry.
 // Task 3.5.184: Delegates to TypeSystem instead of using legacy map.
 func (i *Interpreter) LookupInterface(name string) (any, bool) {

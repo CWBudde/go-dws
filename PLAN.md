@@ -215,643 +215,252 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ### Phase 3.5: Evaluator Refactoring
 
-#### Completed Work ✅
+#### Completed Work (3.5.1-3.5.23) ✅
 
-**Summary**: Split Interpreter into Evaluator + TypeSystem + ExecutionContext. Implemented 48 visitor methods with adapter pattern for gradual migration. Migrated ~120 adapter calls across 16 categories.
+**Summary**: Split Interpreter into Evaluator + TypeSystem + ExecutionContext. Implemented 48 visitor methods with adapter pattern for gradual migration.
 
-**Infrastructure**:
+**Infrastructure Created**:
 
 - Evaluator with visitor pattern (9 expression files + statements + declarations)
 - TypeSystem with registries (classes, records, interfaces, functions, helpers, operators, subranges)
 - ExecutionContext with call stack, control flow, environment management
 - FunctionRegistry with overload resolution
 
-**Migrated Categories**:
+**Tasks 3.5.1-3.5.6** ✅: ExecuteUserFunction integration, interface map removal, declaration dependency analysis
 
-- Direct service access (TypeRegistry, FunctionRegistry, Environment)
-- Type lookups (class, record, interface, function)
-- Value access (variables, type checks, properties)
-- EvalNode reduction (literals, member access, calls, helpers, assignment)
-- Method dispatch (object, interface, record, inherited)
-- Property access (read, indexed, method pointers)
-- Function pointers (call, create, lambdas)
-- Value creation (arrays, records, zero values, references)
-- Exception handling (create, match, evaluate blocks)
-- Type operations (convert, box, check, cast)
-- Variable declarations (define, subrange, type resolution)
-- User functions (parameterless, builtins, overloads, methods)
-- ClassInfo/Object access (fields, metadata, class values)
-- JSON helpers (variant wrapping)
-- Type system (function pointer checks, subrange registry, interface registry)
+**Declaration Migration (3.5.7-3.5.16)** ✅: All 10 declaration types migrated to evaluator
 
-**Key Patterns**:
+- Tier 1 (Pure Registration): SetDecl, EnumDecl, OperatorDecl
+- Tier 2 (Bounds/Types): ArrayDecl, TypeDeclaration
+- Tier 3 (Functions): FunctionDecl (global + method implementations)
+- Tier 4 (Extensions): HelperDecl, InterfaceDecl
+- Tier 5 (Complex): RecordDecl, ClassDecl (with VMT, partial classes, inheritance)
 
-- Never add adapter methods - each PR must reduce usage
-- One feature at a time - remove one adapter call, pass all tests, repeat
-- Start with leaf operations - methods with no internal adapter dependencies
-- Interface-based migration: Add interface method with callback → implement on concrete type → add low-level adapter → update visitor with fallback
+**Bridge Elimination (3.5.17-3.5.23)** ✅: Value types moved to runtime package
 
----
+- 3.5.17: ObjectInstance → `runtime/object.go` (IClassInfo interface created)
+- 3.5.18: ExceptionValue → `runtime/exception.go`
+- 3.5.19: SubrangeValue → `runtime/subrange.go`
+- 3.5.20: InterfaceInstance → `runtime/interface_instance.go` (IInterfaceInfo interface)
+- 3.5.21: TypedNilValue → already in runtime
+- 3.5.22: Function execution + TryImplicitConversion migrated to evaluator (11 subtasks)
+- 3.5.23: All 6 bridge constructors removed
 
-#### Remaining Tasks
+**Key Files Created**:
 
-- [x] **3.5.1** Complete ExecuteUserFunction Integration ✅ **PARTIAL** (3/4 subtasks)
-  - **Status**: Core wrapper infrastructure complete, full migration deferred to 3.5.22
-  - **Files**: `user_function_callbacks.go`, `adapter_functions.go`, `functions_user.go`
-  - **Completed Effort**: 3 hours
-  - **Risk**: Medium - core function execution path
-
-  - [x] **3.5.1a** Update CallUserFunctionWithOverloads ✅
-    - Replaced line 149 in `adapter_functions.go` to use `ExecuteUserFunction`
-    - Created callbacks via `createUserFunctionCallbacks()`
-    - Handles error return (converts to ErrorValue)
-
-  - [x] **3.5.1b** Update ExecuteFunctionPointerCall ✅
-    - Replaced lines 71, 80 in `adapter_functions.go` to use `ExecuteUserFunction`
-    - Fixed: Changed `FunctionNameAliasFunc` signature to pass function environment directly
-    - Self binding works by setting up wrapper environment before `ExecuteUserFunction` call
-
-  - [x] **3.5.1c** Create Wrapper for Remaining Calls ✅
-    - Added `executeUserFunctionViaEvaluator(fn, args) Value` in `functions_user.go`
-    - Wraps `ExecuteUserFunction` with type conversion and error handling
-    - Fixed: Updated `EnvironmentAdapter.Define` to handle nil values (converts to NilValue)
-
-- [x] **3.5.2** Remove `interfaces` Map from Interpreter ✅
-  - **Files**: `interpreter.go`, all files using `i.interfaces[...]`
-  - **Prerequisite**: TypeSystem.LookupInterface() already exists and is used
-  - **Work**: Remove field, update any remaining direct accesses
-  - **Completed**: Removed field, added `LookupInterfaceInfo()` and `GetTypeSystem()` public methods
-
-- [x] **3.5.3** Remove Duplicate Interface Registration ✅
-  - **Files**: `declarations.go`, `interface.go`
-  - **Work**: Remove registration to `i.interfaces`, keep only TypeSystem
-  - **Completed**: Both registration sites now use TypeSystem only
-
-- [x] **3.5.4** Verify All Interface Tests Pass ✅
-  - **Work**: Run full test suite, fix any regressions
-  - **Completed**: All interface tests pass, updated 37 test usages to use `lookupInterfaceInfo()`
-
-- [x] **3.5.5** Analyze Declaration EvalNode Dependencies ✅
-  - **Goal**: Document what each of 10 declaration types needs for migration
-  - **Declarations**: Function, Class, Interface, Record, Enum, Helper, Array, Operator, Set, Type
-  - **Deliverable**: Dependency map showing registry requirements, execution-time needs
-  - **Completed**: Full analysis in `/home/christian/.claude/plans/effervescent-stargazing-sparkle.md`
-
-- [x] **3.5.6** Design Declaration Migration Strategy ✅
-  - **Goal**: Plan migration approach based on 3.5.5 analysis
-  - **Approach**: 5-tier migration - pure registration first (Enum, Operator), then bounds evaluation (Array, Type), then functions, then extensions (Helper, Interface), finally complex types (Record, Class)
-  - **Deliverable**: Detailed subtask breakdown for 3.5.7-3.5.16
-  - **Completed**: See refined task structure below
+- `runtime/class_interface.go` (IClassInfo, IInterfaceInfo interfaces)
+- `runtime/object.go`, `exception.go`, `subrange.go`, `interface_instance.go`
+- `evaluator/type_conversion.go` (TryImplicitConversion)
+- `evaluator/visitor_declarations.go` (all declaration visitors)
 
 ---
 
-**Declaration Migration** (3.5.7-3.5.16)
+#### Remaining Tasks (3.5.24-3.5.40)
 
-Goal: Move declaration processing from Interpreter to Evaluator, migrating 9 EvalNode calls (SetDecl already complete).
+---
 
-#### Tier 1: Pure Registration (No Execution Dependencies)
+**Adapter Reduction** (3.5.24-3.5.40)
 
-- [x] **3.5.15** VisitSetDecl ✅
-  - **Status**: Already complete - semantic analyzer handles set declarations
-  - **Registry**: TypeSystem (pre-registered)
-  - **Files**: `set.go:477-487` - NO-OP implementation
-  - **Effort**: None required
+Goal: Reduce adapter interface from ~75 methods to ~20 essential methods (~75% reduction).
 
-- [x] **3.5.11** VisitEnumDecl ✅
-  - **Registry**: `typeSystem.RegisterEnumType()`
-  - **Complexity**: Low - pure metadata, only env storage for unscoped
-  - **Files**: `visitor_declarations.go`, `enum.go`, `runtime/enum.go`
-  - **Effort**: 2-3 hours
-  - **Subtasks**:
-    - [x] 3.5.11.1: Move `evalEnumDeclaration` logic to `VisitEnumDecl`
-    - [x] 3.5.11.2: Use `ctx.Env()` for unscoped value storage
-    - [x] 3.5.11.3: Remove `adapter.EvalNode()` call
-    - [x] 3.5.11.4: Add tests for scoped/unscoped/flags enums
-  - **Additional work**:
-    - Added `EnumTypeValue` and `NewEnumTypeValue` to `runtime/enum.go`
-    - Tests added for scoped, unscoped, and flags enums in `enum_test.go`
+**Key Finding** (Task 3.5.24): Full adapter elimination is impractical due to circular import constraints. Target: minimize to essential operations only.
 
-- [x] **3.5.14** VisitOperatorDecl ✅
-  - **Registry**: `TypeSystem.Operators()`, `TypeSystem.Conversions()`, `classInfo.Operators`
-  - **Complexity**: Low - pure registration, no execution
-  - **Files**: `visitor_declarations.go`, `declarations.go:917-1044`
+- [x] **3.5.24** Document Remaining Adapter Methods ✅
+  - **Deliverable**: `docs/adapter-audit-3.5.24.md` - 75 methods documented with justifications
+  - **Finding**: 35 easy, 32 medium, 3 hard methods. ~78 methods have zero callers.
+
+---
+
+#### Phase 1: Remove Zero-Caller Methods (3.5.25-3.5.27)
+
+**Goal**: Remove ~78 unused methods from adapter interface. **Effort**: 2-3 hours total.
+
+- [x] **3.5.25** Remove Unused Lookup Methods ✅
+  - **Methods removed** (3): `LookupClass`, `LookupRecord`, `LookupFunction`
+  - **Methods kept** (9): `LookupInterface`, `LookupHelpers`, `ResolveClassInfoByName`, `GetClassNameFromInfo`, `GetOperatorRegistry`, `GetEnumTypeID`, `GetHelperName`, `GetInterfaceName`, `GetInterfaceParent` - all have callers
+  - **Files**: `evaluator/evaluator.go`, `adapter_types.go`, `adapter_functions.go`, `type_registry_test.go`
+  - **Test**: `go build ./...` compiles, TypeRegistry tests pass
+
+- [ ] **3.5.26** Remove Unused Binary Operator Methods
+  - **Methods** (3): `EvalVariantBinaryOp`, `EvalInOperator`, `EvalEqualityComparison`
+  - **Work**: Confirm zero callers, remove from interface + implementation
+  - **Files**: `evaluator/evaluator.go`, `adapter_types.go`
+  - **Effort**: 15 minutes
+
+- [ ] **3.5.27** Remove Unused Class Declaration Methods
+  - **Methods** (~20): All helper/interface/class declaration methods with zero callers
+  - **Work**:
+    1. Grep for `e.adapter.SetClassAbstract`, `e.adapter.SetClassPartial`, etc.
+    2. Remove only methods with zero callers
+    3. Keep methods still used in `visitor_declarations.go`
+  - **Files**: `evaluator/evaluator.go`, `adapter_types.go`
+  - **Effort**: 45 minutes
+  - **Test**: All declaration tests pass
+
+---
+
+#### Phase 2: Inline Single-Use Methods (3.5.28-3.5.31)
+
+**Goal**: Replace adapter calls with direct TypeSystem/runtime calls. **Effort**: 4-6 hours total.
+
+- [ ] **3.5.28** Inline Property Type Extraction Methods
+  - **Methods** (4): `GetObjectFieldValue`, `GetClassVariableValue`, `GetClassVariableFromClassInfo`, `GetClassName`
+  - **Work**: Replace `e.adapter.GetObjectFieldValue(obj, name)` with type assertion + direct field access
+  - **Pattern**:
+
+    ```go
+    // Before
+    val, ok := e.adapter.GetObjectFieldValue(obj, fieldName)
+    // After
+    if objInst, ok := obj.(*runtime.ObjectInstance); ok {
+        val, ok = objInst.GetField(fieldName)
+    }
+    ```
+
+  - **Files**: `evaluator/visitor_expressions_members.go`, `evaluator/visitor_expressions_identifiers.go`
+  - **Effort**: 1 hour
+
+- [ ] **3.5.29** Inline Type Check Methods
+  - **Methods** (3): `CheckType`, `GetClassMetadataFromValue`, `GetObjectInstanceFromValue`
+  - **Work**: Replace with type assertions in evaluator
+  - **Files**: `evaluator/visitor_expressions_types.go`
+  - **Effort**: 45 minutes
+
+- [ ] **3.5.30** Inline Array/Value Creation Methods
+  - **Methods** (2): `CreateArray`, `CreateArrayValue`
+  - **Work**: Use `runtime.NewArrayValue()` directly in evaluator
+  - **Files**: `evaluator/visitor_expressions_functions.go`, `evaluator/visitor_statements.go`
+  - **Effort**: 30 minutes
+
+- [ ] **3.5.31** Inline Interface Wrapper Methods
+  - **Methods** (3): `CreateInterfaceWrapper`, `CreateTypeCastWrapper`, `GetInterfaceInstanceFromValue`
+  - **Work**: Use runtime package directly for interface/cast operations
+  - **Files**: `evaluator/visitor_expressions_types.go`, `evaluator/type_casts.go`
+  - **Effort**: 1 hour
+
+---
+
+#### Phase 3: Migrate Property Callbacks (3.5.32-3.5.34)
+
+**Goal**: Complete ObjectValue callback pattern for property access. **Effort**: 3-4 hours total.
+
+- [ ] **3.5.32** Consolidate ExecutePropertyRead
+  - **Current**: 4 calls to `e.adapter.ExecutePropertyRead`
+  - **Work**: Move property getter execution logic to evaluator
+  - **Pattern**: Evaluator already has `ExecuteMethodWithSelf` callback - reuse for getters
+  - **Files**: `evaluator/visitor_expressions_members.go`, `evaluator/visitor_expressions_identifiers.go`
+  - **Effort**: 1.5 hours
+
+- [ ] **3.5.33** Consolidate ExecuteIndexedPropertyRead
+  - **Current**: 8 calls to `e.adapter.ExecuteIndexedPropertyRead`
+  - **Work**: Implement indexed property getter in evaluator using method callback
+  - **Files**: `evaluator/visitor_expressions_indexing.go`
+  - **Effort**: 1.5 hours
+
+- [ ] **3.5.34** Remove Deprecated Property Methods
+  - **Methods**: `ReadPropertyValue`, `CallIndexedPropertyGetter`, `CallRecordPropertyGetter`
+  - **Work**: Already deprecated, verify zero callers, remove
+  - **Files**: `evaluator/evaluator.go`, `adapter_types.go`
+  - **Effort**: 30 minutes
+
+---
+
+#### Phase 4: Reduce EvalNode Fallback (3.5.35-3.5.38)
+
+**Goal**: Reduce EvalNode calls from ~44 to ~10 essential cases. **Effort**: 8-12 hours total.
+
+**Current EvalNode hotspots**:
+
+- `assignment_helpers.go`: 10 calls (member/property assignments)
+- `visitor_expressions_members.go`: 7 calls (complex member access)
+- `member_assignment.go`: 6 calls (member assignments)
+- Other files: ~21 calls
+
+- [ ] **3.5.35** Migrate Member Assignment to Evaluator
+  - **Current**: `member_assignment.go` uses EvalNode for 6 assignment patterns
+  - **Work**:
+    1. Identify assignment patterns delegating to EvalNode
+    2. Implement native assignment handling for: field assignment, property write, indexed write
+    3. Keep EvalNode only for truly complex cases
+  - **Files**: `evaluator/member_assignment.go`
   - **Effort**: 3-4 hours
-  - **Subtasks**:
-    - [x] 3.5.14.1: Move operator registration to `VisitOperatorDecl`
-    - [x] 3.5.14.2: Use TypeSystem for class lookup (N/A - class operators handled during class decl)
-    - [x] 3.5.14.3: Use `TypeSystem.Operators()` for registration
-    - [x] 3.5.14.4: Handle conversion operators via `TypeSystem.Conversions()`
-    - [x] 3.5.14.5: Remove `adapter.EvalNode()` call
-    - [x] 3.5.14.6: Add tests for global/class/conversion operators (existing tests cover this)
-  - **Additional work**:
-    - Exported `NormalizeTypeAnnotation` to `internal/interp/types/type_system.go` for cross-package use
-    - Updated all callers in `operators.go`, `declarations.go`, `operators_eval.go`, `statements_control.go`
-    - Global and conversion operators now register via TypeSystem registries
-    - Class operators remain handled during class declaration evaluation (no change needed)
+  - **Target**: Reduce from 6 to 2 EvalNode calls
 
-#### Tier 2: Simple Execution (Bounds/Type Resolution)
+- [ ] **3.5.36** Migrate Assignment Helpers
+  - **Current**: `assignment_helpers.go` uses EvalNode for 10 patterns
+  - **Work**: Group by pattern type, implement native handlers
+  - **Patterns**: Simple identifier, reference, member, indexed, slice
+  - **Files**: `evaluator/assignment_helpers.go`
+  - **Effort**: 3-4 hours
+  - **Target**: Reduce from 10 to 3 EvalNode calls
 
-- [x] **3.5.13** VisitArrayDecl ✅
-  - **Registry**: `typeSystem.RegisterArrayType()`
-  - **Complexity**: Low - just bounds evaluation
-  - **Files**: `visitor_declarations.go`, `array.go:16-70`
+- [ ] **3.5.37** Migrate Complex Member Access
+  - **Current**: `visitor_expressions_members.go` uses EvalNode for 7 patterns
+  - **Work**: Handle remaining member access patterns natively
+  - **Patterns**: Nested property, interface property, helper property, type cast property
+  - **Files**: `evaluator/visitor_expressions_members.go`
   - **Effort**: 2-3 hours
-  - **Subtasks**:
-    - [x] 3.5.13.1: Move `evalArrayDeclaration` logic to `VisitArrayDecl`
-    - [x] 3.5.13.2: Use evaluator's `resolveTypeName()` for element type resolution
-    - [x] 3.5.13.3: Use evaluator's `Eval()` for bound expression evaluation
-    - [x] 3.5.13.4: Remove `adapter.EvalNode()` call
-    - [x] 3.5.13.5: Existing tests for dynamic and static arrays verify the migration
+  - **Target**: Reduce from 7 to 2 EvalNode calls
 
-- [x] **3.5.16** VisitTypeDeclaration ✅
-  - **Registry**: TypeSystem (subranges already migrated)
-  - **Complexity**: Low - bounds for subranges
-  - **Files**: `visitor_declarations.go`, `type_alias.go:64-100+`, `runtime/type_alias.go`
-  - **Effort**: 2-3 hours
-  - **Subtasks**:
-    - [x] 3.5.16.1: Move type alias logic to `VisitTypeDeclaration`
-    - [x] 3.5.16.2: Move subrange logic with bounds evaluation
-    - [x] 3.5.16.3: Use evaluator for bound expression evaluation
-    - [x] 3.5.16.4: Remove `adapter.EvalNode()` call
-    - [x] 3.5.16.5: Existing tests for aliases and subranges verify the migration
-  - **Additional work**:
-    - Added `TypeAliasValue` to `runtime/type_alias.go` for evaluator package access
-    - Handles subranges, function pointer types, and type aliases
-    - Inline/complex types (ClassOfTypeNode, SetTypeNode, ArrayTypeNode) return NilValue (handled by semantic analyzer)
-
-#### Tier 3: Function Registration
-
-- [x] **3.5.7** VisitFunctionDecl ✅
-  - **Registry**: `typeSystem.FunctionRegistry()`
-  - **Complexity**: Low-Medium - overload handling, method table for class methods
-  - **Files**: `visitor_declarations.go`, `declarations.go:19-67`
-  - **Effort**: 4-6 hours
-  - **Completed**: Split approach - global functions migrated to Evaluator, method implementations delegated to adapter
-  - **Subtasks**:
-    - [x] 3.5.7.1: Move function registration to `VisitFunctionDecl` (global functions use TypeSystem.RegisterFunctionOrReplace)
-    - [x] 3.5.7.2: Use `typeSystem.Functions().RegisterOrReplace()` for registration (new method added)
-    - [x] 3.5.7.3: Handle overload detection via FunctionRegistry (parametersMatchFn added)
-    - [x] 3.5.7.4: Handle class method registration separately (delegated to adapter.EvalMethodImplementation)
-    - [x] 3.5.7.5: Remove `adapter.EvalNode()` call (replaced with direct TypeSystem or adapter.EvalMethodImplementation)
-    - [x] 3.5.7.6: Add tests for overloads and method registration (existing tests pass, no new tests needed)
-
-#### Tier 4: Type Extensions
-
-- [x] **3.5.12** VisitHelperDecl ✅ (Completed 2025-12-01)
-  - **Registry**: `typeSystem.RegisterHelper()`, `typeSystem.LookupHelpers()`
-  - **Complexity**: Medium - depends on class/record types existing
-  - **Files**: `visitor_declarations.go`, `adapter_types.go`, `evaluator.go`
-  - **Effort**: 4-6 hours → Actual: ~3 hours
-  - **Prerequisite**: Tier 1-2 complete ✅
-  - **Implementation**: Migrated `evalHelperDeclaration` to `VisitHelperDecl` using adapter pattern
-  - **Tests**: All 23 existing helper tests pass (including inheritance, properties, class vars/consts)
-  - **Subtasks**:
-    - [x] 3.5.12.1: Move helper registration to `VisitHelperDecl` ✅
-    - [x] 3.5.12.2: Use TypeSystem for target type lookup ✅
-    - [x] 3.5.12.3: Use `TypeSystem.AllHelpers()` for parent resolution ✅
-    - [x] 3.5.12.4: Register via `TypeSystem.RegisterHelper()` ✅
-    - [x] 3.5.12.5: Remove `adapter.EvalNode()` call ✅
-    - [x] 3.5.12.6: Verify existing tests pass (23 helper tests) ✅
-
-- [x] **3.5.9** VisitInterfaceDecl ✅
-  - **Registry**: `TypeSystem.RegisterInterface()`, `TypeSystem.LookupInterface()`
-  - **Complexity**: Medium - parent interface validation
-  - **Files**: `visitor_declarations.go`, `declarations.go:803-859`, `interface.go`
-  - **Effort**: 4-6 hours
-  - **Prerequisite**: 3.5.2-3.5.4 complete ✅
-  - **Subtasks**:
-    - [x] 3.5.9.1: Move interface creation to `VisitInterfaceDecl` ✅
-    - [x] 3.5.9.2: Use `TypeSystem.LookupInterface()` for parent ✅
-    - [x] 3.5.9.3: Use `TypeSystem.RegisterInterface()` for registration ✅
-    - [x] 3.5.9.4: Handle property conversion from AST ✅
-    - [x] 3.5.9.5: Remove `adapter.EvalNode()` call ✅
-    - [x] 3.5.9.6: Add tests for inheritance, methods, properties ✅
-
-#### Tier 5: Complex Types with Methods
-
-- [x] **3.5.10** VisitRecordDecl ✅ **COMPLETED**
-  - **Registry**: `typeSystem.RegisterRecord()`, `methodRegistry`
-  - **Complexity**: Medium - field init + method registration
-  - **Files**: `visitor_declarations.go`, `record.go:112-250+`
-  - **Effort**: 1 day
-  - **Completion**: Eliminated adapter pattern completely - no bridge constructors needed
-  - **Architecture**: RecordTypeValue moved to evaluator package, metadata builders moved to evaluator
-  - **Subtasks**:
-    - [x] 3.5.10.1: Move record type creation to `VisitRecordDecl`
-    - [x] 3.5.10.2: Use evaluator for field initializer evaluation
-    - [x] 3.5.10.3: Use TypeSystem for record registration
-    - [x] 3.5.10.4: Handle method registration via methodRegistry
-    - [x] 3.5.10.5: Preserve RecordMetadata building
-    - [x] 3.5.10.6: Remove `adapter.EvalNode()` call
-    - [x] 3.5.10.7: Add tests for fields, methods, initializers
-
-- [x] **3.5.8** VisitClassDecl ✅ **COMPLETED** (2025-12-01)
-  - Migrated class declaration handling to evaluator's VisitClassDecl with full adapter pattern
-  - **Implementation**: Partial classes, inheritance, interfaces, constants, fields, methods, properties, operators, VMT, TypeSystem registration
-  - **Testing**: 31+ integration tests pass - class constants, variables, methods, inheritance, metadata, initialization, ClassType
-  - **Critical Finding**: VMT uses map structure (cannot support `reintroduce virtual` - requires array with indices). Documented in `docs/phase3.5.8-findings.md`, deferred to Task 9.14
-  - **Files**: `visitor_declarations.go` (VisitClassDecl, ~240 lines), `adapter_types.go` (~900 lines of adapters), `evaluator.go` (interface methods)
-  - **Subtasks**: 3.5.8.1-4, 3.5.8.6-8, 3.5.8.10 ✅ | 3.5.8.5 (nested classes), 3.5.8.9 (adapter.EvalNode removal) deferred
+- [ ] **3.5.38** Audit Remaining EvalNode Calls
+  - **Work**: Review all remaining EvalNode calls, document which are essential
+  - **Essential categories** (keep ~10):
+    - Unit declarations
+    - Complex property writes with side effects
+    - Compound operations on special types
+  - **Deliverable**: Update `docs/adapter-audit-3.5.24.md` with final EvalNode inventory
+  - **Effort**: 1 hour
 
 ---
 
-**Bridge Constructor Elimination** (3.5.17-3.5.23)
+#### Phase 5: Documentation and Stabilization (3.5.39-3.5.40)
 
-Goal: Eliminate bridge constructors by moving value types to runtime package.
+- [ ] **3.5.39** Update Architecture Documentation
+  - **Work**:
+    1. Update CLAUDE.md Architecture Overview with final evaluator/interpreter split
+    2. Document essential adapter methods and why they exist
+    3. Document callback patterns (ObjectValue, property read, method execution)
+  - **Files**: `CLAUDE.md`, `docs/adapter-audit-3.5.24.md`
+  - **Effort**: 2-3 hours
 
-Bridge constructors to eliminate:
-
-- `CreateExceptionDirect`, `WrapObjectInException` - Exception handling
-- `CreateSubrangeValueDirect` - Subrange value wrapping
-- `CreateInterfaceInstanceDirect` - Interface instance creation
-- `CreateTypedNilValue` - Typed nil for classes
-- `CreateObject` - Object instance creation
-- `TryImplicitConversion` - Type conversion execution
-
-- [x] **3.5.17** Move ObjectInstance to Runtime ✅ COMPLETED
-  - **Current location**: `internal/interp/runtime/object.go`
-  - **Size**: 17+ methods, 450+ LOC
-  - **Call sites**: Fixed 100+ throughout interp package
-  - **Work Completed**:
-    - Created IClassInfo interface in `runtime/class_interface.go` to break circular import
-    - Moved ObjectInstance struct and methods to `runtime/object.go`
-    - Implemented IClassInfo interface on ClassInfo in `class.go`
-    - Created type aliases in `value.go` for backward compatibility
-    - Fixed 100+ call sites to use interface methods (GetName, GetParent, GetMetadata, etc.)
-    - Added type assertions where concrete ClassInfo needed
-    - Fixed PropertyInfo wrapper to use Impl field for actual types.PropertyInfo
-    - Fixed OperatorEntry conversion to include all required fields
-    - Updated all test files to use interface methods
-    - Exported DestroyCallDepth field for cross-package access
-  - **Testing**: All unit tests pass, CLI works correctly, 339/1227 fixture tests pass
-  - **Dependencies**: None (foundation for 3.5.18-3.5.21)
-
-- [x] **3.5.18** Move ExceptionValue to Runtime ✅ COMPLETED (2025-12-01)
-  - **Location**: `internal/interp/runtime/exception.go`
-  - **Dependencies**: 3.5.17 (ObjectInstance) ✅
-  - **Work Completed**:
-    - **Phase 1**: Created `runtime/exception.go` with ExceptionValue struct (lines 17-28), methods (Type, GetInstance, Inspect), and constructors (NewException, NewExceptionFromObject)
-    - **Phase 2**: Updated interpreter package - added type alias in exceptions.go, updated field types in interpreter.go, fixed imports in contracts.go, ffi_errors.go, builtins_*.go, ffi_callback.go
-    - **Phase 3**: Added evaluator helper methods `createException()` and `wrapObjectAsException()` that wrap bridge constructors temporarily
-    - **Call sites updated**: 3 in evaluator/visitor_statements.go (lines ~102, ~1259, ~1264)
-    - **Bridge constructors**: Kept in adapter_references.go for now (used by helpers), marked for future removal
-    - **Type handling**: ClassInfo field changed to `any` type in runtime to avoid import cycles
-  - **Actual Effort**: 4 hours (matched plan estimate)
-  - **Testing**: All exception tests pass (TestException*, TestTryExcept*, TestRaise*, TestContract*), CLI works correctly, 341/1227 fixture tests pass (baseline)
-
-- [x] **3.5.19** Move SubrangeValue to Runtime
-  - **Current location**: `internal/interp/type_alias.go`
-  - **Work**: Move to `runtime/subrange.go`, update imports
-  - **Effort**: 1 week (Actual: 1 hour)
-  - **Risk**: Low
-  - **Status**: Completed
-  - **Changes**:
-    - Created `runtime/subrange.go` with SubrangeValue struct and methods
-    - Added `NewSubrangeValue()` and `NewSubrangeValueZero()` constructors
-    - Added `GetValue()` and `GetTypeName()` methods to satisfy evaluator's SubrangeValueAccessor interface
-    - Added type alias in `value.go` for backward compatibility
-    - Removed duplicate definition from `type_alias.go`
-    - Updated evaluator to use `runtime.NewSubrangeValueZero()` directly instead of bridge adapter
-    - Removed `CreateSubrangeValueDirect` bridge constructor (no longer needed)
-  - **Testing**: All 11 subrange tests pass, fixture test baseline unchanged (341/1227)
-
-- [x] **3.5.20** Move InterfaceInstance to Runtime ✅ COMPLETED (2025-12-01)
-  - **Location**: `internal/interp/runtime/interface_instance.go`
-  - **Dependencies**: 3.5.17 (ObjectInstance) ✅
-  - **Work Completed**:
-    - **Phase 1**: Created IInterfaceInfo interface in `runtime/class_interface.go` with 10 methods (GetName, GetParent, GetMethod, HasMethod, GetProperty, HasProperty, GetDefaultProperty, AllMethods, AllProperties)
-    - **Phase 2**: Created `runtime/interface_instance.go` with InterfaceInstance struct, methods (Type, String, GetUnderlyingObject, GetUnderlyingObjectValue, InterfaceName, HasInterfaceMethod, HasInterfaceProperty, LookupProperty, GetDefaultProperty)
-    - **Phase 3**: Updated InterfaceInfo in `interface.go` to implement IInterfaceInfo - changed method signatures to return `any`/`*runtime.PropertyInfo` instead of concrete types, added internal helpers (getMethodDecl, getPropertyInfo, allMethodsDecl, allPropertiesInfo) for backward compatibility
-    - **Phase 4**: Fixed 15+ call sites - Interface.Name → Interface.GetName(), Interface.getDefaultProperty() → Interface.GetDefaultProperty(), propInfo extraction via Impl field
-    - **Phase 5**: Updated CreateInterfaceInstanceDirect bridge constructor to use runtime.NewInterfaceInstance
-    - **Phase 6**: Converted ImplementsInterface from method to free function, updated 2 test call sites
-    - Type alias added in `interface.go` for backward compatibility
-    - Compile-time interface check: `var _ runtime.IInterfaceInfo = (*InterfaceInfo)(nil)`
-  - **Actual Effort**: 4 hours (matched medium complexity estimate)
-  - **Testing**: All interface tests pass, baseline unchanged (341/1227 fixture tests pass)
-
-- [x] **3.5.21** Move TypedNilValue to Runtime ✅ COMPLETED (2025-12-01)
-  - **Location**: `internal/interp/runtime/primitives.go` (NilValue struct with ClassType field)
-  - **Dependencies**: 3.5.17 (ObjectInstance) ✅
-  - **Work Completed**:
-    - NilValue was already in runtime package with ClassType field for typed nil support
-    - Removed `CreateTypedNilValue` bridge constructor from adapter interface
-    - Updated single call site in `evaluator/visitor_statements.go:1513` to use `&runtime.NilValue{ClassType: typeName}` directly
-    - Removed bridge method from `adapter_values.go:38-40`
-    - Removed interface method from `evaluator.go:715`
-  - **Actual Effort**: 1 hour (vs. 3 days estimated - value type already in runtime)
-  - **Testing**: All class variable and nil value tests pass, CLI verified with typed nil access to class vars, 341/1227 fixture tests pass (baseline)
-
-- [ ] **3.5.22** Migrate Function Execution and Type Conversion to Evaluator
-  - **Goal**: Complete function execution migration + migrate TryImplicitConversion
-  - **Challenge**: Core execution infrastructure requires evaluator-native function calls
-  - **Files**: `functions_user.go`, `operators_eval.go`, `adapter_types.go`, `adapter_objects.go`
-  - **Total Effort**: 1-2 weeks (6-10 days)
-  - **Risk**: High - execution layer coupling, affects 30+ call sites
-  - **Prerequisites**: Tasks 3.5.1a-c complete ✅
-
-  **Phase A: Fix Function Execution Blockers** - 3-4 days
-
-  - [x] **3.5.22a** Audit and Fix Record Return Type Initialization ✅ COMPLETE (2025-12-01)
-    - **Root cause**: `createDefaultValueGetterCallback` used `i.env.Get()` to look up record types, but `i.env` is caller's environment (not function environment)
-    - **Solution**: Changed from environment lookup to TypeSystem registry: `i.typeSystem.LookupRecord(returnTypeName)`
-    - **Files**: `user_function_callbacks.go:67-78` (fixed), `record_return_test.go` (NEW - 230 lines, 7 tests)
-    - **Tests**: All pass - direct returns, implicit conversions, nested records, function pointers, overloaded functions
-    - **Architecture**: Improved consistency - all type lookups now use TypeSystem (records, arrays, interfaces)
-    - **Actual Effort**: 4 hours (matched estimate)
-    - **Summary**: `/home/christian/.claude/plans/task-3.5.22a-completion-summary.md`
-
-  - [x] **3.5.22b** Fix Array Return Type Initialization ✅ COMPLETE (2025-12-02)
-    - **Root cause**: `resolveType()` in `record.go` used `i.env.Get()` for record lookups, but `i.env` is caller's environment in ExecuteUserFunction
-    - **Solution**: Changed record lookup in `resolveType()` to use TypeSystem: `i.typeSystem.LookupRecord(typeName)`
-    - **Note**: Array type lookups already used TypeSystem (`i.typeSystem.LookupArrayType()`) - only the nested record resolution needed fixing
-    - **Files**: `record.go:546-553` (fixed), `array_return_test.go` (NEW - 285 lines, 12 tests)
-    - **Tests**: All pass - Result.Add(), function pointers, overloaded functions, arrays of records
-    - **Actual Effort**: 2 hours
-    - **Deliverable**: Array return types with record elements work correctly in `ExecuteUserFunction`
-
-  - [x] **3.5.22c** Fix Method Pointer Return Values ✅ COMPLETE (2025-12-02)
-    - **Status**: Method pointer runtime implementation is working correctly
-    - **Original Blocker**: `TestEvalAddressOfMethod` test failure (now passing)
-    - **Files**: `functions_pointers.go`, `adapter_functions.go`, `method_pointer_test.go` (NEW)
-    - **Work Completed**:
-      1. Verified `TestEvalAddressOfMethod` now passes (was previously blocking)
-      2. Created comprehensive test suite (14 passing tests) covering:
-         - Basic value returns, Self binding persistence
-         - Methods with single/multiple parameters
-         - String, Float, Boolean return types
-         - Different objects with same method
-         - Object modification after pointer creation
-         - Method pointers passed as parameters
-         - Inherited methods and virtual method dispatch
-         - Procedure pointers (no return value)
-         - Method pointers returned from functions
-      3. Identified semantic analyzer limitation (not runtime issue):
-         - Error "method pointers (@TClass.Method) not yet implemented" in certain contexts
-         - Runtime handles method pointers correctly; semantic analyzer blocks some usage patterns
-    - **Actual Effort**: 2 hours (investigation + test creation)
-    - **Deliverable**: Method pointer returns work correctly in evaluator context
-
-  - [x] **3.5.22d** Migrate All callUserFunction Call Sites ✅
-    - **Current state**: Wrapper exists but only used by 3.5.1a/b paths (2 sites)
-    - **Remaining sites**: 25+ locations across 8 files
-    - **Files to update**:
-      - `objects_methods.go:33` (method calls)
-      - `functions_calls.go:164,264` (function calls)
-      - `adapter_methods.go:119,419,467,526,556,600,624` (adapter methods)
-      - `functions_pointers.go:46,55` (function pointer calls)
-      - `operators_eval.go:53,223,271` (operator overloads, **includes conversion operators**)
-      - `expressions_basic.go:193` (expression evaluation)
-      - `adapter_objects.go:73,119` (object construction)
-    - **Work**:
-      1. Replace `i.callUserFunction(fn, args)` with `i.executeUserFunctionViaEvaluator(fn, args)`
-      2. Run full test suite after each file
-      3. Fix any regressions immediately
-      4. Remove old `callUserFunction` method after all sites migrated
-    - **Effort**: 1 day (incremental migration)
-    - **Deliverable**: All function calls use evaluator execution
-    - **Completed**: All 19 call sites migrated, ~228 lines removed from `functions_user.go`
-    - **Key fixes**: EnvSyncer callback, recursion exception handling, interface cleanup, call stack sync, exception propagation
-
-  **Phase B: Migrate Type Conversion** - 3-4 days
-
-  - [x] **3.5.22e** Add Conversion Registry Accessor to TypeSystem ✅
-    - **Current**: `i.conversions.findImplicit()` in interpreter
-    - **Target**: `e.typeSystem.Conversions().FindImplicit()` in evaluator
-    - **Files**: `types/type_system.go`, `types/conversion_registry.go`
-    - **Work**:
-      1. Add public `Conversions() *ConversionRegistry` method to TypeSystem
-      2. Export `FindImplicit(fromType, toType) (ConversionEntry, bool)` method
-      3. Export `FindConversionPath(fromType, toType, maxDepth) []string` method
-      4. Update evaluator imports
-    - **Effort**: 2-3 hours
-    - **Deliverable**: Evaluator can access conversion registry
-    - **Completed**: Migrated registration from `runtimeConversionRegistry` to `TypeSystem.Conversions()`, updated all lookup sites, removed duplicate registry code (~115 lines)
-
-  - [x] **3.5.22f** Create Evaluator Helper for Conversion Function Execution
-    - **Files**: `evaluator/type_conversion.go` (new file)
-    - **Work**:
-      1. Create `executeConversionFunction(fn *ast.FunctionDecl, arg Value) (Value, error)` helper
-      2. Use `ExecuteUserFunction` with proper context
-      3. Handle error propagation
-      4. Test with simple conversion operators (Integer→String, etc.)
-    - **Effort**: 4-6 hours
-    - **Deliverable**: Evaluator can execute conversion functions
-    - **Completed**: Created `ExecuteConversionFunction` and `ExecuteConversionFunctionSimple` helpers with `ConversionCallbacks` struct for interpreter-dependent operations. Includes validation (single parameter, return type required), proper error wrapping, and comprehensive tests.
-
-  - [x] **3.5.22g** Move tryImplicitConversion Logic to Evaluator ✅ COMPLETE (2025-12-03)
-    - **Current**: `operators_eval.go:193-280` (Interpreter method)
-    - **Target**: `evaluator/type_conversion.go` (Evaluator method)
-    - **Files**: `evaluator/type_conversion.go`, `operators_eval.go`
-    - **Work Completed**:
-      1. Created `TryImplicitConversion(value, targetTypeName, ctx)` method in evaluator
-      2. Uses `e.typeSystem.Conversions().FindImplicit()` for direct conversions
-      3. Uses `e.typeSystem.Conversions().FindConversionPath()` for chained conversions (max depth 3)
-      4. Uses `ExecuteConversionFunctionSimple()` to execute conversion functions
-      5. Built-in conversions: Integer→Float (widening), Enum→Integer (ordinal)
-      6. Helper methods: `executeConversionEntry()`, `executeConversionChain()`, `isErrorValue()`
-      7. Comprehensive tests: 7 test functions covering nil, same-type, int→float, enum→int, no-conversion, float→int (blocked), type normalization
-    - **Effort**: ~4 hours
-    - **Deliverable**: Evaluator has native `TryImplicitConversion()` method
-
-  - [x] **3.5.22h** Update TryImplicitConversion Call Sites ✅ COMPLETE (2025-12-03)
-    - **Call sites**: 4 locations in evaluator package (not 5 as originally estimated)
-      - `visitor_statements.go:220` (variable declaration with initializer)
-      - `assignment_helpers.go:133` (identifier assignment - evalSimpleAssignmentDirect)
-      - `assignment_helpers.go:204` (reference assignment - evalReferenceAssignment)
-      - `visitor_expressions_identifiers.go:344` (function return value conversion)
-    - **Work Completed**:
-      1. Replaced `e.adapter.TryImplicitConversion(value, typeName)` with `e.TryImplicitConversion(value, typeName, ctx)`
-      2. Fixed `evalReferenceAssignment` to use ctx parameter (was `_ *ExecutionContext`)
-      3. All tests pass - no regressions
-    - **Effort**: ~30 minutes
-    - **Deliverable**: All conversion call sites use evaluator's native method
-
-  - [x] **3.5.22i** Remove TryImplicitConversion Adapter Method ✅ COMPLETE (2025-12-03)
-    - **Files**: `adapter_types.go`, `evaluator/evaluator.go`, `evaluator/type_conversion.go`, `evaluator/type_conversion_test.go`
-    - **Work Completed**:
-      1. Removed `TryImplicitConversion` from InterpreterAdapter interface in `evaluator.go`
-      2. Removed implementation from `adapter_types.go` (~8 lines)
-      3. Updated `ExecuteConversionFunctionSimple` to use evaluator's native method instead of adapter
-      4. Removed mock method from `type_conversion_test.go`
-      5. All tests pass - no regressions
-    - **Note**: Interpreter's `tryImplicitConversion` kept as private helper for internal use
-    - **Effort**: ~20 minutes
-    - **Deliverable**: Adapter interface reduced by 1 method
-
-  **Phase C: Eliminate Remaining Bridges** - 2-3 days
-
-  - [x] **3.5.22j** Analyze CreateObject Dependencies ✅ COMPLETE (2025-12-03)
-    - **Files**: `adapter_objects.go:18-86`
-    - **Single Call Site**: `visitor_expressions_functions.go:658` - only called for `new ClassName(args)` expressions
-    - **Analysis Summary**:
-
-      **What CreateObject does:**
-      1. Looks up ClassInfo via TypeSystem ✅ (already accessible via `e.typeSystem.LookupClass()`)
-      2. Validates class (not abstract, not external) - needs `IsAbstract`, `IsExternal` fields
-      3. Creates `ObjectInstance` via `NewObjectInstance(classInfo)` ❌ (needs `runtime.IClassInfo`)
-      4. Initializes fields with default values using `i.Eval()` for initializers ✅ (evaluator can do this)
-      5. Calls constructor via `executeUserFunctionViaEvaluator()` ✅ (already migrated)
-
-      **IClassInfo Interface Analysis** (runtime/class_interface.go):
-
-      | Method           | Available | Notes                                      |
-      |------------------|-----------|-------------------------------------------|
-      | GetName()        | ✅        |                                           |
-      | GetParent()      | ✅        |                                           |
-      | GetMetadata()    | ✅        |                                           |
-      | LookupMethod()   | ✅        |                                           |
-      | GetFieldsMap()   | ✅        | Returns legacy `map[string]*ast.FieldDecl` |
-      | GetMethodsMap()  | ✅        |                                           |
-      | LookupClassVar() | ✅        |                                           |
-
-      **Missing from IClassInfo (needed for CreateObject):**
-      - `IsAbstract bool` - validation
-      - `IsExternal bool` - validation
-      - `Fields map[string]string` - field name→type mapping for zero values
-      - `FieldDecls map[string]*ast.FieldDecl` - for InitValue expressions
-      - `Constructors map[string]*ast.FunctionDecl` - for constructor lookup
-
-      **Migration Strategy Options:**
-      1. **Extend IClassInfo** (preferred): Add missing methods to interface
-         - `IsAbstract() bool`, `IsExternal() bool`
-         - `GetFields() map[string]string` (or use existing `GetFieldsMap()`)
-         - `GetConstructor(name string) *ast.FunctionDecl`
-         - Effort: 2-3 hours interface changes + implementation
-      2. **Keep as adapter** (simpler): Leave CreateObject in interpreter
-         - Pro: Less refactoring, works now
-         - Con: Adapter still needed for object creation
-      3. **Callback-based** (complex): Pass field init callback to evaluator
-         - More complex, harder to maintain
-
-    - **Recommendation**: Option 1 (Extend IClassInfo) is cleanest long-term
-    - **Effort**: Analysis: 1 hour (actual)
-    - **Deliverable**: Analysis complete, migration strategy documented
-
-  - [x] **3.5.22k** Migrate CreateObject ✅ (2025-12-03)
-    - **Depends on**: 3.5.22j analysis ✅
-    - **Recommended approach**: Extend IClassInfo interface
-    - **Subtasks**: (all completed)
-      1. ✅ Add `IsAbstract() bool` and `IsExternal() bool` to IClassInfo
-      2. ✅ Add `GetConstructor(name string) *ast.FunctionDecl` to IClassInfo
-      3. ✅ Add `GetFieldTypesMap() map[string]any` for field type lookup
-      4. ✅ Implement methods on ClassInfo in interp package
-      5. ✅ Update `VisitNewExpression` in evaluator to use IClassInfo directly
-      6. ✅ Replace adapter.CreateObject() call with direct implementation
-      7. ✅ Remove CreateObject from InterpreterAdapter interface
-    - **Implementation Notes**:
-      - Renamed ClassInfo.IsAbstract/IsExternal fields to IsAbstractFlag/IsExternalFlag to avoid method name conflict
-      - Evaluator now uses `runtime.NewObjectInstance(classInfo)` directly
-      - Field initialization uses `classInfo.GetFieldTypesMap()` and `classInfo.GetFieldsMap()`
-      - Constructor execution still uses `ExecuteConstructor` adapter callback
-    - **Effort**: 1 day (actual)
-    - **Risk**: Medium - touching object creation path
-    - **Deliverable**: CreateObject eliminated from InterpreterAdapter interface
-
-  **Success Criteria**:
-  - ✅ All 25+ `callUserFunction` sites use `executeUserFunctionViaEvaluator`
-  - ✅ Record, array, and method pointer return types work correctly
-  - ✅ All conversion call sites use evaluator's `tryImplicitConversion`
-  - ✅ No regression in existing tests (maintain 341/1227 fixture test baseline)
-  - ✅ Adapter interface reduced by 3 methods (TryImplicitConversion, CallBuiltinFunction, CreateObject)
-
-- [x] **3.5.23** Remove Bridge Constructor Adapter Methods ✅ (6/6 complete, 2025-12-03)
-  - **Methods removed**:
-    - [x] `CreateExceptionDirect` (removed in 3.5.18)
-    - [x] `WrapObjectInException` (removed in 3.5.18)
-    - [x] `CreateSubrangeValueDirect` (removed in 3.5.19)
-    - [x] `CreateInterfaceInstanceDirect` (removed 2025-12-01)
-    - [x] `CreateTypedNilValue` (removed in 3.5.21)
-    - [x] `CreateObject` (removed in 3.5.22k, 2025-12-03)
-  - **CreateInterfaceInstanceDirect elimination** (2025-12-01):
-    - Updated `visitor_statements.go:1487-1497` to call `typeSystem.LookupInterface()` directly
-    - Type-assert to `runtime.IInterfaceInfo` interface
-    - Call `runtime.NewInterfaceInstance(ifaceInfo, nil)` directly
-    - Removed interface method from `evaluator.go:712`
-    - Removed implementation from `adapter_values.go:25-34`
-    - All 32 interface tests pass, CLI verified with nil interface instances
-  - **Effort**: 5 hours (5 bridges removed, 1 pending)
-  - **Risk**: Low (only CreateObject remains)
-
----
-
-**Final Cleanup** (3.5.24-3.5.32)
-
-Goal: Remove adapter entirely, document final architecture.
-
-- [x] **3.5.24** Document Remaining Adapter Methods
-  - **Work**: Audit adapter interface, document any remaining methods and why they exist
-  - **Deliverable**: `docs/adapter-audit-3.5.24.md` - 75 methods documented with justifications and removal roadmap
-  - **Effort**: 2-4 hours
-  - **Completed**: Audit found 35 easy, 32 medium, 3 hard methods to remove. Estimated 80-100 hours for full removal.
-
-- [ ] **3.5.25** Remove Unused Adapter Interface Methods
-  - **Work**: Remove any methods with zero callers
-  - **Effort**: 1-2 hours
-  - **Risk**: Low
-
-- [ ] **3.5.26** Update CLAUDE.md with Final Architecture
-  - **Work**: Update Architecture Overview section with new structure
-  - **Effort**: 2-4 hours
-
-- [ ] **3.5.27** Create Phase 3.5 Completion Summary
-  - **Deliverable**: `docs/phase3.5-summary.md` documenting the refactoring
-  - **Effort**: 4-6 hours
-
-- [ ] **3.5.28** Remove InterpreterAdapter Interface
-  - **Files**: `evaluator/evaluator.go`
-  - **Work**: Remove interface definition
-  - **Effort**: 30 minutes
-  - **Risk**: Low (if no callers remain)
-
-- [ ] **3.5.29** Remove Adapter Field from Evaluator
-  - **Files**: `evaluator/evaluator.go`
-  - **Work**: Remove `adapter` field from Evaluator struct
-  - **Effort**: 30 minutes
-
-- [ ] **3.5.30** Remove SetAdapter() Method
-  - **Files**: `evaluator/evaluator.go`, `interpreter.go`
-  - **Work**: Remove method and calls
-  - **Effort**: 30 minutes
-
-- [ ] **3.5.31** Remove evalDirect() from Interpreter
-  - **Files**: `interpreter.go`
-  - **Work**: Remove the bypass method used during migration
-  - **Effort**: 30 minutes
-
-- [ ] **3.5.32** Final Architecture Documentation
-  - **Deliverable**: Updated diagrams, README updates
-  - **Effort**: 1 day
+- [ ] **3.5.40** Create Phase 3.5 Completion Summary
+  - **Deliverable**: `docs/phase3.5-summary.md`
+  - **Content**:
+    - Initial state: monolithic Interpreter (~15k LOC)
+    - Final state: Evaluator + TypeSystem + ExecutionContext + minimal adapter
+    - Methods migrated vs methods kept
+    - Performance impact (if any)
+    - Lessons learned
+  - **Effort**: 2-3 hours
 
 ---
 
 #### Phase 3.5 Summary
 
-| Group | Tasks | Description | Status |
-|-------|-------|-------------|--------|
-| Cleanup | 3.5.1-3.5.4 | ExecuteUserFunction, interface map removal | ✅ Complete (3.5.1) |
-| Analysis | 3.5.5-3.5.6 | Declaration dependency analysis | ✅ Complete |
-| Declarations | 3.5.7-3.5.16 | Move 9 declaration types to evaluator | 3.5.7-3.5.9, 3.5.11-3.5.16 ✅, 3.5.10 pending |
-| Bridge Elimination | 3.5.17-3.5.23 | Move value types to runtime, remove bridges | 3.5.17-3.5.19, 3.5.21, 3.5.23 (5/6) ✅, 3.5.20, 3.5.22 pending |
-| Final Cleanup | 3.5.24-3.5.32 | Remove adapter, document architecture | 3.5.24 ✅, 3.5.25-3.5.32 pending |
+| Phase | Tasks | Description | Status | Effort |
+|-------|-------|-------------|--------|--------|
+| Bridge Elimination | 3.5.17-3.5.23 | Move value types to runtime | ✅ Complete | Done |
+| Audit | 3.5.24 | Document adapter methods | ✅ Complete | Done |
+| Zero-Caller Removal | 3.5.25-3.5.27 | Remove ~78 unused methods | Pending | 2-3h |
+| Single-Use Inline | 3.5.28-3.5.31 | Inline simple adapter calls | Pending | 4-6h |
+| Property Callbacks | 3.5.32-3.5.34 | Complete callback patterns | Pending | 3-4h |
+| EvalNode Reduction | 3.5.35-3.5.38 | Reduce fallback calls 44→~10 | Pending | 8-12h |
+| Documentation | 3.5.39-3.5.40 | Final docs and summary | Pending | 4-6h |
 
-**Total remaining tasks**: 12 (was 32, completed 3.5.1-3.5.9, 3.5.11-3.5.19, 3.5.21, 3.5.24)
+**Total Remaining Effort**: ~25-35 hours (vs original 80-100h estimate for full elimination)
 
-**Critical path**: 3.5.22 (11 subtasks) → unlocks 3.5.23 (CreateObject) + remaining adapter cleanup
+**Realistic Target**:
 
-**Task 3.5.22 breakdown** (1-2 weeks):
+- Adapter interface: 75 → ~20 methods (73% reduction)
+- EvalNode calls: 44 → ~10 calls (77% reduction)
+- Essential methods kept: method execution, constructor execution, lambda/closure handling
 
-- Phase A: Function execution blockers (3.5.22a-d) - 3-4 days
-- Phase B: Type conversion migration (3.5.22e-i) - 3-4 days
-- Phase C: CreateObject elimination (3.5.22j-k) - 2-3 days
+**Why Full Elimination Is Impractical**:
 
-**Declaration Migration Order** (5 tiers):
-
-1. **Tier 1** (Pure Registration): Enum ➔ Operator
-2. **Tier 2** (Simple Execution): Array ➔ Type
-3. **Tier 3** (Function Registration): Function
-4. **Tier 4** (Type Extensions): Helper ➔ Interface
-5. **Tier 5** (Complex Types): Record ➔ Class
+1. **Circular imports**: ClassInfo lives in `interp`, evaluator can't import `interp`
+2. **Environment management**: Interpreter owns env/call stack, method execution needs it
+3. **Closure capture**: Lambda environments require Interpreter's environment system
+4. **Diminishing returns**: Last 20 methods require ~60h refactoring for minimal benefit
 
 ---
 

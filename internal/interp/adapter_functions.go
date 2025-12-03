@@ -109,13 +109,8 @@ func (i *Interpreter) CallUserFunction(fn *ast.FunctionDecl, args []evaluator.Va
 // via builtins.DefaultRegistry.Lookup() instead of using this adapter method.
 // See visitor_expressions_functions.go:331 and visitor_expressions_identifiers.go:195
 
-// LookupFunction finds a function by name in the function registry.
-func (i *Interpreter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
-	// DWScript is case-insensitive, so normalize to lowercase
-	normalizedName := ident.Normalize(name)
-	functions, ok := i.functions[normalizedName]
-	return functions, ok
-}
+// Task 3.5.25: LookupFunction REMOVED - zero callers in evaluator package
+// Evaluator now uses FunctionRegistry.Resolve() for function lookup
 
 // ===== Task 3.5.97: User Function Call Methods =====
 
