@@ -113,11 +113,11 @@ type PropertyInfo struct {
 // VirtualMethodEntry tracks virtual method dispatch information.
 // Copied from internal/interp/class.go to avoid import cycle.
 type VirtualMethodEntry struct {
-	Method       *ast.FunctionDecl // The method declaration
-	OwningClass  IClassInfo        // The class that first declared this virtual method
-	IsVirtual    bool              // True if declared as 'virtual'
-	IsOverride   bool              // True if declared as 'override'
-	IsReintroduce bool             // True if declared as 'reintroduce'
+	Method        *ast.FunctionDecl // The method declaration
+	OwningClass   IClassInfo        // The class that first declared this virtual method
+	IsVirtual     bool              // True if declared as 'virtual'
+	IsOverride    bool              // True if declared as 'override'
+	IsReintroduce bool              // True if declared as 'reintroduce'
 }
 
 // OperatorEntry represents an operator overload registration.

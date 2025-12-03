@@ -914,8 +914,8 @@ func (i *Interpreter) evalVariantBinaryOp(op string, left, right Value, node ast
 	// For boolean operators with mixed numeric/boolean types, coerce to boolean
 	case (op == "and" || op == "or" || op == "xor") &&
 		((leftType == "BOOLEAN" && (rightType == "INTEGER" || rightType == "FLOAT")) ||
-		 (rightType == "BOOLEAN" && (leftType == "INTEGER" || leftType == "FLOAT")) ||
-		 ((leftType == "INTEGER" || leftType == "FLOAT") && (rightType == "INTEGER" || rightType == "FLOAT"))):
+			(rightType == "BOOLEAN" && (leftType == "INTEGER" || leftType == "FLOAT")) ||
+			((leftType == "INTEGER" || leftType == "FLOAT") && (rightType == "INTEGER" || rightType == "FLOAT"))):
 		// Coerce both operands to boolean
 		leftBool := variantToBool(leftVal)
 		rightBool := variantToBool(rightVal)

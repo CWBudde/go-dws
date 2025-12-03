@@ -55,24 +55,24 @@ type Interpreter struct {
 	functions            map[string][]*ast.FunctionDecl
 	globalOperators      *runtimeOperatorRegistry
 	// Task 3.5.22e: conversions field removed - use i.typeSystem.Conversions() instead
-	env *Environment
-	evaluatorInstance    *evaluator.Evaluator
-	classes              map[string]*ClassInfo
-	classTypeIDRegistry  map[string]int
-	initializedUnits     map[string]bool
-	externalFunctions    *ExternalFunctionRegistry
-	rand                 *rand.Rand
-	ctx                  *evaluator.ExecutionContext
-	sourceCode           string
-	sourceFile           string
-	oldValuesStack       []map[string]Value
-	loadedUnits          []string
-	callStack            errors.StackTrace
-	nextEnumTypeID       int
-	randSeed             int64
-	nextRecordTypeID     int
-	maxRecursionDepth    int
-	nextClassTypeID      int
+	env                 *Environment
+	evaluatorInstance   *evaluator.Evaluator
+	classes             map[string]*ClassInfo
+	classTypeIDRegistry map[string]int
+	initializedUnits    map[string]bool
+	externalFunctions   *ExternalFunctionRegistry
+	rand                *rand.Rand
+	ctx                 *evaluator.ExecutionContext
+	sourceCode          string
+	sourceFile          string
+	oldValuesStack      []map[string]Value
+	loadedUnits         []string
+	callStack           errors.StackTrace
+	nextEnumTypeID      int
+	randSeed            int64
+	nextRecordTypeID    int
+	maxRecursionDepth   int
+	nextClassTypeID     int
 }
 
 // New creates a new Interpreter with a fresh global environment.
@@ -136,7 +136,7 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 
 		globalOperators: newRuntimeOperatorRegistry(),
 		// Task 3.5.22e: conversions removed - now uses typeSystem.Conversions()
-		helpers: make(map[string][]*HelperInfo),
+		helpers:              make(map[string][]*HelperInfo),
 		classTypeIDRegistry:  make(map[string]int), // Task 9.25: RTTI type ID registry
 		recordTypeIDRegistry: make(map[string]int), // Task 9.25: RTTI type ID registry
 		enumTypeIDRegistry:   make(map[string]int), // Task 9.25: RTTI type ID registry
