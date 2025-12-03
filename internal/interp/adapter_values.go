@@ -60,63 +60,6 @@ func (i *Interpreter) GetZeroValueForType(typeInfo any) evaluator.Value {
 // Exception handling code now uses direct evaluation instead of adapter delegation.
 // The syncFromContext/syncToContext helper methods were also removed as they were only used by these methods.
 
-// ===== Task 3.5.6: Array and Collection Adapter Method Implementations =====
-
-// CreateArray creates an array from a list of elements with a specified element type.
-func (i *Interpreter) CreateArray(elementType any, elements []evaluator.Value) evaluator.Value {
-	// Convert elementType to types.Type
-	var typedElementType types.Type
-	if elementType != nil {
-		if t, ok := elementType.(types.Type); ok {
-			typedElementType = t
-		}
-	}
-
-	// Convert evaluator.Value slice to internal Value slice
-	internalElements := make([]Value, len(elements))
-	for idx, elem := range elements {
-		internalElements[idx] = elem.(Value)
-	}
-
-	// Create array type (dynamic array has nil bounds)
-	arrayType := &types.ArrayType{
-		ElementType: typedElementType,
-		LowBound:    nil,
-		HighBound:   nil,
-	}
-
-	// Create array value
-	arrayVal := NewArrayValue(arrayType)
-
-	// Add elements (append to Elements slice)
-	arrayVal.Elements = append(arrayVal.Elements, internalElements...)
-
-	return arrayVal
-}
-
-// CreateArrayValue creates an array value with a specific array type.
-func (i *Interpreter) CreateArrayValue(arrayType any, elements []evaluator.Value) evaluator.Value {
-	// Convert arrayType to *types.ArrayType
-	var typedArrayType *types.ArrayType
-	if arrayType != nil {
-		if at, ok := arrayType.(*types.ArrayType); ok {
-			typedArrayType = at
-		}
-	}
-
-	// Convert evaluator.Value slice to internal Value slice
-	internalElements := make([]Value, len(elements))
-	for idx, elem := range elements {
-		internalElements[idx] = elem.(Value)
-	}
-
-	// Create and return the array value
-	return &ArrayValue{
-		ArrayType: typedArrayType,
-		Elements:  internalElements,
-	}
-}
-
 // ===== Type Conversion & Introspection Adapter Methods (Task 3.5.143g) =====
 // Note: These methods are already implemented in builtins_context.go as part of
 // the builtins.Context interface. They take builtins.Value (runtime.Value) and

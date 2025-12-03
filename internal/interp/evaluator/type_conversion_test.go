@@ -307,12 +307,7 @@ func (m *mockConversionAdapter) AddInterfaceProperty(iface interface{}, normaliz
 }
 func (m *mockConversionAdapter) GetOperatorRegistry() any          { return nil }
 func (m *mockConversionAdapter) GetEnumTypeID(enumName string) int { return 0 }
-func (m *mockConversionAdapter) CreateArray(elementType any, elements []Value) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) CreateArrayValue(arrayType any, elements []Value) Value {
-	return &runtime.NilValue{}
-}
+
 func (m *mockConversionAdapter) CallMethod(obj Value, methodName string, args []Value, node ast.Node) Value {
 	return &runtime.NilValue{}
 }
