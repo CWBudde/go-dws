@@ -2,9 +2,14 @@ package evaluator
 
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
+
+// HelperInfo is re-exported from helper_methods.go for use in this file.
+// This import is necessary because the types package's PropertyInfo is used
+// in type assertions on the result of GetPropertyAny.
 
 // This file contains visitor methods for member access expression AST nodes.
 // Member access includes field access, property access, and method references on objects.
@@ -275,6 +280,11 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			return classVarValue
 		}
 
+		// Task 3.5.37: Check for helper properties before delegating to adapter
+		if helper, propInfo := e.FindHelperProperty(obj, memberName); propInfo != nil {
+			return e.executeHelperPropertyRead(helper, propInfo, obj, node, ctx)
+		}
+
 		// Try method or other member access via adapter
 		return e.adapter.EvalNode(node)
 
@@ -494,14 +504,17 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			}
 		}
 
-		// Check for helper properties
+		// Task 3.5.37: Check for helper properties - native handling
 		helpers := e.getHelpersForValue(obj)
 		for idx := len(helpers) - 1; idx >= 0; idx-- {
 			helper := helpers[idx]
-			if propInfo, _, found := helper.GetProperty(memberName); found && propInfo != nil {
-				// Found a helper property - delegate to adapter for property reading
-				// (helper properties use complex getter method invocation)
-				return e.adapter.EvalNode(node)
+			if propInfo, ownerHelperAny, found := helper.GetPropertyAny(memberName); found && propInfo != nil {
+				// Found a helper property - use native executeHelperPropertyRead
+				pInfo, ok := propInfo.(*types.PropertyInfo)
+				if ok {
+					ownerHelper, _ := ownerHelperAny.(HelperInfo)
+					return e.executeHelperPropertyRead(ownerHelper, pInfo, obj, node, ctx)
+				}
 			}
 		}
 
@@ -528,14 +541,17 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			// This case should be handled by VisitMethodCallExpression, not member access
 		}
 
-		// Check for helper properties
+		// Task 3.5.37: Check for helper properties - native handling
 		helpers := e.getHelpersForValue(obj)
 		for idx := len(helpers) - 1; idx >= 0; idx-- {
 			helper := helpers[idx]
-			if propInfo, _, found := helper.GetProperty(memberName); found && propInfo != nil {
-				// Found a helper property - delegate to adapter for property reading
-				// (helper properties use complex getter method invocation)
-				return e.adapter.EvalNode(node)
+			if propInfo, ownerHelperAny, found := helper.GetPropertyAny(memberName); found && propInfo != nil {
+				// Found a helper property - use native executeHelperPropertyRead
+				pInfo, ok := propInfo.(*types.PropertyInfo)
+				if ok {
+					ownerHelper, _ := ownerHelperAny.(HelperInfo)
+					return e.executeHelperPropertyRead(ownerHelper, pInfo, obj, node, ctx)
+				}
 			}
 		}
 

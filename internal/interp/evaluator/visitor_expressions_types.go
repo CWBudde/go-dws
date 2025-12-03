@@ -341,7 +341,6 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 	}
 
 	// Handle interface-to-object/interface casting
-	// Task 3.5.31: Inline GetInterfaceInstanceFromValue - use InterfaceInstanceValue type assertion
 	if ifaceVal, ok := obj.(InterfaceInstanceValue); ok {
 		underlyingObjVal := ifaceVal.GetUnderlyingObjectValue()
 
@@ -373,7 +372,6 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 			// Interface-to-interface casting
 			if underlyingObjVal == nil {
 				// DWScript: nil interface cast to interface yields nil interface wrapper
-				// Task 3.5.31: Use inlined createInterfaceWrapper instead of adapter
 				nilWrapper, err := e.createInterfaceWrapper(typeName, nil)
 				if err != nil {
 					return nil, err
@@ -392,7 +390,6 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 			}
 
 			// Create and return new interface instance
-			// Task 3.5.31: Use inlined createInterfaceWrapper instead of adapter
 			wrapper, err := e.createInterfaceWrapper(typeName, underlyingObjVal)
 			if err != nil {
 				return nil, err
@@ -440,7 +437,6 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 		}
 
 		// Create and return the interface instance
-		// Task 3.5.31: Use inlined createInterfaceWrapper instead of adapter
 		wrapper, err := e.createInterfaceWrapper(typeName, obj)
 		if err != nil {
 			return nil, err
@@ -483,7 +479,6 @@ func (e *Evaluator) isClassHierarchyCompatible(sourceClass, targetClass interfac
 }
 
 // createInterfaceWrapper creates an InterfaceInstance wrapper for the given interface name and object.
-// Task 3.5.31: Inlined from adapter.CreateInterfaceWrapper.
 // Returns the InterfaceInstance wrapper or error if interface not found.
 func (e *Evaluator) createInterfaceWrapper(interfaceName string, obj Value) (Value, error) {
 	// Look up the interface via TypeSystem

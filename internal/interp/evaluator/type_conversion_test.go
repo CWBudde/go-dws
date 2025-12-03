@@ -318,8 +318,6 @@ func (m *mockConversionAdapter) ExecuteMethodWithSelf(self Value, methodDecl any
 	return &runtime.NilValue{}
 }
 
-// Task 3.5.22k: CreateObject removed from InterpreterAdapter interface
-
 func (m *mockConversionAdapter) ExecuteConstructor(obj Value, constructorName string, args []Value) error {
 	return nil
 }
@@ -358,8 +356,6 @@ func (m *mockConversionAdapter) EvalInOperator(value, container Value, node ast.
 func (m *mockConversionAdapter) EvalEqualityComparison(op string, left, right Value, node ast.Node) Value {
 	return &runtime.NilValue{}
 }
-
-// Task 3.5.22i: TryImplicitConversion removed from InterpreterAdapter interface
 
 func (m *mockConversionAdapter) WrapInSubrange(value Value, subrangeTypeName string, node ast.Node) (Value, error) {
 	return value, nil
@@ -452,8 +448,9 @@ func (m *mockConversionAdapter) InheritDestructorIfMissing(classInfo interface{}
 func (m *mockConversionAdapter) InheritParentProperties(classInfo interface{})                      {}
 func (m *mockConversionAdapter) BuildVirtualMethodTable(classInfo interface{})                      {}
 func (m *mockConversionAdapter) RegisterClassInTypeSystem(classInfo interface{}, parentName string) {}
-
-// ========== Task 3.5.22g: TryImplicitConversion Tests ==========
+func (m *mockConversionAdapter) EvalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node) Value {
+	return &runtime.NilValue{}
+}
 
 // TestTryImplicitConversion_NilValue tests nil value handling.
 func TestTryImplicitConversion_NilValue(t *testing.T) {

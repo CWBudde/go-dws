@@ -220,9 +220,6 @@ func (i *Interpreter) cleanupInterfaceReferencesForEnv(env evaluator.Environment
 
 // createEnvSyncerCallback creates the environment synchronization callback.
 //
-// Task 3.5.22d: This callback synchronizes the interpreter's i.env with the
-// evaluator's function environment (funcEnv) during function body execution.
-//
 // Why this is needed:
 //   - ExecuteUserFunction creates a new funcEnv for the function scope
 //   - The function body is executed with funcCtx.Env() = funcEnv

@@ -116,6 +116,40 @@ func (h *HelperInfo) GetParentHelper() *HelperInfo {
 }
 
 // ============================================================================
+// Interface-compatible wrapper methods for evaluator.HelperInfo
+// ============================================================================
+// These methods return `any` types instead of concrete types to satisfy the
+// evaluator.HelperInfo interface. Go doesn't support covariant return types,
+// so we need these wrappers.
+
+// GetMethodAny is an interface-compatible wrapper for GetMethod.
+// Returns the method declaration, the helper that owns it (as any), and whether it was found.
+func (h *HelperInfo) GetMethodAny(name string) (*ast.FunctionDecl, any, bool) {
+	method, owner, found := h.GetMethod(name)
+	return method, owner, found
+}
+
+// GetBuiltinMethodAny is an interface-compatible wrapper for GetBuiltinMethod.
+// Returns the builtin spec, the helper that owns it (as any), and whether it was found.
+func (h *HelperInfo) GetBuiltinMethodAny(name string) (string, any, bool) {
+	spec, owner, found := h.GetBuiltinMethod(name)
+	return spec, owner, found
+}
+
+// GetPropertyAny is an interface-compatible wrapper for GetProperty.
+// Returns the property info (as any), the helper that owns it (as any), and whether it was found.
+func (h *HelperInfo) GetPropertyAny(name string) (any, any, bool) {
+	prop, owner, found := h.GetProperty(name)
+	return prop, owner, found
+}
+
+// GetParentHelperAny is an interface-compatible wrapper for GetParentHelper.
+// Returns the parent helper (as any), or nil if this is a root helper.
+func (h *HelperInfo) GetParentHelperAny() any {
+	return h.ParentHelper
+}
+
+// ============================================================================
 // Helper Discovery and Lookup
 // ============================================================================
 

@@ -1,7 +1,4 @@
 // Package evaluator provides type conversion helpers for implicit type conversions.
-//
-// Task 3.5.22f: Create Evaluator Helper for Conversion Function Execution
-// Task 3.5.22g: Move tryImplicitConversion Logic to Evaluator
 package evaluator
 
 import (
@@ -26,7 +23,7 @@ type ConversionCallbacks struct {
 
 // ExecuteConversionFunction executes a user-defined conversion function with a single argument.
 //
-// Task 3.5.22f: This helper enables the evaluator to execute implicit conversion operators
+// This helper enables the evaluator to execute implicit conversion operators
 // that are defined as functions (via the 'implicit operator' syntax).
 //
 // The conversion function is expected to:
@@ -104,9 +101,6 @@ func (e *Evaluator) ExecuteConversionFunction(
 // ExecuteConversionFunctionSimple is a simplified version of ExecuteConversionFunction
 // that uses the evaluator's native TryImplicitConversion for parameter conversion.
 //
-// Task 3.5.22f: This version is for use when the full ConversionCallbacks are not available.
-// Task 3.5.22i: Updated to use evaluator's TryImplicitConversion instead of adapter.
-//
 // Parameters:
 //   - fn: The conversion function declaration (must have exactly 1 parameter)
 //   - arg: The value to convert
@@ -121,7 +115,6 @@ func (e *Evaluator) ExecuteConversionFunctionSimple(
 	ctx *ExecutionContext,
 ) (Value, error) {
 	// Use evaluator's native TryImplicitConversion for parameter conversion if needed
-	// Task 3.5.22i: No longer depends on adapter
 	implicitConversion := func(value Value, targetTypeName string) (Value, bool) {
 		return e.TryImplicitConversion(value, targetTypeName, ctx)
 	}
@@ -135,9 +128,6 @@ func (e *Evaluator) ExecuteConversionFunctionSimple(
 }
 
 // TryImplicitConversion attempts to apply an implicit conversion from value to targetTypeName.
-//
-// Task 3.5.22g: This method is migrated from Interpreter.tryImplicitConversion to
-// enable evaluator-native type conversion without depending on interpreter callbacks.
 //
 // The conversion logic follows this priority order:
 //  1. Direct conversion: Look up a registered implicit conversion from source to target type

@@ -1,8 +1,5 @@
 // Package runtime provides runtime value types for the DWScript interpreter.
 // This file contains InterfaceInstance, which represents a runtime instance of an interface.
-//
-// Task 3.5.20: Moved from internal/interp/interface.go to break circular dependencies
-// and enable direct evaluator access without adapter pattern.
 package runtime
 
 import (
@@ -17,7 +14,6 @@ import (
 // It wraps an ObjectInstance and provides interface-based access to it.
 // This implements the Value interface so it can be used as a runtime value.
 //
-// Task 3.5.20: Moved to runtime package following the same pattern as ObjectInstance (3.5.17).
 // Uses IInterfaceInfo interface to reference InterfaceInfo (in interp package) without import cycle.
 type InterfaceInstance struct {
 	// Interface points to the interface metadata (via IInterfaceInfo interface)
@@ -30,8 +26,6 @@ type InterfaceInstance struct {
 }
 
 // NewInterfaceInstance creates a new interface instance wrapping an object.
-// Task 9.1.5: Increments the object's reference count when wrapping it in an interface.
-// Task 3.5.20: Constructor moved to runtime package.
 func NewInterfaceInstance(iface IInterfaceInfo, obj *ObjectInstance) *InterfaceInstance {
 	// Increment reference count when interface takes ownership of object
 	if obj != nil {
@@ -75,7 +69,6 @@ func (ii *InterfaceInstance) GetUnderlyingObject() *ObjectInstance {
 // Returns nil if the interface wraps a nil object.
 //
 // Note: This returns Value (interface) while GetUnderlyingObject returns *ObjectInstance (concrete type).
-// Task 3.5.20: Implements evaluator.InterfaceInstanceValue interface for direct evaluator access.
 func (ii *InterfaceInstance) GetUnderlyingObjectValue() Value {
 	if ii.Object == nil {
 		return nil
@@ -84,7 +77,6 @@ func (ii *InterfaceInstance) GetUnderlyingObjectValue() Value {
 }
 
 // InterfaceName returns the name of the interface type.
-// Task 3.5.20: Implements evaluator.InterfaceInstanceValue interface.
 func (ii *InterfaceInstance) InterfaceName() string {
 	if ii.Interface == nil {
 		return ""
@@ -94,7 +86,6 @@ func (ii *InterfaceInstance) InterfaceName() string {
 
 // HasInterfaceMethod checks if the interface declares a method with the given name.
 // The check includes parent interfaces.
-// Task 3.5.20: Implements evaluator.InterfaceInstanceValue interface.
 func (ii *InterfaceInstance) HasInterfaceMethod(name string) bool {
 	if ii.Interface == nil {
 		return false
@@ -104,7 +95,6 @@ func (ii *InterfaceInstance) HasInterfaceMethod(name string) bool {
 
 // HasInterfaceProperty checks if the interface declares a property with the given name.
 // The check includes parent interfaces.
-// Task 3.5.20: Implements evaluator.InterfaceInstanceValue interface.
 func (ii *InterfaceInstance) HasInterfaceProperty(name string) bool {
 	if ii.Interface == nil {
 		return false
@@ -114,7 +104,6 @@ func (ii *InterfaceInstance) HasInterfaceProperty(name string) bool {
 
 // LookupProperty searches for a property by name in the interface hierarchy.
 // Returns a PropertyDescriptor wrapping PropertyInfo, or nil if not found.
-// Task 3.5.20: Implements PropertyAccessor interface.
 func (ii *InterfaceInstance) LookupProperty(name string) *PropertyDescriptor {
 	if ii.Interface == nil {
 		return nil
@@ -135,7 +124,6 @@ func (ii *InterfaceInstance) LookupProperty(name string) *PropertyDescriptor {
 
 // GetDefaultProperty returns the default property for this interface, if any.
 // Returns a PropertyDescriptor wrapping PropertyInfo, or nil if no default property exists.
-// Task 3.5.20: Implements PropertyAccessor interface.
 func (ii *InterfaceInstance) GetDefaultProperty() *PropertyDescriptor {
 	if ii.Interface == nil {
 		return nil

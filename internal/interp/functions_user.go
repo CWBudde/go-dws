@@ -15,7 +15,6 @@ import (
 // This allows gradual migration of call sites from callUserFunction to the new evaluator-based
 // implementation without changing their signatures.
 //
-// Task 3.5.22d: Synchronizes i.env with i.ctx.Env() before execution.
 // This is necessary because:
 // 1. Some call sites (adapter_methods.go) set up Self in i.env before calling
 // 2. ExecuteUserFunction uses ctx.Env() to create the function's enclosed environment
@@ -37,7 +36,6 @@ func (i *Interpreter) executeUserFunctionViaEvaluator(fn *ast.FunctionDecl, args
 	i.ctx.SetEnv(evaluator.NewEnvironmentAdapter(i.env))
 	defer func() { i.ctx.SetEnv(savedCtxEnv) }()
 
-	// Task 3.5.22d: Push to legacy i.callStack for GetCallStack builtin compatibility.
 	// We only push to i.callStack, NOT i.ctx.GetCallStack(), because ExecuteUserFunction
 	// already pushes to ctx.callStack (the context's CallStack abstraction).
 	// The i.callStack field is used by Interpreter.GetCallStackArray().
@@ -57,7 +55,6 @@ func (i *Interpreter) executeUserFunctionViaEvaluator(fn *ast.FunctionDecl, args
 	// Execute via evaluator
 	result, err := i.evaluatorInstance.ExecuteUserFunction(fn, evalArgs, i.ctx, callbacks)
 	if err != nil {
-		// Task 3.5.22d: Handle recursion overflow by raising a proper DWScript exception
 		// The evaluator returns a specific error message for this case
 		if strings.Contains(err.Error(), "maximum recursion depth exceeded") {
 			return i.raiseMaxRecursionExceeded()
@@ -65,7 +62,6 @@ func (i *Interpreter) executeUserFunctionViaEvaluator(fn *ast.FunctionDecl, args
 		return newError("%s", err.Error())
 	}
 
-	// Task 3.5.22d: Sync exception from ctx back to i.exception.
 	// The evaluator's ExecuteUserFunction sets exceptions via ctx.SetException(),
 	// but the interpreter's exception handling relies on i.exception.
 	if exc := i.ctx.Exception(); exc != nil {

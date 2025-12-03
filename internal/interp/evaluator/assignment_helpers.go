@@ -53,9 +53,8 @@ func cloneIfCopyable(val Value) Value {
 
 	if copyable, ok := val.(runtime.CopyableValue); ok {
 		if copied := copyable.Copy(); copied != nil {
-			if copiedValue, ok := copied.(Value); ok {
-				return copiedValue
-			}
+			// Copy() returns interface{}, cast to Value
+			return copied.(Value)
 		}
 	}
 
@@ -85,16 +84,20 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 	// Get existing value to check for special types
 	existingValRaw, exists := ctx.Env().Get(targetName)
 	if !exists {
-		// Variable not in environment - check if we're in a method context
-		// For now, delegate to adapter for Self/class context handling
+		// The variable might be:
+		// 1. An instance field (Self.Field) in a method
+		// 2. A class variable (TClass.ClassVar)
+		// The interpreter owns environment management and has access to Self/class context.
+		// The evaluator cannot check Self/class scope without circular import.
+		// KEEP: Architectural constraint - environment ownership
 		return e.adapter.EvalNode(stmt)
 	}
 
 	// Cast to Value interface
 	existingVal, ok := existingValRaw.(Value)
 	if !ok {
-		// Not a Value - delegate to adapter
-		return e.adapter.EvalNode(stmt)
+		// Not a Value - this is an internal error
+		return e.newError(target, "variable '%s' has invalid type (not a Value)", targetName)
 	}
 
 	// Check if target is a var parameter (ReferenceValue)
@@ -115,18 +118,25 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 		return e.evalSubrangeAssignment(subrangeVal, value, target)
 	}
 
-	// Check for interface variable - delegate to adapter for complex handling
+	// DWScript requires reference counting for interface variables:
+	// - Release old interface reference (decrement ref count, call destructor if 0)
+	// - Wrap object in InterfaceInstance
+	// - Increment ref count for new reference
+	// KEEP: Reference counting lives in interpreter (architectural constraint)
 	if existingVal.Type() == "INTERFACE" {
 		return e.adapter.EvalNode(stmt)
 	}
 
-	// Check for object variable - delegate to adapter for ref counting
+	// DWScript requires reference counting for object variables:
+	// - Release old object reference (decrement ref count, call destructor if 0)
+	// - Increment ref count for new object
+	// - Handle nil assignments correctly
+	// KEEP: Reference counting lives in interpreter (architectural constraint)
 	if existingVal.Type() == "OBJECT" {
 		return e.adapter.EvalNode(stmt)
 	}
 
 	// Try implicit conversion if types don't match
-	// Task 3.5.22h: Use evaluator's native TryImplicitConversion
 	if value != nil {
 		targetType := existingVal.Type()
 		sourceType := value.Type()
@@ -153,19 +163,35 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 		}
 	}
 
-	// Check if assigning an object (need ref counting) - delegate to adapter
+	// Task 3.5.36: Assigning object value - ESSENTIAL delegation for ref counting
+	// When assigning an object VALUE (not to an object variable), need to:
+	// - Increment ref count for the new reference
+	// - Handle object wrapping for interface variables
+	// KEEP: Reference counting lives in interpreter (architectural constraint)
 	if value != nil && value.Type() == "OBJECT" {
 		return e.adapter.EvalNode(stmt)
 	}
 
-	// Check if assigning an interface (need ref counting) - delegate to adapter
+	// Task 3.5.36: Assigning interface value - ESSENTIAL delegation for ref counting
+	// When assigning an interface VALUE, need to:
+	// - Increment ref count on underlying object
+	// - Handle interface-to-interface assignments
+	// - Track and release source interfaces correctly
+	// KEEP: Reference counting lives in interpreter (architectural constraint)
 	if value != nil && value.Type() == "INTERFACE" {
 		return e.adapter.EvalNode(stmt)
 	}
 
-	// Check if assigning a function pointer with object reference - delegate to adapter
-	if value != nil && value.Type() == "FUNCTION_POINTER" {
-		return e.adapter.EvalNode(stmt)
+	// Task 3.5.36: Handle function pointer ref counting
+	// Only method pointers (with SelfObject) need ref counting
+	// Simple function pointers can be handled natively
+	if value != nil {
+		valueType := value.Type()
+		if valueType == "METHOD_POINTER" {
+			// Method pointer with SelfObject - needs ref counting
+			return e.adapter.EvalNode(stmt)
+		}
+		// FUNCTION_POINTER and LAMBDA can be handled natively (no ref counting needed)
 	}
 
 	// Simple case: update the variable in the environment
@@ -191,13 +217,17 @@ func (e *Evaluator) evalReferenceAssignment(
 		return e.newError(target, "%s", err.Error())
 	}
 
-	// For complex types (interface, object), delegate to adapter
+	// Task 3.5.36: Var parameter to interface/object - ESSENTIAL delegation for ref counting
+	// When assigning through a var parameter that references an interface/object:
+	// - Release old interface/object reference (decrement ref count, call destructor if 0)
+	// - Increment ref count for new reference
+	// - Handle complex object wrapping scenarios
+	// KEEP: Reference counting lives in interpreter (architectural constraint)
 	if currentVal.Type() == "INTERFACE" || currentVal.Type() == "OBJECT" {
 		return e.adapter.EvalNode(stmt)
 	}
 
 	// Try implicit conversion if types don't match
-	// Task 3.5.22h: Use evaluator's native TryImplicitConversion
 	targetType := currentVal.Type()
 	sourceType := value.Type()
 	if targetType != sourceType {
@@ -214,7 +244,12 @@ func (e *Evaluator) evalReferenceAssignment(
 	// Ensure value semantics for copyable types
 	value = cloneIfCopyable(value)
 
-	// Check if value is an object/interface - delegate for ref counting
+	// Task 3.5.36: Assigning object/interface through var parameter - ESSENTIAL for ref counting
+	// When assigning an object/interface VALUE through a var parameter:
+	// - Increment ref count for the new reference
+	// - Handle interface wrapping if target is interface type
+	// - Complex interaction with var parameter write-through
+	// KEEP: Reference counting lives in interpreter (architectural constraint)
 	if value != nil && (value.Type() == "OBJECT" || value.Type() == "INTERFACE") {
 		return e.adapter.EvalNode(stmt)
 	}
@@ -274,16 +309,21 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 	// Get current value from environment
 	currentValRaw, exists := ctx.Env().Get(targetName)
 	if !exists {
-		// Variable not in environment - could be in Self/class context
-		// Delegate to adapter for method context handling
+		// Task 3.5.36: Compound assignment to non-env variable - ESSENTIAL for Self/class context
+		// The variable might be:
+		// 1. An instance field (Self.Field += 1) in a method
+		// 2. A class variable (TClass.ClassVar += 1)
+		// The interpreter owns environment management and has access to Self/class context.
+		// The evaluator cannot check Self/class scope without circular import.
+		// KEEP: Architectural constraint - environment ownership
 		return e.adapter.EvalNode(stmt)
 	}
 
 	// Cast to Value interface
 	currentVal, ok := currentValRaw.(Value)
 	if !ok {
-		// Not a Value - delegate to adapter
-		return e.adapter.EvalNode(stmt)
+		// Not a Value - this is an internal error
+		return e.newError(target, "variable '%s' has invalid type (not a Value)", targetName)
 	}
 
 	// Check if target is a var parameter (ReferenceValue)
