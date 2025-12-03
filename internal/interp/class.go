@@ -760,3 +760,30 @@ func methodSignature(method *ast.FunctionDecl) string {
 
 	return sig
 }
+
+// GetClassConstant looks up a class constant by name in the class hierarchy.
+// Task 3.5.32: Implements runtime.ClassConstantProvider interface for property reads.
+// Returns the pre-evaluated constant value and true if found, nil and false otherwise.
+//
+// Note: This only returns constants that have been pre-evaluated and stored in ConstantValues.
+// Lazy evaluation of constant expressions is handled separately by the interpreter.
+func (c *ClassInfo) GetClassConstant(name string) (Value, bool) {
+	if c == nil {
+		return nil, false
+	}
+
+	// Check ConstantValues cache (case-insensitive)
+	normalizedName := ident.Normalize(name)
+	for constName, value := range c.ConstantValues {
+		if ident.Normalize(constName) == normalizedName {
+			return value, true
+		}
+	}
+
+	// Check parent class hierarchy
+	if c.Parent != nil {
+		return c.Parent.GetClassConstant(name)
+	}
+
+	return nil, false
+}

@@ -78,9 +78,10 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			if propCtx == nil || (!propCtx.InPropertyGetter && !propCtx.InPropertySetter) {
 				// Use ObjectValue interface for direct property check
 				// Use ObjectValue.ReadProperty with callback pattern
+				// Task 3.5.32: Use evaluator's executePropertyRead instead of adapter
 				if objVal, ok := selfVal.(ObjectValue); ok && objVal.HasProperty(node.Value) {
 					propValue := objVal.ReadProperty(node.Value, func(propInfo any) Value {
-						return e.adapter.ExecutePropertyRead(selfVal, propInfo, node)
+						return e.executePropertyRead(selfVal, propInfo, node, ctx)
 					})
 					return propValue
 				}

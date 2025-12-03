@@ -467,3 +467,48 @@ func LookupFieldInHierarchy(meta *ClassMetadata, normalizedName string) *FieldMe
 func newError(format string, args ...interface{}) Value {
 	return &ErrorValue{Message: fmt.Sprintf(format, args...)}
 }
+
+// ============================================================================
+// Task 3.5.32: ClassMetaProvider and FieldBinder interface implementations
+// ============================================================================
+
+// GetClassConstantBySpec looks up a class constant by name in the class hierarchy.
+// Task 3.5.32: Implements evaluator.ClassMetaProvider interface for property reads.
+// Returns the constant value and true if found, nil and false otherwise.
+//
+// Note: This does NOT handle lazy evaluation of constant expressions.
+// Lazy evaluation requires access to the Interpreter and must be done via a callback.
+// For now, only pre-evaluated constants (stored in class info) are returned.
+func (o *ObjectInstance) GetClassConstantBySpec(name string) (Value, bool) {
+	if o == nil || o.Class == nil {
+		return nil, false
+	}
+
+	// Check if the class info supports constant lookup
+	if constProvider, ok := o.Class.(ClassConstantProvider); ok {
+		return constProvider.GetClassConstant(name)
+	}
+
+	return nil, false
+}
+
+// BindFieldsToEnvironment iterates over all object fields and calls the binder function.
+// Task 3.5.32: Implements evaluator.FieldBinder interface for expression-backed properties.
+// This allows property expressions like (FWidth * FHeight) to access fields directly.
+func (o *ObjectInstance) BindFieldsToEnvironment(binder func(name string, value Value)) {
+	if o == nil || o.Fields == nil {
+		return
+	}
+
+	for name, value := range o.Fields {
+		binder(name, value)
+	}
+}
+
+// ClassConstantProvider is an optional interface for IClassInfo implementations
+// that can provide access to class constants.
+type ClassConstantProvider interface {
+	// GetClassConstant looks up a class constant by name in the class hierarchy.
+	// Returns the constant value and true if found, nil and false otherwise.
+	GetClassConstant(name string) (Value, bool)
+}

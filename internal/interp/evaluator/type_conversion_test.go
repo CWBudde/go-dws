@@ -368,12 +368,6 @@ func (m *mockConversionAdapter) WrapInInterface(value Value, interfaceName strin
 	return value, nil
 }
 
-// Task 3.5.28: GetObjectFieldValue removed - zero callers
-// Task 3.5.28: GetClassVariableValue removed - zero callers
-
-func (m *mockConversionAdapter) ExecutePropertyRead(obj Value, propInfo any, node any) Value {
-	return &runtime.NilValue{}
-}
 func (m *mockConversionAdapter) IsMethodParameterless(obj Value, methodName string) bool {
 	return false
 }

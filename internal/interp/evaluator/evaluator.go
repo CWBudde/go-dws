@@ -577,29 +577,7 @@ type InterpreterAdapter interface {
 	// Task 3.5.18: Still temporarily used by evaluator helpers, will be removed later
 	WrapObjectInException(objInstance Value, pos any, callStack any) any
 
-	// ===== Environment Access (Task 3.5.9) =====
-	// Task 3.5.70: GetVariable removed - use ctx.Env().Get() directly
-	// Task 3.5.137: DefineVariable removed - use ctx.Env().Define() directly
-
-	// Phase 3.5.4 - Phase 2C: Property & Indexing System infrastructure
-	// Property and indexing operations are available through existing infrastructure:
-	//
-	// PropertyEvalContext: Available via ExecutionContext.PropContext() for recursion prevention
-	// Property dispatch: Available via EvalNode delegation (uses Phase 2A function calls + Phase 2B type lookups)
-	// Array indexing: Available via EvalNode delegation (bounds checking integrated)
-	// Record operations: Available via Phase 2B record registry + EvalNode delegation
-	// Helper operations: Available via Phase 2B helper registry + EvalNode delegation
-	//
-	// These complex operations compose existing infrastructure (Phase 2A + Phase 2B + ExecutionContext)
-	// and are properly handled through EvalNode delegation. No additional adapter methods needed.
-
 	// ===== Task 3.5.38: Variable Declaration Adapter Methods =====
-
-	// Task 3.5.139h: ParseInlineArrayType removed - evaluator uses parseInlineArrayType() directly
-
-	// Task 3.5.138: LookupSubrangeType removed - use ctx.Env().Get("__subrange_type_" + ident.Normalize(name)) directly
-
-	// Task 3.5.22i: TryImplicitConversion removed - evaluator now has native TryImplicitConversion method
 
 	// WrapInSubrange wraps an integer value in a subrange type with validation.
 	// Returns the subrange value and an error if validation fails.
@@ -610,29 +588,7 @@ type InterpreterAdapter interface {
 	// Returns the interface instance and an error if validation fails.
 	WrapInInterface(value Value, interfaceName string, node ast.Node) (Value, error)
 
-	// ===== Bridge Adapter Methods for Zero Value Creation =====
-
-	// Task 3.5.19: CreateSubrangeValueDirect removed - evaluator now uses runtime.NewSubrangeValueZero directly
-	// Task 3.5.23: CreateInterfaceInstanceDirect removed - evaluator now uses runtime.NewInterfaceInstance directly
-
 	// ===== Property & Method Reference Adapter Methods =====
-
-	// Task 3.5.28: GetObjectFieldValue REMOVED - zero callers (use ObjectValue.GetField directly)
-	// Task 3.5.28: GetClassVariableValue REMOVED - zero callers (use ObjectValue.GetClassVar directly)
-	// Task 3.5.27: ReadPropertyValue REMOVED - zero callers (deprecated, use ObjectValue.ReadProperty callback)
-
-	// ExecutePropertyRead executes property reading with a resolved PropertyInfo.
-	// This is the callback implementation for ObjectValue.ReadProperty().
-	// Parameters:
-	//   - obj: The object to read the property from
-	//   - propInfo: The resolved PropertyInfo (type *types.PropertyInfo)
-	//   - node: AST node for error reporting
-	// Returns the property value.
-	ExecutePropertyRead(obj Value, propInfo any, node any) Value
-
-	// Task 3.5.27: IsMethodParameterless REMOVED - zero callers
-	// Task 3.5.27: CreateMethodCall REMOVED - zero callers
-	// Task 3.5.27: CreateMethodPointerFromObject REMOVED - zero callers
 
 	// CreateBoundMethodPointer creates a FunctionPointerValue for a method bound to an object.
 	//
