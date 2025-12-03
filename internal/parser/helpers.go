@@ -115,6 +115,21 @@ func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lex
 	currentVisibility := ast.VisibilityPublic
 	var currentSection *[]ast.Statement // Points to PrivateMembers or PublicMembers
 
+	var addConstToHelper func(stmt ast.Statement)
+	addConstToHelper = func(stmt ast.Statement) {
+		switch node := stmt.(type) {
+		case *ast.ConstDecl:
+			helperDecl.ClassConsts = append(helperDecl.ClassConsts, node)
+			if currentSection != nil {
+				*currentSection = append(*currentSection, node)
+			}
+		case *ast.BlockStatement:
+			for _, nested := range node.Statements {
+				addConstToHelper(nested)
+			}
+		}
+	}
+
 	// Parse helper body until 'end'
 	for cursor.Current().Type != lexer.END && cursor.Current().Type != lexer.EOF {
 		// Check for visibility modifiers
@@ -144,14 +159,16 @@ func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lex
 			cursor = cursor.Advance() // Move to CONST
 			p.cursor = cursor
 			classConstStmt := p.parseConstDeclaration()
-			if classConstStmt != nil {
-				if classConst, ok := classConstStmt.(*ast.ConstDecl); ok {
-					helperDecl.ClassConsts = append(helperDecl.ClassConsts, classConst)
-					if currentSection != nil {
-						*currentSection = append(*currentSection, classConst)
-					}
-				}
-			}
+			addConstToHelper(classConstStmt)
+			cursor = p.cursor.Advance()
+			p.cursor = cursor
+			continue
+		}
+
+		// Allow plain const declarations (treated as class consts for helpers)
+		if cursor.Current().Type == lexer.CONST {
+			constStmt := p.parseConstDeclaration()
+			addConstToHelper(constStmt)
 			cursor = p.cursor.Advance()
 			p.cursor = cursor
 			continue
