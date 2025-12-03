@@ -955,3 +955,17 @@ func (i *Interpreter) RegisterClassInTypeSystem(classInfo interface{}, parentNam
 	}
 	i.typeSystem.RegisterClassWithParent(ci.Name, ci, parentName)
 }
+
+// ===== Task 3.5.37: Helper Property Adapter =====
+
+// EvalBuiltinHelperProperty evaluates a built-in helper property.
+// Task 3.5.37: Adapter method delegating to interpreter's evalBuiltinHelperProperty.
+// This is called from the evaluator for built-in properties that require interpreter access.
+func (i *Interpreter) EvalBuiltinHelperProperty(propSpec string, selfValue evaluator.Value, node ast.Node) evaluator.Value {
+	// Convert evaluator.Value to Value for interpreter's method
+	val, ok := selfValue.(Value)
+	if !ok {
+		return i.newErrorWithLocation(node, "invalid value type for built-in property")
+	}
+	return i.evalBuiltinHelperProperty(propSpec, val, node)
+}

@@ -11,10 +11,6 @@ import (
 
 // RecordTypeValue is an internal value type used to store record type metadata
 // in the interpreter's environment.
-// Task 3.5.10: Moved from internal/interp to evaluator to eliminate adapter dependency.
-// Task 9.7: Extended to include method AST nodes for runtime execution.
-// Task 9.12: Extended to include constants and class variables.
-// Task 3.5.42: Extended to include RecordMetadata for AST-free runtime operation.
 type RecordTypeValue struct {
 	RecordType *types.RecordType
 	FieldDecls map[string]*ast.FieldDecl // Field declarations (for initializers) - Task 9.5
@@ -42,25 +38,21 @@ func (r *RecordTypeValue) String() string {
 }
 
 // GetRecordType returns the underlying RecordType.
-// Task 3.5.106: Provides interface-based access for the evaluator.
 func (r *RecordTypeValue) GetRecordType() *types.RecordType {
 	return r.RecordType
 }
 
 // GetMetadata returns the RecordMetadata for this record type.
-// Task 3.5.128d: Enables TypeSystem.LookupRecordMetadata() to work without circular imports.
 func (r *RecordTypeValue) GetMetadata() any {
 	return r.Metadata
 }
 
 // GetFieldDecls returns the FieldDecls map for this record type.
-// Task 3.5.128e: Enables evaluator to access field declarations for initializer evaluation.
 func (r *RecordTypeValue) GetFieldDecls() map[string]*ast.FieldDecl {
 	return r.FieldDecls
 }
 
 // GetRecordTypeName returns the record type name (e.g., "TPoint").
-// Task 3.5.146: Implements evaluator.RecordTypeMetaValue interface for static method dispatch.
 func (r *RecordTypeValue) GetRecordTypeName() string {
 	if r.RecordType != nil {
 		return r.RecordType.Name
@@ -70,7 +62,6 @@ func (r *RecordTypeValue) GetRecordTypeName() string {
 
 // HasStaticMethod checks if a static method (class function/procedure) with the given name exists.
 // The lookup is case-insensitive.
-// Task 3.5.146: Implements evaluator.RecordTypeMetaValue interface for static method dispatch.
 func (r *RecordTypeValue) HasStaticMethod(name string) bool {
 	methodNameLower := ident.Normalize(name)
 	overloads, exists := r.ClassMethodOverloads[methodNameLower]

@@ -78,7 +78,6 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			if propCtx == nil || (!propCtx.InPropertyGetter && !propCtx.InPropertySetter) {
 				// Use ObjectValue interface for direct property check
 				// Use ObjectValue.ReadProperty with callback pattern
-				// Task 3.5.32: Use evaluator's executePropertyRead instead of adapter
 				if objVal, ok := selfVal.(ObjectValue); ok && objVal.HasProperty(node.Value) {
 					propValue := objVal.ReadProperty(node.Value, func(propInfo any) Value {
 						return e.executePropertyRead(selfVal, propInfo, node, ctx)
@@ -339,7 +338,6 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 		}
 
 		// Implicit conversion for return type
-		// Task 3.5.22h: Use evaluator's native TryImplicitConversion
 		if resultValue.Type() != "NIL" {
 			returnTypeName := fn.ReturnType.String()
 			if converted, ok := e.TryImplicitConversion(resultValue, returnTypeName, ctx); ok {

@@ -213,335 +213,187 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-### Phase 3.5: Evaluator Refactoring
+# Phase 3.5: Complete Evaluator Independence
 
-#### Completed Work (3.5.1-3.5.23) ✅
+## Overview
 
-**Summary**: Split Interpreter into Evaluator + TypeSystem + ExecutionContext. Implemented 48 visitor methods with adapter pattern for gradual migration.
+**Goal**: Eliminate adapter completely.
+
+**Status**: Tasks 3.5.1-3.5.36 complete (infrastructure + 50% adapter reduction), Tasks 3.5.37-3.5.45 remaining (ref counting migration + finalization).
+
+---
+
+## Completed Work (3.5.1-3.5.36) ✅
 
 **Infrastructure Created**:
+- Evaluator with 48+ visitor methods (expressions, statements, declarations)
+- TypeSystem with registries (classes, records, interfaces, functions, helpers, operators)
+- ExecutionContext with call stack, control flow, environment
+- Property read/write via ObjectValue callbacks
 
-- Evaluator with visitor pattern (9 expression files + statements + declarations)
-- TypeSystem with registries (classes, records, interfaces, functions, helpers, operators, subranges)
-- ExecutionContext with call stack, control flow, environment management
-- FunctionRegistry with overload resolution
+**Adapter Reduction Achieved**:
+- Methods: 75 → 46 (~39% reduction)
+- EvalNode calls: ~60 → ~30 (~50% reduction)
+- Removed: 29 unused/single-use adapter methods
+- All tests passing, no regressions
 
-**Tasks 3.5.1-3.5.6** ✅: ExecuteUserFunction integration, interface map removal, declaration dependency analysis
-
-**Declaration Migration (3.5.7-3.5.16)** ✅: All 10 declaration types migrated to evaluator
-
-- Tier 1 (Pure Registration): SetDecl, EnumDecl, OperatorDecl
-- Tier 2 (Bounds/Types): ArrayDecl, TypeDeclaration
-- Tier 3 (Functions): FunctionDecl (global + method implementations)
-- Tier 4 (Extensions): HelperDecl, InterfaceDecl
-- Tier 5 (Complex): RecordDecl, ClassDecl (with VMT, partial classes, inheritance)
-
-**Bridge Elimination (3.5.17-3.5.23)** ✅: Value types moved to runtime package
-
-- 3.5.17: ObjectInstance → `runtime/object.go` (IClassInfo interface created)
-- 3.5.18: ExceptionValue → `runtime/exception.go`
-- 3.5.19: SubrangeValue → `runtime/subrange.go`
-- 3.5.20: InterfaceInstance → `runtime/interface_instance.go` (IInterfaceInfo interface)
-- 3.5.21: TypedNilValue → already in runtime
-- 3.5.22: Function execution + TryImplicitConversion migrated to evaluator (11 subtasks)
-- 3.5.23: All 6 bridge constructors removed
-
-**Key Files Created**:
-
-- `runtime/class_interface.go` (IClassInfo, IInterfaceInfo interfaces)
-- `runtime/object.go`, `exception.go`, `subrange.go`, `interface_instance.go`
-- `evaluator/type_conversion.go` (TryImplicitConversion)
-- `evaluator/visitor_declarations.go` (all declaration visitors)
+**Key Accomplishments**:
+1. Core Infrastructure (3.5.1-3.5.6)
+2. Declaration Migration (3.5.7-3.5.16) - all 10 types
+3. Value Types to Runtime (3.5.17-3.5.23) - ObjectInstance, InterfaceInstance, etc.
+4. Zero-Caller Removal (3.5.25-3.5.27) - 21 methods
+5. Single-Use Inlining (3.5.28-3.5.31) - 8 methods
+6. Property Callbacks (3.5.32-3.5.34) - native read/write
+7. Assignment Optimization (3.5.35-3.5.36) - member/identifier assignments
 
 ---
 
-#### Remaining Tasks (3.5.24-3.5.40)
+## Remaining Work (3.5.37-3.5.45)
+
+### Current Blocker
+
+**8 essential EvalNode calls in `assignment_helpers.go`**:
+- 6 calls: Reference counting (object/interface lifecycle)
+- 2 calls: Self/class context (environment ownership)
+
+**Decision**: Migrate ref counting to runtime to achieve full evaluator independence.
 
 ---
 
-**Adapter Reduction** (3.5.24-3.5.40)
-
-Goal: Reduce adapter interface from ~75 methods to ~20 essential methods (~75% reduction).
-
-**Key Finding** (Task 3.5.24): Full adapter elimination is impractical due to circular import constraints. Target: minimize to essential operations only.
-
-- [x] **3.5.24** Document Remaining Adapter Methods ✅
-  - **Deliverable**: `docs/adapter-audit-3.5.24.md` - 75 methods documented with justifications
-  - **Finding**: 35 easy, 32 medium, 3 hard methods. ~78 methods have zero callers.
-
----
-
-#### Phase 1: Remove Zero-Caller Methods (3.5.25-3.5.27)
-
-**Goal**: Remove ~78 unused methods from adapter interface. **Effort**: 2-3 hours total.
-
-- [x] **3.5.25** Remove Unused Lookup Methods ✅
-  - **Methods removed** (3): `LookupClass`, `LookupRecord`, `LookupFunction`
-  - **Methods kept** (9): `LookupInterface`, `LookupHelpers`, `ResolveClassInfoByName`, `GetClassNameFromInfo`, `GetOperatorRegistry`, `GetEnumTypeID`, `GetHelperName`, `GetInterfaceName`, `GetInterfaceParent` - all have callers
-  - **Files**: `evaluator/evaluator.go`, `adapter_types.go`, `adapter_functions.go`, `type_registry_test.go`
-  - **Test**: `go build ./...` compiles, TypeRegistry tests pass
-
-- [x] **3.5.26** Remove Unused Binary Operator Methods ✅
-  - **Methods removed** (3): `EvalVariantBinaryOp`, `EvalInOperator`, `EvalEqualityComparison`
-  - **Files**: `evaluator/evaluator.go`, `adapter_references.go`
-  - **Test**: `go build ./...` compiles, evaluator tests pass
-
-- [x] **3.5.27** Remove Unused Class Declaration Methods ✅
-  - **Methods removed** (15): `CreateClassValue`, `CreateLambda`, `ReadPropertyValue`, `IsMethodParameterless`, `CreateMethodCall`, `CreateMethodPointerFromObject`, `GetClassName(obj)`, `GetClassType(obj)`, `GetClassNameFromClassInfo`, `GetClassTypeFromClassInfo`, `GetClassVariableFromClassInfo`, `CallIndexedPropertyGetter`, `CallRecordPropertyGetter`, `RegisterClassEarly`, `CreateMethodMetadata`
-  - **Files**: `evaluator/evaluator.go`, `adapter_types.go`, `adapter_objects.go`, `adapter_references.go`
-  - **Test**: `go build ./...` compiles, class/declaration tests pass
-
----
-
-#### Phase 2: Inline Single-Use Methods (3.5.28-3.5.31)
-
-**Goal**: Replace adapter calls with direct TypeSystem/runtime calls. **Effort**: 4-6 hours total.
-
-- [x] **3.5.28** Inline Property Type Extraction Methods ✅
-  - **Methods removed** (2): `GetObjectFieldValue`, `GetClassVariableValue`
-  - **Note**: `GetClassName` and `GetClassVariableFromClassInfo` were already removed in task 3.5.27
-  - **Finding**: Both methods had **zero callers** - removed directly without needing inline replacements
-  - **Replacement pattern** (documented for future reference):
-
-    ```go
-    // For GetObjectFieldValue:
-    if objVal, ok := obj.(evaluator.ObjectValue); ok {
-        val := objVal.GetField(fieldName)
-    }
-    // For GetClassVariableValue:
-    if objVal, ok := obj.(evaluator.ObjectValue); ok {
-        val, ok := objVal.GetClassVar(varName)
-    }
-    ```
-
-  - **Files modified**:
-    - `evaluator/evaluator.go` (removed interface methods)
-    - `adapter_references.go` (removed implementations)
-    - `evaluator/type_conversion_test.go` (removed mock methods)
-  - **Result**: -508 lines, all tests passing
-  - **Actual effort**: 30 minutes (much faster than estimated due to zero callers)
-
-- [x] **3.5.29** Inline Type Check Methods ✅
-  - **Methods removed** (3): `CheckType`, `GetClassMetadataFromValue`, `GetObjectInstanceFromValue`
-  - **Work completed**:
-    - `GetObjectInstanceFromValue`: Replaced 2 calls with `ObjectValue` interface type assertions
-    - `GetClassMetadataFromValue`: Replaced 1 direct call + inlined the `getClassMetadataFromValue()` helper
-    - `CheckType`: Already migrated away (zero callers found)
-  - **Inline patterns used**:
-
-    ```go
-    // GetObjectInstanceFromValue:
-    if _, ok := val.(ObjectValue); !ok {
-        return error
-    }
-
-    // GetClassMetadataFromValue in helper:
-    if objVal, ok := obj.(ObjectValue); ok {
-        className := objVal.ClassName()
-        if classInfo := e.typeSystem.LookupClass(className); classInfo != nil {
-            if metadataProvider, ok := classInfo.(interface{ GetMetadata() *runtime.ClassMetadata }); ok {
-                return metadataProvider.GetMetadata()
-            }
-        }
-    }
-    ```
-
-  - **Files modified**:
-    - `evaluator/type_casts.go` (1 inline)
-    - `evaluator/visitor_expressions_types.go` (1 inline + helper rewrite)
-    - `evaluator/overload_resolution.go` (1 inline)
-    - `evaluator/evaluator.go` (removed 3 interface methods)
-    - `adapter_objects.go` (removed 2 implementations, removed runtime import)
-    - `evaluator/type_conversion_test.go` (removed 3 mock methods)
-  - **Result**: 3 methods removed, all tests passing
-  - **Actual effort**: 45 minutes (as estimated)
-
-- [x] **3.5.30** Inline Array/Value Creation Methods ✅
-  - **Methods removed** (2): `CreateArray`, `CreateArrayValue`
-  - **Finding**: Both methods had **zero callers** - removed directly without needing inline replacements
-  - **Note**: Evaluator already uses `&runtime.ArrayValue{}` and `runtime.NewArrayValue()` directly
-  - **Files modified**:
-    - `evaluator/evaluator.go` (removed 2 interface methods)
-    - `adapter_values.go` (removed 2 implementations)
-    - `evaluator/type_conversion_test.go` (removed 2 mock methods)
-  - **Result**: 2 methods removed, all tests passing
-  - **Actual effort**: 15 minutes (much faster than estimated due to zero callers)
-
-- [x] **3.5.31** Inline Interface Wrapper Methods ✅
-  - **Methods removed** (2): `GetInterfaceInstanceFromValue`, `CreateInterfaceWrapper`
-  - **Method kept** (1): `CreateTypeCastWrapper` - requires `*ClassInfo` from `interp` package (circular import)
-  - **Inlining patterns used**:
-
-    ```go
-    // GetInterfaceInstanceFromValue → InterfaceInstanceValue type assertion:
-    if ifaceVal, ok := obj.(InterfaceInstanceValue); ok {
-        underlyingObjVal := ifaceVal.GetUnderlyingObjectValue()
-    }
-
-    // CreateInterfaceWrapper → evaluator helper method:
-    func (e *Evaluator) createInterfaceWrapper(interfaceName string, obj Value) (Value, error) {
-        ifaceInfoAny := e.typeSystem.LookupInterface(interfaceName)
-        ifaceInfo := ifaceInfoAny.(runtime.IInterfaceInfo)
-        objInstance := obj.(*runtime.ObjectInstance)
-        return runtime.NewInterfaceInstance(ifaceInfo, objInstance), nil
-    }
-    ```
-
-  - **Files modified**:
-    - `evaluator/visitor_expressions_types.go` (1 inline + helper method added)
-    - `evaluator/evaluator.go` (removed 2 interface methods)
-    - `adapter_objects.go` (removed 2 implementations)
-    - `evaluator/type_conversion_test.go` (removed 2 mock methods)
-  - **Result**: 2 methods removed, 1 kept (architectural constraint), all tests passing
-  - **Actual effort**: 45 minutes (as estimated)
-
----
-
-#### Phase 3: Migrate Property Callbacks (3.5.32-3.5.34)
-
-**Goal**: Complete ObjectValue callback pattern for property access. **Effort**: 3-4 hours total.
-
-- [x] **3.5.32** Consolidate ExecutePropertyRead ✅
-  - **Current**: 4 calls to `e.adapter.ExecutePropertyRead` → 0 (all migrated)
-  - **Work**: Move property getter execution logic to evaluator
-  - **Pattern**: Evaluator already has `ExecuteMethodWithSelf` callback - reuse for getters
-  - **Files**: `evaluator/property_read.go` (new), `evaluator/visitor_expressions_members.go`, `evaluator/visitor_expressions_identifiers.go`
-  - **Files added/modified**:
-    - `evaluator/property_read.go` (new): `executePropertyRead()` with 3 helper methods for field/method/expression-backed properties
-    - `runtime/object.go`: Added `GetClassConstantBySpec()`, `BindFieldsToEnvironment()` interface methods
-    - `class.go`: Added `GetClassConstant()` for class constant lookup
-  - **Adapter changes**: Removed `ExecutePropertyRead` from adapter interface (zero callers)
-  - **Effort**: 1.5 hours
-
-- [x] **3.5.33** Consolidate ExecuteIndexedPropertyRead ✅
-  - **Current**: 8 calls to `e.adapter.ExecuteIndexedPropertyRead` → 0 (all migrated)
-  - **Work**: Move indexed property getter execution logic to evaluator
-  - **Pattern**: Added `GetMethodDecl` to ObjectValue interface, reused `ExecuteMethodWithSelf` for execution
-  - **Files modified**:
-    - `evaluator/evaluator.go`: Added `GetMethodDecl` to ObjectValue interface
-    - `runtime/object.go`: Implemented `GetMethodDecl` on ObjectInstance
-    - `evaluator/property_read.go`: Added `executeIndexedPropertyRead()` and helper methods
-    - `evaluator/visitor_expressions_indexing.go`: Updated 5 call sites to use evaluator method
-  - **Adapter changes**: Removed `ExecuteIndexedPropertyRead` from adapter interface (zero callers)
-  - **Effort**: 1.5 hours
-
-- [x] **3.5.34** Remove Deprecated Property Methods ✅
-  - **Methods removed**:
-    - `ReadPropertyValue`: Already removed in prior task
-    - `CallIndexedPropertyGetter`: Interface method already removed, removed mock from test file
-    - `CallRecordPropertyGetter`: Inlined into `ExecuteRecordPropertyRead` and removed
-  - **Files modified**:
-    - `evaluator/type_conversion_test.go`: Removed mock methods
-    - `adapter_types.go`: Inlined CallRecordPropertyGetter into ExecuteRecordPropertyRead
-  - **Effort**: 30 minutes
-
----
-
-#### Phase 4: Reduce EvalNode Fallback (3.5.35-3.5.38)
-
-**Goal**: Reduce EvalNode calls from ~44 to ~10 essential cases. **Effort**: 8-12 hours total.
-
-**Current EvalNode hotspots**:
-
-- `assignment_helpers.go`: 10 calls (member/property assignments)
-- `visitor_expressions_members.go`: 7 calls (complex member access)
-- `member_assignment.go`: 6 calls (member assignments)
-- Other files: ~21 calls
-
-- [ ] **3.5.35** Migrate Member Assignment to Evaluator
-  - **Current**: `member_assignment.go` uses EvalNode for 6 assignment patterns
-  - **Work**:
-    1. Identify assignment patterns delegating to EvalNode
-    2. Implement native assignment handling for: field assignment, property write, indexed write
-    3. Keep EvalNode only for truly complex cases
-  - **Files**: `evaluator/member_assignment.go`
-  - **Effort**: 3-4 hours
-  - **Target**: Reduce from 6 to 2 EvalNode calls
-
-- [ ] **3.5.36** Migrate Assignment Helpers
-  - **Current**: `assignment_helpers.go` uses EvalNode for 10 patterns
-  - **Work**: Group by pattern type, implement native handlers
-  - **Patterns**: Simple identifier, reference, member, indexed, slice
-  - **Files**: `evaluator/assignment_helpers.go`
-  - **Effort**: 3-4 hours
-  - **Target**: Reduce from 10 to 3 EvalNode calls
+### Phase A: Preliminary Cleanup (3.5.37-3.5.38)
 
 - [ ] **3.5.37** Migrate Complex Member Access
-  - **Current**: `visitor_expressions_members.go` uses EvalNode for 7 patterns
-  - **Work**: Handle remaining member access patterns natively
-  - **Patterns**: Nested property, interface property, helper property, type cast property
-  - **Files**: `evaluator/visitor_expressions_members.go`
-  - **Effort**: 2-3 hours
-  - **Target**: Reduce from 7 to 2 EvalNode calls
+  **Goal**: Reduce `visitor_expressions_members.go` EvalNode calls 7 → 2-3
+  **Work**: Native handling for nested property, interface property, helper property
+  **Effort**: 2-3 hours
 
-- [ ] **3.5.38** Audit Remaining EvalNode Calls
-  - **Work**: Review all remaining EvalNode calls, document which are essential
-  - **Essential categories** (keep ~10):
-    - Unit declarations
-    - Complex property writes with side effects
-    - Compound operations on special types
-  - **Deliverable**: Update `docs/adapter-audit-3.5.24.md` with final EvalNode inventory
-  - **Effort**: 1 hour
+- [ ] **3.5.38** Audit All Remaining EvalNode Calls
+  **Goal**: Comprehensive inventory of all EvalNode calls across evaluator
+  **Deliverable**: `docs/evalnode-audit-final.md` with categorization (ref counting, Self context, legitimate delegation)
+  **Effort**: 2 hours
 
 ---
 
-#### Phase 5: Documentation and Stabilization (3.5.39-3.5.40)
+### Phase B: Reference Counting Migration (3.5.39-3.5.42)
 
-- [ ] **3.5.39** Update Architecture Documentation
-  - **Work**:
-    1. Update CLAUDE.md Architecture Overview with final evaluator/interpreter split
-    2. Document essential adapter methods and why they exist
-    3. Document callback patterns (ObjectValue, property read, method execution)
-  - **Files**: `CLAUDE.md`, `docs/adapter-audit-3.5.24.md`
-  - **Effort**: 2-3 hours
+- [ ] **3.5.39** Design Ref Counting Architecture
+  **Goal**: Design how ref counting works in runtime without circular imports
+  **Deliverable**: `docs/refcounting-design.md`
+  **Subtasks**:
+  - 3.5.39a: Audit all ref counting operations in interpreter (inc/dec/destructor patterns)
+  - 3.5.39b: Design `runtime.RefCountManager` interface
+  - 3.5.39c: Design destructor callback pattern (avoid importing `interp.Destructor`)
+  - 3.5.39d: Plan migration of 6 EvalNode calls in assignment_helpers.go
+  - 3.5.39e: Identify all other ref counting call sites (method pointers, returns, etc.)
 
-- [ ] **3.5.40** Create Phase 3.5 Completion Summary
-  - **Deliverable**: `docs/phase3.5-summary.md`
-  - **Content**:
-    - Initial state: monolithic Interpreter (~15k LOC)
-    - Final state: Evaluator + TypeSystem + ExecutionContext + minimal adapter
-    - Methods migrated vs methods kept
-    - Performance impact (if any)
-    - Lessons learned
-  - **Effort**: 2-3 hours
+  **Effort**: 8-10 hours
+
+- [ ] **3.5.40** Implement Ref Counting in Runtime
+  **Goal**: Move ref counting logic to runtime package
+  **Work**: Create `runtime/refcount.go` with `RefCountManager`
+  **Subtasks**:
+  - 3.5.40a: Create `RefCountManager` interface (IncrementRef, DecrementRef, ReleaseObject, ReleaseInterface)
+  - 3.5.40b: Move `callDestructorIfNeeded` logic to runtime (use callback pattern)
+  - 3.5.40c: Implement ref counting for ObjectInstance and InterfaceInstance
+  - 3.5.40d: Add destructor registration mechanism
+  - 3.5.40e: Create ref count unit tests (100+ edge cases: circular refs, exceptions, nil, etc.)
+
+  **Effort**: 12-16 hours
+
+- [ ] **3.5.41** Migrate Assignment Ref Counting
+  **Goal**: Replace 6 EvalNode calls in `assignment_helpers.go` with `RefCountManager`
+  **Subtasks**:
+  - 3.5.41a: Interface variable assignment (lines 123, 170) - wrap, inc ref
+  - 3.5.41b: Object variable assignment (lines 133, 160) - dec old, inc new, destructor
+  - 3.5.41c: Method pointer assignment (line 180) - inc ref on SelfObject
+  - 3.5.41d: Var parameter assignments (lines 199, 222) - ref counting through references
+
+  **Effort**: 8-12 hours
+
+- [ ] **3.5.42** Migrate All Other Ref Counting Sites
+  **Goal**: Replace ref counting in method returns, property access, array operations
+  **Work**: Use `RefCountManager` everywhere objects/interfaces are assigned/returned
+  **Effort**: 4-6 hours
 
 ---
 
-#### Phase 3.5 Summary
+### Phase C: Self Context Migration (3.5.43)
 
-| Phase | Tasks | Description | Status | Effort |
+- [ ] **3.5.43** Migrate Self/Class Context Handling
+  **Goal**: Eliminate 2 EvalNode calls for Self/class variable access (lines 94, 283)
+  **Options**:
+  - Option 1: Enhance `GetVar`/`SetVar` to check Self/class scope (callback to interpreter)
+  - Option 2: Pass Self/class context explicitly to evaluator via ExecutionContext
+  - Option 3: Keep these 2 calls as essential (Self management stays in interpreter)
+
+  **Recommendation**: Evaluate during implementation (Option 3 may be acceptable)
+  **Effort**: 4-6 hours (or 0 if keeping essential)
+
+---
+
+### Phase D: Final Adapter Elimination (3.5.44-3.5.45)
+
+- [ ] **3.5.44** Remove Adapter Interface
+  **Goal**: Delete `InterpreterAdapter` interface entirely
+  **Work**:
+  - Remove all `e.adapter.*` calls from evaluator
+  - Delete `adapter_*.go` files
+  - Update evaluator to be fully self-contained
+  - Verify all tests still pass
+
+  **Effort**: 4-6 hours
+
+- [ ] **3.5.45** Final Testing & Documentation
+  **Goal**: Verify complete migration and document final architecture
+  **Testing**:
+  - Run full test suite (all interpreter tests)
+  - Run all fixture tests (especially class_*, oop_*, destroy, free_destroy, clear_ref_*)
+  - Memory leak detection (verify ref counting works correctly)
+  - Edge cases: circular refs, exception unwinding, destructor order
+
+  **Documentation**:
+  - `docs/phase3.5-summary.md` - Complete phase summary
+  - Update CLAUDE.md - Final evaluator/interpreter architecture
+  - Update `README.md` - Reflect new architecture
+
+  **Effort**: 6-8 hours
+
+---
+
+## Summary
+
+| Phase | Tasks | Description | Effort | Status |
 |-------|-------|-------------|--------|--------|
-| Bridge Elimination | 3.5.17-3.5.23 | Move value types to runtime | ✅ Complete | Done |
-| Audit | 3.5.24 | Document adapter methods | ✅ Complete | Done |
-| Zero-Caller Removal | 3.5.25-3.5.27 | Remove 21 unused methods | ✅ Complete | Done |
-| Single-Use Inline | 3.5.28-3.5.31 | Inline simple adapter calls | ✅ Complete | 2.25h done |
-| Property Callbacks | 3.5.32-3.5.34 | Complete callback patterns | Pending | 3-4h |
-| EvalNode Reduction | 3.5.35-3.5.38 | Reduce fallback calls 44→~10 | Pending | 8-12h |
-| Documentation | 3.5.39-3.5.40 | Final docs and summary | Pending | 4-6h |
+| A | 3.5.37-3.5.38 | Cleanup & Audit | 4-5h | Pending |
+| B | 3.5.39-3.5.42 | Ref Counting Migration | 32-44h | Pending |
+| C | 3.5.43 | Self Context | 0-6h | Pending |
+| D | 3.5.44-3.5.45 | Adapter Removal & Testing | 10-14h | Pending |
 
-**Total Remaining Effort**: ~25-35 hours (vs original 80-100h estimate for full elimination)
+**Total Remaining Effort**: 46-69 hours (depending on Self context approach)
 
-**Realistic Target**:
-
-- Adapter interface: 75 → ~20 methods (73% reduction)
-- EvalNode calls: 44 → ~10 calls (77% reduction)
-- Essential methods kept: method execution, constructor execution, lambda/closure handling
-
-**Why Full Elimination Is Impractical**:
-
-1. **Circular imports**: ClassInfo lives in `interp`, evaluator can't import `interp`
-2. **Environment management**: Interpreter owns env/call stack, method execution needs it
-3. **Closure capture**: Lambda environments require Interpreter's environment system
-4. **Diminishing returns**: Last 20 methods require ~60h refactoring for minimal benefit
+**Final State**:
+- ✅ Evaluator is fully self-contained
+- ✅ No adapter interface
+- ✅ Reference counting in runtime package
+- ✅ All tests passing
+- ✅ Clean architecture with clear separation of concerns
 
 ---
 
-### Phase 3.6: Error Handling Improvements
+## Migration Risk Mitigation
 
-- [x] 3.6.1 Implement consistent error wrapping
-  - Replace newError() with proper error wrapping
-  - Use fmt.Errorf with %w for error chains
-  - Create custom error types for different error categories
+**High-Risk Areas**:
+1. Ref counting semantics (when to inc/dec, destructor timing)
+2. Circular reference handling
+3. Exception unwinding with ref counting
+4. Method pointer lifecycle
+
+**Mitigation Strategies**:
+1. Comprehensive test coverage before migration
+2. Incremental migration (one call site at a time)
+3. Extensive testing after each migration step
+4. Keep backup of interpreter ref counting logic for reference
+5. Memory leak detection tests
   - Add context to all errors (position, expression, values)
   - Files: `internal/interp/errors/errors.go` (new)
   - Estimated: 4 days

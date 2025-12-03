@@ -18,7 +18,6 @@ import (
 // ===== Function Pointers =====
 
 // CreateFunctionPointer creates a function pointer value from a function declaration.
-// Task 3.5.8: Adapter method for function pointer creation.
 func (i *Interpreter) CreateFunctionPointer(fn *ast.FunctionDecl, closure any) evaluator.Value {
 	// Convert closure to Environment
 	var env *Environment
@@ -32,14 +31,7 @@ func (i *Interpreter) CreateFunctionPointer(fn *ast.FunctionDecl, closure any) e
 	}
 }
 
-// Task 3.5.27: CreateLambda REMOVED - zero callers
-
-// Task 3.5.180: Removed IsFunctionPointer, GetFunctionPointerParamCount, IsFunctionPointerNil
-// These methods are no longer needed - FunctionPointerValue implements FunctionPointerCallable
-// interface which provides IsNil(), ParamCount(), and type-safe access directly.
-
 // CreateMethodPointer creates a method pointer value bound to a specific object.
-// Task 3.5.37: Adapter method for method pointer creation from @object.MethodName expressions.
 func (i *Interpreter) CreateMethodPointer(objVal evaluator.Value, methodName string, closure any) (evaluator.Value, error) {
 	// Extract the object instance
 	obj, ok := AsObject(objVal)
@@ -89,7 +81,6 @@ func (i *Interpreter) CreateMethodPointer(objVal evaluator.Value, methodName str
 }
 
 // CreateFunctionPointerFromName creates a function pointer for a named function.
-// Task 3.5.37: Adapter method for function pointer creation from @FunctionName expressions.
 func (i *Interpreter) CreateFunctionPointerFromName(funcName string, closure any) (evaluator.Value, error) {
 	// Look up the function in the function registry (case-insensitive)
 	overloads, exists := i.functions[ident.Normalize(funcName)]
@@ -143,7 +134,7 @@ func (i *Interpreter) CreateFunctionPointerFromName(funcName string, closure any
 // ===== Environment and Exceptions =====
 
 // CreateExceptionDirect creates an exception with pre-resolved dependencies.
-// Task 3.5.133: Bridge constructor for evaluator exception creation.
+//
 // The evaluator resolves the exception class via TypeSystem, then calls this method
 // to construct the ExceptionValue without doing class lookup itself.
 func (i *Interpreter) CreateExceptionDirect(classMetadata any, message string, pos any, callStack any) any {
@@ -204,7 +195,7 @@ func (i *Interpreter) CreateExceptionDirect(classMetadata any, message string, p
 }
 
 // WrapObjectInException wraps an existing ObjectInstance in an ExceptionValue.
-// Task 3.5.134: Bridge constructor for raise statement with object instances.
+//
 // The evaluator handles nil checking and validation, this just wraps a valid object.
 func (i *Interpreter) WrapObjectInException(objInstance evaluator.Value, pos any, callStack any) any {
 	// Convert position
@@ -263,7 +254,6 @@ func (i *Interpreter) WrapObjectInException(objInstance evaluator.Value, pos any
 // ===== Binary Operator Adapters =====
 
 // CreateBoundMethodPointer creates a FunctionPointerValue for a method bound to an object.
-// Task 3.5.120: Low-level adapter method for method pointer creation.
 func (i *Interpreter) CreateBoundMethodPointer(obj evaluator.Value, methodDecl any) evaluator.Value {
 	method := methodDecl.(*ast.FunctionDecl)
 	objInst := obj.(*ObjectInstance)

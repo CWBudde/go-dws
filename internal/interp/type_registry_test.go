@@ -191,7 +191,7 @@ func TestInterpreterEvaluatorSharedTypeSystem(t *testing.T) {
 
 	// Test 1: Interpreter should see the registered class via TypeSystem
 	t.Run("InterpreterCanSeeTypeSystemClass", func(t *testing.T) {
-		// Lookup through interpreter's typeSystem (Task 3.5.25: LookupClass removed from adapter)
+		// Lookup through interpreter's typeSystem
 		classInfo := interp.typeSystem.LookupClass("TSharedClass")
 		if classInfo == nil {
 			t.Error("Interpreter.typeSystem.LookupClass(TSharedClass) failed")
@@ -216,7 +216,7 @@ func TestInterpreterEvaluatorSharedTypeSystem(t *testing.T) {
 
 	// Test 3: Case-insensitive access
 	t.Run("CaseInsensitiveAccess", func(t *testing.T) {
-		// Both should support case-insensitive lookup (Task 3.5.25: using TypeSystem directly)
+		// Both should support case-insensitive lookup
 		classInfo := interp.typeSystem.LookupClass("tsharedclass")
 		if classInfo == nil {
 			t.Error("TypeSystem.LookupClass(tsharedclass) = nil, want ClassInfo (case-insensitive)")
@@ -285,7 +285,7 @@ func TestBuiltinClassesInTypeSystem(t *testing.T) {
 
 	for _, className := range builtinClasses {
 		t.Run(className, func(t *testing.T) {
-			// Test LookupClass via TypeSystem (Task 3.5.25: LookupClass removed from adapter)
+			// Test LookupClass via TypeSystem
 			classInfo := interp.typeSystem.LookupClass(className)
 			if classInfo == nil {
 				t.Errorf("TypeSystem.LookupClass(%s) = nil, want ClassInfo", className)

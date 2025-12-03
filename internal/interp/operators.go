@@ -131,7 +131,6 @@ func areRuntimeTypesCompatibleForOperator(actualType, declaredType string, decla
 	return actualClassName == declaredClassName
 }
 
-// Task 3.5.22e: Conversion registry has been migrated to TypeSystem.Conversions()
 // The runtimeConversionEntry and runtimeConversionRegistry types have been removed.
 // Use i.typeSystem.Conversions().FindImplicit() and FindConversionPath() instead.
 

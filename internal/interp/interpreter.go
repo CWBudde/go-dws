@@ -54,25 +54,24 @@ type Interpreter struct {
 	records              map[string]*RecordTypeValue
 	functions            map[string][]*ast.FunctionDecl
 	globalOperators      *runtimeOperatorRegistry
-	// Task 3.5.22e: conversions field removed - use i.typeSystem.Conversions() instead
-	env                 *Environment
-	evaluatorInstance   *evaluator.Evaluator
-	classes             map[string]*ClassInfo
-	classTypeIDRegistry map[string]int
-	initializedUnits    map[string]bool
-	externalFunctions   *ExternalFunctionRegistry
-	rand                *rand.Rand
-	ctx                 *evaluator.ExecutionContext
-	sourceCode          string
-	sourceFile          string
-	oldValuesStack      []map[string]Value
-	loadedUnits         []string
-	callStack           errors.StackTrace
-	nextEnumTypeID      int
-	randSeed            int64
-	nextRecordTypeID    int
-	maxRecursionDepth   int
-	nextClassTypeID     int
+	env                  *Environment
+	evaluatorInstance    *evaluator.Evaluator
+	classes              map[string]*ClassInfo
+	classTypeIDRegistry  map[string]int
+	initializedUnits     map[string]bool
+	externalFunctions    *ExternalFunctionRegistry
+	rand                 *rand.Rand
+	ctx                  *evaluator.ExecutionContext
+	sourceCode           string
+	sourceFile           string
+	oldValuesStack       []map[string]Value
+	loadedUnits          []string
+	callStack            errors.StackTrace
+	nextEnumTypeID       int
+	randSeed             int64
+	nextRecordTypeID     int
+	maxRecursionDepth    int
+	nextClassTypeID      int
 }
 
 // New creates a new Interpreter with a fresh global environment.
@@ -103,7 +102,7 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 	// - Once migration is complete, the old fields will be removed (future Phase 4+ work)
 	ts := interptypes.NewTypeSystem()
 
-	// Task 3.5.159: Initialize ClassValueFactory to enable evaluator to create ClassValue
+	// Initialize ClassValueFactory to enable evaluator to create ClassValue
 	ts.ClassValueFactory = func(classInfo interptypes.ClassInfo) any {
 		if ci, ok := classInfo.(*ClassInfo); ok {
 			return &ClassValue{ClassInfo: ci}
@@ -121,11 +120,11 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 		maxRecursionDepth: DefaultMaxRecursionDepth,
 		callStack:         errors.NewStackTrace(), // Initialize stack trace
 
-		// Phase 3.4.1: TypeSystem (new centralized type registry)
+		// TypeSystem (new centralized type registry)
 		// This is the modern API - use this for new code
 		typeSystem: ts,
 
-		// Task 3.5.39: MethodRegistry for AST-free method storage
+		// MethodRegistry for AST-free method storage
 		methodRegistry: runtime.NewMethodRegistry(),
 
 		// Phase 3.4.1: Legacy fields for backward compatibility
@@ -134,8 +133,7 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 		classes:   make(map[string]*ClassInfo),
 		records:   make(map[string]*RecordTypeValue),
 
-		globalOperators: newRuntimeOperatorRegistry(),
-		// Task 3.5.22e: conversions removed - now uses typeSystem.Conversions()
+		globalOperators:      newRuntimeOperatorRegistry(),
 		helpers:              make(map[string][]*HelperInfo),
 		classTypeIDRegistry:  make(map[string]int), // Task 9.25: RTTI type ID registry
 		recordTypeIDRegistry: make(map[string]int), // Task 9.25: RTTI type ID registry
@@ -185,13 +183,12 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 	}
 
 	// Create evaluator instance
-	// Task 3.5.76: semanticInfo passed via constructor for explicit dependency injection
 	interp.evaluatorInstance = evaluator.NewEvaluator(
 		ts,
 		output,
 		evalConfig,
-		nil,                 // unitRegistry is set later via SetUnitRegistry if needed
-		interp.semanticInfo, // Task 3.5.76: pass semanticInfo to constructor
+		nil, // unitRegistry is set later via SetUnitRegistry if needed
+		interp.semanticInfo,
 	)
 
 	// Set external functions if available
@@ -242,14 +239,12 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 
 // GetException returns the current active exception, or nil if none.
 // This is used by the CLI to detect and report unhandled exceptions.
-// Task 3.5.18: Return type changed to runtime.ExceptionValue
 func (i *Interpreter) GetException() *runtime.ExceptionValue {
 	return i.exception
 }
 
 // SetSemanticInfo sets the semantic metadata table for this interpreter.
 // The semantic info contains type annotations and symbol resolutions from analysis.
-// Task 9.18: Separate type metadata from AST nodes.
 func (i *Interpreter) SetSemanticInfo(info *pkgast.SemanticInfo) {
 	i.semanticInfo = info
 
@@ -260,7 +255,6 @@ func (i *Interpreter) SetSemanticInfo(info *pkgast.SemanticInfo) {
 }
 
 // GetEvaluator returns the evaluator instance.
-// Phase 3.5.1: This provides access to the evaluation engine for advanced use cases.
 func (i *Interpreter) GetEvaluator() *evaluator.Evaluator {
 	return i.evaluatorInstance
 }

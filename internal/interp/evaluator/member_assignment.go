@@ -11,8 +11,6 @@ import (
 // Member Assignment Operations
 // ============================================================================
 //
-// Task 3.5.35: Migrated member assignment to use native handling.
-//
 // Handles member assignment: obj.field := value, TClass.Variable := value
 //
 // NATIVE handling (via evaluator, no adapter):
@@ -31,7 +29,6 @@ import (
 // ============================================================================
 
 // evalMemberAssignmentDirect attempts to handle member assignment directly.
-// Task 3.5.35: Migrated to use native handling for most cases, reducing EvalNode calls.
 //
 // Handles directly:
 // - Record field assignment via RecordFieldSetter interface

@@ -6,7 +6,6 @@ import (
 )
 
 // executePropertyWrite handles property setter execution for ObjectValue.WriteProperty callback.
-// Task 3.5.35: Consolidates property write logic in evaluator, reducing adapter dependency.
 //
 // This method handles two property write kinds:
 // - PropAccessField: Direct field assignment

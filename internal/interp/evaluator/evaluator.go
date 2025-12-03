@@ -850,6 +850,18 @@ type InterpreterAdapter interface {
 	// They are part of builtins.Context interface and are implemented independently on both
 	// Interpreter (in builtins_context.go) and Evaluator (in context_conversions.go).
 	// The Evaluator does not delegate these methods to the adapter.
+
+	// ===== Helper Property Methods (Task 3.5.37) =====
+
+	// EvalBuiltinHelperProperty evaluates a built-in helper property.
+	// Task 3.5.37: Adapter method for built-in helper properties that require interpreter access.
+	// This includes properties like array.Length, enum.Name, string.IsASCII, etc.
+	// Parameters:
+	//   - propSpec: The property specification (e.g., "__array_length", "__enum_name")
+	//   - selfValue: The value on which the property is being accessed
+	//   - node: The AST node for error reporting
+	// Returns the property value or an error.
+	EvalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node) Value
 }
 
 // Evaluator is responsible for evaluating DWScript AST nodes.

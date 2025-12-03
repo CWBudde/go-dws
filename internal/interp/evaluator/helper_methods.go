@@ -1,6 +1,8 @@
 package evaluator
 
 import (
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -24,19 +26,23 @@ import (
 // HelperInfo represents a helper type declaration at runtime.
 // This is a temporary interface to avoid circular imports.
 // The actual implementation is *interp.HelperInfo.
+//
+// Note: The interface uses wrapper method names (GetMethodAny, GetBuiltinMethodAny,
+// GetPropertyAny, GetParentHelperAny) that return `any` types. This allows
+// *interp.HelperInfo to satisfy the interface without modifying its original methods.
+// Go's type system doesn't support covariant return types, so we need these wrappers.
 type HelperInfo interface {
-	// GetMethod looks up a method by name in this helper's inheritance chain.
-	// Returns the method declaration, the helper that owns it, and whether it was found.
-	GetMethod(name string) (*ast.FunctionDecl, HelperInfo, bool)
+	// GetMethodAny looks up a method by name in this helper's inheritance chain.
+	// Returns the method declaration, the helper that owns it (as any), and whether it was found.
+	GetMethodAny(name string) (*ast.FunctionDecl, any, bool)
 
-	// GetBuiltinMethod looks up a builtin method spec by name in this helper's inheritance chain.
-	// Returns the builtin spec, the helper that owns it, and whether it was found.
-	GetBuiltinMethod(name string) (string, HelperInfo, bool)
+	// GetBuiltinMethodAny looks up a builtin method spec by name in this helper's inheritance chain.
+	// Returns the builtin spec, the helper that owns it (as any), and whether it was found.
+	GetBuiltinMethodAny(name string) (string, any, bool)
 
-	// GetProperty looks up a property by name in this helper's inheritance chain.
-	// Returns the property info, the helper that owns it, and whether it was found.
-	// Note: Uses any to avoid importing internal/interp/types (circular dependency)
-	GetProperty(name string) (any, HelperInfo, bool)
+	// GetPropertyAny looks up a property by name in this helper's inheritance chain.
+	// Returns the property info (as any), the helper that owns it (as any), and whether it was found.
+	GetPropertyAny(name string) (any, any, bool)
 
 	// GetClassVars returns the class variables defined in this helper.
 	// Task 3.5.102g: Enables direct access to helper class variables.
@@ -46,10 +52,10 @@ type HelperInfo interface {
 	// Task 3.5.102g: Enables direct access to helper class constants.
 	GetClassConsts() map[string]Value
 
-	// GetParentHelper returns the parent helper for inheritance chain traversal.
+	// GetParentHelperAny returns the parent helper for inheritance chain traversal.
 	// Task 3.5.102g: Enables walking the helper inheritance chain.
 	// Returns nil if this is a root helper.
-	GetParentHelper() HelperInfo
+	GetParentHelperAny() any
 }
 
 // HelperMethodResult represents the result of a helper method lookup.
@@ -172,18 +178,21 @@ func (e *Evaluator) FindHelperMethod(val Value, methodName string) *HelperMethod
 	}
 
 	// Search helpers in reverse order so later (user-defined) helpers override earlier ones.
-	// For each helper, search the inheritance chain using GetMethod
+	// For each helper, search the inheritance chain using GetMethodAny
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
 
-		// Use GetMethod which searches the inheritance chain and returns the owner helper
-		if method, ownerHelper, ok := helper.GetMethod(methodName); ok {
+		// Use GetMethodAny which searches the inheritance chain and returns the owner helper
+		if method, ownerHelperAny, ok := helper.GetMethodAny(methodName); ok {
+			ownerHelper, _ := ownerHelperAny.(HelperInfo)
 			// Check if there's a builtin spec as well (search from the owner helper)
-			if spec, _, ok := ownerHelper.GetBuiltinMethod(methodName); ok {
-				return &HelperMethodResult{
-					OwnerHelper: ownerHelper,
-					Method:      method,
-					BuiltinSpec: spec,
+			if ownerHelper != nil {
+				if spec, _, ok := ownerHelper.GetBuiltinMethodAny(methodName); ok {
+					return &HelperMethodResult{
+						OwnerHelper: ownerHelper,
+						Method:      method,
+						BuiltinSpec: spec,
+					}
 				}
 			}
 			return &HelperMethodResult{
@@ -197,7 +206,8 @@ func (e *Evaluator) FindHelperMethod(val Value, methodName string) *HelperMethod
 	// If no declared method, check for builtin-only entries
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
-		if spec, ownerHelper, ok := helper.GetBuiltinMethod(methodName); ok {
+		if spec, ownerHelperAny, ok := helper.GetBuiltinMethodAny(methodName); ok {
+			ownerHelper, _ := ownerHelperAny.(HelperInfo)
 			return &HelperMethodResult{
 				OwnerHelper: ownerHelper,
 				Method:      nil,
@@ -423,8 +433,17 @@ func (e *Evaluator) CallASTHelperMethod(
 func (e *Evaluator) bindHelperChainVarsConsts(helper HelperInfo, ctx *ExecutionContext) {
 	// Build the helper chain from root to current
 	var helperChain []HelperInfo
-	for h := helper; h != nil; h = h.GetParentHelper() {
+	for h := helper; h != nil; {
 		helperChain = append([]HelperInfo{h}, helperChain...)
+		parentAny := h.GetParentHelperAny()
+		if parentAny == nil {
+			break
+		}
+		parent, ok := parentAny.(HelperInfo)
+		if !ok {
+			break
+		}
+		h = parent
 	}
 
 	// Bind vars and consts in order (root first, so children override)
@@ -489,4 +508,172 @@ func convertToHelperInfoSlice(helpers []any) []HelperInfo {
 		}
 	}
 	return result
+}
+
+// ============================================================================
+// Helper Property Resolution
+// ============================================================================
+// Task 3.5.37: Infrastructure for helper property lookup and reading.
+//
+// Helper properties are type extensions that add properties to types that don't
+// natively have them (e.g., arr.Length, enum.Name, str.IsASCII).
+
+// FindHelperProperty searches all applicable helpers for a property with the given name.
+// Returns the helper that owns the property and the property info.
+//
+// Task 3.5.37: Migrated from Interpreter.findHelperProperty().
+func (e *Evaluator) FindHelperProperty(val Value, propName string) (HelperInfo, *types.PropertyInfo) {
+	helpers := e.getHelpersForValue(val)
+	if helpers == nil {
+		return nil, nil
+	}
+
+	// Search helpers in reverse order so later (user-defined) helpers override earlier ones
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
+
+		// Use GetPropertyAny which searches the inheritance chain and returns the owner helper
+		if propInfo, ownerHelperAny, found := helper.GetPropertyAny(propName); found && propInfo != nil {
+			pInfo, ok := propInfo.(*types.PropertyInfo)
+			if ok {
+				ownerHelper, _ := ownerHelperAny.(HelperInfo)
+				return ownerHelper, pInfo
+			}
+		}
+	}
+
+	return nil, nil
+}
+
+// executeHelperPropertyRead evaluates a helper property read access.
+// Task 3.5.37: Migrated from Interpreter.evalHelperPropertyRead().
+//
+// This method handles four property access kinds:
+// - PropAccessField: Direct field access or getter method call
+// - PropAccessMethod: Getter method call
+// - PropAccessBuiltin: Built-in property (e.g., array.Length)
+// - PropAccessNone: Write-only property (error)
+func (e *Evaluator) executeHelperPropertyRead(
+	helper HelperInfo,
+	propInfo *types.PropertyInfo,
+	selfValue Value,
+	node ast.Node,
+	ctx *ExecutionContext,
+) Value {
+	switch propInfo.ReadKind {
+	case types.PropAccessField:
+		// For helpers on records, try to access the field from the record
+		if recVal, ok := selfValue.(RecordInstanceValue); ok {
+			if fieldValue, exists := recVal.GetRecordField(propInfo.ReadSpec); exists {
+				return fieldValue
+			}
+		}
+
+		// Otherwise, try as a method (getter)
+		// Method names are case-insensitive
+		normalizedReadSpec := ident.Normalize(propInfo.ReadSpec)
+
+		// Search for the getter method in the owner helper's inheritance chain
+		if method, methodOwnerAny, ok := helper.GetMethodAny(normalizedReadSpec); ok {
+			methodOwner, _ := methodOwnerAny.(HelperInfo)
+			// Get builtin spec if any
+			var builtinSpec string
+			if methodOwner != nil {
+				if spec, _, ok := methodOwner.GetBuiltinMethodAny(normalizedReadSpec); ok {
+					builtinSpec = spec
+				}
+			}
+			// Call the getter method with no arguments
+			result := &HelperMethodResult{
+				OwnerHelper: methodOwner,
+				Method:      method,
+				BuiltinSpec: builtinSpec,
+			}
+			return e.CallHelperMethod(result, selfValue, []Value{}, node, ctx)
+		}
+
+		return e.newError(node, "property '%s' read specifier '%s' not found",
+			propInfo.Name, propInfo.ReadSpec)
+
+	case types.PropAccessMethod:
+		// Call getter method
+		// Method names are case-insensitive
+		normalizedReadSpec := ident.Normalize(propInfo.ReadSpec)
+
+		// Search for the getter method in the owner helper's inheritance chain
+		if method, methodOwnerAny, ok := helper.GetMethodAny(normalizedReadSpec); ok {
+			methodOwner, _ := methodOwnerAny.(HelperInfo)
+			// Get builtin spec if any
+			var builtinSpec string
+			if methodOwner != nil {
+				if spec, _, ok := methodOwner.GetBuiltinMethodAny(normalizedReadSpec); ok {
+					builtinSpec = spec
+				}
+			}
+			result := &HelperMethodResult{
+				OwnerHelper: methodOwner,
+				Method:      method,
+				BuiltinSpec: builtinSpec,
+			}
+			return e.CallHelperMethod(result, selfValue, []Value{}, node, ctx)
+		}
+
+		return e.newError(node, "property '%s' getter method '%s' not found",
+			propInfo.Name, propInfo.ReadSpec)
+
+	case types.PropAccessBuiltin:
+		// Built-in helper properties (e.g., array.Length, enum.Name)
+		return e.evalBuiltinHelperProperty(propInfo.ReadSpec, selfValue, node)
+
+	case types.PropAccessNone:
+		return e.newError(node, "property '%s' is write-only", propInfo.Name)
+
+	default:
+		return e.newError(node, "property '%s' has no read access", propInfo.Name)
+	}
+}
+
+// evalBuiltinHelperProperty evaluates a built-in helper property.
+// Task 3.5.37: Migrated from Interpreter.evalBuiltinHelperProperty().
+//
+// Implements built-in properties like:
+// - Array: .Length, .Count, .High, .Low
+// - Enum: .Value, .Name, .QualifiedName
+// - String: .Length, .IsASCII, .Trim, etc.
+// - Integer/Float/Boolean: .ToString
+func (e *Evaluator) evalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node) Value {
+	switch propSpec {
+	// Array properties - delegate to adapter (requires ArrayValue internals)
+	case "__array_length", "__array_count", "__array_high", "__array_low":
+		if _, ok := selfValue.(ArrayAccessor); !ok {
+			return e.newError(node, "built-in property '%s' can only be used on arrays", propSpec)
+		}
+		return e.adapter.EvalBuiltinHelperProperty(propSpec, selfValue, node)
+
+	// Enum properties
+	case "__enum_value":
+		enumVal, ok := selfValue.(EnumAccessor)
+		if !ok {
+			return e.newError(node, "Enum.Value property requires enum receiver")
+		}
+		return &runtime.IntegerValue{Value: int64(enumVal.GetOrdinal())}
+
+	case "__enum_name", "__enum_qualifiedname":
+		// Need to get enum value/type names - delegate to adapter
+		// as EnumAccessor doesn't expose ValueName/TypeName
+		return e.adapter.EvalBuiltinHelperProperty(propSpec, selfValue, node)
+
+	// String properties - delegate to adapter (requires StringValue internals)
+	case "__string_length":
+		if _, ok := selfValue.(StringValue); !ok {
+			return e.newError(node, "String.Length property requires string receiver")
+		}
+		return e.adapter.EvalBuiltinHelperProperty(propSpec, selfValue, node)
+
+	// For other built-in properties, delegate to adapter
+	// This includes: __integer_tostring, __float_tostring_default, __boolean_tostring,
+	// __string_isascii, __string_trim, __string_trimleft, __string_trimright, StripAccents
+	default:
+		return e.adapter.EvalBuiltinHelperProperty(propSpec, selfValue, node)
+	}
 }

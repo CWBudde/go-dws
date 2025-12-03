@@ -9,7 +9,6 @@ import (
 )
 
 // executePropertyRead handles property getter execution for ObjectValue.ReadProperty callback.
-// Task 3.5.32: Consolidates property read logic in evaluator, reducing adapter dependency.
 //
 // This method handles three property access kinds:
 // - PropAccessField: Direct field access, class variable, constant, or method call
@@ -204,7 +203,7 @@ func (e *Evaluator) executeExpressionBackedPropertyRead(obj Value, objVal Object
 }
 
 // buildIndexDirectiveArgs converts a property's index directive into runtime arguments.
-// Task 3.5.32: Helper for property getter methods with index directives.
+// Helper for property getter methods with index directives.
 func (e *Evaluator) buildIndexDirectiveArgs(propInfo *types.PropertyInfo) ([]Value, error) {
 	if propInfo == nil || !propInfo.HasIndexValue {
 		return nil, nil
@@ -241,7 +240,6 @@ type FieldBinder interface {
 }
 
 // executeIndexedPropertyRead handles indexed property getter execution.
-// Task 3.5.33: Consolidates indexed property read logic in evaluator, reducing adapter dependency.
 //
 // This method handles indexed property access: obj.Property[index1, index2, ...]
 // - Validates property has a method-backed getter (not field-backed)
@@ -283,7 +281,6 @@ func (e *Evaluator) executeIndexedPropertyRead(obj Value, propInfo any, indices 
 }
 
 // executeIndexedPropertyGetterMethod executes an indexed property getter method.
-// Task 3.5.33: Helper for indexed property reads with method-backed getters.
 //
 // Indexed properties require getter methods (not fields), because the method
 // receives the index values as parameters.
