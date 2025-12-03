@@ -191,9 +191,19 @@ func (e *Evaluator) checkType(obj Value, typeName string) bool {
 
 // getClassMetadataFromValue extracts ClassMetadata from a value.
 func (e *Evaluator) getClassMetadataFromValue(obj Value) *runtime.ClassMetadata {
-	// Use adapter to extract ClassMetadata from the object
-	// The adapter has access to internal types and can safely extract the metadata
-	return e.adapter.GetClassMetadataFromValue(obj)
+	// Inline metadata extraction (was e.adapter.GetClassMetadataFromValue)
+	// Try ObjectValue interface first (most common case)
+	if objVal, ok := obj.(ObjectValue); ok {
+		// Use ClassName to get the class name, then lookup via TypeSystem
+		className := objVal.ClassName()
+		if classInfo := e.typeSystem.LookupClass(className); classInfo != nil {
+			// ClassInfo in TypeSystem should have GetMetadata() method
+			if metadataProvider, ok := classInfo.(interface{ GetMetadata() *runtime.ClassMetadata }); ok {
+				return metadataProvider.GetMetadata()
+			}
+		}
+	}
+	return nil
 }
 
 // classImplementsInterface checks if a class implements an interface.
@@ -391,9 +401,8 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 		return nil, fmt.Errorf("type '%s' not found (neither class nor interface)", typeName)
 	}
 
-	// Handle object casting
-	objVal := e.adapter.GetObjectInstanceFromValue(obj)
-	if objVal == nil {
+	// Handle object casting - inline type assertion (was e.adapter.GetObjectInstanceFromValue)
+	if _, ok := obj.(ObjectValue); !ok {
 		return nil, fmt.Errorf("'as' operator requires object instance, got %s", obj.Type())
 	}
 

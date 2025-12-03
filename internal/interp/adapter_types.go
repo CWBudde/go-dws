@@ -324,38 +324,7 @@ func (i *Interpreter) WrapInInterface(value evaluator.Value, interfaceName strin
 
 // Task 3.5.140: EvalArrayLiteralWithExpectedType removed - evaluator uses evalArrayLiteralWithExpectedType() directly
 
-// CallIndexedPropertyGetter calls an indexed property getter method on an object.
-// Task 3.5.99c: Implements InterpreterAdapter.CallIndexedPropertyGetter for object default property access.
-// DEPRECATED: Use ObjectValue.ReadIndexedProperty with ExecuteIndexedPropertyRead callback instead.
-func (i *Interpreter) CallIndexedPropertyGetter(obj evaluator.Value, propImpl any, indices []evaluator.Value, node any) evaluator.Value {
-	// Convert obj to ObjectInstance
-	objInst, ok := obj.(*ObjectInstance)
-	if !ok {
-		return &ErrorValue{Message: "CallIndexedPropertyGetter expects ObjectInstance"}
-	}
-
-	// Convert propImpl to *types.PropertyInfo
-	propInfo, ok := propImpl.(*types.PropertyInfo)
-	if !ok {
-		return &ErrorValue{Message: "CallIndexedPropertyGetter expects *types.PropertyInfo"}
-	}
-
-	// Convert node to ast.Node
-	astNode, ok := node.(ast.Node)
-	if !ok {
-		return &ErrorValue{Message: "CallIndexedPropertyGetter expects ast.Node"}
-	}
-
-	// Convert []evaluator.Value to []Value (they're the same underlying interface)
-	// evaluator.Value is an alias for the local Value interface in the interp package
-	convertedIndices := make([]Value, len(indices))
-	for idx, indexVal := range indices {
-		convertedIndices[idx] = indexVal
-	}
-
-	// Delegate to the existing evalIndexedPropertyRead method
-	return i.evalIndexedPropertyRead(objInst, propInfo, convertedIndices, astNode)
-}
+// Task 3.5.27: CallIndexedPropertyGetter REMOVED - zero callers (deprecated)
 
 // ExecuteIndexedPropertyRead executes an indexed property read with resolved PropertyInfo.
 // Task 3.5.117: Low-level execution callback for ObjectValue.ReadIndexedProperty().
@@ -496,17 +465,7 @@ func (i *Interpreter) GetClassNameFromClassInfoInterface(classInfo interface{}) 
 	return ci.Name
 }
 
-// RegisterClassEarly registers a class in the legacy class map before full initialization.
-// Task 3.5.8: Phase 5 adapter - enables field initializers to reference the class name.
-// This is needed because field initializers may reference the class being declared.
-func (i *Interpreter) RegisterClassEarly(name string, classInfo interface{}) {
-	ci, ok := classInfo.(*ClassInfo)
-	if !ok {
-		return
-	}
-	normalizedName := ident.Normalize(name)
-	i.classes[normalizedName] = ci
-}
+// Task 3.5.27: RegisterClassEarly REMOVED - zero callers
 
 // IsClassPartial checks if a ClassInfo is marked as partial.
 // Task 3.5.8: Phase 2 adapter for partial class detection.
@@ -780,13 +739,7 @@ func (i *Interpreter) AddClassMethod(classInfo interface{}, method *ast.Function
 	return true
 }
 
-// CreateMethodMetadata creates runtime MethodMetadata from an AST method declaration.
-// Task 3.5.8 Phase 6: Wrapper around runtime.MethodMetadataFromAST with registration.
-func (i *Interpreter) CreateMethodMetadata(method *ast.FunctionDecl) interface{} {
-	methodMeta := runtime.MethodMetadataFromAST(method)
-	i.methodRegistry.RegisterMethod(methodMeta)
-	return methodMeta
-}
+// Task 3.5.27: CreateMethodMetadata REMOVED - zero callers
 
 // SynthesizeDefaultConstructor synthesizes an implicit parameterless constructor.
 // Task 3.5.8 Phase 6: Migrated from declarations.go:880-923.

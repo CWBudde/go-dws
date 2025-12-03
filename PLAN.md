@@ -281,21 +281,15 @@ Goal: Reduce adapter interface from ~75 methods to ~20 essential methods (~75% r
   - **Files**: `evaluator/evaluator.go`, `adapter_types.go`, `adapter_functions.go`, `type_registry_test.go`
   - **Test**: `go build ./...` compiles, TypeRegistry tests pass
 
-- [ ] **3.5.26** Remove Unused Binary Operator Methods
-  - **Methods** (3): `EvalVariantBinaryOp`, `EvalInOperator`, `EvalEqualityComparison`
-  - **Work**: Confirm zero callers, remove from interface + implementation
-  - **Files**: `evaluator/evaluator.go`, `adapter_types.go`
-  - **Effort**: 15 minutes
+- [x] **3.5.26** Remove Unused Binary Operator Methods ✅
+  - **Methods removed** (3): `EvalVariantBinaryOp`, `EvalInOperator`, `EvalEqualityComparison`
+  - **Files**: `evaluator/evaluator.go`, `adapter_references.go`
+  - **Test**: `go build ./...` compiles, evaluator tests pass
 
-- [ ] **3.5.27** Remove Unused Class Declaration Methods
-  - **Methods** (~20): All helper/interface/class declaration methods with zero callers
-  - **Work**:
-    1. Grep for `e.adapter.SetClassAbstract`, `e.adapter.SetClassPartial`, etc.
-    2. Remove only methods with zero callers
-    3. Keep methods still used in `visitor_declarations.go`
-  - **Files**: `evaluator/evaluator.go`, `adapter_types.go`
-  - **Effort**: 45 minutes
-  - **Test**: All declaration tests pass
+- [x] **3.5.27** Remove Unused Class Declaration Methods ✅
+  - **Methods removed** (15): `CreateClassValue`, `CreateLambda`, `ReadPropertyValue`, `IsMethodParameterless`, `CreateMethodCall`, `CreateMethodPointerFromObject`, `GetClassName(obj)`, `GetClassType(obj)`, `GetClassNameFromClassInfo`, `GetClassTypeFromClassInfo`, `GetClassVariableFromClassInfo`, `CallIndexedPropertyGetter`, `CallRecordPropertyGetter`, `RegisterClassEarly`, `CreateMethodMetadata`
+  - **Files**: `evaluator/evaluator.go`, `adapter_types.go`, `adapter_objects.go`, `adapter_references.go`
+  - **Test**: `go build ./...` compiles, class/declaration tests pass
 
 ---
 
@@ -303,28 +297,64 @@ Goal: Reduce adapter interface from ~75 methods to ~20 essential methods (~75% r
 
 **Goal**: Replace adapter calls with direct TypeSystem/runtime calls. **Effort**: 4-6 hours total.
 
-- [ ] **3.5.28** Inline Property Type Extraction Methods
-  - **Methods** (4): `GetObjectFieldValue`, `GetClassVariableValue`, `GetClassVariableFromClassInfo`, `GetClassName`
-  - **Work**: Replace `e.adapter.GetObjectFieldValue(obj, name)` with type assertion + direct field access
-  - **Pattern**:
+- [x] **3.5.28** Inline Property Type Extraction Methods ✅
+  - **Methods removed** (2): `GetObjectFieldValue`, `GetClassVariableValue`
+  - **Note**: `GetClassName` and `GetClassVariableFromClassInfo` were already removed in task 3.5.27
+  - **Finding**: Both methods had **zero callers** - removed directly without needing inline replacements
+  - **Replacement pattern** (documented for future reference):
 
     ```go
-    // Before
-    val, ok := e.adapter.GetObjectFieldValue(obj, fieldName)
-    // After
-    if objInst, ok := obj.(*runtime.ObjectInstance); ok {
-        val, ok = objInst.GetField(fieldName)
+    // For GetObjectFieldValue:
+    if objVal, ok := obj.(evaluator.ObjectValue); ok {
+        val := objVal.GetField(fieldName)
+    }
+    // For GetClassVariableValue:
+    if objVal, ok := obj.(evaluator.ObjectValue); ok {
+        val, ok := objVal.GetClassVar(varName)
     }
     ```
 
-  - **Files**: `evaluator/visitor_expressions_members.go`, `evaluator/visitor_expressions_identifiers.go`
-  - **Effort**: 1 hour
+  - **Files modified**:
+    - `evaluator/evaluator.go` (removed interface methods)
+    - `adapter_references.go` (removed implementations)
+    - `evaluator/type_conversion_test.go` (removed mock methods)
+  - **Result**: -508 lines, all tests passing
+  - **Actual effort**: 30 minutes (much faster than estimated due to zero callers)
 
-- [ ] **3.5.29** Inline Type Check Methods
-  - **Methods** (3): `CheckType`, `GetClassMetadataFromValue`, `GetObjectInstanceFromValue`
-  - **Work**: Replace with type assertions in evaluator
-  - **Files**: `evaluator/visitor_expressions_types.go`
-  - **Effort**: 45 minutes
+- [x] **3.5.29** Inline Type Check Methods ✅
+  - **Methods removed** (3): `CheckType`, `GetClassMetadataFromValue`, `GetObjectInstanceFromValue`
+  - **Work completed**:
+    - `GetObjectInstanceFromValue`: Replaced 2 calls with `ObjectValue` interface type assertions
+    - `GetClassMetadataFromValue`: Replaced 1 direct call + inlined the `getClassMetadataFromValue()` helper
+    - `CheckType`: Already migrated away (zero callers found)
+  - **Inline patterns used**:
+
+    ```go
+    // GetObjectInstanceFromValue:
+    if _, ok := val.(ObjectValue); !ok {
+        return error
+    }
+
+    // GetClassMetadataFromValue in helper:
+    if objVal, ok := obj.(ObjectValue); ok {
+        className := objVal.ClassName()
+        if classInfo := e.typeSystem.LookupClass(className); classInfo != nil {
+            if metadataProvider, ok := classInfo.(interface{ GetMetadata() *runtime.ClassMetadata }); ok {
+                return metadataProvider.GetMetadata()
+            }
+        }
+    }
+    ```
+
+  - **Files modified**:
+    - `evaluator/type_casts.go` (1 inline)
+    - `evaluator/visitor_expressions_types.go` (1 inline + helper rewrite)
+    - `evaluator/overload_resolution.go` (1 inline)
+    - `evaluator/evaluator.go` (removed 3 interface methods)
+    - `adapter_objects.go` (removed 2 implementations, removed runtime import)
+    - `evaluator/type_conversion_test.go` (removed 3 mock methods)
+  - **Result**: 3 methods removed, all tests passing
+  - **Actual effort**: 45 minutes (as estimated)
 
 - [ ] **3.5.30** Inline Array/Value Creation Methods
   - **Methods** (2): `CreateArray`, `CreateArrayValue`
@@ -441,8 +471,8 @@ Goal: Reduce adapter interface from ~75 methods to ~20 essential methods (~75% r
 |-------|-------|-------------|--------|--------|
 | Bridge Elimination | 3.5.17-3.5.23 | Move value types to runtime | ✅ Complete | Done |
 | Audit | 3.5.24 | Document adapter methods | ✅ Complete | Done |
-| Zero-Caller Removal | 3.5.25-3.5.27 | Remove ~78 unused methods | Pending | 2-3h |
-| Single-Use Inline | 3.5.28-3.5.31 | Inline simple adapter calls | Pending | 4-6h |
+| Zero-Caller Removal | 3.5.25-3.5.27 | Remove 21 unused methods | ✅ Complete | Done |
+| Single-Use Inline | 3.5.28-3.5.31 | Inline simple adapter calls | 50% (2/4) | 1.25h done |
 | Property Callbacks | 3.5.32-3.5.34 | Complete callback patterns | Pending | 3-4h |
 | EvalNode Reduction | 3.5.35-3.5.38 | Reduce fallback calls 44→~10 | Pending | 8-12h |
 | Documentation | 3.5.39-3.5.40 | Final docs and summary | Pending | 4-6h |

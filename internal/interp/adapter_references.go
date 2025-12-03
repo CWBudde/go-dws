@@ -2,7 +2,6 @@ package interp
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
@@ -33,20 +32,7 @@ func (i *Interpreter) CreateFunctionPointer(fn *ast.FunctionDecl, closure any) e
 	}
 }
 
-// CreateLambda creates a lambda/closure value from a lambda expression.
-// Task 3.5.8: Adapter method for lambda creation.
-func (i *Interpreter) CreateLambda(lambda *ast.LambdaExpression, closure any) evaluator.Value {
-	// Convert closure to Environment
-	var env *Environment
-	if closure != nil {
-		env = closure.(*Environment)
-	}
-
-	return &FunctionPointerValue{
-		Lambda:  lambda,
-		Closure: env,
-	}
-}
+// Task 3.5.27: CreateLambda REMOVED - zero callers
 
 // Task 3.5.180: Removed IsFunctionPointer, GetFunctionPointerParamCount, IsFunctionPointerNil
 // These methods are no longer needed - FunctionPointerValue implements FunctionPointerCallable
@@ -278,206 +264,29 @@ func (i *Interpreter) WrapObjectInException(objInstance evaluator.Value, pos any
 // Task 3.5.137: DefineVariable removed - evaluator now uses ctx.Env().Define() directly
 
 // ===== Binary Operator Adapters =====
-// Task 3.5.19: Binary Operator Adapter Methods (Fix for PR #219)
-//
-// These adapter methods delegate to the Interpreter's binary operator implementation
-// WITHOUT re-evaluating the operands. This fixes the double-evaluation bug where
-// operands with side effects (function calls, increments, etc.) were executed twice.
-
-// EvalVariantBinaryOp handles binary operations with Variant operands using pre-evaluated values.
-func (i *Interpreter) EvalVariantBinaryOp(op string, left, right evaluator.Value, node ast.Node) evaluator.Value {
-	// The Interpreter's evalVariantBinaryOp already works with pre-evaluated values
-	return i.evalVariantBinaryOp(op, left, right, node)
-}
-
-// EvalInOperator evaluates the 'in' operator for membership testing using pre-evaluated values.
-func (i *Interpreter) EvalInOperator(value, container evaluator.Value, node ast.Node) evaluator.Value {
-	// The Interpreter's evalInOperator already works with pre-evaluated values
-	return i.evalInOperator(value, container, node)
-}
-
-// EvalEqualityComparison handles = and <> operators for complex types using pre-evaluated values.
-func (i *Interpreter) EvalEqualityComparison(op string, left, right evaluator.Value, node ast.Node) evaluator.Value {
-	// This is extracted from eval BinaryExpression to handle complex type comparisons
-	// with pre-evaluated operands (fixing double-evaluation bug in PR #219)
-
-	// Check if either operand is nil or an object instance
-	_, leftIsNil := left.(*NilValue)
-	_, rightIsNil := right.(*NilValue)
-	_, leftIsObj := left.(*ObjectInstance)
-	_, rightIsObj := right.(*ObjectInstance)
-	leftIntf, leftIsIntf := left.(*InterfaceInstance)
-	rightIntf, rightIsIntf := right.(*InterfaceInstance)
-	leftClass, leftIsClass := left.(*ClassValue)
-	rightClass, rightIsClass := right.(*ClassValue)
-
-	// Handle RTTITypeInfoValue comparisons (for TypeOf results)
-	leftRTTI, leftIsRTTI := left.(*RTTITypeInfoValue)
-	rightRTTI, rightIsRTTI := right.(*RTTITypeInfoValue)
-	if leftIsRTTI && rightIsRTTI {
-		// Compare by TypeID (unique identifier for each type)
-		result := leftRTTI.TypeID == rightRTTI.TypeID
-		if op == "=" {
-			return &BooleanValue{Value: result}
-		}
-		return &BooleanValue{Value: !result}
-	}
-
-	// Handle ClassValue (metaclass) comparisons
-	if leftIsClass || rightIsClass {
-		// Both are ClassValue - compare by ClassInfo identity
-		if leftIsClass && rightIsClass {
-			result := leftClass.ClassInfo == rightClass.ClassInfo
-			if op == "=" {
-				return &BooleanValue{Value: result}
-			}
-			return &BooleanValue{Value: !result}
-		}
-		// One is ClassValue, one is nil
-		if leftIsNil || rightIsNil {
-			if op == "=" {
-				return &BooleanValue{Value: false}
-			}
-			return &BooleanValue{Value: true}
-		}
-	}
-
-	// Handle InterfaceInstance comparisons
-	if leftIsIntf || rightIsIntf {
-		// Both are interfaces - compare underlying objects
-		if leftIsIntf && rightIsIntf {
-			result := leftIntf.Object == rightIntf.Object
-			if op == "=" {
-				return &BooleanValue{Value: result}
-			}
-			return &BooleanValue{Value: !result}
-		}
-		// One is interface, one is nil
-		if leftIsNil || rightIsNil {
-			var intfIsNil bool
-			if leftIsIntf {
-				intfIsNil = leftIntf.Object == nil
-			} else {
-				intfIsNil = rightIntf.Object == nil
-			}
-			if op == "=" {
-				return &BooleanValue{Value: intfIsNil}
-			}
-			return &BooleanValue{Value: !intfIsNil}
-		}
-	}
-
-	// If either is nil or an object, do object identity comparison
-	if leftIsNil || rightIsNil || leftIsObj || rightIsObj {
-		// Both nil
-		if leftIsNil && rightIsNil {
-			if op == "=" {
-				return &BooleanValue{Value: true}
-			}
-			return &BooleanValue{Value: false}
-		}
-
-		// One is nil, one is not
-		if leftIsNil || rightIsNil {
-			if op == "=" {
-				return &BooleanValue{Value: false}
-			}
-			return &BooleanValue{Value: true}
-		}
-
-		// Both are objects - compare by identity
-		if op == "=" {
-			return &BooleanValue{Value: left == right}
-		}
-		return &BooleanValue{Value: left != right}
-	}
-
-	// Check if both are records
-	if _, leftIsRecord := left.(*RecordValue); leftIsRecord {
-		if _, rightIsRecord := right.(*RecordValue); rightIsRecord {
-			return i.evalRecordBinaryOp(op, left, right)
-		}
-	}
-
-	// Not a supported equality comparison type
-	return i.newErrorWithLocation(node, "type mismatch: %s %s %s", left.Type(), op, right.Type())
-}
-
 // ===== Reference Values =====
-// Task 3.5.21: Complex Value Retrieval Adapter Method Implementations
-//
 // These adapter methods allow the Evaluator to handle complex value types
 // (ReferenceValue) that require special processing when accessed as identifiers.
 //
-// Task 3.5.71: IsReferenceValue removed - evaluator uses val.Type() == "REFERENCE" directly
-// Task 3.5.73: IsExternalVar, IsLazyThunk, EvaluateLazyThunk, GetExternalVarName removed
-//              - evaluator uses ExternalVarAccessor and LazyEvaluator interfaces directly
-// Task 3.5.132: DereferenceValue removed - evaluator uses ReferenceAccessor interface directly
-
 // ===== Property and Method References =====
-// Task 3.5.22: Property & Method Reference Adapter Method Implementations
-//
 // These adapter methods allow the Evaluator to access object fields, properties,
 // methods, and class metadata when handling identifier lookups in method contexts.
 
-// Task 3.5.71: IsObjectInstance removed - evaluator uses val.Type() == "OBJECT" directly
+// Task 3.5.28: GetObjectFieldValue REMOVED - zero callers
+// Replacement: Use ObjectValue.GetField() directly after type assertion:
+//   if objVal, ok := obj.(evaluator.ObjectValue); ok {
+//       val := objVal.GetField(fieldName)
+//   }
 
-// GetObjectFieldValue retrieves a field value from an object instance.
-func (i *Interpreter) GetObjectFieldValue(obj evaluator.Value, fieldName string) (evaluator.Value, bool) {
-	objInst, ok := obj.(*ObjectInstance)
-	if !ok {
-		return nil, false
-	}
-	fieldValue := objInst.GetField(fieldName)
-	if fieldValue == nil {
-		return nil, false
-	}
-	return fieldValue, true
-}
-
-// GetClassVariableValue retrieves a class variable value from an object's class.
-func (i *Interpreter) GetClassVariableValue(obj evaluator.Value, varName string) (evaluator.Value, bool) {
-	objInst, ok := obj.(*ObjectInstance)
-	if !ok {
-		return nil, false
-	}
-	// Case-insensitive lookup to match DWScript semantics
-	classVars := objInst.Class.GetClassVarsMap()
-	for name, value := range classVars {
-		if ident.Equal(name, varName) {
-			return value, true
-		}
-	}
-	return nil, false
-}
+// Task 3.5.28: GetClassVariableValue REMOVED - zero callers
+// Replacement: Use ObjectValue.GetClassVar() directly:
+//   if objVal, ok := obj.(evaluator.ObjectValue); ok {
+//       val, ok := objVal.GetClassVar(varName)
+//   }
 
 // Task 3.5.72: HasProperty removed - ObjectInstance implements evaluator.ObjectValue directly
 
-// ReadPropertyValue reads a property value from an object.
-func (i *Interpreter) ReadPropertyValue(obj evaluator.Value, propName string, node any) (evaluator.Value, error) {
-	objInst, ok := obj.(*ObjectInstance)
-	if !ok {
-		return nil, fmt.Errorf("cannot read property from non-object value")
-	}
-
-	propInfo := objInst.Class.LookupProperty(propName)
-	if propInfo == nil {
-		return nil, fmt.Errorf("property '%s' not found", propName)
-	}
-
-	// Extract the actual *types.PropertyInfo from the Impl field
-	typesPropertyInfo, ok := propInfo.Impl.(*types.PropertyInfo)
-	if !ok {
-		return nil, fmt.Errorf("invalid property info implementation")
-	}
-
-	// Use the existing evalPropertyRead method
-	astNode, ok := node.(ast.Node)
-	if !ok {
-		astNode = nil
-	}
-	return i.evalPropertyRead(objInst, typesPropertyInfo, astNode), nil
-}
+// Task 3.5.27: ReadPropertyValue REMOVED - zero callers (deprecated)
 
 // ExecutePropertyRead executes property reading with a resolved PropertyInfo.
 // Task 3.5.116: Low-level method for property getter execution.
@@ -499,70 +308,9 @@ func (i *Interpreter) ExecutePropertyRead(obj evaluator.Value, propInfo any, nod
 
 // Task 3.5.72: HasMethod removed - ObjectInstance implements evaluator.ObjectValue directly
 
-// IsMethodParameterless checks if a method has zero parameters.
-func (i *Interpreter) IsMethodParameterless(obj evaluator.Value, methodName string) bool {
-	objInst, ok := obj.(*ObjectInstance)
-	if !ok {
-		return false
-	}
-	methods := objInst.Class.GetMethodsMap()
-	method, exists := methods[strings.ToLower(methodName)]
-	if !exists {
-		return false
-	}
-	return len(method.Parameters) == 0
-}
-
-// CreateMethodCall creates a synthetic method call expression for auto-invocation.
-func (i *Interpreter) CreateMethodCall(obj evaluator.Value, methodName string, node any) evaluator.Value {
-	// Create a synthetic method call and evaluate it
-	// We create identifiers without token information since this is synthetic
-	selfIdent := &ast.Identifier{Value: "Self"}
-	methodIdent := &ast.Identifier{Value: methodName}
-
-	// Copy token information from the original node if available
-	if astNode, ok := node.(*ast.Identifier); ok {
-		selfIdent.Token = astNode.Token
-		methodIdent.Token = astNode.Token
-	}
-
-	syntheticCall := &ast.MethodCallExpression{
-		Object:    selfIdent,
-		Method:    methodIdent,
-		Arguments: []ast.Expression{},
-	}
-
-	return i.evalMethodCall(syntheticCall)
-}
-
-// CreateMethodPointerFromObject creates a method pointer for a method with parameters.
-func (i *Interpreter) CreateMethodPointerFromObject(obj evaluator.Value, methodName string) (evaluator.Value, error) {
-	objInst, ok := obj.(*ObjectInstance)
-	if !ok {
-		return nil, fmt.Errorf("cannot create method pointer from non-object value")
-	}
-
-	methods := objInst.Class.GetMethodsMap()
-	method, exists := methods[strings.ToLower(methodName)]
-	if !exists {
-		return nil, fmt.Errorf("method '%s' not found", methodName)
-	}
-
-	// Build the pointer type
-	paramTypes := make([]types.Type, len(method.Parameters))
-	for idx, param := range method.Parameters {
-		if param.Type != nil {
-			paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
-		}
-	}
-	var returnType types.Type
-	if method.ReturnType != nil {
-		returnType = i.getTypeFromAnnotation(method.ReturnType)
-	}
-	pointerType := types.NewFunctionPointerType(paramTypes, returnType)
-
-	return NewFunctionPointerValue(method, i.env, objInst, pointerType), nil
-}
+// Task 3.5.27: IsMethodParameterless REMOVED - zero callers
+// Task 3.5.27: CreateMethodCall REMOVED - zero callers
+// Task 3.5.27: CreateMethodPointerFromObject REMOVED - zero callers
 
 // CreateBoundMethodPointer creates a FunctionPointerValue for a method bound to an object.
 // Task 3.5.120: Low-level adapter method for method pointer creation.

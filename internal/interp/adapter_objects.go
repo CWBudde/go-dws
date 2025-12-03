@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
-	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -135,92 +134,12 @@ func (i *Interpreter) ExecuteConstructor(obj evaluator.Value, constructorName st
 
 // ===== Type Checking and Casting =====
 
-// CheckType checks if an object is of a specified type (implements 'is' operator).
-// GetClassMetadataFromValue extracts ClassMetadata from an object value.
-func (i *Interpreter) GetClassMetadataFromValue(obj evaluator.Value) *runtime.ClassMetadata {
-	// Convert to internal type
-	internalObj := obj.(Value)
-
-	// Handle nil
-	if internalObj == nil {
-		return nil
-	}
-
-	// Check for ObjectInstance
-	if objVal, ok := internalObj.(*ObjectInstance); ok {
-		if objVal.Class != nil {
-			return objVal.Class.GetMetadata()
-		}
-		return nil
-	}
-
-	// Check for InterfaceInstance - extract the underlying object's class
-	if ifaceVal, ok := internalObj.(*InterfaceInstance); ok {
-		if ifaceVal.Object != nil && ifaceVal.Object.Class != nil {
-			return ifaceVal.Object.Class.GetMetadata()
-		}
-		return nil
-	}
-
-	// Check for TypeCastValue - extract the wrapped object's class
-	if typeCastVal, ok := internalObj.(*TypeCastValue); ok {
-		if typeCastVal.Object != nil {
-			// Recursively extract from wrapped value
-			return i.GetClassMetadataFromValue(typeCastVal.Object)
-		}
-		return nil
-	}
-
-	return nil
-}
-
-func (i *Interpreter) CheckType(obj evaluator.Value, typeName string) bool {
-	// Convert to internal type
-	internalObj := obj.(Value)
-
-	// Handle nil - nil is not an instance of any type
-	if _, isNil := internalObj.(*NilValue); isNil {
-		return false
-	}
-
-	// Check if it's an object
-	objVal, ok := internalObj.(*ObjectInstance)
-	if !ok {
-		return false
-	}
-
-	// Get class info
-	classInfo := objVal.Class
-	if classInfo == nil {
-		return false
-	}
-
-	// Check if the object's class matches (case-insensitive)
-	if ident.Equal(classInfo.GetName(), typeName) {
-		return true
-	}
-
-	// Check parent class hierarchy
-	current := classInfo.GetParent()
-	for current != nil {
-		if ident.Equal(current.GetName(), typeName) {
-			return true
-		}
-		current = current.GetParent()
-	}
-
-	// Check if the target is an interface and if the object's class implements it
-	if iface := i.lookupInterfaceInfo(typeName); iface != nil {
-		// Need concrete ClassInfo for classImplementsInterface
-		if concreteClass, ok := objVal.Class.(*ClassInfo); ok {
-			return classImplementsInterface(concreteClass, iface)
-		}
-		return false
-	}
-
-	return false
-}
-
+// Task 3.5.29: GetClassMetadataFromValue REMOVED - use evaluator.getClassMetadataFromValue() helper
+// Replacement: evaluator uses ObjectValue.ClassName() + TypeSystem.LookupClass() + GetMetadata()
+//
+// Task 3.5.29: CheckType REMOVED - zero callers
+// Note: CheckType was already migrated away in earlier phases
+//
 // CastType performs type casting (implements 'as' operator).
 //
 // Handles the following cases:
@@ -384,17 +303,8 @@ func (i *Interpreter) CastToClass(val evaluator.Value, className string, node as
 
 // GetObjectInstanceFromValue extracts ObjectInstance from a Value.
 // Returns the ObjectInstance interface{} if the value is an ObjectInstance, nil otherwise.
-func (i *Interpreter) GetObjectInstanceFromValue(val evaluator.Value) interface{} {
-	// Convert to internal type
-	internalVal := val.(Value)
-
-	// Type assert to ObjectInstance
-	if objInst, ok := internalVal.(*ObjectInstance); ok {
-		return objInst
-	}
-
-	return nil
-}
+// Task 3.5.29: GetObjectInstanceFromValue REMOVED - use ObjectValue interface type assertion
+// Replacement: if _, ok := val.(evaluator.ObjectValue); ok { ... }
 
 // GetInterfaceInstanceFromValue extracts InterfaceInstance from a Value.
 // Returns (interfaceInfo, underlyingObject) if the value is an InterfaceInstance, (nil, nil) otherwise.
@@ -461,68 +371,9 @@ func (i *Interpreter) RaiseTypeCastException(message string, node ast.Node) {
 
 // ===== Metaclass Operations =====
 
-// CreateClassValue creates a ClassValue (metaclass reference) from a class name.
-func (i *Interpreter) CreateClassValue(className string) (evaluator.Value, error) {
-	// Look up the class in the registry (case-insensitive)
-	for name, classInfo := range i.classes {
-		if ident.Equal(name, className) {
-			return &ClassValue{ClassInfo: classInfo}, nil
-		}
-	}
-	return nil, fmt.Errorf("class '%s' not found", className)
-}
-
-// GetClassName returns the class name for an object instance.
-func (i *Interpreter) GetClassName(obj evaluator.Value) string {
-	objInst, ok := obj.(*ObjectInstance)
-	if !ok {
-		return ""
-	}
-	return objInst.Class.GetName()
-}
-
-// GetClassType returns the ClassValue (metaclass) for an object instance.
-func (i *Interpreter) GetClassType(obj evaluator.Value) evaluator.Value {
-	objInst, ok := obj.(*ObjectInstance)
-	if !ok {
-		return nil
-	}
-	// Need concrete ClassInfo for ClassValue
-	if concreteClass, ok := objInst.Class.(*ClassInfo); ok {
-		return &ClassValue{ClassInfo: concreteClass}
-	}
-	return nil
-}
-
-// GetClassNameFromClassInfo returns the class name from a ClassInfoValue.
-func (i *Interpreter) GetClassNameFromClassInfo(classInfo evaluator.Value) string {
-	classInfoVal, ok := classInfo.(*ClassInfoValue)
-	if !ok {
-		panic("GetClassNameFromClassInfo called on non-ClassInfoValue value")
-	}
-	return classInfoVal.ClassInfo.Name
-}
-
-// GetClassTypeFromClassInfo returns the ClassValue from a ClassInfoValue.
-func (i *Interpreter) GetClassTypeFromClassInfo(classInfo evaluator.Value) evaluator.Value {
-	classInfoVal, ok := classInfo.(*ClassInfoValue)
-	if !ok {
-		panic("GetClassTypeFromClassInfo called on non-ClassInfoValue value")
-	}
-	return &ClassValue{ClassInfo: classInfoVal.ClassInfo}
-}
-
-// GetClassVariableFromClassInfo retrieves a class variable from ClassInfoValue.
-func (i *Interpreter) GetClassVariableFromClassInfo(classInfo evaluator.Value, varName string) (evaluator.Value, bool) {
-	classInfoVal, ok := classInfo.(*ClassInfoValue)
-	if !ok {
-		panic("GetClassVariableFromClassInfo called on non-ClassInfoValue value")
-	}
-	// Case-insensitive lookup to match DWScript semantics
-	for name, value := range classInfoVal.ClassInfo.ClassVars {
-		if ident.Equal(name, varName) {
-			return value, true
-		}
-	}
-	return nil, false
-}
+// Task 3.5.27: CreateClassValue REMOVED - zero callers
+// Task 3.5.27: GetClassName(obj) REMOVED - zero callers (use ObjectValue.ClassName())
+// Task 3.5.27: GetClassType(obj) REMOVED - zero callers (use ObjectValue.GetClassType())
+// Task 3.5.27: GetClassNameFromClassInfo REMOVED - zero callers
+// Task 3.5.27: GetClassTypeFromClassInfo REMOVED - zero callers
+// Task 3.5.27: GetClassVariableFromClassInfo REMOVED - zero callers

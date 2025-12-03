@@ -528,19 +528,9 @@ type InterpreterAdapter interface {
 	// Returns an error if constructor execution fails.
 	ExecuteConstructor(obj Value, constructorName string, args []Value) error
 
-	// CheckType checks if an object is of a specified type (implements 'is' operator).
-	// Returns true if the object is compatible with the specified type name.
-	CheckType(obj Value, typeName string) bool
-
-	// GetClassMetadataFromValue extracts ClassMetadata from an object value.
-	// Task 3.5.140: Helper method to extract metadata from ObjectInstance or InterfaceInstance.
-	// Returns nil if the value is not an object or doesn't have class metadata.
-	GetClassMetadataFromValue(obj Value) *runtime.ClassMetadata
-
-	// GetObjectInstanceFromValue extracts ObjectInstance from a Value.
-	// Task 3.5.141: Helper to extract ObjectInstance for type casting.
-	// Returns the ObjectInstance interface{} if the value is an ObjectInstance, nil otherwise.
-	GetObjectInstanceFromValue(val Value) interface{}
+	// Task 3.5.29: CheckType REMOVED - zero callers (use evaluator helper methods directly)
+	// Task 3.5.29: GetClassMetadataFromValue REMOVED - use getClassMetadataFromValue() helper
+	// Task 3.5.29: GetObjectInstanceFromValue REMOVED - use ObjectValue interface type assertion
 
 	// GetInterfaceInstanceFromValue extracts InterfaceInstance from a Value.
 	// Task 3.5.141: Helper to extract InterfaceInstance for interface casting.
@@ -586,19 +576,8 @@ type InterpreterAdapter interface {
 	//   - env: Environment (interface{}) to clean up
 	CleanupInterfaceReferences(env interface{})
 
-	// CreateClassValue creates a ClassValue (metaclass reference) from a class name.
-	// Task 3.5.85: Used by VisitIdentifier to return metaclass references for class names.
-	// Returns the ClassValue and an error if the class is not found.
-	CreateClassValue(className string) (Value, error)
-
-	// ===== Function Pointers =====
-
-	// CreateLambda creates a lambda/closure value from a lambda expression.
-	// The closure parameter is the environment where the lambda is created.
-	// Returns the lambda value.
-	CreateLambda(lambda *ast.LambdaExpression, closure any) Value
-
-	// These are now handled via FunctionPointerCallable interface type assertions.
+	// Task 3.5.27: CreateClassValue REMOVED - zero callers in evaluator package
+	// Task 3.5.27: CreateLambda REMOVED - zero callers in evaluator package
 
 	// ===== Method Pointers =====
 
@@ -650,24 +629,6 @@ type InterpreterAdapter interface {
 	// These complex operations compose existing infrastructure (Phase 2A + Phase 2B + ExecutionContext)
 	// and are properly handled through EvalNode delegation. No additional adapter methods needed.
 
-	// ===== Task 3.5.19: Binary Operator Adapter Methods (Fix for PR #219) =====
-	//
-	// These methods delegate binary operator evaluation to the Interpreter WITHOUT re-evaluating operands.
-	// This fixes the double-evaluation bug where operands were evaluated once in the Evaluator,
-	// then re-evaluated again when calling adapter.EvalNode(node).
-
-	// EvalVariantBinaryOp handles binary operations with Variant operands using pre-evaluated values.
-	// This prevents double-evaluation of operands with side effects.
-	EvalVariantBinaryOp(op string, left, right Value, node ast.Node) Value
-
-	// EvalInOperator evaluates the 'in' operator for membership testing using pre-evaluated values.
-	// This prevents double-evaluation of operands with side effects.
-	EvalInOperator(value, container Value, node ast.Node) Value
-
-	// EvalEqualityComparison handles = and <> operators for complex types using pre-evaluated values.
-	// This prevents double-evaluation of operands with side effects.
-	EvalEqualityComparison(op string, left, right Value, node ast.Node) Value
-
 	// ===== Task 3.5.38: Variable Declaration Adapter Methods =====
 
 	// Task 3.5.139h: ParseInlineArrayType removed - evaluator uses parseInlineArrayType() directly
@@ -692,20 +653,9 @@ type InterpreterAdapter interface {
 
 	// ===== Property & Method Reference Adapter Methods =====
 
-	// GetObjectFieldValue retrieves a field value from an object instance.
-	// Returns the field value and true if found, nil and false otherwise.
-	GetObjectFieldValue(obj Value, fieldName string) (Value, bool)
-
-	// GetClassVariableValue retrieves a class variable value from an object's class.
-	// Returns the class variable value and true if found, nil and false otherwise.
-	GetClassVariableValue(obj Value, varName string) (Value, bool)
-
-	// ReadPropertyValue reads a property value from an object.
-	// Handles field-backed, method-backed, and expression-backed properties.
-	// Returns the property value and an error if reading fails.
-	// Note: Caller is responsible for property recursion prevention.
-	// DEPRECATED: Use ObjectValue.ReadProperty() with ExecutePropertyRead callback instead.
-	ReadPropertyValue(obj Value, propName string, node any) (Value, error)
+	// Task 3.5.28: GetObjectFieldValue REMOVED - zero callers (use ObjectValue.GetField directly)
+	// Task 3.5.28: GetClassVariableValue REMOVED - zero callers (use ObjectValue.GetClassVar directly)
+	// Task 3.5.27: ReadPropertyValue REMOVED - zero callers (deprecated, use ObjectValue.ReadProperty callback)
 
 	// ExecutePropertyRead executes property reading with a resolved PropertyInfo.
 	// This is the callback implementation for ObjectValue.ReadProperty().
@@ -716,20 +666,9 @@ type InterpreterAdapter interface {
 	// Returns the property value.
 	ExecutePropertyRead(obj Value, propInfo any, node any) Value
 
-	// IsMethodParameterless checks if a method has zero parameters.
-	// Returns true if the method exists and has no parameters.
-	// Returns false if the method doesn't exist or has parameters.
-	IsMethodParameterless(obj Value, methodName string) bool
-
-	// CreateMethodCall creates a synthetic method call expression for auto-invocation.
-	// Used when a parameterless method is referenced without parentheses.
-	// Returns the result of calling the method.
-	CreateMethodCall(obj Value, methodName string, node any) Value
-
-	// CreateMethodPointer creates a method pointer for a method with parameters.
-	// Used when a method with parameters is referenced without parentheses.
-	// Returns a FunctionPointerValue bound to the object.
-	CreateMethodPointerFromObject(obj Value, methodName string) (Value, error)
+	// Task 3.5.27: IsMethodParameterless REMOVED - zero callers
+	// Task 3.5.27: CreateMethodCall REMOVED - zero callers
+	// Task 3.5.27: CreateMethodPointerFromObject REMOVED - zero callers
 
 	// CreateBoundMethodPointer creates a FunctionPointerValue for a method bound to an object.
 	//
@@ -739,28 +678,11 @@ type InterpreterAdapter interface {
 	// Returns: A FunctionPointerValue with proper type information
 	CreateBoundMethodPointer(obj Value, methodDecl any) Value
 
-	// GetClassName returns the class name for an object instance.
-	// Returns the class name string.
-	GetClassName(obj Value) string
-
-	// GetClassType returns the ClassValue (metaclass) for an object instance.
-	// Returns the ClassValue representing the object's runtime class.
-	GetClassType(obj Value) Value
-
-	// GetClassNameFromClassInfo returns the class name from a ClassInfoValue.
-	// Returns the class name string.
-	// Panics if the value is not a ClassInfoValue.
-	GetClassNameFromClassInfo(classInfo Value) string
-
-	// GetClassTypeFromClassInfo returns the ClassValue from a ClassInfoValue.
-	// Returns the ClassValue (metaclass reference).
-	// Panics if the value is not a ClassInfoValue.
-	GetClassTypeFromClassInfo(classInfo Value) Value
-
-	// GetClassVariableFromClassInfo retrieves a class variable from ClassInfoValue.
-	// Returns the class variable value and true if found, nil and false otherwise.
-	// Panics if the value is not a ClassInfoValue.
-	GetClassVariableFromClassInfo(classInfo Value, varName string) (Value, bool)
+	// Task 3.5.27: GetClassName(obj Value) REMOVED - zero callers (use ObjectValue.ClassName())
+	// Task 3.5.27: GetClassType(obj Value) REMOVED - zero callers (use ObjectValue.GetClassType())
+	// Task 3.5.27: GetClassNameFromClassInfo REMOVED - zero callers
+	// Task 3.5.27: GetClassTypeFromClassInfo REMOVED - zero callers
+	// Task 3.5.27: GetClassVariableFromClassInfo REMOVED - zero callers
 
 	// ===== Method and Qualified Call Methods =====
 
@@ -855,9 +777,7 @@ type InterpreterAdapter interface {
 	//   - propImpl: The property implementation (types.PropertyInfo from PropertyDescriptor.Impl)
 	//   - indices: The index arguments (e.g., [indexValue] for single-index properties)
 	//   - node: The AST node for error reporting
-	// Returns the result of the property getter method call.
-	// DEPRECATED: Use ObjectValue.ReadIndexedProperty with ExecuteIndexedPropertyRead callback instead.
-	CallIndexedPropertyGetter(obj Value, propImpl any, indices []Value, node any) Value
+	// Task 3.5.27: CallIndexedPropertyGetter REMOVED - zero callers (deprecated)
 
 	// ExecuteIndexedPropertyRead executes an indexed property read with resolved PropertyInfo.
 	// This method handles the interpreter-dependent execution:
@@ -875,17 +795,7 @@ type InterpreterAdapter interface {
 
 	// ===== Record Default Property Access =====
 
-	// DEPRECATED: Use RecordInstanceValue.ReadIndexedProperty() with ExecuteRecordPropertyRead callback instead.
-	// CallRecordPropertyGetter calls a record property getter method.
-	// This is used for record default property access: record[index] -> record.GetProperty(index).
-	// Parameters:
-	//   - record: The record value (RecordValue)
-	//   - propImpl: The property implementation (types.RecordPropertyInfo from PropertyDescriptor.Impl)
-	//   - indices: The index arguments (e.g., [indexValue] for single-index properties)
-	//   - node: The AST node for error reporting
-	// Returns the result of the property getter method call.
-	// Task 3.5.99e: Enables record default property indexing in evaluator.
-	CallRecordPropertyGetter(record Value, propImpl any, indices []Value, node any) Value
+	// Task 3.5.27: CallRecordPropertyGetter REMOVED - zero callers (deprecated)
 
 	// ExecuteRecordPropertyRead executes a record property getter method.
 	// Task 3.5.118: Low-level callback for RecordInstanceValue.ReadIndexedProperty().
@@ -912,9 +822,7 @@ type InterpreterAdapter interface {
 	// Note: Different from GetClassNameFromClassInfo which takes evaluator.Value.
 	GetClassNameFromClassInfoInterface(classInfo interface{}) string
 
-	// RegisterClassEarly registers a class in the legacy class map before full initialization.
-	// This enables field initializers to reference the class name.
-	RegisterClassEarly(name string, classInfo interface{})
+	// Task 3.5.27: RegisterClassEarly REMOVED - zero callers
 
 	// IsClassPartial checks if a ClassInfo is marked as partial.
 	IsClassPartial(classInfo interface{}) bool
@@ -953,10 +861,7 @@ type InterpreterAdapter interface {
 	// Returns true if method was added successfully, false otherwise.
 	AddClassMethod(classInfo interface{}, method *ast.FunctionDecl, className string) bool
 
-	// CreateMethodMetadata creates runtime MethodMetadata from an AST method declaration.
-	// Registers the metadata with the MethodRegistry.
-	// Returns the created MethodMetadata.
-	CreateMethodMetadata(method *ast.FunctionDecl) interface{}
+	// Task 3.5.27: CreateMethodMetadata REMOVED - zero callers
 
 	// SynthesizeDefaultConstructor synthesizes an implicit parameterless constructor
 	// for each constructor set that has the 'overload' directive but no parameterless overload.
