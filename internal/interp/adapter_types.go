@@ -278,14 +278,7 @@ func (i *Interpreter) GetEnumTypeID(enumName string) int {
 
 // Task 3.5.138: LookupSubrangeType removed - evaluator now uses ctx.Env().Get() directly
 
-// TryImplicitConversion attempts an implicit type conversion.
-func (i *Interpreter) TryImplicitConversion(value evaluator.Value, targetTypeName string) (evaluator.Value, bool) {
-	converted, ok := i.tryImplicitConversion(value.(Value), targetTypeName)
-	if ok {
-		return converted, true
-	}
-	return value, false
-}
+// Task 3.5.22i: TryImplicitConversion removed - evaluator now has native TryImplicitConversion method
 
 // WrapInSubrange wraps an integer value in a subrange type with validation.
 // Task 3.5.182: Updated to use TypeSystem instead of environment lookup.
@@ -563,7 +556,7 @@ func (i *Interpreter) SetClassAbstract(classInfo interface{}, isAbstract bool) {
 	if !ok {
 		return
 	}
-	ci.IsAbstract = isAbstract
+	ci.IsAbstractFlag = isAbstract
 }
 
 // SetClassExternal sets the IsExternal flag and ExternalName on a ClassInfo.
@@ -573,7 +566,7 @@ func (i *Interpreter) SetClassExternal(classInfo interface{}, isExternal bool, e
 	if !ok {
 		return
 	}
-	ci.IsExternal = isExternal
+	ci.IsExternalFlag = isExternal
 	ci.ExternalName = externalName
 }
 

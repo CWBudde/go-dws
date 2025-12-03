@@ -59,10 +59,10 @@ type ClassInfo struct {
 	ExternalName         string
 	Name                 string
 	DefaultConstructor   string
-	Interfaces           []*InterfaceInfo
-	IsExternal           bool
-	IsAbstract           bool
-	IsPartial            bool
+	Interfaces         []*InterfaceInfo
+	IsExternalFlag     bool // Renamed to avoid conflict with IsExternal() method
+	IsAbstractFlag     bool // Renamed to avoid conflict with IsAbstract() method
+	IsPartial          bool
 }
 
 // NewClassInfo creates a new ClassInfo with the given name.
@@ -252,6 +252,51 @@ func (c *ClassInfo) GetInterfaces() []*runtime.InterfaceInfo {
 	// For now, return nil as InterfaceInfo interface is not fully defined
 	// This will need proper implementation when interface support is added
 	return nil
+}
+
+// IsAbstract returns true if this class is declared as abstract.
+// Task 3.5.22k: Added for CreateObject migration to evaluator.
+func (c *ClassInfo) IsAbstract() bool {
+	if c == nil {
+		return false
+	}
+	return c.IsAbstractFlag
+}
+
+// IsExternal returns true if this class is declared as external.
+// Task 3.5.22k: Added for CreateObject migration to evaluator.
+func (c *ClassInfo) IsExternal() bool {
+	if c == nil {
+		return false
+	}
+	return c.IsExternalFlag
+}
+
+// GetConstructor returns a constructor declaration by name (case-insensitive).
+// Task 3.5.22k: Added for CreateObject migration to evaluator.
+func (c *ClassInfo) GetConstructor(name string) *ast.FunctionDecl {
+	if c == nil {
+		return nil
+	}
+	normalizedName := ident.Normalize(name)
+	if ctor, ok := c.Constructors[normalizedName]; ok {
+		return ctor
+	}
+	return nil
+}
+
+// GetFieldTypesMap returns the field name to type mapping for this class.
+// Task 3.5.22k: Added for CreateObject migration to evaluator.
+func (c *ClassInfo) GetFieldTypesMap() map[string]any {
+	if c == nil {
+		return nil
+	}
+	// Convert map[string]types.Type to map[string]any to avoid import cycle
+	result := make(map[string]any, len(c.Fields))
+	for name, typ := range c.Fields {
+		result[name] = typ
+	}
+	return result
 }
 
 // === End IClassInfo Interface Implementation ===

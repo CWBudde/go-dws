@@ -536,9 +536,7 @@ type InterpreterAdapter interface {
 
 	// ===== Object Operations =====
 
-	// CreateObject creates a new object instance of the specified class with constructor arguments.
-	// Returns the created object value and an error if the class does not exist or construction fails.
-	CreateObject(className string, args []Value) (Value, error)
+	// Task 3.5.22k: CreateObject removed - evaluator now creates objects directly using IClassInfo interface
 
 	// ExecuteConstructor executes a constructor method on an already-created object instance.
 	// Task 3.5.126f: Callback for complex constructor execution (method body + Self binding).
@@ -691,9 +689,7 @@ type InterpreterAdapter interface {
 
 	// Task 3.5.138: LookupSubrangeType removed - use ctx.Env().Get("__subrange_type_" + ident.Normalize(name)) directly
 
-	// TryImplicitConversion attempts an implicit type conversion from value to targetTypeName.
-	// Returns the converted value and true if conversion succeeded, or original value and false if not.
-	TryImplicitConversion(value Value, targetTypeName string) (Value, bool)
+	// Task 3.5.22i: TryImplicitConversion removed - evaluator now has native TryImplicitConversion method
 
 	// WrapInSubrange wraps an integer value in a subrange type with validation.
 	// Returns the subrange value and an error if validation fails.

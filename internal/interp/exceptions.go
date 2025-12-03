@@ -28,8 +28,8 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	// This is required for DWScript compatibility - all classes ultimately inherit from TObject
 	objectClass := NewClassInfo("TObject")
 	objectClass.Parent = nil // Root of the class hierarchy
-	objectClass.IsAbstract = false
-	objectClass.IsExternal = false
+	objectClass.IsAbstractFlag = false
+	objectClass.IsExternalFlag = false
 
 	// Add basic TObject constructor
 	// Create a minimal Create constructor AST node
@@ -120,8 +120,8 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	exceptionClass := NewClassInfo("Exception")
 	exceptionClass.Parent = objectClass // Exception inherits from TObject
 	exceptionClass.Fields["Message"] = types.STRING
-	exceptionClass.IsAbstract = false
-	exceptionClass.IsExternal = false
+	exceptionClass.IsAbstractFlag = false
+	exceptionClass.IsExternalFlag = false
 
 	// Set parent metadata for hierarchy checks
 	exceptionClass.Metadata.Parent = objectClass.Metadata
@@ -158,8 +158,8 @@ func (i *Interpreter) registerBuiltinExceptions() {
 		excClass := NewClassInfo(excName)
 		excClass.Parent = exceptionClass
 		excClass.Fields["Message"] = types.STRING
-		excClass.IsAbstract = false
-		excClass.IsExternal = false
+		excClass.IsAbstractFlag = false
+		excClass.IsExternalFlag = false
 
 		// Set parent metadata for hierarchy checks
 		excClass.Metadata.Parent = exceptionClass.Metadata
@@ -188,8 +188,8 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	eHostClass.Parent = exceptionClass
 	eHostClass.Fields["Message"] = types.STRING
 	eHostClass.Fields["ExceptionClass"] = types.STRING
-	eHostClass.IsAbstract = false
-	eHostClass.IsExternal = false
+	eHostClass.IsAbstractFlag = false
+	eHostClass.IsExternalFlag = false
 
 	// Set parent metadata for hierarchy checks
 	eHostClass.Metadata.Parent = exceptionClass.Metadata

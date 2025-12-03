@@ -24,6 +24,16 @@ type IClassInfo interface {
 	// Returns nil if metadata is not yet available (during migration).
 	GetMetadata() *ClassMetadata
 
+	// IsAbstract returns true if this class is declared as abstract.
+	// Abstract classes cannot be instantiated directly.
+	// Task 3.5.22k: Added for CreateObject migration to evaluator.
+	IsAbstract() bool
+
+	// IsExternal returns true if this class is declared as external.
+	// External classes cannot be instantiated (not supported in go-dws).
+	// Task 3.5.22k: Added for CreateObject migration to evaluator.
+	IsExternal() bool
+
 	// LookupMethod finds a method by name in the class hierarchy.
 	// Searches the current class first, then walks up the parent chain.
 	// Returns the method declaration or nil if not found.
@@ -77,6 +87,16 @@ type IClassInfo interface {
 	// GetInterfaces returns the list of interfaces this class implements.
 	// Used for interface casting and type checking.
 	GetInterfaces() []*InterfaceInfo
+
+	// GetConstructor returns a constructor declaration by name (case-insensitive).
+	// Returns nil if no constructor with that name exists.
+	// Task 3.5.22k: Added for CreateObject migration to evaluator.
+	GetConstructor(name string) *ast.FunctionDecl
+
+	// GetFieldTypesMap returns the field name to type mapping for this class.
+	// Used for field initialization during object creation.
+	// Task 3.5.22k: Added for CreateObject migration to evaluator.
+	GetFieldTypesMap() map[string]any
 }
 
 // PropertyInfo wraps property metadata for runtime access.
