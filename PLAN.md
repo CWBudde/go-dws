@@ -413,10 +413,16 @@ Goal: Reduce adapter interface from ~75 methods to ~20 essential methods (~75% r
   - **Adapter changes**: Removed `ExecutePropertyRead` from adapter interface (zero callers)
   - **Effort**: 1.5 hours
 
-- [ ] **3.5.33** Consolidate ExecuteIndexedPropertyRead
-  - **Current**: 8 calls to `e.adapter.ExecuteIndexedPropertyRead`
-  - **Work**: Implement indexed property getter in evaluator using method callback
-  - **Files**: `evaluator/visitor_expressions_indexing.go`
+- [x] **3.5.33** Consolidate ExecuteIndexedPropertyRead ✅
+  - **Current**: 8 calls to `e.adapter.ExecuteIndexedPropertyRead` → 0 (all migrated)
+  - **Work**: Move indexed property getter execution logic to evaluator
+  - **Pattern**: Added `GetMethodDecl` to ObjectValue interface, reused `ExecuteMethodWithSelf` for execution
+  - **Files modified**:
+    - `evaluator/evaluator.go`: Added `GetMethodDecl` to ObjectValue interface
+    - `runtime/object.go`: Implemented `GetMethodDecl` on ObjectInstance
+    - `evaluator/property_read.go`: Added `executeIndexedPropertyRead()` and helper methods
+    - `evaluator/visitor_expressions_indexing.go`: Updated 5 call sites to use evaluator method
+  - **Adapter changes**: Removed `ExecuteIndexedPropertyRead` from adapter interface (zero callers)
   - **Effort**: 1.5 hours
 
 - [ ] **3.5.34** Remove Deprecated Property Methods

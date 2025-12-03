@@ -322,38 +322,6 @@ func (i *Interpreter) WrapInInterface(value evaluator.Value, interfaceName strin
 	return NewInterfaceInstance(ifaceInfo, objInst), nil
 }
 
-// Task 3.5.140: EvalArrayLiteralWithExpectedType removed - evaluator uses evalArrayLiteralWithExpectedType() directly
-
-// Task 3.5.27: CallIndexedPropertyGetter REMOVED - zero callers (deprecated)
-
-// ExecuteIndexedPropertyRead executes an indexed property read with resolved PropertyInfo.
-// Task 3.5.117: Low-level execution callback for ObjectValue.ReadIndexedProperty().
-func (i *Interpreter) ExecuteIndexedPropertyRead(obj evaluator.Value, propInfo any, indices []evaluator.Value, node any) evaluator.Value {
-	// Convert obj to ObjectInstance
-	objInst, ok := obj.(*ObjectInstance)
-	if !ok {
-		return &ErrorValue{Message: "ExecuteIndexedPropertyRead expects ObjectInstance"}
-	}
-
-	// Convert propInfo to *types.PropertyInfo
-	pInfo, ok := propInfo.(*types.PropertyInfo)
-	if !ok {
-		return &ErrorValue{Message: "ExecuteIndexedPropertyRead expects *types.PropertyInfo"}
-	}
-
-	// Convert []evaluator.Value to []Value
-	convertedIndices := make([]Value, len(indices))
-	for idx, indexVal := range indices {
-		convertedIndices[idx] = indexVal
-	}
-
-	// Convert node to ast.Node (optional - for error reporting)
-	astNode, _ := node.(ast.Node)
-
-	// Delegate to the existing evalIndexedPropertyRead method
-	return i.evalIndexedPropertyRead(objInst, pInfo, convertedIndices, astNode)
-}
-
 // CallRecordPropertyGetter calls a record property getter method.
 // Task 3.5.99e: Implements InterpreterAdapter.CallRecordPropertyGetter for record default property access.
 func (i *Interpreter) CallRecordPropertyGetter(record evaluator.Value, propImpl any, indices []evaluator.Value, node any) evaluator.Value {

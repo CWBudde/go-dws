@@ -410,9 +410,7 @@ func (m *mockConversionAdapter) DispatchRecordStaticMethod(recordTypeName string
 func (m *mockConversionAdapter) CallIndexedPropertyGetter(obj Value, propImpl any, indices []Value, node any) Value {
 	return &runtime.NilValue{}
 }
-func (m *mockConversionAdapter) ExecuteIndexedPropertyRead(obj Value, propInfo any, indices []Value, node any) Value {
-	return &runtime.NilValue{}
-}
+
 func (m *mockConversionAdapter) CallRecordPropertyGetter(record Value, propImpl any, indices []Value, node any) Value {
 	return &runtime.NilValue{}
 }

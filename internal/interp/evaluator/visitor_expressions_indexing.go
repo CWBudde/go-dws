@@ -56,10 +56,11 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 					}
 
 					// Call indexed property getter on the underlying object
+					// Task 3.5.33: Use evaluator's executeIndexedPropertyRead instead of adapter
 					if underlying.Type() == "OBJECT" {
 						if objVal, ok := underlying.(ObjectValue); ok {
 							return objVal.ReadIndexedProperty(propDesc.Impl, indexVals, func(pi any, idx []Value) Value {
-								return e.adapter.ExecuteIndexedPropertyRead(underlying, pi, idx, node)
+								return e.executeIndexedPropertyRead(underlying, pi, idx, node, ctx)
 							})
 						}
 					}
@@ -85,9 +86,10 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 					}
 
 					// Call indexed property getter via ObjectValue interface
+					// Task 3.5.33: Use evaluator's executeIndexedPropertyRead instead of adapter
 					if ov, ok := objVal.(ObjectValue); ok {
 						return ov.ReadIndexedProperty(propDesc.Impl, indexVals, func(pi any, idx []Value) Value {
-							return e.adapter.ExecuteIndexedPropertyRead(objVal, pi, idx, node)
+							return e.executeIndexedPropertyRead(objVal, pi, idx, node, ctx)
 						})
 					}
 				}
@@ -154,9 +156,10 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 		if accessor, ok := leftVal.(PropertyAccessor); ok {
 			if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
 				// Task 3.5.117: Use ObjectValue.ReadIndexedProperty with callback
+				// Task 3.5.33: Use evaluator's executeIndexedPropertyRead instead of adapter
 				if objVal, ok := leftVal.(ObjectValue); ok {
 					return objVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
-						return e.adapter.ExecuteIndexedPropertyRead(leftVal, pi, idx, node)
+						return e.executeIndexedPropertyRead(leftVal, pi, idx, node, ctx)
 					})
 				}
 			}
@@ -178,9 +181,10 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 					// The property is defined on the interface, but we need the underlying object for execution
 					if underlying.Type() == "OBJECT" {
 						// Task 3.5.117: Use ObjectValue.ReadIndexedProperty with callback
+						// Task 3.5.33: Use evaluator's executeIndexedPropertyRead instead of adapter
 						if objVal, ok := underlying.(ObjectValue); ok {
 							return objVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
-								return e.adapter.ExecuteIndexedPropertyRead(underlying, pi, idx, node)
+								return e.executeIndexedPropertyRead(underlying, pi, idx, node, ctx)
 							})
 						}
 					}
@@ -195,9 +199,10 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 				if accessor, ok := leftVal.(PropertyAccessor); ok {
 					if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
 						// Task 3.5.117: Use ObjectValue.ReadIndexedProperty with callback
+						// Task 3.5.33: Use evaluator's executeIndexedPropertyRead instead of adapter
 						if objVal, ok := leftVal.(ObjectValue); ok {
 							return objVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
-								return e.adapter.ExecuteIndexedPropertyRead(leftVal, pi, idx, node)
+								return e.executeIndexedPropertyRead(leftVal, pi, idx, node, ctx)
 							})
 						}
 					}
