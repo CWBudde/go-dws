@@ -425,10 +425,14 @@ Goal: Reduce adapter interface from ~75 methods to ~20 essential methods (~75% r
   - **Adapter changes**: Removed `ExecuteIndexedPropertyRead` from adapter interface (zero callers)
   - **Effort**: 1.5 hours
 
-- [ ] **3.5.34** Remove Deprecated Property Methods
-  - **Methods**: `ReadPropertyValue`, `CallIndexedPropertyGetter`, `CallRecordPropertyGetter`
-  - **Work**: Already deprecated, verify zero callers, remove
-  - **Files**: `evaluator/evaluator.go`, `adapter_types.go`
+- [x] **3.5.34** Remove Deprecated Property Methods ✅
+  - **Methods removed**:
+    - `ReadPropertyValue`: Already removed in prior task
+    - `CallIndexedPropertyGetter`: Interface method already removed, removed mock from test file
+    - `CallRecordPropertyGetter`: Inlined into `ExecuteRecordPropertyRead` and removed
+  - **Files modified**:
+    - `evaluator/type_conversion_test.go`: Removed mock methods
+    - `adapter_types.go`: Inlined CallRecordPropertyGetter into ExecuteRecordPropertyRead
   - **Effort**: 30 minutes
 
 ---

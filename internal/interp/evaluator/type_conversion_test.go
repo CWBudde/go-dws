@@ -407,13 +407,7 @@ func (m *mockConversionAdapter) CallRecordStaticMethod(callExpr *ast.CallExpress
 func (m *mockConversionAdapter) DispatchRecordStaticMethod(recordTypeName string, callExpr *ast.CallExpression, funcName *ast.Identifier) Value {
 	return &runtime.NilValue{}
 }
-func (m *mockConversionAdapter) CallIndexedPropertyGetter(obj Value, propImpl any, indices []Value, node any) Value {
-	return &runtime.NilValue{}
-}
 
-func (m *mockConversionAdapter) CallRecordPropertyGetter(record Value, propImpl any, indices []Value, node any) Value {
-	return &runtime.NilValue{}
-}
 func (m *mockConversionAdapter) ExecuteRecordPropertyRead(record Value, propInfo any, indices []Value, node any) Value {
 	return &runtime.NilValue{}
 }

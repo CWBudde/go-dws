@@ -100,7 +100,7 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 			// returning an ErrorValue that would bypass exception handlers.
 			if funcPtr.IsNil() {
 				// Raise a catchable exception (sets ctx.Exception())
-			exc := e.createException("Exception", "Function pointer is nil", &node.Token.Pos, ctx)
+				exc := e.createException("Exception", "Function pointer is nil", &node.Token.Pos, ctx)
 				ctx.SetException(exc)
 				return &runtime.NilValue{}
 			}

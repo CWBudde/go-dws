@@ -59,10 +59,10 @@ type ClassInfo struct {
 	ExternalName         string
 	Name                 string
 	DefaultConstructor   string
-	Interfaces         []*InterfaceInfo
-	IsExternalFlag     bool // Renamed to avoid conflict with IsExternal() method
-	IsAbstractFlag     bool // Renamed to avoid conflict with IsAbstract() method
-	IsPartial          bool
+	Interfaces           []*InterfaceInfo
+	IsExternalFlag       bool // Renamed to avoid conflict with IsExternal() method
+	IsAbstractFlag       bool // Renamed to avoid conflict with IsAbstract() method
+	IsPartial            bool
 }
 
 // NewClassInfo creates a new ClassInfo with the given name.

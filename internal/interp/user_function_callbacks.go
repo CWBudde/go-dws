@@ -224,12 +224,12 @@ func (i *Interpreter) cleanupInterfaceReferencesForEnv(env evaluator.Environment
 // evaluator's function environment (funcEnv) during function body execution.
 //
 // Why this is needed:
-// - ExecuteUserFunction creates a new funcEnv for the function scope
-// - The function body is executed with funcCtx.Env() = funcEnv
-// - However, when EvalNode is called back to the interpreter (e.g., for
-//   function pointer assignments like "Result := @obj.Method"), it uses i.env
-// - Without syncing, i.env points to the caller's environment, not funcEnv
-// - This causes function pointer assignments to Result to go to the wrong env
+//   - ExecuteUserFunction creates a new funcEnv for the function scope
+//   - The function body is executed with funcCtx.Env() = funcEnv
+//   - However, when EvalNode is called back to the interpreter (e.g., for
+//     function pointer assignments like "Result := @obj.Method"), it uses i.env
+//   - Without syncing, i.env points to the caller's environment, not funcEnv
+//   - This causes function pointer assignments to Result to go to the wrong env
 //
 // The callback:
 // 1. Saves the current i.env
