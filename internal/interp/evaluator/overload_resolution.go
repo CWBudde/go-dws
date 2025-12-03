@@ -43,12 +43,9 @@ func (e *Evaluator) getValueType(val Value) types.Type {
 		}
 		return types.NIL
 	default:
-		// For ObjectInstance (still in interp package), use adapter to get metadata
-		// and build ClassType from it
-		if e.adapter != nil {
-			if metadata := e.adapter.GetClassMetadataFromValue(val); metadata != nil {
-				return e.classTypeFromMetadata(metadata)
-			}
+		// For ObjectInstance - use helper method (was e.adapter.GetClassMetadataFromValue)
+		if metadata := e.getClassMetadataFromValue(val); metadata != nil {
+			return e.classTypeFromMetadata(metadata)
 		}
 		return types.NIL
 	}

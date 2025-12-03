@@ -344,9 +344,8 @@ func (e *Evaluator) castToClassType(val Value, className string, node ast.Node) 
 		return wrapper
 	}
 
-	// Get the object
-	obj := e.adapter.GetObjectInstanceFromValue(val)
-	if obj == nil {
+	// Check if value is an object - inline type assertion (was e.adapter.GetObjectInstanceFromValue)
+	if _, ok := val.(ObjectValue); !ok {
 		return e.newError(node, "cannot cast %s to %s: not an object", val.Type(), className)
 	}
 

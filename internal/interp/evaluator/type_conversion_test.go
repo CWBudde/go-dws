@@ -328,11 +328,7 @@ func (m *mockConversionAdapter) ExecuteMethodWithSelf(self Value, methodDecl any
 func (m *mockConversionAdapter) ExecuteConstructor(obj Value, constructorName string, args []Value) error {
 	return nil
 }
-func (m *mockConversionAdapter) CheckType(obj Value, typeName string) bool { return false }
-func (m *mockConversionAdapter) GetClassMetadataFromValue(obj Value) *runtime.ClassMetadata {
-	return nil
-}
-func (m *mockConversionAdapter) GetObjectInstanceFromValue(val Value) interface{} { return nil }
+
 func (m *mockConversionAdapter) GetInterfaceInstanceFromValue(val Value) (interface{}, interface{}) {
 	return nil, nil
 }
@@ -382,15 +378,10 @@ func (m *mockConversionAdapter) WrapInSubrange(value Value, subrangeTypeName str
 func (m *mockConversionAdapter) WrapInInterface(value Value, interfaceName string, node ast.Node) (Value, error) {
 	return value, nil
 }
-func (m *mockConversionAdapter) GetObjectFieldValue(obj Value, fieldName string) (Value, bool) {
-	return nil, false
-}
-func (m *mockConversionAdapter) GetClassVariableValue(obj Value, varName string) (Value, bool) {
-	return nil, false
-}
-func (m *mockConversionAdapter) ReadPropertyValue(obj Value, propName string, node any) (Value, error) {
-	return nil, nil
-}
+
+// Task 3.5.28: GetObjectFieldValue removed - zero callers
+// Task 3.5.28: GetClassVariableValue removed - zero callers
+
 func (m *mockConversionAdapter) ExecutePropertyRead(obj Value, propInfo any, node any) Value {
 	return &runtime.NilValue{}
 }
