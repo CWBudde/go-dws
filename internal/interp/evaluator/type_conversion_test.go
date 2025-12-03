@@ -486,3 +486,210 @@ func (m *mockConversionAdapter) InheritDestructorIfMissing(classInfo interface{}
 func (m *mockConversionAdapter) InheritParentProperties(classInfo interface{})                      {}
 func (m *mockConversionAdapter) BuildVirtualMethodTable(classInfo interface{})                      {}
 func (m *mockConversionAdapter) RegisterClassInTypeSystem(classInfo interface{}, parentName string) {}
+
+// ========== Task 3.5.22g: TryImplicitConversion Tests ==========
+
+// TestTryImplicitConversion_NilValue tests nil value handling.
+func TestTryImplicitConversion_NilValue(t *testing.T) {
+	typeSystem := interptypes.NewTypeSystem()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil)
+	ctx := NewExecutionContext(nil)
+
+	result, ok := e.TryImplicitConversion(nil, "Integer", ctx)
+	if ok {
+		t.Error("expected no conversion for nil value")
+	}
+	if result != nil {
+		t.Error("expected nil result for nil value")
+	}
+}
+
+// TestTryImplicitConversion_SameType tests that same types return false (no conversion needed).
+func TestTryImplicitConversion_SameType(t *testing.T) {
+	typeSystem := interptypes.NewTypeSystem()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil)
+	ctx := NewExecutionContext(nil)
+
+	value := &runtime.IntegerValue{Value: 42}
+
+	// INTEGER == INTEGER (exact match)
+	result, ok := e.TryImplicitConversion(value, "INTEGER", ctx)
+	if ok {
+		t.Error("expected no conversion for same type")
+	}
+	if result != value {
+		t.Error("expected original value returned for same type")
+	}
+}
+
+// TestTryImplicitConversion_IntegerToFloat tests the built-in Integer→Float widening conversion.
+func TestTryImplicitConversion_IntegerToFloat(t *testing.T) {
+	typeSystem := interptypes.NewTypeSystem()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil)
+	ctx := NewExecutionContext(nil)
+
+	testCases := []struct {
+		name     string
+		input    int64
+		expected float64
+	}{
+		{"positive", 42, 42.0},
+		{"negative", -100, -100.0},
+		{"zero", 0, 0.0},
+		{"large", 9223372036854775807, 9223372036854775807.0},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			value := &runtime.IntegerValue{Value: tc.input}
+			result, ok := e.TryImplicitConversion(value, "Float", ctx)
+
+			if !ok {
+				t.Error("expected conversion to succeed for Integer→Float")
+			}
+
+			floatResult, isFloat := result.(*runtime.FloatValue)
+			if !isFloat {
+				t.Errorf("expected FloatValue, got %T", result)
+				return
+			}
+
+			if floatResult.Value != tc.expected {
+				t.Errorf("expected %f, got %f", tc.expected, floatResult.Value)
+			}
+		})
+	}
+}
+
+// TestTryImplicitConversion_EnumToInteger tests the built-in Enum→Integer conversion.
+func TestTryImplicitConversion_EnumToInteger(t *testing.T) {
+	typeSystem := interptypes.NewTypeSystem()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil)
+	ctx := NewExecutionContext(nil)
+
+	testCases := []struct {
+		name            string
+		enumType        string
+		enumValue       string
+		ordinal         int
+		expectedInteger int64
+	}{
+		{"first_value", "TColor", "Red", 0, 0},
+		{"second_value", "TColor", "Green", 1, 1},
+		{"custom_ordinal", "TDay", "Wednesday", 3, 3},
+		{"large_ordinal", "TMonth", "December", 12, 12},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			value := &runtime.EnumValue{
+				TypeName:     tc.enumType,
+				ValueName:    tc.enumValue,
+				OrdinalValue: tc.ordinal,
+			}
+
+			result, ok := e.TryImplicitConversion(value, "Integer", ctx)
+
+			if !ok {
+				t.Error("expected conversion to succeed for Enum→Integer")
+			}
+
+			intResult, isInt := result.(*runtime.IntegerValue)
+			if !isInt {
+				t.Errorf("expected IntegerValue, got %T", result)
+				return
+			}
+
+			if intResult.Value != tc.expectedInteger {
+				t.Errorf("expected %d, got %d", tc.expectedInteger, intResult.Value)
+			}
+		})
+	}
+}
+
+// TestTryImplicitConversion_NoConversionAvailable tests behavior when no conversion exists.
+func TestTryImplicitConversion_NoConversionAvailable(t *testing.T) {
+	typeSystem := interptypes.NewTypeSystem()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil)
+	ctx := NewExecutionContext(nil)
+
+	// String → Integer is not a built-in conversion
+	value := &runtime.StringValue{Value: "42"}
+	result, ok := e.TryImplicitConversion(value, "Integer", ctx)
+
+	if ok {
+		t.Error("expected no conversion for String→Integer without registered conversion")
+	}
+
+	if result != value {
+		t.Error("expected original value returned when no conversion available")
+	}
+}
+
+// TestTryImplicitConversion_FloatToInteger tests that Float→Integer is not allowed implicitly.
+func TestTryImplicitConversion_FloatToInteger(t *testing.T) {
+	typeSystem := interptypes.NewTypeSystem()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil)
+	ctx := NewExecutionContext(nil)
+
+	// Float → Integer is NOT an implicit conversion (would lose precision)
+	value := &runtime.FloatValue{Value: 42.5}
+	result, ok := e.TryImplicitConversion(value, "Integer", ctx)
+
+	if ok {
+		t.Error("expected no implicit conversion for Float→Integer (would lose precision)")
+	}
+
+	if result != value {
+		t.Error("expected original value returned when no conversion available")
+	}
+}
+
+// TestTryImplicitConversion_TypeNormalization tests that type names are properly normalized.
+func TestTryImplicitConversion_TypeNormalization(t *testing.T) {
+	typeSystem := interptypes.NewTypeSystem()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil)
+	ctx := NewExecutionContext(nil)
+
+	value := &runtime.IntegerValue{Value: 42}
+
+	// Test various capitalizations of Float
+	testCases := []string{"Float", "FLOAT", "float", "FloAt"}
+
+	for _, targetType := range testCases {
+		t.Run(targetType, func(t *testing.T) {
+			result, ok := e.TryImplicitConversion(value, targetType, ctx)
+
+			if !ok {
+				t.Errorf("expected conversion to succeed for Integer→%s", targetType)
+			}
+
+			if _, isFloat := result.(*runtime.FloatValue); !isFloat {
+				t.Errorf("expected FloatValue for Integer→%s, got %T", targetType, result)
+			}
+		})
+	}
+}
+
+// TestIsErrorValue tests the isErrorValue helper function.
+func TestIsErrorValue(t *testing.T) {
+	testCases := []struct {
+		name     string
+		value    Value
+		expected bool
+	}{
+		{"nil value", nil, false},
+		{"integer value", &runtime.IntegerValue{Value: 42}, false},
+		{"string value", &runtime.StringValue{Value: "test"}, false},
+		{"nil value struct", &runtime.NilValue{}, false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := isErrorValue(tc.value)
+			if result != tc.expected {
+				t.Errorf("expected %v, got %v", tc.expected, result)
+			}
+		})
+	}
+}
