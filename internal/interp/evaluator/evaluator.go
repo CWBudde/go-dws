@@ -479,26 +479,6 @@ type InterpreterAdapter interface {
 	// GetEnumTypeID returns the type ID for an enum type, or 0 if not found.
 	GetEnumTypeID(enumName string) int
 
-	// ===== Task 3.5.5: Type System Access Methods =====
-
-	// Task 3.5.141: GetType removed - evaluator uses resolveTypeName() directly
-
-	// ===== Task 3.5.6: Array and Collection Adapter Methods =====
-
-	// CreateArray creates an array from a list of elements with a specified element type.
-	// Returns the created array value.
-	CreateArray(elementType any, elements []Value) Value
-
-	// CreateArrayValue creates an ArrayValue with the specified array type and elements.
-	// Task 3.5.83: Direct array construction without re-evaluation.
-	// Parameters:
-	//   - arrayType: The *types.ArrayType for the array (passed as any to avoid import cycles)
-	//   - elements: The pre-evaluated element values
-	// Returns the created ArrayValue.
-	CreateArrayValue(arrayType any, elements []Value) Value
-
-	// ===== Task 3.5.7: Property, Field, and Member Access Adapter Methods =====
-
 	// ===== Method Calls =====
 
 	// CallMethod executes a method on an object with the given arguments.
