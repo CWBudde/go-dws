@@ -189,12 +189,12 @@ func TestInterpreterEvaluatorSharedTypeSystem(t *testing.T) {
 	}
 	ts.RegisterClass("TSharedClass", classInfo)
 
-	// Test 1: Interpreter should see the registered class
+	// Test 1: Interpreter should see the registered class via TypeSystem
 	t.Run("InterpreterCanSeeTypeSystemClass", func(t *testing.T) {
-		// Lookup through interpreter
-		_, ok := interp.LookupClass("TSharedClass")
-		if !ok {
-			t.Error("Interpreter.LookupClass(TSharedClass) failed")
+		// Lookup through interpreter's typeSystem (Task 3.5.25: LookupClass removed from adapter)
+		classInfo := interp.typeSystem.LookupClass("TSharedClass")
+		if classInfo == nil {
+			t.Error("Interpreter.typeSystem.LookupClass(TSharedClass) failed")
 		}
 	})
 
@@ -216,10 +216,10 @@ func TestInterpreterEvaluatorSharedTypeSystem(t *testing.T) {
 
 	// Test 3: Case-insensitive access
 	t.Run("CaseInsensitiveAccess", func(t *testing.T) {
-		// Both should support case-insensitive lookup
-		_, ok := interp.LookupClass("tsharedclass")
-		if !ok {
-			t.Error("Interpreter.LookupClass(tsharedclass) = false, want true (case-insensitive)")
+		// Both should support case-insensitive lookup (Task 3.5.25: using TypeSystem directly)
+		classInfo := interp.typeSystem.LookupClass("tsharedclass")
+		if classInfo == nil {
+			t.Error("TypeSystem.LookupClass(tsharedclass) = nil, want ClassInfo (case-insensitive)")
 		}
 		if !interp.typeSystem.HasClass("TSHAREDCLASS") {
 			t.Error("TypeSystem.HasClass(TSHAREDCLASS) = false, want true (case-insensitive)")
@@ -285,20 +285,17 @@ func TestBuiltinClassesInTypeSystem(t *testing.T) {
 
 	for _, className := range builtinClasses {
 		t.Run(className, func(t *testing.T) {
-			// Test LookupClass
-			classInfo, ok := interp.LookupClass(className)
-			if !ok {
-				t.Errorf("LookupClass(%s) = false, want true", className)
+			// Test LookupClass via TypeSystem (Task 3.5.25: LookupClass removed from adapter)
+			classInfo := interp.typeSystem.LookupClass(className)
+			if classInfo == nil {
+				t.Errorf("TypeSystem.LookupClass(%s) = nil, want ClassInfo", className)
 			}
 
 			// Test case-insensitive lookup with lowercase
 			lowerName := strings.ToLower(className)
-			classInfo, ok = interp.LookupClass(lowerName)
-			if !ok {
-				t.Errorf("LookupClass(%s) = _, false; want _, true", className)
-			}
+			classInfo = interp.typeSystem.LookupClass(lowerName)
 			if classInfo == nil {
-				t.Errorf("LookupClass(%s) returned nil ClassInfo", className)
+				t.Errorf("TypeSystem.LookupClass(%s) = nil, want ClassInfo (case-insensitive)", lowerName)
 			}
 		})
 	}

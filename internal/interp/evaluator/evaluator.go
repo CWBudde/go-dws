@@ -366,11 +366,6 @@ type InterpreterAdapter interface {
 	// Task 3.5.143y: CallBuiltinFunction REMOVED - evaluator now calls builtins directly via registry
 	// Evaluator implements builtins.Context and uses builtins.DefaultRegistry.Lookup() instead
 
-	// LookupFunction finds a function by name in the function registry.
-	// Returns the function declaration(s) and a boolean indicating success.
-	// Multiple functions may be returned for overloaded functions.
-	LookupFunction(name string) ([]*ast.FunctionDecl, bool)
-
 	// ===== Declaration Handling =====
 
 	// EvalMethodImplementation handles method implementation registration for classes/records.
@@ -387,11 +382,6 @@ type InterpreterAdapter interface {
 
 	// ===== Class Registry =====
 
-	// LookupClass finds a class by name in the class registry.
-	// Returns the class info (as any/interface{}) and a boolean indicating success.
-	// The lookup is case-insensitive.
-	LookupClass(name string) (any, bool)
-
 	// ResolveClassInfoByName resolves a class by name for type resolution.
 	// Task 3.5.9.4: Allows evaluator to resolve class types in property declarations.
 	// Returns the class info (as any/interface{}) or nil if not found.
@@ -402,11 +392,6 @@ type InterpreterAdapter interface {
 	GetClassNameFromInfo(classInfo interface{}) string
 
 	// ===== Record Registry =====
-
-	// LookupRecord finds a record type by name in the record registry.
-	// Returns the record type value (as any/interface{}) and a boolean indicating success.
-	// The lookup is case-insensitive.
-	LookupRecord(name string) (any, bool)
 
 	// ===== Interface Registry =====
 
