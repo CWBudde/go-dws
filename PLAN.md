@@ -356,17 +356,44 @@ Goal: Reduce adapter interface from ~75 methods to ~20 essential methods (~75% r
   - **Result**: 3 methods removed, all tests passing
   - **Actual effort**: 45 minutes (as estimated)
 
-- [ ] **3.5.30** Inline Array/Value Creation Methods
-  - **Methods** (2): `CreateArray`, `CreateArrayValue`
-  - **Work**: Use `runtime.NewArrayValue()` directly in evaluator
-  - **Files**: `evaluator/visitor_expressions_functions.go`, `evaluator/visitor_statements.go`
-  - **Effort**: 30 minutes
+- [x] **3.5.30** Inline Array/Value Creation Methods ✅
+  - **Methods removed** (2): `CreateArray`, `CreateArrayValue`
+  - **Finding**: Both methods had **zero callers** - removed directly without needing inline replacements
+  - **Note**: Evaluator already uses `&runtime.ArrayValue{}` and `runtime.NewArrayValue()` directly
+  - **Files modified**:
+    - `evaluator/evaluator.go` (removed 2 interface methods)
+    - `adapter_values.go` (removed 2 implementations)
+    - `evaluator/type_conversion_test.go` (removed 2 mock methods)
+  - **Result**: 2 methods removed, all tests passing
+  - **Actual effort**: 15 minutes (much faster than estimated due to zero callers)
 
-- [ ] **3.5.31** Inline Interface Wrapper Methods
-  - **Methods** (3): `CreateInterfaceWrapper`, `CreateTypeCastWrapper`, `GetInterfaceInstanceFromValue`
-  - **Work**: Use runtime package directly for interface/cast operations
-  - **Files**: `evaluator/visitor_expressions_types.go`, `evaluator/type_casts.go`
-  - **Effort**: 1 hour
+- [x] **3.5.31** Inline Interface Wrapper Methods ✅
+  - **Methods removed** (2): `GetInterfaceInstanceFromValue`, `CreateInterfaceWrapper`
+  - **Method kept** (1): `CreateTypeCastWrapper` - requires `*ClassInfo` from `interp` package (circular import)
+  - **Inlining patterns used**:
+
+    ```go
+    // GetInterfaceInstanceFromValue → InterfaceInstanceValue type assertion:
+    if ifaceVal, ok := obj.(InterfaceInstanceValue); ok {
+        underlyingObjVal := ifaceVal.GetUnderlyingObjectValue()
+    }
+
+    // CreateInterfaceWrapper → evaluator helper method:
+    func (e *Evaluator) createInterfaceWrapper(interfaceName string, obj Value) (Value, error) {
+        ifaceInfoAny := e.typeSystem.LookupInterface(interfaceName)
+        ifaceInfo := ifaceInfoAny.(runtime.IInterfaceInfo)
+        objInstance := obj.(*runtime.ObjectInstance)
+        return runtime.NewInterfaceInstance(ifaceInfo, objInstance), nil
+    }
+    ```
+
+  - **Files modified**:
+    - `evaluator/visitor_expressions_types.go` (1 inline + helper method added)
+    - `evaluator/evaluator.go` (removed 2 interface methods)
+    - `adapter_objects.go` (removed 2 implementations)
+    - `evaluator/type_conversion_test.go` (removed 2 mock methods)
+  - **Result**: 2 methods removed, 1 kept (architectural constraint), all tests passing
+  - **Actual effort**: 45 minutes (as estimated)
 
 ---
 
@@ -472,7 +499,7 @@ Goal: Reduce adapter interface from ~75 methods to ~20 essential methods (~75% r
 | Bridge Elimination | 3.5.17-3.5.23 | Move value types to runtime | ✅ Complete | Done |
 | Audit | 3.5.24 | Document adapter methods | ✅ Complete | Done |
 | Zero-Caller Removal | 3.5.25-3.5.27 | Remove 21 unused methods | ✅ Complete | Done |
-| Single-Use Inline | 3.5.28-3.5.31 | Inline simple adapter calls | 50% (2/4) | 1.25h done |
+| Single-Use Inline | 3.5.28-3.5.31 | Inline simple adapter calls | ✅ Complete | 2.25h done |
 | Property Callbacks | 3.5.32-3.5.34 | Complete callback patterns | Pending | 3-4h |
 | EvalNode Reduction | 3.5.35-3.5.38 | Reduce fallback calls 44→~10 | Pending | 8-12h |
 | Documentation | 3.5.39-3.5.40 | Final docs and summary | Pending | 4-6h |

@@ -501,26 +501,10 @@ type InterpreterAdapter interface {
 
 	// ===== Object Operations =====
 
-	// Task 3.5.22k: CreateObject removed - evaluator now creates objects directly using IClassInfo interface
-
 	// ExecuteConstructor executes a constructor method on an already-created object instance.
 	// Task 3.5.126f: Callback for complex constructor execution (method body + Self binding).
 	// Returns an error if constructor execution fails.
 	ExecuteConstructor(obj Value, constructorName string, args []Value) error
-
-	// Task 3.5.29: CheckType REMOVED - zero callers (use evaluator helper methods directly)
-	// Task 3.5.29: GetClassMetadataFromValue REMOVED - use getClassMetadataFromValue() helper
-	// Task 3.5.29: GetObjectInstanceFromValue REMOVED - use ObjectValue interface type assertion
-
-	// GetInterfaceInstanceFromValue extracts InterfaceInstance from a Value.
-	// Task 3.5.141: Helper to extract InterfaceInstance for interface casting.
-	// Returns (interfaceInfo, underlyingObject) if the value is an InterfaceInstance, (nil, nil) otherwise.
-	GetInterfaceInstanceFromValue(val Value) (interfaceInfo interface{}, underlyingObject interface{})
-
-	// CreateInterfaceWrapper creates an InterfaceInstance wrapper.
-	// Task 3.5.141: Helper to create interface wrappers for 'as' operator.
-	// Returns the InterfaceInstance wrapper or error if interface not found.
-	CreateInterfaceWrapper(interfaceName string, obj Value) (Value, error)
 
 	// CreateTypeCastWrapper creates a TypeCastValue wrapper.
 	// Task 3.5.141: Helper to create TypeCastValue for TypeName(expr) casts.
