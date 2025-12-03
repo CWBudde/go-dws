@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/interp/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -651,13 +652,67 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 		args[i] = val
 	}
 
-	// Task 3.5.126f: Direct object creation with field initialization callback
-	// For now, continue using CreateObject adapter method since we can't access
-	// ClassInfo directly from evaluator package (circular import).
-	// TODO: In future, refactor to use interface-based access to class metadata.
-	obj, err := e.adapter.CreateObject(className, args)
-	if err != nil {
-		return e.newError(node, "%s", err.Error())
+	// Task 3.5.22k: Direct object creation using IClassInfo interface.
+	// Look up class via TypeSystem (returns any, which is *interp.ClassInfo)
+	classInfoAny := e.typeSystem.LookupClass(className)
+	if classInfoAny == nil {
+		return e.newError(node, "class '%s' not found", className)
+	}
+
+	// Cast to IClassInfo interface for method access
+	classInfo, ok := classInfoAny.(runtime.IClassInfo)
+	if !ok {
+		return e.newError(node, "class '%s' has invalid type", className)
+	}
+
+	// Check if trying to instantiate an abstract class
+	if classInfo.IsAbstract() {
+		return e.newError(node, "Trying to create an instance of an abstract class")
+	}
+
+	// Check if trying to instantiate an external class
+	if classInfo.IsExternal() {
+		return e.newError(node, "cannot instantiate external class '%s' - external classes are not supported", className)
+	}
+
+	// Create new object instance
+	obj := runtime.NewObjectInstance(classInfo)
+
+	// Initialize fields with default values or field initializers
+	// Get field type mapping and field declarations
+	fieldTypes := classInfo.GetFieldTypesMap()
+	fieldDecls := classInfo.GetFieldsMap()
+
+	for fieldName, fieldTypeAny := range fieldTypes {
+		var fieldValue Value
+		if fieldDecl, hasDecl := fieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
+			// Evaluate field initializer
+			fieldValue = e.Eval(fieldDecl.InitValue, ctx)
+			if isError(fieldValue) {
+				return e.newError(node, "failed to initialize field '%s': %v", fieldName, fieldValue)
+			}
+		} else {
+			// Use default value for type
+			if fieldType, ok := fieldTypeAny.(types.Type); ok {
+				fieldValue = e.getZeroValueForType(fieldType)
+			} else {
+				fieldValue = &runtime.NilValue{}
+			}
+		}
+		obj.SetField(fieldName, fieldValue)
+	}
+
+	// Call constructor if it exists
+	// Task 3.5.22k: Use IClassInfo.GetConstructor() for constructor lookup
+	constructor := classInfo.GetConstructor("Create")
+	if constructor != nil {
+		// Execute constructor via adapter callback (constructor execution still requires interpreter)
+		err := e.adapter.ExecuteConstructor(obj, "Create", args)
+		if err != nil {
+			return e.newError(node, "constructor failed: %v", err)
+		}
+	} else if len(args) > 0 {
+		return e.newError(node, "no constructor found for class '%s' with %d arguments", className, len(args))
 	}
 
 	return obj

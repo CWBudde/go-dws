@@ -217,7 +217,8 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 				value = wrappedVal
 			} else {
 				// Try implicit conversion
-				if converted, ok := e.adapter.TryImplicitConversion(value, typeName); ok {
+				// Task 3.5.22h: Use evaluator's native TryImplicitConversion
+				if converted, ok := e.TryImplicitConversion(value, typeName, ctx); ok {
 					value = converted
 				}
 			}

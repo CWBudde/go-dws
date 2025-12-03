@@ -126,11 +126,12 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 	}
 
 	// Try implicit conversion if types don't match
+	// Task 3.5.22h: Use evaluator's native TryImplicitConversion
 	if value != nil {
 		targetType := existingVal.Type()
 		sourceType := value.Type()
 		if targetType != sourceType {
-			if converted, ok := e.adapter.TryImplicitConversion(value, targetType); ok {
+			if converted, ok := e.TryImplicitConversion(value, targetType, ctx); ok {
 				value = converted
 			}
 		}
@@ -182,7 +183,7 @@ func (e *Evaluator) evalReferenceAssignment(
 	value Value,
 	target *ast.Identifier,
 	stmt *ast.AssignmentStatement,
-	_ *ExecutionContext, // ctx reserved for future use
+	ctx *ExecutionContext,
 ) Value {
 	// Get current value to check type compatibility
 	currentVal, err := refVal.Dereference()
@@ -196,10 +197,11 @@ func (e *Evaluator) evalReferenceAssignment(
 	}
 
 	// Try implicit conversion if types don't match
+	// Task 3.5.22h: Use evaluator's native TryImplicitConversion
 	targetType := currentVal.Type()
 	sourceType := value.Type()
 	if targetType != sourceType {
-		if converted, ok := e.adapter.TryImplicitConversion(value, targetType); ok {
+		if converted, ok := e.TryImplicitConversion(value, targetType, ctx); ok {
 			value = converted
 		}
 	}

@@ -102,10 +102,10 @@ func (e *Evaluator) ExecuteConversionFunction(
 }
 
 // ExecuteConversionFunctionSimple is a simplified version of ExecuteConversionFunction
-// that uses the adapter for environment syncing.
+// that uses the evaluator's native TryImplicitConversion for parameter conversion.
 //
-// Task 3.5.22f: This version is for use when the full ConversionCallbacks are not available,
-// falling back to adapter methods.
+// Task 3.5.22f: This version is for use when the full ConversionCallbacks are not available.
+// Task 3.5.22i: Updated to use evaluator's TryImplicitConversion instead of adapter.
 //
 // Parameters:
 //   - fn: The conversion function declaration (must have exactly 1 parameter)
@@ -120,12 +120,10 @@ func (e *Evaluator) ExecuteConversionFunctionSimple(
 	arg Value,
 	ctx *ExecutionContext,
 ) (Value, error) {
-	// Use adapter.TryImplicitConversion for parameter conversion if needed
-	var implicitConversion ImplicitConversionFunc
-	if e.adapter != nil {
-		implicitConversion = func(value Value, targetTypeName string) (Value, bool) {
-			return e.adapter.TryImplicitConversion(value, targetTypeName)
-		}
+	// Use evaluator's native TryImplicitConversion for parameter conversion if needed
+	// Task 3.5.22i: No longer depends on adapter
+	implicitConversion := func(value Value, targetTypeName string) (Value, bool) {
+		return e.TryImplicitConversion(value, targetTypeName, ctx)
 	}
 
 	callbacks := &ConversionCallbacks{

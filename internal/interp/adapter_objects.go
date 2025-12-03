@@ -30,12 +30,12 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 	}
 
 	// Check if trying to instantiate an abstract class
-	if classInfo.IsAbstract {
+	if classInfo.IsAbstractFlag {
 		return nil, fmt.Errorf("Trying to create an instance of an abstract class")
 	}
 
 	// Check if trying to instantiate an external class
-	if classInfo.IsExternal {
+	if classInfo.IsExternalFlag {
 		return nil, fmt.Errorf("cannot instantiate external class '%s' - external classes are not supported", className)
 	}
 

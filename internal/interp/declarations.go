@@ -240,13 +240,13 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 
 	// Set abstract flag (only if not already set)
 	if cd.IsAbstract {
-		classInfo.IsAbstract = true
+		classInfo.IsAbstractFlag = true
 		classInfo.Metadata.IsAbstract = true // Task 3.5.39
 	}
 
 	// Set external flags (only if not already set)
 	if cd.IsExternal {
-		classInfo.IsExternal = true
+		classInfo.IsExternalFlag = true
 		classInfo.ExternalName = cd.ExternalName
 		classInfo.Metadata.IsExternal = true              // Task 3.5.39
 		classInfo.Metadata.ExternalName = cd.ExternalName // Task 3.5.39

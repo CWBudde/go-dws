@@ -639,78 +639,130 @@ Bridge constructors to eliminate:
     - **Deliverable**: Evaluator can execute conversion functions
     - **Completed**: Created `ExecuteConversionFunction` and `ExecuteConversionFunctionSimple` helpers with `ConversionCallbacks` struct for interpreter-dependent operations. Includes validation (single parameter, return type required), proper error wrapping, and comprehensive tests.
 
-  - [ ] **3.5.22g** Move tryImplicitConversion Logic to Evaluator
+  - [x] **3.5.22g** Move tryImplicitConversion Logic to Evaluator ✅ COMPLETE (2025-12-03)
     - **Current**: `operators_eval.go:193-280` (Interpreter method)
     - **Target**: `evaluator/type_conversion.go` (Evaluator method)
     - **Files**: `evaluator/type_conversion.go`, `operators_eval.go`
-    - **Work**:
-      1. Copy `tryImplicitConversion` logic to evaluator
-      2. Replace `i.conversions` with `e.typeSystem.Conversions()`
-      3. Replace `i.functions` with `e.typeSystem.FunctionRegistry()`
-      4. Replace `i.callUserFunction()` with `e.executeConversionFunction()`
-      5. Handle built-in conversions (Integer→Float, Enum→Integer)
-      6. Handle chained conversions with multi-step paths
-      7. Add error handling for conversion failures
-    - **Effort**: 1 day
-    - **Deliverable**: Evaluator has native `tryImplicitConversion()` method
+    - **Work Completed**:
+      1. Created `TryImplicitConversion(value, targetTypeName, ctx)` method in evaluator
+      2. Uses `e.typeSystem.Conversions().FindImplicit()` for direct conversions
+      3. Uses `e.typeSystem.Conversions().FindConversionPath()` for chained conversions (max depth 3)
+      4. Uses `ExecuteConversionFunctionSimple()` to execute conversion functions
+      5. Built-in conversions: Integer→Float (widening), Enum→Integer (ordinal)
+      6. Helper methods: `executeConversionEntry()`, `executeConversionChain()`, `isErrorValue()`
+      7. Comprehensive tests: 7 test functions covering nil, same-type, int→float, enum→int, no-conversion, float→int (blocked), type normalization
+    - **Effort**: ~4 hours
+    - **Deliverable**: Evaluator has native `TryImplicitConversion()` method
 
-  - [ ] **3.5.22h** Update TryImplicitConversion Call Sites
-    - **Call sites**: 5 locations in evaluator package
-      - `visitor_statements.go` (variable assignment conversions)
-      - `assignment_helpers.go` (assignment type checking)
-      - `visitor_expressions_identifiers.go` (identifier resolution)
-    - **Work**:
-      1. Replace `e.adapter.TryImplicitConversion()` with `e.tryImplicitConversion()`
-      2. Update error handling
-      3. Test each call site individually
-      4. Run full test suite
-    - **Effort**: 4-6 hours
-    - **Deliverable**: All conversion call sites use evaluator method
+  - [x] **3.5.22h** Update TryImplicitConversion Call Sites ✅ COMPLETE (2025-12-03)
+    - **Call sites**: 4 locations in evaluator package (not 5 as originally estimated)
+      - `visitor_statements.go:220` (variable declaration with initializer)
+      - `assignment_helpers.go:133` (identifier assignment - evalSimpleAssignmentDirect)
+      - `assignment_helpers.go:204` (reference assignment - evalReferenceAssignment)
+      - `visitor_expressions_identifiers.go:344` (function return value conversion)
+    - **Work Completed**:
+      1. Replaced `e.adapter.TryImplicitConversion(value, typeName)` with `e.TryImplicitConversion(value, typeName, ctx)`
+      2. Fixed `evalReferenceAssignment` to use ctx parameter (was `_ *ExecutionContext`)
+      3. All tests pass - no regressions
+    - **Effort**: ~30 minutes
+    - **Deliverable**: All conversion call sites use evaluator's native method
 
-  - [ ] **3.5.22i** Remove TryImplicitConversion Adapter Method
-    - **Files**: `adapter_types.go:282-288`, `evaluator/evaluator.go`
-    - **Work**:
-      1. Remove `TryImplicitConversion` from InterpreterAdapter interface
-      2. Remove implementation from `adapter_types.go`
-      3. Move `tryImplicitConversion` in `operators_eval.go` to private helper (if still needed by interpreter)
-      4. Verify no remaining adapter calls
-    - **Effort**: 30 minutes
-    - **Deliverable**: Adapter method removed
+  - [x] **3.5.22i** Remove TryImplicitConversion Adapter Method ✅ COMPLETE (2025-12-03)
+    - **Files**: `adapter_types.go`, `evaluator/evaluator.go`, `evaluator/type_conversion.go`, `evaluator/type_conversion_test.go`
+    - **Work Completed**:
+      1. Removed `TryImplicitConversion` from InterpreterAdapter interface in `evaluator.go`
+      2. Removed implementation from `adapter_types.go` (~8 lines)
+      3. Updated `ExecuteConversionFunctionSimple` to use evaluator's native method instead of adapter
+      4. Removed mock method from `type_conversion_test.go`
+      5. All tests pass - no regressions
+    - **Note**: Interpreter's `tryImplicitConversion` kept as private helper for internal use
+    - **Effort**: ~20 minutes
+    - **Deliverable**: Adapter interface reduced by 1 method
 
   **Phase C: Eliminate Remaining Bridges** - 2-3 days
 
-  - [ ] **3.5.22j** Analyze CreateObject Dependencies
+  - [x] **3.5.22j** Analyze CreateObject Dependencies ✅ COMPLETE (2025-12-03)
     - **Files**: `adapter_objects.go:18-86`
-    - **Work**:
-      1. Document field initialization requirements
-      2. Document constructor invocation requirements
-      3. Identify if evaluator can handle both with `ExecuteUserFunction`
-      4. Design migration strategy (full elimination vs. partial refactor)
-    - **Effort**: 4 hours
-    - **Deliverable**: Clear plan for CreateObject elimination
+    - **Single Call Site**: `visitor_expressions_functions.go:658` - only called for `new ClassName(args)` expressions
+    - **Analysis Summary**:
 
-  - [ ] **3.5.22k** Migrate CreateObject (if feasible)
-    - **Depends on**: 3.5.22d (function execution), 3.5.22j (analysis)
-    - **Challenge**: Requires `Eval()` for field initializers + function execution for constructors
-    - **Work**: TBD based on 3.5.22j analysis
-    - **Effort**: 1-2 days
-    - **Deliverable**: CreateObject bridge eliminated or refactored
+      **What CreateObject does:**
+      1. Looks up ClassInfo via TypeSystem ✅ (already accessible via `e.typeSystem.LookupClass()`)
+      2. Validates class (not abstract, not external) - needs `IsAbstract`, `IsExternal` fields
+      3. Creates `ObjectInstance` via `NewObjectInstance(classInfo)` ❌ (needs `runtime.IClassInfo`)
+      4. Initializes fields with default values using `i.Eval()` for initializers ✅ (evaluator can do this)
+      5. Calls constructor via `executeUserFunctionViaEvaluator()` ✅ (already migrated)
+
+      **IClassInfo Interface Analysis** (runtime/class_interface.go):
+
+      | Method           | Available | Notes                                      |
+      |------------------|-----------|-------------------------------------------|
+      | GetName()        | ✅        |                                           |
+      | GetParent()      | ✅        |                                           |
+      | GetMetadata()    | ✅        |                                           |
+      | LookupMethod()   | ✅        |                                           |
+      | GetFieldsMap()   | ✅        | Returns legacy `map[string]*ast.FieldDecl` |
+      | GetMethodsMap()  | ✅        |                                           |
+      | LookupClassVar() | ✅        |                                           |
+
+      **Missing from IClassInfo (needed for CreateObject):**
+      - `IsAbstract bool` - validation
+      - `IsExternal bool` - validation
+      - `Fields map[string]string` - field name→type mapping for zero values
+      - `FieldDecls map[string]*ast.FieldDecl` - for InitValue expressions
+      - `Constructors map[string]*ast.FunctionDecl` - for constructor lookup
+
+      **Migration Strategy Options:**
+      1. **Extend IClassInfo** (preferred): Add missing methods to interface
+         - `IsAbstract() bool`, `IsExternal() bool`
+         - `GetFields() map[string]string` (or use existing `GetFieldsMap()`)
+         - `GetConstructor(name string) *ast.FunctionDecl`
+         - Effort: 2-3 hours interface changes + implementation
+      2. **Keep as adapter** (simpler): Leave CreateObject in interpreter
+         - Pro: Less refactoring, works now
+         - Con: Adapter still needed for object creation
+      3. **Callback-based** (complex): Pass field init callback to evaluator
+         - More complex, harder to maintain
+
+    - **Recommendation**: Option 1 (Extend IClassInfo) is cleanest long-term
+    - **Effort**: Analysis: 1 hour (actual)
+    - **Deliverable**: Analysis complete, migration strategy documented
+
+  - [x] **3.5.22k** Migrate CreateObject ✅ (2025-12-03)
+    - **Depends on**: 3.5.22j analysis ✅
+    - **Recommended approach**: Extend IClassInfo interface
+    - **Subtasks**: (all completed)
+      1. ✅ Add `IsAbstract() bool` and `IsExternal() bool` to IClassInfo
+      2. ✅ Add `GetConstructor(name string) *ast.FunctionDecl` to IClassInfo
+      3. ✅ Add `GetFieldTypesMap() map[string]any` for field type lookup
+      4. ✅ Implement methods on ClassInfo in interp package
+      5. ✅ Update `VisitNewExpression` in evaluator to use IClassInfo directly
+      6. ✅ Replace adapter.CreateObject() call with direct implementation
+      7. ✅ Remove CreateObject from InterpreterAdapter interface
+    - **Implementation Notes**:
+      - Renamed ClassInfo.IsAbstract/IsExternal fields to IsAbstractFlag/IsExternalFlag to avoid method name conflict
+      - Evaluator now uses `runtime.NewObjectInstance(classInfo)` directly
+      - Field initialization uses `classInfo.GetFieldTypesMap()` and `classInfo.GetFieldsMap()`
+      - Constructor execution still uses `ExecuteConstructor` adapter callback
+    - **Effort**: 1 day (actual)
+    - **Risk**: Medium - touching object creation path
+    - **Deliverable**: CreateObject eliminated from InterpreterAdapter interface
 
   **Success Criteria**:
   - ✅ All 25+ `callUserFunction` sites use `executeUserFunctionViaEvaluator`
   - ✅ Record, array, and method pointer return types work correctly
   - ✅ All conversion call sites use evaluator's `tryImplicitConversion`
   - ✅ No regression in existing tests (maintain 341/1227 fixture test baseline)
-  - ✅ Adapter interface reduced by 2+ methods (TryImplicitConversion, possibly CreateObject)
+  - ✅ Adapter interface reduced by 3 methods (TryImplicitConversion, CallBuiltinFunction, CreateObject)
 
-- [ ] **3.5.23** Remove Bridge Constructor Adapter Methods **PARTIAL** (5/6 complete)
-  - **Methods to remove**:
+- [x] **3.5.23** Remove Bridge Constructor Adapter Methods ✅ (6/6 complete, 2025-12-03)
+  - **Methods removed**:
     - [x] `CreateExceptionDirect` (removed in 3.5.18)
     - [x] `WrapObjectInException` (removed in 3.5.18)
     - [x] `CreateSubrangeValueDirect` (removed in 3.5.19)
     - [x] `CreateInterfaceInstanceDirect` (removed 2025-12-01)
     - [x] `CreateTypedNilValue` (removed in 3.5.21)
-    - [ ] `CreateObject` (pending - complex, requires object construction analysis)
+    - [x] `CreateObject` (removed in 3.5.22k, 2025-12-03)
   - **CreateInterfaceInstanceDirect elimination** (2025-12-01):
     - Updated `visitor_statements.go:1487-1497` to call `typeSystem.LookupInterface()` directly
     - Type-assert to `runtime.IInterfaceInfo` interface
@@ -727,10 +779,11 @@ Bridge constructors to eliminate:
 
 Goal: Remove adapter entirely, document final architecture.
 
-- [ ] **3.5.24** Document Remaining Adapter Methods
+- [x] **3.5.24** Document Remaining Adapter Methods
   - **Work**: Audit adapter interface, document any remaining methods and why they exist
-  - **Deliverable**: List of essential methods (if any) with justification
+  - **Deliverable**: `docs/adapter-audit-3.5.24.md` - 75 methods documented with justifications and removal roadmap
   - **Effort**: 2-4 hours
+  - **Completed**: Audit found 35 easy, 32 medium, 3 hard methods to remove. Estimated 80-100 hours for full removal.
 
 - [ ] **3.5.25** Remove Unused Adapter Interface Methods
   - **Work**: Remove any methods with zero callers
@@ -780,9 +833,9 @@ Goal: Remove adapter entirely, document final architecture.
 | Analysis | 3.5.5-3.5.6 | Declaration dependency analysis | ✅ Complete |
 | Declarations | 3.5.7-3.5.16 | Move 9 declaration types to evaluator | 3.5.7-3.5.9, 3.5.11-3.5.16 ✅, 3.5.10 pending |
 | Bridge Elimination | 3.5.17-3.5.23 | Move value types to runtime, remove bridges | 3.5.17-3.5.19, 3.5.21, 3.5.23 (5/6) ✅, 3.5.20, 3.5.22 pending |
-| Final Cleanup | 3.5.24-3.5.32 | Remove adapter, document architecture | Pending |
+| Final Cleanup | 3.5.24-3.5.32 | Remove adapter, document architecture | 3.5.24 ✅, 3.5.25-3.5.32 pending |
 
-**Total remaining tasks**: 13 (was 32, completed 3.5.1-3.5.9, 3.5.11-3.5.19, 3.5.21)
+**Total remaining tasks**: 12 (was 32, completed 3.5.1-3.5.9, 3.5.11-3.5.19, 3.5.21, 3.5.24)
 
 **Critical path**: 3.5.22 (11 subtasks) → unlocks 3.5.23 (CreateObject) + remaining adapter cleanup
 

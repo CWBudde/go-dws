@@ -47,14 +47,14 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	}
 
 	// Check if trying to instantiate an abstract class
-	if classInfo.IsAbstract {
+	if classInfo.IsAbstractFlag {
 		return i.newErrorWithLocation(ne, "Trying to create an instance of an abstract class")
 	}
 
 	// Check if trying to instantiate an external class
 	// External classes are implemented outside DWScript and cannot be instantiated directly
 	// Future: Provide hooks for Go FFI implementation
-	if classInfo.IsExternal {
+	if classInfo.IsExternalFlag {
 		return i.newErrorWithLocation(ne, "cannot instantiate external class '%s' - external classes are not supported", className)
 	}
 

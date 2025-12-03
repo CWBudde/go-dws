@@ -337,10 +337,11 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 			resultValue = &runtime.NilValue{}
 		}
 
-		// Implicit conversion (use adapter temporarily, will migrate later)
+		// Implicit conversion for return type
+		// Task 3.5.22h: Use evaluator's native TryImplicitConversion
 		if resultValue.Type() != "NIL" {
 			returnTypeName := fn.ReturnType.String()
-			if converted, ok := e.adapter.TryImplicitConversion(resultValue, returnTypeName); ok {
+			if converted, ok := e.TryImplicitConversion(resultValue, returnTypeName, ctx); ok {
 				resultValue = converted
 			}
 		}
