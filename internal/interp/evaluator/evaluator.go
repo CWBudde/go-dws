@@ -30,6 +30,10 @@ type ObjectValue interface {
 	HasProperty(name string) bool
 	// HasMethod checks if this object's class has a method with the given name.
 	HasMethod(name string) bool
+	// GetMethodDecl retrieves a method declaration by name from the class hierarchy.
+	// Returns the method declaration (*ast.FunctionDecl passed as any) or nil if not found.
+	// Task 3.5.33: Used for indexed property getter execution in evaluator.
+	GetMethodDecl(name string) any
 	// GetField retrieves the value of a field by name.
 	// Returns the field value or nil if the field doesn't exist.
 	GetField(name string) Value
@@ -699,19 +703,7 @@ type InterpreterAdapter interface {
 	//   - node: The AST node for error reporting
 	// Task 3.5.27: CallIndexedPropertyGetter REMOVED - zero callers (deprecated)
 
-	// ExecuteIndexedPropertyRead executes an indexed property read with resolved PropertyInfo.
-	// This method handles the interpreter-dependent execution:
-	//   - Looks up the getter method from PropertyInfo
-	//   - Binds Self and index parameters
-	//   - Executes the getter method
-	//   - Returns the result
-	// Parameters:
-	//   - obj: The object instance (ObjectInstance)
-	//   - propInfo: The property metadata (*types.PropertyInfo)
-	//   - indices: The index values to pass to the getter
-	//   - node: The AST node for error reporting
-	// Returns the result of the indexed property getter.
-	ExecuteIndexedPropertyRead(obj Value, propInfo any, indices []Value, node any) Value
+	// Task 3.5.33: ExecuteIndexedPropertyRead REMOVED - evaluator now uses executeIndexedPropertyRead() directly
 
 	// ===== Record Default Property Access =====
 

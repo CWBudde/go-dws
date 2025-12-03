@@ -239,3 +239,86 @@ type FieldBinder interface {
 	// This allows expression-backed properties to access fields like FWidth, FHeight directly.
 	BindFieldsToEnvironment(binder func(name string, value Value))
 }
+
+// executeIndexedPropertyRead handles indexed property getter execution.
+// Task 3.5.33: Consolidates indexed property read logic in evaluator, reducing adapter dependency.
+//
+// This method handles indexed property access: obj.Property[index1, index2, ...]
+// - Validates property has a method-backed getter (not field-backed)
+// - Looks up the getter method via ObjectValue interface
+// - Verifies parameter count matches provided indices
+// - Executes the method with Self bound and index parameters via adapter
+//
+// Parameters:
+//   - obj: The object to read the property from (implements ObjectValue)
+//   - propInfo: The property metadata (*types.PropertyInfo passed as any)
+//   - indices: The index values to pass to the getter method
+//   - node: AST node for error reporting
+//   - ctx: Execution context for environment and call stack
+func (e *Evaluator) executeIndexedPropertyRead(obj Value, propInfo any, indices []Value, node ast.Node, ctx *ExecutionContext) Value {
+	// Type assert propInfo to *types.PropertyInfo
+	pInfo, ok := propInfo.(*types.PropertyInfo)
+	if !ok {
+		return e.newError(node, "invalid property info type")
+	}
+
+	// Get ObjectValue interface for method lookup
+	objVal, ok := obj.(ObjectValue)
+	if !ok {
+		return e.newError(node, "cannot read indexed property from non-object value")
+	}
+
+	// Handle based on property access kind
+	switch pInfo.ReadKind {
+	case types.PropAccessField, types.PropAccessMethod:
+		return e.executeIndexedPropertyGetterMethod(obj, objVal, pInfo, indices, node, ctx)
+
+	case types.PropAccessExpression:
+		// Expression-based indexed properties not supported yet
+		return e.newError(node, "expression-based indexed property getters not yet supported")
+
+	default:
+		return e.newError(node, "indexed property '%s' has no read access", pInfo.Name)
+	}
+}
+
+// executeIndexedPropertyGetterMethod executes an indexed property getter method.
+// Task 3.5.33: Helper for indexed property reads with method-backed getters.
+//
+// Indexed properties require getter methods (not fields), because the method
+// receives the index values as parameters.
+func (e *Evaluator) executeIndexedPropertyGetterMethod(obj Value, objVal ObjectValue, pInfo *types.PropertyInfo, indices []Value, node ast.Node, ctx *ExecutionContext) Value {
+	// Get the getter method name
+	methodName := pInfo.ReadSpec
+
+	// Look up the getter method via ObjectValue interface
+	methodDecl := objVal.GetMethodDecl(methodName)
+	if methodDecl == nil {
+		return e.newError(node, "indexed property '%s' getter method '%s' not found", pInfo.Name, methodName)
+	}
+
+	// Type-assert to get parameter count
+	method, ok := methodDecl.(*ast.FunctionDecl)
+	if !ok {
+		return e.newError(node, "indexed property '%s' getter is not a valid method", pInfo.Name)
+	}
+
+	// Verify method has correct number of parameters (index params, no value param)
+	expectedParamCount := len(indices)
+	if len(method.Parameters) != expectedParamCount {
+		return e.newError(node, "indexed property '%s' getter method '%s' expects %d parameter(s), got %d index argument(s)",
+			pInfo.Name, methodName, len(method.Parameters), len(indices))
+	}
+
+	// Set flag to indicate we're inside a property getter
+	propCtx := ctx.PropContext()
+	savedInGetter := propCtx.InPropertyGetter
+	propCtx.InPropertyGetter = true
+	defer func() {
+		propCtx.InPropertyGetter = savedInGetter
+	}()
+
+	// Execute the method with Self bound and index arguments via adapter
+	// The adapter's ExecuteMethodWithSelf handles environment setup, Self binding, etc.
+	return e.adapter.ExecuteMethodWithSelf(obj, methodDecl, indices)
+}

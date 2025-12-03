@@ -274,6 +274,20 @@ func (o *ObjectInstance) HasMethod(name string) bool {
 	return exists
 }
 
+// GetMethodDecl retrieves a method declaration by name from the class hierarchy.
+// Task 3.5.33: Implements evaluator.ObjectValue interface for indexed property execution.
+// Returns the method declaration (*ast.FunctionDecl passed as any) or nil if not found.
+func (o *ObjectInstance) GetMethodDecl(name string) any {
+	if o == nil || o.Class == nil {
+		return nil
+	}
+	method := o.Class.LookupMethod(name)
+	if method == nil {
+		return nil
+	}
+	return method
+}
+
 // GetClassVar retrieves a class variable value by name from this object's class hierarchy.
 // Returns the value and true if found, nil and false otherwise.
 // Task 3.5.86: Implements evaluator.ObjectValue interface for direct class variable access.
