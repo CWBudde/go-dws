@@ -283,6 +283,12 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			return helperMethod
 		}
 
+		// Check for helper class variables
+		_, helperClassVar := a.hasHelperClassVar(objectType, memberName)
+		if helperClassVar != nil {
+			return helperClassVar
+		}
+
 		// Task 9.54: Check for helper class constants (for scoped enum access like TColor.Red)
 		_, helperConst := a.hasHelperClassConst(objectType, memberName)
 		if helperConst != nil {

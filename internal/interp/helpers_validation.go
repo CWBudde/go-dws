@@ -132,27 +132,48 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 	// Initialize class variables
 	for _, classVar := range decl.ClassVars {
 		varType := i.resolveTypeFromExpression(classVar.Type)
+		var initialValue Value
+
+		// Evaluate initializer if present (used both for value and potential type inference)
+		if classVar.InitValue != nil {
+			val := i.Eval(classVar.InitValue)
+			if isError(val) {
+				return val
+			}
+			initialValue = val
+
+			// If no explicit type, infer from the initializer
+			if varType == nil {
+				varType = i.inferTypeFromValue(val)
+				if varType == nil {
+					return i.newErrorWithLocation(classVar, "cannot infer type for class variable '%s'",
+						classVar.Name.Value)
+				}
+			}
+		}
+
 		if varType == nil {
 			return i.newErrorWithLocation(classVar, "unknown or invalid type for class variable '%s'",
 				classVar.Name.Value)
 		}
 
 		// Initialize with default value
-		var defaultValue Value
-		switch varType {
-		case types.INTEGER:
-			defaultValue = &IntegerValue{Value: 0}
-		case types.FLOAT:
-			defaultValue = &FloatValue{Value: 0.0}
-		case types.STRING:
-			defaultValue = &StringValue{Value: ""}
-		case types.BOOLEAN:
-			defaultValue = &BooleanValue{Value: false}
-		default:
-			defaultValue = &NilValue{}
+		if initialValue == nil {
+			switch varType {
+			case types.INTEGER:
+				initialValue = &IntegerValue{Value: 0}
+			case types.FLOAT:
+				initialValue = &FloatValue{Value: 0.0}
+			case types.STRING:
+				initialValue = &StringValue{Value: ""}
+			case types.BOOLEAN:
+				initialValue = &BooleanValue{Value: false}
+			default:
+				initialValue = &NilValue{}
+			}
 		}
 
-		helperInfo.ClassVars[classVar.Name.Value] = defaultValue
+		helperInfo.ClassVars[ident.Normalize(classVar.Name.Value)] = initialValue
 	}
 
 	// Initialize class constants
@@ -162,7 +183,7 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 		if isError(constValue) {
 			return constValue
 		}
-		helperInfo.ClassConsts[classConst.Name.Value] = constValue
+		helperInfo.ClassConsts[ident.Normalize(classConst.Name.Value)] = constValue
 	}
 
 	// Register the helper
@@ -185,6 +206,10 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 		// Also maintain legacy map for backward compatibility during migration
 		i.helpers[simpleTypeName] = append(i.helpers[simpleTypeName], helperInfo)
 	}
+
+	// Expose helper name as a type meta value so static access (e.g., TDummy.Hello) resolves
+	helperTypeMeta := NewTypeMetaValue(targetType, targetType.String())
+	i.env.Define(decl.Name.Value, helperTypeMeta)
 
 	return &NilValue{}
 }

@@ -223,13 +223,41 @@ func (a *Analyzer) analyzeHelperClassVar(classVar *ast.FieldDecl, helperType *ty
 		return
 	}
 
-	// Resolve variable type
-	typeName := getTypeExpressionName(classVar.Type)
-	varType, err := a.resolveType(typeName)
-	if err != nil {
-		a.addError("unknown type '%s' for class variable '%s' in helper '%s' at %s",
-			typeName, varName, helperName, classVar.Token.Pos.String())
+	var varType types.Type
+
+	if classVar.Type != nil {
+		// Explicit type annotation
+		typeName := getTypeExpressionName(classVar.Type)
+		resolvedType, err := a.resolveType(typeName)
+		if err != nil {
+			a.addError("unknown type '%s' for class variable '%s' in helper '%s' at %s",
+				typeName, varName, helperName, classVar.Token.Pos.String())
+			return
+		}
+		varType = resolvedType
+	} else if classVar.InitValue != nil {
+		// Infer type from initializer
+		inferredType := a.analyzeExpression(classVar.InitValue)
+		if inferredType == nil {
+			a.addError("cannot infer type for class variable '%s' in helper '%s' at %s",
+				varName, helperName, classVar.Token.Pos.String())
+			return
+		}
+		varType = inferredType
+	} else {
+		a.addError("class variable '%s' missing type annotation in helper '%s'",
+			varName, helperName)
 		return
+	}
+
+	// Validate initializer compatibility when both are present
+	if classVar.InitValue != nil && classVar.Type != nil {
+		initType := a.analyzeExpression(classVar.InitValue)
+		if initType != nil && varType != nil && !types.IsAssignableFrom(varType, initType) {
+			a.addError("cannot initialize class variable '%s' of type '%s' with value of type '%s' in helper '%s' at %s",
+				varName, varType.String(), initType.String(), helperName, classVar.Token.Pos.String())
+			return
+		}
 	}
 
 	varNameLower := ident.Normalize(varName)
@@ -286,6 +314,11 @@ func (a *Analyzer) analyzeHelperClassConst(classConst *ast.ConstDecl, helperType
 func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 	if typ == nil {
 		return nil
+	}
+
+	// If the type itself is a helper type (e.g., TDummy.Hello), use its target type
+	if helperType, ok := typ.(*types.HelperType); ok {
+		typ = helperType.TargetType
 	}
 
 	// Look up helpers by the type's string representation
@@ -366,6 +399,25 @@ func (a *Analyzer) hasHelperProperty(typ types.Type, propName string) (*types.He
 		helper := helpers[idx]
 		if prop := findPropertyCaseInsensitive(helper.Properties, propName); prop != nil {
 			return helper, prop
+		}
+	}
+
+	return nil, nil
+}
+
+// hasHelperClassVar checks if any helper for the given type defines the specified class variable.
+// Returns the helper type and variable type if found.
+func (a *Analyzer) hasHelperClassVar(typ types.Type, varName string) (*types.HelperType, types.Type) {
+	helpers := a.getHelpersForType(typ)
+	if helpers == nil {
+		return nil, nil
+	}
+
+	varNameLower := ident.Normalize(varName)
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
+		if varType, ok := helper.ClassVars[varNameLower]; ok {
+			return helper, varType
 		}
 	}
 
