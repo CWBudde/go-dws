@@ -253,9 +253,10 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		if propCtx == nil || (!propCtx.InPropertyGetter && !propCtx.InPropertySetter) {
 			// Task 3.5.72: Use ObjectValue interface for direct property check
 			// Task 3.5.116: Use ObjectValue.ReadProperty with callback pattern
+			// Task 3.5.32: Use evaluator's executePropertyRead instead of adapter
 			if objVal.HasProperty(memberName) {
 				propValue := objVal.ReadProperty(memberName, func(propInfo any) Value {
-					return e.adapter.ExecutePropertyRead(obj, propInfo, node)
+					return e.executePropertyRead(obj, propInfo, node, ctx)
 				})
 				// Check if result is an error
 				if propValue != nil && propValue.Type() != "ERROR" {
@@ -300,9 +301,10 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Verify the member is part of the interface contract before delegating
 		if ifaceVal.HasInterfaceProperty(memberName) {
 			// Task 3.5.116: Use ObjectValue.ReadProperty with callback pattern
+			// Task 3.5.32: Use evaluator's executePropertyRead instead of adapter
 			if objVal, ok := underlying.(ObjectValue); ok {
 				propValue := objVal.ReadProperty(memberName, func(propInfo any) Value {
-					return e.adapter.ExecutePropertyRead(underlying, propInfo, node)
+					return e.executePropertyRead(underlying, propInfo, node, ctx)
 				})
 				// Check if result is an error
 				if propValue != nil && propValue.Type() != "ERROR" {
@@ -389,9 +391,10 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			}
 
 			// Task 3.5.116: Try property access using ObjectValue.ReadProperty with callback pattern
+			// Task 3.5.32: Use evaluator's executePropertyRead instead of adapter
 			if objVal.HasProperty(memberName) {
 				propValue := objVal.ReadProperty(memberName, func(propInfo any) Value {
-					return e.adapter.ExecutePropertyRead(wrappedValue, propInfo, node)
+					return e.executePropertyRead(wrappedValue, propInfo, node, ctx)
 				})
 				// Check if result is an error
 				if propValue != nil && propValue.Type() != "ERROR" {

@@ -401,11 +401,16 @@ Goal: Reduce adapter interface from ~75 methods to ~20 essential methods (~75% r
 
 **Goal**: Complete ObjectValue callback pattern for property access. **Effort**: 3-4 hours total.
 
-- [ ] **3.5.32** Consolidate ExecutePropertyRead
-  - **Current**: 4 calls to `e.adapter.ExecutePropertyRead`
+- [x] **3.5.32** Consolidate ExecutePropertyRead ✅
+  - **Current**: 4 calls to `e.adapter.ExecutePropertyRead` → 0 (all migrated)
   - **Work**: Move property getter execution logic to evaluator
   - **Pattern**: Evaluator already has `ExecuteMethodWithSelf` callback - reuse for getters
-  - **Files**: `evaluator/visitor_expressions_members.go`, `evaluator/visitor_expressions_identifiers.go`
+  - **Files**: `evaluator/property_read.go` (new), `evaluator/visitor_expressions_members.go`, `evaluator/visitor_expressions_identifiers.go`
+  - **Files added/modified**:
+    - `evaluator/property_read.go` (new): `executePropertyRead()` with 3 helper methods for field/method/expression-backed properties
+    - `runtime/object.go`: Added `GetClassConstantBySpec()`, `BindFieldsToEnvironment()` interface methods
+    - `class.go`: Added `GetClassConstant()` for class constant lookup
+  - **Adapter changes**: Removed `ExecutePropertyRead` from adapter interface (zero callers)
   - **Effort**: 1.5 hours
 
 - [ ] **3.5.33** Consolidate ExecuteIndexedPropertyRead

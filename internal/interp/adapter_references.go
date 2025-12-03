@@ -260,57 +260,7 @@ func (i *Interpreter) WrapObjectInException(objInstance evaluator.Value, pos any
 	}
 }
 
-// Task 3.5.70: GetVariable removed - evaluator now uses ctx.Env().Get() directly
-// Task 3.5.137: DefineVariable removed - evaluator now uses ctx.Env().Define() directly
-
 // ===== Binary Operator Adapters =====
-// ===== Reference Values =====
-// These adapter methods allow the Evaluator to handle complex value types
-// (ReferenceValue) that require special processing when accessed as identifiers.
-//
-// ===== Property and Method References =====
-// These adapter methods allow the Evaluator to access object fields, properties,
-// methods, and class metadata when handling identifier lookups in method contexts.
-
-// Task 3.5.28: GetObjectFieldValue REMOVED - zero callers
-// Replacement: Use ObjectValue.GetField() directly after type assertion:
-//   if objVal, ok := obj.(evaluator.ObjectValue); ok {
-//       val := objVal.GetField(fieldName)
-//   }
-
-// Task 3.5.28: GetClassVariableValue REMOVED - zero callers
-// Replacement: Use ObjectValue.GetClassVar() directly:
-//   if objVal, ok := obj.(evaluator.ObjectValue); ok {
-//       val, ok := objVal.GetClassVar(varName)
-//   }
-
-// Task 3.5.72: HasProperty removed - ObjectInstance implements evaluator.ObjectValue directly
-
-// Task 3.5.27: ReadPropertyValue REMOVED - zero callers (deprecated)
-
-// ExecutePropertyRead executes property reading with a resolved PropertyInfo.
-// Task 3.5.116: Low-level method for property getter execution.
-// This is the callback implementation for ObjectValue.ReadProperty().
-func (i *Interpreter) ExecutePropertyRead(obj evaluator.Value, propInfo any, node any) evaluator.Value {
-	objInst, ok := obj.(*ObjectInstance)
-	if !ok {
-		return i.NewError("cannot read property from non-object value")
-	}
-
-	pInfo, ok := propInfo.(*types.PropertyInfo)
-	if !ok {
-		return i.NewError("invalid property info type")
-	}
-
-	astNode, _ := node.(ast.Node)
-	return i.evalPropertyRead(objInst, pInfo, astNode)
-}
-
-// Task 3.5.72: HasMethod removed - ObjectInstance implements evaluator.ObjectValue directly
-
-// Task 3.5.27: IsMethodParameterless REMOVED - zero callers
-// Task 3.5.27: CreateMethodCall REMOVED - zero callers
-// Task 3.5.27: CreateMethodPointerFromObject REMOVED - zero callers
 
 // CreateBoundMethodPointer creates a FunctionPointerValue for a method bound to an object.
 // Task 3.5.120: Low-level adapter method for method pointer creation.
