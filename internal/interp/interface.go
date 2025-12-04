@@ -408,6 +408,8 @@ func (i *Interpreter) runDestructor(obj *ObjectInstance, destructor *ast.Functio
 	// If no destructor is defined, just mark destroyed
 	if destructor == nil {
 		obj.Destroyed = true
+		// Task 3.5.42: Reset to 0 after destruction - this is a finalization step, not ref counting.
+		// Do NOT use RefCountManager here - we're cleaning up a destroyed object.
 		obj.RefCount = 0
 		return &NilValue{}
 	}
@@ -417,6 +419,8 @@ func (i *Interpreter) runDestructor(obj *ObjectInstance, destructor *ast.Functio
 		obj.DestroyCallDepth--
 		if obj.DestroyCallDepth == 0 {
 			obj.Destroyed = true
+			// Task 3.5.42: Reset to 0 after destruction - this is a finalization step, not ref counting.
+			// Do NOT use RefCountManager here - we're cleaning up a destroyed object.
 			obj.RefCount = 0
 		}
 	}()
@@ -479,6 +483,7 @@ func (i *Interpreter) runDestructorForRefCount(obj *ObjectInstance) error {
 // callDestructorIfNeeded decrements the reference count of an object and calls its
 // destructor if the reference count reaches zero.
 // Task 9.1.5: Consolidates destructor logic to reduce code duplication.
+// Task 3.5.42: Migrated to use RefCountManager for consistent ref counting across all code paths.
 func (i *Interpreter) callDestructorIfNeeded(obj *ObjectInstance) {
 	if obj == nil || obj.Destroyed {
 		return
@@ -490,24 +495,12 @@ func (i *Interpreter) callDestructorIfNeeded(obj *ObjectInstance) {
 		return
 	}
 
-	// DEBUG
-	// fmt.Printf("DEBUG callDestructorIfNeeded: RefCount before = %d\n", obj.RefCount)
-
-	// Decrement reference count
-	obj.RefCount--
-	if obj.RefCount < 0 {
-		obj.RefCount = 0
-	}
-
-	// DEBUG
-	// fmt.Printf("DEBUG callDestructorIfNeeded: RefCount after = %d\n", obj.RefCount)
-
-	// If reference count reaches 0 or below, call the destructor
-	if obj.RefCount <= 0 {
-		// DEBUG
-		// fmt.Printf("DEBUG callDestructorIfNeeded: Calling destructor\n")
-		i.runDestructor(obj, obj.Class.LookupMethod("Destroy"), nil)
-	}
+	// Task 3.5.42: Use RefCountManager for proper ref counting
+	// DecrementRef handles:
+	// - Decrementing the ref count
+	// - Clamping negative values to 0
+	// - Invoking destructor when ref count reaches 0
+	i.evaluatorInstance.RefCountManager().DecrementRef(obj)
 }
 
 // ReleaseInterfaceReference decrements the reference count of the object wrapped by

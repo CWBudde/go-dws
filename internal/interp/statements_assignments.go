@@ -378,7 +378,8 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 			if intfInst, isIntf := value.(*InterfaceInstance); isIntf {
 				// Increment ref count because the target variable gets a new reference
 				if intfInst.Object != nil {
-					intfInst.Object.RefCount++
+					// Task 3.5.42d: Use RefCountManager for proper ref counting
+					i.evaluatorInstance.RefCountManager().IncrementRef(intfInst.Object)
 				}
 			}
 
@@ -454,7 +455,8 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 					// Decrement old object's ref count and call destructor if needed
 					i.callDestructorIfNeeded(objInst)
 					// Increment new object's ref count
-					newObj.RefCount++
+					// Task 3.5.42e: Use RefCountManager for proper ref counting
+					i.evaluatorInstance.RefCountManager().IncrementRef(newObj)
 				}
 			}
 		} else {
@@ -464,7 +466,8 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 			if newObj, isNewObj := value.(*ObjectInstance); isNewObj {
 				if _, isIface := existingVal.(*InterfaceInstance); !isIface {
 					// Not an interface variable, so increment ref count
-					newObj.RefCount++
+					// Task 3.5.42f: Use RefCountManager for proper ref counting
+					i.evaluatorInstance.RefCountManager().IncrementRef(newObj)
 				}
 			}
 		}
@@ -491,7 +494,8 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 				// Task 9.1.5: Increment ref count on the underlying object (if not nil)
 				// This implements copy semantics - both variables will hold references
 				if srcIface.Object != nil {
-					srcIface.Object.RefCount++
+					// Task 3.5.42g: Use RefCountManager for proper ref counting
+					i.evaluatorInstance.RefCountManager().IncrementRef(srcIface.Object)
 				}
 				// Use the underlying object but with the target interface type
 				value = &InterfaceInstance{
@@ -511,7 +515,8 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 	// increment the SelfObject's RefCount to keep it alive while the pointer exists
 	if funcPtr, isFuncPtr := value.(*FunctionPointerValue); isFuncPtr {
 		if objInst, isObj := funcPtr.SelfObject.(*ObjectInstance); isObj {
-			objInst.RefCount++
+			// Task 3.5.42h: Use RefCountManager for proper ref counting
+			i.evaluatorInstance.RefCountManager().IncrementRef(objInst)
 		}
 	}
 

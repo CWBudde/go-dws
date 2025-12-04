@@ -129,12 +129,14 @@ func (i *Interpreter) createReturnValueConverterCallback() evaluator.TryImplicit
 //
 // When returning an interface value from a function, the ref count needs to be incremented
 // for the caller's reference. This will be balanced by cleanup releasing Result after return.
+// Task 3.5.42: Migrated to use RefCountManager for consistent ref counting.
 func (i *Interpreter) createInterfaceRefCounterCallback() evaluator.IncrementInterfaceRefCountFunc {
 	return func(returnValue evaluator.Value) {
 		// If returning an interface, increment RefCount for the caller's reference
 		if intfInst, isIntf := returnValue.(*InterfaceInstance); isIntf {
 			if intfInst.Object != nil {
-				intfInst.Object.RefCount++
+				// Task 3.5.42: Use RefCountManager for proper ref counting
+				i.evaluatorInstance.RefCountManager().IncrementRef(intfInst.Object)
 			}
 		}
 	}
