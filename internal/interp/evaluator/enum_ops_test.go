@@ -285,7 +285,8 @@ func TestEvalEnumBinaryOp(t *testing.T) {
 			var output bytes.Buffer
 			config := DefaultConfig()
 			unitRegistry := units.NewUnitRegistry(nil)
-			eval := NewEvaluator(typeSystem, &output, config, unitRegistry, nil)
+			refCountMgr := runtime.NewRefCountManager()
+			eval := NewEvaluator(typeSystem, &output, config, unitRegistry, nil, refCountMgr)
 
 			// Create a dummy node for error reporting
 			node := &ast.BinaryExpression{
@@ -384,7 +385,8 @@ func TestEvalEnumBinaryOpErrors(t *testing.T) {
 			var output bytes.Buffer
 			config := DefaultConfig()
 			unitRegistry := units.NewUnitRegistry(nil)
-			eval := NewEvaluator(typeSystem, &output, config, unitRegistry, nil)
+			refCountMgr := runtime.NewRefCountManager()
+			eval := NewEvaluator(typeSystem, &output, config, unitRegistry, nil, refCountMgr)
 
 			// Create a dummy node for error reporting
 			node := &ast.BinaryExpression{

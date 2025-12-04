@@ -12,7 +12,8 @@ import (
 func TestExecuteConversionFunction_Validation(t *testing.T) {
 	// Create evaluator with minimal setup
 	typeSystem := interptypes.NewTypeSystem()
-	e := NewEvaluator(typeSystem, nil, nil, nil, nil)
+	refCountMgr := runtime.NewRefCountManager()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 
 	// Create execution context
 	ctx := NewExecutionContext(nil)
@@ -79,7 +80,8 @@ func TestExecuteConversionFunction_Validation(t *testing.T) {
 func TestExecuteConversionFunction_WithMockAdapter(t *testing.T) {
 	// Create evaluator with minimal setup
 	typeSystem := interptypes.NewTypeSystem()
-	e := NewEvaluator(typeSystem, nil, nil, nil, nil)
+	refCountMgr := runtime.NewRefCountManager()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 
 	// Create a mock adapter that simulates function execution
 	mockAdapter := &mockConversionAdapter{
@@ -133,7 +135,8 @@ func TestExecuteConversionFunction_WithMockAdapter(t *testing.T) {
 func TestExecuteConversionFunctionSimple_Validation(t *testing.T) {
 	// Create evaluator with minimal setup
 	typeSystem := interptypes.NewTypeSystem()
-	e := NewEvaluator(typeSystem, nil, nil, nil, nil)
+	refCountMgr := runtime.NewRefCountManager()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 
 	// Create execution context
 	ctx := NewExecutionContext(nil)
@@ -157,7 +160,8 @@ func TestExecuteConversionFunctionSimple_Validation(t *testing.T) {
 func TestConversionCallbacks_NilHandling(t *testing.T) {
 	// Create evaluator with minimal setup
 	typeSystem := interptypes.NewTypeSystem()
-	e := NewEvaluator(typeSystem, nil, nil, nil, nil)
+	refCountMgr := runtime.NewRefCountManager()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 
 	// Set up a mock adapter
 	mockAdapter := &mockConversionAdapter{
@@ -455,7 +459,8 @@ func (m *mockConversionAdapter) EvalBuiltinHelperProperty(propSpec string, selfV
 // TestTryImplicitConversion_NilValue tests nil value handling.
 func TestTryImplicitConversion_NilValue(t *testing.T) {
 	typeSystem := interptypes.NewTypeSystem()
-	e := NewEvaluator(typeSystem, nil, nil, nil, nil)
+	refCountMgr := runtime.NewRefCountManager()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 	ctx := NewExecutionContext(nil)
 
 	result, ok := e.TryImplicitConversion(nil, "Integer", ctx)
@@ -470,7 +475,8 @@ func TestTryImplicitConversion_NilValue(t *testing.T) {
 // TestTryImplicitConversion_SameType tests that same types return false (no conversion needed).
 func TestTryImplicitConversion_SameType(t *testing.T) {
 	typeSystem := interptypes.NewTypeSystem()
-	e := NewEvaluator(typeSystem, nil, nil, nil, nil)
+	refCountMgr := runtime.NewRefCountManager()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 	ctx := NewExecutionContext(nil)
 
 	value := &runtime.IntegerValue{Value: 42}
@@ -488,7 +494,8 @@ func TestTryImplicitConversion_SameType(t *testing.T) {
 // TestTryImplicitConversion_IntegerToFloat tests the built-in Integer→Float widening conversion.
 func TestTryImplicitConversion_IntegerToFloat(t *testing.T) {
 	typeSystem := interptypes.NewTypeSystem()
-	e := NewEvaluator(typeSystem, nil, nil, nil, nil)
+	refCountMgr := runtime.NewRefCountManager()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 	ctx := NewExecutionContext(nil)
 
 	testCases := []struct {
@@ -527,7 +534,8 @@ func TestTryImplicitConversion_IntegerToFloat(t *testing.T) {
 // TestTryImplicitConversion_EnumToInteger tests the built-in Enum→Integer conversion.
 func TestTryImplicitConversion_EnumToInteger(t *testing.T) {
 	typeSystem := interptypes.NewTypeSystem()
-	e := NewEvaluator(typeSystem, nil, nil, nil, nil)
+	refCountMgr := runtime.NewRefCountManager()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 	ctx := NewExecutionContext(nil)
 
 	testCases := []struct {
@@ -573,7 +581,8 @@ func TestTryImplicitConversion_EnumToInteger(t *testing.T) {
 // TestTryImplicitConversion_NoConversionAvailable tests behavior when no conversion exists.
 func TestTryImplicitConversion_NoConversionAvailable(t *testing.T) {
 	typeSystem := interptypes.NewTypeSystem()
-	e := NewEvaluator(typeSystem, nil, nil, nil, nil)
+	refCountMgr := runtime.NewRefCountManager()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 	ctx := NewExecutionContext(nil)
 
 	// String → Integer is not a built-in conversion
@@ -592,7 +601,8 @@ func TestTryImplicitConversion_NoConversionAvailable(t *testing.T) {
 // TestTryImplicitConversion_FloatToInteger tests that Float→Integer is not allowed implicitly.
 func TestTryImplicitConversion_FloatToInteger(t *testing.T) {
 	typeSystem := interptypes.NewTypeSystem()
-	e := NewEvaluator(typeSystem, nil, nil, nil, nil)
+	refCountMgr := runtime.NewRefCountManager()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 	ctx := NewExecutionContext(nil)
 
 	// Float → Integer is NOT an implicit conversion (would lose precision)
@@ -611,7 +621,8 @@ func TestTryImplicitConversion_FloatToInteger(t *testing.T) {
 // TestTryImplicitConversion_TypeNormalization tests that type names are properly normalized.
 func TestTryImplicitConversion_TypeNormalization(t *testing.T) {
 	typeSystem := interptypes.NewTypeSystem()
-	e := NewEvaluator(typeSystem, nil, nil, nil, nil)
+	refCountMgr := runtime.NewRefCountManager()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 	ctx := NewExecutionContext(nil)
 
 	value := &runtime.IntegerValue{Value: 42}

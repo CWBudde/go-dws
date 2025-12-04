@@ -449,6 +449,33 @@ func (i *Interpreter) runDestructor(obj *ObjectInstance, destructor *ast.Functio
 	return result
 }
 
+// runDestructorForRefCount executes the destructor as a callback from RefCountManager.
+// Task 3.5.41: Wrapper for RefCountManager destructor callback pattern.
+// This method follows the destructor callback contract:
+// 1. Check if obj.Destroyed is true (skip if already destroyed)
+// 2. Mark obj.Destroyed = true BEFORE execution (prevent recursion)
+// 3. Execute the destructor method
+// 4. Reset obj.RefCount = 0 after completion
+func (i *Interpreter) runDestructorForRefCount(obj *ObjectInstance) error {
+	if obj == nil || obj.Destroyed {
+		return nil
+	}
+
+	// If we're already inside this object's destructor, skip to avoid infinite recursion
+	if obj.DestroyCallDepth > 0 {
+		return nil
+	}
+
+	// Look up the destructor
+	destructor := obj.Class.LookupMethod("Destroy")
+
+	// Execute destructor via runDestructor (handles marking and environment)
+	// Pass nil for node since this is automatic ref count cleanup
+	i.runDestructor(obj, destructor, nil)
+
+	return nil
+}
+
 // callDestructorIfNeeded decrements the reference count of an object and calls its
 // destructor if the reference count reaches zero.
 // Task 9.1.5: Consolidates destructor logic to reduce code duplication.

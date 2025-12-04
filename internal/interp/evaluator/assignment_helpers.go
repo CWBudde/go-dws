@@ -118,22 +118,58 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 		return e.evalSubrangeAssignment(subrangeVal, value, target)
 	}
 
-	// DWScript requires reference counting for interface variables:
-	// - Release old interface reference (decrement ref count, call destructor if 0)
-	// - Wrap object in InterfaceInstance
-	// - Increment ref count for new reference
-	// KEEP: Reference counting lives in interpreter (architectural constraint)
-	if existingVal.Type() == "INTERFACE" {
-		return e.adapter.EvalNode(stmt)
+	// Task 3.5.41a: Assigning to interface variable - native ref counting
+	// Handle interface variable assignment with proper ref counting
+	if ifaceInst, isIface := existingVal.(*runtime.InterfaceInstance); isIface {
+		refMgr := ctx.RefCountManager()
+
+		// Release old interface reference (decrements ref count, may invoke destructor)
+		refMgr.ReleaseInterface(ifaceInst)
+
+		// Wrap new value in interface (increments ref count automatically)
+		if objInst, ok := value.(*runtime.ObjectInstance); ok {
+			// Assigning object to interface - wrap it
+			value = refMgr.WrapInInterface(ifaceInst.Interface, objInst)
+		} else if srcIface, isSrcIface := value.(*runtime.InterfaceInstance); isSrcIface {
+			// Interface-to-interface assignment - wrap underlying object
+			value = refMgr.WrapInInterface(ifaceInst.Interface, srcIface.Object)
+		} else if _, isNil := value.(*runtime.NilValue); isNil {
+			// Assigning nil - create interface with nil object (no ref count needed)
+			value = &runtime.InterfaceInstance{
+				Interface: ifaceInst.Interface,
+				Object:    nil,
+			}
+		}
+
+		// Update variable with wrapped value
+		e.SetVar(ctx, targetName, value)
+		return value
 	}
 
-	// DWScript requires reference counting for object variables:
-	// - Release old object reference (decrement ref count, call destructor if 0)
-	// - Increment ref count for new object
-	// - Handle nil assignments correctly
-	// KEEP: Reference counting lives in interpreter (architectural constraint)
-	if existingVal.Type() == "OBJECT" {
-		return e.adapter.EvalNode(stmt)
+	// Task 3.5.41b: Assigning to object variable - native ref counting
+	// Handle object variable assignment with proper ref counting
+	if objInst, isObj := existingVal.(*runtime.ObjectInstance); isObj {
+		refMgr := ctx.RefCountManager()
+
+		if _, isNil := value.(*runtime.NilValue); isNil {
+			// Setting to nil - release old object
+			refMgr.ReleaseObject(objInst)
+		} else if newObj, isNewObj := value.(*runtime.ObjectInstance); isNewObj {
+			// Replacing with new object
+			if objInst != newObj {
+				// Different objects - release old, increment new
+				refMgr.ReleaseObject(objInst)
+				refMgr.IncrementRef(newObj)
+			}
+			// Same instance: no ref count change
+		} else {
+			// Replacing object with non-object - release old
+			refMgr.ReleaseObject(objInst)
+		}
+
+		// Update variable
+		e.SetVar(ctx, targetName, value)
+		return value
 	}
 
 	// Try implicit conversion if types don't match
@@ -163,33 +199,34 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 		}
 	}
 
-	// Task 3.5.36: Assigning object value - ESSENTIAL delegation for ref counting
-	// When assigning an object VALUE (not to an object variable), need to:
-	// - Increment ref count for the new reference
-	// - Handle object wrapping for interface variables
-	// KEEP: Reference counting lives in interpreter (architectural constraint)
-	if value != nil && value.Type() == "OBJECT" {
-		return e.adapter.EvalNode(stmt)
+	// Task 3.5.41c: Assigning object VALUE - native ref counting
+	// When assigning an object VALUE, increment ref count for the new reference
+	// Exception: interface variables handle wrapping separately (don't double-increment)
+	if newObj, isNewObj := value.(*runtime.ObjectInstance); isNewObj {
+		// Check if target is NOT an interface (interface wrapping increments separately)
+		if _, isIface := existingVal.(*runtime.InterfaceInstance); !isIface {
+			refMgr := ctx.RefCountManager()
+			refMgr.IncrementRef(newObj)
+		}
 	}
 
-	// Task 3.5.36: Assigning interface value - ESSENTIAL delegation for ref counting
-	// When assigning an interface VALUE, need to:
-	// - Increment ref count on underlying object
-	// - Handle interface-to-interface assignments
-	// - Track and release source interfaces correctly
-	// KEEP: Reference counting lives in interpreter (architectural constraint)
-	if value != nil && value.Type() == "INTERFACE" {
-		return e.adapter.EvalNode(stmt)
-	}
+	// Task 3.5.41d: Interface VALUE assignment is handled by line 127 migration
+	// The WrapInInterface method automatically increments ref count
+	// This delegation is redundant - removed in Task 3.5.41
 
-	// Task 3.5.36: Handle function pointer ref counting
+	// Task 3.5.41e: Handle function pointer ref counting
 	// Only method pointers (with SelfObject) need ref counting
 	// Simple function pointers can be handled natively
 	if value != nil {
 		valueType := value.Type()
 		if valueType == "METHOD_POINTER" {
-			// Method pointer with SelfObject - needs ref counting
-			return e.adapter.EvalNode(stmt)
+			// Method pointer with SelfObject - increment ref count
+			refMgr := ctx.RefCountManager()
+			if funcPtr, isFuncPtr := value.(*runtime.FunctionPointerValue); isFuncPtr {
+				if funcPtr.SelfObject != nil {
+					refMgr.IncrementRef(funcPtr.SelfObject)
+				}
+			}
 		}
 		// FUNCTION_POINTER and LAMBDA can be handled natively (no ref counting needed)
 	}
@@ -217,14 +254,31 @@ func (e *Evaluator) evalReferenceAssignment(
 		return e.newError(target, "%s", err.Error())
 	}
 
-	// Task 3.5.36: Var parameter to interface/object - ESSENTIAL delegation for ref counting
+	// Task 3.5.41f: Var parameter to interface/object - native ref counting
 	// When assigning through a var parameter that references an interface/object:
-	// - Release old interface/object reference (decrement ref count, call destructor if 0)
+	// - Release old interface/object reference
 	// - Increment ref count for new reference
-	// - Handle complex object wrapping scenarios
-	// KEEP: Reference counting lives in interpreter (architectural constraint)
 	if currentVal.Type() == "INTERFACE" || currentVal.Type() == "OBJECT" {
-		return e.adapter.EvalNode(stmt)
+		refMgr := ctx.RefCountManager()
+
+		// Release old reference
+		if oldIntf, isOldIntf := currentVal.(*runtime.InterfaceInstance); isOldIntf {
+			refMgr.ReleaseInterface(oldIntf)
+		} else if oldObj, isOldObj := currentVal.(*runtime.ObjectInstance); isOldObj {
+			refMgr.ReleaseObject(oldObj)
+		}
+
+		// Increment new reference
+		if value != nil {
+			refMgr.IncrementRef(value)
+		}
+
+		// Write through the reference
+		if err := refVal.Assign(value); err != nil {
+			return e.newError(target, "%s", err.Error())
+		}
+
+		return value
 	}
 
 	// Try implicit conversion if types don't match
@@ -244,15 +298,10 @@ func (e *Evaluator) evalReferenceAssignment(
 	// Ensure value semantics for copyable types
 	value = cloneIfCopyable(value)
 
-	// Task 3.5.36: Assigning object/interface through var parameter - ESSENTIAL for ref counting
-	// When assigning an object/interface VALUE through a var parameter:
-	// - Increment ref count for the new reference
-	// - Handle interface wrapping if target is interface type
-	// - Complex interaction with var parameter write-through
-	// KEEP: Reference counting lives in interpreter (architectural constraint)
-	if value != nil && (value.Type() == "OBJECT" || value.Type() == "INTERFACE") {
-		return e.adapter.EvalNode(stmt)
-	}
+	// Task 3.5.41f: Assigning object/interface VALUE through var parameter
+	// This case is already handled by the first check above (line 261)
+	// When the value is an object/interface, the IncrementRef call handles it
+	// No additional delegation needed
 
 	// Write through the reference
 	if err := refVal.Assign(value); err != nil {

@@ -182,6 +182,9 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 		SourceFile:        "",
 	}
 
+	// Task 3.5.41: Create RefCountManager for object lifecycle management
+	refCountMgr := runtime.NewRefCountManager()
+
 	// Create evaluator instance
 	interp.evaluatorInstance = evaluator.NewEvaluator(
 		ts,
@@ -189,7 +192,14 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 		evalConfig,
 		nil, // unitRegistry is set later via SetUnitRegistry if needed
 		interp.semanticInfo,
+		refCountMgr, // Task 3.5.41: Pass RefCountManager to evaluator
 	)
+
+	// Task 3.5.41: Register destructor callback for RefCountManager
+	// This callback is invoked when an object's reference count reaches 0
+	refCountMgr.SetDestructorCallback(func(obj *runtime.ObjectInstance) error {
+		return interp.runDestructorForRefCount(obj)
+	})
 
 	// Set external functions if available
 	if interp.externalFunctions != nil {
