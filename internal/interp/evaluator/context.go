@@ -149,6 +149,7 @@ type Environment interface {
 // The context is passed to Eval methods to make execution state explicit.
 // Phase 3.3.3: Updated to use CallStack abstraction with overflow detection.
 // Phase 3.5.4 - Phase 2D: Added envStack for proper environment scoping.
+// Task 3.5.41: Added evaluator field for accessing RefCountManager.
 type ExecutionContext struct {
 	env               Environment
 	exception         interface{}
@@ -160,6 +161,7 @@ type ExecutionContext struct {
 	arrayTypeContext  *types.ArrayType
 	envStack          []Environment
 	oldValuesStack    []map[string]interface{}
+	evaluator         *Evaluator // Task 3.5.41: For RefCountManager access
 }
 
 // NewExecutionContext creates a new execution context with the given environment.
@@ -372,6 +374,7 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 		propContext:       ctx.propContext,
 		recordTypeContext: ctx.recordTypeContext,
 		arrayTypeContext:  ctx.arrayTypeContext,
+		evaluator:         ctx.evaluator, // Task 3.5.41: Copy evaluator reference
 	}
 }
 
@@ -385,6 +388,21 @@ func (ctx *ExecutionContext) Reset() {
 	ctx.handlerException = nil
 	ctx.oldValuesStack = make([]map[string]interface{}, 0)
 	ctx.propContext = NewPropertyEvalContext()
+}
+
+// SetEvaluator sets the evaluator reference in the execution context.
+// Task 3.5.41: Enables access to RefCountManager from assignment helpers.
+func (ctx *ExecutionContext) SetEvaluator(evaluator *Evaluator) {
+	ctx.evaluator = evaluator
+}
+
+// RefCountManager returns the reference counting manager from the evaluator.
+// Task 3.5.41: Enables assignment helpers to manage object lifecycles.
+func (ctx *ExecutionContext) RefCountManager() runtime.RefCountManager {
+	if ctx.evaluator != nil {
+		return ctx.evaluator.RefCountManager()
+	}
+	return nil
 }
 
 // Package-level documentation

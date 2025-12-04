@@ -19,24 +19,24 @@ This audit documents **all 34 EvalNode calls** across the evaluator package (int
 
 ### Distribution by File
 
-```
-assignment_helpers.go           9 calls (26.5%)  ████████████
-visitor_expressions_members.go  6 calls (17.6%)  █████████
-member_assignment.go            6 calls (17.6%)  █████████
-index_assignment.go             3 calls (8.8%)   ████
-visitor_expressions_functions.go 2 calls (5.9%)   ███
-visitor_statements.go           2 calls (5.9%)   ███
-evaluator.go                    1 call  (2.9%)   █
-compound_ops.go                 1 call  (2.9%)   █
-helper_methods.go               1 call  (2.9%)   █
-user_function_helpers.go        1 call  (2.9%)   █
-visitor_declarations.go         1 call  (2.9%)   █
-method_dispatch.go              1 call  (2.9%)   █
+```plain
+assignment_helpers.go             9 calls (26.5%)  ████████████
+visitor_expressions_members.go    6 calls (17.6%)  █████████
+member_assignment.go              6 calls (17.6%)  █████████
+index_assignment.go               3 calls (8.8%)   ████
+visitor_expressions_functions.go  2 calls (5.9%)   ███
+visitor_statements.go             2 calls (5.9%)   ███
+evaluator.go                      1 call  (2.9%)   █
+compound_ops.go                   1 call  (2.9%)   █
+helper_methods.go                 1 call  (2.9%)   █
+user_function_helpers.go          1 call  (2.9%)   █
+visitor_declarations.go           1 call  (2.9%)   █
+method_dispatch.go                1 call  (2.9%)   █
 ```
 
 ### Distribution by Category
 
-```
+```plain
 Assignment/Reference Counting    9 calls (26.5%)  ████████████
 Member Access Delegation         6 calls (17.6%)  █████████
 Member Assignment Delegation     6 calls (17.6%)  █████████
@@ -93,6 +93,7 @@ if value != nil && value.Type() == "OBJECT" {
 ```
 
 **Migration Strategy**:
+
 - Task 3.5.39: Design runtime.RefCountManager interface
 - Tasks 3.5.40-3.5.42: Migrate ref counting operations to runtime package
 - Task 3.5.43: Handle Self/class context (lines 93, 319)

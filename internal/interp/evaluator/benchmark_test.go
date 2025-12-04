@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
@@ -34,7 +35,9 @@ func createTestEvaluator() *Evaluator {
 	config.MaxRecursionDepth = 1024
 	typeSystem := interptypes.NewTypeSystem()
 	unitRegistry := units.NewUnitRegistry([]string{"."})
-	return NewEvaluator(typeSystem, &bytes.Buffer{}, config, unitRegistry, nil)
+	// Task 3.5.41: Create RefCountManager for tests
+	refCountMgr := runtime.NewRefCountManager()
+	return NewEvaluator(typeSystem, &bytes.Buffer{}, config, unitRegistry, nil, refCountMgr)
 }
 
 func createTestContext() *ExecutionContext {
@@ -548,10 +551,13 @@ func BenchmarkEvaluatorCreation(b *testing.B) {
 	unitRegistry := units.NewUnitRegistry([]string{"."})
 	output := &bytes.Buffer{}
 
+	// Task 3.5.41: Create RefCountManager for benchmark
+	refCountMgr := runtime.NewRefCountManager()
+
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		benchSink = NewEvaluator(typeSystem, output, config, unitRegistry, nil)
+		benchSink = NewEvaluator(typeSystem, output, config, unitRegistry, nil, refCountMgr)
 	}
 }
 

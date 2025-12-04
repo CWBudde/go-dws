@@ -890,6 +890,7 @@ type Evaluator struct {
 	loadedUnits       []string
 	randSeed          int64
 	currentContext    *ExecutionContext // Task 3.5.143n: For Context methods needing runtime state (call stack)
+	refCountMgr       runtime.RefCountManager // Task 3.5.41: Reference counting manager
 }
 
 // Ensure Evaluator implements builtins.Context interface at compile time.
@@ -899,12 +900,14 @@ var _ builtins.Context = (*Evaluator)(nil)
 // NewEvaluator creates a new Evaluator with the given dependencies.
 // Task 3.5.76: semanticInfo is now passed via constructor (like TypeRegistry)
 // for explicit dependency injection.
+// Task 3.5.41: refCountMgr is passed for reference counting operations.
 func NewEvaluator(
 	typeSystem *interptypes.TypeSystem,
 	output io.Writer,
 	config *Config,
 	unitRegistry *units.UnitRegistry,
 	semanticInfo *ast.SemanticInfo,
+	refCountMgr runtime.RefCountManager,
 ) *Evaluator {
 	if config == nil {
 		config = DefaultConfig()
@@ -924,6 +927,7 @@ func NewEvaluator(
 		initializedUnits: make(map[string]bool),
 		loadedUnits:      make([]string, 0),
 		semanticInfo:     semanticInfo,
+		refCountMgr:      refCountMgr,
 	}
 }
 
@@ -1036,6 +1040,12 @@ func (e *Evaluator) SetSemanticInfo(info *ast.SemanticInfo) {
 	e.semanticInfo = info
 }
 
+// RefCountManager returns the reference counting manager.
+// Task 3.5.41: Enables evaluator to manage object lifecycles independently.
+func (e *Evaluator) RefCountManager() runtime.RefCountManager {
+	return e.refCountMgr
+}
+
 // CurrentNode returns the current AST node being evaluated (for error reporting).
 func (e *Evaluator) CurrentNode() ast.Node {
 	return e.currentNode
@@ -1101,6 +1111,9 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	// Task 3.5.143n: Set currentContext for Context interface methods (call stack access)
 	e.currentContext = ctx
 	defer func() { e.currentContext = nil }()
+
+	// Task 3.5.41: Set evaluator in context for RefCountManager access
+	ctx.SetEvaluator(e)
 
 	// Track current node for error reporting
 	e.currentNode = node
