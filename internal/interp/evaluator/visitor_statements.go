@@ -13,12 +13,9 @@ import (
 )
 
 // This file contains visitor methods for statement AST nodes.
-//
-// Statements perform actions and control flow, typically not returning values
-// (or returning nil).
+// Statements perform actions and control flow.
 
 // VisitProgram evaluates a program (the root node).
-// Phase 3.5.4.29: Migrated from Interpreter.evalProgram()
 func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value {
 	var result Value
 
@@ -42,11 +39,8 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 		}
 	}
 
-	// If there's an uncaught exception, convert it to an error
+	// Convert uncaught exceptions to errors
 	if ctx.Exception() != nil {
-		// Type assert to ExceptionValue to get Inspect() method
-		// This is safe because only ExceptionValue instances are set via SetException()
-		// Phase 3.5.44: Add nil check to prevent panic on nil *ExceptionValue
 		type ExceptionInspector interface {
 			Inspect() string
 		}
@@ -54,16 +48,6 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 			return e.newError(node, "uncaught exception: %s", exc.Inspect())
 		}
 		return e.newError(node, "uncaught exception: %v", ctx.Exception())
-	}
-
-	// Task 9.1.5/PR#142: Clean up interface and object references when program ends
-	// This ensures destructors are called for global objects and interface-held objects
-	// Phase 3.5.4.29: Cleanup is delegated to adapter during migration
-	// TODO: Move cleanup logic to Evaluator in a future phase
-	if e.adapter != nil {
-		// Use a dummy node to trigger cleanup via the adapter
-		// The adapter will call i.cleanupInterfaceReferences(i.env)
-		// This is a temporary workaround during the migration phase
 	}
 
 	return result
@@ -86,25 +70,15 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 		return val
 	}
 
-	// Auto-invoke parameterless function pointers stored in variables
-	// In DWScript, when a variable holds a function pointer with no parameters
-	// and is used as a statement, it's automatically invoked
+	// Auto-invoke parameterless function pointers
 	// Example: var fp := @SomeProc; fp; // auto-invokes SomeProc
-	// Task 3.5.121: Migrated to use FunctionPointerCallable interface
-	// Task 3.5.180: Removed adapter fallback - FunctionPointerValue implements FunctionPointerCallable
 	if funcPtr, ok := val.(FunctionPointerCallable); ok {
-		// If it has zero parameters, auto-invoke it
 		if funcPtr.ParamCount() == 0 {
-			// Check if the function pointer is nil (not assigned) BEFORE invoking.
-			// We check this here to raise a catchable DWScript exception instead of
-			// returning an ErrorValue that would bypass exception handlers.
 			if funcPtr.IsNil() {
-				// Raise a catchable exception (sets ctx.Exception())
 				exc := e.createException("Exception", "Function pointer is nil", &node.Token.Pos, ctx)
 				ctx.SetException(exc)
 				return &runtime.NilValue{}
 			}
-			// Build metadata and call via ExecuteFunctionPointerCall
 			metadata := FunctionPointerMetadata{
 				IsLambda:   funcPtr.IsLambda(),
 				Lambda:     funcPtr.GetLambdaExpr(),
@@ -120,16 +94,9 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 }
 
 // VisitVarDeclStatement evaluates a variable declaration statement.
-// Task 3.5.38: Full migration from Interpreter.evalVarDeclStatement()
+// Handles: external variables, multi-identifier declarations, inline types,
+// subrange/interface wrapping, zero value initialization, type inference.
 func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *ExecutionContext) Value {
-	// Task 3.5.38: Variable declaration with full type handling and initialization
-	//
-	// See extensive documentation in original implementation comments (lines 112-218)
-	// Key capabilities:
-	// - External variables, multi-identifier declarations, inline types
-	// - Subrange/interface wrapping, zero value initialization
-	// - Array/record literal type inference, implicit conversions
-
 	var value Value
 
 	// Handle external variables
@@ -139,27 +106,22 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 			return e.newError(node, "external keyword cannot be used with multiple variable names")
 		}
 
-		// Create external variable marker
 		externalName := node.ExternalName
 		if externalName == "" {
 			externalName = node.Names[0].Value
 		}
-		// Task 3.5.130c: Direct construction - ExternalVarValue now in runtime package
 		value = &runtime.ExternalVarValue{
 			Name:         node.Names[0].Value,
 			ExternalName: externalName,
 		}
-		// Task 3.5.137: Direct environment access instead of adapter
 		ctx.Env().Define(node.Names[0].Value, value)
 		return value
 	}
 
 	// Evaluate initializer if present
 	if node.Value != nil {
-		// Special handling for array literals with expected type
 		if arrayLit, ok := node.Value.(*ast.ArrayLiteralExpression); ok {
 			if node.Type != nil {
-				// Task 3.5.140: Use evaluator's type resolution and array literal evaluation
 				typeName := node.Type.String()
 				resolvedType, err := e.resolveTypeName(typeName, ctx)
 				if err != nil {
@@ -174,19 +136,15 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 				value = e.Eval(node.Value, ctx)
 			}
 		} else if recordLit, ok := node.Value.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
-			// Anonymous record literal needs explicit type
 			if node.Type == nil {
 				return e.newError(node, "anonymous record literal requires explicit type annotation")
 			}
 			typeName := node.Type.String()
 
-			// Lookup record type
-			// Task 3.5.46: Use TypeSystem directly instead of adapter
 			if !e.typeSystem.HasRecord(typeName) {
 				return e.newError(node, "unknown type '%s'", typeName)
 			}
 
-			// Set type context for evaluation (avoids AST mutation)
 			ctx.SetRecordTypeContext(typeName)
 			value = e.Eval(recordLit, ctx)
 			ctx.ClearRecordTypeContext()
@@ -203,12 +161,10 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 			return &runtime.NilValue{}
 		}
 
-		// Type conversions and wrapping if explicit type is declared
+		// Type conversions and wrapping if explicit type declared
 		if node.Type != nil {
 			typeName := node.Type.String()
 
-			// Handle subrange type wrapping
-			// Task 3.5.182: Use TypeSystem instead of environment lookup
 			if e.typeSystem.HasSubrangeType(typeName) {
 				wrappedVal, err := e.adapter.WrapInSubrange(value, typeName, node)
 				if err != nil {
@@ -216,14 +172,11 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 				}
 				value = wrappedVal
 			} else {
-				// Try implicit conversion
-				// Task 3.5.22h: Use evaluator's native TryImplicitConversion
 				if converted, ok := e.TryImplicitConversion(value, typeName, ctx); ok {
 					value = converted
 				}
 			}
 
-			// Box value if target type is Variant
 			if ident.Equal(typeName, "Variant") {
 				value = runtime.BoxVariant(value)
 			}
@@ -242,17 +195,12 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 		var nameValue Value
 
 		if node.Value != nil {
-			// Single name with initializer - use the computed value
 			nameValue = value
 
-			// Interface wrapping if target type is interface
 			if node.Type != nil {
 				typeName := node.Type.String()
-				// Task 3.5.46: Use TypeSystem directly instead of adapter
 				if e.typeSystem.HasInterface(typeName) {
-					// Check if value is already an interface
 					if value.Type() != "INTERFACE" {
-						// Try to wrap in interface
 						wrapped, err := e.adapter.WrapInInterface(value, typeName, node)
 						if err != nil {
 							return e.newError(node, "%v", err)
@@ -262,14 +210,12 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 				}
 			}
 		} else {
-			// No initializer - create separate zero value for each name
 			nameValue = e.createZeroValue(node.Type, node, ctx)
 			if isError(nameValue) {
 				return nameValue
 			}
 		}
 
-		// Task 3.5.137: Direct environment access instead of adapter
 		ctx.Env().Define(name.Value, nameValue)
 		lastValue = nameValue
 	}
@@ -278,71 +224,25 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 }
 
 // VisitConstDecl evaluates a constant declaration.
-// Task 3.5.39: Full migration from Interpreter.evalConstDecl()
+// Supports type inference and anonymous record literals.
+// Immutability is enforced by semantic analysis, not at runtime.
 func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) Value {
-	// Task 3.5.39: Constant declaration with type inference
-	//
-	// Constant declaration syntax:
-	// - With type: const PI: Float := 3.14159;
-	// - Type inference: const Answer := 42; (type inferred from value)
-	// - Must have initializer (constants always have values)
-	//
-	// Type inference:
-	// - If no explicit type, infer from initializer value
-	// - Integer literal → Integer const
-	// - Float literal → Float const
-	// - String literal → String const
-	// - Boolean literal → Boolean const
-	// - Array literal → Array const (with inferred element type)
-	// - Record literal → Record const (requires type context)
-	//
-	// Record literal special handling:
-	// - Anonymous record literals need explicit type
-	// - const R: TMyRecord := (Field1: 1, Field2: 'hello');
-	// - Type name temporarily set during evaluation
-	// - Enables proper field initialization
-	//
-	// Immutability enforcement:
-	// - Semantic analyzer enforces immutability (not runtime)
-	// - Constants stored in environment like variables
-	// - Attempts to reassign flagged during semantic analysis
-	// - Runtime doesn't distinguish const from var
-	//
-	// Value evaluation:
-	// - Evaluate initializer expression
-	// - Must be compile-time evaluable (literals, const expressions)
-	// - No runtime-dependent values (function calls, variable refs, etc.)
-	// - Semantic analyzer validates this constraint
-	//
-	// Storage:
-	// - Stored in environment with Define()
-	// - Accessible via identifier lookup
-	// - Can be used in other const expressions
-	// - Can be exported from units
-
-	// Constants must have a value
 	if node.Value == nil {
 		return e.newError(node, "constant '%s' must have a value", node.Name.Value)
 	}
 
-	// Evaluate the constant value
 	var value Value
 
-	// Special handling for anonymous record literals - they need type context
 	if recordLit, ok := node.Value.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
-		// Anonymous record literal needs explicit type
 		if node.Type == nil {
 			return e.newError(node, "anonymous record literal requires explicit type annotation")
 		}
 		typeName := node.Type.String()
 
-		// Lookup record type
-		// Task 3.5.46: Use TypeSystem directly instead of adapter
 		if !e.typeSystem.HasRecord(typeName) {
 			return e.newError(node, "unknown type '%s'", typeName)
 		}
 
-		// Set type context for evaluation (avoids AST mutation)
 		ctx.SetRecordTypeContext(typeName)
 		value = e.Eval(recordLit, ctx)
 		ctx.ClearRecordTypeContext()
@@ -354,56 +254,23 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 		return value
 	}
 
-	// Store the constant in the environment
-	// Note: Immutability is enforced by semantic analysis, not at runtime
-	// Task 3.5.137: Direct environment access instead of adapter
 	ctx.Env().Define(node.Name.Value, value)
 	return value
 }
 
 // VisitAssignmentStatement evaluates an assignment statement.
-// Task 3.5.105a: Migrated simple variable assignment handling directly to evaluator.
-// Task 3.5.105b: Migrated compound operators (+=, -=, *=, /=) for simple identifiers.
-// Task 3.5.105c: Migrated index assignment for arrays/strings directly to evaluator.
-// Task 3.5.105d: Structured member assignment with adapter delegation for complex cases.
-//
-// Assignment types handled:
-// - Simple assignment: x := value (Task 3.5.105a - handled directly for basic cases)
-// - Compound operators on simple identifiers: x += value (Task 3.5.105b - handled directly)
-// - Index assignment: arr[i] := value, str[i] := char (Task 3.5.105c - handled directly for arrays/strings)
-// - Member assignment: obj.field := value (Task 3.5.105d - structured with adapter delegation)
-// - Class variable/property: TClass.Variable := value (delegates to adapter)
-// - Indexed property writes: obj.Property[x, y] := value (delegates to adapter)
-// - Compound operators on members/indexes: obj.x += value (delegates to adapter)
-//
-// The adapter handles complex cases including:
-// - Class variable and property assignment
-// - Object field and property assignment (with setter dispatch)
-// - Record field and property assignment
-// - Indexed property writes (with getter/setter dispatch)
-// - Object reference counting and destructor calls
-// - Interface wrapping and reference management
-// - Property setter dispatch with recursion prevention
-// - Self/class context for field and class variable assignment
-// - Auto-initialization of record array elements
-//
-// See comprehensive documentation in internal/interp/statements_assignments.go
+// Handles: simple assignment, compound operators, index assignment, member assignment.
+// Complex cases (properties, class variables) delegate to adapter.
 func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx *ExecutionContext) Value {
-	// Check if this is a compound assignment (+=, -=, *=, /=)
 	isCompound := node.Operator != token.ASSIGN && node.Operator != token.TokenType(0)
 
-	// Handle different target types
 	switch target := node.Target.(type) {
 	case *ast.Identifier:
-		// Task 3.5.105b: Handle compound operators for simple identifiers
 		if isCompound {
 			return e.evalCompoundIdentifierAssignment(target, node, ctx)
 		}
-		// Simple variable assignment: x := value
-		// Task 3.5.105a: Try to handle directly, fall back to adapter for complex cases
 
-		// Task 3.5.105e: Context inference for array literals
-		// Set array type context from target variable before evaluating the literal
+		// Context inference for array literals
 		if _, isArrayLit := node.Value.(*ast.ArrayLiteralExpression); isArrayLit {
 			if expectedType := e.getArrayTypeFromTarget(target, ctx); expectedType != nil {
 				ctx.SetArrayTypeContext(expectedType)
@@ -411,8 +278,7 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 			}
 		}
 
-		// Task 3.5.105e: Context inference for anonymous record literals
-		// Set record type context from target variable before evaluating the literal
+		// Context inference for anonymous record literals
 		if recordLit, isRecordLit := node.Value.(*ast.RecordLiteralExpression); isRecordLit && recordLit.TypeName == nil {
 			if recordTypeName := e.getRecordTypeNameFromTarget(target, ctx); recordTypeName != "" {
 				ctx.SetRecordTypeContext(recordTypeName)
@@ -420,19 +286,16 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 			}
 		}
 
-		// First evaluate the value
 		value := e.Eval(node.Value, ctx)
 		if isError(value) {
 			return value
 		}
 
-		// Check for exception during evaluation
 		if ctx.Exception() != nil {
 			return &runtime.NilValue{}
 		}
 
 		// Records have value semantics - copy when assigning
-		// Use Type() check since RecordValue is in interp package, not runtime
 		if value != nil && value.Type() == "RECORD" {
 			if copyable, ok := value.(runtime.CopyableValue); ok {
 				if copied := copyable.Copy(); copied != nil {
@@ -443,25 +306,18 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 			}
 		}
 
-		// Try direct assignment
 		return e.evalSimpleAssignmentDirect(target, value, node, ctx)
 
 	case *ast.MemberAccessExpression:
-		// Task 3.5.105d: Member assignment with structured delegation
-		// Complex cases (properties, class variables) delegate to adapter
-
-		// Compound assignments on members still go to adapter
 		if isCompound {
 			return e.adapter.EvalNode(node)
 		}
 
-		// Evaluate the value to assign
 		value := e.Eval(node.Value, ctx)
 		if isError(value) {
 			return value
 		}
 
-		// Check for exception during evaluation
 		if ctx.Exception() != nil {
 			return &runtime.NilValue{}
 		}
@@ -469,21 +325,15 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 		return e.evalMemberAssignmentDirect(target, value, node, ctx)
 
 	case *ast.IndexExpression:
-		// Task 3.5.105c: Handle index assignment directly for arrays/strings
-		// Complex cases (indexed properties, interfaces) delegate to adapter
-
-		// Compound assignments on indexes still go to adapter
 		if isCompound {
 			return e.adapter.EvalNode(node)
 		}
 
-		// Evaluate the value to assign
 		value := e.Eval(node.Value, ctx)
 		if isError(value) {
 			return value
 		}
 
-		// Check for exception during evaluation
 		if ctx.Exception() != nil {
 			return &runtime.NilValue{}
 		}
@@ -496,7 +346,6 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 }
 
 // VisitBlockStatement evaluates a block statement (begin...end).
-// Phase 3.5.4.30: Migrated from Interpreter.evalBlockStatement()
 func (e *Evaluator) VisitBlockStatement(node *ast.BlockStatement, ctx *ExecutionContext) Value {
 	if node == nil {
 		return &runtime.NilValue{}
@@ -527,7 +376,6 @@ func (e *Evaluator) VisitBlockStatement(node *ast.BlockStatement, ctx *Execution
 }
 
 // VisitIfStatement evaluates an if statement (if-then-else).
-// Phase 3.5.4.36: Migrated from Interpreter.evalIfStatement()
 func (e *Evaluator) VisitIfStatement(node *ast.IfStatement, ctx *ExecutionContext) Value {
 	// Evaluate the condition
 	condition := e.Eval(node.Condition, ctx)
@@ -547,7 +395,6 @@ func (e *Evaluator) VisitIfStatement(node *ast.IfStatement, ctx *ExecutionContex
 }
 
 // VisitWhileStatement evaluates a while loop statement.
-// Phase 3.5.4.37: Migrated from Interpreter.evalWhileStatement()
 func (e *Evaluator) VisitWhileStatement(node *ast.WhileStatement, ctx *ExecutionContext) Value {
 	var result Value = &runtime.NilValue{}
 
@@ -595,7 +442,6 @@ func (e *Evaluator) VisitWhileStatement(node *ast.WhileStatement, ctx *Execution
 }
 
 // VisitRepeatStatement evaluates a repeat-until loop statement.
-// Phase 3.5.4.38: Migrated from Interpreter.evalRepeatStatement()
 func (e *Evaluator) VisitRepeatStatement(node *ast.RepeatStatement, ctx *ExecutionContext) Value {
 	var result Value
 
@@ -644,8 +490,6 @@ func (e *Evaluator) VisitRepeatStatement(node *ast.RepeatStatement, ctx *Executi
 }
 
 // VisitForStatement evaluates a for loop statement.
-// Phase 3.5.4.39: Migrated from Interpreter.evalForStatement()
-// Uses ExecutionContext.PushEnv/PopEnv for proper loop variable scoping.
 func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionContext) Value {
 	var result Value = &runtime.NilValue{}
 
@@ -672,8 +516,7 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 		return e.newError(node, "for loop end value must be integer, got %s", endVal.Type())
 	}
 
-	// Task 9.154: Evaluate step expression if present
-	stepValue := int64(1) // Default step value
+	stepValue := int64(1) // Default step
 	if node.Step != nil {
 		stepVal := e.Eval(node.Step, ctx)
 		if isError(stepVal) {
@@ -685,7 +528,6 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 			return e.newError(node, "for loop step value must be integer, got %s", stepVal.Type())
 		}
 
-		// Validate step value is strictly positive
 		if stepInt.Value <= 0 {
 			return e.newError(node, "FOR loop STEP should be strictly positive: %d", stepInt.Value)
 		}
@@ -693,17 +535,13 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 		stepValue = stepInt.Value
 	}
 
-	// Phase 3.5.4 - Phase 2D: Use ExecutionContext.PushEnv/PopEnv for loop variable scoping
-	// Create a new enclosed environment for the loop variable
 	ctx.PushEnv()
-	defer ctx.PopEnv() // Ensure environment is restored even on early return
+	defer ctx.PopEnv()
 
-	// Define the loop variable in the loop environment
 	loopVarName := node.Variable.Value
 
-	// Execute the loop based on direction
 	if node.Direction == ast.ForTo {
-		// Task 9.155: Ascending loop with step support
+		// Ascending loop with step support
 		for current := startInt.Value; current <= endInt.Value; current += stepValue {
 			// Set the loop variable to the current value
 			ctx.Env().Define(loopVarName, &runtime.IntegerValue{Value: current})
@@ -731,7 +569,7 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 			}
 		}
 	} else {
-		// Task 9.155: Descending loop with step support
+		// Descending loop with step support
 		for current := startInt.Value; current >= endInt.Value; current -= stepValue {
 			// Set the loop variable to the current value
 			ctx.Env().Define(loopVarName, &runtime.IntegerValue{Value: current})
@@ -764,8 +602,6 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 }
 
 // VisitForInStatement evaluates a for-in loop statement.
-// Phase 3.5.4.40: Migrated from Interpreter.evalForInStatement()
-// Uses ExecutionContext.PushEnv/PopEnv for loop variable scoping.
 // Iterates over arrays, sets, strings, and enum types.
 func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *ExecutionContext) Value {
 	var result Value = &runtime.NilValue{}
@@ -776,13 +612,11 @@ func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *Execution
 		return collectionVal
 	}
 
-	// Phase 3.5.4 - Phase 2D: Use ExecutionContext.PushEnv/PopEnv for loop variable scoping
 	ctx.PushEnv()
-	defer ctx.PopEnv() // Ensure environment is restored even on early return
+	defer ctx.PopEnv()
 
 	loopVarName := node.Variable.Value
 
-	// Type-switch on the collection type to determine iteration strategy
 	switch col := collectionVal.(type) {
 	case *runtime.ArrayValue:
 		// Iterate over array elements
@@ -813,17 +647,12 @@ func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *Execution
 		}
 
 	case *runtime.SetValue:
-		// Iterate over set elements
-		// Sets contain enum values; we iterate through the enum's ordered names
-		// and check which ones are present in the set
 		if col.SetType == nil || col.SetType.ElementType == nil {
 			return e.newError(node, "invalid set type for iteration")
 		}
 
-		// Task 9.226: Handle iteration over different set element types
 		elementType := col.SetType.ElementType
 
-		// For enum sets, iterate through enum values in their defined order
 		if enumType, ok := elementType.(*types.EnumType); ok {
 			for _, name := range enumType.OrderedNames {
 				ordinal := enumType.Values[name]
@@ -868,15 +697,10 @@ func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *Execution
 		}
 
 	case *runtime.StringValue:
-		// Iterate over string characters
-		// Each character becomes a single-character string
-		// Use runes to handle UTF-8 correctly
+		// Iterate over string characters as single-character strings
 		runes := []rune(col.Value)
 		for idx := 0; idx < len(runes); idx++ {
-			// Create a single-character string for this iteration
 			charVal := &runtime.StringValue{Value: string(runes[idx])}
-
-			// Assign the character to the loop variable
 			ctx.Env().Define(loopVarName, charVal)
 
 			// Execute the body
@@ -902,16 +726,12 @@ func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *Execution
 		}
 
 	case *runtime.TypeMetaValue:
-		// Task 9.213: Iterate over enum type values
-		// When iterating over an enum type directly (e.g., for var e in TColor do),
-		// we iterate over all values of the enum type in declaration order.
-		// This is similar to set iteration but without checking membership.
+		// Iterate over enum type values in declaration order
 		enumType, ok := col.TypeInfo.(*types.EnumType)
 		if !ok {
 			return e.newError(node, "for-in loop: can only iterate over enum types, got %s", col.TypeName)
 		}
 
-		// Iterate through enum values in their defined order
 		for _, name := range enumType.OrderedNames {
 			ordinal := enumType.Values[name]
 			// Create an enum value for this element
@@ -956,7 +776,6 @@ func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *Execution
 }
 
 // VisitCaseStatement evaluates a case statement (switch).
-// Phase 3.5.4.41: Migrated from Interpreter.evalCaseStatement()
 func (e *Evaluator) VisitCaseStatement(node *ast.CaseStatement, ctx *ExecutionContext) Value {
 	// Evaluate the case expression
 	caseValue := e.Eval(node.Expression, ctx)
@@ -1012,7 +831,6 @@ func (e *Evaluator) VisitCaseStatement(node *ast.CaseStatement, ctx *ExecutionCo
 }
 
 // VisitTryStatement evaluates a try-except-finally statement.
-// Task 3.5.29: Migrated from Interpreter.evalTryStatement()
 func (e *Evaluator) VisitTryStatement(node *ast.TryStatement, ctx *ExecutionContext) Value {
 	// Set up finally block to run at the end using defer
 	if node.FinallyClause != nil {
@@ -1032,8 +850,6 @@ func (e *Evaluator) VisitTryStatement(node *ast.TryStatement, ctx *ExecutionCont
 			// Clear exception so finally block can execute
 			ctx.SetException(nil)
 
-			// Execute finally block
-			// Task 3.5.137: Direct evaluation instead of adapter delegation
 			e.Eval(node.FinallyClause.Block, ctx)
 
 			// If finally raised a new exception, keep it (replaces original)
@@ -1050,7 +866,6 @@ func (e *Evaluator) VisitTryStatement(node *ast.TryStatement, ctx *ExecutionCont
 	}
 
 	// Execute try block
-	// Task 3.5.137: Direct evaluation instead of adapter delegation
 	e.Eval(node.TryBlock, ctx)
 
 	// If an exception occurred, try to handle it
@@ -1058,21 +873,12 @@ func (e *Evaluator) VisitTryStatement(node *ast.TryStatement, ctx *ExecutionCont
 		if node.ExceptClause != nil {
 			e.evalExceptClause(node.ExceptClause, ctx)
 		}
-		// If exception is still active after except clause, it will propagate
 	}
 
 	return nil
 }
 
 // evalExceptClause evaluates an except clause.
-// Task 3.5.29: Helper for VisitTryStatement exception handling.
-//
-// TODO(Task 6.1.2): When the evaluator migration is completed, the adapter methods
-// (EvalStatement, EvalBlockStatement) need to sync ctx.Env() with i.env for exception
-// handler execution. Currently, exception variables are bound to ctx.Env() but the
-// interpreter's Eval() looks up variables in i.env, which would cause undefined
-// variable errors. This is currently not triggered because the interpreter routes
-// TryStatement to its own implementation in exceptions.go.
 func (e *Evaluator) evalExceptClause(clause *ast.ExceptClause, ctx *ExecutionContext) {
 	if ctx.Exception() == nil {
 		// No exception to handle
@@ -1090,7 +896,6 @@ func (e *Evaluator) evalExceptClause(clause *ast.ExceptClause, ctx *ExecutionCon
 
 	// Try each handler in order
 	for _, handler := range clause.Handlers {
-		// Task 3.5.135: Use evaluator's matchesExceptionType instead of adapter
 		if e.matchesExceptionType(exc, handler.ExceptionType) {
 			// Create new scope for exception variable
 			ctx.PushEnv()
@@ -1122,8 +927,6 @@ func (e *Evaluator) evalExceptClause(clause *ast.ExceptClause, ctx *ExecutionCon
 			// Temporarily clear exception to allow handler to execute
 			ctx.SetException(nil)
 
-			// Execute handler statement
-			// Task 3.5.137: Direct evaluation instead of adapter delegation
 			e.Eval(handler.Statement, ctx)
 
 			// After handler executes:
@@ -1145,16 +948,12 @@ func (e *Evaluator) evalExceptClause(clause *ast.ExceptClause, ctx *ExecutionCon
 
 	// No handler matched - execute else block if present
 	if clause.ElseBlock != nil {
-		// Clear the exception before executing else block
 		ctx.SetException(nil)
-		// Task 3.5.137: Direct evaluation instead of adapter delegation
 		e.Eval(clause.ElseBlock, ctx)
 	}
-	// If no else block, exception remains active and will propagate
 }
 
 // VisitRaiseStatement evaluates a raise statement (exception throwing).
-// Task 3.5.30: Migrated from Interpreter.evalRaiseStatement()
 func (e *Evaluator) VisitRaiseStatement(node *ast.RaiseStatement, ctx *ExecutionContext) Value {
 	// Bare raise - re-raise current exception
 	if node.Exception == nil {
@@ -1168,24 +967,18 @@ func (e *Evaluator) VisitRaiseStatement(node *ast.RaiseStatement, ctx *Execution
 		panic("runtime error: bare raise with no active exception")
 	}
 
-	// Evaluate exception expression
 	excVal := e.Eval(node.Exception, ctx)
 	if isError(excVal) {
 		return excVal
 	}
 
-	// Task 3.5.134: Create exception from object directly in evaluator
 	excObj := e.createExceptionFromObject(excVal, ctx, node.Pos())
-
-	// Set the exception in context
 	ctx.SetException(excObj)
 
 	return nil
 }
 
 // matchesExceptionType checks if an exception matches a handler's exception type.
-// Task 3.5.135: Migrated from adapter to enable direct exception type matching.
-// Uses TypeSystem.IsClassDescendantOf to check if exception class matches or inherits from handler type.
 func (e *Evaluator) matchesExceptionType(exc interface{}, typeExpr ast.TypeExpression) bool {
 	// Nil type expression means bare handler - catches all
 	if typeExpr == nil {
@@ -1214,8 +1007,6 @@ func (e *Evaluator) matchesExceptionType(exc interface{}, typeExpr ast.TypeExpre
 }
 
 // getExceptionInstance extracts the ObjectInstance from an ExceptionValue.
-// Returns nil if exc is not an ExceptionValue.
-// Task 3.5.136: Migrated from adapter to enable direct exception instance access.
 func (e *Evaluator) getExceptionInstance(exc interface{}) Value {
 	// Define local interface to access Instance field without importing parent package.
 	// ExceptionValue in parent package implements GetInstance() method.
@@ -1239,7 +1030,6 @@ func (e *Evaluator) getExceptionInstance(exc interface{}) Value {
 }
 
 // createExceptionFromObject creates an ExceptionValue from an object instance.
-// Task 3.5.134: Migrated from adapter to enable direct exception creation in evaluator.
 // Handles nil objects by creating a standard "Object not instantiated" exception.
 func (e *Evaluator) createExceptionFromObject(obj Value, ctx *ExecutionContext, pos any) any {
 	// Handle nil object case -> raise standard "Object not instantiated" exception
@@ -1250,39 +1040,32 @@ func (e *Evaluator) createExceptionFromObject(obj Value, ctx *ExecutionContext, 
 			panic("runtime error: Exception class not found")
 		}
 
-		// Format message with position if available
 		message := "Object not instantiated"
 		if pos != nil {
 			message = fmt.Sprintf("Object not instantiated [position: %v]", pos)
 		}
 
-		// Task 3.5.18: Use evaluator helper method for exception creation
 		lexerPos, _ := pos.(*lexer.Position)
 		return e.createException("Exception", message, lexerPos, ctx)
 	}
 
-	// Task 3.5.18: Use evaluator helper method to wrap object as exception
 	lexerPos, _ := pos.(*lexer.Position)
 	return e.wrapObjectAsException(obj, lexerPos, ctx)
 }
 
 // VisitBreakStatement evaluates a break statement.
-// Phase 3.5.4.42: Sets the break signal to exit the innermost loop.
 func (e *Evaluator) VisitBreakStatement(node *ast.BreakStatement, ctx *ExecutionContext) Value {
 	ctx.ControlFlow().SetBreak()
 	return &runtime.NilValue{}
 }
 
 // VisitContinueStatement evaluates a continue statement.
-// Phase 3.5.4.43: Sets the continue signal to skip to the next iteration of the innermost loop.
 func (e *Evaluator) VisitContinueStatement(node *ast.ContinueStatement, ctx *ExecutionContext) Value {
 	ctx.ControlFlow().SetContinue()
 	return &runtime.NilValue{}
 }
 
 // VisitExitStatement evaluates an exit statement.
-// Phase 3.5.4.44: Sets the exit signal to exit the current function.
-// If at program level, sets exit signal to terminate the program.
 func (e *Evaluator) VisitExitStatement(node *ast.ExitStatement, ctx *ExecutionContext) Value {
 	ctx.ControlFlow().SetExit()
 	if node.ReturnValue != nil {
@@ -1302,16 +1085,7 @@ func (e *Evaluator) VisitExitStatement(node *ast.ExitStatement, ctx *ExecutionCo
 }
 
 // VisitReturnStatement evaluates a return statement.
-// Phase 3.5.4.35: Handles return statements in lambda expressions.
-// In shorthand lambda syntax, return statements are used:
-//
-//	lambda(x) => x * 2
-//
-// becomes:
-//
-//	lambda(x) begin return x * 2; end
-//
-// The return value is assigned to the Result variable if it exists.
+// Used in lambda expressions and explicit returns.
 func (e *Evaluator) VisitReturnStatement(node *ast.ReturnStatement, ctx *ExecutionContext) Value {
 	// Evaluate the return value
 	var returnVal Value
@@ -1349,23 +1123,17 @@ func (e *Evaluator) VisitUsesClause(node *ast.UsesClause, ctx *ExecutionContext)
 
 // ============================================================================
 // Variable Declaration Helpers
-// Task 3.5.38: Helper methods for variable declaration
 // ============================================================================
 
 // createZeroValue creates a zero value for the given type.
-// This is used for multi-identifier declarations where each variable needs its own instance.
-// Task 3.5.38: Migrated from Interpreter.createZeroValue()
 func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, ctx *ExecutionContext) Value {
 	if typeExpr == nil {
 		return &runtime.NilValue{}
 	}
 
-	// Check for array type nodes (AST representation)
 	if arrayNode, ok := typeExpr.(*ast.ArrayTypeNode); ok {
-		// Task 3.5.139f: Use evaluator's resolveArrayTypeNode instead of adapter
 		arrayType := e.resolveArrayTypeNode(arrayNode, ctx)
 		if arrayType != nil {
-			// Task 3.5.127: Create array value directly without adapter
 			return &runtime.ArrayValue{ArrayType: arrayType, Elements: []runtime.Value{}}
 		}
 		return &runtime.NilValue{}
@@ -1373,19 +1141,14 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 
 	typeName := typeExpr.String()
 
-	// Check for inline array types (string representation)
 	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
-		// Task 3.5.139g: Use evaluator's parseInlineArrayType instead of adapter
 		arrayType := e.parseInlineArrayType(typeName, ctx)
 		if arrayType != nil {
-			// Task 3.5.127: Create array value directly without adapter
 			return &runtime.ArrayValue{ArrayType: arrayType, Elements: []runtime.Value{}}
 		}
 		return &runtime.NilValue{}
 	}
 
-	// Check for inline set types
-	// Task 3.5.129a: Direct set zero-value creation without adapter
 	if strings.HasPrefix(typeName, "set of ") {
 		setType := e.parseInlineSetType(typeName, ctx)
 		if setType == nil {
@@ -1394,8 +1157,6 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 		return runtime.NewSetValue(setType)
 	}
 
-	// Check if this is a record type
-	// Task 3.5.128f: Direct record zero-value creation without adapter
 	if e.typeSystem.HasRecord(typeName) {
 		// Look up record type via TypeSystem
 		recordTypeAny := e.typeSystem.LookupRecord(typeName)
@@ -1437,7 +1198,6 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 		}
 
 		// Create field initializer callback for runtime constructor
-		// Task 3.5.128f: Evaluates field initializers or generates zero values
 		initializer := func(fieldName string, fieldType types.Type) runtime.Value {
 			fieldNameNorm := ident.Normalize(fieldName)
 
@@ -1457,15 +1217,11 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 			return e.getZeroValueForType(fieldType)
 		}
 
-		// Create record using runtime constructor with initializer callback
-		// Task 3.5.128f: Direct runtime call, no adapter needed
 		recordValue := runtime.NewRecordValueWithInitializer(recordType, metadata, initializer)
 
 		return recordValue
 	}
 
-	// Check if this is an array type (named type)
-	// Task 3.5.129b: Direct array zero-value creation without adapter
 	if e.typeSystem.HasArrayType(typeName) {
 		arrayType := e.typeSystem.LookupArrayType(typeName)
 		if arrayType == nil {
@@ -1474,15 +1230,10 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 		return runtime.NewArrayValue(arrayType, nil)
 	}
 
-	// Check if this is a subrange type
-	// Task 3.5.182: Use TypeSystem lookup instead of environment
-	// Task 3.5.19: Direct construction now that SubrangeValue is in runtime package
 	if subrangeType := e.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {
 		return runtime.NewSubrangeValueZero(subrangeType)
 	}
 
-	// Check if this is an interface type
-	// Task 3.5.23: Direct interface lookup + runtime constructor (no bridge needed)
 	if e.typeSystem.HasInterface(typeName) {
 		// Lookup interface metadata from TypeSystem
 		ifaceInfoAny := e.typeSystem.LookupInterface(typeName)
@@ -1509,23 +1260,11 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 	case "boolean":
 		return &runtime.BooleanValue{Value: false}
 	case "variant":
-		// Use adapter to create proper Variant zero value
 		return runtime.BoxVariant(&runtime.NilValue{})
 	default:
-		// Check if this is a class type and create a typed nil value
-		// Task 3.5.21: Direct runtime constructor (no bridge needed)
 		if e.typeSystem.HasClass(typeName) {
 			return &runtime.NilValue{ClassType: typeName}
 		}
 		return &runtime.NilValue{}
 	}
 }
-
-// ============================================================================
-// Exception Handling Helpers
-// Task 3.5.29: Exception handling fully implemented
-// ============================================================================
-
-// evalExceptClause() - Implemented above (lines 916-992)
-// Exception type matching delegated to adapter.MatchesExceptionType()
-// Reference implementation: internal/interp/exceptions.go (lines 215-315)
