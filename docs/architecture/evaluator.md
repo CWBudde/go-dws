@@ -389,12 +389,11 @@ go test -v ./internal/interp -run TestDWScriptFixtures
 
 ## Related Documentation
 
-- [CLAUDE.md](../CLAUDE.md) - Project overview and development guidelines
-- [PLAN.md](../PLAN.md) - Phase 3.5 task breakdown
-- [evaluator-performance-report.md](evaluator-performance-report.md) - Detailed benchmarks
-- [evalnode-audit-final.md](evalnode-audit-final.md) - Complete EvalNode calls inventory
-- [evaluator-architecture.md](evaluator-architecture.md) - Deep dive on architectural boundaries
-- [evaluator-migration-guide.md](evaluator-migration-guide.md) - Contributor guide
+- [CLAUDE.md](../../CLAUDE.md) - Project overview and development guidelines
+- [PLAN.md](../../PLAN.md) - Phase 3.5 task breakdown
+- [interpreter.md](interpreter.md) - Interpreter architecture
+- [../evalnode-audit-final.md](../evalnode-audit-final.md) - Complete EvalNode calls inventory (detailed)
+- [../evaluator-architecture.md](../evaluator-architecture.md) - Deep dive on architectural boundaries
 
 ---
 

@@ -49,8 +49,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 	// When used as an identifier, it returns the class name as a String
 	if ident.Equal(identifier.Value, "ClassName") && a.currentClass != nil {
 		if identifier.Value != "ClassName" {
-			a.addHint("\"%s\" does not match case of declaration (\"ClassName\") [line: %d, column: %d]",
-				identifier.Value, identifier.Token.Pos.Line, identifier.Token.Pos.Column)
+			a.addCaseMismatchHint(identifier.Value, "ClassName", identifier.Token.Pos)
 		}
 		return types.STRING
 	}
@@ -59,8 +58,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 	// ClassType is a built-in property that returns the metaclass reference
 	if ident.Equal(identifier.Value, "ClassType") && a.currentClass != nil {
 		if identifier.Value != "ClassType" {
-			a.addHint("\"%s\" does not match case of declaration (\"ClassType\") [line: %d, column: %d]",
-				identifier.Value, identifier.Token.Pos.Line, identifier.Token.Pos.Column)
+			a.addCaseMismatchHint(identifier.Value, "ClassType", identifier.Token.Pos)
 		}
 		return types.NewClassOfType(a.currentClass)
 	}
@@ -172,8 +170,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 
 	// Emit a hint when the identifier casing doesn't match its declaration.
 	if sym.Name != "" && sym.Name != identifier.Value && ident.Equal(sym.Name, identifier.Value) {
-		a.addHint("\"%s\" does not match case of declaration (\"%s\") [line: %d, column: %d]",
-			identifier.Value, sym.Name, identifier.Token.Pos.Line, identifier.Token.Pos.Column)
+		a.addCaseMismatchHint(identifier.Value, sym.Name, identifier.Token.Pos)
 	}
 
 	// Task 9.228 + Function Name Alias: Handle function/procedure references

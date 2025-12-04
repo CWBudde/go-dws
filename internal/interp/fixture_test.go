@@ -29,6 +29,7 @@ func TestDWScriptFixtures(t *testing.T) {
 		requiresLibs    bool
 		requiresCodegen bool
 		skip            bool
+		hintsLevel      semantic.HintsLevel
 	}{
 		// Core Language Tests - Pass Cases
 		{
@@ -43,7 +44,8 @@ func TestDWScriptFixtures(t *testing.T) {
 			path:         "../../testdata/fixtures/Algorithms",
 			expectErrors: false,
 			description:  "Algorithm implementations",
-			skip:         false, // TODO: Re-enable after implementing missing features
+			skip:         false,                     // TODO: Re-enable after implementing missing features
+			hintsLevel:   semantic.HintsLevelNormal, // Algorithms aren't part of DWScript's pedantic harness
 		},
 		{
 			name:         "ArrayPass",
@@ -525,9 +527,13 @@ func TestDWScriptFixtures(t *testing.T) {
 			for _, pasFile := range pasFiles {
 				testName := strings.TrimSuffix(filepath.Base(pasFile), ".pas")
 				totalTests++
+				hintsLevel := category.hintsLevel
+				if hintsLevel == 0 {
+					hintsLevel = semantic.HintsLevelPedantic
+				}
 
 				t.Run(testName, func(t *testing.T) {
-					result := runFixtureTest(t, pasFile, category.expectErrors)
+					result := runFixtureTest(t, pasFile, category.expectErrors, hintsLevel)
 					switch result {
 					case testResultPassed:
 						categoryPassed++
@@ -560,7 +566,7 @@ const (
 )
 
 // runFixtureTest runs a single fixture test
-func runFixtureTest(t *testing.T, pasFile string, expectErrors bool) testResult {
+func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel semantic.HintsLevel) testResult {
 	// Add panic recovery to identify which test is crashing
 	defer func() {
 		if r := recover(); r != nil {
@@ -625,6 +631,7 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool) testResult 
 		// Task 6.1.2: Enable experimental passes for multi-pass analysis architecture (on demand!)
 		// analyzer := semantic.NewAnalyzerWithExperimentalPasses()
 		analyzer := semantic.NewAnalyzer()
+		analyzer.SetHintsLevel(hintsLevel)
 		analyzer.SetSource(source, pasFile)
 
 		var semanticErrors []string
@@ -692,6 +699,7 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool) testResult 
 	// Task 6.1.2: Enable experimental passes for multi-pass analysis architecture
 	// analyzer := semantic.NewAnalyzerWithExperimentalPasses()
 	analyzer := semantic.NewAnalyzer()
+	analyzer.SetHintsLevel(hintsLevel)
 	analyzer.SetSource(source, pasFile)
 
 	if err := analyzer.Analyze(program); err != nil {
