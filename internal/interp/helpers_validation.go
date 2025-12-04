@@ -378,6 +378,14 @@ func (i *Interpreter) initArrayHelpers() {
 		i.helpers = make(map[string][]*HelperInfo)
 	}
 
+	register := func(typeName string, helper *HelperInfo) {
+		norm := ident.Normalize(typeName)
+		i.helpers[norm] = append(i.helpers[norm], helper)
+		if i.typeSystem != nil {
+			i.typeSystem.RegisterHelper(typeName, helper)
+		}
+	}
+
 	// Create a helper for the generic ARRAY type
 	arrayHelper := &HelperInfo{
 		Name:           "TArrayHelper",
@@ -453,7 +461,7 @@ func (i *Interpreter) initArrayHelpers() {
 	arrayHelper.BuiltinMethods["pop"] = "__array_pop"
 
 	// Register helper for array type
-	i.helpers["array"] = append(i.helpers["array"], arrayHelper)
+	register("array", arrayHelper)
 }
 
 // initIntrinsicHelpers registers built-in helpers for primitive types (Integer, Float, Boolean).

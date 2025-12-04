@@ -46,6 +46,45 @@ func TestPreconditionSuccess(t *testing.T) {
 	}
 }
 
+// TestPreconditionArrayLength verifies helper member access in preconditions
+func TestPreconditionArrayLength(t *testing.T) {
+	input := `
+	function First(arr: array of Integer): Integer;
+	require
+		arr.Length > 0;
+	begin
+		Result := arr[0];
+	end;
+
+	var data: array of Integer;
+	begin
+		SetLength(data, 1);
+		data[0] := 42;
+		PrintLn(First(data));
+	end.
+	`
+
+	output := &bytes.Buffer{}
+	interp := New(output)
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("Parser errors: %v", p.Errors())
+	}
+
+	result := interp.Eval(program)
+	if isError(result) {
+		t.Fatalf("Interpreter error: %s", result.String())
+	}
+
+	if got := output.String(); got != "42\n" {
+		t.Fatalf("expected output 42, got %q", got)
+	}
+}
+
 // TestPreconditionFailure tests that preconditions fail when conditions are not met
 func TestPreconditionFailure(t *testing.T) {
 	input := `
