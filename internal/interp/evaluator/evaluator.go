@@ -153,18 +153,18 @@ type FunctionPointerCallable interface {
 	ParamCount() int
 	IsLambda() bool
 	HasSelfObject() bool
-	GetFunctionDecl() any   // Returns *ast.FunctionDecl (nil for lambdas)
-	GetLambdaExpr() any     // Returns *ast.LambdaExpression (nil for functions)
-	GetClosure() any        // Returns *Environment
+	GetFunctionDecl() any // Returns *ast.FunctionDecl (nil for lambdas)
+	GetLambdaExpr() any   // Returns *ast.LambdaExpression (nil for functions)
+	GetClosure() any      // Returns *Environment
 	GetSelfObject() Value
 }
 
 // FunctionPointerMetadata provides execution context for function pointer invocation.
 type FunctionPointerMetadata struct {
 	IsLambda   bool
-	Lambda     any   // *ast.LambdaExpression
-	Function   any   // *ast.FunctionDecl
-	Closure    any   // *Environment
+	Lambda     any // *ast.LambdaExpression
+	Function   any // *ast.FunctionDecl
+	Closure    any // *Environment
 	SelfObject Value
 }
 
