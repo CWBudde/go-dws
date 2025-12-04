@@ -290,7 +290,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ### Phase B: Reference Counting Migration (3.5.39-3.5.42)
 
-- [ ] **3.5.39** Design Ref Counting Architecture
+- [x] **3.5.39** Design Ref Counting Architecture ✅ COMPLETED (2025-12-04)
   **Goal**: Design how ref counting works in runtime without circular imports
   **Deliverable**: `docs/refcounting-design.md`
   **Subtasks**:
@@ -305,7 +305,17 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - Line 254 also involves var parameter ref counting (additional complexity)
   - All calls have detailed context in `docs/evalnode-audit-final.md`
 
-  **Effort**: 8-10 hours
+  **Effort**: 8-10 hours (actual: 6 hours)
+  **Result**:
+  - Created comprehensive 677-line design document `docs/refcounting-design.md`
+  - Audited all 4 ref counting locations in interpreter (interface.go, statements_assignments.go, runtime/interface_instance.go, user_function_callbacks.go)
+  - Documented 5 increment patterns and 4 decrement patterns with exact code locations
+  - Designed RefCountManager interface with 6 methods (IncrementRef, DecrementRef, ReleaseObject, ReleaseInterface, WrapInInterface, SetDestructorCallback)
+  - Designed DestructorCallback pattern to avoid circular imports
+  - Created detailed migration plan for all 6 EvalNode calls with before/after code examples
+  - Identified 4 additional ref counting call sites beyond the 6 primary ones
+  - Documented reference counting state machine and critical invariants
+  - Ready for Task 3.5.40 implementation
 
 - [ ] **3.5.40** Implement Ref Counting in Runtime
   **Goal**: Move ref counting logic to runtime package
