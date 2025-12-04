@@ -309,8 +309,9 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Handle built-in properties/methods available on all objects (inherited from TObject)
 	if memberName == "classname" {
 		if expr.Member.Value != "ClassName" {
-			a.addHint("\"%s\" does not match case of declaration (\"ClassName\") [line: %d, column: %d]",
-				expr.Member.Value, expr.Token.Pos.Line, expr.Token.Pos.Column+1)
+			pos := expr.Token.Pos
+			pos.Column++
+			a.addCaseMismatchHint(expr.Member.Value, "ClassName", pos)
 		}
 		// ClassName returns String
 		return types.STRING
@@ -365,8 +366,9 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	constructorOverloads := classType.GetConstructorOverloads(memberName)
 	if len(constructorOverloads) > 0 {
 		if memberName == "create" && expr.Member.Value != "Create" {
-			a.addHint("\"%s\" does not match case of declaration (\"Create\") [line: %d, column: %d]",
-				expr.Member.Value, expr.Token.Pos.Line, expr.Token.Pos.Column+1)
+			pos := expr.Token.Pos
+			pos.Column++
+			a.addCaseMismatchHint(expr.Member.Value, "Create", pos)
 		}
 		// Task 9.21: Check if this is a parameterless constructor
 		// Parameterless constructors can be called without parentheses (auto-invoked)
@@ -397,8 +399,9 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	methodType, found := classType.GetMethod(memberName)
 	if found {
 		if memberName == "free" && expr.Member.Value != "Free" {
-			a.addHint("\"%s\" does not match case of declaration (\"Free\") [line: %d, column: %d]",
-				expr.Member.Value, expr.Token.Pos.Line, expr.Token.Pos.Column+1)
+			pos := expr.Token.Pos
+			pos.Column++
+			a.addCaseMismatchHint(expr.Member.Value, "Free", pos)
 		}
 		// Check method visibility - Task 9.16.1
 		methodOwner := a.getMethodOwner(classType, memberName)

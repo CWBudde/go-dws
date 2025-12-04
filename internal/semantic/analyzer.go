@@ -46,6 +46,16 @@ func getTypeExpressionName(typeExpr ast.TypeExpression) string {
 // Analyzer
 // ============================================================================
 
+// HintsLevel mirrors DWScript's hint levels for compatibility.
+type HintsLevel int
+
+const (
+	HintsLevelDisabled HintsLevel = iota
+	HintsLevelNormal
+	HintsLevelStrict
+	HintsLevelPedantic
+)
+
 // Analyzer performs semantic analysis on a DWScript program.
 // It validates types, checks for undefined variables, and ensures
 // type compatibility in expressions and statements.
@@ -82,6 +92,10 @@ type Analyzer struct {
 	// When true, Pass 2 (Type Resolution) and Pass 3 (Semantic Validation) also run.
 	// Use NewAnalyzerWithExperimentalPasses() to enable for task 6.1.2 development.
 	experimentalPasses bool
+
+	// hintsLevel controls which hints are emitted. Case mismatch hints in DWScript
+	// are "pedantic" by default, so we gate them behind this level.
+	hintsLevel HintsLevel
 }
 
 // NewAnalyzer creates a new semantic analyzer
@@ -99,6 +113,7 @@ func NewAnalyzer() *Analyzer {
 		conversionRegistry: types.NewConversionRegistry(),
 		semanticInfo:       pkgast.NewSemanticInfo(), // Task 9.18
 		nestedTypeAliases:  make(map[string]map[string]string),
+		hintsLevel:         HintsLevelPedantic, // Match DWScript test harness default
 	}
 
 	// Register built-in Exception base class
@@ -513,6 +528,11 @@ func (a *Analyzer) SetSource(source, filename string) {
 	a.sourceFile = filename
 }
 
+// SetHintsLevel configures which hints should be emitted.
+func (a *Analyzer) SetHintsLevel(level HintsLevel) {
+	a.hintsLevel = level
+}
+
 // addError adds a semantic error to the error list
 func (a *Analyzer) addError(format string, args ...any) {
 	a.errors = append(a.errors, fmt.Sprintf(format, args...))
@@ -522,6 +542,15 @@ func (a *Analyzer) addError(format string, args ...any) {
 // Hints are less severe than errors and don't prevent compilation
 func (a *Analyzer) addHint(format string, args ...any) {
 	a.errors = append(a.errors, fmt.Sprintf("Hint: "+format, args...))
+}
+
+// addCaseMismatchHint emits case-mismatch hints only when pedantic hints are enabled.
+func (a *Analyzer) addCaseMismatchHint(actual, declared string, pos token.Position) {
+	if a.hintsLevel < HintsLevelPedantic {
+		return
+	}
+	a.addHint("\"%s\" does not match case of declaration (\"%s\") [line: %d, column: %d]",
+		actual, declared, pos.Line, pos.Column)
 }
 
 // addStructuredError adds a structured semantic error

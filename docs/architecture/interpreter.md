@@ -268,7 +268,7 @@ The visitor pattern has been benchmarked extensively (Task 3.5.35):
 ✅ **Linear scaling**: Performance scales linearly with expression complexity
 ✅ **Predictable memory**: Allocation patterns are consistent and minimal
 
-See `docs/evaluator-performance-report.md` for detailed analysis.
+See [evaluator.md](evaluator.md) for detailed analysis.
 
 ## Migration Guide
 
@@ -448,7 +448,7 @@ Note: Current performance is excellent; these are only needed if profiling shows
 ## References
 
 - [PLAN.md](../../PLAN.md) - Task 3.5.1-3.5.36 (Evaluator Refactoring)
-- [docs/evaluator-performance-report.md](../evaluator-performance-report.md) - Performance benchmarks
+- [evaluator.md](evaluator.md) - Evaluator architecture and performance
 - [internal/interp/evaluator/](../../internal/interp/evaluator/) - Evaluator source code
 - [internal/interp/evaluator/USAGE_EXAMPLES.md](../../internal/interp/evaluator/USAGE_EXAMPLES.md) - Evaluator API examples
 

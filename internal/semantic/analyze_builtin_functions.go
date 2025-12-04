@@ -20,8 +20,7 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	// Emit a hint when the case of a built-in differs from its declaration.
 	if lowerName == "assigned" && name != "Assigned" {
 		pos := callExpr.Function.Pos()
-		a.addHint("\"%s\" does not match case of declaration (\"Assigned\") [line: %d, column: %d]",
-			name, pos.Line, pos.Column)
+		a.addCaseMismatchHint(name, "Assigned", pos)
 	}
 
 	// Dispatch to specific analyzer based on function name
