@@ -84,12 +84,24 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 	// Get existing value to check for special types
 	existingValRaw, exists := ctx.Env().Get(targetName)
 	if !exists {
-		// The variable might be:
-		// 1. An instance field (Self.Field) in a method
-		// 2. A class variable (TClass.ClassVar)
-		// The interpreter owns environment management and has access to Self/class context.
-		// The evaluator cannot check Self/class scope without circular import.
-		// KEEP: Architectural constraint - environment ownership
+		// ARCHITECTURAL BOUNDARY: Self/class context is owned by interpreter.
+		//
+		// When a variable is not in ctx.Env(), it could be:
+		// 1. An instance field: Self.Field := value (implicit Self in method)
+		// 2. A class variable: TClass.ClassVar := value (static variable)
+		// 3. A property: Self.PropName := value (property setter)
+		//
+		// The interpreter owns the logic to distinguish these cases:
+		// - env.Get("Self") → extract ObjectInstance → check field/property/class var
+		// - env.Get("__CurrentClass__") → extract ClassInfo → check class var
+		// - Requires ClassInfo.ClassVars, obj.Class.LookupField(), evalPropertyWrite()
+		//
+		// This delegation is intentional and represents a clean separation of concerns:
+		// - Evaluator: Executes AST nodes, manages expressions/statements
+		// - Interpreter: Manages OOP semantics (classes, fields, properties, Self context)
+		//
+		// See docs/evaluator-architecture.md for full architectural rationale.
+		// Task 3.5.43: Decided to keep this call as essential architectural boundary.
 		return e.adapter.EvalNode(stmt)
 	}
 
@@ -358,13 +370,24 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 	// Get current value from environment
 	currentValRaw, exists := ctx.Env().Get(targetName)
 	if !exists {
-		// Task 3.5.36: Compound assignment to non-env variable - ESSENTIAL for Self/class context
-		// The variable might be:
-		// 1. An instance field (Self.Field += 1) in a method
-		// 2. A class variable (TClass.ClassVar += 1)
-		// The interpreter owns environment management and has access to Self/class context.
-		// The evaluator cannot check Self/class scope without circular import.
-		// KEEP: Architectural constraint - environment ownership
+		// ARCHITECTURAL BOUNDARY: Self/class context is owned by interpreter.
+		//
+		// When a variable is not in ctx.Env(), compound assignment (+=, -=, etc.) could target:
+		// 1. An instance field: Self.Field += 1 (implicit Self in method)
+		// 2. A class variable: TClass.ClassVar += 1 (static variable)
+		// 3. A property: Self.PropName += 1 (property getter + setter)
+		//
+		// The interpreter owns the logic to distinguish these cases:
+		// - env.Get("Self") → extract ObjectInstance → check field/property/class var
+		// - env.Get("__CurrentClass__") → extract ClassInfo → check class var
+		// - Requires ClassInfo.ClassVars, obj.Class.LookupField(), evalPropertyWrite()
+		//
+		// This delegation is intentional and represents a clean separation of concerns:
+		// - Evaluator: Executes AST nodes, manages expressions/statements
+		// - Interpreter: Manages OOP semantics (classes, fields, properties, Self context)
+		//
+		// See docs/evaluator-architecture.md for full architectural rationale.
+		// Task 3.5.43: Decided to keep this call as essential architectural boundary.
 		return e.adapter.EvalNode(stmt)
 	}
 

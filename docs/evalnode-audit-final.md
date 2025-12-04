@@ -56,47 +56,60 @@ Method Dispatch Fallback         1 call  (2.9%)   █
 ## Category 1: Reference Counting & Object Semantics (9 calls)
 
 **File**: `internal/interp/evaluator/assignment_helpers.go`
-**Status**: ⛔ **MUST KEEP** - Architectural constraint (Phase B migration target)
-**Blocker**: Reference counting lives in interpreter package
 
-These 9 calls handle critical object/interface lifecycle management and Self/class context:
+This category originally had 9 calls. After tasks 3.5.39-3.5.42, ref counting was migrated to runtime package.
 
-| Line | Context | Reason for EvalNode | Migration Task |
-|------|---------|---------------------|----------------|
-| 93 | Simple assignment to non-env variable | Self/class context not available in evaluator | 3.5.43 |
-| 127 | Assigning to interface variable | Interface reference counting (inc/dec) | 3.5.39-3.5.42 |
-| 136 | Assigning to object variable | Object reference counting (inc/dec) | 3.5.39-3.5.42 |
-| 172 | Assigning object VALUE | Ref count increment on new reference | 3.5.39-3.5.42 |
-| 182 | Assigning interface VALUE | Ref count increment on underlying object | 3.5.39-3.5.42 |
-| 192 | Assigning method pointer with SelfObject | SelfObject ref counting | 3.5.39-3.5.42 |
-| 227 | Var parameter → interface/object | Ref counting through reference | 3.5.39-3.5.42 |
-| 254 | Assigning object/interface through var parameter | Ref counting + write-through | 3.5.39-3.5.42 |
-| 319 | Compound assignment to non-env variable | Self/class context not available in evaluator | 3.5.43 |
+### Category 1a: Reference Counting (7 calls) - ✅ COMPLETED
 
-**Code Examples**:
+**Status**: ✅ **MIGRATED** (tasks 3.5.39-3.5.42)
+**Result**: All 7 ref counting calls eliminated via `runtime.RefCountManager`
 
-```go
-// Line 127: Interface assignment requires ref counting
-if existingVal.Type() == "INTERFACE" {
-    return e.adapter.EvalNode(stmt)
-}
+| Line | Context | Migration Status |
+|------|---------|------------------|
+| 127 | Assigning to interface variable | ✅ Migrated to RefCountManager |
+| 136 | Assigning to object variable | ✅ Migrated to RefCountManager |
+| 172 | Assigning object VALUE | ✅ Migrated to RefCountManager |
+| 182 | Assigning interface VALUE | ✅ Removed (redundant) |
+| 192 | Assigning method pointer with SelfObject | ✅ Migrated to RefCountManager |
+| 227 | Var parameter → interface/object | ✅ Migrated to RefCountManager |
+| 254 | Assigning object/interface through var parameter | ✅ Migrated to RefCountManager |
 
-// Line 136: Object assignment requires ref counting
-if existingVal.Type() == "OBJECT" {
-    return e.adapter.EvalNode(stmt)
-}
+**Migration Details**: See [docs/refcounting-design.md](refcounting-design.md) for architecture.
 
-// Line 172: Assigning object VALUE - increment ref count
-if value != nil && value.Type() == "OBJECT" {
-    return e.adapter.EvalNode(stmt)
-}
-```
+### Category 1b: Self/Class Context (2 calls) - ✅ KEPT AS ESSENTIAL
 
-**Migration Strategy**:
+**Status**: ✅ **ARCHITECTURAL BOUNDARY** (task 3.5.43 - Option 3)
+**Decision**: Keep these 2 calls as essential boundaries between evaluator and interpreter
 
-- Task 3.5.39: Design runtime.RefCountManager interface
-- Tasks 3.5.40-3.5.42: Migrate ref counting operations to runtime package
-- Task 3.5.43: Handle Self/class context (lines 93, 319)
+| Line | Context | Rationale |
+|------|---------|-----------|
+| 93 | Simple assignment to non-env variable | Self/class context owned by interpreter |
+| 368 | Compound assignment to non-env variable | Self/class context owned by interpreter |
+
+**Why These Remain**:
+
+When the evaluator encounters `x := value` or `x += value` where `x` is not in `ctx.Env()`:
+
+1. **Could be instance field**: `Self.Field := value` (implicit Self in method)
+2. **Could be class variable**: `TClass.ClassVar := value` (static variable)
+3. **Could be property**: `Self.PropName := value` (property setter)
+
+The interpreter owns the logic to distinguish these cases:
+
+- Checks `env.Get("Self")` → extracts ObjectInstance → checks field/property/class var
+- Checks `env.Get("__CurrentClass__")` → extracts ClassInfo → checks class var
+- Requires access to ClassInfo.ClassVars, obj.Class.LookupField(), evalPropertyWrite()
+- ALL of this is interpreter-owned OOP semantics, not evaluator concern
+
+**Architectural Rationale**:
+
+- **Evaluator responsibility**: Execute AST nodes, manage expressions/statements, handle values
+- **Interpreter responsibility**: OOP semantics (classes, fields, properties, class vars, Self context)
+- **Adapter boundary**: Clean separation via callback pattern (like RefCountManager)
+
+99% of assignments go through `ctx.Env().Set(name, value)` natively. Only implicit Self/class context (rare in practice) delegates to interpreter.
+
+**See Also**: [docs/evaluator-architecture.md](evaluator-architecture.md) for full architectural analysis
 
 ---
 
