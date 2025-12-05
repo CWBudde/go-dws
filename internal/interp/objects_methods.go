@@ -13,15 +13,13 @@ import (
 func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	methodNameLower := pkgident.Normalize(mc.Method.Value)
 
-	// Check if the left side is an identifier (could be unit, class, or instance variable)
+	// Check if the left side is an identifier (unit, class, or instance variable)
 	if ident, ok := mc.Object.(*ast.Identifier); ok {
-		// First, check if this identifier refers to a unit
+		// Check for unit-qualified function call
 		if i.unitRegistry != nil {
 			if _, exists := i.unitRegistry.GetUnit(ident.Value); exists {
-				// This is a unit-qualified function call: UnitName.FunctionName()
 				fn, err := i.ResolveQualifiedFunction(ident.Value, mc.Method.Value)
 				if err == nil {
-					// Evaluate arguments
 					args := make([]Value, len(mc.Arguments))
 					for idx, arg := range mc.Arguments {
 						val := i.Eval(arg)
@@ -32,23 +30,17 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 					}
 					return i.executeUserFunctionViaEvaluator(fn, args)
 				}
-				// Function not found in unit
 				return i.newErrorWithLocation(mc, "function '%s' not found in unit '%s'", mc.Method.Value, ident.Value)
 			}
 		}
 
-		// Check if this identifier refers to a class (case-insensitive)
-		// Task 9.82: Case-insensitive class lookup (DWScript is case-insensitive)
+		// Check for class name
 		classInfo := i.resolveClassInfoByName(ident.Value)
 		if classInfo != nil {
-			// Task 9.67: Check for method overloads and resolve based on argument types
-			// Task 9.68: getMethodOverloadsInHierarchy now handles constructors automatically when isClassMethod = false
 			classMethodOverloads := i.getMethodOverloadsInHierarchy(classInfo, mc.Method.Value, true)
-			instanceMethodOverloads := i.getMethodOverloadsInHierarchy(classInfo, mc.Method.Value, false) // includes constructors
+			instanceMethodOverloads := i.getMethodOverloadsInHierarchy(classInfo, mc.Method.Value, false)
 
-			// Task 9.68: Special handling for constructor calls with 0 arguments
-			// If no parameterless constructor exists but we're calling with 0 args,
-			// allow it as an implicit parameterless constructor (just initialize fields)
+			// Allow implicit parameterless constructor
 			hasConstructor := false
 			hasParameterlessConstructor := false
 			for _, method := range instanceMethodOverloads {
@@ -61,10 +53,8 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				}
 			}
 			if len(mc.Arguments) == 0 && hasConstructor && !hasParameterlessConstructor {
-				// Create object with default field values (no constructor body execution)
 				obj := NewObjectInstance(classInfo)
 
-				// Task 9.6: Initialize all fields with field initializers or default values
 				savedEnv := i.env
 				tempEnv := NewEnclosedEnvironment(i.env)
 				for constName, constValue := range classInfo.ConstantValues {
@@ -102,7 +92,6 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				}
 			}
 
-			// Resolve instance method overload (including constructors)
 			if len(instanceMethodOverloads) > 0 {
 				instanceMethod, err = i.resolveMethodOverload(classInfo.Name, mc.Method.Value, instanceMethodOverloads, mc.Arguments)
 				if err != nil && classMethod == nil {
@@ -114,12 +103,9 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				// This is a class method - execute it with Self bound to the class
 				return i.executeClassMethod(classInfo, classMethod, mc)
 			} else if instanceMethod != nil {
-				// This is an instance method being called from the class (e.g., TClass.Create())
-				// Create a new instance and call the method on it
+				// Instance method called on class name (e.g., TClass.Create)
 				obj := NewObjectInstance(classInfo)
 
-				// Task 9.6: Initialize all fields with field initializers or default values
-				// Create temporary environment with class constants for field initializer evaluation
 				fieldInitEnv := i.env
 				fieldTempEnv := NewEnclosedEnvironment(i.env)
 				for constName, constValue := range classInfo.ConstantValues {
@@ -131,14 +117,12 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 					var fieldValue Value
 					// Check if field has an initializer expression
 					if fieldDecl, hasDecl := classInfo.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
-						// Evaluate the field initializer
 						fieldValue = i.Eval(fieldDecl.InitValue)
 						if isError(fieldValue) {
 							i.env = fieldInitEnv
 							return fieldValue
 						}
 					} else {
-						// Use getZeroValueForType to get appropriate default value
 						fieldValue = getZeroValueForType(fieldType, nil)
 					}
 					obj.SetField(fieldName, fieldValue)
@@ -173,13 +157,6 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 				// Add class constants to method scope so they can be accessed directly
 				i.bindClassConstantsToEnv(classInfo)
-
-				// NOTE: We do NOT add fields to the environment here.
-				// The evalSimpleAssignment and Eval(Identifier) functions already handle
-				// field access by checking if Self is bound and looking up fields on the object.
-				// Adding fields to the environment would break this mechanism.
-
-				// Bind method parameters to arguments with implicit conversion
 				for idx, param := range instanceMethod.Parameters {
 					arg := args[idx]
 
@@ -194,13 +171,9 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 					i.env.Define(param.Name.Value, arg)
 				}
 
-				// For functions (not procedures), initialize the Result variable
-				// For constructors, always initialize Result even if no explicit return type
-				// Task 9.221: Use appropriate default value based on return type
 				if instanceMethod.ReturnType != nil || instanceMethod.IsConstructor {
 					var defaultVal Value
 					if instanceMethod.IsConstructor {
-						// Constructors default to NIL (or will be set to Self)
 						defaultVal = &NilValue{}
 					} else {
 						returnType := i.resolveTypeFromAnnotation(instanceMethod.ReturnType)
@@ -218,25 +191,15 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 					return result
 				}
 
-				// NOTE: We do NOT need to copy field values back from the environment.
-				// Field assignments go directly to the object via evalSimpleAssignment.
-
-				// Extract return value (same logic as regular functions)
 				var returnValue Value
 				if instanceMethod.ReturnType != nil || instanceMethod.IsConstructor {
-					// Task 9.32: For constructors, always return the object instance
-					// For auto-detected constructors with explicit return types, check Result first
 					if instanceMethod.IsConstructor && instanceMethod.ReturnType == nil {
-						// Explicit constructors (constructor keyword, no return type) always return obj
 						returnValue = obj
 					} else if instanceMethod.IsConstructor && instanceMethod.ReturnType != nil {
-						// Auto-detected constructors (function Create: TClass) - check Result variable
-						// This allows the constructor to assign Result := Self or return a different object
 						resultVal, resultOk := i.env.Get("Result")
 						if resultOk && resultVal.Type() != "NIL" {
 							returnValue = resultVal
 						} else {
-							// Result not set, return the object
 							returnValue = obj
 						}
 					} else {
@@ -266,30 +229,25 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 						}
 					}
 				} else {
-					// Procedure - no return value
 					returnValue = &NilValue{}
 				}
 
-				// Restore environment
 				i.env = savedEnv
 
 				return returnValue
 			} else {
-				// Neither class method nor instance method found
 				return i.newErrorWithLocation(mc, "method '%s' not found in class '%s'", mc.Method.Value, classInfo.Name)
 			}
 		}
 
-		// Check if this identifier refers to a record type
+		// Check for record type
 		recordTypeKey := "__record_type_" + pkgident.Normalize(ident.Value)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
-				// This is TRecord.Method() - check for static method with overload support
 				methodNameLower := pkgident.Normalize(mc.Method.Value)
 				classMethodOverloads, hasOverloads := rtv.ClassMethodOverloads[methodNameLower]
 
 				if !hasOverloads || len(classMethodOverloads) == 0 {
-					// Static method not found
 					return i.newErrorWithLocation(mc, "static method '%s' not found in record type '%s'", mc.Method.Value, ident.Value)
 				}
 
@@ -298,70 +256,56 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				var err error
 
 				if len(classMethodOverloads) > 1 {
-					// Multiple overloads - need to resolve based on arguments
 					staticMethod, err = i.resolveMethodOverload(rtv.RecordType.Name, mc.Method.Value, classMethodOverloads, mc.Arguments)
 					if err != nil {
 						return i.newErrorWithLocation(mc, "%s", err.Error())
 					}
 				} else {
-					// Single method - use it directly
 					staticMethod = classMethodOverloads[0]
 				}
 
-				// Execute static method WITHOUT Self binding
 				return i.callRecordStaticMethod(rtv, staticMethod, mc.Arguments, mc)
 			}
 		}
 	}
 
-	// Not static method call - evaluate the object expression for instance method call
+	// Evaluate object expression for instance method call
 	objVal := i.Eval(mc.Object)
 	if isError(objVal) {
 		return objVal
 	}
 
-	// Task 9.7: Check if it's a ClassInfoValue (Self in a class method)
-	// This handles: Self.Method() where Self is bound to ClassInfoValue in a class method
+	// Check if it's a ClassInfoValue (Self in a class method)
 	if classInfoVal, ok := objVal.(*ClassInfoValue); ok {
 		classInfo := classInfoVal.ClassInfo
-		// Look for class methods only (class methods on ClassInfoValue)
 		classMethodOverloads := i.getMethodOverloadsInHierarchy(classInfo, mc.Method.Value, true)
 
 		if len(classMethodOverloads) == 0 {
 			return i.newErrorWithLocation(mc, "class method '%s' not found in class '%s'", mc.Method.Value, classInfo.Name)
 		}
 
-		// Resolve overload
 		classMethod, err := i.resolveMethodOverload(classInfo.Name, mc.Method.Value, classMethodOverloads, mc.Arguments)
 		if err != nil {
 			return i.newErrorWithLocation(mc, "%s", err.Error())
 		}
 
-		// Execute class method using helper
 		return i.executeClassMethod(classInfo, classMethod, mc)
 	}
 
-	// Task 9.4.4: Check if it's a metaclass (ClassValue) calling a constructor
-	// This handles: var cls: class of TParent; cls := TChild; obj := cls.Create;
+	// Check for metaclass (ClassValue) calling a constructor
 	if classVal, ok := objVal.(*ClassValue); ok {
-		// Only constructors can be called on metaclass values
 		methodName := mc.Method.Value
-
-		// Look up constructor in the runtime class (virtual dispatch)
 		runtimeClass := classVal.ClassInfo
 		if runtimeClass == nil {
 			return i.newErrorWithLocation(mc, "invalid class reference")
 		}
 
-		// Get all constructor overloads with this name from class hierarchy
-		// Use getMethodOverloadsInHierarchy with isClassMethod=false to get constructors
 		constructorOverloads := i.getMethodOverloadsInHierarchy(runtimeClass, methodName, false)
 
 		if len(constructorOverloads) == 0 {
 			return i.newErrorWithLocation(mc, "constructor '%s' not found in class '%s'", methodName, runtimeClass.Name)
 		}
 
-		// Task 9.67: Resolve constructor overload based on argument types
 		constructor, err := i.resolveMethodOverload(runtimeClass.Name, methodName, constructorOverloads, mc.Arguments)
 		if err != nil {
 			return i.newErrorWithLocation(mc, "%s", err.Error())
@@ -425,7 +369,6 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			i.env.Define(param.Name.Value, arg)
 		}
 
-		// Task 9.73: Bind __CurrentClass__ so ClassName can be accessed in constructor
 		i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: runtimeClass})
 
 		// Execute constructor body
@@ -435,16 +378,13 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			return result
 		}
 
-		// Restore environment
 		i.env = savedEnv
-
-		// Return the newly created instance
 		return newInstance
 	}
 
-	// Check if it's a set value with built-in methods (Include, Exclude)
+	// Check for set value with built-in methods
 	if setVal, ok := objVal.(*SetValue); ok {
-		methodName := pkgident.Normalize(mc.Method.Value) // DWScript is case-insensitive
+		methodName := pkgident.Normalize(mc.Method.Value)
 
 		// Evaluate method arguments
 		args := make([]Value, len(mc.Arguments))
@@ -475,9 +415,8 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		}
 	}
 
-	// Task 9.7: Check if it's a record value with methods
+	// Check for record value with methods
 	if recVal, ok := objVal.(*RecordValue); ok {
-		// Convert MethodCallExpression to member access for record method calls
 		memberAccess := &ast.MemberAccessExpression{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
@@ -490,30 +429,22 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		return i.evalRecordMethodCall(recVal, memberAccess, mc.Arguments, mc.Object)
 	}
 
-	// Task 9.1.1: Check if it's an interface instance
-	// If so, extract the underlying object and delegate method call to it
+	// Check for interface instance - delegate to underlying object
 	if intfInst, ok := objVal.(*InterfaceInstance); ok {
 		if intfInst.Object == nil {
 			return i.newErrorWithLocation(mc, "Interface is nil")
 		}
 
-		// Verify the method exists in the interface definition
-		// This ensures we only call methods that are part of the interface contract
 		if !intfInst.Interface.HasMethod(mc.Method.Value) {
 			return i.newErrorWithLocation(mc, "method '%s' not found in interface '%s'",
 				mc.Method.Value, intfInst.Interface.GetName())
 		}
 
-		// Delegate to the underlying object for actual method dispatch
 		objVal = intfInst.Object
 	}
 
-	// Task 9.7: Check if object is nil
-	// When calling o.Method() where o is nil, always raise "Object not instantiated"
-	// Note: Class methods can only be called without error when called directly on
-	// the class name (TClass.Method), not via a nil instance variable (o.Method)
+	// Check if object is nil (TObject.Free is nil-safe)
 	if objVal == nil || objVal.Type() == "NIL" {
-		// TObject.Free is nil-safe
 		if strings.EqualFold(strings.TrimSpace(mc.Method.Value), "Free") {
 			return &NilValue{}
 		}
@@ -535,7 +466,6 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				case "high":
 					return &IntegerValue{Value: int64(enumType.High())}
 				case "byname":
-					// ByName(name: string): Integer
 					if len(mc.Arguments) != 1 {
 						return i.newErrorWithLocation(mc, "ByName expects 1 argument, got %d", len(mc.Arguments))
 					}
@@ -548,35 +478,28 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 						return i.newErrorWithLocation(mc, "ByName expects string argument, got %s", nameArg.Type())
 					}
 
-					// Look up the enum value by name (case-insensitive)
-					// Support both simple names ('a') and qualified names ('MyEnum.a')
 					searchName := nameStr.Value
 					if searchName == "" {
-						// Empty string returns 0 (DWScript behavior - returns first enum ordinal value)
 						return &IntegerValue{Value: 0}
 					}
 
-					// Check for qualified name (TypeName.ValueName)
 					parts := strings.Split(searchName, ".")
 					if len(parts) == 2 {
-						// Use the value name part
 						searchName = parts[1]
 					}
 
-					// Look up the value (case-insensitive)
 					for valueName, ordinalValue := range enumType.Values {
 						if pkgident.Equal(valueName, searchName) {
 							return &IntegerValue{Value: int64(ordinalValue)}
 						}
 					}
 
-					// Value not found, return 0 (DWScript behavior - returns 0 instead of raising error)
 					return &IntegerValue{Value: 0}
 				}
 			}
 		}
 
-		// Task 9.86: Not an object - check if helpers provide this method
+		// Check if helpers provide this method
 		helper, helperMethod, builtinSpec := i.findHelperMethod(objVal, mc.Method.Value)
 		if helperMethod == nil && builtinSpec == "" {
 			return i.newErrorWithLocation(mc, "cannot call method '%s' on type '%s' (no helper found)",
@@ -615,20 +538,14 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 	// Handle built-in methods that are available on all objects (inherited from TObject)
 	if methodNameLower == "classname" {
-		// ClassName returns the runtime type name of the object
 		return &StringValue{Value: obj.Class.GetName()}
 	}
-
-	// Get concrete class for method resolution
 	concreteClass, ok := obj.Class.(*ClassInfo)
 	if !ok {
 		return i.newErrorWithLocation(mc, "object has invalid class type")
 	}
 
-	// Task 9.67: Resolve method overload based on argument types
 	methodOverloads := i.getMethodOverloadsInHierarchy(concreteClass, mc.Method.Value, false)
-
-	// Task 9.7: Also check class methods (which can be called on instances)
 	classMethodOverloads := i.getMethodOverloadsInHierarchy(concreteClass, mc.Method.Value, true)
 
 	var method *ast.FunctionDecl
@@ -642,13 +559,10 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			return i.newErrorWithLocation(mc, "%s", err.Error())
 		}
 
-		// Task 9.14: Use virtual method table for virtual dispatch
-		// ONLY use VMT if the resolved method is virtual or override (not reintroduce)
-		// Reintroduced methods should use static dispatch
+		// Use virtual method table for virtual/override methods
 		if method != nil && (method.IsVirtual || method.IsOverride) && concreteClass.VirtualMethodTable != nil {
 			sig := methodSignature(method)
 			if entry, exists := concreteClass.VirtualMethodTable[sig]; exists && entry != nil && entry.IsVirtual {
-				// Use the virtual implementation from the VMT
 				if entry.Implementation != nil {
 					method = entry.Implementation
 				}
@@ -664,13 +578,10 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		}
 		isClassMethod = true
 
-		// Task 9.14: For non-virtual class methods called on instances, use static binding
-		// Walk up the hierarchy to find the base-most declaration (simulates static type resolution)
+		// For non-virtual class methods, use static binding
 		if method != nil && !method.IsVirtual && !method.IsOverride {
-			// Find the top-most class that declares this method (simulating static binding)
 			topMostMethod := method
 			for currentClass := concreteClass.Parent; currentClass != nil; currentClass = currentClass.Parent {
-				// Get class methods from this parent level
 				parentClassMethodOverloads := make([]*ast.FunctionDecl, 0)
 				for name, methods := range currentClass.ClassMethodOverloads {
 					if pkgident.Equal(name, mc.Method.Value) {
@@ -680,20 +591,16 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				}
 
 				if len(parentClassMethodOverloads) > 0 {
-					// Try to resolve overload in parent class
 					parentMethod, parentErr := i.resolveMethodOverload(currentClass.Name, mc.Method.Value, parentClassMethodOverloads, mc.Arguments)
 					if parentErr == nil && parentMethod != nil {
-						// Found matching method in parent - use it (static binding)
 						topMostMethod = parentMethod
 					}
 				}
 			}
-			// Use the top-most (base) declaration for non-virtual class methods
 			method = topMostMethod
 		}
 
-		// Task 9.14: Use virtual method table for virtual class methods
-		// ONLY use VMT if the resolved method is virtual or override (not reintroduce)
+		// Use virtual method table for virtual class methods
 		if method != nil && (method.IsVirtual || method.IsOverride) && concreteClass.VirtualMethodTable != nil {
 			sig := methodSignature(method)
 			if entry, exists := concreteClass.VirtualMethodTable[sig]; exists && entry != nil && entry.IsVirtual {
@@ -703,7 +610,6 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	}
 
 	if method == nil {
-		// Task 9.86: Check if helpers provide this method
 		helper, helperMethod, builtinSpec := i.findHelperMethod(obj, mc.Method.Value)
 		if helperMethod == nil && builtinSpec == "" {
 			return i.newErrorWithLocation(mc, "method '%s' not found in class '%s'", mc.Method.Value, obj.Class.GetName())
@@ -739,31 +645,21 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			mc.Method.Value, len(method.Parameters), len(args))
 	}
 
-	// Destructors mark the object as destroyed and then run their body
 	if method.IsDestructor {
 		return i.runDestructor(obj, method, mc)
 	}
 
-	// Task 9.4.3 & 9.73.3: Special handling for virtual constructors called on instances
-	// When calling a constructor on an instance (o.Create), create a NEW instance
-	// of the object's runtime type using virtual dispatch
+	// Virtual constructor dispatch: create new instance of runtime class
 	if method.IsConstructor {
-		// For virtual constructor dispatch, find the constructor in the object's runtime class
-		// Start from the runtime class and work up the hierarchy to find the most derived constructor
-		actualConstructor := method // fallback to the already-resolved method
-
-		// Try to find a constructor with the same name in the runtime class hierarchy
-		// This implements virtual dispatch - we start from the most derived class
+		actualConstructor := method
 		constructorName := mc.Method.Value
 		found := false
 		for class := concreteClass; class != nil; class = class.Parent {
-			// Check if this class has the constructor (case-sensitive match first)
 			if ctor, exists := class.Constructors[constructorName]; exists {
 				actualConstructor = ctor
 				found = true
 				break
 			}
-			// Case-insensitive fallback
 			for name, ctor := range class.Constructors {
 				if pkgident.Equal(name, constructorName) {
 					actualConstructor = ctor
@@ -772,24 +668,15 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				}
 			}
 			if found {
-				break // Found a constructor
+				break
 			}
 		}
 
-		// Create a NEW instance of the runtime class (not the existing object)
-		// Always use obj.Class (the runtime type), not actualClass (where constructor was found)
 		newObj := NewObjectInstance(obj.Class)
-
-		// Initialize all fields with default values
-		// Fields will be initialized during constructor execution
-
-		// Create method environment with Self bound to NEW object
 		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
 		i.env = methodEnv
 		i.env.Define("Self", newObj)
-
-		// Add class constants to method scope so they can be accessed directly
 		i.bindClassConstantsToEnv(concreteClass)
 
 		// Bind method parameters to arguments
@@ -816,39 +703,28 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		return newObj
 	}
 
-	// Normal method call (not a constructor)
-	// Create method environment with Self bound to object
 	methodEnv := NewEnclosedEnvironment(i.env)
 	savedEnv := i.env
 	i.env = methodEnv
 
-	// Task 9.x: Check recursion depth before pushing to call stack
 	if i.ctx.GetCallStack().WillOverflow() {
-		i.env = savedEnv // Restore environment before raising exception
+		i.env = savedEnv
 		return i.raiseMaxRecursionExceeded()
 	}
 
-	// Task 9.108: Push method name onto call stack for stack traces
 	fullMethodName := obj.Class.GetName() + "." + mc.Method.Value
 	i.pushCallStack(fullMethodName)
 	defer i.popCallStack()
 
-	// Task 9.7: Bind Self appropriately based on method type
 	if isClassMethod {
-		// For class methods, bind Self to the class (not the instance)
 		i.env.Define("Self", &ClassInfoValue{ClassInfo: concreteClass})
 	} else {
-		// For instance methods, bind Self to the object
 		i.env.Define("Self", obj)
 	}
 
 	// Determine the declaring class for inherited resolution
 	methodOwner := i.findMethodOwner(concreteClass, method, isClassMethod)
-
-	// Bind __CurrentClass__ to the static class context (declaring class)
 	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: methodOwner})
-
-	// Add class constants to method scope so they can be accessed directly
 	i.bindClassConstantsToEnv(concreteClass)
 
 	// Bind method parameters to arguments with implicit conversion
@@ -866,13 +742,10 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		i.env.Define(param.Name.Value, arg)
 	}
 
-	// For functions (not procedures), initialize the Result variable
-	// Task 9.221: Use appropriate default value based on return type
 	if method.ReturnType != nil {
 		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 		defaultVal := i.getDefaultValue(returnType)
 		i.env.Define("Result", defaultVal)
-		// In DWScript, the method name can be used as an alias for Result
 		i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
 	}
 
@@ -886,11 +759,8 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	// Extract return value (same logic as regular functions)
 	var returnValue Value
 	if method.ReturnType != nil {
-		// Check both Result and method name variable
 		resultVal, resultOk := i.env.Get("Result")
 		methodNameVal, methodNameOk := i.env.Get(method.Name.Value)
-
-		// Dereference ReferenceValue if needed
 		if resultOk {
 			if refVal, isRef := resultVal.(*ReferenceValue); isRef {
 				if derefVal, err := refVal.Dereference(); err == nil {
@@ -906,20 +776,19 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			}
 		}
 
-		// Use whichever variable is not nil, preferring Result if both are set
-		if resultOk && resultVal.Type() != "NIL" {
+		switch {
+		case resultOk && resultVal.Type() != "NIL":
 			returnValue = resultVal
-		} else if methodNameOk && methodNameVal.Type() != "NIL" {
+		case methodNameOk && methodNameVal.Type() != "NIL":
 			returnValue = methodNameVal
-		} else if resultOk {
+		case resultOk:
 			returnValue = resultVal
-		} else if methodNameOk {
+		case methodNameOk:
 			returnValue = methodNameVal
-		} else {
+		default:
 			returnValue = &NilValue{}
 		}
 
-		// Apply implicit conversion if return type doesn't match
 		if returnValue.Type() != "NIL" {
 			expectedReturnType := method.ReturnType.String()
 			if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
@@ -927,7 +796,6 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			}
 		}
 	} else {
-		// Procedure - no return value
 		returnValue = &NilValue{}
 	}
 
@@ -938,8 +806,6 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 }
 
 // executeClassMethod executes a class method with Self bound to ClassInfo.
-// This is used for both direct class method calls (TClass.Method) and
-// class method calls on Self when Self is already a ClassInfoValue.
 func (i *Interpreter) executeClassMethod(
 	classInfo *ClassInfo,
 	classMethod *ast.FunctionDecl,
@@ -1047,7 +913,6 @@ func (i *Interpreter) executeClassMethod(
 }
 
 // resolveMethodOverload resolves method overload based on argument types.
-// Task 9.67: Overload resolution for method calls
 func (i *Interpreter) resolveMethodOverload(className, methodName string, overloads []*ast.FunctionDecl, argExprs []ast.Expression) (*ast.FunctionDecl, error) {
 	// If only one overload, use it (fast path)
 	if len(overloads) == 1 {
@@ -1082,7 +947,6 @@ func (i *Interpreter) resolveMethodOverload(className, methodName string, overlo
 	// Use semantic analyzer's overload resolution
 	selected, err := semantic.ResolveOverload(candidates, argTypes)
 	if err != nil {
-		// Task 9.63: Use DWScript-compatible error message
 		return nil, fmt.Errorf("There is no overloaded version of \"%s.%s\" that can be called with these arguments", className, methodName)
 	}
 
@@ -1100,22 +964,13 @@ func (i *Interpreter) resolveMethodOverload(className, methodName string, overlo
 }
 
 // getMethodOverloadsInHierarchy collects all overloads of a method from the class hierarchy.
-// Task 9.67: Support inheritance for method overloads
-// Task 9.68: Also includes constructor overloads when the method name is a constructor
 func (i *Interpreter) getMethodOverloadsInHierarchy(classInfo *ClassInfo, methodName string, isClassMethod bool) []*ast.FunctionDecl {
 	var result []*ast.FunctionDecl
 
-	// Task 9.68: Check if this is a constructor call
-	// Task 9.82: Case-insensitive lookup (DWScript is case-insensitive)
-	// Constructors are stored separately in ConstructorOverloads
-	// Task 9.21: Only return constructors when isClassMethod = false (constructors are instance methods)
-	// Task 9.4: Constructors are copied from parent to child (unlike regular methods),
-	// so we only need to check the current class's ConstructorOverloads
+	// Check for constructors (only when isClassMethod = false)
 	if !isClassMethod {
 		for ctorName, constructorOverloads := range classInfo.ConstructorOverloads {
 			if pkgident.Equal(ctorName, methodName) && len(constructorOverloads) > 0 {
-				// This is a constructor - return constructor overloads from this class
-				// (which includes inherited constructors due to copying in evalClassDeclaration)
 				result = append(result, constructorOverloads...)
 				return result
 			}
@@ -1123,12 +978,9 @@ func (i *Interpreter) getMethodOverloadsInHierarchy(classInfo *ClassInfo, method
 	}
 
 	// Walk up the class hierarchy for regular methods
-	// Task 9.21.6: Fix overload resolution - child methods hide parent methods with same signature
-	// Task 9.82: Case-insensitive method lookup
 	for classInfo != nil {
 		var overloads []*ast.FunctionDecl
 		if isClassMethod {
-			// Case-insensitive lookup in ClassMethodOverloads
 			for name, methods := range classInfo.ClassMethodOverloads {
 				if pkgident.Equal(name, methodName) {
 					overloads = methods
@@ -1136,7 +988,6 @@ func (i *Interpreter) getMethodOverloadsInHierarchy(classInfo *ClassInfo, method
 				}
 			}
 		} else {
-			// Case-insensitive lookup in MethodOverloads
 			for name, methods := range classInfo.MethodOverloads {
 				if pkgident.Equal(name, methodName) {
 					overloads = methods
@@ -1147,14 +998,12 @@ func (i *Interpreter) getMethodOverloadsInHierarchy(classInfo *ClassInfo, method
 
 		// Add overloads from this class level
 		for _, candidate := range overloads {
-			// Check if this method signature is already in result (hidden by child class)
 			hidden := false
 			candidateType := i.extractFunctionType(candidate)
 			if candidateType != nil {
 				for _, existing := range result {
 					existingType := i.extractFunctionType(existing)
 					if existingType != nil && semantic.SignaturesEqual(candidateType, existingType) {
-						// Same signature already exists from child class - this one is hidden
 						hidden = true
 						break
 					}
