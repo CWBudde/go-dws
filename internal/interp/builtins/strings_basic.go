@@ -467,13 +467,13 @@ func SubStr(ctx Context, args []Value) Value {
 // NOTE: Format() is implemented below in the "Advanced String Operations" section.
 
 // NOTE: Insert() and Delete() for strings are var-param functions implemented in the
-// interpreter (internal/interp/builtins_strings_basic.go) because they require AST-level
+// interpreter (internal/interp/builtins_var_param.go) because they require AST-level
 // access to modify variables in-place. They cannot be migrated to this builtins package
 // since the Context interface only provides evaluated values, not AST nodes.
 //
 // Implemented var-param string functions:
-//   - Insert(source, var dest, pos) - builtinInsert() in internal/interp/builtins_strings_basic.go
-//   - Delete(var s, pos, count) - builtinDeleteString() in internal/interp/builtins_strings_basic.go
+//   - Insert(source, var dest, pos) - builtinInsert() in internal/interp/builtins_var_param.go
+//   - Delete(var s, pos, count) - builtinDeleteString() in internal/interp/builtins_var_param.go
 //
 // These are routed through callBuiltinWithVarParam() in functions_builtins.go.
 
