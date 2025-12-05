@@ -13,127 +13,54 @@ import (
 // ============================================================================
 // Array Type Inference
 // ============================================================================
-//
-// Task 3.5.24: These helpers determine array types for array literal expressions.
-// They handle both explicit type annotations and type inference from values.
-// ============================================================================
 
 // getArrayElementType determines the element type for an array literal.
-// This combines type annotation lookup and type inference.
-//
-// Process:
-//  1. Check for explicit type annotation from semantic analysis
-//  2. If no annotation, infer type from runtime values
-//  3. Return the determined ArrayType
-//
-// Returns:
-//   - The ArrayType for the array literal
-//   - nil if type cannot be determined (returns error via e.newError)
+// Checks for explicit type annotation, otherwise infers from runtime values.
 func (e *Evaluator) getArrayElementType(node *ast.ArrayLiteralExpression, values []Value) *types.ArrayType {
-	// Step 1: Try to get type from annotation
-	// For now, we'll skip annotation lookup as it requires more complex type resolution
-	// This will be enhanced in future iterations
-	// annotatedType := e.arrayTypeFromLiteral(node)
-	// if annotatedType != nil {
-	// 	return annotatedType
-	// }
-
-	// Step 2: Infer type from values
+	// TODO: Add annotation lookup when type resolution is implemented
 	return e.inferArrayTypeFromValues(values, node)
 }
 
 // inferArrayTypeFromValues infers the array element type from runtime values.
-// This is used when no explicit type annotation exists.
-//
-// Type inference rules:
-//   - All same type → array of that type
-//   - Integer + Float → array of Float (numeric promotion)
-//   - Mixed incompatible types → array of Variant
-//   - All nil → cannot infer (need explicit type)
-//   - Empty array → cannot infer (need explicit type)
-//
-// Returns:
-//   - The inferred ArrayType (always dynamic array)
-//   - nil if type cannot be inferred (returns error via e.newError)
-//
-// Example:
-//
-//	[1, 2, 3] → array of Integer
-//	[1, 2.5] → array of Float
-//	[1, "hello"] → array of Variant
-//	[] → nil (cannot infer, returns error)
+// Rules: same type → that type, Integer+Float → Float, mixed → Variant, empty/all nil → error.
 func (e *Evaluator) inferArrayTypeFromValues(values []Value, node *ast.ArrayLiteralExpression) *types.ArrayType {
 	if len(values) == 0 {
-		// Cannot infer type from empty array - return error
-		// Note: e.newError returns a Value (ErrorValue), not an error
-		// We'll handle this by returning nil and letting the caller check
 		return nil
 	}
 
-	// Get the type of the first element
 	var commonElementType types.Type
 
 	for i, val := range values {
-		// Get the type of this value
 		valType := GetValueType(val)
 
 		if i == 0 {
-			// First element - initialize common type
 			commonElementType = valType
 			if commonElementType == nil {
-				// First element is nil - need more elements to infer type
 				continue
 			}
 		} else {
-			// Subsequent elements - find common type
 			commonElementType = commonType(commonElementType, valType)
 
-			// If we've reached Variant, no need to continue checking
 			if commonElementType != nil && commonElementType.TypeKind() == "VARIANT" {
 				break
 			}
 		}
 	}
 
-	// Check if we successfully inferred a type
 	if commonElementType == nil {
-		// All elements were nil - cannot infer type
 		return nil
 	}
 
-	// Create a dynamic array type with the inferred element type
 	return types.NewDynamicArrayType(commonElementType)
 }
 
 // coerceArrayElements validates that all array elements can be coerced to the target element type.
-// This implements type compatibility checking for array literals.
-//
-// Coercion rules:
-//  1. Integer → Float: Numeric promotion for mixed numeric arrays
-//  2. Any → Variant: Wrap heterogeneous types in Variant
-//  3. Same type: No coercion needed
-//  4. Incompatible: Return error
-//
-// Examples:
-//   - [1, 2, 3] with target Integer → valid (no coercion)
-//   - [1, 2.5] with target Float → valid (Integer→Float promotion)
-//   - [1, "hello"] with target Variant → valid (wrap in Variant)
-//   - [1, "hello"] with target Integer → ERROR (incompatible types)
-//
-// Note: This function validates type compatibility. The actual value coercion
-// (creating FloatValue, VariantValue) is delegated to the adapter when constructing
-// the ArrayValue in task 3.5.26. This avoids circular import issues with value types.
-//
-// Returns:
-//   - nil if all elements can be coerced to target type
-//   - error Value if coercion is not possible
+// Validates compatibility without performing actual value transformation.
 func (e *Evaluator) coerceArrayElements(elements []Value, targetElementType types.Type, node ast.Node) Value {
 	if targetElementType == nil {
-		// No target type - nothing to validate
 		return nil
 	}
 
-	// Validate each element can be coerced to the target type
 	for i, elem := range elements {
 		if err := e.validateCoercion(elem, targetElementType, node, i); err != nil {
 			return err
@@ -144,58 +71,43 @@ func (e *Evaluator) coerceArrayElements(elements []Value, targetElementType type
 }
 
 // validateCoercion checks if a value can be coerced to the target type.
-// Returns nil if coercion is valid, or an error Value otherwise.
-//
-// This validates type compatibility without performing the actual coercion.
-// The actual value transformation happens in ArrayValue construction.
 func (e *Evaluator) validateCoercion(val Value, targetType types.Type, node ast.Node, index int) Value {
 	if val == nil {
-		// Nil is compatible with all reference types
 		if isReferenceType(targetType) {
 			return nil
 		}
 		return e.newError(node, "element %d: cannot use nil in array of %s", index, targetType.String())
 	}
 
-	// Get the source type
 	sourceType := GetValueType(val)
 
-	// If types match, no coercion needed
 	if sourceType != nil && sourceType.Equals(targetType) {
-		return nil // Valid - no coercion needed
+		return nil
 	}
 
-	// Handle specific coercion cases
 	targetKind := targetType.TypeKind()
 
 	switch targetKind {
 	case "FLOAT":
-		// Integer → Float promotion is valid
 		if sourceType != nil && sourceType.TypeKind() == "INTEGER" {
-			return nil // Valid - Integer can be promoted to Float
+			return nil
 		}
-		// Other types → Float requires explicit conversion
 		return e.newError(node, "element %d: cannot coerce %s to Float in array literal", index, sourceType.String())
 
 	case "VARIANT":
-		// Any type → Variant is always valid (wrapping)
 		return nil
 
 	default:
-		// For other types, check if source type is compatible
 		if sourceType == nil {
-			// Nil without a known type
 			return e.newError(node, "element %d: cannot use nil in array of %s", index, targetType.String())
 		}
 
-		// Types don't match and no coercion rule applies
 		return e.newError(node, "element %d: cannot coerce %s to %s in array literal",
 			index, sourceType.String(), targetType.String())
 	}
 }
 
-// isReferenceType checks if a type is a reference type (class, interface, etc.)
-// Reference types can be nil.
+// isReferenceType checks if a type can be nil (class, interface, array, string).
 func isReferenceType(t types.Type) bool {
 	if t == nil {
 		return false
@@ -204,29 +116,12 @@ func isReferenceType(t types.Type) bool {
 	return kind == "CLASS" || kind == "INTERFACE" || kind == "ARRAY" || kind == "STRING"
 }
 
-// validateArrayLiteralSize checks if the number of elements matches the expected size
-// for static arrays.
-//
-// For dynamic arrays (no bounds), any size is valid.
-// For static arrays (with bounds), the element count must match the size.
-//
-// Example:
-//
-//	var x: array[1..3] of Integer := [1, 2, 3]; // OK - 3 elements
-//	var y: array[1..3] of Integer := [1, 2];    // ERROR - expected 3, got 2
-//
-// Returns nil if validation passes, otherwise returns an error Value.
+// validateArrayLiteralSize checks element count matches static array bounds.
 func (e *Evaluator) validateArrayLiteralSize(arrayType *types.ArrayType, elementCount int, node ast.Node) Value {
-	if arrayType == nil {
+	if arrayType == nil || !arrayType.IsStatic() {
 		return nil
 	}
 
-	// Only validate static arrays (with bounds)
-	if !arrayType.IsStatic() {
-		return nil
-	}
-
-	// Get the expected size
 	expectedSize := arrayType.Size()
 
 	if elementCount != expectedSize {
@@ -240,21 +135,9 @@ func (e *Evaluator) validateArrayLiteralSize(arrayType *types.ArrayType, element
 // ============================================================================
 // New Array Expression Helpers
 // ============================================================================
-//
-// Task 3.5.27: Helpers for dynamic array allocation with 'new' keyword.
-// ============================================================================
 
-// evaluateDimensions evaluates all dimension expressions for a new array expression.
-// Each dimension must evaluate to a positive integer.
-//
-// Returns:
-//   - Slice of dimension sizes ([]int)
-//   - Error Value if any dimension is invalid
-//
-// Examples:
-//   - new Integer[10] → [10]
-//   - new String[3, 4] → [3, 4]
-//   - new Float[x+1, y*2] → [evaluated x+1, evaluated y*2]
+// evaluateDimensions evaluates dimension expressions for array allocation.
+// Each dimension must be a positive integer.
 func (e *Evaluator) evaluateDimensions(dimensions []ast.Expression, ctx *ExecutionContext, node ast.Node) ([]int, Value) {
 	if len(dimensions) == 0 {
 		return nil, e.newError(node, "new array expression must have at least one dimension")
@@ -263,25 +146,20 @@ func (e *Evaluator) evaluateDimensions(dimensions []ast.Expression, ctx *Executi
 	dimSizes := make([]int, len(dimensions))
 
 	for i, dimExpr := range dimensions {
-		// Evaluate the dimension expression
 		dimValue := e.Eval(dimExpr, ctx)
 		if isError(dimValue) {
 			return nil, dimValue
 		}
 
-		// Dimension must be an integer
 		if dimValue.Type() != "INTEGER" {
 			return nil, e.newError(node, "dimension %d: expected Integer, got %s", i, dimValue.Type())
 		}
 
-		// Extract the integer value
-		// We can't use type assertions due to circular imports, so we parse the string
 		dimSize, err := e.extractIntegerValue(dimValue)
 		if err != nil {
 			return nil, e.newError(node, "dimension %d: %v", i, err)
 		}
 
-		// Dimension must be positive
 		if dimSize <= 0 {
 			return nil, e.newError(node, "dimension %d: array size must be positive, got %d", i, dimSize)
 		}
@@ -292,22 +170,10 @@ func (e *Evaluator) evaluateDimensions(dimensions []ast.Expression, ctx *Executi
 	return dimSizes, nil
 }
 
-// extractIntegerValue extracts an int from an IntegerValue.
-// This is a helper to work around circular import issues.
+// extractIntegerValue extracts an int from an IntegerValue via string parsing.
 func (e *Evaluator) extractIntegerValue(val Value) (int, error) {
-	// IntegerValue.String() returns the decimal representation
-	// We can parse it to get the int value
-	// This is a workaround until we can access IntegerValue.Value directly
-
-	// For now, delegate to the adapter to extract the value
-	// The adapter has direct access to IntegerValue
-	// This is temporary - will be fixed when value types are refactored
-
-	// Use a simple string parsing approach as a fallback
-	// In practice, the adapter will handle this properly
 	strVal := val.String()
 
-	// Try to parse the string as an integer
 	var intVal int
 	_, err := fmt.Sscanf(strVal, "%d", &intVal)
 	if err != nil {
@@ -320,37 +186,20 @@ func (e *Evaluator) extractIntegerValue(val Value) (int, error) {
 // ============================================================================
 // Array Literal Direct Evaluation
 // ============================================================================
-//
-// Task 3.5.83: Direct array literal evaluation without adapter.EvalNode().
-// This eliminates double-evaluation by using pre-evaluated elements.
-// ============================================================================
 
-// evalArrayLiteralDirect evaluates an array literal expression directly.
-// This is the main entry point for array literal evaluation without adapter delegation.
-//
-// Process:
-//  1. Get type annotation from semanticInfo (if available)
-//  2. Evaluate all elements (with expected type for nested arrays)
-//  3. Infer type if no annotation exists
-//  4. Coerce elements to target type
-//  5. Validate static array bounds
-//  6. Create ArrayValue directly via adapter.CreateArrayValue
-//
-// Returns the ArrayValue or an error Value.
+// evalArrayLiteralDirect evaluates an array literal without adapter delegation.
+// Gets type from annotation or context, evaluates elements, coerces to target type, validates bounds.
 func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx *ExecutionContext) Value {
 	if node == nil {
 		return e.newError(node, "nil array literal")
 	}
 
-	// Task 3.5.105e: Check context first for type inference from assignment target
 	if ctx.ArrayTypeContext() != nil {
 		return e.evalArrayLiteralWithExpectedType(node, ctx.ArrayTypeContext(), ctx)
 	}
 
-	// Step 1: Get type annotation from semanticInfo
 	arrayType := e.getArrayTypeFromAnnotation(node, ctx)
 
-	// Step 2: Evaluate all elements
 	elementCount := len(node.Elements)
 	evaluatedElements := make([]Value, elementCount)
 	elementTypes := make([]types.Type, elementCount)
@@ -358,8 +207,7 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 	for idx, elem := range node.Elements {
 		var val Value
 
-		// If we have an expected array type and element is an array literal,
-		// evaluate it with the expected element type for proper nested array typing.
+		// Try nested array evaluation with expected type
 		if arrayType != nil {
 			if elemLit, ok := elem.(*ast.ArrayLiteralExpression); ok {
 				if expectedElemArr, ok := arrayType.ElementType.(*types.ArrayType); ok {
@@ -368,7 +216,6 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 			}
 		}
 
-		// Regular evaluation if not a nested array literal
 		if val == nil {
 			val = e.Eval(elem, ctx)
 		}
@@ -380,7 +227,6 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 		elementTypes[idx] = GetValueType(val)
 	}
 
-	// Step 3: Infer type if no annotation
 	if arrayType == nil {
 		inferred := e.inferArrayTypeFromElements(node, elementTypes)
 		if inferred == nil {
@@ -392,13 +238,11 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 		arrayType = inferred
 	}
 
-	// Step 4: Coerce elements to target type
 	coercedElements, errVal := e.coerceElementsToType(arrayType, evaluatedElements, elementTypes, node)
 	if errVal != nil {
 		return errVal
 	}
 
-	// Step 5: Validate static array bounds
 	if arrayType.IsStatic() {
 		expectedSize := arrayType.Size()
 		if elementCount != expectedSize {
@@ -406,8 +250,6 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 		}
 	}
 
-	// Step 6: Create ArrayValue directly
-	// Task 3.5.127: Create array value directly without adapter
 	runtimeElements := make([]runtime.Value, len(coercedElements))
 	for i, elem := range coercedElements {
 		runtimeElements[i] = elem.(runtime.Value)
@@ -415,10 +257,7 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 	return &runtime.ArrayValue{ArrayType: arrayType, Elements: runtimeElements}
 }
 
-// getArrayTypeFromAnnotation retrieves the array type from semantic info annotations.
-// Returns nil if no annotation exists or cannot be resolved.
-//
-// Task 3.5.106: Updated to take context for adapter-free type resolution.
+// getArrayTypeFromAnnotation retrieves the array type from semantic info.
 func (e *Evaluator) getArrayTypeFromAnnotation(node *ast.ArrayLiteralExpression, ctx *ExecutionContext) *types.ArrayType {
 	if e.semanticInfo == nil {
 		return nil
@@ -449,27 +288,23 @@ func (e *Evaluator) getArrayTypeFromAnnotation(node *ast.ArrayLiteralExpression,
 	return nil
 }
 
-// evalArrayLiteralWithExpectedType evaluates a nested array literal with an expected type.
-// This ensures nested array literals get the correct element type from their parent.
+// evalArrayLiteralWithExpectedType evaluates nested array literal with expected type from parent.
 func (e *Evaluator) evalArrayLiteralWithExpectedType(node *ast.ArrayLiteralExpression, expected *types.ArrayType, ctx *ExecutionContext) Value {
 	if expected == nil {
 		return e.evalArrayLiteralDirect(node, ctx)
 	}
 
-	// Temporarily set type annotation for this evaluation
 	if e.semanticInfo == nil {
-		// No semantic info - just use expected type directly
 		return e.evalArrayLiteralWithType(node, expected, ctx)
 	}
 
-	// Save and restore type annotation
+	// Temporarily set type annotation
 	prevType := e.semanticInfo.GetType(node)
 	annotation := &ast.TypeAnnotation{Token: node.Token, Name: expected.String()}
 	e.semanticInfo.SetType(node, annotation)
 
 	result := e.evalArrayLiteralDirect(node, ctx)
 
-	// Restore previous annotation
 	if prevType != nil {
 		e.semanticInfo.SetType(node, prevType)
 	} else {
@@ -479,8 +314,7 @@ func (e *Evaluator) evalArrayLiteralWithExpectedType(node *ast.ArrayLiteralExpre
 	return result
 }
 
-// evalArrayLiteralWithType evaluates an array literal with a known array type.
-// Used when semanticInfo is not available.
+// evalArrayLiteralWithType evaluates array literal with known type (when semanticInfo unavailable).
 func (e *Evaluator) evalArrayLiteralWithType(node *ast.ArrayLiteralExpression, arrayType *types.ArrayType, ctx *ExecutionContext) Value {
 	elementCount := len(node.Elements)
 	evaluatedElements := make([]Value, elementCount)
@@ -489,7 +323,7 @@ func (e *Evaluator) evalArrayLiteralWithType(node *ast.ArrayLiteralExpression, a
 	for idx, elem := range node.Elements {
 		var val Value
 
-		// Handle nested array literals with expected element type
+		// Try nested array evaluation with expected type
 		if elemLit, ok := elem.(*ast.ArrayLiteralExpression); ok {
 			if expectedElemArr, ok := arrayType.ElementType.(*types.ArrayType); ok {
 				val = e.evalArrayLiteralWithType(elemLit, expectedElemArr, ctx)
@@ -507,13 +341,11 @@ func (e *Evaluator) evalArrayLiteralWithType(node *ast.ArrayLiteralExpression, a
 		elementTypes[idx] = GetValueType(val)
 	}
 
-	// Coerce elements
 	coercedElements, errVal := e.coerceElementsToType(arrayType, evaluatedElements, elementTypes, node)
 	if errVal != nil {
 		return errVal
 	}
 
-	// Validate static array bounds
 	if arrayType.IsStatic() {
 		expectedSize := arrayType.Size()
 		if elementCount != expectedSize {
@@ -521,7 +353,6 @@ func (e *Evaluator) evalArrayLiteralWithType(node *ast.ArrayLiteralExpression, a
 		}
 	}
 
-	// Task 3.5.127: Create array value directly without adapter
 	runtimeElements := make([]runtime.Value, len(coercedElements))
 	for i, elem := range coercedElements {
 		runtimeElements[i] = elem.(runtime.Value)
@@ -529,8 +360,7 @@ func (e *Evaluator) evalArrayLiteralWithType(node *ast.ArrayLiteralExpression, a
 	return &runtime.ArrayValue{ArrayType: arrayType, Elements: runtimeElements}
 }
 
-// inferArrayTypeFromElements infers an array type from evaluated element types.
-// Returns a dynamic array type with the common element type, or nil if inference fails.
+// inferArrayTypeFromElements infers type from element types (same type → that type, Integer+Float → Float).
 func (e *Evaluator) inferArrayTypeFromElements(node *ast.ArrayLiteralExpression, elementTypes []types.Type) *types.ArrayType {
 	if len(elementTypes) == 0 {
 		return nil
@@ -538,7 +368,7 @@ func (e *Evaluator) inferArrayTypeFromElements(node *ast.ArrayLiteralExpression,
 
 	var inferred types.Type
 
-	for idx, elemType := range elementTypes {
+	for _, elemType := range elementTypes {
 		if elemType == nil {
 			continue
 		}
@@ -566,9 +396,6 @@ func (e *Evaluator) inferArrayTypeFromElements(node *ast.ArrayLiteralExpression,
 			continue
 		}
 
-		// Incompatible types - could return Variant or error
-		// For now, return nil to match existing behavior
-		_ = idx // Suppress unused variable warning
 		return nil
 	}
 
@@ -576,7 +403,6 @@ func (e *Evaluator) inferArrayTypeFromElements(node *ast.ArrayLiteralExpression,
 		return nil
 	}
 
-	// Create a static array type for literals (value semantics)
 	size := len(node.Elements)
 	if size == 0 {
 		return types.NewDynamicArrayType(types.GetUnderlyingType(inferred))
@@ -601,13 +427,11 @@ func (e *Evaluator) coerceElementsToType(arrayType *types.ArrayType, values []Va
 			valType = types.GetUnderlyingType(valueTypes[idx])
 		}
 
-		// Box values when expected element type is Variant
 		if underlyingElementType.Equals(types.VARIANT) {
 			coerced[idx] = runtime.BoxVariant(val)
 			continue
 		}
 
-		// Handle nil values
 		if val != nil && val.Type() == "NIL" {
 			switch underlyingElementType.TypeKind() {
 			case "CLASS", "INTERFACE", "ARRAY":
@@ -630,20 +454,16 @@ func (e *Evaluator) coerceElementsToType(arrayType *types.ArrayType, values []Va
 			return nil, e.newError(elemNode, "cannot determine type for array element %d", idx+1)
 		}
 
-		// Exact type match
 		if underlyingElementType.Equals(valType) {
 			coerced[idx] = val
 			continue
 		}
 
-		// Integer → Float promotion
 		if underlyingElementType.Equals(types.FLOAT) && valType.Equals(types.INTEGER) {
-			// Convert integer to float directly
 			coerced[idx] = e.castToFloat(val)
 			continue
 		}
 
-		// Array compatibility check
 		if valType.TypeKind() == "ARRAY" && underlyingElementType.TypeKind() == "ARRAY" {
 			if types.IsCompatible(valType, underlyingElementType) || types.IsCompatible(underlyingElementType, valType) {
 				coerced[idx] = val
@@ -651,13 +471,11 @@ func (e *Evaluator) coerceElementsToType(arrayType *types.ArrayType, values []Va
 			}
 		}
 
-		// General compatibility check
 		if types.IsCompatible(valType, underlyingElementType) {
 			coerced[idx] = val
 			continue
 		}
 
-		// Incompatible type
 		elemNode := node
 		if idx < len(node.Elements) {
 			elemNode = &ast.ArrayLiteralExpression{Elements: []ast.Expression{node.Elements[idx]}}
@@ -672,30 +490,17 @@ func (e *Evaluator) coerceElementsToType(arrayType *types.ArrayType, values []Va
 // ============================================================================
 // Array Helper Method Implementations
 // ============================================================================
-// Task 3.5.102e: Migrate array helper methods from Interpreter to Evaluator.
-//
-// These implementations avoid the adapter by directly manipulating runtime values.
-// The goal is to remove EvalNode delegation for common array operations.
-//
-// Split into sub-tasks:
-// - 3.5.102e1: Array properties (Length, Count, High, Low)
-// - 3.5.102e2: Simple array methods (Add, Push, Pop, Swap, Delete)
-// - 3.5.102e3: Join methods (Join, string array Join)
 
-// evalArrayHelper evaluates a built-in array helper method directly in the evaluator.
-// Returns the result value, or nil if this helper is not handled here (should fall through
-// to the adapter).
+// evalArrayHelper evaluates built-in array helper methods.
+// Returns result or nil if not handled (falls through to adapter).
 func (e *Evaluator) evalArrayHelper(spec string, selfValue Value, args []Value, node ast.Node) Value {
 	switch spec {
-	// Task 3.5.102e1: Array properties
 	case "__array_length", "__array_count":
 		return e.evalArrayLengthHelper(selfValue, args, node)
 	case "__array_high":
 		return e.evalArrayHigh(selfValue, args, node)
 	case "__array_low":
 		return e.evalArrayLow(selfValue, args, node)
-
-	// Task 3.5.102e2: Simple array methods
 	case "__array_add":
 		return e.evalArrayAdd(selfValue, args, node)
 	case "__array_push":
@@ -706,25 +511,20 @@ func (e *Evaluator) evalArrayHelper(spec string, selfValue Value, args []Value, 
 		return e.evalArraySwap(selfValue, args, node)
 	case "__array_delete":
 		return e.evalArrayDelete(selfValue, args, node)
-
-	// Task 3.5.102e3: Join methods
 	case "__array_join":
 		return e.evalArrayJoinHelper(selfValue, args, node)
 	case "__string_array_join":
 		return e.evalStringArrayJoin(selfValue, args, node)
-
 	default:
-		// Not an array helper we handle - return nil to signal fallthrough to adapter
 		return nil
 	}
 }
 
 // ============================================================================
-// Task 3.5.102e1: Array Properties
+// Array Properties
 // ============================================================================
 
-// evalArrayLengthHelper implements Array.Length and Array.Count property.
-// Returns the number of elements in the array.
+// evalArrayLengthHelper implements Array.Length and Array.Count.
 func (e *Evaluator) evalArrayLengthHelper(selfValue Value, args []Value, node ast.Node) Value {
 	if len(args) != 0 {
 		return e.newError(node, "Array.Length property does not take arguments")
@@ -738,10 +538,7 @@ func (e *Evaluator) evalArrayLengthHelper(selfValue Value, args []Value, node as
 	return &runtime.IntegerValue{Value: int64(len(arrVal.Elements))}
 }
 
-// evalArrayHigh implements Array.High property.
-// Returns the highest valid index of the array.
-// For static arrays, returns the declared high bound.
-// For dynamic arrays, returns Length - 1.
+// evalArrayHigh returns highest valid index (declared high bound for static, Length-1 for dynamic).
 func (e *Evaluator) evalArrayHigh(selfValue Value, args []Value, node ast.Node) Value {
 	if len(args) != 0 {
 		return e.newError(node, "Array.High property does not take arguments")
@@ -758,10 +555,7 @@ func (e *Evaluator) evalArrayHigh(selfValue Value, args []Value, node ast.Node) 
 	return &runtime.IntegerValue{Value: int64(len(arrVal.Elements) - 1)}
 }
 
-// evalArrayLow implements Array.Low property.
-// Returns the lowest valid index of the array.
-// For static arrays, returns the declared low bound.
-// For dynamic arrays, returns 0.
+// evalArrayLow returns lowest valid index (declared low bound for static, 0 for dynamic).
 func (e *Evaluator) evalArrayLow(selfValue Value, args []Value, node ast.Node) Value {
 	if len(args) != 0 {
 		return e.newError(node, "Array.Low property does not take arguments")
@@ -779,11 +573,10 @@ func (e *Evaluator) evalArrayLow(selfValue Value, args []Value, node ast.Node) V
 }
 
 // ============================================================================
-// Task 3.5.102e2: Simple Array Methods
+// Simple Array Methods
 // ============================================================================
 
-// evalArrayAdd implements Array.Add(value) method.
-// Adds an element to a dynamic array.
+// evalArrayAdd appends element to dynamic array.
 func (e *Evaluator) evalArrayAdd(selfValue Value, args []Value, node ast.Node) Value {
 	if len(args) != 1 {
 		return e.newError(node, "Array.Add expects exactly 1 argument")
@@ -794,19 +587,16 @@ func (e *Evaluator) evalArrayAdd(selfValue Value, args []Value, node ast.Node) V
 		return e.newError(node, "Array.Add requires array receiver")
 	}
 
-	// Check if it's a dynamic array (static arrays cannot use Add)
 	if arrVal.ArrayType != nil && !arrVal.ArrayType.IsDynamic() {
 		return e.newError(node, "Add() can only be used with dynamic arrays, not static arrays")
 	}
 
-	// Append the element
 	arrVal.Elements = append(arrVal.Elements, args[0])
 
 	return &runtime.NilValue{}
 }
 
-// evalArrayPush implements Array.Push(value) method.
-// Pushes an element onto a dynamic array (same as Add, but copies records).
+// evalArrayPush appends element to dynamic array, copying records to avoid aliasing.
 func (e *Evaluator) evalArrayPush(selfValue Value, args []Value, node ast.Node) Value {
 	if len(args) != 1 {
 		return e.newError(node, "Array.Push expects exactly 1 argument")
@@ -817,16 +607,13 @@ func (e *Evaluator) evalArrayPush(selfValue Value, args []Value, node ast.Node) 
 		return e.newError(node, "Array.Push requires array receiver")
 	}
 
-	// Check if it's a dynamic array (static arrays cannot use Push)
 	if arrVal.ArrayType != nil && !arrVal.ArrayType.IsDynamic() {
 		return e.newError(node, "Push() can only be used with dynamic arrays, not static arrays")
 	}
 
 	valueToAdd := args[0]
 
-	// If pushing a record, make a copy to avoid aliasing issues
-	// Records are value types and should be copied when added to collections
-	// Check if value implements Copyable interface (RecordValue does)
+	// Copy records (value types) to avoid aliasing in collections
 	if copyable, ok := valueToAdd.(interface{ Copy() Value }); ok {
 		valueToAdd = copyable.Copy()
 	}
@@ -836,8 +623,7 @@ func (e *Evaluator) evalArrayPush(selfValue Value, args []Value, node ast.Node) 
 	return &runtime.NilValue{}
 }
 
-// evalArrayPop implements Array.Pop() method.
-// Removes and returns the last element from a dynamic array.
+// evalArrayPop removes and returns the last element from a dynamic array.
 func (e *Evaluator) evalArrayPop(selfValue Value, args []Value, node ast.Node) Value {
 	if len(args) != 0 {
 		return e.newError(node, "Array.Pop expects no arguments, got %d", len(args))
@@ -848,27 +634,21 @@ func (e *Evaluator) evalArrayPop(selfValue Value, args []Value, node ast.Node) V
 		return e.newError(node, "Array.Pop requires array receiver")
 	}
 
-	// Check if it's a dynamic array (static arrays cannot use Pop)
 	if arrVal.ArrayType != nil && !arrVal.ArrayType.IsDynamic() {
 		return e.newError(node, "Pop() can only be used with dynamic arrays, not static arrays")
 	}
 
-	// Check if array is empty
 	if len(arrVal.Elements) == 0 {
 		return e.newError(node, "Pop() called on empty array")
 	}
 
-	// Get the last element
 	lastElement := arrVal.Elements[len(arrVal.Elements)-1]
-
-	// Remove the last element
 	arrVal.Elements = arrVal.Elements[:len(arrVal.Elements)-1]
 
 	return lastElement
 }
 
-// evalArraySwap implements Array.Swap(i, j) method.
-// Swaps two elements in the array.
+// evalArraySwap swaps two elements in the array.
 func (e *Evaluator) evalArraySwap(selfValue Value, args []Value, node ast.Node) Value {
 	if len(args) != 2 {
 		return e.newError(node, "Array.Swap expects exactly 2 arguments, got %d", len(args))
@@ -879,21 +659,18 @@ func (e *Evaluator) evalArraySwap(selfValue Value, args []Value, node ast.Node) 
 		return e.newError(node, "Array.Swap requires array receiver")
 	}
 
-	// Get index i
 	iInt, ok := args[0].(*runtime.IntegerValue)
 	if !ok {
 		return e.newError(node, "Array.Swap first argument must be Integer, got %s", args[0].Type())
 	}
 	iIdx := int(iInt.Value)
 
-	// Get index j
 	jInt, ok := args[1].(*runtime.IntegerValue)
 	if !ok {
 		return e.newError(node, "Array.Swap second argument must be Integer, got %s", args[1].Type())
 	}
 	jIdx := int(jInt.Value)
 
-	// Validate indices
 	arrayLen := len(arrVal.Elements)
 	if iIdx < 0 || iIdx >= arrayLen {
 		return e.newError(node, "Array.Swap first index %d out of bounds (0..%d)", iIdx, arrayLen-1)
@@ -902,14 +679,12 @@ func (e *Evaluator) evalArraySwap(selfValue Value, args []Value, node ast.Node) 
 		return e.newError(node, "Array.Swap second index %d out of bounds (0..%d)", jIdx, arrayLen-1)
 	}
 
-	// Swap elements
 	arrVal.Elements[iIdx], arrVal.Elements[jIdx] = arrVal.Elements[jIdx], arrVal.Elements[iIdx]
 
 	return &runtime.NilValue{}
 }
 
-// evalArrayDelete implements Array.Delete(index) or Array.Delete(index, count) method.
-// Removes elements from a dynamic array.
+// evalArrayDelete removes 1 or more elements from a dynamic array.
 func (e *Evaluator) evalArrayDelete(selfValue Value, args []Value, node ast.Node) Value {
 	if len(args) < 1 || len(args) > 2 {
 		return e.newError(node, "Array.Delete expects 1 or 2 arguments, got %d", len(args))
@@ -920,19 +695,16 @@ func (e *Evaluator) evalArrayDelete(selfValue Value, args []Value, node ast.Node
 		return e.newError(node, "Array.Delete requires array receiver")
 	}
 
-	// Check if it's a dynamic array (static arrays cannot use Delete)
 	if arrVal.ArrayType != nil && !arrVal.ArrayType.IsDynamic() {
 		return e.newError(node, "Delete() can only be used with dynamic arrays, not static arrays")
 	}
 
-	// Get the index
 	indexInt, ok := args[0].(*runtime.IntegerValue)
 	if !ok {
 		return e.newError(node, "Array.Delete index must be Integer, got %s", args[0].Type())
 	}
 	index := int(indexInt.Value)
 
-	// Get the count (default to 1 if not specified)
 	count := 1
 	if len(args) == 2 {
 		countInt, ok := args[1].(*runtime.IntegerValue)
@@ -942,7 +714,6 @@ func (e *Evaluator) evalArrayDelete(selfValue Value, args []Value, node ast.Node
 		count = int(countInt.Value)
 	}
 
-	// Validate index and count
 	arrayLen := len(arrVal.Elements)
 	if index < 0 || index >= arrayLen {
 		return e.newError(node, "Array.Delete index %d out of bounds (0..%d)", index, arrayLen-1)
@@ -951,24 +722,21 @@ func (e *Evaluator) evalArrayDelete(selfValue Value, args []Value, node ast.Node
 		return e.newError(node, "Array.Delete count must be non-negative, got %d", count)
 	}
 
-	// Calculate end index (don't go beyond array length)
 	endIndex := index + count
 	if endIndex > arrayLen {
 		endIndex = arrayLen
 	}
 
-	// Delete elements by slicing
 	arrVal.Elements = append(arrVal.Elements[:index], arrVal.Elements[endIndex:]...)
 
 	return &runtime.NilValue{}
 }
 
 // ============================================================================
-// Task 3.5.102e3: Join Methods
+// Join Methods
 // ============================================================================
 
 // evalArrayJoinHelper implements Array.Join(separator) method.
-// Joins array elements into a string using the separator.
 func (e *Evaluator) evalArrayJoinHelper(selfValue Value, args []Value, node ast.Node) Value {
 	if len(args) != 1 {
 		return e.newError(node, "Array.Join expects exactly 1 argument")
@@ -999,7 +767,6 @@ func (e *Evaluator) evalArrayJoinHelper(selfValue Value, args []Value, node ast.
 }
 
 // evalStringArrayJoin implements string array Join(separator) method.
-// Joins string array elements into a string using the separator.
 func (e *Evaluator) evalStringArrayJoin(selfValue Value, args []Value, node ast.Node) Value {
 	if len(args) != 1 {
 		return e.newError(node, "String array Join expects exactly 1 argument")
@@ -1031,29 +798,16 @@ func (e *Evaluator) evalStringArrayJoin(selfValue Value, args []Value, node ast.
 }
 
 // ============================================================================
-// Array Manipulation Helpers (Task 3.5.143c)
+// Array Manipulation Helpers
 // ============================================================================
 //
-// These standalone functions provide array manipulation operations.
-// They are used by both the Interpreter and Evaluator for implementing
-// built-in array functions and Context interface methods.
-//
-// Design: These are standalone functions (not Evaluator methods) to allow
-// reuse from both Interpreter and Evaluator without creating circular dependencies.
+// Standalone functions (not Evaluator methods) to allow reuse from both
+// Interpreter and Evaluator without creating circular dependencies.
 // ============================================================================
 
-// ValuesEqual compares two Values for equality.
-// This is a standalone helper extracted from Interpreter.valuesEqual().
-//
-// Handles:
-// - Variant unwrapping
-// - Nil value comparisons
-// - Type checking
-// - Recursive record field comparison
-//
-// Used by: ArrayHelperIndexOf, ArrayHelperContains
+// ValuesEqual compares two Values for equality, handling variant unwrapping,
+// nil comparisons, type checking, and recursive record field comparison.
 func ValuesEqual(a, b Value) bool {
-	// Unwrap VariantValue if present
 	if varVal, ok := a.(*runtime.VariantValue); ok {
 		a = varVal.Value
 	}
@@ -1061,15 +815,13 @@ func ValuesEqual(a, b Value) bool {
 		b = varVal.Value
 	}
 
-	// Handle nil values (uninitialized variants)
 	if a == nil && b == nil {
-		return true // Both uninitialized variants are equal
+		return true
 	}
 	if a == nil || b == nil {
-		return false // One is nil, the other is not
+		return false
 	}
 
-	// Handle same type comparisons
 	if a.Type() != b.Type() {
 		return false
 	}
@@ -1104,7 +856,7 @@ func ValuesEqual(a, b Value) bool {
 		return left.Value == right.Value
 
 	case *runtime.NilValue:
-		return true // nil == nil
+		return true
 
 	case *runtime.RecordValue:
 		right, ok := b.(*runtime.RecordValue)
@@ -1114,31 +866,24 @@ func ValuesEqual(a, b Value) bool {
 		return recordsEqualInternal(left, right)
 
 	default:
-		// For other types, use string comparison as fallback
 		return a.String() == b.String()
 	}
 }
 
 // recordsEqualInternal recursively compares two RecordValue instances for equality.
-// Compares record type names and all field values.
-// Internal helper for ValuesEqual - not exported.
 func recordsEqualInternal(left, right *runtime.RecordValue) bool {
-	// Different types are not equal
 	if left.RecordType.Name != right.RecordType.Name {
 		return false
 	}
 
-	// Check if all fields are equal
 	for fieldName := range left.RecordType.Fields {
 		leftVal, leftExists := left.Fields[fieldName]
 		rightVal, rightExists := right.Fields[fieldName]
 
-		// Both should exist
 		if !leftExists || !rightExists {
 			return false
 		}
 
-		// Compare field values recursively
 		if !ValuesEqual(leftVal, rightVal) {
 			return false
 		}
@@ -1148,74 +893,38 @@ func recordsEqualInternal(left, right *runtime.RecordValue) bool {
 }
 
 // RecordsEqual checks if two RecordValues are equal by comparing all fields.
-// Public wrapper that delegates to ValuesEqual for type checking and conversion.
-// Task 3.5.143c: Replaces the simple version from helpers.go with full field comparison.
 func RecordsEqual(left, right Value) bool {
-	// Use ValuesEqual which handles RecordValue comparison via recordsEqualInternal
 	return ValuesEqual(left, right)
 }
 
 // ArrayHelperCopy creates a deep copy of an array.
-//
-// For dynamic arrays: creates new array with same elements
-// For static arrays: copies elements to new array
-// For arrays of objects: shallow copy references (as per spec)
-//
-// Returns: New ArrayValue with copied elements
+// For arrays of objects, references are shallow copied (not the objects themselves).
 func ArrayHelperCopy(arr *runtime.ArrayValue) Value {
-	// Create a new ArrayValue with the same type
 	newArray := &runtime.ArrayValue{
 		ArrayType: arr.ArrayType,
 		Elements:  make([]runtime.Value, len(arr.Elements)),
 	}
-
-	// Deep copy the elements slice
-	// Note: For object references, this is a shallow copy (references are copied, not objects)
 	copy(newArray.Elements, arr.Elements)
-
 	return newArray
 }
 
-// ArrayHelperIndexOf searches an array for a value and returns its 0-based index.
-//
-// Returns 0-based index of first occurrence (0 = first element)
-// Returns -1 if not found or invalid startIndex
-// Uses 0-based indexing (standard for dynamic arrays in Pascal/Delphi)
-//
-// Parameters:
-//   - arr: Array to search
-//   - value: Value to find
-//   - startIndex: Starting position (0-based)
-//
-// Returns: IntegerValue with index (>= 0) or -1 if not found
+// ArrayHelperIndexOf searches an array for a value starting from startIndex.
+// Returns the 0-based index (>= 0) or -1 if not found.
 func ArrayHelperIndexOf(arr *runtime.ArrayValue, value Value, startIndex int) Value {
-	// Validate startIndex bounds
 	if startIndex < 0 || startIndex >= len(arr.Elements) {
 		return &runtime.IntegerValue{Value: -1}
 	}
 
-	// Search array from startIndex onwards
 	for idx := startIndex; idx < len(arr.Elements); idx++ {
 		if ValuesEqual(arr.Elements[idx], value) {
-			// Return 0-based index
 			return &runtime.IntegerValue{Value: int64(idx)}
 		}
 	}
 
-	// Not found
 	return &runtime.IntegerValue{Value: -1}
 }
 
 // ArrayHelperContains checks if an array contains a specific value.
-//
-// Returns true if value is found in array, false otherwise
-// Uses ArrayHelperIndexOf internally
-//
-// Parameters:
-//   - arr: Array to search
-//   - value: Value to find
-//
-// Returns: BooleanValue (true if found, false otherwise)
 func ArrayHelperContains(arr *runtime.ArrayValue, value Value) Value {
 	// Use IndexOf to check if value exists
 	// IndexOf returns >= 0 if found (0-based indexing), -1 if not found
@@ -1231,14 +940,6 @@ func ArrayHelperContains(arr *runtime.ArrayValue, value Value) Value {
 }
 
 // ArrayHelperReverse reverses an array in place.
-//
-// Modifies array by reversing elements in place
-// Swaps elements from both ends moving inward
-//
-// Parameters:
-//   - arr: Array to reverse (modified in place)
-//
-// Returns: NilValue (procedure with no return value)
 func ArrayHelperReverse(arr *runtime.ArrayValue) Value {
 	elements := arr.Elements
 	n := len(elements)
@@ -1253,21 +954,8 @@ func ArrayHelperReverse(arr *runtime.ArrayValue) Value {
 	return &runtime.NilValue{}
 }
 
-// ArrayHelperSort sorts an array in place using default comparison.
-//
-// Sorts integers numerically, strings lexicographically
-// Uses Go's sort.Slice() for efficient sorting
-//
-// Supported types:
-//   - Integer: numeric sort (ascending)
-//   - Float: numeric sort (ascending)
-//   - String: lexicographic sort
-//   - Boolean: false < true
-//
-// Parameters:
-//   - arr: Array to sort (modified in place)
-//
-// Returns: NilValue (procedure with no return value)
+// ArrayHelperSort sorts an array in place.
+// Supports Integer (numeric), Float (numeric), String (lexicographic), and Boolean (false < true).
 func ArrayHelperSort(arr *runtime.ArrayValue) Value {
 	elements := arr.Elements
 	n := len(elements)
@@ -1336,14 +1024,7 @@ func ArrayHelperSort(arr *runtime.ArrayValue) Value {
 }
 
 // ArrayHelperConcatArrays concatenates multiple arrays into a new array.
-//
-// Creates a new array containing all elements from all input arrays.
 // The result array type is taken from the first array.
-//
-// Parameters:
-//   - arrays: Slice of arrays to concatenate
-//
-// Returns: New ArrayValue with all elements concatenated
 func ArrayHelperConcatArrays(arrays []*runtime.ArrayValue) Value {
 	// Collect all elements from all arrays
 	var resultElements []runtime.Value
@@ -1367,19 +1048,7 @@ func ArrayHelperConcatArrays(arrays []*runtime.ArrayValue) Value {
 }
 
 // ArrayHelperSlice extracts a slice from an array.
-//
-// Creates a new array containing elements from arr[start:end].
-// Handles array bounds and adjusts for array low bounds.
-//
-// Parameters:
-//   - arr: Source array
-//   - startIdx: Starting index (adjusted for array's low bound)
-//   - endIdx: Ending index (exclusive, adjusted for array's low bound)
-//
-// Returns: New ArrayValue with sliced elements
-//
-// Note: Indices are adjusted relative to the array's low bound.
-// If array has low bound 1, then start=1, end=3 extracts elements [1,2].
+// Indices are adjusted relative to the array's low bound (e.g., low bound 1: start=1 extracts first element).
 func ArrayHelperSlice(arr *runtime.ArrayValue, startIdx, endIdx int64) Value {
 	// Get the low bound of the array
 	lowBound := int64(0)
