@@ -220,13 +220,14 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// PR #147: Use normalized key for O(1) case-insensitive lookup
 	existingClass, exists := i.classes[ident.Normalize(className)]
 
-	if exists && existingClass.IsPartial && cd.IsPartial {
+	switch {
+	case exists && existingClass.IsPartial && cd.IsPartial:
 		// Merging partial classes - reuse existing ClassInfo
 		classInfo = existingClass
-	} else if exists {
+	case exists:
 		// Non-partial class already exists - error (semantic analyzer should catch this)
 		return i.newErrorWithLocation(cd, "class '%s' already declared", className)
-	} else {
+	default:
 		// New class declaration
 		classInfo = NewClassInfo(className)
 	}
@@ -240,15 +241,15 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Set abstract flag (only if not already set)
 	if cd.IsAbstract {
 		classInfo.IsAbstractFlag = true
-		classInfo.Metadata.IsAbstract = true // Task 3.5.39
+		classInfo.Metadata.IsAbstract = true
 	}
 
 	// Set external flags (only if not already set)
 	if cd.IsExternal {
 		classInfo.IsExternalFlag = true
 		classInfo.ExternalName = cd.ExternalName
-		classInfo.Metadata.IsExternal = true              // Task 3.5.39
-		classInfo.Metadata.ExternalName = cd.ExternalName // Task 3.5.39
+		classInfo.Metadata.IsExternal = true
+		classInfo.Metadata.ExternalName = cd.ExternalName
 	}
 
 	// Provide current class context for nested type resolution during declaration processing
@@ -456,13 +457,14 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		var cachedInitValue Value // Cache evaluated init value to avoid double evaluation
 
 		// Get the field type from the type annotation or infer from initialization
-		if field.Type != nil {
+		switch {
+		case field.Type != nil:
 			// Explicit type annotation
 			fieldType = i.resolveTypeFromExpression(field.Type)
 			if fieldType == nil {
 				return i.newErrorWithLocation(field, "unknown or invalid type for field '%s'", field.Name.Value)
 			}
-		} else if field.InitValue != nil {
+		case field.InitValue != nil:
 			// Type inference from initialization value
 			// Create temporary environment with class constants available
 			savedEnv := i.env
@@ -487,7 +489,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			if fieldType == nil {
 				return i.newErrorWithLocation(field, "cannot infer type for field '%s'", field.Name.Value)
 			}
-		} else {
+		default:
 			// No type and no initialization
 			return i.newErrorWithLocation(field, "field '%s' has no type annotation", field.Name.Value)
 		}

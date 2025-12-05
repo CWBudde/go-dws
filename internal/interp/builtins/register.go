@@ -3,33 +3,12 @@ package builtins
 import "github.com/cwbudde/go-dws/internal/types"
 
 // DefaultRegistry is the default global registry of all built-in functions.
-// It's populated on package initialization with all standard DWScript built-ins.
+// Populated on initialization with all standard DWScript built-ins:
+// 234 functions across Math, String, DateTime, Conversion, Encoding, JSON,
+// Type, Array, Collections, Variant, I/O, and System categories.
 //
-// Current status (Phase 3, Task 3.7.9 - Random functions completed):
-//   - 231 functions migrated to internal/interp/builtins/ package
-//   - 231 functions registered in categories:
-//   - Math: 68 functions (basic, advanced, trig, exponential, special values, random)
-//   - String: 57 functions (manipulation, search, comparison, formatting - added Format)
-//   - DateTime: 52 functions (creation, arithmetic, formatting, parsing, info)
-//   - Conversion: 11 functions (IntToStr, IntToBin, StrToInt, StrToFloat, FloatToStr, BoolToStr, IntToHex, StrToBool, Integer, StrToIntDef, StrToFloatDef)
-//   - Encoding: 5 functions (StrToHtml, StrToHtmlAttribute, StrToJSON, StrToCSSText, StrToXML)
-//   - JSON: 7 functions (ParseJSON, ToJSON, ToJSONFormatted, JSONHasField, JSONKeys, JSONValues, JSONLength)
-//   - Type: 2 functions (TypeOf, TypeOfClass)
-//   - Array: 16 functions (Length, Copy, Low, High, IndexOf, Contains, Reverse, Sort, Add, Delete, SetLength, Concat, Slice)
-//   - Collections: 8 functions (Map, Filter, Reduce, ForEach, Every, Some, Find, FindIndex)
-//   - Variant: 10 functions (VarType, VarIsNull, VarIsEmpty, VarToStr, VarToInt, VarToFloat, VarAsType, VarClear, VarIsArray, VarIsStr, VarIsNumeric)
-//   - I/O: 2 functions (Print, PrintLn)
-//   - System: 4 functions (GetStackTrace, GetCallStack, Assigned, Assert)
-//
-// Pending migration (still in internal/interp as Interpreter methods):
-//   - Var-param functions: Inc, Dec, Swap, DivMod, SetLength (5 functions)
-//     Note: Insert/Delete for strings are also var-param but implemented via callBuiltinWithVarParam
-//
-// Note: Var-param functions cannot be migrated to this package because they require
-// AST-level access to modify variables in-place. They use the callBuiltinWithVarParam()
-// mechanism in functions_builtins.go.
-//
-// Total: 234 registered (added StrSplit, StrJoin, StrArrayPack), ~5 var-param functions remain in interpreter
+// Var-param functions (Inc, Dec, Swap, DivMod, SetLength) remain in the
+// interpreter as they require AST-level access to modify variables in-place.
 var DefaultRegistry *Registry
 
 func init() {
@@ -38,22 +17,8 @@ func init() {
 }
 
 // RegisterAll registers all built-in functions with the given registry.
-// This allows for creating custom registries with a different set of functions.
-//
-// Functions are organized by category for better discoverability and maintenance.
-// Categories currently implemented:
-//   - CategoryMath: Mathematical operations and functions
-//   - CategoryString: String manipulation and formatting
-//   - CategoryDateTime: Date and time operations
-//   - CategoryConversion: Type conversion functions
-//   - CategoryEncoding: Encoding/escaping functions
-//   - CategoryJSON: JSON parsing and manipulation
-//   - CategoryType: Type introspection
-//   - CategoryIO: Input/output operations
-//
-// Future categories (when functions are migrated):
-//   - CategoryArray: Array operations
-//   - CategorySystem: System and runtime functions
+// Functions are organized by category: Math, String, DateTime, Conversion,
+// Encoding, JSON, Type, Array, Collections, Variant, I/O, and System.
 func RegisterAll(r *Registry) {
 	RegisterMathFunctions(r)
 	RegisterStringFunctions(r)
@@ -70,13 +35,11 @@ func RegisterAll(r *Registry) {
 }
 
 // RegisterMathFunctions registers all mathematical built-in functions.
-// Task 9.24.2: Added type signatures for function pointer support.
 func RegisterMathFunctions(r *Registry) {
-	// Type aliases for concise signatures
 	I := types.INTEGER
 	F := types.FLOAT
 	B := types.BOOLEAN
-	V := types.VARIANT // Used for polymorphic functions like Abs, Min, Max
+	V := types.VARIANT // Polymorphic functions like Abs, Min, Max
 
 	// Basic math functions
 	r.RegisterWithSignature("Abs", Abs, CategoryMath, "Returns the absolute value of a number",
@@ -220,9 +183,7 @@ func RegisterMathFunctions(r *Registry) {
 }
 
 // RegisterStringFunctions registers all string manipulation built-in functions.
-// Task 9.24.3: Added type signatures for function pointer support.
 func RegisterStringFunctions(r *Registry) {
-	// Type aliases for concise signatures
 	S := types.STRING
 	I := types.INTEGER
 	B := types.BOOLEAN
@@ -364,11 +325,9 @@ func RegisterStringFunctions(r *Registry) {
 }
 
 // RegisterDateTimeFunctions registers all date/time built-in functions.
-// Task 9.24.4: Added type signatures for function pointer support.
 func RegisterDateTimeFunctions(r *Registry) {
-	// Type aliases for concise signatures
-	F := types.FLOAT   // DateTime is stored as Float
-	I := types.INTEGER // Year, Month, Day, etc.
+	F := types.FLOAT   // DateTime stored as Float
+	I := types.INTEGER
 	S := types.STRING
 	B := types.BOOLEAN
 
@@ -490,16 +449,12 @@ func RegisterDateTimeFunctions(r *Registry) {
 }
 
 // RegisterConversionFunctions registers all type conversion built-in functions.
-// Task 9.24.4: Added type signatures for function pointer support.
 func RegisterConversionFunctions(r *Registry) {
-	// Type aliases for concise signatures
 	S := types.STRING
 	I := types.INTEGER
 	F := types.FLOAT
 	B := types.BOOLEAN
 	V := types.VARIANT
-
-	// Basic conversion functions
 	r.RegisterWithSignature("IntToStr", IntToStr, CategoryConversion, "Converts integer to string",
 		SigOptional([]types.Type{I, I}, S, 1)) // Optional base parameter
 	r.RegisterWithSignature("IntToBin", IntToBin, CategoryConversion, "Converts integer to binary string",
@@ -518,18 +473,11 @@ func RegisterConversionFunctions(r *Registry) {
 		Sig([]types.Type{I, I}, S))
 	r.RegisterWithSignature("StrToBool", StrToBool, CategoryConversion, "Converts string to boolean",
 		Sig([]types.Type{S}, B))
-
-	// Ordinal conversion (Task 3.7.5)
 	r.RegisterWithSignature("Ord", Ord, CategoryConversion, "Returns ordinal value of enum/boolean/char",
 		Sig([]types.Type{V}, I))
-	// Note: Chr is registered in RegisterStringFunctions (strings_basic.go)
-
-	// Default() is now handled specially in evalCallExpression (like type casts)
-	// See functions_typecast.go::evalDefaultFunction()
 }
 
 // RegisterEncodingFunctions registers all encoding/escaping built-in functions.
-// Task 9.24.4: Added type signatures for function pointer support.
 func RegisterEncodingFunctions(r *Registry) {
 	S := types.STRING
 	r.RegisterWithSignature("StrToHtml", StrToHtml, CategoryEncoding, "Encodes string for HTML content",
@@ -545,7 +493,6 @@ func RegisterEncodingFunctions(r *Registry) {
 }
 
 // RegisterJSONFunctions registers all JSON manipulation built-in functions.
-// Task 9.24.4: Added type signatures for function pointer support.
 func RegisterJSONFunctions(r *Registry) {
 	S := types.STRING
 	I := types.INTEGER
@@ -569,7 +516,6 @@ func RegisterJSONFunctions(r *Registry) {
 }
 
 // RegisterTypeFunctions registers all type introspection built-in functions.
-// Task 9.24.4: Added type signatures for function pointer support.
 func RegisterTypeFunctions(r *Registry) {
 	S := types.STRING
 	V := types.VARIANT
@@ -580,10 +526,8 @@ func RegisterTypeFunctions(r *Registry) {
 }
 
 // RegisterIOFunctions registers all I/O built-in functions.
-// Task 9.24.4: Added type signatures for function pointer support.
 func RegisterIOFunctions(r *Registry) {
 	V := types.VARIANT
-	// Print/PrintLn are variadic
 	r.RegisterWithSignature("Print", Print, CategoryIO, "Prints arguments without newline",
 		SigVariadic([]types.Type{V}, nil, 0))
 	r.RegisterWithSignature("PrintLn", PrintLn, CategoryIO, "Prints arguments with newline",
@@ -591,7 +535,6 @@ func RegisterIOFunctions(r *Registry) {
 }
 
 // RegisterVariantFunctions registers all Variant introspection and conversion built-in functions.
-// Task 9.24.4: Added type signatures for function pointer support.
 func RegisterVariantFunctions(r *Registry) {
 	S := types.STRING
 	I := types.INTEGER
@@ -629,8 +572,6 @@ func RegisterVariantFunctions(r *Registry) {
 }
 
 // RegisterArrayFunctions registers all array built-in functions.
-// Task 3.7.7: Array operations (simple functions)
-// Task 9.24.4: Added type signatures for function pointer support.
 func RegisterArrayFunctions(r *Registry) {
 	I := types.INTEGER
 	B := types.BOOLEAN
@@ -665,8 +606,6 @@ func RegisterArrayFunctions(r *Registry) {
 }
 
 // RegisterCollectionFunctions registers all collection (higher-order) built-in functions.
-// Task 3.7.7: Collection functions (Map, Filter, Reduce, etc.)
-// Task 9.24.4: Added type signatures for function pointer support.
 func RegisterCollectionFunctions(r *Registry) {
 	I := types.INTEGER
 	B := types.BOOLEAN
@@ -691,8 +630,6 @@ func RegisterCollectionFunctions(r *Registry) {
 }
 
 // RegisterSystemFunctions registers all system and miscellaneous built-in functions.
-// Task 3.7.8: System utilities, runtime introspection, and formatting functions.
-// Task 9.24.4: Added type signatures for function pointer support.
 func RegisterSystemFunctions(r *Registry) {
 	S := types.STRING
 	I := types.INTEGER
