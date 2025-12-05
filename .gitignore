@@ -55,3 +55,6 @@ Bin/
 
 # AI agents
 .claude/
+
+# Trunk
+.trunk/

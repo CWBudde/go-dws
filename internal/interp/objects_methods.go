@@ -664,7 +664,35 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		}
 		isClassMethod = true
 
-		// Task 9.14: Use virtual method table for class methods too
+		// Task 9.14: For non-virtual class methods called on instances, use static binding
+		// Walk up the hierarchy to find the base-most declaration (simulates static type resolution)
+		if method != nil && !method.IsVirtual && !method.IsOverride {
+			// Find the top-most class that declares this method (simulating static binding)
+			topMostMethod := method
+			for currentClass := concreteClass.Parent; currentClass != nil; currentClass = currentClass.Parent {
+				// Get class methods from this parent level
+				parentClassMethodOverloads := make([]*ast.FunctionDecl, 0)
+				for name, methods := range currentClass.ClassMethodOverloads {
+					if pkgident.Equal(name, mc.Method.Value) {
+						parentClassMethodOverloads = methods
+						break
+					}
+				}
+
+				if len(parentClassMethodOverloads) > 0 {
+					// Try to resolve overload in parent class
+					parentMethod, parentErr := i.resolveMethodOverload(currentClass.Name, mc.Method.Value, parentClassMethodOverloads, mc.Arguments)
+					if parentErr == nil && parentMethod != nil {
+						// Found matching method in parent - use it (static binding)
+						topMostMethod = parentMethod
+					}
+				}
+			}
+			// Use the top-most (base) declaration for non-virtual class methods
+			method = topMostMethod
+		}
+
+		// Task 9.14: Use virtual method table for virtual class methods
 		// ONLY use VMT if the resolved method is virtual or override (not reintroduce)
 		if method != nil && (method.IsVirtual || method.IsOverride) && concreteClass.VirtualMethodTable != nil {
 			sig := methodSignature(method)
