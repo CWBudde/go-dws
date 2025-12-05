@@ -94,7 +94,7 @@ func Copy(ctx Context, args []Value) Value {
 	strLen := int64(len(runes))
 
 	// Third argument: count (optional, defaults to rest of string)
-	var countInt int64 = strLen // Default: copy to end
+	var countInt = strLen // Default: copy to end
 	if len(args) == 3 {
 		if intVal, ok := args[2].(*runtime.IntegerValue); ok {
 			countInt = intVal.Value

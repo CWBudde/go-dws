@@ -161,11 +161,11 @@ type FunctionPointerCallable interface {
 
 // FunctionPointerMetadata provides execution context for function pointer invocation.
 type FunctionPointerMetadata struct {
-	IsLambda   bool
-	Lambda     any // *ast.LambdaExpression
-	Function   any // *ast.FunctionDecl
-	Closure    any // *Environment
+	Lambda     any
+	Function   any
+	Closure    any
 	SelfObject Value
+	IsLambda   bool
 }
 
 // Config holds evaluator configuration options.
@@ -326,16 +326,16 @@ type Evaluator struct {
 	externalFunctions ExternalFunctionRegistry
 	currentNode       ast.Node
 	adapter           InterpreterAdapter
-	typeSystem        *interptypes.TypeSystem
-	rand              *rand.Rand
+	refCountMgr       runtime.RefCountManager
 	config            *Config
+	rand              *rand.Rand
 	unitRegistry      *units.UnitRegistry
 	initializedUnits  map[string]bool
 	semanticInfo      *ast.SemanticInfo
+	currentContext    *ExecutionContext
+	typeSystem        *interptypes.TypeSystem
 	loadedUnits       []string
 	randSeed          int64
-	currentContext    *ExecutionContext
-	refCountMgr       runtime.RefCountManager
 }
 
 // Ensure Evaluator implements builtins.Context interface.

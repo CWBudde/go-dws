@@ -51,43 +51,43 @@ const (
 
 // FunctionInfo holds metadata about a built-in function.
 type FunctionInfo struct {
-	// Name is the canonical name of the function (case-sensitive storage)
-	Name string
-
 	// Function is the implementation
 	Function BuiltinFunc
+
+	// Signature holds type information for the function.
+	// This enables semantic analysis of @Builtin address-of expressions.
+	Signature *FunctionSignature
+
+	// Name is the canonical name of the function
+	Name string
 
 	// Category is the functional category
 	Category Category
 
 	// Description is a brief description of what the function does
 	Description string
-
-	// Signature holds type information for the function.
-	// This enables semantic analysis of @Builtin address-of expressions.
-	// Task 9.24.1: Added for built-in function pointer type metadata.
-	Signature *FunctionSignature
 }
 
 // FunctionSignature describes the type signature of a built-in function.
 // Task 9.24.1: Enables type-safe function pointer handling for built-ins.
 type FunctionSignature struct {
-	// ParamTypes are the types of the function's parameters.
-	// For variadic functions, this contains the types of the fixed parameters.
-	ParamTypes []types.Type
 
 	// ReturnType is the function's return type (nil for procedures).
 	ReturnType types.Type
 
-	// IsVariadic indicates the function accepts variable arguments (like Print, PrintLn).
-	// Variadic functions cannot be used with function pointers.
-	IsVariadic bool
+	// ParamTypes are the types of the function's parameters.
+	// For variadic functions, this contains the types of the fixed parameters.
+	ParamTypes []types.Type
 
 	// MinArgs is the minimum number of arguments (for functions with optional params).
 	MinArgs int
 
 	// MaxArgs is the maximum number of arguments (-1 for unlimited/variadic).
 	MaxArgs int
+
+	// IsVariadic indicates the function accepts variable arguments (like Print, PrintLn).
+	// Variadic functions cannot be used with function pointers.
+	IsVariadic bool
 }
 
 // Sig creates a FunctionSignature for a function with fixed parameters.

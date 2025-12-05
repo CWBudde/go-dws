@@ -12,16 +12,13 @@ import (
 // ExceptionValue represents an exception object at runtime.
 // It holds the exception class type, the message, position, and the call stack at the point of raise.
 type ExceptionValue struct {
-	Metadata  *ClassMetadata    // AST-free class metadata
-	Instance  *ObjectInstance   // Exception object instance
-	Message   string            // Exception message
-	Position  *lexer.Position   // Position where the exception was raised (for error reporting)
-	CallStack errors.StackTrace // Stack trace at the point the exception was raised
+	ClassInfo any             // Deprecated: Use Metadata instead. Will be removed in Phase 3.5.44.
+	Metadata  *ClassMetadata  // AST-free class metadata
+	Instance  *ObjectInstance // Exception object instance
+	Position  *lexer.Position // Position where the exception was raised (for error reporting)
+	Message   string          // Exception message
 
-	// Deprecated: Use Metadata instead. Will be removed in Phase 3.5.44.
-	// Kept temporarily for backward compatibility during migration.
-	// Using any to avoid import cycle during migration period.
-	ClassInfo any
+	CallStack errors.StackTrace // Stack trace at the point the exception was raised
 }
 
 // Type returns the type of this exception value.

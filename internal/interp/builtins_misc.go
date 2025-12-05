@@ -67,7 +67,7 @@ func (i *Interpreter) builtinCopy(args []Value) Value {
 	index := indexVal.Value // 1-based
 
 	// Third argument: count (optional, defaults to rest of string)
-	var count int64 = int64(len([]rune(str))) // Default: copy to end
+	var count = int64(len([]rune(str))) // Default: copy to end
 	if len(args) == 3 {
 		countVal, ok := args[2].(*IntegerValue)
 		if !ok {

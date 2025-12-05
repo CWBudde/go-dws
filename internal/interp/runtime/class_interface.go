@@ -98,12 +98,12 @@ type IClassInfo interface {
 // PropertyInfo wraps property metadata for runtime access.
 // This avoids importing internal/types into the runtime package.
 type PropertyInfo struct {
+	Impl      any    // *types.PropertyInfo - stored as any to avoid import cycle
 	Name      string // Property name
-	IsIndexed bool   // True if this is an indexed property
-	IsDefault bool   // True if this is the default property
 	ReadSpec  string // Field name or getter method name
 	WriteSpec string // Field name or setter method name
-	Impl      any    // *types.PropertyInfo - stored as any to avoid import cycle
+	IsIndexed bool   // True if this is an indexed property
+	IsDefault bool   // True if this is the default property
 }
 
 // VirtualMethodEntry tracks virtual method dispatch information.
@@ -119,11 +119,11 @@ type VirtualMethodEntry struct {
 // OperatorEntry represents an operator overload registration.
 // Copied from internal/interp/operators.go to avoid import cycle.
 type OperatorEntry struct {
-	Operator      string            // Operator symbol (+, -, *, etc.)
-	OperandTypes  []string          // Type names of operands
 	Class         IClassInfo        // Class that owns the operator
 	Method        *ast.FunctionDecl // Method implementing the operator (may be nil)
 	BindingName   string            // Normalized method name binding
+	Operator      string            // Operator symbol (+, -, *, etc.)
+	OperandTypes  []string          // Type names of operands
 	SelfIndex     int               // Index of the 'self' operand (0 for unary/left, 1 for right, -1 for global)
 	IsClassMethod bool              // True if this is a class method operator
 }
