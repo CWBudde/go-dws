@@ -7,16 +7,10 @@ package runtime
 // This allows runtime types to implement PropertyAccessor without depending
 // on the evaluator package. The evaluator imports runtime and uses this type.
 type PropertyDescriptor struct {
+	Impl      any    // Implementation reference (types.PropertyInfo)
 	Name      string // Property name
-	IsIndexed bool   // True if this is an indexed property (e.g., property Items[Index: Integer]: String)
-	IsDefault bool   // True if this is the default property
-
-	// For implementation reference:
-	// - Objects: pointer to types.PropertyInfo
-	// - Interfaces: pointer to types.PropertyInfo
-	// - Records: pointer to types.RecordPropertyInfo
-	// We store as `any` to avoid circular imports and maintain type flexibility
-	Impl any
+	IsIndexed bool   // True if indexed property
+	IsDefault bool   // True if default property
 }
 
 // PropertyAccessor is an optional interface for values that support property access.
