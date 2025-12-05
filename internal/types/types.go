@@ -411,16 +411,16 @@ const (
 // Fields: Name, Type, ReadSpec, WriteSpec, IsIndexed, IsDefault
 // Properties provide syntactic sugar for getter/setter access.
 type PropertyInfo struct {
-	Type            Type
+	IndexValue      any
 	ReadExpr        any
-	Name            string
+	IndexValueType  Type
+	Type            Type
 	ReadSpec        string
 	WriteSpec       string
+	Name            string
 	ReadKind        PropAccessKind
 	WriteKind       PropAccessKind
 	HasIndexValue   bool
-	IndexValue      interface{}
-	IndexValueType  Type
 	IsIndexed       bool
 	IsDefault       bool
 	IsClassProperty bool
