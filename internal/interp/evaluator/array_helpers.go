@@ -11,128 +11,6 @@ import (
 )
 
 // ============================================================================
-// Array Type Inference
-// ============================================================================
-
-// getArrayElementType determines the element type for an array literal.
-// Checks for explicit type annotation, otherwise infers from runtime values.
-func (e *Evaluator) getArrayElementType(node *ast.ArrayLiteralExpression, values []Value) *types.ArrayType {
-	// TODO: Add annotation lookup when type resolution is implemented
-	return e.inferArrayTypeFromValues(values, node)
-}
-
-// inferArrayTypeFromValues infers the array element type from runtime values.
-// Rules: same type → that type, Integer+Float → Float, mixed → Variant, empty/all nil → error.
-func (e *Evaluator) inferArrayTypeFromValues(values []Value, node *ast.ArrayLiteralExpression) *types.ArrayType {
-	if len(values) == 0 {
-		return nil
-	}
-
-	var commonElementType types.Type
-
-	for i, val := range values {
-		valType := GetValueType(val)
-
-		if i == 0 {
-			commonElementType = valType
-			if commonElementType == nil {
-				continue
-			}
-		} else {
-			commonElementType = commonType(commonElementType, valType)
-
-			if commonElementType != nil && commonElementType.TypeKind() == "VARIANT" {
-				break
-			}
-		}
-	}
-
-	if commonElementType == nil {
-		return nil
-	}
-
-	return types.NewDynamicArrayType(commonElementType)
-}
-
-// coerceArrayElements validates that all array elements can be coerced to the target element type.
-// Validates compatibility without performing actual value transformation.
-func (e *Evaluator) coerceArrayElements(elements []Value, targetElementType types.Type, node ast.Node) Value {
-	if targetElementType == nil {
-		return nil
-	}
-
-	for i, elem := range elements {
-		if err := e.validateCoercion(elem, targetElementType, node, i); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// validateCoercion checks if a value can be coerced to the target type.
-func (e *Evaluator) validateCoercion(val Value, targetType types.Type, node ast.Node, index int) Value {
-	if val == nil {
-		if isReferenceType(targetType) {
-			return nil
-		}
-		return e.newError(node, "element %d: cannot use nil in array of %s", index, targetType.String())
-	}
-
-	sourceType := GetValueType(val)
-
-	if sourceType != nil && sourceType.Equals(targetType) {
-		return nil
-	}
-
-	targetKind := targetType.TypeKind()
-
-	switch targetKind {
-	case "FLOAT":
-		if sourceType != nil && sourceType.TypeKind() == "INTEGER" {
-			return nil
-		}
-		return e.newError(node, "element %d: cannot coerce %s to Float in array literal", index, sourceType.String())
-
-	case "VARIANT":
-		return nil
-
-	default:
-		if sourceType == nil {
-			return e.newError(node, "element %d: cannot use nil in array of %s", index, targetType.String())
-		}
-
-		return e.newError(node, "element %d: cannot coerce %s to %s in array literal",
-			index, sourceType.String(), targetType.String())
-	}
-}
-
-// isReferenceType checks if a type can be nil (class, interface, array, string).
-func isReferenceType(t types.Type) bool {
-	if t == nil {
-		return false
-	}
-	kind := t.TypeKind()
-	return kind == "CLASS" || kind == "INTERFACE" || kind == "ARRAY" || kind == "STRING"
-}
-
-// validateArrayLiteralSize checks element count matches static array bounds.
-func (e *Evaluator) validateArrayLiteralSize(arrayType *types.ArrayType, elementCount int, node ast.Node) Value {
-	if arrayType == nil || !arrayType.IsStatic() {
-		return nil
-	}
-
-	expectedSize := arrayType.Size()
-
-	if elementCount != expectedSize {
-		return e.newError(node, "array literal has %d elements, but type %s requires %d elements",
-			elementCount, arrayType.String(), expectedSize)
-	}
-
-	return nil
-}
-
-// ============================================================================
 // New Array Expression Helpers
 // ============================================================================
 
@@ -194,62 +72,104 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 		return e.newError(node, "nil array literal")
 	}
 
+	// Use context type if available
 	if ctx.ArrayTypeContext() != nil {
 		return e.evalArrayLiteralWithExpectedType(node, ctx.ArrayTypeContext(), ctx)
 	}
 
+	// Get or infer array type
 	arrayType := e.getArrayTypeFromAnnotation(node, ctx)
+	evaluatedElements, elementTypes, err := e.evaluateArrayElements(node, arrayType, ctx)
+	if err != nil {
+		return err
+	}
 
+	// Infer type if not explicitly provided
+	arrayType, err = e.ensureArrayType(arrayType, node, elementTypes)
+	if err != nil {
+		return err
+	}
+
+	// Coerce elements to target type
+	coercedElements, err := e.coerceElementsToType(arrayType, evaluatedElements, elementTypes, node)
+	if err != nil {
+		return err
+	}
+
+	// Validate static array size
+	if err := e.validateStaticArraySize(arrayType, len(node.Elements), node); err != nil {
+		return err
+	}
+
+	// Build runtime array
+	return e.buildRuntimeArray(arrayType, coercedElements)
+}
+
+// evaluateArrayElements evaluates all elements in an array literal.
+func (e *Evaluator) evaluateArrayElements(node *ast.ArrayLiteralExpression, arrayType *types.ArrayType, ctx *ExecutionContext) ([]Value, []types.Type, Value) {
 	elementCount := len(node.Elements)
 	evaluatedElements := make([]Value, elementCount)
 	elementTypes := make([]types.Type, elementCount)
 
 	for idx, elem := range node.Elements {
-		var val Value
-
-		// Try nested array evaluation with expected type
-		if arrayType != nil {
-			if elemLit, ok := elem.(*ast.ArrayLiteralExpression); ok {
-				if expectedElemArr, ok := arrayType.ElementType.(*types.ArrayType); ok {
-					val = e.evalArrayLiteralWithExpectedType(elemLit, expectedElemArr, ctx)
-				}
-			}
-		}
-
-		if val == nil {
-			val = e.Eval(elem, ctx)
-		}
-
+		val := e.evaluateSingleArrayElement(elem, arrayType, ctx)
 		if isError(val) {
-			return val
+			return nil, nil, val
 		}
 		evaluatedElements[idx] = val
 		elementTypes[idx] = GetValueType(val)
 	}
 
-	if arrayType == nil {
-		inferred := e.inferArrayTypeFromElements(node, elementTypes)
-		if inferred == nil {
-			if elementCount == 0 {
-				return e.newError(node, "cannot infer type for empty array literal")
+	return evaluatedElements, elementTypes, nil
+}
+
+// evaluateSingleArrayElement evaluates a single array element with optional type context.
+func (e *Evaluator) evaluateSingleArrayElement(elem ast.Expression, arrayType *types.ArrayType, ctx *ExecutionContext) Value {
+	// Try nested array evaluation with expected element type
+	if arrayType != nil {
+		if elemLit, ok := elem.(*ast.ArrayLiteralExpression); ok {
+			if expectedElemArr, ok := arrayType.ElementType.(*types.ArrayType); ok {
+				return e.evalArrayLiteralWithExpectedType(elemLit, expectedElemArr, ctx)
 			}
-			return e.newError(node, "cannot determine array type for literal")
-		}
-		arrayType = inferred
-	}
-
-	coercedElements, errVal := e.coerceElementsToType(arrayType, evaluatedElements, elementTypes, node)
-	if errVal != nil {
-		return errVal
-	}
-
-	if arrayType.IsStatic() {
-		expectedSize := arrayType.Size()
-		if elementCount != expectedSize {
-			return e.newError(node, "array literal has %d elements, expected %d", elementCount, expectedSize)
 		}
 	}
 
+	return e.Eval(elem, ctx)
+}
+
+// ensureArrayType returns the array type, inferring it if necessary.
+func (e *Evaluator) ensureArrayType(arrayType *types.ArrayType, node *ast.ArrayLiteralExpression, elementTypes []types.Type) (*types.ArrayType, Value) {
+	if arrayType != nil {
+		return arrayType, nil
+	}
+
+	inferred := e.inferArrayTypeFromElements(node, elementTypes)
+	if inferred == nil {
+		if len(node.Elements) == 0 {
+			return nil, e.newError(node, "cannot infer type for empty array literal")
+		}
+		return nil, e.newError(node, "cannot determine array type for literal")
+	}
+
+	return inferred, nil
+}
+
+// validateStaticArraySize checks that static array literals have the correct element count.
+func (e *Evaluator) validateStaticArraySize(arrayType *types.ArrayType, elementCount int, node ast.Node) Value {
+	if !arrayType.IsStatic() {
+		return nil
+	}
+
+	expectedSize := arrayType.Size()
+	if elementCount != expectedSize {
+		return e.newError(node, "array literal has %d elements, expected %d", elementCount, expectedSize)
+	}
+
+	return nil
+}
+
+// buildRuntimeArray creates a runtime ArrayValue from coerced elements.
+func (e *Evaluator) buildRuntimeArray(arrayType *types.ArrayType, coercedElements []Value) Value {
 	runtimeElements := make([]runtime.Value, len(coercedElements))
 	for i, elem := range coercedElements {
 		runtimeElements[i] = elem.(runtime.Value)
@@ -413,78 +333,89 @@ func (e *Evaluator) inferArrayTypeFromElements(node *ast.ArrayLiteralExpression,
 // coerceElementsToType coerces all elements to the target array element type.
 // Handles Integer→Float promotion and Variant boxing.
 func (e *Evaluator) coerceElementsToType(arrayType *types.ArrayType, values []Value, valueTypes []types.Type, node *ast.ArrayLiteralExpression) ([]Value, Value) {
-	coerced := make([]Value, len(values))
-
 	elementType := arrayType.ElementType
 	if elementType == nil {
 		return nil, e.newError(node, "array literal has no element type information")
 	}
 	underlyingElementType := types.GetUnderlyingType(elementType)
 
+	coerced := make([]Value, len(values))
 	for idx, val := range values {
-		var valType types.Type
-		if idx < len(valueTypes) && valueTypes[idx] != nil {
-			valType = types.GetUnderlyingType(valueTypes[idx])
+		coercedVal, err := e.coerceSingleElement(val, valueTypes, idx, underlyingElementType, node)
+		if err != nil {
+			return nil, err
 		}
-
-		if underlyingElementType.Equals(types.VARIANT) {
-			coerced[idx] = runtime.BoxVariant(val)
-			continue
-		}
-
-		if val != nil && val.Type() == "NIL" {
-			switch underlyingElementType.TypeKind() {
-			case "CLASS", "INTERFACE", "ARRAY":
-				coerced[idx] = val
-				continue
-			default:
-				elemNode := node
-				if idx < len(node.Elements) {
-					elemNode = &ast.ArrayLiteralExpression{Elements: []ast.Expression{node.Elements[idx]}}
-				}
-				return nil, e.newError(elemNode, "cannot assign nil to %s", underlyingElementType.String())
-			}
-		}
-
-		if valType == nil {
-			elemNode := node
-			if idx < len(node.Elements) {
-				elemNode = &ast.ArrayLiteralExpression{Elements: []ast.Expression{node.Elements[idx]}}
-			}
-			return nil, e.newError(elemNode, "cannot determine type for array element %d", idx+1)
-		}
-
-		if underlyingElementType.Equals(valType) {
-			coerced[idx] = val
-			continue
-		}
-
-		if underlyingElementType.Equals(types.FLOAT) && valType.Equals(types.INTEGER) {
-			coerced[idx] = e.castToFloat(val)
-			continue
-		}
-
-		if valType.TypeKind() == "ARRAY" && underlyingElementType.TypeKind() == "ARRAY" {
-			if types.IsCompatible(valType, underlyingElementType) || types.IsCompatible(underlyingElementType, valType) {
-				coerced[idx] = val
-				continue
-			}
-		}
-
-		if types.IsCompatible(valType, underlyingElementType) {
-			coerced[idx] = val
-			continue
-		}
-
-		elemNode := node
-		if idx < len(node.Elements) {
-			elemNode = &ast.ArrayLiteralExpression{Elements: []ast.Expression{node.Elements[idx]}}
-		}
-		return nil, e.newError(elemNode, "array element %d has incompatible type (got %s, expected %s)",
-			idx+1, val.Type(), underlyingElementType.String())
+		coerced[idx] = coercedVal
 	}
 
 	return coerced, nil
+}
+
+// coerceSingleElement coerces a single array element to the target type.
+func (e *Evaluator) coerceSingleElement(val Value, valueTypes []types.Type, idx int, targetType types.Type, node *ast.ArrayLiteralExpression) (Value, Value) {
+	// Handle Variant target type (accepts any value)
+	if targetType.Equals(types.VARIANT) {
+		return runtime.BoxVariant(val), nil
+	}
+
+	// Handle nil values
+	if val != nil && val.Type() == "NIL" {
+		return e.handleNilElement(val, idx, targetType, node)
+	}
+
+	// Get source type
+	var valType types.Type
+	if idx < len(valueTypes) && valueTypes[idx] != nil {
+		valType = types.GetUnderlyingType(valueTypes[idx])
+	}
+	if valType == nil {
+		return nil, e.elementError(node, idx, "cannot determine type for array element %d", idx+1)
+	}
+
+	// Check for exact type match
+	if targetType.Equals(valType) {
+		return val, nil
+	}
+
+	// Handle numeric promotion (Integer → Float)
+	if targetType.Equals(types.FLOAT) && valType.Equals(types.INTEGER) {
+		return e.castToFloat(val), nil
+	}
+
+	// Handle array type compatibility
+	if valType.TypeKind() == "ARRAY" && targetType.TypeKind() == "ARRAY" {
+		if types.IsCompatible(valType, targetType) || types.IsCompatible(targetType, valType) {
+			return val, nil
+		}
+	}
+
+	// Handle general type compatibility
+	if types.IsCompatible(valType, targetType) {
+		return val, nil
+	}
+
+	// Type mismatch error
+	return nil, e.elementError(node, idx, "array element %d has incompatible type (got %s, expected %s)",
+		idx+1, val.Type(), targetType.String())
+}
+
+// handleNilElement validates and returns nil values for reference types.
+func (e *Evaluator) handleNilElement(val Value, idx int, targetType types.Type, node *ast.ArrayLiteralExpression) (Value, Value) {
+	switch targetType.TypeKind() {
+	case "CLASS", "INTERFACE", "ARRAY":
+		return val, nil
+	default:
+		return nil, e.elementError(node, idx, "cannot assign nil to %s", targetType.String())
+	}
+}
+
+// elementError creates an error with proper node context for an array element.
+func (e *Evaluator) elementError(node *ast.ArrayLiteralExpression, idx int, format string, args ...interface{}) Value {
+	elemNode := node
+	if idx < len(node.Elements) {
+		elemNode = &ast.ArrayLiteralExpression{Elements: []ast.Expression{node.Elements[idx]}}
+	}
+	return e.newError(elemNode, format, args...)
 }
 
 // ============================================================================
@@ -808,13 +739,10 @@ func (e *Evaluator) evalStringArrayJoin(selfValue Value, args []Value, node ast.
 // ValuesEqual compares two Values for equality, handling variant unwrapping,
 // nil comparisons, type checking, and recursive record field comparison.
 func ValuesEqual(a, b Value) bool {
-	if varVal, ok := a.(*runtime.VariantValue); ok {
-		a = varVal.Value
-	}
-	if varVal, ok := b.(*runtime.VariantValue); ok {
-		b = varVal.Value
-	}
+	a = unwrapVariant(a)
+	b = unwrapVariant(b)
 
+	// Handle nil cases
 	if a == nil && b == nil {
 		return true
 	}
@@ -822,52 +750,62 @@ func ValuesEqual(a, b Value) bool {
 		return false
 	}
 
+	// Type must match
 	if a.Type() != b.Type() {
 		return false
 	}
 
+	return compareValuesByType(a, b)
+}
+
+// compareValuesByType compares two non-nil values of the same type.
+func compareValuesByType(a, b Value) bool {
 	switch left := a.(type) {
 	case *runtime.IntegerValue:
-		right, ok := b.(*runtime.IntegerValue)
-		if !ok {
-			return false
-		}
-		return left.Value == right.Value
-
+		return compareInteger(left, b)
 	case *runtime.FloatValue:
-		right, ok := b.(*runtime.FloatValue)
-		if !ok {
-			return false
-		}
-		return left.Value == right.Value
-
+		return compareFloat(left, b)
 	case *runtime.StringValue:
-		right, ok := b.(*runtime.StringValue)
-		if !ok {
-			return false
-		}
-		return left.Value == right.Value
-
+		return compareString(left, b)
 	case *runtime.BooleanValue:
-		right, ok := b.(*runtime.BooleanValue)
-		if !ok {
-			return false
-		}
-		return left.Value == right.Value
-
+		return compareBoolean(left, b)
 	case *runtime.NilValue:
 		return true
-
 	case *runtime.RecordValue:
-		right, ok := b.(*runtime.RecordValue)
-		if !ok {
-			return false
-		}
-		return recordsEqualInternal(left, right)
-
+		return compareRecord(left, b)
 	default:
 		return a.String() == b.String()
 	}
+}
+
+// compareInteger compares two integer values.
+func compareInteger(left *runtime.IntegerValue, b Value) bool {
+	right, ok := b.(*runtime.IntegerValue)
+	return ok && left.Value == right.Value
+}
+
+// compareFloat compares two float values.
+func compareFloat(left *runtime.FloatValue, b Value) bool {
+	right, ok := b.(*runtime.FloatValue)
+	return ok && left.Value == right.Value
+}
+
+// compareString compares two string values.
+func compareString(left *runtime.StringValue, b Value) bool {
+	right, ok := b.(*runtime.StringValue)
+	return ok && left.Value == right.Value
+}
+
+// compareBoolean compares two boolean values.
+func compareBoolean(left *runtime.BooleanValue, b Value) bool {
+	right, ok := b.(*runtime.BooleanValue)
+	return ok && left.Value == right.Value
+}
+
+// compareRecord compares two record values.
+func compareRecord(left *runtime.RecordValue, b Value) bool {
+	right, ok := b.(*runtime.RecordValue)
+	return ok && recordsEqualInternal(left, right)
 }
 
 // recordsEqualInternal recursively compares two RecordValue instances for equality.
