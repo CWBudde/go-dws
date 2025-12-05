@@ -817,16 +817,6 @@ func (i *Interpreter) lookupConstructorOverloadsInHierarchy(classInfo *ClassInfo
 	return nil
 }
 
-// Deprecated: Use lookupConstructorOverloadsInHierarchy instead
-// Kept for backwards compatibility with existing code
-func (i *Interpreter) lookupConstructorInHierarchy(classInfo *ClassInfo, name string) *ast.FunctionDecl {
-	overloads := i.lookupConstructorOverloadsInHierarchy(classInfo, name)
-	if len(overloads) > 0 {
-		return overloads[0]
-	}
-	return nil
-}
-
 // lookupClassMethodInHierarchy searches for a class method by name in the class hierarchy.
 // It walks the parent chain starting from the given class.
 // Returns the method declaration, or nil if not found.
@@ -852,7 +842,6 @@ func (i *Interpreter) bindClassConstantsToEnv(classInfo *ClassInfo) {
 // evalSelfExpression evaluates a Self expression.
 // Self refers to the current instance (in instance methods) or
 // the current class (in class methods).
-// Task 9.7: Implement Self keyword
 func (i *Interpreter) evalSelfExpression(se *ast.SelfExpression) Value {
 	// Get Self from the environment (should be bound when entering methods)
 	selfVal, exists := i.env.Get("Self")
@@ -865,7 +854,6 @@ func (i *Interpreter) evalSelfExpression(se *ast.SelfExpression) Value {
 
 // evalInheritedExpression evaluates an inherited method call.
 // Syntax: inherited MethodName(args) or inherited (bare, calls same method in parent)
-// Task 9.164: Implement inherited keyword
 func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value {
 	// Get current Self (must be in a method context)
 	selfVal, exists := i.env.Get("Self")
