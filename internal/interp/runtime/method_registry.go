@@ -22,15 +22,14 @@ const InvalidMethodID MethodID = 0
 //   - IDs are stable within a single interpreter session
 //   - Memory-efficient: one copy of each method, referenced by ID
 type MethodRegistry struct {
-	// nextID is the next method ID to assign (incremented on each registration).
-	nextID MethodID
-
 	// methods maps method IDs to their metadata.
 	methods map[MethodID]*MethodMetadata
-
 	// nameIndex maps normalized method names to their IDs for lookup by name.
 	// Used for debugging and introspection.
 	nameIndex map[string][]MethodID
+
+	// nextID is the next method ID to assign (incremented on each registration).
+	nextID MethodID
 
 	// mu protects concurrent access to the registry.
 	mu sync.RWMutex

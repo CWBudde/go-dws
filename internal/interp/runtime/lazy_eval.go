@@ -186,10 +186,6 @@ func (t *LazyThunk) Evaluate() Value {
 //   - When the function reads x, it calls getter() to get current value from caller's env
 //   - When the function assigns to x, it calls setter() to write to caller's env
 type ReferenceValue struct {
-	// VarName is the name of the variable being referenced.
-	// Stored for debugging/display purposes.
-	VarName string
-
 	// getter is a callback function that reads the current value of the variable.
 	// This callback captures the environment and variable name, enabling
 	// ReferenceValue to live in the runtime package without direct dependencies.
@@ -199,6 +195,10 @@ type ReferenceValue struct {
 	// This callback captures the environment and variable name, enabling
 	// ReferenceValue to live in the runtime package without direct dependencies.
 	setter SetterCallback
+
+	// VarName is the name of the variable being referenced.
+	// Stored for debugging/display purposes.
+	VarName string
 }
 
 // NewReferenceValue creates a new var parameter reference with the given variable name

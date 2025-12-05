@@ -6,8 +6,8 @@ import (
 
 func TestExtractIntegerLiteral(t *testing.T) {
 	tests := []struct {
-		name     string
 		expr     Expression
+		name     string
 		expected int64
 		ok       bool
 	}{

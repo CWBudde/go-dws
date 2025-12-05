@@ -12,8 +12,8 @@ type mockClassInfo struct {
 }
 
 type mockRecordTypeValue struct {
-	Name     string
 	Metadata any
+	Name     string
 }
 
 // GetMetadata implements the interface expected by LookupRecordMetadata.
@@ -536,8 +536,8 @@ func TestDirectRegistryAccess(t *testing.T) {
 
 // Mock types for enum testing
 type mockEnumTypeValue struct {
-	name     string
 	enumType any
+	name     string
 }
 
 func (m *mockEnumTypeValue) Type() string     { return "ENUM_TYPE" }
