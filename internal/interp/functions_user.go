@@ -22,9 +22,7 @@ import (
 func (i *Interpreter) executeUserFunctionViaEvaluator(fn *ast.FunctionDecl, args []Value) Value {
 	// Convert []Value to []evaluator.Value (they implement the same interface)
 	evalArgs := make([]evaluator.Value, len(args))
-	for idx, arg := range args {
-		evalArgs[idx] = arg
-	}
+	copy(evalArgs, args)
 
 	// Create callbacks for interpreter-dependent operations
 	callbacks := i.createUserFunctionCallbacks()

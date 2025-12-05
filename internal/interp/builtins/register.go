@@ -326,7 +326,7 @@ func RegisterStringFunctions(r *Registry) {
 
 // RegisterDateTimeFunctions registers all date/time built-in functions.
 func RegisterDateTimeFunctions(r *Registry) {
-	F := types.FLOAT   // DateTime stored as Float
+	F := types.FLOAT // DateTime stored as Float
 	I := types.INTEGER
 	S := types.STRING
 	B := types.BOOLEAN

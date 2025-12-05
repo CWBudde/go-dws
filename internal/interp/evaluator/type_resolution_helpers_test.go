@@ -10,60 +10,60 @@ import (
 // TestResolveTypeName_Primitives tests resolveTypeName for primitive types.
 func TestResolveTypeName_Primitives(t *testing.T) {
 	tests := []struct {
+		expectedType types.Type
 		name         string
 		typeName     string
-		expectedType types.Type
 		expectError  bool
 	}{
 		// Integer type
-		{"Integer lowercase", "integer", types.INTEGER, false},
-		{"Integer uppercase", "INTEGER", types.INTEGER, false},
-		{"Integer mixed case", "Integer", types.INTEGER, false},
+		{name: "Integer lowercase", typeName: "integer", expectedType: types.INTEGER, expectError: false},
+		{name: "Integer uppercase", typeName: "INTEGER", expectedType: types.INTEGER, expectError: false},
+		{name: "Integer mixed case", typeName: "Integer", expectedType: types.INTEGER, expectError: false},
 
 		// Float type
-		{"Float lowercase", "float", types.FLOAT, false},
-		{"Float uppercase", "FLOAT", types.FLOAT, false},
-		{"Float mixed case", "Float", types.FLOAT, false},
+		{name: "Float lowercase", typeName: "float", expectedType: types.FLOAT, expectError: false},
+		{name: "Float uppercase", typeName: "FLOAT", expectedType: types.FLOAT, expectError: false},
+		{name: "Float mixed case", typeName: "Float", expectedType: types.FLOAT, expectError: false},
 
 		// String type
-		{"String lowercase", "string", types.STRING, false},
-		{"String uppercase", "STRING", types.STRING, false},
-		{"String mixed case", "String", types.STRING, false},
+		{name: "String lowercase", typeName: "string", expectedType: types.STRING, expectError: false},
+		{name: "String uppercase", typeName: "STRING", expectedType: types.STRING, expectError: false},
+		{name: "String mixed case", typeName: "String", expectedType: types.STRING, expectError: false},
 
 		// Boolean type
-		{"Boolean lowercase", "boolean", types.BOOLEAN, false},
-		{"Boolean uppercase", "BOOLEAN", types.BOOLEAN, false},
-		{"Boolean mixed case", "Boolean", types.BOOLEAN, false},
+		{name: "Boolean lowercase", typeName: "boolean", expectedType: types.BOOLEAN, expectError: false},
+		{name: "Boolean uppercase", typeName: "BOOLEAN", expectedType: types.BOOLEAN, expectError: false},
+		{name: "Boolean mixed case", typeName: "Boolean", expectedType: types.BOOLEAN, expectError: false},
 
 		// Variant type
-		{"Variant lowercase", "variant", types.VARIANT, false},
-		{"Variant uppercase", "VARIANT", types.VARIANT, false},
-		{"Variant mixed case", "Variant", types.VARIANT, false},
+		{name: "Variant lowercase", typeName: "variant", expectedType: types.VARIANT, expectError: false},
+		{name: "Variant uppercase", typeName: "VARIANT", expectedType: types.VARIANT, expectError: false},
+		{name: "Variant mixed case", typeName: "Variant", expectedType: types.VARIANT, expectError: false},
 
 		// Const type (deprecated, mapped to Variant)
-		{"Const lowercase", "const", types.VARIANT, false},
-		{"Const uppercase", "CONST", types.VARIANT, false},
-		{"Const mixed case", "Const", types.VARIANT, false},
+		{name: "Const lowercase", typeName: "const", expectedType: types.VARIANT, expectError: false},
+		{name: "Const uppercase", typeName: "CONST", expectedType: types.VARIANT, expectError: false},
+		{name: "Const mixed case", typeName: "Const", expectedType: types.VARIANT, expectError: false},
 
 		// TDateTime type
-		{"TDateTime lowercase", "tdatetime", types.DATETIME, false},
-		{"TDateTime uppercase", "TDATETIME", types.DATETIME, false},
-		{"TDateTime mixed case", "TDateTime", types.DATETIME, false},
+		{name: "TDateTime lowercase", typeName: "tdatetime", expectedType: types.DATETIME, expectError: false},
+		{name: "TDateTime uppercase", typeName: "TDATETIME", expectedType: types.DATETIME, expectError: false},
+		{name: "TDateTime mixed case", typeName: "TDateTime", expectedType: types.DATETIME, expectError: false},
 
 		// Nil type
-		{"Nil lowercase", "nil", types.NIL, false},
-		{"Nil uppercase", "NIL", types.NIL, false},
-		{"Nil mixed case", "Nil", types.NIL, false},
+		{name: "Nil lowercase", typeName: "nil", expectedType: types.NIL, expectError: false},
+		{name: "Nil uppercase", typeName: "NIL", expectedType: types.NIL, expectError: false},
+		{name: "Nil mixed case", typeName: "Nil", expectedType: types.NIL, expectError: false},
 
 		// Void type
-		{"Void lowercase", "void", types.VOID, false},
-		{"Void uppercase", "VOID", types.VOID, false},
-		{"Void mixed case", "Void", types.VOID, false},
+		{name: "Void lowercase", typeName: "void", expectedType: types.VOID, expectError: false},
+		{name: "Void uppercase", typeName: "VOID", expectedType: types.VOID, expectError: false},
+		{name: "Void mixed case", typeName: "Void", expectedType: types.VOID, expectError: false},
 
 		// Unknown types (should error)
-		{"Unknown type", "Unknown", nil, true},
-		{"Custom type", "TMyClass", nil, true},
-		{"Empty string", "", nil, true},
+		{name: "Unknown type", typeName: "Unknown", expectedType: nil, expectError: true},
+		{name: "Custom type", typeName: "TMyClass", expectedType: nil, expectError: true},
+		{name: "Empty string", typeName: "", expectedType: nil, expectError: true},
 	}
 
 	for _, tt := range tests {
@@ -244,38 +244,38 @@ func TestParseInlineArrayType(t *testing.T) {
 	tests := []struct {
 		name         string
 		signature    string
-		expectNil    bool
-		expectedType string // String representation for verification
-		isDynamic    bool
+		expectedType string
 		lowBound     int
 		highBound    int
+		expectNil    bool
+		isDynamic    bool
 	}{
 		// Dynamic arrays
-		{"Dynamic array of Integer", "array of Integer", false, "array of Integer", true, 0, 0},
-		{"Dynamic array of String", "array of String", false, "array of String", true, 0, 0},
-		{"Dynamic array of Float", "array of Float", false, "array of Float", true, 0, 0},
-		{"Dynamic array of Boolean", "array of Boolean", false, "array of Boolean", true, 0, 0},
+		{name: "Dynamic array of Integer", signature: "array of Integer", expectNil: false, expectedType: "array of Integer", isDynamic: true, lowBound: 0, highBound: 0},
+		{name: "Dynamic array of String", signature: "array of String", expectNil: false, expectedType: "array of String", isDynamic: true, lowBound: 0, highBound: 0},
+		{name: "Dynamic array of Float", signature: "array of Float", expectNil: false, expectedType: "array of Float", isDynamic: true, lowBound: 0, highBound: 0},
+		{name: "Dynamic array of Boolean", signature: "array of Boolean", expectNil: false, expectedType: "array of Boolean", isDynamic: true, lowBound: 0, highBound: 0},
 
 		// Case insensitivity
-		{"Dynamic array uppercase", "ARRAY OF INTEGER", false, "array of Integer", true, 0, 0},
-		{"Dynamic array mixed case", "Array Of String", false, "array of String", true, 0, 0},
+		{name: "Dynamic array uppercase", signature: "ARRAY OF INTEGER", expectNil: false, expectedType: "array of Integer", isDynamic: true, lowBound: 0, highBound: 0},
+		{name: "Dynamic array mixed case", signature: "Array Of String", expectNil: false, expectedType: "array of String", isDynamic: true, lowBound: 0, highBound: 0},
 
 		// Static arrays
-		{"Static array 0..9", "array[0..9] of Integer", false, "array[0..9] of Integer", false, 0, 9},
-		{"Static array 1..10", "array[1..10] of String", false, "array[1..10] of String", false, 1, 10},
-		{"Static array -5..5", "array[-5..5] of Float", false, "array[-5..5] of Float", false, -5, 5},
+		{name: "Static array 0..9", signature: "array[0..9] of Integer", expectNil: false, expectedType: "array[0..9] of Integer", isDynamic: false, lowBound: 0, highBound: 9},
+		{name: "Static array 1..10", signature: "array[1..10] of String", expectNil: false, expectedType: "array[1..10] of String", isDynamic: false, lowBound: 1, highBound: 10},
+		{name: "Static array -5..5", signature: "array[-5..5] of Float", expectNil: false, expectedType: "array[-5..5] of Float", isDynamic: false, lowBound: -5, highBound: 5},
 
 		// Nested arrays
-		{"2D dynamic array", "array of array of Integer", false, "array of array of Integer", true, 0, 0},
-		{"2D static array", "array[0..2] of array[0..3] of Integer", false, "array[0..2] of array[0..3] of Integer", false, 0, 2},
+		{name: "2D dynamic array", signature: "array of array of Integer", expectNil: false, expectedType: "array of array of Integer", isDynamic: true, lowBound: 0, highBound: 0},
+		{name: "2D static array", signature: "array[0..2] of array[0..3] of Integer", expectNil: false, expectedType: "array[0..2] of array[0..3] of Integer", isDynamic: false, lowBound: 0, highBound: 2},
 
 		// Error cases
-		{"Invalid syntax - no 'of'", "array Integer", true, "", false, 0, 0},
-		{"Invalid syntax - missing element type", "array of", true, "", false, 0, 0},
-		{"Invalid syntax - bad bounds", "array[0-9] of Integer", true, "", false, 0, 0},
-		{"Invalid syntax - non-numeric bounds", "array[a..b] of Integer", true, "", false, 0, 0},
-		{"Unknown element type", "array of UnknownType", true, "", false, 0, 0},
-		{"Not an array", "Integer", true, "", false, 0, 0},
+		{name: "Invalid syntax - no 'of'", signature: "array Integer", expectNil: true, expectedType: "", isDynamic: false, lowBound: 0, highBound: 0},
+		{name: "Invalid syntax - missing element type", signature: "array of", expectNil: true, expectedType: "", isDynamic: false, lowBound: 0, highBound: 0},
+		{name: "Invalid syntax - bad bounds", signature: "array[0-9] of Integer", expectNil: true, expectedType: "", isDynamic: false, lowBound: 0, highBound: 0},
+		{name: "Invalid syntax - non-numeric bounds", signature: "array[a..b] of Integer", expectNil: true, expectedType: "", isDynamic: false, lowBound: 0, highBound: 0},
+		{name: "Unknown element type", signature: "array of UnknownType", expectNil: true, expectedType: "", isDynamic: false, lowBound: 0, highBound: 0},
+		{name: "Not an array", signature: "Integer", expectNil: true, expectedType: "", isDynamic: false, lowBound: 0, highBound: 0},
 	}
 
 	for _, tt := range tests {
@@ -337,23 +337,23 @@ func TestResolveTypeName_InlineArrays(t *testing.T) {
 	tests := []struct {
 		name         string
 		typeName     string
-		expectError  bool
 		expectedType string
+		expectError  bool
 	}{
 		// Dynamic arrays via resolveTypeName
-		{"Resolve dynamic array", "array of Integer", false, "array of Integer"},
-		{"Resolve dynamic string array", "array of String", false, "array of String"},
+		{name: "Resolve dynamic array", typeName: "array of Integer", expectError: false, expectedType: "array of Integer"},
+		{name: "Resolve dynamic string array", typeName: "array of String", expectError: false, expectedType: "array of String"},
 
 		// Static arrays via resolveTypeName
-		{"Resolve static array", "array[0..9] of Integer", false, "array[0..9] of Integer"},
-		{"Resolve static bounds array", "array[1..100] of String", false, "array[1..100] of String"},
+		{name: "Resolve static array", typeName: "array[0..9] of Integer", expectError: false, expectedType: "array[0..9] of Integer"},
+		{name: "Resolve static bounds array", typeName: "array[1..100] of String", expectError: false, expectedType: "array[1..100] of String"},
 
 		// Nested arrays
-		{"Resolve 2D array", "array of array of Integer", false, "array of array of Integer"},
+		{name: "Resolve 2D array", typeName: "array of array of Integer", expectError: false, expectedType: "array of array of Integer"},
 
 		// Error cases
-		{"Invalid array syntax", "array Integer", true, ""},
-		{"Unknown element type", "array of CustomType", true, ""},
+		{name: "Invalid array syntax", typeName: "array Integer", expectError: true, expectedType: ""},
+		{name: "Unknown element type", typeName: "array of CustomType", expectError: true, expectedType: ""},
 	}
 
 	for _, tt := range tests {
@@ -391,10 +391,10 @@ func TestResolveTypeName_InlineArrays(t *testing.T) {
 // TestResolveArrayTypeNode tests resolveArrayTypeNode for AST ArrayTypeNode resolution.
 func TestResolveArrayTypeNode(t *testing.T) {
 	tests := []struct {
-		name         string
 		setupNode    func() *ast.ArrayTypeNode
-		expectNil    bool
+		name         string
 		expectedType string
+		expectNil    bool
 	}{
 		{
 			name: "Dynamic array of Integer",

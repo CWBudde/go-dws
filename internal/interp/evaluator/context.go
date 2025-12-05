@@ -157,11 +157,11 @@ type ExecutionContext struct {
 	callStack         *CallStack
 	controlFlow       *ControlFlow
 	propContext       *PropertyEvalContext
-	recordTypeContext string
 	arrayTypeContext  *types.ArrayType
+	evaluator         *Evaluator
+	recordTypeContext string
 	envStack          []Environment
 	oldValuesStack    []map[string]interface{}
-	evaluator         *Evaluator // Task 3.5.41: For RefCountManager access
 }
 
 // NewExecutionContext creates a new execution context with the given environment.

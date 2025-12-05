@@ -360,9 +360,7 @@ func (i *Interpreter) ExecuteRecordPropertyRead(record evaluator.Value, propInfo
 
 	// Convert []evaluator.Value to []Value
 	convertedIndices := make([]Value, len(indices))
-	for idx, val := range indices {
-		convertedIndices[idx] = val
-	}
+	copy(convertedIndices, indices)
 
 	// Create a synthetic method call expression: record.GetterMethod(index)
 	// We need to bind the index value(s) in the environment temporarily

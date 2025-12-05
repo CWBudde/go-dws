@@ -14,34 +14,34 @@ func TestGetValueType(t *testing.T) {
 	e := &Evaluator{}
 
 	tests := []struct {
-		name     string
 		value    Value
 		expected types.Type
+		name     string
 	}{
 		// Primitive types
-		{"integer", &runtime.IntegerValue{Value: 42}, types.INTEGER},
-		{"float", &runtime.FloatValue{Value: 3.14}, types.FLOAT},
-		{"string", &runtime.StringValue{Value: "hello"}, types.STRING},
-		{"boolean true", &runtime.BooleanValue{Value: true}, types.BOOLEAN},
-		{"boolean false", &runtime.BooleanValue{Value: false}, types.BOOLEAN},
-		{"nil", &runtime.NilValue{}, types.NIL},
-		{"variant", &runtime.VariantValue{}, types.VARIANT},
+		{name: "integer", value: &runtime.IntegerValue{Value: 42}, expected: types.INTEGER},
+		{name: "float", value: &runtime.FloatValue{Value: 3.14}, expected: types.FLOAT},
+		{name: "string", value: &runtime.StringValue{Value: "hello"}, expected: types.STRING},
+		{name: "boolean true", value: &runtime.BooleanValue{Value: true}, expected: types.BOOLEAN},
+		{name: "boolean false", value: &runtime.BooleanValue{Value: false}, expected: types.BOOLEAN},
+		{name: "nil", value: &runtime.NilValue{}, expected: types.NIL},
+		{name: "variant", value: &runtime.VariantValue{}, expected: types.VARIANT},
 
 		// Array with type
-		{"array with type", &runtime.ArrayValue{
+		{name: "array with type", value: &runtime.ArrayValue{
 			ArrayType: types.NewDynamicArrayType(types.INTEGER),
-		}, types.NewDynamicArrayType(types.INTEGER)},
+		}, expected: types.NewDynamicArrayType(types.INTEGER)},
 
 		// Array without type returns NIL
-		{"array without type", &runtime.ArrayValue{}, types.NIL},
+		{name: "array without type", value: &runtime.ArrayValue{}, expected: types.NIL},
 
 		// Record with type
-		{"record with type", &runtime.RecordValue{
+		{name: "record with type", value: &runtime.RecordValue{
 			RecordType: types.NewRecordType("TPoint", nil),
-		}, types.NewRecordType("TPoint", nil)},
+		}, expected: types.NewRecordType("TPoint", nil)},
 
 		// Record without type returns NIL
-		{"record without type", &runtime.RecordValue{}, types.NIL},
+		{name: "record without type", value: &runtime.RecordValue{}, expected: types.NIL},
 	}
 
 	for _, tt := range tests {
@@ -95,10 +95,10 @@ func TestExtractFunctionType(t *testing.T) {
 	ctx := &ExecutionContext{}
 
 	tests := []struct {
-		name           string
 		fn             *ast.FunctionDecl
-		expectedParams int
+		name           string
 		expectedReturn string
+		expectedParams int
 	}{
 		{
 			name: "no parameters, void return",

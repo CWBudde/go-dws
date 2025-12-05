@@ -648,14 +648,14 @@ func TestTryImplicitConversion_TypeNormalization(t *testing.T) {
 // TestIsErrorValue tests the isErrorValue helper function.
 func TestIsErrorValue(t *testing.T) {
 	testCases := []struct {
-		name     string
 		value    Value
+		name     string
 		expected bool
 	}{
-		{"nil value", nil, false},
-		{"integer value", &runtime.IntegerValue{Value: 42}, false},
-		{"string value", &runtime.StringValue{Value: "test"}, false},
-		{"nil value struct", &runtime.NilValue{}, false},
+		{name: "nil value", value: nil, expected: false},
+		{name: "integer value", value: &runtime.IntegerValue{Value: 42}, expected: false},
+		{name: "string value", value: &runtime.StringValue{Value: "test"}, expected: false},
+		{name: "nil value struct", value: &runtime.NilValue{}, expected: false},
 	}
 
 	for _, tc := range testCases {

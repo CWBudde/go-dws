@@ -13,9 +13,7 @@ import (
 // This is used by adapter methods when delegating to internal functions.
 func convertEvaluatorArgs(args []evaluator.Value) []Value {
 	interpArgs := make([]Value, len(args))
-	for idx, arg := range args {
-		interpArgs[idx] = arg
-	}
+	copy(interpArgs, args)
 	return interpArgs
 }
 
