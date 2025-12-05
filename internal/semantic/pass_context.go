@@ -42,15 +42,15 @@ const (
 // Scopes are organized in a parent chain, allowing inner scopes to access
 // symbols from outer scopes while shadowing is permitted.
 type Scope struct {
-	// Kind identifies the type of scope (global, function, block)
-	Kind ScopeKind
-
 	// Symbols maps normalized identifier names to their types
 	// Names are normalized using ident.Normalize for case-insensitive lookup
 	Symbols map[string]types.Type
 
 	// Parent is the enclosing scope (nil for global scope)
 	Parent *Scope
+
+	// Kind identifies the type of scope (global, function, block)
+	Kind ScopeKind
 }
 
 // NewScope creates a new scope with the given kind and parent.
@@ -100,112 +100,33 @@ func (s *Scope) LookupChain(name string) (types.Type, bool) {
 // It serves as the communication medium between passes, allowing later passes to build
 // on the results of earlier passes.
 type PassContext struct {
-	// ============================================================================
-	// Core Registries (Read/Write by all passes)
-	// ============================================================================
-
-	// Symbols is the global symbol table for variables, constants, and functions
-	Symbols *SymbolTable
-
-	// TypeRegistry tracks all user-defined and built-in types
-	TypeRegistry *TypeRegistry
-
-	// GlobalOperators manages operator overloading registrations
-	GlobalOperators *types.OperatorRegistry
-
-	// ConversionRegistry manages type conversion rules
-	ConversionRegistry *types.ConversionRegistry
-
-	// SemanticInfo stores AST annotations and metadata (e.g., resolved types)
-	SemanticInfo *pkgast.SemanticInfo
-
-	// BuiltinChecker provides built-in function analysis (allows passes to validate builtins)
-	BuiltinChecker BuiltinChecker
-
-	// ============================================================================
-	// Secondary Registries (Read/Write by specific passes)
-	// ============================================================================
-
-	// UnitSymbols maps unit names to their symbol tables (for multi-file projects)
-	UnitSymbols map[string]*SymbolTable
-
-	// Helpers maps type names to their helper type extensions
-	Helpers map[string][]*types.HelperType
-
-	// Subranges maps subrange type names to their definitions
-	Subranges map[string]*types.SubrangeType
-
-	// FunctionPointers maps function pointer type names to their definitions
-	FunctionPointers map[string]*types.FunctionPointerType
-
-	// ============================================================================
-	// Error Collection (Write by all passes)
-	// ============================================================================
-
-	// Errors collects string-formatted error messages (legacy format)
-	Errors []string
-
-	// StructuredErrors collects detailed structured error objects
-	StructuredErrors []*SemanticError
-
-	// ============================================================================
-	// Pass Execution Context (Read/Write by specific passes)
-	// ============================================================================
-
-	// ScopeStack maintains the chain of nested scopes for local variable resolution.
-	// The last element is the current innermost scope.
-	// Index 0 is always the global scope.
-	ScopeStack []*Scope
-
-	// CurrentFunction tracks the function being analyzed (for return validation)
-	CurrentFunction interface{} // *ast.FunctionDecl
-
-	// CurrentClass tracks the class being analyzed (for member access validation)
-	CurrentClass *types.ClassType
-
-	// CurrentRecord tracks the record being analyzed (for field initialization)
-	CurrentRecord *types.RecordType
-
-	// CurrentProperty tracks the property being analyzed (for getter/setter validation)
-	CurrentProperty string
-
-	// ============================================================================
-	// Source Code Context (Read-only for all passes)
-	// ============================================================================
-
-	// SourceCode is the original source text (for error reporting)
-	SourceCode string
-
-	// SourceFile is the path to the source file being analyzed
-	SourceFile string
-
-	// ============================================================================
-	// State Flags (Read/Write by specific passes)
-	// ============================================================================
-
-	// LoopDepth tracks nesting level of loops (for break/continue validation)
-	LoopDepth int
-
-	// InExceptionHandler indicates if we're inside a try/except block
-	InExceptionHandler bool
-
-	// InFinallyBlock indicates if we're inside a finally block
-	InFinallyBlock bool
-
-	// InLoop indicates if we're inside any loop construct
-	InLoop bool
-
-	// CurrentForLoopVar tracks the current for loop variable name (for validation)
-	CurrentForLoopVar string
-
-	// InLambda indicates if we're inside a lambda/anonymous function
-	InLambda bool
-
-	// InClassMethod indicates if we're inside a class method
-	InClassMethod bool
-
-	// InPropertyExpr indicates if we're inside a property expression
-	InPropertyExpr bool
+	BuiltinChecker     BuiltinChecker                       // Built-in function analyzer
+	CurrentFunction    interface{}                          // Current function (*ast.FunctionDecl)
+	UnitSymbols        map[string]*SymbolTable              // Unit symbol tables
+	ConversionRegistry *types.ConversionRegistry            // Type conversion registry
+	SemanticInfo       *pkgast.SemanticInfo                 // AST annotations
+	GlobalOperators    *types.OperatorRegistry              // Operator overload registry
+	TypeRegistry       *TypeRegistry                        // Type registry
+	Helpers            map[string][]*types.HelperType       // Helper type registry
+	Subranges          map[string]*types.SubrangeType       // Subrange type registry
+	FunctionPointers   map[string]*types.FunctionPointerType // Function pointer type registry
+	Symbols            *SymbolTable                         // Global symbol table
+	CurrentRecord      *types.RecordType                    // Current record being analyzed
+	CurrentClass       *types.ClassType                     // Current class being analyzed
+	SourceFile         string                               // Source file path
+	CurrentForLoopVar  string                               // Current for loop variable
+	SourceCode         string                               // Original source text
+	CurrentProperty    string                               // Current property being analyzed
+	StructuredErrors   []*SemanticError                     // Structured error objects
+	Errors             []string                             // Error messages (legacy)
+	ScopeStack         []*Scope                             // Scope chain for local variables
+	LoopDepth          int                                  // Loop nesting level
+	InExceptionHandler bool                                 // Inside try/except block
+	InFinallyBlock     bool                                 // Inside finally block
+	InLoop             bool                                 // Inside any loop construct
+	InLambda           bool                                 // Inside lambda/anonymous function
+	InClassMethod      bool                                 // Inside class method
+	InPropertyExpr     bool                                 // Inside property expression
 }
 
 // NewPassContext creates a new pass context with initialized registries.

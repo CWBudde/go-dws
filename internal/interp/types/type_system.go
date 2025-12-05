@@ -21,51 +21,23 @@ import (
 // This design follows the Single Responsibility Principle by separating
 // type management from execution concerns in the Interpreter.
 type TypeSystem struct {
-	// Class registry: Task 3.4.2 - using ClassRegistry abstraction
-	classRegistry *ClassRegistry
-
-	// Function registry: Task 3.4.3 - using FunctionRegistry abstraction
-	functionRegistry *FunctionRegistry
-
-	// Record registry: case-insensitive map of record names to RecordTypeValue
-	records *ident.Map[RecordTypeValue]
-
-	// Interface registry: case-insensitive map of interface names to InterfaceInfo
-	interfaces *ident.Map[InterfaceInfo]
-
-	// Helper registry: case-insensitive map of type names to helper method lists
-	helpers *ident.Map[[]HelperInfo]
-
-	// Array type registry: case-insensitive map of array type names to ArrayType
-	// Migrating array types from environment storage to TypeSystem
-	arrayTypes *ident.Map[*coretypes.ArrayType]
-
-	// Enum type registry: case-insensitive map of enum names to EnumTypeValue
-	// Migrating enum types from environment storage to TypeSystem
-	enumTypes *ident.Map[EnumTypeValue]
-
-	// Subrange type registry: case-insensitive map of subrange names to SubrangeType
-	subrangeTypes *ident.Map[*coretypes.SubrangeType]
-
-	// Operator registry: manages operator overloads
-	operators *OperatorRegistry
-
-	// Conversion registry: manages type conversions
-	conversions *ConversionRegistry
-
-	// Type ID registries for RTTI
-	classTypeIDs  *ident.Map[int]
-	recordTypeIDs *ident.Map[int]
-	enumTypeIDs   *ident.Map[int]
-
-	// Next available type IDs
-	nextClassTypeID  int
-	nextRecordTypeID int
-	nextEnumTypeID   int
-
-	// ClassValueFactory creates a ClassValue from ClassInfo.
-	// Set by Interpreter to avoid circular dependencies.
-	ClassValueFactory func(classInfo ClassInfo) any
+	operators         *OperatorRegistry               // Operator overload registry
+	conversions       *ConversionRegistry             // Type conversion registry
+	records           *ident.Map[RecordTypeValue]     // Record type registry
+	interfaces        *ident.Map[InterfaceInfo]       // Interface registry
+	helpers           *ident.Map[[]HelperInfo]        // Helper type registry
+	arrayTypes        *ident.Map[*coretypes.ArrayType] // Array type registry
+	enumTypes         *ident.Map[EnumTypeValue]       // Enum type registry
+	subrangeTypes     *ident.Map[*coretypes.SubrangeType] // Subrange type registry
+	functionRegistry  *FunctionRegistry               // Function registry
+	classTypeIDs      *ident.Map[int]                 // RTTI class type IDs
+	classRegistry     *ClassRegistry                  // Class registry
+	recordTypeIDs     *ident.Map[int]                 // RTTI record type IDs
+	enumTypeIDs       *ident.Map[int]                 // RTTI enum type IDs
+	ClassValueFactory func(classInfo ClassInfo) any   // Factory for ClassValue creation
+	nextRecordTypeID  int                             // Next available record type ID
+	nextEnumTypeID    int                             // Next available enum type ID
+	nextClassTypeID   int                             // Next available class type ID
 }
 
 // NewTypeSystem creates a new TypeSystem with initialized registries.

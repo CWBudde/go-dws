@@ -11,22 +11,21 @@ import (
 // ParameterMetadata describes a function/method parameter at runtime.
 // This replaces the need to access *ast.Parameter at runtime.
 type ParameterMetadata struct {
+	// Type is the resolved type (nil if not yet resolved).
+	Type types.Type
+
+	// DefaultValue is the expression to evaluate for optional parameters.
+	// Nil for required parameters.
+	DefaultValue ast.Expression
+
 	// Name is the parameter name for binding arguments.
 	Name string
 
 	// TypeName is the string representation of the type (for display/debugging).
 	TypeName string
 
-	// Type is the resolved type (nil if not yet resolved).
-	Type types.Type
-
 	// ByRef indicates if this is a var parameter (pass-by-reference).
 	ByRef bool
-
-	// DefaultValue is the expression to evaluate for optional parameters.
-	// Nil for required parameters.
-	// Phase 9: Keeps AST expression; Phase 10+: Migrate to bytecode.
-	DefaultValue ast.Expression
 }
 
 // MethodVisibility represents method visibility levels in DWScript.
@@ -71,80 +70,24 @@ func (v MethodVisibility) String() string {
 //   - Reduces memory overhead compared to full AST nodes
 //   - Enables serialization for bytecode cache
 type MethodMetadata struct {
-	// === Identity ===
-
-	// ID is the unique method identifier in the MethodRegistry.
-	// Set by MethodRegistry.RegisterMethod().
-	ID MethodID
-
-	// === Signature Information ===
-
-	// Name is the method/function name.
-	Name string
-
-	// Parameters describes the method parameters.
-	Parameters []ParameterMetadata
-
-	// ReturnTypeName is the string representation of the return type.
-	// Empty string for procedures (no return value).
-	ReturnTypeName string
-
-	// ReturnType is the resolved return type.
-	// Nil for procedures.
-	ReturnType types.Type
-
-	// === Executable Body ===
-	// Exactly one of Body, BytecodeID, or NativeFunc should be set.
-
-	// Body is the AST statement block to execute.
-	// Phase 9: Used for user-defined functions/methods.
-	// Phase 10+: Will be replaced with BytecodeID.
-	Body ast.Statement
-
-	// BytecodeID is the ID of compiled bytecode in the bytecode registry.
-	// Future: Phase 10+ will use this instead of Body.
-	BytecodeID int
-
-	// NativeFunc is a built-in function implementation.
-	// Used for standard library functions (Print, Length, etc.).
-	NativeFunc func(args []interface{}) interface{}
-
-	// === Validation ===
-	// Phase 9: Keeps AST structures; Phase 10+: Migrate to bytecode.
-
-	// PreConditions are assertions checked before method execution.
-	PreConditions *ast.PreConditions
-
-	// PostConditions are assertions checked after method execution.
-	PostConditions *ast.PostConditions
-
-	// === Method Characteristics ===
-
-	// IsVirtual indicates this method uses virtual dispatch.
-	IsVirtual bool
-
-	// IsAbstract indicates this method has no implementation (abstract).
-	IsAbstract bool
-
-	// IsOverride indicates this method overrides a parent's virtual method.
-	IsOverride bool
-
-	// IsReintroduce indicates this method breaks the virtual dispatch chain.
-	IsReintroduce bool
-
-	// IsClassMethod indicates this is a static method (class function/procedure).
-	IsClassMethod bool
-
-	// IsConstructor indicates this is a constructor.
-	IsConstructor bool
-
-	// IsDestructor indicates this is a destructor.
-	IsDestructor bool
-
-	// === Visibility ===
-
-	// Visibility controls access to this method.
-	Visibility MethodVisibility
+	ReturnType     types.Type              // Resolved return type (nil for procedures)
+	Body           ast.Statement           // AST statement block to execute (Phase 9)
+	PreConditions  *ast.PreConditions      // Assertions checked before execution
+	PostConditions *ast.PostConditions     // Assertions checked after execution
+	NativeFunc     func(args []interface{}) interface{} // Built-in function implementation
+	Name           string                  // Method/function name
+	ReturnTypeName string                  // String representation of return type
+	Parameters     []ParameterMetadata     // Method parameters
+	BytecodeID     int                     // ID of compiled bytecode (Phase 10+)
+	ID             MethodID                // Unique method identifier in registry
+	Visibility     MethodVisibility        // Access control level
+	IsVirtual      bool                    // Uses virtual dispatch
+	IsAbstract     bool                    // No implementation (abstract)
+	IsOverride     bool                    // Overrides parent's virtual method
+	IsReintroduce  bool                    // Breaks virtual dispatch chain
+	IsClassMethod  bool                    // Static method
+	IsConstructor  bool                    // Constructor method
+	IsDestructor   bool                    // Destructor method
 }
 
 // IsFunction returns true if this method has a return value.
@@ -209,22 +152,11 @@ func (v FieldVisibility) String() string {
 // FieldMetadata describes a field at runtime.
 // This replaces the need to store *ast.FieldDecl in runtime types.
 type FieldMetadata struct {
-	// Name is the field name.
-	Name string
-
-	// TypeName is the string representation of the field type.
-	TypeName string
-
-	// Type is the resolved field type.
-	Type types.Type
-
-	// InitValue is the initializer expression evaluated when creating instances.
-	// Nil if the field has no initializer.
-	// Phase 9: Keeps AST expression; Phase 10+: Migrate to bytecode.
-	InitValue ast.Expression
-
-	// Visibility controls access to this field.
-	Visibility FieldVisibility
+	Type       types.Type        // Resolved field type
+	InitValue  ast.Expression    // Initializer expression
+	Name       string            // Field name
+	TypeName   string            // String representation of type
+	Visibility FieldVisibility   // Access control level
 }
 
 // VirtualMethodMetadata tracks virtual method dispatch information.
@@ -252,97 +184,28 @@ type VirtualMethodMetadata struct {
 //   - Constants/ClassVars remain as Values (already runtime values)
 //   - Enables independent evolution of runtime and AST representations
 type ClassMetadata struct {
-	// === Basic Information ===
-
-	// Name is the class name.
-	Name string
-
-	// ParentName is the parent class name (empty for TObject root).
-	ParentName string
-
-	// Parent is a pointer to the parent class metadata.
-	Parent *ClassMetadata
-
-	// Interfaces is the list of interface names this class implements.
-	Interfaces []string
-
-	// === Fields ===
-
-	// Fields maps field names (normalized) to field metadata.
-	Fields map[string]*FieldMetadata
-
-	// === Instance Methods ===
-
-	// Methods maps method names (normalized) to primary method.
-	// For overloaded methods, this contains the first declaration.
-	Methods map[string]*MethodMetadata
-
-	// MethodOverloads maps method names (normalized) to all overload variants.
-	MethodOverloads map[string][]*MethodMetadata
-
-	// === Static Methods (Class Methods) ===
-
-	// ClassMethods maps class method names (normalized) to primary method.
-	ClassMethods map[string]*MethodMetadata
-
-	// ClassMethodOverloads maps class method names (normalized) to all overload variants.
-	ClassMethodOverloads map[string][]*MethodMetadata
-
-	// === Constructors ===
-
-	// Constructors maps constructor names (normalized) to primary constructor.
-	Constructors map[string]*MethodMetadata
-
-	// ConstructorOverloads maps constructor names (normalized) to all overload variants.
-	ConstructorOverloads map[string][]*MethodMetadata
-
-	// DefaultConstructor is the name of the default constructor (usually "Create").
-	DefaultConstructor string
-
-	// === Destructor ===
-
-	// Destructor is the class destructor (usually "Destroy").
-	Destructor *MethodMetadata
-
-	// === Virtual Dispatch ===
-
-	// VirtualMethods maps method names (normalized) to virtual dispatch info.
-	VirtualMethods map[string]*VirtualMethodMetadata
-
-	// === Constants and Class Variables ===
-	// These are already runtime values, so no change from ClassInfo.
-
-	// Constants maps constant names (normalized) to evaluated values.
-	Constants map[string]interface{}
-
-	// ClassVars maps class variable names (normalized) to current values.
-	ClassVars map[string]interface{}
-
-	// === Properties ===
-	// PropertyInfo is already metadata, so no change from ClassInfo.
-
-	// Properties maps property names (normalized) to property metadata.
-	Properties map[string]interface{} // Will be *types.PropertyInfo
-
-	// === Operators ===
-	// Operator registry is already runtime metadata, no change.
-
-	// Operators is the operator overload registry for this class.
-	Operators interface{} // Will be *runtimeOperatorRegistry
-
-	// === Class Flags ===
-
-	// IsAbstract indicates this class cannot be instantiated.
-	IsAbstract bool
-
-	// IsExternal indicates this class is implemented externally.
-	IsExternal bool
-
-	// IsPartial indicates this is a partial class declaration.
-	IsPartial bool
-
-	// ExternalName is the external implementation name (if IsExternal).
-	ExternalName string
+	Operators            interface{}                        // Operator overload registry
+	ConstructorOverloads map[string][]*MethodMetadata       // All constructor overload variants
+	Destructor           *MethodMetadata                    // Class destructor
+	Properties           map[string]interface{}             // Property metadata
+	Fields               map[string]*FieldMetadata          // Instance fields
+	Methods              map[string]*MethodMetadata         // Instance methods
+	MethodOverloads      map[string][]*MethodMetadata       // Instance method overloads
+	ClassMethods         map[string]*MethodMetadata         // Static methods
+	ClassMethodOverloads map[string][]*MethodMetadata       // Static method overloads
+	Constructors         map[string]*MethodMetadata         // Constructors
+	ClassVars            map[string]interface{}             // Class variable values
+	Parent               *ClassMetadata                     // Parent class metadata
+	VirtualMethods       map[string]*VirtualMethodMetadata  // Virtual dispatch info
+	Constants            map[string]interface{}             // Evaluated constant values
+	DefaultConstructor   string                             // Default constructor name
+	Name                 string                             // Class name
+	ParentName           string                             // Parent class name
+	ExternalName         string                             // External implementation name
+	Interfaces           []string                           // Implemented interface names
+	IsAbstract           bool                               // Cannot be instantiated
+	IsExternal           bool                               // Externally implemented
+	IsPartial            bool                               // Partial class declaration
 }
 
 // NewClassMetadata creates a new ClassMetadata with initialized maps.
@@ -371,42 +234,15 @@ func NewClassMetadata(name string) *ClassMetadata {
 //   - All methods stored as MethodMetadata
 //   - All fields stored as FieldMetadata
 type RecordMetadata struct {
-	// === Basic Information ===
-
-	// Name is the record type name.
-	Name string
-
-	// RecordType is the underlying type information.
-	RecordType interface{} // Will be *types.RecordType
-
-	// === Fields ===
-
-	// Fields maps field names (normalized) to field metadata.
-	Fields map[string]*FieldMetadata
-
-	// === Instance Methods ===
-
-	// Methods maps method names (normalized) to primary method.
-	Methods map[string]*MethodMetadata
-
-	// MethodOverloads maps method names (normalized) to all overload variants.
-	MethodOverloads map[string][]*MethodMetadata
-
-	// === Static Methods ===
-
-	// StaticMethods maps static method names (normalized) to primary method.
-	StaticMethods map[string]*MethodMetadata
-
-	// StaticMethodOverloads maps static method names (normalized) to all overload variants.
-	StaticMethodOverloads map[string][]*MethodMetadata
-
-	// === Constants and Class Variables ===
-
-	// Constants maps constant names (normalized) to evaluated values.
-	Constants map[string]interface{}
-
-	// ClassVars maps class variable names (normalized) to current values.
-	ClassVars map[string]interface{}
+	RecordType            interface{}                  // Underlying type information
+	Fields                map[string]*FieldMetadata    // Record fields
+	Methods               map[string]*MethodMetadata   // Instance methods
+	MethodOverloads       map[string][]*MethodMetadata // Instance method overloads
+	StaticMethods         map[string]*MethodMetadata   // Static methods
+	StaticMethodOverloads map[string][]*MethodMetadata // Static method overloads
+	Constants             map[string]interface{}       // Evaluated constant values
+	ClassVars             map[string]interface{}       // Class variable values
+	Name                  string                       // Record type name
 }
 
 // NewRecordMetadata creates a new RecordMetadata with initialized maps.
@@ -427,33 +263,15 @@ func NewRecordMetadata(name string, recordType interface{}) *RecordMetadata {
 // HelperMetadata contains runtime metadata for a helper type.
 // This replaces HelperInfo's AST-dependent fields.
 type HelperMetadata struct {
-	// Name is the helper name.
-	Name string
-
-	// TargetType is the type this helper extends.
-	TargetType types.Type
-
-	// ParentHelper is the parent helper (for helper inheritance).
-	ParentHelper *HelperMetadata
-
-	// Methods maps method names (normalized) to method metadata.
-	Methods map[string]*MethodMetadata
-
-	// Properties maps property names (normalized) to property metadata.
-	Properties map[string]interface{} // Will be *types.PropertyInfo
-
-	// ClassVars maps class variable names to values.
-	ClassVars map[string]interface{}
-
-	// ClassConsts maps class constant names to values.
-	ClassConsts map[string]interface{}
-
-	// BuiltinMethods maps method names to built-in method names.
-	// Used for array helpers and other built-in types.
-	BuiltinMethods map[string]string
-
-	// IsRecordHelper indicates if this is a record helper (vs class helper).
-	IsRecordHelper bool
+	TargetType     types.Type                 // Type this helper extends
+	ParentHelper   *HelperMetadata            // Parent helper (inheritance)
+	Methods        map[string]*MethodMetadata // Helper methods
+	Properties     map[string]interface{}     // Property metadata
+	ClassVars      map[string]interface{}     // Class variable values
+	ClassConsts    map[string]interface{}     // Class constant values
+	BuiltinMethods map[string]string          // Built-in method mappings
+	Name           string                     // Helper name
+	IsRecordHelper bool                       // Record helper vs class helper
 }
 
 // NewHelperMetadata creates a new HelperMetadata with initialized maps.

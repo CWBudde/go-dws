@@ -15,18 +15,10 @@ import (
 // TypeDescriptor contains metadata about a registered type.
 // It includes the type itself, its position in source code, and visibility information.
 type TypeDescriptor struct {
-	// Name is the canonical name of the type (case-preserved)
-	Name string
-
-	// Type is the actual type instance
-	Type types.Type
-
-	// Position is the source location where the type was defined
-	Position token.Position
-
-	// Visibility controls type scope (0=private, 1=unit, 2=public)
-	// Used for unit system and access control
-	Visibility int
+	Type       types.Type      // Actual type instance
+	Name       string          // Canonical type name
+	Position   token.Position  // Source location
+	Visibility int             // Access control (0=private, 1=unit, 2=public)
 }
 
 // ============================================================================

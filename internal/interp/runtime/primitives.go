@@ -470,40 +470,13 @@ func (u *UnassignedValue) Copy() Value {
 // NOTE: Closure field uses interface{} to avoid circular import with interp.Environment.
 // At runtime, this will be *Environment.
 type FunctionPointerValue struct {
-	// MethodID is the unique ID in the MethodRegistry for this callable.
-	// Used for AST-free method/function invocation.
-	MethodID MethodID
-
-	// BuiltinName identifies the built-in function when the pointer references
-	// a built-in rather than a user-defined function.
-	BuiltinName string
-
-	// Closure is the environment where the function/lambda was defined
-	// For lambdas, this captures all variables from outer scopes
-	// For functions, this is typically the global environment
-	// Uses interface{} to avoid circular import - will be *Environment at runtime
-	Closure interface{}
-
-	// SelfObject is the object instance for method pointers (nil for regular functions)
-	// When non-nil, this function pointer is a method pointer ("of object")
-	SelfObject Value
-
-	// PointerType is the function pointer type information
-	PointerType *types.FunctionPointerType
-
-	// === Legacy AST Fields (for backward compatibility during migration) ===
-	// TODO: Remove these after full migration to MethodID-based invocation
-
-	// Function is the AST node of the function/procedure being pointed to
-	// Either Function OR Lambda will be set, never both
-	// Deprecated: Use MethodID instead
-	Function *ast.FunctionDecl
-
-	// Lambda is the AST node of the lambda expression (anonymous method)
-	// Either Function OR Lambda will be set, never both
-	// Task 9.221: Added for lambda/closure support
-	// Deprecated: Use MethodID instead
-	Lambda *ast.LambdaExpression
+	Closure     interface{}                    // Environment where function was defined
+	SelfObject  Value                          // Object instance for method pointers
+	PointerType *types.FunctionPointerType     // Function pointer type info
+	Function    *ast.FunctionDecl              // AST node of function (legacy)
+	Lambda      *ast.LambdaExpression          // AST node of lambda (legacy)
+	BuiltinName string                         // Built-in function identifier
+	MethodID    MethodID                       // Unique ID in MethodRegistry
 }
 
 // Type returns "FUNCTION_POINTER", "METHOD_POINTER", or "LAMBDA" (closure).

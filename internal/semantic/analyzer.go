@@ -60,42 +60,34 @@ const (
 // It validates types, checks for undefined variables, and ensures
 // type compatibility in expressions and statements.
 type Analyzer struct {
-	symbols            *SymbolTable
-	globalOperators    *types.OperatorRegistry
-	typeRegistry       *TypeRegistry // Task 6.1.1: Unified type registry (replaces 7 scattered maps)
-	subranges          map[string]*types.SubrangeType
-	functionPointers   map[string]*types.FunctionPointerType
-	currentFunction    *ast.FunctionDecl
-	currentClass       *types.ClassType
-	currentNestedTypes map[string]string
-	currentRecord      *types.RecordType
-	conversionRegistry *types.ConversionRegistry
-	semanticInfo       *pkgast.SemanticInfo
-	unitSymbols        map[string]*SymbolTable
-	helpers            map[string][]*types.HelperType
-	sourceCode         string
-	currentProperty    string
-	sourceFile         string
-	errors             []string
-	structuredErrors   []*SemanticError
-	loopDepth          int
-	inExceptionHandler bool
-	inFinallyBlock     bool
-	inLoop             bool
-	inLambda           bool
-	inClassMethod      bool
-	inPropertyExpr     bool
-	nestedTypeAliases  map[string]map[string]string
-
-	// experimentalPasses enables the new multi-pass semantic analysis system.
-	// When false (default), only the old analyzer runs, keeping behavior stable.
-	// When true, Pass 2 (Type Resolution) and Pass 3 (Semantic Validation) also run.
-	// Use NewAnalyzerWithExperimentalPasses() to enable for task 6.1.2 development.
-	experimentalPasses bool
-
-	// hintsLevel controls which hints are emitted. Case mismatch hints in DWScript
-	// are "pedantic" by default, so we gate them behind this level.
-	hintsLevel HintsLevel
+	currentClass       *types.ClassType                    // Current class being analyzed
+	helpers            map[string][]*types.HelperType      // Helper type registry
+	typeRegistry       *TypeRegistry                       // Unified type registry
+	subranges          map[string]*types.SubrangeType      // Subrange type registry
+	functionPointers   map[string]*types.FunctionPointerType // Function pointer type registry
+	currentFunction    *ast.FunctionDecl                   // Current function being analyzed
+	currentRecord      *types.RecordType                   // Current record being analyzed
+	symbols            *SymbolTable                        // Symbol table
+	globalOperators    *types.OperatorRegistry             // Operator overload registry
+	conversionRegistry *types.ConversionRegistry           // Type conversion registry
+	semanticInfo       *pkgast.SemanticInfo                // AST annotations
+	unitSymbols        map[string]*SymbolTable             // Unit symbol tables
+	currentNestedTypes map[string]string                   // Nested type tracking
+	nestedTypeAliases  map[string]map[string]string        // Nested type aliases
+	currentProperty    string                              // Current property being analyzed
+	sourceFile         string                              // Source file path
+	sourceCode         string                              // Original source text
+	errors             []string                            // Error messages (legacy)
+	structuredErrors   []*SemanticError                    // Structured error objects
+	loopDepth          int                                 // Loop nesting level
+	hintsLevel         HintsLevel                          // Hints emission level
+	inLoop             bool                                // Inside loop construct
+	inLambda           bool                                // Inside lambda/anonymous function
+	inClassMethod      bool                                // Inside class method
+	inPropertyExpr     bool                                // Inside property expression
+	inFinallyBlock     bool                                // Inside finally block
+	experimentalPasses bool                                // Enable experimental passes
+	inExceptionHandler bool                                // Inside try/except block
 }
 
 // NewAnalyzer creates a new semantic analyzer
