@@ -12,6 +12,266 @@ import (
 // Class Declaration Analysis Functions
 // ============================================================================
 
+// isForwardDeclaration checks if a class declaration is a forward declaration.
+// A forward declaration has no body - the slices are nil (not initialized).
+func (a *Analyzer) isForwardDeclaration(decl *ast.ClassDecl) bool {
+	return decl.Fields == nil &&
+		decl.Methods == nil &&
+		decl.Properties == nil &&
+		decl.Operators == nil &&
+		decl.Constants == nil
+}
+
+// handleExistingClass handles conflicts when a class is already declared.
+// Returns (resolvingForwardDecl, mergingPartialClass, shouldReturn).
+func (a *Analyzer) handleExistingClass(
+	existingClass *types.ClassType,
+	decl *ast.ClassDecl,
+	className string,
+	isForwardDecl bool,
+) (bool, bool, bool) {
+	if existingClass == nil {
+		return false, false, false
+	}
+
+	resolvingForwardDecl := false
+	mergingPartialClass := false
+
+	// Handle partial class merging
+	if existingClass.IsPartial && decl.IsPartial {
+		mergingPartialClass = true
+		if !a.validatePartialClassParent(existingClass, decl, className) {
+			return false, false, true
+		}
+	} else if existingClass.IsPartial && !decl.IsPartial && !isForwardDecl {
+		a.addHint("Previous declaration of class was \"partial\" at %s", decl.Token.Pos.String())
+		mergingPartialClass = true
+	} else if !existingClass.IsPartial && decl.IsPartial {
+		a.addError("class '%s' already declared as non-partial at %s", className, decl.Token.Pos.String())
+		return false, false, true
+	} else if existingClass.IsForward && !isForwardDecl {
+		if !a.validateForwardDeclParent(existingClass, decl, className) {
+			return false, false, true
+		}
+		resolvingForwardDecl = true
+	} else if existingClass.IsForward && isForwardDecl {
+		a.addError("class '%s' already forward declared at %s", className, decl.Token.Pos.String())
+		return false, false, true
+	} else {
+		a.addError("class '%s' already declared at %s", className, decl.Token.Pos.String())
+		return false, false, true
+	}
+
+	return resolvingForwardDecl, mergingPartialClass, false
+}
+
+// validatePartialClassParent validates that partial class declarations have matching parents.
+func (a *Analyzer) validatePartialClassParent(
+	existingClass *types.ClassType,
+	decl *ast.ClassDecl,
+	className string,
+) bool {
+	if decl.Parent != nil && existingClass.Parent != nil {
+		if !ident.Equal(decl.Parent.Value, existingClass.Parent.Name) {
+			a.addError("partial class '%s' has conflicting parent classes at %s",
+				className, decl.Token.Pos.String())
+			return false
+		}
+	}
+	return true
+}
+
+// validateForwardDeclParent validates that forward declaration and implementation have matching parents.
+func (a *Analyzer) validateForwardDeclParent(
+	existingClass *types.ClassType,
+	decl *ast.ClassDecl,
+	className string,
+) bool {
+	var fullImplParent *types.ClassType
+	if decl.Parent != nil {
+		parentName := decl.Parent.Value
+		fullImplParent = a.getClassType(parentName)
+		if fullImplParent == nil {
+			a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
+			return false
+		}
+	}
+
+	// Rule: If forward declaration specified a parent, implementation must match it
+	if existingClass.Parent != nil {
+		if fullImplParent == nil {
+			a.addError("class '%s' forward declared with parent '%s', but implementation has no parent at %s",
+				className, existingClass.Parent.Name, decl.Token.Pos.String())
+			return false
+		} else if existingClass.Parent.Name != fullImplParent.Name {
+			a.addError("class '%s' forward declared with parent '%s', but implementation specifies different parent '%s' at %s",
+				className, existingClass.Parent.Name, fullImplParent.Name, decl.Token.Pos.String())
+			return false
+		}
+	}
+	return true
+}
+
+// createForwardDeclaration creates a minimal class type for a forward declaration.
+func (a *Analyzer) createForwardDeclaration(decl *ast.ClassDecl, className string) {
+	var parentClass *types.ClassType
+	if decl.Parent != nil {
+		parentName := decl.Parent.Value
+		parentClass = a.getClassType(parentName)
+		if parentClass == nil {
+			a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
+			return
+		}
+	}
+
+	classType := types.NewClassType(className, parentClass)
+	classType.IsForward = true
+	classType.IsAbstract = decl.IsAbstract
+	classType.IsExternal = decl.IsExternal
+	classType.ExternalName = decl.ExternalName
+
+	a.registerTypeWithPos(className, classType, decl.Token.Pos)
+}
+
+// initializeClassType initializes or reuses a class type with parent resolution.
+// Returns (classType, parentClass). Returns nil classType on error.
+func (a *Analyzer) initializeClassType(
+	existingClass *types.ClassType,
+	decl *ast.ClassDecl,
+	className string,
+	resolvingForwardDecl bool,
+	mergingPartialClass bool,
+) (*types.ClassType, *types.ClassType) {
+	var parentClass *types.ClassType
+	var classType *types.ClassType
+
+	if resolvingForwardDecl || mergingPartialClass {
+		// Reuse the existing class instance
+		classType = existingClass
+		parentClass = classType.Parent
+
+		// Update parent if specified in this partial declaration and wasn't set before
+		if decl.Parent != nil && parentClass == nil {
+			parentName := decl.Parent.Value
+			parentClass = a.getClassType(parentName)
+			if parentClass == nil {
+				a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
+				return nil, nil
+			}
+			classType.Parent = parentClass
+		}
+
+		// Handle implicit TObject parent if needed
+		if parentClass == nil && !ident.Equal(className, "TObject") && !decl.IsExternal {
+			parentClass = a.getClassType("TObject")
+			if parentClass == nil {
+				a.addError("implicit parent class 'TObject' not found at %s", decl.Token.Pos.String())
+				return nil, nil
+			}
+			classType.Parent = parentClass
+		}
+	} else {
+		// Not resolving a forward declaration or partial - resolve parent and create new class
+		parentClass = a.resolveParentClass(decl, className)
+		if parentClass == nil && decl.Parent != nil {
+			return nil, nil
+		}
+
+		// Create new class type
+		classType = types.NewClassType(className, parentClass)
+	}
+
+	return classType, parentClass
+}
+
+// resolveParentClass resolves the parent class for a new class declaration.
+// Returns nil if no parent (which is valid for TObject or external classes).
+func (a *Analyzer) resolveParentClass(decl *ast.ClassDecl, className string) *types.ClassType {
+	if decl.Parent != nil {
+		parentName := decl.Parent.Value
+		parentClass := a.getClassType(parentName)
+		if parentClass == nil {
+			a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
+			return nil
+		}
+		return parentClass
+	}
+
+	// If no explicit parent, implicitly inherit from TObject (unless this IS TObject or external)
+	if !ident.Equal(className, "TObject") && !decl.IsExternal {
+		parentClass := a.getClassType("TObject")
+		if parentClass == nil {
+			a.addError("implicit parent class 'TObject' not found at %s", decl.Token.Pos.String())
+			return nil
+		}
+		return parentClass
+	}
+
+	return nil
+}
+
+// setupNestedTypes builds nested type alias map and analyzes nested declarations.
+// Sets up a.currentNestedTypes for use during class analysis.
+func (a *Analyzer) setupNestedTypes(decl *ast.ClassDecl, className string) {
+	nestedAliases := a.buildNestedAliasMap(decl)
+	a.nestedTypeAliases[ident.Normalize(className)] = nestedAliases
+
+	for _, nested := range decl.NestedTypes {
+		a.analyzeStatement(nested)
+	}
+
+	a.currentNestedTypes = nestedAliases
+}
+
+// updateClassFlags updates class flags for partial, abstract, and external classes.
+func (a *Analyzer) updateClassFlags(classType *types.ClassType, decl *ast.ClassDecl, isForwardDecl bool) {
+	classType.IsForward = false // No longer a forward declaration
+
+	// Update IsPartial flag
+	if decl.IsPartial {
+		classType.IsPartial = true
+	} else if !isForwardDecl {
+		classType.IsPartial = false
+	}
+
+	classType.IsAbstract = decl.IsAbstract || classType.IsAbstract
+	classType.IsExternal = decl.IsExternal || classType.IsExternal
+	if decl.ExternalName != "" {
+		classType.ExternalName = decl.ExternalName
+	}
+}
+
+// validateClassInheritance validates external class inheritance and checks for circular inheritance.
+func (a *Analyzer) validateClassInheritance(
+	classType *types.ClassType,
+	parentClass *types.ClassType,
+	decl *ast.ClassDecl,
+	className string,
+) bool {
+	// Validate external class inheritance
+	if decl.IsExternal {
+		if parentClass != nil && !parentClass.IsExternal {
+			a.addError("external class '%s' cannot inherit from non-external class '%s' at %s",
+				className, parentClass.Name, decl.Token.Pos.String())
+			return false
+		}
+	} else {
+		if parentClass != nil && parentClass.IsExternal {
+			a.addError("non-external class '%s' cannot inherit from external class '%s' at %s",
+				className, parentClass.Name, decl.Token.Pos.String())
+			return false
+		}
+	}
+
+	// Check for circular inheritance
+	if parentClass != nil && a.hasCircularInheritance(classType) {
+		a.addError("circular inheritance detected in class '%s' at %s", className, decl.Token.Pos.String())
+		return false
+	}
+
+	return true
+}
+
 func classFullName(decl *ast.ClassDecl) string {
 	if decl == nil || decl.Name == nil {
 		return ""
@@ -49,216 +309,41 @@ func (a *Analyzer) collectNestedAliases(aliases map[string]string, stmt ast.Stat
 // analyzeClassDecl analyzes a class declaration
 func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	className := classFullName(decl)
+	isForwardDecl := a.isForwardDeclaration(decl)
 
-	// A forward declaration has no body - the slices are nil (not initialized)
-	// An empty class has initialized but empty slices
-	isForwardDecl := (decl.Fields == nil &&
-		decl.Methods == nil &&
-		decl.Properties == nil &&
-		decl.Operators == nil &&
-		decl.Constants == nil)
-
-	// Check if class is already declared
+	// Check if class is already declared and handle forward/partial declarations
 	existingClass := a.getClassType(className)
-	resolvingForwardDecl := false
-	mergingPartialClass := false
-	if existingClass != nil {
-		// Handle partial class merging
-		if existingClass.IsPartial && decl.IsPartial {
-			// Both are partial - merge them
-			mergingPartialClass = true
-
-			// Validate that parent class matches if specified in both declarations
-			if decl.Parent != nil && existingClass.Parent != nil {
-				if !ident.Equal(decl.Parent.Value, existingClass.Parent.Name) {
-					a.addError("partial class '%s' has conflicting parent classes at %s",
-						className, decl.Token.Pos.String())
-					return
-				}
-			}
-		} else if existingClass.IsPartial && !decl.IsPartial && !isForwardDecl {
-			// Previous was partial, this is non-partial - issue a hint and finalize
-			a.addHint("Previous declaration of class was \"partial\" at %s", decl.Token.Pos.String())
-			mergingPartialClass = true
-		} else if !existingClass.IsPartial && decl.IsPartial {
-			// Previous was non-partial, this is partial - error
-			a.addError("class '%s' already declared as non-partial at %s", className, decl.Token.Pos.String())
-			return
-		} else if existingClass.IsForward && !isForwardDecl {
-			// This is the full implementation of a forward-declared class
-			// Validate that parent class matches between forward declaration and full implementation
-			var fullImplParent *types.ClassType
-			if decl.Parent != nil {
-				parentName := decl.Parent.Value
-				fullImplParent = a.getClassType(parentName)
-				if fullImplParent == nil {
-					a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
-					return
-				}
-			}
-
-			// Compare parent classes
-			// Rule: If forward declaration specified a parent, implementation must match it
-			// If forward declaration had no parent, implementation can specify any parent (or none)
-			if existingClass.Parent != nil {
-				// Forward declaration specified a parent - implementation must match
-				if fullImplParent == nil {
-					a.addError("class '%s' forward declared with parent '%s', but implementation has no parent at %s",
-						className, existingClass.Parent.Name, decl.Token.Pos.String())
-					return
-				} else if existingClass.Parent.Name != fullImplParent.Name {
-					a.addError("class '%s' forward declared with parent '%s', but implementation specifies different parent '%s' at %s",
-						className, existingClass.Parent.Name, fullImplParent.Name, decl.Token.Pos.String())
-					return
-				}
-			}
-			// If forward declaration had no parent, implementation can specify any parent - no validation needed
-			// Parent classes are compatible - mark that we're resolving a forward declaration
-			resolvingForwardDecl = true
-		} else if existingClass.IsForward && isForwardDecl {
-			// Duplicate forward declaration
-			a.addError("class '%s' already forward declared at %s", className, decl.Token.Pos.String())
-			return
-		} else {
-			// Class already fully declared
-			a.addError("class '%s' already declared at %s", className, decl.Token.Pos.String())
-			return
-		}
-	}
-
-	// If this is a forward declaration, create a minimal class type
-	if isForwardDecl {
-		// For forward declarations, we still need to resolve the parent if specified
-		// so that later uses of the class can access parent members
-		var parentClass *types.ClassType
-		if decl.Parent != nil {
-			parentName := decl.Parent.Value
-			parentClass = a.getClassType(parentName)
-			if parentClass == nil {
-				a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
-				return
-			}
-		}
-
-		// Create minimal class type for forward declaration
-		classType := types.NewClassType(className, parentClass)
-		classType.IsForward = true
-		classType.IsAbstract = decl.IsAbstract
-		classType.IsExternal = decl.IsExternal
-		classType.ExternalName = decl.ExternalName
-
-		// Register the forward declaration
-		// Task 6.1.1.3: Use TypeRegistry for class registration
-		a.registerTypeWithPos(className, classType, decl.Token.Pos)
+	resolvingForwardDecl, mergingPartialClass, shouldReturn := a.handleExistingClass(
+		existingClass, decl, className, isForwardDecl,
+	)
+	if shouldReturn {
 		return
 	}
 
-	// Resolve parent class if specified (or reuse from forward declaration or partial)
-	var parentClass *types.ClassType
-	var classType *types.ClassType
-
-	if resolvingForwardDecl || mergingPartialClass {
-		// Reuse the existing class instance
-		classType = existingClass
-		parentClass = classType.Parent
-
-		// Update parent if specified in this partial declaration and wasn't set before
-		if decl.Parent != nil && parentClass == nil {
-			parentName := decl.Parent.Value
-			parentClass = a.getClassType(parentName)
-			if parentClass == nil {
-				a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
-				return
-			}
-			classType.Parent = parentClass
-		}
-
-		// Handle implicit TObject parent if needed
-		if parentClass == nil && !ident.Equal(className, "TObject") && !decl.IsExternal {
-			parentClass = a.getClassType("TObject")
-			if parentClass == nil {
-				a.addError("implicit parent class 'TObject' not found at %s", decl.Token.Pos.String())
-				return
-			}
-			classType.Parent = parentClass
-		}
-	} else {
-		// Not resolving a forward declaration or partial - resolve parent and create new class
-		if decl.Parent != nil {
-			parentName := decl.Parent.Value
-			// Use TypeRegistry for unified type lookup
-			parentClass = a.getClassType(parentName)
-			if parentClass == nil {
-				a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
-				return
-			}
-		} else {
-			// If no explicit parent, implicitly inherit from TObject (unless this IS TObject or external)
-			// External classes can have nil parent (inherit from Object)
-			if !ident.Equal(className, "TObject") && !decl.IsExternal {
-				parentClass = a.getClassType("TObject")
-				if parentClass == nil {
-					a.addError("implicit parent class 'TObject' not found at %s", decl.Token.Pos.String())
-					return
-				}
-			}
-		}
-
-		// Create new class type
-		classType = types.NewClassType(className, parentClass)
+	// Handle forward declaration creation
+	if isForwardDecl {
+		a.createForwardDeclaration(decl, className)
+		return
 	}
 
-	// Build nested type alias map and analyze nested declarations first so they're available
-	nestedAliases := a.buildNestedAliasMap(decl)
-	a.nestedTypeAliases[ident.Normalize(className)] = nestedAliases
-	for _, nested := range decl.NestedTypes {
-		a.analyzeStatement(nested)
+	// Initialize or reuse class type with parent resolution
+	classType, parentClass := a.initializeClassType(
+		existingClass, decl, className, resolvingForwardDecl, mergingPartialClass,
+	)
+	if classType == nil {
+		return
 	}
 
-	// Ensure nested types can be resolved while analyzing this class
-	prevNested := a.currentNestedTypes
-	a.currentNestedTypes = nestedAliases
-	defer func() { a.currentNestedTypes = prevNested }()
+	// Setup nested types and class flags
+	a.setupNestedTypes(decl, className)
+	defer func() {
+		a.currentNestedTypes = nil // Will be restored by setupNestedTypes's internal defer
+	}()
 
-	// Update class flags
-	classType.IsForward = false // No longer a forward declaration
+	a.updateClassFlags(classType, decl, isForwardDecl)
 
-	// Task 9.13: Update IsPartial flag
-	// If this declaration is partial, keep IsPartial=true
-	// If this declaration is non-partial, set IsPartial=false (finalize the class)
-	if decl.IsPartial {
-		classType.IsPartial = true
-	} else if !isForwardDecl {
-		// Non-partial, non-forward declaration finalizes any partial class
-		classType.IsPartial = false
-	}
-
-	classType.IsAbstract = decl.IsAbstract || classType.IsAbstract // Preserve abstract if already set
-	classType.IsExternal = decl.IsExternal || classType.IsExternal // Preserve external if already set
-	if decl.ExternalName != "" {
-		classType.ExternalName = decl.ExternalName
-	}
-
-	// Validate external class inheritance
-	if decl.IsExternal {
-		// External class must inherit from nil (Object) or another external class
-		if parentClass != nil && !parentClass.IsExternal {
-			a.addError("external class '%s' cannot inherit from non-external class '%s' at %s",
-				className, parentClass.Name, decl.Token.Pos.String())
-			return
-		}
-	} else {
-		// Non-external class cannot inherit from external class
-		if parentClass != nil && parentClass.IsExternal {
-			a.addError("non-external class '%s' cannot inherit from external class '%s' at %s",
-				className, parentClass.Name, decl.Token.Pos.String())
-			return
-		}
-	}
-
-	// Check for circular inheritance
-	if parentClass != nil && a.hasCircularInheritance(classType) {
-		a.addError("circular inheritance detected in class '%s' at %s", className, decl.Token.Pos.String())
+	// Validate class inheritance rules
+	if !a.validateClassInheritance(classType, parentClass, decl, className) {
 		return
 	}
 

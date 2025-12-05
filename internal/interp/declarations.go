@@ -25,7 +25,6 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 	if fn.ClassName != nil {
 		typeName := fn.ClassName.Value
 
-		// Task 9.14.2 & PR #147: DWScript is case-insensitive
 		// Use normalized key for O(1) lookup instead of O(n) linear search
 		classInfo, isClass := i.classes[ident.Normalize(typeName)]
 
@@ -35,7 +34,7 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 			return &NilValue{}
 		}
 
-		// PR #147: Use normalized key for O(1) lookup instead of O(n) linear search
+		// Use normalized key for O(1) lookup instead of O(n) linear search
 		recordInfo, isRecord := i.records[ident.Normalize(typeName)]
 
 		if isRecord {
@@ -111,7 +110,7 @@ func (i *Interpreter) evalClassMethodImplementation(fn *ast.FunctionDecl, classI
 		classInfo.Destructor = fn
 	}
 
-	// Task 9.14: Rebuild the VMT after adding method implementation
+	// Rebuild the VMT after adding method implementation
 	// This ensures the VMT has references to methods with bodies, not just declarations
 	classInfo.buildVirtualMethodTable()
 
@@ -263,8 +262,6 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	var parentClass *ClassInfo
 	if cd.Parent != nil {
 		// Explicit parent specified
-		// Task 9.14.2 & PR #147: DWScript is case-insensitive
-		// Use normalized key for O(1) lookup instead of O(n) linear search
 		parentName := cd.Parent.Value
 		var exists bool
 		parentClass, exists = i.classes[ident.Normalize(parentName)]
@@ -275,7 +272,6 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		// If no explicit parent, implicitly inherit from TObject
 		// (unless this IS TObject or it's an external class)
 		if !ident.Equal(className, "TObject") && !cd.IsExternal {
-			// PR #147: Use normalized key for O(1) lookup instead of O(n) linear search
 			var exists bool
 			parentClass, exists = i.classes[ident.Normalize("TObject")]
 			if !exists {
@@ -1083,7 +1079,7 @@ func (i *Interpreter) replaceMethodInOverloadList(list []*ast.FunctionDecl, impl
 	for idx, decl := range list {
 		// Match by parameter count and types
 		if parametersMatch(decl.Parameters, impl.Parameters) {
-			// Task 9.14: Preserve virtual/override/reintroduce flags from declaration
+			// Preserve virtual/override/reintroduce flags from declaration
 			// The implementation doesn't have these keywords, but we need to preserve them
 			impl.IsVirtual = decl.IsVirtual
 			impl.IsOverride = decl.IsOverride
