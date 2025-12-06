@@ -263,15 +263,17 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - Fixed duplicate case statements in `builtins_context.go` (compilation issue)
   - **Tests**: ✅ All lambda/closure/function pointer tests pass (15 tests), fixture baseline improved (890, down from 892)
 
-- [ ] **3.8.2.3** Migrate Function Call Environments (3 days)
-  - Update `adapter_functions.go`: Function pointer calls
-  - Update user function calls, method pointers
-  - **Tests**: Function recursion, overloading tests
+- [x] **3.8.2.3a** Migrate Method Dispatch Environments (adapter_methods.go) ✅ **COMPLETE** (2025-12-06)
+  - Migrated all 24 assignments in `adapter_methods.go`
+  - Class methods, constructors, interface methods, record methods
+  - Method infrastructure (CallObjectMethod, CallInheritedMethod, CallMethodOnSelf)
+  - **Tests**: ✅ All method/class/helper tests pass (50+ tests), fixture baseline maintained (890)
+  - **Commit**: 3738d2fa
 
-- [ ] **3.8.2.4** Migrate Method Dispatch Environments (3 days)
-  - Update `adapter_methods.go`: All 10+ method dispatch locations
-  - Handle record methods, class methods, interface methods
-  - **Tests**: Method call tests, OOP tests
+- [ ] **3.8.2.3b** Migrate Object Method Environments (objects_methods.go) (1-2 days)
+  - Migrate 23 assignments in `objects_methods.go`
+  - Handle object instance methods, constructors, destructors
+  - **Tests**: Object method tests, constructor tests
 
 - [ ] **3.8.2.5** Migrate Object/Class Environments (2 days)
   - Update `adapter_objects.go`, `objects_instantiation.go`
