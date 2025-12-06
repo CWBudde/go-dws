@@ -64,6 +64,13 @@ func (ea *EnvironmentAdapter) Get(name string) (interface{}, bool) {
 		Get(string) (runtime.Value, bool)
 	}); ok {
 		val, found := env.Get(name)
+		// Task 3.8.3.0d: Defensive nil handling
+		// If the underlying environment returns (nil, true), it means the variable
+		// exists but is nil. We need to return a typed nil (NilValue) instead of
+		// an untyped nil interface{} to prevent panics in type assertions.
+		if found && val == nil {
+			return &runtime.NilValue{}, true
+		}
 		// runtime.Value is an interface{}, so it can be returned directly
 		return val, found
 	}
