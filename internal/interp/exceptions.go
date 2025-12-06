@@ -330,12 +330,12 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 		if i.matchesExceptionType(exc, handler.ExceptionType) {
 			// Create new scope for exception variable
 			oldEnv := i.env
-			i.env = NewEnclosedEnvironment(i.env)
+			handlerEnv := i.PushEnvironment(i.env)
 
 			// Bind exception variable
 			if handler.Variable != nil {
 				// Use Define instead of Set to create a new variable in the current scope
-				i.env.Define(handler.Variable.Value, exc.Instance)
+				handlerEnv.Define(handler.Variable.Value, exc.Instance)
 			}
 
 			// Save the current handlerException (for nested handlers)
@@ -367,7 +367,7 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 			i.env.Set("ExceptObject", oldExceptObject)
 
 			// Restore environment
-			i.env = oldEnv
+			i.RestoreEnvironment(oldEnv)
 
 			// If handler raised an exception (including bare raise), it's now in i.exception
 			// If handler completed normally, i.exception is nil
