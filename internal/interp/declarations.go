@@ -254,10 +254,9 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 
 	// Provide current class context for nested type resolution during declaration processing
 	savedEnv := i.env
-	tempEnv := NewEnclosedEnvironment(i.env)
+	tempEnv := i.PushEnvironment(i.env)
 	tempEnv.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
-	i.env = tempEnv
-	defer func() { i.env = savedEnv }()
+	defer func() { i.RestoreEnvironment(savedEnv) }()
 
 	// Handle inheritance if parent class is specified
 	var parentClass *ClassInfo
@@ -383,14 +382,13 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		// Evaluate the constant value immediately
 		// Create temporary environment with previously evaluated constants
 		savedEnv := i.env
-		tempEnv := NewEnclosedEnvironment(i.env)
+		tempEnv := i.PushEnvironment(i.env)
 		for cName, cValue := range classInfo.ConstantValues {
 			tempEnv.Define(cName, cValue)
 		}
-		i.env = tempEnv
 
 		constValue := i.Eval(constDecl.Value)
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 
 		if isError(constValue) {
 			return constValue
@@ -468,15 +466,14 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			// Type inference from initialization value
 			// Create temporary environment with class constants available
 			savedEnv := i.env
-			tempEnv := NewEnclosedEnvironment(i.env)
+			tempEnv := i.PushEnvironment(i.env)
 			for cName, cValue := range classInfo.ConstantValues {
 				tempEnv.Define(cName, cValue)
 			}
-			i.env = tempEnv
 
 			// Evaluate the init value to infer the type
 			initVal := i.Eval(field.InitValue)
-			i.env = savedEnv
+			i.RestoreEnvironment(savedEnv)
 
 			if isError(initVal) {
 				return initVal
@@ -508,15 +505,14 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 					// Need to evaluate (explicit type annotation case)
 					// Create temporary environment with class constants available
 					savedEnv := i.env
-					tempEnv := NewEnclosedEnvironment(i.env)
+					tempEnv := i.PushEnvironment(i.env)
 					for cName, cValue := range classInfo.ConstantValues {
 						tempEnv.Define(cName, cValue)
 					}
-					i.env = tempEnv
 
 					// Evaluate the initialization expression
 					val := i.Eval(field.InitValue)
-					i.env = savedEnv
+					i.RestoreEnvironment(savedEnv)
 
 					if isError(val) {
 						return val
