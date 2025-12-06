@@ -597,9 +597,9 @@ func SubString(ctx Context, args []Value) Value {
 	start := int(startVal.Value) // 1-based
 	end := int(endVal.Value)     // 1-based, inclusive
 
-	// Calculate length from start and end positions
-	// SubString(str, 3, 7) should return 5 characters (positions 3, 4, 5, 6, 7)
-	length := end - start + 1
+	// Calculate length using end as an exclusive position (DWScript semantics):
+	// SubString(str, 3, 7) returns characters at positions 3..6 → length 4.
+	length := end - start
 
 	// Handle edge cases
 	if length <= 0 {
