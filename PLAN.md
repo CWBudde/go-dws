@@ -299,6 +299,57 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - **Tests**: ✅ All class/type/declaration/interface tests pass, fixture baseline maintained at 886
   - **Commit**: 88efffb8
 
+- [x] **3.8.2.8** Migrate Property Access Environments ✅ **COMPLETE** (2025-12-06)
+  - Migrated all 22 assignments in `objects_properties.go`
+  - Methods: evalPropertyRead (6), evalClassPropertyRead (4), evalClassPropertyWrite (4), evalIndexedPropertyRead (2), evalIndexedPropertyWrite (2), evalPropertyWrite (4)
+  - All property getter/setter environments migrated to PushEnvironment/RestoreEnvironment pattern
+  - Special logic preserved: class variable synchronization in evalClassPropertyWrite (lines 492-496, 528-532)
+  - **Tests**: ✅ All property/indexed property/class property tests pass, fixture baseline maintained at 886
+  - **Commit**: 23dcf10f
+
+- [ ] **3.8.2.9** Migrate Record Method Environments (functions_records.go)
+  - **Count**: 10 assignments
+  - **Purpose**: Record type method execution
+  - **Pattern**: Similar to object methods, save/execute/restore
+  - **Risk**: MEDIUM - value type semantics
+  - **Tests**: Verify record method tests pass
+
+- [ ] **3.8.2.10** Migrate Evaluator Integration Callbacks (user_function_callbacks.go)
+  - **Count**: 6 assignments
+  - **Purpose**: Environment synchronization between interpreter and evaluator
+  - **Risk**: **CRITICAL** - central integration point, already has partial sync logic
+  - **Special Note**: This file already uses EnvSyncer callback for partial sync
+  - **Tests**: Verify all evaluator integration tests pass
+
+- [ ] **3.8.2.11** Migrate Operator Overload Environments (operators_eval.go)
+  - **Count**: 6 assignments
+  - **Purpose**: Operator overload method execution
+  - **Pattern**: Similar to method dispatch
+  - **Risk**: MEDIUM - operator overloading dispatch
+  - **Tests**: Verify operator overload tests pass
+
+- [ ] **3.8.2.12** Migrate Parent Class Call Environments (objects_hierarchy.go)
+  - **Count**: 4 assignments
+  - **Purpose**: Parent class method invocation, class constant evaluation
+  - **Pattern**: Parent method environment setup
+  - **Risk**: MEDIUM - inheritance, super calls
+  - **Tests**: Verify inheritance and parent call tests pass
+
+- [ ] **3.8.2.13** Migrate Helper Method Environments (helpers_validation.go)
+  - **Count**: 3 assignments
+  - **Purpose**: Helper method execution
+  - **Pattern**: Helper method environment with error/success paths
+  - **Risk**: LOW - helper methods, infrequent
+  - **Tests**: Verify helper method tests pass
+
+- [ ] **3.8.2.14** Migrate Remaining Misc Environments (statements_control.go, interface.go)
+  - **Count**: 4 assignments (2 + 2)
+  - **Purpose**: Miscellaneous control flow and interface methods
+  - **Risk**: LOW - miscellaneous edge cases
+  - **Tests**: Verify control flow and interface tests pass
+
+**Phase 3.8.2 Progress**: 116 of 149 assignments migrated (78%). **33 assignments remaining** in tasks 3.8.2.9-3.8.2.14.
+
 ### Phase 3.8.3: Binary Operations Migration (3 days)
 
 **Only proceed after Phase 3.8.2 is complete and ALL tests pass**
