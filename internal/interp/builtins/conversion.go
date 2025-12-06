@@ -162,7 +162,28 @@ func StrToInt(ctx Context, args []Value) Value {
 
 		// Validate base range (2-36)
 		if base < 2 || base > 36 {
-			return ctx.NewError("StrToInt() base must be between 2 and 36, got %d", base)
+			msg := fmt.Sprintf("Invalid base for string to integer conversion (%d)", base)
+
+			if node := ctx.CurrentNode(); node != nil {
+				if posNode, ok := node.(interface{ Pos() lexer.Position }); ok {
+					pos := posNode.Pos()
+					msg = fmt.Sprintf("%s [line: %d, column: %d]", msg, pos.Line, pos.Column)
+					if raiser, ok := ctx.(interface {
+						RaiseException(className, message string, pos any)
+					}); ok {
+						raiser.RaiseException("Exception", msg, pos)
+						return ctx.NewError(msg)
+					}
+				}
+			}
+
+			if raiser, ok := ctx.(interface {
+				RaiseException(className, message string, pos any)
+			}); ok {
+				raiser.RaiseException("Exception", msg, nil)
+			}
+
+			return ctx.NewError(msg)
 		}
 	}
 
@@ -180,7 +201,7 @@ func StrToInt(ctx Context, args []Value) Value {
 	// Use strconv.ParseInt for strict parsing
 	intValue, err := strconv.ParseInt(s, base, 64)
 	if err != nil {
-		msg := fmt.Sprintf("%q is not a valid integer value", strVal.Value)
+		msg := fmt.Sprintf("%q is not a valid 64bit integer value in base %d", strVal.Value, base)
 
 		// Attach source position if available
 		if node := ctx.CurrentNode(); node != nil {
