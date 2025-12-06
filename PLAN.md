@@ -362,24 +362,57 @@ i.env = lambdaEnv  // ✗ Only updates i.env
 
 **Phase 3.8.2 Progress**: 149 of 149 assignments migrated (100%). ✅ **COMPLETE!**
 
-### Phase 3.8.3: Binary Operations Migration (3 days)
+### Phase 3.8.3: Binary Operations Migration - ⚠️ **BLOCKED**
 
-**Only proceed after Phase 3.8.2 is complete and ALL tests pass**
+**Status**: Migration attempted and **ROLLED BACK** (2025-12-06)
 
-- [ ] **3.8.3.1** Migrate Binary Operations (1 day)
-  - Delete `internal/interp/expressions_binary.go`
-  - Update `Interpreter.Eval()` to delegate to evaluator
-  - Update compound assignment operations
-  - **Deliverable**: Binary ops handled by evaluator
+**Attempt Summary**:
+- Deleted `expressions_binary.go` (945 lines)
+- Delegated `Interpreter.Eval(BinaryExpression)` to evaluator
+- Created helper for Variant compound assignments
+- **Result**: ❌ **10 new test failures** (11 total vs 1 baseline)
+- **Action**: Full rollback to baseline ✅
 
-- [ ] **3.8.3.2** Update Variant Operations (1 day)
-  - Migrate `evalVariantBinaryOp` delegation
-  - Update `statements_assignments.go`
+**Issues Found**:
 
-- [ ] **3.8.3.3** Verification (1 day)
-  - Run full test suite (target: 0 failures)
-  - Run benchmarks (expect no performance regression)
-  - Update documentation
+1. **Missing Error Location Information** (5+ failures)
+   - Evaluator errors lack source location context
+   - Example: `"ERROR: division by zero"` instead of `"ERROR [line: 2]: division by zero"`
+   - **Root Cause**: Evaluator doesn't track `currentNode` like Interpreter
+
+2. **Coalesce Operator Semantic Difference** (1 failure)
+   - Test: `TestEvalCoalesceWithArrays` - empty array `??` fallback fails
+   - **Root Cause**: Evaluator's `isFalsey()` differs from Interpreter
+
+3. **Helper Method Issues** (3 failures)
+   - Tests: `TestHelperMethodOnRecord`, `TestHelperProperty`, `TestHelperWithRecordKeyword`
+
+4. **Other Failures**: `TestArrayAssignment_WithRecords`, `TestClassConstantInInstanceMethod`, `TestEnumNameProperty`
+
+**Prerequisites (must complete before retry)**:
+
+- [ ] **3.8.3.0a** Fix Evaluator Error Location Tracking
+  - Ensure evaluator tracks `currentNode` for all operations
+  - Error messages must include source location
+  - Verify with `TestErrorMessagesIncludeLocation`
+
+- [ ] **3.8.3.0b** Fix Evaluator Coalesce Semantics
+  - Align evaluator's `isFalsey()` with Interpreter
+  - Test with `TestEvalCoalesceWithArrays`
+
+- [ ] **3.8.3.0c** Investigate Helper Method Differences
+  - Debug helper method failures with evaluator
+
+- [ ] **3.8.3.0d** Run Full Evaluator Test Suite
+  - Ensure 100% feature parity with Interpreter
+
+---
+
+### Phase 3.8.3.1-3: Migration (DEFERRED until prerequisites complete)
+
+- [ ] **3.8.3.1** Migrate Binary Operations
+- [ ] **3.8.3.2** Update Variant Operations
+- [ ] **3.8.3.3** Verification
 
 ## Success Criteria
 
