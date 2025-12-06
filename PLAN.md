@@ -333,12 +333,14 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - **Tests**: ✅ All non-fixture tests pass, fixture baseline improved to 884 (-2)
   - **Commit**: 24f26f5b
 
-- [ ] **3.8.2.12** Migrate Parent Class Call Environments (objects_hierarchy.go)
-  - **Count**: 4 assignments
-  - **Purpose**: Parent class method invocation, class constant evaluation
-  - **Pattern**: Parent method environment setup
-  - **Risk**: MEDIUM - inheritance, super calls
-  - **Tests**: Verify inheritance and parent call tests pass
+- [x] **3.8.2.12** Migrate Parent Class Call Environments ✅ **COMPLETE** (2025-12-06)
+  - Migrated all 4 assignments in `objects_hierarchy.go`
+  - Functions: evalInheritedExpression (2 assignments), getClassConstant (2 assignments)
+  - Migrated lines: 788-789→788-789 (inherited setup), 832 (inherited restore), 890 (constant setup), 892 (constant restore)
+  - Parent class method invocation properly synchronized (Self, **CurrentClass**, parameters, Result)
+  - Lazy class constant evaluation preserved with sibling constant access
+  - **Tests**: ✅ All 1163 non-fixture tests pass, fixture baseline improved to 884 (maintained)
+  - **Commit**: a6778ea9
 
 - [ ] **3.8.2.13** Migrate Helper Method Environments (helpers_validation.go)
   - **Count**: 3 assignments
@@ -353,7 +355,7 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - **Risk**: LOW - miscellaneous edge cases
   - **Tests**: Verify control flow and interface tests pass
 
-**Phase 3.8.2 Progress**: 138 of 149 assignments migrated (93%). **11 assignments remaining** in tasks 3.8.2.12-3.8.2.14.
+**Phase 3.8.2 Progress**: 136 of 149 assignments migrated (91%). **13 assignments remaining** in tasks 3.8.2.13-3.8.2.14.
 
 ### Phase 3.8.3: Binary Operations Migration (3 days)
 
