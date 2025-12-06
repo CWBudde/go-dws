@@ -180,7 +180,7 @@ func (i *Interpreter) createInterfaceCleanupCallback() evaluator.CleanupInterfac
 		i.cleanupInterfaceReferencesForEnv(env)
 
 		// Restore original environment
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 	}
 }
 
@@ -214,9 +214,9 @@ func (i *Interpreter) cleanupInterfaceReferencesForEnv(env evaluator.Environment
 
 	// Perform cleanup if we got a concrete environment
 	if concreteEnv != nil {
-		i.env = concreteEnv
+		i.SetEnvironment(concreteEnv)
 		i.cleanupInterfaceReferences(i.env)
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 	}
 }
 
@@ -244,12 +244,12 @@ func (i *Interpreter) createEnvSyncerCallback() evaluator.EnvSyncerFunc {
 		synced := false
 		if adapter, ok := funcEnv.(*evaluator.EnvironmentAdapter); ok {
 			if concreteEnv, ok := adapter.Underlying().(*Environment); ok {
-				i.env = concreteEnv
+				i.SetEnvironment(concreteEnv)
 				synced = true
 			}
 		} else if concreteEnv, ok := interface{}(funcEnv).(*Environment); ok {
 			// Direct *Environment (shouldn't happen but handle it)
-			i.env = concreteEnv
+			i.SetEnvironment(concreteEnv)
 			synced = true
 		}
 
@@ -261,7 +261,7 @@ func (i *Interpreter) createEnvSyncerCallback() evaluator.EnvSyncerFunc {
 
 		// Return restore function
 		return func() {
-			i.env = savedEnv
+			i.RestoreEnvironment(savedEnv)
 		}
 	}
 }
