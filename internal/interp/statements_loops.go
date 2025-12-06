@@ -148,9 +148,9 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 
 	// Create a new enclosed environment for the loop variable
 	// This ensures the loop variable is scoped to the loop body
-	loopEnv := NewEnclosedEnvironment(i.env)
+	// Phase 3.8.2.1: Use helper to sync both i.env and i.ctx.env
 	savedEnv := i.env
-	i.env = loopEnv
+	i.PushEnvironment(i.env)
 
 	// Define the loop variable in the loop environment
 	loopVarName := stmt.Variable.Value
@@ -202,7 +202,7 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 			// Execute the body
 			result = i.Eval(stmt.Body)
 			if isError(result) {
-				i.env = savedEnv // Restore environment before returning
+				i.RestoreEnvironment(savedEnv) // Phase 3.8.2.1: Use helper
 				return result
 			}
 
@@ -231,7 +231,7 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 			// Execute the body
 			result = i.Eval(stmt.Body)
 			if isError(result) {
-				i.env = savedEnv // Restore environment before returning
+				i.RestoreEnvironment(savedEnv) // Phase 3.8.2.1: Use helper
 				return result
 			}
 
@@ -254,7 +254,8 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 	}
 
 	// Restore the original environment after the loop
-	i.env = savedEnv
+	// Phase 3.8.2.1: Use helper to sync both i.env and i.ctx.env
+	i.RestoreEnvironment(savedEnv)
 
 	return result
 }
@@ -273,9 +274,9 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 
 	// Create a new enclosed environment for the loop variable
 	// This ensures the loop variable is scoped to the loop body
-	loopEnv := NewEnclosedEnvironment(i.env)
+	// Phase 3.8.2.1: Use helper to sync both i.env and i.ctx.env
 	savedEnv := i.env
-	i.env = loopEnv
+	i.PushEnvironment(i.env)
 
 	loopVarName := stmt.Variable.Value
 
@@ -290,7 +291,7 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 			// Execute the body
 			result = i.Eval(stmt.Body)
 			if isError(result) {
-				i.env = savedEnv // Restore environment before returning
+				i.RestoreEnvironment(savedEnv) // Phase 3.8.2.1: Use helper
 				return result
 			}
 
@@ -315,7 +316,7 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 		// Sets contain enum values; we iterate through the enum's ordered names
 		// and check which ones are present in the set
 		if col.SetType == nil || col.SetType.ElementType == nil {
-			i.env = savedEnv
+			i.RestoreEnvironment(savedEnv) // Phase 3.8.2.1: Use helper
 			return newError("invalid set type for iteration")
 		}
 
@@ -339,7 +340,7 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 				// Execute the body
 				result = i.Eval(stmt.Body)
 				if isError(result) {
-					i.env = savedEnv // Restore environment before returning
+					i.RestoreEnvironment(savedEnv) // Phase 3.8.2.1: Use helper
 					return result
 				}
 
@@ -370,7 +371,7 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 				case "BOOLEAN":
 					loopVal = &BooleanValue{Value: ordinal != 0}
 				default:
-					i.env = savedEnv
+					i.RestoreEnvironment(savedEnv) // Phase 3.8.2.1: Use helper
 					return newError("for-in loop: cannot iterate over set of %s", elementType.String())
 				}
 
@@ -379,7 +380,7 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 				// Execute the body
 				result = i.Eval(stmt.Body)
 				if isError(result) {
-					i.env = savedEnv // Restore environment before returning
+					i.RestoreEnvironment(savedEnv) // Phase 3.8.2.1: Use helper
 					return result
 				}
 
@@ -415,7 +416,7 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 			// Execute the body
 			result = i.Eval(stmt.Body)
 			if isError(result) {
-				i.env = savedEnv // Restore environment before returning
+				i.RestoreEnvironment(savedEnv) // Phase 3.8.2.1: Use helper
 				return result
 			}
 
@@ -442,7 +443,7 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 		// This is similar to set iteration but without checking membership.
 		enumType, ok := col.TypeInfo.(*types.EnumType)
 		if !ok {
-			i.env = savedEnv
+			i.RestoreEnvironment(savedEnv) // Phase 3.8.2.1: Use helper
 			return newError("for-in loop: can only iterate over enum types, got %s", col.TypeName)
 		}
 
@@ -464,7 +465,7 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 			// Execute the body
 			result = i.Eval(stmt.Body)
 			if isError(result) {
-				i.env = savedEnv // Restore environment before returning
+				i.RestoreEnvironment(savedEnv) // Phase 3.8.2.1: Use helper
 				return result
 			}
 
@@ -487,12 +488,13 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 	default:
 		// If we reach here, the semantic analyzer missed something
 		// This is defensive programming
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv) // Phase 3.8.2.1: Use helper
 		return newError("for-in loop: cannot iterate over %s", collectionVal.Type())
 	}
 
 	// Restore the original environment after the loop
-	i.env = savedEnv
+	// Phase 3.8.2.1: Use helper to sync both i.env and i.ctx.env
+	i.RestoreEnvironment(savedEnv)
 
 	return result
 }
