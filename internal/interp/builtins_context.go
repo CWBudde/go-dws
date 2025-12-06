@@ -641,6 +641,21 @@ func (i *Interpreter) IsAssigned(value builtins.Value) bool {
 	return true
 }
 
+// RaiseException raises a DWScript exception so try/except blocks can handle it.
+// Builtins call this optionally when they need to surface script-level exceptions.
+func (i *Interpreter) RaiseException(className, message string, pos any) {
+	var lexerPos *lexer.Position
+
+	switch p := pos.(type) {
+	case *lexer.Position:
+		lexerPos = p
+	case lexer.Position:
+		lexerPos = &p
+	}
+
+	i.raiseException(className, message, lexerPos)
+}
+
 // RaiseAssertionFailed raises an EAssertionFailed exception with an optional custom message.
 // This implements the builtins.Context interface.
 // Task 3.7.8: Helper for Assert() function.
