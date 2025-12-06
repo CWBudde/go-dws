@@ -351,13 +351,16 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - **Tests**: ✅ All 23 helper tests pass, all 1163 non-fixture tests pass, fixture baseline maintained at 884
   - **Commit**: ba48de2b
 
-- [ ] **3.8.2.14** Migrate Remaining Misc Environments (statements_control.go, interface.go)
-  - **Count**: 4 assignments (2 + 2)
-  - **Purpose**: Miscellaneous control flow and interface methods
-  - **Risk**: LOW - miscellaneous edge cases
-  - **Tests**: Verify control flow and interface tests pass
+- [x] **3.8.2.14** Migrate Remaining Misc Environments ✅ **COMPLETE** (2025-12-06)
+  - Migrated all 4 assignments in `statements_control.go` (2) and `interface.go` (2)
+  - Functions: tryCallClassOperator (2 assignments with defer pattern), runDestructor (2 assignments)
+  - Migrated lines: statements_control.go 348-349→348-349 (setup, defer restore); interface.go 429-430→429-430 (setup), 450 (restore)
+  - Class operator method invocation properly synchronized (Self binding, parameters)
+  - Destructor execution properly synchronized (Self binding, class constants, destroy call depth tracking)
+  - **Tests**: ✅ All 1163 non-fixture tests pass, fixture baseline maintained at 884
+  - **Commit**: dd6efedb
 
-**Phase 3.8.2 Progress**: 139 of 149 assignments migrated (93%). **10 assignments remaining** in task 3.8.2.14.
+**Phase 3.8.2 Progress**: 149 of 149 assignments migrated (100%). ✅ **COMPLETE!**
 
 ### Phase 3.8.3: Binary Operations Migration (3 days)
 
