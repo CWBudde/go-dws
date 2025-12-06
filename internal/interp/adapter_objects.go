@@ -43,15 +43,14 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 
 	// Initialize fields with default values
 	savedEnv := i.env
-	tempEnv := NewEnclosedEnvironment(i.env)
-	i.env = tempEnv
+	i.PushEnvironment(i.env)
 
 	for fieldName, fieldType := range classInfo.Fields {
 		var fieldValue Value
 		if fieldDecl, hasDecl := classInfo.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
 			fieldValue = i.Eval(fieldDecl.InitValue)
 			if isError(fieldValue) {
-				i.env = savedEnv
+				i.RestoreEnvironment(savedEnv)
 				return nil, fmt.Errorf("failed to initialize field '%s': %v", fieldName, fieldValue)
 			}
 		} else {
@@ -60,18 +59,17 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 		obj.SetField(fieldName, fieldValue)
 	}
 
-	i.env = savedEnv
+	i.RestoreEnvironment(savedEnv)
 
 	// Call constructor if it exists
 	constructorNameLower := ident.Normalize("Create")
 	if constructor, exists := classInfo.Constructors[constructorNameLower]; exists {
-		tempEnv := NewEnclosedEnvironment(i.env)
-		tempEnv.Define("Self", obj)
-		i.env = tempEnv
+		ctorEnv := i.PushEnvironment(i.env)
+		ctorEnv.Define("Self", obj)
 
 		result := i.executeUserFunctionViaEvaluator(constructor, internalArgs)
 
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 
 		// Propagate constructor errors
 		if isError(result) {
@@ -116,13 +114,12 @@ func (i *Interpreter) ExecuteConstructor(obj evaluator.Value, constructorName st
 
 	// Execute constructor in a new environment with Self bound
 	savedEnv := i.env
-	tempEnv := NewEnclosedEnvironment(i.env)
-	tempEnv.Define("Self", objectInstance)
-	i.env = tempEnv
+	ctorEnv := i.PushEnvironment(i.env)
+	ctorEnv.Define("Self", objectInstance)
 
 	result := i.executeUserFunctionViaEvaluator(constructor, internalArgs)
 
-	i.env = savedEnv
+	i.RestoreEnvironment(savedEnv)
 
 	// Propagate constructor errors
 	if isError(result) {

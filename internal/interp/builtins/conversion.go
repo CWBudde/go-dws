@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
 // ============================================================================
@@ -204,7 +205,30 @@ func StrToFloat(ctx Context, args []Value) Value {
 	// Use strconv.ParseFloat for strict parsing (doesn't accept partial matches)
 	floatValue, err := strconv.ParseFloat(s, 64)
 	if err != nil {
-		return ctx.NewError("'%s' is not a valid float", strVal.Value)
+		msg := fmt.Sprintf("%q is not a valid floating point value", strVal.Value)
+
+		// Attach source position if available
+		if node := ctx.CurrentNode(); node != nil {
+			if posNode, ok := node.(interface{ Pos() lexer.Position }); ok {
+				pos := posNode.Pos()
+				msg = fmt.Sprintf("%s [line: %d, column: %d]", msg, pos.Line, pos.Column)
+				if raiser, ok := ctx.(interface {
+					RaiseException(className, message string, pos any)
+				}); ok {
+					raiser.RaiseException("Exception", msg, pos)
+					return ctx.NewError(msg)
+				}
+			}
+		}
+
+		// Fallback: raise without position if no node available
+		if raiser, ok := ctx.(interface {
+			RaiseException(className, message string, pos any)
+		}); ok {
+			raiser.RaiseException("Exception", msg, nil)
+		}
+
+		return ctx.NewError(msg)
 	}
 
 	return &runtime.FloatValue{Value: floatValue}
