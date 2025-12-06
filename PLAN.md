@@ -322,7 +322,7 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - Critical integration point preserved: EnvSyncer callback atomically syncs both i.env and i.ctx.env
   - Interface cleanup properly uses synchronized environments for ref counting
   - **Tests**: ✅ All non-fixture tests pass, fixture baseline maintained at 886
-  - **Commit**: [pending]
+  - **Commit**: 634e16c3
 
 - [ ] **3.8.2.11** Migrate Operator Overload Environments (operators_eval.go)
   - **Count**: 6 assignments
