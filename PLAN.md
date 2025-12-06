@@ -307,12 +307,13 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - **Tests**: ✅ All property/indexed property/class property tests pass, fixture baseline maintained at 886
   - **Commit**: 8e4cf9bc
 
-- [ ] **3.8.2.9** Migrate Record Method Environments (functions_records.go)
-  - **Count**: 10 assignments
-  - **Purpose**: Record type method execution
-  - **Pattern**: Similar to object methods, save/execute/restore
-  - **Risk**: MEDIUM - value type semantics
-  - **Tests**: Verify record method tests pass
+- [x] **3.8.2.9** Migrate Record Method Environments ✅ **COMPLETE** (2025-12-06)
+  - Migrated all 10 assignments in `functions_records.go`
+  - Functions: evalRecordMethodCall (6 assignments), callRecordStaticMethod (4 assignments)
+  - Migrated lines: 77-79→78-79 (setup), 130, 179, 187, 193, 281 (evalRecordMethodCall); 326-328→327-328 (setup), 332, 397, 441 (callRecordStaticMethod)
+  - All record-specific behavior preserved: value type semantics, copy-back operations, class variable persistence
+  - **Tests**: ✅ All record/method/property tests pass, fixture baseline maintained at 886
+  - **Commit**: [pending]
 
 - [ ] **3.8.2.10** Migrate Evaluator Integration Callbacks (user_function_callbacks.go)
   - **Count**: 6 assignments
@@ -348,7 +349,7 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - **Risk**: LOW - miscellaneous edge cases
   - **Tests**: Verify control flow and interface tests pass
 
-**Phase 3.8.2 Progress**: 116 of 149 assignments migrated (78%). **33 assignments remaining** in tasks 3.8.2.9-3.8.2.14.
+**Phase 3.8.2 Progress**: 126 of 149 assignments migrated (85%). **23 assignments remaining** in tasks 3.8.2.10-3.8.2.14.
 
 ### Phase 3.8.3: Binary Operations Migration (3 days)
 
