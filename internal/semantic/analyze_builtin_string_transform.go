@@ -331,7 +331,7 @@ func (a *Analyzer) analyzeInsert(args []ast.Expression, callExpr *ast.CallExpres
 }
 
 // analyzeSubString analyzes the SubString built-in function.
-// SubString(str, start, end) - returns substring from start to end (1-based, inclusive)
+// SubString(str, start, end) - returns substring from start up to end (1-based, end-exclusive)
 func (a *Analyzer) analyzeSubString(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 3 {
 		a.addError("function 'SubString' expects 3 arguments, got %d at %s",

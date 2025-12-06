@@ -616,7 +616,7 @@ func TestSubString(t *testing.T) {
 				&runtime.IntegerValue{Value: 1},
 				&runtime.IntegerValue{Value: 5},
 			},
-			expected: "Hello",
+			expected: "Hell",
 		},
 		{
 			name: "substring from middle",
@@ -625,7 +625,7 @@ func TestSubString(t *testing.T) {
 				&runtime.IntegerValue{Value: 7},
 				&runtime.IntegerValue{Value: 11},
 			},
-			expected: "World",
+			expected: "Worl",
 		},
 	}
 

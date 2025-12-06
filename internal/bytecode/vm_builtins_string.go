@@ -159,12 +159,14 @@ func builtinSubString(vm *VM, args []Value) (Value, error) {
 
 	str := args[0].AsString()
 	start := int(args[1].AsInt()) // 1-based
-	end := int(args[2].AsInt())   // 1-based, inclusive
+	end := int(args[2].AsInt())   // 1-based, end-exclusive
 
-	// Calculate length from start and end positions
-	length := end - start + 1
+	if start < 1 {
+		start = 1
+	}
 
-	// Handle edge cases
+	// Calculate length from start and end positions (end-exclusive)
+	length := end - start
 	if length <= 0 {
 		return StringValue(""), nil
 	}
@@ -173,9 +175,6 @@ func builtinSubString(vm *VM, args []Value) (Value, error) {
 	runes := []rune(str)
 	startIdx := start - 1
 
-	if startIdx < 0 {
-		startIdx = 0
-	}
 	if startIdx >= len(runes) {
 		return StringValue(""), nil
 	}

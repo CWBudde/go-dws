@@ -17,8 +17,8 @@ func TestBuiltinStringFunctionsAdditional(t *testing.T) {
 		if err != nil {
 			t.Fatalf("builtinSubString() error = %v", err)
 		}
-		if result.AsString() != "Hello" {
-			t.Errorf("builtinSubString('Hello, World!', 1, 5) = %v, want 'Hello'", result.AsString())
+		if result.AsString() != "Hell" {
+			t.Errorf("builtinSubString('Hello, World!', 1, 5) = %v, want 'Hell'", result.AsString())
 		}
 	})
 
@@ -31,8 +31,8 @@ func TestBuiltinStringFunctionsAdditional(t *testing.T) {
 		if err != nil {
 			t.Fatalf("builtinSubString() error = %v", err)
 		}
-		if result.AsString() != "World" {
-			t.Errorf("builtinSubString('Hello, World!', 8, 12) = %v, want 'World'", result.AsString())
+		if result.AsString() != "Worl" {
+			t.Errorf("builtinSubString('Hello, World!', 8, 12) = %v, want 'Worl'", result.AsString())
 		}
 	})
 
