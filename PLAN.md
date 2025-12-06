@@ -331,7 +331,7 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - Changed extractReturnValue calls to use i.env (current method environment) instead of captured methodEnv
   - Operator overload dispatch properly synchronized for both instance and class methods
   - **Tests**: ✅ All non-fixture tests pass, fixture baseline improved to 884 (-2)
-  - **Commit**: [pending]
+  - **Commit**: 24f26f5b
 
 - [ ] **3.8.2.12** Migrate Parent Class Call Environments (objects_hierarchy.go)
   - **Count**: 4 assignments
