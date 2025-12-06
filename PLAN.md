@@ -442,31 +442,40 @@ i.env = lambdaEnv  // ✗ Only updates i.env
     - Error location tracking verified: ✅ `TestErrorMessagesIncludeLocation` passes
   - **Tests**: ✅ All evaluator tests pass, error format matches Interpreter
 
-- [ ] **3.8.3.0b** Fix Helper Method Context Preservation ❌ **BLOCKER**
-  - **Problem**: When evaluator evaluates binary expressions inside helper methods, helper context is lost
-  - **Symptoms**:
-    - `TestHelperProperty` fails with "member 'X' not found on value of type 'TPoint'"
-    - Occurs in helper method: `Result := Self.X + Self.Y` ([helpers_test.go:284](internal/interp/helpers_test.go#L284))
-    - `Self.X` member access fails because helper context not preserved during binary op evaluation
-  - **Root Cause**: Evaluator's `VisitBinaryExpression` doesn't have access to helper method's `Self` binding
-  - **Required Fix**:
-    - Investigate how Interpreter preserves helper context during nested expression evaluation
-    - Ensure `i.ctx.env` in evaluator has the same helper bindings as `i.env` in Interpreter
-    - May require passing additional context through ExecutionContext
-  - **Tests to Verify**:
-    - `TestHelperProperty` - helper property with binary expression
-    - `TestHelperWithRecordKeyword` - record helper with Self member access
-    - `TestHelperMethodOnRecord` - helper method returning computed value
+- [x] **3.8.3.0b** Fix Helper Method Context Preservation ✅ **COMPLETE** (2025-12-06)
+  - **Problem**: Evaluator's member access used `switch obj.Type()` which failed for records
+  - **Root Cause**: `RecordValue.Type()` returns specific type name (e.g., "TPoint") instead of generic "RECORD" string
+  - **Solution**:
+    - Added type assertion for `RecordInstanceValue` interface BEFORE switch statement
+    - Changed from `case "RECORD":` pattern to `if recVal, ok := obj.(RecordInstanceValue); ok`
+    - This matches Interpreter's pattern and handles ALL record types
+  - **Files Modified**:
+    - [internal/interp/evaluator/visitor_expressions_members.go](internal/interp/evaluator/visitor_expressions_members.go#L240-L263) - Added RecordInstanceValue type assertion
+    - [internal/interp/evaluator/visitor_expressions_functions.go](internal/interp/evaluator/visitor_expressions_functions.go#L378-L389) - Moved implicit Self method check AFTER built-in functions
+    - [internal/interp/evaluator/visitor_expressions_errors.go](internal/interp/evaluator/visitor_expressions_errors.go#L21) - Updated error format to `[line: N, column: M]`
+    - [internal/interp/evaluator/binary_ops.go](internal/interp/evaluator/binary_ops.go#L272) - Updated type mismatch error messages
+    - [internal/interp/errors.go](internal/interp/errors.go#L60) - Updated Interpreter error format to match
+  - **Additional Fixes**:
+    - Fixed implicit Self method call ordering (IntToStr shadowing issue)
+    - Unified error message format across Interpreter and Evaluator
+    - Fixed type mismatch error messages to include "type mismatch" string
+  - **Tests**: ✅ All helper tests pass (`TestHelperProperty`, `TestHelperWithRecordKeyword`, `TestHelperMethodOnRecord`)
+  - **Regression Tests**: ✅ `TestClassConstantInInstanceMethod`, `TestErrorMessagesIncludeLocation`, `TestTypeMismatch` all pass
 
-- [ ] **3.8.3.0c** Fix Interface Nil Cast Behavior ❌ **BLOCKER**
+- [x] **3.8.3.0c** Fix Interface Nil Cast Behavior ✅ **COMPLETE** (2025-12-06)
   - **Problem**: Interface nil cast test fails with evaluator
   - **Symptom**: `TestInterfaceReferenceTests/interface_nil_cast_from_intf` - Expected "Ok", got empty output
-  - **Root Cause**: Unknown - interface casting logic differs between Interpreter and Evaluator
-  - **Required Fix**:
-    - Debug `interface_nil_cast_from_intf` test with evaluator delegation enabled
-    - Compare Interpreter vs Evaluator behavior for interface nil casts
-    - Ensure evaluator's type casting matches Interpreter semantics
-  - **Test to Verify**: `TestInterfaceReferenceTests/interface_nil_cast_from_intf`
+  - **Root Cause**: Evaluator's nil comparison used `String() == "nil"` instead of checking `Object == nil`
+    - `InterfaceInstance{Object: nil}.String()` returns `"IMyInterface instance (nil)"`, not `"nil"`
+    - Comparison at `binary_ops.go:565` failed because string didn't match
+  - **Solution**:
+    - Fixed nil-to-interface comparison to use `InterfaceInstanceValue.GetUnderlyingObjectValue() == nil`
+    - Fixed interface-to-interface comparison to use pointer equality instead of string comparison
+    - Updated [internal/interp/evaluator/binary_ops.go](internal/interp/evaluator/binary_ops.go#L558-582) (lines 558-582, 622-639)
+  - **Files Modified**:
+    - [internal/interp/evaluator/binary_ops.go](internal/interp/evaluator/binary_ops.go) - Fixed interface comparison logic
+  - **Tests**: ✅ `TestInterfaceReferenceTests/interface_nil_cast_from_intf` now passes
+  - **Baseline**: No new test failures introduced (4 pre-existing failures maintained)
 
 - [ ] **3.8.3.0d** Fix Lambda/ForEach Context Issues ❌ **BLOCKER**
   - **Problem**: ForEach builtin panics when evaluator handles binary expressions
