@@ -237,9 +237,8 @@ func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionD
 	}
 
 	// Create method environment
-	methodEnv := NewEnclosedEnvironment(i.env)
 	savedEnv := i.env
-	i.env = methodEnv
+	i.PushEnvironment(i.env)
 
 	// Bind Self to the target value (the value being extended)
 	i.env.Define("Self", selfValue)
@@ -275,7 +274,7 @@ func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionD
 	// Execute method body
 	result := i.Eval(method.Body)
 	if isError(result) {
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 		return result
 	}
 
@@ -301,7 +300,7 @@ func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionD
 	}
 
 	// Restore environment
-	i.env = savedEnv
+	i.RestoreEnvironment(savedEnv)
 
 	return returnValue
 }
