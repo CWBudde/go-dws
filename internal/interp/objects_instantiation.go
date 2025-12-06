@@ -64,12 +64,11 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	// Task 9.5: Initialize all fields with field initializers or default values
 	// Task 9.6: Create temporary environment with class constants for field initializer evaluation
 	savedEnv := i.env
-	tempEnv := NewEnclosedEnvironment(i.env)
+	tempEnv := i.PushEnvironment(i.env)
 	// Add class constants to the temporary environment
 	for constName, constValue := range classInfo.ConstantValues {
 		tempEnv.Define(constName, constValue)
 	}
-	i.env = tempEnv
 
 	for fieldName, fieldType := range classInfo.Fields {
 		var fieldValue Value
@@ -79,7 +78,7 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 			// Evaluate the field initializer
 			fieldValue = i.Eval(fieldDecl.InitValue)
 			if isError(fieldValue) {
-				i.env = savedEnv
+				i.RestoreEnvironment(savedEnv)
 				return fieldValue
 			}
 		} else {
@@ -91,7 +90,7 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	}
 
 	// Restore environment
-	i.env = savedEnv
+	i.RestoreEnvironment(savedEnv)
 
 	// Special handling for Exception.Create
 	// Exception constructors are built-in and take predefined arguments.
@@ -202,34 +201,33 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 		}
 
 		// Create method environment with Self bound to object
-		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
-		i.env = methodEnv
+		methodEnv := i.PushEnvironment(i.env)
 
 		// Bind Self to the object
-		i.env.Define("Self", obj)
+		methodEnv.Define("Self", obj)
 
 		// Bind constructor parameters to arguments
 		for idx, param := range constructor.Parameters {
 			if idx < len(args) {
-				i.env.Define(param.Name.Value, args[idx])
+				methodEnv.Define(param.Name.Value, args[idx])
 			}
 		}
 
 		// For constructors with return types, initialize the Result variable
 		// This allows constructors to use "Result := Self" to return the object
 		if constructor.ReturnType != nil {
-			i.env.Define("Result", obj)
-			i.env.Define(constructor.Name.Value, obj)
+			methodEnv.Define("Result", obj)
+			methodEnv.Define(constructor.Name.Value, obj)
 		}
 
 		// Task 9.73: Bind __CurrentClass__ so ClassName can be accessed in constructor
-		i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
+		methodEnv.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
 
 		// Execute constructor body
 		result := i.Eval(constructor.Body)
 		if isError(result) {
-			i.env = savedEnv
+			i.RestoreEnvironment(savedEnv)
 			return result
 		}
 
@@ -245,7 +243,7 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 		}
 
 		// Restore environment
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 	}
 
 	return obj
