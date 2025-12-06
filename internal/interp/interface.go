@@ -426,9 +426,8 @@ func (i *Interpreter) runDestructor(obj *ObjectInstance, destructor *ast.Functio
 	}()
 
 	// Create a temporary environment for the destructor call
-	destructorEnv := NewEnclosedEnvironment(i.env)
 	prevEnv := i.env
-	i.env = destructorEnv
+	i.PushEnvironment(i.env)
 
 	// Bind Self and class constants
 	i.env.Define("Self", obj)
@@ -448,7 +447,7 @@ func (i *Interpreter) runDestructor(obj *ObjectInstance, destructor *ast.Functio
 	}
 
 	// Restore previous environment
-	i.env = prevEnv
+	i.RestoreEnvironment(prevEnv)
 
 	return result
 }
