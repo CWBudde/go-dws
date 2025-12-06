@@ -12,12 +12,13 @@ import (
 // ============================================================================
 
 // EnumValue represents a single value in an enum declaration.
-// Example: Red, Green = 5, Blue
+// Example: Red, Green = 5, Blue, Alpha = Ord('A')
 type EnumValue struct {
-	Value             *int
 	Name              string
-	DeprecatedMessage string // Optional message if deprecated
-	IsDeprecated      bool   // True if marked as deprecated
+	Value             *int       // Simple integer value (backward compatible)
+	ValueExpr         Expression // Constant expression (Ord('A'), 1+2, etc.) - Phase 1 Task 9.15
+	DeprecatedMessage string     // Optional message if deprecated
+	IsDeprecated      bool       // True if marked as deprecated
 }
 
 // EnumDecl represents an enum type declaration.

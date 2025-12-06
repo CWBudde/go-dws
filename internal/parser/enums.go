@@ -98,15 +98,30 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 			// Check for explicit value: Name [deprecated] = Value
 			if p.peekTokenIs(lexer.EQ) {
 				p.nextToken() // move to '='
-				p.nextToken() // move to value
+				p.nextToken() // move to value expression
 
-				// Parse the value (could be negative)
-				value, err := p.parseEnumValue()
-				if err != nil {
-					p.addError("invalid enum value: "+err.Error(), ErrInvalidExpression)
+				// Phase 1 Task 9.15: Parse expression (Ord('A'), 1+2, etc.) instead of just integer
+				expr := p.parseExpression(LOWEST)
+				if expr == nil {
+					p.addError("expected constant expression for enum value", ErrInvalidExpression)
 					return false
 				}
-				enumValue.Value = &value
+				enumValue.ValueExpr = expr
+
+				// Backward compatibility: populate Value field for simple cases
+				if intLit, ok := expr.(*ast.IntegerLiteral); ok {
+					// Positive integer literal
+					val := int(intLit.Value)
+					enumValue.Value = &val
+				} else if unary, ok := expr.(*ast.UnaryExpression); ok {
+					// Handle negative integers: -5
+					if unary.Operator == "-" {
+						if intLit, ok := unary.Right.(*ast.IntegerLiteral); ok {
+							val := -int(intLit.Value)
+							enumValue.Value = &val
+						}
+					}
+				}
 			}
 
 			enumDecl.Values = append(enumDecl.Values, enumValue)
