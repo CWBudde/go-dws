@@ -167,7 +167,7 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 		switch l := left.(type) {
 		case *VariantValue:
 			// Perform variant operation and return result wrapped in variant
-			result := i.evaluatorInstance.EvaluateVariantBinaryOp("+", l, right, stmt)
+			result := i.evalVariantBinaryOp("+", l, right, stmt)
 			if isError(result) {
 				return result
 			}
@@ -200,7 +200,7 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 				if !ok {
 					return i.newErrorWithLocation(stmt, "failed to unbox variant")
 				}
-				strVal := i.evaluatorInstance.ConvertToString(innerVal)
+				strVal := i.convertToString(innerVal)
 				return &StringValue{Value: l.Value + strVal}
 			}
 			return i.newErrorWithLocation(stmt, "type mismatch: cannot add %s to String", right.Type())
@@ -213,7 +213,7 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 		switch l := left.(type) {
 		case *VariantValue:
 			// Perform variant operation and return result wrapped in variant
-			result := i.evaluatorInstance.EvaluateVariantBinaryOp("-", l, right, stmt)
+			result := i.evalVariantBinaryOp("-", l, right, stmt)
 			if isError(result) {
 				return result
 			}
@@ -243,7 +243,7 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 		switch l := left.(type) {
 		case *VariantValue:
 			// Perform variant operation and return result wrapped in variant
-			result := i.evaluatorInstance.EvaluateVariantBinaryOp("*", l, right, stmt)
+			result := i.evalVariantBinaryOp("*", l, right, stmt)
 			if isError(result) {
 				return result
 			}
@@ -273,7 +273,7 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 		switch l := left.(type) {
 		case *VariantValue:
 			// Perform variant operation and return result wrapped in variant
-			result := i.evaluatorInstance.EvaluateVariantBinaryOp("/", l, right, stmt)
+			result := i.evalVariantBinaryOp("/", l, right, stmt)
 			if isError(result) {
 				return result
 			}

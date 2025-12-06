@@ -1,36 +1,303 @@
 // Package parser implements the DWScript parser.
 //
-// POSITION TRACKING:
-// All parsing functions should set the EndPos field on AST nodes:
-//   - Single-token nodes: node.EndPos = p.endPosFromToken(p.cursor.Current())
-//   - Multi-token nodes: Set EndPos after all tokens consumed
-//   - Optional semicolons: Update EndPos if semicolon is consumed
+// POSITION TRACKING PATTERN (Task 10.10):
 //
-// LOOKAHEAD:
-// N-token lookahead for disambiguation:
-//   - peek(n): Returns token N positions after peekToken
-//   - peekAhead(n): Returns token N positions ahead from curToken
+// All parsing functions should set the EndPos field on AST nodes they create.
+// The general pattern is:
 //
-// Use sparingly for grammar disambiguation, always check for EOF in loops.
+//  1. For single-token nodes (literals, identifiers):
+//     node.EndPos = p.endPosFromToken(p.cursor.Current())
 //
-// ERROR RECOVERY:
-// Panic-mode error recovery with synchronization tokens:
-//   - pushBlockContext/popBlockContext: Track nested blocks for error context
-//   - addError/addErrorWithContext: Report errors with position and context
-//   - synchronize(tokens): Advance to safe point (statement starters, block closers, EOF)
+// 2. For multi-token nodes:
+//   - Set EndPos after all tokens are consumed
+//   - Usually: node.EndPos = p.endPosFromToken(p.cursor.Current())
+//   - Or delegate to child expression: node.EndPos = childExpr.End()
 //
-// STRUCTURED ERRORS:
-// Rich error reporting with suggestions and context:
-//   - NewStructuredError(kind): Creates builder with fluent API
-//   - addStructuredError(err): Auto-injects block context
-//   - Error kinds: Missing, Unexpected, Invalid, Ambiguous
-//   - Include expected/actual tokens, suggestions, related positions
+// 3. For nodes with optional semicolons:
+//   - Set EndPos first based on main content
+//   - Update EndPos if semicolon is consumed
 //
-// PRATT PARSING:
-// Top-down operator precedence for expressions:
-//   - Prefix functions: Parse tokens at START of expression (literals, unary ops, grouping)
-//   - Infix functions: Parse tokens BETWEEN expressions (binary ops, calls, member access)
-//   - Precedence levels: LOWEST to MEMBER (higher number = tighter binding)
+// Example:
+//
+//	stmt.Expression = p.parseExpression(LOWEST)
+//	stmt.EndPos = stmt.Expression.End()
+//	if p.peekTokenIs(lexer.SEMICOLON) {
+//	    p.nextToken()
+//	    stmt.EndPos = p.endPosFromToken(p.cursor.Current())
+//	}
+//
+// Note: As of task 10.10 implementation, position tracking is partially complete.
+// Many parsing functions still need EndPos population. Follow the pattern above.
+//
+// LOOKAHEAD PATTERN (Phase 2.1):
+//
+// The parser supports N-token lookahead via helper methods that wrap the lexer's Peek() capability.
+// Use lookahead for disambiguation when grammar is ambiguous or context-dependent.
+//
+// Available lookahead methods:
+//
+//  1. peek(n int) lexer.Token
+//     - Returns the token N positions after peekToken
+//     - peek(0) = token after peekToken (2 tokens ahead of curToken)
+//     - peek(1) = 2 tokens after peekToken (3 tokens ahead of curToken)
+//     - Direct wrapper around p.l.Peek(n)
+//
+//  2. peekAhead(n int) lexer.Token
+//     - Returns the token N positions ahead from curToken
+//     - peekAhead(1) = peekToken
+//     - peekAhead(2) = peek(0)
+//     - More intuitive counting from curToken
+//
+// Common lookahead patterns:
+//
+//  1. Disambiguation functions (looksLike* pattern):
+//     func (p *Parser) looksLikeVarDeclaration() bool {
+//     if !p.peekTokenIs(lexer.IDENT) {
+//     return false
+//     }
+//     tokenAfterIdent := p.peek(0)  // Look past the IDENT
+//     return tokenAfterIdent.Type == lexer.COLON ||
+//     tokenAfterIdent.Type == lexer.COMMA
+//     }
+//
+//  2. Scanning for specific tokens:
+//     peekIndex := 0
+//     for {
+//     tok := p.peek(peekIndex)
+//     if tok.Type == lexer.COLON {
+//     return true
+//     }
+//     if tok.Type == lexer.SEMICOLON || tok.Type == lexer.EOF {
+//     return false
+//     }
+//     peekIndex++
+//     }
+//
+// Best practices:
+//   - Use lookahead sparingly - only when truly needed for disambiguation
+//   - Prefer peek() for direct lookahead, peekAhead() when counting from curToken is clearer
+//   - Always check for EOF when scanning ahead in loops
+//   - Document WHY lookahead is needed (what ambiguity it resolves)
+//   - Keep lookahead functions pure (no side effects, no token consumption)
+//
+// ERROR RECOVERY PATTERN (Phase 2.8):
+//
+// The parser implements panic-mode error recovery with synchronization tokens
+// to enable multiple error reporting in a single pass and prevent infinite loops.
+//
+// Key components:
+//
+//  1. Block Context Tracking:
+//     - Use pushBlockContext() when entering a block (begin, if, while, for, case, etc.)
+//     - Use defer popBlockContext() to ensure cleanup even on error
+//     - Provides context for better error messages
+//
+//  2. Error Reporting:
+//     - addError(): Basic error with position tracking
+//     - addErrorWithContext(): Include block context in error message
+//     - Example: "expected 'end' (in begin block starting at line 10)"
+//
+//  3. Synchronization:
+//     - synchronize(tokens): Advance to a safe synchronization point
+//     - Stops at statement starters, block closers, or specified tokens
+//     - Prevents parser from getting stuck in error loops
+//
+// Example usage:
+//
+//	func (p *Parser) parseWhileStatement() *ast.WhileStatement {
+//	    // Track block context
+//	    p.pushBlockContext("while", p.cursor.Current().Pos)
+//	    defer p.popBlockContext()
+//
+//	    // Parse condition
+//	    stmt.Condition = p.parseExpression(LOWEST)
+//	    if stmt.Condition == nil {
+//	        p.addErrorWithContext("expected condition", ErrInvalidExpression)
+//	        p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
+//	        return nil
+//	    }
+//
+//	    // Try to recover from missing 'do'
+//	    if !p.expectPeek(lexer.DO) {
+//	        p.addErrorWithContext("expected 'do'", ErrMissingDo)
+//	        p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
+//	        if !p.curTokenIs(lexer.DO) {
+//	            return nil  // Cannot recover
+//	        }
+//	        // Found DO, try to continue
+//	    }
+//	}
+//
+// Synchronization points (statementStarters, blockClosers):
+//   - Statement starters: VAR, CONST, TYPE, IF, WHILE, FOR, REPEAT, CASE, BEGIN, etc.
+//   - Block closers: END, UNTIL, ELSE, EXCEPT, FINALLY
+//   - Always: EOF (prevents infinite loops)
+//
+// Best practices:
+//   - Always use block context for block-level constructs
+//   - Synchronize after errors to enable multiple error reporting
+//   - Try to continue parsing when possible (don't give up at first error)
+//   - Document which errors are recoverable vs. fatal
+//
+// STRUCTURED ERROR REPORTING (Phase 2.1.1):
+//
+// The parser supports both legacy string-based errors and modern structured errors.
+// Structured errors provide richer context, suggestions, and better IDE/LSP integration.
+//
+// Key components:
+//
+//  1. StructuredParserError type (structured_error.go):
+//     - Error kind categorization (syntax, missing, unexpected, invalid, ambiguous)
+//     - Expected vs actual token tracking
+//     - Automatic block context inclusion
+//     - Helpful suggestions for fixing errors
+//     - Related positions for multi-part errors
+//     - Parse phase tracking
+//
+//  2. Error creation methods:
+//     - NewStructuredError(kind): Creates builder with fluent API
+//     - NewUnexpectedTokenError(): Helper for common "expected X, got Y" errors
+//     - NewMissingTokenError(): Helper for missing required tokens
+//     - NewInvalidExpressionError(): Helper for invalid expressions
+//
+//  3. Integration:
+//     - addStructuredError(err): Adds structured error to parser (auto-injects block context)
+//     - Backward compatible: converts to legacy ParserError automatically
+//     - Existing tests continue to work without modification
+//
+// Common patterns:
+//
+//  1. Missing keyword:
+//     if !p.expectPeek(lexer.THEN) {
+//     err := NewStructuredError(ErrKindMissing).
+//     WithCode(ErrMissingThen).
+//     WithMessage("expected 'then' after if condition").
+//     WithPosition(p.cursor.Peek(1).Pos, p.cursor.Peek(1).Length()).
+//     WithExpected(lexer.THEN).
+//     WithActual(p.cursor.Peek(1).Type, p.cursor.Peek(1).Literal).
+//     WithSuggestion("add 'then' keyword after the condition").
+//     WithNote("DWScript if statements require: if <condition> then <statement>").
+//     Build()
+//     p.addStructuredError(err)
+//     return nil
+//     }
+//
+//  2. Invalid expression:
+//     if stmt.Condition == nil {
+//     err := NewStructuredError(ErrKindInvalid).
+//     WithCode(ErrInvalidExpression).
+//     WithMessage("expected condition after 'if'").
+//     WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
+//     WithExpectedString("boolean expression").
+//     WithSuggestion("add a condition like 'x > 0' or 'flag = true'").
+//     WithParsePhase("if statement condition").
+//     Build()
+//     p.addStructuredError(err)
+//     return nil
+//     }
+//
+//  3. Missing closing delimiter (with related position):
+//     if !p.expectPeek(lexer.RBRACK) {
+//     err := NewStructuredError(ErrKindMissing).
+//     WithCode(ErrMissingRBracket).
+//     WithMessage("expected ']' to close array index").
+//     WithPosition(p.cursor.Peek(1).Pos, p.cursor.Peek(1).Length()).
+//     WithExpected(lexer.RBRACK).
+//     WithActual(p.cursor.Peek(1).Type, p.cursor.Peek(1).Literal).
+//     WithSuggestion("add ']' to close the array index").
+//     WithRelatedPosition(lbrackToken.Pos, "opening '[' here").
+//     WithParsePhase("array index expression").
+//     Build()
+//     p.addStructuredError(err)
+//     return nil
+//     }
+//
+// Migration strategy:
+//   - New code should use structured errors for better diagnostics
+//   - Legacy addError() and addErrorWithContext() still work
+//   - Gradually migrate existing error sites to structured errors
+//   - See parseIfStatement(), parseWhileStatement(), parseArrayType() for examples
+//
+// Best practices:
+//   - Use appropriate error kind (ErrKindMissing, ErrKindUnexpected, ErrKindInvalid)
+//   - Always provide expected/actual values when applicable
+//   - Add helpful suggestions that guide users to fix the error
+//   - Include related positions for paired delimiters (parentheses, brackets, etc.)
+//   - Set parse phase for better context ("array type", "if statement", etc.)
+//   - Block context is auto-injected by addStructuredError() - no need to add manually
+//
+// ERROR-CONTEXT INTEGRATION (Phase 2.1.3):
+//
+// The parser automatically integrates ParseContext with structured errors for rich error messages.
+//
+// Automatic context capture:
+//   - addStructuredError() auto-injects current block context if not explicitly set
+//   - Context includes block type (begin, if, while, etc.) and start position
+//   - Errors automatically show: "error message (in while block starting at line 5)"
+//
+// Context management:
+//   - ParseContext tracks block nesting via PushBlock/PopBlock
+//   - Context snapshots are saved/restored during speculative parsing
+//   - Context flags (parsingPostCondition, etc.) are synchronized
+//
+// Example of automatic context in errors:
+//
+//	begin
+//	  x := 10;
+//	  while y < 10    // Missing 'do'
+//	    z := 5;
+//	end;
+//
+//	Error: "expected 'do' after while condition (in while block starting at line 3)"
+//
+// Nested blocks:
+//   - Errors capture the INNERMOST block context
+//   - Each error gets its own snapshot of the current context
+//   - Context properly tracks nesting depth and block types
+//
+// Testing:
+//   - See error_context_integration_test.go for comprehensive tests
+//   - Tests cover: automatic capture, nested blocks, state persistence, multiple errors
+//
+// Migration examples:
+//   - Variable declarations: statements.go (7 error sites)
+//   - Control flow: control_flow.go (parseIfStatement, parseWhileStatement)
+//   - Type parsing: types.go (parseArrayType)
+//   - Expression parsing: expressions.go (parseOldExpression)
+//
+// PRATT PARSING (Core Architecture):
+//
+// The parser uses a Pratt parser (top-down operator precedence) for expressions.
+// This provides elegant handling of operator precedence and associativity.
+//
+// Key concepts:
+//
+//  1. Prefix Parse Functions:
+//     - Called when a token appears at the START of an expression
+//     - Examples: literals (42, "hello"), unary operators (-x, not x), grouping ((expr))
+//     - Registered via registerPrefix(tokenType, parseFn)
+//
+//  2. Infix Parse Functions:
+//     - Called when a token appears BETWEEN expressions
+//     - Examples: binary operators (x + y), function calls (foo()), member access (obj.field)
+//     - Registered via registerInfix(tokenType, parseFn)
+//     - Receive left expression as parameter, parse right side
+//
+//  3. Precedence Levels:
+//     - Integer constants from LOWEST to MEMBER
+//     - Higher number = higher precedence
+//     - Determines how tightly operators bind
+//     - Example: PRODUCT (5) > SUM (4), so 3+5*2 parses as 3+(5*2)
+//
+// The parseExpression(precedence) method:
+//  1. Look up prefix function for current token
+//  2. Parse prefix to get left expression
+//  3. While peek token has higher precedence:
+//     a. Look up infix function
+//     b. Advance to infix operator
+//     c. Parse infix (passing left expression)
+//     d. Update left expression with result
+//  4. Return final expression
 //
 // See docs/parser-architecture.md for detailed explanation.
 package parser
@@ -125,10 +392,37 @@ type Parser struct {
 	parsingPostCondition bool
 }
 
-// ParserState represents a snapshot of the parser's complete state for speculative parsing.
-// Saves errors, context, block stack, and lexer state. Use saveState()/restoreState() for
-// heavyweight backtracking across multiple parsing functions. For lightweight cursor-only
-// backtracking within a single function, prefer cursor.Mark()/ResetTo() instead.
+// ParserState represents a HEAVYWEIGHT snapshot of the parser's complete state.
+// It can be saved and restored to enable speculative parsing and backtracking
+// with full error and context preservation.
+//
+// LIGHTWEIGHT vs HEAVYWEIGHT BACKTRACKING:
+//
+// Use ParserState (heavyweight) via saveState()/restoreState() when you need to:
+//   - Save/restore full parser state (errors, context, lexer state)
+//   - Backtrack across multiple parsing functions
+//   - Try multiple parsing strategies speculatively
+//   - Preserve or discard error states
+//   - More comprehensive but slower than cursor.Mark()
+//
+// Use cursor.Mark()/ResetTo() (lightweight) when you need to:
+//   - Save/restore cursor position only
+//   - Backtrack within a single parsing function
+//   - Minimal overhead (just 1 integer)
+//   - No error state changes during backtracking
+//
+// Performance: ParserState copies significant state (errors slice, block stack, etc).
+// Use it only when you need full state preservation, prefer cursor.Mark() otherwise.
+//
+// Example - try multiple parsing strategies:
+//
+//	state := p.saveState()
+//	if !tryFirstStrategy(p) {
+//	    p.restoreState(state)  // Discard errors and backtrack
+//	    trySecondStrategy(p)
+//	}
+//
+// ParserState represents a snapshot of the parser's state for speculative parsing.
 type ParserState struct {
 	ctx                  *ParseContext
 	cursor               *TokenCursor
@@ -138,13 +432,29 @@ type ParserState struct {
 	parsingPostCondition bool
 }
 
-// New creates a new Parser instance with default settings.
-// For custom configuration, use NewParserBuilder(lexer).WithStrictMode(true).Build().
+// New creates a new Parser instance.
+//
+// This is a convenience wrapper around the ParserBuilder for the common case
+// of creating a parser with default settings.
+//
+// For more control over parser configuration, use the builder pattern:
+//
+//	parser := NewParserBuilder(lexer).
+//	    WithStrictMode(true).
+//	    Build()
 func New(l *lexer.Lexer) *Parser {
 	return NewParserBuilder(l).Build()
 }
 
-// NewCursorParser creates a new Parser instance. Alias for New().
+// NewCursorParser creates a new Parser instance.
+// Maintained for backward compatibility.
+//
+// Usage:
+//
+//	p := parser.NewCursorParser(lexer)
+//	program := p.ParseProgram()
+//
+// This is a convenience wrapper around the ParserBuilder.
 func NewCursorParser(l *lexer.Lexer) *Parser {
 	return NewParserBuilder(l).Build()
 }
@@ -175,12 +485,29 @@ func (p *Parser) peekTokenIs(t lexer.TokenType) bool {
 	return p.cursor.Peek(1).Type == t
 }
 
-// peek returns the token N positions after peekToken (n=0 is 2 ahead of curToken).
+// peek provides N-token lookahead using the lexer's Peek() method.
+// n=0 returns the token after peekToken, n=1 returns 2 tokens ahead, etc.
+// This is a convenience wrapper around p.l.Peek(n) for cleaner syntax.
+//
+// Example usage:
+//   - To look 1 token ahead of curToken: p.peekTokenIs(lexer.IDENT)
+//   - To look 2 tokens ahead of curToken: p.peek(0).Type == lexer.COLON
+//   - To look 3 tokens ahead of curToken: p.peek(1).Type == lexer.ASSIGN
 func (p *Parser) peek(n int) lexer.Token {
+	// peek(n) returns the token N positions after peekToken.
+	// Since cursor.Peek(0) = curToken and cursor.Peek(1) = peekToken,
+	// peek(n) should return cursor.Peek(n + 2).
 	return p.cursor.Peek(n + 2)
 }
 
-// peekAhead returns the token N positions ahead from curToken (n=1 is peekToken).
+// peekAhead is an alternative helper that looks N tokens ahead from curToken.
+// n=1 returns peekToken, n=2 returns the token after peekToken, etc.
+// This provides a more intuitive interface where n represents "tokens ahead from curToken".
+//
+// Example usage:
+//   - To look 1 token ahead: p.peekAhead(1) (same as cursor.Peek(1))
+//   - To look 2 tokens ahead: p.peekAhead(2) (same as cursor.Peek(2))
+//   - To look 3 tokens ahead: p.peekAhead(3) (same as cursor.Peek(3))
 func (p *Parser) peekAhead(n int) lexer.Token {
 	if n <= 0 {
 		return p.cursor.Current()
@@ -278,10 +605,20 @@ func (p *Parser) addStructuredError(structErr *StructuredParserError) {
 	p.errors = append(p.errors, legacyErr)
 }
 
+// addGenericError adds a generic error message with a default error code.
+func (p *Parser) addGenericError(msg string) {
+	p.addError(msg, ErrInvalidExpression)
+}
+
+// noPrefixParseFnError adds an error for missing prefix parse function.
 func (p *Parser) noPrefixParseFnError(t lexer.TokenType) {
 	msg := fmt.Sprintf("no prefix parse function for %s found", t)
 	p.addError(msg, ErrNoPrefixParse)
 }
+
+// registerPrefix registers a prefix parse function for a token type.
+
+// registerInfix registers an infix parse function for a token type.
 
 func (p *Parser) registerPrefix(tokenType lexer.TokenType, fn prefixParseFn) {
 	p.prefixParseFns[tokenType] = fn
@@ -291,7 +628,11 @@ func (p *Parser) registerInfix(tokenType lexer.TokenType, fn infixParseFn) {
 	p.infixParseFns[tokenType] = fn
 }
 
-// getPrecedence returns the precedence of a token type. Returns LOWEST if not found.
+// getPrecedence returns the precedence of a token type.
+// This is a stateless function that works with tokens passed as parameters
+// rather than relying on parser state.
+//
+// Returns LOWEST if the token type is not in the precedences map.
 func getPrecedence(tokenType lexer.TokenType) int {
 	if prec, ok := precedences[tokenType]; ok {
 		return prec
@@ -299,11 +640,24 @@ func getPrecedence(tokenType lexer.TokenType) int {
 	return LOWEST
 }
 
-// saveState captures the current parser state for speculative parsing.
-// Call restoreState() to backtrack after failed speculative parse.
+// saveState captures the current parser state for later restoration.
+// This enables speculative parsing: try one approach, and if it fails,
+// restore the state and try a different approach without leaving errors behind.
+//
+// Example usage:
+//
+//	state := p.saveState()
+//	if result := p.tryParseAsType(); result != nil {
+//	    return result
+//	}
+//	p.restoreState(state)  // Failed, backtrack
+//	return p.parseAsExpression()
 func (p *Parser) saveState() ParserState {
+	// Make a copy of errors slice to avoid sharing the backing array
 	errorsCopy := make([]*ParserError, len(p.errors))
 	copy(errorsCopy, p.errors)
+
+	// Make a deep copy of blockStack
 	blockStackCopy := make([]BlockContext, len(p.blockStack))
 	copy(blockStackCopy, p.blockStack)
 
@@ -312,24 +666,33 @@ func (p *Parser) saveState() ParserState {
 		lexerState:           p.l.SaveState(),
 		parsingPostCondition: p.parsingPostCondition,
 		blockStack:           blockStackCopy,
-		ctx:                  p.ctx.Snapshot(),
+		ctx:                  p.ctx.Snapshot(), // Save context snapshot (Task 2.1.2)
 		cursor:               p.cursor,
 	}
 }
 
 // restoreState restores the parser to a previously saved state.
+// This undoes all parser and lexer changes made since saveState() was called.
+// It's used after speculative parsing fails to cleanly backtrack.
 func (p *Parser) restoreState(state ParserState) {
 	p.errors = state.errors
 	p.parsingPostCondition = state.parsingPostCondition
 	p.blockStack = state.blockStack
 	p.l.RestoreState(state.lexerState)
+	// Restore context (Task 2.1.2)
+	// This also restores parsingPostCondition in the context
 	p.ctx.Restore(state.ctx)
 	p.cursor = state.cursor
 }
 
-// pushBlockContext tracks nested blocks for better error messages.
+// pushBlockContext pushes a new block context onto the stack.
+// This is used to track nested blocks for better error messages.
+// Adapter method: delegates to context and synchronizes old field for backward compatibility.
 func (p *Parser) pushBlockContext(blockType string, startPos lexer.Position) {
+	// Update new context (Task 2.1.2)
 	p.ctx.PushBlock(blockType, startPos)
+
+	// Synchronize old field for backward compatibility
 	p.blockStack = append(p.blockStack, BlockContext{
 		BlockType: blockType,
 		StartPos:  startPos,
@@ -338,15 +701,23 @@ func (p *Parser) pushBlockContext(blockType string, startPos lexer.Position) {
 }
 
 // popBlockContext pops the most recent block context from the stack.
+// Call this when exiting a block to maintain proper nesting.
+// Adapter method: delegates to context and synchronizes old field for backward compatibility.
 func (p *Parser) popBlockContext() {
+	// Update new context (Task 2.1.2)
 	p.ctx.PopBlock()
+
+	// Synchronize old field for backward compatibility
 	if len(p.blockStack) > 0 {
 		p.blockStack = p.blockStack[:len(p.blockStack)-1]
 	}
 }
 
-// currentBlockContext returns the current block context, or nil if none.
+// currentBlockContext returns the current block context, if any.
+// Returns nil if no block is currently being parsed.
+// Delegates to ParseContext for current block information.
 func (p *Parser) currentBlockContext() *BlockContext {
+	// Delegate to new context (Task 2.1.2)
 	return p.ctx.CurrentBlock()
 }
 
@@ -377,9 +748,35 @@ var (
 	}
 )
 
-// synchronize performs panic-mode error recovery by advancing to a safe synchronization point.
-// Stops at syncTokens, statement starters, block closers, or EOF. Returns true if sync token found.
+// synchronize performs panic-mode error recovery by advancing to a synchronization point.
+// It skips tokens until it finds one that's likely to be a safe point to resume parsing.
+//
+// Parameters:
+//   - syncTokens: specific tokens to synchronize on (in addition to statement starters/block closers)
+//
+// The synchronize method will stop at:
+//  1. Any token in syncTokens
+//  2. Statement starters (if/while/for/begin/etc.)
+//  3. Block closers (end/until/else/etc.)
+//  4. EOF (to prevent infinite loops)
+//
+// Example usage:
+//
+//	if !p.expectPeek(lexer.THEN) {
+//	    p.addError("expected 'then' after if condition", ErrMissingThen)
+//	    p.synchronize([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
+//	    return nil
+//	}
+
+// synchronize performs panic-mode error recovery using cursor.
+// It advances the cursor until it finds a synchronization point.
+//
+// Parameters:
+//   - syncTokens: specific tokens to synchronize on (in addition to statement starters/block closers)
+//
+// Returns the new cursor position and whether a sync token was found.
 func (p *Parser) synchronize(syncTokens []lexer.TokenType) bool {
+	// Build a map of all synchronization tokens for fast lookup
 	syncMap := make(map[lexer.TokenType]bool)
 	for _, t := range syncTokens {
 		syncMap[t] = true
@@ -402,7 +799,11 @@ func (p *Parser) synchronize(syncTokens []lexer.TokenType) bool {
 	return false // Reached EOF without finding a sync token
 }
 
-// addErrorWithContext adds an error with block context information.
+// addErrorWithContext adds an error with additional context from the block stack.
+// This provides better error messages by including information about which block
+// the error occurred in.
+//
+// Example output: "expected 'end' to close 'begin' block starting at line 10"
 func (p *Parser) addErrorWithContext(msg string, code string) {
 	if ctx := p.currentBlockContext(); ctx != nil {
 		msg = fmt.Sprintf("%s (in %s block starting at line %d)", msg, ctx.BlockType, ctx.StartLine)
@@ -410,7 +811,8 @@ func (p *Parser) addErrorWithContext(msg string, code string) {
 	p.addError(msg, code)
 }
 
-// endPosFromToken calculates the end position of a token for AST node EndPos fields.
+// endPosFromToken calculates the end position of a token.
+// This is a helper function to populate EndPos fields in AST nodes.
 func (p *Parser) endPosFromToken(tok lexer.Token) lexer.Position {
 	pos := tok.Pos
 	pos.Column += tok.Length()
@@ -418,10 +820,22 @@ func (p *Parser) endPosFromToken(tok lexer.Token) lexer.Position {
 	return pos
 }
 
-// LIST PARSING HELPERS
+// LIST PARSING HELPERS (Task 2.5)
 //
-// Generic helpers for parsing separated lists (comma-separated expressions,
-// semicolon-separated parameters, etc.) with flexible separator/terminator handling.
+// These helpers reduce code duplication by providing reusable patterns for
+// parsing separated lists. Common use cases include:
+//   - Comma-separated expression lists: (expr1, expr2, expr3)
+//   - Semicolon-separated parameter groups: (x: Integer; y: String)
+//   - Field lists, argument lists, etc.
+//
+// Design principles:
+//   - Flexible separator support (single or multiple separator types)
+//   - Optional trailing separator handling
+//   - Proper error recovery
+//   - Works with callbacks to handle different item types
+//
+// The helpers handle the common looping and separator logic, while callers
+// provide item-specific parsing via callbacks.
 
 // ListParseOptions configures how parseSeparatedList behaves.
 type ListParseOptions struct {
@@ -445,9 +859,54 @@ type ListParseOptions struct {
 	RequireTerminator bool
 }
 
-// parseSeparatedList parses lists of items separated by delimiters.
-// parseItem callback should parse one item and return success status.
-// Returns (itemCount, success). On entry, curToken should be first item or terminator.
+// parseSeparatedList is a generic helper for parsing lists of items separated by delimiters.
+//
+// This function handles the common pattern of:
+//  1. Check if list is empty (curToken is terminator)
+//  2. Parse first item
+//  3. While peekToken is a separator:
+//     - Consume separator
+//     - Check for trailing separator
+//     - Parse next item
+//  4. Expect terminator (if RequireTerminator is true)
+//
+// Parameters:
+//   - opts: Configuration options (separators, terminator, etc.)
+//   - parseItem: Callback to parse one item. Returns true if successful, false on error.
+//     The callback should NOT consume trailing separators or terminators.
+//
+// Returns:
+//   - itemCount: Number of items successfully parsed
+//   - success: true if parsing completed successfully, false on error
+//
+// Token position on entry:
+//   - curToken should be the first item OR the terminator (for empty lists)
+//
+// Token position on exit:
+//   - If RequireTerminator is true: curToken is the terminator
+//   - If RequireTerminator is false: curToken is the last item, peekToken is first non-separator
+//
+// Example usage (comma-separated expressions):
+//
+//	opts := ListParseOptions{
+//	    Separators:             []lexer.TokenType{lexer.COMMA},
+//	    Terminator:             lexer.RPAREN,
+//	    AllowTrailingSeparator: true,
+//	    AllowEmpty:             true,
+//	    RequireTerminator:      true,
+//	}
+//	exprs := []ast.Expression{}
+//	count, ok := p.parseSeparatedList(opts, func() bool {
+//	    expr := p.parseExpression(LOWEST)
+//	    if expr == nil {
+//	        return false
+//	    }
+//	    exprs = append(exprs, expr)
+//	    return true
+//	})
+//	if !ok {
+//	    return nil
+//	}
 func (p *Parser) parseSeparatedList(opts ListParseOptions, parseItem func() bool) (itemCount int, success bool) {
 	// Handle empty list
 	if p.curTokenIs(opts.Terminator) {
@@ -505,8 +964,21 @@ func (p *Parser) peekTokenIsSomeOf(types ...lexer.TokenType) bool {
 	return false
 }
 
-// parseSeparatedListBeforeStart is a variant for when curToken is BEFORE the list (e.g., LPAREN).
-// Checks for empty list, advances to first item, then calls parseSeparatedList.
+// parseSeparatedListBeforeStart is a variant of parseSeparatedList for when
+// the current token is BEFORE the list (e.g., at the opening paren).
+//
+// This helper:
+//  1. Checks if peekToken is terminator (empty list)
+//  2. Advances to first item (nextToken)
+//  3. Calls parseSeparatedList with remaining logic
+//
+// Token position on entry:
+//   - curToken should be BEFORE the first item (e.g., at LPAREN)
+//   - peekToken should be first item OR terminator
+//
+// Token position on exit:
+//   - If RequireTerminator is true: curToken is the terminator
+//   - If RequireTerminator is false: curToken is the last item
 func (p *Parser) parseSeparatedListBeforeStart(opts ListParseOptions, parseItem func() bool) (itemCount int, success bool) {
 	// Check for empty list (peek is terminator)
 	if p.peekTokenIs(opts.Terminator) {
@@ -577,8 +1049,11 @@ func (p *Parser) ParseProgram() *ast.Program {
 	return builder.Finish(program).(*ast.Program)
 }
 
-// isVarDeclBlock checks if a BlockStatement wraps multiple var declarations.
-// These should be unwrapped to avoid extra scope nesting. Identified by VAR token (not BEGIN).
+// isVarDeclBlock checks if a BlockStatement was created by parseVarDeclaration()
+// to wrap multiple var declarations. These should be unwrapped to avoid extra scope nesting.
+// We distinguish them from begin...end blocks by checking the token type:
+// - parseVarDeclaration() uses VAR token
+// - parseBlockStatement() uses BEGIN token
 func (p *Parser) isVarDeclBlock(block *ast.BlockStatement) bool {
 	// Must have VAR token (not BEGIN)
 	if block.Token.Type != lexer.VAR {
@@ -597,10 +1072,15 @@ func (p *Parser) isVarDeclBlock(block *ast.BlockStatement) bool {
 	return true
 }
 
-// parseFieldInitializer parses optional field initializer (= Value or := Value).
-// Returns initialization expression if present, nil otherwise.
-// PRE: cursor at type annotation. POST: cursor at init expression or unchanged.
+// parseFieldInitializer parses an optional field initializer (= Value or := Value).
+// Returns the initialization expression if present, or nil if not.
+// Should be called when curToken is the type token, and peekToken might be '=' or ':='.
+// PRE: cursor is last token of type annotation
+// POST: cursor is last token of initialization expression if present; otherwise unchanged
 func (p *Parser) parseFieldInitializer(fieldNames []*ast.Identifier) ast.Expression {
+	// Check for initialization (= Value or := Value)
+	// DWScript uses '=' for field initializers: Field : String = 'hello';
+	// Also support ':=' for compatibility
 	if p.peekTokenIs(lexer.EQ) || p.peekTokenIs(lexer.ASSIGN) {
 		// Initialization is only allowed for single field declarations
 		if len(fieldNames) > 1 {
