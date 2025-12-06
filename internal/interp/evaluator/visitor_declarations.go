@@ -1079,11 +1079,49 @@ func (e *Evaluator) evalFunctionPointerType(node *ast.TypeDeclaration, ctx *Exec
 		return e.newError(node, "function pointer type declaration has no type information")
 	}
 
-	// Store the type name mapping for type resolution
-	// We just need to register that this type name exists
-	// The actual type checking is done by the semantic analyzer
+	funcPtrType := node.FunctionPointerType
+
+	// Resolve parameter types
+	paramTypes := make([]types.Type, len(funcPtrType.Parameters))
+	for idx, param := range funcPtrType.Parameters {
+		var paramType types.Type
+		if param.Type != nil {
+			var err error
+			paramType, err = e.ResolveTypeFromAnnotation(param.Type)
+			if err != nil || paramType == nil {
+				return e.newError(node, "unknown parameter type '%s' in function pointer '%s'", param.Type.String(), node.Name.Value)
+			}
+		} else {
+			paramType = types.INTEGER
+		}
+		paramTypes[idx] = paramType
+	}
+
+	// Resolve return type (nil for procedures)
+	var returnType types.Type
+	if funcPtrType.ReturnType != nil {
+		var err error
+		returnType, err = e.ResolveTypeFromAnnotation(funcPtrType.ReturnType)
+		if err != nil {
+			return e.newError(node, "unknown return type '%s' in function pointer '%s'", funcPtrType.ReturnType.String(), node.Name.Value)
+		}
+	}
+
+	// Create function or method pointer type
+	var resolvedType types.Type
+	if funcPtrType.OfObject {
+		resolvedType = types.NewMethodPointerType(paramTypes, returnType)
+	} else {
+		resolvedType = types.NewFunctionPointerType(paramTypes, returnType)
+	}
+
+	// Register in the type system for runtime resolution
+	if e.typeSystem != nil {
+		e.typeSystem.RegisterFunctionPointerType(node.Name.Value, resolvedType)
+	}
+
+	// Legacy marker for compatibility
 	typeKey := "__funcptr_type_" + node.Name.Value
-	// Store a simple marker that this is a function pointer type
 	ctx.Env().Define(typeKey, &runtime.StringValue{Value: "function_pointer_type"})
 
 	return &runtime.NilValue{}

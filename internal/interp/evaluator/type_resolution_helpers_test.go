@@ -3,6 +3,7 @@ package evaluator
 import (
 	"testing"
 
+	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -210,6 +211,49 @@ func TestResolveTypeName_RegisteredTypes(t *testing.T) {
 	// - Class types: checks e.typeSystem.HasClass()
 	// - Interface types: checks e.typeSystem.HasInterface()
 	// - Subrange types: looks in ctx.Env().Get("__subrange_type_" + normalized)
+}
+
+// TestResolveTypeName_FunctionPointerTypes ensures registered function pointer
+// types can be resolved through the TypeSystem.
+func TestResolveTypeName_FunctionPointerTypes(t *testing.T) {
+	typeSystem := interptypes.NewTypeSystem()
+	e := &Evaluator{typeSystem: typeSystem}
+	ctx := &ExecutionContext{}
+
+	funcPtrType := types.NewProcedurePointerType(nil)
+	typeSystem.RegisterFunctionPointerType("TProc", funcPtrType)
+
+	resolved, err := e.resolveTypeName("TProc", ctx)
+	if err != nil {
+		t.Fatalf("expected no error resolving function pointer type, got %v", err)
+	}
+	if resolved == nil {
+		t.Fatalf("expected non-nil type for function pointer")
+	}
+	if resolved.TypeKind() != "FUNCTION_POINTER" {
+		t.Errorf("expected FUNCTION_POINTER type kind, got %s", resolved.TypeKind())
+	}
+}
+
+func TestResolveArrayTypeNode_FunctionPointerElement(t *testing.T) {
+	typeSystem := interptypes.NewTypeSystem()
+	e := &Evaluator{typeSystem: typeSystem}
+	ctx := &ExecutionContext{}
+
+	funcPtrType := types.NewProcedurePointerType(nil)
+	typeSystem.RegisterFunctionPointerType("TProc", funcPtrType)
+
+	arrayNode := &ast.ArrayTypeNode{
+		ElementType: &ast.TypeAnnotation{Name: "TProc"},
+	}
+
+	result := e.resolveArrayTypeNode(arrayNode, ctx)
+	if result == nil {
+		t.Fatal("expected non-nil array type for function pointer element")
+	}
+	if result.ElementType == nil || result.ElementType.TypeKind() != "FUNCTION_POINTER" {
+		t.Fatalf("expected function pointer element type, got %v", result.ElementType)
+	}
 }
 
 // TestResolveTypeName_ArrayTypes tests resolveTypeName for array types.

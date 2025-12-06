@@ -111,10 +111,14 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 			returnType = i.getTypeByName(decl.FunctionPointerType.ReturnType.String())
 		}
 
-		// Create the function pointer type (for potential future use)
-		// Currently we just register the type name as existing
-		_ = paramTypes // Mark as used
-		_ = returnType // Mark as used
+		// Create function or method pointer type and register in TypeSystem
+		var funcPtrType types.Type
+		if decl.FunctionPointerType.OfObject {
+			funcPtrType = types.NewMethodPointerType(paramTypes, returnType)
+		} else {
+			funcPtrType = types.NewFunctionPointerType(paramTypes, returnType)
+		}
+		i.typeSystem.RegisterFunctionPointerType(decl.Name.Value, funcPtrType)
 
 		// Store the type name mapping for type resolution
 		// We just need to register that this type name exists

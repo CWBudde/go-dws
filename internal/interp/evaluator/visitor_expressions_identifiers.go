@@ -147,6 +147,20 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// Check if this identifier is a user-defined function name
 	// Functions are auto-invoked if they have zero parameters, or converted to function pointers if they have parameters
 	funcNameLower := ident.Normalize(node.Value)
+
+	// Semantic type information can tell us when a function identifier is used
+	// in a function-pointer context (e.g., arguments typed as TProc). In that
+	// case we should return a function pointer even for parameterless functions
+	// instead of auto-invoking them.
+	var expectedTypeKind string
+	if e.semanticInfo != nil {
+		if typeAnnot := e.semanticInfo.GetType(node); typeAnnot != nil {
+			if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot); err == nil && resolvedType != nil {
+				expectedTypeKind = resolvedType.TypeKind()
+			}
+		}
+	}
+
 	if overloads := e.FunctionRegistry().Lookup(funcNameLower); len(overloads) > 0 {
 		// Find the appropriate overload
 		var fn *ast.FunctionDecl
@@ -164,6 +178,11 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			if fn == nil {
 				fn = overloads[0]
 			}
+		}
+
+		// If the semantic type expects a function or method pointer, return a pointer
+		if expectedTypeKind == "FUNCTION_POINTER" || expectedTypeKind == "METHOD_POINTER" {
+			return createFunctionPointerFromDecl(fn, ctx.Env())
 		}
 
 		// Check if function has zero parameters - auto-invoke

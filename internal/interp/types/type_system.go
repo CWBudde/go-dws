@@ -21,44 +21,46 @@ import (
 // This design follows the Single Responsibility Principle by separating
 // type management from execution concerns in the Interpreter.
 type TypeSystem struct {
-	operators         *OperatorRegistry               // Operator overload registry
-	conversions       *ConversionRegistry             // Type conversion registry
-	records           *ident.Map[RecordTypeValue]     // Record type registry
-	interfaces        *ident.Map[InterfaceInfo]       // Interface registry
-	helpers           *ident.Map[[]HelperInfo]        // Helper type registry
-	arrayTypes        *ident.Map[*coretypes.ArrayType] // Array type registry
-	enumTypes         *ident.Map[EnumTypeValue]       // Enum type registry
-	subrangeTypes     *ident.Map[*coretypes.SubrangeType] // Subrange type registry
-	functionRegistry  *FunctionRegistry               // Function registry
-	classTypeIDs      *ident.Map[int]                 // RTTI class type IDs
-	classRegistry     *ClassRegistry                  // Class registry
-	recordTypeIDs     *ident.Map[int]                 // RTTI record type IDs
-	enumTypeIDs       *ident.Map[int]                 // RTTI enum type IDs
-	ClassValueFactory func(classInfo ClassInfo) any   // Factory for ClassValue creation
-	nextRecordTypeID  int                             // Next available record type ID
-	nextEnumTypeID    int                             // Next available enum type ID
-	nextClassTypeID   int                             // Next available class type ID
+	operators            *OperatorRegistry                   // Operator overload registry
+	conversions          *ConversionRegistry                 // Type conversion registry
+	records              *ident.Map[RecordTypeValue]         // Record type registry
+	interfaces           *ident.Map[InterfaceInfo]           // Interface registry
+	helpers              *ident.Map[[]HelperInfo]            // Helper type registry
+	arrayTypes           *ident.Map[*coretypes.ArrayType]    // Array type registry
+	enumTypes            *ident.Map[EnumTypeValue]           // Enum type registry
+	subrangeTypes        *ident.Map[*coretypes.SubrangeType] // Subrange type registry
+	functionPointerTypes *ident.Map[coretypes.Type]          // Function/method pointer type registry
+	functionRegistry     *FunctionRegistry                   // Function registry
+	classTypeIDs         *ident.Map[int]                     // RTTI class type IDs
+	classRegistry        *ClassRegistry                      // Class registry
+	recordTypeIDs        *ident.Map[int]                     // RTTI record type IDs
+	enumTypeIDs          *ident.Map[int]                     // RTTI enum type IDs
+	ClassValueFactory    func(classInfo ClassInfo) any       // Factory for ClassValue creation
+	nextRecordTypeID     int                                 // Next available record type ID
+	nextEnumTypeID       int                                 // Next available enum type ID
+	nextClassTypeID      int                                 // Next available class type ID
 }
 
 // NewTypeSystem creates a new TypeSystem with initialized registries.
 func NewTypeSystem() *TypeSystem {
 	return &TypeSystem{
-		classRegistry:    NewClassRegistry(),
-		functionRegistry: NewFunctionRegistry(),
-		records:          ident.NewMap[RecordTypeValue](),
-		interfaces:       ident.NewMap[InterfaceInfo](),
-		helpers:          ident.NewMap[[]HelperInfo](),
-		arrayTypes:       ident.NewMap[*coretypes.ArrayType](),
-		enumTypes:        ident.NewMap[EnumTypeValue](),
-		subrangeTypes:    ident.NewMap[*coretypes.SubrangeType](),
-		operators:        NewOperatorRegistry(),
-		conversions:      NewConversionRegistry(),
-		classTypeIDs:     ident.NewMap[int](),
-		recordTypeIDs:    ident.NewMap[int](),
-		enumTypeIDs:      ident.NewMap[int](),
-		nextClassTypeID:  1000,   // Start class IDs at 1000
-		nextRecordTypeID: 200000, // Start record IDs at 200000
-		nextEnumTypeID:   300000, // Start enum IDs at 300000
+		classRegistry:        NewClassRegistry(),
+		functionRegistry:     NewFunctionRegistry(),
+		records:              ident.NewMap[RecordTypeValue](),
+		interfaces:           ident.NewMap[InterfaceInfo](),
+		helpers:              ident.NewMap[[]HelperInfo](),
+		arrayTypes:           ident.NewMap[*coretypes.ArrayType](),
+		enumTypes:            ident.NewMap[EnumTypeValue](),
+		subrangeTypes:        ident.NewMap[*coretypes.SubrangeType](),
+		functionPointerTypes: ident.NewMap[coretypes.Type](),
+		operators:            NewOperatorRegistry(),
+		conversions:          NewConversionRegistry(),
+		classTypeIDs:         ident.NewMap[int](),
+		recordTypeIDs:        ident.NewMap[int](),
+		enumTypeIDs:          ident.NewMap[int](),
+		nextClassTypeID:      1000,   // Start class IDs at 1000
+		nextRecordTypeID:     200000, // Start record IDs at 200000
+		nextEnumTypeID:       300000, // Start enum IDs at 300000
 	}
 }
 
@@ -312,6 +314,28 @@ func (ts *TypeSystem) AllEnumTypes() map[string]EnumTypeValue {
 		return true
 	})
 	return result
+}
+
+// ========== Function Pointer Registry ==========
+
+// RegisterFunctionPointerType registers a function or method pointer type.
+// The name is stored case-insensitively.
+func (ts *TypeSystem) RegisterFunctionPointerType(name string, funcType coretypes.Type) {
+	if funcType == nil {
+		return
+	}
+	ts.functionPointerTypes.Set(name, funcType)
+}
+
+// LookupFunctionPointerType returns the registered function or method pointer type by name.
+func (ts *TypeSystem) LookupFunctionPointerType(name string) coretypes.Type {
+	fp, _ := ts.functionPointerTypes.Get(name)
+	return fp
+}
+
+// HasFunctionPointerType checks if a function or method pointer type exists.
+func (ts *TypeSystem) HasFunctionPointerType(name string) bool {
+	return ts.functionPointerTypes.Has(name)
 }
 
 // LookupEnumMetadata returns the EnumTypeValue wrapper for the given enum name.
