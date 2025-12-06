@@ -561,11 +561,19 @@ func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node as
 			var intfIsNil bool
 			if leftType == "INTERFACE" {
 				// Interface on left, nil on right
-				// Use string representation check (interface with nil object shows as "nil")
-				intfIsNil = left.String() == "nil"
+				// Check if underlying Object is nil (not string representation)
+				if intfVal, ok := left.(InterfaceInstanceValue); ok {
+					intfIsNil = intfVal.GetUnderlyingObjectValue() == nil
+				} else {
+					intfIsNil = false
+				}
 			} else {
 				// Nil on left, interface on right
-				intfIsNil = right.String() == "nil"
+				if intfVal, ok := right.(InterfaceInstanceValue); ok {
+					intfIsNil = intfVal.GetUnderlyingObjectValue() == nil
+				} else {
+					intfIsNil = false
+				}
 			}
 			if op == "=" {
 				return &runtime.BooleanValue{Value: intfIsNil}
@@ -613,8 +621,17 @@ func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node as
 
 	// Handle InterfaceInstance comparisons
 	if leftType == "INTERFACE" && rightType == "INTERFACE" {
-		// Compare underlying objects by string representation
-		result := left.String() == right.String()
+		// Compare underlying objects by identity (pointer equality)
+		var result bool
+		leftIntf, leftOK := left.(InterfaceInstanceValue)
+		rightIntf, rightOK := right.(InterfaceInstanceValue)
+		if leftOK && rightOK {
+			// Both are interface instances - compare underlying object pointers
+			result = leftIntf.GetUnderlyingObjectValue() == rightIntf.GetUnderlyingObjectValue()
+		} else {
+			// Fallback to string comparison if type assertion fails
+			result = left.String() == right.String()
+		}
 		if op == "=" {
 			return &runtime.BooleanValue{Value: result}
 		}
