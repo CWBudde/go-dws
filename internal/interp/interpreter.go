@@ -288,6 +288,80 @@ func (i *Interpreter) GetCallStack() errors.StackTrace {
 	return stack
 }
 
+// ===== Environment Management Helpers (Phase 3.8.1: Task 3.8.1.2) =====
+
+// SetEnvironment atomically updates both i.env and i.ctx.env to the same environment.
+// This ensures that Interpreter methods (using i.env) and Evaluator methods (using i.ctx.env)
+// see the same variable bindings.
+//
+// Background:
+// The Interpreter maintains two environment references for historical reasons:
+//   - i.env (*Environment) - Used by Interpreter.Eval() methods
+//   - i.ctx.env (Environment interface) - Used by Evaluator visitor methods
+//
+// These must stay synchronized. When i.env changes, i.ctx.env must be updated to wrap
+// the same environment via EnvironmentAdapter. This helper atomically updates both.
+//
+// Usage:
+//
+//	// Replace direct assignment:
+//	i.env = newEnv
+//
+//	// With synchronized update:
+//	i.SetEnvironment(newEnv)
+//
+// Phase 3.8.1: Task 3.8.1.2 - Environment synchronization helper
+func (i *Interpreter) SetEnvironment(env *Environment) {
+	i.env = env
+	i.ctx.SetEnv(evaluator.NewEnvironmentAdapter(env))
+}
+
+// PushEnvironment creates a new enclosed environment with the given parent environment,
+// then atomically updates both i.env and i.ctx.env to the new environment.
+// Returns the new environment.
+//
+// This is the recommended pattern for entering new scopes (functions, loops, blocks).
+// The new environment will have the parent as its outer scope, enabling proper
+// lexical scoping and variable shadowing.
+//
+// Usage:
+//
+//	// Replace manual pattern:
+//	loopEnv := NewEnclosedEnvironment(i.env)
+//	savedEnv := i.env
+//	i.env = loopEnv
+//
+//	// With helper:
+//	savedEnv := i.env
+//	loopEnv := i.PushEnvironment(i.env)
+//
+// The caller is responsible for restoring the environment with RestoreEnvironment(savedEnv)
+// when exiting the scope.
+//
+// Phase 3.8.1: Task 3.8.1.2 - Environment synchronization helper
+func (i *Interpreter) PushEnvironment(parent *Environment) *Environment {
+	newEnv := NewEnclosedEnvironment(parent)
+	i.SetEnvironment(newEnv)
+	return newEnv
+}
+
+// RestoreEnvironment restores a previously saved environment to both i.env and i.ctx.env.
+// This is used to exit scopes after PushEnvironment.
+//
+// Usage:
+//
+//	savedEnv := i.env
+//	i.PushEnvironment(i.env)
+//	// ... execute code in new scope ...
+//	i.RestoreEnvironment(savedEnv)
+//
+// This is equivalent to SetEnvironment(saved) but makes the intent clearer.
+//
+// Phase 3.8.1: Task 3.8.1.2 - Environment synchronization helper
+func (i *Interpreter) RestoreEnvironment(saved *Environment) {
+	i.SetEnvironment(saved)
+}
+
 // pushCallStack adds a new frame to the call stack with the given function name.
 // The position is taken from the current node being evaluated.
 // Phase 3.3.3: Delegates to ExecutionContext's CallStack.
