@@ -56,18 +56,17 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				obj := NewObjectInstance(classInfo)
 
 				savedEnv := i.env
-				tempEnv := NewEnclosedEnvironment(i.env)
+				tempEnv := i.PushEnvironment(i.env)
 				for constName, constValue := range classInfo.ConstantValues {
 					tempEnv.Define(constName, constValue)
 				}
-				i.env = tempEnv
 
 				for fieldName, fieldType := range classInfo.Fields {
 					var fieldValue Value
 					if fieldDecl, hasDecl := classInfo.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
 						fieldValue = i.Eval(fieldDecl.InitValue)
 						if isError(fieldValue) {
-							i.env = savedEnv
+							i.RestoreEnvironment(savedEnv)
 							return fieldValue
 						}
 					} else {
@@ -76,7 +75,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 					obj.SetField(fieldName, fieldValue)
 				}
 
-				i.env = savedEnv
+				i.RestoreEnvironment(savedEnv)
 				return obj
 			}
 
@@ -107,11 +106,10 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				obj := NewObjectInstance(classInfo)
 
 				fieldInitEnv := i.env
-				fieldTempEnv := NewEnclosedEnvironment(i.env)
+				fieldTempEnv := i.PushEnvironment(i.env)
 				for constName, constValue := range classInfo.ConstantValues {
 					fieldTempEnv.Define(constName, constValue)
 				}
-				i.env = fieldTempEnv
 
 				for fieldName, fieldType := range classInfo.Fields {
 					var fieldValue Value
@@ -119,7 +117,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 					if fieldDecl, hasDecl := classInfo.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
 						fieldValue = i.Eval(fieldDecl.InitValue)
 						if isError(fieldValue) {
-							i.env = fieldInitEnv
+							i.RestoreEnvironment(fieldInitEnv)
 							return fieldValue
 						}
 					} else {
@@ -129,7 +127,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				}
 
 				// Restore environment
-				i.env = fieldInitEnv
+				i.RestoreEnvironment(fieldInitEnv)
 
 				// Evaluate method arguments
 				args := make([]Value, len(mc.Arguments))
@@ -148,12 +146,11 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				}
 
 				// Create method environment with Self bound to new object
-				methodEnv := NewEnclosedEnvironment(i.env)
 				savedEnv := i.env
-				i.env = methodEnv
+				methodEnv := i.PushEnvironment(i.env)
 
 				// Bind Self to the object
-				i.env.Define("Self", obj)
+				methodEnv.Define("Self", obj)
 
 				// Add class constants to method scope so they can be accessed directly
 				i.bindClassConstantsToEnv(classInfo)
@@ -168,7 +165,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 						}
 					}
 
-					i.env.Define(param.Name.Value, arg)
+					methodEnv.Define(param.Name.Value, arg)
 				}
 
 				if instanceMethod.ReturnType != nil || instanceMethod.IsConstructor {
@@ -179,15 +176,15 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 						returnType := i.resolveTypeFromAnnotation(instanceMethod.ReturnType)
 						defaultVal = i.getDefaultValue(returnType)
 					}
-					i.env.Define("Result", defaultVal)
+					methodEnv.Define("Result", defaultVal)
 					// In DWScript, the method name can be used as an alias for Result
-					i.env.Define(instanceMethod.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+					methodEnv.Define(instanceMethod.Name.Value, &ReferenceValue{Env: methodEnv, VarName: "Result"})
 				}
 
 				// Execute method body
 				result := i.Eval(instanceMethod.Body)
 				if isError(result) {
-					i.env = savedEnv
+					i.RestoreEnvironment(savedEnv)
 					return result
 				}
 
@@ -232,7 +229,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 					returnValue = &NilValue{}
 				}
 
-				i.env = savedEnv
+				i.RestoreEnvironment(savedEnv)
 
 				return returnValue
 			} else {
@@ -349,10 +346,9 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		}
 
 		// Create method environment with Self bound to new instance
-		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
-		i.env = methodEnv
-		i.env.Define("Self", newInstance)
+		methodEnv := i.PushEnvironment(i.env)
+		methodEnv.Define("Self", newInstance)
 
 		// Add class constants to method scope so they can be accessed directly
 		i.bindClassConstantsToEnv(runtimeClass)
@@ -366,19 +362,19 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 					arg = converted
 				}
 			}
-			i.env.Define(param.Name.Value, arg)
+			methodEnv.Define(param.Name.Value, arg)
 		}
 
-		i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: runtimeClass})
+		methodEnv.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: runtimeClass})
 
 		// Execute constructor body
 		result := i.Eval(constructor.Body)
 		if isError(result) {
-			i.env = savedEnv
+			i.RestoreEnvironment(savedEnv)
 			return result
 		}
 
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 		return newInstance
 	}
 
@@ -673,10 +669,9 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		}
 
 		newObj := NewObjectInstance(obj.Class)
-		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
-		i.env = methodEnv
-		i.env.Define("Self", newObj)
+		methodEnv := i.PushEnvironment(i.env)
+		methodEnv.Define("Self", newObj)
 		i.bindClassConstantsToEnv(concreteClass)
 
 		// Bind method parameters to arguments
@@ -688,27 +683,26 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 					arg = converted
 				}
 			}
-			i.env.Define(param.Name.Value, arg)
+			methodEnv.Define(param.Name.Value, arg)
 		}
 
 		// Execute constructor body
 		result := i.Eval(actualConstructor.Body)
 		if isError(result) {
-			i.env = savedEnv
+			i.RestoreEnvironment(savedEnv)
 			return result
 		}
 
 		// Restore environment and return the NEW object
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 		return newObj
 	}
 
-	methodEnv := NewEnclosedEnvironment(i.env)
 	savedEnv := i.env
-	i.env = methodEnv
+	methodEnv := i.PushEnvironment(i.env)
 
 	if i.ctx.GetCallStack().WillOverflow() {
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 		return i.raiseMaxRecursionExceeded()
 	}
 
@@ -717,14 +711,14 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	defer i.popCallStack()
 
 	if isClassMethod {
-		i.env.Define("Self", &ClassInfoValue{ClassInfo: concreteClass})
+		methodEnv.Define("Self", &ClassInfoValue{ClassInfo: concreteClass})
 	} else {
-		i.env.Define("Self", obj)
+		methodEnv.Define("Self", obj)
 	}
 
 	// Determine the declaring class for inherited resolution
 	methodOwner := i.findMethodOwner(concreteClass, method, isClassMethod)
-	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: methodOwner})
+	methodEnv.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: methodOwner})
 	i.bindClassConstantsToEnv(concreteClass)
 
 	// Bind method parameters to arguments with implicit conversion
@@ -739,20 +733,20 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			}
 		}
 
-		i.env.Define(param.Name.Value, arg)
+		methodEnv.Define(param.Name.Value, arg)
 	}
 
 	if method.ReturnType != nil {
 		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 		defaultVal := i.getDefaultValue(returnType)
-		i.env.Define("Result", defaultVal)
-		i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+		methodEnv.Define("Result", defaultVal)
+		methodEnv.Define(method.Name.Value, &ReferenceValue{Env: methodEnv, VarName: "Result"})
 	}
 
 	// Execute method body
 	result := i.Eval(method.Body)
 	if isError(result) {
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 		return result
 	}
 
@@ -800,7 +794,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	}
 
 	// Restore environment
-	i.env = savedEnv
+	i.RestoreEnvironment(savedEnv)
 
 	return returnValue
 }
@@ -828,13 +822,12 @@ func (i *Interpreter) executeClassMethod(
 	}
 
 	// Create method environment
-	methodEnv := NewEnclosedEnvironment(i.env)
 	savedEnv := i.env
-	i.env = methodEnv
+	methodEnv := i.PushEnvironment(i.env)
 
 	// Check recursion depth before pushing to call stack
 	if i.ctx.GetCallStack().WillOverflow() {
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 		return i.raiseMaxRecursionExceeded()
 	}
 
@@ -844,10 +837,10 @@ func (i *Interpreter) executeClassMethod(
 	defer i.popCallStack()
 
 	// Bind Self to ClassInfo for class methods
-	i.env.Define("Self", &ClassInfoValue{ClassInfo: classInfo})
+	methodEnv.Define("Self", &ClassInfoValue{ClassInfo: classInfo})
 
 	// Bind __CurrentClass__
-	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
+	methodEnv.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
 
 	// Add class constants to method scope
 	i.bindClassConstantsToEnv(classInfo)
@@ -861,21 +854,21 @@ func (i *Interpreter) executeClassMethod(
 				arg = converted
 			}
 		}
-		i.env.Define(param.Name.Value, arg)
+		methodEnv.Define(param.Name.Value, arg)
 	}
 
 	// Initialize Result for functions
 	if classMethod.ReturnType != nil {
 		returnType := i.resolveTypeFromAnnotation(classMethod.ReturnType)
 		defaultVal := i.getDefaultValue(returnType)
-		i.env.Define("Result", defaultVal)
-		i.env.Define(classMethod.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+		methodEnv.Define("Result", defaultVal)
+		methodEnv.Define(classMethod.Name.Value, &ReferenceValue{Env: methodEnv, VarName: "Result"})
 	}
 
 	// Execute method body
 	result := i.Eval(classMethod.Body)
 	if isError(result) {
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 		return result
 	}
 
@@ -908,7 +901,7 @@ func (i *Interpreter) executeClassMethod(
 	}
 
 	// Restore environment
-	i.env = savedEnv
+	i.RestoreEnvironment(savedEnv)
 	return returnValue
 }
 
