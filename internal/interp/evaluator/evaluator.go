@@ -675,6 +675,52 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 }
 
 // ============================================================================
+// Public Adapter Methods (Phase 3.6 Migration)
+// ============================================================================
+
+// EvaluateBinaryExpression is a public adapter for the Interpreter during Phase 3.6 migration.
+// This allows the old Interpreter to delegate binary operations to the Evaluator.
+// TODO(Phase 4): Remove this adapter method when Interpreter is fully replaced.
+func (e *Evaluator) EvaluateBinaryExpression(
+	node *ast.BinaryExpression,
+	ctx *ExecutionContext,
+) Value {
+	return e.VisitBinaryExpression(node, ctx)
+}
+
+// EvaluateVariantBinaryOp is a public adapter for compound assignment operations.
+// Used by statements_assignments.go for += -= *= /= operations on variants.
+// TODO(Phase 4): Remove this adapter method when Interpreter is fully replaced.
+func (e *Evaluator) EvaluateVariantBinaryOp(
+	op string,
+	left, right Value,
+	node ast.Node,
+) Value {
+	return e.evalVariantBinaryOp(op, left, right, node)
+}
+
+// ConvertToString is a public adapter for string conversion operations.
+// Used by statements_assignments.go for string concatenation in compound assignments.
+// TODO(Phase 4): Remove this adapter method when Interpreter is fully replaced.
+func (e *Evaluator) ConvertToString(val Value) string {
+	return convertToString(val)
+}
+
+// IsFalsey is a public adapter for falsey value checking.
+// Used by tests to verify coalesce operator behavior.
+// TODO(Phase 4): Remove this adapter method when tests are updated.
+func (e *Evaluator) IsFalsey(val Value) bool {
+	return isFalsey(val)
+}
+
+// IsNumericType is a public adapter for numeric type checking.
+// Used by tests to verify type checking behavior.
+// TODO(Phase 4): Remove this adapter method when tests are updated.
+func (e *Evaluator) IsNumericType(typeStr string) bool {
+	return isNumericTypeName(typeStr)
+}
+
+// ============================================================================
 // Exception Creation
 // ============================================================================
 
