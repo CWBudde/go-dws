@@ -292,9 +292,12 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - **Tests**: ✅ All exception/try/raise/finally tests pass, fixture baseline improved to 886 (-1)
   - **Commit**: 9830d86a
 
-- [ ] **3.8.2.7** Migrate Declaration Environments (2 days)
-  - Update `declarations.go`: Type/function/record declarations
-  - **Tests**: Declaration tests
+- [x] **3.8.2.7** Migrate Declaration Environments ✅ **COMPLETE** (2025-12-06)
+  - Migrated all 8 assignments in `declarations.go`
+  - Sections: Class declaration context (defer), class constants eval, field type inference, class var init
+  - All tempEnv.Define() calls properly scoped, all error paths with RestoreEnvironment()
+  - **Tests**: ✅ All class/type/declaration/interface tests pass, fixture baseline maintained at 886
+  - **Commit**: 88efffb8
 
 ### Phase 3.8.3: Binary Operations Migration (3 days)
 
