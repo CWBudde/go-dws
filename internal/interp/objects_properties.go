@@ -109,9 +109,8 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		}
 
 		// Call the getter method
-		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
-		i.env = methodEnv
+		i.PushEnvironment(i.env)
 
 		// Bind Self to the object
 		i.env.Define("Self", obj)
@@ -170,7 +169,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		}
 
 		// Restore environment
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 
 		return returnValue
 
@@ -198,9 +197,8 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 
 		// Call the getter method with no arguments
 		// Create method environment with Self bound to object
-		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
-		i.env = methodEnv
+		i.PushEnvironment(i.env)
 
 		// Bind Self to the object
 		i.env.Define("Self", obj)
@@ -259,7 +257,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		}
 
 		// Restore environment
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 
 		return returnValue
 
@@ -282,9 +280,8 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		}
 
 		// Create new environment with Self bound to object
-		exprEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
-		i.env = exprEnv
+		i.PushEnvironment(i.env)
 
 		// Bind Self to the object instance
 		i.env.Define("Self", obj)
@@ -299,7 +296,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		result := i.Eval(exprNode)
 
 		// Restore environment
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 
 		return result
 
@@ -331,9 +328,8 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 		}
 
 		// Call the class method getter
-		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
-		i.env = methodEnv
+		i.PushEnvironment(i.env)
 
 		// Bind all class variables to environment so they can be accessed directly
 		for classVarName, classVarValue := range classInfo.ClassVars {
@@ -379,7 +375,7 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 		}
 
 		// Restore environment
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 
 		return returnValue
 
@@ -391,9 +387,8 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 		}
 
 		// Create method environment (no Self binding for class methods)
-		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
-		i.env = methodEnv
+		i.PushEnvironment(i.env)
 
 		// Bind all class variables to environment so they can be accessed directly
 		for classVarName, classVarValue := range classInfo.ClassVars {
@@ -439,7 +434,7 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 		}
 
 		// Restore environment
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 
 		return returnValue
 
@@ -477,9 +472,8 @@ func (i *Interpreter) evalClassPropertyWrite(classInfo *ClassInfo, propInfo *typ
 		}
 
 		// Call the class method setter
-		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
-		i.env = methodEnv
+		i.PushEnvironment(i.env)
 
 		// Bind all class variables to environment so they can be accessed directly
 		for classVarName, classVarValue := range classInfo.ClassVars {
@@ -502,7 +496,7 @@ func (i *Interpreter) evalClassPropertyWrite(classInfo *ClassInfo, propInfo *typ
 		}
 
 		// Restore environment
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 
 		return value
 
@@ -514,9 +508,8 @@ func (i *Interpreter) evalClassPropertyWrite(classInfo *ClassInfo, propInfo *typ
 		}
 
 		// Create method environment (no Self binding for class methods)
-		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
-		i.env = methodEnv
+		i.PushEnvironment(i.env)
 
 		// Bind all class variables to environment so they can be accessed directly
 		for classVarName, classVarValue := range classInfo.ClassVars {
@@ -539,7 +532,7 @@ func (i *Interpreter) evalClassPropertyWrite(classInfo *ClassInfo, propInfo *typ
 		}
 
 		// Restore environment
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 
 		return value
 
@@ -576,9 +569,8 @@ func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *typ
 		}
 
 		// Create method environment
-		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
-		i.env = methodEnv
+		i.PushEnvironment(i.env)
 
 		// Bind Self to the object
 		i.env.Define("Self", obj)
@@ -630,7 +622,7 @@ func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *typ
 		}
 
 		// Restore environment
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 
 		return returnValue
 
@@ -671,9 +663,8 @@ func (i *Interpreter) evalIndexedPropertyWrite(obj *ObjectInstance, propInfo *ty
 		}
 
 		// Create method environment
-		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
-		i.env = methodEnv
+		i.PushEnvironment(i.env)
 
 		// Bind Self to the object
 		i.env.Define("Self", obj)
@@ -695,7 +686,7 @@ func (i *Interpreter) evalIndexedPropertyWrite(obj *ObjectInstance, propInfo *ty
 		i.Eval(method.Body)
 
 		// Restore environment
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 
 		// DWScript assignment is an expression that returns the assigned value
 		return value
@@ -769,9 +760,8 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 		}
 
 		// Call the setter method with the value as argument
-		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
-		i.env = methodEnv
+		i.PushEnvironment(i.env)
 
 		// Bind Self to the object
 		i.env.Define("Self", obj)
@@ -798,7 +788,7 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 		i.Eval(method.Body)
 
 		// Restore environment
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 
 		return value
 
@@ -821,9 +811,8 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 
 		// Call the setter method with the value as argument
 		// Create method environment with Self bound to object
-		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
-		i.env = methodEnv
+		i.PushEnvironment(i.env)
 
 		// Bind Self to the object
 		i.env.Define("Self", obj)
@@ -849,7 +838,7 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 		i.Eval(method.Body)
 
 		// Restore environment
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 
 		return value
 
