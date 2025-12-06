@@ -285,9 +285,12 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - **Tests**: ✅ All object/constructor/instantiation tests pass, fixture baseline improved to 887 (-3)
   - **Commit**: 73ad16b6
 
-- [ ] **3.8.2.6** Migrate Exception Handling Environments (1 day)
-  - Update `exceptions.go`: try/except/finally blocks
-  - **Tests**: Exception tests
+- [x] **3.8.2.6** Migrate Exception Handling Environments ✅ **COMPLETE** (2025-12-06)
+  - Migrated all 2 assignments in `exceptions.go`
+  - Section: evalExceptClause exception handler scope for exception variable binding
+  - Updated handlerEnv.Define() for exception variable, environment properly restored
+  - **Tests**: ✅ All exception/try/raise/finally tests pass, fixture baseline improved to 886 (-1)
+  - **Commit**: 9830d86a
 
 - [ ] **3.8.2.7** Migrate Declaration Environments (2 days)
   - Update `declarations.go`: Type/function/record declarations
