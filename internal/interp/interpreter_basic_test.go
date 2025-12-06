@@ -429,9 +429,10 @@ func TestUndefinedVariable(t *testing.T) {
 		return
 	}
 
-	errVal := val.(*ErrorValue)
-	if !strings.Contains(errVal.Message, "undefined variable") {
-		t.Errorf("wrong error message. got=%q", errVal.Message)
+	// Get error message (works for both interp.ErrorValue and runtime.ErrorValue)
+	errorMsg := val.String()
+	if !strings.Contains(errorMsg, "undefined variable") {
+		t.Errorf("expected undefined variable error, got: %s", errorMsg)
 	}
 }
 
@@ -445,9 +446,10 @@ func TestAssignmentToUndefinedVariable(t *testing.T) {
 		return
 	}
 
-	errVal := val.(*ErrorValue)
-	if !strings.Contains(errVal.Message, "undefined variable") {
-		t.Errorf("wrong error message. got=%q", errVal.Message)
+	// Get error message (works for both interp.ErrorValue and runtime.ErrorValue)
+	errorMsg := val.String()
+	if !strings.Contains(errorMsg, "undefined variable") {
+		t.Errorf("expected undefined variable error, got: %s", errorMsg)
 	}
 }
 
@@ -471,10 +473,11 @@ func TestTypeMismatch(t *testing.T) {
 			continue
 		}
 
-		errVal := val.(*ErrorValue)
-		if !strings.Contains(errVal.Message, tt.expectedErr) {
+		// Get error message (works for both interp.ErrorValue and runtime.ErrorValue)
+		errorMsg := val.String()
+		if !strings.Contains(errorMsg, tt.expectedErr) {
 			t.Errorf("wrong error message for %q. expected to contain %q, got=%q",
-				tt.input, tt.expectedErr, errVal.Message)
+				tt.input, tt.expectedErr, errorMsg)
 		}
 	}
 }
@@ -525,9 +528,10 @@ func TestCallUndefinedFunction(t *testing.T) {
 		return
 	}
 
-	errVal := val.(*ErrorValue)
-	if !strings.Contains(errVal.Message, "undefined function") {
-		t.Errorf("wrong error message. got=%q", errVal.Message)
+	// Get error message (works for both interp.ErrorValue and runtime.ErrorValue)
+	errorMsg := val.String()
+	if !strings.Contains(errorMsg, "undefined function") {
+		t.Errorf("expected undefined function error, got: %s", errorMsg)
 	}
 }
 

@@ -598,7 +598,7 @@ func (e *ErrorValue) Type() string {
 	return "ERROR"
 }
 
-// String returns the error message.
+// String returns the error message with ERROR: prefix.
 func (e *ErrorValue) String() string {
-	return e.Message
+	return "ERROR: " + e.Message
 }

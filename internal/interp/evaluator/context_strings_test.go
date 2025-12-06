@@ -87,7 +87,7 @@ func TestConcatStrings_NonStringArgument(t *testing.T) {
 		t.Errorf("expected ERROR, got %s", result.Type())
 	}
 
-	errVal, ok := result.(*ErrorValue)
+	errVal, ok := result.(*runtime.ErrorValue)
 	if !ok {
 		t.Fatalf("expected ErrorValue, got %T", result)
 	}
@@ -116,7 +116,7 @@ func TestConcatStrings_FirstArgumentNonString(t *testing.T) {
 		t.Errorf("expected ERROR, got %s", result.Type())
 	}
 
-	errVal, ok := result.(*ErrorValue)
+	errVal, ok := result.(*runtime.ErrorValue)
 	if !ok {
 		t.Fatalf("expected ErrorValue, got %T", result)
 	}

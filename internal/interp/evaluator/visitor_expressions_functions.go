@@ -276,18 +276,6 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		return e.adapter.CallUserFunctionWithOverloads(node, funcName)
 	}
 
-	// Task 3.5.24: Implicit Self method calls (MethodName() is shorthand for Self.MethodName())
-	// Task 3.5.97b: Migrated to use CallImplicitSelfMethod adapter method
-	// When inside an instance method, calling MethodName() calls Self.MethodName()
-	// Example: Inside method Foo(), calling Bar() means Self.Bar()
-	if selfRaw, ok := ctx.Env().Get("Self"); ok {
-		if selfVal, ok := selfRaw.(Value); ok {
-			if selfVal.Type() == "OBJECT" || selfVal.Type() == "CLASS" {
-				return e.adapter.CallImplicitSelfMethod(node, funcName)
-			}
-		}
-	}
-
 	// Task 3.5.24: Record static method calls
 	// Task 3.5.146: Use RecordTypeMetaValue interface for static method lookup.
 	// When inside a record static method context, allows calling other static methods
@@ -386,8 +374,22 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	if fn, ok := builtins.DefaultRegistry.Lookup(funcName.Value); ok {
 		return fn(e, args) // Evaluator implements builtins.Context
 	}
-	// Not found in registry - this should not happen if FunctionRegistry is correct
-	return e.newError(node, "builtin function '%s' not found in registry", funcName.Value)
+
+	// Task 3.5.24: Implicit Self method calls (MethodName() is shorthand for Self.MethodName())
+	// Task 3.5.97b: Migrated to use CallImplicitSelfMethod adapter method
+	// When inside an instance method, calling MethodName() calls Self.MethodName()
+	// Example: Inside method Foo(), calling Bar() means Self.Bar()
+	// NOTE: This check is AFTER built-in functions to avoid shadowing built-ins like IntToStr
+	if selfRaw, ok := ctx.Env().Get("Self"); ok {
+		if selfVal, ok := selfRaw.(Value); ok {
+			if selfVal.Type() == "OBJECT" || selfVal.Type() == "CLASS" {
+				return e.adapter.CallImplicitSelfMethod(node, funcName)
+			}
+		}
+	}
+
+	// Not found in any registry or context
+	return e.newError(node, "function '%s' not found", funcName.Value)
 }
 
 // PrepareUserFunctionArgs prepares arguments for user function invocation.
