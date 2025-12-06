@@ -277,10 +277,13 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - **Tests**: ✅ All object/method/class/constructor tests pass (60+ tests), fixture baseline maintained (890)
   - **Commit**: d4840c66
 
-- [ ] **3.8.2.5** Migrate Object/Class Environments (2 days)
-  - Update `adapter_objects.go`, `objects_instantiation.go`
-  - Handle constructor environments
-  - **Tests**: Object creation tests
+- [x] **3.8.2.5** Migrate Object/Class Environments ✅ **COMPLETE** (2025-12-06)
+  - Migrated all 13 assignments in `adapter_objects.go` (7) and `objects_instantiation.go` (6)
+  - Sections: CreateObject field init/constructor, ExecuteConstructor, evalNewExpression field init/constructor
+  - Fixed unrelated build error: missing lexer import in builtins/conversion.go
+  - All methodEnv.Define() calls updated, all error paths with RestoreEnvironment()
+  - **Tests**: ✅ All object/constructor/instantiation tests pass, fixture baseline improved to 887 (-3)
+  - **Commit**: 73ad16b6
 
 - [ ] **3.8.2.6** Migrate Exception Handling Environments (1 day)
   - Update `exceptions.go`: try/except/finally blocks
