@@ -305,7 +305,7 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - All property getter/setter environments migrated to PushEnvironment/RestoreEnvironment pattern
   - Special logic preserved: class variable synchronization in evalClassPropertyWrite (lines 492-496, 528-532)
   - **Tests**: ✅ All property/indexed property/class property tests pass, fixture baseline maintained at 886
-  - **Commit**: 23dcf10f
+  - **Commit**: 8e4cf9bc
 
 - [ ] **3.8.2.9** Migrate Record Method Environments (functions_records.go)
   - **Count**: 10 assignments
