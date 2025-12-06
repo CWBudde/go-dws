@@ -101,9 +101,9 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-# Phases 3.2-3.8: Foundation & Consolidation ✅ COMPLETE
+# Phases 3.2-3.7: Foundation & Consolidation ✅ COMPLETE
 
-**Completed**: 2025-12-06 | **Total Effort**: ~40h
+**Completed**: 2025-11-30 | **Total Effort**: ~40h
 
 ## Summary of Completed Work
 
@@ -111,19 +111,202 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - **Phase 3.3**: ExecutionContext & CallStack (extracted from Interpreter)
 - **Phase 3.4**: Type System Separation (ClassRegistry, FunctionRegistry, TypeSystem)
 - **Phase 3.5**: Evaluator foundation (48+ visitor methods, TypeSystem, ExecutionContext, RefCountManager)
-- **Phase 3.6**: Binary operations consolidated (-944 LOC, delegated to evaluator)
-- **Phase 3.7**: Built-in function registry (225/244 functions migrated, -600 LOC)
-- **Phase 3.8**: Dependency cleanup (fixed circular deps, cleaned imports)
+- **Phase 3.6**: Built-in function registry (225/244 functions migrated, -600 LOC)
+- **Phase 3.7**: Dependency cleanup (fixed circular deps, cleaned imports)
 
 ## Cumulative Metrics
 
-- **Code reduction**: ~1,544 LOC
-- **Tests**: 347 passed, 880 failed (no regressions)
+- **Code reduction**: ~600 LOC (from built-in migration)
+- **Tests**: All passing (0 failures)
 - **Adapter methods**: 75 → 72
 - **EvalNode calls**: 34 → 28
 - **Architecture**: Clean evaluator/interpreter/runtime separation
 
 **Docs**: `docs/evaluator-architecture.md`, `docs/refcounting-design.md`, `docs/phase3.7-summary.md`
+
+**Note**: Phase 3.8 (binary operations migration) was attempted but reverted due to environment synchronization issues. See Phase 3.8 below for proper migration plan.
+
+---
+
+# Phase 3.8: Environment Synchronization & Binary Operations Migration
+
+**Goal**: Migrate binary operations to evaluator with proper environment synchronization
+
+**Status**: 📋 Planned | **Priority**: High | **Approach**: 🟡 Conservative | **Effort**: 2-3 weeks
+
+## Problem (Identified 2025-12-06)
+
+**Failed Attempt**: Commit af2ba646 attempted to migrate binary operations to evaluator by:
+- Deleting `internal/interp/expressions_binary.go` (-944 LOC)
+- Delegating `Interpreter.Eval(BinaryExpression)` to `evaluator.EvaluateBinaryExpression()`
+
+**Result**: **139 test failures** due to environment desynchronization.
+
+### Root Cause
+
+The Interpreter maintains **two environment references**:
+1. `i.env` - Used by Interpreter.Eval() methods
+2. `i.ctx.env` - Used by Evaluator visitor methods
+
+**30+ locations** in the codebase create new enclosed environments and set `i.env` without syncing `i.ctx.env`:
+
+```go
+// BROKEN PATTERN (appears 30+ times):
+lambdaEnv := NewEnclosedEnvironment(closureEnv)
+i.env = lambdaEnv  // ✗ Only updates i.env
+// Missing: i.ctx.SetEnv(evaluator.NewEnvironmentAdapter(lambdaEnv))
+```
+
+**Impact Locations**:
+- `statements_loops.go`: For loops (2 instances)
+- `functions_pointers.go`: Lambda execution (4 error paths)
+- `adapter_functions.go`: Function pointer calls (3 instances)
+- `adapter_methods.go`: Method dispatch (10+ instances)
+- `adapter_objects.go`: Object instantiation (3 instances)
+- `declarations.go`: Type/function declarations (5+ instances)
+- `exceptions.go`: Try/except blocks (2 instances)
+- `functions_records.go`: Record methods (2 instances)
+- `objects_hierarchy.go`: Inheritance (2 instances)
+- And more...
+
+### Why This Happened
+
+**Phase 3.5-3.7** built the Evaluator infrastructure assuming it could share `i.env` directly. However:
+- Interpreter uses `*Environment` (concrete type from `internal/interp`)
+- Evaluator uses `Environment` (interface from `internal/interp/evaluator`)
+- Migration requires adapter: `evaluator.NewEnvironmentAdapter(i.env)`
+- **No systematic audit** was done of all environment-changing code paths before the migration
+
+## Solution: Phased Migration with Environment Sync
+
+### Phase 3.8.1: Environment Management Audit (1 week)
+
+**Goal**: Document all environment modification points and create safe migration helpers.
+
+**Tasks**:
+
+- [ ] **3.8.1.1** Complete Environment Audit (2 days)
+  - Grep for all `i.env =` assignments
+  - Document each location with context (function, purpose, error paths)
+  - Categorize: loops, functions, methods, objects, exceptions, declarations
+  - **Deliverable**: `docs/environment-audit.md` with full inventory
+
+- [ ] **3.8.1.2** Create Environment Management Helpers (1 day)
+  ```go
+  // SetEnvironment atomically updates both i.env and i.ctx
+  func (i *Interpreter) SetEnvironment(env *Environment) {
+      i.env = env
+      i.ctx.SetEnv(evaluator.NewEnvironmentAdapter(env))
+  }
+
+  // PushEnvironment creates enclosed env and sets both references
+  func (i *Interpreter) PushEnvironment(parent *Environment) *Environment {
+      newEnv := NewEnclosedEnvironment(parent)
+      i.SetEnvironment(newEnv)
+      return newEnv
+  }
+
+  // RestoreEnvironment restores previous env in both places
+  func (i *Interpreter) RestoreEnvironment(saved *Environment) {
+      i.SetEnvironment(saved)
+  }
+  ```
+  - Add to `internal/interp/environment.go`
+  - Write unit tests for helpers
+  - Document usage patterns
+
+- [ ] **3.8.1.3** Verify Current State (1 day)
+  - Run all tests with evaluator disabled (baseline: 0 failures)
+  - Profile performance baseline
+  - Document current evaluator/interpreter split boundaries
+
+- [ ] **3.8.1.4** Create Migration Checklist (1 day)
+  - Prioritize locations by risk (loops > lambdas > methods > declarations)
+  - Define test strategy for each category
+  - Plan incremental commits (one category at a time)
+
+### Phase 3.8.2: Incremental Environment Sync Migration (1-2 weeks)
+
+**Approach**: Migrate one category at a time, verify tests after each.
+
+- [ ] **3.8.2.1** Migrate Loop Environments (2 days)
+  - Replace `i.env = loopEnv` with `i.PushEnvironment()`
+  - Replace `i.env = savedEnv` with `i.RestoreEnvironment()`
+  - Locations: `statements_loops.go` (for, for-in, while, repeat)
+  - **Tests**: Array/loop tests must pass (17 tests)
+
+- [ ] **3.8.2.2** Migrate Lambda Environments (2 days)
+  - Update `callLambda()` in `functions_pointers.go`
+  - Handle all 4 error paths (recursion, execution error, exception, return)
+  - **Tests**: Lambda tests must pass (5+ tests)
+
+- [ ] **3.8.2.3** Migrate Function Call Environments (3 days)
+  - Update `adapter_functions.go`: Function pointer calls
+  - Update user function calls, method pointers
+  - **Tests**: Function recursion, overloading tests
+
+- [ ] **3.8.2.4** Migrate Method Dispatch Environments (3 days)
+  - Update `adapter_methods.go`: All 10+ method dispatch locations
+  - Handle record methods, class methods, interface methods
+  - **Tests**: Method call tests, OOP tests
+
+- [ ] **3.8.2.5** Migrate Object/Class Environments (2 days)
+  - Update `adapter_objects.go`, `objects_instantiation.go`
+  - Handle constructor environments
+  - **Tests**: Object creation tests
+
+- [ ] **3.8.2.6** Migrate Exception Handling Environments (1 day)
+  - Update `exceptions.go`: try/except/finally blocks
+  - **Tests**: Exception tests
+
+- [ ] **3.8.2.7** Migrate Declaration Environments (2 days)
+  - Update `declarations.go`: Type/function/record declarations
+  - **Tests**: Declaration tests
+
+### Phase 3.8.3: Binary Operations Migration (3 days)
+
+**Only proceed after Phase 3.8.2 is complete and ALL tests pass**
+
+- [ ] **3.8.3.1** Migrate Binary Operations (1 day)
+  - Delete `internal/interp/expressions_binary.go`
+  - Update `Interpreter.Eval()` to delegate to evaluator
+  - Update compound assignment operations
+  - **Deliverable**: Binary ops handled by evaluator
+
+- [ ] **3.8.3.2** Update Variant Operations (1 day)
+  - Migrate `evalVariantBinaryOp` delegation
+  - Update `statements_assignments.go`
+
+- [ ] **3.8.3.3** Verification (1 day)
+  - Run full test suite (target: 0 failures)
+  - Run benchmarks (expect no performance regression)
+  - Update documentation
+
+## Success Criteria
+
+- ✅ **ALL** environment changes use `SetEnvironment()` helper
+- ✅ **Zero test failures** after migration
+- ✅ Binary operations delegated to evaluator (-944 LOC)
+- ✅ No performance regression
+- ✅ `docs/environment-audit.md` documents all env management
+- ✅ Migration verified incrementally (one category at a time)
+
+## Lessons Learned from Failed Attempt
+
+1. **Never migrate evaluator delegation without environment sync audit first**
+2. **30+ locations need coordination** - requires systematic approach
+3. **Test early, test often** - incremental verification prevents cascading failures
+4. **Helper functions** reduce error-prone manual updates
+5. **Document the pattern** before applying it everywhere
+
+## Rollback Plan
+
+If any phase fails:
+- Revert incremental commits (granular = easy rollback)
+- Document failure in phase notes
+- Re-evaluate approach before retry
+
+**Estimated Total Effort**: 2-3 weeks (conservative, includes testing at each step)
 
 ---
 

@@ -479,8 +479,7 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return i.evalIdentifier(node)
 
 	case *ast.BinaryExpression:
-		// Phase 3.6: Delegate binary operations to evaluator
-		return i.evaluatorInstance.EvaluateBinaryExpression(node, i.ctx)
+		return i.evalBinaryExpression(node)
 
 	case *ast.UnaryExpression:
 		return i.evalUnaryExpression(node)
@@ -574,61 +573,4 @@ func (i *Interpreter) EvalWithExpectedType(node ast.Node, expectedType types.Typ
 
 	// For all other cases, use regular Eval
 	return i.Eval(node)
-}
-
-// ============================================================================
-// Phase 3.6: Binary Operation Helper Methods (Delegated to Evaluator)
-// ============================================================================
-
-// convertToString converts a Value to its string representation.
-// Phase 3.6: This is a wrapper for the evaluator's ConvertToString method.
-// TODO(Phase 4): Remove this wrapper when tests are updated to use evaluator directly.
-func (i *Interpreter) convertToString(val Value) string {
-	return i.evaluatorInstance.ConvertToString(val)
-}
-
-// ============================================================================
-// Phase 3.6: Package-Level Helper Functions (For Tests)
-// ============================================================================
-
-// isFalsey checks if a value is considered "falsey" (default/zero value for its type).
-// Phase 3.6: Copied from evaluator/helpers.go for test compatibility.
-// TODO(Phase 4): Remove this function when tests are updated to use evaluator directly.
-func isFalsey(val Value) bool {
-	// Handle nil (from unassigned variants)
-	if val == nil {
-		return true
-	}
-
-	switch v := val.(type) {
-	case *IntegerValue:
-		return v.Value == 0
-	case *FloatValue:
-		return v.Value == 0.0
-	case *StringValue:
-		return v.Value == ""
-	case *BooleanValue:
-		return !v.Value
-	case *NilValue:
-		return true
-	case *NullValue:
-		return true
-	case *UnassignedValue:
-		return true
-	case *ArrayValue:
-		return len(v.Elements) == 0
-	case *VariantValue:
-		// Unwrap variant and check inner value
-		return isFalsey(v.Value)
-	default:
-		// Other types (objects, classes, etc.) are truthy if non-nil
-		return false
-	}
-}
-
-// isNumericType checks if a type is numeric (INTEGER or FLOAT).
-// Phase 3.6: Copied from evaluator/binary_ops.go for test compatibility.
-// TODO(Phase 4): Remove this function when tests are updated to use evaluator directly.
-func isNumericType(typeStr string) bool {
-	return typeStr == "INTEGER" || typeStr == "FLOAT"
 }
