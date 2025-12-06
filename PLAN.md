@@ -315,12 +315,14 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - **Tests**: ✅ All record/method/property tests pass, fixture baseline maintained at 886
   - **Commit**: 1841f1fb
 
-- [ ] **3.8.2.10** Migrate Evaluator Integration Callbacks (user_function_callbacks.go)
-  - **Count**: 6 assignments
-  - **Purpose**: Environment synchronization between interpreter and evaluator
-  - **Risk**: **CRITICAL** - central integration point, already has partial sync logic
-  - **Special Note**: This file already uses EnvSyncer callback for partial sync
-  - **Tests**: Verify all evaluator integration tests pass
+- [x] **3.8.2.10** Migrate Evaluator Integration Callbacks ✅ **COMPLETE** (2025-12-06)
+  - Migrated all 6 assignments in `user_function_callbacks.go`
+  - Functions: createInterfaceCleanupCallback (1), cleanupInterfaceReferencesForEnv (2), createEnvSyncerCallback (3)
+  - Migrated lines: 183 (cleanup restore), 217 (set concrete env), 219 (cleanup restore), 247 (sync set), 252 (sync set fallback), 264 (sync restore)
+  - Critical integration point preserved: EnvSyncer callback atomically syncs both i.env and i.ctx.env
+  - Interface cleanup properly uses synchronized environments for ref counting
+  - **Tests**: ✅ All non-fixture tests pass, fixture baseline maintained at 886
+  - **Commit**: [pending]
 
 - [ ] **3.8.2.11** Migrate Operator Overload Environments (operators_eval.go)
   - **Count**: 6 assignments
@@ -349,7 +351,7 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - **Risk**: LOW - miscellaneous edge cases
   - **Tests**: Verify control flow and interface tests pass
 
-**Phase 3.8.2 Progress**: 126 of 149 assignments migrated (85%). **23 assignments remaining** in tasks 3.8.2.10-3.8.2.14.
+**Phase 3.8.2 Progress**: 132 of 149 assignments migrated (89%). **17 assignments remaining** in tasks 3.8.2.11-3.8.2.14.
 
 ### Phase 3.8.3: Binary Operations Migration (3 days)
 
