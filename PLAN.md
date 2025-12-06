@@ -364,51 +364,145 @@ i.env = lambdaEnv  // ✗ Only updates i.env
 
 ### Phase 3.8.3: Binary Operations Migration - ⚠️ **BLOCKED**
 
-**Status**: Migration attempted and **ROLLED BACK** (2025-12-06)
+**Status**: Migration attempted TWICE and **ROLLED BACK** (2025-12-06)
 
-**Attempt Summary**:
+---
+
+**Second Attempt Summary** (2025-12-06 - Latest):
+- **Action**: Fixed ErrorValue type incompatibility (3.8.3.0a) then attempted delegation
+- **Changes**:
+  - Replaced `evaluator.ErrorValue` with `runtime.ErrorValue` (9 files)
+  - Updated 27 test files for error type compatibility
+  - Delegated `Interpreter.Eval(BinaryExpression)` to `evaluator.VisitBinaryExpression()`
+- **Result**: ❌ **5 new test failures** (vs 0 baseline)
+- **Action**: ✅ Full rollback to baseline, ErrorValue fixes KEPT
+
+**Failures Found in Second Attempt**:
+
+1. **Helper Method Context Loss** ❌ **CRITICAL BLOCKER** (3 failures)
+   - Tests: `TestHelperProperty`, `TestHelperWithRecordKeyword`, `TestHelperMethodOnRecord`
+   - Error: `"member 'X' not found on value of type 'TPoint'"`
+   - Code: `Result := Self.X + Self.Y` in helper method ([helpers_test.go:284](internal/interp/helpers_test.go#L284))
+   - **Root Cause**: Evaluator loses helper method's `Self` binding during nested binary expression evaluation
+
+2. **Interface Nil Cast Failure** ❌ **BLOCKER** (1 failure)
+   - Test: `TestInterfaceReferenceTests/interface_nil_cast_from_intf`
+   - Expected: "Ok", Got: empty output
+   - **Root Cause**: Interface casting behavior differs between Interpreter and Evaluator
+
+3. **Lambda/ForEach Context Panic** ❌ **BLOCKER** (1 failure)
+   - Test: `TestForEachBasic`
+   - Panic at: `builtins_context.go:556`
+   - **Root Cause**: Lambda closure environment not synchronized with evaluator
+
+**Progress**: ErrorValue type compatibility ✅ FIXED and KEPT (prerequisite 3.8.3.0a complete)
+
+---
+
+**First Attempt Summary** (2025-12-06 - Original):
 - Deleted `expressions_binary.go` (945 lines)
 - Delegated `Interpreter.Eval(BinaryExpression)` to evaluator
 - Created helper for Variant compound assignments
 - **Result**: ❌ **10 new test failures** (11 total vs 1 baseline)
 - **Action**: Full rollback to baseline ✅
 
-**Issues Found**:
+**Issues Found in First Attempt**:
 
 1. **Missing Error Location Information** (5+ failures)
    - Evaluator errors lack source location context
    - Example: `"ERROR: division by zero"` instead of `"ERROR [line: 2]: division by zero"`
    - **Root Cause**: Evaluator doesn't track `currentNode` like Interpreter
+   - **Status**: ✅ FIXED in second attempt (prerequisite 3.8.3.0a)
 
 2. **Coalesce Operator Semantic Difference** (1 failure)
    - Test: `TestEvalCoalesceWithArrays` - empty array `??` fallback fails
    - **Root Cause**: Evaluator's `isFalsey()` differs from Interpreter
+   - **Status**: DEFERRED (not observed in second attempt, may be fixed)
 
 3. **Helper Method Issues** (3 failures)
    - Tests: `TestHelperMethodOnRecord`, `TestHelperProperty`, `TestHelperWithRecordKeyword`
+   - **Status**: ❌ REPRODUCED in second attempt - now CRITICAL BLOCKER (see above)
 
 4. **Other Failures**: `TestArrayAssignment_WithRecords`, `TestClassConstantInInstanceMethod`, `TestEnumNameProperty`
+   - **Status**: Not reproduced in second attempt (may have been related to ErrorValue issue)
 
 **Prerequisites (must complete before retry)**:
 
-- [ ] **3.8.3.0a** Fix Evaluator Error Location Tracking
-  - Ensure evaluator tracks `currentNode` for all operations
-  - Error messages must include source location
-  - Verify with `TestErrorMessagesIncludeLocation`
+- [x] **3.8.3.0a** Fix Evaluator Error Type Compatibility ✅ **COMPLETE** (2025-12-06)
+  - **Problem**: Evaluator used separate `evaluator.ErrorValue` type, incompatible with `*runtime.ErrorValue` and `*interp.ErrorValue`
+  - **Solution**:
+    - Removed `evaluator.ErrorValue` type definition from `visitor_expressions_errors.go`
+    - Updated `newError()` to return `*runtime.ErrorValue`
+    - Fixed `runtime.ErrorValue.String()` to include "ERROR: " prefix (matching Interpreter format)
+    - Updated 9 evaluator files to use `runtime.ErrorValue` (var_params.go, type_casts.go, result.go, etc.)
+    - Updated 27 test files to handle both error types using `val.String()`
+  - **Files Modified**:
+    - [internal/interp/evaluator/visitor_expressions_errors.go](internal/interp/evaluator/visitor_expressions_errors.go) - Use runtime.ErrorValue
+    - [internal/interp/runtime/primitives.go](internal/interp/runtime/primitives.go#L602) - Added "ERROR: " prefix
+    - Error location tracking verified: ✅ `TestErrorMessagesIncludeLocation` passes
+  - **Tests**: ✅ All evaluator tests pass, error format matches Interpreter
 
-- [ ] **3.8.3.0b** Fix Evaluator Coalesce Semantics
-  - Align evaluator's `isFalsey()` with Interpreter
-  - Test with `TestEvalCoalesceWithArrays`
+- [ ] **3.8.3.0b** Fix Helper Method Context Preservation ❌ **BLOCKER**
+  - **Problem**: When evaluator evaluates binary expressions inside helper methods, helper context is lost
+  - **Symptoms**:
+    - `TestHelperProperty` fails with "member 'X' not found on value of type 'TPoint'"
+    - Occurs in helper method: `Result := Self.X + Self.Y` ([helpers_test.go:284](internal/interp/helpers_test.go#L284))
+    - `Self.X` member access fails because helper context not preserved during binary op evaluation
+  - **Root Cause**: Evaluator's `VisitBinaryExpression` doesn't have access to helper method's `Self` binding
+  - **Required Fix**:
+    - Investigate how Interpreter preserves helper context during nested expression evaluation
+    - Ensure `i.ctx.env` in evaluator has the same helper bindings as `i.env` in Interpreter
+    - May require passing additional context through ExecutionContext
+  - **Tests to Verify**:
+    - `TestHelperProperty` - helper property with binary expression
+    - `TestHelperWithRecordKeyword` - record helper with Self member access
+    - `TestHelperMethodOnRecord` - helper method returning computed value
 
-- [ ] **3.8.3.0c** Investigate Helper Method Differences
-  - Debug helper method failures with evaluator
+- [ ] **3.8.3.0c** Fix Interface Nil Cast Behavior ❌ **BLOCKER**
+  - **Problem**: Interface nil cast test fails with evaluator
+  - **Symptom**: `TestInterfaceReferenceTests/interface_nil_cast_from_intf` - Expected "Ok", got empty output
+  - **Root Cause**: Unknown - interface casting logic differs between Interpreter and Evaluator
+  - **Required Fix**:
+    - Debug `interface_nil_cast_from_intf` test with evaluator delegation enabled
+    - Compare Interpreter vs Evaluator behavior for interface nil casts
+    - Ensure evaluator's type casting matches Interpreter semantics
+  - **Test to Verify**: `TestInterfaceReferenceTests/interface_nil_cast_from_intf`
 
-- [ ] **3.8.3.0d** Run Full Evaluator Test Suite
-  - Ensure 100% feature parity with Interpreter
+- [ ] **3.8.3.0d** Fix Lambda/ForEach Context Issues ❌ **BLOCKER**
+  - **Problem**: ForEach builtin panics when evaluator handles binary expressions
+  - **Symptom**: `TestForEachBasic` panics at `builtins_context.go:556`
+  - **Root Cause**: Lambda evaluation context not properly synchronized with evaluator
+  - **Required Fix**:
+    - Investigate how lambda closures capture environment when binary ops delegate to evaluator
+    - Ensure lambda execution environment includes all necessary bindings
+    - Verify ForEach callback context is preserved
+  - **Test to Verify**: `TestForEachBasic`
+
+- [ ] **3.8.3.0e** Coalesce Operator Semantics (DEFERRED - may not be needed)
+  - **Original Issue**: `TestEvalCoalesceWithArrays` - empty array `??` fallback fails
+  - **Status**: Not observed in latest attempt (may have been fixed by ErrorValue changes)
+  - **Action**: Re-test after fixing 3.8.3.0b-d
+
+- [ ] **3.8.3.0f** Run Comprehensive Evaluator Binary Expression Tests
+  - **Goal**: Ensure 100% behavioral parity with Interpreter for ALL binary operations
+  - **Test Categories**:
+    - ✅ Basic arithmetic (integer, float, string)
+    - ✅ Comparison operators
+    - ✅ Boolean operators (and, or, not, xor)
+    - ✅ Short-circuit evaluation (??, and, or)
+    - ❌ Binary ops in helper method context (FAILS - see 3.8.3.0b)
+    - ❌ Binary ops in lambda/closure context (FAILS - see 3.8.3.0d)
+    - ? Binary ops with interface values (UNKNOWN - see 3.8.3.0c)
+    - ? Binary ops with operator overloading
+    - ? Binary ops with Variant types
+  - **Baseline**: 1163 non-fixture tests, 868 fixture failures
+  - **After ErrorValue fix**: 1163 non-fixture tests pass ✅
+  - **After delegation attempt**: 5 new failures (helper methods, interface, lambda)
+  - **Required**: Zero new failures before proceeding to 3.8.3.1
 
 ---
 
-### Phase 3.8.3.1-3: Migration (DEFERRED until prerequisites complete)
+### Phase 3.8.3.1-3: Migration
 
 - [ ] **3.8.3.1** Migrate Binary Operations
 - [ ] **3.8.3.2** Update Variant Operations

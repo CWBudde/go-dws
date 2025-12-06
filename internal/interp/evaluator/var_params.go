@@ -82,7 +82,7 @@ func (e *Evaluator) evaluateLValueIndex(target *ast.IndexExpression, ctx *Execut
 	// Evaluate array and index ONCE
 	arrVal := e.Eval(target.Left, ctx)
 	if isError(arrVal) {
-		if errVal, ok := arrVal.(*ErrorValue); ok {
+		if errVal, ok := arrVal.(*runtime.ErrorValue); ok {
 			return nil, nil, fmt.Errorf("failed to evaluate array: %s", errVal.Message)
 		}
 		return nil, nil, fmt.Errorf("failed to evaluate array: unknown error")
@@ -90,7 +90,7 @@ func (e *Evaluator) evaluateLValueIndex(target *ast.IndexExpression, ctx *Execut
 
 	indexVal := e.Eval(target.Index, ctx)
 	if isError(indexVal) {
-		if errVal, ok := indexVal.(*ErrorValue); ok {
+		if errVal, ok := indexVal.(*runtime.ErrorValue); ok {
 			return nil, nil, fmt.Errorf("failed to evaluate index: %s", errVal.Message)
 		}
 		return nil, nil, fmt.Errorf("failed to evaluate index: unknown error")
@@ -164,7 +164,7 @@ func (e *Evaluator) evaluateLValueMember(target *ast.MemberAccessExpression, ctx
 	// Evaluate object ONCE
 	objVal := e.Eval(target.Object, ctx)
 	if isError(objVal) {
-		if errVal, ok := objVal.(*ErrorValue); ok {
+		if errVal, ok := objVal.(*runtime.ErrorValue); ok {
 			return nil, nil, fmt.Errorf("failed to evaluate object: %s", errVal.Message)
 		}
 		return nil, nil, fmt.Errorf("failed to evaluate object: unknown error")

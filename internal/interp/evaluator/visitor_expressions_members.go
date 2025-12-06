@@ -237,6 +237,31 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 	memberName := node.Member.Value
 
+	// Check for record instance using type assertion (before switch statement)
+	// This handles ALL record types regardless of their Type() return value
+	// (RecordValue.Type() returns the specific type name like "TPoint" instead of "RECORD")
+	if recVal, ok := obj.(RecordInstanceValue); ok {
+		// Direct field access - most common case
+		if fieldVal, found := recVal.GetRecordField(memberName); found {
+			return fieldVal
+		}
+
+		// Method reference - still uses adapter for method invocation
+		if recVal.HasRecordMethod(memberName) {
+			return e.adapter.EvalNode(node)
+		}
+
+		// Property access
+		if recVal.HasRecordProperty(memberName) {
+			// This should not happen for standard records, but if properties are added later,
+			// this path would need proper property reading logic
+			return e.newError(node, "property access on records not supported")
+		}
+
+		// Member not found - return proper error
+		return e.newError(node, "field '%s' not found in record '%s'", memberName, recVal.GetRecordTypeName())
+	}
+
 	// Route based on object type
 	switch obj.Type() {
 	case "OBJECT":
@@ -438,39 +463,9 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Delegate to adapter for class variable lookup with proper static type
 		return e.adapter.EvalNode(node)
 
-	case "RECORD":
-		// Task 3.5.91: Record instance access (Mode 5)
-		// Pattern: record.Field, record.Method
-		// Use RecordInstanceValue interface for direct field access
-		recVal, ok := obj.(RecordInstanceValue)
-		if !ok {
-			// Task 3.5.101: Direct error instead of EvalNode delegation
-			// If Type() returns "RECORD" but RecordInstanceValue interface is not implemented,
-			// this is an internal inconsistency that should not happen
-			return e.newError(node, "internal error: RECORD value does not implement RecordInstanceValue interface")
-		}
-
-		// Direct field access - most common case
-		if fieldVal, found := recVal.GetRecordField(memberName); found {
-			return fieldVal
-		}
-
-		// Method reference - still uses adapter for method invocation
-		if recVal.HasRecordMethod(memberName) {
-			return e.adapter.EvalNode(node)
-		}
-
-		// Task 3.5.101: Records don't have properties in DWScript - return proper error
-		// Note: HasRecordProperty() always returns false for standard records,
-		// but if it ever returns true, we should handle it properly
-		if recVal.HasRecordProperty(memberName) {
-			// This should not happen for standard records, but if properties are added later,
-			// this path would need proper property reading logic
-			return e.newError(node, "property access on records not supported")
-		}
-
-		// Task 3.5.101: Member not found - return proper error instead of delegating
-		return e.newError(node, "field '%s' not found in record '%s'", memberName, recVal.GetRecordTypeName())
+	// Note: RECORD case removed - now handled by type assertion before switch
+	// This avoids issues with RecordValue.Type() returning specific type names like "TPoint"
+	// instead of the generic "RECORD" string
 
 	case "ENUM":
 		// Task 3.5.89: Enum value properties (Mode 10)

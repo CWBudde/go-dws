@@ -299,7 +299,7 @@ func TestEvalEnumBinaryOp(t *testing.T) {
 			result := eval.evalEnumBinaryOp(tt.op, tt.left, tt.right, node)
 
 			// Check for errors
-			if errVal, ok := result.(*ErrorValue); ok {
+			if errVal, ok := result.(*runtime.ErrorValue); ok {
 				t.Fatalf("unexpected error: %s", errVal.Message)
 			}
 
@@ -400,11 +400,11 @@ func TestEvalEnumBinaryOpErrors(t *testing.T) {
 
 			// Check if error was returned as expected
 			if tt.expectError {
-				if _, ok := result.(*ErrorValue); !ok {
+				if _, ok := result.(*runtime.ErrorValue); !ok {
 					t.Errorf("expected error, got %T: %v", result, result)
 				}
 			} else {
-				if errVal, ok := result.(*ErrorValue); ok {
+				if errVal, ok := result.(*runtime.ErrorValue); ok {
 					t.Errorf("unexpected error: %s", errVal.Message)
 				}
 			}

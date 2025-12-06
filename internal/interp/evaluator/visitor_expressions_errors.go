@@ -3,18 +3,11 @@ package evaluator
 import (
 	"fmt"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // This file contains error handling utilities for the evaluator visitor methods.
-
-// ErrorValue represents a runtime error.
-type ErrorValue struct {
-	Message string
-}
-
-func (e *ErrorValue) Type() string   { return "ERROR" }
-func (e *ErrorValue) String() string { return "ERROR: " + e.Message }
 
 // newError creates a new error value with optional formatting and location information.
 func (e *Evaluator) newError(node ast.Node, format string, args ...any) Value {
@@ -28,7 +21,7 @@ func (e *Evaluator) newError(node ast.Node, format string, args ...any) Value {
 		}
 	}
 
-	return &ErrorValue{Message: message}
+	return &runtime.ErrorValue{Message: message}
 }
 
 // isError checks if a value is an error.

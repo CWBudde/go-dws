@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/token"
@@ -65,9 +66,9 @@ func TestErrorMessagesIncludeLocation(t *testing.T) {
 			errVal := e.newError(node, "%s", tt.errorMessage)
 
 			// Verify the error is of the right type
-			errorValue, ok := errVal.(*ErrorValue)
+			errorValue, ok := errVal.(*runtime.ErrorValue)
 			if !ok {
-				t.Fatalf("expected *ErrorValue, got %T", errVal)
+				t.Fatalf("expected *runtime.ErrorValue, got %T", errVal)
 			}
 
 			// Verify the error message contains location information
@@ -91,9 +92,9 @@ func TestErrorMessagesWithoutNode(t *testing.T) {
 
 	errVal := e.newError(nil, "%s", "some error without location")
 
-	errorValue, ok := errVal.(*ErrorValue)
+	errorValue, ok := errVal.(*runtime.ErrorValue)
 	if !ok {
-		t.Fatalf("expected *ErrorValue, got %T", errVal)
+		t.Fatalf("expected *runtime.ErrorValue, got %T", errVal)
 	}
 
 	errMsg := errorValue.String()
@@ -130,9 +131,9 @@ func TestErrorMessagesWithZeroLineNumber(t *testing.T) {
 
 	errVal := e.newError(node, "%s", "some error")
 
-	errorValue, ok := errVal.(*ErrorValue)
+	errorValue, ok := errVal.(*runtime.ErrorValue)
 	if !ok {
-		t.Fatalf("expected *ErrorValue, got %T", errVal)
+		t.Fatalf("expected *runtime.ErrorValue, got %T", errVal)
 	}
 
 	errMsg := errorValue.String()

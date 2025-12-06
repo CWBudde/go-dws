@@ -367,10 +367,11 @@ func TestFunctionErrors(t *testing.T) {
 				return
 			}
 
-			errVal := val.(*ErrorValue)
-			if !strings.Contains(errVal.Message, tt.expectedErr) {
+			// Get error message (works for both interp.ErrorValue and runtime.ErrorValue)
+			errorMsg := val.String()
+			if !strings.Contains(errorMsg, tt.expectedErr) {
 				t.Errorf("wrong error message. expected to contain %q, got=%q",
-					tt.expectedErr, errVal.Message)
+					tt.expectedErr, errorMsg)
 			}
 		})
 	}
@@ -520,9 +521,10 @@ func TestExternalVarRuntime(t *testing.T) {
 					t.Fatalf("expected error containing %q, got: %s", tt.expectedError, val.String())
 				}
 
-				errVal := val.(*ErrorValue)
-				if !strings.Contains(errVal.Message, tt.expectedError) {
-					t.Errorf("error = %q, want to contain %q", errVal.Message, tt.expectedError)
+				// Check error message (works for both interp.ErrorValue and runtime.ErrorValue)
+				errorString := val.String()
+				if !strings.Contains(errorString, tt.expectedError) {
+					t.Errorf("error = %q, want to contain %q", errorString, tt.expectedError)
 				}
 			}
 		})
