@@ -162,6 +162,13 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 			}
 		}
 
+		// Task 9.x: Function/method pointer types registered in the type system
+		if e.typeSystem != nil {
+			if funcPtrType := e.typeSystem.LookupFunctionPointerType(cleanTypeName); funcPtrType != nil {
+				return funcPtrType, nil
+			}
+		}
+
 		// Task 3.5.139c: Will add array type lookups
 		// Task 3.5.139c: Will add type alias lookups (if needed)
 

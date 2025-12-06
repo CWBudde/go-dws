@@ -572,6 +572,12 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 			// Use nominal class type for runtime type information
 			return types.NewClassType(cleanTypeName, nil), nil
 		}
+
+		// Function/method pointer types registered in the TypeSystem
+		if funcPtrType := i.typeSystem.LookupFunctionPointerType(cleanTypeName); funcPtrType != nil {
+			return funcPtrType, nil
+		}
+
 		// Unknown type
 		return nil, fmt.Errorf("unknown type: %s", typeName)
 	}
