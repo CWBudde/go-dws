@@ -5,6 +5,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // Lexer represents a lexical scanner for DWScript source code.
@@ -44,6 +46,17 @@ type Lexer struct {
 	ch               rune
 	preserveComments bool
 	tracing          bool
+
+	defines   map[string]struct{}
+	condStack []conditionalFrame
+}
+
+type conditionalFrame struct {
+	cond         bool
+	active       bool
+	parentActive bool
+	elseSeen     bool
+	startPos     Position
 }
 
 // LexerState represents the complete state of the Lexer at a specific point in time.
@@ -56,6 +69,8 @@ type LexerState struct {
 	line         int
 	column       int
 	ch           rune
+	defines      map[string]struct{}
+	condStack    []conditionalFrame
 }
 
 // LexerOption is a function that configures a Lexer.
@@ -105,6 +120,9 @@ func New(input string, opts ...LexerOption) *Lexer {
 		input:  input,
 		line:   1,
 		column: 0,
+		defines: map[string]struct{}{
+			ident.Normalize("DWSCRIPT"): {},
+		},
 	}
 
 	// Apply options
@@ -233,6 +251,14 @@ func (l *Lexer) SaveState() LexerState {
 	bufferCopy := make([]Token, len(l.tokenBuffer))
 	copy(bufferCopy, l.tokenBuffer)
 
+	definesCopy := make(map[string]struct{}, len(l.defines))
+	for k, v := range l.defines {
+		definesCopy[k] = v
+	}
+
+	stackCopy := make([]conditionalFrame, len(l.condStack))
+	copy(stackCopy, l.condStack)
+
 	return LexerState{
 		position:     l.position,
 		readPosition: l.readPosition,
@@ -240,6 +266,8 @@ func (l *Lexer) SaveState() LexerState {
 		line:         l.line,
 		column:       l.column,
 		tokenBuffer:  bufferCopy,
+		defines:      definesCopy,
+		condStack:    stackCopy,
 	}
 }
 
@@ -253,6 +281,8 @@ func (l *Lexer) RestoreState(s LexerState) {
 	l.line = s.line
 	l.column = s.column
 	l.tokenBuffer = s.tokenBuffer
+	l.defines = s.defines
+	l.condStack = s.condStack
 }
 
 // Peek returns the token n positions ahead without consuming it.
@@ -281,6 +311,131 @@ func (l *Lexer) SetPreserveComments(preserve bool) {
 // PreserveComments returns the current comment preservation setting.
 func (l *Lexer) PreserveComments() bool {
 	return l.preserveComments
+}
+
+func (l *Lexer) isDefined(name string) bool {
+	_, ok := l.defines[ident.Normalize(name)]
+	return ok
+}
+
+func (l *Lexer) define(name string) {
+	if name == "" {
+		return
+	}
+	l.defines[ident.Normalize(name)] = struct{}{}
+}
+
+func (l *Lexer) undefine(name string) {
+	delete(l.defines, ident.Normalize(name))
+}
+
+func (l *Lexer) isSkippingTokens() bool {
+	for _, frame := range l.condStack {
+		if !frame.active {
+			return true
+		}
+	}
+	return false
+}
+
+func (l *Lexer) processDirective() {
+	startPos := l.currentPos()
+
+	// Consume "{$"
+	l.readChar() // '{'
+	l.readChar() // '$'
+
+	var builder strings.Builder
+	for l.ch != 0 && l.ch != '}' {
+		builder.WriteRune(l.ch)
+		if l.ch == '\n' {
+			l.line++
+			l.column = 0
+		}
+		l.readChar()
+	}
+
+	if l.ch == 0 {
+		l.addError("unterminated compiler directive", startPos)
+		return
+	}
+
+	// consume closing '}'
+	l.readChar()
+
+	content := strings.TrimSpace(builder.String())
+	if content == "" {
+		l.addError("empty compiler directive", startPos)
+		return
+	}
+
+	parts := strings.Fields(content)
+	name := strings.ToLower(parts[0])
+	arg := ""
+	if len(parts) > 1 {
+		arg = parts[1]
+	}
+
+	parentActive := !l.isSkippingTokens()
+
+	switch name {
+	case "define":
+		if arg == "" {
+			l.addError("name expected after $define", startPos)
+			return
+		}
+		if parentActive {
+			l.define(arg)
+		}
+	case "undef":
+		if arg == "" {
+			l.addError("name expected after $undef", startPos)
+			return
+		}
+		if parentActive {
+			l.undefine(arg)
+		}
+	case "ifdef", "ifndef":
+		if arg == "" {
+			l.addError("name expected after $"+name, startPos)
+			return
+		}
+		cond := l.isDefined(arg)
+		if name == "ifndef" {
+			cond = !cond
+		}
+		frame := conditionalFrame{
+			cond:         cond,
+			parentActive: parentActive,
+			active:       parentActive && cond,
+			startPos:     startPos,
+		}
+		l.condStack = append(l.condStack, frame)
+	case "else":
+		if len(l.condStack) == 0 {
+			l.addError("unbalanced conditional directive", startPos)
+			return
+		}
+		top := &l.condStack[len(l.condStack)-1]
+		if top.elseSeen {
+			l.addError("unfinished conditional directive", startPos)
+			return
+		}
+		top.elseSeen = true
+		if top.parentActive {
+			top.active = !top.cond
+		} else {
+			top.active = false
+		}
+	case "endif":
+		if len(l.condStack) == 0 {
+			l.addError("unbalanced conditional directive", startPos)
+		} else {
+			l.condStack = l.condStack[:len(l.condStack)-1]
+		}
+	default:
+		l.addError("unknown compiler directive: "+name, startPos)
+	}
 }
 
 // readLineComment reads a line comment starting with //.
@@ -1140,50 +1295,73 @@ func (l *Lexer) handleLeftParen(pos Position) Token {
 // nextTokenInternal generates the next token from the input.
 // This is the internal tokenization logic, called by both NextToken() and Peek().
 func (l *Lexer) nextTokenInternal() Token {
-	l.skipWhitespace()
-	pos := l.currentPos()
+	for {
+		l.skipWhitespace()
+		pos := l.currentPos()
 
-	switch l.ch {
-	case 0:
-		return NewToken(EOF, "", pos)
-	case '/':
-		return l.handleSlashToken(pos)
-	case '{':
-		return l.handleCurlyBrace(pos)
+		if l.ch == '{' && l.peekChar() == '$' {
+			l.processDirective()
+			continue
+		}
 
-	case '(':
-		return l.handleLeftParen(pos)
-	case ')':
-		return l.handleSimpleToken(RPAREN, ")", pos)
-	case '[':
-		return l.handleSimpleToken(LBRACK, "[", pos)
-	case ']':
-		return l.handleSimpleToken(RBRACK, "]", pos)
-	case '}':
-		return l.handleSimpleToken(RBRACE, "}", pos)
-	case ';':
-		return l.handleSimpleToken(SEMICOLON, ";", pos)
-	case ',':
-		return l.handleSimpleToken(COMMA, ",", pos)
-	case '.':
-		return l.handleDot(pos)
-	case ':':
-		return l.handleColon(pos)
-	case '%':
-		return l.handlePercent(pos)
-	case '\\':
-		return l.handleSimpleToken(BACKSLASH, "\\", pos)
-	case '$':
-		return l.handleDollar(pos)
+		if l.isSkippingTokens() {
+			if l.ch == 0 {
+				if len(l.condStack) > 0 {
+					l.addError("unfinished conditional directive", l.condStack[len(l.condStack)-1].startPos)
+					l.condStack = nil
+				}
+				return NewToken(EOF, "", pos)
+			}
+			l.readChar()
+			continue
+		}
 
-	case '#':
-		return l.handleHash(pos)
+		switch l.ch {
+		case 0:
+			if len(l.condStack) > 0 {
+				l.addError("unfinished conditional directive", l.condStack[len(l.condStack)-1].startPos)
+				l.condStack = nil
+			}
+			return NewToken(EOF, "", pos)
+		case '/':
+			return l.handleSlashToken(pos)
+		case '{':
+			return l.handleCurlyBrace(pos)
 
-	case '\'', '"':
-		return l.handleString(pos)
+		case '(':
+			return l.handleLeftParen(pos)
+		case ')':
+			return l.handleSimpleToken(RPAREN, ")", pos)
+		case '[':
+			return l.handleSimpleToken(LBRACK, "[", pos)
+		case ']':
+			return l.handleSimpleToken(RBRACK, "]", pos)
+		case '}':
+			return l.handleSimpleToken(RBRACE, "}", pos)
+		case ';':
+			return l.handleSimpleToken(SEMICOLON, ";", pos)
+		case ',':
+			return l.handleSimpleToken(COMMA, ",", pos)
+		case '.':
+			return l.handleDot(pos)
+		case ':':
+			return l.handleColon(pos)
+		case '%':
+			return l.handlePercent(pos)
+		case '\\':
+			return l.handleSimpleToken(BACKSLASH, "\\", pos)
+		case '$':
+			return l.handleDollar(pos)
 
-	default:
-		return l.handleDefault(pos)
+		case '#':
+			return l.handleHash(pos)
+
+		case '\'', '"':
+			return l.handleString(pos)
+
+		default:
+			return l.handleDefault(pos)
+		}
 	}
 }
 

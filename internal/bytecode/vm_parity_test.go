@@ -104,6 +104,17 @@ func TestVMParityBasic(t *testing.T) {
 			`,
 		},
 		{
+			name: "Compiler directives",
+			source: `
+				{$define ACTIVE}
+				{$ifdef ACTIVE}
+					PrintLn('enabled');
+				{$else}
+					PrintLn('disabled');
+				{$endif}
+			`,
+		},
+		{
 			name: "Type conversion",
 			source: `
 				var x: Integer := 42;
