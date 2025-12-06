@@ -568,7 +568,7 @@ func StrToBool(ctx Context, args []Value) Value {
 
 // SubString implements the SubString() built-in function.
 // It extracts a substring from a string using start and end positions.
-// SubString(str, start, end) - returns substring from start to end (1-based, inclusive)
+// SubString(str, start, end) - returns substring from start up to end (1-based, end-exclusive)
 // Note: Different from SubStr which takes a length parameter instead of end position.
 func SubString(ctx Context, args []Value) Value {
 	if len(args) != 3 {
@@ -595,7 +595,11 @@ func SubString(ctx Context, args []Value) Value {
 
 	str := strVal.Value
 	start := int(startVal.Value) // 1-based
-	end := int(endVal.Value)     // 1-based, inclusive
+	end := int(endVal.Value)     // 1-based, end-exclusive
+
+	if start < 1 {
+		start = 1
+	}
 
 	// Calculate length using end as an exclusive position (DWScript semantics):
 	// SubString(str, 3, 7) returns characters at positions 3..6 → length 4.
