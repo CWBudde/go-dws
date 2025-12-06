@@ -324,12 +324,14 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - **Tests**: ✅ All non-fixture tests pass, fixture baseline maintained at 886
   - **Commit**: 634e16c3
 
-- [ ] **3.8.2.11** Migrate Operator Overload Environments (operators_eval.go)
-  - **Count**: 6 assignments
-  - **Purpose**: Operator overload method execution
-  - **Pattern**: Similar to method dispatch
-  - **Risk**: MEDIUM - operator overloading dispatch
-  - **Tests**: Verify operator overload tests pass
+- [x] **3.8.2.11** Migrate Operator Overload Environments ✅ **COMPLETE** (2025-12-06)
+  - Migrated all 6 assignments in `operators_eval.go`
+  - Functions: invokeInstanceOperatorMethod (3 assignments), invokeClassOperatorMethod (3 assignments)
+  - Migrated lines: 66-68→67-68 (instance setup), 97 (instance error), 106 (instance success), 119-121→120-121 (class setup), 150 (class error), 159 (class success)
+  - Changed extractReturnValue calls to use i.env (current method environment) instead of captured methodEnv
+  - Operator overload dispatch properly synchronized for both instance and class methods
+  - **Tests**: ✅ All non-fixture tests pass, fixture baseline improved to 884 (-2)
+  - **Commit**: [pending]
 
 - [ ] **3.8.2.12** Migrate Parent Class Call Environments (objects_hierarchy.go)
   - **Count**: 4 assignments
@@ -351,7 +353,7 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - **Risk**: LOW - miscellaneous edge cases
   - **Tests**: Verify control flow and interface tests pass
 
-**Phase 3.8.2 Progress**: 132 of 149 assignments migrated (89%). **17 assignments remaining** in tasks 3.8.2.11-3.8.2.14.
+**Phase 3.8.2 Progress**: 138 of 149 assignments migrated (93%). **11 assignments remaining** in tasks 3.8.2.12-3.8.2.14.
 
 ### Phase 3.8.3: Binary Operations Migration (3 days)
 
