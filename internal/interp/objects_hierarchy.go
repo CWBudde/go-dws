@@ -785,9 +785,8 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 		}
 
 		// Create method environment
-		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
-		i.env = methodEnv
+		i.PushEnvironment(i.env)
 
 		i.env.Define("Self", obj)
 		i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: parentClass})
@@ -830,7 +829,7 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 			returnValue = &NilValue{}
 		}
 
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 		return returnValue
 	}
 
@@ -888,9 +887,9 @@ func (i *Interpreter) getClassConstant(classInfo *ClassInfo, constantName string
 		}
 	}
 
-	i.env = tempEnv
+	i.SetEnvironment(tempEnv)
 	constValue := i.Eval(constDecl.Value)
-	i.env = savedEnv
+	i.RestoreEnvironment(savedEnv)
 
 	if isError(constValue) {
 		return constValue
