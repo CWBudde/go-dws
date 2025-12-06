@@ -43,7 +43,7 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 
 	// Initialize fields with default values
 	savedEnv := i.env
-	i.PushEnvironment(i.env)
+	_ = i.PushEnvironment(i.env)
 
 	for fieldName, fieldType := range classInfo.Fields {
 		var fieldValue Value

@@ -305,19 +305,54 @@ func (i *Interpreter) builtinVarToFloatDef(args []Value) Value {
 			return &FloatValue{Value: 1.0}
 		}
 		return &FloatValue{Value: 0.0}
+	case *NullValue:
+		// Delphi/DWScript semantics: Null → 0 for VarToFloatDef
+		return &FloatValue{Value: 0.0}
+	case *NilValue:
+		// Treat nil object references like Null for float conversion
+		return &FloatValue{Value: 0.0}
+	case *UnassignedValue:
+		// Unassigned keeps the provided default
+		return &FloatValue{Value: defaultVal.Value}
 	case *StringValue:
 		// Try to parse as float
-		s := strings.TrimSpace(v.Value)
-		floatValue, err := strconv.ParseFloat(s, 64)
-		if err != nil {
-			return &FloatValue{Value: defaultVal.Value}
+		if floatValue, ok := parseFloatWithFallback(v.Value); ok {
+			return &FloatValue{Value: floatValue}
 		}
-		return &FloatValue{Value: floatValue}
+		return &FloatValue{Value: defaultVal.Value}
 	case *VariantValue:
 		// Recursively convert the underlying value
+		if v.Value == nil {
+			return &FloatValue{Value: defaultVal.Value}
+		}
+		// Null should map to 0, not default
+		if _, isNull := v.Value.(*NullValue); isNull {
+			return &FloatValue{Value: 0.0}
+		}
+		if _, isUnassigned := v.Value.(*UnassignedValue); isUnassigned {
+			return &FloatValue{Value: defaultVal.Value}
+		}
 		return i.builtinVarToFloatDef([]Value{v.Value, defaultVal})
 	default:
 		// Cannot convert - return default
 		return &FloatValue{Value: defaultVal.Value}
 	}
+}
+
+// parseFloatWithFallback parses a float string, accepting both '.' and ',' as decimal separators.
+func parseFloatWithFallback(s string) (float64, bool) {
+	s = strings.TrimSpace(s)
+
+	if floatValue, err := strconv.ParseFloat(s, 64); err == nil {
+		return floatValue, true
+	}
+
+	// Fallback: accept comma as decimal separator when dot is absent
+	if strings.Contains(s, ",") && !strings.Contains(s, ".") {
+		if floatValue, err := strconv.ParseFloat(strings.ReplaceAll(s, ",", "."), 64); err == nil {
+			return floatValue, true
+		}
+	}
+
+	return 0.0, false
 }

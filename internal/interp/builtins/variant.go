@@ -2,6 +2,7 @@ package builtins
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 )
@@ -407,7 +408,7 @@ func VarToFloat(ctx Context, args []Value) Value {
 		return &runtime.FloatValue{Value: 0.0}
 	case *runtime.StringValue:
 		// Try to parse as float
-		floatVal, err := strconv.ParseFloat(v.Value, 64)
+		floatVal, err := parseFloatLocale(v.Value)
 		if err != nil {
 			return ctx.NewError("cannot convert string '%s' to Float", v.Value)
 		}
@@ -415,6 +416,29 @@ func VarToFloat(ctx Context, args []Value) Value {
 	default:
 		return ctx.NewError("cannot convert %s to Float", val.Type())
 	}
+}
+
+// parseFloatLocale parses a float string, accepting both '.' and ',' as decimal separators.
+func parseFloatLocale(s string) (float64, error) {
+	s = strings.TrimSpace(s)
+
+	// First, try standard parsing
+	floatVal, err := strconv.ParseFloat(s, 64)
+	if err == nil {
+		return floatVal, nil
+	}
+	firstErr := err
+
+	// Fallback: accept comma as decimal separator when dot is absent
+	if strings.Contains(s, ",") && !strings.Contains(s, ".") {
+		s = strings.ReplaceAll(s, ",", ".")
+		if floatVal, err := strconv.ParseFloat(s, 64); err == nil {
+			return floatVal, nil
+		}
+	}
+
+	// Return original error to preserve message semantics
+	return 0, firstErr
 }
 
 // VarAsType converts a Variant to the specified type code.
