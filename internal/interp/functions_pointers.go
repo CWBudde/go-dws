@@ -35,18 +35,17 @@ func (i *Interpreter) callFunctionPointer(funcPtr *FunctionPointerValue, args []
 	// If this is a method pointer, we need to set up the Self binding
 	if funcPtr.SelfObject != nil {
 		// Create a new environment with Self bound
-		funcEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
-		i.env = funcEnv
+		funcEnv := i.PushEnvironment(i.env)
 
 		// Bind Self to the captured object
-		i.env.Define("Self", funcPtr.SelfObject)
+		funcEnv.Define("Self", funcPtr.SelfObject)
 
 		// Call the function via evaluator
 		result := i.executeUserFunctionViaEvaluator(funcPtr.Function, args)
 
 		// Restore environment
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 
 		return result
 	}
@@ -80,13 +79,12 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 	// Create a new environment for the lambda scope
 	// CRITICAL: Use closureEnv as parent, NOT i.env
 	// This gives the lambda access to captured variables
-	lambdaEnv := NewEnclosedEnvironment(closureEnv)
 	savedEnv := i.env
-	i.env = lambdaEnv
+	lambdaEnv := i.PushEnvironment(closureEnv)
 
 	// Check recursion depth before pushing to call stack
 	if i.ctx.GetCallStack().WillOverflow() {
-		i.env = savedEnv // Restore environment before raising exception
+		i.RestoreEnvironment(savedEnv) // Restore environment before raising exception
 		return i.raiseMaxRecursionExceeded()
 	}
 
@@ -108,7 +106,7 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 
 		// Note: Lambdas don't support by-ref parameters (for now)
 		// All parameters are by-value
-		i.env.Define(param.Name.Value, arg)
+		lambdaEnv.Define(param.Name.Value, arg)
 	}
 
 	// For functions (not procedures), initialize the Result variable
@@ -145,7 +143,7 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 			resultValue = &NilValue{}
 		}
 
-		i.env.Define("Result", resultValue)
+		lambdaEnv.Define("Result", resultValue)
 	}
 
 	// Execute the lambda body
@@ -153,13 +151,13 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 
 	// If an error occurred during execution, propagate it
 	if isError(bodyResult) {
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 		return bodyResult
 	}
 
 	// If an exception was raised during lambda execution, propagate it immediately
 	if i.exception != nil {
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 		return &NilValue{}
 	}
 
@@ -187,7 +185,7 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 	}
 
 	// Restore environment
-	i.env = savedEnv
+	i.RestoreEnvironment(savedEnv)
 
 	return returnValue
 }

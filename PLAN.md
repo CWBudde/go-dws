@@ -249,16 +249,19 @@ i.env = lambdaEnv  // ✗ Only updates i.env
 
 **Approach**: Migrate one category at a time, verify tests after each.
 
-- [ ] **3.8.2.1** Migrate Loop Environments (2 days)
-  - Replace `i.env = loopEnv` with `i.PushEnvironment()`
-  - Replace `i.env = savedEnv` with `i.RestoreEnvironment()`
-  - Locations: `statements_loops.go` (for, for-in, while, repeat)
-  - **Tests**: Array/loop tests must pass (17 tests)
+- [x] **3.8.2.1** Migrate Loop Environments ✅ **COMPLETE** (2025-12-06)
+  - Replaced all 15 `i.env =` assignments with helper methods
+  - For loops: 7 assignments (ascending/descending with steps)
+  - For-in loops: 8 assignments (arrays, sets, enum types, strings)
+  - **Tests**: ✅ All loop and array tests pass, fixture baseline maintained (892)
+  - **Commit**: fc33bf80
 
-- [ ] **3.8.2.2** Migrate Lambda Environments (2 days)
-  - Update `callLambda()` in `functions_pointers.go`
-  - Handle all 4 error paths (recursion, execution error, exception, return)
-  - **Tests**: Lambda tests must pass (5+ tests)
+- [x] **3.8.2.2** Migrate Lambda Environments ✅ **COMPLETE** (2025-12-06)
+  - Migrated `callLambda()` in `functions_pointers.go` (7 assignments)
+  - Migrated method pointer execution in `adapter_functions.go` (2 assignments)
+  - Handled all error paths (recursion, execution error, exception, return)
+  - Fixed duplicate case statements in `builtins_context.go` (compilation issue)
+  - **Tests**: ✅ All lambda/closure/function pointer tests pass (15 tests), fixture baseline improved (890, down from 892)
 
 - [ ] **3.8.2.3** Migrate Function Call Environments (3 days)
   - Update `adapter_functions.go`: Function pointer calls
