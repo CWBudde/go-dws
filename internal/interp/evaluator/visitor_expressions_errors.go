@@ -16,9 +16,19 @@ type ErrorValue struct {
 func (e *ErrorValue) Type() string   { return "ERROR" }
 func (e *ErrorValue) String() string { return "ERROR: " + e.Message }
 
-// newError creates a new error value with optional formatting.
-func (e *Evaluator) newError(_ ast.Node, format string, args ...any) Value {
-	return &ErrorValue{Message: fmt.Sprintf(format, args...)}
+// newError creates a new error value with optional formatting and location information.
+func (e *Evaluator) newError(node ast.Node, format string, args ...any) Value {
+	message := fmt.Sprintf(format, args...)
+
+	// Add location information if node is available
+	if node != nil {
+		pos := node.Pos()
+		if pos.Line > 0 {
+			message = fmt.Sprintf("%s at line %d, column: %d", message, pos.Line, pos.Column)
+		}
+	}
+
+	return &ErrorValue{Message: message}
 }
 
 // isError checks if a value is an error.

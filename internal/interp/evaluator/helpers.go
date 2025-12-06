@@ -184,15 +184,14 @@ func isFalsey(val Value) bool {
 		return !v.Value
 	case *runtime.NilValue:
 		return true
+	case *runtime.ArrayValue:
+		// Empty arrays are falsey
+		return len(v.Elements) == 0
 	default:
 		// Check by type name for types not in runtime package
 		switch val.Type() {
 		case "NIL", "UNASSIGNED", "NULL":
 			return true
-		case "ARRAY":
-			// Empty arrays are falsey (check via type name to avoid import)
-			// This requires adapter access for full implementation
-			return false
 		case "VARIANT":
 			// Variant values need to be unwrapped
 			if wrapper, ok := val.(runtime.VariantWrapper); ok {
