@@ -20,9 +20,23 @@ func (i *Interpreter) callFunctionPointer(funcPtr *FunctionPointerValue, args []
 	// Check if this is a lambda or a regular function pointer
 	if funcPtr.Lambda != nil {
 		// Lambda closure - call with closure environment
-		closure, ok := funcPtr.Closure.(*Environment)
-		if !ok {
-			return i.newErrorWithLocation(node, "invalid closure type in function pointer")
+		// The closure might be either:
+		// 1. *Environment (from Interpreter.evalLambdaExpression)
+		// 2. evaluator.Environment adapter (from Evaluator.VisitLambdaExpression)
+		var closure *Environment
+		if concreteEnv, ok := funcPtr.Closure.(*Environment); ok {
+			// Already a concrete environment
+			closure = concreteEnv
+		} else if adapter, ok := funcPtr.Closure.(interface{ Underlying() interface{} }); ok {
+			// It's an adapter - unwrap it to get the concrete environment
+			underlying := adapter.Underlying()
+			if concreteEnv, ok := underlying.(*Environment); ok {
+				closure = concreteEnv
+			} else {
+				return i.newErrorWithLocation(node, "closure adapter contains invalid environment type: %T", underlying)
+			}
+		} else {
+			return i.newErrorWithLocation(node, "invalid closure type in function pointer: %T", funcPtr.Closure)
 		}
 		return i.callLambda(funcPtr.Lambda, closure, args, node)
 	}
