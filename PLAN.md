@@ -342,12 +342,14 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - **Tests**: ✅ All 1163 non-fixture tests pass, fixture baseline improved to 884 (maintained)
   - **Commit**: a6778ea9
 
-- [ ] **3.8.2.13** Migrate Helper Method Environments (helpers_validation.go)
-  - **Count**: 3 assignments
-  - **Purpose**: Helper method execution
-  - **Pattern**: Helper method environment with error/success paths
-  - **Risk**: LOW - helper methods, infrequent
-  - **Tests**: Verify helper method tests pass
+- [x] **3.8.2.13** Migrate Helper Method Environments ✅ **COMPLETE** (2025-12-06)
+  - Migrated all 3 assignments in `helpers_validation.go`
+  - Function: callHelperMethod (3 assignments: setup, error restore, success restore)
+  - Migrated lines: 240-241→240-241 (setup), 277 (error path), 303 (success path)
+  - Helper method execution properly synchronized (Self binding, class vars/consts inheritance, parameters, Result)
+  - Both error and success return paths properly restore environment
+  - **Tests**: ✅ All 23 helper tests pass, all 1163 non-fixture tests pass, fixture baseline maintained at 884
+  - **Commit**: ba48de2b
 
 - [ ] **3.8.2.14** Migrate Remaining Misc Environments (statements_control.go, interface.go)
   - **Count**: 4 assignments (2 + 2)
@@ -355,7 +357,7 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - **Risk**: LOW - miscellaneous edge cases
   - **Tests**: Verify control flow and interface tests pass
 
-**Phase 3.8.2 Progress**: 136 of 149 assignments migrated (91%). **13 assignments remaining** in tasks 3.8.2.13-3.8.2.14.
+**Phase 3.8.2 Progress**: 139 of 149 assignments migrated (93%). **10 assignments remaining** in task 3.8.2.14.
 
 ### Phase 3.8.3: Binary Operations Migration (3 days)
 
