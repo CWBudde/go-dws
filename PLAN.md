@@ -313,7 +313,7 @@ i.env = lambdaEnv  // ✗ Only updates i.env
   - Migrated lines: 77-79→78-79 (setup), 130, 179, 187, 193, 281 (evalRecordMethodCall); 326-328→327-328 (setup), 332, 397, 441 (callRecordStaticMethod)
   - All record-specific behavior preserved: value type semantics, copy-back operations, class variable persistence
   - **Tests**: ✅ All record/method/property tests pass, fixture baseline maintained at 886
-  - **Commit**: [pending]
+  - **Commit**: 1841f1fb
 
 - [ ] **3.8.2.10** Migrate Evaluator Integration Callbacks (user_function_callbacks.go)
   - **Count**: 6 assignments
