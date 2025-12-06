@@ -269,11 +269,11 @@ func (e *Evaluator) evalIntegerBinaryOp(op string, left, right Value, node ast.N
 	// Safe type assertions with error handling
 	leftInt, ok := left.(*runtime.IntegerValue)
 	if !ok {
-		return e.newError(node, "expected integer, got %s", left.Type())
+		return e.newError(node, "type mismatch: %s %s %s", left.Type(), op, right.Type())
 	}
 	rightInt, ok := right.(*runtime.IntegerValue)
 	if !ok {
-		return e.newError(node, "expected integer, got %s", right.Type())
+		return e.newError(node, "type mismatch: %s %s %s", left.Type(), op, right.Type())
 	}
 
 	leftVal := leftInt.Value

@@ -24,21 +24,21 @@ func TestErrorMessagesIncludeLocation(t *testing.T) {
 			line:           2,
 			column:         15,
 			errorMessage:   "division by zero",
-			expectedSubstr: "division by zero at line 2, column: 15",
+			expectedSubstr: "division by zero [line: 2, column: 15]",
 		},
 		{
 			name:           "type mismatch with location",
 			line:           5,
 			column:         8,
 			errorMessage:   "type mismatch: expected Integer, got String",
-			expectedSubstr: "type mismatch: expected Integer, got String at line 5, column: 8",
+			expectedSubstr: "type mismatch: expected Integer, got String [line: 5, column: 8]",
 		},
 		{
 			name:           "undefined variable with location",
 			line:           10,
 			column:         3,
 			errorMessage:   "undefined variable: foo",
-			expectedSubstr: "undefined variable: foo at line 10, column: 3",
+			expectedSubstr: "undefined variable: foo [line: 10, column: 3]",
 		},
 	}
 
@@ -79,8 +79,8 @@ func TestErrorMessagesIncludeLocation(t *testing.T) {
 			}
 
 			// Verify the location format is correct
-			if !strings.Contains(errMsg, "at line") {
-				t.Errorf("error message should contain 'at line' format, got: %s", errMsg)
+			if !strings.Contains(errMsg, "[line:") {
+				t.Errorf("error message should contain '[line:' format, got: %s", errMsg)
 			}
 		})
 	}
@@ -104,7 +104,7 @@ func TestErrorMessagesWithoutNode(t *testing.T) {
 	}
 
 	// Should NOT contain location info when node is nil
-	if strings.Contains(errMsg, "at line") {
+	if strings.Contains(errMsg, "[line") {
 		t.Errorf("error message should not contain location when node is nil, got: %s", errMsg)
 	}
 }
@@ -143,7 +143,7 @@ func TestErrorMessagesWithZeroLineNumber(t *testing.T) {
 	}
 
 	// Should NOT contain location info when line number is 0
-	if strings.Contains(errMsg, "at line") {
+	if strings.Contains(errMsg, "[line") {
 		t.Errorf("error message should not contain location when line is 0, got: %s", errMsg)
 	}
 }

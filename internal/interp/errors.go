@@ -36,13 +36,14 @@ func (i *Interpreter) newErrorWithLocation(node ast.Node, format string, args ..
 	message := fmt.Sprintf(format, args...)
 
 	// Try to get location information from the node's token
+	// Format matches RuntimeError and evaluator format: "[line: N, column: M]"
 	if node != nil {
 		tokenLiteral := node.TokenLiteral()
 		if tokenLiteral != "" {
 			// Extract token information - we need to get the actual token from the node
 			location := i.getLocationFromNode(node)
 			if location != "" {
-				message = fmt.Sprintf("%s at %s", message, location)
+				message = fmt.Sprintf("%s %s", message, location)
 			}
 		}
 	}
@@ -56,7 +57,7 @@ func (i *Interpreter) getLocationFromNode(node ast.Node) string {
 		return ""
 	}
 	pos := node.Pos()
-	return fmt.Sprintf("line %d, column: %d", pos.Line, pos.Column)
+	return fmt.Sprintf("[line: %d, column: %d]", pos.Line, pos.Column)
 }
 
 // ContractFailureError represents a contract violation (precondition or postcondition failure).

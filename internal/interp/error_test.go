@@ -18,7 +18,7 @@ func TestErrorMessagesIncludeLocation(t *testing.T) {
 		{
 			name:     "undefined variable error includes location",
 			input:    "var x: Integer := 5;\nvar y: Integer := z;",
-			expected: "line 2",
+			expected: "line: 2",
 		},
 		{
 			name:     "division by zero includes location",
@@ -28,12 +28,12 @@ func TestErrorMessagesIncludeLocation(t *testing.T) {
 		{
 			name:     "type mismatch in operation includes location",
 			input:    "var x: Integer := 5;\nvar y: String := 'hello';\nvar z: Integer := x + y;",
-			expected: "line 3",
+			expected: "line: 3",
 		},
 		{
 			name:     "undefined function includes location",
 			input:    "var x: Integer := unknownFunc(5);",
-			expected: "line 1",
+			expected: "line: 1",
 		},
 	}
 
