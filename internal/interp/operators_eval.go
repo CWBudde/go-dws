@@ -63,9 +63,9 @@ func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodNa
 		return i.newErrorWithLocation(node, "method '%s' expects %d arguments, got %d", methodName, len(method.Parameters), len(args))
 	}
 
-	methodEnv := NewEnclosedEnvironment(i.env)
+	// Phase 3.8.2.11: Use helper to sync both i.env and i.ctx.env
 	savedEnv := i.env
-	i.env = methodEnv
+	i.PushEnvironment(i.env)
 
 	i.env.Define("Self", obj)
 
@@ -94,16 +94,16 @@ func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodNa
 
 	result := i.Eval(method.Body)
 	if isError(result) {
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 		return result
 	}
 
 	var returnValue Value = &NilValue{}
 	if method.ReturnType != nil {
-		returnValue = i.extractReturnValue(method, methodEnv)
+		returnValue = i.extractReturnValue(method, i.env)
 	}
 
-	i.env = savedEnv
+	i.RestoreEnvironment(savedEnv)
 	return returnValue
 }
 
@@ -116,9 +116,9 @@ func (i *Interpreter) invokeClassOperatorMethod(classInfo *ClassInfo, methodName
 		return i.newErrorWithLocation(node, "class method '%s' expects %d arguments, got %d", methodName, len(method.Parameters), len(args))
 	}
 
-	methodEnv := NewEnclosedEnvironment(i.env)
+	// Phase 3.8.2.11: Use helper to sync both i.env and i.ctx.env
 	savedEnv := i.env
-	i.env = methodEnv
+	i.PushEnvironment(i.env)
 
 	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
 
@@ -147,16 +147,16 @@ func (i *Interpreter) invokeClassOperatorMethod(classInfo *ClassInfo, methodName
 
 	result := i.Eval(method.Body)
 	if isError(result) {
-		i.env = savedEnv
+		i.RestoreEnvironment(savedEnv)
 		return result
 	}
 
 	var returnValue Value = &NilValue{}
 	if method.ReturnType != nil {
-		returnValue = i.extractReturnValue(method, methodEnv)
+		returnValue = i.extractReturnValue(method, i.env)
 	}
 
-	i.env = savedEnv
+	i.RestoreEnvironment(savedEnv)
 	return returnValue
 }
 
