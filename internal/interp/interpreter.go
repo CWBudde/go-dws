@@ -609,8 +609,8 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return i.evalLambdaExpression(node)
 
 	case *ast.IsExpression:
-		// Task 9.40: Evaluate 'is' type checking operator
-		return i.evalIsExpression(node)
+		// Phase 3.8.1: Delegate to evaluator
+		return i.evaluatorInstance.VisitIsExpression(node, i.ctx)
 
 	case *ast.AsExpression:
 		// Task 9.48: Evaluate 'as' type casting operator
