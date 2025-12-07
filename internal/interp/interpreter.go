@@ -407,11 +407,15 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		val := i.Eval(node.Expression)
 		if isError(val) {
 			// Enrich error with statement location to mimic DWScript call stack output
+			// Task 3.8.3.0i: Prevent duplicate stack traces for the same source line
 			if errVal, ok := val.(*ErrorValue); ok {
 				exprPos := node.Expression.Pos()
-				lineMarker := fmt.Sprintf("line %d", exprPos.Line)
+				// Check for both "line N" and "[line: N," formats to handle all cases
+				lineMarker1 := fmt.Sprintf("line %d", exprPos.Line)
+				lineMarker2 := fmt.Sprintf("[line: %d,", exprPos.Line)
 				loc := fmt.Sprintf("at line %d, column: %d", exprPos.Line, exprPos.Column+2)
-				if !strings.Contains(errVal.Message, lineMarker) {
+				// Don't add stack trace if this line is already present in any format
+				if !strings.Contains(errVal.Message, lineMarker1) && !strings.Contains(errVal.Message, lineMarker2) {
 					errVal.Message = errVal.Message + "\n " + loc
 				}
 			}

@@ -141,13 +141,13 @@ func (e *Evaluator) getHelpersForValue(val Value) []HelperInfo {
 	case RecordInstanceValue:
 		// For records, use the record type name
 		typeName = v.GetRecordTypeName()
-	case IntegerValue:
+	case *runtime.IntegerValue:
 		typeName = "Integer"
-	case FloatValue:
+	case *runtime.FloatValue:
 		typeName = "Float"
-	case StringValue:
+	case *runtime.StringValue:
 		typeName = "String"
-	case BooleanValue:
+	case *runtime.BooleanValue:
 		typeName = "Boolean"
 	default:
 		// For other types, try to extract type name from Type() method
