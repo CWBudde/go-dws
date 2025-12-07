@@ -2,7 +2,6 @@ package interp
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -39,13 +38,32 @@ func (i *Interpreter) evalEnumDeclaration(decl *ast.EnumDecl) Value {
 		// Phase 1 Task 9.15: Check ValueExpr first (constant expressions)
 		if enumValue.ValueExpr != nil {
 			// Evaluate constant expression
-			val, err := i.evaluateConstantExpression(enumValue.ValueExpr)
-			if err != nil {
+			// TODO: This needs proper constant expression evaluation with type coercion
+			val := i.Eval(enumValue.ValueExpr)
+			if isError(val) {
 				return &ErrorValue{
-					Message: fmt.Sprintf("enum '%s' value '%s': %v", enumName, valueName, err),
+					Message: fmt.Sprintf("enum '%s' value '%s': %v", enumName, valueName, val),
 				}
 			}
-			ordinalValue = val
+
+			// Try to extract ordinal value - support Integer and String (Chr() result)
+			switch v := val.(type) {
+			case *IntegerValue:
+				ordinalValue = int(v.Value)
+			case *StringValue:
+				// Chr() returns a string - use ordinal of first character
+				if len(v.Value) > 0 {
+					ordinalValue = int(v.Value[0])
+				} else {
+					return &ErrorValue{
+						Message: fmt.Sprintf("enum '%s' value '%s': empty string not valid for enum value", enumName, valueName),
+					}
+				}
+			default:
+				return &ErrorValue{
+					Message: fmt.Sprintf("enum '%s' value '%s': expected integer or string constant, got %s", enumName, valueName, val.Type()),
+				}
+			}
 
 			if decl.Flags {
 				// For flags, explicit values must be powers of 2

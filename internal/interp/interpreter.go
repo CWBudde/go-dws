@@ -560,7 +560,7 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return i.evaluatorInstance.VisitBinaryExpression(node, i.ctx)
 
 	case *ast.UnaryExpression:
-		return i.evalUnaryExpression(node)
+		return i.evaluatorInstance.VisitUnaryExpression(node, i.ctx)
 
 	case *ast.AddressOfExpression:
 		return i.evalAddressOfExpression(node)
