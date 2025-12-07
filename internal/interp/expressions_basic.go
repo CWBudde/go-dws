@@ -246,29 +246,6 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 	return i.newErrorWithLocation(node, "undefined variable '%s'", node.Value)
 }
 
-// evalUnaryExpression evaluates a unary expression.
-func (i *Interpreter) evalUnaryExpression(expr *ast.UnaryExpression) Value {
-	right := i.Eval(expr.Right)
-	if isError(right) {
-		return right
-	}
-
-	if result, ok := i.tryUnaryOperator(expr.Operator, right, expr); ok {
-		return result
-	}
-
-	switch expr.Operator {
-	case "-":
-		return i.evalMinusUnaryOp(right)
-	case "+":
-		return i.evalPlusUnaryOp(right)
-	case "not":
-		return i.evalNotUnaryOp(right)
-	default:
-		return i.newTypeError(expr, "unknown operator: %s%s", expr.Operator, right.Type())
-	}
-}
-
 func (i *Interpreter) tryUnaryOperator(operator string, operand Value, node ast.Node) (Value, bool) {
 	operands := []Value{operand}
 	operandTypes := []string{valueTypeKey(operand)}
@@ -297,61 +274,6 @@ func (i *Interpreter) tryUnaryOperator(operator string, operand Value, node ast.
 	}
 
 	return nil, false
-}
-
-// evalMinusUnaryOp evaluates the unary minus operator.
-// Task 9.4.5: Now supports Variant arguments.
-func (i *Interpreter) evalMinusUnaryOp(right Value) Value {
-	// Task 9.4.5: Unwrap Variant if necessary
-	right = unwrapVariant(right)
-
-	switch v := right.(type) {
-	case *IntegerValue:
-		return &IntegerValue{Value: -v.Value}
-	case *FloatValue:
-		return &FloatValue{Value: -v.Value}
-	default:
-		return i.newErrorWithLocation(i.currentNode, "expected integer or float for unary minus, got %s", right.Type())
-	}
-}
-
-// evalPlusUnaryOp evaluates the unary plus operator.
-// Task 9.4.5: Now supports Variant arguments.
-func (i *Interpreter) evalPlusUnaryOp(right Value) Value {
-	// Task 9.4.5: Unwrap Variant if necessary
-	right = unwrapVariant(right)
-
-	switch right.(type) {
-	case *IntegerValue, *FloatValue:
-		return right
-	default:
-		return i.newErrorWithLocation(i.currentNode, "expected integer or float for unary plus, got %s", right.Type())
-	}
-}
-
-// evalNotUnaryOp evaluates the not operator.
-func (i *Interpreter) evalNotUnaryOp(right Value) Value {
-	// Check if this is a Variant
-	if variantVal, ok := right.(*VariantValue); ok {
-		boolResult := variantToBool(variantVal.Value)
-		// Return the negated result as a Variant containing a Boolean
-		return &VariantValue{
-			Value:      &BooleanValue{Value: !boolResult},
-			ActualType: types.BOOLEAN,
-		}
-	}
-
-	// Handle boolean NOT
-	if boolVal, ok := right.(*BooleanValue); ok {
-		return &BooleanValue{Value: !boolVal.Value}
-	}
-
-	// Handle bitwise NOT for integers
-	if intVal, ok := right.(*IntegerValue); ok {
-		return &IntegerValue{Value: ^intVal.Value}
-	}
-
-	return i.newErrorWithLocation(i.currentNode, "NOT operator requires Boolean or Integer operand, got %s", right.Type())
 }
 
 // evalAddressOfExpression evaluates an address-of expression (@Function).
