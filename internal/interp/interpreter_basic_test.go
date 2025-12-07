@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 )
@@ -498,12 +499,14 @@ func TestDivisionByZero(t *testing.T) {
 			continue
 		}
 
-		// Handle both RuntimeError and ErrorValue
+		// Handle both RuntimeError and ErrorValue (runtime.ErrorValue after task 3.8.3.0a)
 		var errMsg string
 		switch err := val.(type) {
 		case *RuntimeError:
 			errMsg = err.Message
 		case *ErrorValue:
+			errMsg = err.Message
+		case *runtime.ErrorValue:
 			errMsg = err.Message
 		default:
 			t.Errorf("unexpected error type: %T", val)

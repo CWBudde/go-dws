@@ -701,4 +701,6 @@ func (i *Interpreter) initEnumHelpers() {
 
 	// Register helper for enum type (generic catch-all)
 	i.helpers["enum"] = append(i.helpers["enum"], enumHelper)
+	// Task 3.8.3: Also register with TypeSystem so evaluator can find enum helpers
+	i.typeSystem.RegisterHelper("enum", enumHelper)
 }
