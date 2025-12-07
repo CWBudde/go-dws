@@ -621,8 +621,7 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return i.evalImplementsExpression(node)
 
 	case *ast.IfExpression:
-		// Task 9.217: Evaluate inline if-then-else expressions
-		return i.evalIfExpression(node)
+		return i.evaluatorInstance.VisitIfExpression(node, i.ctx)
 
 	case *ast.OldExpression:
 		// Evaluate 'old' expressions in postconditions

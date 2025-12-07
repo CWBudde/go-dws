@@ -165,7 +165,20 @@ Successfully delegated binary and unary operations to evaluator, removed 652 LOC
 - [x] **3.8.7.1** Survey Remaining Expression Types ✅
   - Completed comprehensive survey of expressions_complex.go and expressions_basic.go
   - **Finding**: In operator already migrated to evaluator (53 LOC dead code in interpreter)
+  - **Finding**: If expression already migrated to evaluator (53 LOC dead code in interpreter)
   - **Potential savings**: ~435 LOC from expressions_complex.go, ~467 LOC from expressions_basic.go
+
+- [x] **3.8.7.2** Delete Dead Code (evalInOperator) ✅
+  - Deleted `evalInOperator()` from expressions_complex.go (55 LOC including imports)
+  - Verified no references exist, all 1168 tests passing
+
+- [x] **3.8.7.3** Migrate If Expression ✅
+  - If expression already in evaluator (visitor_expressions_primitives.go:61)
+  - Updated interpreter.go to delegate: `return i.evaluatorInstance.VisitIfExpression(node, i.ctx)`
+  - Deleted `evalIfExpression()` from expressions_complex.go (56 LOC)
+  - All 1168 non-fixture tests passing, 873 fixture failures (baseline maintained)
+
+**Quick Wins Complete**: 111 LOC removed (Tasks 3.8.7.2-3.8.7.3)
 
 **Survey Results** (Task 3.8.7.1):
 
@@ -343,20 +356,23 @@ Steps:
 - ✅ Phase 3.8.4.5: Expression file audit complete (~637 LOC deletable identified)
 - ✅ Phase 3.8.5: Unary Operations Migration (30 LOC removed, all tests passing)
 - ✅ Phase 3.8.6: Helper Transfer complete (class helper methods working)
+- ✅ Phase 3.8.7.1: Survey complete (dead code identified, migration priorities set)
+- ✅ Phase 3.8.7.2: Dead code deletion (55 LOC removed from expressions_complex.go)
+- ✅ Phase 3.8.7.3: If expression migration (56 LOC removed, delegation complete)
 
 **In Progress**:
 
-- None (Phase 3.8 core tasks complete)
+- None (Quick wins complete)
 
 ## Estimated Remaining Effort
 
-**Phase 3.8.7 Options**:
+**Phase 3.8.7 Remaining Options**:
 
-- Quick wins only (3.8.7.2-3.8.7.3): 3-4 hours → ~106 LOC savings
-- Quick + medium effort (3.8.7.2-3.8.7.5): 1 day → ~187 LOC savings
-- Full migration (3.8.7.2-3.8.7.7): 1.5-2 days → ~388 LOC savings
+- ✅ Quick wins (3.8.7.2-3.8.7.3): **COMPLETE** → 111 LOC saved
+- Medium effort tasks (3.8.7.4-3.8.7.5): 6-8 hours → +76 LOC savings
+- Full remaining migration (3.8.7.4-3.8.7.7): 1-1.5 days → +277 LOC savings
 
-**Total**: 0-2 days remaining (core work complete, Phase 3.8.7 is optional)
+**Total**: 0-1.5 days remaining (quick wins complete, remaining tasks optional)
 
 ---
 

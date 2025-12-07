@@ -2,65 +2,10 @@ package interp
 
 import (
 	"fmt"
-	"strings"
 
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
-
-// evalInOperator evaluates the 'in' operator for checking membership in sets, arrays, or strings
-// Syntax: value in container
-// Returns: Boolean indicating whether value is found in the container
-func (i *Interpreter) evalInOperator(value Value, container Value, node ast.Node) Value {
-	// Handle set membership (now supports all ordinal types)
-	if setVal, ok := container.(*SetValue); ok {
-		// Value must be an ordinal type to be in a set
-		ordinal, err := evaluator.GetOrdinalValue(value)
-		if err != nil {
-			return i.newErrorWithLocation(node, "type mismatch: %s", err.Error())
-		}
-		// Use existing evalSetMembership function from set.go
-		return i.evalSetMembership(value, ordinal, setVal)
-	}
-
-	// Handle string character membership: 'x' in 'abc'
-	// This checks if a character/string is contained in another string
-	if strContainer, ok := container.(*StringValue); ok {
-		// Value must be a string (character)
-		strValue, ok := value.(*StringValue)
-		if !ok {
-			return i.newErrorWithLocation(node, "type mismatch: %s in STRING", value.Type())
-		}
-		// Check if the string contains the character/substring
-		// In DWScript, this is typically used for single characters
-		// e.g., 'a' in 'abc' returns true
-		if len(strValue.Value) > 0 {
-			// Check if the container string contains the value string
-			contains := strings.Contains(strContainer.Value, strValue.Value)
-			return &BooleanValue{Value: contains}
-		}
-		// Empty string is not in any string
-		return &BooleanValue{Value: false}
-	}
-
-	// Handle array membership (existing code)
-	arrVal, ok := container.(*ArrayValue)
-	if !ok {
-		return i.newErrorWithLocation(node, "type mismatch: %s in %s", value.Type(), container.Type())
-	}
-
-	// Search for the value in the array
-	for _, elem := range arrVal.Elements {
-		// Compare values for equality
-		if i.valuesEqual(value, elem) {
-			return &BooleanValue{Value: true}
-		}
-	}
-
-	// Value not found
-	return &BooleanValue{Value: false}
-}
 
 // evalIsExpression evaluates the 'is' operator which can be used for:
 // 1. Type checking: obj is TMyClass -> Boolean
@@ -377,59 +322,3 @@ func (i *Interpreter) evalImplementsExpression(expr *ast.ImplementsExpression) V
 	return &BooleanValue{Value: result}
 }
 
-// evalIfExpression evaluates an inline if-then-else conditional expression.
-// Syntax: if <condition> then <expression> [else <expression>]
-// Returns the value of the consequence if condition is true, otherwise the alternative (or default value).
-func (i *Interpreter) evalIfExpression(expr *ast.IfExpression) Value {
-	// Evaluate the condition
-	condition := i.Eval(expr.Condition)
-	if isError(condition) {
-		return condition
-	}
-
-	// Use isTruthy to support Variant→Boolean implicit conversion
-	// If condition is true, evaluate and return consequence
-	if isTruthy(condition) {
-		result := i.Eval(expr.Consequence)
-		if isError(result) {
-			return result
-		}
-		return result
-	}
-
-	// Condition is false
-	if expr.Alternative != nil {
-		// Evaluate and return alternative
-		result := i.Eval(expr.Alternative)
-		if isError(result) {
-			return result
-		}
-		return result
-	}
-
-	// No else clause - return default value for the consequence type
-	// The type should have been set during semantic analysis
-	var typeAnnot *ast.TypeAnnotation
-	if i.semanticInfo != nil {
-		typeAnnot = i.semanticInfo.GetType(expr)
-	}
-	if typeAnnot == nil {
-		return i.newErrorWithLocation(expr, "if expression missing type annotation")
-	}
-
-	// Return default value based on type name
-	typeName := ident.Normalize(typeAnnot.Name)
-	switch typeName {
-	case "integer", "int64":
-		return &IntegerValue{Value: 0}
-	case "float", "float64", "double", "real":
-		return &FloatValue{Value: 0.0}
-	case "string":
-		return &StringValue{Value: ""}
-	case "boolean", "bool":
-		return &BooleanValue{Value: false}
-	default:
-		// For class types and other reference types, return nil
-		return &NilValue{}
-	}
-}
