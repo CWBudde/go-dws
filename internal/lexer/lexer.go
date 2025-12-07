@@ -49,6 +49,11 @@ type Lexer struct {
 
 	defines   map[string]struct{}
 	condStack []conditionalFrame
+
+	constValues  map[string]int
+	constBlock   bool
+	constPending string
+	constWait    bool
 }
 
 type conditionalFrame struct {
@@ -123,6 +128,7 @@ func New(input string, opts ...LexerOption) *Lexer {
 		defines: map[string]struct{}{
 			ident.Normalize("DWSCRIPT"): {},
 		},
+		constValues: make(map[string]int),
 	}
 
 	// Apply options
@@ -295,6 +301,7 @@ func (l *Lexer) Peek(n int) Token {
 	for len(l.tokenBuffer) <= n {
 		// Generate and buffer the next token
 		tok := l.nextTokenInternal()
+		l.trackConst(tok)
 		l.tokenBuffer = append(l.tokenBuffer, tok)
 	}
 
@@ -315,6 +322,10 @@ func (l *Lexer) PreserveComments() bool {
 
 func (l *Lexer) isDefined(name string) bool {
 	_, ok := l.defines[ident.Normalize(name)]
+	if ok {
+		return true
+	}
+	_, ok = l.constValues[ident.Normalize(name)]
 	return ok
 }
 
@@ -447,16 +458,65 @@ func (l *Lexer) processDirective() {
 	}
 }
 
+func (l *Lexer) trackConst(tok Token) {
+	// skip tracking when inside skipped directive block
+	if l.isSkippingTokens() {
+		return
+	}
+
+	switch tok.Type {
+	case CONST:
+		l.constBlock = true
+		l.constPending = ""
+		l.constWait = false
+	case SEMICOLON:
+		l.constPending = ""
+		l.constWait = false
+	case VAR, TYPE, FUNCTION, PROCEDURE, CLASS, RECORD, UNIT, IMPLEMENTATION, INTERFACE, BEGIN:
+		l.constBlock = false
+		l.constPending = ""
+		l.constWait = false
+	case IDENT:
+		if l.constBlock && l.constPending == "" && !l.constWait {
+			l.constPending = tok.Literal
+		}
+	case COLON:
+		// ignore
+	case ASSIGN:
+		if l.constBlock && l.constPending != "" {
+			l.constWait = true
+		}
+	case INT:
+		if l.constBlock && l.constPending != "" && l.constWait {
+			if v, err := strconv.Atoi(tok.Literal); err == nil {
+				l.constValues[ident.Normalize(l.constPending)] = v
+			}
+			l.constPending = ""
+			l.constWait = false
+		}
+	default:
+		if l.constBlock {
+			l.constPending = ""
+			l.constWait = false
+		}
+	}
+}
+
 type ifTokenType int
 
 const (
 	ifTokEOF ifTokenType = iota
 	ifTokIdent
 	ifTokInt
+	ifTokString
 	ifTokLParen
 	ifTokRParen
 	ifTokEq
 	ifTokNeq
+	ifTokLt
+	ifTokLte
+	ifTokGt
+	ifTokGte
 	ifTokAnd
 	ifTokOr
 	ifTokNot
@@ -487,69 +547,71 @@ func (l *Lexer) evalIfExpression(expr string) bool {
 	var parseExpr func() bool
 	var parseAnd func() bool
 	var parseUnary func() bool
-	var parsePrimary func() bool
+	var parsePrimary func() ifValue
 
-	parsePrimary = func() bool {
+	parsePrimary = func() ifValue {
 		switch tok.typ {
 		case ifTokInt:
 			val := tok.val
 			advance()
-			return val != "" && val != "0"
+			if v, err := strconv.Atoi(val); err == nil {
+				return ifValue{kind: ifValInt, intVal: v}
+			}
+			return ifValue{kind: ifValBool, boolVal: false}
+		case ifTokString:
+			val := tok.val
+			advance()
+			return ifValue{kind: ifValString, strVal: val}
 		case ifTokIdent:
 			name := tok.val
 			advance()
 			if tok.typ == ifTokLParen {
 				advance()
-				if tok.typ != ifTokIdent && tok.typ != ifTokInt {
-					l.addError("invalid $if expression", pos)
-					return false
-				}
 				arg := tok
 				advance()
 				if tok.typ != ifTokRParen {
 					l.addError("invalid $if expression", pos)
-					return false
+					return ifValue{kind: ifValBool, boolVal: false}
 				}
 				advance()
 				switch strings.ToLower(name) {
 				case "defined", "declared":
-					if arg.typ == ifTokIdent {
-						return l.isDefined(arg.val)
+					if arg.typ == ifTokIdent || arg.typ == ifTokString {
+						return ifValue{kind: ifValBool, boolVal: l.isDefined(arg.val)}
 					}
-					return false
+					return ifValue{kind: ifValBool, boolVal: false}
 				default:
-					return false
+					return ifValue{kind: ifValBool, boolVal: false}
 				}
 			}
-			return l.isDefined(name)
+			if v, ok := l.constValues[ident.Normalize(name)]; ok {
+				return ifValue{kind: ifValInt, intVal: v}
+			}
+			return ifValue{kind: ifValBool, boolVal: l.isDefined(name)}
 		case ifTokLParen:
 			advance()
 			val := parseExpr()
 			if tok.typ != ifTokRParen {
 				l.addError("invalid $if expression", pos)
-				return false
+				return ifValue{kind: ifValBool, boolVal: false}
 			}
 			advance()
-			return val
+			return ifValue{kind: ifValBool, boolVal: val}
 		default:
 			l.addError("invalid $if expression", pos)
-			return false
+			return ifValue{kind: ifValBool, boolVal: false}
 		}
 	}
 
 	parseEquality := func() bool {
 		left := parsePrimary()
-		for tok.typ == ifTokEq || tok.typ == ifTokNeq {
+		for tok.typ == ifTokEq || tok.typ == ifTokNeq || tok.typ == ifTokLt || tok.typ == ifTokLte || tok.typ == ifTokGt || tok.typ == ifTokGte {
 			op := tok.typ
 			advance()
 			right := parsePrimary()
-			if op == ifTokEq {
-				left = left == right
-			} else {
-				left = left != right
-			}
+			left = ifValue{kind: ifValBool, boolVal: compareValues(op, left, right)}
 		}
-		return left
+		return left.asBool()
 	}
 
 	parseUnary = func() bool {
@@ -585,6 +647,91 @@ func (l *Lexer) evalIfExpression(expr string) bool {
 	return result
 }
 
+type ifValKind int
+
+const (
+	ifValBool ifValKind = iota
+	ifValInt
+	ifValString
+)
+
+type ifValue struct {
+	kind    ifValKind
+	boolVal bool
+	intVal  int
+	strVal  string
+}
+
+func (v ifValue) asBool() bool {
+	switch v.kind {
+	case ifValBool:
+		return v.boolVal
+	case ifValInt:
+		return v.intVal != 0
+	case ifValString:
+		return v.strVal != ""
+	default:
+		return false
+	}
+}
+
+func compareValues(op ifTokenType, left, right ifValue) bool {
+	// integer comparison
+	if left.kind == ifValInt && right.kind == ifValInt {
+		switch op {
+		case ifTokEq:
+			return left.intVal == right.intVal
+		case ifTokNeq:
+			return left.intVal != right.intVal
+		case ifTokLt:
+			return left.intVal < right.intVal
+		case ifTokLte:
+			return left.intVal <= right.intVal
+		case ifTokGt:
+			return left.intVal > right.intVal
+		case ifTokGte:
+			return left.intVal >= right.intVal
+		}
+	}
+
+	// string comparison
+	if left.kind == ifValString && right.kind == ifValString {
+		switch op {
+		case ifTokEq:
+			return left.strVal == right.strVal
+		case ifTokNeq:
+			return left.strVal != right.strVal
+		case ifTokLt:
+			return left.strVal < right.strVal
+		case ifTokLte:
+			return left.strVal <= right.strVal
+		case ifTokGt:
+			return left.strVal > right.strVal
+		case ifTokGte:
+			return left.strVal >= right.strVal
+		}
+	}
+
+	// fallback boolean truthiness
+	lb, rb := left.asBool(), right.asBool()
+	switch op {
+	case ifTokEq:
+		return lb == rb
+	case ifTokNeq:
+		return lb != rb
+	case ifTokLt:
+		return !lb && rb
+	case ifTokLte:
+		return (!lb && rb) || lb == rb
+	case ifTokGt:
+		return lb && !rb
+	case ifTokGte:
+		return (lb && !rb) || lb == rb
+	default:
+		return false
+	}
+}
+
 func lexIfExpression(expr string) []ifToken {
 	var tokens []ifToken
 	reader := strings.NewReader(expr)
@@ -605,9 +752,43 @@ func lexIfExpression(expr string) []ifToken {
 		case '=':
 			tokens = append(tokens, ifToken{typ: ifTokEq})
 		case '<':
-			if next, _, err := reader.ReadRune(); err == nil && next == '>' {
-				tokens = append(tokens, ifToken{typ: ifTokNeq})
+			if next, _, err := reader.ReadRune(); err == nil {
+				if next == '>' {
+					tokens = append(tokens, ifToken{typ: ifTokNeq})
+				} else if next == '=' {
+					tokens = append(tokens, ifToken{typ: ifTokLte})
+				} else {
+					reader.UnreadRune()
+					tokens = append(tokens, ifToken{typ: ifTokLt})
+				}
+			} else {
+				tokens = append(tokens, ifToken{typ: ifTokLt})
 			}
+		case '>':
+			if next, _, err := reader.ReadRune(); err == nil {
+				if next == '=' {
+					tokens = append(tokens, ifToken{typ: ifTokGte})
+				} else {
+					reader.UnreadRune()
+					tokens = append(tokens, ifToken{typ: ifTokGt})
+				}
+			} else {
+				tokens = append(tokens, ifToken{typ: ifTokGt})
+			}
+		case '\'', '"':
+			quote := ch
+			var b strings.Builder
+			for {
+				r, _, err := reader.ReadRune()
+				if err != nil {
+					break
+				}
+				if r == quote {
+					break
+				}
+				b.WriteRune(r)
+			}
+			tokens = append(tokens, ifToken{typ: ifTokString, val: b.String()})
 		default:
 			if isDigit(ch) {
 				builder := strings.Builder{}
@@ -1348,11 +1529,14 @@ func (l *Lexer) NextToken() Token {
 		// Return the first buffered token and remove it
 		tok := l.tokenBuffer[0]
 		l.tokenBuffer = l.tokenBuffer[1:]
+		l.trackConst(tok)
 		return tok
 	}
 
 	// No buffered tokens, generate the next one
-	return l.nextTokenInternal()
+	tok := l.nextTokenInternal()
+	l.trackConst(tok)
+	return tok
 }
 
 // handleSimpleToken creates a simple token and advances the lexer.

@@ -742,9 +742,11 @@ func (e *Evaluator) tryBinaryOperator(operator string, left, right Value, node a
 	// Operator overloading requires access to:
 	// - ObjectInstance.Class.lookupOperator() for instance operators
 	// - globalOperators registry for global operators
-	// These are in interp package and haven't been migrated yet
-	// Delegate to adapter for now
-	return nil, false
+	// These are in interp package - delegate to adapter
+	if e.adapter == nil {
+		return nil, false
+	}
+	return e.adapter.TryBinaryOperator(operator, left, right, node)
 }
 
 // evalInOperator evaluates the 'in' operator for membership testing.
@@ -1046,9 +1048,11 @@ func (e *Evaluator) tryUnaryOperator(operator string, operand Value, node ast.No
 	// Unary operator overloading requires access to:
 	// - ObjectInstance.Class.lookupOperator() for instance operators
 	// - globalOperators registry for global operators
-	// These are in interp package and haven't been migrated yet
-	// Delegate to adapter for now
-	return nil, false
+	// These are in interp package - delegate to adapter
+	if e.adapter == nil {
+		return nil, false
+	}
+	return e.adapter.TryUnaryOperator(operator, operand, node)
 }
 
 // evalMinusUnaryOp evaluates the unary minus operator (-x).

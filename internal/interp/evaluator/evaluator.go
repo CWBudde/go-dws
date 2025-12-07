@@ -316,6 +316,16 @@ type InterpreterAdapter interface {
 	// ===== Helper Properties =====
 
 	EvalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node) Value
+
+	// ===== Operator Overloading =====
+
+	// TryBinaryOperator attempts to find and invoke a binary operator overload.
+	// Returns (result, true) if operator found, or (nil, false) if not found.
+	TryBinaryOperator(operator string, left, right Value, node ast.Node) (Value, bool)
+
+	// TryUnaryOperator attempts to find and invoke a unary operator overload.
+	// Returns (result, true) if operator found, or (nil, false) if not found.
+	TryUnaryOperator(operator string, operand Value, node ast.Node) (Value, bool)
 }
 
 // Evaluator evaluates DWScript AST nodes.
