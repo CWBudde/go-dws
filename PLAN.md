@@ -575,6 +575,145 @@ i.env = lambdaEnv  // ✗ Only updates i.env
 - Task 3.8.5: Migrate unary operations to evaluator (similar pattern)
 - Task 3.8.6: Fix pre-existing failures (operator overloading, RTTI, helpers)
 
+---
+
+### Phase 3.8.x: Class Helper Method Resolution (INVESTIGATION)
+
+**Status**: 🔍 **IN PROGRESS** | **Priority**: High | **Blocker**: Affects helper integration test
+
+**Problem**: Test `TestHelpersExecution/class_helper_demo.dws` fails when calling helper methods on class instances.
+
+**Test Case**:
+```dws
+type TPerson = class
+  function GetName: String;
+  function GetAge: Integer;
+end;
+
+type TPersonHelper = helper for TPerson
+  function GetInfo: String;  // ← Helper method
+  function IsAdult: Boolean;
+end;
+
+person1.GetInfo()  // ← FAILS: "method 'GetInfo' not found in class 'TPerson'"
+```
+
+**Expected**: Helper methods should be callable on class instances (like enum helpers work)
+
+**Actual**: Panic with `method 'GetInfo' not found in class 'TPerson'`
+
+---
+
+#### Investigation Summary (2025-12-07)
+
+**Initial Hypothesis**: Class helpers not checked during method dispatch
+- ✅ **CORRECT** - Method dispatch routed OBJECT types directly to adapter without checking helpers
+- ✅ **FIX APPLIED** - Added helper lookup in `DispatchMethodCall` before adapter delegation (method_dispatch.go:173-175)
+
+**Second Issue**: Nil pointer panic in helper method execution
+- **Error**: `panic: runtime error: invalid memory address or nil pointer dereference`
+- **Location**: `helpers_comparison.go:149` in `GetParentHelperAny()`
+- **Stack**: `CallASTHelperMethod` → `bindHelperChainVarsConsts` → `GetParentHelperAny()` → PANIC
+
+**Root Cause Analysis**:
+
+1. **Helper IS Found**: `FindHelperMethod` successfully returns a `*interp.HelperInfo` pointer
+   - Debug output: `helper type=*interp.HelperInfo`
+   - All nil interface checks pass (lines 395-414 in helper_methods.go)
+
+2. **Helper IS Valid**: Pointer is non-nil and passes reflection checks
+   - `helper != nil` ✓
+   - `reflect.ValueOf(helper).IsNil()` ✓ (false)
+   - Helper struct allocated and has valid type
+
+3. **Panic During Usage**: Crashes when helper methods are called
+   - `bindHelperChainVarsConsts(helper, ctx)` enters loop
+   - Loop: `for h := helper; h != nil; { ... h.GetParentHelperAny() ... }`
+   - `h.GetParentHelperAny()` tries to access `h.ParentHelper`
+   - **PANIC**: Suggests `h` is a valid pointer to an INVALID/CORRUPTED struct
+
+**Key Insight**: The `*interp.HelperInfo` passes all nil checks but contains invalid internal state. This indicates:
+- Helper is being found in TypeSystem registry
+- Helper was registered but **not fully initialized**
+- Helper struct fields (especially `ParentHelper`) may be in inconsistent state
+
+**Evidence**:
+- `GetMethodAny()` returns `(method, owner, true)` where `owner` can be nil
+- Line 66 in `helpers_comparison.go`: `return nil, nil, false` when method not found
+- Line 129 wraps nil `*HelperInfo` in `any` interface → creates valid interface wrapping nil pointer
+- This nil-wrapped-in-interface passes `helper != nil` check but crashes on method calls
+
+**Suspected Issue**: Helper registration/lookup mismatch
+- Class helpers registered with normalized type name (e.g., "tperson")
+- Object method dispatch uses `obj.ClassName()` to look up helpers
+- Possible case sensitivity or name format mismatch causing:
+  - Helper not found in TypeSystem → `FindHelperMethod` returns result with nil `OwnerHelper`
+  - Or: Helper found but is a corrupted/partial entry in registry
+
+---
+
+#### Tasks
+
+- [ ] **3.8.x.1** Verify Helper Registration for Class Types
+  - Check if class helpers are registered in TypeSystem with correct key
+  - Compare key used for registration vs. key used for lookup
+  - Verify `obj.ClassName()` returns format matching TypeSystem key (case-insensitive normalized)
+  - **Files**: `helpers_validation.go:195-205`, `helper_methods.go:138-140`
+
+- [ ] **3.8.x.2** Debug Helper Lookup Chain
+  - Add logging to `getHelpersForValue()` to show what type name is used for object lookup
+  - Add logging to `TypeSystem.LookupHelpers()` to show what helpers are returned
+  - Verify `convertToHelperInfoSlice()` isn't filtering out valid helpers
+  - **Goal**: Confirm helpers ARE in registry and ARE being returned
+
+- [ ] **3.8.x.3** Fix HelperMethodResult Nil Owner Handling
+  - Problem: `GetMethodAny` can return `(method, nil, true)` when walking inheritance chain
+  - This nil owner gets wrapped in interface and passes nil checks
+  - **Solution Options**:
+    - A) Fix `FindHelperMethod` to never return result with nil `OwnerHelper` (use fallback helper)
+    - B) Fix `GetMethodAny` to never return nil owner (return current helper if found locally)
+    - C) Add defensive check in `CallASTHelperMethod` before using OwnerHelper
+  - **Files**: `helper_methods.go:186-205`, `helpers_comparison.go:55-67`
+
+- [ ] **3.8.x.4** Compare with Working Enum Helper Pattern
+  - Enum helpers work correctly - analyze why
+  - Compare registration: enum uses `"enum"` key, class uses `obj.ClassName()`
+  - Compare lookup: both go through same `FindHelperMethod` path
+  - Identify key difference in registration/lookup flow
+  - **Files**: `helpers_validation.go:700-705` (enum), vs. `evalHelperDeclaration:195-205` (class)
+
+- [ ] **3.8.x.5** Test Fix with Minimal Changes
+  - Once root cause identified, apply minimal fix
+  - Ensure fix doesn't break enum/array/intrinsic helpers
+  - Run full helper test suite
+  - **Success Criteria**: `TestHelpersExecution/class_helper_demo.dws` passes
+
+---
+
+#### Files Modified (So Far)
+
+1. **internal/interp/evaluator/method_dispatch.go** (lines 170-180)
+   - Added helper method lookup before adapter delegation for OBJECT/CLASS/RECORD types
+   - Pattern: Check helpers first, fall back to adapter if not found
+
+2. **internal/interp/evaluator/helper_methods.go** (lines 396-404)
+   - Added minimal nil checks in `CallASTHelperMethod`
+   - Checks for nil helper and nil pointer wrapped in interface
+   - Returns meaningful error instead of panicking
+
+3. **internal/interp/evaluator/helper_methods.go** (lines 532-546)
+   - Added nil filtering in `convertToHelperInfoSlice`
+   - Skips nil entries and nil-wrapped helpers
+   - Prevents corrupted registry entries from reaching execution
+
+4. **internal/interp/evaluator/helper_methods.go** (lines 458-461)
+   - Added nil guard in `bindHelperChainVarsConsts`
+   - Early return if helper is nil (defensive programming)
+
+**Status**: Investigation ongoing. Defensive nil checks added but root cause (nil OwnerHelper from `GetMethodAny`) not yet resolved.
+
+**Recommendation**: Focus on task 3.8.x.1 and 3.8.x.3 - verify registration and fix nil owner handling in `FindHelperMethod`.
+
 ## Success Criteria
 
 - ✅ **ALL** environment changes use `SetEnvironment()` helper

@@ -168,8 +168,15 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 	// ============================================================
 
 	case "OBJECT", "INTERFACE", "CLASSINFO", "CLASS", "RECORD":
+		// Task 3.8.4: Check for helper methods first before delegating to adapter
+		// This allows class helpers to extend object types
+		helperResult := e.FindHelperMethod(obj, methodName)
+		if helperResult != nil {
+			return e.CallHelperMethod(helperResult, obj, args, node, ctx)
+		}
+
+		// No helper method - delegate to adapter for class/instance method handling
 		// These types require full environment setup (Self binding, call stack)
-		// Delegate to adapter which handles the complexity
 		return e.adapter.CallMethod(obj, methodName, args, node)
 
 	// ============================================================

@@ -1,6 +1,8 @@
 package evaluator
 
 import (
+	"reflect"
+
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -184,15 +186,27 @@ func (e *Evaluator) FindHelperMethod(val Value, methodName string) *HelperMethod
 
 		// Use GetMethodAny which searches the inheritance chain and returns the owner helper
 		if method, ownerHelperAny, ok := helper.GetMethodAny(methodName); ok {
-			ownerHelper, _ := ownerHelperAny.(HelperInfo)
+			// The ownerHelperAny should satisfy the HelperInfo interface
+			// Try to cast it to HelperInfo interface
+			var ownerHelper HelperInfo
+			if ownerHelperAny != nil {
+				// First try direct interface assertion
+				if oh, ok := ownerHelperAny.(HelperInfo); ok {
+					ownerHelper = oh
+				} else {
+					// If that fails, use the current helper (which does implement HelperInfo)
+					ownerHelper = helper
+				}
+			} else {
+				ownerHelper = helper
+			}
+
 			// Check if there's a builtin spec as well (search from the owner helper)
-			if ownerHelper != nil {
-				if spec, _, ok := ownerHelper.GetBuiltinMethodAny(methodName); ok {
-					return &HelperMethodResult{
-						OwnerHelper: ownerHelper,
-						Method:      method,
-						BuiltinSpec: spec,
-					}
+			if spec, _, ok := ownerHelper.GetBuiltinMethodAny(methodName); ok {
+				return &HelperMethodResult{
+					OwnerHelper: ownerHelper,
+					Method:      method,
+					BuiltinSpec: spec,
 				}
 			}
 			return &HelperMethodResult{
@@ -378,6 +392,16 @@ func (e *Evaluator) CallASTHelperMethod(
 		return e.newError(node, "helper method not implemented")
 	}
 
+	// Task 3.8.4: Safety check - helper can be nil if OwnerHelper lookup failed
+	if helper == nil {
+		return e.newError(node, "helper method not found")
+	}
+	// Check if the interface wraps a nil pointer
+	v := reflect.ValueOf(helper)
+	if (v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface) && v.IsNil() {
+		return e.newError(node, "helper method not found (nil owner)")
+	}
+
 	// Check argument count
 	if len(args) != len(method.Parameters) {
 		return e.newError(node, "wrong number of arguments for helper method '%s': expected %d, got %d",
@@ -431,6 +455,11 @@ func (e *Evaluator) CallASTHelperMethod(
 // Walks from root parent to the current helper so child helpers override parents.
 // Task 3.5.102g: Helper for CallASTHelperMethod.
 func (e *Evaluator) bindHelperChainVarsConsts(helper HelperInfo, ctx *ExecutionContext) {
+	// Handle nil helper gracefully
+	if helper == nil {
+		return
+	}
+
 	// Build the helper chain from root to current
 	var helperChain []HelperInfo
 	for h := helper; h != nil; {
@@ -502,9 +531,16 @@ func convertToHelperInfoSlice(helpers []any) []HelperInfo {
 
 	result := make([]HelperInfo, 0, len(helpers))
 	for _, h := range helpers {
+		// Skip nil entries
+		if h == nil {
+			continue
+		}
 		// Each helper should be a *interp.HelperInfo which implements our HelperInfo interface
 		if helperInfo, ok := h.(HelperInfo); ok {
-			result = append(result, helperInfo)
+			// Check if the interface wraps a nil pointer (defensive check for corrupted registry)
+			if helperInfo != nil && !reflect.ValueOf(helperInfo).IsNil() {
+				result = append(result, helperInfo)
+			}
 		}
 	}
 	return result
