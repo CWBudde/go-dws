@@ -1,9 +1,6 @@
 package parser
 
 import (
-	"fmt"
-	"strconv"
-
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -145,37 +142,4 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 
 	// End position is at the semicolon
 	return builder.Finish(enumDecl).(*ast.EnumDecl)
-}
-
-// Integer, possibly negative.
-//
-
-// PRE: cursor is first token of value (INT or MINUS)
-// POST: cursor is INT
-func (p *Parser) parseEnumValue() (int, error) {
-	cursor := p.cursor
-
-	// Handle negative values
-	isNegative := false
-	if cursor.Current().Type == lexer.MINUS {
-		isNegative = true
-		cursor = cursor.Advance() // move past minus
-		p.cursor = cursor
-	}
-
-	// Parse integer value
-	if cursor.Current().Type != lexer.INT {
-		return 0, fmt.Errorf("expected integer value")
-	}
-
-	value, err := strconv.Atoi(cursor.Current().Literal)
-	if err != nil {
-		return 0, err
-	}
-
-	if isNegative {
-		value = -value
-	}
-
-	return value, nil
 }
