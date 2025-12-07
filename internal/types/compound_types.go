@@ -579,6 +579,7 @@ type HelperType struct {
 	ClassConsts    map[string]interface{}
 	BuiltinMethods map[string]string
 	Name           string
+	Decl           interface{} // AST declaration (*ast.HelperDecl) for user-defined helpers, nil for built-ins
 	IsRecordHelper bool
 }
 

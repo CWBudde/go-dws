@@ -460,16 +460,32 @@ func (e *Evaluator) bindHelperChainVarsConsts(helper HelperInfo, ctx *ExecutionC
 		return
 	}
 
+	// Task 3.8.6.3: Check if helper interface wraps a nil pointer
+	v := reflect.ValueOf(helper)
+	if v.Kind() == reflect.Ptr && v.IsNil() {
+		return
+	}
+
 	// Build the helper chain from root to current
 	var helperChain []HelperInfo
 	for h := helper; h != nil; {
+		// Task 3.8.6.3: Defensive nil pointer check
+		hv := reflect.ValueOf(h)
+		if hv.Kind() == reflect.Ptr && hv.IsNil() {
+			break
+		}
 		helperChain = append([]HelperInfo{h}, helperChain...)
 		parentAny := h.GetParentHelperAny()
 		if parentAny == nil {
 			break
 		}
 		parent, ok := parentAny.(HelperInfo)
-		if !ok {
+		if !ok || parent == nil {
+			break
+		}
+		// Task 3.8.6.3: Check if parent interface wraps a nil pointer
+		pv := reflect.ValueOf(parent)
+		if (pv.Kind() == reflect.Ptr || pv.Kind() == reflect.Interface) && pv.IsNil() {
 			break
 		}
 		h = parent
@@ -477,6 +493,10 @@ func (e *Evaluator) bindHelperChainVarsConsts(helper HelperInfo, ctx *ExecutionC
 
 	// Bind vars and consts in order (root first, so children override)
 	for _, h := range helperChain {
+		// Task 3.8.6.3: Defensive nil check for helper chain iteration
+		if h == nil {
+			continue
+		}
 		for name, value := range h.GetClassVars() {
 			ctx.Env().Define(name, value)
 		}

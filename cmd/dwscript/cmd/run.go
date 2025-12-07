@@ -11,6 +11,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/semantic"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/spf13/cobra"
@@ -150,6 +151,7 @@ func runScript(_ *cobra.Command, args []string) error {
 	// Skip type checking if units are used, since symbols from units
 	// aren't available until runtime
 	var semanticInfo *ast.SemanticInfo
+	var semanticHelpers map[string][]*types.HelperType // Task 3.8.6.3: Capture helpers for transfer
 	if typeCheck && !hasUnits {
 		analyzer := semantic.NewAnalyzer()
 		// Set source code for rich error messages
@@ -174,6 +176,8 @@ func runScript(_ *cobra.Command, args []string) error {
 		}
 		// Capture semantic info to pass to interpreter
 		semanticInfo = analyzer.GetSemanticInfo()
+		// Task 3.8.6.3: Capture helpers for transfer to interpreter
+		semanticHelpers = analyzer.GetHelpers()
 	} else if verbose && hasUnits {
 		fmt.Fprintf(os.Stderr, "Type checking disabled (program uses units)\n")
 	}
@@ -208,6 +212,11 @@ func runScript(_ *cobra.Command, args []string) error {
 	// Pass semantic info to interpreter if available (enables type inference for empty arrays)
 	if semanticInfo != nil {
 		interpreter.SetSemanticInfo(semanticInfo)
+	}
+
+	// Task 3.8.6.3: Transfer helpers from semantic analyzer to interpreter
+	if semanticHelpers != nil {
+		interpreter.TransferHelpersFromSemanticAnalysis(semanticHelpers)
 	}
 
 	// Set up unit registry if search paths are provided or if we're running from a file

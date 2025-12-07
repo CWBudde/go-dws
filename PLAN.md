@@ -291,37 +291,71 @@ person1.GetInfo()  // ← FAILS: "method 'GetInfo' not found in class 'TPerson'"
 
 **Investigation Areas**:
 
-- [ ] **3.8.6.1** Verify Helper Registration
-  - Check if class helpers are registered in TypeSystem
-  - Compare registration key vs. lookup key (case sensitivity?)
-  - Verify `obj.ClassName()` format matches TypeSystem key
+- [x] **3.8.6.1** Verify Helper Registration ✅ **ROOT CAUSE FOUND**
+  - ✅ Registration keys match: semantic analyzer and runtime both use `ident.Normalize(targetType.String())` → `"tperson"`
+  - ✅ Lookup key matches: runtime uses `ident.Normalize(v.ClassName())` → `"tperson"`
+  - ✅ `obj.ClassName()` format is correct
+  - 🔴 **ROOT CAUSE**: Helper declarations are analyzed by semantic analyzer but NOT propagated to interpreter's TypeSystem
+  - **Evidence**:
+    - Helpers registered in `semantic.Analyzer.helpers[targetTypeName]` (semantic analyzer's internal map)
+    - Helpers NOT registered in `interp.TypeSystem` at runtime
+    - `evalHelperDeclaration()` is NEVER called (helpers processed during semantic analysis, not execution)
+    - Runtime lookup fails because `TypeSystem.LookupHelpers(typeName)` returns empty
+  - **Files involved**:
+    - `internal/semantic/analyze_helpers.go:111-115` - registers helpers in analyzer
+    - `internal/interp/evaluator/helper_methods.go:78-165` - looks up helpers from TypeSystem
+    - `internal/interp/helpers_validation.go:47-215` - runtime registration (not called for parsed helpers)
 
-- [ ] **3.8.6.2** Debug Helper Lookup Chain
-  - Add logging to `getHelpersForValue()` for object lookup
-  - Verify `TypeSystem.LookupHelpers()` returns class helpers
-  - Check `convertToHelperInfoSlice()` filtering
+- [x] **3.8.6.2** Research Helper Transfer Architecture ✅ **RESEARCH COMPLETE**
+  - ✅ **Entry point found**: `cmd/dwscript/cmd/run.go:154-176`
+    - Creates analyzer: `semantic.NewAnalyzer()`
+    - Analyzes program: `analyzer.Analyze(program)`
+    - Captures semantic info: `analyzer.GetSemanticInfo()` (line 176)
+  - ✅ **Transfer point found**: `cmd/dwscript/cmd/run.go:210`
+    - Passes to interpreter: `interpreter.SetSemanticInfo(semanticInfo)`
+  - ✅ **Storage mechanism**: `internal/interp/interpreter.go:258-265`
+    - `SetSemanticInfo()` stores semantic info and updates evaluator
+  - 🔴 **Gap identified**: Helpers NOT included in transfer
+    - `SemanticInfo` only contains type annotations and symbol references
+    - Helpers stored in `analyzer.helpers` (private field, no getter)
+    - **Solution**: Add getter, extend transfer mechanism
+  - **Implementation plan**:
+    1. Add `GetHelpers() map[string][]*types.HelperType` to `semantic.Analyzer`
+    2. Extend `interpreter.SetSemanticInfo()` to transfer helpers
+    3. Convert `types.HelperType` → `interp.HelperInfo` during transfer
+    4. Register in `TypeSystem.RegisterHelper()` and legacy `i.helpers` map
 
-- [ ] **3.8.6.3** Fix Nil Owner Handling
-  - Issue: `GetMethodAny` can return `(method, nil, true)`
-  - Nil owner wrapped in interface passes nil checks but crashes on use
-  - **Solution Options**:
-    - Fix `FindHelperMethod` to never return nil `OwnerHelper`
-    - Fix `GetMethodAny` to always return non-nil owner
-    - Add defensive nil check in `CallASTHelperMethod`
+- [ ] **3.8.6.3** Implement Helper Transfer
+  - Add `GetHelpers()` method to `internal/semantic/analyzer.go`
+  - Modify `internal/interp/interpreter.go:SetSemanticInfo()` to process helpers
+  - Implement conversion function: `convertHelperType(types.HelperType) *interp.HelperInfo`
+  - Register converted helpers in both TypeSystem and legacy map
+  - Handle built-in helpers (array, enum, intrinsic) - ensure no duplicates
 
-- [ ] **3.8.6.4** Compare with Working Enum Helper Pattern
-  - Enum helpers: registered with `"enum"` key
-  - Class helpers: registered with `obj.ClassName()` key
-  - Identify critical difference in registration/lookup
-
-- [ ] **3.8.6.5** Test Fix and Verify
-  - Ensure fix doesn't break enum/array/intrinsic helpers
+- [ ] **3.8.6.4** Test and Verify Fix
+  - Run `TestHelpersExecution/class_helper_demo.dws`
+  - Ensure enum/array/intrinsic helpers still work
   - Run full helper test suite
-  - `TestHelpersExecution/class_helper_demo.dws` must pass
+  - Verify fixture baseline maintained
 
-**Files Modified So Far**:
+**Files Analyzed**:
+
+- ✅ `cmd/dwscript/cmd/run.go` - Semantic analyzer initialization and transfer
+- ✅ `internal/semantic/analyzer.go` - Analyzer struct, helpers field (line 64)
+- ✅ `internal/interp/interpreter.go` - SetSemanticInfo method (line 258)
+- ✅ `pkg/ast/metadata.go` - SemanticInfo structure (line 71)
+- ✅ `internal/semantic/analyze_helpers.go` - Helper registration logic
+
+**Files Modified (Investigation Phase)**:
+
 - `internal/interp/evaluator/method_dispatch.go` (lines 170-180): Added helper lookup
 - `internal/interp/evaluator/helper_methods.go` (defensive nil checks)
+
+**Files to Modify (Implementation Phase)**:
+
+- `internal/semantic/analyzer.go` - Add `GetHelpers()` getter method
+- `internal/interp/interpreter.go` - Extend `SetSemanticInfo()` to transfer helpers
+- New file or existing: Helper type conversion logic
 
 **Priority**: High (but not blocking other 3.8.x tasks)
 

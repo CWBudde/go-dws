@@ -56,6 +56,8 @@ func (a *Analyzer) analyzeHelperDecl(decl *ast.HelperDecl) {
 
 	// Create the helper type
 	helperType := types.NewHelperType(helperName, targetType, decl.IsRecordHelper)
+	// Task 3.8.6.3: Store AST declaration for runtime transfer
+	helperType.Decl = decl
 
 	// Resolve parent helper if specified
 	if decl.ParentHelper != nil {

@@ -507,6 +507,13 @@ func (a *Analyzer) GetSemanticInfo() *pkgast.SemanticInfo {
 	return a.semanticInfo
 }
 
+// GetHelpers returns all registered helper types.
+// This is used to transfer helpers from semantic analysis to runtime.
+// Task 3.8.6.3: Helper transfer from semantic analyzer to interpreter
+func (a *Analyzer) GetHelpers() map[string][]*types.HelperType {
+	return a.helpers
+}
+
 // StructuredErrors returns all accumulated structured semantic errors
 // Task 9.110: New method for structured error access
 func (a *Analyzer) StructuredErrors() []*SemanticError {
