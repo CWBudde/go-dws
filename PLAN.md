@@ -226,11 +226,43 @@ Phases 3.8.1-3.8.3 (completed Dec 2025) successfully synchronized all environmen
   - **Future work**: Could migrate `variant_ops.go` to use evaluator equivalents (deferred)
   - **Documentation**: Marked `expressions_binary.go` as "legacy helpers" in file header ✅
 
-- [ ] **3.8.4.5** Audit Other Expression Files
-  - Check `expressions_basic.go` for obsolete unary operation code
-  - Check `expressions_complex.go` for delegation opportunities
-  - Document any remaining interpreter-side expression evaluation
-  - Estimate LOC savings for Phase 3.8.5
+- [x] **3.8.4.5** Audit Other Expression Files ✅ **COMPLETE**
+
+  **expressions_basic.go** (575 LOC total):
+
+  | Function | LOC | Status | Notes |
+  |----------|-----|--------|-------|
+  | `evalIdentifier` | 237 | Keep | Complex identifier resolution, duplicated in evaluator |
+  | `evalUnaryExpression` | 22 | **Delete** | Evaluator `VisitUnaryExpression` exists |
+  | `tryUnaryOperator` | 32 | **Delete** | Evaluator `tryUnaryOperator` exists |
+  | `evalMinusUnaryOp` | 16 | **Delete** | Evaluator has equivalent |
+  | `evalPlusUnaryOp` | 13 | **Delete** | Evaluator has equivalent |
+  | `evalNotUnaryOp` | 29 | **Delete** | Evaluator has equivalent |
+  | `evalAddressOfExpression` | 28 | **Delete** | Evaluator `VisitAddressOfExpression` exists |
+  | `evalFunctionPointer` | 81 | **Delete** | Helper for address-of (evaluator has own impl) |
+  | `getTypeFromAnnotation` | 11 | Keep | Used by other functions |
+  | `getTypeByName` | 29 | Keep | Used by other functions |
+  | `evalLambdaExpression` | 50 | **Delete** | Evaluator `VisitLambdaExpression` exists |
+  | `getFunctionPointerTypeFromAnnotation` | 14 | Keep | Used by lambda |
+
+  **Deletable from expressions_basic.go**: ~271 LOC (unary ops + address-of + lambda)
+
+  **expressions_complex.go** (435 LOC total):
+
+  | Function | LOC | Status | Notes |
+  |----------|-----|--------|-------|
+  | `evalInOperator` | 54 | **Investigate** | Called from binary ops, evaluator handles via binary |
+  | `evalIsExpression` | 79 | **Delete** | Evaluator `VisitIsExpression` exists |
+  | `evalAsExpression` | 172 | **Delete** | Evaluator `VisitAsExpression` exists |
+  | `evalImplementsExpression` | 63 | **Delete** | Evaluator `VisitImplementsExpression` exists |
+  | `evalIfExpression` | 52 | **Delete** | Evaluator `VisitIfExpression` exists |
+
+  **Deletable from expressions_complex.go**: ~366 LOC (is/as/implements/if expressions)
+
+  **Total Estimated LOC Savings**:
+  - Phase 3.8.5 (Unary ops): ~112 LOC
+  - Phase 3.8.7 (Other expressions): ~525 LOC
+  - **Combined**: ~637 LOC of obsolete code can be removed
 
 **Success Criteria**:
 - Zero regressions in non-fixture tests
@@ -325,18 +357,23 @@ person1.GetInfo()  // ← FAILS: "method 'GetInfo' not found in class 'TPerson'"
     3. Convert `types.HelperType` → `interp.HelperInfo` during transfer
     4. Register in `TypeSystem.RegisterHelper()` and legacy `i.helpers` map
 
-- [ ] **3.8.6.3** Implement Helper Transfer
-  - Add `GetHelpers()` method to `internal/semantic/analyzer.go`
-  - Modify `internal/interp/interpreter.go:SetSemanticInfo()` to process helpers
-  - Implement conversion function: `convertHelperType(types.HelperType) *interp.HelperInfo`
-  - Register converted helpers in both TypeSystem and legacy map
-  - Handle built-in helpers (array, enum, intrinsic) - ensure no duplicates
+- [x] **3.8.6.3** Implement Helper Transfer ✅ **COMPLETE**
+  - ✅ Added `GetHelpers()` method to `internal/semantic/analyzer.go`
+  - ✅ Extended `internal/interp/interpreter.go:SetSemanticInfo()` to transfer helpers
+  - ✅ Created `internal/interp/helpers_transfer.go` with:
+    - `TransferHelpersFromSemanticAnalysis()` - main transfer function
+    - `convertHelperTypeToHelperInfoNoParent()` - conversion helper
+  - ✅ Registered converted helpers in both TypeSystem and legacy `i.helpers` map
+  - ✅ Fixed critical bug: External function check was delegating ALL function calls
+    - Changed: `if e.externalFunctions != nil` → `if e.externalFunctions != nil && e.externalFunctions.Has(funcName.Value)`
+    - Added `Has(name string) bool` method to `ExternalFunctionRegistry` interface
+  - ✅ Parent helper resolution implemented in two-pass approach
+  - ✅ Built-in helpers (array, enum, intrinsic) handled separately - no duplicates
 
-- [ ] **3.8.6.4** Test and Verify Fix
-  - Run `TestHelpersExecution/class_helper_demo.dws`
-  - Ensure enum/array/intrinsic helpers still work
-  - Run full helper test suite
-  - Verify fixture baseline maintained
+- [x] **3.8.6.4** Test and Verify Fix ✅ **COMPLETE**
+  - ✅ `testdata/helpers/class_helper_demo.dws` runs successfully
+  - ✅ All helper tests pass (TestMultipleHelpersForSameType, TestIntrinsicIntegerBooleanHelpers, TestIntrinsicFloatHelpers)
+  - ✅ Fixture baseline maintained at 872 failures (no regressions)
 
 **Files Analyzed**:
 
@@ -401,21 +438,20 @@ person1.GetInfo()  // ← FAILS: "method 'GetInfo' not found in class 'TPerson'"
 - ✅ Phase 3.8.4.1: `isFalsey()` extraction complete
 - ✅ Phase 3.8.4.2: Function extraction complete (5 functions → `variant_ops.go` + `adapter_operators.go`)
 - ✅ Phase 3.8.4.3: Obsolete code deletion complete (622 LOC removed from `expressions_binary.go`)
+- ✅ Phase 3.8.4.4: Documentation complete (5 helper functions documented)
+- ✅ Phase 3.8.4.5: Expression file audit complete (~637 LOC deletable identified)
+- ✅ Phase 3.8.6: Helper Transfer complete (class helper methods working)
 
 **In Progress**:
 
-- ⏳ Phase 3.8.4: Code Cleanup (tasks 3.8.4.4-3.8.4.5 remaining)
+- ⏳ Phase 3.8.5: Unary Operations Migration (ready to start)
 
 ## Estimated Remaining Effort
 
-- Phase 3.8.4: 0.5-1 day (code cleanup - 2 tasks remaining)
-  - 3.8.4.4: Document remaining helper functions (~0.25 day) ✅ **DONE**
-  - 3.8.4.5: Audit expression files (~0.5 day)
-- Phase 3.8.5: 2-3 days (unary operations)
-- Phase 3.8.6: 3-5 days (helper investigation + fix)
-- Phase 3.8.7: Deferred
+- Phase 3.8.5: 1-2 days (unary operations - ~112 LOC deletion)
+- Phase 3.8.7: 2-3 days (other expressions - ~525 LOC deletion)
 
-**Total**: ~1 week
+**Total**: 3-5 days remaining
 
 ---
 

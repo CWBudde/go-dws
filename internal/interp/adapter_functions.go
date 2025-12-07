@@ -115,7 +115,6 @@ func (i *Interpreter) CallUserFunction(fn *ast.FunctionDecl, args []evaluator.Va
 // Task 3.5.97a: Enables evaluator to call user functions without using EvalNode.
 func (i *Interpreter) CallUserFunctionWithOverloads(callExpr *ast.CallExpression, funcName *ast.Identifier) evaluator.Value {
 	// This method encapsulates the logic from evalCallExpression lines 210-265
-
 	funcNameLower := ident.Normalize(funcName.Value)
 	overloads, exists := i.functions[funcNameLower]
 	if !exists || len(overloads) == 0 {

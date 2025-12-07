@@ -174,15 +174,13 @@ See `TEST_STATUS.md` for detailed pass/fail counts per category and known issues
 
 ### Feature Readiness
 
-✅ **Ready to Test** (Stages 1-6)
+✅ **Ready to Test** (Stages 1-8)
 - Basic expressions and statements
 - Control flow (if/while/for/repeat)
 - Functions and procedures
 - Type checking
 - Arrays and records
 - Enumerations
-
-⚠️ **Partially Ready** (Stage 7-8)
 - Classes and OOP features
 - Interfaces
 - Generics

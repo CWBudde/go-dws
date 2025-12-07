@@ -177,7 +177,16 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 
 		// No helper method - delegate to adapter for class/instance method handling
 		// These types require full environment setup (Self binding, call stack)
-		return e.adapter.CallMethod(obj, methodName, args, node)
+		//
+		// Task 3.8.6.3: Save and restore ctx.Env() around adapter calls.
+		// The adapter's CallMethod uses i.PushEnvironment which calls SetEnvironment,
+		// which in turn calls ctx.SetEnv(). This replaces the context's environment
+		// and destroys any Self binding from a helper method context.
+		// By saving and restoring ctx.Env(), we preserve the helper's Self.
+		savedCtxEnv := ctx.Env()
+		result := e.adapter.CallMethod(obj, methodName, args, node)
+		ctx.SetEnv(savedCtxEnv)
+		return result
 
 	// ============================================================
 	// Unknown type - try helper method or error
@@ -191,7 +200,11 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		}
 
 		// No handler found - delegate to adapter as last resort
-		return e.adapter.EvalNode(node)
+		// Task 3.8.6.3: Save and restore ctx.Env() around adapter calls
+		savedCtxEnv := ctx.Env()
+		result := e.adapter.EvalNode(node)
+		ctx.SetEnv(savedCtxEnv)
+		return result
 	}
 }
 

@@ -185,7 +185,10 @@ func DefaultConfig() *Config {
 }
 
 // ExternalFunctionRegistry manages external Go functions callable from DWScript.
+// Task 3.8.6.3: Added Has method to check if a function exists without delegating all calls.
 type ExternalFunctionRegistry interface {
+	// Has checks if an external function with the given name is registered.
+	Has(name string) bool
 }
 
 // InterpreterAdapter provides the boundary between evaluator and interpreter.

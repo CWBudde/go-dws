@@ -30,7 +30,17 @@ func (i *Interpreter) executeUserFunctionViaEvaluator(fn *ast.FunctionDecl, args
 	// Sync i.env with i.ctx: ExecuteUserFunction creates its function environment from
 	// ctx.Env().NewEnclosedEnvironment(). We need ctx.Env() to reflect i.env so that
 	// any bindings set up by the caller (like Self in adapter methods) are visible.
+	//
+	// Task 3.8.6.3: Before replacing ctx.Env(), copy Self binding from ctx.Env() to i.env
+	// if it exists. This ensures that when we're inside a helper method and call a method
+	// on Self (like Self.GetValue()), the Self binding is preserved.
 	savedCtxEnv := i.ctx.Env()
+	if selfVal, hasSelf := savedCtxEnv.Get("Self"); hasSelf {
+		// Self is defined in the current context - preserve it in i.env
+		if selfValue, ok := selfVal.(Value); ok {
+			i.env.Define("Self", selfValue)
+		}
+	}
 	i.ctx.SetEnv(evaluator.NewEnvironmentAdapter(i.env))
 	defer func() { i.ctx.SetEnv(savedCtxEnv) }()
 

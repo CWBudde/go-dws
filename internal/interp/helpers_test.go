@@ -558,6 +558,105 @@ func TestHelperOnClassInstancePrefersMethods(t *testing.T) {
 	}
 }
 
+// TestClassHelperAddingMethods tests that class helpers can add new methods to classes.
+// Task 3.8.6.3: Helper transfer from semantic analyzer to interpreter
+func TestClassHelperAddingMethods(t *testing.T) {
+	input := `
+		type TPerson = class
+			private
+				FName: String;
+				FAge: Integer;
+			public
+				constructor Create(name: String; age: Integer);
+				function GetName: String;
+				function GetAge: Integer;
+		end;
+
+		constructor TPerson.Create(name: String; age: Integer);
+		begin
+			FName := name;
+			FAge := age;
+		end;
+
+		function TPerson.GetName: String;
+		begin
+			Result := FName;
+		end;
+
+		function TPerson.GetAge: Integer;
+		begin
+			Result := FAge;
+		end;
+
+		type TPersonHelper = helper for TPerson
+			function GetInfo: String;
+			begin
+				Result := Self.GetName() + ' (age ' + IntToStr(Self.GetAge()) + ')';
+			end;
+		end;
+
+		var p: TPerson;
+		begin
+			p := TPerson.Create('Alice', 25);
+			PrintLn(p.GetInfo());
+		end.
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "Alice (age 25)\n"
+	if out.String() != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
+	}
+}
+
+// TestClassHelperSelfAccessInBinaryExpression tests that Self is accessible when
+// helper method is called within a binary expression (string concatenation).
+// Task 3.8.6.3: Helper transfer from semantic analyzer to interpreter
+func TestClassHelperSelfAccessInBinaryExpression(t *testing.T) {
+	input := `
+		type TTest = class
+			function GetValue: String;
+			begin
+				Result := 'value';
+			end;
+		end;
+
+		type TTestHelper = helper for TTest
+			function GetInfo: String;
+			begin
+				Result := Self.GetValue() + ' info';
+			end;
+		end;
+
+		var t: TTest;
+		begin
+			t := TTest.Create();
+			// Test calling helper in binary expression - this was failing before fix
+			PrintLn('Test: ' + t.GetInfo());
+		end.
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "Test: value info\n"
+	if out.String() != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
+	}
+}
+
 // interpret is a helper function to parse and evaluate DWScript code
 func interpret(interp *Interpreter, input string) Value {
 	l := lexer.New(input)

@@ -333,7 +333,10 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 
 	// Task 3.5.24: External (Go) functions that may need var parameter handling
 	// External functions can declare var parameters in their signatures
-	if e.externalFunctions != nil {
+	// Task 3.8.6.3: Only delegate if the function is actually an external function,
+	// not just if the map is non-nil. Delegating all calls breaks environment chain
+	// for helper methods where Self is defined in the evaluator's context.
+	if e.externalFunctions != nil && e.externalFunctions.Has(funcName.Value) {
 		return e.adapter.EvalNode(node)
 	}
 
