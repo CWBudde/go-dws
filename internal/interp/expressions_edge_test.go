@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/semantic"
@@ -769,7 +770,7 @@ func TestEvalVariantArrayFalsey(t *testing.T) {
 	emptyArr.Elements = []Value{}
 	variantWithArray := &VariantValue{Value: &emptyArr}
 
-	result := isFalsey(variantWithArray)
+	result := evaluator.IsFalsey(variantWithArray)
 	if !result {
 		t.Errorf("Expected empty array variant to be falsey")
 	}
@@ -778,7 +779,7 @@ func TestEvalVariantArrayFalsey(t *testing.T) {
 // TestEvalUnassignedValueFalsey tests UnassignedValue is falsey
 func TestEvalUnassignedValueFalsey(t *testing.T) {
 	unassigned := &UnassignedValue{}
-	result := isFalsey(unassigned)
+	result := evaluator.IsFalsey(unassigned)
 	if !result {
 		t.Errorf("Expected UnassignedValue to be falsey")
 	}
@@ -787,7 +788,7 @@ func TestEvalUnassignedValueFalsey(t *testing.T) {
 // TestEvalNullValueFalsey tests NullValue is falsey
 func TestEvalNullValueFalsey(t *testing.T) {
 	null := &NullValue{}
-	result := isFalsey(null)
+	result := evaluator.IsFalsey(null)
 	if !result {
 		t.Errorf("Expected NullValue to be falsey")
 	}
@@ -796,7 +797,7 @@ func TestEvalNullValueFalsey(t *testing.T) {
 // TestEvalNonEmptyArrayTruthy tests non-empty array is truthy
 func TestEvalNonEmptyArrayTruthy(t *testing.T) {
 	arr := &ArrayValue{Elements: []Value{&IntegerValue{Value: 1}}}
-	result := isFalsey(arr)
+	result := evaluator.IsFalsey(arr)
 	if result {
 		t.Errorf("Expected non-empty array to be truthy")
 	}
@@ -805,7 +806,7 @@ func TestEvalNonEmptyArrayTruthy(t *testing.T) {
 // TestEvalObjectTruthy tests objects are truthy
 func TestEvalObjectTruthy(t *testing.T) {
 	obj := &ObjectInstance{Class: &ClassInfo{Name: "Test"}}
-	result := isFalsey(obj)
+	result := evaluator.IsFalsey(obj)
 	if result {
 		t.Errorf("Expected object to be truthy")
 	}

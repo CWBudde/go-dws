@@ -60,9 +60,9 @@ func TestIsFalsey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := isFalsey(tt.value)
+			result := IsFalsey(tt.value)
 			if result != tt.expected {
-				t.Errorf("isFalsey(%v) = %v, expected %v", tt.value, result, tt.expected)
+				t.Errorf("IsFalsey(%v) = %v, expected %v", tt.value, result, tt.expected)
 			}
 		})
 	}
@@ -78,7 +78,7 @@ func TestIsFalseyWithVariant(t *testing.T) {
 
 	variantWithEmptyArray := &runtime.VariantValue{Value: emptyArray}
 
-	if !isFalsey(variantWithEmptyArray) {
+	if !IsFalsey(variantWithEmptyArray) {
 		t.Error("Variant wrapping empty array should be falsey")
 	}
 
@@ -92,7 +92,7 @@ func TestIsFalseyWithVariant(t *testing.T) {
 
 	variantWithNonEmptyArray := &runtime.VariantValue{Value: nonEmptyArray}
 
-	if isFalsey(variantWithNonEmptyArray) {
+	if IsFalsey(variantWithNonEmptyArray) {
 		t.Error("Variant wrapping non-empty array should be truthy")
 	}
 }

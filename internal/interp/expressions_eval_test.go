@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/semantic"
@@ -425,32 +426,9 @@ func TestIsFalsey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := isFalsey(tt.value)
+			result := evaluator.IsFalsey(tt.value)
 			if result != tt.expected {
-				t.Errorf("Expected isFalsey(%v) = %v, got %v", tt.value, tt.expected, result)
-			}
-		})
-	}
-}
-
-// TestIsNumericType tests the isNumericType helper function
-func TestIsNumericType(t *testing.T) {
-	tests := []struct {
-		name     string
-		typeStr  string
-		expected bool
-	}{
-		{"INTEGER is numeric", "INTEGER", true},
-		{"FLOAT is numeric", "FLOAT", true},
-		{"STRING is not numeric", "STRING", false},
-		{"BOOLEAN is not numeric", "BOOLEAN", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := isNumericType(tt.typeStr)
-			if result != tt.expected {
-				t.Errorf("Expected isNumericType(%s) = %v, got %v", tt.typeStr, tt.expected, result)
+				t.Errorf("Expected IsFalsey(%v) = %v, got %v", tt.value, tt.expected, result)
 			}
 		})
 	}

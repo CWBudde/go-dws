@@ -27,7 +27,7 @@ func (e *Evaluator) evalCoalesceOp(node *ast.BinaryExpression, ctx *ExecutionCon
 	}
 
 	// Check if left is "falsey" (default/zero value for its type)
-	if !isFalsey(left) {
+	if !IsFalsey(left) {
 		// Left is truthy, return it (don't evaluate right)
 		return left
 	}
@@ -926,14 +926,14 @@ func (e *Evaluator) evalVariantBinaryOp(op string, left, right Value, node ast.N
 		// Case 2: One is an UNASSIGNED variant (not just nullish), check if other is falsey
 		// Only unassigned variants (not Null/nil) equal falsey values
 		if leftUnassignedVariant && !rightIsNullish {
-			result := isFalsey(rightVal)
+			result := IsFalsey(rightVal)
 			if op == "=" {
 				return &runtime.BooleanValue{Value: result}
 			}
 			return &runtime.BooleanValue{Value: !result}
 		}
 		if rightUnassignedVariant && !leftIsNullish {
-			result := isFalsey(leftVal)
+			result := IsFalsey(leftVal)
 			if op == "=" {
 				return &runtime.BooleanValue{Value: result}
 			}

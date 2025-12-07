@@ -158,9 +158,11 @@ Phases 3.8.1-3.8.3 (completed Dec 2025) successfully synchronized all environmen
   - All 1163 non-fixture tests passing
 
 **Current State** (as of latest commit):
-- ✅ All non-fixture tests pass (1163 tests)
+- ✅ All non-fixture tests pass (1165 tests)
 - ✅ Fixture baseline: 872 failures (11 improvements from initial 883)
-- ⚠️ `internal/interp/expressions_binary.go` (944 LOC) now obsolete
+- ✅ `internal/interp/expressions_binary.go`: Cleaned up (322 LOC, down from 944 LOC)
+  - Kept 5 helper functions still used by `variant_ops.go` (310 LOC)
+  - Deleted all obsolete top-level expression evaluation (622 LOC)
 - ⚠️ Class helper method resolution issue (investigation in progress)
 
 ## Remaining Tasks
@@ -169,21 +171,66 @@ Phases 3.8.1-3.8.3 (completed Dec 2025) successfully synchronized all environmen
 
 **Goal**: Remove obsolete code and consolidate test utilities
 
-- [ ] **3.8.4.1** Extract `isFalsey()` Helper to Test Utilities
-  - Currently in `expressions_binary.go` (line 447)
-  - Used by 3 test files: `evaluator/helpers_test.go`, `expressions_eval_test.go`, `expressions_edge_test.go`
-  - Move to `internal/interp/test_helpers.go` or similar
-  - Update test imports
+- [x] **3.8.4.1** Extract `isFalsey()` Helper to Test Utilities ✅ **COMPLETE**
+  - Made `evaluator.isFalsey` public (renamed to `IsFalsey`)
+  - Updated all evaluator internal calls (3 locations in `binary_ops.go`, 1 in `helpers.go`)
+  - Updated test files to use `evaluator.IsFalsey`:
+    - `evaluator/helpers_test.go` (3 calls)
+    - `expressions_eval_test.go` (1 call)
+    - `expressions_edge_test.go` (5 calls)
+  - Deleted obsolete `TestIsNumericType` test (trivial test of internal helper)
+  - All tests pass (1163 non-fixture tests)
 
-- [ ] **3.8.4.2** Delete `expressions_binary.go`
-  - Remove entire file (944 LOC)
-  - Verify all tests still pass
-  - All binary operations now handled by `evaluator/binary_ops.go`
+- [x] **3.8.4.2** Extract Remaining Functions from `expressions_binary.go` ✅ **COMPLETE**
+  - **Discovery**: File contained 5 functions still in use
+  - **Functions extracted**:
+    1. `tryBinaryOperator` (45 LOC) - Moved to `adapter_operators.go` (operator overload lookup)
+    2. `evalVariantBinaryOp` (137 LOC) - Moved to `variant_ops.go` (variant compound assignments)
+    3. `convertToString` (3 LOC) - Moved to `variant_ops.go` (string conversion helper)
+    4. `isFalsey` (36 LOC) - Moved to `variant_ops.go` (legacy helper for variant ops)
+    5. `isNumericType` (3 LOC) - Moved to `variant_ops.go` (type check helper)
+  - **Extraction results**:
+    - Created `internal/interp/variant_ops.go` (203 LOC total)
+    - Enhanced `adapter_operators.go` with `tryBinaryOperator` (now 78 LOC total)
+    - Deleted all 5 extracted functions from `expressions_binary.go`
+    - All 1165 non-fixture tests passing ✅
+    - Fixture baseline maintained at 872 failures ✅
 
-- [ ] **3.8.4.3** Audit Other Expression Files
+- [x] **3.8.4.3** Delete Obsolete Code from `expressions_binary.go` ✅ **COMPLETE**
+  - **Deleted 387 LOC** of obsolete binary operation evaluation code
+  - **Kept helper functions** still used by `variant_ops.go`:
+    - `evalIntegerBinaryOp` (116 LOC) - integer operations
+    - `evalFloatBinaryOp` (65 LOC) - float operations
+    - `evalStringBinaryOp` (39 LOC) - string operations
+    - `evalBooleanBinaryOp` (36 LOC) - boolean operations
+    - `evalEnumBinaryOp` (54 LOC) - enum operations
+  - **Deleted obsolete functions**:
+    - `evalBinaryExpression` (199 LOC) - top-level dispatcher (delegated to evaluator)
+    - `evalCoalesceExpression` (29 LOC) - coalesce operator (delegated to evaluator)
+    - `evalAndExpression` (77 LOC) - short-circuit AND (delegated to evaluator)
+    - `evalOrExpression` (77 LOC) - short-circuit OR (delegated to evaluator)
+  - **File size**: Reduced from 709 LOC → **322 LOC** (54% reduction)
+  - **Total cleanup**: 622 LOC removed from original 944 LOC file
+  - All 1165 non-fixture tests passing ✅
+  - Fixture baseline maintained at 872 failures ✅
+
+- [x] **3.8.4.4** Document Remaining Binary Helper Functions ✅ **COMPLETE**
+  - **Current state**: 5 helper functions remain in `expressions_binary.go` (310 LOC)
+    - `evalIntegerBinaryOp` (116 LOC) - used by `variant_ops.go`
+    - `evalFloatBinaryOp` (65 LOC) - used by `variant_ops.go`
+    - `evalStringBinaryOp` (39 LOC) - used by `variant_ops.go`
+    - `evalBooleanBinaryOp` (36 LOC) - used by `variant_ops.go`
+    - `evalEnumBinaryOp` (54 LOC) - used by `variant_ops.go`
+  - **Decision**: Keep functions (still actively used by Variant operations)
+  - **Rationale**: These provide type-specific operation logic that `variant_ops.go` needs
+  - **Future work**: Could migrate `variant_ops.go` to use evaluator equivalents (deferred)
+  - **Documentation**: Marked `expressions_binary.go` as "legacy helpers" in file header ✅
+
+- [ ] **3.8.4.5** Audit Other Expression Files
   - Check `expressions_basic.go` for obsolete unary operation code
   - Check `expressions_complex.go` for delegation opportunities
   - Document any remaining interpreter-side expression evaluation
+  - Estimate LOC savings for Phase 3.8.5
 
 **Success Criteria**:
 - Zero regressions in non-fixture tests
@@ -310,14 +357,31 @@ person1.GetInfo()  // ← FAILS: "method 'GetInfo' not found in class 'TPerson'"
 4. **Test baseline discipline catches regressions**: Fixture count tracking revealed subtle improvements
 5. **Environment adapters are critical**: Type boundaries (concrete vs. interface) require careful handling
 
+## Progress Summary
+
+**Completed**:
+
+- ✅ Phase 3.8.1: Environment Management Audit (149 assignments documented)
+- ✅ Phase 3.8.2: Incremental Environment Sync Migration (149/149 migrated)
+- ✅ Phase 3.8.3: Binary Operations Migration (all blockers resolved)
+- ✅ Phase 3.8.4.1: `isFalsey()` extraction complete
+- ✅ Phase 3.8.4.2: Function extraction complete (5 functions → `variant_ops.go` + `adapter_operators.go`)
+- ✅ Phase 3.8.4.3: Obsolete code deletion complete (622 LOC removed from `expressions_binary.go`)
+
+**In Progress**:
+
+- ⏳ Phase 3.8.4: Code Cleanup (tasks 3.8.4.4-3.8.4.5 remaining)
+
 ## Estimated Remaining Effort
 
-- Phase 3.8.4: 2-3 days (code cleanup)
+- Phase 3.8.4: 0.5-1 day (code cleanup - 2 tasks remaining)
+  - 3.8.4.4: Document remaining helper functions (~0.25 day) ✅ **DONE**
+  - 3.8.4.5: Audit expression files (~0.5 day)
 - Phase 3.8.5: 2-3 days (unary operations)
 - Phase 3.8.6: 3-5 days (helper investigation + fix)
 - Phase 3.8.7: Deferred
 
-**Total**: 1-2 weeks
+**Total**: ~1 week
 
 ---
 

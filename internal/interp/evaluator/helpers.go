@@ -166,8 +166,9 @@ func RuneReplace(s string, index int, replacement rune) (string, bool) {
 	return string(runes), true
 }
 
-// isFalsey determines if a value is "falsey" (default/zero value for its type).
-func isFalsey(val Value) bool {
+// IsFalsey determines if a value is "falsey" (default/zero value for its type).
+// Exported for use by test utilities across packages.
+func IsFalsey(val Value) bool {
 	// Handle nil (from unassigned variants)
 	if val == nil {
 		return true
@@ -195,7 +196,7 @@ func isFalsey(val Value) bool {
 		case "VARIANT":
 			// Variant values need to be unwrapped
 			if wrapper, ok := val.(runtime.VariantWrapper); ok {
-				return isFalsey(wrapper.UnwrapVariant())
+				return IsFalsey(wrapper.UnwrapVariant())
 			}
 			return false
 		default:
