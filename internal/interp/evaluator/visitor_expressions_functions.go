@@ -473,19 +473,18 @@ func (e *Evaluator) PrepareUserFunctionArgs(
 	return args, nil
 }
 
-// wrapLazyArg reuses existing lazy thunks so forwarding a lazy argument (like a recursive lazy parameter)
-// doesn't create a self-referential thunk that overflows the stack.
+// wrapLazyArg creates a thunk for lazy parameters and delegates to existing lazy arguments
+// when the argument expression is itself a lazy identifier (avoids self-recursive evaluation).
 func (e *Evaluator) wrapLazyArg(arg ast.Expression, ctx *ExecutionContext, eval func(ast.Expression) Value) Value {
-	if identArg, ok := arg.(*ast.Identifier); ok {
-		if valRaw, ok := ctx.Env().Get(identArg.Value); ok {
-			if lazyVal, ok := valRaw.(LazyEvaluator); ok {
-				return lazyVal
-			}
-		}
-	}
-
 	capturedArg := arg
 	return runtime.NewLazyThunk(capturedArg, func() runtime.Value {
+		if identArg, ok := capturedArg.(*ast.Identifier); ok {
+			if valRaw, ok := ctx.Env().Get(identArg.Value); ok {
+				if lazyVal, ok := valRaw.(LazyEvaluator); ok {
+					return lazyVal.Evaluate()
+				}
+			}
+		}
 		return eval(capturedArg)
 	})
 }

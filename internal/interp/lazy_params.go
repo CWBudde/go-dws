@@ -84,13 +84,27 @@ func (t *LazyThunk) Evaluate() Value {
 
 	// Switch to the captured environment from the call site
 	// This ensures the expression sees variables from the caller's scope
-	t.interpreter.env = t.CapturedEnv
+	t.interpreter.SetEnvironment(t.CapturedEnv)
+
+	var result Value
+
+	// Fast path: if the expression is an identifier bound to another lazy thunk,
+	// delegate to that thunk to avoid self-referential evaluation loops.
+	if identExpr, ok := t.Expression.(*ast.Identifier); ok {
+		if val, ok := t.CapturedEnv.Get(identExpr.Value); ok {
+			if lazyVal, ok := val.(interface{ Evaluate() Value }); ok && lazyVal != t {
+				result = lazyVal.Evaluate()
+			}
+		}
+	}
 
 	// Evaluate the expression in the captured environment
-	result := t.interpreter.Eval(t.Expression)
+	if result == nil {
+		result = t.interpreter.Eval(t.Expression)
+	}
 
 	// Restore the previous environment
-	t.interpreter.env = savedEnv
+	t.interpreter.SetEnvironment(savedEnv)
 
 	return result
 }

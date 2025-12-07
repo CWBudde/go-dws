@@ -6,16 +6,8 @@ import (
 	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
 
-// wrapLazyArgument reuses existing lazy thunks so forwarding a lazy argument
-// (e.g. recursive calls) doesn't create a self-referential thunk that overflows.
+// wrapLazyArgument creates a thunk for a lazy parameter, capturing the current environment.
 func (i *Interpreter) wrapLazyArgument(arg ast.Expression) Value {
-	if identExpr, ok := arg.(*ast.Identifier); ok {
-		if existing, ok := i.env.Get(identExpr.Value); ok {
-			if _, ok := existing.(interface{ Evaluate() Value }); ok {
-				return existing
-			}
-		}
-	}
 	return NewLazyThunk(arg, i.env, i)
 }
 
