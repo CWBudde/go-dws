@@ -2,6 +2,7 @@ package interp
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -34,8 +35,39 @@ func (i *Interpreter) evalEnumDeclaration(decl *ast.EnumDecl) Value {
 
 		// Determine ordinal value (explicit or implicit)
 		var ordinalValue int
-		if enumValue.Value != nil {
-			// Explicit value provided
+
+		// Phase 1 Task 9.15: Check ValueExpr first (constant expressions)
+		if enumValue.ValueExpr != nil {
+			// Evaluate constant expression
+			val, err := i.evaluateConstantExpression(enumValue.ValueExpr)
+			if err != nil {
+				return &ErrorValue{
+					Message: fmt.Sprintf("enum '%s' value '%s': %v", enumName, valueName, err),
+				}
+			}
+			ordinalValue = val
+
+			if decl.Flags {
+				// For flags, explicit values must be powers of 2
+				if ordinalValue <= 0 || (ordinalValue&(ordinalValue-1)) != 0 {
+					return &ErrorValue{
+						Message: fmt.Sprintf("enum '%s' value '%s' (%d) must be a power of 2 for flags enum",
+							enumName, valueName, ordinalValue),
+					}
+				}
+				// For flags, update bit position based on explicit value
+				for bitPos := 0; bitPos < 64; bitPos++ {
+					if (1 << bitPos) == ordinalValue {
+						flagBitPosition = bitPos + 1
+						break
+					}
+				}
+			} else {
+				// For regular enums, update current ordinal
+				currentOrdinal = ordinalValue + 1
+			}
+		} else if enumValue.Value != nil {
+			// Backward compatibility: Explicit value provided (simple integer)
 			ordinalValue = *enumValue.Value
 			if decl.Flags {
 				// For flags, explicit values must be powers of 2
