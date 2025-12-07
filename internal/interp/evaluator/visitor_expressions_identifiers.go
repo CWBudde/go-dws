@@ -115,7 +115,18 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			// Check for ClassType special identifier (case-insensitive)
 			if ident.Equal(node.Value, "ClassType") {
 				if objVal, ok := selfVal.(ObjectValue); ok {
-					return objVal.GetClassType()
+					// GetClassType() returns a classTypeProxy placeholder
+					// We need to extract the class info and create a proper ClassValue
+					// for helper method resolution to work properly
+					className := objVal.ClassName()
+					classVal, err := e.typeSystem.CreateClassValue(className)
+					if err != nil {
+						return e.newError(node, "%s", err.Error())
+					}
+					if val, ok := classVal.(Value); ok {
+						return val
+					}
+					return e.newError(node, "internal error: ClassValue conversion failed")
 				}
 			}
 		} else if recVal, ok := selfRaw.(*runtime.RecordValue); ok {
@@ -152,7 +163,16 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 				// Check for ClassType identifier (case-insensitive)
 				if ident.Equal(node.Value, "ClassType") {
-					return classMetaVal.GetClassType()
+					// GetClassType() returns classTypeProxy, convert to ClassValue
+					className := classMetaVal.GetClassName()
+					classVal, err := e.typeSystem.CreateClassValue(className)
+					if err != nil {
+						return e.newError(node, "%s", err.Error())
+					}
+					if val, ok := classVal.(Value); ok {
+						return val
+					}
+					return e.newError(node, "internal error: ClassValue conversion failed")
 				}
 
 				// Check for class variable
@@ -206,8 +226,9 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 		// Check if function has zero parameters - auto-invoke
 		if len(fn.Parameters) == 0 {
-			// Use evaluator-native parameterless function invocation
-			return e.invokeParameterlessUserFunction(fn, node, ctx)
+			// Delegate to adapter for proper exception handling (Phase 3.9.3)
+			// The evaluator's invokeParameterlessUserFunction has exception handling issues
+			return e.adapter.CallUserFunction(fn, []Value{})
 		}
 
 		// Function has parameters - create function pointer

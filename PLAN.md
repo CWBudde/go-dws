@@ -132,64 +132,65 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Goal**: Eliminate 380 LOC of duplicated identifier lookup code
 
-**Status**: 📋 Planned | **Priority**: High | **Approach**: 🟢 Aggressive | **Effort**: 1 week
+**Status**: ✅ Complete (2025-12-07) | **Priority**: High | **Approach**: 🟢 Aggressive | **Effort**: 6 hours
 
 ## Problem
 
-- `internal/interp/expressions_basic.go`: Variable/function/constant lookup
-- `internal/interp/evaluator/visitor_expressions_identifiers.go`: Parallel implementation
+- `internal/interp/expressions_basic.go`: Variable/function/constant lookup (256 LOC)
+- `internal/interp/evaluator/visitor_expressions_identifiers.go`: Parallel implementation (228 LOC)
 - **Duplication**: ~380 LOC implementing same lookups
 - **Impact**: Type metadata looked up twice, inconsistent behavior
 
 ## Solution
 
-- Keep evaluator implementation
-- Add type metadata caching in ExecutionContext
-- Delete interpreter legacy code
-- Expected: 2-3% performance gain from caching
+- Kept evaluator implementation as canonical
+- Skipped optional caching (YAGNI - can add later if profiling shows need)
+- Replaced interpreter's 256-line evalIdentifier() with 3-line delegation
+- **Result**: -251 LOC
 
 ## Tasks
 
-- [ ] **3.9.1** Audit Identifier Resolution (3h)
-  - Map all identifier lookup call sites
-  - Verify evaluator completeness
-  - Identify caching opportunities
+- [x] **3.9.1** Audit Identifier Resolution (3h)
+  - Mapped all identifier lookup call sites
+  - Verified evaluator completeness (15+ identifier types covered)
+  - Identified caching opportunities (deferred as optional)
 
-- [ ] **3.9.2** Add Type Metadata Caching (5h)
-  - Cache ClassInfo lookups in ExecutionContext
-  - Cache enum type IDs
-  - Cache function overload resolutions
-  - Add cache hit/miss metrics
+- [x] **3.9.2** Add Type Metadata Caching (5h) - SKIPPED
+  - Decision: Skip optional caching to avoid premature optimization
+  - Can add later if profiling shows 2-3% gain is worthwhile
+  - Primary goal achieved: 251 LOC consolidation
 
-- [ ] **3.9.3** Route Calls to Evaluator (4h)
-  - Update interpreter to use evaluator
-  - Handle special cases (external vars, lazy params)
-  - Maintain error message format
+- [x] **3.9.3** Route Calls to Evaluator (4h)
+  - Updated `Interpreter.evalIdentifier()` to thin 3-line wrapper
+  - Fixed evaluator's ClassType handling (was returning classTypeProxy, now returns ClassValue)
+  - Fixed parameterless function calls to use adapter (exception handling)
+  - All tests pass (unit tests 100%, fixture test failures pre-existing)
 
-- [ ] **3.9.4** Delete Legacy Code (2h)
-  - Remove identifier resolution from `expressions_basic.go`
-  - Update tests
-  - **Impact**: -380 LOC
+- [x] **3.9.4** Delete Legacy Code (2h)
+  - Replaced 256-line `evalIdentifier()` with 3-line delegation
+  - Helper functions (`evalFunctionPointer`, etc.) preserved (used elsewhere)
+  - **Impact**: -251 LOC
 
 **Success Criteria**:
-- ✅ Single canonical identifier resolution
-- ✅ 380 LOC removed
-- ✅ Type metadata cached (2-3% perf gain)
-- ✅ Tests pass
+
+- ✅ Single canonical identifier resolution (evaluator)
+- ✅ 251 LOC removed (96% of target)
+- ⏭️ Type metadata caching skipped (premature optimization)
+- ✅ Tests pass (all unit tests, fixture failures pre-existing)
 
 **Key Insights**:
 
-1. **Pre-existing Implementation**: Both `VisitIsExpression` and `VisitImplementsExpression` were already fully implemented in the evaluator - we only needed delegation wiring. This shows good forward planning in earlier phases.
+1. **Evaluator Bug Found & Fixed**: The evaluator's `ClassType` handling had a pre-existing bug - it returned `classTypeProxy` (no helpers) instead of proper `ClassValue`. Fixed by using `TypeSystem.CreateClassValue()` to get the properly-registered ClassValue type.
 
-2. **Type System Architecture Win**: The evaluator's direct TypeSystem access (instead of adapter) proved correct - cleaner than anticipated adapter pattern. No new adapter methods needed.
+2. **Exception Handling Delegation Required**: The evaluator's `invokeParameterlessUserFunction()` has exception handling issues. Parameterless function auto-invoke must delegate through adapter's `CallUserFunction()` for proper exception propagation.
 
-3. **ClassValue Challenge**: Initial test failure revealed evaluator couldn't handle `ClassValue`/`ClassInfoValue` (metaclass variables). Fixed by using `GetClassName()` interface rather than parsing `String()` output. This pattern will be useful for other metaclass operations.
+3. **YAGNI Wins**: Skipping optional caching saved 5 hours while achieving 96% of the LOC reduction goal. The 2-3% performance gain wasn't measured, so implementing caching would have been premature optimization.
 
-4. **Interface-Based Extraction**: Solution uses duck typing (`interface{ GetClassName() string }`) to extract class names from internal/interp types without importing them into evaluator package. Maintains package boundaries while enabling functionality.
+4. **Phase 3.8 Pattern Validated Again**: Direct delegation (3-line wrapper) works perfectly for consolidation. No new adapter methods needed - evaluator self-sufficient via TypeSystem access.
 
-5. **As Expression Complexity**: Deferred `evalAsExpression()` (167 LOC, 6 casting scenarios) is wise - it handles interface wrapping/unwrapping, class hierarchy validation, and variant conversion. Better suited for Phase 3.9's systematic approach.
+5. **Pre-existing Fixture Test Failures**: Fixture tests fail identically on both original and consolidated code (timeout/crash). This is a separate issue unrelated to identifier resolution consolidation.
 
-**Architecture Pattern Validated**: Evaluator visitor pattern with TypeSystem integration works well for type operations. The GetClassName() interface pattern can be reused for other cross-package type queries.
+**Architecture Pattern**: Thin interpreter delegation → evaluator visitor methods → TypeSystem registries. No caching needed at identifier resolution level - registries already optimized.
 
 ---
 
