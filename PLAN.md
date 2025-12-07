@@ -147,7 +147,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Remaining Tasks
 
-### 3.8.1 Migrate Is Expression
+### 3.8.1 Migrate Is Expression ✅ DONE
 
 **Effort**: 3-4 hours | **LOC**: 75 | **Risk**: Low-Medium
 
@@ -155,17 +155,17 @@ Delegate `obj is TMyClass` type checking to evaluator.
 
 **Todo List**:
 
-- [ ] Create `VisitIsExpression()` in `evaluator/visitor_expressions_types.go`
-- [ ] Add `LookupInterface(name string) *InterfaceInfo` to `InterpreterAdapter`
-- [ ] Update `interpreter.go:611` to delegate
-- [ ] Delete `evalIsExpression()` from `expressions_complex.go:14-87`
-- [ ] Test & commit
+- [x] ~~Create `VisitIsExpression()` in `evaluator/visitor_expressions_types.go`~~ (already existed)
+- [x] ~~Add `LookupInterface(name string) *InterfaceInfo` to `InterpreterAdapter`~~ (not needed - evaluator uses TypeSystem)
+- [x] Update `interpreter.go:613` to delegate
+- [x] Delete `evalIsExpression()` from `expressions_complex.go:14-87` (75 LOC removed)
+- [x] Test & commit
 
 ---
 
-### 3.8.2 Migrate Implements Expression
+### 3.8.2 Migrate Implements Expression ✅ DONE
 
-**Effort**: 3-4 hours | **LOC**: 59 | **Risk**: Low-Medium
+**Effort**: 3-4 hours | **LOC**: 62 | **Risk**: Low-Medium
 
 **Depends on**: 3.8.1 (shares interface adapter)
 
@@ -173,11 +173,12 @@ Delegate `obj implements IMyInterface` checking to evaluator.
 
 **Todo List**:
 
-- [ ] Create `VisitImplementsExpression()` in `evaluator/visitor_expressions_types.go`
-- [ ] Reuse interface adapter from 3.8.1
-- [ ] Update `interpreter.go:619` to delegate
-- [ ] Delete `evalImplementsExpression()` from `expressions_complex.go:264-324`
-- [ ] Test & commit
+- [x] ~~Create `VisitImplementsExpression()` in `evaluator/visitor_expressions_types.go`~~ (already existed)
+- [x] ~~Reuse interface adapter from 3.8.1~~ (not needed - evaluator uses TypeSystem + GetClassName() interface)
+- [x] Update `interpreter.go:621` to delegate
+- [x] Delete `evalImplementsExpression()` from `expressions_complex.go:182-244` (62 LOC removed)
+- [x] Enhanced `checkImplements()` to handle ClassValue/ClassInfoValue via GetClassName() interface
+- [x] Test & commit
 
 ---
 
@@ -189,12 +190,12 @@ Complex type casting (`obj as IMyInterface`) with 6 casting scenarios. High comp
 
 ---
 
-## Final Verification
+## Final Verification ✅ DONE
 
 **Todo List**:
 
-- [ ] Verify all 1168 tests still passing after migrations
-- [ ] Update PLAN.md to mark Phase 3.8 as complete
+- [x] Verify all 1168 tests still passing after migrations
+- [x] Update PLAN.md to mark Phase 3.8 as complete
 
 ---
 
@@ -620,185 +621,16 @@ go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/class_init
 
 **Status**: IN PROGRESS
 
-**Remaining TODOs**:
-- [ ] Fix `record_method2`: allow member access on parameterless record-returning functions (drop helper requirement).
-- [ ] Fix `record_method5`: ensure implicit record Self calls update/copy semantics so increments persist.
-- [ ] Re-run full `TestDWScriptFixtures/SimpleScripts` and refresh the failing list.
-- [ ] Double-check record properties/class vars/consts after fixes (regression sweep).
-- [ ] Update fixture status docs once the remaining record tests pass.
+**Done (summary)**: Parsing/semantic/runtime support for field initializers, record constants/class vars, properties, and improved record methods is landed.
 
-**Example**:
-```pascal
-type
-  TPoint = record
-    X: Integer := 0;      // Field initialization
-    Y: Integer := 0;
+**Current failing fixtures**: `record_method2` (semantic helper requirement on parameterless record-returning function members); `record_method5` (runtime increments not reflected). Other `record_*` fixtures currently pass—reconfirm with a full run.
 
-    const Origin = 0;     // Record constant
-    class var Count: Integer;  // Class variable
-
-    function Distance: Float;  // Record method
-    begin
-      Result := Sqrt(X*X + Y*Y);
-    end;
-  end;
-
-  TRect = record
-    TopLeft: TPoint;      // Nested record
-    BottomRight: TPoint;
-  end;
-
-const
-  DefaultPoint: TPoint = (X: 0; Y: 0);  // Record constant
-
-var p: TPoint;
-begin
-  // Fields auto-initialized to 0
-  PrintLn(p.Distance());
-end;
-```
-
-**Complexity**: High - Multiple interrelated features
-
-**Subtasks**:
-
-### 9.12.1 Parse Record Field Initialization ✅ DONE
-
-**Goal**: Support `FieldName: Type := Value;` syntax in records.
-
-**Estimate**: 2-3 hours
-
-**Status**: COMPLETED
-
-**Implementation**:
-1. ✅ Extended record field parsing to handle `:= <expression>` for type inference
-2. ✅ Updated FieldDeclaration to use existing InitValue field
-3. ✅ Parsing supports both explicit types and type inference
-4. ✅ Handle type inference from initializers
-
-**Files Modified**:
-- `internal/parser/records.go` (parseRecordFieldDeclarations updated)
-- `pkg/ast/records.go` (InitValue field already existed in FieldDecl)
-
-### 9.12.2 Parse Record Constants and Class Variables ✅ DONE
-
-**Goal**: Support `const` and `class var` in record bodies.
-
-**Estimate**: 2 hours
-
-**Status**: COMPLETED
-
-**Implementation**:
-1. ✅ Parse `const <name> = <value>;` in record body
-2. ✅ Parse `class var <name>: <type>;` in record body
-3. ✅ Parse `class const <name> = <value>;` in record body
-4. ✅ Store in RecordDecl AST node
-5. ✅ Reuse class const/class var parsing logic
-
-**Files Modified**:
-- `internal/parser/records.go` (added const/class var/class const handling)
-- `pkg/ast/records.go` (added Constants, ClassVars fields)
-- `pkg/printer/dwscript.go` (updated printRecordDecl to output constants and class vars)
-
-### 9.12.3 Semantic Analysis for Record Features ✅ DONE
-
-**Goal**: Type check record field initializers, constants, and class variables.
-
-**Estimate**: 4-5 hours
-
-**Status**: COMPLETED
-
-**Implementation**:
-1. ✅ Analyze field initializers, check type compatibility
-2. ✅ Support type inference for fields with initializers but no type
-3. ✅ Validate record constants (compile-time constant values)
-4. ✅ Add record class variables to type system
-5. ✅ Handle constant and class var access in field access analysis
-6. ✅ Type check initializer expressions
-
-**Files Modified**:
-- `internal/semantic/analyze_records.go` (added constant/class var analysis, type inference)
-- `internal/types/compound_types.go` (RecordType with Constants, ClassVars fields)
-- `internal/types/compound_types.go` (added ConstantInfo struct, updated NewRecordType)
-
-### 9.12.4 Runtime Record Field Initialization ✅ DONE
-
-**Goal**: Execute field initializers when creating record values.
-
-**Estimate**: 3-4 hours
-
-**Status**: COMPLETED
-
-**Implementation**:
-1. ✅ On record variable declaration, initialize fields with default values
-2. ✅ Evaluate field initializer expressions
-3. ✅ Handle nested record initialization
-4. ✅ Record constants stored as global values
-5. ✅ Record class variables in global storage
-6. ✅ Fixed semantic analysis for record method bodies - proper scope management
-7. ✅ Bind Self, fields, constants, and class variables in method scope
-
-**Files Modified**:
-- `internal/interp/record.go` (record initialization with constants/class vars)
-- `internal/interp/functions_records.go` (bind constants/class vars in methods)
-- `internal/interp/objects_hierarchy.go` (constant/class var access)
-- `internal/semantic/analyze_records.go` (fixed scope management for inline methods)
-- `internal/semantic/analyze_classes_decl.go` (analyzeRecordMethodBody implementation)
-- `internal/semantic/analyze_literals.go` (skip fields with initializers)
-- `internal/types/compound_types.go` (added FieldsWithInit map)
-
-### 9.12.5 Enhanced Record Methods ✅ DONE
-
-**Goal**: Fix record method semantics (self reference, result handling).
-
-**Estimate**: 2-3 hours
-
-**Status**: COMPLETED
-
-**Implementation**:
-1. ✅ Record methods receive copy of record as Self
-2. ✅ Modifications to Self don't affect original (value semantics)
-3. ✅ Result variable in record functions
-4. ✅ Nested record field access in methods
-5. ✅ Separate method implementations (non-inline) now work correctly
-6. ✅ Fields accessible in method bodies without Self prefix
-7. 🚧 Fixture follow-up: `record_method_static` fixed; `record_method2` still fails semantic helper check when accessing members on parameterless record-returning functions; `record_method5` still wrong at runtime (increments not applied). Remaining work: allow member access on parameterless record-returning functions (semantic) and ensure implicit Self method calls for records update/copy semantics during execution.
-
-**Files Modified**:
-- `internal/semantic/analyze_classes_decl.go` (analyzeRecordMethodBody with field binding)
-
-**Note**: Most of the enhanced method semantics were already implemented. This task completed the missing piece - proper semantic analysis and scope binding for method bodies.
-
-### 9.12.6 Record Properties
-
-**Goal**: Support property declarations in records.
-
-**Estimate**: 2-3 hours
-
-**Implementation**:
-1. Parse property declarations in record bodies
-2. Semantic analysis for record properties
-3. Runtime property getter/setter execution
-4. Properties accessing record fields
-
-**Files to Modify**:
-- `internal/parser/records.go` (record property parsing)
-- `internal/semantic/analyze_records.go` (property analysis)
-- `internal/interp/records.go` (property access)
-
-**Success Criteria**:
-- Record fields can have initialization expressions
-- Record constants and class variables work
-- Nested records parse and execute correctly
-- Record methods have proper value semantics
-- Record properties work correctly
-- All 32 record advanced feature tests pass
-
-**Testing**:
-```bash
-go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/record
-go test -v ./internal/semantic -run TestRecordAdvanced
-```
+**TODO (comprehensive)**:
+- [ ] Remove helper requirement for member access on parameterless record-returning functions (fixes `record_method2`).
+- [ ] Ensure record implicit Self calls propagate mutations/copy semantics so method-side increments persist (fixes `record_method5`).
+- [ ] Re-run full `TestDWScriptFixtures/SimpleScripts` to refresh the `record_*` failing list.
+- [ ] Regression sweep: record properties/class vars/consts after the above fixes.
+- [ ] Update fixture status docs once all `record_*` fixtures pass.
 
 ---
 
