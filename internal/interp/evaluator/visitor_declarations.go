@@ -613,9 +613,10 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 		// Task 9.12.1: Handle type inference for fields
 		var fieldType types.Type
 		if field.Type != nil {
-			// Explicit type - use evaluator's type resolution
+			// Explicit type - use evaluator's type resolution with context for environment access
 			var err error
-			fieldType, err = e.ResolveTypeFromAnnotation(field.Type)
+			typeName := field.Type.String()
+			fieldType, err = e.resolveTypeName(typeName, ctx)
 			if err != nil || fieldType == nil {
 				return e.newError(node, "unknown or invalid type for field '%s' in record '%s'", fieldName, recordName)
 			}
@@ -686,7 +687,8 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 			var varType types.Type
 			if classVar.Type != nil {
 				var err error
-				varType, err = e.ResolveTypeFromAnnotation(classVar.Type)
+				typeName := classVar.Type.String()
+				varType, err = e.resolveTypeName(typeName, ctx)
 				if err != nil || varType == nil {
 					return e.newError(node, "unknown type for class variable '%s' in record '%s'", varName, recordName)
 				}
@@ -703,8 +705,9 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 		propName := prop.Name.Value
 		propNameLower := ident.Normalize(propName)
 
-		// Resolve property type - use evaluator's type resolution
-		propType, err := e.ResolveTypeFromAnnotation(prop.Type)
+		// Resolve property type - use evaluator's type resolution with context
+		typeName := prop.Type.String()
+		propType, err := e.resolveTypeName(typeName, ctx)
 		if err != nil || propType == nil {
 			return e.newError(node, "unknown type for property '%s' in record '%s'", propName, recordName)
 		}

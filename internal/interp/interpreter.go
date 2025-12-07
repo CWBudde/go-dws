@@ -522,7 +522,7 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return i.evalSetDeclaration(node)
 
 	case *ast.RecordDecl:
-		return i.evalRecordDeclaration(node)
+		return i.evaluatorInstance.VisitRecordDecl(node, i.ctx)
 
 	case *ast.HelperDecl:
 		return i.evalHelperDeclaration(node)
