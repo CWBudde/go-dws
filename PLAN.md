@@ -101,9 +101,9 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-# Phases 3.2-3.7: Foundation & Consolidation ✅ COMPLETE
+# Phases 3.2-3.8: Foundation & Consolidation ✅ COMPLETE
 
-**Completed**: 2025-11-30 | **Total Effort**: ~40h
+**Completed**: 2025-11-30 to 2025-12-07 | **Total Effort**: ~42h
 
 ## Summary of Completed Work
 
@@ -113,120 +113,18 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - **Phase 3.5**: Evaluator foundation (48+ visitor methods, TypeSystem, ExecutionContext, RefCountManager)
 - **Phase 3.6**: Built-in function registry (225/244 functions migrated, -600 LOC)
 - **Phase 3.7**: Dependency cleanup (fixed circular deps, cleaned imports)
+- **Phase 3.8**: Type expression delegation (Is/Implements to evaluator, -137 LOC, GetClassName() pattern)
 
 ## Cumulative Metrics
 
-- **Code reduction**: ~600 LOC (from built-in migration)
-- **Tests**: All passing (0 failures)
-- **Adapter methods**: 75 → 72
-- **EvalNode calls**: 34 → 28
-- **Architecture**: Clean evaluator/interpreter/runtime separation
+- **Code reduction**: ~737 LOC (600 from built-ins, 137 from type expressions)
+- **Tests**: All 1168 non-fixture tests passing (0 failures)
+- **Adapter methods**: 75 → 72 (no new additions in 3.8)
+- **Architecture**: Clean evaluator/interpreter/runtime separation, validated TypeSystem direct access
+
+**Key Pattern**: `GetClassName()` interface for cross-package type extraction (used in ClassValue/ClassInfoValue handling)
 
 **Docs**: `docs/evaluator-architecture.md`, `docs/refcounting-design.md`, `docs/phase3.7-summary.md`
-
-**Note**: Phase 3.8 (binary operations migration) was attempted but reverted due to environment synchronization issues. See Phase 3.8 below for proper migration plan.
-
----
-
-# Phase 3.8: Expression Delegation & Code Cleanup ✅ COMPLETE
-
-**Goal**: Delegate expression evaluation to evaluator, remove duplicate code from interpreter
-
-**Status**: ✅ Complete | **Priority**: High | **Actual Effort**: 2 hours (vs 1 day estimated)
-
-## Current State
-
-**Files**:
-
-- `expressions_complex.go`: 324 LOC (3 functions: `evalIsExpression`, `evalAsExpression`, `evalImplementsExpression`)
-- `expressions_basic.go`: 467 LOC (identifier deferred to Phase 3.9)
-
-**Tests**: ✅ 1168 non-fixture passing | ⚠️ 873 fixture failures (baseline)
-
-**Completed**: 763 LOC removed (binary ops, unary ops, if expressions, dead code cleanup)
-
-## Remaining Tasks
-
-### 3.8.1 Migrate Is Expression ✅ DONE
-
-**Effort**: 3-4 hours | **LOC**: 75 | **Risk**: Low-Medium
-
-Delegate `obj is TMyClass` type checking to evaluator.
-
-**Todo List**:
-
-- [x] ~~Create `VisitIsExpression()` in `evaluator/visitor_expressions_types.go`~~ (already existed)
-- [x] ~~Add `LookupInterface(name string) *InterfaceInfo` to `InterpreterAdapter`~~ (not needed - evaluator uses TypeSystem)
-- [x] Update `interpreter.go:613` to delegate
-- [x] Delete `evalIsExpression()` from `expressions_complex.go:14-87` (75 LOC removed)
-- [x] Test & commit
-
----
-
-### 3.8.2 Migrate Implements Expression ✅ DONE
-
-**Effort**: 3-4 hours | **LOC**: 62 | **Risk**: Low-Medium
-
-**Depends on**: 3.8.1 (shares interface adapter)
-
-Delegate `obj implements IMyInterface` checking to evaluator.
-
-**Todo List**:
-
-- [x] ~~Create `VisitImplementsExpression()` in `evaluator/visitor_expressions_types.go`~~ (already existed)
-- [x] ~~Reuse interface adapter from 3.8.1~~ (not needed - evaluator uses TypeSystem + GetClassName() interface)
-- [x] Update `interpreter.go:621` to delegate
-- [x] Delete `evalImplementsExpression()` from `expressions_complex.go:182-244` (62 LOC removed)
-- [x] Enhanced `checkImplements()` to handle ClassValue/ClassInfoValue via GetClassName() interface
-- [x] Test & commit
-
----
-
-### 3.8.3 As Expression - DEFERRED
-
-**Decision**: Defer to later phase | **LOC**: 167
-
-Complex type casting (`obj as IMyInterface`) with 6 casting scenarios. High complexity vs. low immediate value. Better suited for Phase 3.9 systematic refactoring.
-
----
-
-## Final Verification ✅ DONE
-
-**Todo List**:
-
-- [x] Verify all 1168 tests still passing after migrations
-- [x] Update PLAN.md to mark Phase 3.8 as complete
-
----
-
-## Summary
-
-**Actual Effort**: ~2 hours (much faster than estimated!)
-
-**LOC Savings**: 137 LOC removed (75 from Is, 62 from Implements)
-
-**Deferred**: As expression (167 LOC) - too complex for current phase
-
-**Success Criteria**: ✅ ALL MET
-
-- [x] All 1168 tests passing
-- [x] Is & Implements delegated
-- [x] No adapter additions needed - evaluator uses TypeSystem directly
-- [x] As expression documented as deferred
-
-**Key Insights**:
-
-1. **Pre-existing Implementation**: Both `VisitIsExpression` and `VisitImplementsExpression` were already fully implemented in the evaluator - we only needed delegation wiring. This shows good forward planning in earlier phases.
-
-2. **Type System Architecture Win**: The evaluator's direct TypeSystem access (instead of adapter) proved correct - cleaner than anticipated adapter pattern. No new adapter methods needed.
-
-3. **ClassValue Challenge**: Initial test failure revealed evaluator couldn't handle `ClassValue`/`ClassInfoValue` (metaclass variables). Fixed by using `GetClassName()` interface rather than parsing `String()` output. This pattern will be useful for other metaclass operations.
-
-4. **Interface-Based Extraction**: Solution uses duck typing (`interface{ GetClassName() string }`) to extract class names from internal/interp types without importing them into evaluator package. Maintains package boundaries while enabling functionality.
-
-5. **As Expression Complexity**: Deferred `evalAsExpression()` (167 LOC, 6 casting scenarios) is wise - it handles interface wrapping/unwrapping, class hierarchy validation, and variant conversion. Better suited for Phase 3.9's systematic approach.
-
-**Architecture Pattern Validated**: Evaluator visitor pattern with TypeSystem integration works well for type operations. The GetClassName() interface pattern can be reused for other cross-package type queries.
 
 ---
 
