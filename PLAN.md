@@ -616,24 +616,16 @@ go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/class_init
 
 ## Task 9.12: Implement Record Advanced Features
 
-**Goal**: Add field initialization, record constants, record class variables, and nested records.
-
-**Estimate**: 14-18 hours (2-2.5 days)
+**Goal**: Finish record advanced features (field/class var/const, methods, properties, nested records) and get remaining fixtures green.
 
 **Status**: IN PROGRESS
 
-**Impact**: Unlocks 32 failing tests in SimpleScripts
-
-**Priority**: P1 - IMPORTANT (Value type features)
-
-**Description**: Records currently have basic support, but DWScript includes advanced features like field initialization syntax, record constants, class variables in records, nested records, and enhanced record methods. These features make records more powerful as value types.
-
-**Reference**: See `FIXTURE_FAILURES_ANALYSIS.md` - Priority P1, Section 8
-
-**Failing Tests (current snapshot)**:
-- record_method2 (semantic: helper required for members on function(): TRec)
-- record_method5 (runtime: increments not reflected)
-- Others from the original list appear to pass after recent fixes; re-run full fixture suite to confirm and prune.
+**Remaining TODOs**:
+- [ ] Fix `record_method2`: allow member access on parameterless record-returning functions (drop helper requirement).
+- [ ] Fix `record_method5`: ensure implicit record Self calls update/copy semantics so increments persist.
+- [ ] Re-run full `TestDWScriptFixtures/SimpleScripts` and refresh the failing list.
+- [ ] Double-check record properties/class vars/consts after fixes (regression sweep).
+- [ ] Update fixture status docs once the remaining record tests pass.
 
 **Example**:
 ```pascal
