@@ -177,6 +177,20 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - ✅ Type metadata cached (2-3% perf gain)
 - ✅ Tests pass
 
+**Key Insights**:
+
+1. **Pre-existing Implementation**: Both `VisitIsExpression` and `VisitImplementsExpression` were already fully implemented in the evaluator - we only needed delegation wiring. This shows good forward planning in earlier phases.
+
+2. **Type System Architecture Win**: The evaluator's direct TypeSystem access (instead of adapter) proved correct - cleaner than anticipated adapter pattern. No new adapter methods needed.
+
+3. **ClassValue Challenge**: Initial test failure revealed evaluator couldn't handle `ClassValue`/`ClassInfoValue` (metaclass variables). Fixed by using `GetClassName()` interface rather than parsing `String()` output. This pattern will be useful for other metaclass operations.
+
+4. **Interface-Based Extraction**: Solution uses duck typing (`interface{ GetClassName() string }`) to extract class names from internal/interp types without importing them into evaluator package. Maintains package boundaries while enabling functionality.
+
+5. **As Expression Complexity**: Deferred `evalAsExpression()` (167 LOC, 6 casting scenarios) is wise - it handles interface wrapping/unwrapping, class hierarchy validation, and variant conversion. Better suited for Phase 3.9's systematic approach.
+
+**Architecture Pattern Validated**: Evaluator visitor pattern with TypeSystem integration works well for type operations. The GetClassName() interface pattern can be reused for other cross-package type queries.
+
 ---
 
 # Phase 3.10: Dead Code Removal

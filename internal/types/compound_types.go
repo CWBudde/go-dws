@@ -172,11 +172,7 @@ func (rt *RecordType) String() string {
 	// Sort field names for consistent output
 	fieldNames := make([]string, 0, len(rt.Fields))
 	for name := range rt.Fields {
-		if original, exists := rt.FieldNames[name]; exists && original != "" {
-			fieldNames = append(fieldNames, original)
-		} else {
-			fieldNames = append(fieldNames, name)
-		}
+		fieldNames = append(fieldNames, ident.Normalize(name))
 	}
 	sort.Strings(fieldNames)
 
@@ -186,8 +182,7 @@ func (rt *RecordType) String() string {
 		}
 		sb.WriteString(name)
 		sb.WriteString(": ")
-		fieldKey := ident.Normalize(name)
-		sb.WriteString(rt.Fields[fieldKey].String())
+		sb.WriteString(rt.Fields[name].String())
 	}
 	sb.WriteString(" }")
 
