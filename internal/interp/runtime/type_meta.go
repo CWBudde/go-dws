@@ -106,3 +106,29 @@ func (t *TypeMetaValue) EnumByName(name string) int {
 	// Value not found, return 0 (DWScript behavior)
 	return 0
 }
+
+// GetEnumValue looks up an enum value by name and returns it as a runtime Value.
+// Returns nil if the name is not found or this is not an enum type meta.
+// Used for member access like TColor.Red.
+func (t *TypeMetaValue) GetEnumValue(name string) Value {
+	if t.TypeInfo == nil {
+		return nil
+	}
+	enumType, ok := t.TypeInfo.(*types.EnumType)
+	if !ok {
+		return nil
+	}
+
+	// Look up the value (case-insensitive)
+	for valueName, ordinalValue := range enumType.Values {
+		if ident.Equal(valueName, name) {
+			return &EnumValue{
+				TypeName:     t.TypeName,
+				ValueName:    valueName, // Use the canonical name from the type
+				OrdinalValue: ordinalValue,
+			}
+		}
+	}
+
+	return nil
+}

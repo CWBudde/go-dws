@@ -446,6 +446,46 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// For method calls and complex cases, delegate to adapter
 		return e.adapter.EvalNode(node)
 
+	case "TYPE_META":
+		// Enum type meta-value access (TColor.Red for unscoped enums)
+		// The object is a TypeMetaValue wrapping an enum type
+		enumMeta, ok := obj.(EnumTypeMetaDispatcher)
+		if !ok {
+			return e.newError(node, "internal error: TYPE_META value does not implement EnumTypeMetaDispatcher")
+		}
+
+		// Only handle if this is an enum type meta
+		if !enumMeta.IsEnumTypeMeta() {
+			// Not an enum - fall through to default case
+			// Check for helper methods/properties
+			helperResult := e.FindHelperMethod(obj, memberName)
+			if helperResult != nil {
+				if helperResult.Method != nil && len(helperResult.Method.Parameters) == 0 {
+					return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
+				}
+				if helperResult.BuiltinSpec != "" {
+					return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
+				}
+			}
+			return e.newError(node, "member '%s' not found on value of type '%s'", memberName, obj.Type())
+		}
+
+		// Handle Low/High special properties
+		normalizedMember := ident.Normalize(memberName)
+		if normalizedMember == "low" {
+			return &runtime.IntegerValue{Value: int64(enumMeta.EnumLow())}
+		}
+		if normalizedMember == "high" {
+			return &runtime.IntegerValue{Value: int64(enumMeta.EnumHigh())}
+		}
+
+		// Try to get enum value by name (TColor.Red)
+		if enumVal := enumMeta.GetEnumValue(memberName); enumVal != nil {
+			return enumVal
+		}
+
+		return e.newError(node, "enum value '%s' not found in enum type", memberName)
+
 	case "NIL":
 		// Task 3.5.90: Nil object handling (Mode 9)
 		// Typed nil values can access class variables, but not instance members.

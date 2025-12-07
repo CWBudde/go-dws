@@ -144,6 +144,9 @@ type EnumTypeMetaDispatcher interface {
 	EnumHigh() int
 	// EnumByName supports simple ('Red') and qualified ('TColor.Red') names.
 	EnumByName(name string) int
+	// GetEnumValue looks up an enum value by name and returns it as a runtime Value.
+	// Returns nil if the name is not found. Used for member access like TColor.Red.
+	GetEnumValue(name string) Value
 }
 
 // FunctionPointerCallable enables direct function pointer invocation.
