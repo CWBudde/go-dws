@@ -11,8 +11,7 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
-// Task 3.5.10: RecordTypeValue moved to evaluator package.
-// This type alias provides backward compatibility for code in interp package.
+// RecordTypeValue is defined in the evaluator package.
 type RecordTypeValue = evaluator.RecordTypeValue
 
 // ============================================================================
@@ -20,11 +19,8 @@ type RecordTypeValue = evaluator.RecordTypeValue
 // ============================================================================
 
 // initializeInterfaceField creates an InterfaceInstance for interface-typed fields.
-// Task 9.1.4: Helper to reduce code duplication in record field initialization.
-// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map.
 func (i *Interpreter) initializeInterfaceField(fieldType types.Type) Value {
 	if interfaceType, ok := fieldType.(*types.InterfaceType); ok {
-		// Look up the InterfaceInfo from the TypeSystem
 		if interfaceInfo := i.lookupInterfaceInfo(interfaceType.Name); interfaceInfo != nil {
 			return &InterfaceInstance{
 				Interface: interfaceInfo,
@@ -39,32 +35,23 @@ func (i *Interpreter) initializeInterfaceField(fieldType types.Type) Value {
 // Record Declaration Evaluation
 // ============================================================================
 
-// Task 3.5.10: evalRecordDeclaration removed - migrated to evaluator.VisitRecordDecl().
-// Task 3.10.3: Delegation completed in Phase 3.10.
-
-// Task 3.5.10: RecordTypeValue struct and its methods moved to internal/interp/evaluator/record_type_value.go
-// A type alias is provided at the top of this file for backward compatibility.
-
-// createRecordValue creates a new RecordValue with proper method lookup for nested records.
-// Task 9.7e1: Helper to create records with method resolution for nested record fields.
-// Task 9.5: Initialize fields with field initializers.
-// Task 3.5.128a: Removed deprecated methods parameter - now uses only Metadata.
+// createRecordValue creates a new RecordValue with proper initialization.
+// Supports nested records, field initializers, and interface-typed fields.
 func (i *Interpreter) createRecordValue(recordType *types.RecordType) Value {
-	// Task 9.5: Look up the record type value to get field declarations before creating the value
+	// Look up the record type value for field declarations
 	recordTypeKey := "__record_type_" + ident.Normalize(recordType.Name)
 	var rtv *RecordTypeValue
 	if typeVal, ok := i.env.Get(recordTypeKey); ok {
 		rtv, _ = typeVal.(*RecordTypeValue)
 	}
 
-	// Task 3.5.42: Extract metadata from RecordTypeValue if available
+	// Extract metadata if available
 	var metadata *runtime.RecordMetadata
 	if rtv != nil {
 		metadata = rtv.Metadata
 	}
 
-	// Create a metadata lookup callback for nested records
-	// Task 3.5.128a: This replaces the old methodsLookup callback
+	// Metadata lookup callback for nested records
 	metadataLookup := func(rt *types.RecordType) *runtime.RecordMetadata {
 		key := "__record_type_" + ident.Normalize(rt.Name)
 		if typeVal, ok := i.env.Get(key); ok {
@@ -75,34 +62,29 @@ func (i *Interpreter) createRecordValue(recordType *types.RecordType) Value {
 		return nil
 	}
 
-	// Create the record value with metadata lookup for nested records
+	// Create the record value with metadata lookup
 	rv := newRecordValueInternalWithMetadataLookup(recordType, metadata, metadataLookup)
 
-	// Task 9.5: Initialize fields with field initializers or default values
+	// Initialize fields with initializers or default values
 	if rtv != nil {
 		for fieldName, fieldType := range recordType.Fields {
 			var fieldValue Value
 
-			// Check if field has an initializer expression
+			// Evaluate field initializer if present
 			if fieldDecl, hasDecl := rtv.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
-				// Evaluate the field initializer
 				fieldValue = i.Eval(fieldDecl.InitValue)
 				if isError(fieldValue) {
 					return fieldValue
 				}
 			} else {
-				// Task 3.5.128a: Handle nested record types specially
-				// Use createRecordValue recursively to ensure metadata is properly set
+				// Handle nested records recursively
 				if nestedRecordType, ok := fieldType.(*types.RecordType); ok {
 					fieldValue = i.createRecordValue(nestedRecordType)
 				} else {
-					// Use getZeroValueForType for other types
 					fieldValue = getZeroValueForType(fieldType, nil)
 				}
 
-				// Task 9.1.4: Handle interface-typed fields specially
-				// Interface fields should be initialized as InterfaceInstance with nil object
-				// This allows proper "Interface is nil" error messages when accessed
+				// Initialize interface fields specially for nil checking
 				if intfValue := i.initializeInterfaceField(fieldType); intfValue != nil {
 					fieldValue = intfValue
 				}
@@ -126,13 +108,9 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 		return &ErrorValue{Message: "nil record literal"}
 	}
 
-	// We need to determine the record type from context
-	// For now, we'll require explicit type name in the literal or get it from variable declaration
-	// This is a simplified implementation - a full implementation would use type inference from context
-
 	var recordType *types.RecordType
 
-	// If the literal has an explicit type name, use it
+	// Resolve the record type from the literal's type name
 	if literal.TypeName != nil {
 		typeName := literal.TypeName.Value
 		recordTypeKey := "__record_type_" + ident.Normalize(typeName)
@@ -146,26 +124,21 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 			return &ErrorValue{Message: fmt.Sprintf("unknown record type '%s'", typeName)}
 		}
 	} else {
-		// For untyped literals, we need to get the type from context
-		// This is handled during assignment - we'll store the type requirement in a temp variable
-		// For now, return an error
 		return &ErrorValue{Message: "record literal requires explicit type name or type context"}
 	}
 
-	// Look up the record type value to get field declarations
+	// Look up the record type value for field declarations
 	recordTypeKey := "__record_type_" + ident.Normalize(literal.TypeName.Value)
 	var recordTypeValue *RecordTypeValue
 	if typeVal, ok := i.env.Get(recordTypeKey); ok {
 		recordTypeValue, _ = typeVal.(*RecordTypeValue)
 	}
 
-	// Task 9.12.4: Create the record value with methods
-	// Task 3.5.42: Updated to use RecordMetadata
-	// Task 3.5.128a: Removed deprecated Methods field
+	// Create the record value
 	recordValue := &RecordValue{
 		RecordType: recordType,
 		Fields:     make(map[string]Value),
-		Metadata:   nil, // Will be set below if recordTypeValue is available
+		Metadata:   nil,
 	}
 
 	// Set metadata if available
@@ -175,7 +148,6 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 
 	// Evaluate and assign field values from literal
 	for _, field := range literal.Fields {
-		// Skip positional fields (not yet implemented)
 		if field.Name == nil {
 			return &ErrorValue{Message: "positional record field initialization not yet supported"}
 		}
@@ -183,7 +155,7 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 		fieldName := field.Name.Value
 		fieldNameLower := ident.Normalize(fieldName)
 
-		// Check if field exists in record type (use lowercase key)
+		// Verify field exists in record type
 		if _, exists := recordType.Fields[fieldNameLower]; !exists {
 			return &ErrorValue{Message: fmt.Sprintf("field '%s' does not exist in record type '%s'", fieldName, recordType.Name)}
 		}
@@ -194,30 +166,17 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 			return fieldValue
 		}
 
-		// Store the field value (use lowercase key)
 		recordValue.Fields[fieldNameLower] = fieldValue
 	}
 
-	// Task 9.5: Initialize remaining fields with field initializers or default values
-	// Create a method lookup callback for nested records
-	methodsLookup := func(rt *types.RecordType) map[string]*ast.FunctionDecl {
-		key := "__record_type_" + ident.Normalize(rt.Name)
-		if typeVal, ok := i.env.Get(key); ok {
-			if rtv, ok := typeVal.(*RecordTypeValue); ok {
-				return rtv.Methods
-			}
-		}
-		return nil
-	}
-
+	// Initialize remaining fields with initializers or defaults
 	for fieldName, fieldType := range recordType.Fields {
 		if _, exists := recordValue.Fields[fieldName]; !exists {
 			var fieldValue Value
 
-			// Check if field has an initializer expression
+			// Evaluate field initializer if present
 			if recordTypeValue != nil {
 				if fieldDecl, hasDecl := recordTypeValue.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
-					// Evaluate the field initializer
 					fieldValue = i.Eval(fieldDecl.InitValue)
 					if isError(fieldValue) {
 						return fieldValue
@@ -225,13 +184,11 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 				}
 			}
 
-			// If no initializer, use getZeroValueForType to properly initialize nested records
+			// Use default value if no initializer
 			if fieldValue == nil {
-				fieldValue = getZeroValueForType(fieldType, methodsLookup)
+				fieldValue = getZeroValueForType(fieldType, nil)
 
-				// Task 9.1.4: Handle interface-typed fields specially
-				// Interface fields should be initialized as InterfaceInstance with nil object
-				// This allows proper "Interface is nil" error messages when accessed
+				// Initialize interface fields for nil checking
 				if intfValue := i.initializeInterfaceField(fieldType); intfValue != nil {
 					fieldValue = intfValue
 				}
@@ -244,10 +201,10 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 	return recordValue
 }
 
-// resolveType resolves a type name to a types.Type
-// This is a helper for record field type resolution
+// resolveType resolves a type name to a types.Type.
+// Handles built-in types, inline arrays, and custom types (enums, records, classes, etc.).
 func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
-	// Task 9.56: Check for inline array types first
+	// Check for inline array types first
 	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
 		arrayType := i.parseInlineArrayType(typeName)
 		if arrayType != nil {
@@ -257,16 +214,15 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 	}
 
 	// Strip parent qualification from class type strings like "TSub(TBase)"
-	// to enable runtime resolution using the declared class name.
 	cleanTypeName := typeName
 	if idx := strings.Index(cleanTypeName, "("); idx != -1 {
 		cleanTypeName = strings.TrimSpace(cleanTypeName[:idx])
 	}
 
-	// Normalize type name to lowercase for case-insensitive comparison
-	// DWScript (like Pascal) is case-insensitive for all identifiers including type names
+	// Normalize for case-insensitive comparison
 	lowerTypeName := ident.Normalize(cleanTypeName)
 
+	// Check built-in types
 	switch lowerTypeName {
 	case "integer":
 		return types.INTEGER, nil
@@ -276,60 +232,49 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 		return types.STRING, nil
 	case "boolean":
 		return types.BOOLEAN, nil
-	case "const":
-		// Task 9.235: Migrate Const to Variant for proper dynamic typing
-		// "Const" was a temporary workaround, now redirects to VARIANT
+	case "const", "variant":
 		return types.VARIANT, nil
-	case "variant":
-		// Task 9.227: Support Variant type for dynamic values
-		return types.VARIANT, nil
-	default:
-		// Check for custom types (enums, records, arrays, subranges)
-		// Task 9.225: Use lowerTypeName for case-insensitive lookups
-		// Try enum type via TypeSystem (Task 3.5.143b)
-		if enumMetadata := i.typeSystem.LookupEnumMetadata(typeName); enumMetadata != nil {
-			if etv, ok := enumMetadata.(*EnumTypeValue); ok {
-				return etv.EnumType, nil
-			}
-		}
-		// Try record type via TypeSystem
-		// Task 3.5.22b: Use TypeSystem registry instead of i.env.Get()
-		// This fixes the issue where i.env is the caller's environment in ExecuteUserFunction
-		if recordTypeValueAny := i.typeSystem.LookupRecord(typeName); recordTypeValueAny != nil {
-			if rtv, ok := recordTypeValueAny.(*RecordTypeValue); ok {
-				return rtv.RecordType, nil
-			}
-		}
-		// Try array type (Task 3.5.69c: use TypeSystem)
-		if arrayType := i.typeSystem.LookupArrayType(typeName); arrayType != nil {
-			return arrayType, nil
-		}
-		// Try type alias
-		if typeAliasVal, ok := i.env.Get("__type_alias_" + lowerTypeName); ok {
-			if tav, ok := typeAliasVal.(*TypeAliasValue); ok {
-				// Return the underlying type (type aliases are transparent at runtime)
-				return tav.AliasedType, nil
-			}
-		}
-		// Try subrange type
-		// Task 3.5.182: Use TypeSystem for subrange type lookup
-		if subrangeType := i.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {
-			return subrangeType, nil
-		}
-		// Try class type via TypeSystem
-		if i.typeSystem != nil && i.typeSystem.HasClass(cleanTypeName) {
-			// Use nominal class type for runtime type information
-			return types.NewClassType(cleanTypeName, nil), nil
-		}
-
-		// Function/method pointer types registered in the TypeSystem
-		if funcPtrType := i.typeSystem.LookupFunctionPointerType(cleanTypeName); funcPtrType != nil {
-			return funcPtrType, nil
-		}
-
-		// Unknown type
-		return nil, fmt.Errorf("unknown type: %s", typeName)
 	}
+
+	// Check custom types via TypeSystem
+	if enumMetadata := i.typeSystem.LookupEnumMetadata(typeName); enumMetadata != nil {
+		if etv, ok := enumMetadata.(*EnumTypeValue); ok {
+			return etv.EnumType, nil
+		}
+	}
+
+	if recordTypeValueAny := i.typeSystem.LookupRecord(typeName); recordTypeValueAny != nil {
+		if rtv, ok := recordTypeValueAny.(*RecordTypeValue); ok {
+			return rtv.RecordType, nil
+		}
+	}
+
+	if arrayType := i.typeSystem.LookupArrayType(typeName); arrayType != nil {
+		return arrayType, nil
+	}
+
+	// Check type aliases
+	if typeAliasVal, ok := i.env.Get("__type_alias_" + lowerTypeName); ok {
+		if tav, ok := typeAliasVal.(*TypeAliasValue); ok {
+			return tav.AliasedType, nil
+		}
+	}
+
+	if subrangeType := i.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {
+		return subrangeType, nil
+	}
+
+	// Check class types
+	if i.typeSystem != nil && i.typeSystem.HasClass(cleanTypeName) {
+		return types.NewClassType(cleanTypeName, nil), nil
+	}
+
+	// Check function pointer types
+	if funcPtrType := i.typeSystem.LookupFunctionPointerType(cleanTypeName); funcPtrType != nil {
+		return funcPtrType, nil
+	}
+
+	return nil, fmt.Errorf("unknown type: %s", typeName)
 }
 
 // ============================================================================
