@@ -377,6 +377,8 @@ The project maintains high test coverage (>90% for lexer, >80% for parser) and i
 5. Run fixture tests to verify compatibility with original DWScript
 6. Update `testdata/fixtures/TEST_STATUS.md` as tests pass
 
+NOTE: While we want to maintain compatibility with original DWScript, this go-dws port may intentionally diverge in some areas. Especially in terms of error reporting. We want to see at least the amount of errors the original produces, but we may produce more detailed or additional errors in some cases. In this case, and ONLY in this case, it is acceptable to modify the expected error output files in `testdata/fixtures/expected_errors/` to match the new behavior.
+
 **Running Fixture Tests**:
 
 ```bash
