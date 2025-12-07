@@ -78,3 +78,35 @@ func (i *Interpreter) TryUnaryOperator(operator string, operand evaluator.Value,
 	result, found := i.tryUnaryOperator(operator, operandVal, node)
 	return result, found
 }
+
+// tryUnaryOperator is the internal implementation that looks up unary operator overloads.
+// It checks in order: operand's class, global operators.
+func (i *Interpreter) tryUnaryOperator(operator string, operand Value, node ast.Node) (Value, bool) {
+	operands := []Value{operand}
+	operandTypes := []string{valueTypeKey(operand)}
+
+	if obj, ok := operand.(*ObjectInstance); ok {
+		if entry, found := obj.Class.LookupOperator(operator, operandTypes); found {
+			// Convert runtime.OperatorEntry to runtimeOperatorEntry
+			concreteClass, ok := entry.Class.(*ClassInfo)
+			if !ok {
+				return i.newErrorWithLocation(node, "invalid class type for operator"), true
+			}
+			runtimeEntry := &runtimeOperatorEntry{
+				Class:         concreteClass,
+				Operator:      entry.Operator,
+				BindingName:   entry.BindingName,
+				OperandTypes:  entry.OperandTypes,
+				SelfIndex:     entry.SelfIndex,
+				IsClassMethod: entry.IsClassMethod,
+			}
+			return i.invokeRuntimeOperator(runtimeEntry, operands, node), true
+		}
+	}
+
+	if entry, found := i.globalOperators.lookup(operator, operandTypes); found {
+		return i.invokeRuntimeOperator(entry, operands, node), true
+	}
+
+	return nil, false
+}

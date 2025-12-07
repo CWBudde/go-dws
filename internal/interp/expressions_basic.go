@@ -246,36 +246,6 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 	return i.newErrorWithLocation(node, "undefined variable '%s'", node.Value)
 }
 
-func (i *Interpreter) tryUnaryOperator(operator string, operand Value, node ast.Node) (Value, bool) {
-	operands := []Value{operand}
-	operandTypes := []string{valueTypeKey(operand)}
-
-	if obj, ok := operand.(*ObjectInstance); ok {
-		if entry, found := obj.Class.LookupOperator(operator, operandTypes); found {
-			// Convert runtime.OperatorEntry to runtimeOperatorEntry
-			concreteClass, ok := entry.Class.(*ClassInfo)
-			if !ok {
-				return i.newErrorWithLocation(node, "invalid class type for operator"), true
-			}
-			runtimeEntry := &runtimeOperatorEntry{
-				Class:         concreteClass,
-				Operator:      entry.Operator,
-				BindingName:   entry.BindingName,
-				OperandTypes:  entry.OperandTypes,
-				SelfIndex:     entry.SelfIndex,
-				IsClassMethod: entry.IsClassMethod,
-			}
-			return i.invokeRuntimeOperator(runtimeEntry, operands, node), true
-		}
-	}
-
-	if entry, found := i.globalOperators.lookup(operator, operandTypes); found {
-		return i.invokeRuntimeOperator(entry, operands, node), true
-	}
-
-	return nil, false
-}
-
 // evalAddressOfExpression evaluates an address-of expression (@Function).
 // Implement address-of operator evaluation to create function pointers.
 //
