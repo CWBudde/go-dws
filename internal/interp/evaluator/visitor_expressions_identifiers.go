@@ -118,6 +118,25 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 					return objVal.GetClassType()
 				}
 			}
+		} else if recVal, ok := selfRaw.(*runtime.RecordValue); ok {
+			normalized := ident.Normalize(node.Value)
+
+			if fieldVal, exists := recVal.Fields[normalized]; exists {
+				return fieldVal
+			}
+
+			if recVal.HasRecordMethod(node.Value) {
+				callExpr := &ast.CallExpression{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: node.Token,
+						},
+					},
+					Function:  node,
+					Arguments: nil,
+				}
+				return e.adapter.CallImplicitSelfMethod(callExpr, node)
+			}
 		}
 	}
 

@@ -175,6 +175,31 @@ func (i *Interpreter) CallImplicitSelfMethod(callExpr *ast.CallExpression, funcN
 		return i.newErrorWithLocation(callExpr, "no Self context for implicit method call")
 	}
 
+	if recVal, ok := selfVal.(*RecordValue); ok {
+		if !RecordHasMethod(recVal, funcName.Value) {
+			return i.newErrorWithLocation(callExpr, "method '%s' not found on Self", funcName.Value)
+		}
+		// Create a method call expression: Self.MethodName(args)
+		mc := &ast.MethodCallExpression{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: callExpr.Token,
+				},
+			},
+			Object: &ast.Identifier{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: funcName.Token,
+					},
+				},
+				Value: "Self",
+			},
+			Method:    funcName,
+			Arguments: callExpr.Arguments,
+		}
+		return i.evalMethodCall(mc)
+	}
+
 	obj, isObj := AsObject(selfVal)
 	if !isObj {
 		return i.newErrorWithLocation(callExpr, "Self is not an object")

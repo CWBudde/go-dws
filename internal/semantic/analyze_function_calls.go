@@ -112,6 +112,9 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	if !ok {
 		// Check if it's a built-in function (using new dispatcher)
 		if resultType, isBuiltin := a.analyzeBuiltinFunction(funcIdent.Value, expr.Arguments, expr); isBuiltin {
+			if declName := a.builtinDeclarationName(funcIdent.Value); declName != "" && declName != funcIdent.Value {
+				a.addCaseMismatchHint(funcIdent.Value, declName, funcIdent.Token.Pos)
+			}
 			return resultType
 		}
 
@@ -165,6 +168,47 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				}
 
 				return methodType.ReturnType
+			}
+		}
+
+		// Check if we're calling a record instance method without explicit "Self."
+		if a.currentRecord != nil {
+			methodNameLower := ident.Normalize(funcIdent.Value)
+			overloads := a.currentRecord.GetMethodOverloads(methodNameLower)
+			if len(overloads) > 0 {
+				argTypes := make([]types.Type, len(expr.Arguments))
+				for i, arg := range expr.Arguments {
+					argType := a.analyzeExpression(arg)
+					if argType == nil {
+						return nil
+					}
+					argTypes[i] = argType
+				}
+
+				candidates := make([]*Symbol, len(overloads))
+				for i, overload := range overloads {
+					candidates[i] = &Symbol{
+						Type: overload.Signature,
+					}
+				}
+
+				selected, err := ResolveOverload(candidates, argTypes)
+				if err != nil {
+					a.addError("no matching overload for method '%s' with these arguments at %s",
+						funcIdent.Value, expr.Token.Pos.String())
+					return nil
+				}
+
+				if selected == nil || selected.Type == nil {
+					return nil
+				}
+
+				funcType, ok := selected.Type.(*types.FunctionType)
+				if !ok {
+					return nil
+				}
+
+				return funcType.ReturnType
 			}
 		}
 
@@ -522,14 +566,59 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		var ok bool
 		funcType, ok = sym.Type.(*types.FunctionType)
 		if !ok {
-			// Before reporting error, check if it's a type cast
-			// Type names can be in the symbol table (e.g., enum types, class types)
-			if castType := a.analyzeTypeCast(funcIdent.Value, expr.Arguments, expr); castType != nil {
-				return castType
+			// If this name refers to a record method inside the current record context,
+			// resolve via record method overloads even if the symbol was shadowed (e.g., by Result alias)
+			if a.currentRecord != nil {
+				resolveRecordOverloads := func(overloads []*types.MethodInfo) *types.FunctionType {
+					if len(overloads) == 0 {
+						return nil
+					}
+
+					argTypes := make([]types.Type, len(expr.Arguments))
+					for i, arg := range expr.Arguments {
+						argType := a.analyzeExpression(arg)
+						if argType == nil {
+							return nil
+						}
+						argTypes[i] = argType
+					}
+
+					candidates := make([]*Symbol, len(overloads))
+					for i, overload := range overloads {
+						candidates[i] = &Symbol{Type: overload.Signature}
+					}
+
+					selected, err := ResolveOverload(candidates, argTypes)
+					if err != nil || selected == nil || selected.Type == nil {
+						return nil
+					}
+
+					if ft, ok := selected.Type.(*types.FunctionType); ok {
+						return ft
+					}
+					return nil
+				}
+
+				methodNameLower := ident.Normalize(funcIdent.Value)
+				if ft := resolveRecordOverloads(a.currentRecord.GetMethodOverloads(methodNameLower)); ft != nil {
+					funcType = ft
+					ok = true
+				} else if ft := resolveRecordOverloads(a.currentRecord.GetClassMethodOverloads(methodNameLower)); ft != nil {
+					funcType = ft
+					ok = true
+				}
 			}
 
-			a.addError("'%s' is not a function at %s", funcIdent.Value, expr.Token.Pos.String())
-			return nil
+			if !ok {
+				// Before reporting error, check if it's a type cast
+				// Type names can be in the symbol table (e.g., enum types, class types)
+				if castType := a.analyzeTypeCast(funcIdent.Value, expr.Arguments, expr); castType != nil {
+					return castType
+				}
+
+				a.addError("'%s' is not a function at %s", funcIdent.Value, expr.Token.Pos.String())
+				return nil
+			}
 		}
 	}
 

@@ -194,18 +194,39 @@ func (i *Interpreter) evalRecordMethodImplementation(fn *ast.FunctionDecl, recor
 	// Support method overloading by storing multiple methods per name
 	normalizedMethodName := ident.Normalize(fn.Name.Value)
 
+	// Build MethodMetadata for metadata maps (includes the implementation body)
+	methodMeta := runtime.MethodMetadataFromAST(fn)
+
 	if fn.IsClassMethod {
 		// Static method
 		recordInfo.ClassMethods[normalizedMethodName] = fn
 		// Replace declaration with implementation in overload list
 		overloads := recordInfo.ClassMethodOverloads[normalizedMethodName]
 		recordInfo.ClassMethodOverloads[normalizedMethodName] = i.replaceMethodInOverloadList(overloads, fn)
+
+		// Update metadata so runtime lookups see the implementation body
+		if recordInfo.Metadata != nil {
+			recordInfo.Metadata.StaticMethods[normalizedMethodName] = methodMeta
+			recordInfo.Metadata.StaticMethodOverloads[normalizedMethodName] = i.replaceMethodMetadataInOverloadList(
+				recordInfo.Metadata.StaticMethodOverloads[normalizedMethodName],
+				methodMeta,
+			)
+		}
 	} else {
 		// Instance method
 		recordInfo.Methods[normalizedMethodName] = fn
 		// Replace declaration with implementation in overload list
 		overloads := recordInfo.MethodOverloads[normalizedMethodName]
 		recordInfo.MethodOverloads[normalizedMethodName] = i.replaceMethodInOverloadList(overloads, fn)
+
+		// Update metadata so runtime lookups see the implementation body
+		if recordInfo.Metadata != nil {
+			recordInfo.Metadata.Methods[normalizedMethodName] = methodMeta
+			recordInfo.Metadata.MethodOverloads[normalizedMethodName] = i.replaceMethodMetadataInOverloadList(
+				recordInfo.Metadata.MethodOverloads[normalizedMethodName],
+				methodMeta,
+			)
+		}
 	}
 }
 
@@ -1091,6 +1112,72 @@ func (i *Interpreter) replaceMethodInOverloadList(list []*ast.FunctionDecl, impl
 	}
 	// No matching declaration found - append the implementation
 	return append(list, impl)
+}
+
+// replaceMethodMetadataInOverloadList replaces a MethodMetadata declaration with its implementation.
+// Matching is based on parameter signatures and return type names.
+func (i *Interpreter) replaceMethodMetadataInOverloadList(list []*runtime.MethodMetadata, impl *runtime.MethodMetadata) []*runtime.MethodMetadata {
+	for idx, decl := range list {
+		if methodMetadataSignatureMatch(decl, impl) {
+			// Preserve flags from declaration (virtual/override/reintroduce/abstract, visibility)
+			impl.IsVirtual = decl.IsVirtual
+			impl.IsOverride = decl.IsOverride
+			impl.IsReintroduce = decl.IsReintroduce
+			impl.IsAbstract = decl.IsAbstract
+			impl.Visibility = decl.Visibility
+			// Prefer return type name from declaration if implementation omitted it
+			if impl.ReturnTypeName == "" {
+				impl.ReturnTypeName = decl.ReturnTypeName
+			}
+			list[idx] = impl
+			return list
+		}
+	}
+	return append(list, impl)
+}
+
+// methodMetadataSignatureMatch checks if two MethodMetadata entries describe the same overload.
+func methodMetadataSignatureMatch(a, b *runtime.MethodMetadata) bool {
+	if a == nil || b == nil {
+		return false
+	}
+
+	if !parameterMetadataMatch(a.Parameters, b.Parameters) {
+		return false
+	}
+
+	if a.ReturnTypeName != "" && b.ReturnTypeName != "" && !ident.Equal(a.ReturnTypeName, b.ReturnTypeName) {
+		return false
+	}
+
+	return true
+}
+
+// parameterMetadataMatch checks if two parameter lists match by type and ByRef flag.
+func parameterMetadataMatch(params1, params2 []runtime.ParameterMetadata) bool {
+	if len(params1) != len(params2) {
+		return false
+	}
+
+	for i := range params1 {
+		// Compare ByRef flags
+		if params1[i].ByRef != params2[i].ByRef {
+			return false
+		}
+
+		// Compare type names case-insensitively when present
+		switch {
+		case params1[i].TypeName != "" && params2[i].TypeName != "":
+			if !ident.Equal(params1[i].TypeName, params2[i].TypeName) {
+				return false
+			}
+		case params1[i].TypeName != params2[i].TypeName:
+			// One has a type name and the other doesn't
+			return false
+		}
+	}
+
+	return true
 }
 
 // inferTypeFromValue infers the type from a runtime value.

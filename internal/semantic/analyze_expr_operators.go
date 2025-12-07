@@ -159,6 +159,10 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		// In DWScript, built-in functions like PrintLn can be called without parentheses
 		// The semantic analyzer should allow this and treat them as procedure calls
 		if a.isBuiltinFunction(identifier.Value) {
+			// Emit casing hint for built-ins when pedantic hints are enabled
+			if declName := a.builtinDeclarationName(identifier.Value); declName != "" && declName != identifier.Value {
+				a.addCaseMismatchHint(identifier.Value, declName, identifier.Token.Pos)
+			}
 			// Return Void type for built-in procedures (or appropriate type for functions)
 			// For simplicity, we'll return VOID type which means "any" - the interpreter will handle it
 			return types.VOID

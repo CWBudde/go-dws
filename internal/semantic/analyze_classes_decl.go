@@ -803,28 +803,60 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 
 	// Bind record fields to scope (accessible without Self prefix)
 	for fieldName, fieldType := range recordType.Fields {
-		a.symbols.Define(fieldName, fieldType)
+		originalName := recordType.FieldNames[fieldName]
+		if originalName == "" {
+			originalName = fieldName
+		}
+		a.symbols.Define(originalName, fieldType)
 	}
 
 	// Bind record properties to scope (accessible without Self prefix)
 	if recordType.Properties != nil {
 		for propName, propInfo := range recordType.Properties {
-			a.symbols.Define(propName, propInfo.Type)
+			bindName := propInfo.Name
+			if bindName == "" {
+				bindName = propName
+			}
+			a.symbols.Define(bindName, propInfo.Type)
 		}
 	}
 
 	// Task 9.12.4: Bind record constants to scope
 	if recordType.Constants != nil {
 		for constName, constInfo := range recordType.Constants {
-			a.symbols.Define(constName, constInfo.Type)
+			bindName := constInfo.Name
+			if bindName == "" {
+				bindName = constName
+			}
+			a.symbols.Define(bindName, constInfo.Type)
 		}
 	}
 
 	// Task 9.12.4: Bind class variables to scope
 	if recordType.ClassVars != nil {
 		for varName, varType := range recordType.ClassVars {
-			a.symbols.Define(varName, varType)
+			bindName := recordType.ClassVarNames[varName]
+			if bindName == "" {
+				bindName = varName
+			}
+			a.symbols.Define(bindName, varType)
 		}
+	}
+
+	// Bind record methods (instance and class) to allow unqualified calls inside the body
+	for methodName, methodType := range recordType.Methods {
+		bindName := recordType.MethodNames[methodName]
+		if bindName == "" {
+			bindName = methodName
+		}
+		a.symbols.DefineFunction(bindName, methodType)
+	}
+	for methodName, methodType := range recordType.ClassMethods {
+		bindName := recordType.ClassMethodNames[methodName]
+		if bindName == "" {
+			bindName = methodName
+		}
+		a.symbols.DefineFunction(bindName, methodType)
 	}
 
 	// Add parameters to scope

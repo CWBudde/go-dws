@@ -130,253 +130,86 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 # Phase 3.8: Expression Delegation & Code Cleanup
 
-**Goal**: Complete expression delegation to evaluator and remove obsolete interpreter code
+**Goal**: Delegate expression evaluation to evaluator, remove duplicate code from interpreter
 
-**Status**: ✅ Complete | **Priority**: High | **Approach**: 🟡 Conservative
+**Status**: 🔄 In Progress | **Priority**: High | **Effort**: 1 day remaining
+
+## Current State
+
+**Files**:
+
+- `expressions_complex.go`: 324 LOC (3 functions: `evalIsExpression`, `evalAsExpression`, `evalImplementsExpression`)
+- `expressions_basic.go`: 467 LOC (identifier deferred to Phase 3.9)
+
+**Tests**: ✅ 1168 non-fixture passing | ⚠️ 873 fixture failures (baseline)
+
+**Completed**: 763 LOC removed (binary ops, unary ops, if expressions, dead code cleanup)
+
+## Remaining Tasks
+
+### 3.8.1 Migrate Is Expression
+
+**Effort**: 3-4 hours | **LOC**: 75 | **Risk**: Low-Medium
+
+Delegate `obj is TMyClass` type checking to evaluator.
+
+**Todo List**:
+
+- [ ] Create `VisitIsExpression()` in `evaluator/visitor_expressions_types.go`
+- [ ] Add `LookupInterface(name string) *InterfaceInfo` to `InterpreterAdapter`
+- [ ] Update `interpreter.go:611` to delegate
+- [ ] Delete `evalIsExpression()` from `expressions_complex.go:14-87`
+- [ ] Test & commit
+
+---
+
+### 3.8.2 Migrate Implements Expression
+
+**Effort**: 3-4 hours | **LOC**: 59 | **Risk**: Low-Medium
+
+**Depends on**: 3.8.1 (shares interface adapter)
+
+Delegate `obj implements IMyInterface` checking to evaluator.
+
+**Todo List**:
+
+- [ ] Create `VisitImplementsExpression()` in `evaluator/visitor_expressions_types.go`
+- [ ] Reuse interface adapter from 3.8.1
+- [ ] Update `interpreter.go:619` to delegate
+- [ ] Delete `evalImplementsExpression()` from `expressions_complex.go:264-324`
+- [ ] Test & commit
+
+---
+
+### 3.8.3 As Expression - DEFERRED
+
+**Decision**: Defer to later phase | **LOC**: 167
+
+Complex type casting (`obj as IMyInterface`) with 6 casting scenarios. High complexity vs. low immediate value. Better suited for Phase 3.9 systematic refactoring.
+
+---
+
+## Final Verification
+
+**Todo List**:
+
+- [ ] Verify all 1168 tests still passing after migrations
+- [ ] Update PLAN.md to mark Phase 3.8 as complete
+
+---
 
 ## Summary
 
-Successfully delegated binary, unary, and if operations to evaluator, removed **763 LOC** of duplicate code, and fixed class helper method resolution.
+**Effort**: 6-8 hours (1 day) → +134 LOC savings
 
-**Completed**:
-- ✅ **3.8.1-3**: Binary operations delegation (622 LOC removed from `expressions_binary.go`)
-- ✅ **3.8.4**: Code cleanup (variant ops extraction, file audits)
-- ✅ **3.8.5**: Unary operations delegation (30 LOC removed from `expressions_basic.go`)
-- ✅ **3.8.6**: Class helper transfer from semantic analyzer
-- ✅ **3.8.7.1-3**: Dead code deletion + If expression (111 LOC removed from `expressions_complex.go`)
+**Deferred**: As expression (167 LOC) - too complex for current phase
 
-**Results**: 1168 non-fixture tests pass | 873 fixture failures | 763 LOC removed
+**Success Criteria**:
 
-**Key Changes**:
-- [internal/interp/interpreter.go:560](internal/interp/interpreter.go:560): Binary ops delegate to `evaluatorInstance.VisitBinaryExpression()`
-- [internal/interp/interpreter.go:563](internal/interp/interpreter.go:563): Unary ops delegate to `evaluatorInstance.VisitUnaryExpression()`
-- [internal/interp/interpreter.go:624](internal/interp/interpreter.go:624): If expressions delegate to `evaluatorInstance.VisitIfExpression()`
-- Deleted dead code: `evalInOperator()` (already in evaluator) from expressions_complex.go
-- Deleted migrated code: `evalIfExpression()` from expressions_complex.go
-- Moved operator overloading helpers to `adapter_operators.go`
-- Helper methods transferred via `SetSemanticInfo()`
-
-**Lessons Learned**:
-1. Systematic audits prevent cascading failures (149 environment assignments coordinated)
-2. Incremental commits enable safe rollback (one category at a time)
-3. Helper methods reduce error surface (3 methods replaced 149 manual updates)
-4. Test baseline discipline catches regressions
-
-### Phase 3.8.7: Additional Expression Migrations (Optional)
-
-**Goal**: Migrate remaining expression evaluation to evaluator as needed
-
-- [x] **3.8.7.1** Survey Remaining Expression Types ✅
-  - Completed comprehensive survey of expressions_complex.go and expressions_basic.go
-  - **Finding**: In operator already migrated to evaluator (53 LOC dead code in interpreter)
-  - **Finding**: If expression already migrated to evaluator (53 LOC dead code in interpreter)
-  - **Potential savings**: ~435 LOC from expressions_complex.go, ~467 LOC from expressions_basic.go
-
-- [x] **3.8.7.2** Delete Dead Code (evalInOperator) ✅
-  - Deleted `evalInOperator()` from expressions_complex.go (55 LOC including imports)
-  - Verified no references exist, all 1168 tests passing
-
-- [x] **3.8.7.3** Migrate If Expression ✅
-  - If expression already in evaluator (visitor_expressions_primitives.go:61)
-  - Updated interpreter.go to delegate: `return i.evaluatorInstance.VisitIfExpression(node, i.ctx)`
-  - Deleted `evalIfExpression()` from expressions_complex.go (56 LOC)
-  - All 1168 non-fixture tests passing, 873 fixture failures (baseline maintained)
-
-**Quick Wins Complete**: 111 LOC removed (Tasks 3.8.7.2-3.8.7.3)
-
-**Survey Results** (Task 3.8.7.1):
-
-**expressions_complex.go** (435 LOC total):
-- ✅ `evalInOperator` (53 LOC) - **DEAD CODE** (already in evaluator, can delete)
-- `evalIsExpression` (75 LOC) - Type checking operator, low-medium complexity
-- `evalAsExpression` (167 LOC) - Type casting, complex (interface/class logic)
-- `evalImplementsExpression` (59 LOC) - Interface checking, medium complexity
-- `evalIfExpression` (53 LOC) - Inline conditional, simple logic
-
-**expressions_basic.go** (467 LOC total):
-- `evalIdentifier` (234 LOC) - **DEFER TO PHASE 3.9** (identifier resolution consolidation)
-- `evalAddressOfExpression` (25 LOC) - Function pointer creation, low complexity
-- `evalFunctionPointer` (77 LOC) - Helper for address-of, low-medium complexity
-- `evalLambdaExpression` (46 LOC) - Closure creation, medium complexity
-- `getTypeFromAnnotation` (8 LOC) - Helper, trivial
-- `getTypeByName` (15 LOC) - Helper, trivial
-- `getFunctionPointerTypeFromAnnotation` (14 LOC) - Helper, trivial (stub)
-
-**Migration Priority**:
-
-1. **Quick Wins** (Low effort, immediate LOC reduction):
-   - Delete `evalInOperator` dead code (53 LOC) - **TASK 3.8.7.2**
-   - Migrate `evalIfExpression` (53 LOC) - Simple short-circuit logic - **TASK 3.8.7.3**
-
-2. **Medium Effort** (Moderate complexity):
-   - Migrate `evalIsExpression` (75 LOC) - Type checking - **TASK 3.8.7.4**
-   - Migrate `evalImplementsExpression` (59 LOC) - Interface checking - **TASK 3.8.7.5**
-   - Migrate `evalAddressOfExpression` + `evalFunctionPointer` (102 LOC) - **TASK 3.8.7.6**
-   - Migrate `evalLambdaExpression` (46 LOC) - **TASK 3.8.7.7**
-
-3. **High Complexity** (Defer or skip):
-   - `evalAsExpression` (167 LOC) - Complex interface/class casting logic - **DEFER**
-   - `evalIdentifier` (234 LOC) - **DEFER TO PHASE 3.9** (systematic consolidation)
-
-**Recommended Approach**:
-- Execute quick wins (Tasks 3.8.7.2-3.8.7.3) for immediate value (~106 LOC savings)
-- Evaluate medium-effort tasks (3.8.7.4-3.8.7.7) based on bandwidth (~180 LOC savings)
-- Defer high-complexity items to avoid risk (~401 LOC, addressed in later phases)
-
-**Status**: Task 3.8.7.1 complete, awaiting decision on execution
-
----
-
-### Detailed Task Breakdown (3.8.7.2 onwards)
-
-#### Task 3.8.7.2: Delete Dead Code (evalInOperator)
-**Effort**: 10 minutes | **LOC Saved**: 53 | **Risk**: None
-
-Steps:
-1. Delete `evalInOperator()` from [expressions_complex.go:15-63](internal/interp/expressions_complex.go:15-63)
-2. Verify no references exist (already confirmed via grep)
-3. Run tests to confirm no regressions
-4. Commit with message: "Remove dead code: evalInOperator (already in evaluator)"
-
----
-
-#### Task 3.8.7.3: Migrate If Expression
-**Effort**: 2-3 hours | **LOC Saved**: 53 | **Risk**: Low
-
-Steps:
-1. Create `VisitIfExpression()` in evaluator/visitor_expressions.go
-2. Implement short-circuit logic (condition → consequence|alternative)
-3. Handle default value for missing else clause (semantic type info)
-4. Update interpreter.go Eval() to delegate: `case *ast.IfExpression: return i.evaluatorInstance.VisitIfExpression(node, i.ctx)`
-5. Delete `evalIfExpression()` from [expressions_complex.go:383-435](internal/interp/expressions_complex.go:383-435)
-6. Run tests, commit
-
-**Blockers**: Needs semantic info for default value type (already available via `i.semanticInfo`)
-
----
-
-#### Task 3.8.7.4: Migrate Is Expression
-**Effort**: 3-4 hours | **LOC Saved**: 75 | **Risk**: Low-Medium
-
-Steps:
-1. Create `VisitIsExpression()` in evaluator/visitor_expressions.go
-2. Implement type checking logic (class hierarchy walk, interface check)
-3. Add adapter method for interface lookup: `LookupInterface(name string) *InterfaceInfo`
-4. Update interpreter.go Eval() to delegate
-5. Delete `evalIsExpression()` from [expressions_complex.go:69-143](internal/interp/expressions_complex.go:69-143)
-6. Run tests, commit
-
-**Blockers**: Needs adapter for interface registry access (similar to class/operator adapters)
-
----
-
-#### Task 3.8.7.5: Migrate Implements Expression
-**Effort**: 3-4 hours | **LOC Saved**: 59 | **Risk**: Low-Medium
-
-Steps:
-1. Create `VisitImplementsExpression()` in evaluator/visitor_expressions.go
-2. Implement interface checking (explicit implementation check)
-3. Reuse adapter method from Task 3.8.7.4 for interface lookup
-4. Update interpreter.go Eval() to delegate
-5. Delete `evalImplementsExpression()` from [expressions_complex.go:320-378](internal/interp/expressions_complex.go:320-378)
-6. Run tests, commit
-
-**Dependencies**: Task 3.8.7.4 (interface adapter)
-
----
-
-#### Task 3.8.7.6: Migrate Address-of and Function Pointers
-**Effort**: 4-5 hours | **LOC Saved**: 102 | **Risk**: Medium
-
-Steps:
-1. Create `VisitAddressOfExpression()` in evaluator/visitor_expressions.go
-2. Move `evalFunctionPointer()` logic to evaluator as helper
-3. Add adapter methods for function/method lookup
-4. Handle built-in function pointers (builtin registry access)
-5. Update interpreter.go Eval() to delegate
-6. Delete `evalAddressOfExpression()` and `evalFunctionPointer()` from expressions_basic.go
-7. Run tests, commit
-
-**Blockers**: Needs adapters for function/method registry access
-
----
-
-#### Task 3.8.7.7: Migrate Lambda Expression
-**Effort**: 3-4 hours | **LOC Saved**: 46 | **Risk**: Medium
-
-Steps:
-1. Create `VisitLambdaExpression()` in evaluator/visitor_expressions.go
-2. Implement closure creation (capture environment)
-3. Handle semantic type info for lambda type annotation
-4. Update interpreter.go Eval() to delegate
-5. Delete `evalLambdaExpression()` from [expressions_basic.go:403-449](internal/interp/expressions_basic.go:403-449)
-6. Run tests, commit
-
-**Blockers**: Needs semantic info access (already available)
-
----
-
-### Summary: Estimated Effort
-
-| Task | Effort | LOC Saved | Risk | Priority |
-|------|--------|-----------|------|----------|
-| 3.8.7.2 (Dead code) | 10 min | 53 | None | High |
-| 3.8.7.3 (If expr) | 2-3 hrs | 53 | Low | High |
-| 3.8.7.4 (Is expr) | 3-4 hrs | 75 | Low-Med | Medium |
-| 3.8.7.5 (Implements) | 3-4 hrs | 59 | Low-Med | Medium |
-| 3.8.7.6 (Address-of) | 4-5 hrs | 102 | Medium | Low |
-| 3.8.7.7 (Lambda) | 3-4 hrs | 46 | Medium | Low |
-| **Total** | **1.5-2 days** | **388 LOC** | - | - |
-
-**Recommendation**: Execute quick wins (3.8.7.2-3.8.7.3) immediately for ~106 LOC savings with minimal risk. Evaluate medium-effort tasks based on project priorities.
-
-## Success Criteria
-
-- ✅ All non-fixture tests pass (1163 tests)
-- ✅ Fixture baseline maintained or improved (≤872 failures)
-- ✅ Obsolete code removed (expressions_binary.go, unary ops, etc.)
-- ✅ Class helper method resolution working
-- ✅ Clean separation: evaluator handles expressions, interpreter handles OOP
-
-## Lessons Learned
-
-1. **Systematic audits prevent cascading failures**: 149 environment assignments required coordinated migration
-2. **Incremental commits enable safe rollback**: One category at a time proved essential
-3. **Helper methods reduce error surface**: 3 methods replaced 149 manual updates
-4. **Test baseline discipline catches regressions**: Fixture count tracking revealed subtle improvements
-5. **Environment adapters are critical**: Type boundaries (concrete vs. interface) require careful handling
-
-## Progress Summary
-
-**Completed**:
-
-- ✅ Phase 3.8.1: Environment Management Audit (149 assignments documented)
-- ✅ Phase 3.8.2: Incremental Environment Sync Migration (149/149 migrated)
-- ✅ Phase 3.8.3: Binary Operations Migration (all blockers resolved)
-- ✅ Phase 3.8.4.1: `isFalsey()` extraction complete
-- ✅ Phase 3.8.4.2: Function extraction complete (5 functions → `variant_ops.go` + `adapter_operators.go`)
-- ✅ Phase 3.8.4.3: Obsolete code deletion complete (622 LOC removed from `expressions_binary.go`)
-- ✅ Phase 3.8.4.4: Documentation complete (5 helper functions documented)
-- ✅ Phase 3.8.4.5: Expression file audit complete (~637 LOC deletable identified)
-- ✅ Phase 3.8.5: Unary Operations Migration (30 LOC removed, all tests passing)
-- ✅ Phase 3.8.6: Helper Transfer complete (class helper methods working)
-- ✅ Phase 3.8.7.1: Survey complete (dead code identified, migration priorities set)
-- ✅ Phase 3.8.7.2: Dead code deletion (55 LOC removed from expressions_complex.go)
-- ✅ Phase 3.8.7.3: If expression migration (56 LOC removed, delegation complete)
-
-**In Progress**:
-
-- None (Quick wins complete)
-
-## Estimated Remaining Effort
-
-**Phase 3.8.7 Remaining Options**:
-
-- ✅ Quick wins (3.8.7.2-3.8.7.3): **COMPLETE** → 111 LOC saved
-- Medium effort tasks (3.8.7.4-3.8.7.5): 6-8 hours → +76 LOC savings
-- Full remaining migration (3.8.7.4-3.8.7.7): 1-1.5 days → +277 LOC savings
-
-**Total**: 0-1.5 days remaining (quick wins complete, remaining tasks optional)
+- All 1168 tests passing
+- Is & Implements delegated
+- Interface adapter pattern working
+- As expression documented as deferred
 
 ---
 
@@ -787,7 +620,7 @@ go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/class_init
 
 **Estimate**: 14-18 hours (2-2.5 days)
 
-**Status**: NOT STARTED
+**Status**: IN PROGRESS
 
 **Impact**: Unlocks 32 failing tests in SimpleScripts
 
@@ -797,32 +630,10 @@ go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/class_init
 
 **Reference**: See `FIXTURE_FAILURES_ANALYSIS.md` - Priority P1, Section 8
 
-**Failing Tests** (32 total):
-- const_record
-- record_aliased_field
-- record_class_field_init
-- record_clone1
-- record_const
-- record_const_as_prop
-- record_dynamic_init
-- record_field_init
-- record_in_copy
-- record_metaclass_field
-- record_method, record_method2, record_method3, record_method4, record_method5
-- record_nested, record_nested2
-- record_property
-- record_record_field_init
-- record_result, record_result2, record_result3
-- record_passing
-- record_recursive_dynarray
-- record_static_array
-- record_var
-- record_var_as_prop
-- record_var_param1, record_var_param2
-- result_direct
-- string_record_field_get_set
-- var_param_rec_field
-- var_param_rec_method
+**Failing Tests (current snapshot)**:
+- record_method2 (semantic: helper required for members on function(): TRec)
+- record_method5 (runtime: increments not reflected)
+- Others from the original list appear to pass after recent fixes; re-run full fixture suite to confirm and prune.
 
 **Example**:
 ```pascal
@@ -959,6 +770,7 @@ end;
 4. ✅ Nested record field access in methods
 5. ✅ Separate method implementations (non-inline) now work correctly
 6. ✅ Fields accessible in method bodies without Self prefix
+7. 🚧 Fixture follow-up: `record_method_static` fixed; `record_method2` still fails semantic helper check when accessing members on parameterless record-returning functions; `record_method5` still wrong at runtime (increments not applied). Remaining work: allow member access on parameterless record-returning functions (semantic) and ensure implicit Self method calls for records update/copy semantics during execution.
 
 **Files Modified**:
 - `internal/semantic/analyze_classes_decl.go` (analyzeRecordMethodBody with field binding)

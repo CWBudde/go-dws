@@ -153,6 +153,27 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 		}
 	}
 
+	// Record method context: allow field access and implicit calls
+	if recVal, ok := selfVal.(*RecordValue); ok {
+		if fieldVal, exists := recVal.Fields[ident.Normalize(node.Value)]; exists {
+			return fieldVal
+		}
+
+		if RecordHasMethod(recVal, node.Value) {
+			selfIdent := &ast.Identifier{
+				Value: "Self",
+			}
+			selfIdent.Token = node.Token
+
+			syntheticCall := &ast.MethodCallExpression{
+				Object:    selfIdent,
+				Method:    node,
+				Arguments: []ast.Expression{},
+			}
+			return i.evalMethodCall(syntheticCall)
+		}
+	}
+
 	// Check if we're in a class method context (__CurrentClass__ marker)
 	currentClassVal, hasCurrentClass := i.env.Get("__CurrentClass__")
 	if hasCurrentClass {

@@ -388,6 +388,9 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 			if selfVal.Type() == "OBJECT" || selfVal.Type() == "CLASS" {
 				return e.adapter.CallImplicitSelfMethod(node, funcName)
 			}
+			if _, isRecord := selfVal.(*runtime.RecordValue); isRecord {
+				return e.adapter.CallImplicitSelfMethod(node, funcName)
+			}
 		}
 	}
 

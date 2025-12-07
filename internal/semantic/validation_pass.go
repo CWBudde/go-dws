@@ -91,6 +91,31 @@ func (p *ValidationPass) Run(program *ast.Program, ctx *PassContext) error {
 	return nil
 }
 
+// extractRecordReturnType returns the record type returned by a parameterless function type, if any.
+func extractRecordReturnType(t types.Type) *types.RecordType {
+	switch ft := t.(type) {
+	case *types.FunctionType:
+		if len(ft.Parameters) == 0 && ft.ReturnType != nil {
+			if rt, ok := types.GetUnderlyingType(ft.ReturnType).(*types.RecordType); ok {
+				return rt
+			}
+		}
+	case *types.FunctionPointerType:
+		if len(ft.Parameters) == 0 && ft.ReturnType != nil {
+			if rt, ok := types.GetUnderlyingType(ft.ReturnType).(*types.RecordType); ok {
+				return rt
+			}
+		}
+	case *types.MethodPointerType:
+		if len(ft.Parameters) == 0 && ft.ReturnType != nil {
+			if rt, ok := types.GetUnderlyingType(ft.ReturnType).(*types.RecordType); ok {
+				return rt
+			}
+		}
+	}
+	return nil
+}
+
 // statementValidator validates statements and expressions
 type statementValidator struct {
 	ctx     *PassContext
@@ -1632,14 +1657,55 @@ func (v *statementValidator) checkMemberAccessExpression(expr *ast.MemberAccessE
 	// Resolve type aliases to get the underlying type
 	objectTypeResolved := types.GetUnderlyingType(objectType)
 
+	// Allow implicit invocation of parameterless functions when accessing members on the return type.
+	switch t := objectTypeResolved.(type) {
+	case *types.FunctionType:
+		if len(t.Parameters) == 0 && t.ReturnType != nil {
+			objectTypeResolved = t.ReturnType
+			objectType = objectTypeResolved
+		}
+	case *types.FunctionPointerType:
+		if len(t.Parameters) == 0 && t.ReturnType != nil {
+			objectTypeResolved = t.ReturnType
+			objectType = objectTypeResolved
+		}
+	case *types.MethodPointerType:
+		if len(t.Parameters) == 0 && t.ReturnType != nil {
+			objectTypeResolved = t.ReturnType
+			objectType = objectTypeResolved
+		}
+	}
+
 	// Handle record type
-	if recordType, ok := objectTypeResolved.(*types.RecordType); ok {
+	recordType := extractRecordReturnType(objectTypeResolved)
+	if recordType == nil {
+		if rt, ok := objectTypeResolved.(*types.RecordType); ok {
+			recordType = rt
+		}
+	}
+
+	if recordType != nil {
 		// Check for class methods (static methods) on record type
 		if recordType.HasClassMethod(memberNameLower) {
 			classMethod := recordType.GetClassMethod(memberNameLower)
 			if classMethod != nil {
 				return classMethod
 			}
+		}
+
+		// Check for instance methods
+		if recordType.HasMethod(memberNameLower) {
+			if methodType := recordType.GetMethod(memberNameLower); methodType != nil {
+				if len(methodType.Parameters) == 0 {
+					return methodType.ReturnType
+				}
+				return methodType
+			}
+		}
+
+		// Check properties
+		if propInfo, exists := recordType.Properties[memberNameLower]; exists {
+			return propInfo.Type
 		}
 
 		// Check for instance fields
@@ -1650,6 +1716,22 @@ func (v *statementValidator) checkMemberAccessExpression(expr *ast.MemberAccessE
 
 		v.ctx.AddError("record '%s' has no member '%s'", recordType.Name, memberName)
 		return nil
+	}
+
+	// Allow member access on parameterless function results (assumed to be handled at runtime)
+	switch t := objectTypeResolved.(type) {
+	case *types.FunctionType:
+		if len(t.Parameters) == 0 {
+			return nil
+		}
+	case *types.FunctionPointerType:
+		if len(t.Parameters) == 0 {
+			return nil
+		}
+	case *types.MethodPointerType:
+		if len(t.Parameters) == 0 {
+			return nil
+		}
 	}
 
 	// Handle interface type
@@ -1672,6 +1754,12 @@ func (v *statementValidator) checkMemberAccessExpression(expr *ast.MemberAccessE
 	// Handle class type
 	classType, ok := objectTypeResolved.(*types.ClassType)
 	if !ok {
+		// Function types (including pointers) will be resolved at runtime - skip helper errors
+		switch objectTypeResolved.(type) {
+		case *types.FunctionType, *types.FunctionPointerType, *types.MethodPointerType:
+			return nil
+		}
+
 		// Handle enum .Value property
 		if _, isEnum := objectTypeResolved.(*types.EnumType); isEnum {
 			if memberNameLower == "value" {

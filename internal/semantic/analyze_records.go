@@ -77,6 +77,8 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 		// Add field to record type (using lowercase key for case-insensitive lookup)
 		recordType.Fields[lowerFieldName] = fieldType
+		// Preserve original casing for hints/error messages
+		recordType.FieldNames[lowerFieldName] = fieldName
 
 		// Task 9.12.4: Track which fields have initializers
 		if field.InitValue != nil {
@@ -177,11 +179,20 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		}
 
 		recordType.ClassVars[lowerVarName] = varType
+		recordType.ClassVarNames[lowerVarName] = varName
 	}
 
 	// Process methods if any
 	for _, method := range decl.Methods {
 		methodName := method.Name.Value
+		lowerMethodName := ident.Normalize(methodName)
+
+		// Preserve original casing for later hinting and scope binding
+		if method.IsClassMethod {
+			recordType.ClassMethodNames[lowerMethodName] = methodName
+		} else {
+			recordType.MethodNames[lowerMethodName] = methodName
+		}
 
 		// Create function type for the method
 		var paramTypes []types.Type
@@ -221,8 +232,6 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			Visibility:           int(method.Visibility),
 		}
 
-		lowerMethodName := ident.Normalize(methodName)
-
 		// Store in appropriate maps based on whether it's a class method (static)
 		if method.IsClassMethod {
 			// Store primary signature and add to overloads
@@ -242,58 +251,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 		// Task 9.12.4: Analyze method body if present (inline method)
 		if method.Body != nil {
-			// Use IIFE to ensure defer executes per iteration, not per function
-			func() {
-				// Create a new scope for the method body
-				oldSymbols := a.symbols
-				a.symbols = NewEnclosedSymbolTable(oldSymbols)
-				defer func() { a.symbols = oldSymbols }()
-
-				// Bind Self to the record type
-				a.symbols.Define("Self", recordType)
-
-				// Bind record fields to scope (accessible without Self prefix)
-				for fieldName, fieldType := range recordType.Fields {
-					a.symbols.Define(fieldName, fieldType)
-				}
-
-				// Bind record properties to scope (accessible without Self prefix)
-				for propName, propInfo := range recordType.Properties {
-					a.symbols.Define(propName, propInfo.Type)
-				}
-
-				// Task 9.12.4: Bind record constants to scope
-				for constName, constInfo := range recordType.Constants {
-					a.symbols.Define(constName, constInfo.Type)
-				}
-
-				// Task 9.12.4: Bind class variables to scope
-				for varName, varType := range recordType.ClassVars {
-					a.symbols.Define(varName, varType)
-				}
-
-				// Bind method parameters
-				for _, param := range method.Parameters {
-					paramType, err := a.resolveType(getTypeExpressionName(param.Type))
-					if err == nil {
-						a.symbols.Define(param.Name.Value, paramType)
-					}
-				}
-
-				// For functions, bind Result variable
-				if method.ReturnType != nil {
-					a.symbols.Define("Result", returnType)
-					a.symbols.Define(methodName, returnType) // Method name is alias for Result
-				}
-
-				// Track current function for return type checking
-				previousFunc := a.currentFunction
-				a.currentFunction = method
-				defer func() { a.currentFunction = previousFunc }()
-
-				// Analyze the method body
-				a.analyzeBlock(method.Body)
-			}()
+			a.analyzeRecordMethodBody(method, recordType)
 		}
 	}
 

@@ -144,13 +144,17 @@ type RecordPropertyInfo struct {
 //	end;
 type RecordType struct {
 	Fields               map[string]Type
+	FieldNames           map[string]string        // Normalized field name -> original casing
 	Methods              map[string]*FunctionType // Instance methods (primary signature)
 	MethodOverloads      map[string][]*MethodInfo // Instance method overloads
 	ClassMethods         map[string]*FunctionType // Static (class) methods (primary signature)
 	ClassMethodOverloads map[string][]*MethodInfo // Static method overloads
+	MethodNames          map[string]string        // Normalized method name -> original casing
+	ClassMethodNames     map[string]string        // Normalized class method name -> original casing
 	Properties           map[string]*RecordPropertyInfo
 	Constants            map[string]*ConstantInfo // Record constants (regular and class)
 	ClassVars            map[string]Type          // Class variables (shared across instances)
+	ClassVarNames        map[string]string        // Normalized class var name -> original casing
 	FieldsWithInit       map[string]bool          // Fields that have default initializers
 	Name                 string
 }
@@ -168,7 +172,11 @@ func (rt *RecordType) String() string {
 	// Sort field names for consistent output
 	fieldNames := make([]string, 0, len(rt.Fields))
 	for name := range rt.Fields {
-		fieldNames = append(fieldNames, name)
+		if original, exists := rt.FieldNames[name]; exists && original != "" {
+			fieldNames = append(fieldNames, original)
+		} else {
+			fieldNames = append(fieldNames, name)
+		}
 	}
 	sort.Strings(fieldNames)
 
@@ -178,7 +186,8 @@ func (rt *RecordType) String() string {
 		}
 		sb.WriteString(name)
 		sb.WriteString(": ")
-		sb.WriteString(rt.Fields[name].String())
+		fieldKey := ident.Normalize(name)
+		sb.WriteString(rt.Fields[fieldKey].String())
 	}
 	sb.WriteString(" }")
 
@@ -280,19 +289,28 @@ func (rt *RecordType) GetClassMethodOverloads(methodName string) []*MethodInfo {
 func NewRecordType(name string, fields map[string]Type) *RecordType {
 	// Normalize field keys for case-insensitive lookup
 	normalizedFields := make(map[string]Type, len(fields))
+	fieldNames := make(map[string]string, len(fields))
 	for k, v := range fields {
-		normalizedFields[ident.Normalize(k)] = v
+		norm := ident.Normalize(k)
+		normalizedFields[norm] = v
+		if _, exists := fieldNames[norm]; !exists {
+			fieldNames[norm] = k
+		}
 	}
 	return &RecordType{
 		Name:                 name,
 		Fields:               normalizedFields,
+		FieldNames:           fieldNames,
 		Methods:              make(map[string]*FunctionType),
 		MethodOverloads:      make(map[string][]*MethodInfo),
 		ClassMethods:         make(map[string]*FunctionType),
 		ClassMethodOverloads: make(map[string][]*MethodInfo),
+		MethodNames:          make(map[string]string),
+		ClassMethodNames:     make(map[string]string),
 		Properties:           make(map[string]*RecordPropertyInfo),
 		Constants:            make(map[string]*ConstantInfo),
 		ClassVars:            make(map[string]Type),
+		ClassVarNames:        make(map[string]string),
 		FieldsWithInit:       make(map[string]bool),
 	}
 }

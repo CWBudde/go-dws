@@ -77,3 +77,16 @@ func (a *Analyzer) isBuiltinFunction(name string) bool {
 		return false
 	}
 }
+
+// builtinDeclarationName returns the canonical casing for a built-in function name.
+// Used for pedantic hinting when the source uses a different case.
+func (a *Analyzer) builtinDeclarationName(name string) string {
+	switch ident.Normalize(name) {
+	case "println":
+		return "PrintLn"
+	case "print":
+		return "Print"
+	default:
+		return name
+	}
+}

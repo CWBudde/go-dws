@@ -175,10 +175,14 @@ func (a *Analyzer) analyzeSelfExpression(se *ast.SelfExpression) types.Type {
 		return nil
 	}
 
-	// Validate that we're in a class context
+	// Validate that we're in a class or record context
 	if a.currentClass == nil {
-		a.addError("'Self' can only be used inside a class method at %s", se.Token.Pos.String())
-		return nil
+		if a.currentRecord == nil {
+			a.addError("'Self' can only be used inside a class method at %s", se.Token.Pos.String())
+			return nil
+		}
+		// Record methods allow Self as the current record type
+		return a.currentRecord
 	}
 
 	// Class methods (static methods) cannot access Self

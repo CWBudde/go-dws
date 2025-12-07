@@ -633,11 +633,10 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 			return e.newError(node, "field '%s' in record '%s' must have either a type or initializer", fieldName, recordName)
 		}
 
-		// Use lowercase key for case-insensitive access
-		fieldNameLower := ident.Normalize(fieldName)
-		fields[fieldNameLower] = fieldType
+		// Keep original casing for field map (NewRecordType normalizes keys)
+		fields[fieldName] = fieldType
 		// Task 9.5: Store field declaration (use lowercase key)
-		fieldDecls[fieldNameLower] = field
+		fieldDecls[ident.Normalize(fieldName)] = field
 	}
 
 	// Create the record type
