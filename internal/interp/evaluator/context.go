@@ -503,6 +503,17 @@ func (e *Evaluator) WriteLine(s string) {
 //
 // This implements the builtins.Context interface method IsAssigned().
 func (e *Evaluator) IsAssigned(value Value) bool {
+	// Check if it's nil
+	if value == nil {
+		return false
+	}
+
+	// Check if it's an InterfaceInstance
+	if intfVal, ok := value.(*runtime.InterfaceInstance); ok {
+		// Interface is assigned if its Object field is not nil
+		return intfVal.Object != nil
+	}
+
 	// Check if it's a VariantWrapper (runtime.VariantWrapper interface)
 	if wrapper, ok := value.(runtime.VariantWrapper); ok {
 		unwrapped := wrapper.UnwrapVariant()

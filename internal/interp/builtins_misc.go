@@ -437,6 +437,12 @@ func (i *Interpreter) builtinAssigned(args []Value) Value {
 			return &BooleanValue{Value: false}
 		}
 		return &BooleanValue{Value: true}
+	case *InterfaceInstance:
+		// Interface is assigned if its Object field is not nil
+		if v.Object == nil {
+			return &BooleanValue{Value: false}
+		}
+		return &BooleanValue{Value: true}
 	default:
 		// All other types are considered assigned if they're not nil
 		if val == nil {

@@ -621,8 +621,9 @@ func (i *Interpreter) IsAssigned(value builtins.Value) bool {
 		return false
 	}
 
-	// Handle interfaces
-	if intfVal, ok := value.(*InterfaceInstance); ok {
+	// Handle interfaces (runtime.InterfaceInstance)
+	if intfVal, ok := value.(*runtime.InterfaceInstance); ok {
+		// Interface is assigned if its Object field is not nil
 		return intfVal.Object != nil
 	}
 
