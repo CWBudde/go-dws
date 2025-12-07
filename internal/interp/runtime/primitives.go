@@ -470,13 +470,13 @@ func (u *UnassignedValue) Copy() Value {
 // NOTE: Closure field uses interface{} to avoid circular import with interp.Environment.
 // At runtime, this will be *Environment.
 type FunctionPointerValue struct {
-	Closure     interface{}                    // Environment where function was defined
-	SelfObject  Value                          // Object instance for method pointers
-	PointerType *types.FunctionPointerType     // Function pointer type info
-	Function    *ast.FunctionDecl              // AST node of function (legacy)
-	Lambda      *ast.LambdaExpression          // AST node of lambda (legacy)
-	BuiltinName string                         // Built-in function identifier
-	MethodID    MethodID                       // Unique ID in MethodRegistry
+	Closure     any                        // Environment where function was defined
+	SelfObject  Value                      // Object instance for method pointers
+	PointerType *types.FunctionPointerType // Function pointer type info
+	Function    *ast.FunctionDecl          // AST node of function (legacy)
+	Lambda      *ast.LambdaExpression      // AST node of lambda (legacy)
+	BuiltinName string                     // Built-in function identifier
+	MethodID    MethodID                   // Unique ID in MethodRegistry
 }
 
 // Type returns "FUNCTION_POINTER", "METHOD_POINTER", or "LAMBDA" (closure).

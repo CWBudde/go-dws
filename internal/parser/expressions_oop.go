@@ -111,10 +111,8 @@ func (p *Parser) parseNewExpression() ast.Expression {
 	// Support qualified class names for nested classes: new TOuter.TInner(...)
 	// But stop if the dot would actually start a member access on the constructed instance
 	// (e.g., "new TObj.FField" should be parsed as (new TObj).FField).
-	for {
-		if p.cursor.Peek(1).Type != lexer.DOT || p.cursor.Peek(2).Type != lexer.IDENT {
-			break
-		}
+	for p.cursor.Peek(1).Type == lexer.DOT && p.cursor.Peek(2).Type == lexer.IDENT {
+
 		// Look ahead to see what follows the potential qualified identifier.
 		// If it's another dot (chained nested type) or an argument/array list,
 		// treat the dot as part of the type name. Otherwise, leave it for

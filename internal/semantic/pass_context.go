@@ -100,33 +100,33 @@ func (s *Scope) LookupChain(name string) (types.Type, bool) {
 // It serves as the communication medium between passes, allowing later passes to build
 // on the results of earlier passes.
 type PassContext struct {
-	BuiltinChecker     BuiltinChecker                       // Built-in function analyzer
-	CurrentFunction    interface{}                          // Current function (*ast.FunctionDecl)
-	UnitSymbols        map[string]*SymbolTable              // Unit symbol tables
-	ConversionRegistry *types.ConversionRegistry            // Type conversion registry
-	SemanticInfo       *pkgast.SemanticInfo                 // AST annotations
-	GlobalOperators    *types.OperatorRegistry              // Operator overload registry
-	TypeRegistry       *TypeRegistry                        // Type registry
-	Helpers            map[string][]*types.HelperType       // Helper type registry
-	Subranges          map[string]*types.SubrangeType       // Subrange type registry
+	BuiltinChecker     BuiltinChecker                        // Built-in function analyzer
+	CurrentFunction    any                                   // Current function (*ast.FunctionDecl)
+	UnitSymbols        map[string]*SymbolTable               // Unit symbol tables
+	ConversionRegistry *types.ConversionRegistry             // Type conversion registry
+	SemanticInfo       *pkgast.SemanticInfo                  // AST annotations
+	GlobalOperators    *types.OperatorRegistry               // Operator overload registry
+	TypeRegistry       *TypeRegistry                         // Type registry
+	Helpers            map[string][]*types.HelperType        // Helper type registry
+	Subranges          map[string]*types.SubrangeType        // Subrange type registry
 	FunctionPointers   map[string]*types.FunctionPointerType // Function pointer type registry
-	Symbols            *SymbolTable                         // Global symbol table
-	CurrentRecord      *types.RecordType                    // Current record being analyzed
-	CurrentClass       *types.ClassType                     // Current class being analyzed
-	SourceFile         string                               // Source file path
-	CurrentForLoopVar  string                               // Current for loop variable
-	SourceCode         string                               // Original source text
-	CurrentProperty    string                               // Current property being analyzed
-	StructuredErrors   []*SemanticError                     // Structured error objects
-	Errors             []string                             // Error messages (legacy)
-	ScopeStack         []*Scope                             // Scope chain for local variables
-	LoopDepth          int                                  // Loop nesting level
-	InExceptionHandler bool                                 // Inside try/except block
-	InFinallyBlock     bool                                 // Inside finally block
-	InLoop             bool                                 // Inside any loop construct
-	InLambda           bool                                 // Inside lambda/anonymous function
-	InClassMethod      bool                                 // Inside class method
-	InPropertyExpr     bool                                 // Inside property expression
+	Symbols            *SymbolTable                          // Global symbol table
+	CurrentRecord      *types.RecordType                     // Current record being analyzed
+	CurrentClass       *types.ClassType                      // Current class being analyzed
+	SourceFile         string                                // Source file path
+	CurrentForLoopVar  string                                // Current for loop variable
+	SourceCode         string                                // Original source text
+	CurrentProperty    string                                // Current property being analyzed
+	StructuredErrors   []*SemanticError                      // Structured error objects
+	Errors             []string                              // Error messages (legacy)
+	ScopeStack         []*Scope                              // Scope chain for local variables
+	LoopDepth          int                                   // Loop nesting level
+	InExceptionHandler bool                                  // Inside try/except block
+	InFinallyBlock     bool                                  // Inside finally block
+	InLoop             bool                                  // Inside any loop construct
+	InLambda           bool                                  // Inside lambda/anonymous function
+	InClassMethod      bool                                  // Inside class method
+	InPropertyExpr     bool                                  // Inside property expression
 }
 
 // NewPassContext creates a new pass context with initialized registries.

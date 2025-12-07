@@ -654,7 +654,7 @@ func lexIfIdentOrKeyword(first rune, reader *strings.Reader) ifToken {
 	builder.WriteRune(first)
 	for {
 		r, _, err := reader.ReadRune()
-		if err != nil || !(isLetter(r) || isDigit(r)) {
+		if err != nil || (!isLetter(r) && !isDigit(r)) {
 			if err == nil {
 				_ = reader.UnreadRune()
 			}

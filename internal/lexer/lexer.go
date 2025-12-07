@@ -38,38 +38,37 @@ import (
 //   - "var Δ" → 'Δ' is at column 5 (5 runes, Δ is a single multi-byte rune)
 //   - "// 🚀" → '🚀' is at column 4 (4 runes: /, /, space, 🚀)
 type Lexer struct {
+	defines     map[string]struct{}
+	constValues map[string]int
+
 	input            string
-	errors           []LexerError
+	constPending     string
 	tokenBuffer      []Token
-	position         int
+	errors           []LexerError
+	condStack        []conditionalFrame
 	readPosition     int
+	position         int
 	line             int
 	column           int
 	ch               rune
 	preserveComments bool
 	tracing          bool
-
-	defines   map[string]struct{}
-	condStack []conditionalFrame
-
-	constValues  map[string]int
-	constBlock   bool
-	constPending string
-	constWait    bool
+	constBlock       bool
+	constWait        bool
 }
 
 // LexerState represents the complete state of the Lexer at a specific point in time.
 // It can be saved and restored to enable backtracking during parsing.
 // This allows for efficient save/restore operations during lookahead.
 type LexerState struct {
+	defines      map[string]struct{}
 	tokenBuffer  []Token
+	condStack    []conditionalFrame
 	position     int
 	readPosition int
 	line         int
 	column       int
 	ch           rune
-	defines      map[string]struct{}
-	condStack    []conditionalFrame
 }
 
 // LexerOption is a function that configures a Lexer.

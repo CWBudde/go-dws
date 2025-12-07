@@ -585,14 +585,14 @@ func NewScopedEnumType(name string, values map[string]int, orderedNames []string
 //	end;
 type HelperType struct {
 	TargetType     Type
-	ParentHelper   *HelperType // Parent helper for inheritance (optional)
+	Decl           any
+	ParentHelper   *HelperType
 	Methods        map[string]*FunctionType
 	Properties     map[string]*PropertyInfo
 	ClassVars      map[string]Type
-	ClassConsts    map[string]interface{}
+	ClassConsts    map[string]any
 	BuiltinMethods map[string]string
 	Name           string
-	Decl           interface{} // AST declaration (*ast.HelperDecl) for user-defined helpers, nil for built-ins
 	IsRecordHelper bool
 }
 

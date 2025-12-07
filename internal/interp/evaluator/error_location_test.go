@@ -14,10 +14,10 @@ import (
 func TestErrorMessagesIncludeLocation(t *testing.T) {
 	tests := []struct {
 		name           string
-		line           int
-		column         int
 		errorMessage   string
 		expectedSubstr string
+		line           int
+		column         int
 	}{
 		{
 			name:           "division by zero with location",

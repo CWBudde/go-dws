@@ -70,24 +70,24 @@ func (v MethodVisibility) String() string {
 //   - Reduces memory overhead compared to full AST nodes
 //   - Enables serialization for bytecode cache
 type MethodMetadata struct {
-	ReturnType     types.Type              // Resolved return type (nil for procedures)
-	Body           ast.Statement           // AST statement block to execute (Phase 9)
-	PreConditions  *ast.PreConditions      // Assertions checked before execution
-	PostConditions *ast.PostConditions     // Assertions checked after execution
-	NativeFunc     func(args []interface{}) interface{} // Built-in function implementation
-	Name           string                  // Method/function name
-	ReturnTypeName string                  // String representation of return type
-	Parameters     []ParameterMetadata     // Method parameters
-	BytecodeID     int                     // ID of compiled bytecode (Phase 10+)
-	ID             MethodID                // Unique method identifier in registry
-	Visibility     MethodVisibility        // Access control level
-	IsVirtual      bool                    // Uses virtual dispatch
-	IsAbstract     bool                    // No implementation (abstract)
-	IsOverride     bool                    // Overrides parent's virtual method
-	IsReintroduce  bool                    // Breaks virtual dispatch chain
-	IsClassMethod  bool                    // Static method
-	IsConstructor  bool                    // Constructor method
-	IsDestructor   bool                    // Destructor method
+	ReturnType     types.Type           // Resolved return type (nil for procedures)
+	Body           ast.Statement        // AST statement block to execute (Phase 9)
+	PreConditions  *ast.PreConditions   // Assertions checked before execution
+	PostConditions *ast.PostConditions  // Assertions checked after execution
+	NativeFunc     func(args []any) any // Built-in function implementation
+	Name           string               // Method/function name
+	ReturnTypeName string               // String representation of return type
+	Parameters     []ParameterMetadata  // Method parameters
+	BytecodeID     int                  // ID of compiled bytecode (Phase 10+)
+	ID             MethodID             // Unique method identifier in registry
+	Visibility     MethodVisibility     // Access control level
+	IsVirtual      bool                 // Uses virtual dispatch
+	IsAbstract     bool                 // No implementation (abstract)
+	IsOverride     bool                 // Overrides parent's virtual method
+	IsReintroduce  bool                 // Breaks virtual dispatch chain
+	IsClassMethod  bool                 // Static method
+	IsConstructor  bool                 // Constructor method
+	IsDestructor   bool                 // Destructor method
 }
 
 // IsFunction returns true if this method has a return value.
@@ -152,11 +152,11 @@ func (v FieldVisibility) String() string {
 // FieldMetadata describes a field at runtime.
 // This replaces the need to store *ast.FieldDecl in runtime types.
 type FieldMetadata struct {
-	Type       types.Type        // Resolved field type
-	InitValue  ast.Expression    // Initializer expression
-	Name       string            // Field name
-	TypeName   string            // String representation of type
-	Visibility FieldVisibility   // Access control level
+	Type       types.Type      // Resolved field type
+	InitValue  ast.Expression  // Initializer expression
+	Name       string          // Field name
+	TypeName   string          // String representation of type
+	Visibility FieldVisibility // Access control level
 }
 
 // VirtualMethodMetadata tracks virtual method dispatch information.
@@ -184,28 +184,28 @@ type VirtualMethodMetadata struct {
 //   - Constants/ClassVars remain as Values (already runtime values)
 //   - Enables independent evolution of runtime and AST representations
 type ClassMetadata struct {
-	Operators            interface{}                        // Operator overload registry
-	ConstructorOverloads map[string][]*MethodMetadata       // All constructor overload variants
-	Destructor           *MethodMetadata                    // Class destructor
-	Properties           map[string]interface{}             // Property metadata
-	Fields               map[string]*FieldMetadata          // Instance fields
-	Methods              map[string]*MethodMetadata         // Instance methods
-	MethodOverloads      map[string][]*MethodMetadata       // Instance method overloads
-	ClassMethods         map[string]*MethodMetadata         // Static methods
-	ClassMethodOverloads map[string][]*MethodMetadata       // Static method overloads
-	Constructors         map[string]*MethodMetadata         // Constructors
-	ClassVars            map[string]interface{}             // Class variable values
-	Parent               *ClassMetadata                     // Parent class metadata
-	VirtualMethods       map[string]*VirtualMethodMetadata  // Virtual dispatch info
-	Constants            map[string]interface{}             // Evaluated constant values
-	DefaultConstructor   string                             // Default constructor name
-	Name                 string                             // Class name
-	ParentName           string                             // Parent class name
-	ExternalName         string                             // External implementation name
-	Interfaces           []string                           // Implemented interface names
-	IsAbstract           bool                               // Cannot be instantiated
-	IsExternal           bool                               // Externally implemented
-	IsPartial            bool                               // Partial class declaration
+	Operators            any                               // Operator overload registry
+	ConstructorOverloads map[string][]*MethodMetadata      // All constructor overload variants
+	Destructor           *MethodMetadata                   // Class destructor
+	Properties           map[string]any                    // Property metadata
+	Fields               map[string]*FieldMetadata         // Instance fields
+	Methods              map[string]*MethodMetadata        // Instance methods
+	MethodOverloads      map[string][]*MethodMetadata      // Instance method overloads
+	ClassMethods         map[string]*MethodMetadata        // Static methods
+	ClassMethodOverloads map[string][]*MethodMetadata      // Static method overloads
+	Constructors         map[string]*MethodMetadata        // Constructors
+	ClassVars            map[string]any                    // Class variable values
+	Parent               *ClassMetadata                    // Parent class metadata
+	VirtualMethods       map[string]*VirtualMethodMetadata // Virtual dispatch info
+	Constants            map[string]any                    // Evaluated constant values
+	DefaultConstructor   string                            // Default constructor name
+	Name                 string                            // Class name
+	ParentName           string                            // Parent class name
+	ExternalName         string                            // External implementation name
+	Interfaces           []string                          // Implemented interface names
+	IsAbstract           bool                              // Cannot be instantiated
+	IsExternal           bool                              // Externally implemented
+	IsPartial            bool                              // Partial class declaration
 }
 
 // NewClassMetadata creates a new ClassMetadata with initialized maps.

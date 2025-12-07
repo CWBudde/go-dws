@@ -10,51 +10,51 @@ import (
 // TestIsFalsey tests the isFalsey helper function with various value types.
 func TestIsFalsey(t *testing.T) {
 	tests := []struct {
-		name     string
 		value    Value
+		name     string
 		expected bool
 	}{
 		// Nil values
-		{"nil value", nil, true},
-		{"NilValue", &runtime.NilValue{}, true},
+		{name: "nil value", value: nil, expected: true},
+		{name: "NilValue", value: &runtime.NilValue{}, expected: true},
 
 		// Integer values
-		{"zero integer", &runtime.IntegerValue{Value: 0}, true},
-		{"positive integer", &runtime.IntegerValue{Value: 42}, false},
-		{"negative integer", &runtime.IntegerValue{Value: -5}, false},
+		{name: "zero integer", value: &runtime.IntegerValue{Value: 0}, expected: true},
+		{name: "positive integer", value: &runtime.IntegerValue{Value: 42}, expected: false},
+		{name: "negative integer", value: &runtime.IntegerValue{Value: -5}, expected: false},
 
 		// Float values
-		{"zero float", &runtime.FloatValue{Value: 0.0}, true},
-		{"positive float", &runtime.FloatValue{Value: 3.14}, false},
-		{"negative float", &runtime.FloatValue{Value: -2.5}, false},
+		{name: "zero float", value: &runtime.FloatValue{Value: 0.0}, expected: true},
+		{name: "positive float", value: &runtime.FloatValue{Value: 3.14}, expected: false},
+		{name: "negative float", value: &runtime.FloatValue{Value: -2.5}, expected: false},
 
 		// String values
-		{"empty string", &runtime.StringValue{Value: ""}, true},
-		{"non-empty string", &runtime.StringValue{Value: "hello"}, false},
+		{name: "empty string", value: &runtime.StringValue{Value: ""}, expected: true},
+		{name: "non-empty string", value: &runtime.StringValue{Value: "hello"}, expected: false},
 
 		// Boolean values
-		{"false boolean", &runtime.BooleanValue{Value: false}, true},
-		{"true boolean", &runtime.BooleanValue{Value: true}, false},
+		{name: "false boolean", value: &runtime.BooleanValue{Value: false}, expected: true},
+		{name: "true boolean", value: &runtime.BooleanValue{Value: true}, expected: false},
 
 		// Array values - THE KEY TEST FOR TASK 3.8.3.0b
 		{
-			"empty array",
-			&runtime.ArrayValue{
+			name: "empty array",
+			value: &runtime.ArrayValue{
 				ArrayType: types.NewDynamicArrayType(types.INTEGER),
 				Elements:  []Value{},
 			},
-			true, // Empty arrays should be falsey
+			expected: true, // Empty arrays should be falsey
 		},
 		{
-			"non-empty array",
-			&runtime.ArrayValue{
+			name: "non-empty array",
+			value: &runtime.ArrayValue{
 				ArrayType: types.NewDynamicArrayType(types.INTEGER),
 				Elements: []Value{
 					&runtime.IntegerValue{Value: 1},
 					&runtime.IntegerValue{Value: 2},
 				},
 			},
-			false, // Non-empty arrays should be truthy
+			expected: false, // Non-empty arrays should be truthy
 		},
 	}
 

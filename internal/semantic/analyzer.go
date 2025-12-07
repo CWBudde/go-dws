@@ -56,34 +56,34 @@ const (
 
 // Analyzer performs semantic analysis on a DWScript program.
 type Analyzer struct {
-	currentClass       *types.ClassType                    // Current class being analyzed
-	helpers            map[string][]*types.HelperType      // Helper type registry
-	typeRegistry       *TypeRegistry                       // Unified type registry
-	subranges          map[string]*types.SubrangeType      // Subrange type registry
+	currentClass       *types.ClassType                      // Current class being analyzed
+	helpers            map[string][]*types.HelperType        // Helper type registry
+	typeRegistry       *TypeRegistry                         // Unified type registry
+	subranges          map[string]*types.SubrangeType        // Subrange type registry
 	functionPointers   map[string]*types.FunctionPointerType // Function pointer type registry
-	currentFunction    *ast.FunctionDecl                   // Current function being analyzed
-	currentRecord      *types.RecordType                   // Current record being analyzed
-	symbols            *SymbolTable                        // Symbol table
-	globalOperators    *types.OperatorRegistry             // Operator overload registry
-	conversionRegistry *types.ConversionRegistry           // Type conversion registry
-	semanticInfo       *pkgast.SemanticInfo                // AST annotations
-	unitSymbols        map[string]*SymbolTable             // Unit symbol tables
-	currentNestedTypes map[string]string                   // Nested type tracking
-	nestedTypeAliases  map[string]map[string]string        // Nested type aliases
-	currentProperty    string                              // Current property being analyzed
-	sourceFile         string                              // Source file path
-	sourceCode         string                              // Original source text
-	errors             []string                            // Error messages (legacy)
-	structuredErrors   []*SemanticError                    // Structured error objects
-	loopDepth          int                                 // Loop nesting level
-	hintsLevel         HintsLevel                          // Hints emission level
-	inLoop             bool                                // Inside loop construct
-	inLambda           bool                                // Inside lambda/anonymous function
-	inClassMethod      bool                                // Inside class method
-	inPropertyExpr     bool                                // Inside property expression
-	inFinallyBlock     bool                                // Inside finally block
-	experimentalPasses bool                                // Enable experimental passes
-	inExceptionHandler bool                                // Inside try/except block
+	currentFunction    *ast.FunctionDecl                     // Current function being analyzed
+	currentRecord      *types.RecordType                     // Current record being analyzed
+	symbols            *SymbolTable                          // Symbol table
+	globalOperators    *types.OperatorRegistry               // Operator overload registry
+	conversionRegistry *types.ConversionRegistry             // Type conversion registry
+	semanticInfo       *pkgast.SemanticInfo                  // AST annotations
+	unitSymbols        map[string]*SymbolTable               // Unit symbol tables
+	currentNestedTypes map[string]string                     // Nested type tracking
+	nestedTypeAliases  map[string]map[string]string          // Nested type aliases
+	currentProperty    string                                // Current property being analyzed
+	sourceFile         string                                // Source file path
+	sourceCode         string                                // Original source text
+	errors             []string                              // Error messages (legacy)
+	structuredErrors   []*SemanticError                      // Structured error objects
+	loopDepth          int                                   // Loop nesting level
+	hintsLevel         HintsLevel                            // Hints emission level
+	inLoop             bool                                  // Inside loop construct
+	inLambda           bool                                  // Inside lambda/anonymous function
+	inClassMethod      bool                                  // Inside class method
+	inPropertyExpr     bool                                  // Inside property expression
+	inFinallyBlock     bool                                  // Inside finally block
+	experimentalPasses bool                                  // Enable experimental passes
+	inExceptionHandler bool                                  // Inside try/except block
 }
 
 // NewAnalyzer creates a new semantic analyzer
