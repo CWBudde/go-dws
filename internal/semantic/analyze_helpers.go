@@ -11,7 +11,6 @@ import (
 // ============================================================================
 
 // findPropertyCaseInsensitive searches for a property by name using case-insensitive comparison.
-// Task 9.217: Support case-insensitive helper property lookup
 func findPropertyCaseInsensitive(props map[string]*types.PropertyInfo, name string) *types.PropertyInfo {
 	for key, prop := range props {
 		if ident.Equal(key, name) {
@@ -22,7 +21,6 @@ func findPropertyCaseInsensitive(props map[string]*types.PropertyInfo, name stri
 }
 
 // findMethodCaseInsensitive searches for a method by name using case-insensitive comparison.
-// Task 9.217: Support case-insensitive helper method lookup
 func findMethodCaseInsensitive(methods map[string]*types.FunctionType, name string) *types.FunctionType {
 	for key, method := range methods {
 		if ident.Equal(key, name) {
@@ -34,10 +32,6 @@ func findMethodCaseInsensitive(methods map[string]*types.FunctionType, name stri
 
 // analyzeHelperDecl analyzes a helper type declaration.
 // Helpers extend existing types with additional methods, properties, and class members.
-//
-// Task 9.82: Analyze helper declarations
-// Task 9.83: Register helper in type environment
-// Task 9.84: Implement Self binding in helper methods
 func (a *Analyzer) analyzeHelperDecl(decl *ast.HelperDecl) {
 	if decl == nil {
 		return
@@ -56,8 +50,7 @@ func (a *Analyzer) analyzeHelperDecl(decl *ast.HelperDecl) {
 
 	// Create the helper type
 	helperType := types.NewHelperType(helperName, targetType, decl.IsRecordHelper)
-	// Task 3.8.6.3: Store AST declaration for runtime transfer
-	helperType.Decl = decl
+	helperType.Decl = decl // Store AST declaration for runtime
 
 	// Resolve parent helper if specified
 	if decl.ParentHelper != nil {
@@ -122,7 +115,7 @@ func (a *Analyzer) analyzeHelperDecl(decl *ast.HelperDecl) {
 }
 
 // analyzeHelperMethod analyzes a method in a helper.
-// Task 9.84: Self binding - Self refers to the target type instance
+// Note: In helper methods, 'Self' refers to the target type instance.
 func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *types.HelperType, helperName string) {
 	if method == nil {
 		return
@@ -170,9 +163,6 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 	// Add method to helper
 	methodNameLower := ident.Normalize(methodName)
 	helperType.Methods[methodNameLower] = funcType
-
-	// Note: In helper methods, 'Self' implicitly refers to an instance of the target type.
-	// This is validated when analyzing the method body (not implemented in this stage).
 }
 
 // analyzeHelperProperty analyzes a property in a helper.
@@ -202,8 +192,6 @@ func (a *Analyzer) analyzeHelperProperty(prop *ast.PropertyDecl, helperType *typ
 	propInfo := &types.PropertyInfo{
 		Name: propName,
 		Type: propType,
-		// ReadSpec and WriteSpec analysis would go here
-		// For now, we just track the basic property info
 	}
 
 	propNameLower := ident.Normalize(propName)
@@ -305,14 +293,12 @@ func (a *Analyzer) analyzeHelperClassConst(classConst *ast.ConstDecl, helperType
 		}
 	}
 
-	// Store the constant (value would be evaluated by interpreter)
-	// For now, we just track that it exists with its type
+	// Store the constant type
 	constNameLower := ident.Normalize(constName)
 	helperType.ClassConsts[constNameLower] = constType
 }
 
 // getHelpersForType returns all helpers that extend the given type.
-// Task 9.83: Helper method resolution
 func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 	if typ == nil {
 		return nil
@@ -330,7 +316,7 @@ func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 	typeName := ident.Normalize(typ.String())
 	helpers := a.helpers[typeName]
 
-	// Task 9.171: For array types, also include generic array helpers
+	// For array types, also include generic array helpers
 	if _, isArray := typ.(*types.ArrayType); isArray {
 		arrayHelpers := a.helpers["array"]
 		if arrayHelpers != nil {
@@ -339,7 +325,7 @@ func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 		}
 	}
 
-	// Task 9.31: For enum types, also include generic enum helpers
+	// For enum types, also include generic enum helpers
 	if _, isEnum := typ.(*types.EnumType); isEnum {
 		enumHelpers := a.helpers["enum"]
 		if enumHelpers != nil {
@@ -353,16 +339,13 @@ func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 
 // hasHelperMethod checks if any helper for the given type defines the specified method.
 // Returns the helper type and method if found.
-// Task 9.83: Helper method resolution
 func (a *Analyzer) hasHelperMethod(typ types.Type, methodName string) (*types.HelperType, *types.FunctionType) {
 	helpers := a.getHelpersForType(typ)
 	if helpers == nil {
 		return nil, nil
 	}
 
-	// Check each helper in reverse order so user-defined helpers (added later)
-	// take precedence over built-in helpers registered during initialization.
-	// Task 9.217: Use case-insensitive lookup for DWScript compatibility
+	// Check helpers in reverse order (user-defined take precedence over built-ins)
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
 		if method := findMethodCaseInsensitive(helper.Methods, methodName); method != nil {
@@ -398,8 +381,7 @@ func (a *Analyzer) hasHelperProperty(typ types.Type, propName string) (*types.He
 		return nil, nil
 	}
 
-	// Check each helper in order (first match wins)
-	// Task 9.217: Use case-insensitive lookup for DWScript compatibility
+	// Check helpers in reverse order (user-defined take precedence over built-ins)
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
 		if prop := findPropertyCaseInsensitive(helper.Properties, propName); prop != nil {
@@ -431,15 +413,13 @@ func (a *Analyzer) hasHelperClassVar(typ types.Type, varName string) (*types.Hel
 
 // hasHelperClassConst checks if any helper for the given type defines the specified class constant.
 // Returns the helper type and constant value if found.
-// Task 9.54: Support scoped enum access via helper class constants
 func (a *Analyzer) hasHelperClassConst(typ types.Type, constName string) (*types.HelperType, interface{}) {
 	helpers := a.getHelpersForType(typ)
 	if helpers == nil {
 		return nil, nil
 	}
 
-	// Check each helper in reverse order (most recent first)
-	// Task 9.217: Use case-insensitive lookup for DWScript compatibility
+	// Check helpers in reverse order (user-defined take precedence over built-ins)
 	constNameLower := ident.Normalize(constName)
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
@@ -455,15 +435,12 @@ func (a *Analyzer) hasHelperClassConst(typ types.Type, constName string) (*types
 // Built-in Array Helpers
 // ============================================================================
 
-// initArrayHelpers registers built-in helper properties for arrays
-// Task 9.171.6: Semantic analyzer support for array helpers
+// initArrayHelpers registers built-in helper properties and methods for arrays.
 func (a *Analyzer) initArrayHelpers() {
 	// Create a helper for the generic ARRAY type
-	// Since we need to support all array types, we'll register this for "ARRAY"
-	// and modify getHelpersForType to check for array types
 	arrayHelper := types.NewHelperType("TArrayHelper", nil, false)
 
-	// Task 9.171.4: Register .Length property (lowercase key for case-insensitive lookup)
+	// Register .Length property
 	arrayHelper.Properties["length"] = &types.PropertyInfo{
 		Name:      "Length",
 		Type:      types.INTEGER,
@@ -472,7 +449,7 @@ func (a *Analyzer) initArrayHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Task 9.171.2: Register .High property (lowercase key for case-insensitive lookup)
+	// Register .High property
 	arrayHelper.Properties["high"] = &types.PropertyInfo{
 		Name:      "High",
 		Type:      types.INTEGER,
@@ -481,7 +458,7 @@ func (a *Analyzer) initArrayHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Task 9.171.3: Register .Low property (lowercase key for case-insensitive lookup)
+	// Register .Low property
 	arrayHelper.Properties["low"] = &types.PropertyInfo{
 		Name:      "Low",
 		Type:      types.INTEGER,
@@ -490,7 +467,7 @@ func (a *Analyzer) initArrayHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Task 9.34: Register .Count property (alias for .Length) (lowercase key for case-insensitive lookup)
+	// Register .Count property (alias for .Length)
 	arrayHelper.Properties["count"] = &types.PropertyInfo{
 		Name:      "Count",
 		Type:      types.INTEGER,
@@ -499,12 +476,11 @@ func (a *Analyzer) initArrayHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Register .Add() method for dynamic arrays (lowercase key for case-insensitive lookup)
-	arrayHelper.Methods["add"] = types.NewProcedureType([]types.Type{nil}) // Takes one parameter (element to add)
+	// Register .Add() method for dynamic arrays
+	arrayHelper.Methods["add"] = types.NewProcedureType([]types.Type{nil})
 	arrayHelper.BuiltinMethods["add"] = "__array_add"
 
-	// Task 9.34: Register .Delete() method for dynamic arrays (lowercase key for case-insensitive lookup)
-	// Delete can take 1 or 2 parameters: Delete(index) or Delete(index, count)
+	// Register .Delete() method: Delete(index) or Delete(index, count)
 	// Second parameter (count) is optional with default value 1
 	arrayHelper.Methods["delete"] = types.NewFunctionTypeWithMetadata(
 		[]types.Type{types.INTEGER, types.INTEGER},
@@ -517,8 +493,7 @@ func (a *Analyzer) initArrayHelpers() {
 	)
 	arrayHelper.BuiltinMethods["delete"] = "__array_delete"
 
-	// Task 9.34: Register .IndexOf() method for dynamic arrays (lowercase key for case-insensitive lookup)
-	// IndexOf(value) or IndexOf(value, startIndex)
+	// Register .IndexOf() method: IndexOf(value) or IndexOf(value, startIndex)
 	// Second parameter (startIndex) is optional with default value 0
 	arrayHelper.Methods["indexof"] = types.NewFunctionTypeWithMetadata(
 		[]types.Type{nil, types.INTEGER},
@@ -531,40 +506,36 @@ func (a *Analyzer) initArrayHelpers() {
 	)
 	arrayHelper.BuiltinMethods["indexof"] = "__array_indexof"
 
-	// Task 9.216: Register .SetLength() method for dynamic arrays (lowercase key for case-insensitive lookup)
+	// Register .SetLength() method for dynamic arrays
 	arrayHelper.Methods["setlength"] = types.NewProcedureType([]types.Type{types.INTEGER})
 	arrayHelper.BuiltinMethods["setlength"] = "__array_setlength"
 
-	// Task 9.8: Register .Swap() method for arrays (lowercase key for case-insensitive lookup)
-	// Swap(i, j) - swaps elements at indices i and j
+	// Register .Swap() method: Swap(i, j) - swaps elements at indices i and j
 	arrayHelper.Methods["swap"] = types.NewProcedureType([]types.Type{types.INTEGER, types.INTEGER})
 	arrayHelper.BuiltinMethods["swap"] = "__array_swap"
 
-	// Task 9.8: Register .Push() method for dynamic arrays (lowercase key for case-insensitive lookup)
-	// Push(value) - appends element (alias for Add)
-	arrayHelper.Methods["push"] = types.NewProcedureType([]types.Type{nil}) // Takes one parameter (element to push)
+	// Register .Push() method: Push(value) - appends element (alias for Add)
+	arrayHelper.Methods["push"] = types.NewProcedureType([]types.Type{nil})
 	arrayHelper.BuiltinMethods["push"] = "__array_push"
 
-	// Task 9.8: Register .Pop() method for dynamic arrays (lowercase key for case-insensitive lookup)
-	// Pop() - removes and returns last element
+	// Register .Pop() method: Pop() - removes and returns last element
 	// Use VARIANT as placeholder - will be specialized to array's element type by hasHelperMethod
 	arrayHelper.Methods["pop"] = types.NewFunctionType([]types.Type{}, types.VARIANT)
 	arrayHelper.BuiltinMethods["pop"] = "__array_pop"
 
-	// Register helper for array type (generic catch-all)
+	// Register helper for array type
 	a.helpers["array"] = append(a.helpers["array"], arrayHelper)
 
-	// Generic array helper methods
+	// Additional array helper methods
 	arrayHelper.Methods["map"] = types.NewFunctionType([]types.Type{types.NewFunctionPointerType([]types.Type{types.VARIANT}, types.VARIANT)}, types.NewDynamicArrayType(types.VARIANT))
 	arrayHelper.BuiltinMethods["map"] = "__array_map"
 	arrayHelper.Methods["join"] = types.NewFunctionType([]types.Type{types.STRING}, types.STRING)
 	arrayHelper.BuiltinMethods["join"] = "__array_join"
 }
 
-// initIntrinsicHelpers registers built-in helpers for primitive types (Integer, Float, Boolean).
-// Task 9.205: Provide default helpers used by DWScript for core types.
+// initIntrinsicHelpers registers built-in helpers for primitive types (Integer, Float, Boolean, String).
 func (a *Analyzer) initIntrinsicHelpers() {
-	// Helper registration helper to reduce duplication.
+	// Helper function to register helpers
 	register := func(typeName string, helper *types.HelperType) {
 		key := ident.Normalize(typeName)
 		if a.helpers[key] == nil {
@@ -573,7 +544,7 @@ func (a *Analyzer) initIntrinsicHelpers() {
 		a.helpers[key] = append(a.helpers[key], helper)
 	}
 
-	// Integer helper: provides ToString method/property (lowercase keys for case-insensitive lookup)
+	// Integer helper: provides ToString method/property
 	intHelper := types.NewHelperType("__TIntegerIntrinsicHelper", types.INTEGER, false)
 	intHelper.Properties["tostring"] = &types.PropertyInfo{
 		Name:      "ToString",
@@ -598,7 +569,7 @@ func (a *Analyzer) initIntrinsicHelpers() {
 	intHelper.BuiltinMethods["tohexstring"] = "__integer_tohexstring"
 	register(types.INTEGER.String(), intHelper)
 
-	// Float helper: default ToString property and precision-aware method (lowercase keys for case-insensitive lookup)
+	// Float helper: default ToString property and precision-aware method
 	floatHelper := types.NewHelperType("__TFloatIntrinsicHelper", types.FLOAT, false)
 	floatHelper.Properties["tostring"] = &types.PropertyInfo{
 		Name:      "ToString",
@@ -611,7 +582,7 @@ func (a *Analyzer) initIntrinsicHelpers() {
 	floatHelper.BuiltinMethods["tostring"] = "__float_tostring_prec"
 	register(types.FLOAT.String(), floatHelper)
 
-	// Boolean helper: ToString method/property returning 'True'/'False' (lowercase keys for case-insensitive lookup)
+	// Boolean helper: ToString method/property returning 'True'/'False'
 	boolHelper := types.NewHelperType("__TBooleanIntrinsicHelper", types.BOOLEAN, false)
 	boolHelper.Properties["tostring"] = &types.PropertyInfo{
 		Name:      "ToString",
@@ -685,34 +656,25 @@ func (a *Analyzer) initIntrinsicHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Task 9.23: Conversion helper methods
-	// .ToInteger -> StrToInt(self)
+	// Conversion helper methods
 	stringHelper.Methods["tointeger"] = types.NewFunctionType([]types.Type{}, types.INTEGER)
 	stringHelper.BuiltinMethods["tointeger"] = "__string_tointeger"
-	// .ToFloat -> StrToFloat(self)
 	stringHelper.Methods["tofloat"] = types.NewFunctionType([]types.Type{}, types.FLOAT)
 	stringHelper.BuiltinMethods["tofloat"] = "__string_tofloat"
-	// .ToString -> identity (returns self)
 	stringHelper.Methods["tostring"] = types.NewFunctionType([]types.Type{}, types.STRING)
 	stringHelper.BuiltinMethods["tostring"] = "__string_tostring"
 
-	// Task 9.23: Search/check helper methods
-	// .StartsWith(str) -> StrBeginsWith(self, str)
+	// Search/check helper methods
 	stringHelper.Methods["startswith"] = types.NewFunctionType([]types.Type{types.STRING}, types.BOOLEAN)
 	stringHelper.BuiltinMethods["startswith"] = "__string_startswith"
-	// .EndsWith(str) -> StrEndsWith(self, str)
 	stringHelper.Methods["endswith"] = types.NewFunctionType([]types.Type{types.STRING}, types.BOOLEAN)
 	stringHelper.BuiltinMethods["endswith"] = "__string_endswith"
-	// .Contains(str) -> StrContains(self, str)
 	stringHelper.Methods["contains"] = types.NewFunctionType([]types.Type{types.STRING}, types.BOOLEAN)
 	stringHelper.BuiltinMethods["contains"] = "__string_contains"
-	// .IndexOf(str) -> Pos(str, self) - note parameter order is reversed!
 	stringHelper.Methods["indexof"] = types.NewFunctionType([]types.Type{types.STRING}, types.INTEGER)
 	stringHelper.BuiltinMethods["indexof"] = "__string_indexof"
-	// .Matches(mask) -> StrMatches(self, mask)
 	stringHelper.Methods["matches"] = types.NewFunctionType([]types.Type{types.STRING}, types.BOOLEAN)
 	stringHelper.BuiltinMethods["matches"] = "__string_matches"
-	// .IsASCII property
 	stringHelper.Properties["isascii"] = &types.PropertyInfo{
 		Name:      "IsASCII",
 		Type:      types.BOOLEAN,
@@ -743,8 +705,7 @@ func (a *Analyzer) initIntrinsicHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Task 9.23: Extraction helper methods
-	// .Copy(start, len) -> Copy(self, start, len) - 2-parameter variant
+	// Extraction helper methods
 	stringHelper.Methods["copy"] = types.NewFunctionTypeWithMetadata(
 		[]types.Type{types.INTEGER, types.INTEGER},
 		[]string{"start", "length"},
@@ -755,15 +716,12 @@ func (a *Analyzer) initIntrinsicHelpers() {
 		types.STRING,
 	)
 	stringHelper.BuiltinMethods["copy"] = "__string_copy"
-	// .Before(str) -> StrBefore(self, str)
 	stringHelper.Methods["before"] = types.NewFunctionType([]types.Type{types.STRING}, types.STRING)
 	stringHelper.BuiltinMethods["before"] = "__string_before"
-	// .After(str) -> StrAfter(self, str)
 	stringHelper.Methods["after"] = types.NewFunctionType([]types.Type{types.STRING}, types.STRING)
 	stringHelper.BuiltinMethods["after"] = "__string_after"
 
-	// Task 9.23: Modification helper methods
-	// .Trim([left, right]) -> Trim variations
+	// Modification helper methods
 	stringHelper.Methods["trim"] = types.NewFunctionTypeWithMetadata(
 		[]types.Type{types.INTEGER, types.INTEGER},
 		[]string{"left", "right"},
@@ -779,10 +737,10 @@ func (a *Analyzer) initIntrinsicHelpers() {
 	stringHelper.Methods["trimright"] = types.NewFunctionType([]types.Type{types.INTEGER}, types.STRING)
 	stringHelper.BuiltinMethods["trimright"] = "__string_trimright"
 
-	// Task 9.23: Split/join helper methods
-	// .Split(delimiter) -> StrSplit(self, delimiter)
+	// Split/join helper methods
 	stringHelper.Methods["split"] = types.NewFunctionType([]types.Type{types.STRING}, types.NewDynamicArrayType(types.STRING))
 	stringHelper.BuiltinMethods["split"] = "__string_split"
+
 	// Encoding helpers
 	stringHelper.Methods["tojson"] = types.NewFunctionType([]types.Type{}, types.STRING)
 	stringHelper.BuiltinMethods["tojson"] = "__string_tojson"
@@ -803,8 +761,7 @@ func (a *Analyzer) initIntrinsicHelpers() {
 	)
 	stringHelper.BuiltinMethods["toxml"] = "__string_toxml"
 
-	// Register case-insensitive property/method aliases for DWScript compatibility
-	// Task 9.23: .uppercase -> .ToUpper, .lowercase -> .ToLower
+	// Case aliases for DWScript compatibility
 	stringHelper.Methods["uppercase"] = types.NewFunctionType([]types.Type{}, types.STRING)
 	stringHelper.BuiltinMethods["uppercase"] = "__string_toupper"
 	stringHelper.Methods["lowercase"] = types.NewFunctionType([]types.Type{}, types.STRING)
@@ -812,7 +769,7 @@ func (a *Analyzer) initIntrinsicHelpers() {
 
 	register(types.STRING.String(), stringHelper)
 
-	// String dynamic array helper: Join method (lowercase keys for case-insensitive lookup)
+	// String dynamic array helper: Join method
 	stringArrayHelper := types.NewHelperType("__TStringDynArrayIntrinsicHelper", nil, true)
 	stringArrayHelper.TargetType = types.NewDynamicArrayType(types.STRING)
 	stringArrayHelper.Methods["join"] = types.NewFunctionType([]types.Type{types.STRING}, types.STRING)
@@ -821,14 +778,12 @@ func (a *Analyzer) initIntrinsicHelpers() {
 }
 
 // initEnumHelpers registers built-in helpers for enumerated types.
-// Task 9.31: Implement enum .Value helper property
-// Also implements .Name and .QualifiedName properties
+// Implements .Value, .Name and .QualifiedName properties for all enums.
 func (a *Analyzer) initEnumHelpers() {
 	// Create a helper for the generic ENUM type
-	// Since we need to support all enum types, we'll register this for "ENUM"
 	enumHelper := types.NewHelperType("__TEnumIntrinsicHelper", nil, false)
 
-	// Task 9.31: Register .Value property (returns ordinal value) - lowercase key for case-insensitive lookup
+	// Register .Value property (returns ordinal value)
 	enumHelper.Properties["value"] = &types.PropertyInfo{
 		Name:      "Value",
 		Type:      types.INTEGER,
@@ -837,7 +792,7 @@ func (a *Analyzer) initEnumHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Register .Name property (returns enum value name as string) - lowercase key for case-insensitive lookup
+	// Register .Name property (returns enum value name as string)
 	enumHelper.Properties["name"] = &types.PropertyInfo{
 		Name:      "Name",
 		Type:      types.STRING,
@@ -846,7 +801,7 @@ func (a *Analyzer) initEnumHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Register .QualifiedName property (returns TypeName.ValueName) - lowercase key for case-insensitive lookup
+	// Register .QualifiedName property (returns TypeName.ValueName)
 	enumHelper.Properties["qualifiedname"] = &types.PropertyInfo{
 		Name:      "QualifiedName",
 		Type:      types.STRING,

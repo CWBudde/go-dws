@@ -10,12 +10,8 @@ import (
 // Class Expression Analysis Functions
 // ============================================================================
 
-// analyzeNewExpression analyzes object creation
-// Handles both:
-//   - new TClass(args)
-//   - TClass.Create(args)
-//
-// Task 9.18: NewExpression semantic validation with constructor overload resolution
+// analyzeNewExpression analyzes object creation (new TClass(args) or TClass.Create(args))
+// with constructor overload resolution and visibility checking.
 func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	className := expr.ClassName.Value
 
@@ -33,29 +29,24 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	}
 
 	// Look up class in registry
-	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
 	classType := a.getClassType(className)
 	if classType == nil {
-		// Check if it's a record type (records don't use 'new', but might use TRecord.Create() syntax)
+		// Check if it's a record type with static method call (e.g., TRecord.Create())
 		if recordType := a.getRecordType(className); recordType != nil {
-			// This is actually a record static method call (e.g., TTest.Create(...))
-			// Treat it as a static method call
 			return a.analyzeRecordStaticMethodCallFromNew(expr, recordType)
 		}
 		a.addError("undefined class '%s' at %s", className, expr.Token.Pos.String())
 		return nil
 	}
 
-	// Task 9.18: Check if trying to instantiate an abstract class
+	// Check if trying to instantiate an abstract class
 	if classType.IsAbstract {
 		a.addError("Trying to create an instance of an abstract class at [line: %d, column: %d]",
 			expr.Token.Pos.Line, expr.Token.Pos.Column)
 		return nil
 	}
 
-	// Task 9.12.3: Check if class has unimplemented abstract methods
-	// Even if the class itself is not marked abstract, it cannot be instantiated
-	// if it inherits abstract methods that haven't been implemented
+	// Check for unimplemented abstract methods (inherited but not overridden)
 	unimplementedMethods := a.getUnimplementedAbstractMethods(classType)
 	if len(unimplementedMethods) > 0 {
 		a.addError("Trying to create an instance of an abstract class at [line: %d, column: %d]",
@@ -63,14 +54,12 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		return nil
 	}
 
-	// Task 9.13-9.16: Get all constructor overloads
-	// Task 9.3: Use default constructor if specified, otherwise fall back to "Create"
+	// Get all constructor overloads
 	constructorName := a.getDefaultConstructorName(classType)
 	constructorOverloads := a.getMethodOverloadsInHierarchy(constructorName, classType)
 
 	if len(constructorOverloads) == 0 {
-		// No explicit constructor - use implicit default constructor
-		// Task 9.17: Validate that no arguments are provided for default constructor
+		// No explicit constructor - use implicit default constructor (no arguments allowed)
 		if len(expr.Arguments) > 0 {
 			a.addError("class '%s' has no constructor, cannot pass arguments at %s",
 				className, expr.Token.Pos.String())
@@ -78,25 +67,20 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		return classType
 	}
 
-	// Task 9.15: Filter out implicit parameterless constructor
-	// The implicit constructor has Visibility=0 and len(Parameters)=0 and is only added by getMethodOverloadsInHierarchy
-	// We should ignore it if there are explicit constructors with parameters
+	// Filter out implicit parameterless constructor if there are explicit constructors
 	validConstructors := make([]*types.MethodInfo, 0, len(constructorOverloads))
 	hasExplicitConstructor := false
 	for _, ctor := range constructorOverloads {
-		// Check if this is an explicit constructor (has visibility set OR has parameters)
 		if ctor.Visibility != 0 || len(ctor.Signature.Parameters) > 0 {
 			validConstructors = append(validConstructors, ctor)
 			hasExplicitConstructor = true
 		}
 	}
-
-	// If we only found implicit constructors but need explicit ones, use empty list
 	if !hasExplicitConstructor {
 		validConstructors = constructorOverloads
 	}
 
-	// Task 9.13: Select constructor based on argument count first
+	// Select constructor based on argument count first
 	var selectedConstructor *types.MethodInfo
 	var selectedSignature *types.FunctionType
 
@@ -109,9 +93,7 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	}
 
 	if len(matchingCountConstructors) == 0 {
-		// Task 9.15: No constructor with matching argument count
 		if len(validConstructors) > 0 {
-			// Report the expected count from the first constructor
 			a.addError("constructor '%s' expects %d arguments, got %d at %s",
 				constructorName, len(validConstructors[0].Signature.Parameters), len(expr.Arguments),
 				expr.Token.Pos.String())
@@ -160,7 +142,7 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		}
 	}
 
-	// Task 9.16: Check constructor visibility
+	// Check constructor visibility
 	var ownerClass *types.ClassType
 	for class := classType; class != nil; class = class.Parent {
 		if class.HasConstructor(constructorName) {
@@ -170,7 +152,6 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	}
 	if ownerClass != nil && selectedConstructor != nil {
 		visibility := selectedConstructor.Visibility
-		// Note: Visibility 0 is private, so we must check all values including 0
 		if !a.checkVisibility(ownerClass, visibility, constructorName, "constructor") {
 			visibilityStr := ast.Visibility(visibility).String()
 			a.addError("cannot access %s constructor '%s' of class '%s' at %s",
@@ -179,7 +160,7 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		}
 	}
 
-	// Task 9.14: Validate argument types (more detailed error messages)
+	// Validate argument types
 	for i, arg := range expr.Arguments {
 		if i >= len(selectedSignature.Parameters) {
 			break
@@ -197,40 +178,30 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	return classType
 }
 
-// analyzeMemberAccessExpression analyzes member access
+// analyzeMemberAccessExpression analyzes member access on classes, records, interfaces, and helpers.
 func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpression) types.Type {
-	// Analyze the object expression
 	objectType := a.analyzeExpression(expr.Object)
 	if objectType == nil {
-		// Error already reported
 		return nil
 	}
-
-	// Check if object is a class or record type
 	memberName := ident.Normalize(expr.Member.Value)
 
 	// Resolve type aliases to get the underlying type
-	// This allows member access on type alias variables like TBaseClass
 	objectTypeResolved := types.GetUnderlyingType(objectType)
 
-	// Handle record type - check for both type-level (static) and instance-level access
+	// Handle record type (static methods or instance fields/methods)
 	if recordType, ok := objectTypeResolved.(*types.RecordType); ok {
-		// Check if this is a class method (static method) access on the record TYPE itself
-		// (e.g., TTest.Create or TTest.Sum)
 		if recordType.HasClassMethod(memberName) {
 			classMethod := recordType.GetClassMethod(memberName)
 			if classMethod != nil {
 				return classMethod
 			}
 		}
-
-		// Otherwise, treat as instance field/method access
 		return a.analyzeRecordFieldAccess(expr.Object, memberName)
 	}
 
-	// Task 9.16.2: Handle interface type method access
+	// Handle interface type method access
 	if ifaceType, ok := objectTypeResolved.(*types.InterfaceType); ok {
-		// Check if the interface has this method
 		allMethods := types.GetAllInterfaceMethods(ifaceType)
 		if methodType, hasMethod := allMethods[memberName]; hasMethod {
 			return methodType
@@ -240,32 +211,24 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		return nil
 	}
 
-	// Task 9.73.2: Handle metaclass type (class of T) - allows calling constructors through metaclass
-	// Convert ClassOfType to the underlying ClassType so we can check for constructors and class members
+	// Handle metaclass type (class of T) - convert to base ClassType for constructor/class member access
 	if metaclassType, ok := objectTypeResolved.(*types.ClassOfType); ok {
 		baseClass := metaclassType.ClassType
 		if baseClass != nil {
-			// Continue with the base class type to check for constructors, class methods, and class variables
-			// This allows expressions like TBase.Create, TBase.SomeClassMethod, or TBase.ClassVar to work
 			objectTypeResolved = baseClass
 		}
 	}
-
-	// Handle class type
+	// If not a class type, check for helpers (String, Integer, Enum types, etc.)
 	classType, ok := objectTypeResolved.(*types.ClassType)
 	if !ok {
-		// Task 9.15.10: Handle .Value property on enum types
+		// Handle .Value property on enum types
 		if _, isEnum := objectTypeResolved.(*types.EnumType); isEnum {
 			if memberName == "value" {
-				// .Value returns the ordinal value as Integer
 				return types.INTEGER
 			}
-			// Continue to check helpers for other properties/methods on enums
 		}
 
-		// Task 9.83: For non-class/record types (like String, Integer), check helpers
-		// Prefer helper properties before methods so that property-style access
-		// (e.g., i.ToString) resolves correctly when parentheses are omitted.
+		// Check helpers (prefer properties before methods for property-style access)
 		_, helperProp := a.hasHelperProperty(objectType, memberName)
 		if helperProp != nil {
 			return helperProp.Type
@@ -273,31 +236,22 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 
 		_, helperMethod := a.hasHelperMethod(objectType, memberName)
 		if helperMethod != nil {
-			// Task 9.8.5: Auto-invoke parameterless helper methods when accessed without ()
-			// This allows arr.Pop to work the same as arr.Pop()
 			if len(helperMethod.Parameters) == 0 {
-				// Parameterless method - auto-invoke and return the return type
 				return helperMethod.ReturnType
 			}
-			// Method has parameters - return the method type for deferred invocation
 			return helperMethod
 		}
 
-		// Check for helper class variables
 		_, helperClassVar := a.hasHelperClassVar(objectType, memberName)
 		if helperClassVar != nil {
 			return helperClassVar
 		}
 
-		// Task 9.54: Check for helper class constants (for scoped enum access like TColor.Red)
 		_, helperConst := a.hasHelperClassConst(objectType, memberName)
 		if helperConst != nil {
-			// For enum types, the constant is the enum value, so return the enum type itself
 			if _, isEnum := objectTypeResolved.(*types.EnumType); isEnum {
 				return objectType
 			}
-			// For other types, we'd need to determine the constant's type
-			// For now, return the object type (conservative approach)
 			return objectType
 		}
 
@@ -306,25 +260,22 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		return nil
 	}
 
-	// Handle built-in properties/methods available on all objects (inherited from TObject)
+	// Handle built-in properties on all objects (inherited from TObject)
 	if memberName == "classname" {
 		if expr.Member.Value != "ClassName" {
 			pos := expr.Token.Pos
 			pos.Column++
 			a.addCaseMismatchHint(expr.Member.Value, "ClassName", pos)
 		}
-		// ClassName returns String
 		return types.STRING
 	}
 	if memberName == "classtype" {
-		// ClassType returns the metaclass (class of T) for the object's runtime type
 		return types.NewClassOfType(classType)
 	}
 
-	// Look up field in class (including inherited fields)
+	// Look up field (including inherited fields)
 	fieldType, found := classType.GetField(memberName)
 	if found {
-		// Check field visibility
 		fieldOwner := a.getFieldOwner(classType, memberName)
 		if fieldOwner != nil {
 			visibility, hasVisibility := fieldOwner.FieldVisibility[memberName]
@@ -338,10 +289,9 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		return fieldType
 	}
 
-	// Task 9.5.3: Look up class variable in class (including inherited class vars)
+	// Look up class variable (including inherited class vars)
 	classVarType, foundClassVar := classType.GetClassVar(memberName)
 	if foundClassVar {
-		// Check class variable visibility
 		classVarOwner := a.getClassVarOwner(classType, memberName)
 		if classVarOwner != nil {
 			visibility, hasVisibility := classVarOwner.ClassVarVisibility[memberName]
@@ -355,14 +305,13 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		return classVarType
 	}
 
-	// Task 9.3: Look up property in class (including inherited properties)
+	// Look up property (including inherited properties)
 	propInfo, propFound := classType.GetProperty(memberName)
 	if propFound {
-		// Property access returns the property type
 		return propInfo.Type
 	}
 
-	// Task 9.68: Check for constructors first (constructors are stored separately)
+	// Look up constructor (constructors are stored separately)
 	constructorOverloads := classType.GetConstructorOverloads(memberName)
 	if len(constructorOverloads) > 0 {
 		if memberName == "create" && expr.Member.Value != "Create" {
@@ -370,8 +319,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			pos.Column++
 			a.addCaseMismatchHint(expr.Member.Value, "Create", pos)
 		}
-		// Task 9.21: Check if this is a parameterless constructor
-		// Parameterless constructors can be called without parentheses (auto-invoked)
+		// Check if parameterless (auto-invoked when accessed without parentheses)
 		hasParameterless := false
 		for _, ctor := range constructorOverloads {
 			if len(ctor.Signature.Parameters) == 0 {
@@ -379,23 +327,17 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 				break
 			}
 		}
-
-		// If there's a parameterless constructor, treat member access as auto-invocation
-		// and return the class type directly (not a method pointer)
 		if hasParameterless {
 			return classType
 		}
-
-		// Constructor has parameters - return method pointer type for deferred invocation
+		// Constructor has parameters - return method pointer for deferred invocation
 		if len(constructorOverloads) == 1 {
 			return types.NewMethodPointerType(constructorOverloads[0].Signature.Parameters, classType)
 		}
-		// Multiple constructor overloads - return a generic constructor pointer type
-		// The actual overload will be resolved at call time
 		return types.NewMethodPointerType([]types.Type{}, classType)
 	}
 
-	// Look up method in class (for method references)
+	// Look up method (including inherited methods)
 	methodType, found := classType.GetMethod(memberName)
 	if found {
 		if memberName == "free" && expr.Member.Value != "Free" {
@@ -403,10 +345,8 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			pos.Column++
 			a.addCaseMismatchHint(expr.Member.Value, "Free", pos)
 		}
-		// Check method visibility - Task 9.16.1
 		methodOwner := a.getMethodOwner(classType, memberName)
 		if methodOwner != nil {
-			// Use normalized key for case-insensitive lookup
 			visibility, hasVisibility := methodOwner.MethodVisibility[ident.Normalize(memberName)]
 			if hasVisibility && !a.checkVisibility(methodOwner, visibility, memberName, "method") {
 				visibilityStr := ast.Visibility(visibility).String()
@@ -415,62 +355,48 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 				return nil
 			}
 		}
-		// In DWScript/Pascal, parameterless methods can be called without parentheses
-		// When referenced via member access, they should be treated as implicit calls
+		// Parameterless methods are auto-invoked when accessed without parentheses
 		if len(methodType.Parameters) == 0 {
-			// Implicit call - return the method's return type
 			if methodType.ReturnType == nil {
-				// Procedure (no return value)
 				return types.VOID
 			}
 			return methodType.ReturnType
 		}
-
-		// Methods with parameters cannot be called without parentheses
-		// Return a method pointer type for deferred invocation
+		// Methods with parameters return method pointer for deferred invocation
 		return types.NewMethodPointerType(methodType.Parameters, methodType.ReturnType)
 	}
 
-	// Task 9.83: Check helpers for methods
-	// If not found in class, check if any helpers extend this type
+	// Check helpers for methods
 	_, helperMethod := a.hasHelperMethod(objectType, memberName)
 	if helperMethod != nil {
-		// Task 9.8.5: Auto-invoke parameterless helper methods when accessed without ()
-		// This allows arr.Pop to work the same as arr.Pop()
 		if len(helperMethod.Parameters) == 0 {
-			// Parameterless method - auto-invoke and return the return type
 			return helperMethod.ReturnType
 		}
-		// Method has parameters - return the method type for deferred invocation
 		return helperMethod
 	}
 
-	// Task 9.83: Check helpers for properties
+	// Check helpers for properties
 	_, helperProp := a.hasHelperProperty(objectType, memberName)
 	if helperProp != nil {
 		return helperProp.Type
 	}
 
-	// Task 9.22: Check for class constants (with inheritance support)
-	// Task 9.2: Use case-insensitive comparison for constant lookup
+	// Check for class constants (including inherited constants)
 	if constType := a.findClassConstantWithVisibility(classType, memberName, expr.Token.Pos.String()); constType != nil {
 		return constType
 	}
 
-	// Member not found
 	a.addError("class '%s' has no member '%s' at %s",
 		classType.Name, expr.Member.Value, expr.Token.Pos.String())
 	return nil
 }
 
-// analyzeRecordStaticMethodCallFromNew handles NewExpression when it's actually a record static method call
-// This happens when the parser generates a NewExpression for TRecord.Create(...) syntax
+// analyzeRecordStaticMethodCallFromNew handles record static method calls that use NewExpression syntax.
+// This occurs when the parser encounters TRecord.Create(...) which generates a NewExpression.
 func (a *Analyzer) analyzeRecordStaticMethodCallFromNew(expr *ast.NewExpression, recordType *types.RecordType) types.Type {
-	// Assume "Create" as the method name (standard DWScript pattern)
 	methodName := "Create"
 	lowerMethodName := ident.Normalize(methodName)
 
-	// Look up class method overloads
 	overloads := recordType.GetClassMethodOverloads(lowerMethodName)
 	if len(overloads) == 0 {
 		a.addError("record type '%s' has no class method '%s' at %s",
@@ -478,7 +404,6 @@ func (a *Analyzer) analyzeRecordStaticMethodCallFromNew(expr *ast.NewExpression,
 		return nil
 	}
 
-	// Resolve overload based on arguments
 	argTypes := make([]types.Type, len(expr.Arguments))
 	for i, arg := range expr.Arguments {
 		argType := a.analyzeExpression(arg)
@@ -487,8 +412,6 @@ func (a *Analyzer) analyzeRecordStaticMethodCallFromNew(expr *ast.NewExpression,
 		}
 		argTypes[i] = argType
 	}
-
-	// Find matching overload
 	candidates := make([]*Symbol, len(overloads))
 	for i, overload := range overloads {
 		candidates[i] = &Symbol{
@@ -504,8 +427,6 @@ func (a *Analyzer) analyzeRecordStaticMethodCallFromNew(expr *ast.NewExpression,
 	}
 
 	funcType := selected.Type.(*types.FunctionType)
-
-	// Validate argument types
 	for i, arg := range expr.Arguments {
 		if i >= len(funcType.Parameters) {
 			break
