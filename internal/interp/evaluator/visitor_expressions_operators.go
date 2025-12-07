@@ -87,6 +87,11 @@ func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *Execu
 
 	// Object, interface, class, and nil comparisons (= and <>)
 	case node.Operator == "=" || node.Operator == "<>":
+		// Validate type compatibility for equality operators
+		// Reject primitive type mismatches
+		if !areEqualityCompatible(left, right) {
+			return e.newError(node, "type mismatch: %s %s %s", left.Type(), node.Operator, right.Type())
+		}
 		return e.evalEqualityComparison(node.Operator, left, right, node)
 
 	default:
