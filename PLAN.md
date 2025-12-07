@@ -128,458 +128,97 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-# Phase 3.8: Environment Synchronization & Binary Operations Migration
-
-**Goal**: Migrate binary operations to evaluator with proper environment synchronization
-
-**Status**: 📋 Planned | **Priority**: High | **Approach**: 🟡 Conservative | **Effort**: 2-3 weeks
-
-## Problem (Identified 2025-12-06)
-
-**Failed Attempt**: Commit af2ba646 attempted to migrate binary operations to evaluator by:
-- Deleting `internal/interp/expressions_binary.go` (-944 LOC)
-- Delegating `Interpreter.Eval(BinaryExpression)` to `evaluator.EvaluateBinaryExpression()`
-
-**Result**: **139 test failures** due to environment desynchronization.
-
-### Root Cause
-
-The Interpreter maintains **two environment references**:
-1. `i.env` - Used by Interpreter.Eval() methods
-2. `i.ctx.env` - Used by Evaluator visitor methods
+# Phase 3.8: Expression Delegation & Code Cleanup
 
-**30+ locations** in the codebase create new enclosed environments and set `i.env` without syncing `i.ctx.env`:
+**Goal**: Complete expression delegation to evaluator and remove obsolete interpreter code
 
-```go
-// BROKEN PATTERN (appears 30+ times):
-lambdaEnv := NewEnclosedEnvironment(closureEnv)
-i.env = lambdaEnv  // ✗ Only updates i.env
-// Missing: i.ctx.SetEnv(evaluator.NewEnvironmentAdapter(lambdaEnv))
-```
+**Status**: ⏳ In Progress | **Priority**: High | **Approach**: 🟡 Conservative
 
-**Impact Locations**:
-- `statements_loops.go`: For loops (2 instances)
-- `functions_pointers.go`: Lambda execution (4 error paths)
-- `adapter_functions.go`: Function pointer calls (3 instances)
-- `adapter_methods.go`: Method dispatch (10+ instances)
-- `adapter_objects.go`: Object instantiation (3 instances)
-- `declarations.go`: Type/function declarations (5+ instances)
-- `exceptions.go`: Try/except blocks (2 instances)
-- `functions_records.go`: Record methods (2 instances)
-- `objects_hierarchy.go`: Inheritance (2 instances)
-- And more...
-
-### Why This Happened
-
-**Phase 3.5-3.7** built the Evaluator infrastructure assuming it could share `i.env` directly. However:
-- Interpreter uses `*Environment` (concrete type from `internal/interp`)
-- Evaluator uses `Environment` (interface from `internal/interp/evaluator`)
-- Migration requires adapter: `evaluator.NewEnvironmentAdapter(i.env)`
-- **No systematic audit** was done of all environment-changing code paths before the migration
-
-## Solution: Phased Migration with Environment Sync
-
-### Phase 3.8.1: Environment Management Audit (1 week) ✅ **COMPLETE**
-
-**Goal**: Document all environment modification points and create safe migration helpers.
-
-**Completed**: 2025-12-06 | **Effort**: 8 hours
-
-**Summary**:
-
-- ✅ **149 `i.env =` assignments** documented across 17 files
-- ✅ **Helper methods** implemented with 100% test coverage
-- ✅ **Test baseline** verified (892 fixture failures, no new failures)
-- ✅ **Documentation** complete (audit + migration guide)
-
-**Tasks**:
-
-- [x] **3.8.1.1** Complete Environment Audit (2 days)
-  - Grep for all `i.env =` assignments
-  - Document each location with context (function, purpose, error paths)
-  - Categorize: loops, functions, methods, objects, exceptions, declarations
-  - **Deliverable**: `docs/environment-audit.md` with full inventory
-  - **Result**: 149 assignments found across 17 files, 100% restoration coverage, 0% sync
-
-- [x] **3.8.1.2** Create Environment Management Helpers (1 day)
-  ```go
-  // SetEnvironment atomically updates both i.env and i.ctx
-  func (i *Interpreter) SetEnvironment(env *Environment) {
-      i.env = env
-      i.ctx.SetEnv(evaluator.NewEnvironmentAdapter(env))
-  }
-
-  // PushEnvironment creates enclosed env and sets both references
-  func (i *Interpreter) PushEnvironment(parent *Environment) *Environment {
-      newEnv := NewEnclosedEnvironment(parent)
-      i.SetEnvironment(newEnv)
-      return newEnv
-  }
-
-  // RestoreEnvironment restores previous env in both places
-  func (i *Interpreter) RestoreEnvironment(saved *Environment) {
-      i.SetEnvironment(saved)
-  }
-  ```
-  - **Implementation**: `internal/interp/interpreter.go:291-363`
-  - **Tests**: `internal/interp/environment_helpers_test.go` (5 tests, all passing)
-  - **Documentation**: Added comprehensive usage examples
-
-- [x] **3.8.1.3** Verify Current State (1 day)
-  - Test baseline: 892 fixture failures (no new failures introduced)
-  - All new helper tests pass (100% coverage)
-  - Documented evaluator/interpreter split boundaries in audit report
-
-- [x] **3.8.1.4** Create Migration Checklist (1 day)
-  - Prioritized 13 categories by risk (CRITICAL → LOW)
-  - Defined test strategy for each category
-  - Planned incremental commits (one category at a time)
-  - Estimated effort: 6.5 days for Phase 3.8.2
-
-**Deliverables**:
-
-- 📄 [docs/environment-audit.md](docs/environment-audit.md) - Complete inventory of 149 assignments
-- 📄 [docs/environment-migration-guide.md](docs/environment-migration-guide.md) - Helper usage guide for Phase 3.8.2
-- 🔧 [internal/interp/interpreter.go](internal/interp/interpreter.go) - Three helper methods
-- ✅ [internal/interp/environment_helpers_test.go](internal/interp/environment_helpers_test.go) - 5 passing tests
-
-**Ready for**: Phase 3.8.2 (Incremental Environment Sync Migration)
-
-### Phase 3.8.2: Incremental Environment Sync Migration (1-2 weeks)
-
-**Approach**: Migrate one category at a time, verify tests after each.
-
-- [x] **3.8.2.1** Migrate Loop Environments ✅ **COMPLETE** (2025-12-06)
-  - Replaced all 15 `i.env =` assignments with helper methods
-  - For loops: 7 assignments (ascending/descending with steps)
-  - For-in loops: 8 assignments (arrays, sets, enum types, strings)
-  - **Tests**: ✅ All loop and array tests pass, fixture baseline maintained (892)
-  - **Commit**: fc33bf80
-
-- [x] **3.8.2.2** Migrate Lambda Environments ✅ **COMPLETE** (2025-12-06)
-  - Migrated `callLambda()` in `functions_pointers.go` (7 assignments)
-  - Migrated method pointer execution in `adapter_functions.go` (2 assignments)
-  - Handled all error paths (recursion, execution error, exception, return)
-  - Fixed duplicate case statements in `builtins_context.go` (compilation issue)
-  - **Tests**: ✅ All lambda/closure/function pointer tests pass (15 tests), fixture baseline improved (890, down from 892)
-
-- [x] **3.8.2.3a** Migrate Method Dispatch Environments (adapter_methods.go) ✅ **COMPLETE** (2025-12-06)
-  - Migrated all 24 assignments in `adapter_methods.go`
-  - Class methods, constructors, interface methods, record methods
-  - Method infrastructure (CallObjectMethod, CallInheritedMethod, CallMethodOnSelf)
-  - **Tests**: ✅ All method/class/helper tests pass (50+ tests), fixture baseline maintained (890)
-  - **Commit**: 3738d2fa
-
-- [x] **3.8.2.3b** Migrate Object Method Environments (objects_methods.go) ✅ **COMPLETE** (2025-12-06)
-  - Migrated all 23 assignments in `objects_methods.go`
-  - Sections: Implicit constructors, field initialization, instance methods, ClassValue constructors, virtual dispatch, executeClassMethod
-  - All methodEnv.Define() calls updated, all error paths with RestoreEnvironment()
-  - **Tests**: ✅ All object/method/class/constructor tests pass (60+ tests), fixture baseline maintained (890)
-  - **Commit**: d4840c66
-
-- [x] **3.8.2.5** Migrate Object/Class Environments ✅ **COMPLETE** (2025-12-06)
-  - Migrated all 13 assignments in `adapter_objects.go` (7) and `objects_instantiation.go` (6)
-  - Sections: CreateObject field init/constructor, ExecuteConstructor, evalNewExpression field init/constructor
-  - Fixed unrelated build error: missing lexer import in builtins/conversion.go
-  - All methodEnv.Define() calls updated, all error paths with RestoreEnvironment()
-  - **Tests**: ✅ All object/constructor/instantiation tests pass, fixture baseline improved to 887 (-3)
-  - **Commit**: 73ad16b6
-
-- [x] **3.8.2.6** Migrate Exception Handling Environments ✅ **COMPLETE** (2025-12-06)
-  - Migrated all 2 assignments in `exceptions.go`
-  - Section: evalExceptClause exception handler scope for exception variable binding
-  - Updated handlerEnv.Define() for exception variable, environment properly restored
-  - **Tests**: ✅ All exception/try/raise/finally tests pass, fixture baseline improved to 886 (-1)
-  - **Commit**: 9830d86a
-
-- [x] **3.8.2.7** Migrate Declaration Environments ✅ **COMPLETE** (2025-12-06)
-  - Migrated all 8 assignments in `declarations.go`
-  - Sections: Class declaration context (defer), class constants eval, field type inference, class var init
-  - All tempEnv.Define() calls properly scoped, all error paths with RestoreEnvironment()
-  - **Tests**: ✅ All class/type/declaration/interface tests pass, fixture baseline maintained at 886
-  - **Commit**: 88efffb8
-
-- [x] **3.8.2.8** Migrate Property Access Environments ✅ **COMPLETE** (2025-12-06)
-  - Migrated all 22 assignments in `objects_properties.go`
-  - Methods: evalPropertyRead (6), evalClassPropertyRead (4), evalClassPropertyWrite (4), evalIndexedPropertyRead (2), evalIndexedPropertyWrite (2), evalPropertyWrite (4)
-  - All property getter/setter environments migrated to PushEnvironment/RestoreEnvironment pattern
-  - Special logic preserved: class variable synchronization in evalClassPropertyWrite (lines 492-496, 528-532)
-  - **Tests**: ✅ All property/indexed property/class property tests pass, fixture baseline maintained at 886
-  - **Commit**: 8e4cf9bc
-
-- [x] **3.8.2.9** Migrate Record Method Environments ✅ **COMPLETE** (2025-12-06)
-  - Migrated all 10 assignments in `functions_records.go`
-  - Functions: evalRecordMethodCall (6 assignments), callRecordStaticMethod (4 assignments)
-  - Migrated lines: 77-79→78-79 (setup), 130, 179, 187, 193, 281 (evalRecordMethodCall); 326-328→327-328 (setup), 332, 397, 441 (callRecordStaticMethod)
-  - All record-specific behavior preserved: value type semantics, copy-back operations, class variable persistence
-  - **Tests**: ✅ All record/method/property tests pass, fixture baseline maintained at 886
-  - **Commit**: 1841f1fb
-
-- [x] **3.8.2.10** Migrate Evaluator Integration Callbacks ✅ **COMPLETE** (2025-12-06)
-  - Migrated all 6 assignments in `user_function_callbacks.go`
-  - Functions: createInterfaceCleanupCallback (1), cleanupInterfaceReferencesForEnv (2), createEnvSyncerCallback (3)
-  - Migrated lines: 183 (cleanup restore), 217 (set concrete env), 219 (cleanup restore), 247 (sync set), 252 (sync set fallback), 264 (sync restore)
-  - Critical integration point preserved: EnvSyncer callback atomically syncs both i.env and i.ctx.env
-  - Interface cleanup properly uses synchronized environments for ref counting
-  - **Tests**: ✅ All non-fixture tests pass, fixture baseline maintained at 886
-  - **Commit**: 634e16c3
-
-- [x] **3.8.2.11** Migrate Operator Overload Environments ✅ **COMPLETE** (2025-12-06)
-  - Migrated all 6 assignments in `operators_eval.go`
-  - Functions: invokeInstanceOperatorMethod (3 assignments), invokeClassOperatorMethod (3 assignments)
-  - Migrated lines: 66-68→67-68 (instance setup), 97 (instance error), 106 (instance success), 119-121→120-121 (class setup), 150 (class error), 159 (class success)
-  - Changed extractReturnValue calls to use i.env (current method environment) instead of captured methodEnv
-  - Operator overload dispatch properly synchronized for both instance and class methods
-  - **Tests**: ✅ All non-fixture tests pass, fixture baseline improved to 884 (-2)
-  - **Commit**: 24f26f5b
-
-- [x] **3.8.2.12** Migrate Parent Class Call Environments ✅ **COMPLETE** (2025-12-06)
-  - Migrated all 4 assignments in `objects_hierarchy.go`
-  - Functions: evalInheritedExpression (2 assignments), getClassConstant (2 assignments)
-  - Migrated lines: 788-789→788-789 (inherited setup), 832 (inherited restore), 890 (constant setup), 892 (constant restore)
-  - Parent class method invocation properly synchronized (Self, **CurrentClass**, parameters, Result)
-  - Lazy class constant evaluation preserved with sibling constant access
-  - **Tests**: ✅ All 1163 non-fixture tests pass, fixture baseline improved to 884 (maintained)
-  - **Commit**: a6778ea9
-
-- [x] **3.8.2.13** Migrate Helper Method Environments ✅ **COMPLETE** (2025-12-06)
-  - Migrated all 3 assignments in `helpers_validation.go`
-  - Function: callHelperMethod (3 assignments: setup, error restore, success restore)
-  - Migrated lines: 240-241→240-241 (setup), 277 (error path), 303 (success path)
-  - Helper method execution properly synchronized (Self binding, class vars/consts inheritance, parameters, Result)
-  - Both error and success return paths properly restore environment
-  - **Tests**: ✅ All 23 helper tests pass, all 1163 non-fixture tests pass, fixture baseline maintained at 884
-  - **Commit**: ba48de2b
-
-- [x] **3.8.2.14** Migrate Remaining Misc Environments ✅ **COMPLETE** (2025-12-06)
-  - Migrated all 4 assignments in `statements_control.go` (2) and `interface.go` (2)
-  - Functions: tryCallClassOperator (2 assignments with defer pattern), runDestructor (2 assignments)
-  - Migrated lines: statements_control.go 348-349→348-349 (setup, defer restore); interface.go 429-430→429-430 (setup), 450 (restore)
-  - Class operator method invocation properly synchronized (Self binding, parameters)
-  - Destructor execution properly synchronized (Self binding, class constants, destroy call depth tracking)
-  - **Tests**: ✅ All 1163 non-fixture tests pass, fixture baseline maintained at 884
-  - **Commit**: dd6efedb
-
-**Phase 3.8.2 Progress**: 149 of 149 assignments migrated (100%). ✅ **COMPLETE!**
-
-### Phase 3.8.3: Binary Operations Migration - ⚠️ **BLOCKED**
-
-**Status**: Migration attempted TWICE and **ROLLED BACK** (2025-12-06)
-
----
-
-**Second Attempt Summary** (2025-12-06 - Latest):
-- **Action**: Fixed ErrorValue type incompatibility (3.8.3.0a) then attempted delegation
-- **Changes**:
-  - Replaced `evaluator.ErrorValue` with `runtime.ErrorValue` (9 files)
-  - Updated 27 test files for error type compatibility
-  - Delegated `Interpreter.Eval(BinaryExpression)` to `evaluator.VisitBinaryExpression()`
-- **Result**: ❌ **5 new test failures** (vs 0 baseline)
-- **Action**: ✅ Full rollback to baseline, ErrorValue fixes KEPT
-
-**Failures Found in Second Attempt**:
-
-1. **Helper Method Context Loss** ❌ **CRITICAL BLOCKER** (3 failures)
-   - Tests: `TestHelperProperty`, `TestHelperWithRecordKeyword`, `TestHelperMethodOnRecord`
-   - Error: `"member 'X' not found on value of type 'TPoint'"`
-   - Code: `Result := Self.X + Self.Y` in helper method ([helpers_test.go:284](internal/interp/helpers_test.go#L284))
-   - **Root Cause**: Evaluator loses helper method's `Self` binding during nested binary expression evaluation
-
-2. **Interface Nil Cast Failure** ❌ **BLOCKER** (1 failure)
-   - Test: `TestInterfaceReferenceTests/interface_nil_cast_from_intf`
-   - Expected: "Ok", Got: empty output
-   - **Root Cause**: Interface casting behavior differs between Interpreter and Evaluator
-
-3. **Lambda/ForEach Context Panic** ❌ **BLOCKER** (1 failure)
-   - Test: `TestForEachBasic`
-   - Panic at: `builtins_context.go:556`
-   - **Root Cause**: Lambda closure environment not synchronized with evaluator
-
-**Progress**: ErrorValue type compatibility ✅ FIXED and KEPT (prerequisite 3.8.3.0a complete)
-
----
-
-**First Attempt Summary** (2025-12-06 - Original):
-- Deleted `expressions_binary.go` (945 lines)
-- Delegated `Interpreter.Eval(BinaryExpression)` to evaluator
-- Created helper for Variant compound assignments
-- **Result**: ❌ **10 new test failures** (11 total vs 1 baseline)
-- **Action**: Full rollback to baseline ✅
-
-**Issues Found in First Attempt**:
-
-1. **Missing Error Location Information** (5+ failures)
-   - Evaluator errors lack source location context
-   - Example: `"ERROR: division by zero"` instead of `"ERROR [line: 2]: division by zero"`
-   - **Root Cause**: Evaluator doesn't track `currentNode` like Interpreter
-   - **Status**: ✅ FIXED in second attempt (prerequisite 3.8.3.0a)
-
-2. **Coalesce Operator Semantic Difference** (1 failure)
-   - Test: `TestEvalCoalesceWithArrays` - empty array `??` fallback fails
-   - **Root Cause**: Evaluator's `isFalsey()` differs from Interpreter
-   - **Status**: DEFERRED (not observed in second attempt, may be fixed)
-
-3. **Helper Method Issues** (3 failures)
-   - Tests: `TestHelperMethodOnRecord`, `TestHelperProperty`, `TestHelperWithRecordKeyword`
-   - **Status**: ❌ REPRODUCED in second attempt - now CRITICAL BLOCKER (see above)
-
-4. **Other Failures**: `TestArrayAssignment_WithRecords`, `TestClassConstantInInstanceMethod`, `TestEnumNameProperty`
-   - **Status**: Not reproduced in second attempt (may have been related to ErrorValue issue)
-
-**Prerequisites (must complete before retry)**:
-
-- [x] **3.8.3.0a** Fix Evaluator Error Type Compatibility ✅ **COMPLETE** (2025-12-06)
-  - **Problem**: Evaluator used separate `evaluator.ErrorValue` type, incompatible with `*runtime.ErrorValue` and `*interp.ErrorValue`
-  - **Solution**:
-    - Removed `evaluator.ErrorValue` type definition from `visitor_expressions_errors.go`
-    - Updated `newError()` to return `*runtime.ErrorValue`
-    - Fixed `runtime.ErrorValue.String()` to include "ERROR: " prefix (matching Interpreter format)
-    - Updated 9 evaluator files to use `runtime.ErrorValue` (var_params.go, type_casts.go, result.go, etc.)
-    - Updated 27 test files to handle both error types using `val.String()`
-  - **Files Modified**:
-    - [internal/interp/evaluator/visitor_expressions_errors.go](internal/interp/evaluator/visitor_expressions_errors.go) - Use runtime.ErrorValue
-    - [internal/interp/runtime/primitives.go](internal/interp/runtime/primitives.go#L602) - Added "ERROR: " prefix
-    - Error location tracking verified: ✅ `TestErrorMessagesIncludeLocation` passes
-  - **Tests**: ✅ All evaluator tests pass, error format matches Interpreter
-
-- [x] **3.8.3.0b** Fix Helper Method Context Preservation ✅ **COMPLETE** (2025-12-06)
-  - **Problem**: Evaluator's member access used `switch obj.Type()` which failed for records
-  - **Root Cause**: `RecordValue.Type()` returns specific type name (e.g., "TPoint") instead of generic "RECORD" string
-  - **Solution**:
-    - Added type assertion for `RecordInstanceValue` interface BEFORE switch statement
-    - Changed from `case "RECORD":` pattern to `if recVal, ok := obj.(RecordInstanceValue); ok`
-    - This matches Interpreter's pattern and handles ALL record types
-  - **Files Modified**:
-    - [internal/interp/evaluator/visitor_expressions_members.go](internal/interp/evaluator/visitor_expressions_members.go#L240-L263) - Added RecordInstanceValue type assertion
-    - [internal/interp/evaluator/visitor_expressions_functions.go](internal/interp/evaluator/visitor_expressions_functions.go#L378-L389) - Moved implicit Self method check AFTER built-in functions
-    - [internal/interp/evaluator/visitor_expressions_errors.go](internal/interp/evaluator/visitor_expressions_errors.go#L21) - Updated error format to `[line: N, column: M]`
-    - [internal/interp/evaluator/binary_ops.go](internal/interp/evaluator/binary_ops.go#L272) - Updated type mismatch error messages
-    - [internal/interp/errors.go](internal/interp/errors.go#L60) - Updated Interpreter error format to match
-  - **Additional Fixes**:
-    - Fixed implicit Self method call ordering (IntToStr shadowing issue)
-    - Unified error message format across Interpreter and Evaluator
-    - Fixed type mismatch error messages to include "type mismatch" string
-  - **Tests**: ✅ All helper tests pass (`TestHelperProperty`, `TestHelperWithRecordKeyword`, `TestHelperMethodOnRecord`)
-  - **Regression Tests**: ✅ `TestClassConstantInInstanceMethod`, `TestErrorMessagesIncludeLocation`, `TestTypeMismatch` all pass
-
-- [x] **3.8.3.0c** Fix Interface Nil Cast Behavior ✅ **COMPLETE** (2025-12-06)
-  - **Problem**: Interface nil cast test fails with evaluator
-  - **Symptom**: `TestInterfaceReferenceTests/interface_nil_cast_from_intf` - Expected "Ok", got empty output
-  - **Root Cause**: Evaluator's nil comparison used `String() == "nil"` instead of checking `Object == nil`
-    - `InterfaceInstance{Object: nil}.String()` returns `"IMyInterface instance (nil)"`, not `"nil"`
-    - Comparison at `binary_ops.go:565` failed because string didn't match
-  - **Solution**:
-    - Fixed nil-to-interface comparison to use `InterfaceInstanceValue.GetUnderlyingObjectValue() == nil`
-    - Fixed interface-to-interface comparison to use pointer equality instead of string comparison
-    - Updated [internal/interp/evaluator/binary_ops.go](internal/interp/evaluator/binary_ops.go#L558-582) (lines 558-582, 622-639)
-  - **Files Modified**:
-    - [internal/interp/evaluator/binary_ops.go](internal/interp/evaluator/binary_ops.go) - Fixed interface comparison logic
-  - **Tests**: ✅ `TestInterfaceReferenceTests/interface_nil_cast_from_intf` now passes
-  - **Baseline**: No new test failures introduced (4 pre-existing failures maintained)
-
-- [x] **3.8.3.0d** Fix Lambda/ForEach Context Issues ✅ **COMPLETE** (2025-12-06)
-  - **Problem**: ForEach builtin panics when evaluator handles binary expressions
-  - **Symptom**: `TestForEachBasic` panics: `interface conversion: interface is nil, not runtime.Value`
-  - **Root Cause Analysis**:
-    1. **Lambda Closure Environment Mismatch**: Lambdas created by Evaluator store `evaluator.Environment` adapter as closure, but `callFunctionPointer` expected concrete `*Environment`
-    2. **Nil Type Assertion Panic**: `visitor_expressions_identifiers.go:32` used direct type assertion `val := valRaw.(Value)` which panics on untyped nil interface{}
-    3. **Environment.Get() Behavior**: When environment contains nil value, `Get()` returns `(nil, true)` - nil is untyped, not a typed Value
-  - **Solution** (Two-part fix):
-    1. **Adapter Unwrapping** ([internal/interp/functions_pointers.go](internal/interp/functions_pointers.go#L20-42)):
-       - Added logic to unwrap `evaluator.Environment` adapter to concrete `*Environment`
-       - Supports both direct `*Environment` and adapter-wrapped closures
-       - Uses `Underlying()` method to extract concrete environment
-    2. **Defensive Nil Handling** ([internal/interp/evaluator/env_adapter.go](internal/interp/evaluator/env_adapter.go#L61-78)):
-       - Added nil check in `EnvironmentAdapter.Get()` to convert untyped nil to `&runtime.NilValue{}`
-       - Prevents panic in type assertions when environment contains nil values
-       - Maintains semantic correctness (nil variables are represented as NilValue)
-  - **Files Modified**:
-    - [internal/interp/functions_pointers.go](internal/interp/functions_pointers.go#L20-42) - Lambda closure adapter unwrapping
-    - [internal/interp/evaluator/env_adapter.go](internal/interp/evaluator/env_adapter.go#L67-73) - Defensive nil handling
-  - **Tests**: ✅ `TestForEachBasic` now passes
-  - **Regression Testing**: ✅ No new failures introduced - 7 failing tests are all PRE-EXISTING:
-    - Baseline (main): 5 failures (TestDivisionByZero, TestDWScriptFixtures, TestEnumNameProperty, TestForEachBasic, TestInterfaceReferenceTests)
-    - With fix: 5 failures (same as baseline, minus TestForEachBasic, no new failures)
-
-- [x] **3.8.3.0e** Coalesce Operator Semantics ✅ **COMPLETE** (2025-12-06)
-  - **Original Issue**: `TestEvalCoalesceWithArrays` - empty array `??` fallback fails
-  - **Testing**: ✅ All coalesce tests pass (`TestEvalCoalesceWithArrays`, `TestEvalCoalesceOperator`)
-  - **Result**: Issue was already resolved by ErrorValue fix (3.8.3.0a)
-  - **Conclusion**: No additional fix needed
-
-- [x] **3.8.3.0f** Binary Operations Delegation ✅ **COMPLETE** (commit 60186432)
-  - **Status**: Binary operations delegation was ALREADY IMPLEMENTED in commit 60186432
-  - **Implementation**: [internal/interp/interpreter.go:556](internal/interp/interpreter.go#L556) - delegates to `evaluator.VisitBinaryExpression()`
-  - **Test Results**: ✅ All 1163 non-fixture tests pass
-  - **Test Categories Verified**:
-    - ✅ Basic arithmetic (integer, float, string)
-    - ✅ Comparison operators
-    - ✅ Boolean operators (and, or, not, xor)
-    - ✅ Short-circuit evaluation (??, and, or)
-    - ✅ Binary ops in helper method context (fixed by 3.8.3.0b)
-    - ✅ Binary ops in lambda/closure context (fixed by 3.8.3.0d)
-    - ✅ Binary ops with interface values (fixed by 3.8.3.0c)
-    - ✅ Binary ops with coalesce operator (verified by 3.8.3.0e)
-  - **Code Cleanup**: `internal/interp/expressions_binary.go` (944 LOC) is now obsolete
-    - Only `isFalsey()` still used by test files
-    - Can be deleted after migrating test dependencies
-
----
-
-### Phase 3.8.3: Summary ✅ **COMPLETE**
-
-**All blockers resolved!** Binary operations delegation is fully functional with 2 additional fixes applied.
-
-**Prerequisites Completed**:
-
-- ✅ 3.8.3.0a: ErrorValue type compatibility
-- ✅ 3.8.3.0b: Helper method context preservation
-- ✅ 3.8.3.0c: Interface nil cast behavior
-- ✅ 3.8.3.0d: Lambda/ForEach context issues
-- ✅ 3.8.3.0e: Coalesce operator semantics
-- ✅ 3.8.3.0f: Binary operations delegation (was already done)
-- ✅ 3.8.3.0g: Enum helper registration (commit 33859e6c)
-- ✅ 3.8.3.0h: Error type test compatibility (commit 33859e6c)
-
-**Additional Fixes Applied** (2025-12-06):
-
-1. **Enum Helper Registration** (TestEnumNameProperty)
-   - **Problem**: Enum `.Name` property failed in string concatenation via evaluator
-   - **Root Cause**: Enum helpers registered to `i.helpers` but not `i.typeSystem.RegisterHelper()`
-   - **Fix**: Added `i.typeSystem.RegisterHelper("enum", enumHelper)` in `initEnumHelpers()`
-   - **Impact**: Evaluator can now find enum properties (.Name, .Value, .QualifiedName)
-   - **Commit**: 33859e6c
-
-2. **Error Type Test Compatibility** (TestDivisionByZero)
-   - **Problem**: Test expected `*ErrorValue` but evaluator returns `*runtime.ErrorValue`
-   - **Fix**: Added case for `*runtime.ErrorValue` in error type switch
-   - **Impact**: Tests handle both legacy and new error types
-   - **Commit**: 33859e6c
-
-**Result**:
-
-- ✅ Minimal new test failures: 1 cosmetic issue (extra stack trace line)
-- ✅ 8 pre-existing failures unchanged (operator overloading, RTTI, string helpers)
-- ✅ 944 LOC obsolete in `expressions_binary.go` (cleanup opportunity)
-- ✅ All binary operations handled by evaluator
-- ✅ Full behavioral parity achieved for all non-pre-existing cases
-
-**Remaining Issues**:
-
-1. **TestInterfaceReferenceTests** (1/33 subtests): Extra stack trace line - cosmetic only
-2. **Pre-existing failures** (8 tests): Operator overloading, RTTI, string helpers, type assertions
-
-**Next Steps**:
-
-- Task 3.8.4: Cleanup obsolete code (`expressions_binary.go`, move `isFalsey()` to test utils)
-- Task 3.8.5: Migrate unary operations to evaluator (similar pattern)
-- Task 3.8.6: Fix pre-existing failures (operator overloading, RTTI, helpers)
-
----
-
-### Phase 3.8.x: Class Helper Method Resolution (INVESTIGATION)
-
-**Status**: 🔍 **IN PROGRESS** | **Priority**: High | **Blocker**: Affects helper integration test
+## Context
+
+Phases 3.8.1-3.8.3 (completed Dec 2025) successfully synchronized all environment management and delegated binary operations to the evaluator. The work systematically addressed environment desynchronization issues discovered during initial migration attempts.
+
+**Completed Work**:
+- ✅ **Phase 3.8.1**: Environment Management Audit
+  - Documented all 149 `i.env =` assignments across 17 files
+  - Created helper methods (`SetEnvironment`, `PushEnvironment`, `RestoreEnvironment`)
+  - Established test baseline (892 fixture failures)
+
+- ✅ **Phase 3.8.2**: Incremental Environment Sync Migration
+  - Migrated all 149 assignments to use helper methods
+  - 14 incremental commits, one category at a time
+  - Final fixture baseline: 884 failures (8 improvements)
+
+- ✅ **Phase 3.8.3**: Binary Operations Migration
+  - Fixed ErrorValue type compatibility
+  - Fixed helper method context preservation
+  - Fixed interface nil comparison
+  - Fixed lambda/ForEach context issues
+  - Delegated binary operations to evaluator
+  - All 1163 non-fixture tests passing
+
+**Current State** (as of latest commit):
+- ✅ All non-fixture tests pass (1163 tests)
+- ✅ Fixture baseline: 872 failures (11 improvements from initial 883)
+- ⚠️ `internal/interp/expressions_binary.go` (944 LOC) now obsolete
+- ⚠️ Class helper method resolution issue (investigation in progress)
+
+## Remaining Tasks
+
+### Phase 3.8.4: Code Cleanup & Test Refinement
+
+**Goal**: Remove obsolete code and consolidate test utilities
+
+- [ ] **3.8.4.1** Extract `isFalsey()` Helper to Test Utilities
+  - Currently in `expressions_binary.go` (line 447)
+  - Used by 3 test files: `evaluator/helpers_test.go`, `expressions_eval_test.go`, `expressions_edge_test.go`
+  - Move to `internal/interp/test_helpers.go` or similar
+  - Update test imports
+
+- [ ] **3.8.4.2** Delete `expressions_binary.go`
+  - Remove entire file (944 LOC)
+  - Verify all tests still pass
+  - All binary operations now handled by `evaluator/binary_ops.go`
+
+- [ ] **3.8.4.3** Audit Other Expression Files
+  - Check `expressions_basic.go` for obsolete unary operation code
+  - Check `expressions_complex.go` for delegation opportunities
+  - Document any remaining interpreter-side expression evaluation
+
+**Success Criteria**:
+- Zero regressions in non-fixture tests
+- Fixture baseline maintained or improved
+- Clean separation: evaluator handles operations, interpreter handles OOP dispatch
+
+### Phase 3.8.5: Unary Operations Migration
+
+**Goal**: Delegate unary operations to evaluator (similar pattern to binary operations)
+
+- [ ] **3.8.5.1** Verify Evaluator Implementation
+  - `evaluator.VisitUnaryExpression()` already exists
+  - Check coverage: `-`, `+`, `not`
+  - Verify operator overload support (`TryUnaryOperator`)
+
+- [ ] **3.8.5.2** Delegate Interpreter to Evaluator
+  - Change `interpreter.go` case for `*ast.UnaryExpression`
+  - From: `return i.evalUnaryExpression(node)`
+  - To: `return i.evaluatorInstance.VisitUnaryExpression(node, i.ctx)`
+
+- [ ] **3.8.5.3** Test and Verify
+  - Run all unary operation tests
+  - Check operator overloading tests
+  - Verify no regressions
+
+- [ ] **3.8.5.4** Remove Obsolete Code
+  - Delete `evalUnaryExpression()` from `expressions_basic.go`
+  - Check for other unary-related code to remove
+  - Estimate LOC savings
+
+**Estimated Effort**: 2-3 days
+
+### Phase 3.8.6: Class Helper Method Resolution (Investigation)
+
+**Status**: 🔍 **INVESTIGATION NEEDED** | **Blocker**: Affects helper integration test
 
 **Problem**: Test `TestHelpersExecution/class_helper_demo.dws` fails when calling helper methods on class instances.
 
@@ -587,158 +226,98 @@ i.env = lambdaEnv  // ✗ Only updates i.env
 ```dws
 type TPerson = class
   function GetName: String;
-  function GetAge: Integer;
 end;
 
 type TPersonHelper = helper for TPerson
   function GetInfo: String;  // ← Helper method
-  function IsAdult: Boolean;
 end;
 
 person1.GetInfo()  // ← FAILS: "method 'GetInfo' not found in class 'TPerson'"
 ```
 
-**Expected**: Helper methods should be callable on class instances (like enum helpers work)
+**What's Known**:
+- Enum helpers work correctly (`.Name`, `.Value` properties)
+- Array/intrinsic helpers work correctly
+- Issue is specific to CLASS helpers
+- Method dispatch added helper lookup (lines 173-175 in `method_dispatch.go`)
+- Helper is found but causes nil pointer panic during execution
 
-**Actual**: Panic with `method 'GetInfo' not found in class 'TPerson'`
+**Investigation Areas**:
 
----
+- [ ] **3.8.6.1** Verify Helper Registration
+  - Check if class helpers are registered in TypeSystem
+  - Compare registration key vs. lookup key (case sensitivity?)
+  - Verify `obj.ClassName()` format matches TypeSystem key
 
-#### Investigation Summary (2025-12-07)
+- [ ] **3.8.6.2** Debug Helper Lookup Chain
+  - Add logging to `getHelpersForValue()` for object lookup
+  - Verify `TypeSystem.LookupHelpers()` returns class helpers
+  - Check `convertToHelperInfoSlice()` filtering
 
-**Initial Hypothesis**: Class helpers not checked during method dispatch
-- ✅ **CORRECT** - Method dispatch routed OBJECT types directly to adapter without checking helpers
-- ✅ **FIX APPLIED** - Added helper lookup in `DispatchMethodCall` before adapter delegation (method_dispatch.go:173-175)
-
-**Second Issue**: Nil pointer panic in helper method execution
-- **Error**: `panic: runtime error: invalid memory address or nil pointer dereference`
-- **Location**: `helpers_comparison.go:149` in `GetParentHelperAny()`
-- **Stack**: `CallASTHelperMethod` → `bindHelperChainVarsConsts` → `GetParentHelperAny()` → PANIC
-
-**Root Cause Analysis**:
-
-1. **Helper IS Found**: `FindHelperMethod` successfully returns a `*interp.HelperInfo` pointer
-   - Debug output: `helper type=*interp.HelperInfo`
-   - All nil interface checks pass (lines 395-414 in helper_methods.go)
-
-2. **Helper IS Valid**: Pointer is non-nil and passes reflection checks
-   - `helper != nil` ✓
-   - `reflect.ValueOf(helper).IsNil()` ✓ (false)
-   - Helper struct allocated and has valid type
-
-3. **Panic During Usage**: Crashes when helper methods are called
-   - `bindHelperChainVarsConsts(helper, ctx)` enters loop
-   - Loop: `for h := helper; h != nil; { ... h.GetParentHelperAny() ... }`
-   - `h.GetParentHelperAny()` tries to access `h.ParentHelper`
-   - **PANIC**: Suggests `h` is a valid pointer to an INVALID/CORRUPTED struct
-
-**Key Insight**: The `*interp.HelperInfo` passes all nil checks but contains invalid internal state. This indicates:
-- Helper is being found in TypeSystem registry
-- Helper was registered but **not fully initialized**
-- Helper struct fields (especially `ParentHelper`) may be in inconsistent state
-
-**Evidence**:
-- `GetMethodAny()` returns `(method, owner, true)` where `owner` can be nil
-- Line 66 in `helpers_comparison.go`: `return nil, nil, false` when method not found
-- Line 129 wraps nil `*HelperInfo` in `any` interface → creates valid interface wrapping nil pointer
-- This nil-wrapped-in-interface passes `helper != nil` check but crashes on method calls
-
-**Suspected Issue**: Helper registration/lookup mismatch
-- Class helpers registered with normalized type name (e.g., "tperson")
-- Object method dispatch uses `obj.ClassName()` to look up helpers
-- Possible case sensitivity or name format mismatch causing:
-  - Helper not found in TypeSystem → `FindHelperMethod` returns result with nil `OwnerHelper`
-  - Or: Helper found but is a corrupted/partial entry in registry
-
----
-
-#### Tasks
-
-- [ ] **3.8.x.1** Verify Helper Registration for Class Types
-  - Check if class helpers are registered in TypeSystem with correct key
-  - Compare key used for registration vs. key used for lookup
-  - Verify `obj.ClassName()` returns format matching TypeSystem key (case-insensitive normalized)
-  - **Files**: `helpers_validation.go:195-205`, `helper_methods.go:138-140`
-
-- [ ] **3.8.x.2** Debug Helper Lookup Chain
-  - Add logging to `getHelpersForValue()` to show what type name is used for object lookup
-  - Add logging to `TypeSystem.LookupHelpers()` to show what helpers are returned
-  - Verify `convertToHelperInfoSlice()` isn't filtering out valid helpers
-  - **Goal**: Confirm helpers ARE in registry and ARE being returned
-
-- [ ] **3.8.x.3** Fix HelperMethodResult Nil Owner Handling
-  - Problem: `GetMethodAny` can return `(method, nil, true)` when walking inheritance chain
-  - This nil owner gets wrapped in interface and passes nil checks
+- [ ] **3.8.6.3** Fix Nil Owner Handling
+  - Issue: `GetMethodAny` can return `(method, nil, true)`
+  - Nil owner wrapped in interface passes nil checks but crashes on use
   - **Solution Options**:
-    - A) Fix `FindHelperMethod` to never return result with nil `OwnerHelper` (use fallback helper)
-    - B) Fix `GetMethodAny` to never return nil owner (return current helper if found locally)
-    - C) Add defensive check in `CallASTHelperMethod` before using OwnerHelper
-  - **Files**: `helper_methods.go:186-205`, `helpers_comparison.go:55-67`
+    - Fix `FindHelperMethod` to never return nil `OwnerHelper`
+    - Fix `GetMethodAny` to always return non-nil owner
+    - Add defensive nil check in `CallASTHelperMethod`
 
-- [ ] **3.8.x.4** Compare with Working Enum Helper Pattern
-  - Enum helpers work correctly - analyze why
-  - Compare registration: enum uses `"enum"` key, class uses `obj.ClassName()`
-  - Compare lookup: both go through same `FindHelperMethod` path
-  - Identify key difference in registration/lookup flow
-  - **Files**: `helpers_validation.go:700-705` (enum), vs. `evalHelperDeclaration:195-205` (class)
+- [ ] **3.8.6.4** Compare with Working Enum Helper Pattern
+  - Enum helpers: registered with `"enum"` key
+  - Class helpers: registered with `obj.ClassName()` key
+  - Identify critical difference in registration/lookup
 
-- [ ] **3.8.x.5** Test Fix with Minimal Changes
-  - Once root cause identified, apply minimal fix
+- [ ] **3.8.6.5** Test Fix and Verify
   - Ensure fix doesn't break enum/array/intrinsic helpers
   - Run full helper test suite
-  - **Success Criteria**: `TestHelpersExecution/class_helper_demo.dws` passes
+  - `TestHelpersExecution/class_helper_demo.dws` must pass
 
----
+**Files Modified So Far**:
+- `internal/interp/evaluator/method_dispatch.go` (lines 170-180): Added helper lookup
+- `internal/interp/evaluator/helper_methods.go` (defensive nil checks)
 
-#### Files Modified (So Far)
+**Priority**: High (but not blocking other 3.8.x tasks)
 
-1. **internal/interp/evaluator/method_dispatch.go** (lines 170-180)
-   - Added helper method lookup before adapter delegation for OBJECT/CLASS/RECORD types
-   - Pattern: Check helpers first, fall back to adapter if not found
+### Phase 3.8.7: Additional Expression Migrations (Optional)
 
-2. **internal/interp/evaluator/helper_methods.go** (lines 396-404)
-   - Added minimal nil checks in `CallASTHelperMethod`
-   - Checks for nil helper and nil pointer wrapped in interface
-   - Returns meaningful error instead of panicking
+**Goal**: Migrate remaining expression evaluation to evaluator as needed
 
-3. **internal/interp/evaluator/helper_methods.go** (lines 532-546)
-   - Added nil filtering in `convertToHelperInfoSlice`
-   - Skips nil entries and nil-wrapped helpers
-   - Prevents corrupted registry entries from reaching execution
+- [ ] **3.8.7.1** Survey Remaining Expression Types
+  - Check `expressions_complex.go` for candidates
+  - Check `expressions_basic.go` for candidates
+  - Prioritize by complexity and test coverage
 
-4. **internal/interp/evaluator/helper_methods.go** (lines 458-461)
-   - Added nil guard in `bindHelperChainVarsConsts`
-   - Early return if helper is nil (defensive programming)
+- [ ] **3.8.7.2** Incremental Migration
+  - One expression type at a time
+  - Follow proven pattern: delegate → test → cleanup
+  - Document LOC savings
 
-**Status**: Investigation ongoing. Defensive nil checks added but root cause (nil OwnerHelper from `GetMethodAny`) not yet resolved.
-
-**Recommendation**: Focus on task 3.8.x.1 and 3.8.x.3 - verify registration and fix nil owner handling in `FindHelperMethod`.
+**Deferred**: Not blocking current work, evaluate after 3.8.4-3.8.6
 
 ## Success Criteria
 
-- ✅ **ALL** environment changes use `SetEnvironment()` helper
-- ✅ **Zero test failures** after migration
-- ✅ Binary operations delegated to evaluator (-944 LOC)
-- ✅ No performance regression
-- ✅ `docs/environment-audit.md` documents all env management
-- ✅ Migration verified incrementally (one category at a time)
+- ✅ All non-fixture tests pass (1163 tests)
+- ✅ Fixture baseline maintained or improved (≤872 failures)
+- ✅ Obsolete code removed (expressions_binary.go, unary ops, etc.)
+- ✅ Class helper method resolution working
+- ✅ Clean separation: evaluator handles expressions, interpreter handles OOP
 
-## Lessons Learned from Failed Attempt
+## Lessons Learned
 
-1. **Never migrate evaluator delegation without environment sync audit first**
-2. **30+ locations need coordination** - requires systematic approach
-3. **Test early, test often** - incremental verification prevents cascading failures
-4. **Helper functions** reduce error-prone manual updates
-5. **Document the pattern** before applying it everywhere
+1. **Systematic audits prevent cascading failures**: 149 environment assignments required coordinated migration
+2. **Incremental commits enable safe rollback**: One category at a time proved essential
+3. **Helper methods reduce error surface**: 3 methods replaced 149 manual updates
+4. **Test baseline discipline catches regressions**: Fixture count tracking revealed subtle improvements
+5. **Environment adapters are critical**: Type boundaries (concrete vs. interface) require careful handling
 
-## Rollback Plan
+## Estimated Remaining Effort
 
-If any phase fails:
-- Revert incremental commits (granular = easy rollback)
-- Document failure in phase notes
-- Re-evaluate approach before retry
+- Phase 3.8.4: 2-3 days (code cleanup)
+- Phase 3.8.5: 2-3 days (unary operations)
+- Phase 3.8.6: 3-5 days (helper investigation + fix)
+- Phase 3.8.7: Deferred
 
-**Estimated Total Effort**: 2-3 weeks (conservative, includes testing at each step)
+**Total**: 1-2 weeks
 
 ---
 
