@@ -148,15 +148,17 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Goal**: Delegate unary operations to evaluator (similar pattern to binary operations)
 
-- [ ] **3.8.5.1** Verify Evaluator Implementation
-  - `evaluator.VisitUnaryExpression()` already exists
-  - Check coverage: `-`, `+`, `not`
-  - Verify operator overload support (`TryUnaryOperator`)
+- [x] **3.8.5.1** Verify Evaluator Implementation ✅ **COMPLETE**
+  - ✅ `evaluator.VisitUnaryExpression()` exists (`visitor_expressions_operators.go:103-126`)
+  - ✅ Coverage verified: `-`, `+`, `not` operators all implemented
+  - ✅ Operator overload support confirmed (`TryUnaryOperator` delegates to adapter)
+  - ✅ Variant support confirmed (all operators handle Variant unwrapping)
 
-- [ ] **3.8.5.2** Delegate Interpreter to Evaluator
-  - Change `interpreter.go` case for `*ast.UnaryExpression`
-  - From: `return i.evalUnaryExpression(node)`
-  - To: `return i.evaluatorInstance.VisitUnaryExpression(node, i.ctx)`
+- [x] **3.8.5.2** Delegate Interpreter to Evaluator ✅ **COMPLETE**
+  - ✅ Changed `interpreter.go:562-563` case for `*ast.UnaryExpression`
+  - ✅ From: `return i.evalUnaryExpression(node)`
+  - ✅ To: `return i.evaluatorInstance.VisitUnaryExpression(node, i.ctx)`
+  - ✅ Pattern matches binary operations delegation (line 560)
 
 - [ ] **3.8.5.3** Test and Verify
   - Run all unary operation tests
