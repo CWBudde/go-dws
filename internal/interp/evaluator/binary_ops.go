@@ -667,12 +667,59 @@ func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node as
 		return &runtime.BooleanValue{Value: !result}
 	}
 
-	// Not a supported equality comparison type - use ValuesEqual as fallback
-	result := ValuesEqual(left, right)
-	if op == "=" {
-		return &runtime.BooleanValue{Value: result}
+	// Not a supported equality comparison type - this is an error
+	// (should have been caught by areEqualityCompatible, but safety check)
+	return e.newError(node, "type mismatch: %s %s %s", left.Type(), op, right.Type())
+}
+
+// areEqualityCompatible checks if two values can be compared with = or <>
+// Valid comparisons:
+// - Same types (INTEGER=INTEGER, STRING=STRING, etc.)
+// - Nil with objects/interfaces/classes
+// - Objects with objects (same or different classes)
+// - Interfaces with interfaces
+// - Records with records (same or different types)
+// - Classes with classes
+// - RTTI_TYPE_INFO with RTTI_TYPE_INFO
+func areEqualityCompatible(left, right Value) bool {
+	leftType := left.Type()
+	rightType := right.Type()
+
+	// Same type always compatible
+	if leftType == rightType {
+		return true
 	}
-	return &runtime.BooleanValue{Value: !result}
+
+	// Nil can compare with objects, interfaces, classes
+	if leftType == "NIL" || rightType == "NIL" {
+		// Check if other side is object/interface/class
+		otherType := rightType
+		if leftType == "NIL" {
+			otherType = leftType
+		}
+		// Allow nil with OBJECT, INTERFACE, CLASS types
+		return isObjectLike(otherType)
+	}
+
+	// Different object-like types can compare (for identity)
+	// e.g., OBJECT[TFoo] = OBJECT[TBar], INTERFACE = OBJECT, etc.
+	return isObjectLike(leftType) && isObjectLike(rightType)
+}
+
+// isObjectLike checks if a type is object/interface/class-like
+func isObjectLike(typeStr string) bool {
+	if typeStr == "NIL" || typeStr == "INTERFACE" || typeStr == "RTTI_TYPE_INFO" {
+		return true
+	}
+	// Check for CLASS[...] pattern
+	if len(typeStr) > 6 && typeStr[:6] == "CLASS[" && typeStr[len(typeStr)-1] == ']' {
+		return true
+	}
+	// Check for OBJECT[...] pattern
+	if len(typeStr) > 7 && typeStr[:7] == "OBJECT[" && typeStr[len(typeStr)-1] == ']' {
+		return true
+	}
+	return false
 }
 
 // isSimpleType checks if a type name represents a simple value type.

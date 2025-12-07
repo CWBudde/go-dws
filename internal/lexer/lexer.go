@@ -433,9 +433,226 @@ func (l *Lexer) processDirective() {
 		} else {
 			l.condStack = l.condStack[:len(l.condStack)-1]
 		}
+	case "if":
+		cond := l.evalIfExpression(strings.TrimPrefix(content, parts[0]))
+		frame := conditionalFrame{
+			cond:         cond,
+			parentActive: parentActive,
+			active:       parentActive && cond,
+			startPos:     startPos,
+		}
+		l.condStack = append(l.condStack, frame)
 	default:
 		l.addError("unknown compiler directive: "+name, startPos)
 	}
+}
+
+type ifTokenType int
+
+const (
+	ifTokEOF ifTokenType = iota
+	ifTokIdent
+	ifTokInt
+	ifTokLParen
+	ifTokRParen
+	ifTokEq
+	ifTokNeq
+	ifTokAnd
+	ifTokOr
+	ifTokNot
+)
+
+type ifToken struct {
+	typ ifTokenType
+	val string
+}
+
+func (l *Lexer) evalIfExpression(expr string) bool {
+	tokens := lexIfExpression(expr)
+	pos := Position{}
+	cur := 0
+
+	next := func() ifToken {
+		if cur >= len(tokens) {
+			return ifToken{typ: ifTokEOF}
+		}
+		tok := tokens[cur]
+		cur++
+		return tok
+	}
+
+	var tok ifToken
+	advance := func() { tok = next() }
+
+	var parseExpr func() bool
+	var parseAnd func() bool
+	var parseUnary func() bool
+	var parsePrimary func() bool
+
+	parsePrimary = func() bool {
+		switch tok.typ {
+		case ifTokInt:
+			val := tok.val
+			advance()
+			return val != "" && val != "0"
+		case ifTokIdent:
+			name := tok.val
+			advance()
+			if tok.typ == ifTokLParen {
+				advance()
+				if tok.typ != ifTokIdent && tok.typ != ifTokInt {
+					l.addError("invalid $if expression", pos)
+					return false
+				}
+				arg := tok
+				advance()
+				if tok.typ != ifTokRParen {
+					l.addError("invalid $if expression", pos)
+					return false
+				}
+				advance()
+				switch strings.ToLower(name) {
+				case "defined", "declared":
+					if arg.typ == ifTokIdent {
+						return l.isDefined(arg.val)
+					}
+					return false
+				default:
+					return false
+				}
+			}
+			return l.isDefined(name)
+		case ifTokLParen:
+			advance()
+			val := parseExpr()
+			if tok.typ != ifTokRParen {
+				l.addError("invalid $if expression", pos)
+				return false
+			}
+			advance()
+			return val
+		default:
+			l.addError("invalid $if expression", pos)
+			return false
+		}
+	}
+
+	parseEquality := func() bool {
+		left := parsePrimary()
+		for tok.typ == ifTokEq || tok.typ == ifTokNeq {
+			op := tok.typ
+			advance()
+			right := parsePrimary()
+			if op == ifTokEq {
+				left = left == right
+			} else {
+				left = left != right
+			}
+		}
+		return left
+	}
+
+	parseUnary = func() bool {
+		if tok.typ == ifTokNot {
+			advance()
+			return !parseUnary()
+		}
+		return parseEquality()
+	}
+
+	parseAnd = func() bool {
+		left := parseUnary()
+		for tok.typ == ifTokAnd {
+			advance()
+			right := parseUnary()
+			left = left && right
+		}
+		return left
+	}
+
+	parseExpr = func() bool {
+		left := parseAnd()
+		for tok.typ == ifTokOr {
+			advance()
+			right := parseAnd()
+			left = left || right
+		}
+		return left
+	}
+
+	advance()
+	result := parseExpr()
+	return result
+}
+
+func lexIfExpression(expr string) []ifToken {
+	var tokens []ifToken
+	reader := strings.NewReader(expr)
+
+	for {
+		ch, _, err := reader.ReadRune()
+		if err != nil {
+			break
+		}
+		if unicode.IsSpace(ch) {
+			continue
+		}
+		switch ch {
+		case '(':
+			tokens = append(tokens, ifToken{typ: ifTokLParen})
+		case ')':
+			tokens = append(tokens, ifToken{typ: ifTokRParen})
+		case '=':
+			tokens = append(tokens, ifToken{typ: ifTokEq})
+		case '<':
+			if next, _, err := reader.ReadRune(); err == nil && next == '>' {
+				tokens = append(tokens, ifToken{typ: ifTokNeq})
+			}
+		default:
+			if isDigit(ch) {
+				builder := strings.Builder{}
+				builder.WriteRune(ch)
+				for {
+					r, _, err := reader.ReadRune()
+					if err != nil || !isDigit(r) {
+						if err == nil {
+							reader.UnreadRune()
+						}
+						break
+					}
+					builder.WriteRune(r)
+				}
+				tokens = append(tokens, ifToken{typ: ifTokInt, val: builder.String()})
+			} else if isLetter(ch) {
+				builder := strings.Builder{}
+				builder.WriteRune(ch)
+				for {
+					r, _, err := reader.ReadRune()
+					if err != nil || !(isLetter(r) || isDigit(r)) {
+						if err == nil {
+							reader.UnreadRune()
+						}
+						break
+					}
+					builder.WriteRune(r)
+				}
+				word := builder.String()
+				switch strings.ToLower(word) {
+				case "and":
+					tokens = append(tokens, ifToken{typ: ifTokAnd})
+				case "or":
+					tokens = append(tokens, ifToken{typ: ifTokOr})
+				case "not":
+					tokens = append(tokens, ifToken{typ: ifTokNot})
+				default:
+					tokens = append(tokens, ifToken{typ: ifTokIdent, val: word})
+				}
+			}
+		}
+	}
+
+	tokens = append(tokens, ifToken{typ: ifTokEOF})
+	return tokens
 }
 
 // readLineComment reads a line comment starting with //.

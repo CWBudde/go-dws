@@ -356,9 +356,14 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Methods require complex dispatch logic (virtual method tables, etc.)
 		return e.adapter.EvalNode(node)
 
+	case "CLASS":
+		// ClassValue from ClassType property or direct class reference
+		// Uses same logic as CLASSINFO - both implement ClassMetaValue interface
+		fallthrough
+
 	case "CLASSINFO":
 		// Task 3.5.88: Metaclass access (Mode 6)
-		// Pattern: ClassInfoValue.Member
+		// Pattern: ClassInfoValue.Member or ClassValue.Member
 		// Handle built-in properties and class variables/constants directly
 
 		// Try to use ClassMetaValue interface for direct access
