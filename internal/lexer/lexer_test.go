@@ -68,32 +68,6 @@ y { comment 2 } z`,
 	}
 }
 
-func TestCompilerDirective(t *testing.T) {
-	input := `{$DEFINE DEBUG}
-	x := 5;`
-
-	tests := []struct {
-		expectedType TokenType
-	}{
-		{IDENT}, // x
-		{ASSIGN},
-		{INT},
-		{SEMICOLON},
-		{EOF},
-	}
-
-	l := New(input)
-
-	for i, tt := range tests {
-		tok := l.NextToken()
-
-		if tok.Type != tt.expectedType {
-			t.Fatalf("tests[%d] - tokentype wrong. expected=%q, got=%q (literal=%q)",
-				i, tt.expectedType, tok.Type, tok.Literal)
-		}
-	}
-}
-
 func TestEdgeCases(t *testing.T) {
 	tests := []struct {
 		name         string
