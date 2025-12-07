@@ -16,16 +16,6 @@ import (
 
 // ===== Class Registry =====
 
-// LookupInterface finds an interface by name in the interface registry.
-// Task 3.5.184: Delegates to TypeSystem instead of using legacy map.
-func (i *Interpreter) LookupInterface(name string) (any, bool) {
-	iface := i.typeSystem.LookupInterface(name)
-	if iface == nil {
-		return nil, false
-	}
-	return iface, true
-}
-
 // lookupInterfaceInfo finds an interface by name and returns the typed *InterfaceInfo.
 // Task 3.5.184a: Type-safe helper for internal interpreter use.
 // Returns nil if the interface is not found or if the type assertion fails.
@@ -109,36 +99,6 @@ func (i *Interpreter) AddInterfaceProperty(iface interface{}, normalizedName str
 			ifaceInfo.Properties[normalizedName] = prop
 		}
 	}
-}
-
-// ResolveClassInfoByName resolves a class by name for property type resolution.
-// Task 3.5.9.4: Allows evaluator to resolve class types in property declarations.
-func (i *Interpreter) ResolveClassInfoByName(name string) interface{} {
-	return i.resolveClassInfoByName(name)
-}
-
-// GetClassNameFromInfo returns the name from a raw ClassInfo interface{}.
-// Task 3.5.9.4: Extracts class name for type construction.
-func (i *Interpreter) GetClassNameFromInfo(classInfo interface{}) string {
-	if ci, ok := classInfo.(*ClassInfo); ok {
-		return ci.Name
-	}
-	return ""
-}
-
-// LookupHelpers returns helpers for a given type name.
-func (i *Interpreter) LookupHelpers(typeName string) []any {
-	normalizedName := ident.Normalize(typeName)
-	helpers, ok := i.helpers[normalizedName]
-	if !ok {
-		return nil
-	}
-	// Convert []*HelperInfo to []any
-	result := make([]any, len(helpers))
-	for idx, helper := range helpers {
-		result[idx] = helper
-	}
-	return result
 }
 
 // ===== Task 3.5.12: Helper Declaration Adapter Methods =====
@@ -232,21 +192,6 @@ func (i *Interpreter) RegisterHelperLegacy(typeName string, helper interface{}) 
 	if h, ok := helper.(*HelperInfo); ok {
 		i.helpers[typeName] = append(i.helpers[typeName], h)
 	}
-}
-
-// GetOperatorRegistry returns the operator registry for custom operator lookups.
-func (i *Interpreter) GetOperatorRegistry() any {
-	return i.globalOperators
-}
-
-// GetEnumTypeID returns the type ID for a named enum type.
-func (i *Interpreter) GetEnumTypeID(enumName string) int {
-	normalizedName := ident.Normalize(enumName)
-	typeID, ok := i.enumTypeIDRegistry[normalizedName]
-	if !ok {
-		return 0
-	}
-	return typeID
 }
 
 // ===== Task 3.5.5: Type System Adapter Method Implementations =====
@@ -418,14 +363,6 @@ func (i *Interpreter) CastToClassInfo(class interface{}) (interface{}, bool) {
 // GetClassNameFromClassInfoInterface extracts the name from a ClassInfo interface{}.
 // Task 3.5.8: Phase 1 adapter for name extraction from interface{}.
 // Note: Different from GetClassNameFromClassInfo which takes evaluator.Value.
-func (i *Interpreter) GetClassNameFromClassInfoInterface(classInfo interface{}) string {
-	ci, ok := classInfo.(*ClassInfo)
-	if !ok {
-		return ""
-	}
-	return ci.Name
-}
-
 // Task 3.5.27: RegisterClassEarly REMOVED - zero callers
 
 // IsClassPartial checks if a ClassInfo is marked as partial.

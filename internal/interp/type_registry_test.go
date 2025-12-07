@@ -306,24 +306,15 @@ func TestBuiltinInterfaceInTypeSystem(t *testing.T) {
 	out := &bytes.Buffer{}
 	interp := New(out)
 
-	// Test LookupInterface (which delegates to TypeSystem)
-	_, ok := interp.LookupInterface("IInterface")
-	if !ok {
-		t.Error("LookupInterface(IInterface) = _, false; want _, true")
+	// Test LookupInterfaceInfo (which delegates to TypeSystem)
+	ifaceInfo := interp.LookupInterfaceInfo("IInterface")
+	if ifaceInfo == nil {
+		t.Error("LookupInterfaceInfo(IInterface) = nil; want non-nil")
 	}
 
 	// Test case-insensitive lookup
-	_, ok = interp.LookupInterface("iinterface")
-	if !ok {
-		t.Error("LookupInterface(iinterface) = _, false; want _, true (case-insensitive)")
-	}
-
-	// Test LookupInterface
-	ifaceInfo, ok := interp.LookupInterface("IInterface")
-	if !ok {
-		t.Error("LookupInterface(IInterface) = _, false; want _, true")
-	}
+	ifaceInfo = interp.LookupInterfaceInfo("iinterface")
 	if ifaceInfo == nil {
-		t.Error("LookupInterface(IInterface) returned nil InterfaceInfo")
+		t.Error("LookupInterfaceInfo(iinterface) = nil; want non-nil (case-insensitive)")
 	}
 }

@@ -118,18 +118,20 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 	// Phase 3: Inheritance resolution
 	// Handle inheritance if parent class is specified
 	var parentClass interface{}
+	var parentClassName string
 	if node.Parent != nil {
 		// Explicit parent specified
-		parentName := node.Parent.Value
-		parentClass = e.typeSystem.LookupClass(parentName)
+		parentClassName = node.Parent.Value
+		parentClass = e.typeSystem.LookupClass(parentClassName)
 		if parentClass == nil {
-			return e.newError(node, "parent class '%s' not found", parentName)
+			return e.newError(node, "parent class '%s' not found", parentClassName)
 		}
 	} else {
 		// If no explicit parent, implicitly inherit from TObject
 		// (unless this IS TObject or it's an external class)
 		if !ident.Equal(className, "TObject") && !node.IsExternal {
-			parentClass = e.typeSystem.LookupClass("TObject")
+			parentClassName = "TObject"
+			parentClass = e.typeSystem.LookupClass(parentClassName)
 			if parentClass == nil {
 				return e.newError(node, "implicit parent class 'TObject' not found")
 			}
@@ -228,11 +230,7 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 
 	// Register class in TypeSystem after VMT is built
 	// Note: Legacy map registration already done early (for field initializers)
-	parentName := ""
-	if parentClass != nil {
-		parentName = e.adapter.GetClassNameFromClassInfoInterface(parentClass)
-	}
-	e.adapter.RegisterClassInTypeSystem(classInfo, parentName)
+	e.adapter.RegisterClassInTypeSystem(classInfo, parentClassName)
 
 	return &runtime.NilValue{}
 }
@@ -252,7 +250,8 @@ func (e *Evaluator) VisitInterfaceDecl(node *ast.InterfaceDecl, ctx *ExecutionCo
 	}
 
 	// Create new InterfaceInfo
-	interfaceInfo := e.adapter.NewInterfaceInfoAdapter(node.Name.Value)
+	interfaceName := node.Name.Value
+	interfaceInfo := e.adapter.NewInterfaceInfoAdapter(interfaceName)
 
 	// Handle inheritance if parent interface is specified
 	if node.Parent != nil {
@@ -313,7 +312,7 @@ func (e *Evaluator) VisitInterfaceDecl(node *ast.InterfaceDecl, ctx *ExecutionCo
 	}
 
 	// Register interface in TypeSystem
-	e.typeSystem.RegisterInterface(e.adapter.GetInterfaceName(interfaceInfo), interfaceInfo)
+	e.typeSystem.RegisterInterface(interfaceName, interfaceInfo)
 
 	return &runtime.NilValue{}
 }
@@ -338,8 +337,9 @@ func (e *Evaluator) convertPropertyDecl(propDecl *ast.PropertyDecl) (*types.Prop
 		propType = types.BOOLEAN
 	default:
 		// Try to resolve known class types; fall back to NIL if unknown
-		if classInfo := e.adapter.ResolveClassInfoByName(propDecl.Type.String()); classInfo != nil {
-			propType = types.NewClassType(e.adapter.GetClassNameFromInfo(classInfo), nil)
+		className := propDecl.Type.String()
+		if e.typeSystem.HasClass(className) {
+			propType = types.NewClassType(className, nil)
 		} else {
 			propType = types.NIL
 		}

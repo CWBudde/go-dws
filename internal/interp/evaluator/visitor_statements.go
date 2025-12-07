@@ -53,6 +53,11 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 	return result
 }
 
+// VisitEmptyStatement performs no operation for explicit empty statements (a lone semicolon).
+func (e *Evaluator) VisitEmptyStatement(_ *ast.EmptyStatement, _ *ExecutionContext) Value {
+	return &runtime.NilValue{}
+}
+
 // VisitExpressionStatement evaluates an expression statement.
 func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx *ExecutionContext) Value {
 	// Evaluate the expression

@@ -216,13 +216,6 @@ type InterpreterAdapter interface {
 	// Handles ClassInfo internals (VMT rebuild, descendant propagation).
 	EvalMethodImplementation(fn *ast.FunctionDecl) Value
 
-	// ===== Type System Access =====
-
-	ResolveClassInfoByName(name string) interface{}
-	GetClassNameFromInfo(classInfo interface{}) string
-	LookupInterface(name string) (any, bool)
-	LookupHelpers(typeName string) []any
-
 	// ===== Helper Declaration =====
 
 	CreateHelperInfo(name string, targetType any, isRecordHelper bool) interface{}
@@ -245,11 +238,6 @@ type InterpreterAdapter interface {
 	AddInterfaceMethod(iface interface{}, normalizedName string, method *ast.FunctionDecl)
 	AddInterfaceProperty(iface interface{}, normalizedName string, propInfo any)
 
-	// ===== Registries =====
-
-	GetOperatorRegistry() any
-	GetEnumTypeID(enumName string) int
-
 	// ===== Method Calls =====
 
 	CallMethod(obj Value, methodName string, args []Value, node ast.Node) Value
@@ -267,7 +255,6 @@ type InterpreterAdapter interface {
 
 	// ===== Method Pointers =====
 
-	CreateMethodPointer(obj Value, methodName string, closure any) (Value, error)
 	ExecuteFunctionPointerCall(metadata FunctionPointerMetadata, args []Value, node ast.Node) Value
 
 	// ===== Exception Handling =====
@@ -286,7 +273,6 @@ type InterpreterAdapter interface {
 
 	// ===== Dispatch Methods =====
 
-	CallMemberMethod(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression, objVal Value) Value
 	CallQualifiedOrConstructor(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression) Value
 	CallUserFunctionWithOverloads(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
 	CallImplicitSelfMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
@@ -298,7 +284,6 @@ type InterpreterAdapter interface {
 
 	NewClassInfoAdapter(name string) interface{}
 	CastToClassInfo(class interface{}) (interface{}, bool)
-	GetClassNameFromClassInfoInterface(classInfo interface{}) string
 	IsClassPartial(classInfo interface{}) bool
 	SetClassPartial(classInfo interface{}, isPartial bool)
 	SetClassAbstract(classInfo interface{}, isAbstract bool)
@@ -623,6 +608,8 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	// Statements
 	case *ast.Program:
 		return e.VisitProgram(n, ctx)
+	case *ast.EmptyStatement:
+		return e.VisitEmptyStatement(n, ctx)
 	case *ast.ExpressionStatement:
 		return e.VisitExpressionStatement(n, ctx)
 	case *ast.VarDeclStatement:

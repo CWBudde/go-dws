@@ -401,6 +401,9 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	case *ast.Program:
 		return i.evalProgram(node)
 
+	case *ast.EmptyStatement:
+		return &NilValue{}
+
 	// Statements
 	case *ast.ExpressionStatement:
 		// Evaluate the expression

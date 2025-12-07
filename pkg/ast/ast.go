@@ -313,6 +313,18 @@ func (es *ExpressionStatement) String() string {
 	return ""
 }
 
+// EmptyStatement represents an explicit empty statement (a lone semicolon).
+// This appears in constructs like "for ... do;" where the loop body is intentionally empty.
+type EmptyStatement struct {
+	BaseNode
+}
+
+func (es *EmptyStatement) statementNode() {}
+
+func (es *EmptyStatement) String() string {
+	return ""
+}
+
 // NilLiteral represents a nil literal value.
 type NilLiteral struct {
 	TypedExpressionBase

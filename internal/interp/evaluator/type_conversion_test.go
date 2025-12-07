@@ -421,9 +421,6 @@ func (m *mockConversionAdapter) NewClassInfoAdapter(name string) interface{} { r
 func (m *mockConversionAdapter) CastToClassInfo(class interface{}) (interface{}, bool) {
 	return nil, false
 }
-func (m *mockConversionAdapter) GetClassNameFromClassInfoInterface(classInfo interface{}) string {
-	return ""
-}
 func (m *mockConversionAdapter) RegisterClassEarly(name string, classInfo interface{})   {}
 func (m *mockConversionAdapter) IsClassPartial(classInfo interface{}) bool               { return false }
 func (m *mockConversionAdapter) SetClassPartial(classInfo interface{}, isPartial bool)   {}

@@ -1146,6 +1146,27 @@ func TestForInStatements(t *testing.T) {
 			},
 		},
 		{
+			name:  "for-in loop with empty body",
+			input: "for var c in s do;",
+			assertions: func(t *testing.T, stmt *ast.ForInStatement) {
+				if !stmt.InlineVar {
+					t.Fatalf("expected inline var flag set")
+				}
+
+				if stmt.Variable.Value != "c" {
+					t.Errorf("loop variable = %q, want 'c'", stmt.Variable.Value)
+				}
+
+				if !testIdentifier(t, stmt.Collection, "s") {
+					return
+				}
+
+				if _, ok := stmt.Body.(*ast.EmptyStatement); !ok {
+					t.Fatalf("body is not EmptyStatement. got=%T", stmt.Body)
+				}
+			},
+		},
+		{
 			name:  "for-in loop with string literal",
 			input: `for ch in "hello" do Print(ch);`,
 			assertions: func(t *testing.T, stmt *ast.ForInStatement) {

@@ -44,6 +44,9 @@ func (p *Parser) parseStatement() ast.Statement {
 	case lexer.BEGIN:
 		return p.parseBlockStatement()
 
+	case lexer.SEMICOLON:
+		return &ast.EmptyStatement{BaseNode: ast.BaseNode{Token: currentToken}}
+
 	case lexer.VAR:
 		return p.parseVarDeclaration()
 

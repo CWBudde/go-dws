@@ -31,55 +31,6 @@ func (i *Interpreter) CreateFunctionPointer(fn *ast.FunctionDecl, closure any) e
 	}
 }
 
-// CreateMethodPointer creates a method pointer value bound to a specific object.
-func (i *Interpreter) CreateMethodPointer(objVal evaluator.Value, methodName string, closure any) (evaluator.Value, error) {
-	// Extract the object instance
-	obj, ok := AsObject(objVal)
-	if !ok {
-		return nil, fmt.Errorf("method pointer requires an object instance, got %s", objVal.Type())
-	}
-
-	// Look up the method in the class hierarchy (case-insensitive)
-	method := obj.Class.LookupMethod(methodName)
-	if method == nil {
-		return nil, fmt.Errorf("undefined method: %s.%s", obj.Class.GetName(), methodName)
-	}
-
-	// Convert closure to Environment
-	// Handle both direct *Environment and *EnvironmentAdapter (from evaluator)
-	var env *Environment
-	if closure != nil {
-		if adapter, ok := closure.(*evaluator.EnvironmentAdapter); ok {
-			env = adapter.Underlying().(*Environment)
-		} else if envVal, ok := closure.(*Environment); ok {
-			env = envVal
-		}
-	}
-
-	// Build parameter types for the function pointer type
-	paramTypes := make([]types.Type, len(method.Parameters))
-	for idx, param := range method.Parameters {
-		if param.Type != nil {
-			paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
-		} else {
-			paramTypes[idx] = &types.IntegerType{} // Default fallback
-		}
-	}
-
-	// Get return type
-	var returnType types.Type
-	if method.ReturnType != nil {
-		returnType = i.getTypeFromAnnotation(method.ReturnType)
-	}
-
-	// Create the method pointer type
-	methodPtr := types.NewMethodPointerType(paramTypes, returnType)
-	pointerType := &methodPtr.FunctionPointerType
-
-	// Create and return the function pointer value with SelfObject bound
-	return NewFunctionPointerValue(method, env, objVal, pointerType), nil
-}
-
 // CreateFunctionPointerFromName creates a function pointer for a named function.
 func (i *Interpreter) CreateFunctionPointerFromName(funcName string, closure any) (evaluator.Value, error) {
 	// Look up the function in the function registry (case-insensitive)

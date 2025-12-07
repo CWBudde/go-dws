@@ -54,6 +54,8 @@ func Walk(v Visitor, node Node) {
 		walkConstDecl(n, v)
 	case *ContinueStatement:
 		walkContinueStatement(n, v)
+	case *EmptyStatement:
+		walkEmptyStatement(n, v)
 	case *EnumDecl:
 		walkEnumDecl(n, v)
 	case *ExceptClause:
@@ -102,6 +104,8 @@ func Walk(v Visitor, node Node) {
 		walkInterfaceDecl(n, v)
 	case *InterfaceMethodDecl:
 		walkInterfaceMethodDecl(n, v)
+	case *InvariantClause:
+		walkInvariantClause(n, v)
 	case *IsExpression:
 		walkIsExpression(n, v)
 	case *LambdaExpression:
@@ -313,6 +317,9 @@ func walkClassDecl(n *ClassDecl, v Visitor) {
 	if n.Name != nil {
 		Walk(v, n.Name)
 	}
+	if n.EnclosingClass != nil {
+		Walk(v, n.EnclosingClass)
+	}
 	if n.Parent != nil {
 		Walk(v, n.Parent)
 	}
@@ -378,16 +385,21 @@ func walkConstDecl(n *ConstDecl, v Visitor) {
 	if n.Value != nil {
 		Walk(v, n.Value)
 	}
-	if n.Name != nil {
-		Walk(v, n.Name)
-	}
 	if n.Type != nil {
 		Walk(v, n.Type)
+	}
+	if n.Name != nil {
+		Walk(v, n.Name)
 	}
 }
 
 // walkContinueStatement walks a ContinueStatement node
 func walkContinueStatement(n *ContinueStatement, v Visitor) {
+	// No children to walk
+}
+
+// walkEmptyStatement walks a EmptyStatement node
+func walkEmptyStatement(n *EmptyStatement, v Visitor) {
 	// No children to walk
 }
 
@@ -439,24 +451,24 @@ func walkExpressionStatement(n *ExpressionStatement, v Visitor) {
 
 // walkFieldDecl walks a FieldDecl node
 func walkFieldDecl(n *FieldDecl, v Visitor) {
-	if n.Name != nil {
-		Walk(v, n.Name)
-	}
 	if n.Type != nil {
 		Walk(v, n.Type)
 	}
 	if n.InitValue != nil {
 		Walk(v, n.InitValue)
 	}
+	if n.Name != nil {
+		Walk(v, n.Name)
+	}
 }
 
 // walkFieldInitializer walks a FieldInitializer node
 func walkFieldInitializer(n *FieldInitializer, v Visitor) {
-	if n.Name != nil {
-		Walk(v, n.Name)
-	}
 	if n.Value != nil {
 		Walk(v, n.Value)
+	}
+	if n.Name != nil {
+		Walk(v, n.Name)
 	}
 }
 
@@ -474,14 +486,14 @@ func walkFloatLiteral(n *FloatLiteral, v Visitor) {
 
 // walkForInStatement walks a ForInStatement node
 func walkForInStatement(n *ForInStatement, v Visitor) {
-	if n.Variable != nil {
-		Walk(v, n.Variable)
-	}
 	if n.Collection != nil {
 		Walk(v, n.Collection)
 	}
 	if n.Body != nil {
 		Walk(v, n.Body)
+	}
+	if n.Variable != nil {
+		Walk(v, n.Variable)
 	}
 }
 
@@ -506,11 +518,14 @@ func walkForStatement(n *ForStatement, v Visitor) {
 
 // walkFunctionDecl walks a FunctionDecl node
 func walkFunctionDecl(n *FunctionDecl, v Visitor) {
-	if n.ClassName != nil {
-		Walk(v, n.ClassName)
-	}
 	if n.ReturnType != nil {
 		Walk(v, n.ReturnType)
+	}
+	if n.Name != nil {
+		Walk(v, n.Name)
+	}
+	if n.ClassName != nil {
+		Walk(v, n.ClassName)
 	}
 	if n.Body != nil {
 		Walk(v, n.Body)
@@ -520,9 +535,6 @@ func walkFunctionDecl(n *FunctionDecl, v Visitor) {
 	}
 	if n.PostConditions != nil {
 		Walk(v, n.PostConditions)
-	}
-	if n.Name != nil {
-		Walk(v, n.Name)
 	}
 	for _, item := range n.Parameters {
 		if item != nil {
@@ -552,14 +564,14 @@ func walkGroupedExpression(n *GroupedExpression, v Visitor) {
 
 // walkHelperDecl walks a HelperDecl node
 func walkHelperDecl(n *HelperDecl, v Visitor) {
+	if n.ForType != nil {
+		Walk(v, n.ForType)
+	}
 	if n.Name != nil {
 		Walk(v, n.Name)
 	}
 	if n.ParentHelper != nil {
 		Walk(v, n.ParentHelper)
-	}
-	if n.ForType != nil {
-		Walk(v, n.ForType)
 	}
 	for _, item := range n.Methods {
 		if item != nil {
@@ -674,17 +686,31 @@ func walkInterfaceDecl(n *InterfaceDecl, v Visitor) {
 			Walk(v, item)
 		}
 	}
+	for _, item := range n.Properties {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
 }
 
 // walkInterfaceMethodDecl walks a InterfaceMethodDecl node
 func walkInterfaceMethodDecl(n *InterfaceMethodDecl, v Visitor) {
-	if n.Name != nil {
-		Walk(v, n.Name)
-	}
 	if n.ReturnType != nil {
 		Walk(v, n.ReturnType)
 	}
+	if n.Name != nil {
+		Walk(v, n.Name)
+	}
 	for _, item := range n.Parameters {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+}
+
+// walkInvariantClause walks a InvariantClause node
+func walkInvariantClause(n *InvariantClause, v Visitor) {
+	for _, item := range n.Conditions {
 		if item != nil {
 			Walk(v, item)
 		}
@@ -788,10 +814,8 @@ func walkOperatorDecl(n *OperatorDecl, v Visitor) {
 	if n.Binding != nil {
 		Walk(v, n.Binding)
 	}
-	for _, item := range n.OperandTypes {
-		if item != nil {
-			Walk(v, item)
-		}
+	for i := range n.OperandTypes {
+		Walk(v, n.OperandTypes[i])
 	}
 }
 
@@ -843,19 +867,19 @@ func walkPropertyDecl(n *PropertyDecl, v Visitor) {
 	if n.WriteSpec != nil {
 		Walk(v, n.WriteSpec)
 	}
-	if n.Name != nil {
-		Walk(v, n.Name)
-	}
 	if n.Type != nil {
 		Walk(v, n.Type)
 	}
-	if n.IndexValue != nil {
-		Walk(v, n.IndexValue)
+	if n.Name != nil {
+		Walk(v, n.Name)
 	}
 	for _, item := range n.IndexParams {
 		if item != nil {
 			Walk(v, item)
 		}
+	}
+	if n.IndexValue != nil {
+		Walk(v, n.IndexValue)
 	}
 }
 
@@ -894,6 +918,16 @@ func walkRecordDecl(n *RecordDecl, v Visitor) {
 	for i := range n.Properties {
 		Walk(v, &n.Properties[i])
 	}
+	for _, item := range n.Constants {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+	for _, item := range n.ClassVars {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
 }
 
 // walkRecordLiteralExpression walks a RecordLiteralExpression node
@@ -910,11 +944,16 @@ func walkRecordLiteralExpression(n *RecordLiteralExpression, v Visitor) {
 
 // walkRecordPropertyDecl walks a RecordPropertyDecl node
 func walkRecordPropertyDecl(n *RecordPropertyDecl, v Visitor) {
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
 	if n.Name != nil {
 		Walk(v, n.Name)
 	}
-	if n.Type != nil {
-		Walk(v, n.Type)
+	for _, item := range n.IndexParams {
+		if item != nil {
+			Walk(v, item)
+		}
 	}
 }
 
@@ -942,11 +981,11 @@ func walkSelfExpression(n *SelfExpression, v Visitor) {
 
 // walkSetDecl walks a SetDecl node
 func walkSetDecl(n *SetDecl, v Visitor) {
-	if n.Name != nil {
-		Walk(v, n.Name)
-	}
 	if n.ElementType != nil {
 		Walk(v, n.ElementType)
+	}
+	if n.Name != nil {
+		Walk(v, n.Name)
 	}
 }
 
@@ -993,9 +1032,6 @@ func walkTypeAnnotation(n *TypeAnnotation, v Visitor) {
 
 // walkTypeDeclaration walks a TypeDeclaration node
 func walkTypeDeclaration(n *TypeDeclaration, v Visitor) {
-	if n.Name != nil {
-		Walk(v, n.Name)
-	}
 	if n.AliasedType != nil {
 		Walk(v, n.AliasedType)
 	}
@@ -1004,6 +1040,9 @@ func walkTypeDeclaration(n *TypeDeclaration, v Visitor) {
 	}
 	if n.HighBound != nil {
 		Walk(v, n.HighBound)
+	}
+	if n.Name != nil {
+		Walk(v, n.Name)
 	}
 	if n.FunctionPointerType != nil {
 		Walk(v, n.FunctionPointerType)
@@ -1050,13 +1089,13 @@ func walkVarDeclStatement(n *VarDeclStatement, v Visitor) {
 	if n.Value != nil {
 		Walk(v, n.Value)
 	}
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
 	for _, item := range n.Names {
 		if item != nil {
 			Walk(v, item)
 		}
-	}
-	if n.Type != nil {
-		Walk(v, n.Type)
 	}
 }
 

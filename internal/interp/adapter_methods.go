@@ -10,66 +10,6 @@ import (
 
 // ===== Method and Qualified Call Methods =====
 
-// CallMemberMethod calls a method on an object (record, interface, or object instance).
-func (i *Interpreter) CallMemberMethod(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression, objVal evaluator.Value) evaluator.Value {
-	// This method encapsulates the complex logic from evalCallExpression lines 82-120
-
-	// Check if this is a record method call
-	if recVal, ok := objVal.(*RecordValue); ok {
-		return i.evalRecordMethodCall(recVal, memberAccess, callExpr.Arguments, memberAccess.Object)
-	}
-
-	// Check if this is an interface method call
-	if ifaceInst, ok := objVal.(*InterfaceInstance); ok {
-		// Dispatch to the underlying object
-		if ifaceInst.Object == nil {
-			return i.newErrorWithLocation(callExpr, "cannot call method on nil interface")
-		}
-		// Call the method on the underlying object by temporarily swapping the variable
-		if objIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
-			savedVal, exists := i.env.Get(objIdent.Value)
-			if exists {
-				// Temporarily set to underlying object
-				_ = i.env.Set(objIdent.Value, ifaceInst.Object)
-				// Use defer to ensure restoration even if method call panics or returns early
-				defer func() { _ = i.env.Set(objIdent.Value, savedVal) }()
-
-				// Create a method call expression
-				mc := &ast.MethodCallExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: callExpr.Token,
-						},
-					},
-					Object:    memberAccess.Object,
-					Method:    memberAccess.Member,
-					Arguments: callExpr.Arguments,
-				}
-				return i.evalMethodCall(mc)
-			}
-		}
-		return i.newErrorWithLocation(callExpr, "interface method call requires identifier")
-	}
-
-	// If it's an object, create a MethodCallExpression and evaluate it
-	// This handles regular object method calls
-	if objVal.Type() == "OBJECT" {
-		mc := &ast.MethodCallExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: callExpr.Token,
-				},
-			},
-			Object:    memberAccess.Object,
-			Method:    memberAccess.Member,
-			Arguments: callExpr.Arguments,
-		}
-		return i.evalMethodCall(mc)
-	}
-
-	return i.newErrorWithLocation(callExpr, "cannot call method on value of type %s", objVal.Type())
-}
-
 // CallQualifiedOrConstructor calls a unit-qualified function or class constructor.
 func (i *Interpreter) CallQualifiedOrConstructor(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression) evaluator.Value {
 	// This method encapsulates the complex logic from evalCallExpression lines 122-201
