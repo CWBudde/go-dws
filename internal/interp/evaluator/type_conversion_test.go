@@ -274,6 +274,12 @@ func (m *mockConversionAdapter) LookupFunction(name string) ([]*ast.FunctionDecl
 func (m *mockConversionAdapter) EvalMethodImplementation(fn *ast.FunctionDecl) Value {
 	return &runtime.NilValue{}
 }
+func (m *mockConversionAdapter) TryBinaryOperator(operator string, left, right Value, node ast.Node) (Value, bool) {
+	return nil, false
+}
+func (m *mockConversionAdapter) TryUnaryOperator(operator string, operand Value, node ast.Node) (Value, bool) {
+	return nil, false
+}
 func (m *mockConversionAdapter) LookupClass(name string) (any, bool) { return nil, false }
 func (m *mockConversionAdapter) ResolveClassInfoByName(name string) interface{} {
 	return nil
