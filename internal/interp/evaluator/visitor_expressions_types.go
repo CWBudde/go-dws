@@ -239,8 +239,30 @@ func (e *Evaluator) checkImplements(obj Value, interfaceName string) (bool, erro
 		return false, nil
 	}
 
-	// 2. Extract ClassMetadata using adapter (extraction only)
-	classMeta := e.getClassMetadataFromValue(obj)
+	// 2. Extract ClassMetadata - handle ObjectValue, ClassValue, ClassInfoValue
+	var classMeta *runtime.ClassMetadata
+
+	// Try ObjectValue first (most common case)
+	classMeta = e.getClassMetadataFromValue(obj)
+
+	// If that didn't work, check if it's a ClassValue or ClassInfoValue
+	// These types are in internal/interp, so we check by interface
+	if classMeta == nil {
+		// Try to extract class name using GetClassName() method
+		// Both ClassValue and ClassInfoValue implement this interface
+		if classNameGetter, ok := obj.(interface{ GetClassName() string }); ok {
+			className := classNameGetter.GetClassName()
+			if className != "" {
+				// Look up the class in TypeSystem to get metadata
+				if classInfo := e.typeSystem.LookupClass(className); classInfo != nil {
+					if metadataProvider, ok := classInfo.(interface{ GetMetadata() *runtime.ClassMetadata }); ok {
+						classMeta = metadataProvider.GetMetadata()
+					}
+				}
+			}
+		}
+	}
+
 	if classMeta == nil {
 		// Guard against nil metadata (e.g., uninitialized metaclass variables)
 		// Return false, not error - this matches adapter behavior

@@ -617,8 +617,8 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return i.evalAsExpression(node)
 
 	case *ast.ImplementsExpression:
-		// Task 9.48: Evaluate 'implements' interface checking operator
-		return i.evalImplementsExpression(node)
+		// Phase 3.8.2: Delegate to evaluator
+		return i.evaluatorInstance.VisitImplementsExpression(node, i.ctx)
 
 	case *ast.IfExpression:
 		return i.evaluatorInstance.VisitIfExpression(node, i.ctx)
