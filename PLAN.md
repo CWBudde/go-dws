@@ -136,19 +136,23 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Summary
 
-Successfully delegated binary and unary operations to evaluator, removed 652 LOC of duplicate code, and fixed class helper method resolution.
+Successfully delegated binary, unary, and if operations to evaluator, removed **763 LOC** of duplicate code, and fixed class helper method resolution.
 
 **Completed**:
 - ✅ **3.8.1-3**: Binary operations delegation (622 LOC removed from `expressions_binary.go`)
 - ✅ **3.8.4**: Code cleanup (variant ops extraction, file audits)
 - ✅ **3.8.5**: Unary operations delegation (30 LOC removed from `expressions_basic.go`)
 - ✅ **3.8.6**: Class helper transfer from semantic analyzer
+- ✅ **3.8.7.1-3**: Dead code deletion + If expression (111 LOC removed from `expressions_complex.go`)
 
-**Results**: 1312 non-fixture tests pass | 874 fixture failures | 652 LOC removed
+**Results**: 1168 non-fixture tests pass | 873 fixture failures | 763 LOC removed
 
 **Key Changes**:
 - [internal/interp/interpreter.go:560](internal/interp/interpreter.go:560): Binary ops delegate to `evaluatorInstance.VisitBinaryExpression()`
 - [internal/interp/interpreter.go:563](internal/interp/interpreter.go:563): Unary ops delegate to `evaluatorInstance.VisitUnaryExpression()`
+- [internal/interp/interpreter.go:624](internal/interp/interpreter.go:624): If expressions delegate to `evaluatorInstance.VisitIfExpression()`
+- Deleted dead code: `evalInOperator()` (already in evaluator) from expressions_complex.go
+- Deleted migrated code: `evalIfExpression()` from expressions_complex.go
 - Moved operator overloading helpers to `adapter_operators.go`
 - Helper methods transferred via `SetSemanticInfo()`
 
