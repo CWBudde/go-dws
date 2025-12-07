@@ -538,18 +538,7 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 	// Find method (case-insensitive) using the existing helper
 	method := classInfo.LookupMethod(methodName)
 	if method == nil {
-		// Try helper methods before panicking (similar to enum helper lookup pattern)
-		// Task 3.8.4: Class helpers are registered in TypeSystem but weren't being checked for objects
-		helperResult := i.evaluatorInstance.FindHelperMethod(obj, methodName)
-		if helperResult != nil {
-			// Found a helper method - call it via evaluator
-			// Convert internal args back to evaluator args for helper call
-			evalArgs := make([]evaluator.Value, len(internalArgs))
-			copy(evalArgs, internalArgs)
-			return i.evaluatorInstance.CallHelperMethod(helperResult, obj, evalArgs, node, i.ctx)
-		}
-
-		// Neither class method nor helper method found - panic
+		// Neither class method found - panic
 		panic(fmt.Sprintf("method '%s' not found in class '%s'", methodName, classInfo.GetName()))
 	}
 
