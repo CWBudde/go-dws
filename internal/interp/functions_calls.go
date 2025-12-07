@@ -6,6 +6,19 @@ import (
 	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
 
+// wrapLazyArgument reuses existing lazy thunks so forwarding a lazy argument
+// (e.g. recursive calls) doesn't create a self-referential thunk that overflows.
+func (i *Interpreter) wrapLazyArgument(arg ast.Expression) Value {
+	if identExpr, ok := arg.(*ast.Identifier); ok {
+		if existing, ok := i.env.Get(identExpr.Value); ok {
+			if _, ok := existing.(interface{ Evaluate() Value }); ok {
+				return existing
+			}
+		}
+	}
+	return NewLazyThunk(arg, i.env, i)
+}
+
 // evalCallExpression evaluates a DWScript function call expression.
 //
 // This method handles:
@@ -39,8 +52,8 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 					}
 
 					if isLazy {
-						// For lazy parameters, create a LazyThunk
-						args[idx] = NewLazyThunk(arg, i.env, i)
+						// For lazy parameters, reuse existing thunks to avoid self-recursive wrapping
+						args[idx] = i.wrapLazyArgument(arg)
 					} else if isByRef {
 						// For var parameters, create a reference or pass through existing reference
 						if argIdent, ok := arg.(*ast.Identifier); ok {
@@ -135,8 +148,8 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 							isByRef := idx < len(fn.Parameters) && fn.Parameters[idx].ByRef
 
 							if isLazy {
-								// For lazy parameters, create a LazyThunk
-								args[idx] = NewLazyThunk(arg, i.env, i)
+								// For lazy parameters, reuse existing thunks to avoid self-recursive wrapping
+								args[idx] = i.wrapLazyArgument(arg)
 							} else if isByRef {
 								// For var parameters, create a reference or pass through existing reference
 								if argIdent, ok := arg.(*ast.Identifier); ok {
@@ -227,7 +240,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 			if isLazy {
 				// For lazy parameters, create a LazyThunk with the unevaluated expression
 				// and the current environment (captured from call site)
-				args[idx] = NewLazyThunk(arg, i.env, i)
+				args[idx] = i.wrapLazyArgument(arg)
 			} else if isByRef {
 				// For var parameters, create a reference to the variable
 				// instead of copying its value

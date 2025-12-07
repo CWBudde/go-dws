@@ -122,14 +122,10 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 					}
 
 					if isLazy {
-						// For lazy parameters, create a LazyThunk with callback-based evaluation
-						// Task 3.5.131d: Direct construction using runtime.NewLazyThunk with callback
-						capturedArg := arg
-						var evalCallback runtime.EvalCallback = func() runtime.Value {
-							// Callback captures interpreter's eval via adapter.EvalNode
-							return e.adapter.EvalNode(capturedArg)
-						}
-						args[idx] = runtime.NewLazyThunk(capturedArg, evalCallback)
+						// For lazy parameters, reuse existing thunks to avoid self-recursive wrapping
+						args[idx] = e.wrapLazyArg(arg, ctx, func(expr ast.Expression) Value {
+							return e.adapter.EvalNode(expr)
+						})
 					} else if isByRef {
 						// For var parameters, create a ReferenceValue with callback-based get/set
 						// Var parameters must be lvalues (variables)
@@ -428,13 +424,10 @@ func (e *Evaluator) PrepareUserFunctionArgs(
 
 		if isLazy {
 			// Task 3.5.131d pattern: Lazy with callback
-			// Capture the argument expression for deferred evaluation
-			capturedArg := arg
-			var evalCallback runtime.EvalCallback = func() runtime.Value {
+			args[idx] = e.wrapLazyArg(arg, ctx, func(expr ast.Expression) Value {
 				// Evaluate in the current context when forced
-				return e.Eval(capturedArg, ctx)
-			}
-			args[idx] = runtime.NewLazyThunk(capturedArg, evalCallback)
+				return e.Eval(expr, ctx)
+			})
 
 		} else if isByRef {
 			// Task 3.5.131d pattern: Var with callbacks
@@ -478,6 +471,23 @@ func (e *Evaluator) PrepareUserFunctionArgs(
 	}
 
 	return args, nil
+}
+
+// wrapLazyArg reuses existing lazy thunks so forwarding a lazy argument (like a recursive lazy parameter)
+// doesn't create a self-referential thunk that overflows the stack.
+func (e *Evaluator) wrapLazyArg(arg ast.Expression, ctx *ExecutionContext, eval func(ast.Expression) Value) Value {
+	if identArg, ok := arg.(*ast.Identifier); ok {
+		if valRaw, ok := ctx.Env().Get(identArg.Value); ok {
+			if lazyVal, ok := valRaw.(LazyEvaluator); ok {
+				return lazyVal
+			}
+		}
+	}
+
+	capturedArg := arg
+	return runtime.NewLazyThunk(capturedArg, func() runtime.Value {
+		return eval(capturedArg)
+	})
 }
 
 // VisitNewExpression evaluates a 'new' expression (object instantiation).

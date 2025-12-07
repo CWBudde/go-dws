@@ -90,8 +90,8 @@ func (i *Interpreter) CallQualifiedOrConstructor(callExpr *ast.CallExpression, m
 						isByRef := idx < len(fn.Parameters) && fn.Parameters[idx].ByRef
 
 						if isLazy {
-							// For lazy parameters, create a LazyThunk
-							args[idx] = NewLazyThunk(arg, i.env, i)
+							// For lazy parameters, reuse existing thunks to avoid self-recursive wrapping
+							args[idx] = i.wrapLazyArgument(arg)
 						} else if isByRef {
 							// For var parameters, create a reference
 							if argIdent, ok := arg.(*ast.Identifier); ok {
