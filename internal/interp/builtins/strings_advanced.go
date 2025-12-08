@@ -395,7 +395,7 @@ func LastDelimiter(ctx Context, args []Value) Value {
 
 // FindDelimiter implements the FindDelimiter() built-in function.
 // It finds the position of the first occurrence of any delimiter character, starting from an index.
-// FindDelimiter(delims, str, startIndex) - returns 1-based position (0 if not found)
+// FindDelimiter(delims, str, startIndex) - returns 1-based position (-1 if not found)
 func FindDelimiter(ctx Context, args []Value) Value {
 	if len(args) != 2 && len(args) != 3 {
 		return ctx.NewError("FindDelimiter() expects 2 or 3 arguments, got %d", len(args))
@@ -427,7 +427,7 @@ func FindDelimiter(ctx Context, args []Value) Value {
 	str := strVal.Value
 	// Handle invalid start index
 	if startIndex < 1 {
-		return &runtime.IntegerValue{Value: 0}
+		return &runtime.IntegerValue{Value: -1}
 	}
 
 	// Convert to rune-based for UTF-8 support
@@ -438,7 +438,7 @@ func FindDelimiter(ctx Context, args []Value) Value {
 
 	// Check if start index is within bounds
 	if startIdx >= len(strRunes) {
-		return &runtime.IntegerValue{Value: 0}
+		return &runtime.IntegerValue{Value: -1}
 	}
 
 	// Search from startIdx for any delimiter character
@@ -449,8 +449,8 @@ func FindDelimiter(ctx Context, args []Value) Value {
 		}
 	}
 
-	// No delimiter found
-	return &runtime.IntegerValue{Value: 0}
+	// No delimiter found - return -1
+	return &runtime.IntegerValue{Value: -1}
 }
 
 // PadLeft implements the PadLeft() built-in function.

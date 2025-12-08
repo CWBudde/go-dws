@@ -783,7 +783,7 @@ func builtinFindDelimiter(vm *VM, args []Value) (Value, error) {
 
 	// Handle invalid start index
 	if startIndex < 1 {
-		return IntValue(0), nil
+		return IntValue(-1), nil
 	}
 
 	// Convert to rune-based for UTF-8 support
@@ -794,7 +794,7 @@ func builtinFindDelimiter(vm *VM, args []Value) (Value, error) {
 
 	// Check if start index is within bounds
 	if startIdx >= len(strRunes) {
-		return IntValue(0), nil
+		return IntValue(-1), nil
 	}
 
 	// Search from startIdx for any delimiter character
@@ -805,8 +805,8 @@ func builtinFindDelimiter(vm *VM, args []Value) (Value, error) {
 		}
 	}
 
-	// No delimiter found
-	return IntValue(0), nil
+	// No delimiter found - return -1
+	return IntValue(-1), nil
 }
 
 func builtinPadLeft(vm *VM, args []Value) (Value, error) {
