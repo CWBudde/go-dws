@@ -8,6 +8,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
@@ -661,7 +662,27 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel 
 		if semanticInfo := analyzer.GetSemanticInfo(); semanticInfo != nil {
 			interp.SetSemanticInfo(semanticInfo)
 		}
-		result := interp.Eval(program)
+
+		// Execute with timeout to prevent infinite loops from hanging tests
+		// Timeout is set to 5 seconds - enough for normal tests, catches infinite loops
+		type evalResult struct {
+			value Value
+		}
+		resultChan := make(chan evalResult, 1)
+
+		go func() {
+			resultChan <- evalResult{value: interp.Eval(program)}
+		}()
+
+		var result Value
+		select {
+		case res := <-resultChan:
+			result = res.value
+		case <-time.After(5 * time.Second):
+			// Timeout - likely an infinite loop
+			t.Errorf("Test %s timed out after 5 seconds (likely infinite loop)", filepath.Base(pasFile))
+			return testResultFailed
+		}
 
 		if result != nil && result.Type() == "ERROR" {
 			// Got runtime error as expected
@@ -716,14 +737,33 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel 
 		return testResultFailed
 	}
 
-	// Execute the program
+	// Execute the program with timeout
 	var buf bytes.Buffer
 	interp := New(&buf)
 	// Task 9.5.4: Pass semantic info to interpreter for class variable access
 	if semanticInfo := analyzer.GetSemanticInfo(); semanticInfo != nil {
 		interp.SetSemanticInfo(semanticInfo)
 	}
-	result := interp.Eval(program)
+
+	// Execute with timeout to prevent infinite loops from hanging tests
+	type evalResult struct {
+		value Value
+	}
+	resultChan := make(chan evalResult, 1)
+
+	go func() {
+		resultChan <- evalResult{value: interp.Eval(program)}
+	}()
+
+	var result Value
+	select {
+	case res := <-resultChan:
+		result = res.value
+	case <-time.After(5 * time.Second):
+		// Timeout - likely an infinite loop
+		t.Errorf("Test %s timed out after 5 seconds (likely infinite loop)", filepath.Base(pasFile))
+		return testResultFailed
+	}
 
 	// Check for runtime errors
 	if result != nil && result.Type() == "ERROR" {
