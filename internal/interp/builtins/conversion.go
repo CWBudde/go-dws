@@ -151,9 +151,11 @@ func StrToInt(ctx Context, args []Value) Value {
 
 	// Default base is 10
 	base := 10
+	explicitBase := false // Track if base was explicitly provided for error messages
 
 	// If second argument is provided, it specifies the base
 	if len(args) == 2 {
+		explicitBase = true
 		baseValue, ok := ctx.ToInt64(args[1])
 		if !ok {
 			return ctx.NewError("StrToInt() expects integer as second argument (base), got %s", args[1].Type())
@@ -201,7 +203,14 @@ func StrToInt(ctx Context, args []Value) Value {
 	// Use strconv.ParseInt for strict parsing
 	intValue, err := strconv.ParseInt(s, base, 64)
 	if err != nil {
-		msg := fmt.Sprintf("%q is not a valid 64bit integer value in base %d", strVal.Value, base)
+		var msg string
+		if explicitBase {
+			// When base was explicitly provided, use detailed message format
+			msg = fmt.Sprintf("%q is not a valid 64bit integer value in base %d", strVal.Value, base)
+		} else {
+			// When using default base 10, use simple message format
+			msg = fmt.Sprintf("%q is not a valid integer value", strVal.Value)
+		}
 
 		// Attach source position if available
 		if node := ctx.CurrentNode(); node != nil {
