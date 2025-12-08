@@ -2062,7 +2062,7 @@ begin
 	ByteSizeToStr(512);
 end
 			`,
-			expected: "512 bytes",
+			expected: "512 B",
 		},
 		{
 			name: "Kilobytes",
@@ -2071,7 +2071,7 @@ begin
 	ByteSizeToStr(1536);
 end
 			`,
-			expected: "1.50 KB",
+			expected: "1.5 kB",
 		},
 		{
 			name: "Megabytes",
@@ -2098,7 +2098,7 @@ begin
 	ByteSizeToStr(0);
 end
 			`,
-			expected: "0 bytes",
+			expected: "0 B",
 		},
 		{
 			name: "One kilobyte exactly",
@@ -2107,7 +2107,7 @@ begin
 	ByteSizeToStr(1024);
 end
 			`,
-			expected: "1.00 KB",
+			expected: "1.0 kB",
 		},
 	}
 

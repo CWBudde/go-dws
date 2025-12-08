@@ -1499,10 +1499,14 @@ func builtinByteSizeToStr(vm *VM, args []Value) (Value, error) {
 		absSize = -absSize
 	}
 
+	// Match DWScript format exactly:
+	// - Bytes: "%d B" (no decimals)
+	// - kB: "%.1f kB" (1 decimal, lowercase k)
+	// - MB/GB/TB: "%.2f XB" (2 decimals)
 	if absSize < KB {
-		result = fmt.Sprintf("%d bytes", int64(size))
+		result = fmt.Sprintf("%d B", int64(size))
 	} else if absSize < MB {
-		result = fmt.Sprintf("%.2f KB", size/KB)
+		result = fmt.Sprintf("%.1f kB", size/KB)
 	} else if absSize < GB {
 		result = fmt.Sprintf("%.2f MB", size/MB)
 	} else if absSize < TB {

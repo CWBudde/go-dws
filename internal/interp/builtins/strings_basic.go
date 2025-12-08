@@ -962,11 +962,15 @@ func ByteSizeToStr(ctx Context, args []Value) Value {
 		absSize = -absSize
 	}
 
+	// Match DWScript format exactly:
+	// - Bytes: "%d B" (no decimals)
+	// - kB: "%.1f kB" (1 decimal, lowercase k)
+	// - MB/GB/TB: "%.2f XB" (2 decimals)
 	switch {
 	case absSize < KB:
-		result = fmt.Sprintf("%d bytes", int64(size))
+		result = fmt.Sprintf("%d B", int64(size))
 	case absSize < MB:
-		result = fmt.Sprintf("%.2f KB", size/KB)
+		result = fmt.Sprintf("%.1f kB", size/KB)
 	case absSize < GB:
 		result = fmt.Sprintf("%.2f MB", size/MB)
 	case absSize < TB:

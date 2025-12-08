@@ -507,8 +507,8 @@ func TestStringBuiltinsUncovered(t *testing.T) {
 		if err != nil {
 			t.Fatalf("builtinByteSizeToStr() error = %v", err)
 		}
-		if result.AsString() != "512 bytes" {
-			t.Errorf("builtinByteSizeToStr(512) = %v, want '512 bytes'", result.AsString())
+		if result.AsString() != "512 B" {
+			t.Errorf("builtinByteSizeToStr(512) = %v, want '512 B'", result.AsString())
 		}
 	})
 
@@ -519,8 +519,8 @@ func TestStringBuiltinsUncovered(t *testing.T) {
 		if err != nil {
 			t.Fatalf("builtinByteSizeToStr() error = %v", err)
 		}
-		if result.AsString() != "2.00 KB" {
-			t.Errorf("builtinByteSizeToStr(2048) = %v, want '2.00 KB'", result.AsString())
+		if result.AsString() != "2.0 kB" {
+			t.Errorf("builtinByteSizeToStr(2048) = %v, want '2.0 kB'", result.AsString())
 		}
 	})
 
