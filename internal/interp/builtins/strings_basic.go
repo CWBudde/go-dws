@@ -406,14 +406,15 @@ func StringOfChar(ctx Context, args []Value) Value {
 	}
 
 	// Extract the first character from the string
-	// If the string is empty, return empty string
+	// If the string is empty, default to space (DWScript behavior)
+	var ch string
 	if runeLength(charVal.Value) == 0 {
-		return &runtime.StringValue{Value: ""}
+		ch = " "
+	} else {
+		// Get the first character (rune-based to handle UTF-8)
+		firstRune, _ := runeAt(charVal.Value, 1)
+		ch = string(firstRune)
 	}
-
-	// Get the first character (rune-based to handle UTF-8)
-	firstRune, _ := runeAt(charVal.Value, 1)
-	ch := string(firstRune)
 
 	// Use strings.Repeat to create the repeated string
 	result := strings.Repeat(ch, count)
