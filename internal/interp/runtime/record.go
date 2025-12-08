@@ -7,8 +7,12 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
+
+// Compile-time interface satisfaction check (will be added when evaluator imports this)
+// This ensures RecordValue implements the RecordInstanceValue interface defined in evaluator package
 
 // RecordValue represents a record value in DWScript.
 // Records are value types with named fields and optional methods.
@@ -143,6 +147,64 @@ func (r *RecordValue) HasRecordMethod(name string) bool {
 	normalizedName := ident.Normalize(name)
 	_, ok := r.Metadata.Methods[normalizedName]
 	return ok
+}
+
+// GetRecordMethod retrieves the AST method declaration for a record method.
+// Task 3.12.2: Enables evaluator to execute record methods natively.
+// Returns the method declaration and true if found, nil and false otherwise.
+// The name comparison is case-insensitive (DWScript convention).
+func (r *RecordValue) GetRecordMethod(name string) (*ast.FunctionDecl, bool) {
+	if r.Metadata == nil {
+		return nil, false
+	}
+
+	// Case-insensitive method lookup
+	normalizedName := ident.Normalize(name)
+	methodMeta, ok := r.Metadata.Methods[normalizedName]
+	if !ok {
+		return nil, false
+	}
+
+	// Reconstruct FunctionDecl from MethodMetadata
+	// The Body field contains the AST statement block
+	blockBody, ok := methodMeta.Body.(*ast.BlockStatement)
+	if !ok {
+		// Body must be a BlockStatement for function declarations
+		return nil, false
+	}
+
+	// Reconstruct parameters from metadata
+	params := make([]*ast.Parameter, len(methodMeta.Parameters))
+	for i, paramMeta := range methodMeta.Parameters {
+		var paramType ast.TypeExpression
+		if paramMeta.TypeName != "" {
+			paramType = &ast.TypeAnnotation{Name: paramMeta.TypeName}
+		}
+		params[i] = &ast.Parameter{
+			Name:         &ast.Identifier{Value: paramMeta.Name},
+			Type:         paramType,
+			ByRef:        paramMeta.ByRef,
+			DefaultValue: paramMeta.DefaultValue,
+		}
+	}
+
+	// Reconstruct return type if present
+	var returnType ast.TypeExpression
+	if methodMeta.ReturnTypeName != "" {
+		returnType = &ast.TypeAnnotation{Name: methodMeta.ReturnTypeName}
+	}
+
+	functionDecl := &ast.FunctionDecl{
+		Name:          &ast.Identifier{Value: methodMeta.Name},
+		Parameters:    params,
+		ReturnType:    returnType,
+		Body:          blockBody,
+		IsClassMethod: methodMeta.IsClassMethod,
+		IsConstructor: methodMeta.IsConstructor,
+		IsDestructor:  methodMeta.IsDestructor,
+	}
+
+	return functionDecl, true
 }
 
 // HasRecordProperty checks if a property with the given name exists.
