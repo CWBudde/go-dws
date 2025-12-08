@@ -945,12 +945,12 @@ func TestByteSizeToStr(t *testing.T) {
 		{
 			name:     "bytes",
 			args:     []Value{&runtime.IntegerValue{Value: 500}},
-			expected: "500 bytes",
+			expected: "500 B",
 		},
 		{
 			name:     "kilobytes",
 			args:     []Value{&runtime.IntegerValue{Value: 1024}},
-			expected: "1.00 KB",
+			expected: "1.0 kB",
 		},
 		{
 			name:     "megabytes",

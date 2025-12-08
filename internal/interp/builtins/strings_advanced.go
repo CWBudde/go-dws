@@ -427,7 +427,7 @@ func FindDelimiter(ctx Context, args []Value) Value {
 	str := strVal.Value
 	// Handle invalid start index
 	if startIndex < 1 {
-		return &runtime.IntegerValue{Value: -1}
+		return &runtime.IntegerValue{Value: 0}
 	}
 
 	// Convert to rune-based for UTF-8 support
@@ -438,7 +438,7 @@ func FindDelimiter(ctx Context, args []Value) Value {
 
 	// Check if start index is within bounds
 	if startIdx >= len(strRunes) {
-		return &runtime.IntegerValue{Value: -1}
+		return &runtime.IntegerValue{Value: 0}
 	}
 
 	// Search from startIdx for any delimiter character
@@ -449,8 +449,8 @@ func FindDelimiter(ctx Context, args []Value) Value {
 		}
 	}
 
-	// No delimiter found - return -1
-	return &runtime.IntegerValue{Value: -1}
+	// No delimiter found - return 0 (Delphi convention for 1-based strings)
+	return &runtime.IntegerValue{Value: 0}
 }
 
 // PadLeft implements the PadLeft() built-in function.

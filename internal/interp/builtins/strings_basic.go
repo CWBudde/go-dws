@@ -890,9 +890,9 @@ func RevPos(ctx Context, args []Value) Value {
 	needle := needleVal.Value
 	haystack := haystackVal.Value
 
-	// Handle empty needle - return 0 (not found)
+	// Handle empty needle - return len(haystack) + 1 (position after last char)
 	if len(needle) == 0 {
-		return &runtime.IntegerValue{Value: 0}
+		return &runtime.IntegerValue{Value: int64(len([]rune(haystack)) + 1)}
 	}
 
 	// Find the last occurrence using strings.LastIndex
