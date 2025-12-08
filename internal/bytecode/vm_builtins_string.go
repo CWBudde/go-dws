@@ -1589,15 +1589,16 @@ func builtinByteSizeToStr(vm *VM, args []Value) (Value, error) {
 	// - Bytes: "%d B" (no decimals)
 	// - kB: "%.1f kB" (1 decimal, lowercase k)
 	// - MB/GB/TB: "%.2f XB" (2 decimals)
-	if absSize < KB {
+	switch {
+	case absSize < KB:
 		result = fmt.Sprintf("%d B", int64(size))
-	} else if absSize < MB {
+	case absSize < MB:
 		result = fmt.Sprintf("%.1f kB", size/KB)
-	} else if absSize < GB {
+	case absSize < GB:
 		result = fmt.Sprintf("%.2f MB", size/MB)
-	} else if absSize < TB {
+	case absSize < TB:
 		result = fmt.Sprintf("%.2f GB", size/GB)
-	} else {
+	default:
 		result = fmt.Sprintf("%.2f TB", size/TB)
 	}
 

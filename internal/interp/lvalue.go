@@ -134,8 +134,8 @@ func (i *Interpreter) computePhysicalIndex(arr *ArrayValue, index int) (int, err
 // evaluateMemberLValue handles object/record field lvalues (e.g., obj.field).
 func (i *Interpreter) evaluateMemberLValue(target *ast.MemberAccessExpression) (Value, func(Value) error, error) {
 	objVal := i.Eval(target.Object)
-	if isError(objVal) {
-		return nil, nil, fmt.Errorf("failed to evaluate object: %s", objVal.(*ErrorValue).Message)
+	if errVal, ok := objVal.(*ErrorValue); ok {
+		return nil, nil, fmt.Errorf("failed to evaluate object: %s", errVal.Message)
 	}
 
 	fieldName := target.Member.Value
