@@ -1,6 +1,7 @@
 package interp
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -129,7 +130,15 @@ func (i *Interpreter) builtinHexToInt(args []Value) Value {
 	// Parse as hexadecimal (base 16)
 	intValue, err := strconv.ParseInt(s, 16, 64)
 	if err != nil {
-		return i.newErrorWithLocation(i.currentNode, "'%s' is not a valid hexadecimal number", strVal.Value)
+		// Raise an exception that can be caught by try/except
+		msg := fmt.Sprintf("'%s' is not a valid hexadecimal number", strVal.Value)
+		if i.currentNode != nil {
+			pos := i.currentNode.Pos()
+			i.raiseException("EConvertError", msg, &pos)
+		} else {
+			i.raiseException("EConvertError", msg, nil)
+		}
+		return &IntegerValue{Value: 0}
 	}
 
 	return &IntegerValue{Value: intValue}
