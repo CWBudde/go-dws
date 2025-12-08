@@ -239,7 +239,8 @@ func TestDWScriptFixtures(t *testing.T) {
 			path:         "../../testdata/fixtures/FunctionsString",
 			expectErrors: false,
 			description:  "String manipulation functions",
-			skip:         false, // Enabled for task 9.17.3
+			skip:         false,                     // Enabled for task 9.17.3
+			hintsLevel:   semantic.HintsLevelNormal, // FunctionsString tests aren't part of DWScript's pedantic harness
 		},
 		{
 			name:         "FunctionsTime",
@@ -792,22 +793,20 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel 
 	// Capture output and prepend any hints from semantic analysis
 	actualOutput := buf.String()
 
-	// Check if there are hints (but not actual errors) from semantic analysis
+	// Check if there are hints or warnings (but not actual errors) from semantic analysis
 	analyzerErrors := analyzer.Errors()
-	hasHints := false
-	var hints []string
+	var hintsAndWarnings []string
 	for _, err := range analyzerErrors {
-		if strings.HasPrefix(err, "Hint:") {
-			hasHints = true
-			hints = append(hints, err)
+		if strings.HasPrefix(err, "Hint:") || strings.HasPrefix(err, "Warning:") {
+			hintsAndWarnings = append(hintsAndWarnings, err)
 		}
 	}
 
-	// If there are hints, format output as "Errors >>>>\n<hints>\nResult >>>>\n<output>"
-	if hasHints {
+	// If there are hints or warnings, format output as "Errors >>>>\n<hints/warnings>\nResult >>>>\n<output>"
+	if len(hintsAndWarnings) > 0 {
 		var formattedOutput strings.Builder
 		formattedOutput.WriteString("Errors >>>>\n")
-		for _, hint := range hints {
+		for _, hint := range hintsAndWarnings {
 			formattedOutput.WriteString(hint)
 			formattedOutput.WriteString("\n")
 		}

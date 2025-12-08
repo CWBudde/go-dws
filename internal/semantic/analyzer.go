@@ -311,10 +311,10 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 		a.mergePassErrors(ctx)
 	}
 
-	// Return errors if any (hints don't prevent success)
+	// Return errors if any (hints and warnings don't prevent success)
 	hasActualErrors := false
 	for _, err := range a.errors {
-		if !strings.HasPrefix(err, "Hint:") {
+		if !strings.HasPrefix(err, "Hint:") && !strings.HasPrefix(err, "Warning:") {
 			hasActualErrors = true
 			break
 		}

@@ -705,7 +705,7 @@ func (a *Analyzer) analyzeCharAt(args []ast.Expression, callExpr *ast.CallExpres
 			posType.String(), callExpr.Token.Pos.String())
 	}
 	// Emit deprecation warning to mirror DWScript behavior
-	a.addHint("Warning: \"CharAt\" has been deprecated [line: %d, column: %d]",
+	a.addWarning("\"CharAt\" has been deprecated [line: %d, column: %d]",
 		callExpr.Token.Pos.Line, 9)
 	return types.STRING
 }
