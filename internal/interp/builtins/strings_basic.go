@@ -74,8 +74,13 @@ func Pos(ctx Context, args []Value) Value {
 	substr := substrVal.Value
 	str := strVal.Value
 
-	// Handle empty substring - returns 1 (found at start)
+	// Handle empty substring:
+	// - If source string is also empty, return 0 (not found - no position exists)
+	// - Otherwise, return 1 (found at start)
 	if len(substr) == 0 {
+		if len(str) == 0 {
+			return &runtime.IntegerValue{Value: 0}
+		}
 		return &runtime.IntegerValue{Value: 1}
 	}
 

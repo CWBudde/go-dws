@@ -710,17 +710,25 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		return builtins.StrContains(i, []builtins.Value{strVal, args[0]})
 
 	case "__string_indexof":
-		// String.IndexOf(substr) -> Pos(substr, self)
-		// NOTE: Parameter order is REVERSED! .IndexOf(substr) calls Pos(substr, self)
-		if len(args) != 1 {
-			return i.newErrorWithLocation(node, "String.IndexOf expects exactly 1 argument")
+		// String.IndexOf(substr) or String.IndexOf(substr, startIndex)
+		// Uses PosEx semantics: empty needle always returns 0 (not found)
+		if len(args) < 1 || len(args) > 2 {
+			return i.newErrorWithLocation(node, "String.IndexOf expects 1 or 2 arguments, got %d", len(args))
 		}
 		strVal, ok := selfValue.(*StringValue)
 		if !ok {
 			return i.newErrorWithLocation(node, "String.IndexOf requires string receiver")
 		}
-		// Call the builtin Pos function with reversed arguments: Pos(substr, str)
-		return builtins.Pos(i, []builtins.Value{args[0], strVal})
+		// Get startIndex (default 1 for 1-based indexing)
+		startIndex := &IntegerValue{Value: 1}
+		if len(args) == 2 {
+			startIndex, ok = args[1].(*IntegerValue)
+			if !ok {
+				return i.newErrorWithLocation(node, "String.IndexOf startIndex must be Integer, got %s", args[1].Type())
+			}
+		}
+		// Use PosEx for consistent behavior (empty needle returns 0)
+		return builtins.PosEx(i, []builtins.Value{args[0], strVal, startIndex})
 
 	case "__string_matches":
 		if len(args) != 1 {

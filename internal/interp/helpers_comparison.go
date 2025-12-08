@@ -334,7 +334,7 @@ func (i *Interpreter) isBuiltinMethodParameterless(builtinSpec string) bool {
 		"__string_startswith":      false, // StartsWith(str) - 1 parameter
 		"__string_endswith":        false, // EndsWith(str) - 1 parameter
 		"__string_contains":        false, // Contains(str) - 1 parameter
-		"__string_indexof":         false, // IndexOf(str) - 1 parameter
+		"__string_indexof":         false, // IndexOf(str[, startIndex]) - 1-2 parameters
 		"__string_copy":            false, // Copy(start, [len]) - 1-2 parameters
 		"__string_before":          false, // Before(str) - 1 parameter
 		"__string_after":           false, // After(str) - 1 parameter

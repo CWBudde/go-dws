@@ -671,7 +671,17 @@ func (a *Analyzer) initIntrinsicHelpers() {
 	stringHelper.BuiltinMethods["endswith"] = "__string_endswith"
 	stringHelper.Methods["contains"] = types.NewFunctionType([]types.Type{types.STRING}, types.BOOLEAN)
 	stringHelper.BuiltinMethods["contains"] = "__string_contains"
-	stringHelper.Methods["indexof"] = types.NewFunctionType([]types.Type{types.STRING}, types.INTEGER)
+	// Register .IndexOf() method: IndexOf(substring) or IndexOf(substring, startIndex)
+	// Second parameter (startIndex) is optional with default value 1 (1-based indexing in DWScript)
+	stringHelper.Methods["indexof"] = types.NewFunctionTypeWithMetadata(
+		[]types.Type{types.STRING, types.INTEGER},
+		[]string{"substring", "startIndex"},
+		[]interface{}{nil, int64(1)}, // Default startIndex = 1 (1-based)
+		[]bool{false, false},
+		[]bool{false, false},
+		[]bool{false, false},
+		types.INTEGER,
+	)
 	stringHelper.BuiltinMethods["indexof"] = "__string_indexof"
 	stringHelper.Methods["matches"] = types.NewFunctionType([]types.Type{types.STRING}, types.BOOLEAN)
 	stringHelper.BuiltinMethods["matches"] = "__string_matches"
