@@ -27,12 +27,12 @@ func TestStrBefore(t *testing.T) {
 			expected: "Hello",
 		},
 		{
-			name: "delimiter not found",
+			name: "delimiter not found returns original",
 			args: []Value{
 				&runtime.StringValue{Value: "HelloWorld"},
 				&runtime.StringValue{Value: "@"},
 			},
-			expected: "",
+			expected: "HelloWorld",
 		},
 		{
 			name: "delimiter at start",
@@ -139,12 +139,12 @@ func TestStrBeforeLast(t *testing.T) {
 			expected: "a@b",
 		},
 		{
-			name: "delimiter not found",
+			name: "delimiter not found returns original",
 			args: []Value{
 				&runtime.StringValue{Value: "abc"},
 				&runtime.StringValue{Value: "@"},
 			},
-			expected: "",
+			expected: "abc",
 		},
 		{
 			name: "empty delimiter returns original string",

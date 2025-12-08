@@ -225,7 +225,7 @@ func TestBuiltinStringFunctionsAdditional(t *testing.T) {
 		}
 	})
 
-	t.Run("StrBeforeLast not found", func(t *testing.T) {
+	t.Run("StrBeforeLast not found returns original", func(t *testing.T) {
 		result, err := builtinStrBeforeLast(vm, []Value{
 			StringValue("Hello, World!"),
 			StringValue("x"),
@@ -233,12 +233,12 @@ func TestBuiltinStringFunctionsAdditional(t *testing.T) {
 		if err != nil {
 			t.Fatalf("builtinStrBeforeLast() error = %v", err)
 		}
-		if result.AsString() != "" {
-			t.Errorf("builtinStrBeforeLast('Hello, World!', 'x') = %v, want ''", result.AsString())
+		if result.AsString() != "Hello, World!" {
+			t.Errorf("builtinStrBeforeLast('Hello, World!', 'x') = %v, want 'Hello, World!'", result.AsString())
 		}
 	})
 
-	t.Run("StrBefore not found returns empty", func(t *testing.T) {
+	t.Run("StrBefore not found returns original", func(t *testing.T) {
 		result, err := builtinStrBefore(vm, []Value{
 			StringValue("Hello, World!"),
 			StringValue("x"),
@@ -246,8 +246,8 @@ func TestBuiltinStringFunctionsAdditional(t *testing.T) {
 		if err != nil {
 			t.Fatalf("builtinStrBefore() error = %v", err)
 		}
-		if result.AsString() != "" {
-			t.Errorf("builtinStrBefore('Hello, World!', 'x') = %v, want ''", result.AsString())
+		if result.AsString() != "Hello, World!" {
+			t.Errorf("builtinStrBefore('Hello, World!', 'x') = %v, want 'Hello, World!'", result.AsString())
 		}
 	})
 
