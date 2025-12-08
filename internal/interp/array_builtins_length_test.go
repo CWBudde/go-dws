@@ -1189,3 +1189,129 @@ end
 			strVal.Value, len(strVal.Value), expectedResult, len(expectedResult))
 	}
 }
+
+// ============================================================================
+// Low() and High() Built-in Functions with Strings
+// ============================================================================
+
+// TestBuiltinLow_Strings tests Low() with string values.
+// In DWScript, strings are 1-indexed, so Low() always returns 1.
+func TestBuiltinLow_Strings(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name: "Low() on non-empty string returns 1",
+			input: `
+var s: String := "hello";
+begin
+	Low(s);
+end
+			`,
+			expected: 1,
+		},
+		{
+			name: "Low() on empty string returns 1",
+			input: `
+var s: String := "";
+begin
+	Low(s);
+end
+			`,
+			expected: 1,
+		},
+		{
+			name: "Low() on string with Unicode returns 1",
+			input: `
+var s: String := "�";
+begin
+	Low(s);
+end
+			`,
+			expected: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			intVal, ok := result.(*IntegerValue)
+			if !ok {
+				t.Fatalf("result is not *IntegerValue. got=%T (%+v)", result, result)
+			}
+
+			if intVal.Value != tt.expected {
+				t.Errorf("Low() = %d, want %d", intVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinHigh_Strings tests High() with string values.
+// In DWScript, High() returns the length of the string (number of characters).
+func TestBuiltinHigh_Strings(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name: "High() on 5-character string returns 5",
+			input: `
+var s: String := "hello";
+begin
+	High(s);
+end
+			`,
+			expected: 5,
+		},
+		{
+			name: "High() on empty string returns 0",
+			input: `
+var s: String := "";
+begin
+	High(s);
+end
+			`,
+			expected: 0,
+		},
+		{
+			name: "High() on 4-character Unicode string returns 4",
+			input: `
+var s: String := "ériç";
+begin
+	High(s);
+end
+			`,
+			expected: 4,
+		},
+		{
+			name: "High() on single emoji returns 1",
+			input: `
+var s: String := "�";
+begin
+	High(s);
+end
+			`,
+			expected: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			intVal, ok := result.(*IntegerValue)
+			if !ok {
+				t.Fatalf("result is not *IntegerValue. got=%T (%+v)", result, result)
+			}
+
+			if intVal.Value != tt.expected {
+				t.Errorf("High() = %d, want %d", intVal.Value, tt.expected)
+			}
+		})
+	}
+}
