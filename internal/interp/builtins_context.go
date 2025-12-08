@@ -943,3 +943,104 @@ func (i *Interpreter) ConcatStrings(args []builtins.Value) builtins.Value {
 	}
 	return &StringValue{Value: result.String()}
 }
+
+// =============================================================================
+// VarParamContext interface implementation
+// =============================================================================
+
+// Ensure Interpreter implements builtins.VarParamContext interface at compile time.
+var _ builtins.VarParamContext = (*Interpreter)(nil)
+
+// IsError checks if a value is an error value.
+func (i *Interpreter) IsError(value builtins.Value) bool {
+	return isError(value)
+}
+
+// GetVariable retrieves a variable's value by name from the current environment.
+func (i *Interpreter) GetVariable(name string) (builtins.Value, bool) {
+	return i.env.Get(name)
+}
+
+// SetVariable sets a variable's value by name in the current environment.
+func (i *Interpreter) SetVariable(name string, value builtins.Value) error {
+	return i.env.Set(name, value)
+}
+
+// EvaluateLValue evaluates an lvalue expression once and returns the current value
+// and a closure function to assign a new value to that lvalue.
+func (i *Interpreter) EvaluateLValue(lvalue ast.Expression) (builtins.Value, builtins.LValueAssignFunc, error) {
+	return i.evaluateLValue(lvalue)
+}
+
+// DereferenceValue unwraps a ReferenceValue to get the actual value.
+func (i *Interpreter) DereferenceValue(value builtins.Value) (builtins.Value, error) {
+	if ref, isRef := value.(*ReferenceValue); isRef {
+		return ref.Dereference()
+	}
+	return value, nil
+}
+
+// AssignToReference assigns a value to a ReferenceValue.
+func (i *Interpreter) AssignToReference(ref builtins.Value, value builtins.Value) error {
+	if refVal, isRef := ref.(*ReferenceValue); isRef {
+		return refVal.Assign(value)
+	}
+	return fmt.Errorf("cannot assign to non-reference value")
+}
+
+// IsReference checks if a value is a ReferenceValue.
+func (i *Interpreter) IsReference(value builtins.Value) bool {
+	_, isRef := value.(*ReferenceValue)
+	return isRef
+}
+
+// CreateIntegerValue creates a new IntegerValue with the given value.
+func (i *Interpreter) CreateIntegerValue(value int64) builtins.Value {
+	return &IntegerValue{Value: value}
+}
+
+// CreateStringValue creates a new StringValue with the given value.
+func (i *Interpreter) CreateStringValue(value string) builtins.Value {
+	return &StringValue{Value: value}
+}
+
+// CreateNilValue creates a new NilValue.
+func (i *Interpreter) CreateNilValue() builtins.Value {
+	return &NilValue{}
+}
+
+// GetEnumMetadata retrieves enum type metadata by type name.
+func (i *Interpreter) GetEnumMetadata(typeName string) builtins.Value {
+	metadata := i.typeSystem.LookupEnumMetadata(typeName)
+	if metadata == nil {
+		return nil
+	}
+	if val, ok := metadata.(builtins.Value); ok {
+		return val
+	}
+	return nil
+}
+
+// CreateEnumValue creates a new EnumValue with the given type and value information.
+func (i *Interpreter) CreateEnumValue(typeName, valueName string, ordinal int64) builtins.Value {
+	return &EnumValue{
+		TypeName:     typeName,
+		ValueName:    valueName,
+		OrdinalValue: int(ordinal),
+	}
+}
+
+// RuneInsert inserts source into target at position (1-based).
+func (i *Interpreter) RuneInsert(source, target string, pos int) string {
+	return runeInsert(source, target, pos)
+}
+
+// RuneDelete deletes count characters from str starting at pos (1-based).
+func (i *Interpreter) RuneDelete(str string, pos, count int) string {
+	return runeDelete(str, pos, count)
+}
+
+// RuneSetLength resizes a string to newLength characters.
+func (i *Interpreter) RuneSetLength(str string, newLength int) string {
+	return runeSetLength(str, newLength)
+}

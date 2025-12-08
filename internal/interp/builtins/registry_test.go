@@ -344,6 +344,11 @@ func (m *mockContext) ConcatStrings(args []Value) Value {
 	return &runtime.StringValue{Value: result}
 }
 
+func (m *mockContext) GetEnumMetadata(typeName string) Value {
+	// Simple mock - return nil for testing (enum metadata not found)
+	return nil
+}
+
 func TestNewRegistry(t *testing.T) {
 	r := NewRegistry()
 	if r == nil {

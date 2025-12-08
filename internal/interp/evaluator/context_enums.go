@@ -72,3 +72,15 @@ func (e *Evaluator) GetJSONVarType(value Value) (int64, bool) {
 	// Convert evaluator.Value to runtime.Value (which is builtins.Value)
 	return ctx.GetJSONVarType(runtime.Value(value))
 }
+
+// GetEnumMetadata retrieves enum type metadata by type name.
+// This implements the builtins.Context interface.
+// Used by Succ/Pred builtins to navigate enum ordinals.
+func (e *Evaluator) GetEnumMetadata(typeName string) builtins.Value {
+	// Cast adapter to builtins.Context to access the existing implementation
+	ctx, ok := e.adapter.(builtins.Context)
+	if !ok {
+		return nil
+	}
+	return ctx.GetEnumMetadata(typeName)
+}

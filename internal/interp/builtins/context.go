@@ -16,8 +16,15 @@ import (
 	"math/rand"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
+
+// EnumTypeValueAccessor provides access to EnumType from EnumTypeValue.
+// Both interp.EnumTypeValue and runtime.EnumTypeValue implement this interface.
+type EnumTypeValueAccessor interface {
+	GetEnumType() *types.EnumType
+}
 
 // Value represents a runtime value in the DWScript interpreter.
 // This is aliased from the runtime package to avoid circular imports.
@@ -196,6 +203,11 @@ type Context interface {
 	// ConcatStrings concatenates multiple string values into a single string.
 	// Returns the concatenated string value.
 	ConcatStrings(args []Value) Value
+
+	// GetEnumMetadata retrieves enum type metadata by type name.
+	// Returns nil if the enum type is not found.
+	// Used by Succ/Pred to navigate enum ordinals.
+	GetEnumMetadata(typeName string) Value
 }
 
 // BuiltinFunc is the signature for all built-in function implementations.
@@ -206,3 +218,95 @@ type Context interface {
 // Returns:
 // - A Value result (may be an error value if the function fails)
 type BuiltinFunc func(ctx Context, args []Value) Value
+
+// LValueAssignFunc is a function that assigns a value to an lvalue.
+// It is returned by EvaluateLValue and captures the target location.
+type LValueAssignFunc func(value Value) error
+
+// VarParamContext extends Context with capabilities needed for built-in functions
+// that have var (by-reference) parameters. These functions need to:
+// - Evaluate AST expressions (for non-var arguments)
+// - Get and set variables by name (for var arguments)
+// - Handle ReferenceValue for proper var parameter semantics
+//
+// Functions like Inc, Dec, Insert, Delete, Swap, DivMod, and SetLength use this interface.
+type VarParamContext interface {
+	Context // Embed all standard Context methods
+
+	// Eval evaluates an AST node and returns its value.
+	// Used for evaluating non-var arguments in var-param functions.
+	Eval(node ast.Node) Value
+
+	// IsError checks if a value is an error value.
+	IsError(value Value) bool
+
+	// GetVariable retrieves a variable's value by name from the current environment.
+	// Returns (value, true) if found, (nil, false) otherwise.
+	GetVariable(name string) (Value, bool)
+
+	// SetVariable sets a variable's value by name in the current environment.
+	// Returns an error if the variable doesn't exist or cannot be set.
+	SetVariable(name string, value Value) error
+
+	// EvaluateLValue evaluates an lvalue expression once and returns:
+	// 1. The current value at that lvalue
+	// 2. A closure function to assign a new value to that lvalue
+	// 3. An error if evaluation failed
+	//
+	// This avoids double-evaluation of side-effecting expressions in Inc/Dec.
+	// Supports identifiers (x), array indexes (arr[i]), and member access (obj.field).
+	EvaluateLValue(lvalue ast.Expression) (Value, LValueAssignFunc, error)
+
+	// DereferenceValue unwraps a ReferenceValue to get the actual value.
+	// Returns the dereferenced value and nil on success, or nil and error on failure.
+	// If the value is not a ReferenceValue, returns it unchanged.
+	DereferenceValue(value Value) (Value, error)
+
+	// AssignToReference assigns a value to a ReferenceValue.
+	// This handles var parameters that were passed by reference.
+	// Returns an error if assignment fails.
+	AssignToReference(ref Value, value Value) error
+
+	// IsReference checks if a value is a ReferenceValue.
+	IsReference(value Value) bool
+
+	// CreateIntegerValue creates a new IntegerValue with the given value.
+	CreateIntegerValue(value int64) Value
+
+	// CreateStringValue creates a new StringValue with the given value.
+	CreateStringValue(value string) Value
+
+	// CreateNilValue creates a new NilValue.
+	CreateNilValue() Value
+
+	// GetEnumMetadata retrieves enum type metadata by type name.
+	// Returns nil if the enum type is not found.
+	GetEnumMetadata(typeName string) Value
+
+	// CreateEnumValue creates a new EnumValue with the given type and value information.
+	CreateEnumValue(typeName, valueName string, ordinal int64) Value
+
+	// RuneInsert inserts source into target at position (1-based).
+	// Uses rune-based insertion to handle UTF-8 correctly.
+	RuneInsert(source, target string, pos int) string
+
+	// RuneDelete deletes count characters from str starting at pos (1-based).
+	// Uses rune-based deletion to handle UTF-8 correctly.
+	RuneDelete(str string, pos, count int) string
+
+	// RuneSetLength resizes a string to newLength characters.
+	// Truncates or pads with spaces as needed.
+	RuneSetLength(str string, newLength int) string
+}
+
+// VarParamBuiltinFunc is the signature for built-in functions that have var parameters.
+// These functions receive AST expressions instead of evaluated values, allowing them
+// to identify and modify variables in place.
+//
+// Each var-param built-in receives:
+// - ctx: VarParamContext for evaluation and variable access
+// - args: Slice of AST expressions (not yet evaluated)
+//
+// Returns:
+// - A Value result (may be an error value if the function fails)
+type VarParamBuiltinFunc func(ctx VarParamContext, args []ast.Expression) Value

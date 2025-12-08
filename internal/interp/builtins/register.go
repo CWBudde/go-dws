@@ -475,6 +475,12 @@ func RegisterConversionFunctions(r *Registry) {
 		Sig([]types.Type{S}, B))
 	r.RegisterWithSignature("Ord", Ord, CategoryConversion, "Returns ordinal value of enum/boolean/char",
 		Sig([]types.Type{V}, I))
+
+	// Ordinal functions
+	r.RegisterWithSignature("Succ", Succ, CategoryConversion, "Returns the successor of an ordinal value",
+		Sig([]types.Type{V}, V))
+	r.RegisterWithSignature("Pred", Pred, CategoryConversion, "Returns the predecessor of an ordinal value",
+		Sig([]types.Type{V}, V))
 }
 
 // RegisterEncodingFunctions registers all encoding/escaping built-in functions.

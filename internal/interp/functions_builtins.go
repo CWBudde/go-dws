@@ -26,7 +26,7 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 
 	// Functions not yet migrated to the builtins registry
 	// These are either:
-	// - Not yet migrated (HexToInt, BinToInt, VarToIntDef, VarToFloatDef, Succ, Pred)
+	// - Not yet migrated (HexToInt, BinToInt, VarToIntDef, VarToFloatDef)
 	// - Need interpreter access for callbacks (Map, Filter, Reduce, etc.)
 	switch name {
 	case "HexToInt":
@@ -37,10 +37,6 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinVarToIntDef(args)
 	case "VarToFloatDef":
 		return i.builtinVarToFloatDef(args)
-	case "Succ":
-		return i.builtinSucc(args)
-	case "Pred":
-		return i.builtinPred(args)
 	// Higher-order functions for working with arrays and lambdas
 	// These need interpreter access for callback evaluation
 	case "Map":
@@ -84,25 +80,10 @@ func (i *Interpreter) callExternalFunction(extFunc *ExternalFunctionValue, args 
 
 // callBuiltinWithVarParam calls a built-in function that requires var parameters.
 // These functions need access to the AST nodes to modify variables in place.
+// The implementations are in internal/interp/builtins/var_param.go.
 func (i *Interpreter) callBuiltinWithVarParam(name string, args []ast.Expression) Value {
-	switch name {
-	case "Inc":
-		return i.builtinInc(args)
-	case "Dec":
-		return i.builtinDec(args)
-	case "Insert":
-		return i.builtinInsert(args)
-	case "Delete":
-		return i.builtinDeleteString(args)
-	case "Swap":
-		return i.builtinSwap(args)
-	case "DivMod":
-		return i.builtinDivMod(args)
-	// TryStrToInt/TryStrToFloat migrated to evaluator
-	// These functions are now handled by the evaluator's visitor pattern
-	case "SetLength":
-		return i.builtinSetLength(args)
-	default:
-		return i.newErrorWithLocation(i.currentNode, "undefined var-param function: %s", name)
+	if fn, ok := builtins.VarParamFunctions[name]; ok {
+		return fn(i, args)
 	}
+	return i.newErrorWithLocation(i.currentNode, "undefined var-param function: %s", name)
 }

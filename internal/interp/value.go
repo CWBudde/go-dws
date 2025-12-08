@@ -198,13 +198,13 @@ func unwrapVariant(value Value) Value {
 // ============================================================================
 
 // Primitive value constructors
-func NewIntegerValue(v int64) Value  { return &IntegerValue{Value: v} }
-func NewFloatValue(v float64) Value  { return &FloatValue{Value: v} }
-func NewStringValue(v string) Value  { return &StringValue{Value: v} }
-func NewBooleanValue(v bool) Value   { return &BooleanValue{Value: v} }
-func NewNilValue() Value             { return &NilValue{} }
-func NewNullValue() Value            { return &NullValue{} }
-func NewUnassignedValue() Value      { return &UnassignedValue{} }
+func NewIntegerValue(v int64) Value { return &IntegerValue{Value: v} }
+func NewFloatValue(v float64) Value { return &FloatValue{Value: v} }
+func NewStringValue(v string) Value { return &StringValue{Value: v} }
+func NewBooleanValue(v bool) Value  { return &BooleanValue{Value: v} }
+func NewNilValue() Value            { return &NilValue{} }
+func NewNullValue() Value           { return &NullValue{} }
+func NewUnassignedValue() Value     { return &UnassignedValue{} }
 
 // NewSetValue creates an empty set with the given type.
 func NewSetValue(setType *types.SetType) *SetValue {
