@@ -152,6 +152,7 @@ func (i *Interpreter) registerBuiltinExceptions() {
 		"EAssertionFailed",
 		"EInvalidOp",
 		"EScriptStackOverflow",
+		"EDelphi", // For Format() and other Delphi-compatible runtime errors
 	}
 
 	for _, excName := range standardExceptions {

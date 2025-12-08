@@ -1,6 +1,8 @@
 package builtins
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 )
 
@@ -307,7 +309,26 @@ func Format(ctx Context, args []Value) Value {
 	// Delegate to Context helper for actual formatting
 	result, err := ctx.FormatString(fmtVal.Value, arrVal.Elements)
 	if err != nil {
-		return ctx.NewError("EDelphi: Format invalid or incompatible with argument")
+		// Format error should raise an exception that can be caught by try/except
+		baseMsg := "Format invalid or incompatible with argument"
+		msg := baseMsg
+
+		// Get position from current node for error reporting
+		node := ctx.CurrentNode()
+		var pos interface{}
+		if node != nil {
+			nodePos := node.Pos()
+			pos = nodePos
+			// Include position in message like DWScript does
+			msg = fmt.Sprintf("%s [line: %d, column: %d]", baseMsg, nodePos.Line, nodePos.Column)
+		}
+
+		if raiser, ok := ctx.(interface {
+			RaiseException(className, message string, pos any)
+		}); ok {
+			raiser.RaiseException("EDelphi", msg, pos)
+		}
+		return ctx.NewError("EDelphi: " + msg)
 	}
 
 	return &runtime.StringValue{Value: result}
