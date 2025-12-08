@@ -690,9 +690,34 @@ func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement
 			break
 		}
 
-		// Skip semicolons if configured
-		if config.SkipSemicolons && p.curTokenIs(lexer.SEMICOLON) {
-			p.nextToken()
+		// Handle semicolons based on configuration
+		if p.curTokenIs(lexer.SEMICOLON) {
+			if config.SkipSemicolons {
+				p.nextToken()
+				continue
+			}
+
+			// When semicolon skipping is disabled, treat stray semicolons as errors
+			curTok := p.cursor.Current()
+			err := NewStructuredError(ErrKindUnexpected).
+				WithCode(ErrUnexpectedToken).
+				WithMessage("unexpected ';' in "+contextName).
+				WithPosition(curTok.Pos, curTok.Length()).
+				WithExpectedString("statement").
+				WithActual(curTok.Type, curTok.Literal).
+				WithParsePhase(contextName).
+				WithBlockContext(p.currentBlockContext()).
+				Build()
+			p.addStructuredError(err)
+
+			// Preserve a single empty statement for the semicolon, but collapse
+			// consecutive semicolons to avoid inflating the statement count.
+			block.Statements = append(block.Statements, &ast.EmptyStatement{
+				BaseNode: ast.BaseNode{Token: curTok},
+			})
+			for p.nextToken(); p.curTokenIs(lexer.SEMICOLON); p.nextToken() {
+				// consume consecutive semicolons
+			}
 			continue
 		}
 

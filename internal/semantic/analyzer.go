@@ -54,36 +54,47 @@ const (
 	HintsLevelPedantic
 )
 
+// LoopExitability represents whether a loop can exit normally
+type LoopExitability int
+
+const (
+	LoopNotExitable LoopExitability = iota // Loop has no exit mechanism (infinite loop)
+	LoopExitBreak                          // Loop can exit via Break
+	LoopExitExit                           // Loop can exit via Exit (or has other exits)
+)
+
 // Analyzer performs semantic analysis on a DWScript program.
 type Analyzer struct {
-	currentClass       *types.ClassType                      // Current class being analyzed
-	helpers            map[string][]*types.HelperType        // Helper type registry
-	typeRegistry       *TypeRegistry                         // Unified type registry
-	subranges          map[string]*types.SubrangeType        // Subrange type registry
-	functionPointers   map[string]*types.FunctionPointerType // Function pointer type registry
-	currentFunction    *ast.FunctionDecl                     // Current function being analyzed
-	currentRecord      *types.RecordType                     // Current record being analyzed
-	symbols            *SymbolTable                          // Symbol table
-	globalOperators    *types.OperatorRegistry               // Operator overload registry
-	conversionRegistry *types.ConversionRegistry             // Type conversion registry
-	semanticInfo       *pkgast.SemanticInfo                  // AST annotations
-	unitSymbols        map[string]*SymbolTable               // Unit symbol tables
-	currentNestedTypes map[string]string                     // Nested type tracking
-	nestedTypeAliases  map[string]map[string]string          // Nested type aliases
-	currentProperty    string                                // Current property being analyzed
-	sourceFile         string                                // Source file path
-	sourceCode         string                                // Original source text
-	errors             []string                              // Error messages (legacy)
-	structuredErrors   []*SemanticError                      // Structured error objects
-	loopDepth          int                                   // Loop nesting level
-	hintsLevel         HintsLevel                            // Hints emission level
-	inLoop             bool                                  // Inside loop construct
-	inLambda           bool                                  // Inside lambda/anonymous function
-	inClassMethod      bool                                  // Inside class method
-	inPropertyExpr     bool                                  // Inside property expression
-	inFinallyBlock     bool                                  // Inside finally block
-	experimentalPasses bool                                  // Enable experimental passes
-	inExceptionHandler bool                                  // Inside try/except block
+	currentClass         *types.ClassType                      // Current class being analyzed
+	helpers              map[string][]*types.HelperType        // Helper type registry
+	typeRegistry         *TypeRegistry                         // Unified type registry
+	subranges            map[string]*types.SubrangeType        // Subrange type registry
+	functionPointers     map[string]*types.FunctionPointerType // Function pointer type registry
+	currentFunction      *ast.FunctionDecl                     // Current function being analyzed
+	currentRecord        *types.RecordType                     // Current record being analyzed
+	symbols              *SymbolTable                          // Symbol table
+	globalOperators      *types.OperatorRegistry               // Operator overload registry
+	conversionRegistry   *types.ConversionRegistry             // Type conversion registry
+	semanticInfo         *pkgast.SemanticInfo                  // AST annotations
+	unitSymbols          map[string]*SymbolTable               // Unit symbol tables
+	currentNestedTypes   map[string]string                     // Nested type tracking
+	nestedTypeAliases    map[string]map[string]string          // Nested type aliases
+	currentProperty      string                                // Current property being analyzed
+	sourceFile           string                                // Source file path
+	sourceCode           string                                // Original source text
+	errors               []string                              // Error messages (legacy)
+	structuredErrors     []*SemanticError                      // Structured error objects
+	loopDepth            int                                   // Loop nesting level
+	loopExitabilityStack []LoopExitability                     // Stack tracking loop exitability
+	loopPosStack         []token.Position                      // Stack tracking loop positions for warnings
+	hintsLevel           HintsLevel                            // Hints emission level
+	inLoop               bool                                  // Inside loop construct
+	inLambda             bool                                  // Inside lambda/anonymous function
+	inClassMethod        bool                                  // Inside class method
+	inPropertyExpr       bool                                  // Inside property expression
+	inFinallyBlock       bool                                  // Inside finally block
+	experimentalPasses   bool                                  // Enable experimental passes
+	inExceptionHandler   bool                                  // Inside try/except block
 }
 
 // NewAnalyzer creates a new semantic analyzer
@@ -434,6 +445,10 @@ func (a *Analyzer) addError(format string, args ...any) {
 
 func (a *Analyzer) addHint(format string, args ...any) {
 	a.errors = append(a.errors, fmt.Sprintf("Hint: "+format, args...))
+}
+
+func (a *Analyzer) addWarning(format string, args ...any) {
+	a.errors = append(a.errors, fmt.Sprintf("Warning: "+format, args...))
 }
 
 func (a *Analyzer) addCaseMismatchHint(actual, declared string, pos token.Position) {
@@ -795,4 +810,55 @@ func (a *Analyzer) getTypeAlias(name string) *types.TypeAlias {
 	}
 	aliasType, _ := typ.(*types.TypeAlias)
 	return aliasType
+}
+
+// ============================================================================
+// Infinite Loop Detection
+// ============================================================================
+
+// enterLoop marks the start of a loop and pushes it onto the exitability stack
+func (a *Analyzer) enterLoop(pos token.Position) {
+	a.loopExitabilityStack = append(a.loopExitabilityStack, LoopNotExitable)
+	a.loopPosStack = append(a.loopPosStack, pos)
+}
+
+// markLoopExitable marks the current loop(s) as exitable
+func (a *Analyzer) markLoopExitable(level LoopExitability) {
+	if len(a.loopExitabilityStack) == 0 {
+		return
+	}
+
+	switch level {
+	case LoopExitBreak:
+		// Break only marks the current loop as exitable
+		if a.loopExitabilityStack[len(a.loopExitabilityStack)-1] == LoopNotExitable {
+			a.loopExitabilityStack[len(a.loopExitabilityStack)-1] = level
+		}
+	case LoopExitExit:
+		// Exit marks all loops in the stack as exitable
+		for i := range a.loopExitabilityStack {
+			if a.loopExitabilityStack[i] != LoopExitExit {
+				a.loopExitabilityStack[i] = level
+			}
+		}
+	}
+}
+
+// leaveLoop pops the loop from the exitability stack and emits warning if infinite
+func (a *Analyzer) leaveLoop() {
+	if len(a.loopExitabilityStack) == 0 {
+		return
+	}
+
+	// Check if the loop is still marked as not exitable
+	idx := len(a.loopExitabilityStack) - 1
+	if a.loopExitabilityStack[idx] == LoopNotExitable {
+		// Emit infinite loop warning in DWScript format
+		pos := a.loopPosStack[idx]
+		a.addWarning("Infinite loop [line: %d, column: %d]", pos.Line, pos.Column)
+	}
+
+	// Pop from stacks
+	a.loopExitabilityStack = a.loopExitabilityStack[:idx]
+	a.loopPosStack = a.loopPosStack[:idx]
 }

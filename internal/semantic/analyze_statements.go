@@ -616,6 +616,9 @@ func (a *Analyzer) analyzeWhile(stmt *ast.WhileStatement) {
 			condType.String(), stmt.Token.Pos.String())
 	}
 
+	// Enter loop for infinite loop detection
+	a.enterLoop(stmt.Token.Pos)
+
 	// Set loop context before analyzing body
 	oldInLoop := a.inLoop
 	a.inLoop = true
@@ -623,7 +626,31 @@ func (a *Analyzer) analyzeWhile(stmt *ast.WhileStatement) {
 	defer func() {
 		a.inLoop = oldInLoop
 		a.loopDepth--
+		a.leaveLoop() // Check for infinite loop on exit
 	}()
+
+	// Check if loop is potentially exitable based on condition
+	// If condition is not constant, OR not boolean type, OR evaluates to false → mark as exitable
+	// This matches DWScript's logic: while True is infinite, while False is not
+	isExitable := false
+	if condType == nil || !isBooleanCompatible(condType) {
+		// Type error - mark as exitable to avoid cascading warnings
+		isExitable = true
+	} else if boolLit, ok := stmt.Condition.(*ast.BooleanLiteral); ok {
+		// Constant boolean condition
+		if !boolLit.Value {
+			// while False - will never execute, mark as exitable
+			isExitable = true
+		}
+		// while True - infinite loop unless body has break/exit
+	} else {
+		// Non-constant condition - can exit when condition becomes false
+		isExitable = true
+	}
+
+	if isExitable {
+		a.markLoopExitable(LoopExitBreak)
+	}
 
 	// Analyze body
 	a.analyzeStatement(stmt.Body)
@@ -631,6 +658,11 @@ func (a *Analyzer) analyzeWhile(stmt *ast.WhileStatement) {
 
 // analyzeRepeat analyzes a repeat-until statement
 func (a *Analyzer) analyzeRepeat(stmt *ast.RepeatStatement) {
+	// Enter loop for infinite loop detection BEFORE analyzing body
+	// But use condition's position (matches DWScript behavior - reports warning at 'until' keyword)
+	condPos := stmt.Condition.Pos()
+	a.enterLoop(condPos)
+
 	// Set loop context before analyzing body
 	oldInLoop := a.inLoop
 	a.inLoop = true
@@ -638,6 +670,7 @@ func (a *Analyzer) analyzeRepeat(stmt *ast.RepeatStatement) {
 	defer func() {
 		a.inLoop = oldInLoop
 		a.loopDepth--
+		a.leaveLoop() // Check for infinite loop on exit
 	}()
 
 	// Analyze body
@@ -648,6 +681,29 @@ func (a *Analyzer) analyzeRepeat(stmt *ast.RepeatStatement) {
 	if condType != nil && !isBooleanCompatible(condType) {
 		a.addError("repeat-until condition must be boolean, got %s at %s",
 			condType.String(), stmt.Token.Pos.String())
+	}
+
+	// Check if loop is potentially exitable based on condition
+	// If condition is not constant, OR evaluates to true, OR has errors → mark as exitable
+	// This matches DWScript's logic: repeat..until False is infinite, repeat..until True exits after first iteration
+	isExitable := false
+	if condType == nil || !isBooleanCompatible(condType) {
+		// Type error - mark as exitable to avoid cascading warnings
+		isExitable = true
+	} else if boolLit, ok := stmt.Condition.(*ast.BooleanLiteral); ok {
+		// Constant boolean condition
+		if boolLit.Value {
+			// repeat..until True - executes once then exits, mark as exitable
+			isExitable = true
+		}
+		// repeat..until False - infinite loop unless body has break/exit
+	} else {
+		// Non-constant condition - can exit when condition becomes true
+		isExitable = true
+	}
+
+	if isExitable {
+		a.markLoopExitable(LoopExitBreak)
 	}
 }
 
@@ -885,7 +941,9 @@ func (a *Analyzer) analyzeBreakStatement(stmt *ast.BreakStatement) {
 		a.addError("break statement not allowed outside loop at %s", stmt.Token.Pos.String())
 		return
 	}
-	// Valid break statement - no further analysis needed
+
+	// Mark the current loop as exitable via Break
+	a.markLoopExitable(LoopExitBreak)
 }
 
 // analyzeContinueStatement analyzes a continue statement
@@ -901,7 +959,9 @@ func (a *Analyzer) analyzeContinueStatement(stmt *ast.ContinueStatement) {
 		a.addError("continue statement not allowed outside loop at %s", stmt.Token.Pos.String())
 		return
 	}
-	// Valid continue statement - no further analysis needed
+
+	// Continue doesn't make the loop exitable (it just restarts the iteration)
+	// So we don't call markLoopExitable here
 }
 
 // analyzeExitStatement analyzes an exit statement
@@ -911,6 +971,9 @@ func (a *Analyzer) analyzeExitStatement(stmt *ast.ExitStatement) {
 		a.addError("exit statement not allowed in finally block at %s", stmt.Token.Pos.String())
 		return
 	}
+
+	// Mark ALL loops in the stack as exitable (Exit exits the entire function)
+	a.markLoopExitable(LoopExitExit)
 
 	// If we're at the top level (not in a function), only allow exit without a value
 	if a.currentFunction == nil {
