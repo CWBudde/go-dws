@@ -293,6 +293,22 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			return i.evalHelperPropertyRead(helper, helperProp, recordVal, ma)
 		}
 
+		// Record helper methods: auto-invoke if parameterless
+		helperMethod, methodDecl, builtinSpec := i.findHelperMethod(recordVal, ma.Member.Value)
+		if methodDecl != nil || builtinSpec != "" {
+			// Check if the method is parameterless
+			paramCount := 0
+			if methodDecl != nil {
+				paramCount = len(methodDecl.Parameters)
+			}
+			if paramCount == 0 || (builtinSpec != "" && i.isBuiltinMethodParameterless(builtinSpec)) {
+				// Auto-invoke parameterless helper method
+				return i.callHelperMethod(helperMethod, methodDecl, builtinSpec, recordVal, []Value{}, ma)
+			}
+			return i.newErrorWithLocation(ma, "helper method '%s' of record '%s' requires %d parameter(s); use parentheses to call",
+				ma.Member.Value, recordVal.RecordType.Name, paramCount)
+		}
+
 		return i.newErrorWithLocation(ma, "field '%s' not found in record '%s'", ma.Member.Value, recordVal.RecordType.Name)
 	}
 

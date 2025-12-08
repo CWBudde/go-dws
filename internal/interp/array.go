@@ -66,6 +66,15 @@ func (i *Interpreter) evalArrayDeclaration(decl *ast.ArrayDecl) Value {
 	// Register array type in TypeSystem only
 	i.typeSystem.RegisterArrayType(arrayName, arrayType)
 
+	// Also register as a type alias so helpers can find it when targeting this type
+	// (e.g., helper for TPointArray where TPointArray = array of TPoint)
+	typeAlias := &TypeAliasValue{
+		Name:        arrayName,
+		AliasedType: arrayType,
+	}
+	typeKey := "__type_alias_" + strings.ToLower(arrayName)
+	i.env.Define(typeKey, typeAlias)
+
 	return &NilValue{} // Type declarations don't return a value
 }
 

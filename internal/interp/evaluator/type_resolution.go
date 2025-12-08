@@ -66,10 +66,12 @@ func (e *Evaluator) ResolveType(typeName string) (types.Type, error) {
 	}
 
 	// Step 5: Use evaluator's resolveTypeName for all other types
-	// Pass nil context - resolveTypeName checks ctx.Env() != nil before accessing environment
-	// This limits resolution to types that don't require environment access (classes, interfaces)
-	// For full resolution including enums/records/subranges, callers should use ResolveType with context
-	ctx := &ExecutionContext{}
+	// Use currentContext if available for full resolution including environment-based lookups
+	// (records, type aliases, subranges). Falls back to empty context if not in an evaluation.
+	ctx := e.currentContext
+	if ctx == nil {
+		ctx = &ExecutionContext{}
+	}
 	resolvedType, err := e.resolveTypeName(typeName, ctx)
 	if err != nil {
 		return nil, err

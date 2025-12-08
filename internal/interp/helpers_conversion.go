@@ -155,6 +155,14 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeExpr ast.TypeExpression) typ
 		}
 	}
 
+	// Check for type aliases (e.g., TPointArray = array of TPoint)
+	typeAliasKey := "__type_alias_" + lowerTypeName
+	if typeAliasVal, ok := i.env.Get(typeAliasKey); ok {
+		if typeAlias, ok := typeAliasVal.(*TypeAliasValue); ok {
+			return typeAlias.AliasedType
+		}
+	}
+
 	// Type not found
 	return nil
 }

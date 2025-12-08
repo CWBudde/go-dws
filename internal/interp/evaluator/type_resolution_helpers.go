@@ -112,7 +112,7 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 			}
 		}
 
-		// Environment-based lookups (records, subranges)
+		// Environment-based lookups (records, type aliases, subranges)
 		if ctx.Env() != nil {
 
 			// Try record type (stored in environment with "__record_type_" prefix)
@@ -123,6 +123,16 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 				}
 				// Found but wrong type - programming error
 				return nil, fmt.Errorf("type '%s' is registered as record but does not provide RecordType (internal error)", typeName)
+			}
+
+			// Try type alias (stored in environment with "__type_alias_" prefix)
+			if typeAliasVal, ok := ctx.Env().Get("__type_alias_" + normalizedName); ok {
+				// Extract aliased type using interface method
+				if typeAliasProvider, ok := typeAliasVal.(interface{ GetAliasedType() types.Type }); ok {
+					return typeAliasProvider.GetAliasedType(), nil
+				}
+				// Found but wrong type - programming error
+				return nil, fmt.Errorf("type '%s' is registered as type alias but does not provide AliasedType (internal error)", typeName)
 			}
 		}
 
