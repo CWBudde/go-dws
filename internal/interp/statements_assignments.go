@@ -648,6 +648,12 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 	// Handle object instance
 	obj, ok := AsObject(objVal)
 	if !ok {
+		// Try helper properties first
+		helper, helperProp := i.findHelperProperty(objVal, target.Member.Value)
+		if helperProp != nil && helperProp.WriteKind != types.PropAccessNone {
+			return i.evalHelperPropertyWrite(helper, helperProp, objVal, value, stmt, target)
+		}
+
 		// Try helper class variables
 		helpers := i.getHelpersForValue(objVal)
 		if helpers != nil {

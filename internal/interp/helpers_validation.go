@@ -366,6 +366,57 @@ func (i *Interpreter) evalHelperPropertyRead(helper *HelperInfo, propInfo *types
 	}
 }
 
+// evalHelperPropertyWrite evaluates a helper property write access
+func (i *Interpreter) evalHelperPropertyWrite(helper *HelperInfo, propInfo *types.PropertyInfo,
+	selfValue Value, newValue Value, stmt ast.Node, target *ast.MemberAccessExpression) Value {
+
+	switch propInfo.WriteKind {
+	case types.PropAccessField:
+		// For helpers on records, try to set the field in the record
+		if recordVal, ok := selfValue.(*RecordValue); ok {
+			recordVal.Fields[propInfo.WriteSpec] = newValue
+			return newValue
+		}
+
+		// Otherwise, try as a method (setter)
+		normalizedWriteSpec := ident.Normalize(propInfo.WriteSpec)
+
+		// Search for the setter method in the owner helper's inheritance chain
+		if method, methodOwner, ok := helper.GetMethod(normalizedWriteSpec); ok {
+			var builtinSpec string
+			if spec, _, ok := methodOwner.GetBuiltinMethod(normalizedWriteSpec); ok {
+				builtinSpec = spec
+			}
+			return i.callHelperMethod(methodOwner, method, builtinSpec, selfValue, []Value{newValue}, stmt)
+		}
+
+		return i.newErrorWithLocation(stmt, "property '%s' write specifier '%s' not found",
+			propInfo.Name, propInfo.WriteSpec)
+
+	case types.PropAccessMethod:
+		// Call setter method
+		normalizedWriteSpec := ident.Normalize(propInfo.WriteSpec)
+
+		// Search for the setter method in the owner helper's inheritance chain
+		if method, methodOwner, ok := helper.GetMethod(normalizedWriteSpec); ok {
+			var builtinSpec string
+			if spec, _, ok := methodOwner.GetBuiltinMethod(normalizedWriteSpec); ok {
+				builtinSpec = spec
+			}
+			return i.callHelperMethod(methodOwner, method, builtinSpec, selfValue, []Value{newValue}, stmt)
+		}
+
+		return i.newErrorWithLocation(stmt, "property '%s' setter method '%s' not found",
+			propInfo.Name, propInfo.WriteSpec)
+
+	case types.PropAccessNone:
+		return i.newErrorWithLocation(stmt, "property '%s' is read-only", propInfo.Name)
+
+	default:
+		return i.newErrorWithLocation(stmt, "property '%s' has no write access", propInfo.Name)
+	}
+}
+
 // ============================================================================
 // Built-in Helper Initialization
 // ============================================================================
