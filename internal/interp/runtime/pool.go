@@ -12,7 +12,8 @@ import (
 // Phase 3.2.3: Implement object pooling for frequently allocated value types
 // to reduce garbage collection pressure and improve performance.
 //
-// Pooled types: IntegerValue, FloatValue, BooleanValue (most commonly allocated)
+// Pooled types: IntegerValue, FloatValue (most commonly allocated)
+// BooleanValue uses singletons instead (only two possible values)
 // Not pooled: StringValue (variable size), complex types (less frequent)
 //
 // Usage:
@@ -40,13 +41,6 @@ var (
 		},
 	}
 
-	booleanPool = sync.Pool{
-		New: func() interface{} {
-			poolStats.booleanAllocs.Add(1)
-			return &BooleanValue{}
-		},
-	}
-
 	// Pool statistics for monitoring
 	poolStats = struct {
 		integerAllocs atomic.Uint64
@@ -56,10 +50,6 @@ var (
 		floatAllocs atomic.Uint64
 		floatGets   atomic.Uint64
 		floatPuts   atomic.Uint64
-
-		booleanAllocs atomic.Uint64
-		booleanGets   atomic.Uint64
-		booleanPuts   atomic.Uint64
 	}{}
 )
 
@@ -158,10 +148,6 @@ type PoolStats struct {
 	FloatAllocs uint64
 	FloatGets   uint64
 	FloatPuts   uint64
-
-	BooleanAllocs uint64
-	BooleanGets   uint64
-	BooleanPuts   uint64
 }
 
 // GetPoolStats returns current pool statistics.
@@ -175,10 +161,6 @@ func GetPoolStats() PoolStats {
 		FloatAllocs: poolStats.floatAllocs.Load(),
 		FloatGets:   poolStats.floatGets.Load(),
 		FloatPuts:   poolStats.floatPuts.Load(),
-
-		BooleanAllocs: poolStats.booleanAllocs.Load(),
-		BooleanGets:   poolStats.booleanGets.Load(),
-		BooleanPuts:   poolStats.booleanPuts.Load(),
 	}
 }
 
@@ -192,16 +174,12 @@ func ResetPoolStats() {
 	poolStats.floatAllocs.Store(0)
 	poolStats.floatGets.Store(0)
 	poolStats.floatPuts.Store(0)
-
-	poolStats.booleanAllocs.Store(0)
-	poolStats.booleanGets.Store(0)
-	poolStats.booleanPuts.Store(0)
 }
 
 // PoolEfficiency returns the pool hit rate as a percentage (0-100).
 // A higher percentage means the pool is more effective at reusing values.
 // Formula: (Gets - Allocs) / Gets * 100
-func (s PoolStats) PoolEfficiency() (integer, float, boolean float64) {
+func (s PoolStats) PoolEfficiency() (integer, float float64) {
 	intEff := 0.0
 	if s.IntegerGets > 0 {
 		intEff = float64(s.IntegerGets-s.IntegerAllocs) / float64(s.IntegerGets) * 100
@@ -212,10 +190,5 @@ func (s PoolStats) PoolEfficiency() (integer, float, boolean float64) {
 		floatEff = float64(s.FloatGets-s.FloatAllocs) / float64(s.FloatGets) * 100
 	}
 
-	boolEff := 0.0
-	if s.BooleanGets > 0 {
-		boolEff = float64(s.BooleanGets-s.BooleanAllocs) / float64(s.BooleanGets) * 100
-	}
-
-	return intEff, floatEff, boolEff
+	return intEff, floatEff
 }

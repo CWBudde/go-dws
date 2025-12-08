@@ -111,24 +111,6 @@ func runeInsert(source, target string, pos int) string {
 	return string(runes[:insertPos]) + source + string(runes[insertPos:])
 }
 
-// normalizeUnicode normalizes a string to the specified Unicode normalization form.
-// Supported forms: NFC, NFD, NFKC, NFKD
-func normalizeUnicode(s string, form string) string {
-	switch form {
-	case "NFC":
-		return norm.NFC.String(s)
-	case "NFD":
-		return norm.NFD.String(s)
-	case "NFKC":
-		return norm.NFKC.String(s)
-	case "NFKD":
-		return norm.NFKD.String(s)
-	default:
-		// Default to NFC if form is unknown
-		return norm.NFC.String(s)
-	}
-}
-
 // stripAccents removes diacritical marks from a string.
 // It works by normalizing the string to NFD (decomposed form) and then
 // removing all combining marks (which include accents).

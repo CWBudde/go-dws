@@ -82,11 +82,11 @@ type Analyzer struct {
 	currentProperty      string                                // Current property being analyzed
 	sourceFile           string                                // Source file path
 	sourceCode           string                                // Original source text
-	errors               []string                              // Error messages (legacy)
-	structuredErrors     []*SemanticError                      // Structured error objects
-	loopDepth            int                                   // Loop nesting level
-	loopExitabilityStack []LoopExitability                     // Stack tracking loop exitability
 	loopPosStack         []token.Position                      // Stack tracking loop positions for warnings
+	structuredErrors     []*SemanticError                      // Structured error objects
+	loopExitabilityStack []LoopExitability                     // Stack tracking loop exitability
+	errors               []string                              // Error messages (legacy)
+	loopDepth            int                                   // Loop nesting level
 	hintsLevel           HintsLevel                            // Hints emission level
 	inLoop               bool                                  // Inside loop construct
 	inLambda             bool                                  // Inside lambda/anonymous function
@@ -879,15 +879,6 @@ func (a *Analyzer) getArrayType(name string) *types.ArrayType {
 	}
 	arrayType, _ := typ.(*types.ArrayType)
 	return arrayType
-}
-
-func (a *Analyzer) getTypeAlias(name string) *types.TypeAlias {
-	typ, ok := a.typeRegistry.Resolve(name)
-	if !ok {
-		return nil
-	}
-	aliasType, _ := typ.(*types.TypeAlias)
-	return aliasType
 }
 
 // ============================================================================

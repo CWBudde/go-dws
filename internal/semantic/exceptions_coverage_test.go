@@ -503,14 +503,6 @@ func parseAndAnalyze(t *testing.T, input string) *Analyzer {
 	return analyzer
 }
 
-// Helper to check if error contains string
-func containsStr(err error, substr string) bool {
-	if err == nil {
-		return false
-	}
-	return contains(err.Error(), substr)
-}
-
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && findSubstring(s, substr)
 }

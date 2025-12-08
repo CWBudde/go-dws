@@ -106,7 +106,7 @@ func TestPoolStats(t *testing.T) {
 	}
 
 	// Check efficiency calculation
-	intEff, _, _ := stats.PoolEfficiency()
+	intEff, _ := stats.PoolEfficiency()
 	if intEff < 0 || intEff > 100 {
 		t.Errorf("Pool efficiency should be between 0-100, got %f", intEff)
 	}

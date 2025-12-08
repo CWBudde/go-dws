@@ -593,21 +593,6 @@ func (a *Analyzer) isDescendantOf(class, ancestor *types.ClassType) bool {
 // Method Resolution Helpers
 // ============================================================================
 
-// findMethodInParent searches for a method in the parent class hierarchy
-func (a *Analyzer) findMethodInParent(methodName string, parent *types.ClassType) *types.FunctionType {
-	if parent == nil {
-		return nil
-	}
-
-	// Check if method exists in parent
-	if methodType, exists := parent.Methods[methodName]; exists {
-		return methodType
-	}
-
-	// Recursively search in grandparent
-	return a.findMethodInParent(methodName, parent.Parent)
-}
-
 // findMatchingOverloadInParent finds a method overload in the parent class hierarchy
 // that matches the given signature
 func (a *Analyzer) findMatchingOverloadInParent(methodName string, signature *types.FunctionType, parent *types.ClassType) *types.MethodInfo {
@@ -754,24 +739,6 @@ func (a *Analyzer) getMethodOverloadsInHierarchy(methodName string, classType *t
 	}
 
 	return result
-}
-
-// isMethodVirtualOrOverride checks if a method is marked virtual or override in class hierarchy
-func (a *Analyzer) isMethodVirtualOrOverride(methodName string, classType *types.ClassType) bool {
-	if classType == nil {
-		return false
-	}
-
-	// Check if method exists in this class
-	if _, exists := classType.Methods[methodName]; exists {
-		// Check if method is virtual or override
-		isVirtual := classType.VirtualMethods[methodName]
-		isOverride := classType.OverrideMethods[methodName]
-		return isVirtual || isOverride
-	}
-
-	// Recursively check parent
-	return a.isMethodVirtualOrOverride(methodName, classType.Parent)
 }
 
 // methodSignaturesMatch compares two function signatures
