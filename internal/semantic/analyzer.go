@@ -604,27 +604,34 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 //
 // Rules:
 // - Parameter count must match
-// - Each source parameter must be assignable TO Variant (always true for concrete types)
-// - The source return type must be assignable TO Variant (always true for concrete types)
-// - If the target has Variant parameters, any concrete type is acceptable
+// - Target must have at least one Variant parameter OR Variant return type
+// - Each target Variant parameter accepts any concrete type from source
+// - Non-Variant parameters must match exactly (use Equals, not assignability)
+// - Return types: Variant target accepts any source, otherwise must match exactly
 func (a *Analyzer) isFunctionPointerVariantCompatible(from, to *types.FunctionPointerType) bool {
 	// Parameter count must match
 	if len(from.Parameters) != len(to.Parameters) {
 		return false
 	}
 
-	// Check each parameter: from's concrete type should be compatible with to's Variant
+	// Track whether target has ANY Variant usage (parameter or return)
+	// This function is specifically for Variant-based compatibility, not general assignability
+	hasVariantUsage := false
+
+	// Check each parameter
 	for i := range from.Parameters {
 		toParam := to.Parameters[i]
 		fromParam := from.Parameters[i]
 
 		// If target expects Variant, any concrete type is acceptable
 		if toParam.Equals(types.VARIANT) {
+			hasVariantUsage = true
 			continue
 		}
 
-		// Otherwise, types must be compatible
-		if !a.canAssign(fromParam, toParam) {
+		// Otherwise, types must match exactly (not just be assignable)
+		// This prevents Integer→Float implicit conversion from making function pointers compatible
+		if !fromParam.Equals(toParam) {
 			return false
 		}
 	}
@@ -632,12 +639,14 @@ func (a *Analyzer) isFunctionPointerVariantCompatible(from, to *types.FunctionPo
 	// Check return type compatibility
 	// If target returns Variant, any concrete return type is acceptable
 	if to.ReturnType != nil && to.ReturnType.Equals(types.VARIANT) {
+		hasVariantUsage = true
 		return true
 	}
 
 	// Both have nil return type (procedures)
 	if from.ReturnType == nil && to.ReturnType == nil {
-		return true
+		// Only allow if there was Variant usage in parameters
+		return hasVariantUsage
 	}
 
 	// One has return type, the other doesn't
@@ -645,8 +654,13 @@ func (a *Analyzer) isFunctionPointerVariantCompatible(from, to *types.FunctionPo
 		return false
 	}
 
-	// Both have return types - check compatibility
-	return a.canAssign(from.ReturnType, to.ReturnType)
+	// Both have return types - must match exactly (not just be assignable)
+	if !from.ReturnType.Equals(to.ReturnType) {
+		return false
+	}
+
+	// Only return true if there was Variant usage somewhere
+	return hasVariantUsage
 }
 
 // ============================================================================

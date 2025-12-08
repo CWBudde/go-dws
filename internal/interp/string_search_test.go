@@ -110,13 +110,13 @@ end
 			expected: 0,
 		},
 		{
-			name: "Both empty returns 1",
+			name: "Both empty returns 0 (no position exists)",
 			input: `
 begin
 	Pos("", "");
 end
 			`,
-			expected: 1,
+			expected: 0,
 		},
 		{
 			name: "Exact match returns 1",

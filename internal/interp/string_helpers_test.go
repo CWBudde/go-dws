@@ -364,9 +364,9 @@ func TestStringHelper_Before(t *testing.T) {
 			expected: "hello\n",
 		},
 		{
-			name:     "Before not found",
+			name:     "Before not found returns original string",
 			input:    "PrintLn('hello'.Before('x'));",
-			expected: "\n",
+			expected: "hello\n",
 		},
 		{
 			name:     "Before with variable",
