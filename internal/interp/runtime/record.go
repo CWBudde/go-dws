@@ -167,6 +167,10 @@ func (r *RecordValue) GetRecordMethod(name string) (*ast.FunctionDecl, bool) {
 
 	// Reconstruct FunctionDecl from MethodMetadata
 	// The Body field contains the AST statement block
+	if methodMeta.Body == nil {
+		// Native functions may have nil Body - those are handled separately
+		return nil, false
+	}
 	blockBody, ok := methodMeta.Body.(*ast.BlockStatement)
 	if !ok {
 		// Body must be a BlockStatement for function declarations
