@@ -8,60 +8,42 @@ import (
 	"github.com/cwbudde/go-dws/pkg/token"
 )
 
-// ============================================================================
-// Expression Analysis
-// ============================================================================
-
-// analyzeCallExpressionWithContext analyzes a call expression with optional expected type context.
-// The expected type can help with overload resolution in the future.
-// Currently, this is a wrapper that delegates to analyzeCallExpression, but can be extended
-// to use the expected type for disambiguating between multiple overloads.
+// analyzeCallExpressionWithContext analyzes a call expression with optional expected type.
+// TODO: Use expectedType for overload resolution when implemented.
 func (a *Analyzer) analyzeCallExpressionWithContext(expr *ast.CallExpression, expectedType types.Type) types.Type {
-	// TODO: Use expectedType for overload resolution when overloading is implemented
-	// For now, just delegate to the regular analysis
-	_ = expectedType // Mark as intentionally unused for now
+	_ = expectedType
 	return a.analyzeCallExpression(expr)
 }
 
 func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	// Handle member access expressions (method calls like obj.Method())
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
-		// Check if this is a constructor call (TClass.Create(...))
-		// First, analyze the object to see if it's a class type
 		objectType := a.analyzeExpression(memberAccess.Object)
 		if objectType == nil {
 			return nil
 		}
 
-		// Check if the object is a ClassType (not an instance, but the type itself)
+		// Constructor call: TClass.Create(args)
 		if classType, isClassType := objectType.(*types.ClassType); isClassType {
-			// This is a constructor call like TClass.Create(args)
 			return a.analyzeConstructorCall(expr, classType, memberAccess.Member.Value)
 		}
 
-		// Check if the object is a RecordType (for static method calls like TTest.Sum(args))
+		// Static method call on record: TRecord.Method(args)
 		if recordType, isRecordType := objectType.(*types.RecordType); isRecordType {
-			// This is a static method call on a record type
 			return a.analyzeRecordStaticMethodCall(expr, recordType, memberAccess.Member.Value)
 		}
 
-		// Check if the object is a ClassOfType (metaclass variable)
+		// Constructor via metaclass variable: cls.Create(args)
 		if metaclassType, isMetaclassType := objectType.(*types.ClassOfType); isMetaclassType {
-			// This is a constructor call through a metaclass variable like cls.Create(args)
-			// where cls is of type "class of TBase"
-			// The constructor creates an instance of the base class (or its descendants at runtime)
 			return a.analyzeConstructorCall(expr, metaclassType.ClassType, memberAccess.Member.Value)
 		}
 
-		// Not a constructor call - analyze as normal method call
-		// Analyze the member access to get the method type
+		// Normal method call
 		methodType := a.analyzeMemberAccessExpression(memberAccess)
 		if methodType == nil {
-			// Error already reported by analyzeMemberAccessExpression
 			return nil
 		}
 
-		// Verify it's a function type
 		funcType, ok := methodType.(*types.FunctionType)
 		if !ok {
 			a.addError("cannot call non-function type %s at %s",
@@ -69,7 +51,6 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return nil
 		}
 
-		// Validate argument count
 		if len(expr.Arguments) != len(funcType.Parameters) {
 			a.addError("method call expects %d argument(s), got %d at %s",
 				len(funcType.Parameters), len(expr.Arguments), expr.Token.Pos.String())
@@ -78,10 +59,9 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		// Validate argument types
 		for i, arg := range expr.Arguments {
 			if i >= len(funcType.Parameters) {
-				break // Already reported count mismatch
+				break
 			}
 
-			// Validate var parameter receives an lvalue
 			isVar := len(funcType.VarParams) > i && funcType.VarParams[i]
 			if isVar && !a.isLValue(arg) {
 				a.addError("var parameter %d requires a variable (identifier, array element, or field), got %s at %s",
@@ -102,16 +82,14 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 	// Handle regular function calls (identifier-based)
 	if _, isIdent := expr.Function.(*ast.Identifier); !isIdent {
-		// Evaluate the callee expression to see if it's a function pointer value
+		// Check if callee is a function pointer
 		calleeType := a.analyzeExpression(expr.Function)
 		if calleeType == nil {
 			return nil
 		}
-
 		if funcPtrType := a.analyzeFunctionPointerCall(expr, calleeType); funcPtrType != nil {
 			return funcPtrType
 		}
-
 		a.addError("function call must use identifier or member access at %s", expr.Token.Pos.String())
 		return nil
 	}
@@ -122,10 +100,9 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		return nil
 	}
 
-	// Look up function
 	sym, ok := a.symbols.Resolve(funcIdent.Value)
 	if !ok {
-		// Check if it's a built-in function (using new dispatcher)
+		// Check built-in functions
 		if resultType, isBuiltin := a.analyzeBuiltinFunction(funcIdent.Value, expr.Arguments, expr); isBuiltin {
 			if declName := a.builtinDeclarationName(funcIdent.Value); declName != "" && declName != funcIdent.Value {
 				a.addCaseMismatchHint(funcIdent.Value, declName, funcIdent.Token.Pos)
@@ -133,16 +110,12 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return resultType
 		}
 
-		// Check if we're calling a class method without explicit "Self."
-		// This handles calls like Helper() from within a class method
+		// Check implicit Self method call within a class
 		if a.currentClass != nil {
-			// Look up method in current class (including inherited methods)
-			// Note: GetMethod() normalizes to lowercase internally, so we pass the original name
 			methodNameLower := ident.Normalize(funcIdent.Value)
 			methodType, found := a.currentClass.GetMethod(funcIdent.Value)
 			if found {
-				// Found a method - check visibility
-				// Use normalized key for visibility map lookup (keys are stored in normalized form)
+				// Check visibility
 				methodOwner := a.getMethodOwner(a.currentClass, methodNameLower)
 				if methodOwner != nil {
 					visibility, hasVisibility := methodOwner.MethodVisibility[methodNameLower]
@@ -154,19 +127,16 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					}
 				}
 
-				// Validate argument count
 				if len(expr.Arguments) != len(methodType.Parameters) {
 					a.addError("method '%s' expects %d argument(s), got %d at %s",
 						funcIdent.Value, len(methodType.Parameters), len(expr.Arguments), expr.Token.Pos.String())
 				}
 
-				// Validate argument types
 				for i, arg := range expr.Arguments {
 					if i >= len(methodType.Parameters) {
-						break // Already reported count mismatch
+						break
 					}
 
-					// Validate var parameter receives an lvalue
 					isVar := len(methodType.VarParams) > i && methodType.VarParams[i]
 					if isVar && !a.isLValue(arg) {
 						a.addError("var parameter %d requires a variable (identifier, array element, or field), got %s at %s",
@@ -186,7 +156,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 		}
 
-		// Check if we're calling a record instance method without explicit "Self."
+		// Check implicit Self record method call
 		if a.currentRecord != nil {
 			methodNameLower := ident.Normalize(funcIdent.Value)
 			overloads := a.currentRecord.GetMethodOverloads(methodNameLower)
@@ -202,9 +172,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 				candidates := make([]*Symbol, len(overloads))
 				for i, overload := range overloads {
-					candidates[i] = &Symbol{
-						Type: overload.Signature,
-					}
+					candidates[i] = &Symbol{Type: overload.Signature}
 				}
 
 				selected, err := ResolveOverload(candidates, argTypes)
@@ -217,22 +185,19 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				if selected == nil || selected.Type == nil {
 					return nil
 				}
-
 				funcType, ok := selected.Type.(*types.FunctionType)
 				if !ok {
 					return nil
 				}
-
 				return funcType.ReturnType
 			}
 		}
 
-		// Check if we're calling a record class method from within a record method
+		// Check implicit Self record class method call
 		if a.currentRecord != nil {
 			methodNameLower := ident.Normalize(funcIdent.Value)
 			overloads := a.currentRecord.GetClassMethodOverloads(methodNameLower)
 			if len(overloads) > 0 {
-				// Found class method overloads - resolve based on arguments
 				argTypes := make([]types.Type, len(expr.Arguments))
 				for i, arg := range expr.Arguments {
 					argType := a.analyzeExpression(arg)
@@ -242,12 +207,9 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					argTypes[i] = argType
 				}
 
-				// Find matching overload
 				candidates := make([]*Symbol, len(overloads))
 				for i, overload := range overloads {
-					candidates[i] = &Symbol{
-						Type: overload.Signature,
-					}
+					candidates[i] = &Symbol{Type: overload.Signature}
 				}
 
 				selected, err := ResolveOverload(candidates, argTypes)
@@ -258,8 +220,6 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				}
 
 				methodType := selected.Type.(*types.FunctionType)
-
-				// Validate argument types
 				for i, arg := range expr.Arguments {
 					if i >= len(methodType.Parameters) {
 						break
@@ -272,28 +232,22 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 							expr.Token.Pos.String())
 					}
 				}
-
 				return methodType.ReturnType
 			}
 		}
 
-		// Low built-in function
-
-		// Assert built-in procedure
+		// Assert: Boolean condition with optional String message
 		if ident.Equal(funcIdent.Value, "Assert") {
-			// Assert takes 1-2 arguments: Boolean condition and optional String message
 			if len(expr.Arguments) < 1 || len(expr.Arguments) > 2 {
 				a.addError("function 'Assert' expects 1-2 arguments, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
 				return types.VOID
 			}
-			// First argument must be Boolean
 			condType := a.analyzeExpression(expr.Arguments[0])
 			if condType != nil && condType != types.BOOLEAN {
 				a.addError("function 'Assert' first argument must be Boolean, got %s at %s",
 					condType.String(), expr.Token.Pos.String())
 			}
-			// If there's a second argument (message), it must be String
 			if len(expr.Arguments) == 2 {
 				msgType := a.analyzeExpression(expr.Arguments[1])
 				if msgType != nil && msgType != types.STRING {
@@ -304,7 +258,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-		// Insert built-in procedure
+		// Insert: Insert(source, targetVar, position)
 		if ident.Equal(funcIdent.Value, "Insert") {
 			if len(expr.Arguments) != 3 {
 				a.addError("function 'Insert' expects 3 arguments, got %d at %s",
@@ -334,9 +288,8 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-		// Higher-order functions for working with lambdas
+		// Higher-order functions: Map, Filter, Reduce, ForEach, Every, Some, Find, FindIndex, Slice
 		if ident.Equal(funcIdent.Value, "Map") {
-			// Map(array, lambda) -> array
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'Map' expects 2 arguments (array, lambda), got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -344,16 +297,13 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 			arrayType := a.analyzeExpression(expr.Arguments[0])
 			a.analyzeExpression(expr.Arguments[1])
-
-			// Verify first argument is an array
 			if arrType, ok := arrayType.(*types.ArrayType); ok {
-				return arrType // Return same array type
+				return arrType
 			}
 			return types.VOID
 		}
 
 		if ident.Equal(funcIdent.Value, "Filter") {
-			// Filter(array, predicate) -> array
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'Filter' expects 2 arguments (array, predicate), got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -361,16 +311,13 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 			arrayType := a.analyzeExpression(expr.Arguments[0])
 			a.analyzeExpression(expr.Arguments[1])
-
-			// Verify first argument is an array
 			if arrType, ok := arrayType.(*types.ArrayType); ok {
-				return arrType // Return same array type
+				return arrType
 			}
 			return types.VOID
 		}
 
 		if ident.Equal(funcIdent.Value, "Reduce") {
-			// Reduce(array, lambda, initial) -> value
 			if len(expr.Arguments) != 3 {
 				a.addError("function 'Reduce' expects 3 arguments (array, lambda, initial), got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -378,14 +325,10 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 			a.analyzeExpression(expr.Arguments[0])
 			a.analyzeExpression(expr.Arguments[1])
-			initialType := a.analyzeExpression(expr.Arguments[2])
-
-			// Return type is the same as initial value type
-			return initialType
+			return a.analyzeExpression(expr.Arguments[2])
 		}
 
 		if ident.Equal(funcIdent.Value, "ForEach") {
-			// ForEach(array, lambda) -> void
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'ForEach' expects 2 arguments (array, lambda), got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -393,12 +336,10 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 			a.analyzeExpression(expr.Arguments[0])
 			a.analyzeExpression(expr.Arguments[1])
-
 			return types.VOID
 		}
 
 		if ident.Equal(funcIdent.Value, "Every") {
-			// Every(array, predicate) -> Boolean
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'Every' expects 2 arguments (array, predicate), got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -406,12 +347,10 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 			a.analyzeExpression(expr.Arguments[0])
 			a.analyzeExpression(expr.Arguments[1])
-
 			return types.BOOLEAN
 		}
 
 		if ident.Equal(funcIdent.Value, "Some") {
-			// Some(array, predicate) -> Boolean
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'Some' expects 2 arguments (array, predicate), got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -419,12 +358,10 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 			a.analyzeExpression(expr.Arguments[0])
 			a.analyzeExpression(expr.Arguments[1])
-
 			return types.BOOLEAN
 		}
 
 		if ident.Equal(funcIdent.Value, "Find") {
-			// Find(array, predicate) -> Variant
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'Find' expects 2 arguments (array, predicate), got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -432,8 +369,6 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 			arrayType := a.analyzeExpression(expr.Arguments[0])
 			a.analyzeExpression(expr.Arguments[1])
-
-			// Return element type if array, else Variant
 			if arrType, ok := arrayType.(*types.ArrayType); ok {
 				return arrType.ElementType
 			}
@@ -441,7 +376,6 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		if ident.Equal(funcIdent.Value, "FindIndex") {
-			// FindIndex(array, predicate) -> Integer
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'FindIndex' expects 2 arguments (array, predicate), got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -449,12 +383,10 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 			a.analyzeExpression(expr.Arguments[0])
 			a.analyzeExpression(expr.Arguments[1])
-
 			return types.INTEGER
 		}
 
 		if ident.Equal(funcIdent.Value, "Slice") {
-			// Slice(array, start, end) -> array
 			if len(expr.Arguments) != 3 {
 				a.addError("function 'Slice' expects 3 arguments (array, start, end), got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -463,15 +395,13 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			arrayType := a.analyzeExpression(expr.Arguments[0])
 			a.analyzeExpression(expr.Arguments[1])
 			a.analyzeExpression(expr.Arguments[2])
-
-			// Verify first argument is an array
 			if arrType, ok := arrayType.(*types.ArrayType); ok {
-				return arrType // Return same array type
+				return arrType
 			}
 			return types.VOID
 		}
 
-		// Allow calling methods within the current class without explicit Self
+		// Implicit class method call (fallback check)
 		if a.currentClass != nil {
 			if methodType, found := a.currentClass.GetMethod(funcIdent.Value); found {
 				if len(expr.Arguments) != len(methodType.Parameters) {
@@ -491,30 +421,25 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 		}
 
-		// GetStackTrace() built-in function
+		// GetStackTrace() returns String
 		if ident.Equal(funcIdent.Value, "GetStackTrace") {
 			if len(expr.Arguments) != 0 {
 				a.addError("function 'GetStackTrace' expects 0 arguments, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
 			}
-			// Returns String
 			return types.STRING
 		}
 
-		// GetCallStack() built-in function
+		// GetCallStack() returns array of stack frame records
 		if ident.Equal(funcIdent.Value, "GetCallStack") {
 			if len(expr.Arguments) != 0 {
 				a.addError("function 'GetCallStack' expects 0 arguments, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
 			}
-			// Returns dynamic array of records
-			// Each record has: FunctionName: String, FileName: String, Line: Integer, Column: Integer
-			// For simplicity in semantic analysis, we return a generic dynamic array type
 			return types.NewDynamicArrayType(types.VARIANT)
 		}
 
-		// Check if this is a type cast (TypeName(expression))
-		// Type casts look like function calls but the "function" name is actually a type name
+		// Type cast: TypeName(expression)
 		if castType := a.analyzeTypeCast(funcIdent.Value, expr.Arguments, expr); castType != nil {
 			return castType
 		}
@@ -523,48 +448,39 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		return nil
 	}
 
-	// Check if this is an overloaded function
-	// If so, resolve the overload set to select the best match
+	// Resolve overloaded functions
 	var funcType *types.FunctionType
 	if sym.IsOverloadSet {
-		// Get all overload candidates
 		candidates := a.symbols.GetOverloadSet(funcIdent.Value)
 		if len(candidates) == 0 {
 			a.addError("no overload candidates found for '%s' at %s", funcIdent.Value, expr.Token.Pos.String())
 			return nil
 		}
 
-		// Detect overloaded function calls with lambda arguments
+		// Lambda type inference not yet supported for overloaded functions
 		hasLambdas, lambdaIndices := detectOverloadedCallWithLambdas(expr.Arguments)
 		if hasLambdas {
-			// We have lambda arguments that need type inference
-			// This requires special handling
-			// For now, report that lambdas need explicit types when calling overloaded functions
 			a.addError("lambda type inference not yet supported for overloaded function '%s' - please provide explicit parameter types for lambda at argument position(s) %v at %s",
 				funcIdent.Value, lambdaIndices, expr.Token.Pos.String())
 			return nil
 		}
 
-		// Analyze argument types first
 		argTypes := make([]types.Type, len(expr.Arguments))
 		for i, arg := range expr.Arguments {
 			argType := a.analyzeExpression(arg)
 			if argType == nil {
-				return nil // Error already reported
+				return nil
 			}
 			argTypes[i] = argType
 		}
 
-		// Resolve overload based on argument types
 		selected, err := ResolveOverload(candidates, argTypes)
 		if err != nil {
-			// Provide DWScript-compatible error message for failed overload resolution
 			a.addError("Syntax Error: There is no overloaded version of \"%s\" that can be called with these arguments [line: %d, column: %d]",
 				funcIdent.Value, expr.Token.Pos.Line, expr.Token.Pos.Column)
 			return nil
 		}
 
-		// Use the selected overload's function type
 		var ok bool
 		funcType, ok = selected.Type.(*types.FunctionType)
 		if !ok {
@@ -572,23 +488,20 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return nil
 		}
 	} else {
-		// Check if it's a function pointer type first
+		// Check function pointer first
 		if funcPtrType := a.analyzeFunctionPointerCall(expr, sym.Type); funcPtrType != nil {
 			return funcPtrType
 		}
 
-		// Check that symbol is a function
 		var ok bool
 		funcType, ok = sym.Type.(*types.FunctionType)
 		if !ok {
-			// If this name refers to a record method inside the current record context,
-			// resolve via record method overloads even if the symbol was shadowed (e.g., by Result alias)
+			// Check record method overloads (handles shadowed symbols like Result alias)
 			if a.currentRecord != nil {
 				resolveRecordOverloads := func(overloads []*types.MethodInfo) *types.FunctionType {
 					if len(overloads) == 0 {
 						return nil
 					}
-
 					argTypes := make([]types.Type, len(expr.Arguments))
 					for i, arg := range expr.Arguments {
 						argType := a.analyzeExpression(arg)
@@ -597,17 +510,14 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 						}
 						argTypes[i] = argType
 					}
-
 					candidates := make([]*Symbol, len(overloads))
 					for i, overload := range overloads {
 						candidates[i] = &Symbol{Type: overload.Signature}
 					}
-
 					selected, err := ResolveOverload(candidates, argTypes)
 					if err != nil || selected == nil || selected.Type == nil {
 						return nil
 					}
-
 					if ft, ok := selected.Type.(*types.FunctionType); ok {
 						return ft
 					}
@@ -625,20 +535,17 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 
 			if !ok {
-				// Before reporting error, check if it's a type cast
-				// Type names can be in the symbol table (e.g., enum types, class types)
+				// Check type cast before reporting error
 				if castType := a.analyzeTypeCast(funcIdent.Value, expr.Arguments, expr); castType != nil {
 					return castType
 				}
-
 				a.addError("'%s' is not a function at %s", funcIdent.Value, expr.Token.Pos.String())
 				return nil
 			}
 		}
 	}
 
-	// Task 9.1: Check argument count with optional parameters support
-	// Count required parameters (those without defaults)
+	// Check argument count (handles optional parameters)
 	requiredParams := 0
 	for _, defaultVal := range funcType.DefaultValues {
 		if defaultVal == nil {
@@ -646,16 +553,12 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 	}
 
-	// Check argument count is within valid range
 	if len(expr.Arguments) < requiredParams {
-		// Use more precise error message based on whether function has optional parameters
 		if requiredParams == len(funcType.Parameters) {
-			// All parameters are required
 			a.addError("function '%s' expects %d arguments, got %d at %s",
 				funcIdent.Value, requiredParams, len(expr.Arguments),
 				expr.Token.Pos.String())
 		} else {
-			// Function has optional parameters
 			a.addError("function '%s' expects at least %d arguments, got %d at %s",
 				funcIdent.Value, requiredParams, len(expr.Arguments),
 				expr.Token.Pos.String())
@@ -669,53 +572,37 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		return nil
 	}
 
-	// Check argument types
-	// Task 9.137: Handle lazy parameters - validate expression type without evaluating
-	// Task 9.2b: Handle var parameters - validate that argument is an lvalue
+	// Check argument types (handles lazy and var parameters)
 	for i, arg := range expr.Arguments {
 		expectedType := funcType.Parameters[i]
-
-		// Check if this parameter is lazy
 		isLazy := len(funcType.LazyParams) > i && funcType.LazyParams[i]
-
-		// Check if this parameter is var (by-reference)
 		isVar := len(funcType.VarParams) > i && funcType.VarParams[i]
 
-		// Task 9.2b: Validate var parameter receives an lvalue
+		// Var parameters must be lvalues
 		if isVar && !a.isLValue(arg) {
 			a.addError("var parameter %d to function '%s' requires a variable (identifier, array element, or field), got %s at %s",
 				i+1, funcIdent.Value, arg.String(), arg.Pos().String())
 		}
 
 		if isLazy {
-			// For lazy parameters, check expression type but don't evaluate
-			// The expression will be passed as-is to the interpreter for deferred evaluation
+			// Lazy: check type without evaluating
 			argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
-
-			// Task 9.10.2: Handle parameterless functions as implicit calls in lazy arguments
-			// When a function identifier (like GlobInc) is used as a lazy argument,
-			// treat it as an implicit call that will return the function's return type
+			// Handle parameterless functions as implicit calls
 			if implicitType := a.getImplicitCallType(arg); implicitType != nil {
 				argType = implicitType
 			}
-
 			if argType != nil && !a.canAssign(argType, expectedType) {
 				pos := expr.Token.Pos
 				a.addError("%s", errors.FormatArgumentError(i, expectedType.String(), argType.String(), pos.Line, pos.Column))
 			}
 		} else {
-			// Regular parameter: validate type normally
 			argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
-
-			// Special handling for var parameters with array types:
-			// Allow passing dynamic arrays to static array var parameters if element types match
+			// Allow compatible array types for var parameters
 			if isVar && argType != nil && !a.canAssign(argType, expectedType) {
 				if a.areArrayTypesCompatibleForVarParam(argType, expectedType) {
-					// Types are compatible for var parameter - allow it
 					continue
 				}
 			}
-
 			if argType != nil && !a.canAssign(argType, expectedType) {
 				pos := expr.Token.Pos
 				a.addError("%s", errors.FormatArgumentError(i, expectedType.String(), argType.String(), pos.Line, pos.Column))
@@ -726,99 +613,70 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	return funcType.ReturnType
 }
 
-// getImplicitCallType checks if an expression is a parameterless function identifier
-// used as a lazy argument, and returns its implicit return type.
-// Task 9.10.2: Handle parameterless functions as implicit calls in lazy arguments.
-// When a function identifier (like GlobInc) is used as a lazy argument,
-// treat it as an implicit call that will return the function's return type.
+// getImplicitCallType returns the return type when a parameterless function
+// identifier is used as a lazy argument (implicit call).
 func (a *Analyzer) getImplicitCallType(arg ast.Expression) types.Type {
-	// Only process identifier expressions
 	ident, ok := arg.(*ast.Identifier)
 	if !ok {
 		return nil
 	}
 
-	// Resolve the identifier in the symbol table
 	sym, symOk := a.symbols.Resolve(ident.Value)
 	if !symOk {
 		return nil
 	}
 
-	// Check if the symbol is a function type
 	funcType, isFuncType := sym.Type.(*types.FunctionType)
-	if !isFuncType {
+	if !isFuncType || len(funcType.Parameters) > 0 {
 		return nil
 	}
 
-	// Only handle parameterless functions
-	if len(funcType.Parameters) > 0 {
-		return nil
-	}
-
-	// Return the function's return type (or VOID for procedures)
 	if funcType.IsProcedure() {
 		return types.VOID
 	}
 	return funcType.ReturnType
 }
 
-// analyzeConstructorCall analyzes a constructor call like TClass.Create(args)
-// Implements tasks 9.13-9.16:
-//   - Task 9.13: Constructor overload resolution based on argument types
-//   - Task 9.14: Constructor parameter type validation
-//   - Task 9.15: Constructor parameter count validation
-//   - Task 9.16: Constructor visibility enforcement
+// analyzeConstructorCall analyzes constructor calls like TClass.Create(args).
+// Handles overload resolution, visibility, and argument validation.
 func (a *Analyzer) analyzeConstructorCall(expr *ast.CallExpression, classType *types.ClassType, constructorName string) types.Type {
-	// Task 9.13: Get all constructor overloads for this name (case-insensitive)
-	// Use getMethodOverloadsInHierarchy which already handles constructors
 	constructorOverloads := a.getMethodOverloadsInHierarchy(constructorName, classType)
-
 	if len(constructorOverloads) == 0 {
-		// No constructor with this name found
 		a.addError("class '%s' has no constructor named '%s' at %s",
 			classType.Name, constructorName, expr.Token.Pos.String())
 		return classType
 	}
 
-	// Task 9.13: Resolve overload based on argument types
+	// Resolve overload
 	var selectedConstructor *types.MethodInfo
 	var selectedSignature *types.FunctionType
 
 	if len(constructorOverloads) == 1 {
-		// Single constructor - no overload resolution needed
 		selectedConstructor = constructorOverloads[0]
 		selectedSignature = selectedConstructor.Signature
 	} else {
-		// Multiple constructors - perform overload resolution
-		// Analyze argument types first
 		argTypes := make([]types.Type, len(expr.Arguments))
 		for i, arg := range expr.Arguments {
 			argType := a.analyzeExpression(arg)
 			if argType == nil {
-				return classType // Error already reported
+				return classType
 			}
 			argTypes[i] = argType
 		}
 
-		// Convert MethodInfo to Symbol for ResolveOverload
 		candidates := make([]*Symbol, len(constructorOverloads))
 		for i, overload := range constructorOverloads {
-			candidates[i] = &Symbol{
-				Type: overload.Signature,
-			}
+			candidates[i] = &Symbol{Type: overload.Signature}
 		}
 
-		// Resolve overload based on argument types
 		selected, err := ResolveOverload(candidates, argTypes)
 		if err != nil {
-			// Task 9.15: Report clear error for wrong argument count/types
 			a.addError("there is no overloaded constructor '%s' that can be called with these arguments at %s",
 				constructorName, expr.Token.Pos.String())
 			return classType
 		}
 
 		selectedSignature = selected.Type.(*types.FunctionType)
-		// Find the matching MethodInfo
 		for _, overload := range constructorOverloads {
 			if overload.Signature == selectedSignature {
 				selectedConstructor = overload
@@ -827,8 +685,7 @@ func (a *Analyzer) analyzeConstructorCall(expr *ast.CallExpression, classType *t
 		}
 	}
 
-	// Task 9.16: Check constructor visibility
-	// Find the class that owns this constructor
+	// Check visibility
 	var ownerClass *types.ClassType
 	for class := classType; class != nil; class = class.Parent {
 		if class.HasConstructor(constructorName) {
@@ -846,7 +703,7 @@ func (a *Analyzer) analyzeConstructorCall(expr *ast.CallExpression, classType *t
 		}
 	}
 
-	// Task 9.15: Validate argument count
+	// Validate argument count
 	if len(expr.Arguments) != len(selectedSignature.Parameters) {
 		a.addError("constructor '%s' expects %d arguments, got %d at %s",
 			constructorName, len(selectedSignature.Parameters), len(expr.Arguments),
@@ -854,12 +711,11 @@ func (a *Analyzer) analyzeConstructorCall(expr *ast.CallExpression, classType *t
 		return classType
 	}
 
-	// Task 9.14: Validate argument types
+	// Validate argument types
 	for i, arg := range expr.Arguments {
 		if i >= len(selectedSignature.Parameters) {
 			break
 		}
-
 		paramType := selectedSignature.Parameters[i]
 		argType := a.analyzeExpressionWithExpectedType(arg, paramType)
 		if argType != nil && !a.canAssign(argType, paramType) {
@@ -869,191 +725,147 @@ func (a *Analyzer) analyzeConstructorCall(expr *ast.CallExpression, classType *t
 		}
 	}
 
-	// Constructor calls return an instance of the class
 	return classType
 }
 
-// analyzeOldExpression analyzes an 'old' expression in a postcondition
-// Task 9.143: Return the type of the referenced identifier
+// analyzeOldExpression analyzes an 'old' expression in postconditions.
 func (a *Analyzer) analyzeOldExpression(expr *ast.OldExpression) types.Type {
 	if expr.Identifier == nil {
 		return nil
 	}
-
-	// Look up the identifier in the symbol table
 	sym, ok := a.symbols.Resolve(expr.Identifier.Value)
 	if !ok {
-		// Error already reported in validateOldExpressions
 		return nil
 	}
-
-	// Return the type of the identifier
 	return sym.Type
 }
 
-// ============================================================================
-// Task 9.21.5: Overload Detection with Lambda Arguments
-// ============================================================================
-
-// isLambdaNeedingInference checks if an expression is a lambda that needs type inference.
-// Returns true if the expression is a lambda with untyped parameters or untyped return.
+// isLambdaNeedingInference checks if a lambda has untyped parameters or return type.
 func isLambdaNeedingInference(expr ast.Expression) bool {
 	lambda, ok := expr.(*ast.LambdaExpression)
 	if !ok {
 		return false
 	}
-
-	// Check if any parameters lack type annotations
 	for _, param := range lambda.Parameters {
 		if param.Type == nil {
-			return true // Parameter needs type inference
+			return true
 		}
 	}
-
-	// Check if return type lacks annotation (for statement-body lambdas)
-	// Note: shorthand lambdas always need return type inference from body
-	if lambda.ReturnType == nil {
-		return true
-	}
-
-	return false
+	return lambda.ReturnType == nil
 }
 
-// detectOverloadedCallWithLambdas detects when we're calling an overloaded function
-// with lambda arguments that need type inference.
-// Returns (hasLambdas bool, lambdaIndices []int)
+// detectOverloadedCallWithLambdas returns indices of lambdas needing type inference.
 func detectOverloadedCallWithLambdas(args []ast.Expression) (bool, []int) {
 	lambdaIndices := []int{}
-
 	for i, arg := range args {
 		if isLambdaNeedingInference(arg) {
 			lambdaIndices = append(lambdaIndices, i)
 		}
 	}
-
 	return len(lambdaIndices) > 0, lambdaIndices
 }
 
-// analyzeTypeCast analyzes a type cast expression like Integer(x), Float(y), or TMyClass(obj).
-// Returns the target type if this is a valid type cast, or nil if not a type cast.
-// Task 9.8.2: Semantic analysis for type casts
+// analyzeTypeCast analyzes type cast expressions like Integer(x) or TMyClass(obj).
+// Returns target type if valid, nil otherwise.
 func (a *Analyzer) analyzeTypeCast(typeName string, args []ast.Expression, expr *ast.CallExpression) types.Type {
-	// Type casts must have exactly one argument
 	if len(args) != 1 {
-		return nil // Not a type cast
+		return nil
 	}
 
-	// Task 9.15.6: Resolve the type name (handles built-in types, classes, enums, type aliases, etc.)
 	targetType, err := a.resolveType(typeName)
 	if err != nil {
-		return nil // Not a type name
+		return nil
 	}
 
-	// Unwrap TypeAlias to get the actual type
 	if typeAlias, ok := targetType.(*types.TypeAlias); ok {
 		targetType = typeAlias.AliasedType
 	}
 
-	// Analyze the argument expression
 	argType := a.analyzeExpression(args[0])
 	if argType == nil {
-		return nil // Error already reported
-	}
-
-	// Validate the cast is legal
-	if !a.isValidCast(argType, targetType, expr.Token.Pos) {
 		return nil
 	}
 
+	if !a.isValidCast(argType, targetType, expr.Token.Pos) {
+		return nil
+	}
 	return targetType
 }
 
 // isValidCast checks if casting from sourceType to targetType is valid.
-// Task 9.8.2: Type cast validation
 func (a *Analyzer) isValidCast(sourceType, targetType types.Type, pos token.Position) bool {
-	// Resolve type aliases
 	sourceType = types.GetUnderlyingType(sourceType)
 	targetType = types.GetUnderlyingType(targetType)
 
-	// Same type is always valid
+	// Same type always valid
 	if sourceType.Equals(targetType) {
 		return true
 	}
 
-	// Numeric conversions
+	// Numeric conversions (Integer <-> Float)
 	if a.isNumericType(sourceType) && a.isNumericType(targetType) {
-		return true // Integer <-> Float allowed
+		return true
 	}
 
 	// Boolean conversions
 	if targetType == types.BOOLEAN {
 		if sourceType == types.INTEGER || sourceType == types.FLOAT || sourceType == types.STRING {
-			return true // Integer/Float/String -> Boolean
+			return true
 		}
 	}
 
-	// String conversions
+	// String conversions (most types can convert to string)
 	if targetType == types.STRING {
-		// Most types can be converted to string
 		return true
 	}
 
-	// Variant conversions (Variant can be cast to/from anything)
+	// Variant conversions
 	if sourceType == types.VARIANT || targetType == types.VARIANT {
 		return true
 	}
 
-	// Class/Interface casts
+	// Class casts (must be related by inheritance)
 	sourceClass, sourceIsClass := sourceType.(*types.ClassType)
 	targetClass, targetIsClass := targetType.(*types.ClassType)
-
 	if sourceIsClass && targetIsClass {
-		// Class to class cast: check if types are related by inheritance
 		if types.IsSubclassOf(sourceClass, targetClass) ||
 			types.IsSubclassOf(targetClass, sourceClass) {
-			return true // Upcast or downcast allowed
+			return true
 		}
 		a.addError("cannot cast %s to %s: types are not related by inheritance at %s",
 			sourceType.String(), targetType.String(), pos.String())
 		return false
 	}
 
-	// Interface casts
+	// Interface casts (checked at runtime)
 	_, sourceIsInterface := sourceType.(*types.InterfaceType)
 	_, targetIsInterface := targetType.(*types.InterfaceType)
-
 	if sourceIsInterface || targetIsInterface {
-		// Interface casts are allowed (checked at runtime)
 		return true
 	}
 
-	// Enum casts to/from Integer
+	// Enum <-> Integer casts
 	_, sourceIsEnum := sourceType.(*types.EnumType)
 	_, targetIsEnum := targetType.(*types.EnumType)
-
 	if (sourceIsEnum && targetType == types.INTEGER) ||
 		(sourceType == types.INTEGER && targetIsEnum) {
 		return true
 	}
 
-	// Otherwise, report error
 	a.addError("cannot cast %s to %s at %s",
 		sourceType.String(), targetType.String(), pos.String())
 	return false
 }
 
-// isNumericType checks if a type is Integer or Float
+// isNumericType checks if a type is Integer or Float.
 func (a *Analyzer) isNumericType(t types.Type) bool {
 	t = types.GetUnderlyingType(t)
 	return t == types.INTEGER || t == types.FLOAT
 }
 
-// analyzeRecordStaticMethodCall analyzes a static method call on a record type
-// Example: TTest.Sum(a, b) where Sum is a class method
+// analyzeRecordStaticMethodCall analyzes static method calls like TRecord.Method(args).
 func (a *Analyzer) analyzeRecordStaticMethodCall(expr *ast.CallExpression, recordType *types.RecordType, methodName string) types.Type {
 	lowerMethodName := ident.Normalize(methodName)
-
-	// Look up class method overloads
 	overloads := recordType.GetClassMethodOverloads(lowerMethodName)
 	if len(overloads) == 0 {
 		a.addError("record type '%s' has no class method '%s' at %s",
@@ -1061,7 +873,7 @@ func (a *Analyzer) analyzeRecordStaticMethodCall(expr *ast.CallExpression, recor
 		return nil
 	}
 
-	// Resolve overload based on arguments
+	// Resolve overload
 	argTypes := make([]types.Type, len(expr.Arguments))
 	for i, arg := range expr.Arguments {
 		argType := a.analyzeExpression(arg)
@@ -1074,9 +886,7 @@ func (a *Analyzer) analyzeRecordStaticMethodCall(expr *ast.CallExpression, recor
 	// Find matching overload
 	candidates := make([]*Symbol, len(overloads))
 	for i, overload := range overloads {
-		candidates[i] = &Symbol{
-			Type: overload.Signature,
-		}
+		candidates[i] = &Symbol{Type: overload.Signature}
 	}
 
 	selected, err := ResolveOverload(candidates, argTypes)
@@ -1093,7 +903,6 @@ func (a *Analyzer) analyzeRecordStaticMethodCall(expr *ast.CallExpression, recor
 		if i >= len(funcType.Parameters) {
 			break
 		}
-
 		paramType := funcType.Parameters[i]
 		argType := a.analyzeExpressionWithExpectedType(arg, paramType)
 		if argType != nil && !a.canAssign(argType, paramType) {

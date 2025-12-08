@@ -345,28 +345,6 @@ func interfaceInheritsFrom(sourceIface *InterfaceInfo, targetIface *InterfaceInf
 	return false
 }
 
-// classHasMethod checks if a class or its parents have a method with the given name.
-func classHasMethod(class *ClassInfo, methodName string) bool {
-	// Defensive check: nil class doesn't have any methods
-	if class == nil {
-		return false
-	}
-
-	normalizedName := ident.Normalize(methodName)
-
-	// Check current class
-	if _, exists := class.Methods[normalizedName]; exists {
-		return true
-	}
-
-	// Check parent class (recursive)
-	if class.Parent != nil {
-		return classHasMethod(class.Parent, methodName)
-	}
-
-	return false
-}
-
 // interfaceIsCompatible checks if one interface is compatible with another.
 // An interface is compatible if it implements all methods of the target interface.
 // This is used for interface-to-interface casting.

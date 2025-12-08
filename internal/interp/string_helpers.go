@@ -46,33 +46,6 @@ func runeReplace(s string, index int, replacement rune) (string, bool) {
 	return string(runes), true
 }
 
-// runeSlice returns a substring based on 1-based character positions (not byte positions).
-// start is inclusive, end is exclusive (like Go's slice notation).
-// If start < 1, it's treated as 1. If end > length, it's treated as length.
-func runeSlice(s string, start, end int) string {
-	runes := []rune(s)
-	length := len(runes)
-
-	// Adjust start
-	if start < 1 {
-		start = 1
-	}
-	startIdx := start - 1 // Convert to 0-based
-
-	// Adjust end
-	if end > length {
-		end = length
-	}
-	endIdx := end // Already 0-based for exclusive end
-
-	// Bounds check
-	if startIdx >= length || startIdx >= endIdx {
-		return ""
-	}
-
-	return string(runes[startIdx:endIdx])
-}
-
 // runeSliceFrom returns a substring starting from a 1-based position and taking count characters.
 // This is commonly used in DWScript's Copy function: Copy(str, start, count)
 func runeSliceFrom(s string, start, count int) string {

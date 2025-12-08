@@ -389,57 +389,6 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	return exp
 }
 
-// parseEmptyArrayLiteral creates an empty array literal from empty parentheses.
-// PRE: cursor is LPAREN, peekToken is RPAREN
-// POST: cursor is RPAREN
-func (p *Parser) parseEmptyArrayLiteral(lparenToken lexer.Token) *ast.ArrayLiteralExpression {
-	p.nextToken() // consume ')'
-
-	currentTok := p.cursor.Current()
-
-	return &ast.ArrayLiteralExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  lparenToken,
-				EndPos: currentTok.End(),
-			},
-		},
-		Elements: []ast.Expression{},
-	}
-}
-
-// isRecordLiteralPattern checks if we're looking at a record literal pattern: (IDENT : ...)
-// PRE: cursor is LPAREN
-func (p *Parser) isRecordLiteralPattern() bool {
-	return p.peekTokenIs(lexer.IDENT) && p.peekAhead(2).Type == lexer.COLON
-}
-
-// parseExpressionOrArrayLiteral parses either a grouped expression or array literal.
-// Decides based on whether a comma follows the first expression.
-// PRE: cursor is LPAREN
-// POST: cursor is RPAREN
-func (p *Parser) parseExpressionOrArrayLiteral(lparenToken lexer.Token) ast.Expression {
-	p.nextToken() // move to first expression
-
-	exp := p.parseExpression(LOWEST)
-	if exp == nil {
-		return nil
-	}
-
-	// Check if this is an array literal: (expr, expr, ...)
-	if p.peekTokenIs(lexer.COMMA) {
-		return p.parseParenthesizedArrayLiteral(lparenToken, exp)
-	}
-
-	if !p.expectPeek(lexer.RPAREN) {
-		return nil
-	}
-
-	// Return the expression directly, not wrapped in GroupedExpression
-	// This avoids double parentheses in the string representation
-	return exp
-}
-
 // parseParenthesizedArrayLiteral parses an array literal with parentheses: (expr1, expr2, ...)
 // Called when we've already parsed the first element and detected a comma.
 // PRE: cursor is last token of first element expression
