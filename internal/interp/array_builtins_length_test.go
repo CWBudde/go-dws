@@ -382,6 +382,32 @@ end
 	}
 }
 
+// TestBuiltinSetLength_NegativeLength tests that negative lengths are treated as 0.
+func TestBuiltinSetLength_NegativeLength(t *testing.T) {
+	input := `
+type TDynArray = array of Integer;
+var arr: TDynArray;
+begin
+	SetLength(arr, 5);
+	SetLength(arr, -1);  // Negative length should be treated as 0
+	Length(arr);
+end
+	`
+
+	result := testEval(input)
+
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("result is not *IntegerValue. got=%T (%+v)", result, result)
+	}
+
+	// Negative length is treated as 0, so array should be empty
+	expected := int64(0)
+	if intVal.Value != expected {
+		t.Errorf("Length(arr) after SetLength(arr, -1) = %d, want %d", intVal.Value, expected)
+	}
+}
+
 // ============================================================================
 // Error Cases for Low, High, SetLength
 // ============================================================================
@@ -418,11 +444,11 @@ end
 			`,
 		},
 		{
-			name: "High() with wrong type",
+			name: "High() with wrong type (integer)",
 			input: `
-var s: String := "test";
+var x: Integer := 42;
 begin
-	High(s);
+	High(x);
 end
 			`,
 		},
@@ -456,16 +482,7 @@ begin
 end
 			`,
 		},
-		{
-			name: "SetLength() with negative length",
-			input: `
-type TDynArray = array of Integer;
-var arr: TDynArray;
-begin
-	SetLength(arr, -5);
-end
-			`,
-		},
+		// Note: Negative length is NOT an error - it's treated as 0 (DWScript/Delphi behavior)
 		{
 			name: "SetLength() with non-integer length",
 			input: `
@@ -921,7 +938,7 @@ func TestBuiltinSetLength_String_Expand(t *testing.T) {
 		expectedResult string
 	}{
 		{
-			name: "SetLength expands empty string with null characters",
+			name: "SetLength expands empty string with spaces",
 			input: `
 var s: String := '';
 begin
@@ -929,10 +946,10 @@ begin
 	s;
 end
 			`,
-			expectedResult: "\x00\x00\x00\x00\x00", // 5 null characters
+			expectedResult: "     ", // 5 spaces
 		},
 		{
-			name: "SetLength expands short string with null characters",
+			name: "SetLength expands short string with spaces",
 			input: `
 var s: String := 'Hi';
 begin
@@ -940,7 +957,7 @@ begin
 	s;
 end
 			`,
-			expectedResult: "Hi\x00\x00\x00\x00\x00\x00\x00\x00", // "Hi" + 8 null characters
+			expectedResult: "Hi        ", // "Hi" + 8 spaces
 		},
 		{
 			name: "SetLength expands to exact length",
@@ -951,7 +968,7 @@ begin
 	s;
 end
 			`,
-			expectedResult: "Test\x00\x00\x00\x00", // "Test" + 4 null characters
+			expectedResult: "Test    ", // "Test" + 4 spaces
 		},
 	}
 
@@ -1069,8 +1086,8 @@ begin
 	s;
 end
 			`,
-			expectedResult: "😀😁\x00\x00\x00", // 2 emojis + 3 null characters
-			expectedLen:    5,                // 5 runes
+			expectedResult: "😀😁   ", // 2 emojis + 3 spaces
+			expectedLen:    5,       // 5 runes
 		},
 		{
 			name: "UTF-8 Chinese characters",
@@ -1081,7 +1098,7 @@ begin
 	s;
 end
 			`,
-			expectedResult: "你好\x00\x00\x00\x00", // 2 chars + 4 null characters
+			expectedResult: "你好    ", // 2 chars + 4 spaces
 			expectedLen:    6,
 		},
 		{
@@ -1120,6 +1137,30 @@ end
 	}
 }
 
+// TestBuiltinSetLength_String_NegativeLength tests that negative lengths are treated as 0 for strings.
+func TestBuiltinSetLength_String_NegativeLength(t *testing.T) {
+	input := `
+var s: String := 'hello';
+begin
+	SetLength(s, -1);  // Negative length should be treated as 0
+	s;
+end
+	`
+
+	result := testEval(input)
+
+	strVal, ok := result.(*StringValue)
+	if !ok {
+		t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+	}
+
+	// Negative length is treated as 0, so string should be empty
+	expectedResult := ""
+	if strVal.Value != expectedResult {
+		t.Errorf("String after SetLength(s, -1) = %q, want %q", strVal.Value, expectedResult)
+	}
+}
+
 // TestBuiltinSetLength_String_VarParam tests SetLength with var parameters.
 func TestBuiltinSetLength_String_VarParam(t *testing.T) {
 	input := `
@@ -1142,7 +1183,7 @@ end
 		t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
 	}
 
-	expectedResult := "Test\x00\x00\x00\x00\x00\x00" // "Test" + 6 null characters
+	expectedResult := "Test      " // "Test" + 6 spaces
 	if strVal.Value != expectedResult {
 		t.Errorf("String after SetLength = %q (len=%d), want %q (len=%d)",
 			strVal.Value, len(strVal.Value), expectedResult, len(expectedResult))

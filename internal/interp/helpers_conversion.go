@@ -1039,7 +1039,8 @@ func (i *Interpreter) evalBuiltinHelperProperty(propSpec string, selfValue Value
 		if !ok {
 			return i.newErrorWithLocation(node, "String.Length property requires string receiver")
 		}
-		return &IntegerValue{Value: int64(len(strVal.Value))}
+		// Return the number of Unicode characters (runes), not byte length
+		return &IntegerValue{Value: int64(runeLength(strVal.Value))}
 
 	case "StripAccents":
 		// Implement String.StripAccents property (no-argument method accessed as property)

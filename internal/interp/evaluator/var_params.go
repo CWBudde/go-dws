@@ -508,8 +508,9 @@ func (e *Evaluator) builtinSetLength(args []ast.Expression, ctx *ExecutionContex
 	}
 
 	newLength := int(lengthInt.Value)
+	// DWScript/Delphi behavior: negative lengths are treated as 0
 	if newLength < 0 {
-		return e.newError(nil, "SetLength() expects non-negative length, got %d", newLength)
+		newLength = 0
 	}
 
 	// Handle arrays
@@ -738,7 +739,7 @@ func runeInsert(source, target string, pos int) string {
 
 // runeSetLength sets the length of string s to newLength characters.
 // If truncating, removes characters from the end.
-// If extending, pads with null characters (#0) to match DWScript semantics.
+// If extending, pads with spaces to match DWScript semantics.
 func runeSetLength(s string, newLength int) string {
 	if newLength < 0 {
 		newLength = 0
@@ -756,10 +757,13 @@ func runeSetLength(s string, newLength int) string {
 		return string(runes[:newLength])
 	}
 
-	// Extend with null characters (#0) to match DWScript semantics
+	// Extend with spaces to match DWScript semantics
 	padding := newLength - currentLength
-	nullBytes := make([]byte, padding)
-	return s + string(nullBytes)
+	spaces := make([]rune, padding)
+	for i := range spaces {
+		spaces[i] = ' '
+	}
+	return s + string(spaces)
 }
 
 // ============================================================================

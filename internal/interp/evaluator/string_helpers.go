@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"strings"
+	"unicode/utf8"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -68,14 +69,15 @@ func (e *Evaluator) evalStringToLower(selfValue Value, args []Value, node ast.No
 }
 
 // evalStringLength implements String.Length property read.
-// Returns the length of the string as an integer.
+// Returns the length of the string as an integer (number of Unicode characters).
 func (e *Evaluator) evalStringLength(selfValue Value, node ast.Node) Value {
 	strVal, ok := selfValue.(*runtime.StringValue)
 	if !ok {
 		return e.newError(node, "String.Length property requires string receiver")
 	}
 
-	return &runtime.IntegerValue{Value: int64(len(strVal.Value))}
+	// Return the number of Unicode characters (runes), not byte length
+	return &runtime.IntegerValue{Value: int64(utf8.RuneCountInString(strVal.Value))}
 }
 
 // evalStringToString implements String.ToString() helper method.

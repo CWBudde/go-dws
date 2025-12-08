@@ -1077,7 +1077,12 @@ func (i *Interpreter) GetLowBound(value builtins.Value) (builtins.Value, error) 
 		}, nil
 	}
 
-	return nil, fmt.Errorf("Low() expects array, enum, or type name, got %s", value.Type())
+	// Handle string values - strings are 1-indexed in DWScript
+	if _, ok := value.(*StringValue); ok {
+		return &IntegerValue{Value: 1}, nil
+	}
+
+	return nil, fmt.Errorf("Low() expects array, enum, string, or type name, got %s", value.Type())
 }
 
 // GetHighBound returns the upper bound for arrays, enums, or type meta-values.
@@ -1148,7 +1153,12 @@ func (i *Interpreter) GetHighBound(value builtins.Value) (builtins.Value, error)
 		}, nil
 	}
 
-	return nil, fmt.Errorf("High() expects array, enum, or type name, got %s", value.Type())
+	// Handle string values - return the length (number of Unicode characters)
+	if strVal, ok := value.(*StringValue); ok {
+		return &IntegerValue{Value: int64(runeLength(strVal.Value))}, nil
+	}
+
+	return nil, fmt.Errorf("High() expects array, enum, string, or type name, got %s", value.Type())
 }
 
 // ConcatStrings concatenates multiple string values into a single string.

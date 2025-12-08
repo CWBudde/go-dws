@@ -217,8 +217,9 @@ func (i *Interpreter) builtinSetLength(args []ast.Expression) Value {
 	}
 
 	newLength := int(lengthInt.Value)
+	// DWScript/Delphi behavior: negative lengths are treated as 0
 	if newLength < 0 {
-		return i.newErrorWithLocation(i.currentNode, "SetLength() expects non-negative length, got %d", newLength)
+		newLength = 0
 	}
 
 	// Handle arrays
