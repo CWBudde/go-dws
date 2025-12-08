@@ -17,28 +17,21 @@ func (i *Interpreter) fullClassNameFromDecl(cd *ast.ClassDecl) string {
 	return cd.Name.Value
 }
 
-// evalFunctionDeclaration evaluates a function declaration.
-// It registers the function in the function registry without executing its body.
-// For method implementations (fn.ClassName != nil), it updates the class's or record's Methods map.
+// evalFunctionDeclaration registers a function in the registry without executing it.
+// For methods (fn.ClassName != nil), updates the class/record method maps.
 func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
-	// Check if this is a method implementation (has a class/record name like TExample.Method)
+	// Handle method implementation (e.g., TExample.Method)
 	if fn.ClassName != nil {
 		typeName := fn.ClassName.Value
 
-		// Use normalized key for O(1) lookup instead of O(n) linear search
 		classInfo, isClass := i.classes[ident.Normalize(typeName)]
-
 		if isClass {
-			// Handle class method implementation
 			i.evalClassMethodImplementation(fn, classInfo)
 			return &NilValue{}
 		}
 
-		// Use normalized key for O(1) lookup instead of O(n) linear search
 		recordInfo, isRecord := i.records[ident.Normalize(typeName)]
-
 		if isRecord {
-			// Handle record method implementation
 			i.evalRecordMethodImplementation(fn, recordInfo)
 			return &NilValue{}
 		}
@@ -46,107 +39,66 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 		return i.newErrorWithLocation(fn, "type '%s' not found for method '%s'", typeName, fn.Name.Value)
 	}
 
-	// Task 3.5.7: Register global function in both legacy map and TypeSystem
-	// The legacy map (i.functions) is kept for backward compatibility during migration.
-	// TypeSystem.RegisterFunctionOrReplace handles the interface/implementation pattern:
-	// - Forward declarations (no body) are appended
-	// - Implementations (with body) replace matching declarations by signature
-
-	// Register in TypeSystem (new path, used by Evaluator)
+	// Register global function in TypeSystem and legacy map
 	i.typeSystem.RegisterFunctionOrReplace(fn.Name.Value, fn)
-
-	// Also maintain legacy registry for backward compatibility
-	// DWScript is case-insensitive, so normalize the function name
 	funcName := ident.Normalize(fn.Name.Value)
 
-	// If this function has a body, it may be an implementation that should
-	// replace a previous interface declaration (which has no body).
-	// This happens when units have separate interface and implementation sections.
+	// Implementations (with body) replace forward declarations; declarations are appended
 	if fn.Body != nil {
-		// Replace any existing declaration without a body
 		existingOverloads := i.functions[funcName]
 		i.functions[funcName] = i.replaceMethodInOverloadList(existingOverloads, fn)
 	} else {
-		// Interface declaration - append it
 		i.functions[funcName] = append(i.functions[funcName], fn)
 	}
 
 	return &NilValue{}
 }
 
-// evalClassMethodImplementation handles class method implementation registration
+// evalClassMethodImplementation registers a class method implementation, replacing any declaration.
 func (i *Interpreter) evalClassMethodImplementation(fn *ast.FunctionDecl, classInfo *ClassInfo) {
-	// Update the method in the class (replacing the declaration with the implementation)
-	// Support method overloading by storing multiple methods per name
-	// We need to replace the declaration with the implementation in the overload list
 	normalizedMethodName := ident.Normalize(fn.Name.Value)
 
+	// Replace declaration with implementation in method maps and overload lists
 	if fn.IsClassMethod {
 		classInfo.ClassMethods[normalizedMethodName] = fn
-		// Replace declaration with implementation in overload list
 		overloads := classInfo.ClassMethodOverloads[normalizedMethodName]
 		classInfo.ClassMethodOverloads[normalizedMethodName] = i.replaceMethodInOverloadList(overloads, fn)
 	} else {
 		classInfo.Methods[normalizedMethodName] = fn
-		// Replace declaration with implementation in overload list
 		overloads := classInfo.MethodOverloads[normalizedMethodName]
 		classInfo.MethodOverloads[normalizedMethodName] = i.replaceMethodInOverloadList(overloads, fn)
 	}
 
-	// Also store constructors
+	// Store constructors and destructors
 	if fn.IsConstructor {
 		normalizedCtorName := ident.Normalize(fn.Name.Value)
 		classInfo.Constructors[normalizedCtorName] = fn
-		// Replace declaration with implementation in constructor overload list
 		overloads := classInfo.ConstructorOverloads[normalizedCtorName]
 		classInfo.ConstructorOverloads[normalizedCtorName] = i.replaceMethodInOverloadList(overloads, fn)
-		// Always update Constructor to use the implementation (which has the body)
-		// This replaces the declaration that was set during class parsing
 		classInfo.Constructor = fn
 	}
 
-	// Store destructor
 	if fn.IsDestructor {
 		classInfo.Destructor = fn
 	}
 
-	// Rebuild the VMT after adding method implementation
-	// This ensures the VMT has references to methods with bodies, not just declarations
+	// Rebuild VMT and propagate to descendants
 	classInfo.buildVirtualMethodTable()
-
-	// PR #147 follow-up: Propagate implementation to descendants' method tables.
-	// Child classes copy parent Methods/ClassMethods during declaration.
-	// When a parent implementation arrives later (common for separate interface/implementation),
-	// the child maps still point to the declaration (body=nil). Update them unless the child
-	// overrides the method itself.
 	i.propagateMethodImplementationToDescendants(classInfo, normalizedMethodName, fn, fn.IsClassMethod)
-
-	// PR #147 Fix: Rebuild VMT for all descendant classes to propagate the change.
-	// When a parent class method implementation is added after child classes exist,
-	// child classes have stale VMT entries pointing to declaration-only methods.
-	// We must rebuild their VMTs to get the new implementation.
 	i.rebuildDescendantVMTs(classInfo)
 }
 
-// rebuildDescendantVMTs rebuilds the virtual method table for all classes that
-// inherit from the given class. This is necessary when a parent class method
-// implementation is added after child classes have been created.
-// PR #147 Fix: Prevents child classes from keeping stale VMT entries.
+// rebuildDescendantVMTs rebuilds VMTs for all descendant classes to pick up parent method changes.
 func (i *Interpreter) rebuildDescendantVMTs(parentClass *ClassInfo) {
-	// Iterate through all registered classes
 	for _, classInfo := range i.classes {
-		// Check if this class is a descendant of parentClass
 		if i.isDescendantOf(classInfo, parentClass) {
-			// Rebuild this descendant's VMT to pick up the new implementation
 			classInfo.buildVirtualMethodTable()
 		}
 	}
 }
 
-// isDescendantOf checks if childClass is a descendant of ancestorClass.
-// Returns true if childClass inherits from ancestorClass (directly or indirectly).
+// isDescendantOf returns true if childClass inherits from ancestorClass (directly or indirectly).
 func (i *Interpreter) isDescendantOf(childClass, ancestorClass *ClassInfo) bool {
-	// Walk up the parent chain from childClass
 	current := childClass.Parent
 	for current != nil {
 		if current == ancestorClass {
@@ -157,11 +109,8 @@ func (i *Interpreter) isDescendantOf(childClass, ancestorClass *ClassInfo) bool 
 	return false
 }
 
-// propagateMethodImplementationToDescendants updates descendant classes' method maps
-// to point to the latest implementation from an ancestor (when the descendant hasn't
-// provided its own override). This fixes stale declaration-only entries in child
-// Classes when parent method implementations are registered after the child class
-// was already built.
+// propagateMethodImplementationToDescendants updates descendant method maps to latest parent implementation
+// (unless the descendant provides its own override).
 func (i *Interpreter) propagateMethodImplementationToDescendants(parentClass *ClassInfo, normalizedMethodName string, fn *ast.FunctionDecl, isClassMethod bool) {
 	for _, classInfo := range i.classes {
 		if !i.isDescendantOf(classInfo, parentClass) {
@@ -170,7 +119,7 @@ func (i *Interpreter) propagateMethodImplementationToDescendants(parentClass *Cl
 
 		if isClassMethod {
 			if existing, ok := classInfo.ClassMethods[normalizedMethodName]; ok {
-				// Skip if descendant defines/overrides its own method
+				// Skip if descendant overrides the method
 				if existing.ClassName != nil && ident.Equal(existing.ClassName.Value, classInfo.Name) {
 					continue
 				}
@@ -178,7 +127,7 @@ func (i *Interpreter) propagateMethodImplementationToDescendants(parentClass *Cl
 			}
 		} else {
 			if existing, ok := classInfo.Methods[normalizedMethodName]; ok {
-				// Skip if descendant defines/overrides its own method
+				// Skip if descendant overrides the method
 				if existing.ClassName != nil && ident.Equal(existing.ClassName.Value, classInfo.Name) {
 					continue
 				}
@@ -188,23 +137,18 @@ func (i *Interpreter) propagateMethodImplementationToDescendants(parentClass *Cl
 	}
 }
 
-// evalRecordMethodImplementation handles record method implementation registration
+// evalRecordMethodImplementation registers a record method implementation, replacing any declaration.
 func (i *Interpreter) evalRecordMethodImplementation(fn *ast.FunctionDecl, recordInfo *RecordTypeValue) {
-	// Update the method in the record (replacing the declaration with the implementation)
-	// Support method overloading by storing multiple methods per name
 	normalizedMethodName := ident.Normalize(fn.Name.Value)
-
-	// Build MethodMetadata for metadata maps (includes the implementation body)
 	methodMeta := runtime.MethodMetadataFromAST(fn)
 
 	if fn.IsClassMethod {
 		// Static method
 		recordInfo.ClassMethods[normalizedMethodName] = fn
-		// Replace declaration with implementation in overload list
 		overloads := recordInfo.ClassMethodOverloads[normalizedMethodName]
 		recordInfo.ClassMethodOverloads[normalizedMethodName] = i.replaceMethodInOverloadList(overloads, fn)
 
-		// Update metadata so runtime lookups see the implementation body
+		// Update metadata
 		if recordInfo.Metadata != nil {
 			recordInfo.Metadata.StaticMethods[normalizedMethodName] = methodMeta
 			recordInfo.Metadata.StaticMethodOverloads[normalizedMethodName] = i.replaceMethodMetadataInOverloadList(
@@ -215,11 +159,10 @@ func (i *Interpreter) evalRecordMethodImplementation(fn *ast.FunctionDecl, recor
 	} else {
 		// Instance method
 		recordInfo.Methods[normalizedMethodName] = fn
-		// Replace declaration with implementation in overload list
 		overloads := recordInfo.MethodOverloads[normalizedMethodName]
 		recordInfo.MethodOverloads[normalizedMethodName] = i.replaceMethodInOverloadList(overloads, fn)
 
-		// Update metadata so runtime lookups see the implementation body
+		// Update metadata
 		if recordInfo.Metadata != nil {
 			recordInfo.Metadata.Methods[normalizedMethodName] = methodMeta
 			recordInfo.Metadata.MethodOverloads[normalizedMethodName] = i.replaceMethodMetadataInOverloadList(
@@ -230,42 +173,34 @@ func (i *Interpreter) evalRecordMethodImplementation(fn *ast.FunctionDecl, recor
 	}
 }
 
-// evalClassDeclaration evaluates a class declaration.
-// It builds a ClassInfo from the AST and registers it in the class registry.
-// Handles inheritance by copying parent fields and methods to the child class.
+// evalClassDeclaration builds ClassInfo from AST, registers it, and handles inheritance.
 func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	className := i.fullClassNameFromDecl(cd)
 
-	// Check if this is a partial class declaration
+	// Handle partial class merging
 	var classInfo *ClassInfo
-	// PR #147: Use normalized key for O(1) case-insensitive lookup
 	existingClass, exists := i.classes[ident.Normalize(className)]
 
 	switch {
 	case exists && existingClass.IsPartial && cd.IsPartial:
-		// Merging partial classes - reuse existing ClassInfo
 		classInfo = existingClass
 	case exists:
-		// Non-partial class already exists - error (semantic analyzer should catch this)
 		return i.newErrorWithLocation(cd, "class '%s' already declared", className)
 	default:
-		// New class declaration
 		classInfo = NewClassInfo(className)
 	}
 
-	// Mark as partial if this declaration is partial
+	// Set flags
 	if cd.IsPartial {
 		classInfo.IsPartial = true
-		classInfo.Metadata.IsPartial = true // Task 3.5.39
+		classInfo.Metadata.IsPartial = true
 	}
 
-	// Set abstract flag (only if not already set)
 	if cd.IsAbstract {
 		classInfo.IsAbstractFlag = true
 		classInfo.Metadata.IsAbstract = true
 	}
 
-	// Set external flags (only if not already set)
 	if cd.IsExternal {
 		classInfo.IsExternalFlag = true
 		classInfo.ExternalName = cd.ExternalName
@@ -273,62 +208,49 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		classInfo.Metadata.ExternalName = cd.ExternalName
 	}
 
-	// Provide current class context for nested type resolution during declaration processing
+	// Provide current class context for nested type resolution
 	savedEnv := i.env
 	tempEnv := i.PushEnvironment(i.env)
 	tempEnv.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
 	defer func() { i.RestoreEnvironment(savedEnv) }()
 
-	// Handle inheritance if parent class is specified
+	// Resolve parent class (explicit or implicit TObject)
 	var parentClass *ClassInfo
 	if cd.Parent != nil {
-		// Explicit parent specified
-		parentName := cd.Parent.Value
 		var exists bool
-		parentClass, exists = i.classes[ident.Normalize(parentName)]
+		parentClass, exists = i.classes[ident.Normalize(cd.Parent.Value)]
 		if !exists {
-			return i.newErrorWithLocation(cd, "parent class '%s' not found", parentName)
+			return i.newErrorWithLocation(cd, "parent class '%s' not found", cd.Parent.Value)
 		}
-	} else {
-		// If no explicit parent, implicitly inherit from TObject
-		// (unless this IS TObject or it's an external class)
-		if !ident.Equal(className, "TObject") && !cd.IsExternal {
-			var exists bool
-			parentClass, exists = i.classes[ident.Normalize("TObject")]
-			if !exists {
-				return i.newErrorWithLocation(cd, "implicit parent class 'TObject' not found")
-			}
+	} else if !ident.Equal(className, "TObject") && !cd.IsExternal {
+		var exists bool
+		parentClass, exists = i.classes[ident.Normalize("TObject")]
+		if !exists {
+			return i.newErrorWithLocation(cd, "implicit parent class 'TObject' not found")
 		}
 	}
 
-	// Set parent reference and inherit members (only if not already set for partial classes)
+	// Inherit from parent (if not already set for partial classes)
 	if parentClass != nil && classInfo.Parent == nil {
 		classInfo.Parent = parentClass
-		classInfo.Metadata.Parent = parentClass.Metadata          // Task 3.5.39
-		classInfo.Metadata.ParentName = parentClass.Metadata.Name // Task 3.5.39
+		classInfo.Metadata.Parent = parentClass.Metadata
+		classInfo.Metadata.ParentName = parentClass.Metadata.Name
 
-		// Copy parent fields (child inherits all parent fields)
+		// Copy fields
 		for fieldName, fieldType := range parentClass.Fields {
 			classInfo.Fields[fieldName] = fieldType
 		}
-		// Copy parent field declarations (for initializers)
 		for fieldName, fieldDecl := range parentClass.FieldDecls {
 			classInfo.FieldDecls[fieldName] = fieldDecl
 		}
 
-		// Copy parent methods (child inherits all parent methods)
-		// Keep Methods and ClassMethods for backward compatibility (direct lookups)
+		// Copy methods (direct lookups only; overloads handled separately)
 		for methodName, methodDecl := range parentClass.Methods {
 			classInfo.Methods[methodName] = methodDecl
 		}
 		for methodName, methodDecl := range parentClass.ClassMethods {
 			classInfo.ClassMethods[methodName] = methodDecl
 		}
-
-		// DON'T copy MethodOverloads/ClassMethodOverloads from parent
-		// Each class should only store its OWN method overloads, not inherited ones.
-		// getMethodOverloadsInHierarchy will walk the hierarchy to collect them at call time.
-		// This prevents duplication when a child class overrides a parent method.
 
 		// Copy constructors
 		for name, constructor := range parentClass.Constructors {
@@ -340,12 +262,11 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			classInfo.ConstructorOverloads[normalizedName] = append([]*ast.FunctionDecl(nil), overloads...)
 		}
 
-		// Task 9.3: Inherit default constructor if parent has one
 		if parentClass.DefaultConstructor != "" {
 			classInfo.DefaultConstructor = parentClass.DefaultConstructor
 		}
 
-		// Task 3.5.39: Copy parent constructors to metadata
+		// Copy constructor metadata
 		for name, constructor := range parentClass.Metadata.Constructors {
 			if classInfo.Metadata.Constructors == nil {
 				classInfo.Metadata.Constructors = make(map[string]*runtime.MethodMetadata)
@@ -359,49 +280,32 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			classInfo.Metadata.ConstructorOverloads[name] = append([]*runtime.MethodMetadata(nil), overloads...)
 		}
 
-		// Task 3.5.39: Inherit default constructor name into metadata
 		if parentClass.Metadata.DefaultConstructor != "" {
 			classInfo.Metadata.DefaultConstructor = parentClass.Metadata.DefaultConstructor
 		}
 
-		// Copy operator overloads
 		classInfo.Operators = parentClass.Operators.clone()
 	}
 
 	// Process implemented interfaces
-	// Validate that each interface exists and store references
 	for _, ifaceIdent := range cd.Interfaces {
-		ifaceName := ifaceIdent.Value
-		// Look up interface in registry (case-insensitive)
-		// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
-		iface := i.lookupInterfaceInfo(ifaceName)
+		iface := i.lookupInterfaceInfo(ifaceIdent.Value)
 		if iface == nil {
-			return i.newErrorWithLocation(cd, "interface '%s' not found", ifaceName)
+			return i.newErrorWithLocation(cd, "interface '%s' not found", ifaceIdent.Value)
 		}
 
-		// Add interface to class's interface list
 		classInfo.Interfaces = append(classInfo.Interfaces, iface)
-
-		// Task 3.5.39: Add interface name to metadata
-		classInfo.Metadata.Interfaces = append(classInfo.Metadata.Interfaces, ifaceName)
-
-		// Note: Method implementation validation is deferred until the class methods
-		// are fully processed. For now, we just register that the class claims to
-		// implement the interface. Full validation would happen in semantic analysis.
+		classInfo.Metadata.Interfaces = append(classInfo.Metadata.Interfaces, ifaceIdent.Value)
 	}
 
-	// Register class constants BEFORE processing fields
-	// This allows class vars to reference constants in their initialization expressions
-	// Evaluate constants eagerly in order so they can reference earlier constants
+	// Process class constants (evaluated eagerly so later constants can reference earlier ones)
 	for _, constDecl := range cd.Constants {
 		if constDecl == nil {
 			continue
 		}
-		// Store the constant declaration
 		classInfo.Constants[constDecl.Name.Value] = constDecl
 
-		// Evaluate the constant value immediately
-		// Create temporary environment with previously evaluated constants
+		// Evaluate with previously defined constants in scope
 		savedEnv := i.env
 		tempEnv := i.PushEnvironment(i.env)
 		for cName, cValue := range classInfo.ConstantValues {
@@ -415,35 +319,27 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			return constValue
 		}
 
-		// Cache the evaluated value
 		classInfo.ConstantValues[constDecl.Name.Value] = constValue
 	}
 
-	// Copy parent constants (child inherits all parent constants)
+	// Inherit parent constants
 	if classInfo.Parent != nil {
 		for constName, constDecl := range classInfo.Parent.Constants {
-			// Only copy if not already defined in child class
 			if _, exists := classInfo.Constants[constName]; !exists {
 				classInfo.Constants[constName] = constDecl
 			}
 		}
-		// Also copy parent constant values
 		for constName, constValue := range classInfo.Parent.ConstantValues {
-			// Only copy if not already defined in child class
 			if _, exists := classInfo.ConstantValues[constName]; !exists {
 				classInfo.ConstantValues[constName] = constValue
 			}
 		}
 	}
 
-	// Task 9.6: Register class BEFORE processing fields
-	// This allows field initializers to reference the class name (e.g., FField := TObj.Value)
-	// Task 3.5.46: Register in legacy map early for field initializers that reference the class
-	// Note: TypeSystem registration happens at end of function after VMT is built
+	// Register class early for field initializers that may reference the class
 	i.classes[ident.Normalize(classInfo.Name)] = classInfo
 
-	// Evaluate nested type declarations before processing fields so nested classes
-	// can be referenced by name inside the outer class.
+	// Process nested types before fields so they can be referenced
 	for _, nested := range cd.NestedTypes {
 		switch n := nested.(type) {
 		case *ast.ClassDecl:
@@ -470,68 +366,57 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		}
 	}
 
-	// Add own fields to ClassInfo
+	// Process fields
 	for _, field := range cd.Fields {
 		var fieldType types.Type
-		var cachedInitValue Value // Cache evaluated init value to avoid double evaluation
+		var cachedInitValue Value
 
-		// Get the field type from the type annotation or infer from initialization
+		// Resolve or infer field type
 		switch {
 		case field.Type != nil:
-			// Explicit type annotation
 			fieldType = i.resolveTypeFromExpression(field.Type)
 			if fieldType == nil {
 				return i.newErrorWithLocation(field, "unknown or invalid type for field '%s'", field.Name.Value)
 			}
 		case field.InitValue != nil:
-			// Type inference from initialization value
-			// Create temporary environment with class constants available
+			// Infer type from init value
 			savedEnv := i.env
 			tempEnv := i.PushEnvironment(i.env)
 			for cName, cValue := range classInfo.ConstantValues {
 				tempEnv.Define(cName, cValue)
 			}
 
-			// Evaluate the init value to infer the type
 			initVal := i.Eval(field.InitValue)
 			i.RestoreEnvironment(savedEnv)
 
 			if isError(initVal) {
 				return initVal
 			}
-			// Cache the evaluated value to reuse for class var initialization
 			cachedInitValue = initVal
 
-			// Infer type from the value
 			fieldType = i.inferTypeFromValue(initVal)
 			if fieldType == nil {
 				return i.newErrorWithLocation(field, "cannot infer type for field '%s'", field.Name.Value)
 			}
 		default:
-			// No type and no initialization
 			return i.newErrorWithLocation(field, "field '%s' has no type annotation", field.Name.Value)
 		}
 
-		// Check if this is a class variable (static field) or instance field
+		// Handle class variables vs instance fields
 		if field.IsClassVar {
 			var classVarValue Value
 
-			// Check if there's an initialization expression
 			if field.InitValue != nil {
-				// Reuse cached value if available (from type inference)
-				// This avoids double evaluation which would run side effects twice
+				// Reuse cached value to avoid double evaluation
 				if cachedInitValue != nil {
 					classVarValue = cachedInitValue
 				} else {
-					// Need to evaluate (explicit type annotation case)
-					// Create temporary environment with class constants available
 					savedEnv := i.env
 					tempEnv := i.PushEnvironment(i.env)
 					for cName, cValue := range classInfo.ConstantValues {
 						tempEnv.Define(cName, cValue)
 					}
 
-					// Evaluate the initialization expression
 					val := i.Eval(field.InitValue)
 					i.RestoreEnvironment(savedEnv)
 
@@ -541,7 +426,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 					classVarValue = val
 				}
 			} else {
-				// Initialize class variable with default value based on type
+				// Initialize with default value
 				switch fieldType {
 				case types.INTEGER:
 					classVarValue = &IntegerValue{Value: 0}
@@ -557,28 +442,21 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			}
 			classInfo.ClassVars[field.Name.Value] = classVarValue
 		} else {
-			// Store instance field type in ClassInfo
+			// Instance field
 			classInfo.Fields[field.Name.Value] = fieldType
-			// Store field declaration for initializer access
 			classInfo.FieldDecls[field.Name.Value] = field
 
-			// Task 3.5.39: Add to metadata
 			fieldMeta := runtime.FieldMetadataFromAST(field)
 			fieldMeta.Type = fieldType
 			runtime.AddFieldToClass(classInfo.Metadata, fieldMeta)
 		}
 	}
 
-	// Add own methods to ClassInfo (these override parent methods if same name)
-	// Support method overloading by storing multiple methods per name
+	// Process methods
 	for _, method := range cd.Methods {
-		// Normalize method name for case-insensitive lookup
-		// This matches the semantic analyzer behavior (types.go AddMethodOverload)
 		normalizedMethodName := ident.Normalize(method.Name.Value)
 
-		// Auto-detect constructors: methods named "Create" that return the class type
-		// This handles inline constructor declarations like: function Create(...): TClass;
-		// Matches semantic analyzer behavior (analyze_classes_decl.go:576-580)
+		// Auto-detect constructors (methods named "Create" that return the class type)
 		if !method.IsConstructor && ident.Equal(method.Name.Value, "Create") && method.ReturnType != nil {
 			returnTypeName := method.ReturnType.String()
 			if ident.Equal(returnTypeName, cd.Name.Value) {
@@ -586,34 +464,27 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			}
 		}
 
-		// Task 3.5.39: Create MethodMetadata once for this method
+		// Register method metadata
 		methodMeta := runtime.MethodMetadataFromAST(method)
 		i.methodRegistry.RegisterMethod(methodMeta)
 
-		// Check if this is a class method (static method) or instance method
+		// Add to method maps and overload lists
 		if method.IsClassMethod {
-			// Store in ClassMethods map
 			classInfo.ClassMethods[normalizedMethodName] = method
-			// Add to overload list
 			classInfo.ClassMethodOverloads[normalizedMethodName] = append(classInfo.ClassMethodOverloads[normalizedMethodName], method)
 
-			// Task 3.5.39: Add to metadata (unless it's a constructor/destructor - those go separately)
 			if !method.IsConstructor && !method.IsDestructor {
 				runtime.AddMethodToClass(classInfo.Metadata, methodMeta, true)
 			}
 		} else {
-			// Store in instance Methods map
 			classInfo.Methods[normalizedMethodName] = method
-			// Add to overload list
 			classInfo.MethodOverloads[normalizedMethodName] = append(classInfo.MethodOverloads[normalizedMethodName], method)
 
-			// Task 3.5.39: Add to metadata (unless it's a constructor/destructor - those go separately)
 			if !method.IsConstructor && !method.IsDestructor {
 				runtime.AddMethodToClass(classInfo.Metadata, methodMeta, false)
 			}
 		}
 
-		// Task 3.5.39: Handle destructor
 		if method.IsDestructor {
 			classInfo.Metadata.Destructor = methodMeta
 		}
@@ -621,111 +492,92 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		if method.IsConstructor {
 			normalizedName := ident.Normalize(method.Name.Value)
 			classInfo.Constructors[normalizedName] = method
-
-			// Task 3.5.39: Add constructor to metadata (reuse methodMeta)
 			runtime.AddConstructorToClass(classInfo.Metadata, methodMeta)
 
-			// Task 9.3: Capture default constructor
 			if method.IsDefault {
 				classInfo.DefaultConstructor = method.Name.Value
 			}
 
-			// In DWScript, a child constructor with the same name and signature HIDES the parent's,
-			// regardless of whether it has the `override` keyword or not
+			// Child constructors hide parent constructors with same signature
 			existingOverloads := classInfo.ConstructorOverloads[normalizedName]
 			replaced := false
 			for i, existingMethod := range existingOverloads {
-				// Check if signatures match (same number and types of parameters)
 				if parametersMatch(existingMethod.Parameters, method.Parameters) {
-					// Replace the parent constructor with this child constructor (hiding)
 					existingOverloads[i] = method
 					replaced = true
 					break
 				}
 			}
 			if !replaced {
-				// No matching parent constructor found (different signature), just append
 				existingOverloads = append(existingOverloads, method)
 			}
-			// Write the modified slice back to the map
 			classInfo.ConstructorOverloads[normalizedName] = existingOverloads
 		}
 	}
 
-	// Identify constructor (method named "Create")
+	// Identify constructor and destructor
 	if constructor, exists := classInfo.Methods["create"]; exists {
 		classInfo.Constructor = constructor
 	}
+
 	if cd.Constructor != nil {
 		normalizedName := ident.Normalize(cd.Constructor.Name.Value)
 		classInfo.Constructors[normalizedName] = cd.Constructor
 
-		// Task 3.5.39: Register constructor in metadata
-		// Create and register method metadata for explicit constructor
 		constructorMeta := runtime.MethodMetadataFromAST(cd.Constructor)
 		i.methodRegistry.RegisterMethod(constructorMeta)
 		runtime.AddConstructorToClass(classInfo.Metadata, constructorMeta)
 
-		// In DWScript, a child constructor with the same name and signature HIDES the parent's,
-		// regardless of whether it has the `override` keyword or not
+		// Child constructors hide parent constructors with same signature
 		existingOverloads := classInfo.ConstructorOverloads[normalizedName]
 		replaced := false
 		for i, existingMethod := range existingOverloads {
-			// Check if signatures match (same number and types of parameters)
 			if parametersMatch(existingMethod.Parameters, cd.Constructor.Parameters) {
-				// Replace the parent constructor with this child constructor (hiding)
 				existingOverloads[i] = cd.Constructor
 				replaced = true
 				break
 			}
 		}
 		if !replaced {
-			// No matching parent constructor found (different signature), just append
 			existingOverloads = append(existingOverloads, cd.Constructor)
 		}
-		// Write the modified slice back to the map
 		classInfo.ConstructorOverloads[normalizedName] = existingOverloads
 	}
 
-	// Identify destructor (method named "Destroy")
-	// Task 3.5.39: Destructor metadata is now set during the method loop above
 	if destructor, exists := classInfo.Methods["destroy"]; exists {
 		classInfo.Destructor = destructor
 	}
 
-	// Task 3.5.39: Inherit destructor from parent if no local destructor declared
+	// Inherit destructor from parent if not declared
 	if classInfo.Metadata.Destructor == nil && classInfo.Parent != nil && classInfo.Parent.Metadata.Destructor != nil {
 		classInfo.Metadata.Destructor = classInfo.Parent.Metadata.Destructor
 	}
 
-	// Synthesize implicit parameterless constructor if any constructor has 'overload'
+	// Synthesize implicit parameterless constructor if needed
 	i.synthesizeImplicitParameterlessConstructor(classInfo)
 
-	// Register properties
-	// Properties are registered after fields and methods so they can reference them
+	// Process properties
 	for _, propDecl := range cd.Properties {
 		if propDecl == nil {
 			continue
 		}
 
-		// Convert AST property to PropertyInfo
 		propInfo := i.convertPropertyDecl(propDecl)
 		if propInfo != nil {
 			classInfo.Properties[propDecl.Name.Value] = propInfo
 		}
 	}
 
-	// Copy parent properties (child inherits all parent properties)
+	// Inherit parent properties
 	if classInfo.Parent != nil {
 		for propName, propInfo := range classInfo.Parent.Properties {
-			// Only copy if not already defined in child class
 			if _, exists := classInfo.Properties[propName]; !exists {
 				classInfo.Properties[propName] = propInfo
 			}
 		}
 	}
 
-	// Register class operators (Stage 8)
+	// Register class operators
 	for _, opDecl := range cd.Operators {
 		if opDecl == nil {
 			continue
@@ -735,11 +587,9 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		}
 	}
 
-	// Build virtual method table after all methods and fields are processed
+	// Build VMT and register in TypeSystem
 	classInfo.buildVirtualMethodTable()
 
-	// Register class in TypeSystem after VMT is built
-	// Note: Legacy map registration already (done early) for field initializers
 	parentName2 := ""
 	if classInfo.Parent != nil {
 		parentName2 = classInfo.Parent.Name
@@ -749,10 +599,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	return &NilValue{}
 }
 
-// convertPropertyDecl converts an AST property declaration to a PropertyInfo struct.
-// This extracts the property metadata for runtime property access handling.
-// Note: We mark all identifiers as field access for now and will check at runtime
-// whether they're actually fields or methods.
+// convertPropertyDecl converts AST property to PropertyInfo for runtime access.
 func (i *Interpreter) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.PropertyInfo {
 	// Resolve property type
 	var propType types.Type
@@ -766,7 +613,6 @@ func (i *Interpreter) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.Pro
 	case "Boolean":
 		propType = types.BOOLEAN
 	default:
-		// Try to resolve known class types; fall back to NIL if unknown
 		if classInfo := i.resolveClassInfoByName(propDecl.Type.String()); classInfo != nil {
 			propType = types.NewClassType(classInfo.Name, nil)
 		} else {
@@ -790,29 +636,24 @@ func (i *Interpreter) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.Pro
 		}
 	}
 
-	// Determine read access kind and spec
+	// Configure read access
 	if propDecl.ReadSpec != nil {
 		if ident, ok := propDecl.ReadSpec.(*ast.Identifier); ok {
-			// It's an identifier - store the name, we'll check if it's a field or method at access time
 			propInfo.ReadSpec = ident.Value
-			// Mark as field for now - evalPropertyRead will check both fields and methods
 			propInfo.ReadKind = types.PropAccessField
 		} else {
-			// It's an expression
 			propInfo.ReadKind = types.PropAccessExpression
 			propInfo.ReadSpec = propDecl.ReadSpec.String()
-			propInfo.ReadExpr = propDecl.ReadSpec // Store AST node for evaluation
+			propInfo.ReadExpr = propDecl.ReadSpec
 		}
 	} else {
 		propInfo.ReadKind = types.PropAccessNone
 	}
 
-	// Determine write access kind and spec
+	// Configure write access
 	if propDecl.WriteSpec != nil {
 		if ident, ok := propDecl.WriteSpec.(*ast.Identifier); ok {
-			// It's an identifier - store the name, we'll check if it's a field or method at access time
 			propInfo.WriteSpec = ident.Value
-			// Mark as field for now - evalPropertyWrite will check both fields and methods
 			propInfo.WriteKind = types.PropAccessField
 		} else {
 			propInfo.WriteKind = types.PropAccessNone
@@ -824,34 +665,21 @@ func (i *Interpreter) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.Pro
 	return propInfo
 }
 
-// evalInterfaceDeclaration evaluates an interface declaration.
-// It builds an InterfaceInfo from the AST and registers it in the interface registry.
-// Handles inheritance by linking to parent interface and inheriting its methods.
+// evalInterfaceDeclaration builds InterfaceInfo from AST and registers it.
 func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
-	// Create new InterfaceInfo
 	interfaceInfo := NewInterfaceInfo(id.Name.Value)
 
-	// Handle inheritance if parent interface is specified
-	// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map
+	// Handle interface inheritance
 	if id.Parent != nil {
-		parentName := id.Parent.Value
-		parentInterface := i.lookupInterfaceInfo(parentName)
+		parentInterface := i.lookupInterfaceInfo(id.Parent.Value)
 		if parentInterface == nil {
-			return i.newErrorWithLocation(id, "parent interface '%s' not found", parentName)
+			return i.newErrorWithLocation(id, "parent interface '%s' not found", id.Parent.Value)
 		}
-
-		// Set parent reference
 		interfaceInfo.Parent = parentInterface
-
-		// Note: We don't copy parent methods here because InterfaceInfo.GetMethod()
-		// and AllMethods() already handle parent interface traversal
 	}
 
-	// Add methods to InterfaceInfo
-	// Convert InterfaceMethodDecl nodes to FunctionDecl nodes for consistency
+	// Convert interface methods to FunctionDecl (interface methods have no body)
 	for _, methodDecl := range id.Methods {
-		// Create a FunctionDecl from the InterfaceMethodDecl
-		// Interface methods are declarations only (no body)
 		funcDecl := &ast.FunctionDecl{
 			BaseNode: ast.BaseNode{
 				Token: methodDecl.Token,
@@ -859,14 +687,13 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 			Name:       methodDecl.Name,
 			Parameters: methodDecl.Parameters,
 			ReturnType: methodDecl.ReturnType,
-			Body:       nil, // Interface methods have no body
+			Body:       nil,
 		}
 
-		// Use normalized key for case-insensitive method lookups
 		interfaceInfo.Methods[ident.Normalize(methodDecl.Name.Value)] = funcDecl
 	}
 
-	// Register properties declared on the interface
+	// Register interface properties
 	for _, propDecl := range id.Properties {
 		if propDecl == nil {
 			continue
@@ -876,32 +703,18 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 		}
 	}
 
-	// Register interface in TypeSystem (Task 3.5.184c: only TypeSystem now, legacy map removed)
 	i.typeSystem.RegisterInterface(interfaceInfo.Name, interfaceInfo)
 
 	return &NilValue{}
 }
 
-// synthesizeImplicitParameterlessConstructor generates an implicit parameterless constructor
-// when at least one constructor has the 'overload' directive.
-//
-// In DWScript, when a constructor is marked with 'overload', the runtime implicitly provides
-// a parameterless constructor if one doesn't already exist. This allows code like:
-//
-//	type TObj = class
-//	  constructor Create(x: Integer); overload;
-//	end;
-//	var o := TObj.Create;  // Calls implicit parameterless constructor
-//	var p := TObj.Create(5);  // Calls explicit overload with parameter
+// synthesizeImplicitParameterlessConstructor adds a parameterless constructor when
+// at least one constructor has 'overload' but no parameterless version exists.
 func (i *Interpreter) synthesizeImplicitParameterlessConstructor(classInfo *ClassInfo) {
-	// For each constructor name, check if it has the 'overload' directive
-	// If so, ensure there's a parameterless overload
 	for ctorName, overloads := range classInfo.ConstructorOverloads {
 		hasOverloadDirective := false
 		hasParameterlessOverload := false
 
-		// Check if any overload has the 'overload' directive
-		// and if a parameterless overload already exists
 		for _, ctor := range overloads {
 			if ctor.IsOverload {
 				hasOverloadDirective = true
@@ -911,21 +724,18 @@ func (i *Interpreter) synthesizeImplicitParameterlessConstructor(classInfo *Clas
 			}
 		}
 
-		// If this constructor set has 'overload' but no parameterless version, synthesize one
+		// Synthesize parameterless constructor if needed
 		if hasOverloadDirective && !hasParameterlessOverload {
-			// Create a minimal constructor AST node (just for runtime - no actual body needed)
-			// The interpreter will initialize fields with default values when no constructor body exists
 			implicitConstructor := &ast.FunctionDecl{
 				BaseNode:      ast.BaseNode{},
 				Name:          &ast.Identifier{Value: ctorName},
-				Parameters:    []*ast.Parameter{}, // No parameters
-				ReturnType:    nil,                // Constructors don't have explicit return types
-				Body:          nil,                // No body - just field initialization
+				Parameters:    []*ast.Parameter{},
+				ReturnType:    nil,
+				Body:          nil,
 				IsConstructor: true,
 				IsOverload:    true,
 			}
 
-			// Add to class constructor maps
 			normalizedName := ident.Normalize(ctorName)
 			if _, exists := classInfo.Constructors[normalizedName]; !exists {
 				classInfo.Constructors[normalizedName] = implicitConstructor
@@ -940,7 +750,6 @@ func (i *Interpreter) synthesizeImplicitParameterlessConstructor(classInfo *Clas
 
 func (i *Interpreter) evalOperatorDeclaration(decl *ast.OperatorDecl) Value {
 	if decl.Kind == ast.OperatorKindClass {
-		// Class operators are registered during class declaration evaluation
 		return &NilValue{}
 	}
 
@@ -950,10 +759,10 @@ func (i *Interpreter) evalOperatorDeclaration(decl *ast.OperatorDecl) Value {
 
 	operandTypes := make([]string, len(decl.OperandTypes))
 	for idx, operand := range decl.OperandTypes {
-		opRand := operand.String()
-		operandTypes[idx] = NormalizeTypeAnnotation(opRand)
+		operandTypes[idx] = NormalizeTypeAnnotation(operand.String())
 	}
 
+	// Handle conversion operators
 	if decl.Kind == ast.OperatorKindConversion {
 		if len(operandTypes) != 1 {
 			return i.newErrorWithLocation(decl, "conversion operator '%s' requires exactly one operand", decl.OperatorSymbol)
@@ -963,9 +772,8 @@ func (i *Interpreter) evalOperatorDeclaration(decl *ast.OperatorDecl) Value {
 		}
 		targetType := NormalizeTypeAnnotation(decl.ReturnType.String())
 		entry := &interptypes.ConversionEntry{
-			From: operandTypes[0],
-			To:   targetType,
-			// DWScript is case-insensitive, so normalize the binding name
+			From:        operandTypes[0],
+			To:          targetType,
 			BindingName: ident.Normalize(decl.Binding.Value),
 			Implicit:    ident.Equal(decl.OperatorSymbol, "implicit"),
 		}
@@ -975,13 +783,13 @@ func (i *Interpreter) evalOperatorDeclaration(decl *ast.OperatorDecl) Value {
 		return &NilValue{}
 	}
 
+	// Register global operator
 	entry := &runtimeOperatorEntry{
-		Operator:     decl.OperatorSymbol,
-		OperandTypes: operandTypes,
-		// DWScript is case-insensitive, so normalize the binding name
+		Operator:      decl.OperatorSymbol,
+		OperandTypes:  operandTypes,
 		BindingName:   ident.Normalize(decl.Binding.Value),
-		Class:         nil, // Global operator, not tied to a class
-		SelfIndex:     -1,  // No self parameter for global operators
+		Class:         nil,
+		SelfIndex:     -1,
 		IsClassMethod: false,
 	}
 
@@ -997,31 +805,28 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 		return i.newErrorWithLocation(opDecl, "class operator '%s' missing binding", opDecl.OperatorSymbol)
 	}
 
-	bindingName := opDecl.Binding.Value
-	normalizedBindingName := ident.Normalize(bindingName)
+	// Find binding method
+	normalizedBindingName := ident.Normalize(opDecl.Binding.Value)
 	method, isClassMethod := classInfo.ClassMethods[normalizedBindingName]
 	if !isClassMethod {
 		var ok bool
 		method, ok = classInfo.Methods[normalizedBindingName]
 		if !ok {
-			return i.newErrorWithLocation(opDecl, "binding '%s' for class operator '%s' not found in class '%s'", bindingName, opDecl.OperatorSymbol, classInfo.Name)
+			return i.newErrorWithLocation(opDecl, "binding '%s' for class operator '%s' not found in class '%s'", opDecl.Binding.Value, opDecl.OperatorSymbol, classInfo.Name)
 		}
 	}
 
+	// Build operand type list
 	classKey := NormalizeTypeAnnotation(classInfo.Name)
 	operandTypes := make([]string, 0, len(opDecl.OperandTypes)+1)
 	includesClass := false
 	for _, operand := range opDecl.OperandTypes {
-		// Resolve type aliases before normalizing
-		// This ensures that "toa" (alias for "array of const") is resolved to "ARRAY OF CONST"
 		typeName := operand.String()
 		resolvedType, err := i.resolveType(typeName)
 		var key string
 		if err == nil {
-			// Successfully resolved - use the resolved type's string representation
 			key = NormalizeTypeAnnotation(resolvedType.String())
 		} else {
-			// Failed to resolve - use the raw type name (might be a forward reference)
 			key = NormalizeTypeAnnotation(typeName)
 		}
 		if key == classKey {
@@ -1029,6 +834,8 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 		}
 		operandTypes = append(operandTypes, key)
 	}
+
+	// Add class to operand types if not present
 	if !includesClass {
 		if ident.Equal(opDecl.OperatorSymbol, "in") {
 			operandTypes = append(operandTypes, classKey)
@@ -1037,6 +844,7 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 		}
 	}
 
+	// Find self parameter index for instance methods
 	selfIndex := -1
 	if !isClassMethod {
 		for idx, key := range operandTypes {
@@ -1070,62 +878,50 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 	return &NilValue{}
 }
 
-// replaceMethodInOverloadList replaces a method declaration with its implementation in the overload list.
-//
-// This function finds a method with matching signature and replaces it, or appends if not found.
-// parametersMatch checks if two parameter lists have matching signatures
-// (same count and same parameter types)
+// parametersMatch checks if two parameter lists have matching signatures.
 func parametersMatch(params1, params2 []*ast.Parameter) bool {
 	if len(params1) != len(params2) {
 		return false
 	}
 	for i := range params1 {
-		// Compare parameter types
 		if params1[i].Type != nil && params2[i].Type != nil {
 			if params1[i].Type.String() != params2[i].Type.String() {
 				return false
 			}
 		} else if params1[i].Type != params2[i].Type {
-			// One has type, other doesn't
 			return false
 		}
 	}
 	return true
 }
 
+// replaceMethodInOverloadList replaces a declaration with its implementation, or appends if not found.
 func (i *Interpreter) replaceMethodInOverloadList(list []*ast.FunctionDecl, impl *ast.FunctionDecl) []*ast.FunctionDecl {
-	// Check if we already have a declaration for this overload signature
 	for idx, decl := range list {
-		// Match by parameter count and types
 		if parametersMatch(decl.Parameters, impl.Parameters) {
-			// Preserve virtual/override/reintroduce flags from declaration
-			// The implementation doesn't have these keywords, but we need to preserve them
+			// Preserve flags from declaration
 			impl.IsVirtual = decl.IsVirtual
 			impl.IsOverride = decl.IsOverride
 			impl.IsReintroduce = decl.IsReintroduce
 			impl.IsAbstract = decl.IsAbstract
 
-			// Replace the declaration with the implementation
 			list[idx] = impl
 			return list
 		}
 	}
-	// No matching declaration found - append the implementation
 	return append(list, impl)
 }
 
-// replaceMethodMetadataInOverloadList replaces a MethodMetadata declaration with its implementation.
-// Matching is based on parameter signatures and return type names.
+// replaceMethodMetadataInOverloadList replaces a declaration with its implementation.
 func (i *Interpreter) replaceMethodMetadataInOverloadList(list []*runtime.MethodMetadata, impl *runtime.MethodMetadata) []*runtime.MethodMetadata {
 	for idx, decl := range list {
 		if methodMetadataSignatureMatch(decl, impl) {
-			// Preserve flags from declaration (virtual/override/reintroduce/abstract, visibility)
+			// Preserve flags from declaration
 			impl.IsVirtual = decl.IsVirtual
 			impl.IsOverride = decl.IsOverride
 			impl.IsReintroduce = decl.IsReintroduce
 			impl.IsAbstract = decl.IsAbstract
 			impl.Visibility = decl.Visibility
-			// Prefer return type name from declaration if implementation omitted it
 			if impl.ReturnTypeName == "" {
 				impl.ReturnTypeName = decl.ReturnTypeName
 			}
@@ -1136,7 +932,7 @@ func (i *Interpreter) replaceMethodMetadataInOverloadList(list []*runtime.Method
 	return append(list, impl)
 }
 
-// methodMetadataSignatureMatch checks if two MethodMetadata entries describe the same overload.
+// methodMetadataSignatureMatch checks if two MethodMetadata have matching signatures.
 func methodMetadataSignatureMatch(a, b *runtime.MethodMetadata) bool {
 	if a == nil || b == nil {
 		return false
@@ -1160,19 +956,16 @@ func parameterMetadataMatch(params1, params2 []runtime.ParameterMetadata) bool {
 	}
 
 	for i := range params1 {
-		// Compare ByRef flags
 		if params1[i].ByRef != params2[i].ByRef {
 			return false
 		}
 
-		// Compare type names case-insensitively when present
 		switch {
 		case params1[i].TypeName != "" && params2[i].TypeName != "":
 			if !ident.Equal(params1[i].TypeName, params2[i].TypeName) {
 				return false
 			}
 		case params1[i].TypeName != params2[i].TypeName:
-			// One has a type name and the other doesn't
 			return false
 		}
 	}
@@ -1180,8 +973,7 @@ func parameterMetadataMatch(params1, params2 []runtime.ParameterMetadata) bool {
 	return true
 }
 
-// inferTypeFromValue infers the type from a runtime value.
-// This is used for type inference when a variable or field is declared without an explicit type.
+// inferTypeFromValue infers a type from a runtime value (for type inference).
 func (i *Interpreter) inferTypeFromValue(val Value) types.Type {
 	switch val := val.(type) {
 	case *IntegerValue:
@@ -1193,13 +985,11 @@ func (i *Interpreter) inferTypeFromValue(val Value) types.Type {
 	case *BooleanValue:
 		return types.BOOLEAN
 	case *ArrayValue:
-		// For arrays, we could try to infer the element type
-		arrVal := val
-		if len(arrVal.Elements) > 0 {
-			elemType := i.inferTypeFromValue(arrVal.Elements[0])
+		if len(val.Elements) > 0 {
+			elemType := i.inferTypeFromValue(val.Elements[0])
 			if elemType != nil {
 				lowBound := 0
-				highBound := len(arrVal.Elements) - 1
+				highBound := len(val.Elements) - 1
 				return &types.ArrayType{
 					ElementType: elemType,
 					LowBound:    &lowBound,
@@ -1208,12 +998,7 @@ func (i *Interpreter) inferTypeFromValue(val Value) types.Type {
 			}
 		}
 		return nil
-	case *ObjectInstance:
-		// For object instances, type inference is complex
-		// Return nil for now (type inference for objects may not be common for class vars)
-		return nil
-	case *NilValue:
-		// Nil doesn't have a specific type
+	case *ObjectInstance, *NilValue:
 		return nil
 	default:
 		return nil

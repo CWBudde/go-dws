@@ -25,6 +25,8 @@ func (c *Compiler) compileStatement(stmt ast.Statement) error {
 	switch node := stmt.(type) {
 	case *ast.BlockStatement:
 		return c.compileBlock(node)
+	case *ast.EmptyStatement:
+		return nil
 	case *ast.VarDeclStatement:
 		return c.compileVarDecl(node)
 	case *ast.AssignmentStatement:
