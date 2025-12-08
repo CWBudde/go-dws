@@ -1261,7 +1261,18 @@ func builtinChr(vm *VM, args []Value) (Value, error) {
 	if !args[0].IsInt() {
 		return NilValue(), vm.runtimeError("Chr expects an integer argument")
 	}
-	return StringValue(string(rune(args[0].AsInt()))), nil
+
+	c := args[0].AsInt()
+
+	// Check if the code is in valid range (0-1114111 for Unicode)
+	if c < 0 || c > 0x10FFFF {
+		return NilValue(), vm.runtimeError("Chr code %d out of valid Unicode range (0-1114111)", c)
+	}
+
+	// Return UTF-8 encoded character (Go native)
+	// NOTE: Unlike DWScript (which uses UTF-16), go-dws uses UTF-8 for all strings.
+	// See docs/string-encoding.md for details.
+	return StringValue(string(rune(c))), nil
 }
 
 func normalizeStringUnicode(s string, form string) string {

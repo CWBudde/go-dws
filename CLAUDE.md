@@ -339,6 +339,20 @@ idx := ident.Index(items, name)
 - Binary: `%1010`
 - Floats: `3.14`, `1.0e10`
 
+**String Encoding (IMPORTANT DIVERGENCE)**:
+
+go-dws uses **UTF-8** for all strings, unlike DWScript which uses UTF-16. This is an intentional, documented design decision.
+
+Key differences:
+
+- `Chr($10000)` returns a 1-character UTF-8 string (emoji), not a 2-character UTF-16 surrogate pair
+- `Length("😀")` returns 1, not 2
+- String indexing works with Unicode code points, not UTF-16 code units
+
+See [docs/string-encoding.md](docs/string-encoding.md) for full details and rationale.
+
+When updating test fixtures that involve supplementary plane Unicode (U+10000 and above), expect UTF-8 behavior and update expected output accordingly.
+
 ### Experimental Multi-Pass Semantic Analysis (Task 6.1.2)
 
 The semantic analyzer has a new multi-pass architecture under development. By default, only the stable old analyzer runs to keep tests passing on main.

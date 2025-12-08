@@ -479,6 +479,9 @@ func SubStr(ctx Context, args []Value) Value {
 
 // Chr implements the Chr() built-in function.
 // It converts an integer character code to a single-character string.
+// NOTE: Unlike DWScript (which uses UTF-16), go-dws uses UTF-8 for all strings.
+// This means Chr() returns a single character regardless of Unicode plane.
+// See docs/string-encoding.md for details.
 // Chr(code: Integer): String
 func Chr(ctx Context, args []Value) Value {
 	if len(args) != 1 {
@@ -496,6 +499,7 @@ func Chr(ctx Context, args []Value) Value {
 		return ctx.NewError("Chr() code %d out of valid Unicode range (0-1114111)", intVal.Value)
 	}
 
+	// Return UTF-8 encoded character (Go native)
 	return &runtime.StringValue{Value: string(rune(intVal.Value))}
 }
 
