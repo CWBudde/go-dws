@@ -365,11 +365,16 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - ✅ `docs/phase3.9-3.11-summary.md` (consolidation summary)
   - **Key Finding**: 13 architectural boundary calls should remain (correct design)
 
-- [ ] **3.12.2** Migrate Member Access (1 week)
-  - Native handling for helper properties (partial visitor_expressions_members.go:314)
-  - Native handling for record methods (line 251)
-  - Keep object/interface/class methods (architectural boundaries)
-  - **Impact**: -1 to -2 EvalNode calls (helper_methods.go:369 may disappear)
+- [x] **3.12.2** Migrate Member Access (ACTUAL: 4h) - ✅ COMPLETE (2025-12-08)
+  - Native handling for record methods (line 251) - ✅ DONE
+  - Native execution via `callRecordMethod()` in evaluator
+  - **Impact**: -1 EvalNode call (28 → 27, verified)
+  - **Files modified**:
+    - `internal/interp/evaluator/evaluator.go` (+1 interface method: GetRecordMethod)
+    - `internal/interp/runtime/record.go` (+65 lines - AST reconstruction from metadata)
+    - `internal/interp/evaluator/record_methods.go` (+83 lines - new file, callRecordMethod)
+    - `internal/interp/evaluator/visitor_expressions_members.go` (+20 lines - native dispatch)
+  - **Note**: Helper properties (line 314) remain for Phase 3.12.3
 
 - [ ] **3.12.3** Migrate Assignment Operations (4-6 days)
   - Native handling for compound member assignment (visitor_statements.go:318)
