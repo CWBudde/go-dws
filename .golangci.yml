@@ -36,6 +36,8 @@ linters:
         linters:
           - errcheck
           - unparam
+      - path: _test\.go
+        text: "unusedwrite:"
 
 formatters:
   enable:
