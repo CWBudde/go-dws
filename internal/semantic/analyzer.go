@@ -573,7 +573,19 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 			return fromMethodPtr.IsCompatibleWith(toUnderlying)
 		}
 		if toFuncPtr, ok := toUnderlying.(*types.FunctionPointerType); ok {
-			return toFuncPtr.IsCompatibleWith(fromUnderlying)
+			// First try exact compatibility
+			if toFuncPtr.IsCompatibleWith(fromUnderlying) {
+				return true
+			}
+			// Task: For helper methods like Map that use Variant parameters,
+			// allow function pointers with compatible concrete types.
+			// E.g., function(Integer): String should be assignable to function(Variant): Variant
+			if fromFuncPtr, ok := fromUnderlying.(*types.FunctionPointerType); ok {
+				if a.isFunctionPointerVariantCompatible(fromFuncPtr, toFuncPtr) {
+					return true
+				}
+			}
+			return false
 		}
 		if toMethodPtr, ok := toUnderlying.(*types.MethodPointerType); ok {
 			return toMethodPtr.IsCompatibleWith(fromUnderlying)
@@ -583,6 +595,58 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 		return true
 	}
 	return false
+}
+
+// isFunctionPointerVariantCompatible checks if a function pointer with concrete types
+// can be assigned to a function pointer that uses Variant parameters/return type.
+// This enables higher-order functions like Map, Filter, etc. to accept functions
+// with specific types when the helper declares Variant-based signatures.
+//
+// Rules:
+// - Parameter count must match
+// - Each source parameter must be assignable TO Variant (always true for concrete types)
+// - The source return type must be assignable TO Variant (always true for concrete types)
+// - If the target has Variant parameters, any concrete type is acceptable
+func (a *Analyzer) isFunctionPointerVariantCompatible(from, to *types.FunctionPointerType) bool {
+	// Parameter count must match
+	if len(from.Parameters) != len(to.Parameters) {
+		return false
+	}
+
+	// Check each parameter: from's concrete type should be compatible with to's Variant
+	for i := range from.Parameters {
+		toParam := to.Parameters[i]
+		fromParam := from.Parameters[i]
+
+		// If target expects Variant, any concrete type is acceptable
+		if toParam.Equals(types.VARIANT) {
+			continue
+		}
+
+		// Otherwise, types must be compatible
+		if !a.canAssign(fromParam, toParam) {
+			return false
+		}
+	}
+
+	// Check return type compatibility
+	// If target returns Variant, any concrete return type is acceptable
+	if to.ReturnType != nil && to.ReturnType.Equals(types.VARIANT) {
+		return true
+	}
+
+	// Both have nil return type (procedures)
+	if from.ReturnType == nil && to.ReturnType == nil {
+		return true
+	}
+
+	// One has return type, the other doesn't
+	if from.ReturnType == nil || to.ReturnType == nil {
+		return false
+	}
+
+	// Both have return types - check compatibility
+	return a.canAssign(from.ReturnType, to.ReturnType)
 }
 
 // ============================================================================

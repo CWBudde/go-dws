@@ -35,6 +35,11 @@ func (e *Evaluator) ResolveType(typeName string) (types.Type, error) {
 		return e.resolveInlineArrayType(typeName)
 	}
 
+	// Step 1b: Handle function pointer types (e.g., "function(Integer): String")
+	if strings.HasPrefix(typeName, "function(") || strings.HasPrefix(typeName, "procedure(") {
+		return e.resolveFunctionPointerType(typeName)
+	}
+
 	// Step 2: Normalize for case-insensitive lookup
 	lowerTypeName := ident.Normalize(typeName)
 
@@ -142,6 +147,115 @@ func (e *Evaluator) resolveInlineArrayType(typeName string) (types.Type, error) 
 	}
 
 	return nil, fmt.Errorf("invalid inline array type: %s", typeName)
+}
+
+// resolveFunctionPointerType handles function pointer type syntax:
+//   - "function(Integer): String" → function pointer with Integer param returning String
+//   - "procedure(String)" → procedure pointer with String param
+//   - "function(): Boolean" → parameterless function returning Boolean
+//
+// This is used to resolve type annotations stored by the semantic analyzer
+// for builtin functions used as function references (e.g., IntToStr in Map).
+func (e *Evaluator) resolveFunctionPointerType(typeName string) (types.Type, error) {
+	// Determine if it's a function or procedure
+	isFunction := strings.HasPrefix(typeName, "function(")
+	var prefix string
+	if isFunction {
+		prefix = "function("
+	} else {
+		prefix = "procedure("
+	}
+
+	// Find the closing paren for parameters
+	remaining := strings.TrimPrefix(typeName, prefix)
+
+	// Find matching closing paren (handle nested types)
+	parenDepth := 1
+	closeIdx := -1
+	for i := 0; i < len(remaining); i++ {
+		switch remaining[i] {
+		case '(':
+			parenDepth++
+		case ')':
+			parenDepth--
+			if parenDepth == 0 {
+				closeIdx = i
+				break
+			}
+		}
+		if closeIdx >= 0 {
+			break
+		}
+	}
+
+	if closeIdx == -1 {
+		return nil, fmt.Errorf("invalid function pointer type syntax: %s", typeName)
+	}
+
+	// Extract parameter list
+	paramsStr := strings.TrimSpace(remaining[:closeIdx])
+	afterParams := strings.TrimSpace(remaining[closeIdx+1:])
+
+	// Parse parameters (comma-separated type names)
+	var paramTypes []types.Type
+	if paramsStr != "" {
+		// Split by comma, but be careful about nested types
+		paramStrs := splitTypeList(paramsStr)
+		for _, paramStr := range paramStrs {
+			paramType, err := e.ResolveType(strings.TrimSpace(paramStr))
+			if err != nil {
+				return nil, fmt.Errorf("invalid parameter type '%s': %w", paramStr, err)
+			}
+			paramTypes = append(paramTypes, paramType)
+		}
+	}
+
+	// Parse return type if present (for functions)
+	var returnType types.Type
+	if isFunction && strings.HasPrefix(afterParams, ":") {
+		returnTypeName := strings.TrimSpace(strings.TrimPrefix(afterParams, ":"))
+		var err error
+		returnType, err = e.ResolveType(returnTypeName)
+		if err != nil {
+			return nil, fmt.Errorf("invalid return type '%s': %w", returnTypeName, err)
+		}
+	}
+
+	return types.NewFunctionPointerType(paramTypes, returnType), nil
+}
+
+// splitTypeList splits a comma-separated list of types, respecting nested parentheses.
+func splitTypeList(s string) []string {
+	var result []string
+	var current strings.Builder
+	depth := 0
+
+	for _, ch := range s {
+		switch ch {
+		case '(':
+			depth++
+			current.WriteRune(ch)
+		case ')':
+			depth--
+			current.WriteRune(ch)
+		case ',':
+			if depth == 0 {
+				result = append(result, strings.TrimSpace(current.String()))
+				current.Reset()
+			} else {
+				current.WriteRune(ch)
+			}
+		default:
+			current.WriteRune(ch)
+		}
+	}
+
+	// Don't forget the last part
+	if current.Len() > 0 {
+		result = append(result, strings.TrimSpace(current.String()))
+	}
+
+	return result
 }
 
 // ResolveTypeFromName is an alias for ResolveType for backward compatibility.

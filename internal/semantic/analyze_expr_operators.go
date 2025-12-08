@@ -163,6 +163,19 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 			if declName := a.builtinDeclarationName(identifier.Value); declName != "" && declName != identifier.Value {
 				a.addCaseMismatchHint(identifier.Value, declName, identifier.Token.Pos)
 			}
+			// Task: Check if this builtin can be used as a function reference (for Map, Filter, etc.)
+			// If so, return its function pointer type instead of VOID
+			if funcPtrType := a.getBuiltinFunctionPointerType(identifier.Value); funcPtrType != nil {
+				// Store the function pointer type in semantic info so the evaluator knows
+				// to create a FunctionPointerValue instead of auto-invoking
+				if a.semanticInfo != nil {
+					a.semanticInfo.SetType(identifier, &ast.TypeAnnotation{
+						Token: identifier.Token,
+						Name:  funcPtrType.String(),
+					})
+				}
+				return funcPtrType
+			}
 			// Return Void type for built-in procedures (or appropriate type for functions)
 			// For simplicity, we'll return VOID type which means "any" - the interpreter will handle it
 			return types.VOID

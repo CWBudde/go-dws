@@ -1,6 +1,7 @@
 package semantic
 
 import (
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -88,5 +89,73 @@ func (a *Analyzer) builtinDeclarationName(name string) string {
 		return "Print"
 	default:
 		return name
+	}
+}
+
+// getBuiltinFunctionPointerType returns the function pointer type for a built-in function
+// when it's used as a function reference (not called). Returns nil if the builtin
+// doesn't have a known function pointer type or shouldn't be used as a reference.
+//
+// This is needed for higher-order functions like Map, Filter, etc. that take
+// function references as arguments.
+func (a *Analyzer) getBuiltinFunctionPointerType(name string) *types.FunctionPointerType {
+	lowerName := ident.Normalize(name)
+
+	switch lowerName {
+	// Type conversion functions commonly used with Map
+	case "inttostr":
+		// IntToStr(value: Integer): String
+		return types.NewFunctionPointerType([]types.Type{types.INTEGER}, types.STRING)
+	case "floattostr":
+		// FloatToStr(value: Float): String
+		return types.NewFunctionPointerType([]types.Type{types.FLOAT}, types.STRING)
+	case "booltostr":
+		// BoolToStr(value: Boolean): String
+		return types.NewFunctionPointerType([]types.Type{types.BOOLEAN}, types.STRING)
+	case "strtoint":
+		// StrToInt(s: String): Integer
+		return types.NewFunctionPointerType([]types.Type{types.STRING}, types.INTEGER)
+	case "strtofloat":
+		// StrToFloat(s: String): Float
+		return types.NewFunctionPointerType([]types.Type{types.STRING}, types.FLOAT)
+	case "uppercase":
+		// UpperCase(s: String): String
+		return types.NewFunctionPointerType([]types.Type{types.STRING}, types.STRING)
+	case "lowercase":
+		// LowerCase(s: String): String
+		return types.NewFunctionPointerType([]types.Type{types.STRING}, types.STRING)
+	case "trim":
+		// Trim(s: String): String
+		return types.NewFunctionPointerType([]types.Type{types.STRING}, types.STRING)
+	case "trimleft":
+		// TrimLeft(s: String): String
+		return types.NewFunctionPointerType([]types.Type{types.STRING}, types.STRING)
+	case "trimright":
+		// TrimRight(s: String): String
+		return types.NewFunctionPointerType([]types.Type{types.STRING}, types.STRING)
+	case "length":
+		// Length(s: String): Integer (also works with arrays)
+		return types.NewFunctionPointerType([]types.Type{types.VARIANT}, types.INTEGER)
+	case "chr":
+		// Chr(code: Integer): String
+		return types.NewFunctionPointerType([]types.Type{types.INTEGER}, types.STRING)
+	case "ord":
+		// Ord(s: String): Integer (also works with chars, enums)
+		return types.NewFunctionPointerType([]types.Type{types.VARIANT}, types.INTEGER)
+	case "abs":
+		// Abs(value: Float): Float
+		return types.NewFunctionPointerType([]types.Type{types.FLOAT}, types.FLOAT)
+	case "sqr":
+		// Sqr(value: Float): Float
+		return types.NewFunctionPointerType([]types.Type{types.FLOAT}, types.FLOAT)
+	case "sqrt":
+		// Sqrt(value: Float): Float
+		return types.NewFunctionPointerType([]types.Type{types.FLOAT}, types.FLOAT)
+	case "reversestring":
+		// ReverseString(s: String): String
+		return types.NewFunctionPointerType([]types.Type{types.STRING}, types.STRING)
+	default:
+		// No known function pointer type for this builtin
+		return nil
 	}
 }

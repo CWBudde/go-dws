@@ -251,6 +251,14 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 	// Final check: check for built-in functions or return undefined error
 	if e.FunctionRegistry().IsBuiltin(node.Value) {
+		// If the semantic type expects a function/method pointer, return a builtin function pointer
+		// This enables passing builtins like IntToStr to higher-order functions like Map
+		if expectedTypeKind == "FUNCTION_POINTER" || expectedTypeKind == "METHOD_POINTER" {
+			return &runtime.FunctionPointerValue{
+				BuiltinName: node.Value,
+			}
+		}
+
 		// Parameterless built-in functions are auto-invoked
 		if fn, ok := builtins.DefaultRegistry.Lookup(node.Value); ok {
 			return fn(e, []Value{}) // Call with empty args (parameterless auto-invoke)

@@ -218,15 +218,17 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 		// Check argument types
 		for i, arg := range expr.Arguments {
-			argType := a.analyzeExpression(arg)
 			// Task 9.218: Guard against nil Parameters (properties have no parameters)
+			var expectedType types.Type
 			if helperMethod.Parameters != nil && i < len(helperMethod.Parameters) {
-				expectedType := helperMethod.Parameters[i]
-				if argType != nil && expectedType != nil && !a.canAssign(argType, expectedType) {
-					a.addError("argument %d to helper method '%s' has type %s, expected %s at %s",
-						i+1, methodName, argType.String(), expectedType.String(),
-						expr.Token.Pos.String())
-				}
+				expectedType = helperMethod.Parameters[i]
+			}
+			// Use analyzeExpressionWithExpectedType to enable lambda parameter type inference
+			argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
+			if expectedType != nil && argType != nil && !a.canAssign(argType, expectedType) {
+				a.addError("argument %d to helper method '%s' has type %s, expected %s at %s",
+					i+1, methodName, argType.String(), expectedType.String(),
+					expr.Token.Pos.String())
 			}
 		}
 
