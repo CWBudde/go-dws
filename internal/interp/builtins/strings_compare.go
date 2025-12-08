@@ -253,6 +253,7 @@ func CompareLocaleStr(ctx Context, args []Value) Value {
 // strings are compared case-insensitively by default, ignoring accents for the
 // primary ordering. If the base strings are identical, the last accent decides
 // ordering with precedence: none < circumflex < grave < acute.
+// If last accents are equal, compare all accents from right to left.
 func compareFrench(a, b string, caseSensitive bool) int {
 	if !caseSensitive {
 		a = strings.ToLower(a)
@@ -268,13 +269,30 @@ func compareFrench(a, b string, caseSensitive bool) int {
 		return 1
 	}
 
-	weightA := lastAccentWeight(a)
-	weightB := lastAccentWeight(b)
-	if weightA < weightB {
-		return -1
+	// Compare accents from right to left
+	accentsA := getAccentWeights(a)
+	accentsB := getAccentWeights(b)
+
+	// Compare from rightmost accent
+	maxLen := len(accentsA)
+	if len(accentsB) > maxLen {
+		maxLen = len(accentsB)
 	}
-	if weightA > weightB {
-		return 1
+
+	for i := 0; i < maxLen; i++ {
+		var wA, wB int
+		if i < len(accentsA) {
+			wA = accentsA[len(accentsA)-1-i]
+		}
+		if i < len(accentsB) {
+			wB = accentsB[len(accentsB)-1-i]
+		}
+		if wA < wB {
+			return -1
+		}
+		if wA > wB {
+			return 1
+		}
 	}
 	return 0
 }
@@ -315,6 +333,36 @@ func lastAccentWeight(s string) int {
 		}
 	}
 	return weight
+}
+
+// getAccentWeights returns a slice of accent weights for each accented character
+// in the string, in left-to-right order. Weight: none=0, circumflex=1, grave=2, acute=3.
+func getAccentWeights(s string) []int {
+	decomposed := []rune(norm.NFD.String(s))
+	var weights []int
+	for i := 0; i < len(decomposed); i++ {
+		r := decomposed[i]
+		// Skip combining marks
+		if unicode.Is(unicode.Mn, r) {
+			continue
+		}
+		// Check if next rune is a combining mark (accent)
+		weight := 0
+		if i+1 < len(decomposed) && unicode.Is(unicode.Mn, decomposed[i+1]) {
+			switch decomposed[i+1] {
+			case 0x0302: // circumflex
+				weight = 1
+			case 0x0300: // grave
+				weight = 2
+			case 0x0301: // acute
+				weight = 3
+			default:
+				weight = 1
+			}
+			weights = append(weights, weight)
+		}
+	}
+	return weights
 }
 
 // StrMatches implements the StrMatches() built-in function.

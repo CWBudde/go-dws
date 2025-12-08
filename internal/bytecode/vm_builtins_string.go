@@ -1174,6 +1174,12 @@ func builtinCompareLocaleStr(vm *VM, args []Value) (Value, error) {
 		caseSensitive = args[3].AsBool()
 	}
 
+	// Special-case French collation to match DWScript fixtures
+	if strings.HasPrefix(strings.ToLower(locale), "fr") {
+		cmp := compareFrenchVM(str1, str2, caseSensitive)
+		return IntValue(int64(cmp)), nil
+	}
+
 	// Parse the locale tag
 	tag, err := language.Parse(locale)
 	if err != nil {
@@ -1197,6 +1203,86 @@ func builtinCompareLocaleStr(vm *VM, args []Value) (Value, error) {
 		return IntValue(1), nil
 	}
 	return IntValue(0), nil
+}
+
+// compareFrenchVM implements French collation for bytecode VM.
+func compareFrenchVM(a, b string, caseSensitive bool) int {
+	if !caseSensitive {
+		a = strings.ToLower(a)
+		b = strings.ToLower(b)
+	}
+
+	baseA := stripAccentsVM(a)
+	baseB := stripAccentsVM(b)
+	if baseA < baseB {
+		return -1
+	}
+	if baseA > baseB {
+		return 1
+	}
+
+	// Compare accents from right to left
+	accentsA := getAccentWeightsVM(a)
+	accentsB := getAccentWeightsVM(b)
+
+	maxLen := len(accentsA)
+	if len(accentsB) > maxLen {
+		maxLen = len(accentsB)
+	}
+
+	for i := 0; i < maxLen; i++ {
+		var wA, wB int
+		if i < len(accentsA) {
+			wA = accentsA[len(accentsA)-1-i]
+		}
+		if i < len(accentsB) {
+			wB = accentsB[len(accentsB)-1-i]
+		}
+		if wA < wB {
+			return -1
+		}
+		if wA > wB {
+			return 1
+		}
+	}
+	return 0
+}
+
+func stripAccentsVM(s string) string {
+	decomposed := norm.NFD.String(s)
+	var result []rune
+	for _, r := range decomposed {
+		if !unicode.Is(unicode.Mn, r) {
+			result = append(result, r)
+		}
+	}
+	return string(result)
+}
+
+func getAccentWeightsVM(s string) []int {
+	decomposed := []rune(norm.NFD.String(s))
+	var weights []int
+	for i := 0; i < len(decomposed); i++ {
+		r := decomposed[i]
+		if unicode.Is(unicode.Mn, r) {
+			continue
+		}
+		weight := 0
+		if i+1 < len(decomposed) && unicode.Is(unicode.Mn, decomposed[i+1]) {
+			switch decomposed[i+1] {
+			case 0x0302: // circumflex
+				weight = 1
+			case 0x0300: // grave
+				weight = 2
+			case 0x0301: // acute
+				weight = 3
+			default:
+				weight = 1
+			}
+			weights = append(weights, weight)
+		}
+	}
+	return weights
 }
 
 func builtinStrMatches(vm *VM, args []Value) (Value, error) {
