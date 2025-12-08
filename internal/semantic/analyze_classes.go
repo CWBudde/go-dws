@@ -447,7 +447,6 @@ func (a *Analyzer) analyzeRecordStaticMethodCallFromNew(expr *ast.NewExpression,
 // getDefaultConstructorName returns the name of the default constructor for a class.
 // It checks the class hierarchy for a constructor marked as 'default'.
 // Falls back to "Create" if no default constructor is found.
-// Task 9.3: Support for default constructors
 func (a *Analyzer) getDefaultConstructorName(class *types.ClassType) string {
 	// Check current class and parents for default constructor
 	for current := class; current != nil; current = current.Parent {

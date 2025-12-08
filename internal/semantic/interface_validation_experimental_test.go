@@ -8,7 +8,7 @@ import (
 )
 
 // TestInterfaceValidationWithExperimentalPasses tests interface type validation
-// using the experimental multi-pass system (task 6.1.2.4)
+// using the experimental multi-pass system
 func TestInterfaceValidationWithExperimentalPasses(t *testing.T) {
 	tests := []struct {
 		name        string

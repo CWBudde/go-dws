@@ -25,14 +25,6 @@ func (i *Interpreter) builtinArrayIndexOf(arr *ArrayValue, value Value, startInd
 	return evaluator.ArrayHelperIndexOf(arr, value, startIndex)
 }
 
-// builtinArrayContains checks if an array contains a specific value.
-//
-// Returns true if value is found in array, false otherwise
-// Uses builtinArrayIndexOf internally
-func (i *Interpreter) builtinArrayContains(arr *ArrayValue, value Value) Value {
-	return evaluator.ArrayHelperContains(arr, value)
-}
-
 // builtinArrayReverse reverses an array in place.
 //
 // Modifies array by reversing elements in place

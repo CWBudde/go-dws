@@ -25,13 +25,10 @@ import (
 // already implements in builtins_context.go. We cast the adapter to
 // builtins.Context to access these methods without duplicating code.
 //
-// Phase 3.5.143 - Phase IV: Complex Methods
-// Dependencies: Tasks 3.5.143a-b (EnumTypeRegistry)
 // ============================================================================
 
 // GetLowBound returns the lower bound for arrays, enums, or type meta-values.
 // This implements the builtins.Context interface.
-// Task 3.7.9: Helper for polymorphic Low() function.
 func (e *Evaluator) GetLowBound(value Value) (Value, error) {
 	// Cast adapter to builtins.Context to access the existing implementation.
 	// The Interpreter implements builtins.Context with these methods.
@@ -45,7 +42,6 @@ func (e *Evaluator) GetLowBound(value Value) (Value, error) {
 
 // GetHighBound returns the upper bound for arrays, enums, or type meta-values.
 // This implements the builtins.Context interface.
-// Task 3.7.9: Helper for polymorphic High() function.
 func (e *Evaluator) GetHighBound(value Value) (Value, error) {
 	// Cast adapter to builtins.Context to access the existing implementation
 	ctx, ok := e.adapter.(builtins.Context)

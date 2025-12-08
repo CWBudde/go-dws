@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -50,9 +49,4 @@ Built:  %s
 	// Global flags
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
 	rootCmd.PersistentFlags().StringSliceVarP(&unitSearchPaths, "include", "I", []string{}, "unit search paths (can be specified multiple times)")
-}
-
-func exitWithError(msg string, args ...any) {
-	fmt.Fprintf(os.Stderr, "Error: "+msg+"\n", args...)
-	os.Exit(1)
 }
