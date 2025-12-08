@@ -10,7 +10,7 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
-// TestIntegration_ParseASTSymbols tests the complete workflow: Parse → AST → Symbols (Task 10.22)
+// TestIntegration_ParseASTSymbols tests the complete workflow: Parse → AST → Symbols
 func TestIntegration_ParseASTSymbols(t *testing.T) {
 	engine, err := New(WithTypeCheck(true))
 	if err != nil {
@@ -86,7 +86,7 @@ func TestIntegration_ParseASTSymbols(t *testing.T) {
 	}
 }
 
-// TestIntegration_ErrorRecovery tests error recovery and partial results (Task 10.22)
+// TestIntegration_ErrorRecovery tests error recovery and partial results
 func TestIntegration_ErrorRecovery(t *testing.T) {
 	engine, err := New(WithTypeCheck(true))
 	if err != nil {
@@ -161,7 +161,7 @@ func TestIntegration_ErrorRecovery(t *testing.T) {
 	}
 }
 
-// TestIntegration_PositionMapping tests accurate position tracking (Task 10.22)
+// TestIntegration_PositionMapping tests accurate position tracking
 func TestIntegration_PositionMapping(t *testing.T) {
 	engine, err := New(WithTypeCheck(true))
 	if err != nil {
@@ -239,7 +239,7 @@ end;`
 	}
 }
 
-// TestIntegration_RealCodeSample tests with actual DWScript code (Task 10.22)
+// TestIntegration_RealCodeSample tests with actual DWScript code
 func TestIntegration_RealCodeSample(t *testing.T) {
 	engine, err := New(WithTypeCheck(true))
 	if err != nil {
@@ -332,7 +332,7 @@ func TestIntegration_RealCodeSample(t *testing.T) {
 	}
 }
 
-// TestIntegration_NoRegressions tests that existing functionality still works (Task 10.22)
+// TestIntegration_NoRegressions tests that existing functionality still works
 func TestIntegration_NoRegressions(t *testing.T) {
 	engine, err := New(WithTypeCheck(true))
 	if err != nil {
@@ -393,7 +393,7 @@ func TestIntegration_NoRegressions(t *testing.T) {
 	}
 }
 
-// TestIntegration_LSPWorkflow tests typical LSP usage patterns (Task 10.22)
+// TestIntegration_LSPWorkflow tests typical LSP usage patterns
 func TestIntegration_LSPWorkflow(t *testing.T) {
 	engine, err := New(WithTypeCheck(true))
 	if err != nil {
@@ -491,7 +491,7 @@ func TestIntegration_LSPWorkflow(t *testing.T) {
 	}
 }
 
-// TestIntegration_ErrorPositions tests that all errors have accurate positions (Task 10.22)
+// TestIntegration_ErrorPositions tests that all errors have accurate positions
 func TestIntegration_ErrorPositions(t *testing.T) {
 	engine, err := New(WithTypeCheck(true))
 	if err != nil {
@@ -544,7 +544,7 @@ var w: Integer := 100;`
 	}
 }
 
-// TestIntegration_MultipleErrors tests handling of multiple errors (Task 10.22)
+// TestIntegration_MultipleErrors tests handling of multiple errors
 func TestIntegration_MultipleErrors(t *testing.T) {
 	engine, err := New(WithTypeCheck(true))
 	if err != nil {

@@ -21,7 +21,6 @@ import (
 
 // ConcatStrings concatenates multiple string values into a single string.
 // This implements the builtins.Context interface.
-// Task 3.7.9: Support for polymorphic Concat() function.
 func (e *Evaluator) ConcatStrings(args []Value) Value {
 	// Build the concatenated string
 	var result strings.Builder

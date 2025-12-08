@@ -239,7 +239,7 @@ func TestDWScriptFixtures(t *testing.T) {
 			path:         "../../testdata/fixtures/FunctionsString",
 			expectErrors: false,
 			description:  "String manipulation functions",
-			skip:         false,                     // Enabled for task 9.17.3
+			skip:         false,
 			hintsLevel:   semantic.HintsLevelNormal, // FunctionsString tests aren't part of DWScript's pedantic harness
 		},
 		{
@@ -630,8 +630,6 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel 
 	// If we expect errors but got no parse errors, run semantic analysis and try execution
 	if expectErrors && len(parseErrors) == 0 {
 		// Run semantic analysis to catch semantic errors (overload violations, type errors, etc.)
-		// Task 6.1.2: Enable experimental passes for multi-pass analysis architecture (on demand!)
-		// analyzer := semantic.NewAnalyzerWithExperimentalPasses()
 		analyzer := semantic.NewAnalyzer()
 		analyzer.SetHintsLevel(hintsLevel)
 		analyzer.SetSource(source, pasFile)
@@ -659,7 +657,7 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel 
 		// No semantic errors, try execution for runtime errors
 		var buf bytes.Buffer
 		interp := New(&buf)
-		// Task 9.5.4: Pass semantic info to interpreter for class variable access
+		// Pass semantic info to interpreter for class variable access
 		if semanticInfo := analyzer.GetSemanticInfo(); semanticInfo != nil {
 			interp.SetSemanticInfo(semanticInfo)
 		}
@@ -718,8 +716,6 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel 
 
 	// Run semantic analysis before execution
 	// This enables proper type checking and disambiguation of array vs set literals
-	// Task 6.1.2: Enable experimental passes for multi-pass analysis architecture
-	// analyzer := semantic.NewAnalyzerWithExperimentalPasses()
 	analyzer := semantic.NewAnalyzer()
 	analyzer.SetHintsLevel(hintsLevel)
 	analyzer.SetSource(source, pasFile)
@@ -741,7 +737,7 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel 
 	// Execute the program with timeout
 	var buf bytes.Buffer
 	interp := New(&buf)
-	// Task 9.5.4: Pass semantic info to interpreter for class variable access
+	// Pass semantic info to interpreter for class variable access
 	if semanticInfo := analyzer.GetSemanticInfo(); semanticInfo != nil {
 		interp.SetSemanticInfo(semanticInfo)
 	}

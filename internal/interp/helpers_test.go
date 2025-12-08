@@ -559,7 +559,6 @@ func TestHelperOnClassInstancePrefersMethods(t *testing.T) {
 }
 
 // TestClassHelperAddingMethods tests that class helpers can add new methods to classes.
-// Task 3.8.6.3: Helper transfer from semantic analyzer to interpreter
 func TestClassHelperAddingMethods(t *testing.T) {
 	input := `
 		type TPerson = class
@@ -618,7 +617,6 @@ func TestClassHelperAddingMethods(t *testing.T) {
 
 // TestClassHelperSelfAccessInBinaryExpression tests that Self is accessible when
 // helper method is called within a binary expression (string concatenation).
-// Task 3.8.6.3: Helper transfer from semantic analyzer to interpreter
 func TestClassHelperSelfAccessInBinaryExpression(t *testing.T) {
 	input := `
 		type TTest = class

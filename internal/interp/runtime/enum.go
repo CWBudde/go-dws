@@ -52,9 +52,6 @@ func (e *EnumValue) GetEnumTypeName() string {
 // It wraps a types.EnumType and is used to store enum type information
 // in the TypeSystem registry.
 //
-// Phase 3.5.11 - Task Migration: Moved from internal/interp to runtime/
-// to enable evaluator package to work with enum type metadata directly.
-//
 // This type implements:
 //   - Value interface (Type(), String())
 //   - GetEnumType() for TypeSystem's EnumTypeValueAccessor interface

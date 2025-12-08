@@ -499,7 +499,7 @@ func TestDivisionByZero(t *testing.T) {
 			continue
 		}
 
-		// Handle both RuntimeError and ErrorValue (runtime.ErrorValue after task 3.8.3.0a)
+		// Handle both RuntimeError and ErrorValue
 		var errMsg string
 		switch err := val.(type) {
 		case *RuntimeError:

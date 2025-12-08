@@ -132,11 +132,11 @@ func NewPropertyEvalContext() *PropertyEvalContext {
 // In Phase 3.4, this will be properly organized.
 type Environment interface {
 	// Define creates a new variable binding in the current scope.
-	Define(name string, value interface{})
+	Define(name string, value any)
 	// Get retrieves a variable value by name.
-	Get(name string) (interface{}, bool)
+	Get(name string) (any, bool)
 	// Set updates an existing variable value.
-	Set(name string, value interface{}) bool
+	Set(name string, value any) bool
 	// NewEnclosedEnvironment creates a new child scope.
 	NewEnclosedEnvironment() Environment
 }
@@ -144,16 +144,10 @@ type Environment interface {
 // ExecutionContext holds all execution state that was previously scattered
 // throughout the Interpreter struct. This separation makes the execution
 // state explicit and easier to manage.
-//
-// Phase 3.3.1: Initial implementation with basic state separation.
-// The context is passed to Eval methods to make execution state explicit.
-// Phase 3.3.3: Updated to use CallStack abstraction with overflow detection.
-// Phase 3.5.4 - Phase 2D: Added envStack for proper environment scoping.
-// Task 3.5.41: Added evaluator field for accessing RefCountManager.
 type ExecutionContext struct {
 	env               Environment
-	exception         interface{}
-	handlerException  interface{}
+	exception         any
+	handlerException  any
 	callStack         *CallStack
 	controlFlow       *ControlFlow
 	propContext       *PropertyEvalContext
@@ -161,7 +155,7 @@ type ExecutionContext struct {
 	evaluator         *Evaluator
 	recordTypeContext string
 	envStack          []Environment
-	oldValuesStack    []map[string]interface{}
+	oldValuesStack    []map[string]any
 }
 
 // NewExecutionContext creates a new execution context with the given environment.
@@ -173,7 +167,7 @@ func NewExecutionContext(env Environment) *ExecutionContext {
 		callStack:      NewCallStack(0), // 0 uses default max depth (1024)
 		controlFlow:    NewControlFlow(),
 		propContext:    NewPropertyEvalContext(),
-		oldValuesStack: make([]map[string]interface{}, 0),
+		oldValuesStack: make([]map[string]any, 0),
 	}
 }
 

@@ -542,7 +542,7 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 }
 
 // getBuiltinReturnType returns the return type for a built-in function WITHOUT analyzing arguments.
-// Task 6.1.2.1: This is used by the validation pass to check if something is a built-in
+// This is used by the validation pass to check if something is a built-in
 // and get its return type, without triggering argument analysis (which would use the wrong scope).
 // For functions where the return type depends on arguments (e.g., Default), returns VARIANT.
 //

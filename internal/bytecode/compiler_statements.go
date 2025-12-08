@@ -447,7 +447,7 @@ func (c *Compiler) compileFunctionDecl(fn *ast.FunctionDecl) error {
 	child := c.newChildCompiler(fn.Name.Value)
 	child.beginScope()
 
-	// Task 1.3.7.6: Track var parameters for the function
+	// Track var parameters for the function
 	varParams := make([]bool, len(fn.Parameters))
 	for i, param := range fn.Parameters {
 		if param == nil || param.Name == nil {
@@ -473,7 +473,7 @@ func (c *Compiler) compileFunctionDecl(fn *ast.FunctionDecl) error {
 	child.ensureFunctionReturn(lineOf(fn))
 	child.chunk.Optimize()
 
-	// Task 1.3.7.6: Create function object with var parameter info
+	// Create function object with var parameter info
 	functionObject := NewFunctionObjectWithVarParams(fn.Name.Value, child.chunk, len(fn.Parameters), varParams)
 	functionObject.UpvalueDefs = child.buildUpvalueDefs()
 

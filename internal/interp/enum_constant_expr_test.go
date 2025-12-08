@@ -5,7 +5,7 @@ import (
 )
 
 // ============================================================================
-// Enum Constant Expression Evaluation Tests (Phase 1 - Task 9.15)
+// Enum Constant Expression Evaluation Tests
 // ============================================================================
 
 // TestEnumConstantExpressionEvaluation tests that enum values with

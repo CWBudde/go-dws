@@ -8,7 +8,6 @@ import (
 )
 
 // TestSetEnvironment verifies that SetEnvironment updates both i.env and i.ctx.env atomically.
-// Phase 3.8.1: Task 3.8.1.2
 func TestSetEnvironment(t *testing.T) {
 	i := New(io.Discard)
 	newEnv := NewEnvironment()
@@ -51,7 +50,6 @@ func TestSetEnvironment(t *testing.T) {
 
 // TestPushEnvironment verifies that PushEnvironment creates a new enclosed environment
 // and atomically sets both i.env and i.ctx.env.
-// Phase 3.8.1: Task 3.8.1.2
 func TestPushEnvironment(t *testing.T) {
 	i := New(io.Discard)
 	originalEnv := i.env
@@ -102,7 +100,6 @@ func TestPushEnvironment(t *testing.T) {
 
 // TestRestoreEnvironment verifies that RestoreEnvironment restores a previously saved
 // environment to both i.env and i.ctx.env.
-// Phase 3.8.1: Task 3.8.1.2
 func TestRestoreEnvironment(t *testing.T) {
 	i := New(io.Discard)
 	originalEnv := i.env
@@ -158,7 +155,6 @@ func TestRestoreEnvironment(t *testing.T) {
 
 // TestEnvironmentSyncAfterPush verifies that i.env and i.ctx.env stay synchronized
 // after multiple push/restore operations.
-// Phase 3.8.1: Task 3.8.1.2
 func TestEnvironmentSyncAfterPush(t *testing.T) {
 	i := New(io.Discard)
 
@@ -207,7 +203,6 @@ func TestEnvironmentSyncAfterPush(t *testing.T) {
 
 // TestNestedPushRestore verifies correct behavior with deeply nested scopes.
 // This simulates nested function calls or nested loops.
-// Phase 3.8.1: Task 3.8.1.2
 func TestNestedPushRestore(t *testing.T) {
 	i := New(io.Discard)
 	env0 := i.env

@@ -11,7 +11,6 @@ import (
 
 // evalIntegerBinaryOp evaluates binary operations on integers.
 func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
-	// Task 9.4.3: Unwrap Variant values before processing
 	left = unwrapVariant(left)
 	right = unwrapVariant(right)
 
@@ -129,7 +128,7 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 func (i *Interpreter) evalFloatBinaryOp(op string, left, right Value) Value {
 	var leftVal, rightVal float64
 
-	// Task 9.4.3: Unwrap Variant values before processing
+	// Unwrap Variant values before processing
 	left = unwrapVariant(left)
 	right = unwrapVariant(right)
 
@@ -192,7 +191,7 @@ func (i *Interpreter) evalFloatBinaryOp(op string, left, right Value) Value {
 
 // evalStringBinaryOp evaluates binary operations on strings.
 func (i *Interpreter) evalStringBinaryOp(op string, left, right Value) Value {
-	// Task 9.4.3: Unwrap Variant values before processing
+	// Unwrap Variant values before processing
 	left = unwrapVariant(left)
 	right = unwrapVariant(right)
 
@@ -231,7 +230,7 @@ func (i *Interpreter) evalStringBinaryOp(op string, left, right Value) Value {
 
 // evalBooleanBinaryOp evaluates binary operations on booleans.
 func (i *Interpreter) evalBooleanBinaryOp(op string, left, right Value) Value {
-	// Task 9.4.3: Unwrap Variant values before processing
+	// Unwrap Variant values before processing
 	left = unwrapVariant(left)
 	right = unwrapVariant(right)
 

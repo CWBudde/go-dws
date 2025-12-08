@@ -19,13 +19,10 @@ import (
 // These methods use the builtins.Context interface which the Interpreter
 // already implements in builtins_context.go. We cast the adapter to
 // builtins.Context to access these methods without duplicating code.
-//
-// Phase 3.5.143 - Phase IV: Complex Methods
 // ============================================================================
 
 // GetEnumOrdinal returns the ordinal value of an enum Value.
 // This implements the builtins.Context interface.
-// Task 3.7.5: Helper for Ord() function.
 func (e *Evaluator) GetEnumOrdinal(value Value) (int64, bool) {
 	// Cast adapter to builtins.Context to access the existing implementation.
 	// The Interpreter implements builtins.Context with these methods.

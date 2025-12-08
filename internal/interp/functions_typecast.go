@@ -565,7 +565,7 @@ func (i *Interpreter) evalTypeCast(typeName string, arg ast.Expression) Value {
 		// Variant can accept any value
 		return &VariantValue{Value: val}
 	default:
-		// Task 9.15.6: Check if it's an enum type
+		// Check if it's an enum type
 		if enumType != nil {
 			return i.castToEnum(val, enumType, typeName)
 		}
@@ -757,7 +757,6 @@ func (i *Interpreter) castToClass(val Value, targetClass *ClassInfo, node ast.No
 }
 
 // castToEnum casts a value to an enum type.
-// Task 9.15.6: Supports Integer → Enum and Enum → Enum (same type) casting.
 func (i *Interpreter) castToEnum(val Value, targetEnum *types.EnumType, typeName string) Value {
 	switch v := val.(type) {
 	case *IntegerValue:

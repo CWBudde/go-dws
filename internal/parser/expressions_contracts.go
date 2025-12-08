@@ -66,7 +66,7 @@ func (p *Parser) parseOldExpression() ast.Expression {
 	currentToken := p.cursor.Current() // the OLD token
 
 	// Validate that we're in a postcondition context
-	// Use new context API (Task 2.1.2) instead of direct field access
+	// Use new context API instead of direct field access
 	if !p.ctx.ParsingPostCondition() {
 		msg := fmt.Sprintf("'old' keyword can only be used in postconditions at line %d, column %d",
 			currentToken.Pos.Line, currentToken.Pos.Column)
@@ -172,7 +172,7 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 	ensureToken := p.cursor.Current()
 
 	// Enable 'old' keyword parsing
-	// Synchronize both old field and new context (Task 2.1.2)
+	// Synchronize both old field and new context
 	p.parsingPostCondition = true
 	p.ctx.SetParsingPostCondition(true)
 	defer func() {

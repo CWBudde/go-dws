@@ -21,7 +21,6 @@ func (a *Analyzer) analyzeArrayDecl(decl *ast.ArrayDecl) {
 
 	// Check if array type is already declared
 	// Use lowercase for case-insensitive duplicate check
-	// Task 6.1.1.3: Use TypeRegistry instead of scattered maps
 	if a.hasType(arrayName) {
 		a.addError("type '%s' already declared at %s", arrayName, decl.Token.Pos.String())
 		return
@@ -73,7 +72,6 @@ func (a *Analyzer) analyzeArrayDecl(decl *ast.ArrayDecl) {
 
 	// Register the array type in the arrays registry
 	// Use lowercase key for case-insensitive lookup
-	// Task 6.1.1.3: Use TypeRegistry instead of scattered maps
 	a.registerTypeWithPos(arrayName, arrType, decl.Token.Pos)
 }
 

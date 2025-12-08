@@ -18,7 +18,7 @@ type BuiltinChecker interface {
 	AnalyzeBuiltin(name string, args []pkgast.Expression, callExpr *pkgast.CallExpression) (types.Type, bool)
 
 	// IsBuiltinFunction checks if a function name is a built-in function.
-	// Task 6.1.2.1: This method checks if a function is built-in WITHOUT analyzing arguments.
+	// This method checks if a function is built-in WITHOUT analyzing arguments.
 	// Returns (returnType, true) if the function is a recognized built-in,
 	// or (nil, false) if it's not a built-in function.
 	// Use this when you only need to check if something is a built-in and get its return type,

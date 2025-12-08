@@ -7,9 +7,8 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
-	pkgast "github.com/cwbudde/go-dws/pkg/ast" // Task 9.18
 	"github.com/cwbudde/go-dws/pkg/ident"
-	"github.com/cwbudde/go-dws/pkg/token" // Task 6.1.1.3: for TypeRegistry
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -75,7 +74,7 @@ type Analyzer struct {
 	symbols              *SymbolTable                          // Symbol table
 	globalOperators      *types.OperatorRegistry               // Operator overload registry
 	conversionRegistry   *types.ConversionRegistry             // Type conversion registry
-	semanticInfo         *pkgast.SemanticInfo                  // AST annotations
+	semanticInfo         *ast.SemanticInfo                     // AST annotations
 	unitSymbols          map[string]*SymbolTable               // Unit symbol tables
 	currentNestedTypes   map[string]string                     // Nested type tracking
 	nestedTypeAliases    map[string]map[string]string          // Nested type aliases
@@ -110,7 +109,7 @@ func NewAnalyzer() *Analyzer {
 		helpers:            make(map[string][]*types.HelperType),
 		globalOperators:    types.NewOperatorRegistry(),
 		conversionRegistry: types.NewConversionRegistry(),
-		semanticInfo:       pkgast.NewSemanticInfo(),
+		semanticInfo:       ast.NewSemanticInfo(),
 		nestedTypeAliases:  make(map[string]map[string]string),
 		hintsLevel:         HintsLevelPedantic,
 	}
@@ -414,7 +413,7 @@ func (a *Analyzer) Errors() []string {
 }
 
 // GetSemanticInfo returns the semantic metadata table.
-func (a *Analyzer) GetSemanticInfo() *pkgast.SemanticInfo {
+func (a *Analyzer) GetSemanticInfo() *ast.SemanticInfo {
 	return a.semanticInfo
 }
 

@@ -16,7 +16,7 @@ import (
 type EnumValue struct {
 	Name              string
 	Value             *int       // Simple integer value (backward compatible)
-	ValueExpr         Expression // Constant expression (Ord('A'), 1+2, etc.) - Phase 1 Task 9.15
+	ValueExpr         Expression // Constant expression (Ord('A'), 1+2, etc.)
 	DeprecatedMessage string     // Optional message if deprecated
 	IsDeprecated      bool       // True if marked as deprecated
 }

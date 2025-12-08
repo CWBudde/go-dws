@@ -9,8 +9,6 @@ import (
 // Record methods are user-defined methods attached to record types.
 // They execute with Self bound to the record instance.
 //
-// Task 3.12.2: Migrates record method execution from interpreter to evaluator.
-//
 // Execution semantics:
 // - Create new environment (child of current)
 // - Bind Self to record instance

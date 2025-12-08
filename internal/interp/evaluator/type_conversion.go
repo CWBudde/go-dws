@@ -188,7 +188,7 @@ func (e *Evaluator) TryImplicitConversion(value Value, targetTypeName string, ct
 		}
 	}
 
-	// Enum → Integer implicit conversion (Task 1.6)
+	// Enum → Integer implicit conversion
 	if enumVal, ok := value.(*runtime.EnumValue); ok && normalizedTarget == "integer" {
 		return &runtime.IntegerValue{Value: int64(enumVal.OrdinalValue)}, true
 	}

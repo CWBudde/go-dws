@@ -356,7 +356,6 @@ func TestMethodPointer_ProcedurePointer(t *testing.T) {
 // NOTE: This test is skipped because the semantic analyzer does not yet support
 // method pointers in array contexts (error: "method pointers (@TClass.Method) not yet implemented").
 // The runtime correctly handles method pointers, but the semantic analyzer blocks this usage pattern.
-// See PLAN.md Task 6.1.2.17 for semantic analyzer method pointer support.
 func TestMethodPointer_StoredInArray(t *testing.T) {
 	t.Skip("Semantic analyzer does not yet support method pointers in array contexts")
 	input := `

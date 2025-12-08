@@ -215,7 +215,7 @@ func (r *typeResolver) resolveSubrangeType(decl *ast.TypeDeclaration) {
 }
 
 // resolveFunctionPointerType resolves a function pointer type declaration
-// TODO: Implement this when needed (Task 6.1.2.1 already completed)
+// TODO: Implement this when needed
 func (r *typeResolver) resolveFunctionPointerType(decl *ast.TypeDeclaration) {
 	// Function pointer types are already handled by the old analyzer
 	// This is a placeholder for future migration

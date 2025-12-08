@@ -310,7 +310,6 @@ func (w *externalFunctionWrapper) Call(args []interp.Value) (interp.Value, error
 			isVarParam := i < len(w.signature.VarParams) && w.signature.VarParams[i]
 
 			if isVarParam {
-				// Task 9.2d: Handle var parameter (pointer)
 				// Extract the ReferenceValue and dereference it
 				refVal, ok := args[i].(*interp.ReferenceValue)
 				if !ok {
@@ -350,7 +349,7 @@ func (w *externalFunctionWrapper) Call(args []interp.Value) (interp.Value, error
 		results = w.goFunc.Call(goArgs)
 	}
 
-	// Task 9.2d: Update var parameters with modified values
+	// Update var parameters with modified values
 	for i := 0; i < numParams; i++ {
 		if varParamRefs[i] != nil {
 			// This was a var parameter - read the modified value and update the reference
@@ -375,7 +374,7 @@ func (w *externalFunctionWrapper) Signature() *FunctionSignature {
 }
 
 // GetVarParams implements ExternalFunctionWrapper.GetVarParams
-// Task 9.2d: Returns which parameters are by-reference (pointers in Go).
+// Returns which parameters are by-reference (pointers in Go).
 func (w *externalFunctionWrapper) GetVarParams() []bool {
 	return w.signature.VarParams
 }
@@ -387,7 +386,7 @@ func (w *externalFunctionWrapper) GetParamTypes() []string {
 }
 
 // SetInterpreter implements ExternalFunctionWrapper.SetInterpreter
-// Task 9.4: Stores interpreter reference for callback support.
+// Stores interpreter reference for callback support.
 func (w *externalFunctionWrapper) SetInterpreter(interp *interp.Interpreter) {
 	w.interp = interp
 }
@@ -399,14 +398,14 @@ func detectSignature(name string, fnType reflect.Type) (*FunctionSignature, erro
 		ParamTypes: make([]string, 0, fnType.NumIn()),
 		ReturnType: "Void",
 		IsVariadic: fnType.IsVariadic(),
-		VarParams:  make([]bool, 0, fnType.NumIn()), // Task 9.2d: Track var parameters
+		VarParams:  make([]bool, 0, fnType.NumIn()),
 	}
 
 	// Analyze parameters
 	for i := 0; i < fnType.NumIn(); i++ {
 		paramType := fnType.In(i)
 
-		// Task 9.2d: Check if this parameter is a pointer (var parameter)
+		// Check if this parameter is a pointer (var parameter)
 		isVarParam := paramType.Kind() == reflect.Ptr
 		sig.VarParams = append(sig.VarParams, isVarParam)
 
@@ -483,7 +482,7 @@ func goTypeToDWS(goType reflect.Type) (string, error) {
 		// Could include value type info, but "record" is generic enough
 		return "record", nil
 	case reflect.Ptr:
-		// Task 9.2d: *T -> var T (by-reference parameter)
+		// *T -> var T (by-reference parameter)
 		// Pointers indicate var parameters that can be modified by the Go function
 		elemType, err := goTypeToDWS(goType.Elem())
 		if err != nil {

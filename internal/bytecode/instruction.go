@@ -682,7 +682,7 @@ const (
 	OpThrow
 
 	// ========================================
-	// Reference Operations (3 opcodes) - Task 1.3.7.6
+	// Reference Operations (3 opcodes)
 	// ========================================
 
 	// OpLoadRef loads a reference to a local variable onto the stack.

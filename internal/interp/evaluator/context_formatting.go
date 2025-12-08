@@ -23,7 +23,6 @@ import (
 
 // FormatString formats a string using Go fmt.Sprintf semantics with DWScript values.
 // This implements the builtins.Context interface.
-// Task 3.7.8: Helper for Format() function.
 func (e *Evaluator) FormatString(format string, args []Value) (string, error) {
 	// Parse format string to extract format specifiers
 	type formatSpec struct {

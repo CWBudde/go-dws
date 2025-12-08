@@ -11,21 +11,14 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
-// Phase 3.5.4 - Phase 2B: Type system access adapter methods
-// These methods implement the InterpreterAdapter interface for type system access.
+// ===== Interface Registry =====
 
-// ===== Class Registry =====
-
-// lookupInterfaceInfo finds an interface by name and returns the typed *InterfaceInfo.
-// Task 3.5.184a: Type-safe helper for internal interpreter use.
-// Returns nil if the interface is not found or if the type assertion fails.
+// lookupInterfaceInfo finds an interface by name. Returns nil if not found.
 func (i *Interpreter) lookupInterfaceInfo(name string) *InterfaceInfo {
 	return i.LookupInterfaceInfo(name)
 }
 
-// LookupInterfaceInfo finds an interface by name and returns the typed *InterfaceInfo.
-// Task 3.5.184c: Public API for tests and external code to look up registered interfaces.
-// Returns nil if the interface is not found or if the type assertion fails.
+// LookupInterfaceInfo finds an interface by name (public API). Returns nil if not found.
 func (i *Interpreter) LookupInterfaceInfo(name string) *InterfaceInfo {
 	iface := i.typeSystem.LookupInterface(name)
 	if iface == nil {
@@ -38,16 +31,14 @@ func (i *Interpreter) LookupInterfaceInfo(name string) *InterfaceInfo {
 	return nil
 }
 
-// ===== Task 3.5.9: Interface Declaration Adapter Methods =====
+// ===== Interface Declaration Adapters =====
 
-// NewInterfaceInfoAdapter creates a new InterfaceInfo instance via NewInterfaceInfo function.
-// Task 3.5.9.1: Allows evaluator to create InterfaceInfo without direct access to interp package.
+// NewInterfaceInfoAdapter creates a new InterfaceInfo for the evaluator.
 func (i *Interpreter) NewInterfaceInfoAdapter(name string) interface{} {
 	return NewInterfaceInfo(name)
 }
 
 // CastToInterfaceInfo performs type assertion from any to *InterfaceInfo.
-// Task 3.5.9.2: Safe type casting for evaluator.
 func (i *Interpreter) CastToInterfaceInfo(iface interface{}) (interface{}, bool) {
 	if ifaceInfo, ok := iface.(*InterfaceInfo); ok {
 		return ifaceInfo, true
@@ -56,7 +47,6 @@ func (i *Interpreter) CastToInterfaceInfo(iface interface{}) (interface{}, bool)
 }
 
 // SetInterfaceParent sets the parent interface for inheritance.
-// Task 3.5.9.2: Allows evaluator to set up interface hierarchy.
 func (i *Interpreter) SetInterfaceParent(iface interface{}, parent interface{}) {
 	if ifaceInfo, ok := iface.(*InterfaceInfo); ok {
 		if parentInfo, ok := parent.(*InterfaceInfo); ok {
@@ -66,7 +56,6 @@ func (i *Interpreter) SetInterfaceParent(iface interface{}, parent interface{}) 
 }
 
 // GetInterfaceName returns the name of an interface.
-// Task 3.5.9: Allows evaluator to access interface name without direct InterfaceInfo access.
 func (i *Interpreter) GetInterfaceName(iface interface{}) string {
 	if ifaceInfo, ok := iface.(*InterfaceInfo); ok {
 		return ifaceInfo.Name
@@ -74,8 +63,7 @@ func (i *Interpreter) GetInterfaceName(iface interface{}) string {
 	return ""
 }
 
-// GetInterfaceParent returns the parent interface.
-// Task 3.5.9: Allows evaluator to traverse interface hierarchy for circular inheritance check.
+// GetInterfaceParent returns the parent interface (for hierarchy traversal).
 func (i *Interpreter) GetInterfaceParent(iface interface{}) interface{} {
 	if ifaceInfo, ok := iface.(*InterfaceInfo); ok {
 		return ifaceInfo.Parent
@@ -84,7 +72,6 @@ func (i *Interpreter) GetInterfaceParent(iface interface{}) interface{} {
 }
 
 // AddInterfaceMethod adds a method to an interface.
-// Task 3.5.9.1: Allows evaluator to register interface methods.
 func (i *Interpreter) AddInterfaceMethod(iface interface{}, normalizedName string, method *ast.FunctionDecl) {
 	if ifaceInfo, ok := iface.(*InterfaceInfo); ok {
 		ifaceInfo.Methods[normalizedName] = method
@@ -92,7 +79,6 @@ func (i *Interpreter) AddInterfaceMethod(iface interface{}, normalizedName strin
 }
 
 // AddInterfaceProperty adds a property to an interface.
-// Task 3.5.9.4: Allows evaluator to register interface properties.
 func (i *Interpreter) AddInterfaceProperty(iface interface{}, normalizedName string, propInfo any) {
 	if ifaceInfo, ok := iface.(*InterfaceInfo); ok {
 		if prop, ok := propInfo.(*types.PropertyInfo); ok {
@@ -101,9 +87,9 @@ func (i *Interpreter) AddInterfaceProperty(iface interface{}, normalizedName str
 	}
 }
 
-// ===== Task 3.5.12: Helper Declaration Adapter Methods =====
+// ===== Helper Declaration Adapters =====
 
-// CreateHelperInfo creates a new HelperInfo instance.
+// CreateHelperInfo creates a new HelperInfo for the given target type.
 func (i *Interpreter) CreateHelperInfo(name string, targetType any, isRecordHelper bool) interface{} {
 	if tt, ok := targetType.(types.Type); ok {
 		return NewHelperInfo(name, tt, isRecordHelper)
@@ -120,7 +106,7 @@ func (i *Interpreter) SetHelperParent(helper interface{}, parent interface{}) {
 	}
 }
 
-// VerifyHelperTargetTypeMatch checks if parent helper's target type matches the given type.
+// VerifyHelperTargetTypeMatch checks if parent's target type matches.
 func (i *Interpreter) VerifyHelperTargetTypeMatch(parent interface{}, targetType any) bool {
 	if p, ok := parent.(*HelperInfo); ok {
 		if tt, ok := targetType.(types.Type); ok {
@@ -130,7 +116,7 @@ func (i *Interpreter) VerifyHelperTargetTypeMatch(parent interface{}, targetType
 	return false
 }
 
-// GetHelperName returns the name of a helper (for parent lookup by name).
+// GetHelperName returns the name of a helper.
 func (i *Interpreter) GetHelperName(helper interface{}) string {
 	if h, ok := helper.(*HelperInfo); ok {
 		return h.Name
@@ -145,29 +131,28 @@ func (i *Interpreter) AddHelperMethod(helper interface{}, normalizedName string,
 	}
 }
 
-// AddHelperProperty registers a property in the helper.
+// AddHelperProperty registers a property in the helper with read/write accessors.
 func (i *Interpreter) AddHelperProperty(helper interface{}, prop *ast.PropertyDecl, propType any) {
-	if h, ok := helper.(*HelperInfo); ok {
-		pt, _ := propType.(types.Type)
-		propInfo := &types.PropertyInfo{
-			Name: prop.Name.Value,
-			Type: pt,
-		}
-		// Set up property access
-		if prop.ReadSpec != nil {
-			if identExpr, ok := prop.ReadSpec.(*ast.Identifier); ok {
-				propInfo.ReadKind = types.PropAccessMethod
-				propInfo.ReadSpec = identExpr.Value
-			}
-		}
-		if prop.WriteSpec != nil {
-			if identExpr, ok := prop.WriteSpec.(*ast.Identifier); ok {
-				propInfo.WriteKind = types.PropAccessMethod
-				propInfo.WriteSpec = identExpr.Value
-			}
-		}
-		h.Properties[prop.Name.Value] = propInfo
+	h, ok := helper.(*HelperInfo)
+	if !ok {
+		return
 	}
+	pt, _ := propType.(types.Type)
+	propInfo := &types.PropertyInfo{Name: prop.Name.Value, Type: pt}
+
+	if prop.ReadSpec != nil {
+		if identExpr, ok := prop.ReadSpec.(*ast.Identifier); ok {
+			propInfo.ReadKind = types.PropAccessMethod
+			propInfo.ReadSpec = identExpr.Value
+		}
+	}
+	if prop.WriteSpec != nil {
+		if identExpr, ok := prop.WriteSpec.(*ast.Identifier); ok {
+			propInfo.WriteKind = types.PropAccessMethod
+			propInfo.WriteSpec = identExpr.Value
+		}
+	}
+	h.Properties[prop.Name.Value] = propInfo
 }
 
 // AddHelperClassVar adds a class variable to the helper.
@@ -194,20 +179,10 @@ func (i *Interpreter) RegisterHelperLegacy(typeName string, helper interface{}) 
 	}
 }
 
-// ===== Task 3.5.5: Type System Adapter Method Implementations =====
-
-// Task 3.5.141: GetType removed - evaluator uses resolveTypeName() directly
-
-// Task 3.5.139h: ParseInlineArrayType removed - evaluator uses parseInlineArrayType() directly
-
-// Task 3.5.138: LookupSubrangeType removed - evaluator now uses ctx.Env().Get() directly
-
-// Task 3.5.22i: TryImplicitConversion removed - evaluator now has native TryImplicitConversion method
+// ===== Type System Adapters =====
 
 // WrapInSubrange wraps an integer value in a subrange type with validation.
-// Task 3.5.182: Updated to use TypeSystem instead of environment lookup.
 func (i *Interpreter) WrapInSubrange(value evaluator.Value, subrangeTypeName string, node ast.Node) (evaluator.Value, error) {
-	// Task 3.5.182: Use TypeSystem for subrange type lookup
 	subrangeType := i.typeSystem.LookupSubrangeType(subrangeTypeName)
 	if subrangeType == nil {
 		return nil, fmt.Errorf("subrange type '%s' not found", subrangeTypeName)
@@ -235,7 +210,6 @@ func (i *Interpreter) WrapInSubrange(value evaluator.Value, subrangeTypeName str
 }
 
 // WrapInInterface wraps an object value in an interface instance.
-// Task 3.5.184: Use TypeSystem lookup instead of i.interfaces map.
 func (i *Interpreter) WrapInInterface(value evaluator.Value, interfaceName string, node ast.Node) (evaluator.Value, error) {
 	ifaceInfo := i.lookupInterfaceInfo(interfaceName)
 	if ifaceInfo == nil {
@@ -267,48 +241,33 @@ func (i *Interpreter) WrapInInterface(value evaluator.Value, interfaceName strin
 	return NewInterfaceInstance(ifaceInfo, objInst), nil
 }
 
-// Task 3.5.34: CallRecordPropertyGetter REMOVED - inlined into ExecuteRecordPropertyRead
-
 // ExecuteRecordPropertyRead executes a record property getter method.
-// Task 3.5.118: Low-level execution callback for RecordInstanceValue.ReadIndexedProperty().
-// Task 3.5.34: Inlined CallRecordPropertyGetter logic directly.
 func (i *Interpreter) ExecuteRecordPropertyRead(record evaluator.Value, propInfoAny any, indices []evaluator.Value, node any) evaluator.Value {
-	// Convert record to RecordValue
 	recordVal, ok := record.(*RecordValue)
 	if !ok {
 		return &ErrorValue{Message: "ExecuteRecordPropertyRead expects RecordValue"}
 	}
-
-	// Convert propInfoAny to *types.RecordPropertyInfo
 	propInfo, ok := propInfoAny.(*types.RecordPropertyInfo)
 	if !ok {
 		return &ErrorValue{Message: "ExecuteRecordPropertyRead expects *types.RecordPropertyInfo"}
 	}
-
-	// Convert node to ast.Node (specifically *ast.IndexExpression for now)
 	indexExpr, ok := node.(*ast.IndexExpression)
 	if !ok {
 		return &ErrorValue{Message: "ExecuteRecordPropertyRead expects *ast.IndexExpression"}
 	}
-
-	// Check if the property has a read accessor
 	if propInfo.ReadField == "" {
 		return i.newErrorWithLocation(indexExpr, "default property is write-only")
 	}
 
-	// Get the getter method
-	// Task 3.5.128b: Use free function instead of method due to type alias
 	getterMethod := GetRecordMethod(recordVal, propInfo.ReadField)
 	if getterMethod == nil {
 		return i.newErrorWithLocation(indexExpr, "default property read accessor '%s' is not a method", propInfo.ReadField)
 	}
 
-	// Convert []evaluator.Value to []Value
 	convertedIndices := make([]Value, len(indices))
 	copy(convertedIndices, indices)
 
-	// Create a synthetic method call expression: record.GetterMethod(index)
-	// We need to bind the index value(s) in the environment temporarily
+	// Create synthetic method call: record.GetterMethod(index)
 	methodCall := &ast.MethodCallExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{Token: indexExpr.Token},
@@ -323,7 +282,7 @@ func (i *Interpreter) ExecuteRecordPropertyRead(record evaluator.Value, propInfo
 		Arguments: make([]ast.Expression, len(indices)),
 	}
 
-	// Create temporary identifiers for each index argument
+	// Bind index values as temporary variables
 	for idx := range indices {
 		tempVarName := fmt.Sprintf("__temp_default_index_%d__", idx)
 		methodCall.Arguments[idx] = &ast.Identifier{
@@ -332,26 +291,19 @@ func (i *Interpreter) ExecuteRecordPropertyRead(record evaluator.Value, propInfo
 				BaseNode: ast.BaseNode{Token: indexExpr.Token},
 			},
 		}
-		// Bind the index value in the environment
 		i.env.Define(tempVarName, convertedIndices[idx])
 	}
-
-	// Call the getter method
 	return i.evalMethodCall(methodCall)
 }
 
-// ===== Class Creation Adapters (Task 3.5.8) =====
+// ===== Class Creation Adapters =====
 
 // NewClassInfoAdapter creates a new ClassInfo with the given name.
-// Task 3.5.8: Phase 1 adapter for Evaluator.VisitClassDecl.
-// Returns interface{} for adapter pattern compatibility.
 func (i *Interpreter) NewClassInfoAdapter(name string) interface{} {
 	return NewClassInfo(name)
 }
 
 // CastToClassInfo attempts to cast interface{} to *ClassInfo.
-// Task 3.5.8: Phase 1 adapter for type-safe ClassInfo access.
-// Returns the ClassInfo and true if successful, nil and false otherwise.
 func (i *Interpreter) CastToClassInfo(class interface{}) (interface{}, bool) {
 	ci, ok := class.(*ClassInfo)
 	if !ok {
@@ -360,13 +312,7 @@ func (i *Interpreter) CastToClassInfo(class interface{}) (interface{}, bool) {
 	return ci, true
 }
 
-// GetClassNameFromClassInfoInterface extracts the name from a ClassInfo interface{}.
-// Task 3.5.8: Phase 1 adapter for name extraction from interface{}.
-// Note: Different from GetClassNameFromClassInfo which takes evaluator.Value.
-// Task 3.5.27: RegisterClassEarly REMOVED - zero callers
-
 // IsClassPartial checks if a ClassInfo is marked as partial.
-// Task 3.5.8: Phase 2 adapter for partial class detection.
 func (i *Interpreter) IsClassPartial(classInfo interface{}) bool {
 	ci, ok := classInfo.(*ClassInfo)
 	if !ok {
@@ -376,7 +322,6 @@ func (i *Interpreter) IsClassPartial(classInfo interface{}) bool {
 }
 
 // SetClassPartial sets the IsPartial flag on a ClassInfo.
-// Task 3.5.8: Phase 2 adapter for partial class marking.
 func (i *Interpreter) SetClassPartial(classInfo interface{}, isPartial bool) {
 	ci, ok := classInfo.(*ClassInfo)
 	if !ok {
@@ -386,7 +331,6 @@ func (i *Interpreter) SetClassPartial(classInfo interface{}, isPartial bool) {
 }
 
 // SetClassAbstract sets the IsAbstract flag on a ClassInfo.
-// Task 3.5.8: Phase 2 adapter for abstract class marking.
 func (i *Interpreter) SetClassAbstract(classInfo interface{}, isAbstract bool) {
 	ci, ok := classInfo.(*ClassInfo)
 	if !ok {

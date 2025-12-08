@@ -22,7 +22,6 @@ func createTestEvaluator() *Evaluator {
 	config.MaxRecursionDepth = 1024
 	typeSystem := interptypes.NewTypeSystem()
 	unitRegistry := units.NewUnitRegistry([]string{"."})
-	// Task 3.5.41: Create RefCountManager for tests
 	refCountMgr := runtime.NewRefCountManager()
 	return NewEvaluator(typeSystem, &bytes.Buffer{}, config, unitRegistry, nil, refCountMgr)
 }
@@ -537,8 +536,6 @@ func BenchmarkEvaluatorCreation(b *testing.B) {
 	typeSystem := interptypes.NewTypeSystem()
 	unitRegistry := units.NewUnitRegistry([]string{"."})
 	output := &bytes.Buffer{}
-
-	// Task 3.5.41: Create RefCountManager for benchmark
 	refCountMgr := runtime.NewRefCountManager()
 
 	b.ResetTimer()

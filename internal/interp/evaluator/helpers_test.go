@@ -36,7 +36,7 @@ func TestIsFalsey(t *testing.T) {
 		{name: "false boolean", value: &runtime.BooleanValue{Value: false}, expected: true},
 		{name: "true boolean", value: &runtime.BooleanValue{Value: true}, expected: false},
 
-		// Array values - THE KEY TEST FOR TASK 3.8.3.0b
+		// Array values
 		{
 			name: "empty array",
 			value: &runtime.ArrayValue{

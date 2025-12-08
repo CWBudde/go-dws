@@ -156,7 +156,7 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 		funcNameLower := ident.Normalize(operand.Value)
 		overloads := e.FunctionRegistry().Lookup(funcNameLower)
 		if len(overloads) == 0 {
-			// Task 9.24.6: Check for builtin function
+			// Check for builtin function
 			if _, ok := builtins.DefaultRegistry.Lookup(operand.Value); ok {
 				var pointerType *types.FunctionPointerType
 				if sig, found := builtins.DefaultRegistry.GetSignature(operand.Value); found {

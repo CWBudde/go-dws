@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Enum Constant Expression Tests (Phase 1 - Task 9.15)
+// Enum Constant Expression Tests
 // ============================================================================
 
 // TestParseEnumWithConstantExpressions tests parsing enum values with

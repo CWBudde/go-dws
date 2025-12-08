@@ -35,7 +35,7 @@ func (i *Interpreter) evalEnumDeclaration(decl *ast.EnumDecl) Value {
 		// Determine ordinal value (explicit or implicit)
 		var ordinalValue int
 
-		// Phase 1 Task 9.15: Check ValueExpr first (constant expressions)
+		// Check ValueExpr first (constant expressions)
 		if enumValue.ValueExpr != nil {
 			// Evaluate constant expression
 			// TODO: This needs proper constant expression evaluation with type coercion

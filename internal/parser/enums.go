@@ -97,7 +97,7 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 				p.nextToken() // move to '='
 				p.nextToken() // move to value expression
 
-				// Phase 1 Task 9.15: Parse expression (Ord('A'), 1+2, etc.) instead of just integer
+				// Parse expression (Ord('A'), 1+2, etc.) instead of just integer
 				expr := p.parseExpression(LOWEST)
 				if expr == nil {
 					p.addError("expected constant expression for enum value", ErrInvalidExpression)

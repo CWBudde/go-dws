@@ -133,7 +133,7 @@ func TestFunctionDeclarations(t *testing.T) {
 	}
 }
 
-// TestParameters tests parameter parsing in function declarations - Task 5.14
+// TestParameters tests parameter parsing in function declarations
 func TestParameters(t *testing.T) {
 	tests := []struct {
 		expected func(*testing.T, *ast.FunctionDecl)
@@ -617,7 +617,7 @@ func TestParameterErrors(t *testing.T) {
 	}
 }
 
-// TestNestedFunctions tests nested function declarations - Task 5.16
+// TestNestedFunctions tests nested function declarations
 // Note: DWScript may or may not support nested functions. This test documents current behavior.
 func TestNestedFunctions(t *testing.T) {
 	input := `

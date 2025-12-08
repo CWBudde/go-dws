@@ -68,7 +68,6 @@ func (i *Interpreter) evalFunctionPointer(name string, selfObject Value, _ ast.N
 		overloads, exists := i.functions[ident.Normalize(name)]
 		if !exists || len(overloads) == 0 {
 			// Built-in function pointer
-			// Task 9.24.6: Get signature from builtin registry
 			if _, ok := builtins.DefaultRegistry.Lookup(name); ok {
 				var pointerType *types.FunctionPointerType
 				if sig, found := builtins.DefaultRegistry.GetSignature(name); found {
@@ -156,7 +155,6 @@ func (i *Interpreter) getTypeByName(name string) types.Type {
 }
 
 // evalLambdaExpression evaluates a lambda expression and creates a closure.
-// Task Lambda evaluation - creates a closure capturing the current environment.
 //
 // A lambda expression evaluates to a function pointer value that captures the
 // environment where it was created (closure). The closure allows the lambda to

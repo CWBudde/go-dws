@@ -150,9 +150,6 @@ func (r *RecordValue) HasRecordMethod(name string) bool {
 }
 
 // GetRecordMethod retrieves the AST method declaration for a record method.
-// Task 3.12.2: Enables evaluator to execute record methods natively.
-// Returns the method declaration and true if found, nil and false otherwise.
-// The name comparison is case-insensitive (DWScript convention).
 func (r *RecordValue) GetRecordMethod(name string) (*ast.FunctionDecl, bool) {
 	if r.Metadata == nil {
 		return nil, false

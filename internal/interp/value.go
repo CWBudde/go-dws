@@ -13,168 +13,73 @@ import (
 // ============================================================================
 // Value Interface and Type Aliases
 // ============================================================================
-//
-// Phase 3.2 Refactoring: Primitive value types have been moved to the
-// internal/interp/runtime package. For backward compatibility, we provide
-// type aliases here. Code can continue using interp.IntegerValue, etc.
-//
-// Eventually, all code should be updated to import runtime directly.
-// ============================================================================
 
 // Value represents a runtime value in the DWScript interpreter.
-// All runtime values must implement this interface.
-//
-// This is aliased from runtime.Value for backward compatibility.
 type Value = runtime.Value
 
-// Primitive value type aliases (Phase 3.2.2: moved to runtime/)
+// Primitive value type aliases from runtime package
 type (
-	// IntegerValue represents an integer value in DWScript.
-	// Moved to runtime.IntegerValue in Phase 3.2.
-	IntegerValue = runtime.IntegerValue
-
-	// FloatValue represents a floating-point value in DWScript.
-	// Moved to runtime.FloatValue in Phase 3.2.
-	FloatValue = runtime.FloatValue
-
-	// StringValue represents a string value in DWScript.
-	// Moved to runtime.StringValue in Phase 3.2.
-	StringValue = runtime.StringValue
-
-	// BooleanValue represents a boolean value in DWScript.
-	// Moved to runtime.BooleanValue in Phase 3.2.
-	BooleanValue = runtime.BooleanValue
-
-	// NilValue represents a nil/null value in DWScript.
-	// Moved to runtime.NilValue in Phase 3.2.
-	NilValue = runtime.NilValue
-
-	// NullValue represents the special Variant Null value in DWScript.
-	// Task 9.4.1: Null is a variant-specific value that represents an explicit null state.
-	// Moved to runtime.NullValue in Phase 3.2.
-	NullValue = runtime.NullValue
-
-	// UnassignedValue represents the special Variant Unassigned value in DWScript.
-	// Task 9.4.1: Unassigned is the default state of an uninitialized variant.
-	// Moved to runtime.UnassignedValue in Phase 3.2.
-	UnassignedValue = runtime.UnassignedValue
-
-	// EnumValue represents an enumerated value in DWScript.
-	// Moved to runtime.EnumValue in Phase 3.5.4.
-	EnumValue = runtime.EnumValue
-
-	// TypeMetaValue represents a type reference in DWScript.
-	// Moved to runtime.TypeMetaValue in Phase 3.5.4.
-	TypeMetaValue = runtime.TypeMetaValue
-
-	// SetValue represents a set value in DWScript.
-	// Moved to runtime.SetValue in Phase 3.5.4.
-	SetValue = runtime.SetValue
-
-	// IntRange represents an integer range for lazy set storage.
-	// Moved to runtime.IntRange in Phase 3.5.4.
-	IntRange = runtime.IntRange
-
-	// ArrayValue represents an array value in DWScript.
-	// Moved to runtime.ArrayValue in Phase 3.5.4.
-	ArrayValue = runtime.ArrayValue
-
-	// VariantValue represents a Variant value in DWScript.
-	// Task 3.5.139: Moved to runtime.VariantValue for evaluator access.
-	VariantValue = runtime.VariantValue
-
-	// SubrangeValue wraps an integer value with subrange bounds checking.
-	// Task 3.5.19: Moved to runtime.SubrangeValue for evaluator access.
-	SubrangeValue = runtime.SubrangeValue
+	IntegerValue    = runtime.IntegerValue    // Integer values
+	FloatValue      = runtime.FloatValue      // Floating-point values
+	StringValue     = runtime.StringValue     // String values
+	BooleanValue    = runtime.BooleanValue    // Boolean values
+	NilValue        = runtime.NilValue        // Nil/null values
+	NullValue       = runtime.NullValue       // Variant Null (explicit null state)
+	UnassignedValue = runtime.UnassignedValue // Variant Unassigned (default state)
+	EnumValue       = runtime.EnumValue       // Enumerated values
+	TypeMetaValue   = runtime.TypeMetaValue   // Type references
+	SetValue        = runtime.SetValue        // Set values
+	IntRange        = runtime.IntRange        // Integer ranges for sets
+	ArrayValue      = runtime.ArrayValue      // Array values
+	VariantValue    = runtime.VariantValue    // Variant (dynamic type) values
+	SubrangeValue   = runtime.SubrangeValue   // Integer subranges with bounds checking
 )
 
 // ============================================================================
-// Value interface re-exports for type operations (Phase 3.2.1)
+// Value Interface Extensions
 // ============================================================================
 
-// NumericValue represents values that can be used in numeric operations.
-type NumericValue = runtime.NumericValue
-
-// ComparableValue represents values that can be compared for equality.
-type ComparableValue = runtime.ComparableValue
-
-// OrderableValue represents values that can be ordered.
-type OrderableValue = runtime.OrderableValue
-
-// CopyableValue represents values that can be copied.
-type CopyableValue = runtime.CopyableValue
-
-// ReferenceType represents reference-type values (not to be confused with ReferenceValue struct).
-type ReferenceType = runtime.ReferenceType
-
-// IndexableValue represents values that can be indexed.
-type IndexableValue = runtime.IndexableValue
-
-// CallableValue represents values that can be called as functions.
-type CallableValue = runtime.CallableValue
-
-// ConvertibleValue represents values that support explicit type conversion.
-type ConvertibleValue = runtime.ConvertibleValue
-
-// IterableValue represents values that can be iterated over.
-type IterableValue = runtime.IterableValue
-
-// Iterator provides iteration over collection values.
-type Iterator = runtime.Iterator
+// Type operation interfaces
+type (
+	NumericValue     = runtime.NumericValue     // Supports numeric operations
+	ComparableValue  = runtime.ComparableValue  // Supports equality comparison
+	OrderableValue   = runtime.OrderableValue   // Supports ordering comparison
+	CopyableValue    = runtime.CopyableValue    // Supports copying
+	ReferenceType    = runtime.ReferenceType    // Reference-type values
+	IndexableValue   = runtime.IndexableValue   // Supports indexing
+	CallableValue    = runtime.CallableValue    // Can be called as functions
+	ConvertibleValue = runtime.ConvertibleValue // Supports explicit type conversion
+	IterableValue    = runtime.IterableValue    // Supports iteration
+	Iterator         = runtime.Iterator         // Collection iterator
+)
 
 // ============================================================================
-// Complex Value Types (remaining in interp/ for now)
-// ============================================================================
-// These will be moved to runtime/ in future phases of the refactoring.
+// Complex Value Types
 // ============================================================================
 
-// RTTITypeInfoValue represents runtime type information in DWScript.
-// Task 9.25: TypeOf(value) returns this value type for RTTI operations.
-// This value serves as a unique identifier for a type that can be compared
-// and used to look up type metadata.
-//
-// Examples:
-//   - TypeOf(obj) returns RTTITypeInfoValue for obj's runtime type
-//   - TypeOf(TMyClass) returns RTTITypeInfoValue for the class type
-//   - TypeOf(classRef) returns RTTITypeInfoValue for the class reference's type
+// RTTITypeInfoValue represents runtime type information.
+// Used by TypeOf() to return unique type identifiers for RTTI operations.
 type RTTITypeInfoValue struct {
 	TypeInfo types.Type
 	TypeName string
 	TypeID   int
 }
 
-// Type returns "RTTI_TYPEINFO".
-func (r *RTTITypeInfoValue) Type() string {
-	return "RTTI_TYPEINFO"
-}
+func (r *RTTITypeInfoValue) Type() string   { return "RTTI_TYPEINFO" }
+func (r *RTTITypeInfoValue) String() string { return r.TypeName }
 
-// String returns the type name.
-func (r *RTTITypeInfoValue) String() string {
-	return r.TypeName
-}
-
-// RecordValue represents a record value in DWScript.
-// Task 3.5.42: Migrated to use RecordMetadata instead of AST-dependent method map.
-// Task 3.5.128a: Removed deprecated Methods field - now uses only Metadata.Methods.
-// Task 3.5.128b: Moved to runtime package; type alias for backward compatibility.
+// RecordValue represents a record (struct) value
 type RecordValue = runtime.RecordValue
 
-// ObjectInstance represents a runtime instance of a class.
-// Task 3.5.17: Moved to runtime.ObjectInstance for bridge constructor elimination.
-// Type alias provided for backward compatibility during migration.
+// ObjectInstance represents a class instance
 type ObjectInstance = runtime.ObjectInstance
 
-// NewObjectInstance creates a new object instance of the given class.
-// Task 3.5.17: Function alias for backward compatibility.
-var NewObjectInstance = runtime.NewObjectInstance
-
-// AsObject attempts to cast a Value to an ObjectInstance.
-// Task 3.5.17: Function alias for backward compatibility.
-var AsObject = runtime.AsObject
-
-// IsObject checks if a value is an ObjectInstance.
-// Task 3.5.17: Function alias for backward compatibility.
-var IsObject = runtime.IsObject
+// Object construction and type checking helpers
+var (
+	NewObjectInstance = runtime.NewObjectInstance
+	AsObject          = runtime.AsObject
+	IsObject          = runtime.IsObject
+)
 
 // GetRecordMethod retrieves a method declaration by name from a RecordValue.
 // Task 9.7: Helper for record method invocation.

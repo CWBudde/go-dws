@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// TestErrorFormatting tests that error messages follow the standard format (Task 10.17)
+// TestErrorFormatting tests that error messages follow the standard format
 func TestErrorFormatting(t *testing.T) {
 	tests := []struct {
 		checkMessage func(t *testing.T, err error)
@@ -143,7 +143,7 @@ func TestErrorFormatting(t *testing.T) {
 	}
 }
 
-// TestExtractPositionFromError tests the position extraction helper (Task 10.17)
+// TestExtractPositionFromError tests the position extraction helper
 func TestExtractPositionFromError(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -80,7 +80,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		// Preserve original casing for hints/error messages
 		recordType.FieldNames[lowerFieldName] = fieldName
 
-		// Task 9.12.4: Track which fields have initializers
+		// Track which fields have initializers
 		if field.InitValue != nil {
 			recordType.FieldsWithInit[lowerFieldName] = true
 		}
@@ -249,7 +249,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 				recordType.MethodOverloads[lowerMethodName], methodInfo)
 		}
 
-		// Task 9.12.4: Analyze method body if present (inline method)
+		// Analyze method body if present (inline method)
 		if method.Body != nil {
 			a.analyzeRecordMethodBody(method, recordType)
 		}

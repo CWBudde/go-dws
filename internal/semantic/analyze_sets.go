@@ -40,6 +40,5 @@ func (a *Analyzer) analyzeSetDecl(decl *ast.SetDecl) {
 
 	// Register the set type
 	// Use lowercase key for case-insensitive lookup
-	// Task 6.1.1.3: Use TypeRegistry for type registration
 	a.registerTypeWithPos(setName, setType, decl.Token.Pos)
 }

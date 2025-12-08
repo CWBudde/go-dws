@@ -8,7 +8,6 @@ import (
 
 // ============================================================================
 // Helper Transfer from Semantic Analyzer to Runtime
-// Task 3.8.6.3: Transfer helpers from semantic analysis to interpreter
 // ============================================================================
 
 // TransferHelpersFromSemanticAnalysis converts and registers helpers from the

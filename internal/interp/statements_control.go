@@ -58,7 +58,6 @@ func (i *Interpreter) evalIfStatement(stmt *ast.IfStatement) Value {
 }
 
 // isTruthy determines if a value is considered "true" for conditional logic.
-// Task 9.35: Support Variant→Boolean implicit conversion.
 // DWScript semantics for Variant→Boolean: empty/nil/zero → false, otherwise → true
 func isTruthy(val Value) bool {
 	switch v := val.(type) {
