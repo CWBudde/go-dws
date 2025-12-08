@@ -158,11 +158,6 @@ func (i *Interpreter) callBuiltinWithVarParam(name string, args []ast.Expression
 		return i.builtinInsert(args)
 	case "Delete":
 		return i.builtinDeleteString(args)
-	// Date decoding functions with var parameters
-	case "DecodeDate":
-		return i.builtinDecodeDate(args)
-	case "DecodeTime":
-		return i.builtinDecodeTime(args)
 	case "Swap":
 		return i.builtinSwap(args)
 	case "DivMod":
