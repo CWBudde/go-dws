@@ -15,7 +15,9 @@ func (a *Analyzer) analyzeRaiseStatement(stmt *ast.RaiseStatement) {
 	if stmt.Exception == nil {
 		// Bare raise is only valid inside an exception handler
 		if !a.inExceptionHandler {
-			a.addError("bare raise statement is only valid inside an exception handler")
+			pos := stmt.Token.Pos
+			a.addError("Syntax Error: Bare raise statement is only valid inside an exception handler [line: %d, column: %d]",
+				pos.Line, pos.Column)
 		}
 		return
 	}

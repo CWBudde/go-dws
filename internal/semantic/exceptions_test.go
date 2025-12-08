@@ -121,9 +121,9 @@ func TestBareRaiseOutsideHandler(t *testing.T) {
 		t.Fatal("Expected semantic error for bare raise outside handler")
 	}
 
-	errMsg := err.Error()
+	errMsg := strings.ToLower(err.Error())
 	if !strings.Contains(errMsg, "bare raise") || !strings.Contains(errMsg, "exception handler") {
-		t.Errorf("Expected error about bare raise context, got: %s", errMsg)
+		t.Errorf("Expected error about bare raise context, got: %s", err.Error())
 	}
 }
 
@@ -310,9 +310,9 @@ func TestBareRaiseOutsideHandlerSemanticError(t *testing.T) {
 		t.Fatal("Expected semantic error for bare raise outside handler")
 	}
 
-	errMsg := err.Error()
+	errMsg := strings.ToLower(err.Error())
 	if !strings.Contains(errMsg, "bare raise") || !strings.Contains(errMsg, "exception handler") {
-		t.Errorf("Expected error about bare raise context, got: %s", errMsg)
+		t.Errorf("Expected error about bare raise context, got: %s", err.Error())
 	}
 }
 

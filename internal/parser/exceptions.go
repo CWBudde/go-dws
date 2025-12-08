@@ -110,8 +110,9 @@ func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
 	}
 
 	// Check if this is a bare raise (no expression)
+	// A bare raise can be terminated by semicolon or implicit terminators (else, end, etc.)
 	nextToken := p.cursor.Peek(1)
-	if nextToken.Type == lexer.SEMICOLON || nextToken.Type == lexer.EOF {
+	if nextToken.Type == lexer.SEMICOLON || isImplicitSemicolon(nextToken.Type) {
 		// Bare raise - re-raise current exception
 		return builder.FinishWithToken(stmt, raiseToken).(*ast.RaiseStatement)
 	}

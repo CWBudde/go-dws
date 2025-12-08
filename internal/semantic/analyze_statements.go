@@ -603,6 +603,11 @@ func (a *Analyzer) analyzeIf(stmt *ast.IfStatement) {
 
 	// Analyze alternative if present
 	if stmt.Alternative != nil {
+		// Check for empty else block (hint)
+		if _, isEmpty := stmt.Alternative.(*ast.EmptyStatement); isEmpty {
+			pos := stmt.Alternative.Pos()
+			a.addHint("Empty ELSE block [line: %d, column: %d]", pos.Line, pos.Column)
+		}
 		a.analyzeStatement(stmt.Alternative)
 	}
 }
