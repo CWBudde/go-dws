@@ -101,6 +101,21 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	}
 
 	// Handle regular function calls (identifier-based)
+	if _, isIdent := expr.Function.(*ast.Identifier); !isIdent {
+		// Evaluate the callee expression to see if it's a function pointer value
+		calleeType := a.analyzeExpression(expr.Function)
+		if calleeType == nil {
+			return nil
+		}
+
+		if funcPtrType := a.analyzeFunctionPointerCall(expr, calleeType); funcPtrType != nil {
+			return funcPtrType
+		}
+
+		a.addError("function call must use identifier or member access at %s", expr.Token.Pos.String())
+		return nil
+	}
+
 	funcIdent, ok := expr.Function.(*ast.Identifier)
 	if !ok {
 		a.addError("function call must use identifier or member access at %s", expr.Token.Pos.String())

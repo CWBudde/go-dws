@@ -482,6 +482,13 @@ func (r *typeResolver) validateForwardDeclarations() {
 	for _, desc := range allTypes {
 		if classType, ok := desc.Type.(*types.ClassType); ok {
 			if classType.IsForward {
+				// DWScript allows short-form empty classes using "class(TParent);"
+				// Treat those as fully declared (empty) classes so fixtures like
+				// classname/func_ptr_classname compile without requiring a second declaration.
+				if classType.Parent != nil {
+					classType.IsForward = false
+					continue
+				}
 				// Use DWScript format: Class "Name" isn't defined completely
 				r.ctx.AddError("Class \"%s\" isn't defined completely", classType.Name)
 			}

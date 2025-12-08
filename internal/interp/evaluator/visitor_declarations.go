@@ -987,13 +987,10 @@ func (e *Evaluator) evalTypeAlias(node *ast.TypeDeclaration, ctx *ExecutionConte
 // VisitSetDecl evaluates a set declaration.
 func (e *Evaluator) VisitSetDecl(node *ast.SetDecl, ctx *ExecutionContext) Value {
 	// Set type already registered by semantic analyzer
-	// Delegate to adapter for now (Phase 3 migration)
 	return e.adapter.EvalNode(node)
 }
 
-// extractSimpleTypeName extracts the simple type name from a possibly qualified type string.
-// Task 3.5.12: Used for helper registration with simplified type names.
-// Example: "array of Integer" -> "array"
+// Extracts simple type name from qualified string ("array of Integer" -> "array").
 func extractSimpleTypeName(typeName string) string {
 	if idx := strings.Index(typeName, " "); idx != -1 {
 		return typeName[:idx]

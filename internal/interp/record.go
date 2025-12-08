@@ -213,6 +213,13 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 		return nil, fmt.Errorf("invalid inline array type: %s", typeName)
 	}
 
+	// Inline function/method pointer types
+	if lowerOrig := ident.Normalize(typeName); strings.HasPrefix(lowerOrig, "function(") || strings.HasPrefix(lowerOrig, "procedure(") {
+		if funcPtrType, err := i.resolveInlineFunctionPointerType(typeName); err == nil {
+			return funcPtrType, nil
+		}
+	}
+
 	// Strip parent qualification from class type strings like "TSub(TBase)"
 	cleanTypeName := typeName
 	if idx := strings.Index(cleanTypeName, "("); idx != -1 {
@@ -234,6 +241,16 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 		return types.BOOLEAN, nil
 	case "const", "variant":
 		return types.VARIANT, nil
+	}
+
+	// Built-in metaclass type (class of TObject)
+	if ident.Equal(lowerTypeName, "tclass") {
+		if objClass := i.typeSystem.LookupClass("TObject"); objClass != nil {
+			if ct, ok := objClass.(*types.ClassType); ok {
+				return types.NewClassOfType(ct), nil
+			}
+		}
+		return types.NewClassOfType(types.NewClassType("TObject", nil)), nil
 	}
 
 	// Check custom types via TypeSystem

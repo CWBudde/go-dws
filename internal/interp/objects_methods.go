@@ -272,6 +272,11 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		return objVal
 	}
 
+	// Unwrap type cast wrappers so method dispatch uses the underlying value.
+	if castVal, ok := objVal.(*TypeCastValue); ok {
+		objVal = castVal.Object
+	}
+
 	// Check if it's a ClassInfoValue (Self in a class method)
 	if classInfoVal, ok := objVal.(*ClassInfoValue); ok {
 		classInfo := classInfoVal.ClassInfo
@@ -437,6 +442,18 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		}
 
 		objVal = intfInst.Object
+	}
+
+	// Initialize typed nil values when possible (e.g., dynamic arrays with default nil).
+	if objVal != nil && objVal.Type() == "NIL" && i.semanticInfo != nil {
+		if objType := i.semanticInfo.GetType(mc.Object); objType != nil {
+			typeName := objType.String()
+			if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
+				if arrayType := i.parseInlineArrayType(typeName); arrayType != nil {
+					objVal = NewArrayValue(arrayType)
+				}
+			}
+		}
 	}
 
 	// Check if object is nil (TObject.Free is nil-safe)

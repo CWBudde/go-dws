@@ -603,7 +603,7 @@ type TypeCastValue struct {
 
 // Type returns the static type's name.
 func (t *TypeCastValue) Type() string {
-	return t.StaticType.Name
+	return "TYPE_CAST"
 }
 
 // String delegates to the wrapped object's String().

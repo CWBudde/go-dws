@@ -207,10 +207,61 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 	}
 
 	// Get the function name
-	funcName, ok := expr.Function.(*ast.Identifier)
-	if !ok {
-		return newError("function call requires identifier or qualified name, got %T", expr.Function)
+	if _, isIdent := expr.Function.(*ast.Identifier); !isIdent {
+		funcVal := i.Eval(expr.Function)
+		if isError(funcVal) {
+			return funcVal
+		}
+
+		if funcPtr, isFuncPtr := funcVal.(*FunctionPointerValue); isFuncPtr {
+			args := make([]Value, len(expr.Arguments))
+			for idx, arg := range expr.Arguments {
+				isLazy := false
+				isByRef := false
+				if funcPtr.Function != nil && idx < len(funcPtr.Function.Parameters) {
+					isLazy = funcPtr.Function.Parameters[idx].IsLazy
+					isByRef = funcPtr.Function.Parameters[idx].ByRef
+				}
+
+				if isLazy {
+					args[idx] = i.wrapLazyArgument(arg)
+				} else if isByRef {
+					if argIdent, ok := arg.(*ast.Identifier); ok {
+						if val, exists := i.env.Get(argIdent.Value); exists {
+							if refVal, isRef := val.(*ReferenceValue); isRef {
+								args[idx] = refVal
+							} else {
+								args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+							}
+						} else {
+							args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+						}
+					} else {
+						return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
+					}
+				} else {
+					val := i.Eval(arg)
+					if isError(val) {
+						return val
+					}
+					args[idx] = val
+				}
+			}
+			return i.callFunctionPointer(funcPtr, args, expr)
+		}
+
+		if classVal, ok := funcVal.(*ClassValue); ok {
+			// Calling a metaclass value with no arguments returns the class reference itself.
+			if len(expr.Arguments) != 0 {
+				return i.newErrorWithLocation(expr, "class reference call does not take arguments")
+			}
+			return classVal
+		}
+
+		return i.newErrorWithLocation(expr, "function call requires identifier or qualified name, got %T", expr.Function)
 	}
+
+	funcName := expr.Function.(*ast.Identifier)
 
 	// Check if it's a user-defined function first
 	// DWScript is case-insensitive, so normalize the function name to lowercase

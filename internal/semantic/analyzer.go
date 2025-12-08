@@ -321,6 +321,11 @@ func (a *Analyzer) validateForwardDeclarations() {
 	for _, t := range a.typeRegistry.AllTypes() {
 		if classType, ok := t.(*types.ClassType); ok {
 			if classType.IsForward {
+				// Treat short-form empty classes (class with parent and no body) as complete.
+				if classType.Parent != nil {
+					classType.IsForward = false
+					continue
+				}
 				a.addError("Class \"%s\" isn't defined completely", classType.Name)
 			}
 		}

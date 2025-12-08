@@ -73,6 +73,153 @@ func (i *Interpreter) parseInlineArrayType(signature string) *types.ArrayType {
 	return types.NewDynamicArrayType(elementType)
 }
 
+// resolveInlineFunctionPointerType parses an inline function or method pointer signature.
+// Mirrors the semantic analyzer's implementation but uses interpreter type resolution.
+func (i *Interpreter) resolveInlineFunctionPointerType(signature string) (types.Type, error) {
+	// Check if this is a method pointer ("of object")
+	ofObject := strings.HasSuffix(signature, " of object")
+	if ofObject {
+		signature = strings.TrimSuffix(signature, " of object")
+		signature = strings.TrimSpace(signature)
+	}
+
+	// Determine if it's a function or procedure
+	isFunction := strings.HasPrefix(signature, "function(")
+
+	// Extract the part between ( and )
+	openParen := strings.Index(signature, "(")
+	closeParen := strings.LastIndex(signature, ")")
+	if openParen == -1 || closeParen == -1 || closeParen < openParen {
+		return nil, fmt.Errorf("invalid function pointer signature: %s", signature)
+	}
+
+	// Extract parameters string
+	paramsStr := signature[openParen+1 : closeParen]
+
+	// Parse parameters
+	paramTypes, err := i.parseInlineParameters(paramsStr)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing parameters in '%s': %w", signature, err)
+	}
+
+	// Extract return type (if function)
+	var returnType types.Type
+	if isFunction {
+		// Look for ": ReturnType" after the closing )
+		remainder := strings.TrimSpace(signature[closeParen+1:])
+		if strings.HasPrefix(remainder, ":") {
+			returnTypeName := strings.TrimSpace(remainder[1:])
+			if returnTypeName != "" {
+				returnType, err = i.resolveType(returnTypeName)
+				if err != nil {
+					return nil, fmt.Errorf("unknown return type '%s' in function pointer", returnTypeName)
+				}
+			}
+		}
+	}
+
+	// Create function pointer type
+	if ofObject {
+		return types.NewMethodPointerType(paramTypes, returnType), nil
+	}
+	return types.NewFunctionPointerType(paramTypes, returnType), nil
+}
+
+// parseInlineParameters parses the parameter list from an inline function pointer signature.
+// Supports both named and shorthand parameter formats.
+func (i *Interpreter) parseInlineParameters(paramsStr string) ([]types.Type, error) {
+	paramsStr = strings.TrimSpace(paramsStr)
+	if paramsStr == "" {
+		return []types.Type{}, nil
+	}
+
+	hasColon := strings.Contains(paramsStr, ":")
+
+	if !hasColon {
+		// Shorthand format: just types, no names
+		return i.parseShorthandParameters(paramsStr)
+	}
+
+	paramTypes := []types.Type{}
+
+	// Split by semicolon to get parameter groups
+	groups := strings.Split(paramsStr, ";")
+
+	for _, group := range groups {
+		group = strings.TrimSpace(group)
+		if group == "" {
+			continue
+		}
+
+		// Split by colon to separate names from type
+		parts := strings.Split(group, ":")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid parameter group: %s", group)
+		}
+
+		// Get the type name
+		typeName := strings.TrimSpace(parts[1])
+
+		// Resolve the type
+		paramType, err := i.resolveType(typeName)
+		if err != nil {
+			return nil, fmt.Errorf("unknown parameter type '%s'", typeName)
+		}
+
+		// Count how many parameters have this type (by counting commas + 1)
+		namesStr := strings.TrimSpace(parts[0])
+		namesStr = strings.TrimPrefix(namesStr, "const ")
+		namesStr = strings.TrimPrefix(namesStr, "var ")
+		namesStr = strings.TrimPrefix(namesStr, "lazy ")
+		namesStr = strings.TrimSpace(namesStr)
+
+		numParams := 1
+		if namesStr != "" {
+			numParams = strings.Count(namesStr, ",") + 1
+		}
+
+		for j := 0; j < numParams; j++ {
+			paramTypes = append(paramTypes, paramType)
+		}
+	}
+
+	return paramTypes, nil
+}
+
+// parseShorthandParameters parses shorthand parameter syntax (types only, no names).
+// Format: "Type1, Type2, ..." or "Type1; Type2; ..."
+func (i *Interpreter) parseShorthandParameters(paramsStr string) ([]types.Type, error) {
+	paramTypes := []types.Type{}
+
+	// Split by both comma and semicolon
+	paramsStr = strings.ReplaceAll(paramsStr, ";", ",")
+
+	typeNames := strings.Split(paramsStr, ",")
+
+	for _, typeName := range typeNames {
+		typeName = strings.TrimSpace(typeName)
+		if typeName == "" {
+			continue
+		}
+
+		// Remove modifiers if present
+		typeName = strings.TrimPrefix(typeName, "const ")
+		typeName = strings.TrimPrefix(typeName, "var ")
+		typeName = strings.TrimPrefix(typeName, "lazy ")
+		typeName = strings.TrimSpace(typeName)
+
+		// Resolve the type
+		paramType, err := i.resolveType(typeName)
+		if err != nil {
+			return nil, fmt.Errorf("unknown parameter type '%s'", typeName)
+		}
+
+		paramTypes = append(paramTypes, paramType)
+	}
+
+	return paramTypes, nil
+}
+
 // parseInlineSetType parses inline set type syntax like "set of TEnumType".
 // Returns the SetType, or nil if the string doesn't match the expected format.
 func (i *Interpreter) parseInlineSetType(signature string) *types.SetType {

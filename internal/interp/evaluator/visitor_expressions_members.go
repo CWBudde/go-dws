@@ -246,9 +246,26 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			return fieldVal
 		}
 
-		// Method reference - still uses adapter for method invocation
+		// Method reference - now handled natively in evaluator
+		// Task 3.12.2: Migrate from adapter delegation to native execution
 		if recVal.HasRecordMethod(memberName) {
-			return e.adapter.EvalNode(node)
+			methodDecl, found := recVal.GetRecordMethod(memberName)
+			if !found {
+				// Should never happen - HasRecordMethod returned true
+				return e.newError(node, "internal error: method '%s' not retrievable", memberName)
+			}
+
+			// DWScript semantics for record methods in member access:
+			// - Parameterless methods: Auto-invoke (like properties)
+			// - Methods with parameters: Error - must use parentheses
+			if len(methodDecl.Parameters) > 0 {
+				return e.newError(node,
+					"method '%s' of record '%s' requires %d parameter(s); use parentheses to call",
+					memberName, recVal.GetRecordTypeName(), len(methodDecl.Parameters))
+			}
+
+			// Parameterless method - auto-invoke with empty arguments
+			return e.callRecordMethod(recVal, methodDecl, []Value{}, node, ctx)
 		}
 
 		// Property access

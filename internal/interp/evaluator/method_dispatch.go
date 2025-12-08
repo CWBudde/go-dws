@@ -97,6 +97,8 @@
 package evaluator
 
 import (
+	"reflect"
+
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -136,6 +138,58 @@ type MethodCallResult struct {
 func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Value, node *ast.MethodCallExpression, ctx *ExecutionContext) Value {
 	if obj == nil {
 		return e.newError(node, "method call on nil value")
+	}
+
+	// Unwrap type casts so method dispatch uses the underlying value.
+	// This preserves static type information for class variables while allowing
+	// method calls like TMyClass(o).PrintMyName to dispatch on the actual object.
+	if castVal, ok := obj.(TypeCastAccessor); ok {
+		obj = castVal.GetWrappedValue()
+		if obj == nil {
+			return e.newError(node, "method call on nil value")
+		}
+	} else if obj.Type() == "TYPE_CAST" {
+		// Fallback for values that report TYPE_CAST but don't satisfy TypeCastAccessor
+		// (defensive for legacy type aliases during migration).
+		if wrapper, ok := obj.(interface{ GetWrappedValue() Value }); ok {
+			obj = wrapper.GetWrappedValue()
+			if obj == nil {
+				return e.newError(node, "method call on nil value")
+			}
+		} else {
+			if method := reflect.ValueOf(obj).MethodByName("GetWrappedValue"); method.IsValid() && method.Type().NumIn() == 0 {
+				results := method.Call(nil)
+				if len(results) == 1 {
+					if wrapped, ok := results[0].Interface().(Value); ok {
+						obj = wrapped
+						if obj == nil {
+							return e.newError(node, "method call on nil value")
+						}
+					}
+				}
+			}
+			// Last resort: try to read an Object field directly (TypeCastValue stores wrapped value here).
+			val := reflect.ValueOf(obj)
+			if val.Kind() == reflect.Ptr {
+				val = val.Elem()
+			}
+			if val.IsValid() {
+				if field := val.FieldByName("Object"); field.IsValid() && field.CanInterface() {
+					if wrapped, ok := field.Interface().(Value); ok {
+						obj = wrapped
+						if obj == nil {
+							return e.newError(node, "method call on nil value")
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// If the value still reports TYPE_CAST, delegate to the legacy adapter which
+	// knows how to handle TypeCastValue wrappers.
+	if obj != nil && obj.Type() == "TYPE_CAST" {
+		return e.adapter.EvalNode(node)
 	}
 
 	normalizedMethod := ident.Normalize(methodName)
