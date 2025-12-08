@@ -388,10 +388,9 @@ func builtinRevPos(vm *VM, args []Value) (Value, error) {
 	needle := args[0].AsString()
 	haystack := args[1].AsString()
 
-	// Handle empty needle - returns length + 1
+	// Handle empty needle - return 0 (not found)
 	if len(needle) == 0 {
-		runes := []rune(haystack)
-		return IntValue(int64(len(runes) + 1)), nil
+		return IntValue(0), nil
 	}
 
 	// Convert to runes for UTF-8 support
