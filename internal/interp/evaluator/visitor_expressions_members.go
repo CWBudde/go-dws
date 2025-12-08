@@ -21,6 +21,7 @@ import (
 //  7. INTERFACE: intf.Method, intf.Property
 //  8. TYPE CAST: TBase(child).ClassVar
 //  9. NIL OBJECT: nil.ClassVar (allowed), nil.Field (error)
+//
 // 10. ENUM VALUE: enumVal.Value
 // 11. OBJECT INSTANCE: obj.Field, obj.Property, obj.Method
 //

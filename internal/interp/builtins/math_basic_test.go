@@ -1179,29 +1179,3 @@ func TestIsInfinite(t *testing.T) {
 		})
 	}
 }
-
-// =============================================================================
-// Helper Functions for Float Comparison
-// =============================================================================
-
-func floatValuesEqual(a, b Value) bool {
-	av, aok := a.(*runtime.FloatValue)
-	bv, bok := b.(*runtime.FloatValue)
-	if !aok || !bok {
-		return valuesEqual(a, b)
-	}
-
-	// Handle NaN comparison
-	if math.IsNaN(av.Value) && math.IsNaN(bv.Value) {
-		return true
-	}
-	// Handle infinity comparison
-	if math.IsInf(av.Value, 1) && math.IsInf(bv.Value, 1) {
-		return true
-	}
-	if math.IsInf(av.Value, -1) && math.IsInf(bv.Value, -1) {
-		return true
-	}
-	// Regular float comparison with tolerance
-	return math.Abs(av.Value-bv.Value) < 1e-9
-}

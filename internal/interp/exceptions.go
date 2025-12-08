@@ -503,18 +503,6 @@ func (i *Interpreter) evalRaiseStatement(stmt *ast.RaiseStatement) Value {
 	return nil
 }
 
-// evalStatement is a helper that evaluates statements and checks for exceptions.
-// It returns early if an exception is active (for stack unwinding).
-func (i *Interpreter) evalStatement(stmt ast.Statement) Value {
-	// Check if exception is active - if so, unwind the stack
-	if i.exception != nil {
-		return nil
-	}
-
-	// Evaluate the statement
-	return i.Eval(stmt)
-}
-
 // isExceptionClass checks if a class is an Exception or inherits from Exception.
 func (i *Interpreter) isExceptionClass(classInfo *ClassInfo) bool {
 	current := classInfo

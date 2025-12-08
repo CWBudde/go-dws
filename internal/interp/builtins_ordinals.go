@@ -3,7 +3,6 @@ package interp
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -331,71 +330,6 @@ func (i *Interpreter) builtinPred(args []Value) Value {
 	default:
 		return i.newErrorWithLocation(i.currentNode, "Pred() expects Integer or Enum, got %s", arg.Type())
 	}
-}
-
-// builtinAssert implements the Assert() built-in function.
-// Usage: Assert(condition) or Assert(condition, message)
-func (i *Interpreter) builtinAssert(args []Value) Value {
-	// Validate argument count (1-2 arguments)
-	if len(args) < 1 || len(args) > 2 {
-		return i.newErrorWithLocation(i.currentNode, "Assert() expects 1-2 arguments, got %d", len(args))
-	}
-
-	// First argument must be Boolean
-	condition, ok := args[0].(*BooleanValue)
-	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Assert() first argument must be Boolean, got %s", args[0].Type())
-	}
-
-	// If condition is true, assertion passes - return nil
-	if condition.Value {
-		return &NilValue{}
-	}
-
-	// Condition is false - raise EAssertionFailed exception
-	// Build the assertion message with position information
-	var message string
-	if i.currentNode != nil {
-		pos := i.currentNode.Pos()
-		message = fmt.Sprintf("Assertion failed [line: %d, column: %d]", pos.Line, pos.Column)
-	} else {
-		message = "Assertion failed"
-	}
-
-	// If custom message provided, append it
-	if len(args) == 2 {
-		customMsg, ok := args[1].(*StringValue)
-		if !ok {
-			return i.newErrorWithLocation(i.currentNode, "Assert() second argument must be String, got %s", args[1].Type())
-		}
-		message = message + " : " + customMsg.Value
-	}
-
-	// Create EAssertionFailed exception
-	// PR #147: Use ident.Normalize for case-insensitive lookup
-	assertClass, ok := i.classes[ident.Normalize("EAssertionFailed")]
-	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "EAssertionFailed exception class not found")
-	}
-
-	// Create exception instance
-	instance := NewObjectInstance(assertClass)
-
-	// Set the Message field
-	instance.SetField("Message", &StringValue{Value: message})
-
-	// Create exception value and set it
-	// Position is nil for built-in function exceptions
-	i.exception = &runtime.ExceptionValue{
-		Metadata:  assertClass.Metadata,
-		ClassInfo: assertClass,
-		Message:   message,
-		Instance:  instance,
-		Position:  nil,
-		CallStack: nil,
-	}
-
-	return nil
 }
 
 // evaluateLValue evaluates an lvalue expression once and returns:

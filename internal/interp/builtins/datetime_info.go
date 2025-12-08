@@ -3,7 +3,6 @@ package builtins
 import (
 	"fmt"
 	"math"
-	"regexp"
 	"strings"
 	"time"
 
@@ -827,47 +826,4 @@ func dayOfTheWeek(dt float64) int {
 		return 7 // Sunday = 7
 	}
 	return weekday // Monday=1, ..., Saturday=6
-}
-
-// parseCustomDateTime parses a datetime string according to a custom format specifier.
-// This is a simplified implementation of DWScript's ParseDateTime function.
-func parseCustomDateTime(format, s string) (float64, error) {
-	// This is a simplified regex-based parser
-	// Convert format specifiers to regex patterns
-	pattern := format
-
-	// Escape regex special characters except our format specifiers
-	pattern = regexp.QuoteMeta(pattern)
-
-	// Replace format specifiers with capturing groups
-	replacements := map[string]string{
-		`yyyy`: `(\d{4})`,
-		`yy`:   `(\d{2})`,
-		`mm`:   `(\d{1,2})`,
-		`dd`:   `(\d{1,2})`,
-		`hh`:   `(\d{1,2})`,
-		`nn`:   `(\d{1,2})`,
-		`ss`:   `(\d{1,2})`,
-		`zzz`:  `(\d{1,3})`,
-	}
-
-	// Apply replacements (longest first to avoid conflicts)
-	for spec, regex := range replacements {
-		pattern = strings.ReplaceAll(pattern, regexp.QuoteMeta(spec), regex)
-	}
-
-	// Try to match
-	re := regexp.MustCompile("^" + pattern + "$")
-	matches := re.FindStringSubmatch(s)
-
-	if matches == nil {
-		return 0, fmt.Errorf("string '%s' does not match format '%s'", s, format)
-	}
-
-	// Extract matched values
-	// This is a simplified implementation - a complete one would track which
-	// groups correspond to which format specifiers
-
-	// For now, return an error indicating this needs the simpler parse functions
-	return parseDateTime(s)
 }

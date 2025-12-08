@@ -153,50 +153,6 @@ func getSetTypeFromValue(val Value) types.Type {
 	return nil
 }
 
-// isNumericType checks if a type is numeric (Integer or Float).
-// Used for numeric promotion in type compatibility checking.
-func isNumericType(t types.Type) bool {
-	if t == nil {
-		return false
-	}
-	kind := t.TypeKind()
-	return kind == "INTEGER" || kind == "FLOAT"
-}
-
-// areTypesCompatible checks if two types are compatible for array literals.
-// Returns true if the types can coexist in the same array (possibly with coercion).
-//
-// Compatibility rules:
-//   - Same type → compatible (no coercion needed)
-//   - Integer + Float → compatible (promote to Float)
-//   - Any type + Variant → compatible (wrap in Variant)
-//   - Different incompatible types → incompatible (error)
-func areTypesCompatible(t1, t2 types.Type) bool {
-	// Handle nil types (from nil values, unassigned, etc.)
-	if t1 == nil || t2 == nil {
-		// Nil is compatible with anything (will need Variant if mixed with non-nil)
-		return true
-	}
-
-	// Exact match
-	if t1.Equals(t2) {
-		return true
-	}
-
-	// Numeric promotion: Integer + Float → Float
-	if isNumericType(t1) && isNumericType(t2) {
-		return true
-	}
-
-	// Variant can hold anything
-	if t1.TypeKind() == "VARIANT" || t2.TypeKind() == "VARIANT" {
-		return true
-	}
-
-	// Different types are incompatible
-	return false
-}
-
 // getTypeByName converts a type name to a types.Type.
 func getTypeByName(name string) types.Type {
 	switch name {
@@ -213,56 +169,6 @@ func getTypeByName(name string) types.Type {
 		// Full type resolution would require TypeSystem access.
 		return types.INTEGER
 	}
-}
-
-// commonType determines the common type for two types.
-// Returns the type that both values should be coerced to, or nil if incompatible.
-//
-// Type promotion rules:
-//   - Integer + Integer → Integer
-//   - Float + Float → Float
-//   - Integer + Float → Float (numeric promotion)
-//   - Same type + Same type → Same type
-//   - Any type + Variant → Variant
-//   - Nil + Any → Any (nil is compatible with all types)
-//   - Different incompatible types → Variant (or error, depending on mode)
-func commonType(t1, t2 types.Type) types.Type {
-	// Handle nil types
-	if t1 == nil && t2 == nil {
-		// Both nil - need explicit type context
-		return nil
-	}
-	if t1 == nil {
-		// t1 is nil, use t2's type
-		return t2
-	}
-	if t2 == nil {
-		// t2 is nil, use t1's type
-		return t1
-	}
-
-	// Exact match - no coercion needed
-	if t1.Equals(t2) {
-		return t1
-	}
-
-	// Numeric promotion: Integer + Float → Float
-	if isNumericType(t1) && isNumericType(t2) {
-		// If either is Float, result is Float
-		if t1.TypeKind() == "FLOAT" || t2.TypeKind() == "FLOAT" {
-			return types.FLOAT
-		}
-		// Both are Integer
-		return types.INTEGER
-	}
-
-	// If either is Variant, result is Variant
-	if t1.TypeKind() == "VARIANT" || t2.TypeKind() == "VARIANT" {
-		return types.VARIANT
-	}
-
-	// Incompatible types - need Variant to hold both
-	return types.VARIANT
 }
 
 // ============================================================================

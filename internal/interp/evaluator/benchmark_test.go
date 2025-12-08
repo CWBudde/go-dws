@@ -2,13 +2,10 @@ package evaluator
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
-	"github.com/cwbudde/go-dws/internal/lexer"
-	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/token"
@@ -19,16 +16,6 @@ import (
 var benchSink any
 
 // Benchmark helpers
-
-func parseCode(code string) *ast.Program {
-	l := lexer.New(code)
-	p := parser.New(l)
-	program := p.ParseProgram()
-	if len(p.Errors()) > 0 {
-		panic(fmt.Sprintf("parse error: %v", p.Errors()[0]))
-	}
-	return program
-}
 
 func createTestEvaluator() *Evaluator {
 	config := DefaultConfig()

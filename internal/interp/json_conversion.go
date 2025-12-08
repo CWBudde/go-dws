@@ -4,7 +4,6 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/jsonvalue"
-	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // ============================================================================
@@ -90,17 +89,6 @@ func variantToJSONValue(variant *VariantValue) *jsonvalue.Value {
 // jsonKindToVarType maps a jsonvalue.Kind to a VarType code.
 func jsonKindToVarType(kind jsonvalue.Kind) int64 {
 	return evaluator.JSONKindToVarType(kind)
-}
-
-// getJSONValueType returns the semantic type for a JSONValue.
-// This is used for type checking in the semantic analyzer.
-//
-// Since JSON is a dynamic type, we return a generic JSONType.
-// Individual elements (when accessed) have their actual types.
-func getJSONValueType(jv *JSONValue) types.Type {
-	// For now, return nil to indicate dynamic typing
-	// TODO: Create a proper JSONType in types package if needed for semantic analysis
-	return nil
 }
 
 // ============================================================================

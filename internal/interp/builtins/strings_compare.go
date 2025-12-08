@@ -308,33 +308,6 @@ func stripAccentsLocal(s string) string {
 	return string(result)
 }
 
-func lastAccentWeight(s string) int {
-	decomposed := []rune(norm.NFD.String(s))
-	weight := 0
-	for i := len(decomposed) - 1; i >= 0; i-- {
-		r := decomposed[i]
-		if unicode.Is(unicode.Mn, r) {
-			switch r {
-			case 0x0302: // circumflex
-				weight = 1
-			case 0x0300: // grave
-				weight = 2
-			case 0x0301: // acute
-				weight = 3
-			default:
-				if weight == 0 {
-					weight = 1
-				}
-			}
-			continue
-		}
-		if weight != 0 {
-			return weight
-		}
-	}
-	return weight
-}
-
 // getAccentWeights returns a slice of accent weights for each accented character
 // in the string, in left-to-right order. Weight: none=0, circumflex=1, grave=2, acute=3.
 func getAccentWeights(s string) []int {

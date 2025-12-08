@@ -75,16 +75,6 @@ func (ii *InterfaceInfo) GetMethod(name string) any {
 	return nil
 }
 
-// getMethodDecl is an internal helper that returns the method as *ast.FunctionDecl.
-// Used by existing code that needs the concrete type.
-func (ii *InterfaceInfo) getMethodDecl(name string) *ast.FunctionDecl {
-	method := ii.GetMethod(name)
-	if method == nil {
-		return nil
-	}
-	return method.(*ast.FunctionDecl)
-}
-
 // HasMethod checks if this interface (or any parent) has a method with the given name.
 func (ii *InterfaceInfo) HasMethod(name string) bool {
 	return ii.GetMethod(name) != nil
@@ -112,19 +102,6 @@ func (ii *InterfaceInfo) GetProperty(name string) *runtime.PropertyInfo {
 		return ii.Parent.GetProperty(name)
 	}
 
-	return nil
-}
-
-// getPropertyInfo is an internal helper that returns the property as *types.PropertyInfo.
-// Used by existing code that needs the concrete type.
-func (ii *InterfaceInfo) getPropertyInfo(name string) *types.PropertyInfo {
-	normalized := ident.Normalize(name)
-	if prop, exists := ii.Properties[normalized]; exists {
-		return prop
-	}
-	if ii.Parent != nil {
-		return ii.Parent.getPropertyInfo(name)
-	}
 	return nil
 }
 
@@ -211,24 +188,6 @@ func (ii *InterfaceInfo) AllProperties() map[string]*runtime.PropertyInfo {
 	return result
 }
 
-// allPropertiesInfo is an internal helper that returns properties as map[string]*types.PropertyInfo.
-// Used by existing code that needs the concrete type.
-func (ii *InterfaceInfo) allPropertiesInfo() map[string]*types.PropertyInfo {
-	result := make(map[string]*types.PropertyInfo)
-
-	if ii.Parent != nil {
-		for name, prop := range ii.Parent.allPropertiesInfo() {
-			result[name] = prop
-		}
-	}
-
-	for name, prop := range ii.Properties {
-		result[name] = prop
-	}
-
-	return result
-}
-
 // ============================================================================
 // Interface Instance
 // ============================================================================
@@ -288,26 +247,6 @@ func classImplementsInterface(class *ClassInfo, iface *InterfaceInfo) bool {
 	// Check parent class (interfaces are inherited)
 	if class.Parent != nil {
 		return classImplementsInterface(class.Parent, iface)
-	}
-
-	return false
-}
-
-// classExplicitlyImplementsInterface checks whether a class or its parents directly declare the interface
-// (without considering interface inheritance). This matches DWScript 'implements' operator behavior.
-func classExplicitlyImplementsInterface(class *ClassInfo, iface *InterfaceInfo) bool {
-	if class == nil || iface == nil {
-		return false
-	}
-
-	for _, implemented := range class.Interfaces {
-		if implemented == iface {
-			return true
-		}
-	}
-
-	if class.Parent != nil {
-		return classExplicitlyImplementsInterface(class.Parent, iface)
 	}
 
 	return false

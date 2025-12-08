@@ -635,12 +635,6 @@ func (c *ClassValue) IsAssignableTo(targetClass *ClassInfo) bool {
 	return false
 }
 
-// Helper function to check if a value is a ClassValue
-func isClassValue(v Value) bool {
-	_, ok := v.(*ClassValue)
-	return ok
-}
-
 // AsClassValue attempts to cast a Value to a ClassValue.
 // Returns the ClassValue and true if successful, or nil and false if not.
 func AsClassValue(v Value) (*ClassValue, bool) {

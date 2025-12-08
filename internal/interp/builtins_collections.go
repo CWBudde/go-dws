@@ -513,39 +513,6 @@ func (i *Interpreter) builtinFindIndex(args []Value) Value {
 	return &IntegerValue{Value: -1}
 }
 
-// builtinConcatArrays implements array concatenation for the Concat() built-in function.
-//
-// Signature: Concat(arr1, arr2, ...) -> array
-// - arr1, arr2, ...: Arrays to concatenate
-//
-// Returns: New array containing all elements from input arrays
-//
-// Example:
-//
-//	var a := [1, 2];
-//	var b := [3, 4];
-//	var c := Concat(a, b);
-//	// Result: [1, 2, 3, 4]
-func (i *Interpreter) builtinConcatArrays(args []Value) Value {
-	// Validate argument count
-	if len(args) < 1 {
-		return i.newErrorWithLocation(i.currentNode, "Concat() expects at least 1 argument, got %d", len(args))
-	}
-
-	// Validate and convert all arguments to arrays
-	arrays := make([]*ArrayValue, len(args))
-	for argIdx, arg := range args {
-		arrayVal, ok := arg.(*ArrayValue)
-		if !ok {
-			return i.newErrorWithLocation(i.currentNode, "Concat() argument %d must be an array, got %s", argIdx+1, arg.Type())
-		}
-		arrays[argIdx] = arrayVal
-	}
-
-	// Delegate to standalone helper function
-	return evaluator.ArrayHelperConcatArrays(arrays)
-}
-
 // builtinSlice implements the Slice() built-in function.
 //
 // Signature: Slice(array, start, end) -> array

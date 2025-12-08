@@ -81,24 +81,6 @@ func (e *ContractFailureError) String() string {
 	return fmt.Sprintf("%s failed in %s %s: %s", e.ConditionType, e.FunctionName, location, message)
 }
 
-// newContractError creates a new ContractFailureError.
-func newContractError(funcName, condType string, condition *ast.Condition) *ContractFailureError {
-	var message string
-	if condition.Message != nil {
-		// Message will be evaluated at runtime and passed in
-		message = ""
-	}
-
-	return &ContractFailureError{
-		FunctionName:  funcName,
-		ConditionType: condType,
-		ConditionExpr: condition.Test.String(),
-		CustomMessage: message,
-		Line:          condition.Token.Pos.Line,
-		Column:        condition.Token.Pos.Column,
-	}
-}
-
 // isError checks if a value is an error.
 func isError(val Value) bool {
 	if val != nil {
@@ -145,23 +127,6 @@ func (i *Interpreter) newRuntimeError(node ast.Node, format string, args ...inte
 	}
 }
 
-// newRuntimeErrorWithValues creates a runtime error with runtime values for debugging.
-func (i *Interpreter) newRuntimeErrorWithValues(node ast.Node, message string, values map[string]string) *ErrorValue {
-	var pos *token.Position
-	var expr string
-	if node != nil {
-		p := convertLexerToTokenPos(i.getPositionFromNode(node))
-		pos = &p
-		expr = node.String()
-	}
-
-	interpErr := interpErrors.NewRuntimeErrorWithValues(pos, expr, message, values)
-	return &ErrorValue{
-		Message: interpErr.Error(),
-		Err:     interpErr,
-	}
-}
-
 // newUndefinedError creates an undefined entity error with position information from a node.
 func (i *Interpreter) newUndefinedError(node ast.Node, format string, args ...interface{}) *ErrorValue {
 	msg := fmt.Sprintf(format, args...)
@@ -174,42 +139,6 @@ func (i *Interpreter) newUndefinedError(node ast.Node, format string, args ...in
 	}
 
 	interpErr := interpErrors.NewUndefinedError(pos, msg, expr)
-	return &ErrorValue{
-		Message: interpErr.Error(),
-		Err:     interpErr,
-	}
-}
-
-// newInternalError creates an internal interpreter error with position information from a node.
-func (i *Interpreter) newInternalError(node ast.Node, format string, args ...interface{}) *ErrorValue {
-	msg := fmt.Sprintf(format, args...)
-	var pos *token.Position
-	var expr string
-	if node != nil {
-		p := convertLexerToTokenPos(i.getPositionFromNode(node))
-		pos = &p
-		expr = node.String()
-	}
-
-	interpErr := interpErrors.NewInternalError(pos, msg, expr)
-	return &ErrorValue{
-		Message: interpErr.Error(),
-		Err:     interpErr,
-	}
-}
-
-// newContractErrorFromInterpreterError creates a contract error with position information.
-func (i *Interpreter) newContractErrorFromInterpreterError(node ast.Node, format string, args ...interface{}) *ErrorValue {
-	msg := fmt.Sprintf(format, args...)
-	var pos *token.Position
-	var expr string
-	if node != nil {
-		p := convertLexerToTokenPos(i.getPositionFromNode(node))
-		pos = &p
-		expr = node.String()
-	}
-
-	interpErr := interpErrors.NewContractError(pos, msg, expr)
 	return &ErrorValue{
 		Message: interpErr.Error(),
 		Err:     interpErr,
