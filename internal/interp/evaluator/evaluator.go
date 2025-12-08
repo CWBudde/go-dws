@@ -113,10 +113,16 @@ type PropertyDescriptor = runtime.PropertyDescriptor
 // RecordInstanceValue provides access to record fields and metadata.
 type RecordInstanceValue interface {
 	Value
-	GetRecordField(name string) (Value, bool)
 	GetRecordTypeName() string
+	GetRecordField(name string) (Value, bool)
 	HasRecordMethod(name string) bool
 	HasRecordProperty(name string) bool
+
+	// NEW: Retrieve the AST declaration for a record method.
+	// Returns the method declaration and true if found, nil and false otherwise.
+	// The name comparison is case-insensitive (DWScript convention).
+	GetRecordMethod(name string) (*ast.FunctionDecl, bool)
+
 	// ReadIndexedProperty reads indexed property via propertyExecutor callback.
 	ReadIndexedProperty(propInfo any, indices []Value, propertyExecutor func(propInfo any, indices []Value) Value) Value
 }
