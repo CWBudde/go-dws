@@ -281,6 +281,11 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 		return subrangeType, nil
 	}
 
+	// Check interface types
+	if ifaceInfo := i.typeSystem.LookupInterface(cleanTypeName); ifaceInfo != nil {
+		return types.NewInterfaceType(cleanTypeName), nil
+	}
+
 	// Check class types
 	if i.typeSystem != nil && i.typeSystem.HasClass(cleanTypeName) {
 		return types.NewClassType(cleanTypeName, nil), nil

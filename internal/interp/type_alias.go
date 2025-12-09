@@ -31,6 +31,23 @@ func (tv *TypeAliasValue) GetAliasedType() types.Type {
 	return tv.AliasedType
 }
 
+// buildClassTypeHierarchy constructs a types.ClassType (with parent chain)
+// from the runtime ClassInfo registered in the interpreter. This lets us
+// expose "class of" aliases as real types that downstream alias resolution
+// can see.
+func (i *Interpreter) buildClassTypeHierarchy(info *ClassInfo) *types.ClassType {
+	if info == nil {
+		return nil
+	}
+
+	var parentType *types.ClassType
+	if info.Parent != nil {
+		parentType = i.buildClassTypeHierarchy(info.Parent)
+	}
+
+	return types.NewClassType(info.Name, parentType)
+}
+
 // ============================================================================
 // Subrange Type Support
 // ============================================================================
@@ -138,8 +155,21 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 		// Check for inline/complex type expressions that need special handling
 		switch t := decl.AliasedType.(type) {
 		case *ast.ClassOfTypeNode:
-			// Metaclass types (class of TBase) - semantic analyzer handles them
-			return &NilValue{}
+			// Metaclass types (class of TBase)
+			baseClassName := ""
+			if t.ClassType != nil {
+				baseClassName = t.ClassType.String()
+			}
+			classInfo := i.resolveClassInfoByName(baseClassName)
+			classType := i.buildClassTypeHierarchy(classInfo)
+			if classType == nil && i.typeSystem != nil && i.typeSystem.HasClass(baseClassName) {
+				// Fall back to nominal class type if hierarchy info isn't available
+				classType = types.NewClassType(baseClassName, nil)
+			}
+			if classType == nil {
+				return &ErrorValue{Message: fmt.Sprintf("unknown type '%s' in type alias", baseClassName)}
+			}
+			aliasedType = types.NewClassOfType(classType)
 		case *ast.SetTypeNode:
 			// Set types (set of TEnum) - semantic analyzer handles them
 			return &NilValue{}

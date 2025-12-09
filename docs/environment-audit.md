@@ -1,546 +1,313 @@
-# Environment Management Audit Report
+# Environment Dual System Audit
 
-**Phase**: 3.8.1 | **Date**: 2025-12-06 | **Status**: Complete
+**Date**: 2025-12-09
+**Task**: 3.1.1 Deep Audit of Environment Usage Patterns
+**Purpose**: Understand the complexity of merging `i.env` and `ctx.env` before attempting migration
+
+---
 
 ## Executive Summary
 
-This audit documents all environment modification points in the go-dws interpreter to support the environment synchronization migration (Phase 3.8.2). The audit found **149 `i.env =` assignments** across 17 files, all with proper restoration but none synchronizing with `i.ctx.env`.
+The codebase has **two independent environment systems** that must be kept synchronized:
 
-### Key Findings
+| System | Type | Location | Usages |
+|--------|------|----------|--------|
+| `i.env` | `*interp.Environment` (concrete) | Interpreter | 395 |
+| `ctx.Env()` | `evaluator.Environment` (interface) | ExecutionContext | 128 |
 
-- **Total Assignments**: 149 across 17 files
-- **Restoration Coverage**: 100% (no memory leaks)
-- **Synchronization**: 0% sync with `i.ctx.env` (root cause of test failures)
-- **Top Files**: adapter_methods.go (24), objects_methods.go (23), objects_properties.go (22)
+**Key Finding**: These are NOT just two variables - they are two different type systems bridged by `EnvironmentAdapter` (137 LOC).
 
-### Critical Issue: Dual-Environment Desynchronization
+---
 
-The Interpreter maintains two environment references:
+## 1. Variable Access Patterns
+
+### 1.1 i.env.Get() - 92 occurrences
+
+| File | Count | Purpose |
+|------|-------|---------|
+| objects_properties.go | 12 | Property value lookup |
+| functions_records.go | 12 | Record field access |
+| objects_hierarchy.go | 10 | Class hierarchy navigation |
+| functions_calls.go | 9 | Function parameter lookup |
+| statements_assignments.go | 6 | Assignment target resolution |
+| objects_methods.go | 6 | Method self/context lookup |
+| statements_declarations.go | 4 | Variable declaration check |
+| helpers_conversion.go | 4 | Type conversion helpers |
+
+### 1.2 i.env.Set() - 12 occurrences
+
+| File | Count | Purpose |
+|------|-------|---------|
+| exceptions.go | 4 | ExceptObject binding |
+| statements_loops.go | 2 | Loop variable updates |
+| functions_calls.go | 2 | Parameter binding |
+| lvalue.go | 1 | L-value updates |
+| builtins_context.go | 1 | Built-in context |
+
+### 1.3 i.env.Define() - 94 occurrences
+
+| File | Count | Purpose |
+|------|-------|---------|
+| objects_properties.go | 33 | Property definitions |
+| functions_records.go | 14 | Record method bindings |
+| operators_eval.go | 8 | Operator temp variables |
+| statements_loops.go | 7 | Loop variable definitions |
+| helpers_validation.go | 7 | Helper temp bindings |
+| objects_hierarchy.go | 7 | Class hierarchy bindings |
+
+---
+
+## 2. Scope Management Patterns
+
+### 2.1 Scope Entry (112 patterns total)
+
+| Pattern | Count | Files |
+|---------|-------|-------|
+| `savedEnv := i.env` | 52 | 15 files |
+| `i.PushEnvironment()` | 59 | 18 files (incl. 7 tests) |
+| `oldEnv := i.env` | 1 | exceptions.go |
+
+**Top files by scope entry count**:
+- objects_properties.go: 11
+- adapter_methods.go: 9
+- declarations.go: 4
+
+### 2.2 Scope Exit - 101 RestoreEnvironment() calls
+
+| File | Count | Notes |
+|------|-------|-------|
+| objects_methods.go | 16 | Method calls |
+| adapter_methods.go | 15 | Adapter callbacks |
+| statements_loops.go | 13 | For/while/repeat |
+| objects_properties.go | 11 | Property getters/setters |
+| functions_records.go | 8 | Record methods |
+| functions_pointers.go | 5 | Function pointer calls |
+
+### 2.3 Problematic Pattern: Manual Save/Restore
+
 ```go
-type Interpreter struct {
-    env  *Environment                   // Used by Interpreter.Eval() methods
-    ctx  *evaluator.ExecutionContext    // Contains i.ctx.env (interface)
+// This pattern appears 52+ times:
+savedEnv := i.env
+methodEnv := i.PushEnvironment(i.env)
+// ... use methodEnv ...
+i.RestoreEnvironment(savedEnv)
+```
+
+**Why it's problematic**:
+1. Must manually remember to restore
+2. Easy to forget in error paths
+3. Creates 2 environment references (savedEnv + methodEnv)
+4. Must be synchronized with ctx.env via SetEnvironment()
+
+---
+
+## 3. Type System Mismatch
+
+### 3.1 Two Different Environment Types
+
+**Interpreter** (`internal/interp/environment.go`):
+```go
+type Environment struct {
+    store map[string]Value  // interp.Value
+    outer *Environment
+}
+
+func (e *Environment) Get(name string) (Value, bool)
+func (e *Environment) Set(name string, val Value) error
+func (e *Environment) Define(name string, val Value)
+```
+
+**Evaluator** (`internal/interp/evaluator/context.go`):
+```go
+type Environment interface {
+    Define(name string, value any)       // any, not Value!
+    Get(name string) (any, bool)         // any, not Value!
+    Set(name string, value any) bool     // bool, not error!
+    NewEnclosedEnvironment() Environment
 }
 ```
 
-**Problem**: All 149 assignments modify `i.env` without calling `i.ctx.SetEnv()` to sync the evaluator's environment reference. When evaluator methods are called, they use stale `i.ctx.env`, leading to wrong variable lookups and test failures.
+### 3.2 The Bridge: EnvironmentAdapter (137 LOC)
 
-**Impact**: Commit af2ba646 attempted to migrate binary operations to the evaluator, resulting in **139 test failures** due to environment desynchronization.
-
----
-
-## Summary Statistics
-
-| Metric | Value |
-|--------|-------|
-| **Total `i.env =` assignments** | 149 |
-| **Files with assignments** | 17 |
-| **Restoration coverage** | 100% |
-| **Sync with `i.ctx.env`** | 0% |
-| **Test baseline** | 892 fixture failures |
-
----
-
-## Breakdown by Category
-
-| Category | Files | Count | Risk | Pattern |
-|----------|-------|-------|------|---------|
-| **Method Dispatch** | adapter_methods.go, objects_methods.go, functions_records.go | 57 | HIGH | Save/Execute/Restore |
-| **Property Access** | objects_properties.go | 22 | MEDIUM | Getter/Setter Scope |
-| **Loop Scoping** | statements_loops.go | 15 | MEDIUM | For/For-in/While |
-| **Object Lifecycle** | adapter_objects.go, objects_instantiation.go | 13 | MEDIUM | Constructor/Destructor |
-| **Declarations** | declarations.go | 8 | MEDIUM | Type/Function Context |
-| **Lambda/Pointers** | functions_pointers.go, adapter_functions.go | 9 | HIGH | Closure Environment |
-| **Operators** | operators_eval.go | 6 | MEDIUM | Operator Methods |
-| **Callbacks** | user_function_callbacks.go | 6 | **CRITICAL** | Evaluator Integration |
-| **Hierarchy** | objects_hierarchy.go | 4 | MEDIUM | Parent Class Calls |
-| **Helpers/Validation** | helpers_validation.go | 3 | LOW | Helper Methods |
-| **Exception Handling** | exceptions.go | 2 | LOW | Handler Scope |
-| **Other** | statements_control.go, interface.go | 4 | LOW | Misc |
-| **TOTAL** | **17 files** | **149** | - | - |
-
----
-
-## Detailed Inventory by File
-
-### 1. adapter_methods.go (24 assignments)
-
-**Lines**: 204, 208, 247, 270, 324, 326, 339, 343, 374, 378, 417, 421, 443, 458, 468, 483, 516, 528, 554, 558, 599, 603, 623, 627
-
-**Purpose**: Method dispatch, helper method execution, built-in type method handling
-
-**Pattern**: Save → Set → Execute → Restore
 ```go
-savedEnv := i.env                          // Line 202
-methodEnv := NewEnclosedEnvironment(i.env) // Line 203
-i.env = methodEnv                          // Line 204
-// ... method execution ...
-i.env = savedEnv                           // Line 208
-```
-
-**Restoration**: All assignments have paired restore statements
-**Risk Level**: HIGH - core OOP functionality, complex dispatch logic
-
----
-
-### 2. objects_methods.go (23 assignments)
-
-**Lines**: 63, 70, 79, 114, 122, 132, 153, 190, 235, 354, 377, 381, 678, 697, 702, 708, 711, 755, 803, 833, 837, 878, 911
-
-**Purpose**: Object instance method execution, constructor calls, destructor handling
-
-**Pattern**: Save → Set → Execute → Error handling → Restore
-```go
-savedEnv := i.env                          // Line 58
-tempEnv := NewEnclosedEnvironment(i.env)   // Line 59
-i.env = tempEnv                            // Line 63
-// ... field initialization ...
-if isError(fieldValue) {
-    i.env = savedEnv                       // Line 70 (error path)
-    return fieldValue
+type EnvironmentAdapter struct {
+    underlying interface{}  // Actually *interp.Environment
 }
-i.env = savedEnv                           // Line 79 (success path)
-```
 
-**Restoration**: All assignments with error path handling
-**Risk Level**: HIGH - instance methods, constructors, inheritance
-
----
-
-### 3. objects_properties.go (22 assignments)
-
-**Lines**: 114, 173, 203, 262, 287, 302, 336, 382, 396, 442, 486, 500, 514, 528, 542, 556, 570, 584, 598, 612, 626, 640
-
-**Purpose**: Property getter/setter execution
-
-**Pattern**: Pairs of methodEnv setup and savedEnv restore
-
-**Restoration**: All assignments matched with restore
-**Risk Level**: MEDIUM - short-lived scopes, paired operations
-
----
-
-### 4. statements_loops.go (15 assignments)
-
-**Lines**: 153, 205, 234, 257, 278, 293, 318, 342, 373, 382, 418, 445, 467, 490, 495
-
-**Purpose**: Loop variable scoping (for, for-in, while, repeat)
-
-**Pattern**: Enclosed environment for loop variable isolation
-```go
-loopEnv := NewEnclosedEnvironment(i.env)   // Line 151
-savedEnv := i.env                          // Line 152
-i.env = loopEnv                            // Line 153
-for current := ...; current <= ...; current += stepValue {
-    i.env.Define(loopVarName, makeLoopValue(current))
-    result = i.Eval(stmt.Body)
-    if isError(result) {
-        i.env = savedEnv                   // Line 205 (error path)
-        return result
-    }
-}
-i.env = savedEnv                           // Line 257 (completion)
-```
-
-**Restoration**: All assignments with error path handling
-**Risk Level**: MEDIUM - break/continue/return complicate restoration
-
----
-
-### 5. functions_records.go (10 assignments)
-
-**Lines**: 79, 130, 179, 187, 193, 281, 328, 332, 397, 441
-
-**Purpose**: Record type method execution
-
-**Pattern**: Similar to object methods, save/execute/restore
-
-**Restoration**: All paired with restore statements
-**Risk Level**: MEDIUM - value type semantics
-
----
-
-### 6. declarations.go (8 assignments)
-
-**Lines**: 259, 260, 390, 393, 475, 479, 515, 519
-
-**Purpose**: Type/function/constant declaration processing
-
-**Pattern**: Uses `defer` for guaranteed restoration
-```go
-savedEnv := i.env                          // Line 256
-tempEnv := NewEnclosedEnvironment(i.env)   // Line 257
-i.env = tempEnv                            // Line 259
-defer func() { i.env = savedEnv }()        // Line 260 (guaranteed restore)
-```
-
-**Restoration**: Deferred restoration provides strong guarantees
-**Risk Level**: MEDIUM - already uses defer for safety
-
----
-
-### 7. functions_pointers.go (7 assignments)
-
-**Lines**: 40, 49, 85, 93, 101, 109, 117
-
-**Purpose**: Lambda execution, function pointer calls, closure environment
-
-**Pattern**: Enclosed environment with Self binding
-```go
-funcEnv := NewEnclosedEnvironment(closureEnv)  // Line 38
-savedEnv := i.env                              // Line 39
-i.env = funcEnv                                // Line 40
-i.env.Define("Self", funcPtr.SelfObject)       // Line 43
-result := i.executeUserFunctionViaEvaluator(...)
-i.env = savedEnv                               // Line 49
-```
-
-**Restoration**: All assignments paired with restore
-**Risk Level**: HIGH - captures environment, complex lifetime
-
----
-
-### 8. adapter_objects.go (7 assignments)
-
-**Lines**: 47, 54, 63, 70, 74, 121, 125
-
-**Purpose**: Object instantiation, field initialization
-
-**Pattern**: Temporary environment for constructor calls
-
-**Restoration**: Error handling with restoration
-**Risk Level**: MEDIUM - error handling, field initialization
-
----
-
-### 9. user_function_callbacks.go (6 assignments)
-
-**Lines**: 183, 217, 219, 247, 252, 264
-
-**Purpose**: Environment synchronization between interpreter and evaluator
-
-**Pattern**: Environment extraction and wrapping
-```go
-// Line 183: Extract environment from evaluator context
-if adapter, ok := funcEnv.(*evaluator.EnvironmentAdapter); ok {
-    if concreteEnv, ok := adapter.Underlying().(*Environment); ok {
-        i.env = concreteEnv  // SYNC: Update i.env
-    }
+func (ea *EnvironmentAdapter) Define(name string, value interface{}) {
+    // Convert interface{} → runtime.Value
+    // Call underlying.Define()
 }
 ```
 
-**Special Note**: This file already has partial sync logic via EnvSyncer callback
-**Risk Level**: **CRITICAL** - central integration point between interpreter and evaluator
+**Value conversion flow**:
+- Interpreter uses `interp.Value` (legacy type aliases)
+- Evaluator uses `runtime.Value` (new canonical types)
+- EnvironmentAdapter converts between them
 
 ---
 
-### 10. operators_eval.go (6 assignments)
+## 4. Bidirectional Control Flow
 
-**Lines**: 68, 97, 106, 121, 150, 159
+### 4.1 Flow: Interpreter → Evaluator → Adapter → Interpreter
 
-**Purpose**: Operator overload method execution
-
-**Pattern**: Similar to method dispatch
-
-**Restoration**: All assignments paired with restore
-**Risk Level**: MEDIUM - similar to method dispatch
-
----
-
-### 11. objects_instantiation.go (6 assignments)
-
-**Lines**: 72, 82, 94, 207, 232, 248
-
-**Purpose**: Object creation, constructor dispatch
-
-**Pattern**: Constructor environment setup with error recovery
-
-**Restoration**: Error path restoration
-**Risk Level**: MEDIUM - error handling, parent constructor calls
-
----
-
-### 12. objects_hierarchy.go (4 assignments)
-
-**Lines**: 790, 833, 891, 893
-
-**Purpose**: Parent class method invocation, class constant evaluation
-
-**Pattern**: Parent method environment setup
-```go
-methodEnv := NewEnclosedEnvironment(i.env)  // Line 788
-savedEnv := i.env                           // Line 789
-i.env = methodEnv                           // Line 790
-// ... parent method ...
-i.env = savedEnv                            // Line 833
+```
+Interpreter.Eval()
+  → Evaluator.Eval()
+     → VisitMethodCall()
+        → e.adapter.CallMethod()  ← adapter callback!
+           → Interpreter.CallMethod()  ← back to interpreter!
+              → savedEnv := i.env
+              → i.PushEnvironment()
+              → ... execute ...
+              → i.RestoreEnvironment(savedEnv)
 ```
 
-**Restoration**: All assignments paired with restore
-**Risk Level**: MEDIUM - inheritance, super calls
+### 4.2 Adapter Usages in Evaluator: 157 calls across 36 files
 
----
+**Top adapter methods called**:
+| Method | Count | Purpose |
+|--------|-------|---------|
+| `adapter.EvalNode()` | ~25 | Fallback to interpreter |
+| `adapter.CallMethod()` | ~10 | Method dispatch |
+| `adapter.ExecuteMethodWithSelf()` | ~5 | Self-context methods |
+| Class/Interface declaration methods | ~43 | visitor_declarations.go |
 
-### 13. helpers_validation.go (3 assignments)
+### 4.3 Synchronization Points
 
-**Lines**: 242, 278, 304
-
-**Purpose**: Helper method execution
-
-**Pattern**: Helper method environment setup with error/success paths
-
-**Restoration**: Error and success path restoration
-**Risk Level**: LOW - helper methods, infrequent
-
----
-
-### 14. statements_control.go (2 assignments)
-
-**Lines**: 349, 350
-
-**Purpose**: Operator method invocation
-
-**Pattern**: Uses `defer` for automatic restoration
-```go
-prev := i.env                                  // Line 347
-methodEnv := NewEnclosedEnvironment(i.env)     // Line 348
-i.env = methodEnv                              // Line 349
-defer func() { i.env = prev }()                // Line 350 (guaranteed restore)
-```
-
-**Restoration**: Deferred restoration
-**Risk Level**: LOW - uses defer for safety
-
----
-
-### 15. interface.go (2 assignments)
-
-**Lines**: 431, 451
-
-**Purpose**: Destructor execution
-
-**Pattern**: Destructor environment setup and restore
-
-**Restoration**: All assignments paired with restore
-**Risk Level**: LOW - destructor handling
-
----
-
-### 16. exceptions.go (2 assignments)
-
-**Lines**: 333, 370
-
-**Purpose**: Exception handler scope
-
-**Pattern**: New enclosed environment for exception variable
-```go
-oldEnv := i.env                                // Line 332
-i.env = NewEnclosedEnvironment(i.env)          // Line 333
-// ... exception handler ...
-i.env = oldEnv                                 // Line 370
-```
-
-**Restoration**: All assignments paired with restore
-**Risk Level**: LOW - exception variable binding, short-lived
-
----
-
-### 17. adapter_functions.go (2 assignments)
-
-**Lines**: 68, 84
-
-**Purpose**: Method pointer execution with Self binding
-
-**Pattern**: Function environment setup and restore
-
-**Restoration**: All assignments paired with restore
-**Risk Level**: MEDIUM - method pointers
-
----
-
-## Restoration Analysis
-
-### Good News: 100% Restoration Coverage
-
-All 149 assignments have proper environment restoration - **no memory leaks detected**.
-
-#### Restoration Patterns
-
-1. **Explicit Pairs** (91% - 136 assignments)
-   ```go
-   savedEnv := i.env
-   i.env = NewEnclosedEnvironment(i.env)
-   // ... execution ...
-   i.env = savedEnv
-   ```
-   - Simple and reliable
-   - Most common pattern
-   - Used in: adapter_methods.go, objects_methods.go, objects_properties.go, and 11 others
-
-2. **Deferred Restoration** (4% - 6 assignments)
-   ```go
-   savedEnv := i.env
-   i.env = NewEnclosedEnvironment(i.env)
-   defer func() { i.env = savedEnv }()
-   ```
-   - Guaranteed restoration even on panic
-   - Used in: declarations.go, statements_control.go
-
-3. **Error Path Restoration** (~60% of assignments)
-   ```go
-   savedEnv := i.env
-   i.env = newEnv
-   if isError(result) {
-       i.env = savedEnv
-       return result
-   }
-   // ... success path ...
-   i.env = savedEnv
-   ```
-   - Explicit error handling
-   - Common in loops, methods, constructors
-
-### Critical Gap: No Synchronization
-
-**149/149 assignments (100%) do NOT sync with `i.ctx.env`**
-
-This is the root cause of environment desynchronization:
-- Interpreter methods use `i.env`
-- Evaluator methods use `i.ctx.env`
-- When `i.env` changes without syncing `i.ctx.env`, they diverge
-- Result: Wrong variable lookups, test failures
-
----
-
-## Architectural Context
-
-### Why the Dual-Environment Design Exists
-
-1. **Circular Import Avoidance**: The evaluator package cannot import the interp package
-2. **Interface Abstraction**: ExecutionContext uses an `Environment` interface
-3. **Adapter Pattern**: `EnvironmentAdapter` wraps `*Environment` for interface compliance
-4. **Gradual Migration**: Phase 3.5 transition from monolithic to modular architecture
-
-### The Synchronization Problem
-
-**Before (Broken)**:
-```go
-// 149 locations do this:
-i.env = NewEnclosedEnvironment(i.env)
-// i.ctx.env is now stale!
-```
-
-**After (Fixed with Helpers)**:
-```go
-// Phase 3.8.2 migration:
-i.SetEnvironment(NewEnclosedEnvironment(i.env))
-// Both i.env and i.ctx.env are updated atomically
-```
-
----
-
-## Migration Recommendations
-
-### Priority Order (Phase 3.8.2)
-
-Based on risk and complexity:
-
-1. **CRITICAL** - User Function Callbacks (6 assignments) - Already has partial sync
-2. **HIGH** - Method Dispatch (24 assignments) - Most assignments, core OOP
-3. **HIGH** - Lambda/Pointers (9 assignments) - Closure semantics
-4. **MEDIUM** - Object Methods (23 assignments) - Well-structured patterns
-5. **MEDIUM** - Properties (22 assignments) - Short-lived scopes
-6. **MEDIUM** - Loops (15 assignments) - Well-defined entry/exit
-7. **MEDIUM** - Object Lifecycle (13 assignments) - Constructor logic
-8. **MEDIUM** - Record Methods (10 assignments) - Value type semantics
-9. **MEDIUM** - Declarations (8 assignments) - Already uses defer
-10. **MEDIUM** - Operators (6 assignments) - Similar to methods
-11. **LOW** - Hierarchy (4 assignments) - Inheritance
-12. **LOW** - Helpers/Control/Interface (9 assignments) - Misc
-13. **LOW** - Exceptions (2 assignments) - Handler scope
-
-### Helper Methods (Phase 3.8.1.2)
-
-Three helper methods were added to [internal/interp/interpreter.go](../internal/interp/interpreter.go):
+The interpreter has three sync methods (all in `interpreter.go`):
 
 ```go
-// SetEnvironment atomically updates both i.env and i.ctx.env
-func (i *Interpreter) SetEnvironment(env *Environment)
+func (i *Interpreter) SetEnvironment(env *Environment) {
+    i.env = env
+    i.ctx.SetEnv(evaluator.NewEnvironmentAdapter(env))  // ← sync!
+}
 
-// PushEnvironment creates enclosed env and sets both references
-func (i *Interpreter) PushEnvironment(parent *Environment) *Environment
+func (i *Interpreter) PushEnvironment(parent *Environment) *Environment {
+    newEnv := NewEnclosedEnvironment(parent)
+    i.SetEnvironment(newEnv)  // ← uses sync
+    return newEnv
+}
 
-// RestoreEnvironment restores saved env to both references
-func (i *Interpreter) RestoreEnvironment(saved *Environment)
+func (i *Interpreter) RestoreEnvironment(saved *Environment) {
+    i.SetEnvironment(saved)  // ← uses sync
+}
 ```
 
-See [environment-migration-guide.md](environment-migration-guide.md) for usage patterns.
-
 ---
 
-## Test Baseline
+## 5. Evaluator's Own Environment Stack
 
-**Current State** (as of 2025-12-06):
-- **Total Packages**: 24
-- **Passing Packages**: 23
-- **Failing Packages**: 1 (internal/interp)
-- **Fixture Failures**: 892 tests (baseline)
+### 5.1 ExecutionContext has its own stack
 
-**Requirement**: Migration must not introduce new failures beyond the 892 baseline.
+```go
+type ExecutionContext struct {
+    env      Environment      // Current environment (adapter)
+    envStack []Environment    // Stack for PushEnv/PopEnv
+    // ...
+}
 
----
-
-## Success Metrics
-
-### Phase 3.8.1 (Complete)
-- ✅ Comprehensive audit: 149 assignments documented
-- ✅ Helper methods implemented and tested
-- ✅ Test baseline established: 892 failures
-- ✅ Documentation complete
-
-### Phase 3.8.2 (Upcoming)
-- [ ] All 149 assignments migrated to use helpers
-- [ ] Zero new test failures introduced
-- [ ] Fixture baseline maintained (≤ 892)
-- [ ] All categories migrated incrementally
-
-### Phase 3.8.3 (Blocked on 3.8.2)
-- [ ] Binary operations delegated to evaluator
-- [ ] No environment desynchronization
-- [ ] Zero test failures
-
----
-
-## Appendix: Search Methodology
-
-### Finding Assignments
-
-```bash
-# Primary search
-grep -rn "i\.env =" internal/interp/*.go
-
-# Verification searches
-grep -rn "NewEnclosedEnvironment" internal/interp/*.go
-grep -rn "savedEnv :=" internal/interp/*.go
+func (ctx *ExecutionContext) PushEnv() Environment
+func (ctx *ExecutionContext) PopEnv() Environment
 ```
 
-### Categorization Criteria
+### 5.2 Two Independent Stacks
 
-- **Purpose**: What the code is doing (method call, loop, etc.)
-- **Pattern**: How environment is managed (save/restore, defer, etc.)
-- **Risk**: Complexity, frequency, error paths
-- **Restoration**: How environment is restored (explicit, defer, error paths)
+| Stack | Location | Type | Purpose |
+|-------|----------|------|---------|
+| Manual save/restore | Interpreter | `*Environment` | 52+ patterns |
+| `ctx.envStack` | ExecutionContext | `[]Environment` | 7 usages |
 
----
-
-## References
-
-- [PLAN.md Phase 3.8.1](../PLAN.md#phase-38-environment-synchronization--binary-operations-migration)
-- [environment-migration-guide.md](environment-migration-guide.md) - Helper usage guide
-- [internal/interp/interpreter.go](../internal/interp/interpreter.go) - Helper method implementations
-- [internal/interp/environment_helpers_test.go](../internal/interp/environment_helpers_test.go) - Helper tests
+**Risk**: If Interpreter does `savedEnv := i.env` without going through sync methods, the two stacks diverge.
 
 ---
 
-**Audit Complete**: 2025-12-06
-**Audited by**: Systematic codebase analysis (Explore agents)
-**Total Effort**: ~4 hours (search, categorization, documentation)
+## 6. Files Requiring Most Work
+
+### 6.1 Top 10 by i.env usage
+
+| File | i.env | Patterns | Priority |
+|------|-------|----------|----------|
+| objects_properties.go | 67 | 11 save/restore | HIGH |
+| functions_records.go | 33 | 2 save/restore | HIGH |
+| objects_hierarchy.go | 25 | 2 save/restore | MEDIUM |
+| adapter_methods.go | 22 | 9 save/restore | HIGH |
+| functions_calls.go | 22 | - | MEDIUM |
+| objects_methods.go | 20 | 6 save/restore | HIGH |
+| statements_loops.go | 19 | 2 save/restore | MEDIUM |
+| operators_eval.go | 16 | 2 save/restore | MEDIUM |
+
+### 6.2 Adapter Callback Files (bidirectional flow)
+
+These files in evaluator call back to interpreter via adapter:
+- visitor_declarations.go: 43 adapter calls
+- visitor_expressions_functions.go: 11 adapter calls
+- visitor_statements.go: 6 adapter calls
+- member_assignment.go: 6 adapter calls
+- helper_methods.go: 6 adapter calls
+
+---
+
+## 7. Recommended Migration Strategy
+
+### Phase A: Unify Environment Type
+
+**Option C (Recommended)**: Move `Environment` to `internal/interp/runtime/`
+- No circular dependencies
+- Both packages can import it
+- Clean separation
+
+### Phase B: Eliminate EnvironmentAdapter
+
+1. Update `ExecutionContext.env` to use `*runtime.Environment` directly
+2. Delete `env_adapter.go` (137 LOC)
+3. Update all `NewEnvironmentAdapter()` calls
+
+### Phase C: Unify Scope Management
+
+1. Replace 52 manual `savedEnv := i.env` patterns with `ctx.PushEnv()`
+2. Replace 101 `RestoreEnvironment()` calls with `ctx.PopEnv()`
+3. Delete `PushEnvironment()`, `RestoreEnvironment()`, `SetEnvironment()`
+
+### Phase D: Delete i.env
+
+1. Add `Env()` method returning `i.ctx.Env()`
+2. Replace all `i.env` with `i.Env()`
+3. Delete `env` field from Interpreter struct
+
+---
+
+## 8. Risk Assessment
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Circular import | HIGH | Use Option C (shared package) |
+| Scope stack divergence | HIGH | Migrate all patterns in one phase |
+| Adapter callback complexity | MEDIUM | Migrate adapter methods last |
+| Test failures | MEDIUM | Run tests after each file |
+| Performance regression | LOW | Eliminating adapter should improve |
+
+---
+
+## Appendix: Raw Counts
+
+```
+i.env.Get():    92 occurrences in 24 files
+i.env.Set():    12 occurrences in  7 files
+i.env.Define(): 94 occurrences in 15 files
+i.env.GetLocal: 6 occurrences in  1 file (test only)
+─────────────────────────────────────────
+Total i.env.X(): 204 method calls
+
+savedEnv := i.env:    52 occurrences in 15 files
+i.PushEnvironment():  59 occurrences in 18 files
+i.RestoreEnvironment(): 101 occurrences in 19 files
+i.SetEnvironment():    8 occurrences in  4 files
+i.env = :              3 occurrences in  1 file (interpreter.go)
+─────────────────────────────────────────
+Total scope patterns: 223
+
+ctx.Env():           128 occurrences in 20 files (evaluator)
+ctx.envStack:          7 occurrences in  1 file (context.go)
+adapter. calls:      157 occurrences in 36 files (evaluator)
+```

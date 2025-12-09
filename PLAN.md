@@ -30,465 +30,561 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Phase 3: Interpreter Architecture Refactoring
 
-**Goal**: Refactor the interpreter architecture to improve maintainability, testability, and extensibility. Address architectural debt accumulated during rapid feature development.
-
-**Status**: Planned | **Complexity**: High | **Priority**: Medium | **Estimated**: 4-6 weeks
-
-**Motivation**: The interpreter has grown to 68 files and 80K lines with architectural issues:
-
-- God object (Interpreter struct with 25+ fields mixing concerns)
-- Giant switch statement in Eval() (230 lines, 30+ cases)
-- Tight coupling between evaluation logic, type system, and runtime
-- Poor separation of concerns (one package mixing values, execution, built-ins, types)
-- Reflection hacks for circular dependency issues
-- Heavy type assertion usage throughout
-- Inconsistent error handling patterns
-- Difficult to test components in isolation
-
-**Benefits**:
-
-- Improved code maintainability and readability
-- Better testability (unit test individual components)
-- Easier to add new language features
-- Reduced coupling and improved modularity
-- Foundation for future optimizations
-- Consistent patterns and practices throughout
-
-**Non-Goals**:
-
-- Changing interpreter semantics or behavior
-- Breaking existing tests (all tests must continue passing)
-- Changing public API surface
-- Performance regression (maintain or improve speed)
-
----
-
-### Phase 3.1: Preparation and Analysis
-
-- [x] 3.1.1 Create interpreter refactoring design document
-  - Analyze current architecture and identify pain points
-  - Design new architecture with clear component boundaries
-  - Create migration strategy to avoid big-bang refactor
-  - Document new patterns and conventions
-  - File: `docs/architecture/interpreter-refactoring.md`
-  - Estimated: 1 week
-  - Acceptance: Design doc reviewed and approved, migration strategy defined
-  - **Completed**: Commit ed7fd2b - 900+ line design doc with architecture analysis and migration strategy
-
-- [x] 3.1.2 Add comprehensive interpreter benchmarks
-  - Create benchmark suite covering all major operations
-  - Benchmark expression evaluation, statement execution, function calls
-  - Benchmark object creation, array operations, property access
-  - Establish performance baseline before refactoring
-  - Files: `internal/interp/*_bench_test.go` (new/expanded)
-  - Estimated: 3 days
-  - Acceptance: 50+ benchmarks covering key operations, baseline documented
-  - **Completed**: Commit ed7fd2b - 88 benchmarks total, baseline established in docs/
-
-- [ ] 3.1.3 Increase test coverage to 80%+ on core packages
-  - **Current Coverage**: 59.3% overall (as of 2025-11-18)
-  - **Completed Work**: Improved interp/builtins (→82.0%), interp/evaluator (→50.4%), pkg/printer (→85.9%), pkg/token (→100%), bytecode (→74.4%), semantic (→62.4%)
-  - **Remaining Work**:
-    - [ ] Bytecode package: 74.4% → 80%+ (need 5.6% more)
-    - [ ] Semantic analyzer: 62.4% → 80%+ (need 17.6% more)
-    - [ ] Parser: 58.4% → 80%+ (need 21.6% more)
-    - [ ] Interp/evaluator: 50.4% → 80%+ (need 29.6% more - builtin function paths)
-    - [ ] Interp/runtime: 48.4% → 80%+ (need 31.6% more)
-    - [ ] Low priority: cmd/dwscript/cmd (36.7%), ast/pkg (24.9%), cmd/dwscript (0.0%)
-  - Estimated: 1-2 weeks
-  - Acceptance: Coverage report shows 80%+ on bytecode, semantic, parser, interp/evaluator, interp/runtime
-  - **Note**: Deferred - fixing failing tests is better done after architecture improvements
-
----
-
-# Phases 3.2-3.8: Foundation & Consolidation ✅ COMPLETE
-
-**Completed**: 2025-11-30 to 2025-12-07 | **Total Effort**: ~42h
-
-## Summary of Completed Work
-
-- **Phase 3.2**: Value System Refactoring (10 value interfaces, runtime package, object pooling, 2,400+ LOC)
-- **Phase 3.3**: ExecutionContext & CallStack (extracted from Interpreter)
-- **Phase 3.4**: Type System Separation (ClassRegistry, FunctionRegistry, TypeSystem)
-- **Phase 3.5**: Evaluator foundation (48+ visitor methods, TypeSystem, ExecutionContext, RefCountManager)
-- **Phase 3.6**: Built-in function registry (225/244 functions migrated, -600 LOC)
-- **Phase 3.7**: Dependency cleanup (fixed circular deps, cleaned imports)
-- **Phase 3.8**: Type expression delegation (Is/Implements to evaluator, -137 LOC, GetClassName() pattern)
-
-## Cumulative Metrics
-
-- **Code reduction**: ~737 LOC (600 from built-ins, 137 from type expressions)
-- **Tests**: All 1168 non-fixture tests passing (0 failures)
-- **Adapter methods**: 75 → 72 (no new additions in 3.8)
-- **Architecture**: Clean evaluator/interpreter/runtime separation, validated TypeSystem direct access
-
-**Key Pattern**: `GetClassName()` interface for cross-package type extraction (used in ClassValue/ClassInfoValue handling)
-
-**Docs**: `docs/evaluator-architecture.md`, `docs/refcounting-design.md`, `docs/phase3.7-summary.md`
-
----
-
-# Phase 3.9: Identifier Resolution Consolidation
-
-**Goal**: Eliminate 380 LOC of duplicated identifier lookup code
-
-**Status**: ✅ Complete (2025-12-07) | **Priority**: High | **Approach**: 🟢 Aggressive | **Effort**: 6 hours
-
-## Problem
-
-- `internal/interp/expressions_basic.go`: Variable/function/constant lookup (256 LOC)
-- `internal/interp/evaluator/visitor_expressions_identifiers.go`: Parallel implementation (228 LOC)
-- **Duplication**: ~380 LOC implementing same lookups
-- **Impact**: Type metadata looked up twice, inconsistent behavior
-
-## Solution
-
-- Kept evaluator implementation as canonical
-- Skipped optional caching (YAGNI - can add later if profiling shows need)
-- Replaced interpreter's 256-line evalIdentifier() with 3-line delegation
-- **Result**: -251 LOC
-
-## Tasks
-
-- [x] **3.9.1** Audit Identifier Resolution (3h)
-  - Mapped all identifier lookup call sites
-  - Verified evaluator completeness (15+ identifier types covered)
-  - Identified caching opportunities (deferred as optional)
-
-- [x] **3.9.2** Add Type Metadata Caching (5h) - SKIPPED
-  - Decision: Skip optional caching to avoid premature optimization
-  - Can add later if profiling shows 2-3% gain is worthwhile
-  - Primary goal achieved: 251 LOC consolidation
-
-- [x] **3.9.3** Route Calls to Evaluator (4h)
-  - Updated `Interpreter.evalIdentifier()` to thin 3-line wrapper
-  - Fixed evaluator's ClassType handling (was returning classTypeProxy, now returns ClassValue)
-  - Fixed parameterless function calls to use adapter (exception handling)
-  - All tests pass (unit tests 100%, fixture test failures pre-existing)
-
-- [x] **3.9.4** Delete Legacy Code (2h)
-  - Replaced 256-line `evalIdentifier()` with 3-line delegation
-  - Helper functions (`evalFunctionPointer`, etc.) preserved (used elsewhere)
-  - **Impact**: -251 LOC
-
-**Success Criteria**:
-
-- ✅ Single canonical identifier resolution (evaluator)
-- ✅ 251 LOC removed (96% of target)
-- ⏭️ Type metadata caching skipped (premature optimization)
-- ✅ Tests pass (all unit tests, fixture failures pre-existing)
-
-**Key Insights**:
-
-1. **Evaluator Bug Found & Fixed**: The evaluator's `ClassType` handling had a pre-existing bug - it returned `classTypeProxy` (no helpers) instead of proper `ClassValue`. Fixed by using `TypeSystem.CreateClassValue()` to get the properly-registered ClassValue type.
-
-2. **Exception Handling Delegation Required**: The evaluator's `invokeParameterlessUserFunction()` has exception handling issues. Parameterless function auto-invoke must delegate through adapter's `CallUserFunction()` for proper exception propagation.
-
-3. **YAGNI Wins**: Skipping optional caching saved 5 hours while achieving 96% of the LOC reduction goal. The 2-3% performance gain wasn't measured, so implementing caching would have been premature optimization.
-
-4. **Phase 3.8 Pattern Validated Again**: Direct delegation (3-line wrapper) works perfectly for consolidation. No new adapter methods needed - evaluator self-sufficient via TypeSystem access.
-
-5. **Pre-existing Fixture Test Failures**: Fixture tests fail identically on both original and consolidated code (timeout/crash). This is a separate issue unrelated to identifier resolution consolidation.
-
-**Architecture Pattern**: Thin interpreter delegation → evaluator visitor methods → TypeSystem registries. No caching needed at identifier resolution level - registries already optimized.
-
----
-
-# Phase 3.10: Dead Code Removal
-
-**Goal**: Delete 800-1,000 LOC of unused interpreter code
-
-**Status**: ✅ Done | **Priority**: Medium | **Approach**: 🟢 Aggressive | **Actual**: 269 LOC removed
-
-## Problem
-
-- Old Eval() dispatcher in interpreter.go (576 LOC) - unused after evaluator migration
-- Unused helper methods (200-400 LOC)
-- Dead code paths from refactoring
-- **Impact**: Code clutter, slower builds, maintenance burden
-
-## Solution
-
-- Static analysis to identify unused code
-- Delete aggressively (dead code by definition isn't called)
-- Granular git commits for easy revert if needed
-
-## Tasks
-
-- [x] **3.10.1** Static Analysis (4h)
-  - Run dead code detector
-  - Grep for zero-caller functions
-  - Identify old dispatchers
-  - **Deliverable**: Deletion checklist - DONE (via exploration agent)
-
-- [x] **3.10.2** Delete Deprecated Record Helpers (2h)
-  - Remove `buildRecordMetadata()` and `buildMethodMetadata()` (~70 LOC)
-  - These were marked deprecated and only called by evalRecordDeclaration()
-  - **Actual**: Removed 70 LOC
-
-- [x] **3.10.3** Migrate evalRecordDeclaration to Evaluator (4h)
-  - Delegate `Eval()` switch case to `evaluator.VisitRecordDecl()`
-  - Delete deprecated `evalRecordDeclaration()` method (~175 LOC)
-  - Fix evaluator type resolution to use context for record type lookups
-  - **Actual**: Removed 175 LOC, added 11 LOC for fixes (net: -164 LOC)
-
-- [x] **3.10.4** Cleanup Imports (1h)
-  - Remove unused imports
-  - Run goimports
-  - Verify build
-  - **Actual**: Completed via go fmt
-
-**Achieved Results**:
-- ✅ 269 LOC removed (net: 280 deleted, 11 added)
-- ✅ No deprecation markers remain for removed code
-- ✅ All removed code verified unused
-- ✅ All 1,168+ unit tests pass
-- ✅ Fixture test status unchanged (pre-existing failures tracked separately)
-- ✅ Fixed nested record type resolution bug discovered during migration
-
-**Note**: Original target of 800-1,000 LOC was overestimated. The Eval() dispatcher (244 LOC actual vs 576 estimated) is still actively used as the primary entry point and should not be removed. The 269 LOC achieved represents all truly deprecated code from Phase 3.5 migration.
-
----
-
-# Phase 3.11: Adapter Method Consolidation
-
-**Goal**: Reduce InterpreterAdapter from 72 → ~50 methods
-
-**Status**: ✅ Complete (2025-12-08) | **Priority**: Medium | **Approach**: 🟢 Aggressive | **Effort**: 3 hours
-
-## Problem
-
-- InterpreterAdapter has 72 methods
-- Many are thin wrappers (ResolveClassInfoByName, GetEnumTypeID)
-- Some rarely called (CreateBoundMethodPointer: 2 callers)
-- **Impact**: Large interface, unclear boundaries
-
-## Solution
-
-- Eliminate type system wrappers (evaluator can access typeSystem directly)
-- Inline rare convenience methods (≤2 callers)
-- Consolidate exception factories
-- Keep only essential OOP methods (class creation, method dispatch, inheritance)
-
-## Tasks
-
-- [x] **3.11.1** Re-audit Adapter Methods (6h)
-  - Analyze all 72 methods with call counts
-  - Categorize: Essential vs Convenience vs Wrapper
-  - **Deliverable**: `docs/adapter-consolidation-plan.md`
-  - **Actual**: Completed in 1h, comprehensive analysis of all 72 methods
-
-- [x] **3.11.2** Remove Unused Methods (1h)
-  - Remove LookupInterface (0 calls)
-  - Remove LookupHelpers (0 calls)
-  - Remove GetOperatorRegistry (0 calls)
-  - Remove GetEnumTypeID (0 calls)
-  - Remove CreateMethodPointer (0 calls)
-  - Remove CallMemberMethod (0 calls)
-  - **Impact**: -6 methods
-  - **Actual**: Completed in 30 minutes
-
-- [x] **3.11.3** Eliminate Type System Wrappers (2h)
-  - ResolveClassInfoByName + GetClassNameFromInfo → use className from AST
-  - GetClassNameFromClassInfoInterface → track parentClassName variable
-  - GetInterfaceName → track interfaceName variable (1 of 2 calls eliminated)
-  - **Impact**: -3 methods (4 call sites simplified)
-  - **Actual**: Completed in 1h, eliminated 3 methods by tracking names
-
-- [x] **3.11.4** Review Inline Candidates (1h)
-  - CreateBoundMethodPointer (2 callers) → KEPT (non-trivial, uses interpreter internals)
-  - ExecuteRecordPropertyRead (2 callers) → DEFERRED to Phase 3.12
-  - EvalBuiltinHelperProperty (4 callers) → KEPT (complex property dispatch)
-  - **Decision**: Keep methods with non-trivial logic or architectural dependencies
-  - **Actual**: Analysis complete, no inlining performed
-
-- [x] **3.11.5** Review Exception Factories (30min)
-  - CreateExceptionDirect + WrapObjectInException → KEPT (semantically different operations)
-  - **Decision**: Separate methods clearer than unified method with conditionals
-  - **Actual**: Analysis complete, kept separate for semantic clarity
-
-**Achieved Results**:
-- ✅ Adapter methods: 72 → 63 (12.5% reduction, -9 methods)
-- ✅ All unused methods removed (6 methods)
-- ✅ Type system wrappers eliminated (3 methods)
-- ✅ Interface well-documented (docs/adapter-consolidation-plan.md, docs/phase3.11-adapter-consolidation-results.md)
-- ✅ All 1,168+ unit tests pass
-- ✅ Code reduction: -151 LOC
-
-**Revised Assessment**: Original goal of 72 → 50 methods (30% reduction) was overestimated. The 63-method count represents the practical minimum given current architecture. The remaining methods are:
-- 57 essential OOP operations (class/interface/helper declarations, method dispatch)
-- 4 methods kept for semantic clarity (CreateBoundMethodPointer, exception factories)
-- 2 methods deferred to Phase 3.12 (ExecuteRecordPropertyRead, member access)
-
-**Key Insight**: Name tracking from AST eliminated redundant resolve→extract patterns. Many "wrappers" existed because we discarded information then retrieved it later.
-
-**Documentation**: See `docs/phase3.11-adapter-consolidation-results.md` for complete analysis
-
----
-
-# Phase 3.12: EvalNode Call Reduction
-
-**Goal**: Reduce EvalNode calls from 34 (Phase 3.5) → ~15-20 essential
-
-**Status**: 🔄 In Progress | **Priority**: Medium | **Approach**: 🟡 Conservative | **Effort**: 2-3 weeks
-
-## Progress
-
-**Current State (2025-12-08)**:
-- ✅ Phase 3.9-3.11: 34 → 27 calls (-7, 20.6% reduction)
-- ✅ RefCountManager migration: 7 calls eliminated (Phase 3.5.39-3.5.42)
-- ✅ Code reduction: -671 LOC (Phases 3.9-3.11)
-- 🎯 Target: 27 → 15-20 calls (additional 7-12 calls)
-
-## Problem
-
-- **27 EvalNode calls** across evaluator (down from 34)
-- **13 are architectural boundaries** (Self/class context, method dispatch, OOP assignment) - KEEP
-- **13 are safety nets** (fallbacks, incomplete features, compound ops) - MOSTLY KEEP
-- **1 is migration candidate** (set declarations)
-- **Impact**: Need to eliminate 7-12 more calls while preserving architectural boundaries
-
-## Solution
-
-- Migrate eliminable calls (compound operations, indexed properties, set declarations)
-- Document 13 architectural boundaries as permanent (correct design)
-- Realistic target: 15-20 calls (not all 27 can be eliminated without violating separation of concerns)
-
-## Tasks
-
-- [x] **3.12.1** Re-audit EvalNode Calls (5h) - ✅ COMPLETE (2025-12-08)
-  - Updated audit with post-consolidation state (27 calls verified via grep)
-  - Categorized all calls (13 boundaries, 13 safety nets, 1 candidate)
-  - Prioritized by difficulty and architectural constraints
-  - **Deliverables**:
-    - ✅ `docs/evalnode-audit.md` (comprehensive 27-call inventory)
-    - ✅ `docs/phase3.9-3.11-summary.md` (consolidation summary)
-  - **Key Finding**: 13 architectural boundary calls should remain (correct design)
-
-- [x] **3.12.2** Migrate Member Access (ACTUAL: 4h) - ✅ COMPLETE (2025-12-08)
-  - Native handling for record methods (line 251) - ✅ DONE
-  - Native execution via `callRecordMethod()` in evaluator
-  - **Impact**: -1 EvalNode call (28 → 27, verified)
-  - **Files modified**:
-    - `internal/interp/evaluator/evaluator.go` (+1 interface method: GetRecordMethod)
-    - `internal/interp/runtime/record.go` (+65 lines - AST reconstruction from metadata)
-    - `internal/interp/evaluator/record_methods.go` (+83 lines - new file, callRecordMethod)
-    - `internal/interp/evaluator/visitor_expressions_members.go` (+20 lines - native dispatch)
-  - **Note**: Helper properties (line 314) remain for Phase 3.12.3
-
-- [ ] **3.12.3** Migrate Assignment Operations (4-6 days)
-  - Native handling for compound member assignment (visitor_statements.go:318)
-  - Native handling for compound index assignment (visitor_statements.go:334)
-  - Native indexed property writes (index_assignment.go:45)
-  - **Impact**: -3 to -4 EvalNode calls
-
-- [ ] **3.12.4** Document Essential Calls (2h)
-  - Update `docs/evaluator-architecture.md` with architectural boundaries justification
-  - Document 13 permanent calls (Self context, method dispatch, OOP assignment, external functions)
-  - Mark future work for Phase 4+ (OOP infrastructure migration)
-  - Create Phase 3.12 completion summary
-
-**Success Criteria**:
-- ✅ EvalNode calls: 34 → 27 (Phase 3.9-3.11) → 15-20 (Phase 3.12)
-- ✅ Eliminable calls migrated (compound ops, indexed props, set declarations)
-- ✅ 13 architectural boundaries documented and justified
-- ✅ Tests pass (0 regressions)
-- ✅ Realistic architecture preserved (evaluator/interpreter separation)
-
----
-
-# Phase 3.13: Final Documentation & Verification
-
-**Goal**: Comprehensive documentation and verification of Phase 3 completion
-
-**Status**: 📋 Planned | **Priority**: High | **Effort**: 1 week
-
-## Deliverables
-
-1. **Phase 3 Summary** (`docs/phase3-summary.md`)
-   - Complete before/after metrics
-   - Architecture diagrams
-   - Lessons learned
-   - Migration patterns for future phases
-
-2. **Architecture Updates**
-   - Update `CLAUDE.md` with new architecture
-   - Update `README.md` if needed
-   - Add architecture diagrams to docs
-
-3. **Performance Report** (`docs/phase3-performance.md`)
-   - Before/after benchmarks
-   - Performance improvements documented
-   - Hot path analysis
-
-## Tasks
-
-- [ ] **3.13.1** Create Phase 3 Summary (2 days)
-  - Document complete before/after metrics
-  - Include code size reduction (-1,600+ LOC)
-  - Include performance improvements (2-8% expected)
-  - Lessons learned and migration patterns
-
-- [ ] **3.13.2** Update Architecture Docs (1 day)
-  - Update `CLAUDE.md` with Phase 3 architecture
-  - Create architecture diagrams
-  - Document evaluator/interpreter/runtime boundaries
-
-- [ ] **3.13.3** Performance Verification (1 day)
-  - Run comprehensive benchmarks
-  - Compare with Phase 3 baseline
-  - Document improvements
-  - **Expected**: 2-8% overall improvement
-
-- [ ] **3.13.4** Final Review (1 day)
-  - Code quality check (golangci-lint)
-  - Test coverage verification
-  - Documentation completeness check
-  - Mark Phase 3 complete in PLAN.md
-
-**Success Criteria**:
-- ✅ Complete documentation suite
-- ✅ CLAUDE.md updated
-- ✅ Performance verified (2-8% improvement)
-- ✅ All tests passing
-- ✅ Phase 3 marked complete
-
----
-
-## Phase 3 Summary
-
-| Phase | Status | Focus | LOC Impact | Effort |
-|-------|--------|-------|------------|--------|
-| 3.5-3.8 | ✅ | Foundation & Consolidation | -1,544 | ~40h |
-| 3.9 | ✅ | Identifier Resolution | -251 | 6h |
-| 3.10 | ✅ | Dead Code Removal | -269 | 4h |
-| 3.11 | ✅ | Adapter Consolidation | -151 | 3h |
-| 3.12 | 📋 | EvalNode Reduction | Quality | 2-3w |
-| 3.13 | 📋 | Final Documentation | Docs | 1w |
-| **Total** | | | **~-2,215 LOC** | **~3-4w remaining** |
-
-**Completed So Far**:
-- ✅ Evaluator foundation with visitor pattern
-- ✅ Binary operations consolidated (-944 LOC)
-- ✅ Built-in function registry (-600 LOC)
-- ✅ Dependencies cleaned up
-- ✅ Identifier resolution consolidated (-251 LOC)
-- ✅ Dead code removal (-269 LOC)
-- ✅ Adapter interface streamlined (72 → 63 methods, -151 LOC)
-
-**Remaining Work**: EvalNode reduction, final documentation
-
----
-
-# All pass:
-
-```bash
-go test -v ./internal/interp -run TestClassVariableAccessViaClassNameRuntime
-go test -v ./internal/interp -run TestClassVariableAccessViaInstanceRuntime
-go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/class_var
+**Goal**: Transform the interpreter from a 34-field God object with 59-case Eval() switch into a 5-field thin coordinator with Evaluator as the execution engine.
+
+**Status**: 🔄 In Progress | **Complexity**: High | **Priority**: High | **Estimated**: 4-6 weeks remaining
+
+**Current State** (as of 2025-12-09):
+- Interpreter: 34 fields, 59 switch cases, 421 methods
+- Evaluator: 24K LOC, 48+ visitor methods, works but requires 65-method adapter
+- Dual environments: `i.env` AND `ctx.env` (must be kept in sync)
+- Unit tests pass; fixture tests have pre-existing failures
+
+**Target End State**:
+```go
+// Interpreter: thin coordinator (5 fields)
+type Interpreter struct {
+    evaluator  *evaluator.Evaluator
+    config     *Config
+    typeSystem *interptypes.TypeSystem
+    output     io.Writer
+    exception  *runtime.ExceptionValue  // For exception propagation
+}
+
+func (i *Interpreter) Eval(node ast.Node) Value {
+    return i.evaluator.Eval(node)  // No switch!
+}
+
+// Evaluator: self-sufficient engine
+type Evaluator struct {
+    typeSystem   *TypeSystem
+    ctx          *ExecutionContext  // Owns the single environment
+    output       io.Writer
+    config       *Config
+    rand         *rand.Rand
+    refCountMgr  runtime.RefCountManager
+    oopEngine    OOPEngine           // Replaces adapter OOP methods
+    declHandler  DeclHandler         // Replaces adapter declaration methods
+    exceptionMgr ExceptionManager    // Replaces adapter exception methods
+}
 ```
 
-**Note**: Task complete! Class variables fully functional including inheritance, nil access, and type cast scenarios. Remaining test failures (class_var_as_prop, static_method1/2, etc.) are due to other unimplemented features (properties with class var specifiers, static method syntax, field shadowing).
+**Benefits**:
+- Single environment (no sync bugs)
+- No giant switch (visitor pattern handles dispatch)
+- Testable components (mock focused interfaces, not 65-method adapter)
+- Clear ownership (Evaluator owns execution, Interpreter is facade)
+
+---
+
+# Completed Work (Phases 3.2-3.11) ✅
+
+**Completed**: 2025-11-30 to 2025-12-08 | **Effort**: ~55h | **LOC Removed**: ~2,215
+
+## Foundation (Phases 3.2-3.8)
+- ✅ Value System: 10 interfaces, `runtime/` package, object pooling
+- ✅ ExecutionContext & CallStack: Extracted from Interpreter
+- ✅ TypeSystem: ClassRegistry, FunctionRegistry, unified type management
+- ✅ Evaluator: 48+ visitor methods, handles most expressions/statements
+- ✅ Built-in Registry: 225/244 functions migrated (-600 LOC)
+- ✅ Dependency Cleanup: Fixed circular deps, cleaned imports
+
+## Consolidation (Phases 3.9-3.11)
+- ✅ Identifier Resolution: Single canonical path in evaluator (-251 LOC)
+- ✅ Dead Code Removal: Deprecated methods deleted (-269 LOC)
+- ✅ Adapter Reduction: 72 → 63 methods (-151 LOC)
+
+**Key Docs**: `docs/evaluator-architecture.md`, `docs/refcounting-design.md`
+
+---
+
+# Remaining Work: Complete the Migration
+
+The following tasks complete the migration by eliminating dual systems.
+
+---
+
+## 3.1 Merge Dual Environments
+
+**Goal**: Eliminate `i.env` / `ctx.env` duplication → single environment in ExecutionContext
+
+**Status**: 🔄 In Progress | **Priority**: P0 (unblocks everything) | **Effort**: 5-7 days
+
+### Why This Is Complex
+
+**Deep Audit Completed** (2025-12-09) - see [docs/environment-audit.md](docs/environment-audit.md):
+
+| Category | Count | Files |
+|----------|-------|-------|
+| `i.env.Get/Set/Define()` calls | 204 | 24 |
+| Scope entry patterns | 112 | 18 |
+| Scope exit (`RestoreEnvironment`) | 101 | 19 |
+| `ctx.Env()` in evaluator | 128 | 20 |
+| `adapter.` callbacks | 157 | 36 |
+
+**Two different type systems**:
+- Interpreter: `*interp.Environment` (concrete struct)
+- Evaluator: `evaluator.Environment` (interface)
+- **EnvironmentAdapter** (137 LOC) bridges them with value conversion
+
+**The problem is NOT just two variables** - it's:
+1. Type system mismatch (concrete vs interface)
+2. Value type mismatch (`interp.Value` vs `runtime.Value`)
+3. Two independent scope stacks that can get out of sync
+4. 112 scope entry + 101 scope exit patterns that assume `*Environment`
+
+### Solution Strategy (Option C chosen)
+
+**Phase A**: Move Environment to `internal/interp/runtime/` (Task 3.1.2)
+- Single canonical `runtime.Environment` type
+- No circular dependencies (both interp and evaluator can import runtime)
+- Type alias in interp for backward compatibility
+
+**Phase B**: Delete EnvironmentAdapter (Task 3.1.3)
+- ExecutionContext uses `*runtime.Environment` directly
+- Delete 137 LOC adapter code
+
+**Phase C**: Unify scope management (Task 3.1.4)
+- Convert 112+101 manual patterns to `ctx.PushEnv()`/`ctx.PopEnv()`
+- Delete `SetEnvironment()`, `PushEnvironment()`, `RestoreEnvironment()`
+
+**Phase D**: Delete `i.env` (Task 3.1.5)
+- Interpreter accesses env via `i.Env()` → `i.ctx.Env()`
+- Delete field and all 204 direct usages
+
+### Tasks
+
+- [x] **3.1.1** Deep audit of environment usage patterns (4h) ✅ 2025-12-09
+  - Created [docs/environment-audit.md](docs/environment-audit.md) with comprehensive analysis
+  - Categorized 204 `i.env.Get/Set/Define()` calls across 24 files
+  - Mapped 112 scope entry + 101 scope exit patterns across 19 files
+  - Identified 157 adapter callbacks creating bidirectional flow
+  - **Decision**: Option C (move Environment to runtime/) - cleanest approach
+
+- [ ] **3.1.2** Move Environment to `internal/interp/runtime/` (4h)
+  - Copy `environment.go` to `internal/interp/runtime/environment.go`
+  - Update package declaration and imports
+  - Change `Value` references to `runtime.Value` (already compatible)
+  - Add type alias in `internal/interp/`: `type Environment = runtime.Environment`
+  - Update evaluator to import `runtime.Environment` directly
+  - Run `just test` after each step
+
+- [ ] **3.1.3** Delete EnvironmentAdapter (3h)
+  - Update `ExecutionContext.env` type from `Environment` interface to `*runtime.Environment`
+  - Delete `evaluator/env_adapter.go` (137 LOC)
+  - Replace all `NewEnvironmentAdapter(env)` with direct `env` usage
+  - Update `ctx.Env()` return type to `*runtime.Environment`
+  - Files to update:
+    - `interpreter.go`: `SetEnvironment()` no longer wraps
+    - `evaluator/context.go`: Change field type
+    - `evaluator/evaluator.go`: Remove adapter creation
+  - Run `just test`
+
+- [ ] **3.1.4** Unify scope management (8h)
+  - Replace 112 scope entry patterns with `ctx.PushEnv()`:
+    - `savedEnv := i.env` + `i.PushEnvironment()` → `ctx.PushEnv()`
+  - Replace 101 scope exit patterns with `ctx.PopEnv()`:
+    - `i.RestoreEnvironment(savedEnv)` → `ctx.PopEnv()`
+  - Priority order (by pattern count from audit):
+    - `objects_methods.go`: 16 RestoreEnvironment
+    - `adapter_methods.go`: 15 RestoreEnvironment, 9 savedEnv
+    - `statements_loops.go`: 13 RestoreEnvironment
+    - `objects_properties.go`: 11 RestoreEnvironment, 11 savedEnv
+    - `functions_records.go`: 8 RestoreEnvironment
+  - Delete sync methods: `PushEnvironment()`, `RestoreEnvironment()`, `SetEnvironment()`
+
+- [ ] **3.1.5** Delete `i.env` field (4h)
+  - Add `Env() *runtime.Environment` method to Interpreter
+  - Replace 204 `i.env.Get/Set/Define()` calls with `i.Env().Get/Set/Define()`
+  - Top files by usage (from audit):
+    - `objects_properties.go`: 67 refs
+    - `functions_records.go`: 33 refs
+    - `objects_hierarchy.go`: 25 refs
+    - `adapter_methods.go`: 22 refs
+    - `functions_calls.go`: 22 refs
+  - Remove `env *Environment` from Interpreter struct
+  - Verify: `grep -c "i\.env" internal/interp/*.go` returns only 0s
+
+- [ ] **3.1.6** Verify and test (2h)
+  - Run `just test` - all unit tests pass
+  - Run fixture tests to verify no regressions
+  - Verify deletions:
+    - `grep -r "EnvironmentAdapter" internal/` → 0 hits
+    - `grep -r "NewEnvironmentAdapter" internal/` → 0 hits
+    - `grep -r "SetEnvironment\|PushEnvironment\|RestoreEnvironment" internal/interp/*.go` → 0 hits
+  - Commit: "refactor: merge dual environments into ExecutionContext"
+
+**Success Criteria**:
+- ✅ Single environment type (no adapter)
+- ✅ Single environment variable in ExecutionContext
+- ✅ No `i.env` field in Interpreter
+- ✅ No manual save/restore patterns (use PushScope/PopScope)
+- ✅ All tests pass
+- ✅ ~137 LOC deleted (env_adapter.go)
+
+---
+
+## 3.2 Delete Interpreter.Eval() Switch
+
+**Goal**: Route all evaluation through Evaluator → delete 59-case switch
+
+**Status**: 📋 Planned | **Priority**: P0 | **Effort**: 3-4 days
+
+### Current State Analysis
+
+**59 switch cases** in `interpreter.go:401-629`:
+- Statements: 20 cases (Program, Block, If, While, For, etc.)
+- Declarations: 10 cases (Function, Class, Interface, Enum, etc.)
+- Expressions: 29 cases (literals, operators, calls, etc.)
+
+**Evaluator already has Visit methods** for all 59 types (verified).
+The switch exists because each case does env sync before/after delegation.
+
+**Why switch still exists**:
+1. Each case calls `i.evaluatorInstance.Eval()` but wraps with env sync
+2. Some cases call `evalXxx()` methods that do additional work
+3. After 3.1 (env merge), this sync becomes unnecessary
+
+### Tasks
+
+- [ ] **3.2.1** Audit switch cases vs evaluator (2h)
+  - Create table: `case *ast.X` → `VisitX()` → direct or via `evalX()`
+  - Categorize by delegation pattern:
+    - **Direct**: `return i.evaluatorInstance.Eval(node)` (can delete immediately)
+    - **Wrapped**: sync + delegate + sync (delete after 3.1)
+    - **Custom**: calls `evalXxx()` (need to check if still needed)
+  - Count: expect ~40 direct, ~15 wrapped, ~4 custom
+  - **Deliverable**: Spreadsheet in `docs/switch-case-audit.md`
+
+- [ ] **3.2.2** Delete direct delegation cases (2h)
+  - Cases that just do `return i.evaluatorInstance.Eval(node)`
+  - Expected: ~40 cases can be deleted immediately
+  - Replace switch with: `return i.evaluatorInstance.Eval(node)`
+  - Run tests after each batch of 10 deletions
+
+- [ ] **3.2.3** Verify evaluator handles all statements (3h)
+  - **Control flow** (6): If, While, Repeat, For, ForIn, Case
+  - **Exception** (2): Try, Raise
+  - **Control** (4): Break, Continue, Exit, Return
+  - **Block** (3): Program, Block, Empty
+  - **Misc** (2): Expression, Uses
+  - For each: verify `VisitXxx` doesn't call back to interpreter unnecessarily
+  - Remove any `adapter.EvalNode()` callbacks that are now redundant
+
+- [ ] **3.2.4** Verify evaluator handles all declarations (3h)
+  - **Types** (7): Class, Interface, Enum, Set, Record, Array, TypeDeclaration
+  - **Code** (2): Function, Operator
+  - **Data** (2): VarDecl, ConstDecl
+  - **Extension** (1): Helper
+  - For each: verify declaration logic is complete in evaluator
+  - Class/Interface use adapter for registration (keep those callbacks)
+
+- [ ] **3.2.5** Verify evaluator handles all expressions (2h)
+  - **Literals** (6): Integer, Float, String, Boolean, Char, Nil
+  - **Operators** (4): Binary, Unary, AddressOf, Grouped
+  - **Calls** (4): Call, MethodCall, New, NewArray
+  - **Access** (3): Identifier, MemberAccess, Index
+  - **OOP** (4): Self, Inherited, Is, As, Implements
+  - **Misc** (4): Enum, RecordLiteral, SetLiteral, ArrayLiteral, Lambda, If, Old
+  - Self/Inherited need adapter callbacks (keep)
+
+- [ ] **3.2.6** Replace Eval() switch with single delegation (1h)
+  ```go
+  func (i *Interpreter) Eval(node ast.Node) Value {
+      if node == nil {
+          return nil
+      }
+      return i.evaluatorInstance.Eval(node)
+  }
+  ```
+  - Delete entire switch block (~230 lines)
+  - Keep nil check
+  - Run `just test`
+
+- [ ] **3.2.7** Delete orphaned interpreter methods (3h)
+  - Search: `grep -l "func (i \*Interpreter) eval" internal/interp/*.go`
+  - For each `evalXxx` method:
+    - Check callers: `grep -r "\.evalXxx\(" internal/interp/`
+    - If only called from deleted switch: DELETE
+    - If called from adapter callbacks: KEEP
+  - Expected deletions: `evalBlockStatement`, `evalIfStatement`, `evalWhileStatement`, etc.
+  - Expected keeps: `evalMethodCall` (adapter), `evalAssignmentStatement` (complex)
+
+- [ ] **3.2.8** Verify and test (2h)
+  - Run `just test` - all unit tests pass
+  - Verify switch is gone: `grep -c "case \*ast\." interpreter.go` → 0
+  - Count remaining `evalXxx` methods (should be <10)
+  - Measure LOC reduction (target: -200 LOC from switch alone)
+  - Commit: "refactor: delete Interpreter.Eval() switch, route through Evaluator"
+
+**Success Criteria**:
+- ✅ No switch statement in Interpreter.Eval()
+- ✅ All evaluation routes through Evaluator
+- ✅ Orphaned evalXxx methods deleted (~10 methods)
+- ✅ ~230 LOC deleted (switch block)
+- ✅ All tests pass
+
+---
+
+## 3.3 Migrate Interpreter Fields to Evaluator
+
+**Goal**: Reduce Interpreter from 34 fields → 5 fields
+
+**Status**: 📋 Planned | **Priority**: P1 | **Effort**: 2-3 days
+
+### Current Interpreter Fields (34 total)
+
+From `interpreter.go:41-75`:
+
+| Field | Current Owner | Target | Notes |
+|-------|---------------|--------|-------|
+| `evaluatorInstance` | Interpreter | **KEEP** | Core dependency |
+| `typeSystem` | Interpreter | **KEEP** | Core dependency |
+| `output` | Interpreter | **KEEP** | I/O |
+| `exception` | Interpreter | **KEEP** | Exception propagation |
+| `maxRecursionDepth` | Interpreter | **KEEP** | Config |
+| `currentNode` | Interpreter | Evaluator | Already in Evaluator.currentNode |
+| `rand`, `randSeed` | Interpreter | Evaluator | RNG state |
+| `semanticInfo` | Interpreter | Evaluator | Parse metadata |
+| `sourceCode`, `sourceFile` | Interpreter | Evaluator | Source info |
+| `unitRegistry` | Interpreter | Evaluator | Unit system |
+| `initializedUnits`, `loadedUnits` | Interpreter | Evaluator | Unit state |
+| `externalFunctions` | Interpreter | Evaluator | FFI registry |
+| `ctx` | Interpreter | Evaluator | Already owns it |
+| `classes` | Interpreter | TypeSystem | Already there |
+| `records` | Interpreter | TypeSystem | Already there |
+| `functions` | Interpreter | TypeSystem | Already there |
+| `helpers` | Interpreter | TypeSystem | Needs migration |
+| `globalOperators` | Interpreter | TypeSystem | Needs migration |
+| `classTypeIDRegistry` | Interpreter | TypeSystem | Already there |
+| `recordTypeIDRegistry` | Interpreter | TypeSystem | Already there |
+| `enumTypeIDRegistry` | Interpreter | TypeSystem | Already there |
+| `nextClassTypeID` | Interpreter | TypeSystem | Already there |
+| `nextRecordTypeID` | Interpreter | TypeSystem | Already there |
+| `nextEnumTypeID` | Interpreter | TypeSystem | Already there |
+| `env` | Interpreter | **DELETE** | After 3.1 |
+| `callStack` | Interpreter | **DELETE** | In ExecutionContext |
+| `oldValuesStack` | Interpreter | **DELETE** | In ExecutionContext |
+| `propContext` | Interpreter | **DELETE** | In ExecutionContext |
+| `handlerException` | Interpreter | **DELETE** | After 3.4 |
+| `methodRegistry` | Interpreter | **DELETE** | After 3.4 |
+
+### Tasks
+
+- [ ] **3.3.1** Audit field usage patterns (2h)
+  - For each of the 34 fields, run: `grep -rn "i\.<field>" internal/interp/`
+  - Count usages and categorize:
+    - Read-only after init
+    - Read-write during execution
+    - Accessed from adapter callbacks
+  - **Deliverable**: Usage count table in `docs/field-audit.md`
+
+- [ ] **3.3.2** Verify TypeSystem already owns type registries (1h)
+  - Check `classes`, `records`, `functions` in TypeSystem
+  - Verify Interpreter fields are just proxies
+  - If duplicated: remove Interpreter copies, update callers
+  - Fields: `classTypeIDRegistry`, `recordTypeIDRegistry`, `enumTypeIDRegistry`
+  - Fields: `nextClassTypeID`, `nextRecordTypeID`, `nextEnumTypeID`
+
+- [ ] **3.3.3** Move `helpers` and `globalOperators` to TypeSystem (2h)
+  - Add `Helpers() map[string][]*HelperInfo` to TypeSystem
+  - Add `GlobalOperators() *OperatorRegistry` to TypeSystem
+  - Update all `i.helpers` → `i.typeSystem.Helpers()`
+  - Update all `i.globalOperators` → `i.typeSystem.GlobalOperators()`
+  - Delete fields from Interpreter
+
+- [ ] **3.3.4** Move execution state to Evaluator (3h)
+  - `currentNode` → already in Evaluator (verify, delete from Interpreter)
+  - `rand`, `randSeed` → add to Evaluator, update `Randomize()`, `Random()`
+  - `semanticInfo` → add to Evaluator or pass via context
+  - `sourceCode`, `sourceFile` → add to Evaluator
+  - For each: update all usages, run tests
+
+- [ ] **3.3.5** Move unit system to Evaluator (2h)
+  - `unitRegistry` → Evaluator.unitRegistry
+  - `initializedUnits` → Evaluator.initializedUnits
+  - `loadedUnits` → Evaluator.loadedUnits
+  - Update `unit_loader.go` to use Evaluator fields
+  - Update adapter callbacks that access unit state
+
+- [ ] **3.3.6** Move FFI registry to Evaluator (1h)
+  - `externalFunctions` → Evaluator.externalFunctions
+  - Update FFI call sites
+  - Update `RegisterExternalFunction()` method
+
+- [ ] **3.3.7** Delete fields migrated by 3.1 (1h)
+  - After 3.1 completes, delete: `env`, `callStack`, `oldValuesStack`, `propContext`
+  - Verify: `grep -rn "i\.env\|i\.callStack\|i\.oldValuesStack\|i\.propContext" internal/interp/`
+
+- [ ] **3.3.8** Delete fields after 3.4 (30min)
+  - After 3.4 completes, delete: `handlerException`, `methodRegistry`
+  - These are used by exception handling (moved to ExceptionManager)
+
+- [ ] **3.3.9** Verify final Interpreter struct (1h)
+  - Count fields: `grep -c "^\s" interpreter.go` in struct definition
+  - Target: 5 fields (evaluatorInstance, typeSystem, output, exception, maxRecursionDepth)
+  - Run `just test`
+  - Commit: "refactor: reduce Interpreter to 5-field thin coordinator"
+
+**Success Criteria**:
+- ✅ Interpreter has exactly 5 fields
+- ✅ Evaluator owns all execution state
+- ✅ TypeSystem owns all type registries
+- ✅ No duplicate state between Interpreter/Evaluator/TypeSystem
+- ✅ All tests pass
+
+---
+
+## 3.4 Break Up 65-Method Adapter Interface
+
+**Goal**: Replace monolithic InterpreterAdapter with 3 focused interfaces
+
+**Status**: 📋 Planned | **Priority**: P1 | **Effort**: 3-4 days
+
+**Current Problem**:
+- `InterpreterAdapter` interface has 65 methods
+- Mixes OOP, declarations, exceptions, and misc operations
+- Impossible to mock for testing
+
+**Target Interfaces**:
+```go
+// OOPEngine: Method dispatch, Self context, inheritance (~20 methods)
+type OOPEngine interface {
+    CallMethod(obj Value, name string, args []Value) Value
+    CallInheritedMethod(obj Value, name string, args []Value) Value
+    ExecuteConstructor(obj Value, name string, args []Value) error
+    CreateTypeCastWrapper(className string, obj Value) Value
+    // ... method pointers, operator overloads
+}
+
+// DeclHandler: Class/interface/helper declarations (~25 methods)
+type DeclHandler interface {
+    NewClassInfo(name string) *ClassInfo
+    SetClassParent(class, parent *ClassInfo)
+    AddClassMethod(class *ClassInfo, method *ast.FunctionDecl) bool
+    RegisterClass(class *ClassInfo)
+    // ... interface, helper, operator declarations
+}
+
+// ExceptionManager: Exception creation and propagation (~5 methods)
+type ExceptionManager interface {
+    CreateException(class any, message string, pos any) *ExceptionValue
+    WrapObjectInException(obj Value, pos any) *ExceptionValue
+    RaiseTypeCastException(message string, node ast.Node)
+    RaiseAssertionFailed(message string)
+}
+```
+
+**Tasks**:
+
+- [ ] **3.4.1** Categorize all 65 adapter methods (2h)
+  - Create spreadsheet: method name, category (OOP/Decl/Exception/Other)
+  - Identify methods that can be deleted (now unused)
+  - Identify methods that can be inlined (≤2 callers)
+
+- [ ] **3.4.2** Define OOPEngine interface (2h)
+  - Extract method dispatch methods
+  - Extract Self/Inherited context methods
+  - Extract operator overload methods
+  - Create `internal/interp/evaluator/oop_engine.go`
+
+- [ ] **3.4.3** Define DeclHandler interface (2h)
+  - Extract class declaration methods
+  - Extract interface declaration methods
+  - Extract helper declaration methods
+  - Create `internal/interp/evaluator/decl_handler.go`
+
+- [ ] **3.4.4** Define ExceptionManager interface (1h)
+  - Extract exception creation methods
+  - Extract exception propagation methods
+  - Create `internal/interp/evaluator/exception_manager.go`
+
+- [ ] **3.4.5** Implement interfaces in Interpreter (4h)
+  - `func (i *Interpreter) AsOOPEngine() OOPEngine`
+  - `func (i *Interpreter) AsDeclHandler() DeclHandler`
+  - `func (i *Interpreter) AsExceptionManager() ExceptionManager`
+  - Update Evaluator to use focused interfaces
+
+- [ ] **3.4.6** Delete InterpreterAdapter (2h)
+  - Remove old adapter interface
+  - Remove `SetAdapter()` method
+  - Update all `adapter.XXX` calls to use focused interfaces
+
+- [ ] **3.4.7** Verify and test (2h)
+  - Run `just test`
+  - Verify no `InterpreterAdapter` references remain
+  - Commit: "refactor: replace 65-method adapter with 3 focused interfaces"
+
+**Success Criteria**:
+- ✅ No monolithic InterpreterAdapter
+- ✅ Three focused interfaces (~50 methods total, better organized)
+- ✅ Each interface is mockable for testing
+- ✅ All tests pass
+
+---
+
+## 3.5 Final Cleanup and Verification
+
+**Goal**: Verify architecture meets original goals, update documentation
+
+**Status**: 📋 Planned | **Priority**: P2 | **Effort**: 1 week
+
+**Tasks**:
+
+- [ ] **3.5.1** Measure final metrics (2h)
+  - Interpreter fields: 34 → ? (target: 5)
+  - Eval() switch cases: 59 → ? (target: 0)
+  - Adapter methods: 65 → ? (target: ~50 across 3 interfaces)
+  - Total LOC: measure reduction
+  - EvalNode calls: 28 → ? (target: <20)
+
+- [ ] **3.5.2** Run performance benchmarks (2h)
+  - Compare with pre-Phase-3 baseline
+  - Document any regressions
+  - Target: no regression, ideally 2-8% improvement
+
+- [ ] **3.5.3** Update CLAUDE.md architecture section (2h)
+  - Document new Interpreter/Evaluator/ExecutionContext structure
+  - Document focused interfaces (OOPEngine, DeclHandler, ExceptionManager)
+  - Update package structure description
+
+- [ ] **3.5.4** Create Phase 3 summary document (3h)
+  - `docs/phase3-summary.md`
+  - Before/after metrics
+  - Lessons learned
+  - Migration patterns for future phases
+
+- [ ] **3.5.5** Final code quality check (2h)
+  - Run `golangci-lint run`
+  - Fix any issues
+  - Run `just test` one final time
+
+- [ ] **3.5.6** Mark Phase 3 complete (30min)
+  - Update this section status to ✅ Complete
+  - Add completion date
+  - Commit: "docs: Phase 3 complete"
+
+**Success Criteria**:
+- ✅ All original goals achieved (see metrics below)
+- ✅ Documentation updated
+- ✅ No performance regression
+- ✅ All tests pass
+
+---
+
+## Phase 3 Success Metrics
+
+| Metric | Before | Target | Actual |
+|--------|--------|--------|--------|
+| Interpreter fields | 34 | 5 | ? |
+| Eval() switch cases | 59 | 0 | ? |
+| Adapter methods | 65 | ~50 (3 interfaces) | ? |
+| Dual environments | 2 | 1 | ? |
+| EvalNode calls | 28 | <20 | ? |
+| Total LOC reduction | - | -3,000+ | ? |
+| Test pass rate | 100% unit | 100% unit | ? |
+
+**Estimated Remaining Effort**: 4-6 weeks
 
 ---
 

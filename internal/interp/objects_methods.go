@@ -181,7 +181,10 @@ func (i *Interpreter) resolveMethodOverload(className, methodName string, overlo
 	}
 
 	// Find which method declaration corresponds to the selected symbol
-	selectedType := selected.Type.(*types.FunctionType)
+	selectedType, ok := selected.Type.(*types.FunctionType)
+	if !ok {
+		return nil, fmt.Errorf("internal error: selected overload has non-function type")
+	}
 	for _, method := range overloads {
 		methodType := i.extractFunctionType(method)
 		if methodType != nil && semantic.SignaturesEqual(methodType, selectedType) &&
@@ -554,42 +557,50 @@ func (i *Interpreter) extractMethodReturnValue(method *ast.FunctionDecl) Value {
 	resultVal, resultOk := i.env.Get("Result")
 	methodNameVal, methodNameOk := i.env.Get(method.Name.Value)
 
-	if resultOk {
-		if refVal, isRef := resultVal.(*ReferenceValue); isRef {
-			if derefVal, err := refVal.Dereference(); err == nil {
-				resultVal = derefVal
-			}
-		}
-	}
-	if methodNameOk {
-		if refVal, isRef := methodNameVal.(*ReferenceValue); isRef {
-			if derefVal, err := refVal.Dereference(); err == nil {
-				methodNameVal = derefVal
-			}
-		}
-	}
+	resultVal = i.dereferenceIfNeeded(resultVal, resultOk)
+	methodNameVal = i.dereferenceIfNeeded(methodNameVal, methodNameOk)
 
-	var returnValue Value
+	returnValue := i.selectReturnValue(resultVal, resultOk, methodNameVal, methodNameOk)
+
+	return i.convertReturnValueIfNeeded(returnValue, method.ReturnType.String())
+}
+
+// dereferenceIfNeeded dereferences a ReferenceValue if present and valid.
+func (i *Interpreter) dereferenceIfNeeded(val Value, ok bool) Value {
+	if !ok {
+		return val
+	}
+	if refVal, isRef := val.(*ReferenceValue); isRef {
+		if derefVal, err := refVal.Dereference(); err == nil {
+			return derefVal
+		}
+	}
+	return val
+}
+
+// selectReturnValue selects the appropriate return value from Result or method name variables.
+func (i *Interpreter) selectReturnValue(resultVal Value, resultOk bool, methodNameVal Value, methodNameOk bool) Value {
 	switch {
 	case resultOk && resultVal.Type() != "NIL":
-		returnValue = resultVal
+		return resultVal
 	case methodNameOk && methodNameVal.Type() != "NIL":
-		returnValue = methodNameVal
+		return methodNameVal
 	case resultOk:
-		returnValue = resultVal
+		return resultVal
 	case methodNameOk:
-		returnValue = methodNameVal
+		return methodNameVal
 	default:
-		returnValue = &NilValue{}
+		return &NilValue{}
 	}
+}
 
+// convertReturnValueIfNeeded applies implicit conversion to the return value if needed.
+func (i *Interpreter) convertReturnValueIfNeeded(returnValue Value, expectedType string) Value {
 	if returnValue.Type() != "NIL" {
-		expectedReturnType := method.ReturnType.String()
-		if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
-			returnValue = converted
+		if converted, ok := i.tryImplicitConversion(returnValue, expectedType); ok {
+			return converted
 		}
 	}
-
 	return returnValue
 }
 
@@ -630,24 +641,14 @@ func (i *Interpreter) tryClassValueConstructorCall(objVal Value, mc *ast.MethodC
 		return i.newErrorWithLocation(mc, "invalid class reference")
 	}
 
-	constructorOverloads := i.getMethodOverloadsInHierarchy(runtimeClass, methodName, false)
-
-	if len(constructorOverloads) == 0 {
-		return i.newErrorWithLocation(mc, "constructor '%s' not found in class '%s'", methodName, runtimeClass.Name)
-	}
-
-	constructor, err := i.resolveMethodOverload(runtimeClass.Name, methodName, constructorOverloads, mc.Arguments)
+	constructor, err := i.resolveConstructorForClass(runtimeClass, methodName, mc)
 	if err != nil {
-		return i.newErrorWithLocation(mc, "%s", err.Error())
+		return err
 	}
 
-	args := make([]Value, len(mc.Arguments))
-	for idx, arg := range mc.Arguments {
-		val := i.Eval(arg)
-		if isError(val) {
-			return val
-		}
-		args[idx] = val
+	args, errVal := i.evalMethodArguments(mc.Arguments)
+	if errVal != nil {
+		return errVal
 	}
 
 	if len(args) != len(constructor.Parameters) {
@@ -655,40 +656,63 @@ func (i *Interpreter) tryClassValueConstructorCall(objVal Value, mc *ast.MethodC
 			methodName, len(constructor.Parameters), len(args))
 	}
 
-	newInstance := NewObjectInstance(runtimeClass)
+	newInstance := i.createAndInitializeInstance(runtimeClass)
 
-	for fieldName, fieldType := range runtimeClass.Fields {
-		var defaultValue Value
-		switch fieldType {
-		case types.INTEGER:
-			defaultValue = &IntegerValue{Value: 0}
-		case types.FLOAT:
-			defaultValue = &FloatValue{Value: 0.0}
-		case types.STRING:
-			defaultValue = &StringValue{Value: ""}
-		case types.BOOLEAN:
-			defaultValue = &BooleanValue{Value: false}
-		default:
-			defaultValue = &NilValue{}
-		}
+	return i.executeConstructorBody(runtimeClass, constructor, newInstance, args)
+}
+
+// resolveConstructorForClass finds and resolves the constructor overload for a class.
+func (i *Interpreter) resolveConstructorForClass(runtimeClass *ClassInfo, methodName string, mc *ast.MethodCallExpression) (*ast.FunctionDecl, Value) {
+	constructorOverloads := i.getMethodOverloadsInHierarchy(runtimeClass, methodName, false)
+
+	if len(constructorOverloads) == 0 {
+		return nil, i.newErrorWithLocation(mc, "constructor '%s' not found in class '%s'", methodName, runtimeClass.Name)
+	}
+
+	constructor, err := i.resolveMethodOverload(runtimeClass.Name, methodName, constructorOverloads, mc.Arguments)
+	if err != nil {
+		return nil, i.newErrorWithLocation(mc, "%s", err.Error())
+	}
+
+	return constructor, nil
+}
+
+// createAndInitializeInstance creates a new object instance and initializes its fields.
+func (i *Interpreter) createAndInitializeInstance(classInfo *ClassInfo) *ObjectInstance {
+	newInstance := NewObjectInstance(classInfo)
+
+	for fieldName, fieldType := range classInfo.Fields {
+		defaultValue := i.getDefaultValueForType(fieldType)
 		newInstance.SetField(fieldName, defaultValue)
 	}
 
+	return newInstance
+}
+
+// getDefaultValueForType returns the default value for a given type.
+func (i *Interpreter) getDefaultValueForType(fieldType types.Type) Value {
+	switch fieldType {
+	case types.INTEGER:
+		return &IntegerValue{Value: 0}
+	case types.FLOAT:
+		return &FloatValue{Value: 0.0}
+	case types.STRING:
+		return &StringValue{Value: ""}
+	case types.BOOLEAN:
+		return &BooleanValue{Value: false}
+	default:
+		return &NilValue{}
+	}
+}
+
+// executeConstructorBody executes the constructor body with the given instance and arguments.
+func (i *Interpreter) executeConstructorBody(runtimeClass *ClassInfo, constructor *ast.FunctionDecl, instance *ObjectInstance, args []Value) Value {
 	savedEnv := i.env
 	methodEnv := i.PushEnvironment(i.env)
-	methodEnv.Define("Self", newInstance)
+	methodEnv.Define("Self", instance)
 	i.bindClassConstantsToEnv(runtimeClass)
 
-	for idx, param := range constructor.Parameters {
-		arg := args[idx]
-		if param.Type != nil {
-			paramTypeName := param.Type.String()
-			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
-				arg = converted
-			}
-		}
-		methodEnv.Define(param.Name.Value, arg)
-	}
+	i.bindConstructorParameters(methodEnv, constructor, args)
 
 	methodEnv.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: runtimeClass})
 
@@ -699,7 +723,21 @@ func (i *Interpreter) tryClassValueConstructorCall(objVal Value, mc *ast.MethodC
 	}
 
 	i.RestoreEnvironment(savedEnv)
-	return newInstance
+	return instance
+}
+
+// bindConstructorParameters binds constructor parameters with implicit conversion.
+func (i *Interpreter) bindConstructorParameters(env *Environment, constructor *ast.FunctionDecl, args []Value) {
+	for idx, param := range constructor.Parameters {
+		arg := args[idx]
+		if param.Type != nil {
+			paramTypeName := param.Type.String()
+			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+				arg = converted
+			}
+		}
+		env.Define(param.Name.Value, arg)
+	}
 }
 
 // trySetValueMethodCall handles method calls on SetValue.
@@ -1040,38 +1078,14 @@ func (i *Interpreter) executeInstanceMethodOnClassName(
 	instanceMethod *ast.FunctionDecl,
 	mc *ast.MethodCallExpression,
 ) Value {
-	obj := NewObjectInstance(classInfo)
-
-	// Initialize fields
-	fieldInitEnv := i.env
-	fieldTempEnv := i.PushEnvironment(i.env)
-	for constName, constValue := range classInfo.ConstantValues {
-		fieldTempEnv.Define(constName, constValue)
+	obj, errVal := i.createInstanceWithFieldInit(classInfo)
+	if errVal != nil {
+		return errVal
 	}
 
-	for fieldName, fieldType := range classInfo.Fields {
-		var fieldValue Value
-		if fieldDecl, hasDecl := classInfo.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
-			fieldValue = i.Eval(fieldDecl.InitValue)
-			if isError(fieldValue) {
-				i.RestoreEnvironment(fieldInitEnv)
-				return fieldValue
-			}
-		} else {
-			fieldValue = getZeroValueForType(fieldType, nil)
-		}
-		obj.SetField(fieldName, fieldValue)
-	}
-	i.RestoreEnvironment(fieldInitEnv)
-
-	// Evaluate method arguments
-	args := make([]Value, len(mc.Arguments))
-	for idx, arg := range mc.Arguments {
-		val := i.Eval(arg)
-		if isError(val) {
-			return val
-		}
-		args[idx] = val
+	args, errVal := i.evalMethodArguments(mc.Arguments)
+	if errVal != nil {
+		return errVal
 	}
 
 	if len(args) != len(instanceMethod.Parameters) {
@@ -1079,13 +1093,68 @@ func (i *Interpreter) executeInstanceMethodOnClassName(
 			mc.Method.Value, len(instanceMethod.Parameters), len(args))
 	}
 
-	// Create method environment
+	return i.executeMethodOnInstance(classInfo, instanceMethod, obj, args)
+}
+
+// createInstanceWithFieldInit creates a new instance and initializes its fields with declarations.
+func (i *Interpreter) createInstanceWithFieldInit(classInfo *ClassInfo) (*ObjectInstance, Value) {
+	obj := NewObjectInstance(classInfo)
+
+	fieldInitEnv := i.env
+	fieldTempEnv := i.PushEnvironment(i.env)
+	for constName, constValue := range classInfo.ConstantValues {
+		fieldTempEnv.Define(constName, constValue)
+	}
+
+	for fieldName, fieldType := range classInfo.Fields {
+		fieldValue, errVal := i.evaluateFieldInitValue(classInfo, fieldName, fieldType)
+		if errVal != nil {
+			i.RestoreEnvironment(fieldInitEnv)
+			return nil, errVal
+		}
+		obj.SetField(fieldName, fieldValue)
+	}
+	i.RestoreEnvironment(fieldInitEnv)
+
+	return obj, nil
+}
+
+// evaluateFieldInitValue evaluates the initial value for a field, using its declaration if present.
+func (i *Interpreter) evaluateFieldInitValue(classInfo *ClassInfo, fieldName string, fieldType types.Type) (Value, Value) {
+	if fieldDecl, hasDecl := classInfo.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
+		fieldValue := i.Eval(fieldDecl.InitValue)
+		if isError(fieldValue) {
+			return nil, fieldValue
+		}
+		return fieldValue, nil
+	}
+	return getZeroValueForType(fieldType, nil), nil
+}
+
+// executeMethodOnInstance executes a method on an existing instance with the given arguments.
+func (i *Interpreter) executeMethodOnInstance(classInfo *ClassInfo, method *ast.FunctionDecl, obj *ObjectInstance, args []Value) Value {
 	savedEnv := i.env
 	methodEnv := i.PushEnvironment(i.env)
 	methodEnv.Define("Self", obj)
 	i.bindClassConstantsToEnv(classInfo)
 
-	for idx, param := range instanceMethod.Parameters {
+	i.bindMethodParametersWithConversion(methodEnv, method, args)
+	i.initializeMethodResultVariable(methodEnv, method)
+
+	result := i.Eval(method.Body)
+	if isError(result) {
+		i.RestoreEnvironment(savedEnv)
+		return result
+	}
+
+	returnValue := i.extractInstanceMethodReturnValue(obj, method)
+	i.RestoreEnvironment(savedEnv)
+	return returnValue
+}
+
+// bindMethodParametersWithConversion binds method parameters with type conversion.
+func (i *Interpreter) bindMethodParametersWithConversion(env *Environment, method *ast.FunctionDecl, args []Value) {
+	for idx, param := range method.Parameters {
 		arg := args[idx]
 		if param.Type != nil {
 			paramTypeName := param.Type.String()
@@ -1093,30 +1162,25 @@ func (i *Interpreter) executeInstanceMethodOnClassName(
 				arg = converted
 			}
 		}
-		methodEnv.Define(param.Name.Value, arg)
+		env.Define(param.Name.Value, arg)
+	}
+}
+
+// initializeMethodResultVariable initializes the Result variable for methods with return types.
+func (i *Interpreter) initializeMethodResultVariable(env *Environment, method *ast.FunctionDecl) {
+	if method.ReturnType == nil && !method.IsConstructor {
+		return
 	}
 
-	if instanceMethod.ReturnType != nil || instanceMethod.IsConstructor {
-		var defaultVal Value
-		if instanceMethod.IsConstructor {
-			defaultVal = &NilValue{}
-		} else {
-			returnType := i.resolveTypeFromAnnotation(instanceMethod.ReturnType)
-			defaultVal = i.getDefaultValue(returnType)
-		}
-		methodEnv.Define("Result", defaultVal)
-		methodEnv.Define(instanceMethod.Name.Value, &ReferenceValue{Env: methodEnv, VarName: "Result"})
+	var defaultVal Value
+	if method.IsConstructor {
+		defaultVal = &NilValue{}
+	} else {
+		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
+		defaultVal = i.getDefaultValue(returnType)
 	}
-
-	result := i.Eval(instanceMethod.Body)
-	if isError(result) {
-		i.RestoreEnvironment(savedEnv)
-		return result
-	}
-
-	returnValue := i.extractInstanceMethodReturnValue(obj, instanceMethod)
-	i.RestoreEnvironment(savedEnv)
-	return returnValue
+	env.Define("Result", defaultVal)
+	env.Define(method.Name.Value, &ReferenceValue{Env: env, VarName: "Result"})
 }
 
 // extractInstanceMethodReturnValue extracts the return value from an instance method.
@@ -1125,43 +1189,36 @@ func (i *Interpreter) extractInstanceMethodReturnValue(obj *ObjectInstance, meth
 		return &NilValue{}
 	}
 
-	if method.IsConstructor && method.ReturnType == nil {
+	if method.IsConstructor {
+		return i.extractConstructorReturnValue(obj, method)
+	}
+
+	return i.extractNonConstructorReturnValue(method)
+}
+
+// extractConstructorReturnValue extracts the return value from a constructor.
+func (i *Interpreter) extractConstructorReturnValue(obj *ObjectInstance, method *ast.FunctionDecl) Value {
+	if method.ReturnType == nil {
 		return obj
 	}
 
-	if method.IsConstructor && method.ReturnType != nil {
-		resultVal, resultOk := i.env.Get("Result")
-		if resultOk && resultVal.Type() != "NIL" {
-			return resultVal
-		}
-		return obj
+	resultVal, resultOk := i.env.Get("Result")
+	if resultOk && resultVal.Type() != "NIL" {
+		return resultVal
 	}
+	return obj
+}
 
-	// Non-constructor with return type
+// extractNonConstructorReturnValue extracts the return value from a non-constructor method.
+func (i *Interpreter) extractNonConstructorReturnValue(method *ast.FunctionDecl) Value {
 	resultVal, resultOk := i.env.Get("Result")
 	methodNameVal, methodNameOk := i.env.Get(method.Name.Value)
 
-	var returnValue Value
-	switch {
-	case resultOk && resultVal.Type() != "NIL":
-		returnValue = resultVal
-	case methodNameOk && methodNameVal.Type() != "NIL":
-		returnValue = methodNameVal
-	case resultOk:
-		returnValue = resultVal
-	case methodNameOk:
-		returnValue = methodNameVal
-	default:
-		returnValue = &NilValue{}
-	}
+	returnValue := i.selectReturnValue(resultVal, resultOk, methodNameVal, methodNameOk)
 
-	if method.ReturnType != nil && returnValue.Type() != "NIL" {
-		expectedReturnType := method.ReturnType.String()
-		if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
-			returnValue = converted
-		}
+	if method.ReturnType != nil {
+		return i.convertReturnValueIfNeeded(returnValue, method.ReturnType.String())
 	}
-
 	return returnValue
 }
 
