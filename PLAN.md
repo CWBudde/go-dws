@@ -441,84 +441,170 @@ From `interpreter.go:41-75`:
 
 **Status**: 📋 Planned | **Priority**: P1 | **Effort**: 3-4 days
 
-**Current Problem**:
-- `InterpreterAdapter` interface has 65 methods
-- Mixes OOP, declarations, exceptions, and misc operations
-- Impossible to mock for testing
+### Current Adapter Methods (65 total)
 
-**Target Interfaces**:
+From `evaluator/evaluator.go:205-325`:
+
+| Category | Count | Methods |
+|----------|-------|---------|
+| Core Execution | 3 | EvalNode, CallFunctionPointer, CallUserFunction |
+| Method Calls | 3 | CallMethod, CallInheritedMethod, ExecuteMethodWithSelf |
+| Object Operations | 6 | ExecuteConstructor, CreateTypeCastWrapper, RaiseTypeCastException, RaiseAssertionFailed, CreateContractException, CleanupInterfaceReferences |
+| Method Pointers | 2 | ExecuteFunctionPointerCall, CreateBoundMethodPointer |
+| Exception Handling | 2 | CreateExceptionDirect, WrapObjectInException |
+| Variable Declaration | 2 | WrapInSubrange, WrapInInterface |
+| Dispatch Methods | 6 | CallQualifiedOrConstructor, CallUserFunctionWithOverloads, CallImplicitSelfMethod, CallRecordStaticMethod, DispatchRecordStaticMethod, ExecuteRecordPropertyRead |
+| Class Declaration | 21 | NewClassInfoAdapter, CastToClassInfo, IsClassPartial, SetClassPartial, SetClassAbstract, SetClassExternal, ClassHasNoParent, DefineCurrentClassMarker, SetClassParent, AddInterfaceToClass, AddClassMethod, SynthesizeDefaultConstructor, AddClassProperty, RegisterClassOperator, LookupClassMethod, SetClassConstructor, SetClassDestructor, InheritDestructorIfMissing, InheritParentProperties, BuildVirtualMethodTable, RegisterClassInTypeSystem |
+| Interface Declaration | 7 | NewInterfaceInfoAdapter, CastToInterfaceInfo, SetInterfaceParent, GetInterfaceName, GetInterfaceParent, AddInterfaceMethod, AddInterfaceProperty |
+| Helper Declaration | 9 | CreateHelperInfo, SetHelperParent, VerifyHelperTargetTypeMatch, GetHelperName, AddHelperMethod, AddHelperProperty, AddHelperClassVar, AddHelperClassConst, RegisterHelperLegacy |
+| Declaration Misc | 1 | EvalMethodImplementation |
+| Helper Properties | 1 | EvalBuiltinHelperProperty |
+| Operator Overloading | 2 | TryBinaryOperator, TryUnaryOperator |
+
+### Target Architecture
+
 ```go
-// OOPEngine: Method dispatch, Self context, inheritance (~20 methods)
+// OOPEngine: Runtime OOP operations (~18 methods)
 type OOPEngine interface {
-    CallMethod(obj Value, name string, args []Value) Value
-    CallInheritedMethod(obj Value, name string, args []Value) Value
-    ExecuteConstructor(obj Value, name string, args []Value) error
+    // Method dispatch
+    CallMethod(obj Value, methodName string, args []Value, node ast.Node) Value
+    CallInheritedMethod(obj Value, methodName string, args []Value) Value
+    ExecuteMethodWithSelf(self Value, methodDecl any, args []Value) Value
+
+    // Constructors
+    ExecuteConstructor(obj Value, constructorName string, args []Value) error
+
+    // Function calls
+    CallFunctionPointer(funcPtr Value, args []Value, node ast.Node) Value
+    CallUserFunction(fn *ast.FunctionDecl, args []Value) Value
+    ExecuteFunctionPointerCall(metadata FunctionPointerMetadata, args []Value, node ast.Node) Value
+    CreateBoundMethodPointer(obj Value, methodDecl any) Value
+
+    // Dispatch helpers
+    CallQualifiedOrConstructor(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression) Value
+    CallUserFunctionWithOverloads(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
+    CallImplicitSelfMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
+    CallRecordStaticMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
+    DispatchRecordStaticMethod(recordTypeName string, callExpr *ast.CallExpression, funcName *ast.Identifier) Value
+    ExecuteRecordPropertyRead(record Value, propInfo any, indices []Value, node any) Value
+
+    // Type operations
     CreateTypeCastWrapper(className string, obj Value) Value
-    // ... method pointers, operator overloads
+    WrapInSubrange(value Value, subrangeTypeName string, node ast.Node) (Value, error)
+    WrapInInterface(value Value, interfaceName string, node ast.Node) (Value, error)
+
+    // Operators
+    TryBinaryOperator(operator string, left, right Value, node ast.Node) (Value, bool)
+    TryUnaryOperator(operator string, operand Value, node ast.Node) (Value, bool)
 }
 
-// DeclHandler: Class/interface/helper declarations (~25 methods)
+// DeclHandler: Declaration processing (~37 methods)
 type DeclHandler interface {
-    NewClassInfo(name string) *ClassInfo
-    SetClassParent(class, parent *ClassInfo)
-    AddClassMethod(class *ClassInfo, method *ast.FunctionDecl) bool
-    RegisterClass(class *ClassInfo)
-    // ... interface, helper, operator declarations
+    // Class declaration (21 methods)
+    NewClassInfoAdapter(name string) interface{}
+    // ... all class methods ...
+
+    // Interface declaration (7 methods)
+    NewInterfaceInfoAdapter(name string) interface{}
+    // ... all interface methods ...
+
+    // Helper declaration (9 methods)
+    CreateHelperInfo(name string, targetType any, isRecordHelper bool) interface{}
+    // ... all helper methods ...
 }
 
-// ExceptionManager: Exception creation and propagation (~5 methods)
+// ExceptionManager: Exception handling (~6 methods)
 type ExceptionManager interface {
-    CreateException(class any, message string, pos any) *ExceptionValue
-    WrapObjectInException(obj Value, pos any) *ExceptionValue
+    CreateExceptionDirect(classMetadata any, message string, pos any, callStack any) any
+    WrapObjectInException(objInstance Value, pos any, callStack any) any
+    CreateContractException(className, message string, node ast.Node, classMetadata interface{}, callStack interface{}) interface{}
     RaiseTypeCastException(message string, node ast.Node)
-    RaiseAssertionFailed(message string)
+    RaiseAssertionFailed(customMessage string)
+    CleanupInterfaceReferences(env interface{})
+}
+
+// CoreEvaluator: Fallback to interpreter (~3 methods) - may be eliminated
+type CoreEvaluator interface {
+    EvalNode(node ast.Node) Value
+    EvalMethodImplementation(fn *ast.FunctionDecl) Value
+    EvalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node) Value
 }
 ```
 
-**Tasks**:
+### Tasks
 
-- [ ] **3.4.1** Categorize all 65 adapter methods (2h)
-  - Create spreadsheet: method name, category (OOP/Decl/Exception/Other)
-  - Identify methods that can be deleted (now unused)
-  - Identify methods that can be inlined (≤2 callers)
+- [ ] **3.4.1** Audit adapter method usage (3h)
+  - For each of 65 methods: `grep -rn "adapter\.<method>" internal/interp/evaluator/`
+  - Count callers for each method
+  - Identify candidates for:
+    - **Delete**: 0 callers (dead code)
+    - **Inline**: 1-2 callers (move logic to caller)
+    - **Keep**: 3+ callers (keep in interface)
+  - **Deliverable**: `docs/adapter-method-audit.md`
 
-- [ ] **3.4.2** Define OOPEngine interface (2h)
-  - Extract method dispatch methods
-  - Extract Self/Inherited context methods
-  - Extract operator overload methods
+- [ ] **3.4.2** Identify methods to delete or inline (2h)
+  - From audit, list methods with 0-2 callers
+  - For 0-caller methods: delete immediately
+  - For 1-2 caller methods: inline into callers
+  - Expected: ~10-15 methods eliminated
+  - Run `just test` after each deletion
+
+- [ ] **3.4.3** Create OOPEngine interface (2h)
   - Create `internal/interp/evaluator/oop_engine.go`
+  - Define interface with ~18 methods (method dispatch, constructors, operators)
+  - Add `oopEngine OOPEngine` field to Evaluator
+  - Update Evaluator.SetAdapter() to also set oopEngine
 
-- [ ] **3.4.3** Define DeclHandler interface (2h)
-  - Extract class declaration methods
-  - Extract interface declaration methods
-  - Extract helper declaration methods
+- [ ] **3.4.4** Create DeclHandler interface (2h)
   - Create `internal/interp/evaluator/decl_handler.go`
+  - Define interface with ~37 methods (class, interface, helper declarations)
+  - Add `declHandler DeclHandler` field to Evaluator
+  - Update Evaluator.SetAdapter() to also set declHandler
 
-- [ ] **3.4.4** Define ExceptionManager interface (1h)
-  - Extract exception creation methods
-  - Extract exception propagation methods
+- [ ] **3.4.5** Create ExceptionManager interface (1h)
   - Create `internal/interp/evaluator/exception_manager.go`
+  - Define interface with ~6 methods (exception creation, propagation)
+  - Add `exceptionMgr ExceptionManager` field to Evaluator
+  - Update Evaluator.SetAdapter() to also set exceptionMgr
 
-- [ ] **3.4.5** Implement interfaces in Interpreter (4h)
-  - `func (i *Interpreter) AsOOPEngine() OOPEngine`
-  - `func (i *Interpreter) AsDeclHandler() DeclHandler`
-  - `func (i *Interpreter) AsExceptionManager() ExceptionManager`
-  - Update Evaluator to use focused interfaces
+- [ ] **3.4.6** Migrate adapter calls to focused interfaces (4h)
+  - In evaluator files, replace `e.adapter.CallMethod()` → `e.oopEngine.CallMethod()`
+  - Replace `e.adapter.NewClassInfoAdapter()` → `e.declHandler.NewClassInfoAdapter()`
+  - Replace `e.adapter.CreateExceptionDirect()` → `e.exceptionMgr.CreateExceptionDirect()`
+  - Files to update (by adapter call count):
+    - `visitor_declarations.go`: 43 calls
+    - `visitor_expressions_functions.go`: 11 calls
+    - `visitor_statements.go`: 6 calls
+    - `member_assignment.go`: 6 calls
+    - `helper_methods.go`: 6 calls
 
-- [ ] **3.4.6** Delete InterpreterAdapter (2h)
-  - Remove old adapter interface
-  - Remove `SetAdapter()` method
-  - Update all `adapter.XXX` calls to use focused interfaces
+- [ ] **3.4.7** Implement interfaces in Interpreter (3h)
+  - Interpreter already implements all methods
+  - Add interface satisfaction assertions:
+    ```go
+    var _ evaluator.OOPEngine = (*Interpreter)(nil)
+    var _ evaluator.DeclHandler = (*Interpreter)(nil)
+    var _ evaluator.ExceptionManager = (*Interpreter)(nil)
+    ```
+  - Update SetAdapter to set all three interfaces
 
-- [ ] **3.4.7** Verify and test (2h)
-  - Run `just test`
-  - Verify no `InterpreterAdapter` references remain
-  - Commit: "refactor: replace 65-method adapter with 3 focused interfaces"
+- [ ] **3.4.8** Delete InterpreterAdapter interface (1h)
+  - Remove `InterpreterAdapter` interface definition
+  - Remove `adapter InterpreterAdapter` field from Evaluator
+  - Remove `SetAdapter(adapter InterpreterAdapter)` method
+  - Verify: `grep -r "InterpreterAdapter" internal/` → 0 hits
+
+- [ ] **3.4.9** Verify and test (2h)
+  - Run `just test` - all tests pass
+  - Count methods per interface (OOP: ~18, Decl: ~37, Exception: ~6)
+  - Verify focused interfaces are independently mockable
+  - Commit: "refactor: replace 65-method adapter with focused interfaces"
 
 **Success Criteria**:
 - ✅ No monolithic InterpreterAdapter
-- ✅ Three focused interfaces (~50 methods total, better organized)
-- ✅ Each interface is mockable for testing
+- ✅ Four focused interfaces (~61 methods total, well-organized)
+- ✅ Each interface has single responsibility
+- ✅ ~4-10 methods eliminated (dead/inlined)
 - ✅ All tests pass
 
 ---
@@ -529,46 +615,136 @@ type ExceptionManager interface {
 
 **Status**: 📋 Planned | **Priority**: P2 | **Effort**: 1 week
 
-**Tasks**:
+### Verification Checklist
 
-- [ ] **3.5.1** Measure final metrics (2h)
-  - Interpreter fields: 34 → ? (target: 5)
-  - Eval() switch cases: 59 → ? (target: 0)
-  - Adapter methods: 65 → ? (target: ~50 across 3 interfaces)
-  - Total LOC: measure reduction
-  - EvalNode calls: 28 → ? (target: <20)
+Before marking Phase 3 complete, verify all goals from original plan:
 
-- [ ] **3.5.2** Run performance benchmarks (2h)
-  - Compare with pre-Phase-3 baseline
-  - Document any regressions
-  - Target: no regression, ideally 2-8% improvement
+| Goal | Metric | Target | Verification Command |
+|------|--------|--------|---------------------|
+| Thin Interpreter | Fields | 5 | `grep -c "^\s" interpreter.go` (in struct) |
+| No switch | Cases | 0 | `grep -c "case \*ast\." interpreter.go` |
+| Single env | Variables | 1 | `grep -c "\.env" interpreter.go` |
+| Focused interfaces | Count | 4 | Check evaluator/*.go interface defs |
+| LOC reduction | Delta | -3000 | `git diff --stat main..HEAD` |
 
-- [ ] **3.5.3** Update CLAUDE.md architecture section (2h)
-  - Document new Interpreter/Evaluator/ExecutionContext structure
-  - Document focused interfaces (OOPEngine, DeclHandler, ExceptionManager)
-  - Update package structure description
+### Tasks
 
-- [ ] **3.5.4** Create Phase 3 summary document (3h)
-  - `docs/phase3-summary.md`
-  - Before/after metrics
-  - Lessons learned
-  - Migration patterns for future phases
+- [ ] **3.5.1** Measure all metrics (2h)
+  - Run measurement commands:
+    ```bash
+    # Interpreter fields
+    awk '/^type Interpreter struct/,/^}/' internal/interp/interpreter.go | wc -l
 
-- [ ] **3.5.5** Final code quality check (2h)
-  - Run `golangci-lint run`
-  - Fix any issues
-  - Run `just test` one final time
+    # Switch cases
+    grep -c "case \*ast\." internal/interp/interpreter.go
 
-- [ ] **3.5.6** Mark Phase 3 complete (30min)
-  - Update this section status to ✅ Complete
-  - Add completion date
-  - Commit: "docs: Phase 3 complete"
+    # Environment references
+    grep -c "i\.env\|ctx\.env" internal/interp/*.go
+
+    # Adapter methods per interface
+    grep -c "func.*OOPEngine\|func.*DeclHandler\|func.*ExceptionManager" internal/interp/evaluator/*.go
+
+    # Total LOC change
+    git diff --stat $(git merge-base main HEAD)..HEAD -- internal/interp/ | tail -1
+
+    # EvalNode calls
+    grep -c "adapter\.EvalNode\|\.EvalNode(" internal/interp/evaluator/*.go
+    ```
+  - Fill in "Actual" column in metrics table
+  - **Deliverable**: Updated metrics in this document
+
+- [ ] **3.5.2** Run performance benchmarks (3h)
+  - Run existing benchmarks:
+    ```bash
+    go test -bench=. -benchmem ./internal/interp/... > benchmarks-after.txt
+    ```
+  - Compare with baseline (if exists):
+    ```bash
+    benchstat benchmarks-before.txt benchmarks-after.txt
+    ```
+  - Key benchmarks to check:
+    - `BenchmarkEval*` - should not regress
+    - `BenchmarkBinaryOp*` - target: 70ns/op or better
+    - `BenchmarkFunctionCall*` - check allocation count
+  - If no baseline exists, create one from main branch
+  - **Deliverable**: `docs/phase3-benchmarks.md`
+
+- [ ] **3.5.3** Run full test suite (1h)
+  - Unit tests: `just test`
+  - Fixture tests: `go test -v ./internal/interp -run TestDWScriptFixtures`
+  - Count passing/failing fixtures
+  - Document any new failures (should be 0)
+  - Document any fixed failures (bonus!)
+
+- [ ] **3.5.4** Code quality check (2h)
+  - Run linter: `just lint`
+  - Fix any new issues introduced in Phase 3
+  - Check for TODO/FIXME comments: `grep -rn "TODO\|FIXME" internal/interp/`
+  - Review and resolve or document remaining TODOs
+  - Run `go vet ./...`
+
+- [ ] **3.5.5** Update CLAUDE.md (2h)
+  - Update "Architecture Overview" section:
+    - Interpreter: thin coordinator (5 fields)
+    - Evaluator: execution engine with visitor pattern
+    - ExecutionContext: owns environment, call stack
+    - TypeSystem: owns all type registries
+  - Update "Key Design Patterns" section:
+    - Document focused interfaces (OOPEngine, DeclHandler, ExceptionManager)
+    - Document environment scope management
+  - Update "Package Structure" section:
+    - `internal/interp/runtime/` - now contains Environment
+    - `internal/interp/evaluator/` - focused interface files
+
+- [ ] **3.5.6** Create Phase 3 summary document (3h)
+  - Create `docs/phase3-summary.md` with:
+    - **Overview**: Goals achieved, duration, effort
+    - **Metrics**: Before/after table with actual values
+    - **Architecture changes**: Diagrams showing old vs new
+    - **Key decisions**: Why Option C for environment, why 4 interfaces
+    - **Lessons learned**: What worked, what didn't
+    - **Migration patterns**: Reusable patterns for future phases
+  - Include links to audit documents:
+    - `docs/environment-audit.md`
+    - `docs/switch-case-audit.md` (if created)
+    - `docs/adapter-method-audit.md` (if created)
+    - `docs/field-audit.md` (if created)
+
+- [ ] **3.5.7** Clean up temporary files (30min)
+  - Delete any `.bak` files
+  - Delete any temporary test files
+  - Ensure `.gitignore` is up to date
+  - Verify no debug code left in production files
+
+- [ ] **3.5.8** Final commit and mark complete (30min)
+  - Update Phase 3 status in PLAN.md:
+    - Change `🔄 In Progress` to `✅ Complete`
+    - Add completion date
+    - Fill in all "Actual" metric values
+  - Commit all changes:
+    ```bash
+    git add -A
+    git commit -m "docs: Phase 3 complete - Interpreter architecture refactored
+
+    Metrics achieved:
+    - Interpreter fields: 34 → 5
+    - Eval() switch cases: 59 → 0
+    - Dual environments: 2 → 1
+    - Adapter: 65 methods → 4 focused interfaces
+
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+    Co-Authored-By: Claude <noreply@anthropic.com>"
+    ```
 
 **Success Criteria**:
-- ✅ All original goals achieved (see metrics below)
-- ✅ Documentation updated
-- ✅ No performance regression
-- ✅ All tests pass
+
+- ✅ All metrics meet targets (see table below)
+- ✅ No performance regression (within 5%)
+- ✅ All unit tests pass
+- ✅ No new fixture test failures
+- ✅ Documentation updated (CLAUDE.md, phase3-summary.md)
+- ✅ Code quality check passes (lint, vet)
 
 ---
 
@@ -578,13 +754,23 @@ type ExceptionManager interface {
 |--------|--------|--------|--------|
 | Interpreter fields | 34 | 5 | ? |
 | Eval() switch cases | 59 | 0 | ? |
-| Adapter methods | 65 | ~50 (3 interfaces) | ? |
+| Adapter methods | 65 | ~61 (4 interfaces) | ? |
 | Dual environments | 2 | 1 | ? |
 | EvalNode calls | 28 | <20 | ? |
-| Total LOC reduction | - | -3,000+ | ? |
+| LOC deleted | 0 | 3,000+ | ? |
+| env_adapter.go | 137 LOC | 0 | ? |
 | Test pass rate | 100% unit | 100% unit | ? |
+| Performance | baseline | no regression | ? |
 
-**Estimated Remaining Effort**: 4-6 weeks
+**Estimated Total Effort**: 4-6 weeks
+
+| Task | Effort | Dependencies |
+|------|--------|--------------|
+| 3.1 Merge Dual Environments | 5-7 days | None |
+| 3.2 Delete Eval() Switch | 3-4 days | 3.1 |
+| 3.3 Migrate Fields | 2-3 days | 3.1, 3.2 |
+| 3.4 Break Up Adapter | 3-4 days | 3.1, 3.2 |
+| 3.5 Final Cleanup | 1 week | 3.1-3.4 |
 
 ---
 
