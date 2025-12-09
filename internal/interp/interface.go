@@ -343,8 +343,8 @@ func (i *Interpreter) runDestructor(obj *ObjectInstance, destructor *ast.Functio
 	}()
 
 	// Create a temporary environment for the destructor call
-	prevEnv := i.env
-	i.PushEnvironment(i.env)
+	// Phase 3.1.4: unified scope management
+	defer i.PushScope()()
 
 	// Bind Self and class constants
 	i.env.Define("Self", obj)
@@ -362,9 +362,6 @@ func (i *Interpreter) runDestructor(obj *ObjectInstance, destructor *ast.Functio
 	if destructor.Body != nil {
 		result = i.Eval(destructor.Body)
 	}
-
-	// Restore previous environment
-	i.RestoreEnvironment(prevEnv)
 
 	return result
 }

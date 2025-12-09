@@ -42,15 +42,14 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 	obj := NewObjectInstance(classInfo)
 
 	// Initialize fields with default values
-	savedEnv := i.env
-	_ = i.PushEnvironment(i.env)
+	// Phase 3.1.4: unified scope management
+	defer i.PushScope()()
 
 	for fieldName, fieldType := range classInfo.Fields {
 		var fieldValue Value
 		if fieldDecl, hasDecl := classInfo.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
 			fieldValue = i.Eval(fieldDecl.InitValue)
 			if isError(fieldValue) {
-				i.RestoreEnvironment(savedEnv)
 				return nil, fmt.Errorf("failed to initialize field '%s': %v", fieldName, fieldValue)
 			}
 		} else {
@@ -59,17 +58,14 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 		obj.SetField(fieldName, fieldValue)
 	}
 
-	i.RestoreEnvironment(savedEnv)
-
 	// Call constructor if it exists
 	constructorNameLower := ident.Normalize("Create")
 	if constructor, exists := classInfo.Constructors[constructorNameLower]; exists {
-		ctorEnv := i.PushEnvironment(i.env)
-		ctorEnv.Define("Self", obj)
+		// Phase 3.1.4: unified scope management
+		defer i.PushScope()()
+		i.env.Define("Self", obj)
 
 		result := i.executeUserFunctionViaEvaluator(constructor, internalArgs)
-
-		i.RestoreEnvironment(savedEnv)
 
 		// Propagate constructor errors
 		if isError(result) {
@@ -113,13 +109,11 @@ func (i *Interpreter) ExecuteConstructor(obj evaluator.Value, constructorName st
 	}
 
 	// Execute constructor in a new environment with Self bound
-	savedEnv := i.env
-	ctorEnv := i.PushEnvironment(i.env)
-	ctorEnv.Define("Self", objectInstance)
+	// Phase 3.1.4: unified scope management
+	defer i.PushScope()()
+	i.env.Define("Self", objectInstance)
 
 	result := i.executeUserFunctionViaEvaluator(constructor, internalArgs)
-
-	i.RestoreEnvironment(savedEnv)
 
 	// Propagate constructor errors
 	if isError(result) {

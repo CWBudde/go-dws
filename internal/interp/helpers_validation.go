@@ -236,9 +236,8 @@ func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionD
 			method.Name.Value, len(method.Parameters), len(args))
 	}
 
-	// Create method environment
-	savedEnv := i.env
-	i.PushEnvironment(i.env)
+	// Create method environment - Phase 3.1.4: unified scope management
+	defer i.PushScope()()
 
 	// Bind Self to the target value (the value being extended)
 	i.env.Define("Self", selfValue)
@@ -274,7 +273,6 @@ func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionD
 	// Execute method body
 	result := i.Eval(method.Body)
 	if isError(result) {
-		i.RestoreEnvironment(savedEnv)
 		return result
 	}
 
@@ -298,9 +296,6 @@ func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionD
 	} else {
 		returnValue = &NilValue{}
 	}
-
-	// Restore environment
-	i.RestoreEnvironment(savedEnv)
 
 	return returnValue
 }

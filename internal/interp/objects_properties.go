@@ -109,8 +109,8 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		}
 
 		// Call the getter method
-		savedEnv := i.env
-		i.PushEnvironment(i.env)
+		// Phase 3.1.4: unified scope management
+		defer i.PushScope()()
 
 		// Bind Self to the object
 		i.env.Define("Self", obj)
@@ -168,9 +168,6 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 			returnValue = &NilValue{}
 		}
 
-		// Restore environment
-		i.RestoreEnvironment(savedEnv)
-
 		return returnValue
 
 	case types.PropAccessMethod:
@@ -197,8 +194,8 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 
 		// Call the getter method with no arguments
 		// Create method environment with Self bound to object
-		savedEnv := i.env
-		i.PushEnvironment(i.env)
+		// Phase 3.1.4: unified scope management
+		defer i.PushScope()()
 
 		// Bind Self to the object
 		i.env.Define("Self", obj)
@@ -256,9 +253,6 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 			returnValue = &NilValue{}
 		}
 
-		// Restore environment
-		i.RestoreEnvironment(savedEnv)
-
 		return returnValue
 
 	case types.PropAccessExpression:
@@ -280,8 +274,8 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		}
 
 		// Create new environment with Self bound to object
-		savedEnv := i.env
-		i.PushEnvironment(i.env)
+		// Phase 3.1.4: unified scope management
+		defer i.PushScope()()
 
 		// Bind Self to the object instance
 		i.env.Define("Self", obj)
@@ -294,9 +288,6 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 
 		// Evaluate the expression AST node
 		result := i.Eval(exprNode)
-
-		// Restore environment
-		i.RestoreEnvironment(savedEnv)
 
 		return result
 
@@ -328,8 +319,8 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 		}
 
 		// Call the class method getter
-		savedEnv := i.env
-		i.PushEnvironment(i.env)
+		// Phase 3.1.4: unified scope management
+		defer i.PushScope()()
 
 		// Bind all class variables to environment so they can be accessed directly
 		for classVarName, classVarValue := range classInfo.ClassVars {
@@ -373,9 +364,6 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 		} else {
 			returnValue = &NilValue{}
 		}
-
-		// Restore environment
-		i.RestoreEnvironment(savedEnv)
 
 		return returnValue
 
@@ -387,8 +375,8 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 		}
 
 		// Create method environment (no Self binding for class methods)
-		savedEnv := i.env
-		i.PushEnvironment(i.env)
+		// Phase 3.1.4: unified scope management
+		defer i.PushScope()()
 
 		// Bind all class variables to environment so they can be accessed directly
 		for classVarName, classVarValue := range classInfo.ClassVars {
@@ -432,9 +420,6 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 		} else {
 			returnValue = &NilValue{}
 		}
-
-		// Restore environment
-		i.RestoreEnvironment(savedEnv)
 
 		return returnValue
 
@@ -472,8 +457,8 @@ func (i *Interpreter) evalClassPropertyWrite(classInfo *ClassInfo, propInfo *typ
 		}
 
 		// Call the class method setter
-		savedEnv := i.env
-		i.PushEnvironment(i.env)
+		// Phase 3.1.4: unified scope management
+		defer i.PushScope()()
 
 		// Bind all class variables to environment so they can be accessed directly
 		for classVarName, classVarValue := range classInfo.ClassVars {
@@ -494,9 +479,6 @@ func (i *Interpreter) evalClassPropertyWrite(classInfo *ClassInfo, propInfo *typ
 				classInfo.ClassVars[classVarName] = val
 			}
 		}
-
-		// Restore environment
-		i.RestoreEnvironment(savedEnv)
 
 		return value
 
@@ -508,8 +490,8 @@ func (i *Interpreter) evalClassPropertyWrite(classInfo *ClassInfo, propInfo *typ
 		}
 
 		// Create method environment (no Self binding for class methods)
-		savedEnv := i.env
-		i.PushEnvironment(i.env)
+		// Phase 3.1.4: unified scope management
+		defer i.PushScope()()
 
 		// Bind all class variables to environment so they can be accessed directly
 		for classVarName, classVarValue := range classInfo.ClassVars {
@@ -530,9 +512,6 @@ func (i *Interpreter) evalClassPropertyWrite(classInfo *ClassInfo, propInfo *typ
 				classInfo.ClassVars[classVarName] = val
 			}
 		}
-
-		// Restore environment
-		i.RestoreEnvironment(savedEnv)
 
 		return value
 
@@ -568,9 +547,8 @@ func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *typ
 				propInfo.Name, propInfo.ReadSpec, len(method.Parameters), len(indices))
 		}
 
-		// Create method environment
-		savedEnv := i.env
-		i.PushEnvironment(i.env)
+		// Create method environment - Phase 3.1.4: unified scope management
+		defer i.PushScope()()
 
 		// Bind Self to the object
 		i.env.Define("Self", obj)
@@ -621,9 +599,6 @@ func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *typ
 			returnValue = &NilValue{}
 		}
 
-		// Restore environment
-		i.RestoreEnvironment(savedEnv)
-
 		return returnValue
 
 	case types.PropAccessExpression:
@@ -662,9 +637,8 @@ func (i *Interpreter) evalIndexedPropertyWrite(obj *ObjectInstance, propInfo *ty
 				propInfo.Name, propInfo.WriteSpec, expectedParamCount, len(method.Parameters))
 		}
 
-		// Create method environment
-		savedEnv := i.env
-		i.PushEnvironment(i.env)
+		// Create method environment - Phase 3.1.4: unified scope management
+		defer i.PushScope()()
 
 		// Bind Self to the object
 		i.env.Define("Self", obj)
@@ -684,9 +658,6 @@ func (i *Interpreter) evalIndexedPropertyWrite(obj *ObjectInstance, propInfo *ty
 
 		// Execute method body
 		i.Eval(method.Body)
-
-		// Restore environment
-		i.RestoreEnvironment(savedEnv)
 
 		// DWScript assignment is an expression that returns the assigned value
 		return value
@@ -759,9 +730,8 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 				propInfo.Name, propInfo.WriteSpec, len(method.Parameters), len(indexArgs))
 		}
 
-		// Call the setter method with the value as argument
-		savedEnv := i.env
-		i.PushEnvironment(i.env)
+		// Call the setter method with the value as argument - Phase 3.1.4: unified scope management
+		defer i.PushScope()()
 
 		// Bind Self to the object
 		i.env.Define("Self", obj)
@@ -787,9 +757,6 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 		// Execute method body
 		i.Eval(method.Body)
 
-		// Restore environment
-		i.RestoreEnvironment(savedEnv)
-
 		return value
 
 	case types.PropAccessMethod:
@@ -810,9 +777,8 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 		}
 
 		// Call the setter method with the value as argument
-		// Create method environment with Self bound to object
-		savedEnv := i.env
-		i.PushEnvironment(i.env)
+		// Create method environment with Self bound to object - Phase 3.1.4: unified scope management
+		defer i.PushScope()()
 
 		// Bind Self to the object
 		i.env.Define("Self", obj)
@@ -836,9 +802,6 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 
 		// Execute method body
 		i.Eval(method.Body)
-
-		// Restore environment
-		i.RestoreEnvironment(savedEnv)
 
 		return value
 

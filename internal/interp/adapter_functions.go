@@ -63,24 +63,23 @@ func (i *Interpreter) ExecuteFunctionPointerCall(metadata evaluator.FunctionPoin
 	// before calling ExecuteUserFunction. The function's enclosed environment
 	// will inherit Self from this wrapper.
 	if metadata.SelfObject != nil {
-		savedEnv := i.env
-		funcEnv := i.PushEnvironment(i.env)
+		// Phase 3.1.4: unified scope management
+		defer i.PushScope()()
 
 		// Bind Self to the captured object
-		funcEnv.Define("Self", metadata.SelfObject)
+		i.env.Define("Self", metadata.SelfObject)
 
 		// Task 3.5.22d: Sync i.ctx.Env() with i.env before calling ExecuteUserFunction.
 		// ExecuteUserFunction creates its function environment from ctx.Env(), so we need
 		// ctx.Env() to see the Self binding we just set up in i.env.
-		// Note: PushEnvironment already synced i.ctx.env, but we save it here for clarity
+		// Note: PushScope already synced i.ctx.env, but we save it here for clarity
 		savedCtxEnv := i.ctx.Env()
 
 		// Call the function via ExecuteUserFunction
 		result, err := i.evaluatorInstance.ExecuteUserFunction(fn, args, i.ctx, callbacks)
 
-		// Restore environments
+		// Restore context environment
 		i.ctx.SetEnv(savedCtxEnv)
-		i.RestoreEnvironment(savedEnv)
 
 		if err != nil {
 			return i.newErrorWithLocation(node, "%s", err.Error())

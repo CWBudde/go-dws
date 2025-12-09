@@ -209,10 +209,9 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	}
 
 	// Provide current class context for nested type resolution
-	savedEnv := i.env
-	tempEnv := i.PushEnvironment(i.env)
-	tempEnv.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
-	defer func() { i.RestoreEnvironment(savedEnv) }()
+	// Phase 3.1.4: unified scope management
+	defer i.PushScope()()
+	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
 
 	// Resolve parent class (explicit or implicit TObject)
 	var parentClass *ClassInfo
@@ -306,14 +305,16 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		classInfo.Constants[constDecl.Name.Value] = constDecl
 
 		// Evaluate with previously defined constants in scope
-		savedEnv := i.env
-		tempEnv := i.PushEnvironment(i.env)
-		for cName, cValue := range classInfo.ConstantValues {
-			tempEnv.Define(cName, cValue)
-		}
+		// Phase 3.1.4: unified scope management
+		var constValue Value
+		func() {
+			defer i.PushScope()()
+			for cName, cValue := range classInfo.ConstantValues {
+				i.env.Define(cName, cValue)
+			}
 
-		constValue := i.Eval(constDecl.Value)
-		i.RestoreEnvironment(savedEnv)
+			constValue = i.Eval(constDecl.Value)
+		}()
 
 		if isError(constValue) {
 			return constValue
@@ -380,14 +381,16 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			}
 		case field.InitValue != nil:
 			// Infer type from init value
-			savedEnv := i.env
-			tempEnv := i.PushEnvironment(i.env)
-			for cName, cValue := range classInfo.ConstantValues {
-				tempEnv.Define(cName, cValue)
-			}
+			// Phase 3.1.4: unified scope management
+			var initVal Value
+			func() {
+				defer i.PushScope()()
+				for cName, cValue := range classInfo.ConstantValues {
+					i.env.Define(cName, cValue)
+				}
 
-			initVal := i.Eval(field.InitValue)
-			i.RestoreEnvironment(savedEnv)
+				initVal = i.Eval(field.InitValue)
+			}()
 
 			if isError(initVal) {
 				return initVal
@@ -411,14 +414,16 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 				if cachedInitValue != nil {
 					classVarValue = cachedInitValue
 				} else {
-					savedEnv := i.env
-					tempEnv := i.PushEnvironment(i.env)
-					for cName, cValue := range classInfo.ConstantValues {
-						tempEnv.Define(cName, cValue)
-					}
+					// Phase 3.1.4: unified scope management
+					var val Value
+					func() {
+						defer i.PushScope()()
+						for cName, cValue := range classInfo.ConstantValues {
+							i.env.Define(cName, cValue)
+						}
 
-					val := i.Eval(field.InitValue)
-					i.RestoreEnvironment(savedEnv)
+						val = i.Eval(field.InitValue)
+					}()
 
 					if isError(val) {
 						return val

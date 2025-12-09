@@ -161,37 +161,47 @@ The following tasks complete the migration by eliminating dual systems.
   - Identified 157 adapter callbacks creating bidirectional flow
   - **Decision**: Option C (move Environment to runtime/) - cleanest approach
 
-- [ ] **3.1.2** Move Environment to `internal/interp/runtime/` (4h)
-  - Copy `environment.go` to `internal/interp/runtime/environment.go`
-  - Update package declaration and imports
-  - Change `Value` references to `runtime.Value` (already compatible)
-  - Add type alias in `internal/interp/`: `type Environment = runtime.Environment`
-  - Update evaluator to import `runtime.Environment` directly
-  - Run `just test` after each step
+- [x] **3.1.2** Move Environment to `internal/interp/runtime/` (4h) ✅ 2025-12-09
+  - Copied `environment.go` to `internal/interp/runtime/environment.go`
+  - Updated package declaration and imports
+  - Added public `Range()` and `Outer()` methods for external access
+  - Added type alias in `internal/interp/`: `type Environment = runtime.Environment`
+  - Updated evaluator to use `*runtime.Environment` directly
+  - All unit tests pass
 
-- [ ] **3.1.3** Delete EnvironmentAdapter (3h)
-  - Update `ExecutionContext.env` type from `Environment` interface to `*runtime.Environment`
-  - Delete `evaluator/env_adapter.go` (137 LOC)
-  - Replace all `NewEnvironmentAdapter(env)` with direct `env` usage
-  - Update `ctx.Env()` return type to `*runtime.Environment`
-  - Files to update:
-    - `interpreter.go`: `SetEnvironment()` no longer wraps
-    - `evaluator/context.go`: Change field type
-    - `evaluator/evaluator.go`: Remove adapter creation
-  - Run `just test`
+- [x] **3.1.3** Delete EnvironmentAdapter (3h) ✅ 2025-12-09
+  - Updated `ExecutionContext.env` type from `Environment` interface to `*runtime.Environment`
+  - Deleted `evaluator/env_adapter.go` (138 LOC)
+  - Replaced all `NewEnvironmentAdapter(env)` with direct `env` usage
+  - Updated `ctx.Env()` return type to `*runtime.Environment`
+  - Updated callback function signatures (`FunctionNameAliasFunc`, etc.)
+  - Fixed `.Set()` return type handling (now returns `error` instead of `bool`)
+  - Fixed `NewEnclosedEnvironment()` calls (package-level function, not method)
+  - Updated test mocks in evaluator tests to use real `runtime.Environment`
+  - Fixed nil value panic in `VisitIdentifier` (added nil check)
+  - All unit tests pass
 
-- [ ] **3.1.4** Unify scope management (8h)
-  - Replace 112 scope entry patterns with `ctx.PushEnv()`:
-    - `savedEnv := i.env` + `i.PushEnvironment()` → `ctx.PushEnv()`
-  - Replace 101 scope exit patterns with `ctx.PopEnv()`:
-    - `i.RestoreEnvironment(savedEnv)` → `ctx.PopEnv()`
-  - Priority order (by pattern count from audit):
-    - `objects_methods.go`: 16 RestoreEnvironment
-    - `adapter_methods.go`: 15 RestoreEnvironment, 9 savedEnv
-    - `statements_loops.go`: 13 RestoreEnvironment
-    - `objects_properties.go`: 11 RestoreEnvironment, 11 savedEnv
-    - `functions_records.go`: 8 RestoreEnvironment
-  - Delete sync methods: `PushEnvironment()`, `RestoreEnvironment()`, `SetEnvironment()`
+- [x] **3.1.4** Unify scope management (8h) ✅ 2025-12-09
+  - Added `PushScope()` helper to Interpreter that wraps `ctx.PushEnv()`/`ctx.PopEnv()`:
+    - Returns cleanup function for `defer i.PushScope()()` pattern
+    - Syncs `i.env` with `ctx.Env()` after push/pop to maintain consistency
+  - Migrated 52 scope entry patterns across 15 files:
+    - `objects_methods.go`: 6 patterns → `defer i.PushScope()()`
+    - `adapter_methods.go`: already migrated
+    - `statements_loops.go`: already migrated
+    - `objects_properties.go`: 4 patterns → `defer i.PushScope()()`
+    - `functions_records.go`: 2 patterns (explicit cleanup for post-scope writes)
+    - `exceptions.go`: 1 pattern (explicit cleanup for precise control)
+    - `helpers_validation.go`, `interface.go`, `statements_control.go`
+    - `operators_eval.go`, `adapter_functions.go`, `adapter_objects.go`
+    - `objects_hierarchy.go`, `objects_instantiation.go`, `declarations.go`
+    - `functions_pointers.go`: 1 pattern + 1 closure special case (kept manual)
+  - Special cases preserved (environment switching, not scope pushing):
+    - `lazy_params.go`: Uses `SetEnvironment()` to switch to captured closure env
+    - `user_function_callbacks.go`: Callbacks switch to provided env
+    - `functions_pointers.go:callLambda`: Switches to closure env (documented)
+  - Methods retained for special cases: `SetEnvironment()`, `PushEnvironment()`, `RestoreEnvironment()`
+  - All unit tests pass
 
 - [ ] **3.1.5** Delete `i.env` field (4h)
   - Add `Env() *runtime.Environment` method to Interpreter

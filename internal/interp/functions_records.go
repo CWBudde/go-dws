@@ -74,9 +74,9 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	// Create method environment with Self bound to the record
 	// IMPORTANT: Records are value types, so we need to work with a copy
 	// For mutating methods, we'll need to copy back changes to the original
-	// Phase 3.8.2.9: Use helper to sync both i.env and i.ctx.env
-	savedEnv := i.env
-	i.PushEnvironment(i.env)
+	// Phase 3.1.4: unified scope management
+	// Note: Using explicit cleanup instead of defer because we need to write to outer scope after pop
+	cleanup := i.PushScope()
 
 	// Make a copy of the record for the method execution
 	// This implements value semantics - the method works on a copy
@@ -127,7 +127,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 
 	// Check recursion depth before pushing to call stack
 	if i.ctx.GetCallStack().WillOverflow() {
-		i.RestoreEnvironment(savedEnv)
+		cleanup()
 		return i.raiseMaxRecursionExceeded()
 	}
 
@@ -176,7 +176,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 
 	// Execute method body
 	if method.Body == nil {
-		i.RestoreEnvironment(savedEnv)
+		cleanup()
 		return i.newErrorWithLocation(memberAccess, "method '%s' has no body", methodName)
 	}
 
@@ -184,13 +184,13 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 
 	// If an error occurred during execution, propagate it
 	if isError(bodyResult) {
-		i.RestoreEnvironment(savedEnv)
+		cleanup()
 		return bodyResult
 	}
 
 	// If an exception was raised during method execution, propagate it immediately
 	if i.exception != nil {
-		i.RestoreEnvironment(savedEnv)
+		cleanup()
 		return &NilValue{}
 	}
 
@@ -278,7 +278,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	}
 
 	// Restore environment
-	i.RestoreEnvironment(savedEnv)
+	cleanup()
 
 	// Update the original variable with the modified record copy
 	// This implements proper value semantics for records - mutations persist
@@ -323,13 +323,11 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 	}
 
 	// Create method environment (NO Self binding for static methods)
-	// Phase 3.8.2.9: Use helper to sync both i.env and i.ctx.env
-	savedEnv := i.env
-	i.PushEnvironment(i.env)
+	// Phase 3.1.4: unified scope management
+	defer i.PushScope()()
 
 	// Check recursion depth before pushing to call stack
 	if i.ctx.GetCallStack().WillOverflow() {
-		i.RestoreEnvironment(savedEnv)
 		return i.raiseMaxRecursionExceeded()
 	}
 
@@ -394,7 +392,6 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 	// Execute method body
 	result := i.Eval(method.Body)
 	if isError(result) {
-		i.RestoreEnvironment(savedEnv)
 		return result
 	}
 
@@ -436,9 +433,6 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 			rtv.ClassVars[varName] = updatedVal
 		}
 	}
-
-	// Restore environment
-	i.RestoreEnvironment(savedEnv)
 
 	return returnValue
 }

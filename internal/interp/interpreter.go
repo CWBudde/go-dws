@@ -364,6 +364,26 @@ func (i *Interpreter) RestoreEnvironment(saved *Environment) {
 	i.SetEnvironment(saved)
 }
 
+// PushScope creates a new enclosed environment scope using the context's stack.
+// Returns a cleanup function that should be deferred to restore the previous scope.
+// This replaces the manual savedEnv/PushEnvironment/RestoreEnvironment pattern.
+//
+// Usage:
+//
+//	defer i.PushScope()()
+//	i.env.Define("x", value)
+//	result := i.Eval(body)
+//
+// Phase 3.1.4: Unified scope management
+func (i *Interpreter) PushScope() func() {
+	i.ctx.PushEnv()
+	i.env = i.ctx.Env()
+	return func() {
+		i.ctx.PopEnv()
+		i.env = i.ctx.Env()
+	}
+}
+
 // pushCallStack adds a new frame to the call stack with the given function name.
 // The position is taken from the current node being evaluated.
 // Phase 3.3.3: Delegates to ExecutionContext's CallStack.

@@ -63,9 +63,8 @@ func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodNa
 		return i.newErrorWithLocation(node, "method '%s' expects %d arguments, got %d", methodName, len(method.Parameters), len(args))
 	}
 
-	// Phase 3.8.2.11: Use helper to sync both i.env and i.ctx.env
-	savedEnv := i.env
-	i.PushEnvironment(i.env)
+	// Phase 3.1.4: unified scope management
+	defer i.PushScope()()
 
 	i.env.Define("Self", obj)
 
@@ -94,7 +93,6 @@ func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodNa
 
 	result := i.Eval(method.Body)
 	if isError(result) {
-		i.RestoreEnvironment(savedEnv)
 		return result
 	}
 
@@ -103,7 +101,6 @@ func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodNa
 		returnValue = i.extractReturnValue(method, i.env)
 	}
 
-	i.RestoreEnvironment(savedEnv)
 	return returnValue
 }
 
@@ -116,9 +113,8 @@ func (i *Interpreter) invokeClassOperatorMethod(classInfo *ClassInfo, methodName
 		return i.newErrorWithLocation(node, "class method '%s' expects %d arguments, got %d", methodName, len(method.Parameters), len(args))
 	}
 
-	// Phase 3.8.2.11: Use helper to sync both i.env and i.ctx.env
-	savedEnv := i.env
-	i.PushEnvironment(i.env)
+	// Phase 3.1.4: unified scope management
+	defer i.PushScope()()
 
 	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
 
@@ -147,7 +143,6 @@ func (i *Interpreter) invokeClassOperatorMethod(classInfo *ClassInfo, methodName
 
 	result := i.Eval(method.Body)
 	if isError(result) {
-		i.RestoreEnvironment(savedEnv)
 		return result
 	}
 
@@ -156,7 +151,6 @@ func (i *Interpreter) invokeClassOperatorMethod(classInfo *ClassInfo, methodName
 		returnValue = i.extractReturnValue(method, i.env)
 	}
 
-	i.RestoreEnvironment(savedEnv)
 	return returnValue
 }
 

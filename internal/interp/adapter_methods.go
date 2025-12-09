@@ -139,12 +139,11 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		}
 
 		// Execute class method with Self bound to ClassInfoValue
-		savedEnv := i.env
-		methodEnv := i.PushEnvironment(i.env)
+		// Phase 3.1.4: unified scope management
+		defer i.PushScope()()
 
 		// Check recursion depth
 		if i.ctx.GetCallStack().WillOverflow() {
-			i.RestoreEnvironment(savedEnv)
 			return i.raiseMaxRecursionExceeded()
 		}
 
@@ -154,8 +153,8 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		defer i.popCallStack()
 
 		// Bind Self to ClassInfoValue for class methods
-		methodEnv.Define("Self", classInfoVal)
-		methodEnv.Define("__CurrentClass__", classInfoVal)
+		i.env.Define("Self", classInfoVal)
+		i.env.Define("__CurrentClass__", classInfoVal)
 
 		// Add class constants
 		i.bindClassConstantsToEnv(classInfo)
@@ -169,29 +168,28 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 					arg = converted
 				}
 			}
-			methodEnv.Define(param.Name.Value, arg)
+			i.env.Define(param.Name.Value, arg)
 		}
 
 		// Initialize Result for functions
 		if classMethod.ReturnType != nil {
 			returnType := i.resolveTypeFromAnnotation(classMethod.ReturnType)
 			defaultVal := i.getDefaultValue(returnType)
-			methodEnv.Define("Result", defaultVal)
-			methodEnv.Define(classMethod.Name.Value, &ReferenceValue{Env: methodEnv, VarName: "Result"})
+			i.env.Define("Result", defaultVal)
+			i.env.Define(classMethod.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
 		}
 
 		// Execute method body
 		result := i.Eval(classMethod.Body)
 		if isError(result) {
-			i.RestoreEnvironment(savedEnv)
 			return result
 		}
 
 		// Extract return value
 		var returnValue Value
 		if classMethod.ReturnType != nil {
-			resultVal, resultOk := methodEnv.Get("Result")
-			methodNameVal, methodNameOk := methodEnv.Get(classMethod.Name.Value)
+			resultVal, resultOk := i.env.Get("Result")
+			methodNameVal, methodNameOk := i.env.Get(classMethod.Name.Value)
 
 			if resultOk && resultVal.Type() != "NIL" {
 				returnValue = resultVal
@@ -206,7 +204,6 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 			returnValue = &NilValue{}
 		}
 
-		i.RestoreEnvironment(savedEnv)
 		return returnValue
 	}
 
@@ -255,13 +252,14 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 			var defaultValue Value
 			if fieldDecl, hasDecl := runtimeClass.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
 				// Use field initializer
-				savedEnv := i.env
-				tempEnv := i.PushEnvironment(i.env)
-				for constName, constValue := range runtimeClass.ConstantValues {
-					tempEnv.Define(constName, constValue)
-				}
-				defaultValue = i.Eval(fieldDecl.InitValue)
-				i.RestoreEnvironment(savedEnv)
+				// Phase 3.1.4: unified scope management
+				func() {
+					defer i.PushScope()()
+					for constName, constValue := range runtimeClass.ConstantValues {
+						i.env.Define(constName, constValue)
+					}
+					defaultValue = i.Eval(fieldDecl.InitValue)
+				}()
 				if isError(defaultValue) {
 					return defaultValue
 				}
@@ -272,12 +270,11 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		}
 
 		// Execute constructor
-		savedEnv := i.env
-		methodEnv := i.PushEnvironment(i.env)
+		// Phase 3.1.4: unified scope management
+		defer i.PushScope()()
 
 		// Check recursion depth
 		if i.ctx.GetCallStack().WillOverflow() {
-			i.RestoreEnvironment(savedEnv)
 			return i.raiseMaxRecursionExceeded()
 		}
 
@@ -287,8 +284,8 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		defer i.popCallStack()
 
 		// Bind Self to the new instance
-		methodEnv.Define("Self", newInstance)
-		methodEnv.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: runtimeClass})
+		i.env.Define("Self", newInstance)
+		i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: runtimeClass})
 
 		// Add class constants
 		i.bindClassConstantsToEnv(runtimeClass)
@@ -302,17 +299,14 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 					arg = converted
 				}
 			}
-			methodEnv.Define(param.Name.Value, arg)
+			i.env.Define(param.Name.Value, arg)
 		}
 
 		// Execute constructor body
 		result := i.Eval(constructor.Body)
 		if isError(result) {
-			i.RestoreEnvironment(savedEnv)
 			return result
 		}
-
-		i.RestoreEnvironment(savedEnv)
 
 		// Constructors return the new instance (Result is Self)
 		return newInstance
@@ -348,13 +342,12 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		}
 
 		// Call the method with Self bound to the underlying object (not the interface)
-		savedEnv := i.env
-		tempEnv := i.PushEnvironment(i.env)
-		tempEnv.Define("Self", objVal)
+		// Phase 3.1.4: unified scope management
+		defer i.PushScope()()
+		i.env.Define("Self", objVal)
 
 		result := i.executeUserFunctionViaEvaluator(method, internalArgs)
 
-		i.RestoreEnvironment(savedEnv)
 		return result
 	}
 
@@ -374,23 +367,22 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		if method == nil && rtv != nil {
 			if classMethod, exists := rtv.ClassMethods[ident.Normalize(methodName)]; exists {
 				// Static method - no Self, just constants and class vars
-				savedEnv := i.env
-				methodEnv := i.PushEnvironment(i.env)
+				// Phase 3.1.4: unified scope management
+				defer i.PushScope()()
 
 				// Bind __CurrentRecord__ for record context
-				methodEnv.Define("__CurrentRecord__", rtv)
+				i.env.Define("__CurrentRecord__", rtv)
 
 				// Bind constants and class variables
 				for constName, constValue := range rtv.Constants {
-					methodEnv.Define(constName, constValue)
+					i.env.Define(constName, constValue)
 				}
 				for varName, varValue := range rtv.ClassVars {
-					methodEnv.Define(varName, varValue)
+					i.env.Define(varName, varValue)
 				}
 
 				// Check recursion depth
 				if i.ctx.GetCallStack().WillOverflow() {
-					i.RestoreEnvironment(savedEnv)
 					return i.raiseMaxRecursionExceeded()
 				}
 
@@ -400,7 +392,6 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 				defer i.popCallStack()
 
 				result := i.executeUserFunctionViaEvaluator(classMethod, internalArgs)
-				i.RestoreEnvironment(savedEnv)
 				return result
 			}
 		}
@@ -413,15 +404,15 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		recordCopy := recVal.Copy()
 
 		// Create method environment
-		savedEnv := i.env
-		methodEnv := i.PushEnvironment(i.env)
+		// Phase 3.1.4: unified scope management
+		defer i.PushScope()()
 
 		// Bind Self to the record copy
-		methodEnv.Define("Self", recordCopy)
+		i.env.Define("Self", recordCopy)
 
 		// Bind all record fields to environment for direct access
 		for fieldName, fieldValue := range recordCopy.Fields {
-			methodEnv.Define(fieldName, fieldValue)
+			i.env.Define(fieldName, fieldValue)
 		}
 
 		// Bind properties for simple field-backed properties
@@ -429,7 +420,7 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 			for propName, propInfo := range recVal.RecordType.Properties {
 				if propInfo.ReadField != "" {
 					if fval, exists := recordCopy.Fields[ident.Normalize(propInfo.ReadField)]; exists {
-						methodEnv.Define(propName, fval)
+						i.env.Define(propName, fval)
 					}
 				}
 			}
@@ -438,16 +429,15 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		// Bind constants and class variables from RecordTypeValue
 		if rtv != nil {
 			for constName, constValue := range rtv.Constants {
-				methodEnv.Define(constName, constValue)
+				i.env.Define(constName, constValue)
 			}
 			for varName, varValue := range rtv.ClassVars {
-				methodEnv.Define(varName, varValue)
+				i.env.Define(varName, varValue)
 			}
 		}
 
 		// Check recursion depth
 		if i.ctx.GetCallStack().WillOverflow() {
-			i.RestoreEnvironment(savedEnv)
 			return i.raiseMaxRecursionExceeded()
 		}
 
@@ -459,7 +449,6 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		// Call the method
 		result := i.executeUserFunctionViaEvaluator(method, internalArgs)
 
-		i.RestoreEnvironment(savedEnv)
 		return result
 	}
 
@@ -483,13 +472,12 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 	}
 
 	// Call the method using existing infrastructure
-	savedEnv := i.env
-	tempEnv := i.PushEnvironment(i.env)
-	tempEnv.Define("Self", objVal)
+	// Phase 3.1.4: unified scope management
+	defer i.PushScope()()
+	i.env.Define("Self", objVal)
 
 	result := i.executeUserFunctionViaEvaluator(method, internalArgs)
 
-	i.RestoreEnvironment(savedEnv)
 	return result
 }
 
@@ -527,13 +515,12 @@ func (i *Interpreter) CallInheritedMethod(obj evaluator.Value, methodName string
 	}
 
 	// Call the method using existing infrastructure
-	savedEnv := i.env
-	tempEnv := i.PushEnvironment(i.env)
-	tempEnv.Define("Self", objVal)
+	// Phase 3.1.4: unified scope management
+	defer i.PushScope()()
+	i.env.Define("Self", objVal)
 
 	result := i.executeUserFunctionViaEvaluator(method, internalArgs)
 
-	i.RestoreEnvironment(savedEnv)
 	return result
 }
 
@@ -550,12 +537,11 @@ func (i *Interpreter) ExecuteMethodWithSelf(self evaluator.Value, methodDecl any
 	internalArgs := convertEvaluatorArgs(args)
 
 	// Call the method using existing infrastructure
-	savedEnv := i.env
-	tempEnv := i.PushEnvironment(i.env)
-	tempEnv.Define("Self", internalSelf)
+	// Phase 3.1.4: unified scope management
+	defer i.PushScope()()
+	i.env.Define("Self", internalSelf)
 
 	result := i.executeUserFunctionViaEvaluator(method, internalArgs)
 
-	i.RestoreEnvironment(savedEnv)
 	return result
 }

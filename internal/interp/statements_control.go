@@ -342,10 +342,8 @@ func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol str
 		}
 
 		// Call the method with Self bound
-		// Save current environment and create method scope
-		prev := i.env
-		i.PushEnvironment(i.env)
-		defer func() { i.RestoreEnvironment(prev) }()
+		// Phase 3.1.4: unified scope management
+		defer i.PushScope()()
 
 		// Bind Self to the object instance
 		i.env.Define("Self", objInst)

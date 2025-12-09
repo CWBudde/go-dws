@@ -49,17 +49,14 @@ func (i *Interpreter) callFunctionPointer(funcPtr *FunctionPointerValue, args []
 	// If this is a method pointer, we need to set up the Self binding
 	if funcPtr.SelfObject != nil {
 		// Create a new environment with Self bound
-		savedEnv := i.env
-		funcEnv := i.PushEnvironment(i.env)
+		// Phase 3.1.4: unified scope management
+		defer i.PushScope()()
 
 		// Bind Self to the captured object
-		funcEnv.Define("Self", funcPtr.SelfObject)
+		i.env.Define("Self", funcPtr.SelfObject)
 
 		// Call the function via evaluator
 		result := i.executeUserFunctionViaEvaluator(funcPtr.Function, args)
-
-		// Restore environment
-		i.RestoreEnvironment(savedEnv)
 
 		return result
 	}
@@ -93,6 +90,8 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 	// Create a new environment for the lambda scope
 	// CRITICAL: Use closureEnv as parent, NOT i.env
 	// This gives the lambda access to captured variables
+	// Phase 3.1.4: Cannot use PushScope() here because we need closureEnv as parent, not i.env
+	// Must use manual savedEnv pattern with PushEnvironment/RestoreEnvironment helpers
 	savedEnv := i.env
 	lambdaEnv := i.PushEnvironment(closureEnv)
 

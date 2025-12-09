@@ -801,8 +801,8 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 		}
 
 		// Create method environment
-		savedEnv := i.env
-		i.PushEnvironment(i.env)
+		// Phase 3.1.4: unified scope management
+		defer i.PushScope()()
 
 		i.env.Define("Self", obj)
 		i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: parentClass})
@@ -844,8 +844,6 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 		} else {
 			returnValue = &NilValue{}
 		}
-
-		i.RestoreEnvironment(savedEnv)
 		return returnValue
 	}
 
@@ -894,18 +892,16 @@ func (i *Interpreter) getClassConstant(classInfo *ClassInfo, constantName string
 	}
 
 	// Evaluate constant in temporary environment with other evaluated constants
-	savedEnv := i.env
-	tempEnv := NewEnclosedEnvironment(i.env)
+	// Phase 3.1.4: unified scope management
+	defer i.PushScope()()
 
 	for constName, constVal := range ownerClass.ConstantValues {
 		if constName != constantName && constVal != nil {
-			tempEnv.Define(constName, constVal)
+			i.env.Define(constName, constVal)
 		}
 	}
 
-	i.SetEnvironment(tempEnv)
 	constValue := i.Eval(constDecl.Value)
-	i.RestoreEnvironment(savedEnv)
 
 	if isError(constValue) {
 		return constValue

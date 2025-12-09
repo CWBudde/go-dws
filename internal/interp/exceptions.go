@@ -329,14 +329,14 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 	// Try each handler in order
 	for _, handler := range clause.Handlers {
 		if i.matchesExceptionType(exc, handler.ExceptionType) {
-			// Create new scope for exception variable
-			oldEnv := i.env
-			handlerEnv := i.PushEnvironment(i.env)
+			// Create new scope for exception variable - Phase 3.1.4: unified scope management
+			// Note: Using explicit cleanup because we need precise control over scope lifecycle
+			cleanup := i.PushScope()
 
 			// Bind exception variable
 			if handler.Variable != nil {
 				// Use Define instead of Set to create a new variable in the current scope
-				handlerEnv.Define(handler.Variable.Value, exc.Instance)
+				i.env.Define(handler.Variable.Value, exc.Instance)
 			}
 
 			// Save the current handlerException (for nested handlers)
@@ -368,7 +368,7 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 			i.env.Set("ExceptObject", oldExceptObject)
 
 			// Restore environment
-			i.RestoreEnvironment(oldEnv)
+			cleanup()
 
 			// If handler raised an exception (including bare raise), it's now in i.exception
 			// If handler completed normally, i.exception is nil

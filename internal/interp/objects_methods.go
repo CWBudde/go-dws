@@ -97,13 +97,11 @@ func (i *Interpreter) executeClassMethod(
 			mc.Method.Value, len(classMethod.Parameters), len(args))
 	}
 
-	// Create method environment
-	savedEnv := i.env
-	methodEnv := i.PushEnvironment(i.env)
+	// Create method environment - Phase 3.1.4: unified scope management
+	defer i.PushScope()()
 
 	// Check recursion depth before pushing to call stack
 	if i.ctx.GetCallStack().WillOverflow() {
-		i.RestoreEnvironment(savedEnv)
 		return i.raiseMaxRecursionExceeded()
 	}
 
@@ -113,22 +111,19 @@ func (i *Interpreter) executeClassMethod(
 	defer i.popCallStack()
 
 	// Bind Self and __CurrentClass__ to ClassInfo for class methods
-	methodEnv.Define("Self", &ClassInfoValue{ClassInfo: classInfo})
-	methodEnv.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
+	i.env.Define("Self", &ClassInfoValue{ClassInfo: classInfo})
+	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
 	i.bindClassConstantsToEnv(classInfo)
-	i.bindMethodParameters(methodEnv, classMethod.Parameters, args)
-	i.initializeResultVariable(methodEnv, classMethod)
+	i.bindMethodParameters(i.env, classMethod.Parameters, args)
+	i.initializeResultVariable(i.env, classMethod)
 
 	// Execute method body
 	result := i.Eval(classMethod.Body)
 	if isError(result) {
-		i.RestoreEnvironment(savedEnv)
 		return result
 	}
 
-	returnValue := i.extractMethodReturnValue(classMethod)
-	i.RestoreEnvironment(savedEnv)
-	return returnValue
+	return i.extractMethodReturnValue(classMethod)
 }
 
 // initializeResultVariable initializes the Result variable for methods with return types.
@@ -451,20 +446,18 @@ func (i *Interpreter) executeVirtualConstructor(
 	actualConstructor := i.findActualConstructor(concreteClass, mc.Method.Value, method)
 
 	newObj := NewObjectInstance(obj.Class)
-	savedEnv := i.env
-	methodEnv := i.PushEnvironment(i.env)
-	methodEnv.Define("Self", newObj)
+	// Phase 3.1.4: unified scope management
+	defer i.PushScope()()
+	i.env.Define("Self", newObj)
 	i.bindClassConstantsToEnv(concreteClass)
 
-	i.bindMethodParameters(methodEnv, actualConstructor.Parameters, args)
+	i.bindMethodParameters(i.env, actualConstructor.Parameters, args)
 
 	result := i.Eval(actualConstructor.Body)
 	if isError(result) {
-		i.RestoreEnvironment(savedEnv)
 		return result
 	}
 
-	i.RestoreEnvironment(savedEnv)
 	return newObj
 }
 
@@ -506,11 +499,10 @@ func (i *Interpreter) executeResolvedMethod(
 	args []Value,
 	mc *ast.MethodCallExpression,
 ) Value {
-	savedEnv := i.env
-	methodEnv := i.PushEnvironment(i.env)
+	// Phase 3.1.4: unified scope management
+	defer i.PushScope()()
 
 	if i.ctx.GetCallStack().WillOverflow() {
-		i.RestoreEnvironment(savedEnv)
 		return i.raiseMaxRecursionExceeded()
 	}
 
@@ -519,33 +511,30 @@ func (i *Interpreter) executeResolvedMethod(
 	defer i.popCallStack()
 
 	if isClassMethod {
-		methodEnv.Define("Self", &ClassInfoValue{ClassInfo: concreteClass})
+		i.env.Define("Self", &ClassInfoValue{ClassInfo: concreteClass})
 	} else {
-		methodEnv.Define("Self", obj)
+		i.env.Define("Self", obj)
 	}
 
 	methodOwner := i.findMethodOwner(concreteClass, method, isClassMethod)
-	methodEnv.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: methodOwner})
+	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: methodOwner})
 	i.bindClassConstantsToEnv(concreteClass)
 
-	i.bindMethodParameters(methodEnv, method.Parameters, args)
+	i.bindMethodParameters(i.env, method.Parameters, args)
 
 	if method.ReturnType != nil {
 		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 		defaultVal := i.getDefaultValue(returnType)
-		methodEnv.Define("Result", defaultVal)
-		methodEnv.Define(method.Name.Value, &ReferenceValue{Env: methodEnv, VarName: "Result"})
+		i.env.Define("Result", defaultVal)
+		i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
 	}
 
 	result := i.Eval(method.Body)
 	if isError(result) {
-		i.RestoreEnvironment(savedEnv)
 		return result
 	}
 
-	returnValue := i.extractMethodReturnValue(method)
-	i.RestoreEnvironment(savedEnv)
-	return returnValue
+	return i.extractMethodReturnValue(method)
 }
 
 // extractMethodReturnValue extracts the return value from a method execution.
@@ -707,22 +696,20 @@ func (i *Interpreter) getDefaultValueForType(fieldType types.Type) Value {
 
 // executeConstructorBody executes the constructor body with the given instance and arguments.
 func (i *Interpreter) executeConstructorBody(runtimeClass *ClassInfo, constructor *ast.FunctionDecl, instance *ObjectInstance, args []Value) Value {
-	savedEnv := i.env
-	methodEnv := i.PushEnvironment(i.env)
-	methodEnv.Define("Self", instance)
+	// Phase 3.1.4: unified scope management
+	defer i.PushScope()()
+	i.env.Define("Self", instance)
 	i.bindClassConstantsToEnv(runtimeClass)
 
-	i.bindConstructorParameters(methodEnv, constructor, args)
+	i.bindConstructorParameters(i.env, constructor, args)
 
-	methodEnv.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: runtimeClass})
+	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: runtimeClass})
 
 	result := i.Eval(constructor.Body)
 	if isError(result) {
-		i.RestoreEnvironment(savedEnv)
 		return result
 	}
 
-	i.RestoreEnvironment(savedEnv)
 	return instance
 }
 
@@ -1023,10 +1010,10 @@ func (i *Interpreter) tryImplicitConstructor(
 	}
 
 	obj := NewObjectInstance(classInfo)
-	savedEnv := i.env
-	tempEnv := i.PushEnvironment(i.env)
+	// Phase 3.1.4: unified scope management
+	defer i.PushScope()()
 	for constName, constValue := range classInfo.ConstantValues {
-		tempEnv.Define(constName, constValue)
+		i.env.Define(constName, constValue)
 	}
 
 	for fieldName, fieldType := range classInfo.Fields {
@@ -1034,7 +1021,6 @@ func (i *Interpreter) tryImplicitConstructor(
 		if fieldDecl, hasDecl := classInfo.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
 			fieldValue = i.Eval(fieldDecl.InitValue)
 			if isError(fieldValue) {
-				i.RestoreEnvironment(savedEnv)
 				return fieldValue
 			}
 		} else {
@@ -1043,7 +1029,6 @@ func (i *Interpreter) tryImplicitConstructor(
 		obj.SetField(fieldName, fieldValue)
 	}
 
-	i.RestoreEnvironment(savedEnv)
 	return obj
 }
 
@@ -1100,21 +1085,19 @@ func (i *Interpreter) executeInstanceMethodOnClassName(
 func (i *Interpreter) createInstanceWithFieldInit(classInfo *ClassInfo) (*ObjectInstance, Value) {
 	obj := NewObjectInstance(classInfo)
 
-	fieldInitEnv := i.env
-	fieldTempEnv := i.PushEnvironment(i.env)
+	// Phase 3.1.4: unified scope management
+	defer i.PushScope()()
 	for constName, constValue := range classInfo.ConstantValues {
-		fieldTempEnv.Define(constName, constValue)
+		i.env.Define(constName, constValue)
 	}
 
 	for fieldName, fieldType := range classInfo.Fields {
 		fieldValue, errVal := i.evaluateFieldInitValue(classInfo, fieldName, fieldType)
 		if errVal != nil {
-			i.RestoreEnvironment(fieldInitEnv)
 			return nil, errVal
 		}
 		obj.SetField(fieldName, fieldValue)
 	}
-	i.RestoreEnvironment(fieldInitEnv)
 
 	return obj, nil
 }
@@ -1133,23 +1116,20 @@ func (i *Interpreter) evaluateFieldInitValue(classInfo *ClassInfo, fieldName str
 
 // executeMethodOnInstance executes a method on an existing instance with the given arguments.
 func (i *Interpreter) executeMethodOnInstance(classInfo *ClassInfo, method *ast.FunctionDecl, obj *ObjectInstance, args []Value) Value {
-	savedEnv := i.env
-	methodEnv := i.PushEnvironment(i.env)
-	methodEnv.Define("Self", obj)
+	// Phase 3.1.4: unified scope management
+	defer i.PushScope()()
+	i.env.Define("Self", obj)
 	i.bindClassConstantsToEnv(classInfo)
 
-	i.bindMethodParametersWithConversion(methodEnv, method, args)
-	i.initializeMethodResultVariable(methodEnv, method)
+	i.bindMethodParametersWithConversion(i.env, method, args)
+	i.initializeMethodResultVariable(i.env, method)
 
 	result := i.Eval(method.Body)
 	if isError(result) {
-		i.RestoreEnvironment(savedEnv)
 		return result
 	}
 
-	returnValue := i.extractInstanceMethodReturnValue(obj, method)
-	i.RestoreEnvironment(savedEnv)
-	return returnValue
+	return i.extractInstanceMethodReturnValue(obj, method)
 }
 
 // bindMethodParametersWithConversion binds method parameters with type conversion.
