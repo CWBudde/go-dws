@@ -4,49 +4,9 @@ import (
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/errors"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
-
-// mockEnvironment is a simple mock implementation of the Environment interface.
-type mockEnvironment struct {
-	bindings map[string]interface{}
-	outer    *mockEnvironment
-}
-
-func newMockEnvironment() *mockEnvironment {
-	return &mockEnvironment{
-		bindings: make(map[string]interface{}),
-	}
-}
-
-func (e *mockEnvironment) Define(name string, value interface{}) {
-	e.bindings[name] = value
-}
-
-func (e *mockEnvironment) Get(name string) (interface{}, bool) {
-	val, ok := e.bindings[name]
-	if !ok && e.outer != nil {
-		return e.outer.Get(name)
-	}
-	return val, ok
-}
-
-func (e *mockEnvironment) Set(name string, value interface{}) bool {
-	if _, ok := e.bindings[name]; ok {
-		e.bindings[name] = value
-		return true
-	}
-	if e.outer != nil {
-		return e.outer.Set(name, value)
-	}
-	return false
-}
-
-func (e *mockEnvironment) NewEnclosedEnvironment() Environment {
-	child := newMockEnvironment()
-	child.outer = e
-	return child
-}
 
 // TestControlFlow_Kind tests the ControlFlowKind type.
 func TestControlFlow_Kind(t *testing.T) {
@@ -179,7 +139,7 @@ func TestControlFlow_Clear(t *testing.T) {
 
 // TestExecutionContext_NewExecutionContext tests creating a new context.
 func TestExecutionContext_NewExecutionContext(t *testing.T) {
-	env := newMockEnvironment()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	if ctx.Env() != env {
@@ -201,8 +161,8 @@ func TestExecutionContext_NewExecutionContext(t *testing.T) {
 
 // TestExecutionContext_Env tests environment management.
 func TestExecutionContext_Env(t *testing.T) {
-	env1 := newMockEnvironment()
-	env2 := newMockEnvironment()
+	env1 := runtime.NewEnvironment()
+	env2 := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env1)
 
 	if ctx.Env() != env1 {
@@ -217,7 +177,7 @@ func TestExecutionContext_Env(t *testing.T) {
 
 // TestExecutionContext_CallStack tests call stack management.
 func TestExecutionContext_CallStack(t *testing.T) {
-	env := newMockEnvironment()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	// Initial depth should be 0
@@ -260,7 +220,7 @@ func TestExecutionContext_CallStack(t *testing.T) {
 
 // TestExecutionContext_Exception tests exception management.
 func TestExecutionContext_Exception(t *testing.T) {
-	env := newMockEnvironment()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	// Initial exception should be nil
@@ -289,7 +249,7 @@ func TestExecutionContext_Exception(t *testing.T) {
 
 // TestExecutionContext_OldValuesStack tests old values stack management.
 func TestExecutionContext_OldValuesStack(t *testing.T) {
-	env := newMockEnvironment()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	// Push values
@@ -319,7 +279,7 @@ func TestExecutionContext_OldValuesStack(t *testing.T) {
 
 // TestExecutionContext_PropContext tests property context management.
 func TestExecutionContext_PropContext(t *testing.T) {
-	env := newMockEnvironment()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	propCtx := ctx.PropContext()
@@ -339,7 +299,7 @@ func TestExecutionContext_PropContext(t *testing.T) {
 
 // TestExecutionContext_Clone tests context cloning.
 func TestExecutionContext_Clone(t *testing.T) {
-	env := newMockEnvironment()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	// Set up some state
@@ -371,7 +331,7 @@ func TestExecutionContext_Clone(t *testing.T) {
 
 // TestExecutionContext_Reset tests context reset.
 func TestExecutionContext_Reset(t *testing.T) {
-	env := newMockEnvironment()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	// Set up some state
@@ -463,7 +423,7 @@ func TestControlFlow_StateTransitions(t *testing.T) {
 
 // TestExecutionContext_NewExecutionContextWithMaxDepth tests creating a context with custom max depth.
 func TestExecutionContext_NewExecutionContextWithMaxDepth(t *testing.T) {
-	env := newMockEnvironment()
+	env := runtime.NewEnvironment()
 	maxDepth := 512
 
 	ctx := NewExecutionContextWithMaxDepth(env, maxDepth)
@@ -485,7 +445,7 @@ func TestExecutionContext_NewExecutionContextWithMaxDepth(t *testing.T) {
 
 // TestExecutionContext_GetCallStack tests getting the CallStack instance.
 func TestExecutionContext_GetCallStack(t *testing.T) {
-	env := newMockEnvironment()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	callStack := ctx.GetCallStack()
@@ -517,7 +477,7 @@ func TestExecutionContext_GetCallStack(t *testing.T) {
 
 // TestExecutionContext_CallStack_Deprecated tests the deprecated CallStack() method.
 func TestExecutionContext_CallStack_Deprecated(t *testing.T) {
-	env := newMockEnvironment()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	// Push some frames
@@ -543,8 +503,8 @@ func TestExecutionContext_CallStack_Deprecated(t *testing.T) {
 
 // TestExecutionContext_PushEnv tests pushing a new environment.
 func TestExecutionContext_PushEnv(t *testing.T) {
-	env := newMockEnvironment()
-	env.Define("x", 10)
+	env := runtime.NewEnvironment()
+	env.Define("x", &runtime.IntegerValue{Value: 10})
 
 	ctx := NewExecutionContext(env)
 
@@ -562,31 +522,35 @@ func TestExecutionContext_PushEnv(t *testing.T) {
 
 	// The new environment should be enclosed by the original
 	// Define a variable in the new environment
-	newEnv.Define("y", 20)
+	newEnv.Define("y", &runtime.IntegerValue{Value: 20})
 
 	// Should be able to access parent variable
 	val, ok := newEnv.Get("x")
-	if !ok || val != 10 {
+	if !ok {
 		t.Errorf("PushEnv() new environment cannot access parent variable x")
+	} else if intVal, ok := val.(*runtime.IntegerValue); !ok || intVal.Value != 10 {
+		t.Errorf("PushEnv() new environment x has wrong value: got %v, want 10", val)
 	}
 
 	// Should be able to access new variable
 	val, ok = newEnv.Get("y")
-	if !ok || val != 20 {
+	if !ok {
 		t.Errorf("PushEnv() new environment cannot access its own variable y")
+	} else if intVal, ok := val.(*runtime.IntegerValue); !ok || intVal.Value != 20 {
+		t.Errorf("PushEnv() new environment y has wrong value: got %v, want 20", val)
 	}
 }
 
 // TestExecutionContext_PopEnv tests popping an environment.
 func TestExecutionContext_PopEnv(t *testing.T) {
-	env := newMockEnvironment()
-	env.Define("x", 10)
+	env := runtime.NewEnvironment()
+	env.Define("x", &runtime.IntegerValue{Value: 10})
 
 	ctx := NewExecutionContext(env)
 
 	// Push a new environment
 	newEnv := ctx.PushEnv()
-	newEnv.Define("y", 20)
+	newEnv.Define("y", &runtime.IntegerValue{Value: 20})
 
 	// Pop the environment
 	restored := ctx.PopEnv()
@@ -601,8 +565,10 @@ func TestExecutionContext_PopEnv(t *testing.T) {
 
 	// Original environment should still have x
 	val, ok := env.Get("x")
-	if !ok || val != 10 {
+	if !ok {
 		t.Errorf("PopEnv() corrupted original environment")
+	} else if intVal, ok := val.(*runtime.IntegerValue); !ok || intVal.Value != 10 {
+		t.Errorf("PopEnv() x has wrong value: got %v, want 10", val)
 	}
 
 	// Original environment should not have y (was only in child)
@@ -614,45 +580,45 @@ func TestExecutionContext_PopEnv(t *testing.T) {
 
 // TestExecutionContext_PushPopEnv_Multiple tests multiple push/pop operations.
 func TestExecutionContext_PushPopEnv_Multiple(t *testing.T) {
-	env := newMockEnvironment()
-	env.Define("level", 0)
+	env := runtime.NewEnvironment()
+	env.Define("level", &runtime.IntegerValue{Value: 0})
 
 	ctx := NewExecutionContext(env)
 
 	// Push multiple environments
 	env1 := ctx.PushEnv()
-	env1.Define("level", 1)
+	env1.Define("level", &runtime.IntegerValue{Value: 1})
 
 	env2 := ctx.PushEnv()
-	env2.Define("level", 2)
+	env2.Define("level", &runtime.IntegerValue{Value: 2})
 
 	env3 := ctx.PushEnv()
-	env3.Define("level", 3)
+	env3.Define("level", &runtime.IntegerValue{Value: 3})
 
 	// Verify we're at level 3
 	val, _ := ctx.Env().Get("level")
-	if val != 3 {
+	if intVal, ok := val.(*runtime.IntegerValue); !ok || intVal.Value != 3 {
 		t.Errorf("After 3 pushes, level = %v, want 3", val)
 	}
 
 	// Pop back to level 2
 	ctx.PopEnv()
 	val, _ = ctx.Env().Get("level")
-	if val != 2 {
+	if intVal, ok := val.(*runtime.IntegerValue); !ok || intVal.Value != 2 {
 		t.Errorf("After 1 pop, level = %v, want 2", val)
 	}
 
 	// Pop back to level 1
 	ctx.PopEnv()
 	val, _ = ctx.Env().Get("level")
-	if val != 1 {
+	if intVal, ok := val.(*runtime.IntegerValue); !ok || intVal.Value != 1 {
 		t.Errorf("After 2 pops, level = %v, want 1", val)
 	}
 
 	// Pop back to level 0
 	ctx.PopEnv()
 	val, _ = ctx.Env().Get("level")
-	if val != 0 {
+	if intVal, ok := val.(*runtime.IntegerValue); !ok || intVal.Value != 0 {
 		t.Errorf("After 3 pops, level = %v, want 0", val)
 	}
 
@@ -664,7 +630,7 @@ func TestExecutionContext_PushPopEnv_Multiple(t *testing.T) {
 
 // TestExecutionContext_PopEnv_Empty tests popping when stack is empty.
 func TestExecutionContext_PopEnv_Empty(t *testing.T) {
-	env := newMockEnvironment()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	// Pop without pushing should return current environment
@@ -681,7 +647,7 @@ func TestExecutionContext_PopEnv_Empty(t *testing.T) {
 
 // TestExecutionContext_GetOldValue tests retrieving old values.
 func TestExecutionContext_GetOldValue(t *testing.T) {
-	env := newMockEnvironment()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	// Getting old value from empty stack should return nil, false

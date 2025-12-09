@@ -3,8 +3,6 @@ package interp
 import (
 	"io"
 	"testing"
-
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 )
 
 // TestSetEnvironment verifies that SetEnvironment updates both i.env and i.ctx.env atomically.
@@ -23,28 +21,23 @@ func TestSetEnvironment(t *testing.T) {
 		t.Error("i.env not updated to newEnv")
 	}
 
-	// Verify i.ctx.env is synced (extract from adapter)
+	// Verify i.ctx.env is synced (no adapter needed in Phase 3.1.3)
 	ctxEnv := i.ctx.Env()
-	if adapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
-		underlying := adapter.Underlying()
-		if underlying != newEnv {
-			t.Error("i.ctx.env not synced with i.env")
-		}
+	if ctxEnv != newEnv {
+		t.Error("i.ctx.env not synced with i.env")
+	}
 
-		// Verify the variable is accessible through the adapter
-		val, found := ctxEnv.Get("testVar")
-		if !found {
-			t.Error("testVar not found in ctx.env")
-		}
-		if intVal, ok := val.(*IntegerValue); ok {
-			if intVal.Value != 42 {
-				t.Errorf("testVar value mismatch: got %d, want 42", intVal.Value)
-			}
-		} else {
-			t.Error("testVar type mismatch")
+	// Verify the variable is accessible
+	val, found := ctxEnv.Get("testVar")
+	if !found {
+		t.Error("testVar not found in ctx.env")
+	}
+	if intVal, ok := val.(*IntegerValue); ok {
+		if intVal.Value != 42 {
+			t.Errorf("testVar value mismatch: got %d, want 42", intVal.Value)
 		}
 	} else {
-		t.Error("i.ctx.env is not an EnvironmentAdapter")
+		t.Error("testVar type mismatch")
 	}
 }
 
@@ -75,15 +68,10 @@ func TestPushEnvironment(t *testing.T) {
 		t.Error("new environment not enclosed by original")
 	}
 
-	// Verify i.ctx.env is synced
+	// Verify i.ctx.env is synced (Phase 3.1.3: direct runtime.Environment)
 	ctxEnv := i.ctx.Env()
-	if adapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
-		underlying := adapter.Underlying()
-		if underlying != newEnv {
-			t.Error("i.ctx.env not synced with new environment")
-		}
-	} else {
-		t.Error("i.ctx.env is not an EnvironmentAdapter")
+	if ctxEnv != newEnv {
+		t.Error("i.ctx.env not synced with new environment")
 	}
 
 	// Verify the new environment can access parent variables
@@ -124,15 +112,10 @@ func TestRestoreEnvironment(t *testing.T) {
 		t.Error("i.env not restored to original")
 	}
 
-	// Verify i.ctx.env is synced
+	// Verify i.ctx.env is synced (Phase 3.1.3: direct runtime.Environment)
 	ctxEnv := i.ctx.Env()
-	if adapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
-		underlying := adapter.Underlying()
-		if underlying != originalEnv {
-			t.Error("i.ctx.env not synced with restored environment")
-		}
-	} else {
-		t.Error("i.ctx.env is not an EnvironmentAdapter")
+	if ctxEnv != originalEnv {
+		t.Error("i.ctx.env not synced with restored environment")
 	}
 
 	// Verify the original variable is accessible
@@ -162,13 +145,8 @@ func TestEnvironmentSyncAfterPush(t *testing.T) {
 	verifySynced := func(t *testing.T, name string) {
 		t.Helper()
 		ctxEnv := i.ctx.Env()
-		if adapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
-			underlying := adapter.Underlying()
-			if underlying != i.env {
-				t.Errorf("%s: i.ctx.env not synced with i.env", name)
-			}
-		} else {
-			t.Errorf("%s: i.ctx.env is not an EnvironmentAdapter", name)
+		if ctxEnv != i.env {
+			t.Errorf("%s: i.ctx.env not synced with i.env", name)
 		}
 	}
 
@@ -231,10 +209,8 @@ func TestNestedPushRestore(t *testing.T) {
 
 	// Verify i.env and i.ctx.env are synced at deepest level
 	ctxEnv := i.ctx.Env()
-	if adapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
-		if adapter.Underlying() != i.env {
-			t.Error("environments not synced at level 3")
-		}
+	if ctxEnv != i.env {
+		t.Error("environments not synced at level 3")
 	}
 
 	// Restore to level 2
@@ -266,9 +242,7 @@ func TestNestedPushRestore(t *testing.T) {
 
 	// Final sync verification
 	ctxEnv = i.ctx.Env()
-	if adapter, ok := ctxEnv.(*evaluator.EnvironmentAdapter); ok {
-		if adapter.Underlying() != env0 {
-			t.Error("environments not synced after full restore")
-		}
+	if ctxEnv != env0 {
+		t.Error("environments not synced after full restore")
 	}
 }

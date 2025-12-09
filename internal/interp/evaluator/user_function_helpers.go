@@ -145,7 +145,7 @@ type DefaultValueFunc func(returnTypeName string) Value
 //
 // Task 3.5.1d: Changed signature to accept the function environment directly,
 // since ExecuteUserFunction doesn't swap i.env like the old callUserFunction did.
-type FunctionNameAliasFunc func(funcName string, funcEnv Environment) Value
+type FunctionNameAliasFunc func(funcName string, funcEnv *runtime.Environment) Value
 
 // InitializeResultVariable initializes the Result variable for functions.
 // Task 3.5.144b.3: Extract Result variable initialization from callUserFunction.
@@ -233,7 +233,7 @@ func (e *Evaluator) CaptureOldValues(
 //   - Decrementing reference counts on InterfaceInstance values
 //   - Calling destructors on ObjectInstance values if ref count reaches 0
 //   - Cleaning up method pointers that hold object references
-type CleanupInterfaceReferencesFunc func(env Environment)
+type CleanupInterfaceReferencesFunc func(env *runtime.Environment)
 
 // TryImplicitConversionReturnFunc is a callback type for implicit return type conversion.
 // Task 3.5.144b.8: Callback pattern allows return value conversion to remain in interpreter.
@@ -255,7 +255,7 @@ type IncrementInterfaceRefCountFunc func(returnValue Value)
 // EvalNode is called back to the interpreter (e.g., for function pointer assignments),
 // it uses the correct function environment, not the caller's environment.
 // The returned function should be called to restore the original environment.
-type EnvSyncerFunc func(funcEnv Environment) func()
+type EnvSyncerFunc func(funcEnv *runtime.Environment) func()
 
 // UserFunctionCallbacks holds all callback functions needed for user function execution.
 // Task 3.5.144b.11: Consolidates all callbacks into a single struct for cleaner API.
@@ -359,7 +359,7 @@ func (e *Evaluator) ExecuteUserFunction(
 	}
 
 	// Create new environment for function scope
-	funcEnv := ctx.Env().NewEnclosedEnvironment()
+	funcEnv := runtime.NewEnclosedEnvironment(ctx.Env())
 
 	// Create new context with function environment
 	funcCtx := &ExecutionContext{

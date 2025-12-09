@@ -80,7 +80,7 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 	}
 
 	// Setup temporary environment for nested class context
-	tempEnv := ctx.Env().NewEnclosedEnvironment()
+	tempEnv := runtime.NewEnclosedEnvironment(ctx.Env())
 	e.adapter.DefineCurrentClassMarker(tempEnv, classInfo)
 	savedEnv := ctx.Env()
 	ctx.SetEnv(tempEnv)

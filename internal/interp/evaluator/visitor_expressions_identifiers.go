@@ -29,7 +29,11 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 	// Try to find identifier in current environment (variables, parameters, constants)
 	if valRaw, ok := ctx.Env().Get(node.Value); ok {
-		val := valRaw.(Value)
+		// Check for nil value (can happen if variable declared but not initialized)
+		if valRaw == nil {
+			return e.newError(node, "variable '%s' is nil", node.Value)
+		}
+		val := valRaw
 		// Check if this is an external variable (not yet supported)
 		if extVar, ok := val.(ExternalVarAccessor); ok {
 			return e.newError(node, "Unsupported external variable access: %s", extVar.ExternalVarName())

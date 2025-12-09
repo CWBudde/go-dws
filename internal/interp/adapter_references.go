@@ -45,11 +45,10 @@ func (i *Interpreter) CreateFunctionPointerFromName(funcName string, closure any
 
 	// Convert closure to Environment
 	// Handle both direct *Environment and *EnvironmentAdapter (from evaluator)
+	// Phase 3.1.3: Direct runtime.Environment - no adapter unwrapping needed
 	var env *Environment
 	if closure != nil {
-		if adapter, ok := closure.(*evaluator.EnvironmentAdapter); ok {
-			env = adapter.Underlying().(*Environment)
-		} else if envVal, ok := closure.(*Environment); ok {
+		if envVal, ok := closure.(*Environment); ok {
 			env = envVal
 		}
 	}

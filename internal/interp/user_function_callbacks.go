@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
@@ -79,13 +80,9 @@ func (i *Interpreter) createDefaultValueGetterCallback() evaluator.DefaultValueF
 // createFunctionNameAliasCallback creates the function name alias callback.
 // In DWScript, assigning to the function name sets the return value (alias for Result).
 func (i *Interpreter) createFunctionNameAliasCallback() evaluator.FunctionNameAliasFunc {
-	return func(funcName string, funcEnv evaluator.Environment) evaluator.Value {
-		if adapter, ok := funcEnv.(*evaluator.EnvironmentAdapter); ok {
-			if env, ok := adapter.Underlying().(*Environment); ok {
-				return &ReferenceValue{Env: env, VarName: "Result"}
-			}
-		}
-		return &NilValue{}
+	return func(funcName string, funcEnv *runtime.Environment) evaluator.Value {
+		// Phase 3.1.3: Direct runtime.Environment - no adapter unwrapping needed
+		return &ReferenceValue{Env: funcEnv, VarName: "Result"}
 	}
 }
 
@@ -111,30 +108,10 @@ func (i *Interpreter) createInterfaceRefCounterCallback() evaluator.IncrementInt
 // createInterfaceCleanupCallback creates the interface/object cleanup callback.
 // Cleans up interface/object references when function scope ends.
 func (i *Interpreter) createInterfaceCleanupCallback() evaluator.CleanupInterfaceReferencesFunc {
-	return func(env evaluator.Environment) {
+	return func(env *runtime.Environment) {
+		// Phase 3.1.3: Direct runtime.Environment - no adapter unwrapping needed
 		savedEnv := i.env
-		i.cleanupInterfaceReferencesForEnv(env)
-		i.RestoreEnvironment(savedEnv)
-	}
-}
-
-// cleanupInterfaceReferencesForEnv extracts concrete *Environment and performs cleanup.
-func (i *Interpreter) cleanupInterfaceReferencesForEnv(env evaluator.Environment) {
-	savedEnv := i.env
-	var concreteEnv *Environment
-
-	// Extract concrete *Environment from adapter
-	if adapter, ok := env.(*evaluator.EnvironmentAdapter); ok {
-		if underlying, ok := adapter.Underlying().(*Environment); ok {
-			concreteEnv = underlying
-		}
-	} else if directEnv, ok := interface{}(env).(*Environment); ok {
-		concreteEnv = directEnv
-	}
-
-	// Perform cleanup
-	if concreteEnv != nil {
-		i.SetEnvironment(concreteEnv)
+		i.SetEnvironment(env)
 		i.cleanupInterfaceReferences(i.env)
 		i.RestoreEnvironment(savedEnv)
 	}
@@ -143,17 +120,10 @@ func (i *Interpreter) cleanupInterfaceReferencesForEnv(env evaluator.Environment
 // createEnvSyncerCallback creates the environment synchronization callback.
 // Syncs i.env with funcEnv so interpreter callbacks use the correct scope.
 func (i *Interpreter) createEnvSyncerCallback() evaluator.EnvSyncerFunc {
-	return func(funcEnv evaluator.Environment) func() {
+	return func(funcEnv *runtime.Environment) func() {
+		// Phase 3.1.3: Direct runtime.Environment - no adapter unwrapping needed
 		savedEnv := i.env
-
-		// Extract concrete *Environment from adapter
-		if adapter, ok := funcEnv.(*evaluator.EnvironmentAdapter); ok {
-			if concreteEnv, ok := adapter.Underlying().(*Environment); ok {
-				i.SetEnvironment(concreteEnv)
-			}
-		} else if concreteEnv, ok := interface{}(funcEnv).(*Environment); ok {
-			i.SetEnvironment(concreteEnv)
-		}
+		i.SetEnvironment(funcEnv)
 
 		return func() {
 			i.RestoreEnvironment(savedEnv)

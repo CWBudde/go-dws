@@ -281,35 +281,7 @@ func TestEvaluateDefaultParameters_NoParameters(t *testing.T) {
 // =============================================================================
 
 // testEnv is a simple mock environment for testing parameter binding.
-type testEnv struct {
-	bindings map[string]interface{}
-}
-
-func newTestEnv() *testEnv {
-	return &testEnv{bindings: make(map[string]interface{})}
-}
-
-func (e *testEnv) Define(name string, value interface{}) {
-	e.bindings[name] = value
-}
-
-func (e *testEnv) Get(name string) (interface{}, bool) {
-	val, ok := e.bindings[name]
-	return val, ok
-}
-
-func (e *testEnv) Set(name string, value interface{}) bool {
-	if _, ok := e.bindings[name]; ok {
-		e.bindings[name] = value
-		return true
-	}
-	return false
-}
-
-func (e *testEnv) NewEnclosedEnvironment() Environment {
-	child := newTestEnv()
-	return child
-}
+// Phase 3.1.3: Use real runtime.Environment instead of mock
 
 // mockRefValue is a simple mock for reference values in tests.
 // It's used to simulate var parameter references without needing runtime.ReferenceValue.
@@ -324,7 +296,7 @@ func (m *mockRefValue) String() string { return "&" + m.name }
 func TestBindFunctionParameters(t *testing.T) {
 	e := &Evaluator{}
 	// Create context with a fresh environment
-	env := newTestEnv()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	fn := &ast.FunctionDecl{
@@ -383,7 +355,7 @@ func TestBindFunctionParameters(t *testing.T) {
 // TestBindFunctionParameters_WithConversion tests that implicit conversion is applied.
 func TestBindFunctionParameters_WithConversion(t *testing.T) {
 	e := &Evaluator{}
-	env := newTestEnv()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	fn := &ast.FunctionDecl{
@@ -432,7 +404,7 @@ func TestBindFunctionParameters_WithConversion(t *testing.T) {
 // TestBindFunctionParameters_VarParameter tests that var parameters skip conversion.
 func TestBindFunctionParameters_VarParameter(t *testing.T) {
 	e := &Evaluator{}
-	env := newTestEnv()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	fn := &ast.FunctionDecl{
@@ -480,7 +452,7 @@ func TestBindFunctionParameters_VarParameter(t *testing.T) {
 // TestBindFunctionParameters_NoParameters tests function with no parameters.
 func TestBindFunctionParameters_NoParameters(t *testing.T) {
 	e := &Evaluator{}
-	env := newTestEnv()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	fn := &ast.FunctionDecl{
@@ -497,7 +469,7 @@ func TestBindFunctionParameters_NoParameters(t *testing.T) {
 // TestBindFunctionParameters_MixedVarAndRegular tests mixed var and regular parameters.
 func TestBindFunctionParameters_MixedVarAndRegular(t *testing.T) {
 	e := &Evaluator{}
-	env := newTestEnv()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	fn := &ast.FunctionDecl{
@@ -572,7 +544,7 @@ func TestBindFunctionParameters_MixedVarAndRegular(t *testing.T) {
 // TestBindFunctionParameters_NilType tests parameter without type annotation.
 func TestBindFunctionParameters_NilType(t *testing.T) {
 	e := &Evaluator{}
-	env := newTestEnv()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	fn := &ast.FunctionDecl{
@@ -621,7 +593,7 @@ func TestBindFunctionParameters_NilType(t *testing.T) {
 // TestInitializeResultVariable_Procedure tests that procedures don't initialize Result.
 func TestInitializeResultVariable_Procedure(t *testing.T) {
 	e := &Evaluator{}
-	env := newTestEnv()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	// Procedure - no return type
@@ -646,7 +618,7 @@ func TestInitializeResultVariable_Procedure(t *testing.T) {
 // TestInitializeResultVariable_Function tests that functions initialize Result.
 func TestInitializeResultVariable_Function(t *testing.T) {
 	e := &Evaluator{}
-	env := newTestEnv()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	fn := &ast.FunctionDecl{
@@ -686,7 +658,7 @@ func TestInitializeResultVariable_Function(t *testing.T) {
 // TestInitializeResultVariable_FunctionNameAlias tests that function name is aliased to Result.
 func TestInitializeResultVariable_FunctionNameAlias(t *testing.T) {
 	e := &Evaluator{}
-	env := newTestEnv()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	fn := &ast.FunctionDecl{
@@ -700,7 +672,7 @@ func TestInitializeResultVariable_FunctionNameAlias(t *testing.T) {
 
 	// Track if alias creator was called with correct params
 	aliasCreatorCalled := false
-	aliasCreator := func(funcName string, funcEnv Environment) Value {
+	aliasCreator := func(funcName string, funcEnv *runtime.Environment) Value {
 		aliasCreatorCalled = true
 		if funcName != "GetValue" {
 			t.Errorf("expected funcName 'GetValue', got '%s'", funcName)
@@ -734,7 +706,7 @@ func TestInitializeResultVariable_FunctionNameAlias(t *testing.T) {
 // TestInitializeResultVariable_NilCallbacks tests that nil callbacks are handled.
 func TestInitializeResultVariable_NilCallbacks(t *testing.T) {
 	e := &Evaluator{}
-	env := newTestEnv()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	fn := &ast.FunctionDecl{
@@ -769,7 +741,7 @@ func TestInitializeResultVariable_NilCallbacks(t *testing.T) {
 // TestInitializeResultVariable_FloatDefault tests float return type initialization.
 func TestInitializeResultVariable_FloatDefault(t *testing.T) {
 	e := &Evaluator{}
-	env := newTestEnv()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	fn := &ast.FunctionDecl{

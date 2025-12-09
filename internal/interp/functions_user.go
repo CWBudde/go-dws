@@ -38,7 +38,7 @@ func (i *Interpreter) executeUserFunctionViaEvaluator(fn *ast.FunctionDecl, args
 			i.env.Define("Self", selfValue)
 		}
 	}
-	i.ctx.SetEnv(evaluator.NewEnvironmentAdapter(i.env))
+	i.ctx.SetEnv(i.env)
 	defer func() { i.ctx.SetEnv(savedCtxEnv) }()
 
 	// We only push to i.callStack, NOT i.ctx.GetCallStack(), because ExecuteUserFunction

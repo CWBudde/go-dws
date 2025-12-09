@@ -127,25 +127,14 @@ func NewPropertyEvalContext() *PropertyEvalContext {
 	}
 }
 
-// Environment represents the runtime environment for variable storage and scoping.
-// This is temporarily defined here to avoid circular imports.
-// In Phase 3.4, this will be properly organized.
-type Environment interface {
-	// Define creates a new variable binding in the current scope.
-	Define(name string, value any)
-	// Get retrieves a variable value by name.
-	Get(name string) (any, bool)
-	// Set updates an existing variable value.
-	Set(name string, value any) bool
-	// NewEnclosedEnvironment creates a new child scope.
-	NewEnclosedEnvironment() Environment
-}
-
 // ExecutionContext holds all execution state that was previously scattered
 // throughout the Interpreter struct. This separation makes the execution
 // state explicit and easier to manage.
+//
+// Phase 3.1.3: Now uses concrete *runtime.Environment instead of interface.
+// This eliminates the need for EnvironmentAdapter.
 type ExecutionContext struct {
-	env               Environment
+	env               *runtime.Environment
 	exception         any
 	handlerException  any
 	callStack         *CallStack
@@ -154,16 +143,16 @@ type ExecutionContext struct {
 	arrayTypeContext  *types.ArrayType
 	evaluator         *Evaluator
 	recordTypeContext string
-	envStack          []Environment
+	envStack          []*runtime.Environment
 	oldValuesStack    []map[string]any
 }
 
 // NewExecutionContext creates a new execution context with the given environment.
 // The call stack is created with the default maximum depth (1024).
-func NewExecutionContext(env Environment) *ExecutionContext {
+func NewExecutionContext(env *runtime.Environment) *ExecutionContext {
 	return &ExecutionContext{
 		env:            env,
-		envStack:       make([]Environment, 0),
+		envStack:       make([]*runtime.Environment, 0),
 		callStack:      NewCallStack(0), // 0 uses default max depth (1024)
 		controlFlow:    NewControlFlow(),
 		propContext:    NewPropertyEvalContext(),
@@ -172,10 +161,10 @@ func NewExecutionContext(env Environment) *ExecutionContext {
 }
 
 // NewExecutionContextWithMaxDepth creates a new execution context with a custom max call stack depth.
-func NewExecutionContextWithMaxDepth(env Environment, maxDepth int) *ExecutionContext {
+func NewExecutionContextWithMaxDepth(env *runtime.Environment, maxDepth int) *ExecutionContext {
 	return &ExecutionContext{
 		env:            env,
-		envStack:       make([]Environment, 0),
+		envStack:       make([]*runtime.Environment, 0),
 		callStack:      NewCallStack(maxDepth),
 		controlFlow:    NewControlFlow(),
 		propContext:    NewPropertyEvalContext(),
@@ -184,12 +173,12 @@ func NewExecutionContextWithMaxDepth(env Environment, maxDepth int) *ExecutionCo
 }
 
 // Env returns the current runtime environment.
-func (ctx *ExecutionContext) Env() Environment {
+func (ctx *ExecutionContext) Env() *runtime.Environment {
 	return ctx.env
 }
 
 // SetEnv updates the runtime environment.
-func (ctx *ExecutionContext) SetEnv(env Environment) {
+func (ctx *ExecutionContext) SetEnv(env *runtime.Environment) {
 	ctx.env = env
 }
 
@@ -199,12 +188,12 @@ func (ctx *ExecutionContext) SetEnv(env Environment) {
 // Returns the new environment for convenience.
 //
 // Phase 3.5.4 - Phase 2D: Environment Scoping infrastructure.
-func (ctx *ExecutionContext) PushEnv() Environment {
+func (ctx *ExecutionContext) PushEnv() *runtime.Environment {
 	// Save the current environment on the stack
 	ctx.envStack = append(ctx.envStack, ctx.env)
 
 	// Create a new enclosed environment
-	newEnv := ctx.env.NewEnclosedEnvironment()
+	newEnv := runtime.NewEnclosedEnvironment(ctx.env)
 	ctx.env = newEnv
 
 	return newEnv
@@ -215,7 +204,7 @@ func (ctx *ExecutionContext) PushEnv() Environment {
 // Returns the restored environment, or the current environment if the stack is empty.
 //
 // Phase 3.5.4 - Phase 2D: Environment Scoping infrastructure.
-func (ctx *ExecutionContext) PopEnv() Environment {
+func (ctx *ExecutionContext) PopEnv() *runtime.Environment {
 	if len(ctx.envStack) == 0 {
 		// Stack is empty - already at root, nothing to pop
 		return ctx.env
@@ -354,7 +343,7 @@ func (ctx *ExecutionContext) GetOldValue(name string) (interface{}, bool) {
 // Note: The environment, call stack, and control flow are shared references.
 func (ctx *ExecutionContext) Clone() *ExecutionContext {
 	// Clone the envStack slice
-	envStackCopy := make([]Environment, len(ctx.envStack))
+	envStackCopy := make([]*runtime.Environment, len(ctx.envStack))
 	copy(envStackCopy, ctx.envStack)
 
 	return &ExecutionContext{
@@ -375,7 +364,7 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 // Reset clears the execution context state for reuse.
 // This is useful when you want to reset the context without creating a new one.
 func (ctx *ExecutionContext) Reset() {
-	ctx.envStack = make([]Environment, 0)
+	ctx.envStack = make([]*runtime.Environment, 0)
 	ctx.callStack.Clear()
 	ctx.controlFlow.Clear()
 	ctx.exception = nil

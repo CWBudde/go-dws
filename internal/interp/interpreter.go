@@ -166,8 +166,9 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 	// The context wraps the environment with a simple adapter to avoid circular dependencies.
 	// The Environment is passed as interface{} to ExecutionContext to avoid import cycles.
 	// Phase 3.3.3: Pass maxRecursionDepth to configure CallStack overflow detection.
+	// Phase 3.1.3: Direct runtime.Environment - no adapter needed.
 	interp.ctx = evaluator.NewExecutionContextWithMaxDepth(
-		evaluator.NewEnvironmentAdapter(env),
+		env,
 		interp.maxRecursionDepth,
 	)
 
@@ -311,9 +312,10 @@ func (i *Interpreter) GetCallStack() errors.StackTrace {
 //	i.SetEnvironment(newEnv)
 //
 // Phase 3.8.1: Task 3.8.1.2 - Environment synchronization helper
+// Phase 3.1.3: No adapter needed - direct runtime.Environment.
 func (i *Interpreter) SetEnvironment(env *Environment) {
 	i.env = env
-	i.ctx.SetEnv(evaluator.NewEnvironmentAdapter(env))
+	i.ctx.SetEnv(env)
 }
 
 // PushEnvironment creates a new enclosed environment with the given parent environment,

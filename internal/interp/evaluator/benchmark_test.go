@@ -27,7 +27,7 @@ func createTestEvaluator() *Evaluator {
 }
 
 func createTestContext() *ExecutionContext {
-	env := newMockEnvironment()
+	env := runtime.NewEnvironment()
 	return NewExecutionContext(env)
 }
 
@@ -550,7 +550,7 @@ func BenchmarkContextCreation(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		env := newMockEnvironment()
+		env := runtime.NewEnvironment()
 		benchSink = NewExecutionContext(env)
 	}
 }

@@ -94,7 +94,7 @@ func TestExecuteConversionFunction_WithMockAdapter(t *testing.T) {
 	e.SetAdapter(mockAdapter)
 
 	// Create execution context with a proper environment
-	env := newTestConversionEnv()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	t.Run("valid conversion function structure", func(t *testing.T) {
@@ -171,7 +171,7 @@ func TestConversionCallbacks_NilHandling(t *testing.T) {
 	}
 	e.SetAdapter(mockAdapter)
 
-	env := newTestConversionEnv()
+	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
 	fn := &ast.FunctionDecl{
@@ -218,36 +218,7 @@ func TestConversionCallbacks_NilHandling(t *testing.T) {
 	})
 }
 
-// testConversionEnv is a simple mock environment for testing conversion functions.
-type testConversionEnv struct {
-	bindings map[string]interface{}
-}
-
-func newTestConversionEnv() *testConversionEnv {
-	return &testConversionEnv{bindings: make(map[string]interface{})}
-}
-
-func (e *testConversionEnv) Define(name string, value interface{}) {
-	e.bindings[name] = value
-}
-
-func (e *testConversionEnv) Get(name string) (interface{}, bool) {
-	val, ok := e.bindings[name]
-	return val, ok
-}
-
-func (e *testConversionEnv) Set(name string, value interface{}) bool {
-	if _, ok := e.bindings[name]; ok {
-		e.bindings[name] = value
-		return true
-	}
-	return false
-}
-
-func (e *testConversionEnv) NewEnclosedEnvironment() Environment {
-	child := newTestConversionEnv()
-	return child
-}
+// Phase 3.1.3: Use real runtime.Environment instead of mock
 
 // mockConversionAdapter is a minimal mock for testing conversion function execution.
 type mockConversionAdapter struct {

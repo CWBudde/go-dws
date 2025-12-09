@@ -76,8 +76,8 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 							}
 
 							var setter runtime.SetterCallback = func(val runtime.Value) error {
-								if !capturedEnv.Set(varName, val) {
-									return fmt.Errorf("failed to set variable %s", varName)
+								if err := capturedEnv.Set(varName, val); err != nil {
+									return fmt.Errorf("failed to set variable %s: %w", varName, err)
 								}
 								return nil
 							}
@@ -317,8 +317,8 @@ func (e *Evaluator) PrepareUserFunctionArgs(
 			}
 
 			var setter runtime.SetterCallback = func(val runtime.Value) error {
-				if !capturedEnv.Set(varName, val) {
-					return fmt.Errorf("failed to set variable %s", varName)
+				if err := capturedEnv.Set(varName, val); err != nil {
+					return fmt.Errorf("failed to set variable %s: %w", varName, err)
 				}
 				return nil
 			}

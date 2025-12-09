@@ -527,7 +527,7 @@ func (e *Evaluator) DefineVar(ctx *ExecutionContext, name string, value Value) {
 
 // SetVar updates an existing variable in the execution context's environment.
 func (e *Evaluator) SetVar(ctx *ExecutionContext, name string, value Value) bool {
-	return ctx.Env().Set(name, value)
+	return ctx.Env().Set(name, value) == nil
 }
 
 // raiseMaxRecursionExceeded raises a max recursion exception.
