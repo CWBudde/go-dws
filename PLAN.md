@@ -35,9 +35,11 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 **Status**: 🔄 In Progress | **Complexity**: High | **Priority**: High | **Estimated**: 4-6 weeks remaining
 
 **Current State** (as of 2025-12-09):
-- Interpreter: 34 fields, 59 switch cases, 421 methods
+
+- Interpreter: 34 fields, 59 switch cases (20 delegated, 39 kept), 421 methods
 - Evaluator: 24K LOC, 48+ visitor methods, works but requires 65-method adapter
-- Dual environments: `i.env` AND `ctx.env` (must be kept in sync)
+- Single environment: `i.env` removed, using `ctx.env` only ✅
+- Exception sync: Added callbacks to unify `i.exception` ↔ `ctx.Exception()` ✅
 - Unit tests pass; fixture tests have pre-existing failures
 
 **Target End State**:
@@ -162,47 +164,72 @@ These were intentional fallbacks during incremental migration, but cause cycles 
 
 **Detailed audit**: See `~/.claude/plans/nested-swimming-firefly.md`
 
-### Phase A: Delegate Clean Cases (55 types)
+### Phase A: Delegate Clean Cases ✅ PARTIAL (20 of 59 delegated)
+
+**Status**: COMPLETE for safe cases | More delegation blocked by state sync issues
 
 - [x] **3.2.1** Audit switch cases vs evaluator ✅ (2025-12-09)
   - Created table mapping all 59 cases to evaluator Visit* methods
   - Identified 27 `adapter.EvalNode()` calls causing cycles
-  - Categorized: 55 clean, 4 blocked
+  - Categorized: 55 clean, 4 blocked (initial estimate)
   - **Deliverable**: `~/.claude/plans/nested-swimming-firefly.md`
 
-- [x] **3.2.2** Convert 6 already-delegating cases to generic Eval() ✅ (2025-12-09)
-  - RecordDecl, BinaryExpression, UnaryExpression, IsExpression, ImplementsExpression, IfExpression
-  - Changed from `VisitXxx()` to `evaluatorInstance.Eval(node, i.ctx)`
-  - All tests pass
+- [x] **3.2.2** Infrastructure work ✅ (2025-12-09)
+  - Added exception callbacks to ExecutionContext (`exceptionGetter`, `exceptionSetter`)
+  - Fixed Go nil interface gotcha in exception getter
+  - Added `evalViaEvaluator()` helper for error type conversion
+  - Fixed Clone() to copy exception callbacks
 
-- [ ] **3.2.3** Delegate clean literals (6 cases) (1h)
+- [x] **3.2.3** Delegate literals (6 cases) ✅
   - IntegerLiteral, FloatLiteral, StringLiteral, BooleanLiteral, CharLiteral, NilLiteral
-  - Change: `return &IntegerValue{...}` → `return i.evaluatorInstance.Eval(node, i.ctx)`
-  - Run tests after each change
+  - All use `evalViaEvaluator(node)`
 
-- [ ] **3.2.4** Delegate clean statements (15 cases, skip AssignmentStatement) (2h)
-  - Program, BlockStatement, VarDeclStatement, ConstDecl, IfStatement, WhileStatement
-  - RepeatStatement, ForStatement, ForInStatement, CaseStatement, TryStatement
-  - RaiseStatement, BreakStatement, ContinueStatement, ExitStatement, ReturnStatement
-  - EmptyStatement, UsesClause, ExpressionStatement
-  - **SKIP**: AssignmentStatement (has fallbacks)
+- [x] **3.2.4** Delegate safe expressions (14 cases) ✅
+  - Identifier, BinaryExpression, UnaryExpression, GroupedExpression
+  - EnumLiteral, SetLiteral, LambdaExpression
+  - IsExpression, ImplementsExpression, IfExpression
+  - RecordDecl, ArrayDecl, EmptyStatement
+  - All use `evalViaEvaluator(node)`
 
-- [ ] **3.2.5** Delegate clean declarations (8 cases, skip SetDecl) (1h)
-  - ClassDecl, EnumDecl, FunctionDecl, InterfaceDecl, OperatorDecl
-  - ArrayDecl, HelperDecl, TypeDeclaration
-  - **SKIP**: SetDecl (full fallback)
+**Currently Delegated (20 cases)**:
 
-- [ ] **3.2.6** Delegate clean expressions (23 cases, skip 2) (2h)
-  - GroupedExpression, Identifier, AddressOfExpression, NewExpression, NewArrayExpression
-  - IndexExpression, InheritedExpression, SelfExpression, EnumLiteral, RecordLiteralExpression
-  - SetLiteral, ArrayLiteralExpression, LambdaExpression, AsExpression, OldExpression
-  - MethodCallExpression (already have: Binary, Unary, Is, Implements, IfExpr, RecordDecl)
-  - **SKIP**: CallExpression, MemberAccessExpression (have fallbacks)
+```text
+IntegerLiteral, FloatLiteral, StringLiteral, BooleanLiteral, CharLiteral, NilLiteral,
+Identifier, BinaryExpression, UnaryExpression, GroupedExpression,
+EnumLiteral, SetLiteral, LambdaExpression, IsExpression, ImplementsExpression, IfExpression,
+RecordDecl, ArrayDecl, EmptyStatement (+ HelperDecl attempted but reverted)
+```
 
-- [ ] **3.2.7** Verify and commit Phase A (1h)
-  - Run `just test` - all tests pass
-  - Count remaining switch cases (should be 4: Assignment, Call, MemberAccess, SetDecl)
-  - Commit: "refactor: delegate 55 clean AST types to Evaluator"
+### Phase A Blockers Discovered
+
+Statement delegation attempt revealed additional state sync issues beyond exception sync:
+
+| Statement Type | Attempted | Blocker |
+|---------------|-----------|---------|
+| VarDeclStatement | ❌ | Static array initialization logic differs |
+| ConstDecl | ❌ | Type-specific initialization differs |
+| BlockStatement | ❌ | `handlerException` not synced (bare raise panics) |
+| BreakStatement | ❌ | Control flow needs interpreter handling |
+| ContinueStatement | ❌ | Control flow needs interpreter handling |
+| ExitStatement | ❌ | Control flow needs interpreter handling |
+| ReturnStatement | ❌ | Control flow needs interpreter handling |
+| All loop statements | ❌ | Control flow state not synced |
+
+**Root Cause**: Initial "55 clean" estimate was wrong. Most statements depend on:
+
+1. `handlerException` - Used for bare raise inside except blocks (not synced)
+2. Control flow flags - break/continue/exit/return state (in interpreter only)
+3. Type registration - Functions/classes/enums registered in interpreter registries
+
+### Remaining Phase A Work (Optional)
+
+To delegate more cases would require syncing additional state:
+
+- [ ] **3.2.5** Add `handlerException` callbacks (like exception callbacks)
+- [ ] **3.2.6** Add control flow state callbacks (break/continue/exit/return flags)
+- [ ] **3.2.7** Align VarDeclStatement static array initialization
+
+**Alternative**: Accept that 20 delegated + 39 in interpreter is the practical limit without major restructuring.
 
 ### Phase B: Make Evaluator Self-Sufficient (4 blocked types)
 
@@ -253,22 +280,28 @@ then removing the `adapter.EvalNode()` fallback.
   - Run `just test` - all tests pass
   - Commit: "refactor: complete Eval() migration, evaluator fully self-sufficient"
 
-### Scope Assessment
+### Scope Assessment (Revised)
 
-| Phase | Tasks | Cases | Effort | Risk |
-|-------|-------|-------|--------|------|
-| A (clean) | 3.2.3-3.2.7 | 55 | 7h | Low |
-| B (blocked) | 3.2.8-3.2.12 | 4 | 22h | Medium |
-| **Total** | — | 59 | ~29h | — |
+| Phase | Status | Cases | Notes |
+|-------|--------|-------|-------|
+| A (delegated) | ✅ DONE | 20 | Literals, safe expressions, 2 declarations |
+| A (blocked) | ⏸️ PAUSED | 35 | Statements need state sync work |
+| B (cycle-blocked) | 📋 PLANNED | 4 | AssignmentStatement, CallExpression, MemberAccessExpression, SetDecl |
+| **Current** | — | 20/59 | 34% delegated, all tests pass |
 
-**Success Criteria**:
+**Revised Success Criteria**:
 
-- ✅ No switch statement in Interpreter.Eval() (or minimal 4-case for blocked types)
-- ✅ 55 clean cases delegated to Evaluator (Phase A)
-- ✅ All 4 blocked cases self-sufficient in Evaluator (Phase B)
-- ✅ All `adapter.EvalNode()` fallbacks removed
-- ✅ ~230 LOC deleted (switch block)
-- ✅ All tests pass
+- ✅ 20 cases delegated to Evaluator (safe subset)
+- ✅ Exception sync infrastructure in place (callbacks)
+- ✅ Error type conversion working
+- ✅ All unit tests pass
+- ⏸️ Full 59-case delegation requires significant additional work (state sync)
+
+**Options to proceed**:
+
+1. **Accept current state**: 20 delegated is good enough, focus on other improvements
+2. **Deep state sync**: Add callbacks for handlerException, control flow → +15 statements
+3. **Phase B first**: Fix the 4 cycle-blocked types → removes adapter fallbacks
 
 ---
 

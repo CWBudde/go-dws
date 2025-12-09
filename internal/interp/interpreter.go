@@ -165,9 +165,24 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 	// The Environment is passed as interface{} to ExecutionContext to avoid import cycles.
 	// Phase 3.3.3: Pass maxRecursionDepth to configure CallStack overflow detection.
 	// Phase 3.1.3: Direct runtime.Environment - no adapter needed.
-	interp.ctx = evaluator.NewExecutionContextWithMaxDepth(
+	// Phase 3.2: Use callbacks to unify exception handling between interpreter and evaluator.
+	// Note: Getter must return untyped nil when no exception, to avoid Go's interface nil gotcha.
+	interp.ctx = evaluator.NewExecutionContextWithCallbacks(
 		env,
 		interp.maxRecursionDepth,
+		func() any { // getter: read from i.exception
+			if interp.exception == nil {
+				return nil // Return untyped nil, not typed nil pointer
+			}
+			return interp.exception
+		},
+		func(exc any) { // setter: write to i.exception
+			if exc == nil {
+				interp.exception = nil
+			} else if excVal, ok := exc.(*runtime.ExceptionValue); ok {
+				interp.exception = excVal
+			}
+		},
 	)
 
 	// Phase 3.5.1: Initialize Evaluator
@@ -378,6 +393,17 @@ func (i *Interpreter) popCallStack() {
 	i.ctx.GetCallStack().Pop()
 }
 
+// evalViaEvaluator delegates evaluation to the evaluator and converts runtime.ErrorValue to interp.ErrorValue.
+// This ensures type compatibility for tests and existing code that expect interp.ErrorValue.
+func (i *Interpreter) evalViaEvaluator(node ast.Node) Value {
+	result := i.evaluatorInstance.Eval(node, i.ctx)
+	// Convert runtime.ErrorValue to interp.ErrorValue for type compatibility
+	if runtimeErr, ok := result.(*runtime.ErrorValue); ok {
+		return &ErrorValue{Message: runtimeErr.Message}
+	}
+	return result
+}
+
 // Eval evaluates an AST node and returns its value.
 // This is the main entry point for the interpreter.
 func (i *Interpreter) Eval(node ast.Node) Value {
@@ -390,7 +416,7 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return i.evalProgram(node)
 
 	case *ast.EmptyStatement:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	// Statements - KEEP in interpreter: exception/control flow uses i.exception
 	case *ast.ExpressionStatement:
@@ -441,15 +467,18 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return val
 
 	case *ast.VarDeclStatement:
+		// KEEP: Has complex static array initialization logic
 		return i.evalVarDeclStatement(node)
 
 	case *ast.ConstDecl:
+		// KEEP: May have type-specific initialization
 		return i.evalConstDecl(node)
 
 	case *ast.AssignmentStatement:
 		return i.evalAssignmentStatement(node)
 
 	case *ast.BlockStatement:
+		// KEEP: Block statements need interpreter's control flow handling
 		return i.evalBlockStatement(node)
 
 	case *ast.IfStatement:
@@ -477,15 +506,19 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return i.evalRaiseStatement(node)
 
 	case *ast.BreakStatement:
+		// KEEP: Control flow needs interpreter handling
 		return i.evalBreakStatement(node)
 
 	case *ast.ContinueStatement:
+		// KEEP: Control flow needs interpreter handling
 		return i.evalContinueStatement(node)
 
 	case *ast.ExitStatement:
+		// KEEP: Control flow needs interpreter handling
 		return i.evalExitStatement(node)
 
 	case *ast.ReturnStatement:
+		// KEEP: Control flow needs interpreter handling
 		return i.evalReturnStatement(node)
 
 	case *ast.UsesClause:
@@ -517,13 +550,14 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return i.evalSetDeclaration(node)
 
 	case *ast.RecordDecl:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	case *ast.HelperDecl:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		// KEEP: Helper type registration
+		return i.evalHelperDeclaration(node)
 
 	case *ast.ArrayDecl:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	case *ast.TypeDeclaration:
 		// KEEP: Type alias registration
@@ -531,38 +565,38 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 
 	// Expressions - Literals (delegate to evaluator)
 	case *ast.IntegerLiteral:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	case *ast.FloatLiteral:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	case *ast.StringLiteral:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	case *ast.BooleanLiteral:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	case *ast.CharLiteral:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	case *ast.NilLiteral:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	case *ast.Identifier:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	case *ast.BinaryExpression:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	case *ast.UnaryExpression:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	case *ast.AddressOfExpression:
 		// KEEP: Method pointer creation requires interpreter state
 		return i.evalAddressOfExpression(node)
 
 	case *ast.GroupedExpression:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	case *ast.CallExpression:
 		return i.evalCallExpression(node)
@@ -583,14 +617,14 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return i.evalSelfExpression(node)
 
 	case *ast.EnumLiteral:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	case *ast.RecordLiteralExpression:
 		// KEEP: Field validation and type context handling
 		return i.evalRecordLiteral(node)
 
 	case *ast.SetLiteral:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	case *ast.ArrayLiteralExpression:
 		// KEEP: Type context from assignment target
@@ -605,20 +639,20 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return i.evalNewArrayExpression(node)
 
 	case *ast.LambdaExpression:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	case *ast.IsExpression:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	case *ast.AsExpression:
 		// KEEP: Has complex type cast logic that may need interpreter state
 		return i.evalAsExpression(node)
 
 	case *ast.ImplementsExpression:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	case *ast.IfExpression:
-		return i.evaluatorInstance.Eval(node, i.ctx)
+		return i.evalViaEvaluator(node)
 
 	case *ast.OldExpression:
 		// Evaluate 'old' expressions in postconditions

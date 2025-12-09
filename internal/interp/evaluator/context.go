@@ -127,12 +127,22 @@ func NewPropertyEvalContext() *PropertyEvalContext {
 	}
 }
 
+// ExceptionGetter is a callback to read the current exception from external storage.
+// Used to sync exception state between interpreter and evaluator.
+type ExceptionGetter func() any
+
+// ExceptionSetter is a callback to write an exception to external storage.
+// Used to sync exception state between interpreter and evaluator.
+type ExceptionSetter func(any)
+
 // ExecutionContext holds all execution state that was previously scattered
 // throughout the Interpreter struct. This separation makes the execution
 // state explicit and easier to manage.
 //
 // Phase 3.1.3: Now uses concrete *runtime.Environment instead of interface.
 // This eliminates the need for EnvironmentAdapter.
+//
+// Phase 3.2: Added exception callbacks for syncing with interpreter's i.exception.
 type ExecutionContext struct {
 	env               *runtime.Environment
 	exception         any
@@ -145,6 +155,9 @@ type ExecutionContext struct {
 	recordTypeContext string
 	envStack          []*runtime.Environment
 	oldValuesStack    []map[string]any
+	// Exception callbacks for unified exception handling (Phase 3.2)
+	exceptionGetter ExceptionGetter
+	exceptionSetter ExceptionSetter
 }
 
 // NewExecutionContext creates a new execution context with the given environment.
@@ -169,6 +182,23 @@ func NewExecutionContextWithMaxDepth(env *runtime.Environment, maxDepth int) *Ex
 		controlFlow:    NewControlFlow(),
 		propContext:    NewPropertyEvalContext(),
 		oldValuesStack: make([]map[string]interface{}, 0),
+	}
+}
+
+// NewExecutionContextWithCallbacks creates a new execution context with exception callbacks.
+// This allows the interpreter to provide its own exception storage (i.exception) while
+// the evaluator uses ctx.Exception()/SetException() seamlessly.
+// Phase 3.2: Enables unified exception handling between interpreter and evaluator.
+func NewExecutionContextWithCallbacks(env *runtime.Environment, maxDepth int, getter ExceptionGetter, setter ExceptionSetter) *ExecutionContext {
+	return &ExecutionContext{
+		env:             env,
+		envStack:        make([]*runtime.Environment, 0),
+		callStack:       NewCallStack(maxDepth),
+		controlFlow:     NewControlFlow(),
+		propContext:     NewPropertyEvalContext(),
+		oldValuesStack:  make([]map[string]interface{}, 0),
+		exceptionGetter: getter,
+		exceptionSetter: setter,
 	}
 }
 
@@ -256,12 +286,21 @@ func (ctx *ExecutionContext) ControlFlow() *ControlFlow {
 }
 
 // Exception returns the current active exception.
+// If exception callbacks are configured (Phase 3.2), uses external storage.
 func (ctx *ExecutionContext) Exception() interface{} {
+	if ctx.exceptionGetter != nil {
+		return ctx.exceptionGetter()
+	}
 	return ctx.exception
 }
 
 // SetException sets the current active exception.
+// If exception callbacks are configured (Phase 3.2), uses external storage.
 func (ctx *ExecutionContext) SetException(exc interface{}) {
+	if ctx.exceptionSetter != nil {
+		ctx.exceptionSetter(exc)
+		return
+	}
 	ctx.exception = exc
 }
 
@@ -357,7 +396,9 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 		propContext:       ctx.propContext,
 		recordTypeContext: ctx.recordTypeContext,
 		arrayTypeContext:  ctx.arrayTypeContext,
-		evaluator:         ctx.evaluator, // Task 3.5.41: Copy evaluator reference
+		evaluator:         ctx.evaluator,         // Task 3.5.41: Copy evaluator reference
+		exceptionGetter:   ctx.exceptionGetter,   // Phase 3.2: Copy exception callbacks
+		exceptionSetter:   ctx.exceptionSetter,   // Phase 3.2: Copy exception callbacks
 	}
 }
 
