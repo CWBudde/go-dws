@@ -385,14 +385,14 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	i.currentNode = node
 
 	switch node := node.(type) {
-	// Program
+	// Program - KEEP: orchestrates exception flow via i.exception
 	case *ast.Program:
 		return i.evalProgram(node)
 
 	case *ast.EmptyStatement:
-		return &NilValue{}
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
-	// Statements
+	// Statements - KEEP in interpreter: exception/control flow uses i.exception
 	case *ast.ExpressionStatement:
 		// Evaluate the expression
 		val := i.Eval(node.Expression)
@@ -486,78 +486,83 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return i.evalExitStatement(node)
 
 	case *ast.ReturnStatement:
-		// Handle return statements in lambda shorthand syntax
 		return i.evalReturnStatement(node)
 
 	case *ast.UsesClause:
 		// Uses clauses are processed before execution by the CLI/loader
-		// At runtime, they're no-ops since units are already loaded
 		return nil
 
 	case *ast.FunctionDecl:
+		// KEEP: Has function registry interactions
 		return i.evalFunctionDeclaration(node)
 
 	case *ast.ClassDecl:
+		// KEEP: Complex type system registration
 		return i.evalClassDeclaration(node)
 
 	case *ast.InterfaceDecl:
+		// KEEP: Interface registration ordering
 		return i.evalInterfaceDeclaration(node)
 
 	case *ast.OperatorDecl:
+		// KEEP: Operator registry interactions
 		return i.evalOperatorDeclaration(node)
 
 	case *ast.EnumDecl:
+		// KEEP: Enum type registration
 		return i.evalEnumDeclaration(node)
 
 	case *ast.SetDecl:
+		// KEEP: Has full adapter fallback
 		return i.evalSetDeclaration(node)
 
 	case *ast.RecordDecl:
-		return i.evaluatorInstance.VisitRecordDecl(node, i.ctx)
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.HelperDecl:
-		return i.evalHelperDeclaration(node)
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.ArrayDecl:
-		return i.evalArrayDeclaration(node)
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.TypeDeclaration:
+		// KEEP: Type alias registration
 		return i.evalTypeDeclaration(node)
 
-	// Expressions
+	// Expressions - Literals (delegate to evaluator)
 	case *ast.IntegerLiteral:
-		return &IntegerValue{Value: node.Value}
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.FloatLiteral:
-		return &FloatValue{Value: node.Value}
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.StringLiteral:
-		return &StringValue{Value: node.Value}
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.BooleanLiteral:
-		return &BooleanValue{Value: node.Value}
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.CharLiteral:
-		// Character literals are treated as single-character strings
-		return &StringValue{Value: string(node.Value)}
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.NilLiteral:
-		return &NilValue{}
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.Identifier:
-		return i.evalIdentifier(node)
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.BinaryExpression:
-		return i.evaluatorInstance.VisitBinaryExpression(node, i.ctx)
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.UnaryExpression:
-		return i.evaluatorInstance.VisitUnaryExpression(node, i.ctx)
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.AddressOfExpression:
+		// KEEP: Method pointer creation requires interpreter state
 		return i.evalAddressOfExpression(node)
 
 	case *ast.GroupedExpression:
-		return i.Eval(node.Expression)
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.CallExpression:
 		return i.evalCallExpression(node)
@@ -578,41 +583,42 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return i.evalSelfExpression(node)
 
 	case *ast.EnumLiteral:
-		return i.evalEnumLiteral(node)
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.RecordLiteralExpression:
+		// KEEP: Field validation and type context handling
 		return i.evalRecordLiteral(node)
 
 	case *ast.SetLiteral:
-		return i.evalSetLiteral(node)
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.ArrayLiteralExpression:
+		// KEEP: Type context from assignment target
 		return i.evalArrayLiteral(node)
 
 	case *ast.IndexExpression:
+		// KEEP: Has complex property access logic
 		return i.evalIndexExpression(node)
 
 	case *ast.NewArrayExpression:
+		// KEEP: Array creation needs interpreter type lookup
 		return i.evalNewArrayExpression(node)
 
 	case *ast.LambdaExpression:
-		// Evaluate lambda expression to create closure
-		return i.evalLambdaExpression(node)
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.IsExpression:
-		// Phase 3.8.1: Delegate to evaluator
-		return i.evaluatorInstance.VisitIsExpression(node, i.ctx)
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.AsExpression:
-		// Task 9.48: Evaluate 'as' type casting operator
+		// KEEP: Has complex type cast logic that may need interpreter state
 		return i.evalAsExpression(node)
 
 	case *ast.ImplementsExpression:
-		// Phase 3.8.2: Delegate to evaluator
-		return i.evaluatorInstance.VisitImplementsExpression(node, i.ctx)
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.IfExpression:
-		return i.evaluatorInstance.VisitIfExpression(node, i.ctx)
+		return i.evaluatorInstance.Eval(node, i.ctx)
 
 	case *ast.OldExpression:
 		// Evaluate 'old' expressions in postconditions
