@@ -120,103 +120,153 @@ The following tasks complete the migration by eliminating dual systems.
 
 ---
 
-## 3.2 Delete Interpreter.Eval() Switch
+## 3.2 Migrate Interpreter.Eval() Switch to Evaluator
 
-**Goal**: Route all evaluation through Evaluator → delete 59-case switch
+**Goal**: Route evaluation through Evaluator → reduce/eliminate 59-case switch
 
-**Status**: 📋 Planned | **Priority**: P0 | **Effort**: 3-4 days
+**Status**: 🔄 In Progress | **Priority**: P0 | **Effort**: 5-7 days
 
-### Current State Analysis
+### Problem Discovery (2025-12-09)
 
-**59 switch cases** in `interpreter.go:401-629`:
-- Statements: 20 cases (Program, Block, If, While, For, etc.)
-- Declarations: 10 cases (Function, Class, Interface, Enum, etc.)
-- Expressions: 29 cases (literals, operators, calls, etc.)
+During initial migration attempt, **circular callback cycles** were discovered:
 
-**Evaluator already has Visit methods** for all 59 types (verified).
-The switch exists because each case does env sync before/after delegation.
+```text
+Interpreter.Eval(AssignmentStatement)
+  → evaluator.Eval(AssignmentStatement)
+    → VisitAssignmentStatement
+      → evalMemberAssignmentDirect
+        → adapter.EvalNode(stmt)  // SAME stmt!
+          → Interpreter.Eval(AssignmentStatement)  // INFINITE LOOP
+```
 
-**Why switch still exists**:
-1. Each case calls `i.evaluatorInstance.Eval()` but wraps with env sync
-2. Some cases call `evalXxx()` methods that do additional work
-3. After 3.1 (env merge), this sync becomes unnecessary
+**Root cause**: Evaluator has 27 `adapter.EvalNode()` calls that pass the SAME node back.
+These were intentional fallbacks during incremental migration, but cause cycles when interpreter delegates to evaluator.
 
-### Tasks
+### Classification: Clean vs Blocked
 
-- [ ] **3.2.1** Audit switch cases vs evaluator (2h)
-  - Create table: `case *ast.X` → `VisitX()` → direct or via `evalX()`
-  - Categorize by delegation pattern:
-    - **Direct**: `return i.evaluatorInstance.Eval(node)` (can delete immediately)
-    - **Wrapped**: sync + delegate + sync (delete after 3.1)
-    - **Custom**: calls `evalXxx()` (need to check if still needed)
-  - Count: expect ~40 direct, ~15 wrapped, ~4 custom
-  - **Deliverable**: Spreadsheet in `docs/switch-case-audit.md`
+**55 AST types are CLEAN** (no same-node fallbacks) - can delegate now:
 
-- [ ] **3.2.2** Delete direct delegation cases (2h)
-  - Cases that just do `return i.evaluatorInstance.Eval(node)`
-  - Expected: ~40 cases can be deleted immediately
-  - Replace switch with: `return i.evaluatorInstance.Eval(node)`
-  - Run tests after each batch of 10 deletions
+- Literals (6): Integer, Float, String, Boolean, Char, Nil
+- Declarations (8): Class, Enum, Function, Interface, Operator, Record, Array, Helper, TypeDeclaration
+- Statements (16): Program, Block, VarDecl, ConstDecl, If, While, Repeat, For, ForIn, Case, Try, Raise, Break, Continue, Exit, Return, Empty, Uses, Expression
+- Expressions (25): Binary, Unary, Grouped, Identifier, AddressOf, New, NewArray, Index, Inherited, Self, EnumLiteral, RecordLiteral, SetLiteral, ArrayLiteral, Lambda, Is, Implements, As, IfExpr, Old, Range, MethodCall
 
-- [ ] **3.2.3** Verify evaluator handles all statements (3h)
-  - **Control flow** (6): If, While, Repeat, For, ForIn, Case
-  - **Exception** (2): Try, Raise
-  - **Control** (4): Break, Continue, Exit, Return
-  - **Block** (3): Program, Block, Empty
-  - **Misc** (2): Expression, Uses
-  - For each: verify `VisitXxx` doesn't call back to interpreter unnecessarily
-  - Remove any `adapter.EvalNode()` callbacks that are now redundant
+**4 AST types BLOCKED** (have same-node fallbacks) - need work first:
 
-- [ ] **3.2.4** Verify evaluator handles all declarations (3h)
-  - **Types** (7): Class, Interface, Enum, Set, Record, Array, TypeDeclaration
-  - **Code** (2): Function, Operator
-  - **Data** (2): VarDecl, ConstDecl
-  - **Extension** (1): Helper
-  - For each: verify declaration logic is complete in evaluator
-  - Class/Interface use adapter for registration (keep those callbacks)
+| AST Type | Fallback Triggers | Missing Functionality |
+|----------|-------------------|----------------------|
+| `AssignmentStatement` | Compound ops, member/index targets | Property setters, auto-init, compound ops |
+| `CallExpression` | External functions, lazy params | External function dispatch |
+| `MemberAccessExpression` | OBJECT/INTERFACE/CLASS/TYPE_CAST/NIL | Method dispatch, class lookup |
+| `SetDecl` | Always | Set type registration |
 
-- [ ] **3.2.5** Verify evaluator handles all expressions (2h)
-  - **Literals** (6): Integer, Float, String, Boolean, Char, Nil
-  - **Operators** (4): Binary, Unary, AddressOf, Grouped
-  - **Calls** (4): Call, MethodCall, New, NewArray
-  - **Access** (3): Identifier, MemberAccess, Index
-  - **OOP** (4): Self, Inherited, Is, As, Implements
-  - **Misc** (4): Enum, RecordLiteral, SetLiteral, ArrayLiteral, Lambda, If, Old
-  - Self/Inherited need adapter callbacks (keep)
+**Detailed audit**: See `~/.claude/plans/nested-swimming-firefly.md`
 
-- [ ] **3.2.6** Replace Eval() switch with single delegation (1h)
-  ```go
-  func (i *Interpreter) Eval(node ast.Node) Value {
-      if node == nil {
-          return nil
-      }
-      return i.evaluatorInstance.Eval(node)
-  }
-  ```
-  - Delete entire switch block (~230 lines)
-  - Keep nil check
-  - Run `just test`
+### Phase A: Delegate Clean Cases (55 types)
 
-- [ ] **3.2.7** Delete orphaned interpreter methods (3h)
-  - Search: `grep -l "func (i \*Interpreter) eval" internal/interp/*.go`
-  - For each `evalXxx` method:
-    - Check callers: `grep -r "\.evalXxx\(" internal/interp/`
-    - If only called from deleted switch: DELETE
-    - If called from adapter callbacks: KEEP
-  - Expected deletions: `evalBlockStatement`, `evalIfStatement`, `evalWhileStatement`, etc.
-  - Expected keeps: `evalMethodCall` (adapter), `evalAssignmentStatement` (complex)
+- [x] **3.2.1** Audit switch cases vs evaluator ✅ (2025-12-09)
+  - Created table mapping all 59 cases to evaluator Visit* methods
+  - Identified 27 `adapter.EvalNode()` calls causing cycles
+  - Categorized: 55 clean, 4 blocked
+  - **Deliverable**: `~/.claude/plans/nested-swimming-firefly.md`
 
-- [ ] **3.2.8** Verify and test (2h)
-  - Run `just test` - all unit tests pass
-  - Verify switch is gone: `grep -c "case \*ast\." interpreter.go` → 0
-  - Count remaining `evalXxx` methods (should be <10)
-  - Measure LOC reduction (target: -200 LOC from switch alone)
-  - Commit: "refactor: delete Interpreter.Eval() switch, route through Evaluator"
+- [x] **3.2.2** Convert 6 already-delegating cases to generic Eval() ✅ (2025-12-09)
+  - RecordDecl, BinaryExpression, UnaryExpression, IsExpression, ImplementsExpression, IfExpression
+  - Changed from `VisitXxx()` to `evaluatorInstance.Eval(node, i.ctx)`
+  - All tests pass
+
+- [ ] **3.2.3** Delegate clean literals (6 cases) (1h)
+  - IntegerLiteral, FloatLiteral, StringLiteral, BooleanLiteral, CharLiteral, NilLiteral
+  - Change: `return &IntegerValue{...}` → `return i.evaluatorInstance.Eval(node, i.ctx)`
+  - Run tests after each change
+
+- [ ] **3.2.4** Delegate clean statements (15 cases, skip AssignmentStatement) (2h)
+  - Program, BlockStatement, VarDeclStatement, ConstDecl, IfStatement, WhileStatement
+  - RepeatStatement, ForStatement, ForInStatement, CaseStatement, TryStatement
+  - RaiseStatement, BreakStatement, ContinueStatement, ExitStatement, ReturnStatement
+  - EmptyStatement, UsesClause, ExpressionStatement
+  - **SKIP**: AssignmentStatement (has fallbacks)
+
+- [ ] **3.2.5** Delegate clean declarations (8 cases, skip SetDecl) (1h)
+  - ClassDecl, EnumDecl, FunctionDecl, InterfaceDecl, OperatorDecl
+  - ArrayDecl, HelperDecl, TypeDeclaration
+  - **SKIP**: SetDecl (full fallback)
+
+- [ ] **3.2.6** Delegate clean expressions (23 cases, skip 2) (2h)
+  - GroupedExpression, Identifier, AddressOfExpression, NewExpression, NewArrayExpression
+  - IndexExpression, InheritedExpression, SelfExpression, EnumLiteral, RecordLiteralExpression
+  - SetLiteral, ArrayLiteralExpression, LambdaExpression, AsExpression, OldExpression
+  - MethodCallExpression (already have: Binary, Unary, Is, Implements, IfExpr, RecordDecl)
+  - **SKIP**: CallExpression, MemberAccessExpression (have fallbacks)
+
+- [ ] **3.2.7** Verify and commit Phase A (1h)
+  - Run `just test` - all tests pass
+  - Count remaining switch cases (should be 4: Assignment, Call, MemberAccess, SetDecl)
+  - Commit: "refactor: delegate 55 clean AST types to Evaluator"
+
+### Phase B: Make Evaluator Self-Sufficient (4 blocked types)
+
+Each blocked type requires moving functionality from interpreter to evaluator,
+then removing the `adapter.EvalNode()` fallback.
+
+- [ ] **3.2.8** Migrate SetDecl (easiest) (2h)
+  - Move set type registration logic to evaluator
+  - Remove fallback in `VisitSetDecl`
+  - Delegate SetDecl from interpreter
+  - Test: set-related fixture tests
+
+- [ ] **3.2.9** Migrate CallExpression fallbacks (4h)
+  - **External functions**: Move dispatch logic to evaluator
+  - **Lazy params**: Ensure evaluator handles thunk evaluation
+  - Remove fallbacks in `VisitCallExpression`
+  - Delegate CallExpression from interpreter
+  - Test: function call fixtures, lazy param tests
+
+- [ ] **3.2.10** Migrate MemberAccessExpression fallbacks (6h)
+  - **OBJECT member access**: Move method dispatch to evaluator
+  - **INTERFACE member access**: Move interface method tables to evaluator
+  - **CLASS/CLASSINFO access**: Move class member lookup to evaluator
+  - **TYPE_CAST access**: Move type cast member access to evaluator
+  - **NIL typed access**: Move typed nil class var lookup to evaluator
+  - Remove 5 fallbacks in `VisitMemberAccessExpression`
+  - Delegate MemberAccessExpression from interpreter
+  - Test: OOP fixtures, interface tests, class tests
+
+- [ ] **3.2.11** Migrate AssignmentStatement fallbacks (hardest) (8h)
+  - **Static class assignment** (TClass.Variable): Move ClassInfo lookup
+  - **Nil auto-initialization**: Move auto-init logic
+  - **Record property setters**: Move property dispatch
+  - **Class/metaclass assignment**: Move class member assignment
+  - **Compound assignments**: Move compound ops for objects
+  - **Index assignment fallbacks**: Move interface/object indexed property
+  - Remove 6 fallbacks in member_assignment.go
+  - Remove 3 fallbacks in index_assignment.go
+  - Remove 2 fallbacks in visitor_statements.go
+  - Delegate AssignmentStatement from interpreter
+  - Test: assignment fixtures, property tests, compound op tests
+
+- [ ] **3.2.12** Final cleanup (2h)
+  - Remove evaluator.go default case (line 679)
+  - Delete orphaned interpreter `evalXxx` methods
+  - Simplify Interpreter.Eval() to single delegation
+  - Verify: `grep -c "case \*ast\." interpreter.go` → 0
+  - Run `just test` - all tests pass
+  - Commit: "refactor: complete Eval() migration, evaluator fully self-sufficient"
+
+### Scope Assessment
+
+| Phase | Tasks | Cases | Effort | Risk |
+|-------|-------|-------|--------|------|
+| A (clean) | 3.2.3-3.2.7 | 55 | 7h | Low |
+| B (blocked) | 3.2.8-3.2.12 | 4 | 22h | Medium |
+| **Total** | — | 59 | ~29h | — |
 
 **Success Criteria**:
-- ✅ No switch statement in Interpreter.Eval()
-- ✅ All evaluation routes through Evaluator
-- ✅ Orphaned evalXxx methods deleted (~10 methods)
+
+- ✅ No switch statement in Interpreter.Eval() (or minimal 4-case for blocked types)
+- ✅ 55 clean cases delegated to Evaluator (Phase A)
+- ✅ All 4 blocked cases self-sufficient in Evaluator (Phase B)
+- ✅ All `adapter.EvalNode()` fallbacks removed
 - ✅ ~230 LOC deleted (switch block)
 - ✅ All tests pass
 
