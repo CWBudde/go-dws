@@ -30,19 +30,19 @@ func (i *Interpreter) evaluateLValue(lvalue ast.Expression) (Value, func(Value) 
 func (i *Interpreter) evaluateIdentifierLValue(target *ast.Identifier) (Value, func(Value) error, error) {
 	varName := target.Value
 
-	currentVal, exists := i.env.Get(varName)
+	currentVal, exists := i.Env().Get(varName)
 	if !exists {
 		return nil, nil, fmt.Errorf("undefined variable: %s", varName)
 	}
 
 	assignFunc := func(value Value) error {
 		// Check if this is a var parameter (ReferenceValue)
-		if currentVal, exists := i.env.Get(varName); exists {
+		if currentVal, exists := i.Env().Get(varName); exists {
 			if refVal, isRef := currentVal.(*ReferenceValue); isRef {
 				return refVal.Assign(value)
 			}
 		}
-		return i.env.Set(varName, value)
+		return i.Env().Set(varName, value)
 	}
 
 	return currentVal, assignFunc, nil

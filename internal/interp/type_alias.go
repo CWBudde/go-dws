@@ -142,7 +142,7 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 		// The actual type checking is done by the semantic analyzer
 		typeKey := "__funcptr_type_" + decl.Name.Value
 		// Store a simple marker that this is a function pointer type
-		i.env.Define(typeKey, &StringValue{Value: "function_pointer_type"})
+		i.Env().Define(typeKey, &StringValue{Value: "function_pointer_type"})
 
 		return &NilValue{}
 	}
@@ -213,11 +213,11 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 
 		// Store in environment with special prefix
 		typeKey := "__type_alias_" + strings.ToLower(decl.Name.Value)
-		i.env.Define(typeKey, typeAlias)
+		i.Env().Define(typeKey, typeAlias)
 
 		// Also expose the alias name as a type meta value so it can be used
 		// in expressions (e.g., scoped enum access via the alias name).
-		i.env.Define(decl.Name.Value, NewTypeMetaValue(aliasedType, decl.Name.Value))
+		i.Env().Define(decl.Name.Value, NewTypeMetaValue(aliasedType, decl.Name.Value))
 
 		return &NilValue{}
 	}

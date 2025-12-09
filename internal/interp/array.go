@@ -73,7 +73,7 @@ func (i *Interpreter) evalArrayDeclaration(decl *ast.ArrayDecl) Value {
 		AliasedType: arrayType,
 	}
 	typeKey := "__type_alias_" + strings.ToLower(arrayName)
-	i.env.Define(typeKey, typeAlias)
+	i.Env().Define(typeKey, typeAlias)
 
 	return &NilValue{} // Type declarations don't return a value
 }
@@ -181,7 +181,7 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 						// Create temporary identifiers for each index value
 						for idx, indexVal := range indexVals {
 							tempName := fmt.Sprintf("__temp_index_%d__", idx)
-							i.env.Define(tempName, indexVal)
+							i.Env().Define(tempName, indexVal)
 							methodCall.Arguments[idx] = &ast.Identifier{
 								Value:               tempName,
 								TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: expr.Token}},
@@ -330,7 +330,7 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 							&ast.Identifier{Value: "__temp_default_index__", TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: expr.Token}}},
 						},
 					}
-					i.env.Define("__temp_default_index__", indexVal)
+					i.Env().Define("__temp_default_index__", indexVal)
 					return i.evalMethodCall(methodCall)
 				}
 				return i.newErrorWithLocation(expr, "default property read accessor '%s' is not a method", defaultProp.ReadField)

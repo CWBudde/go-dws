@@ -16,9 +16,9 @@ import (
 // implementation without changing their signatures.
 //
 // This is necessary because:
-// 1. Some call sites (adapter_methods.go) set up Self in i.env before calling
+// 1. Some call sites (adapter_methods.go) set up Self in i.Env() before calling
 // 2. ExecuteUserFunction uses ctx.Env() to create the function's enclosed environment
-// 3. Without sync, ctx.Env() won't see the Self binding set up in i.env
+// 3. Without sync, ctx.Env() won't see the Self binding set up in i.Env()
 func (i *Interpreter) executeUserFunctionViaEvaluator(fn *ast.FunctionDecl, args []Value) Value {
 	// Convert []Value to []evaluator.Value (they implement the same interface)
 	evalArgs := make([]evaluator.Value, len(args))
@@ -27,18 +27,18 @@ func (i *Interpreter) executeUserFunctionViaEvaluator(fn *ast.FunctionDecl, args
 	// Create callbacks for interpreter-dependent operations
 	callbacks := i.createUserFunctionCallbacks()
 
-	// Sync i.env with i.ctx: ExecuteUserFunction creates its function environment from
-	// ctx.Env().NewEnclosedEnvironment(). We need ctx.Env() to reflect i.env so that
+	// Sync i.Env() with i.ctx: ExecuteUserFunction creates its function environment from
+	// ctx.Env().NewEnclosedEnvironment(). We need ctx.Env() to reflect i.Env() so that
 	// any bindings set up by the caller (like Self in adapter methods) are visible.
 	//
 	savedCtxEnv := i.ctx.Env()
 	if selfVal, hasSelf := savedCtxEnv.Get("Self"); hasSelf {
-		// Self is defined in the current context - preserve it in i.env
+		// Self is defined in the current context - preserve it in i.Env()
 		if selfValue, ok := selfVal.(Value); ok {
-			i.env.Define("Self", selfValue)
+			i.Env().Define("Self", selfValue)
 		}
 	}
-	i.ctx.SetEnv(i.env)
+	i.ctx.SetEnv(i.Env())
 	defer func() { i.ctx.SetEnv(savedCtxEnv) }()
 
 	// We only push to i.callStack, NOT i.ctx.GetCallStack(), because ExecuteUserFunction

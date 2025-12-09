@@ -18,7 +18,7 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	if classInfo == nil {
 		// Check if this is a record type
 		recordTypeKey := "__record_type_" + ident.Normalize(className)
-		if typeVal, ok := i.env.Get(recordTypeKey); ok {
+		if typeVal, ok := i.Env().Get(recordTypeKey); ok {
 			if _, ok := typeVal.(*RecordTypeValue); ok {
 				// This is a record static method call (TRecord.Create(...))
 				// Convert to MethodCallExpression and delegate to evalMethodCall
@@ -67,7 +67,7 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	defer i.PushScope()()
 	// Add class constants to the temporary environment
 	for constName, constValue := range classInfo.ConstantValues {
-		i.env.Define(constName, constValue)
+		i.Env().Define(constName, constValue)
 	}
 
 	for fieldName, fieldType := range classInfo.Fields {
@@ -201,24 +201,24 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 		defer i.PushScope()()
 
 		// Bind Self to the object
-		i.env.Define("Self", obj)
+		i.Env().Define("Self", obj)
 
 		// Bind constructor parameters to arguments
 		for idx, param := range constructor.Parameters {
 			if idx < len(args) {
-				i.env.Define(param.Name.Value, args[idx])
+				i.Env().Define(param.Name.Value, args[idx])
 			}
 		}
 
 		// For constructors with return types, initialize the Result variable
 		// This allows constructors to use "Result := Self" to return the object
 		if constructor.ReturnType != nil {
-			i.env.Define("Result", obj)
-			i.env.Define(constructor.Name.Value, obj)
+			i.Env().Define("Result", obj)
+			i.Env().Define(constructor.Name.Value, obj)
 		}
 
 		// Task 9.73: Bind __CurrentClass__ so ClassName can be accessed in constructor
-		i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
+		i.Env().Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
 
 		// Execute constructor body
 		result := i.Eval(constructor.Body)
@@ -228,7 +228,7 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 
 		// For auto-detected constructors with explicit return types, check if Result was modified
 		if constructor.IsConstructor && constructor.ReturnType != nil {
-			resultVal, resultOk := i.env.Get("Result")
+			resultVal, resultOk := i.Env().Get("Result")
 			if resultOk && resultVal.Type() != "NIL" {
 				// Result was set, use it as the return value (should be the same object)
 				if objInstance, ok := resultVal.(*ObjectInstance); ok {

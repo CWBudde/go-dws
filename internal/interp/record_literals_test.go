@@ -32,7 +32,7 @@ func TestEvalRecordLiteral_TypedSimple(t *testing.T) {
 	}
 
 	// Get the variable p
-	pVal, exists := interp.env.Get("p")
+	pVal, exists := interp.Env().Get("p")
 	if !exists {
 		t.Fatal("variable 'p' not found in environment")
 	}
@@ -93,7 +93,7 @@ func TestEvalRecordLiteral_AnonymousWithTypeAnnotation(t *testing.T) {
 	}
 
 	// Get the variable p
-	pVal, exists := interp.env.Get("p")
+	pVal, exists := interp.Env().Get("p")
 	if !exists {
 		t.Fatal("variable 'p' not found in environment")
 	}
@@ -136,7 +136,7 @@ func TestEvalRecordLiteral_DeathStarExample(t *testing.T) {
 	}
 
 	// Verify 'big' constant
-	bigVal, exists := interp.env.Get("big")
+	bigVal, exists := interp.Env().Get("big")
 	if !exists {
 		t.Fatal("constant 'big' not found in environment")
 	}
@@ -173,7 +173,7 @@ func TestEvalRecordLiteral_DeathStarExample(t *testing.T) {
 	}
 
 	// Verify 'small' constant
-	smallVal, exists := interp.env.Get("small")
+	smallVal, exists := interp.Env().Get("small")
 	if !exists {
 		t.Fatal("constant 'small' not found in environment")
 	}
@@ -229,7 +229,7 @@ func TestEvalRecordLiteral_NestedRecords(t *testing.T) {
 	}
 
 	// Get the variable rect
-	rectVal, exists := interp.env.Get("rect")
+	rectVal, exists := interp.Env().Get("rect")
 	if !exists {
 		t.Fatal("variable 'rect' not found in environment")
 	}
@@ -289,7 +289,7 @@ func TestEvalRecordLiteral_WithExpressions(t *testing.T) {
 	}
 
 	// Get the variable p
-	pVal, exists := interp.env.Get("p")
+	pVal, exists := interp.Env().Get("p")
 	if !exists {
 		t.Fatal("variable 'p' not found in environment")
 	}

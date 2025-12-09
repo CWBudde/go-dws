@@ -958,12 +958,12 @@ func (i *Interpreter) IsError(value builtins.Value) bool {
 
 // GetVariable retrieves a variable's value by name from the current environment.
 func (i *Interpreter) GetVariable(name string) (builtins.Value, bool) {
-	return i.env.Get(name)
+	return i.Env().Get(name)
 }
 
 // SetVariable sets a variable's value by name in the current environment.
 func (i *Interpreter) SetVariable(name string, value builtins.Value) error {
-	return i.env.Set(name, value)
+	return i.Env().Set(name, value)
 }
 
 // EvaluateLValue evaluates an lvalue expression once and returns the current value

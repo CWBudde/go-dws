@@ -221,5 +221,5 @@ func (i *Interpreter) CreateBoundMethodPointer(obj evaluator.Value, methodDecl a
 	}
 	pointerType := types.NewFunctionPointerType(paramTypes, returnType)
 
-	return NewFunctionPointerValue(method, i.env, objInst, pointerType)
+	return NewFunctionPointerValue(method, i.Env(), objInst, pointerType)
 }

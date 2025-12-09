@@ -291,7 +291,7 @@ func (i *Interpreter) ExecuteRecordPropertyRead(record evaluator.Value, propInfo
 				BaseNode: ast.BaseNode{Token: indexExpr.Token},
 			},
 		}
-		i.env.Define(tempVarName, convertedIndices[idx])
+		i.Env().Define(tempVarName, convertedIndices[idx])
 	}
 	return i.evalMethodCall(methodCall)
 }

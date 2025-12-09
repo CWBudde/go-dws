@@ -273,9 +273,9 @@ func (i *Interpreter) evalTryStatement(stmt *ast.TryStatement) Value {
 			savedExc := i.exception
 
 			// Set ExceptObject to the current exception in finally block
-			oldExceptObject, _ := i.env.Get("ExceptObject")
+			oldExceptObject, _ := i.Env().Get("ExceptObject")
 			if savedExc != nil {
-				i.env.Set("ExceptObject", savedExc.Instance)
+				i.Env().Set("ExceptObject", savedExc.Instance)
 			}
 
 			// Clear exception so finally block can execute
@@ -292,7 +292,7 @@ func (i *Interpreter) evalTryStatement(stmt *ast.TryStatement) Value {
 			// else: finally raised an exception, keep it (it replaces the original)
 
 			// Restore ExceptObject
-			i.env.Set("ExceptObject", oldExceptObject)
+			i.Env().Set("ExceptObject", oldExceptObject)
 		}()
 	}
 
@@ -336,7 +336,7 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 			// Bind exception variable
 			if handler.Variable != nil {
 				// Use Define instead of Set to create a new variable in the current scope
-				i.env.Define(handler.Variable.Value, exc.Instance)
+				i.Env().Define(handler.Variable.Value, exc.Instance)
 			}
 
 			// Save the current handlerException (for nested handlers)
@@ -347,8 +347,8 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 
 			// Set ExceptObject to the current exception
 			// Save old ExceptObject value to restore later
-			oldExceptObject, _ := i.env.Get("ExceptObject")
-			i.env.Set("ExceptObject", exc.Instance)
+			oldExceptObject, _ := i.Env().Get("ExceptObject")
+			i.Env().Set("ExceptObject", exc.Instance)
 
 			// Temporarily clear exception to allow handler to execute
 			i.exception = nil
@@ -365,7 +365,7 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 			i.handlerException = savedHandlerException
 
 			// Restore ExceptObject
-			i.env.Set("ExceptObject", oldExceptObject)
+			i.Env().Set("ExceptObject", oldExceptObject)
 
 			// Restore environment
 			cleanup()

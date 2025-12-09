@@ -67,11 +67,11 @@ func (i *Interpreter) ExecuteFunctionPointerCall(metadata evaluator.FunctionPoin
 		defer i.PushScope()()
 
 		// Bind Self to the captured object
-		i.env.Define("Self", metadata.SelfObject)
+		i.Env().Define("Self", metadata.SelfObject)
 
-		// Task 3.5.22d: Sync i.ctx.Env() with i.env before calling ExecuteUserFunction.
+		// Task 3.5.22d: Sync i.ctx.Env() with i.Env() before calling ExecuteUserFunction.
 		// ExecuteUserFunction creates its function environment from ctx.Env(), so we need
-		// ctx.Env() to see the Self binding we just set up in i.env.
+		// ctx.Env() to see the Self binding we just set up in i.Env().
 		// Note: PushScope already synced i.ctx.env, but we save it here for clarity
 		savedCtxEnv := i.ctx.Env()
 
@@ -169,7 +169,7 @@ func (i *Interpreter) CallUserFunctionWithOverloads(callExpr *ast.CallExpression
 func (i *Interpreter) CallImplicitSelfMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) evaluator.Value {
 	// This method encapsulates the logic from evalCallExpression lines 267-291
 
-	selfVal, ok := i.env.Get("Self")
+	selfVal, ok := i.Env().Get("Self")
 	if !ok {
 		return i.newErrorWithLocation(callExpr, "no Self context for implicit method call")
 	}
@@ -234,7 +234,7 @@ func (i *Interpreter) CallImplicitSelfMethod(callExpr *ast.CallExpression, funcN
 func (i *Interpreter) CallRecordStaticMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) evaluator.Value {
 	// This method encapsulates the logic from evalCallExpression lines 293+
 
-	recordVal, ok := i.env.Get("__CurrentRecord__")
+	recordVal, ok := i.Env().Get("__CurrentRecord__")
 	if !ok {
 		return i.newErrorWithLocation(callExpr, "no __CurrentRecord__ context for static method call")
 	}

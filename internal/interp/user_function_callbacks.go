@@ -110,19 +110,19 @@ func (i *Interpreter) createInterfaceRefCounterCallback() evaluator.IncrementInt
 func (i *Interpreter) createInterfaceCleanupCallback() evaluator.CleanupInterfaceReferencesFunc {
 	return func(env *runtime.Environment) {
 		// Phase 3.1.3: Direct runtime.Environment - no adapter unwrapping needed
-		savedEnv := i.env
+		savedEnv := i.Env()
 		i.SetEnvironment(env)
-		i.cleanupInterfaceReferences(i.env)
+		i.cleanupInterfaceReferences(i.Env())
 		i.RestoreEnvironment(savedEnv)
 	}
 }
 
 // createEnvSyncerCallback creates the environment synchronization callback.
-// Syncs i.env with funcEnv so interpreter callbacks use the correct scope.
+// Syncs i.Env() with funcEnv so interpreter callbacks use the correct scope.
 func (i *Interpreter) createEnvSyncerCallback() evaluator.EnvSyncerFunc {
 	return func(funcEnv *runtime.Environment) func() {
 		// Phase 3.1.3: Direct runtime.Environment - no adapter unwrapping needed
-		savedEnv := i.env
+		savedEnv := i.Env()
 		i.SetEnvironment(funcEnv)
 
 		return func() {

@@ -196,7 +196,7 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 		// Task 9.155: Ascending loop with step support
 		for current := int64(startOrd); current <= int64(endOrd); current += stepValue {
 			// Set the loop variable to the current value
-			i.env.Define(loopVarName, makeLoopValue(current))
+			i.Env().Define(loopVarName, makeLoopValue(current))
 
 			// Execute the body
 			result = i.Eval(stmt.Body)
@@ -224,7 +224,7 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 		// Task 9.155: Descending loop with step support
 		for current := int64(startOrd); current >= int64(endOrd); current -= stepValue {
 			// Set the loop variable to the current value
-			i.env.Define(loopVarName, makeLoopValue(current))
+			i.Env().Define(loopVarName, makeLoopValue(current))
 
 			// Execute the body
 			result = i.Eval(stmt.Body)
@@ -278,7 +278,7 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 		// Iterate over array elements
 		for _, element := range col.Elements {
 			// Assign the current element to the loop variable
-			i.env.Define(loopVarName, element)
+			i.Env().Define(loopVarName, element)
 
 			// Execute the body
 			result = i.Eval(stmt.Body)
@@ -325,7 +325,7 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 				}
 
 				// Assign the enum value to the loop variable
-				i.env.Define(loopVarName, enumVal)
+				i.Env().Define(loopVarName, enumVal)
 
 				// Execute the body
 				result = i.Eval(stmt.Body)
@@ -363,7 +363,7 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 					return newError("for-in loop: cannot iterate over set of %s", elementType.String())
 				}
 
-				i.env.Define(loopVarName, loopVal)
+				i.Env().Define(loopVarName, loopVal)
 
 				// Execute the body
 				result = i.Eval(stmt.Body)
@@ -398,7 +398,7 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 			charVal := &StringValue{Value: string(runes[idx])}
 
 			// Assign the character to the loop variable
-			i.env.Define(loopVarName, charVal)
+			i.Env().Define(loopVarName, charVal)
 
 			// Execute the body
 			result = i.Eval(stmt.Body)
@@ -445,7 +445,7 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 			}
 
 			// Assign the enum value to the loop variable
-			i.env.Define(loopVarName, enumVal)
+			i.Env().Define(loopVarName, enumVal)
 
 			// Execute the body
 			result = i.Eval(stmt.Body)
@@ -504,8 +504,8 @@ func (i *Interpreter) evalExitStatement(stmt *ast.ExitStatement) Value {
 		}
 
 		// Assign evaluated value to Result if it exists
-		if _, exists := i.env.Get("Result"); exists {
-			i.env.Set("Result", value)
+		if _, exists := i.Env().Get("Result"); exists {
+			i.Env().Set("Result", value)
 		}
 		return value
 	}
@@ -542,8 +542,8 @@ func (i *Interpreter) evalReturnStatement(stmt *ast.ReturnStatement) Value {
 
 	// Assign to Result variable if it exists (for functions)
 	// This allows the function to return the value
-	if _, exists := i.env.Get("Result"); exists {
-		i.env.Set("Result", returnVal)
+	if _, exists := i.Env().Get("Result"); exists {
+		i.Env().Set("Result", returnVal)
 	}
 
 	// Set exit signal to indicate early return

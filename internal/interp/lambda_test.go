@@ -64,7 +64,7 @@ func TestBasicLambdaCreation(t *testing.T) {
 	_, interp := runLambdaTest(t, input)
 
 	// Check that f is a lambda value
-	fVal, ok := interp.env.Get("f")
+	fVal, ok := interp.Env().Get("f")
 	if !ok {
 		t.Fatal("Variable 'f' not found in environment")
 	}
@@ -92,7 +92,7 @@ func TestBasicLambdaCall(t *testing.T) {
 	_, interp := runLambdaTest(t, input)
 
 	// Check the result
-	resultVal, ok := interp.env.Get("result")
+	resultVal, ok := interp.Env().Get("result")
 	if !ok {
 		t.Fatal("Variable 'result' not found")
 	}
@@ -115,7 +115,7 @@ func TestLambdaWithMultipleParameters(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	sumVal, ok := interp.env.Get("sum")
+	sumVal, ok := interp.Env().Get("sum")
 	if !ok {
 		t.Fatal("Variable 'sum' not found")
 	}
@@ -138,7 +138,7 @@ func TestShorthandLambdaSyntax(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	resultVal, ok := interp.env.Get("result")
+	resultVal, ok := interp.Env().Get("result")
 	if !ok {
 		t.Fatal("Variable 'result' not found")
 	}
@@ -163,7 +163,7 @@ func TestProcedureLambda(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	counterVal, ok := interp.env.Get("counter")
+	counterVal, ok := interp.Env().Get("counter")
 	if !ok {
 		t.Fatal("Variable 'counter' not found")
 	}
@@ -191,7 +191,7 @@ func TestSimpleClosureCapture(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	resultVal, ok := interp.env.Get("result")
+	resultVal, ok := interp.Env().Get("result")
 	if !ok {
 		t.Fatal("Variable 'result' not found")
 	}
@@ -216,7 +216,7 @@ func TestClosureCaptureMultipleVariables(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	resultVal, ok := interp.env.Get("result")
+	resultVal, ok := interp.Env().Get("result")
 	if !ok {
 		t.Fatal("Variable 'result' not found")
 	}
@@ -244,7 +244,7 @@ func TestClosureMutatesCapturedVariable(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	counterVal, ok := interp.env.Get("counter")
+	counterVal, ok := interp.Env().Get("counter")
 	if !ok {
 		t.Fatal("Variable 'counter' not found")
 	}
@@ -272,13 +272,13 @@ func TestClosureReadsUpdatedCapturedVariable(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	result1Val, _ := interp.env.Get("result1")
+	result1Val, _ := interp.Env().Get("result1")
 	result1Int := result1Val.(*IntegerValue)
 	if result1Int.Value != 5 {
 		t.Errorf("Expected result1 = 5, got %d", result1Int.Value)
 	}
 
-	result2Val, _ := interp.env.Get("result2")
+	result2Val, _ := interp.Env().Get("result2")
 	result2Int := result2Val.(*IntegerValue)
 	if result2Int.Value != 10 {
 		t.Errorf("Expected result2 = 10 (updated), got %d", result2Int.Value)
@@ -297,7 +297,7 @@ func TestLambdaStoredInVariable(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	resultVal, _ := interp.env.Get("result")
+	resultVal, _ := interp.Env().Get("result")
 	intVal := resultVal.(*IntegerValue)
 
 	if intVal.Value != 7 {
@@ -316,13 +316,13 @@ func TestLambdaReassignment(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	result1Val, _ := interp.env.Get("result1")
+	result1Val, _ := interp.Env().Get("result1")
 	result1Int := result1Val.(*IntegerValue)
 	if result1Int.Value != 10 {
 		t.Errorf("Expected result1 = 10, got %d", result1Int.Value)
 	}
 
-	result2Val, _ := interp.env.Get("result2")
+	result2Val, _ := interp.Env().Get("result2")
 	result2Int := result2Val.(*IntegerValue)
 	if result2Int.Value != 15 {
 		t.Errorf("Expected result2 = 15, got %d", result2Int.Value)
@@ -344,7 +344,7 @@ func TestNestedLambdas(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	resultVal, ok := interp.env.Get("result")
+	resultVal, ok := interp.Env().Get("result")
 	if !ok {
 		t.Fatal("Variable 'result' not found")
 	}
@@ -373,7 +373,7 @@ func TestNestedLambdaCaptureFromMultipleLevels(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	resultVal, _ := interp.env.Get("result")
+	resultVal, _ := interp.Env().Get("result")
 	intVal := resultVal.(*IntegerValue)
 
 	if intVal.Value != 111 {
@@ -393,7 +393,7 @@ func TestLambdaWithStringParameters(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	resultVal, ok := interp.env.Get("result")
+	resultVal, ok := interp.Env().Get("result")
 	if !ok {
 		t.Fatal("Variable 'result' not found")
 	}
@@ -416,7 +416,7 @@ func TestLambdaWithFloatParameters(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	resultVal, _ := interp.env.Get("result")
+	resultVal, _ := interp.Env().Get("result")
 	floatVal := resultVal.(*FloatValue)
 
 	if floatVal.Value != 10.0 {
@@ -433,13 +433,13 @@ func TestLambdaWithBooleanReturn(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	result1Val, _ := interp.env.Get("result1")
+	result1Val, _ := interp.Env().Get("result1")
 	bool1 := result1Val.(*BooleanValue)
 	if !bool1.Value {
 		t.Error("Expected isEven(4) = true")
 	}
 
-	result2Val, _ := interp.env.Get("result2")
+	result2Val, _ := interp.Env().Get("result2")
 	bool2 := result2Val.(*BooleanValue)
 	if bool2.Value {
 		t.Error("Expected isEven(5) = false")
@@ -465,13 +465,13 @@ func TestLambdaWithIfStatement(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	result1Val, _ := interp.env.Get("result1")
+	result1Val, _ := interp.Env().Get("result1")
 	int1 := result1Val.(*IntegerValue)
 	if int1.Value != 5 {
 		t.Errorf("Expected abs(-5) = 5, got %d", int1.Value)
 	}
 
-	result2Val, _ := interp.env.Get("result2")
+	result2Val, _ := interp.Env().Get("result2")
 	int2 := result2Val.(*IntegerValue)
 	if int2.Value != 7 {
 		t.Errorf("Expected abs(7) = 7, got %d", int2.Value)
@@ -493,7 +493,7 @@ func TestLambdaWithLoop(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	resultVal, _ := interp.env.Get("result")
+	resultVal, _ := interp.Env().Get("result")
 	intVal := resultVal.(*IntegerValue)
 
 	if intVal.Value != 120 {
@@ -513,7 +513,7 @@ func TestLambdaWithNoParameters(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	resultVal, _ := interp.env.Get("result")
+	resultVal, _ := interp.Env().Get("result")
 	intVal := resultVal.(*IntegerValue)
 
 	if intVal.Value != 42 {
@@ -530,7 +530,7 @@ func TestLambdaNoCapturedVariables(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	resultVal, _ := interp.env.Get("result")
+	resultVal, _ := interp.Env().Get("result")
 	intVal := resultVal.(*IntegerValue)
 
 	if intVal.Value != 36 {
@@ -559,7 +559,7 @@ func TestLambdaCapturesLoopVariable(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	iVal, _ := interp.env.Get("i")
+	iVal, _ := interp.Env().Get("i")
 	intVal := iVal.(*IntegerValue)
 
 	// Loop variable ends at 4 (one past 'to 3')
@@ -589,7 +589,7 @@ func TestMultipleLambdasShareCapturedVariable(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	resultVal, _ := interp.env.Get("result")
+	resultVal, _ := interp.Env().Get("result")
 	intVal := resultVal.(*IntegerValue)
 
 	if intVal.Value != 1 {
@@ -608,7 +608,7 @@ func TestLambdaStringRepresentation(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	fVal, _ := interp.env.Get("f")
+	fVal, _ := interp.Env().Get("f")
 	funcPtr := fVal.(*FunctionPointerValue)
 
 	strRep := funcPtr.String()
@@ -636,7 +636,7 @@ func TestLambdaWithArrayAccess(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	resultVal, _ := interp.env.Get("result")
+	resultVal, _ := interp.Env().Get("result")
 	intVal := resultVal.(*IntegerValue)
 
 	if intVal.Value != 20 {
@@ -663,7 +663,7 @@ func TestLambdaModifiesArray(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	resultVal, _ := interp.env.Get("result")
+	resultVal, _ := interp.Env().Get("result")
 	intVal := resultVal.(*IntegerValue)
 
 	if intVal.Value != 4 {
@@ -695,7 +695,7 @@ func TestMapBasic(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	sumVal, _ := interp.env.Get("sum")
+	sumVal, _ := interp.Env().Get("sum")
 	intVal := sumVal.(*IntegerValue)
 
 	// doubled = [2, 4, 6, 8, 10], sum = 30
@@ -725,7 +725,7 @@ func TestMapWithClosure(t *testing.T) {
 		t.Fatalf("Execution failed: %v", result)
 	}
 
-	resultVal, ok := interp.env.Get("result")
+	resultVal, ok := interp.Env().Get("result")
 	if !ok {
 		t.Fatal("Variable 'result' not found in environment")
 	}
@@ -762,7 +762,7 @@ func TestFilterBasic(t *testing.T) {
 		t.Fatalf("Execution failed: %v", result)
 	}
 
-	countVal, ok := interp.env.Get("count")
+	countVal, ok := interp.Env().Get("count")
 	if !ok {
 		t.Fatal("Variable 'count' not found in environment")
 	}
@@ -799,7 +799,7 @@ func TestFilterWithComplexPredicate(t *testing.T) {
 		t.Fatalf("Execution failed: %v", result)
 	}
 
-	countVal, ok := interp.env.Get("count")
+	countVal, ok := interp.Env().Get("count")
 	if !ok {
 		t.Fatal("Variable 'count' not found in environment")
 	}
@@ -829,7 +829,7 @@ func TestReduceSum(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	sumVal, _ := interp.env.Get("sum")
+	sumVal, _ := interp.Env().Get("sum")
 	intVal := sumVal.(*IntegerValue)
 
 	// sum = 1+2+3+4+5 = 15
@@ -852,7 +852,7 @@ func TestReduceProduct(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	productVal, _ := interp.env.Get("product")
+	productVal, _ := interp.Env().Get("product")
 	intVal := productVal.(*IntegerValue)
 
 	// product = 2*3*4*5 = 120
@@ -891,7 +891,7 @@ func TestReduceMax(t *testing.T) {
 		t.Fatalf("Unexpected exception: %v", interp.exception)
 	}
 
-	maxVal, ok := interp.env.Get("maximum")
+	maxVal, ok := interp.Env().Get("maximum")
 	if !ok {
 		t.Fatal("Variable 'maximum' not found in environment")
 	}
@@ -922,7 +922,7 @@ func TestForEachBasic(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	sumVal, _ := interp.env.Get("sum")
+	sumVal, _ := interp.Env().Get("sum")
 	intVal := sumVal.(*IntegerValue)
 
 	// sum = 1+2+3 = 6
@@ -976,7 +976,7 @@ func TestChainedHigherOrderFunctions(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	sumVal, _ := interp.env.Get("sum")
+	sumVal, _ := interp.Env().Get("sum")
 	intVal := sumVal.(*IntegerValue)
 
 	// doubled = [2, 4, 6, 8, 10]
@@ -1007,7 +1007,7 @@ func TestMapWithFunctionPointer(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	resultVal, _ := interp.env.Get("result")
+	resultVal, _ := interp.Env().Get("result")
 	intVal := resultVal.(*IntegerValue)
 
 	// doubled[1] = 2 * 2 = 4
@@ -1031,7 +1031,7 @@ func TestHigherOrderFunctionWithStringArray(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	totalVal, _ := interp.env.Get("totalLength")
+	totalVal, _ := interp.Env().Get("totalLength")
 	intVal := totalVal.(*IntegerValue)
 
 	// lengths = [5, 5, 4], totalLength = 14
@@ -1058,7 +1058,7 @@ func TestEveryAllMatch(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	allEvenVal, _ := interp.env.Get("allEven")
+	allEvenVal, _ := interp.Env().Get("allEven")
 	boolVal := allEvenVal.(*BooleanValue)
 
 	if !boolVal.Value {
@@ -1080,7 +1080,7 @@ func TestEveryNotAllMatch(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	allEvenVal, _ := interp.env.Get("allEven")
+	allEvenVal, _ := interp.Env().Get("allEven")
 	boolVal := allEvenVal.(*BooleanValue)
 
 	if boolVal.Value {
@@ -1108,7 +1108,7 @@ func TestEveryShortCircuit(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	counterVal, _ := interp.env.Get("counter")
+	counterVal, _ := interp.Env().Get("counter")
 	counterInt := counterVal.(*IntegerValue)
 
 	// Should stop at element 3 (third call), not process all 5 elements
@@ -1136,7 +1136,7 @@ func TestSomeAtLeastOneMatches(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	hasEvenVal, _ := interp.env.Get("hasEven")
+	hasEvenVal, _ := interp.Env().Get("hasEven")
 	boolVal := hasEvenVal.(*BooleanValue)
 
 	if !boolVal.Value {
@@ -1158,7 +1158,7 @@ func TestSomeNoneMatch(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	hasEvenVal, _ := interp.env.Get("hasEven")
+	hasEvenVal, _ := interp.Env().Get("hasEven")
 	boolVal := hasEvenVal.(*BooleanValue)
 
 	if boolVal.Value {
@@ -1186,7 +1186,7 @@ func TestSomeShortCircuit(t *testing.T) {
 
 	_, interp := runLambdaTest(t, input)
 
-	counterVal, _ := interp.env.Get("counter")
+	counterVal, _ := interp.Env().Get("counter")
 	counterInt := counterVal.(*IntegerValue)
 
 	// Should stop at element 4 (third call), not process all 5 elements
@@ -1218,7 +1218,7 @@ func TestFindElementExists(t *testing.T) {
 		t.Fatalf("Execution failed: %v", result)
 	}
 
-	foundVal, ok := interp.env.Get("found")
+	foundVal, ok := interp.Env().Get("found")
 	if !ok {
 		t.Fatal("Variable 'found' not found")
 	}
@@ -1252,7 +1252,7 @@ func TestFindElementNotFound(t *testing.T) {
 		t.Fatalf("Execution failed: %v", result)
 	}
 
-	foundVal, ok := interp.env.Get("found")
+	foundVal, ok := interp.Env().Get("found")
 	if !ok {
 		t.Fatal("Variable 'found' not found")
 	}
@@ -1286,7 +1286,7 @@ func TestFindIndexElementExists(t *testing.T) {
 		t.Fatalf("Execution failed: %v", result)
 	}
 
-	idxVal, ok := interp.env.Get("idx")
+	idxVal, ok := interp.Env().Get("idx")
 	if !ok {
 		t.Fatal("Variable 'idx' not found")
 	}
@@ -1320,7 +1320,7 @@ func TestFindIndexElementNotFound(t *testing.T) {
 		t.Fatalf("Execution failed: %v", result)
 	}
 
-	idxVal, ok := interp.env.Get("idx")
+	idxVal, ok := interp.Env().Get("idx")
 	if !ok {
 		t.Fatal("Variable 'idx' not found")
 	}
@@ -1355,7 +1355,7 @@ func TestFindIndexWithNonZeroBasedArray(t *testing.T) {
 		t.Fatalf("Execution failed: %v", result)
 	}
 
-	idxVal, ok := interp.env.Get("idx")
+	idxVal, ok := interp.Env().Get("idx")
 	if !ok {
 		t.Fatal("Variable 'idx' not found")
 	}
@@ -1396,7 +1396,7 @@ func TestConcatTwoArrays(t *testing.T) {
 		t.Fatalf("Execution failed: %v", result)
 	}
 
-	lenVal, ok := interp.env.Get("len")
+	lenVal, ok := interp.Env().Get("len")
 	if !ok {
 		t.Fatal("Variable 'len' not found")
 	}
@@ -1412,7 +1412,7 @@ func TestConcatTwoArrays(t *testing.T) {
 	}
 
 	// Verify elements
-	cVal, _ := interp.env.Get("c")
+	cVal, _ := interp.Env().Get("c")
 	cArray := cVal.(*ArrayValue)
 
 	expectedValues := []int64{1, 2, 3, 4}
@@ -1449,7 +1449,7 @@ func TestConcatMultipleArrays(t *testing.T) {
 		t.Fatalf("Execution failed: %v", execResult)
 	}
 
-	lenVal, ok := interp.env.Get("len")
+	lenVal, ok := interp.Env().Get("len")
 	if !ok {
 		t.Fatal("Variable 'len' not found")
 	}
@@ -1489,7 +1489,7 @@ func TestSliceBasic(t *testing.T) {
 		t.Fatalf("Execution failed: %v", result)
 	}
 
-	lenVal, ok := interp.env.Get("len")
+	lenVal, ok := interp.Env().Get("len")
 	if !ok {
 		t.Fatal("Variable 'len' not found")
 	}
@@ -1505,7 +1505,7 @@ func TestSliceBasic(t *testing.T) {
 	}
 
 	// Verify elements are [2, 3, 4]
-	slicedVal, _ := interp.env.Get("sliced")
+	slicedVal, _ := interp.Env().Get("sliced")
 	slicedArray := slicedVal.(*ArrayValue)
 
 	expectedValues := []int64{2, 3, 4}
@@ -1535,7 +1535,7 @@ func TestSliceEntireArray(t *testing.T) {
 		t.Fatalf("Execution failed: %v", result)
 	}
 
-	lenVal, ok := interp.env.Get("len")
+	lenVal, ok := interp.Env().Get("len")
 	if !ok {
 		t.Fatal("Variable 'len' not found")
 	}
@@ -1571,7 +1571,7 @@ func TestSliceEmptyRange(t *testing.T) {
 		t.Fatalf("Execution failed: %v", result)
 	}
 
-	lenVal, ok := interp.env.Get("len")
+	lenVal, ok := interp.Env().Get("len")
 	if !ok {
 		t.Fatal("Variable 'len' not found")
 	}

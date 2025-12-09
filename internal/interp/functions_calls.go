@@ -8,7 +8,7 @@ import (
 
 // wrapLazyArgument creates a thunk for a lazy parameter, capturing the current environment.
 func (i *Interpreter) wrapLazyArgument(arg ast.Expression) Value {
-	return NewLazyThunk(arg, i.env, i)
+	return NewLazyThunk(arg, i.Env(), i)
 }
 
 // evalCallExpression evaluates a DWScript function call expression.
@@ -29,7 +29,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 	// we need to call through the pointer
 	if funcIdent, ok := expr.Function.(*ast.Identifier); ok {
 		// Try to resolve as a variable (might be a function pointer variable)
-		if val, exists := i.env.Get(funcIdent.Value); exists {
+		if val, exists := i.Env().Get(funcIdent.Value); exists {
 			// Check if it's a function pointer
 			if funcPtr, isFuncPtr := val.(*FunctionPointerValue); isFuncPtr {
 				// Prepare arguments - check for lazy and var parameters in the function pointer's declaration
@@ -49,14 +49,14 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 					} else if isByRef {
 						// For var parameters, create a reference or pass through existing reference
 						if argIdent, ok := arg.(*ast.Identifier); ok {
-							if val, exists := i.env.Get(argIdent.Value); exists {
+							if val, exists := i.Env().Get(argIdent.Value); exists {
 								if refVal, isRef := val.(*ReferenceValue); isRef {
 									args[idx] = refVal // Pass through existing reference
 								} else {
-									args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+									args[idx] = &ReferenceValue{Env: i.Env(), VarName: argIdent.Value}
 								}
 							} else {
-								args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+								args[idx] = &ReferenceValue{Env: i.Env(), VarName: argIdent.Value}
 							}
 						} else {
 							return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
@@ -100,12 +100,12 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 			}
 			// Call the method on the underlying object by temporarily swapping the variable
 			if objIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
-				savedVal, exists := i.env.Get(objIdent.Value)
+				savedVal, exists := i.Env().Get(objIdent.Value)
 				if exists {
 					// Temporarily set to underlying object
-					_ = i.env.Set(objIdent.Value, ifaceInst.Object)
+					_ = i.Env().Set(objIdent.Value, ifaceInst.Object)
 					// Use defer to ensure restoration even if method call panics or returns early
-					defer func() { _ = i.env.Set(objIdent.Value, savedVal) }()
+					defer func() { _ = i.Env().Set(objIdent.Value, savedVal) }()
 
 					// Create a method call expression
 					mc := &ast.MethodCallExpression{
@@ -145,14 +145,14 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 							} else if isByRef {
 								// For var parameters, create a reference or pass through existing reference
 								if argIdent, ok := arg.(*ast.Identifier); ok {
-									if val, exists := i.env.Get(argIdent.Value); exists {
+									if val, exists := i.Env().Get(argIdent.Value); exists {
 										if refVal, isRef := val.(*ReferenceValue); isRef {
 											args[idx] = refVal // Pass through existing reference
 										} else {
-											args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+											args[idx] = &ReferenceValue{Env: i.Env(), VarName: argIdent.Value}
 										}
 									} else {
-										args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+										args[idx] = &ReferenceValue{Env: i.Env(), VarName: argIdent.Value}
 									}
 								} else {
 									return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
@@ -227,14 +227,14 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 					args[idx] = i.wrapLazyArgument(arg)
 				} else if isByRef {
 					if argIdent, ok := arg.(*ast.Identifier); ok {
-						if val, exists := i.env.Get(argIdent.Value); exists {
+						if val, exists := i.Env().Get(argIdent.Value); exists {
 							if refVal, isRef := val.(*ReferenceValue); isRef {
 								args[idx] = refVal
 							} else {
-								args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+								args[idx] = &ReferenceValue{Env: i.Env(), VarName: argIdent.Value}
 							}
 						} else {
-							args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+							args[idx] = &ReferenceValue{Env: i.Env(), VarName: argIdent.Value}
 						}
 					} else {
 						return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
@@ -289,21 +289,21 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 				// instead of copying its value
 				if argIdent, ok := arg.(*ast.Identifier); ok {
 					// Check if the variable is already a reference (var parameter passed through)
-					if val, exists := i.env.Get(argIdent.Value); exists {
+					if val, exists := i.Env().Get(argIdent.Value); exists {
 						if refVal, isRef := val.(*ReferenceValue); isRef {
 							// Already a reference - pass it through
 							args[idx] = refVal
 						} else {
 							// Regular variable - create a reference
 							args[idx] = &ReferenceValue{
-								Env:     i.env,
+								Env:     i.Env(),
 								VarName: argIdent.Value,
 							}
 						}
 					} else {
 						// Variable doesn't exist - create reference anyway (will error on access)
 						args[idx] = &ReferenceValue{
-							Env:     i.env,
+							Env:     i.Env(),
 							VarName: argIdent.Value,
 						}
 					}
@@ -321,7 +321,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 	}
 
 	// Check if this is an instance method call within the current context (implicit Self)
-	if selfVal, ok := i.env.Get("Self"); ok {
+	if selfVal, ok := i.Env().Get("Self"); ok {
 		if obj, isObj := AsObject(selfVal); isObj {
 			if obj.GetMethod(funcName.Value) != nil {
 				mc := &ast.MethodCallExpression{
@@ -347,7 +347,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 	}
 
 	// Check if this is a static method call within the current record context
-	if recordVal, ok := i.env.Get("__CurrentRecord__"); ok {
+	if recordVal, ok := i.Env().Get("__CurrentRecord__"); ok {
 		if rtv, isRecord := recordVal.(*RecordTypeValue); isRecord {
 			// Check if the function name matches a static method (case-insensitive)
 			methodNameLower := pkgident.Normalize(funcName.Value)
@@ -405,14 +405,14 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 				if isVarParam {
 					// For var parameters, create a reference
 					if argIdent, ok := arg.(*ast.Identifier); ok {
-						if val, exists := i.env.Get(argIdent.Value); exists {
+						if val, exists := i.Env().Get(argIdent.Value); exists {
 							if refVal, isRef := val.(*ReferenceValue); isRef {
 								args[idx] = refVal // Pass through existing reference
 							} else {
-								args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+								args[idx] = &ReferenceValue{Env: i.Env(), VarName: argIdent.Value}
 							}
 						} else {
-							args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+							args[idx] = &ReferenceValue{Env: i.Env(), VarName: argIdent.Value}
 						}
 					} else {
 						return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)

@@ -41,7 +41,7 @@ func (i *Interpreter) createRecordValue(recordType *types.RecordType) Value {
 	// Look up the record type value for field declarations
 	recordTypeKey := "__record_type_" + ident.Normalize(recordType.Name)
 	var rtv *RecordTypeValue
-	if typeVal, ok := i.env.Get(recordTypeKey); ok {
+	if typeVal, ok := i.Env().Get(recordTypeKey); ok {
 		rtv, _ = typeVal.(*RecordTypeValue)
 	}
 
@@ -54,7 +54,7 @@ func (i *Interpreter) createRecordValue(recordType *types.RecordType) Value {
 	// Metadata lookup callback for nested records
 	metadataLookup := func(rt *types.RecordType) *runtime.RecordMetadata {
 		key := "__record_type_" + ident.Normalize(rt.Name)
-		if typeVal, ok := i.env.Get(key); ok {
+		if typeVal, ok := i.Env().Get(key); ok {
 			if nestedRtv, ok := typeVal.(*RecordTypeValue); ok {
 				return nestedRtv.Metadata
 			}
@@ -114,7 +114,7 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 	if literal.TypeName != nil {
 		typeName := literal.TypeName.Value
 		recordTypeKey := "__record_type_" + ident.Normalize(typeName)
-		if typeVal, ok := i.env.Get(recordTypeKey); ok {
+		if typeVal, ok := i.Env().Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				recordType = rtv.RecordType
 			}
@@ -130,7 +130,7 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 	// Look up the record type value for field declarations
 	recordTypeKey := "__record_type_" + ident.Normalize(literal.TypeName.Value)
 	var recordTypeValue *RecordTypeValue
-	if typeVal, ok := i.env.Get(recordTypeKey); ok {
+	if typeVal, ok := i.Env().Get(recordTypeKey); ok {
 		recordTypeValue, _ = typeVal.(*RecordTypeValue)
 	}
 
@@ -271,7 +271,7 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 	}
 
 	// Check type aliases
-	if typeAliasVal, ok := i.env.Get("__type_alias_" + lowerTypeName); ok {
+	if typeAliasVal, ok := i.Env().Get("__type_alias_" + lowerTypeName); ok {
 		if tav, ok := typeAliasVal.(*TypeAliasValue); ok {
 			return tav.AliasedType, nil
 		}

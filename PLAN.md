@@ -104,133 +104,19 @@ The following tasks complete the migration by eliminating dual systems.
 
 ---
 
-## 3.1 Merge Dual Environments
+## 3.1 Merge Dual Environments ✅ **COMPLETED** (2025-12-09)
 
 **Goal**: Eliminate `i.env` / `ctx.env` duplication → single environment in ExecutionContext
 
-**Status**: 🔄 In Progress | **Priority**: P0 (unblocks everything) | **Effort**: 5-7 days
+**Accomplishments**:
 
-### Why This Is Complex
+- Moved Environment to `internal/interp/runtime/` (single canonical type)
+- Deleted EnvironmentAdapter (138 LOC)
+- Added `PushScope()` helper, migrated 52 scope patterns across 15 files
+- Removed `i.env` field, added `Env()` method (35 files updated)
+- All unit tests pass
 
-**Deep Audit Completed** (2025-12-09) - see [docs/environment-audit.md](docs/environment-audit.md):
-
-| Category | Count | Files |
-|----------|-------|-------|
-| `i.env.Get/Set/Define()` calls | 204 | 24 |
-| Scope entry patterns | 112 | 18 |
-| Scope exit (`RestoreEnvironment`) | 101 | 19 |
-| `ctx.Env()` in evaluator | 128 | 20 |
-| `adapter.` callbacks | 157 | 36 |
-
-**Two different type systems**:
-- Interpreter: `*interp.Environment` (concrete struct)
-- Evaluator: `evaluator.Environment` (interface)
-- **EnvironmentAdapter** (137 LOC) bridges them with value conversion
-
-**The problem is NOT just two variables** - it's:
-1. Type system mismatch (concrete vs interface)
-2. Value type mismatch (`interp.Value` vs `runtime.Value`)
-3. Two independent scope stacks that can get out of sync
-4. 112 scope entry + 101 scope exit patterns that assume `*Environment`
-
-### Solution Strategy (Option C chosen)
-
-**Phase A**: Move Environment to `internal/interp/runtime/` (Task 3.1.2)
-- Single canonical `runtime.Environment` type
-- No circular dependencies (both interp and evaluator can import runtime)
-- Type alias in interp for backward compatibility
-
-**Phase B**: Delete EnvironmentAdapter (Task 3.1.3)
-- ExecutionContext uses `*runtime.Environment` directly
-- Delete 137 LOC adapter code
-
-**Phase C**: Unify scope management (Task 3.1.4)
-- Convert 112+101 manual patterns to `ctx.PushEnv()`/`ctx.PopEnv()`
-- Delete `SetEnvironment()`, `PushEnvironment()`, `RestoreEnvironment()`
-
-**Phase D**: Delete `i.env` (Task 3.1.5)
-- Interpreter accesses env via `i.Env()` → `i.ctx.Env()`
-- Delete field and all 204 direct usages
-
-### Tasks
-
-- [x] **3.1.1** Deep audit of environment usage patterns (4h) ✅ 2025-12-09
-  - Created [docs/environment-audit.md](docs/environment-audit.md) with comprehensive analysis
-  - Categorized 204 `i.env.Get/Set/Define()` calls across 24 files
-  - Mapped 112 scope entry + 101 scope exit patterns across 19 files
-  - Identified 157 adapter callbacks creating bidirectional flow
-  - **Decision**: Option C (move Environment to runtime/) - cleanest approach
-
-- [x] **3.1.2** Move Environment to `internal/interp/runtime/` (4h) ✅ 2025-12-09
-  - Copied `environment.go` to `internal/interp/runtime/environment.go`
-  - Updated package declaration and imports
-  - Added public `Range()` and `Outer()` methods for external access
-  - Added type alias in `internal/interp/`: `type Environment = runtime.Environment`
-  - Updated evaluator to use `*runtime.Environment` directly
-  - All unit tests pass
-
-- [x] **3.1.3** Delete EnvironmentAdapter (3h) ✅ 2025-12-09
-  - Updated `ExecutionContext.env` type from `Environment` interface to `*runtime.Environment`
-  - Deleted `evaluator/env_adapter.go` (138 LOC)
-  - Replaced all `NewEnvironmentAdapter(env)` with direct `env` usage
-  - Updated `ctx.Env()` return type to `*runtime.Environment`
-  - Updated callback function signatures (`FunctionNameAliasFunc`, etc.)
-  - Fixed `.Set()` return type handling (now returns `error` instead of `bool`)
-  - Fixed `NewEnclosedEnvironment()` calls (package-level function, not method)
-  - Updated test mocks in evaluator tests to use real `runtime.Environment`
-  - Fixed nil value panic in `VisitIdentifier` (added nil check)
-  - All unit tests pass
-
-- [x] **3.1.4** Unify scope management (8h) ✅ 2025-12-09
-  - Added `PushScope()` helper to Interpreter that wraps `ctx.PushEnv()`/`ctx.PopEnv()`:
-    - Returns cleanup function for `defer i.PushScope()()` pattern
-    - Syncs `i.env` with `ctx.Env()` after push/pop to maintain consistency
-  - Migrated 52 scope entry patterns across 15 files:
-    - `objects_methods.go`: 6 patterns → `defer i.PushScope()()`
-    - `adapter_methods.go`: already migrated
-    - `statements_loops.go`: already migrated
-    - `objects_properties.go`: 4 patterns → `defer i.PushScope()()`
-    - `functions_records.go`: 2 patterns (explicit cleanup for post-scope writes)
-    - `exceptions.go`: 1 pattern (explicit cleanup for precise control)
-    - `helpers_validation.go`, `interface.go`, `statements_control.go`
-    - `operators_eval.go`, `adapter_functions.go`, `adapter_objects.go`
-    - `objects_hierarchy.go`, `objects_instantiation.go`, `declarations.go`
-    - `functions_pointers.go`: 1 pattern + 1 closure special case (kept manual)
-  - Special cases preserved (environment switching, not scope pushing):
-    - `lazy_params.go`: Uses `SetEnvironment()` to switch to captured closure env
-    - `user_function_callbacks.go`: Callbacks switch to provided env
-    - `functions_pointers.go:callLambda`: Switches to closure env (documented)
-  - Methods retained for special cases: `SetEnvironment()`, `PushEnvironment()`, `RestoreEnvironment()`
-  - All unit tests pass
-
-- [ ] **3.1.5** Delete `i.env` field (4h)
-  - Add `Env() *runtime.Environment` method to Interpreter
-  - Replace 204 `i.env.Get/Set/Define()` calls with `i.Env().Get/Set/Define()`
-  - Top files by usage (from audit):
-    - `objects_properties.go`: 67 refs
-    - `functions_records.go`: 33 refs
-    - `objects_hierarchy.go`: 25 refs
-    - `adapter_methods.go`: 22 refs
-    - `functions_calls.go`: 22 refs
-  - Remove `env *Environment` from Interpreter struct
-  - Verify: `grep -c "i\.env" internal/interp/*.go` returns only 0s
-
-- [ ] **3.1.6** Verify and test (2h)
-  - Run `just test` - all unit tests pass
-  - Run fixture tests to verify no regressions
-  - Verify deletions:
-    - `grep -r "EnvironmentAdapter" internal/` → 0 hits
-    - `grep -r "NewEnvironmentAdapter" internal/` → 0 hits
-    - `grep -r "SetEnvironment\|PushEnvironment\|RestoreEnvironment" internal/interp/*.go` → 0 hits
-  - Commit: "refactor: merge dual environments into ExecutionContext"
-
-**Success Criteria**:
-- ✅ Single environment type (no adapter)
-- ✅ Single environment variable in ExecutionContext
-- ✅ No `i.env` field in Interpreter
-- ✅ No manual save/restore patterns (use PushScope/PopScope)
-- ✅ All tests pass
-- ✅ ~137 LOC deleted (env_adapter.go)
+**Details**: See [docs/environment-audit.md](docs/environment-audit.md) for pre-migration analysis.
 
 ---
 

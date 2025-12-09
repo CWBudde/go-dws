@@ -64,7 +64,7 @@ func TestInlineFunctionPointerVariableDeclaration(t *testing.T) {
 	_, interp := runInlineFunctionPointerTest(t, input)
 
 	// Variable should be defined (will be nil until assigned)
-	_, ok := interp.env.Get("f")
+	_, ok := interp.Env().Get("f")
 	if !ok {
 		t.Fatal("Variable 'f' should be defined")
 	}
@@ -79,7 +79,7 @@ func TestInlineProcedurePointerVariableDeclaration(t *testing.T) {
 
 	_, interp := runInlineFunctionPointerTest(t, input)
 
-	_, ok := interp.env.Get("callback")
+	_, ok := interp.Env().Get("callback")
 	if !ok {
 		t.Fatal("Variable 'callback' should be defined")
 	}
@@ -104,7 +104,7 @@ func TestInlineFunctionPointerAssignment(t *testing.T) {
 
 	_, interp := runInlineFunctionPointerTest(t, input)
 
-	opVal, ok := interp.env.Get("op")
+	opVal, ok := interp.Env().Get("op")
 	if !ok {
 		t.Fatal("Variable 'op' not found")
 	}
@@ -138,7 +138,7 @@ func TestInlineProcedurePointerAssignment(t *testing.T) {
 
 	_, interp := runInlineFunctionPointerTest(t, input)
 
-	callbackVal, ok := interp.env.Get("callback")
+	callbackVal, ok := interp.Env().Get("callback")
 	if !ok {
 		t.Fatal("Variable 'callback' not found")
 	}
@@ -178,7 +178,7 @@ func TestInlineFunctionPointerCall(t *testing.T) {
 
 	_, interp := runInlineFunctionPointerTest(t, input)
 
-	resultVal, ok := interp.env.Get("result")
+	resultVal, ok := interp.Env().Get("result")
 	if !ok {
 		t.Fatal("Variable 'result' not found")
 	}
@@ -213,7 +213,7 @@ func TestInlineProcedurePointerCall(t *testing.T) {
 
 	_, interp := runInlineFunctionPointerTest(t, input)
 
-	counterVal, ok := interp.env.Get("counter")
+	counterVal, ok := interp.Env().Get("counter")
 	if !ok {
 		t.Fatal("Variable 'counter' not found")
 	}
@@ -245,7 +245,7 @@ func TestInlineFunctionPointerCallWithNoParams(t *testing.T) {
 
 	_, interp := runInlineFunctionPointerTest(t, input)
 
-	answerVal, ok := interp.env.Get("answer")
+	answerVal, ok := interp.Env().Get("answer")
 	if !ok {
 		t.Fatal("Variable 'answer' not found")
 	}
@@ -318,7 +318,7 @@ func TestInlineProcedurePointerAsParameter(t *testing.T) {
 
 	_, interp := runInlineFunctionPointerTest(t, input)
 
-	sumVal, ok := interp.env.Get("sum")
+	sumVal, ok := interp.Env().Get("sum")
 	if !ok {
 		t.Fatal("Variable 'sum' not found")
 	}
@@ -354,7 +354,7 @@ func TestInlineFunctionPointerWithStringParameters(t *testing.T) {
 
 	_, interp := runInlineFunctionPointerTest(t, input)
 
-	resultVal, ok := interp.env.Get("result")
+	resultVal, ok := interp.Env().Get("result")
 	if !ok {
 		t.Fatal("Variable 'result' not found")
 	}
@@ -388,13 +388,13 @@ func TestInlineFunctionPointerWithBooleanReturn(t *testing.T) {
 
 	_, interp := runInlineFunctionPointerTest(t, input)
 
-	test1Val, _ := interp.env.Get("test1")
+	test1Val, _ := interp.Env().Get("test1")
 	test1Bool := test1Val.(*BooleanValue)
 	if !test1Bool.Value {
 		t.Error("Expected test1 to be true (4 is even)")
 	}
 
-	test2Val, _ := interp.env.Get("test2")
+	test2Val, _ := interp.Env().Get("test2")
 	test2Bool := test2Val.(*BooleanValue)
 	if test2Bool.Value {
 		t.Error("Expected test2 to be false (5 is odd)")
@@ -415,7 +415,7 @@ func TestInlineFunctionPointerWithLambdaAssignment(t *testing.T) {
 
 	_, interp := runInlineFunctionPointerTest(t, input)
 
-	fVal, ok := interp.env.Get("f")
+	fVal, ok := interp.Env().Get("f")
 	if !ok {
 		t.Fatal("Variable 'f' not found")
 	}
@@ -442,7 +442,7 @@ func TestInlineFunctionPointerWithLambdaCall(t *testing.T) {
 
 	_, interp := runInlineFunctionPointerTest(t, input)
 
-	resultVal, ok := interp.env.Get("result")
+	resultVal, ok := interp.Env().Get("result")
 	if !ok {
 		t.Fatal("Variable 'result' not found")
 	}
@@ -471,7 +471,7 @@ func TestInlineFunctionPointerWithClosureCapture(t *testing.T) {
 
 	_, interp := runInlineFunctionPointerTest(t, input)
 
-	resultVal, ok := interp.env.Get("result")
+	resultVal, ok := interp.Env().Get("result")
 	if !ok {
 		t.Fatal("Variable 'result' not found")
 	}
@@ -501,7 +501,7 @@ func TestInlineProcedurePointerWithClosureMutation(t *testing.T) {
 
 	_, interp := runInlineFunctionPointerTest(t, input)
 
-	counterVal, ok := interp.env.Get("counter")
+	counterVal, ok := interp.Env().Get("counter")
 	if !ok {
 		t.Fatal("Variable 'counter' not found")
 	}
@@ -545,13 +545,13 @@ func TestMixedInlineAndAliasedFunctionPointers(t *testing.T) {
 
 	_, interp := runInlineFunctionPointerTest(t, input)
 
-	result1Val, _ := interp.env.Get("result1")
+	result1Val, _ := interp.Env().Get("result1")
 	result1Int := result1Val.(*IntegerValue)
 	if result1Int.Value != -1 {
 		t.Errorf("Expected result1 = -1, got %d", result1Int.Value)
 	}
 
-	result2Val, _ := interp.env.Get("result2")
+	result2Val, _ := interp.Env().Get("result2")
 	result2Int := result2Val.(*IntegerValue)
 	if result2Int.Value != 1 {
 		t.Errorf("Expected result2 = 1, got %d", result2Int.Value)
@@ -588,13 +588,13 @@ func TestInlineFunctionPointerReassignment(t *testing.T) {
 
 	_, interp := runInlineFunctionPointerTest(t, input)
 
-	result1Val, _ := interp.env.Get("result1")
+	result1Val, _ := interp.Env().Get("result1")
 	result1Int := result1Val.(*IntegerValue)
 	if result1Int.Value != 7 {
 		t.Errorf("Expected result1 = 7 (add), got %d", result1Int.Value)
 	}
 
-	result2Val, _ := interp.env.Get("result2")
+	result2Val, _ := interp.Env().Get("result2")
 	result2Int := result2Val.(*IntegerValue)
 	if result2Int.Value != 12 {
 		t.Errorf("Expected result2 = 12 (multiply), got %d", result2Int.Value)
@@ -618,7 +618,7 @@ func TestInlineFunctionPointerMultipleParameters(t *testing.T) {
 
 	_, interp := runInlineFunctionPointerTest(t, input)
 
-	totalVal, ok := interp.env.Get("total")
+	totalVal, ok := interp.Env().Get("total")
 	if !ok {
 		t.Fatal("Variable 'total' not found")
 	}
@@ -654,7 +654,7 @@ func TestInlineFunctionPointerPassedToFunctionWithInlineParameter(t *testing.T) 
 
 	_, interp := runInlineFunctionPointerTest(t, input)
 
-	resultVal, ok := interp.env.Get("result")
+	resultVal, ok := interp.Env().Get("result")
 	if !ok {
 		t.Fatal("Variable 'result' not found")
 	}

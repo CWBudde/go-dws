@@ -54,7 +54,6 @@ type Interpreter struct {
 	records              map[string]*RecordTypeValue
 	functions            map[string][]*ast.FunctionDecl
 	globalOperators      *runtimeOperatorRegistry
-	env                  *Environment
 	evaluatorInstance    *evaluator.Evaluator
 	classes              map[string]*ClassInfo
 	classTypeIDRegistry  map[string]int
@@ -111,7 +110,6 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 	}
 
 	interp := &Interpreter{
-		env:               env,
 		output:            output,
 		rand:              rand.New(source),
 		randSeed:          defaultSeed,
@@ -291,75 +289,44 @@ func (i *Interpreter) GetCallStack() errors.StackTrace {
 
 // ===== Environment Management Helpers (Phase 3.8.1: Task 3.8.1.2) =====
 
-// SetEnvironment atomically updates both i.env and i.ctx.env to the same environment.
-// This ensures that Interpreter methods (using i.env) and Evaluator methods (using i.ctx.env)
-// see the same variable bindings.
+// Env returns the current environment from the ExecutionContext.
+// Phase 3.1.5: This is the canonical way to access the environment.
+// All code should use i.Env() instead of i.env.
+func (i *Interpreter) Env() *Environment {
+	return i.ctx.Env()
+}
+
+// SetEnvironment switches the ExecutionContext to use a different environment.
+// This is used for cases like lambda closure evaluation where we need to
+// switch to a captured environment, evaluate, then switch back.
 //
-// Background:
-// The Interpreter maintains two environment references for historical reasons:
-//   - i.env (*Environment) - Used by Interpreter.Eval() methods
-//   - i.ctx.env (Environment interface) - Used by Evaluator visitor methods
+// Note: For scope pushing (creating new enclosed scopes), use PushScope() instead.
+// SetEnvironment is specifically for environment switching, not scope management.
 //
-// These must stay synchronized. When i.env changes, i.ctx.env must be updated to wrap
-// the same environment via EnvironmentAdapter. This helper atomically updates both.
-//
-// Usage:
-//
-//	// Replace direct assignment:
-//	i.env = newEnv
-//
-//	// With synchronized update:
-//	i.SetEnvironment(newEnv)
-//
-// Phase 3.8.1: Task 3.8.1.2 - Environment synchronization helper
-// Phase 3.1.3: No adapter needed - direct runtime.Environment.
+// Phase 3.1.5: Only updates ctx.env - i.env field is removed.
 func (i *Interpreter) SetEnvironment(env *Environment) {
-	i.env = env
 	i.ctx.SetEnv(env)
 }
 
 // PushEnvironment creates a new enclosed environment with the given parent environment,
-// then atomically updates both i.env and i.ctx.env to the new environment.
+// then updates the ExecutionContext to use the new environment.
 // Returns the new environment.
 //
-// This is the recommended pattern for entering new scopes (functions, loops, blocks).
-// The new environment will have the parent as its outer scope, enabling proper
-// lexical scoping and variable shadowing.
+// Note: For most scope management, prefer PushScope() which uses defer for cleanup.
+// PushEnvironment is retained for special cases like closure evaluation where
+// the parent environment is not necessarily the current environment.
 //
-// Usage:
-//
-//	// Replace manual pattern:
-//	loopEnv := NewEnclosedEnvironment(i.env)
-//	savedEnv := i.env
-//	i.env = loopEnv
-//
-//	// With helper:
-//	savedEnv := i.env
-//	loopEnv := i.PushEnvironment(i.env)
-//
-// The caller is responsible for restoring the environment with RestoreEnvironment(savedEnv)
-// when exiting the scope.
-//
-// Phase 3.8.1: Task 3.8.1.2 - Environment synchronization helper
+// Phase 3.1.5: Only updates ctx.env - i.env field is removed.
 func (i *Interpreter) PushEnvironment(parent *Environment) *Environment {
 	newEnv := NewEnclosedEnvironment(parent)
 	i.SetEnvironment(newEnv)
 	return newEnv
 }
 
-// RestoreEnvironment restores a previously saved environment to both i.env and i.ctx.env.
+// RestoreEnvironment restores a previously saved environment to the ExecutionContext.
 // This is used to exit scopes after PushEnvironment.
 //
-// Usage:
-//
-//	savedEnv := i.env
-//	i.PushEnvironment(i.env)
-//	// ... execute code in new scope ...
-//	i.RestoreEnvironment(savedEnv)
-//
-// This is equivalent to SetEnvironment(saved) but makes the intent clearer.
-//
-// Phase 3.8.1: Task 3.8.1.2 - Environment synchronization helper
+// Phase 3.1.5: Only updates ctx.env - i.env field is removed.
 func (i *Interpreter) RestoreEnvironment(saved *Environment) {
 	i.SetEnvironment(saved)
 }
@@ -371,16 +338,15 @@ func (i *Interpreter) RestoreEnvironment(saved *Environment) {
 // Usage:
 //
 //	defer i.PushScope()()
-//	i.env.Define("x", value)
+//	i.Env().Define("x", value)
 //	result := i.Eval(body)
 //
 // Phase 3.1.4: Unified scope management
+// Phase 3.1.5: No i.env field - uses ctx.Env() exclusively.
 func (i *Interpreter) PushScope() func() {
 	i.ctx.PushEnv()
-	i.env = i.ctx.Env()
 	return func() {
 		i.ctx.PopEnv()
-		i.env = i.ctx.Env()
 	}
 }
 

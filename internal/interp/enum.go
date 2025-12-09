@@ -150,14 +150,14 @@ func (i *Interpreter) evalEnumDeclaration(decl *ast.EnumDecl) Value {
 				ValueName:    valueName,
 				OrdinalValue: ordinalValue,
 			}
-			i.env.Define(valueName, enumVal)
+			i.Env().Define(valueName, enumVal)
 		}
 	}
 
 	// Store enum type metadata in environment with special key
 	// This allows variable declarations to resolve the type
 	enumTypeKey := "__enum_type_" + ident.Normalize(enumName)
-	i.env.Define(enumTypeKey, &EnumTypeValue{EnumType: enumType})
+	i.Env().Define(enumTypeKey, &EnumTypeValue{EnumType: enumType})
 
 	// This enables dual storage during migration (both environment and TypeSystem)
 	i.typeSystem.RegisterEnumType(enumName, &EnumTypeValue{EnumType: enumType})
@@ -165,7 +165,7 @@ func (i *Interpreter) evalEnumDeclaration(decl *ast.EnumDecl) Value {
 	// Register enum type name as a TypeMetaValue
 	// This allows the type name to be used as a runtime value in expressions
 	// like High(TColor) or Low(TColor), just like built-in types (Integer, Float, etc.)
-	i.env.Define(enumName, NewTypeMetaValue(enumType, enumName))
+	i.Env().Define(enumName, NewTypeMetaValue(enumType, enumName))
 
 	return &NilValue{}
 }
@@ -209,7 +209,7 @@ func (i *Interpreter) evalEnumLiteral(literal *ast.EnumLiteral) Value {
 	valueName := literal.ValueName
 
 	// Look up the value in the environment
-	val, ok := i.env.Get(valueName)
+	val, ok := i.Env().Get(valueName)
 	if !ok {
 		return &ErrorValue{
 			Message: fmt.Sprintf("undefined enum value '%s'", valueName),

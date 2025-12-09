@@ -177,7 +177,7 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 				// Special handling for enum types
 				if enumVal, isEnum := elemVal.(*EnumValue); isEnum {
 					// Get enum type from environment
-					typeVal, ok := i.env.Get("__enum_type_" + strings.ToLower(enumVal.TypeName))
+					typeVal, ok := i.Env().Get("__enum_type_" + strings.ToLower(enumVal.TypeName))
 					if !ok {
 						return &ErrorValue{
 							Message: fmt.Sprintf("unknown enum type '%s'", enumVal.TypeName),

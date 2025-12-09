@@ -113,12 +113,12 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		defer i.PushScope()()
 
 		// Bind Self to the object
-		i.env.Define("Self", obj)
+		i.Env().Define("Self", obj)
 
 		// Bind implicit index directive arguments, if present
 		for idx, param := range method.Parameters {
 			if idx < len(indexArgs) {
-				i.env.Define(param.Name.Value, indexArgs[idx])
+				i.Env().Define(param.Name.Value, indexArgs[idx])
 			}
 		}
 
@@ -127,9 +127,9 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		if method.ReturnType != nil {
 			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 			defaultVal := i.getDefaultValue(returnType)
-			i.env.Define("Result", defaultVal)
+			i.Env().Define("Result", defaultVal)
 			// In DWScript, the method name can be used as an alias for Result
-			i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+			i.Env().Define(method.Name.Value, &ReferenceValue{Env: i.Env(), VarName: "Result"})
 		}
 
 		// Set flag to indicate we're inside a property getter
@@ -145,7 +145,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		// Get return value
 		var returnValue Value
 		if method.ReturnType != nil {
-			if resultVal, ok := i.env.Get("Result"); ok {
+			if resultVal, ok := i.Env().Get("Result"); ok {
 				// Dereference ReferenceValue if needed
 				if refVal, isRef := resultVal.(*ReferenceValue); isRef {
 					if derefVal, err := refVal.Dereference(); err == nil {
@@ -153,7 +153,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 					}
 				}
 				returnValue = resultVal
-			} else if methodNameVal, ok := i.env.Get(method.Name.Value); ok {
+			} else if methodNameVal, ok := i.Env().Get(method.Name.Value); ok {
 				// Dereference ReferenceValue if needed
 				if refVal, isRef := methodNameVal.(*ReferenceValue); isRef {
 					if derefVal, err := refVal.Dereference(); err == nil {
@@ -198,12 +198,12 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		defer i.PushScope()()
 
 		// Bind Self to the object
-		i.env.Define("Self", obj)
+		i.Env().Define("Self", obj)
 
 		// Bind implicit index directive arguments, if present
 		for idx, param := range method.Parameters {
 			if idx < len(indexArgs) {
-				i.env.Define(param.Name.Value, indexArgs[idx])
+				i.Env().Define(param.Name.Value, indexArgs[idx])
 			}
 		}
 
@@ -212,9 +212,9 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		if method.ReturnType != nil {
 			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 			defaultVal := i.getDefaultValue(returnType)
-			i.env.Define("Result", defaultVal)
+			i.Env().Define("Result", defaultVal)
 			// In DWScript, the method name can be used as an alias for Result
-			i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+			i.Env().Define(method.Name.Value, &ReferenceValue{Env: i.Env(), VarName: "Result"})
 		}
 
 		// Task 9.32c: Set flag to indicate we're inside a property getter
@@ -230,7 +230,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		// Get return value
 		var returnValue Value
 		if method.ReturnType != nil {
-			if resultVal, ok := i.env.Get("Result"); ok {
+			if resultVal, ok := i.Env().Get("Result"); ok {
 				// Dereference ReferenceValue if needed
 				if refVal, isRef := resultVal.(*ReferenceValue); isRef {
 					if derefVal, err := refVal.Dereference(); err == nil {
@@ -238,7 +238,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 					}
 				}
 				returnValue = resultVal
-			} else if methodNameVal, ok := i.env.Get(method.Name.Value); ok {
+			} else if methodNameVal, ok := i.Env().Get(method.Name.Value); ok {
 				// Dereference ReferenceValue if needed
 				if refVal, isRef := methodNameVal.(*ReferenceValue); isRef {
 					if derefVal, err := refVal.Dereference(); err == nil {
@@ -278,12 +278,12 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		defer i.PushScope()()
 
 		// Bind Self to the object instance
-		i.env.Define("Self", obj)
+		i.Env().Define("Self", obj)
 
 		// Bind all object fields to environment so they can be accessed directly
 		// This allows expressions like (FWidth * FHeight) to work
 		for fieldName, fieldValue := range obj.Fields {
-			i.env.Define(fieldName, fieldValue)
+			i.Env().Define(fieldName, fieldValue)
 		}
 
 		// Evaluate the expression AST node
@@ -324,16 +324,16 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 
 		// Bind all class variables to environment so they can be accessed directly
 		for classVarName, classVarValue := range classInfo.ClassVars {
-			i.env.Define(classVarName, classVarValue)
+			i.Env().Define(classVarName, classVarValue)
 		}
 
 		// For functions, initialize the Result variable
 		if method.ReturnType != nil {
 			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 			defaultVal := i.getDefaultValue(returnType)
-			i.env.Define("Result", defaultVal)
+			i.Env().Define("Result", defaultVal)
 			// In DWScript, the method name can be used as an alias for Result
-			i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+			i.Env().Define(method.Name.Value, &ReferenceValue{Env: i.Env(), VarName: "Result"})
 		}
 
 		// Execute method body
@@ -342,7 +342,7 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 		// Get return value
 		var returnValue Value
 		if method.ReturnType != nil {
-			if resultVal, ok := i.env.Get("Result"); ok {
+			if resultVal, ok := i.Env().Get("Result"); ok {
 				// Dereference ReferenceValue if needed
 				if refVal, isRef := resultVal.(*ReferenceValue); isRef {
 					if derefVal, err := refVal.Dereference(); err == nil {
@@ -350,7 +350,7 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 					}
 				}
 				returnValue = resultVal
-			} else if methodNameVal, ok := i.env.Get(method.Name.Value); ok {
+			} else if methodNameVal, ok := i.Env().Get(method.Name.Value); ok {
 				// Dereference ReferenceValue if needed
 				if refVal, isRef := methodNameVal.(*ReferenceValue); isRef {
 					if derefVal, err := refVal.Dereference(); err == nil {
@@ -380,16 +380,16 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 
 		// Bind all class variables to environment so they can be accessed directly
 		for classVarName, classVarValue := range classInfo.ClassVars {
-			i.env.Define(classVarName, classVarValue)
+			i.Env().Define(classVarName, classVarValue)
 		}
 
 		// For functions, initialize the Result variable
 		if method.ReturnType != nil {
 			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 			defaultVal := i.getDefaultValue(returnType)
-			i.env.Define("Result", defaultVal)
+			i.Env().Define("Result", defaultVal)
 			// In DWScript, the method name can be used as an alias for Result
-			i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+			i.Env().Define(method.Name.Value, &ReferenceValue{Env: i.Env(), VarName: "Result"})
 		}
 
 		// Execute method body
@@ -398,7 +398,7 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 		// Get return value
 		var returnValue Value
 		if method.ReturnType != nil {
-			if resultVal, ok := i.env.Get("Result"); ok {
+			if resultVal, ok := i.Env().Get("Result"); ok {
 				// Dereference ReferenceValue if needed
 				if refVal, isRef := resultVal.(*ReferenceValue); isRef {
 					if derefVal, err := refVal.Dereference(); err == nil {
@@ -406,7 +406,7 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 					}
 				}
 				returnValue = resultVal
-			} else if methodNameVal, ok := i.env.Get(method.Name.Value); ok {
+			} else if methodNameVal, ok := i.Env().Get(method.Name.Value); ok {
 				// Dereference ReferenceValue if needed
 				if refVal, isRef := methodNameVal.(*ReferenceValue); isRef {
 					if derefVal, err := refVal.Dereference(); err == nil {
@@ -462,12 +462,12 @@ func (i *Interpreter) evalClassPropertyWrite(classInfo *ClassInfo, propInfo *typ
 
 		// Bind all class variables to environment so they can be accessed directly
 		for classVarName, classVarValue := range classInfo.ClassVars {
-			i.env.Define(classVarName, classVarValue)
+			i.Env().Define(classVarName, classVarValue)
 		}
 
 		// Bind the value parameter
 		if len(method.Parameters) > 0 {
-			i.env.Define(method.Parameters[0].Name.Value, value)
+			i.Env().Define(method.Parameters[0].Name.Value, value)
 		}
 
 		// Execute method body
@@ -475,7 +475,7 @@ func (i *Interpreter) evalClassPropertyWrite(classInfo *ClassInfo, propInfo *typ
 
 		// Update class variables from environment (in case they were modified)
 		for classVarName := range classInfo.ClassVars {
-			if val, ok := i.env.Get(classVarName); ok {
+			if val, ok := i.Env().Get(classVarName); ok {
 				classInfo.ClassVars[classVarName] = val
 			}
 		}
@@ -495,12 +495,12 @@ func (i *Interpreter) evalClassPropertyWrite(classInfo *ClassInfo, propInfo *typ
 
 		// Bind all class variables to environment so they can be accessed directly
 		for classVarName, classVarValue := range classInfo.ClassVars {
-			i.env.Define(classVarName, classVarValue)
+			i.Env().Define(classVarName, classVarValue)
 		}
 
 		// Bind the value parameter
 		if len(method.Parameters) > 0 {
-			i.env.Define(method.Parameters[0].Name.Value, value)
+			i.Env().Define(method.Parameters[0].Name.Value, value)
 		}
 
 		// Execute method body
@@ -508,7 +508,7 @@ func (i *Interpreter) evalClassPropertyWrite(classInfo *ClassInfo, propInfo *typ
 
 		// Update class variables from environment (in case they were modified)
 		for classVarName := range classInfo.ClassVars {
-			if val, ok := i.env.Get(classVarName); ok {
+			if val, ok := i.Env().Get(classVarName); ok {
 				classInfo.ClassVars[classVarName] = val
 			}
 		}
@@ -551,12 +551,12 @@ func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *typ
 		defer i.PushScope()()
 
 		// Bind Self to the object
-		i.env.Define("Self", obj)
+		i.Env().Define("Self", obj)
 
 		// Bind index parameters
 		for idx, param := range method.Parameters {
 			if idx < len(indices) {
-				i.env.Define(param.Name.Value, indices[idx])
+				i.Env().Define(param.Name.Value, indices[idx])
 			}
 		}
 
@@ -565,9 +565,9 @@ func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *typ
 		if method.ReturnType != nil {
 			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 			defaultVal := i.getDefaultValue(returnType)
-			i.env.Define("Result", defaultVal)
+			i.Env().Define("Result", defaultVal)
 			// In DWScript, the method name can be used as an alias for Result
-			i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+			i.Env().Define(method.Name.Value, &ReferenceValue{Env: i.Env(), VarName: "Result"})
 		}
 
 		// Execute method body
@@ -576,7 +576,7 @@ func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *typ
 		// Get return value
 		var returnValue Value
 		if method.ReturnType != nil {
-			if resultVal, ok := i.env.Get("Result"); ok {
+			if resultVal, ok := i.Env().Get("Result"); ok {
 				// Dereference ReferenceValue if needed
 				if refVal, isRef := resultVal.(*ReferenceValue); isRef {
 					if derefVal, err := refVal.Dereference(); err == nil {
@@ -584,7 +584,7 @@ func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *typ
 					}
 				}
 				returnValue = resultVal
-			} else if methodNameVal, ok := i.env.Get(method.Name.Value); ok {
+			} else if methodNameVal, ok := i.Env().Get(method.Name.Value); ok {
 				// Dereference ReferenceValue if needed
 				if refVal, isRef := methodNameVal.(*ReferenceValue); isRef {
 					if derefVal, err := refVal.Dereference(); err == nil {
@@ -641,19 +641,19 @@ func (i *Interpreter) evalIndexedPropertyWrite(obj *ObjectInstance, propInfo *ty
 		defer i.PushScope()()
 
 		// Bind Self to the object
-		i.env.Define("Self", obj)
+		i.Env().Define("Self", obj)
 
 		// Bind index parameters (all but the last parameter)
 		for idx := 0; idx < len(indices); idx++ {
 			if idx < len(method.Parameters) {
-				i.env.Define(method.Parameters[idx].Name.Value, indices[idx])
+				i.Env().Define(method.Parameters[idx].Name.Value, indices[idx])
 			}
 		}
 
 		// Bind value parameter (last parameter)
 		if len(method.Parameters) > 0 {
 			lastParamIdx := len(method.Parameters) - 1
-			i.env.Define(method.Parameters[lastParamIdx].Name.Value, value)
+			i.Env().Define(method.Parameters[lastParamIdx].Name.Value, value)
 		}
 
 		// Execute method body
@@ -734,17 +734,17 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 		defer i.PushScope()()
 
 		// Bind Self to the object
-		i.env.Define("Self", obj)
+		i.Env().Define("Self", obj)
 
 		// Bind implicit index arguments first
 		for idx := 0; idx < len(indexArgs); idx++ {
-			i.env.Define(method.Parameters[idx].Name.Value, indexArgs[idx])
+			i.Env().Define(method.Parameters[idx].Name.Value, indexArgs[idx])
 		}
 
 		// Bind the value parameter (setter should have exactly one parameter after index args)
 		if len(method.Parameters) > 0 {
 			paramName := method.Parameters[len(method.Parameters)-1].Name.Value
-			i.env.Define(paramName, value)
+			i.Env().Define(paramName, value)
 		}
 
 		// Task 9.32c: Set flag to indicate we're inside a property setter
@@ -781,16 +781,16 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 		defer i.PushScope()()
 
 		// Bind Self to the object
-		i.env.Define("Self", obj)
+		i.Env().Define("Self", obj)
 
 		// Bind implicit index arguments first
 		for idx := 0; idx < len(indexArgs); idx++ {
-			i.env.Define(method.Parameters[idx].Name.Value, indexArgs[idx])
+			i.Env().Define(method.Parameters[idx].Name.Value, indexArgs[idx])
 		}
 
 		// Bind the value parameter (setter should have exactly one parameter after index args)
 		if len(method.Parameters) > 0 {
-			i.env.Define(method.Parameters[len(method.Parameters)-1].Name.Value, value)
+			i.Env().Define(method.Parameters[len(method.Parameters)-1].Name.Value, value)
 		}
 
 		// Task 9.32c: Set flag to indicate we're inside a property setter

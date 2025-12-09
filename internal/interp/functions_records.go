@@ -15,7 +15,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	if !RecordHasMethod(recVal, methodName) {
 		// Check for class methods (static methods can be called on instances)
 		recordTypeKey := "__record_type_" + ident.Normalize(recVal.RecordType.Name)
-		if typeVal, ok := i.env.Get(recordTypeKey); ok {
+		if typeVal, ok := i.Env().Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				// Check if this is a class method (case-insensitive)
 				if classMethod, exists := rtv.ClassMethods[ident.Normalize(methodName)]; exists {
@@ -83,13 +83,13 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	recordCopy := recVal.Copy()
 
 	// Bind Self to the record copy
-	i.env.Define("Self", recordCopy)
+	i.Env().Define("Self", recordCopy)
 
 	// Bind all record fields to environment so they can be accessed directly
 	// This allows code like "X := X + dx" to work without needing "Self.X"
 	// Similar to how class property expressions bind fields (see objects.go:431-435)
 	for fieldName, fieldValue := range recordCopy.Fields {
-		i.env.Define(fieldName, fieldValue)
+		i.Env().Define(fieldName, fieldValue)
 	}
 
 	// Bind properties to environment (for simple field-backed properties)
@@ -99,7 +99,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 			// Check if the read field is an actual field (use lowercase)
 			if fval, exists := recordCopy.Fields[ident.Normalize(propInfo.ReadField)]; exists {
 				// Bind the property name to the field value
-				i.env.Define(propName, fval)
+				i.Env().Define(propName, fval)
 			}
 		}
 	}
@@ -108,18 +108,18 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	recordTypeKey := "__record_type_" + ident.Normalize(recVal.RecordType.Name)
 	var recordTypeValue *RecordTypeValue // Track for class var write-back
 	var boundClassVars map[string]bool   // Track which class vars we bound
-	if typeVal, ok := i.env.Get(recordTypeKey); ok {
+	if typeVal, ok := i.Env().Get(recordTypeKey); ok {
 		if rtv, ok := typeVal.(*RecordTypeValue); ok {
 			recordTypeValue = rtv
 			boundClassVars = make(map[string]bool)
 
 			// Bind constants (keys normalized to lowercase for case-insensitive access)
 			for constName, constValue := range rtv.Constants {
-				i.env.Define(constName, constValue)
+				i.Env().Define(constName, constValue)
 			}
 			// Bind class variables (keys normalized to lowercase for case-insensitive access)
 			for varName, varValue := range rtv.ClassVars {
-				i.env.Define(varName, varValue)
+				i.Env().Define(varName, varValue)
 				boundClassVars[varName] = true
 			}
 		}
@@ -149,7 +149,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 		}
 
 		// TODO: implement proper by-ref support for parameters
-		i.env.Define(param.Name.Value, arg)
+		i.Env().Define(param.Name.Value, arg)
 	}
 
 	// For functions (not procedures), initialize the Result variable
@@ -161,17 +161,17 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 		// Check if return type is a record (overrides default)
 		returnTypeName := method.ReturnType.String()
 		recordTypeKey := "__record_type_" + ident.Normalize(returnTypeName)
-		if typeVal, ok := i.env.Get(recordTypeKey); ok {
+		if typeVal, ok := i.Env().Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				// Use createRecordValue for proper nested record initialization
 				resultValue = i.createRecordValue(rtv.RecordType)
 			}
 		}
 
-		i.env.Define("Result", resultValue)
+		i.Env().Define("Result", resultValue)
 		// Also define the method name as an alias for Result
 		// In DWScript, assigning to either Result or the method name sets the return value
-		i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+		i.Env().Define(method.Name.Value, &ReferenceValue{Env: i.Env(), VarName: "Result"})
 	}
 
 	// Execute method body
@@ -203,8 +203,8 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	var returnValue Value
 	if method.ReturnType != nil {
 		// Method has a return type - get the Result value
-		resultVal, resultOk := i.env.Get("Result")
-		methodNameVal, methodNameOk := i.env.Get(method.Name.Value)
+		resultVal, resultOk := i.Env().Get("Result")
+		methodNameVal, methodNameOk := i.Env().Get(method.Name.Value)
 
 		// Use whichever variable is not nil, preferring Result if both are set
 		if resultOk && resultVal.Type() != "NIL" {
@@ -247,7 +247,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	// Copy modified field values back from environment to record copy
 	// This ensures that any field modifications made during method execution are preserved
 	for fieldName := range recordCopy.Fields {
-		if updatedVal, exists := i.env.Get(fieldName); exists {
+		if updatedVal, exists := i.Env().Get(fieldName); exists {
 			recordCopy.Fields[fieldName] = updatedVal
 		}
 	}
@@ -258,7 +258,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 		// Only process properties with a write accessor (field name)
 		if propInfo.WriteField != "" {
 			// Check if the property name was assigned in the environment
-			if updatedVal, exists := i.env.Get(propName); exists {
+			if updatedVal, exists := i.Env().Get(propName); exists {
 				// Copy the value to the backing field (use lowercase for field lookup)
 				backingFieldName := ident.Normalize(propInfo.WriteField)
 				if _, fieldExists := recordCopy.Fields[backingFieldName]; fieldExists {
@@ -271,7 +271,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	// Write back class variable changes to the record type (shared mutable state)
 	if recordTypeValue != nil && boundClassVars != nil {
 		for varName := range boundClassVars {
-			if updatedVal, exists := i.env.Get(varName); exists {
+			if updatedVal, exists := i.Env().Get(varName); exists {
 				recordTypeValue.ClassVars[varName] = updatedVal
 			}
 		}
@@ -286,7 +286,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	if ident, ok := objExpr.(*ast.Identifier); ok {
 		// Update the variable in the environment with the modified copy
 		// This makes mutations visible: p.SetCoords(10, 20) updates p
-		i.env.Set(ident.Value, recordCopy)
+		i.Env().Set(ident.Value, recordCopy)
 	}
 
 	return returnValue
@@ -337,18 +337,18 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 	defer i.popCallStack()
 
 	// Bind __CurrentRecord__ so record static methods can be called without qualification
-	i.env.Define("__CurrentRecord__", rtv)
+	i.Env().Define("__CurrentRecord__", rtv)
 
 	// Track which class vars we bound for write-back
 	boundClassVars := make(map[string]bool)
 
 	// Bind constants (keys normalized to lowercase for case-insensitive access)
 	for constName, constValue := range rtv.Constants {
-		i.env.Define(constName, constValue)
+		i.Env().Define(constName, constValue)
 	}
 	// Bind class variables (keys normalized to lowercase for case-insensitive access)
 	for varName, varValue := range rtv.ClassVars {
-		i.env.Define(varName, varValue)
+		i.Env().Define(varName, varValue)
 		boundClassVars[varName] = true
 	}
 
@@ -364,7 +364,7 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 			}
 		}
 
-		i.env.Define(param.Name.Value, arg)
+		i.Env().Define(param.Name.Value, arg)
 	}
 
 	// For functions (not procedures), initialize the Result variable
@@ -376,17 +376,17 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 		// Check if return type is a record (overrides default)
 		returnTypeName := method.ReturnType.String()
 		recordTypeKey := "__record_type_" + ident.Normalize(returnTypeName)
-		if typeVal, ok := i.env.Get(recordTypeKey); ok {
+		if typeVal, ok := i.Env().Get(recordTypeKey); ok {
 			if recordTV, ok := typeVal.(*RecordTypeValue); ok {
 				// Return type is a record - create an instance
 				resultValue = i.createRecordValue(recordTV.RecordType)
 			}
 		}
 
-		i.env.Define("Result", resultValue)
+		i.Env().Define("Result", resultValue)
 		// Also define the method name as an alias for Result
 		// In DWScript, assigning to either Result or the method name sets the return value
-		i.env.Define(methodName, &ReferenceValue{Env: i.env, VarName: "Result"})
+		i.Env().Define(methodName, &ReferenceValue{Env: i.Env(), VarName: "Result"})
 	}
 
 	// Execute method body
@@ -399,8 +399,8 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 	var returnValue Value
 	if method.ReturnType != nil {
 		// Check both Result and method name variable
-		resultVal, resultOk := i.env.Get("Result")
-		methodNameVal, methodNameOk := i.env.Get(methodName)
+		resultVal, resultOk := i.Env().Get("Result")
+		methodNameVal, methodNameOk := i.Env().Get(methodName)
 
 		// Use whichever variable is not nil, preferring Result if both are set
 		if resultOk && resultVal.Type() != "NIL" {
@@ -429,7 +429,7 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 
 	// Write back class variable changes to the record type (shared mutable state)
 	for varName := range boundClassVars {
-		if updatedVal, exists := i.env.Get(varName); exists {
+		if updatedVal, exists := i.Env().Get(varName); exists {
 			rtv.ClassVars[varName] = updatedVal
 		}
 	}

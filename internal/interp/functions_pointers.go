@@ -53,7 +53,7 @@ func (i *Interpreter) callFunctionPointer(funcPtr *FunctionPointerValue, args []
 		defer i.PushScope()()
 
 		// Bind Self to the captured object
-		i.env.Define("Self", funcPtr.SelfObject)
+		i.Env().Define("Self", funcPtr.SelfObject)
 
 		// Call the function via evaluator
 		result := i.executeUserFunctionViaEvaluator(funcPtr.Function, args)
@@ -88,11 +88,11 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 	}
 
 	// Create a new environment for the lambda scope
-	// CRITICAL: Use closureEnv as parent, NOT i.env
+	// CRITICAL: Use closureEnv as parent, NOT i.Env()
 	// This gives the lambda access to captured variables
-	// Phase 3.1.4: Cannot use PushScope() here because we need closureEnv as parent, not i.env
+	// Phase 3.1.4: Cannot use PushScope() here because we need closureEnv as parent, not i.Env()
 	// Must use manual savedEnv pattern with PushEnvironment/RestoreEnvironment helpers
-	savedEnv := i.env
+	savedEnv := i.Env()
 	lambdaEnv := i.PushEnvironment(closureEnv)
 
 	// Check recursion depth before pushing to call stack
@@ -136,7 +136,7 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 			returnTypeName := lambda.ReturnType.String()
 			lowerReturnType := ident.Normalize(returnTypeName)
 			recordTypeKey := "__record_type_" + lowerReturnType
-			if typeVal, ok := i.env.Get(recordTypeKey); ok {
+			if typeVal, ok := i.Env().Get(recordTypeKey); ok {
 				if rtv, ok := typeVal.(*RecordTypeValue); ok {
 					// Use createRecordValue for proper nested record initialization
 					resultValue = i.createRecordValue(rtv.RecordType)
@@ -183,7 +183,7 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 	var returnValue Value
 	if lambda.ReturnType != nil || lambda.IsShorthand {
 		// Lambda has a return type or is shorthand (implicit return) - get the Result value
-		resultVal, resultOk := i.env.Get("Result")
+		resultVal, resultOk := i.Env().Get("Result")
 
 		if resultOk && resultVal.Type() != "NIL" {
 			returnValue = resultVal

@@ -32,7 +32,7 @@ func (i *Interpreter) GetZeroValueForType(typeInfo any) evaluator.Value {
 
 	methodsLookup := func(rt *types.RecordType) map[string]*ast.FunctionDecl {
 		key := "__record_type_" + ident.Normalize(rt.Name)
-		if typeVal, ok := i.env.Get(key); ok {
+		if typeVal, ok := i.Env().Get(key); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				return rtv.Methods
 			}

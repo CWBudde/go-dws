@@ -66,7 +66,7 @@ func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodNa
 	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 
-	i.env.Define("Self", obj)
+	i.Env().Define("Self", obj)
 
 	// Bind parameters to arguments with implicit conversion
 	for idx, param := range method.Parameters {
@@ -80,15 +80,15 @@ func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodNa
 			}
 		}
 
-		i.env.Define(param.Name.Value, arg)
+		i.Env().Define(param.Name.Value, arg)
 	}
 
 	// Use appropriate default value based on return type
 	if method.ReturnType != nil {
 		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 		defaultVal := i.getDefaultValue(returnType)
-		i.env.Define("Result", defaultVal)
-		i.env.Define(method.Name.Value, defaultVal)
+		i.Env().Define("Result", defaultVal)
+		i.Env().Define(method.Name.Value, defaultVal)
 	}
 
 	result := i.Eval(method.Body)
@@ -98,7 +98,7 @@ func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodNa
 
 	var returnValue Value = &NilValue{}
 	if method.ReturnType != nil {
-		returnValue = i.extractReturnValue(method, i.env)
+		returnValue = i.extractReturnValue(method, i.Env())
 	}
 
 	return returnValue
@@ -116,7 +116,7 @@ func (i *Interpreter) invokeClassOperatorMethod(classInfo *ClassInfo, methodName
 	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 
-	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
+	i.Env().Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
 
 	// Bind parameters to arguments with implicit conversion
 	for idx, param := range method.Parameters {
@@ -130,15 +130,15 @@ func (i *Interpreter) invokeClassOperatorMethod(classInfo *ClassInfo, methodName
 			}
 		}
 
-		i.env.Define(param.Name.Value, arg)
+		i.Env().Define(param.Name.Value, arg)
 	}
 
 	// Use appropriate default value based on return type
 	if method.ReturnType != nil {
 		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 		defaultVal := i.getDefaultValue(returnType)
-		i.env.Define("Result", defaultVal)
-		i.env.Define(method.Name.Value, defaultVal)
+		i.Env().Define("Result", defaultVal)
+		i.Env().Define(method.Name.Value, defaultVal)
 	}
 
 	result := i.Eval(method.Body)
@@ -148,7 +148,7 @@ func (i *Interpreter) invokeClassOperatorMethod(classInfo *ClassInfo, methodName
 
 	var returnValue Value = &NilValue{}
 	if method.ReturnType != nil {
-		returnValue = i.extractReturnValue(method, i.env)
+		returnValue = i.extractReturnValue(method, i.Env())
 	}
 
 	return returnValue

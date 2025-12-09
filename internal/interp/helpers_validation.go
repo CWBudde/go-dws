@@ -209,7 +209,7 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 
 	// Expose helper name as a type meta value so static access (e.g., TDummy.Hello) resolves
 	helperTypeMeta := NewTypeMetaValue(targetType, targetType.String())
-	i.env.Define(decl.Name.Value, helperTypeMeta)
+	i.Env().Define(decl.Name.Value, helperTypeMeta)
 
 	return &NilValue{}
 }
@@ -240,7 +240,7 @@ func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionD
 	defer i.PushScope()()
 
 	// Bind Self to the target value (the value being extended)
-	i.env.Define("Self", selfValue)
+	i.Env().Define("Self", selfValue)
 
 	// Bind helper class vars and consts from entire inheritance chain
 	// Walk from root parent to current helper so child helpers override parents
@@ -250,24 +250,24 @@ func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionD
 	}
 	for _, h := range helperChain {
 		for name, value := range h.ClassVars {
-			i.env.Define(name, value)
+			i.Env().Define(name, value)
 		}
 		for name, value := range h.ClassConsts {
-			i.env.Define(name, value)
+			i.Env().Define(name, value)
 		}
 	}
 
 	// Bind method parameters
 	for idx, param := range method.Parameters {
-		i.env.Define(param.Name.Value, args[idx])
+		i.Env().Define(param.Name.Value, args[idx])
 	}
 
 	// For functions, initialize the Result variable
 	if method.ReturnType != nil {
 		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 		defaultVal := i.getDefaultValue(returnType)
-		i.env.Define("Result", defaultVal)
-		i.env.Define(method.Name.Value, defaultVal)
+		i.Env().Define("Result", defaultVal)
+		i.Env().Define(method.Name.Value, defaultVal)
 	}
 
 	// Execute method body
@@ -279,8 +279,8 @@ func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionD
 	// Extract return value
 	var returnValue Value
 	if method.ReturnType != nil {
-		resultVal, resultOk := i.env.Get("Result")
-		methodNameVal, methodNameOk := i.env.Get(method.Name.Value)
+		resultVal, resultOk := i.Env().Get("Result")
+		methodNameVal, methodNameOk := i.Env().Get(method.Name.Value)
 
 		if resultOk && resultVal.Type() != "NIL" {
 			returnValue = resultVal

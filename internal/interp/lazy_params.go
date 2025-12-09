@@ -80,7 +80,7 @@ func (t *LazyThunk) String() string {
 // - Variable mutations in the captured environment are visible
 func (t *LazyThunk) Evaluate() Value {
 	// Save the current interpreter environment
-	savedEnv := t.interpreter.env
+	savedEnv := t.interpreter.Env()
 
 	// Switch to the captured environment from the call site
 	// This ensures the expression sees variables from the caller's scope

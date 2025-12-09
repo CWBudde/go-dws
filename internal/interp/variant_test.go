@@ -1215,7 +1215,7 @@ func testEvalAndGetVar(t *testing.T, source, varName string) Value {
 	// For Variant tests, we need to access the interpreter's environment
 	// Use a different approach: evaluate and return result
 	interp := testGetInterpreter(source)
-	envVal, ok := interp.env.Get(varName)
+	envVal, ok := interp.Env().Get(varName)
 	if !ok {
 		t.Fatalf("variable %q not found in environment", varName)
 	}

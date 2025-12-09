@@ -346,7 +346,7 @@ func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol str
 		defer i.PushScope()()
 
 		// Bind Self to the object instance
-		i.env.Define("Self", objInst)
+		i.Env().Define("Self", objInst)
 
 		// Bind parameters
 		for idx, param := range method.Parameters {
@@ -384,7 +384,7 @@ func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol str
 					}
 				}
 
-				i.env.Define(param.Name.Value, argValue)
+				i.Env().Define(param.Name.Value, argValue)
 			}
 		}
 
@@ -397,7 +397,7 @@ func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol str
 
 		// Extract return value - operator methods may have a return type
 		// Check if Result variable was set in the method environment
-		if resultVal, exists := i.env.Get("Result"); exists {
+		if resultVal, exists := i.Env().Get("Result"); exists {
 			return resultVal // Return the operator result
 		}
 

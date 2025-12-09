@@ -63,7 +63,7 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 	if constructor, exists := classInfo.Constructors[constructorNameLower]; exists {
 		// Phase 3.1.4: unified scope management
 		defer i.PushScope()()
-		i.env.Define("Self", obj)
+		i.Env().Define("Self", obj)
 
 		result := i.executeUserFunctionViaEvaluator(constructor, internalArgs)
 
@@ -111,7 +111,7 @@ func (i *Interpreter) ExecuteConstructor(obj evaluator.Value, constructorName st
 	// Execute constructor in a new environment with Self bound
 	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
-	i.env.Define("Self", objectInstance)
+	i.Env().Define("Self", objectInstance)
 
 	result := i.executeUserFunctionViaEvaluator(constructor, internalArgs)
 

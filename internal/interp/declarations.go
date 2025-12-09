@@ -211,7 +211,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Provide current class context for nested type resolution
 	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
-	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
+	i.Env().Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
 
 	// Resolve parent class (explicit or implicit TObject)
 	var parentClass *ClassInfo
@@ -310,7 +310,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		func() {
 			defer i.PushScope()()
 			for cName, cValue := range classInfo.ConstantValues {
-				i.env.Define(cName, cValue)
+				i.Env().Define(cName, cValue)
 			}
 
 			constValue = i.Eval(constDecl.Value)
@@ -386,7 +386,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			func() {
 				defer i.PushScope()()
 				for cName, cValue := range classInfo.ConstantValues {
-					i.env.Define(cName, cValue)
+					i.Env().Define(cName, cValue)
 				}
 
 				initVal = i.Eval(field.InitValue)
@@ -419,7 +419,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 					func() {
 						defer i.PushScope()()
 						for cName, cValue := range classInfo.ConstantValues {
-							i.env.Define(cName, cValue)
+							i.Env().Define(cName, cValue)
 						}
 
 						val = i.Eval(field.InitValue)

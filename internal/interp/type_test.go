@@ -74,7 +74,7 @@ func TestTypeAliasBasicUsage(t *testing.T) {
 	}
 
 	// Verify variable was created with correct value
-	idVal, found := interp.env.Get("id")
+	idVal, found := interp.Env().Get("id")
 	if !found {
 		t.Fatal("Expected variable 'id' to be defined")
 	}

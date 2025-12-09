@@ -35,14 +35,14 @@ func (i *Interpreter) CallQualifiedOrConstructor(callExpr *ast.CallExpression, m
 						} else if isByRef {
 							// For var parameters, create a reference
 							if argIdent, ok := arg.(*ast.Identifier); ok {
-								if val, exists := i.env.Get(argIdent.Value); exists {
+								if val, exists := i.Env().Get(argIdent.Value); exists {
 									if refVal, isRef := val.(*ReferenceValue); isRef {
 										args[idx] = refVal // Pass through existing reference
 									} else {
-										args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+										args[idx] = &ReferenceValue{Env: i.Env(), VarName: argIdent.Value}
 									}
 								} else {
-									args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+									args[idx] = &ReferenceValue{Env: i.Env(), VarName: argIdent.Value}
 								}
 							} else {
 								return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
@@ -153,8 +153,8 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		defer i.popCallStack()
 
 		// Bind Self to ClassInfoValue for class methods
-		i.env.Define("Self", classInfoVal)
-		i.env.Define("__CurrentClass__", classInfoVal)
+		i.Env().Define("Self", classInfoVal)
+		i.Env().Define("__CurrentClass__", classInfoVal)
 
 		// Add class constants
 		i.bindClassConstantsToEnv(classInfo)
@@ -168,15 +168,15 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 					arg = converted
 				}
 			}
-			i.env.Define(param.Name.Value, arg)
+			i.Env().Define(param.Name.Value, arg)
 		}
 
 		// Initialize Result for functions
 		if classMethod.ReturnType != nil {
 			returnType := i.resolveTypeFromAnnotation(classMethod.ReturnType)
 			defaultVal := i.getDefaultValue(returnType)
-			i.env.Define("Result", defaultVal)
-			i.env.Define(classMethod.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+			i.Env().Define("Result", defaultVal)
+			i.Env().Define(classMethod.Name.Value, &ReferenceValue{Env: i.Env(), VarName: "Result"})
 		}
 
 		// Execute method body
@@ -188,8 +188,8 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		// Extract return value
 		var returnValue Value
 		if classMethod.ReturnType != nil {
-			resultVal, resultOk := i.env.Get("Result")
-			methodNameVal, methodNameOk := i.env.Get(classMethod.Name.Value)
+			resultVal, resultOk := i.Env().Get("Result")
+			methodNameVal, methodNameOk := i.Env().Get(classMethod.Name.Value)
 
 			if resultOk && resultVal.Type() != "NIL" {
 				returnValue = resultVal
@@ -256,7 +256,7 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 				func() {
 					defer i.PushScope()()
 					for constName, constValue := range runtimeClass.ConstantValues {
-						i.env.Define(constName, constValue)
+						i.Env().Define(constName, constValue)
 					}
 					defaultValue = i.Eval(fieldDecl.InitValue)
 				}()
@@ -284,8 +284,8 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		defer i.popCallStack()
 
 		// Bind Self to the new instance
-		i.env.Define("Self", newInstance)
-		i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: runtimeClass})
+		i.Env().Define("Self", newInstance)
+		i.Env().Define("__CurrentClass__", &ClassInfoValue{ClassInfo: runtimeClass})
 
 		// Add class constants
 		i.bindClassConstantsToEnv(runtimeClass)
@@ -299,7 +299,7 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 					arg = converted
 				}
 			}
-			i.env.Define(param.Name.Value, arg)
+			i.Env().Define(param.Name.Value, arg)
 		}
 
 		// Execute constructor body
@@ -344,7 +344,7 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		// Call the method with Self bound to the underlying object (not the interface)
 		// Phase 3.1.4: unified scope management
 		defer i.PushScope()()
-		i.env.Define("Self", objVal)
+		i.Env().Define("Self", objVal)
 
 		result := i.executeUserFunctionViaEvaluator(method, internalArgs)
 
@@ -360,7 +360,7 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		// Check for class/static methods on the record type
 		var rtv *RecordTypeValue
 		recordTypeKey := "__record_type_" + ident.Normalize(recVal.RecordType.Name)
-		if typeVal, found := i.env.Get(recordTypeKey); found {
+		if typeVal, found := i.Env().Get(recordTypeKey); found {
 			rtv, _ = typeVal.(*RecordTypeValue)
 		}
 
@@ -371,14 +371,14 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 				defer i.PushScope()()
 
 				// Bind __CurrentRecord__ for record context
-				i.env.Define("__CurrentRecord__", rtv)
+				i.Env().Define("__CurrentRecord__", rtv)
 
 				// Bind constants and class variables
 				for constName, constValue := range rtv.Constants {
-					i.env.Define(constName, constValue)
+					i.Env().Define(constName, constValue)
 				}
 				for varName, varValue := range rtv.ClassVars {
-					i.env.Define(varName, varValue)
+					i.Env().Define(varName, varValue)
 				}
 
 				// Check recursion depth
@@ -408,11 +408,11 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		defer i.PushScope()()
 
 		// Bind Self to the record copy
-		i.env.Define("Self", recordCopy)
+		i.Env().Define("Self", recordCopy)
 
 		// Bind all record fields to environment for direct access
 		for fieldName, fieldValue := range recordCopy.Fields {
-			i.env.Define(fieldName, fieldValue)
+			i.Env().Define(fieldName, fieldValue)
 		}
 
 		// Bind properties for simple field-backed properties
@@ -420,7 +420,7 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 			for propName, propInfo := range recVal.RecordType.Properties {
 				if propInfo.ReadField != "" {
 					if fval, exists := recordCopy.Fields[ident.Normalize(propInfo.ReadField)]; exists {
-						i.env.Define(propName, fval)
+						i.Env().Define(propName, fval)
 					}
 				}
 			}
@@ -429,10 +429,10 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		// Bind constants and class variables from RecordTypeValue
 		if rtv != nil {
 			for constName, constValue := range rtv.Constants {
-				i.env.Define(constName, constValue)
+				i.Env().Define(constName, constValue)
 			}
 			for varName, varValue := range rtv.ClassVars {
-				i.env.Define(varName, varValue)
+				i.Env().Define(varName, varValue)
 			}
 		}
 
@@ -474,7 +474,7 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 	// Call the method using existing infrastructure
 	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
-	i.env.Define("Self", objVal)
+	i.Env().Define("Self", objVal)
 
 	result := i.executeUserFunctionViaEvaluator(method, internalArgs)
 
@@ -517,7 +517,7 @@ func (i *Interpreter) CallInheritedMethod(obj evaluator.Value, methodName string
 	// Call the method using existing infrastructure
 	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
-	i.env.Define("Self", objVal)
+	i.Env().Define("Self", objVal)
 
 	result := i.executeUserFunctionViaEvaluator(method, internalArgs)
 
@@ -539,7 +539,7 @@ func (i *Interpreter) ExecuteMethodWithSelf(self evaluator.Value, methodDecl any
 	// Call the method using existing infrastructure
 	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
-	i.env.Define("Self", internalSelf)
+	i.Env().Define("Self", internalSelf)
 
 	result := i.executeUserFunctionViaEvaluator(method, internalArgs)
 

@@ -368,7 +368,7 @@ func (i *Interpreter) ResolveQualifiedVariable(unitName, variableName string) (V
 	}
 
 	// Try to find in the environment (for constants, variables)
-	if val, ok := i.env.Get(variableName); ok {
+	if val, ok := i.Env().Get(variableName); ok {
 		return val, nil
 	}
 

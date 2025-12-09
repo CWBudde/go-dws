@@ -387,10 +387,10 @@ func TestEdge_InterfaceVariablesHoldingNil(t *testing.T) {
 		// Store nil interface in environment
 		var nilObj *ObjectInstance
 		nilInstance := NewInterfaceInstance(iface, nilObj)
-		interp.env.Define("nilInterface", nilInstance)
+		interp.Env().Define("nilInterface", nilInstance)
 
 		// Retrieve and verify
-		val, exists := interp.env.Get("nilInterface")
+		val, exists := interp.Env().Get("nilInterface")
 		if !exists {
 			t.Fatal("Nil interface should exist in environment")
 		}

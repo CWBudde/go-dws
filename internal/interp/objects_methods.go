@@ -111,11 +111,11 @@ func (i *Interpreter) executeClassMethod(
 	defer i.popCallStack()
 
 	// Bind Self and __CurrentClass__ to ClassInfo for class methods
-	i.env.Define("Self", &ClassInfoValue{ClassInfo: classInfo})
-	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
+	i.Env().Define("Self", &ClassInfoValue{ClassInfo: classInfo})
+	i.Env().Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
 	i.bindClassConstantsToEnv(classInfo)
-	i.bindMethodParameters(i.env, classMethod.Parameters, args)
-	i.initializeResultVariable(i.env, classMethod)
+	i.bindMethodParameters(i.Env(), classMethod.Parameters, args)
+	i.initializeResultVariable(i.Env(), classMethod)
 
 	// Execute method body
 	result := i.Eval(classMethod.Body)
@@ -448,10 +448,10 @@ func (i *Interpreter) executeVirtualConstructor(
 	newObj := NewObjectInstance(obj.Class)
 	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
-	i.env.Define("Self", newObj)
+	i.Env().Define("Self", newObj)
 	i.bindClassConstantsToEnv(concreteClass)
 
-	i.bindMethodParameters(i.env, actualConstructor.Parameters, args)
+	i.bindMethodParameters(i.Env(), actualConstructor.Parameters, args)
 
 	result := i.Eval(actualConstructor.Body)
 	if isError(result) {
@@ -511,22 +511,22 @@ func (i *Interpreter) executeResolvedMethod(
 	defer i.popCallStack()
 
 	if isClassMethod {
-		i.env.Define("Self", &ClassInfoValue{ClassInfo: concreteClass})
+		i.Env().Define("Self", &ClassInfoValue{ClassInfo: concreteClass})
 	} else {
-		i.env.Define("Self", obj)
+		i.Env().Define("Self", obj)
 	}
 
 	methodOwner := i.findMethodOwner(concreteClass, method, isClassMethod)
-	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: methodOwner})
+	i.Env().Define("__CurrentClass__", &ClassInfoValue{ClassInfo: methodOwner})
 	i.bindClassConstantsToEnv(concreteClass)
 
-	i.bindMethodParameters(i.env, method.Parameters, args)
+	i.bindMethodParameters(i.Env(), method.Parameters, args)
 
 	if method.ReturnType != nil {
 		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 		defaultVal := i.getDefaultValue(returnType)
-		i.env.Define("Result", defaultVal)
-		i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+		i.Env().Define("Result", defaultVal)
+		i.Env().Define(method.Name.Value, &ReferenceValue{Env: i.Env(), VarName: "Result"})
 	}
 
 	result := i.Eval(method.Body)
@@ -543,8 +543,8 @@ func (i *Interpreter) extractMethodReturnValue(method *ast.FunctionDecl) Value {
 		return &NilValue{}
 	}
 
-	resultVal, resultOk := i.env.Get("Result")
-	methodNameVal, methodNameOk := i.env.Get(method.Name.Value)
+	resultVal, resultOk := i.Env().Get("Result")
+	methodNameVal, methodNameOk := i.Env().Get(method.Name.Value)
 
 	resultVal = i.dereferenceIfNeeded(resultVal, resultOk)
 	methodNameVal = i.dereferenceIfNeeded(methodNameVal, methodNameOk)
@@ -698,12 +698,12 @@ func (i *Interpreter) getDefaultValueForType(fieldType types.Type) Value {
 func (i *Interpreter) executeConstructorBody(runtimeClass *ClassInfo, constructor *ast.FunctionDecl, instance *ObjectInstance, args []Value) Value {
 	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
-	i.env.Define("Self", instance)
+	i.Env().Define("Self", instance)
 	i.bindClassConstantsToEnv(runtimeClass)
 
-	i.bindConstructorParameters(i.env, constructor, args)
+	i.bindConstructorParameters(i.Env(), constructor, args)
 
-	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: runtimeClass})
+	i.Env().Define("__CurrentClass__", &ClassInfoValue{ClassInfo: runtimeClass})
 
 	result := i.Eval(constructor.Body)
 	if isError(result) {
@@ -1013,7 +1013,7 @@ func (i *Interpreter) tryImplicitConstructor(
 	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 	for constName, constValue := range classInfo.ConstantValues {
-		i.env.Define(constName, constValue)
+		i.Env().Define(constName, constValue)
 	}
 
 	for fieldName, fieldType := range classInfo.Fields {
@@ -1088,7 +1088,7 @@ func (i *Interpreter) createInstanceWithFieldInit(classInfo *ClassInfo) (*Object
 	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 	for constName, constValue := range classInfo.ConstantValues {
-		i.env.Define(constName, constValue)
+		i.Env().Define(constName, constValue)
 	}
 
 	for fieldName, fieldType := range classInfo.Fields {
@@ -1118,11 +1118,11 @@ func (i *Interpreter) evaluateFieldInitValue(classInfo *ClassInfo, fieldName str
 func (i *Interpreter) executeMethodOnInstance(classInfo *ClassInfo, method *ast.FunctionDecl, obj *ObjectInstance, args []Value) Value {
 	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
-	i.env.Define("Self", obj)
+	i.Env().Define("Self", obj)
 	i.bindClassConstantsToEnv(classInfo)
 
-	i.bindMethodParametersWithConversion(i.env, method, args)
-	i.initializeMethodResultVariable(i.env, method)
+	i.bindMethodParametersWithConversion(i.Env(), method, args)
+	i.initializeMethodResultVariable(i.Env(), method)
 
 	result := i.Eval(method.Body)
 	if isError(result) {
@@ -1182,7 +1182,7 @@ func (i *Interpreter) extractConstructorReturnValue(obj *ObjectInstance, method 
 		return obj
 	}
 
-	resultVal, resultOk := i.env.Get("Result")
+	resultVal, resultOk := i.Env().Get("Result")
 	if resultOk && resultVal.Type() != "NIL" {
 		return resultVal
 	}
@@ -1191,8 +1191,8 @@ func (i *Interpreter) extractConstructorReturnValue(obj *ObjectInstance, method 
 
 // extractNonConstructorReturnValue extracts the return value from a non-constructor method.
 func (i *Interpreter) extractNonConstructorReturnValue(method *ast.FunctionDecl) Value {
-	resultVal, resultOk := i.env.Get("Result")
-	methodNameVal, methodNameOk := i.env.Get(method.Name.Value)
+	resultVal, resultOk := i.Env().Get("Result")
+	methodNameVal, methodNameOk := i.Env().Get(method.Name.Value)
 
 	returnValue := i.selectReturnValue(resultVal, resultOk, methodNameVal, methodNameOk)
 
@@ -1206,7 +1206,7 @@ func (i *Interpreter) extractNonConstructorReturnValue(method *ast.FunctionDecl)
 // Returns nil if the identifier is not a record type.
 func (i *Interpreter) tryRecordTypeMethodCall(ident *ast.Identifier, mc *ast.MethodCallExpression) Value {
 	recordTypeKey := "__record_type_" + pkgident.Normalize(ident.Value)
-	typeVal, ok := i.env.Get(recordTypeKey)
+	typeVal, ok := i.Env().Get(recordTypeKey)
 	if !ok {
 		return nil
 	}

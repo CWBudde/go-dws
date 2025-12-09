@@ -96,7 +96,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 					returnType = i.getTypeFromAnnotation(classMethod.ReturnType)
 				}
 				pointerType := types.NewFunctionPointerType(paramTypes, returnType)
-				return NewFunctionPointerValue(classMethod, i.env, nil, pointerType)
+				return NewFunctionPointerValue(classMethod, i.Env(), nil, pointerType)
 			}
 
 			// Nested class access
@@ -133,7 +133,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 				// Unscoped enums: fallback to environment lookup
 				if !enumType.Scoped {
-					if val, envExists := i.env.Get(valueName); envExists {
+					if val, envExists := i.Env().Get(valueName); envExists {
 						if enumVal, isEnum := val.(*EnumValue); isEnum {
 							if enumVal.TypeName == ident.Value {
 								return enumVal
@@ -148,7 +148,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 		// Record type static access: TPoint.cOrigin, TPoint.Count
 		recordTypeKey := "__record_type_" + pkgident.Normalize(ident.Value)
-		if recordTypeVal, ok := i.env.Get(recordTypeKey); ok {
+		if recordTypeVal, ok := i.Env().Get(recordTypeKey); ok {
 			if rtv, ok := recordTypeVal.(*RecordTypeValue); ok {
 				memberName := ma.Member.Value
 
@@ -183,7 +183,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 	// Helper class constants and variables via TypeMetaValue
 	if objIdent, ok := ma.Object.(*ast.Identifier); ok {
-		if typeMetaVal, exists := i.env.Get(objIdent.Value); exists {
+		if typeMetaVal, exists := i.Env().Get(objIdent.Value); exists {
 			if tmv, ok := typeMetaVal.(*TypeMetaValue); ok {
 				if constVal := i.findHelperClassConst(tmv, ma.Member.Value); constVal != nil {
 					return constVal
@@ -260,7 +260,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 		// Record class-level members (accessible via instance)
 		recordTypeKey := "__record_type_" + pkgident.Normalize(recordVal.RecordType.Name)
-		if typeVal, ok := i.env.Get(recordTypeKey); ok {
+		if typeVal, ok := i.Env().Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				if classMethod, exists := rtv.ClassMethods[memberNameLower]; exists {
 					if len(classMethod.Parameters) == 0 {
@@ -389,7 +389,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				returnType = i.getTypeFromAnnotation(classMethod.ReturnType)
 			}
 			pointerType := types.NewFunctionPointerType(paramTypes, returnType)
-			return NewFunctionPointerValue(classMethod, i.env, nil, pointerType)
+			return NewFunctionPointerValue(classMethod, i.Env(), nil, pointerType)
 		}
 
 		return i.newErrorWithLocation(ma, "member '%s' not found in class '%s'", memberName, classInfo.Name)
@@ -467,7 +467,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			returnType = i.getTypeFromAnnotation(method.ReturnType)
 		}
 		pointerType := types.NewFunctionPointerType(paramTypes, returnType)
-		return NewFunctionPointerValue(method, i.env, underlyingObj, pointerType)
+		return NewFunctionPointerValue(method, i.Env(), underlyingObj, pointerType)
 	}
 
 	// Type cast values: preserve static type for class variable access
@@ -668,7 +668,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				returnType = i.getTypeFromAnnotation(method.ReturnType)
 			}
 			pointerType := types.NewFunctionPointerType(paramTypes, returnType)
-			return NewFunctionPointerValue(method, i.env, obj, pointerType)
+			return NewFunctionPointerValue(method, i.Env(), obj, pointerType)
 		}
 
 		helper, helperProp := i.findHelperProperty(obj, memberName)
@@ -715,13 +715,13 @@ func (i *Interpreter) lookupClassMethodInHierarchy(classInfo *ClassInfo, name st
 // allowing methods to access them directly without qualification.
 func (i *Interpreter) bindClassConstantsToEnv(classInfo *ClassInfo) {
 	for constName, constValue := range classInfo.ConstantValues {
-		i.env.Define(constName, constValue)
+		i.Env().Define(constName, constValue)
 	}
 }
 
 // evalSelfExpression returns the Self value from the current method context.
 func (i *Interpreter) evalSelfExpression(se *ast.SelfExpression) Value {
-	selfVal, exists := i.env.Get("Self")
+	selfVal, exists := i.Env().Get("Self")
 	if !exists {
 		return i.newErrorWithLocation(se, "Self used outside method context")
 	}
@@ -731,7 +731,7 @@ func (i *Interpreter) evalSelfExpression(se *ast.SelfExpression) Value {
 // evalInheritedExpression calls a parent class method.
 // Supports explicit (inherited MethodName(args)) and bare (inherited) forms.
 func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value {
-	selfVal, exists := i.env.Get("Self")
+	selfVal, exists := i.Env().Get("Self")
 	if !exists {
 		return i.newErrorWithLocation(ie, "inherited can only be used inside a method")
 	}
@@ -743,7 +743,7 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 
 	// Determine static class context (prefer __CurrentClass__, fall back to runtime class)
 	var classInfo *ClassInfo
-	if currentClassVal, has := i.env.Get("__CurrentClass__"); has {
+	if currentClassVal, has := i.Env().Get("__CurrentClass__"); has {
 		if civ, isClassVal := currentClassVal.(*ClassInfoValue); isClassVal && civ.ClassInfo != nil {
 			classInfo = civ.ClassInfo
 		}
@@ -766,7 +766,7 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 	if ie.Method != nil {
 		methodName = ie.Method.Value
 	} else {
-		currentMethodVal, exists := i.env.Get("__CurrentMethod__")
+		currentMethodVal, exists := i.Env().Get("__CurrentMethod__")
 		if !exists {
 			return i.newErrorWithLocation(ie, "bare 'inherited' requires method context")
 		}
@@ -804,10 +804,10 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 		// Phase 3.1.4: unified scope management
 		defer i.PushScope()()
 
-		i.env.Define("Self", obj)
-		i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: parentClass})
+		i.Env().Define("Self", obj)
+		i.Env().Define("__CurrentClass__", &ClassInfoValue{ClassInfo: parentClass})
 		i.bindClassConstantsToEnv(parentClass)
-		i.env.Define("__CurrentMethod__", &StringValue{Value: methodName})
+		i.Env().Define("__CurrentMethod__", &StringValue{Value: methodName})
 
 		// Bind parameters with implicit conversion
 		for idx, param := range parentMethod.Parameters {
@@ -818,15 +818,15 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 					arg = converted
 				}
 			}
-			i.env.Define(param.Name.Value, arg)
+			i.Env().Define(param.Name.Value, arg)
 		}
 
 		// Initialize Result for functions
 		if parentMethod.ReturnType != nil {
 			returnType := i.resolveTypeFromAnnotation(parentMethod.ReturnType)
 			defaultVal := i.getDefaultValue(returnType)
-			i.env.Define("Result", defaultVal)
-			i.env.Define(parentMethod.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+			i.Env().Define("Result", defaultVal)
+			i.Env().Define(parentMethod.Name.Value, &ReferenceValue{Env: i.Env(), VarName: "Result"})
 		}
 
 		_ = i.Eval(parentMethod.Body)
@@ -834,9 +834,9 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 		// Return value handling
 		var returnValue Value
 		if parentMethod.ReturnType != nil {
-			if resultVal, ok := i.env.Get("Result"); ok {
+			if resultVal, ok := i.Env().Get("Result"); ok {
 				returnValue = resultVal
-			} else if methodVal, ok := i.env.Get(parentMethod.Name.Value); ok {
+			} else if methodVal, ok := i.Env().Get(parentMethod.Name.Value); ok {
 				returnValue = methodVal
 			} else {
 				returnValue = &NilValue{}
@@ -897,7 +897,7 @@ func (i *Interpreter) getClassConstant(classInfo *ClassInfo, constantName string
 
 	for constName, constVal := range ownerClass.ConstantValues {
 		if constName != constantName && constVal != nil {
-			i.env.Define(constName, constVal)
+			i.Env().Define(constName, constVal)
 		}
 	}
 

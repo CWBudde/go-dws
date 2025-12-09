@@ -149,7 +149,7 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeExpr ast.TypeExpression) typ
 
 	// Check for record types (stored with special prefix in environment)
 	recordTypeKey := "__record_type_" + ident.Normalize(typeName)
-	if typeVal, ok := i.env.Get(recordTypeKey); ok {
+	if typeVal, ok := i.Env().Get(recordTypeKey); ok {
 		if recordTypeVal, ok := typeVal.(*RecordTypeValue); ok {
 			return recordTypeVal.RecordType
 		}
@@ -157,7 +157,7 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeExpr ast.TypeExpression) typ
 
 	// Check for type aliases (e.g., TPointArray = array of TPoint)
 	typeAliasKey := "__type_alias_" + lowerTypeName
-	if typeAliasVal, ok := i.env.Get(typeAliasKey); ok {
+	if typeAliasVal, ok := i.Env().Get(typeAliasKey); ok {
 		if typeAlias, ok := typeAliasVal.(*TypeAliasValue); ok {
 			return typeAlias.AliasedType
 		}
@@ -184,12 +184,12 @@ func (i *Interpreter) resolveClassInfoByName(name string) *ClassInfo {
 
 // currentClassContext inspects the execution environment to find the current class scope.
 func (i *Interpreter) currentClassContext() *ClassInfo {
-	if val, ok := i.env.Get("__CurrentClass__"); ok {
+	if val, ok := i.Env().Get("__CurrentClass__"); ok {
 		if classVal, ok := val.(*ClassInfoValue); ok {
 			return classVal.ClassInfo
 		}
 	}
-	if val, ok := i.env.Get("Self"); ok {
+	if val, ok := i.Env().Get("Self"); ok {
 		if classVal, ok := val.(*ClassInfoValue); ok {
 			return classVal.ClassInfo
 		}

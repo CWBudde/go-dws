@@ -347,7 +347,7 @@ func (i *Interpreter) runDestructor(obj *ObjectInstance, destructor *ast.Functio
 	defer i.PushScope()()
 
 	// Bind Self and class constants
-	i.env.Define("Self", obj)
+	i.Env().Define("Self", obj)
 	concreteClass, ok := obj.Class.(*ClassInfo)
 	if ok {
 		i.bindClassConstantsToEnv(concreteClass)

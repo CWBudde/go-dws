@@ -449,10 +449,10 @@ func TestIntegration_InterfaceLifetimeManagement(t *testing.T) {
 		ifaceInstance := NewInterfaceInstance(iface, obj)
 
 		// Store in environment
-		interp.env.Define("resource", ifaceInstance)
+		interp.Env().Define("resource", ifaceInstance)
 
 		// Retrieve and verify
-		retrieved, exists := interp.env.Get("resource")
+		retrieved, exists := interp.Env().Get("resource")
 		if !exists {
 			t.Fatal("Interface variable should exist")
 		}
@@ -473,34 +473,34 @@ func TestIntegration_InterfaceLifetimeManagement(t *testing.T) {
 		ifaceInstance := NewInterfaceInstance(iface, obj)
 
 		// Define in outer scope
-		interp.env.Define("outer", ifaceInstance)
+		interp.Env().Define("outer", ifaceInstance)
 
 		// Create nested scope
-		nestedEnv := NewEnclosedEnvironment(interp.env)
-		savedEnv := interp.env
-		interp.env = nestedEnv
+		nestedEnv := NewEnclosedEnvironment(interp.Env())
+		savedEnv := interp.Env()
+		interp.SetEnvironment(nestedEnv)
 
 		// Define different instance in nested scope
 		obj2 := NewObjectInstance(class)
 		ifaceInstance2 := NewInterfaceInstance(iface, obj2)
-		interp.env.Define("nested", ifaceInstance2)
+		interp.Env().Define("nested", ifaceInstance2)
 
 		// Verify nested scope has both
-		_, exists := interp.env.Get("nested")
+		_, exists := interp.Env().Get("nested")
 		if !exists {
 			t.Error("Nested variable should exist in nested scope")
 		}
 
-		_, exists2 := interp.env.Get("outer")
+		_, exists2 := interp.Env().Get("outer")
 		if !exists2 {
 			t.Error("Outer variable should be accessible from nested scope")
 		}
 
 		// Restore environment
-		interp.env = savedEnv
+		interp.SetEnvironment(savedEnv)
 
 		// Verify outer scope doesn't have nested variable
-		_, exists3 := interp.env.Get("nested")
+		_, exists3 := interp.Env().Get("nested")
 		if exists3 {
 			t.Error("Nested variable should not exist in outer scope")
 		}

@@ -60,7 +60,7 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 			handledLiteral = true
 			var expected *types.ArrayType
 			if targetIdent, ok := stmt.Target.(*ast.Identifier); ok {
-				if existingVal, exists := i.env.Get(targetIdent.Value); exists {
+				if existingVal, exists := i.Env().Get(targetIdent.Value); exists {
 					if arrVal, ok := existingVal.(*ArrayValue); ok {
 						expected = arrVal.ArrayType
 					}
@@ -73,7 +73,7 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 		} else if recordLit, ok := stmt.Value.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
 			// Untyped record literal - infer type from target variable
 			if targetIdent, ok := stmt.Target.(*ast.Identifier); ok {
-				targetVar, exists := i.env.Get(targetIdent.Value)
+				targetVar, exists := i.Env().Get(targetIdent.Value)
 				if exists {
 					if recVal, ok := targetVar.(*RecordValue); ok {
 						recordLit.TypeName = &ast.Identifier{Value: recVal.RecordType.Name}
@@ -266,7 +266,7 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 // evalSimpleAssignment handles simple variable assignment: x := value
 func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, stmt *ast.AssignmentStatement) Value {
 	// Check if target is a var parameter (ReferenceValue)
-	if existingVal, ok := i.env.Get(target.Value); ok {
+	if existingVal, ok := i.Env().Get(target.Value); ok {
 		if refVal, isRef := existingVal.(*ReferenceValue); isRef {
 			// Write through var parameter reference
 			currentVal, err := refVal.Dereference()
@@ -378,7 +378,7 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 					i.evaluatorInstance.RefCountManager().IncrementRef(srcIface.Object)
 				}
 				value = &InterfaceInstance{Interface: ifaceInst.Interface, Object: srcIface.Object}
-				if shouldReleaseInterfaceSource(stmt, i.env) {
+				if shouldReleaseInterfaceSource(stmt, i.Env()) {
 					defer i.ReleaseInterfaceReference(srcIface)
 				}
 			}
@@ -393,13 +393,13 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 	}
 
 	// Try to set in current environment
-	err := i.env.Set(target.Value, value)
+	err := i.Env().Set(target.Value, value)
 	if err == nil {
 		return value
 	}
 
 	// Check method context for implicit Self field/class variable access
-	selfVal, selfOk := i.env.Get("Self")
+	selfVal, selfOk := i.Env().Get("Self")
 	if selfOk {
 		if obj, ok := AsObject(selfVal); ok {
 			normalizedName := ident.Normalize(target.Value)
@@ -442,7 +442,7 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 	}
 
 	// Check class method context
-	currentClassVal, hasCurrentClass := i.env.Get("__CurrentClass__")
+	currentClassVal, hasCurrentClass := i.Env().Get("__CurrentClass__")
 	if hasCurrentClass {
 		if classInfo, ok := currentClassVal.(*ClassInfoValue); ok {
 			if _, exists := classInfo.ClassInfo.ClassVars[target.Value]; exists {
@@ -487,7 +487,7 @@ func (i *Interpreter) evalRecordPropertyWrite(recordVal *RecordValue, fieldName 
 					},
 				}
 				// Temporarily bind the value for the method call
-				i.env.Define("__temp_write_value__", value)
+				i.Env().Define("__temp_write_value__", value)
 				result := i.evalMethodCall(methodCall)
 				if isError(result) {
 					return result
@@ -567,7 +567,7 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 		}
 
 		// Static helper class variable assignment
-		if typeMetaVal, exists := i.env.Get(targetIdent.Value); exists {
+		if typeMetaVal, exists := i.Env().Get(targetIdent.Value); exists {
 			if tmv, ok := typeMetaVal.(*TypeMetaValue); ok {
 				helpers := i.getHelpersForValue(tmv)
 				varNameLower := ident.Normalize(target.Member.Value)

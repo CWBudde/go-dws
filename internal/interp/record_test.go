@@ -106,7 +106,7 @@ func TestEvalRecordLiteral(t *testing.T) {
 		}
 
 		// Get the variable 'p'
-		pVal, ok := interp.env.Get("p")
+		pVal, ok := interp.Env().Get("p")
 		if !ok {
 			t.Fatal("Variable 'p' not found")
 		}
@@ -171,7 +171,7 @@ func TestEvalRecordLiteral(t *testing.T) {
 			t.Fatalf("Eval error: %v", result)
 		}
 
-		pVal, _ := interp.env.Get("p")
+		pVal, _ := interp.Env().Get("p")
 		recordVal := pVal.(*RecordValue)
 
 		xVal := recordVal.Fields["x"].(*IntegerValue)
@@ -222,7 +222,7 @@ func TestRecordFieldAccess(t *testing.T) {
 		}
 
 		// Get the variable 'x'
-		xVal, ok := interp.env.Get("x")
+		xVal, ok := interp.Env().Get("x")
 		if !ok {
 			t.Fatal("Variable 'x' not found")
 		}
@@ -266,7 +266,7 @@ func TestRecordFieldAccess(t *testing.T) {
 			t.Fatalf("Eval error: %v", result)
 		}
 
-		sumVal, _ := interp.env.Get("sum")
+		sumVal, _ := interp.Env().Get("sum")
 		if intVal, ok := sumVal.(*IntegerValue); ok {
 			if intVal.Value != 15 {
 				t.Errorf("sum = %d, want 15", intVal.Value)
@@ -312,7 +312,7 @@ func TestRecordFieldAssignment(t *testing.T) {
 		}
 
 		// Get the record and check X was updated
-		pVal, ok := interp.env.Get("p")
+		pVal, ok := interp.Env().Get("p")
 		if !ok {
 			t.Fatal("Variable 'p' not found")
 		}
@@ -362,7 +362,7 @@ func TestRecordFieldAssignment(t *testing.T) {
 			t.Fatalf("Eval error: %v", result)
 		}
 
-		pVal, _ := interp.env.Get("p")
+		pVal, _ := interp.Env().Get("p")
 		recordVal := pVal.(*RecordValue)
 
 		xVal := recordVal.Fields["x"].(*IntegerValue)
@@ -415,7 +415,7 @@ func TestRecordCopying(t *testing.T) {
 		}
 
 		// Get p1 - should be unchanged
-		p1Val, _ := interp.env.Get("p1")
+		p1Val, _ := interp.Env().Get("p1")
 		p1Record := p1Val.(*RecordValue)
 		p1X := p1Record.Fields["x"].(*IntegerValue)
 		if p1X.Value != 10 {
@@ -423,7 +423,7 @@ func TestRecordCopying(t *testing.T) {
 		}
 
 		// Get p2 - should have modified value
-		p2Val, _ := interp.env.Get("p2")
+		p2Val, _ := interp.Env().Get("p2")
 		p2Record := p2Val.(*RecordValue)
 		p2X := p2Record.Fields["x"].(*IntegerValue)
 		if p2X.Value != 99 {
@@ -468,7 +468,7 @@ func TestRecordCopying(t *testing.T) {
 		}
 
 		// p3 should be unaffected by changes to p1 and p2
-		p3Val, _ := interp.env.Get("p3")
+		p3Val, _ := interp.Env().Get("p3")
 		p3Record := p3Val.(*RecordValue)
 		p3X := p3Record.Fields["x"].(*IntegerValue)
 		p3Y := p3Record.Fields["y"].(*IntegerValue)
@@ -518,7 +518,7 @@ func TestRecordComparison(t *testing.T) {
 			t.Fatalf("Eval error: %v", result)
 		}
 
-		resultVal, _ := interp.env.Get("result")
+		resultVal, _ := interp.Env().Get("result")
 		boolVal, ok := resultVal.(*BooleanValue)
 		if !ok {
 			t.Fatalf("result is not a BooleanValue, got %T", resultVal)
@@ -560,7 +560,7 @@ func TestRecordComparison(t *testing.T) {
 			t.Fatalf("Eval error: %v", result)
 		}
 
-		resultVal, _ := interp.env.Get("result")
+		resultVal, _ := interp.Env().Get("result")
 		boolVal := resultVal.(*BooleanValue)
 
 		if !boolVal.Value {
@@ -599,7 +599,7 @@ func TestRecordComparison(t *testing.T) {
 			t.Fatalf("Eval error: %v", result)
 		}
 
-		resultVal, _ := interp.env.Get("result")
+		resultVal, _ := interp.Env().Get("result")
 		boolVal := resultVal.(*BooleanValue)
 
 		if !boolVal.Value {

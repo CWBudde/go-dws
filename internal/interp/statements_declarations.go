@@ -42,7 +42,7 @@ func (i *Interpreter) evalProgram(program *ast.Program) Value {
 
 	// Task 9.1.5/PR#142: Clean up interface and object references when program ends
 	// This ensures destructors are called for global objects and interface-held objects
-	i.cleanupInterfaceReferences(i.env)
+	i.cleanupInterfaceReferences(i.Env())
 
 	return result
 }
@@ -72,7 +72,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 			Name:         stmt.Names[0].Value,
 			ExternalName: externalName,
 		}
-		i.env.Define(stmt.Names[0].Value, value)
+		i.Env().Define(stmt.Names[0].Value, value)
 		return value
 	}
 
@@ -98,7 +98,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 
 			typeName := stmt.Type.String()
 			recordTypeKey := "__record_type_" + ident.Normalize(typeName)
-			if typeVal, ok := i.env.Get(recordTypeKey); ok {
+			if typeVal, ok := i.Env().Get(recordTypeKey); ok {
 				if rtv, ok := typeVal.(*RecordTypeValue); ok {
 					// Temporarily set the type name for evaluation
 					recordLit.TypeName = &ast.Identifier{Value: rtv.RecordType.Name}
@@ -182,7 +182,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 				} else {
 					value = &NilValue{}
 				}
-			} else if typeVal, ok := i.env.Get("__record_type_" + ident.Normalize(typeName)); ok {
+			} else if typeVal, ok := i.Env().Get("__record_type_" + ident.Normalize(typeName)); ok {
 				// Check if this is a record type
 				if rtv, ok := typeVal.(*RecordTypeValue); ok {
 					// Initialize with empty record value
@@ -284,7 +284,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 			// Must create separate instances to avoid aliasing
 			nameValue = i.createZeroValue(stmt.Type)
 		}
-		i.env.Define(name.Value, nameValue)
+		i.Env().Define(name.Value, nameValue)
 		lastValue = nameValue
 	}
 
@@ -328,7 +328,7 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 	}
 
 	// Check if this is a record type
-	if typeVal, ok := i.env.Get("__record_type_" + ident.Normalize(typeName)); ok {
+	if typeVal, ok := i.Env().Get("__record_type_" + ident.Normalize(typeName)); ok {
 		if rtv, ok := typeVal.(*RecordTypeValue); ok {
 			// Task 9.7e1: Use createRecordValue for proper nested record initialization
 			return i.createRecordValue(rtv.RecordType)
@@ -400,7 +400,7 @@ func (i *Interpreter) evalConstDecl(stmt *ast.ConstDecl) Value {
 		}
 		typeName := stmt.Type.String()
 		recordTypeKey := "__record_type_" + ident.Normalize(typeName)
-		if typeVal, ok := i.env.Get(recordTypeKey); ok {
+		if typeVal, ok := i.Env().Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				// Temporarily set the type name for evaluation
 				recordLit.TypeName = &ast.Identifier{Value: rtv.RecordType.Name}
@@ -421,6 +421,6 @@ func (i *Interpreter) evalConstDecl(stmt *ast.ConstDecl) Value {
 
 	// Store the constant in the environment
 	// Note: Immutability is enforced by semantic analysis, not at runtime
-	i.env.Define(stmt.Name.Value, value)
+	i.Env().Define(stmt.Name.Value, value)
 	return value
 }

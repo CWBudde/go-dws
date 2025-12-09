@@ -576,10 +576,10 @@ func TestInterfaceVariable(t *testing.T) {
 	ifaceInstance := NewInterfaceInstance(interp.lookupInterfaceInfo("iprintable"), obj)
 
 	// Store in environment as a variable
-	interp.env.Define("myInterface", ifaceInstance)
+	interp.Env().Define("myInterface", ifaceInstance)
 
 	// Retrieve and verify
-	val, exists := interp.env.Get("myInterface")
+	val, exists := interp.Env().Get("myInterface")
 	if !exists {
 		t.Fatal("Interface variable should exist in environment")
 	}
@@ -1095,14 +1095,14 @@ func TestInterfaceLifetime(t *testing.T) {
 
 	// Test 3: Interface in nested scope
 	{
-		nestedEnv := NewEnclosedEnvironment(interp.env)
-		savedEnv := interp.env
-		interp.env = nestedEnv
+		nestedEnv := NewEnclosedEnvironment(interp.Env())
+		savedEnv := interp.Env()
+		interp.SetEnvironment(nestedEnv)
 
 		// Define interface variable in nested scope
-		interp.env.Define("localInterface", ifaceInstance)
+		interp.Env().Define("localInterface", ifaceInstance)
 
-		val, exists := interp.env.Get("localInterface")
+		val, exists := interp.Env().Get("localInterface")
 		if !exists {
 			t.Error("Interface should exist in nested scope")
 		}
@@ -1113,7 +1113,7 @@ func TestInterfaceLifetime(t *testing.T) {
 		}
 
 		// Restore environment
-		interp.env = savedEnv
+		interp.SetEnvironment(savedEnv)
 	}
 
 	// Test 4: Object remains valid after interface created
@@ -1184,9 +1184,9 @@ func TestInterfacePolymorphism(t *testing.T) {
 	carIface := NewInterfaceInstance(interp.lookupInterfaceInfo("icar"), obj)
 
 	// Store in variable as IVehicle (base interface)
-	interp.env.Define("vehicle", carIface)
+	interp.Env().Define("vehicle", carIface)
 
-	val, _ := interp.env.Get("vehicle")
+	val, _ := interp.Env().Get("vehicle")
 	vehicleIface := val.(*InterfaceInstance)
 
 	// Should still be ICar type

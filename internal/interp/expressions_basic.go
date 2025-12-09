@@ -121,7 +121,7 @@ func (i *Interpreter) evalFunctionPointer(name string, selfObject Value, _ ast.N
 	}
 
 	// Create and return the function pointer value
-	return NewFunctionPointerValue(function, i.env, selfObject, pointerType)
+	return NewFunctionPointerValue(function, i.Env(), selfObject, pointerType)
 }
 
 // getTypeFromAnnotation converts a type annotation to a types.Type
@@ -168,7 +168,7 @@ func (i *Interpreter) getTypeByName(name string) types.Type {
 func (i *Interpreter) evalLambdaExpression(expr *ast.LambdaExpression) Value {
 	// The current environment becomes the closure environment
 	// This captures all variables accessible at the point where the lambda is defined
-	closureEnv := i.env
+	closureEnv := i.Env()
 
 	// Get the function pointer type from the semantic analyzer
 	// The semantic analyzer already computed the type during type checking

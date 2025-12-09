@@ -335,8 +335,8 @@ func TestSetUnion(t *testing.T) {
 	set2 := &SetValue{SetType: setType, Elements: 4} // Blue (bit 2)
 
 	// Define them in environment
-	interp.env.Define("s1", set1)
-	interp.env.Define("s2", set2)
+	interp.Env().Define("s1", set1)
+	interp.Env().Define("s2", set2)
 
 	// Evaluate: s1 + s2
 	result := interp.evalBinarySetOperation(set1, set2, "+")
@@ -363,8 +363,8 @@ func TestSetDifference(t *testing.T) {
 	set2 := &SetValue{SetType: setType, Elements: 2} // Green (bit 1)
 
 	// Define them in environment
-	interp.env.Define("s1", set1)
-	interp.env.Define("s2", set2)
+	interp.Env().Define("s1", set1)
+	interp.Env().Define("s2", set2)
 
 	// Evaluate: s1 - s2
 	result := interp.evalBinarySetOperation(set1, set2, "-")
@@ -391,8 +391,8 @@ func TestSetIntersection(t *testing.T) {
 	set2 := &SetValue{SetType: setType, Elements: 6} // Green, Blue (bits 1,2)
 
 	// Define them in environment
-	interp.env.Define("s1", set1)
-	interp.env.Define("s2", set2)
+	interp.Env().Define("s1", set1)
+	interp.Env().Define("s2", set2)
 
 	// Evaluate: s1 * s2
 	result := interp.evalBinarySetOperation(set1, set2, "*")
@@ -567,17 +567,17 @@ func helperSetupInterpWithColorEnum(t *testing.T) (*Interpreter, *types.EnumType
 	}, []string{"Red", "Green", "Blue"})
 
 	// Register enum values in the environment
-	interp.env.Define("Red", &EnumValue{
+	interp.Env().Define("Red", &EnumValue{
 		TypeName:     "TColor",
 		ValueName:    "Red",
 		OrdinalValue: 0,
 	})
-	interp.env.Define("Green", &EnumValue{
+	interp.Env().Define("Green", &EnumValue{
 		TypeName:     "TColor",
 		ValueName:    "Green",
 		OrdinalValue: 1,
 	})
-	interp.env.Define("Blue", &EnumValue{
+	interp.Env().Define("Blue", &EnumValue{
 		TypeName:     "TColor",
 		ValueName:    "Blue",
 		OrdinalValue: 2,
@@ -585,7 +585,7 @@ func helperSetupInterpWithColorEnum(t *testing.T) (*Interpreter, *types.EnumType
 
 	// Store enum type metadata
 	enumTypeValue := &EnumTypeValue{EnumType: enumType}
-	interp.env.Define("__enum_type_tcolor", enumTypeValue)
+	interp.Env().Define("__enum_type_tcolor", enumTypeValue)
 	interp.typeSystem.RegisterEnumType("TColor", enumTypeValue)
 
 	return interp, enumType
@@ -610,7 +610,7 @@ func helperSetupInterpWithLargerEnum(t *testing.T) (*Interpreter, *types.EnumTyp
 	// Register enum values in the environment
 	for _, name := range enumType.OrderedNames {
 		ordinal := enumType.Values[name]
-		interp.env.Define(name, &EnumValue{
+		interp.Env().Define(name, &EnumValue{
 			TypeName:     "TNumber",
 			ValueName:    name,
 			OrdinalValue: ordinal,
@@ -619,7 +619,7 @@ func helperSetupInterpWithLargerEnum(t *testing.T) (*Interpreter, *types.EnumTyp
 
 	// Store enum type metadata
 	enumTypeValue := &EnumTypeValue{EnumType: enumType}
-	interp.env.Define("__enum_type_tnumber", enumTypeValue)
+	interp.Env().Define("__enum_type_tnumber", enumTypeValue)
 	interp.typeSystem.RegisterEnumType("TNumber", enumTypeValue)
 
 	return interp, enumType
