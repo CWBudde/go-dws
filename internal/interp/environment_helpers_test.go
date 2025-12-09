@@ -71,7 +71,7 @@ func TestPushEnvironment(t *testing.T) {
 	}
 
 	// Verify the new environment is enclosed by the original
-	if newEnv.outer != originalEnv {
+	if newEnv.Outer() != originalEnv {
 		t.Error("new environment not enclosed by original")
 	}
 

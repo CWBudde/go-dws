@@ -439,12 +439,12 @@ func (i *Interpreter) ReleaseInterfaceReference(intfInst *InterfaceInstance) Val
 // This is called when a scope ends (e.g., function returns).
 // Task 9.1.5: This implements automatic cleanup of interface-held and object-held references when scope ends.
 func (i *Interpreter) cleanupInterfaceReferences(env *Environment) {
-	if env == nil || env.store == nil {
+	if env == nil {
 		return
 	}
 
 	// Iterate through all variables in the environment
-	env.store.Range(func(_ string, value Value) bool {
+	env.Range(func(_ string, value Value) bool {
 		// Skip ReferenceValue entries (like function name aliases)
 		if _, isRef := value.(*ReferenceValue); isRef {
 			return true // continue
