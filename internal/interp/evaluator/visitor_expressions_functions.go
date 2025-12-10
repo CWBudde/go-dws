@@ -177,7 +177,32 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	// User-defined functions with overload resolution
 	funcNameLower := ident.Normalize(funcName.Value)
 	if overloads := e.FunctionRegistry().Lookup(funcNameLower); len(overloads) > 0 {
-		return e.adapter.CallUserFunctionWithOverloads(node, funcName)
+		// Resolve overload and prepare arguments
+		var fn *ast.FunctionDecl
+		var cachedArgs []Value
+		var err error
+
+		if len(overloads) == 1 {
+			// Fast path: single overload, skip type checking
+			fn = overloads[0]
+			cachedArgs, err = e.ResolveOverloadFast(fn, node.Arguments, ctx)
+		} else {
+			// Multiple overloads: resolve based on argument types
+			fn, cachedArgs, err = e.ResolveOverloadMultiple(funcNameLower, overloads, node.Arguments, ctx)
+		}
+
+		if err != nil {
+			return e.newError(node, "%s", err.Error())
+		}
+
+		// Prepare all arguments (handles lazy and var parameters)
+		args, err := e.PrepareUserFunctionArgs(fn, node.Arguments, cachedArgs, ctx, node)
+		if err != nil {
+			return e.newError(node, "%s", err.Error())
+		}
+
+		// Execute the function via adapter
+		return e.adapter.CallUserFunction(fn, args)
 	}
 
 	// Record static method calls (when inside record method context)
