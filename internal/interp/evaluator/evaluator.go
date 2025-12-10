@@ -284,6 +284,7 @@ type InterpreterAdapter interface {
 	CallRecordStaticMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
 	DispatchRecordStaticMethod(recordTypeName string, callExpr *ast.CallExpression, funcName *ast.Identifier) Value
 	ExecuteRecordPropertyRead(record Value, propInfo any, indices []Value, node any) Value
+	CallExternalFunction(funcName string, argExprs []ast.Expression, node ast.Node) Value
 
 	// ===== Class Declaration =====
 

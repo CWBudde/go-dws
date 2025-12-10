@@ -226,7 +226,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 
 	// External (Go) functions with potential var parameters
 	if e.externalFunctions != nil && e.externalFunctions.Has(funcName.Value) {
-		return e.adapter.EvalNode(node)
+		return e.callExternalFunction(funcName.Value, node.Arguments, ctx, node)
 	}
 
 	// Default(TypeName) - expects unevaluated type identifier
@@ -348,6 +348,20 @@ func (e *Evaluator) wrapLazyArg(arg ast.Expression, ctx *ExecutionContext, eval 
 		}
 		return eval(capturedArg)
 	})
+}
+
+// callExternalFunction handles external (Go) function dispatch with var parameter support.
+// For now, delegates to the adapter to handle external functions properly.
+// This will be fully migrated in a future phase when we eliminate the adapter.
+func (e *Evaluator) callExternalFunction(
+	funcName string,
+	argExprs []ast.Expression,
+	ctx *ExecutionContext,
+	node ast.Node,
+) Value {
+	// For now, delegate to adapter which has full access to external function infrastructure
+	// TODO: Move external function handling completely into evaluator in Phase 3.2.9.1
+	return e.adapter.CallExternalFunction(funcName, argExprs, node)
 }
 
 // VisitNewExpression evaluates a 'new' expression (object instantiation).
