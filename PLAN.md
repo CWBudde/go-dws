@@ -321,11 +321,17 @@ then removing the `adapter.EvalNode()` fallback.
     - All evaluator tests pass, all interpreter tests pass (383 passed baseline)
     - **Result**: Record property assignment now fully self-sufficient in evaluator
 
-  - [ ] **3.2.11e** Migrate CLASS/CLASSINFO assignment (~1h)
-    - Eliminate fallback at member_assignment.go:125
-    - When target object is ClassInfo (metaclass), assign to class member
-    - Reuse ClassMemberWriter from 3.2.11a
-    - Test: Metaclass assignment tests
+  - [x] **3.2.11e** Migrate CLASS/CLASSINFO assignment ✅ **DONE** (2025-12-10, ~0.5h actual)
+    - Eliminated fallback at member_assignment.go:186 (was line 125 before changes)
+    - Replaced `adapter.EvalNode()` delegation with proper error messages
+    - Added error for failed `SetClassVar()` operation
+    - Added error for non-existent class members (neither variable nor property)
+    - Added error for non-ClassMetaValue with CLASS type
+    - Logic: Check class var → Check class property → Error if neither found
+    - Updated test to expect new error message instead of adapter fallback
+    - All evaluator tests pass, all interpreter tests pass (383 passed baseline)
+    - **Result**: CLASS/CLASSINFO assignment returns proper errors, no delegation
+    - **EvalNode reduction**: 6 calls → 1 call (83% reduction in member_assignment.go)
 
   - [ ] **3.2.11f** Clean up member_assignment fallbacks (~0.5h)
     - Eliminate fallbacks at lines 90, 129
