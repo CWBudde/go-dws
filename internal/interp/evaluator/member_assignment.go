@@ -16,6 +16,7 @@ import (
 //
 // NATIVE handling (via evaluator, no adapter):
 // - Record field assignment via RecordFieldSetter interface
+// - Record property assignment via executeRecordPropertyWrite
 // - Interface unwrapping and routing to underlying object
 // - Object field assignment via ObjectFieldSetter interface
 // - Object property assignment via WriteProperty callback pattern
@@ -23,23 +24,24 @@ import (
 // - Nil value auto-initialization
 //
 // Delegates to adapter (EvalNode):
-// - Record property setter dispatch
+// - None (fully self-sufficient for record properties)
 //
-// EvalNode reduction: 6 calls → 1 call (~83% reduction)
+// EvalNode reduction: 6 calls → 0 calls (100% reduction)
 // ============================================================================
 
 // evalMemberAssignmentDirect attempts to handle member assignment directly.
 //
 // Handles directly:
 // - Record field assignment via RecordFieldSetter interface
+// - Record property assignment via executeRecordPropertyWrite
 // - Interface unwrapping and routing to underlying object
 // - Object field assignment via ObjectFieldSetter interface
 // - Object property assignment via WriteProperty callback
 // - Class/metaclass assignment via ClassMetaValue interface
+// - Nil value auto-initialization
 //
 // Delegates to adapter (EvalNode):
-// - Nil value auto-initialization
-// - Record property setter dispatch (when record has properties)
+// - None (fully self-sufficient)
 func (e *Evaluator) evalMemberAssignmentDirect(
 	target *ast.MemberAccessExpression,
 	value Value,
@@ -108,20 +110,29 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 
 	fieldName := target.Member.Value
 
-	// NATIVE: Record field assignment via RecordFieldSetter
+	// NATIVE: Record field/property assignment
 	if recInst, ok := objVal.(RecordInstanceValue); ok {
-		// Check if record has a property with this name (needs setter dispatch)
+		// Check if record has a property with this name
 		if recInst.HasRecordProperty(fieldName) {
-			// Record property setter needs adapter dispatch
-			return e.adapter.EvalNode(stmt)
+			// Get property info and dispatch to record property write handler
+			if recVal, ok := objVal.(*runtime.RecordValue); ok {
+				propInfo := recVal.LookupProperty(fieldName)
+				if propInfo != nil && propInfo.Impl != nil {
+					if recordPropInfo, ok := propInfo.Impl.(*types.RecordPropertyInfo); ok {
+						return e.executeRecordPropertyWrite(objVal, recordPropInfo, value, stmt, ctx)
+					}
+				}
+			}
+			// Fallback if property lookup failed
+			return e.newError(stmt, "property '%s' not found in record", fieldName)
 		}
 		// Simple field assignment - use RecordFieldSetter if available
 		if setter, ok := objVal.(RecordFieldSetter); ok {
 			setter.SetRecordField(fieldName, value)
 			return value
 		}
-		// Record doesn't support field assignment directly - delegate
-		return e.adapter.EvalNode(stmt)
+		// Record doesn't support field assignment directly
+		return e.newError(stmt, "record does not support field assignment")
 	}
 
 	// NATIVE: Interface unwrapping - get underlying object
