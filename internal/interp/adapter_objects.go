@@ -331,3 +331,15 @@ func (i *Interpreter) RaiseTypeCastException(message string, node ast.Node) {
 // Task 3.5.27: GetClassNameFromClassInfo REMOVED - zero callers
 // Task 3.5.27: GetClassTypeFromClassInfo REMOVED - zero callers
 // Task 3.5.27: GetClassVariableFromClassInfo REMOVED - zero callers
+
+// ===== Class Lookup =====
+
+// LookupClassByName finds a class by name and returns it as ClassMetaValue.
+// Used for typed nil class variable access.
+func (i *Interpreter) LookupClassByName(name string) evaluator.ClassMetaValue {
+	classInfo := i.resolveClassInfoByName(name)
+	if classInfo == nil {
+		return nil
+	}
+	return &ClassInfoValue{ClassInfo: classInfo}
+}

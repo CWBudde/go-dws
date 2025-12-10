@@ -429,9 +429,17 @@ func (m *mockConversionAdapter) RegisterClassInTypeSystem(classInfo interface{},
 func (m *mockConversionAdapter) EvalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node) Value {
 	return &runtime.NilValue{}
 }
+func (m *mockConversionAdapter) EvalClassPropertyRead(classInfo any, propInfo any, node ast.Node) Value {
+	return &runtime.NilValue{}
+}
 func (m *mockConversionAdapter) CallExternalFunction(funcName string, argExprs []ast.Expression, node ast.Node) Value {
 	return &runtime.NilValue{}
 }
+func (m *mockConversionAdapter) LookupClassByName(name string) ClassMetaValue { return nil }
+
+// Stub implementations for new ClassMetaValue methods - these are added in Task 3.2.10
+// and called via ClassMetaValue interface, not via adapter.
+// (no additional adapter methods needed)
 
 // TestTryImplicitConversion_NilValue tests nil value handling.
 func TestTryImplicitConversion_NilValue(t *testing.T) {

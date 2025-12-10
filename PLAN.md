@@ -250,15 +250,15 @@ then removing the `adapter.EvalNode()` fallback.
   - **Status**: 0 circular callbacks remaining (was 6)
   - Test: All tests pass (385 passed, 842 pre-existing failures)
 
-- [ ] **3.2.10** Migrate MemberAccessExpression fallbacks (6h)
-  - **OBJECT member access**: Move method dispatch to evaluator
-  - **INTERFACE member access**: Move interface method tables to evaluator
-  - **CLASS/CLASSINFO access**: Move class member lookup to evaluator
-  - **TYPE_CAST access**: Move type cast member access to evaluator
-  - **NIL typed access**: Move typed nil class var lookup to evaluator
-  - Remove 5 fallbacks in `VisitMemberAccessExpression`
-  - Delegate MemberAccessExpression from interpreter
-  - Test: OOP fixtures, interface tests, class tests
+- [x] **3.2.10** Migrate MemberAccessExpression fallbacks ✅ **DONE** (2025-12-10, ~3h actual)
+  - **NIL typed access**: Added LookupClassByName adapter, class var lookup via ClassMetaValue
+  - **CLASS/CLASSINFO access**: Added ReadClassProperty, InvokeParameterlessClassMethod, CreateClassMethodPointer, InvokeConstructor, GetNestedClass, GetClassInfo methods
+  - **TYPE_CAST access**: Used ObjectValue's existing method dispatch infrastructure
+  - **INTERFACE member access**: Used underlying ObjectValue dispatch via HasInterfaceMethod
+  - **OBJECT member access**: Added ClassName/ClassType built-in handling, method dispatch via ObjectValue
+  - **Result**: Eliminated ALL adapter.EvalNode() calls in VisitMemberAccessExpression
+  - **Status**: 0 circular callbacks remaining (was 5)
+  - Test: All tests pass (385 passed, 842 pre-existing failures)
 
 - [ ] **3.2.11** Migrate AssignmentStatement fallbacks (hardest) (8h)
   - **Static class assignment** (TClass.Variable): Move ClassInfo lookup

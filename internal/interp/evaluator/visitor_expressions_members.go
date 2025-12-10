@@ -82,6 +82,23 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			return e.newError(node, "internal error: OBJECT value does not implement ObjectValue interface")
 		}
 
+		// Built-in TObject properties (ClassName, ClassType)
+		if ident.Equal(memberName, "ClassName") {
+			return &runtime.StringValue{Value: objVal.ClassName()}
+		}
+		if ident.Equal(memberName, "ClassType") {
+			// GetClassType() returns classTypeProxy, convert to proper ClassValue
+			className := objVal.ClassName()
+			classVal, err := e.typeSystem.CreateClassValue(className)
+			if err != nil {
+				return e.newError(node, "%s", err.Error())
+			}
+			if val, ok := classVal.(Value); ok {
+				return val
+			}
+			return e.newError(node, "internal error: ClassValue conversion failed")
+		}
+
 		// Property access (with recursion protection)
 		propCtx := ctx.PropContext()
 		if propCtx == nil || (!propCtx.InPropertyGetter && !propCtx.InPropertySetter) {
@@ -110,8 +127,46 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			return e.executeHelperPropertyRead(helper, propInfo, obj, node, ctx)
 		}
 
-		// Method or other member access via adapter
-		return e.adapter.EvalNode(node)
+		// Method access: auto-invoke if parameterless, else return function pointer
+		if objVal.HasMethod(memberName) {
+			// Try parameterless auto-invoke first
+			result, invoked := objVal.InvokeParameterlessMethod(memberName, func(methodDecl any) Value {
+				// Create synthetic method call
+				methodCall := &ast.MethodCallExpression{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{Token: node.Token},
+					},
+					Object:    node.Object,
+					Method:    node.Member,
+					Arguments: []ast.Expression{},
+				}
+				return e.VisitMethodCallExpression(methodCall, ctx)
+			})
+			if invoked {
+				return result
+			}
+
+			// Return function pointer for methods with parameters
+			result, created := objVal.CreateMethodPointer(memberName, func(methodDecl any) Value {
+				return e.createFunctionPointerFromDecl(methodDecl, obj, ctx)
+			})
+			if created {
+				return result
+			}
+		}
+
+		// Helper methods (parameterless auto-invoke)
+		helperResult := e.FindHelperMethod(obj, memberName)
+		if helperResult != nil {
+			if helperResult.Method != nil && len(helperResult.Method.Parameters) == 0 {
+				return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
+			}
+			if helperResult.BuiltinSpec != "" {
+				return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
+			}
+		}
+
+		return e.newError(node, "member '%s' not found on object of class '%s'", memberName, objVal.ClassName())
 
 	case "INTERFACE":
 		// Interface instance: verify member exists, access underlying object
@@ -139,8 +194,38 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			return e.newError(node, "internal error: interface underlying value does not implement ObjectValue")
 		}
 
-		// Method access via adapter (requires virtual method tables)
-		return e.adapter.EvalNode(node)
+		// Method access via underlying object
+		if ifaceVal.HasInterfaceMethod(memberName) {
+			if objVal, ok := underlying.(ObjectValue); ok {
+				// Try parameterless auto-invoke first
+				result, invoked := objVal.InvokeParameterlessMethod(memberName, func(methodDecl any) Value {
+					// Create synthetic method call - use original node.Object (the interface expression)
+					methodCall := &ast.MethodCallExpression{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{Token: node.Token},
+						},
+						Object:    node.Object,
+						Method:    node.Member,
+						Arguments: []ast.Expression{},
+					}
+					return e.VisitMethodCallExpression(methodCall, ctx)
+				})
+				if invoked {
+					return result
+				}
+
+				// Return function pointer for methods with parameters
+				result, created := objVal.CreateMethodPointer(memberName, func(methodDecl any) Value {
+					return e.createFunctionPointerFromDecl(methodDecl, underlying, ctx)
+				})
+				if created {
+					return result
+				}
+			}
+			return e.newError(node, "internal error: interface underlying value does not implement ObjectValue")
+		}
+
+		return e.newError(node, "member '%s' not found on interface '%s'", memberName, ifaceVal.InterfaceName())
 
 	case "CLASS":
 		// CLASS and CLASSINFO both implement ClassMetaValue
@@ -169,8 +254,66 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			return val
 		}
 
-		// Constructors, class methods, properties via adapter
-		return e.adapter.EvalNode(node)
+		// Class properties (class property Counter: Integer read FCounter)
+		if result, found := classMetaVal.ReadClassProperty(memberName, func(propInfo any) Value {
+			return e.adapter.EvalClassPropertyRead(classMetaVal.GetClassInfo(), propInfo, node)
+		}); found {
+			return result
+		}
+
+		// Constructors: auto-invoke without parentheses
+		if classMetaVal.HasConstructor(memberName) {
+			result, invoked := classMetaVal.InvokeConstructor(memberName, func(methodDecl any) Value {
+				// Create synthetic method call and route to VisitMethodCallExpression
+				methodCall := &ast.MethodCallExpression{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{Token: node.Token},
+					},
+					Object:    node.Object,
+					Method:    node.Member,
+					Arguments: []ast.Expression{},
+				}
+				return e.VisitMethodCallExpression(methodCall, ctx)
+			})
+			if invoked {
+				return result
+			}
+		}
+
+		// Class methods: auto-invoke if parameterless, else return function pointer
+		if classMetaVal.HasClassMethod(memberName) {
+			// Try parameterless auto-invoke
+			result, invoked := classMetaVal.InvokeParameterlessClassMethod(memberName, func(methodDecl any) Value {
+				// Create synthetic method call and route to VisitMethodCallExpression
+				methodCall := &ast.MethodCallExpression{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{Token: node.Token},
+					},
+					Object:    node.Object,
+					Method:    node.Member,
+					Arguments: []ast.Expression{},
+				}
+				return e.VisitMethodCallExpression(methodCall, ctx)
+			})
+			if invoked {
+				return result
+			}
+
+			// Return function pointer for class methods with parameters
+			result, created := classMetaVal.CreateClassMethodPointer(memberName, func(methodDecl any) Value {
+				return e.createFunctionPointerFromDecl(methodDecl, nil, ctx)
+			})
+			if created {
+				return result
+			}
+		}
+
+		// Nested class access
+		if nestedClass := classMetaVal.GetNestedClass(memberName); nestedClass != nil {
+			return nestedClass
+		}
+
+		return e.newError(node, "member '%s' not found in class '%s'", memberName, classMetaVal.GetClassName())
 
 	case "TYPE_CAST":
 		// Type cast: use static type for class var lookup (TBase(child).ClassVar)
@@ -198,10 +341,51 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 					return propValue
 				}
 			}
+
+			// Method dispatch on wrapped object
+			if objVal.HasMethod(memberName) {
+				// Try parameterless auto-invoke
+				result, invoked := objVal.InvokeParameterlessMethod(memberName, func(methodDecl any) Value {
+					// Create synthetic method call - use original node.Object (the cast expression)
+					// so that the method call sees the cast wrapper
+					methodCall := &ast.MethodCallExpression{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{Token: node.Token},
+						},
+						Object:    node.Object,
+						Method:    node.Member,
+						Arguments: []ast.Expression{},
+					}
+					return e.VisitMethodCallExpression(methodCall, ctx)
+				})
+				if invoked {
+					return result
+				}
+
+				// Return function pointer for methods with parameters
+				result, created := objVal.CreateMethodPointer(memberName, func(methodDecl any) Value {
+					return e.createFunctionPointerFromDecl(methodDecl, wrappedValue, ctx)
+				})
+				if created {
+					return result
+				}
+			}
 		}
 
-		// Complex cases via adapter
-		return e.adapter.EvalNode(node)
+		// Helper methods on wrapped value
+		if wrappedValue != nil {
+			helperResult := e.FindHelperMethod(wrappedValue, memberName)
+			if helperResult != nil {
+				if helperResult.Method != nil && len(helperResult.Method.Parameters) == 0 {
+					return e.CallHelperMethod(helperResult, wrappedValue, []Value{}, node, ctx)
+				}
+				if helperResult.BuiltinSpec != "" {
+					return e.CallHelperMethod(helperResult, wrappedValue, []Value{}, node, ctx)
+				}
+			}
+		}
+
+		return e.newError(node, "member '%s' not found", memberName)
 
 	case "TYPE_META":
 		// Enum type meta access (TColor.Red, TColor.Low/High)
@@ -250,8 +434,22 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		if typedClassName == "" {
 			return e.newError(node, "Object not instantiated")
 		}
-		// Class variable lookup via adapter
-		return e.adapter.EvalNode(node)
+
+		// nil.Free is allowed (no-op)
+		if ident.Equal(memberName, "Free") {
+			return &runtime.NilValue{}
+		}
+
+		// Look up class and access class variable
+		classMetaVal := e.adapter.LookupClassByName(typedClassName)
+		if classMetaVal != nil {
+			if classVarValue, found := classMetaVal.GetClassVar(memberName); found {
+				return classVarValue
+			}
+		}
+
+		// Instance member access on nil is an error
+		return e.newError(node, "Object not instantiated")
 
 	case "ENUM":
 		// Enum value properties (.Value, helpers)

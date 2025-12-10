@@ -208,3 +208,21 @@ func buildFunctionPointerType(fn *ast.FunctionDecl) *types.FunctionPointerType {
 	}
 	return types.NewProcedurePointerType(paramTypes)
 }
+
+// createFunctionPointerFromDecl creates a FunctionPointerValue from a method declaration.
+// Task 3.2.10: Used for creating function pointers from class methods in member access.
+// The methodDecl parameter is any to support both ClassMetaValue and ObjectValue callback signatures.
+func (e *Evaluator) createFunctionPointerFromDecl(methodDecl any, selfObject Value, ctx *ExecutionContext) Value {
+	fn, ok := methodDecl.(*ast.FunctionDecl)
+	if !ok {
+		return e.newError(nil, "internal error: expected FunctionDecl, got %T", methodDecl)
+	}
+
+	pointerType := buildFunctionPointerType(fn)
+	return &runtime.FunctionPointerValue{
+		Function:    fn,
+		Closure:     ctx.Env(),
+		SelfObject:  selfObject,
+		PointerType: pointerType,
+	}
+}

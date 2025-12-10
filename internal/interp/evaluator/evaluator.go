@@ -85,6 +85,23 @@ type ClassMetaValue interface {
 	GetClassConstant(name string) (Value, bool)
 	HasClassMethod(name string) bool
 	HasConstructor(name string) bool
+	// InvokeParameterlessClassMethod invokes a parameterless class method.
+	// Returns (result, true) if method exists and has 0 parameters, (nil, false) otherwise.
+	InvokeParameterlessClassMethod(name string, executor func(methodDecl any) Value) (Value, bool)
+	// CreateClassMethodPointer creates a function pointer for a class method with parameters.
+	// Returns (pointer, true) if method exists and has parameters, (nil, false) otherwise.
+	CreateClassMethodPointer(name string, creator func(methodDecl any) Value) (Value, bool)
+	// InvokeConstructor invokes a constructor.
+	// Returns (result, true) if constructor exists, (nil, false) otherwise.
+	InvokeConstructor(name string, executor func(methodDecl any) Value) (Value, bool)
+	// GetNestedClass returns a nested class by name as ClassMetaValue, nil if not found.
+	GetNestedClass(name string) Value
+	// ReadClassProperty reads a class property value using the executor callback.
+	// Returns (value, true) if class property exists, (nil, false) otherwise.
+	ReadClassProperty(name string, executor func(propInfo any) Value) (Value, bool)
+	// GetClassInfo returns the underlying class info for adapter calls.
+	// Task 3.2.10: Used for class property read adapter.
+	GetClassInfo() any
 }
 
 // TypeCastAccessor wraps objects with their static type from cast expressions.
@@ -314,6 +331,12 @@ type InterpreterAdapter interface {
 
 	EvalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node) Value
 
+	// ===== Class Properties =====
+
+	// EvalClassPropertyRead evaluates a class property read operation.
+	// Task 3.2.10: Added for CLASS/CLASSINFO member access.
+	EvalClassPropertyRead(classInfo any, propInfo any, node ast.Node) Value
+
 	// ===== Operator Overloading =====
 
 	// TryBinaryOperator attempts to find and invoke a binary operator overload.
@@ -323,6 +346,12 @@ type InterpreterAdapter interface {
 	// TryUnaryOperator attempts to find and invoke a unary operator overload.
 	// Returns (result, true) if operator found, or (nil, false) if not found.
 	TryUnaryOperator(operator string, operand Value, node ast.Node) (Value, bool)
+
+	// ===== Class Lookup =====
+
+	// LookupClassByName finds a class by name and returns it as ClassMetaValue.
+	// Used for typed nil class variable access.
+	LookupClassByName(name string) ClassMetaValue
 }
 
 // Evaluator evaluates DWScript AST nodes.

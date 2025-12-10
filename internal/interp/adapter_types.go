@@ -748,3 +748,19 @@ func (i *Interpreter) EvalBuiltinHelperProperty(propSpec string, selfValue evalu
 	}
 	return i.evalBuiltinHelperProperty(propSpec, val, node)
 }
+
+// ===== Class Property Adapter =====
+
+// EvalClassPropertyRead evaluates a class property read operation.
+// Task 3.2.10: Added for CLASS/CLASSINFO member access.
+func (i *Interpreter) EvalClassPropertyRead(classInfoAny any, propInfoAny any, node ast.Node) evaluator.Value {
+	classInfo, ok := classInfoAny.(*ClassInfo)
+	if !ok {
+		return i.newErrorWithLocation(node, "invalid class info type for class property read")
+	}
+	propInfo, ok := propInfoAny.(*types.PropertyInfo)
+	if !ok {
+		return i.newErrorWithLocation(node, "invalid property info type for class property read")
+	}
+	return i.evalClassPropertyRead(classInfo, propInfo, node)
+}

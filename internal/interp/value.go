@@ -350,6 +350,122 @@ func (c *ClassInfoValue) HasConstructor(name string) bool {
 	return c.ClassInfo.HasConstructor(name)
 }
 
+// InvokeParameterlessClassMethod invokes a parameterless class method.
+// Task 3.2.10: Implements evaluator.ClassMetaValue interface.
+func (c *ClassInfoValue) InvokeParameterlessClassMethod(name string, executor func(methodDecl any) Value) (Value, bool) {
+	if c == nil || c.ClassInfo == nil {
+		return nil, false
+	}
+	// Look up class method in hierarchy
+	normalizedName := ident.Normalize(name)
+	for current := c.ClassInfo; current != nil; current = current.Parent {
+		if method, exists := current.ClassMethods[normalizedName]; exists {
+			if len(method.Parameters) == 0 {
+				return executor(method), true
+			}
+			return nil, false // Has parameters
+		}
+		if overloads, exists := current.ClassMethodOverloads[normalizedName]; exists && len(overloads) > 0 {
+			// Check if any overload is parameterless
+			for _, m := range overloads {
+				if len(m.Parameters) == 0 {
+					return executor(m), true
+				}
+			}
+			return nil, false // No parameterless overload
+		}
+	}
+	return nil, false
+}
+
+// CreateClassMethodPointer creates a function pointer for a class method with parameters.
+// Task 3.2.10: Implements evaluator.ClassMetaValue interface.
+func (c *ClassInfoValue) CreateClassMethodPointer(name string, creator func(methodDecl any) Value) (Value, bool) {
+	if c == nil || c.ClassInfo == nil {
+		return nil, false
+	}
+	// Look up class method in hierarchy
+	normalizedName := ident.Normalize(name)
+	for current := c.ClassInfo; current != nil; current = current.Parent {
+		if method, exists := current.ClassMethods[normalizedName]; exists {
+			if len(method.Parameters) > 0 {
+				return creator(method), true
+			}
+			return nil, false // Parameterless
+		}
+		if overloads, exists := current.ClassMethodOverloads[normalizedName]; exists && len(overloads) > 0 {
+			// Return pointer for first overload with parameters
+			for _, m := range overloads {
+				if len(m.Parameters) > 0 {
+					return creator(m), true
+				}
+			}
+			return nil, false // All parameterless
+		}
+	}
+	return nil, false
+}
+
+// InvokeConstructor invokes a constructor.
+// Task 3.2.10: Implements evaluator.ClassMetaValue interface.
+func (c *ClassInfoValue) InvokeConstructor(name string, executor func(methodDecl any) Value) (Value, bool) {
+	if c == nil || c.ClassInfo == nil {
+		return nil, false
+	}
+	// Look up constructor in hierarchy
+	for current := c.ClassInfo; current != nil; current = current.Parent {
+		// Check ConstructorOverloads first
+		for ctorName, overloads := range current.ConstructorOverloads {
+			if ident.Equal(ctorName, name) && len(overloads) > 0 {
+				return executor(overloads[0]), true
+			}
+		}
+		// Check single constructors
+		for ctorName, ctor := range current.Constructors {
+			if ident.Equal(ctorName, name) {
+				return executor(ctor), true
+			}
+		}
+	}
+	return nil, false
+}
+
+// GetNestedClass returns a nested class by name.
+// Task 3.2.10: Implements evaluator.ClassMetaValue interface.
+func (c *ClassInfoValue) GetNestedClass(name string) Value {
+	if c == nil || c.ClassInfo == nil {
+		return nil
+	}
+	nested := c.ClassInfo.lookupNestedClass(name)
+	if nested == nil {
+		return nil
+	}
+	return &ClassInfoValue{ClassInfo: nested}
+}
+
+// ReadClassProperty reads a class property value using the executor callback.
+// Task 3.2.10: Implements evaluator.ClassMetaValue interface.
+func (c *ClassInfoValue) ReadClassProperty(name string, executor func(propInfo any) Value) (Value, bool) {
+	if c == nil || c.ClassInfo == nil {
+		return nil, false
+	}
+	// Look up property in hierarchy
+	propInfo := c.ClassInfo.lookupProperty(name)
+	if propInfo == nil || !propInfo.IsClassProperty {
+		return nil, false
+	}
+	return executor(propInfo), true
+}
+
+// GetClassInfo returns the underlying ClassInfo.
+// Task 3.2.10: Implements evaluator.ClassMetaValue interface.
+func (c *ClassInfoValue) GetClassInfo() any {
+	if c == nil {
+		return nil
+	}
+	return c.ClassInfo
+}
+
 // TypeCastValue wraps an object with its static type from a cast.
 // Preserves static type for member access (e.g., TBase(obj).ClassVar uses TBase's class var).
 type TypeCastValue struct {
