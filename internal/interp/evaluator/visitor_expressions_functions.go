@@ -56,7 +56,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 					if isLazy {
 						// Wrap lazy parameters in thunk
 						args[idx] = e.wrapLazyArg(arg, ctx, func(expr ast.Expression) Value {
-							return e.adapter.EvalNode(expr)
+							return e.Eval(expr, ctx)
 						})
 					} else if isByRef {
 						// Wrap var parameters in reference with get/set callbacks
