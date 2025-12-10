@@ -546,8 +546,8 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return i.evalEnumDeclaration(node)
 
 	case *ast.SetDecl:
-		// KEEP: Has full adapter fallback
-		return i.evalSetDeclaration(node)
+		// Evaluator now handles this (no adapter fallback needed)
+		return i.evalViaEvaluator(node)
 
 	case *ast.RecordDecl:
 		return i.evalViaEvaluator(node)

@@ -36,7 +36,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Current State** (as of 2025-12-09):
 
-- Interpreter: 34 fields, 59 switch cases (20 delegated, 39 kept), 421 methods
+- Interpreter: 34 fields, 59 switch cases (21 delegated, 38 kept), 421 methods
 - Evaluator: 24K LOC, 48+ visitor methods, works but requires 65-method adapter
 - Single environment: `i.env` removed, using `ctx.env` only ✅
 - Exception sync: Added callbacks to unify `i.exception` ↔ `ctx.Exception()` ✅
@@ -231,16 +231,16 @@ To delegate more cases would require syncing additional state:
 
 **Alternative**: Accept that 20 delegated + 39 in interpreter is the practical limit without major restructuring.
 
-### Phase B: Make Evaluator Self-Sufficient (4 blocked types)
+### Phase B: Make Evaluator Self-Sufficient (4 blocked types → 3 remaining)
 
 Each blocked type requires moving functionality from interpreter to evaluator,
 then removing the `adapter.EvalNode()` fallback.
 
-- [ ] **3.2.8** Migrate SetDecl (easiest) (2h)
-  - Move set type registration logic to evaluator
-  - Remove fallback in `VisitSetDecl`
-  - Delegate SetDecl from interpreter
-  - Test: set-related fixture tests
+- [x] **3.2.8** Migrate SetDecl ✅ (2025-12-09)
+  - Set type registration already done by semantic analyzer
+  - Removed `adapter.EvalNode()` fallback in `VisitSetDecl` → returns nil
+  - Delegated SetDecl from interpreter via `evalViaEvaluator()`
+  - All set tests pass
 
 - [ ] **3.2.9** Migrate CallExpression fallbacks (4h)
   - **External functions**: Move dispatch logic to evaluator
@@ -284,24 +284,25 @@ then removing the `adapter.EvalNode()` fallback.
 
 | Phase | Status | Cases | Notes |
 |-------|--------|-------|-------|
-| A (delegated) | ✅ DONE | 20 | Literals, safe expressions, 2 declarations |
+| A (delegated) | ✅ DONE | 21 | Literals, safe expressions, 3 declarations (incl. SetDecl) |
 | A (blocked) | ⏸️ PAUSED | 35 | Statements need state sync work |
-| B (cycle-blocked) | 📋 PLANNED | 4 | AssignmentStatement, CallExpression, MemberAccessExpression, SetDecl |
-| **Current** | — | 20/59 | 34% delegated, all tests pass |
+| B (cycle-blocked) | 🔄 IN PROGRESS | 3 | AssignmentStatement, CallExpression, MemberAccessExpression |
+| **Current** | — | 21/59 | 36% delegated, all tests pass |
 
 **Revised Success Criteria**:
 
-- ✅ 20 cases delegated to Evaluator (safe subset)
+- ✅ 21 cases delegated to Evaluator (safe subset + SetDecl)
 - ✅ Exception sync infrastructure in place (callbacks)
 - ✅ Error type conversion working
+- ✅ SetDecl adapter fallback removed (Phase B task 3.2.8)
 - ✅ All unit tests pass
 - ⏸️ Full 59-case delegation requires significant additional work (state sync)
 
 **Options to proceed**:
 
-1. **Accept current state**: 20 delegated is good enough, focus on other improvements
+1. **Accept current state**: 21 delegated is good enough, focus on other improvements
 2. **Deep state sync**: Add callbacks for handlerException, control flow → +15 statements
-3. **Phase B first**: Fix the 4 cycle-blocked types → removes adapter fallbacks
+3. **Continue Phase B**: Fix remaining 3 cycle-blocked types (CallExpression, MemberAccessExpression, AssignmentStatement)
 
 ---
 

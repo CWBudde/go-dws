@@ -986,8 +986,9 @@ func (e *Evaluator) evalTypeAlias(node *ast.TypeDeclaration, ctx *ExecutionConte
 
 // VisitSetDecl evaluates a set declaration.
 func (e *Evaluator) VisitSetDecl(node *ast.SetDecl, ctx *ExecutionContext) Value {
-	// Set type already registered by semantic analyzer
-	return e.adapter.EvalNode(node)
+	// Set type already registered by semantic analyzer.
+	// No runtime action needed - just return nil to indicate success.
+	return nil
 }
 
 // Extracts simple type name from qualified string ("array of Integer" -> "array").
