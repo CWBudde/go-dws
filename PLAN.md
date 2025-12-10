@@ -260,18 +260,135 @@ then removing the `adapter.EvalNode()` fallback.
   - **Status**: 0 circular callbacks remaining (was 5)
   - Test: All tests pass (385 passed, 842 pre-existing failures)
 
-- [ ] **3.2.11** Migrate AssignmentStatement fallbacks (hardest) (8h)
-  - **Static class assignment** (TClass.Variable): Move ClassInfo lookup
-  - **Nil auto-initialization**: Move auto-init logic
-  - **Record property setters**: Move property dispatch
-  - **Class/metaclass assignment**: Move class member assignment
-  - **Compound assignments**: Move compound ops for objects
-  - **Index assignment fallbacks**: Move interface/object indexed property
-  - Remove 6 fallbacks in member_assignment.go
-  - Remove 3 fallbacks in index_assignment.go
-  - Remove 2 fallbacks in visitor_statements.go
-  - Delegate AssignmentStatement from interpreter
-  - Test: assignment fixtures, property tests, compound op tests
+- [ ] **3.2.11** Migrate AssignmentStatement fallbacks (14 total)
+
+  **Overview**: AssignmentStatement has the most complex fallback patterns because
+  assignment interacts with OOP (classes, properties, methods) and special types.
+
+  **Fallback Inventory** (14 `adapter.EvalNode()` calls):
+
+  | File | Line | Trigger | Functionality Needed |
+  |------|------|---------|---------------------|
+  | member_assignment.go | 55 | Static class identifier `TClass.Variable` | ClassInfo lookup |
+  | member_assignment.go | 72 | Nil value (auto-init) | Auto-initialization logic |
+  | member_assignment.go | 82 | Record with property | Record property setter dispatch |
+  | member_assignment.go | 90 | Record without setter | Generic record handling |
+  | member_assignment.go | 125 | CLASS/CLASSINFO type | Class variable assignment |
+  | member_assignment.go | 129 | Unknown type fallback | Catch-all for edge cases |
+  | index_assignment.go | 45 | MemberAccess base (indexed property) | Indexed property write |
+  | index_assignment.go | 76 | INTERFACE indexed | Interface indexed property |
+  | index_assignment.go | 82 | OBJECT default property | Object default indexed property |
+  | assignment_helpers.go | 105 | Variable not in env (Self/class) | Implicit Self field assignment |
+  | assignment_helpers.go | 391 | Compound: var not in env | Implicit Self compound assignment |
+  | compound_ops.go | 26 | OBJECT type compound op | Class operator overload dispatch |
+  | visitor_statements.go | 318 | Compound member assignment | Member compound ops |
+  | visitor_statements.go | 334 | Compound index assignment | Index compound ops |
+
+  **Subtasks** (ordered by dependency and risk):
+
+  - [x] **3.2.11a** Add ClassMemberWriter adapter interface ✅ (~0.5h actual, 2025-12-10)
+    - Extended `ClassMetaValue` interface with `SetClassVar`, `WriteClassProperty`, `HasClassVar`
+    - Added `ClassInfo.setClassVar` and `ClassInfo.hasClassVar` helper methods
+    - Implemented on `ClassInfoValue` using callback pattern (consistent with `ReadClassProperty`)
+    - All class variable tests pass (385 passed, 842 failed baseline unchanged)
+
+  - [x] **3.2.11b** Migrate static class assignment `TClass.Variable := value` (~2h)
+    - Eliminate fallback at member_assignment.go:55
+    - Use LookupClassByName (already exists from 3.2.10) to get ClassInfo
+    - Check if member is class variable vs property vs method
+    - Use ClassMemberWriter.WriteClassVariable for variables
+    - Use ClassMemberWriter.WriteClassProperty for properties
+    - Test: `go test -run TestClassVar` or fixture tests with class variables
+
+  - [x] **3.2.11c** Migrate nil auto-initialization (~1h)
+    - Eliminate fallback at member_assignment.go:72
+    - This occurs when `obj.field := value` where obj is nil
+    - Implemented logic to detect nil array elements using EvaluateLValue and auto-initialize them using type info from the array.
+    - Verified with TestMemberAssignment_AutoInit.
+    - DWScript auto-creates record instances in some cases
+    - Analyze: Does evaluator need to auto-init, or is this an error?
+    - Likely: Return error "cannot assign to member of nil"
+    - Test: Assignment to nil object tests
+
+  - [ ] **3.2.11d** Migrate record property setters (~1.5h)
+    - Eliminate fallback at member_assignment.go:82
+    - Records with properties need setter dispatch (like objects)
+    - Add `RecordPropertyWriter` interface or reuse existing WriteProperty pattern
+    - Similar to object property write already in evalMemberAssignmentDirect
+    - Test: Record property tests
+
+  - [ ] **3.2.11e** Migrate CLASS/CLASSINFO assignment (~1h)
+    - Eliminate fallback at member_assignment.go:125
+    - When target object is ClassInfo (metaclass), assign to class member
+    - Reuse ClassMemberWriter from 3.2.11a
+    - Test: Metaclass assignment tests
+
+  - [ ] **3.2.11f** Clean up member_assignment fallbacks (~0.5h)
+    - Eliminate fallbacks at lines 90, 129
+    - Line 90: Record without RecordFieldSetter - may indicate missing interface
+    - Line 129: Unknown type - should be unreachable after above migrations
+    - Convert to proper errors if truly unreachable
+    - Test: Run all assignment tests
+
+  - [ ] **3.2.11g** Add IndexedPropertyWriter adapter interface (~1h)
+    - Create interface: `WriteIndexedProperty(obj Value, propName string, indices []Value, value Value) (Value, error)`
+    - Create interface for default property: `WriteDefaultProperty(obj Value, indices []Value, value Value) (Value, error)`
+    - Needed by: 3.2.11h, 3.2.11i
+    - Test: Unit tests for interface
+
+  - [ ] **3.2.11h** Migrate indexed property assignment `obj.Prop[i] := value` (~1.5h)
+    - Eliminate fallback at index_assignment.go:45
+    - When base is MemberAccessExpression, it's a property with index
+    - Evaluate base to get property, then use WriteIndexedProperty
+    - Handle multi-index: `obj.Prop[x, y] := value`
+    - Test: Indexed property assignment fixtures
+
+  - [ ] **3.2.11i** Migrate interface/object default property assignment (~1h)
+    - Eliminate fallbacks at index_assignment.go:76, 82
+    - INTERFACE: Unwrap to underlying object, then write default property
+    - OBJECT: Use WriteDefaultProperty adapter method
+    - Test: Default property assignment tests
+
+  - [ ] **3.2.11j** Migrate implicit Self assignment (~1.5h)
+    - Eliminate fallbacks at assignment_helpers.go:105, 391
+    - When variable not in env, check for implicit Self context
+    - Use existing `ctx.Env().Get("Self")` pattern
+    - If Self exists and is object, assign to Self.fieldName
+    - Also handle class variable context via `__CurrentClass__`
+    - Test: Method body assignment tests
+
+  - [ ] **3.2.11k** Migrate compound member/index assignment (~1.5h)
+    - Eliminate fallbacks at visitor_statements.go:318, 334
+    - Compound member: `obj.field += value` → read, operate, write
+    - Compound index: `arr[i] += value` → read, operate, write
+    - Reuse existing member/index read paths, then call evalSimpleAssignmentDirect-style write
+    - Test: Compound operator assignment tests
+
+  - [ ] **3.2.11l** Migrate object operator overloads (~1h)
+    - Eliminate fallback at compound_ops.go:26
+    - Objects with operator overloads (e.g., `+=` override) need method dispatch
+    - Use existing method dispatch infrastructure from 3.2.10
+    - Pattern: Look up operator method, invoke if found, else apply standard operation
+    - Test: Operator overload tests
+
+  - [ ] **3.2.11m** Integration testing & cleanup (~1h)
+    - Run full test suite: `just test`
+    - Run assignment-related fixtures
+    - Verify 0 `adapter.EvalNode()` calls remain in assignment files:
+      ```bash
+      grep -c "adapter\.EvalNode" internal/interp/evaluator/member_assignment.go  # → 0
+      grep -c "adapter\.EvalNode" internal/interp/evaluator/index_assignment.go   # → 0
+      grep -c "adapter\.EvalNode" internal/interp/evaluator/assignment_helpers.go # → 0
+      grep -c "adapter\.EvalNode" internal/interp/evaluator/compound_ops.go       # → 0
+      ```
+    - Commit: "feat(task-3.2.11): Migrate AssignmentStatement to evaluator"
+
+  **Total Estimate**: ~14h (was 8h - revised based on detailed analysis)
+
+  **Risk Assessment**:
+  - Highest risk: 3.2.11j (implicit Self) - touches OOP architecture boundary
+  - Medium risk: 3.2.11b, 3.2.11h - new adapter interfaces needed
+  - Lower risk: 3.2.11c, 3.2.11f - straightforward error handling or cleanup
 
 - [ ] **3.2.12** Final cleanup (2h)
   - Remove evaluator.go default case (line 679)

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -18,14 +19,13 @@ import (
 // - Interface unwrapping and routing to underlying object
 // - Object field assignment via ObjectFieldSetter interface
 // - Object property assignment via WriteProperty callback pattern
-//
-// ADAPTER handling (via EvalNode):
-// - Static class access: TClass.Variable (requires ClassInfo lookup)
+// - Class/metaclass assignment via ClassMetaValue interface
 // - Nil value auto-initialization
-// - Record property setter dispatch
-// - Class/metaclass assignment
 //
-// EvalNode reduction: 6 calls → 3-4 calls (~50% reduction)
+// Delegates to adapter (EvalNode):
+// - Record property setter dispatch
+//
+// EvalNode reduction: 6 calls → 1 call (~83% reduction)
 // ============================================================================
 
 // evalMemberAssignmentDirect attempts to handle member assignment directly.
@@ -35,30 +35,33 @@ import (
 // - Interface unwrapping and routing to underlying object
 // - Object field assignment via ObjectFieldSetter interface
 // - Object property assignment via WriteProperty callback
+// - Class/metaclass assignment via ClassMetaValue interface
 //
 // Delegates to adapter (EvalNode):
-// - Static class access: TClass.Variable := value (needs ClassInfo lookup)
 // - Nil value auto-initialization
 // - Record property setter dispatch (when record has properties)
-// - Class/metaclass assignment
 func (e *Evaluator) evalMemberAssignmentDirect(
 	target *ast.MemberAccessExpression,
 	value Value,
 	stmt *ast.AssignmentStatement,
 	ctx *ExecutionContext,
 ) Value {
-	// KEEP EVALNODE: Static class identifier access (TClass.Variable)
-	// This requires ClassInfo lookup which is in interp package
-	if _, ok := target.Object.(*ast.Identifier); ok {
-		// Could be TClass.Variable or TClass.Property
-		// Delegate to adapter for class info lookup
-		return e.adapter.EvalNode(stmt)
-	}
+	var objVal Value
+	var objSetter func(Value) error
 
-	// Evaluate the object expression
-	objVal := e.Eval(target.Object, ctx)
-	if isError(objVal) {
-		return objVal
+	// Try to evaluate as LValue to allow auto-initialization and proper mutation
+	if IsVarTarget(target.Object) {
+		var err error
+		objVal, objSetter, err = e.EvaluateLValue(target.Object, ctx)
+		if err != nil {
+			return e.newError(stmt, "%s", err.Error())
+		}
+	} else {
+		// Not an LValue (e.g. function call), evaluate as RValue
+		objVal = e.Eval(target.Object, ctx)
+		if isError(objVal) {
+			return objVal
+		}
 	}
 
 	// Check for exception during evaluation
@@ -66,10 +69,41 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 		return &runtime.NilValue{}
 	}
 
-	// KEEP EVALNODE: Nil value handling (auto-initialization)
+	// NATIVE: Nil value handling (auto-initialization)
 	if objVal == nil || objVal.Type() == "NIL" {
-		// Delegate to adapter for potential auto-initialization
-		return e.adapter.EvalNode(stmt)
+		// Only attempt auto-initialization if we have a setter (LValue)
+		if objSetter != nil {
+			// Case: Array element initialization (arr[i].Member := val)
+			if indexExpr, ok := target.Object.(*ast.IndexExpression); ok {
+				// We need the array type to know what to create
+				// Re-evaluate array base to get type info (safe for identifiers)
+				arrayVal := e.Eval(indexExpr.Left, ctx)
+				if isError(arrayVal) {
+					return arrayVal
+				}
+
+				if arrVal, ok := arrayVal.(*runtime.ArrayValue); ok {
+					if arrVal.ArrayType != nil && arrVal.ArrayType.ElementType != nil {
+						// Check if element type is a record
+						if recordType, ok := arrVal.ArrayType.ElementType.(*types.RecordType); ok {
+							// Create new empty record
+							newRecord := runtime.NewRecordValue(recordType, nil)
+
+							// Assign new record to array index using the setter from EvaluateLValue
+							if err := objSetter(newRecord); err != nil {
+								return e.newError(stmt, "failed to auto-initialize record: %s", err.Error())
+							}
+
+							// Update objVal to the new record and proceed with member assignment
+							objVal = newRecord
+						}
+					}
+				}
+			}
+		} else {
+			// No setter (rvalue), delegating to adapter for fallback handling
+			return e.adapter.EvalNode(stmt)
+		}
 	}
 
 	fieldName := target.Member.Value
@@ -119,12 +153,28 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 		return e.newError(stmt, "object does not support field assignment")
 	}
 
-	// KEEP EVALNODE: Class/metaclass assignment
+	// NATIVE: Class/metaclass assignment
 	objType := objVal.Type()
 	if strings.HasPrefix(objType, "CLASS") || objType == "CLASSINFO" {
+		if classMeta, ok := objVal.(ClassMetaValue); ok {
+			// Check for Class Variable
+			if classMeta.HasClassVar(fieldName) {
+				if classMeta.SetClassVar(fieldName, value) {
+					return value
+				}
+			}
+
+			// Check for Class Property
+			result, ok := classMeta.WriteClassProperty(fieldName, value, func(propInfo any, val Value) Value {
+				return e.adapter.EvalClassPropertyWrite(classMeta.GetClassInfo(), propInfo, val, stmt)
+			})
+			if ok {
+				return result
+			}
+		}
 		return e.adapter.EvalNode(stmt)
 	}
 
-	// KEEP EVALNODE: Unknown type fallback
-	return e.adapter.EvalNode(stmt)
+	// Unknown type or unsupported member assignment
+	return e.newError(stmt, "member assignment not supported for type %s", objType)
 }

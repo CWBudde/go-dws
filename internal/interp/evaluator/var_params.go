@@ -240,7 +240,7 @@ type ObjectFieldSetter interface {
 // RecordFieldSetter is an optional interface for records that support field assignment.
 type RecordFieldSetter interface {
 	Value
-	SetRecordField(name string, value Value)
+	SetRecordField(name string, value Value) bool
 }
 
 // IsVarTarget checks if a node is a valid lvalue (can appear on left side of assignment).

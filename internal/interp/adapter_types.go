@@ -764,3 +764,17 @@ func (i *Interpreter) EvalClassPropertyRead(classInfoAny any, propInfoAny any, n
 	}
 	return i.evalClassPropertyRead(classInfo, propInfo, node)
 }
+
+// EvalClassPropertyWrite evaluates a class property write operation.
+// Task 3.2.11b: Added for CLASS/CLASSINFO member assignment.
+func (i *Interpreter) EvalClassPropertyWrite(classInfoAny any, propInfoAny any, value evaluator.Value, node ast.Node) evaluator.Value {
+	classInfo, ok := classInfoAny.(*ClassInfo)
+	if !ok {
+		return i.newErrorWithLocation(node, "invalid class info type for class property write")
+	}
+	propInfo, ok := propInfoAny.(*types.PropertyInfo)
+	if !ok {
+		return i.newErrorWithLocation(node, "invalid property info type for class property write")
+	}
+	return i.evalClassPropertyWrite(classInfo, propInfo, value, node)
+}

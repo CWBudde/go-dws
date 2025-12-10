@@ -426,6 +426,34 @@ func (c *ClassInfo) lookupClassVar(name string) (Value, *ClassInfo) {
 	return nil, nil
 }
 
+// setClassVar sets a class variable value in the class hierarchy.
+// Task 3.2.11a: Added for static class variable assignment.
+// Returns true if the variable was found and set, false if not found.
+func (c *ClassInfo) setClassVar(name string, value Value) bool {
+	// Check current class with case-insensitive match
+	for varName := range c.ClassVars {
+		if ident.Equal(varName, name) {
+			c.ClassVars[varName] = value
+			return true
+		}
+	}
+
+	// Check parent class (recursive)
+	if c.Parent != nil {
+		return c.Parent.setClassVar(name, value)
+	}
+
+	// Not found
+	return false
+}
+
+// hasClassVar checks if a class variable exists in the class hierarchy.
+// Task 3.2.11a: Added for static class variable assignment validation.
+func (c *ClassInfo) hasClassVar(name string) bool {
+	_, owningClass := c.lookupClassVar(name)
+	return owningClass != nil
+}
+
 // getDefaultProperty searches for the default property in the class hierarchy.
 // Returns the default property if found, or nil if no default property exists.
 func (c *ClassInfo) getDefaultProperty() *types.PropertyInfo {

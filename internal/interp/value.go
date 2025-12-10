@@ -466,6 +466,48 @@ func (c *ClassInfoValue) GetClassInfo() any {
 	return c.ClassInfo
 }
 
+// SetClassVar sets a class variable by name in the hierarchy.
+// Task 3.2.11a: Implements evaluator.ClassMetaValue interface.
+func (c *ClassInfoValue) SetClassVar(name string, value Value) bool {
+	if c == nil || c.ClassInfo == nil {
+		return false
+	}
+	return c.ClassInfo.setClassVar(name, value)
+}
+
+// HasClassVar checks if a class variable exists in the hierarchy.
+// Task 3.2.11a: Implements evaluator.ClassMetaValue interface.
+func (c *ClassInfoValue) HasClassVar(name string) bool {
+	if c == nil || c.ClassInfo == nil {
+		return false
+	}
+	return c.ClassInfo.hasClassVar(name)
+}
+
+// WriteClassProperty writes to a class property using the executor callback.
+// Task 3.2.11a: Implements evaluator.ClassMetaValue interface.
+func (c *ClassInfoValue) WriteClassProperty(name string, value Value, executor func(propInfo any, value Value) Value) (Value, bool) {
+	if c == nil || c.ClassInfo == nil {
+		return nil, false
+	}
+	// Look up class property in hierarchy
+	propDesc := c.ClassInfo.LookupProperty(name)
+	if propDesc == nil {
+		return nil, false
+	}
+	propInfo, ok := propDesc.Impl.(*types.PropertyInfo)
+	if !ok || !propInfo.IsClassProperty {
+		return nil, false
+	}
+	// Check if property is writable
+	if propInfo.WriteKind == types.PropAccessNone {
+		return nil, false
+	}
+	// Execute the write via callback
+	result := executor(propInfo, value)
+	return result, true
+}
+
 // TypeCastValue wraps an object with its static type from a cast.
 // Preserves static type for member access (e.g., TBase(obj).ClassVar uses TBase's class var).
 type TypeCastValue struct {

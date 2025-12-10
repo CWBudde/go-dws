@@ -55,6 +55,7 @@ Bin/
 
 # AI agents
 .claude/
+.gemini/
 
 # Trunk
 .trunk/

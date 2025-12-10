@@ -102,6 +102,17 @@ type ClassMetaValue interface {
 	// GetClassInfo returns the underlying class info for adapter calls.
 	// Task 3.2.10: Used for class property read adapter.
 	GetClassInfo() any
+	// SetClassVar sets a class variable by name in the hierarchy.
+	// Task 3.2.11a: Added for static class variable assignment.
+	// Returns true if variable exists and was set, false if not found.
+	SetClassVar(name string, value Value) bool
+	// WriteClassProperty writes to a class property using the executor callback.
+	// Task 3.2.11a: Added for static class property assignment.
+	// Returns (value, true) if class property exists and is writable, (nil, false) otherwise.
+	WriteClassProperty(name string, value Value, executor func(propInfo any, value Value) Value) (Value, bool)
+	// HasClassVar checks if a class variable exists in the hierarchy.
+	// Task 3.2.11a: Added for static class variable assignment validation.
+	HasClassVar(name string) bool
 }
 
 // TypeCastAccessor wraps objects with their static type from cast expressions.
@@ -336,6 +347,10 @@ type InterpreterAdapter interface {
 	// EvalClassPropertyRead evaluates a class property read operation.
 	// Task 3.2.10: Added for CLASS/CLASSINFO member access.
 	EvalClassPropertyRead(classInfo any, propInfo any, node ast.Node) Value
+
+	// EvalClassPropertyWrite evaluates a class property write operation.
+	// Task 3.2.11b: Added for CLASS/CLASSINFO member assignment.
+	EvalClassPropertyWrite(classInfo any, propInfo any, value Value, node ast.Node) Value
 
 	// ===== Operator Overloading =====
 

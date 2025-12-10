@@ -432,6 +432,9 @@ func (m *mockConversionAdapter) EvalBuiltinHelperProperty(propSpec string, selfV
 func (m *mockConversionAdapter) EvalClassPropertyRead(classInfo any, propInfo any, node ast.Node) Value {
 	return &runtime.NilValue{}
 }
+func (m *mockConversionAdapter) EvalClassPropertyWrite(classInfoAny any, propInfoAny any, value Value, node ast.Node) Value {
+	return &runtime.NilValue{}
+}
 func (m *mockConversionAdapter) CallExternalFunction(funcName string, argExprs []ast.Expression, node ast.Node) Value {
 	return &runtime.NilValue{}
 }
