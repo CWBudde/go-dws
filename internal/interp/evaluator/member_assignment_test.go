@@ -98,11 +98,10 @@ func TestMemberAssignment_ErrorCases(t *testing.T) {
 			t.Errorf("Expected error, got %v", result)
 		} else {
 			if errVal, ok := result.(*runtime.ErrorValue); ok {
-				// We expect delegation to adapter for non-existent class members
-				if errVal.Message == "fallback adapter called" {
-					// Expected
-				} else {
-					t.Errorf("Unexpected error message: %s", errVal.Message)
+				// We expect a proper error for non-existent class members
+				expectedMsg := "class member 'NonExistent' not found in class 'TMyClass'"
+				if errVal.Message != expectedMsg {
+					t.Errorf("Expected error message %q, got %q", expectedMsg, errVal.Message)
 				}
 			}
 		}

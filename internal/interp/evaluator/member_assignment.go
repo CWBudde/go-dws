@@ -20,13 +20,13 @@ import (
 // - Interface unwrapping and routing to underlying object
 // - Object field assignment via ObjectFieldSetter interface
 // - Object property assignment via WriteProperty callback pattern
-// - Class/metaclass assignment via ClassMetaValue interface
+// - Class/metaclass assignment via ClassMetaValue interface (class vars & properties)
 // - Nil value auto-initialization
 //
 // Delegates to adapter (EvalNode):
-// - None (fully self-sufficient for record properties)
+// - Nil auto-initialization fallback (line 105)
 //
-// EvalNode reduction: 6 calls → 0 calls (100% reduction)
+// EvalNode reduction: 6 calls → 1 call (83% reduction)
 // ============================================================================
 
 // evalMemberAssignmentDirect attempts to handle member assignment directly.
@@ -37,11 +37,11 @@ import (
 // - Interface unwrapping and routing to underlying object
 // - Object field assignment via ObjectFieldSetter interface
 // - Object property assignment via WriteProperty callback
-// - Class/metaclass assignment via ClassMetaValue interface
+// - Class/metaclass assignment via ClassMetaValue interface (class vars & properties)
 // - Nil value auto-initialization
 //
 // Delegates to adapter (EvalNode):
-// - None (fully self-sufficient)
+// - Nil auto-initialization fallback (when no setter available)
 func (e *Evaluator) evalMemberAssignmentDirect(
 	target *ast.MemberAccessExpression,
 	value Value,
@@ -173,6 +173,8 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 				if classMeta.SetClassVar(fieldName, value) {
 					return value
 				}
+				// Variable exists but SetClassVar failed
+				return e.newError(stmt, "failed to set class variable '%s' in class '%s'", fieldName, classMeta.GetClassName())
 			}
 
 			// Check for Class Property
@@ -182,8 +184,12 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 			if ok {
 				return result
 			}
+
+			// Neither class variable nor class property found
+			return e.newError(stmt, "class member '%s' not found in class '%s'", fieldName, classMeta.GetClassName())
 		}
-		return e.adapter.EvalNode(stmt)
+		// Not a ClassMetaValue, but has CLASS type
+		return e.newError(stmt, "cannot assign to member of class type value")
 	}
 
 	// Unknown type or unsupported member assignment

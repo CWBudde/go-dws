@@ -310,12 +310,16 @@ then removing the `adapter.EvalNode()` fallback.
     - Likely: Return error "cannot assign to member of nil"
     - Test: Assignment to nil object tests
 
-  - [ ] **3.2.11d** Migrate record property setters (~1.5h)
-    - Eliminate fallback at member_assignment.go:82
-    - Records with properties need setter dispatch (like objects)
-    - Add `RecordPropertyWriter` interface or reuse existing WriteProperty pattern
-    - Similar to object property write already in evalMemberAssignmentDirect
-    - Test: Record property tests
+  - [x] **3.2.11d** Migrate record property setters ✅ **DONE** (2025-12-10, ~1.5h actual)
+    - Eliminated fallback at member_assignment.go:116 (was line 82 before previous changes)
+    - Added `executeRecordPropertyWrite()` to handle record property writes
+    - Added `executeRecordFieldBackedPropertyWrite()` for field-backed properties
+    - Added `executeRecordPropertySetterMethod()` for method-backed properties
+    - Checks `RecordPropertyInfo.WriteField` to determine field vs method setter
+    - For field-backed: Uses `RecordFieldSetter.SetRecordField()` directly
+    - For method-backed: Executes setter method via `adapter.ExecuteMethodWithSelf()`
+    - All evaluator tests pass, all interpreter tests pass (383 passed baseline)
+    - **Result**: Record property assignment now fully self-sufficient in evaluator
 
   - [ ] **3.2.11e** Migrate CLASS/CLASSINFO assignment (~1h)
     - Eliminate fallback at member_assignment.go:125
