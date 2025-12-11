@@ -97,8 +97,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				// Resolve overload
 				selected, err := ResolveOverload(candidates, argTypes)
 				if err != nil {
-					a.addError("no matching overload for class method '%s.%s' with these arguments at %s",
-						recordType.Name, methodName, expr.Token.Pos.String())
+					a.addError("%s", errors.FormatNoOverloadError(methodName, expr.Token.Pos.Line, expr.Token.Pos.Column))
 					return nil
 				}
 
@@ -270,9 +269,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		// Resolve overload based on argument types
 		selected, err := ResolveOverload(candidates, argTypes)
 		if err != nil {
-			// Task 9.63: Provide DWScript-compatible error message for failed overload resolution
-			a.addError("Syntax Error: There is no overloaded version of \"%s\" that can be called with these arguments [line: %d, column: %d]",
-				methodName, expr.Token.Pos.Line, expr.Token.Pos.Column)
+			a.addError("%s", errors.FormatNoOverloadError(methodName, expr.Token.Pos.Line, expr.Token.Pos.Column))
 			return nil
 		}
 

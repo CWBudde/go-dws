@@ -16,7 +16,9 @@ Error: <message> [line: X, column: Y]     (for runtime errors)
 
 ### 1. Helper Functions Added to `internal/errors/errors.go`
 
-Added the following DWScript-compatible formatting functions:
+Added the following DWScript-compatible formatting functions (10 total):
+
+**Initial batch (7 functions)**:
 
 - `FormatMemberAccessError(memberName, typeName, line, column)` - Member access errors
 - `FormatDuplicateDeclarationError(kind, name, line, column)` - Duplicate declarations
@@ -25,6 +27,12 @@ Added the following DWScript-compatible formatting functions:
 - `FormatVisibilityError(visibility, kind, memberName, className, line, column)` - Access control errors
 - `FormatIncompatibleTypesError(fromType, toType, line, column)` - General type incompatibility
 - `FormatExpectedArgumentCountError(functionName, expectedCount, gotCount, line, column)` - Argument count mismatches
+
+**Duplicate declarations batch (3 functions)**:
+
+- `FormatNameAlreadyExists(name, line, column)` - Generic name already exists error
+- `FormatTypeAlreadyDefined(typeName, kind, line, column)` - Type redefinition error
+- `FormatDuplicateFieldError(fieldName, typeName, line, column)` - Duplicate field/member error
 
 ### 2. Errors Standardized
 
@@ -47,6 +55,35 @@ Updated to use `errors.FormatAbstractClassError(line, column)`:
 
 **Format**: `Error: Trying to create an instance of an abstract class [line: X, column: Y]`
 
+#### Duplicate Declaration Errors
+
+Updated to use `errors.FormatNameAlreadyExists()` and `errors.FormatTypeAlreadyDefined()`:
+
+- `analyze_classes_decl.go` - 6 locations (class names, constants, fields, properties, methods)
+- `analyze_records.go` - 2 locations (record types, field names)
+- `analyze_enums.go` - 2 locations (enum types, element names)
+- `analyze_helpers.go` - 4 locations (helper methods, properties, class vars, constants)
+- `analyze_interfaces.go` - 3 locations (interface names, method names)
+- `analyze_arrays.go` - 1 location (array type names)
+- `analyze_sets.go` - 1 location (set type names)
+- `analyze_statements.go` - 2 locations (variable/constant redeclarations)
+
+**Formats**:
+
+- `Syntax Error: Name "X" already exists [line: X, column: Y]`
+- `Syntax Error: Class "X" already defined [line: X, column: Y]`
+- `Syntax Error: Record "X" already defined [line: X, column: Y]`
+
+#### Overload Resolution Errors
+
+Updated to use `errors.FormatNoOverloadError()`:
+
+- `analyze_function_calls.go` - 4 locations (function overloads, method overloads, record method overloads)
+- `analyze_method_calls.go` - 2 locations (class method overloads)
+- `analyze_classes.go` - 1 location (record method overloads)
+
+**Format**: `Syntax Error: There is no overloaded version of "functionName" that can be called with these arguments [line: X, column: Y]`
+
 ### 3. Existing Standardization
 
 The following error types were already using helper functions:
@@ -62,11 +99,38 @@ The following error types were already using helper functions:
 
 ## Files Modified
 
-1. **internal/errors/errors.go** - Added 7 new helper functions
-2. **internal/semantic/analyze_classes.go** - Standardized undefined class and abstract class errors, added errors import
-3. **internal/semantic/analyze_function_calls.go** - Standardized undefined function error
-4. **internal/semantic/analyze_function_pointers.go** - Standardized undefined function error, added errors import
-5. **internal/semantic/analyze_method_calls.go** - Standardized abstract class errors, added errors import
+### Error Helper Functions
+
+- **internal/errors/errors.go** - Added 10 new helper functions
+
+### Semantic Analyzer Files (13 files)
+
+- **internal/semantic/analyze_classes.go** - Standardized undefined class, abstract class, and overload errors
+- **internal/semantic/analyze_classes_decl.go** - Standardized 6 duplicate declaration errors
+- **internal/semantic/analyze_function_calls.go** - Standardized undefined function and 4 overload resolution errors
+- **internal/semantic/analyze_function_pointers.go** - Standardized undefined function error
+- **internal/semantic/analyze_method_calls.go** - Standardized abstract class and 2 overload resolution errors
+- **internal/semantic/analyze_records.go** - Standardized 2 duplicate declaration errors
+- **internal/semantic/analyze_enums.go** - Standardized 2 duplicate declaration errors
+- **internal/semantic/analyze_helpers.go** - Standardized 4 duplicate declaration errors
+- **internal/semantic/analyze_interfaces.go** - Standardized 3 duplicate declaration errors
+- **internal/semantic/analyze_arrays.go** - Standardized 1 duplicate declaration error
+- **internal/semantic/analyze_sets.go** - Standardized 1 duplicate declaration error
+- **internal/semantic/analyze_statements.go** - Standardized 2 duplicate declaration errors
+
+### Test Files Updated (11 files)
+
+- **internal/semantic/set_test.go**
+- **internal/semantic/interface_analyzer_test.go**
+- **internal/semantic/record_test.go**
+- **internal/semantic/enum_test.go**
+- **internal/semantic/class_analyzer_test.go**
+- **internal/semantic/const_test.go**
+- **internal/semantic/analyze_statements_test.go**
+- **internal/semantic/function_pointer_test.go**
+- **internal/semantic/array_test.go**
+- **internal/semantic/subrange_test.go**
+- **internal/semantic/type_alias_test.go**
 
 ## Test Results
 
@@ -76,32 +140,36 @@ Running fixture tests after changes:
 - **0 tests skipped**
 - Total: 1,227 tests
 
+## Work Completed Summary
+
+**Total Error Categories Standardized**: 4
+
+1. ✅ **Undefined Symbol Errors** - Completed (3 locations)
+2. ✅ **Abstract Class Instantiation Errors** - Completed (4 locations)
+3. ✅ **Duplicate Declaration Errors** - Completed (~21 locations across 8 files)
+4. ✅ **Overload Resolution Errors** - Completed (7 locations across 3 files)
+
+**Total Errors Standardized**: ~35 error messages
+**Total Files Modified**: 25 files (1 errors.go + 13 semantic analyzers + 11 test files)
+
 ## Remaining Work
 
 ### Priority Areas for Further Standardization
 
-1. **Duplicate Declaration Errors** (moderate impact)
-   - Many still use custom format like `"already declared at %s"`
-   - Should use: `"There is already a <kind> with name \"<name>\" [line: X, column: Y]"`
-   - Files: `analyze_classes_decl.go`, `analyze_records.go`, `analyze_enums.go`
-
-2. **Overload Resolution Errors** (moderate impact)
-   - Some use `"no matching overload"`
-   - Should use: `"There is no overloaded version of \"<name>\" that can be called with these arguments"`
-   - Files: `analyze_function_calls.go`, `analyze_method_calls.go`, `analyze_classes_decl.go`
-
-3. **Member Access Errors** (moderate impact)
+1. **Member Access Errors** (moderate impact)
    - Should use: `"There is no accessible member with name \"<member>\" for type <Type>"`
    - Files: `analyze_classes.go`, `analyze_records.go`
+   - Helper function already exists: `FormatMemberAccessError()`
 
-4. **Builtin Function Errors** (high volume, lower impact)
+2. **Builtin Function Errors** (high volume, lower impact)
    - ~200+ error messages in `analyze_builtin_*.go` files
    - Many already follow a consistent pattern
    - Could benefit from helper functions for common patterns
 
-5. **Visibility/Access Control Errors** (low impact)
+3. **Visibility/Access Control Errors** (low impact)
    - Should use: `"Cannot access <visibility> <kind> \"<name>\" of class \"<class>\""`
    - Files: `analyze_classes.go`, `analyze_properties.go`
+   - Helper function already exists: `FormatVisibilityError()`
 
 ## Benefits Achieved
 
@@ -112,7 +180,9 @@ Running fixture tests after changes:
 
 ## Next Steps
 
-1. Continue standardizing remaining error categories (duplicate declarations, overloads)
-2. Run fixture tests after each category to measure improvement
-3. Document any intentional divergences from DWScript error messages
-4. Update `testdata/fixtures/TEST_STATUS.md` when pass rate improves
+1. Standardize member access errors using existing `FormatMemberAccessError()` helper
+2. Standardize visibility/access control errors using existing `FormatVisibilityError()` helper
+3. Consider creating helper functions for common builtin function error patterns
+4. Run fixture tests after major standardization milestones to measure improvement
+5. Document any intentional divergences from DWScript error messages
+6. Update `testdata/fixtures/TEST_STATUS.md` when pass rate improves significantly

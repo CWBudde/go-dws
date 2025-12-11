@@ -871,18 +871,25 @@ Many fixture tests fail due to error message format differences. Completed stand
 - [x] **6.3.4** Add helper functions to `internal/errors/errors.go` (10 new functions)
 - [x] **6.3.5** Standardize format for undefined symbol errors (3 locations)
 - [x] **6.3.6** Standardize format for abstract class errors (4 locations)
-- [x] **6.3.7** Standardize format for duplicate declaration errors (~30 locations)
-- [ ] **6.3.8** Standardize format for overload resolution errors
+- [x] **6.3.7** Standardize format for duplicate declaration errors (~21 locations)
+- [x] **6.3.8** Standardize format for overload resolution errors (7 locations)
 - [ ] **6.3.9** Standardize builtin function argument errors (~200+ locations)
 - [ ] **6.3.10** Run fixture tests to measure improvements
 
-**Result**: Standardized duplicate declaration errors across 11 files using DWScript format (`"Name \"X\" already exists"`, `"Class \"X\" already defined"`). Added 10 helper functions to `internal/errors/errors.go`. Updated ~15 test files to match new error formats. All semantic analyzer code now uses standardized error messages. See [docs/task-6.3-summary.md](docs/task-6.3-summary.md) for details.
+**Result**: Standardized 4 major error categories (~35 error messages) across 13 semantic analyzer files using DWScript-compatible format. Added 10 helper functions to `internal/errors/errors.go`. Updated 11 test files to match new error formats. All semantic analyzer tests pass. Fixture test pass rate remains 386/1,227 (31.5%) - no regressions. See [docs/task-6.3-summary.md](docs/task-6.3-summary.md) for full details.
+
+**Error categories completed**:
+
+1. Undefined symbol errors (3 locations) - `"Unknown name \"X\""`
+2. Abstract class errors (4 locations) - `"Trying to create an instance of an abstract class"`
+3. Duplicate declaration errors (21 locations) - `"Name \"X\" already exists"`, `"Class \"X\" already defined"`
+4. Overload resolution errors (7 locations) - `"There is no overloaded version of \"X\" that can be called with these arguments"`
 
 **Files modified**:
 
 - `internal/errors/errors.go` - Added 10 helper functions (+72 lines)
-- `internal/semantic/analyze_*.go` - 11 files updated with standardized errors and errors import
-- `internal/semantic/*_test.go` - 15 test files updated to match new error formats
+- `internal/semantic/analyze_*.go` - 13 files updated with standardized errors
+- `internal/semantic/*_test.go` - 11 test files updated to match new error formats
 
 ---
 

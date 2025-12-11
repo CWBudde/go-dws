@@ -420,8 +420,7 @@ func (a *Analyzer) analyzeRecordStaticMethodCallFromNew(expr *ast.NewExpression,
 
 	selected, err := ResolveOverload(candidates, argTypes)
 	if err != nil {
-		a.addError("no matching overload for '%s.%s' with %d arguments at %s",
-			recordType.Name, methodName, len(argTypes), expr.Token.Pos.String())
+		a.addError("%s", errors.FormatNoOverloadError(methodName, expr.Token.Pos.Line, expr.Token.Pos.Column))
 		return nil
 	}
 
