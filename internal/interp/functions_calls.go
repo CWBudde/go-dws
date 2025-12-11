@@ -127,8 +127,8 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		// Check if the left side is a unit identifier (for qualified access: UnitName.FunctionName)
 		if unitIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
 			// This could be a unit-qualified call: UnitName.FunctionName()
-			if i.unitRegistry != nil {
-				if _, exists := i.unitRegistry.GetUnit(unitIdent.Value); exists {
+			if i.evaluatorInstance.UnitRegistry() != nil {
+				if _, exists := i.evaluatorInstance.UnitRegistry().GetUnit(unitIdent.Value); exists {
 					// Resolve the qualified function
 					fn, err := i.ResolveQualifiedFunction(unitIdent.Value, memberAccess.Member.Value)
 					if err == nil {

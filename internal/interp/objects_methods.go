@@ -925,10 +925,10 @@ func (i *Interpreter) tryEnumTypeMethodCall(objVal Value, mc *ast.MethodCallExpr
 // tryUnitQualifiedCall attempts to call a unit-qualified function.
 // Returns nil if the identifier is not a unit name.
 func (i *Interpreter) tryUnitQualifiedCall(ident *ast.Identifier, mc *ast.MethodCallExpression) Value {
-	if i.unitRegistry == nil {
+	if i.evaluatorInstance.UnitRegistry() == nil {
 		return nil
 	}
-	if _, exists := i.unitRegistry.GetUnit(ident.Value); !exists {
+	if _, exists := i.evaluatorInstance.UnitRegistry().GetUnit(ident.Value); !exists {
 		return nil
 	}
 

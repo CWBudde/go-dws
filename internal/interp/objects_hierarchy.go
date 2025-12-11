@@ -14,8 +14,8 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	// Check for static access patterns (TClass.Member, UnitName.Symbol, TEnum.Value)
 	if ident, ok := ma.Object.(*ast.Identifier); ok {
 		// Unit-qualified access: UnitName.Symbol
-		if i.unitRegistry != nil {
-			if _, exists := i.unitRegistry.GetUnit(ident.Value); exists {
+		if i.evaluatorInstance.UnitRegistry() != nil {
+			if _, exists := i.evaluatorInstance.UnitRegistry().GetUnit(ident.Value); exists {
 				if val, err := i.ResolveQualifiedVariable(ident.Value, ma.Member.Value); err == nil {
 					return val
 				}

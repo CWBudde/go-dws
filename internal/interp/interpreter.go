@@ -12,7 +12,6 @@ import (
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
-	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
 
 	// Task 3.8.2: pkg/ast is imported for SemanticInfo, which holds semantic analysis
@@ -41,7 +40,6 @@ type Interpreter struct {
 	output            io.Writer
 	exception         *runtime.ExceptionValue
 	handlerException  *runtime.ExceptionValue
-	unitRegistry      *units.UnitRegistry
 	propContext       *PropertyEvalContext
 	typeSystem        *interptypes.TypeSystem
 	methodRegistry    *runtime.MethodRegistry
@@ -49,11 +47,9 @@ type Interpreter struct {
 	functions         map[string][]*ast.FunctionDecl
 	evaluatorInstance *evaluator.Evaluator
 	classes           map[string]*ClassInfo
-	initializedUnits  map[string]bool
 	externalFunctions *ExternalFunctionRegistry
 	ctx               *evaluator.ExecutionContext
 	oldValuesStack    []map[string]Value
-	loadedUnits       []string
 	callStack         errors.StackTrace
 	maxRecursionDepth int
 }
@@ -92,8 +88,6 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 
 	interp := &Interpreter{
 		output:            output,
-		loadedUnits:       make([]string, 0),
-		initializedUnits:  make(map[string]bool),
 		maxRecursionDepth: DefaultMaxRecursionDepth,
 		callStack:         errors.NewStackTrace(), // Initialize stack trace
 
