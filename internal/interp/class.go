@@ -779,6 +779,42 @@ func (c *ClassValue) IsAssignableTo(targetClass *ClassInfo) bool {
 	return false
 }
 
+// SetClassVar sets a class variable by name in the hierarchy.
+// Task 3.2.11a: Implements evaluator.ClassMetaValue interface.
+func (c *ClassValue) SetClassVar(name string, value Value) bool {
+	if c == nil || c.ClassInfo == nil {
+		return false
+	}
+	return c.ClassInfo.setClassVar(name, value)
+}
+
+// HasClassVar checks if a class variable exists in the hierarchy.
+// Task 3.2.11a: Implements evaluator.ClassMetaValue interface.
+func (c *ClassValue) HasClassVar(name string) bool {
+	if c == nil || c.ClassInfo == nil {
+		return false
+	}
+	return c.ClassInfo.hasClassVar(name)
+}
+
+// WriteClassProperty writes to a class property using the executor callback.
+// Task 3.2.11a: Implements evaluator.ClassMetaValue interface.
+func (c *ClassValue) WriteClassProperty(name string, value Value, executor func(propInfo any, value Value) Value) (Value, bool) {
+	if c == nil || c.ClassInfo == nil {
+		return nil, false
+	}
+	// Look up class property in hierarchy
+	propDesc := c.ClassInfo.LookupProperty(name)
+	if propDesc == nil {
+		return nil, false
+	}
+	propInfo, ok := propDesc.Impl.(*types.PropertyInfo)
+	if !ok || !propInfo.IsClassProperty {
+		return nil, false
+	}
+	return executor(propInfo, value), true
+}
+
 // AsClassValue attempts to cast a Value to a ClassValue.
 // Returns the ClassValue and true if successful, or nil and false if not.
 func AsClassValue(v Value) (*ClassValue, bool) {
