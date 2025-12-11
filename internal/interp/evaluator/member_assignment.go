@@ -103,8 +103,8 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 				}
 			}
 		} else {
-			// No setter (rvalue), delegating to adapter for fallback handling
-			return e.adapter.EvalNode(stmt)
+			// No setter (rvalue), cannot assign to a member of a nil value.
+			return e.newError(stmt, "cannot assign to member of a nil value")
 		}
 	}
 

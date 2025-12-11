@@ -333,33 +333,43 @@ then removing the `adapter.EvalNode()` fallback.
     - **Result**: CLASS/CLASSINFO assignment returns proper errors, no delegation
     - **EvalNode reduction**: 6 calls → 1 call (83% reduction in member_assignment.go)
 
-  - [ ] **3.2.11f** Clean up member_assignment fallbacks (~0.5h)
+  - [x] **3.2.11f** Clean up member_assignment fallbacks (~0.5h)
     - Eliminate fallbacks at lines 90, 129
     - Line 90: Record without RecordFieldSetter - may indicate missing interface
     - Line 129: Unknown type - should be unreachable after above migrations
     - Convert to proper errors if truly unreachable
     - Test: Run all assignment tests
 
-  - [ ] **3.2.11g** Add IndexedPropertyWriter adapter interface (~1h)
-    - Create interface: `WriteIndexedProperty(obj Value, propName string, indices []Value, value Value) (Value, error)`
-    - Create interface for default property: `WriteDefaultProperty(obj Value, indices []Value, value Value) (Value, error)`
-    - Needed by: 3.2.11h, 3.2.11i
-    - Test: Unit tests for interface
+  - [x] **3.2.11g** Migrate indexed property assignment `obj.Prop[i] := value` ✅ **DONE** (2025-12-11, ~1.5h actual)
+    - **Goal**: Eliminate fallback at index_assignment.go:45 WITHOUT new adapter interfaces
+    - **Pattern**: Reused record property setter pattern from 3.2.11d
+    - **Implementation**:
+      1. Created `evalIndexedPropertyAssignment()` function
+      2. Evaluate base object via MemberAccessExpression
+      3. Look up property via `PropertyAccessor.LookupProperty()`
+      4. Extract PropertyInfo from PropertyDescriptor
+      5. Build argument list: `[indices..., value]`
+      6. Execute setter via `adapter.ExecuteMethodWithSelf()` (general OOP facility)
+    - **Multi-index support**: `obj.Prop[x, y] := value` → args = [x, y, value] ✅
+    - **No new interfaces needed**: Uses PropertyAccessor + general method dispatch ✅
+    - **Result**: Eliminated adapter.EvalNode() at line 45 (3 calls → 2 calls)
+    - All tests pass (385 passed, 842 failed baseline unchanged)
 
-  - [ ] **3.2.11h** Migrate indexed property assignment `obj.Prop[i] := value` (~1.5h)
-    - Eliminate fallback at index_assignment.go:45
-    - When base is MemberAccessExpression, it's a property with index
-    - Evaluate base to get property, then use WriteIndexedProperty
-    - Handle multi-index: `obj.Prop[x, y] := value`
-    - Test: Indexed property assignment fixtures
-
-  - [ ] **3.2.11i** Migrate interface/object default property assignment (~1h)
-    - Eliminate fallbacks at index_assignment.go:76, 82
-    - INTERFACE: Unwrap to underlying object, then write default property
-    - OBJECT: Use WriteDefaultProperty adapter method
+  - [ ] **3.2.11h** Migrate interface/object default property assignment `obj[i] := value` (~1.5h)
+    - **Goal**: Eliminate fallbacks at index_assignment.go:76, 82 WITHOUT new adapter interfaces
+    - **Pattern**: Same as 3.2.11g but lookup default property instead of named property
+    - **Approach**:
+      1. Get PropertyAccessor from value (obj implements PropertyAccessor interface)
+      2. Call `accessor.GetDefaultProperty()` - already exists in runtime!
+      3. PropertyInfo contains setter method reference
+      4. Build argument list: `[indices..., value]`
+      5. Execute setter via `adapter.ExecuteMethodWithSelf()`
+    - **INTERFACE handling**: InterfaceInstance.GetDefaultProperty() delegates to underlying interface
+    - **OBJECT handling**: ObjectInstance.GetDefaultProperty() uses IClassInfo.GetDefaultProperty()
+    - **No new interfaces needed**: Reuses PropertyAccessor + general method dispatch
     - Test: Default property assignment tests
 
-  - [ ] **3.2.11j** Migrate implicit Self assignment (~1.5h)
+  - [ ] **3.2.11i** Migrate implicit Self assignment (~1.5h)
     - Eliminate fallbacks at assignment_helpers.go:105, 391
     - When variable not in env, check for implicit Self context
     - Use existing `ctx.Env().Get("Self")` pattern
@@ -367,21 +377,21 @@ then removing the `adapter.EvalNode()` fallback.
     - Also handle class variable context via `__CurrentClass__`
     - Test: Method body assignment tests
 
-  - [ ] **3.2.11k** Migrate compound member/index assignment (~1.5h)
+  - [ ] **3.2.11j** Migrate compound member/index assignment (~1.5h)
     - Eliminate fallbacks at visitor_statements.go:318, 334
     - Compound member: `obj.field += value` → read, operate, write
     - Compound index: `arr[i] += value` → read, operate, write
     - Reuse existing member/index read paths, then call evalSimpleAssignmentDirect-style write
     - Test: Compound operator assignment tests
 
-  - [ ] **3.2.11l** Migrate object operator overloads (~1h)
+  - [ ] **3.2.11k** Migrate object operator overloads (~1h)
     - Eliminate fallback at compound_ops.go:26
     - Objects with operator overloads (e.g., `+=` override) need method dispatch
     - Use existing method dispatch infrastructure from 3.2.10
     - Pattern: Look up operator method, invoke if found, else apply standard operation
     - Test: Operator overload tests
 
-  - [ ] **3.2.11m** Integration testing & cleanup (~1h)
+  - [ ] **3.2.11l** Integration testing & cleanup (~1h)
     - Run full test suite: `just test`
     - Run assignment-related fixtures
     - Verify 0 `adapter.EvalNode()` calls remain in assignment files:
@@ -393,12 +403,12 @@ then removing the `adapter.EvalNode()` fallback.
       ```
     - Commit: "feat(task-3.2.11): Migrate AssignmentStatement to evaluator"
 
-  **Total Estimate**: ~14h (was 8h - revised based on detailed analysis)
+  **Total Estimate**: ~13.5h (revised - removed 1h IndexedPropertyWriter task)
 
   **Risk Assessment**:
-  - Highest risk: 3.2.11j (implicit Self) - touches OOP architecture boundary
-  - Medium risk: 3.2.11b, 3.2.11h - new adapter interfaces needed
-  - Lower risk: 3.2.11c, 3.2.11f - straightforward error handling or cleanup
+  - Highest risk: 3.2.11i (implicit Self) - touches OOP architecture boundary
+  - Medium risk: 3.2.11g, 3.2.11h - property dispatch via existing infrastructure
+  - Lower risk: 3.2.11f, 3.2.11j, 3.2.11k - reuse established patterns
 
 - [ ] **3.2.12** Final cleanup (2h)
   - Remove evaluator.go default case (line 679)

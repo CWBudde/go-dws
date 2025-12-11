@@ -37,12 +37,12 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 ) Value {
 	// Check if this might be a multi-index property write
 	// We only flatten indices if the base is a MemberAccessExpression (property access)
-	base, _ := CollectIndices(target)
+	base, indices := CollectIndices(target)
 
-	// If base is a MemberAccessExpression, it might be an indexed property
-	// Delegate to adapter for property-based access
-	if _, ok := base.(*ast.MemberAccessExpression); ok {
-		return e.adapter.EvalNode(stmt)
+	// If base is a MemberAccessExpression, it's an indexed property: obj.Prop[i] := value
+	// Handle directly using general-purpose method dispatch (no adapter fallback)
+	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok {
+		return e.evalIndexedPropertyAssignment(memberAccess, indices, value, stmt, ctx)
 	}
 
 	// Evaluate the array/string being indexed
@@ -180,4 +180,96 @@ func (e *Evaluator) evalStringCharAssignment(
 	}
 
 	return e.newError(stmt, "string index out of bounds: %d (string length is %d)", index, strLen)
+}
+
+// evalIndexedPropertyAssignment handles indexed property assignment: obj.Prop[i] := value
+//
+// This follows the pattern from executeRecordPropertyWrite (task 3.2.11d):
+// 1. Evaluate the base object (obj.Prop) to get the property metadata
+// 2. Extract the property setter method reference
+// 3. Build argument list: [indices..., value]
+// 4. Execute setter via adapter.ExecuteMethodWithSelf() (general OOP facility)
+//
+// Supports multi-index properties: obj.Prop[x, y] := value → args = [x, y, value]
+//
+// Uses general-purpose method dispatch instead of property-specific adapter interface.
+func (e *Evaluator) evalIndexedPropertyAssignment(
+	memberAccess *ast.MemberAccessExpression,
+	indices []ast.Expression,
+	value Value,
+	stmt *ast.AssignmentStatement,
+	ctx *ExecutionContext,
+) Value {
+	// Evaluate the base object (e.g., obj in obj.Prop[i])
+	baseObj := e.Eval(memberAccess.Object, ctx)
+	if isError(baseObj) {
+		return baseObj
+	}
+
+	// Check for exception during evaluation
+	if ctx.Exception() != nil {
+		return &runtime.NilValue{}
+	}
+
+	// Get the property name
+	propName := memberAccess.Member.Value
+
+	// Evaluate all indices
+	indexValues := make([]Value, 0, len(indices))
+	for _, indexExpr := range indices {
+		indexVal := e.Eval(indexExpr, ctx)
+		if isError(indexVal) {
+			return indexVal
+		}
+		if ctx.Exception() != nil {
+			return &runtime.NilValue{}
+		}
+		indexValues = append(indexValues, indexVal)
+	}
+
+	// Try to get property descriptor from the object
+	// Different types have different property lookup mechanisms
+	var propDesc *runtime.PropertyDescriptor
+
+	// Check if object implements PropertyAccessor interface
+	if accessor, ok := baseObj.(runtime.PropertyAccessor); ok {
+		propDesc = accessor.LookupProperty(propName)
+	}
+
+	if propDesc == nil {
+		return e.newError(stmt, "property '%s' not found on %s", propName, baseObj.Type())
+	}
+
+	// Check if property is indexed
+	if !propDesc.IsIndexed {
+		return e.newError(stmt, "property '%s' is not an indexed property", propName)
+	}
+
+	// Get the underlying PropertyInfo for setter access
+	propInfo, ok := propDesc.Impl.(*runtime.PropertyInfo)
+	if !ok {
+		return e.newError(stmt, "invalid property metadata for '%s'", propName)
+	}
+
+	// Check if property has write access
+	if propInfo.WriteSpec == "" {
+		return e.newError(stmt, "property '%s' is read-only", propName)
+	}
+
+	// Build argument list for setter: [indices..., value]
+	args := make([]Value, 0, len(indexValues)+1)
+	args = append(args, indexValues...)
+	args = append(args, value)
+
+	// Execute setter method via general OOP facility (adapter.ExecuteMethodWithSelf)
+	// This delegates to the interpreter for method execution, but it's a general
+	// method dispatch mechanism, not a property-specific adapter interface
+	result := e.adapter.ExecuteMethodWithSelf(baseObj, propInfo.WriteSpec, args)
+
+	// Check for errors from method execution
+	if isError(result) {
+		return result
+	}
+
+	return value
 }
