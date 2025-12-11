@@ -62,8 +62,17 @@ func (i *Interpreter) tryBinaryOperator(operator string, left, right Value, node
 			return i.invokeRuntimeOperator(runtimeEntry, operands, node), true
 		}
 	}
-	if entry, found := i.globalOperators.lookup(operator, operandTypes); found {
-		return i.invokeRuntimeOperator(entry, operands, node), true
+	if entry, found := i.typeSystem.Operators().Lookup(operator, operandTypes); found {
+		// Convert types.OperatorEntry to runtimeOperatorEntry
+		runtimeEntry := &runtimeOperatorEntry{
+			Class:         entry.Class.(*ClassInfo),
+			Operator:      entry.Operator,
+			BindingName:   entry.BindingName,
+			OperandTypes:  entry.OperandTypes,
+			SelfIndex:     entry.SelfIndex,
+			IsClassMethod: entry.IsClassMethod,
+		}
+		return i.invokeRuntimeOperator(runtimeEntry, operands, node), true
 	}
 	return nil, false
 }
@@ -104,8 +113,17 @@ func (i *Interpreter) tryUnaryOperator(operator string, operand Value, node ast.
 		}
 	}
 
-	if entry, found := i.globalOperators.lookup(operator, operandTypes); found {
-		return i.invokeRuntimeOperator(entry, operands, node), true
+	if entry, found := i.typeSystem.Operators().Lookup(operator, operandTypes); found {
+		// Convert types.OperatorEntry to runtimeOperatorEntry
+		runtimeEntry := &runtimeOperatorEntry{
+			Class:         entry.Class.(*ClassInfo),
+			Operator:      entry.Operator,
+			BindingName:   entry.BindingName,
+			OperandTypes:  entry.OperandTypes,
+			SelfIndex:     entry.SelfIndex,
+			IsClassMethod: entry.IsClassMethod,
+		}
+		return i.invokeRuntimeOperator(runtimeEntry, operands, node), true
 	}
 
 	return nil, false

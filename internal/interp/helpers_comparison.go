@@ -155,10 +155,6 @@ func (h *HelperInfo) GetParentHelperAny() any {
 
 // getHelpersForValue returns all helpers that apply to the given value's type
 func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
-	if i.helpers == nil {
-		return nil
-	}
-
 	// Get the type name from the value
 	var typeName string
 	switch v := val.(type) {
@@ -178,29 +174,49 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 		// First try specific array type (e.g., "array of String"), then generic array helpers
 		specific := ident.Normalize(v.ArrayType.String())
 		var combined []*HelperInfo
-		if h, ok := i.helpers[specific]; ok {
-			combined = append(combined, h...)
+		if h := i.typeSystem.LookupHelpers(specific); len(h) > 0 {
+			for _, helper := range h {
+				if hi, ok := helper.(*HelperInfo); ok {
+					combined = append(combined, hi)
+				}
+			}
 		}
 		// If it's a static array, also try the dynamic equivalent ("array of <elem>")
 		if v.ArrayType.IsStatic() && v.ArrayType.ElementType != nil {
 			dynKey := ident.Normalize(fmt.Sprintf("array of %s", v.ArrayType.ElementType.String()))
-			if h, ok := i.helpers[dynKey]; ok {
-				combined = append(combined, h...)
+			if h := i.typeSystem.LookupHelpers(dynKey); len(h) > 0 {
+				for _, helper := range h {
+					if hi, ok := helper.(*HelperInfo); ok {
+						combined = append(combined, hi)
+					}
+				}
 			}
 		}
-		if h, ok := i.helpers["array"]; ok {
-			combined = append(combined, h...)
+		if h := i.typeSystem.LookupHelpers("array"); len(h) > 0 {
+			for _, helper := range h {
+				if hi, ok := helper.(*HelperInfo); ok {
+					combined = append(combined, hi)
+				}
+			}
 		}
 		return combined
 	case *EnumValue:
 		// First try specific enum type (e.g., "TColor"), then generic enum helpers
 		specific := ident.Normalize(v.TypeName)
 		var combined []*HelperInfo
-		if h, ok := i.helpers[specific]; ok {
-			combined = append(combined, h...)
+		if h := i.typeSystem.LookupHelpers(specific); len(h) > 0 {
+			for _, helper := range h {
+				if hi, ok := helper.(*HelperInfo); ok {
+					combined = append(combined, hi)
+				}
+			}
 		}
-		if h, ok := i.helpers["enum"]; ok {
-			combined = append(combined, h...)
+		if h := i.typeSystem.LookupHelpers("enum"); len(h) > 0 {
+			for _, helper := range h {
+				if hi, ok := helper.(*HelperInfo); ok {
+					combined = append(combined, hi)
+				}
+			}
 		}
 		return combined
 	case *TypeMetaValue:
@@ -215,7 +231,14 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 	}
 
 	// Look up helpers for this type
-	return i.helpers[ident.Normalize(typeName)]
+	helpers := i.typeSystem.LookupHelpers(ident.Normalize(typeName))
+	result := make([]*HelperInfo, 0, len(helpers))
+	for _, h := range helpers {
+		if hi, ok := h.(*HelperInfo); ok {
+			result = append(result, hi)
+		}
+	}
+	return result
 }
 
 // findHelperMethod searches all applicable helpers for a method with the given name

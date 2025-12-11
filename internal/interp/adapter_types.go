@@ -171,11 +171,8 @@ func (i *Interpreter) AddHelperClassConst(helper interface{}, name string, value
 
 // RegisterHelperLegacy registers the helper in the legacy i.helpers map.
 func (i *Interpreter) RegisterHelperLegacy(typeName string, helper interface{}) {
-	if i.helpers == nil {
-		i.helpers = make(map[string][]*HelperInfo)
-	}
 	if h, ok := helper.(*HelperInfo); ok {
-		i.helpers[typeName] = append(i.helpers[typeName], h)
+		i.typeSystem.RegisterHelper(typeName, h)
 	}
 }
 

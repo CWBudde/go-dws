@@ -798,7 +798,16 @@ func (i *Interpreter) evalOperatorDeclaration(decl *ast.OperatorDecl) Value {
 		IsClassMethod: false,
 	}
 
-	if err := i.globalOperators.register(entry); err != nil {
+	// Convert to types.OperatorEntry for TypeSystem
+	tsEntry := &interptypes.OperatorEntry{
+		Class:         entry.Class,
+		Operator:      entry.Operator,
+		BindingName:   entry.BindingName,
+		OperandTypes:  entry.OperandTypes,
+		SelfIndex:     entry.SelfIndex,
+		IsClassMethod: entry.IsClassMethod,
+	}
+	if err := i.typeSystem.Operators().Register(tsEntry); err != nil {
 		return i.newErrorWithLocation(decl, "operator '%s' already defined for operand types (%s)", decl.OperatorSymbol, strings.Join(operandTypes, ", "))
 	}
 

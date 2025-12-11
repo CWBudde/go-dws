@@ -41,7 +41,6 @@ type PropertyEvalContext = evaluator.PropertyEvalContext
 type Interpreter struct {
 	currentNode       ast.Node
 	output            io.Writer
-	helpers           map[string][]*HelperInfo
 	exception         *runtime.ExceptionValue
 	handlerException  *runtime.ExceptionValue
 	semanticInfo      *pkgast.SemanticInfo
@@ -51,7 +50,6 @@ type Interpreter struct {
 	methodRegistry    *runtime.MethodRegistry
 	records           map[string]*RecordTypeValue
 	functions         map[string][]*ast.FunctionDecl
-	globalOperators   *runtimeOperatorRegistry
 	evaluatorInstance *evaluator.Evaluator
 	classes           map[string]*ClassInfo
 	initializedUnits  map[string]bool
@@ -124,9 +122,6 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 		functions: make(map[string][]*ast.FunctionDecl), // Task 9.66: Support overloading
 		classes:   make(map[string]*ClassInfo),
 		records:   make(map[string]*RecordTypeValue),
-
-		globalOperators: newRuntimeOperatorRegistry(),
-		helpers:         make(map[string][]*HelperInfo),
 	}
 
 	// Task 3.8.1: Extract external functions and recursion depth from options using interface

@@ -22,10 +22,6 @@ func (i *Interpreter) TransferHelpersFromSemanticAnalysis(semanticHelpers map[st
 	}
 
 	// Initialize maps if needed
-	if i.helpers == nil {
-		i.helpers = make(map[string][]*HelperInfo)
-	}
-
 	// First pass: Convert all helpers (without parent references)
 	// This ensures all helpers are registered before we try to link parents
 	helperMap := make(map[string]*HelperInfo) // Map from helper name to runtime info
@@ -48,11 +44,7 @@ func (i *Interpreter) TransferHelpersFromSemanticAnalysis(semanticHelpers map[st
 			// Store in map for parent resolution
 			helperMap[ident.Normalize(semanticHelper.Name)] = runtimeHelper
 
-			// Register in legacy map (case-insensitive key)
-			norm := ident.Normalize(typeName)
-			i.helpers[norm] = append(i.helpers[norm], runtimeHelper)
-
-			// Also register in TypeSystem for evaluator access
+			// Register in TypeSystem
 			if i.typeSystem != nil {
 				i.typeSystem.RegisterHelper(typeName, runtimeHelper)
 			}

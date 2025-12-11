@@ -63,10 +63,10 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 
 		// Look up the parent helper by searching all registered helpers
 		var foundParent *HelperInfo
-		for _, helpers := range i.helpers {
+		for _, helpers := range i.typeSystem.AllHelpers() {
 			for _, helper := range helpers {
-				if ident.Equal(helper.Name, parentHelperName) {
-					foundParent = helper
+				if hi, ok := helper.(*HelperInfo); ok && ident.Equal(hi.Name, parentHelperName) {
+					foundParent = hi
 					break
 				}
 			}
@@ -187,24 +187,16 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 	}
 
 	// Register the helper
-	if i.helpers == nil {
-		i.helpers = make(map[string][]*HelperInfo)
-	}
-
 	// Get the type name for indexing
 	typeName := ident.Normalize(targetType.String())
 	// Register helper in TypeSystem
 	i.typeSystem.RegisterHelper(typeName, helperInfo)
-	// Also maintain legacy map for backward compatibility during migration
-	i.helpers[typeName] = append(i.helpers[typeName], helperInfo)
 
 	// Also register by simple type name for lookup compatibility
 	simpleTypeName := ident.Normalize(extractSimpleTypeName(targetType.String()))
 	if simpleTypeName != typeName {
 		// Register helper by simple name in TypeSystem
 		i.typeSystem.RegisterHelper(simpleTypeName, helperInfo)
-		// Also maintain legacy map for backward compatibility during migration
-		i.helpers[simpleTypeName] = append(i.helpers[simpleTypeName], helperInfo)
 	}
 
 	// Expose helper name as a type meta value so static access (e.g., TDummy.Hello) resolves
@@ -419,13 +411,7 @@ func (i *Interpreter) evalHelperPropertyWrite(helper *HelperInfo, propInfo *type
 // initArrayHelpers registers built-in helper properties for arrays
 // Array Helper Properties (.High, .Low, .Length)
 func (i *Interpreter) initArrayHelpers() {
-	if i.helpers == nil {
-		i.helpers = make(map[string][]*HelperInfo)
-	}
-
 	register := func(typeName string, helper *HelperInfo) {
-		norm := ident.Normalize(typeName)
-		i.helpers[norm] = append(i.helpers[norm], helper)
 		if i.typeSystem != nil {
 			i.typeSystem.RegisterHelper(typeName, helper)
 		}
@@ -511,13 +497,7 @@ func (i *Interpreter) initArrayHelpers() {
 
 // initIntrinsicHelpers registers built-in helpers for primitive types (Integer, Float, Boolean).
 func (i *Interpreter) initIntrinsicHelpers() {
-	if i.helpers == nil {
-		i.helpers = make(map[string][]*HelperInfo)
-	}
-
 	register := func(typeName string, helper *HelperInfo) {
-		norm := ident.Normalize(typeName)
-		i.helpers[norm] = append(i.helpers[norm], helper)
 		i.typeSystem.RegisterHelper(typeName, helper)
 	}
 
@@ -705,16 +685,11 @@ func (i *Interpreter) initIntrinsicHelpers() {
 	arrayHelper.BuiltinMethods["map"] = "__array_map"
 	arrayHelper.Methods["join"] = nil
 	arrayHelper.BuiltinMethods["join"] = "__array_join"
-	i.helpers["array"] = append(i.helpers["array"], arrayHelper)
 	i.typeSystem.RegisterHelper("array", arrayHelper)
 }
 
 // initEnumHelpers registers built-in helpers for enumerated types.
 func (i *Interpreter) initEnumHelpers() {
-	if i.helpers == nil {
-		i.helpers = make(map[string][]*HelperInfo)
-	}
-
 	// Create a helper for the generic ENUM type
 	enumHelper := NewHelperInfo("__TEnumIntrinsicHelper", nil, false)
 
@@ -746,7 +721,5 @@ func (i *Interpreter) initEnumHelpers() {
 	}
 
 	// Register helper for enum type (generic catch-all)
-	i.helpers["enum"] = append(i.helpers["enum"], enumHelper)
-	// Task 3.8.3: Also register with TypeSystem so evaluator can find enum helpers
 	i.typeSystem.RegisterHelper("enum", enumHelper)
 }
