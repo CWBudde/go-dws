@@ -315,7 +315,9 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 
 	case *ast.MemberAccessExpression:
 		if isCompound {
-			return e.adapter.EvalNode(node)
+			// Task 3.2.11j: Compound member assignment (obj.field += value)
+			// Pattern: Read current value → apply operation → write back
+			return e.evalCompoundMemberAssignment(target, node, ctx)
 		}
 
 		value := e.Eval(node.Value, ctx)
@@ -331,7 +333,9 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 
 	case *ast.IndexExpression:
 		if isCompound {
-			return e.adapter.EvalNode(node)
+			// Task 3.2.11j: Compound index assignment (arr[i] += value)
+			// Pattern: Read current value → apply operation → write back
+			return e.evalCompoundIndexAssignment(target, node, ctx)
 		}
 
 		value := e.Eval(node.Value, ctx)

@@ -385,12 +385,18 @@ then removing the `adapter.EvalNode()` fallback.
     - All tests pass (385 passed, 842 failed baseline unchanged)
     - **Impact**: assignment_helpers.go now has ZERO adapter.EvalNode() calls
 
-  - [ ] **3.2.11j** Migrate compound member/index assignment (~1.5h)
-    - Eliminate fallbacks at visitor_statements.go:318, 334
-    - Compound member: `obj.field += value` → read, operate, write
-    - Compound index: `arr[i] += value` → read, operate, write
-    - Reuse existing member/index read paths, then call evalSimpleAssignmentDirect-style write
-    - Test: Compound operator assignment tests
+  - [x] **3.2.11j** Migrate compound member/index assignment ✅ **DONE** (2025-12-11, ~0.5h actual)
+    - **Goal**: Eliminate fallbacks at visitor_statements.go:318, 334
+    - **Pattern**: Read-modify-write for compound operations
+    - **Implementation**:
+      1. Created `compound_assignments.go` with two helper functions
+      2. `evalCompoundMemberAssignment()`: Read via VisitMemberAccessExpression → apply op → write via evalMemberAssignmentDirect
+      3. `evalCompoundIndexAssignment()`: Read via VisitIndexExpression → apply op → write via evalIndexAssignmentDirect
+    - **Compound member**: `obj.field += value` reads field, applies `+=`, writes back ✅
+    - **Compound index**: `arr[i] += value` reads element, applies `+=`, writes back ✅
+    - **Result**: Eliminated BOTH adapter.EvalNode() calls (2 calls → 0 calls)
+    - All tests pass (385 passed, 842 failed baseline unchanged)
+    - **Impact**: visitor_statements.go now has ZERO adapter.EvalNode() calls
 
   - [ ] **3.2.11k** Migrate object operator overloads (~1h)
     - Eliminate fallback at compound_ops.go:26
