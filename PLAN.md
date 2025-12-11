@@ -36,11 +36,12 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Current State** (as of 2025-12-11):
 
-- Interpreter: 24 fields, 59 switch cases (21 delegated, 38 kept), 421 methods
+- Interpreter: 18 fields, 59 switch cases (21 delegated, 38 kept), 421 methods
 - Evaluator: 24K LOC, 48+ visitor methods, works but requires 65-method adapter
 - Single environment: `i.env` removed, using `ctx.env` only ✅
 - Exception sync: Added callbacks to unify `i.exception` ↔ `ctx.Exception()` ✅
 - Type registries: `helpers` and `globalOperators` migrated to TypeSystem ✅
+- Execution state: `currentNode`, `rand`, `randSeed`, `semanticInfo`, `sourceCode`, `sourceFile` migrated to Evaluator ✅
 - Unit tests pass; fixture tests have pre-existing failures
 
 **Target End State**:
@@ -179,7 +180,7 @@ The following tasks complete the migration by eliminating dual systems.
 
 **Goal**: Reduce Interpreter from 34 fields → 5 fields
 
-**Status**: 🔄 In Progress (3/9 tasks complete) | **Priority**: P1 | **Effort**: 2-3 days | **Progress**: 26 → 24 fields (-2)
+**Status**: 🔄 In Progress (4/9 tasks complete) | **Priority**: P1 | **Effort**: 2-3 days | **Progress**: 26 → 18 fields (-8)
 
 ### Current Interpreter Fields (34 total)
 
@@ -238,12 +239,15 @@ From `interpreter.go:41-75`:
   - Removed fields from Interpreter struct (26 → 24 fields)
   - **Commit**: `29bc633f` - refactor(task-3.3-phase-b): migrate helpers & globalOperators to TypeSystem
 
-- [ ] **3.3.4** Move execution state to Evaluator (3h)
-  - `currentNode` → already in Evaluator (verify, delete from Interpreter)
-  - `rand`, `randSeed` → add to Evaluator, update `Randomize()`, `Random()`
-  - `semanticInfo` → add to Evaluator or pass via context
-  - `sourceCode`, `sourceFile` → add to Evaluator
-  - For each: update all usages, run tests
+- [x] **3.3.4** Move execution state to Evaluator (3h) ✅ **COMPLETE** (2025-12-11)
+  - Migrated 6 fields: `currentNode`, `rand`, `randSeed`, `semanticInfo`, `sourceCode`, `sourceFile`
+  - Updated 129 usages across 15 files
+  - `currentNode` → `evaluator.CurrentNode()` / `SetCurrentNode()` (98 uses)
+  - `rand`, `randSeed` → `evaluator.Random()` / `RandomSeed()` / `SetRandomSeed()` (4 uses)
+  - `semanticInfo` → `evaluator.SemanticInfo()` / `SetSemanticInfo()` (21 uses)
+  - `sourceCode`, `sourceFile` → `evaluator.SourceCode()` / `SourceFile()` via Config (7 uses)
+  - Removed fields from Interpreter struct (24 → 18 fields)
+  - **Commit**: `0d737ba5` - refactor(task-3.3.4): migrate execution state fields to Evaluator
 
 - [ ] **3.3.5** Move unit system to Evaluator (2h)
   - `unitRegistry` → Evaluator.unitRegistry
@@ -597,12 +601,12 @@ Before marking Phase 3 complete, verify all goals from original plan:
 
 | Metric | Before | Target | Actual |
 |--------|--------|--------|--------|
-| Interpreter fields | 34 | 5 | 24 (in progress) |
+| Interpreter fields | 34 | 5 | 18 (in progress, -47% from start) |
 | Eval() switch cases | 59 | 0 | 59 (38 remain, blocked) |
 | Adapter methods | 65 | ~61 (4 interfaces) | 65 (planned) |
 | Dual environments | 2 | 1 | ✅ 1 (complete) |
 | EvalNode calls | 28 | <20 | ✅ 0 (complete) |
-| LOC deleted | 0 | 3,000+ | ~2,400 (in progress) |
+| LOC deleted | 0 | 3,000+ | ~2,550 (in progress) |
 | env_adapter.go | 137 LOC | 0 | ✅ 0 (complete) |
 | Test pass rate | 100% unit | 100% unit | ✅ 100% |
 | Performance | baseline | no regression | ✅ No regression |
