@@ -43,6 +43,400 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Key Docs**: [environment-audit.md](docs/environment-audit.md), [phase-3.2-summary.md](docs/phase-3.2-summary.md), [adapter-method-audit.md](docs/adapter-method-audit.md)
 
+**Honest Assessment**: Phase 3 achieved foundation work (environment unification, interface extraction) but did not achieve the stated goal of a "thin coordinator". Interpreter still has 434 methods and 59 switch cases. Evaluator added 341 methods. See Phase 4 for completing the migration.
+
+---
+
+## Phase 4: Complete Interpreter Simplification
+
+**Goal**: Achieve the original Phase 3 target: thin Interpreter (5 fields, ~20 methods), single dispatch point in Evaluator, no state duplication.
+
+**Status**: 📋 Planned | **Priority**: P1 | **Estimated**: 4-6 weeks
+
+**Current State** (Post-Phase 3):
+
+| Component | Fields | Methods | Switch Cases | LOC |
+|-----------|--------|---------|--------------|-----|
+| Interpreter | 14 | 434 | 59 | 24,744 |
+| Evaluator | 17 | 341 | ~60 | 19,096 |
+| **Total** | 31 | 775 | ~119 | 43,840 |
+
+**Target State**:
+
+| Component | Fields | Methods | Switch Cases | LOC |
+|-----------|--------|---------|--------------|-----|
+| Interpreter | 5 | ~20 | 0 | ~500 |
+| Evaluator | 15 | ~500 | 60 | ~30,000 |
+| **Total** | 20 | ~520 | 60 | ~30,500 |
+
+**Key Issues to Resolve**:
+
+1. Interpreter.Eval() has 59-case switch (should be 0)
+2. 101 callback calls from Evaluator→Interpreter via focused interfaces
+3. State duplication: handlerException, propContext, callStack, oldValuesStack in both Interpreter AND ExecutionContext
+4. 2,433 LOC of adapter_*.go files still exist
+
+---
+
+### 4.1 Unify Eval() Dispatch (Single Entry Point)
+
+**Goal**: Move all 59 switch cases from Interpreter.Eval() to Evaluator.Eval()
+
+**Status**: 📋 Planned | **Effort**: 1 week | **Risk**: Medium
+
+**Current Flow**:
+
+```text
+User → Interpreter.Eval() [59-case switch] → some cases → Evaluator.Eval() [60-case switch]
+```
+
+**Target Flow**:
+
+```text
+User → Interpreter.Eval() → Evaluator.Eval() [60-case switch] → done
+```
+
+**Tasks**:
+
+- [ ] **4.1.1** Audit remaining 38 Interpreter switch cases (2h)
+  - List each case and its dependencies (state, registries, callbacks)
+  - Categorize by migration difficulty: Easy/Medium/Hard
+  - Identify state dependencies blocking migration
+
+- [ ] **4.1.2** Move statement cases to Evaluator (8h)
+  - VarDeclStatement, ConstDecl, BlockStatement
+  - IfStatement, WhileStatement, RepeatStatement, ForStatement, ForInStatement
+  - CaseStatement, TryStatement, RaiseStatement
+  - BreakStatement, ContinueStatement, ExitStatement, ReturnStatement
+  - Requires: control flow state in ExecutionContext (done)
+
+- [ ] **4.1.3** Move declaration cases to Evaluator (8h)
+  - FunctionDecl, ClassDeclaration, InterfaceDeclaration
+  - RecordDeclaration, EnumDeclaration, HelperDeclaration
+  - Requires: type registries accessible from Evaluator
+
+- [ ] **4.1.4** Move remaining expression cases to Evaluator (4h)
+  - Any expressions still handled by Interpreter
+  - Should be minimal after Phase 3.2
+
+- [ ] **4.1.5** Delete Interpreter.Eval() switch (2h)
+  - Replace with single delegation: `return i.evaluator.Eval(node, ctx)`
+  - Update all direct Interpreter.Eval() callers
+
+- [ ] **4.1.6** Verify and test (2h)
+  - All unit tests pass
+  - No new fixture test failures
+  - Measure: Interpreter switch cases = 0
+
+**Success Criteria**:
+
+- ✅ Interpreter.Eval() has no switch statement
+- ✅ Single dispatch point in Evaluator.Eval()
+- ✅ All tests pass
+
+---
+
+### 4.2 Eliminate State Duplication
+
+**Goal**: Single owner for all runtime state (ExecutionContext)
+
+**Status**: 📋 Planned | **Effort**: 1 week | **Risk**: Medium
+
+**Current Duplicated State**:
+
+| Field | Interpreter | ExecutionContext | Owner Should Be |
+|-------|-------------|------------------|-----------------|
+| handlerException | ✅ | ✅ | ExecutionContext |
+| propContext | ✅ | ✅ | ExecutionContext |
+| callStack | ✅ | ✅ | ExecutionContext |
+| oldValuesStack | ✅ | ✅ | ExecutionContext |
+
+**Tasks**:
+
+- [ ] **4.2.1** Audit state usage patterns (3h)
+  - For each duplicated field, count usages in Interpreter vs ExecutionContext
+  - Identify which component actually "owns" each field
+  - Document sync patterns (if any)
+
+- [ ] **4.2.2** Migrate handlerException to ExecutionContext (4h)
+  - Move field ownership to ExecutionContext
+  - Update Interpreter to use ctx.HandlerException()
+  - Update all 5 usages in exceptions.go
+
+- [ ] **4.2.3** Migrate propContext to ExecutionContext (4h)
+  - Move field ownership to ExecutionContext
+  - Update Interpreter to use ctx.PropContext()
+  - Update all 28 usages
+
+- [ ] **4.2.4** Verify callStack ownership (2h)
+  - ExecutionContext already has CallStack
+  - Remove Interpreter.callStack field
+  - Update Interpreter to use ctx.CallStack()
+
+- [ ] **4.2.5** Verify oldValuesStack ownership (2h)
+  - ExecutionContext already has oldValuesStack
+  - Remove Interpreter.oldValuesStack field
+  - Update 2 usages
+
+- [ ] **4.2.6** Delete Interpreter.ctx proxy field (1h)
+  - Interpreter should not hold ctx directly
+  - Pass ctx through method parameters
+
+- [ ] **4.2.7** Verify no duplicate state (1h)
+  - `grep` for duplicated field names
+  - Confirm single owner for each piece of state
+
+**Success Criteria**:
+
+- ✅ Each state field has exactly one owner
+- ✅ No sync logic between Interpreter and ExecutionContext
+- ✅ Interpreter fields reduced from 14 to 9
+
+---
+
+### 4.3 Move OOP Implementation to Evaluator
+
+**Goal**: Eliminate OOPEngine callbacks, make Evaluator self-sufficient for method dispatch
+
+**Status**: 📋 Planned | **Effort**: 2 weeks | **Risk**: High
+
+**Current State**: 36 OOPEngine callback calls from Evaluator to Interpreter
+
+**Problem**: Every method call requires:
+
+```text
+Evaluator → OOPEngine.CallMethod() → Interpreter.CallMethod() → back to Evaluator
+```
+
+**Target**: Method dispatch happens entirely in Evaluator
+
+**Tasks**:
+
+- [ ] **4.3.1** Audit OOPEngine methods by usage (4h)
+  - Count callers for each of 20 OOPEngine methods
+  - Identify high-traffic methods (ExecuteMethodWithSelf: 10 calls, CallMethod: 2)
+  - Plan migration order: high-usage first
+
+- [ ] **4.3.2** Move method dispatch to Evaluator (12h)
+  - Migrate CallMethod, CallInheritedMethod, ExecuteMethodWithSelf
+  - Requires: ClassInfo, MethodDecl accessible from Evaluator
+  - Requires: TypeSystem accessible from Evaluator (already done)
+
+- [ ] **4.3.3** Move constructor execution to Evaluator (8h)
+  - Migrate ExecuteConstructor
+  - Requires: class metadata lookup from TypeSystem
+
+- [ ] **4.3.4** Move function pointer calls to Evaluator (6h)
+  - Migrate CallFunctionPointer, CallUserFunction, ExecuteFunctionPointerCall
+  - Migrate CreateBoundMethodPointer
+
+- [ ] **4.3.5** Move type operations to Evaluator (4h)
+  - Migrate CreateTypeCastWrapper, WrapInSubrange, WrapInInterface
+
+- [ ] **4.3.6** Move operator overloading to Evaluator (4h)
+  - Migrate TryBinaryOperator, TryUnaryOperator
+  - Requires: operator registry accessible from Evaluator
+
+- [ ] **4.3.7** Delete OOPEngine interface (2h)
+  - Remove oopEngine field from Evaluator
+  - Remove SetFocusedInterfaces() OOPEngine parameter
+  - Update interpreter.go
+
+- [ ] **4.3.8** Delete adapter_methods.go (1h)
+  - Move remaining logic to Evaluator
+  - Delete 547 LOC file
+
+**Success Criteria**:
+
+- ✅ OOPEngine interface deleted
+- ✅ 0 OOPEngine callback calls
+- ✅ Method dispatch entirely in Evaluator
+
+---
+
+### 4.4 Move Declaration Handling to Evaluator
+
+**Goal**: Eliminate DeclHandler callbacks
+
+**Status**: 📋 Planned | **Effort**: 1.5 weeks | **Risk**: High
+
+**Current State**: 41 DeclHandler callback calls from Evaluator to Interpreter
+
+**Tasks**:
+
+- [ ] **4.4.1** Audit DeclHandler methods (3h)
+  - 38 methods, all single-caller in visitor_declarations.go
+  - Group by: class (21), interface (7), helper (9), misc (1)
+
+- [ ] **4.4.2** Move class declaration to Evaluator (12h)
+  - Migrate 21 class-related methods
+  - Move ClassInfo creation/management to Evaluator or TypeSystem
+  - Requires: ClassRegistry accessible from Evaluator
+
+- [ ] **4.4.3** Move interface declaration to Evaluator (6h)
+  - Migrate 7 interface-related methods
+  - Move InterfaceInfo to TypeSystem
+
+- [ ] **4.4.4** Move helper declaration to Evaluator (6h)
+  - Migrate 9 helper-related methods
+  - Helpers already in TypeSystem
+
+- [ ] **4.4.5** Delete DeclHandler interface (2h)
+  - Remove declHandler field from Evaluator
+  - Update SetFocusedInterfaces()
+
+- [ ] **4.4.6** Delete adapter_types.go (1h)
+  - Move remaining logic to Evaluator
+  - Delete 777 LOC file
+
+**Success Criteria**:
+
+- ✅ DeclHandler interface deleted
+- ✅ 0 DeclHandler callback calls
+- ✅ Type declarations handled entirely in Evaluator
+
+---
+
+### 4.5 Move Exception Handling to Evaluator
+
+**Goal**: Eliminate ExceptionManager callbacks
+
+**Status**: 📋 Planned | **Effort**: 3 days | **Risk**: Low
+
+**Current State**: 6 ExceptionManager callback calls
+
+**Tasks**:
+
+- [ ] **4.5.1** Move exception creation to Evaluator (4h)
+  - CreateExceptionDirect, WrapObjectInException
+  - Requires: ExceptionValue creation in runtime package
+
+- [ ] **4.5.2** Move contract exceptions to Evaluator (2h)
+  - CreateContractException
+  - Used for require/ensure/invariant
+
+- [ ] **4.5.3** Move runtime exceptions to Evaluator (2h)
+  - RaiseTypeCastException, RaiseAssertionFailed
+
+- [ ] **4.5.4** Move cleanup to Evaluator (2h)
+  - CleanupInterfaceReferences
+
+- [ ] **4.5.5** Delete ExceptionManager interface (1h)
+
+**Success Criteria**:
+
+- ✅ ExceptionManager interface deleted
+- ✅ Exception handling self-contained in Evaluator
+
+---
+
+### 4.6 Eliminate CoreEvaluator and Remaining Adapters
+
+**Goal**: Delete all adapter indirection
+
+**Status**: 📋 Planned | **Effort**: 1 week | **Risk**: Medium
+
+**Current State**: 18 CoreEvaluator callback calls, 2,433 LOC adapter files
+
+**Tasks**:
+
+- [ ] **4.6.1** Eliminate EvalNode callbacks (8h)
+  - Currently 6 uses of EvalNode fallback
+  - Each callback is a failure to migrate logic to Evaluator
+  - Move remaining OOP operations to Evaluator
+
+- [ ] **4.6.2** Move EvalBuiltinHelperProperty to Evaluator (4h)
+  - 4 uses in helper_methods.go
+  - Move built-in helper logic (Length, Low, High) to Evaluator
+
+- [ ] **4.6.3** Move class property operations to Evaluator (4h)
+  - EvalClassPropertyRead, EvalClassPropertyWrite
+  - 1 use each in property_read.go, property_write.go
+
+- [ ] **4.6.4** Delete CoreEvaluator interface (1h)
+
+- [ ] **4.6.5** Delete remaining adapter files (4h)
+  - adapter_functions.go (337 LOC)
+  - adapter_objects.go (345 LOC)
+  - adapter_operators.go (130 LOC)
+  - adapter_references.go (225 LOC)
+  - adapter_values.go (72 LOC)
+  - Move any surviving logic to Evaluator
+
+- [ ] **4.6.6** Update Interpreter to be thin facade (2h)
+  - Remove SetFocusedInterfaces() entirely
+  - Interpreter only holds: evaluator, config, output, typeSystem, exception
+
+**Success Criteria**:
+
+- ✅ All 4 focused interfaces deleted
+- ✅ All adapter_*.go files deleted (-2,433 LOC)
+- ✅ 0 callback calls from Evaluator to Interpreter
+
+---
+
+### 4.7 Final Cleanup and Verification
+
+**Goal**: Verify architecture meets targets
+
+**Status**: 📋 Planned | **Effort**: 3 days | **Risk**: Low
+
+**Tasks**:
+
+- [ ] **4.7.1** Move remaining Interpreter methods to Evaluator (8h)
+  - Target: Interpreter has ~20 public API methods only
+  - Move 400+ methods to Evaluator or delete dead code
+
+- [ ] **4.7.2** Reduce Interpreter to 5 fields (2h)
+  - evaluator, config, output, typeSystem, exception
+  - Delete: classes, records, functions, methodRegistry, etc.
+
+- [ ] **4.7.3** Measure final metrics (2h)
+  - Interpreter: fields, methods, switch cases, LOC
+  - Evaluator: fields, methods, switch cases, LOC
+  - Callback count: should be 0
+
+- [ ] **4.7.4** Run full test suite (2h)
+  - All unit tests pass
+  - No new fixture test failures
+  - Performance benchmarks (no regression)
+
+- [ ] **4.7.5** Update documentation (2h)
+  - CLAUDE.md: accurate architecture description
+  - AGENTS.md: accurate architecture description
+  - Create docs/phase4-summary.md
+
+**Success Criteria**:
+
+| Metric | Phase 3 End | Phase 4 Target | Verified |
+|--------|-------------|----------------|----------|
+| Interpreter fields | 14 | 5 | ☐ |
+| Interpreter methods | 434 | ~20 | ☐ |
+| Interpreter switch cases | 59 | 0 | ☐ |
+| Evaluator methods | 341 | ~500 | ☐ |
+| Callback interfaces | 4 | 0 | ☐ |
+| Callback calls | 101 | 0 | ☐ |
+| adapter_*.go LOC | 2,433 | 0 | ☐ |
+| State duplication | 4 fields | 0 | ☐ |
+
+---
+
+### Phase 4 Effort Summary
+
+| Task | Effort | Dependencies |
+|------|--------|--------------|
+| 4.1 Unify Eval() Dispatch | 1 week | None |
+| 4.2 Eliminate State Duplication | 1 week | 4.1 |
+| 4.3 Move OOP to Evaluator | 2 weeks | 4.1, 4.2 |
+| 4.4 Move Declarations to Evaluator | 1.5 weeks | 4.1, 4.2 |
+| 4.5 Move Exceptions to Evaluator | 3 days | 4.1 |
+| 4.6 Delete Adapters | 1 week | 4.3, 4.4, 4.5 |
+| 4.7 Final Cleanup | 3 days | 4.6 |
+
+**Total Estimated Effort**: 6-8 weeks
+
+**Recommended Order**: 4.1 → 4.2 → 4.5 → 4.3 → 4.4 → 4.6 → 4.7
+
 ---
 
 ## Task 6.1.2: Implement Multi-Pass Analysis Architecture 🎯 **HIGH PRIORITY**
