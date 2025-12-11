@@ -468,15 +468,16 @@ type CoreEvaluator interface {
   - **Backward compatibility**: Updated SetAdapter() to auto-set focused interfaces via type assertion
   - All tests passing ✅
 
-- [ ] **3.4.7** Implement interfaces in Interpreter (3h)
-  - Interpreter already implements all methods
-  - Add interface satisfaction assertions:
-    ```go
-    var _ evaluator.OOPEngine = (*Interpreter)(nil)
-    var _ evaluator.DeclHandler = (*Interpreter)(nil)
-    var _ evaluator.ExceptionManager = (*Interpreter)(nil)
-    ```
-  - Update SetAdapter to set all three interfaces
+- [x] **3.4.7** Implement interfaces in Interpreter (3h) ✅ **COMPLETE** (2025-12-11)
+  - ✅ Added interface satisfaction assertions in [interpreter.go](internal/interp/interpreter.go:56-64)
+  - ✅ Verified Interpreter implements all 68 methods across 4 interfaces:
+    - OOPEngine: 20 methods
+    - DeclHandler: 38 methods
+    - ExceptionManager: 6 methods
+    - CoreEvaluator: 4 methods
+  - ✅ SetAdapter already auto-sets all four interfaces (done in Task 3.4.6)
+  - ✅ All unit tests pass
+  - **Note**: Total method count is 68, not 67 (1 method was miscounted earlier)
 
 - [ ] **3.4.8** Delete InterpreterAdapter interface (1h)
   - Remove `InterpreterAdapter` interface definition

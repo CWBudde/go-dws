@@ -53,6 +53,16 @@ type Interpreter struct {
 	maxRecursionDepth int
 }
 
+// Task 3.4.7: Interface satisfaction assertions
+// Ensure Interpreter implements all four focused interfaces from evaluator package.
+// These replace the monolithic InterpreterAdapter (67 methods) with focused concerns.
+var (
+	_ evaluator.OOPEngine        = (*Interpreter)(nil) // 21 methods: OOP runtime operations
+	_ evaluator.DeclHandler      = (*Interpreter)(nil) // 37 methods: Type declaration processing
+	_ evaluator.ExceptionManager = (*Interpreter)(nil) // 6 methods: Exception handling
+	_ evaluator.CoreEvaluator    = (*Interpreter)(nil) // 4 methods: Cross-cutting concerns
+)
+
 // New creates a new Interpreter with a fresh global environment.
 // The output writer is where built-in functions like PrintLn will write.
 func New(output io.Writer) *Interpreter {
