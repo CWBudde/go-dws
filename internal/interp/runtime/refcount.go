@@ -5,7 +5,6 @@ import (
 )
 
 // RefCountManager manages object and interface reference counting.
-// Task 3.5.39-3.5.40: Moves reference counting from interpreter to runtime.
 //
 // This interface allows the evaluator to manage object lifecycles without
 // importing the interpreter package. Destructor invocation uses a callback
@@ -61,7 +60,6 @@ type RefCountManager interface {
 }
 
 // DestructorCallback is invoked when an object's reference count reaches 0.
-// Task 3.5.39-3.5.40: Callback pattern avoids runtime importing interpreter.
 //
 // The callback receives the object and should:
 //  1. Check if obj.Destroyed is true (skip if already destroyed)
@@ -70,8 +68,6 @@ type RefCountManager interface {
 //  4. Execute the destructor method
 //  5. Reset obj.RefCount = 0 after completion
 //  6. Return any error from execution
-//
-// The interpreter will provide this callback during initialization.
 type DestructorCallback func(obj *ObjectInstance) error
 
 // defaultRefCountManager implements RefCountManager with callback-based destructors.

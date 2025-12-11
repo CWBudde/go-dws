@@ -171,7 +171,7 @@ func (m *mockContext) GetJSONVarType(value Value) (int64, bool) {
 	return 0, false
 }
 
-// Task 3.7.7 Context methods for array and collection functions
+// GetBuiltinArrayLength returns the length of an array value.
 func (m *mockContext) GetBuiltinArrayLength(value Value) (int64, bool) {
 	// Return actual length for runtime.ArrayValue so array-related tests behave realistically
 	if arr, ok := value.(*runtime.ArrayValue); ok {
@@ -205,7 +205,7 @@ func (m *mockContext) EvalFunctionPointer(funcPtr Value, args []Value) Value {
 	return &runtime.NilValue{}
 }
 
-// Task 3.7.8 Context methods for system functions
+// GetCallStackString returns the call stack as a formatted string.
 func (m *mockContext) GetCallStackString() string {
 	// Simple mock - return empty string for testing
 	return ""
@@ -322,7 +322,7 @@ func (m *mockContext) FormatString(format string, args []Value) (string, error) 
 	return fmt.Sprintf(format, goArgs...), nil
 }
 
-// Task 3.7.9 Context methods for polymorphic functions
+// GetLowBound returns the low bound of a value.
 func (m *mockContext) GetLowBound(value Value) (Value, error) {
 	// Simple mock - return 0 for testing
 	return &runtime.IntegerValue{Value: 0}, nil

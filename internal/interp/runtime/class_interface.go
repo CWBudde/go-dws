@@ -171,7 +171,7 @@ type IInterfaceInfo interface {
 	AllProperties() map[string]*PropertyInfo
 }
 
-// InterfaceInfo is a legacy type alias maintained for backward compatibility.
-// New code should use IInterfaceInfo.
-// TODO: Remove this alias after all code is migrated to use IInterfaceInfo.
+// InterfaceInfo is a type alias providing Go-idiomatic naming.
+// Both names are valid: InterfaceInfo (Go style) and IInterfaceInfo (Delphi style).
+// The alias is intentional and will be kept for compatibility and readability.
 type InterfaceInfo = IInterfaceInfo

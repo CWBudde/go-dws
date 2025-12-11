@@ -749,7 +749,6 @@ func (i *Interpreter) EvalBuiltinHelperProperty(propSpec string, selfValue evalu
 // ===== Class Property Adapter =====
 
 // EvalClassPropertyRead evaluates a class property read operation.
-// Task 3.2.10: Added for CLASS/CLASSINFO member access.
 func (i *Interpreter) EvalClassPropertyRead(classInfoAny any, propInfoAny any, node ast.Node) evaluator.Value {
 	classInfo, ok := classInfoAny.(*ClassInfo)
 	if !ok {
@@ -763,7 +762,6 @@ func (i *Interpreter) EvalClassPropertyRead(classInfoAny any, propInfoAny any, n
 }
 
 // EvalClassPropertyWrite evaluates a class property write operation.
-// Task 3.2.11b: Added for CLASS/CLASSINFO member assignment.
 func (i *Interpreter) EvalClassPropertyWrite(classInfoAny any, propInfoAny any, value evaluator.Value, node ast.Node) evaluator.Value {
 	classInfo, ok := classInfoAny.(*ClassInfo)
 	if !ok {

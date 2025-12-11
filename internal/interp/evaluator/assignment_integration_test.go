@@ -39,9 +39,9 @@ func (m *mockIntegrationAdapter) TryBinaryOperator(operator string, left, right 
 	return m.mockConversionAdapter.TryBinaryOperator(operator, left, right, node)
 }
 
-// TestAssignment_Integration_Task3211 is a comprehensive integration test for task 3.2.11
-// that verifies all assignment migration subtasks work together correctly.
-func TestAssignment_Integration_Task3211(t *testing.T) {
+// TestAssignmentIntegration is a comprehensive integration test that verifies
+// all assignment types work correctly without circular adapter callbacks.
+func TestAssignmentIntegration(t *testing.T) {
 	t.Run("all assignment types without adapter.EvalNode calls", func(t *testing.T) {
 		// Setup
 		typeSystem := interptypes.NewTypeSystem()
@@ -78,7 +78,7 @@ func TestAssignment_Integration_Task3211(t *testing.T) {
 
 		ctx := NewExecutionContext(runtime.NewEnvironment())
 
-		// Test 3.2.11b: Static class assignment
+		// Static class variable assignment
 		t.Run("static_class_variable_assignment", func(t *testing.T) {
 			// Define a mock class with class variable
 			mockClass := &MockClassMetaValue{Name: "TMyClass"}
@@ -105,7 +105,7 @@ func TestAssignment_Integration_Task3211(t *testing.T) {
 			// Test passes if no panic from circular callback
 		})
 
-		// Test 3.2.11c: Nil auto-initialization
+		// Nil auto-initialization
 		t.Run("nil_record_array_auto_init", func(t *testing.T) {
 			recordType := &types.RecordType{
 				Name: "TPoint",
@@ -144,10 +144,9 @@ func TestAssignment_Integration_Task3211(t *testing.T) {
 			}
 		})
 
-		// Test 3.2.11d: Record property setters
-		// Skipped - requires complex mock infrastructure, tested via fixtures
+		// Record property setters - skipped (requires complex mock infrastructure, tested via fixtures)
 
-		// Test 3.2.11e: CLASS/CLASSINFO assignment errors
+		// CLASS/CLASSINFO assignment errors
 		t.Run("classinfo_assignment_error", func(t *testing.T) {
 			mockClass := &MockClassMetaValue{Name: "TMyClass"}
 			e.DefineVar(ctx, "TMyClass", mockClass)
@@ -172,16 +171,11 @@ func TestAssignment_Integration_Task3211(t *testing.T) {
 			}
 		})
 
-		// Test 3.2.11g: Indexed property assignment
-		// Skipped - requires PropertyAccessor mock, tested via fixtures
+		// Indexed property assignment - skipped (requires PropertyAccessor mock, tested via fixtures)
+		// Default property assignment - skipped (requires PropertyAccessor mock, tested via fixtures)
+		// Implicit Self assignment - skipped (requires Self context setup, tested via fixtures)
 
-		// Test 3.2.11h: Default property assignment
-		// Skipped - requires PropertyAccessor mock, tested via fixtures
-
-		// Test 3.2.11i: Implicit Self assignment
-		// Skipped - requires Self context setup, tested via fixtures
-
-		// Test 3.2.11j: Compound member assignment
+		// Compound member assignment
 		t.Run("compound_member_assignment", func(t *testing.T) {
 			// Create a record with a field
 			recordType := &types.RecordType{
@@ -225,7 +219,7 @@ func TestAssignment_Integration_Task3211(t *testing.T) {
 			}
 		})
 
-		// Test 3.2.11j: Compound index assignment
+		// Compound index assignment
 		t.Run("compound_index_assignment", func(t *testing.T) {
 			// Create array [1, 2, 3]
 			arrayVal := &runtime.ArrayValue{
@@ -264,8 +258,7 @@ func TestAssignment_Integration_Task3211(t *testing.T) {
 			}
 		})
 
-		// Test 3.2.11k: Object operator overloads
-		// Tested via tryBinaryOperatorFunc mock above - if it's called, test passes
+		// Object operator overloads - tested via tryBinaryOperatorFunc mock above
 	})
 }
 

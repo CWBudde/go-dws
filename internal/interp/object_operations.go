@@ -284,11 +284,6 @@ func (i *Interpreter) CastToClass(val evaluator.Value, className string, node as
 	return i.castToClass(internalVal, classInfo, node)
 }
 
-// GetObjectInstanceFromValue extracts ObjectInstance from a Value.
-// Returns the ObjectInstance interface{} if the value is an ObjectInstance, nil otherwise.
-// Task 3.5.29: GetObjectInstanceFromValue REMOVED - use ObjectValue interface type assertion
-// Replacement: if _, ok := val.(evaluator.ObjectValue); ok { ... }
-
 // CreateTypeCastWrapper creates a TypeCastValue wrapper.
 // Returns the TypeCastValue wrapper or nil if class not found.
 func (i *Interpreter) CreateTypeCastWrapper(className string, obj evaluator.Value) evaluator.Value {

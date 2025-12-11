@@ -623,31 +623,29 @@ Evaluator → OOPEngine.CallMethod() → Interpreter.CallMethod() → back to Ev
 
 ---
 
-### 5.2 Incomplete Migration Tasks
+### 5.2 Incomplete Migration Tasks ✅ REVIEWED - DEFERRED TO PHASE 4
 
 **Goal**: Complete Phase 3 migration leftovers.
 
-**Status**: 📋 Planned | **Effort**: 2-3 days | **Risk**: Low
+**Status**: ✅ Reviewed | **Result**: All items belong in Phase 4, not Phase 5
 
-**Current Issues**:
+**Assessment**:
 
-- `evaluator/visitor_expressions_functions.go:388`: External function handling not fully in evaluator
-- `runtime/class_interface.go:176`: Legacy `IInterfaceInfo` alias still exists
-- `class.go:310`: Method lookup returns AST instead of callable
+- [x] **5.2.1** `visitor_expressions_functions.go:388` - External function handling
+  - **Decision**: DEFER to Phase 4.3 (Move OOP to Handlers)
+  - Requires moving `Interpreter.CallExternalFunction()` and external function registry
+  - This is callback elimination work, not simple cleanup
 
-**Tasks**:
+- [x] **5.2.2** `runtime/class_interface.go:176` - `InterfaceInfo` type alias
+  - **Decision**: NO ACTION NEEDED - alias is correct as-is
+  - The alias `InterfaceInfo = IInterfaceInfo` provides Go-idiomatic naming
+  - 66 usages of `InterfaceInfo` vs 21 of `IInterfaceInfo` - keeping the alias is right
+  - Updated TODO comment to reflect this
 
-- [ ] **5.2.1** Complete external function migration to evaluator (4h)
-  - Move remaining external function handling from interpreter
-  - Update `visitor_expressions_functions.go`
-
-- [ ] **5.2.2** Remove IInterfaceInfo type alias (2h)
-  - Update all usages to use the canonical type
-  - Delete the alias
-
-- [ ] **5.2.3** Evaluate method lookup return type (2h)
-  - Determine if returning callable vs AST is feasible
-  - Document decision or implement change
+- [x] **5.2.3** `class.go:310` - Method lookup returns AST
+  - **Decision**: DEFER to Phase 4.3 (Move OOP to Handlers)
+  - Requires completing method registry migration
+  - Part of the broader "return callable instead of AST" initiative
 
 ---
 
