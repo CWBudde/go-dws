@@ -153,7 +153,7 @@ func (e *Evaluator) executePropertyGetterMethod(obj Value, objVal ObjectValue, p
 		}
 
 		// Execute the method with Self bound and index args via adapter
-		return e.adapter.ExecuteMethodWithSelf(obj, methodDecl, indexArgs)
+		return e.oopEngine.ExecuteMethodWithSelf(obj, methodDecl, indexArgs)
 	})
 
 	if invoked {
@@ -317,5 +317,5 @@ func (e *Evaluator) executeIndexedPropertyGetterMethod(obj Value, objVal ObjectV
 
 	// Execute the method with Self bound and index arguments via adapter
 	// The adapter's ExecuteMethodWithSelf handles environment setup, Self binding, etc.
-	return e.adapter.ExecuteMethodWithSelf(obj, methodDecl, indices)
+	return e.oopEngine.ExecuteMethodWithSelf(obj, methodDecl, indices)
 }

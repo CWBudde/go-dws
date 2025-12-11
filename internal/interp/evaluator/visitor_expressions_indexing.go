@@ -115,7 +115,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 						return e.newError(node, "internal error: RECORD value does not implement RecordInstanceValue interface")
 					}
 					return recVal.ReadIndexedProperty(propDesc.Impl, indexVals, func(pi any, idx []Value) Value {
-						return e.adapter.ExecuteRecordPropertyRead(objVal, pi, idx, node)
+						return e.oopEngine.ExecuteRecordPropertyRead(objVal, pi, idx, node)
 					})
 				}
 			}
@@ -222,7 +222,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 					return e.newError(node, "internal error: RECORD value does not implement RecordInstanceValue interface")
 				}
 				return recVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
-					return e.adapter.ExecuteRecordPropertyRead(leftVal, pi, idx, node)
+					return e.oopEngine.ExecuteRecordPropertyRead(leftVal, pi, idx, node)
 				})
 			}
 		}

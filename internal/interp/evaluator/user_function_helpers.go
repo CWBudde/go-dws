@@ -440,7 +440,7 @@ func (e *Evaluator) ExecuteUserFunction(
 	// We use EvalNode instead of e.Eval because the evaluator doesn't fully support
 	// all language features yet (e.g., class constructor calls like TClass.Create).
 	// The adapter's EvalNode delegates to the interpreter's Eval which has full support.
-	_ = e.adapter.EvalNode(fn.Body)
+	_ = e.coreEvaluator.EvalNode(fn.Body)
 
 	// Restore interpreter's environment after body execution
 	if restoreEnv != nil {

@@ -615,7 +615,7 @@ func (e *Evaluator) RaiseAssertionFailed(customMessage string) {
 	// Delegate to the adapter since exception handling is still in the Interpreter.
 	// The adapter will create the EAssertionFailed exception instance with proper
 	// position information and custom message, then store it in i.exception.
-	e.adapter.RaiseAssertionFailed(customMessage)
+	e.exceptionMgr.RaiseAssertionFailed(customMessage)
 }
 
 // ============================================================================
@@ -631,5 +631,5 @@ func (e *Evaluator) RaiseAssertionFailed(customMessage string) {
 // CallFunctionPointer method.
 func (e *Evaluator) EvalFunctionPointer(funcPtr Value, args []Value) Value {
 	// Delegate to adapter.CallFunctionPointer with current node for error reporting
-	return e.adapter.CallFunctionPointer(funcPtr, args, e.currentNode)
+	return e.oopEngine.CallFunctionPointer(funcPtr, args, e.currentNode)
 }

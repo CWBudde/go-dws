@@ -95,13 +95,13 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			if objVal, ok := selfVal.(ObjectValue); ok && objVal.HasMethod(node.Value) {
 				// Use InvokeParameterlessMethod with callback pattern
 				if result, invoked := objVal.InvokeParameterlessMethod(node.Value, func(methodDecl any) Value {
-					return e.adapter.ExecuteMethodWithSelf(selfVal, methodDecl, []Value{})
+					return e.oopEngine.ExecuteMethodWithSelf(selfVal, methodDecl, []Value{})
 				}); invoked {
 					return result
 				}
 				// Use CreateMethodPointer with callback pattern
 				if methodPtr, created := objVal.CreateMethodPointer(node.Value, func(methodDecl any) Value {
-					return e.adapter.CreateBoundMethodPointer(selfVal, methodDecl)
+					return e.oopEngine.CreateBoundMethodPointer(selfVal, methodDecl)
 				}); created {
 					return methodPtr
 				}
@@ -150,7 +150,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 					Function:  node,
 					Arguments: nil,
 				}
-				return e.adapter.CallImplicitSelfMethod(callExpr, node)
+				return e.oopEngine.CallImplicitSelfMethod(callExpr, node)
 			}
 		}
 	}
@@ -232,7 +232,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		if len(fn.Parameters) == 0 {
 			// Delegate to adapter for proper exception handling (Phase 3.9.3)
 			// The evaluator's invokeParameterlessUserFunction has exception handling issues
-			return e.adapter.CallUserFunction(fn, []Value{})
+			return e.oopEngine.CallUserFunction(fn, []Value{})
 		}
 
 		// Function has parameters - create function pointer
@@ -438,7 +438,7 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 	// Note: Cleanup happens via defer in PushEnv/PopEnv, but for now we call explicitly
 	// before PopEnv to ensure cleanup happens even if function returns early.
 	if e.adapter != nil {
-		e.adapter.CleanupInterfaceReferences(ctx.Env())
+		e.exceptionMgr.CleanupInterfaceReferences(ctx.Env())
 	}
 
 	return resultValue

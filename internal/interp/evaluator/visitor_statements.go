@@ -91,7 +91,7 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 				Closure:    funcPtr.GetClosure(),
 				SelfObject: funcPtr.GetSelfObject(),
 			}
-			return e.adapter.ExecuteFunctionPointerCall(metadata, []Value{}, node)
+			return e.oopEngine.ExecuteFunctionPointerCall(metadata, []Value{}, node)
 		}
 	}
 
@@ -171,7 +171,7 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 			typeName := node.Type.String()
 
 			if e.typeSystem.HasSubrangeType(typeName) {
-				wrappedVal, err := e.adapter.WrapInSubrange(value, typeName, node)
+				wrappedVal, err := e.oopEngine.WrapInSubrange(value, typeName, node)
 				if err != nil {
 					return e.newError(node, "%v", err)
 				}
@@ -206,7 +206,7 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 				typeName := node.Type.String()
 				if e.typeSystem.HasInterface(typeName) {
 					if value.Type() != "INTERFACE" {
-						wrapped, err := e.adapter.WrapInInterface(value, typeName, node)
+						wrapped, err := e.oopEngine.WrapInInterface(value, typeName, node)
 						if err != nil {
 							return e.newError(node, "%v", err)
 						}

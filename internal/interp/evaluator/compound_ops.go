@@ -38,7 +38,7 @@ func (e *Evaluator) applyCompoundOperation(op token.TokenType, left, right Value
 
 		// Try to find operator overload on the object
 		if e.adapter != nil {
-			if result, found := e.adapter.TryBinaryOperator(binaryOp, left, right, node); found {
+			if result, found := e.oopEngine.TryBinaryOperator(binaryOp, left, right, node); found {
 				return result
 			}
 		}

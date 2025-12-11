@@ -746,7 +746,7 @@ func (e *Evaluator) tryBinaryOperator(operator string, left, right Value, node a
 	if e.adapter == nil {
 		return nil, false
 	}
-	return e.adapter.TryBinaryOperator(operator, left, right, node)
+	return e.oopEngine.TryBinaryOperator(operator, left, right, node)
 }
 
 // evalInOperator evaluates the 'in' operator for membership testing.
@@ -1052,7 +1052,7 @@ func (e *Evaluator) tryUnaryOperator(operator string, operand Value, node ast.No
 	if e.adapter == nil {
 		return nil, false
 	}
-	return e.adapter.TryUnaryOperator(operator, operand, node)
+	return e.oopEngine.TryUnaryOperator(operator, operand, node)
 }
 
 // evalMinusUnaryOp evaluates the unary minus operator (-x).

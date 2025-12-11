@@ -21,7 +21,7 @@ func (e *Evaluator) raiseContractException(className, message string, node ast.N
 	}
 
 	// Use adapter bridge constructor to create exception (avoids import cycle)
-	exc := e.adapter.CreateContractException(className, message, node, classMetadata, callStack)
+	exc := e.exceptionMgr.CreateContractException(className, message, node, classMetadata, callStack)
 
 	// Set exception in context
 	ctx.SetException(exc)

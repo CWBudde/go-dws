@@ -151,7 +151,7 @@ func (e *Evaluator) executePropertySetterMethod(obj Value, objVal ObjectValue, p
 
 	// Execute the method with Self bound and arguments via adapter
 	// The adapter's ExecuteMethodWithSelf handles environment setup, Self binding, etc.
-	e.adapter.ExecuteMethodWithSelf(obj, methodDecl, allArgs)
+	e.oopEngine.ExecuteMethodWithSelf(obj, methodDecl, allArgs)
 
 	// Return the assigned value
 	return value
@@ -226,7 +226,7 @@ func (e *Evaluator) executeRecordPropertySetterMethod(record Value, recVal *runt
 
 	// Execute the method with Self bound via adapter
 	// The adapter's ExecuteMethodWithSelf handles environment setup, Self binding, etc.
-	e.adapter.ExecuteMethodWithSelf(record, methodDecl, args)
+	e.oopEngine.ExecuteMethodWithSelf(record, methodDecl, args)
 
 	// Return the assigned value
 	return value

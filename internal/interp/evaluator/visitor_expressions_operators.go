@@ -200,7 +200,7 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 
 		if objVal, ok := objectVal.(ObjectValue); ok {
 			if methodPtr, created := objVal.CreateMethodPointer(methodName, func(methodDecl any) Value {
-				return e.adapter.CreateBoundMethodPointer(objectVal, methodDecl)
+				return e.oopEngine.CreateBoundMethodPointer(objectVal, methodDecl)
 			}); created {
 				return methodPtr
 			}

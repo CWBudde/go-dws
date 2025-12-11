@@ -256,7 +256,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 		// Class properties (class property Counter: Integer read FCounter)
 		if result, found := classMetaVal.ReadClassProperty(memberName, func(propInfo any) Value {
-			return e.adapter.EvalClassPropertyRead(classMetaVal.GetClassInfo(), propInfo, node)
+			return e.coreEvaluator.EvalClassPropertyRead(classMetaVal.GetClassInfo(), propInfo, node)
 		}); found {
 			return result
 		}
@@ -441,7 +441,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		}
 
 		// Look up class and access class variable
-		classMetaVal := e.adapter.LookupClassByName(typedClassName)
+		classMetaVal := e.oopEngine.LookupClassByName(typedClassName)
 		if classMetaVal != nil {
 			if classVarValue, found := classMetaVal.GetClassVar(memberName); found {
 				return classVarValue

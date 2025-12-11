@@ -375,7 +375,11 @@ type Evaluator struct {
 	output            io.Writer
 	externalFunctions ExternalFunctionRegistry
 	currentNode       ast.Node
-	adapter           InterpreterAdapter
+	adapter           InterpreterAdapter // DEPRECATED: Use focused interfaces below (Task 3.4.3-3.4.5)
+	oopEngine         OOPEngine          // Task 3.4.3: Runtime OOP operations (21 methods)
+	declHandler       DeclHandler        // Task 3.4.4: Declaration processing (37 methods)
+	exceptionMgr      ExceptionManager   // Task 3.4.5: Exception handling (6 methods)
+	coreEvaluator     CoreEvaluator      // Task 3.4.5: Cross-cutting concerns (4 methods)
 	refCountMgr       runtime.RefCountManager
 	config            *Config
 	rand              *rand.Rand
@@ -544,8 +548,48 @@ func (e *Evaluator) SetCurrentNode(node ast.Node) {
 }
 
 // SetAdapter sets the interpreter adapter.
+// DEPRECATED: Use SetFocusedInterfaces instead (Task 3.4.3-3.4.5).
+//
+// For backward compatibility, this method also sets the focused interfaces
+// by type-asserting the adapter to each interface type.
 func (e *Evaluator) SetAdapter(adapter InterpreterAdapter) {
 	e.adapter = adapter
+
+	// Task 3.4.6: Automatically set focused interfaces for backward compatibility
+	// This allows existing code using SetAdapter() to work without changes
+	if oop, ok := adapter.(OOPEngine); ok {
+		e.oopEngine = oop
+	}
+	if decl, ok := adapter.(DeclHandler); ok {
+		e.declHandler = decl
+	}
+	if exc, ok := adapter.(ExceptionManager); ok {
+		e.exceptionMgr = exc
+	}
+	if core, ok := adapter.(CoreEvaluator); ok {
+		e.coreEvaluator = core
+	}
+}
+
+// SetFocusedInterfaces sets the focused interfaces for the evaluator.
+// Task 3.4.3-3.4.5: Replaces monolithic InterpreterAdapter with 4 focused interfaces.
+//
+// This method should be called during evaluator initialization, typically passing
+// the same interpreter instance for all four interfaces:
+//
+//	evaluator.SetFocusedInterfaces(interpreter, interpreter, interpreter, interpreter)
+//
+// The interfaces can also be set independently for testing or custom implementations.
+func (e *Evaluator) SetFocusedInterfaces(
+	oopEngine OOPEngine,
+	declHandler DeclHandler,
+	exceptionMgr ExceptionManager,
+	coreEvaluator CoreEvaluator,
+) {
+	e.oopEngine = oopEngine
+	e.declHandler = declHandler
+	e.exceptionMgr = exceptionMgr
+	e.coreEvaluator = coreEvaluator
 }
 
 // ============================================================================
@@ -720,7 +764,7 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 
 	default:
 		if e.adapter != nil {
-			return e.adapter.EvalNode(node)
+			return e.coreEvaluator.EvalNode(node)
 		}
 		panic("Evaluator.Eval: unknown node type and no adapter available")
 	}
@@ -736,10 +780,10 @@ func (e *Evaluator) createException(className, message string, pos *lexer.Positi
 	if excClass == nil {
 		excClass = e.typeSystem.LookupClass("Exception")
 	}
-	return e.adapter.CreateExceptionDirect(excClass, message, pos, ctx.CallStack())
+	return e.exceptionMgr.CreateExceptionDirect(excClass, message, pos, ctx.CallStack())
 }
 
 // wrapObjectAsException wraps an existing ObjectInstance as an exception.
 func (e *Evaluator) wrapObjectAsException(obj Value, pos *lexer.Position, ctx *ExecutionContext) any {
-	return e.adapter.WrapObjectInException(obj, pos, ctx.CallStack())
+	return e.exceptionMgr.WrapObjectInException(obj, pos, ctx.CallStack())
 }

@@ -179,7 +179,7 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 
 			// Check for Class Property
 			result, ok := classMeta.WriteClassProperty(fieldName, value, func(propInfo any, val Value) Value {
-				return e.adapter.EvalClassPropertyWrite(classMeta.GetClassInfo(), propInfo, val, stmt)
+				return e.coreEvaluator.EvalClassPropertyWrite(classMeta.GetClassInfo(), propInfo, val, stmt)
 			})
 			if ok {
 				return result

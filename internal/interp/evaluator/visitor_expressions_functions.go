@@ -36,7 +36,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 							return fallbackArgs[i]
 						}
 					}
-					return e.adapter.CallFunctionPointer(val, fallbackArgs, node)
+					return e.oopEngine.CallFunctionPointer(val, fallbackArgs, node)
 				}
 
 				// Get function declaration for parameter metadata
@@ -104,7 +104,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 					Closure:    funcPtr.GetClosure(),
 					SelfObject: funcPtr.GetSelfObject(),
 				}
-				return e.adapter.ExecuteFunctionPointerCall(metadata, args, node)
+				return e.oopEngine.ExecuteFunctionPointerCall(metadata, args, node)
 			}
 		}
 	}
@@ -161,7 +161,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 
 			// Unit-qualified function call
 			if e.unitRegistry != nil {
-				return e.adapter.CallQualifiedOrConstructor(node, memberAccess)
+				return e.oopEngine.CallQualifiedOrConstructor(node, memberAccess)
 			}
 		}
 
@@ -202,7 +202,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		}
 
 		// Execute the function via adapter
-		return e.adapter.CallUserFunction(fn, args)
+		return e.oopEngine.CallUserFunction(fn, args)
 	}
 
 	// Record static method calls (when inside record method context)
@@ -211,10 +211,10 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 			if recordVal.Type() == "RECORD_TYPE" {
 				if rtmv, ok := recordVal.(RecordTypeMetaValue); ok {
 					if rtmv.HasStaticMethod(funcName.Value) {
-						return e.adapter.DispatchRecordStaticMethod(rtmv.GetRecordTypeName(), node, funcName)
+						return e.oopEngine.DispatchRecordStaticMethod(rtmv.GetRecordTypeName(), node, funcName)
 					}
 				} else {
-					return e.adapter.CallRecordStaticMethod(node, funcName)
+					return e.oopEngine.CallRecordStaticMethod(node, funcName)
 				}
 			}
 		}
@@ -286,10 +286,10 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	if selfRaw, ok := ctx.Env().Get("Self"); ok {
 		if selfVal, ok := selfRaw.(Value); ok {
 			if selfVal.Type() == "OBJECT" || selfVal.Type() == "CLASS" {
-				return e.adapter.CallImplicitSelfMethod(node, funcName)
+				return e.oopEngine.CallImplicitSelfMethod(node, funcName)
 			}
 			if _, isRecord := selfVal.(*runtime.RecordValue); isRecord {
-				return e.adapter.CallImplicitSelfMethod(node, funcName)
+				return e.oopEngine.CallImplicitSelfMethod(node, funcName)
 			}
 		}
 	}
@@ -386,7 +386,7 @@ func (e *Evaluator) callExternalFunction(
 ) Value {
 	// For now, delegate to adapter which has full access to external function infrastructure
 	// TODO: Move external function handling completely into evaluator in Phase 3.2.9.1
-	return e.adapter.CallExternalFunction(funcName, argExprs, node)
+	return e.oopEngine.CallExternalFunction(funcName, argExprs, node)
 }
 
 // VisitNewExpression evaluates a 'new' expression (object instantiation).
@@ -453,7 +453,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 	// Execute constructor
 	constructor := classInfo.GetConstructor("Create")
 	if constructor != nil {
-		err := e.adapter.ExecuteConstructor(obj, "Create", args)
+		err := e.oopEngine.ExecuteConstructor(obj, "Create", args)
 		if err != nil {
 			return e.newError(node, "constructor failed: %v", err)
 		}

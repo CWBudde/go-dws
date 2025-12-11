@@ -237,7 +237,7 @@ func (e *Evaluator) CallBuiltinHelperMethod(spec string, selfValue Value, args [
 	}
 
 	// Unhandled - delegate to adapter
-	return e.adapter.EvalNode(node)
+	return e.coreEvaluator.EvalNode(node)
 }
 
 // CallASTHelperMethod executes a user-defined helper method (with AST body).
@@ -518,7 +518,7 @@ func (e *Evaluator) evalBuiltinHelperProperty(propSpec string, selfValue Value, 
 		if _, ok := selfValue.(ArrayAccessor); !ok {
 			return e.newError(node, "built-in property '%s' can only be used on arrays", propSpec)
 		}
-		return e.adapter.EvalBuiltinHelperProperty(propSpec, selfValue, node)
+		return e.coreEvaluator.EvalBuiltinHelperProperty(propSpec, selfValue, node)
 
 	case "__enum_value":
 		enumVal, ok := selfValue.(EnumAccessor)
@@ -528,15 +528,15 @@ func (e *Evaluator) evalBuiltinHelperProperty(propSpec string, selfValue Value, 
 		return &runtime.IntegerValue{Value: int64(enumVal.GetOrdinal())}
 
 	case "__enum_name", "__enum_qualifiedname":
-		return e.adapter.EvalBuiltinHelperProperty(propSpec, selfValue, node)
+		return e.coreEvaluator.EvalBuiltinHelperProperty(propSpec, selfValue, node)
 
 	case "__string_length":
 		if _, ok := selfValue.(StringValue); !ok {
 			return e.newError(node, "String.Length property requires string receiver")
 		}
-		return e.adapter.EvalBuiltinHelperProperty(propSpec, selfValue, node)
+		return e.coreEvaluator.EvalBuiltinHelperProperty(propSpec, selfValue, node)
 
 	default:
-		return e.adapter.EvalBuiltinHelperProperty(propSpec, selfValue, node)
+		return e.coreEvaluator.EvalBuiltinHelperProperty(propSpec, selfValue, node)
 	}
 }

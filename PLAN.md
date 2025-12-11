@@ -437,34 +437,36 @@ type CoreEvaluator interface {
   - **Result**: 1 method deleted, 66 remaining → proceed to interface redesign
   - All tests passing ✅
 
-- [ ] **3.4.3** Create OOPEngine interface (2h)
-  - Create `internal/interp/evaluator/oop_engine.go`
-  - Define interface with ~18 methods (method dispatch, constructors, operators)
-  - Add `oopEngine OOPEngine` field to Evaluator
-  - Update Evaluator.SetAdapter() to also set oopEngine
+- [x] **3.4.3** Create OOPEngine interface (2h) ✅ **COMPLETE** (2025-12-11)
+  - ✅ Created [oop_engine.go](internal/interp/evaluator/oop_engine.go) with 21 methods
+  - Methods categorized: method dispatch (4), function pointers (4), type ops (3), dispatch helpers (5), operators (2), class lookup (1)
+  - Added `oopEngine OOPEngine` field to Evaluator
+  - High-usage methods: ExecuteMethodWithSelf (10), CallImplicitSelfMethod (3)
 
-- [ ] **3.4.4** Create DeclHandler interface (2h)
-  - Create `internal/interp/evaluator/decl_handler.go`
-  - Define interface with ~37 methods (class, interface, helper declarations)
-  - Add `declHandler DeclHandler` field to Evaluator
-  - Update Evaluator.SetAdapter() to also set declHandler
+- [x] **3.4.4** Create DeclHandler interface (2h) ✅ **COMPLETE** (2025-12-11)
+  - ✅ Created [decl_handler.go](internal/interp/evaluator/decl_handler.go) with 37 methods
+  - Methods: class declaration (21), interface declaration (7), helper declaration (9)
+  - Added `declHandler DeclHandler` field to Evaluator
+  - All methods have 1-2 callers in visitor_declarations.go (forms cohesive interface)
 
-- [ ] **3.4.5** Create ExceptionManager interface (1h)
-  - Create `internal/interp/evaluator/exception_manager.go`
-  - Define interface with ~6 methods (exception creation, propagation)
-  - Add `exceptionMgr ExceptionManager` field to Evaluator
-  - Update Evaluator.SetAdapter() to also set exceptionMgr
+- [x] **3.4.5** Create ExceptionManager + CoreEvaluator interfaces (1h) ✅ **COMPLETE** (2025-12-11)
+  - ✅ Created [exception_manager.go](internal/interp/evaluator/exception_manager.go) with 6 methods
+  - ✅ Created [core_evaluator.go](internal/interp/evaluator/core_evaluator.go) with 4 methods
+  - ExceptionManager: exception creation (2), contracts (1), type casts (1), assertions (1), cleanup (1)
+  - CoreEvaluator: EvalNode (6 uses), EvalBuiltinHelperProperty (4), class properties (2)
+  - Added all 4 interface fields to Evaluator + SetFocusedInterfaces() method
+  - Marked SetAdapter() as DEPRECATED
 
-- [ ] **3.4.6** Migrate adapter calls to focused interfaces (4h)
-  - In evaluator files, replace `e.adapter.CallMethod()` → `e.oopEngine.CallMethod()`
-  - Replace `e.adapter.NewClassInfoAdapter()` → `e.declHandler.NewClassInfoAdapter()`
-  - Replace `e.adapter.CreateExceptionDirect()` → `e.exceptionMgr.CreateExceptionDirect()`
-  - Files to update (by adapter call count):
-    - `visitor_declarations.go`: 43 calls
-    - `visitor_expressions_functions.go`: 11 calls
-    - `visitor_statements.go`: 6 calls
-    - `member_assignment.go`: 6 calls
-    - `helper_methods.go`: 6 calls
+- [x] **3.4.6** Migrate adapter calls to focused interfaces (4h) ✅ **COMPLETE** (2025-12-11)
+  - ✅ Migrated all evaluator files using automated sed replacements
+  - **Results**:
+    - oopEngine: 36 calls (ExecuteMethodWithSelf, CallMethod, CallImplicitSelfMethod, operators, etc.)
+    - declHandler: 41 calls (all in visitor_declarations.go - class/interface/helper declarations)
+    - exceptionMgr: 6 calls (exception creation, contracts, assertions, cleanup)
+    - coreEvaluator: 11 calls (EvalNode, EvalBuiltinHelperProperty, class properties)
+  - **Files migrated**: 30+ files across evaluator package
+  - **Backward compatibility**: Updated SetAdapter() to auto-set focused interfaces via type assertion
+  - All tests passing ✅
 
 - [ ] **3.4.7** Implement interfaces in Interpreter (3h)
   - Interpreter already implements all methods

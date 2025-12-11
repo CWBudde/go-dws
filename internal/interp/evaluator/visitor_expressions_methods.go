@@ -124,12 +124,12 @@ func (e *Evaluator) VisitInheritedExpression(node *ast.InheritedExpression, ctx 
 	objVal, ok := self.(ObjectValue)
 	if !ok {
 		// Fallback to adapter for non-ObjectValue types
-		return e.adapter.CallInheritedMethod(self, methodName, args)
+		return e.oopEngine.CallInheritedMethod(self, methodName, args)
 	}
 
 	// Create method executor callback that delegates to adapter
 	methodExecutor := func(methodDecl any, methodArgs []Value) Value {
-		return e.adapter.ExecuteMethodWithSelf(self, methodDecl, methodArgs)
+		return e.oopEngine.ExecuteMethodWithSelf(self, methodDecl, methodArgs)
 	}
 
 	// Call inherited method via ObjectValue interface
