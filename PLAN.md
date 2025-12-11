@@ -47,11 +47,11 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-## Phase 4: Complete Interpreter Simplification
+## Phase 4: Decompose God Objects Into Handlers
 
-**Goal**: Achieve the original Phase 3 target: thin Interpreter (5 fields, ~20 methods), single dispatch point in Evaluator, no state duplication.
+**Goal**: Decompose two god objects (Interpreter: 434 methods, Evaluator: 341 methods) into focused handler components with single responsibility. NOT just moving methods between god objects.
 
-**Status**: 📋 Planned | **Priority**: P1 | **Estimated**: 4-6 weeks
+**Status**: 📋 Planned | **Priority**: P1 | **Estimated**: 8-10 weeks
 
 **Current State** (Post-Phase 3):
 
@@ -59,22 +59,120 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 |-----------|--------|---------|--------------|-----|
 | Interpreter | 14 | 434 | 59 | 24,744 |
 | Evaluator | 17 | 341 | ~60 | 19,096 |
-| **Total** | 31 | 775 | ~119 | 43,840 |
+| **Total** | 31 | **775** | ~119 | 43,840 |
 
-**Target State**:
+**⚠️ Anti-Pattern to Avoid**: Moving 400+ methods from Interpreter to Evaluator would create a 700+ method mega god object. This shifts the problem, doesn't solve it.
 
-| Component | Fields | Methods | Switch Cases | LOC |
-|-----------|--------|---------|--------------|-----|
-| Interpreter | 5 | ~20 | 0 | ~500 |
-| Evaluator | 15 | ~500 | 60 | ~30,000 |
-| **Total** | 20 | ~520 | 60 | ~30,500 |
+**Target Architecture** (Handler Decomposition):
 
-**Key Issues to Resolve**:
+```text
+Interpreter (API facade, ~20 methods)
+└── Evaluator (thin dispatcher, ~40 methods)
+    ├── ArrayHandler (27 methods)
+    ├── BinaryOpHandler (17 methods)
+    ├── StatementHandler (25 methods)
+    ├── DeclarationHandler (20 methods)
+    ├── VarParamHandler (15 methods)
+    ├── PropertyHandler (15 methods)
+    ├── TypeHandler (20 methods)
+    ├── MethodDispatcher (15 methods)
+    ├── ExceptionHandler (10 methods)
+    └── OOPHandler (30 methods)
+```
 
-1. Interpreter.Eval() has 59-case switch (should be 0)
-2. 101 callback calls from Evaluator→Interpreter via focused interfaces
-3. State duplication: handlerException, propContext, callStack, oldValuesStack in both Interpreter AND ExecutionContext
-4. 2,433 LOC of adapter_*.go files still exist
+**Target Metrics**:
+
+| Component | Fields | Methods | Max Methods/Handler |
+|-----------|--------|---------|---------------------|
+| Interpreter | 5 | ~20 | - |
+| Evaluator | 10 | ~40 | - |
+| Handlers (10) | 3-5 each | ~250 total | 30 max |
+| **Total** | ~55 | **~310** | - |
+
+**Key Principles**:
+
+1. **Single Responsibility**: Each handler does ONE thing well
+2. **Max 30 methods per component**: If more, split it
+3. **Interface-based**: Each handler has an interface for testability
+4. **No circular dependencies**: Handlers don't call each other directly
+5. **State ownership**: Each handler owns its relevant state
+
+---
+
+### 4.0 Extract Handlers from Evaluator (CRITICAL - Prevents Mega God Object)
+
+**Goal**: Before moving anything from Interpreter, decompose existing Evaluator (341 methods) into focused handlers
+
+**Status**: 📋 Planned | **Effort**: 2-3 weeks | **Risk**: Medium | **Priority**: MUST DO FIRST
+
+**Why This Must Come First**: If we move Interpreter's methods to Evaluator before extracting handlers, we create a 700+ method mega god object that's even harder to decompose.
+
+**Current Evaluator Method Distribution** (341 methods across 50 files):
+
+| File | Methods | Target Handler |
+|------|---------|----------------|
+| array_helpers.go | 27 | ArrayHandler |
+| visitor_statements.go | 25 | StatementHandler |
+| binary_ops.go | 17 | BinaryOpHandler |
+| visitor_declarations.go | 16 | DeclarationHandler |
+| var_params.go | 15 | VarParamHandler |
+| property_read/write.go | 15 | PropertyHandler |
+| type_*.go | 20 | TypeHandler |
+| compound_*.go | 10 | CompoundOpHandler |
+| helper_methods.go | 10 | HelperHandler |
+| method_dispatch.go | 4 | MethodDispatcher |
+| evaluator.go (core) | 32 | Evaluator (keep) |
+
+**Tasks**:
+
+- [ ] **4.0.1** Design handler interfaces (4h)
+  - Define interface for each handler type
+  - Establish dependency rules (who can call whom)
+  - Document state ownership per handler
+
+- [ ] **4.0.2** Extract ArrayHandler (6h)
+  - Create `ArrayHandler` struct with 27 methods from array_helpers.go
+  - Create `ArrayHandler` interface
+  - Evaluator holds `arrayHandler ArrayHandler` field
+  - Update all `e.ArrayXxx()` calls to `e.arrayHandler.Xxx()`
+
+- [ ] **4.0.3** Extract BinaryOpHandler (4h)
+  - Create `BinaryOpHandler` struct with 17 methods from binary_ops.go
+  - Include compound_ops.go (8 methods)
+  - Total: ~25 methods in BinaryOpHandler
+
+- [ ] **4.0.4** Extract StatementHandler (6h)
+  - Create `StatementHandler` struct with 25 methods from visitor_statements.go
+  - Handles: if, while, for, case, try, break, continue, return, etc.
+
+- [ ] **4.0.5** Extract DeclarationHandler (6h)
+  - Create `DeclarationHandler` struct with 16 methods from visitor_declarations.go
+  - Handles: class, interface, record, enum, helper declarations
+
+- [ ] **4.0.6** Extract TypeHandler (6h)
+  - Combine: type_resolution.go (9), type_casts.go (8), type_conversion.go (5)
+  - Total: ~22 methods in TypeHandler
+
+- [ ] **4.0.7** Extract PropertyHandler (4h)
+  - Combine: property_read.go (8), property_write.go (7)
+  - Total: ~15 methods in PropertyHandler
+
+- [ ] **4.0.8** Extract VarParamHandler (4h)
+  - Create handler with 15 methods from var_params.go
+  - Handles: var parameters, out parameters, lazy evaluation
+
+- [ ] **4.0.9** Verify Evaluator is now thin (2h)
+  - Evaluator should have ~40 methods (dispatch + setup)
+  - Each handler has ≤30 methods
+  - All tests pass
+
+**Success Criteria**:
+
+- ✅ Evaluator reduced from 341 to ~40 methods
+- ✅ 8-10 handlers with ≤30 methods each
+- ✅ Each handler has interface for testability
+- ✅ No handler depends on another handler directly
+- ✅ All existing tests pass
 
 ---
 
@@ -194,9 +292,9 @@ User → Interpreter.Eval() → Evaluator.Eval() [60-case switch] → done
 
 ---
 
-### 4.3 Move OOP Implementation to Evaluator
+### 4.3 Move OOP Implementation to OOPHandler
 
-**Goal**: Eliminate OOPEngine callbacks, make Evaluator self-sufficient for method dispatch
+**Goal**: Eliminate OOPEngine callbacks by moving logic to dedicated OOPHandler (not Evaluator directly)
 
 **Status**: 📋 Planned | **Effort**: 2 weeks | **Risk**: High
 
@@ -254,9 +352,9 @@ Evaluator → OOPEngine.CallMethod() → Interpreter.CallMethod() → back to Ev
 
 ---
 
-### 4.4 Move Declaration Handling to Evaluator
+### 4.4 Move Declaration Handling to DeclarationHandler
 
-**Goal**: Eliminate DeclHandler callbacks
+**Goal**: Eliminate DeclHandler callbacks by moving logic to dedicated DeclarationHandler
 
 **Status**: 📋 Planned | **Effort**: 1.5 weeks | **Risk**: High
 
@@ -297,9 +395,9 @@ Evaluator → OOPEngine.CallMethod() → Interpreter.CallMethod() → back to Ev
 
 ---
 
-### 4.5 Move Exception Handling to Evaluator
+### 4.5 Move Exception Handling to ExceptionHandler
 
-**Goal**: Eliminate ExceptionManager callbacks
+**Goal**: Eliminate ExceptionManager callbacks by moving logic to dedicated ExceptionHandler
 
 **Status**: 📋 Planned | **Effort**: 3 days | **Risk**: Low
 
@@ -383,27 +481,35 @@ Evaluator → OOPEngine.CallMethod() → Interpreter.CallMethod() → back to Ev
 
 **Tasks**:
 
-- [ ] **4.7.1** Move remaining Interpreter methods to Evaluator (8h)
-  - Target: Interpreter has ~20 public API methods only
-  - Move 400+ methods to Evaluator or delete dead code
+- [ ] **4.7.1** Extract OOPHandler from Interpreter (12h)
+  - Create `OOPHandler` struct with ~30 methods from Interpreter's OOP logic
+  - Move: method dispatch, constructor execution, operator overloading
+  - This is where Interpreter's 434 methods go - NOT into Evaluator directly
 
-- [ ] **4.7.2** Reduce Interpreter to 5 fields (2h)
-  - evaluator, config, output, typeSystem, exception
-  - Delete: classes, records, functions, methodRegistry, etc.
+- [ ] **4.7.2** Extract remaining handlers from Interpreter (8h)
+  - BuiltinHandler: built-in function implementations
+  - UnitHandler: unit loading/initialization
+  - Identify and delete dead code (likely 100+ methods)
 
-- [ ] **4.7.3** Measure final metrics (2h)
-  - Interpreter: fields, methods, switch cases, LOC
-  - Evaluator: fields, methods, switch cases, LOC
-  - Callback count: should be 0
+- [ ] **4.7.3** Reduce Interpreter to API facade (4h)
+  - Target: ~20 public API methods only
+  - Fields: evaluator, config, output, typeSystem, exception (5 total)
+  - All logic delegated to handlers
 
-- [ ] **4.7.4** Run full test suite (2h)
+- [ ] **4.7.4** Measure final metrics (2h)
+  - Interpreter: 5 fields, ~20 methods
+  - Evaluator: ~40 methods (dispatcher only)
+  - Handlers: 8-12 handlers, ≤30 methods each
+  - Total methods: ~310 (down from 775)
+
+- [ ] **4.7.5** Run full test suite (2h)
   - All unit tests pass
   - No new fixture test failures
   - Performance benchmarks (no regression)
 
-- [ ] **4.7.5** Update documentation (2h)
-  - CLAUDE.md: accurate architecture description
-  - AGENTS.md: accurate architecture description
+- [ ] **4.7.6** Update documentation (2h)
+  - CLAUDE.md: accurate handler-based architecture
+  - AGENTS.md: accurate handler-based architecture
   - Create docs/phase4-summary.md
 
 **Success Criteria**:
@@ -413,11 +519,12 @@ Evaluator → OOPEngine.CallMethod() → Interpreter.CallMethod() → back to Ev
 | Interpreter fields | 14 | 5 | ☐ |
 | Interpreter methods | 434 | ~20 | ☐ |
 | Interpreter switch cases | 59 | 0 | ☐ |
-| Evaluator methods | 341 | ~500 | ☐ |
+| Evaluator methods | 341 | ~40 | ☐ |
+| Handler count | 0 | 8-12 | ☐ |
+| Max methods/handler | - | ≤30 | ☐ |
+| Total methods | 775 | ~310 | ☐ |
 | Callback interfaces | 4 | 0 | ☐ |
-| Callback calls | 101 | 0 | ☐ |
 | adapter_*.go LOC | 2,433 | 0 | ☐ |
-| State duplication | 4 fields | 0 | ☐ |
 
 ---
 
@@ -425,17 +532,20 @@ Evaluator → OOPEngine.CallMethod() → Interpreter.CallMethod() → back to Ev
 
 | Task | Effort | Dependencies |
 |------|--------|--------------|
-| 4.1 Unify Eval() Dispatch | 1 week | None |
-| 4.2 Eliminate State Duplication | 1 week | 4.1 |
-| 4.3 Move OOP to Evaluator | 2 weeks | 4.1, 4.2 |
-| 4.4 Move Declarations to Evaluator | 1.5 weeks | 4.1, 4.2 |
-| 4.5 Move Exceptions to Evaluator | 3 days | 4.1 |
+| **4.0 Extract Handlers (FIRST)** | 2-3 weeks | None |
+| 4.1 Unify Eval() Dispatch | 1 week | 4.0 |
+| 4.2 Eliminate State Duplication | 1 week | 4.0 |
+| 4.3 Move OOP to Handlers | 2 weeks | 4.0, 4.1, 4.2 |
+| 4.4 Move Declarations to Handlers | 1.5 weeks | 4.0, 4.1, 4.2 |
+| 4.5 Move Exceptions to Handlers | 3 days | 4.0, 4.1 |
 | 4.6 Delete Adapters | 1 week | 4.3, 4.4, 4.5 |
-| 4.7 Final Cleanup | 3 days | 4.6 |
+| 4.7 Final Cleanup & Interpreter Decomposition | 1 week | 4.6 |
 
-**Total Estimated Effort**: 6-8 weeks
+**Total Estimated Effort**: 10-12 weeks
 
-**Recommended Order**: 4.1 → 4.2 → 4.5 → 4.3 → 4.4 → 4.6 → 4.7
+**Recommended Order**: **4.0** → 4.1 → 4.2 → 4.5 → 4.3 → 4.4 → 4.6 → 4.7
+
+**Critical Path**: Task 4.0 (handler extraction) MUST come first to avoid creating a mega god object
 
 ---
 
