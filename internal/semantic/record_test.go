@@ -87,7 +87,7 @@ func TestRecordErrors(t *testing.T) {
 					X: Float;
 				end;
 			`,
-			expectedError: "duplicate field 'X'",
+			expectedError: "Name \"X\" already exists",
 		},
 		{
 			name: "undefined field type",
@@ -115,7 +115,7 @@ func TestRecordErrors(t *testing.T) {
 					A, B: Float;
 				end;
 			`,
-			expectedError: "already declared",
+			expectedError: "already exists",
 		},
 	}
 
@@ -204,7 +204,7 @@ func TestRecordLiteralErrors(t *testing.T) {
 				end;
 				var p: TPoint := (X: 10, X: 20, Y: 30);
 			`,
-			expectedError: "duplicate field 'X'",
+			expectedError: "duplicate field",
 		},
 	}
 

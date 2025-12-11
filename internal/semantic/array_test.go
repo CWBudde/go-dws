@@ -102,7 +102,7 @@ func TestArrayTypeErrors(t *testing.T) {
 				type TMyArray = array[1..10] of Integer;
 				type TMyArray = array of String;
 			`,
-			expectedError: "type 'TMyArray' already declared",
+			expectedError: "Name \"TMyArray\" already exists",
 		},
 		{
 			name: "undefined element type",

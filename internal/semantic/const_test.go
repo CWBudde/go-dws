@@ -38,7 +38,7 @@ func TestConstRedeclaration(t *testing.T) {
 		const MYPI = 3.14;
 		const MYPI = 2.71;
 	`
-	expectError(t, input, "already declared")
+	expectError(t, input, "already exists")
 }
 
 func TestConstUsageInExpression(t *testing.T) {

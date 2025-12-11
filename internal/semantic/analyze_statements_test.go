@@ -53,7 +53,7 @@ func TestVariableRedeclaration(t *testing.T) {
 		var x: Integer;
 		var x: String;
 	`
-	expectError(t, input, "already declared")
+	expectError(t, input, "already exists")
 }
 
 func TestVariableRedeclarationInDifferentScope(t *testing.T) {

@@ -59,7 +59,7 @@ func TestSetTypeErrors(t *testing.T) {
 				type TDays = set of TWeekday;
 				type TDays = set of TWeekday;
 			`,
-			expectedError: "set type 'TDays' already declared",
+			expectedError: "Name \"TDays\" already exists",
 		},
 		{
 			name: "undefined element type",

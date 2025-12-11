@@ -208,7 +208,7 @@ func TestAddressOfExpressionErrors(t *testing.T) {
 					f := @UndefinedFunc;
 				end.
 			`,
-			expectedErr: "undefined function",
+			expectedErr: "Unknown name",
 		},
 		{
 			name: "address of variable (not a function)",

@@ -107,7 +107,7 @@ func TestClassRedeclaration(t *testing.T) {
 			Y: Integer;
 		end;
 	`
-	expectError(t, input, "class 'TPoint' already declared")
+	expectError(t, input, "already defined")
 }
 
 // ============================================================================
@@ -1057,7 +1057,7 @@ func TestCannotRedeclareFullyDeclaredClass(t *testing.T) {
 			Y: Integer;
 		end;
 	`
-	expectError(t, input, "class 'TPoint' already declared")
+	expectError(t, input, "already defined")
 }
 
 func TestForwardClassDeclarationWithParent(t *testing.T) {

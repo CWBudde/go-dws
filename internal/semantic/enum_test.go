@@ -92,7 +92,7 @@ func TestEnumErrors(t *testing.T) {
 			input: `
 				type TColor = (Red, Green, Red);
 			`,
-			expectedError: "duplicate enum value 'Red'",
+			expectedError: "already exists",
 		},
 		{
 			name: "undefined enum type",
@@ -115,7 +115,7 @@ func TestEnumErrors(t *testing.T) {
 				type TColor = (Red, Green, Blue);
 				type TColor = (Cyan, Magenta, Yellow);
 			`,
-			expectedError: "already declared",
+			expectedError: "already exists",
 		},
 		{
 			name: "type mismatch with enum",

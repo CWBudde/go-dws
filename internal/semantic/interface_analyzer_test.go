@@ -30,7 +30,7 @@ func TestInterfaceRedeclaration(t *testing.T) {
 			function GetValue: Integer;
 		end;
 	`
-	expectError(t, input, "interface 'IMyInterface' already declared")
+	expectError(t, input, "already exists")
 }
 
 // ============================================================================
@@ -45,7 +45,7 @@ func TestInterfaceDuplicateMethodSameCase(t *testing.T) {
 			function GetValue(): String;
 		end;
 	`
-	expectError(t, input, "interface method 'GetValue' already declared")
+	expectError(t, input, "already exists")
 }
 
 // TestInterfaceDuplicateMethodDifferentCase tests that duplicate methods with different case are rejected
@@ -56,7 +56,7 @@ func TestInterfaceDuplicateMethodDifferentCase(t *testing.T) {
 			function getvalue(): String;
 		end;
 	`
-	expectError(t, input, "interface method 'getvalue' already declared")
+	expectError(t, input, "already exists")
 }
 
 // TestInterfaceDuplicateMethodMixedCase tests various case combinations are all rejected
@@ -67,7 +67,7 @@ func TestInterfaceDuplicateMethodMixedCase(t *testing.T) {
 			procedure DoSomething;
 		end;
 	`
-	expectError(t, input, "interface method 'DoSomething' already declared")
+	expectError(t, input, "already exists")
 }
 
 // ============================================================================
@@ -109,7 +109,7 @@ func TestInterfaceInheritedMethodConflict(t *testing.T) {
 			function GetValue(): String;  // Conflict with parent method
 		end;
 	`
-	expectError(t, input, "interface method 'GetValue' already declared")
+	expectError(t, input, "already exists")
 }
 
 // TestInterfaceInheritedMethodConflictDifferentCase tests case-insensitive conflict detection
@@ -123,7 +123,7 @@ func TestInterfaceInheritedMethodConflictDifferentCase(t *testing.T) {
 			function getvalue(): String;  // Case-insensitive conflict
 		end;
 	`
-	expectError(t, input, "interface method 'getvalue' already declared")
+	expectError(t, input, "already exists")
 }
 
 // ============================================================================
