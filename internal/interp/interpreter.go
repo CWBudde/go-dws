@@ -190,8 +190,9 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 		return interp.runDestructorForRefCount(obj)
 	})
 
-	// Set the adapter so the evaluator can delegate back to the interpreter during migration
-	interp.evaluatorInstance.SetAdapter(interp)
+	// Task 3.4.8: Set focused interfaces so evaluator can delegate to interpreter
+	// Replaces monolithic SetAdapter with 4 focused interfaces
+	interp.evaluatorInstance.SetFocusedInterfaces(interp, interp, interp, interp)
 
 	// Register built-in exception classes
 	interp.registerBuiltinExceptions()

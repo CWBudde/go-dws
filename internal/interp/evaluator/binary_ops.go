@@ -743,7 +743,7 @@ func (e *Evaluator) tryBinaryOperator(operator string, left, right Value, node a
 	// - ObjectInstance.Class.lookupOperator() for instance operators
 	// - globalOperators registry for global operators
 	// These are in interp package - delegate to adapter
-	if e.adapter == nil {
+	if e.oopEngine == nil {
 		return nil, false
 	}
 	return e.oopEngine.TryBinaryOperator(operator, left, right, node)
@@ -1049,7 +1049,7 @@ func (e *Evaluator) tryUnaryOperator(operator string, operand Value, node ast.No
 	// - ObjectInstance.Class.lookupOperator() for instance operators
 	// - globalOperators registry for global operators
 	// These are in interp package - delegate to adapter
-	if e.adapter == nil {
+	if e.oopEngine == nil {
 		return nil, false
 	}
 	return e.oopEngine.TryUnaryOperator(operator, operand, node)

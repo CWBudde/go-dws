@@ -479,11 +479,19 @@ type CoreEvaluator interface {
   - ✅ All unit tests pass
   - **Note**: Total method count is 68, not 67 (1 method was miscounted earlier)
 
-- [ ] **3.4.8** Delete InterpreterAdapter interface (1h)
-  - Remove `InterpreterAdapter` interface definition
-  - Remove `adapter InterpreterAdapter` field from Evaluator
-  - Remove `SetAdapter(adapter InterpreterAdapter)` method
-  - Verify: `grep -r "InterpreterAdapter" internal/` → 0 hits
+- [x] **3.4.8** Delete InterpreterAdapter interface (1h) ✅ **COMPLETE** (2025-12-11)
+  - ✅ Removed `InterpreterAdapter` interface definition (140 lines deleted from evaluator.go:230-369)
+  - ✅ Removed `adapter InterpreterAdapter` field from Evaluator struct
+  - ✅ Removed `SetAdapter(adapter InterpreterAdapter)` method (24 lines deleted)
+  - ✅ Replaced `interp.evaluatorInstance.SetAdapter(interp)` with `SetFocusedInterfaces(interp, interp, interp, interp)`
+  - ✅ Fixed 11 remaining `e.adapter` references in evaluator code:
+    - context_bounds.go: `e.adapter.(builtins.Context)` → `e.coreEvaluator.(builtins.Context)` (2 fixes)
+    - context_enums.go: `e.adapter.(builtins.Context)` → `e.coreEvaluator.(builtins.Context)` (5 fixes)
+    - binary_ops.go: `e.adapter == nil` → `e.oopEngine == nil` (2 fixes)
+    - compound_ops.go: `e.adapter != nil` → `e.oopEngine != nil` (1 fix)
+    - visitor_expressions_identifiers.go: `e.adapter != nil` → `e.exceptionMgr != nil` (1 fix)
+  - ✅ Verified: `grep -r "InterpreterAdapter" internal/` → 0 non-comment, non-test hits
+  - ✅ All unit tests pass
 
 - [ ] **3.4.9** Verify and test (2h)
   - Run `just test` - all tests pass

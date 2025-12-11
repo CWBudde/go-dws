@@ -32,7 +32,7 @@ import (
 func (e *Evaluator) GetLowBound(value Value) (Value, error) {
 	// Cast adapter to builtins.Context to access the existing implementation.
 	// The Interpreter implements builtins.Context with these methods.
-	ctx, ok := e.adapter.(builtins.Context)
+	ctx, ok := e.coreEvaluator.(builtins.Context)
 	if !ok {
 		return nil, fmt.Errorf("GetLowBound: adapter does not implement builtins.Context")
 	}
@@ -44,7 +44,7 @@ func (e *Evaluator) GetLowBound(value Value) (Value, error) {
 // This implements the builtins.Context interface.
 func (e *Evaluator) GetHighBound(value Value) (Value, error) {
 	// Cast adapter to builtins.Context to access the existing implementation
-	ctx, ok := e.adapter.(builtins.Context)
+	ctx, ok := e.coreEvaluator.(builtins.Context)
 	if !ok {
 		return nil, fmt.Errorf("GetHighBound: adapter does not implement builtins.Context")
 	}

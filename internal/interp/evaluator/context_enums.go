@@ -26,7 +26,7 @@ import (
 func (e *Evaluator) GetEnumOrdinal(value Value) (int64, bool) {
 	// Cast adapter to builtins.Context to access the existing implementation.
 	// The Interpreter implements builtins.Context with these methods.
-	ctx, ok := e.adapter.(builtins.Context)
+	ctx, ok := e.coreEvaluator.(builtins.Context)
 	if !ok {
 		return 0, false
 	}
@@ -39,7 +39,7 @@ func (e *Evaluator) GetEnumOrdinal(value Value) (int64, bool) {
 // Task 3.7.8: Helper for Succ() function.
 func (e *Evaluator) GetEnumSuccessor(enumVal Value) (Value, error) {
 	// Cast adapter to builtins.Context to access the existing implementation
-	ctx, ok := e.adapter.(builtins.Context)
+	ctx, ok := e.coreEvaluator.(builtins.Context)
 	if !ok {
 		return nil, nil
 	}
@@ -52,7 +52,7 @@ func (e *Evaluator) GetEnumSuccessor(enumVal Value) (Value, error) {
 // Task 3.7.8: Helper for Pred() function.
 func (e *Evaluator) GetEnumPredecessor(enumVal Value) (Value, error) {
 	// Cast adapter to builtins.Context to access the existing implementation
-	ctx, ok := e.adapter.(builtins.Context)
+	ctx, ok := e.coreEvaluator.(builtins.Context)
 	if !ok {
 		return nil, nil
 	}
@@ -65,7 +65,7 @@ func (e *Evaluator) GetEnumPredecessor(enumVal Value) (Value, error) {
 // Task 3.7.5: Helper for VarType() function to handle JSON values.
 func (e *Evaluator) GetJSONVarType(value Value) (int64, bool) {
 	// Cast adapter to builtins.Context to access the existing implementation
-	ctx, ok := e.adapter.(builtins.Context)
+	ctx, ok := e.coreEvaluator.(builtins.Context)
 	if !ok {
 		return 0, false
 	}
@@ -78,7 +78,7 @@ func (e *Evaluator) GetJSONVarType(value Value) (int64, bool) {
 // Used by Succ/Pred builtins to navigate enum ordinals.
 func (e *Evaluator) GetEnumMetadata(typeName string) builtins.Value {
 	// Cast adapter to builtins.Context to access the existing implementation
-	ctx, ok := e.adapter.(builtins.Context)
+	ctx, ok := e.coreEvaluator.(builtins.Context)
 	if !ok {
 		return nil
 	}

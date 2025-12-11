@@ -227,147 +227,6 @@ type ExternalFunctionRegistry interface {
 	Has(name string) bool
 }
 
-// InterpreterAdapter provides the boundary between evaluator and interpreter.
-// The evaluator is independent and operates on ExecutionContext and runtime values.
-// The interpreter owns OOP semantics (classes, Self context, method dispatch).
-type InterpreterAdapter interface {
-	// ===== Core Execution =====
-
-	// EvalNode evaluates a node via interpreter for OOP operations.
-	// Handles Self/class context and complex OOP operations.
-	EvalNode(node ast.Node) Value
-
-	// CallFunctionPointer executes a function pointer with arguments.
-	CallFunctionPointer(funcPtr Value, args []Value, node ast.Node) Value
-
-	// CallUserFunction executes a user-defined function.
-	CallUserFunction(fn *ast.FunctionDecl, args []Value) Value
-
-	// ===== Declaration Handling =====
-
-	// EvalMethodImplementation registers method implementations for classes/records.
-	// Handles ClassInfo internals (VMT rebuild, descendant propagation).
-	EvalMethodImplementation(fn *ast.FunctionDecl) Value
-
-	// ===== Helper Declaration =====
-
-	CreateHelperInfo(name string, targetType any, isRecordHelper bool) interface{}
-	SetHelperParent(helper interface{}, parent interface{})
-	VerifyHelperTargetTypeMatch(parent interface{}, targetType any) bool
-	GetHelperName(helper interface{}) string
-	AddHelperMethod(helper interface{}, normalizedName string, method *ast.FunctionDecl)
-	AddHelperProperty(helper interface{}, prop *ast.PropertyDecl, propType any)
-	AddHelperClassVar(helper interface{}, name string, value Value)
-	AddHelperClassConst(helper interface{}, name string, value Value)
-	RegisterHelperLegacy(typeName string, helper interface{})
-
-	// ===== Interface Declaration =====
-
-	NewInterfaceInfoAdapter(name string) interface{}
-	CastToInterfaceInfo(iface interface{}) (interface{}, bool)
-	SetInterfaceParent(iface interface{}, parent interface{})
-	GetInterfaceName(iface interface{}) string
-	GetInterfaceParent(iface interface{}) interface{}
-	AddInterfaceMethod(iface interface{}, normalizedName string, method *ast.FunctionDecl)
-	AddInterfaceProperty(iface interface{}, normalizedName string, propInfo any)
-
-	// ===== Method Calls =====
-
-	CallMethod(obj Value, methodName string, args []Value, node ast.Node) Value
-	CallInheritedMethod(obj Value, methodName string, args []Value) Value
-	ExecuteMethodWithSelf(self Value, methodDecl any, args []Value) Value
-
-	// ===== Object Operations =====
-
-	ExecuteConstructor(obj Value, constructorName string, args []Value) error
-	CreateTypeCastWrapper(className string, obj Value) Value
-	RaiseTypeCastException(message string, node ast.Node)
-	RaiseAssertionFailed(customMessage string)
-	CreateContractException(className, message string, node ast.Node, classMetadata interface{}, callStack interface{}) interface{}
-	CleanupInterfaceReferences(env interface{})
-
-	// ===== Method Pointers =====
-
-	ExecuteFunctionPointerCall(metadata FunctionPointerMetadata, args []Value, node ast.Node) Value
-
-	// ===== Exception Handling =====
-
-	CreateExceptionDirect(classMetadata any, message string, pos any, callStack any) any
-	WrapObjectInException(objInstance Value, pos any, callStack any) any
-
-	// ===== Variable Declaration =====
-
-	WrapInSubrange(value Value, subrangeTypeName string, node ast.Node) (Value, error)
-	WrapInInterface(value Value, interfaceName string, node ast.Node) (Value, error)
-
-	// ===== Property & Method References =====
-
-	CreateBoundMethodPointer(obj Value, methodDecl any) Value
-
-	// ===== Dispatch Methods =====
-
-	CallQualifiedOrConstructor(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression) Value
-	CallImplicitSelfMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
-	CallRecordStaticMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
-	DispatchRecordStaticMethod(recordTypeName string, callExpr *ast.CallExpression, funcName *ast.Identifier) Value
-	ExecuteRecordPropertyRead(record Value, propInfo any, indices []Value, node any) Value
-	CallExternalFunction(funcName string, argExprs []ast.Expression, node ast.Node) Value
-
-	// ===== Class Declaration =====
-
-	NewClassInfoAdapter(name string) interface{}
-	CastToClassInfo(class interface{}) (interface{}, bool)
-	IsClassPartial(classInfo interface{}) bool
-	SetClassPartial(classInfo interface{}, isPartial bool)
-	SetClassAbstract(classInfo interface{}, isAbstract bool)
-	SetClassExternal(classInfo interface{}, isExternal bool, externalName string)
-	ClassHasNoParent(classInfo interface{}) bool
-	DefineCurrentClassMarker(env interface{}, classInfo interface{})
-	SetClassParent(classInfo interface{}, parentClass interface{})
-	AddInterfaceToClass(classInfo interface{}, interfaceInfo interface{}, interfaceName string)
-	AddClassMethod(classInfo interface{}, method *ast.FunctionDecl, className string) bool
-	SynthesizeDefaultConstructor(classInfo interface{})
-	AddClassProperty(classInfo interface{}, propDecl *ast.PropertyDecl) bool
-	RegisterClassOperator(classInfo interface{}, opDecl *ast.OperatorDecl) Value
-	LookupClassMethod(classInfo interface{}, methodName string, isClassMethod bool) (interface{}, bool)
-	SetClassConstructor(classInfo interface{}, constructor interface{})
-	SetClassDestructor(classInfo interface{}, destructor interface{})
-	InheritDestructorIfMissing(classInfo interface{})
-	InheritParentProperties(classInfo interface{})
-	BuildVirtualMethodTable(classInfo interface{})
-	RegisterClassInTypeSystem(classInfo interface{}, parentName string)
-
-	// ===== Helper Properties =====
-
-	EvalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node) Value
-
-	// ===== Class Properties =====
-
-	// EvalClassPropertyRead evaluates a class property read operation.
-	// Task 3.2.10: Added for CLASS/CLASSINFO member access.
-	EvalClassPropertyRead(classInfo any, propInfo any, node ast.Node) Value
-
-	// EvalClassPropertyWrite evaluates a class property write operation.
-	// Task 3.2.11b: Added for CLASS/CLASSINFO member assignment.
-	EvalClassPropertyWrite(classInfo any, propInfo any, value Value, node ast.Node) Value
-
-	// ===== Operator Overloading =====
-
-	// TryBinaryOperator attempts to find and invoke a binary operator overload.
-	// Returns (result, true) if operator found, or (nil, false) if not found.
-	TryBinaryOperator(operator string, left, right Value, node ast.Node) (Value, bool)
-
-	// TryUnaryOperator attempts to find and invoke a unary operator overload.
-	// Returns (result, true) if operator found, or (nil, false) if not found.
-	TryUnaryOperator(operator string, operand Value, node ast.Node) (Value, bool)
-
-	// ===== Class Lookup =====
-
-	// LookupClassByName finds a class by name and returns it as ClassMetaValue.
-	// Used for typed nil class variable access.
-	LookupClassByName(name string) ClassMetaValue
-}
-
 // Evaluator evaluates DWScript AST nodes.
 // Dependencies: type system, runtime services, configuration.
 // Execution state is in ExecutionContext (stateless evaluator).
@@ -375,11 +234,10 @@ type Evaluator struct {
 	output            io.Writer
 	externalFunctions ExternalFunctionRegistry
 	currentNode       ast.Node
-	adapter           InterpreterAdapter // DEPRECATED: Use focused interfaces below (Task 3.4.3-3.4.5)
-	oopEngine         OOPEngine          // Task 3.4.3: Runtime OOP operations (21 methods)
-	declHandler       DeclHandler        // Task 3.4.4: Declaration processing (37 methods)
-	exceptionMgr      ExceptionManager   // Task 3.4.5: Exception handling (6 methods)
-	coreEvaluator     CoreEvaluator      // Task 3.4.5: Cross-cutting concerns (4 methods)
+	oopEngine         OOPEngine        // Task 3.4.3: Runtime OOP operations (20 methods)
+	declHandler       DeclHandler      // Task 3.4.4: Declaration processing (38 methods)
+	exceptionMgr      ExceptionManager // Task 3.4.5: Exception handling (6 methods)
+	coreEvaluator     CoreEvaluator    // Task 3.4.5: Cross-cutting concerns (4 methods)
 	refCountMgr       runtime.RefCountManager
 	config            *Config
 	rand              *rand.Rand
@@ -545,30 +403,6 @@ func (e *Evaluator) CurrentNode() ast.Node {
 // SetCurrentNode sets the current AST node being evaluated (for error reporting).
 func (e *Evaluator) SetCurrentNode(node ast.Node) {
 	e.currentNode = node
-}
-
-// SetAdapter sets the interpreter adapter.
-// DEPRECATED: Use SetFocusedInterfaces instead (Task 3.4.3-3.4.5).
-//
-// For backward compatibility, this method also sets the focused interfaces
-// by type-asserting the adapter to each interface type.
-func (e *Evaluator) SetAdapter(adapter InterpreterAdapter) {
-	e.adapter = adapter
-
-	// Task 3.4.6: Automatically set focused interfaces for backward compatibility
-	// This allows existing code using SetAdapter() to work without changes
-	if oop, ok := adapter.(OOPEngine); ok {
-		e.oopEngine = oop
-	}
-	if decl, ok := adapter.(DeclHandler); ok {
-		e.declHandler = decl
-	}
-	if exc, ok := adapter.(ExceptionManager); ok {
-		e.exceptionMgr = exc
-	}
-	if core, ok := adapter.(CoreEvaluator); ok {
-		e.coreEvaluator = core
-	}
 }
 
 // SetFocusedInterfaces sets the focused interfaces for the evaluator.
@@ -763,10 +597,10 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 		return e.VisitTypeDeclaration(n, ctx)
 
 	default:
-		if e.adapter != nil {
+		if e.coreEvaluator != nil {
 			return e.coreEvaluator.EvalNode(node)
 		}
-		panic("Evaluator.Eval: unknown node type and no adapter available")
+		panic("Evaluator.Eval: unknown node type and no coreEvaluator available")
 	}
 }
 
