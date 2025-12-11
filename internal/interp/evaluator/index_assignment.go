@@ -69,17 +69,12 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 		return &runtime.NilValue{}
 	}
 
-	// Check for interface-based indexed properties
-	// InterfaceInstance is in interp package, check by type name
-	if strings.HasPrefix(arrayVal.Type(), "INTERFACE") {
-		// Delegate to adapter for interface handling
-		return e.adapter.EvalNode(stmt)
-	}
-
-	// Check for object with default indexed property
-	if strings.HasPrefix(arrayVal.Type(), "OBJECT[") {
-		// Delegate to adapter for object default property handling
-		return e.adapter.EvalNode(stmt)
+	// Check for interface-based indexed properties or object with default indexed property
+	// Both INTERFACE and OBJECT types may have default indexed properties
+	if strings.HasPrefix(arrayVal.Type(), "INTERFACE") || strings.HasPrefix(arrayVal.Type(), "OBJECT[") {
+		// Handle default property assignment using PropertyAccessor interface
+		// Pattern: Same as 3.2.11g but lookup default property instead of named property
+		return e.evalDefaultPropertyAssignment(arrayVal, indexVal, value, stmt, ctx)
 	}
 
 	// Extract integer index
@@ -265,6 +260,74 @@ func (e *Evaluator) evalIndexedPropertyAssignment(
 	// This delegates to the interpreter for method execution, but it's a general
 	// method dispatch mechanism, not a property-specific adapter interface
 	result := e.adapter.ExecuteMethodWithSelf(baseObj, propInfo.WriteSpec, args)
+
+	// Check for errors from method execution
+	if isError(result) {
+		return result
+	}
+
+	return value
+}
+
+// evalDefaultPropertyAssignment handles default indexed property assignment: obj[i] := value
+//
+// This follows the same pattern as evalIndexedPropertyAssignment (3.2.11g),
+// but looks up the default property instead of a named property.
+//
+// Uses PropertyAccessor.GetDefaultProperty() which already exists in runtime:
+// 1. Get PropertyAccessor from value (obj implements PropertyAccessor interface)
+// 2. Call accessor.GetDefaultProperty() - returns PropertyDescriptor
+// 3. Extract PropertyInfo with setter method reference
+// 4. Build argument list: [index, value]
+// 5. Execute setter via adapter.ExecuteMethodWithSelf() (general OOP facility)
+//
+// INTERFACE handling: InterfaceInstance.GetDefaultProperty() delegates to underlying interface
+// OBJECT handling: ObjectInstance.GetDefaultProperty() uses IClassInfo.GetDefaultProperty()
+//
+// Uses general-purpose method dispatch instead of property-specific adapter interface.
+func (e *Evaluator) evalDefaultPropertyAssignment(
+	obj Value,
+	indexVal Value,
+	value Value,
+	stmt *ast.AssignmentStatement,
+	ctx *ExecutionContext,
+) Value {
+	// Check if object implements PropertyAccessor interface
+	accessor, ok := obj.(runtime.PropertyAccessor)
+	if !ok {
+		return e.newError(stmt, "type %s does not support indexed access", obj.Type())
+	}
+
+	// Get the default property - already exists in runtime!
+	propDesc := accessor.GetDefaultProperty()
+	if propDesc == nil {
+		return e.newError(stmt, "type %s has no default indexed property", obj.Type())
+	}
+
+	// Check if property is indexed (default properties should be indexed)
+	if !propDesc.IsIndexed {
+		return e.newError(stmt, "default property on %s is not an indexed property", obj.Type())
+	}
+
+	// Get the underlying PropertyInfo for setter access
+	propInfo, ok := propDesc.Impl.(*runtime.PropertyInfo)
+	if !ok {
+		return e.newError(stmt, "invalid default property metadata for %s", obj.Type())
+	}
+
+	// Check if property has write access
+	if propInfo.WriteSpec == "" {
+		return e.newError(stmt, "default property on %s is read-only", obj.Type())
+	}
+
+	// Build argument list for setter: [index, value]
+	// Note: For default properties, we have a single index (not multi-index like named properties)
+	args := []Value{indexVal, value}
+
+	// Execute setter method via general OOP facility (adapter.ExecuteMethodWithSelf)
+	// This delegates to the interpreter for method execution, but it's a general
+	// method dispatch mechanism, not a property-specific adapter interface
+	result := e.adapter.ExecuteMethodWithSelf(obj, propInfo.WriteSpec, args)
 
 	// Check for errors from method execution
 	if isError(result) {

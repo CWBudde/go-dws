@@ -83,6 +83,27 @@ func TestCollectIndices(t *testing.T) {
 	}
 }
 
+// TestDefaultPropertyAssignment tests default indexed property assignment: obj[i] := value
+func TestDefaultPropertyAssignment(t *testing.T) {
+	t.Skip("Default property assignment requires mock object with default property - implement when fixture tests available")
+
+	// This test is skipped because it requires:
+	// 1. A mock object that implements PropertyAccessor
+	// 2. A mock default indexed property with setter method
+	// 3. Proper adapter.ExecuteMethodWithSelf implementation
+	//
+	// The functionality will be tested via fixture tests that have real
+	// DWScript class definitions with default indexed properties.
+	//
+	// Example fixture test would use code like:
+	//   type TList = class
+	//     property Items[Index: Integer]: String read GetItem write SetItem; default;
+	//   end;
+	//
+	//   var list: TList;
+	//   list[0] := 'hello';  // This calls SetItem(0, 'hello') via default property
+}
+
 // TestIndexedPropertyAssignment_ErrorCases tests error handling
 func TestIndexedPropertyAssignment_ErrorCases(t *testing.T) {
 	t.Skip("Error cases will be tested via fixture tests with real DWScript code")
@@ -93,4 +114,6 @@ func TestIndexedPropertyAssignment_ErrorCases(t *testing.T) {
 	// 3. Read-only indexed property
 	// 4. Invalid property metadata
 	// 5. Type mismatches in index or value
+	// 6. Type without default property
+	// 7. Read-only default property
 }

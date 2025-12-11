@@ -355,19 +355,21 @@ then removing the `adapter.EvalNode()` fallback.
     - **Result**: Eliminated adapter.EvalNode() at line 45 (3 calls → 2 calls)
     - All tests pass (385 passed, 842 failed baseline unchanged)
 
-  - [ ] **3.2.11h** Migrate interface/object default property assignment `obj[i] := value` (~1.5h)
+  - [x] **3.2.11h** Migrate interface/object default property assignment `obj[i] := value` ✅ **DONE** (2025-12-11, ~1h actual)
     - **Goal**: Eliminate fallbacks at index_assignment.go:76, 82 WITHOUT new adapter interfaces
     - **Pattern**: Same as 3.2.11g but lookup default property instead of named property
-    - **Approach**:
-      1. Get PropertyAccessor from value (obj implements PropertyAccessor interface)
-      2. Call `accessor.GetDefaultProperty()` - already exists in runtime!
-      3. PropertyInfo contains setter method reference
-      4. Build argument list: `[indices..., value]`
-      5. Execute setter via `adapter.ExecuteMethodWithSelf()`
-    - **INTERFACE handling**: InterfaceInstance.GetDefaultProperty() delegates to underlying interface
-    - **OBJECT handling**: ObjectInstance.GetDefaultProperty() uses IClassInfo.GetDefaultProperty()
-    - **No new interfaces needed**: Reuses PropertyAccessor + general method dispatch
-    - Test: Default property assignment tests
+    - **Implementation**:
+      1. Created `evalDefaultPropertyAssignment()` function
+      2. Check if value implements PropertyAccessor interface
+      3. Call `accessor.GetDefaultProperty()` - already exists in runtime! ✅
+      4. Extract PropertyInfo from PropertyDescriptor
+      5. Build argument list: `[index, value]`
+      6. Execute setter via `adapter.ExecuteMethodWithSelf()` (general OOP facility)
+    - **INTERFACE handling**: InterfaceInstance.GetDefaultProperty() delegates to underlying interface ✅
+    - **OBJECT handling**: ObjectInstance.GetDefaultProperty() uses IClassInfo.GetDefaultProperty() ✅
+    - **No new interfaces needed**: Reuses PropertyAccessor + general method dispatch ✅
+    - **Result**: Eliminated BOTH adapter.EvalNode() calls at lines 76, 82 (2 calls → 0 calls)
+    - All tests pass (385 passed, 842 failed baseline unchanged)
 
   - [ ] **3.2.11i** Migrate implicit Self assignment (~1.5h)
     - Eliminate fallbacks at assignment_helpers.go:105, 391
