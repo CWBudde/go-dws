@@ -36,7 +36,6 @@ func (e *Evaluator) GetEnumOrdinal(value Value) (int64, bool) {
 
 // GetEnumSuccessor returns the successor of an enum value.
 // This implements the builtins.Context interface.
-// Task 3.7.8: Helper for Succ() function.
 func (e *Evaluator) GetEnumSuccessor(enumVal Value) (Value, error) {
 	// Cast adapter to builtins.Context to access the existing implementation
 	ctx, ok := e.coreEvaluator.(builtins.Context)
@@ -49,7 +48,6 @@ func (e *Evaluator) GetEnumSuccessor(enumVal Value) (Value, error) {
 
 // GetEnumPredecessor returns the predecessor of an enum value.
 // This implements the builtins.Context interface.
-// Task 3.7.8: Helper for Pred() function.
 func (e *Evaluator) GetEnumPredecessor(enumVal Value) (Value, error) {
 	// Cast adapter to builtins.Context to access the existing implementation
 	ctx, ok := e.coreEvaluator.(builtins.Context)
@@ -62,7 +60,6 @@ func (e *Evaluator) GetEnumPredecessor(enumVal Value) (Value, error) {
 
 // GetJSONVarType returns the VarType code for a JSON value based on its kind.
 // This implements the builtins.Context interface.
-// Task 3.7.5: Helper for VarType() function to handle JSON values.
 func (e *Evaluator) GetJSONVarType(value Value) (int64, bool) {
 	// Cast adapter to builtins.Context to access the existing implementation
 	ctx, ok := e.coreEvaluator.(builtins.Context)

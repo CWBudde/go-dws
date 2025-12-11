@@ -5,11 +5,7 @@ import (
 )
 
 // OOPEngine handles runtime object-oriented programming operations.
-// This interface encapsulates method dispatch, constructors, type operations,
-// and operator overloading without exposing the full interpreter internals.
-//
-// Task 3.4.3: Extracted from monolithic InterpreterAdapter (67 methods)
-// to create focused interface with single responsibility.
+// Encapsulates method dispatch, constructors, type operations, and operator overloading.
 type OOPEngine interface {
 	// ===== Method Dispatch (3 methods, high usage) =====
 
@@ -113,11 +109,3 @@ type OOPEngine interface {
 	// For typed nil class variable access.
 	LookupClassByName(name string) ClassMetaValue
 }
-
-// Total: 21 methods
-// High usage (3+ calls): ExecuteMethodWithSelf (10), CallImplicitSelfMethod (3)
-// Moderate usage (2 calls): CallMethod, CallFunctionPointer, CallUserFunction,
-//                           ExecuteFunctionPointerCall, CreateBoundMethodPointer,
-//                           CreateTypeCastWrapper, ExecuteRecordPropertyRead,
-//                           TryBinaryOperator
-// Low usage (1 call): 11 remaining methods

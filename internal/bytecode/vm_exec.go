@@ -151,7 +151,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				return NilValue(), err
 			}
 		case OpDup:
-			// Task 9.7: Duplicate top of stack (needed for record literals)
+			// Duplicate top of stack (needed for record literals)
 			val, err := vm.peek()
 			if err != nil {
 				return NilValue(), err
@@ -686,8 +686,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			// Create the object instance
 			obj := NewObjectInstance(className)
 
-			// Task 9.5.5: Initialize fields from class metadata
-			// Look up class metadata (case-insensitive)
+			// Initialize fields from class metadata (case-insensitive lookup)
 			classKey := ident.Normalize(className)
 			if classMeta, ok := frame.chunk.Classes[classKey]; ok {
 				// Initialize each field
@@ -715,7 +714,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 
 			vm.push(ObjectValue(obj))
 		case OpNewRecord:
-			// Task 9.7: Create a new record instance
+			// Create a new record instance
 			typeIdx := int(inst.B())
 			typeName, err := vm.constantAsString(frame.chunk, typeIdx, "NEW_RECORD")
 			if err != nil {
@@ -740,7 +739,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				return NilValue(), err
 			}
 
-			// Task 9.7: Support both objects and records
+			// Support both objects and records
 			if val.IsObject() {
 				obj := val.AsObject()
 				fieldVal, ok := obj.GetField(name)
@@ -773,7 +772,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				return NilValue(), err
 			}
 
-			// Task 9.7: Support both objects and records
+			// Support both objects and records
 			if target.IsObject() {
 				obj := target.AsObject()
 				obj.SetField(name, value)
@@ -822,7 +821,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 					return NilValue(), vm.runtimeError("unknown array property '%s'", name)
 				}
 			} else if objVal.IsObject() {
-				// Task 9.5.5: Objects can access fields via properties
+				// Objects can access fields via properties
 				obj := objVal.AsObject()
 				val, ok := obj.GetProperty(name)
 				if !ok {
@@ -830,7 +829,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				}
 				vm.push(val)
 			} else if objVal.IsRecord() {
-				// Task 9.7: Records access fields directly
+				// Records access fields directly
 				rec := objVal.AsRecord()
 				val, ok := rec.GetField(name)
 				if !ok {
@@ -1097,7 +1096,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			}
 			vm.push(ret)
 
-		// Task 1.3.7.6: Reference operations for var parameters
+		// Reference operations for var parameters
 		case OpLoadRef:
 			// Load a reference to a local variable onto the stack
 			idx := int(inst.B())

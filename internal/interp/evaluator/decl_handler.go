@@ -5,15 +5,7 @@ import (
 )
 
 // DeclHandler handles type declaration processing (classes, interfaces, helpers).
-// This interface encapsulates the complex logic for building type metadata,
-// virtual method tables, and inheritance hierarchies without exposing
-// the full interpreter internals.
-//
-// Task 3.4.4: Extracted from monolithic InterpreterAdapter (67 methods)
-// to create focused interface for declaration handling.
-//
-// NOTE: All 37 methods have single callers in visitor_declarations.go,
-// forming a cohesive interface for type system construction.
+// Encapsulates logic for building type metadata, virtual method tables, and inheritance hierarchies.
 type DeclHandler interface {
 	// ===== Class Declaration (21 methods) =====
 	// All methods used by: visitor_declarations.go (single caller each)
@@ -150,15 +142,3 @@ type DeclHandler interface {
 	// Handles class/record method body evaluation and VMT updates.
 	EvalMethodImplementation(fn *ast.FunctionDecl) Value
 }
-
-// Total: 37 methods
-// Usage pattern: All methods have 1 caller (except AddClassMethod, LookupClassMethod,
-// RegisterHelperLegacy with 2 calls), all in visitor_declarations.go
-//
-// Design rationale:
-// - Keeping interface-based design prevents visitor_declarations.go from becoming
-//   a massive, unmanageable file (would add ~1000+ lines if inlined)
-// - Single-use methods still provide value through:
-//   1. Clear separation of concerns (declaration logic vs evaluation logic)
-//   2. Testability (can mock declaration handling independently)
-//   3. Future flexibility (can swap implementations without touching evaluator)

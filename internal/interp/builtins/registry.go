@@ -69,7 +69,7 @@ type FunctionInfo struct {
 }
 
 // FunctionSignature describes the type signature of a built-in function.
-// Task 9.24.1: Enables type-safe function pointer handling for built-ins.
+// Enables type-safe function pointer handling for built-ins.
 type FunctionSignature struct {
 
 	// ReturnType is the function's return type (nil for procedures).
@@ -91,7 +91,6 @@ type FunctionSignature struct {
 }
 
 // Sig creates a FunctionSignature for a function with fixed parameters.
-// Task 9.24.1: Helper for concise signature registration.
 func Sig(params []types.Type, ret types.Type) *FunctionSignature {
 	n := len(params)
 	return &FunctionSignature{
@@ -104,7 +103,6 @@ func Sig(params []types.Type, ret types.Type) *FunctionSignature {
 }
 
 // SigOptional creates a FunctionSignature with optional parameters.
-// Task 9.24.1: Helper for functions with optional/default parameters.
 func SigOptional(params []types.Type, ret types.Type, minArgs int) *FunctionSignature {
 	return &FunctionSignature{
 		ParamTypes: params,
@@ -116,7 +114,6 @@ func SigOptional(params []types.Type, ret types.Type, minArgs int) *FunctionSign
 }
 
 // SigVariadic creates a FunctionSignature for a variadic function.
-// Task 9.24.1: Helper for variadic functions (Print, PrintLn, etc.).
 func SigVariadic(params []types.Type, ret types.Type, minArgs int) *FunctionSignature {
 	return &FunctionSignature{
 		ParamTypes: params,
@@ -152,7 +149,7 @@ func (r *Registry) Register(name string, fn BuiltinFunc, category Category, desc
 }
 
 // RegisterWithSignature adds a built-in function with type signature to the registry.
-// Task 9.24.1: Enables semantic analysis of @Builtin address-of expressions.
+// Enables semantic analysis of @Builtin address-of expressions.
 func (r *Registry) RegisterWithSignature(name string, fn BuiltinFunc, category Category, description string, sig *FunctionSignature) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -206,7 +203,7 @@ func (r *Registry) Lookup(name string) (BuiltinFunc, bool) {
 
 // GetSignature returns the type signature for a function by name (case-insensitive).
 // Returns the signature and true if found, nil and false otherwise.
-// Task 9.24.1: Used by semantic analyzer for @Builtin address-of validation.
+// Used by semantic analyzer for @Builtin address-of validation.
 func (r *Registry) GetSignature(name string) (*FunctionSignature, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

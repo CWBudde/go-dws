@@ -1,8 +1,6 @@
 // Package types provides the type system for the DWScript interpreter.
 // This package contains type registries and type management utilities used
 // during runtime execution.
-//
-// Task 3.4.1: Extract type registries from Interpreter into TypeSystem
 package types
 
 import (
@@ -65,7 +63,6 @@ func NewTypeSystem() *TypeSystem {
 }
 
 // ========== Class Registry ==========
-// Task 3.4.2: Class methods now delegate to ClassRegistry
 
 // RegisterClass registers a new class in the type system.
 // The name is stored case-insensitively (converted to lowercase).
@@ -176,28 +173,14 @@ func (ts *TypeSystem) AllRecords() map[string]RecordTypeValue {
 }
 
 // LookupRecordMetadata returns the RecordMetadata for the given record name.
-// This is a convenience method that extracts the Metadata field from RecordTypeValue.
 // Returns nil if the record doesn't exist or has no metadata.
-//
-// Usage:
-//
-//	metadata := typeSystem.LookupRecordMetadata("TPoint")
-//	if metadata != nil {
-//	    // Use metadata...
-//	}
 func (ts *TypeSystem) LookupRecordMetadata(name string) any {
 	recordTypeValue := ts.LookupRecord(name)
 	if recordTypeValue == nil {
 		return nil
 	}
 
-	// RecordTypeValue is stored as any to avoid circular imports.
-	// The actual type is *interp.RecordTypeValue which has a Metadata field.
-	// We use reflection-like type assertion through any interface.
-	//
-	// Expected structure: recordTypeValue.(*RecordTypeValue).Metadata
-	// Since we can't directly assert (circular import), we use a type switch
-	// on the concrete type that the caller will know about.
+	// Use interface to extract metadata (avoids circular import)
 	type hasMetadata interface {
 		GetMetadata() any
 	}
@@ -206,8 +189,6 @@ func (ts *TypeSystem) LookupRecordMetadata(name string) any {
 		return hm.GetMetadata()
 	}
 
-	// Fallback: Try direct field access via interface{}
-	// This works because RecordTypeValue from interp has a Metadata field
 	return nil
 }
 
@@ -339,26 +320,8 @@ func (ts *TypeSystem) HasFunctionPointerType(name string) bool {
 }
 
 // LookupEnumMetadata returns the EnumTypeValue wrapper for the given enum name.
-// Returns the wrapper directly (not unwrapped) for consistency with RegisterEnumType.
 // Returns nil if the enum doesn't exist.
-//
-// Usage (in interp package):
-//
-//	if enumMetadata := typeSystem.LookupEnumMetadata("TColor"); enumMetadata != nil {
-//	    if etv, ok := enumMetadata.(*EnumTypeValue); ok {
-//	        enumType := etv.EnumType  // *types.EnumType
-//	    }
-//	}
-//
-// Usage (in evaluator package via interface):
-//
-//	if enumMetadata := typeSystem.LookupEnumMetadata("TColor"); enumMetadata != nil {
-//	    if etv, ok := enumMetadata.(EnumTypeValueAccessor); ok {
-//	        enumType := etv.GetEnumType()  // *types.EnumType
-//	    }
-//	}
 func (ts *TypeSystem) LookupEnumMetadata(name string) any {
-	// Return the wrapper directly (not unwrapped)
 	return ts.LookupEnumType(name)
 }
 
@@ -366,7 +329,6 @@ func (ts *TypeSystem) LookupEnumMetadata(name string) any {
 
 // RegisterSubrangeType registers a subrange type in the type system.
 // The name is stored case-insensitively, with original casing preserved.
-// This replaces the previous environment-based storage using "__subrange_type_" prefix.
 func (ts *TypeSystem) RegisterSubrangeType(name string, subrangeType *coretypes.SubrangeType) {
 	if subrangeType == nil {
 		return
@@ -399,7 +361,6 @@ func (ts *TypeSystem) AllSubrangeTypes() map[string]*coretypes.SubrangeType {
 }
 
 // ========== Function Registry ==========
-// Task 3.4.3: Function methods now delegate to FunctionRegistry
 
 // RegisterFunction registers a function overload in the type system.
 // Multiple functions with the same name can be registered (overloading).
@@ -567,9 +528,7 @@ func (ts *TypeSystem) GetEnumTypeID(enumName string) int {
 }
 
 // ========== Type Information ==========
-// The TypeSystem stores references to types defined in the interp package.
-// We use 'any' (interface{}) to avoid circular dependencies between packages.
-// The interp package will cast these to the appropriate concrete types.
+// Type aliases use 'any' to avoid circular dependencies with the interp package.
 
 type ClassInfo = any       // Expected: *interp.ClassInfo
 type RecordTypeValue = any // Expected: *interp.RecordTypeValue
@@ -580,7 +539,7 @@ type EnumTypeValue = any   // Expected: *interp.EnumTypeValue
 // ========== Operator Registry ==========
 
 // OperatorRegistry manages operator overloads.
-// Task 13.10: Uses ident.Map for case-insensitive operator lookup (e.g., "and" vs "AND").
+// Uses ident.Map for case-insensitive operator lookup (e.g., "and" vs "AND").
 type OperatorRegistry struct {
 	entries *ident.Map[[]*OperatorEntry]
 }
@@ -609,7 +568,7 @@ func (r *OperatorRegistry) Register(entry *OperatorEntry) error {
 		return fmt.Errorf("operator entry cannot be nil")
 	}
 
-	// Check for duplicate signatures (ident.Map handles normalization)
+	// Check for duplicate signatures
 	existing, _ := r.entries.Get(entry.Operator)
 	for _, e := range existing {
 		if operatorSignatureKey(e.OperandTypes) == operatorSignatureKey(entry.OperandTypes) {
@@ -628,21 +587,19 @@ func (r *OperatorRegistry) Lookup(operator string, operandTypes []string) (*Oper
 		return nil, false
 	}
 
-	// ident.Map handles normalization automatically
 	entries, ok := r.entries.Get(operator)
 	if !ok {
 		return nil, false
 	}
 
-	// First try exact match for performance
+	// Try exact match for performance
 	for _, entry := range entries {
 		if operatorSignatureKey(entry.OperandTypes) == operatorSignatureKey(operandTypes) {
 			return entry, true
 		}
 	}
 
-	// Note: Assignment-compatible matching (for inheritance) is handled
-	// in the interpreter layer since it requires class hierarchy information
+	// Assignment-compatible matching (for inheritance) is handled in the interpreter layer
 
 	return nil, false
 }

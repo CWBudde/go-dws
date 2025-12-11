@@ -15,10 +15,10 @@ import (
 // - Float operations: += -= *= /= between floats and integers (with implicit conversion)
 // - String concatenation: += for strings
 // - Variant operations: delegates to evalVariantBinaryOp
-// - Class operator overloads: uses adapter.TryBinaryOperator (Task 3.2.11k)
+// - Class operator overloads: uses TryBinaryOperator infrastructure
 func (e *Evaluator) applyCompoundOperation(op token.TokenType, left, right Value, node ast.Node) Value {
-	// Task 3.2.11k: Check for class operator overloads first
-	// Use existing TryBinaryOperator infrastructure from 3.2.10
+	// Check for class operator overloads first
+	// Use existing TryBinaryOperator infrastructure
 	leftType := left.Type()
 	if strings.HasPrefix(leftType, "OBJECT[") {
 		// Try operator overload - convert compound op to binary op
@@ -99,7 +99,7 @@ func (e *Evaluator) evalPlusAssign(left, right Value, node ast.Node) Value {
 		if r, ok := right.(*runtime.StringValue); ok {
 			return &runtime.StringValue{Value: l.Value + r.Value}
 		}
-		// Task 9.24.2: Handle Variant-to-String conversion for array of const elements
+		// Handle Variant-to-String conversion for array of const elements
 		if wrapper, ok := right.(runtime.VariantWrapper); ok {
 			// Unwrap the variant and convert to string
 			innerVal := wrapper.UnwrapVariant()
@@ -187,7 +187,7 @@ func (e *Evaluator) evalTimesAssign(left, right Value, node ast.Node) Value {
 }
 
 // evalDivideAssign handles the /= operator for numeric types.
-// Task 9.111: Includes enhanced error reporting with operand values.
+// Includes enhanced error reporting with operand values.
 func (e *Evaluator) evalDivideAssign(left, right Value, node ast.Node) Value {
 	// Handle Variant values first
 	if _, ok := left.(runtime.VariantWrapper); ok {
@@ -202,7 +202,7 @@ func (e *Evaluator) evalDivideAssign(left, right Value, node ast.Node) Value {
 	case *runtime.IntegerValue:
 		if r, ok := right.(*runtime.IntegerValue); ok {
 			if r.Value == 0 {
-				// Task 9.111: Enhanced error with operand values
+				// Enhanced error with operand values
 				return e.newDivisionByZeroError(node, l.Value, r.Value)
 			}
 			return &runtime.IntegerValue{Value: l.Value / r.Value}
@@ -214,14 +214,14 @@ func (e *Evaluator) evalDivideAssign(left, right Value, node ast.Node) Value {
 		switch r := right.(type) {
 		case *runtime.FloatValue:
 			if r.Value == 0.0 {
-				// Task 9.111: Enhanced error with operand values
+				// Enhanced error with operand values
 				return e.newFloatDivisionByZeroError(node, l.Value, r.Value)
 			}
 			return &runtime.FloatValue{Value: l.Value / r.Value}
 		case *runtime.IntegerValue:
 			// Implicit Integer to Float conversion
 			if r.Value == 0 {
-				// Task 9.111: Enhanced error with operand values
+				// Enhanced error with operand values
 				return e.newFloatIntDivisionByZeroError(node, l.Value, r.Value)
 			}
 			return &runtime.FloatValue{Value: l.Value / float64(r.Value)}
@@ -235,19 +235,16 @@ func (e *Evaluator) evalDivideAssign(left, right Value, node ast.Node) Value {
 }
 
 // newDivisionByZeroError creates an enhanced division by zero error for integers.
-// Task 9.111: Includes operand values in error metadata.
 func (e *Evaluator) newDivisionByZeroError(node ast.Node, left, right int64) Value {
 	return e.newError(node, "Division by zero")
 }
 
 // newFloatDivisionByZeroError creates an enhanced division by zero error for floats.
-// Task 9.111: Includes operand values in error metadata.
 func (e *Evaluator) newFloatDivisionByZeroError(node ast.Node, left, right float64) Value {
 	return e.newError(node, "Division by zero")
 }
 
 // newFloatIntDivisionByZeroError creates an enhanced division by zero error for float/int.
-// Task 9.111: Includes operand values in error metadata.
 func (e *Evaluator) newFloatIntDivisionByZeroError(node ast.Node, left float64, right int64) Value {
 	return e.newError(node, "Division by zero")
 }

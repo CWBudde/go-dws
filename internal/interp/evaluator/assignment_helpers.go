@@ -299,7 +299,6 @@ func (e *Evaluator) evalSubrangeAssignment(
 	case *runtime.IntegerValue:
 		intValue = int(v.Value)
 	case SubrangeValueAccessor:
-		// Assigning from another subrange - extract the value
 		intValue = v.GetValue()
 	default:
 		return e.newError(target, "cannot assign %s to subrange type %s", value.Type(), subrangeVal.GetTypeName())
@@ -410,7 +409,6 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 				if classMetaVal, ok := classInfoVal.(ClassMetaValue); ok {
 					// Check for class variable
 					if classVarValue, found := classMetaVal.GetClassVar(targetName); found {
-						// Evaluate RHS
 						rightVal := e.Eval(stmt.Value, ctx)
 						if isError(rightVal) {
 							return rightVal
@@ -440,8 +438,7 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 		return e.newError(target, "variable '%s' has invalid type (not a Value)", targetName)
 	}
 
-	// Check if target is a var parameter (ReferenceValue)
-	// Compound assignment to var params requires read-modify-write
+	// Var parameter - read-modify-write
 	if refVal, isRef := currentVal.(ReferenceValueAccessor); isRef {
 		// Dereference to get the actual value
 		derefVal, err := refVal.Dereference()
@@ -472,7 +469,7 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 		return result
 	}
 
-	// Evaluate the RHS
+	// Regular variable
 	rightVal := e.Eval(stmt.Value, ctx)
 	if isError(rightVal) {
 		return rightVal

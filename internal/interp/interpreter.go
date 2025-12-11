@@ -14,11 +14,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 
-	// Task 3.8.2: pkg/ast is imported for SemanticInfo, which holds semantic analysis
-	// metadata (type annotations, symbol resolutions). This is separate from the AST
-	// structure itself and is not aliased in internal/ast.
-	// Task 9.18: Separate type metadata from AST nodes.
-	pkgast "github.com/cwbudde/go-dws/pkg/ast"
+	pkgast "github.com/cwbudde/go-dws/pkg/ast" // SemanticInfo (type annotations)
 )
 
 // DefaultMaxRecursionDepth is the default maximum recursion depth for function calls.
@@ -32,10 +28,7 @@ const DefaultMaxRecursionDepth = 1024
 type PropertyEvalContext = evaluator.PropertyEvalContext
 
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
-//
-// Phase 3.5.1: The Interpreter is being refactored to be a thin orchestrator.
-// The evaluator field contains the evaluation logic and dependencies.
-// Eventually, most of the fields below will be removed and accessed via the evaluator.
+// Thin orchestrator delegating evaluation logic to the Evaluator.
 type Interpreter struct {
 	output            io.Writer
 	exception         *runtime.ExceptionValue
@@ -53,14 +46,12 @@ type Interpreter struct {
 	maxRecursionDepth int
 }
 
-// Task 3.4.7: Interface satisfaction assertions
-// Ensure Interpreter implements all four focused interfaces from evaluator package.
-// These replace the monolithic InterpreterAdapter (67 methods) with focused concerns.
+// Ensure Interpreter implements the four focused interfaces.
 var (
-	_ evaluator.OOPEngine        = (*Interpreter)(nil) // 21 methods: OOP runtime operations
-	_ evaluator.DeclHandler      = (*Interpreter)(nil) // 37 methods: Type declaration processing
-	_ evaluator.ExceptionManager = (*Interpreter)(nil) // 6 methods: Exception handling
-	_ evaluator.CoreEvaluator    = (*Interpreter)(nil) // 4 methods: Cross-cutting concerns
+	_ evaluator.OOPEngine        = (*Interpreter)(nil)
+	_ evaluator.DeclHandler      = (*Interpreter)(nil)
+	_ evaluator.ExceptionManager = (*Interpreter)(nil)
+	_ evaluator.CoreEvaluator    = (*Interpreter)(nil)
 )
 
 // New creates a new Interpreter with a fresh global environment.
@@ -71,20 +62,10 @@ func New(output io.Writer) *Interpreter {
 
 // NewWithOptions creates a new Interpreter with options.
 // If options is nil, default options are used.
-// Task 3.8.1: Uses Options interface to avoid circular dependency and remove reflection hack.
 func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 	env := NewEnvironment()
 
-	// Phase 3.4.1: Initialize TypeSystem
-	// The TypeSystem is the new centralized type registry that manages all type information
-	// including classes, records, interfaces, functions, helpers, operators, and conversions.
-	//
-	// Migration Strategy (Gradual Transition):
-	// - The old fields (functions, classes, records, etc.) are kept for backward compatibility
-	// - Existing code continues to work unchanged during the transition period
-	// - New code should use typeSystem methods (e.g., typeSystem.RegisterClass, typeSystem.LookupClass)
-	// - Old code will be gradually refactored to use typeSystem in future tasks
-	// - Once migration is complete, the old fields will be removed (future Phase 4+ work)
+	// Initialize TypeSystem - centralized type registry for classes, records, interfaces, functions, helpers, operators
 	ts := interptypes.NewTypeSystem()
 
 	// Initialize ClassValueFactory to enable evaluator to create ClassValue
@@ -107,15 +88,13 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 		// MethodRegistry for AST-free method storage
 		methodRegistry: runtime.NewMethodRegistry(),
 
-		// Phase 3.4.1: Legacy fields for backward compatibility
-		// These will be removed once migration to typeSystem is complete
-		functions: make(map[string][]*ast.FunctionDecl), // Task 9.66: Support overloading
+		// Legacy fields for backward compatibility (will be removed after typeSystem migration)
+		functions: make(map[string][]*ast.FunctionDecl), // Supports overloading
 		classes:   make(map[string]*ClassInfo),
 		records:   make(map[string]*RecordTypeValue),
 	}
 
-	// Task 3.8.1: Extract recursion depth from options using interface
-	// This replaces the reflection hack with a clean interface-based approach
+	// Extract recursion depth from options if provided
 	if opts != nil {
 		// Extract MaxRecursionDepth
 		if depth := opts.GetMaxRecursionDepth(); depth > 0 {
@@ -123,12 +102,7 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 		}
 	}
 
-	// Phase 3.3.1/3.3.3: Initialize execution context with call stack overflow detection
-	// The context wraps the environment with a simple adapter to avoid circular dependencies.
-	// The Environment is passed as interface{} to ExecutionContext to avoid import cycles.
-	// Phase 3.3.3: Pass maxRecursionDepth to configure CallStack overflow detection.
-	// Phase 3.1.3: Direct runtime.Environment - no adapter needed.
-	// Phase 3.2: Use callbacks to unify exception handling between interpreter and evaluator.
+	// Initialize execution context with call stack overflow detection.
 	// Note: Getter must return untyped nil when no exception, to avoid Go's interface nil gotcha.
 	interp.ctx = evaluator.NewExecutionContextWithCallbacks(
 		env,
@@ -148,33 +122,27 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 		},
 	)
 
-	// Phase 3.5.1: Initialize Evaluator
-	// The Evaluator holds evaluation logic and dependencies (type system, runtime services, config)
-	// Note: unitRegistry can be nil initially - it's set via SetUnitRegistry if needed
-
-	// Create evaluator config
+	// Initialize Evaluator with evaluation logic and dependencies
 	evalConfig := &evaluator.Config{
 		MaxRecursionDepth: interp.maxRecursionDepth,
 		SourceCode:        "",
 		SourceFile:        "",
 	}
 
-	// Task 3.5.41: Create RefCountManager for object lifecycle management
+	// Create RefCountManager for object lifecycle management
 	refCountMgr := runtime.NewRefCountManager()
 
-	// Create evaluator instance
-	// Task 3.3.4: semanticInfo is nil initially, set via SetSemanticInfo if needed
+	// Create evaluator instance (semanticInfo is set later via SetSemanticInfo if needed)
 	interp.evaluatorInstance = evaluator.NewEvaluator(
 		ts,
 		output,
 		evalConfig,
 		nil,         // unitRegistry is set later via SetUnitRegistry if needed
 		nil,         // semanticInfo is set later via SetSemanticInfo if needed
-		refCountMgr, // Task 3.5.41: Pass RefCountManager to evaluator
+		refCountMgr, // Pass RefCountManager to evaluator
 	)
 
-	// Task 3.3.6: Initialize external functions registry in evaluator
-	// Extract from options if provided, otherwise create new registry
+	// Initialize external functions registry in evaluator
 	if opts != nil {
 		if registry := opts.GetExternalFunctions(); registry != nil {
 			interp.evaluatorInstance.SetExternalFunctions(registry)
@@ -184,14 +152,12 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 		interp.evaluatorInstance.SetExternalFunctions(NewExternalFunctionRegistry())
 	}
 
-	// Task 3.5.41: Register destructor callback for RefCountManager
-	// This callback is invoked when an object's reference count reaches 0
+	// Register destructor callback - invoked when reference count reaches 0
 	refCountMgr.SetDestructorCallback(func(obj *runtime.ObjectInstance) error {
 		return interp.runDestructorForRefCount(obj)
 	})
 
-	// Task 3.4.8: Set focused interfaces so evaluator can delegate to interpreter
-	// Replaces monolithic SetAdapter with 4 focused interfaces
+	// Set focused interfaces so evaluator can delegate to interpreter
 	interp.evaluatorInstance.SetFocusedInterfaces(interp, interp, interp, interp)
 
 	// Register built-in exception classes
@@ -225,7 +191,7 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 	env.Define("NaN", &FloatValue{Value: math.NaN()})
 	env.Define("Infinity", &FloatValue{Value: math.Inf(1)})
 
-	// Task 9.4.1: Register Variant special values
+	// Register Variant special values
 	env.Define("Null", NewNullValue())
 	env.Define("Unassigned", NewUnassignedValue())
 
@@ -240,8 +206,6 @@ func (i *Interpreter) GetException() *runtime.ExceptionValue {
 
 // SetSemanticInfo sets the semantic metadata table for this interpreter.
 // The semantic info contains type annotations and symbol resolutions from analysis.
-// SetSemanticInfo sets the semantic analysis metadata.
-// Task 3.3.4: Now only updates evaluator (Interpreter no longer stores this field).
 func (i *Interpreter) SetSemanticInfo(info *pkgast.SemanticInfo) {
 	if i.evaluatorInstance != nil {
 		i.evaluatorInstance.SetSemanticInfo(info)
@@ -253,10 +217,8 @@ func (i *Interpreter) GetEvaluator() *evaluator.Evaluator {
 	return i.evaluatorInstance
 }
 
-// EvalNode implements the evaluator.InterpreterAdapter interface.
-// This allows the Evaluator to delegate back to the Interpreter during migration.
-// Phase 3.5.1: This is temporary and will be removed once all evaluation logic
-// is moved to the Evaluator.
+// EvalNode implements the evaluator.CoreEvaluator interface.
+// Allows Evaluator to delegate back to Interpreter for OOP operations.
 func (i *Interpreter) EvalNode(node ast.Node) evaluator.Value {
 	// Delegate to the legacy Eval method
 	// The cast is safe because our Value type matches evaluator.Value interface
@@ -272,36 +234,21 @@ func (i *Interpreter) GetCallStack() errors.StackTrace {
 	return stack
 }
 
-// ===== Environment Management Helpers (Phase 3.8.1: Task 3.8.1.2) =====
+// ===== Environment Management Helpers =====
 
 // Env returns the current environment from the ExecutionContext.
-// Phase 3.1.5: This is the canonical way to access the environment.
-// All code should use i.Env() instead of i.env.
 func (i *Interpreter) Env() *Environment {
 	return i.ctx.Env()
 }
 
 // SetEnvironment switches the ExecutionContext to use a different environment.
-// This is used for cases like lambda closure evaluation where we need to
-// switch to a captured environment, evaluate, then switch back.
-//
-// Note: For scope pushing (creating new enclosed scopes), use PushScope() instead.
-// SetEnvironment is specifically for environment switching, not scope management.
-//
-// Phase 3.1.5: Only updates ctx.env - i.env field is removed.
+// Used for lambda closure evaluation and environment switching.
 func (i *Interpreter) SetEnvironment(env *Environment) {
 	i.ctx.SetEnv(env)
 }
 
-// PushEnvironment creates a new enclosed environment with the given parent environment,
-// then updates the ExecutionContext to use the new environment.
-// Returns the new environment.
-//
-// Note: For most scope management, prefer PushScope() which uses defer for cleanup.
-// PushEnvironment is retained for special cases like closure evaluation where
-// the parent environment is not necessarily the current environment.
-//
-// Phase 3.1.5: Only updates ctx.env - i.env field is removed.
+// PushEnvironment creates a new enclosed environment with the given parent,
+// then updates the ExecutionContext to use it. Returns the new environment.
 func (i *Interpreter) PushEnvironment(parent *Environment) *Environment {
 	newEnv := NewEnclosedEnvironment(parent)
 	i.SetEnvironment(newEnv)
@@ -309,25 +256,18 @@ func (i *Interpreter) PushEnvironment(parent *Environment) *Environment {
 }
 
 // RestoreEnvironment restores a previously saved environment to the ExecutionContext.
-// This is used to exit scopes after PushEnvironment.
-//
-// Phase 3.1.5: Only updates ctx.env - i.env field is removed.
 func (i *Interpreter) RestoreEnvironment(saved *Environment) {
 	i.SetEnvironment(saved)
 }
 
 // PushScope creates a new enclosed environment scope using the context's stack.
 // Returns a cleanup function that should be deferred to restore the previous scope.
-// This replaces the manual savedEnv/PushEnvironment/RestoreEnvironment pattern.
 //
 // Usage:
 //
 //	defer i.PushScope()()
 //	i.Env().Define("x", value)
 //	result := i.Eval(body)
-//
-// Phase 3.1.4: Unified scope management
-// Phase 3.1.5: No i.env field - uses ctx.Env() exclusively.
 func (i *Interpreter) PushScope() func() {
 	i.ctx.PushEnv()
 	return func() {
@@ -336,30 +276,22 @@ func (i *Interpreter) PushScope() func() {
 }
 
 // pushCallStack adds a new frame to the call stack with the given function name.
-// The position is taken from the current node being evaluated.
-// Phase 3.3.3: Delegates to ExecutionContext's CallStack.
 func (i *Interpreter) pushCallStack(functionName string) {
 	var pos *lexer.Position
 	if i.evaluatorInstance.CurrentNode() != nil {
 		nodePos := i.evaluatorInstance.CurrentNode().Pos()
 		pos = &nodePos
 	}
-	// Also push to the old callStack field for backward compatibility
 	frame := errors.NewStackFrame(functionName, i.evaluatorInstance.SourceFile(), pos)
 	i.callStack = append(i.callStack, frame)
-
-	// Phase 3.3.3: Also push to context's CallStack
-	// Ignore errors here for backward compatibility; callers should check WillOverflow first
 	_ = i.ctx.GetCallStack().Push(functionName, i.evaluatorInstance.SourceFile(), pos)
 }
 
 // popCallStack removes the most recent frame from the call stack.
-// Phase 3.3.3: Delegates to ExecutionContext's CallStack.
 func (i *Interpreter) popCallStack() {
 	if len(i.callStack) > 0 {
 		i.callStack = i.callStack[:len(i.callStack)-1]
 	}
-	// Phase 3.3.3: Also pop from context's CallStack
 	i.ctx.GetCallStack().Pop()
 }
 
@@ -375,9 +307,8 @@ func (i *Interpreter) evalViaEvaluator(node ast.Node) Value {
 }
 
 // Eval evaluates an AST node and returns its value.
-// This is the main entry point for the interpreter.
+// Main entry point for the interpreter.
 func (i *Interpreter) Eval(node ast.Node) Value {
-	// Track the current node for error reporting (Task 3.3.4: now in evaluator)
 	i.evaluatorInstance.SetCurrentNode(node)
 
 	switch node := node.(type) {
@@ -393,8 +324,8 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		// Evaluate the expression
 		val := i.Eval(node.Expression)
 		if isError(val) {
-			// Enrich error with statement location to mimic DWScript call stack output
-			// Task 3.8.3.0i: Prevent duplicate stack traces for the same source line
+			// Enrich error with statement location
+			// Prevent duplicate stack traces for the same source line
 			if errVal, ok := val.(*ErrorValue); ok {
 				exprPos := node.Expression.Pos()
 				// Check for both "line N" and "[line: N," formats to handle all cases
@@ -409,9 +340,7 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 			return val
 		}
 
-		// Auto-invoke parameterless function pointers stored in variables
-		// In DWScript, when a variable holds a function pointer with no parameters
-		// and is used as a statement, it's automatically invoked
+		// Auto-invoke parameterless function pointers in statements
 		// Example: var fp := @SomeProc; fp; // auto-invokes SomeProc
 		if funcPtr, isFuncPtr := val.(*FunctionPointerValue); isFuncPtr {
 			// Determine parameter count

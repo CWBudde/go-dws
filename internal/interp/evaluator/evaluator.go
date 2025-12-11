@@ -100,18 +100,14 @@ type ClassMetaValue interface {
 	// Returns (value, true) if class property exists, (nil, false) otherwise.
 	ReadClassProperty(name string, executor func(propInfo any) Value) (Value, bool)
 	// GetClassInfo returns the underlying class info for adapter calls.
-	// Task 3.2.10: Used for class property read adapter.
 	GetClassInfo() any
 	// SetClassVar sets a class variable by name in the hierarchy.
-	// Task 3.2.11a: Added for static class variable assignment.
 	// Returns true if variable exists and was set, false if not found.
 	SetClassVar(name string, value Value) bool
 	// WriteClassProperty writes to a class property using the executor callback.
-	// Task 3.2.11a: Added for static class property assignment.
 	// Returns (value, true) if class property exists and is writable, (nil, false) otherwise.
 	WriteClassProperty(name string, value Value, executor func(propInfo any, value Value) Value) (Value, bool)
 	// HasClassVar checks if a class variable exists in the hierarchy.
-	// Task 3.2.11a: Added for static class variable assignment validation.
 	HasClassVar(name string) bool
 }
 
@@ -234,10 +230,10 @@ type Evaluator struct {
 	output            io.Writer
 	externalFunctions ExternalFunctionRegistry
 	currentNode       ast.Node
-	oopEngine         OOPEngine        // Task 3.4.3: Runtime OOP operations (20 methods)
-	declHandler       DeclHandler      // Task 3.4.4: Declaration processing (38 methods)
-	exceptionMgr      ExceptionManager // Task 3.4.5: Exception handling (6 methods)
-	coreEvaluator     CoreEvaluator    // Task 3.4.5: Cross-cutting concerns (4 methods)
+	oopEngine         OOPEngine        // Runtime OOP operations
+	declHandler       DeclHandler      // Declaration processing
+	exceptionMgr      ExceptionManager // Exception handling
+	coreEvaluator     CoreEvaluator    // Cross-cutting concerns
 	refCountMgr       runtime.RefCountManager
 	config            *Config
 	rand              *rand.Rand
@@ -405,15 +401,9 @@ func (e *Evaluator) SetCurrentNode(node ast.Node) {
 	e.currentNode = node
 }
 
-// SetFocusedInterfaces sets the focused interfaces for the evaluator.
-// Task 3.4.3-3.4.5: Replaces monolithic InterpreterAdapter with 4 focused interfaces.
-//
-// This method should be called during evaluator initialization, typically passing
-// the same interpreter instance for all four interfaces:
-//
-//	evaluator.SetFocusedInterfaces(interpreter, interpreter, interpreter, interpreter)
-//
-// The interfaces can also be set independently for testing or custom implementations.
+// SetFocusedInterfaces sets the four focused interfaces for the evaluator.
+// Typically passes the same interpreter instance for all four interfaces.
+// Can be set independently for testing or custom implementations.
 func (e *Evaluator) SetFocusedInterfaces(
 	oopEngine OOPEngine,
 	declHandler DeclHandler,

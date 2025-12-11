@@ -585,6 +585,204 @@ Evaluator → OOPEngine.CallMethod() → Interpreter.CallMethod() → back to Ev
 
 ---
 
+## Phase 5: Interpreter Technical Debt Cleanup
+
+**Status**: 📋 Planned | **Priority**: Medium | **Estimated**: 2-3 weeks
+
+**Goal**: Address accumulated TODOs and technical debt in `internal/interp/...` discovered during Phase 3 work.
+
+**Why This Matters**: These TODOs represent incomplete features, workarounds, and architectural shortcuts that may cause test failures or unexpected behavior. Addressing them incrementally prevents debt accumulation.
+
+---
+
+### 5.1 Circular Import Workarounds
+
+**Goal**: Resolve circular import issues that forced workarounds in the type system.
+
+**Status**: 📋 Planned | **Effort**: 3-4 days | **Risk**: Medium
+
+**Current Issues**:
+
+- `evaluator/type_helpers.go:135-151`: Cannot extract record/enum/set types due to circular imports
+- `runtime/metadata_conversion.go:285`: Cannot import `pkg/ident` without circular dependencies
+
+**Tasks**:
+
+- [ ] **5.1.1** Audit import graph for `internal/interp` packages (2h)
+  - Map dependencies between interp, evaluator, runtime, types packages
+  - Identify specific cycles causing the workarounds
+
+- [ ] **5.1.2** Resolve type_helpers.go circular imports (4h)
+  - Move type extraction to appropriate package
+  - Or introduce interface to break cycle
+
+- [ ] **5.1.3** Resolve metadata_conversion.go ident import (2h)
+  - Either move ident usage or restructure dependencies
+
+- [ ] **5.1.4** Verify no new circular imports introduced (1h)
+
+---
+
+### 5.2 Incomplete Migration Tasks
+
+**Goal**: Complete Phase 3 migration leftovers.
+
+**Status**: 📋 Planned | **Effort**: 2-3 days | **Risk**: Low
+
+**Current Issues**:
+
+- `evaluator/visitor_expressions_functions.go:388`: External function handling not fully in evaluator
+- `runtime/class_interface.go:176`: Legacy `IInterfaceInfo` alias still exists
+- `class.go:310`: Method lookup returns AST instead of callable
+
+**Tasks**:
+
+- [ ] **5.2.1** Complete external function migration to evaluator (4h)
+  - Move remaining external function handling from interpreter
+  - Update `visitor_expressions_functions.go`
+
+- [ ] **5.2.2** Remove IInterfaceInfo type alias (2h)
+  - Update all usages to use the canonical type
+  - Delete the alias
+
+- [ ] **5.2.3** Evaluate method lookup return type (2h)
+  - Determine if returning callable vs AST is feasible
+  - Document decision or implement change
+
+---
+
+### 5.3 Feature Implementation Gaps
+
+**Goal**: Complete partially implemented features causing test failures.
+
+**Status**: 📋 Planned | **Effort**: 1 week | **Risk**: Medium
+
+**Current Issues**:
+
+- `operators.go:119`: `is` operator missing full inheritance checking
+- `enum.go:41`: Enum constant expression evaluation lacks type coercion
+- `evaluator/visitor_expressions_types.go:220`: Interface `is` checks missing inheritance
+- `evaluator/visitor_declarations.go:125`: Record declarations missing constants, fields, nested types
+- `class_var_init_test.go:55`: Class constant expressions not supported
+
+**Tasks**:
+
+- [ ] **5.3.1** Implement full inheritance checking for `is` operator (4h)
+  - `operators.go:119`
+  - Check full class hierarchy, not just direct parent
+
+- [ ] **5.3.2** Implement interface inheritance for `is` checks (3h)
+  - `evaluator/visitor_expressions_types.go:220`
+  - Walk interface parent chain
+
+- [ ] **5.3.3** Add type coercion to enum constant evaluation (3h)
+  - `enum.go:41`
+  - Handle integer-to-enum coercion in constant expressions
+
+- [ ] **5.3.4** Complete record declaration handling (4h)
+  - `evaluator/visitor_declarations.go:125`
+  - Add constants, fields, nested types support
+
+- [ ] **5.3.5** Support class constant expressions in field initializers (4h)
+  - `class_var_init_test.go:55`
+  - Allow `ClassName.ConstantName` in initializers
+
+---
+
+### 5.4 Var Parameter and Reference Handling
+
+**Goal**: Fix incomplete var/by-ref parameter support in records.
+
+**Status**: 📋 Planned | **Effort**: 2-3 days | **Risk**: Medium
+
+**Current Issues**:
+
+- `functions_records.go:151`: By-ref parameters not properly implemented
+- `functions_records.go:240`: Copy-back semantics incomplete
+
+**Tasks**:
+
+- [ ] **5.4.1** Implement proper by-ref support for record parameters (6h)
+  - Create reference wrapper for record fields
+  - Ensure mutations propagate correctly
+
+- [ ] **5.4.2** Implement copy-back semantics for var parameters (4h)
+  - Track original locations
+  - Copy modified values back after call
+
+- [ ] **5.4.3** Add tests for record var parameters (2h)
+
+---
+
+### 5.5 Unit Symbol Table Enhancement
+
+**Goal**: Improve unit isolation and symbol resolution.
+
+**Status**: 📋 Planned | **Effort**: 2-3 days | **Risk**: Low
+
+**Current Issues**:
+- `unit_loader.go:335`: Units don't maintain their own symbol tables
+- `unit_loader.go:340`: Function-to-unit mapping not verified
+
+**Tasks**:
+
+- [ ] **5.5.1** Design per-unit symbol table structure (2h)
+  - Each unit owns its symbols
+  - Cross-unit references resolved through imports
+
+- [ ] **5.5.2** Implement unit-scoped symbol tables (6h)
+  - Modify UnitLoader to create isolated tables
+  - Update function resolution to check unit ownership
+
+- [ ] **5.5.3** Add verification for function-to-unit mapping (2h)
+
+---
+
+### 5.6 Miscellaneous Cleanup
+
+**Goal**: Address remaining small TODOs.
+
+**Status**: 📋 Planned | **Effort**: 1-2 days | **Risk**: Low
+
+**Tasks**:
+
+- [ ] **5.6.1** Fix JSON nil handling (2h)
+  - `evaluator/json_helpers.go:182`
+  - Return proper null/nil JSON value
+
+- [ ] **5.6.2** Implement static array helper fallback (2h)
+  - `evaluator/helper_methods.go:67`
+  - Try dynamic array equivalent for static arrays
+
+- [ ] **5.6.3** Complete function pointer type construction (2h)
+  - `helpers_conversion.go:102`
+  - Build proper type metadata for function pointers
+
+- [ ] **5.6.4** Review and update expressions_basic.go:227 (2h)
+  - Determine if "simplified implementation" is sufficient
+  - Document or complete as needed
+
+---
+
+### Phase 5 Effort Summary
+
+| Task | Effort | Priority |
+|------|--------|----------|
+| 5.1 Circular Import Workarounds | 3-4 days | High |
+| 5.2 Incomplete Migration | 2-3 days | Medium |
+| 5.3 Feature Implementation Gaps | 1 week | High |
+| 5.4 Var Parameter Handling | 2-3 days | Medium |
+| 5.5 Unit Symbol Tables | 2-3 days | Low |
+| 5.6 Miscellaneous Cleanup | 1-2 days | Low |
+
+**Total Estimated Effort**: 2-3 weeks
+
+**Recommended Order**: 5.1 → 5.3 → 5.2 → 5.4 → 5.6 → 5.5
+
+**Note**: These tasks can be done incrementally alongside other work. Prioritize 5.1 and 5.3 as they likely impact fixture test pass rates.
+
+---
+
 ## Task 6.1.2: Implement Multi-Pass Analysis Architecture 🎯 **HIGH PRIORITY**
 
 **Goal**: Restructure semantic analysis into explicit passes with clear dependencies, replacing the current single-pass approach that requires complex fix-ups.

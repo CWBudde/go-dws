@@ -11,12 +11,8 @@ import (
 // Interface Runtime Metadata
 // ============================================================================
 
-// InterfaceInfo represents runtime interface metadata.
-// It stores information about an interface's structure including methods,
-// parent interface, and external binding information.
-//
-// Task 3.5.20: Now implements runtime.IInterfaceInfo interface to allow
-// InterfaceInstance (in runtime package) to reference it without circular imports.
+// InterfaceInfo represents runtime interface metadata: methods, parent interface,
+// and properties. Implements runtime.IInterfaceInfo to avoid circular imports.
 type InterfaceInfo struct {
 	Parent     *InterfaceInfo
 	Methods    map[string]*ast.FunctionDecl
@@ -39,13 +35,11 @@ func NewInterfaceInfo(name string) *InterfaceInfo {
 }
 
 // GetName returns the interface name.
-// Task 3.5.20: Implements runtime.IInterfaceInfo interface.
 func (ii *InterfaceInfo) GetName() string {
 	return ii.Name
 }
 
 // GetParent returns the parent interface, or nil if this is a root interface.
-// Task 3.5.20: Implements runtime.IInterfaceInfo interface.
 func (ii *InterfaceInfo) GetParent() runtime.IInterfaceInfo {
 	if ii.Parent == nil {
 		return nil
@@ -53,11 +47,8 @@ func (ii *InterfaceInfo) GetParent() runtime.IInterfaceInfo {
 	return ii.Parent
 }
 
-// GetMethod looks up a method by name in this interface.
-// It searches the interface hierarchy, starting with this interface
-// and walking up through parent interfaces until the method is found.
-// Returns nil if the method is not found in the interface hierarchy.
-// Task 3.5.20: Returns any (instead of *ast.FunctionDecl) to implement IInterfaceInfo.
+// GetMethod looks up a method by name, searching the interface hierarchy.
+// Returns nil if the method is not found.
 func (ii *InterfaceInfo) GetMethod(name string) any {
 	normalizedName := ident.Normalize(name)
 
@@ -80,9 +71,7 @@ func (ii *InterfaceInfo) HasMethod(name string) bool {
 	return ii.GetMethod(name) != nil
 }
 
-// GetProperty looks up a property by name in this interface (case-insensitive).
-// It searches the interface hierarchy until found.
-// Task 3.5.20: Returns *runtime.PropertyInfo (wrapper) to implement IInterfaceInfo.
+// GetProperty looks up a property by name, searching the interface hierarchy.
 func (ii *InterfaceInfo) GetProperty(name string) *runtime.PropertyInfo {
 	normalized := ident.Normalize(name)
 
@@ -110,8 +99,7 @@ func (ii *InterfaceInfo) HasProperty(name string) bool {
 	return ii.GetProperty(name) != nil
 }
 
-// GetDefaultProperty returns the default property defined on the interface hierarchy, if any.
-// Task 3.5.20: Renamed from getDefaultProperty and returns *runtime.PropertyInfo to implement IInterfaceInfo.
+// GetDefaultProperty returns the default property from the interface hierarchy, if any.
 func (ii *InterfaceInfo) GetDefaultProperty() *runtime.PropertyInfo {
 	for _, prop := range ii.AllProperties() {
 		if prop.IsDefault {
@@ -121,9 +109,7 @@ func (ii *InterfaceInfo) GetDefaultProperty() *runtime.PropertyInfo {
 	return nil
 }
 
-// AllMethods returns all methods in this interface, including inherited methods.
-// Returns a new map containing all methods from this interface and its parents.
-// Task 3.5.20: Returns map[string]any (instead of map[string]*ast.FunctionDecl) to implement IInterfaceInfo.
+// AllMethods returns all methods including inherited ones from parent interfaces.
 func (ii *InterfaceInfo) AllMethods() map[string]any {
 	result := make(map[string]any)
 
@@ -162,8 +148,7 @@ func (ii *InterfaceInfo) allMethodsDecl() map[string]*ast.FunctionDecl {
 	return result
 }
 
-// AllProperties returns all properties declared on this interface and its parents.
-// Task 3.5.20: Returns map[string]*runtime.PropertyInfo to implement IInterfaceInfo.
+// AllProperties returns all properties from this interface and its parents.
 func (ii *InterfaceInfo) AllProperties() map[string]*runtime.PropertyInfo {
 	result := make(map[string]*runtime.PropertyInfo)
 
@@ -193,17 +178,12 @@ func (ii *InterfaceInfo) AllProperties() map[string]*runtime.PropertyInfo {
 // ============================================================================
 
 // InterfaceInstance represents a runtime instance of an interface.
-// Task 3.5.20: Moved to runtime.InterfaceInstance for bridge constructor elimination.
-// Type alias provided for backward compatibility during migration.
 type InterfaceInstance = runtime.InterfaceInstance
 
 // NewInterfaceInstance creates a new interface instance wrapping an object.
-// Task 3.5.20: Function alias for backward compatibility.
 var NewInterfaceInstance = runtime.NewInterfaceInstance
 
-// ImplementsInterface checks if the underlying object's class implements all methods
-// of the given interface. This is used for runtime type checking.
-// Task 3.5.20: Kept in interp package as it needs ClassInfo access.
+// ImplementsInterface checks if the object's class implements all methods of the interface.
 func ImplementsInterface(ii *InterfaceInstance, iface *InterfaceInfo) bool {
 	if ii.Object == nil {
 		return false // nil doesn't implement any interface
@@ -219,11 +199,7 @@ func ImplementsInterface(ii *InterfaceInstance, iface *InterfaceInfo) bool {
 // Helper Functions
 // ============================================================================
 
-// classImplementsInterface checks if a class explicitly declares that it implements an interface.
-// In DWScript, a class must explicitly declare interface implementation in its class declaration.
-// This function checks the class's Interfaces list and recursively checks parent classes in the
-// class hierarchy, since interface implementations are inherited from parent classes to child classes.
-// Returns true if the class or any of its parents explicitly declares implementation of the interface.
+// classImplementsInterface checks if a class (or its parents) explicitly declares the interface.
 func classImplementsInterface(class *ClassInfo, iface *InterfaceInfo) bool {
 	// Defensive check: nil class doesn't implement any interface
 	if class == nil {
@@ -286,10 +262,7 @@ func interfaceInheritsFrom(sourceIface *InterfaceInfo, targetIface *InterfaceInf
 
 // interfaceIsCompatible checks if one interface is compatible with another.
 // An interface is compatible if it implements all methods of the target interface.
-// This is used for interface-to-interface casting.
 func interfaceIsCompatible(source *InterfaceInfo, target *InterfaceInfo) bool {
-	// Get all methods required by the target interface
-	// Task 3.5.20: Use allMethodsDecl() to get concrete types for iteration
 	targetMethods := target.allMethodsDecl()
 
 	// Check that the source interface has each required method
@@ -322,11 +295,8 @@ func (i *Interpreter) runDestructor(obj *ObjectInstance, destructor *ast.Functio
 		destructor = obj.Class.LookupMethod("Destroy")
 	}
 
-	// If no destructor is defined, just mark destroyed
 	if destructor == nil {
 		obj.Destroyed = true
-		// Task 3.5.42: Reset to 0 after destruction - this is a finalization step, not ref counting.
-		// Do NOT use RefCountManager here - we're cleaning up a destroyed object.
 		obj.RefCount = 0
 		return &NilValue{}
 	}
@@ -336,14 +306,11 @@ func (i *Interpreter) runDestructor(obj *ObjectInstance, destructor *ast.Functio
 		obj.DestroyCallDepth--
 		if obj.DestroyCallDepth == 0 {
 			obj.Destroyed = true
-			// Task 3.5.42: Reset to 0 after destruction - this is a finalization step, not ref counting.
-			// Do NOT use RefCountManager here - we're cleaning up a destroyed object.
 			obj.RefCount = 0
 		}
 	}()
 
 	// Create a temporary environment for the destructor call
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 
 	// Bind Self and class constants
@@ -367,12 +334,6 @@ func (i *Interpreter) runDestructor(obj *ObjectInstance, destructor *ast.Functio
 }
 
 // runDestructorForRefCount executes the destructor as a callback from RefCountManager.
-// Task 3.5.41: Wrapper for RefCountManager destructor callback pattern.
-// This method follows the destructor callback contract:
-// 1. Check if obj.Destroyed is true (skip if already destroyed)
-// 2. Mark obj.Destroyed = true BEFORE execution (prevent recursion)
-// 3. Execute the destructor method
-// 4. Reset obj.RefCount = 0 after completion
 func (i *Interpreter) runDestructorForRefCount(obj *ObjectInstance) error {
 	if obj == nil || obj.Destroyed {
 		return nil
@@ -393,48 +354,31 @@ func (i *Interpreter) runDestructorForRefCount(obj *ObjectInstance) error {
 	return nil
 }
 
-// callDestructorIfNeeded decrements the reference count of an object and calls its
-// destructor if the reference count reaches zero.
-// Task 9.1.5: Consolidates destructor logic to reduce code duplication.
-// Task 3.5.42: Migrated to use RefCountManager for consistent ref counting across all code paths.
+// callDestructorIfNeeded calls the destructor if the reference count reaches zero.
 func (i *Interpreter) callDestructorIfNeeded(obj *ObjectInstance) {
 	if obj == nil || obj.Destroyed {
 		return
 	}
 
-	// If we're already inside this object's destructor (eg, destructor clears a
-	// global reference pointing back to itself), skip to avoid infinite recursion.
 	if obj.DestroyCallDepth > 0 {
-		return
+		return // Prevent recursion if destructor clears a reference to itself
 	}
 
-	// Task 3.5.42: Use RefCountManager for proper ref counting
-	// DecrementRef handles:
-	// - Decrementing the ref count
-	// - Clamping negative values to 0
-	// - Invoking destructor when ref count reaches 0
 	i.evaluatorInstance.RefCountManager().DecrementRef(obj)
 }
 
-// ReleaseInterfaceReference decrements the reference count of the object wrapped by
-// an interface instance and calls the destructor if the reference count reaches zero.
-// Task 9.1.5: This implements automatic lifetime management for interface-held objects.
-// Returns the destructor result value (or nil) and any error from destructor execution.
+// ReleaseInterfaceReference decrements the reference count and calls the destructor if needed.
 func (i *Interpreter) ReleaseInterfaceReference(intfInst *InterfaceInstance) Value {
 	if intfInst == nil || intfInst.Object == nil {
 		return &NilValue{}
 	}
 
-	// Use the consolidated helper method
 	i.callDestructorIfNeeded(intfInst.Object)
 
 	return &NilValue{}
 }
 
-// cleanupInterfaceReferences iterates through all variables in an environment
-// and releases any interface references AND object references.
-// This is called when a scope ends (e.g., function returns).
-// Task 9.1.5: This implements automatic cleanup of interface-held and object-held references when scope ends.
+// cleanupInterfaceReferences releases all interface and object references when a scope ends.
 func (i *Interpreter) cleanupInterfaceReferences(env *Environment) {
 	if env == nil {
 		return
@@ -469,16 +413,7 @@ func (i *Interpreter) cleanupInterfaceReferences(env *Environment) {
 // ============================================================================
 
 // registerBuiltinInterfaces registers the IInterface base interface.
-// IInterface is the root interface type in DWScript, similar to how TObject is the root class.
-// Note: Interfaces do NOT automatically inherit from IInterface unless explicitly declared.
-// Classes that want to be castable to IInterface must explicitly list it in their interface declarations.
 func (i *Interpreter) registerBuiltinInterfaces() {
-	// Register IInterface as the root interface available for explicit implementation
-	// IInterface is an empty interface with no methods, serving as a marker interface
-	// Classes implementing any interface should typically also explicitly declare IInterface
 	iinterface := NewInterfaceInfo("IInterface")
-	iinterface.Parent = nil // Root of the interface hierarchy
-
-	// Register only in TypeSystem (legacy map removed)
 	i.typeSystem.RegisterInterface("IInterface", iinterface)
 }

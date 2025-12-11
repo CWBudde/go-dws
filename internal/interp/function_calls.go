@@ -18,7 +18,7 @@ func convertEvaluatorArgs(args []evaluator.Value) []Value {
 }
 
 // CallFunctionPointer executes a function pointer with given arguments.
-// DEPRECATED: Task 3.5.121 - Use FunctionPointerCallable.Invoke + ExecuteFunctionPointerCall instead.
+// DEPRECATED: Use FunctionPointerCallable.Invoke + ExecuteFunctionPointerCall instead.
 func (i *Interpreter) CallFunctionPointer(funcPtr evaluator.Value, args []evaluator.Value, node ast.Node) evaluator.Value {
 	// Convert evaluator.Value to interp.Value (they're the same interface)
 	fp, ok := funcPtr.(*FunctionPointerValue)
@@ -30,8 +30,8 @@ func (i *Interpreter) CallFunctionPointer(funcPtr evaluator.Value, args []evalua
 }
 
 // ExecuteFunctionPointerCall executes a function pointer with the given metadata.
-// Task 3.5.121: Low-level execution method used by FunctionPointerCallable.Invoke callback.
-// This handles the interpreter-dependent parts of function pointer invocation.
+// Low-level execution method used by FunctionPointerCallable.Invoke callback.
+// Handles the interpreter-dependent parts of function pointer invocation.
 func (i *Interpreter) ExecuteFunctionPointerCall(metadata evaluator.FunctionPointerMetadata, args []evaluator.Value, node ast.Node) evaluator.Value {
 	interpArgs := convertEvaluatorArgs(args)
 
@@ -56,7 +56,7 @@ func (i *Interpreter) ExecuteFunctionPointerCall(metadata evaluator.FunctionPoin
 		return i.newErrorWithLocation(node, "invalid function type in function pointer metadata")
 	}
 
-	// Task 3.5.1b: Use ExecuteUserFunction instead of callUserFunction
+	// Use ExecuteUserFunction instead of callUserFunction
 	callbacks := i.createUserFunctionCallbacks()
 
 	// If this is a method pointer, set up Self binding in a wrapper environment
@@ -69,7 +69,7 @@ func (i *Interpreter) ExecuteFunctionPointerCall(metadata evaluator.FunctionPoin
 		// Bind Self to the captured object
 		i.Env().Define("Self", metadata.SelfObject)
 
-		// Task 3.5.22d: Sync i.ctx.Env() with i.Env() before calling ExecuteUserFunction.
+		// Sync i.ctx.Env() with i.Env() before calling ExecuteUserFunction.
 		// ExecuteUserFunction creates its function environment from ctx.Env(), so we need
 		// ctx.Env() to see the Self binding we just set up in i.Env().
 		// Note: PushScope already synced i.ctx.env, but we save it here for clarity
@@ -100,18 +100,18 @@ func (i *Interpreter) CallUserFunction(fn *ast.FunctionDecl, args []evaluator.Va
 	return i.executeUserFunctionViaEvaluator(fn, convertEvaluatorArgs(args))
 }
 
-// Task 3.5.143y: CallBuiltinFunction REMOVED
+// CallBuiltinFunction REMOVED
 // The evaluator now implements builtins.Context and calls builtins directly
 // via builtins.DefaultRegistry.Lookup() instead of using this adapter method.
 // See visitor_expressions_functions.go:331 and visitor_expressions_identifiers.go:195
 
-// Task 3.5.25: LookupFunction REMOVED - zero callers in evaluator package
+// LookupFunction REMOVED - zero callers in evaluator package
 // Evaluator now uses FunctionRegistry.Resolve() for function lookup
 
-// ===== Task 3.5.97: User Function Call Methods =====
+// ===== User Function Call Methods =====
 
 // CallImplicitSelfMethod calls a method on the implicit Self object.
-// Task 3.5.97b: Enables evaluator to call implicit Self methods without using EvalNode.
+// Enables evaluator to call implicit Self methods without using EvalNode.
 func (i *Interpreter) CallImplicitSelfMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) evaluator.Value {
 	// This method encapsulates the logic from evalCallExpression lines 267-291
 
@@ -176,7 +176,7 @@ func (i *Interpreter) CallImplicitSelfMethod(callExpr *ast.CallExpression, funcN
 }
 
 // CallRecordStaticMethod calls a static method within a record context.
-// Task 3.5.97c: Enables evaluator to call record static methods without using EvalNode.
+// Enables evaluator to call record static methods without using EvalNode.
 func (i *Interpreter) CallRecordStaticMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) evaluator.Value {
 	// This method encapsulates the logic from evalCallExpression lines 293+
 

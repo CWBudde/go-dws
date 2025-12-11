@@ -113,43 +113,37 @@ func unwrapVariantType(val Value) types.Type {
 	return types.VARIANT
 }
 
-// getArrayElementTypeFromValue extracts the element type from an ArrayValue.
-// Uses a type-safe interface check to avoid circular imports.
+// getArrayElementTypeFromValue extracts the ArrayType from an ArrayValue.
 func getArrayElementTypeFromValue(val Value) types.Type {
-	// Define a local interface that ArrayValue implements
-	// This avoids importing the ArrayValue type directly
-	type ArrayLike interface {
-		// ArrayValue has an ElementType field, but we can't access it directly
-		// For now, we'll just return nil and let type inference handle it
-		Type() string
+	if arrVal, ok := val.(*runtime.ArrayValue); ok && arrVal.ArrayType != nil {
+		return arrVal.ArrayType
 	}
-
-	// For now, we can't extract the element type without importing the ArrayValue type
-	// For type inference, we'll work with the array values directly
 	return nil
 }
 
 // getRecordTypeFromValue extracts the RecordType from a RecordValue.
-// For now, returns nil to avoid circular imports.
 func getRecordTypeFromValue(val Value) types.Type {
-	// TODO: Extract record type without circular import
-	// For now, return nil - this will be improved in future tasks
+	if recVal, ok := val.(*runtime.RecordValue); ok && recVal.RecordType != nil {
+		return recVal.RecordType
+	}
 	return nil
 }
 
-// getEnumTypeFromValue extracts the EnumType from an EnumValue.
-// For now, returns nil to avoid circular imports.
+// getEnumTypeFromValue extracts type info from an EnumValue.
+// Returns nil since EnumValue only stores the type name, not the full EnumType.
+// Full type lookup would require TypeSystem access.
 func getEnumTypeFromValue(val Value) types.Type {
-	// TODO: Extract enum type without circular import
-	// For now, return nil - this will be improved in future tasks
+	// EnumValue only has TypeName string, not *types.EnumType
+	// We can't look up the full type without TypeSystem access
+	// Return nil - callers should use TypeName for identification
 	return nil
 }
 
 // getSetTypeFromValue extracts the SetType from a SetValue.
-// For now, returns nil to avoid circular imports.
 func getSetTypeFromValue(val Value) types.Type {
-	// TODO: Extract set type without circular import
-	// For now, return nil - this will be improved in future tasks
+	if setVal, ok := val.(*runtime.SetValue); ok && setVal.SetType != nil {
+		return setVal.SetType
+	}
 	return nil
 }
 

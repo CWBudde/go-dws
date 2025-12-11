@@ -351,7 +351,6 @@ func (c *ClassInfoValue) HasConstructor(name string) bool {
 }
 
 // InvokeParameterlessClassMethod invokes a parameterless class method.
-// Task 3.2.10: Implements evaluator.ClassMetaValue interface.
 func (c *ClassInfoValue) InvokeParameterlessClassMethod(name string, executor func(methodDecl any) Value) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false
@@ -379,7 +378,6 @@ func (c *ClassInfoValue) InvokeParameterlessClassMethod(name string, executor fu
 }
 
 // CreateClassMethodPointer creates a function pointer for a class method with parameters.
-// Task 3.2.10: Implements evaluator.ClassMetaValue interface.
 func (c *ClassInfoValue) CreateClassMethodPointer(name string, creator func(methodDecl any) Value) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false
@@ -407,7 +405,6 @@ func (c *ClassInfoValue) CreateClassMethodPointer(name string, creator func(meth
 }
 
 // InvokeConstructor invokes a constructor.
-// Task 3.2.10: Implements evaluator.ClassMetaValue interface.
 func (c *ClassInfoValue) InvokeConstructor(name string, executor func(methodDecl any) Value) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false
@@ -431,7 +428,6 @@ func (c *ClassInfoValue) InvokeConstructor(name string, executor func(methodDecl
 }
 
 // GetNestedClass returns a nested class by name.
-// Task 3.2.10: Implements evaluator.ClassMetaValue interface.
 func (c *ClassInfoValue) GetNestedClass(name string) Value {
 	if c == nil || c.ClassInfo == nil {
 		return nil
@@ -444,7 +440,6 @@ func (c *ClassInfoValue) GetNestedClass(name string) Value {
 }
 
 // ReadClassProperty reads a class property value using the executor callback.
-// Task 3.2.10: Implements evaluator.ClassMetaValue interface.
 func (c *ClassInfoValue) ReadClassProperty(name string, executor func(propInfo any) Value) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false
@@ -458,7 +453,6 @@ func (c *ClassInfoValue) ReadClassProperty(name string, executor func(propInfo a
 }
 
 // GetClassInfo returns the underlying ClassInfo.
-// Task 3.2.10: Implements evaluator.ClassMetaValue interface.
 func (c *ClassInfoValue) GetClassInfo() any {
 	if c == nil {
 		return nil
@@ -467,7 +461,6 @@ func (c *ClassInfoValue) GetClassInfo() any {
 }
 
 // SetClassVar sets a class variable by name in the hierarchy.
-// Task 3.2.11a: Implements evaluator.ClassMetaValue interface.
 func (c *ClassInfoValue) SetClassVar(name string, value Value) bool {
 	if c == nil || c.ClassInfo == nil {
 		return false
@@ -476,7 +469,6 @@ func (c *ClassInfoValue) SetClassVar(name string, value Value) bool {
 }
 
 // HasClassVar checks if a class variable exists in the hierarchy.
-// Task 3.2.11a: Implements evaluator.ClassMetaValue interface.
 func (c *ClassInfoValue) HasClassVar(name string) bool {
 	if c == nil || c.ClassInfo == nil {
 		return false
@@ -485,7 +477,6 @@ func (c *ClassInfoValue) HasClassVar(name string) bool {
 }
 
 // WriteClassProperty writes to a class property using the executor callback.
-// Task 3.2.11a: Implements evaluator.ClassMetaValue interface.
 func (c *ClassInfoValue) WriteClassProperty(name string, value Value, executor func(propInfo any, value Value) Value) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false

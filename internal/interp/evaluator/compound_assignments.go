@@ -6,7 +6,7 @@ import (
 )
 
 // ============================================================================
-// Compound Assignment Helpers (Task 3.2.11j)
+// Compound Assignment Helpers
 // ============================================================================
 //
 // This file contains helpers for compound member and index assignments.

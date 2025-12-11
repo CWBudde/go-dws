@@ -34,7 +34,7 @@ func NewFunctionObject(name string, chunk *Chunk, arity int) *FunctionObject {
 }
 
 // NewFunctionObjectWithVarParams creates a new function object with var parameter info.
-// Task 1.3.7.6: Support for by-reference parameters.
+// Supports by-reference parameters for DWScript var parameters.
 func NewFunctionObjectWithVarParams(name string, chunk *Chunk, arity int, varParams []bool) *FunctionObject {
 	vp := make([]bool, arity)
 	copy(vp, varParams)
@@ -47,7 +47,6 @@ func NewFunctionObjectWithVarParams(name string, chunk *Chunk, arity int, varPar
 }
 
 // IsVarParam returns true if the parameter at the given index is a var parameter.
-// Task 1.3.7.6: Helper for checking var parameter status.
 func (fn *FunctionObject) IsVarParam(index int) bool {
 	if fn == nil || fn.VarParams == nil || index < 0 || index >= len(fn.VarParams) {
 		return false
@@ -98,7 +97,7 @@ var ValueTypeNames = [...]string{
 	ValueClosure:  "closure",
 	ValueBuiltin:  "builtin",
 	ValueVariant:  "variant",
-	ValueRef:      "ref", // Task 1.3.7.6
+	ValueRef:      "ref",
 }
 
 // String returns a string representation of the value type.
@@ -146,9 +145,8 @@ func ObjectValue(obj *ObjectInstance) Value {
 }
 
 // Reference represents a reference to a variable for var parameters.
-// Task 1.3.7.6: Used to implement by-reference parameter passing in bytecode VM.
-// The reference stores a pointer to a Value slot so modifications are visible
-// to the caller.
+// Implements by-reference parameter passing - stores a pointer to a Value slot
+// so modifications are visible to the caller.
 type Reference struct {
 	// Location points to the actual Value slot being referenced.
 	// When the referenced value is modified, changes are visible through this pointer.
@@ -156,13 +154,11 @@ type Reference struct {
 }
 
 // RefValue constructs a Value representing a reference.
-// Task 1.3.7.6: Used for var parameter passing.
 func RefValue(ref *Reference) Value {
 	return Value{Type: ValueRef, Data: ref}
 }
 
 // AsRef extracts the Reference from a Value, returning nil if not a reference.
-// Task 1.3.7.6: Helper for var parameter handling.
 func (v Value) AsRef() *Reference {
 	if v.Type == ValueRef {
 		if ref, ok := v.Data.(*Reference); ok {
@@ -173,7 +169,6 @@ func (v Value) AsRef() *Reference {
 }
 
 // Deref dereferences a reference, returning the pointed-to value.
-// Task 1.3.7.6: Helper for var parameter reading.
 func (r *Reference) Deref() Value {
 	if r == nil || r.Location == nil {
 		return NilValue()
@@ -182,7 +177,6 @@ func (r *Reference) Deref() Value {
 }
 
 // Assign stores a value through the reference.
-// Task 1.3.7.6: Helper for var parameter writing.
 func (r *Reference) Assign(val Value) {
 	if r != nil && r.Location != nil {
 		*r.Location = val

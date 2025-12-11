@@ -3,6 +3,7 @@ package runtime
 import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // MethodMetadataFromAST converts an AST function declaration to MethodMetadata.
